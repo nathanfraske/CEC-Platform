@@ -878,9 +878,9 @@ The flip side: if the 24-pin module changes one of the shared primitives, the EP
 The Lonely Binary N16R8 board exposes two USB-C ports. EPS firmware uses both:
 
 - **JTAG USB-C** (ESP32-S3 native USB Serial-JTAG): CLI input, ESP_LOG output, command responses, boot banners. Default IDF console.
-- **UART USB-C** (CH340K bridge to UART0 on GPIO 43/44, 2 Mbps): every TelePlot line — steady-state 10 Hz telemetry and burst dumps both go here. `cec_telemetry_init_uart()` installs the UART driver and `teleplot_*` helpers + `dump_burst` route through `uart_write_bytes` from then on.
+- **UART USB-C** (CH340K bridge to UART0 on GPIO 43/44, 921600 baud): every TelePlot line — steady-state 10 Hz telemetry and burst dumps both go here. `cec_telemetry_init_uart()` installs the UART driver and `teleplot_*` helpers + `dump_burst` route through `uart_write_bytes` from then on.
 
-This keeps the heavy traffic (~600 KB per burst at full fidelity) off the same wire that's carrying CLI input — typing commands during a burst dump is responsive, and the 2 Mbps wire is roughly 4× faster than the USB Serial-JTAG path. If the UART init fails (cable not plugged in, etc.), the helpers fall back to stdio so TelePlot keeps working over the JTAG port at the slower rate.
+This keeps the heavy traffic (~600 KB per burst at full fidelity) off the same wire that's carrying CLI input — typing commands during a burst dump is responsive, and 921600 is the highest standard rate that CH340K + Windows hosts handle reliably without baud-divisor jitter (non-standard rates like 1500000 / 2000000 sometimes produce silent byte corruption depending on the host driver). Real-world wire speed here is ~92 KB/s, ~3× faster than USB Serial-JTAG on the same workload. If the UART init fails (cable not plugged in, etc.), the helpers fall back to stdio so TelePlot keeps working over the JTAG port at the slower rate.
 
 Practical setup: connect both USB-C ports to the host. Run `idf.py monitor` or your terminal of choice on the JTAG port for CLI + logs, and point TelePlot at the UART port for data visualization. Add this to the 24-pin TODO if/when its USB Serial-JTAG throughput becomes the bottleneck — the `cec_telemetry_init_uart` plumbing in EPS is the reference.
 

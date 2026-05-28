@@ -59,13 +59,19 @@ static cec_detection_ctx_t g_detect;
 // Telemetry transport - hybrid setup on the Lonely Binary N16R8 board.
 // UART USB-C (CH340K bridge) carries TelePlot output (steady telemetry
 // + burst dumps). JTAG USB-C carries CLI input / ESP_LOG / banners.
-// CH340K is comfortable at 2 Mbps; drop to 921600 if you swap to a
-// CP2102-class adapter.
+//
+// 921600 is the safe-everywhere standard rate that CH340K + Windows
+// handles without baud-divisor jitter. Non-standard rates (1500000,
+// 2000000) sometimes work and sometimes silently produce garbage
+// depending on the host driver; bump only after verifying TelePlot
+// output is clean at this rate first. Real-world throughput here is
+// ~92 KB/s, which is still ~3x faster than USB Serial-JTAG's
+// effective ceiling on the same workload.
 #define EPS_TELEMETRY_UART_PORT     0          // UART0
 #define EPS_TELEMETRY_UART_TX       43
 #define EPS_TELEMETRY_UART_RX       44
-#define EPS_TELEMETRY_UART_BAUD     2000000
-#define EPS_TELEMETRY_UART_TX_BUF   16384      // 16 KB ring buffers ~64 ms at 2 Mbps
+#define EPS_TELEMETRY_UART_BAUD     921600
+#define EPS_TELEMETRY_UART_TX_BUF   16384
 
 // ---- Timing ----
 #define SAMPLE_RATE_HZ   50
