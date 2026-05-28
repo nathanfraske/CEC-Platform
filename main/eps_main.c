@@ -333,6 +333,36 @@ static int cmd_set(int argc, char **argv)
     return 0;
 }
 
+static int cmd_can(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    int state = -1;
+    uint16_t tx_err = 0, rx_err = 0;
+    uint32_t tx_q = 0, bus_err = 0;
+    esp_err_t r = can_get_info(&state, &tx_err, &rx_err, &tx_q, &bus_err);
+    if (r != ESP_OK) {
+        printf("error: %s\n", esp_err_to_name(r));
+        return 1;
+    }
+    const char *state_name;
+    switch (state) {
+    case 0:  state_name = "ACTIVE  (normal)"; break;
+    case 1:  state_name = "WARNING (>96 errs)"; break;
+    case 2:  state_name = "PASSIVE (>127 errs)"; break;
+    case 3:  state_name = "BUS_OFF (>255 errs)"; break;
+    default: state_name = "?"; break;
+    }
+    printf("state       %s\n", state_name);
+    printf("tx_err      %u  (counter, decays on success)\n", (unsigned)tx_err);
+    printf("rx_err      %u  (counter, decays on success)\n", (unsigned)rx_err);
+    printf("tx_q_free   %u  (slots free in TX queue)\n", (unsigned)tx_q);
+    printf("bus_err_num %u  (cumulative since init)\n", (unsigned)bus_err);
+    printf("rx_count    %u  (cumulative frames received)\n", (unsigned)can_get_rx_count());
+    printf("bus_off_cnt %u  (cumulative bus-off events recovered)\n",
+           (unsigned)can_get_bus_off_count());
+    return 0;
+}
+
 static int cmd_burst(int argc, char **argv)
 {
     const char *text = (argc >= 2) ? argv[1] : "manual";
@@ -373,6 +403,7 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
     { "save",  "persist current config to NVS",                         cmd_save  },
     { "mode",  "set telemetry mode: 'mode raw' or 'mode filt'",         cmd_mode  },
     { "burst", "trigger a manual burst capture ('burst <annotation>')", cmd_burst },
+    { "can",   "print TWAI controller state + error counters",           cmd_can   },
 };
 #define CLI_COMMAND_COUNT (sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]))
 

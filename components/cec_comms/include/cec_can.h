@@ -51,4 +51,18 @@ esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
 // frames from other nodes.
 uint32_t can_get_rx_count(void);
 
+// Cumulative count of bus-off events since can_init. Each one was
+// auto-recovered by the on_state_change callback.
+uint32_t can_get_bus_off_count(void);
+
+// Snapshot the TWAI controller's current state + error counters and
+// cumulative bus-error count. Returns ESP_ERR_INVALID_STATE if
+// can_init hasn't run. Useful from a debug CLI when bus-off is
+// suspected and you want to see the actual error counts climbing.
+esp_err_t can_get_info(int *out_state,
+                       uint16_t *out_tx_err,
+                       uint16_t *out_rx_err,
+                       uint32_t *out_tx_queue_remaining,
+                       uint32_t *out_bus_err_num);
+
 void can_stop(void);

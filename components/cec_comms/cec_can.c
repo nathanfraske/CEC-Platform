@@ -154,6 +154,30 @@ uint32_t can_get_rx_count(void)
     return s_rx_count;
 }
 
+uint32_t can_get_bus_off_count(void)
+{
+    return s_bus_off_count;
+}
+
+esp_err_t can_get_info(int *out_state,
+                       uint16_t *out_tx_err,
+                       uint16_t *out_rx_err,
+                       uint32_t *out_tx_queue_remaining,
+                       uint32_t *out_bus_err_num)
+{
+    if (s_node == NULL) return ESP_ERR_INVALID_STATE;
+    twai_node_status_t status = {0};
+    twai_node_record_t record = {0};
+    esp_err_t ret = twai_node_get_info(s_node, &status, &record);
+    if (ret != ESP_OK) return ret;
+    if (out_state)               *out_state = (int)status.state;
+    if (out_tx_err)              *out_tx_err = status.tx_error_count;
+    if (out_rx_err)              *out_rx_err = status.rx_error_count;
+    if (out_tx_queue_remaining)  *out_tx_queue_remaining = status.tx_queue_remaining;
+    if (out_bus_err_num)         *out_bus_err_num = record.bus_err_num;
+    return ESP_OK;
+}
+
 static int16_t amps_to_ma_i16(float amps)
 {
     float ma = amps * 1000.0f;
@@ -262,5 +286,11 @@ esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
 void can_stop(void) { }
 
 uint32_t can_get_rx_count(void) { return 0; }
+uint32_t can_get_bus_off_count(void) { return 0; }
+esp_err_t can_get_info(int *a, uint16_t *b, uint16_t *c, uint32_t *d, uint32_t *e)
+{
+    (void)a; (void)b; (void)c; (void)d; (void)e;
+    return ESP_ERR_INVALID_STATE;
+}
 
 #endif /* CEC_CAN_ENABLED */
