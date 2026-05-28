@@ -267,13 +267,13 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
     for (size_t n = 0; n < pre_count; n++) {
         size_t idx = (pre_start + n) % s_pre_capacity;
         const cec_capture_sample_t *s = &s_pre_buf[idx];
-        printf(">b_eps1_a:%u:%.6f\n",       s->ts_ms, s->eps1_a);
-        printf(">b_eps2_a:%u:%.6f\n",       s->ts_ms, s->eps2_a);
-        printf(">b_eps1_raw_a:%u:%.6f\n",   s->ts_ms, s->eps1_raw_a);
-        printf(">b_eps2_raw_a:%u:%.6f\n",   s->ts_ms, s->eps2_raw_a);
-        printf(">b_temp_c:%u:%.6f\n",       s->ts_ms, s->temp_c);
-        printf(">b_load:%u:%u\n",           s->ts_ms, s->load_state);
-        printf(">b_flags:%u:%u\n",          s->ts_ms, s->flags);
+        printf(">b_eps1_a:%" PRIu32 ":%.6f\n",     s->ts_ms, s->eps1_a);
+        printf(">b_eps2_a:%" PRIu32 ":%.6f\n",     s->ts_ms, s->eps2_a);
+        printf(">b_eps1_raw_a:%" PRIu32 ":%.6f\n", s->ts_ms, s->eps1_raw_a);
+        printf(">b_eps2_raw_a:%" PRIu32 ":%.6f\n", s->ts_ms, s->eps2_raw_a);
+        printf(">b_temp_c:%" PRIu32 ":%.6f\n",     s->ts_ms, s->temp_c);
+        printf(">b_load:%" PRIu32 ":%u\n",         s->ts_ms, (unsigned)s->load_state);
+        printf(">b_flags:%" PRIu32 ":%u\n",        s->ts_ms, (unsigned)s->flags);
     }
 
     /* HS samples: timestamps are microseconds-since-capture-start. */
