@@ -14,7 +14,18 @@
 #include "esp_twai_onchip.h"
 #include "esp_log.h"
 
-#define CAN_BITRATE_BPS        500000
+/*
+ * Bus bitrate. 500 kbps is the production target (matches the 24-pin
+ * + Hub spec). For bench testing with the Waveshare SN65HVD230
+ * breakout - which has its Rs pin tied to GND via 10 kohm putting the
+ * transceiver in slope-control mode rather than high-speed mode - try
+ * 125000 instead. Slope-control's slewed edges trip the controller's
+ * bit-monitoring at 500 kbps and the node bus-offs every few seconds.
+ * 125 kbps gives the edges enough margin to land on the right bit.
+ * Switch back to 500 kbps once the bench transceiver is in high-speed
+ * mode (Rs to GND directly) or you're on the production transceiver.
+ */
+#define CAN_BITRATE_BPS        125000
 #define CAN_TX_QUEUE_DEPTH     8
 #define CAN_TX_TIMEOUT_MS      10
 
