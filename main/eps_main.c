@@ -9,6 +9,7 @@
 
 #include "cec_state.h"
 #include "cec_config.h"
+#include "cec_adc.h"
 #include "acs758.h"
 #include "ntc.h"
 #include "cec_filters.h"
@@ -23,7 +24,17 @@ static const char *TAG = "eps_main";
 static cec_state_t   g_state;
 static cec_config_t  g_config;
 static acs758_ctx_t  g_acs;
-static ntc_ctx_t     g_ntc;
+// NTC on GPIO 7 -> ADC1_CH6. 10K @ 25C, B=3950, 10K series pull-up to
+// 3V3 - matches the EPS daughterboard schematic.
+static ntc_t g_ntc = {
+    .channel              = ADC_CHANNEL_6,
+    .samples              = 8,
+    .beta                 = 3950.0f,
+    .nominal_resistance   = 10000.0f,
+    .nominal_temperature_k = 298.15f,
+    .pull_up_resistance   = 10000.0f,
+    .vcc                  = 3.3f,
+};
 // Two-stage filter per cable: median to reject impulse spikes, then EMA
 // to smooth. Median window size is per-module tunable; 5 is the EPS
 // starting point for the Hall sensor's ~50-100 mA RMS raw noise.
@@ -68,7 +79,8 @@ static void sample_task(void *arg)
         cec_load_state_t load_state = CEC_LOAD_IDLE;
         bool anomaly = detection_run(&g_detect, raw, filt, now_us, &flags, &load_state);
 
-        float temp = g_ntc.adc ? ntc_read_celsius(&g_ntc) : 0.0f;
+        float temp = 0.0f;
+        (void)ntc_read_celsius(&g_ntc, &temp);   // leaves temp at 0 on open/short
 
         // Update shared state
         if (xSemaphoreTake(g_state.mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
@@ -149,6 +161,9 @@ void app_main(void)
         abort();
     }
 
+    // ADC1 + curve-fit calibration, shared by every sensor driver.
+    ESP_ERROR_CHECK(cec_adc_init());
+
     // Sensors
     ESP_ERROR_CHECK(acs758_init(&g_acs));
     // Apply the measured supply voltage for ratiometric correction.
@@ -162,8 +177,7 @@ void app_main(void)
         }
     }
 
-    // NTC shares the ADC1 unit + calibration from the ACS758 driver
-    ntc_init(&g_ntc, g_acs.adc, g_acs.cali, g_acs.cali_enabled);
+    ESP_ERROR_CHECK(ntc_setup(&g_ntc));
 
     // Filters: median (impulse rejection) then EMA (smoothing).
     for (int i = 0; i < CEC_NUM_CABLES; i++) {

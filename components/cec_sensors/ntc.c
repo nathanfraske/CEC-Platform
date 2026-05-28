@@ -1,67 +1,49 @@
-#include "ntc.h"
-#include "esp_log.h"
+/*
+ * NTC thermistor driver.
+ */
+
 #include <math.h>
+#include "esp_check.h"
+#include "cec_adc.h"
+#include "ntc.h"
 
 static const char *TAG = "ntc";
 
-#define NTC_CHANNEL  ADC_CHANNEL_6   // GPIO 7
-#define NTC_OVERSAMPLE 8
+/* Pin voltages within this margin of 0 or VCC are treated as a wiring
+ * fault (NTC open-circuited or shorted) rather than a real reading. */
+#define NTC_RAIL_MARGIN_V 0.01f
 
-esp_err_t ntc_init(ntc_ctx_t *ctx, adc_oneshot_unit_handle_t adc,
-                   adc_cali_handle_t cali, bool cali_enabled)
+esp_err_t ntc_setup(const ntc_t *t)
 {
-    ctx->adc = adc;
-    ctx->cali = cali;
-    ctx->cali_enabled = cali_enabled;
-    ctx->channel = NTC_CHANNEL;
-
-    // Typical 10K NTC defaults; adjust to match the daughterboard parts.
-    ctx->beta        = 3950.0f;
-    ctx->r_nominal   = 10000.0f;
-    ctx->t_nominal_k = 298.15f;   // 25 C
-    ctx->r_series    = 10000.0f;  // series resistor in the divider
-    ctx->vref        = 3.3f;
-
-    adc_oneshot_chan_cfg_t ch_cfg = {
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
-        .atten = ADC_ATTEN_DB_12,
-    };
-    esp_err_t ret = adc_oneshot_config_channel(ctx->adc, ctx->channel, &ch_cfg);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "channel config failed: %s", esp_err_to_name(ret));
-    }
-    return ret;
+    if (t == NULL) return ESP_ERR_INVALID_ARG;
+    return cec_adc_setup_channel(t->channel);
 }
 
-float ntc_read_celsius(ntc_ctx_t *ctx)
+esp_err_t ntc_read_celsius(const ntc_t *t, float *out_c)
 {
-    int64_t sum = 0;
-    for (int i = 0; i < NTC_OVERSAMPLE; i++) {
-        int raw = 0;
-        adc_oneshot_read(ctx->adc, ctx->channel, &raw);
-        sum += raw;
-    }
-    int raw_avg = (int)(sum / NTC_OVERSAMPLE);
-
-    float v_adc;
-    if (ctx->cali_enabled) {
-        int mv = 0;
-        adc_cali_raw_to_voltage(ctx->cali, raw_avg, &mv);
-        v_adc = mv / 1000.0f;
-    } else {
-        v_adc = raw_avg * (3.1f / 4095.0f);
+    if (t == NULL || out_c == NULL) return ESP_ERR_INVALID_ARG;
+    if (t->beta <= 0.0f || t->nominal_resistance <= 0.0f ||
+        t->pull_up_resistance <= 0.0f || t->vcc <= 0.0f) {
+        return ESP_ERR_INVALID_ARG;
     }
 
-    // Divider: Vref -- R_series -- node(ADC) -- NTC -- GND
-    // (adjust if your NTC divider is wired the other way)
-    if (v_adc <= 0.001f || v_adc >= ctx->vref) {
-        return -273.15f;  // sentinel: open or shorted
-    }
-    float r_ntc = ctx->r_series * (v_adc / (ctx->vref - v_adc));
+    int mv = 0;
+    ESP_RETURN_ON_ERROR(cec_adc_read_mv(t->channel, t->samples, &mv),
+                        TAG, "cec_adc_read_mv");
+    float v = mv / 1000.0f;
 
-    // Beta equation
-    float steinhart = logf(r_ntc / ctx->r_nominal) / ctx->beta;
-    steinhart += 1.0f / ctx->t_nominal_k;
-    float temp_k = 1.0f / steinhart;
-    return temp_k - 273.15f;
+    if (v <= NTC_RAIL_MARGIN_V || v >= t->vcc - NTC_RAIL_MARGIN_V) {
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+
+    /* Beta equation:
+     *   R_ntc = R_pullup * V_pin / (Vcc - V_pin)
+     *   1/T   = 1/T0 + (1/B) * ln(R_ntc / R0)
+     * Solve for T in Kelvin, return Celsius.
+     */
+    float r_ntc = t->pull_up_resistance * v / (t->vcc - v);
+    float inv_t = 1.0f / t->nominal_temperature_k
+                  + logf(r_ntc / t->nominal_resistance) / t->beta;
+    *out_c = (1.0f / inv_t) - 273.15f;
+    return ESP_OK;
 }
