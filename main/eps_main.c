@@ -68,8 +68,12 @@ static cec_detection_ctx_t g_detect;
 // ~92 KB/s, which is still ~3x faster than USB Serial-JTAG's
 // effective ceiling on the same workload.
 #define EPS_TELEMETRY_UART_PORT     0          // UART0
-#define EPS_TELEMETRY_UART_TX       43
-#define EPS_TELEMETRY_UART_RX       44
+// Silkscreen "TX 43 / RX 44" on the Lonely Binary board labels the
+// CH340K-side direction, not the MCU side. So MCU TX = GPIO 44 (the
+// pin labeled RX, because it's the host's RX) and MCU RX = GPIO 43.
+// Symptom of having this backwards: garbled output at every baud rate.
+#define EPS_TELEMETRY_UART_TX       44
+#define EPS_TELEMETRY_UART_RX       43
 #define EPS_TELEMETRY_UART_BAUD     921600
 #define EPS_TELEMETRY_UART_TX_BUF   16384
 
