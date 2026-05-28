@@ -842,7 +842,7 @@ The EPS firmware deliberately tracks the [24-pin module's](https://github.com/na
 | `cec_sensors` | `cec_adc` ADC1 wrapper, `ntc` thermistor driver, `acs758` Hall-current driver | shared `cec_adc` interface; chip drivers are inherently module-specific |
 | `cec_nvs`     | NVS wrapper with magic-prefixed schema versioning | parity with 24-pin's `cec_detection/cec_nvs.*` (24-pin TODO: extract into own component) |
 | `cec_detection` | layered detection: `cec_layer1` (threshold), `cec_layer2` (transient), `cec_layer3` (rail profile), `cec_swing` (windowed swing), `cec_classifier` | layer naming + rail-profile + swing primitive are shared; per-layer algorithms diverge where the underlying signal differs (current vs voltage) |
-| `cec_telemetry` | TelePlot output (`teleplot_emit` / `teleplot_emit_t`, `%.6f` precision, `PRId64` timestamps) | parity with 24-pin's `cec_telemetry/cec_teleplot.*` |
+| `cec_telemetry` | TelePlot output (`teleplot_emit` / `teleplot_emit_t`, `%.6f` precision, `PRId64` timestamps); also owns the UART-transport hand-off via `cec_telemetry_init_uart` | parity with 24-pin's `cec_telemetry/cec_teleplot.*`. The UART transport is EPS-specific; 24-pin's printf-only path stays as is. |
 | `cec_capture` | trigger system + pre-trigger ring + HS burst capture + `>BURST_BEGIN/END` dump | API + dump envelope parity; HS source diverges (EPS uses `adc_continuous` DMA for 10 kHz; 24-pin uses `adc_oneshot` callback at 1 kHz) |
 | `cec_comms`   | CAN/TWAI driver (new `esp_twai` node-handle API; gated by `CEC_CAN_ENABLED` until the daughterboard lands) | EPS-only, 24-pin TODO when CAN ships there |
 | `cec_cli`     | line-based serial command interface over USB Serial-JTAG | parity with 24-pin's `cec_cli/cec_cli.*` |
@@ -872,6 +872,17 @@ The `cec_state_t` and `cec_load_state_t` names are distinct on purpose — both 
 `cec_filters`, `cec_nvs`, `cec_cli`, `cec_teleplot`, `cec_swing`, `cec_rail_profile_t`, the capture trigger enum + dump envelope: implementation matches the 24-pin's source byte-for-byte (modulo licensing headers). `cec_capture`'s HS path and `cec_detection`'s per-layer algorithms intentionally diverge per the table above, but the file layout, type names, and call shapes are common across both modules.
 
 The flip side: if the 24-pin module changes one of the shared primitives, the EPS module needs the same change, and vice versa. The two trees should be kept in lock-step on those.
+
+### Transports (hybrid)
+
+The Lonely Binary N16R8 board exposes two USB-C ports. EPS firmware uses both:
+
+- **JTAG USB-C** (ESP32-S3 native USB Serial-JTAG): CLI input, ESP_LOG output, command responses, boot banners. Default IDF console.
+- **UART USB-C** (CH340K bridge to UART0 on GPIO 43/44, 2 Mbps): every TelePlot line — steady-state 10 Hz telemetry and burst dumps both go here. `cec_telemetry_init_uart()` installs the UART driver and `teleplot_*` helpers + `dump_burst` route through `uart_write_bytes` from then on.
+
+This keeps the heavy traffic (~600 KB per burst at full fidelity) off the same wire that's carrying CLI input — typing commands during a burst dump is responsive, and the 2 Mbps wire is roughly 4× faster than the USB Serial-JTAG path. If the UART init fails (cable not plugged in, etc.), the helpers fall back to stdio so TelePlot keeps working over the JTAG port at the slower rate.
+
+Practical setup: connect both USB-C ports to the host. Run `idf.py monitor` or your terminal of choice on the JTAG port for CLI + logs, and point TelePlot at the UART port for data visualization. Add this to the 24-pin TODO if/when its USB Serial-JTAG throughput becomes the bottleneck — the `cec_telemetry_init_uart` plumbing in EPS is the reference.
 
 ---
 

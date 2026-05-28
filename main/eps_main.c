@@ -56,6 +56,17 @@ static cec_detection_ctx_t g_detect;
 // visible from 10 kHz captured). Override via `set decim <N>`.
 #define EPS_BURST_HS_DUMP_DECIM     5
 
+// Telemetry transport - hybrid setup on the Lonely Binary N16R8 board.
+// UART USB-C (CH340K bridge) carries TelePlot output (steady telemetry
+// + burst dumps). JTAG USB-C carries CLI input / ESP_LOG / banners.
+// CH340K is comfortable at 2 Mbps; drop to 921600 if you swap to a
+// CP2102-class adapter.
+#define EPS_TELEMETRY_UART_PORT     0          // UART0
+#define EPS_TELEMETRY_UART_TX       43
+#define EPS_TELEMETRY_UART_RX       44
+#define EPS_TELEMETRY_UART_BAUD     2000000
+#define EPS_TELEMETRY_UART_TX_BUF   16384      // 16 KB ring buffers ~64 ms at 2 Mbps
+
 // ---- Timing ----
 #define SAMPLE_RATE_HZ   50
 #define SAMPLE_PERIOD_MS  (1000 / SAMPLE_RATE_HZ)
@@ -365,6 +376,21 @@ void app_main(void)
     // NVS + config
     ESP_ERROR_CHECK(cec_config_init_nvs());
     cec_config_load(&g_config);
+
+    // Route TelePlot output to the CH340K UART USB-C. Steady-state
+    // telemetry + burst dump go via this transport from here on; CLI
+    // input + ESP_LOG continue over USB Serial-JTAG. If the UART init
+    // fails for any reason, teleplot_* helpers fall back to stdio so
+    // TelePlot still works over the JTAG port (just slower).
+    esp_err_t telem_ret = cec_telemetry_init_uart(EPS_TELEMETRY_UART_PORT,
+                                                  EPS_TELEMETRY_UART_TX,
+                                                  EPS_TELEMETRY_UART_RX,
+                                                  EPS_TELEMETRY_UART_BAUD,
+                                                  EPS_TELEMETRY_UART_TX_BUF);
+    if (telem_ret != ESP_OK) {
+        ESP_LOGW(TAG, "telemetry UART init failed (%s); falling back to stdio",
+                 esp_err_to_name(telem_ret));
+    }
 
     // Shared state
     memset(&g_state, 0, sizeof(g_state));

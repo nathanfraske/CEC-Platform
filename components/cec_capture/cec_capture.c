@@ -14,6 +14,7 @@
 
 #include "cec_capture.h"
 #include "cec_adc.h"
+#include "cec_teleplot.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -257,43 +258,52 @@ resume_and_exit:
 static void dump_burst(cec_trigger_t reason, const char *annotation,
                        size_t pre_start, size_t pre_count, size_t hs_count)
 {
-    /* Header line. n_pre + n_hs in the same format the 24-pin's
-     * capture-analysis tooling parses. */
-    printf(">BURST_BEGIN:%s:%u_normal+%u_hs:cap\n",
-           cec_trigger_name(reason),
-           (unsigned)pre_count, (unsigned)hs_count);
-    if (annotation && annotation[0]) {
-        printf(">BURST_ANNOTATION:%s\n", annotation);
-    }
+    /* Burst dump goes through teleplot_write_raw, which routes to the
+     * UART transport when cec_telemetry_init_uart() has succeeded and
+     * falls back to stdio (printf) otherwise. snprintf -> bulk write is
+     * meaningfully faster than line-at-a-time printf for either path:
+     * one stdio/VFS round trip (or one uart_write_bytes) per sample
+     * instead of seven for pre-trigger / two for HS. */
 
-    /* Yield every DUMP_YIELD_EVERY samples so IDLE1 keeps petting the
-     * WDT. Combined with the dispatch task's priority drop in
-     * dispatch_task, this also lets output_task interleave normally. */
 #define DUMP_YIELD_EVERY 64
+    /* A pre-trigger sample formats into ~245 bytes (7 lines * ~35).
+     * An HS row into ~70. 384 is a safe stack budget for both. */
+    char chunk[384];
+    int  n;
+
+    n = snprintf(chunk, sizeof(chunk),
+                 ">BURST_BEGIN:%s:%u_normal+%u_hs:cap\n",
+                 cec_trigger_name(reason),
+                 (unsigned)pre_count, (unsigned)hs_count);
+    if (n > 0) teleplot_write_raw(chunk, (size_t)n);
+    if (annotation && annotation[0]) {
+        n = snprintf(chunk, sizeof(chunk), ">BURST_ANNOTATION:%s\n", annotation);
+        if (n > 0) teleplot_write_raw(chunk, (size_t)n);
+    }
 
     int decim = s_cfg.hs_dump_decimation > 0 ? s_cfg.hs_dump_decimation : 1;
 
-    /* Pre-trigger: walk oldest -> newest. One printf per sample emitting
-     * all seven series at once - cuts the stdio + VFS round trips by 7x
-     * versus the line-at-a-time version. */
-    for (size_t n = 0; n < pre_count; n++) {
-        size_t idx = (pre_start + n) % s_pre_capacity;
+    /* Pre-trigger: walk oldest -> newest. */
+    for (size_t k = 0; k < pre_count; k++) {
+        size_t idx = (pre_start + k) % s_pre_capacity;
         const cec_capture_sample_t *s = &s_pre_buf[idx];
-        printf(">b_eps1_a:%" PRIu32 ":%.6f\n"
-               ">b_eps2_a:%" PRIu32 ":%.6f\n"
-               ">b_eps1_raw_a:%" PRIu32 ":%.6f\n"
-               ">b_eps2_raw_a:%" PRIu32 ":%.6f\n"
-               ">b_temp_c:%" PRIu32 ":%.6f\n"
-               ">b_load:%" PRIu32 ":%u\n"
-               ">b_flags:%" PRIu32 ":%u\n",
-               s->ts_ms, s->eps1_a,
-               s->ts_ms, s->eps2_a,
-               s->ts_ms, s->eps1_raw_a,
-               s->ts_ms, s->eps2_raw_a,
-               s->ts_ms, s->temp_c,
-               s->ts_ms, (unsigned)s->load_state,
-               s->ts_ms, (unsigned)s->flags);
-        if ((n & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
+        n = snprintf(chunk, sizeof(chunk),
+                     ">b_eps1_a:%" PRIu32 ":%.6f\n"
+                     ">b_eps2_a:%" PRIu32 ":%.6f\n"
+                     ">b_eps1_raw_a:%" PRIu32 ":%.6f\n"
+                     ">b_eps2_raw_a:%" PRIu32 ":%.6f\n"
+                     ">b_temp_c:%" PRIu32 ":%.6f\n"
+                     ">b_load:%" PRIu32 ":%u\n"
+                     ">b_flags:%" PRIu32 ":%u\n",
+                     s->ts_ms, s->eps1_a,
+                     s->ts_ms, s->eps2_a,
+                     s->ts_ms, s->eps1_raw_a,
+                     s->ts_ms, s->eps2_raw_a,
+                     s->ts_ms, s->temp_c,
+                     s->ts_ms, (unsigned)s->load_state,
+                     s->ts_ms, (unsigned)s->flags);
+        if (n > 0) teleplot_write_raw(chunk, (size_t)n);
+        if ((k & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
             vTaskDelay(1);
         }
     }
@@ -302,16 +312,19 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
      * Decimation thins the dump without thinning the capture. */
     for (size_t i = 0; i < hs_count; i += (size_t)decim) {
         const cec_capture_hs_sample_t *h = &s_hs_buf[i];
-        printf(">hs_eps1_a:%" PRIu32 ":%.6f\n"
-               ">hs_eps2_a:%" PRIu32 ":%.6f\n",
-               h->ts_us_offset, h->eps1_a,
-               h->ts_us_offset, h->eps2_a);
+        n = snprintf(chunk, sizeof(chunk),
+                     ">hs_eps1_a:%" PRIu32 ":%.6f\n"
+                     ">hs_eps2_a:%" PRIu32 ":%.6f\n",
+                     h->ts_us_offset, h->eps1_a,
+                     h->ts_us_offset, h->eps2_a);
+        if (n > 0) teleplot_write_raw(chunk, (size_t)n);
         if (((i / (size_t)decim) & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
             vTaskDelay(1);
         }
     }
 
-    printf(">BURST_END\n");
+    n = snprintf(chunk, sizeof(chunk), ">BURST_END\n");
+    if (n > 0) teleplot_write_raw(chunk, (size_t)n);
 }
 
 static void dispatch_task(void *arg)
