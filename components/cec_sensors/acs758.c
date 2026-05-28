@@ -17,6 +17,9 @@ esp_err_t acs758_init(acs758_ctx_t *ctx)
 {
     ctx->oversample = 16;
     ctx->cali_enabled = false;
+    for (int i = 0; i < ACS758_NUM_SENSORS; i++) {
+        ctx->cal[i].zero_offset_v = 0.0f;
+    }
 
     adc_oneshot_unit_init_cfg_t init_cfg = {
         .unit_id = ADC_UNIT_1,

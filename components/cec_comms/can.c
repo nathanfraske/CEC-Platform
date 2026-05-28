@@ -51,6 +51,12 @@ esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
     int16_t i0 = amps_to_ma_i16(current_a[0]);
     int16_t i1 = amps_to_ma_i16(current_a[1]);
 
+    // Clamp temperature into int8 range before casting (the NTC returns
+    // -273.15 as an open/short sentinel, which would otherwise be UB here).
+    float t = board_temp_c;
+    if (t > 127.0f)  t = 127.0f;
+    if (t < -128.0f) t = -128.0f;
+
     msg.data[0] = module_type;
     msg.data[1] = module_id;
     msg.data[2] = (uint8_t)(i0 & 0xFF);
@@ -58,7 +64,7 @@ esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
     msg.data[4] = (uint8_t)(i1 & 0xFF);
     msg.data[5] = (uint8_t)((i1 >> 8) & 0xFF);
     msg.data[6] = status_flags;
-    msg.data[7] = (int8_t)board_temp_c;
+    msg.data[7] = (int8_t)t;
 
     return twai_transmit(&msg, pdMS_TO_TICKS(10));
 }

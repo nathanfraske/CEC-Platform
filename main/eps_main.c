@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
@@ -137,6 +138,10 @@ void app_main(void)
     // Shared state
     memset(&g_state, 0, sizeof(g_state));
     g_state.mutex = xSemaphoreCreateMutex();
+    if (g_state.mutex == NULL) {
+        ESP_LOGE(TAG, "mutex create failed");
+        abort();
+    }
 
     // Sensors
     ESP_ERROR_CHECK(acs758_init(&g_acs));
@@ -165,14 +170,22 @@ void app_main(void)
     // Capture ring buffer (PSRAM)
     capture_init(&g_capture, CAPTURE_SECONDS, SAMPLE_RATE_HZ);
 
+#if CEC_CAN_ENABLED
     // CAN in loopback for bench bring-up (no Hub connected yet).
     // Switch to can_init(false) once the daughterboard + Hub are present.
     can_init(true);
+#else
+    ESP_LOGW(TAG, "CAN disabled (CEC_CAN_ENABLED=0); skipping TWAI init and comms task");
+#endif
 
     // Tasks: sample on core 0 (isolated), output/comms on core 1
     xTaskCreatePinnedToCore(sample_task, "sample", 4096, NULL, 5, NULL, 0);
     xTaskCreatePinnedToCore(output_task, "output", 4096, NULL, 3, NULL, 1);
+#if CEC_CAN_ENABLED
     xTaskCreatePinnedToCore(comms_task,  "comms",  4096, NULL, 4, NULL, 1);
+#else
+    (void)comms_task;
+#endif
 
     ESP_LOGI(TAG, "init complete, tasks running");
 }

@@ -51,3 +51,9 @@ typedef struct {
 #define CEC_DEFAULT_OC_A        35.0f   // above normal EPS load, below sensor limit
 #define CEC_DEFAULT_EMA_ALPHA   0.2f
 #define CEC_DEFAULT_MODULE_ID   1
+
+// Hardware presence flag. The CAN transceiver lives on the daughterboard;
+// while it isn't attached the TWAI driver must not be installed (RX pin
+// would float and the controller would log bus errors). Flip to 1 when the
+// daughterboard is connected.
+#define CEC_CAN_ENABLED         0
