@@ -483,14 +483,15 @@ void app_main(void)
     ESP_ERROR_CHECK(cec_capture_init(&cap_cfg));
 
 #if CEC_CAN_ENABLED
-    // ====== TODO: REMOVE / FLIP TO can_init(false) WHEN HUB IS WIRED ======
-    // Currently TRUE = internal loopback. Every TX frame round-trips
-    // back to RX and is logged by cec_can's on_rx_done callback so the
-    // bus path is verifiable from idf.py monitor alone. Nothing reaches
-    // the physical wire in this mode - so once the Hub is on the bus
-    // and ACKing, swap to can_init(false) for normal mode (TX on the
-    // wire, ACK required, real CAN bus).
-    // ===================================================================
+    // ====== TODO: FLIP TO can_init(false) WHEN HUB IS WIRED ======
+    // TRUE = self-test (NO_ACK) mode. TX goes on the wire through
+    // the transceiver but doesn't need another node to ACK, so the
+    // controller stays happy until the Hub joins the bus. ESP32-S3
+    // has no hardware loopback, so RX of our own TX won't appear in
+    // on_rx_done - verify TX with a scope or USB-CAN dongle until
+    // the Hub is up. Once the Hub is on the bus and ACKing, flip to
+    // can_init(false) for normal mode (TX with ACK required).
+    // =============================================================
     can_init(true);
 #else
     ESP_LOGW(TAG, "CAN disabled (CEC_CAN_ENABLED=0); skipping TWAI init and comms task");

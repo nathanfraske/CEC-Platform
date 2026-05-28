@@ -22,11 +22,19 @@
 //  [7] board temp, int8 deg C
 
 // Install and start the TWAI driver.
-//   loopback = true  -> internal loopback: TX frames are NOT put on the
-//                       wire; they're delivered back to RX via the
-//                       on_rx_done callback. Bench verification.
-//   loopback = false -> normal mode: TX on the wire, ACK required from
-//                       another node. Production / once Hub is up.
+//   loopback = true  -> self-test mode (NO_ACK). TX goes on the wire
+//                       but doesn't require another node to ACK.
+//                       Bench-safe when no Hub is on the bus yet.
+//                       NOTE: ESP32-S3's TWAI controller has no
+//                       hardware loopback, so on_rx_done does NOT
+//                       fire on our own TX in this mode. Verify with
+//                       a scope, USB-CAN dongle, or once the Hub is
+//                       on the bus.
+//   loopback = false -> normal mode: TX on the wire, ACK required
+//                       from another node. Production / once Hub is
+//                       up.
+// In either mode an on_state_change callback auto-recovers from
+// bus-off so the controller doesn't park permanently after a fault.
 esp_err_t can_init(bool loopback);
 
 // Send a telemetry frame from the current shared state snapshot.

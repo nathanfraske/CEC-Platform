@@ -22,14 +22,35 @@ static const char *TAG = "can";
 static twai_node_handle_t s_node = NULL;
 static bool s_enabled = false;
 static volatile uint32_t s_rx_count = 0;
+static volatile uint32_t s_bus_off_count = 0;
 
 /*
- * RX callback (ISR context). Loopback verification: every frame the
- * driver sends comes back as RX, so this gets called once per
- * can_send_*. Logs the id + payload via ESP_EARLY_LOG (ISR-safe) so
- * the user can confirm the bus is moving the right bytes from the
- * idf.py monitor stream. Counter exposed via can_get_rx_count() for
- * any caller that wants a quantitative health gauge.
+ * State-change callback (ISR context). Auto-recovers from BUS_OFF by
+ * kicking twai_node_recover. Without this the controller stays parked
+ * and every subsequent twai_node_transmit logs "node is bus off",
+ * which we saw spam at 20 Hz when TX'ing into an unterminated bus.
+ * Counts events for diagnostics.
+ */
+static IRAM_ATTR bool can_on_state_change(twai_node_handle_t handle,
+                                          const twai_state_change_event_data_t *edata,
+                                          void *user_ctx)
+{
+    (void)user_ctx;
+    if (edata->new_sta == TWAI_ERROR_BUS_OFF) {
+        s_bus_off_count++;
+        ESP_EARLY_LOGW(TAG, "bus-off entered (#%u), kicking recovery",
+                       (unsigned)s_bus_off_count);
+        twai_node_recover(handle);
+    }
+    return false;
+}
+
+/*
+ * RX callback (ISR context). Logs the id + payload via ESP_EARLY_LOG
+ * (ISR-safe) so the user can confirm received frames from idf.py
+ * monitor stream. NOTE: on ESP32-S3, no hardware loopback - this only
+ * fires for frames from other nodes (Hub, USB-CAN dongle, etc.), not
+ * the MCU's own TX in self-test mode.
  */
 static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
                                      const twai_rx_done_event_data_t *edata,
@@ -71,21 +92,15 @@ esp_err_t can_init(bool loopback)
         .tx_queue_depth  = CAN_TX_QUEUE_DEPTH,
     };
     if (loopback) {
-        /* Bench self-test combo:
-         *   enable_loopback  - every transmitted frame is delivered
-         *                      back to the RX path (so on_rx_done
-         *                      fires and you can verify the round
-         *                      trip from idf.py monitor).
-         *   enable_self_test - drop the requirement that another node
-         *                      ACK each TX. Without this, the
-         *                      controller's TX error counter climbs
-         *                      ~128 frames in and then it bus-offs
-         *                      (which is exactly what happens on a
-         *                      bench with no Hub on the wire).
-         * Both bits together = "transmit successfully, no external
-         * ACK needed, see your own frames as RX." Use until the Hub
-         * is on the bus, then can_init(false) for normal mode. */
-        cfg.flags.enable_loopback  = 1;
+        /* Bench self-test (NO_ACK). ESP32-S3's TWAI controller has no
+         * hardware loopback bit - twai_ll_set_mode on S3 only writes
+         * the LOM (listen-only) and STM (self-test/no-ack) bits, and
+         * silently ignores the loopback flag. So on_rx_done will NOT
+         * fire on the MCU's own transmitted frames; to actually see
+         * TX, you need either the Hub on the bus, a USB-CAN dongle,
+         * or a scope. Self-test mode at least lets TX complete
+         * without requiring an external ACK so the controller stays
+         * happy until the Hub arrives. */
         cfg.flags.enable_self_test = 1;
     }
 
@@ -95,10 +110,12 @@ esp_err_t can_init(bool loopback)
         s_node = NULL;
         return ret;
     }
-    /* Register the RX callback before enable so loopback's first
-     * round-trip is already wired up. */
+    /* Register callbacks before enable. on_state_change auto-recovers
+     * from bus-off; on_rx_done logs inbound frames (Hub, dongle - not
+     * the MCU's own TX, ESP32-S3 has no hardware loopback). */
     const twai_event_callbacks_t cbs = {
-        .on_rx_done = can_on_rx_done,
+        .on_rx_done       = can_on_rx_done,
+        .on_state_change  = can_on_state_change,
     };
     ret = twai_node_register_event_callbacks(s_node, &cbs, NULL);
     if (ret != ESP_OK) {
