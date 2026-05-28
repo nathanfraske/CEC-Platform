@@ -121,6 +121,13 @@ esp_err_t cec_cli_init(const cec_cli_command_t *commands, size_t count)
     ESP_RETURN_ON_ERROR(usb_serial_jtag_driver_install(&cfg),
                         TAG, "usb_serial_jtag_driver_install");
     usb_serial_jtag_vfs_use_driver();
+    /* Accept both CR and CRLF line endings (TelePlot's send box and most
+     * Windows terminals send one of those; the default LF-only mode
+     * would leave fgets blocked forever). CR is converted to LF; the
+     * trailing LF of a CRLF pair shows up as a benign empty line that
+     * dispatch() ignores. */
+    usb_serial_jtag_vfs_set_rx_line_endings(ESP_LINE_ENDINGS_CR);
+    usb_serial_jtag_vfs_set_tx_line_endings(ESP_LINE_ENDINGS_LF);
     setvbuf(stdin, NULL, _IOLBF, CLI_LINE_BUF_SIZE);
 
     s_commands = commands;
