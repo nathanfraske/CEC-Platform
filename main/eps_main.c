@@ -13,7 +13,7 @@
 #include "acs758.h"
 #include "ntc.h"
 #include "cec_filters.h"
-#include "detection.h"
+#include "cec_detection.h"
 #include "cec_capture.h"
 #include "cec_can.h"
 #include "cec_teleplot.h"
@@ -42,7 +42,7 @@ static ntc_t g_ntc = {
 static median_t g_median[CEC_NUM_CABLES];
 static ema_t    g_ema[CEC_NUM_CABLES];
 static float    g_median_buf[CEC_NUM_CABLES][EPS_MEDIAN_WINDOW];
-static detection_ctx_t g_detect;
+static cec_detection_ctx_t g_detect;
 static capture_ctx_t g_capture;
 
 // ---- Timing ----
@@ -77,7 +77,7 @@ static void sample_task(void *arg)
         // Run detection layers
         uint8_t flags = 0;
         cec_load_state_t load_state = CEC_LOAD_IDLE;
-        bool anomaly = detection_run(&g_detect, raw, filt, now_us, &flags, &load_state);
+        bool anomaly = cec_detection_run(&g_detect, raw, filt, now_us, &flags, &load_state);
 
         float temp = 0.0f;
         (void)ntc_read_celsius(&g_ntc, &temp);   // leaves temp at 0 on open/short
@@ -186,7 +186,7 @@ void app_main(void)
     }
 
     // Detection
-    detection_init(&g_detect, g_config.oc_threshold_a);
+    cec_detection_init(&g_detect, g_config.oc_threshold_a);
 
     // Capture ring buffer (PSRAM)
     capture_init(&g_capture, CAPTURE_SECONDS, SAMPLE_RATE_HZ);
