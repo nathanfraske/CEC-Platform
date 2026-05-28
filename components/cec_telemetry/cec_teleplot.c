@@ -25,14 +25,22 @@ esp_err_t cec_telemetry_init_uart(int uart_port,
         return ESP_OK;
     }
     /* Minimum RX buffer per IDF is UART_HW_FIFO_LEN_DEFAULT. 256 is safe
-     * on every chip and we don't actually use RX here. */
+     * on every chip and we don't actually use RX here.
+     *
+     * source_clk is pinned to APB explicitly. UART_SCLK_DEFAULT resolves
+     * differently across IDF revisions/targets and on ESP32-S3 can
+     * still be the REF_TICK / XTAL the bootloader leaves configured,
+     * in which case the baud divider lands far off the requested rate
+     * and the host sees garbage no matter what baud you ask for. APB
+     * (80 MHz at default CPU freq) gives a stable, predictable divisor
+     * across the standard baud range. */
     const uart_config_t cfg = {
         .baud_rate  = baud_rate,
         .data_bits  = UART_DATA_8_BITS,
         .parity     = UART_PARITY_DISABLE,
         .stop_bits  = UART_STOP_BITS_1,
         .flow_ctrl  = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT,
+        .source_clk = UART_SCLK_APB,
     };
     ESP_RETURN_ON_ERROR(uart_driver_install((uart_port_t)uart_port,
                                             256, tx_buffer_size,
