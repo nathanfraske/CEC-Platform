@@ -1,6 +1,6 @@
 idf_component_register(
     SRCS "cec_teleplot.c"
     INCLUDE_DIRS "include"
-    REQUIRES cec_common driver
+    REQUIRES cec_common esp_driver_uart
     PRIV_REQUIRES esp_common
 )
