@@ -21,6 +21,37 @@
 static const char *TAG = "can";
 static twai_node_handle_t s_node = NULL;
 static bool s_enabled = false;
+static volatile uint32_t s_rx_count = 0;
+
+/*
+ * RX callback (ISR context). Loopback verification: every frame the
+ * driver sends comes back as RX, so this gets called once per
+ * can_send_*. Logs the id + payload via ESP_EARLY_LOG (ISR-safe) so
+ * the user can confirm the bus is moving the right bytes from the
+ * idf.py monitor stream. Counter exposed via can_get_rx_count() for
+ * any caller that wants a quantitative health gauge.
+ */
+static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
+                                     const twai_rx_done_event_data_t *edata,
+                                     void *user_ctx)
+{
+    (void)edata; (void)user_ctx;
+    uint8_t rx_data[8];
+    twai_frame_t rx_frame = {
+        .buffer     = rx_data,
+        .buffer_len = sizeof(rx_data),
+    };
+    if (twai_node_receive_from_isr(handle, &rx_frame) == ESP_OK) {
+        s_rx_count++;
+        ESP_EARLY_LOGI(TAG,
+            "RX id=0x%03x dlc=%u [%02x %02x %02x %02x %02x %02x %02x %02x]",
+            (unsigned)rx_frame.header.id,
+            (unsigned)rx_frame.header.dlc,
+            rx_data[0], rx_data[1], rx_data[2], rx_data[3],
+            rx_data[4], rx_data[5], rx_data[6], rx_data[7]);
+    }
+    return false; /* no higher-prio task to unblock */
+}
 
 esp_err_t can_init(bool loopback)
 {
@@ -40,14 +71,29 @@ esp_err_t can_init(bool loopback)
         .tx_queue_depth  = CAN_TX_QUEUE_DEPTH,
     };
     if (loopback) {
-        // Bench self-test: transmit without requiring another node's ACK.
-        // Equivalent to the legacy TWAI_MODE_NO_ACK.
-        cfg.flags.enable_self_test = 1;
+        /* True internal loopback: every transmitted frame is also
+         * delivered to the RX path via on_rx_done. Nothing reaches
+         * the wire and no external ACK is required. Use this for
+         * bench bring-up before a Hub is on the bus. */
+        cfg.flags.enable_loopback = 1;
     }
 
     esp_err_t ret = twai_new_node_onchip(&cfg, &s_node);
     if (ret != ESP_OK) {
         ESP_LOGE(TAG, "twai_new_node_onchip failed: %s", esp_err_to_name(ret));
+        s_node = NULL;
+        return ret;
+    }
+    /* Register the RX callback before enable so loopback's first
+     * round-trip is already wired up. */
+    const twai_event_callbacks_t cbs = {
+        .on_rx_done = can_on_rx_done,
+    };
+    ret = twai_node_register_event_callbacks(s_node, &cbs, NULL);
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "twai_node_register_event_callbacks failed: %s",
+                 esp_err_to_name(ret));
+        twai_node_delete(s_node);
         s_node = NULL;
         return ret;
     }
@@ -60,8 +106,13 @@ esp_err_t can_init(bool loopback)
     }
     s_enabled = true;
     ESP_LOGI(TAG, "TWAI node up @ %d bps (%s)", CAN_BITRATE_BPS,
-             loopback ? "self-test" : "normal");
+             loopback ? "loopback" : "normal");
     return ESP_OK;
+}
+
+uint32_t can_get_rx_count(void)
+{
+    return s_rx_count;
 }
 
 static int16_t amps_to_ma_i16(float amps)
@@ -170,5 +221,7 @@ esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
 }
 
 void can_stop(void) { }
+
+uint32_t can_get_rx_count(void) { return 0; }
 
 #endif /* CEC_CAN_ENABLED */

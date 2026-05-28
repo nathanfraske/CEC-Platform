@@ -483,10 +483,14 @@ void app_main(void)
     ESP_ERROR_CHECK(cec_capture_init(&cap_cfg));
 
 #if CEC_CAN_ENABLED
-    // self-test (NO_ACK) mode: transmits via the daughterboard's
-    // transceiver but doesn't require another node to ACK. Safe default
-    // for bench bring-up whether the Hub is on the bus or not. Flip to
-    // can_init(false) once the Hub is verified and ACKing.
+    // ====== TODO: REMOVE / FLIP TO can_init(false) WHEN HUB IS WIRED ======
+    // Currently TRUE = internal loopback. Every TX frame round-trips
+    // back to RX and is logged by cec_can's on_rx_done callback so the
+    // bus path is verifiable from idf.py monitor alone. Nothing reaches
+    // the physical wire in this mode - so once the Hub is on the bus
+    // and ACKing, swap to can_init(false) for normal mode (TX on the
+    // wire, ACK required, real CAN bus).
+    // ===================================================================
     can_init(true);
 #else
     ESP_LOGW(TAG, "CAN disabled (CEC_CAN_ENABLED=0); skipping TWAI init and comms task");
