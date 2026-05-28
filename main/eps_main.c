@@ -48,10 +48,13 @@ static cec_detection_ctx_t g_detect;
 
 // Burst capture engine config. 10 kHz HS rate (per channel) for 1 s, with
 // 20 s of 50 Hz pre-trigger context. cooldown_ms=10000 matches the 24-pin.
-#define EPS_BURST_HS_RATE_HZ   10000
-#define EPS_BURST_HS_DURATION  1000
-#define EPS_PRE_TRIGGER_SECONDS  20
-#define EPS_BURST_COOLDOWN_MS   10000
+#define EPS_BURST_HS_RATE_HZ        10000
+#define EPS_BURST_HS_DURATION       1000
+#define EPS_PRE_TRIGGER_SECONDS     20
+#define EPS_BURST_COOLDOWN_MS       10000
+// Default dump decimation: emit every 5th HS row to TelePlot (2 kHz
+// visible from 10 kHz captured). Override via `set decim <N>`.
+#define EPS_BURST_HS_DUMP_DECIM     5
 
 // ---- Timing ----
 #define SAMPLE_RATE_HZ   50
@@ -194,6 +197,12 @@ static int cmd_show(int argc, char **argv)
     printf("config id=%u supply=%.2f V oc=%.1f A alpha=%.2f raw_telem=%d\n",
            g_config.module_id, g_config.supply_voltage, g_config.oc_threshold_a,
            g_config.ema_alpha, g_config.output_raw);
+    int decim = cec_capture_get_hs_dump_decimation();
+    if (decim > 0) {
+        printf("burst  hs_rate=%d Hz/ch dump_decim=%d (~%d Hz visible) cooldown=%d ms\n",
+               EPS_BURST_HS_RATE_HZ, decim,
+               EPS_BURST_HS_RATE_HZ / decim, EPS_BURST_COOLDOWN_MS);
+    }
     return 0;
 }
 
@@ -264,6 +273,17 @@ static int cmd_set(int argc, char **argv)
             cec_capture_update_channel(i, &ch);
         }
         printf("supply=%.3f V\n", v);
+    } else if (strcmp(argv[1], "decim") == 0) {
+        int d = (int)strtol(argv[2], NULL, 10);
+        if (cec_capture_set_hs_dump_decimation(d) != ESP_OK) {
+            printf("error: capture not initialized\n");
+            return 1;
+        }
+        printf("hs_dump_decim=%d (capture stays %d Hz; ~%d Hz visible)\n",
+               cec_capture_get_hs_dump_decimation(),
+               EPS_BURST_HS_RATE_HZ,
+               EPS_BURST_HS_RATE_HZ / cec_capture_get_hs_dump_decimation());
+        return 0;   // runtime-only, not persisted
     } else {
         printf("error: unknown key '%s'\n", argv[1]);
         return 1;
@@ -308,7 +328,7 @@ static int cmd_mode(int argc, char **argv)
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "show",  "print current readings, calibration, and config",       cmd_show  },
     { "cal",   "zero-offset cal on both sensors, or 'cal span <amps>'", cmd_cal   },
-    { "set",   "set <alpha|oc|supply> <value> (in-memory; 'save' to NVS)", cmd_set },
+    { "set",   "set <alpha|oc|supply|decim> <value> (decim is runtime-only)", cmd_set },
     { "save",  "persist current config to NVS",                         cmd_save  },
     { "mode",  "set telemetry mode: 'mode raw' or 'mode filt'",         cmd_mode  },
     { "burst", "trigger a manual burst capture ('burst <annotation>')", cmd_burst },
@@ -389,6 +409,7 @@ void app_main(void)
         .hs_sample_rate_hz    = EPS_BURST_HS_RATE_HZ,
         .hs_duration_ms       = EPS_BURST_HS_DURATION,
         .cooldown_ms          = EPS_BURST_COOLDOWN_MS,
+        .hs_dump_decimation   = EPS_BURST_HS_DUMP_DECIM,
         .n_channels           = CEC_NUM_CABLES,
     };
     for (int i = 0; i < CEC_NUM_CABLES; i++) {

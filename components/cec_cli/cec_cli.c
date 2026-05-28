@@ -117,7 +117,12 @@ esp_err_t cec_cli_init(const cec_cli_command_t *commands, size_t count)
     if (s_inited) return ESP_OK;
     if (commands == NULL && count > 0) return ESP_ERR_INVALID_ARG;
 
+    /* The default config has tx_buffer_size=256, which makes printf block
+     * every few lines during the burst dump. Bump it to 8 KB so the
+     * dispatcher can queue meaningful chunks between USB drains. RX stays
+     * default since CLI input is one short line at a time. */
     usb_serial_jtag_driver_config_t cfg = USB_SERIAL_JTAG_DRIVER_CONFIG_DEFAULT();
+    cfg.tx_buffer_size = 8192;
     ESP_RETURN_ON_ERROR(usb_serial_jtag_driver_install(&cfg),
                         TAG, "usb_serial_jtag_driver_install");
     usb_serial_jtag_vfs_use_driver();

@@ -111,9 +111,19 @@ typedef struct {
     int    hs_duration_ms;          /* HS capture window length */
     int    cooldown_ms;              /* min gap between bursts; 0 = no cooldown */
 
+    /* Emit every Nth HS sample to TelePlot (1 = no decimation, 10 =
+     * every 10th row). Capture itself stays at full hs_sample_rate_hz
+     * so Layer 2/3 still see the resolution; this only thins the dump
+     * to keep USB Serial-JTAG out of the critical path. */
+    int    hs_dump_decimation;
+
     int                    n_channels;
     cec_capture_channel_t  channels[CEC_NUM_CABLES];
 } cec_capture_config_t;
+
+/* Update the dump decimation factor at runtime. clamped to >= 1. */
+esp_err_t cec_capture_set_hs_dump_decimation(int decim);
+int       cec_capture_get_hs_dump_decimation(void);
 
 /* Human-readable trigger name for log / dump output. */
 const char *cec_trigger_name(cec_trigger_t t);

@@ -266,34 +266,47 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
         printf(">BURST_ANNOTATION:%s\n", annotation);
     }
 
-    /* The dispatch task runs at configMAX_PRIORITIES - 2 on Core 1, and
-     * USB Serial-JTAG writes generally finish without blocking, so a
-     * naive dump loop starves IDLE1 and trips CONFIG_ESP_TASK_WDT (10 s).
-     * Yield every DUMP_YIELD_EVERY samples so IDLE1 gets a slice. */
+    /* Yield every DUMP_YIELD_EVERY samples so IDLE1 keeps petting the
+     * WDT. Combined with the dispatch task's priority drop in
+     * dispatch_task, this also lets output_task interleave normally. */
 #define DUMP_YIELD_EVERY 64
 
-    /* Pre-trigger: walk oldest -> newest. */
+    int decim = s_cfg.hs_dump_decimation > 0 ? s_cfg.hs_dump_decimation : 1;
+
+    /* Pre-trigger: walk oldest -> newest. One printf per sample emitting
+     * all seven series at once - cuts the stdio + VFS round trips by 7x
+     * versus the line-at-a-time version. */
     for (size_t n = 0; n < pre_count; n++) {
         size_t idx = (pre_start + n) % s_pre_capacity;
         const cec_capture_sample_t *s = &s_pre_buf[idx];
-        printf(">b_eps1_a:%" PRIu32 ":%.6f\n",     s->ts_ms, s->eps1_a);
-        printf(">b_eps2_a:%" PRIu32 ":%.6f\n",     s->ts_ms, s->eps2_a);
-        printf(">b_eps1_raw_a:%" PRIu32 ":%.6f\n", s->ts_ms, s->eps1_raw_a);
-        printf(">b_eps2_raw_a:%" PRIu32 ":%.6f\n", s->ts_ms, s->eps2_raw_a);
-        printf(">b_temp_c:%" PRIu32 ":%.6f\n",     s->ts_ms, s->temp_c);
-        printf(">b_load:%" PRIu32 ":%u\n",         s->ts_ms, (unsigned)s->load_state);
-        printf(">b_flags:%" PRIu32 ":%u\n",        s->ts_ms, (unsigned)s->flags);
+        printf(">b_eps1_a:%" PRIu32 ":%.6f\n"
+               ">b_eps2_a:%" PRIu32 ":%.6f\n"
+               ">b_eps1_raw_a:%" PRIu32 ":%.6f\n"
+               ">b_eps2_raw_a:%" PRIu32 ":%.6f\n"
+               ">b_temp_c:%" PRIu32 ":%.6f\n"
+               ">b_load:%" PRIu32 ":%u\n"
+               ">b_flags:%" PRIu32 ":%u\n",
+               s->ts_ms, s->eps1_a,
+               s->ts_ms, s->eps2_a,
+               s->ts_ms, s->eps1_raw_a,
+               s->ts_ms, s->eps2_raw_a,
+               s->ts_ms, s->temp_c,
+               s->ts_ms, (unsigned)s->load_state,
+               s->ts_ms, (unsigned)s->flags);
         if ((n & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
             vTaskDelay(1);
         }
     }
 
-    /* HS samples: timestamps are microseconds-since-capture-start. */
-    for (size_t i = 0; i < hs_count; i++) {
+    /* HS samples: timestamps are microseconds-since-capture-start.
+     * Decimation thins the dump without thinning the capture. */
+    for (size_t i = 0; i < hs_count; i += (size_t)decim) {
         const cec_capture_hs_sample_t *h = &s_hs_buf[i];
-        printf(">hs_eps1_a:%" PRIu32 ":%.6f\n", h->ts_us_offset, h->eps1_a);
-        printf(">hs_eps2_a:%" PRIu32 ":%.6f\n", h->ts_us_offset, h->eps2_a);
-        if ((i & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
+        printf(">hs_eps1_a:%" PRIu32 ":%.6f\n"
+               ">hs_eps2_a:%" PRIu32 ":%.6f\n",
+               h->ts_us_offset, h->eps1_a,
+               h->ts_us_offset, h->eps2_a);
+        if (((i / (size_t)decim) & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
             vTaskDelay(1);
         }
     }
@@ -443,6 +456,19 @@ static esp_err_t enqueue_trigger(cec_trigger_t reason, const char *text)
     s_busy = true;
     xSemaphoreGive(s_trigger_sem);
     return ESP_OK;
+}
+
+esp_err_t cec_capture_set_hs_dump_decimation(int decim)
+{
+    if (!s_inited) return ESP_ERR_INVALID_STATE;
+    if (decim < 1) decim = 1;
+    s_cfg.hs_dump_decimation = decim;
+    return ESP_OK;
+}
+
+int cec_capture_get_hs_dump_decimation(void)
+{
+    return s_inited ? s_cfg.hs_dump_decimation : 0;
 }
 
 esp_err_t cec_capture_update_channel(int idx, const cec_capture_channel_t *p)
