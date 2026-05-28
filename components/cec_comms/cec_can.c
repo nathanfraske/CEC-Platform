@@ -85,6 +85,17 @@ static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
     return false; /* no higher-prio task to unblock */
 }
 
+/*
+ * Diagnostic toggle: set to 1 to force the controller into
+ * listen-only mode (no TX, no ACK, just RX-monitor). If bus-off
+ * still happens with this on, the controller / wire / bias is
+ * fundamentally broken and TX path isn't the cause. If bus-off
+ * stops with this on but resumes with it off, every TX attempt is
+ * the trigger and the issue is downstream of TXD. Leave at 0 for
+ * normal operation.
+ */
+#define CEC_CAN_DIAG_LISTEN_ONLY 0
+
 esp_err_t can_init(bool loopback)
 {
     if (s_node != NULL) {
@@ -114,6 +125,10 @@ esp_err_t can_init(bool loopback)
          * happy until the Hub arrives. */
         cfg.flags.enable_self_test = 1;
     }
+#if CEC_CAN_DIAG_LISTEN_ONLY
+    cfg.flags.enable_listen_only = 1;
+    cfg.flags.enable_self_test = 0;  /* listen-only overrides */
+#endif
 
     esp_err_t ret = twai_new_node_onchip(&cfg, &s_node);
     if (ret != ESP_OK) {
@@ -144,8 +159,14 @@ esp_err_t can_init(bool loopback)
         return ret;
     }
     s_enabled = true;
-    ESP_LOGI(TAG, "TWAI node up @ %d bps (%s)", CAN_BITRATE_BPS,
-             loopback ? "loopback" : "normal");
+    ESP_LOGI(TAG, "TWAI node up @ %d bps (%s%s)", CAN_BITRATE_BPS,
+             loopback ? "self-test" : "normal",
+#if CEC_CAN_DIAG_LISTEN_ONLY
+             " + listen-only DIAG"
+#else
+             ""
+#endif
+             );
     return ESP_OK;
 }
 
