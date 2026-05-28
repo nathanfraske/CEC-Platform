@@ -17,6 +17,8 @@
 #include "cec_capture.h"
 #include "cec_can.h"
 #include "cec_teleplot.h"
+#include "cec_cli.h"
+#include "cec_classifier.h"
 
 static const char *TAG = "eps_main";
 
@@ -122,6 +124,117 @@ static void output_task(void *arg)
     }
 }
 
+// ---- CLI command handlers ----
+
+static int cmd_show(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    cec_state_t snap;
+    if (xSemaphoreTake(g_state.mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
+        printf("error: state mutex timeout\n");
+        return 1;
+    }
+    snap = g_state;
+    xSemaphoreGive(g_state.mutex);
+
+    printf("eps1   raw=%7.3f A   filt=%7.3f A   zero_off=%.4f V\n",
+           snap.current_raw_a[0], snap.current_a[0], g_acs.cal[0].zero_offset_v);
+    printf("eps2   raw=%7.3f A   filt=%7.3f A   zero_off=%.4f V\n",
+           snap.current_raw_a[1], snap.current_a[1], g_acs.cal[1].zero_offset_v);
+    printf("temp   %.2f C   load=%s   flags=0x%02x\n",
+           snap.board_temp_c, cec_load_state_name(snap.load_state), snap.status_flags);
+    printf("config id=%u supply=%.2f V oc=%.1f A alpha=%.2f raw_telem=%d\n",
+           g_config.module_id, g_config.supply_voltage, g_config.oc_threshold_a,
+           g_config.ema_alpha, g_config.output_raw);
+    return 0;
+}
+
+static int cmd_cal(int argc, char **argv)
+{
+    // 'cal'              -> zero-offset cal on both sensors
+    // 'cal span <amps>'  -> span calibration with known current
+    if (argc >= 2 && strcmp(argv[1], "span") == 0) {
+        if (argc < 3) {
+            printf("usage: cal span <known_amps>\n");
+            return 1;
+        }
+        float known = strtof(argv[2], NULL);
+        if (known == 0.0f) {
+            printf("error: known current must be nonzero\n");
+            return 1;
+        }
+        for (int i = 0; i < CEC_NUM_CABLES; i++) {
+            acs758_calibrate_span(&g_acs, i, known);
+        }
+        printf("span cal done at %.2f A\n", known);
+        return 0;
+    }
+
+    printf("zero-cal: ensure NO current flows in either cable...\n");
+    for (int i = 0; i < CEC_NUM_CABLES; i++) {
+        float off = acs758_calibrate_zero(&g_acs, i);
+        cec_config_save_zero_offset(i, off);
+        printf("sensor %d zero offset = %.4f V (saved)\n", i, off);
+    }
+    return 0;
+}
+
+static int cmd_save(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    cec_config_save(&g_config);
+    return 0;
+}
+
+static int cmd_set(int argc, char **argv)
+{
+    if (argc < 3) {
+        printf("usage: set <alpha|oc|supply> <value>\n");
+        return 1;
+    }
+    float v = strtof(argv[2], NULL);
+    if (strcmp(argv[1], "alpha") == 0) {
+        g_config.ema_alpha = v;
+        for (int i = 0; i < CEC_NUM_CABLES; i++) g_ema[i].alpha = v;
+        printf("alpha=%.3f\n", v);
+    } else if (strcmp(argv[1], "oc") == 0) {
+        g_config.oc_threshold_a = v;
+        cec_detection_init(&g_detect, v);   // re-init layer 1 with new threshold
+        printf("oc=%.2f A\n", v);
+    } else if (strcmp(argv[1], "supply") == 0) {
+        g_config.supply_voltage = v;
+        acs758_set_supply(&g_acs, v);
+        printf("supply=%.3f V\n", v);
+    } else {
+        printf("error: unknown key '%s'\n", argv[1]);
+        return 1;
+    }
+    printf("(use 'save' to persist)\n");
+    return 0;
+}
+
+static int cmd_mode(int argc, char **argv)
+{
+    if (argc < 2) {
+        printf("usage: mode <raw|filt>\n");
+        return 1;
+    }
+    if (strcmp(argv[1], "raw")  == 0) g_config.output_raw = true;
+    else if (strcmp(argv[1], "filt") == 0) g_config.output_raw = false;
+    else { printf("error: unknown mode '%s'\n", argv[1]); return 1; }
+    printf("output_raw=%d (use 'save' to persist)\n", g_config.output_raw);
+    return 0;
+}
+
+static const cec_cli_command_t CLI_COMMANDS[] = {
+    { "show", "print current readings, calibration, and config",       cmd_show },
+    { "cal",  "zero-offset cal on both sensors, or 'cal span <amps>'", cmd_cal  },
+    { "set",  "set <alpha|oc|supply> <value> (in-memory; 'save' to NVS)", cmd_set },
+    { "save", "persist current config to NVS",                         cmd_save },
+    { "mode", "set telemetry mode: 'mode raw' or 'mode filt'",         cmd_mode },
+};
+#define CLI_COMMAND_COUNT (sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]))
+
 // ---- Comms task: CAN telemetry to Hub ----
 static void comms_task(void *arg)
 {
@@ -207,6 +320,9 @@ void app_main(void)
 #else
     (void)comms_task;
 #endif
+
+    // Serial command interface (USB Serial-JTAG console).
+    ESP_ERROR_CHECK(cec_cli_init(CLI_COMMANDS, CLI_COMMAND_COUNT));
 
     ESP_LOGI(TAG, "init complete, tasks running");
 }

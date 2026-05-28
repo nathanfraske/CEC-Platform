@@ -11,5 +11,6 @@ idf_component_register(
         cec_comms
         cec_telemetry
         cec_nvs
+        cec_cli
         esp_timer
 )
