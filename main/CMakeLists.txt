@@ -9,7 +9,7 @@ idf_component_register(
         cec_detection
         cec_capture
         cec_comms
-        cec_output
+        cec_telemetry
         nvs_flash
         esp_timer
 )

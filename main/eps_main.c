@@ -15,7 +15,7 @@
 #include "detection.h"
 #include "capture.h"
 #include "can.h"
-#include "teleplot.h"
+#include "cec_teleplot.h"
 
 static const char *TAG = "eps_main";
 
