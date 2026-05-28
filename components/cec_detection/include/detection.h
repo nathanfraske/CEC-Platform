@@ -26,7 +26,7 @@ void threshold_init(threshold_detector_t *t, float oc_a, float dropout_a);
 uint8_t threshold_check(threshold_detector_t *t, float current);  // returns CEC_FLAG_* bits
 
 // State classifier (Layer 3 support).
-cec_op_state_t classify_state(float current_a, float variance);
+cec_load_state_t classify_state(float current_a, float variance);
 
 // Top-level detection: runs all layers on one sample set, updates flags,
 // returns true if any anomaly fired (caller may trigger burst capture).
@@ -41,4 +41,4 @@ typedef struct {
 void detection_init(detection_ctx_t *ctx, float oc_threshold_a);
 bool detection_run(detection_ctx_t *ctx, const float current_raw[CEC_NUM_CABLES],
                    const float current_filt[CEC_NUM_CABLES], int64_t now_us,
-                   uint8_t *out_flags, cec_op_state_t *out_state);
+                   uint8_t *out_flags, cec_load_state_t *out_state);

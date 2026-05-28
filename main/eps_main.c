@@ -59,8 +59,8 @@ static void sample_task(void *arg)
 
         // Run detection layers
         uint8_t flags = 0;
-        cec_op_state_t op_state = CEC_STATE_IDLE;
-        bool anomaly = detection_run(&g_detect, raw, filt, now_us, &flags, &op_state);
+        cec_load_state_t load_state = CEC_LOAD_IDLE;
+        bool anomaly = detection_run(&g_detect, raw, filt, now_us, &flags, &load_state);
 
         float temp = g_ntc.adc ? ntc_read_celsius(&g_ntc) : 0.0f;
 
@@ -71,7 +71,7 @@ static void sample_task(void *arg)
                 g_state.current_raw_a[i] = raw[i];
             }
             g_state.board_temp_c = temp;
-            g_state.op_state = op_state;
+            g_state.load_state = load_state;
             g_state.status_flags = flags;
             g_state.timestamp_us = now_us;
             xSemaphoreGive(g_state.mutex);

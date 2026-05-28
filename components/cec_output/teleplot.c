@@ -19,6 +19,6 @@ void teleplot_emit_state(const cec_state_t *state, bool include_raw)
     }
 
     teleplot_emit_float("board_temp", state->board_temp_c, t_ms);
-    teleplot_emit_float("op_state", (float)state->op_state, t_ms);
+    teleplot_emit_float("load_state", (float)state->load_state, t_ms);
     teleplot_emit_float("flags", (float)state->status_flags, t_ms);
 }

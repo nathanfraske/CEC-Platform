@@ -55,16 +55,16 @@ uint8_t threshold_check(threshold_detector_t *t, float current)
 
 // ---- State classifier (Layer 3 support) ----
 
-cec_op_state_t classify_state(float current_a, float variance)
+cec_load_state_t classify_state(float current_a, float variance)
 {
     // High variance -> transient regardless of magnitude
     if (variance > 4.0f) {
-        return CEC_STATE_TRANSIENT;
+        return CEC_LOAD_TRANSIENT;
     }
-    if (current_a < 5.0f)  return CEC_STATE_IDLE;
-    if (current_a < 12.0f) return CEC_STATE_LIGHT;
-    if (current_a < 22.0f) return CEC_STATE_MODERATE;
-    return CEC_STATE_HEAVY;
+    if (current_a < 5.0f)  return CEC_LOAD_IDLE;
+    if (current_a < 12.0f) return CEC_LOAD_LIGHT;
+    if (current_a < 22.0f) return CEC_LOAD_MODERATE;
+    return CEC_LOAD_HEAVY;
 }
 
 // ---- Top-level detection ----
@@ -85,7 +85,7 @@ void detection_init(detection_ctx_t *ctx, float oc_threshold_a)
 
 bool detection_run(detection_ctx_t *ctx, const float current_raw[CEC_NUM_CABLES],
                    const float current_filt[CEC_NUM_CABLES], int64_t now_us,
-                   uint8_t *out_flags, cec_op_state_t *out_state)
+                   uint8_t *out_flags, cec_load_state_t *out_state)
 {
     uint8_t flags = 0;
     float max_variance = 0.0f;
