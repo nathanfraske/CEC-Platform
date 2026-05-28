@@ -25,7 +25,8 @@ Firmware reference for the dual-EPS current monitoring module in the Critical Er
 15. [Build and Flash](#build-and-flash)
 16. [Bring-Up Checklist](#bring-up-checklist)
 17. [Development Roadmap](#development-roadmap)
-18. [Appendix: Differences from 24-pin Module](#appendix-differences-from-24-pin-module)
+18. [Codebase Parity with the 24-pin Module](#codebase-parity-with-the-24-pin-module)
+19. [Appendix: Differences from 24-pin Module](#appendix-differences-from-24-pin-module)
 
 ---
 
@@ -792,7 +793,7 @@ The N16R8 module uses octal-mode PSRAM. Set `CONFIG_SPIRAM_MODE_OCT=y` or PSRAM 
 
 Firmware bring-up after the hardware passes its power-on tests:
 
-- [ ] Flash a minimal ADC read sketch, confirm both channels report ~2210 raw (~1.67 V) at zero current
+- [ ] Flash a minimal ADC read sketch, confirm both channels report ~1937 raw (~1.467 V at the ADC pin, = 2.2 V at the chip output) at zero current with the dev board's 4.4 V Vbus supply. At a nominal 5.0 V supply the expected values are ~2210 raw / ~1.67 V instead.
 - [ ] Verify NTC channel reads a sensible board temperature
 - [ ] Run zero-offset calibration, confirm offsets are small (±30 mV → ±0.05 V at ADC)
 - [ ] Apply a known current (bench supply through one sensor) and confirm the reading matches within a few percent
@@ -828,6 +829,52 @@ Steps 1-6 get you a working current monitor with live telemetry. Steps 7-13 add 
 
 ---
 
+## Codebase Parity with the 24-pin Module
+
+The EPS firmware deliberately tracks the [24-pin module's](https://github.com/nathanfraske/cec-24pin-idf) architecture, naming, and component split so a developer fluent in one repo recognizes the other. Shared primitives — filters, NVS schemas, ADC plumbing, TelePlot envelope, CLI dispatcher, capture trigger system — are byte-for-byte the same code path with names and APIs that match.
+
+### Components
+
+| Component | Role | Status |
+|---|---|---|
+| `cec_common`  | shared types (`cec_state_t`, `cec_load_state_t`, `cec_severity_t`, flag bits) | EPS-only, 24-pin TODO to extract |
+| `cec_filters` | `ema_t` + `median_t` primitives (caller-owned buffer, full `init/update/value/reset/count` set) | parity with 24-pin's `cec_detection/cec_filters.*` |
+| `cec_sensors` | `cec_adc` ADC1 wrapper, `ntc` thermistor driver, `acs758` Hall-current driver | shared `cec_adc` interface; chip drivers are inherently module-specific |
+| `cec_nvs`     | NVS wrapper with magic-prefixed schema versioning | parity with 24-pin's `cec_detection/cec_nvs.*` (24-pin TODO: extract into own component) |
+| `cec_detection` | layered detection: `cec_layer1` (threshold), `cec_layer2` (transient), `cec_layer3` (rail profile), `cec_swing` (windowed swing), `cec_classifier` | layer naming + rail-profile + swing primitive are shared; per-layer algorithms diverge where the underlying signal differs (current vs voltage) |
+| `cec_telemetry` | TelePlot output (`teleplot_emit` / `teleplot_emit_t`, `%.6f` precision, `PRId64` timestamps) | parity with 24-pin's `cec_telemetry/cec_teleplot.*` |
+| `cec_capture` | trigger system + pre-trigger ring + HS burst capture + `>BURST_BEGIN/END` dump | API + dump envelope parity; HS source diverges (EPS uses `adc_continuous` DMA for 10 kHz; 24-pin uses `adc_oneshot` callback at 1 kHz) |
+| `cec_comms`   | CAN/TWAI driver (new `esp_twai` node-handle API; gated by `CEC_CAN_ENABLED` until the daughterboard lands) | EPS-only, 24-pin TODO when CAN ships there |
+| `cec_cli`     | line-based serial command interface over USB Serial-JTAG | parity with 24-pin's `cec_cli/cec_cli.*` |
+
+### Naming conventions
+
+- Shared component sources carry the `cec_` prefix (`cec_capture.c`, `cec_filters.c`, `cec_teleplot.c`, `cec_can.c`).
+- Chip-specific sensor drivers keep their part names (`acs758.c`, `ntc.c`, in the 24-pin: `ina226.c`, `acs712.c`, `thermistor.c`).
+- Types follow the 24-pin's `_t` suffix convention (`ema_t`, `median_t`, `cec_rail_profile_t`, `cec_swing_detector_t`).
+
+### Intentional divergences
+
+The architecture is shared; the algorithms are not always identical. EPS deviates where the underlying signal demands it:
+
+| Topic | 24-pin | EPS |
+|---|---|---|
+| Layer 1 detector | static voltage band (% deviation) | static current ceiling (absolute amps) |
+| Layer 2 detector | adaptive transient (`\|instant - ema\| > k_sigma * std`) | rate-of-change (`\|dI/dt\| > A/ms`), since cable current legitimately swings as the CPU load steps |
+| Capture HS source | `adc_oneshot` callback at 1 kHz | `adc_continuous` DMA at 10 kHz |
+| State enum | `cec_state_t` (OFF/STANDBY/IDLE/ACTIVE/PEAK — whole PSU) | `cec_load_state_t` (IDLE/LIGHT/MODERATE/HEAVY/TRANSIENT — per cable) |
+| Power calc | sums per-rail V×I | assumes 12 V nominal × I (or 12 V rail voltage from CAN once production lands) |
+
+The `cec_state_t` and `cec_load_state_t` names are distinct on purpose — both modules can include each other's headers without a name clash.
+
+### What's "shared" actually means
+
+`cec_filters`, `cec_nvs`, `cec_cli`, `cec_teleplot`, `cec_swing`, `cec_rail_profile_t`, the capture trigger enum + dump envelope: implementation matches the 24-pin's source byte-for-byte (modulo licensing headers). `cec_capture`'s HS path and `cec_detection`'s per-layer algorithms intentionally diverge per the table above, but the file layout, type names, and call shapes are common across both modules.
+
+The flip side: if the 24-pin module changes one of the shared primitives, the EPS module needs the same change, and vice versa. The two trees should be kept in lock-step on those.
+
+---
+
 ## Appendix: Differences from 24-pin Module
 
 For developers familiar with the 24-pin firmware, here's what changes for EPS:
@@ -844,7 +891,7 @@ For developers familiar with the 24-pin firmware, here's what changes for EPS:
 | Voltage available | Yes (direct) | No (assume 12 V or get from CAN) |
 | Power supply | 3.3 V | 5 V (for ACS758) + 3.3 V (MCU) |
 
-**Shared (no change):** detection layers, filters, ring buffer, CAN protocol, Teleplot output, NVS pattern, FreeRTOS task structure, daughterboard (CAN + NTC + Hub interface).
+**Shared (no change):** filter primitives, NVS schema wrapper, TelePlot output, CLI dispatcher, ADC abstraction, capture trigger system, layer naming + rail profile + swing primitive, FreeRTOS task structure, daughterboard (CAN + NTC + Hub interface). See the [Codebase Parity](#codebase-parity-with-the-24-pin-module) section above for the file-by-file map.
 
 The architectural payoff: swapping `ina226.c` for `acs758.c` and adjusting the sample task's read calls is most of the module-specific work. Everything downstream of "filtered current value" is common code.
 
