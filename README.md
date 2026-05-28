@@ -92,9 +92,10 @@ ESP32-S3 GPIO assignments for the EPS module:
 |---|---|---|---|
 | GPIO 6 | ADC1_CH5 | ACS758 #1 current (EPS cable 1) | Col I row 17 |
 | GPIO 10 | ADC1_CH9 | ACS758 #2 current (EPS cable 2) | Col I row 6 |
+| GPIO 1 | ADC1_CH0 | 12V rail tap (47k/10k divider, V_rail = V_pin × 5.7) | — |
 | GPIO 7 | ADC1_CH6 | NTC thermistor (board temp) | Col I row 16 (via daughterboard) |
 | GPIO 4 | — | CAN TX (TWAI) | Col I row 19 (via daughterboard) |
-| GPIO 5 | — | CAN RX (TWAI) | Col I row 18 (via daughterboard) |
+| GPIO 15 | — | CAN RX (TWAI) | via daughterboard |
 | GPIO 8 | — | I2C SDA (reserved, unused on EPS) | Col I row 11 |
 | GPIO 9 | — | I2C SCL (reserved, unused on EPS) | Col I row 8 |
 
@@ -254,13 +255,13 @@ The ~28 mA quantization step and ~10-30 mA filtered noise are fine for EPS curre
 
 ### Power calculation note
 
-The ACS758 measures current only. The EPS rail is 12 V nominal. For power reporting:
+The ACS758 measures current only. The EPS rail is 12 V nominal. The firmware now reads the actual rail voltage via a 47k/10k divider on GPIO 1 (ADC1_CH0, `V_rail = V_pin × 5.7`); the result lands in `cec_state_t::bus_voltage_v` and is emitted to TelePlot as `bus_voltage`. Power is `bus_voltage × (eps1_current + eps2_current)`.
 
-- **Prototype:** assume 12 V nominal, `P = 12.0 × I`. Acceptable for development.
-- **Production option A:** add a voltage divider tap on the 12 V rail to a spare ADC channel and measure actual rail voltage.
-- **Production option B:** receive the measured 12 V rail voltage from the 24-pin module over CAN and use it for power calc.
+The 24-pin module separately measures and reports its own 12 V rail voltage over CAN; once both modules are on the bus together, cross-checking the EPS's local tap against the 24-pin's reading is a useful sanity check (and detects voltage drop along the cable, which is a sign of connector resistance or cable degradation).
 
-Per-cable voltage measurement also enables detecting voltage drop under load (a sign of connector resistance or cable degradation), which is a useful diagnostic. Defer to production.
+A single divider on the shared cable bundle is the current setup — both EPS cables come off the same PSU rail. Per-cable taps (two dividers) would resolve drop per cable but are deferred until a use case actually needs it.
+
+The CAN telemetry payload doesn't yet carry the bus voltage byte (the 8-byte frame is full); extending the protocol is a Hub-side coordination on the running 24-pin TODO list.
 
 ---
 

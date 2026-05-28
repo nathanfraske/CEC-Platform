@@ -5,7 +5,7 @@
 #include "cec_state.h"
 
 #define CAN_TX_GPIO  4
-#define CAN_RX_GPIO  5
+#define CAN_RX_GPIO  15
 
 // Frame ID scheme (see EPS-FIRMWARE-SPEC.md)
 #define CAN_ID_ANOMALY_BASE    0x100

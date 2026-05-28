@@ -94,7 +94,8 @@ void teleplot_emit_state(const cec_state_t *state, bool include_raw)
         teleplot_emit_t("eps2_raw", t_ms, state->current_raw_a[1]);
     }
 
-    teleplot_emit_t("board_temp", t_ms, state->board_temp_c);
-    teleplot_emit_t("load_state", t_ms, (float)state->load_state);
-    teleplot_emit_t("flags",      t_ms, (float)state->status_flags);
+    teleplot_emit_t("bus_voltage", t_ms, state->bus_voltage_v);
+    teleplot_emit_t("board_temp",  t_ms, state->board_temp_c);
+    teleplot_emit_t("load_state",  t_ms, (float)state->load_state);
+    teleplot_emit_t("flags",       t_ms, (float)state->status_flags);
 }

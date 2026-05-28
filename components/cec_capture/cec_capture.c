@@ -266,7 +266,7 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
      * instead of seven for pre-trigger / two for HS. */
 
 #define DUMP_YIELD_EVERY 64
-    /* A pre-trigger sample formats into ~245 bytes (7 lines * ~35).
+    /* A pre-trigger sample formats into ~280 bytes (8 lines * ~35).
      * An HS row into ~70. 384 is a safe stack budget for both. */
     char chunk[384];
     int  n;
@@ -292,6 +292,7 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
                      ">b_eps2_a:%" PRIu32 ":%.6f\n"
                      ">b_eps1_raw_a:%" PRIu32 ":%.6f\n"
                      ">b_eps2_raw_a:%" PRIu32 ":%.6f\n"
+                     ">b_bus_v:%" PRIu32 ":%.6f\n"
                      ">b_temp_c:%" PRIu32 ":%.6f\n"
                      ">b_load:%" PRIu32 ":%u\n"
                      ">b_flags:%" PRIu32 ":%u\n",
@@ -299,6 +300,7 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
                      s->ts_ms, s->eps2_a,
                      s->ts_ms, s->eps1_raw_a,
                      s->ts_ms, s->eps2_raw_a,
+                     s->ts_ms, s->bus_voltage_v,
                      s->ts_ms, s->temp_c,
                      s->ts_ms, (unsigned)s->load_state,
                      s->ts_ms, (unsigned)s->flags);

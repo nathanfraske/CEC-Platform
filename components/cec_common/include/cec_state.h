@@ -42,6 +42,7 @@ typedef enum {
 typedef struct {
     float current_a[CEC_NUM_CABLES];      // filtered current per cable (amps)
     float current_raw_a[CEC_NUM_CABLES];  // unfiltered current (amps)
+    float bus_voltage_v;                  // 12V rail measured via divider on GPIO 1
     float board_temp_c;                   // NTC board temperature
     cec_load_state_t load_state;          // per-cable load classifier output
     uint8_t status_flags;                 // CEC_FLAG_* bits
@@ -64,8 +65,7 @@ typedef struct {
 #define CEC_DEFAULT_EMA_ALPHA   0.2f
 #define CEC_DEFAULT_MODULE_ID   1
 
-// Hardware presence flag. The CAN transceiver lives on the daughterboard;
-// while it isn't attached the TWAI driver must not be installed (RX pin
-// would float and the controller would log bus errors). Flip to 1 when the
-// daughterboard is connected.
-#define CEC_CAN_ENABLED         0
+// Hardware presence flag. Set to 1 once the daughterboard with the
+// CAN transceiver is attached; the migrated esp_twai node-handle code
+// in cec_can.c becomes active.
+#define CEC_CAN_ENABLED         1

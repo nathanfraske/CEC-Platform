@@ -78,6 +78,7 @@ typedef struct {
     uint32_t ts_ms;
     float    eps1_a, eps2_a;
     float    eps1_raw_a, eps2_raw_a;
+    float    bus_voltage_v;  /* 12V rail measurement (V) */
     float    temp_c;
     uint8_t  load_state;     /* cec_load_state_t cast to byte */
     uint8_t  flags;          /* CEC_FLAG_* bits */
