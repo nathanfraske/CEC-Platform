@@ -3,41 +3,64 @@
 #if CEC_CAN_ENABLED
 
 /*
- * NOTE: this still uses the legacy "driver/twai.h" driver. IDF 6.x has
- * deprecated it in favor of "esp_twai.h" / "esp_twai_onchip.h" and emits
- * a #warning that -Werror turns into a build error. Migrate the body of
- * this block to the new node-handle API (twai_new_node_onchip, twai_node_*)
- * the next time CEC_CAN_ENABLED is flipped on. Until then this whole block
- * is excluded from compilation so the deprecation warning never fires.
+ * Migrated to the IDF 6.x esp_twai_onchip / esp_twai node-handle API.
+ * Legacy driver/twai.h is no longer touched here.
+ *
+ * UNTESTED on hardware: this block does not compile while
+ * CEC_CAN_ENABLED is 0. Verify on the bench when the daughterboard /
+ * transceiver is attached and the flag is flipped on.
  */
-#include "driver/twai.h"
+#include "esp_twai.h"
+#include "esp_twai_onchip.h"
 #include "esp_log.h"
-#include <string.h>
+
+#define CAN_BITRATE_BPS        500000
+#define CAN_TX_QUEUE_DEPTH     8
+#define CAN_TX_TIMEOUT_MS      10
 
 static const char *TAG = "can";
-static bool s_installed = false;
+static twai_node_handle_t s_node = NULL;
+static bool s_enabled = false;
 
 esp_err_t can_init(bool loopback)
 {
-    twai_mode_t mode = loopback ? TWAI_MODE_NO_ACK : TWAI_MODE_NORMAL;
-    twai_general_config_t g_cfg =
-        TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_GPIO, CAN_RX_GPIO, mode);
-    twai_timing_config_t t_cfg = TWAI_TIMING_CONFIG_500KBITS();
-    twai_filter_config_t f_cfg = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+    if (s_node != NULL) {
+        return ESP_ERR_INVALID_STATE;
+    }
 
-    esp_err_t ret = twai_driver_install(&g_cfg, &t_cfg, &f_cfg);
+    twai_onchip_node_config_t cfg = {
+        .io_cfg = {
+            .tx                = CAN_TX_GPIO,
+            .rx                = CAN_RX_GPIO,
+            .quanta_clk_out    = GPIO_NUM_NC,
+            .bus_off_indicator = GPIO_NUM_NC,
+        },
+        .bit_timing      = { .bitrate = CAN_BITRATE_BPS },
+        .fail_retry_cnt  = 3,
+        .tx_queue_depth  = CAN_TX_QUEUE_DEPTH,
+    };
+    if (loopback) {
+        // Bench self-test: transmit without requiring another node's ACK.
+        // Equivalent to the legacy TWAI_MODE_NO_ACK.
+        cfg.flags.enable_self_test = 1;
+    }
+
+    esp_err_t ret = twai_new_node_onchip(&cfg, &s_node);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "driver install failed: %s", esp_err_to_name(ret));
+        ESP_LOGE(TAG, "twai_new_node_onchip failed: %s", esp_err_to_name(ret));
+        s_node = NULL;
         return ret;
     }
-    ret = twai_start();
+    ret = twai_node_enable(s_node);
     if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "start failed: %s", esp_err_to_name(ret));
-        twai_driver_uninstall();
+        ESP_LOGE(TAG, "twai_node_enable failed: %s", esp_err_to_name(ret));
+        twai_node_delete(s_node);
+        s_node = NULL;
         return ret;
     }
-    s_installed = true;
-    ESP_LOGI(TAG, "TWAI started @ 500kbps (%s)", loopback ? "loopback" : "normal");
+    s_enabled = true;
+    ESP_LOGI(TAG, "TWAI node up @ %d bps (%s)", CAN_BITRATE_BPS,
+             loopback ? "self-test" : "normal");
     return ESP_OK;
 }
 
@@ -53,11 +76,7 @@ esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
                              const float current_a[CEC_NUM_CABLES],
                              uint8_t status_flags, float board_temp_c)
 {
-    if (!s_installed) return ESP_ERR_INVALID_STATE;
-
-    twai_message_t msg = {0};
-    msg.identifier = CAN_ID_TELEMETRY_BASE + module_id;
-    msg.data_length_code = 8;
+    if (!s_enabled) return ESP_ERR_INVALID_STATE;
 
     int16_t i0 = amps_to_ma_i16(current_a[0]);
     int16_t i1 = amps_to_ma_i16(current_a[1]);
@@ -68,40 +87,55 @@ esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
     if (t > 127.0f)  t = 127.0f;
     if (t < -128.0f) t = -128.0f;
 
-    msg.data[0] = module_type;
-    msg.data[1] = module_id;
-    msg.data[2] = (uint8_t)(i0 & 0xFF);
-    msg.data[3] = (uint8_t)((i0 >> 8) & 0xFF);
-    msg.data[4] = (uint8_t)(i1 & 0xFF);
-    msg.data[5] = (uint8_t)((i1 >> 8) & 0xFF);
-    msg.data[6] = status_flags;
-    msg.data[7] = (int8_t)t;
+    uint8_t data[8] = {
+        module_type,
+        module_id,
+        (uint8_t)(i0 & 0xFF),
+        (uint8_t)((i0 >> 8) & 0xFF),
+        (uint8_t)(i1 & 0xFF),
+        (uint8_t)((i1 >> 8) & 0xFF),
+        status_flags,
+        (uint8_t)(int8_t)t,
+    };
+    twai_frame_t frame = {
+        .header.id  = CAN_ID_TELEMETRY_BASE + module_id,
+        .buffer     = data,
+        .buffer_len = sizeof(data),
+    };
 
-    return twai_transmit(&msg, pdMS_TO_TICKS(10));
+    esp_err_t ret = twai_node_transmit(s_node, &frame, CAN_TX_TIMEOUT_MS);
+    if (ret != ESP_OK) return ret;
+    // Block until the queued frame is actually on the wire so the
+    // stack-allocated `data` buffer can safely go out of scope.
+    return twai_node_transmit_wait_all_done(s_node, CAN_TX_TIMEOUT_MS);
 }
 
 esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
                            uint8_t status_flags)
 {
-    if (!s_installed) return ESP_ERR_INVALID_STATE;
+    if (!s_enabled) return ESP_ERR_INVALID_STATE;
 
-    twai_message_t msg = {0};
-    msg.identifier = CAN_ID_ANOMALY_BASE + module_id;   // lower ID = higher priority
-    msg.data_length_code = 3;
-    msg.data[0] = module_type;
-    msg.data[1] = module_id;
-    msg.data[2] = status_flags;
+    uint8_t data[3] = { module_type, module_id, status_flags };
+    twai_frame_t frame = {
+        .header.id  = CAN_ID_ANOMALY_BASE + module_id,  // lower ID = higher priority
+        .buffer     = data,
+        .buffer_len = sizeof(data),
+    };
 
-    return twai_transmit(&msg, pdMS_TO_TICKS(10));
+    esp_err_t ret = twai_node_transmit(s_node, &frame, CAN_TX_TIMEOUT_MS);
+    if (ret != ESP_OK) return ret;
+    return twai_node_transmit_wait_all_done(s_node, CAN_TX_TIMEOUT_MS);
 }
 
 void can_stop(void)
 {
-    if (s_installed) {
-        twai_stop();
-        twai_driver_uninstall();
-        s_installed = false;
+    if (s_node == NULL) return;
+    if (s_enabled) {
+        twai_node_disable(s_node);
+        s_enabled = false;
     }
+    twai_node_delete(s_node);
+    s_node = NULL;
 }
 
 #else  /* CEC_CAN_ENABLED */
