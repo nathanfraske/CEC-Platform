@@ -1,4 +1,15 @@
 #include "can.h"
+
+#if CEC_CAN_ENABLED
+
+/*
+ * NOTE: this still uses the legacy "driver/twai.h" driver. IDF 6.x has
+ * deprecated it in favor of "esp_twai.h" / "esp_twai_onchip.h" and emits
+ * a #warning that -Werror turns into a build error. Migrate the body of
+ * this block to the new node-handle API (twai_new_node_onchip, twai_node_*)
+ * the next time CEC_CAN_ENABLED is flipped on. Until then this whole block
+ * is excluded from compilation so the deprecation warning never fires.
+ */
 #include "driver/twai.h"
 #include "esp_log.h"
 #include <string.h>
@@ -92,3 +103,38 @@ void can_stop(void)
         s_installed = false;
     }
 }
+
+#else  /* CEC_CAN_ENABLED */
+
+/*
+ * Link-time stubs while the TWAI driver is not built. comms_task is
+ * never created in this configuration (eps_main.c also #if-guards the
+ * xTaskCreatePinnedToCore call), but its compiled body still references
+ * these symbols, so they have to resolve.
+ */
+
+esp_err_t can_init(bool loopback)
+{
+    (void)loopback;
+    return ESP_ERR_NOT_SUPPORTED;
+}
+
+esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
+                             const float current_a[CEC_NUM_CABLES],
+                             uint8_t status_flags, float board_temp_c)
+{
+    (void)module_type; (void)module_id; (void)current_a;
+    (void)status_flags; (void)board_temp_c;
+    return ESP_ERR_INVALID_STATE;
+}
+
+esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
+                           uint8_t status_flags)
+{
+    (void)module_type; (void)module_id; (void)status_flags;
+    return ESP_ERR_INVALID_STATE;
+}
+
+void can_stop(void) { }
+
+#endif /* CEC_CAN_ENABLED */
