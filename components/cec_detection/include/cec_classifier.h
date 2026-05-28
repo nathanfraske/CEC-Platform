@@ -17,10 +17,11 @@ extern "C" {
 
 /*
  * Classify the current load level given the latest filtered current
- * (amps) and the running variance estimate. High variance overrides
- * the magnitude bucketing and returns CEC_LOAD_TRANSIENT.
+ * (amps) and the per-cable noise std-deviation from the Layer 3 rail
+ * profile (amps RMS). High std overrides the magnitude bucketing and
+ * returns CEC_LOAD_TRANSIENT.
  */
-cec_load_state_t cec_classify_load(float current_a, float variance);
+cec_load_state_t cec_classify_load(float current_a, float noise_std_a);
 
 /*
  * Human-readable load-state name. Always returns a valid pointer.

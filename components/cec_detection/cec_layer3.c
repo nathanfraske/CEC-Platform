@@ -1,28 +1,50 @@
 /*
- * Layer 3 statistical baseline (variance EMA).
+ * Layer 3 rail profile primitive.
  */
 
+#include <math.h>
 #include "cec_layer3.h"
 
-void cec_layer3_init(cec_layer3_detector_t *d, float alpha)
+#define FAST_ADAPT_RATE    0.01f
+#define INITIAL_STD_GUESS  0.01f
+#define MIN_STD_FOR_Z      0.001f
+
+void cec_rail_profile_init(cec_rail_profile_t *p)
 {
-    d->variance_est = 0.0f;
-    d->alpha = alpha;
+    p->mean = 0.0f;
+    p->std_dev = 0.0f;
+    p->sample_count = 0;
 }
 
-float cec_layer3_update(cec_layer3_detector_t *d, float instant, float smoothed)
+void cec_rail_profile_update(cec_rail_profile_t *p, float x, float adapt_rate)
 {
-    float dev = instant - smoothed;
-    d->variance_est = (1.0f - d->alpha) * d->variance_est + d->alpha * (dev * dev);
-    return d->variance_est;
+    if (p->sample_count < CEC_PROFILE_FAST_SAMPLES) {
+        if (p->sample_count == 0) {
+            p->mean = x;
+            p->std_dev = INITIAL_STD_GUESS;
+        } else {
+            float delta = x - p->mean;
+            p->mean    += delta * FAST_ADAPT_RATE;
+            p->std_dev += (fabsf(delta) - p->std_dev) * FAST_ADAPT_RATE;
+        }
+    } else {
+        float delta = x - p->mean;
+        p->mean    += delta * adapt_rate;
+        p->std_dev += (fabsf(delta) - p->std_dev) * adapt_rate;
+    }
+    if (p->sample_count < UINT32_MAX) {
+        p->sample_count++;
+    }
 }
 
-float cec_layer3_variance(const cec_layer3_detector_t *d)
+bool cec_rail_profile_is_warm(const cec_rail_profile_t *p)
 {
-    return d->variance_est;
+    return p->sample_count > CEC_PROFILE_WARM_SAMPLES;
 }
 
-void cec_layer3_reset(cec_layer3_detector_t *d)
+float cec_rail_profile_z_score(const cec_rail_profile_t *p, float x)
 {
-    d->variance_est = 0.0f;
+    if (!cec_rail_profile_is_warm(p)) return 0.0f;
+    if (p->std_dev < MIN_STD_FOR_Z)   return 0.0f;
+    return (x - p->mean) / p->std_dev;
 }

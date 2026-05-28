@@ -18,10 +18,12 @@ const char *cec_load_state_name(cec_load_state_t s)
     return NAMES[s];
 }
 
-cec_load_state_t cec_classify_load(float current_a, float variance)
+cec_load_state_t cec_classify_load(float current_a, float noise_std_a)
 {
-    // High variance -> transient regardless of magnitude.
-    if (variance > 4.0f)   return CEC_LOAD_TRANSIENT;
+    // High std deviation -> transient regardless of magnitude.
+    // 0.5 A is well above the filtered noise floor (~10-30 mA RMS)
+    // so only sustained large swings trip TRANSIENT.
+    if (noise_std_a > 0.5f) return CEC_LOAD_TRANSIENT;
 
     if (current_a < 5.0f)  return CEC_LOAD_IDLE;
     if (current_a < 12.0f) return CEC_LOAD_LIGHT;

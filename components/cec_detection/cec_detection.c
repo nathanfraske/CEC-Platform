@@ -2,33 +2,38 @@
  * Top-level detection orchestrator.
  *
  * Layer split mirrors the 24-pin module:
- *   cec_layer1 - static threshold (overcurrent + dropout)
- *   cec_layer2 - fast transient (dI/dt for EPS)
- *   cec_layer3 - statistical baseline (variance EMA)
+ *   cec_layer1     - static threshold (overcurrent + dropout)
+ *   cec_layer2     - fast transient (dI/dt for EPS)
+ *   cec_layer3     - rail profile (mean + std, z-score for anomaly)
  *   cec_classifier - load-state classifier
+ *
+ * Layer 3 is the 24-pin's cec_rail_profile_t verbatim. The classifier
+ * compares the per-cable running std_dev against a threshold to flag
+ * CEC_LOAD_TRANSIENT, and the z-score is also available to callers
+ * via the ctx for finer-grained anomaly detection (TODO: fold a
+ * |z| > 4 check into the flags bitfield once the noise floor is
+ * characterized on hardware).
  */
 
 #include "cec_detection.h"
 
-/* Detector-tuning defaults. EPS-specific; the 24-pin uses different
- * numbers for its voltage-domain bands. */
-#define LAYER1_CRIT_REQUIRED        3      /* matches 24-pin's L1 default */
-#define LAYER1_DROPOUT_FLOOR_A      0.5f   /* under-current when system should be loaded */
-#define LAYER2_THRESHOLD_A_PER_MS   1.0f   /* 1 A/ms = 10 A in 10 ms */
-#define LAYER3_VARIANCE_ALPHA       0.1f
+/* Detector-tuning defaults. */
+#define LAYER1_CRIT_REQUIRED        3
+#define LAYER1_DROPOUT_FLOOR_A      0.5f
+#define LAYER2_THRESHOLD_A_PER_MS   1.0f
+/* Layer 3 adapt rate. 0.0005 at 50 Hz gives a ~2000-sample (40 s)
+ * effective averaging window once warm, matching the 24-pin's value. */
+#define LAYER3_ADAPT_RATE           0.0005f
 
 void cec_detection_init(cec_detection_ctx_t *ctx, float oc_threshold_a)
 {
     for (int i = 0; i < CEC_NUM_CABLES; i++) {
-        // Single-tier OC: warn band == crit band until a sub-critical
-        // warning level is tuned in. cec_layer1 will then report
-        // WARNING vs CRITICAL on those distinct bands.
         cec_layer1_init(&ctx->l1[i],
                         oc_threshold_a, oc_threshold_a,
                         LAYER1_DROPOUT_FLOOR_A,
                         LAYER1_CRIT_REQUIRED);
         cec_layer2_init(&ctx->l2[i], LAYER2_THRESHOLD_A_PER_MS);
-        cec_layer3_init(&ctx->l3[i], LAYER3_VARIANCE_ALPHA);
+        cec_rail_profile_init(&ctx->l3[i]);
     }
 }
 
@@ -40,11 +45,11 @@ bool cec_detection_run(cec_detection_ctx_t *ctx,
                        cec_load_state_t *out_state)
 {
     uint8_t flags = 0;
-    float   max_variance = 0.0f;
-    float   max_current  = 0.0f;
+    float   max_std     = 0.0f;
+    float   max_current = 0.0f;
 
     for (int i = 0; i < CEC_NUM_CABLES; i++) {
-        // Layer 1: severity-graded threshold on the filtered value.
+        /* Layer 1: severity-graded threshold on the filtered value. */
         cec_severity_t sev = cec_layer1_update(&ctx->l1[i], current_filt[i]);
         if (sev == CEC_SEV_CRITICAL) {
             flags |= CEC_FLAG_OVERCURRENT;
@@ -53,19 +58,21 @@ bool cec_detection_run(cec_detection_ctx_t *ctx,
             flags |= CEC_FLAG_DROPOUT;
         }
 
-        // Layer 2: rate-of-change on the raw stream (catches fast transients).
+        /* Layer 2: rate-of-change on the raw stream (fast transients). */
         if (cec_layer2_update(&ctx->l2[i], current_raw[i], now_us)) {
             flags |= CEC_FLAG_SWING;
         }
 
-        // Layer 3: running variance estimate for the classifier.
-        float var = cec_layer3_update(&ctx->l3[i], current_raw[i], current_filt[i]);
+        /* Layer 3: rail profile. Feed the filtered value so brief raw
+         * spikes don't widen the std estimate; the classifier picks
+         * up the resulting std_dev as a noise/variability gauge. */
+        cec_rail_profile_update(&ctx->l3[i], current_filt[i], LAYER3_ADAPT_RATE);
 
-        if (var > max_variance)            max_variance = var;
-        if (current_filt[i] > max_current) max_current  = current_filt[i];
+        if (ctx->l3[i].std_dev > max_std)  max_std     = ctx->l3[i].std_dev;
+        if (current_filt[i]    > max_current) max_current = current_filt[i];
     }
 
-    *out_state = cec_classify_load(max_current, max_variance);
+    *out_state = cec_classify_load(max_current, max_std);
     *out_flags = flags;
     return (flags != 0);
 }

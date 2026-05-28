@@ -1,47 +1,64 @@
 /*
- * Layer 3 statistical baseline.
+ * Layer 3 statistical baseline (rail profile).
  *
- * 24-pin parity: same architectural role as the 24-pin's cec_layer3
- * (long-horizon statistical baseline for the load classifier and for
- * detecting drift from learned-normal behavior).
+ * Parity primitive with the 24-pin module's cec_layer3.h
+ * cec_rail_profile_t. Tracks a running mean and std-deviation estimate
+ * for a single signal with dual adaptation rates: a fast initial ramp
+ * for the first ~CEC_PROFILE_FAST_SAMPLES samples so the estimate
+ * converges quickly after a state change or boot, then settles into a
+ * slow caller-supplied adapt rate so genuine anomalies don't pollute
+ * the baseline.
  *
- * EPS-specific implementation: an EMA of (raw - filtered)^2, giving a
- * running variance estimate. This is rudimentary compared to the
- * 24-pin's cec_rail_profile_t with mean + std + warm-sample gating +
- * z-score; the EPS variance is just a noisiness gauge fed into the
- * load classifier (CEC_LOAD_TRANSIENT when variance is high).
+ * A profile is "warm" after CEC_PROFILE_WARM_SAMPLES samples; z_score
+ * returns 0 before that so anomaly detection doesn't fire during
+ * warm-up.
  *
- * TODO: upgrade to a full mean+std profile with warm-up and z-score
- * (parity with cec_rail_profile_t) once EPS calibration and dwell
- * times are characterized.
+ * Used on EPS as the per-cable, per-load-state noise/std baseline for
+ * the classifier (high std_dev -> CEC_LOAD_TRANSIENT) and for
+ * z-score-based anomaly detection on the filtered current stream.
  */
 
 #pragma once
 
+#include <stdint.h>
 #include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+/* Sample count above which the profile is "warm" and z-scores are
+ * trustworthy. At 50 Hz, 1000 samples = 20 seconds before the profile
+ * starts emitting anomaly signals. */
+#define CEC_PROFILE_WARM_SAMPLES  1000U
+
+/* Sample count below which the fast initial adapt rate (0.01) is used
+ * instead of the caller-supplied slow rate, so the profile converges
+ * quickly on first entry. */
+#define CEC_PROFILE_FAST_SAMPLES  100U
+
 typedef struct {
-    float variance_est;   /* EMA of (instant - smoothed)^2 */
-    float alpha;          /* EMA weight; 0.1 is the v0.5.9 default */
-} cec_layer3_detector_t;
+    float    mean;
+    float    std_dev;
+    uint32_t sample_count;
+} cec_rail_profile_t;
 
-void  cec_layer3_init(cec_layer3_detector_t *d, float alpha);
+/* Initialize. All fields zeroed; profile is unwarmed. */
+void cec_rail_profile_init(cec_rail_profile_t *p);
 
-/*
- * Feed an (instant, smoothed) pair. Returns the updated variance
- * estimate. instant is the raw sample; smoothed is the filtered value
- * (median+EMA). The deviation (instant - smoothed) is the noise content
- * once steady-state is established.
- */
-float cec_layer3_update(cec_layer3_detector_t *d, float instant, float smoothed);
+/* Feed a sample. `adapt_rate` is the steady-state EMA weight used
+ * after the fast-ramp window (typ 0.0005 -> ~2000-sample effective
+ * window). */
+void cec_rail_profile_update(cec_rail_profile_t *p, float x, float adapt_rate);
 
-float cec_layer3_variance(const cec_layer3_detector_t *d);
+/* True once enough samples have accumulated to trust the estimate. */
+bool cec_rail_profile_is_warm(const cec_rail_profile_t *p);
 
-void  cec_layer3_reset(cec_layer3_detector_t *d);
+/* Standard-deviation distance of `x` from the learned mean. Returns 0
+ * if the profile isn't warm yet or if std_dev is too small to be
+ * numerically meaningful (avoids div-by-zero and huge junk values
+ * from a perfectly quiet rail). */
+float cec_rail_profile_z_score(const cec_rail_profile_t *p, float x);
 
 #ifdef __cplusplus
 }

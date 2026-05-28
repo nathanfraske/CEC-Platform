@@ -24,7 +24,7 @@ extern "C" {
 typedef struct {
     cec_layer1_detector_t l1[CEC_NUM_CABLES];   /* current threshold */
     cec_layer2_detector_t l2[CEC_NUM_CABLES];   /* fast transient (dI/dt) */
-    cec_layer3_detector_t l3[CEC_NUM_CABLES];   /* baseline variance */
+    cec_rail_profile_t    l3[CEC_NUM_CABLES];   /* mean+std rail profile */
 } cec_detection_ctx_t;
 
 /*
