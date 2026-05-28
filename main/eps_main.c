@@ -143,7 +143,7 @@ static void sample_task(void *arg)
 static void output_task(void *arg)
 {
     ESP_LOGI(TAG, "output task started on core %d", xPortGetCoreID());
-    TickType_t last_wake = xTaskGetTickCount();
+    (void)arg;
 
     while (1) {
         cec_state_t snap;
@@ -152,7 +152,10 @@ static void output_task(void *arg)
             xSemaphoreGive(g_state.mutex);
             teleplot_emit_state(&snap, g_config.output_raw);
         }
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(OUTPUT_PERIOD_MS));
+        // vTaskDelay (not DelayUntil) so a long burst dump can't leave
+        // this task in "catch up" mode where DelayUntil returns instantly
+        // and the task spins iteration-on-iteration, starving IDLE1.
+        vTaskDelay(pdMS_TO_TICKS(OUTPUT_PERIOD_MS));
     }
 }
 
@@ -316,7 +319,7 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
 static void comms_task(void *arg)
 {
     ESP_LOGI(TAG, "comms task started on core %d", xPortGetCoreID());
-    TickType_t last_wake = xTaskGetTickCount();
+    (void)arg;
 
     while (1) {
         cec_state_t snap;
@@ -331,7 +334,7 @@ static void comms_task(void *arg)
                                  snap.status_flags);
             }
         }
-        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(COMMS_PERIOD_MS));
+        vTaskDelay(pdMS_TO_TICKS(COMMS_PERIOD_MS));
     }
 }
 

@@ -329,7 +329,15 @@ static void dispatch_task(void *arg)
             ESP_LOGE(TAG, "HS capture failed: %s", esp_err_to_name(r));
         }
 
+        /* HS capture is done; the dump phase is just blocking printfs
+         * and doesn't need the high DMA-consumer priority. Drop to
+         * priority 1 so output (3) preempts freely and IDLE1 (0) gets
+         * proper slices via the in-loop vTaskDelay yields. Restore
+         * before sleeping so the next HS run has its priority back. */
+        UBaseType_t old_prio = uxTaskPriorityGet(NULL);
+        vTaskPrioritySet(NULL, tskIDLE_PRIORITY + 1);
         dump_burst(reason, annotation, pre_start_snap, pre_count_snap, hs_count);
+        vTaskPrioritySet(NULL, old_prio);
 
         s_last_complete_us = esp_timer_get_time();
         s_pending_reason = CEC_TRIG_NONE;
