@@ -71,11 +71,22 @@ esp_err_t can_init(bool loopback)
         .tx_queue_depth  = CAN_TX_QUEUE_DEPTH,
     };
     if (loopback) {
-        /* True internal loopback: every transmitted frame is also
-         * delivered to the RX path via on_rx_done. Nothing reaches
-         * the wire and no external ACK is required. Use this for
-         * bench bring-up before a Hub is on the bus. */
-        cfg.flags.enable_loopback = 1;
+        /* Bench self-test combo:
+         *   enable_loopback  - every transmitted frame is delivered
+         *                      back to the RX path (so on_rx_done
+         *                      fires and you can verify the round
+         *                      trip from idf.py monitor).
+         *   enable_self_test - drop the requirement that another node
+         *                      ACK each TX. Without this, the
+         *                      controller's TX error counter climbs
+         *                      ~128 frames in and then it bus-offs
+         *                      (which is exactly what happens on a
+         *                      bench with no Hub on the wire).
+         * Both bits together = "transmit successfully, no external
+         * ACK needed, see your own frames as RX." Use until the Hub
+         * is on the bus, then can_init(false) for normal mode. */
+        cfg.flags.enable_loopback  = 1;
+        cfg.flags.enable_self_test = 1;
     }
 
     esp_err_t ret = twai_new_node_onchip(&cfg, &s_node);
