@@ -1,10 +1,10 @@
-#include "capture.h"
+#include "cec_capture.h"
 #include "esp_heap_caps.h"
 #include "esp_log.h"
 #include <string.h>
 #include <stdio.h>
 
-static const char *TAG = "capture";
+static const char *TAG = "cec_capture";
 
 esp_err_t capture_init(capture_ctx_t *ctx, float seconds, int sample_rate_hz)
 {

@@ -1,4 +1,4 @@
-#include "can.h"
+#include "cec_can.h"
 
 #if CEC_CAN_ENABLED
 

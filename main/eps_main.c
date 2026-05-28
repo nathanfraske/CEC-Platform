@@ -13,8 +13,8 @@
 #include "ntc.h"
 #include "cec_filters.h"
 #include "detection.h"
-#include "capture.h"
-#include "can.h"
+#include "cec_capture.h"
+#include "cec_can.h"
 #include "cec_teleplot.h"
 
 static const char *TAG = "eps_main";
