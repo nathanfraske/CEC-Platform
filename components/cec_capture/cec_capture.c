@@ -266,6 +266,12 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
         printf(">BURST_ANNOTATION:%s\n", annotation);
     }
 
+    /* The dispatch task runs at configMAX_PRIORITIES - 2 on Core 1, and
+     * USB Serial-JTAG writes generally finish without blocking, so a
+     * naive dump loop starves IDLE1 and trips CONFIG_ESP_TASK_WDT (10 s).
+     * Yield every DUMP_YIELD_EVERY samples so IDLE1 gets a slice. */
+#define DUMP_YIELD_EVERY 64
+
     /* Pre-trigger: walk oldest -> newest. */
     for (size_t n = 0; n < pre_count; n++) {
         size_t idx = (pre_start + n) % s_pre_capacity;
@@ -277,6 +283,9 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
         printf(">b_temp_c:%" PRIu32 ":%.6f\n",     s->ts_ms, s->temp_c);
         printf(">b_load:%" PRIu32 ":%u\n",         s->ts_ms, (unsigned)s->load_state);
         printf(">b_flags:%" PRIu32 ":%u\n",        s->ts_ms, (unsigned)s->flags);
+        if ((n & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
+            vTaskDelay(1);
+        }
     }
 
     /* HS samples: timestamps are microseconds-since-capture-start. */
@@ -284,6 +293,9 @@ static void dump_burst(cec_trigger_t reason, const char *annotation,
         const cec_capture_hs_sample_t *h = &s_hs_buf[i];
         printf(">hs_eps1_a:%" PRIu32 ":%.6f\n", h->ts_us_offset, h->eps1_a);
         printf(">hs_eps2_a:%" PRIu32 ":%.6f\n", h->ts_us_offset, h->eps2_a);
+        if ((i & (DUMP_YIELD_EVERY - 1)) == (DUMP_YIELD_EVERY - 1)) {
+            vTaskDelay(1);
+        }
     }
 
     printf(">BURST_END\n");
