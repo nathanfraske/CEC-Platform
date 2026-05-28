@@ -15,15 +15,23 @@
 #include "esp_log.h"
 
 /*
- * Bus bitrate. 500 kbps is the production target (matches the 24-pin
- * + Hub spec). For bench testing with the Waveshare SN65HVD230
- * breakout - which has its Rs pin tied to GND via 10 kohm putting the
- * transceiver in slope-control mode rather than high-speed mode - try
- * 125000 instead. Slope-control's slewed edges trip the controller's
- * bit-monitoring at 500 kbps and the node bus-offs every few seconds.
+ * Bus bitrate.
+ *
+ * ====== TODO: RAISE TO 500000 FOR PRODUCTION ======
+ * 500 kbps is the production target (matches the 24-pin + Hub spec).
+ * Currently parked at 125 kbps because the Waveshare SN65HVD230 bench
+ * breakout has its Rs pin tied to GND through a 10 kohm resistor,
+ * putting the transceiver in slope-control mode rather than
+ * high-speed mode. Slope-control's slewed edges trip the controller's
+ * bit-monitoring at 500 kbps and the node bus-offs every few seconds;
  * 125 kbps gives the edges enough margin to land on the right bit.
- * Switch back to 500 kbps once the bench transceiver is in high-speed
- * mode (Rs to GND directly) or you're on the production transceiver.
+ *
+ * Bump back to 500000 once either:
+ *   - the bench breakout's Rs pin is bridged directly to GND (cuts out
+ *     the 10 kohm and forces high-speed mode), or
+ *   - the firmware is running against the production CAN front-end
+ *     where Rs is wired straight to GND by design.
+ * ==================================================
  */
 #define CAN_BITRATE_BPS        125000
 #define CAN_TX_QUEUE_DEPTH     8
