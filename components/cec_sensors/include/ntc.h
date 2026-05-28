@@ -1,29 +1,54 @@
+/*
+ * NTC thermistor driver using the Beta-coefficient equation.
+ *
+ * Wiring assumption: VCC --- pull-up resistor --- ADC pin --- NTC --- GND.
+ * As the NTC heats, its resistance drops and the pin voltage drops with it.
+ *
+ * Reads go through cec_adc_read_mv so the calibration and oversampling
+ * path is shared with the rest of the sensor stack.
+ *
+ * API parity with the 24-pin module's thermistor.h: same caller-owned
+ * config struct, same esp_err_t / out-param contract, same
+ * ESP_ERR_INVALID_RESPONSE sentinel for open/short. Name kept as "ntc"
+ * because the part is specifically an NTC (the 24-pin's broader
+ * "thermistor" naming was for hardware-style consistency that's not
+ * needed here).
+ */
+
 #pragma once
 
 #include "esp_err.h"
 #include "esp_adc/adc_oneshot.h"
-#include "esp_adc/adc_cali.h"
 
-// NTC on GPIO 7 -> ADC1_CH6 (via daughterboard).
-// Shares the ADC unit handle with the ACS758 driver.
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef struct {
-    adc_oneshot_unit_handle_t adc;   // shared with acs758
-    adc_cali_handle_t cali;
-    bool cali_enabled;
-    adc_channel_t channel;
-    // NTC + divider parameters
-    float beta;          // NTC beta coefficient
-    float r_nominal;     // NTC resistance at nominal temp (ohms)
-    float t_nominal_k;   // nominal temp (kelvin), usually 298.15 (25C)
-    float r_series;      // series resistor in the divider (ohms)
-    float vref;          // top of divider (3.3V)
-} ntc_ctx_t;
+    adc_channel_t channel;        /* ADC1 channel the divider sits on */
+    int   samples;                /* Averaging count per read, >= 1 */
+    float beta;                   /* NTC B coefficient (Kelvin) */
+    float nominal_resistance;     /* R at nominal_temperature_k (ohms) */
+    float nominal_temperature_k;  /* Reference temperature (kelvin), 298.15 = 25C */
+    float pull_up_resistance;     /* Series pull-up resistor (ohms) */
+    float vcc;                    /* Supply voltage at top of the divider (V) */
+} ntc_t;
 
-// Initialize using an already-created ADC unit + calibration handle
-// (pass the handles from acs758_ctx_t to share the ADC1 unit).
-esp_err_t ntc_init(ntc_ctx_t *ctx, adc_oneshot_unit_handle_t adc,
-                   adc_cali_handle_t cali, bool cali_enabled);
+/*
+ * Configure the ADC channel the thermistor lives on. Must be called once
+ * before ntc_read_celsius. cec_adc_init() must have run first.
+ */
+esp_err_t ntc_setup(const ntc_t *t);
 
-// Read board temperature in degrees Celsius.
-float ntc_read_celsius(ntc_ctx_t *ctx);
+/*
+ * Read the thermistor temperature in degrees Celsius.
+ *
+ * Returns ESP_ERR_INVALID_RESPONSE if the pin voltage is at one of the
+ * divider rails (NTC open-circuited or shorted), in which case *out_c
+ * is not written.
+ */
+esp_err_t ntc_read_celsius(const ntc_t *t, float *out_c);
+
+#ifdef __cplusplus
+}
+#endif

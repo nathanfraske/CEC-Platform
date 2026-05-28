@@ -16,22 +16,35 @@
 #define CEC_FLAG_FAULT        (1 << 2)
 #define CEC_FLAG_DROPOUT      (1 << 3)
 
-// Operating state from the classifier
+// Per-cable load classifier output. The 24-pin module's cec_state_t names
+// the whole-PSU operating mode (OFF/STANDBY/...); EPS is per-cable, so
+// the enum is deliberately named differently to avoid collision when
+// future code shares headers.
 typedef enum {
-    CEC_STATE_IDLE = 0,
-    CEC_STATE_LIGHT,
-    CEC_STATE_MODERATE,
-    CEC_STATE_HEAVY,
-    CEC_STATE_TRANSIENT,
-} cec_op_state_t;
+    CEC_LOAD_IDLE = 0,
+    CEC_LOAD_LIGHT,
+    CEC_LOAD_MODERATE,
+    CEC_LOAD_HEAVY,
+    CEC_LOAD_TRANSIENT,
+    CEC_LOAD_COUNT,
+} cec_load_state_t;
+
+// Anomaly severity grade used by the detection layers. Shared with the
+// 24-pin module; see cec_layer1.h for the warn/crit band semantics.
+typedef enum {
+    CEC_SEV_NONE = 0,
+    CEC_SEV_WARNING,
+    CEC_SEV_CRITICAL,
+} cec_severity_t;
 
 // Shared measurement state. sample_task is the only writer.
 // Readers (output, comms) take the mutex briefly to snapshot.
 typedef struct {
     float current_a[CEC_NUM_CABLES];      // filtered current per cable (amps)
     float current_raw_a[CEC_NUM_CABLES];  // unfiltered current (amps)
+    float bus_voltage_v;                  // 12V rail measured via divider on GPIO 1
     float board_temp_c;                   // NTC board temperature
-    cec_op_state_t op_state;              // classifier output
+    cec_load_state_t load_state;          // per-cable load classifier output
     uint8_t status_flags;                 // CEC_FLAG_* bits
     int64_t timestamp_us;                 // esp_timer time of last update
     SemaphoreHandle_t mutex;
@@ -51,3 +64,8 @@ typedef struct {
 #define CEC_DEFAULT_OC_A        35.0f   // above normal EPS load, below sensor limit
 #define CEC_DEFAULT_EMA_ALPHA   0.2f
 #define CEC_DEFAULT_MODULE_ID   1
+
+// Hardware presence flag. Set to 1 once the daughterboard with the
+// CAN transceiver is attached; the migrated esp_twai node-handle code
+// in cec_can.c becomes active.
+#define CEC_CAN_ENABLED         1

@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "capture.c"
+    SRCS "cec_capture.c"
     INCLUDE_DIRS "include"
-    REQUIRES cec_common esp_timer
+    REQUIRES cec_common cec_sensors cec_telemetry esp_adc esp_timer
 )

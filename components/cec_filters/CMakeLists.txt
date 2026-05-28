@@ -1,4 +1,4 @@
 idf_component_register(
-    SRCS "filter.c"
+    SRCS "cec_filters.c"
     INCLUDE_DIRS "include"
 )

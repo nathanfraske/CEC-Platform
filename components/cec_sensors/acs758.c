@@ -1,7 +1,13 @@
-#include "acs758.h"
+/*
+ * ACS758 Hall-effect current sensor driver.
+ */
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "esp_check.h"
+#include "cec_adc.h"
+#include "acs758.h"
 
 static const char *TAG = "acs758";
 
@@ -15,48 +21,20 @@ static const adc_channel_t SENSOR_CHANNELS[ACS758_NUM_SENSORS] = {
 
 esp_err_t acs758_init(acs758_ctx_t *ctx)
 {
-    ctx->oversample = 16;
-    ctx->cali_enabled = false;
+    if (ctx == NULL) return ESP_ERR_INVALID_ARG;
 
-    adc_oneshot_unit_init_cfg_t init_cfg = {
-        .unit_id = ADC_UNIT_1,
-        .ulp_mode = ADC_ULP_MODE_DISABLE,
-    };
-    esp_err_t ret = adc_oneshot_new_unit(&init_cfg, &ctx->adc);
-    if (ret != ESP_OK) {
-        ESP_LOGE(TAG, "adc unit init failed: %s", esp_err_to_name(ret));
-        return ret;
-    }
-
-    adc_oneshot_chan_cfg_t ch_cfg = {
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
-        .atten = ADC_ATTEN_DB_12,    // ~0-3.1V input range
-    };
-
+    ctx->samples = 16;
     for (int i = 0; i < ACS758_NUM_SENSORS; i++) {
-        ctx->channels[i] = SENSOR_CHANNELS[i];
-        ret = adc_oneshot_config_channel(ctx->adc, ctx->channels[i], &ch_cfg);
-        if (ret != ESP_OK) {
-            ESP_LOGE(TAG, "channel %d config failed: %s", i, esp_err_to_name(ret));
-            return ret;
-        }
+        ctx->channels[i]              = SENSOR_CHANNELS[i];
+        ctx->cal[i].zero_offset_v     = 0.0f;
+        // quiescent_v / sensitivity_v_a are set by acs758_set_supply()
+        // below; caller may override with the measured Vcc.
+        ESP_RETURN_ON_ERROR(cec_adc_setup_channel(ctx->channels[i]),
+                            TAG, "setup channel %d", i);
     }
 
-    // Curve-fitting calibration scheme for accurate voltage readings.
-    adc_cali_curve_fitting_config_t cali_cfg = {
-        .unit_id = ADC_UNIT_1,
-        .atten = ADC_ATTEN_DB_12,
-        .bitwidth = ADC_BITWIDTH_DEFAULT,
-    };
-    if (adc_cali_create_scheme_curve_fitting(&cali_cfg, &ctx->cali) == ESP_OK) {
-        ctx->cali_enabled = true;
-        ESP_LOGI(TAG, "ADC calibration scheme enabled");
-    } else {
-        ESP_LOGW(TAG, "ADC calibration unavailable, using nominal scaling");
-    }
-
-    // Default to nominal 5V supply; the caller should override via
-    // acs758_set_supply() with the measured Vcc.
+    // Default to nominal 5 V supply; the caller should override via
+    // acs758_set_supply() with the actual measured Vcc.
     acs758_set_supply(ctx, ACS758_NOMINAL_VCC);
 
     ESP_LOGI(TAG, "initialized %d sensors", ACS758_NUM_SENSORS);
@@ -65,6 +43,7 @@ esp_err_t acs758_init(acs758_ctx_t *ctx)
 
 void acs758_set_supply(acs758_ctx_t *ctx, float vcc)
 {
+    if (ctx == NULL) return;
     for (int i = 0; i < ACS758_NUM_SENSORS; i++) {
         ctx->cal[i].quiescent_v     = vcc * 0.5f;
         ctx->cal[i].sensitivity_v_a = ACS758_NOMINAL_SENS * (vcc / ACS758_NOMINAL_VCC);
@@ -76,61 +55,60 @@ void acs758_set_supply(acs758_ctx_t *ctx, float vcc)
 
 void acs758_set_zero_offset(acs758_ctx_t *ctx, int sensor, float offset_v)
 {
-    if (sensor < 0 || sensor >= ACS758_NUM_SENSORS) return;
+    if (ctx == NULL || sensor < 0 || sensor >= ACS758_NUM_SENSORS) return;
     ctx->cal[sensor].zero_offset_v = offset_v;
 }
 
-int acs758_read_raw(acs758_ctx_t *ctx, int sensor)
+esp_err_t acs758_read_adc_voltage(acs758_ctx_t *ctx, int sensor, float *out_v)
 {
-    if (sensor < 0 || sensor >= ACS758_NUM_SENSORS) return 0;
-    int64_t sum = 0;
-    for (int i = 0; i < ctx->oversample; i++) {
-        int raw = 0;
-        adc_oneshot_read(ctx->adc, ctx->channels[sensor], &raw);
-        sum += raw;
-    }
-    return (int)(sum / ctx->oversample);
+    if (ctx == NULL || out_v == NULL) return ESP_ERR_INVALID_ARG;
+    if (sensor < 0 || sensor >= ACS758_NUM_SENSORS) return ESP_ERR_INVALID_ARG;
+
+    int mv = 0;
+    ESP_RETURN_ON_ERROR(cec_adc_read_mv(ctx->channels[sensor], ctx->samples, &mv),
+                        TAG, "cec_adc_read_mv");
+    *out_v = mv / 1000.0f;
+    return ESP_OK;
 }
 
-float acs758_read_adc_voltage(acs758_ctx_t *ctx, int sensor)
+esp_err_t acs758_read_chip_voltage(acs758_ctx_t *ctx, int sensor, float *out_v)
 {
-    int raw = acs758_read_raw(ctx, sensor);
-    if (ctx->cali_enabled) {
-        int mv = 0;
-        adc_cali_raw_to_voltage(ctx->cali, raw, &mv);
-        return mv / 1000.0f;
-    }
-    // Fallback: nominal scaling (3.1V full scale at 11dB atten)
-    return raw * (3.1f / 4095.0f);
-}
-
-float acs758_read_chip_voltage(acs758_ctx_t *ctx, int sensor)
-{
-    return acs758_read_adc_voltage(ctx, sensor) * ACS758_DIVIDER_GAIN;
+    if (out_v == NULL) return ESP_ERR_INVALID_ARG;
+    float v_adc = 0.0f;
+    esp_err_t ret = acs758_read_adc_voltage(ctx, sensor, &v_adc);
+    if (ret != ESP_OK) return ret;
+    *out_v = v_adc * ACS758_DIVIDER_GAIN;
+    return ESP_OK;
 }
 
 float acs758_read_current(acs758_ctx_t *ctx, int sensor)
 {
-    if (sensor < 0 || sensor >= ACS758_NUM_SENSORS) return 0.0f;
-    float v_chip = acs758_read_chip_voltage(ctx, sensor);
-    acs758_cal_t *c = &ctx->cal[sensor];
+    if (ctx == NULL || sensor < 0 || sensor >= ACS758_NUM_SENSORS) return 0.0f;
+    float v_chip = 0.0f;
+    if (acs758_read_chip_voltage(ctx, sensor, &v_chip) != ESP_OK) return 0.0f;
+    const acs758_cal_t *c = &ctx->cal[sensor];
+    if (c->sensitivity_v_a == 0.0f) return 0.0f;  // belt-and-suspenders
     float v_signal = v_chip - c->quiescent_v - c->zero_offset_v;
     return v_signal / c->sensitivity_v_a;
 }
 
 float acs758_calibrate_zero(acs758_ctx_t *ctx, int sensor)
 {
-    if (sensor < 0 || sensor >= ACS758_NUM_SENSORS) return 0.0f;
+    if (ctx == NULL || sensor < 0 || sensor >= ACS758_NUM_SENSORS) return 0.0f;
 
     const int N = 256;
     double sum_v = 0.0;
     for (int i = 0; i < N; i++) {
-        sum_v += acs758_read_chip_voltage(ctx, sensor);
+        float v = 0.0f;
+        if (acs758_read_chip_voltage(ctx, sensor, &v) != ESP_OK) {
+            return 0.0f;
+        }
+        sum_v += v;
         vTaskDelay(pdMS_TO_TICKS(2));
     }
     float avg_chip_v = (float)(sum_v / N);
 
-    // The offset is the deviation of the measured zero-current output from
+    // Offset is the deviation of the measured zero-current output from
     // the expected ratiometric quiescent.
     float offset = avg_chip_v - ctx->cal[sensor].quiescent_v;
     ctx->cal[sensor].zero_offset_v = offset;
@@ -142,7 +120,7 @@ float acs758_calibrate_zero(acs758_ctx_t *ctx, int sensor)
 
 void acs758_calibrate_span(acs758_ctx_t *ctx, int sensor, float known_current_a)
 {
-    if (sensor < 0 || sensor >= ACS758_NUM_SENSORS) return;
+    if (ctx == NULL || sensor < 0 || sensor >= ACS758_NUM_SENSORS) return;
     if (known_current_a == 0.0f) {
         ESP_LOGW(TAG, "span cal needs nonzero current");
         return;
@@ -151,7 +129,11 @@ void acs758_calibrate_span(acs758_ctx_t *ctx, int sensor, float known_current_a)
     const int N = 256;
     double sum_v = 0.0;
     for (int i = 0; i < N; i++) {
-        sum_v += acs758_read_chip_voltage(ctx, sensor);
+        float v = 0.0f;
+        if (acs758_read_chip_voltage(ctx, sensor, &v) != ESP_OK) {
+            return;
+        }
+        sum_v += v;
         vTaskDelay(pdMS_TO_TICKS(2));
     }
     float avg_chip_v = (float)(sum_v / N);

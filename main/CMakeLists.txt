@@ -5,11 +5,12 @@ idf_component_register(
     REQUIRES
         cec_common
         cec_sensors
-        cec_filter
+        cec_filters
         cec_detection
         cec_capture
         cec_comms
-        cec_output
-        nvs_flash
+        cec_telemetry
+        cec_nvs
+        cec_cli
         esp_timer
 )

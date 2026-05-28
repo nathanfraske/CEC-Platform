@@ -1,8 +1,6 @@
 idf_component_register(
-    SRCS "cec_adc.c"
-         "acs758.c"
-         "ntc.c"
+    SRCS "cec_nvs.c"
     INCLUDE_DIRS "include"
-    REQUIRES esp_adc
+    REQUIRES nvs_flash
     PRIV_REQUIRES esp_common
 )

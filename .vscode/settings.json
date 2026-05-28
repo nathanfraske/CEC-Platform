@@ -12,5 +12,6 @@
     "--background-index",
     "--query-driver=**",
     "--compile-commands-dir=c:\\Users\\Admin\\CEC Monitoring\\cec-eps-idf\\build"
-  ]
+  ],
+  "idf.flashType": "UART"
 }

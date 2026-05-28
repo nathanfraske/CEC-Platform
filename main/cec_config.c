@@ -1,10 +1,18 @@
 #include "cec_config.h"
-#include "nvs_flash.h"
-#include "nvs.h"
+#include "cec_nvs.h"
 #include "esp_log.h"
 
 static const char *TAG = "cec_config";
-static const char *NVS_NAMESPACE = "cec_eps";
+
+/* Schema magics. Bump the low byte (e.g. 0xCEC50001 -> 0xCEC50002) any
+ * time the on-flash layout of the corresponding payload changes; the
+ * cec_nvs wrapper will reject an old blob cleanly instead of loading
+ * garbage into the new struct. */
+#define KEY_CONFIG           "config"
+#define MAGIC_CONFIG         0xCEC50001U
+
+#define KEY_ZERO_OFF_FMT     "zero_off%d"
+#define MAGIC_ZERO_OFF       0xCEC50101U
 
 void cec_config_defaults(cec_config_t *cfg)
 {
@@ -17,83 +25,63 @@ void cec_config_defaults(cec_config_t *cfg)
 
 esp_err_t cec_config_init_nvs(void)
 {
-    esp_err_t ret = nvs_flash_init();
-    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
-        ESP_ERROR_CHECK(nvs_flash_erase());
-        ret = nvs_flash_init();
-    }
-    return ret;
+    return cec_nvs_init();
 }
 
 void cec_config_load(cec_config_t *cfg)
 {
     cec_config_defaults(cfg);
 
-    nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) != ESP_OK) {
-        ESP_LOGW(TAG, "no stored config, using defaults");
+    esp_err_t ret = cec_nvs_load_blob(KEY_CONFIG, MAGIC_CONFIG, cfg, sizeof(*cfg));
+    switch (ret) {
+    case ESP_OK:
+        ESP_LOGI(TAG, "config loaded: id=%d supply=%.2fV oc=%.1fA alpha=%.2f raw=%d",
+                 cfg->module_id, cfg->supply_voltage, cfg->oc_threshold_a,
+                 cfg->ema_alpha, cfg->output_raw);
         return;
+    case ESP_ERR_NOT_FOUND:
+        ESP_LOGW(TAG, "no stored config, using defaults");
+        break;
+    case ESP_ERR_INVALID_VERSION:
+        ESP_LOGW(TAG, "stored config has stale schema (magic mismatch), using defaults");
+        break;
+    case ESP_ERR_INVALID_SIZE:
+        ESP_LOGW(TAG, "stored config size mismatch, using defaults");
+        break;
+    default:
+        ESP_LOGE(TAG, "load failed: %s, using defaults", esp_err_to_name(ret));
+        break;
     }
-
-    size_t sz;
-    nvs_get_u8(h, "module_id", &cfg->module_id);
-
-    sz = sizeof(float);
-    nvs_get_blob(h, "supply_v", &cfg->supply_voltage, &sz);
-    sz = sizeof(float);
-    nvs_get_blob(h, "oc_a", &cfg->oc_threshold_a, &sz);
-    sz = sizeof(float);
-    nvs_get_blob(h, "ema_alpha", &cfg->ema_alpha, &sz);
-
-    uint8_t raw = 0;
-    if (nvs_get_u8(h, "output_raw", &raw) == ESP_OK) {
-        cfg->output_raw = (raw != 0);
-    }
-
-    nvs_close(h);
-    ESP_LOGI(TAG, "config loaded: id=%d supply=%.2fV oc=%.1fA alpha=%.2f",
-             cfg->module_id, cfg->supply_voltage, cfg->oc_threshold_a, cfg->ema_alpha);
+    // Reset to defaults if anything went sideways. cec_config_defaults
+    // already ran above; nothing else to do.
 }
 
 void cec_config_save(const cec_config_t *cfg)
 {
-    nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) != ESP_OK) {
-        ESP_LOGE(TAG, "failed to open NVS for write");
+    esp_err_t ret = cec_nvs_save_blob(KEY_CONFIG, MAGIC_CONFIG, cfg, sizeof(*cfg));
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "save failed: %s", esp_err_to_name(ret));
         return;
     }
-
-    nvs_set_u8(h, "module_id", cfg->module_id);
-    nvs_set_blob(h, "supply_v", &cfg->supply_voltage, sizeof(float));
-    nvs_set_blob(h, "oc_a", &cfg->oc_threshold_a, sizeof(float));
-    nvs_set_blob(h, "ema_alpha", &cfg->ema_alpha, sizeof(float));
-    nvs_set_u8(h, "output_raw", cfg->output_raw ? 1 : 0);
-
-    nvs_commit(h);
-    nvs_close(h);
     ESP_LOGI(TAG, "config saved");
 }
 
-// Per-sensor zero offset persistence (called by the calibration routine)
 void cec_config_save_zero_offset(int sensor, float offset_v)
 {
-    nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READWRITE, &h) != ESP_OK) return;
     char key[16];
-    snprintf(key, sizeof(key), "zero_off%d", sensor);
-    nvs_set_blob(h, key, &offset_v, sizeof(float));
-    nvs_commit(h);
-    nvs_close(h);
+    snprintf(key, sizeof(key), KEY_ZERO_OFF_FMT, sensor);
+    esp_err_t ret = cec_nvs_save_blob(key, MAGIC_ZERO_OFF, &offset_v, sizeof(offset_v));
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "zero offset[%d] save failed: %s", sensor, esp_err_to_name(ret));
+        return;
+    }
+    ESP_LOGI(TAG, "zero offset[%d] saved = %.4fV", sensor, offset_v);
 }
 
 bool cec_config_load_zero_offset(int sensor, float *offset_v)
 {
-    nvs_handle_t h;
-    if (nvs_open(NVS_NAMESPACE, NVS_READONLY, &h) != ESP_OK) return false;
+    if (offset_v == NULL) return false;
     char key[16];
-    snprintf(key, sizeof(key), "zero_off%d", sensor);
-    size_t sz = sizeof(float);
-    esp_err_t ret = nvs_get_blob(h, key, offset_v, &sz);
-    nvs_close(h);
-    return (ret == ESP_OK);
+    snprintf(key, sizeof(key), KEY_ZERO_OFF_FMT, sensor);
+    return cec_nvs_load_blob(key, MAGIC_ZERO_OFF, offset_v, sizeof(*offset_v)) == ESP_OK;
 }
