@@ -149,8 +149,11 @@ static esp_err_t run_hs_capture(size_t *out_count)
     for (int i = 0; i < s_cfg.n_channels; i++) {
         pattern[i].atten     = ADC_ATTEN_DB_12;
         pattern[i].channel   = (uint8_t)s_cfg.channels[i].channel;
-        pattern[i].unit      = 0; /* ADC_UNIT_1 */
-        pattern[i].bit_width = ADC_BITWIDTH_DEFAULT;
+        pattern[i].unit      = ADC_UNIT_1;
+        /* adc_continuous wants the chip's actual digital-domain bit
+         * width here (12 on ESP32-S3). ADC_BITWIDTH_DEFAULT (= 0) is
+         * only accepted by the oneshot driver. */
+        pattern[i].bit_width = SOC_ADC_DIGI_MAX_BITWIDTH;
     }
     adc_continuous_config_t dig_cfg = {
         .pattern_num     = s_cfg.n_channels,
