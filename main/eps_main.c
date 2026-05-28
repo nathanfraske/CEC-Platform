@@ -11,7 +11,7 @@
 #include "cec_config.h"
 #include "acs758.h"
 #include "ntc.h"
-#include "filter.h"
+#include "cec_filters.h"
 #include "detection.h"
 #include "capture.h"
 #include "can.h"
@@ -24,7 +24,13 @@ static cec_state_t   g_state;
 static cec_config_t  g_config;
 static acs758_ctx_t  g_acs;
 static ntc_ctx_t     g_ntc;
-static cec_filter_t  g_filter[CEC_NUM_CABLES];
+// Two-stage filter per cable: median to reject impulse spikes, then EMA
+// to smooth. Median window size is per-module tunable; 5 is the EPS
+// starting point for the Hall sensor's ~50-100 mA RMS raw noise.
+#define EPS_MEDIAN_WINDOW   5
+static median_t g_median[CEC_NUM_CABLES];
+static ema_t    g_ema[CEC_NUM_CABLES];
+static float    g_median_buf[CEC_NUM_CABLES][EPS_MEDIAN_WINDOW];
 static detection_ctx_t g_detect;
 static capture_ctx_t g_capture;
 
@@ -51,7 +57,7 @@ static void sample_task(void *arg)
         float filt[CEC_NUM_CABLES];
         for (int i = 0; i < CEC_NUM_CABLES; i++) {
             raw[i] = acs758_read_current(&g_acs, i);
-            filt[i] = cec_filter_update(&g_filter[i], raw[i]);
+            filt[i] = ema_update(&g_ema[i], median_update(&g_median[i], raw[i]));
         }
 
         // Push raw stream to ring buffer for transient capture
@@ -159,9 +165,10 @@ void app_main(void)
     // NTC shares the ADC1 unit + calibration from the ACS758 driver
     ntc_init(&g_ntc, g_acs.adc, g_acs.cali, g_acs.cali_enabled);
 
-    // Filters
+    // Filters: median (impulse rejection) then EMA (smoothing).
     for (int i = 0; i < CEC_NUM_CABLES; i++) {
-        cec_filter_init(&g_filter[i], g_config.ema_alpha);
+        median_init(&g_median[i], g_median_buf[i], EPS_MEDIAN_WINDOW);
+        ema_init(&g_ema[i], g_config.ema_alpha);
     }
 
     // Detection

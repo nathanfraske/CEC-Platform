@@ -5,7 +5,7 @@ idf_component_register(
     REQUIRES
         cec_common
         cec_sensors
-        cec_filter
+        cec_filters
         cec_detection
         cec_capture
         cec_comms
