@@ -45,7 +45,13 @@ static median_t g_median[CEC_NUM_CABLES];
 static ema_t    g_ema[CEC_NUM_CABLES];
 static float    g_median_buf[CEC_NUM_CABLES][EPS_MEDIAN_WINDOW];
 static cec_detection_ctx_t g_detect;
-static capture_ctx_t g_capture;
+
+// Burst capture engine config. 10 kHz HS rate (per channel) for 1 s, with
+// 20 s of 50 Hz pre-trigger context. cooldown_ms=10000 matches the 24-pin.
+#define EPS_BURST_HS_RATE_HZ   10000
+#define EPS_BURST_HS_DURATION  1000
+#define EPS_PRE_TRIGGER_SECONDS  20
+#define EPS_BURST_COOLDOWN_MS   10000
 
 // ---- Timing ----
 #define SAMPLE_RATE_HZ   50
@@ -54,8 +60,6 @@ static capture_ctx_t g_capture;
 #define OUTPUT_PERIOD_MS  (1000 / OUTPUT_RATE_HZ)
 #define COMMS_RATE_HZ    20
 #define COMMS_PERIOD_MS   (1000 / COMMS_RATE_HZ)
-
-#define CAPTURE_SECONDS   5.0f
 
 // ---- Sample task: read, convert, filter, detect, store ----
 static void sample_task(void *arg)
@@ -66,15 +70,21 @@ static void sample_task(void *arg)
     while (1) {
         int64_t now_us = esp_timer_get_time();
 
+        // While the burst engine has ADC1, skip every read this iteration
+        // (cec_adc_read_mv would return ESP_ERR_INVALID_STATE anyway).
+        // The shared-state snapshot from the last good iteration stays
+        // valid for downstream consumers during the burst window.
+        if (cec_capture_is_busy()) {
+            vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
+            continue;
+        }
+
         float raw[CEC_NUM_CABLES];
         float filt[CEC_NUM_CABLES];
         for (int i = 0; i < CEC_NUM_CABLES; i++) {
             raw[i] = acs758_read_current(&g_acs, i);
             filt[i] = ema_update(&g_ema[i], median_update(&g_median[i], raw[i]));
         }
-
-        // Push raw stream to ring buffer for transient capture
-        capture_push(&g_capture, now_us, raw);
 
         // Run detection layers
         uint8_t flags = 0;
@@ -97,10 +107,32 @@ static void sample_task(void *arg)
             xSemaphoreGive(g_state.mutex);
         }
 
+        // Push the full per-iteration snapshot into the pre-trigger ring.
+        cec_capture_sample_t cap_sample = {
+            .ts_ms      = (uint32_t)(now_us / 1000),
+            .eps1_a     = filt[0],
+            .eps2_a     = filt[1],
+            .eps1_raw_a = raw[0],
+            .eps2_raw_a = raw[1],
+            .temp_c     = temp,
+            .load_state = (uint8_t)load_state,
+            .flags      = flags,
+        };
+        cec_capture_push(&cap_sample);
+
         if (anomaly) {
-            // In a full build: signal burst_task to dump the capture window.
-            // For now, log it.
-            ESP_LOGW(TAG, "anomaly flags=0x%02x", flags);
+            // Fire a burst capture on anomaly. cec_capture's busy/cooldown
+            // gates absorb back-to-back triggers; we don't gate again here.
+            esp_err_t tr = cec_capture_trigger(CEC_TRIG_ANOMALY);
+            if (tr == ESP_OK) {
+                ESP_LOGW(TAG, "anomaly flags=0x%02x - burst triggered", flags);
+            } else if (tr == ESP_ERR_NOT_FINISHED || tr == ESP_ERR_INVALID_STATE) {
+                ESP_LOGD(TAG, "anomaly flags=0x%02x - burst skipped (%s)",
+                         flags, esp_err_to_name(tr));
+            } else {
+                ESP_LOGW(TAG, "anomaly flags=0x%02x - trigger failed: %s",
+                         flags, esp_err_to_name(tr));
+            }
         }
 
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
@@ -125,6 +157,19 @@ static void output_task(void *arg)
 }
 
 // ---- CLI command handlers ----
+
+// Snapshot the live ACS758 cal for one channel into a
+// cec_capture_channel_t for cec_capture_update_channel.
+static void capture_channel_snapshot(int idx, cec_capture_channel_t *out)
+{
+    *out = (cec_capture_channel_t){
+        .channel         = g_acs.channels[idx],
+        .divider_gain    = ACS758_DIVIDER_GAIN,
+        .quiescent_v     = g_acs.cal[idx].quiescent_v,
+        .sensitivity_v_a = g_acs.cal[idx].sensitivity_v_a,
+        .zero_offset_v   = g_acs.cal[idx].zero_offset_v,
+    };
+}
 
 static int cmd_show(int argc, char **argv)
 {
@@ -165,6 +210,9 @@ static int cmd_cal(int argc, char **argv)
         }
         for (int i = 0; i < CEC_NUM_CABLES; i++) {
             acs758_calibrate_span(&g_acs, i, known);
+            cec_capture_channel_t ch;
+            capture_channel_snapshot(i, &ch);
+            cec_capture_update_channel(i, &ch);
         }
         printf("span cal done at %.2f A\n", known);
         return 0;
@@ -174,6 +222,9 @@ static int cmd_cal(int argc, char **argv)
     for (int i = 0; i < CEC_NUM_CABLES; i++) {
         float off = acs758_calibrate_zero(&g_acs, i);
         cec_config_save_zero_offset(i, off);
+        cec_capture_channel_t ch;
+        capture_channel_snapshot(i, &ch);
+        cec_capture_update_channel(i, &ch);
         printf("sensor %d zero offset = %.4f V (saved)\n", i, off);
     }
     return 0;
@@ -204,6 +255,11 @@ static int cmd_set(int argc, char **argv)
     } else if (strcmp(argv[1], "supply") == 0) {
         g_config.supply_voltage = v;
         acs758_set_supply(&g_acs, v);
+        for (int i = 0; i < CEC_NUM_CABLES; i++) {
+            cec_capture_channel_t ch;
+            capture_channel_snapshot(i, &ch);
+            cec_capture_update_channel(i, &ch);
+        }
         printf("supply=%.3f V\n", v);
     } else {
         printf("error: unknown key '%s'\n", argv[1]);
@@ -211,6 +267,26 @@ static int cmd_set(int argc, char **argv)
     }
     printf("(use 'save' to persist)\n");
     return 0;
+}
+
+static int cmd_burst(int argc, char **argv)
+{
+    const char *text = (argc >= 2) ? argv[1] : "manual";
+    esp_err_t r = cec_capture_trigger_with_text(CEC_TRIG_MANUAL, text);
+    if (r == ESP_OK) {
+        printf("burst triggered (annotation=%s)\n", text);
+        return 0;
+    }
+    if (r == ESP_ERR_NOT_FINISHED) {
+        printf("error: a burst is already running\n");
+        return 1;
+    }
+    if (r == ESP_ERR_INVALID_STATE) {
+        printf("error: cooldown active, try again shortly\n");
+        return 1;
+    }
+    printf("error: trigger failed: %s\n", esp_err_to_name(r));
+    return 1;
 }
 
 static int cmd_mode(int argc, char **argv)
@@ -227,11 +303,12 @@ static int cmd_mode(int argc, char **argv)
 }
 
 static const cec_cli_command_t CLI_COMMANDS[] = {
-    { "show", "print current readings, calibration, and config",       cmd_show },
-    { "cal",  "zero-offset cal on both sensors, or 'cal span <amps>'", cmd_cal  },
-    { "set",  "set <alpha|oc|supply> <value> (in-memory; 'save' to NVS)", cmd_set },
-    { "save", "persist current config to NVS",                         cmd_save },
-    { "mode", "set telemetry mode: 'mode raw' or 'mode filt'",         cmd_mode },
+    { "show",  "print current readings, calibration, and config",       cmd_show  },
+    { "cal",   "zero-offset cal on both sensors, or 'cal span <amps>'", cmd_cal   },
+    { "set",   "set <alpha|oc|supply> <value> (in-memory; 'save' to NVS)", cmd_set },
+    { "save",  "persist current config to NVS",                         cmd_save  },
+    { "mode",  "set telemetry mode: 'mode raw' or 'mode filt'",         cmd_mode  },
+    { "burst", "trigger a manual burst capture ('burst <annotation>')", cmd_burst },
 };
 #define CLI_COMMAND_COUNT (sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]))
 
@@ -301,8 +378,26 @@ void app_main(void)
     // Detection
     cec_detection_init(&g_detect, g_config.oc_threshold_a);
 
-    // Capture ring buffer (PSRAM)
-    capture_init(&g_capture, CAPTURE_SECONDS, SAMPLE_RATE_HZ);
+    // Burst capture engine: pre-trigger ring at SAMPLE_RATE_HZ, HS path
+    // at 10 kHz/channel via adc_continuous. Channel conversion params
+    // come from the live ACS758 calibration so HS samples land in amps.
+    cec_capture_config_t cap_cfg = {
+        .pre_trigger_capacity = EPS_PRE_TRIGGER_SECONDS * SAMPLE_RATE_HZ,
+        .hs_sample_rate_hz    = EPS_BURST_HS_RATE_HZ,
+        .hs_duration_ms       = EPS_BURST_HS_DURATION,
+        .cooldown_ms          = EPS_BURST_COOLDOWN_MS,
+        .n_channels           = CEC_NUM_CABLES,
+    };
+    for (int i = 0; i < CEC_NUM_CABLES; i++) {
+        cap_cfg.channels[i] = (cec_capture_channel_t){
+            .channel         = g_acs.channels[i],
+            .divider_gain    = ACS758_DIVIDER_GAIN,
+            .quiescent_v     = g_acs.cal[i].quiescent_v,
+            .sensitivity_v_a = g_acs.cal[i].sensitivity_v_a,
+            .zero_offset_v   = g_acs.cal[i].zero_offset_v,
+        };
+    }
+    ESP_ERROR_CHECK(cec_capture_init(&cap_cfg));
 
 #if CEC_CAN_ENABLED
     // CAN in loopback for bench bring-up (no Hub connected yet).
