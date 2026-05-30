@@ -3,17 +3,17 @@
 
 ## 1. SENSED RAILS — detour through shunt (each rail's pins bundled both sides)
   +12V:
-     HI net 'SENSE12V_HI'  = J3.10 + J3.11 + RS1.1
-     LO net 'SENSE12V_LO'  = J4.10 + J4.11 + RS1.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL12V_HI'  = J3.10 + J3.11 + RS1.1
+     LO net 'RAIL12V_LO'  = J4.10 + J4.11 + RS1.2   (LO also -> INA Vin-/Vbus, already wired)
   +5V:
-     HI net 'SENSE5V_HI'  = J3.4 + J3.6 + J3.21 + J3.22 + J3.23 + RS2.1
-     LO net 'SENSE5V_LO'  = J4.4 + J4.6 + J4.21 + J4.22 + J4.23 + RS2.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL5V_HI'  = J3.4 + J3.6 + J3.21 + J3.22 + J3.23 + RS2.1
+     LO net 'RAIL5V_LO'  = J4.4 + J4.6 + J4.21 + J4.22 + J4.23 + RS2.2   (LO also -> INA Vin-/Vbus, already wired)
   +3.3V:
-     HI net 'SENSE3V3_HI'  = J3.1 + J3.2 + J3.12 + J3.13 + RS3.1
-     LO net 'SENSE3V3_LO'  = J4.1 + J4.2 + J4.12 + J4.13 + RS3.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL3V3_HI'  = J3.1 + J3.2 + J3.12 + J3.13 + RS3.1
+     LO net 'RAIL3V3_LO'  = J4.1 + J4.2 + J4.12 + J4.13 + RS3.2   (LO also -> INA Vin-/Vbus, already wired)
   +5VSB:
-     HI net 'SENSE5VSB_HI'  = J3.9 + RS4.1
-     LO net 'SENSE5VSB_LO'  = J4.9 + RS4.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL5VSB_HI'  = J3.9 + RS4.1
+     LO net 'RAIL5VSB_LO'  = J4.9 + RS4.2   (LO also -> INA Vin-/Vbus, already wired)
 
 ## 2. GND — single shared net (not shunted), all pins both connectors + module GND
   GND = J3.3 + J3.5 + J3.7 + J3.15 + J3.17 + J3.18 + J3.19 + J3.24
@@ -66,10 +66,10 @@
 ## 5. MODULE SELF-SUPPLY tap (decision: PSU-side / HI, before RS4)
   The module's own +5VSB (LP5907 U3.1 input, C1.1, and J2.1 power-out to Hub)
   taps the +5VSB HI node so module/Hub self-draw is NOT counted in the 5VSB reading:
-     add U3.1, C1.1, C4.1, U2.3, J2.1  to net 'SENSE5VSB_HI'
-  (Today those sit on a plain '+5VSB' net; merge that net into SENSE5VSB_HI,
+     add U3.1, C1.1, C4.1, U2.3, J2.1  to net 'RAIL5VSB_HI'
+  (Today those sit on a plain '+5VSB' net; merge that net into RAIL5VSB_HI,
    i.e. the PSU-side of RS4 becomes the board's +5VSB source node.)
-  J4.9 (+5VSB to motherboard) stays on SENSE5VSB_LO (after the shunt).
+  J4.9 (+5VSB to motherboard) stays on RAIL5VSB_LO (after the shunt).
 
 ## NOTE: pin 11 (+12V) and pin 13 (+3.3V) — confirm against your PSU/mobo
   ATX 2.x sometimes labels pin 11/12 differently across revisions; the KiCad
