@@ -135,6 +135,53 @@ def pin_abs(placement, used, parts, ref, num):
     dy = math.sin(math.radians(ang))       # (+ because schematic Y is inverted)
     return ax, ay, dx, dy
 
+def sym_body_box(block):
+    """Local body bounding box (minx,maxx,miny,maxy) from rectangles only (the
+    drawn outline), used as a keep-out for wire routing. Empty -> None."""
+    xs, ys = [], []
+    for m in re.finditer(r'\(rectangle\s*\(start\s+(-?[\d.]+)\s+(-?[\d.]+)\)\s*\(end\s+(-?[\d.]+)\s+(-?[\d.]+)\)', block):
+        xs += [float(m.group(1)), float(m.group(3))]
+        ys += [float(m.group(2)), float(m.group(4))]
+    return (min(xs), max(xs), min(ys), max(ys)) if xs else None
+
+def _seg_hits_box(x1, y1, x2, y2, box, pad=0.0):
+    """True if axis-aligned segment (x1,y1)-(x2,y2) intersects rect box+pad."""
+    bx0, bx1, by0, by1 = box[0]-pad, box[1]+pad, box[2]-pad, box[3]+pad
+    if abs(y1-y2) < 1e-6:                       # horizontal
+        if not (by0 <= y1 <= by1): return False
+        lo, hi = sorted((x1, x2))
+        return not (hi <= bx0 or lo >= bx1)
+    if abs(x1-x2) < 1e-6:                       # vertical
+        if not (bx0 <= x1 <= bx1): return False
+        lo, hi = sorted((y1, y2))
+        return not (hi <= by0 or lo >= by1)
+    return False
+
+def route_L(p, q, boxes, pin_pts):
+    """Try the two axis-aligned L-routes between pin connection points p and q.
+    Return a list of grid-snapped wire segments avoiding every keep-out box and
+    not passing through any foreign pin point, or None if neither L is clean."""
+    (x1, y1), (x2, y2) = p, q
+    if abs(x1-x2) < 1e-6 or abs(y1-y2) < 1e-6:
+        cand = [[(x1, y1, x2, y2)]]                     # already straight
+    else:
+        cand = [[(x1, y1, x2, y1), (x2, y1, x2, y2)],   # horizontal-first
+                [(x1, y1, x1, y2), (x1, y2, x2, y2)]]   # vertical-first
+    ends = {p, q}
+    for segs in cand:
+        ok = True
+        for (sx1, sy1, sx2, sy2) in segs:
+            if any(_seg_hits_box(sx1, sy1, sx2, sy2, b, pad=0.0) for b in boxes):
+                ok = False; break
+            # the corner/intermediate point must not land on a foreign pin
+            for pt in ((sx1, sy1), (sx2, sy2)):
+                if pt not in ends and pt in pin_pts:
+                    ok = False; break
+            if not ok: break
+        if ok:
+            return segs
+    return None
+
 def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
     pinblk = "\n".join(f'\t\t(pin "{n}" (uuid {u()}))' for n in pins)
     return (
@@ -184,7 +231,7 @@ def gridsnap(x, y):
 
 def build_schematic(out_path, project, parts, nets, used, libs,
                     paper="A3", powerflag_nets=(), nc_skip=(), placement=None,
-                    power_ports=None):
+                    power_ports=None, wire_nets=None):
     """Write a .kicad_sch.
 
     power_ports: {net: power-symbol} (e.g. {"GND":"GND","+3V3":"+3V3"}). Pins on
@@ -195,6 +242,7 @@ def build_schematic(out_path, project, parts, nets, used, libs,
     nc_skip: (ref,pin) left with neither net nor NC. placement: {refdes:(x,y)}
       functional layout; omitted parts auto-grid. All origins grid-snapped."""
     power_ports = power_ports or {}
+    wire_nets = set(wire_nets or ())
     root = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\s*\)', open(out_path).read()).group(1)
 
     # auto-grid sized to the largest symbol, generous gutter for stubs+labels
@@ -227,9 +275,41 @@ def build_schematic(out_path, project, parts, nets, used, libs,
                         used[(parts[r][0], parts[r][1])]["pins"], project, root)
             for r in parts]
 
+    # keep-out body boxes (absolute) and the set of all pin connection points,
+    # for the wire router.
+    boxes, all_pins = [], set()
+    for ref, (lib, name, _v) in parts.items():
+        ox, oy = placement[ref]
+        bb = sym_body_box(used[(lib, name)]["block"])
+        if bb:
+            boxes.append((ox+bb[0], ox+bb[1], oy-bb[3], oy-bb[2]))
+        for pnum in used[(lib, name)]["pins"]:
+            ax, ay, _dx, _dy = pin_abs(placement, used, parts, ref, pnum)
+            all_pins.add((round(ax, 3), round(ay, 3)))
+
     wires, labels, flags = [], [], []
     flag_anchor = {}
+    routed = set()           # nets drawn pin-to-pin (skip label/port emission)
+
+    # 1) direct point-to-point routing for opted-in 2-pin nets (fallback: labels)
+    for net in list(wire_nets):
+        conns = nets.get(net, [])
+        if len(conns) != 2:
+            continue
+        (r1, p1), (r2, p2) = conns
+        a = pin_abs(placement, used, parts, r1, p1)
+        b = pin_abs(placement, used, parts, r2, p2)
+        pa, pb = (round(a[0], 3), round(a[1], 3)), (round(b[0], 3), round(b[1], 3))
+        segs = route_L(pa, pb, boxes, all_pins)
+        if segs:
+            for (x1, y1, x2, y2) in segs:
+                wires.append(emit_wire(*gridsnap(x1, y1), *gridsnap(x2, y2)))
+            routed.add(net)
+
+    # 2) remaining nets: power ports or text labels on outward stubs
     for net, conns in nets.items():
+        if net in routed:
+            continue
         port = power_ports.get(net)
         for ref, pin in conns:
             ax, ay, dx, dy = pin_abs(placement, used, parts, ref, pin)
@@ -274,7 +354,8 @@ def build_schematic(out_path, project, parts, nets, used, libs,
         + "\t(sheet_instances\n\t\t(path \"/\"\n\t\t\t(page \"1\")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n")
     open(out_path, "w").write(content)
     return {"parts": len(parts), "nets": len(nets), "labels": len(labels),
-            "wires": len(wires), "flags": len(flags), "nc": len(ncs), "root": root}
+            "wires": len(wires), "flags": len(flags), "nc": len(ncs),
+            "routed": len(routed), "root": root}
 
 _POWER_CACHE = {}
 def _power_block(libs, name):

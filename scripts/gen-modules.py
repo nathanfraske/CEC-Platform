@@ -118,12 +118,13 @@ def layout(dirn, parts):
     }
     if dirn == "atx-24pin":
         P["J2"] = (50, 120)
-    # sensing groups along a lower band, spread by rail index
+    # sensing clusters along a lower band: shunt left of INA (so RAIL*_HI draws as
+    # a straight wire onto Vin+), decoupling cap just right of the INA.
     for i in range(len(RAILS[dirn])):
-        x = 70 + i * 110
-        P[f"RS{i+1}"] = (x, 210)        # shunt
-        P[f"U1{i}"]   = (x + 45, 210)   # INA238 monitor
-        P[f"C1{i}"]   = (x + 90, 210)   # VS decoupling
+        X = 120 + i * 95
+        P[f"U1{i}"]   = (X, 210)               # INA238 monitor
+        P[f"RS{i+1}"] = (X - 25.4, 215.08)     # shunt; pin1 aligned to Vin+
+        P[f"C1{i}"]   = (X + 25.4, 210)        # VS decoupling, beside the INA
     return {r: P[r] for r in parts if r in P}
 
 for dirn, base in MODS:
@@ -133,10 +134,13 @@ for dirn, base in MODS:
     # GPIO0 is the service-button pad — single-pin label by design, no NC flag.
     nc_skip = {("U1", "4")}
     # Power rails use power-PORT symbols (GND triangle, +5VSB/+3V3 bars) instead
-    # of text labels — far more readable, and the ports satisfy ERC.
+    # of text labels. The per-rail shunt->INA sense link (RAIL*_HI) is a 2-pin
+    # colinear net -> draw it as a real wire.
+    wire_nets = [f"RAIL{rn}_HI" for rn, _ in RAILS[dirn]]
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
                                     power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
-                                    nc_skip=nc_skip, placement=layout(dirn, parts))
+                                    nc_skip=nc_skip, placement=layout(dirn, parts),
+                                    wire_nets=wire_nets)
     print(f"modules/{dirn}/{base}.kicad_sch  " +
           "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root") +
           f"  rails={len(RAILS[dirn])}")

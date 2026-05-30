@@ -146,16 +146,20 @@ LAYOUT = {
     "J5": (560, 205), "R8": (535, 230),
     # USB-C host (top, near MCU USB pins) + CC resistors
     "J6": (300, 35), "R9": (250, 40), "R10": (250, 55),
-    # SK6812 LED chain across the bottom
-    "C4": (215, 110), "C5": (250, 110),
-    "DL1": (70, 260), "DL2": (140, 260), "DL3": (210, 260), "DL4": (280, 260),
-    "DL5": (350, 260), "DL6": (420, 260), "DL7": (490, 260),
+    # CAN-transceiver decoupling sits right at U2; ESP32 bulk near U1
+    "C4": (270, 150), "C5": (330, 150),
+    # SK6812 LED chain — one aligned row so DOUT->DIN draws as straight wires
+    "DL1": (70, 270), "DL2": (97.94, 270), "DL3": (125.88, 270), "DL4": (153.82, 270),
+    "DL5": (181.76, 270), "DL6": (209.7, 270), "DL7": (237.64, 270),
 }
+
+# LED daisy-chain links are 2-pin and colinear -> draw them as real wires.
+WIRE_NETS = ["LED_D12", "LED_D23", "LED_D34", "LED_D45", "LED_D56", "LED_D67"]
 
 used = cec_sch.load_symbols(LIBS, PARTS)
 stats = cec_sch.build_schematic(OUT, "hub-standard", PARTS, NETS, used, LIBS,
                                 paper="A2",
                                 power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
-                                nc_skip=NC_SKIP, placement=LAYOUT)
+                                nc_skip=NC_SKIP, placement=LAYOUT, wire_nets=WIRE_NETS)
 print(f"wrote {os.path.relpath(OUT, ROOTDIR)}")
 print("  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))

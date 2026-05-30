@@ -60,6 +60,26 @@ def lib_pins(block):
             out[num.group(1)] = (float(m.group(1)), float(m.group(2)), int(m.group(3)))
     return out
 
+def sym_body_box(block):
+    """Body bounding box from rectangles only (drawn outline) — wire keep-out."""
+    xs, ys = [], []
+    for m in re.finditer(r'\(rectangle\s*\(start\s+(-?[\d.]+)\s+(-?[\d.]+)\)\s*\(end\s+(-?[\d.]+)\s+(-?[\d.]+)\)', block):
+        xs += [float(m.group(1)), float(m.group(3))]
+        ys += [float(m.group(2)), float(m.group(4))]
+    return (min(xs), max(xs), min(ys), max(ys)) if xs else None
+
+def seg_hits_box(x1, y1, x2, y2, box, pad=-0.2):
+    """True if axis-aligned segment intersects rect box (shrunk by pad so a wire
+    grazing the body edge to reach a pin is allowed)."""
+    bx0, bx1, by0, by1 = box[0]-pad, box[1]+pad, box[2]-pad, box[3]+pad
+    if abs(y1-y2) < 1e-6:
+        if not (by0 <= y1 <= by1): return False
+        lo, hi = sorted((x1, x2)); return not (hi <= bx0 or lo >= bx1)
+    if abs(x1-x2) < 1e-6:
+        if not (bx0 <= x1 <= bx1): return False
+        lo, hi = sorted((y1, y2)); return not (hi <= by0 or lo >= by1)
+    return False
+
 def ongrid(x, y):
     return abs((x/G)-round(x/G)) < 1e-6 and abs((y/G)-round(y/G)) < 1e-6
 
@@ -81,7 +101,8 @@ def sym_extent(block):
 def audit(path):
     s = open(path).read()
     pin_pts = set()
-    boxes = []   # (ref, x0, x1, y0, y1) absolute, for overlap detection
+    boxes = []        # (ref, x0, x1, y0, y1) absolute, for overlap detection
+    body_boxes = []   # (x0, x1, y0, y1) body rectangles only, wire keep-outs
     for m in re.finditer(r'\(symbol\n\t\t\(lib_id "([^"]+)"\)\n\t\t\(at (-?[\d.]+) (-?[\d.]+) (\d+)\)(.*?)\n\t\)', s, re.S):
         libid, ox, oy, rot, tail = m.group(1), float(m.group(2)), float(m.group(3)), int(m.group(4)), m.group(5)
         lib_ns, _, name = libid.partition(":")
@@ -98,10 +119,15 @@ def audit(path):
         ref = re.search(r'\(property "Reference" "([^"]+)"', tail)
         x0, x1, y0, y1 = sym_extent(blk)   # rot is 0 for all our placements
         boxes.append((ref.group(1) if ref else "?", ox+x0, ox+x1, oy-y1, oy-y0))
+        bb = sym_body_box(blk)
+        if bb:
+            body_boxes.append((ox+bb[0], ox+bb[1], oy-bb[3], oy-bb[2]))
     wends = []
+    segs = []
     for m in re.finditer(r'\(wire \(pts \(xy (-?[\d.]+) (-?[\d.]+)\) \(xy (-?[\d.]+) (-?[\d.]+)\)\)', s):
-        wends += [(R(float(m.group(1))), R(float(m.group(2)))),
-                  (R(float(m.group(3))), R(float(m.group(4))))]
+        x1, y1, x2, y2 = (float(m.group(k)) for k in (1, 2, 3, 4))
+        wends += [(R(x1), R(y1)), (R(x2), R(y2))]
+        segs.append((x1, y1, x2, y2))
     labels = [(R(float(x)), R(float(y))) for x, y in
               re.findall(r'\(label "[^"]+" \(at (-?[\d.]+) (-?[\d.]+)', s)]
     ncs = [(R(float(x)), R(float(y))) for x, y in
@@ -114,12 +140,15 @@ def audit(path):
             a, b = boxes[i], boxes[j]
             if not (a[2] < b[1] or b[2] < a[1] or a[4] < b[3] or b[4] < a[3]):
                 overlaps.append(f"{a[0]}&{b[0]}")
+    wire_through_body = [seg for seg in segs
+                         if any(seg_hits_box(*seg, b) for b in body_boxes)]
     res = {
         "no_connect_dangling": [p for p in ncs if p not in pin_pts],
         "label_dangling": [p for p in labels if p not in set(wends) and p not in pin_pts],
         "unconnected_wire_endpoint": [p for p in wends if p not in pin_pts and p not in lset and wc[p] < 2],
         "endpoint_off_grid": [p for p in (wends+labels+ncs) if not ongrid(*p)],
         "symbol_overlap": overlaps,
+        "wire_through_body": wire_through_body,
     }
     return res, []
 
