@@ -3603,7 +3603,7 @@
 	)
 	(wire
 		(pts
-			(xy 232.41 57.15) (xy 234.95 57.15)
+			(xy 231.14 53.34) (xy 234.95 53.34)
 		)
 		(stroke
 			(width 0)
@@ -3613,7 +3613,7 @@
 	)
 	(wire
 		(pts
-			(xy 220.98 57.15) (xy 220.98 59.69)
+			(xy 220.98 53.34) (xy 220.98 59.69)
 		)
 		(stroke
 			(width 0)
@@ -3653,7 +3653,7 @@
 	)
 	(wire
 		(pts
-			(xy 346.71 57.15) (xy 347.98 57.15)
+			(xy 369.57 57.15) (xy 370.84 57.15)
 		)
 		(stroke
 			(width 0)
@@ -3883,7 +3883,7 @@
 	)
 	(wire
 		(pts
-			(xy 234.95 57.15) (xy 234.95 59.69)
+			(xy 234.95 53.34) (xy 234.95 59.69)
 		)
 		(stroke
 			(width 0)
@@ -4073,7 +4073,7 @@
 	)
 	(wire
 		(pts
-			(xy 220.98 57.15) (xy 227.33 57.15)
+			(xy 220.98 53.34) (xy 226.06 53.34)
 		)
 		(stroke
 			(width 0)
@@ -4643,7 +4643,7 @@
 	)
 	(wire
 		(pts
-			(xy 341.63 57.15) (xy 340.36 57.15)
+			(xy 364.49 57.15) (xy 340.36 57.15)
 		)
 		(stroke
 			(width 0)
@@ -6446,7 +6446,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 347.98 57.15 90)
+		(at 370.84 57.15 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6456,7 +6456,7 @@
 		(dnp no)
 		(uuid "2ca38180-4859-44ba-97be-5712636a7cd9")
 		(property "Reference" "#PWR35"
-			(at 345.44 57.15 0)
+			(at 368.3 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6467,7 +6467,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 351.79 57.15 0)
+			(at 374.65 57.15 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6477,7 +6477,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 347.98 57.15 0)
+			(at 370.84 57.15 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6487,7 +6487,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 347.98 57.15 0)
+			(at 370.84 57.15 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6497,7 +6497,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 347.98 57.15 0)
+			(at 370.84 57.15 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8384,7 +8384,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 344.17 57.15 90)
+		(at 367.03 57.15 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8394,7 +8394,7 @@
 		(dnp no)
 		(uuid "7dd65acc-01bd-41b4-b07c-9fc31b4b1800")
 		(property "Reference" "C3"
-			(at 346.202 52.324 90)
+			(at 369.062 52.324 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8404,7 +8404,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 346.71 54.356 90)
+			(at 369.57 54.356 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8414,7 +8414,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 344.17 57.15 0)
+			(at 367.03 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8425,7 +8425,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 344.17 57.15 0)
+			(at 367.03 57.15 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8436,7 +8436,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 344.17 57.15 0)
+			(at 367.03 57.15 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11994,7 +11994,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 229.87 57.15 270)
+		(at 228.6 53.34 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12004,7 +12004,7 @@
 		(dnp no)
 		(uuid "f144b691-7ec8-461a-a0bb-3fdca296c3ef")
 		(property "Reference" "C4"
-			(at 229.87 52.07 90)
+			(at 228.6 48.26 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12014,7 +12014,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 229.87 54.102 90)
+			(at 228.6 50.292 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12024,7 +12024,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 229.87 57.15 0)
+			(at 228.6 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12035,7 +12035,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 229.87 57.15 0)
+			(at 228.6 53.34 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12046,7 +12046,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 229.87 57.15 0)
+			(at 228.6 53.34 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
