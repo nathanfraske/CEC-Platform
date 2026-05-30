@@ -16,6 +16,10 @@ found=0
 while IFS= read -r -d '' f; do
   found=1
   rel="${f#"$CEC_REPO_ROOT"/}"
+  if [ -e "$(dirname "$f")/DRAFT" ]; then
+    printf 'skip ERC (DRAFT marker): %s\n' "$rel"
+    continue
+  fi
   if ! grep -q '(symbol' "$f" 2>/dev/null; then
     printf 'skip ERC (no placed symbols): %s\n' "$rel"
     continue
@@ -28,6 +32,10 @@ done < <(find "$CEC_REPO_ROOT" \( -path '*/build' -o -path '*/.git' \) -prune -o
 while IFS= read -r -d '' f; do
   found=1
   rel="${f#"$CEC_REPO_ROOT"/}"
+  if [ -e "$(dirname "$f")/DRAFT" ]; then
+    printf 'skip DRC (DRAFT marker): %s\n' "$rel"
+    continue
+  fi
   if ! grep -q '(footprint' "$f" 2>/dev/null; then
     printf 'skip DRC (no placed footprints): %s\n' "$rel"
     continue

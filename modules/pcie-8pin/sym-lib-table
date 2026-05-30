@@ -1,0 +1,4 @@
+(sym_lib_table
+  (version 7)
+  (lib (name "cec")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec.kicad_sym")(options "")(descr "CEC shared symbols (universal interface)"))
+)
