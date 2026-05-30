@@ -115,8 +115,10 @@ def audit(path):
     for m in re.finditer(r'\(symbol\n\t\t\(lib_id "([^"]+)"\)\n\t\t\(at (-?[\d.]+) (-?[\d.]+) (\d+)\)(.*?)\n\t\)', s, re.S):
         libid, ox, oy, rot, tail = m.group(1), float(m.group(2)), float(m.group(3)), int(m.group(4)), m.group(5)
         lib_ns, _, name = libid.partition(":")
-        # power symbols (PWR_FLAG, GND, +3V3, +5VSB ...) are 1-pin, pin at origin
-        if lib_ns == "power":
+        # power symbols (PWR_FLAG, GND, +3V3, +5VSB ...) are 1-pin, pin at origin.
+        # Our vendored library uses the cec-power nickname; KiCad's built-in is
+        # power. Accept both.
+        if lib_ns in ("power", "cec-power"):
             pin_pts.add((R(ox), R(oy))); continue
         blk = find_sym(name)
         if not blk:

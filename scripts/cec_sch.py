@@ -182,7 +182,35 @@ def route_L(p, q, boxes, pin_pts):
             return segs
     return None
 
+_OHM = "Ω"   # Ω
+_MULT = {"R": "", "k": "k", "K": "k", "m": "m", "M": "M"}
+
+def fmt_cap(v):
+    """Capacitance value -> standard nF/uF naming: 100n->100nF, 1u->1uF."""
+    return v + "F" if re.match(r'^\d+(\.\d+)?[pnuµ]$', v) else v
+
+def fmt_res(v):
+    """Resistance value -> decimal + Ω (2.2kΩ-standard): 2k2->2.2kΩ, 10k->10kΩ,
+    2m->2mΩ. Non-numeric placeholders (e.g. 'R_ID (OQ-6)') pass through."""
+    m = re.match(r'^(\d+)([kKmMR])(\d+)$', v)      # RKM with internal letter
+    if m:
+        return f"{m.group(1)}.{m.group(3)}{_MULT[m.group(2)]}{_OHM}"
+    m = re.match(r'^(\d+)([kKmMR])$', v)            # trailing multiplier
+    if m:
+        return f"{m.group(1)}{_MULT[m.group(2)]}{_OHM}"
+    if re.match(r'^\d+$', v):                       # bare ohms
+        return v + _OHM
+    return v
+
+def fmt_value(name, val):
+    if name == "C_Small":
+        return fmt_cap(val)
+    if name == "R_Small":
+        return fmt_res(val)
+    return val
+
 def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
+    val = fmt_value(name, val)
     pinblk = "\n".join(f'\t\t(pin "{n}" (uuid "{u()}"))' for n in pins)
     return (
         "\t(symbol\n"
@@ -219,7 +247,7 @@ def emit_global_power(symname, x, y, project, root, ref, rot=0):
     # makes KiCad crash when it rebuilds instances on save.
     return (
         "\t(symbol\n"
-        f'\t\t(lib_id "power:{symname}")\n'
+        f'\t\t(lib_id "cec-power:{symname}")\n'
         f"\t\t(at {f(x)} {f(y)} {rot})\n\t\t(unit 1)\n"
         "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
         f'\t\t(uuid "{u()}")\n'
@@ -333,14 +361,27 @@ def build_schematic(out_path, project, parts, nets, used, libs,
                 labels.append(emit_label(net, bx, by, lang))
             flag_anchor.setdefault(net, (bx, by, dx, dy))
 
-    # PWR_FLAG instances for any remaining (non-port) flagged nets
-    for net in powerflag_nets:
-        if net in flag_anchor and net not in power_ports:
-            bx, by, dx, dy = flag_anchor[net]
-            fx, fy = bx + dx * STUB, by + dy * STUB
-            wires.append(emit_wire(bx, by, fx, fy))
-            flags.append(emit_global_power("PWR_FLAG", fx, fy, project, root,
-                                           pwr_ref("#FLG")))
+    # PWR_FLAG drivers for connector-fed power nets. A net that enters only on
+    # passive/power-input pins (e.g. +5VSB and GND off the RJ-45) has no driving
+    # source, so ERC raises power_pin_not_driven. The fix is a standalone driver
+    # "stamp" placed in free space below the content: a power-port (joins the
+    # global net by name) and a PWR_FLAG (power_out, marks it driven) on a short
+    # vertical wire. Top element points up, bottom points down, so the two tiny
+    # graphics never overlap. Works whether or not the net is ported elsewhere.
+    if powerflag_nets and placement:
+        base_y = round((max(oy for _ox, oy in placement.values()) + 25.4) / GRID) * GRID
+        base_x = round((min(ox for ox, _oy in placement.values())) / GRID) * GRID
+        for i, net in enumerate(sorted(powerflag_nets)):
+            sx = base_x + i * 25.4
+            ty, by_ = base_y, base_y + 10.16
+            wires.append(emit_wire(sx, ty, sx, by_))
+            port = power_ports.get(net, net)
+            if port == "GND":          # flag up top, GND port (points down) at bottom
+                flags.append(emit_global_power("PWR_FLAG", sx, ty, project, root, pwr_ref("#FLG"), 180))
+                flags.append(emit_global_power(port, sx, by_, project, root, pwr_ref("#PWR"), 0))
+            else:                      # positive-rail port up top, flag at bottom
+                flags.append(emit_global_power(port, sx, ty, project, root, pwr_ref("#PWR"), 180))
+                flags.append(emit_global_power("PWR_FLAG", sx, by_, project, root, pwr_ref("#FLG"), 0))
 
     # no-connect flags on every pin not in a net and not skipped
     ncs = []
@@ -372,5 +413,5 @@ def _power_block(libs, name):
         pw = libs.get("power")
         if pw is None:
             raise SystemExit("power library not loaded")
-        _POWER_CACHE[name] = _namespace(symbol_block(pw, name), name, "power")
+        _POWER_CACHE[name] = _namespace(symbol_block(pw, name), name, "cec-power")
     return _POWER_CACHE[name]

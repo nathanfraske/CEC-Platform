@@ -27,7 +27,10 @@ ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
         "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
         "power": open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym").read()}
-MODS = [("atx-24pin", "24pin-module"), ("eps-8pin", "eps8pin-module"),
+# atx-24pin is hand-maintained in eeschema (custom layout/wiring + INA228), so it
+# is intentionally NOT regenerated here — running this script must never clobber
+# that sheet. Its build()/RAILS entries remain below for reference and parity.
+MODS = [("eps-8pin", "eps8pin-module"),
         ("pcie-8pin", "pcie8pin-module"), ("12vhpwr-standard", "12vhpwr-standard-module")]
 # rails sensed per module: (rail name, shunt value)
 RAILS = {
@@ -61,10 +64,13 @@ BASE_PARTS = {
 def build(dirn):
     rails = RAILS[dirn]
     parts = dict(BASE_PARTS)
+    # atx-24pin senses with the 20-bit INA228 (2026-05-30 decision); the other
+    # Standard modules keep the 16-bit INA238. Both share the INA226 symbol body.
+    ina_val = "INA228" if dirn == "atx-24pin" else "INA238"
     for i, (rn, sv) in enumerate(rails):
-        parts[f"U1{i}"] = ("cec-vendor", "INA226", "INA238")     # INA226 body = INA238 pinout
+        parts[f"U1{i}"] = ("cec-vendor", "INA226", ina_val)     # INA226 body = INA238/228 pinout
         parts[f"RS{i+1}"] = ("cec-vendor", "R_Small", sv)
-        parts[f"C1{i}"] = ("cec-vendor", "C_Small", "100n")      # INA238 VS decoupling
+        parts[f"C1{i}"] = ("cec-vendor", "C_Small", "100n")      # INA VS decoupling
     if dirn == "atx-24pin":
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
@@ -139,6 +145,7 @@ for dirn, base in MODS:
     wire_nets = [f"RAIL{rn}_HI" for rn, _ in RAILS[dirn]]
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
                                     power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
+                                    powerflag_nets=["+5VSB", "GND"],
                                     nc_skip=nc_skip, placement=layout(dirn, parts),
                                     wire_nets=wire_nets)
     print(f"modules/{dirn}/{base}.kicad_sch  " +

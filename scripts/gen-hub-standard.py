@@ -160,6 +160,7 @@ used = cec_sch.load_symbols(LIBS, PARTS)
 stats = cec_sch.build_schematic(OUT, "hub-standard", PARTS, NETS, used, LIBS,
                                 paper="A2",
                                 power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
+                                powerflag_nets=["+5VSB", "GND"],
                                 nc_skip=NC_SKIP, placement=LAYOUT, wire_nets=WIRE_NETS)
 print(f"wrote {os.path.relpath(OUT, ROOTDIR)}")
 print("  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))
