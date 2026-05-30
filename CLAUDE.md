@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: 2026-05-30.
+Spec revision reflected here: v1.5 (2026-05-30).
 
 ## What this project is
 
@@ -63,7 +63,7 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 | Hub Pro | hubs/hub-pro | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
 | Hub Enterprise | hubs/hub-enterprise | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
-| 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35 |
+| 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35* |
 | EPS 8-pin module | modules/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
 | PCIe 8-pin module | modules/pcie-8pin | Standard | ESP32-S3-MINI-1 | - | - | $38 |
 | 12VHPWR Standard module | modules/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
@@ -74,6 +74,10 @@ Critical are specified at platform-summary level only until first customer
 requirements land (OQ-7); the Enterprise tier additionally carries an RJ-11 trust
 channel and a secure element, and Mission Critical adds redundant power, CAN, and
 trust.
+
+*The 24-pin $35 target predates the v1.4 move to four INA228 parts (spec §8);
+expect a modest increase over the INA238 baseline. Revisit once shunt parts
+(OQ-11) and the INA228 line cost are quoted.
 
 ## Locked decisions (do not change without explicit instruction)
 
@@ -86,12 +90,16 @@ Connector and physical interface:
 - Locking-boot RJ-45 is the default shipped variant. Mechanical-keyed variants
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
-- PoE/over-voltage protection is not populated on Standard or Pro: the TVS array
-  and series limiting resistors are omitted, since accidental PoE injection is not
-  a design target for those tiers. For Enterprise and Mission Critical it is an
-  open question (OQ-8). Where protection is populated (only under OQ-8), size the
-  VCC series resistor together with the power budget, since it trades protection
-  against 5VSB headroom at the far end of a cable.
+- PoE/over-voltage protection: the spec (§2.4) LOCKS per-pin over-voltage
+  protection (TVS array + series limiting resistors, PoE-survivable to ~57V) on
+  EVERY RJ-45 pin of every Hub and module, platform-wide. The current boards do
+  NOT populate it on Standard or Pro — this is a recorded spec-versus-board
+  DIVERGENCE (OQ-14), not a settled decision. Do not treat the board state as
+  ground truth: the spec requirement stands until OQ-14 ratifies the drop or
+  restores the protection. Whether Enterprise/MC populate it is the second half
+  of OQ-14. Where protection is populated, size the VCC series resistor together
+  with the power budget, since it trades protection against 5VSB headroom at the
+  far end of a cable.
 - Connector must have a documented current rating of at least 1.5A.
 - Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
   from the RJ-45 interface, fed from the 24-pin ATX module; the Hub then
@@ -100,7 +108,7 @@ Connector and physical interface:
   the trunk. Use the simplest 2-pin part rated for the full Hub trunk with margin
   (working selection: 2-pin JST-XH, >=3A); never Mini-Fit Jr.
 
-Pin allocation (LOCKED; pin 7 use and DETECT encoding still pending):
+Pin allocation (LOCKED; DETECT encoding still pending):
 
 | Pin | Cat5e pair | T568B color | CEC function | Tiers |
 |---|---|---|---|---|
@@ -110,7 +118,7 @@ Pin allocation (LOCKED; pin 7 use and DETECT encoding still pending):
 | 4 | Pair 2 | Blue | STREAM_P (RS-485 data, module to Hub) | Pro+ |
 | 5 | Pair 2 | White-blue | STREAM_N (RS-485 data, module to Hub) | Pro+ |
 | 6 | Pair 3 | Green | CAN1_L | All |
-| 7 | Pair 4 | White-brown | AUX_REF (precision reference) | Pro+, pending OQ-3 |
+| 7 | Pair 4 | White-brown | Reserved spare (no distributed reference; OQ-3 resolved) | All |
 | 8 | Pair 4 | Brown | DETECT / module-ID (analog single-wire sense) | All |
 
 - Pair 3 (pins 3 and 6) is the T568B split pair and stays twisted in the cable.
@@ -147,16 +155,31 @@ Per-tier hardware:
   rail-voltage divider into one LTC2358 channel, about 900 kB/s streaming
   (roughly 50 kHz x 6 channels) over RS-485, CAN-FD control.
 - Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard):
-  ESP32-S3-MINI-1; per-rail sensing via INA238 (16-bit I2C current/voltage
-  monitor), one per sensed rail on the module I2C bus, sized for >=1 kHz polling.
-  24-pin senses 12V/5V/3V3/5VSB; the others sense the single 12V rail. No CAN
-  termination (Hub-only).
-  - 24-pin ATX exception (decided 2026-05-30): the 24-pin uses the INA228
-    (20-bit, pin- and footprint-compatible drop-in for the INA238) on all four
-    sensed rails; EPS, PCIe and 12VHPWR Standard keep the INA238. Same VSSOP-10,
-    so this is a part-value swap only. ACTION: fold into
-    CEC-Platform-Ground-Truth-Spec.md (ground truth) and revisit the 24-pin's
-    $35 BOM target for the INA228 cost delta.
+  ESP32-S3-MINI-1; no CAN termination (Hub-only). Per-module sensing differs by
+  connector (spec §6.1, §6.2):
+  - 24-pin ATX: 4x INA228 (20-bit, 195 uV bus LSB, internal energy/charge
+    accumulators), one per rail — 12V, 5V, 3V3, 5VSB. The INA228 is a pin- and
+    footprint-compatible (VSSOP-10) drop-in for the INA238. IMPLEMENTED in the
+    24-pin schematic.
+  - EPS 8-pin: INA238, one per cable (per-cable granularity, not single-rail);
+    1 to 2 monitors depending on cables present.
+  - PCIe 8-pin: INA238, one per position (per-cable granularity); up to 3.
+  - 12VHPWR Standard: six INA240 per-pin current-sense amps into the ESP32-S3
+    ADC, plus a 47k/10k rail-voltage divider into the ADC (NOT a single I2C
+    INA238). Accuracy ~+/-1%, see OQ-8.
+  - Acquisition (spec §6.10): the digital-sensor modules (24-pin, EPS, PCIe) run
+    their INA228/INA238 in continuous-conversion mode with a per-sensor ~2 s ring
+    buffer of 1 kHz averaged samples (pre-roll), and use the ALERT pin as the
+    threshold detector / buffer-freeze trigger.
+  - Shunt values (spec §6.4, LOCKED; parts pending OQ-11): 24-pin 12V/5V/3V3 =
+    2 mΩ, 24-pin 5VSB = 25 mΩ; EPS and PCIe per-cable = 0.5 mΩ; 12VHPWR per-pin =
+    1 mΩ. Low-TCR precision metal-element shunts, four-wire Kelvin sense (§6.8).
+  - BOARD RECONCILIATION owed to the spec (v1.5 §10): the EPS/PCIe schematics
+    are currently single 12V-rail INA238 and must become per-cable (EPS x1-2,
+    PCIe x1-3); the 12VHPWR Standard schematic is currently single-rail INA238
+    and must become 6x INA240-per-pin + divider (a real board change); and the
+    generator shunt values must move to the §6.4 table above. These are open
+    board edits, NOT yet done — see "Active action item".
 
 LED current:
 - SK6812 aggregate current must be capped in firmware (global brightness or
@@ -179,15 +202,17 @@ These are unresolved in the spec. Do not silently pick an answer. If a design
 choice depends on one of these, surface it and ask, or implement it behind a
 clearly labeled branch or variant.
 
-- OQ-1 (RESOLVED 2026-05-30): Hub bulk power input. Locked to a dedicated 2-pin
+- OQ-1 (RESOLVED, v1.3): Hub bulk power input. Locked to a dedicated 2-pin
   +5VSB power-in connector on every Hub, separate from the RJ-45 interface, fed
   from the 24-pin ATX module; the Hub distributes 5VSB to its ports over the
   RJ-45 VCC pin. See spec §2.7. This removes the single-pin trunk constraint.
-- OQ-2: LED current cap value and the maximum LED state to budget for.
-- OQ-3: Precision reference path. Path A (distributed AUX_REF on pin 7,
-  calibrated per cable length, with local RC filtering) versus Path B (local
-  REF3033 on each Pro module, freeing pin 7). Spec recommendation: Path B. Until
-  this is locked, treat AUX_REF on pin 7 as provisional.
+- OQ-2: Total 5VSB current cap (broadened from an LED-only cap). Confirm the
+  firmware cap on total CEC 5VSB draw (LED budget is the main lever) and the max
+  LED state to budget for, sized within the JST-XH rating and the shared ~2.5A
+  5VSB rail with margin. See spec §2.5.
+- OQ-3 (RESOLVED, v1.1): Precision reference path. Local REF3033 on each Pro
+  module; NO distributed reference; pin 7 is a reserved spare. See spec §3.3.
+  (Do not treat pin 7 as AUX_REF anymore.)
 - OQ-4: Cable length SKUs and whether Pro modules are allowed on arbitrary user
   cables. Interacts with OQ-3.
 - OQ-5: RS-485 topology. One receiver per Hub port (point-to-point, working
@@ -196,18 +221,53 @@ clearly labeled branch or variant.
   distinct analog ID codes, needed to finalize the pin 8 resistor table.
 - OQ-7: Whether to fully specify Enterprise and Mission Critical now or keep them
   at platform-summary level.
-- OQ-8: PoE/over-voltage protection for Enterprise and Mission Critical. Standard
-  and Pro do not populate per-pin TVS + series-resistor protection (§2.4); decide
-  whether Enterprise/MC populate it (PoE-survivable to ~57V) for their deployment
-  environments.
+- OQ-8: 12VHPWR Standard rail accuracy. Sensing through the ESP32-S3 ADC (INA240
+  + 47k/10k divider) caps accuracy near +/-1%. Accept that, or add a local
+  REF3033 to that one board (improves to ~+/-0.3 to 0.5%, INL-limited).
+- OQ-9: EPS/PCIe transient capture. The INA238 averages out ms transients;
+  decide whether bundled EPS/PCIe need an INA240-style fast path or averaged
+  total power suffices.
+- OQ-10: Bundled-shunt vertical transition (copper coin vs filled-via field vs
+  plated slot) for the ~40 to 55A EPS/PCIe per-cable shunt sites. See §6.7.
+- OQ-11: Per-module shunt part selection (value, TCR, tolerance, package, power)
+  per the §6.4 shunt table.
+- OQ-12: Per-module high-current stackup (L3-rails-with-via-detour vs top-layer-
+  rails) per high-current module. See §6.7.
+- OQ-13: Energy reporting scope. 24-pin INA228 gives hardware energy/charge on
+  all four rails; decide whether energy is scoped to that 24-pin/standby figure
+  or extended to total system energy (firmware integration on EPS/PCIe/Pro). The
+  24-pin energy is partial and must not be presented as total.
+- OQ-14: PoE/over-voltage protection scope (spec-vs-board divergence). (a) Standard
+  and Pro: §2.4 LOCKS per-pin protection platform-wide, but current boards drop
+  it — ratify the drop or restore the protection. (b) Enterprise/MC: decide
+  whether to populate per-pin TVS + series resistors (PoE-survivable to ~57V).
+  This subsumes the old OQ-8 PoE question, renumbered so it does not collide with
+  the 12VHPWR Standard accuracy question now at OQ-8.
 
-## Active action item
+## Active action items
 
-The Hub Standard and 12VHPWR schematics still show Mini-Fit Jr footprints and
-must be re-cut to RJ-45 before any board order. Treat those schematics as the
-stale artifacts and the spec as current. After a re-cut, verify that no Mini-Fit
-Jr footprint remains and that the eight RJ-45 pins map exactly to the pin
-allocation table above.
+Board reconciliation owed to spec v1.5 (these are the open edits; surface before
+acting, do not assume the open questions):
+
+1. EPS / PCIe sensing granularity (§6.2): the EPS and PCIe schematics currently
+   sense a single 12V rail with one INA238. They must become PER-CABLE: one
+   INA238 per cable (EPS x1-2, PCIe x1-3), each cable's 12V/GND bundled to its
+   own shunt. Generator `RAILS` currently lists one 12V rail for each — needs a
+   per-cable model.
+2. 12VHPWR Standard sensing (§6.1): currently a single-rail INA238; the spec
+   calls for SIX INA240 per-pin current-sense amps into the ESP32-S3 ADC plus a
+   47k/10k rail-voltage divider. This is a real board redesign, not a value swap.
+3. Shunt values (§6.4): move the generator shunt values to the locked table —
+   24-pin 12V/5V/3V3 = 2 mΩ, 24-pin 5VSB = 25 mΩ, EPS/PCIe per-cable = 0.5 mΩ,
+   12VHPWR per-pin = 1 mΩ. (The repo currently has 24-pin 5V/3V3 = 5m, 5VSB =
+   10m, EPS/PCIe 12V = 2m, which the spec supersedes.)
+4. PoE/over-voltage protection (§2.4 / OQ-14): UNRESOLVED divergence — do not add
+   or formally drop protection until OQ-14 is decided.
+
+Done (kept for context): the Mini-Fit Jr -> RJ-45 re-cut is COMPLETE on every
+board (verify no Mini-Fit Jr footprint remains and the eight RJ-45 pins match the
+pin allocation table after any future edit); the 24-pin INA238 -> INA228 swap is
+IMPLEMENTED; KiCad-10 library modernization and the cec-power nickname are in.
 
 ## KiCad environment
 
@@ -303,9 +363,17 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 Use this as a recurring review pass:
 - No Mini-Fit Jr footprints remain anywhere; all module-to-Hub connectors are
   RJ-45 8P8C.
-- Pinout on every board matches the locked pin allocation table.
-- PoE/over-voltage protection is not populated on Standard/Pro; on Enterprise/MC
-  it follows OQ-8.
+- Pinout on every board matches the locked pin allocation table (pin 7 is a
+  reserved spare, NOT AUX_REF).
+- PoE/over-voltage protection: spec §2.4 LOCKS it platform-wide; current boards
+  drop it on Standard/Pro as an OPEN divergence (OQ-14). Flag the divergence;
+  do not silently add or remove protection until OQ-14 is decided.
+- Module sensing matches §6.1: 24-pin = 4x INA228; EPS = per-cable INA238 (1-2);
+  PCIe = per-cable INA238 (up to 3); 12VHPWR Standard = 6x INA240 per-pin +
+  divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std boards still
+  need this reconciliation — see Active action items.)
+- Shunt values match the §6.4 table (24-pin 2 mΩ / 5VSB 25 mΩ; EPS/PCIe 0.5 mΩ;
+  12VHPWR 1 mΩ), Kelvin-sensed.
 - RS-485 pair (pins 4 and 5) and its receivers exist only on Pro and above;
   Standard leaves pair 2 unused and terminated at the module side.
 - CAN termination is a fixed 120 ohm split at the Hub.

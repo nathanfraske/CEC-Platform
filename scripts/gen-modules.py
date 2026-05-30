@@ -2,13 +2,18 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Nathan M. Fraske
 #
-# Generate the Standard-tier module schematics (24-pin ATX, EPS 8-pin, PCIe
-# 8-pin, 12VHPWR Standard). Shared control/comms/power backbone locked to the
-# ESP32-S3-MINI-1, plus per-rail sensing: one INA238 (16-bit I2C current/voltage
-# monitor, locked for Standard) per sensed rail — high-side shunt across Vin+/Vin-,
-# bus voltage on the dedicated Vbus pin, on a shared I2C bus to the ESP32. The 24-pin module
-# senses 4 rails (12V/5V/3V3/5VSB) and carries the dedicated 2-pin +5VSB power-
-# out to the Hub (OQ-1); the others sense one 12V rail.
+# Generate the Standard-tier module schematics (EPS 8-pin, PCIe 8-pin, 12VHPWR
+# Standard; the 24-pin ATX is now hand-maintained, see MODS below). Shared
+# control/comms/power backbone locked to the ESP32-S3-MINI-1, plus I2C current/
+# voltage sensing — high-side shunt across Vin+/Vin-, bus voltage on the Vbus
+# pin, on a shared I2C bus to the ESP32. The 24-pin carries the dedicated 2-pin
+# +5VSB power-out to the Hub (OQ-1).
+#
+# SENSING vs SPEC v1.5 (§6.1/§6.2): the spec calls for per-CABLE INA238 on EPS
+# (x1-2) and PCIe (x1-3), and SIX per-pin INA240 + divider on 12VHPWR Standard.
+# This generator still emits the older single-12V-rail INA238 model for those
+# three; reconciling them is an open board edit (see CLAUDE.md "Active action
+# items" / spec v1.5 §10). The 24-pin (hand-maintained) already uses INA228.
 #
 # The PARTS/NETS are the netlist (a guard rejects any pin in two nets). The
 # physical pass-through power connectors (PSU-side in / load-side out, where each
