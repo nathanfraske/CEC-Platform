@@ -1,0 +1,48 @@
+# CEC platform .gitignore (KiCad 10)
+#
+# Track design source: *.kicad_pro, *.kicad_sch, *.kicad_pcb, *.kicad_dru,
+# the shared lib/, and the sym-lib-table / fp-lib-table files.
+# Everything below is either KiCad churn or output that is regenerable from
+# source via kicad-cli.
+
+# ---- KiCad backups and autosaves ----
+*-bak
+*.kicad_pcb-bak
+*.kicad_sch-bak
+*.kicad_pro-bak
+*-save.kicad_*
+_autosave-*
+fp-info-cache
+
+# ---- Rescue and lock files ----
+*-rescue.kicad_sch
+*.lck
+~*.lck
+*~
+
+# ---- Project-local view settings (machine-specific, noisy) ----
+# Delete this line if you want shared layer visibility and display state.
+*.kicad_prl
+
+# ---- Regenerable output ----
+# Generate fab outputs into /build/ as a working dir; it is not tracked.
+# fab/ IS tracked on purpose: snapshot the exact package (gerbers, drill,
+# pick-and-place, BOM) under fab/<rev>/ at each tagged release.
+/build/
+/out/
+*.net
+*.raw
+spice-*.txt
+
+# ---- Scripting / tooling ----
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ---- OS / editor cruft ----
+.DS_Store
+Thumbs.db
+*.swp
+.vscode/
+.idea/
