@@ -14,6 +14,10 @@
 # (ghcr.io/kicad/kicad) and ship kicad-cli.
 set -euo pipefail
 
+# Pinned toolchain versions (single source of truth).
+_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+[ -f "$_dir/../versions.env" ] && . "$_dir/../versions.env"
 KICAD_IMAGE="${KICAD_IMAGE:-kicad/kicad:10.0}"
 
 if command -v kicad-cli >/dev/null 2>&1; then

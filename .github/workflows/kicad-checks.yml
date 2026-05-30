@@ -16,6 +16,7 @@ jobs:
   kicad:
     runs-on: ubuntu-latest
     container:
+      # Keep this tag in sync with KICAD_IMAGE in versions.env (pinned 10.0.x).
       image: kicad/kicad:10.0
       options: --user root
     env:

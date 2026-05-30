@@ -11,7 +11,9 @@ redrawn per board. Boards reference these via project-relative library tables
 |---|---|
 | `cec.kicad_sym` | Symbol library — RJ-45 FTP jack, TVS + series-resistor protection net, SK6812 LED, ESP32 module, power input, and the other shared symbols. |
 | `cec.pretty/` | Footprint library (`.kicad_mod`) — the matching land patterns. |
-| `3dmodels/` | 3D models referenced by the footprints. |
+| `3dmodels/` | 3D models referenced by footprints (project + vendored), via `${KIPRJMOD}`-relative paths. |
+| `vendor/` | Vendored official/third-party symbol & footprint libraries, pinned, for clone parity. |
+| `templates/` | Starting-point `sym-lib-table` / `fp-lib-table` for new boards. |
 
 ## Authoring
 
@@ -33,6 +35,15 @@ for example:
 Adjust the `../..` depth to the board's location (`hubs/<board>` and
 `modules/<board>` are both two levels below the repo root). **Never commit
 absolute library paths.**
+
+## Self-contained for clone parity
+
+The repo vendors what it uses so a plain `git clone` builds without any global
+KiCad libraries: official/third-party parts go in [`vendor/`](vendor), their 3D
+models in [`3dmodels/`](3dmodels), all referenced by `${KIPRJMOD}`-relative
+paths. `scripts/vendor-libs.sh` brings parts in at the pinned `KICAD_LIB_TAG`
+([`../versions.env`](../versions.env)); `scripts/checklist.sh` fails the build if
+any design file uses a machine-global `${KICAD*_DIR}` or absolute path.
 
 ## Locked interface parts
 

@@ -12,6 +12,10 @@ CEC_REPO_ROOT="$(cd "$CEC_SCRIPTS_DIR/.." && pwd)"
 CEC_KICAD="$CEC_SCRIPTS_DIR/kicad-cli.sh"
 CEC_BUILD="$CEC_REPO_ROOT/build"
 
+# Pinned toolchain versions (single source of truth).
+# shellcheck disable=SC1091
+[ -f "$CEC_REPO_ROOT/versions.env" ] && . "$CEC_REPO_ROOT/versions.env"
+
 # board_name <path> : filename with directory and extension stripped
 board_name() {
   local f

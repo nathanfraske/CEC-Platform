@@ -161,6 +161,22 @@ scripts/checklist.sh
 Reports and fab outputs are written under `build/` (gitignored). Fab packages
 are committed only as tagged release snapshots under `fab/<rev>/`.
 
+### Self-contained & reproducible (clone parity)
+
+A plain `git clone` is a full-parity project — no dependency on a machine's
+global KiCad libraries:
+
+- **Pinned toolchain.** The KiCad version is pinned in
+  [`versions.env`](versions.env) (major 10, the 10.0.x series); the scripts and
+  CI read it. The `.kicad_*` format is forward-only.
+- **Vendored parts.** Official and third-party symbols/footprints are copied into
+  [`lib/vendor/`](lib/vendor) and their 3D models into
+  [`lib/3dmodels/`](lib/3dmodels), all referenced by `${KIPRJMOD}`-relative
+  paths. `scripts/vendor-libs.sh` brings them in at the pinned library tag.
+- **Enforced.** `scripts/checklist.sh` (run in CI) fails if any design file uses
+  a machine-global `${KICAD*_DIR}` or an absolute path — the signal that a part
+  still needs vendoring.
+
 ---
 
 ## Design-review checklist
@@ -176,6 +192,8 @@ A recurring pass, enforced in part by `scripts/checklist.sh`:
 - CAN termination is a fixed 120 Ω split at the Hub.
 - Power-netclass trace width covers the trunk worst case; the firmware LED
   current cap is reflected in the design intent.
+- Libraries and 3D models are vendored in-repo and referenced by
+  `${KIPRJMOD}`-relative paths only (no machine-global or absolute paths).
 - BOM totals are in line with the spec targets.
 
 ---
@@ -227,7 +245,9 @@ are the stale artifacts; the spec is current.
   spec revision first rather than diverging in a board.
 - Do not resolve an open question (OQ-1…OQ-7) by assumption — surface it.
 - Keep library paths project-relative (`${KIPRJMOD}`); never commit absolute
-  paths.
+  paths. Vendor any official/third-party part you use
+  (`scripts/vendor-libs.sh`) so a clone stays self-contained, and keep the
+  toolchain on the pinned KiCad 10 (`versions.env`).
 - Run `scripts/check-all.sh` and `scripts/checklist.sh` before pushing layout or
   schematic changes.
 - Commit fab outputs only as tagged release snapshots under `fab/<rev>/`, not as

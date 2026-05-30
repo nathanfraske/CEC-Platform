@@ -1,9 +1,10 @@
 # `scripts/` — kicad-cli wrappers and CI helpers
 
-Thin, portable Bash wrappers around `kicad-cli`, plus two CI helpers. Every
-script calls through [`kicad-cli.sh`](kicad-cli.sh), which prefers a local
-`kicad-cli` and otherwise runs the official **KiCad Docker image** (override the
-tag with `KICAD_IMAGE`, default `kicad/kicad:10.0`). Reports and outputs go to
+Thin, portable Bash wrappers around `kicad-cli`, plus CI and vendoring helpers.
+Every script calls through [`kicad-cli.sh`](kicad-cli.sh), which prefers a local
+`kicad-cli` and otherwise runs the official **KiCad Docker image** (image and tag
+pinned in [`../versions.env`](../versions.env) as `KICAD_IMAGE`, default
+`kicad/kicad:10.0`). Reports and outputs go to
 the gitignored `build/<board>/` directory.
 
 | Script | Does | Usage |
@@ -16,7 +17,8 @@ the gitignored `build/<board>/` directory.
 | `render.sh` | Top-side PNG render | `scripts/render.sh <board.kicad_pcb>` |
 | `fab.sh` | Gerbers + drill + pick-and-place → `build/` | `scripts/fab.sh <board.kicad_pcb>` |
 | `check-all.sh` | ERC every schematic, DRC every layout (CI) | `scripts/check-all.sh` |
-| `checklist.sh` | Repo hygiene: no Mini-Fit Jr, relative lib paths (CI) | `scripts/checklist.sh` |
+| `checklist.sh` | Repo hygiene: no Mini-Fit Jr, in-repo relative lib/3D paths (CI) | `scripts/checklist.sh` |
+| `vendor-libs.sh` | Vendor official/3rd-party parts + 3D models for clone parity | `scripts/vendor-libs.sh fetch` (then `add-symbol`/`add-footprint`/`add-3dmodel`/`verify`) |
 
 `erc.sh` / `drc.sh` follow `kicad-cli` conventions: **exit 0 = clean, 5 =
 violations**, other = tool error. `check-all.sh` aggregates those and is a clean
@@ -40,7 +42,11 @@ KICAD_IMAGE=kicad/kicad:10.0 scripts/check-all.sh
 ## Notes
 
 - Keep the container's KiCad on the same major version as the project (**KiCad
-  10**); the file format is forward-only.
+  10**); the file format is forward-only. The pin lives in
+  [`../versions.env`](../versions.env) (sourced by these scripts; CI uses the
+  same image tag).
+- `vendor-libs.sh` copies official/third-party parts and their 3D models into the
+  repo at the pinned `KICAD_LIB_TAG`, so a plain clone is self-contained.
 - `fab.sh` writes working outputs to `build/`. Release packages are snapshotted
   to `fab/<rev>/` at a tag, not produced here as churn.
 - If a board defines a `.kicad_jobset`, prefer `kicad-cli jobset run` for fab

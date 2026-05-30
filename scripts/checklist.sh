@@ -46,4 +46,16 @@ else
   fi
 fi
 
+printf '==> library + 3D-model paths are in-repo (clone parity)\n'
+glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
+  --include='*.kicad_mod' --include='*.kicad_sym' --include='*.kicad_pcb' \
+  --include='sym-lib-table' --include='fp-lib-table' \
+  "$CEC_REPO_ROOT" 2>/dev/null || true)"
+if [ -n "$glob_hits" ]; then
+  printf 'FAIL: machine-global KiCad paths found — vendor these for clone parity:\n%s\n' "$glob_hits" >&2
+  status=1
+else
+  printf '  ok: no global KiCad path variables in design files\n'
+fi
+
 exit "$status"
