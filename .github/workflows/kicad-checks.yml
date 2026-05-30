@@ -1,0 +1,34 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# Starting-point CI for the CEC platform. Runs the repo-hygiene checklist and an
+# ERC/DRC sweep inside the official KiCad image so kicad-cli is on PATH. With no
+# boards yet, the sweep is a clean no-op. Keep the image on the KiCad 10.0.x
+# series to match the project file format.
+name: KiCad checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  kicad:
+    runs-on: ubuntu-latest
+    container:
+      image: kicad/kicad:10.0
+      options: --user root
+    env:
+      HOME: /root
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Mark workspace safe for git
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Repo hygiene checklist
+        run: ./scripts/checklist.sh
+
+      - name: ERC + DRC sweep
+        run: ./scripts/check-all.sh

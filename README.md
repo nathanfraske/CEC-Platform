@@ -1,0 +1,244 @@
+# CEC Platform
+
+**CEC is a modular PC power-telemetry system.** Per-rail sensing modules connect
+to a central Hub over a single commodity cable (RJ-45). The Hub aggregates
+telemetry and forwards it to the host PC over USB. Four tiers — **Standard,
+Pro, Enterprise, Mission Critical** — are built from one fundamental design with
+progressively populated features.
+
+Modules are **tier-agnostic and degrade gracefully**: any module works in any
+Hub, with higher-tier features going dormant when the Hub cannot service them
+and activating, without replacement, when the module is moved to a capable Hub.
+
+This repository holds the **KiCad 10 hardware design sources** (schematics,
+layouts, the shared component library), the fabrication snapshots, and the
+tooling that checks them.
+
+> **Ground truth.** [`CEC-Platform-Ground-Truth-Spec.md`](CEC-Platform-Ground-Truth-Spec.md)
+> is the canonical specification and holds precedence over everything else,
+> including [`CLAUDE.md`](CLAUDE.md). Read the spec before making any design
+> decision. Working-summary revision: **2026-05-28**.
+
+---
+
+## Boards
+
+| Board | Directory | Tier | MCU | Ports | Host link | BOM target (100q) |
+|---|---|---|---|---|---|---|
+| Hub Standard | [`hubs/hub-standard`](hubs/hub-standard) | 1 | ESP32-S3-MINI-1-N16R2 | 4 | USB Full Speed | ~$36 |
+| Hub Pro | [`hubs/hub-pro`](hubs/hub-pro) | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
+| Hub Enterprise | [`hubs/hub-enterprise`](hubs/hub-enterprise) | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
+| Hub Mission Critical | [`hubs/hub-mission-critical`](hubs/hub-mission-critical) | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
+| 24-pin ATX module | [`modules/atx-24pin`](modules/atx-24pin) | Standard | per module spec | – | – | $35 |
+| EPS 8-pin module | [`modules/eps-8pin`](modules/eps-8pin) | Standard | per module spec | – | – | $32 |
+| PCIe 8-pin module | [`modules/pcie-8pin`](modules/pcie-8pin) | Standard | per module spec | – | – | $38 |
+| 12VHPWR Standard module | [`modules/12vhpwr-standard`](modules/12vhpwr-standard) | Standard | per module spec | – | – | $49 |
+| 12VHPWR Pro module (lead) | [`modules/12vhpwr-pro`](modules/12vhpwr-pro) | Pro | ESP32-P4 | – | – | $98–$99 |
+
+Enterprise and Mission Critical are specified at platform-summary level only
+until first customer requirements land (see **OQ-7**).
+
+---
+
+## The universal interface (LOCKED)
+
+Every board — every Hub, every module, every tier — uses the same **shielded
+RJ-45 (8P8C)** connector with a **locking boot** as the default shipped variant.
+Mini-Fit Jr is retired platform-wide. The shared parts that implement this
+interface (RJ-45 FTP jack, TVS + series-resistor protection network, SK6812 LED
+chain, ESP32 module, power input) live in [`lib/`](lib) so one change propagates
+to every board.
+
+### Pin allocation
+
+| Pin | Cat5e pair | T568B color | CEC function | Tiers |
+|---|---|---|---|---|
+| 1 | Pair 1 | White-orange | VCC (+5VSB power) | All |
+| 2 | Pair 1 | Orange | GND (power return) | All |
+| 3 | Pair 3 | White-green | CAN1_H (control + low-rate telemetry) | All |
+| 4 | Pair 2 | Blue | STREAM_P (RS-485 data, module → Hub) | Pro+ |
+| 5 | Pair 2 | White-blue | STREAM_N (RS-485 data, module → Hub) | Pro+ |
+| 6 | Pair 3 | Green | CAN1_L | All |
+| 7 | Pair 4 | White-brown | AUX_REF (precision reference) | Pro+, pending OQ-3 |
+| 8 | Pair 4 | Brown | DETECT / module-ID (analog single-wire sense) | All |
+
+- **Power.** VCC is +5VSB on a single pin; GND returns on a single pin (no
+  paralleling). The trunk worst case approaches ~2A on the 8-port Pro, so the
+  connector must be rated **≥ 1.5A** and firmware **caps aggregate SK6812 LED
+  current**. The VCC series protection resistor is sized together with the power
+  budget, not independently.
+- **Control — CAN.** All control and command traffic lives entirely on CAN, on
+  pair 3, for every tier. Classical CAN at 500 kbps on Standard; CAN-FD on Pro
+  and above. Transceiver TJA1462A; fixed **120 Ω split termination at the Hub**.
+- **Streaming — RS-485.** High-bandwidth telemetry only, one direction
+  (module → Hub), on pair 2. Present on **Pro modules and Pro+ Hubs only**;
+  Standard leaves pair 2 unused and terminated at the module side.
+- **DETECT.** Analog single-wire identity and presence sense: a precision
+  resistor from pin 8 to GND on each module, read by the Hub through a fixed
+  pull-up to VCC as an ADC divider. Open line ≈ VCC = no module. Resistor code
+  table pending (OQ-6).
+- **Protection.** Every pin on every board carries a TVS array plus series
+  limiting resistors, sized to survive accidental PoE injection up to ~57V.
+
+See spec [§2](CEC-Platform-Ground-Truth-Spec.md) for the full interface detail.
+
+---
+
+## Repository layout
+
+```
+cec-platform/
+  lib/                       # shared library: the locked universal interface
+    cec.kicad_sym            #   symbols (authored in the KiCad Symbol Editor)
+    cec.pretty/              #   footprints (RJ-45 FTP jack, protection net, SK6812, ESP32, power input)
+    3dmodels/                #   3D models referenced by footprints
+  hubs/
+    hub-standard/            # Tier 1 — ESP32-S3, 4 ports, classical CAN, USB FS
+    hub-pro/                 # Tier 2 — ESP32-P4, 8 ports, CAN-FD + RS-485, USB HS
+    hub-enterprise/          # Tier 3 — platform-summary only for now (OQ-7)
+    hub-mission-critical/    # Tier 4 — platform-summary only for now (OQ-7)
+  modules/
+    atx-24pin/               # Standard
+    eps-8pin/                # Standard
+    pcie-8pin/               # Standard
+    12vhpwr-standard/        # Standard
+    12vhpwr-pro/             # Pro (lead Pro module)
+  fab/                       # tagged release snapshots of exactly what was sent to the board house
+  scripts/                   # kicad-cli wrappers and CI helpers
+  CEC-Platform-Ground-Truth-Spec.md   # canonical spec (precedence over all)
+  CLAUDE.md                  # operating guidance / working summary of the spec
+  README.md
+  LICENSE  NOTICE            # Apache-2.0
+```
+
+Each board is its own KiCad project. The universal-interface parts are sourced
+from `lib/` rather than duplicated per board, and library tables use
+project-relative paths (`${KIPRJMOD}`) — **never** absolute paths.
+
+---
+
+## Toolchain
+
+- **KiCad 10** (current stable, 10.0.x series). The `.kicad_*` file format is
+  forward-only: a board saved in 10 will not open in 9. Keep every local install
+  and any CI/container on the same major version.
+- **`kicad-cli`** ships with KiCad and runs headless; it must be on `PATH`. For
+  CI or a container, use the official KiCad Docker image rather than a full GUI
+  install.
+
+### Checks and outputs
+
+Wrapper scripts in [`scripts/`](scripts) drive `kicad-cli`. Each prefers a local
+`kicad-cli` and otherwise falls back to the official KiCad Docker image
+(override the tag with `KICAD_IMAGE`, default `kicad/kicad:10.0`).
+
+```bash
+# Electrical rule check (schematic). Exit 0 = clean, 5 = violations.
+scripts/erc.sh hubs/hub-standard/hub-standard.kicad_sch
+
+# Design rule check (layout). Exit 0 = clean, 5 = violations.
+scripts/drc.sh hubs/hub-standard/hub-standard.kicad_pcb
+
+# Connectivity netlist and BOM, for checking against the spec.
+scripts/netlist.sh hubs/hub-standard/hub-standard.kicad_sch
+scripts/bom.sh     hubs/hub-standard/hub-standard.kicad_sch
+
+# Top-side render for a quick silk/placement look.
+scripts/render.sh  hubs/hub-standard/hub-standard.kicad_pcb
+
+# Fab package (gerbers + drill + pick-and-place) into the gitignored build/ dir.
+scripts/fab.sh     hubs/hub-standard/hub-standard.kicad_pcb
+
+# CI sweep: ERC over every schematic, DRC over every layout.
+scripts/check-all.sh
+
+# Repo hygiene: no Mini-Fit Jr footprints, no absolute library paths.
+scripts/checklist.sh
+```
+
+Reports and fab outputs are written under `build/` (gitignored). Fab packages
+are committed only as tagged release snapshots under `fab/<rev>/`.
+
+---
+
+## Design-review checklist
+
+A recurring pass, enforced in part by `scripts/checklist.sh`:
+
+- No Mini-Fit Jr footprints remain anywhere; all module-to-Hub connectors are
+  RJ-45 8P8C.
+- Pinout on every board matches the locked pin allocation table above.
+- Every RJ-45 pin has its TVS + series-resistor protection populated.
+- The RS-485 pair (pins 4 and 5) and its receivers exist only on Pro and above;
+  Standard leaves pair 2 unused and terminated at the module side.
+- CAN termination is a fixed 120 Ω split at the Hub.
+- Power-netclass trace width covers the trunk worst case; the firmware LED
+  current cap is reflected in the design intent.
+- BOM totals are in line with the spec targets.
+
+---
+
+## Open questions
+
+Design decisions that are **not** settled in the spec. Do not assume an answer;
+surface it. Summarized here, full text in spec [§9](CEC-Platform-Ground-Truth-Spec.md).
+
+| ID | Topic | Spec recommendation |
+|---|---|---|
+| OQ-1 (critical) | Hub bulk power: single RJ-45 VCC pin vs. dedicated PSU input | Dedicated power input on the Pro Hub at minimum |
+| OQ-2 | LED current cap value and max LED state to budget | Confirm a firmware cap |
+| OQ-3 | Precision reference: distributed AUX_REF (pin 7) vs. local REF3033 | Path B (local REF3033) |
+| OQ-4 | Cable-length SKUs and any-length policy | Pending; interacts with OQ-3 |
+| OQ-5 | RS-485 topology: per-port point-to-point vs. shared multidrop | Per-port (working basis) |
+| OQ-6 | Module-ID resistor encoding table | Pending module/tier list |
+| OQ-7 | Fully specify Enterprise/Mission Critical now, or summary-level | Summary-level for now |
+
+Two consequences worth calling out for layout work:
+
+- The **power netclass minimum trace width** and the board `.kicad_dru` rules
+  depend on **OQ-1** (whether the single-pin trunk current is real) and **OQ-2**
+  (the LED cap). They are intentionally left unset until those are resolved.
+- **AUX_REF on pin 7** is provisional pending **OQ-3**; treat it as such.
+
+---
+
+## Status
+
+This is an early-stage hardware repository. The directory structure, shared-
+library home, tooling, CI, and documentation are in place. The KiCad design
+artifacts themselves — symbols, footprints, schematics, layouts, and per-board
+project and library-table files — are authored in the KiCad 10 GUI and land per
+board over time.
+
+**Carried action item:** the Hub Standard and 12VHPWR schematics still show
+Mini-Fit Jr footprints and must be re-cut to RJ-45 before any board order. They
+are the stale artifacts; the spec is current.
+
+---
+
+## Contributing
+
+- The spec wins. If a change to a locked decision seems warranted, propose a
+  spec revision first rather than diverging in a board.
+- Do not resolve an open question (OQ-1…OQ-7) by assumption — surface it.
+- Keep library paths project-relative (`${KIPRJMOD}`); never commit absolute
+  paths.
+- Run `scripts/check-all.sh` and `scripts/checklist.sh` before pushing layout or
+  schematic changes.
+- Commit fab outputs only as tagged release snapshots under `fab/<rev>/`, not as
+  routine churn.
+
+---
+
+## License
+
+Copyright 2026 Nathan M. Fraske.
+
+Licensed under the **Apache License, Version 2.0**. You may not use the files in
+this repository except in compliance with the License. See [`LICENSE`](LICENSE)
+for the full text and [`NOTICE`](NOTICE) for attribution; a copy of the License
+is also available at <http://www.apache.org/licenses/LICENSE-2.0>.
+
+Unless required by applicable law or agreed to in writing, work distributed
+under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+CONDITIONS OF ANY KIND, either express or implied.
