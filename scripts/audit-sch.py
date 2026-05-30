@@ -109,6 +109,22 @@ def audit(path):
     want_path = "/" + (top_uuid or "")
     inst_bad = [(proj, p, ref) for (proj, p, ref) in inst
                 if p != want_path or proj == ""]
+    # Every instantiated symbol must have its definition cached in the sheet's
+    # (lib_symbols ...) block. A missing one renders as a "??" placeholder box in
+    # eeschema (pins/graphics absent), even though connectivity/instances look ok.
+    _li = s.find("(lib_symbols")
+    _libsec = ""
+    if _li >= 0:
+        _d = 0
+        for _j in range(_li, len(s)):
+            if s[_j] == '(': _d += 1
+            elif s[_j] == ')':
+                _d -= 1
+                if _d == 0:
+                    _libsec = s[_li:_j+1]; break
+    _embedded = set(re.findall(r'\n\t\t\(symbol "([^"]+)"', _libsec))
+    _used = set(re.findall(r'\(lib_id "([^"]+)"\)', s))
+    missing_lib_symbol = sorted(_used - _embedded)
     pin_pts = set()
     boxes = []        # (ref, x0, x1, y0, y1) absolute, for overlap detection
     body_boxes = []   # (x0, x1, y0, y1) body rectangles only, wire keep-outs
@@ -162,6 +178,7 @@ def audit(path):
         "wire_through_body": wire_through_body,
         "instance_path_mismatch": inst_bad,   # crashes KiCad on save
         "bare_uuid": bare_uuid,               # KiCad 10 writes UUIDs quoted
+        "missing_lib_symbol": missing_lib_symbol,  # renders as "??" in eeschema
     }
     return res, []
 
