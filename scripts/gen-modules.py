@@ -119,6 +119,31 @@ def build(dirn):
             nets[a1] += [(ina,"1")]    # A1 address strap
             # Alert (pin 3) left open in the draft
 
+        # EPS/PCIe per-cable interposer: two 8-pin (2x4) connectors per cable —
+        # J_IN_n (PSU side) and J_OUT_n (load side). The cable's 12V pins bundle on
+        # each side; PSU-side 12V joins SENSE*_HI (into the shunt), load-side 12V
+        # joins SENSE*_LO (out of the shunt). GND pins pass straight through and
+        # join the board GND. Pin maps below (CEC_CONN_2x4: odd col 1/3/5/7 left,
+        # even col 2/4/6/8 right). EPS 8-pin = 4x12V + 4xGND; PCIe 8-pin = 3x12V +
+        # 5xGND (the 3 sense pins are grounded on the cable side).
+        if topo == "i2c-cable":
+            PINMAP = {
+                "eps-8pin":  {"12V": [1,2,3,4],   "GND": [5,6,7,8]},
+                "pcie-8pin": {"12V": [1,2,3],     "GND": [4,5,6,7,8]},
+            }[dirn]
+            for i, (label, sv) in enumerate(nodes):
+                jin, jout = f"J_IN{i+1}", f"J_OUT{i+1}"
+                parts[jin]  = ("cec", "CEC_CONN_2x4", f"{label} PSU")
+                parts[jout] = ("cec", "CEC_CONN_2x4", f"{label} LOAD")
+                # 12V: PSU-side pins -> SENSE_HI (into shunt); load-side -> SENSE_LO
+                for p in PINMAP["12V"]:
+                    nets[f"SENSE{label}_HI"].append((jin, str(p)))
+                    nets[f"SENSE{label}_LO"].append((jout, str(p)))
+                # GND: straight through, both connectors to board GND
+                for p in PINMAP["GND"]:
+                    nets["GND"] += [(jin, str(p)), (jout, str(p))]
+
+
     elif topo == "analog-pin":
         # 12VHPWR Standard (§6.1): six INA240 per-pin current-sense amps feed the
         # ESP32-S3 ADC directly — no I2C sensing bus. Each INA240 sits across its
@@ -181,6 +206,10 @@ def layout(dirn, parts):
         P[f"U1{i}"]   = (X, 210)               # current monitor (INA238/228/240)
         P[f"RS{i+1}"] = (X - 25.4, 215.08)     # shunt; pin1 aligned to Vin+/IN+
         P[f"C1{i}"]   = (X + 22.86, 210)       # supply decoupling, beside the monitor
+        # EPS/PCIe per-cable interposer connectors: PSU-side IN left of the shunt
+        # cluster, LOAD-side OUT to the right, on a band above the sensing row.
+        P[f"J_IN{i+1}"]  = (X - 25.4, 160)     # PSU side
+        P[f"J_OUT{i+1}"] = (X + 25.4, 160)     # load side
     if dirn == "12vhpwr-standard":
         # 47k/10k rail-voltage divider, parked below the per-pin row
         P["R5"] = (70, 270); P["R6"] = (95, 270)
