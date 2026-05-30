@@ -37,15 +37,28 @@ LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
 # that sheet. Its build()/RAILS entries remain below for reference and parity.
 MODS = [("eps-8pin", "eps8pin-module"),
         ("pcie-8pin", "pcie8pin-module"), ("12vhpwr-standard", "12vhpwr-standard-module")]
-# rails sensed per module: (rail name, shunt value)
-RAILS = {
-    "atx-24pin": [("12V","2m"), ("5V","5m"), ("3V3","5m"), ("5VSB","10m")],
-    "eps-8pin": [("12V","2m")],
-    "pcie-8pin": [("12V","2m")],
-    "12vhpwr-standard": [("12V","1m")],
+# Sensing model per module, per spec v1.5 §6.1/§6.2 with §6.4 shunt values.
+#   "i2c-rail"  : one INA238/INA228 I2C monitor per sensed node (24-pin per-rail).
+#   "i2c-cable" : one INA238 I2C monitor per CABLE (EPS/PCIe per-cable granularity).
+#   "analog-pin": one INA240 analog amp per PIN into the ESP32-S3 ADC, no I2C
+#                 sensing bus (12VHPWR Standard per-pin), plus a 47k/10k rail
+#                 voltage divider into the ADC.
+# Each entry is (node-label, shunt value). Shunt values are the §6.4 locked table.
+SENSE = {
+    "atx-24pin":        ("i2c-rail",  [("12V","2m"), ("5V","2m"), ("3V3","2m"), ("5VSB","25m")]),
+    "eps-8pin":         ("i2c-cable", [("C1","0m5"), ("C2","0m5")]),                 # 2 cables
+    "pcie-8pin":        ("i2c-cable", [("C1","0m5"), ("C2","0m5"), ("C3","0m5")]),   # up to 3
+    "12vhpwr-standard": ("analog-pin",[("P1","1m"), ("P2","1m"), ("P3","1m"),
+                                       ("P4","1m"), ("P5","1m"), ("P6","1m")]),      # 6 pins
 }
-# INA238 I2C address strap per sensed-rail index: (A0 net, A1 net)
+# Back-compat view: list of (label, shunt) per module (used by layout()/wiring).
+RAILS = {dirn: nodes for dirn, (_topo, nodes) in SENSE.items()}
+# INA238 I2C address strap per monitor index: (A0 net, A1 net). Four codes via
+# GND/+3V3 on A0/A1 covers up to 4 monitors on one bus (24-pin and PCIe x3 fit).
 STRAP = [("GND","GND"), ("+3V3","GND"), ("GND","+3V3"), ("+3V3","+3V3")]
+# ESP32-S3 ADC1 pins (GPIO1..7 = phys 5..11) for the 12VHPWR analog sense chain:
+# six INA240 outputs + one rail-voltage divider tap.
+ADC_PINS = ["5","6","7","8","9","10","11"]
 ESP_GND = ["1","2","42","43","46","47","48","49","50","51","52","53","54","55",
            "56","57","58","59","60","61","62","63","64","65"]
 
@@ -67,15 +80,8 @@ BASE_PARTS = {
 }
 
 def build(dirn):
-    rails = RAILS[dirn]
+    topo, nodes = SENSE[dirn]
     parts = dict(BASE_PARTS)
-    # atx-24pin senses with the 20-bit INA228 (2026-05-30 decision); the other
-    # Standard modules keep the 16-bit INA238. Both share the INA226 symbol body.
-    ina_val = "INA228" if dirn == "atx-24pin" else "INA238"
-    for i, (rn, sv) in enumerate(rails):
-        parts[f"U1{i}"] = ("cec-vendor", "INA226", ina_val)     # INA226 body = INA238/228 pinout
-        parts[f"RS{i+1}"] = ("cec-vendor", "R_Small", sv)
-        parts[f"C1{i}"] = ("cec-vendor", "C_Small", "100n")      # INA VS decoupling
     if dirn == "atx-24pin":
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
@@ -90,21 +96,60 @@ def build(dirn):
         "CAN_L":  [("U2","6"),("J1","6")],
         "DETECT": [("J1","8"),("R1","1")],
         "GPIO0":  [("U1","4")],
-        "I2C_SDA":[("U1","12"),("R3","1")],   # IO8
-        "I2C_SCL":[("U1","13"),("R4","1")],   # IO9
     }
-    for i, (rn, sv) in enumerate(rails):
-        ina = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
-        nets[f"RAIL{rn}_HI"] = [(sh,"1"), (ina,"10")]             # supply side, Vin+
-        nets[f"RAIL{rn}_LO"] = [(sh,"2"), (ina,"9"), (ina,"8")]   # load side, Vin- + Vbus
-        nets["+3V3"]  += [(ina,"6"), (dec,"1")]                   # VS + decoupling
-        nets["GND"]   += [(ina,"7"), (dec,"2")]                   # GND
-        nets["I2C_SDA"] += [(ina,"4")]
-        nets["I2C_SCL"] += [(ina,"5")]
-        a0, a1 = STRAP[i]
-        nets[a0] += [(ina,"2")]    # A0
-        nets[a1] += [(ina,"1")]    # A1
-        # Alert (pin 3) left open in the draft
+
+    if topo in ("i2c-rail", "i2c-cable"):
+        # Digital I2C monitors: INA228 on the 24-pin (20-bit), INA238 elsewhere.
+        # One monitor per node (a rail on the 24-pin, a cable on EPS/PCIe). Each
+        # senses across its own shunt and reports over the shared I2C bus.
+        ina_val = "INA228" if dirn == "atx-24pin" else "INA238"
+        nets["I2C_SDA"] = [("U1","12"),("R3","1")]   # IO8
+        nets["I2C_SCL"] = [("U1","13"),("R4","1")]   # IO9
+        for i, (label, sv) in enumerate(nodes):
+            parts[f"U1{i}"] = ("cec-vendor", "INA226", ina_val)  # INA226 body = INA238/228 pinout
+            parts[f"RS{i+1}"] = ("cec-vendor", "R_Small", sv)
+            parts[f"C1{i}"] = ("cec-vendor", "C_Small", "100n")  # VS decoupling
+            ina = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
+            nets[f"SENSE{label}_HI"] = [(sh,"1"), (ina,"10")]        # supply side, Vin+
+            nets[f"SENSE{label}_LO"] = [(sh,"2"), (ina,"9"), (ina,"8")]  # load side, Vin-/Vbus
+            nets["+3V3"] += [(ina,"6"), (dec,"1")]
+            nets["GND"]  += [(ina,"7"), (dec,"2")]
+            nets["I2C_SDA"] += [(ina,"4")]
+            nets["I2C_SCL"] += [(ina,"5")]
+            a0, a1 = STRAP[i]
+            nets[a0] += [(ina,"2")]    # A0 address strap
+            nets[a1] += [(ina,"1")]    # A1 address strap
+            # Alert (pin 3) left open in the draft
+
+    elif topo == "analog-pin":
+        # 12VHPWR Standard (§6.1): six INA240 per-pin current-sense amps feed the
+        # ESP32-S3 ADC directly — no I2C sensing bus. Each INA240 sits across its
+        # own 1 mΩ per-pin shunt (high-side, IN+/IN- = pins 8/1), runs from +3V3
+        # (V+ = pin6), and drives one ADC1 channel (OUT = pin5). A 47k/10k divider
+        # (R5/R6) brings the common 12V rail into the 7th ADC pin.
+        # Reference: UNIDIRECTIONAL — both REF1(7) and REF2(3) tied to GND so the
+        # output swings 0..Vs for forward (PSU->GPU) current, maximizing ADC range
+        # since this connector only sources current. (A bidirectional bias would
+        # halve the forward range; revisit only if reverse sensing is wanted. The
+        # absolute-accuracy path for this board is OQ-8.)
+        for i, (label, sv) in enumerate(nodes):
+            amp = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
+            parts[amp] = ("cec-vendor", "INA240", "INA240A3")
+            parts[sh]  = ("cec-vendor", "R_Small", sv)            # 1 mΩ per-pin shunt
+            parts[dec] = ("cec-vendor", "C_Small", "100n")        # V+ decoupling
+            # per-pin shunt across IN+ (8, supply) / IN- (1, load)
+            nets[f"SENSE{label}_HI"] = [(sh,"1"), (amp,"8")]
+            nets[f"SENSE{label}_LO"] = [(sh,"2"), (amp,"1")]
+            nets["+3V3"] += [(amp,"6"), (dec,"1")]                # V+ to +3V3
+            nets["GND"]  += [(amp,"2"), (amp,"4"), (amp,"3"), (amp,"7"), (dec,"2")]  # GND(2,4) + REF1(7)/REF2(3) to GND
+            nets[f"ISENSE{label}"] = [(amp,"5"), ("U1", ADC_PINS[i])]     # OUT -> ADC
+        # rail-voltage divider: 12V -> 47k(R5) -> tap -> 10k(R6) -> GND, tap to ADC
+        parts["R5"] = ("cec-vendor", "R_Small", "47k")
+        parts["R6"] = ("cec-vendor", "R_Small", "10k")
+        nets["SENSE_VRAIL_HI"] = [("R5","1")]                     # to 12V rail (interposer)
+        nets["VRAIL_DIV"] = [("R5","2"), ("R6","1"), ("U1", ADC_PINS[6])]  # divider tap -> ADC
+        nets["GND"] += [("R6","2")]
+
     if dirn == "atx-24pin":
         nets["+5VSB"] += [("J2","1")]
         nets["GND"]   += [("J2","2")]
@@ -129,13 +174,18 @@ def layout(dirn, parts):
     }
     if dirn == "atx-24pin":
         P["J2"] = (50, 120)
-    # sensing clusters along a lower band: shunt left of INA (so RAIL*_HI draws as
-    # a straight wire onto Vin+), decoupling cap just right of the INA.
+    # sensing clusters along a lower band: shunt left of the monitor (so the
+    # SENSE*_HI link draws as a straight wire onto Vin+/IN+), decoupling cap just
+    # right of the monitor. Same layout for INA238/INA228 (i2c) and INA240
+    # (analog) — the part bodies differ but the cluster geometry is identical.
     for i in range(len(RAILS[dirn])):
-        X = 120 + i * 95
-        P[f"U1{i}"]   = (X, 210)               # INA238 monitor
-        P[f"RS{i+1}"] = (X - 25.4, 215.08)     # shunt; pin1 aligned to Vin+
-        P[f"C1{i}"]   = (X + 25.4, 210)        # VS decoupling, beside the INA
+        X = 70 + i * 70
+        P[f"U1{i}"]   = (X, 210)               # current monitor (INA238/228/240)
+        P[f"RS{i+1}"] = (X - 25.4, 215.08)     # shunt; pin1 aligned to Vin+/IN+
+        P[f"C1{i}"]   = (X + 22.86, 210)       # supply decoupling, beside the monitor
+    if dirn == "12vhpwr-standard":
+        # 47k/10k rail-voltage divider, parked below the per-pin row
+        P["R5"] = (70, 270); P["R6"] = (95, 270)
     return {r: P[r] for r in parts if r in P}
 
 for dirn, base in MODS:
@@ -145,9 +195,9 @@ for dirn, base in MODS:
     # GPIO0 is the service-button pad — single-pin label by design, no NC flag.
     nc_skip = {("U1", "4")}
     # Power rails use power-PORT symbols (GND triangle, +5VSB/+3V3 bars) instead
-    # of text labels. The per-rail shunt->INA sense link (RAIL*_HI) is a 2-pin
-    # colinear net -> draw it as a real wire.
-    wire_nets = [f"RAIL{rn}_HI" for rn, _ in RAILS[dirn]]
+    # of text labels. The per-node shunt->monitor sense link (SENSE*_HI) is a
+    # 2-pin colinear net -> draw it as a real wire.
+    wire_nets = [f"SENSE{label}_HI" for label, _ in RAILS[dirn]]
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
                                     power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
                                     powerflag_nets=["+5VSB", "GND"],
@@ -155,4 +205,4 @@ for dirn, base in MODS:
                                     wire_nets=wire_nets)
     print(f"modules/{dirn}/{base}.kicad_sch  " +
           "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root") +
-          f"  rails={len(RAILS[dirn])}")
+          f"  nodes={len(RAILS[dirn])} topo={SENSE[dirn][0]}")
