@@ -12,6 +12,14 @@ source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 status=0
 found=0
 
+# Static connectivity audit (no kicad-cli): catches dangling wires/labels/
+# no-connects and off-grid points in the generated schematics. Runs even for
+# DRAFT boards, since it is a generator regression guard, not an ERC pass.
+if command -v python3 >/dev/null 2>&1; then
+  printf '==> schematic connectivity audit\n'
+  python3 "$CEC_SCRIPTS_DIR/audit-sch.py" || status=1
+fi
+
 # Electrical rule check over schematics that contain symbols.
 while IFS= read -r -d '' f; do
   found=1

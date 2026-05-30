@@ -90,18 +90,19 @@ def lib_symbols_section(used, extra_blocks=()):
     return "\n".join(parts)
 
 def pin_abs(placement, used, parts, ref, num):
-    """absolute (x,y) of a pin's connection end, its angle, and outward unit vec."""
+    """Absolute (x,y) of a pin's CONNECTION point, and the outward unit vector.
+
+    In KiCad a pin's connection point is its (at) coordinate; `length` extends
+    from there toward the body along `ang`. So the attach point is just (at)
+    placed (schematic Y is inverted vs symbol Y), and "outward" — where a stub
+    extends, away from the body — is the opposite of `ang`.
+    """
     lib, name, _ = parts[ref]
-    lx, ly, ang, length = used[(lib, name)]["pins"][num]
+    lx, ly, ang, _length = used[(lib, name)]["pins"][num]
     ox, oy = placement[ref]
-    # symbol-local: pin root at (lx,ly); the wire end is `length` away along `ang`.
-    ex = lx + length * math.cos(math.radians(ang))
-    ey = ly + length * math.sin(math.radians(ang))
-    # schematic Y is inverted relative to symbol Y
-    ax, ay = ox + ex, oy - ey
-    # outward direction (continuing past the pin end), Y inverted
-    dx = math.cos(math.radians(ang))
-    dy = -math.sin(math.radians(ang))
+    ax, ay = ox + lx, oy - ly
+    dx = -math.cos(math.radians(ang))      # outward = opposite the pin's body dir
+    dy = math.sin(math.radians(ang))       # (+ because schematic Y is inverted)
     return ax, ay, dx, dy
 
 def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
