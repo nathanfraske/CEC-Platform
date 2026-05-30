@@ -1,0 +1,4 @@
+# Footprint library directory for the shared CEC parts.
+# `.kicad_mod` files are added from the KiCad 10 Footprint Editor.
+# This placeholder keeps the empty directory tracked; remove it once
+# real footprints land.

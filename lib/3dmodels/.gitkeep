@@ -1,0 +1,4 @@
+# 3D models referenced by footprints (project-owned and vendored official ones),
+# referenced via ${KIPRJMOD}-relative paths for clone parity. Brought in by
+# scripts/vendor-libs.sh. This placeholder keeps the empty directory tracked;
+# remove it once real models land.

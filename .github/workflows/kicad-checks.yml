@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# CI for the CEC platform. Runs on the host runner and invokes kicad-cli through
+# the repo's wrapper (scripts/kicad-cli.sh), which pulls the pinned KiCad Docker
+# image on demand (KICAD_IMAGE in versions.env, default kicad/kicad:10.0). The
+# repo-hygiene checklist needs no KiCad. The ERC/DRC sweep skips boards with no
+# placed parts, so a skeleton repo stays green until real schematics/layouts land.
+#
+# (Running on the host — rather than inside the KiCad image as a container job —
+# avoids the checkout/runtime friction of CI on an image not built for it, and
+# only pulls the heavy image when a board actually needs checking.)
+name: KiCad checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  kicad:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repo hygiene checklist
+        run: ./scripts/checklist.sh
+
+      - name: ERC + DRC sweep (kicad-cli via Docker)
+        run: ./scripts/check-all.sh
