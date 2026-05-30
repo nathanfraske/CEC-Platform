@@ -5,8 +5,8 @@
 # Generate the Standard-tier module schematics (24-pin ATX, EPS 8-pin, PCIe
 # 8-pin, 12VHPWR Standard). Shared control/comms/power backbone locked to the
 # ESP32-S3-MINI-1, plus per-rail sensing: one INA238 (16-bit I2C current/voltage
-# monitor, locked for Standard) per sensed rail — high-side shunt across IN+/IN-,
-# bus voltage sensed at IN-, on a shared I2C bus to the ESP32. The 24-pin module
+# monitor, locked for Standard) per sensed rail — high-side shunt across Vin+/Vin-,
+# bus voltage on the dedicated Vbus pin, on a shared I2C bus to the ESP32. The 24-pin module
 # senses 4 rails (12V/5V/3V3/5VSB) and carries the dedicated 2-pin +5VSB power-
 # out to the Hub (OQ-1); the others sense one 12V rail.
 #
@@ -18,7 +18,7 @@
 #   python3 scripts/gen-modules.py
 # Hand-authored without kicad-cli; validate with `kicad-cli sch erc`. Symbol
 # stand-ins (values labeled as intended): TJA1051T-3 -> TJA1462A,
-# LP5907MFX-1.2 body -> -3.3, INA237 body -> INA238.
+# LP5907MFX-1.2 body -> -3.3, INA226 body -> INA238.
 import re, uuid, os
 
 ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -90,7 +90,7 @@ def build(dirn):
     rails = RAILS[dirn]
     parts = dict(BASE_PARTS)
     for i, (rn, sv) in enumerate(rails):
-        parts[f"U1{i}"] = ("cec-vendor", "INA237", "INA238")     # INA237 body = INA238 pinout
+        parts[f"U1{i}"] = ("cec-vendor", "INA226", "INA238")     # INA226 body = INA238 pinout
         parts[f"RS{i+1}"] = ("cec-vendor", "R_Small", sv)
         parts[f"C1{i}"] = ("cec-vendor", "C_Small", "100n")      # INA238 VS decoupling
     if dirn == "atx-24pin":
@@ -112,16 +112,16 @@ def build(dirn):
     }
     for i, (rn, sv) in enumerate(rails):
         ina = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
-        nets[f"RAIL{rn}_HI"] = [(sh,"1"), (ina,"1")]      # PSU side, IN+
-        nets[f"RAIL{rn}_LO"] = [(sh,"2"), (ina,"2")]      # load side, IN- (bus V)
-        nets["+3V3"]  += [(ina,"4"), (dec,"1")]           # VS + decoupling
-        nets["GND"]   += [(ina,"3"), (ina,"6"), (dec,"2")]
-        nets["I2C_SDA"] += [(ina,"8")]
-        nets["I2C_SCL"] += [(ina,"7")]
+        nets[f"RAIL{rn}_HI"] = [(sh,"1"), (ina,"10")]             # supply side, Vin+
+        nets[f"RAIL{rn}_LO"] = [(sh,"2"), (ina,"9"), (ina,"8")]   # load side, Vin- + Vbus
+        nets["+3V3"]  += [(ina,"6"), (dec,"1")]                   # VS + decoupling
+        nets["GND"]   += [(ina,"7"), (dec,"2")]                   # GND
+        nets["I2C_SDA"] += [(ina,"4")]
+        nets["I2C_SCL"] += [(ina,"5")]
         a0, a1 = STRAP[i]
-        nets[a0] += [(ina,"10")]   # A0
-        nets[a1] += [(ina,"9")]    # A1
-        # ALERT (pin 5) left open in the draft
+        nets[a0] += [(ina,"2")]    # A0
+        nets[a1] += [(ina,"1")]    # A1
+        # Alert (pin 3) left open in the draft
     if dirn == "atx-24pin":
         nets["+5VSB"] += [("J2","1")]
         nets["GND"]   += [("J2","2")]
