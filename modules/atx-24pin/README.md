@@ -10,6 +10,7 @@ Standard-tier per-rail sensing module for the 24-pin ATX connector. BOM target
 | Connector | RJ-45 8P8C, locking boot (universal interface) |
 | Power out | Dedicated 2-pin +5VSB power-out to the Hub (§2.7); sized for the full Hub trunk with margin |
 | Control | CAN on pair 3 (classical at 500 kbps in a Standard Hub) |
+| Sensing | INA238 per rail (12V / 5V / 3.3V / 5VSB) — 16-bit I²C current/voltage, ≥1 kHz |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated at the module side |
 | DETECT | Precision resistor pin 8 → GND; code per **OQ-6** |
 | Protection | No per-pin PoE/over-voltage protection (Standard/Pro, §2.4); TVS + series-R is Enterprise/MC only (OQ-8) |

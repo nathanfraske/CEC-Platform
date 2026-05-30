@@ -146,6 +146,11 @@ Per-tier hardware:
   shunts, LTC2358-18 8-channel simultaneous-sampling 18-bit SAR ADC, 47k/10k
   rail-voltage divider into one LTC2358 channel, about 900 kB/s streaming
   (roughly 50 kHz x 6 channels) over RS-485, CAN-FD control.
+- Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard):
+  ESP32-S3-MINI-1; per-rail sensing via INA238 (16-bit I2C current/voltage
+  monitor), one per sensed rail on the module I2C bus, sized for >=1 kHz polling.
+  24-pin senses 12V/5V/3V3/5VSB; the others sense the single 12V rail. No CAN
+  termination (Hub-only).
 
 LED current:
 - SK6812 aggregate current must be capped in firmware (global brightness or

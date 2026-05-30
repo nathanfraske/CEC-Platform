@@ -29,6 +29,8 @@ Modules are tier-agnostic: any module works in any Hub and degrades gracefully (
 
 Standard-tier modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard) use the **ESP32-S3-MINI-1**, the same MCU as the Hub Standard (LOCKED 2026-05-30). The 12VHPWR Pro module uses the ESP32-P4 (§6).
 
+Standard-module per-rail sensing uses the **INA238** (16-bit, ±0.5%, I²C current/voltage monitor) — one per sensed rail on the module's I²C bus to the ESP32, sized for ≥1 kHz polling (LOCKED 2026-05-30). The 24-pin ATX module senses its rails (12V, 5V, 3.3V, 5VSB), one INA238 each; EPS / PCIe / 12VHPWR Standard sense the single 12V rail. The Pro module's high-rate path stays INA240A3 + LTC2358-18 (§6).
+
 ---
 
 ## 2. Universal physical interface
@@ -267,6 +269,7 @@ Principle: a module never fails to function in any Hub. Higher-tier features go 
 
 ## 10. Revision history
 
+- **2026-05-30:** Standard-module per-rail sensing locked to the INA238 (16-bit I²C current/voltage monitor, one per sensed rail; ≥1 kHz).
 - **2026-05-30:** Standard-tier modules locked to the ESP32-S3-MINI-1 (same MCU as Hub Standard).
 - **2026-05-30:** PoE/over-voltage protection dropped as a platform-wide requirement — not populated on Standard or Pro (§2.4); retained as an open question (OQ-8) for Enterprise and Mission Critical.
 - **2026-05-30:** OQ-1 resolved — Hub bulk power locked to a dedicated 2-pin +5VSB power-in connector from the 24-pin ATX module (§2.7); the RJ-45 VCC pin now carries per-port distribution only, removing the single-pin trunk constraint of §2.5.
