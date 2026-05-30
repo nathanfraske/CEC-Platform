@@ -2911,7 +2911,7 @@
 				)
 			)
 			(symbol "CEC_ATX_24_1_1"
-				(pin power_out line
+				(pin passive line
 					(at 12.7 -2.54 180)
 					(length 2.54)
 					(name "+3.3V"
@@ -2948,7 +2948,7 @@
 						)
 					)
 				)
-				(pin power_out line
+				(pin passive line
 					(at 0 -15.24 90)
 					(length 2.54)
 					(name "GND"
@@ -2966,7 +2966,7 @@
 						)
 					)
 				)
-				(pin power_out line
+				(pin passive line
 					(at 12.7 2.54 180)
 					(length 2.54)
 					(name "+5V"
@@ -3041,7 +3041,7 @@
 						)
 					)
 				)
-				(pin output line
+				(pin passive line
 					(at 12.7 10.16 180)
 					(length 2.54)
 					(name "PWR_OK"
@@ -3059,7 +3059,7 @@
 						)
 					)
 				)
-				(pin power_out line
+				(pin passive line
 					(at 12.7 0 180)
 					(length 2.54)
 					(name "+5VSB"
@@ -3077,7 +3077,7 @@
 						)
 					)
 				)
-				(pin power_out line
+				(pin passive line
 					(at 12.7 5.08 180)
 					(length 2.54)
 					(name "+12V"
@@ -3152,7 +3152,7 @@
 						)
 					)
 				)
-				(pin power_out line
+				(pin passive line
 					(at 12.7 -10.16 180)
 					(length 2.54)
 					(name "-12V"
@@ -8666,7 +8666,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "4b85fa40-641c-449f-b645-ee40532c600d")
-		(property "Reference" "J_OUT"
+		(property "Reference" "J4"
 			(at 374.142 204.47 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8793,7 +8793,7 @@
 		(instances
 			(project "24pin-module"
 				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "J_OUT")
+					(reference "J4")
 					(unit 1)
 				)
 			)
@@ -14225,7 +14225,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "f02e6e88-e389-4490-9774-75e5209a414d")
-		(property "Reference" "J_IN"
+		(property "Reference" "J3"
 			(at 49.276 207.518 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14352,7 +14352,7 @@
 		(instances
 			(project "24pin-module"
 				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "J_IN")
+					(reference "J3")
 					(unit 1)
 				)
 			)
