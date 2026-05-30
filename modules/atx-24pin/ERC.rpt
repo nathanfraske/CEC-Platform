@@ -1,67 +1,67 @@
-ERC report (2026-05-30T10:17:54, Encoding UTF8)
+ERC report (2026-05-30T10:25:22, Encoding UTF8)
 Report includes: Errors, Warnings, Exclusions
 
 ***** Sheet /
 [lib_symbol_mismatch]: Symbol 'PWR_FLAG' doesn't match copy in library 'power'
     ; warning
-    @(1800 mils, 1650 mils): Symbol #FLG4642 [PWR_FLAG]
+    @(1250 mils, 2400 mils): Symbol #FLG3261 [PWR_FLAG]
 [lib_symbol_mismatch]: Symbol 'PWR_FLAG' doesn't match copy in library 'power'
     ; warning
-    @(1800 mils, 1750 mils): Symbol #FLG4644 [PWR_FLAG]
+    @(1250 mils, 2500 mils): Symbol #FLG3263 [PWR_FLAG]
 [lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
     ; warning
-    @(2500 mils, 6400 mils): Symbol R2 [R_Small]
+    @(2750 mils, 8250 mils): Symbol RS1 [R_Small]
 [lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
     ; warning
-    @(2500 mils, 10800 mils): Symbol C3 [C_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(2500 mils, 15200 mils): Symbol C10 [C_Small]
+    @(4700 mils, 2350 mils): Symbol C1 [C_Small]
 [lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
     ; warning
-    @(2500 mils, 19600 mils): Symbol RS3 [R_Small]
+    @(4700 mils, 4350 mils): Symbol R1 [R_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(6300 mils, 8250 mils): Symbol C10 [C_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(7100 mils, 2350 mils): Symbol C2 [C_Small]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(7100 mils, 4350 mils): Symbol R2 [R_Small]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(7100 mils, 8250 mils): Symbol RS2 [R_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(8250 mils, 4350 mils): Symbol C5 [C_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(10650 mils, 8250 mils): Symbol C11 [C_Small]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(11400 mils, 8250 mils): Symbol RS3 [R_Small]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(11800 mils, 1550 mils): Symbol R3 [R_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(11800 mils, 5900 mils): Symbol C3 [C_Small]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(12600 mils, 1550 mils): Symbol R4 [R_Small]
 [isolated_pin_label]: Label connected to only one pin
     ; warning
-    @(4950 mils, 1200 mils): Label 'GPIO0'
+    @(12650 mils, 2750 mils): Label 'GPIO0'
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(14950 mils, 8250 mils): Symbol C12 [C_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(15350 mils, 2350 mils): Symbol C4 [C_Small]
 [lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
     ; warning
-    @(5700 mils, 6400 mils): Symbol R3 [R_Small]
+    @(15750 mils, 8250 mils): Symbol RS4 [R_Small]
 [lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
     ; warning
-    @(5700 mils, 10800 mils): Symbol C4 [C_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(5700 mils, 19600 mils): Symbol C12 [C_Small]
-[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(8900 mils, 6400 mils): Symbol R4 [R_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(8900 mils, 10800 mils): Symbol C5 [C_Small]
-[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(8900 mils, 15200 mils): Symbol RS2 [R_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(12100 mils, 6400 mils): Symbol C1 [C_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(12100 mils, 15200 mils): Symbol C11 [C_Small]
-[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(12100 mils, 19600 mils): Symbol RS4 [R_Small]
-[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(15300 mils, 2000 mils): Symbol R1 [R_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(15300 mils, 6400 mils): Symbol C2 [C_Small]
-[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(15300 mils, 10800 mils): Symbol RS1 [R_Small]
-[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
-    ; warning
-    @(15300 mils, 19600 mils): Symbol C13 [C_Small]
+    @(19300 mils, 8250 mils): Symbol C13 [C_Small]
 
  ** ERC messages: 20  Errors 0  Warnings 20
 
