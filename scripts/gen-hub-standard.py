@@ -17,43 +17,15 @@
 # TJA1462A (same SO-8 CAN pinout), LP5907MFX-1.2 body for the -3.3 variant,
 # SB120 body for SS14, TPS3839DBZ for TPS3839K33 — values are labeled as the
 # intended parts.
-import re, uuid, os
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cec_sch
 
 ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
-        "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read()}
+        "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
+        "power": open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym").read()}
 OUT = f"{ROOTDIR}/hubs/hub-standard/hub-standard.kicad_sch"
-ROOT = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\s*\)', open(OUT).read()).group(1)
-
-def extract(text, name):
-    key = f'(symbol "{name}"'
-    i = text.find(key)
-    if i < 0:
-        raise SystemExit(f"symbol not found: {name}")
-    d = 0; instr = esc = False; j = i
-    while j < len(text):
-        c = text[j]
-        if instr:
-            if esc: esc = False
-            elif c == '\\': esc = True
-            elif c == '"': instr = False
-        else:
-            if c == '"': instr = True
-            elif c == '(': d += 1
-            elif c == ')':
-                d -= 1
-                if d == 0: return text[i:j+1]
-        j += 1
-    raise SystemExit(f"unbalanced symbol: {name}")
-
-def parse_pins(block):
-    pins = {}
-    for m in re.finditer(r'\(pin\b.*?\(number "([^"]+)"', block, re.S):
-        seg = block[m.start():m.end()]
-        at = re.search(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)', seg)
-        if at:
-            pins[m.group(1)] = (float(at.group(1)), float(at.group(2)), int(float(at.group(3))))
-    return pins
 
 # ---- parts: refdes -> (lib, symbol, value) -------------------------------
 PARTS = {
@@ -151,85 +123,17 @@ NETS = {
     "GPIO0":   [("U1","4")],
 }
 
-# guard: a pin must not be assigned to two nets (would short them)
-_seen = {}
-for _net, _conns in NETS.items():
-    for _c in _conns:
-        if _c in _seen:
-            raise SystemExit(f"pin {_c} assigned to two nets: {_seen[_c]} and {_net}")
-        _seen[_c] = _net
+# GPIO0 is the service/download button pad — a single-pin label by design; do
+# not flag it as a no-connect (the button to GND lands at the PCB phase).
+NC_SKIP = {("U1", "4")}
 
-def f(x):
-    s = f"{x:.2f}".rstrip("0").rstrip(".")
-    return "0" if s in ("", "-0") else s
-def u():
-    return str(uuid.uuid4())
+# Power nets fed from off-board (the 2-pin +5VSB power-in on J1) carry only
+# power-INPUT pins, so ERC needs a PWR_FLAG to know they are driven.
+POWERFLAG_NETS = ["+5VSB", "GND"]
 
-# load symbol blocks + pins for every used symbol
-used = {}                       # (lib,name) -> {"block":..,"pins":..}
-for lib, name, _ in PARTS.values():
-    if (lib, name) not in used:
-        blk = extract(LIBS[lib], name)
-        used[(lib, name)] = {"block": blk, "pins": parse_pins(blk)}
-
-# grid placement: cell larger than the biggest symbol's pin extent
-def extent(pins):
-    xs = [p[0] for p in pins.values()]; ys = [p[1] for p in pins.values()]
-    return (max(xs)-min(xs) if xs else 0, max(ys)-min(ys) if ys else 0)
-cw = max((extent(s["pins"])[0] for s in used.values()), default=0) + 38.1
-ch = max((extent(s["pins"])[1] for s in used.values()), default=0) + 38.1
-cols = 6
-placement = {}
-for i, ref in enumerate(PARTS):
-    placement[ref] = (50.8 + (i % cols) * cw, 38.1 + (i // cols) * ch)
-
-# lib_symbols: embed each used symbol, namespacing only the parent symbol name
-def embed(lib, name, blk):
-    return "\t" + blk.replace(f'(symbol "{name}"', f'(symbol "{lib}:{name}"', 1).replace("\n", "\n\t")
-lib_syms = "\t(lib_symbols\n" + "\n".join(embed(l, n, s["block"]) for (l, n), s in used.items()) + "\n\t)"
-
-# placed instances
-insts = []
-for ref, (lib, name, val) in PARTS.items():
-    x, y = placement[ref]
-    pinblk = "\n".join(f'\t\t(pin "{num}" (uuid {u()}))' for num in used[(lib, name)]["pins"])
-    insts.append(
-        "\t(symbol\n"
-        f'\t\t(lib_id "{lib}:{name}")\n'
-        f"\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n"
-        "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
-        "\t\t(fields_autoplaced yes)\n"
-        f"\t\t(uuid {u()})\n"
-        f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-2.54)} 0) (effects (font (size 1.27 1.27))))\n'
-        f'\t\t(property "Value" "{val}" (at {f(x)} {f(y+2.54)} 0) (effects (font (size 1.27 1.27))))\n'
-        f'\t\t(property "Footprint" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
-        f'\t\t(property "Datasheet" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
-        f"{pinblk}\n"
-        f'\t\t(instances\n\t\t\t(project "hub-standard"\n\t\t\t\t(path "/{ROOT}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n'
-        "\t)")
-
-# net labels at each pin's absolute coordinate
-labels = []
-missing = []
-for net, conns in NETS.items():
-    for ref, pin in conns:
-        lib, name, _ = PARTS[ref]
-        pd = used[(lib, name)]["pins"].get(pin)
-        if pd is None:
-            missing.append((net, ref, pin)); continue
-        lx, ly, _a = pd
-        px, py = placement[ref][0] + lx, placement[ref][1] - ly
-        labels.append(f'\t(label "{net}" (at {f(px)} {f(py)} 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid {u()}))')
-
-if missing:
-    raise SystemExit("ERROR: net references to nonexistent pins:\n" +
-                     "\n".join(f"  {n}: {r}.{p}" for n, r, p in missing))
-
-content = (
-    "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
-    f"\t(uuid {ROOT})\n\t(paper \"A3\")\n"
-    f"{lib_syms}\n" + "\n".join(insts) + "\n" + "\n".join(labels) + "\n"
-    "\t(sheet_instances\n\t\t(path \"/\"\n\t\t\t(page \"1\")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n")
-open(OUT, "w").write(content)
-print(f"wrote {os.path.relpath(OUT, ROOTDIR)}  ({len(content)} bytes)")
-print(f"  parts={len(PARTS)}  nets={len(NETS)}  labels={len(labels)}  symbols={len(used)}")
+used = cec_sch.load_symbols(LIBS, PARTS)
+stats = cec_sch.build_schematic(OUT, "hub-standard", PARTS, NETS, used, LIBS,
+                                paper="A3", powerflag_nets=POWERFLAG_NETS,
+                                nc_skip=NC_SKIP)
+print(f"wrote {os.path.relpath(OUT, ROOTDIR)}")
+print("  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))

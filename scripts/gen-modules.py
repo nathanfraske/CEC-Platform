@@ -19,11 +19,14 @@
 # Hand-authored without kicad-cli; validate with `kicad-cli sch erc`. Symbol
 # stand-ins (values labeled as intended): TJA1051T-3 -> TJA1462A,
 # LP5907MFX-1.2 body -> -3.3, INA226 body -> INA238.
-import re, uuid, os
+import os, sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cec_sch
 
 ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
-        "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read()}
+        "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
+        "power": open(f"{ROOTDIR}/lib/vendor/cec-power.kicad_sym").read()}
 MODS = [("atx-24pin", "24pin-module"), ("eps-8pin", "eps8pin-module"),
         ("pcie-8pin", "pcie8pin-module"), ("12vhpwr-standard", "12vhpwr-standard-module")]
 # rails sensed per module: (rail name, shunt value)
@@ -37,37 +40,6 @@ RAILS = {
 STRAP = [("GND","GND"), ("+3V3","GND"), ("GND","+3V3"), ("+3V3","+3V3")]
 ESP_GND = ["1","2","42","43","46","47","48","49","50","51","52","53","54","55",
            "56","57","58","59","60","61","62","63","64","65"]
-
-def extract(t, n):
-    k = f'(symbol "{n}"'; i = t.find(k)
-    if i < 0: raise SystemExit(f"symbol not found: {n}")
-    d = 0; ins = esc = False; j = i
-    while j < len(t):
-        c = t[j]
-        if ins:
-            if esc: esc = False
-            elif c == '\\': esc = True
-            elif c == '"': ins = False
-        else:
-            if c == '"': ins = True
-            elif c == '(': d += 1
-            elif c == ')':
-                d -= 1
-                if d == 0: return t[i:j+1]
-        j += 1
-    raise SystemExit(f"unbalanced: {n}")
-
-def parse_pins(block):
-    pins = {}
-    for m in re.finditer(r'\(pin\b.*?\(number "([^"]+)"', block, re.S):
-        seg = block[m.start():m.end()]
-        at = re.search(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)', seg)
-        if at: pins[m.group(1)] = (float(at.group(1)), float(at.group(2)))
-    return pins
-
-def f(x):
-    s = f"{x:.2f}".rstrip("0").rstrip("."); return "0" if s in ("", "-0") else s
-def u(): return str(uuid.uuid4())
 
 # shared control/comms/power backbone
 BASE_PARTS = {
@@ -127,58 +99,16 @@ def build(dirn):
         nets["GND"]   += [("J2","2")]
     return parts, nets
 
-# load every symbol used across all modules
-used = {}
-for dirn, _ in MODS:
-    for lib, name, _ in build(dirn)[0].values():
-        if (lib, name) not in used:
-            blk = extract(LIBS[lib], name); used[(lib, name)] = {"block": blk, "pins": parse_pins(blk)}
-
-def extent(p):
-    xs = [v[0] for v in p.values()]; ys = [v[1] for v in p.values()]
-    return (max(xs)-min(xs) if xs else 0, max(ys)-min(ys) if ys else 0)
-cw = max(extent(s["pins"])[0] for s in used.values()) + 38.1
-ch = max(extent(s["pins"])[1] for s in used.values()) + 38.1
-
-def embed(lib, name, blk):
-    return "\t" + blk.replace(f'(symbol "{name}"', f'(symbol "{lib}:{name}"', 1).replace("\n", "\n\t")
-
 for dirn, base in MODS:
     parts, nets = build(dirn)
-    # guard: no pin in two nets
-    seen = {}
-    for net, conns in nets.items():
-        for c in conns:
-            if c in seen: raise SystemExit(f"[{dirn}] pin {c} in two nets: {seen[c]} and {net}")
-            seen[c] = net
     out = f"{ROOTDIR}/modules/{dirn}/{base}.kicad_sch"
-    root = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\s*\)', open(out).read()).group(1)
-    placement = {r: (50.8 + (i % 6) * cw, 38.1 + (i // 6) * ch) for i, r in enumerate(parts)}
-    libset = {(l, n) for (l, n, _) in parts.values()}
-    lib_syms = "\t(lib_symbols\n" + "\n".join(embed(l, n, used[(l, n)]["block"]) for (l, n) in libset) + "\n\t)"
-    insts = []
-    for ref, (lib, name, val) in parts.items():
-        x, y = placement[ref]
-        pinblk = "\n".join(f'\t\t(pin "{num}" (uuid {u()}))' for num in used[(lib, name)]["pins"])
-        insts.append(
-            "\t(symbol\n" f'\t\t(lib_id "{lib}:{name}")\n'
-            f"\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n"
-            "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n\t\t(fields_autoplaced yes)\n"
-            f"\t\t(uuid {u()})\n"
-            f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-2.54)} 0) (effects (font (size 1.27 1.27))))\n'
-            f'\t\t(property "Value" "{val}" (at {f(x)} {f(y+2.54)} 0) (effects (font (size 1.27 1.27))))\n'
-            f'\t\t(property "Footprint" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
-            f'\t\t(property "Datasheet" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
-            f"{pinblk}\n"
-            f'\t\t(instances\n\t\t\t(project "{base}"\n\t\t\t\t(path "/{root}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n\t)')
-    labels = []
-    for net, conns in nets.items():
-        for ref, pin in conns:
-            lib, name, _ = parts[ref]
-            lx, ly = used[(lib, name)]["pins"][pin]
-            labels.append(f'\t(label "{net}" (at {f(placement[ref][0]+lx)} {f(placement[ref][1]-ly)} 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid {u()}))')
-    content = ("(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
-        f"\t(uuid {root})\n\t(paper \"A3\")\n{lib_syms}\n" + "\n".join(insts) + "\n" + "\n".join(labels) + "\n"
-        "\t(sheet_instances\n\t\t(path \"/\"\n\t\t\t(page \"1\")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n")
-    open(out, "w").write(content)
-    print(f"modules/{dirn}/{base}.kicad_sch  parts={len(parts)} nets={len(nets)} labels={len(labels)} rails={len(RAILS[dirn])}")
+    used = cec_sch.load_symbols(LIBS, parts)
+    # GPIO0 is the service-button pad — single-pin label by design, no NC flag.
+    nc_skip = {("U1", "4")}
+    # +5VSB / GND arrive from the Hub over the RJ-45 (J1): power-input pins only,
+    # so PWR_FLAG tells ERC they are driven.
+    stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
+                                    powerflag_nets=["+5VSB", "GND"], nc_skip=nc_skip)
+    print(f"modules/{dirn}/{base}.kicad_sch  " +
+          "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root") +
+          f"  rails={len(RAILS[dirn])}")
