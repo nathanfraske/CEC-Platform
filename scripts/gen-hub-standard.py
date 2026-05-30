@@ -127,10 +127,6 @@ NETS = {
 # not flag it as a no-connect (the button to GND lands at the PCB phase).
 NC_SKIP = {("U1", "4")}
 
-# Power nets fed from off-board (the 2-pin +5VSB power-in on J1) carry only
-# power-INPUT pins, so ERC needs a PWR_FLAG to know they are driven.
-POWERFLAG_NETS = ["+5VSB", "GND"]
-
 # Functional placement (mm). Left-to-right: power-in -> regulation -> MCU ->
 # CAN + ports; USB top-right; LED chain across the bottom.
 LAYOUT = {
@@ -158,7 +154,8 @@ LAYOUT = {
 
 used = cec_sch.load_symbols(LIBS, PARTS)
 stats = cec_sch.build_schematic(OUT, "hub-standard", PARTS, NETS, used, LIBS,
-                                paper="A2", powerflag_nets=POWERFLAG_NETS,
+                                paper="A2",
+                                power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
                                 nc_skip=NC_SKIP, placement=LAYOUT)
 print(f"wrote {os.path.relpath(OUT, ROOTDIR)}")
 print("  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))

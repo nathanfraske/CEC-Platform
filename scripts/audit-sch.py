@@ -84,8 +84,9 @@ def audit(path):
     boxes = []   # (ref, x0, x1, y0, y1) absolute, for overlap detection
     for m in re.finditer(r'\(symbol\n\t\t\(lib_id "([^"]+)"\)\n\t\t\(at (-?[\d.]+) (-?[\d.]+) (\d+)\)(.*?)\n\t\)', s, re.S):
         libid, ox, oy, rot, tail = m.group(1), float(m.group(2)), float(m.group(3)), int(m.group(4)), m.group(5)
-        name = libid.split(":", 1)[1]
-        if name == "PWR_FLAG":
+        lib_ns, _, name = libid.partition(":")
+        # power symbols (PWR_FLAG, GND, +3V3, +5VSB ...) are 1-pin, pin at origin
+        if lib_ns == "power":
             pin_pts.add((R(ox), R(oy))); continue
         blk = find_sym(name)
         if not blk:

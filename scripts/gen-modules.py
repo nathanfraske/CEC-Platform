@@ -132,11 +132,11 @@ for dirn, base in MODS:
     used = cec_sch.load_symbols(LIBS, parts)
     # GPIO0 is the service-button pad — single-pin label by design, no NC flag.
     nc_skip = {("U1", "4")}
-    # +5VSB / GND arrive from the Hub over the RJ-45 (J1): power-input pins only,
-    # so PWR_FLAG tells ERC they are driven.
+    # Power rails use power-PORT symbols (GND triangle, +5VSB/+3V3 bars) instead
+    # of text labels — far more readable, and the ports satisfy ERC.
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
-                                    powerflag_nets=["+5VSB", "GND"], nc_skip=nc_skip,
-                                    placement=layout(dirn, parts))
+                                    power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
+                                    nc_skip=nc_skip, placement=layout(dirn, parts))
     print(f"modules/{dirn}/{base}.kicad_sch  " +
           "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root") +
           f"  rails={len(RAILS[dirn])}")

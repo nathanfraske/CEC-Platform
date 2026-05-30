@@ -164,28 +164,37 @@ def emit_label(net, x, y, ang):
 def emit_noconnect(x, y):
     return f"\t(no_connect (at {f(x)} {f(y)}) (uuid {u()}))"
 
-def emit_global_power(symname, x, y):
-    # instance of a power symbol (e.g. PWR_FLAG); 0 deg, value carried by lib sym
+def emit_global_power(symname, x, y, rot=0):
+    # instance of a power symbol (PWR_FLAG, GND, +3V3, +5VSB ...). Its single pin
+    # sits at the symbol origin, so place the origin on the wire endpoint.
     return (
         "\t(symbol\n"
         f'\t\t(lib_id "power:{symname}")\n'
-        f"\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n"
+        f"\t\t(at {f(x)} {f(y)} {rot})\n\t\t(unit 1)\n"
         "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
         f"\t\t(uuid {u()})\n"
-        f'\t\t(property "Reference" "#FLG{x:.0f}{y:.0f}" (at {f(x)} {f(y-2.54)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f'\t\t(property "Reference" "#PWR{abs(hash((x,y,symname)))%100000}" (at {f(x)} {f(y-2.54)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
         f'\t\t(property "Value" "{symname}" (at {f(x)} {f(y+3.81)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(pin "1" (uuid {u()}))\n'
+        f'\t\t(instances\n\t\t\t(project "" (path "/" (reference "#PWR?") (unit 1)))\n\t\t)\n'
         "\t)")
 
 def gridsnap(x, y):
     return (round(x / GRID) * GRID, round(y / GRID) * GRID)
 
 def build_schematic(out_path, project, parts, nets, used, libs,
-                    paper="A3", powerflag_nets=(), nc_skip=(), placement=None):
-    """Write a .kicad_sch. powerflag_nets: nets that get a PWR_FLAG. nc_skip:
-    set of (ref,pin) left with neither net nor NC. placement: optional
-    {refdes:(x,y)} functional layout; any part omitted (and the fallback when
-    placement is None) is auto-gridded. All origins are snapped to the grid."""
+                    paper="A3", powerflag_nets=(), nc_skip=(), placement=None,
+                    power_ports=None):
+    """Write a .kicad_sch.
+
+    power_ports: {net: power-symbol} (e.g. {"GND":"GND","+3V3":"+3V3"}). Pins on
+      these nets get a power-port symbol at the stub end (GND points down,
+      positive rails up) instead of a text label — far more readable, and the
+      ports satisfy ERC so these nets need no PWR_FLAG.
+    powerflag_nets: nets that still get a PWR_FLAG (use only for non-port nets).
+    nc_skip: (ref,pin) left with neither net nor NC. placement: {refdes:(x,y)}
+      functional layout; omitted parts auto-grid. All origins grid-snapped."""
+    power_ports = power_ports or {}
     root = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\s*\)', open(out_path).read()).group(1)
 
     # auto-grid sized to the largest symbol, generous gutter for stubs+labels
@@ -206,31 +215,39 @@ def build_schematic(out_path, project, parts, nets, used, libs,
             if c in seen: raise SystemExit(f"pin {c} in two nets: {seen[c]} and {net}")
             seen[c] = net
 
-    # PWR_FLAG symbol embedded once if used
+    # power-symbol blocks embedded once each (ports + any PWR_FLAG)
     extra = []
+    need_syms = set(power_ports.values())
     if powerflag_nets:
-        extra.append(_pwrflag_block(libs))
+        need_syms.add("PWR_FLAG")
+    for sym in sorted(need_syms):
+        extra.append(_power_block(libs, sym))
 
     body = [emit_symbol(r, *parts[r][:2], parts[r][2], *placement[r],
                         used[(parts[r][0], parts[r][1])]["pins"], project, root)
             for r in parts]
 
-    wires, labels = [], []
-    # net labels on outward stubs
+    wires, labels, flags = [], [], []
     flag_anchor = {}
     for net, conns in nets.items():
+        port = power_ports.get(net)
         for ref, pin in conns:
             ax, ay, dx, dy = pin_abs(placement, used, parts, ref, pin)
             bx, by = ax + dx * STUB, ay + dy * STUB
             wires.append(emit_wire(ax, ay, bx, by))
-            lang = 0 if dx > 0 else (180 if dx < 0 else (270 if dy < 0 else 90))
-            labels.append(emit_label(net, bx, by, lang))
+            if port:
+                # power port at the stub end; GND points down (rot 0), positive
+                # rails point up (rot 180) — its pin sits at the symbol origin.
+                rot = 0 if port == "GND" else 180
+                flags.append(emit_global_power(port, bx, by, rot))
+            else:
+                lang = 0 if dx > 0 else (180 if dx < 0 else (270 if dy < 0 else 90))
+                labels.append(emit_label(net, bx, by, lang))
             flag_anchor.setdefault(net, (bx, by, dx, dy))
 
-    # PWR_FLAG instances: drop one on a stub end of each flagged net
-    flags = []
+    # PWR_FLAG instances for any remaining (non-port) flagged nets
     for net in powerflag_nets:
-        if net in flag_anchor:
+        if net in flag_anchor and net not in power_ports:
             bx, by, dx, dy = flag_anchor[net]
             fx, fy = bx + dx * STUB, by + dy * STUB
             wires.append(emit_wire(bx, by, fx, fy))
@@ -259,11 +276,11 @@ def build_schematic(out_path, project, parts, nets, used, libs,
     return {"parts": len(parts), "nets": len(nets), "labels": len(labels),
             "wires": len(wires), "flags": len(flags), "nc": len(ncs), "root": root}
 
-_PWRFLAG_CACHE = {}
-def _pwrflag_block(libs):
-    if "v" not in _PWRFLAG_CACHE:
+_POWER_CACHE = {}
+def _power_block(libs, name):
+    if name not in _POWER_CACHE:
         pw = libs.get("power")
         if pw is None:
-            raise SystemExit("power library not loaded (need PWR_FLAG)")
-        _PWRFLAG_CACHE["v"] = _namespace(symbol_block(pw, "PWR_FLAG"), "PWR_FLAG", "power")
-    return _PWRFLAG_CACHE["v"]
+            raise SystemExit("power library not loaded")
+        _POWER_CACHE[name] = _namespace(symbol_block(pw, name), name, "power")
+    return _POWER_CACHE[name]
