@@ -8,6 +8,7 @@ Standard-tier per-rail sensing module for the 24-pin ATX connector. BOM target
 | Tier | Standard |
 | MCU | Per module spec (not yet detailed in the ground-truth spec) |
 | Connector | RJ-45 8P8C, locking boot (universal interface) |
+| Power out | Dedicated 2-pin +5VSB power-out to the Hub (§2.7); sized for the full Hub trunk with margin |
 | Control | CAN on pair 3 (classical at 500 kbps in a Standard Hub) |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated at the module side |
 | DETECT | Precision resistor pin 8 → GND; code per **OQ-6** |
@@ -16,13 +17,16 @@ Standard-tier per-rail sensing module for the 24-pin ATX connector. BOM target
 
 ## Open questions touching this board
 
-- **OQ-1 (critical):** the inherited basis is that the **Hub draws bulk power
-  from this 24-pin module** over the RJ-45 VCC pin. This module is therefore
-  central to OQ-1 — confirm single-pin trunk vs. a dedicated Hub PSU input
-  before sizing its VCC path and series protection resistor.
+- **OQ-1 (locked 2026-05-30):** this module is the **bulk-power source** for the
+  Hub. It feeds +5VSB to the Hub over a dedicated 2-pin power-in connector
+  (separate from RJ-45); the Hub then distributes 5VSB to all ports over RJ-45
+  VCC (spec §2.7). Size this module's 2-pin power-out path for the full Hub trunk
+  with margin.
 - **OQ-6:** module-ID resistor value for this module type/tier.
 
 ## Status
 
-KiCad project, schematic, and layout are authored in the KiCad 10 GUI and land
-here, with project-local library tables pointing at `../../lib` via `${KIPRJMOD}`.
+Library-driven schematic capture can be drafted in-repo (then verified with ERC
+and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
+land here, with project-local library tables pointing at `../../lib` via
+`${KIPRJMOD}`.

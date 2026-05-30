@@ -34,7 +34,9 @@ stays dark because the Standard Hub populates no RS-485 receiver (spec §6 / §7
 
 ## Status
 
-KiCad project, schematic, and layout are authored in the KiCad 10 GUI and land
-here, with project-local library tables pointing at `../../lib` via `${KIPRJMOD}`.
+Library-driven schematic capture can be drafted in-repo (then verified with ERC
+and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
+land here, with project-local library tables pointing at `../../lib` via
+`${KIPRJMOD}`.
 If this board's schematic derives from the stale 12VHPWR design, carry over the
 Mini-Fit-Jr → RJ-45 re-cut and re-verify the pinout.

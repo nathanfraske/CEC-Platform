@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: 2026-05-28.
+Spec revision reflected here: 2026-05-30.
 
 ## What this project is
 
@@ -91,6 +91,12 @@ Connector and physical interface:
   not independently, since it trades protection against 5VSB headroom at the far
   end of a cable.
 - Connector must have a documented current rating of at least 1.5A.
+- Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
+  from the RJ-45 interface, fed from the 24-pin ATX module; the Hub then
+  distributes 5VSB to its ports over the RJ-45 VCC pin. Locked for every Hub
+  (resolves OQ-1). RJ-45 VCC therefore carries per-port distribution only, not
+  the trunk. Use the simplest 2-pin part rated for the full Hub trunk with margin
+  (working selection: 2-pin JST-XH, >=3A); never Mini-Fit Jr.
 
 Pin allocation (LOCKED; pin 7 use and DETECT encoding still pending):
 
@@ -132,6 +138,7 @@ Per-tier hardware:
   database with no eFuse or secure element).
 - Hub Pro: ESP32-P4, 8 ports, CAN-FD plus RS-485 streaming receivers (one
   receiver per port as the working basis, pending OQ-5), USB High Speed.
+  Bulk power on the dedicated 2-pin +5VSB power-in connector (OQ-1, spec §2.7).
   Otherwise follows the Hub Standard base.
 - 12VHPWR Pro module: ESP32-P4, INA240A3 per-pin current-sense amps on per-pin
   shunts, LTC2358-18 8-channel simultaneous-sampling 18-bit SAR ADC, 47k/10k
@@ -142,8 +149,10 @@ LED current:
 - SK6812 aggregate current must be capped in firmware (global brightness or
   current budget) so the worst case stays within the connector rating with
   margin. Seven SK6812 at full white draw on the order of 0.4A per board, and a
-  Hub plus several full-white downstream modules can push the trunk toward 2A on
-  a single VCC pin. The 8-port Pro is the binding case.
+  Hub plus several full-white downstream modules can push aggregate draw toward
+  2A. With bulk power on the Hub's dedicated 2-pin power-in (OQ-1 resolved), that
+  draw no longer concentrates on a single RJ-45 VCC pin, but it is still capped
+  in firmware (OQ-2).
 
 Cross-tier behavior:
 - A module never fails to function in any Hub. A Pro module in a Standard Hub
@@ -157,11 +166,10 @@ These are unresolved in the spec. Do not silently pick an answer. If a design
 choice depends on one of these, surface it and ask, or implement it behind a
 clearly labeled branch or variant.
 
-- OQ-1 (critical): Hub bulk power input. Does the Hub, especially the 8-port Pro,
-  receive bulk power from the 24-pin module over a single RJ-45 VCC pin, or from
-  a dedicated PSU power input (for example SATA or peripheral power)? This decides
-  whether the single-pin trunk current is a real constraint. Spec recommendation:
-  a dedicated power input on the Pro Hub at minimum.
+- OQ-1 (RESOLVED 2026-05-30): Hub bulk power input. Locked to a dedicated 2-pin
+  +5VSB power-in connector on every Hub, separate from the RJ-45 interface, fed
+  from the 24-pin ATX module; the Hub distributes 5VSB to its ports over the
+  RJ-45 VCC pin. See spec §2.7. This removes the single-pin trunk constraint.
 - OQ-2: LED current cap value and the maximum LED state to budget for.
 - OQ-3: Precision reference path. Path A (distributed AUX_REF on pin 7,
   calibrated per cable length, with local RC filtering) versus Path B (local
@@ -194,6 +202,14 @@ allocation table above.
   Claude Code runs. For CI or a container, use the official KiCad kicad-cli Docker
   image rather than a full GUI install.
 - Library paths are project-relative via `${KIPRJMOD}`.
+- Pinned toolchain version lives in `versions.env` (KiCad major pinned to 10, the
+  10.0.x series); the scripts and CI read it. The `.kicad_*` format is
+  forward-only.
+- The repo is self-contained for clone parity: official and third-party parts are
+  vendored into `lib/vendor/`, their 3D models into `lib/3dmodels/`, all
+  referenced by `${KIPRJMOD}`-relative paths — no machine-global libraries.
+  `scripts/vendor-libs.sh` brings parts in at the pinned library tag. Never
+  reference `${KICAD*_3DMODEL_DIR}` or absolute paths.
 
 ## Commands to use
 
@@ -237,19 +253,27 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 - Cross-check the exported BOM against the per-board target and the spec BOM
   summary, and flag drift.
 - Author and maintain design rules (`.kicad_dru`) and netclasses. Define a power
-  netclass with a minimum trace width sized for the 5VSB trunk worst case (toward
-  2A on the 8-port Pro) so DRC flags any power trace that is too thin.
-- Maintain the shared library, the library tables (project-relative), CI,
-  jobsets, and documentation, and keep this file in sync with the spec.
+  netclass with a minimum trace width sized for the 5VSB trunk worst case: the
+  dedicated 2-pin power-in and the Hub's internal 5VSB distribution carry the full
+  trunk (toward 2A on the 8-port Pro), while each RJ-45 VCC pin carries only one
+  module's draw. DRC then flags any power trace that is too thin. (Final width
+  still depends on the OQ-2 LED cap.)
+- Maintain the shared library and the vendored libraries (`lib/vendor/`,
+  `lib/3dmodels/`), the library tables (project-relative), CI, jobsets, and
+  documentation, and keep this file in sync with the spec.
 - Confirm universal-interface parts are sourced from `lib/` rather than
   duplicated per board.
 
 ## What Claude should NOT do
 
-- Do not route traces or place components by editing coordinates in
-  `.kicad_pcb`. Layout is done interactively in the KiCad GUI.
-- Do not draw or edit schematic geometry by hand-editing `.kicad_sch`
-  s-expressions. Schematic capture is done in the GUI.
+- Do not hand-edit PCB routing geometry — traces, vias, or component placement
+  coordinates — in `.kicad_pcb`. Routing and layout are done interactively in the
+  KiCad GUI. This is the boundary that stays in the GUI.
+- Editing `.kicad_sch` IS allowed: drafting and tidying a schematic, especially
+  library-driven, is reasonable. Treat it as real work, though — wire-to-pin
+  connections and junctions are where edited or generated schematics break, so
+  after any schematic edit verify with ERC and the exported netlist that every
+  pin is connected and there are no stray or overlapping junctions.
 - Do not resolve any open question (OQ-1 through OQ-7) by assumption. Surface it
   and ask.
 - Do not change a locked decision. If a change seems warranted, propose a spec
@@ -267,6 +291,9 @@ Use this as a recurring review pass:
 - RS-485 pair (pins 4 and 5) and its receivers exist only on Pro and above;
   Standard leaves pair 2 unused and terminated at the module side.
 - CAN termination is a fixed 120 ohm split at the Hub.
-- Power netclass trace width covers the trunk worst case; the firmware LED
-  current cap is reflected in the design intent.
+- Power netclass trace width covers the trunk worst case (the dedicated 2-pin
+  power-in and Hub 5VSB distribution carry the trunk; RJ-45 VCC is per-port); the
+  firmware LED current cap is reflected in the design intent.
+- Libraries and 3D models are vendored in-repo and referenced by
+  `${KIPRJMOD}`-relative paths only — no machine-global or absolute paths.
 - BOM totals are in line with the spec targets.

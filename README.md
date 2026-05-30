@@ -17,7 +17,7 @@ tooling that checks them.
 > **Ground truth.** [`CEC-Platform-Ground-Truth-Spec.md`](CEC-Platform-Ground-Truth-Spec.md)
 > is the canonical specification and holds precedence over everything else,
 > including [`CLAUDE.md`](CLAUDE.md). Read the spec before making any design
-> decision. Working-summary revision: **2026-05-28**.
+> decision. Working-summary revision: **2026-05-30**.
 
 ---
 
@@ -63,10 +63,12 @@ to every board.
 | 8 | Pair 4 | Brown | DETECT / module-ID (analog single-wire sense) | All |
 
 - **Power.** VCC is +5VSB on a single pin; GND returns on a single pin (no
-  paralleling). The trunk worst case approaches ~2A on the 8-port Pro, so the
-  connector must be rated **≥ 1.5A** and firmware **caps aggregate SK6812 LED
-  current**. The VCC series protection resistor is sized together with the power
-  budget, not independently.
+  paralleling). Hubs take **bulk 5VSB on a dedicated 2-pin power-in connector**
+  from the 24-pin module (spec §2.7) and distribute it to ports over RJ-45 VCC, so
+  no single jack carries the trunk and per-port VCC stays comfortable. The RJ-45
+  connector is still rated **≥ 1.5A**, and firmware **caps aggregate SK6812 LED
+  current** (OQ-2). The VCC series protection resistor is sized together with the
+  power budget, not independently.
 - **Control — CAN.** All control and command traffic lives entirely on CAN, on
   pair 3, for every tier. Classical CAN at 500 kbps on Standard; CAN-FD on Pro
   and above. Transceiver TJA1462A; fixed **120 Ω split termination at the Hub**.
@@ -185,7 +187,7 @@ surface it. Summarized here, full text in spec [§9](CEC-Platform-Ground-Truth-S
 
 | ID | Topic | Spec recommendation |
 |---|---|---|
-| OQ-1 (critical) | Hub bulk power: single RJ-45 VCC pin vs. dedicated PSU input | Dedicated power input on the Pro Hub at minimum |
+| OQ-1 ✓ locked | Hub bulk power → dedicated 2-pin +5VSB power-in from the 24-pin module; RJ-45 VCC distributes per-port (spec §2.7) | Resolved 2026-05-30 |
 | OQ-2 | LED current cap value and max LED state to budget | Confirm a firmware cap |
 | OQ-3 | Precision reference: distributed AUX_REF (pin 7) vs. local REF3033 | Path B (local REF3033) |
 | OQ-4 | Cable-length SKUs and any-length policy | Pending; interacts with OQ-3 |
@@ -195,9 +197,11 @@ surface it. Summarized here, full text in spec [§9](CEC-Platform-Ground-Truth-S
 
 Two consequences worth calling out for layout work:
 
-- The **power netclass minimum trace width** and the board `.kicad_dru` rules
-  depend on **OQ-1** (whether the single-pin trunk current is real) and **OQ-2**
-  (the LED cap). They are intentionally left unset until those are resolved.
+- With **OQ-1 locked** (dedicated 2-pin power-in), the full 5VSB trunk runs on the
+  dedicated power-in and the Hub's internal distribution, while each RJ-45 VCC pin
+  carries only one module. The **power-netclass minimum trace width** and the
+  board `.kicad_dru` still wait on **OQ-2** (the LED cap) to fix the worst-case
+  current.
 - **AUX_REF on pin 7** is provisional pending **OQ-3**; treat it as such.
 
 ---
@@ -206,9 +210,10 @@ Two consequences worth calling out for layout work:
 
 This is an early-stage hardware repository. The directory structure, shared-
 library home, tooling, CI, and documentation are in place. The KiCad design
-artifacts themselves — symbols, footprints, schematics, layouts, and per-board
-project and library-table files — are authored in the KiCad 10 GUI and land per
-board over time.
+artifacts land per board over time: symbols, library-driven schematics, and
+library tables can be drafted in-repo (then verified with ERC and the exported
+netlist), while **PCB routing geometry** is done interactively in the KiCad 10
+GUI.
 
 **Carried action item:** the Hub Standard and 12VHPWR schematics still show
 Mini-Fit Jr footprints and must be re-cut to RJ-45 before any board order. They

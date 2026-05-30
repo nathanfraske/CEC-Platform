@@ -12,6 +12,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Protocol | Classical CAN @ 500 kbps over the CAN-FD-capable TJA1462A |
 | Termination | Fixed 120 Ω split at the Hub |
 | Host link | USB Full Speed |
+| Bulk power | Dedicated 2-pin +5VSB power-in from the 24-pin module; distributes to the 4 ports over RJ-45 VCC (§2.7, OQ-1 locked) |
 | RS-485 | **Not populated** (Standard); pair 2 unused, terminated at the module side |
 | Regulator | LP5907 LDO |
 | Hold-up | 4700 µF aluminum-polymer bulk cap |
@@ -27,9 +28,9 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 
 ## Open questions touching this board
 
-- **OQ-1 (critical):** inherited basis is bulk power from the 24-pin module over
-  the RJ-45 VCC pin. Confirm vs. a dedicated PSU input before trusting the
-  single-pin trunk budget.
+- **OQ-1 (locked 2026-05-30):** the Hub takes bulk 5VSB on a dedicated 2-pin
+  power-in connector from the 24-pin module and distributes 5VSB to its 4 ports
+  over RJ-45 VCC (spec §2.7). The single-pin trunk concern is resolved.
 - **OQ-2:** firmware LED current cap value / max LED state to budget.
 
 ## Status
@@ -39,6 +40,8 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 > the re-cut, verify no Mini-Fit Jr footprint remains and that the eight RJ-45
 > pins map exactly to the locked pin allocation table.
 
-KiCad project, schematic, and layout are authored in the KiCad 10 GUI and land
-here (`hub-standard.kicad_pro` / `.kicad_sch` / `.kicad_pcb`) with project-local
-`sym-lib-table` / `fp-lib-table` pointing at `../../lib` via `${KIPRJMOD}`.
+Library-driven schematic capture can be drafted in-repo (then verified with ERC
+and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
+land here (`hub-standard.kicad_pro` / `.kicad_sch` / `.kicad_pcb`) with
+project-local `sym-lib-table` / `fp-lib-table` pointing at `../../lib` via
+`${KIPRJMOD}`.

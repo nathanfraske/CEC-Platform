@@ -26,5 +26,7 @@ target **$49** (100-qty). See spec [§8](../../CEC-Platform-Ground-Truth-Spec.md
 
 ## Status
 
-KiCad project, schematic, and layout are authored in the KiCad 10 GUI and land
-here, with project-local library tables pointing at `../../lib` via `${KIPRJMOD}`.
+Library-driven schematic capture can be drafted in-repo (then verified with ERC
+and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
+land here, with project-local library tables pointing at `../../lib` via
+`${KIPRJMOD}`.

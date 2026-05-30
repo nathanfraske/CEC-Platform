@@ -7,7 +7,7 @@
 - *Module sensing architecture v3* (RJ-45 connector strategy): adopted as the connector and communication basis.
 - *Early CAN-FD / BOM thread* (JST-XH connector, i.MX 93 Enterprise): superseded.
 
-**Last updated:** 2026-05-28
+**Last updated:** 2026-05-30
 **Scope of this revision:** Full detail on the universal interface, Hub Standard, Hub Pro, and Pro modules. Enterprise and Mission Critical are summarized at platform level only (see OQ-7).
 
 > Action item carried out of reconciliation: the Hub Standard and 12VHPWR schematics still show Mini-Fit Jr footprints and must be re-cut to RJ-45 before any board order. They are the stale artifacts, not this document.
@@ -71,7 +71,7 @@ Because users may connect commodity Cat5e cables, every RJ-45 pin on every Hub a
 
 Caution for layout: the series resistor on the VCC pin trades protection against voltage headroom on the 5VSB rail at the far end of a cable. Size it together with the power budget in Section 2.5, not independently.
 
-### 2.5 Connector current rating and power budget (corrected; one item pending)
+### 2.5 Connector current rating and power budget (corrected; bulk-power path locked, §2.7)
 
 Correcting an earlier overstatement: a quality 8P8C contact carries roughly 1A continuously, and many connectors are rated 1.5A or higher, derated for cable bundling and temperature rise. This is consistent with how PoE works. PoE uses high voltage (roughly 48 to 57V) across multiple paralleled conductors, so even 90W Type-4 PoE puts well under 0.5A on any single conductor. CEC differs in two ways that matter:
 
@@ -85,7 +85,7 @@ The worst-case driver is the SK6812 LED chain. Seven SK6812 at full white draw o
 Required controls:
 - Cap aggregate SK6812 current in firmware (global brightness or current budget) so the worst case stays within the chosen connector rating with margin.
 - Select a connector with a documented rating of at least 1.5A.
-- Resolve how the Hub receives bulk power (see OQ-1). If the Hub draws all downstream power through one module's RJ-45 VCC pin, the 8-port Pro is the binding case. A dedicated PSU power input on the Hub removes the constraint entirely.
+- The Hub receives bulk power on a dedicated 2-pin +5VSB power-in connector, separate from the RJ-45 interface, fed from the 24-pin ATX module (LOCKED; OQ-1 resolved — see §2.7). Bulk current no longer passes through any single RJ-45 VCC pin, so the 8-port Pro is no longer the limiting case and per-port RJ-45 VCC current stays comfortable. Size the dedicated power-in connector for the full Hub trunk with margin.
 
 ### 2.6 Cable (mostly locked; lengths pending)
 
@@ -93,6 +93,20 @@ Required controls:
 - Pro and above with streaming active: Cat6 STP recommended for the RS-485 pair.
 - CEC ships colored boots (bright orange) and labeled cables to differentiate from network cables.
 - Cable length SKUs and the any-length versus fixed-length policy are pending (see OQ-4), because they interact with the precision-reference decision (OQ-3).
+
+### 2.7 Hub bulk power input (LOCKED; resolves OQ-1)
+
+The Hub receives bulk power on a dedicated 2-pin power-in connector, separate from the RJ-45 interface. It carries +5VSB into the Hub from the 24-pin ATX module, which taps 5VSB at the PSU's 24-pin connector. The Hub then distributes 5VSB outward to its ports over the RJ-45 VCC pin (pin 1) of each jack.
+
+This holds for every Hub and resolves the single-VCC-pin trunk constraint of §2.5: bulk current no longer passes through any one RJ-45 contact, so the 8-port Pro is no longer current-limited at the jack. Per-port RJ-45 VCC current stays comfortable (~0.1 to 0.5A).
+
+The connector architecture is locked. The specific part is the simplest one that meets the rating and is treated as a working selection rather than itself locked:
+
+- 2-pin, polarized and keyed against reverse insertion. Working selection: 2-pin JST-XH (~3A). It is distinct from the retired Mini-Fit Jr and from the superseded JST-XH *interface* use — here it is a power-only feed. Step up to a higher-current 2-pin part (for example JST-VH) if the trunk budget grows.
+- Documented current rating at or above the full Hub trunk worst case with margin: the Hub's own draw plus all downstream modules, ~2A worst case before the OQ-2 LED cap, so a >=3A contact gives headroom.
+- Lands on the existing 5VSB front end: SS14 reverse-polarity Schottky, 1 ohm 1 W inrush limiter, 4700 uF hold-up, TPS3839K33 supervisor. As an internal PC power lead it is not exposed to the commodity-cable PoE threat of §2.4, so it does not need the per-pin RJ-45 PoE protection network; reverse-polarity and inrush protection still apply.
+
+Total platform draw remains bounded by the PSU's 5VSB standby capacity and by the firmware LED current cap (OQ-2).
 
 ---
 
@@ -159,7 +173,7 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | Mounting | 4x M2.5 corner holes, chassis-grounded |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | Chassis | Plastic prototype; aluminum 6063 anodized production |
-| Bulk power input | Inherited basis: from 24-pin module over RJ-45 VCC pin. Confirm per OQ-1. |
+| Bulk power input | Dedicated 2-pin +5VSB power-in from the 24-pin module; Hub distributes 5VSB to ports over RJ-45 VCC (§2.7; OQ-1 locked) |
 | Regulatory | Subassembly approach, no FCC cert for v1 |
 | Production BOM | ~$36 (100-qty) |
 
@@ -175,7 +189,7 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | Streaming receivers | One RS-485 receiver per port (working basis, OQ-5) |
 | Host link | USB High Speed |
 | Reference | REF3033 source only if Path A is chosen in OQ-3 |
-| Bulk power input | Binding case for OQ-1: 8 downstream modules through one VCC pin is the limiting current path |
+| Bulk power input | Dedicated 2-pin +5VSB power-in from the 24-pin module (§2.7; OQ-1 locked); removes the single-VCC-pin trunk limit. Connector rated for the full 8-port trunk with margin |
 | Production BOM | ~$45 (100-qty) |
 
 Everything else (regulator, hold-up, supervisor, LEDs, PCB approach, identity) follows the Hub Standard base unless changed by a future revision.
@@ -229,7 +243,7 @@ Principle: a module never fails to function in any Hub. Higher-tier features go 
 
 ## 9. Open questions (decisions needed; no assumptions made)
 
-**OQ-1: Hub bulk power input (critical).** Does the Hub, especially the 8-port Pro, receive bulk power from the 24-pin module over a single RJ-45 VCC pin, or from a dedicated PSU power input (for example SATA or peripheral power)? This decides whether the single-pin trunk current in Section 2.5 is a real constraint. Recommendation: a dedicated power input on the Pro Hub at minimum.
+**OQ-1: Hub bulk power input — RESOLVED 2026-05-30.** Locked: every Hub receives bulk power on a dedicated 2-pin +5VSB power-in connector, separate from the RJ-45 interface, fed from the 24-pin ATX module; the Hub distributes 5VSB to its ports over the RJ-45 VCC pin. See §2.7. This removes the single-pin trunk constraint of §2.5. The 2-pin connector architecture is locked; the specific part is the simplest qualifying one (working selection: 2-pin JST-XH, >=3A).
 
 **OQ-2: LED current cap.** Confirm a firmware cap on aggregate SK6812 current, and the maximum LED state to budget for. Needed to size the trunk and the connector rating.
 
@@ -247,5 +261,6 @@ Principle: a module never fails to function in any Hub. Higher-tier features go 
 
 ## 10. Revision history
 
+- **2026-05-30:** OQ-1 resolved — Hub bulk power locked to a dedicated 2-pin +5VSB power-in connector from the 24-pin ATX module (§2.7); the RJ-45 VCC pin now carries per-port distribution only, removing the single-pin trunk constraint of §2.5.
 - **This document:** established as platform ground truth. RJ-45 8P8C locked across Standard and Pro with locking boot; Mini-Fit Jr retired; DETECT defined as analog single-wire ID and presence sense; Hub Pro fixed at 8 ports; control confirmed entirely on CAN with RS-485 for streaming only; connector current understanding corrected; precision-reference and bulk-power decisions opened for resolution.
 - **Prior:** v1.1 Hub Standard (Mini-Fit Jr) and v3 architecture (RJ-45) reconciled here.
