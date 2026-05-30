@@ -1,10 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Nathan M. Fraske
 #
-# Starting-point CI for the CEC platform. Runs the repo-hygiene checklist and an
-# ERC/DRC sweep inside the official KiCad image so kicad-cli is on PATH. With no
-# boards yet, the sweep is a clean no-op. Keep the image on the KiCad 10.0.x
-# series to match the project file format.
+# CI for the CEC platform. Runs on the host runner and invokes kicad-cli through
+# the repo's wrapper (scripts/kicad-cli.sh), which pulls the pinned KiCad Docker
+# image on demand (KICAD_IMAGE in versions.env, default kicad/kicad:10.0). The
+# repo-hygiene checklist needs no KiCad. The ERC/DRC sweep skips boards with no
+# placed parts, so a skeleton repo stays green until real schematics/layouts land.
+#
+# (Running on the host — rather than inside the KiCad image as a container job —
+# avoids the checkout/runtime friction of CI on an image not built for it, and
+# only pulls the heavy image when a board actually needs checking.)
 name: KiCad checks
 
 on:
@@ -15,21 +20,12 @@ on:
 jobs:
   kicad:
     runs-on: ubuntu-latest
-    container:
-      # Keep this tag in sync with KICAD_IMAGE in versions.env (pinned 10.0.x).
-      image: kicad/kicad:10.0
-      options: --user root
-    env:
-      HOME: /root
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Mark workspace safe for git
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
-
       - name: Repo hygiene checklist
         run: ./scripts/checklist.sh
 
-      - name: ERC + DRC sweep
+      - name: ERC + DRC sweep (kicad-cli via Docker)
         run: ./scripts/check-all.sh
