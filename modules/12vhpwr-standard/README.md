@@ -6,7 +6,7 @@ target **$49** (100-qty). See spec [§8](../../CEC-Platform-Ground-Truth-Spec.md
 | Item | Decision |
 |---|---|
 | Tier | Standard |
-| MCU | Per module spec (not yet detailed in the ground-truth spec) |
+| MCU | ESP32-S3-MINI-1 (locked; same as Hub Standard) |
 | Connector | RJ-45 8P8C, locking boot (universal interface) |
 | Control | CAN on pair 3 (classical at 500 kbps in a Standard Hub) |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated at the module side |

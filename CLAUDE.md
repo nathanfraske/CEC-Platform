@@ -63,10 +63,10 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 | Hub Pro | hubs/hub-pro | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
 | Hub Enterprise | hubs/hub-enterprise | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
-| 24-pin ATX module | modules/atx-24pin | Standard | per module spec | - | - | $35 |
-| EPS 8-pin module | modules/eps-8pin | Standard | per module spec | - | - | $32 |
-| PCIe 8-pin module | modules/pcie-8pin | Standard | per module spec | - | - | $38 |
-| 12VHPWR Standard module | modules/12vhpwr-standard | Standard | per module spec | - | - | $49 |
+| 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35 |
+| EPS 8-pin module | modules/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
+| PCIe 8-pin module | modules/pcie-8pin | Standard | ESP32-S3-MINI-1 | - | - | $38 |
+| 12VHPWR Standard module | modules/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
 | 12VHPWR Pro module (lead) | modules/12vhpwr-pro | Pro | ESP32-P4 | - | - | $98 to $99 |
 
 Every board uses the RJ-45 connector defined below. Enterprise and Mission

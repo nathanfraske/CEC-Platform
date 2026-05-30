@@ -27,6 +27,8 @@ The CEC platform is a modular PC power-telemetry system. Per-rail sensing module
 
 Modules are tier-agnostic: any module works in any Hub and degrades gracefully (see Section 7).
 
+Standard-tier modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard) use the **ESP32-S3-MINI-1**, the same MCU as the Hub Standard (LOCKED 2026-05-30). The 12VHPWR Pro module uses the ESP32-P4 (§6).
+
 ---
 
 ## 2. Universal physical interface
@@ -265,6 +267,7 @@ Principle: a module never fails to function in any Hub. Higher-tier features go 
 
 ## 10. Revision history
 
+- **2026-05-30:** Standard-tier modules locked to the ESP32-S3-MINI-1 (same MCU as Hub Standard).
 - **2026-05-30:** PoE/over-voltage protection dropped as a platform-wide requirement — not populated on Standard or Pro (§2.4); retained as an open question (OQ-8) for Enterprise and Mission Critical.
 - **2026-05-30:** OQ-1 resolved — Hub bulk power locked to a dedicated 2-pin +5VSB power-in connector from the 24-pin ATX module (§2.7); the RJ-45 VCC pin now carries per-port distribution only, removing the single-pin trunk constraint of §2.5.
 - **This document:** established as platform ground truth. RJ-45 8P8C locked across Standard and Pro with locking boot; Mini-Fit Jr retired; DETECT defined as analog single-wire ID and presence sense; Hub Pro fixed at 8 ports; control confirmed entirely on CAN with RS-485 for streaming only; connector current understanding corrected; precision-reference and bulk-power decisions opened for resolution.

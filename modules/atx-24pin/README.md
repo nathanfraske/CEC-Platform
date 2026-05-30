@@ -6,7 +6,7 @@ Standard-tier per-rail sensing module for the 24-pin ATX connector. BOM target
 | Item | Decision |
 |---|---|
 | Tier | Standard |
-| MCU | Per module spec (not yet detailed in the ground-truth spec) |
+| MCU | ESP32-S3-MINI-1 (locked; same as Hub Standard) |
 | Connector | RJ-45 8P8C, locking boot (universal interface) |
 | Power out | Dedicated 2-pin +5VSB power-out to the Hub (§2.7); sized for the full Hub trunk with margin |
 | Control | CAN on pair 3 (classical at 500 kbps in a Standard Hub) |
