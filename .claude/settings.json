@@ -1,0 +1,13 @@
+{
+  "extraKnownMarketplaces": {
+    "kicad-happy": {
+      "source": {
+        "source": "github",
+        "repo": "aklofas/kicad-happy"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "kicad-happy@kicad-happy": true
+  }
+}
