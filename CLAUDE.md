@@ -29,7 +29,7 @@ to a capable Hub.
 cec-platform/
   lib/                       # shared library: the locked universal interface
     cec.kicad_sym            # symbols
-    cec.pretty/              # footprints (RJ-45 FTP jack, protection net, SK6812, ESP32, power input)
+    cec.pretty/              # footprints (RJ-45 FTP jack, SK6812, ESP32, power input; protection net is Enterprise/MC, OQ-8)
     3dmodels/
   hubs/
     hub-standard/
@@ -48,9 +48,10 @@ cec-platform/
   .gitignore
 ```
 
-The universal-interface parts (the RJ-45 jack, the TVS plus series-resistor
-protection network, the SK6812 chain, the ESP32 module, the power input) live in
-`lib/` so a change propagates to every board instead of being redrawn per board.
+The universal-interface parts (the RJ-45 jack, the SK6812 chain, the ESP32
+module, the power input — plus the optional Enterprise/MC over-voltage protection
+network, OQ-8) live in `lib/` so a change propagates to every board instead of
+being redrawn per board.
 Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 `fp-lib-table`. Never commit absolute library paths.
 
@@ -85,11 +86,12 @@ Connector and physical interface:
 - Locking-boot RJ-45 is the default shipped variant. Mechanical-keyed variants
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
-- Every RJ-45 pin on every Hub and module carries over-voltage protection (TVS
-  array plus series limiting resistors) sized to survive accidental PoE injection
-  up to about 57V. Size the VCC series resistor together with the power budget,
-  not independently, since it trades protection against 5VSB headroom at the far
-  end of a cable.
+- PoE/over-voltage protection is not populated on Standard or Pro: the TVS array
+  and series limiting resistors are omitted, since accidental PoE injection is not
+  a design target for those tiers. For Enterprise and Mission Critical it is an
+  open question (OQ-8). Where protection is populated (only under OQ-8), size the
+  VCC series resistor together with the power budget, since it trades protection
+  against 5VSB headroom at the far end of a cable.
 - Connector must have a documented current rating of at least 1.5A.
 - Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
   from the RJ-45 interface, fed from the 24-pin ATX module; the Hub then
@@ -183,6 +185,10 @@ clearly labeled branch or variant.
   distinct analog ID codes, needed to finalize the pin 8 resistor table.
 - OQ-7: Whether to fully specify Enterprise and Mission Critical now or keep them
   at platform-summary level.
+- OQ-8: PoE/over-voltage protection for Enterprise and Mission Critical. Standard
+  and Pro do not populate per-pin TVS + series-resistor protection (§2.4); decide
+  whether Enterprise/MC populate it (PoE-survivable to ~57V) for their deployment
+  environments.
 
 ## Active action item
 
@@ -287,7 +293,8 @@ Use this as a recurring review pass:
 - No Mini-Fit Jr footprints remain anywhere; all module-to-Hub connectors are
   RJ-45 8P8C.
 - Pinout on every board matches the locked pin allocation table.
-- Every RJ-45 pin has its TVS plus series-resistor protection populated.
+- PoE/over-voltage protection is not populated on Standard/Pro; on Enterprise/MC
+  it follows OQ-8.
 - RS-485 pair (pins 4 and 5) and its receivers exist only on Pro and above;
   Standard leaves pair 2 unused and terminated at the module side.
 - CAN termination is a fixed 120 ohm split at the Hub.

@@ -65,11 +65,13 @@ Pin 8 is an analog single-wire identity and presence sense. Each module carries 
 
 The exact code table is pending the final list of module types and tiers to encode (see OQ-6).
 
-### 2.4 Cross-connect and PoE protection (LOCKED as requirement)
+### 2.4 Cross-connect and PoE protection (Standard/Pro: not populated; Enterprise/MC: OQ-8)
 
-Because users may connect commodity Cat5e cables, every RJ-45 pin on every Hub and module carries over-voltage protection sized to survive accidental PoE injection (up to ~57V) and transients: a TVS array plus series limiting resistors.
+Standard and Pro variants do not populate per-pin PoE/over-voltage protection. Accidental PoE injection over a commodity Cat5e cable is not a design target for these tiers, so the TVS array and series limiting resistors are omitted on Standard and Pro Hubs and modules. (Revised 2026-05-30; previously a platform-wide locked requirement.)
 
-Caution for layout: the series resistor on the VCC pin trades protection against voltage headroom on the 5VSB rail at the far end of a cable. Size it together with the power budget in Section 2.5, not independently.
+For Enterprise and Mission Critical, whether to populate per-pin over-voltage protection — a TVS array plus series limiting resistors sized to survive accidental PoE injection up to ~57V and transients — is open (see OQ-8), pending those tiers' deployment requirements.
+
+Layout note (applies only where protection is populated under OQ-8): a series resistor on the VCC pin trades protection against voltage headroom on the 5VSB rail at the far end of a cable, so size it together with the power budget in Section 2.5, not independently. Standard and Pro carry no such series resistor and so have no protection-versus-headroom tradeoff.
 
 ### 2.5 Connector current rating and power budget (corrected; bulk-power path locked, §2.7)
 
@@ -257,10 +259,13 @@ Principle: a module never fails to function in any Hub. Higher-tier features go 
 
 **OQ-7: Document scope.** Should this document fully specify Enterprise and Mission Critical now, or keep them at platform-summary level until their first customer requirements land?
 
+**OQ-8: PoE / over-voltage protection for Enterprise and Mission Critical.** Standard and Pro do not populate per-pin PoE/over-voltage protection (§2.4). For Enterprise and Mission Critical, decide whether to populate a per-pin TVS array plus series limiting resistors sized to survive accidental PoE injection (up to ~57V) and transients, given those tiers' deployment environments. If populated, size the VCC series resistor with the power budget (§2.4, §2.5).
+
 ---
 
 ## 10. Revision history
 
+- **2026-05-30:** PoE/over-voltage protection dropped as a platform-wide requirement — not populated on Standard or Pro (§2.4); retained as an open question (OQ-8) for Enterprise and Mission Critical.
 - **2026-05-30:** OQ-1 resolved — Hub bulk power locked to a dedicated 2-pin +5VSB power-in connector from the 24-pin ATX module (§2.7); the RJ-45 VCC pin now carries per-port distribution only, removing the single-pin trunk constraint of §2.5.
 - **This document:** established as platform ground truth. RJ-45 8P8C locked across Standard and Pro with locking boot; Mini-Fit Jr retired; DETECT defined as analog single-wire ID and presence sense; Hub Pro fixed at 8 ports; control confirmed entirely on CAN with RS-485 for streaming only; connector current understanding corrected; precision-reference and bulk-power decisions opened for resolution.
 - **Prior:** v1.1 Hub Standard (Mini-Fit Jr) and v3 architecture (RJ-45) reconciled here.

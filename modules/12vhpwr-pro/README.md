@@ -15,7 +15,7 @@ Canonical detail in spec [§6](../../CEC-Platform-Ground-Truth-Spec.md).
 | Control | CAN-FD (pair 3) |
 | Reference | Per **OQ-3** — local REF3033 recommended (Path B) |
 | Connector | RJ-45 8P8C, locking boot (universal interface) |
-| Protection | TVS array + series limiting resistors on every RJ-45 pin (PoE-survivable, §2.4) |
+| Protection | No per-pin PoE/over-voltage protection (Standard/Pro, §2.4); TVS + series-R is Enterprise/MC only (OQ-8) |
 | DETECT | Precision resistor pin 8 → GND; code per **OQ-6** |
 | BOM target | $98–$99 (100-qty) |
 
