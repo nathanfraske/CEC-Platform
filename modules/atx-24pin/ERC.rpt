@@ -1,9 +1,282 @@
-ERC report (2026-05-30T16:38:27, Encoding UTF8)
-Report includes: Errors
+ERC report (2026-05-30T16:40:29, Encoding UTF8)
+Report includes: Errors, Warnings, Exclusions
 
 ***** Sheet /
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(1100 mils, 9900 mils): Symbol #FLG76 [PWR_FLAG]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(1100 mils, 10100 mils): Symbol #PWR75 [+5VSB]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(1850 mils, 9900 mils): Symbol #PWR77 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(2150 mils, 9900 mils): Symbol #FLG78 [PWR_FLAG]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(5050 mils, 8000 mils): Symbol RS1 [R_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(5150 mils, 2050 mils): Symbol #PWR04 [+5VSB]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(5500 mils, 2200 mils): Symbol C1 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(5500 mils, 2300 mils): Symbol #PWR33 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(5600 mils, 2500 mils): Symbol #PWR03 [+5VSB]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(5900 mils, 2600 mils): Symbol #PWR29 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(5900 mils, 7200 mils): Symbol #PWR63 [GND]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(6000 mils, 7200 mils): Symbol C10 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(6100 mils, 8450 mils): Symbol #PWR62 [GND]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(6200 mils, 2200 mils): Symbol C2 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(6200 mils, 2350 mils): Symbol #PWR34 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(6200 mils, 7200 mils): Symbol #PWR16 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(6600 mils, 2100 mils): Symbol #PWR09 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(6650 mils, 7600 mils): Symbol #PWR64 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(6800 mils, 7500 mils): Symbol #PWR65 [GND]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(7400 mils, 8000 mils): Symbol RS2 [R_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8150 mils, 2850 mils): Symbol #PWR076 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8200 mils, 7200 mils): Symbol #PWR67 [GND]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(8250 mils, 2850 mils): Symbol C6 [C_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(8300 mils, 7200 mils): Symbol C11 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8400 mils, 2950 mils): Symbol #PWR12 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8400 mils, 8450 mils): Symbol #PWR66 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8550 mils, 7200 mils): Symbol #PWR18 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8600 mils, 2950 mils): Symbol #PWR31 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8700 mils, 2350 mils): Symbol #PWR36 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(8950 mils, 7600 mils): Symbol #PWR20 [+3V3]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(9100 mils, 2350 mils): Symbol C4 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(9100 mils, 7500 mils): Symbol #PWR68 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(9450 mils, 3300 mils): Symbol #PWR30 [GND]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(9800 mils, 8000 mils): Symbol RS3 [R_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(10250 mils, 1500 mils): Symbol #PWR01 [+5VSB]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(10500 mils, 3050 mils): Vertical Wire, length 50 mils
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(10650 mils, 2450 mils): Symbol #PWR28 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(10650 mils, 7200 mils): Symbol #PWR70 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(10700 mils, 1700 mils): Symbol #PWR74 [GND]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(10750 mils, 7200 mils): Symbol C12 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(10850 mils, 8450 mils): Symbol #PWR69 [GND]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(10900 mils, 3250 mils): Symbol R1 [R_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(10900 mils, 3350 mils): Symbol #PWR32 [GND]
+[unconnected_wire_endpoint]: Unconnected wire endpoint
+    ; warning
+    @(10900 mils, 3400 mils): Vertical Wire, length 50 mils
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(11000 mils, 7200 mils): Symbol #PWR21 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(11400 mils, 7600 mils): Symbol #PWR71 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(11500 mils, 3900 mils): Symbol #PWR15 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(11600 mils, 3550 mils): Symbol #PWR14 [+3V3]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(11600 mils, 3900 mils): Symbol R4 [R_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(11600 mils, 7500 mils): Symbol #PWR23 [+3V3]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(11700 mils, 3550 mils): Symbol R3 [R_Small]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(12300 mils, 2450 mils): Symbol R2 [R_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(12300 mils, 2700 mils): Symbol C5 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(12300 mils, 2850 mils): Symbol #PWR37 [GND]
+[lib_symbol_mismatch]: Symbol 'R_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(12450 mils, 8000 mils): Symbol RS4 [R_Small]
+[isolated_pin_label]: Label connected to only one pin
+    ; warning
+    @(12650 mils, 2750 mils): Label 'GPIO0'
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(12900 mils, 2150 mils): Symbol #PWR11 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13350 mils, 7200 mils): Symbol #PWR73 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 2050 mils): Symbol #PWR078 [GND]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(13400 mils, 2150 mils): Symbol C7 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR51 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR47 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR50 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR48 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR61 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR58 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR38 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR44 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR59 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR60 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR56 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR39 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR40 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR49 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR54 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR42 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR45 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR55 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR53 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR41 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR52 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR57 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR43 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13400 mils, 4900 mils): Symbol #PWR46 [GND]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(13450 mils, 7200 mils): Symbol C13 [C_Small]
+[lib_symbol_mismatch]: Symbol 'C_Small' doesn't match copy in library 'cec-vendor'
+    ; warning
+    @(13500 mils, 2250 mils): Symbol C3 [C_Small]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13550 mils, 8450 mils): Symbol #PWR72 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13600 mils, 2250 mils): Symbol #PWR35 [GND]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(13700 mils, 7200 mils): Symbol #PWR24 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(14100 mils, 7600 mils): Symbol #PWR26 [+3V3]
+[lib_symbol_issues]: The current configuration does not include the symbol library 'cec-power'
+    ; warning
+    @(14250 mils, 7500 mils): Symbol #PWR27 [+3V3]
 
- ** ERC messages: 0  Errors 0  Warnings 0
+ ** ERC messages: 91  Errors 0  Warnings 91
 
  ** Ignored checks:
     - Global label only appears once in the schematic
