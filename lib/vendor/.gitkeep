@@ -1,4 +1,0 @@
-# Vendored official/third-party symbol and footprint libraries land here, copied
-# in by scripts/vendor-libs.sh at the pinned KICAD_LIB_TAG for clone parity.
-# This placeholder keeps the empty directory tracked; remove it once real
-# vendored libraries land.
