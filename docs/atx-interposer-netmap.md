@@ -22,11 +22,48 @@
 
 ## 3. PASS-THROUGH (J_IN.n wired straight to J_OUT.n, not sensed)
   -12V    : J_IN.14  <-> J_OUT.14
-  PWR_OK  : J_IN.8  <-> J_OUT.8
-  PS_ON#  : J_IN.16  <-> J_OUT.16
+  PWR_OK  : J_IN.8  <-> J_OUT.8     (also MONITORED — see section 4)
+  PS_ON#  : J_IN.16  <-> J_OUT.16   (also MONITORED — see section 4)
   NC      : J_IN.20  <-> J_OUT.20  (NC: may leave both unconnected instead of strapping)
 
-## 4. MODULE SELF-SUPPLY tap (decision: PSU-side / HI, before RS4)
+## 4. LOGIC-SIGNAL MONITORING — PWR_OK and PS_ON# (high-impedance taps)
+  These are logic signals, NOT power rails: do NOT break/shunt them. They stay as
+  the straight pass-throughs in section 3; we only TAP them to read state on the
+  ESP32. The motherboard still drives/sees them unchanged.
+
+  Level: both are PSU-side logic at ~+5V (PWR_OK is a 5V push-pull "power good";
+  PS_ON# is open-collector pulled to +5VSB by the motherboard, ~5V idle high,
+  driven low to turn the PSU on). +5V exceeds the ESP32-S3's 3.3V GPIO max, so
+  each tap goes through a 10k/10k divider (-> ~2.5V high, a safe, clean logic
+  high; low stays ~0V).
+
+  Parts to ADD (4 resistors; not yet on the sheet):
+    R_POK1 = 10k, R_POK2 = 10k   (PWR_OK divider)
+    R_PSON1 = 10k, R_PSON2 = 10k (PS_ON# divider)
+  Spare GPIOs (both free today, both ADC1-capable so analog read is a future
+  option): PWR_OK -> U1 pin 8 (IO4); PS_ON# -> U1 pin 9 (IO5).
+
+  Nets:
+    PWR_OK  pass-through net 'PWR_OK'  (J_IN.8 <-> J_OUT.8) -> R_POK1.1
+    'PWR_OK_SENSE' = R_POK1.2 + R_POK2.1 + U1.8(IO4)
+    GND  += R_POK2.2
+    PS_ON# pass-through net 'PS_ON#' (J_IN.16 <-> J_OUT.16) -> R_PSON1.1
+    'PS_ON_SENSE' = R_PSON1.2 + R_PSON2.1 + U1.9(IO5)
+    GND  += R_PSON2.2
+
+  Notes:
+  - 10k/10k loads each signal with 20k to GND — negligible vs a motherboard's
+    ~1k PS_ON# pull-up and the PSU's PWR_OK driver. Fine for these slow/static
+    signals; no filtering needed, though a 100nF from each *_SENSE node to GND is
+    cheap debounce if you want it.
+  - Firmware reads IO4/IO5 as plain digital inputs (high = PWR_OK asserted /
+    PSU off-requested-high for PS_ON#). Reading them on the ADC instead would let
+    you log the actual PWR_OK rail voltage; same divider, just a different pin
+    mode.
+  - These taps are independent of the rail sensing; they add no load to the
+    shunts and need no INA228.
+
+## 5. MODULE SELF-SUPPLY tap (decision: PSU-side / HI, before RS4)
   The module's own +5VSB (LP5907 U3.1 input, C1.1, and J2.1 power-out to Hub)
   taps the +5VSB HI node so module/Hub self-draw is NOT counted in the 5VSB reading:
      add U3.1, C1.1, C4.1, U2.3, J2.1  to net 'SENSE5VSB_HI'
