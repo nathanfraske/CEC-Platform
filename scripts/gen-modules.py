@@ -4,16 +4,14 @@
 #
 # Generate the Standard-tier module schematics (EPS 8-pin, PCIe 8-pin, 12VHPWR
 # Standard; the 24-pin ATX is now hand-maintained, see MODS below). Shared
-# control/comms/power backbone locked to the ESP32-S3-MINI-1, plus I2C current/
-# voltage sensing — high-side shunt across Vin+/Vin-, bus voltage on the Vbus
-# pin, on a shared I2C bus to the ESP32. The 24-pin carries the dedicated 2-pin
+# control/comms/power backbone locked to the ESP32-S3-MINI-1. Sensing topology is
+# per-module, per spec v1.5 §6.1/§6.2 (see the SENSE table):
+#   EPS/PCIe   per-CABLE I2C INA238 (high-side shunt across Vin+/Vin-, Vbus on
+#              the bus pin, shared I2C to the ESP32); EPS x2, PCIe x3 cables.
+#   12VHPWR    per-PIN analog: six INA240 across per-pin shunts into the ESP32-S3
+#              ADC, plus a 47k/10k rail-voltage divider; no I2C sensing bus.
+# The 24-pin (hand-maintained) uses four INA228 and carries the dedicated 2-pin
 # +5VSB power-out to the Hub (OQ-1).
-#
-# SENSING vs SPEC v1.5 (§6.1/§6.2): the spec calls for per-CABLE INA238 on EPS
-# (x1-2) and PCIe (x1-3), and SIX per-pin INA240 + divider on 12VHPWR Standard.
-# This generator still emits the older single-12V-rail INA238 model for those
-# three; reconciling them is an open board edit (see CLAUDE.md "Active action
-# items" / spec v1.5 §10). The 24-pin (hand-maintained) already uses INA228.
 #
 # The PARTS/NETS are the netlist (a guard rejects any pin in two nets). The
 # physical pass-through power connectors (PSU-side in / load-side out, where each

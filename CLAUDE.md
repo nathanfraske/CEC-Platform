@@ -161,25 +161,24 @@ Per-tier hardware:
     accumulators), one per rail — 12V, 5V, 3V3, 5VSB. The INA228 is a pin- and
     footprint-compatible (VSSOP-10) drop-in for the INA238. IMPLEMENTED in the
     24-pin schematic.
-  - EPS 8-pin: INA238, one per cable (per-cable granularity, not single-rail);
-    1 to 2 monitors depending on cables present.
-  - PCIe 8-pin: INA238, one per position (per-cable granularity); up to 3.
+  - EPS 8-pin: INA238 per cable (per-cable granularity), 2 cables populated.
+    IMPLEMENTED.
+  - PCIe 8-pin: INA238 per cable, 3 cables populated (spec upper bound).
+    IMPLEMENTED.
   - 12VHPWR Standard: six INA240 per-pin current-sense amps into the ESP32-S3
-    ADC, plus a 47k/10k rail-voltage divider into the ADC (NOT a single I2C
-    INA238). Accuracy ~+/-1%, see OQ-8.
+    ADC (GPIO1..6), plus a 47k/10k rail-voltage divider into a 7th ADC channel
+    (GPIO7). No I2C sensing bus. REF1/REF2 tied to GND (unidirectional forward
+    sensing). Accuracy ~+/-1%, see OQ-8. IMPLEMENTED.
   - Acquisition (spec §6.10): the digital-sensor modules (24-pin, EPS, PCIe) run
     their INA228/INA238 in continuous-conversion mode with a per-sensor ~2 s ring
     buffer of 1 kHz averaged samples (pre-roll), and use the ALERT pin as the
-    threshold detector / buffer-freeze trigger.
+    threshold detector / buffer-freeze trigger. (Firmware concern; the ALERT net
+    is left available at the part in the schematic.)
   - Shunt values (spec §6.4, LOCKED; parts pending OQ-11): 24-pin 12V/5V/3V3 =
     2 mΩ, 24-pin 5VSB = 25 mΩ; EPS and PCIe per-cable = 0.5 mΩ; 12VHPWR per-pin =
-    1 mΩ. Low-TCR precision metal-element shunts, four-wire Kelvin sense (§6.8).
-  - BOARD RECONCILIATION owed to the spec (v1.5 §10): the EPS/PCIe schematics
-    are currently single 12V-rail INA238 and must become per-cable (EPS x1-2,
-    PCIe x1-3); the 12VHPWR Standard schematic is currently single-rail INA238
-    and must become 6x INA240-per-pin + divider (a real board change); and the
-    generator shunt values must move to the §6.4 table above. These are open
-    board edits, NOT yet done — see "Active action item".
+    1 mΩ. IMPLEMENTED in the generator/boards. Low-TCR precision metal-element
+    shunts, four-wire Kelvin sense (§6.8) — Kelvin geometry is a layout (GUI)
+    task, not in the generated schematic.
 
 LED current:
 - SK6812 aggregate current must be capped in firmware (global brightness or
@@ -246,28 +245,24 @@ clearly labeled branch or variant.
 
 ## Active action items
 
-Board reconciliation owed to spec v1.5 (these are the open edits; surface before
-acting, do not assume the open questions):
+Open item (surface before acting; do not assume the open question):
 
-1. EPS / PCIe sensing granularity (§6.2): the EPS and PCIe schematics currently
-   sense a single 12V rail with one INA238. They must become PER-CABLE: one
-   INA238 per cable (EPS x1-2, PCIe x1-3), each cable's 12V/GND bundled to its
-   own shunt. Generator `RAILS` currently lists one 12V rail for each — needs a
-   per-cable model.
-2. 12VHPWR Standard sensing (§6.1): currently a single-rail INA238; the spec
-   calls for SIX INA240 per-pin current-sense amps into the ESP32-S3 ADC plus a
-   47k/10k rail-voltage divider. This is a real board redesign, not a value swap.
-3. Shunt values (§6.4): move the generator shunt values to the locked table —
-   24-pin 12V/5V/3V3 = 2 mΩ, 24-pin 5VSB = 25 mΩ, EPS/PCIe per-cable = 0.5 mΩ,
-   12VHPWR per-pin = 1 mΩ. (The repo currently has 24-pin 5V/3V3 = 5m, 5VSB =
-   10m, EPS/PCIe 12V = 2m, which the spec supersedes.)
-4. PoE/over-voltage protection (§2.4 / OQ-14): UNRESOLVED divergence — do not add
-   or formally drop protection until OQ-14 is decided.
+1. PoE/over-voltage protection (§2.4 / OQ-14): UNRESOLVED spec-vs-board
+   divergence — the spec locks per-pin protection platform-wide; current boards
+   drop it on Standard/Pro. Do not add or formally drop protection until OQ-14 is
+   decided.
 
-Done (kept for context): the Mini-Fit Jr -> RJ-45 re-cut is COMPLETE on every
-board (verify no Mini-Fit Jr footprint remains and the eight RJ-45 pins match the
-pin allocation table after any future edit); the 24-pin INA238 -> INA228 swap is
-IMPLEMENTED; KiCad-10 library modernization and the cec-power nickname are in.
+Done (kept for context):
+- Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board (after any future edit,
+  verify no Mini-Fit Jr footprint remains and the eight RJ-45 pins match the pin
+  allocation table).
+- 24-pin INA238 -> INA228 swap IMPLEMENTED; KiCad-10 library modernization and
+  the cec-power nickname are in.
+- EPS/PCIe per-cable sensing (EPS x2, PCIe x3) and the 12VHPWR Standard 6x INA240
+  per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
+- §6.4 shunt values applied across the generator/boards.
+- Still firmware/layout work (not schematic): the §6.10 acquisition model and the
+  §6.8 Kelvin shunt geometry.
 
 ## KiCad environment
 
