@@ -9,7 +9,7 @@ redrawn per board. Boards reference these via project-relative library tables
 
 | Path | What it holds |
 |---|---|
-| `cec.kicad_sym` | Symbol library — RJ-45 FTP jack, TVS + series-resistor protection net, SK6812 LED, ESP32 module, power input, and the other shared symbols. |
+| `cec.kicad_sym` | Symbol library — RJ-45 FTP jack, SK6812 LED, ESP32 module, power input, the 2-pin power-in connector, and other shared symbols (over-voltage protection net is Enterprise/MC only, OQ-8). |
 | `cec.pretty/` | Footprint library (`.kicad_mod`) — the matching land patterns. |
 | `3dmodels/` | 3D models referenced by footprints (project + vendored), via `${KIPRJMOD}`-relative paths. |
 | `vendor/` | Vendored official/third-party symbol & footprint libraries, pinned, for clone parity. |
@@ -50,9 +50,9 @@ any design file uses a machine-global `${KICAD*_DIR}` or absolute path.
 Per the spec (§2) and `CLAUDE.md`, the shared parts include:
 
 - **RJ-45 (8P8C) shielded (FTP) jack**, locking-boot default variant.
-- **Per-pin protection network**: TVS array plus series limiting resistors on
-  every pin, sized to survive accidental PoE injection up to ~57V. The VCC
-  series resistor is sized together with the power budget (§2.4–2.5).
+- **Per-pin protection network (Enterprise/MC only, OQ-8)**: a TVS array plus
+  series limiting resistors sized to survive accidental PoE injection up to ~57V.
+  Standard and Pro do not populate it (§2.4).
 - **SK6812 LED** (the chain; aggregate current is firmware-capped, §2.5 / OQ-2).
 - **ESP32 module** footprint(s) (ESP32-S3 on Standard, ESP32-P4 on Pro+).
 - **Power input** parts for the +5VSB rail.

@@ -6,12 +6,13 @@ Standard-tier per-rail sensing module for the PCIe 8-pin connector. BOM target
 | Item | Decision |
 |---|---|
 | Tier | Standard |
-| MCU | Per module spec (not yet detailed in the ground-truth spec) |
+| MCU | ESP32-S3-MINI-1 (locked; same as Hub Standard) |
 | Connector | RJ-45 8P8C, locking boot (universal interface) |
 | Control | CAN on pair 3 (classical at 500 kbps in a Standard Hub) |
+| Sensing | 1× INA238 on the 12V rail — 16-bit I²C current/voltage, ≥1 kHz |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated at the module side |
 | DETECT | Precision resistor pin 8 → GND; code per **OQ-6** |
-| Protection | TVS array + series limiting resistors on every RJ-45 pin (PoE-survivable, §2.4) |
+| Protection | No per-pin PoE/over-voltage protection (Standard/Pro, §2.4); TVS + series-R is Enterprise/MC only (OQ-8) |
 | BOM target | $38 (100-qty) |
 
 ## Open questions touching this board

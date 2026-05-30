@@ -45,8 +45,8 @@ until first customer requirements land (see **OQ-7**).
 Every board — every Hub, every module, every tier — uses the same **shielded
 RJ-45 (8P8C)** connector with a **locking boot** as the default shipped variant.
 Mini-Fit Jr is retired platform-wide. The shared parts that implement this
-interface (RJ-45 FTP jack, TVS + series-resistor protection network, SK6812 LED
-chain, ESP32 module, power input) live in [`lib/`](lib) so one change propagates
+interface (RJ-45 FTP jack, SK6812 LED chain, ESP32 module, power input — plus
+the optional Enterprise/MC over-voltage protection network, OQ-8) live in [`lib/`](lib) so one change propagates
 to every board.
 
 ### Pin allocation
@@ -79,8 +79,10 @@ to every board.
   resistor from pin 8 to GND on each module, read by the Hub through a fixed
   pull-up to VCC as an ADC divider. Open line ≈ VCC = no module. Resistor code
   table pending (OQ-6).
-- **Protection.** Every pin on every board carries a TVS array plus series
-  limiting resistors, sized to survive accidental PoE injection up to ~57V.
+- **Protection.** Standard and Pro do **not** populate per-pin PoE/over-voltage
+  protection — accidental PoE injection isn't a design target there. A per-pin
+  TVS array plus series limiting resistors (PoE-survivable to ~57V) is an open
+  question for Enterprise/Mission Critical (OQ-8).
 
 See spec [§2](CEC-Platform-Ground-Truth-Spec.md) for the full interface detail.
 
@@ -92,7 +94,7 @@ See spec [§2](CEC-Platform-Ground-Truth-Spec.md) for the full interface detail.
 cec-platform/
   lib/                       # shared library: the locked universal interface
     cec.kicad_sym            #   symbols (authored in the KiCad Symbol Editor)
-    cec.pretty/              #   footprints (RJ-45 FTP jack, protection net, SK6812, ESP32, power input)
+    cec.pretty/              #   footprints (RJ-45 FTP jack, SK6812, ESP32, power input; protection net is Enterprise/MC, OQ-8)
     3dmodels/                #   3D models referenced by footprints
   hubs/
     hub-standard/            # Tier 1 — ESP32-S3, 4 ports, classical CAN, USB FS
@@ -186,7 +188,8 @@ A recurring pass, enforced in part by `scripts/checklist.sh`:
 - No Mini-Fit Jr footprints remain anywhere; all module-to-Hub connectors are
   RJ-45 8P8C.
 - Pinout on every board matches the locked pin allocation table above.
-- Every RJ-45 pin has its TVS + series-resistor protection populated.
+- PoE/over-voltage protection is not populated on Standard/Pro; on Enterprise/MC
+  it follows OQ-8.
 - The RS-485 pair (pins 4 and 5) and its receivers exist only on Pro and above;
   Standard leaves pair 2 unused and terminated at the module side.
 - CAN termination is a fixed 120 Ω split at the Hub.
@@ -212,6 +215,7 @@ surface it. Summarized here, full text in spec [§9](CEC-Platform-Ground-Truth-S
 | OQ-5 | RS-485 topology: per-port point-to-point vs. shared multidrop | Per-port (working basis) |
 | OQ-6 | Module-ID resistor encoding table | Pending module/tier list |
 | OQ-7 | Fully specify Enterprise/Mission Critical now, or summary-level | Summary-level for now |
+| OQ-8 | Per-pin PoE/over-voltage protection on Enterprise/MC (TVS + series-R, ~57V); Standard/Pro don't populate it | Pending Ent/MC requirements |
 
 Two consequences worth calling out for layout work:
 
