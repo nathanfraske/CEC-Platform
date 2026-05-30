@@ -131,9 +131,34 @@ NC_SKIP = {("U1", "4")}
 # power-INPUT pins, so ERC needs a PWR_FLAG to know they are driven.
 POWERFLAG_NETS = ["+5VSB", "GND"]
 
+# Functional placement (mm). Left-to-right: power-in -> regulation -> MCU ->
+# CAN + ports; USB top-right; LED chain across the bottom.
+LAYOUT = {
+    # power input chain (top-left): J1 -> R1 inrush -> D1 -> bulk C1 -> U3 LDO
+    "J1": (40, 40), "R1": (75, 35), "D1": (100, 35), "C1": (125, 45),
+    "U3": (155, 40), "C2": (130, 75), "C3": (185, 75),
+    # supervisor
+    "U4": (155, 110), "R2": (120, 110), "C6": (190, 110),
+    # MCU (center)
+    "U1": (300, 95),
+    # CAN transceiver + split termination (between MCU and ports)
+    "U2": (430, 60), "R3": (470, 95), "R4": (470, 120), "C7": (500, 110),
+    # 4 RJ-45 ports (right column) + per-port DETECT pull-ups
+    "J2": (560, 45), "R5": (535, 70),
+    "J3": (560, 95), "R6": (535, 120),
+    "J4": (560, 150), "R7": (535, 175),
+    "J5": (560, 205), "R8": (535, 230),
+    # USB-C host (top, near MCU USB pins) + CC resistors
+    "J6": (300, 35), "R9": (250, 40), "R10": (250, 55),
+    # SK6812 LED chain across the bottom
+    "C4": (215, 110), "C5": (250, 110),
+    "DL1": (70, 260), "DL2": (140, 260), "DL3": (210, 260), "DL4": (280, 260),
+    "DL5": (350, 260), "DL6": (420, 260), "DL7": (490, 260),
+}
+
 used = cec_sch.load_symbols(LIBS, PARTS)
 stats = cec_sch.build_schematic(OUT, "hub-standard", PARTS, NETS, used, LIBS,
-                                paper="A3", powerflag_nets=POWERFLAG_NETS,
-                                nc_skip=NC_SKIP)
+                                paper="A2", powerflag_nets=POWERFLAG_NETS,
+                                nc_skip=NC_SKIP, placement=LAYOUT)
 print(f"wrote {os.path.relpath(OUT, ROOTDIR)}")
 print("  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))

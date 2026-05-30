@@ -80,12 +80,42 @@ def _namespace(block, name, lib):
     # units (Name_0_1 etc.) keep their bare names, exactly as KiCad expects.
     return block.replace(f'(symbol "{name}"', f'(symbol "{lib}:{name}"', 1)
 
+def reindent(block, base):
+    """Re-tab a single multi-line s-expr so each line's indentation equals its
+    true paren-nesting depth (+ base). KiCad re-serializes embedded symbols at a
+    canonical depth; matching it avoids ERC's lib_symbol_mismatch warnings. Only
+    leading whitespace is rewritten; string contents are untouched."""
+    # tokenize into lines, tracking depth at the START of each line
+    out = []
+    depth = base
+    # work char by char so we know depth precisely at each newline
+    # first, strip existing leading whitespace per line, then re-add by depth
+    raw_lines = block.split("\n")
+    d = base
+    instr = esc = False
+    for li, line in enumerate(raw_lines):
+        stripped = line.lstrip("\t ")
+        # a line that starts with ')' closes one level before it is printed
+        lead = d - (1 if stripped.startswith(")") else 0)
+        out.append(("\t" * max(lead, 0)) + stripped if stripped else "")
+        # now update depth by scanning this line's parens (ignoring strings)
+        for c in line:
+            if instr:
+                if esc: esc = False
+                elif c == "\\": esc = True
+                elif c == '"': instr = False
+            else:
+                if c == '"': instr = True
+                elif c == "(": d += 1
+                elif c == ")": d -= 1
+    return "\n".join(out)
+
 def lib_symbols_section(used, extra_blocks=()):
     parts = ["\t(lib_symbols"]
     for (lib, name), s in used.items():
-        parts.append("\t\t" + _namespace(s["block"], name, lib).replace("\n", "\n\t\t"))
+        parts.append(reindent(_namespace(s["block"], name, lib), 2))
     for blk in extra_blocks:
-        parts.append("\t\t" + blk.replace("\n", "\n\t\t"))
+        parts.append(reindent(blk, 2))
     parts.append("\t)")
     return "\n".join(parts)
 
@@ -147,22 +177,27 @@ def emit_global_power(symname, x, y):
         f'\t\t(pin "1" (uuid {u()}))\n'
         "\t)")
 
+def gridsnap(x, y):
+    return (round(x / GRID) * GRID, round(y / GRID) * GRID)
+
 def build_schematic(out_path, project, parts, nets, used, libs,
-                    paper="A3", powerflag_nets=(), nc_skip=()):
+                    paper="A3", powerflag_nets=(), nc_skip=(), placement=None):
     """Write a .kicad_sch. powerflag_nets: nets that get a PWR_FLAG. nc_skip:
-    set of (ref,pin) intentionally left with neither net nor NC (e.g. a button
-    pad documented elsewhere)."""
+    set of (ref,pin) left with neither net nor NC. placement: optional
+    {refdes:(x,y)} functional layout; any part omitted (and the fallback when
+    placement is None) is auto-gridded. All origins are snapped to the grid."""
     root = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\s*\)', open(out_path).read()).group(1)
 
-    # placement grid sized to the largest symbol, generous gutter for stubs+labels
+    # auto-grid sized to the largest symbol, generous gutter for stubs+labels
     def extent(p):
         xs = [v[0] for v in p.values()]; ys = [v[1] for v in p.values()]
         return ((max(xs)-min(xs)) if xs else 0, (max(ys)-min(ys)) if ys else 0)
-    cw = max((extent(s["pins"])[0] for s in used.values()), default=0) + 50.8
-    ch = max((extent(s["pins"])[1] for s in used.values()), default=0) + 50.8
+    cw = (round((max((extent(s["pins"])[0] for s in used.values()), default=0) + 50.8) / GRID) * GRID)
+    ch = (round((max((extent(s["pins"])[1] for s in used.values()), default=0) + 50.8) / GRID) * GRID)
     cols = 5
-    placement = {r: (63.5 + (i % cols) * cw, 50.8 + (i // cols) * ch)
-                 for i, r in enumerate(parts)}
+    auto = {r: (63.5 + (i % cols) * cw, 50.8 + (i // cols) * ch)
+            for i, r in enumerate(parts)}
+    placement = {r: gridsnap(*(placement or {}).get(r, auto[r])) for r in parts}
 
     # guard: a pin must not be in two nets
     seen = {}

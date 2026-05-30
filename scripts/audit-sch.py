@@ -66,11 +66,24 @@ def ongrid(x, y):
 def R(v):
     return round(v, 3)
 
+def sym_extent(block):
+    """Local bounding box (minx,maxx,miny,maxy) from pins + body rectangles."""
+    xs, ys = [], []
+    for m in re.finditer(r'\(pin\s+\w+\s+\w+\s*\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(\d+)\)', block):
+        xs.append(float(m.group(1))); ys.append(float(m.group(2)))
+    for m in re.finditer(r'\(rectangle\s*\(start\s+(-?[\d.]+)\s+(-?[\d.]+)\)\s*\(end\s+(-?[\d.]+)\s+(-?[\d.]+)\)', block):
+        xs += [float(m.group(1)), float(m.group(3))]
+        ys += [float(m.group(2)), float(m.group(4))]
+    if not xs:
+        return (0, 0, 0, 0)
+    return (min(xs), max(xs), min(ys), max(ys))
+
 def audit(path):
     s = open(path).read()
     pin_pts = set()
-    for m in re.finditer(r'\(symbol\n\t\t\(lib_id "([^"]+)"\)\n\t\t\(at (-?[\d.]+) (-?[\d.]+) (\d+)\)', s):
-        libid, ox, oy, rot = m.group(1), float(m.group(2)), float(m.group(3)), int(m.group(4))
+    boxes = []   # (ref, x0, x1, y0, y1) absolute, for overlap detection
+    for m in re.finditer(r'\(symbol\n\t\t\(lib_id "([^"]+)"\)\n\t\t\(at (-?[\d.]+) (-?[\d.]+) (\d+)\)(.*?)\n\t\)', s, re.S):
+        libid, ox, oy, rot, tail = m.group(1), float(m.group(2)), float(m.group(3)), int(m.group(4)), m.group(5)
         name = libid.split(":", 1)[1]
         if name == "PWR_FLAG":
             pin_pts.add((R(ox), R(oy))); continue
@@ -81,6 +94,9 @@ def audit(path):
         for _num, (lx, ly, _a) in lib_pins(blk).items():
             rx = lx*ca - ly*sa; ry = lx*sa + ly*ca
             pin_pts.add((R(ox+rx), R(oy-ry)))
+        ref = re.search(r'\(property "Reference" "([^"]+)"', tail)
+        x0, x1, y0, y1 = sym_extent(blk)   # rot is 0 for all our placements
+        boxes.append((ref.group(1) if ref else "?", ox+x0, ox+x1, oy-y1, oy-y0))
     wends = []
     for m in re.finditer(r'\(wire \(pts \(xy (-?[\d.]+) (-?[\d.]+)\) \(xy (-?[\d.]+) (-?[\d.]+)\)\)', s):
         wends += [(R(float(m.group(1))), R(float(m.group(2)))),
@@ -91,11 +107,18 @@ def audit(path):
            re.findall(r'\(no_connect \(at (-?[\d.]+) (-?[\d.]+)', s)]
     from collections import Counter
     wc = Counter(wends); lset = set(labels)
+    overlaps = []
+    for i in range(len(boxes)):
+        for j in range(i+1, len(boxes)):
+            a, b = boxes[i], boxes[j]
+            if not (a[2] < b[1] or b[2] < a[1] or a[4] < b[3] or b[4] < a[3]):
+                overlaps.append(f"{a[0]}&{b[0]}")
     res = {
         "no_connect_dangling": [p for p in ncs if p not in pin_pts],
         "label_dangling": [p for p in labels if p not in set(wends) and p not in pin_pts],
         "unconnected_wire_endpoint": [p for p in wends if p not in pin_pts and p not in lset and wc[p] < 2],
         "endpoint_off_grid": [p for p in (wends+labels+ncs) if not ongrid(*p)],
+        "symbol_overlap": overlaps,
     }
     return res, []
 

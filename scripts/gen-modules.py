@@ -99,6 +99,33 @@ def build(dirn):
         nets["GND"]   += [("J2","2")]
     return parts, nets
 
+def layout(dirn, parts):
+    """Functional placement (mm), left-to-right signal flow:
+    col 0  J1 Hub connector (+ J2 power-out on atx)
+    col 1  power chain: U3 LDO with C1/C2 bulk; ID/EN passives
+    col 2  U2 CAN transceiver
+    col 3  U1 ESP32-S3 (center), I2C pull-ups above it
+    row 2  INA238 sensing, one (shunt RSn, monitor U1n, decoupling C1n) group per rail
+    Unlisted parts fall back to the auto-grid."""
+    P = {
+        "J1": (50, 70),
+        "U3": (150, 55), "C1": (120, 60), "C2": (180, 60),
+        "R1": (120, 110), "R2": (180, 110), "C5": (210, 110),
+        "U2": (240, 70),
+        "U1": (340, 90),
+        "R3": (300, 40), "R4": (320, 40),
+        "C3": (300, 150), "C4": (390, 60),
+    }
+    if dirn == "atx-24pin":
+        P["J2"] = (50, 120)
+    # sensing groups along a lower band, spread by rail index
+    for i in range(len(RAILS[dirn])):
+        x = 70 + i * 110
+        P[f"RS{i+1}"] = (x, 210)        # shunt
+        P[f"U1{i}"]   = (x + 45, 210)   # INA238 monitor
+        P[f"C1{i}"]   = (x + 90, 210)   # VS decoupling
+    return {r: P[r] for r in parts if r in P}
+
 for dirn, base in MODS:
     parts, nets = build(dirn)
     out = f"{ROOTDIR}/modules/{dirn}/{base}.kicad_sch"
@@ -108,7 +135,8 @@ for dirn, base in MODS:
     # +5VSB / GND arrive from the Hub over the RJ-45 (J1): power-input pins only,
     # so PWR_FLAG tells ERC they are driven.
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
-                                    powerflag_nets=["+5VSB", "GND"], nc_skip=nc_skip)
+                                    powerflag_nets=["+5VSB", "GND"], nc_skip=nc_skip,
+                                    placement=layout(dirn, parts))
     print(f"modules/{dirn}/{base}.kicad_sch  " +
           "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root") +
           f"  rails={len(RAILS[dirn])}")
