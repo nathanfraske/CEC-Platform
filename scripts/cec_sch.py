@@ -183,14 +183,14 @@ def route_L(p, q, boxes, pin_pts):
     return None
 
 def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
-    pinblk = "\n".join(f'\t\t(pin "{n}" (uuid {u()}))' for n in pins)
+    pinblk = "\n".join(f'\t\t(pin "{n}" (uuid "{u()}"))' for n in pins)
     return (
         "\t(symbol\n"
         f'\t\t(lib_id "{lib}:{name}")\n'
         f"\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n"
         "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
         "\t\t(fields_autoplaced yes)\n"
-        f"\t\t(uuid {u()})\n"
+        f'\t\t(uuid "{u()}")\n'
         f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Value" "{val}" (at {f(x)} {f(y+15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Footprint" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
@@ -201,29 +201,32 @@ def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
 
 def emit_wire(x1, y1, x2, y2):
     return (f"\t(wire (pts (xy {f(x1)} {f(y1)}) (xy {f(x2)} {f(y2)}))\n"
-            f"\t\t(stroke (width 0) (type default)) (uuid {u()}))")
+            f'\t\t(stroke (width 0) (type default)) (uuid "{u()}"))')
 
 def emit_label(net, x, y, ang):
     just = "left" if ang in (0, 270) else "right"
     return (f'\t(label "{net}" (at {f(x)} {f(y)} {ang}) '
-            f'(effects (font (size 1.27 1.27)) (justify {just} bottom)) (uuid {u()}))')
+            f'(effects (font (size 1.27 1.27)) (justify {just} bottom)) (uuid "{u()}"))')
 
 def emit_noconnect(x, y):
-    return f"\t(no_connect (at {f(x)} {f(y)}) (uuid {u()}))"
+    return f'\t(no_connect (at {f(x)} {f(y)}) (uuid "{u()}"))'
 
-def emit_global_power(symname, x, y, rot=0):
+def emit_global_power(symname, x, y, project, root, ref, rot=0):
     # instance of a power symbol (PWR_FLAG, GND, +3V3, +5VSB ...). Its single pin
-    # sits at the symbol origin, so place the origin on the wire endpoint.
+    # sits at the symbol origin, so place the origin on the wire endpoint. The
+    # instance block must match regular symbols: real project name + root-sheet
+    # path + an annotated #PWR/#FLG reference. A bare "/" path or empty project
+    # makes KiCad crash when it rebuilds instances on save.
     return (
         "\t(symbol\n"
         f'\t\t(lib_id "power:{symname}")\n'
         f"\t\t(at {f(x)} {f(y)} {rot})\n\t\t(unit 1)\n"
         "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
-        f"\t\t(uuid {u()})\n"
-        f'\t\t(property "Reference" "#PWR{abs(hash((x,y,symname)))%100000}" (at {f(x)} {f(y-2.54)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f'\t\t(uuid "{u()}")\n'
+        f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-2.54)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
         f'\t\t(property "Value" "{symname}" (at {f(x)} {f(y+3.81)} 0) (effects (font (size 1.27 1.27))))\n'
-        f'\t\t(pin "1" (uuid {u()}))\n'
-        f'\t\t(instances\n\t\t\t(project "" (path "/" (reference "#PWR?") (unit 1)))\n\t\t)\n'
+        f'\t\t(pin "1" (uuid "{u()}"))\n'
+        f'\t\t(instances\n\t\t\t(project "{project}"\n\t\t\t\t(path "/{root}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n'
         "\t)")
 
 def gridsnap(x, y):
@@ -290,6 +293,10 @@ def build_schematic(out_path, project, parts, nets, used, libs,
     wires, labels, flags = [], [], []
     flag_anchor = {}
     routed = set()           # nets drawn pin-to-pin (skip label/port emission)
+    pwr_seq = [0]            # running counter for #PWR / #FLG references
+    def pwr_ref(prefix):
+        pwr_seq[0] += 1
+        return f"{prefix}{pwr_seq[0]:02d}"
 
     # 1) direct point-to-point routing for opted-in 2-pin nets (fallback: labels)
     for net in list(wire_nets):
@@ -319,7 +326,8 @@ def build_schematic(out_path, project, parts, nets, used, libs,
                 # power port at the stub end; GND points down (rot 0), positive
                 # rails point up (rot 180) — its pin sits at the symbol origin.
                 rot = 0 if port == "GND" else 180
-                flags.append(emit_global_power(port, bx, by, rot))
+                flags.append(emit_global_power(port, bx, by, project, root,
+                                               pwr_ref("#PWR"), rot))
             else:
                 lang = 0 if dx > 0 else (180 if dx < 0 else (270 if dy < 0 else 90))
                 labels.append(emit_label(net, bx, by, lang))
@@ -331,7 +339,8 @@ def build_schematic(out_path, project, parts, nets, used, libs,
             bx, by, dx, dy = flag_anchor[net]
             fx, fy = bx + dx * STUB, by + dy * STUB
             wires.append(emit_wire(bx, by, fx, fy))
-            flags.append(emit_global_power("PWR_FLAG", fx, fy))
+            flags.append(emit_global_power("PWR_FLAG", fx, fy, project, root,
+                                           pwr_ref("#FLG")))
 
     # no-connect flags on every pin not in a net and not skipped
     ncs = []
@@ -344,7 +353,7 @@ def build_schematic(out_path, project, parts, nets, used, libs,
 
     content = (
         "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
-        f"\t(uuid {root})\n\t(paper \"{paper}\")\n"
+        f"\t(uuid \"{root}\")\n\t(paper \"{paper}\")\n"
         f"{lib_symbols_section(used, extra)}\n"
         + "\n".join(body) + "\n"
         + "\n".join(wires) + "\n"

@@ -100,6 +100,15 @@ def sym_extent(block):
 
 def audit(path):
     s = open(path).read()
+    # --- KiCad structural invariants (a violation here is what crashes the GUI
+    #     on save, even though ERC/connectivity look fine) ---
+    top = re.search(r'\(uuid\s+"?([0-9a-fA-F-]{36})"?\)', s)
+    top_uuid = top.group(1) if top else None
+    bare_uuid = re.findall(r'\(uuid\s+[0-9a-fA-F][0-9a-fA-F-]{35}\s*\)', s)  # unquoted
+    inst = re.findall(r'\(project "([^"]*)"\s*\(path "([^"]+)"\s*\(reference "([^"]+)"', s)
+    want_path = "/" + (top_uuid or "")
+    inst_bad = [(proj, p, ref) for (proj, p, ref) in inst
+                if p != want_path or proj == ""]
     pin_pts = set()
     boxes = []        # (ref, x0, x1, y0, y1) absolute, for overlap detection
     body_boxes = []   # (x0, x1, y0, y1) body rectangles only, wire keep-outs
@@ -149,6 +158,8 @@ def audit(path):
         "endpoint_off_grid": [p for p in (wends+labels+ncs) if not ongrid(*p)],
         "symbol_overlap": overlaps,
         "wire_through_body": wire_through_body,
+        "instance_path_mismatch": inst_bad,   # crashes KiCad on save
+        "bare_uuid": bare_uuid,               # KiCad 10 writes UUIDs quoted
     }
     return res, []
 
