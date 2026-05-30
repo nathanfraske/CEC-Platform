@@ -151,6 +151,12 @@ Per-tier hardware:
   monitor), one per sensed rail on the module I2C bus, sized for >=1 kHz polling.
   24-pin senses 12V/5V/3V3/5VSB; the others sense the single 12V rail. No CAN
   termination (Hub-only).
+  - 24-pin ATX exception (decided 2026-05-30): the 24-pin uses the INA228
+    (20-bit, pin- and footprint-compatible drop-in for the INA238) on all four
+    sensed rails; EPS, PCIe and 12VHPWR Standard keep the INA238. Same VSSOP-10,
+    so this is a part-value swap only. ACTION: fold into
+    CEC-Platform-Ground-Truth-Spec.md (ground truth) and revisit the 24-pin's
+    $35 BOM target for the INA228 cost delta.
 
 LED current:
 - SK6812 aggregate current must be capped in firmware (global brightness or
