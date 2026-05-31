@@ -12,7 +12,7 @@
 		(comment 1 "Author: Nathan M. Fraske")
 	)
 	(lib_symbols
-		(symbol "74xGxx:74LVC1G17"
+		(symbol "cec-vendor:74LVC1G17"
 			(exclude_from_sim no)
 			(in_bom yes)
 			(on_board yes)
@@ -8373,7 +8373,7 @@
 		)
 	)
 	(symbol
-		(lib_id "74xGxx:74LVC1G17")
+		(lib_id "cec-vendor:74LVC1G17")
 		(at 355.6 175.26 90)
 		(unit 1)
 		(body_style 1)
