@@ -4118,6 +4118,12 @@
 		(uuid "a4b1fb42-d1de-4712-86ea-0f72dca1559c")
 	)
 	(junction
+		(at 370.84 152.4)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "aa5ee322-6d4d-4e23-b846-e162f51373e2")
+	)
+	(junction
 		(at 276.86 71.12)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4134,12 +4140,6 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c5d2ef60-b3d3-40f5-9af2-b59680bbe92d")
-	)
-	(junction
-		(at 370.84 152.4)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "c7428bb6-a506-47e7-9e69-7d0f2ccdcc8f")
 	)
 	(junction
 		(at 292.1 63.5)
@@ -6253,6 +6253,16 @@
 	)
 	(wire
 		(pts
+			(xy 368.3 152.4) (xy 370.84 152.4)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d17cb502-e7aa-43bd-968c-065fba8be776")
+	)
+	(wire
+		(pts
 			(xy 241.3 92.71) (xy 241.3 91.44)
 		)
 		(stroke
@@ -7233,7 +7243,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 365.76 152.4 270)
+		(at 363.22 152.4 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7243,7 +7253,7 @@
 		(dnp no)
 		(uuid "0b32757a-6d7a-4efe-abb8-bb66d9aba2d2")
 		(property "Reference" "#PWR082"
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7254,7 +7264,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 361.95 152.4 0)
+			(at 359.41 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7264,7 +7274,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 365.76 152.4 0)
+			(at 363.22 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7274,7 +7284,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 365.76 152.4 0)
+			(at 363.22 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7284,7 +7294,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 365.76 152.4 0)
+			(at 363.22 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9812,7 +9822,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 368.3 152.4 90)
+		(at 365.76 152.4 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9822,7 +9832,7 @@
 		(dnp no)
 		(uuid "4f1af13c-8b08-42be-a665-18a73cd847a2")
 		(property "Reference" "C14"
-			(at 367.03 157.48 0)
+			(at 364.49 157.48 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9832,7 +9842,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 369.316 157.226 0)
+			(at 366.776 157.226 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9842,7 +9852,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9853,7 +9863,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9864,7 +9874,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9874,7 +9884,7 @@
 			)
 		)
 		(property "Dielectric" "X7R"
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9885,7 +9895,7 @@
 			)
 		)
 		(property "Voltage" "25V"
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9896,7 +9906,7 @@
 			)
 		)
 		(property "Tolerance" "10%"
-			(at 368.3 152.4 0)
+			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
