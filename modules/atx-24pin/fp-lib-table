@@ -11,4 +11,6 @@
   (lib (name "Connector_Molex")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_Molex.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "Connector_USB")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_USB.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "Button_Switch_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Button_Switch_SMD.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "LED_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/LED_SMD.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "TestPoint")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/TestPoint.pretty")(options "")(descr "Vendored, pinned"))
 )
