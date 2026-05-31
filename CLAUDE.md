@@ -117,10 +117,12 @@ RJ-45 module-to-Hub interface above):
   24-circuit MALE headers: input J3 (PSU side) and output J4 (motherboard side).
   No board-mount FEMALE 24-pin ATX receptacle exists as a standard part, so both
   module connectors are male, the same gender as the motherboard header. The
-  PSU's own cable plugs onto J3 directly; the run from J4 to the motherboard
-  needs a dedicated MALE-TO-MALE 24-pin ATX bridging cable (named for the two
-  male headers it joins), supplied by CEC as a platform SKU. Both J3 and J4 are
-  the Molex 5569 right-angle male footprint — do not "fix" one to female.
+  PSU's own (female) cable plugs onto J3 directly; the run from J4 to the
+  motherboard needs a dedicated FEMALE-TO-FEMALE 24-pin ATX bridging cable (a
+  female receptacle on each end, since J4 and the motherboard are both male
+  headers), supplied by CEC as a platform SKU. Convention: board headers are
+  male, the inserting cable end is female. Both J3 and J4 are the Molex 5569
+  right-angle male footprint — do not "fix" one to female.
 - 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s)
   directly to the board (board-mounted); no detachable pass-through header and no
   bridging cable. On the melt-prone high-current connector this removes a
