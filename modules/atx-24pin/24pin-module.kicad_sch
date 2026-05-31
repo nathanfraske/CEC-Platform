@@ -4136,7 +4136,7 @@
 		(uuid "c5d2ef60-b3d3-40f5-9af2-b59680bbe92d")
 	)
 	(junction
-		(at 370.84 165.1)
+		(at 370.84 152.4)
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "c7428bb6-a506-47e7-9e69-7d0f2ccdcc8f")
@@ -4683,7 +4683,7 @@
 	)
 	(wire
 		(pts
-			(xy 384.81 217.17) (xy 384.81 177.8)
+			(xy 384.81 217.17) (xy 384.81 165.1)
 		)
 		(stroke
 			(width 0)
@@ -5133,7 +5133,7 @@
 	)
 	(wire
 		(pts
-			(xy 384.81 177.8) (xy 381 177.8)
+			(xy 384.81 165.1) (xy 381 165.1)
 		)
 		(stroke
 			(width 0)
@@ -5973,7 +5973,7 @@
 	)
 	(wire
 		(pts
-			(xy 381 104.14) (xy 381 149.86)
+			(xy 381 104.14) (xy 381 137.16)
 		)
 		(stroke
 			(width 0)
@@ -6023,7 +6023,7 @@
 	)
 	(wire
 		(pts
-			(xy 391.16 190.5) (xy 391.16 165.1)
+			(xy 391.16 190.5) (xy 391.16 152.4)
 		)
 		(stroke
 			(width 0)
@@ -6453,7 +6453,7 @@
 	)
 	(wire
 		(pts
-			(xy 370.84 160.02) (xy 370.84 165.1)
+			(xy 370.84 147.32) (xy 370.84 152.4)
 		)
 		(stroke
 			(width 0)
@@ -6723,7 +6723,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:R_Small")
-		(at 381 175.26 0)
+		(at 381 162.56 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -6734,7 +6734,7 @@
 		(fields_autoplaced yes)
 		(uuid "00406095-fc04-43b2-8303-25c3feff665d")
 		(property "Reference" "R10"
-			(at 383.54 173.9899 0)
+			(at 383.54 161.2899 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6745,7 +6745,7 @@
 			)
 		)
 		(property "Value" "1kΩ"
-			(at 383.54 176.5299 0)
+			(at 383.54 163.8299 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6756,7 +6756,7 @@
 			)
 		)
 		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
-			(at 381 175.26 0)
+			(at 381 162.56 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6767,7 +6767,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 381 175.26 0)
+			(at 381 162.56 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6778,7 +6778,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 381 175.26 0)
+			(at 381 162.56 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -6788,7 +6788,7 @@
 			)
 		)
 		(property "Power" "0.063W"
-			(at 25.4 -15.24 0)
+			(at 25.4 -27.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6799,7 +6799,7 @@
 			)
 		)
 		(property "Tolerance" "1%"
-			(at 25.4 -15.24 0)
+			(at 25.4 -27.94 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7233,7 +7233,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 365.76 165.1 270)
+		(at 365.76 152.4 270)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7243,7 +7243,7 @@
 		(dnp no)
 		(uuid "0b32757a-6d7a-4efe-abb8-bb66d9aba2d2")
 		(property "Reference" "#PWR082"
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7254,7 +7254,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 361.95 165.1 0)
+			(at 361.95 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7264,7 +7264,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 365.76 165.1 0)
+			(at 365.76 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7274,7 +7274,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 365.76 165.1 0)
+			(at 365.76 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7284,7 +7284,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 365.76 165.1 0)
+			(at 365.76 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8642,7 +8642,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 370.84 160.02 0)
+		(at 370.84 147.32 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8652,7 +8652,7 @@
 		(dnp no)
 		(uuid "2924b1d1-454c-41fc-8f65-2e52cab2f087")
 		(property "Reference" "#PWR017"
-			(at 370.84 162.56 0)
+			(at 370.84 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8663,7 +8663,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 370.84 156.21 0)
+			(at 370.84 143.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8673,7 +8673,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 370.84 160.02 0)
+			(at 370.84 147.32 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8683,7 +8683,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 370.84 160.02 0)
+			(at 370.84 147.32 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8693,7 +8693,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 370.84 160.02 0)
+			(at 370.84 147.32 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9812,7 +9812,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 368.3 165.1 90)
+		(at 368.3 152.4 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9822,7 +9822,7 @@
 		(dnp no)
 		(uuid "4f1af13c-8b08-42be-a665-18a73cd847a2")
 		(property "Reference" "C14"
-			(at 367.03 170.18 0)
+			(at 367.03 157.48 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9832,7 +9832,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 369.316 169.926 0)
+			(at 369.316 157.226 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9842,7 +9842,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9853,7 +9853,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9864,7 +9864,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9874,7 +9874,7 @@
 			)
 		)
 		(property "Dielectric" "X7R"
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9885,7 +9885,7 @@
 			)
 		)
 		(property "Voltage" "25V"
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9896,7 +9896,7 @@
 			)
 		)
 		(property "Tolerance" "10%"
-			(at 368.3 165.1 0)
+			(at 368.3 152.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10145,7 +10145,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:74LVC1G17")
-		(at 381 160.02 90)
+		(at 381 147.32 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -10155,7 +10155,7 @@
 		(dnp no)
 		(uuid "5ca964f3-5c3d-4e8c-8f58-7f089d579936")
 		(property "Reference" "U5"
-			(at 388.366 155.956 90)
+			(at 388.366 143.256 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10165,7 +10165,7 @@
 			)
 		)
 		(property "Value" "74LVC1G17"
-			(at 390.144 159.766 90)
+			(at 390.144 147.066 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10175,7 +10175,7 @@
 			)
 		)
 		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
-			(at 381 162.56 0)
+			(at 381 149.86 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10186,7 +10186,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf"
-			(at 387.35 160.02 0)
+			(at 387.35 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10198,7 +10198,7 @@
 			)
 		)
 		(property "Description" "Single Schmitt Buffer Gate, Low-Voltage CMOS"
-			(at 381 160.02 0)
+			(at 381 147.32 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -10209,7 +10209,7 @@
 			)
 		)
 		(property "MPN" "SN74LVC1G17DBVR"
-			(at 381 160.02 90)
+			(at 381 147.32 90)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
