@@ -57,8 +57,8 @@ cmd_add_symbol() {
   mkdir -p "$VENDOR"
   cp "$src" "$VENDOR/$lib.kicad_sym"
   printf 'vendored symbol lib: lib/vendor/%s.kicad_sym\n' "$lib"
-  printf 'add to the board sym-lib-table:\n'
-  printf '  (lib (name "%s")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/%s.kicad_sym")(options "")(descr "Vendored, pinned"))\n' "$lib" "$lib"
+  printf 'add to the board sym-lib-table (namespaced nickname so a global lib cannot shadow it):\n'
+  printf '  (lib (name "cec-%s")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/%s.kicad_sym")(options "")(descr "Vendored, pinned"))\n' "$lib" "$lib"
 }
 
 cmd_add_3dmodel() {
@@ -111,8 +111,8 @@ cmd_add_footprint() {
   done < <(grep -oE '\(model "[^"]+"' "$dest" | sed -E 's/^\(model "//; s/"$//')
 
   printf 'vendored footprint: lib/vendor/%s.pretty/%s.kicad_mod\n' "$lib" "$fp"
-  printf 'add to the board fp-lib-table (once per library):\n'
-  printf '  (lib (name "%s")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/%s.pretty")(options "")(descr "Vendored, pinned"))\n' "$lib" "$lib"
+  printf 'add to the board fp-lib-table (once per library; namespaced nickname so a global lib cannot shadow it):\n'
+  printf '  (lib (name "cec-%s")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/%s.pretty")(options "")(descr "Vendored, pinned"))\n' "$lib" "$lib"
   printf 'verify the result opens cleanly in KiCad (check the 3D view).\n'
 }
 
@@ -127,6 +127,23 @@ cmd_verify() {
     status=1
   else
     printf 'ok: vendored/design files use ${KIPRJMOD}-relative paths only\n'
+  fi
+
+  # Vendored-library nicknames must be namespaced (cec / cec-*). A bare stock
+  # nickname (Package_SO, Resistor_SMD, Device, ...) can be shadowed by a
+  # machine's global KiCad libraries on another PC — which is exactly what broke
+  # the INA228 VSSOP-10 footprint lookup. Enforce the namespace so vendoring is
+  # real isolation, not a coincidence of matching the global lib version.
+  local collide
+  collide="$(grep -RhoE '\(name "[^"]+"' \
+      --include='sym-lib-table' --include='fp-lib-table' \
+      "$CEC_REPO_ROOT/lib" "$CEC_REPO_ROOT/hubs" "$CEC_REPO_ROOT/modules" 2>/dev/null \
+    | sed -E 's/.*name "([^"]+)".*/\1/' | sort -u | grep -vE '^cec($|-)' || true)"
+  if [ -n "$collide" ]; then
+    printf 'FAIL: un-namespaced library nicknames (prefix with cec- so global libs cannot shadow them):\n%s\n' "$collide" >&2
+    status=1
+  else
+    printf 'ok: all library-table nicknames are namespaced (cec / cec-*)\n'
   fi
   return "$status"
 }

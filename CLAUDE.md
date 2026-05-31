@@ -304,6 +304,14 @@ Done (kept for context):
   referenced by `${KIPRJMOD}`-relative paths — no machine-global libraries.
   `scripts/vendor-libs.sh` brings parts in at the pinned library tag. Never
   reference `${KICAD*_3DMODEL_DIR}` or absolute paths.
+- Library-table NICKNAMES must be namespaced `cec` / `cec-*` (e.g. the vendored
+  `Package_SO.pretty` is registered as `cec-Package_SO`, not `Package_SO`). A bare
+  stock nickname collides with the same-named machine-global KiCad library, which
+  on another PC can shadow the in-repo copy and break footprint lookup (this bit
+  us once: an old global `Package_SO` lacking `VSSOP-10_3x3mm_P0.5mm` shadowed the
+  vendored one, so the INA228 footprints "could not be found"). The `.pretty`/
+  `.kicad_sym` FOLDER names stay stock; only the table nickname is prefixed.
+  `scripts/vendor-libs.sh verify` enforces this (fails on any non-`cec` nickname).
 
 ## Commands to use
 

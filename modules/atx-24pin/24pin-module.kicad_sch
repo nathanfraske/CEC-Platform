@@ -1244,7 +1244,7 @@
 					)
 				)
 			)
-			(property "Footprint" "RF_Module:ESP32-S2-MINI-1"
+			(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1"
 				(at 15.24 -29.21 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -2537,7 +2537,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_SO:VSSOP-10_3x3mm_P0.5mm"
+			(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 				(at 20.32 -11.43 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -3016,7 +3016,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
+			(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 				(at 0 8.89 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -3513,7 +3513,7 @@
 					(justify left)
 				)
 			)
-			(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+			(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 				(at 0 -12.7 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -8500,7 +8500,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 381 162.56 0)
 			(hide yes)
 			(show_name no)
@@ -8675,7 +8675,7 @@
 				)
 			)
 		)
-		(property "Footprint" "LED_SMD:LED_0603_1608Metric"
+		(property "Footprint" "cec-LED_SMD:LED_0603_1608Metric"
 			(at 336.55 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -8839,7 +8839,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
 			(at 336.55 52.07 0)
 			(hide yes)
 			(show_name no)
@@ -9616,7 +9616,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 306.07 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -9728,7 +9728,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 175.26 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -9839,7 +9839,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 173.99 78.74 0)
 			(hide yes)
 			(show_name no)
@@ -9950,7 +9950,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 241.3 88.9 0)
 			(hide yes)
 			(show_name no)
@@ -10061,7 +10061,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:VSSOP-10_3x3mm_P0.5mm"
+		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 			(at 240.03 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -10388,7 +10388,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
 			(at 284.48 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -10572,7 +10572,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
+		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 			(at 274.32 40.64 0)
 			(hide yes)
 			(show_name no)
@@ -10651,7 +10651,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 355.6 177.8 0)
 			(hide yes)
 			(show_name no)
@@ -11124,7 +11124,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
 			(at 215.9 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -11318,7 +11318,7 @@
 				(justify right)
 			)
 		)
-		(property "Footprint" "Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"
+		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"
 			(at 374.65 85.09 0)
 			(hide yes)
 			(show_name no)
@@ -11599,7 +11599,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 259.08 105.41 0)
 			(hide yes)
 			(show_name no)
@@ -11700,7 +11700,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 330.2 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -11874,7 +11874,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
+		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
 			(at 372.11 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -12030,7 +12030,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Diode_SMD:D_SMA"
+		(property "Footprint" "cec-Diode_SMD:D_SMA"
 			(at 340.36 100.33 0)
 			(hide yes)
 			(show_name no)
@@ -12191,7 +12191,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 365.76 152.4 0)
 			(hide yes)
 			(show_name no)
@@ -12524,7 +12524,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 381 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -12931,7 +12931,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
+		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 			(at 251.46 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -13193,7 +13193,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
+		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 			(at 275.59 52.07 0)
 			(hide yes)
 			(show_name no)
@@ -13275,7 +13275,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 355.6 190.5 0)
 			(hide yes)
 			(show_name no)
@@ -13376,7 +13376,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 116.84 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -13783,7 +13783,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
+		(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 199.39 76.2 0)
 			(hide yes)
 			(show_name no)
@@ -13953,7 +13953,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
 			(at 276.86 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -14064,7 +14064,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:VSSOP-10_3x3mm_P0.5mm"
+		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 			(at 119.38 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -14240,7 +14240,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 308.61 60.96 0)
 			(hide yes)
 			(show_name no)
@@ -14499,7 +14499,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:VSSOP-10_3x3mm_P0.5mm"
+		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 			(at 308.61 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -14678,7 +14678,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
 			(at 156.21 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -14869,7 +14869,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 346.71 50.8 0)
 			(hide yes)
 			(show_name no)
@@ -15030,7 +15030,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 280.67 81.28 0)
 			(hide yes)
 			(show_name no)
@@ -15141,7 +15141,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 341.63 180.34 0)
 			(hide yes)
 			(show_name no)
@@ -15253,7 +15253,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 261.62 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -15427,7 +15427,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
 			(at 351.79 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -15541,7 +15541,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
 			(at 92.71 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -15732,7 +15732,7 @@
 				)
 			)
 		)
-		(property "Footprint" "RF_Module:ESP32-S2-MINI-1"
+		(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1"
 			(at 304.8 96.52 0)
 			(hide yes)
 			(show_name no)
@@ -16898,7 +16898,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0603_1608Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
 			(at 355.6 52.07 0)
 			(hide yes)
 			(show_name no)
@@ -17083,7 +17083,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
 			(at 304.8 58.42 0)
 			(hide yes)
 			(show_name no)
@@ -17787,7 +17787,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 359.41 97.79 0)
 			(hide yes)
 			(show_name no)
@@ -17887,7 +17887,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
+		(property "Footprint" "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
 			(at 248.92 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -18051,7 +18051,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 237.49 189.23 0)
 			(hide yes)
 			(show_name no)
@@ -18681,7 +18681,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 276.86 68.58 0)
 			(hide yes)
 			(show_name no)
@@ -18781,7 +18781,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
+		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
 			(at 52.07 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -18936,7 +18936,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 193.04 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -19195,7 +19195,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Package_SO:VSSOP-10_3x3mm_P0.5mm"
+		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 			(at 177.8 204.47 0)
 			(hide yes)
 			(show_name no)
@@ -19372,7 +19372,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Resistor_SMD:R_0402_1005Metric"
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 359.41 92.71 0)
 			(hide yes)
 			(show_name no)

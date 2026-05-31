@@ -85,7 +85,7 @@
 			(outputdirectory "")
 		)
 	)
-	(footprint "Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
+	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "8ad5e5a0-9161-410e-abd3-c86aea7fd9c2")
 		(at 8 60.5 90)
