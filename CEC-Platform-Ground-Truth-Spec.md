@@ -2,7 +2,7 @@
 
 **Status:** Controlled baseline. This document is the single source of truth for the CEC platform and holds precedence over every earlier document. All future decisions are versioned here. Where any earlier document conflicts, this document wins.
 
-**Document version:** 1.5
+**Document version:** 1.6
 
 **Reconciles and supersedes:**
 - *CEC Hub Standard v1.1 locked decisions* (Mini-Fit Jr connector): superseded on connector and cabling; all other v1.1 decisions carried forward.
@@ -11,8 +11,8 @@
 - *Early CAN-FD / BOM thread* (JST-XH connector, i.MX 93 Enterprise): superseded.
 - *CEC PCB-repo ground-truth spec* (GitHub, 2026-05-30): reconciled here. Its Standard-module MCU lock is adopted; its 24-pin sensor, 12VHPWR Standard sensing, and platform-wide PoE drop diverge from this document and are addressed in Section 2.4, Section 6.1, and OQ-14.
 
-**Last updated:** 2026-05-30
-**Scope of this revision:** Full detail on the universal interface, Hub Standard, Hub Pro, and the module sensing and current-handling domain including the Pro module. Enterprise and Mission Critical are summarized at platform level only (see OQ-7).
+**Last updated:** 2026-05-31
+**Scope of this revision:** Full detail on the universal interface, Hub Standard, Hub Pro, and the module sensing and current-handling domain including the Pro module. Enterprise and Mission Critical are summarized at platform level only (see OQ-7). v1.6 adds the module PSU-side power-path connector and interposer-cabling rules (Section 2.8).
 
 > Action item carried out of reconciliation: the Hub Standard and 12VHPWR schematics still show Mini-Fit Jr footprints and must be re-cut to RJ-45 before any board order. They are the stale artifacts, not this document.
 
@@ -109,6 +109,16 @@ The connector architecture is locked; the specific part is the simplest one meet
 - 2-pin, polarized and keyed against reverse insertion. Working selection: 2-pin JST-XH (~3A class). It is distinct from the retired Mini-Fit Jr and from the superseded JST-XH interface use; here it is a power-only feed. Step up to a higher-current 2-pin part (for example JST-VH) if the capped trunk budget grows.
 - Documented rating at or above the capped aggregate with margin.
 - Lands on the Hub's existing 5VSB front end: SS14 reverse-polarity Schottky, 1 ohm 1 W inrush limiter, 4700 uF hold-up, TPS3839K33 supervisor. As an internal PC power lead it is not exposed to the commodity-cable cross-connect threat of Section 2.4, so it carries no per-pin over-voltage network; reverse-polarity and inrush protection still apply.
+
+### 2.8 Module power-path connectors (PSU side) — interposer cabling (LOCKED, v1.6)
+
+Separate from the universal RJ-45 module-to-Hub interface (Sections 2.1 to 2.7), each sensing module is a power-path interposer: PSU rail current enters the module, passes through its shunts, and continues to the load. The PSU-side connectors are module-specific (not universal) and are locked per module as follows.
+
+**24-pin ATX module — two male headers; male-to-male output cable required.** The module carries two Molex Mini-Fit Jr (5569 family) 24-circuit **headers** (the pin-side, "male" connector): one on the PSU side (input, J3) and one on the motherboard side (output, J4). No board-mount **female** 24-pin ATX receptacle exists as a standard part, so the module cannot present a female socket on either side; both connectors are therefore the same (male) gender as the motherboard's own 24-pin header.
+- Input: the PSU's existing 24-pin cable (a socket/receptacle housing) plugs directly onto the module input header. No new cable is needed here.
+- Output: the motherboard's 24-pin connector is a header of the same gender as the module output, so the two cannot be joined by an ordinary PSU-style cable. The run from the module output to the motherboard requires a dedicated bridging cable from the module output header to the motherboard header — a **male-to-male 24-pin ATX cable**, so named for the two male headers it connects. No standard off-the-shelf product joins two like-gender ATX headers, so CEC must supply this cable as a platform SKU.
+
+**12VHPWR modules (Standard and Pro) — connectors soldered to the board.** The 12VHPWR module does not use detachable pass-through headers and does not need a bridging cable. Its 12VHPWR (12V-2x6) connector(s) are soldered directly to the module PCB (board-mounted). On the platform's highest-current, melt-prone connector this removes a mated-contact pair from the power path and keeps the connection deterministic.
 
 ---
 
@@ -307,7 +317,8 @@ Four-wire Kelvin sensing on every shunt: the sense taps the shunt element only, 
 | Streaming | ~50 kHz x 6 channels, about 900 kB/s, over RS-485 (pair 2), module to Hub |
 | Control | CAN-FD (pair 3) |
 | Reference | Local REF3033 on module (ratiometric correction at the LTC2358-18) |
-| Connector | RJ-45 8P8C, locking boot |
+| Connector (to Hub) | RJ-45 8P8C, locking boot |
+| Connector (power path) | 12VHPWR (12V-2x6) soldered directly to the board (Section 2.8) |
 | Production BOM | ~$98 to $99 (100-qty) |
 
 Cross-tier note: a Pro module in a Standard Hub runs CAN control and event telemetry normally; its streaming pair is connected at the jack but stays dark because the Standard Hub does not populate an RS-485 receiver. This is the intended graceful-degrade behavior.
@@ -387,7 +398,8 @@ Note: the 24-pin ATX figure predates the v1.4 move to four INA228 parts; expect 
 
 ## 10. Revision history
 
-- **v1.5 (this revision):** reconciled against the CEC PCB-repo ground-truth spec (GitHub, 2026-05-30). Adopted the Standard-module MCU lock: the 24-pin, EPS, PCIe, and 12VHPWR Standard modules run the ESP32-S3-MINI-1, the same family as the Hub Standard (Section 1). Added Section 2.7 (Hub bulk power input) with the dedicated 2-pin feed's keying and front-end landing, folding in the repo's fuller detail. Recorded the PoE divergence: the repo and current boards drop per-pin over-voltage protection on Standard and Pro, reversing the Section 2.4 requirement; this document holds the requirement and opens OQ-14 to ratify or reverse rather than inheriting the board state. Logged the reconciliation actions the PCB side owes this document: adopt the INA228 on the 24-pin (pin-compatible with the repo's INA238, no respin), correct 12VHPWR Standard from a single-rail INA238 to six per-pin INA240 into the ESP32-S3 ADC (a board change if built single-rail), state EPS and PCIe sensing as per-cable rather than a single 12V rail, and import the current-handling domain (Sections 6.2 to 6.8), the acquisition model (Section 6.10), the reference resolution with pin-7 reservation, and OQ-8 through OQ-13.
+- **v1.6 (this revision):** added Section 2.8, the module PSU-side power-path connectors and interposer-cabling rules, separate from the universal RJ-45 interface. Locked two connector decisions surfaced during 24-pin and 12VHPWR layout: (1) the 24-pin ATX module carries two Molex Mini-Fit Jr male headers (input J3, output J4) because no board-mount female 24-pin ATX receptacle exists as a standard part, so the run from the module output to the motherboard requires a dedicated male-to-male 24-pin ATX bridging cable, which CEC supplies as a platform SKU; (2) the 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s) directly to the board, with no detachable pass-through header or bridging cable. Cross-referenced the soldered-connector decision in the 12VHPWR Pro detail table (Section 6.9). No change to sensing, the universal interface, or any open question.
+- **v1.5:** reconciled against the CEC PCB-repo ground-truth spec (GitHub, 2026-05-30). Adopted the Standard-module MCU lock: the 24-pin, EPS, PCIe, and 12VHPWR Standard modules run the ESP32-S3-MINI-1, the same family as the Hub Standard (Section 1). Added Section 2.7 (Hub bulk power input) with the dedicated 2-pin feed's keying and front-end landing, folding in the repo's fuller detail. Recorded the PoE divergence: the repo and current boards drop per-pin over-voltage protection on Standard and Pro, reversing the Section 2.4 requirement; this document holds the requirement and opens OQ-14 to ratify or reverse rather than inheriting the board state. Logged the reconciliation actions the PCB side owes this document: adopt the INA228 on the 24-pin (pin-compatible with the repo's INA238, no respin), correct 12VHPWR Standard from a single-rail INA238 to six per-pin INA240 into the ESP32-S3 ADC (a board change if built single-rail), state EPS and PCIe sensing as per-cable rather than a single 12V rail, and import the current-handling domain (Sections 6.2 to 6.8), the acquisition model (Section 6.10), the reference resolution with pin-7 reservation, and OQ-8 through OQ-13.
 - **v1.4:** the 24-pin moves to the INA228 on all four rails (12V, 5V, 3.3V, 5VSB) for fine bus-voltage resolution, both to capture 12V droop and to detect any uncharacterized droop on the 5V, 3.3V, and 5VSB rails; EPS and PCIe stay on the INA238. Added the acquisition model (Section 6.10): continuous-conversion sensors, a per-sensor ~2 s ring buffer of 1 kHz samples with pre-roll, averaging tuned to the 1 kHz output rate, and ALERT as both the threshold detector and the buffer freeze trigger. Opened OQ-13 (energy reporting scope), noting the 24-pin now carries hardware energy and charge accumulators on every rail. The 24-pin BOM figure is flagged as predating the part change.
 - **v1.3:** OQ-1 resolved. Hub bulk power is a dedicated 2-pin JST-XH 5VSB feed from the 24-pin module, with 5VSB distributed to downstream modules over their RJ-45 VCC pins; Section 2.5 rewritten so the aggregate current sits on the JST-XH feed and the shared 5VSB rail rather than any RJ-45 pin; OQ-2 broadened from an LED cap to a total 5VSB current cap.
 - **v1.2:** added the module current-handling domain (Section 6): sensing-granularity policy (per-rail on 24-pin, per-cable on EPS/PCIe, per-pin on 12VHPWR), an over-spec current-target table, a production shunt-selection table (superseding the v4 24-pin shunt values), ADC-range and resolution characterization, a no-heatsink thermal stance (copper plus chassis coupling), high-current layout and stackup guidance, and the Kelvin locality rule. Opened OQ-9 through OQ-12 (EPS/PCIe transient capture, bundled-shunt via transition, shunt part selection, per-module stackup). Platform sections (interface, CAN/RS-485, Hub tiers) unaffected; EPS/PCIe sensor counts unchanged and now stated explicitly as per-cable.

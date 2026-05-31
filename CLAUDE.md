@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v1.5 (2026-05-30).
+Spec revision reflected here: v1.6 (2026-05-31).
 
 ## What this project is
 
@@ -86,7 +86,10 @@ layout, or BOM that contradicts them.
 
 Connector and physical interface:
 - Module-to-Hub connector is RJ-45 (8P8C) for all tiers, all modules, all Hubs.
-  Mini-Fit Jr is retired platform-wide.
+  Mini-Fit Jr is retired as the module-to-Hub interconnect and as the Hub
+  bulk-power connector platform-wide. (It is NOT banned from a module's PSU-side
+  power path: the 24-pin ATX module legitimately uses Molex Mini-Fit Jr headers
+  there — that is the ATX standard connector, spec §2.8. See below.)
 - Locking-boot RJ-45 is the default shipped variant. Mechanical-keyed variants
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
@@ -107,6 +110,21 @@ Connector and physical interface:
   (resolves OQ-1). RJ-45 VCC therefore carries per-port distribution only, not
   the trunk. Use the simplest 2-pin part rated for the full Hub trunk with margin
   (working selection: 2-pin JST-XH, >=3A); never Mini-Fit Jr.
+
+Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6 — distinct from the
+RJ-45 module-to-Hub interface above):
+- 24-pin ATX module is a power-path interposer with TWO Molex Mini-Fit Jr (5569)
+  24-circuit MALE headers: input J3 (PSU side) and output J4 (motherboard side).
+  No board-mount FEMALE 24-pin ATX receptacle exists as a standard part, so both
+  module connectors are male, the same gender as the motherboard header. The
+  PSU's own cable plugs onto J3 directly; the run from J4 to the motherboard
+  needs a dedicated MALE-TO-MALE 24-pin ATX bridging cable (named for the two
+  male headers it joins), supplied by CEC as a platform SKU. Both J3 and J4 are
+  the Molex 5569 right-angle male footprint — do not "fix" one to female.
+- 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s)
+  directly to the board (board-mounted); no detachable pass-through header and no
+  bridging cable. On the melt-prone high-current connector this removes a
+  mated-contact pair from the power path.
 
 Pin allocation (LOCKED; DETECT encoding still pending):
 
@@ -253,9 +271,11 @@ Open item (surface before acting; do not assume the open question):
    decided.
 
 Done (kept for context):
-- Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board (after any future edit,
-  verify no Mini-Fit Jr footprint remains and the eight RJ-45 pins match the pin
-  allocation table).
+- Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board's module-to-Hub interface
+  (after any future edit, verify no Mini-Fit Jr is used for the module-to-Hub
+  link or Hub bulk power, and the eight RJ-45 pins match the pin allocation
+  table). EXCEPTION: the 24-pin ATX module's PSU-side power path (J3/J4) is
+  Mini-Fit Jr by design (ATX standard, §2.8) — that is correct, not a leftover.
 - 24-pin INA238 -> INA228 swap IMPLEMENTED; KiCad-10 library modernization and
   the cec-power nickname are in.
 - EPS/PCIe per-cable sensing (EPS x2, PCIe x3) and the 12VHPWR Standard 6x INA240
@@ -356,8 +376,10 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 ## Project-specific verification checklist
 
 Use this as a recurring review pass:
-- No Mini-Fit Jr footprints remain anywhere; all module-to-Hub connectors are
-  RJ-45 8P8C.
+- All module-to-Hub connectors are RJ-45 8P8C and no Mini-Fit Jr is used for the
+  module-to-Hub link or Hub bulk power. (The 24-pin ATX module's PSU-side power
+  path J3/J4 ARE Molex Mini-Fit Jr by design — §2.8 — and the 12VHPWR module's
+  12V-2x6 connector is soldered to the board; neither is a violation.)
 - Pinout on every board matches the locked pin allocation table (pin 7 is a
   reserved spare, NOT AUX_REF).
 - PoE/over-voltage protection: spec §2.4 LOCKS it platform-wide; current boards
