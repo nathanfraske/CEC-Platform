@@ -3980,6 +3980,12 @@
 		)
 	)
 	(junction
+		(at 304.8 60.96)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "00bc74fe-a89c-4b25-94f0-2ac5b80abf01")
+	)
+	(junction
 		(at 264.16 154.94)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4513,7 +4519,7 @@
 	)
 	(wire
 		(pts
-			(xy 334.01 63.5) (xy 335.28 63.5)
+			(xy 311.15 60.96) (xy 313.69 60.96)
 		)
 		(stroke
 			(width 0)
@@ -6313,7 +6319,7 @@
 	)
 	(wire
 		(pts
-			(xy 328.93 63.5) (xy 304.8 63.5)
+			(xy 306.07 60.96) (xy 304.8 60.96)
 		)
 		(stroke
 			(width 0)
@@ -8200,20 +8206,26 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Bourns" (at 0 0 0)
+		(property "Manufacturer" "Bourns"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+		(property "MPN" "CSS2H-2512K-2L00F"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -8916,7 +8928,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 335.28 63.5 90)
+		(at 313.69 60.96 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8926,7 +8938,7 @@
 		(dnp no)
 		(uuid "2ca38180-4859-44ba-97be-5712636a7cd9")
 		(property "Reference" "#PWR35"
-			(at 332.74 63.5 0)
+			(at 311.15 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8937,7 +8949,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 339.09 63.5 0)
+			(at 317.5 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8947,7 +8959,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 335.28 63.5 0)
+			(at 313.69 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8957,7 +8969,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 335.28 63.5 0)
+			(at 313.69 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8967,7 +8979,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 335.28 63.5 0)
+			(at 313.69 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10245,12 +10257,15 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "3"
@@ -11442,6 +11457,117 @@
 		)
 	)
 	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 276.86 74.93 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "79dcb8eb-764e-41da-87c7-5cad8fc02d49")
+		(property "Reference" "C8"
+			(at 272.034 73.66 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "1µF"
+			(at 274.066 73.66 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Capacitor_SMD:C_0805_2012Metric"
+			(at 276.86 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 276.86 74.93 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 276.86 74.93 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Tolerance" "10%"
+			(at -27.94 16.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Voltage" "25V"
+			(at -27.94 16.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Dielectric" "X5R"
+			(at -27.94 16.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "35f13ee3-be85-415e-bf7c-70516c9a73bb")
+		)
+		(pin "2"
+			(uuid "26e39aa0-2e77-45e9-b5a6-aed2853d9cd3")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C8")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "cec-vendor:INA226")
 		(at 119.38 204.47 0)
 		(unit 1)
@@ -11545,7 +11671,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 331.47 63.5 90)
+		(at 308.61 60.96 90)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11555,7 +11681,7 @@
 		(dnp no)
 		(uuid "7dd65acc-01bd-41b4-b07c-9fc31b4b1800")
 		(property "Reference" "C3"
-			(at 333.502 58.674 90)
+			(at 310.642 56.134 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11565,7 +11691,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 334.01 60.706 90)
+			(at 311.15 58.166 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11575,7 +11701,7 @@
 			)
 		)
 		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 331.47 63.5 0)
+			(at 308.61 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11586,7 +11712,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 331.47 63.5 0)
+			(at 308.61 60.96 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11597,7 +11723,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 331.47 63.5 0)
+			(at 308.61 60.96 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11607,7 +11733,7 @@
 			)
 		)
 		(property "Tolerance" "10%"
-			(at 0 0 0)
+			(at -22.86 -2.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11618,7 +11744,7 @@
 			)
 		)
 		(property "Voltage" "25V"
-			(at 0 0 0)
+			(at -22.86 -2.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11629,7 +11755,7 @@
 			)
 		)
 		(property "Dielectric" "X7R"
-			(at 0 0 0)
+			(at -22.86 -2.54 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12085,20 +12211,26 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Bourns" (at 0 0 0)
+		(property "Manufacturer" "Bourns"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+		(property "MPN" "CSS2H-2512K-2L00F"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -13466,20 +13598,26 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Bourns" (at 0 0 0)
+		(property "Manufacturer" "Bourns"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+		(property "MPN" "CSS2H-2512K-2L00F"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -14818,12 +14956,15 @@
 				)
 			)
 		)
-		(property "BOM Comments" "2-pin +5VSB power, right-angle JST-XH (inline)" (at 0 0 0)
+		(property "BOM Comments" "2-pin +5VSB power, right-angle JST-XH (inline)"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -14948,12 +15089,15 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Vishay" (at 0 0 0)
+		(property "Manufacturer" "Vishay"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -15596,117 +15740,6 @@
 			(project "24pin-module"
 				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
 					(reference "#PWR01")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 276.86 74.93 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e8e4da9c-faa7-4ba5-b9f3-a05b90b0fb9b")
-		(property "Reference" "C5"
-			(at 271.78 73.66 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "100nF"
-			(at 272.034 75.946 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" "Capacitor_SMD:C_0402_1005Metric"
-			(at 276.86 74.93 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 276.86 74.93 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 276.86 74.93 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Tolerance" "10%"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Voltage" "25V"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Dielectric" "X7R"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b1163a95-268c-4aee-90b8-d1b06fa7b200")
-		)
-		(pin "2"
-			(uuid "6c70afd7-aca7-4aef-8635-6c1766ce6efb")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C5")
 					(unit 1)
 				)
 			)
