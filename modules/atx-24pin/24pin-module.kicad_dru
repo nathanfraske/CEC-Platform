@@ -1,0 +1,32 @@
+(version 1)
+
+# CEC 24-pin ATX module — custom design rules.
+# KiCad auto-loads <board>.kicad_dru from the project dir. These back the
+# netclasses in 24pin-module.kicad_pro: a netclass `track_width` is only the
+# *routing default*, so DRC will NOT flag an under-width power trace on its own.
+# The track_width (min ...) constraints below make DRC actually catch it.
+#
+# Sizing basis (see the layout guideline): the +5VSB node is PSU-5VSB-capped at
+# ~3A; the sensed pass-through rails (RAIL*) carry tens of amps and are POURED on
+# In2.Cu (2oz) — these track_width minimums are a floor that catches stray thin
+# tracks, not the final pour width (zone fills are not checked by track_width).
+
+(rule "Power min width"
+	(constraint track_width (min 1.0mm))
+	(condition "A.NetClass == 'Power'"))
+
+(rule "High-current rail min track width (floor; pours exceed this)"
+	(constraint track_width (min 2.5mm))
+	(condition "A.NetClass == 'HighCurrent'"))
+
+# Keep the high-current rails clear of neighbouring copper (also set on the
+# netclass; stated here so it travels with the rule file).
+(rule "High-current rail clearance"
+	(constraint clearance (min 0.4mm))
+	(condition "A.NetClass == 'HighCurrent' && B.NetClass != 'HighCurrent'"))
+
+# USB2.0 debug pair: keep D+/D- coupled. Full-Speed (ESP32-S3 native USB) is
+# impedance-tolerant, but flag long uncoupled stretches.
+(rule "USB diff pair gap"
+	(constraint diff_pair_gap (min 0.1mm) (max 0.2mm))
+	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
