@@ -26,42 +26,33 @@
   PS_ON#  : J3.16  <-> J4.16   (also MONITORED — see section 4)
   NC      : J3.20  <-> J4.20  (NC: may leave both unconnected instead of strapping)
 
-## 4. LOGIC-SIGNAL MONITORING — PWR_OK and PS_ON# (high-impedance taps)
+## 4. LOGIC-SIGNAL MONITORING — PWR_OK and PS_ON# (high-impedance taps)  [AS-BUILT]
   These are logic signals, NOT power rails: do NOT break/shunt them. They stay as
   the straight pass-throughs in section 3; we only TAP them to read state on the
-  ESP32. The motherboard still drives/sees them unchanged.
+  ESP32. The motherboard still drives/sees them unchanged. Both are PSU-side ~+5V
+  logic, above the ESP32-S3 3.3V GPIO max, so each goes through a divider.
 
-  Level: both are PSU-side logic at ~+5V (PWR_OK is a 5V push-pull "power good";
-  PS_ON# is open-collector pulled to +5VSB by the motherboard, ~5V idle high,
-  driven low to turn the PSU on). +5V exceeds the ESP32-S3's 3.3V GPIO max, so
-  each tap goes through a 10k/10k divider (-> ~2.5V high, a safe, clean logic
-  high; low stays ~0V).
+  PWR_OK  -> 10k/10k divider (R5/R6) -> IO4.
+    PWR_OK is a push-pull "power good" output (low source impedance), so a 10k/10k
+    tap doesn't disturb it. ~2.5V high / 0V low.
+    Nets: 'PWR_OK' (J3.8<->J4.8) -> R5.1 ; 'PWR_OK_SENSE' = R5.2 + R6.1 + U1.8(IO4) ;
+          GND += R6.2
 
-  Parts to ADD (4 resistors; not yet on the sheet):
-    R_POK1 = 10k, R_POK2 = 10k   (PWR_OK divider)
-    R_PSON1 = 10k, R_PSON2 = 10k (PS_ON# divider)
-  Spare GPIOs (both free today, both ADC1-capable so analog read is a future
-  option): PWR_OK -> U1 pin 8 (IO4); PS_ON# -> U1 pin 9 (IO5).
+  PS_ON# -> 100k/100k divider (R7/R8) + 100nF (C8) to GND -> IO5 (ADC1).
+    PS_ON# idle (OFF) voltage is set by the PSU's internal pull-up to +5VSB, whose
+    value is PSU-dependent and can be weak. Use a HIGH-impedance 100k/100k divider
+    (200k to GND) so we don't load that pull-up and shift the OFF level / on-off
+    threshold. Output source impedance is then ~50k — too high for the ESP32 SAR
+    ADC's sample-and-hold, so C8 (100nF) at the sense node gives it a low-impedance
+    charge reservoir. Valid because PS_ON# is a slow state line: 50k*100nF ~ 5ms
+    (~32Hz), so allow ~25ms settle after a PS_ON# edge before trusting the read.
+    Read on IO5 = ADC1 channel (ADC1, not ADC2 — ADC2 conflicts with WiFi).
+    Nets: 'PS_ON#' (J3.16<->J4.16) -> R7.1 ;
+          'PS_ON_SENSE' = R7.2 + R8.1 + C8.<sense> + U1.9(IO5) ;
+          GND += R8.2 + C8.<gnd>     <-- C8 ground leg MUST tie to GND
 
-  Nets:
-    PWR_OK  pass-through net 'PWR_OK'  (J3.8 <-> J4.8) -> R_POK1.1
-    'PWR_OK_SENSE' = R_POK1.2 + R_POK2.1 + U1.8(IO4)
-    GND  += R_POK2.2
-    PS_ON# pass-through net 'PS_ON#' (J3.16 <-> J4.16) -> R_PSON1.1
-    'PS_ON_SENSE' = R_PSON1.2 + R_PSON2.1 + U1.9(IO5)
-    GND  += R_PSON2.2
-
-  Notes:
-  - 10k/10k loads each signal with 20k to GND — negligible vs a motherboard's
-    ~1k PS_ON# pull-up and the PSU's PWR_OK driver. Fine for these slow/static
-    signals; no filtering needed, though a 100nF from each *_SENSE node to GND is
-    cheap debounce if you want it.
-  - Firmware reads IO4/IO5 as plain digital inputs (high = PWR_OK asserted /
-    PSU off-requested-high for PS_ON#). Reading them on the ADC instead would let
-    you log the actual PWR_OK rail voltage; same divider, just a different pin
-    mode.
-  - These taps are independent of the rail sensing; they add no load to the
-    shunts and need no INA228.
+  These taps are independent of the rail sensing; they add no load to the shunts
+  and need no INA228.
 
 ## 5. MODULE SELF-SUPPLY tap (decision: PSU-side / HI, before RS4)
   The module's own +5VSB (LP5907 U3.1 input, C1.1, and J2.1 power-out to Hub)
@@ -94,12 +85,12 @@
 
 ## PRE-PCB-CAPTURE CHECKLIST (24-pin)
   [x] Shunt values restored to §6.4: RS1/RS2/RS3 = 2mΩ, RS4 = 25mΩ.
-  [ ] INA Vin+/Vin- polarity: swap so Vin+ lands on the _HI (PSU/J3) side on all
-      four INAs, so forward current reads POSITIVE. Today Vin+ is on _LO (load) —
-      reads negative. Vbus stays on _LO. (Section 1 already shows the correct
-      target: Vin-/Vbus on LO, Vin+ on HI.)
-  [ ] INA ALERT: wire per-rail to IO10-IO13 per section 6.
-  [ ] Re-run ERC after the rewire.
+  [x] INA Vin+/Vin- polarity: Vin+ on _HI (PSU/J3) on all four INAs (verified).
+  [x] INA ALERT: per-rail U10-U13 -> IO10-IO13 (verified).
+  [x] PS_ON# divider raised to 100k/100k + 100nF (C8) to GND, read on IO5/ADC1.
+  [ ] C8 ground leg: C8.1 is currently FLOATING (no wire). Tie it to GND, else the
+      100nF does nothing and the ADC sees the raw ~50k source impedance.
+  [ ] Re-run ERC (will flag C8.1 and any other unconnected pins from the wiring pass).
 
 ## NOTE: pin 11 (+12V) and pin 13 (+3.3V) — confirm against your PSU/mobo
   ATX 2.x sometimes labels pin 11/12 differently across revisions; the KiCad
