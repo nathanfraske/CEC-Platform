@@ -1,0 +1,20 @@
+Reference,Qty,Value,Footprint,MPN,Manufacturer,Chosen_Distributor,Datasheet,Validated,DNP,Notes
+"C1,C2",2,1uF,0603,,,,,,,
+C7,1,10µF,0805,,,,,,,
+"C13,C8,C11,C6,C10,C3,C9,C12,C5,C4",10,100nF,0402,,,,,,,
+J1,1,TO-HUB,RJ45_Amphenol_RJHSE5380,,,,,,,RJ-45 8P8C shielded FTP - Amphenol RJHSE5380 placeholder; confirm exact jack (no magnetics)
+J2,1,TO-HUB-PWR,JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical,,,,,,,
+J3,1,ATX-24 (PSU),Molex_Mini-Fit_Jr_5566-24A_2x12_P4.20mm_Vertical,,,,,,,ATX-24 = Molex Mini-Fit Jr 2x12 vertical placeholder; confirm gender/orientation for interposer
+J4,1,ATX-24 (MB),Molex_Mini-Fit_Jr_5566-24A_2x12_P4.20mm_Vertical,,,,,,,ATX-24 = Molex Mini-Fit Jr 2x12 vertical placeholder; confirm gender/orientation for interposer
+R1,1,R_ID (OQ-6),0402,,,,,,,DETECT module-ID precision resistor; value pending OQ-6
+R2,1,10kΩ,0402,,,,,,,
+"R4,R3",2,2.2kΩ,0402,,,,,,,
+"R8,R7",2,100kΩ,0402,,,,,,,
+R9,1,1kΩ,0402,,,,,,,
+"RS2,RS1,RS3",3,2mΩ,2512,,,,,,,Kelvin 4-terminal shunt placeholder (Vishay WSK2512); RS1-3 ~0.8W@20A so verify power margin; part/power/TCR pending OQ-11
+RS4,1,25mΩ,2512,,,,,,,Kelvin 4-terminal shunt placeholder (Vishay WSK2512); RS1-3 ~0.8W@20A so verify power margin; part/power/TCR pending OQ-11
+U1,1,ESP32-S3-MINI-1-N16R2,ESP32-S2-MINI-1,,,,,,,ESP32-S3-MINI-1 uses the S2-MINI-1 footprint (mechanically identical)
+U2,1,TJA1462A,SOIC-8_3.9x4.9mm_P1.27mm,,,,,,,
+U3,1,LP5907MFX-3.3,SOT-23-5,,,,,,,
+U4,1,74LVC1G17,SOT-23-5,SN74LVC1G17DBVR,,,https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf,,,
+"U12,U10,U13,U11",4,INA228,VSSOP-10_3x3mm_P0.5mm,,,,,,,
