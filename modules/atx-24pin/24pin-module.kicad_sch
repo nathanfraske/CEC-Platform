@@ -7377,7 +7377,7 @@
 				)
 			)
 		)
-		(property "Value" "5mΩ"
+		(property "Value" "2mΩ"
 			(at 149.86 209.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11824,7 +11824,7 @@
 				)
 			)
 		)
-		(property "Value" "5mΩ"
+		(property "Value" "2mΩ"
 			(at 210.312 209.55 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13246,7 +13246,7 @@
 				)
 			)
 		)
-		(property "Value" "10mΩ"
+		(property "Value" "25mΩ"
 			(at 276.352 209.55 0)
 			(show_name no)
 			(do_not_autoplace no)

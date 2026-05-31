@@ -71,6 +71,36 @@
    i.e. the PSU-side of RS4 becomes the board's +5VSB source node.)
   J4.9 (+5VSB to motherboard) stays on RAIL5VSB_LO (after the shunt).
 
+## 6. INA ALERT MONITORING — §6.10 ring-buffer-freeze trigger (per-rail)
+  Each INA228 ALERT (open-drain, active-low) routes to its own ESP32 GPIO so
+  firmware can use it as the threshold detector / buffer-freeze trigger (§6.10).
+  ALERT is no-connect on all four INAs today — remove those NC flags to wire it.
+
+  Per-rail assignment (4 spare GPIOs, all verified free; not strapping/USB/flash):
+     U10 (12V)  ALERT (pin 3) -> ESP32 IO10   net 'ALERT_12V'
+     U11 (5V)   ALERT (pin 3) -> ESP32 IO11   net 'ALERT_5V'
+     U12 (3V3)  ALERT (pin 3) -> ESP32 IO12   net 'ALERT_3V3'
+     U13 (5VSB) ALERT (pin 3) -> ESP32 IO13   net 'ALERT_5VSB'
+
+  GUI steps (do alongside the Vin+/Vin- polarity rewire):
+   - Delete the no-connect (X) on each INA ALERT pin (U10-U13 pin 3) AND on the
+     four target GPIOs (IO10-IO13).
+   - Drop a matching label on each ALERT stub and its GPIO (ALERT_12V, etc.).
+
+  Pull-up: ALERT is open-drain, so it needs a pull-up to +3V3. Simplest is the
+  ESP32 internal pull-ups (firmware-enabled) — fine for short on-board traces,
+  no parts. For a hardware-defined pull-up add 4x 10k to +3V3 at the GPIOs. (None
+  on the board today.)
+
+## PRE-PCB-CAPTURE CHECKLIST (24-pin)
+  [x] Shunt values restored to §6.4: RS1/RS2/RS3 = 2mΩ, RS4 = 25mΩ.
+  [ ] INA Vin+/Vin- polarity: swap so Vin+ lands on the _HI (PSU/J3) side on all
+      four INAs, so forward current reads POSITIVE. Today Vin+ is on _LO (load) —
+      reads negative. Vbus stays on _LO. (Section 1 already shows the correct
+      target: Vin-/Vbus on LO, Vin+ on HI.)
+  [ ] INA ALERT: wire per-rail to IO10-IO13 per section 6.
+  [ ] Re-run ERC after the rewire.
+
 ## NOTE: pin 11 (+12V) and pin 13 (+3.3V) — confirm against your PSU/mobo
   ATX 2.x sometimes labels pin 11/12 differently across revisions; the KiCad
   ATX-24 standard assignment is used here. Verify pin 11=+12V, 12/13=+3.3V on
