@@ -13,4 +13,5 @@
   (lib (name "Button_Switch_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Button_Switch_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "LED_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/LED_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "TestPoint")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/TestPoint.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "Diode_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Diode_SMD.pretty")(options "")(descr "Vendored, pinned"))
 )

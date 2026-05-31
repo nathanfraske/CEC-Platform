@@ -12,7 +12,7 @@
 		(comment 1 "Author: Nathan M. Fraske")
 	)
 	(lib_symbols
-		(symbol "Device:D_Schottky"
+		(symbol "cec-vendor:D_Schottky"
 			(pin_numbers
 				(hide yes)
 			)
@@ -11935,7 +11935,7 @@
 		)
 	)
 	(symbol
-		(lib_id "Device:D_Schottky")
+		(lib_id "cec-vendor:D_Schottky")
 		(at 340.36 100.33 0)
 		(unit 1)
 		(body_style 1)
@@ -11966,7 +11966,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "Diode_SMD:D_SMA"
 			(at 340.36 100.33 0)
 			(hide yes)
 			(show_name no)
@@ -11997,6 +11997,14 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "BOM Comments" "VBUS->5VSB ORing Schottky (bench USB power). D_SMA fits 1-3A parts (e.g. SS34); pick per bench-power current." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
