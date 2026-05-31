@@ -4126,4 +4126,72 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "CEC_SHUNT_4T"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.508) (hide no))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "RS"
+			(at 0 3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "R"
+			(at 0 -5.715 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "R_Shunt*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "CEC_SHUNT_4T_0_1"
+			(rectangle
+				(start -3.81 1.27)
+				(end 3.81 -1.27)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "CEC_SHUNT_4T_1_1"
+			(pin passive line
+				(at -6.35 0 0)
+				(length 2.54)
+				(name "I1"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at -2.54 -3.81 90)
+				(length 2.54)
+				(name "S1"
+					(effects (font (size 1.016 1.016))))
+				(number "2"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 2.54 -3.81 90)
+				(length 2.54)
+				(name "S2"
+					(effects (font (size 1.016 1.016))))
+				(number "3"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 0 180)
+				(length 2.54)
+				(name "I2"
+					(effects (font (size 1.016 1.016))))
+				(number "4"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
 )
