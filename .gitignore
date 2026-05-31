@@ -33,6 +33,8 @@ fp-info-cache
 *.net
 *.raw
 spice-*.txt
+# kicad-happy design-review analysis cache (regenerable; not a design artifact)
+/analysis/
 
 # ---- Scripting / tooling ----
 __pycache__/
