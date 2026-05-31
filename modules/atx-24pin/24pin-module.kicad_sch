@@ -8156,7 +8156,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Kelvin 4-terminal shunt placeholder (Vishay WSK2512); RS1-3 ~0.8W@20A so verify power margin; part/power/TCR pending OQ-11"
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F: 2mOhm 1% 5W@70C +/-75ppm copper-terminal 4-term Kelvin AEC-Q200. Footprint is Vishay WSK2512 2512 4-term stand-in - create/verify exact CSS2H land pattern before fab."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8167,7 +8167,7 @@
 				)
 			)
 		)
-		(property "TCR" "<20ppm/C"
+		(property "TCR" "+/-75ppm/C"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8178,7 +8178,7 @@
 				)
 			)
 		)
-		(property "Power" "1W"
+		(property "Power" "5W"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -8198,6 +8198,22 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -9622,7 +9638,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_Molex:Molex_Mini-Fit_Jr_5566-24A_2x12_P4.20mm_Vertical"
+		(property "Footprint" "Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
 			(at 372.11 207.01 0)
 			(hide yes)
 			(show_name no)
@@ -9654,7 +9670,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "ATX-24 = Molex Mini-Fit Jr 2x12 vertical placeholder; confirm gender/orientation for interposer"
+		(property "BOM Comments" "ATX-24 = Molex Mini-Fit Jr 2x12, right-angle/inline; confirm gender for interposer"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10229,6 +10245,14 @@
 				)
 			)
 		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "3cd83c58-99e3-4a6b-8878-94824507083c")
 		)
@@ -10506,7 +10530,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_RJ:RJ45_Amphenol_RJHSE5380"
+		(property "Footprint" "Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 			(at 251.46 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -10538,7 +10562,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "RJ-45 8P8C shielded FTP - Amphenol RJHSE5380 placeholder; confirm exact jack (no magnetics)"
+		(property "BOM Comments" "RJ-45 8P8C shielded FTP, locking-boot, right-angle/inline; Amphenol 54602-x08 placeholder - confirm exact jack"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12017,7 +12041,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Kelvin 4-terminal shunt placeholder (Vishay WSK2512); RS1-3 ~0.8W@20A so verify power margin; part/power/TCR pending OQ-11"
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F: 2mOhm 1% 5W@70C +/-75ppm copper-terminal 4-term Kelvin AEC-Q200. Footprint is Vishay WSK2512 2512 4-term stand-in - create/verify exact CSS2H land pattern before fab."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12028,7 +12052,7 @@
 				)
 			)
 		)
-		(property "TCR" "<20ppm/C"
+		(property "TCR" "+/-75ppm/C"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12039,7 +12063,7 @@
 				)
 			)
 		)
-		(property "Power" "1W"
+		(property "Power" "5W"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12059,6 +12083,22 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -13382,7 +13422,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Kelvin 4-terminal shunt placeholder (Vishay WSK2512); RS1-3 ~0.8W@20A so verify power margin; part/power/TCR pending OQ-11"
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F: 2mOhm 1% 5W@70C +/-75ppm copper-terminal 4-term Kelvin AEC-Q200. Footprint is Vishay WSK2512 2512 4-term stand-in - create/verify exact CSS2H land pattern before fab."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -13393,7 +13433,7 @@
 				)
 			)
 		)
-		(property "TCR" "<20ppm/C"
+		(property "TCR" "+/-75ppm/C"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -13404,7 +13444,7 @@
 				)
 			)
 		)
-		(property "Power" "1W"
+		(property "Power" "5W"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -13424,6 +13464,22 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -14730,7 +14786,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_JST:JST_XH_B2B-XH-A_1x02_P2.50mm_Vertical"
+		(property "Footprint" "Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
 			(at 248.92 48.26 0)
 			(hide yes)
 			(show_name no)
@@ -14760,6 +14816,14 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "BOM Comments" "2-pin +5VSB power, right-angle JST-XH (inline)" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -14840,7 +14904,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Kelvin 4-terminal shunt placeholder (Vishay WSK2512); RS1-3 ~0.8W@20A so verify power margin; part/power/TCR pending OQ-11"
+		(property "BOM Comments" "5VSB shunt: Vishay WSK2512 25mOhm (~0.23W@3A). OQ-11 resolved for 5VSB."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -14882,6 +14946,14 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "Manufacturer" "Vishay" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -15771,7 +15843,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Connector_Molex:Molex_Mini-Fit_Jr_5566-24A_2x12_P4.20mm_Vertical"
+		(property "Footprint" "Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
 			(at 52.07 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -15803,7 +15875,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "ATX-24 = Molex Mini-Fit Jr 2x12 vertical placeholder; confirm gender/orientation for interposer"
+		(property "BOM Comments" "ATX-24 = Molex Mini-Fit Jr 2x12, right-angle/inline; confirm gender for interposer"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
