@@ -1062,6 +1062,60 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-vendor:CEC_SHUNT_2T"
+				(pin_numbers (hide no))
+				(pin_names (offset 0.508) (hide no))
+				(exclude_from_sim no)
+				(in_bom yes)
+				(on_board yes)
+				(property "Reference" "RS"
+					(at 0 2.54 0)
+					(effects (font (size 1.27 1.27))))
+				(property "Value" "R"
+					(at 0 -2.54 0)
+					(effects (font (size 1.27 1.27))))
+				(property "Footprint" ""
+					(at 0 0 0)
+					(show_name no)
+					(hide yes)
+					(effects (font (size 1.27 1.27))))
+				(property "Datasheet" "~"
+					(at 0 0 0)
+					(hide yes)
+					(effects (font (size 1.27 1.27))))
+				(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Used Kelvin: tap each INA sense lead off the terminal copper in LAYOUT; the sense taps are not separate footprint pads. Pins 1/2 = current = rail HI/LO."
+					(at 0 0 0)
+					(hide yes)
+					(effects (font (size 1.27 1.27))))
+				(property "ki_fp_filters" "R_*2512* R_Shunt*"
+					(at 0 0 0)
+					(hide yes)
+					(effects (font (size 1.27 1.27))))
+				(symbol "CEC_SHUNT_2T_0_1"
+					(rectangle
+						(start -3.81 1.27)
+						(end 3.81 -1.27)
+						(stroke (width 0.2032) (type default))
+						(fill (type none)))
+				)
+				(symbol "CEC_SHUNT_2T_1_1"
+					(pin passive line
+						(at -6.35 0 0)
+						(length 2.54)
+						(name "I1"
+							(effects (font (size 1.016 1.016))))
+						(number "1"
+							(effects (font (size 1.016 1.016)))))
+					(pin passive line
+						(at 6.35 0 180)
+						(length 2.54)
+						(name "I2"
+							(effects (font (size 1.016 1.016))))
+						(number "2"
+							(effects (font (size 1.016 1.016)))))
+				)
+				(embedded_fonts no)
+			)
 		(symbol "cec-vendor:C_Small"
 			(pin_numbers
 				(hide yes)
@@ -5848,16 +5902,6 @@
 	)
 	(wire
 		(pts
-			(xy 162.56 205.74) (xy 160.02 205.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0a43a3d3-0d2d-4918-87b0-873de75d1579")
-	)
-	(wire
-		(pts
 			(xy 101.6 209.55) (xy 109.22 209.55)
 		)
 		(stroke
@@ -7668,16 +7712,6 @@
 	)
 	(wire
 		(pts
-			(xy 96.52 205.74) (xy 101.6 205.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b3c406dd-9043-41ce-b911-6271d04f46d0")
-	)
-	(wire
-		(pts
 			(xy 391.16 190.5) (xy 391.16 152.4)
 		)
 		(stroke
@@ -7745,16 +7779,6 @@
 			(type default)
 		)
 		(uuid "bb1f4475-5611-4742-9b26-a2af24ee7c1a")
-	)
-	(wire
-		(pts
-			(xy 219.71 210.82) (xy 226.06 210.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "bb23db7c-e212-43d3-bdc4-7593cbe108c3")
 	)
 	(wire
 		(pts
@@ -8058,16 +8082,6 @@
 	)
 	(wire
 		(pts
-			(xy 160.02 210.82) (xy 163.83 210.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "d9c82323-1f14-42fc-a854-5094125d60b0")
-	)
-	(wire
-		(pts
 			(xy 104.14 207.01) (xy 109.22 207.01)
 		)
 		(stroke
@@ -8138,16 +8152,6 @@
 	)
 	(wire
 		(pts
-			(xy 219.71 205.74) (xy 223.52 205.74)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e8385fb9-78d9-48fc-b130-03ba9966051c")
-	)
-	(wire
-		(pts
 			(xy 361.95 97.79) (xy 363.22 97.79)
 		)
 		(stroke
@@ -8185,16 +8189,6 @@
 			(type default)
 		)
 		(uuid "ed1df280-1ccb-4012-b8d1-abe1e664e000")
-	)
-	(wire
-		(pts
-			(xy 96.52 210.82) (xy 104.14 210.82)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "eda7ab3f-a37c-49e5-97ec-3af962638e8b")
 	)
 	(wire
 		(pts
@@ -11091,7 +11085,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:CEC_SHUNT_4T")
+		(lib_id "cec-vendor:CEC_SHUNT_2T")
 		(at 215.9 208.28 90)
 		(unit 1)
 		(body_style 1)
@@ -11124,7 +11118,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 215.9 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -11146,7 +11140,7 @@
 				)
 			)
 		)
-		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
+		(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Kelvin sense tapped off each terminal in LAYOUT; pins 1/2 = current = rail HI/LO."
 			(at 215.9 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -11157,7 +11151,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%. 2-terminal part laid out as 4-terminal Kelvin: WSK2512 4-pad footprint matches the 4-pin symbol; route the sense pads to the terminals." (at 0 0 0)
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout." (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -11190,16 +11184,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "a2d2cf95-d4ad-4da0-a7ae-c1dc38e724ab")
-		)
-		(pin "3"
-			(uuid "d4339cef-a391-43b3-a5be-ffc27afa8f74")
+			(uuid "e7cce8c1-768d-4e0b-84b5-5274e8f5fbe0")
 		)
 		(pin "2"
-			(uuid "f0980165-9f66-4266-85e3-ad074ee99726")
-		)
-		(pin "4"
-			(uuid "ab4469cb-2ac0-488b-bdce-ea735f9232a9")
+			(uuid "6fa7ab3e-8dc1-4f49-a229-931563156008")
 		)
 		(instances
 			(project "24pin-module"
@@ -14645,7 +14633,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:CEC_SHUNT_4T")
+		(lib_id "cec-vendor:CEC_SHUNT_2T")
 		(at 156.21 208.28 90)
 		(unit 1)
 		(body_style 1)
@@ -14678,7 +14666,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 156.21 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -14700,7 +14688,7 @@
 				)
 			)
 		)
-		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
+		(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Kelvin sense tapped off each terminal in LAYOUT; pins 1/2 = current = rail HI/LO."
 			(at 156.21 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -14711,7 +14699,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%. 2-terminal part laid out as 4-terminal Kelvin: WSK2512 4-pad footprint matches the 4-pin symbol; route the sense pads to the terminals." (at 0 0 0)
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout." (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14744,16 +14732,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "32c6a260-804e-4eea-85cd-57a3f9e8af4b")
-		)
-		(pin "3"
-			(uuid "476c2d26-c63d-4bd9-a147-b621fe2264ed")
+			(uuid "a5771858-999b-40bb-88bc-59dd9a8e6893")
 		)
 		(pin "2"
-			(uuid "a581d3cc-0410-4836-a3ca-cccc045d05b8")
-		)
-		(pin "4"
-			(uuid "050497d6-2794-4bc5-a86d-8af00e239b14")
+			(uuid "2961d492-dcf5-4c31-b154-705e67bbdf9a")
 		)
 		(instances
 			(project "24pin-module"
@@ -15508,7 +15490,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:CEC_SHUNT_4T")
+		(lib_id "cec-vendor:CEC_SHUNT_2T")
 		(at 92.71 208.28 90)
 		(unit 1)
 		(body_style 1)
@@ -15541,7 +15523,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 92.71 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -15563,7 +15545,7 @@
 				)
 			)
 		)
-		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
+		(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Kelvin sense tapped off each terminal in LAYOUT; pins 1/2 = current = rail HI/LO."
 			(at 92.71 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -15574,7 +15556,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%. 2-terminal part laid out as 4-terminal Kelvin: WSK2512 4-pad footprint matches the 4-pin symbol; route the sense pads to the terminals." (at 0 0 0)
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout." (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -15607,16 +15589,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "d5d0d049-d0fe-49f9-80d3-5d0ce218d1fb")
-		)
-		(pin "3"
-			(uuid "9b16f49e-f480-4fec-a1a8-e4bc4897bd76")
+			(uuid "0ff50848-631f-4d00-b6c0-697dd0a0fc7c")
 		)
 		(pin "2"
-			(uuid "4d4f4910-352f-4f01-b28e-472cb239c442")
-		)
-		(pin "4"
-			(uuid "8145f8fc-cef4-4589-bb3a-e3fe6198a16b")
+			(uuid "8b8570ee-0824-49ef-996f-175a7eb19b30")
 		)
 		(instances
 			(project "24pin-module"
@@ -19669,4 +19645,64 @@
 		)
 	)
 	(embedded_fonts no)
+	(label "RAIL12V_HI"
+		(at 104.14 210.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "8fccac38-98c9-45eb-bf01-694abcb3165d")
+	)
+	(label "RAIL12V_LO"
+		(at 101.6 205.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "b877a740-fc6e-47f4-b623-27c762273c6f")
+	)
+	(label "RAIL5V_HI"
+		(at 163.83 210.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "25778c6e-1e7e-401d-9d32-9c7481e3ba11")
+	)
+	(label "RAIL5V_LO"
+		(at 162.56 205.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "5ebe9da3-0294-4dc6-a1f7-b4bc8d1c85d2")
+	)
+	(label "RAIL3V3_HI"
+		(at 226.06 210.82 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f152e4f8-714f-48c0-b05d-cf932d0a95eb")
+	)
+	(label "RAIL3V3_LO"
+		(at 223.52 205.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "74e9b552-ab33-4831-8920-72df34ebae2d")
+	)
 )

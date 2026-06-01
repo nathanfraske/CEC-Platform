@@ -3,17 +3,34 @@
 
 ## 1. SENSED RAILS — detour through shunt (each rail's pins bundled both sides)
   +12V:
-     HI net 'RAIL12V_HI'  = J3.10 + J3.11 + RS1.1
-     LO net 'RAIL12V_LO'  = J4.10 + J4.11 + RS1.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL12V_HI'  = J3.10 + J3.11 + RS1.1 + U10.Vin+
+     LO net 'RAIL12V_LO'  = J4.10 + J4.11 + RS1.2 + U10.Vin-/Vbus
   +5V:
-     HI net 'RAIL5V_HI'  = J3.4 + J3.6 + J3.21 + J3.22 + J3.23 + RS2.1
-     LO net 'RAIL5V_LO'  = J4.4 + J4.6 + J4.21 + J4.22 + J4.23 + RS2.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL5V_HI'  = J3.4 + J3.6 + J3.21 + J3.22 + J3.23 + RS2.1 + U11.Vin+
+     LO net 'RAIL5V_LO'  = J4.4 + J4.6 + J4.21 + J4.22 + J4.23 + RS2.2 + U11.Vin-/Vbus
   +3.3V:
-     HI net 'RAIL3V3_HI'  = J3.1 + J3.2 + J3.12 + J3.13 + RS3.1
-     LO net 'RAIL3V3_LO'  = J4.1 + J4.2 + J4.12 + J4.13 + RS3.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL3V3_HI'  = J3.1 + J3.2 + J3.12 + J3.13 + RS5.1 + U12.Vin+
+     LO net 'RAIL3V3_LO'  = J4.1 + J4.2 + J4.12 + J4.13 + RS5.2 + U12.Vin-/Vbus
   +5VSB:
-     HI net 'RAIL5VSB_HI'  = J3.9 + RS4.1
-     LO net 'RAIL5VSB_LO'  = J4.9 + RS4.2   (LO also -> INA Vin-/Vbus, already wired)
+     HI net 'RAIL5VSB_HI' (merged into +5VSB)  = J3.9 + RS6.1
+     LO net 'RAIL5VSB_LO'  = J4.9 + RS6.4   (LO also -> INA Vin-/Vbus, already wired)
+
+### Shunt terminal model (AS-BUILT) — RS1/2/5 are 2-terminal; RS6 is 4-terminal
+  RS1/RS2/RS5 (12V/5V/3V3) are 2-TERMINAL parts (Bourns CSS2H-2512K-2L00F):
+    - Symbol cec-vendor:CEC_SHUNT_2T; footprint cec-Resistor_SMD:R_2512_6332Metric
+      (honest 2-pad 2512 land). Pin 1 = rail HI, pin 2 = rail LO.
+    - The Kelvin sense is NOT a separate footprint pad. In the SCHEMATIC each INA
+      Vin+ sits on the rail-HI node and Vin-/Vbus on the rail-LO node (i.e. the
+      two shunt terminals). In LAYOUT, tap each sense lead off the terminal copper
+      at the inner edge of the element — thin, short, symmetric, routed clear of
+      the high-current pour (§6.8). Schematic = sense on the rail node; Kelvin
+      geometry = a layout task off the 2 real pads.
+    - DRC note: the sense tap rides the RAIL* net, so it trips the per-rail width
+      floor (24pin-module.kicad_dru) at the shunt. Mark those short sense tracks
+      isExcludedFromDRC, or scope a small rule area around each shunt.
+  RS6 (5VSB) stays a TRUE 4-terminal Kelvin part: symbol cec-vendor:CEC_SHUNT_4T,
+    footprint WSK2512 (4 pads). Pins 1/4 = current (rail), 2/3 = sense -> INA
+    Vin+/Vin-. Distinct sense nets kept; just route the 2 sense pads in layout.
 
 ## 2. GND — single shared net (not shunted), all pins both connectors + module GND
   GND = J3.3 + J3.5 + J3.7 + J3.15 + J3.17 + J3.18 + J3.19 + J3.24
@@ -85,10 +102,16 @@
   [x] INA ALERT: per-rail U10-U13 -> IO10-IO13 (verified).
   [x] PWR_OK + PS_ON# both via 74LVC1G17 buffers (U4/U5) -> IO4/IO5, digital (sec 4).
   [x] Footprints assigned + vendored; connectors are right-angle (inline).
-  [x] RS1-3 = Bourns CSS2H-2512K-2L00F (5W); RS4 = Vishay WSK2512 (5VSB).
-  [ ] Create/verify the exact Bourns CSS2H-2512 land pattern (RS1-3 currently use a
-      WSK2512 2512 4-term Kelvin stand-in footprint).
-  [ ] Re-run ERC after the buffer rework (R7/R8/C8 removed, U5/C14 added).
+  [x] RS1/RS2/RS5 = Bourns CSS2H-2512K-2L00F (2mΩ, 2-terminal); RS6 = Vishay
+      WSK2512 (25mΩ, 4-terminal, 5VSB).
+  [x] RS1/RS2/RS5 on the honest 2-pad land (cec-Resistor_SMD:R_2512_6332Metric)
+      with the 2-pin CEC_SHUNT_2T symbol; INA Vin+ -> rail HI, Vin-/Vbus -> rail
+      LO. Kelvin sense taps drawn off the terminals in LAYOUT (§6.8).
+  [ ] In LAYOUT: tap the 6 Kelvin sense leads off RS1/RS2/RS5 terminal copper;
+      mark each short sense track isExcludedFromDRC (rides the RAIL* net -> trips
+      the per-rail width floor) or scope a rule area at each shunt.
+  [ ] Re-run ERC after the buffer rework (R7/R8/C8 removed, U5/C14 added) and the
+      2-terminal shunt swap (RS1/RS2/RS5 -> CEC_SHUNT_2T).
 
 ## NOTE: pin 11 (+12V) and pin 13 (+3.3V) — confirm against your PSU/mobo
   ATX 2.x sometimes labels pin 11/12 differently across revisions; the KiCad
