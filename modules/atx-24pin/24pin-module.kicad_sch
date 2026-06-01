@@ -5218,7 +5218,7 @@
 					)
 				)
 			)
-			(property "Description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 AUX_REF, 8 DETECT."
+			(property "Description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 RSVD (reserved spare; not AUX_REF, OQ-3), 8 DETECT."
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -5363,7 +5363,7 @@
 				(pin passive line
 					(at -10.16 -6.35 0)
 					(length 5.08)
-					(name "AUX_REF"
+					(name "RSVD"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -19704,5 +19704,88 @@
 			(justify left bottom)
 		)
 		(uuid "74e9b552-ab33-4831-8920-72df34ebae2d")
+	)
+	(wire
+		(pts
+			(xy 261.62 73.66) (xy 261.62 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ab8fdae7-4c34-4717-a431-7664bb50e064")
+	)
+	(wire
+		(pts
+			(xy 261.62 76.2) (xy 261.62 78.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8d6e2499-773f-413b-b316-f3a845e8ffc7")
+	)
+	(junction
+		(at 261.62 76.2)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "bcb3ace2-8313-4b88-9d54-8ab236f15a98")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 261.62 78.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "862a0d16-3c6f-4716-8f6f-51af61ca468f")
+		(property "Reference" "#PWR0SH"
+			(at 261.62 84.0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 261.62 84.455 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 261.62 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 261.62 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 261.62 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "e3d8186a-fb6f-4800-a0f2-eeaa4feda2a0")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR0SH")
+					(unit 1)
+				)
+			)
+		)
 	)
 )

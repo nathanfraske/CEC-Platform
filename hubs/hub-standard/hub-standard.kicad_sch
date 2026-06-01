@@ -89,7 +89,7 @@
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) hide)
 			)
-			(property "ki_description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 AUX_REF, 8 DETECT."
+			(property "ki_description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 RSVD (reserved spare; not AUX_REF, OQ-3), 8 DETECT."
 				(id 5)
 				(at 0 0 0)
 				(effects (font (size 1.27 1.27)) hide)
@@ -140,7 +140,7 @@
 				(pin passive line
 					(at -10.16 -6.35 0)
 					(length 5.08)
-					(name "AUX_REF" (effects (font (size 1.27 1.27))))
+					(name "RSVD" (effects (font (size 1.27 1.27))))
 					(number "7" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line

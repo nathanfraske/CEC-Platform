@@ -14,7 +14,7 @@
 			(property "Value" "CEC_RJ45_8P8C_FTP" (at 0 -12.7 0) (effects (font (size 1.27 1.27))))
 			(property "Footprint" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 			(property "Datasheet" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-			(property "Description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 AUX_REF, 8 DETECT." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+			(property "Description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack. Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 RSVD (reserved spare; not AUX_REF, OQ-3), 8 DETECT." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 			(symbol "CEC_RJ45_8P8C_FTP_1_1"
 				(rectangle (start -5.08 10.16) (end 5.08 -10.16) (stroke (width 0.254) (type default)) (fill (type background)))
 				(pin passive line (at -10.16 8.89 0) (length 5.08)
@@ -36,7 +36,7 @@
 					(name "CAN1_L" (effects (font (size 1.27 1.27))))
 					(number "6" (effects (font (size 1.27 1.27)))))
 				(pin passive line (at -10.16 -6.35 0) (length 5.08)
-					(name "AUX_REF" (effects (font (size 1.27 1.27))))
+					(name "RSVD" (effects (font (size 1.27 1.27))))
 					(number "7" (effects (font (size 1.27 1.27)))))
 				(pin passive line (at -10.16 -8.89 0) (length 5.08)
 					(name "DETECT" (effects (font (size 1.27 1.27))))
@@ -86,7 +86,7 @@
 	(label "STREAM_P" (at 116.84 62.23 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4607fb44-8a1a-488d-bc43-a4d9094a65a3"))
 	(label "STREAM_N" (at 116.84 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "e3ac9e5d-d70a-4950-a2bf-bf74d72af282"))
 	(label "CAN1_L" (at 116.84 67.31 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "be4613a8-cd34-4580-aa96-0fd3a9754ef2"))
-	(label "AUX_REF" (at 116.84 69.85 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d02bbf32-9dda-4274-ad8e-562865e84cde"))
+	(label "RSVD" (at 116.84 69.85 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d02bbf32-9dda-4274-ad8e-562865e84cde"))
 	(label "DETECT" (at 116.84 72.39 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "fbcc80f2-fc95-47ff-a5d6-68b493a3b65d"))
 	(sheet_instances
 		(path "/"
