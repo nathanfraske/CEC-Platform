@@ -1298,7 +1298,7 @@
 					)
 				)
 			)
-			(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1"
+			(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout"
 				(at 15.24 -29.21 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -15708,7 +15708,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1"
+		(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout"
 			(at 304.8 96.52 0)
 			(hide yes)
 			(show_name no)
