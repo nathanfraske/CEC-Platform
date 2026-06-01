@@ -6144,4 +6144,87 @@
 		)
 	)
 	(embedded_fonts no)
+	(wire
+		(pts
+			(xy 59.69 68.58) (xy 59.69 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "89c49635-73d1-4bff-8de6-b5d8c975b2b5")
+	)
+	(wire
+		(pts
+			(xy 59.69 71.12) (xy 59.69 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4a84d362-9389-4895-a4bc-db9807796080")
+	)
+	(junction
+		(at 59.69 71.12)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8907e2b4-220b-4879-bcbe-ae199a4d56e3")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 59.69 73.66 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "770d21f2-d846-41bc-8908-cccca13865bb")
+		(property "Reference" "#PWRSH1"
+			(at 59.69 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 59.69 79.16 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 59.69 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 59.69 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 59.69 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "c11d5d0a-e70d-4a90-b021-4fc38c73ac8c")
+		)
+		(instances
+			(project "pcie8pin-module"
+				(path "/a8ecf94e-f41a-4523-8cf1-1d72f47f3e7e"
+					(reference "#PWRSH1")
+					(unit 1)
+				)
+			)
+		)
+	)
 )

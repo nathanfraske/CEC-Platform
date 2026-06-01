@@ -5758,4 +5758,87 @@
 		)
 	)
 	(embedded_fonts no)
+	(wire
+		(pts
+			(xy 59.69 68.58) (xy 59.69 71.12)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c72cb3db-ace7-4d7d-b571-ab456d80b280")
+	)
+	(wire
+		(pts
+			(xy 59.69 71.12) (xy 59.69 73.66)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a5434d5a-83e6-4087-adfa-47d2d87bc93f")
+	)
+	(junction
+		(at 59.69 71.12)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "99bda604-5a03-4cc1-bf49-46f05cf00cd2")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 59.69 73.66 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "79fa0b07-04a8-49d0-ba81-847a3b072a1e")
+		(property "Reference" "#PWRSH1"
+			(at 59.69 78.74 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 59.69 79.16 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 59.69 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 59.69 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 59.69 73.66 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "f6f4a3c0-9676-461c-b8f8-d9222cf9c218")
+		)
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058"
+					(reference "#PWRSH1")
+					(unit 1)
+				)
+			)
+		)
+	)
 )

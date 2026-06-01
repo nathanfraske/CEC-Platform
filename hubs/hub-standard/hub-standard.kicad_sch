@@ -6771,4 +6771,336 @@
 		)
 	)
 	(embedded_fonts no)
+	(wire
+		(pts
+			(xy 570.23 43.18) (xy 570.23 45.72)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "04d4dd2e-d8a9-47bf-aa90-c576afbef060")
+	)
+	(wire
+		(pts
+			(xy 570.23 45.72) (xy 570.23 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c182bfb2-0bd8-4b32-b788-e13ca6c38fe8")
+	)
+	(junction
+		(at 570.23 45.72)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "ddba5e4c-76ed-465b-8e16-30f8d88998e9")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 570.23 48.26 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "85e44369-479d-44c5-b942-cf8c029b1fa6")
+		(property "Reference" "#PWRSH1"
+			(at 570.23 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 570.23 53.76 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 570.23 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 570.23 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 570.23 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "a3cc0e72-d5bb-4cf7-bb06-298e884ae573")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWRSH1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 570.23 93.98) (xy 570.23 96.52)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8d4526c0-6ea1-425c-a450-d1f83762ea60")
+	)
+	(wire
+		(pts
+			(xy 570.23 96.52) (xy 570.23 99.06)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d9000f5b-eb71-464b-b25c-fc8d6a20f39f")
+	)
+	(junction
+		(at 570.23 96.52)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "a83faa42-0ccf-4529-97dc-489fc6943720")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 570.23 99.06 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "4c186b5f-63bb-4974-b92c-dfa2d194b454")
+		(property "Reference" "#PWRSH2"
+			(at 570.23 104.14 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 570.23 104.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 570.23 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 570.23 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 570.23 99.06 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "d298fe2b-9d04-4681-b252-74be2a5d7f5c")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWRSH2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 570.23 148.59) (xy 570.23 151.13)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "00f8b63b-4ba0-4878-a321-6114ebe5001d")
+	)
+	(wire
+		(pts
+			(xy 570.23 151.13) (xy 570.23 153.67)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "787a1d46-3cea-4ff4-8747-41f0e3e07a30")
+	)
+	(junction
+		(at 570.23 151.13)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "2b0ce584-f08f-4387-98a4-e39b81036f37")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 570.23 153.67 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "293f4b1f-2b38-474e-90f7-23177f76abf9")
+		(property "Reference" "#PWRSH3"
+			(at 570.23 158.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 570.23 159.17 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 570.23 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 570.23 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 570.23 153.67 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "d87d580e-9f71-4ee7-bacc-63ef7bcf7e53")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWRSH3")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 570.23 203.2) (xy 570.23 205.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a51a5310-2f69-467b-aa50-0c2aa0b36db2")
+	)
+	(wire
+		(pts
+			(xy 570.23 205.74) (xy 570.23 208.28)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a1d88599-85ad-4950-aea2-38f96d2d92f1")
+	)
+	(junction
+		(at 570.23 205.74)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "67adaed0-b3b3-4efc-8c35-ffbb572f36a0")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 570.23 208.28 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "02e85a6c-8a78-489e-b74f-a16ede5c75e7")
+		(property "Reference" "#PWRSH4"
+			(at 570.23 213.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "GND"
+			(at 570.23 213.78 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 570.23 208.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 570.23 208.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" ""
+			(at 570.23 208.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(pin "1"
+			(uuid "612f52b5-983c-402c-be7b-cdc39238c7f9")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWRSH4")
+					(unit 1)
+				)
+			)
+		)
+	)
 )

@@ -94,4 +94,6 @@
 		)
 	)
 	(embedded_fonts no)
+	(label "GND" (at 137.16 62.23 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "9d9287b0-0ecf-4dab-81e0-3490c291937c"))
+	(label "GND" (at 137.16 64.77 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fafec04d-d789-4512-ad03-2f9ff2c5b062"))
 )
