@@ -19,6 +19,27 @@
 	(constraint track_width (min 2.5mm))
 	(condition "A.NetClass == 'HighCurrent'"))
 
+# Per-rail width floors (force/pour path), sized from the layout guideline at 2oz
+# inner copper with the In1.Cu GND plane assisting (target ~20-30C rise). These
+# are MINIMUMS to force a fat connection / pour; route each rail as a zone on
+# In2.Cu wider than this. They supersede the 2.5mm HighCurrent baseline above for
+# these specific nets. (RAIL5VSB_LO ~3A stays on the 2.5mm baseline.)
+#   +12V  ~15A -> >=8mm    +5V ~20A -> >=10mm    +3.3V ~20A -> >=10mm
+# NOTE: if the 2-terminal shunts move their INA sense onto these rail nets
+# (pending the shunt-footprint decision), the thin Kelvin sense tap will trip
+# these floors at the shunt — exclude those taps in DRC or scope a rule area.
+(rule "RAIL +12V min width"
+	(constraint track_width (min 8mm))
+	(condition "A.NetName == 'RAIL12V_HI' || A.NetName == 'RAIL12V_LO'"))
+
+(rule "RAIL +5V min width"
+	(constraint track_width (min 10mm))
+	(condition "A.NetName == 'RAIL5V_HI' || A.NetName == 'RAIL5V_LO'"))
+
+(rule "RAIL +3.3V min width"
+	(constraint track_width (min 10mm))
+	(condition "A.NetName == 'RAIL3V3_HI' || A.NetName == 'RAIL3V3_LO'"))
+
 # Keep the high-current rails clear of neighbouring copper (also set on the
 # netclass; stated here so it travels with the rule file).
 (rule "High-current rail clearance"
