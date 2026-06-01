@@ -118,7 +118,15 @@ cmd_add_footprint() {
 
 cmd_verify() {
   local status=0 hits
-  hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}|"(/|[A-Za-z]:\\)' \
+  # Two failure modes for clone parity: a global env-var library dir, or an
+  # absolute filesystem path in a path-bearing token. Scope the absolute-path
+  # check to the tokens that actually carry filesystem paths — (model ...),
+  # (uri ...), and library/footprint (... "Lib:Part") — because KiCad also emits
+  # many structural tokens that legitimately start with "/": hierarchical net
+  # names (net "/RAIL12V_HI"), sheet paths (path "/<uuid>"), and the root
+  # (sheetname "/"). Matching a bare quote+slash flagged all of those on a
+  # populated board. Anchoring to model/uri keeps the real check intact.
+  hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}|\((model|uri) "(/|[A-Za-z]:\\)' \
     --include='*.kicad_mod' --include='*.kicad_sym' --include='*.kicad_pcb' \
     --include='sym-lib-table' --include='fp-lib-table' \
     "$CEC_REPO_ROOT/lib" "$CEC_REPO_ROOT/hubs" "$CEC_REPO_ROOT/modules" 2>/dev/null || true)"
