@@ -10982,6 +10982,38 @@
 				)
 			)
 		)
+		(property "BOM Comments" "Side-actuated SMD tactile (EVQPUJ/EVQPUA footprint), 2.2N. JLCPCB extended." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C128539" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Panasonic" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "EVQPUA02K" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "2b3d2944-63be-4faa-9f5a-fcecf54eaf44")
 		)
@@ -11767,7 +11799,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Right-angle (90deg) USB 2.0 Type-C debug port."
+		(property "BOM Comments" "Right-angle (90deg) USB 2.0 Type-C debug port. JLCPCB extended (+$0.03/pc, assembly fixture)."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -11776,6 +11808,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C319148" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "XKB Connectivity" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "U262-161N-4BVC11" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "A8"
@@ -12373,7 +12429,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "ATX-24 MB-side output: Molex 5569 2x12 right-angle MALE (spec 2.8); needs F-to-F bridging cable to motherboard (CEC SKU)."
+		(property "BOM Comments" "ATX-24 MB-side output: Molex 5569 2x12 right-angle MALE (spec 2.8); needs F-to-F bridging cable to motherboard (CEC SKU). Order# ~0039291248 (verify). 13A/circuit. Hand-place: not in JLCPCB assembly library."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12382,6 +12438,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Molex" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "5569-24A1" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "16"
@@ -13762,6 +13842,38 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "BOM Comments" "Side-actuated SMD tactile (EVQPUJ/EVQPUA footprint), 2.2N. JLCPCB extended." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C128539" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Panasonic" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "EVQPUA02K" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -18997,7 +19109,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "2-pin +5VSB power, right-angle JST-XH (inline)"
+		(property "BOM Comments" "2-pin +5VSB power-out to Hub, right-angle JST-XH (inline), 3A. JLCPCB extended (wave-solder + fixture)."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -19006,6 +19118,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C157931" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "JST" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "S2B-XH-A(LF)(SN)" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -19939,7 +20075,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "ATX-24 PSU-side input: Molex 5569 2x12 right-angle MALE (spec 2.8); PSU female cable plugs on directly."
+		(property "BOM Comments" "ATX-24 PSU-side input: Molex 5569 2x12 right-angle MALE (spec 2.8); PSU female cable plugs on directly. Order# ~0039291248 (verify). 13A/circuit. Hand-place: not in JLCPCB assembly library."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -19948,6 +20084,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Molex" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "5569-24A1" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "16"
