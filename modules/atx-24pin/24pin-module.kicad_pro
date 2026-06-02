@@ -623,19 +623,19 @@
       },
       {
         "netclass": "CAN",
-        "pattern": "CAN1_P"
+        "pattern": "*CAN1_H*"
       },
       {
         "netclass": "CAN",
-        "pattern": "CAN1_N"
+        "pattern": "*CAN1_L*"
       },
       {
         "netclass": "USB",
-        "pattern": "USB_D+"
+        "pattern": "*USB_D+*"
       },
       {
         "netclass": "USB",
-        "pattern": "USB_D-"
+        "pattern": "*USB_D-*"
       }
     ]
   },
