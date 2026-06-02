@@ -62,3 +62,22 @@ tedious low-speed digital web:
 **The split: you own analog + high-current + mechanical intent; Quilter owns the
 digital tedium.** Lock the spine and the sense clusters and the chaos goes away —
 everything else is just filling gaps.
+
+## High-current rails: beat the criss-cross with the stack
+The ATX pinout scatters each rail across non-adjacent pins at *both ends* of the
+connector (+5 V on 4/6/21/22/23, +3.3 V on 1/2/12/13, +12 V on 10/11, +5VSB on 9,
+GND on 8 scattered pins), so any single-layer pour for a rail spans the whole
+connector and overlaps the others. Don't fight it in 2D — use the stack as a
+vertical interchange:
+
+- **One spanning rail per layer.** Only 12 V/5 V/3.3 V span (5VSB = 1 pin, GND =
+  plane), and you have F.Cu/In2/B.Cu besides the In1 GND plane. Pins via *straight
+  down* to their rail's layer; rails cross on *different layers* (vias, not weaves).
+  The shunt bridges on top: pin → via to rail layer → via up to shunt → via back
+  down → out to J4. 5 V and 3.3 V (two clusters each) most want a dedicated layer.
+- **In1 stays a solid GND plane** — the 8 GND pins just via to it; GND leaves the
+  criss-cross and stays the return path + diff-pair reference.
+- **Distribute the shunts inline** on each rail's lane — four shunts clustered
+  centrally force every rail to converge then fan out (a crossing generator).
+- **Align clusters, not pin numbers:** place/rotate J4 so its 5 V/12 V/3.3 V
+  clusters sit near J3's same-rail clusters, and keep the J3↔J4 span short.
