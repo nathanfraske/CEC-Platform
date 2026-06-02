@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v1.6 (2026-05-31).
+Spec revision reflected here: v1.7 (2026-06-02).
 
 ## What this project is
 
@@ -93,6 +93,12 @@ Connector and physical interface:
 - Locking-boot RJ-45 is the default shipped variant. Mechanical-keyed variants
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
+- Shielded-jack divergence (OQ-15): spec §2.1 LOCKS shielded (FTP) jacks
+  platform-wide, but current boards place the UNSHIELDED Amphenol 54602 with
+  grounded SH1/SH2 board-locks. OK for prototype bring-up (link carries CAN +
+  5VSB + DETECT + Standard-dark RS-485, all shielding-insensitive); FTP stands
+  for production/EMC. Do not silently swap; the cec.pretty FTP-jack footprint is
+  being prepared for the eventual production re-place. Pairs with OQ-14.
 - PoE/over-voltage protection: the spec (§2.4) LOCKS per-pin over-voltage
   protection (TVS array + series limiting resistors, PoE-survivable to ~57V) on
   EVERY RJ-45 pin of every Hub and module, platform-wide. The current boards do
@@ -128,7 +134,7 @@ RJ-45 module-to-Hub interface above):
   bridging cable. On the melt-prone high-current connector this removes a
   mated-contact pair from the power path.
 
-Pin allocation (LOCKED; DETECT encoding still pending):
+Pin allocation (LOCKED; DETECT encoding resolved v1.7):
 
 | Pin | Cat5e pair | T568B color | CEC function | Tiers |
 |---|---|---|---|---|
@@ -146,8 +152,13 @@ Pin allocation (LOCKED; DETECT encoding still pending):
   side.
 - DETECT (pin 8) is an analog single-wire identity and presence sense: a
   precision resistor from pin 8 to GND on each module, read by the Hub through a
-  fixed pull-up to VCC as a divider on an ADC channel. An open line reads near
-  VCC and means no module. The resistor code table is pending (OQ-6).
+  fixed 10 kΩ pull-up to its 3.3 V ADC reference (NOT the 5VSB VCC pin — a 5VSB
+  pull-up would exceed the ESP32 ADC range) as a divider on an ADC channel. An
+  open line reads near 3.3 V (no module); a short reads 0 V (fault). DETECT code
+  table RESOLVED v1.7 (OQ-6), encoding LINK CAPABILITY (spec §2.3): CAN-only
+  2.2 kΩ (0.595 V), CAN+RS-485 4.7 kΩ (1.055 V), CAN+100BASE-T1 10 kΩ (1.650 V),
+  two reserved (22 kΩ / 47 kΩ). 24-pin/EPS/PCIe/12VHPWR-Std are CAN-only (2.2 kΩ);
+  12VHPWR Pro is CAN+RS-485 (4.7 kΩ).
 
 Communication:
 - All control and command traffic lives entirely on CAN, on pair 3, for every
@@ -236,8 +247,10 @@ clearly labeled branch or variant.
   cables. Interacts with OQ-3.
 - OQ-5: RS-485 topology. One receiver per Hub port (point-to-point, working
   basis) versus a shared multidrop bus across ports.
-- OQ-6: Module-ID encoding. The full list of module types and tiers that need
-  distinct analog ID codes, needed to finalize the pin 8 resistor table.
+- OQ-6 (RESOLVED, v1.7): Module-ID encoding. DETECT code table locked in spec
+  §2.3 — pin 8 encodes LINK CAPABILITY on a 10 kΩ / 3.3 V divider (CAN-only
+  2.2 kΩ, CAN+RS-485 4.7 kΩ, CAN+100BASE-T1 10 kΩ, two reserved, open = absent,
+  short = fault). Module type and tier ride on CAN once the link is up.
 - OQ-7: Whether to fully specify Enterprise and Mission Critical now or keep them
   at platform-summary level.
 - OQ-8: 12VHPWR Standard rail accuracy. Sensing through the ESP32-S3 ADC (INA240
@@ -262,6 +275,11 @@ clearly labeled branch or variant.
   whether to populate per-pin TVS + series resistors (PoE-survivable to ~57V).
   This subsumes the old OQ-8 PoE question, renumbered so it does not collide with
   the 12VHPWR Standard accuracy question now at OQ-8.
+- OQ-15: Shielded (FTP) jack divergence (spec-vs-board). §2.1 locks FTP jacks
+  platform-wide; current boards carry the unshielded Amphenol 54602 with grounded
+  board-locks. Ratify the unshielded jack, or restore a true non-magnetic
+  metal-shell shielded jack (footprint + J1 re-place on all boards). OK for
+  prototype bring-up; open for production/EMC. Pairs with OQ-14.
 
 ## Active action items
 
@@ -395,6 +413,12 @@ Use this as a recurring review pass:
 - PoE/over-voltage protection: spec §2.4 LOCKS it platform-wide; current boards
   drop it on Standard/Pro as an OPEN divergence (OQ-14). Flag the divergence;
   do not silently add or remove protection until OQ-14 is decided.
+- RJ-45 shielding: spec §2.1 LOCKS shielded (FTP) jacks; current boards carry the
+  unshielded Amphenol 54602 with grounded board-locks as an OPEN divergence
+  (OQ-15). Flag it; do not silently swap the jack until OQ-15 is decided.
+- DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
+  (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
+  10 kΩ / 3.3 V divider.
 - Module sensing matches §6.1: 24-pin = 4x INA228; EPS = per-cable INA238 (1-2);
   PCIe = per-cable INA238 (up to 3); 12VHPWR Standard = 6x INA240 per-pin +
   divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std boards still
