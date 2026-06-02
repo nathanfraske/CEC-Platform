@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v1.5 (2026-05-30).
+Spec revision reflected here: v1.7 (2026-06-02).
 
 ## What this project is
 
@@ -86,10 +86,19 @@ layout, or BOM that contradicts them.
 
 Connector and physical interface:
 - Module-to-Hub connector is RJ-45 (8P8C) for all tiers, all modules, all Hubs.
-  Mini-Fit Jr is retired platform-wide.
+  Mini-Fit Jr is retired as the module-to-Hub interconnect and as the Hub
+  bulk-power connector platform-wide. (It is NOT banned from a module's PSU-side
+  power path: the 24-pin ATX module legitimately uses Molex Mini-Fit Jr headers
+  there — that is the ATX standard connector, spec §2.8. See below.)
 - Locking-boot RJ-45 is the default shipped variant. Mechanical-keyed variants
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
+- Shielded-jack divergence (OQ-15): spec §2.1 LOCKS shielded (FTP) jacks
+  platform-wide, but current boards place the UNSHIELDED Amphenol 54602 with
+  grounded SH1/SH2 board-locks. OK for prototype bring-up (link carries CAN +
+  5VSB + DETECT + Standard-dark RS-485, all shielding-insensitive); FTP stands
+  for production/EMC. Do not silently swap; the cec.pretty FTP-jack footprint is
+  being prepared for the eventual production re-place. Pairs with OQ-14.
 - PoE/over-voltage protection: the spec (§2.4) LOCKS per-pin over-voltage
   protection (TVS array + series limiting resistors, PoE-survivable to ~57V) on
   EVERY RJ-45 pin of every Hub and module, platform-wide. The current boards do
@@ -108,7 +117,24 @@ Connector and physical interface:
   the trunk. Use the simplest 2-pin part rated for the full Hub trunk with margin
   (working selection: 2-pin JST-XH, >=3A); never Mini-Fit Jr.
 
-Pin allocation (LOCKED; DETECT encoding still pending):
+Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6 — distinct from the
+RJ-45 module-to-Hub interface above):
+- 24-pin ATX module is a power-path interposer with TWO Molex Mini-Fit Jr (5569)
+  24-circuit MALE headers: input J3 (PSU side) and output J4 (motherboard side).
+  No board-mount FEMALE 24-pin ATX receptacle exists as a standard part, so both
+  module connectors are male, the same gender as the motherboard header. The
+  PSU's own (female) cable plugs onto J3 directly; the run from J4 to the
+  motherboard needs a dedicated FEMALE-TO-FEMALE 24-pin ATX bridging cable (a
+  female receptacle on each end, since J4 and the motherboard are both male
+  headers), supplied by CEC as a platform SKU. Convention: board headers are
+  male, the inserting cable end is female. Both J3 and J4 are the Molex 5569
+  right-angle male footprint — do not "fix" one to female.
+- 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s)
+  directly to the board (board-mounted); no detachable pass-through header and no
+  bridging cable. On the melt-prone high-current connector this removes a
+  mated-contact pair from the power path.
+
+Pin allocation (LOCKED; DETECT encoding resolved v1.7):
 
 | Pin | Cat5e pair | T568B color | CEC function | Tiers |
 |---|---|---|---|---|
@@ -126,8 +152,13 @@ Pin allocation (LOCKED; DETECT encoding still pending):
   side.
 - DETECT (pin 8) is an analog single-wire identity and presence sense: a
   precision resistor from pin 8 to GND on each module, read by the Hub through a
-  fixed pull-up to VCC as a divider on an ADC channel. An open line reads near
-  VCC and means no module. The resistor code table is pending (OQ-6).
+  fixed 10 kΩ pull-up to its 3.3 V ADC reference (NOT the 5VSB VCC pin — a 5VSB
+  pull-up would exceed the ESP32 ADC range) as a divider on an ADC channel. An
+  open line reads near 3.3 V (no module); a short reads 0 V (fault). DETECT code
+  table RESOLVED v1.7 (OQ-6), encoding LINK CAPABILITY (spec §2.3): CAN-only
+  2.2 kΩ (0.595 V), CAN+RS-485 4.7 kΩ (1.055 V), CAN+100BASE-T1 10 kΩ (1.650 V),
+  two reserved (22 kΩ / 47 kΩ). 24-pin/EPS/PCIe/12VHPWR-Std are CAN-only (2.2 kΩ);
+  12VHPWR Pro is CAN+RS-485 (4.7 kΩ).
 
 Communication:
 - All control and command traffic lives entirely on CAN, on pair 3, for every
@@ -161,25 +192,24 @@ Per-tier hardware:
     accumulators), one per rail — 12V, 5V, 3V3, 5VSB. The INA228 is a pin- and
     footprint-compatible (VSSOP-10) drop-in for the INA238. IMPLEMENTED in the
     24-pin schematic.
-  - EPS 8-pin: INA238, one per cable (per-cable granularity, not single-rail);
-    1 to 2 monitors depending on cables present.
-  - PCIe 8-pin: INA238, one per position (per-cable granularity); up to 3.
+  - EPS 8-pin: INA238 per cable (per-cable granularity), 2 cables populated.
+    IMPLEMENTED.
+  - PCIe 8-pin: INA238 per cable, 3 cables populated (spec upper bound).
+    IMPLEMENTED.
   - 12VHPWR Standard: six INA240 per-pin current-sense amps into the ESP32-S3
-    ADC, plus a 47k/10k rail-voltage divider into the ADC (NOT a single I2C
-    INA238). Accuracy ~+/-1%, see OQ-8.
+    ADC (GPIO1..6), plus a 47k/10k rail-voltage divider into a 7th ADC channel
+    (GPIO7). No I2C sensing bus. REF1/REF2 tied to GND (unidirectional forward
+    sensing). Accuracy ~+/-1%, see OQ-8. IMPLEMENTED.
   - Acquisition (spec §6.10): the digital-sensor modules (24-pin, EPS, PCIe) run
     their INA228/INA238 in continuous-conversion mode with a per-sensor ~2 s ring
     buffer of 1 kHz averaged samples (pre-roll), and use the ALERT pin as the
-    threshold detector / buffer-freeze trigger.
+    threshold detector / buffer-freeze trigger. (Firmware concern; the ALERT net
+    is left available at the part in the schematic.)
   - Shunt values (spec §6.4, LOCKED; parts pending OQ-11): 24-pin 12V/5V/3V3 =
     2 mΩ, 24-pin 5VSB = 25 mΩ; EPS and PCIe per-cable = 0.5 mΩ; 12VHPWR per-pin =
-    1 mΩ. Low-TCR precision metal-element shunts, four-wire Kelvin sense (§6.8).
-  - BOARD RECONCILIATION owed to the spec (v1.5 §10): the EPS/PCIe schematics
-    are currently single 12V-rail INA238 and must become per-cable (EPS x1-2,
-    PCIe x1-3); the 12VHPWR Standard schematic is currently single-rail INA238
-    and must become 6x INA240-per-pin + divider (a real board change); and the
-    generator shunt values must move to the §6.4 table above. These are open
-    board edits, NOT yet done — see "Active action item".
+    1 mΩ. IMPLEMENTED in the generator/boards. Low-TCR precision metal-element
+    shunts, four-wire Kelvin sense (§6.8) — Kelvin geometry is a layout (GUI)
+    task, not in the generated schematic.
 
 LED current:
 - SK6812 aggregate current must be capped in firmware (global brightness or
@@ -217,8 +247,10 @@ clearly labeled branch or variant.
   cables. Interacts with OQ-3.
 - OQ-5: RS-485 topology. One receiver per Hub port (point-to-point, working
   basis) versus a shared multidrop bus across ports.
-- OQ-6: Module-ID encoding. The full list of module types and tiers that need
-  distinct analog ID codes, needed to finalize the pin 8 resistor table.
+- OQ-6 (RESOLVED, v1.7): Module-ID encoding. DETECT code table locked in spec
+  §2.3 — pin 8 encodes LINK CAPABILITY on a 10 kΩ / 3.3 V divider (CAN-only
+  2.2 kΩ, CAN+RS-485 4.7 kΩ, CAN+100BASE-T1 10 kΩ, two reserved, open = absent,
+  short = fault). Module type and tier ride on CAN once the link is up.
 - OQ-7: Whether to fully specify Enterprise and Mission Critical now or keep them
   at platform-summary level.
 - OQ-8: 12VHPWR Standard rail accuracy. Sensing through the ESP32-S3 ADC (INA240
@@ -243,31 +275,34 @@ clearly labeled branch or variant.
   whether to populate per-pin TVS + series resistors (PoE-survivable to ~57V).
   This subsumes the old OQ-8 PoE question, renumbered so it does not collide with
   the 12VHPWR Standard accuracy question now at OQ-8.
+- OQ-15: Shielded (FTP) jack divergence (spec-vs-board). §2.1 locks FTP jacks
+  platform-wide; current boards carry the unshielded Amphenol 54602 with grounded
+  board-locks. Ratify the unshielded jack, or restore a true non-magnetic
+  metal-shell shielded jack (footprint + J1 re-place on all boards). OK for
+  prototype bring-up; open for production/EMC. Pairs with OQ-14.
 
 ## Active action items
 
-Board reconciliation owed to spec v1.5 (these are the open edits; surface before
-acting, do not assume the open questions):
+Open item (surface before acting; do not assume the open question):
 
-1. EPS / PCIe sensing granularity (§6.2): the EPS and PCIe schematics currently
-   sense a single 12V rail with one INA238. They must become PER-CABLE: one
-   INA238 per cable (EPS x1-2, PCIe x1-3), each cable's 12V/GND bundled to its
-   own shunt. Generator `RAILS` currently lists one 12V rail for each — needs a
-   per-cable model.
-2. 12VHPWR Standard sensing (§6.1): currently a single-rail INA238; the spec
-   calls for SIX INA240 per-pin current-sense amps into the ESP32-S3 ADC plus a
-   47k/10k rail-voltage divider. This is a real board redesign, not a value swap.
-3. Shunt values (§6.4): move the generator shunt values to the locked table —
-   24-pin 12V/5V/3V3 = 2 mΩ, 24-pin 5VSB = 25 mΩ, EPS/PCIe per-cable = 0.5 mΩ,
-   12VHPWR per-pin = 1 mΩ. (The repo currently has 24-pin 5V/3V3 = 5m, 5VSB =
-   10m, EPS/PCIe 12V = 2m, which the spec supersedes.)
-4. PoE/over-voltage protection (§2.4 / OQ-14): UNRESOLVED divergence — do not add
-   or formally drop protection until OQ-14 is decided.
+1. PoE/over-voltage protection (§2.4 / OQ-14): UNRESOLVED spec-vs-board
+   divergence — the spec locks per-pin protection platform-wide; current boards
+   drop it on Standard/Pro. Do not add or formally drop protection until OQ-14 is
+   decided.
 
-Done (kept for context): the Mini-Fit Jr -> RJ-45 re-cut is COMPLETE on every
-board (verify no Mini-Fit Jr footprint remains and the eight RJ-45 pins match the
-pin allocation table after any future edit); the 24-pin INA238 -> INA228 swap is
-IMPLEMENTED; KiCad-10 library modernization and the cec-power nickname are in.
+Done (kept for context):
+- Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board's module-to-Hub interface
+  (after any future edit, verify no Mini-Fit Jr is used for the module-to-Hub
+  link or Hub bulk power, and the eight RJ-45 pins match the pin allocation
+  table). EXCEPTION: the 24-pin ATX module's PSU-side power path (J3/J4) is
+  Mini-Fit Jr by design (ATX standard, §2.8) — that is correct, not a leftover.
+- 24-pin INA238 -> INA228 swap IMPLEMENTED; KiCad-10 library modernization and
+  the cec-power nickname are in.
+- EPS/PCIe per-cable sensing (EPS x2, PCIe x3) and the 12VHPWR Standard 6x INA240
+  per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
+- §6.4 shunt values applied across the generator/boards.
+- Still firmware/layout work (not schematic): the §6.10 acquisition model and the
+  §6.8 Kelvin shunt geometry.
 
 ## KiCad environment
 
@@ -287,6 +322,14 @@ IMPLEMENTED; KiCad-10 library modernization and the cec-power nickname are in.
   referenced by `${KIPRJMOD}`-relative paths — no machine-global libraries.
   `scripts/vendor-libs.sh` brings parts in at the pinned library tag. Never
   reference `${KICAD*_3DMODEL_DIR}` or absolute paths.
+- Library-table NICKNAMES must be namespaced `cec` / `cec-*` (e.g. the vendored
+  `Package_SO.pretty` is registered as `cec-Package_SO`, not `Package_SO`). A bare
+  stock nickname collides with the same-named machine-global KiCad library, which
+  on another PC can shadow the in-repo copy and break footprint lookup (this bit
+  us once: an old global `Package_SO` lacking `VSSOP-10_3x3mm_P0.5mm` shadowed the
+  vendored one, so the INA228 footprints "could not be found"). The `.pretty`/
+  `.kicad_sym` FOLDER names stay stock; only the table nickname is prefixed.
+  `scripts/vendor-libs.sh verify` enforces this (fails on any non-`cec` nickname).
 
 ## Commands to use
 
@@ -361,13 +404,21 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 ## Project-specific verification checklist
 
 Use this as a recurring review pass:
-- No Mini-Fit Jr footprints remain anywhere; all module-to-Hub connectors are
-  RJ-45 8P8C.
+- All module-to-Hub connectors are RJ-45 8P8C and no Mini-Fit Jr is used for the
+  module-to-Hub link or Hub bulk power. (The 24-pin ATX module's PSU-side power
+  path J3/J4 ARE Molex Mini-Fit Jr by design — §2.8 — and the 12VHPWR module's
+  12V-2x6 connector is soldered to the board; neither is a violation.)
 - Pinout on every board matches the locked pin allocation table (pin 7 is a
   reserved spare, NOT AUX_REF).
 - PoE/over-voltage protection: spec §2.4 LOCKS it platform-wide; current boards
   drop it on Standard/Pro as an OPEN divergence (OQ-14). Flag the divergence;
   do not silently add or remove protection until OQ-14 is decided.
+- RJ-45 shielding: spec §2.1 LOCKS shielded (FTP) jacks; current boards carry the
+  unshielded Amphenol 54602 with grounded board-locks as an OPEN divergence
+  (OQ-15). Flag it; do not silently swap the jack until OQ-15 is decided.
+- DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
+  (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
+  10 kΩ / 3.3 V divider.
 - Module sensing matches §6.1: 24-pin = 4x INA228; EPS = per-cable INA238 (1-2);
   PCIe = per-cable INA238 (up to 3); 12VHPWR Standard = 6x INA240 per-pin +
   divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std boards still

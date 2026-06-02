@@ -1,0 +1,40 @@
+(version 1)
+
+# CEC 24-pin ATX module — custom design rules.
+# KiCad auto-loads <board>.kicad_dru from the project dir. These back the
+# netclasses in 24pin-module.kicad_pro: a netclass `track_width` is only the
+# *routing default*, so DRC will NOT flag an under-width power trace on its own.
+# The track_width (min ...) constraints below make DRC actually catch it.
+#
+# Sizing basis (see the layout guideline): +5VSB (Power netclass) keeps a 0.5mm
+# track floor -- ~2.4A at 2oz, the minimum for the ~2-2.5A Hub trunk. The trunk is
+# routed at 1mm (margin) by design; low-current +5VSB branches (CAN feed, 3V3 LDO
+# input) sit at 0.5mm.
+# The sensed pass-through rails (RAIL*) carry tens of amps via
+# In2.Cu (2oz) POURS and are verified by pour copper area, NOT a per-track floor
+# (see the note below the Power rule).
+
+(rule "Power min width"
+	(constraint track_width (min 0.5mm))
+	(condition "A.NetClass == 'Power'"))
+
+# NO per-track width floor on the high-current rails. Their ampacity comes from
+# the In2.Cu (2oz) POURS, not from individual track width, and the INA228 Kelvin
+# sense taps + supplementary connections live ON the rail nets themselves (the
+# INA senses across the shunt). A net-/class-based track_width floor would flag
+# those legitimate thin tracks (0.2mm sense taps, 1-3mm In2.Cu links), so it is
+# deliberately omitted. Verify rail current capacity from the pour copper area
+# (IPC-2152) in the GUI. The HighCurrent netclass still gives 0.4mm clearance
+# (below) and larger via sizing for isolation.
+
+# No special high-current clearance rule. At <=12V, 0.2mm (Default) is electrically
+# ample, and a wider rail clearance conflicts with the fine-pitch INA228 Kelvin
+# sense where the rail HI/LO nets enter the IC (HI/LO sit ~40mV apart across the
+# shunt, so isolating them buys nothing). The HighCurrent netclass is kept for its
+# larger default via size; rails use the Default 0.2mm clearance.
+
+# USB2.0 debug pair: keep D+/D- coupled. Full-Speed (ESP32-S3 native USB) is
+# impedance-tolerant, but flag long uncoupled stretches.
+(rule "USB diff pair gap"
+	(constraint diff_pair_gap (min 0.1mm) (max 0.2mm))
+	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))

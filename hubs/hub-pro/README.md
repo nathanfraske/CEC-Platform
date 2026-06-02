@@ -24,8 +24,9 @@ identity) unless a future revision says otherwise.
   power-in connector from the 24-pin module (spec §2.7); the former 8-port
   single-VCC-pin trunk limit is removed. The power-in connector is rated for the
   full trunk with margin.
-- **OQ-3:** the Hub sources REF3033 for AUX_REF (pin 7) **only if Path A** is
-  chosen. Path B (local reference per module) is recommended and frees pin 7.
+- **OQ-3 (resolved, spec v1.1):** Path B (local reference per module) is chosen,
+  so the Hub sources NO reference on pin 7; pin 7 is a reserved spare (RSVD),
+  not AUX_REF.
 - **OQ-5:** per-port point-to-point vs. shared multidrop RS-485.
 - **OQ-2:** firmware LED current cap.
 

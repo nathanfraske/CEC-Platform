@@ -109,6 +109,22 @@ def audit(path):
     want_path = "/" + (top_uuid or "")
     inst_bad = [(proj, p, ref) for (proj, p, ref) in inst
                 if p != want_path or proj == ""]
+    # Every instantiated symbol must have its definition cached in the sheet's
+    # (lib_symbols ...) block. A missing one renders as a "??" placeholder box in
+    # eeschema (pins/graphics absent), even though connectivity/instances look ok.
+    _li = s.find("(lib_symbols")
+    _libsec = ""
+    if _li >= 0:
+        _d = 0
+        for _j in range(_li, len(s)):
+            if s[_j] == '(': _d += 1
+            elif s[_j] == ')':
+                _d -= 1
+                if _d == 0:
+                    _libsec = s[_li:_j+1]; break
+    _embedded = set(re.findall(r'\n\t\t\(symbol "([^"]+)"', _libsec))
+    _used = set(re.findall(r'\(lib_id "([^"]+)"\)', s))
+    missing_lib_symbol = sorted(_used - _embedded)
     pin_pts = set()
     boxes = []        # (ref, x0, x1, y0, y1) absolute, for overlap detection
     body_boxes = []   # (x0, x1, y0, y1) body rectangles only, wire keep-outs
@@ -124,15 +140,27 @@ def audit(path):
         if not blk:
             return None, [f"library symbol not found: {name}"]
         ca, sa = math.cos(math.radians(rot)), math.sin(math.radians(rot))
+        # Hand layouts rotate/mirror symbols, so transform every local coord
+        # (pins AND extents) by mirror-then-rotate, not just the pins.
+        mir = re.search(r'\(mirror (\w+)\)', tail)
+        mir = mir.group(1) if mir else None
+        def place(lx, ly):
+            if mir == 'y': lx = -lx
+            elif mir == 'x': ly = -ly
+            return (R(ox + (lx*ca - ly*sa)), R(oy - (lx*sa + ly*ca)))
+        def abox(ext):                      # rotate the 4 corners -> AA bbox
+            x0, x1, y0, y1 = ext
+            pts = [place(x0, y0), place(x1, y0), place(x0, y1), place(x1, y1)]
+            xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+            return (min(xs), max(xs), min(ys), max(ys))
         for _num, (lx, ly, _a) in lib_pins(blk).items():
-            rx = lx*ca - ly*sa; ry = lx*sa + ly*ca
-            pin_pts.add((R(ox+rx), R(oy-ry)))
+            pin_pts.add(place(lx, ly))
         ref = re.search(r'\(property "Reference" "([^"]+)"', tail)
-        x0, x1, y0, y1 = sym_extent(blk)   # rot is 0 for all our placements
-        boxes.append((ref.group(1) if ref else "?", ox+x0, ox+x1, oy-y1, oy-y0))
+        bx = abox(sym_extent(blk))
+        boxes.append((ref.group(1) if ref else "?", bx[0], bx[1], bx[2], bx[3]))
         bb = sym_body_box(blk)
         if bb:
-            body_boxes.append((ox+bb[0], ox+bb[1], oy-bb[3], oy-bb[2]))
+            body_boxes.append(abox(bb))
     wends = []
     segs = []
     for m in re.finditer(r'\(wire \(pts \(xy (-?[\d.]+) (-?[\d.]+)\) \(xy (-?[\d.]+) (-?[\d.]+)\)\)', s):
@@ -149,7 +177,9 @@ def audit(path):
     for i in range(len(boxes)):
         for j in range(i+1, len(boxes)):
             a, b = boxes[i], boxes[j]
-            if not (a[2] < b[1] or b[2] < a[1] or a[4] < b[3] or b[4] < a[3]):
+            # <= so edge-adjacent boxes (0-area touch, normal in dense hand
+            # layouts) aren't flagged; only real positive-area overlap counts.
+            if not (a[2] <= b[1] or b[2] <= a[1] or a[4] <= b[3] or b[4] <= a[3]):
                 overlaps.append(f"{a[0]}&{b[0]}")
     wire_through_body = [seg for seg in segs
                          if any(seg_hits_box(*seg, b) for b in body_boxes)]
@@ -162,6 +192,7 @@ def audit(path):
         "wire_through_body": wire_through_body,
         "instance_path_mismatch": inst_bad,   # crashes KiCad on save
         "bare_uuid": bare_uuid,               # KiCad 10 writes UUIDs quoted
+        "missing_lib_symbol": missing_lib_symbol,  # renders as "??" in eeschema
     }
     return res, []
 

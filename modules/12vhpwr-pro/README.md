@@ -25,11 +25,12 @@ stays dark because the Standard Hub populates no RS-485 receiver (spec §6 / §7
 
 ## Open questions touching this board
 
-- **OQ-3:** precision reference path. Local REF3033 (Path B, recommended) vs.
-  distributed AUX_REF on pin 7 (Path A). Treat AUX_REF as provisional until
-  locked.
-- **OQ-4:** if Path A is chosen, whether this module is restricted to
-  characterized CEC cable lengths.
+- **OQ-3 (resolved, spec v1.1):** precision reference path. Local REF3033 per
+  Pro module (Path B); NO distributed reference. Pin 7 is a reserved spare
+  (RSVD), not AUX_REF.
+- **OQ-4:** cable length SKUs and whether Pro modules are allowed on arbitrary
+  user cables. (The distributed-reference cable-length driver is gone now that
+  OQ-3 took the local-reference path; the SKU question itself remains open.)
 - **OQ-6:** module-ID resistor value for this module type/tier.
 
 ## Status
