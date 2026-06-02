@@ -7,7 +7,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Item | Decision |
 |---|---|
 | Tier | 1 of 4 |
-| MCU | ESP32-S3-MINI-1-N16R2 |
+| MCU | ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM; antenna keepout honored for future Wi-Fi). MINI-1 has no 16 MB SKU, so the aggregation Hub uses WROOM; modules stay on MINI-1. |
 | Ports | 4× RJ-45 8P8C, locking boot (was Mini-Fit Jr 12-circuit) |
 | Protocol | Classical CAN @ 500 kbps over the CAN-FD-capable TJA1462A |
 | Termination | Fixed 120 Ω split at the Hub |
@@ -19,7 +19,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Inrush | 1 Ω 1 W series resistor |
 | Reverse polarity | SS14 Schottky |
 | Supervisor | TPS3839K33 with divider |
-| Storage / identity | ESP32-S3 internal 16 MB flash; factory MAC + database (no eFuse, no secure element) |
+| Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
 | LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2) |
 | Service button | Hidden, GPIO0 (download mode) |
 | Mounting | 4× M2.5 corner holes, chassis-grounded |
@@ -35,10 +35,13 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 
 ## Status
 
-> ⚠ **Carried action item:** the Hub Standard schematic still shows **Mini-Fit
-> Jr** footprints and must be **re-cut to RJ-45** before any board order. After
-> the re-cut, verify no Mini-Fit Jr footprint remains and that the eight RJ-45
-> pins map exactly to the locked pin allocation table.
+> **Status (2026-06 — WIP draft; the `DRAFT` marker skips ERC/DRC):** RJ-45
+> re-cut COMPLETE (no Mini-Fit Jr remains; 4 ports + the 2-pin `CEC_PWR_IN_2P`
+> 5VSB power-in). MCU now specified as **ESP32-S3-WROOM-1-N16R8** (v1.8; symbol +
+> footprint vendored, antenna keepout honored). PCB layout not started.
+> Remaining before fab: swap the schematic MCU symbol MINI-1 -> WROOM-1 (re-maps
+> the GPIO pins), namespace the remaining stock footprints to `cec-*` for clone
+> parity, clear the 2 ERC errors, then lay out.
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files

@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v1.7 (2026-06-02).
+Spec revision reflected here: v1.8 (2026-06-02).
 
 ## What this project is
 
@@ -59,7 +59,7 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 
 | Board | Directory | Tier | MCU | Ports | Host link | BOM target (100q) |
 |---|---|---|---|---|---|---|
-| Hub Standard | hubs/hub-standard | 1 | ESP32-S3-MINI-1-N16R2 | 4 | USB Full Speed | ~$36 |
+| Hub Standard | hubs/hub-standard | 1 | ESP32-S3-WROOM-1-N16R8 | 4 | USB Full Speed | ~$36 |
 | Hub Pro | hubs/hub-pro | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
 | Hub Enterprise | hubs/hub-enterprise | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
@@ -171,7 +171,10 @@ Communication:
   Pro+ Hubs only. Standard does not populate it.
 
 Per-tier hardware:
-- Hub Standard: ESP32-S3, 4 ports, classical CAN, USB Full Speed. v1.1 decisions
+- Hub Standard: ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM, PCB-antenna
+  keepout honored for future Wi-Fi; the MINI-1 has no 16 MB SKU, so the
+  aggregation Hub uses WROOM while modules stay on MINI-1), 4 ports, classical
+  CAN, USB Full Speed. v1.1 decisions
   carry forward (LP5907 LDO, 4700 uF aluminum-polymer hold-up, 1 ohm 1 W inrush
   resistor, SS14 reverse-polarity Schottky, TPS3839K33 supervisor, 7x SK6812
   MINI-E LED chain, GPIO0 hidden service button, 4x M2.5 chassis-grounded
