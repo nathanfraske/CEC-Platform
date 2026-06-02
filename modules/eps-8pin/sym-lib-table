@@ -2,4 +2,5 @@
   (version 7)
   (lib (name "cec")(type "KiCad")(uri "${KIPRJMOD}/../../lib/cec.kicad_sym")(options "")(descr "CEC shared symbols"))
   (lib (name "cec-vendor")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/cec-vendor.kicad_sym")(options "")(descr "Vendored official symbols, pinned"))
+  (lib (name "cec-power")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/cec-power.kicad_sym")(options "")(descr "Vendored power/ground symbols, pinned"))
 )
