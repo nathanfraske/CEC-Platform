@@ -614,12 +614,12 @@
         "pattern": "+5VSB"
       },
       {
-        "netclass": "Power",
+        "netclass": "Default",
         "pattern": "+3V3"
       },
       {
         "netclass": "HighCurrent",
-        "pattern": "RAIL*"
+        "pattern": "*RAIL*"
       },
       {
         "netclass": "CAN",
@@ -636,10 +636,6 @@
       {
         "netclass": "USB",
         "pattern": "USB_D-"
-      },
-      {
-        "netclass": "CAN",
-        "pattern": "/RAIL3V3_LO"
       }
     ]
   },
