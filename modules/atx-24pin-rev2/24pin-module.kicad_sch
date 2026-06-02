@@ -11588,7 +11588,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout."
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1% 2-terminal (NOMINAL part). 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout (sec 6.8). PROTOTYPE NOTE: the rev2 build (ordered 2026-06) substituted Prosemi PSRP25 2mOhm 1% (LCSC C21261084) - pin/footprint-compatible 2512 2-terminal, 6W, +/-75ppm - due to a CSS2H stockout."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -15657,7 +15657,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout."
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1% 2-terminal (NOMINAL part). 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout (sec 6.8). PROTOTYPE NOTE: the rev2 build (ordered 2026-06) substituted Prosemi PSRP25 2mOhm 1% (LCSC C21261084) - pin/footprint-compatible 2512 2-terminal, 6W, +/-75ppm - due to a CSS2H stockout."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -16666,7 +16666,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout."
+		(property "BOM Comments" "Bourns CSS2H-2512K-2L00F 2mOhm 1% 2-terminal (NOMINAL part). 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout (sec 6.8). PROTOTYPE NOTE: the rev2 build (ordered 2026-06) substituted Prosemi PSRP25 2mOhm 1% (LCSC C21261084) - pin/footprint-compatible 2512 2-terminal, 6W, +/-75ppm - due to a CSS2H stockout."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
