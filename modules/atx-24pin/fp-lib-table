@@ -14,4 +14,5 @@
   (lib (name "cec-LED_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/LED_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-TestPoint")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/TestPoint.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Diode_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Diode_SMD.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Fiducial")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Fiducial.pretty")(options "")(descr "Vendored, pinned"))
 )
