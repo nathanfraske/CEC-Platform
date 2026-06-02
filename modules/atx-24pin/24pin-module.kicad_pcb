@@ -2063,10 +2063,10 @@
 	(footprint "Fiducial:Fiducial_1mm_Mask2mm"
 		(layer "F.Cu")
 		(uuid "1c6ab1f0-b39b-46c0-89fd-12c84f63506d")
-		(at 108 73)
+		(at 106 71.5)
 		(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
 		(tags "fiducial")
-		(property "Reference" "REF**"
+		(property "Reference" "FID3"
 			(at 0 -1.95 0)
 			(layer "F.SilkS")
 			(uuid "318e85ad-4b1c-4c0f-9988-43db3db4fb95")
@@ -2148,7 +2148,7 @@
 			(uuid "028ee956-66b3-4c3a-b617-6b3de105a021")
 		)
 		(fp_text user "${REFERENCE}"
-			(at -2.5 0 0)
+			(at 0 0 0)
 			(layer "F.Fab")
 			(uuid "458784f6-a527-40b3-a876-2b8cb4efdd98")
 			(effects
@@ -3297,7 +3297,7 @@
 		(descr "Capacitor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "capacitor")
 		(property "Reference" "C13"
-			(at 0 -1.16 0)
+			(at -3.5 0 0)
 			(layer "F.SilkS")
 			(uuid "df3a1f3a-381d-461b-82c8-6d358d7e5f49")
 			(effects
@@ -4885,10 +4885,10 @@
 	(footprint "Fiducial:Fiducial_1mm_Mask2mm"
 		(layer "F.Cu")
 		(uuid "4249831c-4e4a-412c-b182-900d9286588d")
-		(at 2.5 73)
+		(at 4 71.5)
 		(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
 		(tags "fiducial")
-		(property "Reference" "REF**"
+		(property "Reference" "FID2"
 			(at 0 -1.95 0)
 			(layer "F.SilkS")
 			(uuid "56467151-b085-48b0-ab98-9010cf2c8097")
@@ -4970,7 +4970,7 @@
 			(uuid "0508478f-f841-4098-a499-abf20ef08255")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 3 0 0)
+			(at 0 0 0)
 			(layer "F.Fab")
 			(uuid "845d6f80-81ff-4418-8b09-851a729bc41c")
 			(effects
@@ -6246,7 +6246,7 @@
 			)
 		)
 		(property "Value" "INA228"
-			(at 0 2.45 0)
+			(at -6 0.5 0)
 			(layer "F.Fab")
 			(uuid "8aefa8dc-85e5-43ea-b720-4fcb6f442aee")
 			(effects
@@ -7169,10 +7169,10 @@
 	(footprint "Fiducial:Fiducial_1mm_Mask2mm"
 		(layer "F.Cu")
 		(uuid "8ad26966-f735-4202-b339-111bbd64d89d")
-		(at 2.5 3)
+		(at 4.5 4.5)
 		(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
 		(tags "fiducial")
-		(property "Reference" "REF**"
+		(property "Reference" "FID1"
 			(at 0 -1.95 0)
 			(layer "F.SilkS")
 			(uuid "710c2178-af82-42f4-ad26-22599496d61a")
@@ -7254,7 +7254,7 @@
 			(uuid "4f085294-617b-4ac2-8e2c-ac99ee344f58")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 3 0 0)
+			(at 0 0 0)
 			(layer "F.Fab")
 			(uuid "128ee45b-5f89-472c-9eb4-fc6fc0b91265")
 			(effects
@@ -11752,7 +11752,7 @@
 		(descr "ESP32-S2/S3-MINI-1 footprint, ANTENNA KEEPOUT REMOVED (wired-only boards). Base: https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf")
 		(tags "2.4 GHz Wi-Fi Bluetooth external antenna espressif  20*15.4mm")
 		(property "Reference" "U1"
-			(at -5.95 11.85 180)
+			(at -5.95 11.85 0)
 			(unlocked yes)
 			(layer "F.SilkS")
 			(uuid "1082b886-f983-40bb-ba44-4e4cf3233465")
@@ -11764,7 +11764,7 @@
 			)
 		)
 		(property "Value" "ESP32-S3-MINI-1-N16R2"
-			(at -1 14.5 0)
+			(at -5 13.5 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(uuid "7f855a35-a60c-4a97-b8f9-babab0738015")
@@ -14381,7 +14381,7 @@
 		(descr "Capacitor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 		(tags "capacitor")
 		(property "Reference" "C4"
-			(at -3.02 -0.5 180)
+			(at 0.5 1.5 180)
 			(layer "F.SilkS")
 			(uuid "c2fd751f-7e3b-4d4a-8d1f-847e0698f98f")
 			(effects
@@ -14392,7 +14392,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at -1.52 -2 180)
+			(at 2 1 180)
 			(layer "F.Fab")
 			(uuid "9993e9f4-7f5c-43b8-ac90-330b31b9e189")
 			(effects
