@@ -25,11 +25,11 @@
 # (IPC-2152) in the GUI. The HighCurrent netclass still gives 0.4mm clearance
 # (below) and larger via sizing for isolation.
 
-# Keep the high-current rails clear of neighbouring copper (also set on the
-# netclass; stated here so it travels with the rule file).
-(rule "High-current rail clearance"
-	(constraint clearance (min 0.4mm))
-	(condition "A.NetClass == 'HighCurrent' && B.NetClass != 'HighCurrent'"))
+# No special high-current clearance rule. At <=12V, 0.2mm (Default) is electrically
+# ample, and a wider rail clearance conflicts with the fine-pitch INA228 Kelvin
+# sense where the rail HI/LO nets enter the IC (HI/LO sit ~40mV apart across the
+# shunt, so isolating them buys nothing). The HighCurrent netclass is kept for its
+# larger default via size; rails use the Default 0.2mm clearance.
 
 # USB2.0 debug pair: keep D+/D- coupled. Full-Speed (ESP32-S3 native USB) is
 # impedance-tolerant, but flag long uncoupled stretches.
