@@ -10605,7 +10605,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "5VSB shunt: "
+		(property "BOM Comments" "5VSB shunt 25mOhm 2-terminal 2512 1%; Kelvin tapped off pads in layout (sec 6.8), like RS1/2/5"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10628,6 +10628,28 @@
 			)
 		)
 		(property "Manufacturer" "Resistor Today"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+			(property "MPN" "LCSR2512FR025K9L"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+			(property "LCSC" "C494568"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
