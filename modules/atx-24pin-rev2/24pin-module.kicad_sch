@@ -13581,7 +13581,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "RJ-45 8P8C shielded FTP, locking-boot, right-angle/inline; Amphenol 54602-x08 placeholder - confirm exact jack"
+		(property "BOM Comments" "RJ-45 to Hub. NOTE board-vs-spec divergence: 54602 series is UNSHIELDED; spec locks FTP (shielded) jacks. SH1/SH2 board-locks grounded (ca56b2f). OK for prototype bring-up - CAN 500k + 5VSB + DETECT are shielding-insensitive and the Pro RS-485 stream isn't populated on Standard. Move to a true metal-shell FTP jack before production/EMC."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -13590,6 +13590,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C2847314" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Amphenol ICC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "54602-908LF" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
