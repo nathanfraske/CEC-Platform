@@ -1,83 +1,59 @@
 ** Drc report for 24pin-module.kicad_pcb **
-** Created on 2026-06-01T21:24:28 **
+** Created on 2026-06-01T21:37:50 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 78 DRC violations **
+** Found 68 DRC violations **
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
-    @(56.4625 mm, 22.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 3.4625 mm
-    @(50.5375 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 1.9625 mm
+    @(63.0574 mm, 37.0000 mm): Track [/RAIL3V3_LO] on F.Cu, length 0.7574 mm
+    @(60.5000 mm, 39.3000 mm): Track [/RAIL3V3_HI] on F.Cu, length 2.5456 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2500 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(54.0000 mm, 26.8000 mm): Pad 7 [GND] of U10 on F.Cu
+    @(53.5000 mm, 25.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 1.3000 mm
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
-    @(53.0000 mm, 24.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 0.5000 mm
-    @(52.5000 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 4.3000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2316 mm)
-    Rule: High-current rail clearance; error
+    @(54.0000 mm, 26.8000 mm): Track [GND] on F.Cu, length 1.8000 mm
+    @(53.0000 mm, 25.0000 mm): Track [/RAIL12V_LO] on F.Cu, length 0.7071 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(43.0000 mm, 38.3000 mm): Track [GND] on F.Cu, length 0.7574 mm
+    @(42.5000 mm, 36.5000 mm): Track [/RAIL5V_LO] on F.Cu, length 1.8000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2500 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(43.0000 mm, 38.3000 mm): Track [GND] on F.Cu, length 0.7574 mm
+    @(42.5000 mm, 38.3000 mm): Pad 8 [/RAIL5V_LO] of U11 on F.Cu
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2316 mm)
+    Rule: netclass 'HighCurrent'; error
     @(62.3000 mm, 36.5000 mm): Pad 8 [/RAIL3V3_LO] of U12 on F.Cu
     @(61.5000 mm, 36.0000 mm): Track [GND] on F.Cu, length 3.5355 mm
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
     @(50.5375 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 1.9625 mm
     @(53.0000 mm, 22.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 2.0000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2500 mm)
-    Rule: High-current rail clearance; error
-    @(62.3000 mm, 36.0000 mm): Pad 7 [GND] of U12 on F.Cu
-    @(62.3000 mm, 36.5000 mm): Track [/RAIL3V3_LO] on F.Cu, length 1.2000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2500 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(42.0000 mm, 38.3000 mm): Pad 9 [/RAIL5V_LO] of U11 on F.Cu
+    @(41.5000 mm, 34.5000 mm): Track [/RAIL5V_HI] on F.Cu, length 3.8000 mm
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
     @(52.5000 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 4.3000 mm
-    @(53.0000 mm, 24.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 2.3000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.3000 mm)
-    Rule: High-current rail clearance; error
-    @(54.0000 mm, 26.8000 mm): Track [GND] on F.Cu, length 1.8000 mm
-    @(53.5000 mm, 25.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 1.3000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.3866 mm)
-    Rule: High-current rail clearance; error
-    @(50.7475 mm, 50.1350 mm): Track [/RAIL5VSB_LO] on F.Cu, length 3.7265 mm
-    @(50.4300 mm, 48.2300 mm): Pad 3 [Net-(RS6-S2)] of RS6 on F.Cu
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.3000 mm)
-    Rule: High-current rail clearance; error
-    @(54.0000 mm, 26.8000 mm): Track [GND] on F.Cu, length 1.8000 mm
     @(53.0000 mm, 25.0000 mm): Track [/RAIL12V_LO] on F.Cu, length 0.7071 mm
-[shorting_items]: Items shorting two nets (nets unconnected-(J1-STREAM_N-Pad5) and Net-(J1-CAN1_H))
-    Local override; error
-    @(39.9200 mm, 65.9000 mm): PTH pad 5 [unconnected-(J1-STREAM_N-Pad5)] of J1
-    @(41.1849 mm, 65.1000 mm): Track [Net-(J1-CAN1_H)] on F.Cu, length 2.7549 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2500 mm)
-    Rule: High-current rail clearance; error
-    @(62.3000 mm, 36.5000 mm): Pad 8 [/RAIL3V3_LO] of U12 on F.Cu
-    @(62.3000 mm, 36.0000 mm): Track [GND] on F.Cu, length 0.8000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2015 mm)
-    Rule: High-current rail clearance; error
-    @(42.5000 mm, 38.3000 mm): Pad 8 [/RAIL5V_LO] of U11 on F.Cu
-    @(43.0000 mm, 39.0574 mm): Track [GND] on F.Cu, length 0.6259 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2500 mm)
-    Rule: High-current rail clearance; error
-    @(54.0000 mm, 26.8000 mm): Track [GND] on F.Cu, length 1.8000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2500 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(36.1250 mm, 27.8750 mm): Track [+3V3] on F.Cu, length 18.1281 mm
     @(53.5000 mm, 26.8000 mm): Pad 8 [/RAIL12V_LO] of U10 on F.Cu
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
-    @(52.5000 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 4.3000 mm
-    @(53.0000 mm, 25.0000 mm): Track [/RAIL12V_LO] on F.Cu, length 0.7071 mm
-[clearance]: Clearance violation (netclass 'Default' clearance 0.2000 mm; actual 0.0596 mm)
-    Rule: netclass 'Default'; error
-    @(64.0000 mm, 56.5000 mm): Via [Net-(U1-USB_D-)] on F.Cu - B.Cu
-    @(63.3450 mm, 56.4950 mm): Track [Net-(U1-IO17)] on F.Cu, length 3.3305 mm
-[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
-    Rule: netclass 'HighCurrent'; error
+    @(96.0000 mm, 52.2000 mm): PTH pad 22 [/RAIL5V_LO] of J4
     @(60.5500 mm, 50.0500 mm): Track [/RAIL5VSB_LO] on PWR, length 38.9000 mm
-    @(96.0000 mm, 48.0000 mm): PTH pad 21 [/RAIL5V_LO] of J4
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
-    @(42.0000 mm, 35.0000 mm): Track [/RAIL5V_LO] on F.Cu, length 0.7071 mm
-    @(41.5000 mm, 34.5000 mm): Track [/RAIL5V_HI] on F.Cu, length 3.8000 mm
-[clearance]: Clearance violation (netclass 'Default' clearance 0.2000 mm; actual 0.1950 mm)
-    Rule: netclass 'Default'; error
-    @(63.1000 mm, 55.9000 mm): Via [Net-(U1-USB_D+)] on F.Cu - B.Cu
-    @(49.9594 mm, 56.4950 mm): Track [Net-(U1-IO17)] on F.Cu, length 13.3856 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.3071 mm)
-    Rule: High-current rail clearance; error
-    @(54.0000 mm, 25.0000 mm): Via [GND] on F.Cu - B.Cu
+    @(62.3000 mm, 36.5000 mm): Track [/RAIL3V3_LO] on F.Cu, length 1.2000 mm
+    @(62.3000 mm, 36.0000 mm): Track [GND] on F.Cu, length 0.8000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(54.0000 mm, 26.8000 mm): Track [GND] on F.Cu, length 1.8000 mm
     @(53.5000 mm, 25.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 1.3000 mm
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2500 mm)
     Rule: netclass 'HighCurrent'; error
@@ -87,54 +63,62 @@
     Rule: netclass 'HighCurrent'; error
     @(64.0000 mm, 37.9426 mm): Track [/RAIL3V3_LO] on F.Cu, length 1.3330 mm
     @(62.3000 mm, 37.5000 mm): Pad 10 [/RAIL3V3_HI] of U12 on F.Cu
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.3000 mm)
-    Rule: High-current rail clearance; error
-    @(43.0000 mm, 38.3000 mm): Track [GND] on F.Cu, length 0.7574 mm
-    @(42.5000 mm, 34.5000 mm): Track [/RAIL5V_LO] on F.Cu, length 3.8000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.3750 mm)
-    Rule: High-current rail clearance; error
-    @(42.5000 mm, 38.3000 mm): Pad 8 [/RAIL5V_LO] of U11 on F.Cu
-    @(42.5574 mm, 39.5000 mm): Track [GND] on F.Cu, length 1.5574 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2000 mm)
-    Rule: High-current rail clearance; error
-    @(96.0000 mm, 48.0000 mm): PTH pad 21 [/RAIL5V_LO] of J4
-    @(98.1500 mm, 17.9165 mm): Track [Net-(U1-IO38)] on B.Cu, length 44.2820 mm
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2500 mm)
     Rule: netclass 'HighCurrent'; error
-    @(62.3000 mm, 37.0000 mm): Pad 9 [/RAIL3V3_LO] of U12 on F.Cu
-    @(60.5000 mm, 39.3000 mm): Track [/RAIL3V3_HI] on F.Cu, length 2.5456 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2500 mm)
-    Rule: High-current rail clearance; error
-    @(36.1250 mm, 27.8750 mm): Track [+3V3] on F.Cu, length 18.1281 mm
-    @(53.5000 mm, 26.8000 mm): Pad 8 [/RAIL12V_LO] of U10 on F.Cu
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2500 mm)
-    Rule: High-current rail clearance; error
-    @(42.5000 mm, 34.5000 mm): Track [/RAIL5V_LO] on F.Cu, length 3.8000 mm
-    @(43.0000 mm, 38.3000 mm): Pad 7 [GND] of U11 on F.Cu
+    @(62.3000 mm, 36.0000 mm): Pad 7 [GND] of U12 on F.Cu
+    @(62.3000 mm, 36.5000 mm): Track [/RAIL3V3_LO] on F.Cu, length 1.2000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3071 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(54.0000 mm, 25.0000 mm): Via [GND] on F.Cu - B.Cu
+    @(53.5000 mm, 25.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 1.3000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(96.0000 mm, 48.0000 mm): PTH pad 21 [/RAIL5V_LO] of J4
+    @(98.1500 mm, 17.9165 mm): Track [Net-(U1-IO38)] on B.Cu, length 44.2820 mm
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
     Rule: netclass 'HighCurrent'; error
-    @(41.5000 mm, 34.5000 mm): Track [/RAIL5V_HI] on F.Cu, length 3.8000 mm
-    @(42.0000 mm, 38.3000 mm): Track [/RAIL5V_LO] on F.Cu, length 3.3000 mm
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2000 mm)
-    Rule: High-current rail clearance; error
-    @(43.0000 mm, 38.3000 mm): Pad 7 [GND] of U11 on F.Cu
+    @(56.4625 mm, 22.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 3.4625 mm
+    @(50.5375 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 1.9625 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(53.0000 mm, 24.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 0.5000 mm
+    @(52.5000 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 4.3000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(53.0000 mm, 22.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 2.0000 mm
+    @(52.5000 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 4.3000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(52.5000 mm, 22.5000 mm): Track [/RAIL12V_HI] on F.Cu, length 4.3000 mm
+    @(53.0000 mm, 24.5000 mm): Track [/RAIL12V_LO] on F.Cu, length 2.3000 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2015 mm)
+    Rule: netclass 'HighCurrent'; error
     @(42.5000 mm, 38.3000 mm): Pad 8 [/RAIL5V_LO] of U11 on F.Cu
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2000 mm)
-    Rule: High-current rail clearance; error
+    @(43.0000 mm, 39.0574 mm): Track [GND] on F.Cu, length 0.6259 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.3750 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(41.5000 mm, 38.3000 mm): Pad 10 [/RAIL5V_HI] of U11 on F.Cu
+    @(42.5574 mm, 39.5000 mm): Track [GND] on F.Cu, length 1.5574 mm
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(41.5000 mm, 38.3000 mm): Pad 10 [/RAIL5V_HI] of U11 on F.Cu
+    @(42.0000 mm, 38.3000 mm): Pad 9 [/RAIL5V_LO] of U11 on F.Cu
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(42.5000 mm, 38.3000 mm): Pad 8 [/RAIL5V_LO] of U11 on F.Cu
+    @(43.0000 mm, 38.3000 mm): Pad 7 [GND] of U11 on F.Cu
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
+    Rule: netclass 'HighCurrent'; error
     @(54.0000 mm, 26.8000 mm): Pad 7 [GND] of U10 on F.Cu
     @(53.5000 mm, 26.8000 mm): Pad 8 [/RAIL12V_LO] of U10 on F.Cu
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
     Rule: netclass 'HighCurrent'; error
-    @(42.0000 mm, 38.3000 mm): Pad 9 [/RAIL5V_LO] of U11 on F.Cu
-    @(41.5000 mm, 38.3000 mm): Pad 10 [/RAIL5V_HI] of U11 on F.Cu
-[clearance]: Clearance violation (rule 'High-current rail clearance' clearance 0.4000 mm; actual 0.2000 mm)
-    Rule: High-current rail clearance; error
-    @(62.3000 mm, 36.0000 mm): Pad 7 [GND] of U12 on F.Cu
-    @(62.3000 mm, 36.5000 mm): Pad 8 [/RAIL3V3_LO] of U12 on F.Cu
-[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
-    Rule: netclass 'HighCurrent'; error
     @(53.0000 mm, 26.8000 mm): Pad 9 [/RAIL12V_LO] of U10 on F.Cu
     @(52.5000 mm, 26.8000 mm): Pad 10 [/RAIL12V_HI] of U10 on F.Cu
+[clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
+    Rule: netclass 'HighCurrent'; error
+    @(62.3000 mm, 36.0000 mm): Pad 7 [GND] of U12 on F.Cu
+    @(62.3000 mm, 36.5000 mm): Pad 8 [/RAIL3V3_LO] of U12 on F.Cu
 [clearance]: Clearance violation (netclass 'HighCurrent' clearance 0.4000 mm; actual 0.2000 mm)
     Rule: netclass 'HighCurrent'; error
     @(62.3000 mm, 37.0000 mm): Pad 9 [/RAIL3V3_LO] of U12 on F.Cu
@@ -189,27 +173,6 @@
 [track_width]: Track width (rule 'Power min width' min width 1.0000 mm; actual 0.5000 mm)
     Rule: Power min width; error
     @(53.5000 mm, 59.0000 mm): Track [+5VSB] on B.Cu, length 10.5000 mm
-[solder_mask_bridge]: Front solder mask aperture bridges items with different nets
-    Rule: board setup solder mask min width; error
-    @(41.1849 mm, 65.1000 mm): Track [Net-(J1-CAN1_H)] on F.Cu, length 2.7549 mm
-    @(39.9200 mm, 65.9000 mm): PTH pad 5 [unconnected-(J1-STREAM_N-Pad5)] of J1
-[via_dangling]: Via is not connected or connected on only one layer
-    Local override; warning
-    @(74.5000 mm, 63.0500 mm): Via [Net-(U1-IO8)] on F.Cu - B.Cu
-[via_dangling]: Via is not connected or connected on only one layer
-    Local override; warning
-    @(74.0000 mm, 62.2000 mm): Via [Net-(U1-IO9)] on F.Cu - B.Cu
-[via_dangling]: Via is not connected or connected on only one layer
-    Local override; warning
-    @(61.5000 mm, 55.5000 mm): Via [Net-(U1-IO21)] on F.Cu - B.Cu
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
-    @(31.5250 mm, 62.0200 mm): Segment of J1 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
-    @(47.0450 mm, 62.0200 mm): Segment of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
@@ -245,6 +208,14 @@
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
+    @(31.5250 mm, 62.0200 mm): Segment of J1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
+    @(47.0450 mm, 62.0200 mm): Segment of J1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
     @(115.5100 mm, 11.5900 mm): Segment of J4 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
@@ -258,14 +229,6 @@
     Rule: board setup constraints silk; warning
     @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
     @(71.8000 mm, 58.6500 mm): Segment of U1 on F.Silkscreen
-[holes_co_located]: Drilled holes co-located
-    Local override; warning
-    @(63.0000 mm, 29.9000 mm): Via [Net-(U1-IO8)] on F.Cu - B.Cu
-    @(63.0000 mm, 29.9000 mm): Via [Net-(U1-IO8)] on F.Cu - B.Cu
-[holes_co_located]: Drilled holes co-located
-    Local override; warning
-    @(94.0000 mm, 64.0000 mm): Via [Net-(U1-USB_D+)] on F.Cu - B.Cu
-    @(94.0000 mm, 64.0000 mm): Via [Net-(U1-USB_D+)] on F.Cu - B.Cu
 [hole_to_hole]: Drilled hole too close to other hole (board setup constraints min 0.2495 mm; actual 0.2000 mm)
     Rule: board setup constraints; warning
     @(58.5000 mm, 47.5000 mm): Via [/RAIL5VSB_LO] on F.Cu - B.Cu
@@ -280,16 +243,16 @@
     @(59.5000 mm, 47.5000 mm): Via [/RAIL5VSB_LO] on F.Cu - B.Cu
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(55.0000 mm, 54.9500 mm): Reference field of U13
-    @(53.5000 mm, 56.0000 mm): Reference field of C4
+    @(53.3900 mm, 50.8900 mm): Segment of U13 on F.Silkscreen
+    @(54.5000 mm, 50.6600 mm): Reference field of C13
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
     @(53.3900 mm, 51.0900 mm): Segment of U13 on F.Silkscreen
     @(54.5000 mm, 50.6600 mm): Reference field of C13
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
-    @(53.3900 mm, 50.8900 mm): Segment of U13 on F.Silkscreen
-    @(54.5000 mm, 50.6600 mm): Reference field of C13
+    @(55.0000 mm, 54.9500 mm): Reference field of U13
+    @(53.5000 mm, 56.0000 mm): Reference field of C4
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(31.5250 mm, 62.0200 mm): Segment of J1 on F.Silkscreen
