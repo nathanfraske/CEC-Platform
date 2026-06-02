@@ -1,25 +1,25 @@
-Reference,Qty,Value,Footprint,MPN,Manufacturer,Chosen_Distributor,Datasheet,Validated,DNP,Notes
-"C1,C2",2,1uF,0603,,,,,,,
-C8,1,1µF,0805,,,,,,,
-"C13,C11,C6,C14,C10,C3,C5,C9,C12,C4",10,100nF,0402,,,,,,,
-"C15,C7",2,10µF,0805,,,,,,,
-D1,1,D_Schottky,SMA,,,,,,,VBUS->5VSB ORing Schottky (bench USB power). D_SMA fits 1-3A parts (e.g. SS34); pick per bench-power current.
-D2,1,LED,0603,,,,,,,
-J1,1,TO-HUB,RJ45_Amphenol_54602-x08_Horizontal,,,,,,,RJ-45 8P8C shielded FTP - Amphenol RJHSE5380 placeholder; confirm exact jack (no magnetics)
-J2,1,TO-HUB-PWR,JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,,,,,,,"2-pin +5VSB power, right-angle JST-XH (inline)"
-J3,1,ATX-24 (PSU),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,ATX-24 = Molex Mini-Fit Jr 2x12 vertical placeholder; confirm gender/orientation for interposer
-J4,1,ATX-24 (MB),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,ATX-24 = Molex Mini-Fit Jr 2x12 vertical placeholder; confirm gender/orientation for interposer
-J5,1,USB_C_Receptacle_USB2.0_16P,USB_C_Receptacle_XKB_U262-16XN-4BVC11,,,,https://www.usb.org/sites/default/files/documents/usb_type-c.zip,,,Right-angle (90deg) USB 2.0 Type-C debug port.
-R1,1,R_ID (OQ-6),0402,,,,,,,DETECT module-ID precision resistor; value pending OQ-6
-R2,1,10kΩ,0402,,,,,,,
-"R4,R3",2,2.2kΩ,0402,,,,,,,
-"R6,R5",2,5.1kΩ,0402,,,,,,,
-"R10,R7,R9",3,1kΩ,0402,,,,,,,
-"RS5,RS2,RS1",3,R002,2512,CSS2H-2512K-2L00F,Bourns,,,,,"Bourns CSS4J-4026 4-term Kelvin, copper terminals, 2mOhm. MPN/value/LCSC TENTATIVE - confirm exact part. Footprint land pattern reconstructed from datasheet text - verify pad layout before fab."
-RS6,1,R025,2512,,Vishay,,,,,"5VSB shunt: Vishay WSK2512 25mOhm 4-term Kelvin (2512). 25mOhm is out of the CSS4J-4026 range, hence a different part."
-"SW2,SW1",2,SW_Push,Panasonic_EVQPUJ_EVQPUA,,,,,,,
-U1,1,ESP32-S3-MINI-1-N16R2,ESP32-S2-MINI-1,,,,,,,ESP32-S3-MINI-1 uses the S2-MINI-1 footprint (mechanically identical)
-U2,1,TJA1462A,SOIC-8_3.9x4.9mm_P1.27mm,,,,,,,
-U3,1,LP5907MFX-3.3,SOT-23-5,,,,,,,
-"U4,U5",2,74LVC1G17,SOT-23-5,SN74LVC1G17DBVR,,,https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf,,,
-"U12,U10,U13,U11",4,INA228,VSSOP-10_3x3mm_P0.5mm,,,,,,,
+Reference,Qty,Value,Footprint,MPN,Manufacturer,LCSC,LC_Stock,Chosen_Distributor,Datasheet,Validated,DNP,Notes
+"C1,C2",2,1uF,0603,,,,,,,,,
+C8,1,1µF,0805,,,,,,,,,
+"C13,C11,C6,C14,C10,C3,C5,C9,C12,C4",10,100nF,0402,,,,,,,,,
+"C15,C7",2,10µF,0805,,,,,,,,,
+D1,1,D_Schottky,SMA,SS34,MDD,C8678,,,,,,VBUS->5VSB ORing Schottky (bench USB power). D_SMA fits 1-3A parts (e.g. SS34); pick per bench-power current.
+D2,1,LED,0603,,,,,,,,,
+J1,1,TO-HUB,RJ45_Amphenol_54602-x08_Horizontal,,,,,,,,,"RJ-45 8P8C shielded FTP, locking-boot, right-angle/inline; Amphenol 54602-x08 placeholder - confirm exact jack"
+J2,1,TO-HUB-PWR,JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,,,,,,,,,"2-pin +5VSB power, right-angle JST-XH (inline)"
+J3,1,ATX-24 (PSU),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,,,ATX-24 PSU-side input: Molex 5569 2x12 right-angle MALE (spec 2.8); PSU female cable plugs on directly.
+J4,1,ATX-24 (MB),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,,,ATX-24 MB-side output: Molex 5569 2x12 right-angle MALE (spec 2.8); needs F-to-F bridging cable to motherboard (CEC SKU).
+J5,1,USB_C_Receptacle_USB2.0_16P,USB_C_Receptacle_XKB_U262-16XN-4BVC11,,,,,,https://www.usb.org/sites/default/files/documents/usb_type-c.zip,,,Right-angle (90deg) USB 2.0 Type-C debug port.
+R1,1,R_ID (OQ-6),0402,,,,,,,,,DETECT module-ID precision resistor; value pending OQ-6
+R2,1,10kΩ,0402,,,,,,,,,
+"R4,R3",2,2.2kΩ,0402,,,,,,,,,
+"R6,R5",2,5.1kΩ,0402,,,,,,,,,
+"R10,R7,R9",3,1kΩ,0402,,,,,,,,,
+"RS5,RS2,RS1",3,R002,2512,CSS2H-2512K-2L00F,Bourns,C1729157,,,,,,"Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout."
+RS6,1,R025,2512,,Vishay,,,,,,,5VSB shunt: Vishay WSK2512 25mOhm 4-terminal.
+"SW2,SW1",2,SW_Push,Panasonic_EVQPUJ_EVQPUA,,,,,,,,,
+U1,1,ESP32-S3-MINI-1-N4R2,ESP32-S2-MINI-1_NoAntKeepout,ESP32-S3-MINI-1-N4R2,Espressif Systems,C3013941,,,,,,ESP32-S3-MINI-1 uses the S2-MINI-1 footprint (mechanically identical)
+U2,1,TJA1462A,SOIC-8_3.9x4.9mm_P1.27mm,TJA1462AT/0Z,NXP Semiconductors,C3234095,,,,,,
+U3,1,LP5907MFX-3.3,SOT-23-5,LP5907MFX-3.3/NOPB,Texas Instruments,C80670,,,,,,
+"U4,U5",2,74LVC1G17,SOT-23-5,SN74LVC1G17DBVR,Texas Instruments,C7836,,,https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf,,,
+"U12,U10,U13,U11",4,INA228,VSSOP-10_3x3mm_P0.5mm,INA228AIDGSR,Texas Instruments,C2887910,,,,,,

@@ -10188,6 +10188,30 @@
 				)
 			)
 		)
+		(property "LCSC" "C2887910" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "8"
 			(uuid "5d3b01fc-c0f9-4527-8e64-85d1ffad9ee9")
 		)
@@ -10800,6 +10824,22 @@
 				)
 			)
 		)
+		(property "LCSC" "C7836" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "3"
 			(uuid "b6927ea2-dad4-4b5f-a019-86e5c0b39843")
 		)
@@ -11303,6 +11343,14 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C1729157" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -12019,7 +12067,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "ATX-24 = Molex Mini-Fit Jr 2x12, right-angle/inline; confirm gender for interposer"
+		(property "BOM Comments" "ATX-24 MB-side output: Molex 5569 2x12 right-angle MALE (spec 2.8); needs F-to-F bridging cable to motherboard (CEC SKU)."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -12185,6 +12233,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C8678" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "MDD" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "SS34" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -12694,6 +12766,14 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C7836" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "3"
@@ -13931,6 +14011,30 @@
 				)
 			)
 		)
+		(property "LCSC" "C3234095" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "NXP Semiconductors" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "TJA1462AT/0Z" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "8ca89fd0-4750-4795-8b73-eb0181b1bfba")
 		)
@@ -14210,6 +14314,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C2887910" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "8"
@@ -14647,6 +14775,30 @@
 				)
 			)
 		)
+		(property "LCSC" "C2887910" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "8"
 			(uuid "948464d0-7de1-4655-8a39-69bced75a654")
 		)
@@ -14948,6 +15100,14 @@
 				)
 			)
 		)
+		(property "LCSC" "C1729157" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "a5771858-999b-40bb-88bc-59dd9a8e6893")
 		)
@@ -15098,6 +15258,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C80670" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "LP5907MFX-3.3/NOPB" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "1"
@@ -15817,6 +16001,14 @@
 				)
 			)
 		)
+		(property "LCSC" "C1729157" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1"
 			(uuid "0ff50848-631f-4d00-b6c0-697dd0a0fc7c")
 		)
@@ -15927,7 +16119,7 @@
 				)
 			)
 		)
-		(property "Value" "ESP32-S3-MINI-1-N16R2"
+		(property "Value" "ESP32-S3-MINI-1-N4R2"
 			(at 304.8 97.536 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15978,6 +16170,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C3013941" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "ESP32-S3-MINI-1-N4R2" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "45"
@@ -19018,7 +19234,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "ATX-24 = Molex Mini-Fit Jr 2x12, right-angle/inline; confirm gender for interposer"
+		(property "BOM Comments" "ATX-24 PSU-side input: Molex 5569 2x12 right-angle MALE (spec 2.8); PSU female cable plugs on directly."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -19430,6 +19646,30 @@
 				(font
 					(size 1.27 1.27)
 				)
+			)
+		)
+		(property "LCSC" "C2887910" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
 			)
 		)
 		(pin "8"
