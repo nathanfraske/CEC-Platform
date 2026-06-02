@@ -12,6 +12,129 @@
 		(comment 1 "Author: Nathan M. Fraske")
 	)
 	(lib_symbols
+		(symbol "CEC_SHUNT_2T_1"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "RS"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "R"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Used Kelvin: tap each INA sense lead off the terminal copper in LAYOUT; the sense taps are not separate footprint pads. Pins 1/2 = current = rail HI/LO."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*2512* R_Shunt*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_SHUNT_2T_1_0_1"
+				(rectangle
+					(start -3.81 1.27)
+					(end 3.81 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "CEC_SHUNT_2T_1_1_1"
+				(pin passive line
+					(at -6.35 0 0)
+					(length 2.54)
+					(name "I1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 6.35 0 180)
+					(length 2.54)
+					(name "I2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "cec-power:+3V3"
 			(power global)
 			(pin_numbers
@@ -850,165 +973,6 @@
 						)
 					)
 					(number "2"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "cec-vendor:CEC_SHUNT_4T"
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "RS"
-				(at 0 3.81 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "R"
-				(at 0 -5.715 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "R_Shunt*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "CEC_SHUNT_4T_0_1"
-				(rectangle
-					(start -3.81 1.27)
-					(end 3.81 -1.27)
-					(stroke
-						(width 0.2032)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-			)
-			(symbol "CEC_SHUNT_4T_1_1"
-				(pin passive line
-					(at -6.35 0 0)
-					(length 2.54)
-					(name "I1"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -2.54 -3.81 90)
-					(length 2.54)
-					(name "S1"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 2.54 -3.81 90)
-					(length 2.54)
-					(name "S2"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 6.35 0 180)
-					(length 2.54)
-					(name "I2"
-						(effects
-							(font
-								(size 1.016 1.016)
-							)
-						)
-					)
-					(number "4"
 						(effects
 							(font
 								(size 1.016 1.016)
@@ -5548,6 +5512,12 @@
 		(uuid "1a8ef9d9-02ae-4886-b3a8-ff5f4e293f7b")
 	)
 	(junction
+		(at 284.48 214.63)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "1e4b2911-ac43-443a-8a50-eabd45c86f77")
+	)
+	(junction
 		(at 308.61 189.23)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -5702,6 +5672,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "d5bacd31-dd93-47fd-805f-85432eede761")
+	)
+	(junction
+		(at 288.29 201.93)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "df12951f-df3d-4798-937f-7e0aabc61443")
 	)
 	(junction
 		(at 199.39 66.04)
@@ -6663,6 +6639,16 @@
 	)
 	(wire
 		(pts
+			(xy 288.29 210.82) (xy 288.29 214.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4a88d9cf-b6ce-43e0-8b3a-2121058b647b")
+	)
+	(wire
+		(pts
 			(xy 99.06 234.95) (xy 354.33 234.95)
 		)
 		(stroke
@@ -7033,6 +7019,16 @@
 	)
 	(wire
 		(pts
+			(xy 288.29 201.93) (xy 288.29 205.74)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "7226f2ad-7ba9-4572-892d-01b5cfc4a037")
+	)
+	(wire
+		(pts
 			(xy 167.64 121.92) (xy 289.56 121.92)
 		)
 		(stroke
@@ -7353,6 +7349,16 @@
 	)
 	(wire
 		(pts
+			(xy 288.29 201.93) (xy 289.56 201.93)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "95738b93-f953-4083-80c7-691e9382c6e8")
+	)
+	(wire
+		(pts
 			(xy 308.61 189.23) (xy 308.61 191.77)
 		)
 		(stroke
@@ -7593,7 +7599,7 @@
 	)
 	(wire
 		(pts
-			(xy 284.48 201.93) (xy 289.56 201.93)
+			(xy 284.48 201.93) (xy 288.29 201.93)
 		)
 		(stroke
 			(width 0)
@@ -7770,6 +7776,16 @@
 			(type default)
 		)
 		(uuid "b7bbcdf8-ac32-477b-bf6e-c4e3729106a4")
+	)
+	(wire
+		(pts
+			(xy 284.48 214.63) (xy 288.29 214.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b8d3607d-33f6-45b5-bc28-28bc6601a059")
 	)
 	(wire
 		(pts
@@ -8381,6 +8397,16 @@
 		)
 		(uuid "ff93017c-a5d2-4321-a341-a395384ce7d2")
 	)
+	(label "USB_D-"
+		(at 320.04 78.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "097735fa-19a6-465c-9c23-3bb782b12160")
+	)
 	(label "RAIL3V3_LO"
 		(at 215.9 201.93 180)
 		(effects
@@ -8410,6 +8436,16 @@
 			(justify left bottom)
 		)
 		(uuid "25778c6e-1e7e-401d-9d32-9c7481e3ba11")
+	)
+	(label "CAN1_P"
+		(at 212.09 73.66 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3debc9d5-65f6-4d95-9442-ed7001324bb7")
 	)
 	(label "RAIL3V3_HI"
 		(at 215.9 217.17 180)
@@ -8451,6 +8487,16 @@
 		)
 		(uuid "74e9b552-ab33-4831-8920-72df34ebae2d")
 	)
+	(label "CAN1_N"
+		(at 212.09 78.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "89c68500-cda4-4ba1-ab1f-cec27d7e66e4")
+	)
 	(label "RAIL5V_LO"
 		(at 156.21 201.93 180)
 		(effects
@@ -8480,6 +8526,16 @@
 			(justify right bottom)
 		)
 		(uuid "9801b328-63ae-4ca6-95e4-f52ea1b9ee0a")
+	)
+	(label "USB_D+"
+		(at 320.04 81.28 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "ac0c0bf8-f527-42d0-8900-7acc17986c8a")
 	)
 	(label "EN"
 		(at 285.75 71.12 180)
@@ -10188,28 +10244,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C2887910" (at 0 0 0)
+		(property "LCSC" "C2887910"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+		(property "MPN" "INA228AIDGSR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "8"
@@ -10474,7 +10539,8 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:CEC_SHUNT_4T")
+		(lib_name "CEC_SHUNT_2T_1")
+		(lib_id "cec-vendor:CEC_SHUNT_2T")
 		(at 284.48 208.28 90)
 		(unit 1)
 		(body_style 1)
@@ -10483,31 +10549,30 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "25e389e6-a5a0-4e58-93b6-39d697c34f42")
 		(property "Reference" "RS6"
-			(at 281.94 207.0099 90)
+			(at 277.368 206.502 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
 		(property "Value" "R025"
-			(at 281.94 209.5499 90)
+			(at 276.606 209.804 90)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(justify left)
+				(justify right)
 			)
 		)
-		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 284.48 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -10529,7 +10594,7 @@
 				)
 			)
 		)
-		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
+		(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Used Kelvin: tap each INA sense lead off the terminal copper in LAYOUT; the sense taps are not separate footprint pads. Pins 1/2 = current = rail HI/LO."
 			(at 284.48 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -10540,7 +10605,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "5VSB shunt: Vishay WSK2512 25mOhm 4-terminal."
+		(property "BOM Comments" "5VSB shunt: "
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10562,7 +10627,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Vishay"
+		(property "Manufacturer" "Resistor Today"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10576,14 +10641,8 @@
 		(pin "1"
 			(uuid "619a87c9-e48e-4a11-8fd4-1a7819025096")
 		)
-		(pin "3"
-			(uuid "5e402afe-5b95-476c-a22a-30f5c1834615")
-		)
 		(pin "2"
 			(uuid "064a8430-8ca0-4202-9983-1c97fe0df1fc")
-		)
-		(pin "4"
-			(uuid "afdb35fe-6659-4681-90b9-0c0a438c30a9")
 		)
 		(instances
 			(project "24pin-module"
@@ -10824,20 +10883,26 @@
 				)
 			)
 		)
-		(property "LCSC" "C7836" (at 0 0 0)
+		(property "LCSC" "C7836"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "3"
@@ -11345,12 +11410,15 @@
 				)
 			)
 		)
-		(property "LCSC" "C1729157" (at 0 0 0)
+		(property "LCSC" "C1729157"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -12235,28 +12303,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C8678" (at 0 0 0)
+		(property "LCSC" "C8678"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "MDD" (at 0 0 0)
+		(property "Manufacturer" "MDD"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "SS34" (at 0 0 0)
+		(property "MPN" "SS34"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -12768,12 +12845,15 @@
 				)
 			)
 		)
-		(property "LCSC" "C7836" (at 0 0 0)
+		(property "LCSC" "C7836"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "3"
@@ -14011,28 +14091,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C3234095" (at 0 0 0)
+		(property "LCSC" "C3234095"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "NXP Semiconductors" (at 0 0 0)
+		(property "Manufacturer" "NXP Semiconductors"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "TJA1462AT/0Z" (at 0 0 0)
+		(property "MPN" "TJA1462AT/0Z"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -14316,28 +14405,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C2887910" (at 0 0 0)
+		(property "LCSC" "C2887910"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+		(property "MPN" "INA228AIDGSR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "8"
@@ -14775,28 +14873,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C2887910" (at 0 0 0)
+		(property "LCSC" "C2887910"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+		(property "MPN" "INA228AIDGSR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "8"
@@ -15100,12 +15207,15 @@
 				)
 			)
 		)
-		(property "LCSC" "C1729157" (at 0 0 0)
+		(property "LCSC" "C1729157"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -15260,28 +15370,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C80670" (at 0 0 0)
+		(property "LCSC" "C80670"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "LP5907MFX-3.3/NOPB" (at 0 0 0)
+		(property "MPN" "LP5907MFX-3.3/NOPB"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -16001,12 +16120,15 @@
 				)
 			)
 		)
-		(property "LCSC" "C1729157" (at 0 0 0)
+		(property "LCSC" "C1729157"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "1"
@@ -16172,28 +16294,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C3013941" (at 0 0 0)
+		(property "LCSC" "C3013941"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
+		(property "Manufacturer" "Espressif Systems"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "ESP32-S3-MINI-1-N4R2" (at 0 0 0)
+		(property "MPN" "ESP32-S3-MINI-1-N4R2"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "45"
@@ -19648,28 +19779,37 @@
 				)
 			)
 		)
-		(property "LCSC" "C2887910" (at 0 0 0)
+		(property "LCSC" "C2887910"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
-		(property "MPN" "INA228AIDGSR" (at 0 0 0)
+		(property "MPN" "INA228AIDGSR"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
 			(effects
 				(font
 					(size 1.27 1.27)
 				)
-				(hide yes)
 			)
 		)
 		(pin "8"
@@ -20114,44 +20254,4 @@
 		)
 	)
 	(embedded_fonts no)
-	(label "USB_D+"
-		(at 320.04 81.28 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "ac0c0bf8-f527-42d0-8900-7acc17986c8a")
-	)
-	(label "USB_D-"
-		(at 320.04 78.74 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "097735fa-19a6-465c-9c23-3bb782b12160")
-	)
-	(label "CAN1_N"
-		(at 212.09 78.74 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "89c68500-cda4-4ba1-ab1f-cec27d7e66e4")
-	)
-	(label "CAN1_P"
-		(at 212.09 73.66 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "3debc9d5-65f6-4d95-9442-ed7001324bb7")
-	)
 )
