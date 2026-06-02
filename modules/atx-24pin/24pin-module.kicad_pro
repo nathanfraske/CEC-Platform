@@ -623,19 +623,19 @@
       },
       {
         "netclass": "CAN",
-        "pattern": "*CAN1_H*"
+        "pattern": "CAN1_P"
       },
       {
         "netclass": "CAN",
-        "pattern": "*CAN1_L*"
+        "pattern": "CAN1_N"
       },
       {
         "netclass": "USB",
-        "pattern": "*USB_D+*"
+        "pattern": "USB_D+"
       },
       {
         "netclass": "USB",
-        "pattern": "*USB_D-*"
+        "pattern": "USB_D-"
       }
     ]
   },
@@ -767,7 +767,7 @@
         "uuid": "a4774022-41d4-4be7-85b6-fed5477a3f9f"
       }
     ],
-    "used_designators": "#PWR0SH1",
+    "used_designators": "",
     "variants": []
   },
   "sheets": [
