@@ -6,14 +6,16 @@
 # *routing default*, so DRC will NOT flag an under-width power trace on its own.
 # The track_width (min ...) constraints below make DRC actually catch it.
 #
-# Sizing basis (see the layout guideline): the +5VSB Hub-trunk node is PSU-5VSB-
-# capped at ~3A and keeps a 1.0mm track floor (Power netclass) so a too-thin trunk
-# trace is caught. The sensed pass-through rails (RAIL*) carry tens of amps via
+# Sizing basis (see the layout guideline): +5VSB (Power netclass) keeps a 0.5mm
+# track floor -- ~2.4A at 2oz, the minimum for the ~2-2.5A Hub trunk. The trunk is
+# routed at 1mm (margin) by design; low-current +5VSB branches (CAN feed, 3V3 LDO
+# input) sit at 0.5mm.
+# The sensed pass-through rails (RAIL*) carry tens of amps via
 # In2.Cu (2oz) POURS and are verified by pour copper area, NOT a per-track floor
 # (see the note below the Power rule).
 
 (rule "Power min width"
-	(constraint track_width (min 1.0mm))
+	(constraint track_width (min 0.5mm))
 	(condition "A.NetClass == 'Power'"))
 
 # NO per-track width floor on the high-current rails. Their ampacity comes from
