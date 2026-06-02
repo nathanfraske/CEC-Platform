@@ -48,3 +48,6 @@ Thumbs.db
 *.swp
 .vscode/
 .idea/
+
+# Editor local-history dirs (VS Code "Local History" etc.) — never commit
+.history/
