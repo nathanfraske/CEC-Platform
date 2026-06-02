@@ -76,7 +76,16 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [],
+      "drc_exclusions": [
+        [
+          "courtyards_overlap|47435000|76887159|c37a2372-1954-4694-977c-7faadc8396a2|d9bc63cc-4ead-4d24-b55b-2189e7ee9781",
+          "Not worried about antennas on this module."
+        ],
+        [
+          "pth_inside_courtyard|45000000|72750000|c12cd203-a35d-4160-b533-3ad906b6178d|d9bc63cc-4ead-4d24-b55b-2189e7ee9781",
+          "Not worried about antennas on this module."
+        ]
+      ],
       "meta": {
         "version": 2
       },

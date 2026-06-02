@@ -2060,14 +2060,14 @@
 			)
 		)
 	)
-	(footprint "Fiducial:Fiducial_1mm_Mask2mm"
+	(footprint "cec-Fiducial:Fiducial_1mm_Mask2mm"
 		(layer "F.Cu")
 		(uuid "1c6ab1f0-b39b-46c0-89fd-12c84f63506d")
 		(at 104.5 70.5)
 		(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
 		(tags "fiducial")
 		(property "Reference" "FID3"
-			(at 3 0 0)
+			(at -2.5 1.5 0)
 			(layer "F.SilkS")
 			(uuid "318e85ad-4b1c-4c0f-9988-43db3db4fb95")
 			(effects
@@ -4882,14 +4882,14 @@
 			)
 		)
 	)
-	(footprint "Fiducial:Fiducial_1mm_Mask2mm"
+	(footprint "cec-Fiducial:Fiducial_1mm_Mask2mm"
 		(layer "F.Cu")
 		(uuid "4249831c-4e4a-412c-b182-900d9286588d")
 		(at 5 70.5)
 		(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
 		(tags "fiducial")
 		(property "Reference" "FID2"
-			(at 3 0 0)
+			(at -2 2 0)
 			(layer "F.SilkS")
 			(uuid "56467151-b085-48b0-ab98-9010cf2c8097")
 			(effects
@@ -7166,7 +7166,7 @@
 			)
 		)
 	)
-	(footprint "Fiducial:Fiducial_1mm_Mask2mm"
+	(footprint "cec-Fiducial:Fiducial_1mm_Mask2mm"
 		(layer "F.Cu")
 		(uuid "8ad26966-f735-4202-b339-111bbd64d89d")
 		(at 6 4.5)

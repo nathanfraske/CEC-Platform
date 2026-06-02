@@ -1,32 +1,9 @@
-ERC report (2026-05-30T18:16:37, Encoding UTF8)
+ERC report (2026-06-01T23:09:39, Encoding UTF8)
 Report includes: Errors
 
 ***** Sheet /
-[pin_to_pin]: Pins of type Power output and Power output are connected
-    ; error
-    @(1100 mils, 9900 mils): Symbol #FLG76 Pin 1 [~, Power output, Line]
-    @(2550 mils, 8200 mils): Symbol J_IN Pin 9 [+5VSB, Power output, Line]
-[unannotated]: Item not annotated: J_IN?
-    ; error
-    @(2050 mils, 8200 mils): Symbol J_IN [CEC_ATX_24]
-[pin_to_pin]: Pins of type Power output and Power output are connected
-    ; error
-    @(2050 mils, 8800 mils): Symbol J_IN Pin 3 [GND, Power output, Line]
-    @(14650 mils, 7550 mils): Symbol J_OUT Pin 3 [GND, Power output, Line]
-[pin_to_pin]: Pins of type Power output and Power output are connected
-    ; error
-    @(2150 mils, 9900 mils): Symbol #FLG78 Pin 1 [~, Power output, Line]
-    @(2050 mils, 8800 mils): Symbol J_IN Pin 3 [GND, Power output, Line]
-[pin_to_pin]: Pins of type Output and Output are connected
-    ; error
-    @(2550 mils, 7800 mils): Symbol J_IN Pin 8 [PWR_OK, Output, Line]
-    @(14150 mils, 8550 mils): Symbol J_OUT Pin 8 [PWR_OK, Output, Line]
-[pin_to_pin]: Pins of type Power output and Power output are connected
-    ; error
-    @(2550 mils, 8600 mils): Symbol J_IN Pin 14 [-12V, Power output, Line]
-    @(14150 mils, 7750 mils): Symbol J_OUT Pin 14 [-12V, Power output, Line]
 
- ** ERC messages: 6  Errors 6  Warnings 0
+ ** ERC messages: 0  Errors 0  Warnings 0
 
  ** Ignored checks:
     - Global label only appears once in the schematic

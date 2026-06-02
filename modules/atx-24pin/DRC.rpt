@@ -1,16 +1,8 @@
 ** Drc report for 24pin-module.kicad_pcb **
-** Created on 2026-06-01T22:49:31 **
+** Created on 2026-06-01T23:09:25 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 21 DRC violations **
-[courtyards_overlap]: Courtyards overlap
-    Rule: board setup constraints courtyard; error
-    @(34.8400 mm, 66.4000 mm): Footprint J1
-    @(64.0000 mm, 69.0000 mm): Footprint U1
-[pth_inside_courtyard]: PTH inside courtyard
-    Local override; error
-    @(45.0000 mm, 72.7500 mm): PTH pad SH2 [GND] of J1
-    @(64.0000 mm, 69.0000 mm): Footprint U1
+** Found 18 DRC violations **
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
@@ -67,23 +59,24 @@
     Rule: board setup constraints silk; warning
     @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
     @(71.8000 mm, 58.6500 mm): Segment of U1 on F.Silkscreen
-[lib_footprint_mismatch]: Footprint 'Fiducial_1mm_Mask2mm' does not match copy in library 'Fiducial'
-    Local override; warning
-    @(4.5000 mm, 4.5000 mm): Footprint FID1
-[lib_footprint_mismatch]: Footprint 'Fiducial_1mm_Mask2mm' does not match copy in library 'Fiducial'
-    Local override; warning
-    @(106.0000 mm, 71.5000 mm): Footprint FID3
-[lib_footprint_mismatch]: Footprint 'Fiducial_1mm_Mask2mm' does not match copy in library 'Fiducial'
-    Local override; warning
-    @(4.0000 mm, 71.5000 mm): Footprint FID2
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(47.0450 mm, 62.5200 mm): Segment of J1 on F.Silkscreen
-    @(45.0000 mm, 72.7500 mm): PTH pad SH2 [GND] of J1
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(31.5250 mm, 62.5200 mm): Segment of J1 on F.Silkscreen
     @(33.5700 mm, 72.7500 mm): PTH pad SH1 [GND] of J1
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(47.0450 mm, 62.5200 mm): Segment of J1 on F.Silkscreen
+    @(45.0000 mm, 72.7500 mm): PTH pad SH2 [GND] of J1
+[courtyards_overlap]: Courtyards overlap
+    Rule: board setup constraints courtyard; error (excluded)
+    @(34.8400 mm, 66.4000 mm): Footprint J1
+    @(64.0000 mm, 69.0000 mm): Footprint U1
+    Not worried about antennas on this module.
+[pth_inside_courtyard]: PTH inside courtyard
+    Local override; error (excluded)
+    @(45.0000 mm, 72.7500 mm): PTH pad SH2 [GND] of J1
+    @(64.0000 mm, 69.0000 mm): Footprint U1
+    Not worried about antennas on this module.
 
 ** Found 0 unconnected pads **
 
