@@ -20134,7 +20134,7 @@
 		)
 		(uuid "097735fa-19a6-465c-9c23-3bb782b12160")
 	)
-	(label "CAN1_P"
+	(label "CAN1_N"
 		(at 212.09 78.74 0)
 		(effects
 			(font
@@ -20144,7 +20144,7 @@
 		)
 		(uuid "89c68500-cda4-4ba1-ab1f-cec27d7e66e4")
 	)
-	(label "CAN1_N"
+	(label "CAN1_P"
 		(at 212.09 73.66 0)
 		(effects
 			(font
