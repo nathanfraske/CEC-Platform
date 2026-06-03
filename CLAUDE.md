@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.2 (2026-06-03).
+Spec revision reflected here: v3.3 (2026-06-03).
 
 v3.2 reconciliation (2026-06-03): the repo spec was merged with the user's
 canonical v3.1 upload. Operate by these net changes: (1) CAN is CLASSICAL 500k on
@@ -128,6 +128,15 @@ Connector and physical interface:
   (resolves OQ-1). RJ-45 VCC therefore carries per-port distribution only, not
   the trunk. Use the simplest 2-pin part rated for the full Hub trunk with margin
   (working selection: 2-pin JST-XH, >=3A); never Mini-Fit Jr.
+- 24-pin RJ-45 VCC is NO-CONNECT (LOCKED, spec §2.7 v3.3): the 24-pin module is
+  both the bulk 5VSB source (JST feed) and a module on a port, so its own RJ-45
+  VCC pin (J1.1) is left open — NOT tied to its +5VSB — so all bulk flows over
+  the JST, not in parallel over the RJ-45 VCC. The Hub mux sits only in the JST
+  leg (JST = mux input, RJ-45 VCC = mux output), so a short patch would otherwise
+  make the RJ-45 the lower-R path: it would hog the bulk current on the 1.5A
+  contact and bypass the mux. Other modules' RJ-45 VCC stays connected (their only
+  5VSB source). Fixed on 24-pin rev3; the ordered rev2 carries the parallel path
+  (prototype mitigation + Hub-side workarounds in the board docs).
 
 Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6 — distinct from the
 RJ-45 module-to-Hub interface above):

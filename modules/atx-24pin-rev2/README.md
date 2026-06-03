@@ -4,6 +4,29 @@ Same circuit as [`../atx-24pin`](../atx-24pin) (the canonical 24-pin ATX
 interposer); **different PCB layout only** — 24-pin input (J3) with the 24-pin
 output (J4) rotated 90° CCW for a right-angle cable exit.
 
+## Known issue (prototype run) — RJ-45 VCC parallels the JST feed
+
+rev2 ties **J1 pin 1 (RJ-45 VCC)** to `+5VSB`, so the module feeds the Hub on
+**both** the dedicated JST 5VSB feed **and** its RJ-45 VCC pin, in parallel.
+Because the Hub power mux sits only in the JST leg (JST = mux input, RJ-45 VCC =
+mux output), a **short RJ-45 patch** makes the RJ-45 the lower-resistance path —
+it carries the majority of the bulk current (up to ~1.7 A at 3 A total, over the
+**1.5 A RJ-45 contact rating**) and bypasses the mux's PSU/USB OR-ing. Fixed on
+rev3 by leaving J1.1 open (spec §2.7 v3.3); rev2 is ordered as-is, so mitigate at
+bring-up — any one of:
+
+1. **Long RJ-45 patch (≥1.5–2 m)** on the 24-pin↔Hub link: the conductor
+   resistance then exceeds the JST+mux path, so the JST carries the bulk. No mod.
+2. **Keep total 5VSB low:** cap the firmware LED budget and don't run all ports
+   full-white. Under ~2 A total, even a 50/50 split keeps the RJ-45 VCC well
+   under 1.5 A.
+3. **Bodge — open J1 pin 1:** lift the RJ-45 VCC pin or knife-cut its trace to
+   `+5VSB`, emulating the rev3 fix. Most robust; do this if you'll push full
+   load. The module still self-powers from its ATX tap.
+
+Don't run a fully-populated, full-LED system through a short patch on an
+un-bodged rev2.
+
 ## Shared schematic (canonical = atx-24pin)
 The schematic here is a **synced copy**. The source of truth is
 `../atx-24pin/24pin-module.kicad_sch`.

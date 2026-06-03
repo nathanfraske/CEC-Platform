@@ -41,6 +41,13 @@ The ordered **rev2 is as-built and frozen**. Carry these to the next fab:
   and add a `DETECT_SENSE` net. The EPS / PCIe / 12VHPWR-std modules already do
   this on IO10 (via `gen-modules.py`); the 24-pin is hand-maintained so it's
   manual here. Tap value and sense method are **OQ-28**.
+- **RJ-45 VCC pin no-connect (dual-feed fix, spec §2.7 v3.3):** drop **J1 pin 1
+  (RJ-45 VCC)** off the module's `+5VSB` net. The 24-pin self-powers from its own
+  ATX 5VSB tap, so it never needs the Hub's distributed VCC; tying J1.1 to +5VSB
+  makes the RJ-45 VCC **parallel the dedicated JST feed**, and since the Hub power
+  mux sits only in the JST leg, a short patch makes the RJ-45 the lower-resistance
+  path → it hogs the bulk current on the 1.5 A contact and bypasses the mux. Leave
+  J1.1 open; keep RJ-45 GND/CAN/DETECT. One-net change.
 - Do **not** run `sync-schematic.sh` until you intend rev2's copy to track these
   — rev2 is ordered; keep it as-built unless you respin it.
 

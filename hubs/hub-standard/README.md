@@ -27,6 +27,31 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | BOM target | ~$36 (100-qty) |
 
+## 24-pin dual-feed — Hub-side workaround options
+
+The 24-pin module is both the bulk 5VSB source (JST) and a module on a port, so
+its RJ-45 VCC can parallel the JST feed (spec §2.7 v3.3). The clean fix is at the
+source (24-pin rev3: RJ-45 VCC no-connect), and for the prototype the rev2
+bring-up mitigations apply. If you want the **Hub** robust against any
+source-module regardless of its wiring, options in order of cost:
+
+1. **Move port VCC distribution to the mux *input* (pre-mux, `5VSB_RAW`).** Ties
+   the RJ-45 VCC and the JST to the same node, so the mux is no longer bypassed
+   (kills the mux-defeat and the USB-only back-feed). Doesn't remove the cable-R
+   current split, but preserves mux integrity. Zero added parts; caveat: ports
+   aren't powered on USB-only bench (fine — no modules attached then).
+2. **Per-port OR-ing diode on VCC** (Hub→port). A low-drop Schottky (or ideal-
+   diode IC) in series with each port's VCC lets the Hub feed modules but blocks
+   any module back-feeding the Hub — eliminates the parallel path for any
+   source-module. Cost: ~0.3–0.4 V drop on module VCC (LP5907 / SK6812 tolerate
+   ~4.6 V), or a small ideal-diode IC for near-zero drop.
+3. **Diode on one designated power-source port only.** If the 24-pin always lands
+   on a fixed port, block only that port — no drop on the other three. Trades
+   any-port flexibility for that port.
+
+Recommendation: rely on the 24-pin rev3 source fix; the Hub diode is insurance.
+The current prototype Hub needs no change if the rev2 bring-up mitigation is used.
+
 ## Open questions touching this board
 
 - **OQ-1 (locked 2026-05-30):** the Hub takes bulk 5VSB on a dedicated 2-pin
