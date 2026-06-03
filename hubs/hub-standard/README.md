@@ -15,7 +15,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Bulk power | Dedicated 2-pin +5VSB power-in from the 24-pin module; distributes to the 4 ports over RJ-45 VCC (§2.7, OQ-1 locked) |
 | RS-485 | **Not populated** (Standard); pair 2 unused, terminated at the module side |
 | Regulator | LP5907 LDO |
-| Hold-up | 4700 µF / 16 V on the isolated `+5V_HOLD` node (Panasonic EEVFK1C472M, LCSC C401967, CP_Elec_16x17.5). **Flag:** spec/CLAUDE.md say "aluminum-polymer" — unobtainable at 4700 µF/10–16 V; the sourced part is wet aluminum electrolytic. Divergence pending spec ratification (electrolytic is fine for a diode-isolated reservoir feeding an LDO). |
+| Hold-up | 4700 µF / 16 V aluminum electrolytic on the isolated `+5V_HOLD` node (Panasonic EEVFK1C472M, LCSC C401967, CP_Elec_16x17.5). Chemistry corrected "polymer" → electrolytic, **ratified spec v1.9** (4700 µF polymer is unobtainable; electrolytic is right for a diode-isolated reservoir feeding the LDO). |
 | Surge cap | 470 µF on the shared `+5VSB` distribution rail (rides out module load-steps; LCSC C116423, CP_Elec_6.3x7.7) |
 | Inrush | 1 Ω 1 W series resistor |
 | Reverse polarity | SS14 Schottky |

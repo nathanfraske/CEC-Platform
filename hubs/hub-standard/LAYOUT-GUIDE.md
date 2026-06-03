@@ -28,12 +28,26 @@ routing). Spec §4 / the README lock 4-layer; keeping it needs no change, so thi
 guide assumes **4-layer 1.6 mm**. Dropping to 2-layer is a spec-revision call —
 only worth it if cost is a hard driver and EMC can wait.
 
-Suggested stackup (4-layer 1.6 mm):
-- **L1 (F.Cu):** components, signals, the 5VSB power flow.
-- **L2 (In1):** solid GND plane — the deliverable. Keep it unbroken under U1,
-  the diff pairs, and the CAN bus.
-- **L3 (In2):** +5VSB pour (port distribution) + a few crossings.
-- **L4 (B.Cu):** spillover signals + GND fill, stitched to L2.
+Suggested stackup — **JLC04161H-7628**, JLCPCB's default 4-layer 1.6 mm:
+**1 oz outer (L1/L4), 0.5 oz inner (L2/L3)**. 0.5 oz inner is the standard,
+cheapest option and the right call here (see "Copper weight" below).
+- **L1 (F.Cu, 1 oz):** components, signals, **and the ~3 A 5VSB distribution** —
+  keep the heavy power on the thick outer copper.
+- **L2 (In1, 0.5 oz):** solid GND plane — the deliverable. 0.5 oz is fine for a
+  plane (return current spreads out; ampacity is a *trace* concern, not a plane
+  one). Keep it unbroken under U1, the diff pairs, and the CAN bus.
+- **L3 (In2, 0.5 oz):** signal crossings + GND fill. An optional +5VSB *assist*
+  pour is OK (a wide pour carries current even at 0.5 oz), but don't let it be
+  the only path for the trunk.
+- **L4 (B.Cu, 1 oz):** spillover signals + GND fill, stitched to L2.
+
+**Copper weight — 0.5 oz inner is fine.** It is JLCPCB's default (cheaper than
+1 oz inner) and nothing here needs more: the L2 GND plane doesn't care about
+thickness, and the only heavy net (~3 A 5VSB) lives on the 1 oz outer layers.
+Rule of thumb: a ~3 A *trace* on 0.5 oz internal would have to be impractically
+wide (internal copper derates ~50 % vs external), so never bury the trunk as an
+inner trace — but a *pour/plane* at 0.5 oz is fine. Keep power on L1; let the
+inners be GND + signal.
 
 ## Place these first — mechanical anchors (set by the enclosure, not electrons)
 - **4× RJ-45 (J2–J5):** along the back edge, evenly spaced, cable exit outward.
