@@ -16540,6 +16540,27 @@
 			)
 		)
 	)
+
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 619.76 99.06 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
+		(uuid "d1262987-9a7c-4816-a788-e2bc9ec6bd49")
+		(property "Reference" "#FLG202" (at 619.76 96.52 0) (hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 619.76 102.87 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 619.76 99.06 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "" (at 619.76 99.06 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Description" "" (at 619.76 99.06 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "2b400b8c-a9b1-44d3-82be-508f923dc1d5"))
+		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG202") (unit 1))))
+	)
+	(label "+5V_HOLD"
+		(at 619.76 99.06 0)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "084ca56f-06ea-4750-b824-9123c155fffd")
+	)
 	(sheet_instances
 		(path "/"
 			(page "1")
