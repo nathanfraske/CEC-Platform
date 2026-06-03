@@ -1859,6 +1859,172 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-vendor:SB120"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SB120"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+				(at 0 -4.445 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "http://www.diodes.com/_files/datasheets/ds23022.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "20V 1A Schottky Barrier Rectifier Diode, DO-41"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode Schottky"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "D*DO?41*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SB120_0_1"
+				(polyline
+					(pts
+						(xy -1.905 0.635) (xy -1.905 1.27) (xy -1.27 1.27) (xy -1.27 -1.27) (xy -0.635 -1.27) (xy -0.635 -0.635)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SB120_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "cec-vendor:SK6812MINI"
 			(pin_names
 				(offset 0.254)
@@ -4170,6 +4336,12 @@
 		)
 	)
 	(junction
+		(at 435.61 100.33)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "0905fa95-0bc0-48a2-bad9-9c267bb642c6")
+	)
+	(junction
 		(at 420.37 92.71)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4212,12 +4384,6 @@
 		(uuid "57390ded-446f-41fb-b105-4068b3a5ad16")
 	)
 	(junction
-		(at 424.18 92.71)
-		(diameter 0)
-		(color 0 0 0 0)
-		(uuid "57439a16-318b-4a4f-bc89-631d56b6e30a")
-	)
-	(junction
 		(at 525.78 213.36)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4228,6 +4394,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "5e457386-3392-4716-8644-66ce6ff50713")
+	)
+	(junction
+		(at 452.12 100.33)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "5f18a6ed-157a-4a23-8112-93cf06dc4649")
 	)
 	(junction
 		(at 327.66 86.36)
@@ -4290,6 +4462,12 @@
 		(uuid "88cea28f-a0ad-438f-911e-9b9f8a123fec")
 	)
 	(junction
+		(at 435.61 92.71)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "95c0c6c1-80c2-4ead-90c6-a7adfe3a3a2d")
+	)
+	(junction
 		(at 528.32 158.75)
 		(diameter 0)
 		(color 0 0 0 0)
@@ -4336,6 +4514,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "ccbf36bc-64cd-44b6-81f8-bf50fb8b4fbb")
+	)
+	(junction
+		(at 455.93 92.71)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "d4ff8308-3d28-4ca0-9774-1efd485b655f")
 	)
 	(junction
 		(at 384.81 118.11)
@@ -4568,10 +4752,6 @@
 		(uuid "f62bfd71-08f6-46aa-a640-546278bee0c6")
 	)
 	(no_connect
-		(at 284.48 104.14)
-		(uuid "f64802c3-3155-48d9-8a69-5886394121a1")
-	)
-	(no_connect
 		(at 314.96 78.74)
 		(uuid "f6a8418a-219a-428f-bc50-badaa777092f")
 	)
@@ -4705,6 +4885,16 @@
 	)
 	(wire
 		(pts
+			(xy 452.12 92.71) (xy 455.93 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1393b91a-4e6d-458c-83c5-02696dd2d5da")
+	)
+	(wire
+		(pts
 			(xy 341.63 189.23) (xy 341.63 193.04)
 		)
 		(stroke
@@ -4725,6 +4915,16 @@
 	)
 	(wire
 		(pts
+			(xy 435.61 92.71) (xy 444.5 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1540f69a-b7c7-43ff-aac0-ec58a0bb4fd3")
+	)
+	(wire
+		(pts
 			(xy 314.96 86.36) (xy 327.66 86.36)
 		)
 		(stroke
@@ -4732,6 +4932,16 @@
 			(type default)
 		)
 		(uuid "17a0bf05-5d21-4b9c-ba65-ca22455eb5ae")
+	)
+	(wire
+		(pts
+			(xy 445.77 100.33) (xy 452.12 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "17a6a1e2-e242-44fd-a7b7-cec279103cb4")
 	)
 	(wire
 		(pts
@@ -4792,16 +5002,6 @@
 			(type default)
 		)
 		(uuid "1b7c7c5a-ccf6-487a-8e4f-b0d7d05a9d10")
-	)
-	(wire
-		(pts
-			(xy 420.37 92.71) (xy 424.18 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1d24fb8d-f860-45ee-af12-cd9134d87f04")
 	)
 	(wire
 		(pts
@@ -5035,6 +5235,16 @@
 	)
 	(wire
 		(pts
+			(xy 276.86 104.14) (xy 284.48 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3cab1538-0626-4767-bf2b-6144efc91895")
+	)
+	(wire
+		(pts
 			(xy 538.48 48.26) (xy 538.48 99.06)
 		)
 		(stroke
@@ -5052,6 +5262,16 @@
 			(type default)
 		)
 		(uuid "4027a16a-28e2-4151-9782-f38a62bfa686")
+	)
+	(wire
+		(pts
+			(xy 455.93 92.71) (xy 464.82 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "40a10356-a28b-4ea0-92a8-2b671e7fa019")
 	)
 	(wire
 		(pts
@@ -5225,6 +5445,16 @@
 	)
 	(wire
 		(pts
+			(xy 340.36 64.77) (xy 340.36 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "51ac2052-7d26-442a-9924-542abd22177d")
+	)
+	(wire
+		(pts
 			(xy 525.78 217.17) (xy 525.78 213.36)
 		)
 		(stroke
@@ -5252,6 +5482,16 @@
 			(type default)
 		)
 		(uuid "5a9f1bd6-bdb7-4386-aba2-5b98438236c4")
+	)
+	(wire
+		(pts
+			(xy 340.36 76.2) (xy 344.17 76.2)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5b99275f-6639-4f79-8bed-8647aba2a286")
 	)
 	(wire
 		(pts
@@ -5342,16 +5582,6 @@
 			(type default)
 		)
 		(uuid "68e7d8d1-a31f-40f9-836c-b96062cf540b")
-	)
-	(wire
-		(pts
-			(xy 424.18 92.71) (xy 434.34 92.71)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6a937c75-1448-402c-b980-47b17bccbff2")
 	)
 	(wire
 		(pts
@@ -5485,16 +5715,6 @@
 	)
 	(wire
 		(pts
-			(xy 345.44 64.77) (xy 344.17 64.77)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "75ae9599-8a01-49f0-ac97-661bffe730e4")
-	)
-	(wire
-		(pts
 			(xy 355.6 74.93) (xy 355.6 78.74)
 		)
 		(stroke
@@ -5592,6 +5812,16 @@
 			(type default)
 		)
 		(uuid "87e1f661-23a6-4949-a235-0c164d9438df")
+	)
+	(wire
+		(pts
+			(xy 435.61 92.71) (xy 435.61 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "87f0185b-47bd-4630-942d-903f9812cceb")
 	)
 	(wire
 		(pts
@@ -5695,6 +5925,16 @@
 	)
 	(wire
 		(pts
+			(xy 420.37 92.71) (xy 435.61 92.71)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "9c1e7603-642b-403f-bf1c-520f89dccf55")
+	)
+	(wire
+		(pts
 			(xy 430.53 39.37) (xy 430.53 49.53)
 		)
 		(stroke
@@ -5722,6 +5962,16 @@
 			(type default)
 		)
 		(uuid "a51a5310-2f69-467b-aa50-0c2aa0b36db2")
+	)
+	(wire
+		(pts
+			(xy 276.86 148.59) (xy 276.86 104.14)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a5201648-6104-49ef-8d90-d57ff999891a")
 	)
 	(wire
 		(pts
@@ -5802,6 +6052,16 @@
 			(type default)
 		)
 		(uuid "b690575d-2ec4-41d4-bf12-e74057b0c197")
+	)
+	(wire
+		(pts
+			(xy 458.47 100.33) (xy 458.47 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b7f3fa5f-46ee-4d84-a0dc-2930a47fceea")
 	)
 	(wire
 		(pts
@@ -6035,6 +6295,16 @@
 	)
 	(wire
 		(pts
+			(xy 435.61 100.33) (xy 440.69 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "d964219f-7b0b-4217-a305-d9f55fa770a2")
+	)
+	(wire
+		(pts
 			(xy 538.48 99.06) (xy 538.48 153.67)
 		)
 		(stroke
@@ -6132,6 +6402,16 @@
 			(type default)
 		)
 		(uuid "e8c066f5-ffdd-4b2f-bfb8-febb043279fb")
+	)
+	(wire
+		(pts
+			(xy 458.47 148.59) (xy 276.86 148.59)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e95642ce-2323-44f0-9d0b-a46c0143949d")
 	)
 	(wire
 		(pts
@@ -6245,6 +6525,16 @@
 	)
 	(wire
 		(pts
+			(xy 340.36 64.77) (xy 345.44 64.77)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f497970c-baf9-4eca-8d33-f7642eaa1309")
+	)
+	(wire
+		(pts
 			(xy 454.66 72.39) (xy 447.04 72.39)
 		)
 		(stroke
@@ -6295,6 +6585,16 @@
 	)
 	(wire
 		(pts
+			(xy 452.12 100.33) (xy 458.47 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fcf96301-c61f-439f-af69-ed072775f8cd")
+	)
+	(wire
+		(pts
 			(xy 313.69 173.99) (xy 313.69 170.18)
 		)
 		(stroke
@@ -6302,6 +6602,16 @@
 			(type default)
 		)
 		(uuid "fd4bc57c-537b-441a-9d66-ac24f9c1212f")
+	)
+	(wire
+		(pts
+			(xy 435.61 100.33) (xy 435.61 101.6)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fe706cb8-995c-491e-91ac-1801a71ef87f")
 	)
 	(wire
 		(pts
@@ -6322,6 +6632,36 @@
 			(justify left bottom)
 		)
 		(uuid "04d6d954-26d4-4767-8f3b-b8774e52eb87")
+	)
+	(label "+5V_HOLD"
+		(at 344.17 76.2 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "09b92c66-fb90-40fa-bc9d-cb8b030e3032")
+	)
+	(label "5VSB_RAW"
+		(at 600 100 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "0b066e49-604b-4171-b06f-a86fe6f2e3a0")
+	)
+	(label "USB_VBUS"
+		(at 600 115 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "1182426e-9e90-4f8d-861a-2335b6a30b21")
 	)
 	(label "DETECT3"
 		(at 280.67 99.06 180)
@@ -6392,6 +6732,16 @@
 			(justify right bottom)
 		)
 		(uuid "3eaaa3ad-f796-4e16-b451-6b304eab7a80")
+	)
+	(label "+5V_HOLD"
+		(at 464.82 92.71 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3ebb3838-6763-4632-b6be-267d54b74e5e")
 	)
 	(label "DETECT1"
 		(at 280.67 93.98 180)
@@ -6633,6 +6983,16 @@
 		)
 		(uuid "c51df3df-d609-4c79-a632-601dea64feb0")
 	)
+	(label "BLACKOUT_SENSE"
+		(at 458.47 100.33 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "cc262e86-5585-4147-9b36-aab2c57174e4")
+	)
 	(label "DETECT2"
 		(at 523.24 104.14 180)
 		(effects
@@ -6713,6 +7073,16 @@
 		)
 		(uuid "f00ec184-95a0-4bf3-84f1-0fe6ce89e570")
 	)
+	(label "USB_VBUS"
+		(at 384.81 120.65 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "f93aaeca-5c80-4bf2-948a-4d53ee4efdda")
+	)
 	(label "CAN_RX"
 		(at 414.02 57.15 180)
 		(effects
@@ -6792,6 +7162,86 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR069")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:SB120")
+		(at 448.31 92.71 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "028d3c4e-230f-47ee-910b-275455a2b929")
+		(property "Reference" "D1"
+			(at 448.6275 86.36 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "SB120"
+			(at 448.6275 88.9 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+			(at 448.31 88.265 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "http://www.diodes.com/_files/datasheets/ds23022.pdf"
+			(at 448.31 92.71 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "20V 1A Schottky Barrier Rectifier Diode, DO-41"
+			(at 448.31 92.71 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3343651b-559d-4060-b198-1f4017336779")
+		)
+		(pin "2"
+			(uuid "59998c7f-c81c-42cc-8aaf-0669181d3575")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "D1")
 					(unit 1)
 				)
 			)
@@ -7104,7 +7554,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 434.34 92.71 270)
+		(at 435.61 101.6 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -7114,7 +7564,7 @@
 		(dnp no)
 		(uuid "0f8a6058-4c62-4299-9576-08a1911fcf5f")
 		(property "Reference" "#PWR024"
-			(at 431.8 92.71 0)
+			(at 435.61 99.06 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7125,7 +7575,7 @@
 			)
 		)
 		(property "Value" "+5VSB"
-			(at 438.15 92.71 0)
+			(at 435.61 105.41 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7135,7 +7585,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 434.34 92.71 0)
+			(at 435.61 101.6 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7145,7 +7595,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 434.34 92.71 0)
+			(at 435.61 101.6 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7155,7 +7605,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 434.34 92.71 0)
+			(at 435.61 101.6 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -7245,6 +7695,80 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR04")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 600 100 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "12fbde3c-f26b-493b-81a0-a1686b535ce0")
+		(property "Reference" "#FLG200"
+			(at 600 97.46 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 600 103.81 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 600 100 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 600 100 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 600 100 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "a2bbe333-4275-4f3a-b05b-6b9df5612086")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#FLG200")
 					(unit 1)
 				)
 			)
@@ -7743,6 +8267,80 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR54")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 452.12 105.41 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "24914dd6-feb7-4d05-9c81-6064c7fc8e50")
+		(property "Reference" "#PWR071"
+			(at 452.12 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 452.12 109.22 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 452.12 105.41 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 452.12 105.41 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 452.12 105.41 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b1541b25-dfc2-4ba0-be65-e57cbb2b7555")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWR071")
 					(unit 1)
 				)
 			)
@@ -8575,7 +9173,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 424.18 90.17 180)
+		(at 455.93 90.17 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -8585,7 +9183,7 @@
 		(dnp no)
 		(uuid "3d9e5f5b-cbcd-4932-957e-b4df0f4da58b")
 		(property "Reference" "C1"
-			(at 427.736 91.694 0)
+			(at 459.486 91.694 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8595,7 +9193,7 @@
 			)
 		)
 		(property "Value" "4700uF"
-			(at 429.514 89.408 0)
+			(at 461.264 89.408 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -8605,7 +9203,7 @@
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:CP_Elec_10x10.5"
-			(at 424.18 90.17 0)
+			(at 455.93 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8616,7 +9214,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 424.18 90.17 0)
+			(at 455.93 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8627,7 +9225,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 424.18 90.17 0)
+			(at 455.93 90.17 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11471,7 +12069,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 424.18 87.63 180)
+		(at 455.93 87.63 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -11481,7 +12079,7 @@
 		(dnp no)
 		(uuid "8ec64032-ca21-40eb-bafe-c2562ad2d70e")
 		(property "Reference" "#PWR044"
-			(at 424.18 90.17 0)
+			(at 455.93 90.17 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11492,7 +12090,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 424.18 83.82 0)
+			(at 455.93 83.82 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11502,7 +12100,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 424.18 87.63 0)
+			(at 455.93 87.63 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11512,7 +12110,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 424.18 87.63 0)
+			(at 455.93 87.63 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11522,7 +12120,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 424.18 87.63 0)
+			(at 455.93 87.63 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13826,8 +14424,8 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 344.17 64.77 90)
+		(lib_id "cec-power:PWR_FLAG")
+		(at 600 115 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -13835,9 +14433,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(uuid "d1365945-6acc-4407-ab51-02e9fba45488")
-		(property "Reference" "#PWR03"
-			(at 346.71 64.77 0)
+		(uuid "d00bd993-3d72-4a0e-b64f-cb4f642048e4")
+		(property "Reference" "#FLG201"
+			(at 600 112.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13847,8 +14445,8 @@
 				)
 			)
 		)
-		(property "Value" "+5VSB"
-			(at 340.36 64.77 0)
+		(property "Value" "PWR_FLAG"
+			(at 600 118.81 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13858,7 +14456,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 344.17 64.77 0)
+			(at 600 115 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13868,7 +14466,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 344.17 64.77 0)
+			(at 600 115 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13878,7 +14476,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 344.17 64.77 0)
+			(at 600 115 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13888,12 +14486,12 @@
 			)
 		)
 		(pin "1"
-			(uuid "2b0051b9-e996-4f81-927b-722259e0c241")
+			(uuid "7942c21d-b27b-47cf-8a5c-d5cc2b6a1871")
 		)
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR03")
+					(reference "#FLG201")
 					(unit 1)
 				)
 			)
@@ -14992,6 +15590,84 @@
 		)
 	)
 	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 452.12 102.87 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "e8664472-4b45-45d9-9d7e-e4db6e74d1b3")
+		(property "Reference" "R13"
+			(at 455.676 101.854 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "27kΩ"
+			(at 455.93 103.886 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
+			(at 452.12 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 452.12 102.87 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 452.12 102.87 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "1795b723-d237-4f39-8341-2d17d1fea535")
+		)
+		(pin "2"
+			(uuid "5a1d9178-6196-4a9b-acd2-b62d89e3da82")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "R13")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "cec-power:GND")
 		(at 292.1 62.23 0)
 		(unit 1)
@@ -15370,6 +16046,84 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR53")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 443.23 100.33 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f151c4b4-a4c1-4244-bdc0-7a9c78800d9e")
+		(property "Reference" "R12"
+			(at 442.722 102.616 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "47kΩ"
+			(at 442.722 104.648 90)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
+			(at 443.23 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 443.23 100.33 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 443.23 100.33 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5087ef7c-c13a-4a2a-a211-b0b28f82e23c")
+		)
+		(pin "2"
+			(uuid "4fe0f732-6cd4-40aa-96b7-aa527b57821b")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "R12")
 					(unit 1)
 				)
 			)
@@ -15785,60 +16539,6 @@
 				)
 			)
 		)
-	)
-
-	(label "USB_VBUS"
-		(at 384.81 120.65 0)
-		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "f93aaeca-5c80-4bf2-948a-4d53ee4efdda")
-	)
-	(symbol
-		(lib_id "cec-power:PWR_FLAG")
-		(at 600 100 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "12fbde3c-f26b-493b-81a0-a1686b535ce0")
-		(property "Reference" "#FLG200" (at 600 97.46 0) (hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PWR_FLAG" (at 600 103.81 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 600 100 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 600 100 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 600 100 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "a2bbe333-4275-4f3a-b05b-6b9df5612086"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG200") (unit 1))))
-	)
-	(label "5VSB_RAW"
-		(at 600 100 0)
-		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "0b066e49-604b-4171-b06f-a86fe6f2e3a0")
-	)
-	(symbol
-		(lib_id "cec-power:PWR_FLAG")
-		(at 600 115 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "d00bd993-3d72-4a0e-b64f-cb4f642048e4")
-		(property "Reference" "#FLG201" (at 600 112.46 0) (hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PWR_FLAG" (at 600 118.81 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 600 115 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 600 115 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 600 115 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "7942c21d-b27b-47cf-8a5c-d5cc2b6a1871"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG201") (unit 1))))
-	)
-	(label "USB_VBUS"
-		(at 600 115 0)
-		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "1182426e-9e90-4f8d-861a-2335b6a30b21")
 	)
 	(sheet_instances
 		(path "/"
