@@ -16247,7 +16247,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23"
 			(at 154.94 110.49 0)
 			(hide yes)
 			(show_name no)
