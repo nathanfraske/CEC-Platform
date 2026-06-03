@@ -24,8 +24,11 @@ bring-up — any one of:
    `+5VSB`, emulating the rev3 fix. Most robust; do this if you'll push full
    load. The module still self-powers from its ATX tap.
 
-Don't run a fully-populated, full-LED system through a short patch on an
-un-bodged rev2.
+**Decision (prototype run):** go with mitigation 2 — keep the **OQ-2 firmware
+5VSB cap conservative** (target ~2 A total for the rev2 prototype) so the RJ-45
+VCC stays under 1.5 A regardless of patch length. No rev2 bodge and no Hub-side
+workaround; the real fix is **24-pin rev3** (J1.1 no-connect). Rule of thumb:
+don't run a fully-populated, full-LED system on an un-bodged rev2.
 
 ## Shared schematic (canonical = atx-24pin)
 The schematic here is a **synced copy**. The source of truth is
