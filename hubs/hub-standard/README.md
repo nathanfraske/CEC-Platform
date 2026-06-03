@@ -19,7 +19,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Surge cap | 470 µF on the shared `+5VSB` distribution rail (rides out module load-steps; LCSC C116423, CP_Elec_6.3x7.7) |
 | Inrush | 1 Ω 1 W series resistor |
 | Reverse polarity | SS14 Schottky |
-| Supervisor | TPS3839K33 with divider |
+| Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
 | LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2) |
 | Service button | Hidden, GPIO0 (download mode) |

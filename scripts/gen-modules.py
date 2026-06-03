@@ -97,6 +97,10 @@ def build(dirn):
         "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("U1","3"),("U2","5"),("R2","1"),("R3","2"),("R4","2")],
         "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2")] + [("U1",p) for p in ESP_GND],
+        # Reset: ESP32-S3 internal BOD + EN RC only (R2 pull-up to 3V3, C5 to
+        # GND); no external supervisor on modules. The TPS3839 is a Hub-only
+        # part (aggregator role + blackout/hold-up front-end); a module brownout
+        # is a recoverable re-enumerate event, so the internal BOD is enough.
         "EN":     [("U1","45"),("R2","2"),("C5","1")],
         "CAN_TX": [("U1","21"),("U2","1")],
         "CAN_RX": [("U1","22"),("U2","4")],

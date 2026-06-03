@@ -14,6 +14,7 @@ Standard-tier per-rail sensing module for the 24-pin ATX connector. BOM target
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated at the module side |
 | DETECT | Precision resistor pin 8 → GND; code per **OQ-6** |
 | Protection | No per-pin PoE clamp (Standard/Pro, §2.4 RESOLVED v2.0); low-cap ESD diode on DETECT pin 8 (D3, LOCKED v2.0) — added to canonical, lands on rev3; Enterprise/MC over-voltage on the external uplink (OQ-7) |
+| Reset | ESP32-S3 internal BOD + EN RC; no external supervisor (Hub-only part, §4) |
 | BOM target | $35 (100-qty) |
 
 ## Open questions touching this board

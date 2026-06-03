@@ -208,7 +208,7 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | Hold-up | 4700 uF / 16 V aluminum electrolytic on the isolated +5V_HOLD node (Panasonic EEVFK1C472M); corrected from "aluminum polymer" (unobtainable at 4700 uF). See the Hub front-end architecture in Section 2.7. |
 | Inrush limiting | 1 ohm 1 W series resistor |
 | Reverse polarity | SS14 Schottky |
-| Supervisor | TPS3839K33 with divider |
+| Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
 | Storage | ESP32-S3 internal flash, 16 MB (~10 MB available) |
 | Identity | Factory MAC plus database mapping (no eFuse, no secure element) |
 | LEDs | 7x SK6812 MINI-E RGB chain, with firmware current cap per Section 2.5 |
