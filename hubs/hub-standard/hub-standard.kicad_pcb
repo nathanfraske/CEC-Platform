@@ -150,4 +150,15 @@
 			(outputdirectory "")
 		)
 	)
+	(gr_rect
+		(start 100 100)
+		(end 175 155)
+		(stroke
+			(width 0.1)
+			(type default)
+		)
+		(fill none)
+		(layer "Edge.Cuts")
+		(uuid "fe2461e1-52d5-430a-a23a-fecdef0b999e")
+	)
 )
