@@ -6869,7 +6869,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 			(at 242.57 67.31 0)
 			(hide yes)
 			(show_name no)
@@ -12162,7 +12162,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 			(at 242.57 80.01 0)
 			(hide yes)
 			(show_name no)
