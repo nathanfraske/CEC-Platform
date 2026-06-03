@@ -8113,7 +8113,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:+5VSB")
+		(lib_id "cec-power:+3V3")
 		(at 528.32 66.04 180)
 		(unit 1)
 		(body_style 1)
@@ -8134,7 +8134,7 @@
 				)
 			)
 		)
-		(property "Value" "+5VSB"
+		(property "Value" "+3V3"
 			(at 528.32 69.85 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9190,7 +9190,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Capacitor_SMD:CP_Elec_10x10.5"
+		(property "Footprint" "cec-Capacitor_SMD:CP_Elec_16x17.5"
 			(at 455.93 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -9697,7 +9697,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:+5VSB")
+		(lib_id "cec-power:+3V3")
 		(at 525.78 226.06 180)
 		(unit 1)
 		(body_style 1)
@@ -9718,7 +9718,7 @@
 				)
 			)
 		)
-		(property "Value" "+5VSB"
+		(property "Value" "+3V3"
 			(at 525.78 229.87 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11908,7 +11908,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:+5VSB")
+		(lib_id "cec-power:+3V3")
 		(at 529.59 116.84 180)
 		(unit 1)
 		(body_style 1)
@@ -11929,7 +11929,7 @@
 				)
 			)
 		)
-		(property "Value" "+5VSB"
+		(property "Value" "+3V3"
 			(at 529.59 120.65 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -13231,7 +13231,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-power:+5VSB")
+		(lib_id "cec-power:+3V3")
 		(at 528.32 171.45 180)
 		(unit 1)
 		(body_style 1)
@@ -13252,7 +13252,7 @@
 				)
 			)
 		)
-		(property "Value" "+5VSB"
+		(property "Value" "+3V3"
 			(at 528.32 175.26 0)
 			(show_name no)
 			(do_not_autoplace no)
