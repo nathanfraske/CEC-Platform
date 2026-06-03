@@ -418,11 +418,23 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
     edge) and DRC for courtyard overlaps, copper-to-edge, and clearance. Separate
     the real hits from cosmetic/pre-existing noise (0.2 mm legacy drills, a
     footprint's own silk-over-pad, benign lib-footprint-mismatch).
-  - **Pad coordinates are LOCAL.** Pads store unrotated local positions, so
-    changing the footprint `(at X Y A)` repositions and rotates the whole part
-    correctly. The per-pad angle field is baked (footprint angle + local) — when
-    you change a footprint's rotation, normalize its pad angle fields to match, or
-    the instance is left internally inconsistent.
+  - **Everything in the footprint is LOCAL — move it by the one anchor.** Pads,
+    silk/fab graphics, the Reference/Value and any user text, and any
+    footprint-local zones or keep-outs are all stored relative to the footprint
+    origin, so editing the single `(at X Y A)` line carries the whole part along
+    — text and zones included. Never relocate a footprint by hand-moving its
+    children one at a time; that orphans the text or a keep-out off the part.
+    After the move, glance at a render to confirm nothing detached. The per-pad
+    angle field is baked (footprint angle + local), so when you change a
+    footprint's rotation, normalize its pad angle fields to match, or the
+    instance is left internally inconsistent.
+  - **Rotate, don't flip.** Changing the angle `A` rotates the part in place
+    (normalize the pad angles as above) — fine, and account for any rotation the
+    footprint already carries. Do NOT flip a footprint to the other side of the
+    board by hand: a flip is a layer change (the footprint and every child move
+    `F.*` → `B.*` and X mirrors), i.e. an opposite-side placement decision, not a
+    coordinate edit. Leave flips to the GUI or do them only on explicit
+    instruction.
   - **kicad-cli cannot refill zones.** Moving a footprint under a filled pour
     leaves stale fill that DRC reads as a false short; clear the stale
     `(filled_polygon)` blocks (or leave the zone unfilled) and tell the user to
