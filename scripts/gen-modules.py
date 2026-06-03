@@ -75,6 +75,16 @@ BASE_PARTS = {
     "C3": ("cec-vendor", "C_Small", "100n"),
     "C4": ("cec-vendor", "C_Small", "100n"),
     "C5": ("cec-vendor", "C_Small", "100n"),
+    # DETECT-pin protection + poke-and-ack tap (added platform-wide, v3.2).
+    # D1: low-capacitance ESD diode on pin 8 -> GND, LOCKED on every Hub/module
+    # for hot-plug insertion ESD on the bare analog input (spec §2.4 v2.0).
+    # R7: high-Z sense tap from pin 8 to a spare ADC1 GPIO (IO10) so the module
+    # can sense a Hub DETECT-line poke and ack over CAN (spec §2.3 v2.6,
+    # poke-and-ack). Tap value and sense method (digital edge vs ADC) are OQ-28
+    # working choices. D_Schottky is the body stand-in (value names the real ESD
+    # part), per the symbol-standin convention above.
+    "D1": ("cec-vendor", "D_Schottky", "PESD5V0S1UL"),
+    "R7": ("cec-vendor", "R_Small", "100k"),
 }
 
 def build(dirn):
@@ -85,14 +95,15 @@ def build(dirn):
     nets = {
         "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("U2","3")],
         "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("U1","3"),("U2","5"),("R2","1"),("R3","2"),("R4","2")],
-        "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),
+        "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2")] + [("U1",p) for p in ESP_GND],
         "EN":     [("U1","45"),("R2","2"),("C5","1")],
         "CAN_TX": [("U1","21"),("U2","1")],
         "CAN_RX": [("U1","22"),("U2","4")],
         "CAN_H":  [("U2","7"),("J1","3")],
         "CAN_L":  [("U2","6"),("J1","6")],
-        "DETECT": [("J1","8"),("R1","1")],
+        "DETECT": [("J1","8"),("R1","1"),("D1","1"),("R7","1")],
+        "DETECT_SENSE": [("R7","2"),("U1","14")],  # poke-and-ack tap -> IO10 (OQ-28)
         "GPIO0":  [("U1","4")],
     }
 
@@ -194,6 +205,7 @@ def layout(dirn, parts):
         "U1": (340, 90),
         "R3": (300, 40), "R4": (320, 40),
         "C3": (300, 150), "C4": (390, 60),
+        "D1": (85, 70), "R7": (85, 100),
     }
     if dirn == "atx-24pin":
         P["J2"] = (50, 120)
