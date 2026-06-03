@@ -5,6 +5,7 @@
   (lib (name "cec-Resistor_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Resistor_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Package_SO")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_SO.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Package_TO_SOT_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_TO_SOT_SMD.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Package_DFN_QFN")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Package_DFN_QFN.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-RF_Module")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/RF_Module.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Connector_RJ")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_RJ.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Connector_JST")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_JST.pretty")(options "")(descr "Vendored, pinned"))
