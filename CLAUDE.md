@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v1.9 (2026-06-03).
+Spec revision reflected here: v1.10 (2026-06-03).
 
 ## What this project is
 
@@ -178,7 +178,7 @@ Per-tier hardware:
   carry forward (LP5907 LDO, 4700 uF aluminum electrolytic hold-up — Panasonic
   EEVFK1C472M 16 V, corrected from "polymer" v1.9; 1 ohm 1 W inrush
   resistor, SS14 reverse-polarity Schottky, TPS3839K33 supervisor, 7x SK6812
-  MINI-E LED chain, GPIO0 hidden service button, 4x M2.5 chassis-grounded
+  MINI-E LED chain, GPIO0 hidden service button, 4x M3 chassis-grounded
   mounting, 4-layer 1.6 mm ENIG matte-black PCB, identity by factory MAC plus
   database with no eFuse or secure element).
 - Hub Pro: ESP32-P4, 8 ports, CAN-FD plus RS-485 streaming receivers (one

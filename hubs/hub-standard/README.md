@@ -23,7 +23,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
 | LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2) |
 | Service button | Hidden, GPIO0 (download mode) |
-| Mounting | 4× M2.5 corner holes, chassis-grounded |
+| Mounting | 4× M3 corner holes, chassis-grounded (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` — pad + stitching vias to the In1 GND plane; PC-standard fastener, spec v1.10) |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | BOM target | ~$36 (100-qty) |
 

@@ -2,7 +2,7 @@
 
 **Status:** Controlled baseline. This document is the single source of truth for the CEC platform and holds precedence over every earlier document. All future decisions are versioned here. Where any earlier document conflicts, this document wins.
 
-**Document version:** 1.9
+**Document version:** 1.10
 
 **Reconciles and supersedes:**
 - *CEC Hub Standard v1.1 locked decisions* (Mini-Fit Jr connector): superseded on connector and cabling; all other v1.1 decisions carried forward.
@@ -11,8 +11,8 @@
 - *Early CAN-FD / BOM thread* (JST-XH connector, i.MX 93 Enterprise): superseded.
 - *CEC PCB-repo ground-truth spec* (GitHub, 2026-05-30): reconciled here. Its Standard-module MCU lock is adopted; its 24-pin sensor, 12VHPWR Standard sensing, and platform-wide PoE drop diverge from this document and are addressed in Section 2.4, Section 6.1, and OQ-14.
 
-**Last updated:** 2026-06-02
-**Scope of this revision:** Full detail on the universal interface, Hub Standard, Hub Pro, and the module sensing and current-handling domain including the Pro module. Enterprise and Mission Critical are summarized at platform level only (see OQ-7). v1.6 adds the module PSU-side power-path connector and interposer-cabling rules (Section 2.8). v1.7 finalizes the DETECT module-ID code table (Section 2.3, resolving OQ-6) and records the shielded-jack divergence (OQ-15). v1.8 moves the Hub Standard MCU to the ESP32-S3-WROOM-1-N16R8 (the MINI-1-N16R2 named in earlier revisions is not a real SKU). v1.9 corrects the Hub Standard hold-up cap chemistry from aluminum polymer to aluminum electrolytic (4700 uF is unobtainable as a single polymer part at this voltage).
+**Last updated:** 2026-06-03
+**Scope of this revision:** Full detail on the universal interface, Hub Standard, Hub Pro, and the module sensing and current-handling domain including the Pro module. Enterprise and Mission Critical are summarized at platform level only (see OQ-7). v1.6 adds the module PSU-side power-path connector and interposer-cabling rules (Section 2.8). v1.7 finalizes the DETECT module-ID code table (Section 2.3, resolving OQ-6) and records the shielded-jack divergence (OQ-15). v1.8 moves the Hub Standard MCU to the ESP32-S3-WROOM-1-N16R8 (the MINI-1-N16R2 named in earlier revisions is not a real SKU). v1.9 corrects the Hub Standard hold-up cap chemistry from aluminum polymer to aluminum electrolytic (4700 uF is unobtainable as a single polymer part at this voltage). v1.10 moves the Hub corner-mount holes from M2.5 to M3 to match the common PC-internal fastener standard.
 
 > Action item carried out of reconciliation: the Hub Standard and 12VHPWR schematics still show Mini-Fit Jr footprints and must be re-cut to RJ-45 before any board order. They are the stale artifacts, not this document.
 
@@ -190,7 +190,7 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | LEDs | 7x SK6812 MINI-E RGB chain, with firmware current cap per Section 2.5 |
 | LED control | Adalight via CDC plus CEC override priority |
 | Service button | Hidden, GPIO0 (download mode) |
-| Mounting | 4x M2.5 corner holes, chassis-grounded |
+| Mounting | 4x M3 corner holes, chassis-grounded (MountingHole_3.2mm_M3_Pad_Via) |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | Chassis | Plastic prototype; aluminum 6063 anodized production |
 | Bulk power input | Dedicated 2-pin JST-XH 5VSB feed from the 24-pin module (OQ-1 resolved); 5VSB distributed to downstream modules over their RJ-45 VCC pins |
@@ -413,7 +413,8 @@ Note: the 24-pin ATX figure predates the v1.4 move to four INA228 parts; expect 
 
 ## 10. Revision history
 
-- **v1.9 (this revision):** corrected the Hub Standard hold-up cap from "aluminum polymer" to **aluminum electrolytic**. A 4700 uF part is not obtainable as a single aluminum-polymer device at 10-16 V (polymer CV density tops out far lower); the function — a diode-isolated reservoir on the +5V_HOLD node feeding the LP5907 LDO for a blackout data-dump window — is well served by a wet aluminum electrolytic. Working part: Panasonic EEVFK1C472M (4700 uF / 16 V V-chip, LCSC C401967, CP_Elec_16x17.5). No change to capacitance, the regulator, the supervisor, or any open question.
+- **v1.10 (this revision):** moved the Hub corner-mount holes from M2.5 to **M3**, aligning with the common PC-internal fastener standard (case fans, brackets, 2.5" drives, M.2 standoffs). Chassis-grounded as before; vendored MountingHole_3.2mm_M3_Pad_Via — a 3.2 mm clearance hole with a copper pad and stitching vias that tie the In1 GND plane to the mounting screw (also serving the Section 6.6 chassis thermal coupling). No board is affected (the 24-pin interposer carries no corner holes); Hub Pro inherits via the Hub Standard base.
+- **v1.9:** corrected the Hub Standard hold-up cap from "aluminum polymer" to **aluminum electrolytic**. A 4700 uF part is not obtainable as a single aluminum-polymer device at 10-16 V (polymer CV density tops out far lower); the function — a diode-isolated reservoir on the +5V_HOLD node feeding the LP5907 LDO for a blackout data-dump window — is well served by a wet aluminum electrolytic. Working part: Panasonic EEVFK1C472M (4700 uF / 16 V V-chip, LCSC C401967, CP_Elec_16x17.5). No change to capacitance, the regulator, the supervisor, or any open question.
 - **v1.8:** moved the Hub Standard MCU from the (non-existent) ESP32-S3-MINI-1-N16R2 to the **ESP32-S3-WROOM-1-N16R8** (16 MB flash + 8 MB PSRAM). The MINI-1 form factor has no 16 MB SKU; the WROOM gives the aggregation role real flash/PSRAM headroom and OTA room, and the documented "16 MB flash" intent is preserved. The PCB-antenna keepout is honored (future Wi-Fi option). Modules stay on the MINI-1 (ESP32-S3 family throughout). Vendored the WROOM-1 symbol and footprint in-repo (cec-vendor / cec-RF_Module). No change to the universal interface, sensing, or any open question.
 - **v1.7:** finalized the DETECT module-ID encoding (Section 2.3): added the locked code table and corrected the Hub-side divider to a fixed 10 kΩ pull-up to the 3.3 V ADC reference (an ESP32 ADC input pulled to the 5VSB VCC pin would exceed its range), with the encoding now by **link capability** rather than module type/tier — resolving OQ-6. Recorded the shielded-jack divergence as OQ-15: current boards carry the unshielded Amphenol 54602 with grounded SH1/SH2 board-locks rather than the Section 2.1 FTP jack; acceptable for prototype bring-up, open for production/EMC. No change to sensing, pin allocation, or any other locked decision.
 - **v1.6:** added Section 2.8, the module PSU-side power-path connectors and interposer-cabling rules, separate from the universal RJ-45 interface. Locked two connector decisions surfaced during 24-pin and 12VHPWR layout: (1) the 24-pin ATX module carries two Molex Mini-Fit Jr male headers (input J3, output J4) because no board-mount female 24-pin ATX receptacle exists as a standard part, so the run from the module output to the motherboard requires a dedicated female-to-female 24-pin ATX bridging cable (a female receptacle on each end, since module output and motherboard are both male headers), which CEC supplies as a platform SKU; (2) the 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s) directly to the board, with no detachable pass-through header or bridging cable. Cross-referenced the soldered-connector decision in the 12VHPWR Pro detail table (Section 6.9). No change to sensing, the universal interface, or any open question.

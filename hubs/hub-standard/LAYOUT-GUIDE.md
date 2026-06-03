@@ -54,7 +54,9 @@ inners be GND + signal.
 - **USB-C (J6):** front/side edge for the host cable; **hard against U1** (short
   USB pair).
 - **2-pin power-in (J1):** near where the 24-pin module's 5VSB cable enters.
-- **4× M2.5 mounting holes:** corners, chassis-grounded (tie to L2/GND).
+- **4× M3 mounting holes** (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via`):
+  corners, assign the pad net to **GND** so the pad + stitching vias tie the
+  In1 plane to the chassis screw (grounding + the §6.6 thermal path).
 - **U1 (WROOM):** antenna at a board edge, **pointing off-board**, with the
   module antenna keepout honored — **no copper on ANY layer under the antenna**
   (including the L2 plane). This is the one keepout that voids the "solid plane".
