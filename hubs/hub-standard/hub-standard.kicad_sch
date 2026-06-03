@@ -4883,6 +4883,16 @@
 	)
 	(wire
 		(pts
+			(xy 72.39 158.75) (xy 68.58 158.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "13ce0980-562b-413d-8307-7febf001e998")
+	)
+	(wire
+		(pts
 			(xy 341.63 189.23) (xy 341.63 193.04)
 		)
 		(stroke
@@ -4990,6 +5000,16 @@
 			(type default)
 		)
 		(uuid "1b7c7c5a-ccf6-487a-8e4f-b0d7d05a9d10")
+	)
+	(wire
+		(pts
+			(xy 72.39 179.07) (xy 68.58 179.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1c7aab54-8d9c-4bd6-a412-faf289a8ec21")
 	)
 	(wire
 		(pts
@@ -5180,6 +5200,16 @@
 			(type default)
 		)
 		(uuid "34d798db-bb3b-4419-aa2e-82e876b5808b")
+	)
+	(wire
+		(pts
+			(xy 80.01 138.43) (xy 83.82 138.43)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "37045d25-8c82-45e7-85b2-09ca03f77c25")
 	)
 	(wire
 		(pts
@@ -5493,6 +5523,16 @@
 	)
 	(wire
 		(pts
+			(xy 72.39 138.43) (xy 68.58 138.43)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5d5c8b4b-667e-458e-bb00-e86e6fb079c5")
+	)
+	(wire
+		(pts
 			(xy 481.33 189.23) (xy 481.33 193.04)
 		)
 		(stroke
@@ -5580,16 +5620,6 @@
 			(type default)
 		)
 		(uuid "6aba9d27-142a-4950-803a-0010a9b7b2c9")
-	)
-	(wire
-		(pts
-			(xy 327.66 83.82) (xy 327.66 86.36)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6afe6cf2-9754-4ce6-a9e1-1171764f7e92")
 	)
 	(wire
 		(pts
@@ -5763,6 +5793,16 @@
 	)
 	(wire
 		(pts
+			(xy 72.39 118.11) (xy 68.58 118.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "817046ce-f1b2-4a36-8d36-f73f0dfa53c8")
+	)
+	(wire
+		(pts
 			(xy 420.37 123.19) (xy 426.72 123.19)
 		)
 		(stroke
@@ -5820,6 +5860,16 @@
 			(type default)
 		)
 		(uuid "895bae7e-5d41-4b54-82f4-c2c839d24bed")
+	)
+	(wire
+		(pts
+			(xy 80.01 179.07) (xy 83.82 179.07)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8cb6e8d4-3680-4096-9bce-4bbba03a256f")
 	)
 	(wire
 		(pts
@@ -6073,16 +6123,6 @@
 	)
 	(wire
 		(pts
-			(xy 327.66 86.36) (xy 327.66 91.44)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c0b1fc4b-3fa2-4b4f-9280-dcc7251737b7")
-	)
-	(wire
-		(pts
 			(xy 345.44 59.69) (xy 345.44 57.15)
 		)
 		(stroke
@@ -6200,6 +6240,16 @@
 			(type default)
 		)
 		(uuid "cf0f5656-2e9b-4327-812a-9b0c8aa76ac3")
+	)
+	(wire
+		(pts
+			(xy 80.01 118.11) (xy 83.82 118.11)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cf114608-730b-491e-ba4d-d253d15cba4a")
 	)
 	(wire
 		(pts
@@ -6383,6 +6433,16 @@
 	)
 	(wire
 		(pts
+			(xy 80.01 158.75) (xy 83.82 158.75)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e8aec314-cd39-4ce2-aa62-f43dd495ebca")
+	)
+	(wire
+		(pts
 			(xy 461.01 181.61) (xy 473.71 181.61)
 		)
 		(stroke
@@ -6463,7 +6523,7 @@
 	)
 	(wire
 		(pts
-			(xy 327.66 40.64) (xy 327.66 83.82)
+			(xy 327.66 40.64) (xy 327.66 91.44)
 		)
 		(stroke
 			(width 0)
@@ -6622,6 +6682,16 @@
 		(uuid "04d6d954-26d4-4767-8f3b-b8774e52eb87")
 	)
 	(label "+5V_HOLD"
+		(at 619.76 99.06 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "084ca56f-06ea-4750-b824-9123c155fffd")
+	)
+	(label "+5V_HOLD"
 		(at 344.17 76.2 0)
 		(effects
 			(font
@@ -6650,6 +6720,16 @@
 			(justify left bottom)
 		)
 		(uuid "1182426e-9e90-4f8d-861a-2335b6a30b21")
+	)
+	(label "DETECT3"
+		(at 68.58 158.75 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "16782828-ccbb-48ad-a167-aeb111000417")
 	)
 	(label "DETECT3"
 		(at 280.67 99.06 180)
@@ -6690,6 +6770,16 @@
 			(justify right bottom)
 		)
 		(uuid "2fd6bd3f-784a-448c-a8ca-7491b6a62c12")
+	)
+	(label "DETECT2"
+		(at 68.58 138.43 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "37097fa4-904d-405b-beec-5e732a2b87ff")
 	)
 	(label "CAN_RX"
 		(at 318.77 86.36 0)
@@ -6810,6 +6900,26 @@
 			(justify right bottom)
 		)
 		(uuid "7002ac26-c6e4-4636-b9ad-aa6ecdf37d60")
+	)
+	(label "DETECT1"
+		(at 68.58 118.11 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "707663e1-a312-47e6-8e2b-e2cd2548d42b")
+	)
+	(label "DETECT4"
+		(at 68.58 179.07 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right)
+		)
+		(uuid "7f5ab428-a7a1-4237-bcb6-c29a1c99f70e")
 	)
 	(label "DETECT4"
 		(at 280.67 101.6 180)
@@ -8261,6 +8371,85 @@
 		)
 	)
 	(symbol
+		(lib_id "cec-vendor:SB120")
+		(at 76.2 118.11 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2465210a-3eaa-4633-bdf2-7b5b919209d8")
+		(property "Reference" "D2"
+			(at 76.2 114.3 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PESD5V0S1UL"
+			(at 76.2 121.92 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323"
+			(at 76.2 118.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 76.2 118.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)"
+			(at 76.2 118.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3c6aa22a-20ca-47c7-aeac-ac9faf56b12b")
+		)
+		(pin "2"
+			(uuid "5b99d7b7-e1b9-4587-8b57-aaabb1bedb97")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "D2")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "cec-power:GND")
 		(at 452.12 105.41 0)
 		(unit 1)
@@ -9469,6 +9658,80 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
+		(at 480.06 115.57 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "46a46966-249d-4487-aa67-41d2eab35101")
+		(property "Reference" "#PWR0202"
+			(at 480.06 118.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 480.06 111.76 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 480.06 115.57 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 480.06 115.57 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 480.06 115.57 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "762865bd-c5ff-47da-a51c-2e3963de198a")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWR0202")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
 		(at 570.23 99.06 0)
 		(unit 1)
 		(body_style 1)
@@ -9613,6 +9876,85 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR48")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:SB120")
+		(at 76.2 179.07 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "4f1e580a-1728-4e41-8641-e8fd59ea237f")
+		(property "Reference" "D5"
+			(at 76.2 175.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PESD5V0S1UL"
+			(at 76.2 182.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323"
+			(at 76.2 179.07 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 76.2 179.07 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)"
+			(at 76.2 179.07 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0c77a0ee-1d18-4895-b201-49fbcde800ed")
+		)
+		(pin "2"
+			(uuid "8d77f09d-9258-4f8e-9844-4f5cbba0b617")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "D5")
 					(unit 1)
 				)
 			)
@@ -10377,6 +10719,80 @@
 		)
 	)
 	(symbol
+		(lib_id "cec-power:GND")
+		(at 83.82 179.07 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "6caa5574-ca45-45d1-bcc4-0f934ab1dc2a")
+		(property "Reference" "#PWR0304"
+			(at 83.82 184.15 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 83.82 182.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 83.82 179.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 83.82 179.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 83.82 179.07 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7da245c9-29e9-48b9-8acb-c402005845ff")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWR0304")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "cec-power:PWR_FLAG")
 		(at 64.77 295.91 180)
 		(unit 1)
@@ -10968,7 +11384,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "78753c00-ce70-471c-8a6a-e43238a597b6")
-		(property "Reference" "R_ILIM"
+		(property "Reference" "R_ILIM1"
 			(at 429.768 127.254 90)
 			(show_name no)
 			(do_not_autoplace no)
@@ -11029,7 +11445,7 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "R_ILIM")
+					(reference "R_ILIM1")
 					(unit 1)
 				)
 			)
@@ -11293,6 +11709,87 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "U5")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 480.06 113.03 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7d31edca-2064-4d07-a2a3-7d9fdeb1e347")
+		(property "Reference" "C_bulk1"
+			(at 482.6 111.76 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "470uF"
+			(at 482.6 114.3 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:CP_Elec_6.3x7.7"
+			(at 480.06 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 480.06 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Bulk surge cap on Hub +5VSB distribution"
+			(at 480.06 113.03 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "8f1fb905-072b-4f1f-ae19-86c982ecc83b")
+		)
+		(pin "2"
+			(uuid "ac3467ab-3934-4ee9-aa5e-3130fb108364")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "C_bulk1")
 					(unit 1)
 				)
 			)
@@ -11828,6 +12325,80 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWRSH1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 83.82 158.75 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "86a88bbc-4939-43d3-9eb8-1b59b7b6e9b6")
+		(property "Reference" "#PWR0303"
+			(at 83.82 163.83 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 83.82 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 83.82 158.75 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 83.82 158.75 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 83.82 158.75 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4b966a09-7a63-4b39-be04-413f153dd7c4")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWR0303")
 					(unit 1)
 				)
 			)
@@ -13758,6 +14329,80 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
+		(at 83.82 138.43 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "bfc65e6a-384b-46e5-9de2-eab56818ba9d")
+		(property "Reference" "#PWR0302"
+			(at 83.82 143.51 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 83.82 142.24 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 83.82 138.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 83.82 138.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 83.82 138.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "15355d9f-2130-4c5e-ba05-80f3ba72ed26")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWR0302")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
 		(at 546.1 88.9 270)
 		(unit 1)
 		(body_style 1)
@@ -13909,6 +14554,85 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "DL6")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:SB120")
+		(at 76.2 138.43 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c3ebde23-ff1e-48f8-a655-47860a562bcd")
+		(property "Reference" "D3"
+			(at 76.2 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PESD5V0S1UL"
+			(at 76.2 142.24 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323"
+			(at 76.2 138.43 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 76.2 138.43 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)"
+			(at 76.2 138.43 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "25284e80-a4aa-4bde-afb4-21b1bd45586d")
+		)
+		(pin "2"
+			(uuid "57765b92-1765-439f-886a-d1c951e4ef90")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "D3")
 					(unit 1)
 				)
 			)
@@ -14486,6 +15210,80 @@
 		)
 	)
 	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 619.76 99.06 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d1262987-9a7c-4816-a788-e2bc9ec6bd49")
+		(property "Reference" "#FLG202"
+			(at 619.76 96.52 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 619.76 102.87 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 619.76 99.06 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 619.76 99.06 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 619.76 99.06 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2b400b8c-a9b1-44d3-82be-508f923dc1d5")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#FLG202")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "cec-power:GND")
 		(at 154.94 121.92 0)
 		(unit 1)
@@ -14628,6 +15426,80 @@
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
 					(reference "#PWR065")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 83.82 118.11 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d6ce233a-be21-454b-b6a0-7032f83b1400")
+		(property "Reference" "#PWR0301"
+			(at 83.82 123.19 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 83.82 121.92 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 83.82 118.11 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 83.82 118.11 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 83.82 118.11 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "58b87ebd-ad4d-4959-9f75-9f03046dc7f7")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "#PWR0301")
 					(unit 1)
 				)
 			)
@@ -15277,7 +16149,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "e4d3446d-2ac2-4361-82cc-728d99ab8ce3")
-		(property "Reference" "C_SS"
+		(property "Reference" "C_SS1"
 			(at 428.498 113.538 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15338,7 +16210,7 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "C_SS")
+					(reference "C_SS1")
 					(unit 1)
 				)
 			)
@@ -16307,6 +17179,85 @@
 		)
 	)
 	(symbol
+		(lib_id "cec-vendor:SB120")
+		(at 76.2 158.75 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f2a6a4f2-0a8b-414c-bcd9-92f69f4bac22")
+		(property "Reference" "D4"
+			(at 76.2 154.94 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PESD5V0S1UL"
+			(at 76.2 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323"
+			(at 76.2 158.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 76.2 158.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)"
+			(at 76.2 158.75 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "3ae44f07-e6f3-44c8-aaab-6205352ea7d2")
+		)
+		(pin "2"
+			(uuid "fbe33ef5-06b7-48f4-a2eb-0cdf16c8986d")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "D4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "cec-power:+5VSB")
 		(at 369.57 170.18 0)
 		(unit 1)
@@ -16528,109 +17479,6 @@
 			)
 		)
 	)
-
-	(symbol
-		(lib_id "cec-power:PWR_FLAG")
-		(at 619.76 99.06 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "d1262987-9a7c-4816-a788-e2bc9ec6bd49")
-		(property "Reference" "#FLG202" (at 619.76 96.52 0) (hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PWR_FLAG" (at 619.76 102.87 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 619.76 99.06 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 619.76 99.06 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 619.76 99.06 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "2b400b8c-a9b1-44d3-82be-508f923dc1d5"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG202") (unit 1))))
-	)
-	(label "+5V_HOLD"
-		(at 619.76 99.06 0)
-		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "084ca56f-06ea-4750-b824-9123c155fffd")
-	)
-
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 480.06 113.03 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "7d31edca-2064-4d07-a2a3-7d9fdeb1e347")
-		(property "Reference" "C_bulk"
-			(at 482.6 111.76 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "470uF"
-			(at 482.6 114.3 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:CP_Elec_6.3x7.7"
-			(at 480.06 113.03 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 480.06 113.03 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" "Bulk surge cap on Hub +5VSB distribution"
-			(at 480.06 113.03 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8f1fb905-072b-4f1f-ae19-86c982ecc83b")
-		)
-		(pin "2"
-			(uuid "ac3467ab-3934-4ee9-aa5e-3130fb108364")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "C_bulk")
-					(unit 1)
-				)
-			)
-		)
-	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
 		(at 480.06 110.49 0)
@@ -16704,201 +17552,6 @@
 				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 480.06 115.57 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "46a46966-249d-4487-aa67-41d2eab35101")
-		(property "Reference" "#PWR0202"
-			(at 480.06 118.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 480.06 111.76 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 480.06 115.57 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 480.06 115.57 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 480.06 115.57 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "762865bd-c5ff-47da-a51c-2e3963de198a")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR0202")
-					(unit 1)
-				)
-			)
-		)
-	)
-
-	(symbol
-		(lib_id "cec-vendor:SB120")
-		(at 76.2 118.11 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "2465210a-3eaa-4633-bdf2-7b5b919209d8")
-		(property "Reference" "D2" (at 76.2 114.3 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1UL" (at 76.2 121.92 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 76.2 118.11 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 76.2 118.11 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)" (at 76.2 118.11 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "3c6aa22a-20ca-47c7-aeac-ac9faf56b12b"))
-		(pin "2" (uuid "5b99d7b7-e1b9-4587-8b57-aaabb1bedb97"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D2") (unit 1))))
-	)
-	(wire (pts (xy 72.39 118.11) (xy 68.58 118.11)) (stroke (width 0) (type default)) (uuid "817046ce-f1b2-4a36-8d36-f73f0dfa53c8"))
-	(label "DETECT1" (at 68.58 118.11 0) (effects (font (size 1.27 1.27)) (justify right)) (uuid "707663e1-a312-47e6-8e2b-e2cd2548d42b"))
-	(wire (pts (xy 80.01 118.11) (xy 83.82 118.11)) (stroke (width 0) (type default)) (uuid "cf114608-730b-491e-ba4d-d253d15cba4a"))
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 83.82 118.11 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "d6ce233a-be21-454b-b6a0-7032f83b1400")
-		(property "Reference" "#PWR0301" (at 83.82 123.19 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "GND" (at 83.82 121.92 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 83.82 118.11 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 83.82 118.11 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 83.82 118.11 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "58b87ebd-ad4d-4959-9f75-9f03046dc7f7"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0301") (unit 1))))
-	)
-	(symbol
-		(lib_id "cec-vendor:SB120")
-		(at 76.2 138.43 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "c3ebde23-ff1e-48f8-a655-47860a562bcd")
-		(property "Reference" "D3" (at 76.2 134.62 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1UL" (at 76.2 142.24 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 76.2 138.43 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 76.2 138.43 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)" (at 76.2 138.43 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "25284e80-a4aa-4bde-afb4-21b1bd45586d"))
-		(pin "2" (uuid "57765b92-1765-439f-886a-d1c951e4ef90"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D3") (unit 1))))
-	)
-	(wire (pts (xy 72.39 138.43) (xy 68.58 138.43)) (stroke (width 0) (type default)) (uuid "5d5c8b4b-667e-458e-bb00-e86e6fb079c5"))
-	(label "DETECT2" (at 68.58 138.43 0) (effects (font (size 1.27 1.27)) (justify right)) (uuid "37097fa4-904d-405b-beec-5e732a2b87ff"))
-	(wire (pts (xy 80.01 138.43) (xy 83.82 138.43)) (stroke (width 0) (type default)) (uuid "37045d25-8c82-45e7-85b2-09ca03f77c25"))
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 83.82 138.43 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "bfc65e6a-384b-46e5-9de2-eab56818ba9d")
-		(property "Reference" "#PWR0302" (at 83.82 143.51 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "GND" (at 83.82 142.24 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 83.82 138.43 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 83.82 138.43 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 83.82 138.43 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "15355d9f-2130-4c5e-ba05-80f3ba72ed26"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0302") (unit 1))))
-	)
-	(symbol
-		(lib_id "cec-vendor:SB120")
-		(at 76.2 158.75 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "f2a6a4f2-0a8b-414c-bcd9-92f69f4bac22")
-		(property "Reference" "D4" (at 76.2 154.94 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1UL" (at 76.2 162.56 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 76.2 158.75 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 76.2 158.75 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)" (at 76.2 158.75 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "3ae44f07-e6f3-44c8-aaab-6205352ea7d2"))
-		(pin "2" (uuid "fbe33ef5-06b7-48f4-a2eb-0cdf16c8986d"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D4") (unit 1))))
-	)
-	(wire (pts (xy 72.39 158.75) (xy 68.58 158.75)) (stroke (width 0) (type default)) (uuid "13ce0980-562b-413d-8307-7febf001e998"))
-	(label "DETECT3" (at 68.58 158.75 0) (effects (font (size 1.27 1.27)) (justify right)) (uuid "16782828-ccbb-48ad-a167-aeb111000417"))
-	(wire (pts (xy 80.01 158.75) (xy 83.82 158.75)) (stroke (width 0) (type default)) (uuid "e8aec314-cd39-4ce2-aa62-f43dd495ebca"))
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 83.82 158.75 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "86a88bbc-4939-43d3-9eb8-1b59b7b6e9b6")
-		(property "Reference" "#PWR0303" (at 83.82 163.83 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "GND" (at 83.82 162.56 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 83.82 158.75 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 83.82 158.75 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 83.82 158.75 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "4b966a09-7a63-4b39-be04-413f153dd7c4"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0303") (unit 1))))
-	)
-	(symbol
-		(lib_id "cec-vendor:SB120")
-		(at 76.2 179.07 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "4f1e580a-1728-4e41-8641-e8fd59ea237f")
-		(property "Reference" "D5" (at 76.2 175.26 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1UL" (at 76.2 182.88 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 76.2 179.07 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 76.2 179.07 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "Low-cap DETECT ESD diode (pin8 hot-plug, spec 2.4 v2.0)" (at 76.2 179.07 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "0c77a0ee-1d18-4895-b201-49fbcde800ed"))
-		(pin "2" (uuid "8d77f09d-9258-4f8e-9844-4f5cbba0b617"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D5") (unit 1))))
-	)
-	(wire (pts (xy 72.39 179.07) (xy 68.58 179.07)) (stroke (width 0) (type default)) (uuid "1c7aab54-8d9c-4bd6-a412-faf289a8ec21"))
-	(label "DETECT4" (at 68.58 179.07 0) (effects (font (size 1.27 1.27)) (justify right)) (uuid "7f5ab428-a7a1-4237-bcb6-c29a1c99f70e"))
-	(wire (pts (xy 80.01 179.07) (xy 83.82 179.07)) (stroke (width 0) (type default)) (uuid "8cb6e8d4-3680-4096-9bce-4bbba03a256f"))
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 83.82 179.07 0)
-		(unit 1)(body_style 1)(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
-		(uuid "6caa5574-ca45-45d1-bcc4-0f934ab1dc2a")
-		(property "Reference" "#PWR0304" (at 83.82 184.15 0)(hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Value" "GND" (at 83.82 182.88 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Footprint" "" (at 83.82 179.07 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Datasheet" "" (at 83.82 179.07 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(property "Description" "" (at 83.82 179.07 0)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "7da245c9-29e9-48b9-8acb-c402005845ff"))
-		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR0304") (unit 1))))
 	)
 	(sheet_instances
 		(path "/"
