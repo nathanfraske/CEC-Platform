@@ -6911,7 +6911,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 534.67 229.87 0)
 			(hide yes)
 			(show_name no)
@@ -7853,7 +7853,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
 			(at 129.54 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -8006,7 +8006,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 330.2 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -8460,7 +8460,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
 			(at 185.42 74.93 0)
 			(hide yes)
 			(show_name no)
@@ -8539,7 +8539,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 250.19 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -8991,7 +8991,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 534.67 69.85 0)
 			(hide yes)
 			(show_name no)
@@ -9588,7 +9588,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 270.51 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -9889,7 +9889,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 69.85 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -10122,7 +10122,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 97.79 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -10355,7 +10355,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"
 			(at 299.72 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -10479,7 +10479,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 250.19 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -10706,7 +10706,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 119.38 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -10785,7 +10785,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 237.49 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -11687,7 +11687,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 			(at 560.07 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -12012,7 +12012,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 469.9 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -12239,7 +12239,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 			(at 430.53 59.69 0)
 			(hide yes)
 			(show_name no)
@@ -12780,7 +12780,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 500.38 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -12859,7 +12859,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
 			(at 190.5 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -13234,7 +13234,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 209.55 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -13393,7 +13393,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 534.67 119.38 0)
 			(hide yes)
 			(show_name no)
@@ -13620,7 +13620,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 181.61 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -13779,7 +13779,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 153.67 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -13864,7 +13864,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 			(at 560.07 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -14337,7 +14337,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
 			(at 39.37 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -14416,7 +14416,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 			(at 560.07 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -14593,7 +14593,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 469.9 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -14968,7 +14968,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 154.94 110.49 0)
 			(hide yes)
 			(show_name no)
@@ -15124,7 +15124,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric"
 			(at 534.67 175.26 0)
 			(hide yes)
 			(show_name no)
@@ -15425,7 +15425,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 			(at 125.73 270.51 0)
 			(hide yes)
 			(show_name no)
@@ -15510,7 +15510,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 74.93 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -15736,7 +15736,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5"
 			(at 154.94 39.37 0)
 			(hide yes)
 			(show_name no)
@@ -15824,7 +15824,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Diode_SMD:D_SMA"
 			(at 100.33 35.56 0)
 			(hide yes)
 			(show_name no)
@@ -15903,7 +15903,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 			(at 560.07 204.47 0)
 			(hide yes)
 			(show_name no)
