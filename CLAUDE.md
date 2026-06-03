@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.3 (2026-06-03).
+Spec revision reflected here: v3.4 (2026-06-03).
 
 v3.2 reconciliation (2026-06-03): the repo spec was merged with the user's
 canonical v3.1 upload. Operate by these net changes: (1) CAN is CLASSICAL 500k on
@@ -189,6 +189,15 @@ Communication:
   ESP32-P4 TWAI does FD in silicon, and one classical-only module on an FD bus
   forces the whole bus classical anyway). Transceiver: TJA1462A (CAN-FD-capable,
   run classical, leaves the door open). Termination: fixed 120 ohm split at Hub.
+- Optional bus-wide 1 Mbps CAN (added v3.4): 500k stays the default and the
+  floor; the whole shared bus may instead run classical CAN at 1 Mbps — never
+  per-module (one TJA1462A, one CAN_H/CAN_L net, one split termination = one
+  bitrate). Firmware-only: Hub-led auto-baud + TWAI error-counter fallback; the
+  TJA1462A (SIC) and both TWAIs already do 1M and the Hub CAN front-end is
+  unchanged. Sole gate: the §3.1 star/stub SI bench test, run at 1 Mbps. A
+  DETECT-code bitrate advert was considered and declined (module-resistor cost,
+  grows the locked DETECT table, no benefit — every module is already 1M-capable;
+  the real variable is per-install SI, which DETECT can't sense).
 - RS-485 carries high-bandwidth telemetry streaming only, one direction, module
   to Hub, on pair 2. It carries no control traffic. Present on Pro modules and
   Pro+ Hubs only. Standard does not populate it.

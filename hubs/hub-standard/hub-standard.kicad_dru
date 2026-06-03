@@ -20,11 +20,21 @@
 	(condition "A.NetClass == 'Power'"))
 
 # USB 2.0 Full-Speed pair (ESP32-S3 native USB, GPIO19/20 <-> USB-C J6).
-# FS (12 Mbps) is impedance-tolerant, but keep D+/D- coupled and flag long
-# uncoupled stretches. Recompute width/gap for ~90ohm on the final 4-layer
-# stackup (L1 over the L2 GND plane) before routing.
+# FS (12 Mbps) is impedance-tolerant, so on THIS (Standard) board ~90ohm diff
+# is good-practice-not-critical -- just keep D+/D- coupled and short. The
+# strict 90ohm discipline matters on Hub Pro (USB High Speed, 480 Mbps).
+#
+# The stackup IS now defined (hub-standard.kicad_pcb: 0.2104mm 7628 prepreg,
+# Dk 4.5, over the solid L2/In1 GND plane, 1oz outer). Get the exact W/S for
+# 90ohm differential from JLCPCB's impedance calculator for this stackup (or
+# order impedance-controlled and let JLC tune), then set the USB netclass
+# Diff Pair Width/Gap (Board Setup -> Net Classes) to match. The rules below
+# are a safety-net window around the ~90ohm region -- tighten to the calc value.
 (rule "USB diff pair gap"
-	(constraint diff_pair_gap (min 0.1mm) (max 0.2mm))
+	(constraint diff_pair_gap (min 0.12mm) (max 0.2mm))
+	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
+(rule "USB diff pair width"
+	(constraint diff_pair_width (min 0.15mm) (max 0.25mm))
 	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
 
 # No CAN-specific rule. Classical CAN @ 500 kbps is forgiving and the
