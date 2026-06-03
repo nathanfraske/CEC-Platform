@@ -153,7 +153,7 @@
 	(footprint "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal"
 		(layer "F.Cu")
 		(uuid "0a879015-dfb1-4ae3-a993-2c20213fc341")
-		(at 253.75 101.945 180)
+		(at 140 161.2 180)
 		(descr "JST XH series connector, S2B-XH-A (http://www.jst-mfg.com/product/pdf/eng/eXH.pdf), generated with kicad-footprint-generator")
 		(tags "connector JST XH horizontal")
 		(property "Reference" "J1"
@@ -692,7 +692,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "0ddec78e-d107-4bd6-a98a-890b66e23a88")
-		(at 134.6 131.56)
+		(at 128.5 135.0)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL3"
@@ -1631,7 +1631,7 @@
 	(footprint "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 		(layer "F.Cu")
 		(uuid "1c0032f0-4f72-40ca-b7cc-f3b97be486a0")
-		(at 235.23 83.35 180)
+		(at 105.305 96.3 0)
 		(descr "8 Pol Shallow Latch Connector, Modjack, RJ45 (https://cdn.amphenol-icc.com/media/wysiwyg/files/drawing/c-bmj-0102.pdf)")
 		(tags "RJ45")
 		(property "Reference" "J3"
@@ -1657,7 +1657,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 0 0 180)
+			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -1670,7 +1670,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 0 0 180)
+			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -1865,7 +1865,7 @@
 			)
 		)
 		(pad "1" thru_hole rect
-			(at 0 0 180)
+			(at 0 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1876,7 +1876,7 @@
 			(uuid "0a49127e-71ca-4ab8-8ec7-fcc91ec1222d")
 		)
 		(pad "2" thru_hole circle
-			(at 1.27 -2.54 180)
+			(at 1.27 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1887,7 +1887,7 @@
 			(uuid "01e53e0c-a034-433d-96f6-3c68373de9f7")
 		)
 		(pad "3" thru_hole circle
-			(at 2.54 0 180)
+			(at 2.54 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1898,7 +1898,7 @@
 			(uuid "f84e9096-d342-4b99-935b-2a49176e7fe1")
 		)
 		(pad "4" thru_hole circle
-			(at 3.81 -2.54 180)
+			(at 3.81 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1909,7 +1909,7 @@
 			(uuid "75562924-ba16-4c04-b20d-0f88c2037806")
 		)
 		(pad "5" thru_hole circle
-			(at 5.08 0 180)
+			(at 5.08 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1920,7 +1920,7 @@
 			(uuid "c21802fa-18de-412d-97e7-74219b5752bc")
 		)
 		(pad "6" thru_hole circle
-			(at 6.35 -2.54 180)
+			(at 6.35 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1931,7 +1931,7 @@
 			(uuid "a91e444e-3582-44f8-b83d-54db1a612e6d")
 		)
 		(pad "7" thru_hole circle
-			(at 7.62 0 180)
+			(at 7.62 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1942,7 +1942,7 @@
 			(uuid "8f1b84f7-013b-43d4-9e58-0e27e612c231")
 		)
 		(pad "8" thru_hole circle
-			(at 8.89 -2.54 180)
+			(at 8.89 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -1953,7 +1953,7 @@
 			(uuid "81bdf495-25f1-4025-8092-fc39bf820f12")
 		)
 		(pad "SH1" thru_hole circle
-			(at -1.27 6.35 180)
+			(at -1.27 6.35 0)
 			(size 4.2 4.2)
 			(drill 3.2)
 			(layers "*.Cu" "*.Mask")
@@ -1964,7 +1964,7 @@
 			(uuid "52b28091-2cb9-47dc-9ced-aab72f5f0885")
 		)
 		(pad "SH2" thru_hole circle
-			(at 10.16 6.35 180)
+			(at 10.16 6.35 0)
 			(size 4.2 4.2)
 			(drill 3.2)
 			(layers "*.Cu" "*.Mask")
@@ -3360,7 +3360,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "524d0d78-99e5-43cd-8dcc-50d7be3a185d")
-		(at 103.4 131.56)
+		(at 108.8 131.0)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL6"
@@ -4367,7 +4367,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "61f495e7-e2f4-4656-864e-da9e90a5a47c")
-		(at 119.0 112.0)
+		(at 119.0 119.4)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL1"
@@ -4656,7 +4656,7 @@
 	(footprint "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 		(layer "F.Cu")
 		(uuid "69a6cbee-a108-47a7-a167-5d89e7baa4da")
-		(at 215.7825 83.6 180)
+		(at 86.805 96.3 0)
 		(descr "8 Pol Shallow Latch Connector, Modjack, RJ45 (https://cdn.amphenol-icc.com/media/wysiwyg/files/drawing/c-bmj-0102.pdf)")
 		(tags "RJ45")
 		(property "Reference" "J2"
@@ -4682,7 +4682,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 0 0 180)
+			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -4695,7 +4695,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 0 0 180)
+			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -4890,7 +4890,7 @@
 			)
 		)
 		(pad "1" thru_hole rect
-			(at 0 0 180)
+			(at 0 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4901,7 +4901,7 @@
 			(uuid "d8357352-131a-40a7-86ee-6be623ccf945")
 		)
 		(pad "2" thru_hole circle
-			(at 1.27 -2.54 180)
+			(at 1.27 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4912,7 +4912,7 @@
 			(uuid "972ea9b1-8733-4f05-bac4-db90f3f95130")
 		)
 		(pad "3" thru_hole circle
-			(at 2.54 0 180)
+			(at 2.54 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4923,7 +4923,7 @@
 			(uuid "437eab8a-8046-438f-b6cf-21a92644c70f")
 		)
 		(pad "4" thru_hole circle
-			(at 3.81 -2.54 180)
+			(at 3.81 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4934,7 +4934,7 @@
 			(uuid "31938ff6-d1e6-4265-a201-1db797cadb16")
 		)
 		(pad "5" thru_hole circle
-			(at 5.08 0 180)
+			(at 5.08 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4945,7 +4945,7 @@
 			(uuid "672a9a33-298a-4575-861c-8dbd7657e5ed")
 		)
 		(pad "6" thru_hole circle
-			(at 6.35 -2.54 180)
+			(at 6.35 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4956,7 +4956,7 @@
 			(uuid "26dc48ee-8ea7-43e3-8832-0c6ec047013c")
 		)
 		(pad "7" thru_hole circle
-			(at 7.62 0 180)
+			(at 7.62 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4967,7 +4967,7 @@
 			(uuid "23f83d7a-8b4e-4814-bbb6-046175c4ca91")
 		)
 		(pad "8" thru_hole circle
-			(at 8.89 -2.54 180)
+			(at 8.89 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -4978,7 +4978,7 @@
 			(uuid "162652d6-593b-42c4-be89-e4c3988107e0")
 		)
 		(pad "SH1" thru_hole circle
-			(at -1.27 6.35 180)
+			(at -1.27 6.35 0)
 			(size 4.2 4.2)
 			(drill 3.2)
 			(layers "*.Cu" "*.Mask")
@@ -4989,7 +4989,7 @@
 			(uuid "6c99603d-b8e8-43ab-8fee-d1180505de7b")
 		)
 		(pad "SH2" thru_hole circle
-			(at 10.16 6.35 180)
+			(at 10.16 6.35 0)
 			(size 4.2 4.2)
 			(drill 3.2)
 			(layers "*.Cu" "*.Mask")
@@ -5015,7 +5015,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "6dd56c7f-5236-423e-b8eb-9a4311c7e66c")
-		(at 125.94 142.42)
+		(at 119.0 137.3)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL4"
@@ -5925,7 +5925,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "7e7707b2-029f-4429-b372-c6f96dc78bcf")
-		(at 131.51 118.02)
+		(at 124.6 126.0)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL2"
@@ -6539,7 +6539,7 @@
 	(footprint "cec-RF_Module:ESP32-S3-WROOM-1"
 		(layer "F.Cu")
 		(uuid "893ca7ed-146c-41f7-b430-bf9579f13cd2")
-		(at 278.86 117.7 -90)
+		(at 78 128 90)
 		(descr "2.4 GHz Wi-Fi and Bluetooth module  https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf")
 		(tags "2.4 GHz Wi-Fi and Bluetooth module")
 		(property "Reference" "U1"
@@ -6555,7 +6555,7 @@
 			)
 		)
 		(property "Value" "ESP32-S3-WROOM-1"
-			(at 0 14.6 270)
+			(at 0 14.6 90)
 			(unlocked yes)
 			(layer "F.Fab")
 			(uuid "1698a4a9-5331-40f9-b002-031d2ea4b600")
@@ -6567,7 +6567,7 @@
 			)
 		)
 		(property "Datasheet" "https://www.espressif.com/sites/default/files/documentation/esp32-s3-wroom-1_wroom-1u_datasheet_en.pdf"
-			(at 0 0 270)
+			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -6580,7 +6580,7 @@
 			)
 		)
 		(property "Description" "RF Module, ESP32-S3 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 3.3V, onboard antenna, SMD"
-			(at 0 0 270)
+			(at 0 0 90)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -6842,7 +6842,7 @@
 			)
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 -0.6 270)
+			(at 0 -0.6 90)
 			(unlocked yes)
 			(layer "F.Fab")
 			(uuid "b6e03ef5-8023-44a6-94ed-5ad1ca01eed0")
@@ -6854,7 +6854,7 @@
 			)
 		)
 		(pad "" smd rect
-			(at -2.9 1.06 270)
+			(at -2.9 1.06 90)
 			(size 0.9 0.9)
 			(layers "F.Paste")
 			(uuid "19b2d327-d277-453b-8a62-6e92bcb8b0b0")
@@ -6866,7 +6866,7 @@
 			(uuid "d2130bbc-0afa-49a8-b92b-4e57694b652e")
 		)
 		(pad "" smd rect
-			(at -2.9 3.86 270)
+			(at -2.9 3.86 90)
 			(size 0.9 0.9)
 			(layers "F.Paste")
 			(uuid "a5e15814-00ca-4953-9fe1-2fea8f702685")
@@ -6908,7 +6908,7 @@
 			(uuid "21a068e1-575a-431a-9450-3cab9aabe4d5")
 		)
 		(pad "1" smd rect
-			(at -8.75 -5.26 270)
+			(at -8.75 -5.26 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "GND")
@@ -6917,7 +6917,7 @@
 			(uuid "1aff4823-90d8-4579-81ae-ae58580f9605")
 		)
 		(pad "2" smd rect
-			(at -8.75 -3.99 270)
+			(at -8.75 -3.99 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "+3V3")
@@ -6926,7 +6926,7 @@
 			(uuid "8e8eea42-0de5-4825-8784-600d9b83f37b")
 		)
 		(pad "3" smd rect
-			(at -8.75 -2.72 270)
+			(at -8.75 -2.72 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/EN")
@@ -6935,7 +6935,7 @@
 			(uuid "0ccd643e-b32a-4624-99eb-6983d518b6ec")
 		)
 		(pad "4" smd rect
-			(at -8.75 -1.45 270)
+			(at -8.75 -1.45 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/DETECT1")
@@ -6944,7 +6944,7 @@
 			(uuid "54aac71f-e439-4892-908d-c4249c716364")
 		)
 		(pad "5" smd rect
-			(at -8.75 -0.18 270)
+			(at -8.75 -0.18 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/DETECT2")
@@ -6953,7 +6953,7 @@
 			(uuid "88948044-fe77-42b4-8304-66f91daf54fe")
 		)
 		(pad "6" smd rect
-			(at -8.75 1.09 270)
+			(at -8.75 1.09 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/DETECT3")
@@ -6962,7 +6962,7 @@
 			(uuid "6c2d9f03-c7bd-448b-9c7f-a030452a65db")
 		)
 		(pad "7" smd rect
-			(at -8.75 2.36 270)
+			(at -8.75 2.36 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/DETECT4")
@@ -6971,7 +6971,7 @@
 			(uuid "d6ff3260-2c5e-4fa4-96b5-e635ddd4610a")
 		)
 		(pad "8" smd rect
-			(at -8.75 3.63 270)
+			(at -8.75 3.63 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO15-Pad8)")
@@ -6980,7 +6980,7 @@
 			(uuid "aefb4d23-5969-470d-b5ec-8927cd140d16")
 		)
 		(pad "9" smd rect
-			(at -8.75 4.9 270)
+			(at -8.75 4.9 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO16-Pad9)")
@@ -6989,7 +6989,7 @@
 			(uuid "f7ddca00-6cce-4547-9ad6-25a9df80c11e")
 		)
 		(pad "10" smd rect
-			(at -8.75 6.17 270)
+			(at -8.75 6.17 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/CAN_TX")
@@ -6998,7 +6998,7 @@
 			(uuid "f2d5262d-a77b-460c-b81b-435a8268257f")
 		)
 		(pad "11" smd rect
-			(at -8.75 7.44 270)
+			(at -8.75 7.44 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/CAN_RX")
@@ -7007,7 +7007,7 @@
 			(uuid "1566f12f-d0e0-40cd-846b-9b9f8f2322b5")
 		)
 		(pad "12" smd rect
-			(at -8.75 8.71 270)
+			(at -8.75 8.71 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/BLACKOUT_SENSE")
@@ -7016,7 +7016,7 @@
 			(uuid "72093c29-3687-4bb1-83bf-6fda2b7a7b0d")
 		)
 		(pad "13" smd rect
-			(at -8.75 9.98 270)
+			(at -8.75 9.98 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/USB_DM")
@@ -7142,7 +7142,7 @@
 			(uuid "a52889f8-a6d2-4176-8e75-f09d34121920")
 		)
 		(pad "27" smd rect
-			(at 8.75 11.25 270)
+			(at 8.75 11.25 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "/GPIO0")
@@ -7151,7 +7151,7 @@
 			(uuid "5af1dd2e-5bf2-4079-9731-1c6f3e3881d3")
 		)
 		(pad "28" smd rect
-			(at 8.75 9.98 270)
+			(at 8.75 9.98 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO35-Pad28)")
@@ -7160,7 +7160,7 @@
 			(uuid "f2847f2d-a8d4-454c-a890-b5456a283af9")
 		)
 		(pad "29" smd rect
-			(at 8.75 8.71 270)
+			(at 8.75 8.71 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO36-Pad29)")
@@ -7169,7 +7169,7 @@
 			(uuid "c1b50497-186f-4f05-966a-dc7d5b94fd27")
 		)
 		(pad "30" smd rect
-			(at 8.75 7.44 270)
+			(at 8.75 7.44 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO37-Pad30)")
@@ -7178,7 +7178,7 @@
 			(uuid "9df6c370-b32b-4546-931e-865b5c82d459")
 		)
 		(pad "31" smd rect
-			(at 8.75 6.17 270)
+			(at 8.75 6.17 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO38-Pad31)")
@@ -7187,7 +7187,7 @@
 			(uuid "6691fdcf-033c-4af1-9a96-c544c837eb74")
 		)
 		(pad "32" smd rect
-			(at 8.75 4.9 270)
+			(at 8.75 4.9 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO39-Pad32)")
@@ -7196,7 +7196,7 @@
 			(uuid "33cda343-d450-4e50-bb09-46a0a76b53ad")
 		)
 		(pad "33" smd rect
-			(at 8.75 3.63 270)
+			(at 8.75 3.63 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO40-Pad33)")
@@ -7205,7 +7205,7 @@
 			(uuid "145b746f-5011-44f1-a730-cc7e9b0d1c0f")
 		)
 		(pad "34" smd rect
-			(at 8.75 2.36 270)
+			(at 8.75 2.36 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO41-Pad34)")
@@ -7214,7 +7214,7 @@
 			(uuid "3984b10c-ff07-4ddc-b653-7b55e6438090")
 		)
 		(pad "35" smd rect
-			(at 8.75 1.09 270)
+			(at 8.75 1.09 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO42-Pad35)")
@@ -7223,7 +7223,7 @@
 			(uuid "19da4eb0-44a3-4641-87d0-079a7a3dd354")
 		)
 		(pad "36" smd rect
-			(at 8.75 -0.18 270)
+			(at 8.75 -0.18 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-RXD0-Pad36)")
@@ -7232,7 +7232,7 @@
 			(uuid "df82a51f-a197-4931-8a62-a8e001c1d4b2")
 		)
 		(pad "37" smd rect
-			(at 8.75 -1.45 270)
+			(at 8.75 -1.45 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-TXD0-Pad37)")
@@ -7241,7 +7241,7 @@
 			(uuid "b1998724-07ee-42ed-b507-62ae6855291d")
 		)
 		(pad "38" smd rect
-			(at 8.75 -2.72 270)
+			(at 8.75 -2.72 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO2-Pad38)")
@@ -7250,7 +7250,7 @@
 			(uuid "64120d65-f4ab-411a-bac1-c05166b62c35")
 		)
 		(pad "39" smd rect
-			(at 8.75 -3.99 270)
+			(at 8.75 -3.99 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "unconnected-(U1-IO1-Pad39)")
@@ -7259,7 +7259,7 @@
 			(uuid "08bab7ad-0f09-4e0d-9fc2-fb7ee45ae28c")
 		)
 		(pad "40" smd rect
-			(at 8.75 -5.26 270)
+			(at 8.75 -5.26 90)
 			(size 1.5 0.9)
 			(layers "F.Cu" "F.Mask" "F.Paste")
 			(net "GND")
@@ -7281,7 +7281,7 @@
 			(uuid "7933529b-8c29-4d5c-b5de-f25c1fae609b")
 		)
 		(pad "41" thru_hole circle
-			(at -2.9 3.16 270)
+			(at -2.9 3.16 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7294,7 +7294,7 @@
 			(uuid "cf53a7fb-d251-42df-88be-c2792e39c6e3")
 		)
 		(pad "41" thru_hole circle
-			(at -2.2 1.06 270)
+			(at -2.2 1.06 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7307,7 +7307,7 @@
 			(uuid "6eb382bc-8f3e-4705-aaf3-74b7f00e4f56")
 		)
 		(pad "41" thru_hole circle
-			(at -2.2 2.46 270)
+			(at -2.2 2.46 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7320,7 +7320,7 @@
 			(uuid "d733d4aa-c674-4186-a521-aad870bff404")
 		)
 		(pad "41" thru_hole circle
-			(at -2.2 3.86 270)
+			(at -2.2 3.86 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7333,7 +7333,7 @@
 			(uuid "9d7b3d11-a597-4a8a-bfad-c00dc1b11bc7")
 		)
 		(pad "41" thru_hole circle
-			(at -1.5 1.76 270)
+			(at -1.5 1.76 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7357,7 +7357,7 @@
 			(uuid "d8c0fdc3-3c94-402a-ad18-f83e58a9b630")
 		)
 		(pad "41" thru_hole circle
-			(at -1.5 3.16 270)
+			(at -1.5 3.16 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7370,7 +7370,7 @@
 			(uuid "2eaf9830-27c0-421d-b29b-9706e026b6c6")
 		)
 		(pad "41" thru_hole circle
-			(at -0.8 1.06 270)
+			(at -0.8 1.06 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7383,7 +7383,7 @@
 			(uuid "c8f1073c-c2a7-4ee2-99bf-2a65678e96f7")
 		)
 		(pad "41" thru_hole circle
-			(at -0.8 2.46 270)
+			(at -0.8 2.46 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7396,7 +7396,7 @@
 			(uuid "0d49ec6c-9787-4130-89f4-b4a2e196ffda")
 		)
 		(pad "41" thru_hole circle
-			(at -0.8 3.86 270)
+			(at -0.8 3.86 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7409,7 +7409,7 @@
 			(uuid "e2f875dc-fc21-4549-9ebc-cfb0564af16d")
 		)
 		(pad "41" thru_hole circle
-			(at -0.1 1.76 270)
+			(at -0.1 1.76 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -7422,7 +7422,7 @@
 			(uuid "9006ed20-1ff2-42c0-8675-793f21d6255d")
 		)
 		(pad "41" thru_hole circle
-			(at -0.1 3.16 270)
+			(at -0.1 3.16 90)
 			(size 0.6 0.6)
 			(drill 0.2)
 			(property pad_prop_heatsink)
@@ -8072,7 +8072,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "97ada6cf-92f9-4750-a6d6-e07c2cf8cc4d")
-		(at 106.49 118.02)
+		(at 113.4 126.0)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL7"
@@ -10172,7 +10172,7 @@
 	(footprint "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 		(layer "F.Cu")
 		(uuid "d7f821c8-4c0d-4049-8bb4-69c6b75745cb")
-		(at 260.85 73.77 -90)
+		(at 123.805 96.3 0)
 		(descr "8 Pol Shallow Latch Connector, Modjack, RJ45 (https://cdn.amphenol-icc.com/media/wysiwyg/files/drawing/c-bmj-0102.pdf)")
 		(tags "RJ45")
 		(property "Reference" "J4"
@@ -11107,7 +11107,7 @@
 	(footprint "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm"
 		(layer "F.Cu")
 		(uuid "e1aca136-485e-4437-9eaa-0796e70a3867")
-		(at 112.06 142.42)
+		(at 109.5 135.0)
 		(descr "3.5mm x 3.5mm PLCC4 Addressable RGB LED NeoPixel, https://cdn-shop.adafruit.com/product-files/2686/SK6812MINI_REV.01-1-2.pdf")
 		(tags "LED RGB NeoPixel Mini PLCC-4 3535")
 		(property "Reference" "DL5"
@@ -11396,11 +11396,11 @@
 	(footprint "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"
 		(layer "F.Cu")
 		(uuid "e34f12d6-a5e9-4cf0-ad6c-581f8b9d70e9")
-		(at 267 158)
+		(at 100 159.25 180)
 		(descr "USB Type C, right-angle, SMT, https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf")
 		(tags "USB C Type-C Receptacle SMD")
 		(property "Reference" "J6"
-			(at 0 -5.715 0)
+			(at 0 -5.715 180)
 			(layer "F.SilkS")
 			(uuid "357f1315-3ea2-4e2c-9d25-b6d1b731f0cc")
 			(effects
@@ -11411,7 +11411,7 @@
 			)
 		)
 		(property "Value" "USB-C"
-			(at 0 4.935 0)
+			(at 0 4.935 180)
 			(layer "F.Fab")
 			(uuid "81916450-186f-4290-92b6-d8b4772c739e")
 			(effects
@@ -11422,7 +11422,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 0 0 0)
+			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -11435,7 +11435,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 0 0 0)
+			(at 0 0 180)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -11592,7 +11592,7 @@
 			(uuid "0079ed91-5ba7-4f60-bc36-34a0609a177e")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 0 0 0)
+			(at 0 0 180)
 			(layer "F.Fab")
 			(uuid "04952a5d-5fc4-4c79-9ed1-97d4884d4799")
 			(effects
@@ -12510,11 +12510,11 @@
 	(footprint "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 		(layer "F.Cu")
 		(uuid "f7ab84f9-a4ac-47f0-8af9-c599d1e0e1df")
-		(at 213.9 113.2825 90)
+		(at 142.305 96.3 0)
 		(descr "8 Pol Shallow Latch Connector, Modjack, RJ45 (https://cdn.amphenol-icc.com/media/wysiwyg/files/drawing/c-bmj-0102.pdf)")
 		(tags "RJ45")
 		(property "Reference" "J5"
-			(at 4.445 -5 90)
+			(at 4.445 -5 0)
 			(layer "F.SilkS")
 			(uuid "0bad5755-a534-4efe-b8be-c5ddde311f6c")
 			(effects
@@ -12525,7 +12525,7 @@
 			)
 		)
 		(property "Value" "PORT4"
-			(at 4.445 4 90)
+			(at 4.445 4 0)
 			(layer "F.Fab")
 			(uuid "6adafcf1-0a9b-4e2e-852b-08822b8a94ab")
 			(effects
@@ -12536,7 +12536,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 0 0 90)
+			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -12549,7 +12549,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 0 0 90)
+			(at 0 0 0)
 			(unlocked yes)
 			(layer "F.Fab")
 			(hide yes)
@@ -12733,7 +12733,7 @@
 			(uuid "ae6ca3f5-cbd2-4703-a394-5cc959a0c649")
 		)
 		(fp_text user "${REFERENCE}"
-			(at 4.445 2 90)
+			(at 4.445 2 0)
 			(layer "F.Fab")
 			(uuid "bb834837-e7df-4261-8e87-8e6d654a60f1")
 			(effects
@@ -12744,7 +12744,7 @@
 			)
 		)
 		(pad "1" thru_hole rect
-			(at 0 0 90)
+			(at 0 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12755,7 +12755,7 @@
 			(uuid "bddaed44-34ff-4474-b8b7-d47d3e27c9a3")
 		)
 		(pad "2" thru_hole circle
-			(at 1.27 -2.54 90)
+			(at 1.27 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12766,7 +12766,7 @@
 			(uuid "0451fc4f-9b52-4159-a67e-e52dbd45f8d0")
 		)
 		(pad "3" thru_hole circle
-			(at 2.54 0 90)
+			(at 2.54 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12777,7 +12777,7 @@
 			(uuid "ec048031-242c-479f-81c7-ec2f4abfa9fd")
 		)
 		(pad "4" thru_hole circle
-			(at 3.81 -2.54 90)
+			(at 3.81 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12788,7 +12788,7 @@
 			(uuid "5ac3327a-3464-43da-8cae-927d5d6e28f7")
 		)
 		(pad "5" thru_hole circle
-			(at 5.08 0 90)
+			(at 5.08 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12799,7 +12799,7 @@
 			(uuid "cf22dc9b-a15c-47c2-8e7d-51df30510836")
 		)
 		(pad "6" thru_hole circle
-			(at 6.35 -2.54 90)
+			(at 6.35 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12810,7 +12810,7 @@
 			(uuid "5a65547b-9e42-4d59-9389-90efeae7528e")
 		)
 		(pad "7" thru_hole circle
-			(at 7.62 0 90)
+			(at 7.62 0 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12821,7 +12821,7 @@
 			(uuid "a321f0eb-af31-41ef-bc34-40fb9360592a")
 		)
 		(pad "8" thru_hole circle
-			(at 8.89 -2.54 90)
+			(at 8.89 -2.54 0)
 			(size 1.5 1.5)
 			(drill 0.76)
 			(layers "*.Cu" "*.Mask")
@@ -12832,7 +12832,7 @@
 			(uuid "03165bec-498d-4f4c-ae09-1306a3f09cc9")
 		)
 		(pad "SH1" thru_hole circle
-			(at -1.27 6.35 90)
+			(at -1.27 6.35 0)
 			(size 4.2 4.2)
 			(drill 3.2)
 			(layers "*.Cu" "*.Mask")
@@ -12843,7 +12843,7 @@
 			(uuid "d7d0be8e-5372-4d93-9154-dcc7cd561621")
 		)
 		(pad "SH2" thru_hole circle
-			(at 10.16 6.35 90)
+			(at 10.16 6.35 0)
 			(size 4.2 4.2)
 			(drill 3.2)
 			(layers "*.Cu" "*.Mask")
