@@ -1,0 +1,36 @@
+(version 1)
+
+# CEC Hub Standard — custom design rules.
+# KiCad auto-loads <board>.kicad_dru from the project dir. A netclass
+# `track_width` is only the *routing default*, so DRC will NOT flag an
+# under-width power trace on its own. The track_width (min ...) rule below
+# makes DRC actually catch a hairline on the Power class.
+#
+# Sizing basis (see LAYOUT-GUIDE.md): the 5VSB trunk worst case is ~3A
+# (4 ports x ~0.5A module + the Hub's own LEDs + MCU, with the firmware LED
+# cap holding the total under the JST-XH / connector rating, OQ-2). The trunk
+# (J1 power-in -> U5 mux -> +5VSB star) carries that full ~3A and is POURED
+# (or routed >=1.5mm at 1oz) -- verified by pour copper area (IPC-2152), NOT by
+# a per-track floor. Each RJ-45 VCC branch carries only one module (~0.5A).
+# The 0.5mm Power floor below is a safety net against accidental hairlines on
+# the distribution, not the trunk sizing mechanism.
+
+(rule "Power min width"
+	(constraint track_width (min 0.5mm))
+	(condition "A.NetClass == 'Power'"))
+
+# USB 2.0 Full-Speed pair (ESP32-S3 native USB, GPIO19/20 <-> USB-C J6).
+# FS (12 Mbps) is impedance-tolerant, but keep D+/D- coupled and flag long
+# uncoupled stretches. Recompute width/gap for ~90ohm on the final 4-layer
+# stackup (L1 over the L2 GND plane) before routing.
+(rule "USB diff pair gap"
+	(constraint diff_pair_gap (min 0.1mm) (max 0.2mm))
+	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
+
+# No CAN-specific rule. Classical CAN @ 500 kbps is forgiving and the
+# controlled medium is the cable's twisted pair + the fixed 120ohm split
+# termination at the Hub (R3/R4/C7) -- on-board it is a short multidrop stub
+# bus to the 4 ports. Keep CAN_H/CAN_L coupled and short; stock diff is fine.
+
+# No special high-current / HV clearance rule. At <=5V the Default 0.2mm
+# clearance is electrically ample platform-wide on this board.

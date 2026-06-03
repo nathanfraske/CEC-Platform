@@ -15,7 +15,8 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Bulk power | Dedicated 2-pin +5VSB power-in from the 24-pin module; distributes to the 4 ports over RJ-45 VCC (§2.7, OQ-1 locked) |
 | RS-485 | **Not populated** (Standard); pair 2 unused, terminated at the module side |
 | Regulator | LP5907 LDO |
-| Hold-up | 4700 µF aluminum-polymer bulk cap |
+| Hold-up | 4700 µF / 16 V on the isolated `+5V_HOLD` node (Panasonic EEVFK1C472M, LCSC C401967, CP_Elec_16x17.5). **Flag:** spec/CLAUDE.md say "aluminum-polymer" — unobtainable at 4700 µF/10–16 V; the sourced part is wet aluminum electrolytic. Divergence pending spec ratification (electrolytic is fine for a diode-isolated reservoir feeding an LDO). |
+| Surge cap | 470 µF on the shared `+5VSB` distribution rail (rides out module load-steps; LCSC C116423, CP_Elec_6.3x7.7) |
 | Inrush | 1 Ω 1 W series resistor |
 | Reverse polarity | SS14 Schottky |
 | Supervisor | TPS3839K33 with divider |
@@ -35,13 +36,19 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 
 ## Status
 
-> **Status (2026-06 — WIP draft; the `DRAFT` marker skips ERC/DRC):** RJ-45
-> re-cut COMPLETE (no Mini-Fit Jr remains; 4 ports + the 2-pin `CEC_PWR_IN_2P`
-> 5VSB power-in). MCU now specified as **ESP32-S3-WROOM-1-N16R8** (v1.8; symbol +
-> footprint vendored, antenna keepout honored). PCB layout not started.
-> Remaining before fab: swap the schematic MCU symbol MINI-1 -> WROOM-1 (re-maps
-> the GPIO pins), namespace the remaining stock footprints to `cec-*` for clone
-> parity, clear the 2 ERC errors, then lay out.
+> **Status (2026-06 — schematic complete, ERC-clean, ready for layout; the
+> `DRAFT` marker still skips CI ERC/DRC until layout starts):** RJ-45 re-cut
+> COMPLETE (4 ports + the 2-pin `CEC_PWR_IN_2P` 5VSB power-in). MCU is
+> **ESP32-S3-WROOM-1-N16R8** (symbol + footprint vendored, antenna keepout
+> honored). 5VSB front-end built: TPS2121 mux (PSU/USB OR-in) → SS14 isolation
+> diode → 4700 µF hold-up on the isolated `+5V_HOLD` node → LP5907; 470 µF
+> `C_bulk` surge cap on the shared `+5VSB`; blackout-sense divider → GPIO8.
+> **Two wiring bugs fixed pre-layout:** (1) USB D+ was shorted to CAN TX/RX at
+> the ESP32; (2) DETECT pull-ups (R5–R8) pulled to +5VSB instead of +3V3
+> (§2.3 / ADC over-range). **ERC: 0 errors.** Netclasses (Power/USB/CAN), the
+> `.kicad_dru`, and `LAYOUT-GUIDE.md` are in. Layer count confirmed **4** (for
+> the L2 ground plane / EMC — see LAYOUT-GUIDE.md). PCB layout not started.
+> Remaining before fab: lay out per the guide, then drop the `DRAFT` marker.
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
