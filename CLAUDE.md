@@ -10,7 +10,18 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v1.10 (2026-06-03).
+Spec revision reflected here: v3.2 (2026-06-03).
+
+v3.2 reconciliation (2026-06-03): the repo spec was merged with the user's
+canonical v3.1 upload. Operate by these net changes: (1) CAN is CLASSICAL 500k on
+EVERY tier — CAN-FD is deferred platform-wide (was "FD on Pro"). (2) PoE /
+over-voltage is RESOLVED for consumer — Standard/Pro carry NO per-pin PoE clamp
+(ratified), and a low-capacitance ESD diode on DETECT pin 8 is LOCKED on every
+Hub and module (boards do not have it yet — action item). (3) The open-question
+list is now OQ-1..OQ-37; the shielded-jack divergence moved to OQ-37. (4) New
+spec scope now in play: the ARGB controller (§7), the proposed 12VHPWR Max
+(§6.11) and SATA (§6.12) modules, and the compute/FPGA exploration (Appendix B).
+Read the spec before acting on any of these.
 
 ## What this project is
 
@@ -29,7 +40,7 @@ to a capable Hub.
 cec-platform/
   lib/                       # shared library: the locked universal interface
     cec.kicad_sym            # symbols
-    cec.pretty/              # footprints (RJ-45 FTP jack, SK6812, ESP32, power input; protection net is Enterprise/MC, OQ-8)
+    cec.pretty/              # footprints (RJ-45 FTP jack, SK6812, ESP32, power input; per-pin protection net dropped for consumer (§2.4), Enterprise/MC uplink protection under OQ-7)
     3dmodels/
   hubs/
     hub-standard/
@@ -50,7 +61,7 @@ cec-platform/
 
 The universal-interface parts (the RJ-45 jack, the SK6812 chain, the ESP32
 module, the power input — plus the optional Enterprise/MC over-voltage protection
-network, OQ-8) live in `lib/` so a change propagates to every board instead of
+network, now consumer-dropped per §2.4 with Enterprise/MC under OQ-7) live in `lib/` so a change propagates to every board instead of
 being redrawn per board.
 Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 `fp-lib-table`. Never commit absolute library paths.
@@ -93,22 +104,23 @@ Connector and physical interface:
 - Locking-boot RJ-45 is the default shipped variant. Mechanical-keyed variants
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
-- Shielded-jack divergence (OQ-15): spec §2.1 LOCKS shielded (FTP) jacks
-  platform-wide, but current boards place the UNSHIELDED Amphenol 54602 with
-  grounded SH1/SH2 board-locks. OK for prototype bring-up (link carries CAN +
-  5VSB + DETECT + Standard-dark RS-485, all shielding-insensitive); FTP stands
-  for production/EMC. Do not silently swap; the cec.pretty FTP-jack footprint is
-  being prepared for the eventual production re-place. Pairs with OQ-14.
-- PoE/over-voltage protection: the spec (§2.4) LOCKS per-pin over-voltage
-  protection (TVS array + series limiting resistors, PoE-survivable to ~57V) on
-  EVERY RJ-45 pin of every Hub and module, platform-wide. The current boards do
-  NOT populate it on Standard or Pro — this is a recorded spec-versus-board
-  DIVERGENCE (OQ-14), not a settled decision. Do not treat the board state as
-  ground truth: the spec requirement stands until OQ-14 ratifies the drop or
-  restores the protection. Whether Enterprise/MC populate it is the second half
-  of OQ-14. Where protection is populated, size the VCC series resistor together
-  with the power budget, since it trades protection against 5VSB headroom at the
-  far end of a cable.
+- Shielded-jack divergence (OQ-37, renumbered v3.2): spec §2.1 LOCKS shielded
+  (FTP) jacks platform-wide, but current boards place the UNSHIELDED Amphenol
+  54602 (LCSC C2847314) with grounded SH1/SH2 board-locks. OK for prototype
+  bring-up (link carries CAN + 5VSB + DETECT + Standard-dark RS-485, all
+  shielding-insensitive); FTP stands for production/EMC. Do not silently swap;
+  the cec.pretty FTP-jack footprint is prepared for the eventual production
+  re-place.
+- PoE/over-voltage protection (RESOLVED for consumer, spec §2.4 v2.0): Standard
+  and Pro carry NO per-pin PoE-grade over-voltage protection on the RJ-45 module
+  interface — the board state is RATIFIED (internal interface; 57V PoE injection
+  is deliberate misuse; the realistic non-PoE network-jack accident is covered by
+  the TJA1462A's own CAN bus-pin protection). This closes the consumer half of
+  OQ-14. SEPARATELY LOCKED (v2.0): one low-capacitance ESD diode on the DETECT pin
+  (pin 8 -> ESP32 ADC) on EVERY Hub and module, for hot-plug insertion ESD on the
+  bare analog input. The current boards do NOT yet populate this pin-8 ESD diode
+  (board action item; the ordered 24-pin rev2 shipped without it). Enterprise/MC
+  over-voltage attaches to their external uplink, deferred to OQ-7.
 - Connector must have a documented current rating of at least 1.5A.
 - Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
   from the RJ-45 interface, fed from the 24-pin ATX module; the Hub then
@@ -163,9 +175,11 @@ Pin allocation (LOCKED; DETECT encoding resolved v1.7):
 Communication:
 - All control and command traffic lives entirely on CAN, on pair 3, for every
   tier. CAN carries control plus low-rate telemetry.
-- Classical CAN at 500 kbps on Standard; CAN-FD on Pro and above, on the same
-  pair. Transceiver: TJA1462A (run in classical mode on Standard). Termination:
-  fixed 120 ohm split at the Hub.
+- Classical CAN at 500 kbps on EVERY tier, Standard through Mission Critical
+  (CAN-FD DEFERRED platform-wide, spec §3.1 v2.0 — neither the ESP32-S3 nor the
+  ESP32-P4 TWAI does FD in silicon, and one classical-only module on an FD bus
+  forces the whole bus classical anyway). Transceiver: TJA1462A (CAN-FD-capable,
+  run classical, leaves the door open). Termination: fixed 120 ohm split at Hub.
 - RS-485 carries high-bandwidth telemetry streaming only, one direction, module
   to Hub, on pair 2. It carries no control traffic. Present on Pro modules and
   Pro+ Hubs only. Standard does not populate it.
@@ -181,14 +195,14 @@ Per-tier hardware:
   MINI-E LED chain, GPIO0 hidden service button, 4x M3 chassis-grounded
   mounting, 4-layer 1.6 mm ENIG matte-black PCB, identity by factory MAC plus
   database with no eFuse or secure element).
-- Hub Pro: ESP32-P4, 8 ports, CAN-FD plus RS-485 streaming receivers (one
+- Hub Pro: ESP32-P4, 8 ports, classical CAN plus RS-485 streaming receivers (one
   receiver per port as the working basis, pending OQ-5), USB High Speed.
   Bulk power on the dedicated 2-pin +5VSB power-in connector (OQ-1, spec §2.7).
   Otherwise follows the Hub Standard base.
 - 12VHPWR Pro module: ESP32-P4, INA240A3 per-pin current-sense amps on per-pin
   shunts, LTC2358-18 8-channel simultaneous-sampling 18-bit SAR ADC, 47k/10k
   rail-voltage divider into one LTC2358 channel, about 900 kB/s streaming
-  (roughly 50 kHz x 6 channels) over RS-485, CAN-FD control.
+  (roughly 50 kHz x 6 channels) over RS-485, classical CAN control.
 - Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard):
   ESP32-S3-MINI-1; no CAN termination (Hub-only). Per-module sensing differs by
   connector (spec §6.1, §6.2):
@@ -273,26 +287,28 @@ clearly labeled branch or variant.
   all four rails; decide whether energy is scoped to that 24-pin/standby figure
   or extended to total system energy (firmware integration on EPS/PCIe/Pro). The
   24-pin energy is partial and must not be presented as total.
-- OQ-14: PoE/over-voltage protection scope (spec-vs-board divergence). (a) Standard
-  and Pro: §2.4 LOCKS per-pin protection platform-wide, but current boards drop
-  it — ratify the drop or restore the protection. (b) Enterprise/MC: decide
-  whether to populate per-pin TVS + series resistors (PoE-survivable to ~57V).
-  This subsumes the old OQ-8 PoE question, renumbered so it does not collide with
-  the 12VHPWR Standard accuracy question now at OQ-8.
-- OQ-15: Shielded (FTP) jack divergence (spec-vs-board). §2.1 locks FTP jacks
-  platform-wide; current boards carry the unshielded Amphenol 54602 with grounded
-  board-locks. Ratify the unshielded jack, or restore a true non-magnetic
-  metal-shell shielded jack (footprint + J1 re-place on all boards). OK for
-  prototype bring-up; open for production/EMC. Pairs with OQ-14.
+- OQ-14 (RESOLVED for consumer, v2.0): PoE/over-voltage protection. Standard and
+  Pro carry NO per-pin PoE clamp (board state ratified, §2.4); a low-cap ESD diode
+  on DETECT pin 8 is LOCKED separately on every Hub and module (boards lack it —
+  action item). Enterprise/MC over-voltage moves to their external uplink (OQ-7).
+- OQ-15 (spec): Max positioning — is the 12VHPWR Max a new platform tier or a
+  module variant (§6.11)? [In the OLD repo numbering OQ-15 meant the shielded-jack
+  divergence; that is now OQ-37.]
+- Canonical OQ list is OQ-1..OQ-37 in spec §10 (it now also covers the Max §6.11,
+  SATA §6.12, ARGB §7, and the compute/Enterprise questions). Read the spec for
+  any OQ above 13 — do not assume from this summary.
 
 ## Active action items
 
-Open item (surface before acting; do not assume the open question):
+Open items (surface before acting):
 
-1. PoE/over-voltage protection (§2.4 / OQ-14): UNRESOLVED spec-vs-board
-   divergence — the spec locks per-pin protection platform-wide; current boards
-   drop it on Standard/Pro. Do not add or formally drop protection until OQ-14 is
-   decided.
+1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement but NOT
+   yet on the boards. Add a low-capacitance ESD diode on each DETECT line (4 on
+   the Hub, 1 per module) on the next revision; the ordered 24-pin rev2 shipped
+   without it.
+2. FTP shielded jack (§2.1 / OQ-37): boards carry the unshielded Amphenol 54602;
+   FTP is the production target. Flag for the production re-place; do not silently
+   swap. (The PoE consumer-drop itself is now RESOLVED — no longer an open item.)
 
 Done (kept for context):
 - Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board's module-to-Hub interface
@@ -414,12 +430,13 @@ Use this as a recurring review pass:
   12V-2x6 connector is soldered to the board; neither is a violation.)
 - Pinout on every board matches the locked pin allocation table (pin 7 is a
   reserved spare, NOT AUX_REF).
-- PoE/over-voltage protection: spec §2.4 LOCKS it platform-wide; current boards
-  drop it on Standard/Pro as an OPEN divergence (OQ-14). Flag the divergence;
-  do not silently add or remove protection until OQ-14 is decided.
-- RJ-45 shielding: spec §2.1 LOCKS shielded (FTP) jacks; current boards carry the
-  unshielded Amphenol 54602 with grounded board-locks as an OPEN divergence
-  (OQ-15). Flag it; do not silently swap the jack until OQ-15 is decided.
+- PoE/over-voltage protection (RESOLVED for consumer, §2.4 v2.0): Standard/Pro
+  carry NO per-pin PoE clamp (ratified). Instead verify a low-cap ESD diode is
+  present on each DETECT pin-8 line (LOCKED v2.0) — current boards lack it, so
+  flag its absence as the open board item.
+- RJ-45 shielding (§2.1 / OQ-37): spec LOCKS FTP; current boards carry the
+  unshielded Amphenol 54602. Flag the divergence; do not silently swap until
+  OQ-37 is decided for production.
 - DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
   (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
   10 kΩ / 3.3 V divider.
