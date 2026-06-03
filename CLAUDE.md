@@ -407,6 +407,30 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
   trunk (toward 2A on the 8-port Pro), while each RJ-45 VCC pin carries only one
   module's draw. DRC then flags any power trace that is too thin. (Final width
   still depends on the OQ-2 LED cap.)
+- Place and arrange footprints in `.kicad_pcb`: set or adjust a component's
+  position and rotation (its `(at X Y A)` line), size the board outline
+  (Edge.Cuts), and add mechanical or decorative elements (mounting holes tied to
+  GND, branding/logo footprints, the SK6812 LED ring). This is floorplanning, not
+  routing — placing parts and orienting connectors is fine; pulling traces is
+  not. After ANY placement edit, verify before reporting done:
+  - **Render and DRC.** Run `kicad-cli pcb render` to confirm orientation
+    (connector mouths and the ESP32-WROOM PCB antenna face the intended board
+    edge) and DRC for courtyard overlaps, copper-to-edge, and clearance. Separate
+    the real hits from cosmetic/pre-existing noise (0.2 mm legacy drills, a
+    footprint's own silk-over-pad, benign lib-footprint-mismatch).
+  - **Pad coordinates are LOCAL.** Pads store unrotated local positions, so
+    changing the footprint `(at X Y A)` repositions and rotates the whole part
+    correctly. The per-pad angle field is baked (footprint angle + local) — when
+    you change a footprint's rotation, normalize its pad angle fields to match, or
+    the instance is left internally inconsistent.
+  - **kicad-cli cannot refill zones.** Moving a footprint under a filled pour
+    leaves stale fill that DRC reads as a false short; clear the stale
+    `(filled_polygon)` blocks (or leave the zone unfilled) and tell the user to
+    re-fill with `B` in the GUI.
+  - **Known kicad-cli artifact:** rotating a footprint's text can yield FALSE
+    within-footprint pad-short / mask-bridge DRC hits headlessly (seen on the
+    SK6812 LEDs). Cross-check a render before believing them — they do not appear
+    in the GUI.
 - Maintain the shared library and the vendored libraries (`lib/vendor/`,
   `lib/3dmodels/`), the library tables (project-relative), CI, jobsets, and
   documentation, and keep this file in sync with the spec.
@@ -415,9 +439,11 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 
 ## What Claude should NOT do
 
-- Do not hand-edit PCB routing geometry — traces, vias, or component placement
-  coordinates — in `.kicad_pcb`. Routing and layout are done interactively in the
-  KiCad GUI. This is the boundary that stays in the GUI.
+- Do not hand-edit PCB ROUTING geometry — track segments, vias, and the copper
+  zone fill — in `.kicad_pcb`. Routing and the final pour are done interactively
+  in the KiCad GUI; that is the boundary that stays in the GUI. Likewise leave
+  fine layout geometry (e.g. the §6.8 four-wire Kelvin shunt sense) to the GUI.
+  Component PLACEMENT is allowed and expected — see "What Claude should do".
 - Editing `.kicad_sch` IS allowed: drafting and tidying a schematic, especially
   library-driven, is reasonable. Treat it as real work, though — wire-to-pin
   connections and junctions are where edited or generated schematics break, so
