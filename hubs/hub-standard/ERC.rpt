@@ -1,0 +1,33 @@
+ERC report (2026-06-02T21:37:01, Encoding UTF8)
+Report includes: Errors
+
+***** Sheet /
+[label_dangling]: Label not connected
+    ; error
+    @(12550 mils, 800 mils): Label 'USB_VBUS'
+[label_dangling]: Label not connected
+    ; error
+    @(12550 mils, 800 mils): Label 'USB_VBUS'
+[label_dangling]: Label not connected
+    ; error
+    @(12550 mils, 800 mils): Label 'USB_VBUS'
+[label_dangling]: Label not connected
+    ; error
+    @(12550 mils, 800 mils): Label 'USB_VBUS'
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(15150 mils, 4150 mils): Symbol U5 Pin 6 [PR1, Input, Line]
+[power_pin_not_driven]: Input Power pin not driven by any Output Power pins
+    ; error
+    @(15150 mils, 4750 mils): Symbol U5 Pin 2 [IN2, Power input, Line]
+[unannotated]: Item not annotated: C_SS?
+    ; error
+    @(17050 mils, 4550 mils): Symbol C_SS [C_Small]
+
+ ** ERC messages: 7  Errors 7  Warnings 0
+
+ ** Ignored checks:
+    - Global label only appears once in the schematic
+    - Four connection points are joined together
+    - SPICE model issue
+    - Assigned footprint doesn't match footprint filters
