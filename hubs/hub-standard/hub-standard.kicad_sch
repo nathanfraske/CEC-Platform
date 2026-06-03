@@ -6323,16 +6323,6 @@
 		)
 		(uuid "04d6d954-26d4-4767-8f3b-b8774e52eb87")
 	)
-	(label "USB_VBUS"
-		(at 318.77 20.32 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "08af7149-bea4-4fc8-ba23-29ca3fd172fb")
-	)
 	(label "DETECT3"
 		(at 280.67 99.06 180)
 		(effects
@@ -6553,16 +6543,6 @@
 		)
 		(uuid "99ed70a5-3d17-4426-acbd-c0ec281c0cda")
 	)
-	(label "USB_VBUS"
-		(at 318.77 20.32 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "a303d391-2659-47a1-833f-c7dde159f34c")
-	)
 	(label "DETECT3"
 		(at 518.16 158.75 180)
 		(effects
@@ -6622,16 +6602,6 @@
 			(justify left bottom)
 		)
 		(uuid "b5d6a049-c24e-4ae5-b804-8780241757be")
-	)
-	(label "USB_VBUS"
-		(at 318.77 20.32 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "b8d5af64-81db-4660-b3ec-2093ef2a1157")
 	)
 	(label "USB_DP"
 		(at 320.04 91.44 0)
@@ -6732,16 +6702,6 @@
 			(justify right bottom)
 		)
 		(uuid "e8f8171b-142a-4ea0-b743-147d70fd32a1")
-	)
-	(label "USB_VBUS"
-		(at 318.77 20.32 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "ee376cc5-86a7-4062-95af-14e3a94e9a01")
 	)
 	(label "CAN_TX"
 		(at 414.02 54.61 180)
@@ -8644,7 +8604,7 @@
 				)
 			)
 		)
-		(property "Footprint" ""
+		(property "Footprint" "cec-Capacitor_SMD:CP_Elec_10x10.5"
 			(at 424.18 90.17 0)
 			(hide yes)
 			(show_name no)
@@ -15825,6 +15785,60 @@
 				)
 			)
 		)
+	)
+
+	(label "USB_VBUS"
+		(at 384.81 120.65 0)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "f93aaeca-5c80-4bf2-948a-4d53ee4efdda")
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 600 100 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "12fbde3c-f26b-493b-81a0-a1686b535ce0")
+		(property "Reference" "#FLG200" (at 600 97.46 0) (hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 600 103.81 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 600 100 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "" (at 600 100 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Description" "" (at 600 100 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "a2bbe333-4275-4f3a-b05b-6b9df5612086"))
+		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG200") (unit 1))))
+	)
+	(label "5VSB_RAW"
+		(at 600 100 0)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "0b066e49-604b-4171-b06f-a86fe6f2e3a0")
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 600 115 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d00bd993-3d72-4a0e-b64f-cb4f642048e4")
+		(property "Reference" "#FLG201" (at 600 112.46 0) (hide yes)(show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 600 118.81 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 600 115 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "" (at 600 115 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(property "Description" "" (at 600 115 0) (show_name no)(do_not_autoplace no)(effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7942c21d-b27b-47cf-8a5c-d5cc2b6a1871"))
+		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#FLG201") (unit 1))))
+	)
+	(label "USB_VBUS"
+		(at 600 115 0)
+		(effects (font (size 1.27 1.27)) (justify left bottom))
+		(uuid "1182426e-9e90-4f8d-861a-2335b6a30b21")
 	)
 	(sheet_instances
 		(path "/"
