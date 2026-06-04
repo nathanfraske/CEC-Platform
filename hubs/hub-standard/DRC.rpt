@@ -1,8 +1,41 @@
 ** Drc report for hub-standard.kicad_pcb **
-** Created on 2026-06-03T23:03:01 **
+** Created on 2026-06-04T18:39:14 **
 ** Report includes: Errors, Exclusions **
 
-** Found 0 DRC violations **
+** Found 11 DRC violations **
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(97.4500 mm, 155.0500 mm): Track [/USB_VBUS] on F.Cu, length 0.0707 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(97.4500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 2.2800 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(102.3500 mm, 157.1300 mm): Track [/USB_VBUS] on F.Cu, length 0.2828 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(102.3500 mm, 155.0000 mm): Track [/USB_VBUS] on F.Cu, length 2.1300 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
+    Rule: Power min width; error
+    @(155.5000 mm, 115.1000 mm): Track [/5VSB_RAW] on F.Cu, length 2.1250 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
+    Rule: Power min width; error
+    @(155.4250 mm, 115.0250 mm): Track [/5VSB_RAW] on F.Cu, length 0.1061 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(102.5500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 0.3000 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(97.7500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 0.3000 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.2000 mm)
+    Rule: Power min width; error
+    @(100.5500 mm, 151.4500 mm): Track [/USB_VBUS] on F.Cu, length 0.0707 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(100.5500 mm, 150.2750 mm): Track [/USB_VBUS] on F.Cu, length 1.1750 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.2000 mm)
+    Rule: Power min width; error
+    @(100.5000 mm, 151.5000 mm): Track [/USB_VBUS] on B.Cu, length 0.1414 mm
 
 ** Found 0 unconnected pads **
 
