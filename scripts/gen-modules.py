@@ -63,18 +63,28 @@ ESP_GND = ["1","2","42","43","46","47","48","49","50","51","52","53","54","55",
 # shared control/comms/power backbone
 BASE_PARTS = {
     "J1": ("cec", "CEC_RJ45_8P8C_FTP", "TO-HUB"),
-    "U1": ("cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N16R2"),
+    "U1": ("cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N4R2"),
     "U2": ("cec-vendor", "TJA1051T-3", "TJA1462A"),
     "U3": ("cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3"),
-    "R1": ("cec-vendor", "R_Small", "R_ID (OQ-6)"),
+    # DETECT module-ID precision resistor (pin 8 -> GND), read on the Hub's
+    # 10k / 3.3V divider. OQ-6 RESOLVED (spec §2.3 v1.7): these generated modules
+    # are all CAN-only Standard -> 2.2k (0.595 V code). Use a 1% precision part.
+    "R1": ("cec-vendor", "R_Small", "2k2"),
     "R2": ("cec-vendor", "R_Small", "10k"),
     "R3": ("cec-vendor", "R_Small", "2k2"),   # I2C SDA pull-up
     "R4": ("cec-vendor", "R_Small", "2k2"),   # I2C SCL pull-up
-    "C1": ("cec-vendor", "C_Small", "1u"),
-    "C2": ("cec-vendor", "C_Small", "1u"),
-    "C3": ("cec-vendor", "C_Small", "100n"),
-    "C4": ("cec-vendor", "C_Small", "100n"),
-    "C5": ("cec-vendor", "C_Small", "100n"),
+    # Decoupling — matches the hand-maintained 24-pin gold standard's
+    # 10uF-bulk / 1uF / 100nF tiering. These sit on the rails here; placing each
+    # near its IC (esp. the per-IC 100nF and the 10uF bulk at the ESP32) is the
+    # layout (GUI) task.
+    "C1": ("cec-vendor", "C_Small", "1u"),    # LP5907 VIN bulk (+5VSB)
+    "C2": ("cec-vendor", "C_Small", "1u"),    # LP5907 VOUT bulk (+3V3)
+    "C3": ("cec-vendor", "C_Small", "100n"),  # ESP32-S3 3V3 local bypass
+    "C4": ("cec-vendor", "C_Small", "100n"),  # TJA1462A VCC (+5VSB) bypass
+    "C5": ("cec-vendor", "C_Small", "100n"),  # EN reset RC (with R2)
+    "C6": ("cec-vendor", "C_Small", "10u"),   # +5VSB board-entry bulk
+    "C7": ("cec-vendor", "C_Small", "10u"),   # +3V3 bulk at the ESP32
+    "C8": ("cec-vendor", "C_Small", "100n"),  # TJA1462A VIO (+3V3) bypass
     # DETECT-pin protection + poke-and-ack tap (added platform-wide, v3.2).
     # D1: low-capacitance ESD diode on pin 8 -> GND, LOCKED on every Hub/module
     # for hot-plug insertion ESD on the bare analog input (spec §2.4 v2.0).
@@ -93,10 +103,11 @@ def build(dirn):
     if dirn == "atx-24pin":
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
-        "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("U2","3")],
-        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("U1","3"),("U2","5"),("R2","1"),("R3","2"),("R4","2")],
+        "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3")],
+        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1"),("R3","2"),("R4","2")],
         "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
-                  ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2")] + [("U1",p) for p in ESP_GND],
+                  ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2"),
+                  ("C6","2"),("C7","2"),("C8","2")] + [("U1",p) for p in ESP_GND],
         # Reset: ESP32-S3 internal BOD + EN RC only (R2 pull-up to 3V3, C5 to
         # GND); no external supervisor on modules. The TPS3839 is a Hub-only
         # part (aggregator role + blackout/hold-up front-end); a module brownout
@@ -203,12 +214,12 @@ def layout(dirn, parts):
     Unlisted parts fall back to the auto-grid."""
     P = {
         "J1": (50, 70),
-        "U3": (150, 55), "C1": (120, 60), "C2": (180, 60),
+        "U3": (150, 55), "C1": (120, 60), "C2": (180, 60), "C6": (95, 40),
         "R1": (120, 110), "R2": (180, 110), "C5": (210, 110),
-        "U2": (240, 70),
+        "U2": (240, 70), "C4": (240, 35), "C8": (278, 100),
         "U1": (340, 90),
         "R3": (300, 40), "R4": (320, 40),
-        "C3": (300, 150), "C4": (390, 60),
+        "C3": (340, 155), "C7": (388, 155),
         "D1": (85, 70), "R7": (85, 100),
     }
     if dirn == "atx-24pin":
@@ -217,8 +228,14 @@ def layout(dirn, parts):
     # SENSE*_HI link draws as a straight wire onto Vin+/IN+), decoupling cap just
     # right of the monitor. Same layout for INA238/INA228 (i2c) and INA240
     # (analog) — the part bodies differ but the cluster geometry is identical.
+    # Cable interposers are wide (an 8-pin IN + 8-pin OUT, ~71 mm of stub span per
+    # cluster), so the i2c-cable modules need a wider inter-cluster pitch than the
+    # analog per-pin row. At 70 mm the IN of one cable and the OUT of the next
+    # overlap, and ERC merges their SENSE nets (multiple_net_names). 100 mm clears
+    # it; PCIe's 3rd cable still lands inside the A3 width.
+    pitch = 100 if SENSE[dirn][0] == "i2c-cable" else 70
     for i in range(len(RAILS[dirn])):
-        X = 70 + i * 70
+        X = 70 + i * pitch
         P[f"U1{i}"]   = (X, 210)               # current monitor (INA238/228/240)
         P[f"RS{i+1}"] = (X - 25.4, 215.08)     # shunt; pin1 aligned to Vin+/IN+
         P[f"C1{i}"]   = (X + 22.86, 210)       # supply decoupling, beside the monitor

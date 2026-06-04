@@ -128,8 +128,10 @@ Connector and physical interface:
   (pin 8 -> ESP32 ADC) on EVERY Hub and module, for hot-plug insertion ESD on the
   bare analog input. Hub Standard now populates this pin-8 ESD diode — D2-D5,
   PESD5V0S1UL in SOD-323, one per port, cathode to each DETECT line and anode to
-  GND (added 2026-06-04, verified ERC/netlist). The standalone modules and the
-  ordered 24-pin rev2 still ship without it (board action item). Enterprise/MC
+  GND (added 2026-06-04, verified ERC/netlist). The generated standalone module
+  schematics (EPS/PCIe/12VHPWR-Std) now carry it too — D1 = PESD5V0S1UL via the
+  generator, regenerated 2026-06-04 (footprint assigned at layout); the ordered
+  24-pin rev2 PCB still ships without it (rev3 picks it up). Enterprise/MC
   over-voltage attaches to their external uplink, deferred to OQ-7.
 - Connector must have a documented current rating of at least 1.5A.
 - Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
@@ -340,9 +342,12 @@ Open items (surface before acting):
 
 1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement.
    Hub Standard DONE (2026-06-04): D2-D5 = PESD5V0S1UL (SOD-323), one per port,
-   cathode to each DETECT line, anode to GND (verified ERC/netlist). STILL
-   PENDING: one low-capacitance ESD diode per standalone module; the ordered
-   24-pin rev2 shipped without it — add on each module's next revision.
+   cathode to each DETECT line, anode to GND (verified ERC/netlist).
+   EPS/PCIe/12VHPWR-Std SCHEMATICS DONE (2026-06-04): D1 = PESD5V0S1UL on DETECT
+   pin 8 (+ R7 100k poke-and-ack tap to IO10) via gen-modules.py, regenerated and
+   verified (static audit + exported netlist). STILL PENDING: assign the D1
+   footprint at layout on each; the ordered 24-pin rev2 PCB shipped without it
+   (rev3 picks it up).
 2. FTP shielded jack (§2.1 / OQ-37): Hub Standard schematic DONE (2026-06-04) —
    J2-J5 now assign cec:RJ45_FTP_Shielded_Horizontal (pad-identical to the 54602,
    routing-preserving). STILL PENDING: (a) MPN -> an LCSC shielded TH non-magnetic
@@ -351,10 +356,12 @@ Open items (surface before acting):
    / C2683360). Pull the part's authoritative EasyEDA footprint via
    `easyeda2kicad --full --lcsc_id=C86580`, commit the .kicad_mod into lib/, and
    repoint J2-J5 at it (replaces the generic cec:RJ45_FTP_Shielded_Horizontal;
-   guarantees JLC pick-and-place alignment). NOTE: the web sandbox network policy
-   blocks LCSC/EasyEDA/datasheet hosts (403; only PyPI/GitHub reachable), so run
-   that import on an open network or paste the datasheet PCB layout to build it
-   in-repo; (b) in the GUI run "Update PCB from Schematic" to pull the footprint
+   guarantees JLC pick-and-place alignment). NOTE: the environment network policy
+   was updated 2026-06-04 to allow LCSC/EasyEDA for FUTURE sessions; that change
+   does NOT apply to an already-running session, so it must be picked up in a
+   fresh session (until then the import 403s; only PyPI/GitHub are reachable).
+   NEXT-SESSION TODO: run that import first thing, or paste the datasheet PCB
+   layout to build it in-repo; (b) in the GUI run "Update PCB from Schematic" to pull the footprint
    onto the placed J2-J5; (c) modules + 24-pin rev2 still carry the unshielded
    54602 (compatible — single-end shield at the Hub) — move them to FTP on their
    next rev.
@@ -369,6 +376,14 @@ Done (kept for context):
   the cec-power nickname are in.
 - EPS/PCIe per-cable sensing (EPS x2, PCIe x3) and the 12VHPWR Standard 6x INA240
   per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
+  Regenerated + completed 2026-06-04: decoupling brought up to the 24-pin gold
+  standard (2x 10uF bulk + 1uF LP5907 in/out + per-IC 100nF, incl. dedicated
+  TJA1462A VCC/VIO bypass); DETECT R1 set to the resolved CAN-only 2.2k code
+  (OQ-6); ESP corrected to a real MINI-1 SKU (N4R2 — N16R2 was fictitious);
+  D1/R7 picked up; and the per-cable IN/OUT interposer pitch widened to 100 mm so
+  adjacent cables no longer merge SENSE nets. EPS verified: static audit clean,
+  ERC clean apart from the by-design GPIO0 isolated-label and the known generator
+  lib_symbol_mismatch noise (ERC is skipped for DRAFT boards anyway).
 - §6.4 shunt values applied across the generator/boards.
 - Still firmware/layout work (not schematic): the §6.10 acquisition model and the
   §6.8 Kelvin shunt geometry.
@@ -532,8 +547,8 @@ Use this as a recurring review pass:
   10 kΩ / 3.3 V divider.
 - Module sensing matches §6.1: 24-pin = 4x INA228; EPS = per-cable INA238 (1-2);
   PCIe = per-cable INA238 (up to 3); 12VHPWR Standard = 6x INA240 per-pin +
-  divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std boards still
-  need this reconciliation — see Active action items.)
+  divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std schematics
+  reconciled + regenerated 2026-06-04; PCB layout still pending.)
 - Shunt values match the §6.4 table (24-pin 2 mΩ / 5VSB 25 mΩ; EPS/PCIe 0.5 mΩ;
   12VHPWR 1 mΩ), Kelvin-sensed.
 - RS-485 pair (pins 4 and 5) and its receivers exist only on Pro and above;
