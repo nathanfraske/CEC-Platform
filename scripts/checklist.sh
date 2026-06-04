@@ -48,6 +48,7 @@ fi
 
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
+  --exclude-dir=build --exclude-dir=.git \
   --include='*.kicad_mod' --include='*.kicad_sym' --include='*.kicad_pcb' \
   --include='sym-lib-table' --include='fp-lib-table' \
   "$CEC_REPO_ROOT" 2>/dev/null || true)"

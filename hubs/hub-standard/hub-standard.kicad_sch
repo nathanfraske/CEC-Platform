@@ -1892,7 +1892,7 @@
 					)
 				)
 			)
-			(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+			(property "Footprint" "cec-Diode_SMD:D_SMA"
 				(at 0 -4.445 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -7297,7 +7297,7 @@
 				)
 			)
 		)
-		(property "Footprint" "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
+		(property "Footprint" "cec-Diode_SMD:D_SMA"
 			(at 448.31 88.265 0)
 			(hide yes)
 			(show_name no)

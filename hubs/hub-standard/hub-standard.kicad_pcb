@@ -14291,17 +14291,6 @@
 			(uuid "572fcf87-5f13-4933-a5ce-b9b9d60600ad")
 		)
 		(embedded_fonts no)
-		(model "${KICAD10_3DMODEL_DIR}/Diode_THT.3dshapes/D_DO-41_SOD81_P10.16mm_Horizontal.step"
-			(offset
-				(xyz 0 0 0)
-			)
-			(scale
-				(xyz 1 1 1)
-			)
-			(rotate
-				(xyz 0 0 0)
-			)
-		)
 	)
 	(footprint "cec-Capacitor_SMD:C_0603_1608Metric"
 		(layer "F.Cu")
