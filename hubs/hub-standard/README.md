@@ -17,8 +17,8 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Regulator | LP5907 LDO |
 | Hold-up | 4700 µF / 16 V aluminum electrolytic on the isolated `+5V_HOLD` node (Panasonic EEVFK1C472M, LCSC C401967, CP_Elec_16x17.5). Chemistry corrected "polymer" → electrolytic, **ratified spec v1.9** (4700 µF polymer is unobtainable; electrolytic is right for a diode-isolated reservoir feeding the LDO). |
 | Surge cap | 470 µF on the shared `+5VSB` distribution rail (rides out module load-steps; LCSC C116423, CP_Elec_6.3x7.7) |
-| Inrush | 1 Ω 1 W series resistor |
-| Reverse polarity | SS14 Schottky |
+| Inrush | TPS2121 mux soft-start (`C_SS` = 2.2 µF) — **supersedes** the v1.1 discrete 1 Ω 1 W series resistor (the mux ramps the bulk-cap charge). Spec reconciled 2026-06-04. |
+| Reverse polarity / isolation | TPS2121 OR-mux blocks reverse current on the source side; **D1** Schottky isolates the `+5V_HOLD` reservoir downstream. D1 is **SB120** (1 A / 20 V) as built; **SS14** (1 A / 40 V) is a drop-in higher-margin alternative — both adequate on the 5 V rail. |
 | Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
 | LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2) |
@@ -61,19 +61,38 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 
 ## Status
 
-> **Status (2026-06 — schematic complete, ERC-clean, ready for layout; the
-> `DRAFT` marker still skips CI ERC/DRC until layout starts):** RJ-45 re-cut
-> COMPLETE (4 ports + the 2-pin `CEC_PWR_IN_2P` 5VSB power-in). MCU is
-> **ESP32-S3-WROOM-1-N16R8** (symbol + footprint vendored, antenna keepout
-> honored). 5VSB front-end built: TPS2121 mux (PSU/USB OR-in) → SS14 isolation
-> diode → 4700 µF hold-up on the isolated `+5V_HOLD` node → LP5907; 470 µF
-> `C_bulk` surge cap on the shared `+5VSB`; blackout-sense divider → GPIO8.
-> **Two wiring bugs fixed pre-layout:** (1) USB D+ was shorted to CAN TX/RX at
-> the ESP32; (2) DETECT pull-ups (R5–R8) pulled to +5VSB instead of +3V3
-> (§2.3 / ADC over-range). **ERC: 0 errors.** Netclasses (Power/USB/CAN), the
-> `.kicad_dru`, and `LAYOUT-GUIDE.md` are in. Layer count confirmed **4** (for
-> the L2 ground plane / EMC — see LAYOUT-GUIDE.md). PCB layout not started.
-> Remaining before fab: lay out per the guide, then drop the `DRAFT` marker.
+> **Status (2026-06-04 — schematic complete + ERC-clean; PCB placed and fully
+> routed (DRC: 0 unconnected), in pre-fab review. The `DRAFT` marker still
+> skips CI ERC/DRC.):** RJ-45 re-cut COMPLETE (4 ports + the 2-pin
+> `CEC_PWR_IN_2P` 5VSB power-in). MCU is **ESP32-S3-WROOM-1-N16R8** (symbol +
+> footprint vendored, antenna keepout honored — all 4 layers, off-board left).
+> 5VSB front-end built: TPS2121 mux (PSU/USB OR-in) → **D1** isolation Schottky
+> → 4700 µF hold-up on the isolated `+5V_HOLD` node → LP5907; 470 µF `C_bulk`
+> surge cap on the shared `+5VSB`; blackout-sense divider → GPIO8. **ERC: 0
+> errors.** USB ESD (D6) + per-port DETECT ESD (D2–D5) populated; J2–J5 on the
+> FTP shielded footprint.
+>
+> **Pre-fab review (2026-06-04):** found and fixed the netclass-pattern bug
+> (Power/CAN/USB patterns lacked the `/` prefix → rail nets fell into Default,
+> so DRC was blind to under-width power traces). With it fixed DRC now reports
+> the real punch-list:
+> - **38 `track_width` errors** on the power nets — the 5VSB trunk (`/5VSB_RAW`,
+>   0.4 mm) needs a pour or ≥1.5 mm; `/USB_VBUS` and `/+5V_HOLD` need ≥0.5 mm.
+> - **Ground/return-path:** only In1 is poured and it reads as fragmented
+>   (likely stale fill — `kicad-cli` can't refill). **Refill zones in the GUI
+>   (`B`) first**, confirm In1 is one island, then widen/pour the 5VSB trunk on
+>   F.Cu. CAN (CAN_H/L) and USB (D±) are 100 % on F.Cu over In1, 0 vias — good.
+>   The slow/don't-care lines (DETECT/LED/GPIO/EN) ride In2 under In1 — also OK.
+>   Power (+5VSB/+3V3/USB_VBUS) is currently long thin traces on **B.Cu**; move
+>   it to a F.Cu pour (LAYOUT-GUIDE §"Power routing").
+> - **CAN_RX/CAN_L** routed ~0.03–0.13 mm from the board edge — pull in.
+> - Tent the via-in-pad on **C1** (4700 µF); add a 2nd GND via at **D6**; silk
+>   cleanup on the RJ-45 shield pads + board-edge silk.
+>
+> Netclasses (Power/USB/CAN — patterns fixed), the `.kicad_dru`, and
+> `LAYOUT-GUIDE.md` are in. 4-layer 1.6 mm, In1 = GND plane (EMC — see
+> LAYOUT-GUIDE.md). Remaining before fab: the GUI pour/route pass above, then
+> drop the `DRAFT` marker.
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files

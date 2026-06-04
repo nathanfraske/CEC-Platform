@@ -14,6 +14,15 @@
 # a per-track floor. Each RJ-45 VCC branch carries only one module (~0.5A).
 # The 0.5mm Power floor below is a safety net against accidental hairlines on
 # the distribution, not the trunk sizing mechanism.
+#
+# NOTE (2026-06-04): this rule only bites if the Power netclass actually
+# captures the rail nets. The .kicad_pro netclass patterns were missing the
+# root-sheet "/" prefix, so /5VSB_RAW, /+5V_HOLD and /USB_VBUS silently fell
+# into Default and this rule never fired (DRC read clean while the trunk was
+# 0.4mm). Patterns fixed; with the class applied, DRC now flags the under-width
+# power traces -- /5VSB_RAW (the ~3A trunk: pour or >=1.5mm), plus /USB_VBUS and
+# /+5V_HOLD (raise to >=0.5mm). Clear these in the GUI routing/pour pass; do
+# NOT raise the floor to hide the trunk -- pour the trunk instead.
 
 (rule "Power min width"
 	(constraint track_width (min 0.5mm))

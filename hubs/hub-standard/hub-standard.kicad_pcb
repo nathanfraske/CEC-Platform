@@ -14328,7 +14328,7 @@
 		(at 80.5 153)
 		(descr "Fiducial, circular marking, 1mm bare copper, 2mm soldermask opening (Level A)")
 		(tags "fiducial")
-		(property "Reference" "FID3"
+		(property "Reference" "FID2"
 			(at 0 2.5 0)
 			(layer "F.SilkS")
 			(uuid "57042e16-4313-4b5d-b055-0472a5a11a8a")
