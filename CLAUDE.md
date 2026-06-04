@@ -167,7 +167,14 @@ RJ-45 module-to-Hub interface above):
 - 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s)
   directly to the board (board-mounted); no detachable pass-through header and no
   bridging cable. On the melt-prone high-current connector this removes a
-  mated-contact pair from the power path.
+  mated-contact pair from the power path. REALIZED FORM (2026-06-04, connector
+  research): the 12V-2x6 (Molex Micro-Fit+ / Amphenol Minitek) is stocked only as
+  a board-mount MALE header + a cable-crimp female — there is NO stock board-mount
+  female. So the inline module is board-mount right-angle MALE header IN (PSU
+  cable plugs in) + a captive soldered OUTPUT pigtail to the GPU (a 12V-2x6 cable
+  soldered to the board, no detachable bridging cable) — the minimal-mated-pair
+  form. Footprint cec:CEC_12V2x6_Horizontal is APPROXIMATE; lock to the Molex
+  219116 (2191160161 right-angle) / Amphenol Minitek datasheet before fab.
 
 Pin allocation (LOCKED; DETECT encoding resolved v1.7):
 
@@ -403,7 +410,13 @@ Done (kept for context):
   bootstrap: once a .kicad_pcb is opened/edited in the GUI it is hand-maintained
   (like the 24-pin); do NOT re-run the generator over GUI work. Generated for EPS
   (2 cables, ~110x66 mm), PCIe-2port (2 cables, ~110x66 mm) and PCIe-3port (3
-  cables, ~137x66 mm). All: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
+  cables, ~137x66 mm); plus the 12VHPWR Standard (analog-pin kind, NOT cable):
+  a slim ~46x104 mm inline stick — 12V-2x6 power path down the LEFT (J3 MALE
+  header IN top, 6 per-pin shunts + INA240, J4 captive-pigtail OUT bottom), ESP +
+  CAN/LDO + flash + RJ-45 on the RIGHT, 2 M3 mounts on the clear right corners
+  (connectors fill the left corners; cable-supported). Added the CEC_CONN_12V2x6
+  symbol + approximate CEC_12V2x6_Horizontal footprint (LOCK from datasheet). All:
+  4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
   INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of

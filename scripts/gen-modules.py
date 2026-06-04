@@ -127,6 +127,7 @@ def footprint_for(ref, lib, name, val):
         "INA226":            "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
         "INA240":            "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
         "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal",
+        "CEC_CONN_12V2x6":   "cec:CEC_12V2x6_Horizontal",
         "CEC_PWR_IN_2P":     "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
         "USB_C_Receptacle_USB2.0_16P": "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11",
         "SW_Push":           "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA",
@@ -258,9 +259,25 @@ def build(dirn):
         # rail-voltage divider: 12V -> 47k(R5) -> tap -> 10k(R6) -> GND, tap to ADC
         parts["R5"] = ("cec-vendor", "R_Small", "47k")
         parts["R6"] = ("cec-vendor", "R_Small", "10k")
-        nets["SENSE_VRAIL_HI"] = [("R5","1")]                     # to 12V rail (interposer)
         nets["VRAIL_DIV"] = [("R5","2"), ("R6","1"), ("U1", ADC_PINS[6])]  # divider tap -> ADC
         nets["GND"] += [("R6","2")]
+        # 12V-2x6 connectors (§2.8): J3 = board-mount right-angle MALE header (the
+        # PSU 12V-2x6 cable plugs in); J4 = captive OUTPUT pigtail land (a 12V-2x6
+        # cable soldered to the board, female plug to the GPU -- no board-mount
+        # female 12V-2x6 exists, so this is the minimal-mated-pair inline form).
+        # Pins 1-6 +12V, 7-12 GND, 13-16 sideband. Each +12V enters on J3 -> its
+        # shunt (SENSE*_HI) and leaves on the matching J4 pad (SENSE*_LO); GND and
+        # the 4 sideband pins pass straight through J3->J4.
+        parts["J3"] = ("cec", "CEC_CONN_12V2x6", "12V-2x6 IN")
+        parts["J4"] = ("cec", "CEC_CONN_12V2x6", "12V-2x6 OUT pigtail")
+        for j, (label, _sv) in enumerate(nodes):
+            nets[f"SENSE{label}_HI"].append(("J3", str(j+1)))
+            nets[f"SENSE{label}_LO"].append(("J4", str(j+1)))
+        for p in range(7, 13):
+            nets["GND"] += [("J3", str(p)), ("J4", str(p))]
+        for p in range(13, 17):
+            nets[f"SIG{p}"] = [("J3", str(p)), ("J4", str(p))]
+        nets[f"SENSE{nodes[0][0]}_HI"].append(("R5", "1"))  # rail divider taps +12V (pin 1)
 
     if dirn == "atx-24pin":
         nets["+5VSB"] += [("J2","1")]

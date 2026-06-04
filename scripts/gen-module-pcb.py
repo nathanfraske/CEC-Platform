@@ -21,9 +21,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # (module dir, board base name, N cables)
 BOARDS = [
-    ("eps-8pin",        "eps8pin-module",        2),
-    ("pcie-8pin-2port", "pcie8pin-2port-module", 2),
-    ("pcie-8pin-3port", "pcie8pin-3port-module", 3),
+    ("eps-8pin",         "eps8pin-module",          2, "cable"),
+    ("pcie-8pin-2port",  "pcie8pin-2port-module",   2, "cable"),
+    ("pcie-8pin-3port",  "pcie8pin-3port-module",   3, "cable"),
+    ("12vhpwr-standard", "12vhpwr-standard-module", 6, "hpwr"),
 ]
 CX0, PITCH = 20.0, 27.0          # first cable origin x, cable pitch (mm)
 
@@ -54,6 +55,35 @@ def placement(n):
     })
     mounts = [(7.0, 7.0), (W - 7.0, 7.0), (7.0, H - 7.0), (W - 7.0, H - 7.0)]
     logo = (CX0 + (n - 1) * PITCH / 2.0 + 6.3, H / 2.0)
+    return W, H, P, mounts, logo
+
+def placement_hpwr():
+    """Slim inline 12VHPWR Standard. LEFT = the 12V-2x6 power path (board-mount
+    MALE header IN at the top, 6 per-pin shunts + INA240 stacked down, captive-
+    pigtail OUT land at the bottom); RIGHT = ESP + CAN/LDO + flash front end +
+    RJ-45. The two right-edge connectors (USB-C, RJ-45) are rotated 90 to mate
+    outward."""
+    W, H = 46.0, 104.0
+    P = {"J3": (4.0, 13.0, 0)}                    # 12V-2x6 IN, top-left, mates up
+    for i in range(6):                            # 6 shunt + INA240 pairs, stacked
+        y = 31.0 + i * 8.0
+        P[f"RS{i+1}"] = (5.0, y, 0)               # 1 mOhm per-pin shunt
+        P[f"U1{i}"]   = (13.0, y, 0)              # INA240 (U10..U15)
+    P["J4"] = (4.0, 90.0, 0)                      # 12V-2x6 OUT captive-pigtail land
+    P["U2"] = (25.0, 22.0, 0)                     # TJA1462A CAN (top)
+    P["D2"] = (25.0, 30.0, 0); P["C9"] = (30.0, 30.0, 0)   # VBUS ORing + bulk
+    P["U1"] = (32.0, 45.0, 0)                     # ESP32-S3-MINI-1 (right, x[24,40])
+    P["U3"] = (24.0, 62.0, 0)                     # LP5907 LDO
+    P["R8"] = (34.0, 60.0, 0); P["R9"] = (39.0, 60.0, 0)   # CC pulldowns
+    P["R5"] = (24.0, 70.0, 0); P["R6"] = (29.0, 70.0, 0)   # rail divider
+    P["SW1"] = (34.0, 70.0, 0); P["SW2"] = (40.0, 70.0, 0) # BOOT / RESET
+    P["J5"] = (42.0, 24.0, 90)                    # USB-C, right edge upper, opening +X
+    P["J1"] = (32.0, 90.0, 90)                    # RJ-45, right edge lower, opening +X
+    # The 12V-2x6 connectors fill the left corners, so corner mounts don't fit;
+    # this slim inline board is mainly cable-supported. Two M3 mounts on the clear
+    # right corners (add more in the GUI if a bracket needs them).
+    mounts = [(W - 5.0, 6.0), (W - 5.0, H - 6.0)]
+    logo = (9.0, 64.0)
     return W, H, P, mounts, logo
 
 # ---------------------------------------------------------------- helpers
@@ -175,13 +205,13 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False):
         out += blk; pos = end
     return "\t" + (out + s[pos:]).strip() + "\n"
 
-def build(dir_, base, n):
+def build(dir_, base, n, kind):
     netf = f"{ROOT}/modules/{dir_}/{base}.net"
     comps, nets = parse_netlist(netf)
     names = [x for x in sorted(nets) if x]
     code_of = {x: i + 1 for i, x in enumerate(names)}
     padnet = {(r, p): (code_of[x], x) for x, nodes in nets.items() if x for (r, p) in nodes}
-    W, H, P, mounts, logo = placement(n)
+    W, H, P, mounts, logo = placement_hpwr() if kind == "hpwr" else placement(n)
 
     fps = []
     for ref, (x, y, rot) in P.items():
@@ -214,5 +244,5 @@ def build(dir_, base, n):
     open(out, "w").write(doc)
     print(f"{os.path.relpath(out, ROOT)}  N={n} footprints={len(fps)} board={W:.0f}x{H:.0f}mm")
 
-for d, b, n in BOARDS:
-    build(d, b, n)
+for d, b, n, kind in BOARDS:
+    build(d, b, n, kind)
