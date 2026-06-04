@@ -76,8 +76,10 @@ BASE_PARTS = {
     # are all CAN-only Standard -> 2.2k (0.595 V code). Use a 1% precision part.
     "R1": ("cec-vendor", "R_Small", "2k2"),
     "R2": ("cec-vendor", "R_Small", "10k"),
-    "R3": ("cec-vendor", "R_Small", "2k2"),   # I2C SDA pull-up
-    "R4": ("cec-vendor", "R_Small", "2k2"),   # I2C SCL pull-up
+    # R3/R4 (I2C SDA/SCL pull-ups) are added per-topology in build(): the I2C
+    # sensing bus exists only on the i2c-cable/i2c-rail modules. The analog
+    # 12VHPWR module has no I2C, so IO8/IO9 (pins 12/13) are free there and
+    # instead host two of the 12V-2x6 sideband sense taps.
     # Decoupling — matches the hand-maintained 24-pin gold standard's
     # 10uF-bulk / 1uF / 100nF tiering. These sit on the rails here; placing each
     # near its IC (esp. the per-IC 100nF and the 10uF bulk at the ESP32) is the
@@ -144,8 +146,9 @@ def footprint_for(ref, lib, name, val):
         return ("cec-Resistor_SMD:R_2512_6332Metric"
                 if ref.startswith("RS") else "cec-Resistor_SMD:R_0402_1005Metric")
     if name == "C_Small":
-        return {"10u": "cec-Capacitor_SMD:C_0805_2012Metric",
-                "1u":  "cec-Capacitor_SMD:C_0603_1608Metric"}.get(
+        return {"10u":  "cec-Capacitor_SMD:C_0805_2012Metric",
+                "1u":   "cec-Capacitor_SMD:C_0603_1608Metric",
+                "470n": "cec-Capacitor_SMD:C_0603_1608Metric"}.get(  # INA filter Cdiff
                     val, "cec-Capacitor_SMD:C_0402_1005Metric")
     return ""
 
@@ -156,7 +159,7 @@ def build(dirn):
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
         "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3"),("D2","1")],
-        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1"),("R3","2"),("R4","2")],
+        "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1")],
         "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2"),
                   ("C6","2"),("C7","2"),("C8","2"),("C9","2"),("R8","2"),("R9","2"),
@@ -190,6 +193,10 @@ def build(dirn):
         # One monitor per node (a rail on the 24-pin, a cable on EPS/PCIe). Each
         # senses across its own shunt and reports over the shared I2C bus.
         ina_val = "INA228" if dirn == "atx-24pin" else "INA238"
+        # I2C pull-ups live with the bus (this topology only); see BASE_PARTS note.
+        parts["R3"] = ("cec-vendor", "R_Small", "2k2")   # I2C SDA pull-up
+        parts["R4"] = ("cec-vendor", "R_Small", "2k2")   # I2C SCL pull-up
+        nets["+3V3"] += [("R3","2"), ("R4","2")]
         nets["I2C_SDA"] = [("U1","12"),("R3","1")]   # IO8
         nets["I2C_SCL"] = [("U1","13"),("R4","1")]   # IO9
         for i, (label, sv) in enumerate(nodes):
@@ -247,12 +254,27 @@ def build(dirn):
         # absolute-accuracy path for this board is OQ-8.)
         for i, (label, sv) in enumerate(nodes):
             amp = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
+            rfh = f"RFH{i+1}"; rfl = f"RFL{i+1}"; cf = f"CF{i+1}"
             parts[amp] = ("cec-vendor", "INA240", "INA240A3")
             parts[sh]  = ("cec-vendor", "R_Small", sv)            # 1 mΩ per-pin shunt
             parts[dec] = ("cec-vendor", "C_Small", "100n")        # V+ decoupling
-            # per-pin shunt across IN+ (8, supply) / IN- (1, load)
-            nets[f"SENSE{label}_HI"] = [(sh,"1"), (amp,"8")]
-            nets[f"SENSE{label}_LO"] = [(sh,"2"), (amp,"1")]
+            # INA240 input transient / anti-alias filter (added v3.4): a matched
+            # series Rf on each input plus a differential cap across IN+/IN-.
+            #   fc = 1/(2π·2·Rf·Cdiff) = 1/(2π·2·10·470n) ≈ 16.9 kHz
+            # so the ~10 kHz GPU transients this pass targets pass at ~-1.3 dB and
+            # everything above the ESP32-S3 ADC band is rolled off. Rf is held at
+            # 10 Ω and MATCHED — TI's recommended ceiling for the INA240 — so the
+            # added series resistance contributes negligible gain/CMRR error. (A
+            # ~47 nF common-mode cap per input is the optional next step if CM
+            # noise shows up on the bench; left off this pass — OQ-8.)
+            parts[rfh] = ("cec-vendor", "R_Small", "10")          # filter series R, IN+
+            parts[rfl] = ("cec-vendor", "R_Small", "10")          # filter series R, IN-
+            parts[cf]  = ("cec-vendor", "C_Small", "470n")        # differential filter cap
+            # per-pin shunt -> series Rf -> INA input; Cdiff across IN+ (8)/IN- (1)
+            nets[f"SENSE{label}_HI"] = [(sh,"1"), (rfh,"1")]      # supply side -> filter
+            nets[f"SENSE{label}_LO"] = [(sh,"2"), (rfl,"1")]      # load side  -> filter
+            nets[f"INP{label}"] = [(rfh,"2"), (amp,"8"), (cf,"1")]  # IN+ + Cdiff
+            nets[f"INN{label}"] = [(rfl,"2"), (amp,"1"), (cf,"2")]  # IN- + Cdiff
             nets["+3V3"] += [(amp,"6"), (dec,"1")]                # V+ to +3V3
             nets["GND"]  += [(amp,"2"), (amp,"4"), (amp,"3"), (amp,"7"), (dec,"2")]  # GND(2,4) + REF1(7)/REF2(3) to GND
             nets[f"ISENSE{label}"] = [(amp,"5"), ("U1", ADC_PINS[i])]     # OUT -> ADC
@@ -275,8 +297,23 @@ def build(dirn):
             nets[f"SENSE{label}_LO"].append(("J4", str(j+1)))
         for p in range(7, 13):
             nets["GND"] += [("J3", str(p)), ("J4", str(p))]
-        for p in range(13, 17):
-            nets[f"SIG{p}"] = [("J3", str(p)), ("J4", str(p))]
+        # 4 sideband sense pins (12V-2x6 pins 13-16: SENSE0, SENSE1,
+        # CARD_PWR_STABLE, CARD_CBL_PRES#). Previously a bare J3->J4 pass-through;
+        # now each ALSO taps a free ESP32-S3 GPIO through a 1k series protection R,
+        # so firmware can READ the cable's advertised power capability (SENSE0/1,
+        # the PSU's open/ground rating straps) and the present/stable state and
+        # report it over CAN — while the interposer stays transparent (the signal
+        # still passes straight J3->J4 to the GPU). 3.3 V logic domain; IO8/IO9 are
+        # free here (no I2C bus) and host two of the four taps.
+        SIDEBAND = [("SENSE0",     13, "12"),   # IO8
+                    ("SENSE1",     14, "13"),   # IO9
+                    ("PWR_STABLE", 15, "15"),   # IO11
+                    ("CBL_PRES",   16, "16")]   # IO12
+        for k, (sig, pin, gpio) in enumerate(SIDEBAND):
+            rsb = f"R{10+k}"
+            parts[rsb] = ("cec-vendor", "R_Small", "1k")     # series protection tap
+            nets[f"SB_{sig}"]      = [("J3", str(pin)), ("J4", str(pin)), (rsb, "1")]
+            nets[f"SB_{sig}_GPIO"] = [(rsb, "2"), ("U1", gpio)]
         nets[f"SENSE{nodes[0][0]}_HI"].append(("R5", "1"))  # rail divider taps +12V (pin 1)
 
     if dirn == "atx-24pin":
@@ -323,9 +360,17 @@ def layout(dirn, parts):
         # cluster, LOAD-side OUT to the right, on a band above the sensing row.
         P[f"J_IN{i+1}"]  = (X - 25.4, 160)     # PSU side
         P[f"J_OUT{i+1}"] = (X + 25.4, 160)     # load side
+        # 12VHPWR INA240 input filter (Rf series on each leg, Cdiff between), sat
+        # between the shunt and the amp. Harmless on i2c modules (refdes absent).
+        P[f"RFH{i+1}"] = (X - 12.7, 200.66)    # series Rf, IN+ leg
+        P[f"RFL{i+1}"] = (X - 12.7, 224.79)    # series Rf, IN- leg
+        P[f"CF{i+1}"]  = (X - 6.35, 212.09)    # differential filter cap
     if dirn == "12vhpwr-standard":
-        # 47k/10k rail-voltage divider, parked below the per-pin row
+        # 47k/10k rail-voltage divider + the 4 sideband sense taps, parked below
+        # the per-pin row.
         P["R5"] = (70, 270); P["R6"] = (95, 270)
+        for k in range(4):
+            P[f"R{10+k}"] = (140 + k * 20, 270)
     return {r: P[r] for r in parts if r in P}
 
 for dirn, base in MODS:

@@ -122,7 +122,7 @@
 	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
 	(layer "F.Cu")
 	(at 20 17 0)
-	(uuid "c006f5bc-2c8a-41c5-96c3-c3fa17977a4c")
+	(uuid "b9e78ba8-404b-4d7e-b553-ac63d915d23b")
 	(descr "Molex Mini-Fit Jr. 5569 right-angle, 8 circuits (2x4), 4.20mm pitch, PCB mounting flange. EPS12V/ATX12V standard CPU-power connector. Derived in-repo from the 5569 2x12 variant (same pad/flange geometry) for the EPS/PCIe per-cable interposer. Row1 pads 1-4 (y=0), row2 pads 5-8 (y=5.5).")
 	(tags "connector Molex Mini-Fit_Jr horizontal EPS12V ATX12V")
 	(property "Reference" "J_IN1"
@@ -130,9 +130,9 @@
 		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
-	(property "Value" "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
+	(property "Value" "C1 PSU"
 		(at 6.3 8.55 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
 	(attr through_hole)
@@ -183,7 +183,7 @@
 	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
 	(layer "F.Cu")
 	(at 32.6 49 180)
-	(uuid "aebd0569-d87e-47b1-bfe0-bf0325f5b655")
+	(uuid "c3812560-98c8-4f25-b9cc-f3e2d9ab1feb")
 	(descr "Molex Mini-Fit Jr. 5569 right-angle, 8 circuits (2x4), 4.20mm pitch, PCB mounting flange. EPS12V/ATX12V standard CPU-power connector. Derived in-repo from the 5569 2x12 variant (same pad/flange geometry) for the EPS/PCIe per-cable interposer. Row1 pads 1-4 (y=0), row2 pads 5-8 (y=5.5).")
 	(tags "connector Molex Mini-Fit_Jr horizontal EPS12V ATX12V")
 	(property "Reference" "J_OUT1"
@@ -191,9 +191,9 @@
 		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
-	(property "Value" "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
+	(property "Value" "C1 LOAD"
 		(at 6.3 8.55 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
 	(attr through_hole)
@@ -244,7 +244,7 @@
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
 	(at 23 35 0)
-	(uuid "5be300d0-63d4-4a84-825e-66b1c65a13b7")
+	(uuid "86921ee1-7001-4f95-9b35-0ea969561faf")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS1"
@@ -257,9 +257,9 @@
 			)
 		)
 	)
-	(property "Value" "R_2512_6332Metric"
+	(property "Value" "0.5mΩ"
 		(at 0 2.63 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -347,7 +347,7 @@
 	(footprint "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 	(layer "F.Cu")
 	(at 29 30 0)
-	(uuid "02f532c9-8716-489e-8922-a6a29f348c20")
+	(uuid "d5c37e23-f990-442c-b967-e39609ba245a")
 	(descr "VSSOP, 10 Pin (http://www.ti.com/lit/ds/symlink/ads1115.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "VSSOP SO")
 	(property "Reference" "U10"
@@ -360,9 +360,9 @@
 			)
 		)
 	)
-	(property "Value" "VSSOP-10_3x3mm_P0.5mm"
+	(property "Value" "INA238"
 		(at 0 2.45 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -658,7 +658,7 @@
 	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
 	(layer "F.Cu")
 	(at 47 17 0)
-	(uuid "8dc6952a-8a7b-48cd-90ff-0dea27d5a3ea")
+	(uuid "b2bada31-5863-4f2e-82ce-41c357b54ba6")
 	(descr "Molex Mini-Fit Jr. 5569 right-angle, 8 circuits (2x4), 4.20mm pitch, PCB mounting flange. EPS12V/ATX12V standard CPU-power connector. Derived in-repo from the 5569 2x12 variant (same pad/flange geometry) for the EPS/PCIe per-cable interposer. Row1 pads 1-4 (y=0), row2 pads 5-8 (y=5.5).")
 	(tags "connector Molex Mini-Fit_Jr horizontal EPS12V ATX12V")
 	(property "Reference" "J_IN2"
@@ -666,9 +666,9 @@
 		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
-	(property "Value" "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
+	(property "Value" "C2 PSU"
 		(at 6.3 8.55 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
 	(attr through_hole)
@@ -719,7 +719,7 @@
 	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
 	(layer "F.Cu")
 	(at 59.6 49 180)
-	(uuid "d0779ac8-bff9-470b-97be-1ee10a62a6ba")
+	(uuid "001fb6f9-9fd6-4bb5-8490-9f091a878bb2")
 	(descr "Molex Mini-Fit Jr. 5569 right-angle, 8 circuits (2x4), 4.20mm pitch, PCB mounting flange. EPS12V/ATX12V standard CPU-power connector. Derived in-repo from the 5569 2x12 variant (same pad/flange geometry) for the EPS/PCIe per-cable interposer. Row1 pads 1-4 (y=0), row2 pads 5-8 (y=5.5).")
 	(tags "connector Molex Mini-Fit_Jr horizontal EPS12V ATX12V")
 	(property "Reference" "J_OUT2"
@@ -727,9 +727,9 @@
 		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
-	(property "Value" "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
+	(property "Value" "C2 LOAD"
 		(at 6.3 8.55 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
 	(attr through_hole)
@@ -780,7 +780,7 @@
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
 	(at 50 35 0)
-	(uuid "770ba35f-2e05-408f-864a-853e2c0bc1da")
+	(uuid "eebb470c-474b-4b23-96f4-dc30f8599bf2")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS2"
@@ -793,9 +793,9 @@
 			)
 		)
 	)
-	(property "Value" "R_2512_6332Metric"
+	(property "Value" "0.5mΩ"
 		(at 0 2.63 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -883,7 +883,7 @@
 	(footprint "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 	(layer "F.Cu")
 	(at 56 30 0)
-	(uuid "e7a5cad8-f698-46af-bf12-cf23c0216c2e")
+	(uuid "c22cce4b-7809-46a6-b4d2-0668c9c81386")
 	(descr "VSSOP, 10 Pin (http://www.ti.com/lit/ds/symlink/ads1115.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "VSSOP SO")
 	(property "Reference" "U11"
@@ -896,9 +896,9 @@
 			)
 		)
 	)
-	(property "Value" "VSSOP-10_3x3mm_P0.5mm"
+	(property "Value" "INA238"
 		(at 0 2.45 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -1194,7 +1194,7 @@
 	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
 	(layer "F.Cu")
 	(at 74 17 0)
-	(uuid "c16bc24e-17b7-4bc5-be19-c86932332294")
+	(uuid "00a87d55-3ac1-4758-8f81-d8ab7bc0bfcb")
 	(descr "Molex Mini-Fit Jr. 5569 right-angle, 8 circuits (2x4), 4.20mm pitch, PCB mounting flange. EPS12V/ATX12V standard CPU-power connector. Derived in-repo from the 5569 2x12 variant (same pad/flange geometry) for the EPS/PCIe per-cable interposer. Row1 pads 1-4 (y=0), row2 pads 5-8 (y=5.5).")
 	(tags "connector Molex Mini-Fit_Jr horizontal EPS12V ATX12V")
 	(property "Reference" "J_IN3"
@@ -1202,9 +1202,9 @@
 		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
-	(property "Value" "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
+	(property "Value" "C3 PSU"
 		(at 6.3 8.55 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
 	(attr through_hole)
@@ -1255,7 +1255,7 @@
 	(footprint "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
 	(layer "F.Cu")
 	(at 86.6 49 180)
-	(uuid "e153925b-c231-4c76-833f-f99d652aa80c")
+	(uuid "3bbd9f55-f477-45b0-9bf0-e82781ad521b")
 	(descr "Molex Mini-Fit Jr. 5569 right-angle, 8 circuits (2x4), 4.20mm pitch, PCB mounting flange. EPS12V/ATX12V standard CPU-power connector. Derived in-repo from the 5569 2x12 variant (same pad/flange geometry) for the EPS/PCIe per-cable interposer. Row1 pads 1-4 (y=0), row2 pads 5-8 (y=5.5).")
 	(tags "connector Molex Mini-Fit_Jr horizontal EPS12V ATX12V")
 	(property "Reference" "J_OUT3"
@@ -1263,9 +1263,9 @@
 		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
-	(property "Value" "Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal"
+	(property "Value" "C3 LOAD"
 		(at 6.3 8.55 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects (font (size 1 1) (thickness 0.15)))
 	)
 	(attr through_hole)
@@ -1316,7 +1316,7 @@
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
 	(at 77 35 0)
-	(uuid "5e87c8d7-6acb-4295-b914-ad750bc4c8e8")
+	(uuid "15991e75-de18-4065-8f08-8336b7c8e202")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS3"
@@ -1329,9 +1329,9 @@
 			)
 		)
 	)
-	(property "Value" "R_2512_6332Metric"
+	(property "Value" "0.5mΩ"
 		(at 0 2.63 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -1419,7 +1419,7 @@
 	(footprint "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm"
 	(layer "F.Cu")
 	(at 83 30 0)
-	(uuid "8bbd46f7-9b05-46e9-b3b3-ae565d54806a")
+	(uuid "1f4f522b-51cc-4ad1-a773-686e4b32ef7b")
 	(descr "VSSOP, 10 Pin (http://www.ti.com/lit/ds/symlink/ads1115.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "VSSOP SO")
 	(property "Reference" "U12"
@@ -1432,9 +1432,9 @@
 			)
 		)
 	)
-	(property "Value" "VSSOP-10_3x3mm_P0.5mm"
+	(property "Value" "INA238"
 		(at 0 2.45 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -1730,7 +1730,7 @@
 	(footprint "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout"
 	(layer "F.Cu")
 	(at 106.7 33 0)
-	(uuid "234b761d-6159-483c-aa27-336d770a79be")
+	(uuid "f848fde0-960e-46d6-b245-b9576b6bd1c3")
 	(descr "ESP32-S2/S3-MINI-1 footprint, ANTENNA KEEPOUT REMOVED (wired-only boards). Base: https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf")
 	(tags "2.4 GHz Wi-Fi Bluetooth external antenna espressif  20*15.4mm")
 	(property "Reference" "U1"
@@ -1745,10 +1745,10 @@
 			)
 		)
 	)
-	(property "Value" "ESP32-S2-MINI-1"
+	(property "Value" "ESP32-S3-MINI-1-N4R2"
 		(at 0 3.55 0)
 		(unlocked yes)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(uuid "d27f1680-7f2f-4b18-aa38-1a4acbcc2198")
 		(effects
 			(font
@@ -2602,7 +2602,7 @@
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
 	(at 101.7 15 0)
-	(uuid "8202dd05-1f39-4e77-be5a-06ad5d837ca7")
+	(uuid "680b0bd0-c106-4f63-9648-f47740d6608f")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U2"
@@ -2615,9 +2615,9 @@
 			)
 		)
 	)
-	(property "Value" "SOIC-8_3.9x4.9mm_P1.27mm"
+	(property "Value" "TJA1462A"
 		(at 0 3.4 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -2899,7 +2899,7 @@
 	(footprint "cec-Package_TO_SOT_SMD:SOT-23-5"
 	(layer "F.Cu")
 	(at 101.7 51 0)
-	(uuid "a8f59392-5d92-4938-b4fe-406248356680")
+	(uuid "2b210442-eee9-4448-976f-20616e33b091")
 	(descr "SOT, 5 Pin (JEDEC MO-178 Var AA https://www.jedec.org/document_search?search_api_views_fulltext=MO-178), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOT TO_SOT_SMD")
 	(property "Reference" "U3"
@@ -2912,9 +2912,9 @@
 			)
 		)
 	)
-	(property "Value" "SOT-23-5"
+	(property "Value" "LP5907MFX-3.3"
 		(at 0 2.4 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -3220,7 +3220,7 @@
 	(footprint "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 	(layer "F.Cu")
 	(at 109.7 15 0)
-	(uuid "042dedea-0097-4a81-8f7f-d752d1367789")
+	(uuid "95007b4f-11f5-4816-8435-868a3a094e90")
 	(descr "http://industrial.panasonic.com/cdbs/www-data/pdf/ATV0000/ATV0000CE5.pdf")
 	(tags "SMD SMT SPST EVQPUJ EVQPUA")
 	(property "Reference" "SW1"
@@ -3234,9 +3234,9 @@
 			)
 		)
 	)
-	(property "Value" "Panasonic_EVQPUJ_EVQPUA"
+	(property "Value" "BOOT"
 		(at 0 3.5 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(uuid "dd731099-f849-4842-88fb-acf1efd66738")
 		(effects
 			(font
@@ -3488,7 +3488,7 @@
 	(footprint "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 	(layer "F.Cu")
 	(at 109.7 51 0)
-	(uuid "4e43249e-5488-4dc3-8ae1-c7cb1283351a")
+	(uuid "32efdfc4-09fd-4d44-a254-b2d12fdd13ac")
 	(descr "http://industrial.panasonic.com/cdbs/www-data/pdf/ATV0000/ATV0000CE5.pdf")
 	(tags "SMD SMT SPST EVQPUJ EVQPUA")
 	(property "Reference" "SW2"
@@ -3502,9 +3502,9 @@
 			)
 		)
 	)
-	(property "Value" "Panasonic_EVQPUJ_EVQPUA"
+	(property "Value" "RESET"
 		(at 0 3.5 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(uuid "dd731099-f849-4842-88fb-acf1efd66738")
 		(effects
 			(font
@@ -3756,7 +3756,7 @@
 	(footprint "cec-Diode_SMD:D_SMA"
 	(layer "F.Cu")
 	(at 118.7 27 0)
-	(uuid "4aec0534-38ac-4356-9670-1b003e6cdbea")
+	(uuid "1f48f056-adce-4a50-8a34-548fa7c49e4e")
 	(descr "Diode SMA (DO-214AC)")
 	(tags "Diode SMA (DO-214AC)")
 	(property "Reference" "D2"
@@ -3770,9 +3770,9 @@
 			)
 		)
 	)
-	(property "Value" "D_SMA"
+	(property "Value" "SS34"
 		(at 0 2.6 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(uuid "d8100462-8cef-473f-be33-7f843be6851c")
 		(effects
 			(font
@@ -4022,7 +4022,7 @@
 	(footprint "cec-Capacitor_SMD:C_0805_2012Metric"
 	(layer "F.Cu")
 	(at 123.7 27 0)
-	(uuid "cd0bfc89-0ea4-441a-b48f-6c3f9cc54b63")
+	(uuid "e10fd2a5-f28d-4107-a6ce-2381f3fe7bf1")
 	(descr "Capacitor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf, https://docs.google.com/spreadsheets/d/1BsfQQcO9C6DZCsRaXUlFlo91Tg2WpOkGARC1WS5S8t0/edit?usp=sharing), generated with kicad-footprint-generator")
 	(tags "capacitor")
 	(property "Reference" "C9"
@@ -4035,9 +4035,9 @@
 			)
 		)
 	)
-	(property "Value" "C_0805_2012Metric"
+	(property "Value" "10uF"
 		(at 0 1.68 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -4125,7 +4125,7 @@
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 	(layer "F.Cu")
 	(at 128.7 27 0)
-	(uuid "f57988ea-2e96-4fa9-bc32-ee39b1ade024")
+	(uuid "d83c8ddb-6a29-4e40-8964-72d5373aa9c6")
 	(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "R8"
@@ -4138,9 +4138,9 @@
 			)
 		)
 	)
-	(property "Value" "R_0402_1005Metric"
+	(property "Value" "5.1kΩ"
 		(at 0 1.17 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -4228,7 +4228,7 @@
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 	(layer "F.Cu")
 	(at 133.7 27 0)
-	(uuid "e2d38f53-59c4-4f72-88ba-47e70b59fce5")
+	(uuid "0e13ec9a-89ff-469a-bfd4-1d563f7dae49")
 	(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "R9"
@@ -4241,9 +4241,9 @@
 			)
 		)
 	)
-	(property "Value" "R_0402_1005Metric"
+	(property "Value" "5.1kΩ"
 		(at 0 1.17 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(effects
 			(font
 				(size 1 1)
@@ -4331,7 +4331,7 @@
 	(footprint "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"
 	(layer "F.Cu")
 	(at 132.7 16 90)
-	(uuid "82a0f0fd-bae7-4a4a-a0d8-f5799e00f52c")
+	(uuid "89286fe0-d792-4515-aa70-5f250f82095f")
 	(descr "USB Type C, right-angle, SMT, https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf")
 	(tags "USB C Type-C Receptacle SMD")
 	(property "Reference" "J5"
@@ -4345,9 +4345,9 @@
 			)
 		)
 	)
-	(property "Value" "USB_C_Receptacle_XKB_U262-16XN-4BVC11"
+	(property "Value" "USB-C 2.0"
 		(at 0 4.935 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(uuid "cd301a04-be52-4bc1-963f-69790b266d55")
 		(effects
 			(font
@@ -4707,7 +4707,7 @@
 	(footprint "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 	(layer "F.Cu")
 	(at 122.7 46 90)
-	(uuid "42c69e2c-9cf9-4140-b277-d0115abb7d56")
+	(uuid "89f9fb3a-04a9-4411-b14a-98f0f8f33a4a")
 	(descr "8 Pol Shallow Latch Connector, Modjack, RJ45 (https://cdn.amphenol-icc.com/media/wysiwyg/files/drawing/c-bmj-0102.pdf)")
 	(tags "RJ45")
 	(property "Reference" "J1"
@@ -4721,9 +4721,9 @@
 			)
 		)
 	)
-	(property "Value" "RJ45_Amphenol_54602-x08_Horizontal"
+	(property "Value" "TO-HUB"
 		(at 4.445 4 0)
-		(layer "F.Fab")
+		(layer "F.SilkS")
 		(uuid "c96cd34d-0a72-42c7-8ef8-d9df2a1b9a71")
 		(effects
 			(font
@@ -5035,7 +5035,7 @@
 	(footprint "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
 	(layer "F.Cu")
 	(at 7 7 0)
-	(uuid "b9a15707-9ea9-429e-a3c2-c0fa88d14572")
+	(uuid "9d34ea81-8ab3-460d-8c5e-1bcc3a43139d")
 	(descr "Mounting Hole 3.2mm, M3, generated by kicad-footprint-generator mountinghole.py")
 	(tags "mountinghole M3")
 	(property "Reference" "H1"
@@ -5176,7 +5176,7 @@
 	(footprint "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
 	(layer "F.Cu")
 	(at 129.7 7 0)
-	(uuid "3c9b02a1-224c-4fd1-9de1-febce72735b7")
+	(uuid "73938f9d-a44d-4022-b3c3-57ccaf43fc29")
 	(descr "Mounting Hole 3.2mm, M3, generated by kicad-footprint-generator mountinghole.py")
 	(tags "mountinghole M3")
 	(property "Reference" "H2"
@@ -5317,7 +5317,7 @@
 	(footprint "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
 	(layer "F.Cu")
 	(at 7 59 0)
-	(uuid "8d578e81-da7e-4c27-9b92-70b7bd8bb706")
+	(uuid "ea165be3-3fa9-4a53-b21f-6c0852c47590")
 	(descr "Mounting Hole 3.2mm, M3, generated by kicad-footprint-generator mountinghole.py")
 	(tags "mountinghole M3")
 	(property "Reference" "H3"
@@ -5458,7 +5458,7 @@
 	(footprint "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
 	(layer "F.Cu")
 	(at 129.7 59 0)
-	(uuid "36d68fc0-fa72-4dbb-810a-ea447a06bab4")
+	(uuid "665630de-f95d-4e35-a5d4-31a7e9f6afcc")
 	(descr "Mounting Hole 3.2mm, M3, generated by kicad-footprint-generator mountinghole.py")
 	(tags "mountinghole M3")
 	(property "Reference" "H4"
@@ -5599,7 +5599,7 @@
 	(footprint "cec:CEC_Logo_Copper"
 	(layer "B.Cu")
 	(at 53.3 33 0)
-	(uuid "14fe642c-7570-40d9-a10b-36294b45238e")
+	(uuid "4d1610c3-6e22-4a01-a5ab-763d449af6ba")
 	(descr "CEC logo - raw/exposed copper (F.Cu + F.Mask opening), 13x11.9mm. Board-only, no pads.")
 	(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard board_only)
 	(property "Reference" "LOGO1" (at 0 -9 0) (layer "B.SilkS") (hide yes) (uuid "d915431f-9491-4c58-8516-fd1c865005cf") (effects (font (size 1 1) (thickness 0.15))))
@@ -5718,10 +5718,10 @@
 	)
 	)
 
-	(gr_line (start 0 0) (end 136.7 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "a56803a7-8629-486b-953e-44dbeeaaa5c5"))
-	(gr_line (start 136.7 0) (end 136.7 66) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "699b204a-e3c5-45be-8010-29896ee0b521"))
-	(gr_line (start 136.7 66) (end 0 66) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "7eea24ff-d088-4114-9336-d1e3a595c69d"))
-	(gr_line (start 0 66) (end 0 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "1eeaed2f-2dfa-4a08-b6f8-6262392c9c68"))
-	(gr_text "CEC pcie8pin-3port-module  4L 2oz/1oz" (at 53.3 62 0) (layer "B.SilkS") (uuid "676fad3c-82df-4ac4-83e4-0a1c93d7f6a0") (effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))
+	(gr_line (start 0 0) (end 136.7 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "45fea698-77c1-4004-8980-aa7553a2eb08"))
+	(gr_line (start 136.7 0) (end 136.7 66) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "47f71b65-a976-4d99-9303-f47d1a73a596"))
+	(gr_line (start 136.7 66) (end 0 66) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "3b338601-0df0-41f1-8966-6fac69d13c23"))
+	(gr_line (start 0 66) (end 0 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "9b8a2447-c02c-4fd7-b696-5f6097df359e"))
+	(gr_text "CEC pcie8pin-3port-module  4L 2oz/1oz" (at 53.3 62 0) (layer "B.SilkS") (uuid "37f1dea1-e2f5-4d2f-921d-6201429a0672") (effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))
 	(embedded_fonts no)
 )

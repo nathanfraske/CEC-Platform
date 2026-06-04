@@ -256,7 +256,21 @@ Per-tier hardware:
   - 12VHPWR Standard: six INA240 per-pin current-sense amps into the ESP32-S3
     ADC (GPIO1..6), plus a 47k/10k rail-voltage divider into a 7th ADC channel
     (GPIO7). No I2C sensing bus. REF1/REF2 tied to GND (unidirectional forward
-    sensing). Accuracy ~+/-1%, see OQ-8. IMPLEMENTED.
+    sensing). Accuracy ~+/-1%, see OQ-8. IMPLEMENTED. v3.4 additions: (a) a
+    per-channel INA240 input anti-alias/transient RC filter — matched 10 ohm
+    series Rf on each input (RFH/RFL1-6) + a 470 nF differential cap (CF1-6),
+    fc = 1/(2*pi*2*Rf*Cdiff) ~= 16.9 kHz so the ~10 kHz GPU transients pass at
+    ~-1.3 dB and HF rolls off ahead of the ADC; Rf held at 10 ohm + matched (TI's
+    INA240 ceiling) for negligible gain/CMRR error. True simultaneous 7-channel
+    bandwidth is then ADC-limited, not analog-limited (ESP32-S3 SAR ~83 kSps shared
+    -> ~12 kSps/ch round-robin; full 10 kHz Nyquist needs a reduced channel count or
+    burst capture — firmware/OQ-8; the filter is sized so the analog path is not the
+    bottleneck). (b) The four 12V-2x6 sideband sense pins (13-16: SENSE0, SENSE1,
+    CARD_PWR_STABLE, CARD_CBL_PRES#) now pass through J3->J4 AND each taps a free
+    ESP32-S3 GPIO (IO8/9/11/12) via a 1k series R (R10-R13), so firmware can read
+    the cable's advertised power capability + present/stable state and report over
+    CAN. The analog module's I2C pull-ups (R3/R4) moved into the i2c-only branch of
+    gen-modules.py to free IO8/IO9 for two of those taps.
   - Acquisition (spec §6.10): the digital-sensor modules (24-pin, EPS, PCIe) run
     their INA228/INA238 in continuous-conversion mode with a per-sensor ~2 s ring
     buffer of 1 kHz averaged samples (pre-roll), and use the ALERT pin as the
@@ -411,14 +425,22 @@ Done (kept for context):
   (like the 24-pin); do NOT re-run the generator over GUI work. Generated for EPS
   (2 cables, ~110x66 mm), PCIe-2port (2 cables, ~110x66 mm) and PCIe-3port (3
   cables, ~137x66 mm); plus the 12VHPWR Standard (analog-pin kind, NOT cable):
-  a slim ~46x104 mm inline stick — 12V-2x6 power path down the LEFT (J3 MALE
-  header IN top, 6 per-pin shunts + INA240, J4 captive-pigtail OUT bottom), ESP +
-  CAN/LDO + flash + RJ-45 on the RIGHT, 2 M3 mounts on the clear right corners
-  (connectors fill the left corners; cable-supported). Added the CEC_CONN_12V2x6
-  symbol + approximate CEC_12V2x6_Horizontal footprint (LOCK from datasheet). The
-  6 per-pin shunts are STAGGERED into 2 rows (rot 90) under the +12V pins so the
-  3.2mm 2512 parts clear the 3.0mm pin pitch and the six 12V lanes stay straight +
-  equal-length (even current sharing = melt prevention). High-current routing PLAN
+  a slim ~44x92 mm inline stick (TIGHTENED v3.4 from 46x104) — 12V-2x6 power path
+  down the LEFT (J3 MALE header IN top, 6 per-pin shunts + INA240, J4 captive-
+  pigtail OUT bottom), ESP + CAN/LDO + flash + RJ-45/USB-C on the RIGHT, 2 M3
+  mounts ABOVE/BELOW the 14mm ESP on the clear right edge (the 12V-2x6 connectors
+  fill the left corners; cable-supported). The PLUG connectors OVERHANG their edge
+  (v3.4) so a cable seats without the board fouling the plug overmold while the
+  solder pads stay on-board: J3's right-angle shroud/mouth (~9.5mm deep, local -y)
+  overhangs the TOP edge ~3mm (12V pads ~6.5mm in); J1 (RJ-45) and J5 (USB-C)
+  overhang the RIGHT edge. J4 KEEPS J3's rotation (NOT 180) so the six +12V lanes
+  stay straight + equal-length (lane-crossing from 180 would defeat the melt-
+  prevention) — it's a soldered pigtail, wires just exit the bottom. Added the
+  CEC_CONN_12V2x6 symbol + approximate CEC_12V2x6_Horizontal footprint (LOCK from
+  datasheet). The 6 per-pin shunts are STAGGERED into 2 rows (rot 90) under the
+  +12V pins so the 3.2mm 2512 parts clear the 3.0mm pin pitch and the six 12V lanes
+  stay straight + equal-length (even current sharing = melt prevention); the rows
+  are 8mm apart (the rotated 2512 is 6.3mm tall, <7mm corner-clips). High-current routing PLAN
   (interleave + 12V-outer/GND-inner copper + via/Kelvin strategy) is documented in
   modules/12vhpwr-standard/12vhpwr-routing-plan.png (scripts/gen-hpwr-routing-plan.py);
   the copper itself is routed in the GUI (CLAUDE routing boundary). All:
@@ -431,12 +453,21 @@ Done (kept for context):
   (J1) are rotated 90 so they mate OUTWARD on the right edge; the generator bakes
   the footprint rotation into the pad angles (KiCad convention) so kicad-cli's
   headless DRC does not report false within-footprint pad shorts on rotated parts.
-  CEC copper logo on the back. Verified to OPEN with 0 shorting_items; remaining
-  DRC (~22 EPS / ~30 3-port: silk-over-copper, one courtyard touch)
-  is silk/placement refinement for the GUI. Added the Mini-Fit Jr 2x4 footprint to
-  lib/vendor/Connector_Molex.pretty and tightened the ESP NoAntKeepout courtyard
-  (45x35 -> 16x21 mm; antenna keep-out dropped — wired-only modules). Next in GUI:
-  pull the discrete passives via Update-from-Schematic, then place/route + pour.
+  CEC copper logo on the back. The generator now also writes each part's VALUE
+  onto F.SilkS (v3.4): footprints default the Value to the footprint name on the
+  non-plotted F.Fab layer, so values never showed on the board — place() rewrites
+  the Value property to the netlist value and moves it to F.SilkS (Reference stays
+  on silk; mounts/logo pass val=None and keep their Fab default). This adds silk-
+  overlap warnings on the dense clusters (a GUI silk-refinement task) but makes the
+  values readable. DRC verified after the v3.4 12VHPWR re-tighten: 0 structural hits
+  (0 copper shorts / clearance / courtyard / copper-edge); the remaining DRC is silk
+  (values-on-silk + tight placement) + the known benign lib_footprint_mismatch. The
+  cable boards (EPS/PCIe) are unchanged in placement and keep their ~1 courtyard
+  touch. Added the Mini-Fit Jr 2x4 footprint to lib/vendor/Connector_Molex.pretty
+  and tightened the ESP NoAntKeepout courtyard (45x35 -> 16x21 mm; antenna keep-out
+  dropped — wired-only modules). Next in GUI: pull the discrete passives via
+  Update-from-Schematic (incl. the 12VHPWR INA input-filter RFH/RFL/CF + sideband
+  taps R10-R13), then place/route + pour.
 - §6.4 shunt values applied across the generator/boards.
 - Still firmware/layout work (not schematic): the §6.10 acquisition model and the
   §6.8 Kelvin shunt geometry.

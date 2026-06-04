@@ -58,38 +58,57 @@ def placement(n):
     return W, H, P, mounts, logo
 
 def placement_hpwr():
-    """Slim inline 12VHPWR Standard. LEFT = the 12V-2x6 power path (board-mount
-    MALE header IN at the top, 6 per-pin shunts + INA240 stacked down, captive-
-    pigtail OUT land at the bottom); RIGHT = ESP + CAN/LDO + flash front end +
-    RJ-45. The two right-edge connectors (USB-C, RJ-45) are rotated 90 to mate
-    outward."""
-    W, H = 46.0, 104.0
-    P = {"J3": (4.0, 13.0, 0)}                    # 12V-2x6 IN, top-left, mates up
-    # 6 per-pin shunts STAGGERED into 2 rows under the connector's +12V pins
-    # (3.2mm-wide 2512 shunts won't fit the 3.0mm pin pitch in one row), rotated
-    # 90 so their long axis carries the vertical current and the six 12V lanes
-    # stay straight + equal-length = even current sharing (melt prevention).
-    # INA240 below each shunt. See scripts/gen-hpwr-routing-plan.py for the plan.
+    """Slim inline 12VHPWR Standard, tightened. LEFT = the 12V-2x6 power path
+    (board-mount MALE header IN at the top, 6 per-pin shunts + INA240 stacked
+    down, captive-pigtail OUT land at the bottom); RIGHT = ESP + CAN/LDO + flash
+    front end + RJ-45/USB-C. The plug connectors OVERHANG their board edge so a
+    cable seats without the board fouling the plug overmold, while the solder pads
+    stay on-board for mechanical support:
+      * J3 (PSU 12V-2x6 IN): the right-angle shroud/mouth is at footprint-local
+        -y (~9.5mm deep); J3 is pushed up so the mouth overhangs the TOP edge and
+        the 12V pads sit ~6.5mm in. J4 keeps J3's rotation (NOT 180) so all six
+        +12V lanes run straight + equal-length (uneven sharing melts 12VHPWR); it
+        is a captive soldered pigtail, so its wires just exit the bottom edge.
+      * J1 (RJ-45) and J5 (USB-C): rotated 90, mouths overhanging the RIGHT edge.
+    The 18 INA input-filter passives (RFH/RFL/CF) and the 4 sideband tap resistors
+    (R10-R13) are pulled in via 'Update PCB from Schematic' in the GUI (same as the
+    decoupling), then placed by the shunt/INA clusters."""
+    W, H = 44.0, 92.0
+    # --- LEFT: 12V-2x6 power path ---
+    P = {"J3": (4.0, 6.5, 0)}                     # 12V pads y6.5; shroud overhangs top edge
+    # 6 per-pin shunts STAGGERED into 2 rows under the +12V pins (3.2mm-wide 2512
+    # shunts won't fit the 3.0mm pin pitch in one row), rotated 90 so their long
+    # axis carries the vertical current and the six 12V lanes stay straight +
+    # equal-length = even current sharing (melt prevention). INA240 below each
+    # shunt. The rows are 8mm apart (the rotated 2512 is 6.3mm tall, so <7mm rows
+    # corner-clip). See scripts/gen-hpwr-routing-plan.py for the plan.
     sx = [4.0, 7.0, 10.0, 13.0, 16.0, 19.0]       # the six +12V pin columns (J3)
     for i in range(6):
-        ys, yina = (29.0, 50.0) if i % 2 == 0 else (37.0, 59.0)   # row A / row B
+        ys, yina = (22.0, 40.0) if i % 2 == 0 else (30.0, 48.0)   # row A / row B
         P[f"RS{i+1}"] = (sx[i], ys, 90)           # 1 mΩ per-pin shunt (vertical)
         P[f"U1{i}"]   = (sx[i], yina, 90)         # INA240 (U10..U15)
-    P["J4"] = (4.0, 90.0, 0)                      # 12V-2x6 OUT captive-pigtail land
-    P["U2"] = (25.0, 22.0, 0)                     # TJA1462A CAN (top)
-    P["D2"] = (25.0, 30.0, 0); P["C9"] = (30.0, 30.0, 0)   # VBUS ORing + bulk
-    P["U1"] = (32.0, 45.0, 0)                     # ESP32-S3-MINI-1 (right, x[24,40])
-    P["U3"] = (24.0, 62.0, 0)                     # LP5907 LDO
-    P["R8"] = (34.0, 60.0, 0); P["R9"] = (39.0, 60.0, 0)   # CC pulldowns
-    P["R5"] = (24.0, 70.0, 0); P["R6"] = (29.0, 70.0, 0)   # rail divider
-    P["SW1"] = (34.0, 70.0, 0); P["SW2"] = (40.0, 70.0, 0) # BOOT / RESET
-    P["J5"] = (42.0, 24.0, 90)                    # USB-C, right edge upper, opening +X
-    P["J1"] = (32.0, 90.0, 90)                    # RJ-45, right edge lower, opening +X
-    # The 12V-2x6 connectors fill the left corners, so corner mounts don't fit;
-    # this slim inline board is mainly cable-supported. Two M3 mounts on the clear
-    # right corners (add more in the GUI if a bracket needs them).
-    mounts = [(W - 5.0, 6.0), (W - 5.0, H - 6.0)]
-    logo = (9.0, 64.0)
+    P["J4"] = (4.0, 83.6, 0)                      # 12V-2x6 OUT pigtail; 12V pads y83.6
+    # --- RIGHT: control/power core + flash front end ---
+    # J3's 12V-2x6 courtyard is big (~21mm wide, reaching x22), and the ESP module
+    # courtyard is ~16x21mm, so the top-right band is squeezed: U2/D2/C9 sit just
+    # clear of J3's edge, D2 (SMA) stands vertical to keep its x-profile narrow.
+    P["U2"] = (28.0, 6.0, 0)                       # TJA1462A CAN (top)
+    P["D2"] = (24.0, 12.0, 90); P["C9"] = (28.0, 12.0, 0)  # VBUS ORing (vertical) + bulk
+    P["U1"] = (33.0, 30.0, 0)                      # ESP32-S3-MINI-1 (~16x21 crtyd)
+    P["U3"] = (24.0, 44.0, 0)                      # LP5907 LDO
+    P["R8"] = (23.0, 50.0, 0); P["R9"] = (28.0, 50.0, 0)   # CC pulldowns
+    P["R5"] = (23.0, 57.0, 0); P["R6"] = (28.0, 57.0, 0)   # rail divider
+    # BOOT/RESET buttons are 5.2mm wide each; stack them VERTICALLY in the open
+    # mid-right strip (clear of the edge and the left R-column) rather than
+    # side-by-side, which crowded the edge.
+    P["SW1"] = (37.0, 50.0, 0); P["SW2"] = (37.0, 58.0, 0) # BOOT / RESET
+    P["J5"] = (40.0, 13.0, 90)                     # USB-C, right edge upper, opening +X
+    P["J1"] = (31.0, 78.0, 90)                     # RJ-45, right edge lower, opening +X
+    # The 12V-2x6 connectors fill the left corners and the ESP fills the right
+    # mid-band, so the two M3 mounts sit ABOVE (beside U2) and BELOW (beside J1)
+    # the ESP, on the clear right edge (add more in the GUI if a bracket needs them).
+    mounts = [(38.0, 4.0), (38.0, H - 6.0)]
+    logo = (9.0, 66.0)
     return W, H, P, mounts, logo
 
 # ---------------------------------------------------------------- helpers
@@ -121,11 +140,14 @@ def fp_path(nick, name):
 
 def parse_netlist(path):
     s = open(path).read()
-    comps, nets = {}, {}
+    comps, vals, nets = {}, {}, {}
     for m in re.finditer(r"\(comp\b", s):
         b = carve(s, m.start())
         r = re.search(r'\(ref "([^"]+)"', b); fp = re.search(r'\(footprint "([^"]*)"', b)
-        if r: comps[r.group(1)] = fp.group(1) if fp else ""
+        vv = re.search(r'\(value "([^"]*)"', b)
+        if r:
+            comps[r.group(1)] = fp.group(1) if fp else ""
+            vals[r.group(1)] = vv.group(1) if vv else ""
     for m in re.finditer(r"\(net\b", s):
         b = carve(s, m.start())
         nm = re.search(r'\(name "([^"]*)"\)', b)
@@ -133,7 +155,7 @@ def parse_netlist(path):
         nodes = [(rr.group(1), pp.group(1)) for nb in (carve(b, mm.start()) for mm in re.finditer(r"\(node\b", b))
                  for rr, pp in [(re.search(r'\(ref "([^"]+)"\)', nb), re.search(r'\(pin "([^"]+)"\)', nb))] if rr and pp]
         nets[nm.group(1)] = nodes
-    return comps, nets
+    return comps, vals, nets
 
 LAYERS = """\t(layers
 \t\t(0 "F.Cu" signal)
@@ -177,7 +199,7 @@ def stackup():
             '\t\t\t(layer "B.SilkS" (type "Bottom Silk Screen"))\n'
             '\t\t\t(copper_finish "ENIG")\n\t\t\t(dielectric_constraints no)\n\t\t)')
 
-def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False):
+def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, val=None):
     nick, name = libid.split(":")
     s = open(fp_path(nick, name)).read()
     s = s.replace(f'(footprint "{name}"', f'(footprint "{libid}"', 1)
@@ -191,6 +213,19 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False):
     s = re.sub(r'(\(footprint "[^"]+"\n\t\(layer "[^"]+"\))',
                lambda m: m.group(1) + f'\n\t(at {ff(x)} {ff(y)} {rot})\n\t(uuid "{U()}")', s, count=1)
     s = re.sub(r'\(property "Reference" "[^"]*"', f'(property "Reference" "{ref}"', s, count=1)
+    # Value property: set to the real component value and move it onto F.SilkS so
+    # the value is visible on the board. Footprints default the Value to the
+    # footprint name on the non-plotted F.Fab layer (so values never showed up);
+    # the Reference stays on F.SilkS. Mechanical parts (mounts, logo) pass val=None
+    # and keep their Fab default.
+    if val:
+        mv = re.search(r'\(property "Value" ', s)
+        if mv:
+            blk = carve(s, mv.start())
+            nb = re.sub(r'^\(property "Value" "[^"]*"',
+                        lambda m: f'(property "Value" "{val}"', blk, count=1)
+            nb = nb.replace('(layer "F.Fab")', '(layer "F.SilkS")', 1)
+            s = s[:mv.start()] + nb + s[mv.start() + len(blk):]
     out, pos = "", 0
     for m in re.finditer(r'\(pad "([^"]*)"', s):
         if m.start() < pos: continue
@@ -213,7 +248,7 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False):
 
 def build(dir_, base, n, kind):
     netf = f"{ROOT}/modules/{dir_}/{base}.net"
-    comps, nets = parse_netlist(netf)
+    comps, vals, nets = parse_netlist(netf)
     names = [x for x in sorted(nets) if x]
     code_of = {x: i + 1 for i, x in enumerate(names)}
     padnet = {(r, p): (code_of[x], x) for x, nodes in nets.items() if x for (r, p) in nodes}
@@ -222,7 +257,7 @@ def build(dir_, base, n, kind):
     fps = []
     for ref, (x, y, rot) in P.items():
         lib = comps.get(ref)
-        if lib: fps.append(place(lib, ref, x, y, rot, padnet, code_of))
+        if lib: fps.append(place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref)))
         else: print(f"  WARN no footprint for {ref} in {base}", file=sys.stderr)
     for i, (x, y) in enumerate(mounts, 1):
         fps.append(place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via",
