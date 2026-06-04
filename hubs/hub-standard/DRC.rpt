@@ -1,48 +1,56 @@
 ** Drc report for hub-standard.kicad_pcb **
-** Created on 2026-06-03T19:55:13 **
+** Created on 2026-06-03T21:38:45 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 53 DRC violations **
-[courtyards_overlap]: Courtyards overlap
-    Rule: board setup constraints courtyard; error
-    @(73.5000 mm, 138.5000 mm): Footprint C4
-    @(75.0000 mm, 139.5000 mm): Footprint C11
+** Found 52 DRC violations **
 [drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
     Rule: board setup constraints; error
-    @(81.1600 mm, 128.1000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(79.7600 mm, 128.1000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(81.8600 mm, 128.8000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(80.4600 mm, 128.8000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(79.0600 mm, 128.8000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(81.1600 mm, 129.5000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(79.7600 mm, 129.5000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(81.8600 mm, 130.2000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(80.4600 mm, 130.2000 mm): PTH pad 41 [GND] of U1
-[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
-    Rule: board setup constraints; error
-    @(79.0600 mm, 130.2000 mm): PTH pad 41 [GND] of U1
+    @(79.7600 mm, 130.9000 mm): PTH pad 41 [GND] of U1
 [drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
     Rule: board setup constraints; error
     @(81.1600 mm, 130.9000 mm): PTH pad 41 [GND] of U1
 [drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
     Rule: board setup constraints; error
-    @(79.7600 mm, 130.9000 mm): PTH pad 41 [GND] of U1
+    @(79.0600 mm, 130.2000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(80.4600 mm, 130.2000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(81.8600 mm, 130.2000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(79.7600 mm, 129.5000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(81.1600 mm, 129.5000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(79.0600 mm, 128.8000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(80.4600 mm, 128.8000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(81.8600 mm, 128.8000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(79.7600 mm, 128.1000 mm): PTH pad 41 [GND] of U1
+[drill_out_of_range]: Hole size out of range (board setup constraints min hole 0.3000 mm; actual 0.2000 mm)
+    Rule: board setup constraints; error
+    @(81.1600 mm, 128.1000 mm): PTH pad 41 [GND] of U1
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(95.5000 mm, 141.0000 mm): Track [+5VSB] on F.Cu, length 0.7071 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
+    Rule: Power min width; error
+    @(105.6350 mm, 116.9500 mm): Track [+5VSB] on F.Cu, length 1.4849 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
+    Rule: Power min width; error
+    @(106.6850 mm, 118.0000 mm): Track [+5VSB] on F.Cu, length 2.8150 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error
+    @(93.5100 mm, 141.0000 mm): Track [+5VSB] on F.Cu, length 1.9900 mm
 [track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
     Rule: Power min width; error
     @(105.6350 mm, 118.2950 mm): Track [+5VSB] on F.Cu, length 0.1909 mm
@@ -51,43 +59,7 @@
     @(105.6350 mm, 115.9750 mm): Track [+5VSB] on F.Cu, length 2.3200 mm
 [track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
     Rule: Power min width; error
-    @(106.6850 mm, 118.0000 mm): Track [+5VSB] on F.Cu, length 2.8150 mm
-[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
-    Rule: Power min width; error
-    @(105.6350 mm, 116.9500 mm): Track [+5VSB] on F.Cu, length 1.4849 mm
-[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.4000 mm)
-    Rule: Power min width; error
     @(105.6350 mm, 115.9750 mm): Track [+5VSB] on F.Cu, length 0.9750 mm
-[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
-    Rule: Power min width; error
-    @(95.5000 mm, 141.0000 mm): Track [+5VSB] on F.Cu, length 0.7071 mm
-[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
-    Rule: Power min width; error
-    @(93.5100 mm, 141.0000 mm): Track [+5VSB] on F.Cu, length 1.9900 mm
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(95.4200 mm, 164.7850 mm): Segment of J6 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(104.5800 mm, 163.0800 mm): Segment of J6 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(65.1000 mm, 118.8000 mm): Segment of U1 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(65.1000 mm, 137.2000 mm): Segment of U1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
@@ -115,11 +87,35 @@
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(65.1000 mm, 118.8000 mm): Segment of U1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(65.1000 mm, 137.2000 mm): Segment of U1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
     @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(95.4200 mm, 164.7850 mm): Segment of J6 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(104.5800 mm, 163.0800 mm): Segment of J6 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
@@ -128,15 +124,15 @@
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
     @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-[lib_footprint_mismatch]: Footprint 'USB_C_Receptacle_XKB_U262-16XN-4BVC11' does not match copy in library 'cec-Connector_USB'
-    Local override; warning
-    @(100.0000 mm, 161.0000 mm): Footprint J6
 [lib_footprint_mismatch]: Footprint 'ESP32-S3-WROOM-1' does not match copy in library 'cec-RF_Module'
     Local override; warning
     @(78.0000 mm, 128.0000 mm): Footprint U1
 [lib_footprint_mismatch]: Footprint 'RJ45_Amphenol_54602-x08_Horizontal' does not match copy in library 'cec-Connector_RJ'
     Local override; warning
     @(132.7825 mm, 101.6000 mm): Footprint J4
+[lib_footprint_mismatch]: Footprint 'USB_C_Receptacle_XKB_U262-16XN-4BVC11' does not match copy in library 'cec-Connector_USB'
+    Local override; warning
+    @(100.0000 mm, 161.0000 mm): Footprint J6
 [silk_overlap]: Silkscreen clearance
     Rule: board setup constraints silk; warning
     @(144.1544 mm, 116.9100 mm): Segment of C_bulk1 on F.Silkscreen
@@ -147,20 +143,12 @@
     @(151.0000 mm, 117.0000 mm): Reference field of C10
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-    @(97.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J2
+    @(154.7500 mm, 114.6500 mm): Reference field of U5
+    @(154.0750 mm, 115.0250 mm): Pad 2 [/USB_VBUS] of U5 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-    @(85.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J2
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-    @(104.1225 mm, 95.2500 mm): PTH pad SH2 [GND] of J3
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-    @(115.5525 mm, 95.2500 mm): PTH pad SH1 [GND] of J3
+    @(154.7500 mm, 114.6500 mm): Reference field of U5
+    @(154.0750 mm, 114.3250 mm): Pad 1 [+5VSB] of U5 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(154.7500 mm, 114.6500 mm): Reference field of U5
@@ -171,20 +159,20 @@
     @(155.4250 mm, 115.0250 mm): Pad 7 [/5VSB_RAW] of U5 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(154.7500 mm, 114.6500 mm): Reference field of U5
-    @(154.0750 mm, 115.0250 mm): Pad 2 [/USB_VBUS] of U5 on F.Cu
+    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+    @(104.1225 mm, 95.2500 mm): PTH pad SH2 [GND] of J3
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(154.7500 mm, 114.6500 mm): Reference field of U5
-    @(154.0750 mm, 114.3250 mm): Pad 1 [+5VSB] of U5 on F.Cu
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-    @(134.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J4
+    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+    @(115.5525 mm, 95.2500 mm): PTH pad SH1 [GND] of J3
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
     @(122.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J4
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+    @(134.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J4
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
@@ -193,16 +181,22 @@
     Local override; warning
     @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
     @(152.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J5
-
-** Found 0 unconnected pads **
-
-** Found 6 Footprint errors **
-[extra_footprint]: Extra footprint
+[silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(86.0000 mm, 139.5000 mm): Footprint C12
-[extra_footprint]: Extra footprint
+    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+    @(85.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J2
+[silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(75.0000 mm, 139.5000 mm): Footprint C11
+    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+    @(97.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J2
+
+** Found 1 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(75.4900 mm, 141.5000 mm): Pad 2 [/EN] of R2 on F.Cu
+    @(77.4489 mm, 141.0000 mm): Track [/EN] on F.Cu, length 0.6511 mm
+
+** Found 4 Footprint errors **
 [extra_footprint]: Extra footprint
     Local override; warning
     @(76.0000 mm, 158.0000 mm): Footprint M3
