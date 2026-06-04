@@ -34,8 +34,8 @@
 	(constraint diff_pair_gap (min 0.12mm) (max 0.2mm))
 	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
 (rule "USB diff pair width"
-	(constraint diff_pair_width (min 0.15mm) (max 0.25mm))
-	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
+	(constraint track_width (min 0.15mm) (max 0.25mm))
+	(condition "A.NetClass == 'USB'"))
 
 # No CAN-specific rule. Classical CAN @ 500 kbps is forgiving and the
 # controlled medium is the cable's twisted pair + the fixed 120ohm split
