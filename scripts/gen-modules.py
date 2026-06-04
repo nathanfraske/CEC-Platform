@@ -34,7 +34,9 @@ LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
 # is intentionally NOT regenerated here — running this script must never clobber
 # that sheet. Its build()/RAILS entries remain below for reference and parity.
 MODS = [("eps-8pin", "eps8pin-module"),
-        ("pcie-8pin", "pcie8pin-module"), ("12vhpwr-standard", "12vhpwr-standard-module")]
+        ("pcie-8pin-2port", "pcie8pin-2port-module"),
+        ("pcie-8pin-3port", "pcie8pin-3port-module"),
+        ("12vhpwr-standard", "12vhpwr-standard-module")]
 # Sensing model per module, per spec v1.5 §6.1/§6.2 with §6.4 shunt values.
 #   "i2c-rail"  : one INA238/INA228 I2C monitor per sensed node (24-pin per-rail).
 #   "i2c-cable" : one INA238 I2C monitor per CABLE (EPS/PCIe per-cable granularity).
@@ -45,7 +47,10 @@ MODS = [("eps-8pin", "eps8pin-module"),
 SENSE = {
     "atx-24pin":        ("i2c-rail",  [("12V","2m"), ("5V","2m"), ("3V3","2m"), ("5VSB","25m")]),
     "eps-8pin":         ("i2c-cable", [("C1","0m5"), ("C2","0m5")]),                 # 2 cables
-    "pcie-8pin":        ("i2c-cable", [("C1","0m5"), ("C2","0m5"), ("C3","0m5")]),   # up to 3
+    # PCIe ships as two SKUs (SKU separation): a 2-port (4 connectors) and a
+    # 3-port (6 connectors, the spec upper bound). Same per-cable INA238 design.
+    "pcie-8pin-2port":  ("i2c-cable", [("C1","0m5"), ("C2","0m5")]),                 # 2-port SKU
+    "pcie-8pin-3port":  ("i2c-cable", [("C1","0m5"), ("C2","0m5"), ("C3","0m5")]),   # 3-port SKU
     "12vhpwr-standard": ("analog-pin",[("P1","1m"), ("P2","1m"), ("P3","1m"),
                                        ("P4","1m"), ("P5","1m"), ("P6","1m")]),      # 6 pins
 }
@@ -210,10 +215,11 @@ def build(dirn):
         # even col 2/4/6/8 right). EPS 8-pin = 4x12V + 4xGND; PCIe 8-pin = 3x12V +
         # 5xGND (the 3 sense pins are grounded on the cable side).
         if topo == "i2c-cable":
+            pin_base = "pcie-8pin" if dirn.startswith("pcie-8pin") else dirn
             PINMAP = {
                 "eps-8pin":  {"12V": [1,2,3,4],   "GND": [5,6,7,8]},
                 "pcie-8pin": {"12V": [1,2,3],     "GND": [4,5,6,7,8]},
-            }[dirn]
+            }[pin_base]
             for i, (label, sv) in enumerate(nodes):
                 jin, jout = f"J_IN{i+1}", f"J_OUT{i+1}"
                 parts[jin]  = ("cec", "CEC_CONN_2x4", f"{label} PSU")

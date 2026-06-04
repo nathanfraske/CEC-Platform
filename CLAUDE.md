@@ -51,7 +51,8 @@ cec-platform/
   modules/
     atx-24pin/
     eps-8pin/
-    pcie-8pin/
+    pcie-8pin-2port/           # PCIe SKU: 2 ports (4 connectors)
+    pcie-8pin-3port/           # PCIe SKU: 3 ports (6 connectors)
     12vhpwr-standard/
     12vhpwr-pro/
   fab/                       # tagged release snapshots of exactly what was sent to the board house
@@ -77,7 +78,8 @@ Use project-relative library paths (`${KIPRJMOD}`) in `sym-lib-table` and
 | Hub Mission Critical | hubs/hub-mission-critical | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
 | 24-pin ATX module | modules/atx-24pin | Standard | ESP32-S3-MINI-1 | - | - | $35* |
 | EPS 8-pin module | modules/eps-8pin | Standard | ESP32-S3-MINI-1 | - | - | $32 |
-| PCIe 8-pin module | modules/pcie-8pin | Standard | ESP32-S3-MINI-1 | - | - | $38 |
+| PCIe 8-pin 2-port | modules/pcie-8pin-2port | Standard | ESP32-S3-MINI-1 | - | - | $38 |
+| PCIe 8-pin 3-port | modules/pcie-8pin-3port | Standard | ESP32-S3-MINI-1 | - | - | ~$42 |
 | 12VHPWR Standard module | modules/12vhpwr-standard | Standard | ESP32-S3-MINI-1 | - | - | $49 |
 | 12VHPWR Pro module (lead) | modules/12vhpwr-pro | Pro | ESP32-P4 | - | - | $98 to $99 |
 
@@ -396,23 +398,23 @@ Done (kept for context):
   SW2 (EN). The GPIO0 isolated-label ERC warning is gone now that SW1 connects
   it. Module fp-lib-tables completed (all cec-* footprint libs + cec-MountingHole)
   so footprint links resolve in ERC and the GUI.
-- EPS PCB initial floorplan (2026-06-04, scripts/gen-eps-pcb.py). NOTE this
-  generator is a ONE-SHOT bootstrap — once the .kicad_pcb is opened/edited in the
-  GUI it is hand-maintained (like the 24-pin); do NOT re-run gen-eps-pcb.py over
-  GUI work. Board: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V plane),
-  ~80x60 mm. The two cables are inline on the LEFT (PSU-side IN on the top edge,
-  load-side OUT on the bottom — 12V flows top->bottom through each cable's 2-pad
-  R_2512 shunt + INA238); the control/power core (ESP, CAN, LDO) and the
-  flash/debug front end (USB-C J5, BOOT/RESET buttons SW1/SW2, VBUS ORing diode
-  D2 + CC pulldowns) plus the RJ-45 fill the RIGHT for a balanced board; 4x M3
-  chassis-GND mounts (MountingHole_3.2mm_M3_Pad_Via) in the corners; CEC copper
-  logo centered on the back. Render + DRC verified to OPEN and be structurally
-  valid; the remaining DRC (~104: silk-over-copper, courtyard overlaps, connector
-  mask bridges, mount-near-connector) is placement/silk refinement for the GUI,
-  not electrical error. Added the Mini-Fit Jr 2x4 footprint to lib/vendor/Connector_Molex.pretty
-  and tightened the ESP NoAntKeepout courtyard (45x35 -> 16x21 mm; the antenna
-  keep-out is dropped — these modules are wired-only). Next in GUI: pull the
-  discrete passives via Update-from-Schematic, then place/route + pour.
+- Interposer-module PCB floorplans (2026-06-04, scripts/gen-module-pcb.py — the
+  EPS-only gen-eps-pcb.py was generalized; parametric in cable count N). ONE-SHOT
+  bootstrap: once a .kicad_pcb is opened/edited in the GUI it is hand-maintained
+  (like the 24-pin); do NOT re-run the generator over GUI work. Generated for EPS
+  (2 cables, ~106x66 mm), PCIe-2port (2 cables, ~106x66 mm) and PCIe-3port (3
+  cables, ~133x66 mm). All: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
+  N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
+  flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
+  INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of
+  the connectors; the control/power core (ESP, CAN, LDO) + flash front end (USB-C,
+  BOOT/RESET, ORing diode + CC) + RJ-45 fill the right; CEC copper logo on the
+  back. Verified to OPEN with 0 shorting_items; remaining DRC (~33 EPS / ~42
+  3-port: silk-over-copper, a couple courtyard overlaps, connector mask bridges)
+  is silk/placement refinement for the GUI. Added the Mini-Fit Jr 2x4 footprint to
+  lib/vendor/Connector_Molex.pretty and tightened the ESP NoAntKeepout courtyard
+  (45x35 -> 16x21 mm; antenna keep-out dropped — wired-only modules). Next in GUI:
+  pull the discrete passives via Update-from-Schematic, then place/route + pour.
 - §6.4 shunt values applied across the generator/boards.
 - Still firmware/layout work (not schematic): the §6.10 acquisition model and the
   §6.8 Kelvin shunt geometry.
