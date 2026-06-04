@@ -7724,79 +7724,15 @@
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
+	(label "+5V_HOLD"
 		(at 344.17 67.31 180)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "1213d273-5f62-4e31-9845-9e0ccf3b46c5")
-		(property "Reference" "#PWR04"
-			(at 344.17 64.77 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
+		(effects
+			(font
+				(size 1.27 1.27)
 			)
+			(justify left bottom)
 		)
-		(property "Value" "+5VSB"
-			(at 344.17 71.12 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 344.17 67.31 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 344.17 67.31 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 344.17 67.31 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "7cfb6b74-e4c4-4e1a-9f9c-64b568f207b6")
-		)
-		(instances
-			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "#PWR04")
-					(unit 1)
-				)
-			)
-		)
+		(uuid "0e5f0d00-aaaa-4bbb-8ccc-5e4ed01d0001")
 	)
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
@@ -9121,6 +9057,239 @@
 				)
 			)
 		)
+	)
+
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 180 250 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c11a0000-0000-4000-8000-000000000011")
+		(property "Reference" "C11"
+			(at 177.46 247.714 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10uF"
+			(at 177.714 245.428 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
+			(at 180 250 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 180 250 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 180 250 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c11a0000-0000-4000-8000-0000000000a1")
+		)
+		(pin "2"
+			(uuid "c11a0000-0000-4000-8000-0000000000a2")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "C11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 220 250 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c12a0000-0000-4000-8000-000000000012")
+		(property "Reference" "C12"
+			(at 217.46 247.714 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "10nF"
+			(at 217.714 245.428 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
+			(at 220 250 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 220 250 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 220 250 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c12a0000-0000-4000-8000-0000000000b1")
+		)
+		(pin "2"
+			(uuid "c12a0000-0000-4000-8000-0000000000b2")
+		)
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
+					(reference "C12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 180 247.46) (xy 180 244.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c11a0000-0000-4000-8000-00000000w101")
+	)
+	(label "+3V3"
+		(at 180 244.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "c11a0000-0000-4000-8000-00000000L101")
+	)
+	(wire
+		(pts
+			(xy 180 252.54) (xy 180 255.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c11a0000-0000-4000-8000-00000000w102")
+	)
+	(label "GND"
+		(at 180 255.08 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "c11a0000-0000-4000-8000-00000000L102")
+	)
+	(wire
+		(pts
+			(xy 220 247.46) (xy 220 244.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c12a0000-0000-4000-8000-00000000w201")
+	)
+	(label "BLACKOUT_SENSE"
+		(at 220 244.92 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "c12a0000-0000-4000-8000-00000000L201")
+	)
+	(wire
+		(pts
+			(xy 220 252.54) (xy 220 255.08)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c12a0000-0000-4000-8000-00000000w202")
+	)
+	(label "GND"
+		(at 220 255.08 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+		(uuid "c12a0000-0000-4000-8000-00000000L202")
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
