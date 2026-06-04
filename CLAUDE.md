@@ -402,15 +402,18 @@ Done (kept for context):
   EPS-only gen-eps-pcb.py was generalized; parametric in cable count N). ONE-SHOT
   bootstrap: once a .kicad_pcb is opened/edited in the GUI it is hand-maintained
   (like the 24-pin); do NOT re-run the generator over GUI work. Generated for EPS
-  (2 cables, ~106x66 mm), PCIe-2port (2 cables, ~106x66 mm) and PCIe-3port (3
-  cables, ~133x66 mm). All: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
+  (2 cables, ~110x66 mm), PCIe-2port (2 cables, ~110x66 mm) and PCIe-3port (3
+  cables, ~137x66 mm). All: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
   INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of
   the connectors; the control/power core (ESP, CAN, LDO) + flash front end (USB-C,
-  BOOT/RESET, ORing diode + CC) + RJ-45 fill the right; CEC copper logo on the
-  back. Verified to OPEN with 0 shorting_items; remaining DRC (~33 EPS / ~42
-  3-port: silk-over-copper, a couple courtyard overlaps, connector mask bridges)
+  BOOT/RESET, ORing diode + CC) + RJ-45 fill the right. The USB-C (J5) and RJ-45
+  (J1) are rotated 90 so they mate OUTWARD on the right edge; the generator bakes
+  the footprint rotation into the pad angles (KiCad convention) so kicad-cli's
+  headless DRC does not report false within-footprint pad shorts on rotated parts.
+  CEC copper logo on the back. Verified to OPEN with 0 shorting_items; remaining
+  DRC (~22 EPS / ~30 3-port: silk-over-copper, one courtyard touch)
   is silk/placement refinement for the GUI. Added the Mini-Fit Jr 2x4 footprint to
   lib/vendor/Connector_Molex.pretty and tightened the ESP NoAntKeepout courtyard
   (45x35 -> 16x21 mm; antenna keep-out dropped — wired-only modules). Next in GUI:

@@ -30,7 +30,7 @@ CX0, PITCH = 20.0, 27.0          # first cable origin x, cable pitch (mm)
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 36.0, 66.0, ex                        # W, H, ex
+    return ex + 40.0, 66.0, ex                        # W, H, ex
 
 def placement(n):
     W, H, ex = geometry(n)
@@ -42,14 +42,15 @@ def placement(n):
         P[f"RS{c}"]    = (x + 3.0, 35.0, 0)           # shunt, mid-gap in the 12V column
         P[f"U1{i}"]    = (x + 9.0, 30.0, 0)           # INA238 (U10, U11, U12)
     P.update({                                        # control/power + flash, right
-        "U1":  (ex + 11.0, 33.0, 0),                  # ESP32-S3-MINI-1 (centre band)
-        "D2":  (ex + 5.0, 14.0, 0), "C9": (ex + 10.0, 14.0, 0),    # VBUS ORing + bulk (top)
-        "U2":  (ex + 16.0, 14.0, 0),                  # TJA1462A CAN (top)
-        "J5":  (ex + 28.0, 16.0, 0),                  # USB-C, right edge upper
-        "R8":  (ex + 21.0, 26.0, 0), "R9": (ex + 21.0, 32.0, 0),   # CC pulldowns (right of ESP)
-        "SW1": (ex + 5.0, 51.0, 0), "SW2": (ex + 13.0, 51.0, 0),   # BOOT / RESET (bottom)
-        "U3":  (ex + 21.0, 51.0, 0),                  # LP5907 LDO (bottom)
-        "J1":  (ex + 28.0, 44.0, 0),                  # RJ-45, right edge lower-mid
+        "U1":  (ex + 10.0, 33.0, 0),                  # ESP32-S3-MINI-1 (left-centre)
+        "U2":  (ex + 5.0, 15.0, 0),                   # TJA1462A CAN (top)
+        "U3":  (ex + 5.0, 51.0, 0),                   # LP5907 LDO (bottom)
+        "SW1": (ex + 13.0, 15.0, 0),                  # BOOT (top)
+        "SW2": (ex + 13.0, 51.0, 0),                  # RESET (bottom)
+        "D2":  (ex + 22.0, 27.0, 0), "C9": (ex + 27.0, 27.0, 0),   # VBUS ORing + bulk
+        "R8":  (ex + 32.0, 27.0, 0), "R9": (ex + 37.0, 27.0, 0),   # CC pulldowns
+        "J5":  (ex + 36.0, 16.0, 90),                 # USB-C, right edge upper, opening +X
+        "J1":  (ex + 26.0, 46.0, 90),                 # RJ-45, right edge lower, opening +X
     })
     mounts = [(7.0, 7.0), (W - 7.0, 7.0), (7.0, H - 7.0), (W - 7.0, H - 7.0)]
     logo = (CX0 + (n - 1) * PITCH / 2.0 + 6.3, H / 2.0)
@@ -158,6 +159,12 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False):
     for m in re.finditer(r'\(pad "([^"]*)"', s):
         if m.start() < pos: continue
         blk = carve(s, m.start()); end = m.start() + len(blk); out += s[pos:m.start()]
+        if rot:    # bake the footprint rotation into each pad angle (KiCad
+                   # convention) so headless DRC doesn't report false within-
+                   # footprint pad shorts on rotated parts
+            blk = re.sub(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)',
+                         lambda mm: f"(at {mm.group(1)} {mm.group(2)} {(float(mm.group(3) or 0) + rot) % 360:g})",
+                         blk, count=1)
         num = m.group(1); tag = None
         if gnd_all and num:
             tag = (code_of["GND"], "GND")

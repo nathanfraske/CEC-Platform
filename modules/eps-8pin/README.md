@@ -45,7 +45,7 @@ the KiCad 10 GUI; delete DRAFT to enforce ERC/DRC in CI.
 
 An **initial PCB floorplan** is bootstrapped by `scripts/gen-module-pcb.py` (a
 one-shot — the `.kicad_pcb` is hand-maintained in the GUI afterwards): **4-layer,
-2 oz outer / 1 oz inner** (In1 = GND, In2 = 12 V plane), ~106 × 66 mm, with the
+2 oz outer / 1 oz inner** (In1 = GND, In2 = 12 V plane), ~110 × 66 mm, with the
 four Mini-Fit Jr 2×4 cable connectors inline (PSU-side IN on the top edge,
 load-side OUT on the bottom — top→bottom 12 V flow through each cable's 2-pad
 R_2512 shunt + INA238), the ESP + CAN + LDO + the flash front end (USB-C,
