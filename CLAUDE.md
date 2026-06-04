@@ -345,12 +345,19 @@ Open items (surface before acting):
    24-pin rev2 shipped without it — add on each module's next revision.
 2. FTP shielded jack (§2.1 / OQ-37): Hub Standard schematic DONE (2026-06-04) —
    J2-J5 now assign cec:RJ45_FTP_Shielded_Horizontal (pad-identical to the 54602,
-   routing-preserving). STILL PENDING: (a) lock the exact shielded MPN (Wuerth
-   615008-series horizontal non-magnetic is the reference) and verify/adjust the
-   footprint's SH1/SH2 + peg geometry to that part's datasheet before fab; (b) in
-   the GUI run "Update PCB from Schematic" to pull the footprint onto the placed
-   J2-J5; (c) modules + 24-pin rev2 still carry the unshielded 54602 (compatible —
-   single-end shield at the Hub) — move them to FTP on their next rev.
+   routing-preserving). STILL PENDING: (a) MPN -> an LCSC shielded TH non-magnetic
+   jack for JLC assembly; lead candidate CONNFLY DS1129-05-S80BP-X (LCSC C86580 —
+   shielded copper shell, no LED, TH, 1.5A, in stock; alt Kinghelm KH-RJ45-58-8P8C
+   / C2683360). Pull the part's authoritative EasyEDA footprint via
+   `easyeda2kicad --full --lcsc_id=C86580`, commit the .kicad_mod into lib/, and
+   repoint J2-J5 at it (replaces the generic cec:RJ45_FTP_Shielded_Horizontal;
+   guarantees JLC pick-and-place alignment). NOTE: the web sandbox network policy
+   blocks LCSC/EasyEDA/datasheet hosts (403; only PyPI/GitHub reachable), so run
+   that import on an open network or paste the datasheet PCB layout to build it
+   in-repo; (b) in the GUI run "Update PCB from Schematic" to pull the footprint
+   onto the placed J2-J5; (c) modules + 24-pin rev2 still carry the unshielded
+   54602 (compatible — single-end shield at the Hub) — move them to FTP on their
+   next rev.
 
 Done (kept for context):
 - Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board's module-to-Hub interface
