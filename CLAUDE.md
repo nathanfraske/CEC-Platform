@@ -229,11 +229,17 @@ Per-tier hardware:
   aggregation Hub uses WROOM while modules stay on MINI-1), 4 ports, classical
   CAN, USB Full Speed. v1.1 decisions
   carry forward (LP5907 LDO, 4700 uF aluminum electrolytic hold-up — Panasonic
-  EEVFK1C472M 16 V, corrected from "polymer" v1.9; 1 ohm 1 W inrush
-  resistor, SS14 reverse-polarity Schottky, TPS3839K33 supervisor, 7x SK6812
-  MINI-E LED chain, GPIO0 hidden service button, 4x M3 chassis-grounded
+  EEVFK1C472M 16 V, corrected from "polymer" v1.9; TPS3839K33 supervisor, 7x
+  SK6812 MINI-E LED chain, GPIO0 hidden service button, 4x M3 chassis-grounded
   mounting, 4-layer 1.6 mm ENIG matte-black PCB, identity by factory MAC plus
-  database with no eFuse or secure element).
+  database with no eFuse or secure element). Front-end reconciled to as-built
+  (2026-06-04, spec §2.7): the TPS2121 PSU/USB priority mux does inrush limiting
+  via its soft-start (C_SS 2.2 uF) and source-side reverse-current blocking, so
+  the v1.1 discrete 1 ohm 1 W inrush resistor and a separate reverse-polarity
+  diode are SUPERSEDED (this completes the v3.2 §2.7 fold-in, which the Hub
+  table had not cleaned up). D1 is the downstream Schottky isolating the
+  +5V_HOLD reservoir — BUILT as SB120 (1A/20V); the spec/README named SS14
+  (40V), which is a drop-in higher-margin alternative (both fine on 5V).
 - Hub Pro: ESP32-P4, 8 ports, classical CAN plus RS-485 streaming receivers (one
   receiver per port as the working basis, pending OQ-5), USB High Speed.
   Bulk power on the dedicated 2-pin +5VSB power-in connector (OQ-1, spec §2.7).
@@ -374,8 +380,32 @@ Open items (surface before acting):
    onto the placed J2-J5; (c) modules + 24-pin rev2 still carry the unshielded
    54602 (compatible — single-end shield at the Hub) — move them to FTP on their
    next rev.
+3. Hub Standard PCB pre-fab layout pass (2026-06-04 review): the board is PLACED
+   and FULLY ROUTED (DRC 0 unconnected), but a GUI pour/route pass remains before
+   dropping DRAFT. (a) GROUND: only In1 is poured and it reads as fragmented
+   (42 islands — almost certainly STALE FILL, since kicad-cli can't refill);
+   first action is "Fill All Zones" (B) in the GUI and confirm In1 is ONE island.
+   CAN_H/L and USB_D+/- are 100% on F.Cu over In1 with 0 vias (good); the slow
+   lines (DETECT/LED/GPIO/EN) ride In2 directly under In1 (fine). (b) POWER:
+   +5VSB/+3V3/USB_VBUS are routed as long thin traces on B.Cu — move to a F.Cu
+   pour per LAYOUT-GUIDE; the 5VSB trunk (/5VSB_RAW 0.4mm) needs pour or >=1.5mm.
+   DRC now reports 38 track_width errors on the power nets (surfaced only after
+   the netclass-pattern fix below) — that IS the punch-list. (c) Pull CAN_RX/CAN_L
+   in from the board edge (~0.03-0.13mm now → slot-antenna). (d) Tent the C1
+   (4700uF) via-in-pad; add a 2nd GND via at D6 (USBLC6); silk cleanup on the
+   RJ-45 shield pads + board-edge silk. NOT-a-bug (triaged): CAN 5V/3.3V "domain
+   crossing" (TJA1462A VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
+   U1 courtyard overlaps (antenna keepout, neighbors clear).
 
 Done (kept for context):
+- Hub Standard netclass-pattern fix (2026-06-04): the Power/CAN/USB netclass
+  patterns in .kicad_pro lacked the root-sheet "/" prefix, so /5VSB_RAW,
+  /+5V_HOLD, /USB_VBUS, /CAN_H, /CAN_L, /USB_DP, /USB_DM all silently fell into
+  Default and the .kicad_dru Power-min-width + USB diff-pair rules never fired
+  (DRC read clean over a 0.4mm trunk). Added slash-prefixed patterns (kept the
+  bare forms). DRC now correctly flags the under-width power traces. Also renamed
+  a duplicate FID3 -> FID2 (two FID3, no FID2) and broadened the .gitignore
+  analysis/ entry to catch per-board kicad-happy caches.
 - Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board's module-to-Hub interface
   (after any future edit, verify no Mini-Fit Jr is used for the module-to-Hub
   link or Hub bulk power, and the eight RJ-45 pins match the pin allocation
