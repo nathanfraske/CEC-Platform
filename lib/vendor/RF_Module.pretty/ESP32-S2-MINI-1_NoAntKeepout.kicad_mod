@@ -129,86 +129,6 @@
 		(uuid "e69eec11-8079-440c-aa62-5c8972b16240")
 	)
 	(fp_line
-		(start -22.7 -24.75)
-		(end 22.7 -24.75)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "90bc09a6-737d-433e-a693-9bd0f0dee08a")
-	)
-	(fp_line
-		(start -22.7 -5.25)
-		(end -22.7 -24.75)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "093b13c9-81ab-4c6e-8b30-6b070c729124")
-	)
-	(fp_line
-		(start -7.95 -5.25)
-		(end -22.7 -5.25)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "e3bbd6f5-d2fd-4b81-b7e5-d7044a3ac36d")
-	)
-	(fp_line
-		(start -7.95 10.5)
-		(end -7.95 -5.25)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "5db2bc54-7d76-4f66-8e3c-01609831e998")
-	)
-	(fp_line
-		(start 7.95 -5.25)
-		(end 7.95 10.5)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "bcebe185-38eb-4d71-ba17-4ebb1fba34a2")
-	)
-	(fp_line
-		(start 7.95 -5.25)
-		(end 22.7 -5.25)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "df104b38-f1b1-44ba-b418-329e4c8a5ee5")
-	)
-	(fp_line
-		(start 7.95 10.5)
-		(end -7.95 10.5)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "4b92a0bf-13b3-4bc0-aa94-84498e0f03b1")
-	)
-	(fp_line
-		(start 22.7 -5.25)
-		(end 22.7 -24.75)
-		(stroke
-			(width 0.05)
-			(type solid)
-		)
-		(layer "F.CrtYd")
-		(uuid "3baae484-ea84-489b-8027-507d54840c5a")
-	)
-	(fp_line
 		(start -7.7 -9.75)
 		(end 7.7 -9.75)
 		(stroke
@@ -389,28 +309,6 @@
 		(layer "F.Fab")
 		(uuid "0cacc6a0-518c-436e-8912-4fa78a6855df")
 	)
-	(fp_text user "Keepout Area"
-		(at -0.01 -15.36 0)
-		(layer "Cmts.User")
-		(uuid "582936e5-9ae1-4fdc-97f3-08b419f83756")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
-	(fp_text user "Antenna"
-		(at 0 -7.675 0)
-		(layer "Cmts.User")
-		(uuid "69b22e68-6f7d-4ba4-b0ce-e193dc01c7d7")
-		(effects
-			(font
-				(size 1 1)
-				(thickness 0.15)
-			)
-		)
-	)
 	(fp_text user "${REFERENCE}"
 		(at 0 5.05 0)
 		(unlocked yes)
@@ -423,6 +321,10 @@
 			)
 		)
 	)
+	(fp_line (start -8 -10.6) (end 8 -10.6) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
+	(fp_line (start 8 -10.6) (end 8 10.6) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
+	(fp_line (start 8 10.6) (end -8 10.6) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
+	(fp_line (start -8 10.6) (end -8 -10.6) (stroke (width 0.05) (type solid)) (layer "F.CrtYd"))
 	(pad "1" smd rect
 		(at -7 -3.4)
 		(size 0.8 0.4)

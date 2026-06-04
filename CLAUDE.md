@@ -384,6 +384,27 @@ Done (kept for context):
   adjacent cables no longer merge SENSE nets. EPS verified: static audit clean,
   ERC clean apart from the by-design GPIO0 isolated-label and the known generator
   lib_symbol_mismatch noise (ERC is skipped for DRAFT boards anyway).
+- Schematic generator now ASSIGNS footprints (gen-modules.py footprint_for +
+  cec_sch footprints arg, 2026-06-04) so the modules are BOM-complete and
+  round-trip with "Update PCB from Schematic". Shunt land = honest 2-pad
+  R_2512 (Kelvin taps drawn in copper at layout, §6.8) — NOT the 4-terminal
+  WSK2512. Caps map 0402/0603/0805 by value.
+- EPS PCB initial floorplan (2026-06-04, scripts/gen-eps-pcb.py). NOTE this
+  generator is a ONE-SHOT bootstrap — once the .kicad_pcb is opened/edited in the
+  GUI it is hand-maintained (like the 24-pin); do NOT re-run gen-eps-pcb.py over
+  GUI work. Board: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V plane),
+  ~72x62 mm; the four Mini-Fit Jr 2x4 cable connectors (PSU-side IN on the top
+  edge, load-side OUT on the bottom, inline top->bottom 12V flow), RJ-45 on the
+  right edge, ESP32-S3-MINI-1 centered with the per-cable INA238 + 2-pad R_2512
+  shunts flanking it, CAN + LDO tucked in the cable columns; 4x M3 chassis-GND
+  mounts (MountingHole_3.2mm_M3_Pad_Via) in the corners; CEC copper logo on the
+  back. Render + DRC verified to OPEN and be structurally valid; the remaining
+  DRC (~120: silk-over-copper, courtyard overlaps, connector mask bridges,
+  mount-near-connector) is placement/silk refinement for the GUI, not electrical
+  error. Added the Mini-Fit Jr 2x4 footprint to lib/vendor/Connector_Molex.pretty
+  and tightened the ESP NoAntKeepout courtyard (45x35 -> 16x21 mm; the antenna
+  keep-out is dropped — these modules are wired-only). Next in GUI: pull the
+  discrete passives via Update-from-Schematic, then place/route + pour.
 - §6.4 shunt values applied across the generator/boards.
 - Still firmware/layout work (not schematic): the §6.10 acquisition model and the
   §6.8 Kelvin shunt geometry.

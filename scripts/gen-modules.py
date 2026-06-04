@@ -97,6 +97,37 @@ BASE_PARTS = {
     "R7": ("cec-vendor", "R_Small", "100k"),
 }
 
+def footprint_for(ref, lib, name, val):
+    """Map a generated part to its vendored KiCad footprint (cec* nicknames).
+    Shunts (RS*) take the 4-terminal WSK2512 Kelvin land; ordinary R/C take
+    0402/0603/0805 by value. Footprint assignment makes the schematic complete
+    for BOM + 'Update PCB from Schematic'."""
+    M = {
+        "CEC_RJ45_8P8C_FTP": "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal",
+        "ESP32-S3-MINI-1":   "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout",
+        "TJA1051T-3":        "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+        "LP5907MFX-1.2":     "cec-Package_TO_SOT_SMD:SOT-23-5",
+        "INA226":            "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
+        "INA240":            "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+        "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal",
+        "D_Schottky":        "cec-Diode_SMD:D_SOD-323",
+        "CEC_PWR_IN_2P":     "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
+    }
+    if name in M:
+        return M[name]
+    if name == "R_Small":
+        # Shunts: honest 2-pad R_2512 land with the four-wire Kelvin sense taps
+        # drawn off the terminal copper in layout (§6.8) -- matches the 24-pin
+        # gold standard; NOT a 4-terminal WSK2512 land. Final shunt part = OQ-11,
+        # high-current land/vertical transition = OQ-10.
+        return ("cec-Resistor_SMD:R_2512_6332Metric"
+                if ref.startswith("RS") else "cec-Resistor_SMD:R_0402_1005Metric")
+    if name == "C_Small":
+        return {"10u": "cec-Capacitor_SMD:C_0805_2012Metric",
+                "1u":  "cec-Capacitor_SMD:C_0603_1608Metric"}.get(
+                    val, "cec-Capacitor_SMD:C_0402_1005Metric")
+    return ""
+
 def build(dirn):
     topo, nodes = SENSE[dirn]
     parts = dict(BASE_PARTS)
@@ -258,11 +289,12 @@ for dirn, base in MODS:
     # of text labels. The per-node shunt->monitor sense link (SENSE*_HI) is a
     # 2-pin colinear net -> draw it as a real wire.
     wire_nets = [f"SENSE{label}_HI" for label, _ in RAILS[dirn]]
+    fps = {r: footprint_for(r, *parts[r]) for r in parts}
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
                                     power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
                                     powerflag_nets=["+5VSB", "GND"],
                                     nc_skip=nc_skip, placement=layout(dirn, parts),
-                                    wire_nets=wire_nets)
+                                    wire_nets=wire_nets, footprints=fps)
     print(f"modules/{dirn}/{base}.kicad_sch  " +
           "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root") +
           f"  nodes={len(RAILS[dirn])} topo={SENSE[dirn][0]}")
