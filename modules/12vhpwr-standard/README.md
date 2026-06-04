@@ -50,7 +50,10 @@ any). Routing spec (laid in the GUI — the generator only sets placement):
   Micro-Fit+ ≈ 9.5–13.5 A/contact → **13 A/pin**. Route each lane **2.5 mm on F.Cu,
   mirrored 2.5 mm on B.Cu, paralleled** (≈13 A at <10 °C rise; ≥3.0 mm if a B.Cu
   mirror is interrupted). **12V on both 2 oz outers; GND solid on In1 + In2** (1 oz,
-  set BOTH inner pours to GND) so each lane is sandwiched by GND → low loop
+  set BOTH inner pours to GND). Stack is **12V / GND / GND / 12V**, so it's the GND
+  pair that sits in the middle (sandwiched by the two 12V outers); each 12V lane
+  runs **directly against a GND plane** (F.Cu over In1, B.Cu under In2) → its return
+  image-current flows in that plane right beneath the lane → small loop area, low
   inductance. GND return = poured plane (never neck it).
 - **Vias:** all current-carrying vias **0.5 mm drill / 0.9 mm pad (~2 A @10 °C,
   ~3 A @20 °C)**. Stitch F.Cu↔B.Cu **every ~5 mm down each lane**, with a **field of

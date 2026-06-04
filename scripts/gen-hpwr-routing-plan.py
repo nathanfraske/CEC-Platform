@@ -190,8 +190,11 @@ for name, col, desc in rows:
 axS.annotate("", xy=(2.8, y - 0.2), xytext=(2.8, 0.2),
              arrowprops=dict(arrowstyle="<->", color="k", lw=1.0))
 axS.text(2.95, y / 2, "12V F↔B\nstitched\n(both 2oz\nin parallel)", fontsize=7.2, va="center")
-axS.text(0.0, -0.5, "Why: 12V on both 2oz outers = max copper for 50A & easy to inspect; "
-         "GND inners\nsandwich each lane → low loop inductance and a quiet reference for the sense pair.\n"
+axS.text(0.0, -0.5, "Why: 12V on BOTH 2oz outers = max copper for 50A & inspectable. Stack is "
+         "12V/GND/GND/12V,\nso the GND pair sits in the MIDDLE (sandwiched by the 12V outers); "
+         "each 12V lane runs\nDIRECTLY against a GND plane (F.Cu→In1, B.Cu→In2) → return "
+         "image-current right beneath\nit → small loop, low inductance + a quiet reference for "
+         "the sense pair.\n"
          "NOTE: set BOTH inner pours to GND in the GUI — the shared generator stackup "
          "leaves In2's\ndefault net hint as 12V (a cable-board leftover); the pour net is "
          "chosen per-zone anyway.",
@@ -257,6 +260,13 @@ axT.text(0.0, -0.02,
          "terminal and\nconnector pin; tie In1/In2/outer GND on a ~5 mm grid (denser ring "
          "at J3/J4).",
          transform=axT.transAxes, fontsize=7.2, va="top", color="0.2")
+axT.text(0.0, -0.20,
+         "↳ These are PRE-LOADED as netclasses in the .kicad_pro (Power12V=2.5 mm/0.9-0.5 via, "
+         "Sense=0.25 mm,\n   GND, Power, CAN, USB): routing a net auto-uses its width + via. "
+         "0.25 & 2.5 mm widths and the\n   0.6/0.3 & 0.9/0.5 vias are in the dropdown menus. "
+         "(The thin Kelvin tap shares the 12V net — draw\n   that short stub with the 0.25 mm "
+         "preset by hand.)",
+         transform=axT.transAxes, fontsize=7.0, va="top", color="#1a5276")
 
 fig.suptitle("CEC 12VHPWR Standard — high-current + Kelvin-sense ROUTING PLAN  "
              "(route the copper in the KiCad GUI; this is the spec)",

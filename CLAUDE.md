@@ -479,6 +479,18 @@ Done (kept for context):
   Update-from-Schematic (incl. the 12VHPWR INA input-filter RFH/RFL/CF + sideband
   taps R10-R13), then place/route + pour.
 - §6.4 shunt values applied across the generator/boards.
+- 12VHPWR routing netclasses LOADED into modules/12vhpwr-standard/*.kicad_pro
+  (2026-06-04) so the GUI auto-applies width + via per net while routing: Power12V
+  (track 2.5mm, via 0.9/0.5mm, clr 0.25 — pattern /SENSEP* = the six 12V lanes),
+  Sense (0.25mm, via 0.6/0.3 — /INPP* /INNP* /ISENSEP* /VRAIL_DIV), GND (0.5mm, via
+  0.9/0.5), Power (0.5mm, via 0.8/0.4 — +3V3/+5VSB/VBUS), CAN, USB (diff), Default.
+  Predefined track-width (0.25/0.3/0.5/1.0/2.5) and via (0.6/0.3, 0.9/0.5) menus
+  added to design_settings. The thin Kelvin TAP shares the 12V net (SENSE*_HI), so
+  it can't be netclass-thin — draw that short stub by hand with the 0.25mm preset;
+  the INP/INN nets after the filter Rf ARE separate and auto-take the Sense class.
+  Stackup wording corrected: 12V/GND/GND/12V means the GND pair is sandwiched by
+  the 12V outers (NOT 12V by GND) — each 12V lane just runs directly against a GND
+  plane (small return loop). .kicad_pro is GUI-owned; do not regenerate it.
 - Still firmware/layout work (not schematic): the §6.10 acquisition model and the
   §6.8 Kelvin shunt geometry.
 
