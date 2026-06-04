@@ -17,7 +17,8 @@ canonical v3.1 upload. Operate by these net changes: (1) CAN is CLASSICAL 500k o
 EVERY tier — CAN-FD is deferred platform-wide (was "FD on Pro"). (2) PoE /
 over-voltage is RESOLVED for consumer — Standard/Pro carry NO per-pin PoE clamp
 (ratified), and a low-capacitance ESD diode on DETECT pin 8 is LOCKED on every
-Hub and module (boards do not have it yet — action item). (3) The open-question
+Hub and module (Hub Standard now populates it as D2-D5; modules + 24-pin rev2
+still pending — action item). (3) The open-question
 list is now OQ-1..OQ-37; the shielded-jack divergence moved to OQ-37. (4) New
 spec scope now in play: the ARGB controller (§7), the proposed 12VHPWR Max
 (§6.11) and SATA (§6.12) modules, and the compute/FPGA exploration (Appendix B).
@@ -118,8 +119,10 @@ Connector and physical interface:
   the TJA1462A's own CAN bus-pin protection). This closes the consumer half of
   OQ-14. SEPARATELY LOCKED (v2.0): one low-capacitance ESD diode on the DETECT pin
   (pin 8 -> ESP32 ADC) on EVERY Hub and module, for hot-plug insertion ESD on the
-  bare analog input. The current boards do NOT yet populate this pin-8 ESD diode
-  (board action item; the ordered 24-pin rev2 shipped without it). Enterprise/MC
+  bare analog input. Hub Standard now populates this pin-8 ESD diode — D2-D5,
+  PESD5V0S1UL in SOD-323, one per port, cathode to each DETECT line and anode to
+  GND (added 2026-06-04, verified ERC/netlist). The standalone modules and the
+  ordered 24-pin rev2 still ship without it (board action item). Enterprise/MC
   over-voltage attaches to their external uplink, deferred to OQ-7.
 - Connector must have a documented current rating of at least 1.5A.
 - Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
@@ -307,8 +310,9 @@ clearly labeled branch or variant.
   24-pin energy is partial and must not be presented as total.
 - OQ-14 (RESOLVED for consumer, v2.0): PoE/over-voltage protection. Standard and
   Pro carry NO per-pin PoE clamp (board state ratified, §2.4); a low-cap ESD diode
-  on DETECT pin 8 is LOCKED separately on every Hub and module (boards lack it —
-  action item). Enterprise/MC over-voltage moves to their external uplink (OQ-7).
+  on DETECT pin 8 is LOCKED separately on every Hub and module (Hub Standard has
+  it — D2-D5; modules + 24-pin rev2 pending — action item). Enterprise/MC
+  over-voltage moves to their external uplink (OQ-7).
 - OQ-15 (spec): Max positioning — is the 12VHPWR Max a new platform tier or a
   module variant (§6.11)? [In the OLD repo numbering OQ-15 meant the shielded-jack
   divergence; that is now OQ-37.]
@@ -318,12 +322,20 @@ clearly labeled branch or variant.
 
 ## Active action items
 
+Keep this section honest after every revision: when a board rev actually lands a
+fix, move the item to Done with the board name + date; when a rev opens a new
+gap, add it. The Done list and the per-board status notes above (e.g. the DETECT
+ESD diode, the FTP jack) must reflect real, verified board state — not intent —
+so a fresh reader can trust them without re-deriving from the schematic. Update
+this file in the same change that touches the board, not later.
+
 Open items (surface before acting):
 
-1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement but NOT
-   yet on the boards. Add a low-capacitance ESD diode on each DETECT line (4 on
-   the Hub, 1 per module) on the next revision; the ordered 24-pin rev2 shipped
-   without it.
+1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement.
+   Hub Standard DONE (2026-06-04): D2-D5 = PESD5V0S1UL (SOD-323), one per port,
+   cathode to each DETECT line, anode to GND (verified ERC/netlist). STILL
+   PENDING: one low-capacitance ESD diode per standalone module; the ordered
+   24-pin rev2 shipped without it — add on each module's next revision.
 2. FTP shielded jack (§2.1 / OQ-37): boards carry the unshielded Amphenol 54602;
    FTP is the production target. Flag for the production re-place; do not silently
    swap. (The PoE consumer-drop itself is now RESOLVED — no longer an open item.)
@@ -454,7 +466,8 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
     in the GUI.
 - Maintain the shared library and the vendored libraries (`lib/vendor/`,
   `lib/3dmodels/`), the library tables (project-relative), CI, jobsets, and
-  documentation, and keep this file in sync with the spec.
+  documentation, and keep this file in sync with the spec AND with verified
+  board state after every revision (see "Active action items").
 - Confirm universal-interface parts are sourced from `lib/` rather than
   duplicated per board.
 
@@ -488,8 +501,8 @@ Use this as a recurring review pass:
   reserved spare, NOT AUX_REF).
 - PoE/over-voltage protection (RESOLVED for consumer, §2.4 v2.0): Standard/Pro
   carry NO per-pin PoE clamp (ratified). Instead verify a low-cap ESD diode is
-  present on each DETECT pin-8 line (LOCKED v2.0) — current boards lack it, so
-  flag its absence as the open board item.
+  present on each DETECT pin-8 line (LOCKED v2.0) — Hub Standard has it (D2-D5,
+  PESD5V0S1UL); the modules + 24-pin rev2 still lack it, so flag that absence.
 - RJ-45 shielding (§2.1 / OQ-37): spec LOCKS FTP; current boards carry the
   unshielded Amphenol 54602. Flag the divergence; do not silently swap until
   OQ-37 is decided for production.
