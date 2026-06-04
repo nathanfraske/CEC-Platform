@@ -9506,9 +9506,22 @@
 		)
 	)
 
+	(label "+3V3" (at 180.34 247.65 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0001"))
+	(label "GND" (at 180.34 252.73 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0002"))
+	(label "BLACKOUT_SENSE" (at 219.71 247.65 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0003"))
+	(label "GND" (at 219.71 252.73 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0004"))
+	(label "+3V3" (at 240.03 247.65 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0005"))
+	(label "GND" (at 240.03 252.73 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0006"))
+	(label "USB_DP" (at 250.19 250.19 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0007"))
+	(label "USB_DP" (at 260.35 250.19 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0008"))
+	(label "USB_DM" (at 250.19 252.73 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0009"))
+	(label "USB_DM" (at 260.35 252.73 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0010"))
+	(label "USB_VBUS" (at 255.27 245.11 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0011"))
+	(label "GND" (at 255.27 257.81 0) (effects (font (size 1.27 1.27))) (uuid "fixgrid-0012"))
+
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 240 250 0)
+		(at 240.03 250.19 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9518,7 +9531,7 @@
 		(dnp no)
 		(uuid "c13a0000-0000-4000-8000-000000000013")
 		(property "Reference" "C13"
-			(at 237.46 247.714 0)
+			(at 237.49 247.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9528,7 +9541,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 237.714 245.428 0)
+			(at 237.74 245.62 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9538,7 +9551,7 @@
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 240 250 0)
+			(at 240.03 250.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9549,7 +9562,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 240 250 0)
+			(at 240.03 250.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9560,7 +9573,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 240 250 0)
+			(at 240.03 250.19 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9584,20 +9597,16 @@
 			)
 		)
 	)
-	(wire (pts (xy 240 247.46) (xy 240 244.92)) (stroke (width 0) (type default)) (uuid "c13a-w1"))
-	(label "+3V3" (at 240 244.92 0) (effects (font (size 1.27 1.27))) (uuid "c13a-l1"))
-	(wire (pts (xy 240 252.54) (xy 240 255.08)) (stroke (width 0) (type default)) (uuid "c13a-w2"))
-	(label "GND" (at 240 255.08 0) (effects (font (size 1.27 1.27))) (uuid "c13a-l2"))
 	(symbol
 		(lib_id "cec-vendor:USBLC6-2SC6")
-		(at 255 250 0)
+		(at 255.27 250.19 0)
 		(unit 1)
 		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
 		(uuid "d6a00000-0000-4000-8000-0000000000d6")
-		(property "Reference" "D6" (at 262 248 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "USBLC6-2SC6" (at 262 250 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 255 250 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 255 250 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "D6" (at 262.27 248.19 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USBLC6-2SC6" (at 262.27 250.19 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "d6a0000-0000-4000-8000-000000000011"))
 		(pin "2" (uuid "d6a0000-0000-4000-8000-000000000022"))
 		(pin "3" (uuid "d6a0000-0000-4000-8000-000000000033"))
@@ -9606,22 +9615,10 @@
 		(pin "6" (uuid "d6a0000-0000-4000-8000-000000000066"))
 		(instances (project "hub-standard" (path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "D6") (unit 1))))
 	)
-	(wire (pts (xy 249.92 250) (xy 247.38 250)) (stroke (width 0) (type default)) (uuid "d6w1"))
-	(label "USB_DP" (at 247.38 250 0) (effects (font (size 1.27 1.27))) (uuid "d6l1"))
-	(wire (pts (xy 260.08 250) (xy 262.62 250)) (stroke (width 0) (type default)) (uuid "d6w6"))
-	(label "USB_DP" (at 262.62 250 0) (effects (font (size 1.27 1.27))) (uuid "d6l6"))
-	(wire (pts (xy 249.92 252.54) (xy 247.38 255.07999999999998)) (stroke (width 0) (type default)) (uuid "d6w3"))
-	(label "USB_DM" (at 247.38 255.07999999999998 0) (effects (font (size 1.27 1.27))) (uuid "d6l3"))
-	(wire (pts (xy 260.08 252.54) (xy 262.62 255.07999999999998)) (stroke (width 0) (type default)) (uuid "d6w4"))
-	(label "USB_DM" (at 262.62 255.07999999999998 0) (effects (font (size 1.27 1.27))) (uuid "d6l4"))
-	(wire (pts (xy 255 244.92) (xy 255 242.38)) (stroke (width 0) (type default)) (uuid "d6w5"))
-	(label "USB_VBUS" (at 255 242.38 0) (effects (font (size 1.27 1.27))) (uuid "d6l5"))
-	(wire (pts (xy 255 257.62) (xy 255 260.16)) (stroke (width 0) (type default)) (uuid "d6w2"))
-	(label "GND" (at 255 260.16 0) (effects (font (size 1.27 1.27))) (uuid "d6l2"))
 
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 180 250 0)
+		(at 180.34 250.19 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9631,7 +9628,7 @@
 		(dnp no)
 		(uuid "c11a0000-0000-4000-8000-000000000011")
 		(property "Reference" "C11"
-			(at 177.46 247.714 0)
+			(at 177.8 247.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9641,7 +9638,7 @@
 			)
 		)
 		(property "Value" "10uF"
-			(at 177.714 245.428 0)
+			(at 178.05 245.62 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9651,7 +9648,7 @@
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 180 250 0)
+			(at 180.34 250.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9662,7 +9659,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 180 250 0)
+			(at 180.34 250.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9673,7 +9670,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 180 250 0)
+			(at 180.34 250.19 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9699,7 +9696,7 @@
 	)
 	(symbol
 		(lib_id "cec-vendor:C_Small")
-		(at 220 250 0)
+		(at 219.71 250.19 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -9709,7 +9706,7 @@
 		(dnp no)
 		(uuid "c12a0000-0000-4000-8000-000000000012")
 		(property "Reference" "C12"
-			(at 217.46 247.714 0)
+			(at 217.17 247.9 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9719,7 +9716,7 @@
 			)
 		)
 		(property "Value" "10nF"
-			(at 217.714 245.428 0)
+			(at 217.42 245.62 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9729,7 +9726,7 @@
 			)
 		)
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
-			(at 220 250 0)
+			(at 219.71 250.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9740,7 +9737,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 220 250 0)
+			(at 219.71 250.19 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -9751,7 +9748,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 220 250 0)
+			(at 219.71 250.19 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9774,82 +9771,6 @@
 				)
 			)
 		)
-	)
-	(wire
-		(pts
-			(xy 180 247.46) (xy 180 244.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c11a0000-0000-4000-8000-00000000w101")
-	)
-	(label "+3V3"
-		(at 180 244.92 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c11a0000-0000-4000-8000-00000000L101")
-	)
-	(wire
-		(pts
-			(xy 180 252.54) (xy 180 255.08)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c11a0000-0000-4000-8000-00000000w102")
-	)
-	(label "GND"
-		(at 180 255.08 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c11a0000-0000-4000-8000-00000000L102")
-	)
-	(wire
-		(pts
-			(xy 220 247.46) (xy 220 244.92)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c12a0000-0000-4000-8000-00000000w201")
-	)
-	(label "BLACKOUT_SENSE"
-		(at 220 244.92 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c12a0000-0000-4000-8000-00000000L201")
-	)
-	(wire
-		(pts
-			(xy 220 252.54) (xy 220 255.08)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c12a0000-0000-4000-8000-00000000w202")
-	)
-	(label "GND"
-		(at 220 255.08 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-		)
-		(uuid "c12a0000-0000-4000-8000-00000000L202")
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
