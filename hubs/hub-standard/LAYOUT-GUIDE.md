@@ -70,6 +70,12 @@ inners be GND + signal.
                      ▲
         J6 VBUS ──────┘ (IN2, USB OR-in)   R_ILIM + C_SS at U5
 ```
+
+**R_ILIM value (verified, not a placeholder):** `R_ILIM1 = 27 kΩ → ~3.8 A` current
+limit, from the TPS2121 equation `I_LIM = 65.2 / R_ILIM(kΩ)^0.861` (TI app note
+SLVAEC2). That sits just above the ~3 A trunk max (and well above the OQ-2 firmware
+cap), so it protects against a downstream fault without nuisance-tripping at full
+load. (27 kΩ coincidentally equals R13, but the value is correct on its own math.)
 - `D1` is the isolation diode: it keeps `C1`'s big reservoir off the measured
   5VSB. Keep `C1`/`C2` on the `+5V_HOLD` side of `D1`; keep `C_bulk`/`C5` on the
   `+5VSB` side. Do **not** bridge them.
