@@ -34,7 +34,8 @@ fp-info-cache
 *.raw
 spice-*.txt
 # kicad-happy design-review analysis cache (regenerable; not a design artifact)
-/analysis/
+# Unanchored so it also catches per-board caches (e.g. hubs/*/analysis/).
+analysis/
 
 # ---- Scripting / tooling ----
 __pycache__/

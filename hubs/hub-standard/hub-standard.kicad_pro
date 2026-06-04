@@ -601,11 +601,23 @@
       },
       {
         "netclass": "Power",
+        "pattern": "/5VSB_RAW"
+      },
+      {
+        "netclass": "Power",
         "pattern": "+5V_HOLD"
       },
       {
         "netclass": "Power",
+        "pattern": "/+5V_HOLD"
+      },
+      {
+        "netclass": "Power",
         "pattern": "USB_VBUS"
+      },
+      {
+        "netclass": "Power",
+        "pattern": "/USB_VBUS"
       },
       {
         "netclass": "CAN",
@@ -613,7 +625,15 @@
       },
       {
         "netclass": "CAN",
+        "pattern": "/CAN_H"
+      },
+      {
+        "netclass": "CAN",
         "pattern": "CAN_L"
+      },
+      {
+        "netclass": "CAN",
+        "pattern": "/CAN_L"
       },
       {
         "netclass": "USB",
@@ -621,7 +641,15 @@
       },
       {
         "netclass": "USB",
+        "pattern": "/USB_DP"
+      },
+      {
+        "netclass": "USB",
         "pattern": "USB_DM"
+      },
+      {
+        "netclass": "USB",
+        "pattern": "/USB_DM"
       }
     ]
   },
