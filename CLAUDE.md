@@ -106,12 +106,19 @@ Connector and physical interface:
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
 - Shielded-jack divergence (OQ-37, renumbered v3.2): spec §2.1 LOCKS shielded
-  (FTP) jacks platform-wide, but current boards place the UNSHIELDED Amphenol
-  54602 (LCSC C2847314) with grounded SH1/SH2 board-locks. OK for prototype
-  bring-up (link carries CAN + 5VSB + DETECT + Standard-dark RS-485, all
-  shielding-insensitive); FTP stands for production/EMC. Do not silently swap;
-  the cec.pretty FTP-jack footprint is prepared for the eventual production
-  re-place.
+  (FTP) jacks platform-wide. Hub Standard now assigns the shielded FTP footprint
+  (cec:RJ45_FTP_Shielded_Horizontal) on J2-J5 (2026-06-04) — pad-for-pad identical
+  to the old Amphenol 54602 land, so it drops onto the existing placement/routing.
+  REMAINING GATE before fab: lock the exact shielded MPN (Wuerth 615008-series
+  horizontal, non-magnetic, is the reference) and confirm/adjust the SH1/SH2 +
+  mounting-peg geometry to it — the prepared footprint mirrors the 54602's two
+  side board-locks, and some shielded jacks instead ground via a rear post or add
+  front shield fingers. The standalone modules + 24-pin rev2 still carry the
+  UNSHIELDED 54602 (LCSC C2847314); that is COMPATIBLE, not a conflict — a shielded
+  Hub jack with unshielded module jacks terminates the cable shield at one end only
+  (the Hub: SH1/SH2 -> GND/chassis), which is the preferred single-end grounding,
+  and the link is shielding-insensitive anyway (CAN + 5VSB + DETECT + Standard-dark
+  RS-485). Modules move to FTP on their next rev.
 - PoE/over-voltage protection (RESOLVED for consumer, spec §2.4 v2.0): Standard
   and Pro carry NO per-pin PoE-grade over-voltage protection on the RJ-45 module
   interface — the board state is RATIFIED (internal interface; 57V PoE injection
@@ -336,9 +343,14 @@ Open items (surface before acting):
    cathode to each DETECT line, anode to GND (verified ERC/netlist). STILL
    PENDING: one low-capacitance ESD diode per standalone module; the ordered
    24-pin rev2 shipped without it — add on each module's next revision.
-2. FTP shielded jack (§2.1 / OQ-37): boards carry the unshielded Amphenol 54602;
-   FTP is the production target. Flag for the production re-place; do not silently
-   swap. (The PoE consumer-drop itself is now RESOLVED — no longer an open item.)
+2. FTP shielded jack (§2.1 / OQ-37): Hub Standard schematic DONE (2026-06-04) —
+   J2-J5 now assign cec:RJ45_FTP_Shielded_Horizontal (pad-identical to the 54602,
+   routing-preserving). STILL PENDING: (a) lock the exact shielded MPN (Wuerth
+   615008-series horizontal non-magnetic is the reference) and verify/adjust the
+   footprint's SH1/SH2 + peg geometry to that part's datasheet before fab; (b) in
+   the GUI run "Update PCB from Schematic" to pull the footprint onto the placed
+   J2-J5; (c) modules + 24-pin rev2 still carry the unshielded 54602 (compatible —
+   single-end shield at the Hub) — move them to FTP on their next rev.
 
 Done (kept for context):
 - Mini-Fit Jr -> RJ-45 re-cut COMPLETE on every board's module-to-Hub interface
@@ -503,9 +515,11 @@ Use this as a recurring review pass:
   carry NO per-pin PoE clamp (ratified). Instead verify a low-cap ESD diode is
   present on each DETECT pin-8 line (LOCKED v2.0) — Hub Standard has it (D2-D5,
   PESD5V0S1UL); the modules + 24-pin rev2 still lack it, so flag that absence.
-- RJ-45 shielding (§2.1 / OQ-37): spec LOCKS FTP; current boards carry the
-  unshielded Amphenol 54602. Flag the divergence; do not silently swap until
-  OQ-37 is decided for production.
+- RJ-45 shielding (§2.1 / OQ-37): spec LOCKS FTP. Hub Standard now assigns the FTP
+  footprint (cec:RJ45_FTP_Shielded_Horizontal) on J2-J5; before fab verify the
+  chosen shielded MPN's SH1/SH2 + peg geometry matches that footprint. Modules +
+  24-pin rev2 still carry the unshielded 54602 (compatible — single-end shield at
+  the Hub, link is shielding-insensitive).
 - DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
   (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
   10 kΩ / 3.3 V divider.

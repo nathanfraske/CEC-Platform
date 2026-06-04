@@ -13844,7 +13844,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal"
 			(at 560.07 44.45 0)
 			(hide yes)
 			(show_name no)
@@ -15806,7 +15806,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal"
 			(at 560.07 95.25 0)
 			(hide yes)
 			(show_name no)
@@ -16583,7 +16583,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal"
 			(at 560.07 149.86 0)
 			(hide yes)
 			(show_name no)
@@ -17923,7 +17923,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal"
 			(at 560.07 204.47 0)
 			(hide yes)
 			(show_name no)
