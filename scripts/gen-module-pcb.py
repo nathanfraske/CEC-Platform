@@ -65,10 +65,16 @@ def placement_hpwr():
     outward."""
     W, H = 46.0, 104.0
     P = {"J3": (4.0, 13.0, 0)}                    # 12V-2x6 IN, top-left, mates up
-    for i in range(6):                            # 6 shunt + INA240 pairs, stacked
-        y = 31.0 + i * 8.0
-        P[f"RS{i+1}"] = (5.0, y, 0)               # 1 mOhm per-pin shunt
-        P[f"U1{i}"]   = (13.0, y, 0)              # INA240 (U10..U15)
+    # 6 per-pin shunts STAGGERED into 2 rows under the connector's +12V pins
+    # (3.2mm-wide 2512 shunts won't fit the 3.0mm pin pitch in one row), rotated
+    # 90 so their long axis carries the vertical current and the six 12V lanes
+    # stay straight + equal-length = even current sharing (melt prevention).
+    # INA240 below each shunt. See scripts/gen-hpwr-routing-plan.py for the plan.
+    sx = [4.0, 7.0, 10.0, 13.0, 16.0, 19.0]       # the six +12V pin columns (J3)
+    for i in range(6):
+        ys, yina = (29.0, 50.0) if i % 2 == 0 else (37.0, 59.0)   # row A / row B
+        P[f"RS{i+1}"] = (sx[i], ys, 90)           # 1 mΩ per-pin shunt (vertical)
+        P[f"U1{i}"]   = (sx[i], yina, 90)         # INA240 (U10..U15)
     P["J4"] = (4.0, 90.0, 0)                      # 12V-2x6 OUT captive-pigtail land
     P["U2"] = (25.0, 22.0, 0)                     # TJA1462A CAN (top)
     P["D2"] = (25.0, 30.0, 0); P["C9"] = (30.0, 30.0, 0)   # VBUS ORing + bulk

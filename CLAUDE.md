@@ -415,7 +415,13 @@ Done (kept for context):
   header IN top, 6 per-pin shunts + INA240, J4 captive-pigtail OUT bottom), ESP +
   CAN/LDO + flash + RJ-45 on the RIGHT, 2 M3 mounts on the clear right corners
   (connectors fill the left corners; cable-supported). Added the CEC_CONN_12V2x6
-  symbol + approximate CEC_12V2x6_Horizontal footprint (LOCK from datasheet). All:
+  symbol + approximate CEC_12V2x6_Horizontal footprint (LOCK from datasheet). The
+  6 per-pin shunts are STAGGERED into 2 rows (rot 90) under the +12V pins so the
+  3.2mm 2512 parts clear the 3.0mm pin pitch and the six 12V lanes stay straight +
+  equal-length (even current sharing = melt prevention). High-current routing PLAN
+  (interleave + 12V-outer/GND-inner copper + via/Kelvin strategy) is documented in
+  modules/12vhpwr-standard/12vhpwr-routing-plan.png (scripts/gen-hpwr-routing-plan.py);
+  the copper itself is routed in the GUI (CLAUDE routing boundary). All:
   4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables

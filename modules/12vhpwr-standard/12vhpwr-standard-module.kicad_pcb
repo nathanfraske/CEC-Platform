@@ -131,7 +131,7 @@
 	(footprint "cec:CEC_12V2x6_Horizontal"
 	(layer "F.Cu")
 	(at 4 13 0)
-	(uuid "bb028512-93c5-4a92-9a0f-3b65b1ce811b")
+	(uuid "0e6461e7-e4e4-4660-a1a0-9fad09411b3b")
 	(descr "APPROXIMATE 12V-2x6 / 12VHPWR (PCIe CEM 5) right-angle MALE board header, 16-ckt (12 power 2x6 @ 3.0mm + 4 sideband). Geometry estimated from search; LOCK to the Molex 219116 (2191160161) / Amphenol Minitek Pwr CEM-5 datasheet before fab. Pins 1-6 +12V, 7-12 GND, 13-16 sense.")
 	(tags "12VHPWR 12V-2x6 Micro-Fit+ PCIe power connector")
 	(property "Reference" "J3" (at 7.5 -11 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))
@@ -204,8 +204,8 @@
 
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
-	(at 5 31 0)
-	(uuid "76df8327-3b8d-4180-9586-c593b10ce03f")
+	(at 4 29 90)
+	(uuid "609768a6-66c5-44ad-8721-a8aa0e73b1a8")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS1"
@@ -278,14 +278,14 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.9625 0)
+		(at -2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
 		(net 17 "/SENSEP1_HI")
 	)
 	(pad "2" smd roundrect
-		(at 2.9625 0)
+		(at 2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
@@ -307,8 +307,8 @@
 
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
-	(at 13 31 0)
-	(uuid "031832b0-9dd0-4f13-9040-dbc712880508")
+	(at 4 50 90)
+	(uuid "c936b19c-578b-4050-861a-d111dac8914b")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U10"
@@ -533,56 +533,56 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.475 -1.905)
+		(at -2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 18 "/SENSEP1_LO")
 	)
 	(pad "2" smd roundrect
-		(at -2.475 -0.635)
+		(at -2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "3" smd roundrect
-		(at -2.475 0.635)
+		(at -2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "4" smd roundrect
-		(at -2.475 1.905)
+		(at -2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "5" smd roundrect
-		(at 2.475 1.905)
+		(at 2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 11 "/ISENSEP1")
 	)
 	(pad "6" smd roundrect
-		(at 2.475 0.635)
+		(at 2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 1 "+3V3")
 	)
 	(pad "7" smd roundrect
-		(at 2.475 -0.635)
+		(at 2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "8" smd roundrect
-		(at 2.475 -1.905)
+		(at 2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
@@ -604,8 +604,8 @@
 
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
-	(at 5 39 0)
-	(uuid "a5220130-203d-4f5e-a39c-59921af43398")
+	(at 7 37 90)
+	(uuid "4c42f065-e8e8-4e4c-9894-113948766226")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS2"
@@ -678,14 +678,14 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.9625 0)
+		(at -2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
 		(net 19 "/SENSEP2_HI")
 	)
 	(pad "2" smd roundrect
-		(at 2.9625 0)
+		(at 2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
@@ -707,8 +707,8 @@
 
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
-	(at 13 39 0)
-	(uuid "927f5495-c86f-42df-8253-f8a1bc13275b")
+	(at 7 59 90)
+	(uuid "a632925b-5088-4c6a-969c-4f9413902684")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U11"
@@ -933,56 +933,56 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.475 -1.905)
+		(at -2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 20 "/SENSEP2_LO")
 	)
 	(pad "2" smd roundrect
-		(at -2.475 -0.635)
+		(at -2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "3" smd roundrect
-		(at -2.475 0.635)
+		(at -2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "4" smd roundrect
-		(at -2.475 1.905)
+		(at -2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "5" smd roundrect
-		(at 2.475 1.905)
+		(at 2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 12 "/ISENSEP2")
 	)
 	(pad "6" smd roundrect
-		(at 2.475 0.635)
+		(at 2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 1 "+3V3")
 	)
 	(pad "7" smd roundrect
-		(at 2.475 -0.635)
+		(at 2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "8" smd roundrect
-		(at 2.475 -1.905)
+		(at 2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
@@ -1004,8 +1004,8 @@
 
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
-	(at 5 47 0)
-	(uuid "346b24b9-5088-4287-80f2-85c18ac7cf69")
+	(at 10 29 90)
+	(uuid "ff96af34-947f-48bd-b33d-a9aa163a1bc4")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS3"
@@ -1078,14 +1078,14 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.9625 0)
+		(at -2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
 		(net 21 "/SENSEP3_HI")
 	)
 	(pad "2" smd roundrect
-		(at 2.9625 0)
+		(at 2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
@@ -1107,8 +1107,8 @@
 
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
-	(at 13 47 0)
-	(uuid "407c5616-25f9-40bc-87b1-675b2f6dc9cd")
+	(at 10 50 90)
+	(uuid "66d5a2eb-1ba5-4a55-93da-b09bcd158e23")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U12"
@@ -1333,56 +1333,56 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.475 -1.905)
+		(at -2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 22 "/SENSEP3_LO")
 	)
 	(pad "2" smd roundrect
-		(at -2.475 -0.635)
+		(at -2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "3" smd roundrect
-		(at -2.475 0.635)
+		(at -2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "4" smd roundrect
-		(at -2.475 1.905)
+		(at -2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "5" smd roundrect
-		(at 2.475 1.905)
+		(at 2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 13 "/ISENSEP3")
 	)
 	(pad "6" smd roundrect
-		(at 2.475 0.635)
+		(at 2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 1 "+3V3")
 	)
 	(pad "7" smd roundrect
-		(at 2.475 -0.635)
+		(at 2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "8" smd roundrect
-		(at 2.475 -1.905)
+		(at 2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
@@ -1404,8 +1404,8 @@
 
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
-	(at 5 55 0)
-	(uuid "f5f3795e-9acf-4ff7-a409-3ebc800f250e")
+	(at 13 37 90)
+	(uuid "9ceb4274-8501-4b1e-9f2a-2f10dff0f4e0")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS4"
@@ -1478,14 +1478,14 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.9625 0)
+		(at -2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
 		(net 23 "/SENSEP4_HI")
 	)
 	(pad "2" smd roundrect
-		(at 2.9625 0)
+		(at 2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
@@ -1507,8 +1507,8 @@
 
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
-	(at 13 55 0)
-	(uuid "061f7a66-0867-4477-aecb-75d159c3c8ec")
+	(at 13 59 90)
+	(uuid "9301711b-0ab9-4f8c-b59c-1b91818047ea")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U13"
@@ -1733,56 +1733,56 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.475 -1.905)
+		(at -2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 24 "/SENSEP4_LO")
 	)
 	(pad "2" smd roundrect
-		(at -2.475 -0.635)
+		(at -2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "3" smd roundrect
-		(at -2.475 0.635)
+		(at -2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "4" smd roundrect
-		(at -2.475 1.905)
+		(at -2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "5" smd roundrect
-		(at 2.475 1.905)
+		(at 2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 14 "/ISENSEP4")
 	)
 	(pad "6" smd roundrect
-		(at 2.475 0.635)
+		(at 2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 1 "+3V3")
 	)
 	(pad "7" smd roundrect
-		(at 2.475 -0.635)
+		(at 2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "8" smd roundrect
-		(at 2.475 -1.905)
+		(at 2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
@@ -1804,8 +1804,8 @@
 
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
-	(at 5 63 0)
-	(uuid "696e5f84-7ecc-401c-a944-906448f6a442")
+	(at 16 29 90)
+	(uuid "7035085c-321f-44db-9c63-871262868ded")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS5"
@@ -1878,14 +1878,14 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.9625 0)
+		(at -2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
 		(net 25 "/SENSEP5_HI")
 	)
 	(pad "2" smd roundrect
-		(at 2.9625 0)
+		(at 2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
@@ -1907,8 +1907,8 @@
 
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
-	(at 13 63 0)
-	(uuid "1e24eac0-a911-4e4d-9de6-b99bca8d830b")
+	(at 16 50 90)
+	(uuid "b48146a8-b0ae-4f8f-9608-331255a3d629")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U14"
@@ -2133,56 +2133,56 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.475 -1.905)
+		(at -2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 26 "/SENSEP5_LO")
 	)
 	(pad "2" smd roundrect
-		(at -2.475 -0.635)
+		(at -2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "3" smd roundrect
-		(at -2.475 0.635)
+		(at -2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "4" smd roundrect
-		(at -2.475 1.905)
+		(at -2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "5" smd roundrect
-		(at 2.475 1.905)
+		(at 2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 15 "/ISENSEP5")
 	)
 	(pad "6" smd roundrect
-		(at 2.475 0.635)
+		(at 2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 1 "+3V3")
 	)
 	(pad "7" smd roundrect
-		(at 2.475 -0.635)
+		(at 2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "8" smd roundrect
-		(at 2.475 -1.905)
+		(at 2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
@@ -2204,8 +2204,8 @@
 
 	(footprint "cec-Resistor_SMD:R_2512_6332Metric"
 	(layer "F.Cu")
-	(at 5 71 0)
-	(uuid "38a7d7da-8c5f-4d21-8bd1-eeb6ed0c3812")
+	(at 19 37 90)
+	(uuid "54c0a6c7-ed2f-4769-8f31-055344edfcbd")
 	(descr "Resistor SMD 2512 (6332 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "RS6"
@@ -2278,14 +2278,14 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.9625 0)
+		(at -2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
 		(net 27 "/SENSEP6_HI")
 	)
 	(pad "2" smd roundrect
-		(at 2.9625 0)
+		(at 2.9625 0 90)
 		(size 1.225 3.35)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.204082)
@@ -2307,8 +2307,8 @@
 
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
-	(at 13 71 0)
-	(uuid "b8f33f4d-6526-4b76-bd1e-436bcf70d9ce")
+	(at 19 59 90)
+	(uuid "f3c84816-33fd-4eef-8e57-1cc7d569556d")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U15"
@@ -2533,56 +2533,56 @@
 		)
 	)
 	(pad "1" smd roundrect
-		(at -2.475 -1.905)
+		(at -2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 28 "/SENSEP6_LO")
 	)
 	(pad "2" smd roundrect
-		(at -2.475 -0.635)
+		(at -2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "3" smd roundrect
-		(at -2.475 0.635)
+		(at -2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "4" smd roundrect
-		(at -2.475 1.905)
+		(at -2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "5" smd roundrect
-		(at 2.475 1.905)
+		(at 2.475 1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 16 "/ISENSEP6")
 	)
 	(pad "6" smd roundrect
-		(at 2.475 0.635)
+		(at 2.475 0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 1 "+3V3")
 	)
 	(pad "7" smd roundrect
-		(at 2.475 -0.635)
+		(at 2.475 -0.635 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
 		(net 39 "GND")
 	)
 	(pad "8" smd roundrect
-		(at 2.475 -1.905)
+		(at 2.475 -1.905 90)
 		(size 1.95 0.6)
 		(layers "F.Cu" "F.Mask" "F.Paste")
 		(roundrect_rratio 0.25)
@@ -2605,7 +2605,7 @@
 	(footprint "cec:CEC_12V2x6_Horizontal"
 	(layer "F.Cu")
 	(at 4 90 0)
-	(uuid "554459f8-d87d-47d1-a25f-2b78209a353f")
+	(uuid "9bc71c3b-cc9e-4902-90ee-771731708625")
 	(descr "APPROXIMATE 12V-2x6 / 12VHPWR (PCIe CEM 5) right-angle MALE board header, 16-ckt (12 power 2x6 @ 3.0mm + 4 sideband). Geometry estimated from search; LOCK to the Molex 219116 (2191160161) / Amphenol Minitek Pwr CEM-5 datasheet before fab. Pins 1-6 +12V, 7-12 GND, 13-16 sense.")
 	(tags "12VHPWR 12V-2x6 Micro-Fit+ PCIe power connector")
 	(property "Reference" "J4" (at 7.5 -11 0) (layer "F.SilkS") (effects (font (size 1 1) (thickness 0.15))))
@@ -2679,7 +2679,7 @@
 	(footprint "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
 	(layer "F.Cu")
 	(at 25 22 0)
-	(uuid "afcd5de3-0baf-4cb0-9cee-07806855339f")
+	(uuid "f44c8a56-4d51-4086-a6f8-9e683e01f341")
 	(descr "SOIC, 8 Pin (JEDEC MS-012AA, https://www.analog.com/media/en/package-pcb-resources/package/pkg_pdf/soic_narrow-r/r_8.pdf), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOIC SO")
 	(property "Reference" "U2"
@@ -2976,7 +2976,7 @@
 	(footprint "cec-Diode_SMD:D_SMA"
 	(layer "F.Cu")
 	(at 25 30 0)
-	(uuid "c06ee310-d6e4-46fe-a4ef-18c0ff9896e8")
+	(uuid "db682ce4-f324-429a-874e-8eae8f8f435d")
 	(descr "Diode SMA (DO-214AC)")
 	(tags "Diode SMA (DO-214AC)")
 	(property "Reference" "D2"
@@ -3242,7 +3242,7 @@
 	(footprint "cec-Capacitor_SMD:C_0805_2012Metric"
 	(layer "F.Cu")
 	(at 30 30 0)
-	(uuid "750dc1ad-81f9-4ecf-8788-5f08ec91c7c9")
+	(uuid "d4cb6bd5-5caf-4b04-9bf3-f09174a6d23d")
 	(descr "Capacitor SMD 0805 (2012 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 76, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf, https://docs.google.com/spreadsheets/d/1BsfQQcO9C6DZCsRaXUlFlo91Tg2WpOkGARC1WS5S8t0/edit?usp=sharing), generated with kicad-footprint-generator")
 	(tags "capacitor")
 	(property "Reference" "C9"
@@ -3345,7 +3345,7 @@
 	(footprint "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout"
 	(layer "F.Cu")
 	(at 32 45 0)
-	(uuid "f097fcec-9ec7-4de2-86fb-eb48028fe08f")
+	(uuid "9c77b79b-1b78-4b06-aa2b-2ae0dd159feb")
 	(descr "ESP32-S2/S3-MINI-1 footprint, ANTENNA KEEPOUT REMOVED (wired-only boards). Base: https://www.espressif.com/sites/default/files/documentation/esp32-s3-mini-1_mini-1u_datasheet_en.pdf")
 	(tags "2.4 GHz Wi-Fi Bluetooth external antenna espressif  20*15.4mm")
 	(property "Reference" "U1"
@@ -4217,7 +4217,7 @@
 	(footprint "cec-Package_TO_SOT_SMD:SOT-23-5"
 	(layer "F.Cu")
 	(at 24 62 0)
-	(uuid "8d77f0fe-e360-414e-9415-442eb0d9be0e")
+	(uuid "9fb34dfe-4a49-4df3-92c3-89bbf5cde83f")
 	(descr "SOT, 5 Pin (JEDEC MO-178 Var AA https://www.jedec.org/document_search?search_api_views_fulltext=MO-178), generated with kicad-footprint-generator ipc_gullwing_generator.py")
 	(tags "SOT TO_SOT_SMD")
 	(property "Reference" "U3"
@@ -4538,7 +4538,7 @@
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 	(layer "F.Cu")
 	(at 34 60 0)
-	(uuid "3b094bde-6479-4d58-9636-bfb844a17ec8")
+	(uuid "ca5d86af-833b-4e8c-a916-6d477e61711d")
 	(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "R8"
@@ -4641,7 +4641,7 @@
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 	(layer "F.Cu")
 	(at 39 60 0)
-	(uuid "463e768f-d879-440c-9976-115f7fbe6ab1")
+	(uuid "4b5fba1a-b248-452a-be30-be2da5dd58b0")
 	(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "R9"
@@ -4744,7 +4744,7 @@
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 	(layer "F.Cu")
 	(at 24 70 0)
-	(uuid "64e9e9d7-05b6-45c4-af45-3e7c522cb110")
+	(uuid "29649762-c0bc-4a33-aaf0-db9ece1a9f2e")
 	(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "R5"
@@ -4847,7 +4847,7 @@
 	(footprint "cec-Resistor_SMD:R_0402_1005Metric"
 	(layer "F.Cu")
 	(at 29 70 0)
-	(uuid "0d672d57-4e1f-4f21-ae70-e2441d8f68e4")
+	(uuid "94dc0633-59fc-480c-a8de-29e58a90ab84")
 	(descr "Resistor SMD 0402 (1005 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf), generated with kicad-footprint-generator")
 	(tags "resistor")
 	(property "Reference" "R6"
@@ -4950,7 +4950,7 @@
 	(footprint "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 	(layer "F.Cu")
 	(at 34 70 0)
-	(uuid "734d2c64-9868-4917-af7e-d5fcae56855f")
+	(uuid "0484b15f-eb40-49f0-a8c0-8604532eec0e")
 	(descr "http://industrial.panasonic.com/cdbs/www-data/pdf/ATV0000/ATV0000CE5.pdf")
 	(tags "SMD SMT SPST EVQPUJ EVQPUA")
 	(property "Reference" "SW1"
@@ -5218,7 +5218,7 @@
 	(footprint "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA"
 	(layer "F.Cu")
 	(at 40 70 0)
-	(uuid "563ed73f-194c-4b92-8a2e-a711e2ee5885")
+	(uuid "3754946f-a649-467b-884a-766fb42d0915")
 	(descr "http://industrial.panasonic.com/cdbs/www-data/pdf/ATV0000/ATV0000CE5.pdf")
 	(tags "SMD SMT SPST EVQPUJ EVQPUA")
 	(property "Reference" "SW2"
@@ -5486,7 +5486,7 @@
 	(footprint "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11"
 	(layer "F.Cu")
 	(at 42 24 90)
-	(uuid "dcfd122e-dc3e-4f71-9c09-e7ec6c81d986")
+	(uuid "f2effc94-bee6-4fc3-9dca-6b5753e1c096")
 	(descr "USB Type C, right-angle, SMT, https://datasheet.lcsc.com/szlcsc/1811141824_XKB-Enterprise-U262-161N-4BVC11_C319148.pdf")
 	(tags "USB C Type-C Receptacle SMD")
 	(property "Reference" "J5"
@@ -5862,7 +5862,7 @@
 	(footprint "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal"
 	(layer "F.Cu")
 	(at 32 90 90)
-	(uuid "2becf7ae-ea2b-4ed2-bad6-177a018503c6")
+	(uuid "29083079-2dc0-4de1-b742-8d51d74d9d26")
 	(descr "8 Pol Shallow Latch Connector, Modjack, RJ45 (https://cdn.amphenol-icc.com/media/wysiwyg/files/drawing/c-bmj-0102.pdf)")
 	(tags "RJ45")
 	(property "Reference" "J1"
@@ -6190,7 +6190,7 @@
 	(footprint "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
 	(layer "F.Cu")
 	(at 41 6 0)
-	(uuid "13a67390-aa19-43ca-8045-592d9592bb23")
+	(uuid "129cc0c4-2d80-4b3a-8db9-d0be9b3aeab4")
 	(descr "Mounting Hole 3.2mm, M3, generated by kicad-footprint-generator mountinghole.py")
 	(tags "mountinghole M3")
 	(property "Reference" "H1"
@@ -6331,7 +6331,7 @@
 	(footprint "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
 	(layer "F.Cu")
 	(at 41 98 0)
-	(uuid "b42ed8be-0b56-4f43-be87-dc1cf45e25e1")
+	(uuid "4b627cf8-4e8b-4628-be62-4a5177273108")
 	(descr "Mounting Hole 3.2mm, M3, generated by kicad-footprint-generator mountinghole.py")
 	(tags "mountinghole M3")
 	(property "Reference" "H2"
@@ -6472,7 +6472,7 @@
 	(footprint "cec:CEC_Logo_Copper"
 	(layer "B.Cu")
 	(at 9 64 0)
-	(uuid "df92b543-0d95-481e-9e17-27287ea80e8b")
+	(uuid "041b40cb-fba6-44e9-88b0-bdbbba96048c")
 	(descr "CEC logo - raw/exposed copper (F.Cu + F.Mask opening), 13x11.9mm. Board-only, no pads.")
 	(attr exclude_from_pos_files exclude_from_bom allow_missing_courtyard board_only)
 	(property "Reference" "LOGO1" (at 0 -9 0) (layer "B.SilkS") (hide yes) (uuid "d915431f-9491-4c58-8516-fd1c865005cf") (effects (font (size 1 1) (thickness 0.15))))
@@ -6591,10 +6591,10 @@
 	)
 	)
 
-	(gr_line (start 0 0) (end 46 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "654ed1b2-9d27-444b-b0ce-7d38a92b3572"))
-	(gr_line (start 46 0) (end 46 104) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "5590d64f-3b85-4439-a9cc-a8d489578cf0"))
-	(gr_line (start 46 104) (end 0 104) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "7e9ba025-dd29-46b7-8096-7085a63de4f8"))
-	(gr_line (start 0 104) (end 0 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "2f0e51b1-0871-47a1-99a8-7c5cd1afd369"))
-	(gr_text "CEC 12vhpwr-standard-module  4L 2oz/1oz" (at 9 100 0) (layer "B.SilkS") (uuid "4e2bb965-767a-44bf-b4c3-4ebb2dd14537") (effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))
+	(gr_line (start 0 0) (end 46 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "dd0b82b4-ab4f-4c7a-92ce-0a996c14c277"))
+	(gr_line (start 46 0) (end 46 104) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "c264623e-ace7-4fab-855c-08adfb31d45f"))
+	(gr_line (start 46 104) (end 0 104) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "9f55ae62-d5f3-4d09-a34b-fa60dcede95f"))
+	(gr_line (start 0 104) (end 0 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "c23c0330-ceb5-4cf6-976e-6d384b8eb825"))
+	(gr_text "CEC 12vhpwr-standard-module  4L 2oz/1oz" (at 9 100 0) (layer "B.SilkS") (uuid "6f601b42-3e4c-45da-9383-4bdd6bc66150") (effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))
 	(embedded_fonts no)
 )
