@@ -35,25 +35,36 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 ## High-current 12V routing — per-pin interleave
 
 See **`12vhpwr-routing-plan.png`** (regenerate with
-`scripts/gen-hpwr-routing-plan.py`). The 6×+12V pins carry ~**8.3 A each**
-(600 W ÷ 12 V = 50 A); **uneven sharing is what melts these connectors**, so the
-module gives each pin its own 1 mΩ shunt + INA240 and keeps the six 12V lanes
-symmetric so it adds no imbalance (and detects any). Routing plan (laid in the
-GUI — the generator only sets placement):
+`scripts/gen-hpwr-routing-plan.py`) — it carries the full to-placement top-down,
+the four-wire Kelvin detail, the 4-layer stackup, and the width/via/stitch tables.
+The 6×+12V pins carry ~**8.3 A each** (600 W ÷ 12 V = 50 A); **uneven sharing is
+what melts these connectors**, so the module gives each pin its own 1 mΩ shunt +
+INA240 and keeps the six 12V lanes symmetric so it adds no imbalance (and detects
+any). Routing spec (laid in the GUI — the generator only sets placement):
 
-- **Interleave:** the 2512 shunts (3.2 mm) won't fit the 3.0 mm pin pitch in one
-  row, so they're **staggered into two rows** (RS1/3/5 / RS2/4/6) and rotated 90°
-  so the long axis carries the vertical current. Each lane runs **straight down
-  its pin column → its shunt → the matching J4 pad** (per-pin pass-through), so
-  all six lanes are **equal length = balanced**.
-- **Copper:** size to the contact rating, not just nominal — Micro-Fit+ is
-  ~9.5–13.5 A/contact, so design lanes for **~13 A/pin**. 12V on **both 2 oz
-  outers** (F.Cu lane ≥ 2.5 mm, paralleled on B.Cu, via-stitched 6–9× 0.5 mm
-  vias per transition); **GND solid on In1 + In2** (1 oz) so each 12V lane is
-  sandwiched by GND → low loop inductance.
-- **Sense:** INA240A3 (gain 100) → 1 mΩ × 8.3 A × 100 = 0.83 V (13 A → 1.3 V).
-  **Kelvin taps off the shunt terminal copper** (§6.8), tight diff pair to the
-  INA, kept off the high-current path.
+- **Lanes / interleave:** the 2512 shunts (3.2 mm) won't fit the 3.0 mm pin pitch
+  in one row, so they're **staggered into two rows** (RS1/3/5 / RS2/4/6) rotated
+  90°. Each lane runs **straight down its pin column → in-line shunt → the matching
+  J4 pad**, so all six lanes are **equal length (~77 mm) = balanced**.
+- **Width (IPC-2221, 2 oz outer):** design to the **contact** rating, not nominal —
+  Micro-Fit+ ≈ 9.5–13.5 A/contact → **13 A/pin**. Route each lane **2.5 mm on F.Cu,
+  mirrored 2.5 mm on B.Cu, paralleled** (≈13 A at <10 °C rise; ≥3.0 mm if a B.Cu
+  mirror is interrupted). **12V on both 2 oz outers; GND solid on In1 + In2** (1 oz,
+  set BOTH inner pours to GND) so each lane is sandwiched by GND → low loop
+  inductance. GND return = poured plane (never neck it).
+- **Vias:** all current-carrying vias **0.5 mm drill / 0.9 mm pad (~2 A @10 °C,
+  ~3 A @20 °C)**. Stitch F.Cu↔B.Cu **every ~5 mm down each lane**, with a **field of
+  5–6** at every shunt terminal and **3–6 around each J3/J4 through-hole power pin**.
+  Tie In1/In2/outer-GND on a **~5 mm grid** (denser ~3 mm ring at the connectors).
+  Signal/sense vias 0.3/0.6 mm (~1 A) — avoid them on the Kelvin pair.
+- **Kelvin sense (§6.8):** INA240A3 (gain 100) → 1 mΩ × 8.3 A × 100 = 0.83 V
+  (13 A → 1.3 V). **Sense taps off the INNER shunt-terminal edges** (excludes pad/
+  solder/trace IR drop); force current on the OUTER ends. The pair carries ~no
+  current → run it **thin (0.20–0.25 mm)** as a **tight matched-length pair over the
+  In1 GND plane**, kept off / perpendicular to the 12V lanes, with the RC input
+  filter (RFH/RFL 10 Ω + CF 470 nF) placed **at the INA pins**. A GND guard-via
+  fence alongside the pair is cheap insurance (the 12V here is essentially DC, so
+  coupling is low, but the signal is only 8–13 mV).
 
 ## Status
 

@@ -441,10 +441,20 @@ Done (kept for context):
   +12V pins so the 3.2mm 2512 parts clear the 3.0mm pin pitch and the six 12V lanes
   stay straight + equal-length (even current sharing = melt prevention); the rows
   are 8mm apart (the rotated 2512 is 6.3mm tall, <7mm corner-clips). High-current routing PLAN
-  (interleave + 12V-outer/GND-inner copper + via/Kelvin strategy) is documented in
-  modules/12vhpwr-standard/12vhpwr-routing-plan.png (scripts/gen-hpwr-routing-plan.py);
-  the copper itself is routed in the GUI (CLAUDE routing boundary). All:
-  4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V).
+  is documented in modules/12vhpwr-standard/12vhpwr-routing-plan.png
+  (scripts/gen-hpwr-routing-plan.py, ENRICHED v3.4): a to-placement top-down of the
+  six equal-length lanes, the four-wire Kelvin detail + the INA RC filter, the
+  4-layer stackup, and explicit WIDTH/VIA/STITCH tables — 12V lane 2.5mm on F.Cu +
+  2.5mm mirrored on B.Cu paralleled (~13A @ <10C, IPC-2221 2oz); current-carrying
+  vias 0.5mm drill / 0.9mm pad (~2A @10C), stitch F<->B ~5mm down each lane + a
+  field of 5-6 per shunt terminal + 3-6 per J3/J4 power pin; GND In1/In2/fill on a
+  ~5mm grid; Kelvin pair 0.2-0.25mm tight matched pair over the In1 GND plane,
+  sense off the INNER shunt edges, RC filter at the INA. NOTE the plan calls for
+  BOTH inner pours = GND on this board (the shared stackup's In2 net hint is 12V, a
+  cable-board leftover; the pour net is per-zone in the GUI). The copper itself is
+  routed in the GUI (CLAUDE routing boundary). All:
+  4-layer, 2oz outer / 1oz inner (hpwr: 12V on both outers, GND both inners; cable
+  boards In1=GND, In2=12V).
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
   INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of
