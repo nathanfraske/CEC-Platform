@@ -95,6 +95,18 @@ BASE_PARTS = {
     # part), per the symbol-standin convention above.
     "D1": ("cec-vendor", "D_Schottky", "PESD5V0S1UL"),
     "R7": ("cec-vendor", "R_Small", "100k"),
+    # USB-C flash/debug port + BOOT/RESET buttons -- every module must be
+    # flashable. D+/D- -> the ESP32-S3 native USB (pins 24/23); VBUS ORs into
+    # +5VSB through D2 (SS34) so bench USB self-powers the board for flashing;
+    # CC1/CC2 = 5.1k UFP pulldowns; SW1 = BOOT (IO0), SW2 = RESET (EN). Mirrors
+    # the hand-maintained 24-pin's flash/debug front end.
+    "J5": ("cec-vendor", "USB_C_Receptacle_USB2.0_16P", "USB-C 2.0"),
+    "D2": ("cec-vendor", "D_Schottky", "SS34"),
+    "C9": ("cec-vendor", "C_Small", "10u"),
+    "R8": ("cec-vendor", "R_Small", "5k1"),
+    "R9": ("cec-vendor", "R_Small", "5k1"),
+    "SW1": ("cec-vendor", "SW_Push", "BOOT"),
+    "SW2": ("cec-vendor", "SW_Push", "RESET"),
 }
 
 def footprint_for(ref, lib, name, val):
@@ -110,11 +122,14 @@ def footprint_for(ref, lib, name, val):
         "INA226":            "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
         "INA240":            "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
         "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal",
-        "D_Schottky":        "cec-Diode_SMD:D_SOD-323",
         "CEC_PWR_IN_2P":     "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
+        "USB_C_Receptacle_USB2.0_16P": "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11",
+        "SW_Push":           "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA",
     }
     if name in M:
         return M[name]
+    if name == "D_Schottky":   # D1 = PESD5V0S1UL ESD (SOD-323); D2 = SS34 ORing (SMA)
+        return "cec-Diode_SMD:D_SMA" if ref == "D2" else "cec-Diode_SMD:D_SOD-323"
     if name == "R_Small":
         # Shunts: honest 2-pad R_2512 land with the four-wire Kelvin sense taps
         # drawn off the terminal copper in layout (§6.8) -- matches the 24-pin
@@ -134,23 +149,34 @@ def build(dirn):
     if dirn == "atx-24pin":
         parts["J2"] = ("cec", "CEC_PWR_IN_2P", "TO-HUB-PWR")     # OQ-1 5VSB power-out
     nets = {
-        "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3")],
+        "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3"),("D2","1")],
         "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1"),("R3","2"),("R4","2")],
         "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2"),
-                  ("C6","2"),("C7","2"),("C8","2")] + [("U1",p) for p in ESP_GND],
+                  ("C6","2"),("C7","2"),("C8","2"),("C9","2"),("R8","2"),("R9","2"),
+                  ("SW1","1"),("SW2","1"),("J5","A1"),("J5","A12"),("J5","B1"),
+                  ("J5","B12"),("J5","S1")] + [("U1",p) for p in ESP_GND],
         # Reset: ESP32-S3 internal BOD + EN RC only (R2 pull-up to 3V3, C5 to
         # GND); no external supervisor on modules. The TPS3839 is a Hub-only
         # part (aggregator role + blackout/hold-up front-end); a module brownout
         # is a recoverable re-enumerate event, so the internal BOD is enough.
-        "EN":     [("U1","45"),("R2","2"),("C5","1")],
+        # SW2 adds a manual RESET button; SW1 a BOOT button on GPIO0 (flashing).
+        "EN":     [("U1","45"),("R2","2"),("C5","1"),("SW2","2")],
         "CAN_TX": [("U1","21"),("U2","1")],
         "CAN_RX": [("U1","22"),("U2","4")],
         "CAN_H":  [("U2","7"),("J1","3")],
         "CAN_L":  [("U2","6"),("J1","6")],
         "DETECT": [("J1","8"),("R1","1"),("D1","1"),("R7","1")],
         "DETECT_SENSE": [("R7","2"),("U1","14")],  # poke-and-ack tap -> IO10 (OQ-28)
-        "GPIO0":  [("U1","4")],
+        "GPIO0":  [("U1","4"),("SW1","2")],
+        # USB-C flash/debug: ESP native USB on pins 24 (D+) / 23 (D-); VBUS ORs
+        # into +5VSB via D2 (bench USB self-powers the board for flashing);
+        # CC1/CC2 = 5.1k UFP pulldowns. J5 SBU1/SBU2 (A8/B8) left NC.
+        "VBUS":    [("J5","A4"),("J5","A9"),("J5","B4"),("J5","B9"),("D2","2"),("C9","1")],
+        "USB_DP":  [("J5","A6"),("J5","B6"),("U1","24")],
+        "USB_DM":  [("J5","A7"),("J5","B7"),("U1","23")],
+        "USB_CC1": [("J5","A5"),("R8","1")],
+        "USB_CC2": [("J5","B5"),("R9","1")],
     }
 
     if topo in ("i2c-rail", "i2c-cable"):

@@ -23,25 +23,30 @@ NET  = f"{ROOT}/modules/eps-8pin/eps8pin-module.net"
 OUT  = f"{ROOT}/modules/eps-8pin/eps8pin-module.kicad_pcb"
 
 # ---- board ----
-W, H = 72.0, 62.0                      # board outline (mm)
-# Placement: refdes -> (pad-1 origin x, y, rotation). Inline power path: the two
-# PSU-side IN connectors mate at the TOP edge (rot 0), the two load-side OUT at
-# the BOTTOM edge (rot 180), so 12V flows top->bottom through each cable's shunt;
-# cables sit on the left two-thirds, the RJ-45 Hub jack takes the right edge, and
-# the ESP (rotated 90 to fit the middle band) + CAN + LDO sit between.
+W, H = 80.0, 60.0                      # board outline (mm)
+# Placement: refdes -> (pad-1 origin x, y, rotation). The two cables sit on the
+# LEFT (inline: PSU-side IN on the top edge rot 0, load-side OUT on the bottom
+# rot 180, 12V flows top->bottom through each cable's shunt); the control/power
+# core (ESP, CAN, LDO) and the flash/debug front end (USB-C, BOOT/RESET buttons,
+# ORing diode + CC) + the RJ-45 Hub jack fill the RIGHT, so the board is balanced.
 PLACE = {
-    "J_IN1":  (8.0, 15.0, 0),    "J_IN2":  (33.0, 15.0, 0),
-    "J_OUT1": (20.6, 47.0, 180), "J_OUT2": (45.6, 47.0, 180),
-    "RS1": (11.0, 31.0, 0), "U10": (14.5, 25.0, 0),
-    "RS2": (42.0, 31.0, 0), "U11": (39.0, 25.0, 0),
-    "U1":  (28.0, 31.0, 0),                       # ESP32-S3-MINI-1 (fills the band)
-    "U3":  (12.0, 38.0, 0),                       # LP5907 LDO (cable-1 column)
-    "U2":  (40.0, 38.0, 0),                       # TJA1462A CAN (cable-2 column)
-    "J1":  (63.0, 31.0, 0),                       # RJ-45 to Hub (right edge)
+    "J_IN1":  (10.0, 14.0, 0),   "J_IN2":  (34.0, 14.0, 0),
+    "J_OUT1": (22.6, 46.0, 180), "J_OUT2": (46.6, 46.0, 180),
+    "RS1": (13.0, 36.0, 0), "U10": (13.0, 30.0, 0),
+    "RS2": (37.0, 36.0, 0), "U11": (37.0, 30.0, 0),
+    "U1":  (63.0, 30.0, 0),                       # ESP32-S3-MINI-1
+    "U3":  (54.0, 18.0, 0),                       # LP5907 LDO
+    "U2":  (54.0, 42.0, 0),                       # TJA1462A CAN
+    "J5":  (75.0, 15.0, 0),                       # USB-C flash/debug (right edge)
+    "J1":  (75.0, 45.0, 0),                       # RJ-45 to Hub (right edge)
+    "SW1": (66.0, 16.0, 0),                       # BOOT button (IO0)
+    "SW2": (66.0, 44.0, 0),                       # RESET button (EN)
+    "D2":  (59.0, 11.0, 0), "C9": (63.0, 11.0, 0),   # VBUS ORing + bulk
+    "R8":  (71.0, 24.0, 0), "R9": (71.0, 36.0, 0),   # CC1/CC2 pulldowns
 }
 # Mounting holes (M3, chassis GND) near the corners, and the back logo centre.
 MOUNTS = [(4.0, 4.0), (W - 4.0, 4.0), (4.0, H - 4.0), (W - 4.0, H - 4.0)]
-LOGO_AT = (27.0, 31.0)
+LOGO_AT = (28.0, 30.0)
 
 def ff(v):
     s = f"{v:.4f}".rstrip("0").rstrip(".")
@@ -197,7 +202,7 @@ def edge():
 def silk_note():
     # small board ID on the back silk, tucked under the RJ-45 (clear area)
     return (f'\t(gr_text "CEC EPS-8pin  4L 2oz/1oz" '
-            f'(at 63 44 0) (layer "B.SilkS") (uuid "{U()}") '
+            f'(at 28 52 0) (layer "B.SilkS") (uuid "{U()}") '
             f'(effects (font (size 0.8 0.8) (thickness 0.12)) (justify mirror)))')
 
 fps = []

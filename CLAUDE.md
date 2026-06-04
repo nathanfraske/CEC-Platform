@@ -389,19 +389,27 @@ Done (kept for context):
   round-trip with "Update PCB from Schematic". Shunt land = honest 2-pad
   R_2512 (Kelvin taps drawn in copper at layout, §6.8) — NOT the 4-terminal
   WSK2512. Caps map 0402/0603/0805 by value.
+- Flash/debug front end added to ALL generated modules (2026-06-04, gen-modules
+  BASE_PARTS), mirroring the 24-pin so every module is flashable: USB-C (J5, ESP
+  native USB on pins 24 D+ / 23 D-), VBUS->+5VSB ORing Schottky D2 (SS34) + 10uF
+  bulk C9, CC1/CC2 5.1k pulldowns R8/R9, BOOT button SW1 (GPIO0), RESET button
+  SW2 (EN). The GPIO0 isolated-label ERC warning is gone now that SW1 connects
+  it. Module fp-lib-tables completed (all cec-* footprint libs + cec-MountingHole)
+  so footprint links resolve in ERC and the GUI.
 - EPS PCB initial floorplan (2026-06-04, scripts/gen-eps-pcb.py). NOTE this
   generator is a ONE-SHOT bootstrap — once the .kicad_pcb is opened/edited in the
   GUI it is hand-maintained (like the 24-pin); do NOT re-run gen-eps-pcb.py over
   GUI work. Board: 4-layer, 2oz outer / 1oz inner (In1=GND, In2=12V plane),
-  ~72x62 mm; the four Mini-Fit Jr 2x4 cable connectors (PSU-side IN on the top
-  edge, load-side OUT on the bottom, inline top->bottom 12V flow), RJ-45 on the
-  right edge, ESP32-S3-MINI-1 centered with the per-cable INA238 + 2-pad R_2512
-  shunts flanking it, CAN + LDO tucked in the cable columns; 4x M3 chassis-GND
-  mounts (MountingHole_3.2mm_M3_Pad_Via) in the corners; CEC copper logo on the
-  back. Render + DRC verified to OPEN and be structurally valid; the remaining
-  DRC (~120: silk-over-copper, courtyard overlaps, connector mask bridges,
-  mount-near-connector) is placement/silk refinement for the GUI, not electrical
-  error. Added the Mini-Fit Jr 2x4 footprint to lib/vendor/Connector_Molex.pretty
+  ~80x60 mm. The two cables are inline on the LEFT (PSU-side IN on the top edge,
+  load-side OUT on the bottom — 12V flows top->bottom through each cable's 2-pad
+  R_2512 shunt + INA238); the control/power core (ESP, CAN, LDO) and the
+  flash/debug front end (USB-C J5, BOOT/RESET buttons SW1/SW2, VBUS ORing diode
+  D2 + CC pulldowns) plus the RJ-45 fill the RIGHT for a balanced board; 4x M3
+  chassis-GND mounts (MountingHole_3.2mm_M3_Pad_Via) in the corners; CEC copper
+  logo centered on the back. Render + DRC verified to OPEN and be structurally
+  valid; the remaining DRC (~104: silk-over-copper, courtyard overlaps, connector
+  mask bridges, mount-near-connector) is placement/silk refinement for the GUI,
+  not electrical error. Added the Mini-Fit Jr 2x4 footprint to lib/vendor/Connector_Molex.pretty
   and tightened the ESP NoAntKeepout courtyard (45x35 -> 16x21 mm; the antenna
   keep-out is dropped — these modules are wired-only). Next in GUI: pull the
   discrete passives via Update-from-Schematic, then place/route + pour.
