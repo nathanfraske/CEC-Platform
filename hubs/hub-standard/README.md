@@ -21,7 +21,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Reverse polarity / isolation | TPS2121 OR-mux blocks reverse current on the source side; **D1** Schottky isolates the `+5V_HOLD` reservoir downstream. D1 is **SB120** (1 A / 20 V) as built; **SS14** (1 A / 40 V) is a drop-in higher-margin alternative — both adequate on the 5 V rail. |
 | Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
-| LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2). Data line 3.3 → 5 V level-shifted: **U6 (74AHCT1G34)** buffer (VCC = +5VSB, C14 100 nF decap) + **R14** 330 Ω series into DL1.DIN — the ESP32's 3.3 V GPIO is below the 5 V SK6812 V_IH (0.7·VDD ≈ 3.5 V), so the buffer guarantees a clean 5 V data high with no LED dimming. |
+| LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2). Data line 3.3 → 5 V level-shifted: **U6 (SN74AHCT1G08**, both inputs tied = AHCT buffer; VCC = +5VSB, C14 100 nF decap) + **R14** 330 Ω series into DL1.DIN — the ESP32's 3.3 V GPIO is below the 5 V SK6812 V_IH (0.7·VDD ≈ 3.5 V), so the buffer guarantees a clean 5 V data high with no LED dimming. (74AHCT1G34 was the first pick but isn't on JLCPCB; the 1G08-as-buffer is the stocked equivalent in the same SOT-23-5 land.) |
 | Service button | Hidden, GPIO0 (download mode) |
 | Mounting | 4× M3 corner holes, chassis-grounded (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` — pad + stitching vias to the In1 GND plane; PC-standard fastener, spec v1.10) |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
@@ -98,12 +98,28 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > refilled to **one solid island**, `+5VSB` widened to 1.0 mm, and the
 > `/5VSB_RAW` trunk taken to a fat trace. **DRC: 0 `track_width`, 0 unconnected**
 > (remaining is silk cosmetics + one stray `/USB_VBUS` stub to delete). **SK6812
-> data level shifter ADDED to the schematic** (U6 74AHCT1G34 + R14 330 Ω + C14
-> 100 nF; ERC + netlist verified: ESP LED-data GPIO → U6 → R14 → DL1.DIN, VCC on
-> +5VSB). **PCB to-do:** "Update PCB from Schematic", then place + route the 3
-> new parts near DL1, re-DRC, and drop `DRAFT`. (The 2 new `lib_symbol_mismatch`
-> on R14/C14 are the same benign class as the existing 28 — clears with GUI
-> Tools → Update Symbols from Library.)
+> data level shifter ADDED** (U6 SN74AHCT1G08 AND-as-buffer + R14 330 Ω + C14
+> 100 nF; ERC + netlist verified: ESP LED-data GPIO IO25 → U6 → R14 → DL1.DIN,
+> VCC on +5VSB).
+>
+> **BOM now fully sourced for JLCPCB assembly** (2026-06-05): every one of the 33
+> lines carries an LCSC part (15 Basic/Preferred, 18 Extended; ~$12.11/board in
+> parts, ESP32 = $5.15 of it). Files in `bom/`: `bom.csv` (tracking) and
+> `hub-standard-BOM-jlcpcb.csv` (Comment/Designator/Footprint/LCSC upload). Part
+> reconciliations made while sourcing: **U6** 74AHCT1G34 → SN74AHCT1G08 (1G34 not
+> on JLCPCB); **U2** populated as **TJA1051T/3** (C38695, matches the as-drawn
+> symbol; diverges from the TJA1462A platform lock — see action items); **D2–D5**
+> PESD5V0S1UL → **PESD5V0S1BA** (the SOD-323 sibling; UL isn't stocked in SOD-323);
+> **D1** SB120 → **SS14** (C2480, Basic); **SW1/SW2** EVQ-PU → **TS-1088** (C720477,
+> Basic; footprint repointed); **R3/R4** 60 Ω → 60.4 Ω (nearest 1%). Stock to
+> re-check before a volume run: C1 4700 µF (≈385) and U4 TPS3839K33 (≈120).
+>
+> **PCB to-do (GUI):** "Update PCB from Schematic" (pulls U6/R14/C14 and swaps
+> SW1/SW2 to the TS-1088 land), place + route the new parts near DL1, re-pour,
+> re-DRC, drop `DRAFT` — then "Generate Placement Files" (CPL) + gerbers and the
+> JLCPCB BOM/CPL set is complete. (The 2 new `lib_symbol_mismatch` on R14/C14 are
+> the same benign class as the existing 28 — clears with GUI Tools → Update
+> Symbols from Library.)
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files

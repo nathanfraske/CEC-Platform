@@ -6943,75 +6943,42 @@
 		)
 		(embedded_fonts no)
 	)
-	(symbol "74AHCT1G34"
-		(pin_names
-			(offset 0.254)
-		)
+	(symbol "SN74AHCT1G08"
+		(pin_names (offset 0.254))
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(property "Reference" "U"
 			(at -5.08 6.985 0)
-			(effects (font (size 1.27 1.27)) (justify left))
-		)
-		(property "Value" "74AHCT1G34"
+			(effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "SN74AHCT1G08"
 			(at -5.08 -8.89 0)
-			(effects (font (size 1.27 1.27)) (justify left))
-		)
+			(effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "Package_TO_SOT_SMD:SOT-23-5"
 			(at 0 0 0)
-			(effects (font (size 1.27 1.27)) (hide yes))
-		)
-		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/sn74ahct1g34.pdf"
+			(effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/sn74ahct1g08.pdf"
 			(at 0 0 0)
-			(effects (font (size 1.27 1.27)) (hide yes))
-		)
-		(property "Description" "Single non-inverting buffer, TTL-compatible inputs; 3.3V to 5V level shift for SK6812 data; SOT-23-5"
+			(effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Single 2-input AND gate, AHCT TTL-compatible inputs; inputs tied = 3.3V->5V buffer for SK6812 data; SOT-23-5"
 			(at 0 0 0)
-			(effects (font (size 1.27 1.27)) (hide yes))
-		)
+			(effects (font (size 1.27 1.27)) (hide yes)))
 		(property "ki_fp_filters" "SOT?23*"
 			(at 0 0 0)
-			(effects (font (size 1.27 1.27)) (hide yes))
-		)
-		(symbol "74AHCT1G34_0_1"
-			(rectangle
-				(start -5.08 5.08)
-				(end 5.08 -5.08)
-				(stroke (width 0.254) (type default))
-				(fill (type background))
-			)
-			(pin no_connect line
-				(at -7.62 -2.54 0)
-				(length 2.54)
-				(hide yes)
-				(name "NC" (effects (font (size 1.27 1.27))))
-				(number "1" (effects (font (size 1.27 1.27))))
-			)
-			(pin input line
-				(at -7.62 0 0)
-				(length 2.54)
-				(name "A" (effects (font (size 1.27 1.27))))
-				(number "2" (effects (font (size 1.27 1.27))))
-			)
-			(pin power_in line
-				(at 0 -7.62 90)
-				(length 2.54)
-				(name "GND" (effects (font (size 1.27 1.27))))
-				(number "3" (effects (font (size 1.27 1.27))))
-			)
-			(pin output line
-				(at 7.62 0 180)
-				(length 2.54)
-				(name "Y" (effects (font (size 1.27 1.27))))
-				(number "4" (effects (font (size 1.27 1.27))))
-			)
-			(pin power_in line
-				(at 0 7.62 270)
-				(length 2.54)
-				(name "VCC" (effects (font (size 1.27 1.27))))
-				(number "5" (effects (font (size 1.27 1.27))))
-			)
+			(effects (font (size 1.27 1.27)) (hide yes)))
+		(symbol "SN74AHCT1G08_0_1"
+			(rectangle (start -5.08 5.08) (end 5.08 -5.08)
+				(stroke (width 0.254) (type default)) (fill (type background)))
+			(pin input line (at -7.62 -2.54 0) (length 2.54)
+				(name "A" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+			(pin input line (at -7.62 0 0) (length 2.54)
+				(name "B" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+			(pin power_in line (at 0 -7.62 90) (length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+			(pin output line (at 7.62 0 180) (length 2.54)
+				(name "Y" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+			(pin power_in line (at 0 7.62 270) (length 2.54)
+				(name "VCC" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
 		)
 	)
 )

@@ -129,11 +129,15 @@ Connector and physical interface:
   OQ-14. SEPARATELY LOCKED (v2.0): one low-capacitance ESD diode on the DETECT pin
   (pin 8 -> ESP32 ADC) on EVERY Hub and module, for hot-plug insertion ESD on the
   bare analog input. Hub Standard now populates this pin-8 ESD diode — D2-D5,
-  PESD5V0S1UL in SOD-323, one per port, cathode to each DETECT line and anode to
-  GND (added 2026-06-04, verified ERC/netlist). The generated standalone module
-  schematics (EPS/PCIe/12VHPWR-Std) now carry it too — D1 = PESD5V0S1UL via the
-  generator, regenerated 2026-06-04 (footprint assigned at layout); the ordered
-  24-pin rev2 PCB still ships without it (rev3 picks it up). Enterprise/MC
+  PESD5V0S1BA in SOD-323, one per port, cathode to each DETECT line and anode to
+  GND (added 2026-06-04, verified ERC/netlist; part corrected from PESD5V0S1UL to
+  the SOD-323 sibling PESD5V0S1BA on 2026-06-05 — the UL is only stocked in
+  DFN1006/SOD-882 by LCSC, the BA is the SOD-323 part the boards are laid out for,
+  same low-cap single-line 5 V clamp; LCSC C5261083). The SAME UL->BA correction
+  applies to the generated module schematics (EPS/PCIe/12VHPWR-Std), which still
+  name PESD5V0S1UL "in SOD-323" — flag and fix on their next sourcing pass. D1 =
+  PESD5V0S1UL via the generator, regenerated 2026-06-04 (footprint assigned at
+  layout); the ordered 24-pin rev2 PCB still ships without it (rev3 picks it up). Enterprise/MC
   over-voltage attaches to their external uplink, deferred to OQ-7.
 - Connector must have a documented current rating of at least 1.5A.
 - Hub bulk power comes in on a dedicated 2-pin +5VSB power-in connector, separate
@@ -210,6 +214,16 @@ Communication:
   ESP32-P4 TWAI does FD in silicon, and one classical-only module on an FD bus
   forces the whole bus classical anyway). Transceiver: TJA1462A (CAN-FD-capable,
   run classical, leaves the door open). Termination: fixed 120 ohm split at Hub.
+  AS-BUILT DIVERGENCE (2026-06-05, U2): Hub Standard's schematic carries the
+  TJA1051T/3 symbol, and for JLCPCB sourcing it is populated as TJA1051T/3 (LCSC
+  C38695 — 121k stock, ~$0.40, classical CAN only) rather than the TJA1462A SIC
+  part (C3234095 — ~166 stock, ~$1.02). The design only runs classical CAN
+  (CAN-FD deferred platform-wide), so TJA1051T/3 is functionally complete; it
+  drops the TJA1462A's SIC ringing-suppression and the open FD/1M door. Pin-
+  compatible SO8. OPEN: decide whether to (a) keep TJA1462A as the platform intent
+  and treat Hub Standard as a cost/stock-driven exception, or (b) move the whole
+  platform to TJA1051T/3 and update this lock + the spec. Ask before propagating
+  to Pro/Enterprise/MC or the modules.
 - Optional bus-wide 1 Mbps CAN (added v3.4): 500k stays the default and the
   floor; the whole shared bus may instead run classical CAN at 1 Mbps — never
   per-module (one TJA1462A, one CAN_H/CAN_L net, one split termination = one
@@ -242,14 +256,17 @@ Per-tier hardware:
   (40V), which is a drop-in higher-margin alternative (both fine on 5V).
   SK6812 data level shift (2026-06-05): the ESP32's 3.3 V GPIO is below the 5 V
   SK6812 V_IH (0.7*VDD ~= 3.5 V), so the LED data line is buffered up to 5 V by
-  U6 (74AHCT1G34, SOT-23-5, VCC=+5VSB, C14 100 nF) with R14 330 ohm series into
-  DL1.DIN — chosen over a VDD-drop diode to avoid any LED dimming. Added to the
-  hand-maintained .kicad_sch via cec_sch splice, ERC + netlist verified (chain
-  U1.IO->U6->R14->DL1.DIN); PCB still needs Update-from-Schematic + place/route
-  of U6/R14/C14. NOTE: scripts/gen-hub-standard.py is STALE (pre-mux, pre-WROOM,
-  pre-ESD, pre-shifter) and now GUARDED with a refusal-to-run — the live
-  schematic is hand-maintained, do NOT regenerate it (it would revert the board
-  and break the routed PCB).
+  U6 (SN74AHCT1G08 single 2-input AND with both inputs tied = a non-inverting
+  AHCT buffer; SOT-23-5, VCC=+5VSB, C14 100 nF) with R14 330 ohm series into
+  DL1.DIN — chosen over a VDD-drop diode to avoid any LED dimming. (The original
+  pick 74AHCT1G34 buffer is NOT stocked by LCSC/JLCPCB; the 1G08-as-buffer is the
+  JLCPCB-available equivalent in the same SOT-23-5 land — both inputs on LED_DATA,
+  pin4 Y -> R14.) Added to the hand-maintained .kicad_sch via cec_sch splice, ERC
+  + netlist verified (chain U1.IO25->U6->R14->DL1.DIN); PCB still needs Update-
+  from-Schematic + place/route of U6/R14/C14. NOTE: scripts/gen-hub-standard.py is
+  STALE (pre-mux, pre-WROOM, pre-ESD, pre-shifter) and now GUARDED with a refusal-
+  to-run — the live schematic is hand-maintained, do NOT regenerate it (it would
+  revert the board and break the routed PCB).
 - Hub Pro: ESP32-P4, 8 ports, classical CAN plus RS-485 streaming receivers (one
   receiver per port as the working basis, pending OQ-5), USB High Speed.
   Bulk power on the dedicated 2-pin +5VSB power-in connector (OQ-1, spec §2.7).
@@ -422,6 +439,23 @@ Open items (surface before acting):
    U1 courtyard overlaps (antenna keepout, neighbors clear).
 
 Done (kept for context):
+- Hub Standard BOM fully sourced for JLCPCB assembly (2026-06-05): all 33 lines
+  carry an LCSC part written into the schematic symbols (LCSC/MPN/Manufacturer
+  props via the bom skill's edit_properties); 15 Basic/Preferred, 18 Extended,
+  ~$12.11/board parts. Outputs in hubs/hub-standard/bom/: bom.csv (tracking) +
+  hub-standard-BOM-jlcpcb.csv (Comment/Designator/Footprint/LCSC). Every C-number
+  re-validated against jlcsearch (no 404s). Part reconciliations: U6 1G34->1G08
+  (JLCPCB stock), U2 -> TJA1051T/3 (as-drawn; see transceiver divergence above),
+  D2-D5 UL->BA (SOD-323), D1 SB120->SS14, SW1/2 EVQ->TS-1088 (footprint pulled via
+  easyeda2kicad C720477, upgraded to KiCad-10 format + 3D model vendored), R3/R4
+  60->60.4. CPL + gerbers still pending the GUI PCB finish (Update-from-Schematic
+  to pull U6/R14/C14 + the TS-1088 land, place/route, pour). New open follow-ups:
+  (a) PESD UL->BA correction also applies to the EPS/PCIe/12VHPWR-Std module
+  schematics (still name PESD5V0S1UL "in SOD-323") — fix on their sourcing pass;
+  (b) the TJA1051T/3-vs-TJA1462A platform decision (transceiver note above);
+  (c) J2-J5 RJ45 keeps the generic cec FTP footprint — pull C86580's authoritative
+  footprint via easyeda2kicad and verify pad-compatibility before fab (action #2);
+  (d) re-check C1 4700uF (~385) and U4 TPS3839K33 (~120) stock before any volume run.
 - Hub Standard netclass-pattern fix (2026-06-04): the Power/CAN/USB netclass
   patterns in .kicad_pro lacked the root-sheet "/" prefix, so /5VSB_RAW,
   /+5V_HOLD, /USB_VBUS, /CAN_H, /CAN_L, /USB_DP, /USB_DM all silently fell into

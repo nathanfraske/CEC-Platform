@@ -211,7 +211,7 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
 | Storage | ESP32-S3 internal flash, 16 MB (~10 MB available) |
 | Identity | Factory MAC plus database mapping (no eFuse, no secure element) |
-| LEDs | 7x SK6812 MINI-E RGB chain, with firmware current cap per Section 2.5. Data line buffered 3.3 V -> 5 V by a 74AHCT1G34 (U6) + 330 ohm series (R14) so the ESP32's 3.3 V GPIO clears the 5 V SK6812 V_IH; no LED dimming (added 2026-06-05). |
+| LEDs | 7x SK6812 MINI-E RGB chain, with firmware current cap per Section 2.5. Data line buffered 3.3 V -> 5 V by an SN74AHCT1G08 (U6, a single 2-input AND with both inputs tied = AHCT buffer) + 330 ohm series (R14) so the ESP32's 3.3 V GPIO clears the 5 V SK6812 V_IH; no LED dimming (added 2026-06-05; the equivalent 74AHCT1G34 buffer was the first pick but is not stocked by JLCPCB, so the 1G08-as-buffer is used in the same SOT-23-5 land). |
 | LED control | Adalight via CDC plus CEC override priority |
 | Service button | Hidden, GPIO0 (download mode) |
 | Mounting | 4x M3 corner holes, chassis-grounded (PC-standard fastener; MountingHole_3.2mm_M3_Pad_Via) |
