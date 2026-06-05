@@ -1,11 +1,40 @@
 ** Drc report for hub-standard.kicad_pcb **
-** Created on 2026-06-04T18:56:40 **
+** Created on 2026-06-04T20:05:04 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 34 DRC violations **
-[track_dangling]: Track has unconnected end
-    Local override; warning
-    @(97.5000 mm, 155.0000 mm): Track [/USB_VBUS] on F.Cu, length 0.7071 mm
+** Found 33 DRC violations **
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
@@ -25,22 +54,6 @@
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
     @(65.1000 mm, 118.8000 mm): Segment of U1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
@@ -49,59 +62,43 @@
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
     @(95.4200 mm, 164.7850 mm): Segment of J6 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
     @(104.5800 mm, 163.0800 mm): Segment of J6 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-    @(152.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J5
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-    @(104.1225 mm, 95.2500 mm): PTH pad SH2 [GND] of J3
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-    @(115.5525 mm, 95.2500 mm): PTH pad SH1 [GND] of J3
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-    @(122.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J4
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-    @(134.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J4
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-    @(140.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J5
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
     @(85.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J2
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
+    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+    @(104.1225 mm, 95.2500 mm): PTH pad SH2 [GND] of J3
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
     @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
     @(97.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J2
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
+    @(152.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J5
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
+    @(140.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J5
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+    @(134.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J4
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+    @(122.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J4
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+    @(115.5525 mm, 95.2500 mm): PTH pad SH1 [GND] of J3
 [track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
     Rule: Power min width; error (excluded)
     @(102.5500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 0.3000 mm
@@ -132,19 +129,7 @@
 
 ** Found 0 unconnected pads **
 
-** Found 14 Footprint errors **
-[footprint_symbol_mismatch]: cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal doesn't match footprint given by symbol (cec:RJ45_FTP_Shielded_Horizontal)
-    Local override; warning
-    @(95.7825 mm, 101.6000 mm): Footprint J2
-[footprint_symbol_mismatch]: cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal doesn't match footprint given by symbol (cec:RJ45_FTP_Shielded_Horizontal)
-    Local override; warning
-    @(114.2825 mm, 101.6000 mm): Footprint J3
-[footprint_symbol_mismatch]: cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal doesn't match footprint given by symbol (cec:RJ45_FTP_Shielded_Horizontal)
-    Local override; warning
-    @(132.7825 mm, 101.6000 mm): Footprint J4
-[footprint_symbol_mismatch]: cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal doesn't match footprint given by symbol (cec:RJ45_FTP_Shielded_Horizontal)
-    Local override; warning
-    @(150.7825 mm, 101.6000 mm): Footprint J5
+** Found 10 Footprint errors **
 [extra_footprint]: Extra footprint
     Local override; warning
     @(76.0000 mm, 158.0000 mm): Footprint M3
