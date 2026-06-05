@@ -8253,7 +8253,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "02bdfd65-0086-46e7-b5be-2c98e1623cab")
-		(property "Reference" "SW1"
+		(property "Reference" "SW_RESET"
 			(at 242.57 64.77 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8339,7 +8339,7 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "SW1")
+					(reference "SW_RESET")
 					(unit 1)
 				)
 			)
@@ -12816,7 +12816,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "773f6dd0-e7b9-4ecd-a317-9ce1e2c8371a")
-		(property "Reference" "J6"
+		(property "Reference" "J_USB"
 			(at 299.72 20.32 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12946,7 +12946,7 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "J6")
+					(reference "J_USB")
 					(unit 1)
 				)
 			)
@@ -15006,7 +15006,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "9b639e8c-a659-4546-8eb1-6b9382bbda40")
-		(property "Reference" "SW2"
+		(property "Reference" "SW_BOOT"
 			(at 242.57 77.47 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -15092,7 +15092,7 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "SW2")
+					(reference "SW_BOOT")
 					(unit 1)
 				)
 			)
@@ -17625,7 +17625,7 @@
 		(in_pos_files yes)
 		(dnp no)
 		(uuid "dabbf593-1f0e-4694-a62a-ee23dbcfe232")
-		(property "Reference" "J1"
+		(property "Reference" "J_5VSB"
 			(at 358.14 96.266 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17710,7 +17710,7 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8"
-					(reference "J1")
+					(reference "J_5VSB")
 					(unit 1)
 				)
 			)
@@ -20550,7 +20550,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "6bbfd9b9-60ee-443b-a8c6-61815cfb2160")
-		(property "Reference" "J8" (at 80.01 354.33 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J_5V" (at 80.01 354.33 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "MAIN_5V_IN" (at 80.01 384.81 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal" (at 80.01 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 80.01 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -20582,7 +20582,7 @@
 		(pin "2" (uuid "6fa0824b-984d-4483-a85e-86f34477957b"))
 		(instances
 			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "J8") (unit 1))
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "J_5V") (unit 1))
 			)
 		)
 	)
@@ -20930,7 +20930,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b5c52b2b-4a5b-4fec-8dfa-d44eeb7cabc3")
-		(property "Reference" "J7" (at 359.41 344.17 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J_KVM" (at 359.41 344.17 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "CEC_NANOKVM_AUX_5P" (at 359.41 374.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_JST:JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -20965,7 +20965,7 @@
 		(pin "5" (uuid "9d2e10f3-afc1-4375-acb8-e607f6947614"))
 		(instances
 			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "J7") (unit 1))
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "J_KVM") (unit 1))
 			)
 		)
 	)
