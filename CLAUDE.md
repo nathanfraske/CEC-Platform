@@ -511,7 +511,39 @@ Open items (surface before acting):
    crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
    U1 courtyard overlaps (antenna keepout, neighbors clear).
 
+4. 12VHPWR Standard PCB finish (status 2026-06-05): high-current lanes routed
+   (J3->shunt F.Cu, shunt->J4 B.Cu, all 6); lane 3 sense done (reference). 47
+   ratlines remain — 6x INA OUT->ESP ADC (ISENSEP1-6) + Kelvin taps/RC-filter->INA
+   on lanes 1,2,4,5,6. Before re-DRC: Fill All Zones (the 252 "actual 0.000mm"
+   clearance/hole hits are STALE GND-pour, NOT real shorts), delete 18 dangling
+   vias + 3 track stubs, Update-PCB-from-Schematic (syncs U2 value TJA1462A->
+   TJA1051T/3, same SOIC-8 footprint). Plan + diagram:
+   modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
+
 Done (kept for context):
+- Vendored symbol pinout audit (2026-06-05): every IC/connector symbol's
+  pin#->name verified against the manufacturer datasheet (WebSearch + KiCad stock
+  library cross-check; TI/NXP/ST PDF hosts 403 in-session) — INA240 (1=IN-, 2=GND,
+  3=REF2, 4=NC [tied to GND, datasheet-sanctioned], 5=OUT, 6=V+, 7=REF1, 8=IN+),
+  INA226/228/238 (identical DGS VSSOP-10; the "extends INA226" is valid),
+  TJA1051T/3, LP5907MFX (pin4=NC, no BYP), TPS3839DBZ (3-pin: 1=GND,2=RESET,3=VDD),
+  TPS2121RUXR (12-pin, OUT on 1+8), USBLC6-2SC6, SN74AHCT1G08, 74LVC1G17,
+  SK6812MINI (plain MINI, NOT MINI-E), PESD5V0S1UL, SS14/SB120, ESP32-S3-MINI-1
+  (65-pin) / WROOM-1 (41-pin), RJ45 (pin7=RSVD, pin8=DETECT, +SH1/SH2),
+  CEC_CONN_12V2x6 (1-6=+12V/7-12=GND/13-16=sideband), USB-C 16P — ALL correct,
+  NO mis-wires. Cosmetic-only (no netlist impact; left unfixed to avoid cross-board
+  symbol churn): TPS2121 pin10 "ILM"->"ILIM"; ESP32-S3-MINI-1 symbol Footprint prop
+  reads "ESP32-S2-MINI-1" (S2/S3 share the land); 74LVC1G17 pin2/4 blank names;
+  CEC_CONN_12V2x6 symbol description still says "APPROXIMATE" (the footprint is now
+  the locked official Molex part). The physical +12V/GND row assignment on the
+  symmetric 12V-2x6 still needs the §2.8 CEM5.1 check before power (unchanged).
+- 12VHPWR outline fix (2026-06-05): the official Molex 12V-2x6 footprint shipped the
+  connector mouth/latch profile on Edge.Cuts (39 fp_lines) -> KiCad flagged 4x
+  "malformed outline (not a closed shape)". Moved to Dwgs.User in
+  lib/cec.pretty/CEC_12V2x6_Horizontal.kicad_mod AND in the board's J3/J4 instances
+  (3-tab fp_line discriminator so the 4 real board-edge gr_lines were untouched).
+  DRC invalid_outline 4->0; pull onto any other 12V-2x6 board via Update-Footprints-
+  from-Library.
 - Hub Standard BOM fully sourced for JLCPCB assembly (2026-06-05): all 33 lines
   carry an LCSC part written into the schematic symbols (LCSC/MPN/Manufacturer
   props via the bom skill's edit_properties); 15 Basic/Preferred, 18 Extended,

@@ -115,3 +115,38 @@ are the dense values-on-silk + tight placement, a GUI silk-refinement task. Next
 GUI: *Update PCB from Schematic* to pull the remaining **control-side decoupling**
 (C1–C8, R1/R2/R7, D1), then route + pour (§6.8 Kelvin, §6.7 high-current).
 Project-local library tables point at `../../lib` via `${KIPRJMOD}`.
+
+## Routing status (2026-06-05)
+
+**Part audit — all clear.** Every vendored symbol used on this board (and in the
+shared lib) had its pin#→name mapping checked against the manufacturer datasheet:
+INA240 (1=IN−, 2=GND, 3=REF2, 4=NC → tied to GND, which the datasheet sanctions,
+5=OUT, 6=V+, 7=REF1, 8=IN+), INA226/228/238 (identical DGS VSSOP‑10), TJA1051T/3,
+LP5907, ESP32‑S3‑MINI‑1, RJ‑45, USB‑C, the 12V‑2×6, and the rest — **all correct,
+no mis‑wires.** (Cosmetic‑only notes are in the repo CLAUDE.md.)
+
+**High‑current path — DONE.** All six +12V lanes carry end‑to‑end: J3 +12V → shunt
+on **F.Cu** (2.5 mm, fanned 3→6 mm), shunt → J4 +12V on **B.Cu** (2.5 mm). Lane 3's
+full sense chain is routed as the reference.
+
+**Remaining — 47 ratlines, all sense/signal** (see **`12vhpwr-route-plan.png`**,
+regenerate with `scripts/gen-hpwr-route-status.py`):
+- All six **INA OUT → ESP ADC IO1–6** (ISENSEP1–6).
+- **Kelvin taps** off the inner shunt‑terminal edges → RFH/RFL, and **RC filter →
+  INA IN+/IN−**, on lanes 1, 2, 4, 5, 6 (route them like the finished lane 3):
+  0.25 mm matched pair over the In1 GND plane, ⊥ to the 12V lanes, filter at the INA.
+
+**Before re‑checking DRC** (current DRC = 47 unconnected + 291 violations):
+- **Fill All Zones (B).** 252 of the violations are `clearance`/`hole_clearance`
+  reading *actual 0.000 mm* — that is **stale GND‑pour** (kicad‑cli cannot refill),
+  not real shorts. Set **both** inner zones to GND.
+- Delete **18 dangling vias + 3 dangling track stubs**.
+- **Update PCB from Schematic** — syncs U2 value (the PCB still shows the old
+  *TJA1462A*; the schematic is already *TJA1051T/3*, C38695; footprint identical).
+- **Outline fixed:** the Molex 12V‑2×6 footprint's mouth/latch profile was on
+  Edge.Cuts (read as a malformed board outline); moved to Dwgs.User in the library
+  and in J3/J4 (invalid_outline 4→0).
+
+**Note — J4 orientation:** with the official Molex footprint J4 is **rot 0°** (mouth
+out the bottom edge) and J3 is **rot 180°** (mouth out the top); this supersedes the
+"J4 rot 180°" wording in the Status paragraph above.
