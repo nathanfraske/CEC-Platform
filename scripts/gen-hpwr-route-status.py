@@ -128,6 +128,7 @@ leg=[Line2D([],[],color="#d32f2f",lw=3,label="DONE  J3→shunt  +12V  F.Cu 2.5 m
      Line2D([],[],color="#1565c0",lw=1.1,ls=(0,(2,1.5)),label="TODO  Kelvin taps + RC filter → INA (0.25 mm)"),
      Line2D([],[],color="#6a1b9a",lw=1.0,ls=(0,(1,1)),label="TODO  INA OUT → ESP ADC (0.25 mm)")]
 leg.insert(0, Line2D([],[],color="#2e7d32",lw=2,ls=(0,(3,2)),marker='s',mfc="#a5d6a7",mec="#2e7d32",label="PLACE (v3.7)  NTC temp -> ADC2  (TH1 shunt-row, TH2 ambient)"))
+leg.insert(0, Line2D([],[],color="#00838f",lw=2,ls=(0,(3,2)),marker='s',mfc="#b2ebf2",mec="#00838f",label="PLACE (v3.8)  REF3030 ratiometric ref -> ADC1 IO8"))
 ax.legend(handles=leg,loc="lower left",fontsize=6.4,framealpha=.95)
 
 # ---- v3.7 NTC thermistor placement plan (recommended; NOT yet on the PCB) ----
@@ -145,6 +146,14 @@ ax.annotate("TH1 -- NTC on the 12V pour BY THE SHUNT ROW\n(tracks shunt temp -> 
 ax.annotate("TH2 -- NTC at a COOL CORNER\n(ambient ref, isolated from the 12V section) -> IO14",
             xy=(118,124.5), xytext=(123,117), fontsize=6.0, color="#1b5e20", zorder=9,
             arrowprops=dict(arrowstyle="->",color=G,lw=0.8), ha="left", va="center")
+
+# ---- v3.8 REF3030 ratiometric reference (recommended placement; not yet on PCB) ----
+RC="#00838f"
+ax.add_patch(Rectangle((149.8,98.0),3.6,3.2,fc="#b2ebf2",ec=RC,lw=1.1,ls="--",zorder=8))   # U4 + 2 bypass caps
+ax.add_line(Line2D([153.4,154.875],[99.6,97.5],color=RC,lw=1.1,ls=(0,(3,2)),zorder=7))      # VREF -> ESP IO8
+ax.annotate("REF3030 (U4) + bypass -- ratiometric ref -> ESP ADC1 IO8 (VREF);\nplace near the ESP, short VREF trace. Lifts V + all I to ~+/-0.3-0.5%.",
+            xy=(151.5,99.6), xytext=(110,110), fontsize=6.0, color="#006064", zorder=9,
+            arrowprops=dict(arrowstyle="->",color=RC,lw=0.8), ha="left", va="center")
 
 # ---------- notes panel ----------
 def T(y,s,**k): axn.text(0.0,y,s,va="top",fontsize=k.pop("fs",8.5),transform=axn.transAxes,**k)

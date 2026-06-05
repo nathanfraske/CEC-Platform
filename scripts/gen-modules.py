@@ -265,6 +265,14 @@ def build(dirn):
         # and break the PCB link), so they are NOT emitted below; if this generator
         # is ever re-run for this board, add the two IO13/IO14 dividers here or they
         # will be dropped. (A 12V input TVS was considered and DECLINED, §6.1.)
+        #
+        # REF3030 ratiometric ref (spec §6.1/OQ-8, v3.8): the LIVE schematic also
+        # carries U4 = REF3030 (3.0V) measured on ADC1 IO8 so firmware ratios out the
+        # ESP-ADC gain/ref drift -> ~±0.3-0.5% on V + all 6 I (R5/R6 are 0.1%). IO8
+        # was freed by moving the SENSE0 sideband tap IO8->IO15. Hand-spliced (NOT
+        # emitted here); if regenerating, add U4 + bypass on IO8 + the IO8->IO15 move,
+        # or it drops. (Standard REF3030=3.0V is MEASURED by the ADC; the Pro's
+        # REF3033=3.3V feeds the LTC2358 ref — different part/use.)
         for i, (label, sv) in enumerate(nodes):
             amp = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
             rfh = f"RFH{i+1}"; rfl = f"RFL{i+1}"; cf = f"CF{i+1}"

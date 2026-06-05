@@ -10,10 +10,11 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 | MCU | ESP32-S3-MINI-1-N4R2 (locked; same MINI-1 as the other modules) |
 | Hub link | RJ-45 8P8C shielded FTP, locking boot (J1) |
 | Power connector | **12V‑2×6** (Molex Micro‑Fit+ / Amphenol Minitek, 16‑ckt: 6×+12V, 6×GND, 4 sideband). **J3 = board-mount right‑angle MALE header** (the PSU 12V‑2×6 cable plugs in). **J4 = captive OUTPUT pigtail** (a 12V‑2×6 cable soldered to the board, female plug → GPU). There is **no stock board‑mount female** 12V‑2×6 (it only exists as a cable plug), so this male‑in / soldered‑pigtail‑out is the minimal‑mated‑pair inline form (§2.8). |
-| Sensing | **Per-pin**: six **INA240** current-sense amps, one across each +12V pin's **1 mΩ** shunt (RS1–6), feeding the ESP32-S3 ADC (IO1–6) directly — **no I²C sensing bus**. REF1/REF2 → GND (unidirectional forward). A **47k/10k divider** (R5/R6) brings the rail voltage into a 7th ADC channel. Accuracy ~±1% (see **OQ-8**). |
+| Sensing | **Per-pin**: six **INA240** current-sense amps, one across each +12V pin's **1 mΩ** shunt (RS1–6), feeding the ESP32-S3 ADC (IO1–6) directly — **no I²C sensing bus**. REF1/REF2 → GND (unidirectional forward). A **47k/10k divider** (R5/R6, **0.1%**) brings the rail voltage into a 7th ADC channel. With the **REF3030 ratiometric reference** (U4, v3.8) accuracy is **~±0.3–0.5%** on V and all six I (see **OQ-8** + the Voltage-ref row). |
 | Input filter | Per-channel **anti-alias / transient RC** on each INA240 input: matched **10 Ω** series Rf on IN+/IN− (RFH1–6 / RFL1–6) + a **470 nF** differential cap (CF1–6). **fc = 1/(2π·2·Rf·Cdiff) ≈ 16.9 kHz**, so the ~10 kHz GPU transients this pass targets pass at ~−1.3 dB and HF is rolled off ahead of the ADC. Rf held at 10 Ω + matched (TI's INA240 ceiling) → negligible gain/CMRR error. *(Optional ~47 nF common-mode caps deferred — OQ-8.)* |
 | Sideband | The four **12V-2×6 sense pins** (13–16: SENSE0, SENSE1, CARD_PWR_STABLE, CARD_CBL_PRES#) pass straight through J3→J4 **and** each taps a free ESP32-S3 GPIO (IO8/9/11/12) via a **1 kΩ** series R (R10–R13), so firmware can read the cable's advertised power capability + present/stable state and report it over CAN. |
 | Temperature *(v3.7)* | **2× NTC 10k** (Murata **NCP15XH103F03RC** / LCSC **C77131**, 0402) into spare ESP32-S3 **ADC2** channels (this module never uses Wi-Fi, so ADC2 is free): **TH1** in the **12V power section by the shunt row** (board/shunt temperature), **TH2** ambient at a cool edge. Each is an NTC / 10 kΩ (R20/R21) / 100 nF (C20/C21) divider → **IO13 / IO14**; firmware reports temperature and **ΔT above ambient**. Purpose is **measurement quality + board health**: compensate the shunt-TCR / INA240-gain drift on the per-pin current readings, and flag 12V-section overheating — then board temp + per-pin current + rail voltage **fuse** to infer the off-board GPU-side condition. **Board-only**; a pigtail/GPU-plug NTC (the direct GPU-contact read) is **deferred**. Spec [§6.1](../../CEC-Platform-Ground-Truth-Spec.md). |
+| Voltage ref *(v3.8)* | **REF3030** (U4, 3.0 V, SOT-23) measured on **ADC1 IO8** for **ratiometric correction** — firmware ratios out the ESP-ADC gain/reference drift, lifting the rail divider **and** all six current channels from ~±1% to **~±0.3–0.5%** (with **0.1%** R5/R6). Bypass C22 (OUT) + C23 (IN). The deliberate **middle ground** below the Pro's LTC2358-18; the REF3030 (3.0 V) is *measured* by the ADC, unlike the Pro's REF3033 (3.3 V) which feeds the LTC2358 ref. IO8 was freed by moving the SENSE0 sideband tap → **IO15**. See **OQ-8**. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated module-side |
 | DETECT | 2.2 kΩ precision (R1) — CAN-only code (§2.3, OQ-6 resolved); poke-and-ack tap R7 → IO10 (OQ-28) |
 | Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 v2.0); low-cap ESD diode D1 (PESD5V0S1UL) on DETECT pin 8 |
@@ -40,11 +41,15 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 
 ## Open questions touching this board
 
-- **OQ-8 (RESOLVED, v3.7):** rail accuracy — accepted the ~±1% ESP32-S3 ADC figure
-  with **no local REF3033**. This is a transient-capture / per-pin-imbalance tool,
-  not a precision instrument (no simultaneous sampling); the REF3033 path stays a
-  Pro+ feature. The module's deliverable is connector-fault detection, which the
-  v3.7 NTC temperature sensing targets directly.
+- **OQ-8 (RESOLVED, v3.8 — revises the v3.7 no-ref call):** rail accuracy — a
+  **REF3030** (3.0 V) ratiometric reference (U4), measured by the ESP ADC1, lifts
+  the rail divider **and** all six current channels from ~±1% to **~±0.3–0.5%**
+  (0.1% R5/R6) — the **middle ground** between the bare divider and the Pro's
+  precision instrument. It's the *reference*, not a second ADC or a sensing bus, so
+  Standard stays the fast firehose, just accurate + stable (stability is what makes
+  a connector-degradation / dV·dI source-impedance trend real). Full simultaneous
+  precision stays the Pro (LTC2358-18 + REF3033). Note: Standard REF3030 = 3.0 V
+  (*measured* by the ADC); Pro REF3033 = 3.3 V (feeds the LTC2358 ref).
 - **OQ-11:** per-pin shunt part (1 mΩ, §6.4).
 - *(OQ-6 module-ID encoding resolved — CAN-only = 2.2 kΩ.)*
 

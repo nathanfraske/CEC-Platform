@@ -10,7 +10,19 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.7 (2026-06-05).
+Spec revision reflected here: v3.8 (2026-06-05).
+
+v3.8 (2026-06-05, REF3030 ratiometric ref): the 12VHPWR Standard gains U4 =
+REF3030 (3.0V, SOT-23, cec-vendor:REF3030, MPN REF3030AIDBZR) + 2 bypass caps,
+measured on ESP ADC1 IO8 for ratiometric correction — firmware ratios out the ESP-
+ADC gain/ref drift, lifting the rail divider + all 6 INA240 currents from ~±1% to
+~±0.3-0.5% (R5/R6 now 0.1%). IO8 freed by moving the SENSE0 sideband tap IO8->IO15
+(digital, ADC2). Spliced into the routed schematic (ERC clean apart from benign
+lib_symbol_mismatch; netlist-verified VREF=REF.OUT+IO8+bypass, SENSE0=R10+IO15;
+UUIDs preserved). REVISES the v3.7 OQ-8 no-ref call — the middle ground below the
+Pro's LTC2358-18. NOTE the part: Standard REF3030=3.0V is MEASURED by the ADC (must
+sit in the ADC range); the Pro's REF3033=3.3V feeds the LTC2358 ref (different use).
+New cec-vendor:REF3030 symbol (SOT-23 DBZ 1=GND/2=OUT/3=IN); LCSC# TBD at sourcing.
 
 v3.7 (2026-06-05): RESOLVED the NanoKVM aux-link FORM (OQ-51). The link is a
 reserved keyed **5-pin JST-PH** aux header (vendored B5B-PH-K-S) on every Hub,
