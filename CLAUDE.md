@@ -10,37 +10,25 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.7 (2026-06-05).
-
-v3.7 (2026-06-05): the NanoKVM exposes only UART1 + GND + 3V3, so the Hub↔NanoKVM
-aux header is DATA-ONLY (4-pin: UART TX/RX, GND, NanoKVM-3V3-ref) — the two boards
-are INDEPENDENTLY POWERED, there is NO shared 5V rail between them, and interrupts
-ride the UART in-band (no trigger GPIO; the IO13 trigger pin is freed). This
-reverts v3.6's "power-plus-UART" aux header and resolves the OQ-51 link form.
-Forensic consequence: the wall-wart can no longer reach the Hub via the NanoKVM,
-so the fully-dead-PSU case is revived on the Hub's OWN external power-in jack
-(OQ-54, now the REQUIRED forensic path), the NanoKVM independently on its USB-C;
-the common host-down-but-PSU-alive egress still runs on 5VSB. The Hub-side
-power-switching core (cascade-OR main-5V dual-feed, already on the board) and the
-headline §2.9 capability (escaping the S0 5VSB budget) are unaffected.
+Spec revision reflected here: v3.6 (2026-06-05).
 
 v3.6 consolidation (2026-06-05): merged the user's canonical v3.4 upload (the
 subsystem-power / NanoKVM / Concierge architecture branch) into the board-
 reconciled line. NEW: (1) **§2.9 Subsystem power management (PROPOSED)** — the
 "power switching": the monitoring subsystem (Hub + NanoKVM, optionally the module
 fleet) draws from THREE 5V sources via a hardware priority ideal-diode OR — PSU
-main 5V (tapped after the 24-pin 5V sensor), 5VSB, and a Hub-side external
-forensic 5V-in — feeding the Hub's own rail (NanoKVM link is data-only, v3.7); firmware reads a rail-sense and sets the
+main 5V (tapped after the 24-pin 5V sensor), 5VSB, and a wall-wart through the
+NanoKVM USB-C — feeding one shared rail; firmware reads a rail-sense and sets the
 load budget/mode (never switches its own supply → would deadlock the MCU). This
 EXTENDS the as-built TPS2121 PSU/USB front-end mux (§2.7) from 2 inputs to 3
 (same TI PowerPath family the OQ-55 part search names). Adds a forensic-recovery
-path (an external 5V-in revives the Hub so flash data egresses over the
-independently-powered NanoKVM without opening the case) + persist-on-fault flush to the Hub's 16 MB flash. ALL
+path (wall-wart powers Hub+NanoKVM so flash data egresses over the NanoKVM
+without opening the case) + persist-on-fault flush to the Hub's 16 MB flash. ALL
 PROPOSED — parts (source-OR IC, back-feed isolation) + module-rail scope are
 OQ-53..56; do not treat as locked. (2) Appendix C **Concierge** data-collection
 (host/service layer; three-vantage fusion: electrical, OS-logical, NanoKVM
-out-of-band visual). (3) **NanoKVM aux-link** row on the Hub tables (3.3V UART
-data-only, 4-pin per v3.7). The upload's stale board facts (TJA1462A, MINI-1-N16R2,
+out-of-band visual). (3) **NanoKVM aux-link** row on the Hub tables (3.3V UART +
+shared 5V feed). The upload's stale board facts (TJA1462A, MINI-1-N16R2,
 1Ω-inrush/SS14 front end, polymer cap, M2.5) were OVERRIDDEN by this line's
 as-built decisions, not imported. OQ list is now **OQ-1..OQ-56** (the upload's
 OQ-37..55 were renumbered to OQ-38..56 to keep this line's OQ-37 = shielded jack).
@@ -462,12 +450,10 @@ Open items (surface before acting):
    J1's part); two 47k/10k source-sense dividers -> ESP32 IO9 (MAIN_5V_SENSE) /
    IO10 (5VSB_SENSE) for the firmware budget/mode pick; PWR_FLAGs on MAIN_5V_RAW +
    PSU_5V (the TPS2121 OUT pin is typed power_in, so the intermediate needs one).
-   FOLLOW-UPS (deferred): (a) J7 NanoKVM aux header — DATA-ONLY 4-pin JST-PH (UART
-   on IO11/12, GND, NanoKVM-3V3-ref); the NanoKVM exposes only UART1/GND/3V3 so
-   there is NO shared 5V and NO trigger GPIO (interrupts over UART; IO13 freed),
-   v3.7. Re-vendor the footprint as 4-pin (B4B-PH-K-S) — the 5-pin B5B-PH-K-S
-   already pulled is superseded; symbol + splice still to do. Forensic Hub power
-   now needs its own external power-in jack (OQ-54), not the NanoKVM. (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
+   FOLLOW-UPS (deferred): (a) J7 NanoKVM aux header — 5-pin JST-PH (UART on IO11/12,
+   SHARED_5V = +5VSB, GND, TRIG on IO13); footprint ALREADY vendored
+   (cec-Connector_JST:JST_PH_B5B-PH-K-S_1x05_P2.00mm_Vertical) + 3D model, symbol +
+   splice still to do. (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
    the draw counts in system 5V per OQ-13) -> feed the Hub's J8 ("24-pin next").
    (c) PRODUCTION: consolidate J1 (5VSB) + J8 (MAIN_5V) into one 3-pin feed (kept
    separate now so the existing 5VSB cable + Hub bench-test still work — "fix
