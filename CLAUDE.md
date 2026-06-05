@@ -10,7 +10,19 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.8 (2026-06-05).
+Spec revision reflected here: v3.9 (2026-06-05).
+
+v3.9 (2026-06-05, right-angle aux connector): J7 (NanoKVM aux) is the RIGHT-ANGLE
+S5B-PH-K-S (LCSC C157923, footprint cec-Connector_JST:JST_PH_S5B-PH-K-S_1x05_P2.00mm_
+Horizontal), NOT the top-entry B5B-PH-K-S — revises the v3.7 OQ-51 connector form. Same
+JST PH family / 2.0mm / 5-circuit / keyed / 2A and the IDENTICAL 1x5 @ 2.0mm THT hole
+pattern (drop-in on the same lands); only the entry direction changes: side-entry, so the
+external NanoKVM cable runs PARALLEL to the board and exits a board edge (top-entry B5B
+needed vertical headroom a cased Hub does not want). Per the user's direction. J7 schematic
+repointed (pinout/value unchanged), ERC clean, J7 netlist unchanged. Footprint via
+easyeda2kicad C157923 + kicad-cli fp upgrade to KiCad-10; 3D vendored
+lib/3dmodels/Connector_JST.3dshapes/S5B-PH-K-S.step. The B5B-PH-K-S vertical footprint
+stays in the lib (harmless; unreferenced).
 
 v3.8 (2026-06-05, REF3030 ratiometric ref): the 12VHPWR Standard gains U4 =
 REF3030 (3.0V, SOT-23, cec-vendor:REF3030, MPN REF3030AIDBZR) + 2 bypass caps,
@@ -25,7 +37,8 @@ sit in the ADC range); the Pro's REF3033=3.3V feeds the LTC2358 ref (different u
 New cec-vendor:REF3030 symbol (SOT-23 DBZ 1=GND/2=OUT/3=IN); LCSC# TBD at sourcing.
 
 v3.7 (2026-06-05): RESOLVED the NanoKVM aux-link FORM (OQ-51). The link is a
-reserved keyed **5-pin JST-PH** aux header (vendored B5B-PH-K-S) on every Hub,
+reserved keyed **5-pin JST-PH** aux header (vendored B5B-PH-K-S — now the right-angle
+S5B-PH-K-S per the v3.9 correction above) on every Hub,
 carrying the full set of pins the NanoKVM brings out on its own header: the
 full-duplex 3.3V UART (TX/RX), the SHARED 5V feed + ground (§2.9), and the
 NanoKVM's 3.3V reference/presence line. NO trigger GPIO — the NanoKVM exposes no
@@ -493,8 +506,10 @@ Open items (surface before acting):
    PSU_5V (the TPS2121 OUT pin is typed power_in, so the intermediate needs one).
    FOLLOW-UPS: (a) J7 NanoKVM aux header — DONE in the schematic (2026-06-05; ERC
    clean apart from benign mismatch + the 2 pre-existing off-grid flags below, netlist
-   verified, on-grid audit ok, BOM-sourced). 5-pin JST-PH B5B-PH-K-S (J7, LCSC
-   C157993), FORM LOCKED v3.7 (OQ-51), new symbol cec:CEC_NANOKVM_AUX_5P. Pins: 1 =
+   verified, on-grid audit ok, BOM-sourced). 5-pin RIGHT-ANGLE JST-PH S5B-PH-K-S (J7, LCSC
+   C157923; footprint JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal — changed from top-entry
+   B5B-PH-K-S/C157993 per the v3.9 right-angle correction so the NanoKVM cable exits a board
+   edge), FORM LOCKED v3.7 (OQ-51), symbol cec:CEC_NANOKVM_AUX_5P. Pins: 1 =
    +5VSB (shared §2.9 rail), 2 = GND, 3 = UART TX -> 33ohm R19 -> ESP IO11, 4 = UART
    RX -> 33ohm R20 -> ESP IO12, 5 = NanoKVM 3V3 ref. NO trigger GPIO (triggers ride
    the UART in-band). The 3V3 ref is sensed UNTRUSTED/RATIOMETRIC (the user's "can't

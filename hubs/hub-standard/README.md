@@ -23,7 +23,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
 | LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2). Data line 3.3 → 5 V level-shifted: **U6 (SN74AHCT1G08**, both inputs tied = AHCT buffer; VCC = +5VSB, C14 100 nF decap) + **R14** 330 Ω series into DL1.DIN — the ESP32's 3.3 V GPIO is below the 5 V SK6812 V_IH (0.7·VDD ≈ 3.5 V), so the buffer guarantees a clean 5 V data high with no LED dimming. (74AHCT1G34 was the first pick but isn't on JLCPCB; the 1G08-as-buffer is the stocked equivalent in the same SOT-23-5 land.) |
 | Service button | Hidden, GPIO0 (download mode) |
-| NanoKVM aux link (J7) | 5-pin JST-PH (B5B-PH-K-S, **C157993**), spec v3.7 / OQ-51. Pins: UART TX/RX (ESP32 IO11/IO12 through 33 Ω series **R19/R20**, C25105), the shared **+5VSB** rail (§2.9), GND, and the NanoKVM's 3.3 V reference. **No trigger GPIO** — triggers ride the UART in-band. The 3.3 V line is **untrusted**: it is read for presence + health, never as a reference. **Compensation** — the KVM 3V3 is divided 47k/10k (**R21/R22**, C25792/C25744) into ADC1 **IO1**, and the Hub's own LDO **+3V3** is divided by an identical 47k/10k (**R23/R24**) into ADC1 **IO2**; firmware takes the *ratio* so the ADC and divider error cancel and a drifted/sagging KVM rail is detected, not believed. Low-cap ESD **D7** (PESD5V0S1BA, C5261083) clamps the cabled ref pin. |
+| NanoKVM aux link (J7) | 5-pin **right-angle** JST-PH (**S5B-PH-K-S**, **C157923** — side-entry so the external NanoKVM cable exits a board edge; was the top-entry B5B-PH-K-S, changed v3.9 right-angle correction), spec v3.7 / OQ-51 (v3.9 connector). Pins: UART TX/RX (ESP32 IO11/IO12 through 33 Ω series **R19/R20**, C25105), the shared **+5VSB** rail (§2.9), GND, and the NanoKVM's 3.3 V reference. **No trigger GPIO** — triggers ride the UART in-band. The 3.3 V line is **untrusted**: it is read for presence + health, never as a reference. **Compensation** — the KVM 3V3 is divided 47k/10k (**R21/R22**, C25792/C25744) into ADC1 **IO1**, and the Hub's own LDO **+3V3** is divided by an identical 47k/10k (**R23/R24**) into ADC1 **IO2**; firmware takes the *ratio* so the ADC and divider error cancel and a drifted/sagging KVM rail is detected, not believed. Low-cap ESD **D7** (PESD5V0S1BA, C5261083) clamps the cabled ref pin. |
 | Mounting | 4× M3 corner holes, chassis-grounded (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` — pad + stitching vias to the In1 GND plane; PC-standard fastener, spec v1.10) |
 | Board temperature | 1× NTC divider into ADC1 **IO3**: **TH1** (`cec-vendor:Thermistor_NTC`, Murata **NCP15XH103F03RC**, 10 kΩ, C77131) on the high side from **+3V3**, **R25** 10 kΩ fixed (C25744) to GND, **C16** 100 nF filter on the node. Placed near the §2.9 front-end (the warmest area). Gives the always-on Hub a board-temp/ambient datum for Concierge and a thermal watch on the subsystem-power path (LED/load throttle, OQ-2). Same topology as the 12VHPWR TH1/TH2, using the repo-vendored generic NTC. |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
@@ -124,7 +124,8 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > Symbols from Library.)
 >
 > **Update (2026-06-05) — J7 NanoKVM aux header + untrusted-3V3 compensation
-> ADDED (schematic):** spliced **J7** (5-pin JST-PH B5B-PH-K-S, C157993) and its
+> ADDED (schematic):** spliced **J7** (5-pin right-angle JST-PH S5B-PH-K-S, C157923 —
+> changed from the top-entry B5B-PH-K-S v3.9 so the cable exits a board edge) and its
 > network — UART TX/RX on ESP32 **IO11/IO12** through 33 Ω series **R19/R20**, the
 > shared **+5VSB** feed (§2.9), GND, and the NanoKVM 3.3 V ref. No trigger GPIO
 > (triggers ride the UART in-band, spec v3.7 / OQ-51). The 3.3 V ref is sensed
@@ -177,9 +178,9 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > | R17 / R18 | 133.0 / 135.0 | 146.7 | 0 | 5VSB 47k/10k sense → IO10 |
 > | J8 | 164.0 | 149.0 | 90 | MAIN_5V feed, right edge below C1 |
 > | TH1 / R25 / C16 | 139.0 / 141.0 / 140.0 | 122.5 / 122.5 / 124.5 | 0 | NTC trio, warm zone by D1/U7 |
-> | J7 | 88.0 | 161.5 | 0 | NanoKVM aux, bottom-left edge (cable exit) |
-> | D7 | 81.0 | 156.0 | 0 | KVM-ref ESD, at J7 |
-> | R19-R24 | 84.0–94.0 | 156.0 | 0 | UART series (R19/20) + ratiometric dividers (R21-24) |
+> | J7 | 88.0 | 161.5 | 180 | NanoKVM aux (right-angle S5B), mouth out the bottom edge — body overhangs the edge |
+> | D7 | 83.5 | 153.5 | 0 | KVM-ref ESD, at J7 (clear of FID2) |
+> | R19-R24 | 86.0–96.0 | 153.5 | 0 | UART series (R19/20) + ratiometric dividers (R21-24) |
 >
 > Notes: J8 sits on J1's (right) edge but below C1 — the future J1+J8 3-pin-feed
 > consolidation (§2.9 production item) co-locates them when the front-end is

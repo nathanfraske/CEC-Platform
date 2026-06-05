@@ -20932,7 +20932,7 @@
 		(uuid "b5c52b2b-4a5b-4fec-8dfa-d44eeb7cabc3")
 		(property "Reference" "J7" (at 359.41 344.17 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "CEC_NANOKVM_AUX_5P" (at 359.41 374.65 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_JST:JST_PH_B5B-PH-K-S_1x05_P2.00mm_Vertical" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Connector_JST:JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "JST" (at 0 0 0)
 			(effects
@@ -20942,7 +20942,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "B5B-PH-K-S(LF)(SN)" (at 0 0 0)
+		(property "MPN" "S5B-PH-K-S(LF)(SN)" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -20950,7 +20950,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C157993" (at 0 0 0)
+		(property "LCSC" "C157923" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)

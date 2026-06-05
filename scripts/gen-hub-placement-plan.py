@@ -27,7 +27,7 @@ SIZE = {
     "R_0402_1005Metric": (1.5, 1.0), "NTC_0402_1005Metric": (1.5, 1.0),
     "LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm": (3.8, 3.8),
     "JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal": (7.6, 11.5),
-    "CEC_NANOKVM_AUX_5P": (12.0, 6.5),
+    "JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal": (12.0, 7.6),  # right-angle, body to one side
     "USB_C_Receptacle_XKB_U262-16XN-4BVC11": (9.0, 11.0),
     "Panasonic_EVQPUJ_EVQPUA": (4.0, 3.5), "TestPoint_Pad_D1.5mm": (2.5, 2.5),
     "Fiducial_1mm_Mask2mm": (2.0, 2.0), "MountingHole_3.2mm_M3_Pad_Via": (7.0, 7.0),
@@ -79,14 +79,14 @@ proposed = [
     ("TH1",     139.0, 122.5,  0, "NTC_0402_1005Metric", NTC),
     ("R25",     141.0, 122.5,  0, "R_0402_1005Metric", NTC),
     ("C16",     140.0, 124.5,  0, "C_0402_1005Metric", NTC),
-    ("J7",       88.0, 161.5,  0, "CEC_NANOKVM_AUX_5P", AUX),
-    ("D7",       81.0, 156.0,  0, "D_SOD-323", AUX),
-    ("R19",      84.0, 156.0,  0, "R_0402_1005Metric", AUX),
-    ("R20",      86.0, 156.0,  0, "R_0402_1005Metric", AUX),
-    ("R21",      88.0, 156.0,  0, "R_0402_1005Metric", AUX),
-    ("R22",      90.0, 156.0,  0, "R_0402_1005Metric", AUX),
-    ("R23",      92.0, 156.0,  0, "R_0402_1005Metric", AUX),
-    ("R24",      94.0, 156.0,  0, "R_0402_1005Metric", AUX),
+    ("J7",       88.0, 161.5,180, "JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal", AUX),
+    ("D7",       83.5, 153.5,  0, "D_SOD-323", AUX),
+    ("R19",      86.0, 153.5,  0, "R_0402_1005Metric", AUX),
+    ("R20",      88.0, 153.5,  0, "R_0402_1005Metric", AUX),
+    ("R21",      90.0, 153.5,  0, "R_0402_1005Metric", AUX),
+    ("R22",      92.0, 153.5,  0, "R_0402_1005Metric", AUX),
+    ("R23",      94.0, 153.5,  0, "R_0402_1005Metric", AUX),
+    ("R24",      96.0, 153.5,  0, "R_0402_1005Metric", AUX),
 ]
 
 # ---- collision check ----
