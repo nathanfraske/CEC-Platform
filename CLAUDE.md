@@ -10,7 +10,7 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.4 (2026-06-03).
+Spec revision reflected here: v3.5 (2026-06-05).
 
 v3.2 reconciliation (2026-06-03): the repo spec was merged with the user's
 canonical v3.1 upload. Operate by these net changes: (1) CAN is CLASSICAL 500k on
@@ -125,7 +125,7 @@ Connector and physical interface:
   and Pro carry NO per-pin PoE-grade over-voltage protection on the RJ-45 module
   interface — the board state is RATIFIED (internal interface; 57V PoE injection
   is deliberate misuse; the realistic non-PoE network-jack accident is covered by
-  the TJA1462A's own CAN bus-pin protection). This closes the consumer half of
+  the TJA1051T/3's own CAN bus-pin protection). This closes the consumer half of
   OQ-14. SEPARATELY LOCKED (v2.0): one low-capacitance ESD diode on the DETECT pin
   (pin 8 -> ESP32 ADC) on EVERY Hub and module, for hot-plug insertion ESD on the
   bare analog input. Hub Standard now populates this pin-8 ESD diode — D2-D5,
@@ -212,24 +212,27 @@ Communication:
 - Classical CAN at 500 kbps on EVERY tier, Standard through Mission Critical
   (CAN-FD DEFERRED platform-wide, spec §3.1 v2.0 — neither the ESP32-S3 nor the
   ESP32-P4 TWAI does FD in silicon, and one classical-only module on an FD bus
-  forces the whole bus classical anyway). Transceiver: TJA1462A (CAN-FD-capable,
-  run classical, leaves the door open). Termination: fixed 120 ohm split at Hub.
-  AS-BUILT DIVERGENCE (2026-06-05, U2): Hub Standard's schematic carries the
-  TJA1051T/3 symbol, and for JLCPCB sourcing it is populated as TJA1051T/3 (LCSC
-  C38695 — 121k stock, ~$0.40, classical CAN only) rather than the TJA1462A SIC
-  part (C3234095 — ~166 stock, ~$1.02). The design only runs classical CAN
-  (CAN-FD deferred platform-wide), so TJA1051T/3 is functionally complete; it
-  drops the TJA1462A's SIC ringing-suppression and the open FD/1M door. Pin-
-  compatible SO8. OPEN: decide whether to (a) keep TJA1462A as the platform intent
-  and treat Hub Standard as a cost/stock-driven exception, or (b) move the whole
-  platform to TJA1051T/3 and update this lock + the spec. Ask before propagating
-  to Pro/Enterprise/MC or the modules.
+  forces the whole bus classical anyway). Transceiver: TJA1051T/3 — classical
+  high-speed CAN, VIO=3.3V, LCSC C38695. LOCKED to the classical part (spec §3.1
+  v3.5, 2026-06-05): with FD deferred platform-wide the FD/SIC-capable TJA1462A
+  no longer earns its place — TJA1051T/3 is cheaper (~$0.40 vs ~$1.02), far better
+  stocked (~121k vs ~166), pin-compatible SO8, and covers the 500k floor. The one
+  trade: TJA1051T/3 is NOT a SIC (ringing-suppression) part, so the optional 1 Mbps
+  loses the transceiver-side ringing help (see below); the 500k floor is fine.
+  Termination: fixed 120 ohm split at Hub. STATUS: Hub Standard U2 is already
+  populated as TJA1051T/3 (sourced 2026-06-05). FOLLOW-UP (not yet done): Hub Pro,
+  the generated modules (gen-modules.py + the 6 module schematics), and the
+  ARGB/Max spec notes still carry the TJA1462A symbol/value — swap them to
+  TJA1051T/3 on their next pass (the symbol cec-vendor:TJA1051T-3 already exists).
 - Optional bus-wide 1 Mbps CAN (added v3.4): 500k stays the default and the
   floor; the whole shared bus may instead run classical CAN at 1 Mbps — never
-  per-module (one TJA1462A, one CAN_H/CAN_L net, one split termination = one
-  bitrate). Firmware-only: Hub-led auto-baud + TWAI error-counter fallback; the
-  TJA1462A (SIC) and both TWAIs already do 1M and the Hub CAN front-end is
-  unchanged. Sole gate: the §3.1 star/stub SI bench test, run at 1 Mbps. A
+  per-module (one TJA1051T/3, one CAN_H/CAN_L net, one split termination = one
+  bitrate). Firmware-only: Hub-led auto-baud + TWAI error-counter fallback; both
+  TWAIs and the TJA1051T/3 already do 1M and the Hub CAN front-end is unchanged.
+  Sole gate: the §3.1 star/stub SI bench test, run at 1 Mbps — and with the plain
+  (non-SIC) TJA1051T/3 there is NO transceiver ringing suppression, so that passive
+  SI result is the whole story (a SIC part run classical is the fallback if 1M is
+  needed and marginal). A
   DETECT-code bitrate advert was considered and declined (module-resistor cost,
   grows the locked DETECT table, no benefit — every module is already 1M-capable;
   the real variable is per-install SI, which DETECT can't sense).
@@ -435,7 +438,7 @@ Open items (surface before acting):
    in from the board edge (~0.03-0.13mm now → slot-antenna). (d) Tent the C1
    (4700uF) via-in-pad; add a 2nd GND via at D6 (USBLC6); silk cleanup on the
    RJ-45 shield pads + board-edge silk. NOT-a-bug (triaged): CAN 5V/3.3V "domain
-   crossing" (TJA1462A VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
+   crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
    U1 courtyard overlaps (antenna keepout, neighbors clear).
 
 Done (kept for context):
@@ -452,7 +455,10 @@ Done (kept for context):
   to pull U6/R14/C14 + the TS-1088 land, place/route, pour). New open follow-ups:
   (a) PESD UL->BA correction also applies to the EPS/PCIe/12VHPWR-Std module
   schematics (still name PESD5V0S1UL "in SOD-323") — fix on their sourcing pass;
-  (b) the TJA1051T/3-vs-TJA1462A platform decision (transceiver note above);
+  (b) RESOLVED 2026-06-05 — the transceiver lock is now classical TJA1051T/3
+   platform-wide (spec §3.1 v3.5); remaining mechanical follow-up is swapping the
+   TJA1462A symbol on Hub Pro + the generated modules (gen-modules.py + 6 module
+   schematics) to TJA1051T/3 on their next pass;
   (c) J2-J5 RJ45 keeps the generic cec FTP footprint — pull C86580's authoritative
   footprint via easyeda2kicad and verify pad-compatibility before fab (action #2);
   (d) re-check C1 4700uF (~385) and U4 TPS3839K33 (~120) stock before any volume run.
@@ -475,7 +481,8 @@ Done (kept for context):
   per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
   Regenerated + completed 2026-06-04: decoupling brought up to the 24-pin gold
   standard (2x 10uF bulk + 1uF LP5907 in/out + per-IC 100nF, incl. dedicated
-  TJA1462A VCC/VIO bypass); DETECT R1 set to the resolved CAN-only 2.2k code
+  TJA1051T/3 VCC/VIO bypass — NOTE the generated module schematics still carry the
+  TJA1462A symbol/value pending the v3.5 transceiver swap); DETECT R1 set to the resolved CAN-only 2.2k code
   (OQ-6); ESP corrected to a real MINI-1 SKU (N4R2 — N16R2 was fictitious);
   D1/R7 picked up; and the per-cable IN/OUT interposer pitch widened to 100 mm so
   adjacent cables no longer merge SENSE nets. EPS verified: static audit clean,
