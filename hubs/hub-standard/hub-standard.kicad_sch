@@ -20652,15 +20652,15 @@
 
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
-		(at 270 360 0)
+		(at 270.51 359.41 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "70209fd3-b344-4d3c-ae89-5219b699460a")
-		(property "Reference" "#FLG0203" (at 270 357.46 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 270 363.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#FLG0203" (at 270.51 356.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 270.51 363.22 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9100b04f-3448-4d3a-8baf-bdfcfe31d5cd"))
 		(instances
 			(project "hub-standard"
@@ -20668,18 +20668,18 @@
 			)
 		)
 	)
-	(label "MAIN_5V_RAW" (at 270 360 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "42521d90-4ace-4a5d-9000-fa1f7a22d84a"))
+	(label "MAIN_5V_RAW" (at 270.51 359.41 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "42521d90-4ace-4a5d-9000-fa1f7a22d84a"))
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
-		(at 290 360 0)
+		(at 289.56 359.41 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "4f67199f-8555-4920-be80-36c4f2ec4a72")
-		(property "Reference" "#FLG0204" (at 290 357.46 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 290 363.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#FLG0204" (at 289.56 356.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 289.56 363.22 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "de4f7b33-3751-4d36-aeb7-88c0454b2d2b"))
 		(instances
 			(project "hub-standard"
@@ -20687,7 +20687,7 @@
 			)
 		)
 	)
-	(label "PSU_5V" (at 290 360 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "62375c53-429b-423f-a99a-c1b96a8ef256"))
+	(label "PSU_5V" (at 289.56 359.41 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "62375c53-429b-423f-a99a-c1b96a8ef256"))
 
 	(sheet_instances
 		(path "/"
