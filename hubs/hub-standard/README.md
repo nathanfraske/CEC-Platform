@@ -25,6 +25,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Service button | Hidden, GPIO0 (download mode) |
 | NanoKVM aux link (J7) | 5-pin JST-PH (B5B-PH-K-S, **C157993**), spec v3.7 / OQ-51. Pins: UART TX/RX (ESP32 IO11/IO12 through 33 Ω series **R19/R20**, C25105), the shared **+5VSB** rail (§2.9), GND, and the NanoKVM's 3.3 V reference. **No trigger GPIO** — triggers ride the UART in-band. The 3.3 V line is **untrusted**: it is read for presence + health, never as a reference. **Compensation** — the KVM 3V3 is divided 47k/10k (**R21/R22**, C25792/C25744) into ADC1 **IO1**, and the Hub's own LDO **+3V3** is divided by an identical 47k/10k (**R23/R24**) into ADC1 **IO2**; firmware takes the *ratio* so the ADC and divider error cancel and a drifted/sagging KVM rail is detected, not believed. Low-cap ESD **D7** (PESD5V0S1BA, C5261083) clamps the cabled ref pin. |
 | Mounting | 4× M3 corner holes, chassis-grounded (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` — pad + stitching vias to the In1 GND plane; PC-standard fastener, spec v1.10) |
+| Board temperature | 1× NTC divider into ADC1 **IO3**: **TH1** (`cec-vendor:Thermistor_NTC`, Murata **NCP15XH103F03RC**, 10 kΩ, C77131) on the high side from **+3V3**, **R25** 10 kΩ fixed (C25744) to GND, **C16** 100 nF filter on the node. Placed near the §2.9 front-end (the warmest area). Gives the always-on Hub a board-temp/ambient datum for Concierge and a thermal watch on the subsystem-power path (LED/load throttle, OQ-2). Same topology as the 12VHPWR TH1/TH2, using the repo-vendored generic NTC. |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | BOM target | ~$36 (100-qty) |
 
@@ -142,6 +143,18 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > RJ-45 **shield-tab** no_connects, incl. the J5.SH2 `no_connect_connected`, are the
 > separately-tracked GUI shield-grounding pass — see the root CLAUDE.md action
 > item 2 — and are untouched here.)
+>
+> **Update (2026-06-05) — board-temperature NTC ADDED (schematic):** spliced a
+> board-temp sensor onto ADC1 **IO3** (the last free ADC1 channel): **TH1**
+> (`cec-vendor:Thermistor_NTC` — the repo-vendored Murata NCP15XH103F03RC, 10 kΩ,
+> C77131) high-side from **+3V3**, **R25** 10 kΩ to GND, **C16** 100 nF node
+> filter → `TEMP_HUB` net to IO3. Same topology as the 12VHPWR TH1/TH2. Rationale:
+> the Hub is now a power-handling node (§2.9 subsystem-power front-end), so this
+> gives it a board-temp/ambient datum for the Concierge model and a thermal watch
+> to throttle the LED budget / load mode (OQ-2). **Verified:** ERC clean apart from
+> the benign `lib_symbol_mismatch` + the 2 pre-existing off-grid flags; netlist
+> confirms `TEMP_HUB` = TH1.2/R25.1/C16.1/IO3; on-grid audit ok; all 3 parts
+> sourced. PCB to place near the front-end on the next Update-from-Schematic pass.
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files

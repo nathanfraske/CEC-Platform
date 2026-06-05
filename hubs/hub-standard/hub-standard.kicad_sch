@@ -5058,6 +5058,192 @@
 				)
 			)
 		)
+		(symbol "cec-vendor:Thermistor_NTC"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "TH"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.016 1.016)
+					)
+				)
+			)
+			(property "Value" "NTC 10k"
+				(at 1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Resistor_SMD:NTC_0402_1005Metric"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/c9e5c9a36e405340079034c7608ac4b6.pdf?productCode=C77131"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Generic NTC thermistor, 10k at 25C, 0402 (1005 metric). Murata NCP15XH103F03RC; B25/50=3380K, +/-1%, 100mW, -40..+125C. Default footprint cec-Resistor_SMD:NTC_0402_1005Metric (real Murata land + 3D, vendored from LCSC C77131); datasheet cached in lib/datasheets/. Wire as the lower/upper leg of a divider to an MCU ADC for board or connector temperature sensing."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "Murata Electronics"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "NCP15XH103F03RC"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C77131"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "NTC thermistor temperature sensor 10k Murata NCP15 thermometer"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "NTC_0402* R_0402*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "Thermistor_NTC_0_1"
+				(rectangle
+					(start -0.762 1.778)
+					(end 0.762 -1.778)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.27 -1.778) (xy -0.508 -1.778) (xy 1.27 1.778)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "Thermistor_NTC_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(junction
 		(at 435.61 100.33)
@@ -5362,10 +5548,6 @@
 	(no_connect
 		(at 314.96 119.38)
 		(uuid "79f9c42a-965a-4af5-ac11-00176462ed17")
-	)
-	(no_connect
-		(at 284.48 91.44)
-		(uuid "7a92f908-36df-4066-a952-5cb191ef1556")
 	)
 	(no_connect
 		(at 549.91 96.52)
@@ -21277,6 +21459,216 @@
 		(instances
 			(project "hub-standard"
 				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9006") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:Thermistor_NTC")
+		(at 309.88 344.17 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7a5f3767-6c88-4263-8d1e-5042fd0a9433")
+		(property "Reference" "TH1" (at 309.88 328.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "NTC 10k" (at 309.88 359.41 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:NTC_0402_1005Metric" (at 309.88 344.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 309.88 344.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Murata Electronics" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "NCP15XH103F03RC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C77131" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1" (uuid "b58fd369-217d-496d-9cc0-b8524ba34a63"))
+		(pin "2" (uuid "1ae82bea-919b-406a-94ee-bf3d2f924226"))
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "TH1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 309.88 355.6 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "10469ebb-dbd0-40a6-a2d0-35cc1fb42826")
+		(property "Reference" "R25" (at 309.88 340.36 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10kΩ" (at 309.88 370.84 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 309.88 355.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 309.88 355.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF1002TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25744" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1" (uuid "41be0de1-6d71-49ce-ae02-1d37ba31d6d2"))
+		(pin "2" (uuid "aea5aa79-960e-4b29-95c2-0c37a2051579"))
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "R25") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 323.85 350.52 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3d82e08f-ebff-4ee8-b6ec-96e605ab79b7")
+		(property "Reference" "C16" (at 323.85 335.28 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100nF" (at 323.85 365.76 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 323.85 350.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 323.85 350.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1" (uuid "c4cec627-b5d9-4802-85c1-46c4b7c5555a"))
+		(pin "2" (uuid "411dee69-7626-45de-b1f1-3829a551094e"))
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "C16") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 309.88 341.63) (xy 309.88 337.82))
+		(stroke (width 0) (type default)) (uuid "293845ee-a753-4e26-a1ae-214be1cb29df"))
+	(wire (pts (xy 309.88 346.71) (xy 309.88 350.52))
+		(stroke (width 0) (type default)) (uuid "09455a46-8f92-4c4b-8ad4-0029f71c8127"))
+	(wire (pts (xy 309.88 353.06) (xy 309.88 349.25))
+		(stroke (width 0) (type default)) (uuid "1f0fc1bd-eac9-4a36-a4e9-75649c30a55f"))
+	(wire (pts (xy 323.85 347.98) (xy 323.85 344.17))
+		(stroke (width 0) (type default)) (uuid "be312df3-0c8f-4e7a-a5ff-17b4faa8c915"))
+	(wire (pts (xy 284.48 91.44) (xy 280.67 91.44))
+		(stroke (width 0) (type default)) (uuid "06e6869e-9342-408d-83ae-adcbef00cfa5"))
+	(wire (pts (xy 309.88 358.14) (xy 309.88 361.95))
+		(stroke (width 0) (type default)) (uuid "2b70759a-bcfb-4b73-8e67-2e9ebd6c2be8"))
+	(wire (pts (xy 323.85 353.06) (xy 323.85 356.87))
+		(stroke (width 0) (type default)) (uuid "42f10dc9-da4d-498a-8158-901c561b12a6"))
+	(label "TEMP_HUB" (at 309.88 350.52 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "0dd82cf4-2fc4-46ad-a9b6-119920a3c714"))
+	(label "TEMP_HUB" (at 309.88 349.25 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "379d138d-771f-4b0f-8f05-dd0344b719e0"))
+	(label "TEMP_HUB" (at 323.85 344.17 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "628b440a-f88c-469f-820a-3aba48989e7d"))
+	(label "TEMP_HUB" (at 280.67 91.44 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b96e80b2-db14-4df5-963e-c16586f44be0"))
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 309.88 337.82 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "348ddca4-4747-4e1d-82ea-b796101218bf")
+		(property "Reference" "#PWR9001" (at 309.88 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 309.88 341.63 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "fcced96c-f3f4-4d9e-bd7f-b887237a815d"))
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9001") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 309.88 361.95 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e91f33da-b919-435e-85aa-bdad8974023c")
+		(property "Reference" "#PWR9002" (at 309.88 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 309.88 365.76 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "8a3de19e-83be-4b73-9767-250cb29ab671"))
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9002") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 323.85 356.87 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e2e7e76a-9709-4de6-87da-10bdd1ae9fcd")
+		(property "Reference" "#PWR9003" (at 323.85 354.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 323.85 360.68 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6e228f59-96ea-47ab-b5fe-6995dd686b81"))
+		(instances
+			(project "hub-standard"
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9003") (unit 1))
 			)
 		)
 	)

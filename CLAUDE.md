@@ -574,6 +574,21 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- Generic NTC thermistor vendored + Hub board-temp sensor (2026-06-05). Vendored a
+  reusable 10k NTC any board can pull: symbol cec-vendor:Thermistor_NTC (real props
+  baked: Murata NCP15XH103F03RC / LCSC C77131 / datasheet; default footprint),
+  footprint cec-Resistor_SMD:NTC_0402_1005Metric (real Murata 0402 land via
+  easyeda2kicad, KiCad-10), 3D lib/3dmodels/Resistor_SMD.3dshapes/NCP15XH103F03RC.step,
+  datasheet cached lib/datasheets/NCP15XH103F03RC.pdf. (10k +/-1% @25C, B25/50=3380K.)
+  Then ADDED a board-temp sensor to Hub Standard: TH1 (this NTC) high-side from +3V3,
+  R25 10k (C25744) to GND, C16 100nF (C1525) node filter -> TEMP_HUB -> ADC1 IO3
+  (the last free ADC1 channel); same topology as the 12VHPWR TH1/TH2. ERC clean
+  (benign mismatch + the 2 pre-existing off-grid only), netlist + audit verified, all
+  sourced; PCB place/route pending GUI. FOLLOW-UP: the 12VHPWR TH1/TH2 are still the
+  R_Small placeholder on a generic R_0402 land with NO LCSC/MPN — repoint them to
+  cec-vendor:Thermistor_NTC + cec-Resistor_SMD:NTC_0402_1005Metric + C77131 on that
+  board's next pass (identical pins, not yet placed on the PCB = clean swap; left to
+  that board's session to avoid a concurrent-edit conflict).
 - Vendored symbol pinout audit (2026-06-05): every IC/connector symbol's
   pin#->name verified against the manufacturer datasheet (WebSearch + KiCad stock
   library cross-check; TI/NXP/ST PDF hosts 403 in-session) — INA240 D/SOIC-8
