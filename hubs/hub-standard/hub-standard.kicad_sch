@@ -21627,12 +21627,12 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "348ddca4-4747-4e1d-82ea-b796101218bf")
-		(property "Reference" "#PWR9001" (at 309.88 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "#PWR9007" (at 309.88 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "+3V3" (at 309.88 341.63 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "fcced96c-f3f4-4d9e-bd7f-b887237a815d"))
 		(instances
 			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9001") (unit 1))
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9007") (unit 1))
 			)
 		)
 	)
@@ -21645,12 +21645,12 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "e91f33da-b919-435e-85aa-bdad8974023c")
-		(property "Reference" "#PWR9002" (at 309.88 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "#PWR9008" (at 309.88 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 309.88 365.76 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8a3de19e-83be-4b73-9767-250cb29ab671"))
 		(instances
 			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9002") (unit 1))
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9008") (unit 1))
 			)
 		)
 	)
@@ -21663,12 +21663,12 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "e2e7e76a-9709-4de6-87da-10bdd1ae9fcd")
-		(property "Reference" "#PWR9003" (at 323.85 354.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "#PWR9009" (at 323.85 354.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 323.85 360.68 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6e228f59-96ea-47ab-b5fe-6995dd686b81"))
 		(instances
 			(project "hub-standard"
-				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9003") (unit 1))
+				(path "/aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8" (reference "#PWR9009") (unit 1))
 			)
 		)
 	)
