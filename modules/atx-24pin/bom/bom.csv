@@ -5,6 +5,7 @@ C8,1,1µF,0805,,,,,,,,,
 "C15,C7",2,10µF,0805,,,,,,,,,
 D1,1,D_Schottky,SMA,SS34,MDD,C8678,,,,,,VBUS->5VSB ORing Schottky (bench USB power). D_SMA fits 1-3A parts (e.g. SS34); pick per bench-power current.
 D2,1,LED,0603,,,,,,,,,
+D3,1,PESD5V0S1UL,SOD-323,,,,,,,,,
 J1,1,TO-HUB,RJ45_Amphenol_54602-x08_Horizontal,,,,,,,,,"RJ-45 8P8C shielded FTP, locking-boot, right-angle/inline; Amphenol 54602-x08 placeholder - confirm exact jack"
 J2,1,TO-HUB-PWR,JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,,,,,,,,,"2-pin +5VSB power, right-angle JST-XH (inline)"
 J3,1,ATX-24 (PSU),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,,,ATX-24 PSU-side input: Molex 5569 2x12 right-angle MALE (spec 2.8); PSU female cable plugs on directly.
@@ -19,7 +20,7 @@ R2,1,10kΩ,0402,,,,,,,,,
 RS6,1,R025,2512,,Vishay,,,,,,,5VSB shunt: Vishay WSK2512 25mOhm 4-terminal.
 "SW2,SW1",2,SW_Push,Panasonic_EVQPUJ_EVQPUA,,,,,,,,,
 U1,1,ESP32-S3-MINI-1-N4R2,ESP32-S2-MINI-1_NoAntKeepout,ESP32-S3-MINI-1-N4R2,Espressif Systems,C3013941,,,,,,ESP32-S3-MINI-1 uses the S2-MINI-1 footprint (mechanically identical)
-U2,1,TJA1462A,SOIC-8_3.9x4.9mm_P1.27mm,TJA1462AT/0Z,NXP Semiconductors,C3234095,,,,,,
+U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3,NXP,C38695,,,,,,
 U3,1,LP5907MFX-3.3,SOT-23-5,LP5907MFX-3.3/NOPB,Texas Instruments,C80670,,,,,,
 "U4,U5",2,74LVC1G17,SOT-23-5,SN74LVC1G17DBVR,Texas Instruments,C7836,,,https://www.ti.com/lit/ds/symlink/sn74lvc1g17.pdf,,,
 "U12,U10,U13,U11",4,INA228,VSSOP-10_3x3mm_P0.5mm,INA228AIDGSR,Texas Instruments,C2887910,,,,,,

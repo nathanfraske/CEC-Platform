@@ -9,7 +9,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Tier | 1 of 4 |
 | MCU | ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM; antenna keepout honored for future Wi-Fi). MINI-1 has no 16 MB SKU, so the aggregation Hub uses WROOM; modules stay on MINI-1. |
 | Ports | 4× RJ-45 8P8C, locking boot (was Mini-Fit Jr 12-circuit) |
-| Protocol | Classical CAN @ 500 kbps over the CAN-FD-capable TJA1462A |
+| Protocol | Classical CAN @ 500 kbps over the TJA1051T/3 (classical, VIO 3.3 V) |
 | Termination | Fixed 120 Ω split at the Hub |
 | Host link | USB Full Speed |
 | Bulk power | Dedicated 2-pin +5VSB power-in from the 24-pin module; distributes to the 4 ports over RJ-45 VCC (§2.7, OQ-1 locked) |
@@ -108,7 +108,7 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > `hub-standard-BOM-jlcpcb.csv` (Comment/Designator/Footprint/LCSC upload). Part
 > reconciliations made while sourcing: **U6** 74AHCT1G34 → SN74AHCT1G08 (1G34 not
 > on JLCPCB); **U2** populated as **TJA1051T/3** (C38695, matches the as-drawn
-> symbol; diverges from the TJA1462A platform lock — see action items); **D2–D5**
+> symbol; now the platform lock — spec v3.5 retired the TJA1462A as CAN-FD is deferred); **D2–D5**
 > PESD5V0S1UL → **PESD5V0S1BA** (the SOD-323 sibling; UL isn't stocked in SOD-323);
 > **D1** SB120 → **SS14** (C2480, Basic); **SW1/SW2** EVQ-PU → **TS-1088** (C720477,
 > Basic; footprint repointed); **R3/R4** 60 Ω → 60.4 Ω (nearest 1%). Stock to

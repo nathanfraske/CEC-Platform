@@ -44,7 +44,7 @@ def placement(n):
         P[f"U1{i}"]    = (x + 9.0, 30.0, 0)           # INA238 (U10, U11, U12)
     P.update({                                        # control/power + flash, right
         "U1":  (ex + 10.0, 33.0, 0),                  # ESP32-S3-MINI-1 (left-centre)
-        "U2":  (ex + 5.0, 15.0, 0),                   # TJA1462A CAN (top)
+        "U2":  (ex + 5.0, 15.0, 0),                   # TJA1051T/3 CAN (top)
         "U3":  (ex + 5.0, 51.0, 0),                   # LP5907 LDO (bottom)
         "SW1": (ex + 13.0, 15.0, 0),                  # BOOT (top)
         "SW2": (ex + 13.0, 51.0, 0),                  # RESET (bottom)
@@ -94,7 +94,7 @@ def placement_hpwr():
     # the lanes stay non-crossing into the reversed pins.
     P["J4"] = (jorg + 15.0, 73.5, 180)
     # --- control / power core + flash front end (right of the fanned lanes) ---
-    P["U2"] = (44.0, 7.0, 0)                          # TJA1462A CAN (top)
+    P["U2"] = (44.0, 7.0, 0)                          # TJA1051T/3 CAN (top)
     P["D2"] = (43.0, 14.0, 90); P["C9"] = (47.0, 14.0, 0)   # VBUS ORing (vert) + bulk
     P["U1"] = (48.0, 30.0, 0)                         # ESP32-S3-MINI-1 (~16x21 crtyd)
     P["U3"] = (42.0, 45.0, 0)                         # LP5907 LDO

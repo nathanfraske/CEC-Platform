@@ -13,8 +13,8 @@
 #   python3 scripts/gen-hub-standard.py
 #
 # Hand-authored without kicad-cli (KiCad 10 unavailable in CI); validate with
-# `kicad-cli sch erc` / open in KiCad 10. Symbol stand-ins: TJA1051T-3 for the
-# TJA1462A (same SO-8 CAN pinout), LP5907MFX-1.2 body for the -3.3 variant,
+# `kicad-cli sch erc` / open in KiCad 10. Symbol stand-ins: TJA1051T-3 is the
+# CAN transceiver (classical, locked spec §3.1 v3.5), LP5907MFX-1.2 body for the -3.3 variant,
 # SB120 body for SS14, TPS3839DBZ for TPS3839K33 — values are labeled as the
 # intended parts.
 import os, sys
@@ -50,7 +50,7 @@ PARTS = {
     "J5": ("cec", "CEC_RJ45_8P8C_FTP", "PORT4"),
     "J6": ("cec-vendor", "USB_C_Receptacle_USB2.0_16P", "USB-C"),
     "U1": ("cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N16R2"),
-    "U2": ("cec-vendor", "TJA1051T-3", "TJA1462A"),
+    "U2": ("cec-vendor", "TJA1051T-3", "TJA1051T/3"),
     "U3": ("cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3"),
     "U4": ("cec-vendor", "TPS3839DBZ", "TPS3839K33"),
     "D1": ("cec-vendor", "SB120", "SS14"),

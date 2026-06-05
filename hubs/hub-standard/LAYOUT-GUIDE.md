@@ -90,7 +90,7 @@ with `R2`/`C6`), `SW2`(boot→GPIO0, with `R11`/`C8`), and `U4`(TPS3839
 supervisor→EN) clustered at U1. Service/boot are hand-press parts — keep
 accessible.
 
-**3. CAN hub.** `U2`(TJA1462A) centered relative to the 4 ports. The **fixed
+**3. CAN hub.** `U2`(TJA1051T/3) centered relative to the 4 ports. The **fixed
 120 Ω split termination** (`R3`+`R4` = 2×60 Ω, with `C7` 4n7 from `CAN_MID` to
 GND) sits **right at U2**. Bus `CAN_H`/`CAN_L` to the 4 ports as a short
 multidrop. **No termination at the ports** (Hub-only, locked). CAN control

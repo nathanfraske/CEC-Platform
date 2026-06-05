@@ -13,7 +13,7 @@ BOM target **~$42** (100-qty). See spec
 | MCU | ESP32-S3-MINI-1-N4R2 (locked; same MINI-1 as the other modules) |
 | Hub link | RJ-45 8P8C shielded FTP, locking boot (J1) |
 | Power path | Pass-through interposer: per cable a PSU-side **IN** + load-side **OUT** 8-pin (2×4) header; **3 cables → 6 headers**. Molex Mini-Fit Jr (PCIe/ATX 8-pin standard; 3×12V + 5×GND). Gender/footprint per the 24-pin §2.8 interposer pattern — confirm at layout. |
-| Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1462A (U2) |
+| Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1051T/3 (U2) |
 | Sensing | **Per-cable INA238** (16-bit I²C), 3 cables (U10/U11/U12, distinct I²C addresses) — one across each cable's **0.5 mΩ** Kelvin shunt (RS1/RS2/RS3, §6.4), Vbus read on the load side. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated module-side |
 | DETECT | 2.2 kΩ precision (R1) — CAN-only code (§2.3, OQ-6 resolved), Hub 10 kΩ/3.3 V divider; poke-and-ack tap R7 → IO10 (OQ-28) |

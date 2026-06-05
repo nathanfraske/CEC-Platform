@@ -13969,7 +13969,7 @@
 				)
 			)
 		)
-		(property "Value" "TJA1462A"
+		(property "Value" "TJA1051T/3"
 			(at 199.136 77.216 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14011,7 +14011,7 @@
 				)
 			)
 		)
-		(property "LCSC" "C3234095" (at 0 0 0)
+		(property "LCSC" "C38695" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14019,7 +14019,7 @@
 				(hide yes)
 			)
 		)
-		(property "Manufacturer" "NXP Semiconductors" (at 0 0 0)
+		(property "Manufacturer" "NXP" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14027,7 +14027,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "TJA1462AT/0Z" (at 0 0 0)
+		(property "MPN" "TJA1051T/3" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)

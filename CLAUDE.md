@@ -219,11 +219,12 @@ Communication:
   stocked (~121k vs ~166), pin-compatible SO8, and covers the 500k floor. The one
   trade: TJA1051T/3 is NOT a SIC (ringing-suppression) part, so the optional 1 Mbps
   loses the transceiver-side ringing help (see below); the 500k floor is fine.
-  Termination: fixed 120 ohm split at Hub. STATUS: Hub Standard U2 is already
-  populated as TJA1051T/3 (sourced 2026-06-05). FOLLOW-UP (not yet done): Hub Pro,
-  the generated modules (gen-modules.py + the 6 module schematics), and the
-  ARGB/Max spec notes still carry the TJA1462A symbol/value — swap them to
-  TJA1051T/3 on their next pass (the symbol cec-vendor:TJA1051T-3 already exists).
+  Termination: fixed 120 ohm split at Hub. STATUS (2026-06-05, DONE): propagated
+  to every board carrying the transceiver — Hub Standard U2 + all six generated
+  module schematics (U2 value -> TJA1051T/3, LCSC C38695, ERC clean each) + the
+  gen-modules.py default. Hub Pro and 12VHPWR Pro have no transceiver placed yet,
+  so they inherit the lock when built out. The unused cec-vendor:TJA1462AT symbol
+  is left in the lib (harmless; not referenced by any board).
 - Optional bus-wide 1 Mbps CAN (added v3.4): 500k stays the default and the
   floor; the whole shared bus may instead run classical CAN at 1 Mbps — never
   per-module (one TJA1051T/3, one CAN_H/CAN_L net, one split termination = one
@@ -456,9 +457,9 @@ Done (kept for context):
   (a) PESD UL->BA correction also applies to the EPS/PCIe/12VHPWR-Std module
   schematics (still name PESD5V0S1UL "in SOD-323") — fix on their sourcing pass;
   (b) RESOLVED 2026-06-05 — the transceiver lock is now classical TJA1051T/3
-   platform-wide (spec §3.1 v3.5); remaining mechanical follow-up is swapping the
-   TJA1462A symbol on Hub Pro + the generated modules (gen-modules.py + 6 module
-   schematics) to TJA1051T/3 on their next pass;
+   platform-wide (spec §3.1 v3.5) AND propagated: Hub Standard + all 6 module
+   schematics + gen-modules.py now read TJA1051T/3 (C38695), ERC clean each;
+   Hub Pro/12VHPWR Pro have no transceiver yet so inherit it when built out;
   (c) J2-J5 RJ45 keeps the generic cec FTP footprint — pull C86580's authoritative
   footprint via easyeda2kicad and verify pad-compatibility before fab (action #2);
   (d) re-check C1 4700uF (~385) and U4 TPS3839K33 (~120) stock before any volume run.
@@ -481,8 +482,8 @@ Done (kept for context):
   per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
   Regenerated + completed 2026-06-04: decoupling brought up to the 24-pin gold
   standard (2x 10uF bulk + 1uF LP5907 in/out + per-IC 100nF, incl. dedicated
-  TJA1051T/3 VCC/VIO bypass — NOTE the generated module schematics still carry the
-  TJA1462A symbol/value pending the v3.5 transceiver swap); DETECT R1 set to the resolved CAN-only 2.2k code
+  TJA1051T/3 VCC/VIO bypass — the module U2 value is now TJA1051T/3 (C38695) per
+  the v3.5 transceiver lock); DETECT R1 set to the resolved CAN-only 2.2k code
   (OQ-6); ESP corrected to a real MINI-1 SKU (N4R2 — N16R2 was fictitious);
   D1/R7 picked up; and the per-cable IN/OUT interposer pitch widened to 100 mm so
   adjacent cables no longer merge SENSE nets. EPS verified: static audit clean,

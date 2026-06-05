@@ -10,12 +10,12 @@ connector. BOM target **$32** (100-qty). See spec
 | MCU | ESP32-S3-MINI-1-**N4R2** (locked; same MINI-1 as the 24-pin — the MINI-1 has no 16 MB SKU) |
 | Hub link | RJ-45 8P8C shielded FTP, locking boot (universal interface, J1) |
 | Power path | Pass-through interposer: per cable a PSU-side **IN** + a load-side **OUT** 8-pin (2×4) header; **2 cables populated → 4 headers** (J_IN1/J_OUT1, J_IN2/J_OUT2). Molex Mini-Fit Jr (the EPS12V standard connector). Gender/footprint TBD at layout — the 24-pin §2.8 interposer pattern (male board headers + a F-to-F bridging cable) is the working basis. |
-| Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1462A transceiver (U2) |
+| Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1051T/3 transceiver (U2) |
 | Sensing | **Per-cable INA238** (16-bit I²C, ≥1 kHz), 2 cables (U10/U11, distinct I²C addresses on one bus) — one across each cable's **0.5 mΩ** Kelvin shunt (RS1/RS2, §6.4), Vbus read on the load side. Each cable's four 12V pins bundle into the shunt (`SENSE_HI`→shunt→`SENSE_LO`); the four GND pins pass straight through. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 (J1.4/5) left unused, terminated module-side |
 | DETECT | **2.2 kΩ** precision (R1) — CAN-only link-capability code (§2.3, OQ-6 resolved), read on the Hub's 10 kΩ / 3.3 V divider. Poke-and-ack sense tap R7 (100 kΩ → IO10, OQ-28). |
 | Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 RESOLVED v2.0); low-cap ESD diode **D1** (PESD5V0S1UL) on DETECT pin 8 (LOCKED v2.0). Enterprise/MC over-voltage rides the external uplink (OQ-7). |
-| Decoupling | LP5907-3.3 LDO (U3). Matches the 24-pin gold standard: 10 µF board-entry bulk on +5VSB (C6) + 10 µF +3V3 bulk at the ESP32 (C7); 1 µF LDO in/out (C1/C2); per-IC 100 nF — ESP32 (C3), TJA1462A VCC (C4) and VIO (C8), one per INA238 (C10/C11); 100 nF EN reset RC (C5). |
+| Decoupling | LP5907-3.3 LDO (U3). Matches the 24-pin gold standard: 10 µF board-entry bulk on +5VSB (C6) + 10 µF +3V3 bulk at the ESP32 (C7); 1 µF LDO in/out (C1/C2); per-IC 100 nF — ESP32 (C3), TJA1051T/3 VCC (C4) and VIO (C8), one per INA238 (C10/C11); 100 nF EN reset RC (C5). |
 | Flash/debug | **USB-C** (J5) on the ESP32-S3 native USB + **BOOT/RESET buttons** (SW1/SW2). VBUS ORs into +5VSB through D2 (SS34) so bench USB self-powers the board for flashing; CC1/CC2 = 5.1 kΩ UFP pulldowns. Mirrors the 24-pin. |
 | Reset | ESP32-S3 internal BOD + EN RC (R2/C5); no external supervisor (a Hub-only part) |
 | BOM target | $32 (100-qty) |

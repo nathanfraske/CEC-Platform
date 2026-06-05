@@ -3980,9 +3980,33 @@
 		(fields_autoplaced yes)
 		(uuid "68cd3f75-8931-4d61-a043-d55c242cfb5f")
 		(property "Reference" "U2" (at 240.03 54.61 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TJA1462A" (at 240.03 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TJA1051T/3" (at 240.03 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" (at 240.03 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 240.03 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "NXP" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "TJA1051T/3" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C38695" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "ec7a5b87-7bdd-4d7c-8aad-387f4b722155"))
 		(pin "4" (uuid "7de98ad1-fe8b-4069-bd75-159cb8cb1e73"))
 		(pin "5" (uuid "bc8d655b-35f6-48d3-9241-3504df18bc5f"))

@@ -20,8 +20,9 @@
 #
 #   python3 scripts/gen-modules.py
 # Hand-authored without kicad-cli; validate with `kicad-cli sch erc`. Symbol
-# stand-ins (values labeled as intended): TJA1051T-3 -> TJA1462A,
-# LP5907MFX-1.2 body -> -3.3, INA226 body -> INA238.
+# stand-ins (values labeled as intended): LP5907MFX-1.2 body -> -3.3,
+# INA226 body -> INA238. (CAN transceiver: TJA1051T-3 symbol + TJA1051T/3 value,
+# locked classical platform-wide spec §3.1 v3.5 — no longer a TJA1462A stand-in.)
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_sch
@@ -69,7 +70,7 @@ ESP_GND = ["1","2","42","43","46","47","48","49","50","51","52","53","54","55",
 BASE_PARTS = {
     "J1": ("cec", "CEC_RJ45_8P8C_FTP", "TO-HUB"),
     "U1": ("cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N4R2"),
-    "U2": ("cec-vendor", "TJA1051T-3", "TJA1462A"),
+    "U2": ("cec-vendor", "TJA1051T-3", "TJA1051T/3"),
     "U3": ("cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3"),
     # DETECT module-ID precision resistor (pin 8 -> GND), read on the Hub's
     # 10k / 3.3V divider. OQ-6 RESOLVED (spec §2.3 v1.7): these generated modules
@@ -87,11 +88,11 @@ BASE_PARTS = {
     "C1": ("cec-vendor", "C_Small", "1u"),    # LP5907 VIN bulk (+5VSB)
     "C2": ("cec-vendor", "C_Small", "1u"),    # LP5907 VOUT bulk (+3V3)
     "C3": ("cec-vendor", "C_Small", "100n"),  # ESP32-S3 3V3 local bypass
-    "C4": ("cec-vendor", "C_Small", "100n"),  # TJA1462A VCC (+5VSB) bypass
+    "C4": ("cec-vendor", "C_Small", "100n"),  # TJA1051T/3 VCC (+5VSB) bypass
     "C5": ("cec-vendor", "C_Small", "100n"),  # EN reset RC (with R2)
     "C6": ("cec-vendor", "C_Small", "10u"),   # +5VSB board-entry bulk
     "C7": ("cec-vendor", "C_Small", "10u"),   # +3V3 bulk at the ESP32
-    "C8": ("cec-vendor", "C_Small", "100n"),  # TJA1462A VIO (+3V3) bypass
+    "C8": ("cec-vendor", "C_Small", "100n"),  # TJA1051T/3 VIO (+3V3) bypass
     # DETECT-pin protection + poke-and-ack tap (added platform-wide, v3.2).
     # D1: low-capacitance ESD diode on pin 8 -> GND, LOCKED on every Hub/module
     # for hot-plug insertion ESD on the bare analog input (spec §2.4 v2.0).
