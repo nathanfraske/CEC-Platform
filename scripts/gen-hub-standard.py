@@ -21,6 +21,20 @@ import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_sch
 
+# ---------------------------------------------------------------------------
+# STALE — DO NOT RUN against the live board. This generator predates the GUI/
+# hand work on hubs/hub-standard: it still describes ESP32-S3-MINI-1 (not the
+# WROOM-1), an R1 1 ohm inrush resistor and NO TPS2121 mux, DETECT pull-ups to
+# +5VSB (the bug fixed to +3V3), and lacks U5 (mux), D2-D6 (ESD), the blackout
+# sense, the flash buttons, and the SK6812 level shifter (U6/R14/C14). Re-running
+# it OVERWRITES the schematic with that old, buggy, pre-mux design and breaks the
+# routed PCB. The live .kicad_sch is hand-maintained — edit it directly (or splice
+# with cec_sch primitives). Set CEC_ALLOW_HUB_REGEN=1 only to bootstrap a brand-
+# new board from scratch (then expect to re-do all the post-generator work).
+if os.environ.get("CEC_ALLOW_HUB_REGEN") != "1":
+    sys.exit("gen-hub-standard.py is STALE; refusing to overwrite the live, "
+             "hand-maintained schematic (see header). CEC_ALLOW_HUB_REGEN=1 to override.")
+
 ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
         "cec-vendor": open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),

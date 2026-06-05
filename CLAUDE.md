@@ -240,6 +240,16 @@ Per-tier hardware:
   table had not cleaned up). D1 is the downstream Schottky isolating the
   +5V_HOLD reservoir — BUILT as SB120 (1A/20V); the spec/README named SS14
   (40V), which is a drop-in higher-margin alternative (both fine on 5V).
+  SK6812 data level shift (2026-06-05): the ESP32's 3.3 V GPIO is below the 5 V
+  SK6812 V_IH (0.7*VDD ~= 3.5 V), so the LED data line is buffered up to 5 V by
+  U6 (74AHCT1G34, SOT-23-5, VCC=+5VSB, C14 100 nF) with R14 330 ohm series into
+  DL1.DIN — chosen over a VDD-drop diode to avoid any LED dimming. Added to the
+  hand-maintained .kicad_sch via cec_sch splice, ERC + netlist verified (chain
+  U1.IO->U6->R14->DL1.DIN); PCB still needs Update-from-Schematic + place/route
+  of U6/R14/C14. NOTE: scripts/gen-hub-standard.py is STALE (pre-mux, pre-WROOM,
+  pre-ESD, pre-shifter) and now GUARDED with a refusal-to-run — the live
+  schematic is hand-maintained, do NOT regenerate it (it would revert the board
+  and break the routed PCB).
 - Hub Pro: ESP32-P4, 8 ports, classical CAN plus RS-485 streaming receivers (one
   receiver per port as the working basis, pending OQ-5), USB High Speed.
   Bulk power on the dedicated 2-pin +5VSB power-in connector (OQ-1, spec §2.7).

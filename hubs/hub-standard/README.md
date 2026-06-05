@@ -21,7 +21,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Reverse polarity / isolation | TPS2121 OR-mux blocks reverse current on the source side; **D1** Schottky isolates the `+5V_HOLD` reservoir downstream. D1 is **SB120** (1 A / 20 V) as built; **SS14** (1 A / 40 V) is a drop-in higher-margin alternative — both adequate on the 5 V rail. |
 | Supervisor | TPS3839K33 (3.3V-rail brownout/POR), RESET → ESP32 EN |
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
-| LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2) |
+| LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2). Data line 3.3 → 5 V level-shifted: **U6 (74AHCT1G34)** buffer (VCC = +5VSB, C14 100 nF decap) + **R14** 330 Ω series into DL1.DIN — the ESP32's 3.3 V GPIO is below the 5 V SK6812 V_IH (0.7·VDD ≈ 3.5 V), so the buffer guarantees a clean 5 V data high with no LED dimming. |
 | Service button | Hidden, GPIO0 (download mode) |
 | Mounting | 4× M3 corner holes, chassis-grounded (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` — pad + stitching vias to the In1 GND plane; PC-standard fastener, spec v1.10) |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
@@ -93,6 +93,17 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > `LAYOUT-GUIDE.md` are in. 4-layer 1.6 mm, In1 = GND plane (EMC — see
 > LAYOUT-GUIDE.md). Remaining before fab: the GUI pour/route pass above, then
 > drop the `DRAFT` marker.
+>
+> **Update (2026-06-05):** the GUI pour/route pass above is largely DONE — In1
+> refilled to **one solid island**, `+5VSB` widened to 1.0 mm, and the
+> `/5VSB_RAW` trunk taken to a fat trace. **DRC: 0 `track_width`, 0 unconnected**
+> (remaining is silk cosmetics + one stray `/USB_VBUS` stub to delete). **SK6812
+> data level shifter ADDED to the schematic** (U6 74AHCT1G34 + R14 330 Ω + C14
+> 100 nF; ERC + netlist verified: ESP LED-data GPIO → U6 → R14 → DL1.DIN, VCC on
+> +5VSB). **PCB to-do:** "Update PCB from Schematic", then place + route the 3
+> new parts near DL1, re-DRC, and drop `DRAFT`. (The 2 new `lib_symbol_mismatch`
+> on R14/C14 are the same benign class as the existing 28 — clears with GUI
+> Tools → Update Symbols from Library.)
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
