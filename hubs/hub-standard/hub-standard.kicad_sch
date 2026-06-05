@@ -5,7 +5,7 @@
 	(uuid "aa22b2b4-0e2b-481a-a188-ee3f43fcbaa8")
 	(paper "A2")
 	(lib_symbols
-				(symbol "cec-vendor:SN74AHCT1G08"
+		(symbol "cec-vendor:SN74AHCT1G08"
 			(pin_names (offset 0.254))
 			(exclude_from_sim no)
 			(in_bom yes)
