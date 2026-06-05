@@ -14562,7 +14562,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "CONNFLY" (at 0 0 0)
+		(property "Manufacturer" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14570,7 +14570,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "DS1129-05-S80BP-X" (at 0 0 0)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -14578,7 +14578,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C86580" (at 0 0 0)
+		(property "LCSC" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16812,7 +16812,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "CONNFLY" (at 0 0 0)
+		(property "Manufacturer" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16820,7 +16820,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "DS1129-05-S80BP-X" (at 0 0 0)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -16828,7 +16828,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C86580" (at 0 0 0)
+		(property "LCSC" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17661,7 +17661,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "CONNFLY" (at 0 0 0)
+		(property "Manufacturer" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17669,7 +17669,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "DS1129-05-S80BP-X" (at 0 0 0)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -17677,7 +17677,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C86580" (at 0 0 0)
+		(property "LCSC" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19241,7 +19241,7 @@
 				)
 			)
 		)
-		(property "Manufacturer" "CONNFLY" (at 0 0 0)
+		(property "Manufacturer" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19249,7 +19249,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "DS1129-05-S80BP-X" (at 0 0 0)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -19257,7 +19257,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C86580" (at 0 0 0)
+		(property "LCSC" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)

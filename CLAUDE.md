@@ -108,14 +108,17 @@ Connector and physical interface:
   remain available for high-security deployments. Shielded (FTP) jacks on Hub and
   modules.
 - Shielded-jack divergence (OQ-37, renumbered v3.2): spec §2.1 LOCKS shielded
-  (FTP) jacks platform-wide. Hub Standard now assigns the shielded FTP footprint
-  (cec:RJ45_FTP_Shielded_Horizontal) on J2-J5 (2026-06-04) — pad-for-pad identical
-  to the old Amphenol 54602 land, so it drops onto the existing placement/routing.
-  REMAINING GATE before fab: lock the exact shielded MPN (Wuerth 615008-series
-  horizontal, non-magnetic, is the reference) and confirm/adjust the SH1/SH2 +
-  mounting-peg geometry to it — the prepared footprint mirrors the 54602's two
-  side board-locks, and some shielded jacks instead ground via a rear post or add
-  front shield fingers. The standalone modules + 24-pin rev2 still carry the
+  (FTP) jacks platform-wide. Hub Standard J2-J5 use cec:RJ45_FTP_Shielded_Horizontal,
+  which (2026-06-05) is now the AUTHORITATIVE Kinghelm KH-RJ45-58-8P8C (LCSC
+  C2683360) footprint pulled via easyeda2kicad and origin-aligned to the legacy
+  1.27mm land (pad1..8 at (0,0)..(8.89,-2.54), so the 8 contacts stay routed; shell
+  ground tabs renamed 9/10 -> SH1/SH2). MPN LOCKED (single shielded 8P8C, metal
+  shell, right-angle TH, 1.5A). The prior C86580 candidate was rejected — it is a
+  DUAL-port jack (wrong). The spec design-reference Wuerth 615008137421 (C132217)
+  was declined: its real 1.02mm contact pitch does not match the board's 1.27mm
+  routing (full re-route) and stock is thin (~166). REMAINING (GUI): "Update
+  Footprints from Library" to pull the geometry onto J2-J5 — contacts preserved,
+  reconnect the 2 GND shield tabs per jack. The standalone modules + 24-pin rev2 still carry the
   UNSHIELDED 54602 (LCSC C2847314); that is COMPATIBLE, not a conflict — a shielded
   Hub jack with unshielded module jacks terminates the cable shield at one end only
   (the Hub: SH1/SH2 -> GND/chassis), which is the preferred single-end grounding,
@@ -422,23 +425,28 @@ Open items (surface before acting):
    verified (static audit + exported netlist). STILL PENDING: assign the D1
    footprint at layout on each; the ordered 24-pin rev2 PCB shipped without it
    (rev3 picks it up).
-2. FTP shielded jack (§2.1 / OQ-37): Hub Standard schematic DONE (2026-06-04) —
-   J2-J5 now assign cec:RJ45_FTP_Shielded_Horizontal (pad-identical to the 54602,
-   routing-preserving). STILL PENDING: (a) MPN -> an LCSC shielded TH non-magnetic
-   jack for JLC assembly; lead candidate CONNFLY DS1129-05-S80BP-X (LCSC C86580 —
-   shielded copper shell, no LED, TH, 1.5A, in stock; alt Kinghelm KH-RJ45-58-8P8C
-   / C2683360). Pull the part's authoritative EasyEDA footprint via
-   `easyeda2kicad --full --lcsc_id=C86580`, commit the .kicad_mod into lib/, and
-   repoint J2-J5 at it (replaces the generic cec:RJ45_FTP_Shielded_Horizontal;
-   guarantees JLC pick-and-place alignment). NOTE: the environment network policy
-   was updated 2026-06-04 to allow LCSC/EasyEDA for FUTURE sessions; that change
-   does NOT apply to an already-running session, so it must be picked up in a
-   fresh session (until then the import 403s; only PyPI/GitHub are reachable).
-   NEXT-SESSION TODO: run that import first thing, or paste the datasheet PCB
-   layout to build it in-repo; (b) in the GUI run "Update PCB from Schematic" to pull the footprint
-   onto the placed J2-J5; (c) modules + 24-pin rev2 still carry the unshielded
-   54602 (compatible — single-end shield at the Hub) — move them to FTP on their
-   next rev.
+2. FTP shielded jack (§2.1 / OQ-37): Hub Standard footprint RESOLVED + AUTHORITATIVE
+   (2026-06-05). The MPN is the Kinghelm KH-RJ45-58-8P8C (LCSC C2683360) — a single
+   shielded 8P8C right-angle TH jack with metal-shell ground tabs. IMPORTANT: the
+   prior "lead candidate" C86580 (CONNFLY DS1129-05-S80BP-X) was WRONG — pulling it
+   showed it is a DUAL-port (16-contact, 31mm) jack, not the single-port the Hub's
+   J2-J5 need. The C2683360 footprint was pulled via easyeda2kicad, upgraded to
+   KiCad-10 format, and ORIGIN-ALIGNED so pad1 lands at (0,0) — i.e. the 8 contacts
+   sit exactly on the legacy 1.27mm prepared land (pad1..8 = (0,0)..(8.89,-2.54)),
+   so the existing contact routing is preserved; its two metal-shell ground tabs
+   were renamed 9/10 -> SH1/SH2 to map to the symbol's shield pins (both GND). It
+   REPLACED lib/cec.pretty/RJ45_FTP_Shielded_Horizontal.kicad_mod in place (same
+   name -> J2-J5 need no schematic repoint), with the Kinghelm provenance in the
+   footprint descr + the J2-J5 BOM props (LCSC C2683360). 3D model vendored at
+   lib/3dmodels/Connector_RJ.3dshapes/. (The spec design-reference was the Wuerth
+   615008137421 / C132217, but its real land is a 1.02mm pitch that does NOT match
+   the board's 1.27mm routing — adopting it would force a full re-route of all 4
+   jacks — and stock is thin (~166); Kinghelm was chosen as the drop-in, §2.1/OQ-37
+   updated to match.) STILL PENDING (GUI): run "Update Footprints from Library" to
+   pull the new geometry onto the placed J2-J5 — the 8 contacts stay connected,
+   only the 2 shield tabs (SH1/SH2, both GND) need reconnecting per jack + a body/
+   courtyard glance. Modules + 24-pin rev2 still carry the unshielded 54602
+   (compatible — single-end shield at the Hub) — move them to FTP on their next rev.
 3. Hub Standard PCB pre-fab layout pass (2026-06-04 review): the board is PLACED
    and FULLY ROUTED (DRC 0 unconnected), but a GUI pour/route pass remains before
    dropping DRAFT. (a) GROUND: only In1 is poured and it reads as fragmented
@@ -474,8 +482,7 @@ Done (kept for context):
    platform-wide (spec §3.1 v3.5) AND propagated: Hub Standard + all 6 module
    schematics + gen-modules.py now read TJA1051T/3 (C38695), ERC clean each;
    Hub Pro/12VHPWR Pro have no transceiver yet so inherit it when built out;
-  (c) J2-J5 RJ45 keeps the generic cec FTP footprint — pull C86580's authoritative
-  footprint via easyeda2kicad and verify pad-compatibility before fab (action #2);
+  (c) DONE 2026-06-05 — J2-J5 RJ45 now carries the authoritative Kinghelm KH-RJ45-58-8P8C (C2683360) footprint, origin-aligned to the routed land (C86580 was a dual-port jack, rejected; see action #2);
   (d) re-check C1 4700uF (~385) and U4 TPS3839K33 (~120) stock before any volume run.
 - Hub Standard netclass-pattern fix (2026-06-04): the Power/CAN/USB netclass
   patterns in .kicad_pro lacked the root-sheet "/" prefix, so /5VSB_RAW,
