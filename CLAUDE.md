@@ -473,8 +473,12 @@ Done (kept for context):
   connectors OVERHANG their edge so a cable seats without the board fouling the plug
   overmold while the solder pads stay on-board: J3's right-angle shroud/mouth
   (~9.5mm deep, local -y) overhangs the TOP edge ~3mm (12V pads ~6.5mm in); J1
-  (RJ-45) and J5 (USB-C) overhang the RIGHT edge. J4 KEEPS J3's rotation (NOT 180)
-  so the lanes don't cross — it's a soldered pigtail, wires just exit the bottom.
+  (RJ-45) and J5 (USB-C) overhang the RIGHT edge. J4 (OUT) is ROT 180 (mouth out the
+  bottom edge = correct OUT orientation, mirrors J3); the +12V LO nets are remapped
+  to the 180-reversed pins (J4 pin 6-j, interchangeable — all common to the GPU 12V
+  plane, current already measured at each shunt) so the lanes still DON'T cross.
+  (Corrected 2026-06-05: the earlier "J4 NOT 180" was wrong — an OUT connector
+  should face out its edge; the remap keeps lanes clean.) Soldered pigtail.
   Added the CEC_CONN_12V2x6 symbol + approximate CEC_12V2x6_Horizontal footprint
   (LOCK from datasheet). FAN-OUT: J3/J4 keep the connector's fixed 3mm pin pitch
   (centered); the six +12V lanes splay symmetrically to a ~6mm SENSE pitch so each

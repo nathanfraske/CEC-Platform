@@ -104,7 +104,8 @@ for i in range(6):
 axL.text((JX[0] + JX[-1]) / 2, py(15.8), "fan 3→6 mm (symmetric ⇒ equal-length lane pairs)",
          ha="center", fontsize=6.6, color="#fadbd8", fontstyle="italic", zorder=9)
 
-# ---- J4 pigtail land (same rotation as J3 → lanes don't cross) ----
+# ---- J4 pigtail land (rot 180, mouth out the bottom; +12V remapped pin 6-j so
+#      the lanes stay non-crossing despite the reversal) ----
 axL.add_patch(FancyBboxPatch((JX[0] - 2.4, py(yJ4) - 3.2), (JX[-1] - JX[0]) + 4.8, 6.0,
               boxstyle="round,pad=0.15", facecolor="#0e2c1e", edgecolor="0.8", lw=1.0, zorder=2))
 for i, jx in enumerate(JX):
@@ -112,7 +113,7 @@ for i, jx in enumerate(JX):
     for k in range(3):                                  # stitch each pin into both outers
         axL.add_patch(Circle((jx - 0.7 + k * 0.7, py(yJ4 + 3.0)), 0.28, facecolor=VIA,
                       edgecolor="k", lw=0.3, zorder=6))
-axL.text((JX[0] + JX[-1]) / 2, py(yJ4) - 4.4, "J4  pigtail OUT → GPU  (3 mm pins)",
+axL.text((JX[0] + JX[-1]) / 2, py(yJ4) - 4.4, "J4  pigtail OUT → GPU  (rot 180, mouth out ↓)",
          ha="center", va="top", fontsize=7.4, fontweight="bold", color="w")
 
 # legend BELOW the board (outside the outline)

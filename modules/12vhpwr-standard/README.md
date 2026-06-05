@@ -46,8 +46,12 @@ any). Routing spec (laid in the GUI — the generator only sets placement):
   pitch**, centered on the power section; the six +12V lanes **fan out symmetrically
   to a ~6 mm SENSE pitch**, so each lane gets its OWN column — in-line shunt → RC
   filter → INA240 stacked straight down (no staggering, short in-column Kelvin) —
-  then **fan back in** to J4. J4 keeps J3's rotation so the lanes don't cross. The
-  symmetric fan keeps the lanes in equal-length pairs; if the small inner/outer
+  then **fan back in** to J4. **J4 is placed rot 180°** (mouth out the bottom edge =
+  correct OUT orientation, mirroring J3 at the top); since the six +12V pins are
+  electrically interchangeable (all common to the GPU 12V plane, current already
+  measured at each shunt upstream), each lane's load side is mapped to the J4 +12V
+  pad directly below it (pin 6−*j*) so the lanes still **don't cross** despite the
+  180. The symmetric fan keeps the lanes in equal-length pairs; if the small inner/outer
   length spread matters, length-match the straight section in the GUI (the 1 mΩ
   shunt + connector-contact R dominate, so it's minor).
 - **Width (IPC-2221, 2 oz outer):** design to the **contact** rating, not nominal —
@@ -86,8 +90,10 @@ own column (in-column shunt/filter/INA, short Kelvin, no staggering). The **plug
 connectors overhang their board edge** so a cable seats without the board fouling
 the plug overmold while the solder pads stay on-board: **J3** (PSU 12V‑2×6 IN, top-
 centre) overhangs the **top** edge ~3 mm; **J1** (RJ-45) and **J5** (USB-C) overhang
-the **right** edge. **J4 keeps J3's rotation (not 180°)** so the lanes don't cross;
-it's a captive soldered pigtail (wires exit the bottom). **Three M3 corner mounts**
+the **right** edge. **J4** (12V‑2×6 OUT) is **rot 180°** so its mouth/body overhang
+the **bottom** edge too (correct OUT orientation, mirroring J3); the +12V load nets
+are remapped to the reversed pins (pin 6−*j*, interchangeable) so the lanes stay
+non-crossing. It's a captive soldered pigtail (wires exit the bottom). **Three M3 corner mounts**
 (TL/TR/BL) — the RJ-45's big jack body fills the bottom-right corner, and the three
 through-hole connectors anchor that side. The **per-lane sense passives are now
 placed** (RFH/RFL/CF input filter + the INA bypass C10–C15); **component values are

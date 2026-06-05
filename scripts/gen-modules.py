@@ -287,14 +287,20 @@ def build(dirn):
         # PSU 12V-2x6 cable plugs in); J4 = captive OUTPUT pigtail land (a 12V-2x6
         # cable soldered to the board, female plug to the GPU -- no board-mount
         # female 12V-2x6 exists, so this is the minimal-mated-pair inline form).
-        # Pins 1-6 +12V, 7-12 GND, 13-16 sideband. Each +12V enters on J3 -> its
-        # shunt (SENSE*_HI) and leaves on the matching J4 pad (SENSE*_LO); GND and
-        # the 4 sideband pins pass straight through J3->J4.
+        # Pins 1-6 +12V, 7-12 GND, 13-16 sideband. J4 is placed rot 180 on the PCB
+        # (mouth out the bottom edge = correct OUT orientation), which reverses its
+        # pin order vs J3. The six +12V pins are electrically interchangeable (all
+        # common to the GPU 12V plane, and each lane's current is already measured
+        # at its shunt UPSTREAM), so each lane's load side maps to the J4 +12V pad
+        # directly below it -> J4 pin (6-j) -> the high-current lanes stay straight
+        # and non-crossing despite the 180. GND (7-12) is all-common; the 4 sideband
+        # pins pass through by NET (J3.p<->J4.p), correct regardless of rotation on a
+        # soldered pigtail.
         parts["J3"] = ("cec", "CEC_CONN_12V2x6", "12V-2x6 IN")
         parts["J4"] = ("cec", "CEC_CONN_12V2x6", "12V-2x6 OUT pigtail")
         for j, (label, _sv) in enumerate(nodes):
             nets[f"SENSE{label}_HI"].append(("J3", str(j+1)))
-            nets[f"SENSE{label}_LO"].append(("J4", str(j+1)))
+            nets[f"SENSE{label}_LO"].append(("J4", str(6 - j)))   # rot-180 reversal
         for p in range(7, 13):
             nets["GND"] += [("J3", str(p)), ("J4", str(p))]
         # 4 sideband sense pins (12V-2x6 pins 13-16: SENSE0, SENSE1,
@@ -360,13 +366,15 @@ def layout(dirn, parts):
         # cluster, LOAD-side OUT to the right, on a band above the sensing row.
         P[f"J_IN{i+1}"]  = (X - 25.4, 160)     # PSU side
         P[f"J_OUT{i+1}"] = (X + 25.4, 160)     # load side
-        # 12VHPWR INA240 input filter (Rf series on each leg, Cdiff between),
-        # parked in the gap between the shunt and the amp. The INA240 symbol box is
-        # 15.2mm (±7.62 incl. pins), so keep all three LEFT of X-7.62 to avoid the
-        # audit's symbol_overlap. Harmless on i2c modules (refdes absent).
-        P[f"RFH{i+1}"] = (X - 19.05, 205.74)   # series Rf, IN+ leg
-        P[f"RFL{i+1}"] = (X - 19.05, 215.90)   # series Rf, IN- leg
-        P[f"CF{i+1}"]  = (X - 13.97, 210.82)   # Cdiff, clear of the INA box
+        # 12VHPWR INA240 input filter (Rf series on each leg, Cdiff between). These
+        # connect by NET LABEL, so they just need clear, NON-COLLIDING stubs: put
+        # the three in SEPARATE x-columns (R_Small/C_Small pins are vertical, so a
+        # shared x makes their up/down stubs overlap and MERGE the nets -- which is
+        # exactly what broke INPP/SENSE_LO before). Row sits below the shunt/INA so
+        # no stub reaches the INA box. Harmless on i2c modules (refdes absent).
+        P[f"RFH{i+1}"] = (X - 21.0, 235.0)     # series Rf, IN+ leg  (own column)
+        P[f"RFL{i+1}"] = (X - 15.0, 235.0)     # series Rf, IN- leg  (own column)
+        P[f"CF{i+1}"]  = (X - 9.0, 235.0)      # Cdiff               (own column)
     if dirn == "12vhpwr-standard":
         # 47k/10k rail-voltage divider + the 4 sideband sense taps, parked below
         # the per-pin row.

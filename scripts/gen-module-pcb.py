@@ -64,9 +64,11 @@ def placement_hpwr():
     from that 3 mm pitch to a ~6 mm SENSE pitch, so each lane gets its OWN column
     with room for its in-line shunt -> RC input filter -> INA240 stacked straight
     down (short Kelvin, no staggering). Symmetric fan => equal-length lane pairs.
-    The plug connectors overhang their edges (J3 top; J1/J5 right). J4 keeps J3's
-    rotation so the lanes don't cross. Now that J3/J4 sit centered (not in the
-    corners), there is room for four corner M3 mounts. The per-lane sense passives
+    The plug connectors overhang their edges (J3 top; J1/J5 right; J4 bottom). J4
+    (OUT) is rot 180 so its mouth overhangs the bottom edge (correct OUT orientation,
+    mirrors J3); the +12V load nets are remapped (gen-modules.py: J4 pin 6-j,
+    interchangeable) so the lanes stay non-crossing despite the 180. Now that J3/J4
+    sit centered (not in the corners), there is room for corner M3 mounts. The per-lane sense passives
     (RFH/RFL/CF + the INA bypass C10-C15) are placed here; the control-side
     decoupling (C1-C8, R1/R2/R7, D1) still comes via Update-from-Schematic."""
     PIT = 6.0
@@ -85,7 +87,12 @@ def placement_hpwr():
         P[f"CF{i+1}"]  = (x, 33.6, 90)               # differential cap, at the INA in
         P[f"U1{i}"]    = (x, 39.0, 90)               # INA240 (rot90 = 4.4mm wide, fits 6mm)
         P[f"C1{i}"]    = (x, 44.5, 0)                # INA V+ 100nF bypass (C10..C15)
-    P["J4"] = (jorg, 70.0, 0)                         # 12V-2x6 pigtail OUT (same rot)
+    # J4 = pigtail OUT, rot 180 so its mouth faces OUT the bottom edge (mirrors J3
+    # at the top) — the correct OUT orientation. Origin shifts +15mm in x so the
+    # 180-reversed +12V pins land back in the same x-band; y set for a ~3mm bottom
+    # overhang symmetric to J3. The +12V load nets are remapped (gen-modules.py) so
+    # the lanes stay non-crossing into the reversed pins.
+    P["J4"] = (jorg + 15.0, 73.5, 180)
     # --- control / power core + flash front end (right of the fanned lanes) ---
     P["U2"] = (44.0, 7.0, 0)                          # TJA1462A CAN (top)
     P["D2"] = (43.0, 14.0, 90); P["C9"] = (47.0, 14.0, 0)   # VBUS ORing (vert) + bulk
