@@ -156,6 +156,37 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > confirms `TEMP_HUB` = TH1.2/R25.1/C16.1/IO3; on-grid audit ok; all 3 parts
 > sourced. PCB to place near the front-end on the next Update-from-Schematic pass.
 
+> **Placement plan (2026-06-05) — the 20 incoming parts.** The §2.9 power-switch
+> cluster (U7/J8/R_ILIM2/C_SS2/C15/R15-R18), the J7 NanoKVM-aux cluster
+> (J7/D7/R19-R24), and the board-temp NTC (TH1/R25/C16) are all in the schematic
+> but not yet on the PCB. **They land via "Update PCB from Schematic" in the GUI**
+> — which is also what reconciles the §2.9 net changes onto already-routed parts
+> (`U5.OUT`→`PSU_5V`, `U7` inserted into the power path, ESP IO1/2/3/9/10/11/12
+> no-connect→net). That netlist reconciliation is a GUI op, not hand-editable on a
+> routed board. A collision-checked floorplan (clear of every existing courtyard)
+> is in `hub-standard-placement-plan.png` (regenerate with
+> `scripts/gen-hub-placement-plan.py`). Target positions, `(at X Y rot)`, all `F.Cu`:
+>
+> | Ref | x | y | rot | Cluster / role |
+> |---|---|---|---|---|
+> | U7 | 149.5 | 120.5 | 0 | 2nd TPS2121, in the U5.OUT→rail pocket above C1 |
+> | C15 | 146.5 | 120.5 | 0 | U7 input bypass, beside U7 |
+> | C_SS2 | 131.0 | 144.5 | 0 | U7 soft-start (center-right open area) |
+> | R_ILIM2 | 133.0 | 144.5 | 0 | U7 current-limit set |
+> | R15 / R16 | 135.0 / 131.0 | 144.5 / 146.7 | 0 | MAIN_5V 47k/10k sense → IO9 |
+> | R17 / R18 | 133.0 / 135.0 | 146.7 | 0 | 5VSB 47k/10k sense → IO10 |
+> | J8 | 164.0 | 149.0 | 90 | MAIN_5V feed, right edge below C1 |
+> | TH1 / R25 / C16 | 139.0 / 141.0 / 140.0 | 122.5 / 122.5 / 124.5 | 0 | NTC trio, warm zone by D1/U7 |
+> | J7 | 88.0 | 161.5 | 0 | NanoKVM aux, bottom-left edge (cable exit) |
+> | D7 | 81.0 | 156.0 | 0 | KVM-ref ESD, at J7 |
+> | R19-R24 | 84.0–94.0 | 156.0 | 0 | UART series (R19/20) + ratiometric dividers (R21-24) |
+>
+> Notes: J8 sits on J1's (right) edge but below C1 — the future J1+J8 3-pin-feed
+> consolidation (§2.9 production item) co-locates them when the front-end is
+> revised. The §2.9 rail-sense dividers are high-Z DC taps, so the ~50 mm run to
+> the ESP is acceptable (firmware averages). `MAIN_5V_RAW`/`PSU_5V`/`+5VSB` route
+> at the **Power** netclass width (the new trunk carries the full subsystem rail).
+
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
 land here (`hub-standard.kicad_pro` / `.kicad_sch` / `.kicad_pcb`) with
