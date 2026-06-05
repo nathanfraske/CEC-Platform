@@ -19,11 +19,23 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 | Flash/debug | USB-C (J5) on the ESP32-S3 native USB + BOOT/RESET buttons (SW1/SW2); VBUS ORs into +5VSB via D2 (SS34); CC1/CC2 = 5.1 kΩ |
 | BOM target | $49 (100-qty) |
 
-> ⚠ **Lock the 12V‑2×6 footprint before fab.** `lib/cec.pretty/CEC_12V2x6_Horizontal`
-> is an **approximate** land (3.0 mm pitch, 2×6 power + 4 sideband) built from
-> public dims — the part-data hosts are network-blocked. Lock it to the **Molex
-> 219116 (2191160161 right-angle) / Amphenol Minitek Pwr CEM‑5** datasheet (or
-> import via `easyeda2kicad` on an open network), same as the Hub FTP jack.
+> ✅ **12V‑2×6 footprint LOCKED (2026-06-05).** `lib/cec.pretty/CEC_12V2x6_Horizontal`
+> is now the **official Molex footprint** — Molex **219116** PCIe CEM5 12V‑2×6
+> right‑angle THT header, MPN **2191161161** (T&R) = **2191160161** (tray), doc
+> 2191160001‑SD — vendored from Molex's KiCad export, pads remapped to the schematic
+> numbering: **1–6 = +12V** (row adjacent to the signal pins), **7–12 = GND** (outer
+> row), **13–16 = sideband S1–S4**. Real geometry: 3 mm pitch, power drill 1.07 mm /
+> 1.52 mm pad, signal drill 0.61 mm / 1.14 mm pad; **9.2 A/power pin**, 12 V.
+>
+> Two follow‑ups: **(1) safety —** the connector is symmetric (both rows are just
+> "POWER"); +12V vs GND is the system/CEM assignment, so **verify pins 7–12 = GND**
+> (i.e. 1–6 = +12V) against PCIe CEM5.1 / the target GPU before powering, since the
+> schematic ties 7–12 to the GND plane. **(2) board pickup —** the board still
+> carries the old approximate land; in KiCad do **Update Footprints from Library**
+> to pull this one (converts + remaps nets by pad number), then orient **J3 rot 180
+> / J4 rot 0** (this footprint's mouth is on +y, so that puts the mouth out the edge
+> with GND toward the shunts). The real ~1.5 mm pad gaps let the +12V lanes neck
+> between the GND barrels (vs the old ~0.6 mm approximate that trapped them).
 
 ## Open questions touching this board
 

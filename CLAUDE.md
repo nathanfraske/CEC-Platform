@@ -177,8 +177,22 @@ RJ-45 module-to-Hub interface above):
   female. So the inline module is board-mount right-angle MALE header IN (PSU
   cable plugs in) + a captive soldered OUTPUT pigtail to the GPU (a 12V-2x6 cable
   soldered to the board, no detachable bridging cable) — the minimal-mated-pair
-  form. Footprint cec:CEC_12V2x6_Horizontal is APPROXIMATE; lock to the Molex
-  219116 (2191160161 right-angle) / Amphenol Minitek datasheet before fab.
+  form. Footprint cec:CEC_12V2x6_Horizontal is now the OFFICIAL Molex footprint
+  (LOCKED 2026-06-05): Molex 219116 / PCIe CEM5 12V-2x6 right-angle THT header,
+  MPN 2191161161 (T&R) = 2191160161 (tray), doc 2191160001-SD. Vendored from
+  Molex's KiCad export with pads remapped to the CEC schematic numbering: pins 1-6
+  = +12V (the row ADJACENT to the signal pins), 7-12 = GND (the OUTER row), 13-16 =
+  sideband S1..S4. Real geometry: 3.0mm pin pitch / 3.0mm row pitch, power drill
+  1.067mm (1.52mm pad), signal drill 0.61mm (1.14mm pad), 9.2A/power pin, 12V.
+  NOTE pad gaps are ~1.5mm (real part) vs the old approximate ~0.6mm, so the +12V
+  lanes can now NECK between the GND barrels. SAFETY: the connector is symmetric
+  (both rows "POWER"); +12V vs GND is a system/CEM assignment — VERIFY pins 7-12 =
+  GND (i.e. 1-6 = +12V) against PCIe CEM5.1 / the target GPU before powering, since
+  the schematic ties 7-12 to the GND plane (a swap shorts +12V to GND). The
+  generator's placement_hpwr J3/J4 ROTATIONS are now stale for this footprint (its
+  mouth is on +y, so mouth-out-the-edge needs J3 rot 180 / J4 rot 0, not 0/180) and
+  its placement coords assume the old pad rows — do NOT regenerate the GUI-owned
+  board; pick the footprint up in KiCad via "Update Footprints from Library".
 
 Pin allocation (LOCKED; DETECT encoding resolved v1.7):
 
@@ -521,8 +535,10 @@ Done (kept for context):
   plane, current already measured at each shunt) so the lanes still DON'T cross.
   (Corrected 2026-06-05: the earlier "J4 NOT 180" was wrong — an OUT connector
   should face out its edge; the remap keeps lanes clean.) Soldered pigtail.
-  Added the CEC_CONN_12V2x6 symbol + approximate CEC_12V2x6_Horizontal footprint
-  (LOCK from datasheet). FAN-OUT: J3/J4 keep the connector's fixed 3mm pin pitch
+  Added the CEC_CONN_12V2x6 symbol; the CEC_12V2x6_Horizontal footprint is now the
+  OFFICIAL Molex 219116 / 2191161161 part (LOCKED 2026-06-05, see §2.8 above — real
+  pinout 1-6=+12V/7-12=GND/13-16=signal, ~1.5mm gaps; pick it up on the board via
+  Update-Footprints-from-Library, J3 rot 180 / J4 rot 0). FAN-OUT: J3/J4 keep the connector's fixed 3mm pin pitch
   (centered); the six +12V lanes splay symmetrically to a ~6mm SENSE pitch so each
   lane gets its OWN column with room for its in-line shunt -> RC input filter
   (RFH/RFL 10ohm + CF 470n) -> INA240 (rot90, 4.4mm wide fits 6mm) -> bypass
