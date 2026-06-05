@@ -7181,7 +7181,7 @@
 		(property "Description" "3.000V series voltage reference (50 ppm/C, SOT-23-3 DBZ), TI REF3030AIDBZR. On the 12VHPWR Standard it is MEASURED by the ESP32-S3 ADC1 for ratiometric correction (cancels the ESP ADC reference/gain drift); it is NOT the ADC reference. DBZ pinout 1=IN, 2=OUT, 3=GND (per TI/UltraLibrarian CAD; footprint = UL DBZ3 land)." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "REF3030AIDBZR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C38423" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(symbol "REF3030_0_1"
 			(rectangle
 				(start -5.08 2.54)

@@ -8951,7 +8951,7 @@
 		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ref3030.pdf" (at 439.42 261.62 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "REF3030AIDBZR" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C38423" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "203686a1-4077-4e44-a135-fc126ca76ea6"))
 		(pin "2" (uuid "51aadf8e-c9bd-4830-98f5-74bcc63f1241"))
 		(pin "3" (uuid "b3ab1c89-7ebc-4136-9840-0c057c5867bf"))

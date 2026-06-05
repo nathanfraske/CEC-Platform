@@ -34,7 +34,7 @@ lib_symbol_mismatch; netlist-verified VREF=REF.OUT+IO8+bypass, SENSE0=R10+IO15;
 UUIDs preserved). REVISES the v3.7 OQ-8 no-ref call — the middle ground below the
 Pro's LTC2358-18. NOTE the part: Standard REF3030=3.0V is MEASURED by the ADC (must
 sit in the ADC range); the Pro's REF3033=3.3V feeds the LTC2358 ref (different use).
-New cec-vendor:REF3030 symbol + UltraLibrarian DBZ3 footprint (cec-Package_TO_SOT_SMD:REF3030_DBZ3); pinout SOT-23 DBZ 1=IN/2=OUT/3=GND -- the user-supplied UL files CORRECTED an earlier hand-made 1/3 (IN/GND) swap that would have reversed the reference supply (re-verified: U4.1 IN->+3V3, U4.2 OUT->VREF, U4.3 GND->GND). LCSC# TBD at sourcing.
+New cec-vendor:REF3030 symbol + UltraLibrarian DBZ3 footprint (cec-Package_TO_SOT_SMD:REF3030_DBZ3); pinout SOT-23 DBZ 1=IN/2=OUT/3=GND -- the user-supplied UL files CORRECTED an earlier hand-made 1/3 (IN/GND) swap that would have reversed the reference supply (re-verified: U4.1 IN->+3V3, U4.2 OUT->VREF, U4.3 GND->GND). LCSC C38423 (in LCSC stock, ~$0.14).
 
 v3.7 (2026-06-05): RESOLVED the NanoKVM aux-link FORM (OQ-51). The link is a
 reserved keyed **5-pin JST-PH** aux header (vendored B5B-PH-K-S — now the right-angle
