@@ -1,0 +1,209 @@
+(footprint "NTC_0402_1005Metric"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -4 0)
+		(layer "F.SilkS")
+		(uuid "401aa3d9-1869-43fa-bba0-8ea5df586cd4")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "NTC_0402_1005Metric"
+		(at 0 4 0)
+		(layer "F.Fab")
+		(uuid "3df435e7-7b4f-420a-94d6-37268e25acae")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "16f71f54-d898-4ca1-b443-2186cdeb995f")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" "Generic 10k NTC thermistor, 0402 (1005 metric). Murata NCP15XH103F03RC land, vendored from LCSC C77131 via easyeda2kicad. 10k +/-1% @25C, B25/50=3380K, 100mW, -40..+125C."
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "158effb9-647b-4476-8d7c-59e439cd65ae")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C77131"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "ca177392-146c-46fe-93dc-753e24c38a4c")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -0.94 -0.5)
+		(end -0.23 -0.5)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "adbb2194-d8c4-4520-bde9-3759ce8896df")
+	)
+	(fp_line
+		(start -0.94 0.5)
+		(end -0.94 -0.5)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f41010b7-53ee-4b11-9130-97aeb81b67ff")
+	)
+	(fp_line
+		(start -0.23 0.5)
+		(end -0.94 0.5)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "903c2914-c042-49d7-a601-ccb1dd5ecddb")
+	)
+	(fp_line
+		(start 0.23 0.5)
+		(end 0.94 0.5)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f0f14539-b1e1-4c7d-868d-fb03e199ab57")
+	)
+	(fp_line
+		(start 0.94 -0.5)
+		(end 0.23 -0.5)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "b4287065-3d52-4e78-bb23-3007fd4b6d2c")
+	)
+	(fp_line
+		(start 0.94 0.5)
+		(end 0.94 -0.5)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "91698165-6557-42ca-a77c-b8d3f62fe677")
+	)
+	(fp_circle
+		(center -0.5 0.25)
+		(end -0.47 0.25)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "3461dfd9-044b-4f78-9da1-393a5e852c09")
+	)
+	(fp_line
+		(start -0.5 -0.25)
+		(end 0.5 -0.25)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "b11e03c9-cfaf-47d4-9097-5734cf8351e0")
+	)
+	(fp_line
+		(start -0.5 0.25)
+		(end -0.5 -0.25)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "8c7bc862-bddd-41a9-81fa-aeffff1f2331")
+	)
+	(fp_line
+		(start 0.5 -0.25)
+		(end 0.5 0.25)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "74c47685-d38c-4405-ac78-2b67f10d30d1")
+	)
+	(fp_line
+		(start 0.5 0.25)
+		(end -0.5 0.25)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "f6ac338b-26fe-4912-bf80-0596e1150251")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "a3ff0f51-a116-4d72-ac30-bb001cb6d6ec")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd rect
+		(at -0.43 0)
+		(size 0.566 0.54)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "e59b639a-d676-4ffc-9dd5-07d8dfafc207")
+	)
+	(pad "2" smd rect
+		(at 0.43 0)
+		(size 0.566 0.54)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "4523ae5e-f2ee-498e-8a2c-165aa23e97b9")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Resistor_SMD.3dshapes/NCP15XH103F03RC.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)

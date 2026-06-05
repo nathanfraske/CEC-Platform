@@ -36,6 +36,24 @@ scripts/vendor-libs.sh verify                     # no global/absolute paths rem
 Then add the vendored library to the board's `sym-lib-table` / `fp-lib-table`
 using a `${KIPRJMOD}`-relative URI (see [`../templates/`](../templates)).
 
+## Generic / reusable parts vendored here
+
+Some parts are vendored to be pulled into **any** board as needed (not tied to
+one design). Datasheets for these are cached in [`../datasheets/`](../datasheets)
+and referenced from the symbol's `Datasheet` field.
+
+| Part | Symbol | Footprint | 3D | LCSC / MPN |
+|---|---|---|---|---|
+| Generic 10 kΩ NTC thermistor (board / connector temp sense) | `cec-vendor:Thermistor_NTC` | `cec-Resistor_SMD:NTC_0402_1005Metric` | `3dmodels/Resistor_SMD.3dshapes/NCP15XH103F03RC.step` | **C77131** / Murata **NCP15XH103F03RC** |
+
+The NTC symbol carries the real part props (Manufacturer / MPN / LCSC /
+Datasheet) and a default footprint, so dropping it on a board is BOM-complete.
+10 kΩ ±1 % @ 25 °C, B25/50 = 3380 K, 100 mW, −40…+125 °C. Wire it as one leg of a
+divider against a fixed 10 kΩ into an MCU ADC channel. (The 12VHPWR Standard
+`TH1`/`TH2` are still on the `R_Small` placeholder + generic `R_0402` land — swap
+them to this symbol + footprint on their next pass; they are not yet placed on
+the PCB, so it is a clean repoint.)
+
 ## Rule
 
 Only `${KIPRJMOD}`-relative URIs. `scripts/checklist.sh` (and CI) fail the build
