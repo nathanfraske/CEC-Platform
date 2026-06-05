@@ -26,10 +26,14 @@ are confirmed and STAND (an interim UART-only v3.7 draft was reverted first). He
 pin set for the J7 splice below: TX, RX, SHARED_5V (=+5VSB rail), GND, KVM_3V3_REF.
 
 v3.7 (2026-06-05, 12VHPWR temperature add): the 12VHPWR Standard module gains two
-NTC thermistor dividers (TH1 at the J3 +12V connector pins = melt site, TH2
-ambient) into spare ESP32-S3 ADC2 channels IO13/IO14, reporting temperature +
+NTC thermistor dividers (real part Murata NCP15XH103F03RC / C77131; TH1 by the
+shunt row = board/shunt temp, TH2 ambient) into spare ESP32-S3 ADC2 IO13/IO14, reporting temperature +
 dT-above-ambient — the INA240 has no die-temp sensor (unlike the 24-pin INA228),
-so this is the module's only temperature source + the Appendix C.2 datum. Spliced
+so this is the module's only temperature source + the Appendix C.2 datum. Per
+user (board-only): the NTCs are for measurement quality + board health —
+shunt-TCR / INA-gain drift compensation of the per-pin current + 12V-section
+overheat; the off-board GPU side is INFERRED by fusing temp + current + voltage,
+and a pigtail/GPU-plug NTC (direct GPU-contact read) was DEFERRED. Spliced
 into the routed schematic (ERC clean, netlist-verified TEMP1->IO13 / TEMP2->IO14;
 all existing UUIDs preserved). OQ-8 RESOLVED (no local REF3033 on Standard:
 transient-capture tier, not precision); 12V input TVS + status LED DECLINED. See
