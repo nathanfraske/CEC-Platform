@@ -127,7 +127,24 @@ leg=[Line2D([],[],color="#d32f2f",lw=3,label="DONE  J3→shunt  +12V  F.Cu 2.5 m
      Line2D([],[],color="#f57c00",lw=3,ls=(0,(6,2)),label="DONE  shunt→J4  +12V  B.Cu 2.5 mm"),
      Line2D([],[],color="#1565c0",lw=1.1,ls=(0,(2,1.5)),label="TODO  Kelvin taps + RC filter → INA (0.25 mm)"),
      Line2D([],[],color="#6a1b9a",lw=1.0,ls=(0,(1,1)),label="TODO  INA OUT → ESP ADC (0.25 mm)")]
-ax.legend(handles=leg,loc="lower left",fontsize=7,framealpha=.95)
+leg.insert(0, Line2D([],[],color="#2e7d32",lw=2,ls=(0,(3,2)),marker='s',mfc="#a5d6a7",mec="#2e7d32",label="PLACE (v3.7)  NTC temp -> ADC2  (TH1 shunt-row, TH2 ambient)"))
+ax.legend(handles=leg,loc="lower left",fontsize=6.4,framealpha=.95)
+
+# ---- v3.7 NTC thermistor placement plan (recommended; NOT yet on the PCB) ----
+G="#2e7d32"; ESPx=pos["U1"][0]-6.0
+def _ntc(nx, ny, ch):
+    ax.add_patch(Rectangle((nx-0.9,ny-0.9),1.8,1.8,fc="#a5d6a7",ec=G,lw=1.1,ls="--",zorder=8))   # NTC
+    ax.add_patch(Rectangle((nx+2.1,ny-0.7),1.4,1.4,fc="#dcedc8",ec=G,lw=0.8,ls="--",zorder=8))   # 10k
+    ax.add_patch(Rectangle((nx+0.2,ny+2.1),1.4,1.4,fc="#dcedc8",ec=G,lw=0.8,ls="--",zorder=8))   # 100nF
+    ax.add_line(Line2D([nx, ESPx],[ny, ch],color=G,lw=1.1,ls=(0,(3,2)),zorder=7))                 # -> ESP ADC2
+_ntc(150.5, 77.5, 90.0)     # TH1 by the shunt row -> IO13
+_ntc(118.0, 124.5, 93.0)    # TH2 ambient corner   -> IO14
+ax.annotate("TH1 -- NTC on the 12V pour BY THE SHUNT ROW\n(tracks shunt temp -> firmware drift comp) -> IO13",
+            xy=(150.5,77.5), xytext=(121,67), fontsize=6.0, color="#1b5e20", zorder=9,
+            arrowprops=dict(arrowstyle="->",color=G,lw=0.8), ha="left", va="center")
+ax.annotate("TH2 -- NTC at a COOL CORNER\n(ambient ref, isolated from the 12V section) -> IO14",
+            xy=(118,124.5), xytext=(123,117), fontsize=6.0, color="#1b5e20", zorder=9,
+            arrowprops=dict(arrowstyle="->",color=G,lw=0.8), ha="left", va="center")
 
 # ---------- notes panel ----------
 def T(y,s,**k): axn.text(0.0,y,s,va="top",fontsize=k.pop("fs",8.5),transform=axn.transAxes,**k)
