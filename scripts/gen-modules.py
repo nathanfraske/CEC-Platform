@@ -252,7 +252,19 @@ def build(dirn):
         # output swings 0..Vs for forward (PSU->GPU) current, maximizing ADC range
         # since this connector only sources current. (A bidirectional bias would
         # halve the forward range; revisit only if reverse sensing is wanted. The
-        # absolute-accuracy path for this board is OQ-8.)
+        # absolute-accuracy path for this board is OQ-8 (RESOLVED v3.7: no local
+        # REF3033 on Standard — transient-capture tier, not precision).
+        #
+        # TEMPERATURE (spec §6.1, v3.7): the LIVE 12vhpwr-standard.kicad_sch also
+        # carries two NTC thermistor dividers — TH1 at the J3 +12V connector pins
+        # (the melt site), TH2 ambient — each NTC/10k/100nF into a spare ESP32-S3
+        # ADC2 channel (TH1->IO13, TH2->IO14; ADC2 is free since this module never
+        # uses Wi-Fi). The INA240 has no die-temp sensor (unlike the 24-pin INA228),
+        # so this is the module's only temperature source + the Appendix C.2 datum.
+        # They were HAND-SPLICED into the routed board (regen would churn every UUID
+        # and break the PCB link), so they are NOT emitted below; if this generator
+        # is ever re-run for this board, add the two IO13/IO14 dividers here or they
+        # will be dropped. (A 12V input TVS was considered and DECLINED, §6.1.)
         for i, (label, sv) in enumerate(nodes):
             amp = f"U1{i}"; sh = f"RS{i+1}"; dec = f"C1{i}"
             rfh = f"RFH{i+1}"; rfl = f"RFL{i+1}"; cf = f"CF{i+1}"

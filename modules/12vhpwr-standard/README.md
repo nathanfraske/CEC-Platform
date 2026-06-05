@@ -13,6 +13,7 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 | Sensing | **Per-pin**: six **INA240** current-sense amps, one across each +12V pin's **1 mΩ** shunt (RS1–6), feeding the ESP32-S3 ADC (IO1–6) directly — **no I²C sensing bus**. REF1/REF2 → GND (unidirectional forward). A **47k/10k divider** (R5/R6) brings the rail voltage into a 7th ADC channel. Accuracy ~±1% (see **OQ-8**). |
 | Input filter | Per-channel **anti-alias / transient RC** on each INA240 input: matched **10 Ω** series Rf on IN+/IN− (RFH1–6 / RFL1–6) + a **470 nF** differential cap (CF1–6). **fc = 1/(2π·2·Rf·Cdiff) ≈ 16.9 kHz**, so the ~10 kHz GPU transients this pass targets pass at ~−1.3 dB and HF is rolled off ahead of the ADC. Rf held at 10 Ω + matched (TI's INA240 ceiling) → negligible gain/CMRR error. *(Optional ~47 nF common-mode caps deferred — OQ-8.)* |
 | Sideband | The four **12V-2×6 sense pins** (13–16: SENSE0, SENSE1, CARD_PWR_STABLE, CARD_CBL_PRES#) pass straight through J3→J4 **and** each taps a free ESP32-S3 GPIO (IO8/9/11/12) via a **1 kΩ** series R (R10–R13), so firmware can read the cable's advertised power capability + present/stable state and report it over CAN. |
+| Temperature *(v3.7)* | **2× NTC 10k** into spare ESP32-S3 **ADC2** channels (this module never uses Wi-Fi, so ADC2 is free): **TH1** at the **J3 +12V connector pins** (the on-board melt site), **TH2** ambient at a cool edge. Each is an NTC / 10 kΩ (R20/R21) / 100 nF (C20/C21) divider → **IO13 / IO14**; firmware reports temperature and, more usefully, **ΔT above ambient**. The INA240 has no die-temp sensor, so this is the module's temperature source and the connector-melt direct read (current imbalance leads, temperature confirms). Spec [§6.1](../../CEC-Platform-Ground-Truth-Spec.md). |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated module-side |
 | DETECT | 2.2 kΩ precision (R1) — CAN-only code (§2.3, OQ-6 resolved); poke-and-ack tap R7 → IO10 (OQ-28) |
 | Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 v2.0); low-cap ESD diode D1 (PESD5V0S1UL) on DETECT pin 8 |
@@ -39,8 +40,11 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 
 ## Open questions touching this board
 
-- **OQ-8:** rail accuracy — the ESP32-S3 ADC path caps at ~±1%; accept, or add a
-  local REF3033 (→ ~±0.3–0.5%).
+- **OQ-8 (RESOLVED, v3.7):** rail accuracy — accepted the ~±1% ESP32-S3 ADC figure
+  with **no local REF3033**. This is a transient-capture / per-pin-imbalance tool,
+  not a precision instrument (no simultaneous sampling); the REF3033 path stays a
+  Pro+ feature. The module's deliverable is connector-fault detection, which the
+  v3.7 NTC temperature sensing targets directly.
 - **OQ-11:** per-pin shunt part (1 mΩ, §6.4).
 - *(OQ-6 module-ID encoding resolved — CAN-only = 2.2 kΩ.)*
 

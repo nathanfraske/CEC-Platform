@@ -25,6 +25,16 @@ momentary mis-read that the NanoKVM exposed ONLY UART/GND/3V3 — it DOES also e
 are confirmed and STAND (an interim UART-only v3.7 draft was reverted first). Header
 pin set for the J7 splice below: TX, RX, SHARED_5V (=+5VSB rail), GND, KVM_3V3_REF.
 
+v3.7 (2026-06-05, 12VHPWR temperature add): the 12VHPWR Standard module gains two
+NTC thermistor dividers (TH1 at the J3 +12V connector pins = melt site, TH2
+ambient) into spare ESP32-S3 ADC2 channels IO13/IO14, reporting temperature +
+dT-above-ambient — the INA240 has no die-temp sensor (unlike the 24-pin INA228),
+so this is the module's only temperature source + the Appendix C.2 datum. Spliced
+into the routed schematic (ERC clean, netlist-verified TEMP1->IO13 / TEMP2->IO14;
+all existing UUIDs preserved). OQ-8 RESOLVED (no local REF3033 on Standard:
+transient-capture tier, not precision); 12V input TVS + status LED DECLINED. See
+the 12VHPWR action item below and spec Section 6.1.
+
 v3.6 consolidation (2026-06-05): merged the user's canonical v3.4 upload (the
 subsystem-power / NanoKVM / Concierge architecture branch) into the board-
 reconciled line. NEW: (1) **§2.9 Subsystem power management (PROPOSED)** — the
@@ -535,7 +545,16 @@ Open items (surface before acting):
    on lanes 1,2,4,5,6. Before re-DRC: Fill All Zones (the 252 "actual 0.000mm"
    clearance/hole hits are STALE GND-pour, NOT real shorts), delete 18 dangling
    vias + 3 track stubs, Update-PCB-from-Schematic (syncs U2 value TJA1462A->
-   TJA1051T/3, same SOIC-8 footprint). Plan + diagram:
+   TJA1051T/3, same SOIC-8 footprint; ALSO pulls the v3.7 NTC temp dividers
+   TH1/TH2 + R20/R21 + C20/C21 — TH1 at the J3 +12V pins, TH2 ambient, into spare
+   ADC2 IO13/IO14 — to place + route). Spec bumped to v3.7: OQ-8 RESOLVED (no local
+   REF3033 on Standard — transient-capture tier, not precision); 12V input TVS and
+   status LED considered and DECLINED (§6.1). The NTC dividers were hand-spliced
+   into the routed schematic (ERC clean, netlist-verified TEMP1->IO13/TEMP2->IO14,
+   all existing UUIDs preserved); gen-modules.py carries a note so a future regen
+   does not drop them. Test points recommended ONLY if room
+   (GND/+3V3/+5VSB/VRAIL_DIV/CAN_H/CAN_L) — add in the GUI, not the schematic
+   (TestPoint symbol isn't embedded). Plan + diagram:
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
