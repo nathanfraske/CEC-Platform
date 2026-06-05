@@ -10,7 +10,28 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.5 (2026-06-05).
+Spec revision reflected here: v3.6 (2026-06-05).
+
+v3.6 consolidation (2026-06-05): merged the user's canonical v3.4 upload (the
+subsystem-power / NanoKVM / Concierge architecture branch) into the board-
+reconciled line. NEW: (1) **§2.9 Subsystem power management (PROPOSED)** — the
+"power switching": the monitoring subsystem (Hub + NanoKVM, optionally the module
+fleet) draws from THREE 5V sources via a hardware priority ideal-diode OR — PSU
+main 5V (tapped after the 24-pin 5V sensor), 5VSB, and a wall-wart through the
+NanoKVM USB-C — feeding one shared rail; firmware reads a rail-sense and sets the
+load budget/mode (never switches its own supply → would deadlock the MCU). This
+EXTENDS the as-built TPS2121 PSU/USB front-end mux (§2.7) from 2 inputs to 3
+(same TI PowerPath family the OQ-55 part search names). Adds a forensic-recovery
+path (wall-wart powers Hub+NanoKVM so flash data egresses over the NanoKVM
+without opening the case) + persist-on-fault flush to the Hub's 16 MB flash. ALL
+PROPOSED — parts (source-OR IC, back-feed isolation) + module-rail scope are
+OQ-53..56; do not treat as locked. (2) Appendix C **Concierge** data-collection
+(host/service layer; three-vantage fusion: electrical, OS-logical, NanoKVM
+out-of-band visual). (3) **NanoKVM aux-link** row on the Hub tables (3.3V UART +
+shared 5V feed). The upload's stale board facts (TJA1462A, MINI-1-N16R2,
+1Ω-inrush/SS14 front end, polymer cap, M2.5) were OVERRIDDEN by this line's
+as-built decisions, not imported. OQ list is now **OQ-1..OQ-56** (the upload's
+OQ-37..55 were renumbered to OQ-38..56 to keep this line's OQ-37 = shielded jack).
 
 v3.2 reconciliation (2026-06-03): the repo spec was merged with the user's
 canonical v3.1 upload. Operate by these net changes: (1) CAN is CLASSICAL 500k on
@@ -402,9 +423,11 @@ clearly labeled branch or variant.
 - OQ-15 (spec): Max positioning — is the 12VHPWR Max a new platform tier or a
   module variant (§6.11)? [In the OLD repo numbering OQ-15 meant the shielded-jack
   divergence; that is now OQ-37.]
-- Canonical OQ list is OQ-1..OQ-37 in spec §10 (it now also covers the Max §6.11,
-  SATA §6.12, ARGB §7, and the compute/Enterprise questions). Read the spec for
-  any OQ above 13 — do not assume from this summary.
+- Canonical OQ list is OQ-1..OQ-56 in spec §10 (v3.6): OQ-1..37 as before (Max
+  §6.11, SATA §6.12, ARGB §7, compute/Enterprise, OQ-37 shielded jack), plus the
+  v3.6-imported OQ-38..56 (Concierge data-collection OQ-38..47, NanoKVM link
+  OQ-48..52, and subsystem power §2.9 OQ-53..56). Read the spec for any OQ above
+  13 — do not assume from this summary.
 
 ## Active action items
 

@@ -2,7 +2,7 @@
 
 **Status:** Controlled baseline. This document is the single source of truth for the CEC platform and holds precedence over every earlier document. All future decisions are versioned here. Where any earlier document conflicts, this document wins.
 
-**Document version:** 3.4
+**Document version:** 3.6
 
 **Reconciles and supersedes:**
 - *CEC Hub Standard v1.1 locked decisions* (Mini-Fit Jr connector): superseded on connector and cabling; all other v1.1 decisions carried forward.
@@ -10,9 +10,10 @@
 - *Module sensing architecture v4* (INA238/INA228 sensor selection): current-sensing adopted; superseded on precision-reference distribution, DETECT definition, pin-7 allocation, and 24-pin shunt values, which this document overrides.
 - *Early CAN-FD / BOM thread* (JST-XH connector, i.MX 93 Enterprise): superseded.
 - *CEC PCB-repo ground-truth spec* (GitHub, 2026-05-30): reconciled here. Its Standard-module MCU lock is adopted; its 24-pin sensor, 12VHPWR Standard sensing, and platform-wide PoE drop diverge from this document and are addressed in Section 2.4, Section 6.1, and OQ-14.
+- *Canonical upload v3.4* (subsystem power management / NanoKVM / Concierge branch, 2026-06-04): consolidated into this board-reconciled line at v3.6. Its new architecture is adopted (Section 2.9 subsystem power, Appendix C Concierge, the NanoKVM aux link, and OQ-38..56); its stale board facts (TJA1462A, ESP32-S3-MINI-1-N16R2, the discrete 1 Ω inrush + SS14 front end, aluminum-polymer hold-up, M2.5 mounts) are overridden by this line's as-built decisions and were NOT imported.
 
-**Last updated:** 2026-06-03
-**Scope of this revision:** v3.4 adds an optional bus-wide 1 Mbps CAN rate to Section 3.1 — 500 kbps stays the default and the locked floor, 1 Mbps is firmware-only via Hub-led auto-baud with error-counter fallback, gated on the Section 3.1 star/stub SI bench test run at 1 Mbps, and a DETECT-code bitrate advertisement was considered and declined. v3.3 locks the 24-pin dual-feed rule — its RJ-45 VCC pin is no-connect so all bulk 5VSB flows over the dedicated JST feed (Section 2.7), preventing the RJ-45 VCC from paralleling (and, via a short patch, overloading) against that feed. v3.2 reconciles this document against the CEC PCB-repo fork — folding in the repo's locked board decisions this line had not carried (Section 2.8 module PSU-side interposer cabling; the Hub Standard MCU correction to the **ESP32-S3-WROOM-1-N16R8**, since the MINI-1 has no 16 MB SKU; the 4700 µF hold-up corrected from polymer to **aluminum electrolytic**; **M2.5→M3** corner mounts; and the Hub front-end **mux / isolation / blackout-dump** architecture in Section 2.7), and recording the shielded-jack board divergence as OQ-37. Prior v3.1 scope: records the FPGA development-tooling assessment as Appendix B.4 (Claude Code lowers the RTL and verification cost through its simulate-iterate loop, strong on common RTL and testbenches, weak on timing, CDC, and microarchitecture, most automatable on the open toolchain) and the current compute leaning as Appendix B.5 (MCU plus FPGA on the Max conditional on OQ-20, and a Linux-free MCU-or-RTOS control plane plus FPGA-or-switch data plane on Enterprise with the PolarFire SoC as the consolidated candidate). Reflects the leaning in Section 1, OQ-7, and OQ-15. Carries the v3.0 compute exploration (Appendix B), the v2.9 processing-placement principle (Section 1), and the rest of the prior baseline. Enterprise and Mission Critical remain at platform-summary level (OQ-7).
+**Last updated:** 2026-06-05
+**Scope of this revision:** v3.6 consolidates the canonical v3.4 upload (the architecture branch that forked from the shared v3.1 baseline) into this board-reconciled line. It adds **Section 2.9 (subsystem power management, PROPOSED)** — the monitoring subsystem draws from three 5V sources (PSU main 5V tapped after the 24-pin sensor, 5VSB, and a wall-wart through the NanoKVM USB-C) through a hardware priority ideal-diode OR that **extends the as-built TPS2121 PSU/USB front-end mux** (Section 2.7) from two inputs to three, with firmware reading a rail-sense and setting the load budget and mode rather than switching its own supply, a forensic-recovery path (a wall-wart powers the Hub and NanoKVM so flash-persisted data egresses over the NanoKVM's network without opening the case), and persist-on-fault flushing to the Hub's flash on power loss. It also imports **Appendix C (Concierge data collection)** and the **NanoKVM aux-link** row (3.3 V UART + the shared 5 V feed) on the Hub tables. Because both forks independently created an OQ-37, the upload's **OQ-37..55 are renumbered to OQ-38..56**; this line's OQ-37 (shielded jack, resolved to the Kinghelm KH-RJ45-58) is kept. The upload's stale board facts are overridden, not imported. Prior this-line scope (carried forward): v3.5 locked the CAN transceiver to the classical **TJA1051T/3** (CAN-FD deferred, so the FD/SIC TJA1462A no longer earns its place; one trade is the loss of SIC ringing suppression on the optional 1 Mbps, now gated solely on the §3.1 bench SI test). v3.4 adds an optional bus-wide 1 Mbps CAN rate to Section 3.1 — 500 kbps stays the default and the locked floor, 1 Mbps is firmware-only via Hub-led auto-baud with error-counter fallback, gated on the Section 3.1 star/stub SI bench test run at 1 Mbps, and a DETECT-code bitrate advertisement was considered and declined. v3.3 locks the 24-pin dual-feed rule — its RJ-45 VCC pin is no-connect so all bulk 5VSB flows over the dedicated JST feed (Section 2.7), preventing the RJ-45 VCC from paralleling (and, via a short patch, overloading) against that feed. v3.2 reconciles this document against the CEC PCB-repo fork — folding in the repo's locked board decisions this line had not carried (Section 2.8 module PSU-side interposer cabling; the Hub Standard MCU correction to the **ESP32-S3-WROOM-1-N16R8**, since the MINI-1 has no 16 MB SKU; the 4700 µF hold-up corrected from polymer to **aluminum electrolytic**; **M2.5→M3** corner mounts; and the Hub front-end **mux / isolation / blackout-dump** architecture in Section 2.7), and recording the shielded-jack board divergence as OQ-37. Prior v3.1 scope: records the FPGA development-tooling assessment as Appendix B.4 (Claude Code lowers the RTL and verification cost through its simulate-iterate loop, strong on common RTL and testbenches, weak on timing, CDC, and microarchitecture, most automatable on the open toolchain) and the current compute leaning as Appendix B.5 (MCU plus FPGA on the Max conditional on OQ-20, and a Linux-free MCU-or-RTOS control plane plus FPGA-or-switch data plane on Enterprise with the PolarFire SoC as the consolidated candidate). Reflects the leaning in Section 1, OQ-7, and OQ-15. Carries the v3.0 compute exploration (Appendix B), the v2.9 processing-placement principle (Section 1), and the rest of the prior baseline. Enterprise and Mission Critical remain at platform-summary level (OQ-7).
 
 > Action items (v3.2): the Mini-Fit Jr → RJ-45 re-cut is **COMPLETE** on every board (the prior stale-artifact item is resolved). Open board-vs-spec items: (1) the locked low-capacitance **DETECT-pin ESD diode** (Section 2.4, v2.0) is **not yet populated** on the current Standard/Pro boards — add on the next revision; the already-ordered 24-pin rev2 shipped without it. (2) The **FTP shielded jack** (Section 2.1) is not yet placed; boards carry the unshielded Amphenol 54602 — production re-place tracked as OQ-37.
 
@@ -134,7 +135,7 @@ The Hub receives bulk power on a dedicated 2-pin power-in connector, separate fr
 The connector architecture is locked; the specific part is the simplest one meeting the rating and is a working selection rather than itself locked:
 - 2-pin, polarized and keyed against reverse insertion. Working selection: 2-pin JST-XH (~3A class). It is distinct from the retired Mini-Fit Jr and from the superseded JST-XH interface use; here it is a power-only feed. Step up to a higher-current 2-pin part (for example JST-VH) if the capped trunk budget grows.
 - Documented rating at or above the capped aggregate with margin.
-- Lands on the Hub's existing 5VSB front end: TPS2121 priority power mux (source-side reverse-current blocking + soft-start inrush limiting), the D1 reverse-isolation Schottky, the 4700 uF hold-up, and the TPS3839K33 supervisor — see the front-end architecture below. As an internal PC power lead it is not exposed to the commodity-cable cross-connect threat of Section 2.4, so it carries no per-pin over-voltage network; reverse-polarity and inrush protection still apply (now via the mux, not a discrete resistor/diode).
+- Lands on the Hub's existing 5VSB front end: TPS2121 priority power mux (source-side reverse-current blocking + soft-start inrush limiting), the D1 reverse-isolation Schottky, the 4700 uF hold-up, and the TPS3839K33 supervisor — see the front-end architecture below. As an internal PC power lead it is not exposed to the commodity-cable cross-connect threat of Section 2.4, so it carries no per-pin over-voltage network; reverse-polarity and inrush protection still apply (now via the mux, not a discrete resistor/diode). Section 2.9 (subsystem power management) gives that mux + D1 a second job: blocking the shared monitoring rail and the forensic wall-wart from back-feeding up the 5VSB line into a dead PSU — so the mux's source-side reverse blocking must be confirmed against that path (OQ-55).
 
 Hub Standard front-end architecture (PCB-repo design, folded in v3.2): the 5VSB-in and the USB-C VBUS are OR-ed through a **TPS2121 priority power mux** (PSU 5VSB preferred; USB VBUS is the backup so the Hub enumerates on a bench with no PSU connected). A **reverse-isolation Schottky (D1)** downstream of the mux feeds an **isolated +5V_HOLD reservoir node** — the 4700 µF aluminum-electrolytic hold-up cap and the LP5907 LDO input sit behind it — so the reservoir cannot back-feed or smooth the 5VSB rail the platform is measuring. (D1 is **built as SB120**, 1 A/20 V; **SS14**, 1 A/40 V, is a drop-in higher-margin alternative — either is adequate on the 5 V rail.) The mux's own soft-start (C_SS ≈ 2.2 µF) ramps the bulk-cap charge, so the v1.1 discrete 1 Ω 1 W inrush resistor and a separate reverse-polarity diode are **superseded** by the mux and are not populated. A divider on the shared +5VSB into an ESP32 ADC pin (GPIO8) is the **blackout-sense** input: on PSU power loss the MCU rides the +5V_HOLD reservoir (~tens of ms) and dumps its last telemetry window to flash. A small (~470 µF) bulk cap on the +5VSB distribution rail rides out downstream-module load steps. Measurement integrity holds because the PSU 5VSB is sensed upstream at the 24-pin module, ahead of the cable and the mux.
 
@@ -149,6 +150,88 @@ Separate from the universal RJ-45 module-to-Hub interface (Sections 2.1 to 2.7),
 - Output: the motherboard's 24-pin connector is also a male header, so the module output (male) and the motherboard (male) cannot be joined by an ordinary PSU-style cable, which is female on only one end. The run from the module output to the motherboard requires a dedicated **female-to-female 24-pin ATX bridging cable** — a female receptacle on each end, since each end plugs onto a male header (the module output and the motherboard). No standard off-the-shelf product carries a female on both ends, so CEC must supply this cable as a platform SKU.
 
 **12VHPWR modules (Standard and Pro) — connectors soldered to the board.** The 12VHPWR module does not use detachable pass-through headers and does not need a bridging cable. Its 12VHPWR (12V-2x6) connector(s) are soldered directly to the module PCB (board-mounted). On the platform's highest-current, melt-prone connector this removes a mated-contact pair from the power path and keeps the connection deterministic.
+
+### 2.9 Subsystem power management (PROPOSED; architecture adopted, parts and module-rail scope open)
+
+The monitoring subsystem (the Hub, the NanoKVM, and on the open fork below the module fleet) draws from one of three 5V sources, selected in hardware, with firmware setting the load budget and operating mode to match. This does two things the single-5VSB feed of Section 2.5 cannot: it escapes the S0 limb of the 5VSB budget, and it lets a customer recover the Hub's data from a completely dead system without opening the case.
+
+Sources and priority (high to low):
+- **PSU main 5V**, present when the PC is running (S0), tapped downstream of the 24-pin module's 5V sensor so the subsystem's own draw is measured and counted in system 5V rather than hidden in standby overhead (OQ-13). This is the large rail (the 24-pin 5V is sized for 20A), so it carries the high-draw S0 state, LEDs included.
+- **PSU 5VSB**, present whenever the PSU has AC, over the 24-pin module's existing JST-XH feed (Section 2.7). The standby rail, roughly 2.5 to 3A shared with the motherboard standby, governed by the OQ-2 cap.
+- **Wall-wart 5V**, present only when a customer plugs a 5V USB supply into the NanoKVM's USB-C with the PC fully dead. The last-resort forensic source.
+
+Source selection is hardware, a priority ideal-diode OR (main 5V, then 5VSB, then wall-wart), rather than a firmware switch. This extends the Hub's as-built TPS2121 PSU/USB priority mux (Section 2.7) from two inputs to the three subsystem sources — the same TI PowerPath family the OQ-55 part search names (TPS2116 / LTC4412-class). Firmware runs on the Hub MCU, which is powered by the rail it would be switching, so a firmware-controlled switch can deadlock the MCU if it selects a source that is not solid. The firmware instead reads which source is live on a rail-sense and sets the load budget and mode: full budget and normal monitoring on main 5V, the standby cap (OQ-2) on 5VSB, and a minimal LEDs-off forensic-extraction mode on the wall-wart. It may gate the main-5V enable once the PC is confirmed stably up, but the 5VSB fallback stays hardware-automatic. This is priority switching, with the OR isolating the idle inputs, and the rails are never paralleled to sum their capacity, which they do not need since main 5V alone is ample.
+
+Back-feed isolation is the safety-critical rule. Every source feeds the shared rail through its own ideal diode or series element, and the shared rail must never push power back toward a source or into a dead system. In particular the wall-wart, when it is the source, must not travel up the Hub's 5VSB input into a dead PSU's standby rail and the motherboard, nor up the NanoKVM's slot path into the dead PSU. The Hub's existing TPS2121 priority power mux (Section 2.7) already provides source-side reverse-current blocking on its 5VSB input, and the downstream D1 reverse-isolation Schottky walls off the +5V_HOLD reservoir; confirm the mux's reverse blocking covers the shared-rail path back into the 5VSB source, and add the matching isolation on the NanoKVM's slot input.
+
+The shared rail spans the Hub-to-NanoKVM cable, so both boards sit on it and the cable's 5V conductor carries the subsystem current in whichever direction the live source dictates: Hub to NanoKVM on the PSU rails, NanoKVM to Hub on the wall-wart. Size that conductor and its ground for the full subsystem draw. The power feed shares the reserved aux header and cable with the UART link of Appendix C.7. Whether the module fleet also rides this shared rail (the whole-platform dual-feed that frees on-board LED brightness on a maxed build by moving the operating draw to main 5V in S0) or stays on 5VSB-only with the discretionary loads offloaded individually (per-load) is OQ-53.
+
+Forensic recovery (the dead-system case, ties OQ-48). With no PSU power, the customer plugs a wall-wart into the NanoKVM's externally accessible USB-C. That powers the NanoKVM, which powers the Hub over the shared rail, so the monitoring island runs decoupled from the dead PC. The Hub serves its persisted data to the NanoKVM over the UART, and the NanoKVM egresses it over its own Ethernet or WiFi, so the data comes out without opening the case or reviving the PSU. The draw in this mode is the Hub plus the NanoKVM with the LEDs off, around an amp, which any phone charger covers. The external power-in is the NanoKVM's USB-C if it is bracket-accessible on the PCIe card; a CEC power-in port on a rear bracket is the more general option and also revives a Hub-only build (OQ-54).
+
+Persist-on-fault. Forensic recovery returns only what the Hub already wrote to its 16 MB flash, since the volatile ring buffers are gone the instant power dropped. The Hub therefore flushes critical events and frozen windows to flash as they occur, with a final flush on total power loss that the 4700 uF hold-up rides, which gives the hold-up cap a second job beyond the source changeover and sets part of its sizing (OQ-56).
+
+*(Flowchart to be drawn as cec-subsystem-power-management.svg; the hardware priority-OR and the firmware sense-and-set-budget split are captured in the pseudocode below.)*
+
+```text
+# ===========================================================
+# CEC monitoring-subsystem power management
+# ===========================================================
+#
+# HARDWARE (automatic, no firmware in the loop):
+#   3 x 5V sources feed ONE shared monitoring rail through a
+#   priority ideal-diode OR. Priority: main 5V, then 5VSB,
+#   then wall-wart. Every source is isolated, so the shared
+#   rail can never push power back toward a source or into a
+#   dead system.
+#     main 5V  : tapped downstream of the 24-pin module's 5V
+#                sensor, so the subsystem's own draw is measured
+#                and counted in system 5V (OQ-13)
+#     5VSB     : the 24-pin module's existing JST-XH feed;
+#                Hub TPS2121 mux (Sec 2.7) blocks back-feed
+#     wall-wart: 5V into the NanoKVM USB-C (external bracket),
+#                isolated from the NanoKVM slot-power path
+#   Hub and NanoKVM both sit on the shared rail, which spans the
+#   inter-board cable; the 5V conductor carries the subsystem
+#   current in whichever direction the live source dictates.
+#
+# FIRMWARE (Hub): never switches the source (that would deadlock
+#   the MCU doing the switching). It senses the live source and
+#   sets the load budget and operating mode to match.
+
+state ACTIVE_SOURCE   # MAIN5V | SB5VSB | WALLWART | NONE
+state MODE
+
+loop every control_tick:
+    src = read_rail_sense()                  # ADC/GPIO on the rail
+    if src != ACTIVE_SOURCE:
+        ACTIVE_SOURCE = src
+        switch src:
+            MAIN5V:                          # PC running, large measured rail
+                set_budget(led = FULL,        load = FULL)
+                MODE = NORMAL_MONITORING
+            SB5VSB:                          # PC standby, ~2.5A shared rail
+                set_budget(led = STANDBY_CAP, load = STANDBY_CAP)   # OQ-2
+                MODE = STANDBY_MONITORING
+            WALLWART:                        # PC dead, external forensic power
+                set_budget(led = OFF,         load = MINIMAL)
+                MODE = FORENSIC_EXTRACTION
+
+    if MODE == FORENSIC_EXTRACTION:
+        serve_persisted_records_over_uart()  # NanoKVM pulls, egresses over net
+
+# -----------------------------------------------------------
+# Persist-on-fault: forensic recovery returns only what is in
+# flash, so critical data is persisted as it happens, with a
+# final flush on total power loss that the hold-up cap covers.
+# -----------------------------------------------------------
+on critical_event(e):                        # threshold cross, freeze, fault class
+    flush_to_flash(e)                         # durable immediately
+
+on power_loss_detected():                    # main 5V AND 5VSB both sagging
+    flush_to_flash(pending_records)           # final flush; 4700 uF rides the window
+```
+
+Open items: the source-OR part and back-feed isolation verification are OQ-55, the module-rail scope is OQ-53, the external power-in is OQ-54, and the persist-on-fault behavior and hold-up sizing are OQ-56.
 
 ---
 
@@ -218,6 +301,7 @@ All v1.1 decisions carry forward unchanged except connector and cabling.
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | Chassis | Plastic prototype; aluminum 6063 anodized production |
 | Bulk power input | Dedicated 2-pin JST-XH 5VSB feed from the 24-pin module (OQ-1 resolved); 5VSB distributed to downstream modules over their RJ-45 VCC pins |
+| NanoKVM aux link | Reserved keyed header carrying the full-duplex 3.3V UART plus the shared 5V power feed to the NanoKVM (local visual-and-electrical fusion, out-of-band egress, and the subsystem power path of Section 2.9; form per OQ-51, trust per OQ-52, Appendix C.7) |
 | Regulatory | Subassembly approach, no FCC cert for v1 |
 | Production BOM | ~$36 (100-qty) |
 
@@ -620,6 +704,44 @@ Note: the ARGB Controller figures are preliminary electronics estimates pending 
 
 **OQ-37: Shielded (FTP) jack divergence (board-vs-spec; folded in from the repo fork, v3.2).** Section 2.1 locks FTP shielded jacks platform-wide, but the current prototype boards carry the unshielded Amphenol 54602 (LCSC C2847314) with grounded SH1/SH2 board-locks. Acceptable for prototype bring-up — the link carries CAN, 5VSB, DETECT, and Standard-dark RS-485, all shielding-insensitive. A non-magnetic metal-shell FTP jack is the production/EMC target. Hub Standard resolution (2026-06-05): the FTP MPN is locked to the Kinghelm KH-RJ45-58-8P8C (LCSC C2683360, single shielded 8P8C metal-shell right-angle TH), with its authoritative easyeda2kicad footprint origin-aligned to the existing 1.27 mm land (J2-J5 footprint cec:RJ45_FTP_Shielded_Horizontal now holds the Kinghelm geometry; contacts preserved, shell tabs as SH1/SH2). The original design reference was the Wuerth 615008137421 (C132217), declined because its real 1.02 mm contact pitch does not match the routed 1.27 mm land (full re-route) and stock is thin; the design-reference text is updated to the Kinghelm to match the as-built board. Modules + 24-pin rev2 still carry the unshielded 54602 — move them to the FTP part on their next rev. Pairs with the consumer PoE-drop in Section 2.4.
 
+**OQ-38: Cadence and retention.** Lock the slow-telemetry rate, the spectral-snapshot interval, and the per-event capture-retention window against host and service storage and the link budget. See Appendix C.4.
+
+**OQ-39: Feature-versus-raw collection.** Confirm features-by-default with on-demand raw-waveform pull as the collection model, and tie the raw path to the Max interconnect decision (OQ-20). See Appendix C.2.
+
+**OQ-40: Outcome-label ingestion.** Decide how RMA, failure, and service events are tied to unit ID (manual builder entry, RMA-system integration, a builder portal), and the minimum label set a valid survivor selection needs. See Appendix C.3.
+
+**OQ-41: Capture-context normalization.** Define the standard EOL load sequence and the field-context metadata required to compare captures, so a field reading is matched only against like conditions. See Appendix C.3.
+
+**OQ-42: Population golden policy.** Decide the opt-in and anonymization model for any cross-account golden, and whether CEC offers a reference golden per popular config from opt-in data or stays strictly per-account. See Appendix C.1.
+
+**OQ-43: Local-versus-service split and self-host parity.** Lock what must run on the Hub and bench offline (the EOL gate at minimum) and the parity requirement for the self-hosted service half. See Appendix C.5.
+
+**OQ-44: Identity and provenance schema.** Define the unit-ID scheme, BOM-revision tagging, and the module-and-firmware inventory report the Hub emits at enumeration. See Appendix C.3.
+
+**OQ-45: Telemetry ownership and residency.** State the data-ownership and retention posture for power telemetry, the deletion path, and the privacy boundary, consistent with the no-cloud stance and C.1.
+
+**OQ-46: OS-side collector scope.** Define the host-app agent's collected event set per OS (Windows event log, ETW, WER, minidump fields; Linux EDAC, mcelog, dmesg, NVML, journald, kdump), the elevated-access model, and the mapping of event classes onto the outcome-label feed (item 3, OQ-40). See Appendix C.7.
+
+**OQ-47: Cross-domain timebase.** Reconcile OS-event and NanoKVM timestamps against the Hub electrical timebase, and define event-triggered co-capture (an OS or electrical event annotating or triggering a Hub freeze and a NanoKVM keyframe), accepting that OS log timestamps are coarse and lag the fault. The wired Hub-to-NanoKVM UART (OQ-51) is the mechanism that places the NanoKVM's events on the Hub's local timebase directly. See Appendix C.7.
+
+**OQ-48: NanoKVM in the data model.** Define the NanoKVM's reporting into Concierge (screen state, power state, captured failure screens), its use as the out-of-band egress when the host path is down, and whether it carries Hub flight-recorder data out in that case. The wired UART link (OQ-51) is the path by which the Hub hands its frozen flight-recorder window to the NanoKVM for that egress. Section 2.9 extends this to a fully dead system: a wall-wart into the NanoKVM USB-C powers the Hub and NanoKVM so the Hub's flash-persisted data egresses over the NanoKVM's network without opening the case. See Appendix C.7 and Section 2.9.
+
+**OQ-49: NanoKVM screen-state classification.** Decide the screen-state classifier and stop-code OCR, the local or self-hosted vision model, and confirm the Alibaba DashScope path stays disabled, consistent with C.1 and the Latch Pro privacy posture. See Appendix C.7.
+
+**OQ-50: Out-of-band trust and privacy boundary.** Set the privacy and trust boundary for OS crash data and NanoKVM visual capture (error metadata and screen state rather than content, customer-owned, self-host parity, user scoping), and the hardening required for the NanoKVM now that it sits in the fault-evidence path. See Appendix C.7.
+
+**OQ-51: NanoKVM-to-Hub link form (adopted in intent, form open).** Lock the physical link (full-duplex UART plus ground on a reserved keyed aux header on every Hub, 3.3V both ends, data and ground only with independent power, and whether to populate a single fast trigger GPIO given that the NanoKVM's framebuffer-capture latency limits its benefit over a UART trigger message), the baud (921600 working, matching the Teleplot tooling and giving headroom for window egress), and the framed message set (fault events in; keyframe request and frozen flight-recorder window out; heartbeat both ways; correlation IDs for co-capture alignment). The reserved aux header and cable also carry the Section 2.9 shared 5V feed, so the link is power plus UART. See Appendix C.7 and Section 2.9.
+
+**OQ-52: NanoKVM link trust boundary and egress arbitration.** Lock the untrusted-input handling (hardened bounded parser, an inbound allow-list of telemetry and rate-limited benign freeze requests, no privileged Hub control reachable from the link), and define how the via-Hub egress path dedups against the NanoKVM's own network path at the service so events are not double-counted. Consistent with the NanoKVM hardening in OQ-50. See Appendix C.7.
+
+**OQ-53: Module-rail scope for the subsystem power feed.** Decide whether the module fleet rides the Section 2.9 shared 5V rail (whole-platform dual-feed, which frees on-board LED brightness on a maxed build by moving the operating draw to main 5V in S0) or stays on 5VSB-only with the discretionary loads (the ARGB strips, the NanoKVM, and capped on-board LEDs) offloaded individually. The lighter per-load path keeps the always-on monitoring core single-source and out of any source transition. The number that decides it is the S0 draw on a maxed build with the LEDs where you want them, against the main-5V headroom and the OQ-2 cap. See Section 2.9.
+
+**OQ-54: External forensic power-in.** Confirm whether the NanoKVM's USB-C is externally accessible on the PCIe card in a closed case and accepts 5V in, since the card carries more than one USB-C and some are internal. If it is, the wall-wart path costs no CEC hardware; if not, or to cover builds with no NanoKVM, specify a CEC power-in port on a rear bracket that feeds the shared rail through the same OR and revives a Hub-only build for extraction. See Section 2.9.
+
+**OQ-55: Source-OR part and back-feed isolation.** Lock the priority ideal-diode OR or priority mux (for example a TPS2116 or an LTC4412-class PowerPath, sized for the full subsystem current and low enough in drop) and verify the back-feed isolation on every source: that the Hub's 5VSB front-end Schottky is a series element in line (Section 2.7), that the NanoKVM's slot input is isolated, and that the wall-wart can never energize a dead PSU or motherboard. See Section 2.9.
+
+**OQ-56: Persist-on-fault and hold-up sizing.** Define the Hub's persist-on-fault behavior (which critical events and frozen windows are written to the 16 MB flash as they occur, and the final flush on total power loss) and size the hold-up cap to cover both the source changeover and at least one flash write, so forensic recovery returns the data that mattered. See Section 2.9.
+
 ---
 
 ## Appendix A: Spare-pair / USB architecture exploration (explored, NOT adopted, v2.5)
@@ -696,9 +818,99 @@ These are leanings, not locks, informed by the placement principle (Section 1), 
 
 ---
 
+## Appendix C: Concierge data collection (addendum, PROPOSED v1.1)
+
+This addendum defines what the Concierge layer must collect, compute, and retain so the conformance, condition-monitoring, and fault-isolation system functions end to end: the golden-sample method, the cross-module co-capture freeze (Section 6.10), and the Max module's classification (Section 6.11). It is requirements capture, not a lock. It resolves against the processing-placement principle (Section 1) and feeds OQ-38 through OQ-50. "Concierge" here is the host-and-service layer: the host app on the PC plus the optional CEC-hosted or self-hosted service above it. v1.1 adds the OS-side and out-of-band visual vantage points (C.7), because the fault evidence the modules cannot see lives in the OS and on the NanoKVM that already ships in builds.
+
+### C.1 Principle and ownership (the constraint everything sits under)
+
+Concierge is the convenience layer over data the customer owns. The data path runs modules to Hub (timestamp and aggregate) to host app over USB to service, with no CEC infrastructure in the path; the AllMyStuff Cloudflare Tunnel and account routing carry it to the customer's own account or instance. Every collection and compute feature has a self-host equivalent, and the capability is identical when self-hosted. The CEC-hosted service sells convenience.
+
+Two consequences are load-bearing for this system:
+- The EOL pass/fail and the per-account golden must be computable locally, on the Hub and bench with no service connectivity, so a shop is never blocked by the network. The service makes managing goldens across configs and a fleet convenient; it is not required to clear a build.
+- This is power and health telemetry, distinct from user content, so the "we can't see what your AI sees" posture holds. A golden is built only from an account's own units. Any cross-account or population golden is explicit opt-in and anonymized (OQ-42).
+
+### C.2 What the platform can produce (source data, by tier)
+
+This is the "what we can get" side. All of it originates at the modules and arrives through the Hub; tier sets what exists.
+
+| Data class | Source | Rate / size | Notes |
+|---|---|---|---|
+| Slow telemetry | all tiers | per-second, small | per-rail V, per-rail and per-pin I, power, temperature, per-pin imbalance ratio |
+| Energy / charge | 24-pin (INA228) | per-second, small | standby and platform energy; partial figure (OQ-13) |
+| Transient captures | Pro, Max | event, bursty | frozen co-capture windows (Section 6.10): power spike, voltage droop |
+| Spectral features | Max | periodic + on-change | ripple spectrum lines, switching frequency, effective phase count, harmonics |
+| HF / arc events | Max | event | per-pin HF energy trend, arc event (time, pin, energy, class), optional captured waveform |
+| Event log | all tiers | event | trigger fires, threshold crossings, classifications |
+| AC fusion (optional) | external meter via host | per-second | efficiency, power factor, wall draw (the PSU efficiency exploratory concept) |
+
+Per the processing-placement principle, the module ships features by default and raw waveforms only on demand. Concierge therefore collects features continuously and pulls raw captures when an event or a request warrants it. The on-demand raw-upload path is the live driver behind OQ-20.
+
+### C.3 What Concierge must collect (required inputs)
+
+Six categories. The first three are telemetry and labels, items 4 and 5 are the non-electrical vantage points (C.7), and item 6 is what Concierge computes from the rest. The ones easy to miss are the inputs that are not module telemetry: the outcome labels, and the OS and out-of-band feeds.
+
+1. Identity and provenance. Unit ID, configuration and BOM revision, module and Hub inventory with tier and firmware version, build date, and account or builder ID. This is what groups units into a config so a golden can exist, and the BOM revision is the key the golden is versioned against (the lifecycle's restart-on-BOM-change).
+
+2. Telemetry payload. The C.2 data, each capture tagged with its context: test-sequence ID at EOL, and operating state (load level, what the machine was doing) and ambient in the field. Two captures taken under different conditions are not comparable, so the context is a hard requirement rather than a metadata nicety.
+
+3. Outcome labels. RMA events, failures, service actions, and unit disposition, tied to unit ID. This is the input most likely to be forgotten. Survivor selection is telemetry stability and a clean outcome together; the telemetry side is already collected, while the outcome side is a separate feedback channel the system does not work without. A golden cannot be built from "units that proved good" if nothing records which units proved good.
+
+4. OS and host event data. The logical-fault record the modules cannot see: WHEA (machine checks, PCIe AER, ECC), bugchecks and stop codes, GPU TDRs and vendor codes (NVIDIA Xid, the AMD equivalents), Kernel-Power 41 (the OS-visible fingerprint of a hard power event), and application and device errors, with the Linux equivalents (EDAC, mcelog, dmesg, NVML, journald, kdump). Collected by a host-app agent (C.7). It is both a telemetry stream and an automatic source for the outcome labels of item 3, since a unit throwing corrected errors or resets is not a clean survivor.
+
+5. Out-of-band visual and power-state data. From the NanoKVM (C.7): screen state and captured failure screens, stop codes, POST and boot status, and power and LED state, available when the OS is down. It is the witness for faults the OS agent cannot report, and it feeds the same fault-event and outcome-label streams.
+
+6. Derived state. The golden band per config, the field envelope, per-unit deviation, trends, anomaly flags, and the current survivor set. Concierge computes these from categories 1 through 5 and holds them as derived state.
+
+### C.4 Cadence and retention (PROPOSED)
+
+| Stream | Cadence | Retention |
+|---|---|---|
+| Slow telemetry | continuous, per-second | long, downsampled for trend |
+| Spectral features | snapshot at interval and on change | long |
+| Triggered captures | per event | bounded window per event |
+| EOL fingerprint | once at end of line | unit lifetime (it is the baseline) |
+| Outcome labels | as they occur | unit lifetime |
+| OS / host events | as they occur | unit lifetime |
+| Out-of-band captures | on fault / on trigger | bounded per event |
+
+The EOL fingerprint is the birth certificate and is kept for the unit's life because it is both the bench reference and the field-monitoring baseline. The capture-retention window and the snapshot interval trade against storage and the link budget (OQ-38).
+
+### C.5 Where computation happens (placement)
+
+This resolves against Section 1. On the module: capture and classification (Max). On the Hub: aggregation, the co-capture freeze, timestamping, local retention, and the local golden comparison that backs the EOL gate. On Concierge: population golden-building, trend and cross-unit inference, outcome correlation, the fault-signature library, and presentation. The split is the principle applied directly. The local-decision and offline-capable work stays low so the EOL pass/fail runs without the service, and everything whose result only ships upward or needs the population to mean anything moves to the service. Self-host parity means the service half runs on the customer's own instance with identical results (OQ-43).
+
+### C.6 Golden-lifecycle data dependencies
+
+This maps the collection requirements onto the lifecycle stages so nothing is missing at each step:
+- Cold start needs only the absolute checks, which are local and need no golden, so a new config is covered from day one.
+- Golden ready needs the longitudinal fingerprint (stability), the outcome labels (clean record), and a sufficient unit count.
+- Build golden needs the stored EOL fingerprints of the selected survivors, averaged into a band and versioned to the BOM revision.
+- Active and refine needs continued collection so the band tightens as the population grows, and the BOM-change trigger to retire a golden when the config revises.
+
+### C.7 The three vantage points (electrical, logical, out-of-band visual)
+
+The modules see the electrical domain only. Two further domains carry fault evidence the modules cannot reach, and the system fuses all three on one timeline. Each is blind to the other two.
+
+- Electrical (modules and Hub). Rail and per-pin voltage, current, transients, ripple, and arc energy, per C.2. Always-on through 5VSB. In-band egress is the host USB path; out-of-band electrical egress is the networked Hub (the Max-tier direction).
+- Logical (the OS-side agent, item 4). The logical-fault record: WHEA, bugchecks, GPU TDRs and vendor codes, Kernel-Power 41, and application and device errors, with the Linux equivalents. Collected by a host-app agent with elevated read access. It is the only vantage point on logical faults, and it works only while the OS is alive and the agent is running.
+- Out-of-band visual and power state (the NanoKVM, item 5). The NanoKVM, shipping today as CEC Access, is a separate Linux SoC with its own network, the HDMI framebuffer, USB HID, and a front-panel-header tap for power and the power and disk LEDs. It is the vantage point that works when the OS is dead. It captures the BSOD screen and its stop code even when the OS never wrote a dump, the POST and BIOS error screens of a machine that will not boot, and the difference between a frozen frame, a no-signal, and a black screen, none of which the OS agent can report because there is no OS to report them. It reads power and LED state out-of-band, corroborating a hard reset from outside the machine, and it can act, capturing evidence and then power-cycling and watching the POST. AllMyStuff is the brain and the NanoKVM and modules are the limbs.
+
+The gap the NanoKVM fills is specific: the OS agent goes silent exactly when a fault is worst, a hang, a bugcheck before the dump is written, or a board that will not POST. The NanoKVM is the witness across that gap, and because it has its own network it is also the out-of-band egress when the host path is down. On a build with a NanoKVM and a USB-only Standard or Pro Hub, which is what ships now, it is the only out-of-band channel, so the out-of-band half of this system is already partly deployed.
+
+Two integration points and one constraint:
+- Keyframe trigger. The us_ax layer's on-demand keyframe (us_ax_request_key_frame) lets an electrical or OS trigger pull a synchronized screenshot of the screen state at the moment of the event, aligning the visual capture to the electrical timeline.
+- Screen-state classification. Vision on the framebuffer can classify the screen (normal, BSOD, POST error, frozen, no signal) and OCR a stop code into a structured fault event, out-of-band. This must run locally or self-hosted under the C.1 posture, with the device's default Alibaba DashScope endpoint staying disabled. It is convenience-not-capability applied to vision: the classification is the feature, and the privacy-preserving version self-hosts the model.
+- Honest limit. The NanoKVM sees only the HDMI output, so a GPU that stops outputting reads as no signal rather than a rendered error, and a separate networked witness is a separate attack surface, which is why its existing hardening (enforced auth, rotated credentials, the deferred kill switch, no Alibaba path) matters more once it sits in the fault-evidence path.
+
+Wired Hub link (adopted in intent; form pending OQ-51 and OQ-52). Beyond the network path, a dedicated full-duplex UART joins the NanoKVM to a reserved aux header on the Hub, coupling the visual and electrical vantage points locally, below the network and the service. It does two things the network path cannot. It lets the Hub timestamp the NanoKVM's fault events on its own electrical timebase as they arrive on the wire, so the two domains share one local clock rather than being reconciled from coarse, lagging, network-delivered timestamps at the service (OQ-47). And wired both directions, it lets the Hub hand a frozen flight-recorder window to the NanoKVM to egress over the NanoKVM's own network when the host USB path is down, which gives the USB-only Standard and Pro Hubs an out-of-band escape they otherwise lack (OQ-48). Because the NanoKVM is the networked, separate-attack-surface element, the Hub treats the link as untrusted telemetry-in and benign-requests-in (a freeze request is harmless and rate-limited), never as a privileged control channel, with a hardened bounded parser and a data-and-ground-only wire that keeps the two boards independently powered. The link is reserved on every Hub and sits idle when no NanoKVM is wired in, and it layers over the network fusion rather than replacing it, so it is an enhancement rather than a single point of failure. The benefit is inverted by tier: the USB-only Standard and Pro Hubs gain the most, since this is their only out-of-band escape, while Enterprise and Mission Critical already have their own egress and mainly gain the tight local fusion. The exact form (UART parameters and framed protocol, an optional fast trigger line whose value is limited by the NanoKVM's framebuffer-capture latency, and the connector) is OQ-51, and the trust boundary and egress-path arbitration are OQ-52. Section 2.9 supersedes the data-and-ground-only framing above: the same reserved aux header and cable also carry the shared 5V power feed, so the inter-board link is power plus UART and the two boards are no longer independently powered but draw from one priority-OR'd rail. That feed is what lets the Hub power the NanoKVM in normal operation and, in reverse, lets a wall-wart through the NanoKVM power the Hub for forensic recovery from a fully dead system.
+
+---
+
 ## 11. Revision history
 
-- **v3.5 (this revision, 2026-06-05):** locked the CAN transceiver to the classical **TJA1051T/3** (high-speed CAN, VIO = 3.3 V, LCSC C38695), replacing the TJA1462A platform-wide. The TJA1462A was carried only to keep the CAN-FD door open, but FD is deferred platform-wide (v2.0), so the FD/SIC part is unwarranted: TJA1051T/3 is cheaper (~$0.40 vs ~$1.02), far better stocked (~121k vs ~166), pin-compatible SO8, and fully covers the locked 500 kbps floor and the optional 1 Mbps. One consequence: TJA1051T/3 is NOT a SIC (ringing-suppression) part, so the optional 1 Mbps now rests solely on the Section 3.1 bench SI test passing on the passive star/stub topology with no transceiver-side help (the 500 kbps floor is unaffected); if 1 Mbps is ever needed and marginal, a SIC transceiver run classical is revisited for that option. Propagated to every board that has the transceiver: Hub Standard U2 (sourced 2026-06-05) and all six generated module schematics (atx-24pin + rev2, eps-8pin, pcie-8pin 2-/3-port, 12vhpwr-standard — U2 value → TJA1051T/3, LCSC C38695, ERC clean on each), plus the gen-modules.py default. Hub Pro and 12VHPWR Pro have no CAN transceiver placed yet, so they inherit the lock when built out. Also retargeted the Section 2.4 consumer-PoE rationale to the TJA1051T/3's own CAN bus-pin protection.
+- **v3.6 (this revision, 2026-06-05):** consolidated the canonical v3.4 upload (the subsystem-power / NanoKVM / Concierge architecture branch, forked from the shared v3.1 baseline) into this board-reconciled line. Adopted the upload's new architecture: **Section 2.9 (subsystem power management, PROPOSED)** — a hardware priority ideal-diode OR across three 5V sources (PSU main 5V tapped downstream of the 24-pin 5V sensor, 5VSB, and a wall-wart through the NanoKVM USB-C) feeding one shared monitoring rail, reconciled onto the **as-built TPS2121 front-end mux** (Section 2.7) which it extends from two inputs to three, with firmware sensing the live source and setting the load budget and mode rather than switching its own supply (which would deadlock the MCU), back-feed isolation on every source, a forensic-recovery path (a wall-wart powers the Hub and NanoKVM so flash-persisted data egresses over the NanoKVM's network without opening the case), and persist-on-fault flushing to the Hub's 16 MB flash; **Appendix C (Concierge data collection, PROPOSED v1.1)** with its three-vantage-point fusion (electrical modules and Hub, the OS-side logical agent, and the out-of-band NanoKVM visual and power-state witness on one timeline); and the **NanoKVM aux-link** table row (reserved keyed header, 3.3 V UART plus the shared 5 V feed) on Hub Standard, inherited by Hub Pro. Renumbered the upload's OQ-37 through OQ-55 to **OQ-38 through OQ-56** to avoid collision with this line's OQ-37 (the shielded-jack divergence, resolved to the Kinghelm KH-RJ45-58), and placed them in Section 10. Overrode rather than imported the upload's stale board facts — TJA1462A → TJA1051T/3, ESP32-S3-MINI-1-N16R2 → ESP32-S3-WROOM-1-N16R8, the discrete 1 Ω inrush plus SS14 front end → the TPS2121 mux and D1, aluminum-polymer → aluminum-electrolytic hold-up, M2.5 → M3 mounts — keeping this line's as-built v3.2 through v3.5 decisions. No board change; this aligns the canonical document with both branches.
+- **v3.5 (2026-06-05):** locked the CAN transceiver to the classical **TJA1051T/3** (high-speed CAN, VIO = 3.3 V, LCSC C38695), replacing the TJA1462A platform-wide. The TJA1462A was carried only to keep the CAN-FD door open, but FD is deferred platform-wide (v2.0), so the FD/SIC part is unwarranted: TJA1051T/3 is cheaper (~$0.40 vs ~$1.02), far better stocked (~121k vs ~166), pin-compatible SO8, and fully covers the locked 500 kbps floor and the optional 1 Mbps. One consequence: TJA1051T/3 is NOT a SIC (ringing-suppression) part, so the optional 1 Mbps now rests solely on the Section 3.1 bench SI test passing on the passive star/stub topology with no transceiver-side help (the 500 kbps floor is unaffected); if 1 Mbps is ever needed and marginal, a SIC transceiver run classical is revisited for that option. Propagated to every board that has the transceiver: Hub Standard U2 (sourced 2026-06-05) and all six generated module schematics (atx-24pin + rev2, eps-8pin, pcie-8pin 2-/3-port, 12vhpwr-standard — U2 value → TJA1051T/3, LCSC C38695, ERC clean on each), plus the gen-modules.py default. Hub Pro and 12VHPWR Pro have no CAN transceiver placed yet, so they inherit the lock when built out. Also retargeted the Section 2.4 consumer-PoE rationale to the TJA1051T/3's own CAN bus-pin protection.
 - **v3.4:** added an optional bus-wide 1 Mbps CAN rate to Section 3.1. 500 kbps stays the default and the locked floor and CAN-FD stays deferred; the whole shared bus may instead run classical CAN at 1 Mbps, never per-module or per-tier, since one TJA1462A on one CAN_H/CAN_L net with one split termination is a single-bitrate medium. The driver is bandwidth where CAN is the only pipe — about halving the Section 6.10 frozen-window readout and about doubling the Section 7 ARGB-over-Hub headroom — so Standard, the only CAN-only tier, gains most. It is firmware-only: the TJA1462A (CAN-SIC) and both TWAI controllers already do 1 Mbps and the Hub CAN front-end is unchanged, so the sole gate is the Section 3.1 star/stub signal-integrity bench test, now to be run at 1 Mbps. Negotiation is Hub-led auto-baud with TWAI error-counter fallback to 500 kbps; a DETECT-code bitrate advertisement was considered and declined (it costs a module resistor, grows the locked DETECT table, and buys nothing since every module is already 1 Mbps-capable while the real variable is per-install SI, which DETECT cannot sense). Board reconciliation (2026-06-04, Hub Standard pre-fab review): completed the v3.2 §2.7 fold-in — the v1.1 discrete 1 ohm 1 W inrush resistor and separate reverse-polarity diode are now explicitly marked superseded by the TPS2121 mux (soft-start inrush + source-side reverse blocking), which the Hub Standard table had still listed; and recorded that D1, the reverse-isolation Schottky, is built as SB120 (1 A/20 V) with SS14 (40 V) noted as a higher-margin drop-in. No design decision changed — this aligns the document with the as-built board.
 - **v3.3:** locked the 24-pin module dual-feed rule in Section 2.7. The 24-pin is both the bulk 5VSB source (JST feed) and a module on a Hub RJ-45 port; with its RJ-45 VCC commoned on +5VSB it paralleled the JST. Because the Hub power-mux sits only in the JST leg (JST at the mux input, RJ-45 VCC at the output), a short RJ-45 patch makes the RJ-45 the lower-resistance path — overloading the 1.5 A RJ-45 contact near full load and bypassing the mux's OR-ing. Decision: the 24-pin's RJ-45 VCC pin (J1.1) is no-connect (the module self-powers from its own 5VSB tap), so all bulk flows over the JST as OQ-1 intends; GND/CAN/DETECT unchanged. The fix lands on 24-pin rev3; the ordered rev2 carries the parallel path, with the prototype-run mitigation and the Hub-side workaround options captured in the board docs.
 - **v3.2:** reconciled against the CEC PCB-repo fork, folding in the locked board decisions this document's branch had not carried. Added Section 2.8 (module PSU-side interposer cabling: the 24-pin's two Molex Mini-Fit Jr male headers and the female-to-female bridging-cable SKU; the 12VHPWR soldered connectors). Corrected the Section 4 Hub Standard MCU from the non-existent ESP32-S3-MINI-1-N16R2 to the **ESP32-S3-WROOM-1-N16R8** (the MINI-1 has no 16 MB SKU; antenna keepout honored). Corrected the 4700 µF hold-up cap from "aluminum polymer" (unobtainable at this value) to **aluminum electrolytic** (Panasonic EEVFK1C472M, 16 V). Moved the corner mounts **M2.5 → M3** to match the PC fastener standard. Added the Hub Standard front-end architecture to Section 2.7: a TPS2121 PSU/USB priority mux, a reverse-isolation Schottky feeding an isolated +5V_HOLD hold-up reservoir for a blackout telemetry dump, and a ~470 µF surge cap on the +5VSB distribution rail, designed so the hold-up storage never smooths the measured 5VSB. Recorded the shielded-jack board divergence (boards carry the unshielded Amphenol 54602 against the Section 2.1 FTP lock) as OQ-37, and marked the Mini-Fit Jr → RJ-45 re-cut action item complete. No upload-side decision was changed.
