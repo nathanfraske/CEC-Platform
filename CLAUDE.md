@@ -523,8 +523,12 @@ Open items (surface before acting):
 Done (kept for context):
 - Vendored symbol pinout audit (2026-06-05): every IC/connector symbol's
   pin#->name verified against the manufacturer datasheet (WebSearch + KiCad stock
-  library cross-check; TI/NXP/ST PDF hosts 403 in-session) — INA240 (1=IN-, 2=GND,
-  3=REF2, 4=NC [tied to GND, datasheet-sanctioned], 5=OUT, 6=V+, 7=REF1, 8=IN+),
+  library cross-check; TI/NXP/ST PDF hosts 403 in-session) — INA240 D/SOIC-8
+  (1=IN-, 2=GND, 3=REF2, 4=NC [tied to GND, datasheet-sanctioned], 5=OUT, 6=V+,
+  7=REF1, 8=IN+) confirmed vs datasheet Fig 6-2 AND our SOIC-8 footprint; the
+  PW/TSSOP package has a DIFFERENT pinout, so the orderable MPN MUST be the D part
+  (INA240A3DR), never the PW — the symbol value is currently package-ambiguous
+  "INA240A3" (pin the D suffix + LCSC# at the 12VHPWR BOM pass).
   INA226/228/238 (identical DGS VSSOP-10; the "extends INA226" is valid),
   TJA1051T/3, LP5907MFX (pin4=NC, no BYP), TPS3839DBZ (3-pin: 1=GND,2=RESET,3=VDD),
   TPS2121RUXR (12-pin, OUT on 1+8), USBLC6-2SC6, SN74AHCT1G08, 74LVC1G17,
