@@ -360,11 +360,13 @@ def layout(dirn, parts):
         # cluster, LOAD-side OUT to the right, on a band above the sensing row.
         P[f"J_IN{i+1}"]  = (X - 25.4, 160)     # PSU side
         P[f"J_OUT{i+1}"] = (X + 25.4, 160)     # load side
-        # 12VHPWR INA240 input filter (Rf series on each leg, Cdiff between), sat
-        # between the shunt and the amp. Harmless on i2c modules (refdes absent).
-        P[f"RFH{i+1}"] = (X - 12.7, 200.66)    # series Rf, IN+ leg
-        P[f"RFL{i+1}"] = (X - 12.7, 224.79)    # series Rf, IN- leg
-        P[f"CF{i+1}"]  = (X - 6.35, 212.09)    # differential filter cap
+        # 12VHPWR INA240 input filter (Rf series on each leg, Cdiff between),
+        # parked in the gap between the shunt and the amp. The INA240 symbol box is
+        # 15.2mm (±7.62 incl. pins), so keep all three LEFT of X-7.62 to avoid the
+        # audit's symbol_overlap. Harmless on i2c modules (refdes absent).
+        P[f"RFH{i+1}"] = (X - 19.05, 205.74)   # series Rf, IN+ leg
+        P[f"RFL{i+1}"] = (X - 19.05, 215.90)   # series Rf, IN- leg
+        P[f"CF{i+1}"]  = (X - 13.97, 210.82)   # Cdiff, clear of the INA box
     if dirn == "12vhpwr-standard":
         # 47k/10k rail-voltage divider + the 4 sideband sense taps, parked below
         # the per-pin row.
