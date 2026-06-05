@@ -455,22 +455,27 @@ Done (kept for context):
   (like the 24-pin); do NOT re-run the generator over GUI work. Generated for EPS
   (2 cables, ~110x66 mm), PCIe-2port (2 cables, ~110x66 mm) and PCIe-3port (3
   cables, ~137x66 mm); plus the 12VHPWR Standard (analog-pin kind, NOT cable):
-  a slim ~44x92 mm inline stick (TIGHTENED v3.4 from 46x104) — 12V-2x6 power path
-  down the LEFT (J3 MALE header IN top, 6 per-pin shunts + INA240, J4 captive-
-  pigtail OUT bottom), ESP + CAN/LDO + flash + RJ-45/USB-C on the RIGHT, 2 M3
-  mounts ABOVE/BELOW the 14mm ESP on the clear right edge (the 12V-2x6 connectors
-  fill the left corners; cable-supported). The PLUG connectors OVERHANG their edge
-  (v3.4) so a cable seats without the board fouling the plug overmold while the
-  solder pads stay on-board: J3's right-angle shroud/mouth (~9.5mm deep, local -y)
-  overhangs the TOP edge ~3mm (12V pads ~6.5mm in); J1 (RJ-45) and J5 (USB-C)
-  overhang the RIGHT edge. J4 KEEPS J3's rotation (NOT 180) so the six +12V lanes
-  stay straight + equal-length (lane-crossing from 180 would defeat the melt-
-  prevention) — it's a soldered pigtail, wires just exit the bottom. Added the
-  CEC_CONN_12V2x6 symbol + approximate CEC_12V2x6_Horizontal footprint (LOCK from
-  datasheet). The 6 per-pin shunts are STAGGERED into 2 rows (rot 90) under the
-  +12V pins so the 3.2mm 2512 parts clear the 3.0mm pin pitch and the six 12V lanes
-  stay straight + equal-length (even current sharing = melt prevention); the rows
-  are 8mm apart (the rotated 2512 is 6.3mm tall, <7mm corner-clips). High-current routing PLAN
+  a ~58x80 mm board (v3.4: FANNED OUT from the earlier slim 44x92 stagger) — 12V-2x6
+  power path TOP->BOTTOM down the centre-left (J3 MALE header IN top-centre, 6 FANNED
+  per-pin lanes, J4 captive-pigtail OUT bottom-centre), ESP + CAN/LDO + flash +
+  RJ-45/USB-C on the RIGHT, 3 M3 corner mounts (TL/TR/BL — the RJ-45 jack body fills
+  the bottom-right corner; the 3 through-hole connectors anchor that side). The PLUG
+  connectors OVERHANG their edge so a cable seats without the board fouling the plug
+  overmold while the solder pads stay on-board: J3's right-angle shroud/mouth
+  (~9.5mm deep, local -y) overhangs the TOP edge ~3mm (12V pads ~6.5mm in); J1
+  (RJ-45) and J5 (USB-C) overhang the RIGHT edge. J4 KEEPS J3's rotation (NOT 180)
+  so the lanes don't cross — it's a soldered pigtail, wires just exit the bottom.
+  Added the CEC_CONN_12V2x6 symbol + approximate CEC_12V2x6_Horizontal footprint
+  (LOCK from datasheet). FAN-OUT: J3/J4 keep the connector's fixed 3mm pin pitch
+  (centered); the six +12V lanes splay symmetrically to a ~6mm SENSE pitch so each
+  lane gets its OWN column with room for its in-line shunt -> RC input filter
+  (RFH/RFL 10ohm + CF 470n) -> INA240 (rot90, 4.4mm wide fits 6mm) -> bypass
+  C10-C15, stacked straight down (short in-column Kelvin, NO staggering), then fan
+  back in to J4. Symmetric fan = equal-length lane pairs (length-match the straight
+  run in the GUI if the inner/outer spread matters; the 1mohm shunt + contact R
+  dominate). The per-lane sense passives (RFH/RFL/CF + C10-15) are PLACED by the
+  generator now; the control-side decoupling (C1-C8, R1/R2/R7, D1) still comes via
+  Update-from-Schematic. High-current routing PLAN
   is documented in modules/12vhpwr-standard/12vhpwr-routing-plan.png
   (scripts/gen-hpwr-routing-plan.py, ENRICHED v3.4): a to-placement top-down of the
   six equal-length lanes, the four-wire Kelvin detail + the INA RC filter, the

@@ -32,13 +32,12 @@ VIA   = "#117a65"   # via
 PALE  = "#f4f6f7"
 
 # real board placement (mm, board origin top-left, y increases DOWNWARD)
-H = 92.0
-PX   = [4.0, 7.0, 10.0, 13.0, 16.0, 19.0]          # six +12V pin columns
-yJ3  = 6.5                                          # J3 +12V pad row
-yGND3 = 9.5                                         # J3 GND pad row
-ySH  = [22.0 if i % 2 == 0 else 30.0 for i in range(6)]   # staggered shunt rows
-yINA = [40.0 if i % 2 == 0 else 48.0 for i in range(6)]   # staggered INA rows
-yJ4  = 83.6                                         # J4 +12V pad row
+H = 80.0
+JX = [11.5 + i * 3.0 for i in range(6)]             # J3/J4 pins: fixed 3 mm pitch
+LX = [4.0 + i * 6.0 for i in range(6)]              # lanes FANNED to a 6 mm sense pitch
+yJ3, yGND3 = 6.5, 9.5                               # J3 +12V / GND pad rows
+ySH, yFILT, yINA = 22.0, 30.0, 39.0                # single-row shunt / RC filter / INA
+yJ4 = 70.0                                          # J4 +12V pad row
 def py(yb): return H - yb                           # board-y -> plot-y (flip)
 
 fig = plt.figure(figsize=(19.5, 11.6))
@@ -52,77 +51,77 @@ axT = fig.add_subplot(gs[2, 1])      # spec tables
 # ======================================================================
 # LEFT PANEL -- top-down routing of the 12V power section (to scale)
 # ======================================================================
-axL.set_title("12V power section — top-down routing (to real placement)",
+axL.set_title("12V power section — FANNED-OUT routing (to real placement)",
               fontsize=11.5, fontweight="bold")
-# board substrate (left power column shown; right half is ESP/control)
-axL.add_patch(Rectangle((0, py(H)), 22.0, H, facecolor="#16432e", edgecolor="k", lw=1.4, zorder=0))
+PW = 38.0                                            # power-section width shown (control is right)
+axL.add_patch(Rectangle((0, py(H)), PW, H, facecolor="#16432e", edgecolor="k", lw=1.4, zorder=0))
 # GND plane stitch grid (faint)
-for gx in [x for x in range(1, 22, 5)]:
-    for gy in range(2, 92, 5):
-        axL.add_patch(Circle((gx, py(gy)), 0.30, facecolor=VIA, edgecolor="none", alpha=0.28, zorder=1))
+for gx in range(2, int(PW), 5):
+    for gy in range(2, int(H), 5):
+        axL.add_patch(Circle((gx, py(gy)), 0.30, facecolor=VIA, edgecolor="none", alpha=0.25, zorder=1))
 
-# ---- J3 header (overhangs the TOP edge) ----
-axL.add_patch(FancyBboxPatch((1.4, py(yGND3) - 1.0), 19.2, 6.2, boxstyle="round,pad=0.15",
-              facecolor="#0e2c1e", edgecolor="0.8", lw=1.0, zorder=2))
-axL.text(11, py(yJ3) + 4.2, "J3  12V-2×6 IN  (shroud overhangs ↑)",
-         ha="center", va="bottom", fontsize=7.8, fontweight="bold", color="w", zorder=6)
-for i, x in enumerate(PX):
-    axL.add_patch(Circle((x, py(yJ3)), 1.05, facecolor=RED, edgecolor="k", zorder=5))
-    axL.text(x, py(yJ3), str(i + 1), ha="center", va="center", fontsize=6, color="w", zorder=6)
-    axL.add_patch(Circle((x, py(yGND3)), 0.9, facecolor=GNDC, edgecolor="k", zorder=5))
+# ---- J3 header: fixed 3 mm pins, centered, overhangs the TOP edge ----
+axL.add_patch(FancyBboxPatch((JX[0] - 2.4, py(yGND3) - 1.0), (JX[-1] - JX[0]) + 4.8, 6.2,
+              boxstyle="round,pad=0.15", facecolor="#0e2c1e", edgecolor="0.8", lw=1.0, zorder=2))
+axL.text((JX[0] + JX[-1]) / 2, py(yJ3) + 4.4, "J3  12V-2×6 IN  (3 mm pins, overhangs ↑)",
+         ha="center", va="bottom", fontsize=7.4, fontweight="bold", color="w", zorder=6)
+for i, jx in enumerate(JX):
+    axL.add_patch(Circle((jx, py(yJ3)), 1.0, facecolor=RED, edgecolor="k", zorder=5))
+    axL.text(jx, py(yJ3), str(i + 1), ha="center", va="center", fontsize=5.4, color="w", zorder=6)
+    axL.add_patch(Circle((jx, py(yGND3)), 0.85, facecolor=GNDC, edgecolor="k", zorder=5))
 
-# ---- six +12V lanes: J3 pin -> in-line shunt -> J4 pin (straight, equal length) ----
-for i, x in enumerate(PX):
-    axL.add_line(plt.Line2D([x, x], [py(yJ3), py(yJ4)], color=RED, lw=7.0,
-                 solid_capstyle="butt", zorder=3, alpha=0.92))               # F.Cu lane
-    axL.add_line(plt.Line2D([x, x], [py(yJ3), py(yJ4)], color="#fadbd8", lw=1.6,
+# ---- six lanes: J3 pin (3mm) -> FAN OUT -> in-line shunt (6mm) -> down -> FAN IN -> J4 pin ----
+for i in range(6):
+    jx, lx = JX[i], LX[i]
+    poly_x = [jx, jx, lx, lx, jx, jx]
+    poly_y = [py(yJ3), py(14.0), py(18.5), py(58.0), py(64.0), py(yJ4)]
+    axL.add_line(plt.Line2D(poly_x, poly_y, color=RED, lw=6.0, solid_capstyle="round",
+                 solid_joinstyle="round", zorder=3, alpha=0.92))             # F.Cu lane
+    axL.add_line(plt.Line2D(poly_x, poly_y, color="#fadbd8", lw=1.3,
                  ls=(0, (2, 2.4)), zorder=4))                                # B.Cu mirror
-    # stitch pair every ~5 mm down the lane (12V F<->B paralleling)
-    for sgy in range(int(yJ3) + 5, int(yJ4), 5):
-        axL.add_patch(Circle((x, py(sgy)), 0.26, facecolor=VIA, edgecolor="k", lw=0.25, zorder=4))
-    # in-line shunt (lane current passes through it) + via field at each terminal
-    sy = ySH[i]
-    axL.add_patch(Rectangle((x - 1.05, py(sy) - 2.6), 2.1, 5.2, facecolor=GOLD,
+    # stitch every ~5 mm down the straight section (12V F<->B paralleling)
+    for sgy in range(20, 58, 5):
+        axL.add_patch(Circle((lx, py(sgy)), 0.24, facecolor=VIA, edgecolor="k", lw=0.25, zorder=4))
+    # in-line shunt + via field at each terminal
+    axL.add_patch(Rectangle((lx - 1.05, py(ySH) - 2.6), 2.1, 5.2, facecolor=GOLD,
                   edgecolor="k", lw=0.8, zorder=6))
-    axL.text(x, py(sy) + 4.4, f"RS{i+1}", ha="center", va="center", fontsize=6.0, zorder=7)
-    for vy in (sy - 3.4, sy + 3.4):
+    axL.text(lx, py(ySH) + 4.3, f"RS{i+1}", ha="center", va="center", fontsize=5.6, zorder=7)
+    for vy in (ySH - 3.4, ySH + 3.4):
         for k in range(3):
-            axL.add_patch(Circle((x - 0.7 + k * 0.7, py(vy)), 0.32, facecolor=VIA,
+            axL.add_patch(Circle((lx - 0.7 + k * 0.7, py(vy)), 0.30, facecolor=VIA,
                           edgecolor="k", lw=0.3, zorder=7))
-    # INA240 (real position, lower band) + tight Kelvin pair down the inter-lane gap
-    iy = yINA[i]
-    axL.add_patch(Rectangle((x - 1.5, py(iy) - 2.0), 3.0, 4.0, facecolor=INA,
+    # RC input filter (RFH/RFL + CF) now in-column between shunt and INA
+    axL.add_patch(Rectangle((lx - 1.8, py(yFILT) - 0.55), 1.0, 1.1, facecolor="w", edgecolor=NAVY, zorder=7))
+    axL.add_patch(Rectangle((lx + 0.8, py(yFILT) - 0.55), 1.0, 1.1, facecolor="w", edgecolor=NAVY, zorder=7))
+    axL.add_patch(Rectangle((lx - 0.7, py(yFILT + 3.0) - 0.55), 1.4, 1.1, facecolor="#d6eaf8", edgecolor=NAVY, zorder=7))
+    # INA240 (single row) + SHORT in-column Kelvin pair from the shunt above
+    axL.add_patch(Rectangle((lx - 1.25, py(yINA) - 2.6), 2.5, 5.2, facecolor=INA,
                   edgecolor=NAVY, lw=0.8, zorder=6))
-    axL.text(x, py(iy), f"U1{i}", ha="center", va="center", fontsize=5.2, color=NAVY, zorder=7)
-    gx = x + 1.45                                                            # pair in the gap
-    axL.add_line(plt.Line2D([gx, gx], [py(sy + 2.2), py(iy - 1.6)], color=NAVY, lw=0.9, zorder=8))
-    axL.add_line(plt.Line2D([gx + 0.45, gx + 0.45], [py(sy + 2.2), py(iy - 1.6)],
-                 color=NAVY, lw=0.9, zorder=8))
+    axL.text(lx, py(yINA), f"U1{i}", ha="center", va="center", fontsize=5.0, color=NAVY, zorder=7)
+    axL.add_line(plt.Line2D([lx - 0.4, lx - 0.4], [py(ySH + 2.4), py(yINA - 2.6)], color=NAVY, lw=0.8, zorder=8))
+    axL.add_line(plt.Line2D([lx + 0.4, lx + 0.4], [py(ySH + 2.4), py(yINA - 2.6)], color=NAVY, lw=0.8, zorder=8))
 
-# equal-length call-out (thin, right margin)
-axL.annotate("", xy=(21.2, py(yJ3)), xytext=(21.2, py(yJ4)),
-             arrowprops=dict(arrowstyle="<->", color="0.9", lw=1.0))
-axL.text(20.7, py((yJ3 + yJ4) / 2), "6 lanes = equal length (≈77 mm) → balanced share",
-         rotation=90, va="center", ha="center", fontsize=7.2, color="w")
+axL.text((JX[0] + JX[-1]) / 2, py(15.8), "fan 3→6 mm (symmetric ⇒ equal-length lane pairs)",
+         ha="center", fontsize=6.6, color="#fadbd8", fontstyle="italic", zorder=9)
 
-# ---- J4 pigtail land (same rotation as J3 → lanes stay straight) ----
-axL.add_patch(FancyBboxPatch((1.4, py(yJ4) - 3.2), 19.2, 6.0, boxstyle="round,pad=0.15",
-              facecolor="#0e2c1e", edgecolor="0.8", lw=1.0, zorder=2))
-for i, x in enumerate(PX):
-    axL.add_patch(Circle((x, py(yJ4)), 1.05, facecolor=RED, edgecolor="k", zorder=5))
+# ---- J4 pigtail land (same rotation as J3 → lanes don't cross) ----
+axL.add_patch(FancyBboxPatch((JX[0] - 2.4, py(yJ4) - 3.2), (JX[-1] - JX[0]) + 4.8, 6.0,
+              boxstyle="round,pad=0.15", facecolor="#0e2c1e", edgecolor="0.8", lw=1.0, zorder=2))
+for i, jx in enumerate(JX):
+    axL.add_patch(Circle((jx, py(yJ4)), 1.0, facecolor=RED, edgecolor="k", zorder=5))
     for k in range(3):                                  # stitch each pin into both outers
-        axL.add_patch(Circle((x - 0.7 + k * 0.7, py(yJ4 + 3.0)), 0.30, facecolor=VIA,
+        axL.add_patch(Circle((jx - 0.7 + k * 0.7, py(yJ4 + 3.0)), 0.28, facecolor=VIA,
                       edgecolor="k", lw=0.3, zorder=6))
-axL.text(11, py(yJ4) - 4.4, "J4  pigtail OUT → GPU",
-         ha="center", va="top", fontsize=7.8, fontweight="bold", color="w")
+axL.text((JX[0] + JX[-1]) / 2, py(yJ4) - 4.4, "J4  pigtail OUT → GPU  (3 mm pins)",
+         ha="center", va="top", fontsize=7.4, fontweight="bold", color="w")
 
 # legend BELOW the board (outside the outline)
-axL.text(11, -3.2,
-         "RED = +12V lane (F.Cu 2oz)  ·  pink dashed = B.Cu 2oz mirror (paralleled)\n"
-         "GOLD = 1 mΩ in-line shunt  ·  TEAL dots = vias (lane stitch + fields + GND grid)\n"
-         "BLUE = INA240 (lower band)  ·  NAVY = tight Kelvin pair  →  see detail, top-right",
-         fontsize=7.3, color="0.15", va="top", ha="center")
-axL.set_xlim(-0.6, 22.8); axL.set_ylim(-9, H + 7); axL.axis("off"); axL.set_aspect("equal")
+axL.text(PW / 2, -3.0,
+         "RED = +12V lane (F.Cu 2oz) · pink dashed = B.Cu mirror (paralleled) · GOLD = 1 mΩ shunt\n"
+         "WHITE/CYAN = RC filter (RFH/RFL 10 Ω + CF 470 nF, in-column) · BLUE = INA240 · TEAL = vias\n"
+         "NAVY = SHORT in-column Kelvin pair  →  see four-wire detail, top-right",
+         fontsize=7.0, color="0.15", va="top", ha="center")
+axL.set_xlim(-0.6, PW + 2.6); axL.set_ylim(-8, H + 7); axL.axis("off"); axL.set_aspect("equal")
 
 # ======================================================================
 # KELVIN DETAIL (top-right)

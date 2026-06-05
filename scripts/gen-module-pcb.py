@@ -58,57 +58,54 @@ def placement(n):
     return W, H, P, mounts, logo
 
 def placement_hpwr():
-    """Slim inline 12VHPWR Standard, tightened. LEFT = the 12V-2x6 power path
-    (board-mount MALE header IN at the top, 6 per-pin shunts + INA240 stacked
-    down, captive-pigtail OUT land at the bottom); RIGHT = ESP + CAN/LDO + flash
-    front end + RJ-45/USB-C. The plug connectors OVERHANG their board edge so a
-    cable seats without the board fouling the plug overmold, while the solder pads
-    stay on-board for mechanical support:
-      * J3 (PSU 12V-2x6 IN): the right-angle shroud/mouth is at footprint-local
-        -y (~9.5mm deep); J3 is pushed up so the mouth overhangs the TOP edge and
-        the 12V pads sit ~6.5mm in. J4 keeps J3's rotation (NOT 180) so all six
-        +12V lanes run straight + equal-length (uneven sharing melts 12VHPWR); it
-        is a captive soldered pigtail, so its wires just exit the bottom edge.
-      * J1 (RJ-45) and J5 (USB-C): rotated 90, mouths overhanging the RIGHT edge.
-    The 18 INA input-filter passives (RFH/RFL/CF) and the 4 sideband tap resistors
-    (R10-R13) are pulled in via 'Update PCB from Schematic' in the GUI (same as the
-    decoupling), then placed by the shunt/INA clusters."""
-    W, H = 44.0, 92.0
-    # --- LEFT: 12V-2x6 power path ---
-    P = {"J3": (4.0, 6.5, 0)}                     # 12V pads y6.5; shroud overhangs top edge
-    # 6 per-pin shunts STAGGERED into 2 rows under the +12V pins (3.2mm-wide 2512
-    # shunts won't fit the 3.0mm pin pitch in one row), rotated 90 so their long
-    # axis carries the vertical current and the six 12V lanes stay straight +
-    # equal-length = even current sharing (melt prevention). INA240 below each
-    # shunt. The rows are 8mm apart (the rotated 2512 is 6.3mm tall, so <7mm rows
-    # corner-clip). See scripts/gen-hpwr-routing-plan.py for the plan.
-    sx = [4.0, 7.0, 10.0, 13.0, 16.0, 19.0]       # the six +12V pin columns (J3)
-    for i in range(6):
-        ys, yina = (22.0, 40.0) if i % 2 == 0 else (30.0, 48.0)   # row A / row B
-        P[f"RS{i+1}"] = (sx[i], ys, 90)           # 1 mΩ per-pin shunt (vertical)
-        P[f"U1{i}"]   = (sx[i], yina, 90)         # INA240 (U10..U15)
-    P["J4"] = (4.0, 83.6, 0)                      # 12V-2x6 OUT pigtail; 12V pads y83.6
-    # --- RIGHT: control/power core + flash front end ---
-    # J3's 12V-2x6 courtyard is big (~21mm wide, reaching x22), and the ESP module
-    # courtyard is ~16x21mm, so the top-right band is squeezed: U2/D2/C9 sit just
-    # clear of J3's edge, D2 (SMA) stands vertical to keep its x-profile narrow.
-    P["U2"] = (28.0, 6.0, 0)                       # TJA1462A CAN (top)
-    P["D2"] = (24.0, 12.0, 90); P["C9"] = (28.0, 12.0, 0)  # VBUS ORing (vertical) + bulk
-    P["U1"] = (33.0, 30.0, 0)                      # ESP32-S3-MINI-1 (~16x21 crtyd)
-    P["U3"] = (24.0, 44.0, 0)                      # LP5907 LDO
-    P["R8"] = (23.0, 50.0, 0); P["R9"] = (28.0, 50.0, 0)   # CC pulldowns
-    P["R5"] = (23.0, 57.0, 0); P["R6"] = (28.0, 57.0, 0)   # rail divider
-    # BOOT/RESET buttons are 5.2mm wide each; stack them VERTICALLY in the open
-    # mid-right strip (clear of the edge and the left R-column) rather than
-    # side-by-side, which crowded the edge.
-    P["SW1"] = (37.0, 50.0, 0); P["SW2"] = (37.0, 58.0, 0) # BOOT / RESET
-    P["J5"] = (40.0, 13.0, 90)                     # USB-C, right edge upper, opening +X
-    P["J1"] = (31.0, 78.0, 90)                     # RJ-45, right edge lower, opening +X
-    # The 12V-2x6 connectors fill the left corners and the ESP fills the right
-    # mid-band, so the two M3 mounts sit ABOVE (beside U2) and BELOW (beside J1)
-    # the ESP, on the clear right edge (add more in the GUI if a bracket needs them).
-    mounts = [(38.0, 4.0), (38.0, H - 6.0)]
-    logo = (9.0, 66.0)
+    """Inline 12VHPWR Standard with the six 12V lanes FANNED OUT. J3 (PSU IN) and
+    J4 (captive pigtail OUT) are 12V-2x6 connectors with a fixed 3 mm pin pitch;
+    they are centered on the power section and the six +12V lanes splay symmetrically
+    from that 3 mm pitch to a ~6 mm SENSE pitch, so each lane gets its OWN column
+    with room for its in-line shunt -> RC input filter -> INA240 stacked straight
+    down (short Kelvin, no staggering). Symmetric fan => equal-length lane pairs.
+    The plug connectors overhang their edges (J3 top; J1/J5 right). J4 keeps J3's
+    rotation so the lanes don't cross. Now that J3/J4 sit centered (not in the
+    corners), there is room for four corner M3 mounts. The per-lane sense passives
+    (RFH/RFL/CF + the INA bypass C10-C15) are placed here; the control-side
+    decoupling (C1-C8, R1/R2/R7, D1) still comes via Update-from-Schematic."""
+    PIT = 6.0
+    LX = [4.0 + i * PIT for i in range(6)]            # fanned lanes: 4,10,16,22,28,34
+    W, H = 58.0, 80.0
+    cx = (LX[0] + LX[-1]) / 2.0                        # 19.0  power-section center
+    jorg = cx - 7.5                                    # 11.5  J3/J4 pin-1 x (3 mm pitch)
+    P = {"J3": (jorg, 6.5, 0)}                         # 12V-2x6 IN; shroud overhangs top
+    # per-lane sense stack (top -> bottom): in-line 1 mΩ shunt -> RC input filter
+    # (matched 10 Ω series Rf each leg + 470 nF Cdiff) -> INA240 (inputs facing UP
+    # toward the shunt) -> INA V+ bypass below. All in the lane's own column.
+    for i, x in enumerate(LX):
+        P[f"RS{i+1}"]  = (x, 22.0, 90)               # 1 mΩ shunt, in-line (vertical)
+        P[f"RFH{i+1}"] = (x - 1.6, 30.0, 90)         # series Rf, IN+ leg
+        P[f"RFL{i+1}"] = (x + 1.6, 30.0, 90)         # series Rf, IN- leg
+        P[f"CF{i+1}"]  = (x, 33.6, 90)               # differential cap, at the INA in
+        P[f"U1{i}"]    = (x, 39.0, 90)               # INA240 (rot90 = 4.4mm wide, fits 6mm)
+        P[f"C1{i}"]    = (x, 44.5, 0)                # INA V+ 100nF bypass (C10..C15)
+    P["J4"] = (jorg, 70.0, 0)                         # 12V-2x6 pigtail OUT (same rot)
+    # --- control / power core + flash front end (right of the fanned lanes) ---
+    P["U2"] = (44.0, 7.0, 0)                          # TJA1462A CAN (top)
+    P["D2"] = (43.0, 14.0, 90); P["C9"] = (47.0, 14.0, 0)   # VBUS ORing (vert) + bulk
+    P["U1"] = (48.0, 30.0, 0)                         # ESP32-S3-MINI-1 (~16x21 crtyd)
+    P["U3"] = (42.0, 45.0, 0)                         # LP5907 LDO
+    P["R8"] = (41.0, 50.0, 0); P["R9"] = (45.0, 50.0, 0)    # CC pulldowns
+    P["R5"] = (40.0, 56.0, 0); P["R6"] = (44.0, 56.0, 0)    # rail divider
+    P["SW1"] = (52.0, 46.0, 0); P["SW2"] = (52.0, 52.0, 0)  # BOOT / RESET
+    # 4 sideband taps, in the gap between J3's sideband pins (left) and the ESP
+    P["R10"] = (38.0, 13.0, 0); P["R11"] = (38.0, 16.0, 0)
+    P["R12"] = (38.0, 19.0, 0); P["R13"] = (38.0, 22.0, 0)
+    P["J5"] = (54.0, 14.0, 90)                        # USB-C, right edge upper, opening +X
+    # RJ-45 (J1): the shield posts SH1/SH2 stick out past the signal pins, so park
+    # it low-right clear of the R-column/switches and the corner mount; mouth +X.
+    P["J1"] = (42.0, 72.0, 90)                        # RJ-45, right edge lower, opening +X
+    # Three M3 corner mounts: TL, TR, BL. The RJ-45's big jack body (~16.6x18.7mm
+    # courtyard) fills the bottom-right corner, so a 4th mount can't go there; the
+    # three big through-hole connectors (J3, J4, J1) anchor that side mechanically.
+    mounts = [(4.0, 4.0), (W - 4.0, 4.0), (4.0, H - 4.0)]
+    logo = (19.0, 53.0)                               # back copper, pad-free fan-in band
     return W, H, P, mounts, logo
 
 # ---------------------------------------------------------------- helpers
