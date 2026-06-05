@@ -50,9 +50,10 @@ The NTC symbol carries the real part props (Manufacturer / MPN / LCSC /
 Datasheet) and a default footprint, so dropping it on a board is BOM-complete.
 10 kΩ ±1 % @ 25 °C, B25/50 = 3380 K, 100 mW, −40…+125 °C. Wire it as one leg of a
 divider against a fixed 10 kΩ into an MCU ADC channel. (The 12VHPWR Standard
-`TH1`/`TH2` are still on the `R_Small` placeholder + generic `R_0402` land — swap
-them to this symbol + footprint on their next pass; they are not yet placed on
-the PCB, so it is a clean repoint.)
+`TH1`/`TH2` were repointed to this symbol + footprint on 2026-06-05, from the
+`R_Small` placeholder + generic `R_0402` land — ERC clean, netlist-verified
+TEMP1→IO13 / TEMP2→IO14 with wires preserved; pull onto the PCB via
+Update-PCB-from-Schematic.)
 
 ## Rule
 
