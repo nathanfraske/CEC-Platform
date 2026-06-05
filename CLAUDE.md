@@ -10,7 +10,20 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.6 (2026-06-05).
+Spec revision reflected here: v3.7 (2026-06-05).
+
+v3.7 (2026-06-05): RESOLVED the NanoKVM aux-link FORM (OQ-51). The link is a
+reserved keyed **5-pin JST-PH** aux header (vendored B5B-PH-K-S) on every Hub,
+carrying the full set of pins the NanoKVM brings out on its own header: the
+full-duplex 3.3V UART (TX/RX), the SHARED 5V feed + ground (§2.9), and the
+NanoKVM's 3.3V reference/presence line. NO trigger GPIO — the NanoKVM exposes no
+drivable interrupt input (framebuffer-capture latency caps a fast trigger anyway),
+so event triggers ride the UART in-band; this is what "simplifies the header."
+Baud (921600 working) + framed protocol stay firmware-open. NOTE: this corrects a
+momentary mis-read that the NanoKVM exposed ONLY UART/GND/3V3 — it DOES also expose
+5V + GND, so the §2.9 shared rail and the wall-wart-through-NanoKVM forensic path
+are confirmed and STAND (an interim UART-only v3.7 draft was reverted first). Header
+pin set for the J7 splice below: TX, RX, SHARED_5V (=+5VSB rail), GND, KVM_3V3_REF.
 
 v3.6 consolidation (2026-06-05): merged the user's canonical v3.4 upload (the
 subsystem-power / NanoKVM / Concierge architecture branch) into the board-
@@ -423,11 +436,13 @@ clearly labeled branch or variant.
 - OQ-15 (spec): Max positioning — is the 12VHPWR Max a new platform tier or a
   module variant (§6.11)? [In the OLD repo numbering OQ-15 meant the shielded-jack
   divergence; that is now OQ-37.]
-- Canonical OQ list is OQ-1..OQ-56 in spec §10 (v3.6): OQ-1..37 as before (Max
+- Canonical OQ list is OQ-1..OQ-56 in spec §10 (v3.7): OQ-1..37 as before (Max
   §6.11, SATA §6.12, ARGB §7, compute/Enterprise, OQ-37 shielded jack), plus the
   v3.6-imported OQ-38..56 (Concierge data-collection OQ-38..47, NanoKVM link
-  OQ-48..52, and subsystem power §2.9 OQ-53..56). Read the spec for any OQ above
-  13 — do not assume from this summary.
+  OQ-48..52, and subsystem power §2.9 OQ-53..56). OQ-51 (NanoKVM link FORM) is
+  RESOLVED v3.7 — 5-pin JST-PH aux header (UART TX/RX + shared 5V + GND + KVM 3V3
+  ref), no trigger GPIO; baud/protocol still firmware-open. Read the spec for any
+  OQ above 13 — do not assume from this summary.
 
 ## Active action items
 
@@ -450,10 +465,13 @@ Open items (surface before acting):
    J1's part); two 47k/10k source-sense dividers -> ESP32 IO9 (MAIN_5V_SENSE) /
    IO10 (5VSB_SENSE) for the firmware budget/mode pick; PWR_FLAGs on MAIN_5V_RAW +
    PSU_5V (the TPS2121 OUT pin is typed power_in, so the intermediate needs one).
-   FOLLOW-UPS (deferred): (a) J7 NanoKVM aux header — 5-pin JST-PH (UART on IO11/12,
-   SHARED_5V = +5VSB, GND, TRIG on IO13); footprint ALREADY vendored
-   (cec-Connector_JST:JST_PH_B5B-PH-K-S_1x05_P2.00mm_Vertical) + 3D model, symbol +
-   splice still to do. (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
+   FOLLOW-UPS (deferred): (a) J7 NanoKVM aux header — 5-pin JST-PH, FORM LOCKED v3.7
+   (OQ-51): pins = UART TX/RX on IO11/IO12, SHARED_5V (= the +5VSB rail), GND, and
+   the NanoKVM's 3.3V reference/presence on an ESP32 ADC-capable GPIO (working: IO13,
+   read as a presence/level sense — NOT a trigger). NO trigger GPIO — triggers ride
+   the UART in-band (the NanoKVM has no drivable interrupt input). Footprint ALREADY
+   vendored (cec-Connector_JST:JST_PH_B5B-PH-K-S_1x05_P2.00mm_Vertical) + 3D model;
+   symbol + splice still to do. (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
    the draw counts in system 5V per OQ-13) -> feed the Hub's J8 ("24-pin next").
    (c) PRODUCTION: consolidate J1 (5VSB) + J8 (MAIN_5V) into one 3-pin feed (kept
    separate now so the existing 5VSB cable + Hub bench-test still work — "fix
