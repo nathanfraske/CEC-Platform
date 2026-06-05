@@ -440,6 +440,30 @@ this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
 
+0. §2.9 Subsystem power management — Hub Standard prototype (PARTIAL, 2026-06-05).
+   POWER-SWITCHING CORE DONE in the schematic (ERC 0 errors, netlist verified, BOM
+   sourced): cascade adds U7 = 2nd TPS2121 (C485916, reuse U5's part) ORing
+   MAIN_5V_RAW (priority) > PSU_5V (= U5's 5VSB/USB OR) -> +5VSB, giving the
+   MAIN_5V > 5VSB > USB priority the spec wants without touching U5's inputs. Done
+   via ONE wire cut (U5.OUT->rail) + relabel U5.OUT to PSU_5V; U7.OUT carries the
+   +5VSB rail (D1/hold-up/LDO/loads unchanged). MAIN_5V feed = J8 (S2B-XH-A, reuse
+   J1's part); two 47k/10k source-sense dividers -> ESP32 IO9 (MAIN_5V_SENSE) /
+   IO10 (5VSB_SENSE) for the firmware budget/mode pick; PWR_FLAGs on MAIN_5V_RAW +
+   PSU_5V (the TPS2121 OUT pin is typed power_in, so the intermediate needs one).
+   FOLLOW-UPS (deferred): (a) J7 NanoKVM aux header — 5-pin JST-PH (UART on IO11/12,
+   SHARED_5V = +5VSB, GND, TRIG on IO13); footprint ALREADY vendored
+   (cec-Connector_JST:JST_PH_B5B-PH-K-S_1x05_P2.00mm_Vertical) + 3D model, symbol +
+   splice still to do. (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
+   the draw counts in system 5V per OQ-13) -> feed the Hub's J8 ("24-pin next").
+   (c) PRODUCTION: consolidate J1 (5VSB) + J8 (MAIN_5V) into one 3-pin feed (kept
+   separate now so the existing 5VSB cable + Hub bench-test still work — "fix
+   later"). (d) PCB (GUI): place U7/J8 near the front end, route the cut net
+   U5.OUT->U7.IN2 and U7.OUT->the +5VSB/D1 node, route the IO9/IO10 taps, re-DRC.
+   (e) OQ-56: bench-verify the 4700uF hold-up rides a flash write. The chosen part
+   (cascade TPS2121, not the $7.77 LTC4417 triple-prioritizer) is the cost-right
+   call for the $36 Hub; LTC4417 is the textbook part for a non-cost-constrained
+   (Enterprise/MC) board.
+
 1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement.
    Hub Standard DONE (2026-06-04): D2-D5 = PESD5V0S1UL (SOD-323), one per port,
    cathode to each DETECT line, anode to GND (verified ERC/netlist).
