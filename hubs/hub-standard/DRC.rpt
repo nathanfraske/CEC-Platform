@@ -1,104 +1,216 @@
 ** Drc report for hub-standard.kicad_pcb **
-** Created on 2026-06-04T20:05:04 **
+** Created on 2026-06-05T15:39:10 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 33 DRC violations **
+** Found 65 DRC violations **
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(97.0225 mm, 95.2500 mm): PTH pad [<no net>] of J2
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(85.7225 mm, 95.2500 mm): PTH pad [<no net>] of J2
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(115.5225 mm, 95.2500 mm): PTH pad [<no net>] of J3
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(104.2225 mm, 95.2500 mm): PTH pad [<no net>] of J3
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(134.0225 mm, 95.2500 mm): PTH pad [<no net>] of J4
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(122.7225 mm, 95.2500 mm): PTH pad [<no net>] of J4
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(152.0225 mm, 95.2500 mm): PTH pad [<no net>] of J5
+[annular_width]: Annular width (board setup constraints min annular width 0.1000 mm; actual 0.0000 mm)
+    Rule: board setup constraints; error
+    @(140.7225 mm, 95.2500 mm): PTH pad [<no net>] of J5
+[clearance]: Clearance violation (netclass 'Power' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'Power'; error
+    @(97.2325 mm, 100.1500 mm): Track [+5VSB] on B.Cu, length 15.6000 mm
+    @(111.7425 mm, 101.6000 mm): PTH pad 3 [/CAN_H] of J3
+[clearance]: Clearance violation (netclass 'CAN' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'CAN'; error
+    @(141.8925 mm, 104.1400 mm): PTH pad 8 [/DETECT4] of J5
+    @(126.5000 mm, 103.0900 mm): Track [/CAN_L] on F.Cu, length 16.8825 mm
+[clearance]: Clearance violation (netclass 'CAN' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'CAN'; error
+    @(108.0000 mm, 103.0900 mm): Track [/CAN_L] on F.Cu, length 17.3825 mm
+    @(110.4725 mm, 104.1400 mm): PTH pad 4 [unconnected-(J3-STREAM_P-Pad4)] of J3
+[clearance]: Clearance violation (netclass 'CAN' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'CAN'; error
+    @(86.8925 mm, 104.1400 mm): PTH pad 8 [/DETECT1] of J2
+    @(85.9100 mm, 103.0900 mm): Track [/CAN_L] on F.Cu, length 3.5900 mm
+[clearance]: Clearance violation (netclass 'CAN' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'CAN'; error
+    @(94.2925 mm, 102.6500 mm): Track [/CAN_H] on F.Cu, length 16.4000 mm
+    @(109.2025 mm, 101.6000 mm): PTH pad 5 [unconnected-(J3-STREAM_N-Pad5)] of J3
+[clearance]: Clearance violation (netclass 'Power' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'Power'; error
+    @(130.0000 mm, 102.6500 mm): Track [/CAN_H] on F.Cu, length 17.1925 mm
+    @(132.7825 mm, 101.6000 mm): PTH pad 1 [+5VSB] of J4
+[clearance]: Clearance violation (netclass 'CAN' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'CAN'; error
+    @(91.9725 mm, 104.1400 mm): PTH pad 4 [unconnected-(J2-STREAM_P-Pad4)] of J2
+    @(90.4825 mm, 103.0900 mm): Track [/CAN_L] on F.Cu, length 16.4000 mm
+[clearance]: Clearance violation (netclass 'CAN' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'CAN'; error
+    @(90.7025 mm, 101.6000 mm): PTH pad 5 [unconnected-(J2-STREAM_N-Pad5)] of J2
+    @(93.0000 mm, 102.6500 mm): Track [/CAN_H] on F.Cu, length 7.2157 mm
+[clearance]: Clearance violation (netclass 'Power' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'Power'; error
+    @(134.2325 mm, 100.1500 mm): Track [+5VSB] on B.Cu, length 15.1000 mm
+    @(145.7025 mm, 101.6000 mm): PTH pad 5 [unconnected-(J5-STREAM_N-Pad5)] of J5
+[clearance]: Clearance violation (netclass 'Power' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'Power'; error
+    @(115.7325 mm, 100.1500 mm): Track [+5VSB] on B.Cu, length 15.6000 mm
+    @(130.2425 mm, 101.6000 mm): PTH pad 3 [/CAN_H] of J4
+[clearance]: Clearance violation (netclass 'Power' clearance 0.2000 mm; actual 0.1880 mm)
+    Rule: netclass 'Power'; error
+    @(114.2825 mm, 101.6000 mm): PTH pad 1 [+5VSB] of J3
+    @(111.5000 mm, 102.6500 mm): Track [/CAN_H] on F.Cu, length 17.6925 mm
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(99.3725 mm, 87.3000 mm): Segment of J2 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(83.3225 mm, 90.8300 mm): Segment of J2 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(117.8725 mm, 87.3000 mm): Segment of J3 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(101.8225 mm, 90.8300 mm): Segment of J3 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(136.3725 mm, 87.3000 mm): Segment of J4 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(120.3225 mm, 90.8300 mm): Segment of J4 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(154.3725 mm, 87.3000 mm): Segment of J5 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
-    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(138.3225 mm, 90.8300 mm): Segment of J5 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(172.8650 mm, 110.1900 mm): Segment of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(172.8650 mm, 117.8100 mm): Segment of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(166.7550 mm, 113.0000 mm): Rectangle of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(166.7550 mm, 115.5000 mm): Rectangle of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(65.1000 mm, 118.8000 mm): Segment of U1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(65.1000 mm, 137.2000 mm): Segment of U1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(123.0000 mm, 164.8000 mm): Segment of J7 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(125.7000 mm, 160.5500 mm): Segment of J7 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(132.2000 mm, 164.8000 mm): Segment of J7 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(135.0000 mm, 158.8000 mm): Segment of J7 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(172.8650 mm, 145.1900 mm): Segment of J8 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(172.8650 mm, 152.8100 mm): Segment of J8 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(166.7550 mm, 148.0000 mm): Rectangle of J8 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(166.7550 mm, 150.5000 mm): Rectangle of J8 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(95.4200 mm, 164.7850 mm): Segment of J6 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
-    @(70.0000 mm, 92.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
     @(104.5800 mm, 163.0800 mm): Segment of J6 on F.Silkscreen
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(97.0225 mm, 95.2500 mm): PTH pad [<no net>] of J2
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(85.7225 mm, 95.2500 mm): PTH pad [<no net>] of J2
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(115.5225 mm, 95.2500 mm): PTH pad [<no net>] of J3
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(104.2225 mm, 95.2500 mm): PTH pad [<no net>] of J3
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(134.0225 mm, 95.2500 mm): PTH pad [<no net>] of J4
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(122.7225 mm, 95.2500 mm): PTH pad [<no net>] of J4
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(152.0225 mm, 95.2500 mm): PTH pad [<no net>] of J5
+[padstack]: Padstack is questionable (PTH pad hole leaves no copper)
+    Local override; warning
+    @(140.7225 mm, 95.2500 mm): PTH pad [<no net>] of J5
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(150.0000 mm, 146.0000 mm): Reference field of TP_VBUS
+    @(147.9400 mm, 143.4000 mm): Segment of C1 on F.Silkscreen
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(83.5775 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-    @(85.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J2
+    @(132.8200 mm, 122.5000 mm): Circle of TH1 on F.Silkscreen
+    @(132.8900 mm, 122.2500 mm): Pad 1 [+3V3] of TH1 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(102.0775 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-    @(104.1225 mm, 95.2500 mm): PTH pad SH2 [GND] of J3
+    @(112.7500 mm, 148.2500 mm): Reference field of SW_RESET
+    @(116.5000 mm, 147.5600 mm): Pad 1 [/GPIO0] of C8 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(99.0975 mm, 105.4800 mm): Segment of J2 on F.Silkscreen
-    @(97.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J2
+    @(124.8700 mm, 158.8000 mm): Segment of J7 on F.Silkscreen
+    @(125.0000 mm, 158.5500 mm): PTH pad 1 [+5VSB] of J7
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
-    @(154.0975 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-    @(152.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J5
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(138.5775 mm, 105.4800 mm): Segment of J5 on F.Silkscreen
-    @(140.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J5
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(136.0975 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-    @(134.0525 mm, 95.2500 mm): PTH pad SH1 [GND] of J4
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(120.5775 mm, 105.4800 mm): Segment of J4 on F.Silkscreen
-    @(122.6225 mm, 95.2500 mm): PTH pad SH2 [GND] of J4
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(117.5975 mm, 105.4800 mm): Segment of J3 on F.Silkscreen
-    @(115.5525 mm, 95.2500 mm): PTH pad SH1 [GND] of J3
+    @(133.1500 mm, 163.1000 mm): Segment of J7 on F.Silkscreen
+    @(133.0000 mm, 158.5500 mm): PTH pad 5 [/KVM_3V3_REF] of J7
 [track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
     Rule: Power min width; error (excluded)
     @(102.5500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 0.3000 mm
@@ -127,9 +239,29 @@
     Rule: Power min width; error (excluded)
     @(100.5000 mm, 151.5000 mm): Track [/USB_VBUS] on B.Cu, length 0.1414 mm
 
-** Found 0 unconnected pads **
+** Found 1 unconnected pads **
+[unconnected_items]: Missing connection between items
+    Local override; error
+    @(93.2500 mm, 123.0000 mm): Track [/LED_DATA] on F.Cu, length 8.6125 mm
+    @(101.8625 mm, 122.0500 mm): Pad 1 [/LED_DATA] of U6 on F.Cu
 
-** Found 10 Footprint errors **
+** Found 18 Footprint errors **
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(95.7825 mm, 101.6000 mm): Footprint J2
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(114.2825 mm, 101.6000 mm): Footprint J3
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(132.7825 mm, 101.6000 mm): Footprint J4
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(150.7825 mm, 101.6000 mm): Footprint J5
+[missing_footprint]: Missing footprint SW1 (SW_RST)
+    Local override; warning
+[missing_footprint]: Missing footprint SW2 (SW_BOOT)
+    Local override; warning
 [extra_footprint]: Extra footprint
     Local override; warning
     @(76.0000 mm, 158.0000 mm): Footprint M3
@@ -138,7 +270,13 @@
     @(162.0000 mm, 98.0000 mm): Footprint M2
 [extra_footprint]: Extra footprint
     Local override; warning
-    @(136.0000 mm, 150.5000 mm): Footprint TP1
+    @(136.0000 mm, 150.5000 mm): Footprint TP_5VSB
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(120.5000 mm, 150.6000 mm): Footprint SW_BOOT
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(112.7500 mm, 150.5000 mm): Footprint SW_RESET
 [extra_footprint]: Extra footprint
     Local override; warning
     @(76.0000 mm, 98.0000 mm): Footprint M1
@@ -150,16 +288,16 @@
     @(92.0000 mm, 146.0000 mm): Footprint TP5
 [extra_footprint]: Extra footprint
     Local override; warning
-    @(143.0000 mm, 150.5000 mm): Footprint TP3
+    @(143.0000 mm, 150.5000 mm): Footprint TP_3V3
 [extra_footprint]: Extra footprint
     Local override; warning
-    @(146.5000 mm, 150.5000 mm): Footprint TP4
+    @(146.5000 mm, 150.5000 mm): Footprint TP_VHOLD
 [extra_footprint]: Extra footprint
     Local override; warning
-    @(139.5000 mm, 150.5000 mm): Footprint TP2
+    @(139.5000 mm, 150.5000 mm): Footprint TP_GND
 [extra_footprint]: Extra footprint
     Local override; warning
-    @(150.0000 mm, 150.5000 mm): Footprint TP6
+    @(150.0000 mm, 150.5000 mm): Footprint TP_VBUS
 
 ** Ignored checks **
     - Footprint has no courtyard defined
