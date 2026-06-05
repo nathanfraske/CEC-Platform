@@ -475,13 +475,29 @@ Open items (surface before acting):
    J1's part); two 47k/10k source-sense dividers -> ESP32 IO9 (MAIN_5V_SENSE) /
    IO10 (5VSB_SENSE) for the firmware budget/mode pick; PWR_FLAGs on MAIN_5V_RAW +
    PSU_5V (the TPS2121 OUT pin is typed power_in, so the intermediate needs one).
-   FOLLOW-UPS (deferred): (a) J7 NanoKVM aux header — 5-pin JST-PH, FORM LOCKED v3.7
-   (OQ-51): pins = UART TX/RX on IO11/IO12, SHARED_5V (= the +5VSB rail), GND, and
-   the NanoKVM's 3.3V reference/presence on an ESP32 ADC-capable GPIO (working: IO13,
-   read as a presence/level sense — NOT a trigger). NO trigger GPIO — triggers ride
-   the UART in-band (the NanoKVM has no drivable interrupt input). Footprint ALREADY
-   vendored (cec-Connector_JST:JST_PH_B5B-PH-K-S_1x05_P2.00mm_Vertical) + 3D model;
-   symbol + splice still to do. (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
+   FOLLOW-UPS: (a) J7 NanoKVM aux header — DONE in the schematic (2026-06-05; ERC
+   clean apart from benign mismatch + the 2 pre-existing off-grid flags below, netlist
+   verified, on-grid audit ok, BOM-sourced). 5-pin JST-PH B5B-PH-K-S (J7, LCSC
+   C157993), FORM LOCKED v3.7 (OQ-51), new symbol cec:CEC_NANOKVM_AUX_5P. Pins: 1 =
+   +5VSB (shared §2.9 rail), 2 = GND, 3 = UART TX -> 33ohm R19 -> ESP IO11, 4 = UART
+   RX -> 33ohm R20 -> ESP IO12, 5 = NanoKVM 3V3 ref. NO trigger GPIO (triggers ride
+   the UART in-band). The 3V3 ref is sensed UNTRUSTED/RATIOMETRIC (the user's "can't
+   trust the 3v3 beyond a shadow of a doubt" call): KVM 3V3 via 47k/10k (R21/R22) ->
+   ADC1 IO1, AND the Hub's OWN +3V3 via an identical 47k/10k (R23/R24) -> ADC1 IO2;
+   firmware takes the RATIO IO1/IO2 so the ADC + divider error cancel and a drifted/
+   sagging KVM rail is detected, never used as a reference (the 10k legs also give a
+   defined absent=0 presence). D7 (PESD5V0S1BA, C5261083) ESD-clamps the cabled ref
+   pin. Same pass cleared the STALE §2.9 IO9/IO10 no_connects (they were wired to
+   MAIN_5V_SENSE/5VSB_SENSE but still flagged no_connect -> no_connect_connected ERC,
+   DRAFT-hidden). (The earlier IO13-as-presence idea was dropped for the IO1/IO2 ADC1
+   ratiometric pair.) STILL OPEN: PCB (GUI) Update-from-Schematic to pull J7/D7/
+   R19-R24, place + route, re-pour; and refresh the bom/ CSVs to add the 8 new lines.
+   PRE-EXISTING (not from this work, left as-is): two off-grid endpoint_off_grid ERC
+   on #FLG200/#FLG201 — the off-grid PWR_FLAG STAMPS that drive 5VSB_RAW / USB_VBUS
+   (functional, just placed off-grid; gridsnap the flag+its coincident label together
+   to clear), and the RJ-45 SHIELD-TAB no_connects (incl. the J5.SH2
+   no_connect_connected) which are the pending GUI shield-grounding pass (action item
+   2). (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
    the draw counts in system 5V per OQ-13) -> feed the Hub's J8 ("24-pin next").
    (c) PRODUCTION: consolidate J1 (5VSB) + J8 (MAIN_5V) into one 3-pin feed (kept
    separate now so the existing 5VSB cable + Hub bench-test still work — "fix

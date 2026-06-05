@@ -23,6 +23,7 @@ v1.1 decisions carry forward unchanged **except connector and cabling**.
 | Storage / identity | ESP32-S3-WROOM-1 internal 16 MB flash + 8 MB PSRAM; factory MAC + database (no eFuse, no secure element) |
 | LEDs | 7× SK6812 MINI-E RGB chain, firmware current cap (§2.5 / OQ-2). Data line 3.3 → 5 V level-shifted: **U6 (SN74AHCT1G08**, both inputs tied = AHCT buffer; VCC = +5VSB, C14 100 nF decap) + **R14** 330 Ω series into DL1.DIN — the ESP32's 3.3 V GPIO is below the 5 V SK6812 V_IH (0.7·VDD ≈ 3.5 V), so the buffer guarantees a clean 5 V data high with no LED dimming. (74AHCT1G34 was the first pick but isn't on JLCPCB; the 1G08-as-buffer is the stocked equivalent in the same SOT-23-5 land.) |
 | Service button | Hidden, GPIO0 (download mode) |
+| NanoKVM aux link (J7) | 5-pin JST-PH (B5B-PH-K-S, **C157993**), spec v3.7 / OQ-51. Pins: UART TX/RX (ESP32 IO11/IO12 through 33 Ω series **R19/R20**, C25105), the shared **+5VSB** rail (§2.9), GND, and the NanoKVM's 3.3 V reference. **No trigger GPIO** — triggers ride the UART in-band. The 3.3 V line is **untrusted**: it is read for presence + health, never as a reference. **Compensation** — the KVM 3V3 is divided 47k/10k (**R21/R22**, C25792/C25744) into ADC1 **IO1**, and the Hub's own LDO **+3V3** is divided by an identical 47k/10k (**R23/R24**) into ADC1 **IO2**; firmware takes the *ratio* so the ADC and divider error cancel and a drifted/sagging KVM rail is detected, not believed. Low-cap ESD **D7** (PESD5V0S1BA, C5261083) clamps the cabled ref pin. |
 | Mounting | 4× M3 corner holes, chassis-grounded (`cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` — pad + stitching vias to the In1 GND plane; PC-standard fastener, spec v1.10) |
 | PCB | 4-layer 1.6 mm, ENIG, matte black |
 | BOM target | ~$36 (100-qty) |
@@ -120,6 +121,27 @@ The current prototype Hub needs no change if the rev2 bring-up mitigation is use
 > JLCPCB BOM/CPL set is complete. (The 2 new `lib_symbol_mismatch` on R14/C14 are
 > the same benign class as the existing 28 — clears with GUI Tools → Update
 > Symbols from Library.)
+>
+> **Update (2026-06-05) — J7 NanoKVM aux header + untrusted-3V3 compensation
+> ADDED (schematic):** spliced **J7** (5-pin JST-PH B5B-PH-K-S, C157993) and its
+> network — UART TX/RX on ESP32 **IO11/IO12** through 33 Ω series **R19/R20**, the
+> shared **+5VSB** feed (§2.9), GND, and the NanoKVM 3.3 V ref. No trigger GPIO
+> (triggers ride the UART in-band, spec v3.7 / OQ-51). The 3.3 V ref is sensed
+> **untrusted/ratiometric**: KVM 3V3 ÷47k/10k (**R21/R22**) → ADC1 **IO1**, Hub
+> +3V3 ÷47k/10k (**R23/R24**) → ADC1 **IO2**; firmware compares the ratio so ADC +
+> divider error cancel and a drifted/absent KVM rail is caught, never trusted as a
+> reference; **D7** (PESD5V0S1BA) ESD-clamps the ref pin. Also cleared two **stale
+> §2.9 no-connects** (ESP32 IO9/IO10, which were wired to MAIN_5V_SENSE/5VSB_SENSE
+> but still carried a `no_connect` flag → a `no_connect_connected` ERC error each,
+> hidden by the DRAFT skip). **Verified:** ERC clean apart from the benign
+> `lib_symbol_mismatch` and **two pre-existing `endpoint_off_grid`** on the off-grid
+> `5VSB_RAW`/`USB_VBUS` PWR_FLAG stamps (#FLG200/#FLG201 — left as-is, functional
+> drivers placed off-grid); netlist confirms all 7 new nets; on-grid audit ok. The
+> new parts carry LCSC props (all reuse Basic parts except J7). **PCB to-do (GUI):**
+> "Update PCB from Schematic" to pull J7/D7/R19–R24, place + route, re-pour. (The
+> RJ-45 **shield-tab** no_connects, incl. the J5.SH2 `no_connect_connected`, are the
+> separately-tracked GUI shield-grounding pass — see the root CLAUDE.md action
+> item 2 — and are untouched here.)
 
 Library-driven schematic capture can be drafted in-repo (then verified with ERC
 and the netlist); PCB routing geometry is done in the KiCad 10 GUI. Project files
