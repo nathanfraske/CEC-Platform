@@ -59,5 +59,26 @@ Regenerated on the consolidated v3.10 spec:
   per-cable DET → MCU GPIO pads 28/29). **D1 PESD UL → BA** (C5261083).
 - BOM regenerated (`bom/pcie8pin-2port-module-BOM-jlcpcb.csv`): **sourced 39/45**;
   open are the 0.5 mΩ shunts (OQ-11) + the Mini-Fit Jr THT power headers.
-- ERC = benign only. **PCB still needs *Update PCB from Schematic*** to pull the C6
-  land + the §6.13 parts, then re-place/route/pour.
+- ERC = benign only.
+
+## PCB floorplan (2026-06-06) — condensed, FTP jack
+
+Built from the v3.10 netlist via `scripts/gen-module-pcb.py pcie-8pin-2port`, same
+condensed cable-board layout as the EPS (identical 2-cable geometry):
+**99 × 44 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz).
+
+- **Connectors overhang their edges** — the Mini-Fit Jr body+mouth hang off the top
+  (J_IN) / bottom (J_OUT) edges; only the pad rows + the 2 NPTH pegs stay on-board.
+  The **RJ-45 mouth overhangs the right edge** too.
+- **Side-by-side sense band**: 0.5 mΩ shunt vertical in the 12 V path, INA238 +
+  the §6.13 INA181→TLV7011 pair beside it (band ~6 mm tall).
+- **J1 = platform FTP jack** Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**,
+  `cec:RJ45_FTP_Shielded_Horizontal`), SH1/SH2 → GND — matching the Hub, EPS and
+  12VHPWR.
+- **3 M3 mounts**: left-edge mid-height + two right corners; USB-C on the top edge.
+- Dual `GND Plane` over In1 + In2 (12 V on the outers, split at the shunt), emitted
+  unfilled. DRC 0 structural; CEC logo + fab note on the back.
+
+**Next in the GUI:** *Update PCB from Schematic* to pull the decoupling / DETECT
+divider / D1 ESD / §6.13 bypass caps, *Fill All Zones*, route (§6.8 Kelvin taps,
+§6.7 high-current transitions), re-DRC.

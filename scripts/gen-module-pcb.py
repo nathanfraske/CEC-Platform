@@ -78,10 +78,16 @@ def placement(n):
         "J5":  (ex + 6.0, 3.5, 180),                  # USB-C on the TOP edge (rot180: mouth overhangs -y, pads on-board)
         "J1":  (ex + 29.0, 22.0, 90),                 # RJ-45 (Kinghelm FTP): mouth OVERHANGS the right edge; pads/posts/shield tabs on-board, mouth +X
     })
-    # 3 M3 mounts: one on the left edge in the clear band between the J_IN and J_OUT
+    # M3 mounts: one on the left edge in the clear band between the J_IN and J_OUT
     # courtyards; two in the right corners (freed by moving USB-C off the right edge),
-    # flanking the overhanging RJ-45.
+    # flanking the overhanging RJ-45. For wider boards (N>=3) the overhang fills the
+    # top/bottom edges across a long cable region, so add a mid-height mount in each
+    # inter-cable gap (the clear band between one cable's sense parts and the next
+    # cable's INA238) to keep the long board from flexing.
     mounts = [(4.0, BAND_Y), (W - 4.5, 5.0), (W - 4.5, H - 5.0)]
+    if n >= 3:
+        for i in range(n - 1):
+            mounts.append((CX0 + i * PITCH + 20.15, BAND_Y))
     # CEC logo on the back, under the C6 (SMD, no THT) where B.Cu is clear — the
     # cable region's back is full of the J_IN/J_OUT through-hole pads.
     logo = (ex + 8.0, H / 2.0)
