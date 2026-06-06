@@ -53,3 +53,9 @@ Thumbs.db
 # Editor local-history dirs (VS Code "Local History" etc.) — never commit
 .history/
 logs/
+
+# ---- Self-hosted GitHub Actions runner (installed in-tree on a dev machine) ----
+# Per-machine infrastructure, NOT repo content: hundreds of MB of runner + .NET
+# binaries, _work/ (a recursive checkout of this repo + build artifacts), and
+# .credentials/.runner which hold the runner's AUTH TOKEN. Never commit it.
+actions-runner/
