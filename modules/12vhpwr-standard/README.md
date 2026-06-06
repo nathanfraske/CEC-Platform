@@ -17,7 +17,7 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 | Voltage ref *(v3.8)* | **REF3030** (U4, 3.0 V, SOT-23) measured on **ADC1 IO8** for **ratiometric correction** — firmware ratios out the ESP-ADC gain/reference drift, lifting the rail divider **and** all six current channels from ~±1% to **~±0.3–0.5%** (with **0.1%** R5/R6). Bypass C22 (OUT) + C23 (IN). The deliberate **middle ground** below the Pro's LTC2358-18; the REF3030 (3.0 V) is *measured* by the ADC, unlike the Pro's REF3033 (3.3 V) which feeds the LTC2358 ref. IO8 was freed by moving the SENSE0 sideband tap → **IO15**. See **OQ-8**. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated module-side |
 | DETECT | 2.2 kΩ precision (R1) — CAN-only code (§2.3, OQ-6 resolved); poke-and-ack tap R7 → IO10 (OQ-28) |
-| Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 v2.0); low-cap ESD diode D1 (PESD5V0S1UL) on DETECT pin 8 |
+| Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 v2.0); low-cap ESD diode **D1 = PESD5V0S1BA** (SOD-323, LCSC **C5261083**) on DETECT pin 8 — corrected from the non-SOD-323 PESD5V0S1UL on the 2026-06-06 sourcing pass |
 | Flash/debug | USB-C (J5) on the ESP32-S3 native USB + BOOT/RESET buttons (SW1/SW2); VBUS ORs into +5VSB via D2 (SS34); CC1/CC2 = 5.1 kΩ |
 | BOM target | $49 (100-qty) |
 
@@ -159,3 +159,30 @@ regenerate with `scripts/gen-hpwr-route-status.py`):
 **Note — J4 orientation:** with the official Molex footprint J4 is **rot 0°** (mouth
 out the bottom edge) and J3 is **rot 180°** (mouth out the top); this supersedes the
 "J4 rot 180°" wording in the Status paragraph above.
+
+## BOM / JLC sourcing (2026-06-06)
+
+Every component is sourced to an LCSC part (written into the schematic symbol
+`LCSC`/`MPN`/`Manufacturer` props) and exported in `bom/`:
+`bom.csv` (tracking) + `12vhpwr-standard-BOM-jlcpcb.csv` (Comment/Designator/Footprint/LCSC).
+**~$21/board** in JLCPCB parts (single-qty pricing) + the consigned Molex 12V‑2×6 —
+comfortably under the **$49** target; cost is dominated by **6× INA240A3DR ($1.87 ea =
+$11.24)**, the **ESP32 ($4.59)**, and the **6× 1 mΩ shunts ($0.52 ea)**.
+
+Pinouts datasheet-verified this pass (INA240 SBOS662C, LP5907 SNVS798Q, ESP32‑S3‑MINI‑1
+Table 3‑1, REF3030 SBOS392K, TJA1051 NXP) — all symbol pin maps correct.
+
+Caveats / flags carried into ordering:
+- **J3/J4 (12V‑2×6, Molex 219116 / 2191161161): NOT in the JLCPCB catalog → consigned /
+  hand‑soldered** (J4 is a captive pigtail anyway). Left with no LCSC by design.
+- **J1 RJ‑45 (54602‑908LF / C2847314): JLCPCB stock ≈ 7** — effectively out; secure an
+  alternate or consign before any run (modules move to the FTP jack next rev regardless).
+- **RS1–6 shunt = CSS2H‑2512R‑1L00F (C4175647): the spec §6.4 candidate, OQ‑11 still
+  OPEN** — sourced as the spec's named part, NOT a locked decision (flagged on each RS in
+  the schematic `Note` prop). Stock ≈ 2.8k (~460 boards).
+- **INA240A3DR (C2060584): SOIC‑8 D part** (the PW/TSSOP pinout differs — never order PW).
+  Stock ≈ 1.7k → ~290 boards; re-check for volume.
+- **SW1/SW2 = EVQPUC02K (C79174)** — keeps the existing EVQ‑PU footprint (no PCB change).
+  The cheaper Basic **TS‑1088‑AR02016 (C720477)** Hub‑Standard uses is an alternative *if*
+  the EVQ→TS‑1088 footprint swap is also done.
+- 10 Basic / 13 Extended unique lines. Datasheet‑URL props not yet populated (informational).

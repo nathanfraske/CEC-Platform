@@ -210,8 +210,10 @@ Connector and physical interface:
   the SOD-323 sibling PESD5V0S1BA on 2026-06-05 — the UL is only stocked in
   DFN1006/SOD-882 by LCSC, the BA is the SOD-323 part the boards are laid out for,
   same low-cap single-line 5 V clamp; LCSC C5261083). The SAME UL->BA correction
-  applies to the generated module schematics (EPS/PCIe/12VHPWR-Std), which still
-  name PESD5V0S1UL "in SOD-323" — flag and fix on their next sourcing pass. D1 =
+  applies to the generated module schematics (EPS/PCIe), which still
+  name PESD5V0S1UL "in SOD-323" — flag and fix on their next sourcing pass
+  (12VHPWR-Std DONE 2026-06-06: D1 Value->PESD5V0S1BA + LCSC C5261083 on its full
+  BOM-sourcing pass). D1 =
   PESD5V0S1UL via the generator, regenerated 2026-06-04 (footprint assigned at
   layout); the ordered 24-pin rev2 PCB still ships without it (rev3 picks it up). Enterprise/MC
   over-voltage attaches to their external uplink, deferred to OQ-7.
@@ -605,6 +607,21 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- 12VHPWR Standard BOM fully sourced for JLCPCB + datasheet pinout pass (2026-06-06).
+  All 26 unique lines carry LCSC/MPN/Manufacturer in the schematic symbols (edit via
+  the bom skill); outputs in modules/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-
+  BOM-jlcpcb.csv). ~$21/board JLC parts (single-qty) under the $49 target; cost driven
+  by 6x INA240A3DR ($1.87, C2060584 = the SOIC-8 **D** part, never PW) + ESP32
+  (C3013941) + 6x 1mΩ shunt. D1 corrected PESD5V0S1UL->PESD5V0S1BA (C5261083). Pinouts
+  datasheet-verified (INA240 SBOS662C / LP5907 SNVS798Q / ESP32-S3-MINI-1 Table 3-1 /
+  REF3030 SBOS392K / TJA1051 NXP — all symbol pin maps correct; netlist unchanged,
+  85 nets/312 nodes, ERC still only the benign lib_symbol_mismatch). FLAGS: J3/J4
+  12V-2x6 (Molex 2191161161) NOT in JLC catalog -> consigned (no LCSC, by design; J4 is
+  a pigtail); J1 RJ45 C2847314 JLC stock ~7 (secure alt/consign); RS1-6 shunt
+  CSS2H-2512R-1L00F (C4175647) is the spec §6.4 candidate but OQ-11 still OPEN (not
+  locked; flagged per-RS Note prop); SW1/2 = EVQPUC02K (C79174) keeps the EVQ-PU
+  footprint (cheaper Basic TS-1088/C720477 needs the Hub's footprint swap). CPL/gerbers
+  pending the GUI PCB finish; datasheet-URL props not yet populated.
 - Generic NTC thermistor vendored + Hub board-temp sensor (2026-06-05). Vendored a
   reusable 10k NTC any board can pull: symbol cec-vendor:Thermistor_NTC (real props
   baked: Murata NCP15XH103F03RC / LCSC C77131 / datasheet; default footprint),
@@ -658,8 +675,9 @@ Done (kept for context):
   easyeda2kicad C720477, upgraded to KiCad-10 format + 3D model vendored), R3/R4
   60->60.4. CPL + gerbers still pending the GUI PCB finish (Update-from-Schematic
   to pull U6/R14/C14 + the TS-1088 land, place/route, pour). New open follow-ups:
-  (a) PESD UL->BA correction also applies to the EPS/PCIe/12VHPWR-Std module
-  schematics (still name PESD5V0S1UL "in SOD-323") — fix on their sourcing pass;
+  (a) PESD UL->BA correction also applies to the EPS/PCIe module
+  schematics (still name PESD5V0S1UL "in SOD-323") — fix on their sourcing pass
+  (12VHPWR-Std DONE 2026-06-06, see that module's BOM-sourcing note below);
   (b) RESOLVED 2026-06-05 — the transceiver lock is now classical TJA1051T/3
    platform-wide (spec §3.1 v3.5) AND propagated: Hub Standard + all 6 module
    schematics + gen-modules.py now read TJA1051T/3 (C38695), ERC clean each;
