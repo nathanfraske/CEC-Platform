@@ -62,21 +62,24 @@ Regenerated on the consolidated v3.10 spec:
   open are the 0.5 mΩ shunts (OQ-11) + the Mini-Fit Jr THT power headers.
 - ERC = benign only.
 
-## PCB floorplan (2026-06-06) — sub-100mm condensed (99 × 44 mm), candidate generator
+## PCB floorplan (2026-06-06) — condensed candidate generator (103.4 × 44 mm)
 
-Reproduced by `scripts/gen-pcie3-condensed.py` (the 3-port analogue of the EPS
-`gen-eps-condensed.py`; reuses `gen-module-pcb.py`'s emit helpers without touching the
-shared generator). **99 × 44 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz)
-— **27 mm narrower than the earlier 126 × 44** and now under the 100 mm bar. Plan +
-diagram: `pcie3-routing-plan.png`. **All 54 schematic parts placed** (28/28 support
-passives netlist-verified + clearance-packed by the passive engine); DRC 0 structural
-apart from the intentional RJ-45-mouth-overhang edge clearance (every CEC board) and a
-known headless false within-footprint mask-bridge artifact on a button (absent in the GUI).
+Reproduced by `scripts/gen-pcie-condensed.py` (the **parametric** PCIe analogue of the
+EPS `gen-eps-condensed.py`; reuses `gen-module-pcb.py`'s emit helpers without touching the
+shared generator — one script drives both the 2-port and 3-port SKUs by board-name arg).
+Built the EPS way, with **two sub-agent passes — footprint/placement planning, then a
+routing game-plan**. **103.4 × 44 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz /
+B.Cu 2 oz) — **~23 mm narrower than the earlier 126 × 44**. Plan + diagram:
+`pcie3-routing-plan.png`. **All 54 schematic parts placed** (28/28 support passives
+netlist-verified by `PASSIVE_SPEC` + explicitly cluster-placed); DRC 0 structural apart
+from a known headless false within-footprint mask-bridge artifact on a button (absent in
+the GUI; the RJ-45 mouth overhangs with copper kept on-board).
 
-- **How it gets under 100 mm:** the cable pitch tightens **27 → 21 mm** and the
-  electronics core to **34 mm**. The exploration confirmed 81 × 60 (a tall-narrow column)
-  is *not* viable — the through-hole RJ-45 (16 × 18.5 mm) can't coexist with the ESP /
-  CAN / LDO / buttons in a 15 mm column — so the flat 99 × 44 is the sub-100 form.
+- **How it condenses:** cable pitch tightens **27 → 20 mm** + a **34 mm** electronics
+  core. (The earlier exploration showed a tall-narrow 81 × 60 is *not* viable — the
+  through-hole RJ-45, 16 × 18.5 mm, can't share a 15 mm column with the ESP / CAN / LDO /
+  buttons — so the flat layout is the right form; 99 × 44 with only 2 mounts was the
+  sub-100 variant, this is the 3-mount variant.)
 - **Cable connectors = the REAL Molex 45586** (J_IN/J_OUT): **Mini-Fit Jr. right-angle,
   3rd-gen PCIe polarization, 8-circuit, Nylon UL94V-0, 2.54µm matte tin — MPN
   45586-0005** (user-confirmed keying). Footprint = the manufacturer ECAD land
@@ -89,18 +92,21 @@ known headless false within-footprint mask-bridge artifact on a button (absent i
   unchanged). The **45586 snap pegs keep H = 44** (the pegless EPS 87427 reaches 35);
   the pegs land 2.7 mm in from the top edge. The **RJ-45 mouth overhangs the right edge**.
 - **Side-by-side sense band** per cable: 0.5 mΩ shunt vertical in the 12 V path, INA238
-  + the §6.13 INA181→TLV7011 pair beside it (spread so courtyards clear at the 21 mm pitch).
+  + the §6.13 INA181→TLV7011 pair beside it (spread so courtyards clear at the 20 mm pitch).
 - **J1 = platform FTP jack** Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**,
   `cec:RJ45_FTP_Shielded_Horizontal`), SH1/SH2 → GND — matching the Hub, EPS and 12VHPWR.
-- **2 M3 mounts — right (electronics) side only.** The 21 mm pitch that buys sub-100 mm
-  leaves no inter-cable gap for an M3 (the 126 mm board's two inter-cable mounts are gone);
-  the **six 45586 connectors** (8 THT pins + 2 ⌀3 mm snap pegs each) anchor the cable half
-  mechanically, and 99 mm is short enough that the cantilever is acceptable.
+- **3 M3 mounts:** two on the logic/electronics (right) side (TR/BR corners) + **one
+  centered on the connector (left) side** at (4, H/2) — matching the 2-port's arrangement.
+  A `CX0 = 11` left margin opens the clear band (between J_IN and J_OUT) for the centered
+  mount; that left margin is what takes the board to 103.4 mm rather than the 99 mm 2-mount
+  variant (PCB-area cost of the extra ~4 mm is negligible — see the BOM analysis).
 - USB-C on the top edge; dual `GND Plane` over In1 + In2 (12 V on the outers, split at
-  each shunt), emitted unfilled. Routing-candidate guides drawn on user layers (Kelvin
-  pairs Cmts.User, spine Eco1.User, CAN/USB Eco2.User). CEC logo + fab note on the back.
+  each shunt), emitted unfilled. Routing-candidate guides drawn on user layers (12 V pours
+  Dwgs.User, Kelvin pairs Cmts.User, control→sense spine Eco1.User, CAN/USB Eco2.User).
+  CEC logo + fab note on the back. (Cable-3 DET lands on ESP IO7/pad16, not a 28/29/30
+  sequence — keyed correctly in the spine/plan.)
 
 **Next in the GUI:** *Fill All Zones*, route (§6.8 Kelvin taps, §6.7 high-current
 transitions), re-DRC. Regenerate (pre-route only) with
-`python3 scripts/gen-pcie3-condensed.py` — one-shot bootstrap, refuses to overwrite once
-tracks/vias exist (`--force` overrides); hand-maintained in the GUI from the first route.
+`python3 scripts/gen-pcie-condensed.py pcie-8pin-3port` — one-shot bootstrap, refuses to
+overwrite once tracks/vias exist (`--force` overrides); hand-maintained from the first route.

@@ -693,25 +693,30 @@ Done (kept for context):
   DETACHED from the EPS module (being hand-edited in parallel). gen-modules.py's CEC_CONN_2x4
   footprint default is left as the user has it; the EPS's own EPS12V-keyed connector (Molex
   87427-0802, a separate land) and any per-board generator mapping are the EPS work's domain.
-- PCIe 8-pin 3-port RE-CONDENSED to SUB-100mm (2026-06-06). scripts/gen-pcie3-condensed.py
-  (the 3-port analogue of gen-eps-condensed.py; reuses gen-module-pcb.py's emit helpers via a
-  no-op-filter import, does NOT modify the shared generator, writes ONLY pcie-8pin-3port — so
-  it stays DETACHED from the parallel EPS work). Re-floorplanned **126 x 44 -> 99 x 44 mm**
-  (under 100mm): cable pitch 27->21mm + a 34mm electronics core. Exploration FINDING: a
-  tall-narrow 81 x 60 is NOT viable (the THT RJ-45 16x18.5mm can't share a 15mm column with the
-  ESP/CAN/LDO/buttons -> 19 collisions); the flat 99 x 44 is the sub-100 form. The pegged 45586
-  keeps H=44 (vs the pegless-87427 EPS at 35). Three parts like the EPS gen: (1) FRAME = 3 cables
-  (J_IN rot180 / J_OUT rot0, sense band INA238|shunt|INA181/TLV7011 spread to clear at 21mm) +
-  the tight core (ESP32-C6 antenna-keepout dropped, CAN, LDO, RJ-45/USB-C front end); (2) PASSIVE
-  ENGINE = a CLEARANCE-AWARE packer placing each support passive at the nearest DRC-clean spot to
-  its OWNER IC (PASSIVE_SPEC netlist-verified 28/28, packed 28/28); (3) ROUTING CANDIDATES on user
-  layers + matplotlib pcie3-routing-plan.png. **2 M3 mounts, right side only** — the 21mm pitch
-  leaves no inter-cable gap (the 126mm board's 2 inter-cable mounts are dropped); the six 45586
-  connectors (8 pins + 2 pegs each) anchor the cable half. All 54 parts placed; DRC 0 structural
-  except the intentional RJ-45 overhang edge-clearance + 1 known headless false mask-bridge
-  artifact (geometrically impossible; absent in GUI). Render + DRC verified. One-shot bootstrap
-  (refuses to overwrite once routed; --force overrides). Run: python3 scripts/gen-pcie3-condensed.py
-  [--no-plan]. PCIe-2 (already 99x44 from the shared gen) unchanged.
+- PCIe CONDENSED CANDIDATE GENERATOR — both SKUs, EPS methodology w/ sub-agents (2026-06-06).
+  scripts/gen-pcie-condensed.py is the **parametric** PCIe analogue of gen-eps-condensed.py:
+  ONE generator drives both SKUs by board-name arg (pcie-8pin-2port N=2, pcie-8pin-3port N=3),
+  reuses gen-module-pcb.py's emit helpers via the no-op-filter import, does NOT modify the
+  shared generator, writes ONLY the PCIe dirs — DETACHED from the parallel EPS work. Built the
+  EPS way via **two sub-agent passes**: (1) FOOTPRINT/PLACEMENT planning -> explicit DRC-clean
+  frame + PASSIVE_SPEC + cluster coords (superseding the earlier runtime packer; deterministic
+  + reviewable); (2) ROUTING GAME-PLAN -> routing_guides() guide graphics on user layers (12V
+  pours Dwgs.User / Kelvin Cmts.User / +3V3-I2C-THRESH-DET spine Eco1.User / CAN-USB Eco2.User,
+  all pad-derived) + matplotlib pcie{2,3}-routing-plan.png. Sizes: **2-port 86.4x44 (pitch 23),
+  3-port 103.4x44 (pitch 20)**. 3-MOUNT scheme (per user): TWO on the logic/right side (TR/BR
+  corners) + ONE centered on the connector/left side at (4,H/2) — matches the 2-port arrangement;
+  CX0=11 left margin opens the clear band between J_IN/J_OUT for the centered mount (that margin
+  is why the 3-port is 103.4 not the 99 of the 2-mount sub-100 variant — PCB-area cost negligible
+  per the BOM delta analysis: the 3rd port is ~$5.5/board, all sensing channel, ~$0 board). Frame:
+  cables J_IN rot180 / J_OUT rot0 (45586, pegs keep H=44), sense band INA238|shunt|INA181/TLV7011
+  spread to clear; core ESP32-C6 (antenna keepout dropped), CAN, LDO, RJ-45 (mouth overhangs right)
+  / USB-C front end. PASSIVE_SPEC verify: 28/28 (3-port), 25/25 (2-port — the 3rd-cable C12/C22/C32
+  correctly absent). Both DRC 0 structural except 1 known headless false SW2 mask-bridge artifact
+  (geometrically impossible; absent in GUI). DET cable-3 -> ESP IO7/pad16 (not a 28/29/30 sequence)
+  — keyed correctly. Render + DRC verified both. One-shot bootstrap (refuses to overwrite once
+  routed; --force). Run: python3 scripts/gen-pcie-condensed.py <board> [--no-plan|--force].
+  SUPERSEDES the earlier single-board gen-pcie3-condensed.py (removed) and the prior shared-gen
+  99x44 2-port floorplan.
 - 12VHPWR Standard BOM fully sourced for JLCPCB + datasheet pinout pass (2026-06-06).
   All 26 unique lines carry LCSC/MPN/Manufacturer in the schematic symbols (edit via
   the bom skill); outputs in modules/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-

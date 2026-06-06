@@ -61,33 +61,43 @@ Regenerated on the consolidated v3.10 spec:
   open are the 0.5 mΩ shunts (OQ-11) + the Mini-Fit Jr THT power headers.
 - ERC = benign only.
 
-## PCB floorplan (2026-06-06) — condensed, FTP jack
+## PCB floorplan (2026-06-06) — condensed candidate generator (86.4 × 44 mm)
 
-Built from the v3.10 netlist via `scripts/gen-module-pcb.py pcie-8pin-2port`, same
-condensed cable-board layout as the EPS (identical 2-cable geometry):
-**99 × 44 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz).
+Reproduced by `scripts/gen-pcie-condensed.py` (the **parametric** PCIe analogue of the
+EPS `gen-eps-condensed.py`; reuses `gen-module-pcb.py`'s emit helpers without touching the
+shared generator — one script drives both PCIe SKUs by board-name arg). Built the EPS way,
+with **two sub-agent passes — footprint/placement planning, then a routing game-plan**.
+**86.4 × 44 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz) — condensed from the
+earlier 99 × 44. Plan + diagram: `pcie2-routing-plan.png`. **All 45 schematic parts placed**
+(25/25 support passives netlist-verified by `PASSIVE_SPEC` + explicitly cluster-placed — the
+3 entries for the 3rd cable are correctly absent on this 2-cable SKU); DRC 0 structural apart
+from a known headless false within-footprint mask-bridge artifact on a button (absent in the
+GUI; the RJ-45 mouth overhangs with copper kept on-board).
 
 - **Cable connectors = the REAL Molex 45586** (J_IN/J_OUT): **Mini-Fit Jr. right-angle,
   3rd-gen PCIe polarization, 8-circuit, Nylon UL94V-0, 2.54µm matte tin — MPN
   45586-0005** (user-confirmed keying). The footprint is the manufacturer ECAD land
   (`cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal`, vendored from
-  the Molex `-SD` export + its STEP): 4.20 mm pitch + **5.50 mm rows**, round ⌀2.36 mm / 1.85 mm-drill pads, two ⌀3.0 mm snap
-  pegs in line with the outer pins 7.3 mm forward. THT, consigned/hand-soldered.
+  the Molex `-SD` export + its STEP): 4.20 mm pitch + **5.50 mm rows**, round ⌀2.36 mm /
+  1.85 mm-drill pads, two ⌀3.0 mm snap pegs in line with the outer pins 7.3 mm forward.
+  THT, consigned/hand-soldered.
 - **Connectors overhang their edges** — the body+mouth hang off the top (J_IN) /
   bottom (J_OUT) edges; only the pad rows + the 2 snap pegs stay on-board. The
   footprint is native mouth-toward-+y, so J_IN is placed rot180 / J_OUT rot0 (which
   reproduces the prior pad columns, so the net map + 12 V alignment are unchanged).
-  The **RJ-45 mouth overhangs the right edge** too. The compact 45586 land (4.2 mm
-  rows + shallow courtyard) let the board go back to 44 mm tall.
-- **Side-by-side sense band**: 0.5 mΩ shunt vertical in the 12 V path, INA238 +
-  the §6.13 INA181→TLV7011 pair beside it (band ~6 mm tall).
+  The **RJ-45 mouth overhangs the right edge** too. The 45586 snap pegs set H = 44.
+- **Side-by-side sense band** per cable: 0.5 mΩ shunt vertical in the 12 V path, INA238 +
+  the §6.13 INA181→TLV7011 pair beside it.
 - **J1 = platform FTP jack** Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**,
   `cec:RJ45_FTP_Shielded_Horizontal`), SH1/SH2 → GND — matching the Hub, EPS and
   12VHPWR.
-- **3 M3 mounts**: left-edge mid-height + two right corners; USB-C on the top edge.
+- **3 M3 mounts:** two on the logic/electronics (right) side (TR/BR corners) + **one
+  centered on the connector (left) side** at (4, H/2). USB-C on the top edge.
 - Dual `GND Plane` over In1 + In2 (12 V on the outers, split at the shunt), emitted
-  unfilled. DRC 0 structural; CEC logo + fab note on the back.
+  unfilled. Routing-candidate guides on user layers (12 V pours Dwgs.User, Kelvin pairs
+  Cmts.User, control→sense spine Eco1.User, CAN/USB Eco2.User). CEC logo + fab note on back.
 
-**Next in the GUI:** *Update PCB from Schematic* to pull the decoupling / DETECT
-divider / D1 ESD / §6.13 bypass caps, *Fill All Zones*, route (§6.8 Kelvin taps,
-§6.7 high-current transitions), re-DRC.
+**Next in the GUI:** *Fill All Zones*, route (§6.8 Kelvin taps, §6.7 high-current
+transitions), re-DRC. Regenerate (pre-route only) with
+`python3 scripts/gen-pcie-condensed.py pcie-8pin-2port` — one-shot bootstrap, refuses to
+overwrite once tracks/vias exist (`--force` overrides); hand-maintained from the first route.

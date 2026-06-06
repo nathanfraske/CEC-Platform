@@ -10,8 +10,7 @@
 #
 # Mirrors gen-eps-condensed.py exactly: EXPLICIT, deterministic, DRC-clean major
 # placement + EXPLICIT support-passive clusters (NO runtime packer -- the EPS way,
-# so the layout is reviewable and reproducible). Supersedes the runtime
-# clearance-packer in gen-pcie3-condensed.py.
+# so the layout is reviewable and reproducible).
 #
 #   * FRAME    -- N cables on the REAL pegged Molex 45586 (J_IN rot180 mouth->top /
 #                 J_OUT rot0 mouth->bottom so the +12V columns line up straight
@@ -206,7 +205,7 @@ def _pad_global(ref, pad, P, comps):
 
 # --------------------------------------------------------------- passive engine
 # PASSIVE_SPEC records (owner_IC, expected_net) from the netlist-verified placement
-# analysis (copied from gen-pcie3-condensed.py; netlist-correct -- verify_passives()
+# analysis (netlist-correct -- verify_passives()
 # asserts the netlist still agrees so the cluster owner cannot drift from the schematic).
 PASSIVE_SPEC = {
     "C3":  ("U1",  "+3V3"),   "C7":  ("U1",  "+3V3"),   "C5":  ("U1",  "/EN"),
@@ -250,12 +249,110 @@ def place_passives(P, N, PITCH, ex):
         P[f"C3{i}"] = (LIB["C402"], Xc + 14.0, BAND_Y + 2.2, 0)   # C30/C31/C32 TLV7011 VCC bypass
     return P
 
-# --------------------------------------------------------------- routing candidates (STUB)
+# --------------------------------------------------------------- routing candidates
+# Drawn as guide graphics on toggleable user layers (non-plotted) so the routes are
+# visible in the board while routing. Coordinates are keyed to the REAL placement (read
+# from the footprint pads via pg(), below) so both SKUs (N=2 / N=3) render correctly.
+# The matplotlib routing-plan PNG (routing_plan_png) carries the full color story.
+# Mirrors gen-eps-condensed.py's _poly/_line/_txt + routing_guides() approach.
+def pg(ref, pad, P, comps):
+    """Global (x,y) of a pad on a placed part. Wraps the file's _pad_global to this
+    generator's 4-tuple frame format P[ref]=(lib,X,Y,A) (gen-eps stores a 3-tuple)."""
+    lib, X, Y, A = P[ref]
+    P3 = dict(P); P3[ref] = (X, Y, A)        # _pad_global unpacks X,Y,A
+    return _pad_global(ref, pad, P3, comps)
+
+def _poly(pts, layer, w=0.12):
+    s = " ".join(f"(xy {ff(x)} {ff(y)})" for x, y in pts)
+    return (f'\t(gr_poly (pts {s}) (stroke (width {w}) (type solid)) '
+            f'(fill none) (layer "{layer}") (uuid "{U()}"))')
+def _line(pts, layer, w=0.25):
+    out = []
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+        out.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
+                   f'(stroke (width {w}) (type solid)) (layer "{layer}") (uuid "{U()}"))')
+    return "\n".join(out)
+def _txt(t, x, y, layer, sz=0.8):
+    return (f'\t(gr_text "{t}" (at {ff(x)} {ff(y)} 0) (layer "{layer}") (uuid "{U()}") '
+            f'(effects (font (size {sz} {sz}) (thickness 0.12))))')
+
+# Per-cable 12V pour OUTLINES, pad-derived so they track Xc for any N/PITCH. The shunt
+# (RS, rot90) sits in the 12V column: /SENSEC_HI ties the J_IN +12V pads (y~10) to the
+# shunt's LOWER pad (RS.1, y~24.96); /SENSEC_LO ties the J_OUT +12V pads (y~34) to the
+# shunt's UPPER pad (RS.2, y~19.04) -- a deliberate crossover so 12V runs straight down
+# the column through the shunt. IN pour = J_IN pads down to RS.1; OUT pour = RS.2 down
+# to J_OUT pads. Both wrap the shunt body; the split is AT the shunt.
+def _pour_outline(P, comps, c, side):
+    j = f"J_IN{c}" if side == "in" else f"J_OUT{c}"
+    p1 = pg(j, "1", P, comps); p2 = pg(j, "2", P, comps); p3 = pg(j, "3", P, comps)
+    xs = sorted(x for x, _ in (p1, p2, p3)); xl, xr = xs[0] - 1.5, xs[-1] + 1.5
+    rs = f"RS{c}"; rhi = pg(rs, "1", P, comps); rlo = pg(rs, "2", P, comps)  # HI=lower, LO=upper
+    rcx = rhi[0]
+    if side == "in":            # J_IN band (top) funneling down to the shunt LOWER pad
+        ytop, ybot = 8.0, rhi[1] + 0.9
+        ymid = 14.5
+        return [(xl, ytop), (xr, ytop), (xr, ymid), (rcx + 1.6, ymid),
+                (rcx + 1.6, ybot), (rcx - 1.6, ybot), (rcx - 1.6, ymid), (xl, ymid), (xl, ytop)]
+    else:                        # shunt UPPER pad funneling down to the J_OUT band (bottom)
+        ytop, ybot = rlo[1] - 0.9, 36.0
+        ymid = 29.5
+        return [(rcx - 1.6, ytop), (rcx + 1.6, ytop), (rcx + 1.6, ymid), (xr, ymid),
+                (xr, ybot), (xl, ybot), (xl, ymid), (rcx - 1.6, ymid), (rcx - 1.6, ytop)]
+
 def routing_guides(P, W, H_, ex, comps):
-    """STUB -- a follow-up routing sub-agent fills in the in-board routing-candidate
-    guide graphics (and any routing-plan PNG). Returns nothing so this generator
-    only does footprint/placement planning."""
-    return ""
+    g = []
+    N = sum(1 for r in P if r.startswith("J_IN"))
+    # --- NET CLASS 1: +12V IN/OUT pour outlines per cable (Dwgs.User) ---
+    for i in range(N):
+        c = i + 1
+        IN  = _pour_outline(P, comps, c, "in")
+        OUT = _pour_outline(P, comps, c, "out")
+        g.append(_poly(IN,  "Dwgs.User")); g.append(_txt(f"12V_IN{c} (F+B,2oz)", IN[0][0] + 0.5, 6.6, "Dwgs.User", 0.7))
+        g.append(_poly(OUT, "Dwgs.User")); g.append(_txt(f"12V_OUT{c}",          OUT[0][0] - 3.0, 37.4, "Dwgs.User", 0.7))
+    # --- NET CLASS 3: Kelvin sense pairs off the shunt inner edges (Cmts.User) ---
+    # tap the shunt at the INNER face of each pad (toward the body center, y=22), matched
+    # pair to INA238 IN+/IN- (pads 10/8) and INA181 IN+/IN- (pads 3/4).
+    for i in range(N):
+        c = i + 1; rs = f"RS{c}"; u10 = f"U1{i}"; u20 = f"U2{i}"
+        rhi = pg(rs, "1", P, comps); rlo = pg(rs, "2", P, comps)      # HI lower / LO upper
+        hi_tap = (rhi[0], rhi[1] - 0.9); lo_tap = (rlo[0], rlo[1] + 0.9)  # inner edges toward center
+        hi_in,  lo_in  = pg(u10, "10", P, comps), pg(u10, "8", P, comps)
+        hi_181, lo_181 = pg(u20, "3", P, comps),  pg(u20, "4", P, comps)
+        g.append(_line([hi_tap, hi_in],  "Cmts.User", 0.25))         # RS.HI -> INA238 IN+
+        g.append(_line([lo_tap, lo_in],  "Cmts.User", 0.25))         # RS.LO -> INA238 IN-
+        g.append(_line([hi_tap, hi_181], "Cmts.User", 0.25))         # RS.HI -> INA181 IN+
+        g.append(_line([lo_tap, lo_181], "Cmts.User", 0.25))         # RS.LO -> INA181 IN-
+    g.append(_txt("Kelvin: tap shunt INNER edge, matched pair over In1 GND", CX0, 17.0, "Cmts.User", 0.6))
+    # --- NET CLASS 4: control->sense spine along the open y~17-26 band (Eco1.User) ---
+    # +3V3 sub-trunk from the LDO out (U3.5) sweeping LEFT across every sense band; I2C
+    # SDA/SCL (ESP 24/25) daisy to all INA238s (U1x pad4=SDA / pad5=SCL); THRESH (ESP PWM
+    # IO14=pin19 -> R10 -> /THRESH -> all TLV7011 ref pin4); per-cable DETCn (TLV7011 out
+    # pin1 -> ESP). Run the spine in the open band; hop a shunt column on B.Cu.
+    band = 25.7                                     # spine lane just below the sense parts
+    p3v3 = pg("U3", "5", P, comps)
+    sda  = pg("U1", "24", P, comps); scl = pg("U1", "25", P, comps)
+    spine_xs = [pg(f"U1{i}", "4", P, comps)[0] for i in range(N)]     # INA238 SDA pads (left targets)
+    xmin = min(spine_xs) - 1.0
+    g.append(_line([p3v3, (ex - 2, 23.5), (xmin, 23.5)], "Eco1.User", 0.4))            # +3V3 sub-trunk
+    g.append(_line([sda,  (ex - 2, band)] + [pg(f"U1{i}", "4", P, comps) for i in range(N)] + [(xmin, band)], "Eco1.User", 0.22))      # I2C SDA daisy
+    g.append(_line([scl,  (ex - 2, band + 0.5)] + [pg(f"U1{i}", "5", P, comps) for i in range(N)] + [(xmin, band + 0.5)], "Eco1.User", 0.22))  # I2C SCL daisy
+    thr = pg("U1", "19", P, comps)
+    g.append(_line([thr, (ex - 2, band - 0.6)] + [pg(f"U3{i}", "4", P, comps) for i in range(N)], "Eco1.User", 0.22))   # THRESH ref -> all TLV
+    detpins = ["28", "29", "16"]                    # DETC1->ESP28, DETC2->ESP29, DETC3->ESP16 (netlist)
+    for i in range(N):
+        u3i = f"U3{i}"
+        g.append(_line([pg(u3i, "1", P, comps), (pg(u3i, "1", P, comps)[0], band - 1.2),
+                        pg("U1", detpins[i], P, comps)], "Eco1.User", 0.22))           # DETCn out -> ESP
+    g.append(_txt("SPINE: +3V3 / I2C / THRESH / DETC  (open y17-26 band; hop shunt on B.Cu)", ex - 2, 27.6, "Eco1.User", 0.6))
+    # --- NET CLASS 5/6: CAN + USB (Eco2.User) ---
+    g.append(_line([pg("U2", "7", P, comps), (W - 14, 9), pg("J1", "3", P, comps)], "Eco2.User", 0.25))   # CAN_H -> RJ45 pin3
+    g.append(_line([pg("U2", "6", P, comps), (W - 14, 11), pg("J1", "6", P, comps)], "Eco2.User", 0.25))  # CAN_L -> RJ45 pin6
+    g.append(_line([pg("U2", "1", P, comps), (ex + 16, 13), pg("U1", "26", P, comps)], "Eco2.User", 0.22))  # CAN_TX -> ESP26
+    g.append(_line([pg("U2", "4", P, comps), (ex + 16, 14), pg("U1", "27", P, comps)], "Eco2.User", 0.22))  # CAN_RX -> ESP27
+    g.append(_line([pg("J5", "A6", P, comps), pg("U1", "18", P, comps)], "Eco2.User", 0.25))               # USB_DP -> ESP18
+    g.append(_line([pg("J5", "A7", P, comps), pg("U1", "17", P, comps)], "Eco2.User", 0.25))               # USB_DM -> ESP17
+    g.append(_txt("CAN pair -> RJ45 / USB FS pair -> ESP (length-match)", ex + 1, 11, "Eco2.User", 0.6))
+    return "\n".join(g)
 
 # --------------------------------------------------------------- build the board
 def build(sku):
@@ -307,11 +404,175 @@ def build(sku):
     print(f"WROTE {os.path.relpath(out, ROOT)}  board={W:.1f}x{H_:.0f}mm  N={N} pitch={PITCH:.0f}  parts={len(fps)}")
 
 
+# --------------------------------------------------------------- routing-plan PNG
+def _gcourt(libid, x, y, rot):
+    """Global courtyard bbox (xmin,xmax,ymin,ymax) of a placed footprint (4-tuple frame)."""
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read(); xs = []; ys = []
+    for m in re.finditer(r'\(fp_(?:line|poly|rect)\b', t):
+        b = carve(t, m.start())
+        if 'CrtYd' not in b: continue
+        for a, c in re.findall(r'\((?:start|end|xy|mid) (-?[\d.]+) (-?[\d.]+)\)', b):
+            lx, ly = float(a), float(c)
+            if name.startswith("ESP32-C6") and ly < -5.0:   # antenna keepout dropped
+                ly = -4.95
+            a_ = math.radians(rot)
+            xs.append(x + lx*math.cos(a_) + ly*math.sin(a_))
+            ys.append(y - lx*math.sin(a_) + ly*math.cos(a_))
+    if not xs:
+        return (x-1, x+1, y-1, y+1)
+    return (min(xs), max(xs), min(ys), max(ys))
+
+def routing_plan_png(sku):
+    """Board-accurate routing-candidate plan (mirrors gen-eps-condensed.routing_plan_png),
+    PARAMETRIC in N: left axis = the real placement (courtyards + mounts) overlaid with
+    the 12V pours / GND stitch hints / Kelvin pairs / spine / CAN / USB; right axis = a
+    notes panel (why the board size / 3 mounts, routing order, netclass table, SI notes)."""
+    import matplotlib; matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Rectangle, Polygon, Circle
+    from matplotlib.lines import Line2D
+    DIR, BASE, N, PITCH = sku
+    netf = f"{ROOT}/modules/{DIR}/{BASE}.net"
+    comps, vals, nets = parse_netlist(netf)
+    W, H_, ex, P, mounts, logo = frame(N, PITCH)
+    place_passives(P, N, PITCH, ex)
+    C = dict(v12i="#d83434", v12o="#e8862a", gnd="#1f9e6f", kel="#1438a8",
+             p3v3="#1f9e6f", sig="#7a52c8", can="#b5179e", usb="#1d7fd8", body="#9aa7b4", txt="#101418")
+
+    fig = plt.figure(figsize=(18.0, 8.6))
+    gs = fig.add_gridspec(1, 2, width_ratios=[1.7, 1.0], wspace=0.02)
+    ax = fig.add_subplot(gs[0]); nx = fig.add_subplot(gs[1]); nx.axis("off")
+    ax.set_aspect("equal"); ax.set_xlim(-3, W + 4); ax.set_ylim(H_ + 4, -5)   # invert y (KiCad)
+    ax.axis("off")
+    ax.add_patch(Rectangle((0, 0), W, H_, fill=False, ec="#222", lw=1.6))
+    ax.text(W/2, -3.0, f"CEC PCIe 8-pin {N}-port — routing-candidate plan   {W:.0f} x {H_:.0f} mm   "
+            f"4-layer F.Cu / In1 GND / In2 GND / B.Cu   (12V on outers, split at each shunt)",
+            ha="center", va="center", fontsize=11, weight="bold", color=C["txt"])
+
+    # --- parts (courtyard boxes) ---
+    for ref, (lib, x, y, rot) in P.items():
+        if not lib: continue
+        x0, x1, y0, y1 = _gcourt(lib, x, y, rot)
+        big = ref in ("J1", "J5") or ref.startswith("J_")
+        ax.add_patch(Rectangle((x0, y0), x1-x0, y1-y0, fill=True, fc="#eef1f4" if not big else "#dde6ee",
+                     ec=C["body"], lw=0.7, alpha=0.95, zorder=2))
+        if ref.startswith(("U", "J", "RS")) or ref in ("D1", "D2"):
+            ax.text((x0+x1)/2, (y0+y1)/2, ref, ha="center", va="center",
+                    fontsize=6.0 if not big else 7.5, color=C["txt"], zorder=6, weight="bold")
+    for (mx, my) in mounts:
+        ax.add_patch(Circle((mx, my), 3.2, fill=True, fc="#f2d34e", ec="#b69a18", lw=0.8, zorder=1))
+
+    def pad(ref, p): return pg(ref, p, P, comps)
+    # --- NET 1: 12V IN/OUT pours (filled translucent) + GND stitch hints ---
+    for i in range(N):
+        c = i + 1
+        IN  = _pour_outline(P, comps, c, "in")
+        OUT = _pour_outline(P, comps, c, "out")
+        ax.add_patch(Polygon(IN,  closed=True, fc=C["v12i"], ec=C["v12i"], alpha=0.20, lw=1.0, zorder=3))
+        ax.add_patch(Polygon(OUT, closed=True, fc=C["v12o"], ec=C["v12o"], alpha=0.20, lw=1.0, zorder=3))
+        # GND stitch hints flanking each cable's 12V column (the inner GND planes return here)
+        jin = [pad(f"J_IN{c}", p) for p in ("4", "8")]; jout = [pad(f"J_OUT{c}", p) for p in ("4", "8")]
+        for (gx, gy) in jin + jout:
+            ax.plot(gx, gy, 'o', ms=2.6, mfc=C["gnd"], mec="none", zorder=4)
+    # --- NET 3: Kelvin pairs off shunt inner edges ---
+    for i in range(N):
+        c = i + 1; rs = f"RS{c}"
+        rhi = pad(rs, "1"); rlo = pad(rs, "2")
+        hi_tap = (rhi[0], rhi[1] - 0.9); lo_tap = (rlo[0], rlo[1] + 0.9)
+        for tap, dst in [(hi_tap, pad(f"U1{i}", "10")), (lo_tap, pad(f"U1{i}", "8")),
+                         (hi_tap, pad(f"U2{i}", "3")),  (lo_tap, pad(f"U2{i}", "4"))]:
+            ax.plot([tap[0], dst[0]], [tap[1], dst[1]], color=C["kel"], lw=1.4, zorder=5)
+    # --- NET 4: spine (+3V3 fat, I2C/THRESH/DET thin) ---
+    def poly(pts, col, lw, z=5, ls="-"):
+        xs = [p[0] for p in pts]; ys = [p[1] for p in pts]; ax.plot(xs, ys, color=col, lw=lw, ls=ls, zorder=z)
+    band = 25.7
+    spine_xs = [pad(f"U1{i}", "4")[0] for i in range(N)]; xmin = min(spine_xs) - 1.0
+    poly([pad("U3", "5"), (ex-2, 23.5), (xmin, 23.5)], C["p3v3"], 2.6)                                     # +3V3 sub-trunk
+    poly([pad("U1", "24"), (ex-2, band)] + [pad(f"U1{i}", "4") for i in range(N)] + [(xmin, band)], C["sig"], 1.0, ls=(0, (4, 2)))         # I2C SDA
+    poly([pad("U1", "25"), (ex-2, band+0.5)] + [pad(f"U1{i}", "5") for i in range(N)] + [(xmin, band+0.5)], C["sig"], 1.0, ls=(0, (4, 2)))  # I2C SCL
+    poly([pad("U1", "19"), (ex-2, band-0.6)] + [pad(f"U3{i}", "4") for i in range(N)], "#c46a00", 1.0, ls=(0, (1, 1)))                       # THRESH
+    detpins = ["28", "29", "16"]
+    for i in range(N):
+        u3i = f"U3{i}"
+        poly([pad(u3i, "1"), (pad(u3i, "1")[0], band-1.2), pad("U1", detpins[i])], C["sig"], 0.9)          # DETCn
+    # --- NET 5/6: CAN + USB ---
+    poly([pad("U2", "7"), (W-14, 9),  pad("J1", "3")], C["can"], 1.4)
+    poly([pad("U2", "6"), (W-14, 11), pad("J1", "6")], C["can"], 1.4)
+    poly([pad("U2", "1"), (ex+16, 13), pad("U1", "26")], C["can"], 1.0, ls=(0, (4, 2)))
+    poly([pad("U2", "4"), (ex+16, 14), pad("U1", "27")], C["can"], 1.0, ls=(0, (4, 2)))
+    poly([pad("J5", "A6"), pad("U1", "18")], C["usb"], 1.6)
+    poly([pad("J5", "A7"), pad("U1", "17")], C["usb"], 1.6)
+
+    leg = [Line2D([], [], color=C["v12i"], lw=6, alpha=.4, label="12V IN pour (F+B, 2oz)"),
+           Line2D([], [], color=C["v12o"], lw=6, alpha=.4, label="12V OUT pour"),
+           Line2D([], [], marker='o', color='w', mfc=C["gnd"], ms=6, label="GND stitch via (In1/In2)"),
+           Line2D([], [], color=C["kel"], lw=2, label="Kelvin sense pair (0.25mm)"),
+           Line2D([], [], color=C["p3v3"], lw=3, label="+3V3 sub-trunk (0.4mm)"),
+           Line2D([], [], color=C["sig"], lw=1.2, ls=(0, (4, 2)), label="I2C / DETC (spine)"),
+           Line2D([], [], color="#c46a00", lw=1.2, ls=(0, (1, 1)), label="THRESH ref (quiet lane)"),
+           Line2D([], [], color=C["can"], lw=2, label="CAN H/L + TX/RX"),
+           Line2D([], [], color=C["usb"], lw=2, label="USB FS pair (matched)")]
+    ax.legend(handles=leg, loc="lower center", bbox_to_anchor=(0.5, -0.15), ncol=3, fontsize=8, framealpha=.95)
+
+    # --- right notes panel ---
+    def block(y, title, lines, tc="#101418"):
+        nx.text(0.0, y, title, fontsize=11, weight="bold", color=tc, transform=nx.transAxes)
+        for k, ln in enumerate(lines):
+            nx.text(0.02, y-0.030*(k+1), ln, fontsize=8.0, color="#222", transform=nx.transAxes, family="DejaVu Sans")
+        return y-0.030*(len(lines)+1)-0.022
+    y = 0.995
+    y = block(y, f"WHY {W:.0f} x {H_:.0f} mm,  3 MOUNTS", [
+        f"N={N} cables @ {PITCH:.0f}mm pitch (CX0=11 left margin) + a {CORE_W:.0f}mm core.",
+        "H=44 is FORCED by the pegged Molex 45586 (J_IN/J_OUT pegs reach",
+        "y=2.7 / y=41.3); the EPS pegless 87427 fits in 35.  3-port keeps it",
+        "sub-105 by tightening pitch to 20 (2-port can afford 23 for room).",
+        "3x M3: TWO logic-side (TR + BR corners), ONE connector-side, roughly",
+        "centered (x4, y=H/2) in the clear band between cable-1 J_IN & J_OUT."])
+    y = block(y, "ROUTING ORDER (per cable 1..N, then core)", [
+        "1. Pour In1+In2 GND planes; stitch every connector/IC GND.",
+        "2. 12V IN/OUT pours per cable (F.Cu + B.Cu mirror) + via field; split AT shunt.",
+        "3. Kelvin stubs (4/shunt) off the INNER pad edges, matched pairs over GND.",
+        "4. USB DP/DM pair (short, straight, length-matched) - J5 sits above the ESP.",
+        "5. CAN H/L -> RJ45 ; TX/RX -> ESP.",
+        "6. Control->sense SPINE (+3V3, I2C SDA/SCL, THRESH, DETC1..N) on the y17-26 band.",
+        "7. +5VSB / VBUS-OR / DETECT core knit + EN.   8. Re-pour, DRC."])
+    y = block(y, "NETCLASSES (recommend into the empty .kicad_pro / .kicad_dru)", [
+        "Power12V  2.5/pour  via 0.9/0.5  clr0.2   /SENSEC* (12V ~30A pours)",
+        "GND       0.5/plane via 0.9/0.5           GND",
+        "Power     0.5 mm    via 0.8/0.4           +3V3 / +5VSB / /VBUS",
+        "Signal    0.22 mm   via 0.6/0.3           I2C/THRESH/DETC/CAN_TX,RX/EN/CC",
+        "CAN       0.25 mm   coupled pair          /CAN_H /CAN_L",
+        "USB       0.25 / gap0.13  DIFF PAIR       /USB_DP /USB_DM (auto-paired)",
+        "Kelvin tap shares /SENSEC* -> draw 0.25mm by hand off the shunt edge."])
+    y = block(y, "SI / KEEP-AWAY", [
+        "* Kelvin pairs & THRESH ref: >=0.5mm off any 12V copper edge",
+        "  (the ~30A pours carry the transient the sensing must catch).",
+        "* THRESH is a shared comparator ref - quiet quasi-DC lane, C40 at",
+        "  the source, never parallel-adjacent to a 12V lane or DETC for long.",
+        "* Spine crosses the cable backs - run it in the OPEN y17-26 band",
+        "  between J_IN (y10) and J_OUT (y34); hop a shunt column on B.Cu.",
+        "* USB length-match DP/DM (J5 directly above the ESP).",
+        "* CAN H/L stay paired; 120R split termination lives at the Hub.",
+        "* Guides drawn in-board on Dwgs/Cmts/Eco1/Eco2.User (toggle layers)."])
+    nx.text(0.0, y-0.003, "Per-cable +12V flows J_IN pads 1-3 -> 0.5mΩ shunt -> J_OUT pads 1-3;",
+            fontsize=8, color="#444", transform=nx.transAxes, style="italic")
+    nx.text(0.0, y-0.036, "GND pins 4-8 return on the inner planes. INA238 + INA181 Kelvin-tap each shunt.",
+            fontsize=8, color="#444", transform=nx.transAxes, style="italic")
+
+    out = f"{ROOT}/modules/{DIR}/pcie{N}-routing-plan.png"
+    fig.savefig(out, dpi=145, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
+    print(f"WROTE {os.path.relpath(out, ROOT)}")
+
+
 if __name__ == "__main__":
     targets = [a for a in sys.argv[1:] if not a.startswith("-")]
     if not targets:
-        raise SystemExit("usage: gen-pcie-condensed.py <pcie-8pin-2port|pcie-8pin-3port> [--force]")
+        raise SystemExit("usage: gen-pcie-condensed.py <pcie-8pin-2port|pcie-8pin-3port> [--force] [--no-plan]")
     for t in targets:
         if t not in SKUS:
             print(f"  unknown board '{t}' (expected one of: pcie-8pin-2port, pcie-8pin-3port)", file=sys.stderr); continue
         build(SKUS[t])
+        if "--no-plan" not in sys.argv:
+            routing_plan_png(SKUS[t])
