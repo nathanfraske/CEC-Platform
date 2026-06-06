@@ -214,14 +214,21 @@ def run_freerouting(
 
     cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads)
 
+    run_kw = dict(cwd=workdir, capture_output=True, text=True, timeout=timeout)
+    if sys.platform == "win32":
+        # Freerouting is a Java/Swing GUI app; on Windows (real desktop, no xvfb) its window
+        # would pop to the foreground and steal focus from whatever you're doing. Ask Windows
+        # to start it MINIMIZED and WITHOUT activation (SW_SHOWMINNOACTIVE) and with no console
+        # window, so a batch route stays out of the way. (Belt-and-suspenders: set the user's
+        # ForegroundLockTimeout so Windows refuses focus-steals outright -- see docs.)
+        si = subprocess.STARTUPINFO()
+        si.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        si.wShowWindow = 7  # SW_SHOWMINNOACTIVE
+        run_kw["startupinfo"] = si
+        run_kw["creationflags"] = subprocess.CREATE_NO_WINDOW
+
     try:
-        result = subprocess.run(
-            cmd,
-            cwd=workdir,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-        )
+        result = subprocess.run(cmd, **run_kw)
     except subprocess.TimeoutExpired as exc:
         raise RuntimeError(
             f"cec_fr.run_freerouting: timed out after {timeout}s "

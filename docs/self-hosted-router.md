@@ -73,6 +73,25 @@ to **run interactively, not as a background Session-0 service**:
 (`-Djava.awt.headless=true` is *not* a workaround — Freerouting 1.7.0 touches screen APIs that
 throw `HeadlessException` under it.)
 
+### Keeping Freerouting from stealing focus
+
+Because it needs a desktop, Freerouting's Java window appears while a route runs. The launcher
+already starts it **minimized and without activation** (and with no console window) so it stays
+out of the way. If your Windows still lets it flash to the foreground, set the per-user
+**`ForegroundLockTimeout`** so Windows *refuses* focus-steals (it flashes the taskbar instead).
+Run this once in the runner's session (applies immediately, no sign-out):
+
+```powershell
+Set-ItemProperty 'HKCU:\Control Panel\Desktop' ForegroundLockTimeout 200000 -Type DWord
+$sig = '[DllImport("user32.dll")] public static extern bool SystemParametersInfo(uint a, uint u, UIntPtr p, uint w);'
+(Add-Type -MemberDefinition $sig -Name Focus -Namespace Win32 -PassThru)::SystemParametersInfo(0x2001,0,[UIntPtr]200000,3) | Out-Null
+```
+
+(Revert by setting the value back to `0`.) For **zero** on-screen windows, run the runner in a
+separate logged-on session — e.g. a second local user you connect to over RDP and then
+**disconnect** (not sign out): that session keeps its own virtual desktop alive, fully isolated
+from your primary desktop, and the runner routes there without ever touching your screen.
+
 ### 3. Register the runner (label `cec-router`)
 
 Repo **Settings → Actions → Runners → New self-hosted runner → Windows**, download, then:
