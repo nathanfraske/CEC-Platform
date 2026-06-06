@@ -1,8 +1,8 @@
 ** Drc report for 12vhpwr-standard-module.kicad_pcb **
-** Created on 2026-06-05T21:38:54 **
+** Created on 2026-06-05T22:25:48 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 13 DRC violations **
+** Found 15 DRC violations **
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(112.8750 mm, 58.3500 mm): Segment on Edge.Cuts
@@ -35,10 +35,22 @@
     Rule: board setup constraints silk; warning
     @(170.8750 mm, 138.3500 mm): Segment on Edge.Cuts
     @(141.8900 mm, 140.6190 mm): Segment of J4 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(150.0800 mm, 94.5000 mm): Reference field of R5
+    @(149.4350 mm, 95.2900 mm): Segment of U15 on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(150.0800 mm, 94.5000 mm): Reference field of R5
+    @(149.3400 mm, 95.2900 mm): Segment of U15 on F.Silkscreen
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(116.1800 mm, 125.0000 mm): Circle of TH2 on F.Silkscreen
     @(116.2500 mm, 124.7500 mm): Pad 1 [+3V3] of TH2 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(131.5000 mm, 74.7500 mm): Circle of TH1 on F.Silkscreen
+    @(131.5700 mm, 74.5000 mm): Pad 1 [+3V3] of TH1 on F.Cu
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(170.2500 mm, 91.5000 mm): Value field of U1 (ESP32-S3-MINI-1-N4R2)
@@ -51,10 +63,6 @@
     Local override; warning
     @(170.2500 mm, 91.5000 mm): Value field of U1 (ESP32-S3-MINI-1-N4R2)
     @(169.5000 mm, 84.0200 mm): Pad 2 [GND] of C5 on F.Cu
-[silk_over_copper]: Silkscreen clipped by solder mask
-    Local override; warning
-    @(131.5000 mm, 74.7500 mm): Circle of TH1 on F.Silkscreen
-    @(131.5700 mm, 74.5000 mm): Pad 1 [+3V3] of TH1 on F.Cu
 
 ** Found 0 unconnected pads **
 
