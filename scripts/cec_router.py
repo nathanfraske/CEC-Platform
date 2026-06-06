@@ -468,7 +468,10 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
         return None, log
 
     merged = serial_merge(board0, routed, plan.contracts, spec.out + ".merged.kicad_pcb")
-    write_once(spec.out)
+    # spec.out is the router's OWN candidate output dir (build/route/...), not a committed
+    # board -- always overwrite it (the one-shot guard is for committed floorplans). This
+    # makes the route re-runnable to the same --out without a stale-file crash.
+    write_once(spec.out, force=True)
     shutil.copy(merged, spec.out)
     for ext in (".kicad_pro", ".kicad_dru"):
         s = merged[:-len(".kicad_pcb")] + ext

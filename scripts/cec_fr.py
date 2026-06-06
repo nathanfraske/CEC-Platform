@@ -262,11 +262,18 @@ def run_freerouting(
 # ---------------------------------------------------------------------------
 # import_ses
 # ---------------------------------------------------------------------------
-def import_ses(board_path: str, ses_path: str, out_path: str) -> str:
+def import_ses(board_path: str, ses_path: str, out_path: str, *, fill_zones: bool = True) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
-    Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then
-    SaveBoard(out_path, board).  Returns *out_path*.  Raises RuntimeError on failure.
+    Loads *board_path*, calls ImportSpecctraSES(board, ses_path), optionally FILLS the
+    copper zones (default on), then SaveBoard(out_path, board). Returns *out_path*.
+
+    Zone fill is essential: the SES import lays tracks/vias but does NOT fill copper pours
+    (neither does kicad-cli -- only the real ZONE_FILLER engine fills). Without it, every
+    via Freerouting drops into a GND/power plane reads as DANGLING (copper on one side only)
+    and every plane-connected pad reads as UNCONNECTED. On the EPS module this fill alone
+    takes structural DRC 99 -> 53 and unconnected 71 -> 2. The board's own zone settings are
+    honoured (e.g. island_removal_mode), so isolated islands are dropped per the design.
     """
     board = pcbnew.LoadBoard(board_path)
     ok = pcbnew.ImportSpecctraSES(board, ses_path)
@@ -275,6 +282,12 @@ def import_ses(board_path: str, ses_path: str, out_path: str) -> str:
             f"cec_fr.import_ses: ImportSpecctraSES returned False\n"
             f"  board={board_path!r}\n  ses={ses_path!r}"
         )
+    if fill_zones:
+        # UnFill first: re-filling an already-filled multi-layer zone in one process can
+        # segfault this KiCad-10 SWIG build (see cec_route.py fill()).
+        for z in board.Zones():
+            z.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     pcbnew.SaveBoard(out_path, board)
     if not os.path.isfile(out_path):
         raise RuntimeError(

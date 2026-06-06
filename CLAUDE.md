@@ -655,6 +655,37 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- ROUTE-TO-CLEAN + FULL AGENT-PIPELINE test (2026-06-06). Ran the whole automated routing system
+  on EPS with the TIERED LLM control plane LIVE -- Opus planner/escalator (me) + a real Sonnet
+  MANAGER sub-agent judging the candidates -- not the deterministic default policies. Findings:
+  * EPS's persistent DRC=99 is NOT a Freerouting-effort problem (identical across an opt-time sweep
+    10..300s) -- it is tool-pipeline artifacts. The Sonnet manager root-caused it (UUID-verified):
+    49 annular_width + 46 via_dangling + 4 LOGO-related.
+  * FIX 1 SHIPPED + VERIFIED: cec_fr.import_ses now FILLS the copper zones after the SES import
+    (fill_zones=True). The SES import lays tracks/vias but never fills pours (only the real
+    ZONE_FILLER does -- kicad-cli can't); without it every via into the GND plane reads as
+    via_dangling and every plane pad as unconnected. EPS: structural DRC 99->53, unconnected 71->2
+    (kelvin_ok + diffpair_ok still pass). island_removal_mode is honoured so islands drop per design.
+    Also: cec_router write_once(spec.out, force=True) so a route is re-runnable to the same --out
+    (the one-shot guard is for committed floorplans, not the router's own output dir).
+  * MAJOR REVIEW FINDING -- TRACE SIZING IS NOT HONOURED: Freerouting IGNORES the netclass widths.
+    The pcbnew Specctra DSN export is CORRECT (carries Power12V=2.5mm, Power/GND=0.5, Signal=0.22,
+    via=0.9; net->class binding right: +3V3->Power, SENSEC*_HI->Power12V, etc.), but FR routes
+    EVERYTHING at its 0.2mm track / 0.6mm via defaults. It slips past DRC only because the candidate
+    is checked WITHOUT its .kicad_dru. A 12V net at 0.2mm is a fab disaster -- the real issue under 99.
+  * DESIGN DIRECTION (per the user) -- HIGH-CURRENT = POURS, NOT FAT TRACES: (1) FR ignores widths
+    anyway; (2) a 2.5mm trace won't fit channels FR routed at 0.2mm -- post-hoc widening COLLIDES
+    (proven: the manager's post-hoc via-enlarge added +152 clearance violations); (3) current is
+    carried by copper AREA. So GND (already a plane), the 12V SENSEC nets, and the power rails belong
+    as FILLED POURS; FR routes only signal/control (0.2-0.25mm fine). This is a PLANNER/MANAGER
+    judgement: classify each net {pour | wide-trace | signal-trace} from its current + the available
+    space, and escalate a fat trace that can't route into a pour.
+  * OPEN (route-to-clean roadmap): (a) POUR the 12V + power nets (add zones like the GND plane; the
+    EPS floorplan has only the GND zone today) -> the design-correct fix for the trace-width issue;
+    (b) VIA ANNULAR -- FR emits 0.6mm vias (annular 0.05 < 0.1 min); fix at routing time (FR via
+    padstack/drill), not post-hoc; (c) LOGO1 -- assign its no-net B.Cu copper to GND or add a no-via
+    keepout (clears the 4); (d) investigate WHY FR ignores the DSN per-class widths/vias (FR
+    config/format). cec_score gates already protect the safety nets; these are quality/DFM fixes.
 - AUTOMATED ROUTING SYSTEM — two-plane architecture (2026-06-06). Implemented the user's
   redesign: a DETERMINISTIC PLANE (reproducible, no LLM) under a CONTROL PLANE (tiered
   judgement, pluggable). Drives the REAL KiCad<->Freerouting autorouter via Specctra DSN/SES.
