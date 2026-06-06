@@ -24,7 +24,11 @@ param(
   [string]$Out      = "build/route",
   [switch]$Render
 )
-$ErrorActionPreference = "Stop"
+# Continue, NOT Stop: native tools (java, python, Freerouting) legitimately write to stderr,
+# and under "Stop" Windows PowerShell turns ANY native-command stderr into a terminating
+# NativeCommandError (this killed an earlier run on `java -version`). Real failures are caught
+# explicitly via `throw` + $LASTEXITCODE checks below.
+$ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot     # scripts\ -> repo root
 
 function Find-KiCadPython {
@@ -101,7 +105,9 @@ if ($LASTEXITCODE -ne 0) { throw "pcbnew failed to import with $py" }
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
   throw "java not found. Install a JRE 21 (e.g. Adoptium Temurin) -- or set `$env:JAVA_HOME."
 }
-Write-Host ("java: " + ((java -version 2>&1) | Select-Object -First 1))
+# capture java's banner via cmd so its stderr never becomes a PowerShell error record
+$jv = (cmd /c "java -version 2>&1") | Select-Object -First 1
+Write-Host "java: $jv"
 
 $cliArgs = @(
   (Join-Path $repo "scripts\cec_router.py"),
