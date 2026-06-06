@@ -15,11 +15,26 @@ Write-Host "== route prerequisites on $env:COMPUTERNAME (Windows) =="
 # --- KiCad python + pcbnew ---
 function Find-KiCadPython {
   if ($env:KICAD_PYTHON -and (Test-Path $env:KICAD_PYTHON)) { return $env:KICAD_PYTHON }
-  foreach ($root in @("$env:ProgramFiles\KiCad", "${env:ProgramFiles(x86)}\KiCad")) {
+  $kc = Get-Command kicad-cli -EA SilentlyContinue
+  if ($kc) { $p = Join-Path (Split-Path -Parent $kc.Source) "python.exe"; if (Test-Path $p) { return $p } }
+  $ukeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+             "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+             "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*")
+  foreach ($k in $ukeys) {
+    foreach ($app in (Get-ItemProperty $k -EA SilentlyContinue | Where-Object { $_.DisplayName -like "KiCad*" })) {
+      if ($app.InstallLocation) { $p = Join-Path $app.InstallLocation "bin\python.exe"; if (Test-Path $p) { return $p } }
+    }
+  }
+  $roots = @("${env:ProgramFiles(x86)}\KiCad")
+  foreach ($drv in (Get-PSDrive -PSProvider FileSystem -EA SilentlyContinue).Root) {
+    $roots += (Join-Path $drv "Program Files\KiCad"); $roots += (Join-Path $drv "KiCad")
+  }
+  foreach ($root in ($roots | Select-Object -Unique)) {
     if (Test-Path $root) {
       foreach ($d in (Get-ChildItem $root -Directory -EA SilentlyContinue | Sort-Object Name -Descending)) {
         $p = Join-Path $d.FullName "bin\python.exe"; if (Test-Path $p) { return $p }
       }
+      $p = Join-Path $root "bin\python.exe"; if (Test-Path $p) { return $p }
     }
   }
   return $null

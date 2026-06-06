@@ -30,22 +30,37 @@ $repo = Split-Path -Parent $PSScriptRoot     # scripts\ -> repo root
 function Find-KiCadPython {
   # 1) explicit override
   if ($env:KICAD_PYTHON -and (Test-Path $env:KICAD_PYTHON)) { return $env:KICAD_PYTHON }
-  # 2) standard KiCad install roots, highest version first
-  $roots = @("$env:ProgramFiles\KiCad", "${env:ProgramFiles(x86)}\KiCad")
-  foreach ($root in $roots) {
-    if (Test-Path $root) {
-      foreach ($d in (Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
-        $p = Join-Path $d.FullName "bin\python.exe"
+  # 2) kicad-cli already on PATH -> python.exe sits in the same bin
+  $kc = Get-Command kicad-cli -ErrorAction SilentlyContinue
+  if ($kc) { $p = Join-Path (Split-Path -Parent $kc.Source) "python.exe"; if (Test-Path $p) { return $p } }
+  # 3) registry: KiCad's uninstall InstallLocation (finds it on ANY drive / custom path)
+  $ukeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+             "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+             "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*")
+  foreach ($k in $ukeys) {
+    foreach ($app in (Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "KiCad*" })) {
+      if ($app.InstallLocation) {
+        $p = Join-Path $app.InstallLocation "bin\python.exe"
         if (Test-Path $p) { return $p }
       }
     }
   }
-  # 3) a 'python' already on PATH that can import pcbnew
-  $onpath = (Get-Command python -ErrorAction SilentlyContinue)
-  if ($onpath) {
-    & $onpath.Source -c "import pcbnew" 2>$null
-    if ($LASTEXITCODE -eq 0) { return $onpath.Source }
+  # 4) KiCad roots on EVERY fixed drive (Program Files\KiCad\<ver>\bin or <drive>\KiCad\<ver>\bin), newest first
+  $roots = @("${env:ProgramFiles(x86)}\KiCad")
+  foreach ($drv in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue).Root) {
+    $roots += (Join-Path $drv "Program Files\KiCad"); $roots += (Join-Path $drv "KiCad")
   }
+  foreach ($root in ($roots | Select-Object -Unique)) {
+    if (Test-Path $root) {
+      foreach ($d in (Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
+        $p = Join-Path $d.FullName "bin\python.exe"; if (Test-Path $p) { return $p }
+      }
+      $p = Join-Path $root "bin\python.exe"; if (Test-Path $p) { return $p }   # no version subdir
+    }
+  }
+  # 5) a 'python' already on PATH that can import pcbnew
+  $onpath = (Get-Command python -ErrorAction SilentlyContinue)
+  if ($onpath) { & $onpath.Source -c "import pcbnew" 2>$null; if ($LASTEXITCODE -eq 0) { return $onpath.Source } }
   return $null
 }
 
