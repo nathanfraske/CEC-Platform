@@ -692,6 +692,17 @@ Done (kept for context):
   -> SENSEP6_HI (pin-6 HI, closest to the ESP) -- electrically identical (all 6 +12V pins are
   the same rail), just shorter routing. One-label change (UUID preserved); divider output
   VRAIL_DIV->R6->GND and ->IO7 unchanged, ERC clean.
+  ALSO (2026-06-06, tolerance fix) the rail divider R5/R6 carry Tolerance=0.1% (v3.8 spec)
+  but had been mis-sourced to 1% UNI-ROYAL 0402WGF parts -- the REF3030 ratiometric ref does
+  NOT cancel divider-ratio error, so 0.1% is required for the ~0.3-0.5% V channel. Repointed
+  R5 -> Yageo RT0402BRD0747KL (C728561, 47k 0.1% 25ppm) and R6 -> RT0402BRD0710KL (C190095,
+  10k 0.1% 25ppm); same 0402 land, BOM regen. (R2/R20/R21 are also 10k but stay 1% C25744 --
+  pullup/NTC, not precision.) OPEN review items flagged (not yet changed): VRAIL_DIV has NO
+  ADC cap (high-Z ~8.2k divider straight into the ESP SAR -- add ~2.2-10nF to GND); the 6
+  ISENSEP INA outputs have no ADC-input cap (INA drives direct, optional); RFH/RFL filter
+  10ohm still 1% (matched-1% ok for DC, 0.1% better for AC CMRR on the transient capture); RS
+  shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); NO fiducials on the board
+  (add >=2-3 for fine-pitch SMD).
 - EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
   platform corrections to the EPS schematic: D1 PESD5V0S1UL -> PESD5V0S1BA (SOD-323,
   C5261083); BOOT/RESET buttons SW1/SW2 Panasonic_EVQPUJ_EVQPUA -> TS-1088-AR02016

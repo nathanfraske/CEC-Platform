@@ -6987,7 +6987,7 @@
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 69.85 270.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 270.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Tolerance" "0.1%" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6995,7 +6995,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "0402WGF4702TCE" (at 0 0 0)
+		(property "MPN" "RT0402BRD0747KL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7003,7 +7003,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C25792" (at 0 0 0)
+		(property "LCSC" "C728561" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7034,7 +7034,7 @@
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 95.25 270.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 270.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Tolerance" "0.1%" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7042,7 +7042,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "0402WGF1002TCE" (at 0 0 0)
+		(property "MPN" "RT0402BRD0710KL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -7050,7 +7050,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C25744" (at 0 0 0)
+		(property "LCSC" "C190095" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
