@@ -7955,7 +7955,7 @@
 	(label "SENSEP1_HI" (at 44.45 208.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "163c67c8-3e8b-471d-b3fd-281c5dfbab7d"))
 	(label "SENSEP1_HI" (at 49.53 228.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "639fd6e7-7ea4-4cec-8a27-23de91daae9e"))
 	(label "SENSEP1_HI" (at 133.35 1383.03 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "f01f9ea5-36c9-4511-a187-aa8c41b6d308"))
-	(label "SENSEP1_HI" (at 69.85 264.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "ada80de9-ff5b-40e4-8795-19c6ac837585"))
+	(label "SENSEP6_HI" (at 69.85 264.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "ada80de9-ff5b-40e4-8795-19c6ac837585"))
 	(label "SENSEP1_LO" (at 44.45 220.98 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "c3cd2e77-80ae-4d88-b34f-4a2561aa5a58"))
 	(label "SENSEP1_LO" (at 54.61 228.6 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "04e762f1-faa6-4220-a571-b78989e96fd3"))
 	(label "SENSEP1_LO" (at 214.63 1395.73 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "dbfbe9a2-2a0e-4e1f-81bb-683daa5b7221"))
