@@ -730,6 +730,20 @@ Done (kept for context):
   CMRR on the transient capture (same R_0402 land, drop-in); RS
   shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); fiducials DONE 2026-06-06 (3x cec-Fiducial:Fiducial_1mm_Mask2mm, board_only/excl-BOM/excl-pos,
   refs on F.Fab: FID1 (162.25,61) TR, FID2 (166,135.5) BR, FID3 (139,116) lower-center; DRC copper-clean).
+- EPS 8-pin NETCLASSES + .kicad_dru + USB diff-pair (2026-06-06). The previously-empty
+  eps8pin-module.kicad_pro now carries 7 netclasses (Power12V 2.5mm pour via0.9/0.5 clr0.2
+  /SENSEC*; GND 0.5 via0.9/0.5; Power 0.5 via0.8/0.4 +3V3/+5VSB/VBUS; Signal 0.22
+  I2C/THRESH/DET/CAN_TX,RX/EN/CC; CAN 0.25 coupled /CAN_H,/CAN_L; USB 0.25 diff gap0.13
+  /USB_D_P,/USB_D_N) + a matching eps8pin-module.kicad_dru (Power 0.5mm floor, USB diff-pair
+  gap, explicit NO floor on /SENSEC* so the pour + the shunt-shared Kelvin taps aren't
+  false-flagged). MATCHED PAIRS: USB is now an AUTO-RECOGNIZED diff pair -- renamed the
+  schematic labels /USB_DP->/USB_D_P, /USB_DM->/USB_D_N (repo _P/_N convention; ERC clean,
+  connectivity identical D+={J5.A6,B6,U1.18} / D-={J5.A7,B7,U1.17}); CAN_H/CAN_L KEEP the
+  standard (asymmetric) names and route as a coupled pair; the Kelvin sense is hand-matched
+  (shares the /SENSEC* force net, can't be a separable diff-pair). Power12V clearance set to
+  0.2 (not 0.25) because the INA238 Kelvin inputs ARE the /SENSEC* nets entering a 0.5mm-pitch
+  VSSOP-10 -- the 24-pin DRU precedent. DRC 0 structural with all rules active. Board regen'd
+  for the new USB net names; gen-eps-condensed.py netclass-table text updated.
 - EPS 8-pin CANDIDATE GENERATOR + routing plan (2026-06-06). scripts/gen-eps-condensed.py
   now PRODUCES the condensed floorplan reproducibly (reuses gen-module-pcb.py's emit helpers
   via a no-op-filter import; does NOT modify the shared generator). Three parts: (1) FRAME =

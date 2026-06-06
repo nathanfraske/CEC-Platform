@@ -325,3 +325,39 @@ It is still a one-shot bootstrap — once the board carries tracks/vias the gene
 **refuses to overwrite** (pass `--force` to override); from the first route it is
 GUI-maintained. The routing guides live on non-copper layers, so they never affect DRC or
 the copper; delete the user-layer graphics once routing is done if you don't want them.
+
+## Netclasses + design rules (2026-06-06) — `.kicad_pro` / `.kicad_dru`
+
+The previously-empty `.kicad_pro` now carries the routing netclasses, and a matching
+`.kicad_dru` makes DRC enforce them:
+
+| Netclass | track | via | clr | members |
+|---|---|---|---|---|
+| **Power12V** | 2.5 mm (pour) | 0.9/0.5 | 0.2 | `/SENSEC*` — the ~30 A 12 V pours, split at each shunt |
+| **GND** | 0.5 mm (plane) | 0.9/0.5 | 0.2 | `GND` |
+| **Power** | 0.5 mm | 0.8/0.4 | 0.2 | `+3V3`, `+5VSB`, `/VBUS` |
+| **Signal** | 0.22 mm | 0.6/0.3 | 0.2 | I²C, THRESH, DETC/DETAMP, DETECT, CAN_TX/RX, EN, CC |
+| **CAN** | 0.25 mm | 0.6/0.3 | 0.2 | `/CAN_H`, `/CAN_L` (coupled pair) |
+| **USB** | 0.25 mm, **diff gap 0.13** | 0.6/0.3 | 0.2 | `/USB_D_P`, `/USB_D_N` (differential pair) |
+
+**Matched pairs:**
+- **USB FS pair is now an auto-recognized differential pair.** The nets were renamed
+  `/USB_DP → /USB_D_P` and `/USB_DM → /USB_D_N` (the repo's `_P`/`_N` convention, same as
+  the 12VHPWR sense pairs), so KiCad's differential-pair router pairs them automatically;
+  the USB netclass sets width 0.2 / gap 0.13 and the `.kicad_dru` flags long uncoupled runs.
+  (Pure label rename — ERC clean, connectivity identical: `/USB_D_P` = {J5.A6, J5.B6, U1.18},
+  `/USB_D_N` = {J5.A7, J5.B7, U1.17}.)
+- **CAN_H / CAN_L keep their standard names** — H and L are semantically asymmetric (defined
+  dominant/recessive levels), so renaming them to P/N would be wrong. They're routed as a
+  **tightly-coupled pair** by hand to the RJ-45 via the CAN netclass; the only termination is
+  the Hub's split 120 Ω, never on the module.
+- **The Kelvin sense pairs are hand-matched, not a netclass pair.** Each INA238/INA181 IN+/IN−
+  is the `/SENSEC*_HI` / `/SENSEC*_LO` net — the *same* net as the 12 V force — so they can't be
+  a separable diff-pair net. Tap the shunt's inner edges symmetrically and draw the two stubs
+  as a matched 0.25 mm pair by hand (a Power12V track-width floor is deliberately omitted in
+  the `.kicad_dru` so these thin taps aren't false-flagged; rail ampacity comes from the pour
+  copper area, IPC-2152).
+
+`.kicad_dru` rules: **Power min width** (0.5 mm floor on the Power class), **USB diff-pair gap**
+(0.1–0.2 mm), and an explicit *no* width floor on `/SENSEC*` (pours + Kelvin taps). DRC is clean
+(0 structural) with the netclasses active.

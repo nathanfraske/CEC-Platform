@@ -379,14 +379,14 @@ def routing_plan_png():
         "6. CAN H/L -> RJ45 ; TX/RX -> ESP.",
         "7. Control->sense SPINE (+3V3, I2C, THRESH, DETC1/2) on the y18-21 lane.",
         "8. +5VSB / VBUS-OR / DETECT core knit + EN.  9. Re-pour, DRC."])
-    y = block(y, "NETCLASSES (add to .kicad_pro before routing)", [
-        "Power12V  pour      via 0.9/0.5   /SENSEC*  (12V force)",
-        "GND       plane     via 0.9/0.5   GND",
-        "Sense     0.25 mm   --            Kelvin tap stubs (hand-drawn)",
-        "Power     0.5 mm    via 0.8/0.4   +3V3 / +5VSB / /VBUS",
-        "Signal    0.22 mm   via 0.6/0.3   I2C / THRESH / DETC / CAN_TX,RX",
-        "CAN       0.25 mm pair            /CAN_H /CAN_L",
-        "USB       0.25/0.20 mm diff       /USB_DP /USB_DM"])
+    y = block(y, "NETCLASSES (committed: .kicad_pro + .kicad_dru)", [
+        "Power12V  2.5/pour  via 0.9/0.5  clr0.2   /SENSEC* (12V ~30A pours)",
+        "GND       0.5/plane via 0.9/0.5           GND",
+        "Power     0.5 mm    via 0.8/0.4           +3V3 / +5VSB / /VBUS",
+        "Signal    0.22 mm   via 0.6/0.3           I2C/THRESH/DET/CAN_TX,RX/EN/CC",
+        "CAN       0.25 mm   coupled pair          /CAN_H /CAN_L (std H/L names)",
+        "USB       0.25 / gap0.13  DIFF PAIR       /USB_D_P /USB_D_N (auto-paired)",
+        "Kelvin tap shares /SENSEC* -> draw 0.25mm by hand off the shunt edge."])
     y = block(y, "SI / KEEP-AWAY", [
         "* Kelvin pairs & THRESH ref: >=0.5mm off any 12V copper edge",
         "  (the 30A pours carry the transient the §6.13 chain catches).",
