@@ -1256,6 +1256,10 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 
 ## What Claude should do
 
+- **Judge routed candidates THROUGH the tiered pipeline, not by eyeballing the
+  deterministic verdict.** For any route-to-clean / route-quality / gate decision, spawn a
+  manager (Sonnet) sub-agent to judge + a re-verify escalator pass — see the rule under
+  "Sub-agent routing pass — GO-AHEAD". A bare deterministic route is only for a quick smoke.
 - Run ERC and DRC, parse the JSON, and report exactly which nets, footprints, or
   clearances are at fault.
 - Verify connectivity from the exported netlist against the locked pin
@@ -1313,6 +1317,23 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
   duplicated per board.
 
 ### Sub-agent routing pass (real copper) — GO-AHEAD (2026-06-06)
+
+**DEFAULT TO THE FULL TIERED PIPELINE FOR ANY ROUTE-QUALITY / ROUTE-TO-CLEAN / GATE
+DECISION — do NOT just read `cec_router`'s deterministic verdict and hand-analyse it
+(rule added 2026-06-06).** The deterministic plane GENERATES + SCORES; the LLM tiers
+JUDGE + FIX, and skipping them hides real problems. Whenever you check or iterate a
+routed candidate — route-to-clean, a pour / placement / netclass / rule change, "is this
+board better?", or judging gates / DRC / snags — drive it THROUGH the control plane:
+spawn a **manager** (Sonnet) sub-agent to read the candidate's metrics + gate failures +
+DRC-type breakdown and return `accept` / `repair` / `escalate` with a root-caused
+recommendation, then act as the **escalator** (apply the edit via `apply_edit` or a board
+change, re-route, re-verify). This is the difference between catching and missing a
+safety regression: a 12V copper pour that silently broke the `SENSEC2_LO` **Kelvin HARD
+GATE** (cable-2 sense stranded on an inner layer) was only caught once it went through the
+manager — a bare deterministic `drc=58` reading would have shipped it. `cec_router` already
+ships the `make_subagent_policy()` hooks for exactly this; use them. A deterministic-only
+route is acceptable ONLY for a quick generate / smoke test, NEVER for judging a board's
+quality or a gate's status.
 
 Generating routing CANDIDATES as real copper is sanctioned, and it stays **sub-agent
 generation** — the orchestrator builds/maintains the toolkit and spawns the passes; it
