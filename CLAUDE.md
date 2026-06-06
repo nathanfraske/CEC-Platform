@@ -517,13 +517,28 @@ this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
 
--1. v3.10 SPEC-vs-BOARD divergence (digital modules) — the consolidated spec moved the
+-1. v3.10 SPEC-vs-BOARD divergence (digital modules). The consolidated spec moved the
    24-pin/EPS/PCIe to ESP32-C6-MINI-1 (C3-MINI cost-down option) and added the §6.13
    per-cable transient DETECTION front-end (INA181-class CSA + hysteresis comparator +
-   firmware threshold), but the as-built schematics are still ESP32-S3-MINI-1 with no
-   detection front-end (the EPS was just sourced on S3-MINI-1-N4R2 C3013941). Carry the
-   MCU swap + the §6.13 front-end onto 24-pin/EPS/PCIe on their next pass; gen-modules.py
-   still emits the S3-MINI-1. 12VHPWR Standard (S3) + Hub (S3-WROOM) are unchanged.
+   firmware threshold). STATUS (2026-06-06):
+   - EPS + PCIe-2port + PCIe-3port SCHEMATICS DONE — all three regenerated on
+     ESP32-C6-MINI-1-N4 + the §6.13 front-end, sourced, BOMs generated. C6 pin map
+     netlist-verified (CAN_TX/RX -> IO20/21 pads 26/27, USB D+/D- pads 18/17, I2C pads
+     24/25, EN pad 8, BOOT/IO9 pad 23, DETECT_SENSE pad 12, +3V3 pad 3, THRESH_PWM/IO14
+     pad 19); §6.13 chain netlist-verified per cable (shunt SENSE_HI -> INA181A2 gain-50
+     -> TLV7011 comparator -> firmware THRESH (MCU PWM IO14 + R10 10k/C40 100n) ->
+     per-cable DET -> MCU GPIO latch, ORs into FREEZE). ERC = benign noise only
+     (lib_symbol_mismatch generator cache + easyeda Unspecified pin_to_pin + C6 NC pad +
+     CAN TXD pin_not_driven). gen-modules.py now EMITS C6 + §6.13 (MODS excludes the
+     hand-maintained 12VHPWR-Standard; a guard refuses analog-pin boards). New vendored
+     parts: cec-vendor ESP32-C6-MINI-1-N4 (C5736265), INA181A2IDBVR (C2058784),
+     TLV7011DBVR (C702117); footprint cec-RF_Module:ESP32-C6-MINI-1 (+3D); D1 PESD UL->BA.
+   - REMAINING (these three): PCBs need Update-PCB-from-Schematic to pull the C6 land +
+     the §6.13 parts (U20-22 INA181, U30-32 TLV7011, R10/C40, per-cable bypass), then
+     re-place/route/pour. Still unsourced on each: the per-cable 0.5mOhm shunts (OQ-11)
+     and the Mini-Fit Jr THT power headers.
+   - 24-pin ATX still on ESP32-S3-MINI-1 with no §6.13 front-end — carry the same C6 +
+     §6.13 pass onto it next. 12VHPWR Standard (S3) + Hub (S3-WROOM) are unchanged by design.
 
 0. §2.9 Subsystem power management — Hub Standard prototype (PARTIAL, 2026-06-05).
    POWER-SWITCHING CORE DONE in the schematic (ERC 0 errors, netlist verified, BOM

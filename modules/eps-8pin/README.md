@@ -7,24 +7,26 @@ connector. BOM target **$32** (100-qty). See spec
 | Item | Decision |
 |---|---|
 | Tier | Standard |
-| MCU | ESP32-S3-MINI-1-**N4R2** (locked; same MINI-1 as the 24-pin — the MINI-1 has no 16 MB SKU) |
+| MCU | **ESP32-C6-MINI-1-N4** (v3.10; was ESP32-S3-MINI-1-N4R2). Native **USB-Serial-JTAG on GPIO13 (D+) / GPIO12 (D−)**; ADC1 = GPIO0–6. 24-pin + EPS may cost-down to C3-MINI once the NTC count is fixed. |
 | Hub link | RJ-45 8P8C shielded FTP, locking boot (universal interface, J1) |
 | Power path | Pass-through interposer: per cable a PSU-side **IN** + a load-side **OUT** 8-pin (2×4) header; **2 cables populated → 4 headers** (J_IN1/J_OUT1, J_IN2/J_OUT2). Molex Mini-Fit Jr (the EPS12V standard connector). Gender/footprint TBD at layout — the 24-pin §2.8 interposer pattern (male board headers + a F-to-F bridging cable) is the working basis. |
 | Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1051T/3 transceiver (U2) |
 | Sensing | **Per-cable INA238** (16-bit I²C, ≥1 kHz), 2 cables (U10/U11, distinct I²C addresses on one bus) — one across each cable's **0.5 mΩ** Kelvin shunt (RS1/RS2, §6.4), Vbus read on the load side. Each cable's four 12V pins bundle into the shunt (`SENSE_HI`→shunt→`SENSE_LO`); the four GND pins pass straight through. |
+| Transient detection (§6.13) | **Per-cable analog DETECTION front-end** (v3.10, resolves OQ-9): off the same shunt, **INA181A2** gain-50 CSA (U20/U21) → **TLV7011** hysteresis comparator (U30/U31) → a board-shared firmware-settable **THRESH** (MCU PWM IO14 + R10 10 kΩ / C40 100 nF) → per-cable **DET** to an MCU GPIO latch, which ORs into the §6.10 FREEZE trigger. Flags a transient as a **binary event** (that it happened + the averaged envelope) — NOT the sub-ms waveform; magnitude/shape are an EPS **Pro/Max** SKU. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 (J1.4/5) left unused, terminated module-side |
 | DETECT | **2.2 kΩ** precision (R1) — CAN-only link-capability code (§2.3, OQ-6 resolved), read on the Hub's 10 kΩ / 3.3 V divider. Poke-and-ack sense tap R7 (100 kΩ → IO10, OQ-28). |
 | Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 RESOLVED v2.0); low-cap ESD diode **D1** (PESD5V0S1BA, C5261083) on DETECT pin 8 (LOCKED v2.0). Enterprise/MC over-voltage rides the external uplink (OQ-7). |
 | Decoupling | LP5907-3.3 LDO (U3). Matches the 24-pin gold standard: 10 µF board-entry bulk on +5VSB (C6) + 10 µF +3V3 bulk at the ESP32 (C7); 1 µF LDO in/out (C1/C2); per-IC 100 nF — ESP32 (C3), TJA1051T/3 VCC (C4) and VIO (C8), one per INA238 (C10/C11); 100 nF EN reset RC (C5). |
-| Flash/debug | **USB-C** (J5) on the ESP32-S3 native USB + **BOOT/RESET buttons** (SW1/SW2, XKB **TS-1088-AR02016** / C720477). VBUS ORs into +5VSB through D2 (SS34) so bench USB self-powers the board for flashing; CC1/CC2 = 5.1 kΩ UFP pulldowns. Mirrors the 24-pin. |
-| Reset | ESP32-S3 internal BOD + EN RC (R2/C5); no external supervisor (a Hub-only part) |
+| Flash/debug | **USB-C** (J5) on the ESP32-C6 native **USB-Serial-JTAG** (D+ = IO13 / D− = IO12) + **BOOT/RESET buttons** (SW1/SW2, XKB **TS-1088-AR02016** / C720477; BOOT = IO9). VBUS ORs into +5VSB through D2 (SS34) so bench USB self-powers the board for flashing; CC1/CC2 = 5.1 kΩ UFP pulldowns. |
+| Reset | ESP32-C6 internal BOD + EN RC (R2/C5); no external supervisor (a Hub-only part) |
 | BOM target | $32 (100-qty) |
 
 ## Open questions touching this board
 
-- **OQ-9:** EPS transient capture — the INA238 averages out ms CPU transients;
-  decide whether bundled EPS needs an INA240-style fast path or averaged power
-  suffices.
+- **OQ-9 (RESOLVED, v3.10 §6.13):** EPS transient capture is the analog DETECTION
+  ladder above — Standard sees that a transient happened (binary, into FREEZE),
+  magnitude/shape are held to the EPS Pro/Max SKUs. (OQ-57..59 gate the ladder's
+  threshold/firmware details.)
 - **OQ-10 / OQ-12:** bundled-shunt vertical transition and high-current stackup
   for the ~40–55 A per-cable shunt sites (§6.7).
 - **OQ-11:** per-module shunt part selection (value / TCR / tolerance / package /
@@ -104,3 +106,28 @@ each 0.5 mΩ shunt), so it is a high-current 4-layer:
 
 Floorplan (generated): 2 cables on the left (each IN-top → shunt-mid → OUT-bottom),
 control core (ESP / CAN / LDO / USB-C / RJ-45) on the right.
+
+## Update (2026-06-06) — v3.10: ESP32-C6 MCU + §6.13 transient-detection front-end
+
+Regenerated on the consolidated v3.10 spec. Net changes vs the 2026-06-05 sourcing:
+
+- **MCU ESP32-S3-MINI-1-N4R2 → ESP32-C6-MINI-1-N4** (C5736265). Pin map
+  netlist-verified: CAN_TX/RX → IO20/21 (pads 26/27), USB D+/D− → IO13/IO12 (pads
+  18/17), I²C → pads 24/25, EN → pad 8, BOOT/IO9 → pad 23, DETECT_SENSE → pad 12,
+  +3V3 → pad 3, THRESH_PWM/IO14 → pad 19. Footprint `cec-RF_Module:ESP32-C6-MINI-1`
+  (vendored + 3D). ADC1 = GPIO0–6.
+- **§6.13 per-cable detection front-end added** (2 cables): U20/U21 **INA181A2IDBVR**
+  (C2058784, SOT-23-6, gain 50) + U30/U31 **TLV7011DBVR** (C702117, SOT-23-5
+  comparator) + board-shared R10 (10 kΩ) / C40 (100 nF) THRESH RC off MCU PWM IO14,
+  + per-IC bypass. Chain netlist-verified: shunt `SENSE_HI` → INA181 → comparator →
+  `THRESH` (R10/C40/both comparators) → per-cable `DET` → MCU GPIO (IO22 pad 28 /
+  IO23 pad 29).
+- BOM regenerated (`bom/eps8pin-module-BOM-jlcpcb.csv`): **sourced 39/45**; still
+  open are the 0.5 mΩ shunts (OQ-11) and the Mini-Fit Jr THT power headers.
+- ERC = benign only (generator `lib_symbol_mismatch` + easyeda `pin_to_pin`
+  Unspecified + the C6 NC pad + CAN-TXD `pin_not_driven`).
+
+Generator `scripts/gen-modules.py` now emits the C6 + §6.13 backbone, so this board
+round-trips again — but the **PCB still needs *Update PCB from Schematic*** to pull
+the C6 land + the §6.13 parts (U20/U21, U30/U31, R10, C40, the new bypass), then
+re-place/route/pour.

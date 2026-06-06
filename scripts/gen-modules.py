@@ -36,8 +36,13 @@ LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
 # that sheet. Its build()/RAILS entries remain below for reference and parity.
 MODS = [("eps-8pin", "eps8pin-module"),
         ("pcie-8pin-2port", "pcie8pin-2port-module"),
-        ("pcie-8pin-3port", "pcie8pin-3port-module"),
-        ("12vhpwr-standard", "12vhpwr-standard-module")]
+        ("pcie-8pin-3port", "pcie8pin-3port-module")]
+# NOTE (v3.10): the 12VHPWR Standard is REMOVED from the regen list. It is
+# hand-maintained (NTC dividers + REF3030 spliced into the routed schematic) and
+# per spec KEEPS the ESP32-S3-MINI-1, whereas the shared MCU + pin map below are
+# now C6-MINI-1-specific (digital i2c-cable boards). Regenerating it here would
+# clobber the hand work AND put C6 pins on an S3 chip. Its build()/RAILS/SENSE
+# entries stay below for reference only.
 # Sensing model per module, per spec v1.5 §6.1/§6.2 with §6.4 shunt values.
 #   "i2c-rail"  : one INA238/INA228 I2C monitor per sensed node (24-pin per-rail).
 #   "i2c-cable" : one INA238 I2C monitor per CABLE (EPS/PCIe per-cable granularity).
@@ -63,13 +68,12 @@ STRAP = [("GND","GND"), ("+3V3","GND"), ("GND","+3V3"), ("+3V3","+3V3")]
 # ESP32-S3 ADC1 pins (GPIO1..7 = phys 5..11) for the 12VHPWR analog sense chain:
 # six INA240 outputs + one rail-voltage divider tap.
 ADC_PINS = ["5","6","7","8","9","10","11"]
-ESP_GND = ["1","2","42","43","46","47","48","49","50","51","52","53","54","55",
-           "56","57","58","59","60","61","62","63","64","65"]
+ESP_GND = ["1","2","11","14"] + [str(n) for n in range(36,54)]  # C6-MINI-1 GND pads (v3.10)
 
 # shared control/comms/power backbone
 BASE_PARTS = {
     "J1": ("cec", "CEC_RJ45_8P8C_FTP", "TO-HUB"),
-    "U1": ("cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N4R2"),
+    "U1": ("cec-vendor", "ESP32-C6-MINI-1-N4", "ESP32-C6-MINI-1-N4"),  # v3.10: was S3-MINI-1
     "U2": ("cec-vendor", "TJA1051T-3", "TJA1051T/3"),
     "U3": ("cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3"),
     # DETECT module-ID precision resistor (pin 8 -> GND), read on the Hub's
@@ -101,7 +105,7 @@ BASE_PARTS = {
     # poke-and-ack). Tap value and sense method (digital edge vs ADC) are OQ-28
     # working choices. D_Schottky is the body stand-in (value names the real ESD
     # part), per the symbol-standin convention above.
-    "D1": ("cec-vendor", "D_Schottky", "PESD5V0S1UL"),
+    "D1": ("cec-vendor", "D_Schottky", "PESD5V0S1BA"),  # v3.10: UL->BA (SOD-323)
     "R7": ("cec-vendor", "R_Small", "100k"),
     # USB-C flash/debug port + BOOT/RESET buttons -- every module must be
     # flashable. D+/D- -> the ESP32-S3 native USB (pins 24/23); VBUS ORs into
@@ -125,6 +129,9 @@ def footprint_for(ref, lib, name, val):
     M = {
         "CEC_RJ45_8P8C_FTP": "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal",
         "ESP32-S3-MINI-1":   "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout",
+        "ESP32-C6-MINI-1-N4":"cec-RF_Module:ESP32-C6-MINI-1",
+        "INA181A2IDBVR":     "cec-Package_TO_SOT_SMD:SOT-23-6",
+        "TLV7011DBVR":       "cec-Package_TO_SOT_SMD:SOT-23-5",
         "TJA1051T-3":        "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
         "LP5907MFX-1.2":     "cec-Package_TO_SOT_SMD:SOT-23-5",
         "INA226":            "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
@@ -133,11 +140,11 @@ def footprint_for(ref, lib, name, val):
         "CEC_CONN_12V2x6":   "cec:CEC_12V2x6_Horizontal",
         "CEC_PWR_IN_2P":     "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
         "USB_C_Receptacle_USB2.0_16P": "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11",
-        "SW_Push":           "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA",
+        "SW_Push":           "cec-Button_Switch_SMD:TS-1088-AR02016",  # v3.10: Hub's cheaper Basic button
     }
     if name in M:
         return M[name]
-    if name == "D_Schottky":   # D1 = PESD5V0S1UL ESD (SOD-323); D2 = SS34 ORing (SMA)
+    if name == "D_Schottky":   # D1 = PESD5V0S1BA ESD (SOD-323); D2 = SS34 ORing (SMA)
         return "cec-Diode_SMD:D_SMA" if ref == "D2" else "cec-Diode_SMD:D_SOD-323"
     if name == "R_Small":
         # Shunts: honest 2-pad R_2512 land with the four-wire Kelvin sense taps
@@ -171,20 +178,20 @@ def build(dirn):
         # part (aggregator role + blackout/hold-up front-end); a module brownout
         # is a recoverable re-enumerate event, so the internal BOD is enough.
         # SW2 adds a manual RESET button; SW1 a BOOT button on GPIO0 (flashing).
-        "EN":     [("U1","45"),("R2","2"),("C5","1"),("SW2","2")],
-        "CAN_TX": [("U1","21"),("U2","1")],
-        "CAN_RX": [("U1","22"),("U2","4")],
+        "EN":     [("U1","8"),("R2","2"),("C5","1"),("SW2","2")],
+        "CAN_TX": [("U1","26"),("U2","1")],
+        "CAN_RX": [("U1","27"),("U2","4")],
         "CAN_H":  [("U2","7"),("J1","3")],
         "CAN_L":  [("U2","6"),("J1","6")],
         "DETECT": [("J1","8"),("R1","1"),("D1","1"),("R7","1")],
-        "DETECT_SENSE": [("R7","2"),("U1","14")],  # poke-and-ack tap -> IO10 (OQ-28)
-        "GPIO0":  [("U1","4"),("SW1","2")],
+        "DETECT_SENSE": [("R7","2"),("U1","12")],  # poke-and-ack tap -> IO10 (OQ-28)
+        "GPIO0":  [("U1","23"),("SW1","2")],
         # USB-C flash/debug: ESP native USB on pins 24 (D+) / 23 (D-); VBUS ORs
         # into +5VSB via D2 (bench USB self-powers the board for flashing);
         # CC1/CC2 = 5.1k UFP pulldowns. J5 SBU1/SBU2 (A8/B8) left NC.
         "VBUS":    [("J5","A4"),("J5","A9"),("J5","B4"),("J5","B9"),("D2","2"),("C9","1")],
-        "USB_DP":  [("J5","A6"),("J5","B6"),("U1","24")],
-        "USB_DM":  [("J5","A7"),("J5","B7"),("U1","23")],
+        "USB_DP":  [("J5","A6"),("J5","B6"),("U1","18")],
+        "USB_DM":  [("J5","A7"),("J5","B7"),("U1","17")],
         "USB_CC1": [("J5","A5"),("R8","1")],
         "USB_CC2": [("J5","B5"),("R9","1")],
     }
@@ -198,8 +205,8 @@ def build(dirn):
         parts["R3"] = ("cec-vendor", "R_Small", "2k2")   # I2C SDA pull-up
         parts["R4"] = ("cec-vendor", "R_Small", "2k2")   # I2C SCL pull-up
         nets["+3V3"] += [("R3","2"), ("R4","2")]
-        nets["I2C_SDA"] = [("U1","12"),("R3","1")]   # IO8
-        nets["I2C_SCL"] = [("U1","13"),("R4","1")]   # IO9
+        nets["I2C_SDA"] = [("U1","24"),("R3","1")]   # IO8
+        nets["I2C_SCL"] = [("U1","25"),("R4","1")]   # IO9
         for i, (label, sv) in enumerate(nodes):
             parts[f"U1{i}"] = ("cec-vendor", "INA226", ina_val)  # INA226 body = INA238/228 pinout
             parts[f"RS{i+1}"] = ("cec-vendor", "R_Small", sv)
@@ -240,6 +247,35 @@ def build(dirn):
                 # GND: straight through, both connectors to board GND
                 for p in PINMAP["GND"]:
                     nets["GND"] += [(jin, str(p)), (jout, str(p))]
+
+            # ---- §6.13 transient-DETECTION front-end (EPS/PCIe Standard; v3.10) ----
+            # Per cable: INA181A2 (gain 50) taps the SAME shunt with its own Kelvin
+            # pair -> TLV7011 hysteresis comparator vs a board-shared firmware
+            # threshold -> MCU GPIO latch (ORs into the §6.10 FREEZE, fw). Threshold
+            # = MCU PWM (IO14) through an RC. Sees a transient as a binary event,
+            # not its waveform; magnitude/shape are the new Pro/Max SKUs. The 24-pin
+            # (i2c-rail) does NOT get this front-end.
+            DET_PIN = {0: "28", 1: "29", 2: "16"}   # C6 IO22 / IO23 / IO7
+            parts["R10"] = ("cec-vendor", "R_Small", "10k")    # PWM->threshold series R
+            parts["C40"] = ("cec-vendor", "C_Small", "100n")   # PWM->threshold filter C
+            nets["THRESH_PWM"] = [("U1", "19"), ("R10", "1")]  # IO14 LEDC PWM
+            nets["THRESH"]     = [("R10", "2"), ("C40", "1")]  # filtered ref (board-shared)
+            nets["GND"] += [("C40", "2")]
+            for i, (label, sv) in enumerate(nodes):
+                amp, cmp = f"U2{i}", f"U3{i}"
+                ca,  cb  = f"C2{i}", f"C3{i}"
+                parts[amp] = ("cec-vendor", "INA181A2IDBVR", "INA181A2IDBVR")
+                parts[cmp] = ("cec-vendor", "TLV7011DBVR",  "TLV7011DBVR")
+                parts[ca]  = ("cec-vendor", "C_Small", "100n")  # INA181 VS bypass
+                parts[cb]  = ("cec-vendor", "C_Small", "100n")  # comparator VCC bypass
+                # INA181 (SOT-23-6): 1=OUT 2=GND 3=IN+ 4=IN- 5=REF 6=VS; REF->GND (unidir)
+                nets[f"SENSE{label}_HI"] += [(amp, "3")]
+                nets[f"SENSE{label}_LO"] += [(amp, "4")]
+                nets["+3V3"] += [(amp, "6"), (ca, "1"), (cmp, "5"), (cb, "1")]
+                nets["GND"]  += [(amp, "2"), (amp, "5"), (ca, "2"), (cmp, "2"), (cb, "2")]
+                nets[f"DETAMP{label}"] = [(amp, "1"), (cmp, "3")]   # INA181 OUT -> comp IN+
+                nets["THRESH"] += [(cmp, "4")]                      # comp IN- = shared thresh
+                nets[f"DET{label}"] = [(cmp, "1"), ("U1", DET_PIN[i])]  # comp OUT -> MCU GPIO
 
 
     elif topo == "analog-pin":
@@ -405,6 +441,8 @@ def layout(dirn, parts):
     return {r: P[r] for r in parts if r in P}
 
 for dirn, base in MODS:
+    assert SENSE[dirn][0] != "analog-pin", \
+        f"{dirn}: analog-pin (12VHPWR) is hand-maintained on the S3 and must NOT be regenerated (v3.10)"
     parts, nets = build(dirn)
     out = f"{ROOTDIR}/modules/{dirn}/{base}.kicad_sch"
     used = cec_sch.load_symbols(LIBS, parts)

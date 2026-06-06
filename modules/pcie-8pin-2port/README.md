@@ -10,21 +10,24 @@ upper bound) is a separate board in
 |---|---|
 | Tier | Standard |
 | SKU | **2-port** (2 cables / 4 connectors) — SKU separation from the 3-port |
-| MCU | ESP32-S3-MINI-1-N4R2 (locked; same MINI-1 as the other modules) |
+| MCU | **ESP32-C6-MINI-1-N4** (v3.10; was ESP32-S3-MINI-1-N4R2). Native USB-Serial-JTAG on IO13 (D+)/IO12 (D−); ADC1 = GPIO0–6. |
 | Hub link | RJ-45 8P8C shielded FTP, locking boot (J1) |
 | Power path | Pass-through interposer: per cable a PSU-side **IN** + load-side **OUT** 8-pin (2×4) header; **2 cables → 4 headers**. Molex Mini-Fit Jr (PCIe/ATX 8-pin standard; 3×12V + 5×GND). Gender/footprint per the 24-pin §2.8 interposer pattern — confirm at layout. |
 | Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1051T/3 (U2) |
 | Sensing | **Per-cable INA238** (16-bit I²C), 2 cables (U10/U11, distinct I²C addresses) — one across each cable's **0.5 mΩ** Kelvin shunt (RS1/RS2, §6.4), Vbus read on the load side. |
+| Transient detection (§6.13) | **Per-cable analog DETECTION front-end** (v3.10, resolves OQ-9): INA181A2 gain-50 CSA (U20/U21) → TLV7011 hysteresis comparator (U30/U31) → board-shared firmware THRESH (MCU PWM IO14 + R10 10 kΩ / C40 100 nF) → per-cable DET → MCU GPIO, ORs into the §6.10 FREEZE trigger. Binary event (it happened + averaged envelope), not the sub-ms waveform — magnitude/shape are a PCIe Pro/Max SKU. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated module-side |
 | DETECT | 2.2 kΩ precision (R1) — CAN-only code (§2.3, OQ-6 resolved), Hub 10 kΩ/3.3 V divider; poke-and-ack tap R7 → IO10 (OQ-28) |
-| Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 v2.0); low-cap ESD diode D1 (PESD5V0S1UL) on DETECT pin 8 |
-| Flash/debug | USB-C (J5) on the ESP32-S3 native USB + BOOT/RESET buttons (SW1/SW2); VBUS ORs into +5VSB via D2 (SS34); CC1/CC2 = 5.1 kΩ |
+| Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 v2.0); low-cap ESD diode D1 (**PESD5V0S1BA**, C5261083) on DETECT pin 8 |
+| Flash/debug | USB-C (J5) on the ESP32-C6 native USB-Serial-JTAG (D+ = IO13 / D− = IO12) + BOOT/RESET buttons (SW1/SW2, TS-1088-AR02016; BOOT = IO9); VBUS ORs into +5VSB via D2 (SS34); CC1/CC2 = 5.1 kΩ |
 | Decoupling | LP5907 LDO; 24-pin gold-standard tiering (2× 10 µF bulk, 1 µF LDO in/out, per-IC 100 nF) |
 | BOM target | $38 (100-qty) |
 
 ## Open questions touching this board
 
-- **OQ-9:** PCIe transient capture — the INA238 averages out ms GPU transients.
+- **OQ-9 (RESOLVED, v3.10 §6.13):** PCIe transient capture is the analog DETECTION
+  ladder above — Standard sees that a transient happened (binary, into FREEZE);
+  magnitude/shape are held to the PCIe Pro/Max SKUs. (OQ-57..59 gate the details.)
 - **OQ-10 / OQ-12:** bundled-shunt vertical transition + high-current stackup for
   the ~40–55 A/cable shunt sites (§6.7).
 - **OQ-11:** per-module shunt part selection (§6.4 table).
@@ -41,3 +44,20 @@ back. **DRAFT** marker present (ERC/DRC not yet CI-gated). Next in GUI: *Update
 PCB from Schematic* to pull the passives, then place/route + pour (§6.8 Kelvin
 taps, §6.7 high-current transitions). Project-local library tables point at
 `../../lib` via `${KIPRJMOD}`.
+
+## Update (2026-06-06) — v3.10: ESP32-C6 MCU + §6.13 transient-detection front-end
+
+Regenerated on the consolidated v3.10 spec:
+
+- **MCU ESP32-S3-MINI-1-N4R2 → ESP32-C6-MINI-1-N4** (C5736265), pin map
+  netlist-verified (CAN_TX/RX → pads 26/27, USB D+/D− → pads 18/17, I²C → 24/25,
+  EN → 8, BOOT/IO9 → 23, DETECT_SENSE → 12, +3V3 → 3, THRESH_PWM/IO14 → 19).
+  Footprint `cec-RF_Module:ESP32-C6-MINI-1`.
+- **§6.13 per-cable detection front-end** (2 cables): U20/U21 **INA181A2IDBVR**
+  (C2058784) + U30/U31 **TLV7011DBVR** (C702117) + board-shared R10/C40 THRESH RC
+  off MCU PWM IO14. Chain netlist-verified (shunt → INA181 → comparator → THRESH →
+  per-cable DET → MCU GPIO pads 28/29). **D1 PESD UL → BA** (C5261083).
+- BOM regenerated (`bom/pcie8pin-2port-module-BOM-jlcpcb.csv`): **sourced 39/45**;
+  open are the 0.5 mΩ shunts (OQ-11) + the Mini-Fit Jr THT power headers.
+- ERC = benign only. **PCB still needs *Update PCB from Schematic*** to pull the C6
+  land + the §6.13 parts, then re-place/route/pour.
