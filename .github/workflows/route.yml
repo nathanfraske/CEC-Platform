@@ -7,12 +7,16 @@
 # The LLM control plane (planning/judging) is NOT here -- it's remote inference in a
 # Claude session. This workflow is purely the deterministic plane: generate Freerouting
 # candidates, score them against the hard safety gates, run the decision-logged repair
-# loop (scripts/cec_router.py), and upload the routed candidate + decision log + render
-# as artifacts. Trigger it from the GitHub UI (Run workflow), the API, or a Claude session.
+# loop (scripts/cec_router.py), and upload the routed candidate + decision log + render.
 #
-# Runner setup + prerequisites: docs/self-hosted-router.md. The runner must carry the label
-# `cec-router` and have: python3+pcbnew (KiCad 10), kicad-cli, java 21, xvfb. The Freerouting
-# jar is fetched by cec_fr.ensure_jar() (pin v1.7.0) unless $CEC_FREEROUTING_JAR points at one.
+# Works on a Windows, Linux, or macOS runner (OS-conditional steps below):
+#   * Windows: scripts\route.ps1 finds KiCad's bundled python (the only one with pcbnew),
+#     puts KiCad bin + java on PATH, and runs the router. No xvfb -- Java uses the native
+#     display, so the runner MUST be in an interactive desktop session (see the docs).
+#   * Linux/macOS: python3 runs the router directly; headless Linux auto-wraps Freerouting
+#     in xvfb-run.
+# Runner setup + the FULL prereqs/PATH story: docs/self-hosted-router.md. The runner must
+# carry the label `cec-router`.
 name: Route (self-hosted)
 
 on:
@@ -52,18 +56,42 @@ jobs:
     # The runner you registered on your hardware must carry BOTH labels.
     runs-on: [self-hosted, cec-router]
     timeout-minutes: 180
+    env:
+      # Optional: set repo/org variable CEC_FREEROUTING_JAR to a local jar to skip the
+      # one-time download. Otherwise cec_fr.ensure_jar() downloads the pinned v1.7.0.
+      CEC_FREEROUTING_JAR: ${{ vars.CEC_FREEROUTING_JAR }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Verify routing prerequisites (java / kicad-cli / pcbnew / xvfb)
+      # ---- prerequisites ----
+      - name: Verify prerequisites (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\scripts\route-prereqs.ps1
+
+      - name: Verify prerequisites (Linux/macOS)
+        if: runner.os != 'Windows'
         run: ./scripts/route-prereqs.sh
 
-      - name: Route on this runner's CPU
-        env:
-          # Optional: set repo/org variable CEC_FREEROUTING_JAR to a local jar to skip the
-          # one-time download. Otherwise cec_fr.ensure_jar() downloads the pinned v1.7.0.
-          CEC_FREEROUTING_JAR: ${{ vars.CEC_FREEROUTING_JAR }}
+      # ---- route on the runner's CPU ----
+      - name: Route (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: >
+          .\scripts\route.ps1
+          -Board    "${{ inputs.board }}"
+          -Seeds    "${{ inputs.seeds }}"
+          -Passes    ${{ inputs.passes }}
+          -OptTime   ${{ inputs.opt_time }}
+          -Threads   ${{ inputs.threads }}
+          -Kmax      ${{ inputs.kmax }}
+          -MaxIters  ${{ inputs.max_iters }}
+          -Out      "build/route/${{ inputs.board }}"
+          -Render
+
+      - name: Route (Linux/macOS)
+        if: runner.os != 'Windows'
         run: |
           python3 scripts/cec_router.py \
             --board     "${{ inputs.board }}" \
@@ -76,24 +104,7 @@ jobs:
             --out       "build/route/${{ inputs.board }}" \
             --render
 
-      - name: Summarize the verdict in the run log
-        if: always()
-        run: |
-          log="build/route/${{ inputs.board }}/${{ inputs.board }}-decision-log.json"
-          if [ -f "$log" ]; then
-            echo "### Route verdict — ${{ inputs.board }}" >> "$GITHUB_STEP_SUMMARY"
-            python3 - "$log" >> "$GITHUB_STEP_SUMMARY" <<'PY'
-          import json, sys
-          d = json.load(open(sys.argv[1]))
-          f = d.get("final", {}) or {}
-          v = f.get("verdict", {}) or {}
-          print("```json"); print(json.dumps(v, indent=2)); print("```")
-          print(f"\nelapsed: {f.get('elapsed_s','?')}s · decisions: {f.get('decisions','?')}")
-          PY
-          else
-            echo "no decision log produced" >> "$GITHUB_STEP_SUMMARY"
-          fi
-
+      # ---- collect ----
       - name: Upload routed candidate + decision log + render
         if: always()
         uses: actions/upload-artifact@v4

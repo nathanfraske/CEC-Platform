@@ -30,7 +30,7 @@
 #                         vias in clear channel space, never on a fine-pitch pad, and never a
 #                         track ending inside a pad on the wrong layer. check_terminations() finds
 #                         that bug. Route the vital nets FIRST (reserve), then the non-vital ones.
-import os, sys, json, subprocess, math
+import os, sys, json, subprocess, math, tempfile
 import pcbnew
 
 MM = 1_000_000                       # nm per mm
@@ -217,9 +217,11 @@ class Router:
     def save(self, path=None):
         pcbnew.SaveBoard(path or self.path, self.b)
 
-    def verify(self, tmp="/tmp/cec_route_drc.json"):
+    def verify(self, tmp=None):
         """Save + run the real DRC/connectivity engine (kicad-cli). Returns a dict
         with structural violations and unconnected ratlines -- the snag inputs."""
+        if tmp is None:                       # cross-platform (no hardcoded /tmp -- absent on Windows)
+            tmp = os.path.join(tempfile.gettempdir(), "cec_route_drc.json")
         self.save()
         subprocess.run(["kicad-cli", "pcb", "drc", "--exit-code-violations",
                         "--format", "json", "-o", tmp, self.path],
@@ -237,7 +239,7 @@ if __name__ == "__main__":
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     import shutil
     src = f"{ROOT}/modules/eps-8pin/eps8pin-module.kicad_pcb"
-    test = "/tmp/cec_route_smoke.kicad_pcb"; shutil.copy(src, test)
+    test = os.path.join(tempfile.gettempdir(), "cec_route_smoke.kicad_pcb"); shutil.copy(src, test)
     # the .kicad_pro/.dru sit next to the source; copy DRC context too
     for ext in (".kicad_pro", ".kicad_dru"):
         s = src.replace(".kicad_pcb", ext)

@@ -22,7 +22,7 @@
 #   passed, reasons = gate(m)
 #   cost = objective(m)
 # ============================================================================
-import os, sys, json, re, subprocess
+import os, sys, json, re, subprocess, tempfile
 from dataclasses import dataclass, field
 
 import pcbnew
@@ -321,7 +321,8 @@ def score(
         with open(drc_json) as fh:
             drc_data = json.load(fh)
     else:
-        tmp = "/tmp/cec_score_drc.json"
+        # cross-platform + per-process-unique (avoids /tmp [absent on Windows] and a shared-path race)
+        tmp = os.path.join(tempfile.gettempdir(), f"cec_score_drc_{os.getpid()}.json")
         drc_data = _run_drc(board_path, tmp)
 
     all_violations = drc_data.get("violations", [])

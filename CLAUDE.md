@@ -704,6 +704,20 @@ Done (kept for context):
   registration (label cec-router) + how to trigger (UI/API/Claude session) + the security note
   (manual-only; never auto-run a self-hosted runner on untrusted fork PRs). Outputs land in
   build/route/<board>/ (gitignored). Ceiling scales with the runner's core count.
+  CROSS-PLATFORM (Windows/Linux/macOS, 2026-06-06): made the compute plane portable. (1) xvfb is
+  Linux-only — cec_fr._fr_command() wraps in xvfb-run ONLY on headless Linux (no $DISPLAY); on
+  Windows/macOS (and Linux WITH $DISPLAY) it runs `java` directly (native display). (2) all
+  scratch dirs use tempfile.gettempdir(), NOT a hardcoded /tmp (which is absent on Windows) —
+  fixed across cec_fr/cec_score/cec_router/cec_route. (3) the worker pool's "spawn" start method
+  is required on Windows anyway (no fork). (4) WINDOWS GOTCHA: pcbnew imports ONLY from KiCad's
+  bundled python.exe — scripts/route.ps1 auto-discovers KiCad's python + kicad-cli + java and
+  assembles PATH (so NO manual PATH config; only set $env:KICAD_PYTHON if KiCad is nonstandard),
+  scripts/route-prereqs.ps1 is the Windows prereq check. (5) route.yml is OS-conditional (Windows
+  step = pwsh + route.ps1; Linux/mac = bash + cec_router.py). (6) Windows reliability note: no
+  xvfb means Freerouting needs a real desktop, so the Windows runner must run INTERACTIVELY (run.cmd
+  in a logged-on session / Task Scheduler "run only when user is logged on"), NOT as a Session-0
+  service; a Linux runner can stay a headless service (xvfb). Full Windows setup +
+  the "do I need to configure PATH? -> no" answer in docs/self-hosted-router.md.
 - PCBNEW REAL-COPPER ROUTING TOOLKIT scripts/cec_route.py + sub-agent routing pass GO-AHEAD
   (2026-06-06). pcbnew (the real KiCad 10.0.3 Python engine) IS available in this env and can
   do what kicad-cli cannot: create real (segment)/(via) copper and FILL pours via the real

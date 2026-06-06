@@ -28,9 +28,9 @@
 # re-imports pcbnew clean, receives only plain strings/dicts (paths + params), and calls
 # LoadBoard itself -- no pcbnew objects ever cross the process boundary.
 #
-# Freerouting writes a logs/ directory into its CWD. All FR invocations run from a
-# fresh /tmp workdir to ensure logs/ never appears in the repo (a stop-hook checks for
-# that). The workdir is always under /tmp regardless of the caller's CWD.
+# Freerouting writes a logs/ directory into its CWD. All FR invocations run from a fresh
+# workdir in the OS temp dir (tempfile.gettempdir(): /tmp on Linux/mac, %TEMP% on Windows)
+# to ensure logs/ never appears in the repo (a stop-hook checks for that), regardless of CWD.
 #
 # Verified round-trip (EPS board, 2026-06-06): ExportSpecctraDSN -> FR exit 0 ->
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
@@ -57,6 +57,31 @@ with _cl.redirect_stderr(open(os.devnull, "w")):
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
 
+# Cross-platform scratch dir: the OS temp dir (/tmp on Linux/mac, %TEMP% on Windows).
+# Never hardcode /tmp -- it doesn't exist on Windows.
+_TMP = tempfile.gettempdir()
+
+
+def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads):
+    """Build the Freerouting invocation for THIS platform.
+
+    Freerouting is a Java/Swing app that touches AWT at startup, so it needs a display.
+      * Linux, no $DISPLAY: wrap in `xvfb-run -a` (a virtual X server) -- if xvfb-run is
+        missing on headless Linux, FR will throw HeadlessException (route-prereqs flags it).
+      * Linux WITH $DISPLAY, macOS, Windows: run `java` directly -- the native windowing
+        system (X / Quartz / Win32) provides the display. There is NO xvfb on Windows and
+        none is needed; a Windows runner must just be in an interactive desktop session.
+    """
+    base = ["java", "-jar", jar,
+            "-de", os.path.abspath(dsn_path),
+            "-do", os.path.abspath(ses_path),
+            "-mp", str(int(passes)),
+            "-oit", str(int(opt_time)),
+            "-mt", str(int(threads))]
+    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+        return ["xvfb-run", "-a"] + base
+    return base
+
 # ---------------------------------------------------------------------------
 # Freerouting jar metadata
 # ---------------------------------------------------------------------------
@@ -68,7 +93,10 @@ FR_JAR_URL = (
 _FR_JAR_CACHE = os.path.expanduser(
     f"~/.cache/cec/freerouting-{FR_VERSION}.jar"
 )
+# extra known-location candidates (checked, never required): the Linux convention path and
+# a jar dropped in the OS temp dir. Both are just os.path.isfile()-probed, so harmless when absent.
 _FR_JAR_TMP = f"/tmp/fr_{FR_VERSION}.jar"
+_FR_JAR_TMP2 = os.path.join(_TMP, f"fr_{FR_VERSION}.jar")
 
 
 # ---------------------------------------------------------------------------
@@ -93,6 +121,7 @@ def ensure_jar(path: str | None = None) -> str:
     if env_jar:
         candidates.append(env_jar)
     candidates.append(_FR_JAR_TMP)
+    candidates.append(_FR_JAR_TMP2)
     candidates.append(_FR_JAR_CACHE)
 
     for c in candidates:
@@ -155,14 +184,14 @@ def run_freerouting(
     workdir: str | None = None,
     timeout: int = 600,
 ) -> str:
-    """Run Freerouting 1.7.0 headless and produce a .ses file.
+    """Run Freerouting 1.7.0 and produce a .ses file.
 
-    Invocation::
+    Invocation (see _fr_command for the per-platform form)::
 
-        xvfb-run -a java -jar <jar> -de <dsn> -do <ses> -mp <passes>
-                 -oit <opt_time> -mt <threads>
+        java -jar <jar> -de <dsn> -do <ses> -mp <passes> -oit <opt_time> -mt <threads>
+        # on headless Linux this is wrapped in `xvfb-run -a`; on Windows/macOS java runs direct
 
-    Run from *workdir* (a fresh mkdtemp under /tmp if not given) so Freerouting's
+    Run from *workdir* (a fresh mkdtemp in the OS temp dir if not given) so Freerouting's
     ``logs/`` directory never lands in the repo.
 
     Note: ``seed`` is accepted for API forward-compatibility and logged, but
@@ -177,21 +206,13 @@ def run_freerouting(
     # Always route under /tmp to keep logs/ away from the repo.
     _own_workdir = workdir is None
     if _own_workdir:
-        workdir = tempfile.mkdtemp(prefix="cec_fr_run_", dir="/tmp")
+        workdir = tempfile.mkdtemp(prefix="cec_fr_run_", dir=_TMP)
 
     if seed is not None:
         print(f"[cec_fr] note: seed={seed!r} logged (no -seed flag in FR {FR_VERSION})",
               file=sys.stderr)
 
-    cmd = [
-        "xvfb-run", "-a",
-        "java", "-jar", jar,
-        "-de", os.path.abspath(dsn_path),
-        "-do", os.path.abspath(ses_path),
-        "-mp", str(int(passes)),
-        "-oit", str(int(opt_time)),
-        "-mt", str(int(threads)),
-    ]
+    cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads)
 
     try:
         result = subprocess.run(
@@ -381,7 +402,7 @@ def route_once(
     params = {"passes": passes, "opt_time": opt_time, "threads": threads}
     _own_wd = workdir is None
     if _own_wd:
-        workdir = tempfile.mkdtemp(prefix="cec_fr_once_", dir="/tmp")
+        workdir = tempfile.mkdtemp(prefix="cec_fr_once_", dir=_TMP)
 
     try:
         jar = ensure_jar(jar)
@@ -395,7 +416,7 @@ def route_once(
         export_dsn(hinted_board, dsn_path)
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)
-        fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir="/tmp")
+        fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir=_TMP)
         ses_path = os.path.join(workdir, "board.ses")
         try:
             run_freerouting(
@@ -505,7 +526,7 @@ def generate_batch(
     jar = ensure_jar(jar)
 
     if out_dir is None:
-        out_dir = tempfile.mkdtemp(prefix="cec_fr_batch_", dir="/tmp")
+        out_dir = tempfile.mkdtemp(prefix="cec_fr_batch_", dir=_TMP)
     else:
         os.makedirs(out_dir, exist_ok=True)
 
@@ -579,7 +600,7 @@ if __name__ == "__main__":
     import time
 
     EPS_BOARD = "/home/user/CEC-Platform/modules/eps-8pin/eps8pin-module.kicad_pcb"
-    OUT_DIR = "/tmp/cec_fr_selftest"
+    OUT_DIR = os.path.join(_TMP, "cec_fr_selftest")
 
     print("=" * 70)
     print(f"  cec_fr self-test  (Freerouting {FR_VERSION})")

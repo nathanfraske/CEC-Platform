@@ -285,5 +285,13 @@ python3 scripts/cec_router.py    # end-to-end demo on EPS (deterministic plane, 
 ```
 
 Dependency: a Freerouting **1.7.0** jar (`ensure_jar()` downloads the pinned release if it isn't already at
-`/tmp/fr_1.7.0.jar`, `$CEC_FREEROUTING_JAR`, or `~/.cache/cec/`). `java` + `xvfb-run` must be on PATH. The jar is
-**not** vendored (a 4.7 MB binary doesn't belong in the board repo); the version is pinned in `cec_fr.FR_VERSION`.
+`$CEC_FREEROUTING_JAR`, the OS temp dir, or `~/.cache/cec/`). The jar is **not** vendored (a 4.7 MB binary doesn't
+belong in the board repo); the version is pinned in `cec_fr.FR_VERSION`.
+
+**Cross-platform** (the compute plane runs anywhere KiCad + Java do — see `docs/self-hosted-router.md`):
+`cec_fr._fr_command()` is platform-aware — on **headless Linux** it wraps Freerouting in `xvfb-run`; on
+**Windows/macOS** (and Linux with `$DISPLAY`) it runs `java` directly (no xvfb — Java uses the native display).
+All scratch dirs use the OS temp dir (`tempfile.gettempdir()`), never a hardcoded `/tmp`. The worker pool uses the
+**`spawn`** start method (required on Windows; also the fork-safety fix on Linux). On **Windows**, `pcbnew` imports
+only from KiCad's bundled Python, so use the launcher **`scripts\route.ps1`** (it finds KiCad's `python.exe`,
+`kicad-cli`, and `java` for you — no PATH setup); on Linux/macOS run `python3 scripts/cec_router.py` directly.

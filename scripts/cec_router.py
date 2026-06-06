@@ -28,7 +28,7 @@
 # whole framework runs end-to-end with no LLM (reproducible + testable). The tiered LLM
 # realisation plugs sub-agent verdicts into those same callable slots -- see
 # make_subagent_policy() and scripts/README-cec_pcb.md ("automated routing system").
-import os, sys, json, time, shutil, copy
+import os, sys, json, time, shutil, copy, tempfile
 from dataclasses import dataclass, field, asdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -380,7 +380,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     worker    = worker    or (lambda region, verdict, state, hist: default_worker(region, verdict, state, hist, spec))
     escalator = escalator or (lambda region, state, hist: default_escalator(region, state, hist, spec))
 
-    work_dir = work_dir or os.path.join("/tmp", "cec_route_" + str(int(time.time())))
+    work_dir = work_dir or os.path.join(tempfile.gettempdir(), "cec_route_" + str(int(time.time())))
     os.makedirs(work_dir, exist_ok=True)
     rules = spec.rules or cec_score.Rules.from_board(board0)
     spec_to_dru(spec)                                    # rules the candidates + DRC will see
