@@ -671,8 +671,23 @@ Done (kept for context):
   to the footprint/placement pass AND the game-plan pass -> revise -> re-route. Deterministic
   nets (12V pours filled+split, GND stitch, Kelvin, USB diff pair, CAN, short P2P) route clean
   headlessly; the dense crossing spine may need a placement/plan change, Freerouting via DSN
-  (java present, jar not), or the GUI. First demonstration run (routing sub-agent on EPS) was in
-  progress at commit time -- its snag/feedback report lands next.
+  (java present, jar not), or the GUI.
+  DEMONSTRATION DONE (routing sub-agent on EPS, candidate at /tmp/eps-routed/): routed the
+  deterministic CORE as real copper at 0 structural DRC -- GND inner-plane fill + stitch vias,
+  the 8 split 12V pours (filled, F+B mirrored), and the USB diff pair (with a D+/D- via-swap for
+  the J5<->U1 side crossover). The pass closed the loop with precise feedback: (toolkit) it
+  FOUND TWO REAL BUGS in cec_route.py -- zone() must append into z.Outline() in place (SetOutline
+  aliases an external SHAPE_POLY_SET -> empty outline -> ZONE_FILLER segfault) and fill() must
+  z.UnFill() before re-filling -- BOTH NOW FIXED + tested (real pour fills 54.88mm^2, double-fill
+  in one process, 0 segfault); (->placement) move U2 next to the ESP CAN pins (it's top-right,
+  CAN_TX/RX cross the whole board), move the B.Cu CEC LOGO off the ESP underside (it blocks the
+  natural B.Cu escape), rotate INA181 U20/U21 180 / nudge C20/C21 so the Kelvin LO escapes,
+  fix the shunt HI-below-LO inversion that crosses the INA238 taps, widen the mid-board signal
+  channel ~2mm; (->game-plan) the "y17 open lane" for the spine is FALSE (occupied by ESP body
+  y12-32 + LDO + INA pad rows) -- respec to the y20.6-23.6 band with B.Cu hops over the ESP,
+  split the 6 spine nets across F.Cu/B.Cu, call out the USB side-swap + run CAN_H/L down the far
+  right edge to dodge DETECT J1.8. The dense spine is the open item (placement/plan revision, or
+  Freerouting/GUI) = the "stretch its legs" next iteration.
 - REPO-WIDE PCB LAYOUT TOOLKIT scripts/cec_pcb.py (2026-06-06). Refined the EPS candidate
   generator into a shared toolkit ANY board generator / agent can pull on (does NOT modify
   the shared gen-module-pcb.py -- it imports its emit primitives once via the no-op-filter

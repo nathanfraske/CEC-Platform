@@ -82,18 +82,26 @@ class Router:
         z.SetLocalClearance(_nm(clearance))
         z.SetMinThickness(_nm(min_width))
         z.SetAssignedPriority(priority)
-        sps = pcbnew.SHAPE_POLY_SET(); sps.NewOutline()
+        # Append straight into the zone's OWN outline. SetOutline(<external SHAPE_POLY_SET>)
+        # ALIASES (not deep-copies) in this KiCad-10 SWIG build, so an external poly goes
+        # empty when GC'd -> ZONE_FILLER then segfaults. Appending in place avoids that.
+        # (Validity is FullPointCount(), not GetOutlineArea() -- the latter reads a stale
+        # cache and returns 0 right after Append even with a valid outline.)
+        o = z.Outline(); o.NewOutline()
         for (x, y) in poly:
-            sps.Append(_nm(x), _nm(y))
-        z.SetOutline(sps)
+            o.Append(_nm(x), _nm(y))
+        if z.Outline().FullPointCount() < 3:
+            raise RuntimeError(f"zone outline for net {net} has < 3 points")
         self.b.Add(z); self.added["zones"] += 1
         return z
 
     # ---- engine ops ----
     def fill(self):
-        """Fill every zone with the real ZONE_FILLER (the GUI's engine)."""
-        ok = pcbnew.ZONE_FILLER(self.b).Fill(self.b.Zones())
-        return ok
+        """Fill every zone with the real ZONE_FILLER (the GUI's engine). UnFill first:
+        re-filling an already-filled multi-layer zone in the same process segfaults."""
+        for z in self.b.Zones():
+            z.UnFill()
+        return pcbnew.ZONE_FILLER(self.b).Fill(self.b.Zones())
 
     def save(self, path=None):
         pcbnew.SaveBoard(path or self.path, self.b)
