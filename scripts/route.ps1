@@ -19,33 +19,53 @@ param(
   [int]   $Passes   = 10,
   [int]   $OptTime  = 20,
   [int]   $Threads  = 1,
-  [int]   $Kmax     = 2,
-  [int]   $MaxIters = 4,
-  [string]$Out      = "build/route",
+  [int]   $Kmax       = 2,
+  [int]   $MaxIters   = 4,
+  [int]   $MaxWorkers = 0,
+  [string]$Out        = "build/route",
   [switch]$Render
 )
-$ErrorActionPreference = "Stop"
+# Continue, NOT Stop: native tools (java, python, Freerouting) legitimately write to stderr,
+# and under "Stop" Windows PowerShell turns ANY native-command stderr into a terminating
+# NativeCommandError (this killed an earlier run on `java -version`). Real failures are caught
+# explicitly via `throw` + $LASTEXITCODE checks below.
+$ErrorActionPreference = "Continue"
 $repo = Split-Path -Parent $PSScriptRoot     # scripts\ -> repo root
 
 function Find-KiCadPython {
   # 1) explicit override
   if ($env:KICAD_PYTHON -and (Test-Path $env:KICAD_PYTHON)) { return $env:KICAD_PYTHON }
-  # 2) standard KiCad install roots, highest version first
-  $roots = @("$env:ProgramFiles\KiCad", "${env:ProgramFiles(x86)}\KiCad")
-  foreach ($root in $roots) {
-    if (Test-Path $root) {
-      foreach ($d in (Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
-        $p = Join-Path $d.FullName "bin\python.exe"
+  # 2) kicad-cli already on PATH -> python.exe sits in the same bin
+  $kc = Get-Command kicad-cli -ErrorAction SilentlyContinue
+  if ($kc) { $p = Join-Path (Split-Path -Parent $kc.Source) "python.exe"; if (Test-Path $p) { return $p } }
+  # 3) registry: KiCad's uninstall InstallLocation (finds it on ANY drive / custom path)
+  $ukeys = @("HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+             "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*",
+             "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*")
+  foreach ($k in $ukeys) {
+    foreach ($app in (Get-ItemProperty $k -ErrorAction SilentlyContinue | Where-Object { $_.DisplayName -like "KiCad*" })) {
+      if ($app.InstallLocation) {
+        $p = Join-Path $app.InstallLocation "bin\python.exe"
         if (Test-Path $p) { return $p }
       }
     }
   }
-  # 3) a 'python' already on PATH that can import pcbnew
-  $onpath = (Get-Command python -ErrorAction SilentlyContinue)
-  if ($onpath) {
-    & $onpath.Source -c "import pcbnew" 2>$null
-    if ($LASTEXITCODE -eq 0) { return $onpath.Source }
+  # 4) KiCad roots on EVERY fixed drive (Program Files\KiCad\<ver>\bin or <drive>\KiCad\<ver>\bin), newest first
+  $roots = @("${env:ProgramFiles(x86)}\KiCad")
+  foreach ($drv in (Get-PSDrive -PSProvider FileSystem -ErrorAction SilentlyContinue).Root) {
+    $roots += (Join-Path $drv "Program Files\KiCad"); $roots += (Join-Path $drv "KiCad")
   }
+  foreach ($root in ($roots | Select-Object -Unique)) {
+    if (Test-Path $root) {
+      foreach ($d in (Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
+        $p = Join-Path $d.FullName "bin\python.exe"; if (Test-Path $p) { return $p }
+      }
+      $p = Join-Path $root "bin\python.exe"; if (Test-Path $p) { return $p }   # no version subdir
+    }
+  }
+  # 5) a 'python' already on PATH that can import pcbnew
+  $onpath = (Get-Command python -ErrorAction SilentlyContinue)
+  if ($onpath) { & $onpath.Source -c "import pcbnew" 2>$null; if ($LASTEXITCODE -eq 0) { return $onpath.Source } }
   return $null
 }
 
@@ -86,13 +106,15 @@ if ($LASTEXITCODE -ne 0) { throw "pcbnew failed to import with $py" }
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
   throw "java not found. Install a JRE 21 (e.g. Adoptium Temurin) -- or set `$env:JAVA_HOME."
 }
-Write-Host ("java: " + ((java -version 2>&1) | Select-Object -First 1))
+# capture java's banner via cmd so its stderr never becomes a PowerShell error record
+$jv = (cmd /c "java -version 2>&1") | Select-Object -First 1
+Write-Host "java: $jv"
 
 $cliArgs = @(
   (Join-Path $repo "scripts\cec_router.py"),
   "--board", $Board, "--seeds", $Seeds,
   "--passes", $Passes, "--opt-time", $OptTime, "--threads", $Threads,
-  "--kmax", $Kmax, "--max-iters", $MaxIters, "--out", $Out
+  "--kmax", $Kmax, "--max-iters", $MaxIters, "--max-workers", $MaxWorkers, "--out", $Out
 )
 if ($Render) { $cliArgs += "--render" }
 

@@ -79,6 +79,7 @@ class Spec:
     weights: dict = field(default_factory=lambda: dict(cec_score.DEFAULT_WEIGHTS))
     Kmax: int = 3                                    # repair attempts before an escalation re-plan
     max_iters: int = 12                              # hard per-region iteration ceiling (never loop forever)
+    max_workers: object = None                       # parallel FR workers (None = min(seeds, nproc))
     seeds: tuple = (0, 1, 2)
 
 
@@ -409,7 +410,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             params = {"passes": state.fr["passes"], "opt_time": state.fr["opt_time"],
                       "threads": state.fr.get("threads", 1)}
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
-                                          out_dir=outd, params=lambda s, p=params: p)
+                                          out_dir=outd, params=lambda s, p=params: p,
+                                          max_workers=spec.max_workers)
             scored = _candidate_pool(cands, rules, spec.weights)
             best = scored[0] if scored else None
             verdict = manager(region, scored, history)
@@ -489,7 +491,7 @@ def find_board(board):
 
 
 def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, threads=1,
-               kmax=2, max_iters=4):
+               kmax=2, max_iters=4, max_workers=None):
     """Build a single-region Spec for a board (the small-/single-board path: one region,
     all nets, vital-area keep-outs derived from the 12V nets). The larger multi-region path
     is driven by populating spec.regions/contracts (e.g. from an Opus planner sub-agent)."""
@@ -499,7 +501,7 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     out = os.path.join(out_dir, f"{name}-routed.kicad_pcb")
     rules = cec_score.Rules.from_board(board_path)
     spec = Spec(board=board_path, out=out, rules=rules, seeds=tuple(seeds), Kmax=kmax,
-                max_iters=max_iters, weights=dict(cec_score.DEFAULT_WEIGHTS))
+                max_iters=max_iters, max_workers=max_workers, weights=dict(cec_score.DEFAULT_WEIGHTS))
     spec.regions = [Region(name="all", nets=[],
                            hints=_vital_keepouts_from_rules(board_path, rules),
                            fr_params={"passes": passes, "opt_time": opt_time, "threads": threads})]
@@ -528,6 +530,8 @@ def main(argv=None):
     ap.add_argument("--threads", type=int, default=1, help="Freerouting threads (-mt)")
     ap.add_argument("--kmax", type=int, default=2, help="repair attempts before an escalation re-plan")
     ap.add_argument("--max-iters", type=int, default=4, help="per-region iteration ceiling")
+    ap.add_argument("--max-workers", type=int, default=0,
+                    help="parallel Freerouting workers (0 = auto: min(seeds, nproc); set higher to oversubscribe)")
     ap.add_argument("--out", default="build/route", help="output dir for the routed board + log")
     ap.add_argument("--render", action="store_true", help="also write a top render PNG")
     ap.add_argument("--quiet", action="store_true")
@@ -536,7 +540,8 @@ def main(argv=None):
     seeds = tuple(int(s) for s in str(a.seeds).split(",") if s.strip() != "")
     out_dir = a.out if os.path.isabs(a.out) else os.path.join(ROOT, a.out)
     spec, name = board_spec(a.board, out_dir, seeds=seeds, passes=a.passes, opt_time=a.opt_time,
-                            threads=a.threads, kmax=a.kmax, max_iters=a.max_iters)
+                            threads=a.threads, kmax=a.kmax, max_iters=a.max_iters,
+                            max_workers=(a.max_workers or None))
     final, log = route(spec.board, spec, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
     if final and a.render:
