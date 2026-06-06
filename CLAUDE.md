@@ -713,11 +713,34 @@ Done (kept for context):
   bundled python.exe — scripts/route.ps1 auto-discovers KiCad's python + kicad-cli + java and
   assembles PATH (so NO manual PATH config; only set $env:KICAD_PYTHON if KiCad is nonstandard),
   scripts/route-prereqs.ps1 is the Windows prereq check. (5) route.yml is OS-conditional (Windows
-  step = pwsh + route.ps1; Linux/mac = bash + cec_router.py). (6) Windows reliability note: no
+  step = Windows PowerShell `powershell -ExecutionPolicy Bypass -File {0}` + route.ps1; Linux/mac =
+  bash + cec_router.py). (6) Windows reliability note: no
   xvfb means Freerouting needs a real desktop, so the Windows runner must run INTERACTIVELY (run.cmd
   in a logged-on session / Task Scheduler "run only when user is logged on"), NOT as a Session-0
   service; a Linux runner can stay a headless service (xvfb). Full Windows setup +
   the "do I need to configure PATH? -> no" answer in docs/self-hosted-router.md.
+- WINDOWS RUNNER VERIFIED + STRESS-TESTED (2026-06-06, PR #6): the self-hosted Windows path is LIVE
+  and verified on the user's runner (CEC-Workstation, i7-13700K; KiCad 10 + JRE 21). Reaching a green
+  run fixed a cascade of REAL first-run Windows issues (all on main now): (a) shell: pwsh ->
+  `powershell -ExecutionPolicy Bypass -File "{0}"` -- PowerShell 7 isn't installed by default AND a
+  fresh runner's Restricted execution policy blocks every .ps1; (b) KiCad discovery HARDENED in
+  route.ps1/route-prereqs.ps1 (KICAD_PYTHON -> kicad-cli on PATH -> the uninstall-registry
+  InstallLocation -> Program Files\KiCad + \KiCad on EVERY fixed drive) -- the user's KiCad is a
+  PER-USER install at C:\Users\<u>\AppData\Local\Programs\KiCad, NOT C:\Program Files, now auto-found
+  (no manual PATH); (c) route.ps1 $ErrorActionPreference = Continue -- under Stop, Windows PowerShell
+  turns a native tool's stderr (java -version, python) into a terminating NativeCommandError;
+  (d) Freerouting launched MINIMIZED + no console (subprocess STARTUPINFO SW_SHOWMINNOACTIVE +
+  CREATE_NO_WINDOW) so its Java window (no xvfb on Windows) doesn't steal focus, with the
+  ForegroundLockTimeout backstop in docs/self-hosted-router.md. VERIFIED: a full eps-8pin route ran
+  end-to-end ON THE RUNNER -- kelvin_ok + diffpair_ok PASS, 556 tracks/84 vias, DRC 99, 5-file
+  artifact uploaded.
+  STRESS (max_workers knob + parallelism logging, PR #6; route.yml max_workers input / --max-workers /
+  route.ps1 -MaxWorkers; 0=auto=min(seeds,nproc)): 24 seeds @ auto routed 24/24 candidates in parallel
+  (24 Freerouting JVMs on the 24 threads), ~2:25 route step, gates pass. PUSHING PAST the thread count
+  LOCKED THE MACHINE: 48 seeds @ max_workers=48 (2x oversubscribed, ~24GB of JVMs) thrashed the
+  i7-13700K into a hard lockup. CEILING: cores cap throughput, RAM caps the JVM count, and they
+  collide at the logical-CPU count -- **24 is the cap on this runner**. generate_batch now WARNS when
+  workers > CPU threads; keep max_workers at 0 (auto) or <= thread count.
 - PCBNEW REAL-COPPER ROUTING TOOLKIT scripts/cec_route.py + sub-agent routing pass GO-AHEAD
   (2026-06-06). pcbnew (the real KiCad 10.0.3 Python engine) IS available in this env and can
   do what kicad-cli cannot: create real (segment)/(via) copper and FILL pours via the real

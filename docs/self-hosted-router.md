@@ -33,9 +33,15 @@ The Freerouting jar is **not** a PATH concern — `cec_fr.ensure_jar()` download
 ## Why this scales
 
 A Freerouting run is one JVM at ~0.5 GB pinning one core; the practical ceiling is **one
-candidate per core** (`cec_fr.generate_batch` caps `max_workers = min(seeds, nproc)`), and RAM is
-rarely the limit. On your hardware the ceiling becomes *your* core count — an 8/16/32-core box
-runs that many candidates in parallel, versus the few vCPU of a GitHub-hosted runner.
+candidate per core** (`cec_fr.generate_batch` defaults `max_workers = min(seeds, nproc)`). On your
+hardware the ceiling becomes *your* core count — an 8/16/32-core box runs that many candidates in
+parallel, versus the few vCPU of a GitHub-hosted runner.
+
+> **Don't oversubscribe.** The `max_workers` input lets you force more workers than CPU threads,
+> but cores cap *throughput* and RAM caps the *count* — pushing past your thread count just thrashes.
+> A verified data point: 24 workers ran clean on an i7-13700K (24 threads), but **`max_workers = 48`
+> (2× oversubscribed, ~24 GB of JVMs) locked the machine.** Leave `max_workers = 0` (auto) unless you
+> mean to probe the limit; `generate_batch` warns when workers exceed CPU threads.
 
 ---
 

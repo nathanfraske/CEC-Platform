@@ -568,6 +568,11 @@ def generate_batch(
     import time as _time
     print(f"[cec_fr] generate_batch: {len(seeds)} seeds -> {n} parallel workers "
           f"(cpu_count={os.cpu_count()}, max_workers={max_workers})", flush=True)
+    if n > (os.cpu_count() or 1):
+        print(f"[cec_fr] WARNING: {n} workers > {os.cpu_count()} CPU threads -- OVERSUBSCRIBED. "
+              f"Each Freerouting JVM is ~0.5GB; this can exhaust RAM and lock the machine "
+              f"(2x oversubscription locked an i7-13700K). Prefer max_workers<=CPU threads (0=auto).",
+              flush=True)
     _t0 = _time.monotonic()
 
     # IMPORTANT: use the "spawn" start method, NOT the default "fork". pcbnew/wxWidgets is
