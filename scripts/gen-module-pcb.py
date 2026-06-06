@@ -26,44 +26,63 @@ BOARDS = [
     ("pcie-8pin-3port",  "pcie8pin-3port-module",   3, "cable"),
     ("12vhpwr-standard", "12vhpwr-standard-module", 6, "hpwr"),
 ]
-CX0, PITCH = 20.0, 27.0          # first cable origin x, cable pitch (mm)
+CX0, PITCH = 9.0, 27.0           # first cable origin x (left margin reclaimed), cable pitch (mm)
+# Condensed cable-board layout (2026-06-06). The Mini-Fit Jr Horizontal footprint
+# keeps its 2 pad rows at local y0/y5.5 and its 2 NPTH retention pegs at local
+# y-4.2; the body+mouth run out to y-13.9. So we OVERHANG the body/mouth off the
+# board edge (J_IN top, J_OUT bottom) and keep only the pads+pegs on-board (each
+# connector needs ~12.5 mm of board, not its full ~22 mm courtyard). The per-cable
+# sense parts sit SIDE-BY-SIDE in a band at the shunt level instead of stacked.
+# 3 M3 mounts: the J_IN/J_OUT courtyards eat the left corners (only the mid-height
+# clear band is free) and the RJ-45 fills the right edge, so USB-C moves to the TOP
+# edge to free the two right corners. ~99 x 40 mm vs the old 110 x 66 (-45% area).
+JIN_Y = 7.0                      # J_IN origin: pads y7.0/12.5, pegs y2.8 (clear top edge ~1.2 mm), mouth overhangs -y
+BAND_Y = 20.0                    # sense band center (between J_IN bottom pads y12.5 and J_OUT top pads)
 
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 40.0, 66.0, ex                        # W, H, ex
+    return ex + 48.0, 40.0, ex                        # W, H, ex (condensed)
 
 def placement(n):
     W, H, ex = geometry(n)
     P = {}
     for i in range(n):                                # cables, left to right
         x, c = CX0 + i * PITCH, i + 1
-        P[f"J_IN{c}"]  = (x, 17.0, 0)
-        P[f"J_OUT{c}"] = (x + 12.6, 49.0, 180)        # pins align under the IN row
-        P[f"RS{c}"]    = (x + 3.0, 33.0, 0)           # shunt, mid-gap in the 12V column
-        P[f"U1{i}"]    = (x + 9.0, 28.0, 0)           # INA238 (U10, U11, U12)
-        # §6.13 transient-DETECTION front-end (v3.10), tapping the SAME shunt with
-        # its own Kelvin pair: INA181A2 gain-50 CSA -> TLV7011 comparator. The two
-        # Mini-Fit Jr courtyards are ~22 mm tall, so the clear middle band is only
-        # ~17 mm (J_IN bottom y24.6 -> J_OUT top y41.4): stack INA238 (y28) /
-        # shunt (y33) / §6.13 (y38) so the SOT-23 pair lands at y36.3-39.7, clear
-        # of the shunt above and J_OUT below.
-        P[f"U2{i}"]    = (x + 2.5, 38.0, 0)           # INA181A2 CSA (U20, U21, U22)
-        P[f"U3{i}"]    = (x + 7.5, 38.0, 0)           # TLV7011 comparator (U30, U31, U32)
+        # Connectors OVERHANG their edges: J_IN body/mouth hangs off the top, J_OUT
+        # off the bottom; pads + the 2 retention pegs stay on-board (the peg is the
+        # real limit — it can't overhang). rot180 on J_OUT keeps its pads in the
+        # same x-column as J_IN so the 12V pins line up.
+        P[f"J_IN{c}"]  = (x, JIN_Y, 0)
+        P[f"J_OUT{c}"] = (x + 12.6, H - JIN_Y, 180)
+        # Side-by-side sense band across the column at BAND_Y: the shunt sits
+        # VERTICAL (rot90) in the 12V path so current flows top->bottom straight
+        # through it; INA238 (cable current; VSSOP-10 ~6.4 mm wide) sits to its left
+        # and the §6.13 pair (INA181A2 gain-50 CSA -> TLV7011 comparator) stacks to
+        # its right, all Kelvin-tapping the same shunt terminals.
+        P[f"U1{i}"]    = (x + 2.0, BAND_Y, 0)         # INA238 (U10, U11, U12)
+        P[f"RS{c}"]    = (x + 8.0, BAND_Y, 90)        # 0.5 mOhm shunt, vertical in the 12V path
+        P[f"U2{i}"]    = (x + 12.5, BAND_Y - 2.5, 0)  # INA181A2 CSA (U20, U21, U22)
+        P[f"U3{i}"]    = (x + 12.5, BAND_Y + 2.5, 0)  # TLV7011 comparator (U30, U31, U32)
     P.update({                                        # control/power + flash, right
-        "U1":  (ex + 10.0, 33.0, 0),                  # ESP32-C6-MINI-1 (left-centre)
-        "U2":  (ex + 5.0, 15.0, 0),                   # TJA1051T/3 CAN (top)
-        "U3":  (ex + 5.0, 51.0, 0),                   # LP5907 LDO (bottom)
-        "SW1": (ex + 13.0, 15.0, 0),                  # BOOT (top)
-        "SW2": (ex + 13.0, 51.0, 0),                  # RESET (bottom)
-        "D2":  (ex + 22.0, 27.0, 0), "C9": (ex + 28.3, 27.0, 0),   # VBUS ORing (SMA, wide) + bulk
-        "R8":  (ex + 32.0, 27.0, 0), "R9": (ex + 37.0, 27.0, 0),   # CC pulldowns
-        "R10": (ex + 9.0, 44.0, 0),  "C40": (ex + 13.0, 44.0, 0),  # §6.13 THRESH RC (board-shared, off MCU PWM)
-        "J5":  (ex + 36.0, 16.0, 90),                 # USB-C, right edge upper, opening +X
-        "J1":  (ex + 26.0, 46.0, 90),                 # RJ-45, right edge lower, opening +X
+        "U1":  (ex + 8.0, 20.0, 0),                   # ESP32-C6-MINI-1 (13x17 crtyd), left column mid
+        "U2":  (ex + 20.0, 6.0, 0),                   # TJA1051T/3 CAN (top of mid-strip)
+        "U3":  (ex + 6.0, 35.0, 0),                   # LP5907 LDO (left column bottom)
+        "SW1": (ex + 19.0, 32.0, 0),                  # BOOT (mid-strip bottom)
+        "SW2": (ex + 25.5, 32.0, 0),                  # RESET (spaced from BOOT to clear the mask)
+        "D2":  (ex + 18.0, 13.0, 90), "C9": (ex + 22.0, 13.0, 0),  # VBUS ORing (vert SMA) + bulk
+        "R8":  (ex + 18.0, 17.0, 0), "R9": (ex + 21.0, 17.0, 0),   # CC pulldowns
+        "R10": (ex + 25.0, 13.0, 0), "C40": (ex + 25.0, 16.0, 0),  # §6.13 THRESH RC
+        "J5":  (ex + 6.0, 3.5, 180),                  # USB-C on the TOP edge (rot180: mouth overhangs -y, pads on-board)
+        "J1":  (ex + 33.5, 24.5, 90),                 # RJ-45 right edge; origin y24.5 centers the (top-heavy) body at y20, mouth +X
     })
-    mounts = [(7.0, 7.0), (W - 7.0, 7.0), (7.0, H - 7.0), (W - 7.0, H - 7.0)]
-    logo = (CX0 + (n - 1) * PITCH / 2.0 + 6.3, H / 2.0)
+    # 3 M3 mounts: one on the left edge in the clear band between the J_IN and J_OUT
+    # courtyards; two in the right corners (freed by moving USB-C off the right edge),
+    # flanking the centered RJ-45.
+    mounts = [(4.0, BAND_Y), (W - 4.5, 5.0), (W - 4.5, H - 5.0)]
+    # CEC logo on the back, under the C6 (SMD, no THT) where B.Cu is clear — the
+    # cable region's back is full of the J_IN/J_OUT through-hole pads.
+    logo = (ex + 8.0, H / 2.0)
     return W, H, P, mounts, logo
 
 def placement_hpwr():

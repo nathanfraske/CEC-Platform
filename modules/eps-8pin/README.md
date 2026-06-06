@@ -130,40 +130,51 @@ Regenerated on the consolidated v3.10 spec. Net changes vs the 2026-06-05 sourci
 Generator `scripts/gen-modules.py` now emits the C6 + §6.13 backbone, so this board
 round-trips again.
 
-## PCB floorplan (2026-06-06) — regenerated for C6 + §6.13, dual GND, mounts
+## PCB floorplan (2026-06-06) — CONDENSED, C6 + §6.13, dual GND, 3 mounts
 
-The PCB floorplan was rebuilt from the v3.10 netlist via
-`scripts/gen-module-pcb.py eps-8pin` (a CLI filter was added so only this board
-regenerates — the routed 12VHPWR is never touched). The board had **zero routing**,
-so the bootstrap was re-run cleanly. Verified by render + DRC:
+The PCB floorplan was rebuilt + **condensed** from the v3.10 netlist via
+`scripts/gen-module-pcb.py eps-8pin` (a CLI filter + a routed-board guard keep the
+routed 12VHPWR untouched). The board had **zero routing**, so the bootstrap re-ran
+cleanly. **107 × 40 mm — down from 110 × 66, a ~41 % area cut.** Verified by render +
+DRC (and an in-loop courtyard/pad-clearance checker).
 
-- **Board** 110 × 66 mm, 4-layer. **Stackup** F.Cu **2 oz** / In1 **1 oz** / In2
-  **1 oz** / B.Cu **2 oz** (high-current outers; spec §6.7).
-- **Dual GND** — one `GND Plane` zone (net GND) spanning **In1.Cu + In2.Cu**,
-  board-sized (0.25 mm inset). 12 V stays on the *outers*, split at each shunt (an
-  inner 12 V plane would short the shunt). Emitted **unfilled** — *Fill All Zones*
-  (`B`) in the GUI.
-- **Mounts** 4× M3 (`MountingHole_3.2mm_M3_Pad_Via`, chassis GND) in the corners,
-  clear of all connectors.
-- **MCU** U1 = the **C6** land placed in the right-hand control core. The C6 module
-  carries **no antenna keepout** (dropped — wired-only module), so the GND pour
-  fills under it freely.
-- **§6.13 placed per cable** in the clear ~17 mm band between the two 22 mm-tall
-  Mini-Fit Jr courtyards: stack is INA238 (y28) → 0.5 mΩ shunt (y33) → INA181A2 +
-  TLV7011 (y38), so the SOT-23 pair clears both the shunt and J_OUT. Shared R10/C40
-  THRESH RC sit by the MCU.
-- **Connectors** RJ-45 (J1, "TO-HUB") and USB-C (J5) placed with their mouths flush
-  to the **right board edge** (courtyards reach x≈110) for cable/flash access; the
-  Mini-Fit Jr cable interposers run J_IN (top, PSU) → J_OUT (bottom, load). CEC
-  copper logo + "4L 2oz/1oz" fab note on the back.
-- **DRC** no structural hits (no courtyard/clearance/edge); remaining are cosmetic
-  silk (value-on-silk + dense-cluster text overlap — a GUI silk-refinement task) and
-  the known benign `lib_footprint_mismatch`. The 142 "unconnected" are the
-  un-routed ratsnest (expected for a floorplan).
+What made it shrink:
+
+- **Connectors overhang their edges.** The Mini-Fit Jr Horizontal footprint keeps
+  its 2 pad rows (local y0/y5.5) and its 2 NPTH retention pegs (local y-4.2)
+  on-board, but its ~13 mm body+mouth (out to local y-13.9) now hangs **off** the
+  board edge — J_IN off the top, J_OUT off the bottom. Each connector needs only
+  ~12.5 mm of board instead of its full ~22 mm courtyard. The **pegs are the hard
+  limit** (they can't overhang), so the mouth overhangs ~7 mm, not the full body.
+- **Side-by-side sense band** (not stacked): the 0.5 mΩ shunt sits **vertical
+  (rot90) in the 12 V path** (current flows straight top→bottom through it); INA238
+  (VSSOP-10, ~6.4 mm wide) sits to its left and the §6.13 pair (INA181A2 → TLV7011)
+  stacks to its right — all Kelvin-tapping the same shunt. Collapses the per-cable
+  band from ~16 mm tall to a single ~6 mm row, the biggest height saver.
+- **3 M3 mounts**, not 4: the overhang fills the top/bottom edges across the cable
+  region and the RJ-45 fills the right edge, so there's no clean 4th corner. One
+  mount sits on the **left edge at mid-height** (the clear band between the J_IN and
+  J_OUT courtyards); two sit in the **right corners**, freed by moving USB-C off the
+  right edge. (Per the design decision to drop to 3 for the tightest size.)
+- **USB-C (J5) moved to the TOP edge** (rot180 so the mouth overhangs −y and the
+  pads stay on-board), which frees the right edge for the RJ-45 + the two corner
+  mounts. RJ-45 (J1, "TO-HUB") is centered on the right edge, mouth flush to it.
+- Left **dead space reclaimed** (first cable origin x 20 → 9).
+
+Unchanged fundamentals: **4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz**;
+one `GND Plane` zone over **In1 + In2** (12 V on the outers, split at each shunt),
+emitted unfilled (*Fill All Zones* in the GUI); C6 has no antenna keepout
+(wired-only) so GND fills under it; CEC logo + "4L 2oz/1oz" fab note on the back
+(logo moved under the C6, off the cable-region through-hole pads).
+
+**DRC** no structural hits (courtyard / clearance / copper-edge / mask all clean);
+remaining are cosmetic silk (value-on-silk + dense-cluster text overlap — a GUI
+silk-refinement task) and the benign `lib_footprint_mismatch`. The "unconnected"
+items are the un-routed ratsnest (expected for a floorplan).
 
 **Next in the GUI:** *Update PCB from Schematic* to pull the parts the floorplan
 intentionally leaves for the GUI — the decoupling (C1–C8), the DETECT divider +
 poke tap (R1/R2/R7), the D1 ESD diode, and the §6.13 per-IC bypass caps — then place
 those, *Fill All Zones*, route (incl. the §6.8 four-wire Kelvin shunt taps and §6.7
 high-current 12 V transitions), and re-DRC. The two PCIe SKUs use the same generator
-path and can be regenerated the same way when their turn comes.
+path and can be condensed the same way when their turn comes.
