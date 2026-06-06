@@ -22,6 +22,7 @@ param(
   [int]   $Kmax       = 2,
   [int]   $MaxIters   = 4,
   [int]   $MaxWorkers = 0,
+  [int]   $OptSpread  = 0,
   [string]$Out        = "build/route",
   [switch]$Render
 )
@@ -114,7 +115,8 @@ $cliArgs = @(
   (Join-Path $repo "scripts\cec_router.py"),
   "--board", $Board, "--seeds", $Seeds,
   "--passes", $Passes, "--opt-time", $OptTime, "--threads", $Threads,
-  "--kmax", $Kmax, "--max-iters", $MaxIters, "--max-workers", $MaxWorkers, "--out", $Out
+  "--kmax", $Kmax, "--max-iters", $MaxIters, "--max-workers", $MaxWorkers,
+  "--opt-spread", $OptSpread, "--out", $Out
 )
 if ($Render) { $cliArgs += "--render" }
 
