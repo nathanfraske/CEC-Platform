@@ -5398,7 +5398,7 @@
 		(property "Value" "10Ω" (at 49.53 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 49.53 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 49.53 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5406,7 +5406,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5414,7 +5414,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5444,7 +5452,7 @@
 		(property "Value" "10Ω" (at 54.61 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 54.61 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 54.61 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5452,7 +5460,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5460,7 +5468,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5688,7 +5704,7 @@
 		(property "Value" "10Ω" (at 119.38 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 119.38 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5696,7 +5712,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5704,7 +5720,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5734,7 +5758,7 @@
 		(property "Value" "10Ω" (at 124.46 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 124.46 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 124.46 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5742,7 +5766,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5750,7 +5774,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5978,7 +6010,7 @@
 		(property "Value" "10Ω" (at 189.23 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 189.23 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 189.23 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5986,7 +6018,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5994,7 +6026,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6024,7 +6064,7 @@
 		(property "Value" "10Ω" (at 195.58 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 195.58 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 195.58 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6032,7 +6072,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6040,7 +6080,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6268,7 +6316,7 @@
 		(property "Value" "10Ω" (at 259.08 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 259.08 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 259.08 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6276,7 +6324,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6284,7 +6332,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6314,7 +6370,7 @@
 		(property "Value" "10Ω" (at 265.43 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 265.43 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 265.43 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6322,7 +6378,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6330,7 +6386,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6558,7 +6622,7 @@
 		(property "Value" "10Ω" (at 328.93 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 328.93 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 328.93 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6566,7 +6630,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6574,7 +6638,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6604,7 +6676,7 @@
 		(property "Value" "10Ω" (at 335.28 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 335.28 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 335.28 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6612,7 +6684,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6620,7 +6692,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6848,7 +6928,7 @@
 		(property "Value" "10Ω" (at 398.78 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 398.78 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 398.78 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6856,7 +6936,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6864,7 +6944,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6894,7 +6982,7 @@
 		(property "Value" "10Ω" (at 405.13 250.19 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 405.13 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 405.13 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "FOJAN" (at 0 0 0)
+		(property "Manufacturer" "Yageo" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6902,7 +6990,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "FRC0402F10R0TS" (at 0 0 0)
+		(property "MPN" "RT0402BRE0710RL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6910,7 +6998,15 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2906862" (at 0 0 0)
+		(property "LCSC" "C705642" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Tolerance" "0.1%" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)

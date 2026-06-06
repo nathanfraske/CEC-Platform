@@ -702,7 +702,8 @@ Done (kept for context):
   source (matches the ~16.9kHz INA channels) + serves the ESP SAR S&H; spliced near R6 at
   (107.95,270.51), ERC clean, netlist VRAIL_DIV={C24.1,R5.2,R6.1,U1.11}. STILL OPEN: the 6
   ISENSEP INA outputs have no ADC-input cap (INA drives direct, optional); RFH/RFL filter
-  10ohm still 1% (matched-1% ok for DC, 0.1% better for AC CMRR on the transient capture); RS
+  10ohm DONE 2026-06-06 -> 0.1% Yageo RT0402BRE0710RL (C705642, 0.1%/50ppm) on all 12 for AC
+  CMRR on the transient capture (same R_0402 land, drop-in); RS
   shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); NO fiducials on the board
   (add >=2-3 for fine-pitch SMD).
 - EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
