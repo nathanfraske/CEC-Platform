@@ -62,6 +62,10 @@ jobs:
     # The runner you registered on your hardware must carry BOTH labels.
     runs-on: [self-hosted, cec-router]
     timeout-minutes: 180
+    permissions:
+      contents: read
+      pull-requests: write      # the Notify step comments the verdict on the channel PR
+      issues: write
     env:
       # Optional: set repo/org variable CEC_FREEROUTING_JAR to a local jar to skip the
       # one-time download. Otherwise cec_fr.ensure_jar() downloads the pinned v1.7.0.
@@ -126,3 +130,41 @@ jobs:
           name: route-${{ inputs.board }}-${{ github.run_id }}
           path: build/route/${{ inputs.board }}/
           if-no-files-found: warn
+
+      # ---- ping: comment the verdict on the notifications channel PR (auto-ping a
+      # subscribed Claude session the instant the run finishes). Targets the repo
+      # Actions variable ROUTE_NOTIFY_PR (the channel PR; default 11). Uses a PAT
+      # ROUTE_NOTIFY_TOKEN if set (GitHub can suppress webhooks for GITHUB_TOKEN
+      # comments), else the built-in token. See docs/routing-notifications.md.
+      - name: Notify (comment the verdict on the channel PR)
+        if: always()
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ROUTE_NOTIFY_TOKEN || secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const board = process.env.BOARD;
+            const pr = Number(process.env.NOTIFY_PR || '0');
+            const status = process.env.JOB_STATUS || 'unknown';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let body;
+            try {
+              const log = JSON.parse(fs.readFileSync(`build/route/${board}/${board}-decision-log.json`, 'utf8'));
+              const f = log.final || {}; const v = f.verdict || {};
+              body = `📡 **Route \`${board}\`** — [run ${context.runId}](${runUrl}) finished **${status}**\n\n`
+                   + '```json\n' + JSON.stringify(v, null, 2) + '\n```\n'
+                   + `elapsed ${f.elapsed_s ?? '?'}s · decisions ${f.decisions ?? '?'} · routed board + decision log + render in the run artifact.`;
+            } catch (e) {
+              body = `📡 **Route \`${board}\`** — [run ${context.runId}](${runUrl}) finished **${status}**, but no decision log was produced. Check the run logs.`;
+            }
+            if (pr > 0) {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: pr, body });
+              core.info(`commented verdict on PR #${pr}`);
+            } else {
+              core.warning('ROUTE_NOTIFY_PR not set; skipping notification comment');
+            }
+        env:
+          BOARD: ${{ inputs.board }}
+          NOTIFY_PR: ${{ vars.ROUTE_NOTIFY_PR || '11' }}
+          JOB_STATUS: ${{ job.status }}
