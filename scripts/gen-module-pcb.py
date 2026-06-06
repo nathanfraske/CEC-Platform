@@ -44,7 +44,7 @@ BAND_Y = 22.0                    # sense band center (between J_IN bottom pads y
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 39.0, 44.0, ex                        # W, H, ex (W<100: RJ-45 mouth overhangs the right edge)
+    return ex + 40.3, 44.0, ex                        # W, H, ex (W=99: RJ-45 mouth overhangs; shield tabs clear the edge)
 
 def placement(n):
     W, H, ex = geometry(n)
@@ -76,7 +76,7 @@ def placement(n):
         "R8":  (ex + 18.0, 18.0, 0), "R9": (ex + 21.0, 18.0, 0),   # CC pulldowns
         "R10": (ex + 18.0, 26.0, 0), "C40": (ex + 21.0, 26.0, 0),  # §6.13 THRESH RC
         "J5":  (ex + 6.0, 3.5, 180),                  # USB-C on the TOP edge (rot180: mouth overhangs -y, pads on-board)
-        "J1":  (ex + 29.0, 22.0, 90),                 # RJ-45: mouth OVERHANGS the right edge (pads/posts/shield tabs on-board), mouth +X
+        "J1":  (ex + 29.0, 22.0, 90),                 # RJ-45 (Kinghelm FTP): mouth OVERHANGS the right edge; pads/posts/shield tabs on-board, mouth +X
     })
     # 3 M3 mounts: one on the left edge in the clear band between the J_IN and J_OUT
     # courtyards; two in the right corners (freed by moving USB-C off the right edge),

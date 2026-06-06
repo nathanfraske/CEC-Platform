@@ -127,7 +127,7 @@ def footprint_for(ref, lib, name, val):
     0402/0603/0805 by value. Footprint assignment makes the schematic complete
     for BOM + 'Update PCB from Schematic'."""
     M = {
-        "CEC_RJ45_8P8C_FTP": "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal",
+        "CEC_RJ45_8P8C_FTP": "cec:RJ45_FTP_Shielded_Horizontal",  # platform FTP jack (Kinghelm KH-RJ45-58-8P8C, C2683360); shield SH1/SH2 -> GND
         "ESP32-S3-MINI-1":   "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout",
         "ESP32-C6-MINI-1-N4":"cec-RF_Module:ESP32-C6-MINI-1",
         "INA181A2IDBVR":     "cec-Package_TO_SOT_SMD:SOT-23-6",
@@ -168,7 +168,7 @@ def build(dirn):
     nets = {
         "+5VSB": [("J1","1"),("U3","1"),("U3","3"),("C1","1"),("C4","1"),("C6","1"),("U2","3"),("D2","1")],
         "+3V3":  [("U3","5"),("C2","1"),("C3","1"),("C7","1"),("C8","1"),("U1","3"),("U2","5"),("R2","1")],
-        "GND":   [("J1","2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
+        "GND":   [("J1","2"),("J1","SH1"),("J1","SH2"),("U3","2"),("U2","2"),("U2","8"),("R1","2"),("D1","2"),
                   ("C1","2"),("C2","2"),("C3","2"),("C4","2"),("C5","2"),
                   ("C6","2"),("C7","2"),("C8","2"),("C9","2"),("R8","2"),("R9","2"),
                   ("SW1","1"),("SW2","1"),("J5","A1"),("J5","A12"),("J5","B1"),

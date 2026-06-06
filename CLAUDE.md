@@ -212,12 +212,15 @@ Connector and physical interface:
   was declined: its real 1.02mm contact pitch does not match the board's 1.27mm
   routing (full re-route) and stock is thin (~166). REMAINING (GUI): "Update
   Footprints from Library" to pull the geometry onto J2-J5 — contacts preserved,
-  reconnect the 2 GND shield tabs per jack. The standalone modules + 24-pin rev2 still carry the
-  UNSHIELDED 54602 (LCSC C2847314); that is COMPATIBLE, not a conflict — a shielded
-  Hub jack with unshielded module jacks terminates the cable shield at one end only
-  (the Hub: SH1/SH2 -> GND/chassis), which is the preferred single-end grounding,
-  and the link is shielding-insensitive anyway (CAN + 5VSB + DETECT + Standard-dark
-  RS-485). Modules move to FTP on their next rev.
+  reconnect the 2 GND shield tabs per jack. FTP migration (2026-06-06): Hub, 12VHPWR
+  Standard AND **EPS** now carry the platform FTP jack (cec:RJ45_FTP_Shielded_Horizontal,
+  Kinghelm KH-RJ45-58-8P8C / C2683360) with SH1/SH2 -> GND (both-end shielding+grounding,
+  per the user). gen-modules.py now EMITS the FTP footprint + SH1/SH2->GND, so the
+  **24-pin + the two PCIe SKUs pick it up on their next regen** (they still carry the
+  UNSHIELDED 54602 / C2847314 until then — COMPATIBLE, not a conflict: an unshielded
+  module jack terminates the cable shield at the Hub end only, the preferred single-end
+  grounding, and the link is shielding-insensitive anyway: CAN + 5VSB + DETECT +
+  Standard-dark RS-485).
 - PoE/over-voltage protection (RESOLVED for consumer, spec §2.4 v2.0): Standard
   and Pro carry NO per-pin PoE-grade over-voltage protection on the RJ-45 module
   interface — the board state is RATIFIED (internal interface; 57V PoE injection
@@ -613,8 +616,9 @@ Open items (surface before acting):
    updated to match.) STILL PENDING (GUI): run "Update Footprints from Library" to
    pull the new geometry onto the placed J2-J5 — the 8 contacts stay connected,
    only the 2 shield tabs (SH1/SH2, both GND) need reconnecting per jack + a body/
-   courtyard glance. Modules + 24-pin rev2 still carry the unshielded 54602
-   (compatible — single-end shield at the Hub) — move them to FTP on their next rev.
+   courtyard glance. EPS + 12VHPWR Standard now ALSO carry the FTP jack (SH1/SH2->GND);
+   gen-modules.py emits it, so the 24-pin + the two PCIe SKUs pick it up on their next
+   regen (still on the unshielded 54602 until then — compatible, single-end shield at the Hub).
 3. Hub Standard PCB pre-fab layout pass (2026-06-04 review): the board is PLACED
    and FULLY ROUTED (DRC 0 unconnected), but a GUI pour/route pass remains before
    dropping DRAFT. (a) GROUND: only In1 is poured and it reads as fragmented
@@ -1053,11 +1057,12 @@ Use this as a recurring review pass:
   carry NO per-pin PoE clamp (ratified). Instead verify a low-cap ESD diode is
   present on each DETECT pin-8 line (LOCKED v2.0) — Hub Standard has it (D2-D5,
   PESD5V0S1UL); the modules + 24-pin rev2 still lack it, so flag that absence.
-- RJ-45 shielding (§2.1 / OQ-37): spec LOCKS FTP. Hub Standard now assigns the FTP
-  footprint (cec:RJ45_FTP_Shielded_Horizontal) on J2-J5; before fab verify the
-  chosen shielded MPN's SH1/SH2 + peg geometry matches that footprint. Modules +
-  24-pin rev2 still carry the unshielded 54602 (compatible — single-end shield at
-  the Hub, link is shielding-insensitive).
+- RJ-45 shielding (§2.1 / OQ-37): spec LOCKS FTP. Hub Standard (J2-J5), 12VHPWR
+  Standard AND EPS now use the FTP footprint (cec:RJ45_FTP_Shielded_Horizontal,
+  Kinghelm KH-RJ45-58-8P8C / C2683360) with SH1/SH2 -> GND; before fab verify the
+  shield-tab + peg geometry. The 24-pin + the two PCIe SKUs still carry the unshielded
+  54602 (compatible — single-end shield at the Hub) and pick up the FTP jack on their
+  next gen-modules.py regen.
 - DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
   (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
   10 kΩ / 3.3 V divider.

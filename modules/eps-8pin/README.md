@@ -135,8 +135,15 @@ round-trips again.
 The PCB floorplan was rebuilt + **condensed** from the v3.10 netlist via
 `scripts/gen-module-pcb.py eps-8pin` (a CLI filter + a routed-board guard keep the
 routed 12VHPWR untouched). The board had **zero routing**, so the bootstrap re-ran
-cleanly. **98 × 44 mm — down from 110 × 66, a ~41 % area cut, and width kept under
+cleanly. **99 × 44 mm — down from 110 × 66, a ~40 % area cut, and width kept under
 100 mm.** Verified by render + DRC (and an in-loop courtyard/pad-clearance checker).
+
+> J1 is the **platform FTP jack** — Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**),
+> footprint `cec:RJ45_FTP_Shielded_Horizontal`, same as the Hub and 12VHPWR (was the
+> unshielded Amphenol 54602). Its **SH1/SH2 shield tabs are tied to GND** (both-end
+> shielding + grounding, matching the 12VHPWR). The shield tabs extend further than
+> the old jack, so the board is 99 mm (not 98) to give them edge clearance while the
+> mouth still overhangs.
 
 What made it shrink:
 

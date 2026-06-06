@@ -4443,9 +4443,9 @@
 		(uuid "24cc6218-542e-4482-8ebb-a5b27cf0d4b9")
 		(property "Reference" "J1" (at 49.53 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TO-HUB" (at 49.53 85.09 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2847314" (at 0 0 0)
+		(property "Manufacturer" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4453,7 +4453,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "54602-908LF" (at 0 0 0)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4461,7 +4461,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Amphenol" (at 0 0 0)
+		(property "LCSC" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -9084,6 +9084,31 @@
 	(sheet_instances
 		(path "/"
 			(page "1")
+		)
+	)
+	(wire (pts (xy 59.69 71.12) (xy 63.5 71.12))
+		(stroke (width 0) (type default)) (uuid "bd4e7ff7-51d2-432f-b205-7fab21c83f7b"))
+	(wire (pts (xy 59.69 68.58) (xy 63.5 68.58))
+		(stroke (width 0) (type default)) (uuid "eeb12a8e-c8d3-4346-9d2f-4958f443de22"))
+	(wire (pts (xy 63.5 68.58) (xy 63.5 71.12))
+		(stroke (width 0) (type default)) (uuid "0f792eea-1095-470c-8516-81c132c2ea85"))
+	(junction (at 63.5 71.12) (diameter 0) (color 0 0 0 0) (uuid "d0644f22-b1e1-4a1e-a39d-26474207fff6"))
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 63.5 71.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "a25f0b86-c6e7-4483-8017-af8f5f16e9a4")
+		(property "Reference" "#PWR200" (at 63.5 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 63.5 74.93 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "799ada38-5a36-4113-a520-af6961ef1a1f"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a" (reference "#PWR200") (unit 1))
+			)
 		)
 	)
 	(embedded_fonts no)
