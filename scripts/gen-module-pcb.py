@@ -38,13 +38,13 @@ CX0, PITCH = 9.0, 27.0           # first cable origin x (left margin reclaimed),
 # edge to free the two right corners. The RJ-45 mouth ALSO overhangs the right edge
 # (only its contacts/posts/shield tabs stay on-board) to keep W under 100 mm.
 # ~98 x 44 mm vs the old 110 x 66 (-41% area).
-JIN_Y = 7.0                      # J_IN origin: pads y7.0/12.5, pegs y2.8 (clear top edge ~1.2 mm), mouth overhangs -y
-BAND_Y = 22.0                    # sense band center (between J_IN bottom pads y12.5 and J_OUT top pads)
+JIN_Y = 10.0                     # J_IN origin: pads y10/15.5, the real Mini-Fit pegs (local y-7.3, 3.0mm) land at y2.7 (hole 1.2 mm off the top edge); mouth still overhangs -y
+BAND_Y = 23.0                    # sense band center (between the J_IN and J_OUT courtyards)
 
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 40.3, 44.0, ex                        # W, H, ex (W=99: RJ-45 mouth overhangs; shield tabs clear the edge)
+    return ex + 40.3, 46.0, ex                        # W, H, ex (W=99; H=46 for the real Mini-Fit pegs at y-7.3 + courtyard)
 
 def placement(n):
     W, H, ex = geometry(n)

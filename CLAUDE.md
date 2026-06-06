@@ -655,6 +655,21 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- Mini-Fit Jr 2x4 footprint CORRECTED to the real Molex 5569-08A2 land (2026-06-06).
+  The cec-derived lib/vendor/Connector_Molex.pretty/Molex_Mini-Fit_Jr_5569-08A2_2x04_
+  P4.20mm_Horizontal.kicad_mod had its two SNAP-IN PCB-lock pegs WRONG (outboard at
+  x=-4.5/17.1, y=-4.2, 3.2mm drill — a leftover from deriving it off the 2x12 variant).
+  Verified against the KiCad-standard land (real Molex drawing) and fixed to pegs at
+  (0,-7.3) and (12.6,-7.3), 3.0mm NPTH, in line with the outer pin columns; courtyard
+  narrowed to the real (-3.2,-14.4)..(15.8,7.85). Signal pads + body were already
+  correct. The real pegs sit ~3 mm further forward, so the overhang placement moved the
+  connectors inboard (gen-module-pcb.py JIN_Y 7->10) and the cable boards grew H 44->46.
+  PCIe-2/3 PCBs regenerated (99x46 / 126x46, DRC 0 structural). NOTE: the EPS PCB still
+  has the OLD peg land baked into its placed J_IN/J_OUT (it was being hand-edited in the
+  GUI, so not regenerated) — on its next Update-Footprints-from-Library the pegs move,
+  so the EPS J_IN/J_OUT must shift inboard to JIN_Y=10 + the board to H=46 (re-run
+  gen-module-pcb.py eps-8pin, or nudge by hand). The exact keyed MPN + LCSC for the
+  Mini-Fit headers is still open (EPS vs PCIe keying differs; interposer gender per §2.8).
 - 12VHPWR Standard BOM fully sourced for JLCPCB + datasheet pinout pass (2026-06-06).
   All 26 unique lines carry LCSC/MPN/Manufacturer in the schematic symbols (edit via
   the bom skill); outputs in modules/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-
