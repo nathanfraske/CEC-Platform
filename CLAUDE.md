@@ -725,6 +725,24 @@ Done (kept for context):
   CMRR on the transient capture (same R_0402 land, drop-in); RS
   shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); fiducials DONE 2026-06-06 (3x cec-Fiducial:Fiducial_1mm_Mask2mm, board_only/excl-BOM/excl-pos,
   refs on F.Fab: FID1 (162.25,61) TR, FID2 (166,135.5) BR, FID3 (139,116) lower-center; DRC copper-clean).
+- EPS 8-pin power-connector pinout fix + formal Molex footprint (2026-06-06, per user
+  cross-check). The interposer's 4 Mini-Fit Jr connectors (J_IN1/J_OUT1/J_IN2/J_OUT2) had
+  +12V on pads 1-4 / GND on 5-8 -- the FLIPPED assignment vs the EPS12V/EATX12V standard.
+  Corrected to **GND on pads 1-4, +12V on pads 5-8** in the schematic (netlist-verified all
+  4: pins1-4=GND, pins5-8=SENSE*_HI on J_IN / SENSE*_LO on J_OUT; shunt path + §6.13 INA181
+  taps unchanged -- they tap the SENSE nets, not pins) AND at the source in gen-modules.py
+  (PINMAP["eps-8pin"] 12V:[1,2,3,4]->[5,6,7,8], GND:[5,6,7,8]->[1,2,3,4]; PCIe's separate
+  entry untouched) so a regen won't revert it. Footprint repointed from the approximate
+  generic 5569-08A2 to the **official Molex 87427-0802** RA header (vendored
+  cec-Connector_Molex:Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA + 874270802 STEP; the
+  modern part used on newer boards). NOTE the 87427 export has NO snap-peg NPTH holes (the
+  old 5569-08A2 had two at y-4.2) and is MIRRORED (pads in -x, 2nd row -y, body +y), so the
+  PCB committer must Update-from-Schematic and RE-PLACE/re-route all 4 connectors + re-derive
+  the floorplan edge overhang (retention now via THT tails, not pegs). gen-modules.py's
+  SHARED footprint default (M["CEC_CONN_2x4"], line 139) still points at 5569-08A2 (PCIe
+  also uses it) -- the EPS schematic carries the 87427 by hand; a per-module footprint
+  override is the follow-up if EPS should emit it on regen. ERC unchanged (2 pre-existing
+  errors + benign noise).
 - EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
   platform corrections to the EPS schematic: D1 PESD5V0S1UL -> PESD5V0S1BA (SOD-323,
   C5261083); BOOT/RESET buttons SW1/SW2 Panasonic_EVQPUJ_EVQPUA -> TS-1088-AR02016

@@ -230,10 +230,14 @@ def build(dirn):
         # join the board GND. Pin maps below (CEC_CONN_2x4: odd col 1/3/5/7 left,
         # even col 2/4/6/8 right). EPS 8-pin = 4x12V + 4xGND; PCIe 8-pin = 3x12V +
         # 5xGND (the 3 sense pins are grounded on the cable side).
+        # EPS12V/EATX12V standard pin numbering (Molex Mini-Fit Jr circuits, which the
+        # vendored footprint pads follow): pins 1-4 = GND row, pins 5-8 = +12V row.
+        # (Earlier this map had 12V on 1-4 -- a flipped assignment that put +12V on the
+        # GND row; corrected 2026-06-06 to match the standard.)
         if topo == "i2c-cable":
             pin_base = "pcie-8pin" if dirn.startswith("pcie-8pin") else dirn
             PINMAP = {
-                "eps-8pin":  {"12V": [1,2,3,4],   "GND": [5,6,7,8]},
+                "eps-8pin":  {"12V": [5,6,7,8],   "GND": [1,2,3,4]},
                 "pcie-8pin": {"12V": [1,2,3],     "GND": [4,5,6,7,8]},
             }[pin_base]
             for i, (label, sv) in enumerate(nodes):

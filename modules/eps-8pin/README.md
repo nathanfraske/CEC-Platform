@@ -9,7 +9,7 @@ connector. BOM target **$32** (100-qty). See spec
 | Tier | Standard |
 | MCU | **ESP32-C6-MINI-1-N4** (v3.10; was ESP32-S3-MINI-1-N4R2). Native **USB-Serial-JTAG on GPIO13 (D+) / GPIO12 (D−)**; ADC1 = GPIO0–6. 24-pin + EPS may cost-down to C3-MINI once the NTC count is fixed. |
 | Hub link | RJ-45 8P8C shielded FTP, locking boot (universal interface, J1) |
-| Power path | Pass-through interposer: per cable a PSU-side **IN** + a load-side **OUT** 8-pin (2×4) header; **2 cables populated → 4 headers** (J_IN1/J_OUT1, J_IN2/J_OUT2). Molex Mini-Fit Jr (the EPS12V standard connector). Gender/footprint TBD at layout — the 24-pin §2.8 interposer pattern (male board headers + a F-to-F bridging cable) is the working basis. |
+| Power path | Pass-through interposer: per cable a PSU-side **IN** + a load-side **OUT** 8-pin (2×4) header; **2 cables populated → 4 headers** (J_IN1/J_OUT1, J_IN2/J_OUT2). **Molex Mini-Fit Jr 87427-0802** right-angle header (`cec-Connector_Molex:Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA`, official Molex export, cross-checked — the modern part used on newer boards). **EPS12V pinout: pads 1-4 = GND row, 5-8 = +12V row** (fixed 2026-06-06 — see below). The 24-pin §2.8 interposer pattern (male board headers + a F-to-F bridging cable) is the working basis. |
 | Control | CAN on pair 3 (classical 500 kbps in a Standard Hub), TJA1051T/3 transceiver (U2) |
 | Sensing | **Per-cable INA238** (16-bit I²C, ≥1 kHz), 2 cables (U10/U11, distinct I²C addresses on one bus) — one across each cable's **0.5 mΩ** Kelvin shunt (RS1/RS2, §6.4), Vbus read on the load side. Each cable's four 12V pins bundle into the shunt (`SENSE_HI`→shunt→`SENSE_LO`); the four GND pins pass straight through. |
 | Transient detection (§6.13) | **Per-cable analog DETECTION front-end** (v3.10, resolves OQ-9): off the same shunt, **INA181A2** gain-50 CSA (U20/U21) → **TLV7011** hysteresis comparator (U30/U31) → a board-shared firmware-settable **THRESH** (MCU PWM IO14 + R10 10 kΩ / C40 100 nF) → per-cable **DET** to an MCU GPIO latch, which ORs into the §6.10 FREEZE trigger. Flags a transient as a **binary event** (that it happened + the averaged envelope) — NOT the sub-ms waveform; magnitude/shape are an EPS **Pro/Max** SKU. |
@@ -192,3 +192,37 @@ poke tap (R1/R2/R7), the D1 ESD diode, and the §6.13 per-IC bypass caps — the
 those, *Fill All Zones*, route (incl. the §6.8 four-wire Kelvin shunt taps and §6.7
 high-current 12 V transitions), and re-DRC. The two PCIe SKUs use the same generator
 path and can be condensed the same way when their turn comes.
+
+## Update (2026-06-06) — EPS12V pinout fix + formal Molex 87427-0802 footprint
+
+The PCB's power-connector pinout was **flipped** vs the EPS12V/EATX12V standard, and the
+connector was on an approximate generic footprint. Both fixed (user supplied + cross-checked
+the official Molex part):
+
+- **Pinout corrected to EPS12V.** Was +12V on pads 1-4 / GND on 5-8 (the flipped
+  assignment); now **GND on pads 1-4, +12V on pads 5-8** across all four connectors
+  (J_IN1/J_OUT1/J_IN2/J_OUT2), matching the Molex Mini-Fit Jr circuit numbering the EPS12V
+  standard uses. Netlist-verified per connector: pins 1-4 → `GND`, pins 5-8 → `SENSE*_HI`
+  (J_IN, PSU side) / `SENSE*_LO` (J_OUT, load side); the shunt path `HI → RS → LO` and the
+  §6.13 INA181 taps are unchanged (they tap the SENSE nets, not specific pins). The
+  **generator was fixed at the source** (`scripts/gen-modules.py` `PINMAP["eps-8pin"]` →
+  `12V:[5,6,7,8] / GND:[1,2,3,4]`) so a future EPS regen no longer reverts the pinout.
+  *(PCIe's separate PINMAP entry is untouched.)*
+- **Footprint → official Molex `87427-0802`** (`cec-Connector_Molex:Molex_Mini-Fit_Jr_
+  87427-0802_2x04_P4.20mm_RA`, vendored from Molex's KiCad export + the `874270802` STEP at
+  `lib/3dmodels/Connector_Molex.3dshapes/`). The interim `5569-08A_39301080` part (from the
+  first upload) was superseded and removed. The two shared Molex footprints (the 24-pin 2×12
+  and the PCIe 2×4) are **untouched**.
+- **ERC** still the 2 pre-existing errors (GPIO0 service-pad `pin_not_driven` + one
+  `pin_not_connected`) + benign generator `lib_symbol_mismatch` / easyeda `pin_to_pin`
+  noise — no new violations.
+
+> **⚠️ PCB committer — re-place the 4 connectors.** The formal `87427-0802` footprint is
+> **mirrored** vs the old `5569-08A2` (pads run in −x, the 2nd row sits at −y, the
+> body/shroud is on the +y side) **and has NO snap-peg NPTH holes** (the old footprint had
+> two retention pegs at local y−4.2, which the condensed floorplan's overhang strategy used
+> as the hard edge limit). So *Update PCB from Schematic* will move every connector pad —
+> **re-place all four (J_IN top edge / J_OUT bottom edge), re-route the 12 V + GND + Kelvin
+> sense, and re-derive the edge overhang** (retention is now via the THT solder tails, not
+> pegs, so the mouth can overhang further). Confirm the keyed +12V row (pads 5-8) faces the
+> intended way before powering.
