@@ -655,6 +655,24 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- PCBNEW REAL-COPPER ROUTING TOOLKIT scripts/cec_route.py + sub-agent routing pass GO-AHEAD
+  (2026-06-06). pcbnew (the real KiCad 10.0.3 Python engine) IS available in this env and can
+  do what kicad-cli cannot: create real (segment)/(via) copper and FILL pours via the real
+  ZONE_FILLER. cec_route.py = a Router(path) wrapping it: .pad(ref,num) / .track(net,pts,layer,
+  width) / .via(net,at,drill,dia,layers) / .zone(net,poly,layers...) / .fill()->bool /
+  .save() / .verify()->{n_struct, structural[], n_unconnected, unconnected[]} (verify saves +
+  runs the real kicad-cli DRC, filters benign lib_footprint_* + silk). Smoke-tested on EPS:
+  fills the GND inner-plane zone + lays a track + via -> 0 real structural, 160 unrouted
+  ratlines (expected). The GO-AHEAD (added to "What Claude should do/NOT do"): real routing is
+  now sanctioned PROGRAMMATICALLY via this toolkit as a SUB-AGENT routing pass (orchestrator
+  builds/spawns, never hand-routes); hand-poking track s-expr text stays banned. Workflow loop:
+  placement pass -> game-plan pass -> ROUTING pass (cec_route, real copper on a COPY, routes the
+  deterministic nets clean + attempts the spine) -> snag report that feeds back precise changes
+  to the footprint/placement pass AND the game-plan pass -> revise -> re-route. Deterministic
+  nets (12V pours filled+split, GND stitch, Kelvin, USB diff pair, CAN, short P2P) route clean
+  headlessly; the dense crossing spine may need a placement/plan change, Freerouting via DSN
+  (java present, jar not), or the GUI. First demonstration run (routing sub-agent on EPS) was in
+  progress at commit time -- its snag/feedback report lands next.
 - REPO-WIDE PCB LAYOUT TOOLKIT scripts/cec_pcb.py (2026-06-06). Refined the EPS candidate
   generator into a shared toolkit ANY board generator / agent can pull on (does NOT modify
   the shared gen-module-pcb.py -- it imports its emit primitives once via the no-op-filter
@@ -1148,13 +1166,50 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 - Confirm universal-interface parts are sourced from `lib/` rather than
   duplicated per board.
 
+### Sub-agent routing pass (real copper) — GO-AHEAD (2026-06-06)
+
+Generating routing CANDIDATES as real copper is sanctioned, and it stays **sub-agent
+generation** — the orchestrator builds/maintains the toolkit and spawns the passes; it
+does not hand-route. `pcbnew` (the real KiCad 10 Python engine) is available in this
+environment and can do what `kicad-cli` cannot: create real `(segment)`/`(via)` copper
+and FILL pours with the real `ZONE_FILLER`, verified by the real DRC + connectivity.
+
+The candidate pipeline is a loop of sub-agent passes that feed each other:
+
+1. **Placement / footprint pass** → the floorplan (`cec_pcb.auto_cluster` / `place_offsets`).
+2. **Routing game-plan pass** → per-net-class layers / widths / vias / waypoints (the plan
+   drawn by `cec_pcb.guides` + `routing_plan_png`).
+3. **Routing pass (`scripts/cec_route.py`)** → realizes the game-plan as REAL copper on a
+   COPY of the board (`Router`: `track` / `via` / `zone` / `fill` / `verify`), routes the
+   deterministic nets clean (12V pours filled + split at the shunt, GND plane + stitching,
+   Kelvin stubs, the USB diff pair, CAN, short point-to-point), and attempts the dense
+   control→sense spine. It VERIFIES with the real engine and then **reports the snags +
+   the precise changes the upstream passes must make** — it does not silently edit
+   placement/footprints/the plan itself. Feedback is split:
+   - **→ footprint/placement pass:** move/rotate a part, widen a band, fix a pad escape.
+   - **→ game-plan pass:** change a net's layer/lane/width, add vias, re-order.
+4. The orchestrator acts on the feedback (re-spawn the placement or game-plan pass), then
+   re-runs the routing pass. The honest expectation: deterministic nets route clean
+   headlessly; the dense crossing spine may need a placement/plan change, an external
+   autorouter (Freerouting via DSN — `java` is present, the jar is not), or the GUI.
+
+Rules for the routing pass: route a COPY (never the committed floorplan in the same step),
+verify with the real DRC/fill engine before claiming a net routed, and keep the snag→change
+feedback specific (net names, refs, deltas, coordinates). The committed floorplan is updated
+only after its placement/plan actually changes, via the normal placement/plan passes.
+
 ## What Claude should NOT do
 
-- Do not hand-edit PCB ROUTING geometry — track segments, vias, and the copper
-  zone fill — in `.kicad_pcb`. Routing and the final pour are done interactively
-  in the KiCad GUI; that is the boundary that stays in the GUI. Likewise leave
-  fine layout geometry (e.g. the §6.8 four-wire Kelvin shunt sense) to the GUI.
-  Component PLACEMENT is allowed and expected — see "What Claude should do".
+- Do not HAND-edit PCB routing geometry — do not poke `(segment)` / `(via)` track
+  s-expr or copper-zone fill into a `.kicad_pcb` by text. That hand-editing boundary
+  stays. **EXCEPTION (GO-AHEAD, 2026-06-06):** real copper MAY now be generated
+  PROGRAMMATICALLY through the real KiCad engine via the pcbnew-backed routing toolkit
+  `scripts/cec_route.py`, run as a **sub-agent routing pass** (see "Sub-agent routing
+  pass" under "What Claude should do"). That path emits genuine tracks/vias and FILLS
+  pours with the real `ZONE_FILLER` (which `kicad-cli` cannot do), and verifies with
+  the real DRC + connectivity engine — so it is sanctioned where hand-poking is not.
+  Fine layout geometry the toolkit doesn't cover (e.g. hand-tuning the §6.8 Kelvin
+  sense meander) still belongs in the GUI. Component PLACEMENT is allowed and expected.
 - Editing `.kicad_sch` IS allowed: drafting and tidying a schematic, especially
   library-driven, is reasonable. Treat it as real work, though — wire-to-pin
   connections and junctions are where edited or generated schematics break, so
