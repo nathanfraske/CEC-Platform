@@ -71,8 +71,7 @@ condensed cable-board layout as the EPS (identical 2-cable geometry):
   3rd-gen PCIe polarization, 8-circuit, Nylon UL94V-0, 2.54µm matte tin — MPN
   45586-0005** (user-confirmed keying). The footprint is the manufacturer ECAD land
   (`cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal`, vendored from
-  the Molex `-SD` export + its STEP): 4.20 mm pitch + **4.20 mm rows** (not the 5.5 mm
-  of the wrong KiCad 5569 land), round ⌀2.36 mm / 1.85 mm-drill pads, two ⌀3.0 mm snap
+  the Molex `-SD` export + its STEP): 4.20 mm pitch + **5.50 mm rows**, round ⌀2.36 mm / 1.85 mm-drill pads, two ⌀3.0 mm snap
   pegs in line with the outer pins 7.3 mm forward. THT, consigned/hand-soldered.
 - **Connectors overhang their edges** — the body+mouth hang off the top (J_IN) /
   bottom (J_OUT) edges; only the pad rows + the 2 snap pegs stay on-board. The

@@ -28,7 +28,7 @@ BOARDS = [
 ]
 CX0, PITCH = 9.0, 27.0           # first cable origin x (left margin reclaimed), cable pitch (mm)
 # Condensed cable-board layout (2026-06-06). The cable connectors are the REAL Molex
-# 45586 right-angle Mini-Fit Jr (verified ECAD land): 4.20mm pitch + 4.20mm rows,
+# 45586 right-angle Mini-Fit Jr (verified ECAD land): 4.20mm pitch + 5.50mm rows,
 # round 1.85mm-drill pads, and two 3.0mm snap pegs 7.3mm in front of the pad rows;
 # its body+mouth run ~14mm to one side. We OVERHANG the body/mouth off the board edge
 # (J_IN top, J_OUT bottom) and keep only the pads+pegs on-board. The footprint is
@@ -38,13 +38,13 @@ CX0, PITCH = 9.0, 27.0           # first cable origin x (left margin reclaimed),
 # mid-height clear band is free) and the RJ-45 sits on the right edge, so USB-C moves
 # to the TOP edge to free the two right corners; the RJ-45 mouth ALSO overhangs the
 # right edge. ~99 x 44 mm vs the old 110 x 66 (-45% area). N>=3 adds inter-cable mounts.
-JIN_Y = 10.0                     # J_IN origin: at rot180 the real Molex 45586 pads land at y10 (row1) / y14.2 (row2, 4.2mm rows) and the snap pegs (native +7.3) at y2.7 (hole 1.2 mm off the top edge); mouth overhangs the top edge
+JIN_Y = 10.0                     # J_IN origin: at rot180 the real Molex 45586 pads land at y10 (row1) / y15.5 (row2, 5.5mm rows) and the snap pegs (native +7.3) at y2.7 (hole 1.2 mm off the top edge); mouth overhangs the top edge
 BAND_Y = 22.0                    # sense band center (between the J_IN and J_OUT courtyards)
 
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 40.3, 44.0, ex                        # W, H, ex (W=99, H=44 — the real 45586 land is compact: 4.2mm rows + shallow courtyard)
+    return ex + 40.3, 44.0, ex                        # W, H, ex (W=99, H=44 — real 45586 land: 4.2mm pitch / 5.5mm rows, shallow courtyard)
 
 def placement(n):
     W, H, ex = geometry(n)

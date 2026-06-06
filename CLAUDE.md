@@ -661,22 +661,20 @@ Done (kept for context):
   ECAD export (TraceParts -SD footprint + STEP). Vendored the manufacturer land as
   lib/vendor/Connector_Molex.pretty/Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal.kicad_mod
   (kicad-cli fp upgrade to KiCad-10) + lib/3dmodels/Connector_Molex.3dshapes/<same>.step.
-  REAL land: 4.20mm pitch + **4.20mm ROWS** (NOT the 5.5mm of the prior derived/KiCad-5569
-  land — the 5569 RA row spacing is a known-wrong KiCad footprint), round 2.3622mm pads /
-  1.8542mm drill, two 3.048mm snap pegs at native (0,7.3)/(-12.6,7.3) in line with the
-  outer pins. The footprint is native mouth-toward-+y with pads running -x, so the
-  generator places J_IN rot180 / J_OUT rot0 (swapped from before) — this reproduces the
-  exact same pad x-columns + numbering as the old land, so the net map + 12V alignment
-  are unchanged. gen-modules.py footprint_for(CEC_CONN_2x4) -> the 45586 land; PCIe-2/3
-  schematics repointed + J_IN/J_OUT sourced (Manufacturer=Molex, MPN=45586-0005; THT,
-  consigned, no LCSC). PCBs regenerated: the compact 45586 land let H go back to 44
-  (99x44 / 126x44, DRC 0 structural, pads+pegs on-board verified, render confirms).
-  EPS: NOT touched (user hand-editing it) — it still references the old wrong 5569 land.
-  On its next pass the EPS must move to this 45586 land (its land is the SAME; the EPS
-  just needs the EPS12V-keyed MPN, not 45586) with J_IN rot180/J_OUT rot0 + H=44 (re-run
-  gen-module-pcb.py eps-8pin, or update-footprints + re-place by hand). The old
-  Molex_Mini-Fit_Jr_5569-08A2_*.kicad_mod is superseded (kept only because the EPS still
-  points at it); delete once the EPS moves over.
+  REAL land: 4.20mm pitch + **5.50mm ROWS**, round 2.3622mm pads / 1.8542mm drill, two
+  3.048mm snap pegs at native (0,7.3)/(-12.6,7.3) in line with the outer pins.
+  (CORRECTION 2026-06-06: the TraceParts -SD export auto-derived the row spacing as 4.20mm
+  — a square-grid error — and that wrong value first shipped; the user flagged it against
+  the sheets. Real Mini-Fit Jr RA row-to-row is 5.50mm. Pads 5-8 moved to y-5.5, courtyard
+  pad-edge to -6.935.) The footprint is native mouth-toward-+y with pads running -x, so the
+  PCB generator places J_IN rot180 / J_OUT rot0 — reproducing the same pad x-columns +
+  numbering as before, so the net map + 12V alignment are unchanged. PCIe-2/3 SCHEMATICS are
+  hand-repointed to this land + J_IN/J_OUT sourced (Manufacturer=Molex, MPN=45586-0005; THT,
+  consigned, no LCSC); the PCBs regenerate from those via gen-module-pcb.py (99x44 / 126x44,
+  DRC 0 structural, pads+pegs on-board, render confirms). NOTE: this PCIe connector work is
+  DETACHED from the EPS module (being hand-edited in parallel). gen-modules.py's CEC_CONN_2x4
+  footprint default is left as the user has it; the EPS's own EPS12V-keyed connector (Molex
+  87427-0802, a separate land) and any per-board generator mapping are the EPS work's domain.
 - 12VHPWR Standard BOM fully sourced for JLCPCB + datasheet pinout pass (2026-06-06).
   All 26 unique lines carry LCSC/MPN/Manufacturer in the schematic symbols (edit via
   the bom skill); outputs in modules/12vhpwr-standard/bom/ (bom.csv + 12vhpwr-standard-

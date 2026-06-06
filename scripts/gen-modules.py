@@ -121,19 +121,11 @@ BASE_PARTS = {
     "SW2": ("cec-vendor", "SW_Push", "RESET"),
 }
 
-def footprint_for(ref, lib, name, val, dirn=None):
+def footprint_for(ref, lib, name, val):
     """Map a generated part to its vendored KiCad footprint (cec* nicknames).
     Shunts (RS*) take the 4-terminal WSK2512 Kelvin land; ordinary R/C take
     0402/0603/0805 by value. Footprint assignment makes the schematic complete
-    for BOM + 'Update PCB from Schematic'. `dirn` (board) lets a shared symbol map
-    to a board-specific footprint."""
-    # The 2x4 Mini-Fit Jr cable connector is a DIFFERENT keyed Molex part per board:
-    # PCIe (45586-0005, 3rd-gen PCIe polarization, 4.2mm rows) vs EPS12V (87427-0802,
-    # 5.5mm rows) — distinct lands, NOT just a keying swap. Default below is the PCIe
-    # 45586; the EPS overrides to its formal 87427 land. (Both boards are hand-
-    # maintained, so this is the regen fallback; the live schematics are repointed.)
-    if name == "CEC_CONN_2x4" and dirn == "eps-8pin":
-        return "cec-Connector_Molex:Molex_Mini-Fit_Jr_87427-0802_2x04_P4.20mm_RA"
+    for BOM + 'Update PCB from Schematic'."""
     M = {
         "CEC_RJ45_8P8C_FTP": "cec:RJ45_FTP_Shielded_Horizontal",  # platform FTP jack (Kinghelm KH-RJ45-58-8P8C, C2683360); shield SH1/SH2 -> GND
         "ESP32-S3-MINI-1":   "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout",
@@ -144,7 +136,7 @@ def footprint_for(ref, lib, name, val, dirn=None):
         "LP5907MFX-1.2":     "cec-Package_TO_SOT_SMD:SOT-23-5",
         "INA226":            "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
         "INA240":            "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-        "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal",  # PCIe default = real Molex 45586-0005 RA land (verified ECAD export, 4.2mm rows); EPS overrides to 87427-0802 above
+        "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal",
         "CEC_CONN_12V2x6":   "cec:CEC_12V2x6_Horizontal",
         "CEC_PWR_IN_2P":     "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
         "USB_C_Receptacle_USB2.0_16P": "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11",
@@ -464,7 +456,7 @@ for dirn, base in MODS:
     # of text labels. The per-node shunt->monitor sense link (SENSE*_HI) is a
     # 2-pin colinear net -> draw it as a real wire.
     wire_nets = [f"SENSE{label}_HI" for label, _ in RAILS[dirn]]
-    fps = {r: footprint_for(r, *parts[r], dirn=dirn) for r in parts}
+    fps = {r: footprint_for(r, *parts[r]) for r in parts}
     stats = cec_sch.build_schematic(out, base, parts, nets, used, LIBS, paper="A3",
                                     power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
                                     powerflag_nets=["+5VSB", "GND"],

@@ -39,7 +39,7 @@
 			)
 		)
 	)
-	(property "Description" "Molex Mini-Fit Jr. 45586-series dual-row RIGHT-ANGLE header, 8 circuits (2x4), 4.20mm pitch + 4.20mm row spacing, two 3.0mm snap-in PCB-lock pegs in line with the outer pin columns. VERIFIED land from the Molex 455860005/455860105 sales-drawing ECAD export (TraceParts, 2026-06-06) -- supersedes the prior cec-derived 5569 land (wrong 5.5mm rows + oval pads). The keying/polarization is in the plastic, not the PCB pattern, so this land serves both the PCIe-keyed 45586-0005 (3rd-gen polarization) and the EPS12V-keyed sibling. Native orientation: pad1 at origin, pads 1-4 row1 (y0) / 5-8 row2 (y-4.2), pegs + body/mouth toward +y."
+	(property "Description" "Molex Mini-Fit Jr. 45586-series dual-row RIGHT-ANGLE header, 8 circuits (2x4), 4.20mm pitch + 5.50mm row spacing, two 3.0mm snap-in PCB-lock pegs in line with the outer pin columns. VERIFIED land from the Molex 455860005/455860105 sales-drawing ECAD export (TraceParts, 2026-06-06) -- supersedes the prior cec-derived 5569 land (wrong 5.5mm rows + oval pads). The keying/polarization is in the plastic, not the PCB pattern, so this land serves both the PCIe-keyed 45586-0005 (3rd-gen polarization) and the EPS12V-keyed sibling. Native orientation: pad1 at origin, pads 1-4 row1 (y0) / 5-8 row2 (y-4.2), pegs + body/mouth toward +y."
 		(at 0 0 0)
 		(layer "F.Fab")
 		(hide yes)
@@ -155,7 +155,7 @@
 		(uuid "909a08c9-268c-4c6c-aef4-afc26aedfa7e")
 	)
 	(fp_line
-		(start -15.548798 -5.63499)
+		(start -15.548798 -6.935)
 		(end -15.548798 14.155656)
 		(stroke
 			(width 0.1524)
@@ -175,8 +175,8 @@
 		(uuid "ab6a2108-753e-4fd1-9adc-f306585c255a")
 	)
 	(fp_line
-		(start 3.348802 -5.63499)
-		(end -15.548798 -5.63499)
+		(start 3.348802 -6.935)
+		(end -15.548798 -6.935)
 		(stroke
 			(width 0.1524)
 			(type solid)
@@ -186,7 +186,7 @@
 	)
 	(fp_line
 		(start 3.348802 14.155656)
-		(end 3.348802 -5.63499)
+		(end 3.348802 -6.935)
 		(stroke
 			(width 0.1524)
 			(type solid)
@@ -304,7 +304,7 @@
 		(uuid "bd197696-9a23-4dd0-8bc4-3d03774d9c34")
 	)
 	(pad "5" thru_hole circle
-		(at 0 -4.19989)
+		(at 0 -5.5)
 		(size 2.3622 2.3622)
 		(drill 1.8542)
 		(layers "*.Cu" "*.Mask")
@@ -312,7 +312,7 @@
 		(uuid "8dadaf07-6106-472d-af07-13f7276fee9a")
 	)
 	(pad "6" thru_hole circle
-		(at -4.199999 -4.19989)
+		(at -4.199999 -5.5)
 		(size 2.3622 2.3622)
 		(drill 1.8542)
 		(layers "*.Cu" "*.Mask")
@@ -320,7 +320,7 @@
 		(uuid "aef5c480-a2e4-421f-bf82-e5d57d127801")
 	)
 	(pad "7" thru_hole circle
-		(at -8.399998 -4.19989)
+		(at -8.399998 -5.5)
 		(size 2.3622 2.3622)
 		(drill 1.8542)
 		(layers "*.Cu" "*.Mask")
@@ -328,7 +328,7 @@
 		(uuid "b5022837-34a9-459b-944d-702fe500369d")
 	)
 	(pad "8" thru_hole circle
-		(at -12.599995 -4.19989)
+		(at -12.599995 -5.5)
 		(size 2.3622 2.3622)
 		(drill 1.8542)
 		(layers "*.Cu" "*.Mask")
