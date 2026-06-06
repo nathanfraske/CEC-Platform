@@ -655,6 +655,69 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- AUTOMATED ROUTING SYSTEM — two-plane architecture (2026-06-06). Implemented the user's
+  redesign: a DETERMINISTIC PLANE (reproducible, no LLM) under a CONTROL PLANE (tiered
+  judgement, pluggable). Drives the REAL KiCad<->Freerouting autorouter via Specctra DSN/SES.
+  Three new scripts (each self-tested):
+  * scripts/cec_fr.py — Tier-0 Freerouting candidate GENERATOR. export_dsn (pcbnew
+    ExportSpecctraDSN, 2-arg headless form) -> run_freerouting (xvfb-run java -jar the pinned
+    **v1.7.0** jar, -mp/-oit/-mt, from a /tmp workdir so FR's logs/ never hits the repo) ->
+    import_ses -> real routed copper. bake_hints() adds rule-area KEEP-OUT zones for vital
+    areas (12V columns, Kelvin windows) that export into the DSN so FR routes AROUND them.
+    generate_batch() = parallel candidates. CRITICAL GOTCHA FIXED: the pool MUST use the
+    "spawn" start method, NOT the default "fork" — pcbnew/wxWidgets is NOT fork-safe, so a
+    forked worker DEADLOCKS in __futex_wait at ExportSpecctraDSN once the parent has touched
+    pcbnew (observed: 0 java ever launched, workers hung). spawn = fresh interpreter/worker,
+    clean pcbnew re-import. Jar is NOT vendored (4.7MB binary); ensure_jar() downloads the
+    pinned release or honours $CEC_FREEROUTING_JAR / /tmp/fr_1.7.0.jar / ~/.cache/cec/.
+  * scripts/cec_score.py — metrics + HARD GATES. Rules.from_board() derives Kelvin pairs
+    (*_HI/*_LO), diff pairs (*_P/*_N), 12V nets by convention. score()->Metrics(drc[structural,
+    same cosmetic filter as cec_route.verify], unconnected, length, vias, tracks, kelvin_ok
+    [GATE], diffpair_ok [GATE], cu12v, balance, gates_pass, detail). A pair passes only if BOTH
+    members are routed (>=1 track) AND carry 0 unconnected ratlines. gate()->reasons;
+    objective() ranks gate-passing candidates (lower=better).
+  * scripts/cec_router.py — the route() ORCHESTRATION loop + DecisionLog + a CLI. spec_to_dru
+    -> planner (regions+seam contracts) -> per-region {generate_batch -> score -> gate -> rank
+    -> manager judge: accept|repair -> worker param/hint edit | escalator re-plan after Kmax
+    stalls} -> serial_merge (seam reconcile: a crossing net is routed by its OWNER region only)
+    -> write_once (one-shot guard) -> INDEPENDENT DRC verdict -> DecisionLog.to_json (replayable).
+    apply_edit() does fr_params/keepout/seeds/place (placement edits via pcbnew — sanctioned).
+    The four control-tier callables (planner/manager/worker/escalator) DEFAULT to deterministic
+    policies so the whole thing runs end-to-end with NO LLM; the Opus/Sonnet/Haiku TIERS plug in
+    via make_subagent_policy() (the orchestrator = Claude itself spawns the tier sub-agents for
+    the harder judgements). CLI: `python3 scripts/cec_router.py --board <mod> --seeds 0,1,2,3
+    --passes N --opt-time T --kmax K --max-iters M --out DIR --render`.
+  VERIFIED on EPS: (a) a 4-seed batch routed 4/4 candidates in parallel (547 tracks each) under
+  the spawn fix; (b) the full route() loop ran end-to-end (plan -> repair[sonnet] -> escalate
+  after Kmax[opus] -> best-so-far -> merge -> independent DRC -> 4-entry decision log, 109s),
+  result kelvin_ok=True + diffpair_ok=True (the HARD SAFETY GATES PASS — sense + USB diff pairs
+  fully routed), DRC=99 (single-pass collision cleanup, the documented "not fab-clean yet"
+  state the loop iterates against), 556 tracks/84 vias. ENV CEILING (this cloud box): 4 vCPU /
+  15GB -> ~4 concurrent Freerouting runners (1 JVM/core, ~0.5GB each; cores cap, not RAM).
+  Docs: scripts/README-cec_pcb.md ("Automated routing system" section).
+- SELF-HOSTED ROUTING (run the CPU drain on the user's hardware, 2026-06-06). Per the user's
+  choice, the compute plane can run on THEIR machine via a GitHub Actions self-hosted runner
+  (the LLM control plane stays remote). .github/workflows/route.yml (workflow_dispatch only;
+  runs-on [self-hosted, cec-router]) runs scripts/cec_router.py on the runner's CPU and uploads
+  the routed candidate + decision log + render as artifacts; scripts/route-prereqs.sh fails fast
+  if java/kicad-cli/pcbnew/xvfb are missing; docs/self-hosted-router.md = prereqs + runner
+  registration (label cec-router) + how to trigger (UI/API/Claude session) + the security note
+  (manual-only; never auto-run a self-hosted runner on untrusted fork PRs). Outputs land in
+  build/route/<board>/ (gitignored). Ceiling scales with the runner's core count.
+  CROSS-PLATFORM (Windows/Linux/macOS, 2026-06-06): made the compute plane portable. (1) xvfb is
+  Linux-only — cec_fr._fr_command() wraps in xvfb-run ONLY on headless Linux (no $DISPLAY); on
+  Windows/macOS (and Linux WITH $DISPLAY) it runs `java` directly (native display). (2) all
+  scratch dirs use tempfile.gettempdir(), NOT a hardcoded /tmp (which is absent on Windows) —
+  fixed across cec_fr/cec_score/cec_router/cec_route. (3) the worker pool's "spawn" start method
+  is required on Windows anyway (no fork). (4) WINDOWS GOTCHA: pcbnew imports ONLY from KiCad's
+  bundled python.exe — scripts/route.ps1 auto-discovers KiCad's python + kicad-cli + java and
+  assembles PATH (so NO manual PATH config; only set $env:KICAD_PYTHON if KiCad is nonstandard),
+  scripts/route-prereqs.ps1 is the Windows prereq check. (5) route.yml is OS-conditional (Windows
+  step = pwsh + route.ps1; Linux/mac = bash + cec_router.py). (6) Windows reliability note: no
+  xvfb means Freerouting needs a real desktop, so the Windows runner must run INTERACTIVELY (run.cmd
+  in a logged-on session / Task Scheduler "run only when user is logged on"), NOT as a Session-0
+  service; a Linux runner can stay a headless service (xvfb). Full Windows setup +
+  the "do I need to configure PATH? -> no" answer in docs/self-hosted-router.md.
 - PCBNEW REAL-COPPER ROUTING TOOLKIT scripts/cec_route.py + sub-agent routing pass GO-AHEAD
   (2026-06-06). pcbnew (the real KiCad 10.0.3 Python engine) IS available in this env and can
   do what kicad-cli cannot: create real (segment)/(via) copper and FILL pours via the real
@@ -688,6 +751,20 @@ Done (kept for context):
   split the 6 spine nets across F.Cu/B.Cu, call out the USB side-swap + run CAN_H/L down the far
   right edge to dodge DETECT J1.8. The dense spine is the open item (placement/plan revision, or
   Freerouting/GUI) = the "stretch its legs" next iteration.
+  LOOP ITERATION 2 DONE (2026-06-06): the feedback was fed back through the sub-agent passes --
+  a REVISION pass applied it to the EPS driver (H 35->37 wider spine channel; shunt rot 90->270 so
+  HI is the upper terminal -> Kelvin no longer crosses; INA181 rot 0->180; U2 moved by the ESP CAN
+  pads w/ C3/C6 displaced; CEC logo moved off the ESP underside -> B.Cu freed; spine re-spec'd to
+  the y22-25 band, I2C on F.Cu / THRESH+DETC on B.Cu, USB side-swap, CAN far-right) at 0 structural
+  DRC (commit 14906cc, 96x37mm), then a 2nd ROUTING pass re-routed it. RESULT: the open question
+  CLOSED -- the control->sense spine now ROUTES TO REAL COPPER (THRESH/DETC/DETAMP all 0 ratlines;
+  unconnected 119->23; Kelvin taps confirmed non-crossing). DRC went 92->343 because it routes ALL
+  28 nets in one dense single-pass (collision cleanup, NOT unroutability: ~187 of 343 are
+  power-net-involved). NEXT BLOCKER is no longer the spine -- it's POWER DISTRIBUTION (+3V3/+5VSB/GND)
+  + right-cluster density (U2/U3/cap-field packed x62-86,y8-20), which wants a placement-relax pass +
+  an explicit power-routing game-plan, or a Freerouting/GUI rip-up/reflow that single-pass scripting
+  can't do. The loop (route -> snag -> revise -> re-route) is proven end-to-end; candidate at
+  /tmp/eps-routed2/ is the routed-core+spine demo, NOT a fab-clean board.
 - REPO-WIDE PCB LAYOUT TOOLKIT scripts/cec_pcb.py (2026-06-06). Refined the EPS candidate
   generator into a shared toolkit ANY board generator / agent can pull on (does NOT modify
   the shared gen-module-pcb.py -- it imports its emit primitives once via the no-op-filter

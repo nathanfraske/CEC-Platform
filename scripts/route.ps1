@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# route.ps1 -- Windows launcher for the automated router (scripts/cec_router.py).
+#
+# Solves the #1 Windows gotcha: on Windows the `pcbnew` module is ONLY importable from
+# KiCad's OWN bundled python.exe (not a system/Microsoft-Store python). This script finds
+# KiCad's python, puts KiCad's bin on PATH (so kicad-cli resolves), and runs the router
+# with it. No xvfb is needed on Windows -- Java uses the native Win32 display (run this in
+# an interactive desktop session; see docs/self-hosted-router.md).
+#
+# Usage:
+#   .\scripts\route.ps1 -Board eps-8pin -Seeds 0,1,2,3 -Passes 12 -OptTime 30 -Render
+#   (override the interpreter with $env:KICAD_PYTHON if KiCad is in a nonstandard place)
+[CmdletBinding()]
+param(
+  [string]$Board    = "eps-8pin",
+  [string]$Seeds    = "0,1,2,3",
+  [int]   $Passes   = 10,
+  [int]   $OptTime  = 20,
+  [int]   $Threads  = 1,
+  [int]   $Kmax     = 2,
+  [int]   $MaxIters = 4,
+  [string]$Out      = "build/route",
+  [switch]$Render
+)
+$ErrorActionPreference = "Stop"
+$repo = Split-Path -Parent $PSScriptRoot     # scripts\ -> repo root
+
+function Find-KiCadPython {
+  # 1) explicit override
+  if ($env:KICAD_PYTHON -and (Test-Path $env:KICAD_PYTHON)) { return $env:KICAD_PYTHON }
+  # 2) standard KiCad install roots, highest version first
+  $roots = @("$env:ProgramFiles\KiCad", "${env:ProgramFiles(x86)}\KiCad")
+  foreach ($root in $roots) {
+    if (Test-Path $root) {
+      foreach ($d in (Get-ChildItem $root -Directory -ErrorAction SilentlyContinue | Sort-Object Name -Descending)) {
+        $p = Join-Path $d.FullName "bin\python.exe"
+        if (Test-Path $p) { return $p }
+      }
+    }
+  }
+  # 3) a 'python' already on PATH that can import pcbnew
+  $onpath = (Get-Command python -ErrorAction SilentlyContinue)
+  if ($onpath) {
+    & $onpath.Source -c "import pcbnew" 2>$null
+    if ($LASTEXITCODE -eq 0) { return $onpath.Source }
+  }
+  return $null
+}
+
+$py = Find-KiCadPython
+if (-not $py) {
+  throw "Could not find a python with the KiCad 'pcbnew' module. Install KiCad 10, or set " +
+        "`$env:KICAD_PYTHON to KiCad's python.exe (e.g. 'C:\Program Files\KiCad\10.0\bin\python.exe')."
+}
+Write-Host "Using KiCad python: $py"
+
+# Put KiCad's bin on PATH so kicad-cli.exe resolves for the router's DRC/render subprocesses.
+$kibin = Split-Path -Parent $py
+$env:PATH = "$kibin;$env:PATH"
+
+# Ensure `java` resolves WITHOUT the user configuring PATH: if it isn't already on PATH,
+# discover a JRE in the usual install roots (Adoptium/Temurin, Oracle, Microsoft, Zulu)
+# and prepend its bin. cec_fr invokes plain `java`, so it just needs to be on PATH here.
+function Ensure-Java {
+  if (Get-Command java -ErrorAction SilentlyContinue) { return }
+  if ($env:JAVA_HOME -and (Test-Path (Join-Path $env:JAVA_HOME "bin\java.exe"))) {
+    $env:PATH = "$(Join-Path $env:JAVA_HOME 'bin');$env:PATH"; return
+  }
+  $roots = @("$env:ProgramFiles\Eclipse Adoptium", "$env:ProgramFiles\Java",
+             "$env:ProgramFiles\Microsoft\jdk*", "$env:ProgramFiles\Zulu",
+             "${env:ProgramFiles(x86)}\Java")
+  foreach ($r in $roots) {
+    foreach ($j in (Get-ChildItem -Path $r -Recurse -Filter java.exe -ErrorAction SilentlyContinue |
+                    Sort-Object FullName -Descending)) {
+      $env:PATH = "$(Split-Path -Parent $j.FullName);$env:PATH"; return
+    }
+  }
+}
+Ensure-Java
+
+# Sanity: pcbnew must import with this interpreter, and java must now resolve.
+& $py -c "import pcbnew; print('pcbnew', pcbnew.GetBuildVersion())"
+if ($LASTEXITCODE -ne 0) { throw "pcbnew failed to import with $py" }
+if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
+  throw "java not found. Install a JRE 21 (e.g. Adoptium Temurin) -- or set `$env:JAVA_HOME."
+}
+Write-Host ("java: " + ((java -version 2>&1) | Select-Object -First 1))
+
+$cliArgs = @(
+  (Join-Path $repo "scripts\cec_router.py"),
+  "--board", $Board, "--seeds", $Seeds,
+  "--passes", $Passes, "--opt-time", $OptTime, "--threads", $Threads,
+  "--kmax", $Kmax, "--max-iters", $MaxIters, "--out", $Out
+)
+if ($Render) { $cliArgs += "--render" }
+
+& $py @cliArgs
+exit $LASTEXITCODE
