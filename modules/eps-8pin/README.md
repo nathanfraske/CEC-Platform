@@ -14,9 +14,9 @@ connector. BOM target **$32** (100-qty). See spec
 | Sensing | **Per-cable INA238** (16-bit I²C, ≥1 kHz), 2 cables (U10/U11, distinct I²C addresses on one bus) — one across each cable's **0.5 mΩ** Kelvin shunt (RS1/RS2, §6.4), Vbus read on the load side. Each cable's four 12V pins bundle into the shunt (`SENSE_HI`→shunt→`SENSE_LO`); the four GND pins pass straight through. |
 | Streaming | RS-485 **not populated** (Standard); pair 2 (J1.4/5) left unused, terminated module-side |
 | DETECT | **2.2 kΩ** precision (R1) — CAN-only link-capability code (§2.3, OQ-6 resolved), read on the Hub's 10 kΩ / 3.3 V divider. Poke-and-ack sense tap R7 (100 kΩ → IO10, OQ-28). |
-| Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 RESOLVED v2.0); low-cap ESD diode **D1** (PESD5V0S1UL) on DETECT pin 8 (LOCKED v2.0). Enterprise/MC over-voltage rides the external uplink (OQ-7). |
+| Protection | No per-pin PoE/over-voltage (Standard/Pro, §2.4 RESOLVED v2.0); low-cap ESD diode **D1** (PESD5V0S1BA, C5261083) on DETECT pin 8 (LOCKED v2.0). Enterprise/MC over-voltage rides the external uplink (OQ-7). |
 | Decoupling | LP5907-3.3 LDO (U3). Matches the 24-pin gold standard: 10 µF board-entry bulk on +5VSB (C6) + 10 µF +3V3 bulk at the ESP32 (C7); 1 µF LDO in/out (C1/C2); per-IC 100 nF — ESP32 (C3), TJA1051T/3 VCC (C4) and VIO (C8), one per INA238 (C10/C11); 100 nF EN reset RC (C5). |
-| Flash/debug | **USB-C** (J5) on the ESP32-S3 native USB + **BOOT/RESET buttons** (SW1/SW2). VBUS ORs into +5VSB through D2 (SS34) so bench USB self-powers the board for flashing; CC1/CC2 = 5.1 kΩ UFP pulldowns. Mirrors the 24-pin. |
+| Flash/debug | **USB-C** (J5) on the ESP32-S3 native USB + **BOOT/RESET buttons** (SW1/SW2, XKB **TS-1088-AR02016** / C720477). VBUS ORs into +5VSB through D2 (SS34) so bench USB self-powers the board for flashing; CC1/CC2 = 5.1 kΩ UFP pulldowns. Mirrors the 24-pin. |
 | Reset | ESP32-S3 internal BOD + EN RC (R2/C5); no external supervisor (a Hub-only part) |
 | BOM target | $32 (100-qty) |
 
@@ -57,3 +57,26 @@ from Schematic* to pull the decoupling passives, then place/route + pour (incl.
 the §6.8 Kelvin taps and §6.7 high-current transitions).
 
 Project-local library tables point at `../../lib` via `${KIPRJMOD}`.
+
+## Update (2026-06-05) — brought to the Hub's part level + sourced
+
+Applied the platform corrections the Hub Standard landed, and sourced the BOM:
+
+- **D1 PESD5V0S1UL → PESD5V0S1BA** (SOD-323, **C5261083**) on the DETECT pin-8 ESD.
+- **BOOT/RESET buttons SW1/SW2 → TS-1088-AR02016** (XKB, **C720477**), replacing the
+  Panasonic EVQ placeholder. Same `cec-vendor:SW_Push` symbol, **netlist preserved**
+  (SW1 GPIO0↔GND, SW2 EN↔GND through the new footprint).
+- **BOM sourced 29/35** (`bom/eps8pin-BOM-jlcpcb.csv`): INA238 → **INA238AIDGSR /
+  C2868250**, ESP32-S3-MINI-1-N4R2 → **C3013941**, TJA1051T/3 → C38695, LP5907 →
+  C80670, SS34 → C8678, RJ-45 54602 → C2847314, USB-C → C2765186, and the passives
+  (reusing the Hub's LCSC: 100nF C1525, 1µF C15849, 10µF C15850, 2.2k C25879, 10k
+  C25744, 100k C25741, 5.1k C25905).
+
+**Still to source (6):** RS1/RS2 the **0.5 mΩ 2512 shunt** (OQ-11 — value locked,
+exact part open; the 24-pin uses Bourns CSS2H-2512, so the 0.5 mΩ sibling fits) and
+J_IN1/2 + J_OUT1/2 the **Mini-Fit Jr** EPS power connectors (THT — hand-solder/consign).
+
+ERC clean (benign generator `lib_symbol_mismatch` only). The schematic is now
+**hand-sourced** — do NOT regenerate with `gen-modules.py` (it would revert the PESD
+and button and drop the LCSC). PCB next: *Update from Schematic* to pull the TS-1088
+footprint + the PESD value, then the layout/fab flow.

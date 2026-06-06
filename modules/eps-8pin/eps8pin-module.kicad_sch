@@ -4183,6 +4183,30 @@
 		(property "Value" "TO-HUB" (at 49.53 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Amphenol" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "54602-908LF" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C2847314" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "3d95c835-31fc-40e5-a74f-ac8ddb8c5a98"))
 		(pin "2" (uuid "57917357-a33d-4b4b-a7c2-f13e7070db9c"))
 		(pin "3" (uuid "0aa03f1e-c6d3-4c35-96a9-8c0fe9a3709b"))
@@ -4213,6 +4237,30 @@
 		(property "Value" "ESP32-S3-MINI-1-N4R2" (at 340.36 105.41 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "ESP32-S3-MINI-1-N4R2" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C3013941" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "45" (uuid "5490d766-a3c0-4406-841b-1dfdca915f84"))
 		(pin "4" (uuid "7d37cf4e-dde8-47d3-8f83-6c4b29f94755"))
 		(pin "5" (uuid "99c7df03-5b93-4980-a48f-bfc08aa9a5ba"))
@@ -4322,6 +4370,30 @@
 				(hide yes)
 			)
 		)
+		(property "Manufacturer" "NXP" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "TJA1051T/3" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C38695" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "67480904-97b8-4b0c-9d9d-e4360ecb9bbb"))
 		(pin "4" (uuid "bfe93412-0b96-4383-8ec3-04e0134de4ef"))
 		(pin "5" (uuid "a880258e-a9e5-4d12-a52f-67a553ee4fe5"))
@@ -4350,6 +4422,30 @@
 		(property "Value" "LP5907MFX-3.3" (at 149.86 69.85 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "LP5907MFX-3.3" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C80670" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "8056d462-d882-40c5-a423-45eebe7ca46e"))
 		(pin "3" (uuid "9e9802c9-4fe2-4f67-993a-fac1d49373f5"))
 		(pin "2" (uuid "c080e3c9-cc79-44ff-a6fa-eba10382bbea"))
@@ -4375,6 +4471,30 @@
 		(property "Value" "2.2kΩ" (at 119.38 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 119.38 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF2201TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25879" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "d44fefa1-6a8f-4f27-a902-88b3844a573d"))
 		(pin "2" (uuid "9d921ea8-9b30-4cd1-aa24-80e5b5fa2a2f"))
 		(instances
@@ -4397,6 +4517,30 @@
 		(property "Value" "10kΩ" (at 180.34 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 180.34 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF1002TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25744" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "17dd7353-3d69-466d-85b6-badbd73b41c8"))
 		(pin "2" (uuid "60e252f8-8f3c-4f3d-bb9d-b2aaf6e6ca62"))
 		(instances
@@ -4419,6 +4563,30 @@
 		(property "Value" "1uF" (at 119.38 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 119.38 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL10B105KO8NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C15849" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "e6efbef5-26f1-4d58-9264-0bb3cb5821d3"))
 		(pin "2" (uuid "fb033cad-6f58-41c2-a7bc-88279edb45cb"))
 		(instances
@@ -4441,6 +4609,30 @@
 		(property "Value" "1uF" (at 180.34 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 180.34 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL10B105KO8NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C15849" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "83fd51b6-dbb7-410f-b294-a6da84db1117"))
 		(pin "2" (uuid "533e8a72-f8d1-4a47-8991-364538cc9cd6"))
 		(instances
@@ -4463,6 +4655,30 @@
 		(property "Value" "100nF" (at 340.36 170.18 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 340.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "a88761c1-ac66-4dbe-9ff8-4feb461df774"))
 		(pin "2" (uuid "b857e9f6-7ec2-4814-a058-0a54fa87576e"))
 		(instances
@@ -4485,6 +4701,30 @@
 		(property "Value" "100nF" (at 240.03 50.8 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 240.03 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 240.03 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "9e8e7a31-4d8d-49a8-ab6b-6bd2f1c69766"))
 		(pin "2" (uuid "b0e390a2-0515-4fae-87de-39187811555b"))
 		(instances
@@ -4507,6 +4747,30 @@
 		(property "Value" "100nF" (at 209.55 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 209.55 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 209.55 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "0fa14a67-5588-4fb0-a733-f92ffb27dce1"))
 		(pin "2" (uuid "d2999f05-f159-4c21-9e21-2249309fdc3a"))
 		(instances
@@ -4529,6 +4793,30 @@
 		(property "Value" "10uF" (at 95.25 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 95.25 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C15850" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "28b887be-77be-4191-b727-af6423b7411c"))
 		(pin "2" (uuid "4f3dd5f8-9e77-42dc-b7d5-fcff6dac3942"))
 		(instances
@@ -4551,6 +4839,30 @@
 		(property "Value" "10uF" (at 388.62 170.18 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 388.62 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C15850" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "5116d946-3c6a-4b1e-9fbb-f850210778b0"))
 		(pin "2" (uuid "1d88692b-6e86-4713-b100-1b76f685db27"))
 		(instances
@@ -4573,6 +4885,30 @@
 		(property "Value" "100nF" (at 278.13 115.57 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 278.13 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 278.13 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "a1ee80c0-16ef-4e84-ae76-19a78fa9fd0f"))
 		(pin "2" (uuid "c49d4f95-5505-4eb1-ad51-8016e404a39f"))
 		(instances
@@ -4592,9 +4928,33 @@
 		(fields_autoplaced yes)
 		(uuid "8d742230-4794-4adc-bb2b-7e3c522978a6")
 		(property "Reference" "D1" (at 85.09 54.61 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1UL" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Nexperia" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "PESD5V0S1BA" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C5261083" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "2c5f3a7d-d5d3-4d47-b681-66d46b52a299"))
 		(pin "2" (uuid "d58290c1-d1a1-4a60-b5fc-9ea94b1ac8a4"))
 		(instances
@@ -4617,6 +4977,30 @@
 		(property "Value" "100kΩ" (at 85.09 115.57 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF1003TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25741" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "23cceeae-c5b8-495b-b3a9-4be0357a9c95"))
 		(pin "2" (uuid "cdb77df9-fb6f-4f9e-8e41-f8b4602e8207"))
 		(instances
@@ -4639,6 +5023,30 @@
 		(property "Value" "USB-C 2.0" (at 144.78 401.32 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11" (at 144.78 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XKB" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "U262-16XN-4BVC11" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C2765186" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "S1" (uuid "684e1d59-d111-4a1c-9f6d-c0a226f441ee"))
 		(pin "A1" (uuid "4c7a5102-24b7-48f2-85e3-831efa10f88c"))
 		(pin "A12" (uuid "d7f0a8af-5acf-4275-b49c-b7cab5ecbd86"))
@@ -4676,6 +5084,30 @@
 		(property "Value" "SS34" (at 226.06 401.32 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 226.06 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 226.06 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "MDD" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "SS34" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C8678" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "88cedc8a-16c4-4e25-8aed-a27b19b8166f"))
 		(pin "2" (uuid "740f382a-ae44-4444-856d-300a1839ed80"))
 		(instances
@@ -4698,6 +5130,30 @@
 		(property "Value" "10uF" (at 307.34 401.32 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 307.34 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 307.34 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL21A106KAYNNNE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C15850" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "f835cea7-d458-4a5b-96ab-ef8efd4620ec"))
 		(pin "2" (uuid "cd8248b3-9a7e-463f-8f34-23f0f7391cdf"))
 		(instances
@@ -4720,6 +5176,30 @@
 		(property "Value" "5.1kΩ" (at 388.62 401.32 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 388.62 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF5101TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25905" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "f3946eef-d782-4c73-9662-32b70af52c35"))
 		(pin "2" (uuid "8b401f33-8b71-4790-bebb-083e4189ed34"))
 		(instances
@@ -4742,6 +5222,30 @@
 		(property "Value" "5.1kΩ" (at 63.5 513.08 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 63.5 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF5101TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25905" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "eca32d6f-d1f5-4f43-a0cc-2df74fcd7438"))
 		(pin "2" (uuid "90da45d4-a3ae-4f9e-b2e3-43d112bc0b62"))
 		(instances
@@ -4762,8 +5266,32 @@
 		(uuid "f893b337-52c3-4c3c-9d04-b781f1476b0f")
 		(property "Reference" "SW1" (at 144.78 482.6 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "BOOT" (at 144.78 513.08 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA" (at 144.78 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 144.78 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XKB" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "TS-1088-AR02016" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C720477" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "881e75e1-28cb-4978-8ab1-e60cc92b0880"))
 		(pin "2" (uuid "9d99d843-0484-4507-9da1-d2b1f5e32ca0"))
 		(instances
@@ -4784,8 +5312,32 @@
 		(uuid "66b4b8e1-b47c-41f4-9428-c20ab82e0051")
 		(property "Reference" "SW2" (at 226.06 482.6 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "RESET" (at 226.06 513.08 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA" (at 226.06 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 226.06 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 226.06 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "XKB" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "TS-1088-AR02016" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C720477" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "3deba3a0-4565-4a67-bd3a-2af3247d797f"))
 		(pin "2" (uuid "a77720cb-fbff-4597-9e81-da86978932bd"))
 		(instances
@@ -4808,6 +5360,30 @@
 		(property "Value" "2.2kΩ" (at 299.72 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 299.72 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 299.72 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF2201TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25879" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "198ef2f7-6e02-4267-8843-7f73fa02fb44"))
 		(pin "2" (uuid "38b0a6c7-cfea-4e27-a054-7326877118c5"))
 		(instances
@@ -4830,6 +5406,30 @@
 		(property "Value" "2.2kΩ" (at 320.04 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 320.04 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 320.04 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "0402WGF2201TCE" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C25879" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "f9a45fb4-1fc2-4b3c-9656-f555bde52ac1"))
 		(pin "2" (uuid "e671314b-71fc-4d80-88c1-8e65ea0c9eea"))
 		(instances
@@ -4852,6 +5452,30 @@
 		(property "Value" "INA238" (at 69.85 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 69.85 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "INA238AIDGSR" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C2868250" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "8" (uuid "d9bfcd5b-a823-49f4-adb0-3eab4b82afdb"))
 		(pin "10" (uuid "2ea7975b-7643-4613-a7cf-049ea0eaa1a0"))
 		(pin "9" (uuid "597fb89b-f309-4d42-b688-16f0da0ed81e"))
@@ -4904,6 +5528,30 @@
 		(property "Value" "100nF" (at 92.71 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 92.71 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 92.71 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "909ad979-ea81-425c-a946-54e2ee49dfc9"))
 		(pin "2" (uuid "c3d2d512-a0d0-43af-803c-44a53672a931"))
 		(instances
@@ -4926,6 +5574,30 @@
 		(property "Value" "INA238" (at 170.18 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 170.18 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 170.18 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "INA238AIDGSR" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C2868250" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "8" (uuid "f5630862-59c8-437a-bca7-f185f8201d57"))
 		(pin "10" (uuid "3c46fcd6-54e1-4471-a486-17a545d628fd"))
 		(pin "9" (uuid "83ae5e6f-ea64-4991-b64b-88d78be30399"))
@@ -4978,6 +5650,30 @@
 		(property "Value" "100nF" (at 193.04 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 193.04 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 193.04 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CL05B104KO5NNNC" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1525" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "1cfb3037-4f0c-4377-b155-0de5d81ab21b"))
 		(pin "2" (uuid "41f05e9b-ca9e-4d91-a9e5-117ed4618e94"))
 		(instances

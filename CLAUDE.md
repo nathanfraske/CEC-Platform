@@ -622,6 +622,18 @@ Done (kept for context):
   locked; flagged per-RS Note prop); SW1/2 = EVQPUC02K (C79174) keeps the EVQ-PU
   footprint (cheaper Basic TS-1088/C720477 needs the Hub's footprint swap). CPL/gerbers
   pending the GUI PCB finish; datasheet-URL props not yet populated.
+- EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
+  platform corrections to the EPS schematic: D1 PESD5V0S1UL -> PESD5V0S1BA (SOD-323,
+  C5261083); BOOT/RESET buttons SW1/SW2 Panasonic_EVQPUJ_EVQPUA -> TS-1088-AR02016
+  (C720477, same cec-vendor:SW_Push symbol, netlist preserved). Sourced 29/35 parts
+  with LCSC (INA238AIDGSR C2868250, ESP32-S3-MINI-1-N4R2 C3013941, RJ45 54602
+  C2847314, USB-C C2765186, SS34 C8678, LP5907 C80670, TJA1051T/3 C38695, passives
+  reused from the Hub). BOM at modules/eps-8pin/bom/. UNSOURCED (6): RS1/RS2 the
+  0.5mOhm 2512 shunt (OQ-11 open) + J_IN1/2/J_OUT1/2 Mini-Fit Jr (THT). ERC clean
+  (benign lib_symbol_mismatch). The EPS schematic is now HAND-SOURCED -> do not
+  regenerate with gen-modules.py (would revert). gen-modules.py STILL emits
+  PESD5V0S1UL + Panasonic button + no LCSC -> apply the same fix to PCIe/12VHPWR-Std
+  (and/or the generator) on their next pass.
 - Generic NTC thermistor vendored + Hub board-temp sensor (2026-06-05). Vendored a
   reusable 10k NTC any board can pull: symbol cec-vendor:Thermistor_NTC (real props
   baked: Murata NCP15XH103F03RC / LCSC C77131 / datasheet; default footprint),
