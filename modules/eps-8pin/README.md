@@ -128,6 +128,42 @@ Regenerated on the consolidated v3.10 spec. Net changes vs the 2026-06-05 sourci
   Unspecified + the C6 NC pad + CAN-TXD `pin_not_driven`).
 
 Generator `scripts/gen-modules.py` now emits the C6 + §6.13 backbone, so this board
-round-trips again — but the **PCB still needs *Update PCB from Schematic*** to pull
-the C6 land + the §6.13 parts (U20/U21, U30/U31, R10, C40, the new bypass), then
-re-place/route/pour.
+round-trips again.
+
+## PCB floorplan (2026-06-06) — regenerated for C6 + §6.13, dual GND, mounts
+
+The PCB floorplan was rebuilt from the v3.10 netlist via
+`scripts/gen-module-pcb.py eps-8pin` (a CLI filter was added so only this board
+regenerates — the routed 12VHPWR is never touched). The board had **zero routing**,
+so the bootstrap was re-run cleanly. Verified by render + DRC:
+
+- **Board** 110 × 66 mm, 4-layer. **Stackup** F.Cu **2 oz** / In1 **1 oz** / In2
+  **1 oz** / B.Cu **2 oz** (high-current outers; spec §6.7).
+- **Dual GND** — one `GND Plane` zone (net GND) spanning **In1.Cu + In2.Cu**,
+  board-sized (0.25 mm inset). 12 V stays on the *outers*, split at each shunt (an
+  inner 12 V plane would short the shunt). Emitted **unfilled** — *Fill All Zones*
+  (`B`) in the GUI.
+- **Mounts** 4× M3 (`MountingHole_3.2mm_M3_Pad_Via`, chassis GND) in the corners,
+  clear of all connectors.
+- **MCU** U1 = the **C6** land placed in the right-hand control core. The C6 module
+  carries **no antenna keepout** (dropped — wired-only module), so the GND pour
+  fills under it freely.
+- **§6.13 placed per cable** in the clear ~17 mm band between the two 22 mm-tall
+  Mini-Fit Jr courtyards: stack is INA238 (y28) → 0.5 mΩ shunt (y33) → INA181A2 +
+  TLV7011 (y38), so the SOT-23 pair clears both the shunt and J_OUT. Shared R10/C40
+  THRESH RC sit by the MCU.
+- **Connectors** RJ-45 (J1, "TO-HUB") and USB-C (J5) placed with their mouths flush
+  to the **right board edge** (courtyards reach x≈110) for cable/flash access; the
+  Mini-Fit Jr cable interposers run J_IN (top, PSU) → J_OUT (bottom, load). CEC
+  copper logo + "4L 2oz/1oz" fab note on the back.
+- **DRC** no structural hits (no courtyard/clearance/edge); remaining are cosmetic
+  silk (value-on-silk + dense-cluster text overlap — a GUI silk-refinement task) and
+  the known benign `lib_footprint_mismatch`. The 142 "unconnected" are the
+  un-routed ratsnest (expected for a floorplan).
+
+**Next in the GUI:** *Update PCB from Schematic* to pull the parts the floorplan
+intentionally leaves for the GUI — the decoupling (C1–C8), the DETECT divider +
+poke tap (R1/R2/R7), the D1 ESD diode, and the §6.13 per-IC bypass caps — then place
+those, *Fill All Zones*, route (incl. the §6.8 four-wire Kelvin shunt taps and §6.7
+high-current 12 V transitions), and re-DRC. The two PCIe SKUs use the same generator
+path and can be regenerated the same way when their turn comes.

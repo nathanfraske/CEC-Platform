@@ -40,16 +40,25 @@ def placement(n):
         x, c = CX0 + i * PITCH, i + 1
         P[f"J_IN{c}"]  = (x, 17.0, 0)
         P[f"J_OUT{c}"] = (x + 12.6, 49.0, 180)        # pins align under the IN row
-        P[f"RS{c}"]    = (x + 3.0, 35.0, 0)           # shunt, mid-gap in the 12V column
-        P[f"U1{i}"]    = (x + 9.0, 30.0, 0)           # INA238 (U10, U11, U12)
+        P[f"RS{c}"]    = (x + 3.0, 33.0, 0)           # shunt, mid-gap in the 12V column
+        P[f"U1{i}"]    = (x + 9.0, 28.0, 0)           # INA238 (U10, U11, U12)
+        # §6.13 transient-DETECTION front-end (v3.10), tapping the SAME shunt with
+        # its own Kelvin pair: INA181A2 gain-50 CSA -> TLV7011 comparator. The two
+        # Mini-Fit Jr courtyards are ~22 mm tall, so the clear middle band is only
+        # ~17 mm (J_IN bottom y24.6 -> J_OUT top y41.4): stack INA238 (y28) /
+        # shunt (y33) / §6.13 (y38) so the SOT-23 pair lands at y36.3-39.7, clear
+        # of the shunt above and J_OUT below.
+        P[f"U2{i}"]    = (x + 2.5, 38.0, 0)           # INA181A2 CSA (U20, U21, U22)
+        P[f"U3{i}"]    = (x + 7.5, 38.0, 0)           # TLV7011 comparator (U30, U31, U32)
     P.update({                                        # control/power + flash, right
-        "U1":  (ex + 10.0, 33.0, 0),                  # ESP32-S3-MINI-1 (left-centre)
+        "U1":  (ex + 10.0, 33.0, 0),                  # ESP32-C6-MINI-1 (left-centre)
         "U2":  (ex + 5.0, 15.0, 0),                   # TJA1051T/3 CAN (top)
         "U3":  (ex + 5.0, 51.0, 0),                   # LP5907 LDO (bottom)
         "SW1": (ex + 13.0, 15.0, 0),                  # BOOT (top)
         "SW2": (ex + 13.0, 51.0, 0),                  # RESET (bottom)
-        "D2":  (ex + 22.0, 27.0, 0), "C9": (ex + 27.0, 27.0, 0),   # VBUS ORing + bulk
+        "D2":  (ex + 22.0, 27.0, 0), "C9": (ex + 28.3, 27.0, 0),   # VBUS ORing (SMA, wide) + bulk
         "R8":  (ex + 32.0, 27.0, 0), "R9": (ex + 37.0, 27.0, 0),   # CC pulldowns
+        "R10": (ex + 9.0, 44.0, 0),  "C40": (ex + 13.0, 44.0, 0),  # §6.13 THRESH RC (board-shared, off MCU PWM)
         "J5":  (ex + 36.0, 16.0, 90),                 # USB-C, right edge upper, opening +X
         "J1":  (ex + 26.0, 46.0, 90),                 # RJ-45, right edge lower, opening +X
     })
@@ -250,8 +259,38 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         out += blk; pos = end
     return "\t" + (out + s[pos:]).strip() + "\n"
 
+def gnd_planes(code, W, H):
+    """Dual whole-board GND pour on BOTH inner layers (In1+In2), one zone spanning
+    the two. EPS/PCIe run two GND inners (§6.7 high-current return + a quiet
+    reference under the INA Kelvin sense); 12V lives on the OUTERS, split at the
+    shunt, so an inner 12V plane would short the shunt. Emitted UNFILLED (kicad-cli
+    cannot fill) — refill in the GUI with `B`."""
+    ins = 0.25
+    pts = f"(xy {ins} {ins}) (xy {ff(W-ins)} {ins}) (xy {ff(W-ins)} {ff(H-ins)}) (xy {ins} {ff(H-ins)})"
+    return ('\t(zone\n\t\t(net %d)\n\t\t(net_name "GND")\n'
+            '\t\t(layers "In1.Cu" "In2.Cu")\n\t\t(uuid "%s")\n\t\t(name "GND Plane")\n'
+            '\t\t(hatch edge 0.5)\n\t\t(connect_pads yes\n\t\t\t(clearance 0.3)\n\t\t)\n'
+            '\t\t(min_thickness 0.25)\n'
+            '\t\t(fill yes\n\t\t\t(thermal_gap 0.3)\n\t\t\t(thermal_bridge_width 0.5)\n'
+            '\t\t\t(island_removal_mode 0)\n\t\t)\n'
+            '\t\t(polygon\n\t\t\t(pts\n\t\t\t\t%s\n\t\t\t)\n\t\t)\n\t)') % (code, U(), pts)
+
 def build(dir_, base, n, kind):
+    out = f"{ROOT}/modules/{dir_}/{base}.kicad_pcb"
+    # Safety guard (FIRST, before reading the netlist): never silently clobber a
+    # board that has been routed in the GUI (the ONE-SHOT bootstrap rule). If the
+    # existing .kicad_pcb carries any track or via, refuse to overwrite unless
+    # --force is passed. Protects the routed 12vhpwr-standard from a no-arg run.
+    if os.path.exists(out) and "--force" not in sys.argv:
+        if re.search(r"\n\s*\((?:segment|via)\b", open(out).read()):
+            print(f"  SKIP {os.path.relpath(out, ROOT)}: already routed (tracks/vias present); "
+                  f"pass --force to overwrite", file=sys.stderr)
+            return
     netf = f"{ROOT}/modules/{dir_}/{base}.net"
+    if not os.path.exists(netf):
+        print(f"  SKIP {base}: no exported netlist ({base}.net) — run "
+              f"`kicad-cli sch export netlist` first", file=sys.stderr)
+        return
     comps, vals, nets = parse_netlist(netf)
     names = [x for x in sorted(nets) if x]
     code_of = {x: i + 1 for i, x in enumerate(names)}
@@ -277,6 +316,7 @@ def build(dir_, base, n, kind):
             f'(layer "B.SilkS") (uuid "{U()}") '
             f'(effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))')
     netdecl = '\t(net 0 "")\n' + "\n".join(f'\t(net {code_of[x]} "{x}")' for x in names)
+    zones = (gnd_planes(code_of["GND"], W, H) + "\n") if (kind == "cable" and "GND" in code_of) else ""
     doc = ("(kicad_pcb\n\t(version 20260206)\n\t(generator \"cec-gen-module-pcb\")\n"
            "\t(generator_version \"10.0\")\n"
            "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n"
@@ -284,10 +324,15 @@ def build(dir_, base, n, kind):
            "\n\t\t(pad_to_mask_clearance 0)\n"
            "\t\t(allow_soldermask_bridges_in_footprints no)\n\t)\n"
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n"
-           + note + "\n\t(embedded_fonts no)\n)\n")
-    out = f"{ROOT}/modules/{dir_}/{base}.kicad_pcb"
+           + zones + note + "\n\t(embedded_fonts no)\n)\n")
     open(out, "w").write(doc)
     print(f"{os.path.relpath(out, ROOT)}  N={n} footprints={len(fps)} board={W:.0f}x{H:.0f}mm")
 
+# Optional CLI filter: `gen-module-pcb.py eps-8pin` builds only that board. With
+# no board args it builds all (the original behavior); a routed board is then
+# SKIPPED unless --force (see build()). Flags (--force) are not board names.
+targets = {a for a in sys.argv[1:] if not a.startswith("-")}
 for d, b, n, kind in BOARDS:
+    if targets and not (d in targets or b in targets):
+        continue
     build(d, b, n, kind)
