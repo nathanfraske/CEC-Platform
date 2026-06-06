@@ -660,11 +660,11 @@
       },
       {
         "netclass": "Sense",
-        "pattern": "/INPP*"
+        "pattern": "/IN*_P"
       },
       {
         "netclass": "Sense",
-        "pattern": "/INNP*"
+        "pattern": "/IN*_N"
       },
       {
         "netclass": "Sense",

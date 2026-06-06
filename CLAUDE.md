@@ -664,6 +664,15 @@ Done (kept for context):
   AR02016 (C720477, XKB, Basic) like the Hub -- land CHANGES (EVQ 4-pad -> TS-1088 2-pad),
   NOT a drop-in, so the committer re-places + re-routes the 2 buttons. Both done in the
   schematic (ERC clean, netlist unchanged 85 nets); PCB Update-from-Library pending in GUI.
+  THEN (2026-06-06, diff-pair prep) renamed the 6 INA-input pairs /INPP{n}->/IN{n}_P and
+  /INNP{n}->/IN{n}_N so KiCad's differential-pair router auto-recognizes them (suffix _P/_N);
+  pure label rename (UUIDs/positions preserved, ERC clean, netlist node-set identical, only
+  the net NAME changes). Repointed the .kicad_pro Sense netclass patterns /INPP*->/IN*_P and
+  /INNP*->/IN*_N (Sense already carries diff_pair_width 0.25 / gap 0.2). The committer then
+  Update-from-Schematic, rips up the IN+/- on each lane, and routes with the diff-pair router
+  (shortcut 6) for a tight matched pair (skew-tune optional -- it's a near-DC sense pair, the
+  win is small loop area, not ps skew). The pre-filter taps (/SENSEP*_HI/_LO) share the 12V
+  force net so they stay hand-routed.
 - EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
   platform corrections to the EPS schematic: D1 PESD5V0S1UL -> PESD5V0S1BA (SOD-323,
   C5261083); BOOT/RESET buttons SW1/SW2 Panasonic_EVQPUJ_EVQPUA -> TS-1088-AR02016
