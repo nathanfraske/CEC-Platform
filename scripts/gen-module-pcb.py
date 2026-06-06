@@ -27,24 +27,24 @@ BOARDS = [
     ("12vhpwr-standard", "12vhpwr-standard-module", 6, "hpwr"),
 ]
 CX0, PITCH = 9.0, 27.0           # first cable origin x (left margin reclaimed), cable pitch (mm)
-# Condensed cable-board layout (2026-06-06). The Mini-Fit Jr Horizontal footprint
-# keeps its 2 pad rows at local y0/y5.5 and its 2 NPTH retention pegs at local
-# y-4.2; the body+mouth run out to y-13.9. So we OVERHANG the body/mouth off the
-# board edge (J_IN top, J_OUT bottom) and keep only the pads+pegs on-board (each
-# connector needs ~12.5 mm of board, not its full ~22 mm courtyard). The per-cable
-# sense parts sit SIDE-BY-SIDE in a band at the shunt level instead of stacked.
-# 3 M3 mounts: the J_IN/J_OUT courtyards eat the left corners (only the mid-height
-# clear band is free) and the RJ-45 sits on the right edge, so USB-C moves to the TOP
-# edge to free the two right corners. The RJ-45 mouth ALSO overhangs the right edge
-# (only its contacts/posts/shield tabs stay on-board) to keep W under 100 mm.
-# ~98 x 44 mm vs the old 110 x 66 (-41% area).
-JIN_Y = 10.0                     # J_IN origin: pads y10/15.5, the real Mini-Fit pegs (local y-7.3, 3.0mm) land at y2.7 (hole 1.2 mm off the top edge); mouth still overhangs -y
-BAND_Y = 23.0                    # sense band center (between the J_IN and J_OUT courtyards)
+# Condensed cable-board layout (2026-06-06). The cable connectors are the REAL Molex
+# 45586 right-angle Mini-Fit Jr (verified ECAD land): 4.20mm pitch + 4.20mm rows,
+# round 1.85mm-drill pads, and two 3.0mm snap pegs 7.3mm in front of the pad rows;
+# its body+mouth run ~14mm to one side. We OVERHANG the body/mouth off the board edge
+# (J_IN top, J_OUT bottom) and keep only the pads+pegs on-board. The footprint is
+# native mouth-toward-+y, so J_IN is placed rot180 / J_OUT rot0 (see placement()).
+# The per-cable sense parts sit SIDE-BY-SIDE in a band at the shunt level instead of
+# stacked. 3 M3 mounts: the J_IN/J_OUT courtyards eat the left corners (only the
+# mid-height clear band is free) and the RJ-45 sits on the right edge, so USB-C moves
+# to the TOP edge to free the two right corners; the RJ-45 mouth ALSO overhangs the
+# right edge. ~99 x 44 mm vs the old 110 x 66 (-45% area). N>=3 adds inter-cable mounts.
+JIN_Y = 10.0                     # J_IN origin: at rot180 the real Molex 45586 pads land at y10 (row1) / y14.2 (row2, 4.2mm rows) and the snap pegs (native +7.3) at y2.7 (hole 1.2 mm off the top edge); mouth overhangs the top edge
+BAND_Y = 22.0                    # sense band center (between the J_IN and J_OUT courtyards)
 
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 40.3, 46.0, ex                        # W, H, ex (W=99; H=46 for the real Mini-Fit pegs at y-7.3 + courtyard)
+    return ex + 40.3, 44.0, ex                        # W, H, ex (W=99, H=44 — the real 45586 land is compact: 4.2mm rows + shallow courtyard)
 
 def placement(n):
     W, H, ex = geometry(n)
@@ -52,11 +52,14 @@ def placement(n):
     for i in range(n):                                # cables, left to right
         x, c = CX0 + i * PITCH, i + 1
         # Connectors OVERHANG their edges: J_IN body/mouth hangs off the top, J_OUT
-        # off the bottom; pads + the 2 retention pegs stay on-board (the peg is the
-        # real limit — it can't overhang). rot180 on J_OUT keeps its pads in the
-        # same x-column as J_IN so the 12V pins line up.
-        P[f"J_IN{c}"]  = (x, JIN_Y, 0)
-        P[f"J_OUT{c}"] = (x + 12.6, H - JIN_Y, 180)
+        # off the bottom; pads + the 2 snap pegs stay on-board (the peg is the real
+        # limit — it can't overhang). The real Molex 45586 footprint is NATIVE-oriented
+        # mouth-toward-+y with pads running -x, so J_IN takes rot180 (mouth -> top edge)
+        # and J_OUT rot0 (mouth -> bottom edge); that pair reproduces the same pad x-
+        # columns as before (J_IN pad1 at x, J_OUT pad1 at x+12.6) so the 12V pins line
+        # up and the existing net map is preserved.
+        P[f"J_IN{c}"]  = (x, JIN_Y, 180)
+        P[f"J_OUT{c}"] = (x + 12.6, H - JIN_Y, 0)
         # Side-by-side sense band across the column at BAND_Y: the shunt sits
         # VERTICAL (rot90) in the 12V path so current flows top->bottom straight
         # through it; INA238 (cable current; VSSOP-10 ~6.4 mm wide) sits to its left

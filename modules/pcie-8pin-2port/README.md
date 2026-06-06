@@ -65,15 +65,21 @@ Regenerated on the consolidated v3.10 spec:
 
 Built from the v3.10 netlist via `scripts/gen-module-pcb.py pcie-8pin-2port`, same
 condensed cable-board layout as the EPS (identical 2-cable geometry):
-**99 × 46 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz).
+**99 × 44 mm** (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz).
 
-- **Connectors overhang their edges** — the Mini-Fit Jr body+mouth hang off the top
-  (J_IN) / bottom (J_OUT) edges; only the pad rows + the 2 NPTH pegs stay on-board.
-  The **RJ-45 mouth overhangs the right edge** too. The Mini-Fit Jr footprint was
-  **verified against the real Molex 5569-08A2 land** (2026-06-06): its snap-in PCB-lock
-  pegs sit at (0, −7.3) / (12.6, −7.3) in line with the outer pins, 3.0 mm NPTH (the
-  prior cec-derived land had them wrong — outboard at ±4.5 mm / 3.2 mm). The real pegs
-  sit further forward, so the connectors moved ~3 mm inboard (board height 44 → 46 mm).
+- **Cable connectors = the REAL Molex 45586** (J_IN/J_OUT): **Mini-Fit Jr. right-angle,
+  3rd-gen PCIe polarization, 8-circuit, Nylon UL94V-0, 2.54µm matte tin — MPN
+  45586-0005** (user-confirmed keying). The footprint is the manufacturer ECAD land
+  (`cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal`, vendored from
+  the Molex `-SD` export + its STEP): 4.20 mm pitch + **4.20 mm rows** (not the 5.5 mm
+  of the wrong KiCad 5569 land), round ⌀2.36 mm / 1.85 mm-drill pads, two ⌀3.0 mm snap
+  pegs in line with the outer pins 7.3 mm forward. THT, consigned/hand-soldered.
+- **Connectors overhang their edges** — the body+mouth hang off the top (J_IN) /
+  bottom (J_OUT) edges; only the pad rows + the 2 snap pegs stay on-board. The
+  footprint is native mouth-toward-+y, so J_IN is placed rot180 / J_OUT rot0 (which
+  reproduces the prior pad columns, so the net map + 12 V alignment are unchanged).
+  The **RJ-45 mouth overhangs the right edge** too. The compact 45586 land (4.2 mm
+  rows + shallow courtyard) let the board go back to 44 mm tall.
 - **Side-by-side sense band**: 0.5 mΩ shunt vertical in the 12 V path, INA238 +
   the §6.13 INA181→TLV7011 pair beside it (band ~6 mm tall).
 - **J1 = platform FTP jack** Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**,

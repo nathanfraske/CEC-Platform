@@ -65,16 +65,19 @@ Regenerated on the consolidated v3.10 spec:
 ## PCB floorplan (2026-06-06) — condensed, FTP jack, 5 mounts
 
 Built from the v3.10 netlist via `scripts/gen-module-pcb.py pcie-8pin-3port`, same
-condensed cable-board layout as the EPS but with **3 cables**: **126 × 46 mm**
+condensed cable-board layout as the EPS but with **3 cables**: **126 × 44 mm**
 (4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz).
 
-- **Connectors overhang their edges** — Mini-Fit Jr body+mouth hang off the top
-  (J_IN) / bottom (J_OUT) edges; only the pad rows + the 2 NPTH pegs stay on-board.
-  The **RJ-45 mouth overhangs the right edge** too. The Mini-Fit Jr footprint was
-  **verified against the real Molex 5569-08A2 land** (2026-06-06): pegs at (0, −7.3) /
-  (12.6, −7.3) in line with the outer pins, 3.0 mm NPTH (the prior cec-derived land had
-  them outboard at ±4.5 mm / 3.2 mm). The real pegs sit further forward, so the
-  connectors moved ~3 mm inboard (board height 44 → 46 mm).
+- **Cable connectors = the REAL Molex 45586** (J_IN/J_OUT): **Mini-Fit Jr. right-angle,
+  3rd-gen PCIe polarization, 8-circuit, Nylon UL94V-0, 2.54µm matte tin — MPN
+  45586-0005** (user-confirmed keying). Footprint = the manufacturer ECAD land
+  (`cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal`, vendored from
+  the Molex `-SD` export + STEP): 4.20 mm pitch + **4.20 mm rows**, round ⌀2.36 mm /
+  1.85 mm-drill pads, two ⌀3.0 mm snap pegs in line with the outer pins. THT, consigned.
+- **Connectors overhang their edges** — body+mouth hang off the top (J_IN) / bottom
+  (J_OUT) edges; only the pad rows + the 2 snap pegs stay on-board. Native footprint is
+  mouth-toward-+y, so J_IN is placed rot180 / J_OUT rot0 (same pad columns as before,
+  net map unchanged). The **RJ-45 mouth overhangs the right edge** too.
 - **Side-by-side sense band** per cable: 0.5 mΩ shunt vertical in the 12 V path,
   INA238 + the §6.13 INA181→TLV7011 pair beside it (~6 mm tall).
 - **J1 = platform FTP jack** Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**,

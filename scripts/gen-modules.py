@@ -136,7 +136,7 @@ def footprint_for(ref, lib, name, val):
         "LP5907MFX-1.2":     "cec-Package_TO_SOT_SMD:SOT-23-5",
         "INA226":            "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm",
         "INA240":            "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
-        "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-08A2_2x04_P4.20mm_Horizontal",
+        "CEC_CONN_2x4":      "cec-Connector_Molex:Molex_Mini-Fit_Jr_45586_2x04_P4.20mm_Horizontal",  # real Molex 45586 RA land (verified ECAD export); PCIe-keyed 45586-0005, EPS uses EPS-keyed sibling on the same land
         "CEC_CONN_12V2x6":   "cec:CEC_12V2x6_Horizontal",
         "CEC_PWR_IN_2P":     "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal",
         "USB_C_Receptacle_USB2.0_16P": "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11",
