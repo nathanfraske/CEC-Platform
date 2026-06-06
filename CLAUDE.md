@@ -697,8 +697,10 @@ Done (kept for context):
   NOT cancel divider-ratio error, so 0.1% is required for the ~0.3-0.5% V channel. Repointed
   R5 -> Yageo RT0402BRD0747KL (C728561, 47k 0.1% 25ppm) and R6 -> RT0402BRD0710KL (C190095,
   10k 0.1% 25ppm); same 0402 land, BOM regen. (R2/R20/R21 are also 10k but stay 1% C25744 --
-  pullup/NTC, not precision.) OPEN review items flagged (not yet changed): VRAIL_DIV has NO
-  ADC cap (high-Z ~8.2k divider straight into the ESP SAR -- add ~2.2-10nF to GND); the 6
+  pullup/NTC, not precision.) Review follow-ups: VRAIL_DIV ADC cap DONE 2026-06-06 -- added
+  C24 = 1nF C0G (Murata GRM1555C1H102JA01D / C76947) VRAIL_DIV->GND, fc~19kHz with the 47k||10k
+  source (matches the ~16.9kHz INA channels) + serves the ESP SAR S&H; spliced near R6 at
+  (107.95,270.51), ERC clean, netlist VRAIL_DIV={C24.1,R5.2,R6.1,U1.11}. STILL OPEN: the 6
   ISENSEP INA outputs have no ADC-input cap (INA drives direct, optional); RFH/RFL filter
   10ohm still 1% (matched-1% ok for DC, 0.1% better for AC CMRR on the transient capture); RS
   shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); NO fiducials on the board
