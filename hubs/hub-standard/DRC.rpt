@@ -1,0 +1,233 @@
+** Drc report for hub-standard.kicad_pcb **
+** Created on 2026-06-05T16:03:44 **
+** Report includes: Errors, Warnings, Exclusions **
+
+** Found 38 DRC violations **
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(117.8725 mm, 87.3000 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(101.8225 mm, 90.8300 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(99.3725 mm, 87.3000 mm): Segment of J2 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(83.3225 mm, 90.8300 mm): Segment of J2 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(136.3725 mm, 87.3000 mm): Segment of J4 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(120.3225 mm, 90.8300 mm): Segment of J4 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(154.3725 mm, 87.3000 mm): Segment of J5 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(138.3225 mm, 90.8300 mm): Segment of J5 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(172.8650 mm, 110.1900 mm): Segment of J_5VSB on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(172.8650 mm, 117.8100 mm): Segment of J_5VSB on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(166.7550 mm, 113.0000 mm): Rectangle of J_5VSB on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(166.7550 mm, 115.5000 mm): Rectangle of J_5VSB on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(65.1000 mm, 118.8000 mm): Segment of U1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(65.1000 mm, 137.2000 mm): Segment of U1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(123.0000 mm, 164.8000 mm): Segment of J_KVM on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(125.7000 mm, 160.5500 mm): Segment of J_KVM on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(132.2000 mm, 164.8000 mm): Segment of J_KVM on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(135.0000 mm, 158.8000 mm): Segment of J_KVM on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(172.8650 mm, 145.1900 mm): Segment of J_5V on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(172.8650 mm, 152.8100 mm): Segment of J_5V on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(166.7550 mm, 148.0000 mm): Rectangle of J_5V on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(166.7550 mm, 150.5000 mm): Rectangle of J_5V on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(95.4200 mm, 164.7850 mm): Segment of J_USB on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(70.0000 mm, 90.0000 mm): Rectangle on Edge.Cuts
+    @(104.5800 mm, 163.0800 mm): Segment of J_USB on F.Silkscreen
+[silk_overlap]: Silkscreen clearance
+    Rule: board setup constraints silk; warning
+    @(150.0000 mm, 146.0000 mm): Reference field of TP_VBUS
+    @(147.9400 mm, 143.4000 mm): Segment of C1 on F.Silkscreen
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(112.7500 mm, 148.2500 mm): Reference field of SW_RESET
+    @(116.5000 mm, 147.5600 mm): Pad 1 [/GPIO0] of C8 on F.Cu
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(124.8700 mm, 158.8000 mm): Segment of J_KVM on F.Silkscreen
+    @(125.0000 mm, 158.5500 mm): PTH pad 1 [+5VSB] of J_KVM
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(133.1500 mm, 163.1000 mm): Segment of J_KVM on F.Silkscreen
+    @(133.0000 mm, 158.5500 mm): PTH pad 5 [/KVM_3V3_REF] of J_KVM
+[silk_over_copper]: Silkscreen clipped by solder mask
+    Local override; warning
+    @(132.8200 mm, 122.5000 mm): Circle of TH1 on F.Silkscreen
+    @(132.8900 mm, 122.2500 mm): Pad 1 [+3V3] of TH1 on F.Cu
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(102.5500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 0.3000 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(97.7500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 0.3000 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(103.0000 mm, 155.0000 mm): Track [/USB_VBUS] on F.Cu, length 0.9192 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.2000 mm)
+    Rule: Power min width; error (excluded)
+    @(100.5500 mm, 151.4500 mm): Track [/USB_VBUS] on F.Cu, length 0.0707 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(97.4500 mm, 155.9500 mm): Track [/USB_VBUS] on F.Cu, length 0.6364 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(100.5500 mm, 150.2750 mm): Track [/USB_VBUS] on F.Cu, length 1.1750 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(97.4500 mm, 157.3300 mm): Track [/USB_VBUS] on F.Cu, length 1.3800 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.3000 mm)
+    Rule: Power min width; error (excluded)
+    @(102.3500 mm, 155.6500 mm): Track [/USB_VBUS] on F.Cu, length 1.4800 mm
+[track_width]: Track width (rule 'Power min width' min width 0.5000 mm; actual 0.2000 mm)
+    Rule: Power min width; error (excluded)
+    @(100.5000 mm, 151.5000 mm): Track [/USB_VBUS] on B.Cu, length 0.1414 mm
+
+** Found 0 unconnected pads **
+
+** Found 26 Footprint errors **
+[missing_footprint]: Missing footprint J1 (5VSB_IN)
+    Local override; warning
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(95.7825 mm, 101.6000 mm): Footprint J2
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(114.2825 mm, 101.6000 mm): Footprint J3
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(132.7825 mm, 101.6000 mm): Footprint J4
+[footprint_symbol_field_mismatch]: Missing symbol field 'LCSC' in footprint
+    Local override; warning
+    @(150.7825 mm, 101.6000 mm): Footprint J5
+[missing_footprint]: Missing footprint J6 (USB-C)
+    Local override; warning
+[missing_footprint]: Missing footprint J7 (CEC_NANOKVM_AUX_5P)
+    Local override; warning
+[missing_footprint]: Missing footprint J8 (MAIN_5V_IN)
+    Local override; warning
+[missing_footprint]: Missing footprint SW1 (SW_RST)
+    Local override; warning
+[missing_footprint]: Missing footprint SW2 (SW_BOOT)
+    Local override; warning
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(163.5550 mm, 115.2500 mm): Footprint J_5VSB
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(76.0000 mm, 158.0000 mm): Footprint M3
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(162.0000 mm, 96.2500 mm): Footprint M2
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(136.0000 mm, 150.5000 mm): Footprint TP_5VSB
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(120.5000 mm, 150.6000 mm): Footprint SW_BOOT
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(112.7500 mm, 150.5000 mm): Footprint SW_RESET
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(76.0000 mm, 96.2500 mm): Footprint M1
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(162.0000 mm, 158.0000 mm): Footprint M4
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(129.0000 mm, 158.5500 mm): Footprint J_KVM
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(163.5550 mm, 150.2500 mm): Footprint J_5V
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(92.0000 mm, 146.0000 mm): Footprint TP5
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(143.0000 mm, 150.5000 mm): Footprint TP_3V3
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(146.5000 mm, 150.5000 mm): Footprint TP_VHOLD
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(100.0000 mm, 161.0000 mm): Footprint J_USB
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(139.5000 mm, 150.5000 mm): Footprint TP_GND
+[extra_footprint]: Extra footprint
+    Local override; warning
+    @(150.0000 mm, 150.5000 mm): Footprint TP_VBUS
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

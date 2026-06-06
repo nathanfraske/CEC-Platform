@@ -13,13 +13,27 @@
 #   python3 scripts/gen-hub-standard.py
 #
 # Hand-authored without kicad-cli (KiCad 10 unavailable in CI); validate with
-# `kicad-cli sch erc` / open in KiCad 10. Symbol stand-ins: TJA1051T-3 for the
-# TJA1462A (same SO-8 CAN pinout), LP5907MFX-1.2 body for the -3.3 variant,
+# `kicad-cli sch erc` / open in KiCad 10. Symbol stand-ins: TJA1051T-3 is the
+# CAN transceiver (classical, locked spec §3.1 v3.5), LP5907MFX-1.2 body for the -3.3 variant,
 # SB120 body for SS14, TPS3839DBZ for TPS3839K33 — values are labeled as the
 # intended parts.
 import os, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_sch
+
+# ---------------------------------------------------------------------------
+# STALE — DO NOT RUN against the live board. This generator predates the GUI/
+# hand work on hubs/hub-standard: it still describes ESP32-S3-MINI-1 (not the
+# WROOM-1), an R1 1 ohm inrush resistor and NO TPS2121 mux, DETECT pull-ups to
+# +5VSB (the bug fixed to +3V3), and lacks U5 (mux), D2-D6 (ESD), the blackout
+# sense, the flash buttons, and the SK6812 level shifter (U6/R14/C14). Re-running
+# it OVERWRITES the schematic with that old, buggy, pre-mux design and breaks the
+# routed PCB. The live .kicad_sch is hand-maintained — edit it directly (or splice
+# with cec_sch primitives). Set CEC_ALLOW_HUB_REGEN=1 only to bootstrap a brand-
+# new board from scratch (then expect to re-do all the post-generator work).
+if os.environ.get("CEC_ALLOW_HUB_REGEN") != "1":
+    sys.exit("gen-hub-standard.py is STALE; refusing to overwrite the live, "
+             "hand-maintained schematic (see header). CEC_ALLOW_HUB_REGEN=1 to override.")
 
 ROOTDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 LIBS = {"cec": open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
@@ -36,7 +50,7 @@ PARTS = {
     "J5": ("cec", "CEC_RJ45_8P8C_FTP", "PORT4"),
     "J6": ("cec-vendor", "USB_C_Receptacle_USB2.0_16P", "USB-C"),
     "U1": ("cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N16R2"),
-    "U2": ("cec-vendor", "TJA1051T-3", "TJA1462A"),
+    "U2": ("cec-vendor", "TJA1051T-3", "TJA1051T/3"),
     "U3": ("cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3"),
     "U4": ("cec-vendor", "TPS3839DBZ", "TPS3839K33"),
     "D1": ("cec-vendor", "SB120", "SS14"),

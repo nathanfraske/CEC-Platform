@@ -71,7 +71,7 @@ to every board.
   power budget, not independently.
 - **Control — CAN.** All control and command traffic lives entirely on CAN, on
   pair 3, for every tier. Classical CAN at 500 kbps on Standard; CAN-FD on Pro
-  and above. Transceiver TJA1462A; fixed **120 Ω split termination at the Hub**.
+  and above. Transceiver TJA1051T/3; fixed **120 Ω split termination at the Hub**.
 - **Streaming — RS-485.** High-bandwidth telemetry only, one direction
   (module → Hub), on pair 2. Present on **Pro modules and Pro+ Hubs only**;
   Standard leaves pair 2 unused and terminated at the module side.

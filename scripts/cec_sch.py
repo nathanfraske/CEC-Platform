@@ -209,7 +209,7 @@ def fmt_value(name, val):
         return fmt_res(val)
     return val
 
-def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
+def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp=""):
     val = fmt_value(name, val)
     pinblk = "\n".join(f'\t\t(pin "{n}" (uuid "{u()}"))' for n in pins)
     return (
@@ -221,7 +221,7 @@ def emit_symbol(ref, lib, name, val, x, y, pins, project, root):
         f'\t\t(uuid "{u()}")\n'
         f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Value" "{val}" (at {f(x)} {f(y+15.24)} 0) (effects (font (size 1.27 1.27))))\n'
-        f'\t\t(property "Footprint" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f'\t\t(property "Footprint" "{fp}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
         f'\t\t(property "Datasheet" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
         f"{pinblk}\n"
         f'\t\t(instances\n\t\t\t(project "{project}"\n\t\t\t\t(path "/{root}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n'
@@ -262,7 +262,7 @@ def gridsnap(x, y):
 
 def build_schematic(out_path, project, parts, nets, used, libs,
                     paper="A3", powerflag_nets=(), nc_skip=(), placement=None,
-                    power_ports=None, wire_nets=None):
+                    power_ports=None, wire_nets=None, footprints=None):
     """Write a .kicad_sch.
 
     power_ports: {net: power-symbol} (e.g. {"GND":"GND","+3V3":"+3V3"}). Pins on
@@ -273,6 +273,7 @@ def build_schematic(out_path, project, parts, nets, used, libs,
     nc_skip: (ref,pin) left with neither net nor NC. placement: {refdes:(x,y)}
       functional layout; omitted parts auto-grid. All origins grid-snapped."""
     power_ports = power_ports or {}
+    footprints = footprints or {}
     wire_nets = set(wire_nets or ())
     root = re.search(r'\(uuid\s+"?([0-9a-fA-F-]+)"?\s*\)', open(out_path).read()).group(1)
 
@@ -303,7 +304,8 @@ def build_schematic(out_path, project, parts, nets, used, libs,
         extra.append(_power_block(libs, sym))
 
     body = [emit_symbol(r, *parts[r][:2], parts[r][2], *placement[r],
-                        used[(parts[r][0], parts[r][1])]["pins"], project, root)
+                        used[(parts[r][0], parts[r][1])]["pins"], project, root,
+                        footprints.get(r, ""))
             for r in parts]
 
     # keep-out body boxes (absolute) and the set of all pin connection points,
