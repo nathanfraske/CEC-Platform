@@ -289,3 +289,39 @@ the official Molex part):
 > sense, and re-derive the edge overhang** (retention is now via the THT solder tails, not
 > pegs, so the mouth can overhang further). Confirm the keyed +12V row (pads 5-8) faces the
 > intended way before powering.
+
+## Candidate generator (2026-06-06) — `scripts/gen-eps-condensed.py` + routing plan
+
+The condensed floorplan is now produced by a **reproducible generator** instead of a
+hand-bootstrap, and it ships a **routing game-plan** so the board is ready to route:
+
+```
+python3 scripts/gen-eps-condensed.py          # writes the .kicad_pcb + eps-routing-plan.png
+python3 scripts/gen-eps-condensed.py --no-plan # board only
+```
+
+What it does (reuses `gen-module-pcb.py`'s emit helpers without touching the shared generator):
+
+- **FRAME** — the pegless-87427 condensed layout (J_IN rot180 / J_OUT rot0 so the +12V
+  columns align; per-cable sense band; ESP/CAN/LDO/RJ-45 core). 96 × 35 mm, 3 M3 mounts.
+- **PASSIVE ENGINE** — every decoupling / RC / pull-up / ESD passive is placed in its
+  **owner IC's cluster on the power-pin side**, from a netlist-verified ownership spec
+  (`PASSIVE_SPEC`: each part → the IC it serves + the exact net it must share). At build
+  time `verify_passives()` re-checks all 25 against the live netlist (**25/25 verified**)
+  so the clusters can't silently drift from the schematic. Reproduces the validated
+  placement (**0 structural DRC**; remaining hits are the usual cosmetic silk).
+- **ROUTING CANDIDATES** — drawn as guide graphics **in the board** on toggleable user
+  layers, so they're visible while routing: 12V IN/OUT pour outlines (`Dwgs.User`), the
+  Kelvin sense pairs off each shunt's inner edges (`Cmts.User`), the control→sense spine
+  +3V3 / I2C / THRESH / DETC (`Eco1.User`), and CAN + USB (`Eco2.User`).
+- **`eps-routing-plan.png`** — a board-accurate visualization of the full game plan: the
+  12V pours, GND stitching, Kelvin pairs, the spine, CAN and USB over the real placement,
+  with the **routing order (1→9)**, the **netclass table** (Power12V pour / GND plane /
+  Sense 0.25 / Power 0.5 / Signal 0.22 / CAN / USB) to add to the empty `.kicad_pro`, and
+  the **SI keep-aways** (Kelvin & THRESH off the 12V pour edges; spine in the y16–21.5 split
+  gap, hop a shunt column on B.Cu; USB length-match; CAN pair, Hub-side termination).
+
+It is still a one-shot bootstrap — once the board carries tracks/vias the generator
+**refuses to overwrite** (pass `--force` to override); from the first route it is
+GUI-maintained. The routing guides live on non-copper layers, so they never affect DRC or
+the copper; delete the user-layer graphics once routing is done if you don't want them.

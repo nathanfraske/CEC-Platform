@@ -730,6 +730,21 @@ Done (kept for context):
   CMRR on the transient capture (same R_0402 land, drop-in); RS
   shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); fiducials DONE 2026-06-06 (3x cec-Fiducial:Fiducial_1mm_Mask2mm, board_only/excl-BOM/excl-pos,
   refs on F.Fab: FID1 (162.25,61) TR, FID2 (166,135.5) BR, FID3 (139,116) lower-center; DRC copper-clean).
+- EPS 8-pin CANDIDATE GENERATOR + routing plan (2026-06-06). scripts/gen-eps-condensed.py
+  now PRODUCES the condensed floorplan reproducibly (reuses gen-module-pcb.py's emit helpers
+  via a no-op-filter import; does NOT modify the shared generator). Three parts: (1) FRAME =
+  the pegless-87427 condensed layout; (2) PASSIVE ENGINE = every decoupling/RC/pull-up/ESD
+  passive placed in its OWNER IC's cluster from a netlist-verified ownership spec
+  (PASSIVE_SPEC: part->IC->expected net), re-checked at build by verify_passives() (25/25
+  verified) so clusters can't drift from the schematic; reproduces the committed placement
+  EXACTLY (0 position diffs) at 0 structural DRC; (3) ROUTING CANDIDATES drawn in-board on
+  toggleable user layers (12V pours Dwgs.User, Kelvin pairs Cmts.User, +3V3/I2C/THRESH/DETC
+  spine Eco1.User, CAN/USB Eco2.User) + a board-accurate matplotlib eps-routing-plan.png (the
+  pours, GND stitch, Kelvin, spine, CAN, USB over the real placement, with routing order 1-9,
+  the netclass table for the empty .kicad_pro, and SI keep-aways). Built from the two
+  sub-agent specs (passive placement + routing game-plan). One-shot bootstrap: refuses to
+  overwrite once tracks/vias exist (--force overrides). Routing guides are non-copper -> no
+  DRC impact. Run: python3 scripts/gen-eps-condensed.py [--no-plan].
 - EPS 8-pin PCB RE-CONDENSED on the pegless 87427 (2026-06-06). With the snap pegs gone
   (87427-0802 has none), re-floorplanned 99x44 -> **96x35mm (-24% area, ~-20% height)**: the
   pegless connector keeps only its pad rows on-board and overhangs the whole body/mouth, so
