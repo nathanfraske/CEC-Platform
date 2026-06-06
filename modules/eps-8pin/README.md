@@ -80,3 +80,27 @@ ERC clean (benign generator `lib_symbol_mismatch` only). The schematic is now
 **hand-sourced** — do NOT regenerate with `gen-modules.py` (it would revert the PESD
 and button and drop the LCSC). PCB next: *Update from Schematic* to pull the TS-1088
 footprint + the PESD value, then the layout/fab flow.
+
+## PCB layout strategy (2026-06-05) — high-current 4-layer
+
+The EPS carries **~30 A per cable** (4× Mini-Fit Jr 12V pins ≈ 9 A each, bundled into
+each 0.5 mΩ shunt), so it is a high-current 4-layer:
+
+- **Copper: 2 oz outer / 1 oz inner** (set in the stackup). 2 oz outers give the
+  cross-section for the 12V/GND pours; the inner planes are huge-area so low-R at 1 oz.
+- **Two whole GND planes (In1 + In2)** — same call as the 12VHPWR. Added as one
+  `GND Plane` zone. Gives the return path for the ~30 A GND pins, the quiet reference
+  plane under the INA238 Kelvin sense lines, and thermal spreading. **Fill in the GUI
+  (`B`).**
+- **12V IN/OUT on the *outers*, split at the shunt.** Per cable: a 12V_IN pour (top,
+  4 IN pins → shunt high side) on F.Cu and a 12V_OUT pour (bottom, shunt low side →
+  4 OUT pins); mirror both onto B.Cu and stitch to parallel them (2 oz × 2 ≈ 4 oz).
+  The shunt sits on F.Cu across the IN/OUT split. **Not** an inner 12V plane — a single
+  12V plane would short the shunt.
+- **Vias:** a field of stitching vias per 12V pin and per shunt terminal (F↔B parallel);
+  the GND pins stitch straight down into the two inner planes.
+- **Kelvin sense:** a tight ~0.2 mm matched pair off the *inner* edges of each shunt,
+  over the In1 GND plane, into the INA238 (§6.8).
+
+Floorplan (generated): 2 cables on the left (each IN-top → shunt-mid → OUT-bottom),
+control core (ESP / CAN / LDO / USB-C / RJ-45) on the right.

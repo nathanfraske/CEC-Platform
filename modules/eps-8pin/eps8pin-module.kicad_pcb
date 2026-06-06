@@ -5185,4 +5185,25 @@
 	(gr_line (start 0 66) (end 0 0) (stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "decf9071-62ba-4325-9e57-00d8fc1938cf"))
 	(gr_text "CEC eps8pin-module  4L 2oz/1oz" (at 39.8 62 0) (layer "B.SilkS") (uuid "9cc23586-89f1-48c6-8015-3f208b71b1fa") (effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))
 	(embedded_fonts no)
+	(zone
+		(net "GND")
+		(layers "In1.Cu" "In2.Cu")
+		(uuid "71e484a9-a5a7-43be-8799-1f47a4156fbe")
+		(name "GND Plane")
+		(hatch edge 0.5)
+		(connect_pads yes
+			(clearance 0.3)
+		)
+		(min_thickness 0.25)
+		(fill yes
+			(thermal_gap 0.3)
+			(thermal_bridge_width 0.5)
+			(island_removal_mode 0)
+		)
+		(polygon
+			(pts
+				(xy 0.25 0.25) (xy 109.45 0.25) (xy 109.45 65.75) (xy 0.25 65.75)
+			)
+		)
+	)
 )
