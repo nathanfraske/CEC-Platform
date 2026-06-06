@@ -1,35 +1,21 @@
 (version 1)
 
-# CEC EPS 8-pin module — custom design rules.
-# KiCad auto-loads <board>.kicad_dru from the project dir. These back the netclasses
-# in eps8pin-module.kicad_pro: a netclass `track_width` is only the *routing default*,
-# so DRC will NOT flag an under-width power trace on its own. The constraints below
-# make DRC actually catch the cases that matter, and leave the high-current pours and
-# the shunt-shared Kelvin taps alone (a per-track floor would false-flag them).
+# CEC EPS 8-pin module -- custom design rules (auto-loaded by KiCad).
+# Back the netclasses in eps8pin-module.kicad_pro.
 
-# +5VSB / +3V3 / VBUS (Power netclass): 0.5mm track floor (~2.4A at 2oz). The +5VSB
-# trunk from the RJ-45 VCC pin + the USB-VBUS OR feeds the LDO and CAN; 0.5mm is the
-# minimum for that branch current.
 (rule "Power min width"
 	(constraint track_width (min 0.5mm))
 	(condition "A.NetClass == 'Power'"))
 
-# NO per-track width floor on the +12V rails (Power12V = /SENSEC*). Their ~30A/cable
-# ampacity comes from the F.Cu + B.Cu 2oz POURS (split at each shunt, verified by pour
-# copper area per IPC-2152), NOT from individual track width. The four-wire Kelvin
-# sense taps (INA238 + INA181) live ON these same SENSEC nets and are drawn as ~0.25mm
-# stubs off the shunt's inner edges, so a Power12V track-width floor would wrongly flag
-# them. Draw the Kelvin tap stub by hand with the 0.25mm preset; size the rail copper
-# from the pour area in the GUI.
+# NO width floor on /SENSEC* (Power12V): ~30A/cable comes from the 2oz F.Cu+B.Cu
+# POURS (split at each shunt, verified by area per IPC-2152), and the INA238/INA181
+# four-wire Kelvin taps live ON these same nets as ~0.25mm stubs -- a track floor would
+# false-flag them. Power12V clearance is 0.2 (not 0.25) because those Kelvin inputs enter
+# a 0.5mm-pitch VSSOP-10.
 
-# USB 2.0 Full-Speed pair (USB netclass): /USB_D_P / /USB_D_N are renamed to the _P/_N
-# convention so KiCad auto-recognizes the differential pair. Keep D+/D- coupled; FS
-# (ESP32-C6 native USB-Serial-JTAG) is impedance-tolerant, but flag long uncoupled runs.
 (rule "USB diff pair gap"
 	(constraint diff_pair_gap (min 0.1mm) (max 0.2mm))
 	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
 
-# CAN (CAN netclass): CAN_H / CAN_L keep the standard (semantically asymmetric) names,
-# so they are NOT an auto-recognized P/N pair -- route them as a tightly-coupled pair by
-# hand to the RJ-45. No impedance rule (short stub, <=1Mbps); the only termination is the
-# Hub's split 120R, never on the module.
+# CAN_H/CAN_L keep the standard (asymmetric) names -> NOT a P/N auto-pair; route them as a
+# tightly-coupled pair by hand. Only termination is the Hub's split 120R, never on the module.

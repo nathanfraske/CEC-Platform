@@ -655,6 +655,24 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- REPO-WIDE PCB LAYOUT TOOLKIT scripts/cec_pcb.py (2026-06-06). Refined the EPS candidate
+  generator into a shared toolkit ANY board generator / agent can pull on (does NOT modify
+  the shared gen-module-pcb.py -- it imports its emit primitives once via the no-op-filter
+  trick). Abilities: GEOMETRY (pad_global / courtyard_bbox / part_half, KiCad-rotation
+  correct, with an RF antenna-keepout trim); PASSIVES (verify_passives netlist ownership
+  check; auto_cluster = geometry-driven decoupling placement -- parks each cap outside its
+  owner IC's power-pad, courtyard-aware + fanned + overlap-relaxation, returns residual
+  overlaps; place_offsets for hand-refined coords); ROUTING guides() (12V pours / Kelvin /
+  spine / CAN / USB guide graphics on toggleable user layers, in-board, non-copper);
+  routing_plan_png() (board-accurate matplotlib plan); netclass()/write_netclasses()/
+  write_dru() (fill an empty .kicad_pro net_settings + matching .kicad_dru); build_board()
+  (assemble the .kicad_pcb with the one-shot routed-board guard). gen-eps-condensed.py is
+  now a THIN driver = the worked example (supplies only EPS data; ships place_offsets by
+  default at 0 structural DRC reproducing the committed board EXACTLY, exposes auto_cluster
+  behind --auto which placed all 25 EPS passives at 0 residual overlaps). Usage guide:
+  scripts/README-cec_pcb.md. matplotlib+PIL available. Reuse it on the PCIe SKUs (same
+  i2c-cable family) and any module that needs passive clustering / routing candidates /
+  netclasses.
 - PCIe cable connector LOCKED to the REAL Molex 45586 (2026-06-06). The user confirmed
   the PCIe 8-pin header is Molex 45586-0005 (Mini-Fit Jr. dual-row RIGHT-ANGLE, 3rd-gen
   PCIe polarization, 8 circuits, Nylon UL94V-0, 2.54um matte tin) and uploaded the Molex
