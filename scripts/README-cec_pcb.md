@@ -89,6 +89,33 @@ res = r.verify()                             # {n_struct, structural[], n_unconn
 `verify()` saves + runs `kicad-cli pcb drc` and filters the benign classes (silk + `lib_footprint_*`),
 so `n_struct` is the real DRC and `n_unconnected` is the live ratsnest (what's still unrouted).
 
+## Cleanliness rules — candidate routing is CLEAN, not COMPLETE
+
+The point is **not** to route every net. It is to keep the **vital** runs' areas clean and fit the
+**non-vital, annoying-to-place** runs (the signal spine, control, CC, etc.) into the leftover space
+**without intruding on the vital runs**, terminating each one correctly. The `Router` enforces/verifies:
+
+```python
+r.mark_vital("/SENSEC1_HI", "/SENSEC1_LO", "GND")        # R1: these must stay clean
+r.keepout("12V_IN1", 9.5,8, 25.1,13, ("F.Cu","B.Cu"))    # reserve the vital areas (pours, Kelvin)
+ln = cr.lanes(["/I2C_SDA","/I2C_SCL","/THRESH"], 22.0, 0.4)   # R3: one lane per net, no overlap
+hit = r.run("/I2C_SDA", [(57,18), (32,ln["/I2C_SDA"]), (9.3,18)], "F.Cu", 0.22)  # returns keep-out hits
+r.to_pad("/I2C_SDA", "U10", "4", (9.3, 18), "F.Cu")      # R4: ends on a layer the pad is ON
+...
+r.check_keepouts()        # R1/R2: any non-vital run that entered a vital keep-out
+r.check_terminations()    # R4: any track ending INSIDE a pad on a layer the pad is NOT on
+```
+
+| Rule | What it does |
+|---|---|
+| **R1 vital keep-out** | `mark_vital()` + `keepout()` reserve the 12 V pour columns, the Kelvin sense windows, and GND fanouts; non-vital runs may not enter them. `run()` reports hits live; `check_keepouts()` verifies. |
+| **R2 layer complement** | route non-vital on the layer the vital copper isn't using in a region (F.Cu pour ⇒ signals on B.Cu, and vice-versa; inners stay GND). |
+| **R3 lane discipline** | `lanes()` gives each net its own lane (distinct offset) so same-layer runs don't overlap or criss-cross — cross only by a via to the other layer. |
+| **R4 clean termination** | `to_pad()` ends a run on a layer its target pad is on; a layer change vias in **clear channel space**, never on a fine-pitch pad, and never a track ending inside a pad on the wrong layer. `check_terminations()` finds that bug. |
+
+Sequence: route the **vital nets first** (reserve their areas), then fit the non-vital runs into the
+channels with `run()`/`to_pad()`/`lanes()`, then `check_keepouts()` + `check_terminations()` + `verify()`.
+
 ## pcbnew gotchas (baked into the toolkit; know them if you extend it)
 
 These cost the first routing agent real time — both are fixed in `cec_route.py`:
