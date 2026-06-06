@@ -1,0 +1,103 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# Automated routing on a SELF-HOSTED runner -- runs the CPU-heavy compute plane
+# (Freerouting JVMs + kicad-cli DRC) on YOUR hardware, not a GitHub-hosted box.
+#
+# The LLM control plane (planning/judging) is NOT here -- it's remote inference in a
+# Claude session. This workflow is purely the deterministic plane: generate Freerouting
+# candidates, score them against the hard safety gates, run the decision-logged repair
+# loop (scripts/cec_router.py), and upload the routed candidate + decision log + render
+# as artifacts. Trigger it from the GitHub UI (Run workflow), the API, or a Claude session.
+#
+# Runner setup + prerequisites: docs/self-hosted-router.md. The runner must carry the label
+# `cec-router` and have: python3+pcbnew (KiCad 10), kicad-cli, java 21, xvfb. The Freerouting
+# jar is fetched by cec_fr.ensure_jar() (pin v1.7.0) unless $CEC_FREEROUTING_JAR points at one.
+name: Route (self-hosted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: "Module to route (dir under modules/)"
+        type: choice
+        default: eps-8pin
+        options:
+          - eps-8pin
+          - pcie-8pin-2port
+          - pcie-8pin-3port
+          - 12vhpwr-standard
+          - atx-24pin
+      seeds:
+        description: "Comma-separated Freerouting param-variant seeds"
+        default: "0,1,2,3"
+      passes:
+        description: "Freerouting routing passes (-mp)"
+        default: "10"
+      opt_time:
+        description: "Freerouting optimization seconds (-oit)"
+        default: "20"
+      threads:
+        description: "Freerouting threads per candidate (-mt)"
+        default: "1"
+      kmax:
+        description: "Repair attempts before an escalation re-plan"
+        default: "2"
+      max_iters:
+        description: "Per-region iteration ceiling"
+        default: "4"
+
+jobs:
+  route:
+    # The runner you registered on your hardware must carry BOTH labels.
+    runs-on: [self-hosted, cec-router]
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify routing prerequisites (java / kicad-cli / pcbnew / xvfb)
+        run: ./scripts/route-prereqs.sh
+
+      - name: Route on this runner's CPU
+        env:
+          # Optional: set repo/org variable CEC_FREEROUTING_JAR to a local jar to skip the
+          # one-time download. Otherwise cec_fr.ensure_jar() downloads the pinned v1.7.0.
+          CEC_FREEROUTING_JAR: ${{ vars.CEC_FREEROUTING_JAR }}
+        run: |
+          python3 scripts/cec_router.py \
+            --board     "${{ inputs.board }}" \
+            --seeds     "${{ inputs.seeds }}" \
+            --passes    "${{ inputs.passes }}" \
+            --opt-time  "${{ inputs.opt_time }}" \
+            --threads   "${{ inputs.threads }}" \
+            --kmax      "${{ inputs.kmax }}" \
+            --max-iters "${{ inputs.max_iters }}" \
+            --out       "build/route/${{ inputs.board }}" \
+            --render
+
+      - name: Summarize the verdict in the run log
+        if: always()
+        run: |
+          log="build/route/${{ inputs.board }}/${{ inputs.board }}-decision-log.json"
+          if [ -f "$log" ]; then
+            echo "### Route verdict — ${{ inputs.board }}" >> "$GITHUB_STEP_SUMMARY"
+            python3 - "$log" >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, sys
+          d = json.load(open(sys.argv[1]))
+          f = d.get("final", {}) or {}
+          v = f.get("verdict", {}) or {}
+          print("```json"); print(json.dumps(v, indent=2)); print("```")
+          print(f"\nelapsed: {f.get('elapsed_s','?')}s · decisions: {f.get('decisions','?')}")
+          PY
+          else
+            echo "no decision log produced" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload routed candidate + decision log + render
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: route-${{ inputs.board }}-${{ github.run_id }}
+          path: build/route/${{ inputs.board }}/
+          if-no-files-found: warn

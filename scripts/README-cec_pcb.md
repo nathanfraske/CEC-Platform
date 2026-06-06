@@ -155,3 +155,135 @@ exactly what), an external autorouter (Freerouting via Specctra DSN — `java` i
 not), or the GUI. The routing pass **reports the required upstream changes; it does not silently
 edit placement/footprints/the plan** — that keeps each pass's responsibility clean and the loop
 auditable.
+
+# Automated routing system — two-plane architecture (`cec_fr` + `cec_score` + `cec_router`)
+
+The single-pass `cec_route` loop above proved real copper is reachable headlessly, but the dense
+spine kept needing a human/GUI/autorouter. The **automated routing system** closes that gap by
+splitting routing into a **deterministic plane** (reproducible, no LLM) and a **control plane**
+(tiered judgement, pluggable). It drives the *real* KiCad↔Freerouting autorouter through Specctra
+DSN/SES, scores every candidate against **hard safety gates**, and records every decision so a run
+is reproducible.
+
+```
+                        ┌──────────────────────── CONTROL PLANE (tiered judgement, pluggable) ───────────────────────┐
+                        │  planner   (Opus)   region/seam plan   ·  manager (Sonnet)  accept|repair|escalate          │
+                        │  worker    (Haiku)  cheap param/hint edits  ·  escalator (Opus)  structural re-plan @ K stalls │
+                        └───────────────────────────────────────────┬──────────────────────────────────────────────┘
+                                                                     │ (default: deterministic policies → runs with NO LLM)
+  ┌──────────────────────────────────── DETERMINISTIC PLANE (pure, reproducible) ────────────────────────────────────┐
+  │  cec_fr.generate_batch ──► [Candidate, …]  ──► cec_score.score ──► Metrics(+HARD GATES) ──► objective rank        │
+  │       │  (KiCad→DSN→Freerouting→SES→KiCad, parallel seeds, vital-area keep-outs baked in)                          │
+  │       ▼                                                                                                            │
+  │  cec_router.route():  spec_to_dru → plan → per-region {generate→score→gate→judge→repair|escalate} →               │
+  │                        serial_merge (seam reconcile) → write_once → INDEPENDENT DRC verdict → DecisionLog(JSON)    │
+  └────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+## Tier 0 — `cec_fr.py`: the Freerouting candidate generator
+
+Round-trips a board through the **real autorouter**: `pcbnew.ExportSpecctraDSN` → Freerouting (headless,
+`xvfb-run java -jar`, **pinned v1.7.0** — 1.9.0 is broken headless) → `pcbnew.ImportSpecctraSES` → real
+routed copper. This produces genuine tracks/vias `kicad-cli` can DRC, identical in format to GUI routing.
+
+| Function | What it does |
+|---|---|
+| `ensure_jar(path=None)` | Resolve the FR jar: arg → `$CEC_FREEROUTING_JAR` → `/tmp/fr_1.7.0.jar` → `~/.cache/cec/…` → download the pinned release. |
+| `export_dsn(board, dsn)` | `ExportSpecctraDSN(board, dsn)` (headless 2-arg form). |
+| `run_freerouting(dsn, ses, *, passes, opt_time, threads, …)` | `xvfb-run java -jar <jar> -de … -do … -mp … -oit …`, **from a `/tmp` workdir** so FR's `logs/` never lands in the repo. Verifies the SES exists+non-empty. |
+| `import_ses(board, ses, out)` | `ImportSpecctraSES` + `SaveBoard`. |
+| `bake_hints(board, out, *, keepouts=…)` | Add **rule-area keep-out zones** for the vital areas (12V columns, Kelvin windows) — they export into the DSN, so Freerouting *routes around them*. |
+| `route_once(board, out, *, hints, passes, …) → Candidate` | One full pipeline: hints→DSN→FR→SES→board. Never raises on a routing failure (returns `Candidate(ok=False, err=…)`). |
+| `generate_batch(board, hints, seeds, *, params, …) → [Candidate]` | One candidate per seed, **in parallel** (`ProcessPoolExecutor`; only strings/dicts cross the boundary, each worker `LoadBoard`s itself). `params` varies effort per seed (FR 1.7.0 has no seed flag → variation is `passes`/`opt_time`/`threads`). |
+
+> **Why Freerouting, not hand-routing the spine?** A single `cec_route` pass collided at **343 structural
+> DRC** on the dense EPS spine; the same board through Freerouting (no rules/keep-outs yet) came back at
+> **34** — the real autorouter decisively beats single-pass scripting on the crossing nets. The keep-outs +
+> netclass rules + the scorer's hard gates are what turn "34, partial" into an accept/repair decision.
+
+## Tier — `cec_score.py`: metrics + HARD GATES
+
+Scores a routed board and applies **non-negotiable safety gates** — a candidate is rejected outright if a
+gate fails, *regardless* of how good its other metrics are.
+
+- **`Rules.from_board(board)`** derives, by net-name convention: **Kelvin pairs** (`*_HI`/`*_LO`, the shunt
+  sense), **diff pairs** (`*_P`/`*_N`, e.g. USB), **12V nets** (`12V`/`SENSEC*_HI`). Override explicitly when
+  a board breaks convention.
+- **`score(board, rules) → Metrics`**: `drc` (structural only — same cosmetic filter as `cec_route.verify`),
+  `unconnected`, `length`, `vias`, `tracks`, **`kelvin_ok`** (gate), **`diffpair_ok`** (gate), `cu12v`,
+  `balance` (F/B copper symmetry), `gates_pass`, and a `detail` dict (per-net breakdown + gate reasons → the
+  decision log). A pair "passes" only if **both** members are routed (≥1 track) **and** carry 0 unconnected
+  ratlines.
+- **`gate(m, rules) → (passed, reasons)`**: human-readable reason per failing gate.
+- **`objective(m, weights) → float`** (lower = better): ranks *gate-passing* candidates — weighted penalty on
+  DRC, unconnected, length, vias, with a balance reward. `DEFAULT_WEIGHTS` exported.
+
+## Tier — `cec_router.py`: the `route()` orchestration framework
+
+```python
+import cec_router as cr, cec_score
+spec = cr.Spec(board="…/eps8pin-module.kicad_pcb", out="/tmp/eps-routed.kicad_pcb",
+               rules=cec_score.Rules.from_board(board), seeds=(0,1), Kmax=2, max_iters=4)
+final, log = cr.route(spec.board, spec)        # deterministic plane runs autonomously
+log.to_json("decision-log.json")               # reproducible record of every decision
+```
+
+`route()` runs the loop from the architecture's pseudocode:
+
+```
+rules = spec_to_dru(spec)                 # netclasses + .kicad_dru (cec_pcb)
+plan  = planner(board0, spec)             # regions + seam contracts  (Opus tier)
+for region in plan.regions:               # per-region repair loop
+    while True:
+        cands  = cec_fr.generate_batch(region.board, hints=region.hints, seeds=…)
+        scored = rank(cec_score.score(c) for c in cands)      # gate-passing first, then objective
+        v      = manager(region, scored)                       # accept | repair      (Sonnet tier)
+        if v.accept and best.gates_pass: routed[region] = best; break
+        if K >= Kmax: apply_edit(state, escalator(region))     # structural re-plan   (Opus tier), K=0
+        else:         apply_edit(state, worker(region, v))     # cheap param/hint edit (Haiku tier), K+=1
+merged  = serial_merge(board0, routed, contracts)              # seam reconcile (owner routes each crossing net)
+final   = write_once(merged → spec.out)                        # one-shot guard at the write boundary
+verdict = independent_drc(final, rules)                        # an INDEPENDENT DRC verdict on the result
+return final, DecisionLog                                      # JSON, replayable
+```
+
+- **`spec_to_dru(spec)`** writes the board's netclasses + `.kicad_dru` (via `cec_pcb`), so the candidates *and*
+  the verifying DRC see the same electrical rules.
+- **`apply_edit(state, edit)`** applies a structured edit: `fr_params` (more passes/opt), `keepout`/`drop_keepout`
+  (reserve/free a vital area), `seeds`, or `place` (move/rotate a footprint — **placement is sanctioned**, this
+  never lays a track; it goes through `pcbnew`).
+- **`serial_merge`** composites each region's *owned-net* copper onto the floorplan, honouring **seam contracts**
+  (a crossing net is taken from its owner region only, so the seam meets once). A single `all` region → its
+  candidate *is* the merged board.
+- **`DecisionLog`** records, per iteration: the candidates + their metrics, which was chosen, the verdict + tier,
+  the edit applied. `to_json()` → replay the run.
+
+### The control tiers (how the LLM plugs in)
+
+The four control-tier callables — `planner` / `manager` / `worker` / `escalator` — **default to deterministic
+policies**, so the whole framework runs **end-to-end with no LLM** (reproducible + testable; the common case,
+since most decisions are mechanical "the gates pass → accept" or "bump effort → repair"). The **tiered LLM
+realisation** swaps any slot for `make_subagent_policy(decide_fn)`: the orchestrator (Claude itself, the **Opus**
+tier) plans the regions and **spawns the appropriate-tier sub-agent** for the harder judgements —
+
+| Tier | Slot | Job |
+|---|---|---|
+| **Opus** (the orchestrator) | `planner`, `escalator` | Partition the board into regions + seam contracts; after `Kmax` stalls, a *structural* re-plan (re-place a part, split the region, re-spec a seam). |
+| **Sonnet** | `manager` | Per-region judge: read the best candidate's metrics + snags → `accept` \| `repair` \| (let the loop escalate). |
+| **Haiku** | `worker` | Cheap, high-volume edits during a repair: a targeted keep-out or a param nudge from the snag text. |
+
+The framework stays identical — only the *source of judgement* changes — which is what keeps the run auditable
+and the deterministic plane independently verifiable. The default policies are the floor; the sub-agents only
+take over a decision when a board actually needs judgement the heuristics can't supply.
+
+### Running it
+
+```bash
+python3 scripts/cec_fr.py        # Tier-0 self-test: routes 2 EPS candidates via real Freerouting
+python3 scripts/cec_score.py     # scorer self-test: gates a routed vs an unrouted board
+python3 scripts/cec_router.py    # end-to-end demo on EPS (deterministic plane, real FR + scoring)
+```
+
+Dependency: a Freerouting **1.7.0** jar (`ensure_jar()` downloads the pinned release if it isn't already at
+`/tmp/fr_1.7.0.jar`, `$CEC_FREEROUTING_JAR`, or `~/.cache/cec/`). `java` + `xvfb-run` must be on PATH. The jar is
+**not** vendored (a 4.7 MB binary doesn't belong in the board repo); the version is pinned in `cec_fr.FR_VERSION`.
