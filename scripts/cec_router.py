@@ -80,6 +80,7 @@ class Spec:
     Kmax: int = 3                                    # repair attempts before an escalation re-plan
     max_iters: int = 12                              # hard per-region iteration ceiling (never loop forever)
     max_workers: object = None                       # parallel FR workers (None = min(seeds, nproc))
+    opt_spread: int = 0                              # >0: sweep FR opt_time from this floor -> opt_time across seeds
     seeds: tuple = (0, 1, 2)
 
 
@@ -407,10 +408,24 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             it += 1
             outd = os.path.join(work_dir, f"{region.name}_it{it}")
             os.makedirs(outd, exist_ok=True)
-            params = {"passes": state.fr["passes"], "opt_time": state.fr["opt_time"],
-                      "threads": state.fr.get("threads", 1)}
+            base = {"passes": state.fr["passes"], "opt_time": state.fr["opt_time"],
+                    "threads": state.fr.get("threads", 1)}
+            sl = list(state.seeds)
+            # opt-spread: Freerouting 1.7.0 is deterministic (no seed), so identical params give
+            # identical candidates. Spread the optimization TIME across the parallel seeds (floor
+            # -> base opt_time, linearly) so each is a genuinely different route at a different
+            # effort level; the scorer keeps the cleanest. A parallel optimization sweep that
+            # also yields a DRC-vs-effort curve. opt_spread=0 -> fixed (current behaviour).
+            if spec.opt_spread and len(sl) > 1:
+                _lo, _hi = spec.opt_spread, base["opt_time"]
+                def _mkparams(s, sl=sl, lo=_lo, hi=_hi, base=base):
+                    i = sl.index(s)
+                    return {**base, "opt_time": int(round(lo + (hi - lo) * i / (len(sl) - 1)))}
+            else:
+                def _mkparams(s, base=base):
+                    return base
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
-                                          out_dir=outd, params=lambda s, p=params: p,
+                                          out_dir=outd, params=_mkparams,
                                           max_workers=spec.max_workers)
             scored = _candidate_pool(cands, rules, spec.weights)
             best = scored[0] if scored else None
@@ -491,7 +506,7 @@ def find_board(board):
 
 
 def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, threads=1,
-               kmax=2, max_iters=4, max_workers=None):
+               kmax=2, max_iters=4, max_workers=None, opt_spread=0):
     """Build a single-region Spec for a board (the small-/single-board path: one region,
     all nets, vital-area keep-outs derived from the 12V nets). The larger multi-region path
     is driven by populating spec.regions/contracts (e.g. from an Opus planner sub-agent)."""
@@ -501,7 +516,8 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     out = os.path.join(out_dir, f"{name}-routed.kicad_pcb")
     rules = cec_score.Rules.from_board(board_path)
     spec = Spec(board=board_path, out=out, rules=rules, seeds=tuple(seeds), Kmax=kmax,
-                max_iters=max_iters, max_workers=max_workers, weights=dict(cec_score.DEFAULT_WEIGHTS))
+                max_iters=max_iters, max_workers=max_workers, opt_spread=opt_spread,
+                weights=dict(cec_score.DEFAULT_WEIGHTS))
     spec.regions = [Region(name="all", nets=[],
                            hints=_vital_keepouts_from_rules(board_path, rules),
                            fr_params={"passes": passes, "opt_time": opt_time, "threads": threads})]
@@ -532,6 +548,9 @@ def main(argv=None):
     ap.add_argument("--max-iters", type=int, default=4, help="per-region iteration ceiling")
     ap.add_argument("--max-workers", type=int, default=0,
                     help="parallel Freerouting workers (0 = auto: min(seeds, nproc); set higher to oversubscribe)")
+    ap.add_argument("--opt-spread", type=int, default=0,
+                    help="parallel opt-time SWEEP: spread FR opt_time from this floor (s) -> --opt-time across the "
+                         "seeds (0 = off; makes the deterministic-FR candidates genuinely different)")
     ap.add_argument("--out", default="build/route", help="output dir for the routed board + log")
     ap.add_argument("--render", action="store_true", help="also write a top render PNG")
     ap.add_argument("--quiet", action="store_true")
@@ -541,7 +560,7 @@ def main(argv=None):
     out_dir = a.out if os.path.isabs(a.out) else os.path.join(ROOT, a.out)
     spec, name = board_spec(a.board, out_dir, seeds=seeds, passes=a.passes, opt_time=a.opt_time,
                             threads=a.threads, kmax=a.kmax, max_iters=a.max_iters,
-                            max_workers=(a.max_workers or None))
+                            max_workers=(a.max_workers or None), opt_spread=a.opt_spread)
     final, log = route(spec.board, spec, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
     if final and a.render:

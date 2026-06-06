@@ -53,6 +53,9 @@ on:
       max_workers:
         description: "Parallel Freerouting workers (0 = auto: min(seeds, CPU threads); set higher to oversubscribe)"
         default: "0"
+      opt_spread:
+        description: "Parallel opt-time SWEEP floor (s): spread FR opt_time from this -> opt_time across seeds (0 = off)"
+        default: "0"
 
 jobs:
   route:
@@ -95,6 +98,7 @@ jobs:
           -Kmax       ${{ inputs.kmax }}
           -MaxIters   ${{ inputs.max_iters }}
           -MaxWorkers ${{ inputs.max_workers }}
+          -OptSpread  ${{ inputs.opt_spread }}
           -Out       "build/route/${{ inputs.board }}"
           -Render
 
@@ -110,6 +114,7 @@ jobs:
             --kmax        "${{ inputs.kmax }}" \
             --max-iters   "${{ inputs.max_iters }}" \
             --max-workers "${{ inputs.max_workers }}" \
+            --opt-spread  "${{ inputs.opt_spread }}" \
             --out         "build/route/${{ inputs.board }}" \
             --render
 
