@@ -10,7 +10,28 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.9 (2026-06-05).
+Spec revision reflected here: v3.10 (2026-06-05).
+
+v3.10 (2026-06-05) — SPEC CONSOLIDATION (merged the canonical v3.9 upload's revised
+architecture into this board-reconciled line; both forked from the shared v3.7 base).
+ADOPTED: (1) the three digital-sensor Standard modules (24-pin, EPS, PCIe) move
+ESP32-S3-MINI-1 -> **ESP32-C6-MINI-1** (C3-MINI-compatible footprint; 24-pin + EPS can
+cost-down to **C3-MINI** once their NTC count is fixed). 12VHPWR Standard KEEPS the
+S3-MINI-1 (9 analog ins + N4R2 PSRAM); Hub KEEPS the S3-WROOM-1-N16R8. (2) **§6.13
+EPS/PCIe transient-visibility ladder**, resolving OQ-9: Standard EPS/PCIe gain a cheap
+analog DETECTION front-end on the shunt (INA181-class CSA + hysteresis comparator ->
+firmware-settable threshold -> ORs into the §6.10 FREEZE trigger, ~$0.85/cable) that
+flags a transient as a BINARY event (sees that it happened + the averaged envelope, NOT
+the sub-ms waveform); magnitude/shape are held to NEW EPS Pro/PCIe Pro (INA240 + fast
+ADC + RS-485) and EPS Max/PCIe Max (per-cable spectral, no per-pin arc) SKUs. (3) v3.8
+doc fixes (§2.8 12V-2x6 sideband pass-through, §2.9 S5 5VSB tap downstream of the 24-pin
+sensor, §6.6 chassis thermal coupling / TIM under the EPS/PCIe shunts) + OQ-57..59.
+PRESERVED from this line (the upload fork predated both): REF3030 (12VHPWR Standard,
+OQ-8 middle ground) and the S5B right-angle NanoKVM connector (OQ-51). OQ list is now
+**OQ-1..OQ-59**. BOARD DIVERGENCE OPENED — the spec now LEADS the boards: the C6/C3 MCU
+change and the §6.13 detection front-end are NOT yet on the as-built 24-pin/EPS/PCIe
+schematics (all on ESP32-S3-MINI-1; EPS was just sourced on S3-MINI-1-N4R2 C3013941 with
+no detection front-end). See the action item below.
 
 v3.9 (2026-06-05, right-angle aux connector): J7 (NanoKVM aux) is the RIGHT-ANGLE
 S5B-PH-K-S (LCSC C157923, footprint cec-Connector_JST:JST_PH_S5B-PH-K-S_1x05_P2.00mm_
@@ -82,7 +103,7 @@ OQ-53..56; do not treat as locked. (2) Appendix C **Concierge** data-collection
 out-of-band visual). (3) **NanoKVM aux-link** row on the Hub tables (3.3V UART +
 shared 5V feed). The upload's stale board facts (TJA1462A, MINI-1-N16R2,
 1Ω-inrush/SS14 front end, polymer cap, M2.5) were OVERRIDDEN by this line's
-as-built decisions, not imported. OQ list is now **OQ-1..OQ-56** (the upload's
+as-built decisions, not imported. OQ list is now **OQ-1..OQ-59** (the upload's
 OQ-37..55 were renumbered to OQ-38..56 to keep this line's OQ-37 = shielded jack).
 
 v3.2 reconciliation (2026-06-03): the repo spec was merged with the user's
@@ -477,7 +498,7 @@ clearly labeled branch or variant.
 - OQ-15 (spec): Max positioning — is the 12VHPWR Max a new platform tier or a
   module variant (§6.11)? [In the OLD repo numbering OQ-15 meant the shielded-jack
   divergence; that is now OQ-37.]
-- Canonical OQ list is OQ-1..OQ-56 in spec §10 (v3.7): OQ-1..37 as before (Max
+- Canonical OQ list is OQ-1..OQ-59 in spec §10 (v3.10): OQ-8 RESOLVED (REF3030 middle ground), OQ-9 RESOLVED (§6.13 transient ladder), OQ-57..59 opened (transient-ladder gating). OQ-1..37 as before (Max
   §6.11, SATA §6.12, ARGB §7, compute/Enterprise, OQ-37 shielded jack), plus the
   v3.6-imported OQ-38..56 (Concierge data-collection OQ-38..47, NanoKVM link
   OQ-48..52, and subsystem power §2.9 OQ-53..56). OQ-51 (NanoKVM link FORM) is
@@ -495,6 +516,14 @@ so a fresh reader can trust them without re-deriving from the schematic. Update
 this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
+
+-1. v3.10 SPEC-vs-BOARD divergence (digital modules) — the consolidated spec moved the
+   24-pin/EPS/PCIe to ESP32-C6-MINI-1 (C3-MINI cost-down option) and added the §6.13
+   per-cable transient DETECTION front-end (INA181-class CSA + hysteresis comparator +
+   firmware threshold), but the as-built schematics are still ESP32-S3-MINI-1 with no
+   detection front-end (the EPS was just sourced on S3-MINI-1-N4R2 C3013941). Carry the
+   MCU swap + the §6.13 front-end onto 24-pin/EPS/PCIe on their next pass; gen-modules.py
+   still emits the S3-MINI-1. 12VHPWR Standard (S3) + Hub (S3-WROOM) are unchanged.
 
 0. §2.9 Subsystem power management — Hub Standard prototype (PARTIAL, 2026-06-05).
    POWER-SWITCHING CORE DONE in the schematic (ERC 0 errors, netlist verified, BOM
