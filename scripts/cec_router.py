@@ -432,7 +432,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             verdict = manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
-                    note=f"K={K} hints={len(state.hints)} fr={params}")
+                    note=f"K={K} hints={len(state.hints)} fr={base} opt_spread={spec.opt_spread}")
             if verbose:
                 bm = best[1] if best else None
                 print(f"[route] {region.name} it{it}: {len(cands)} cand "
