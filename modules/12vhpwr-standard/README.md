@@ -8,7 +8,7 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 |---|---|
 | Tier | Standard |
 | MCU | ESP32-S3-MINI-1-N4R2 (locked; same MINI-1 as the other modules) |
-| Hub link | RJ-45 8P8C shielded FTP, locking boot (J1) |
+| Hub link | RJ-45 8P8C **shielded FTP**, locking boot (J1) — Kinghelm **KH-RJ45-58-8P8C** (LCSC **C2683360**), the same already-sourced jack as the Hub (§2.1; 2026-06-06). Drop-in on the routed 1.27 mm land (pads 1–8 identical to the old 54602). |
 | Power connector | **12V‑2×6** (Molex Micro‑Fit+ / Amphenol Minitek, 16‑ckt: 6×+12V, 6×GND, 4 sideband). **J3 = board-mount right‑angle MALE header** (the PSU 12V‑2×6 cable plugs in). **J4 = captive OUTPUT pigtail** (a 12V‑2×6 cable soldered to the board, female plug → GPU). There is **no stock board‑mount female** 12V‑2×6 (it only exists as a cable plug), so this male‑in / soldered‑pigtail‑out is the minimal‑mated‑pair inline form (§2.8). |
 | Sensing | **Per-pin**: six **INA240** current-sense amps, one across each +12V pin's **1 mΩ** shunt (RS1–6), feeding the ESP32-S3 ADC (IO1–6) directly — **no I²C sensing bus**. REF1/REF2 → GND (unidirectional forward). A **47k/10k divider** (R5/R6, **0.1%**) brings the rail voltage into a 7th ADC channel. With the **REF3030 ratiometric reference** (U4, v3.8) accuracy is **~±0.3–0.5%** on V and all six I (see **OQ-8** + the Voltage-ref row). |
 | Input filter | Per-channel **anti-alias / transient RC** on each INA240 input: matched **10 Ω** series Rf on IN+/IN− (RFH1–6 / RFL1–6) + a **470 nF** differential cap (CF1–6). **fc = 1/(2π·2·Rf·Cdiff) ≈ 16.9 kHz**, so the ~10 kHz GPU transients this pass targets pass at ~−1.3 dB and HF is rolled off ahead of the ADC. Rf held at 10 Ω + matched (TI's INA240 ceiling) → negligible gain/CMRR error. *(Optional ~47 nF common-mode caps deferred — OQ-8.)* |
@@ -175,14 +175,25 @@ Table 3‑1, REF3030 SBOS392K, TJA1051 NXP) — all symbol pin maps correct.
 Caveats / flags carried into ordering:
 - **J3/J4 (12V‑2×6, Molex 219116 / 2191161161): NOT in the JLCPCB catalog → consigned /
   hand‑soldered** (J4 is a captive pigtail anyway). Left with no LCSC by design.
-- **J1 RJ‑45 (54602‑908LF / C2847314): JLCPCB stock ≈ 7** — effectively out; secure an
-  alternate or consign before any run (modules move to the FTP jack next rev regardless).
+- **J1 RJ‑45 → shielded FTP (Kinghelm KH‑RJ45‑58‑8P8C / C2683360), shared with the Hub**
+  (2026-06-06). This both resolves the old 54602's stock≈7 problem and moves the module to
+  the §2.1 platform FTP jack. **Drop‑in on the routed contacts** — pads 1–8 are pad‑identical
+  (1.27 mm, (0,0)…(8.89,−2.54)); the committer only needs *Update Footprints from Library*
+  on J1 (8 contacts preserved). The mounting pegs land ~0.1 mm off (same holes, now NPTH);
+  the jack adds two shield‑tab pads SH1/SH2. **Shield grounding: SH1/SH2 tied to GND — both
+  ends shielded AND grounded.** Hub and module share the PC chassis on a short RJ‑45, so
+  both‑end grounding is the right choice (it's what makes the shield effective at HF; the
+  ground loop is negligible since the chassis already bonds both grounds via the M3 mounts).
+  Wired in the schematic (3 wires + GND #PWR926 + a junction at J1's right edge; ERC clean,
+  SH1/SH2 now on the GND net). On the PCB the committer ties the two shield tabs into the
+  GND pour during *Update Footprints from Library*.
 - **RS1–6 shunt = CSS2H‑2512R‑1L00F (C4175647): the spec §6.4 candidate, OQ‑11 still
   OPEN** — sourced as the spec's named part, NOT a locked decision (flagged on each RS in
   the schematic `Note` prop). Stock ≈ 2.8k (~460 boards).
 - **INA240A3DR (C2060584): SOIC‑8 D part** (the PW/TSSOP pinout differs — never order PW).
   Stock ≈ 1.7k → ~290 boards; re-check for volume.
-- **SW1/SW2 = EVQPUC02K (C79174)** — keeps the existing EVQ‑PU footprint (no PCB change).
-  The cheaper Basic **TS‑1088‑AR02016 (C720477)** Hub‑Standard uses is an alternative *if*
-  the EVQ→TS‑1088 footprint swap is also done.
+- **SW1/SW2 → TS‑1088‑AR02016 (C720477, XKB), shared with the Hub** (2026-06-06, Basic,
+  cheaper than the EVQ). The land **changes** (EVQ‑PU = 4 pads at ±2.625/±0.85; TS‑1088 =
+  2 pads at ±2.18/0), so it is **not** a drop‑in: the committer must *Update Footprints from
+  Library* and **re‑place + re‑route SW1/SW2** (trivial — 2 buttons, GPIO0/EN + GND each).
 - 10 Basic / 13 Extended unique lines. Datasheet‑URL props not yet populated (informational).

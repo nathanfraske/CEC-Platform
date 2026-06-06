@@ -4091,9 +4091,9 @@
 		(uuid "e6bcc726-7b0b-4f64-bea9-ef4d44b2ac6d")
 		(property "Reference" "J1" (at 49.53 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "TO-HUB" (at 49.53 85.09 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_RJ:RJ45_Amphenol_54602-x08_Horizontal" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Amphenol ICC" (at 0 0 0)
+		(property "Manufacturer" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4101,7 +4101,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "54602-908LF" (at 0 0 0)
+		(property "MPN" "KH-RJ45-58-8P8C" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4109,7 +4109,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2847314" (at 0 0 0)
+		(property "LCSC" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5152,9 +5152,9 @@
 		(uuid "562b86e0-101d-4439-9c13-4082145331e4")
 		(property "Reference" "SW1" (at 144.78 482.6 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "BOOT" (at 144.78 513.08 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA" (at 144.78 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 144.78 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Panasonic" (at 0 0 0)
+		(property "Manufacturer" "XKB" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5162,7 +5162,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "EVQPUC02K" (at 0 0 0)
+		(property "MPN" "TS-1088-AR02016" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5170,7 +5170,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C79174" (at 0 0 0)
+		(property "LCSC" "C720477" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5198,9 +5198,9 @@
 		(uuid "5a6e3eb0-de12-4a4b-8e6a-44b093cf1e83")
 		(property "Reference" "SW2" (at 226.06 482.6 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "RESET" (at 226.06 513.08 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Button_Switch_SMD:Panasonic_EVQPUJ_EVQPUA" (at 226.06 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 226.06 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 226.06 497.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "Panasonic" (at 0 0 0)
+		(property "Manufacturer" "XKB" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5208,7 +5208,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "EVQPUC02K" (at 0 0 0)
+		(property "MPN" "TS-1088-AR02016" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5216,7 +5216,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C79174" (at 0 0 0)
+		(property "LCSC" "C720477" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -10906,6 +10906,36 @@
 	(wire (pts (xy 325.12 107.95) (xy 321.31 107.95))
 		(stroke (width 0) (type default)) (uuid "af8b0d1a-ba34-479b-9815-ed10c5d99b10"))
 	(label "SB_SENSE0_GPIO" (at 321.31 107.95 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8a891310-182c-4844-b2ac-ea6ba0817e1b"))
+	(wire (pts (xy 59.69 68.58) (xy 63.5 68.58))
+		(stroke (width 0) (type default)) (uuid "f2f6284b-282e-46ff-93b6-8393c11d85a0"))
+	(wire (pts (xy 59.69 71.12) (xy 63.5 71.12))
+		(stroke (width 0) (type default)) (uuid "628b9fc3-6a7e-4032-ae90-5f78d0df42dc"))
+	(wire (pts (xy 63.5 68.58) (xy 63.5 71.12))
+		(stroke (width 0) (type default)) (uuid "7019e802-0325-43f1-9b8a-e4ad8c381b5c"))
+	(junction
+		(at 63.5 71.12)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "5b81d89f-ae8d-4090-8c23-97d38964c619")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 63.5 71.12 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b3736320-335a-4bcd-a11b-20c5180952c8")
+		(property "Reference" "#PWR926" (at 63.5 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 63.5 74.93 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f27db2a4-500b-41c8-ab8e-4e06590a4457"))
+		(instances
+			(project "12vhpwr-standard-module"
+				(path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "#PWR926") (unit 1))
+			)
+		)
+	)
 	(sheet_instances
 		(path "/"
 			(page "1")

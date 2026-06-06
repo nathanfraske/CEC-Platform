@@ -617,11 +617,24 @@ Done (kept for context):
   REF3030 SBOS392K / TJA1051 NXP — all symbol pin maps correct; netlist unchanged,
   85 nets/312 nodes, ERC still only the benign lib_symbol_mismatch). FLAGS: J3/J4
   12V-2x6 (Molex 2191161161) NOT in JLC catalog -> consigned (no LCSC, by design; J4 is
-  a pigtail); J1 RJ45 C2847314 JLC stock ~7 (secure alt/consign); RS1-6 shunt
+  a pigtail); RS1-6 shunt
   CSS2H-2512R-1L00F (C4175647) is the spec §6.4 candidate but OQ-11 still OPEN (not
-  locked; flagged per-RS Note prop); SW1/2 = EVQPUC02K (C79174) keeps the EVQ-PU
-  footprint (cheaper Basic TS-1088/C720477 needs the Hub's footprint swap). CPL/gerbers
+  locked; flagged per-RS Note prop). CPL/gerbers
   pending the GUI PCB finish; datasheet-URL props not yet populated.
+  THEN (2026-06-06, 2nd pass, per user) swapped J1 + SW1/2 to the Hub's already-sourced
+  parts: J1 -> shielded FTP Kinghelm KH-RJ45-58-8P8C (C2683360, cec:RJ45_FTP_Shielded_
+  Horizontal) -- moves 12VHPWR-Std to the §2.1 platform FTP jack AND retires the old 54602
+  (C2847314, JLC stock was ~7). DROP-IN on the routed land: pads 1-8 are pad-identical
+  (1.27mm, (0,0)..(8.89,-2.54)) so the contacts stay routed; committer just runs Update-
+  Footprints-from-Library on J1 (mounting pegs ~0.1mm off = same holes now NPTH; 2 new
+  shield-tab pads). Shield SH1/SH2 TIED TO GND (both ends shielded AND grounded, per user --
+  Hub+module share the PC chassis on a short RJ-45 so both-end grounding wins at HF, ground
+  loop negligible via the M3-mount chassis bond); wired in the sch (3 wires + GND #PWR926 +
+  junction at J1's right edge, ERC clean, SH1/SH2 now on GND net 98->100 nodes), committer
+  ties the 2 tabs into the GND pour on Update-Footprints-from-Library. SW1/2 -> TS-1088-
+  AR02016 (C720477, XKB, Basic) like the Hub -- land CHANGES (EVQ 4-pad -> TS-1088 2-pad),
+  NOT a drop-in, so the committer re-places + re-routes the 2 buttons. Both done in the
+  schematic (ERC clean, netlist unchanged 85 nets); PCB Update-from-Library pending in GUI.
 - EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
   platform corrections to the EPS schematic: D1 PESD5V0S1UL -> PESD5V0S1BA (SOD-323,
   C5261083); BOOT/RESET buttons SW1/SW2 Panasonic_EVQPUJ_EVQPUA -> TS-1088-AR02016
@@ -632,7 +645,7 @@ Done (kept for context):
   0.5mOhm 2512 shunt (OQ-11 open) + J_IN1/2/J_OUT1/2 Mini-Fit Jr (THT). ERC clean
   (benign lib_symbol_mismatch). The EPS schematic is now HAND-SOURCED -> do not
   regenerate with gen-modules.py (would revert). gen-modules.py STILL emits
-  PESD5V0S1UL + Panasonic button + no LCSC -> apply the same fix to PCIe/12VHPWR-Std
+  PESD5V0S1UL + Panasonic button + no LCSC -> apply the same fix to PCIe
   (and/or the generator) on their next pass.
 - Generic NTC thermistor vendored + Hub board-temp sensor (2026-06-05). Vendored a
   reusable 10k NTC any board can pull: symbol cec-vendor:Thermistor_NTC (real props
