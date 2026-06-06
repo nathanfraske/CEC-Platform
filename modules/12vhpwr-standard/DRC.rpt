@@ -1,16 +1,8 @@
 ** Drc report for 12vhpwr-standard-module.kicad_pcb **
-** Created on 2026-06-05T20:19:39 **
+** Created on 2026-06-05T21:38:54 **
 ** Report includes: Errors, Warnings, Exclusions **
 
-** Found 14 DRC violations **
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(170.8750 mm, 58.3500 mm): Segment on Edge.Cuts
-    @(173.9500 mm, 133.8725 mm): Segment of J1 on F.Silkscreen
-[silk_edge_clearance]: Silkscreen clipped by board edge
-    Rule: board setup constraints silk; warning
-    @(170.8750 mm, 58.3500 mm): Segment on Edge.Cuts
-    @(170.4200 mm, 117.8225 mm): Segment of J1 on F.Silkscreen
+** Found 13 DRC violations **
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(112.8750 mm, 58.3500 mm): Segment on Edge.Cuts
@@ -19,6 +11,14 @@
     Rule: board setup constraints silk; warning
     @(112.8750 mm, 58.3500 mm): Segment on Edge.Cuts
     @(141.7108 mm, 63.7870 mm): Segment of J3 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(170.8750 mm, 58.3500 mm): Segment on Edge.Cuts
+    @(170.4200 mm, 117.8225 mm): Segment of J1 on F.Silkscreen
+[silk_edge_clearance]: Silkscreen clipped by board edge
+    Rule: board setup constraints silk; warning
+    @(170.8750 mm, 58.3500 mm): Segment on Edge.Cuts
+    @(173.9500 mm, 133.8725 mm): Segment of J1 on F.Silkscreen
 [silk_edge_clearance]: Silkscreen clipped by board edge
     Rule: board setup constraints silk; warning
     @(170.8750 mm, 58.3500 mm): Segment on Edge.Cuts
@@ -35,10 +35,6 @@
     Rule: board setup constraints silk; warning
     @(170.8750 mm, 138.3500 mm): Segment on Edge.Cuts
     @(141.8900 mm, 140.6190 mm): Segment of J4 on F.Silkscreen
-[silk_overlap]: Silkscreen clearance
-    Rule: board setup constraints silk; warning
-    @(155.7500 mm, 112.2500 mm): Value field of U2 (TJA1051T/3)
-    @(154.2500 mm, 107.7500 mm): Reference field of C23
 [silk_over_copper]: Silkscreen clipped by solder mask
     Local override; warning
     @(116.1800 mm, 125.0000 mm): Circle of TH2 on F.Silkscreen
@@ -62,10 +58,7 @@
 
 ** Found 0 unconnected pads **
 
-** Found 4 Footprint errors **
-[net_conflict]: Pad net (/SENSEP6_HI) doesn't match net given by schematic (/SENSEP1_HI)
-    Local override; warning
-    @(151.5000 mm, 95.0100 mm): Pad 1 [/SENSEP6_HI] of R5 on F.Cu
+** Found 3 Footprint errors **
 [extra_footprint]: Extra footprint
     Local override; warning
     @(116.8750 mm, 134.3500 mm): Footprint H3
