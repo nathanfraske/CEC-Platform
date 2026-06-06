@@ -193,6 +193,69 @@ those, *Fill All Zones*, route (incl. the §6.8 four-wire Kelvin shunt taps and 
 high-current 12 V transitions), and re-DRC. The two PCIe SKUs use the same generator
 path and can be condensed the same way when their turn comes.
 
+## PCB floorplan (2026-06-06) — RE-CONDENSED on the pegless 87427 connector (96 × 35 mm)
+
+Once the power connector moved to the **pegless Molex 87427-0802** (no snap-peg NPTH
+holes — see the pinout-fix note above), the floorplan was re-condensed: **99 × 44 → 96 × 35 mm
+(−24 % area, ~−20 % height)**. The win is entirely the pegs — the old 5569 footprint reserved
+~7–11 mm of board on each connector's *mouth* side for the snap-peg holes (which can't overhang);
+the 87427 keeps only its **pad rows on-board and overhangs the whole body/mouth**, so each cable's
+J_IN/J_OUT pull to ~4 mm from the top/bottom edges and the cable column collapses ~22 → ~14 mm.
+This board has **all 45 schematic parts placed** (the decoupling no longer waits for
+*Update-from-Schematic*); **0 structural DRC hits** (remaining are the usual cosmetic silk +
+benign `lib_footprint_mismatch`). Verified by render + DRC.
+
+- **Connector rotations FLIP vs the old footprint** (the 87427 is mirrored): **J_IN = rot180**
+  (mouth overhangs the TOP edge, GND row at y≈4, +12V row at y≈9.5) and **J_OUT = rot0**
+  (mouth overhangs the BOTTOM, +12V row at y≈H−9.5, GND row at y≈H−4). J_OUT sits at
+  `Xc+12.6` so the +12V pad columns (pads 5–8) stay vertically aligned with J_IN — **12 V flows
+  straight down through the shunt**. (The old pegged board used J_IN rot0 / J_OUT rot180.)
+- **Sense band** between each cable's IN/OUT (real courtyards): INA238 (Kelvin-taps the shunt,
+  left) · 0.5 mΩ shunt (rot90, in the 12 V path) · INA181A2 + TLV7011 (§6.13, right), each with
+  its 100 nF bypass tight to it.
+- **Core (right):** ESP32-C6 (U1) mid; USB-C (J5) top edge; CAN (U2) + VBUS ORing (D2/C9) +
+  CC (R8/R9) in the top band; LP5907 (U3) + LDO caps mid; BOOT/RESET (SW1/SW2) bottom; the
+  **RJ-45 (J1) overhangs the right edge** (box ≈ y[5.6, 21.6]); the DETECT front-end (D1/R1/R7)
+  sits just below it.
+- **ESP antenna keepout DROPPED** (no wireless, per the design): its courtyard is trimmed to
+  the body so GND fills under the antenna and parts pack closer. *Further headroom not spent:*
+  the antenna end (no pads) could **overhang a board edge** to push toward ~90 × 33 (−30 %).
+- **3 M3 mounts:** two on the clear left strip (the connector overhangs eat the top/bottom edges
+  across the cable region; the RJ-45 eats the right), one bottom-right corner below the RJ-45.
+- Stackup / copper unchanged: **4-layer, F.Cu 2 oz / In1 1 oz GND / In2 1 oz GND / B.Cu 2 oz**;
+  12 V on the outers split at each shunt; one `GND Plane` zone over In1+In2 (emitted unfilled —
+  *Fill All Zones* in the GUI).
+
+**Routing strategy (candidates) — for when you route this board:**
+
+1. **+12 V high-current (per cable, ~30 A):** J_IN pads 5–8 → shunt HI → [RS] → shunt LO →
+   J_OUT pads 5–8, straight down the aligned column. A **12V_IN F.Cu pour** (J_IN → shunt high)
+   and a **12V_OUT F.Cu pour** (shunt low → J_OUT), each **mirrored on B.Cu + via-stitched**
+   (2 oz × 2 ≈ 4 oz). The shunt bridges the IN/OUT split on F.Cu — **never pour 12 V on an inner**
+   (it would short the shunt). Via field at each +12 V pad and shunt terminal.
+2. **GND return:** the 16 connector GND pins (pads 1–4 ×4) + all IC/cap grounds stitch straight
+   down into the two inner GND planes; keep them solid (also the quiet reference under the Kelvin
+   taps).
+3. **Kelvin sense (per shunt):** INA238 (left) and INA181 (right) each tap the **inner edges** of
+   the shunt pads as a **tight ~0.25 mm matched pair over the In1 GND plane** — short, symmetric,
+   not crossing the 12 V pour (the SENSE*_HI/LO nets are shared with the 12 V force; the Kelvin
+   benefit is in *where* you tap).
+4. **Control→sense "spine":** +3V3, I²C SCL/SDA (ESP → U10 → U11), THRESH (ESP → both comparators),
+   DETC1/DETC2 (comparators → ESP) all cross right-core → left sense band. Inners are GND, so route
+   this on the **outers along the mid-height y≈17 lane** between J_IN and J_OUT (the only clear
+   horizontal channel — the connector backs are full of THT pads). Bundle the slow/DC signals;
+   keep THRESH (an analog ref) over GND, away from the 12 V switching edges.
+5. **CAN:** CAN_H/L = J1 ↔ U2 (tight pair over GND); CAN_TX/RX = U2 ↔ ESP. No 120 Ω termination on
+   the module (it lives at the Hub).
+6. **USB FS pair:** USB_DP/DM = J5 ↔ ESP, length-matched on F.Cu over GND, short (J5 is right above
+   the ESP); CC1/CC2 (R8/R9) and VBUS → D2 → C9 → +5VSB at the connector.
+7. **+5VSB / DETECT:** +5VSB short F.Cu in the core (RJ-45 VCC + USB ORing → LDO/CAN); DETECT
+   cluster (D1/R1/R7) at J1.8, DETECT_SENSE joins the spine.
+
+The floorplan is a hand-maintained bootstrap (made by a one-shot condensed-placement pass that
+reuses `gen-module-pcb.py`'s helpers; not folded into the shared generator). From here it is
+GUI-maintained.
+
 ## Update (2026-06-06) — EPS12V pinout fix + formal Molex 87427-0802 footprint
 
 The PCB's power-connector pinout was **flipped** vs the EPS12V/EATX12V standard, and the

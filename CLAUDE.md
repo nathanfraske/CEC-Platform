@@ -730,6 +730,20 @@ Done (kept for context):
   CMRR on the transient capture (same R_0402 land, drop-in); RS
   shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); fiducials DONE 2026-06-06 (3x cec-Fiducial:Fiducial_1mm_Mask2mm, board_only/excl-BOM/excl-pos,
   refs on F.Fab: FID1 (162.25,61) TR, FID2 (166,135.5) BR, FID3 (139,116) lower-center; DRC copper-clean).
+- EPS 8-pin PCB RE-CONDENSED on the pegless 87427 (2026-06-06). With the snap pegs gone
+  (87427-0802 has none), re-floorplanned 99x44 -> **96x35mm (-24% area, ~-20% height)**: the
+  pegless connector keeps only its pad rows on-board and overhangs the whole body/mouth, so
+  J_IN/J_OUT pull to ~4mm from the top/bottom edges (cable column ~22->~14mm). Connector
+  rotations FLIP (87427 is mirrored): **J_IN rot180 / J_OUT rot0** (was rot0/rot180), J_OUT at
+  Xc+12.6 keeps the +12V columns aligned for a straight vertical shunt path. ALL 45 schematic
+  parts placed (decoupling no longer waits for Update-from-Schematic); 0 STRUCTURAL DRC (only
+  cosmetic silk + benign lib_footprint_mismatch). ESP32-C6 antenna keepout DROPPED (no wireless,
+  per user) -> GND fills under it, courtyard trimmed to body. 3 M3 mounts (2 left strip, 1
+  bottom-right below the RJ-45). Render + DRC verified. Made by a one-shot condensed-placement
+  pass reusing gen-module-pcb.py helpers (NOT folded into the shared generator, per user's
+  "adopt it" choice); hand-maintained in the GUI from here. Routing candidates (12V outer pours
+  split at shunt / dual inner GND / Kelvin off shunt inner edges / control->sense spine on the
+  mid-height outers / short CAN+USB in the core) are written into the EPS README.
 - EPS 8-pin power-connector pinout fix + formal Molex footprint (2026-06-06, per user
   cross-check). The interposer's 4 Mini-Fit Jr connectors (J_IN1/J_OUT1/J_IN2/J_OUT2) had
   +12V on pads 1-4 / GND on 5-8 -- the FLIPPED assignment vs the EPS12V/EATX12V standard.
