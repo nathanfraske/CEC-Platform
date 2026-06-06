@@ -67,7 +67,9 @@ jobs:
       # ---- prerequisites ----
       - name: Verify prerequisites (Windows)
         if: runner.os == 'Windows'
-        shell: powershell   # Windows PowerShell 5.1 (always present); pwsh (PS7) may not be installed
+        # Windows PowerShell 5.1 (always present; pwsh/PS7 may not be). -ExecutionPolicy Bypass
+        # so a fresh runner's default Restricted policy doesn't block the .ps1 (no machine config).
+        shell: 'powershell -ExecutionPolicy Bypass -File "{0}"'
         run: .\scripts\route-prereqs.ps1
 
       - name: Verify prerequisites (Linux/macOS)
@@ -77,7 +79,9 @@ jobs:
       # ---- route on the runner's CPU ----
       - name: Route (Windows)
         if: runner.os == 'Windows'
-        shell: powershell   # Windows PowerShell 5.1 (always present); pwsh (PS7) may not be installed
+        # Windows PowerShell 5.1 (always present; pwsh/PS7 may not be). -ExecutionPolicy Bypass
+        # so a fresh runner's default Restricted policy doesn't block the .ps1 (no machine config).
+        shell: 'powershell -ExecutionPolicy Bypass -File "{0}"'
         run: >
           .\scripts\route.ps1
           -Board    "${{ inputs.board }}"
