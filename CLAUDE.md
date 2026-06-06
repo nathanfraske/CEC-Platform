@@ -704,8 +704,8 @@ Done (kept for context):
   ISENSEP INA outputs have no ADC-input cap (INA drives direct, optional); RFH/RFL filter
   10ohm DONE 2026-06-06 -> 0.1% Yageo RT0402BRE0710RL (C705642, 0.1%/50ppm) on all 12 for AC
   CMRR on the transient capture (same R_0402 land, drop-in); RS
-  shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); NO fiducials on the board
-  (add >=2-3 for fine-pitch SMD).
+  shunt OQ-11 still open (CSS2H-2512R-1L00F candidate, +/-1%/75ppm); fiducials DONE 2026-06-06 (3x cec-Fiducial:Fiducial_1mm_Mask2mm, board_only/excl-BOM/excl-pos,
+  refs on F.Fab: FID1 (162.25,61) TR, FID2 (166,135.5) BR, FID3 (139,116) lower-center; DRC copper-clean).
 - EPS 8-pin module brought up to date + sourced (2026-06-05). Applied the Hub's
   platform corrections to the EPS schematic: D1 PESD5V0S1UL -> PESD5V0S1BA (SOD-323,
   C5261083); BOOT/RESET buttons SW1/SW2 Panasonic_EVQPUJ_EVQPUA -> TS-1088-AR02016
