@@ -34,15 +34,17 @@ CX0, PITCH = 9.0, 27.0           # first cable origin x (left margin reclaimed),
 # connector needs ~12.5 mm of board, not its full ~22 mm courtyard). The per-cable
 # sense parts sit SIDE-BY-SIDE in a band at the shunt level instead of stacked.
 # 3 M3 mounts: the J_IN/J_OUT courtyards eat the left corners (only the mid-height
-# clear band is free) and the RJ-45 fills the right edge, so USB-C moves to the TOP
-# edge to free the two right corners. ~99 x 40 mm vs the old 110 x 66 (-45% area).
+# clear band is free) and the RJ-45 sits on the right edge, so USB-C moves to the TOP
+# edge to free the two right corners. The RJ-45 mouth ALSO overhangs the right edge
+# (only its contacts/posts/shield tabs stay on-board) to keep W under 100 mm.
+# ~98 x 44 mm vs the old 110 x 66 (-41% area).
 JIN_Y = 7.0                      # J_IN origin: pads y7.0/12.5, pegs y2.8 (clear top edge ~1.2 mm), mouth overhangs -y
-BAND_Y = 20.0                    # sense band center (between J_IN bottom pads y12.5 and J_OUT top pads)
+BAND_Y = 22.0                    # sense band center (between J_IN bottom pads y12.5 and J_OUT top pads)
 
 def geometry(n):
     cables_right = CX0 + (n - 1) * PITCH + 18.7      # rightmost connector courtyard
     ex = cables_right + 4.0                           # electronics region left x
-    return ex + 48.0, 40.0, ex                        # W, H, ex (condensed)
+    return ex + 39.0, 44.0, ex                        # W, H, ex (W<100: RJ-45 mouth overhangs the right edge)
 
 def placement(n):
     W, H, ex = geometry(n)
@@ -65,20 +67,20 @@ def placement(n):
         P[f"U2{i}"]    = (x + 12.5, BAND_Y - 2.5, 0)  # INA181A2 CSA (U20, U21, U22)
         P[f"U3{i}"]    = (x + 12.5, BAND_Y + 2.5, 0)  # TLV7011 comparator (U30, U31, U32)
     P.update({                                        # control/power + flash, right
-        "U1":  (ex + 8.0, 20.0, 0),                   # ESP32-C6-MINI-1 (13x17 crtyd), left column mid
-        "U2":  (ex + 20.0, 6.0, 0),                   # TJA1051T/3 CAN (top of mid-strip)
-        "U3":  (ex + 6.0, 35.0, 0),                   # LP5907 LDO (left column bottom)
-        "SW1": (ex + 19.0, 32.0, 0),                  # BOOT (mid-strip bottom)
-        "SW2": (ex + 25.5, 32.0, 0),                  # RESET (spaced from BOOT to clear the mask)
-        "D2":  (ex + 18.0, 13.0, 90), "C9": (ex + 22.0, 13.0, 0),  # VBUS ORing (vert SMA) + bulk
-        "R8":  (ex + 18.0, 17.0, 0), "R9": (ex + 21.0, 17.0, 0),   # CC pulldowns
-        "R10": (ex + 25.0, 13.0, 0), "C40": (ex + 25.0, 16.0, 0),  # §6.13 THRESH RC
+        "U1":  (ex + 8.0, 22.0, 0),                   # ESP32-C6-MINI-1 (13x17 crtyd), left column mid
+        "U2":  (ex + 19.5, 7.0, 0),                   # TJA1051T/3 CAN (top of mid-strip)
+        "U3":  (ex + 6.0, 39.0, 0),                   # LP5907 LDO (left column bottom)
+        "SW1": (ex + 20.0, 31.0, 0),                  # BOOT (mid-strip, stacked above RESET)
+        "SW2": (ex + 20.0, 37.0, 0),                  # RESET (stacked vertically so the pads don't mask-bridge)
+        "D2":  (ex + 18.0, 14.0, 90), "C9": (ex + 22.0, 14.0, 0),  # VBUS ORing (vert SMA) + bulk
+        "R8":  (ex + 18.0, 18.0, 0), "R9": (ex + 21.0, 18.0, 0),   # CC pulldowns
+        "R10": (ex + 18.0, 26.0, 0), "C40": (ex + 21.0, 26.0, 0),  # §6.13 THRESH RC
         "J5":  (ex + 6.0, 3.5, 180),                  # USB-C on the TOP edge (rot180: mouth overhangs -y, pads on-board)
-        "J1":  (ex + 33.5, 24.5, 90),                 # RJ-45 right edge; origin y24.5 centers the (top-heavy) body at y20, mouth +X
+        "J1":  (ex + 29.0, 22.0, 90),                 # RJ-45: mouth OVERHANGS the right edge (pads/posts/shield tabs on-board), mouth +X
     })
     # 3 M3 mounts: one on the left edge in the clear band between the J_IN and J_OUT
     # courtyards; two in the right corners (freed by moving USB-C off the right edge),
-    # flanking the centered RJ-45.
+    # flanking the overhanging RJ-45.
     mounts = [(4.0, BAND_Y), (W - 4.5, 5.0), (W - 4.5, H - 5.0)]
     # CEC logo on the back, under the C6 (SMD, no THT) where B.Cu is clear — the
     # cable region's back is full of the J_IN/J_OUT through-hole pads.

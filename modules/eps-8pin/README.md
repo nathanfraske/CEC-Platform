@@ -135,8 +135,8 @@ round-trips again.
 The PCB floorplan was rebuilt + **condensed** from the v3.10 netlist via
 `scripts/gen-module-pcb.py eps-8pin` (a CLI filter + a routed-board guard keep the
 routed 12VHPWR untouched). The board had **zero routing**, so the bootstrap re-ran
-cleanly. **107 × 40 mm — down from 110 × 66, a ~41 % area cut.** Verified by render +
-DRC (and an in-loop courtyard/pad-clearance checker).
+cleanly. **98 × 44 mm — down from 110 × 66, a ~41 % area cut, and width kept under
+100 mm.** Verified by render + DRC (and an in-loop courtyard/pad-clearance checker).
 
 What made it shrink:
 
@@ -146,6 +146,11 @@ What made it shrink:
   board edge — J_IN off the top, J_OUT off the bottom. Each connector needs only
   ~12.5 mm of board instead of its full ~22 mm courtyard. The **pegs are the hard
   limit** (they can't overhang), so the mouth overhangs ~7 mm, not the full body.
+- **The RJ-45 mouth overhangs the right edge too** (same trick): its contacts +
+  2 posts + 2 shield tabs stay on-board, the jack opening hangs ~5 mm off the edge.
+  That reclaims the ~7 mm of board that used to sit under the jack body and is what
+  pulls the width under 100 mm. (Height was traded up 40 → 44 mm so the electronics
+  stack into a narrower column — the size/aspect trade you asked for.)
 - **Side-by-side sense band** (not stacked): the 0.5 mΩ shunt sits **vertical
   (rot90) in the 12 V path** (current flows straight top→bottom through it); INA238
   (VSSOP-10, ~6.4 mm wide) sits to its left and the §6.13 pair (INA181A2 → TLV7011)
@@ -158,7 +163,9 @@ What made it shrink:
   right edge. (Per the design decision to drop to 3 for the tightest size.)
 - **USB-C (J5) moved to the TOP edge** (rot180 so the mouth overhangs −y and the
   pads stay on-board), which frees the right edge for the RJ-45 + the two corner
-  mounts. RJ-45 (J1, "TO-HUB") is centered on the right edge, mouth flush to it.
+  mounts. RJ-45 (J1, "TO-HUB") is centered on the right edge, mouth overhanging it.
+  BOOT/RESET (SW1/SW2) are stacked vertically (not side-by-side) so their pads don't
+  mask-bridge in the narrowed mid-strip.
 - Left **dead space reclaimed** (first cable origin x 20 → 9).
 
 Unchanged fundamentals: **4-layer, F.Cu 2 oz / In1 1 oz / In2 1 oz / B.Cu 2 oz**;
