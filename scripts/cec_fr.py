@@ -565,6 +565,11 @@ def generate_batch(
     results_by_seed = {}
     n = max_workers if max_workers is not None else min(len(seeds), os.cpu_count() or 1)
 
+    import time as _time
+    print(f"[cec_fr] generate_batch: {len(seeds)} seeds -> {n} parallel workers "
+          f"(cpu_count={os.cpu_count()}, max_workers={max_workers})", flush=True)
+    _t0 = _time.monotonic()
+
     # IMPORTANT: use the "spawn" start method, NOT the default "fork". pcbnew/wxWidgets is
     # NOT fork-safe -- if the parent has already loaded/exercised pcbnew (LoadBoard,
     # ExportSpecctraDSN, etc., as the orchestrator cec_router does before this call), a
@@ -597,7 +602,10 @@ def generate_batch(
             results_by_seed[s] = cand
 
     # Return in original seed order
-    return [results_by_seed[s] for s in seeds]
+    out = [results_by_seed[s] for s in seeds]
+    print(f"[cec_fr] batch done in {_time.monotonic()-_t0:.1f}s: "
+          f"{sum(c.ok for c in out)}/{len(out)} candidates ok", flush=True)
+    return out
 
 
 # ---------------------------------------------------------------------------

@@ -50,6 +50,9 @@ on:
       max_iters:
         description: "Per-region iteration ceiling"
         default: "4"
+      max_workers:
+        description: "Parallel Freerouting workers (0 = auto: min(seeds, CPU threads); set higher to oversubscribe)"
+        default: "0"
 
 jobs:
   route:
@@ -89,9 +92,10 @@ jobs:
           -Passes    ${{ inputs.passes }}
           -OptTime   ${{ inputs.opt_time }}
           -Threads   ${{ inputs.threads }}
-          -Kmax      ${{ inputs.kmax }}
-          -MaxIters  ${{ inputs.max_iters }}
-          -Out      "build/route/${{ inputs.board }}"
+          -Kmax       ${{ inputs.kmax }}
+          -MaxIters   ${{ inputs.max_iters }}
+          -MaxWorkers ${{ inputs.max_workers }}
+          -Out       "build/route/${{ inputs.board }}"
           -Render
 
       - name: Route (Linux/macOS)
@@ -103,9 +107,10 @@ jobs:
             --passes    "${{ inputs.passes }}" \
             --opt-time  "${{ inputs.opt_time }}" \
             --threads   "${{ inputs.threads }}" \
-            --kmax      "${{ inputs.kmax }}" \
-            --max-iters "${{ inputs.max_iters }}" \
-            --out       "build/route/${{ inputs.board }}" \
+            --kmax        "${{ inputs.kmax }}" \
+            --max-iters   "${{ inputs.max_iters }}" \
+            --max-workers "${{ inputs.max_workers }}" \
+            --out         "build/route/${{ inputs.board }}" \
             --render
 
       # ---- collect ----

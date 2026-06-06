@@ -19,9 +19,10 @@ param(
   [int]   $Passes   = 10,
   [int]   $OptTime  = 20,
   [int]   $Threads  = 1,
-  [int]   $Kmax     = 2,
-  [int]   $MaxIters = 4,
-  [string]$Out      = "build/route",
+  [int]   $Kmax       = 2,
+  [int]   $MaxIters   = 4,
+  [int]   $MaxWorkers = 0,
+  [string]$Out        = "build/route",
   [switch]$Render
 )
 # Continue, NOT Stop: native tools (java, python, Freerouting) legitimately write to stderr,
@@ -113,7 +114,7 @@ $cliArgs = @(
   (Join-Path $repo "scripts\cec_router.py"),
   "--board", $Board, "--seeds", $Seeds,
   "--passes", $Passes, "--opt-time", $OptTime, "--threads", $Threads,
-  "--kmax", $Kmax, "--max-iters", $MaxIters, "--out", $Out
+  "--kmax", $Kmax, "--max-iters", $MaxIters, "--max-workers", $MaxWorkers, "--out", $Out
 )
 if ($Render) { $cliArgs += "--render" }
 
