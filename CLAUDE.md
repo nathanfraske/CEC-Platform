@@ -688,6 +688,20 @@ Done (kept for context):
   split the 6 spine nets across F.Cu/B.Cu, call out the USB side-swap + run CAN_H/L down the far
   right edge to dodge DETECT J1.8. The dense spine is the open item (placement/plan revision, or
   Freerouting/GUI) = the "stretch its legs" next iteration.
+  LOOP ITERATION 2 DONE (2026-06-06): the feedback was fed back through the sub-agent passes --
+  a REVISION pass applied it to the EPS driver (H 35->37 wider spine channel; shunt rot 90->270 so
+  HI is the upper terminal -> Kelvin no longer crosses; INA181 rot 0->180; U2 moved by the ESP CAN
+  pads w/ C3/C6 displaced; CEC logo moved off the ESP underside -> B.Cu freed; spine re-spec'd to
+  the y22-25 band, I2C on F.Cu / THRESH+DETC on B.Cu, USB side-swap, CAN far-right) at 0 structural
+  DRC (commit 14906cc, 96x37mm), then a 2nd ROUTING pass re-routed it. RESULT: the open question
+  CLOSED -- the control->sense spine now ROUTES TO REAL COPPER (THRESH/DETC/DETAMP all 0 ratlines;
+  unconnected 119->23; Kelvin taps confirmed non-crossing). DRC went 92->343 because it routes ALL
+  28 nets in one dense single-pass (collision cleanup, NOT unroutability: ~187 of 343 are
+  power-net-involved). NEXT BLOCKER is no longer the spine -- it's POWER DISTRIBUTION (+3V3/+5VSB/GND)
+  + right-cluster density (U2/U3/cap-field packed x62-86,y8-20), which wants a placement-relax pass +
+  an explicit power-routing game-plan, or a Freerouting/GUI rip-up/reflow that single-pass scripting
+  can't do. The loop (route -> snag -> revise -> re-route) is proven end-to-end; candidate at
+  /tmp/eps-routed2/ is the routed-core+spine demo, NOT a fab-clean board.
 - REPO-WIDE PCB LAYOUT TOOLKIT scripts/cec_pcb.py (2026-06-06). Refined the EPS candidate
   generator into a shared toolkit ANY board generator / agent can pull on (does NOT modify
   the shared gen-module-pcb.py -- it imports its emit primitives once via the no-op-filter
