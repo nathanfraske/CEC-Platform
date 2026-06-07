@@ -260,13 +260,198 @@ def run_freerouting(
 
 
 # ---------------------------------------------------------------------------
+# add_power_pours -- additive same-net pours, laid AFTER routing
+# ---------------------------------------------------------------------------
+def add_power_pours(board, pours, *, fill: bool = False):
+    """Lay additive same-net copper pours on an ALREADY-ROUTED board.
+
+    Each entry in *pours* is a dict::
+
+        {"net": "/SENSEC1_HI",                 # net to pour (must exist on the board)
+         "polygon": [(x, y), ...],             # outline vertices in mm
+         "layer": "F.Cu",                      # default "F.Cu"
+         "priority": 2,                        # above the GND plane (0); default 2
+         "min_thickness": 0.25,                # mm; default 0.25
+         "island_removal": 0}                  # 0=remove true islands (keep the body
+                                               #   that holds the pads); default 0
+
+    ORDERING IS THE WHOLE POINT. These pours are laid AFTER Freerouting has already
+    connected every net, so they are purely ADDITIVE same-net copper: a pour on a net
+    that is already routed can only ADD copper to it -- it cannot strand the Kelvin
+    sense tap that shares that net node at the shunt. The earlier "pour-THEN-route"
+    ordering DID strand the sense, because the pour reshaped Freerouting's GLOBAL
+    solution and FR then failed to connect the sense out of the poured region; two
+    pipeline-grade attempts both regressed the kelvin_ok gate that way. Pouring
+    AFTER the route sidesteps that entirely -- the FR-drawn sense track is already
+    there and the pour merges with it (same net, no DRC short). Verified on EPS:
+    gates stay kelvin_ok=True / diffpair_ok=True, the four 12V pours fill ~120-150
+    mm^2 each (~1 island), and structural DRC does not regress.
+
+    Pads connect solid (ZONE_CONNECTION_FULL) for the high-current path. Returns the
+    list of added ZONE objects. If *fill* is True, all zones are re-filled here
+    (UnFill first -- re-filling in one process can segfault this KiCad-10 SWIG build).
+    """
+    added = []
+    for p in pours:
+        net = p["net"]
+        nc = board.GetNetcodeFromNetname(net)
+        if nc <= 0:
+            raise KeyError(f"cec_fr.add_power_pours: net {net!r} not found on board")
+        z = pcbnew.ZONE(board)
+        ls = pcbnew.LSET()
+        lid = board.GetLayerID(p.get("layer", "F.Cu"))
+        if lid < 0:
+            raise KeyError(f"cec_fr.add_power_pours: layer {p.get('layer','F.Cu')!r} not found")
+        ls.AddLayer(lid)
+        z.SetLayerSet(ls)
+        z.SetNetCode(nc)
+        z.SetAssignedPriority(int(p.get("priority", 2)))
+        z.SetMinThickness(_nm(p.get("min_thickness", 0.25)))
+        z.SetIslandRemovalMode(int(p.get("island_removal", 0)))
+        z.SetPadConnection(pcbnew.ZONE_CONNECTION_FULL)
+        # In-place outline append (never SetOutline -- SWIG alias bug, see cec_route.py)
+        o = z.Outline()
+        o.NewOutline()
+        for (x, y) in p["polygon"]:
+            o.Append(_nm(x), _nm(y))
+        if z.Outline().FullPointCount() < 3:
+            raise RuntimeError(f"cec_fr.add_power_pours: pour on {net!r} has < 3 points")
+        board.Add(z)
+        added.append(z)
+    if fill and added:
+        for z in board.Zones():
+            z.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    return added
+
+
+# ---------------------------------------------------------------------------
+# derive_power_pours -- auto-find the high-current pour rectangles from geometry
+# ---------------------------------------------------------------------------
+def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
+                       layer: str = "F.Cu", kelvin_pairs=None) -> list:
+    """Auto-derive additive high-current pour rectangles for an interposer board.
+
+    For each Kelvin pair (``*_HI`` / ``*_LO``) the pour is the bounding box of that net's
+    HEAVY pads -- the THT connector pads (the cable in/out) PLUS the shunt's own pad on
+    that net -- inflated by *margin* mm and clamped *edge_clear* mm inside the board edge.
+    The shunt is identified geometrically as the footprint that has a pad on BOTH members
+    of the pair (only a Kelvin shunt straddles HI and LO). The small SMD sense pads of the
+    INA / INA181 are deliberately EXCLUDED, so the HI box (cable-in -> shunt) and the LO box
+    (shunt -> cable-out) stay on their own sides of the shunt and never overlap -- they meet
+    only through the shunt element, exactly as a four-wire Kelvin shunt requires.
+
+    SELF-GATING: a net with no THT pad is not a cable high-current net and is skipped, so on
+    a board with no qualifying nets this returns ``[]`` and is a no-op. Verified on EPS: yields
+    the four 12V pours (/SENSEC1_HI,_LO,/SENSEC2_HI,_LO) matching the hand-tuned regions.
+
+    Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
+    """
+    from collections import defaultdict
+    board = pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+
+    bb = board.GetBoardEdgesBoundingBox()
+    bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
+    bx1, by1 = bb.GetRight() / MM - edge_clear, bb.GetBottom() / MM - edge_clear
+
+    pads_by_net = defaultdict(list)
+    padcount = defaultdict(int)
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        for p in fp.Pads():
+            padcount[ref] += 1
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net[nn].append((ref, p))
+
+    pours = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {ref for ref, _ in pads_by_net.get(hi, [])}
+        refs_lo = {ref for ref, _ in pads_by_net.get(lo, [])}
+        # The shunt is the footprint straddling the pair with EXACTLY 2 pads (a Kelvin
+        # shunt). A differential INA also has a pad on each of HI/LO but is multi-pad, so
+        # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
+        # bbox and make the HI box (cable->shunt) overlap the LO box (shunt->cable).
+        shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            has_tht = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries)
+            if not has_tht:
+                continue                          # not a cable high-current net -> skip
+            heavy = []
+            for ref, p in entries:
+                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH or ref in shunt_refs:
+                    pos = p.GetPosition()
+                    heavy.append((pos.x / MM, pos.y / MM))
+            if not heavy:
+                continue
+            xs = [x for x, _ in heavy]
+            ys = [y for _, y in heavy]
+            x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
+            y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
+            pours.append({"net": net, "layer": layer,
+                          "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
+    return pours
+
+
+# ---------------------------------------------------------------------------
+# normalize_via_annular -- fix Freerouting's thin-annular vias
+# ---------------------------------------------------------------------------
+def normalize_via_annular(board, *, min_annular: float = 0.10,
+                          target_annular: float = 0.12, min_drill: float = 0.30) -> int:
+    """Repair vias whose annular ring is below *min_annular* (mm).
+
+    Freerouting IGNORES the netclass via sizes from the DSN and emits every via at its
+    own small default, so the SES round-trip produces vias whose annular ring (pad
+    radius minus drill radius) is below the board's minimum -- on the EPS module that
+    was 49 annular_width DRC hits. The fix SHRINKS THE DRILL rather than growing the
+    copper: a smaller drill restores the annular ring while leaving the copper footprint
+    IDENTICAL, so it introduces NO new clearance violations (blanket via-ENLARGE does --
+    it turned 53 DRC into 82, +77 clearance, in testing). The drill is floored at
+    *min_drill* mm; only if drill-shrink alone can't reach the target is the copper grown
+    minimally. Touches only violating vias. Re-fill zones after calling this. Returns the
+    number of vias adjusted.
+
+    Verified on EPS: 49 thin-annular vias fixed, structural DRC 53 -> 4 (the 4 residual
+    being an unrelated decorative-logo placement issue), both hard gates still pass.
+    """
+    lo = _nm(min_annular)
+    want_gap = _nm(2 * target_annular)      # total dia-drill gap for target annular/side
+    floor = _nm(min_drill)
+    fixed = 0
+    for t in board.GetTracks():
+        if t.Type() != pcbnew.PCB_VIA_T:
+            continue
+        dia = t.GetWidth()
+        drill = t.GetDrillValue()
+        if (dia - drill) // 2 >= lo:
+            continue
+        new_drill = dia - want_gap
+        if new_drill >= floor:
+            t.SetDrill(new_drill)
+        else:                                # drill-shrink alone insufficient -> grow copper
+            t.SetWidth(floor + want_gap)
+            t.SetDrill(floor)
+        fixed += 1
+    return fixed
+
+
+# ---------------------------------------------------------------------------
 # import_ses
 # ---------------------------------------------------------------------------
-def import_ses(board_path: str, ses_path: str, out_path: str, *, fill_zones: bool = True) -> str:
+def import_ses(board_path: str, ses_path: str, out_path: str, *,
+               fill_zones: bool = True, fix_annular: bool = True, power_pours=()) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
-    Loads *board_path*, calls ImportSpecctraSES(board, ses_path), optionally FILLS the
-    copper zones (default on), then SaveBoard(out_path, board). Returns *out_path*.
+    Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then in order:
+      1. lay any *power_pours* (additive same-net copper -- see add_power_pours)
+      2. if *fix_annular*, repair thin-annular vias (see normalize_via_annular)
+      3. if *fill_zones*, FILL the copper zones
+    then SaveBoard(out_path, board). Returns *out_path*.
 
     Zone fill is essential: the SES import lays tracks/vias but does NOT fill copper pours
     (neither does kicad-cli -- only the real ZONE_FILLER engine fills). Without it, every
@@ -274,6 +459,11 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *, fill_zones: boo
     and every plane-connected pad reads as UNCONNECTED. On the EPS module this fill alone
     takes structural DRC 99 -> 53 and unconnected 71 -> 2. The board's own zone settings are
     honoured (e.g. island_removal_mode), so isolated islands are dropped per the design.
+
+    *fix_annular* (default on) then clears Freerouting's thin-annular vias, and *power_pours*
+    lets the caller fatten the high-current nets with real pours AFTER the route -- together
+    these took the EPS candidate from DRC 99 to 4 (4 = an unrelated decorative-logo issue)
+    with both hard gates still passing.
     """
     board = pcbnew.LoadBoard(board_path)
     ok = pcbnew.ImportSpecctraSES(board, ses_path)
@@ -282,6 +472,10 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *, fill_zones: boo
             f"cec_fr.import_ses: ImportSpecctraSES returned False\n"
             f"  board={board_path!r}\n  ses={ses_path!r}"
         )
+    if power_pours:
+        add_power_pours(board, power_pours, fill=False)
+    if fix_annular:
+        normalize_via_annular(board)
     if fill_zones:
         # UnFill first: re-filling an already-filled multi-layer zone in one process can
         # segfault this KiCad-10 SWIG build (see cec_route.py fill()).
@@ -397,6 +591,7 @@ def route_once(
     out_path: str,
     *,
     hints=(),
+    power_pours=(),
     passes: int = 10,
     opt_time: int = 30,
     threads: int = 1,
@@ -449,8 +644,9 @@ def route_once(
             shutil.rmtree(fr_wd, ignore_errors=True)
 
         # 4. Import SES into the ORIGINAL board (not the hinted copy, so keepout
-        #    zones from bake_hints don't clutter the final result)
-        import_ses(board_path, ses_path, out_path)
+        #    zones from bake_hints don't clutter the final result). Pour the high-current
+        #    nets AFTER the route (additive same-net copper) + fix FR's thin-annular vias.
+        import_ses(board_path, ses_path, out_path, power_pours=power_pours)
 
         return Candidate(
             board=out_path,
@@ -493,6 +689,7 @@ def _worker(args: dict) -> Candidate:
         args["board_path"],
         args["out_path"],
         hints=args.get("hints", ()),
+        power_pours=args.get("power_pours", ()),
         passes=args["passes"],
         opt_time=args["opt_time"],
         threads=args["threads"],
@@ -518,6 +715,7 @@ def generate_batch(
     hints=(),
     seeds=(0,),
     *,
+    power_pours=(),
     out_dir: str | None = None,
     params=None,
     max_workers: int | None = None,
@@ -567,6 +765,7 @@ def generate_batch(
             "board_path": board_path,
             "out_path": out_path,
             "hints": list(hints),   # must be picklable
+            "power_pours": list(power_pours),   # must be picklable
             "passes": p.get("passes", 10),
             "opt_time": p.get("opt_time", 20),
             "threads": p.get("threads", 1),

@@ -680,12 +680,30 @@ Done (kept for context):
     as FILLED POURS; FR routes only signal/control (0.2-0.25mm fine). This is a PLANNER/MANAGER
     judgement: classify each net {pour | wide-trace | signal-trace} from its current + the available
     space, and escalate a fat trace that can't route into a pour.
-  * OPEN (route-to-clean roadmap): (a) POUR the 12V + power nets (add zones like the GND plane; the
-    EPS floorplan has only the GND zone today) -> the design-correct fix for the trace-width issue;
-    (b) VIA ANNULAR -- FR emits 0.6mm vias (annular 0.05 < 0.1 min); fix at routing time (FR via
-    padstack/drill), not post-hoc; (c) LOGO1 -- assign its no-net B.Cu copper to GND or add a no-via
-    keepout (clears the 4); (d) investigate WHY FR ignores the DSN per-class widths/vias (FR
-    config/format). cec_score gates already protect the safety nets; these are quality/DFM fixes.
+  * RESOLVED (2026-06-07) -- (a) POUR + (b) VIA ANNULAR both shipped into the toolkit, EPS now routes
+    to a DRC=4 floor (gates pass), the 4 residual being only LOGO1 + the 2 shield-tab unconn (both
+    placement/finishing, NOT routing). THE KEY INSIGHT was ORDERING: an earlier pass had concluded
+    "pour breaks the Kelvin gate / needs a dedicated design pass" -- WRONG, that was a pour-THEN-route
+    artifact (the pour reshaped FR's global solution so FR then failed to connect the sense out of the
+    poured region; two attempts both regressed kelvin_ok). The fix is to pour AFTER the route: FR
+    routes everything first (sense connected, gates pass), THEN lay the 12V pours as ADDITIVE same-net
+    copper -- a pour on an already-routed net can only ADD copper, never strand the sense tap that
+    shares the net node. New cec_fr helpers (all verified on the EPS FR candidate, gates stay
+    kelvin_ok+diffpair_ok): `add_power_pours()` (additive same-net pours, ZONE_CONNECTION_FULL,
+    ~120-150mm^2/cable @ ~1 island); `normalize_via_annular()` ((b) fix -- SHRINK the drill on
+    thin-annular vias, keeping copper identical so NO new clearance; blanket via-ENLARGE was tried
+    and made it worse, 53->82 DRC / +77 clearance); `derive_power_pours()` (auto-finds the pour rects
+    from geometry = bbox of each cable net's THT-connector + 2-pad-shunt pads, INA sense pads excluded
+    so HI/LO meet only through the shunt -- general across the EPS/PCIe interposer family, self-gating
+    + safe no-op on boards without such nets). Wired through import_ses (fix_annular default on,
+    power_pours param) -> route_once -> generate_batch -> Spec.power_pours; board_spec auto-derives.
+    A FULL-MODEL-PIPELINE manager (Sonnet) pass judged the result ACCEPT (both gates pass; the 4 DRC +
+    2 unconn are floorplan/finishing, owned by the placement pass). The routed board is a build
+    artifact (build/route/, gitignored) -- the committed EPS floorplan stays no-pours (pours are a
+    route-time step, not a floorplan edit). STILL OPEN (placement/finishing, unchanged): (c) LOGO1
+    B.Cu no-via keepout / GND-assign (clears the 4); J1 SH1/SH2 shield-tab -> GND tie (the 2 unconn);
+    and (d) WHY FR ignores the DSN per-class widths -- now MOOT for high current (pours carry it),
+    still relevant if a wide signal trace is ever needed.
 - AUTOMATED ROUTING SYSTEM — two-plane architecture (2026-06-06). Implemented the user's
   redesign: a DETERMINISTIC PLANE (reproducible, no LLM) under a CONTROL PLANE (tiered
   judgement, pluggable). Drives the REAL KiCad<->Freerouting autorouter via Specctra DSN/SES.
