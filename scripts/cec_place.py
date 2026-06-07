@@ -92,13 +92,43 @@ def _move(fp, dx_mm, dy_mm):
     fp.SetPosition(pcbnew.VECTOR2I(p.x + _nm(dx_mm), p.y + _nm(dy_mm)))
 
 
-def _overlaps(board, fp, exclude, clear=0.4):
-    """Minimal legalization guard: ref of the nearest non-excluded footprint within `clear` mm of fp
-    (so a move stops before piling a part on top of another)."""
+def _pad_union_bbox(fp):
+    """Copper extent (mm AABB) = union of the footprint's pad bboxes -- the collision-relevant geometry
+    (NOT GetBoundingBox, which includes silk/value text and is far too large)."""
+    xs, ys = [], []
+    for p in fp.Pads():
+        pb = p.GetBoundingBox()
+        xs += [_mm(pb.GetLeft()), _mm(pb.GetRight())]
+        ys += [_mm(pb.GetTop()), _mm(pb.GetBottom())]
+    if not xs:
+        bb = fp.GetBoundingBox()
+        return (_mm(bb.GetLeft()), _mm(bb.GetTop()), _mm(bb.GetRight()), _mm(bb.GetBottom()))
+    return (min(xs), min(ys), max(xs), max(ys))
+
+
+def _crtyd_bbox(fp):
+    """The footprint's COURTYARD bbox (the real keep-away DRC uses for courtyards_overlap); falls back
+    to the pad-copper extent if no courtyard is defined."""
+    for layer in (pcbnew.F_Cu, pcbnew.B_Cu):
+        try:
+            poly = fp.GetCourtyard(layer)
+            if poly and poly.OutlineCount() > 0:
+                bb = poly.BBox()
+                return (_mm(bb.GetLeft()), _mm(bb.GetTop()), _mm(bb.GetRight()), _mm(bb.GetBottom()))
+        except Exception:
+            pass
+    return _pad_union_bbox(fp)
+
+
+def _overlaps(board, fp, exclude, clear=0.1):
+    """Legalization guard: ref of a non-excluded footprint whose COURTYARD comes within `clear` mm of
+    fp's courtyard (true collision test -- the pad-CENTRE-distance version let copper overlap because
+    it ignored pad size, which created real +3V3<->GND / sense<->GND shorts)."""
+    a = _crtyd_bbox(fp)
     for o in board.GetFootprints():
         if o is fp or o.GetReference() in exclude or not list(o.Pads()):
             continue
-        if _pad_dist(fp, o) < clear:
+        if _box_gap(a, _crtyd_bbox(o)) < clear:
             return o.GetReference()
     return None
 
@@ -164,8 +194,10 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=2
     a, b = _fp(board, a_ref), _fp(board, b_ref)
     if not a or not b:
         return None
-    cluster = _cluster(board, a)
-    exclude = {a_ref, b_ref} | {c.GetReference() for c in cluster}
+    # a (a decoupling cap) owns nothing -> NO cluster (dragging peer caps shoved C1 into U3). And b (the
+    # owner IC) is NOT excluded, so the cap stops CLEAR of it rather than landing a pad on it (which had
+    # created +3V3<->GND and sense<->GND shorts the adversarial verifier caught).
+    exclude = {a_ref}
     start, _ = _owner_pad_dist(a, b)
     moved, stopped, shoved = 0.0, "", []
     while moved < max_move:
@@ -177,31 +209,25 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=2
         nn = math.hypot(ux, uy) or 1.0
         dx, dy = ux / nn * step, uy / nn * step
         _move(a, dx, dy)
-        for c in cluster:
-            _move(c, dx, dy)
-        hit = _overlaps(board, a, exclude)
+        hit = _overlaps(board, a, exclude)       # checks against EVERY other part, incl. the target IC b
         if hit:
             hf = _fp(board, hit)
             cleared = False
-            # MAKE ROOM: if the blocker is a movable passive, shove it out of the cap's path
-            if hf and hit[0] in ("C", "R"):
+            # MAKE ROOM: shove a blocking PASSIVE out of the path (never the target IC or a non-passive)
+            if hf and hit[0] in ("C", "R") and hit != b_ref:
                 hx, hy = _mm(hf.GetPosition().x), _mm(hf.GetPosition().y)
-                if _shove(board, hf, hx - ax, hy - ay, exclude | {a_ref}) > 0 \
-                        and not _overlaps(board, a, exclude | {hit}):
-                    exclude.add(hit)
+                if _shove(board, hf, hx - ax, hy - ay, {a_ref}) > 0 and not _overlaps(board, a, exclude):
                     shoved.append(hit)
                     cleared = True
-            if not cleared:                      # blocked by a fixed/important part -> back off, stop
+            if not cleared:                      # reached the IC / a fixed part -> back off, stop (honest)
                 _move(a, -dx, -dy)
-                for c in cluster:
-                    _move(c, -dx, -dy)
                 stopped = "blocked by %s" % hit
                 break
         moved += step
     end, _ = _owner_pad_dist(a, b)
     return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2),
-            "moved_refs": [a_ref] + [c.GetReference() for c in cluster] + shoved,
-            "shoved": shoved, "pad_mm": "%.2f->%.2f" % (start, end), "note": stopped}
+            "moved_refs": [a_ref] + shoved, "shoved": shoved,
+            "pad_mm": "%.2f->%.2f" % (start, end), "note": stopped}
 
 
 def apply_pin(board, target, x, y, rot=None):
@@ -384,7 +410,8 @@ def refine(in_path, out_path, ctx=None, max_iters=4):
         del board
         history.append({"iter": it, "applied": applied,
                         "ripped_for_reroute": ripped, "tracks_removed": n_removed})
-        if not applied:
+        # stop when a pass makes no real progress (e.g. remaining caps are blocked by their IC)
+        if not applied or sum(a.get("moved_mm", 0.0) for a in applied) < 0.1:
             break
     verdicts, _ = _check(out_path, ctx)
     return verdicts, history
