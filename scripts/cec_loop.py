@@ -82,8 +82,8 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         #     rip FR's via'd sense, lay the clean Kelvin sense tap (do-no-harm). Parse its report so the
         #     loop knows how many taps landed and which sense nets still need a placement fix.
         hc_info = {}
+        import subprocess
         if ok:
-            import subprocess
             r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
                                 routed_path, routed_path], capture_output=True, text=True)
             for line in (r.stdout or "").splitlines():
@@ -93,6 +93,28 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
                         hc_info = json.loads(line)
                     except Exception:
                         pass
+
+        # 2c. POWER-ESCAPE -- the constraint registry's `ic-power-ground-connected` emits a power_escape
+        #     directive for every IC whose power/GND pad FR left stranded (a tight Kelvin placement boxes
+        #     the sense IC's shunt-facing GND in the keepout). Drop a do-no-harm GND stitch via per flagged
+        #     IC -> bonds it to the inner GND plane; a boxed-in pin that can't take a clean via is SKIPPED
+        #     and stays flagged. (+3V3 has no plane under the locked GND-inner stackup -> trace/finish.)
+        esc_info = {}
+        if ok:
+            _, pre_dirs = cec_place._check(routed_path, ctx)
+            esc_ics = sorted({d.get("ic") for d in pre_dirs
+                              if (d.get("directive") == "power_escape" or d.get("type") == "power_escape")
+                              and d.get("ic")})
+            if esc_ics:
+                r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
+                                    "--escape-gnd", routed_path, routed_path, ",".join(esc_ics)],
+                                   capture_output=True, text=True)
+                for line in (r.stdout or "").splitlines():
+                    if line.strip().startswith("{"):
+                        try:
+                            esc_info = json.loads(line.strip())
+                        except Exception:
+                            pass
 
         # 3. CHECK -- full registry on the routed board (fresh subprocess)
         target = routed_path if ok else placed
@@ -104,11 +126,12 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
                  "kelvin_tightened": len(kmoves), "logo_moved": bool(logo_ko), "pours": len(pours),
                  "routed_ok": ok, "route_err": (str(getattr(cand, "err", ""))[:100] if not ok else None),
                  "kelvin_taps_laid": hc_info.get("stubs"), "kelvin_needs_placement": hc_info.get("needs_placement"),
+                 "gnd_escape_vias": esc_info.get("vias"), "gnd_escape_skipped_boxed_in": esc_info.get("skipped_boxed_in"),
                  "checked": os.path.basename(target), "fails": sorted(fails), "movable_left": len(movable)}
         log.append(entry)
-        print("[loop iter %d] moves=%d ktight=%d pours=%d routed=%s | kelvin_taps=%s needs_place=%s | FAILs=%s | movable_left=%d"
+        print("[loop iter %d] moves=%d ktight=%d pours=%d routed=%s | kelvin_taps=%s needs_place=%s | gnd_escape=%s(skip %s) | FAILs=%s"
               % (it, len(moves), len(kmoves), len(pours), ok, hc_info.get("stubs"),
-                 hc_info.get("needs_placement"), sorted(fails), len(movable)))
+                 hc_info.get("needs_placement"), esc_info.get("vias"), esc_info.get("skipped_boxed_in"), sorted(fails)))
         if not movable and not hc_info.get("needs_placement"):
             break                                           # placement + Kelvin converged
 

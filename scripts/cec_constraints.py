@@ -164,6 +164,21 @@ REGISTRY = [
       category="placement", severity="strong", checkable="yes", directive="none",
       rule="No track on a 12V/*_HI net is thinner than min_mm unless the net is carried by a pour.",
       source="user-named (trace widths); .kicad_dru", status="ratified", params={"min_mm": 1.0}),
+    C(id="ic-power-ground-connected", title="Every IC's power + GND pins are connected",
+      category="placement", severity="hard", checkable="yes", directive="power_escape",
+      rule="No IC (U*) has an unconnected power(+3V3/+5VSB/VBUS/VCC/VDD) or GND pad -- a stranded supply or "
+           "ground pin is an unpowered / floating part (a dead sensor). A TIGHT Kelvin/adjacency placement "
+           "that boxes a sense IC against its shunt must still let that IC's shunt-facing power/GND pins "
+           "escape (via to a plane / short stub), or the loop's own power-escape pass connects them.",
+      source="adversarial verify-workflow 2026-06-07 (lens-3: tight-Kelvin INA238 +3V3/GND stranded)",
+      status="ratified"),
+    C(id="board-routing-complete", title="0 unconnected ratlines (fully routed)",
+      category="placement", severity="strong", checkable="yes", directive="none",
+      rule="The routed board has 0 unconnected ratlines. A 'clean' claim MUST verify UNCONNECTED, not just "
+           "shorts/clearance/dangling -- a board with open nets is non-functional even at 0 DRC shorts. "
+           "(Reported with a per-net tally so finishing residual is distinguishable from a structural gap.)",
+      source="adversarial verify-workflow 2026-06-07 (lens-1: 'clean' overclaimed past 32 ratlines)",
+      status="ratified"),
     C(id="ina-lane-symmetry-12vhpwr", title="12VHPWR 6 INA lanes equal-pitch",
       category="placement", severity="strong", checkable="partial", directive="align",
       rule="The six INA240 per-pin lanes are equal pitch, each its own column, symmetric.",
@@ -311,6 +326,37 @@ def _force_nets(board):
             widest[t.GetNetname()] = max(widest[t.GetNetname()], _mm(t.GetWidth()))
     force |= {n for n, w in widest.items() if w >= 1.5}
     return force
+
+
+def _drc_json(path, ctx):
+    """kicad-cli DRC json, run ONCE per board and cached on ctx (multiple checkers share it)."""
+    key = "_drc_json::" + path
+    if key in ctx:
+        return ctx[key]
+    out = os.path.join(tempfile.gettempdir(), "cec_cons_drc_%d.json" % os.getpid())
+    subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out, path], capture_output=True)
+    try:
+        j = json.load(open(out))
+    except Exception:
+        j = {}
+    ctx[key] = j
+    return j
+
+
+def _unconnected(path, ctx):
+    """[(net, [descriptions...]), ...] -- the DRC unconnected ratlines (the real connectivity gaps).
+    A board can have 0 shorts and still be non-functional with open nets; this is what 'clean' must check."""
+    out = []
+    for u in _drc_json(path, ctx).get("unconnected_items", []):
+        descs = [it.get("description", "") for it in u.get("items", [])]
+        net = ""
+        for d in descs:
+            m = re.search(r"\[([^\]]+)\]", d)
+            if m:
+                net = m.group(1)
+                break
+        out.append((net, descs))
+    return out
 
 
 # -- checkers ----------------------------------------------------------------
@@ -654,6 +700,42 @@ def _chk_decap(board, path, ctx):
                 % (max_mm, ", ".join("%s %.1fmm" % (f[0], f[1]) for f in fails[:8])),
                 [{"type": "adjacent", "a": f[0], "b": f[2], "max_mm": max_mm} for f in fails[:8]])
     return True, "decoupling caps within %.1fmm of their IC power pad" % max_mm
+
+
+@checker("ic-power-ground-connected")
+def _chk_ic_power(board, path, ctx):
+    if _track_count(board) == 0:
+        return None, "floorplan (route-time connectivity check)"
+    POWER = ("+3V3", "+5VSB", "+5V", "VBUS", "VCC", "VDD", "+3.3")
+    bad = []                                                  # (ic_ref, net)
+    for net, descs in _unconnected(path, ctx):
+        nu = (net or "").upper()
+        if not (nu == "GND" or any(p in nu for p in POWER)):
+            continue
+        for d in descs:
+            m = re.search(r"of (U\w+)\b", d)                  # "Pad 6 [+3V3] of U10 on F.Cu"
+            if m:
+                bad.append((m.group(1), net))
+    bad = sorted(set(bad))
+    if bad:
+        ics = sorted({r for r, _ in bad})
+        return (False, "IC power/ground STRANDED (unpowered/floating pin): "
+                + ", ".join("%s[%s]" % (r, n) for r, n in bad[:8]),
+                [{"type": "power_escape", "ic": r, "nets": sorted({n for rr, n in bad if rr == r})}
+                 for r in ics])
+    return True, "every IC power + GND pad is connected"
+
+
+@checker("board-routing-complete")
+def _chk_routed(board, path, ctx):
+    if _track_count(board) == 0:
+        return None, "floorplan (route-time)"
+    unc = _unconnected(path, ctx)
+    if not unc:
+        return True, "0 unconnected ratlines (fully routed)"
+    by_net = collections.Counter(n for n, _ in unc)
+    top = ", ".join("%s x%d" % (k, v) for k, v in by_net.most_common(8))
+    return False, "%d unconnected ratlines (not fully routed): %s" % (len(unc), top)
 
 
 @checker("trace-width-high-current")

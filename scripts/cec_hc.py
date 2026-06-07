@@ -251,6 +251,22 @@ def _tap_clear(seg, net, pads, segs, laid, halfw=0.125, clear=0.2):
     return True
 
 
+def _via_clear(cx, cy, r, net, pads, segs, clear=0.2):
+    """True if a via disc (centre cx,cy, radius r mm) on `net` clears all FOREIGN-net F.Cu copper by
+    `clear` mm (same-net copper is what it bonds to -> ignored). The do-no-harm gate for escape vias."""
+    for pn, pl, pt, pr, pb in pads:
+        if pn == net:
+            continue
+        if _seg_rect_dist(cx, cy, cx, cy, pl, pt, pr, pb) < r + clear:
+            return False
+    for sn, sx0, sy0, sx1, sy1, hw in segs:
+        if sn == net:
+            continue
+        if _seg_pt_dist(sx0, sy0, sx1, sy1, cx, cy) < r + hw + clear:
+            return False
+    return True
+
+
 def route_high_current(in_path, out_path):
     """Deterministic high-current pass (see module docstring). Returns a summary dict."""
     # Load ONCE. A second pcbnew.LoadBoard in the same process (e.g. via derive_power_pours) corrupts
@@ -326,6 +342,65 @@ def route_high_current(in_path, out_path):
             "needs_placement": sorted(set(skipped))}
 
 
+def escape_gnd_pins(in_path, out_path, ic_refs=None):
+    """DETERMINISTIC GND power-escape: drop a stitch via at each (boxed-in) IC GND pad so it bonds to the
+    inner GND plane. A GND-pad -> GND-plane via is same-net, so it can NEVER short (do-no-harm) -- it fixes
+    the `ic-power-ground-connected` FAIL for GND that FR leaves stranded (FR won't via-in-pad, and a tight
+    Kelvin placement boxes the INA238's shunt-facing GND pin inside the sense keepout). The LOCKED stackup
+    (spec §6.7: GND on inners) is what makes this work; +3V3 has NO plane and is handled separately (trace).
+    ic_refs limits which ICs (the power_escape directive's list); None = every U* with a GND pad.
+    Returns a summary; re-fills in a child so the plane bonds the new vias."""
+    board = pcbnew.LoadBoard(in_path)
+    gnd_code = None
+    for n in board.GetNetInfo().NetsByNetcode().values():
+        if n.GetNetname() == "GND":
+            gnd_code = n.GetNetCode()
+            break
+    if gnd_code is None:
+        shutil.copyfile(in_path, out_path)
+        return {"vias": 0, "note": "no GND net"}
+    # gather target GND pad positions as PRIMITIVES (no retained SWIG wrappers)
+    refset = set(ic_refs) if ic_refs else None
+    pts = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if not ref.startswith("U"):
+            continue
+        if refset is not None and ref not in refset:
+            continue
+        for p in fp.Pads():
+            if (p.GetNetname() or "") == "GND" and p.GetLayerSet().Contains(pcbnew.F_Cu):
+                c = p.GetPosition()
+                pts.append((c.x, c.y))
+    # DO NO HARM: a via-in-pad on a fine-pitch GND pin (INA238 pin7 is sandwiched by +3V3 pin6 and the
+    # sense pad at 0.5mm pitch) shorts/clearance-violates its neighbours. So gate each via on the same
+    # clearance model as the taps -- place it only where its barrel clears foreign (non-GND) copper; skip
+    # (and report) a boxed-in pin rather than introduce a short. Obstacles read BEFORE adding vias.
+    obstacle_pads = _obstacle_pads(board)
+    vp, obstacle_segs = _obstacle_tracks(board)
+    obstacle_pads = obstacle_pads + vp
+    fcu, bcu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    drill, dia = int(0.3 * MM), int(0.5 * MM)
+    r_mm = 0.5 / 2
+    placed, skipped = 0, []
+    for (x, y) in pts:
+        if not _via_clear(x / MM, y / MM, r_mm, "GND", obstacle_pads, obstacle_segs):
+            skipped.append((round(x / MM, 2), round(y / MM, 2)))
+            continue
+        v = pcbnew.PCB_VIA(board)
+        v.SetPosition(pcbnew.VECTOR2I(x, y))
+        v.SetDrill(drill)
+        v.SetWidth(dia)
+        v.SetViaType(pcbnew.VIATYPE_THROUGH)
+        v.SetLayerPair(fcu, bcu)
+        v.SetNetCode(gnd_code)
+        board.Add(v)
+        placed += 1
+    pcbnew.SaveBoard(out_path, board)
+    _refill_subprocess(out_path)                              # bond the GND plane to the new vias
+    return {"vias": placed, "skipped_boxed_in": len(skipped), "ics": sorted(refset) if refset else "all-U"}
+
+
 def _fill_only(path):
     """Load a board fresh, UnFill + re-Fill every zone, save in place. Run in its OWN process."""
     board = pcbnew.LoadBoard(path)
@@ -348,11 +423,15 @@ def _refill_subprocess(path):
 
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    import json
     if argv and argv[0] == "--fill":
         _fill_only(argv[1])
         return 0
+    if argv and argv[0] == "--escape-gnd":                    # cec_hc.py --escape-gnd in out [U10,U11,...]
+        ics = argv[3].split(",") if len(argv) > 3 and argv[3] else None
+        print(json.dumps(escape_gnd_pins(argv[1], argv[2], ics)))
+        return 0
     out = argv[1] if len(argv) > 1 else argv[0].replace(".kicad_pcb", "-hc.kicad_pcb")
-    import json
     result = route_high_current(argv[0], out)
     print(json.dumps(result))                                # machine-readable for the loop
     print("->", out, file=sys.stderr)
