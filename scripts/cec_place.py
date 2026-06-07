@@ -51,6 +51,27 @@ def _pad_dist(a, b):
     return K._min_pad_dist_mm(a, b)
 
 
+def _owner_pad_dist(a, b):
+    """(min A-pad<->B-pad distance on a SHARED net, the target B-pad position) -- the actual bypass
+    loop the decoupling checker measures. Falls back to footprint centres if there is no shared net,
+    so the cap is pulled toward the IC's POWER pad, not just its nearest (often GND) pad."""
+    POWER = ("+3V3", "+5VSB", "VBUS", "VREF", "+3.3", "VDD", "VCC")
+    best, tgt = 1e9, None
+    for pa in a.Pads():
+        na = pa.GetNetname() or ""
+        if not any(p in na.upper() for p in POWER):   # the POWER net only (match the checker, not GND)
+            continue
+        for pb in b.Pads():
+            if pb.GetNetname() == na:
+                d = math.hypot(_mm(pa.GetPosition().x - pb.GetPosition().x),
+                               _mm(pa.GetPosition().y - pb.GetPosition().y))
+                if d < best:
+                    best, tgt = d, pb.GetPosition()
+    if tgt is None:
+        return _pad_dist(a, b), b.GetPosition()
+    return best, tgt
+
+
 def _cluster(board, fp, cluster_mm=4.0):
     """The footprint's owned LOCAL passives -- C*/R* within cluster_mm that share a net with it
     (its decoupling / local network). These travel WITH the part so the cluster stays intact."""
@@ -80,6 +101,21 @@ def _overlaps(board, fp, exclude, clear=0.4):
         if _pad_dist(fp, o) < clear:
             return o.GetReference()
     return None
+
+
+def _shove(board, fp, ux, uy, exclude, max_shove=4.0, step=0.4):
+    """MAKE-ROOM: push fp along (ux,uy) until it clears every non-excluded part. Returns the distance
+    shoved, or 0.0 (reverted) if it cannot clear within max_shove -- bounded, so no runaway cascade."""
+    n = math.hypot(ux, uy) or 1.0
+    ux, uy = ux / n, uy / n
+    moved = 0.0
+    while moved < max_shove:
+        _move(fp, ux * step, uy * step)
+        moved += step
+        if not _overlaps(board, fp, exclude):
+            return moved
+    _move(fp, -ux * moved, -uy * moved)
+    return 0.0
 
 
 def _on_board(board, fp):
@@ -130,29 +166,42 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=2
         return None
     cluster = _cluster(board, a)
     exclude = {a_ref, b_ref} | {c.GetReference() for c in cluster}
-    start = _pad_dist(a, b)
-    moved = 0.0
-    stopped = ""
-    while _pad_dist(a, b) > max_mm - margin and moved < max_move:
+    start, _ = _owner_pad_dist(a, b)
+    moved, stopped, shoved = 0.0, "", []
+    while moved < max_move:
+        d, tgt = _owner_pad_dist(a, b)           # pull toward the shared (power) pad, checker's metric
+        if d <= max_mm - margin:
+            break
         ax, ay = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
-        bx, by = _mm(b.GetPosition().x), _mm(b.GetPosition().y)
-        ux, uy = bx - ax, by - ay
+        ux, uy = _mm(tgt.x) - ax, _mm(tgt.y) - ay
         nn = math.hypot(ux, uy) or 1.0
         dx, dy = ux / nn * step, uy / nn * step
         _move(a, dx, dy)
         for c in cluster:
             _move(c, dx, dy)
         hit = _overlaps(board, a, exclude)
-        if hit:                                  # legalize: back off and stop before colliding
-            _move(a, -dx, -dy)
-            for c in cluster:
-                _move(c, -dx, -dy)
-            stopped = "blocked by %s" % hit
-            break
+        if hit:
+            hf = _fp(board, hit)
+            cleared = False
+            # MAKE ROOM: if the blocker is a movable passive, shove it out of the cap's path
+            if hf and hit[0] in ("C", "R"):
+                hx, hy = _mm(hf.GetPosition().x), _mm(hf.GetPosition().y)
+                if _shove(board, hf, hx - ax, hy - ay, exclude | {a_ref}) > 0 \
+                        and not _overlaps(board, a, exclude | {hit}):
+                    exclude.add(hit)
+                    shoved.append(hit)
+                    cleared = True
+            if not cleared:                      # blocked by a fixed/important part -> back off, stop
+                _move(a, -dx, -dy)
+                for c in cluster:
+                    _move(c, -dx, -dy)
+                stopped = "blocked by %s" % hit
+                break
         moved += step
+    end, _ = _owner_pad_dist(a, b)
     return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2),
-            "moved_refs": [a_ref] + [c.GetReference() for c in cluster],
-            "pad_mm": "%.2f->%.2f" % (start, _pad_dist(a, b)), "note": stopped}
+            "moved_refs": [a_ref] + [c.GetReference() for c in cluster] + shoved,
+            "shoved": shoved, "pad_mm": "%.2f->%.2f" % (start, end), "note": stopped}
 
 
 def apply_pin(board, target, x, y, rot=None):
