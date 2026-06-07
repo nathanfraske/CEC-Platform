@@ -889,7 +889,9 @@ REGISTRY_OPTIONAL = [
     OptionalAnalysis(
         "THERMAL", True, _thermal_applies, _thermal_screen,
         alarm_fn=lambda f: f["has_high_current"], conf_fn=lambda f: 0.6,
-        run_fn=lambda view: []),   # the electrothermal FEA stage lands as its own commit
+        # the analytic electrothermal FEA (physics()): J/T/derating gates on the routed board
+        run_fn=lambda view: (physics(view.board, view.cfg)[1]
+                             if view.board and os.path.isfile(view.board) else [])),
     OptionalAnalysis(
         "PDN", False, _pdn_applies, lambda f: (0.4, 0.2),
         alarm_fn=lambda f: False, conf_fn=lambda f: 0.4,
@@ -2003,6 +2005,200 @@ def place_finalize_handoff(cand, cfg, *, ask=None, work_dir=None):
         act.detail = {**detail, **(act.detail or {})}
         return act
     return Action(resolved=False, halt=True, rung="human", note=reason, detail=detail)
+
+
+# ============================================================ Stage 9: physics (electrothermal FEA)
+# Analytic IPC-2221/2152 electrothermal model: closed-form conductor temperature rise per copper
+# feature, coupled J -> T -> rho(T) -> J in a Picard loop (pipeline electrothermal_solve). Gates
+# current-density / temperature-rise / component derating. No mesh -- matched to the CEC boards'
+# known high-current paths (cable pours, shunts, vias). The IPC-2152 charts refine the closed form
+# with board conductivity; the constant k is the tuning knob to fit 2152 data.
+ALPHA_CU = 0.00393                       # copper temp-coefficient of resistance, 1/°C
+CU_OZ_MM = 0.0348                        # mm copper per oz
+_AMBIENT = {"enclosed_passive": 50.0, "airflow": 35.0, "worst_case": 60.0}
+
+
+def dt_ipc(I, cross_mm2, *, external=True):
+    """IPC-2221 closed-form conductor temperature rise (°C): I = k·dT^0.44·A^0.725 (A in mils^2,
+    k=0.048 external / 0.024 internal) -> dT = (I/(k·A^0.725))^(1/0.44)."""
+    if cross_mm2 <= 0 or I <= 0:
+        return 0.0
+    area_mils2 = cross_mm2 * 1550.0031
+    k = 0.048 if external else 0.024
+    return (I / (k * area_mils2 ** 0.725)) ** (1.0 / 0.44)
+
+
+def _picard_dt(I, cross_mm2, ambient, external):
+    """Self-consistent dT with rho(T): heating ∝ rho(T) so dT = dt_ipc·(1+α(ambient+dT-20)). This
+    fixed point has the closed form dT = dt0·(1+α(ambient-20)) / (1 - dt0·α). When dt0·α >= ~1 the
+    rho-feedback RUNS AWAY -- the conductor is grossly over-current (it will fuse), so we clamp and
+    let the gate fail it rather than report a meaningless 1e40."""
+    dt0 = dt_ipc(I, cross_mm2, external=external)
+    if dt0 <= 0:
+        return 0.0
+    coeff = dt0 * ALPHA_CU
+    if coeff >= 0.95:                                    # thermal runaway -> fusing
+        return min(dt0, 999.0)
+    return dt0 * (1.0 + ALPHA_CU * (ambient - 20.0)) / (1.0 - coeff)
+
+
+def _net_currents(cfg, board_nets):
+    """Per-net design current (A): cfg.params['net_currents'] overrides; else a role model
+    (cable 12V sense/force nets carry the cable current, rails their rail current, signals ~0)."""
+    user = cfg.params.get("net_currents", {})
+    i_cable = cfg.params.get("cable_current_A", 40.0)        # EPS/PCIe per-cable (spec §6.4 region)
+    out = {}
+    for n in board_nets:
+        if n in user:
+            out[n] = user[n]
+        elif n.endswith(("_HI", "_LO")) or "12V" in n:
+            out[n] = i_cable
+        elif "5VSB" in n or n.endswith("+5V"):
+            out[n] = cfg.params.get("rail_5v_A", 2.5)
+        elif "3V3" in n:
+            out[n] = cfg.params.get("rail_3v3_A", 0.8)
+        elif n.rsplit("/", 1)[-1] == "GND":
+            out[n] = i_cable                                  # return current (distributed in plane)
+        else:
+            out[n] = 0.0
+    return out
+
+
+@dataclass
+class ThermalResult:
+    ambient: float
+    max_T: float
+    max_dT: float
+    nets: dict                  # net -> {I, cross_mm2, J, dT, T, poured}
+    vias: list                  # worst vias
+    shunts: list                # shunt dissipators
+
+
+def electrothermal_solve(board_path, cfg, *, ambient=None):
+    """Solve the analytic electrothermal model on a ROUTED board: per high-current net the parallel
+    copper cross-section (tracks + pours, the pour's perpendicular cut = area/path_len x thickness),
+    the Picard dT; per via the split current + barrel cross-section; per shunt the I^2R dissipation.
+    Returns a ThermalResult. (Approximations documented inline; this is the analytic first model.)"""
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    nets = {n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    cur = _net_currents(cfg, nets)
+    if ambient is None:
+        ambient = _AMBIENT.get(cfg.params.get("thermal_env", "enclosed_passive"), 50.0)
+
+    # per-net pad bbox -> current path length (for the pour's perpendicular cross-section)
+    pad_bb = defaultdict(lambda: [1e9, -1e9, 1e9, -1e9])
+    for fp in b.GetFootprints():
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if cur.get(nn, 0) > 0:
+                pos = p.GetPosition(); x, y = pos.x / 1e6, pos.y / 1e6
+                bb = pad_bb[nn]
+                bb[0], bb[1] = min(bb[0], x), max(bb[1], x)
+                bb[2], bb[3] = min(bb[2], y), max(bb[3], y)
+
+    cross = defaultdict(float)            # net -> total parallel cross-section (mm^2)
+    poured = set()
+    nvias = defaultdict(int)
+    for t in b.GetTracks():
+        net = t.GetNetname(); I = cur.get(net, 0.0)
+        if I <= 0:
+            continue
+        if t.Type() == pcbnew.PCB_TRACE_T:
+            ext = b.GetLayerName(t.GetLayer()) in ("F.Cu", "B.Cu")
+            cross[net] += (t.GetWidth() / 1e6) * ((2 if ext else 1) * CU_OZ_MM)
+        elif t.Type() == pcbnew.PCB_VIA_T:
+            nvias[net] += 1
+    for z in b.Zones():
+        net = z.GetNetname(); I = cur.get(net, 0.0)
+        if I <= 0:
+            continue
+        poured.add(net)
+        bb = pad_bb.get(net)
+        path = max(2.0, (bb[3] - bb[2])) if bb else 10.0     # perpendicular-cut path length
+        for layer in z.GetLayerSet().Seq():
+            ext = b.GetLayerName(layer) in ("F.Cu", "B.Cu")
+            try:
+                area = z.GetFilledPolysList(layer).Area() / 1e12   # planar mm^2 (per layer)
+            except Exception:
+                area = 0.0
+            cross[net] += (area / path) * ((2 if ext else 1) * CU_OZ_MM)
+
+    net_res = {}
+    max_T, max_dT = ambient, 0.0
+    for net, I in cur.items():
+        if I <= 0 or cross.get(net, 0) <= 0:
+            continue
+        c = cross[net]
+        dt = _picard_dt(I, c, ambient, external=(net in poured))
+        net_res[net] = {"I": round(I, 1), "cross_mm2": round(c, 4),
+                        "J": round(I / c, 1), "dT": round(dt, 1), "T": round(ambient + dt, 1),
+                        "poured": net in poured}
+        if ambient + dt > max_T:
+            max_T, max_dT = ambient + dt, dt
+
+    vias = []
+    for t in b.GetTracks():
+        if t.Type() != pcbnew.PCB_VIA_T:
+            continue
+        net = t.GetNetname(); I = cur.get(net, 0.0)
+        if I <= 0:
+            continue
+        iv = I / max(1, nvias[net])                          # current splits among parallel vias
+        drill = t.GetDrillValue() / 1e6
+        cv = math.pi * drill * 0.025                         # plated barrel ~25um
+        dt = _picard_dt(iv, cv, ambient, external=True)
+        vias.append({"net": net, "I_via": round(iv, 2), "drill_mm": round(drill, 3),
+                     "J": round(iv / cv, 1) if cv else 0, "dT": round(dt, 1), "T": round(ambient + dt, 1)})
+    vias.sort(key=lambda v: -v["T"])
+
+    shunts = []
+    for fp in b.GetFootprints():
+        if not fp.GetReference().startswith("RS"):
+            continue
+        R = _r_value_ohms(fp.GetValue()) or 0.5e-3
+        I = cfg.params.get("cable_current_A", 40.0)
+        P = I * I * R
+        dt = P * cfg.params.get("shunt_rth_CW", 25.0)        # 2512 shunt+pad thermal resistance °C/W
+        shunts.append({"ref": fp.GetReference(), "R_ohm": R, "I": I, "P_W": round(P, 3),
+                       "dT": round(dt, 1), "T": round(ambient + dt, 1)})
+        if ambient + dt > max_T:
+            max_T, max_dT = ambient + dt, dt
+
+    return ThermalResult(ambient=ambient, max_T=round(max_T, 1), max_dT=round(max_dT, 1),
+                         nets=net_res, vias=vias[:8], shunts=shunts)
+
+
+def physics_gates(res, cfg):
+    """J / temperature-rise / derating gates on a ThermalResult (pipeline physics() J/T/derating)."""
+    flags = []
+    dt_max = cfg.params.get("dT_max_C", 30.0)
+    t_max = cfg.params.get("T_max_C", 105.0)
+    j_max = cfg.params.get("J_max_A_mm2", 100.0)             # sustained current density ceiling
+    for net, r in res.nets.items():
+        if r["T"] > t_max or r["dT"] > dt_max:
+            flags.append(Flag("conductor over-temp", net, 0.85, Kind.MEASURE,
+                              {"dT": r["dT"], "T": r["T"], "I": r["I"], "cross_mm2": r["cross_mm2"],
+                               "poured": r["poured"], "limit_dT": dt_max, "limit_T": t_max}))
+        elif r["J"] > j_max:
+            flags.append(Flag("current density high", net, 0.6, Kind.MEASURE,
+                              {"J": r["J"], "limit": j_max}))
+    for v in res.vias:
+        if v["T"] > t_max or v["dT"] > dt_max:
+            flags.append(Flag("via over-temp", v["net"], 0.7, Kind.MEASURE, dict(v, limit_T=t_max)))
+            break                                            # one representative via flag
+    for s in res.shunts:
+        if s["T"] > t_max or s["dT"] > dt_max:
+            flags.append(Flag("shunt over-temp", s["ref"], 0.8, Kind.MEASURE, dict(s, limit_T=t_max)))
+    return flags
+
+
+def physics(board_path, cfg, armed=()):
+    """Pipeline physics(routed, cfg, armed): run the electrothermal FEA + J/T/derating gates.
+    (PDN and other armed deep analyses hang here too when present.) Returns (ThermalResult, flags)."""
+    res = electrothermal_solve(board_path, cfg)
+    flags = physics_gates(res, cfg)
+    return res, flags
 
 
 # ============================================================ route swarm bridge
