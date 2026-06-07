@@ -39,11 +39,13 @@ import re
 import sys
 import json
 import glob
+import math
 import time
 import shutil
 import tempfile
 import subprocess
 from enum import Enum
+from collections import defaultdict
 from dataclasses import dataclass, field, asdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -970,6 +972,210 @@ def resolve_each(flags, cfg, *, tiers=None, ask=None, verbose=False):
     return ok, actions
 
 
+# ============================================================ geometric floor + proxy
+# The size oracle (pipeline lines 18-32) shrinks the board until routing stops confirming.
+# It needs two CHEAP inputs at each candidate size: a geometric FLOOR (the smallest board
+# that can even hold the parts) and a placement PROXY (HPWL + RUDY congestion + a low-res
+# thermal hotspot estimate) so most sizes are rejected without paying for a real route.
+_MM = 1_000_000
+
+
+@dataclass
+class Placement:
+    """A read or synthesized placement. pos: ref -> (x, y, rot, hw, hh) mm (position +
+    courtyard half-extents); pads_by_net: net -> [(x, y) mm]; the board W/H/origin."""
+    pos: dict
+    pads_by_net: dict
+    value: dict                                  # ref -> value (for the thermal model)
+    W: float
+    H: float
+    x0: float = 0.0
+    y0: float = 0.0
+
+
+def read_placement(board_path):
+    """Read a real placement off a .kicad_pcb via pcbnew (positions, courtyards, pad nets)."""
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    pos, value = {}, {}
+    pads_by_net = defaultdict(list)
+    for fp in b.GetFootprints():
+        ref = fp.GetReference()
+        p = fp.GetPosition()
+        try:
+            poly = fp.GetCourtyard(pcbnew.F_CrtYd)
+            if poly.OutlineCount() == 0:
+                poly = fp.GetCourtyard(pcbnew.B_CrtYd)
+            bb = poly.BBox() if poly.OutlineCount() else fp.GetBoundingBox(False, False)
+        except Exception:
+            bb = fp.GetBoundingBox(False, False)
+        pos[ref] = (p.x / _MM, p.y / _MM, fp.GetOrientationDegrees(),
+                    bb.GetWidth() / 2 / _MM, bb.GetHeight() / 2 / _MM)
+        value[ref] = fp.GetValue()
+        for pad in fp.Pads():
+            nn = pad.GetNetname()
+            if nn:
+                pp = pad.GetPosition()
+                pads_by_net[nn].append((pp.x / _MM, pp.y / _MM))
+    eb = b.GetBoardEdgesBoundingBox()
+    return Placement(pos=pos, pads_by_net=dict(pads_by_net), value=value,
+                     W=eb.GetWidth() / _MM, H=eb.GetHeight() / _MM,
+                     x0=eb.GetLeft() / _MM, y0=eb.GetTop() / _MM)
+
+
+@dataclass
+class Floor:
+    w: float
+    h: float
+    area: float
+    binding: str          # what sets the floor: 'area' (packing) or 'part-extent'
+
+
+def packing_lower_bound(placement):
+    """The geometric floor (pipeline line 19): the smallest board that can even HOLD the
+    parts. A true LOWER bound -- the board cannot be smaller than (a) the total courtyard
+    area (parts may not overlap), nor (b) its largest single courtyard in either dimension.
+    No packing-efficiency divisor: that would inflate the bound above achievable sizes (and
+    a real dense module packs to ~0.8, so the floor must sit *below* the as-built board).
+    The achievable size lives ABOVE this floor and is found by the size oracle's real routes.
+    Returns a Floor in the board's current aspect ratio."""
+    areas = [(2 * hw) * (2 * hh) for (_, _, _, hw, hh) in placement.pos.values()]
+    floor_area = sum(areas) if areas else 1.0     # hard packing lower bound (eta = 1)
+    max_w = max((2 * hw for (_, _, _, hw, hh) in placement.pos.values()), default=1.0)
+    max_h = max((2 * hh for (_, _, _, hw, hh) in placement.pos.values()), default=1.0)
+    aspect = (placement.W / placement.H) if placement.H else 1.0
+    h = max(max_h, math.sqrt(floor_area / aspect) if aspect else math.sqrt(floor_area))
+    w = max(max_w, floor_area / h)
+    binding = "part-extent" if (w * h) > floor_area * 1.05 else "area"
+    return Floor(w=w, h=h, area=floor_area, binding=binding)
+
+
+def hpwl(pads_by_net):
+    """Total half-perimeter wirelength -- the cheap routability/length proxy."""
+    total = 0.0
+    for pts in pads_by_net.values():
+        if len(pts) < 2:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        total += (max(xs) - min(xs)) + (max(ys) - min(ys))
+    return total
+
+
+def rudy(pads_by_net, W, H, x0, y0, *, bin_mm=2.0):
+    """RUDY (Rectangular Uniform wire DensitY): spread each net's wirelength uniformly over
+    its bounding box, accumulate per bin, return (peak, mean) demand. Peak >> mean flags a
+    congestion hotspot the router will fight -- the cheap proxy_reject signal."""
+    nx = max(1, int(math.ceil(W / bin_mm)))
+    ny = max(1, int(math.ceil(H / bin_mm)))
+    grid = [[0.0] * nx for _ in range(ny)]
+    for pts in pads_by_net.values():
+        if len(pts) < 2:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        w, h = max(xs) - min(xs), max(ys) - min(ys)
+        area = max(w * h, bin_mm * bin_mm)
+        dens = (w + h) / area                     # RUDY wire density of this net
+        i0 = int((min(xs) - x0) / bin_mm); i1 = int((max(xs) - x0) / bin_mm)
+        j0 = int((min(ys) - y0) / bin_mm); j1 = int((max(ys) - y0) / bin_mm)
+        for j in range(max(0, j0), min(ny - 1, j1) + 1):
+            for i in range(max(0, i0), min(nx - 1, i1) + 1):
+                grid[j][i] += dens
+    flat = [c for row in grid for c in row]
+    if not flat:
+        return 0.0, 0.0
+    return max(flat), sum(flat) / len(flat)
+
+
+def _part_power_w(ref, value):
+    """A coarse per-part dissipation (W) for the low-res thermal proxy. Rough by class --
+    the proxy only needs to find HOTSPOT CONCENTRATION, not absolute temperature."""
+    v = (value or "").upper()
+    if "ESP32" in v:
+        return 0.5
+    if ref.startswith("RS"):
+        return 0.30                               # shunt I^2R (rough; real I unknown here)
+    if ref.startswith("U") and ("LP59" in v or "TPS" in v or "LDO" in v or "REG" in v):
+        return 0.15                               # LDO/regulator
+    if ref.startswith("U"):
+        return 0.06                               # generic IC (INA/CAN/comparator)
+    return 0.0
+
+
+def thermal_proxy(placement, *, bin_mm=4.0):
+    """Low-res hotspot proxy: bin per-part power onto a coarse grid, return (peak, total) W.
+    A high peak/total ratio => power piled into one cell => a likely thermal hotspot."""
+    W, H, x0, y0 = placement.W, placement.H, placement.x0, placement.y0
+    nx = max(1, int(math.ceil(W / bin_mm)))
+    ny = max(1, int(math.ceil(H / bin_mm)))
+    grid = [[0.0] * nx for _ in range(ny)]
+    total = 0.0
+    for ref, (x, y, _r, _hw, _hh) in placement.pos.items():
+        p = _part_power_w(ref, placement.value.get(ref, ""))
+        if p <= 0:
+            continue
+        total += p
+        i = min(nx - 1, max(0, int((x - x0) / bin_mm)))
+        j = min(ny - 1, max(0, int((y - y0) / bin_mm)))
+        grid[j][i] += p
+    peak = max((c for row in grid for c in row), default=0.0)
+    return peak, total
+
+
+def placement_proxy(placement):
+    """The cheap placement score (pipeline placement_proxy): HPWL + RUDY + low-res thermal.
+    Returns a dict; lower hpwl / rudy_peak / thermal_peak is better."""
+    rpk, rmean = rudy(placement.pads_by_net, placement.W, placement.H,
+                      placement.x0, placement.y0)
+    tpk, ttot = thermal_proxy(placement)
+    return {
+        "hpwl": round(hpwl(placement.pads_by_net), 2),
+        "rudy_peak": round(rpk, 3), "rudy_mean": round(rmean, 3),
+        "rudy_ratio": round(rpk / rmean, 2) if rmean else 0.0,
+        "thermal_peak_w": round(tpk, 3), "thermal_total_w": round(ttot, 3),
+        "W": round(placement.W, 2), "H": round(placement.H, 2),
+    }
+
+
+def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0):
+    """Cheap rejection (pipeline proxy_reject): is this size too congested / too hot to be
+    worth a real route? CALIBRATED RELATIVE to a *baseline* proxy (the largest size tried,
+    which the size oracle knows routed) -- a candidate is rejected when its RUDY peak grows
+    past baseline x *rudy_growth* (congestion piled up as the board shrank). RUDY's absolute
+    scale is uncalibrated, so with NO baseline we do NOT reject on congestion (a known-routable
+    board must pass). The thermal ceiling IS absolute (W concentrated in one proxy cell -> a
+    real power-density hotspot; refined later by the electrothermal FEA on the winner).
+    Returns (reject: bool, reasons: list)."""
+    reasons = []
+    if baseline and proxy["rudy_peak"] > baseline["rudy_peak"] * rudy_growth:
+        reasons.append(f"RUDY peak {proxy['rudy_peak']} > {rudy_growth}x baseline "
+                       f"{baseline['rudy_peak']} (congestion grew as it shrank)")
+    if proxy["thermal_peak_w"] > thermal_peak_max:
+        reasons.append(f"thermal peak {proxy['thermal_peak_w']}W > {thermal_peak_max}W (hotspot)")
+    return (bool(reasons), reasons)
+
+
+# ============================================================ route swarm bridge
+def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1, 2, 3), manager=None,
+                worker=None, escalator=None, verbose=True, **board_spec_kw):
+    """Wire the synthesis pipeline's ROUTE SWARM stage (pipeline line 38) onto the existing
+    cec_router.route() loop -- the real Freerouting + score + gate + repair/escalate +
+    pour-after-route + decision-log machinery. Returns (final_board_path, DecisionLog).
+
+    The route loop's own control tiers (its candidate-judging manager / repair worker /
+    re-plan escalator) are supplied here when the orchestrator wants the LLM tiers driving;
+    by default they run deterministically. (These are cec_router's per-candidate tiers, a
+    DIFFERENT interface from the pipeline's flag-level resolve() ladder.)"""
+    import cec_router
+    out_dir = out_dir or os.path.join(tempfile.gettempdir(), f"cec_synth_route_{cfg.board}")
+    spec, name = cec_router.board_spec(board or cfg.board, out_dir, seeds=tuple(seeds),
+                                       **board_spec_kw)
+    final, log = cec_router.route(spec.board, spec, manager=manager, worker=worker,
+                                  escalator=escalator, verbose=verbose)
+    return final, log
+
+
 # ============================================================ self-test / CLI
 def _print_flags(title, flags):
     print(f"\n  {title}: {len(flags)} flag(s)")
@@ -1005,6 +1211,22 @@ def main(argv=None):
     # triage
     armed = triage_arm(cfg)
     print(f"\n  triage_arm -> armed: {[o.name for o in armed]}")
+
+    # geometric floor + placement proxy (the size-oracle's cheap inputs)
+    if cfg.pcb and os.path.isfile(cfg.pcb):
+        try:
+            pl = read_placement(cfg.pcb)
+            fl = packing_lower_bound(pl)
+            prox = placement_proxy(pl)
+            rej, reasons = proxy_reject(prox)
+            print(f"\n  geometric floor : {fl.w:.1f} x {fl.h:.1f} mm (area {fl.area:.0f} mm^2, "
+                  f"binding={fl.binding})  vs board {pl.W:.1f} x {pl.H:.1f} "
+                  f"({pl.W*pl.H/fl.area:.2f}x slack)")
+            print(f"  placement proxy : HPWL={prox['hpwl']} RUDY peak/mean={prox['rudy_peak']}/"
+                  f"{prox['rudy_mean']} thermal peak/total={prox['thermal_peak_w']}/"
+                  f"{prox['thermal_total_w']}W  reject={rej} {reasons}")
+        except Exception as exc:
+            print(f"\n  (geometric floor/proxy skipped: {exc})")
 
     # run stages
     if a.stage:
