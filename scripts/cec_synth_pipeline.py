@@ -820,6 +820,10 @@ def extract_features(cfg):
         "has_high_current": any(r.startswith("RS") for r in nl.comps),  # shunt-bearing
         "has_rf": any("ESP32" in c.value or "antenna" in c.footprint.lower()
                       for c in nl.comps.values()),
+        # WIRELESS POPULATED is a Stage-1 human input (respect_antenna_keepout): an ESP32 with
+        # the radio unpopulated is not an RF emitter, so EMC's RF arm should not fire on it.
+        "wireless": bool(cfg.params.get("respect_antenna_keepout", True)),
+        "thermal_env": cfg.params.get("thermal_env", "enclosed_passive"),
         "n_nets": len(nl.nets),
     }
     return feats
@@ -853,11 +857,14 @@ def triage_arm(cfg):
 # --- the registry. applies/screen are real + cheap; run_fn does the deep analysis
 #     (EMC/thermal/PDN deep runs land in their own commits + wire to the kicad-happy skills). ---
 def _emc_applies(feats, profile):
-    return feats["has_switcher"] or feats["has_rf"] or profile in ("enterprise", "mission_critical")
+    # RF only counts if the radio is actually POPULATED (Stage-1 wireless input).
+    rf = feats["has_rf"] and feats.get("wireless", True)
+    return feats["has_switcher"] or rf or profile in ("enterprise", "mission_critical")
 
 
 def _emc_screen(feats):
-    risk = 0.2 + 0.3 * feats["has_switcher"] + 0.2 * feats["has_rf"]
+    rf = feats["has_rf"] and feats.get("wireless", True)
+    risk = 0.2 + 0.3 * feats["has_switcher"] + 0.2 * rf
     return min(risk, 0.95), 0.2
 
 
@@ -876,7 +883,7 @@ def _pdn_applies(feats, profile):
 REGISTRY_OPTIONAL = [
     OptionalAnalysis(
         "EMC", False, _emc_applies, _emc_screen,
-        alarm_fn=lambda f: f["has_rf"], conf_fn=lambda f: 0.5,
+        alarm_fn=lambda f: f["has_rf"] and f.get("wireless", True), conf_fn=lambda f: 0.5,
         run_fn=lambda view: [Flag("EMC deep-analysis not yet wired", view.board, 0.3, Kind.SCOPE,
                                   {"todo": "wire kicad-happy:emc skill"})]),
     OptionalAnalysis(
@@ -902,6 +909,7 @@ class Action:
     halt: bool = False                            # human rung withheld / unrecoverable
     rung: str = ""                               # which rung produced this
     note: str = ""
+    detail: dict = field(default_factory=dict)    # extra payload (e.g. handoff board + render)
 
 
 # The control tiers are PLUGGABLE callables, exactly like cec_router.make_subagent_policy:
@@ -1188,18 +1196,49 @@ def _role(ref, value, fp):
     return None
 
 
-def _part_halfext(nl):
-    """ref -> (hw, hh) courtyard half-extent from the netlist footprint libid (no placement)."""
+def _half_extent(fp, *, drop_antenna=False):
+    """(hw, hh) courtyard half-extent of a footprint. When *drop_antenna* and the part is an
+    RF module (ESP32 / RF_Module), trim the PCB-antenna keepout lobe to the pad band -- the
+    Stage-1 'wireless not populated' answer makes the ESP courtyard materially smaller."""
     import cec_pcb
+    is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
+    x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, drop_keepout=(drop_antenna and is_rf))
+    return ((x1 - x0) / 2.0, (y1 - y0) / 2.0)
+
+
+def _part_halfext(nl, *, drop_antenna=False):
+    """ref -> (hw, hh) courtyard half-extent from the netlist footprint libid (no placement).
+    *drop_antenna* trims the RF-module antenna keepout (Stage-1 wireless-not-populated input)."""
     out = {}
     for ref, c in nl.comps.items():
         if not c.footprint or ":" not in c.footprint:
             continue
         try:
-            out[ref] = cec_pcb.part_half(c.footprint)
+            out[ref] = _half_extent(c.footprint, drop_antenna=drop_antenna)
         except Exception:
             out[ref] = (1.0, 1.0)
     return out
+
+
+def _fp_of(nl):
+    return {ref: c.footprint for ref, c in nl.comps.items() if c.footprint and ":" in c.footprint}
+
+
+def _courtyard_info(fp, rot, *, drop_antenna=False):
+    """(cx_off, cy_off, hw, hh): the part's courtyard CENTRE OFFSET from its origin + its half
+    extents, at rotation *rot*. Footprint origins are NOT at the courtyard centre (a connector's
+    origin is near pin 1, the courtyard extends asymmetrically), so an origin-centred ±half check
+    badly mismodels the real courtyard -> phantom 'legal' placements that DRC then flags. This
+    uses cec_pcb.courtyard_bbox(fp, 0, 0, rot) = the real courtyard bbox around the origin at this
+    rotation, exactly what KiCad/DRC sees, so the legalizer's overlap test matches the board."""
+    import cec_pcb
+    is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
+    try:
+        x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, 0.0, 0.0, rot,
+                                                drop_keepout=(drop_antenna and is_rf))
+    except Exception:
+        return (0.0, 0.0, 1.0, 1.0)
+    return ((x0 + x1) / 2.0, (y0 + y1) / 2.0, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
 
 
 def seed_anchors(nl, W, H, halfext, pins, *, margin=1.5):
@@ -1306,12 +1345,71 @@ def legalize(P, movable, halfext, W, H, *, clr=0.4, iters=400):
     return res
 
 
-def relative_place(anchors, nl, W, H, halfext, *, strat="dataflow", seed=0):
+def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
+    """Greedy non-overlap legalization (proper detailed placement): place each movable part at
+    the NEAREST FREE position to its target by an outward spiral search, so the result has ZERO
+    real courtyard overlap by construction. Each part's obstacle is its TRUE courtyard -- centre
+    OFFSET from the origin + half-extent, at its rotation (cyinfo[ref]=(cx,cy,hw,hh)) -- so the
+    test matches what KiCad/DRC sees (an origin-centred check mismodels the asymmetric connector
+    courtyards and yields phantom-legal placements). Anchors are fixed obstacles; big parts go
+    first; a part that genuinely can't fit overlap-free lands at its least-overlap spot and is
+    counted -- that residual is the honest 'board too tight -> grow' signal. Returns the residual."""
+    DEF = (0.0, 0.0, 1.0, 1.0)
+    placed = []                                      # (courtyard_centre_x, _y, hw, hh)
+    for r in P:
+        if r not in movable:
+            cx, cy, hw, hh = cyinfo.get(r, DEF)
+            placed.append((P[r][0] + cx, P[r][1] + cy, hw, hh))
+
+    def cost(ccx, ccy, hw, hh):                      # total courtyard interpenetration (0 = free)
+        c = 0.0
+        for (px, py, phw, phh) in placed:
+            ox = (hw + phw + clr) - abs(ccx - px)
+            oy = (hh + phh + clr) - abs(ccy - py)
+            if ox > 0 and oy > 0:
+                c += ox * oy
+        return c
+
+    order = sorted(movable, key=lambda r: -(cyinfo.get(r, DEF)[2] * cyinfo.get(r, DEF)[3]))
+    residual = 0
+    for r in order:
+        cx, cy, hw, hh = cyinfo.get(r, DEF)
+        tx, ty = P[r][0], P[r][1]                    # target ORIGIN; courtyard centre = origin+(cx,cy)
+        lo_x, hi_x = hw - cx, W - hw - cx            # origin range keeping the courtyard in-board
+        lo_y, hi_y = hh - cy, H - hh - cy
+        if hi_x < lo_x:
+            lo_x = hi_x = W / 2 - cx
+        if hi_y < lo_y:
+            lo_y = hi_y = H / 2 - cy
+        best, bestc, R = None, 1e18, 0.0
+        while R <= max(W, H):
+            n = 1 if R == 0 else max(10, int(2 * math.pi * R / step))
+            for k in range(n):
+                ang = (2 * math.pi * k / n) if R > 0 else 0.0
+                ox_ = min(hi_x, max(lo_x, tx + R * math.cos(ang)))
+                oy_ = min(hi_y, max(lo_y, ty + R * math.sin(ang)))
+                c = cost(ox_ + cx, oy_ + cy, hw, hh)
+                if c < bestc:
+                    best, bestc = (ox_, oy_), c
+                if c == 0:
+                    break
+            if bestc == 0:
+                break
+            R += step
+        P[r] = (best[0], best[1], P[r][2])
+        placed.append((best[0] + cx, best[1] + cy, hw, hh))
+        if bestc > 1e-6:
+            residual += 1
+    return residual
+
+
+def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataflow", seed=0):
     """Relative-place the non-anchor parts by net connectivity (barycentric sweeps from the
-    fixed anchors), under a strategy, then legalize. Returns ({ref:(x,y,rot)}, residual)."""
+    fixed anchors), under a strategy, then legalize against the TRUE courtyards. Returns
+    ({ref:(x,y,rot)}, residual)."""
     rnd = random.Random(seed)
     P = dict(anchors)
-    movable = [r for r in halfext if r not in anchors]
+    movable = [r for r in fp_of if r not in anchors]
     # seed on a coarse GRID across the board (not clustered at centre) so the legalizer
     # starts near-tessellated -- far fewer initial overlaps than a central blob.
     ncol = max(1, int(math.ceil(math.sqrt(len(movable) * max(W, 1) / max(H, 1)))))
@@ -1338,8 +1436,10 @@ def relative_place(anchors, nl, W, H, halfext, *, strat="dataflow", seed=0):
                     if h != r and h in P and abs(P[h][0] - tx) < 8 and abs(P[h][1] - ty) < 8:
                         tx += math.copysign(4.0, tx - P[h][0] or 1.0)
             P[r] = (tx, ty, P[r][2])
-    clr = 0.3 if strat == "compact" else 0.5
-    res = legalize(P, movable, halfext, W, H, clr=clr)
+    # the TRUE courtyard (centre offset + half) of every part at its placed rotation
+    cyinfo = {r: _courtyard_info(fp_of[r], P[r][2], drop_antenna=drop_antenna) for r in P if r in fp_of}
+    clr = 0.3 if strat == "compact" else 0.45
+    res = legalize_pack(P, movable, cyinfo, W, H, clr=clr)
     return P, res
 
 
@@ -1381,9 +1481,12 @@ def synth_one(cfg_dict, W, H, strat, seed):
     in a spawn-pool worker (on the runner's cores). Takes/returns plain types only."""
     cfg = Config(**cfg_dict)
     nl = View(cfg).nl
-    halfext = _part_halfext(nl)
+    drop_antenna = not cfg.params.get("respect_antenna_keepout", True)
+    halfext = _part_halfext(nl, drop_antenna=drop_antenna)
+    fp_of = _fp_of(nl)
     anchors = seed_anchors(nl, W, H, halfext, cfg.pins)
-    P, res = relative_place(anchors, nl, W, H, halfext, strat=strat, seed=seed)
+    P, res = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
+                            strat=strat, seed=seed)
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     proxy = placement_proxy(obj)
     return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy)
@@ -1446,6 +1549,131 @@ def place_with_consent(cfg, W, H, *, pins=None, ask=None, strategies=STRATEGIES,
     return best
 
 
+# ============================================================ Stage 1: requirements (human I/O)
+# The pipeline must ASK the human the design inputs it cannot safely assume (pipeline line 8:
+# Config + requirements). Each Requirement is a question the orchestrator puts to the human via
+# AskUserQuestion (the human rung); the answer is recorded into cfg.params and flows into triage
+# (EMC arming), the placer (antenna keepout), the size oracle, and the FEA (derating).
+@dataclass
+class Requirement:
+    id: str
+    prompt: str
+    param: str                    # cfg.params key it sets
+    options: list                 # [(label, value, note), ...]
+    default: object
+    affects: str = ""
+
+
+REQUIREMENTS = [
+    Requirement("antenna_keepout",
+                "Is wireless populated (must the ESP32 PCB-antenna keepout be respected)?",
+                "respect_antenna_keepout",
+                [("respect", True, "wireless used -> keep the antenna clear-zone"),
+                 ("drop", False, "wired-only -> GND fills under the antenna, tighter placement")],
+                default=True, affects="placer ESP courtyard + EMC RF arming"),
+    Requirement("placement_handoff",
+                "When auto-placement isn't clean, hand off to the human, auto-grow, or proceed?",
+                "placement_handoff_mode",
+                [("handoff", "handoff", "human hand-finalizes the placement before continuing"),
+                 ("grow", "grow", "size oracle grows the board until it legalizes"),
+                 ("proceed", "proceed", "let the route swarm + cascade catch it")],
+                default="handoff", affects="placement finalize flow"),
+    Requirement("thermal_env",
+                "Thermal environment (drives THERMAL arming + electrothermal derating)?",
+                "thermal_env",
+                [("enclosed_passive", "enclosed_passive", "in-case, no airflow -> conservative derating"),
+                 ("airflow", "airflow", "bench / PC airflow -> relaxed derating"),
+                 ("worst_case", "worst_case", "let the FEA pick the worst-case ambient")],
+                default="enclosed_passive", affects="THERMAL arming + FEA derating"),
+    Requirement("size_target",
+                "How should the size oracle size the board?",
+                "size_target",
+                [("min_area", "min_area", "shrink to the minimum routable area"),
+                 ("margin", "margin", "shrink but keep a margin above the routable floor"),
+                 ("as_built", "as_built", "optimize placement only, keep the start size")],
+                default="margin", affects="size oracle shrink target"),
+]
+
+
+def elicit_requirements(cfg, answers=None):
+    """Stage 1 (Config + requirements, human I/O): record the human's design inputs into
+    cfg.params. *answers* maps a Requirement id -> the chosen value (or its label); the
+    orchestrator collects them via AskUserQuestion (the human rung) and passes them here.
+    An unanswered requirement takes its default (headless-safe). Returns cfg."""
+    answers = answers or {}
+    for req in REQUIREMENTS:
+        v = answers.get(req.id, req.default)
+        for (lab, val, _n) in req.options:           # accept a label in place of the value
+            if v == lab:
+                v = val
+                break
+        cfg.params[req.param] = v
+    return cfg
+
+
+# The inputs collected interactively for the EPS module (demonstration of Stage-1 elicitation):
+# wired-only (drop the antenna keepout), hand off placement to the human, enclosed/passive thermal.
+EPS_ANSWERS = {"antenna_keepout": False, "placement_handoff": "handoff",
+               "thermal_env": "enclosed_passive", "size_target": "margin"}
+
+
+# ============================================================ materialize + placement handoff
+def materialize(cand, cfg, out, *, logo=None):
+    """Write a placement candidate to a REAL .kicad_pcb (cec_pcb.build_board): every netlist
+    footprint at its synth position + edge cuts at the candidate size + the GND zone. Mount
+    refs (H1..) feed build_board's mount list; the rest place from the netlist footprints. The
+    board is self-contained (footprints embedded) so kicad-cli can render + DRC it. Returns out."""
+    import cec_pcb
+    def _is_mount(r):
+        return r.startswith("H") and r[1:].isdigit()
+    mounts = [(p[0], p[1]) for r, p in cand.P.items() if _is_mount(r)]
+    P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
+          if not _is_mount(r) and not r.startswith("LOGO")}
+    os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    cec_pcb.build_board(out, cfg.net, P3, mounts, logo, cand.W, cand.H, force_argv=False)
+    for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
+        s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
+        if s and os.path.isfile(s):
+            shutil.copy(s, out[:-len(".kicad_pcb")] + ext)
+    return out
+
+
+def place_finalize_handoff(cand, cfg, *, ask=None, work_dir=None):
+    """The placement HUMAN-HANDOFF rung (the user's step): after the automated evaluation, if the
+    placement isn't clean -- residual courtyard overlaps, or a failed feasibility probe -- act on
+    cfg.params['placement_handoff_mode']:
+      'handoff' -> materialize + render the placement and hand it to the human to FINALIZE in the
+                   GUI (confirm it's really doable); the pipeline then re-reads + re-evaluates the
+                   finalized board. *ask(reason, detail, cfg)->Action* is the human rung.
+      'grow'    -> return unresolved 'grow' so the size oracle grows the board.
+      'proceed' -> accept and let the route swarm + cascade catch it.
+    Returns an Action; in 'handoff' the Action.detail carries the materialized board + render path."""
+    clean = (cand.residual == 0) and (cand.feasible != 0.0)
+    if clean:
+        return Action(resolved=True, rung="placer", note="placement clean; no handoff needed")
+    mode = cfg.params.get("placement_handoff_mode", "handoff")
+    if mode == "grow":
+        return Action(resolved=False, rung="placer", note="grow",
+                      detail={"residual": cand.residual})
+    if mode == "proceed":
+        return Action(resolved=True, rung="placer", note="proceed to routing despite residual")
+    # handoff: materialize + render, then ask the human to finalize
+    work_dir = work_dir or os.path.join(tempfile.gettempdir(), f"cec_synth_place_{cfg.board}")
+    os.makedirs(work_dir, exist_ok=True)
+    board = materialize(cand, cfg, os.path.join(work_dir, f"{cfg.board}-synth.kicad_pcb"))
+    png = os.path.join(work_dir, f"{cfg.board}-synth-top.png")
+    subprocess.run(["kicad-cli", "pcb", "render", "-o", png, board], capture_output=True)
+    detail = {"board": board, "render": png if os.path.isfile(png) else None,
+              "residual": cand.residual, "W": cand.W, "H": cand.H, "proxy": cand.proxy}
+    reason = (f"auto-placement at {cand.W:.0f}x{cand.H:.0f} has {cand.residual} residual "
+              f"courtyard overlap(s) -- hand-finalize before continuing?")
+    if ask is not None:
+        act = ask(reason, detail, cfg)
+        act.detail = {**detail, **(act.detail or {})}
+        return act
+    return Action(resolved=False, halt=True, rung="human", note=reason, detail=detail)
+
+
 # ============================================================ route swarm bridge
 def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1, 2, 3), manager=None,
                 worker=None, escalator=None, verbose=True, **board_spec_kw):
@@ -1466,6 +1694,59 @@ def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1, 2, 3), manager=No
     return final, log
 
 
+# ============================================================ headless synthesis sweep (runner)
+def run_sweep(cfg, sizes, *, strategies=STRATEGIES, seeds=(0, 1), max_workers=None,
+              out_dir=None, render=True):
+    """The headless synthesis SWEEP -- the runner-side compute. For each board size, synthesize
+    the placement candidates IN PARALLEL (the self-hosted runner's cores, max_workers), keep the
+    best by proxy, materialize + render it, and emit a JSON report. This is what synth.yml runs on
+    the user's machine; the human touchpoints (Stage-1 requirements, the placement handoff) happen
+    IN-SESSION around it. The feasibility FR routes (the genuinely heavy load) attach here when the
+    size oracle lands -- they reuse the same runner-capable parallel pool. Returns the report dict."""
+    out_dir = out_dir or os.path.join(ROOT, "build", "synth", cfg.board)
+    os.makedirs(out_dir, exist_ok=True)
+    report = {"board": cfg.board, "profile": cfg.profile, "params": cfg.params,
+              "max_workers": max_workers, "cpu_count": os.cpu_count(), "sizes": []}
+    t0 = time.time()
+    for (W, H) in sizes:
+        cands = place_candidates(cfg, W, H, strategies=strategies, seeds=seeds,
+                                 max_workers=max_workers)
+        best = cands[0]
+        board = materialize(best, cfg, os.path.join(out_dir, f"{cfg.board}-{int(W)}x{int(H)}.kicad_pcb"))
+        entry = {"W": W, "H": H, "best_strat": best.strat, "best_seed": best.seed,
+                 "residual": best.residual, "proxy": best.proxy, "n_candidates": len(cands),
+                 "board": os.path.relpath(board, ROOT)}
+        if render:
+            png = board[:-len(".kicad_pcb")] + "-top.png"
+            subprocess.run(["kicad-cli", "pcb", "render", "-o", png, board], capture_output=True)
+            if os.path.isfile(png):
+                entry["render"] = os.path.relpath(png, ROOT)
+        report["sizes"].append(entry)
+        print(f"  swept {W:.0f}x{H:.0f}: {len(cands)} cand, best={best.strat} "
+              f"residual={best.residual} HPWL={best.proxy['hpwl']}")
+    report["elapsed_s"] = round(time.time() - t0, 1)
+    rp = os.path.join(out_dir, "synth-report.json")
+    json.dump(report, open(rp, "w"), indent=2, default=str)
+    print(f"  WROTE {os.path.relpath(rp, ROOT)} ({report['elapsed_s']}s)")
+    return report
+
+
+def _parse_sizes(spec, cfg):
+    """Parse a --sweep spec 'WxH,WxH,...'; or 'auto' -> floor / midpoint / as-built from the
+    board's geometry (the size oracle will refine these into a real bisection later)."""
+    if spec and spec != "auto":
+        out = []
+        for tok in spec.split(","):
+            w, h = tok.lower().split("x")
+            out.append((float(w), float(h)))
+        return out
+    if cfg.pcb and os.path.isfile(cfg.pcb):
+        pl = read_placement(cfg.pcb)
+        fl = packing_lower_bound(pl)
+        return [(fl.w, fl.h), ((fl.w + pl.W) / 2, (fl.h + pl.H) / 2), (pl.W, pl.H)]
+    return [(100.0, 44.0)]
+
+
 # ============================================================ self-test / CLI
 def _print_flags(title, flags):
     print(f"\n  {title}: {len(flags)} flag(s)")
@@ -1483,9 +1764,33 @@ def main(argv=None):
     ap.add_argument("--profile", default="consumer")
     ap.add_argument("--stage", default=None, help="run a single stage (e.g. CONFORMANCE); default = full cascade")
     ap.add_argument("--resolve", action="store_true", help="run the resolve() ladder over the flags (headless)")
+    ap.add_argument("--sweep", default=None, help="SYNTH SWEEP (runner): board sizes 'WxH,WxH' or 'auto'")
+    ap.add_argument("--answers", default=None, help="JSON file of Stage-1 requirement answers (headless elicitation)")
+    ap.add_argument("--strategies", default=",".join(STRATEGIES), help="comma-list of placement strategies")
+    ap.add_argument("--seeds", default="0,1", help="comma-list of placement seeds")
+    ap.add_argument("--max-workers", type=int, default=0, help="parallel candidate workers (0=auto=min(cands,CPUs))")
+    ap.add_argument("--out", default=None, help="output dir for the sweep (default build/synth/<board>)")
     a = ap.parse_args(argv)
 
     cfg = Config.load(a.board, profile=a.profile)
+    answers = json.load(open(a.answers)) if (a.answers and os.path.isfile(a.answers)) else None
+    elicit_requirements(cfg, answers)                # Stage 1: record design inputs (headless-safe)
+
+    # ---- SYNTH SWEEP (the runner-side headless compute) ----
+    if a.sweep is not None:
+        sizes = _parse_sizes(a.sweep, cfg)
+        strategies = tuple(s for s in a.strategies.split(",") if s)
+        seeds = tuple(int(s) for s in a.seeds.split(",") if s.strip() != "")
+        out_dir = a.out if (a.out and os.path.isabs(a.out)) else (
+            os.path.join(ROOT, a.out) if a.out else None)
+        print("=" * 72)
+        print(f"  cec_synth_pipeline SWEEP on {cfg.board}: {len(sizes)} sizes x "
+              f"{len(strategies)} strat x {len(seeds)} seeds  (max_workers={a.max_workers or 'auto'})")
+        print(f"  params: {cfg.params}")
+        print("=" * 72)
+        run_sweep(cfg, sizes, strategies=strategies, seeds=seeds,
+                  max_workers=(a.max_workers or None), out_dir=out_dir)
+        return 0
     print("=" * 72)
     print(f"  cec_synth_pipeline -- cascade backbone on {cfg.board} (profile={cfg.profile})")
     print("=" * 72)

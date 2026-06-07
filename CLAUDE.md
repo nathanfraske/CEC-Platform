@@ -655,6 +655,32 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- Stage-1 human I/O + synth runner + placer-quality fix (2026-06-07).
+  Per the user: (1) Stage-1 REQUIREMENTS elicitation -- elicit_requirements() + a REQUIREMENTS
+  registry the orchestrator asks the human via AskUserQuestion (the human rung); answers recorded
+  to cfg.params and wired through: antenna keepout (respect_antenna_keepout -> the placer trims the
+  ESP32 courtyard 219->153mm2 via cec_pcb drop_keepout, AND EMC's RF arm only fires if the radio is
+  populated), thermal_env (-> THERMAL arming + FEA derating), placement_handoff_mode, size_target.
+  Collected the EPS answers live (wired-only, hand-off, enclosed/passive). (2) PLACEMENT HUMAN-HANDOFF
+  -- place_finalize_handoff(): if the auto-placement isn't clean it materializes (cec_pcb.build_board)
+  + renders the board and hands it to the human to finalize in the GUI before continuing (the user's
+  step), or 'grow'/'proceed' per the mode. (3) SYNTH RUNNER -- run_sweep() (the headless runner-side
+  compute: parallel place_candidates across sizes -> materialize + render + JSON report) + the CLI
+  --sweep/--answers/--max-workers + (pending) a self-hosted synth.yml. (4) PLACER-QUALITY FIX (two
+  real bugs the user caught from the render): the legalizer was point-relaxation that piled parts at
+  high density -> replaced with legalize_pack() greedy nearest-free-slot (zero overlap by
+  construction); AND it modelled each part as an ORIGIN-centred +-half box, but footprint origins are
+  NOT the courtyard centre (asymmetric connector courtyards) and rotated anchors swap w/h -> now uses
+  _courtyard_info() = the TRUE courtyard (centre offset + half at the placed rotation, from
+  cec_pcb.courtyard_bbox) so the overlap test matches KiCad/DRC. DRC-VERIFIED on a materialized EPS
+  synth board: courtyards_overlap 24->1 and shorting_items 7->0 at 125x52 (minimal, hand-finalizable).
+  LESSON (added to my practice): verify a placement with REAL DRC before trusting a self-reported
+  residual or a render. STILL OPEN (next, per the user): seed_anchors needs MOUNTING-HOLE handling
+  (ask count/size/position -> footprint + placement; the synth board has none today) and CONNECTOR
+  EDGE-OVERHANG logic (ask whether connectors hang off the edge to save area); plus the size oracle +
+  feasibility probe + electrothermal FEA. NOTE: the EPS runs are BUILDING+TESTING the placer on the
+  real EPS netlist as input -- NOT re-synthesizing the as-built EPS board (hand-designed, stays); a
+  true top-down synthesis run (a new board) is where the full Stage-1 questionnaire fires.
 - SYNTHESIS PIPELINE -- stages 2-3: size-oracle inputs + constructive placer (2026-06-07).
   Continued down the pipeline (deep-build, stage by stage). scripts/cec_synth_pipeline.py now
   also carries, all real + verified on EPS: (STAGE 2) read_placement() (pcbnew positions +
