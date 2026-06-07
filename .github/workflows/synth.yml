@@ -33,12 +33,13 @@ on:
           - 12vhpwr-standard
           - atx-24pin
       mode:
-        description: "run = full pipeline end-to-end | sweep = placement candidate sweep"
+        description: "run = full pipeline | sweep = placement sweep | candidates = route-candidate metrics (agentic loop)"
         type: choice
         default: run
         options:
           - run
           - sweep
+          - candidates
       route:
         description: "run mode: route the board via the swarm before physics/cascade"
         type: boolean
@@ -55,6 +56,12 @@ on:
       strategies:
         description: "comma-separated placement strategies"
         default: "dataflow,thermal_separated,compact"
+      passes:
+        description: "candidates mode: Freerouting passes (-mp)"
+        default: "8"
+      opt_time:
+        description: "candidates mode: Freerouting optimization seconds (-oit)"
+        default: "12"
       max_workers:
         description: "parallel candidate workers (0 = auto: min(candidates, CPU threads))"
         default: "0"
@@ -92,23 +99,30 @@ jobs:
           -Sizes       "${{ inputs.sizes }}"
           -Seeds       "${{ inputs.seeds }}"
           -Strategies  "${{ inputs.strategies }}"
+          -Passes       ${{ inputs.passes }}
+          -OptTime      ${{ inputs.opt_time }}
           -MaxWorkers   ${{ inputs.max_workers }}
 
       - name: Synthesize (Linux/macOS)
         if: runner.os != 'Windows'
         run: |
           set -e
-          OUT="build/$([ '${{ inputs.mode }}' = sweep ] && echo synth || echo release)/${{ inputs.board }}"
-          if [ "${{ inputs.mode }}" = "sweep" ]; then
+          if [ "${{ inputs.mode }}" = "candidates" ]; then
+            python3 scripts/cec_dispatch.py request-candidates --board "${{ inputs.board }}" \
+              --seeds "${{ inputs.seeds }}" --passes "${{ inputs.passes }}" \
+              --opt-time "${{ inputs.opt_time }}" --max-workers "${{ inputs.max_workers }}" \
+              --out "build/candidates/${{ inputs.board }}"
+          elif [ "${{ inputs.mode }}" = "sweep" ]; then
             python3 scripts/cec_synth_pipeline.py --board "${{ inputs.board }}" \
               --sweep "${{ inputs.sizes }}" --seeds "${{ inputs.seeds }}" \
               --strategies "${{ inputs.strategies }}" --max-workers "${{ inputs.max_workers }}" \
-              --out "$OUT"
+              --out "build/synth/${{ inputs.board }}"
           else
             ARGS="--run"
             [ -n "${{ inputs.routed_board }}" ] && ARGS="$ARGS --routed-board ${{ inputs.routed_board }}"
             [ "${{ inputs.route }}" = "true" ] && ARGS="$ARGS --route"
-            python3 scripts/cec_synth_pipeline.py --board "${{ inputs.board }}" $ARGS --out "$OUT"
+            python3 scripts/cec_synth_pipeline.py --board "${{ inputs.board }}" $ARGS \
+              --out "build/release/${{ inputs.board }}"
           fi
 
       # ---- collect ----
@@ -120,4 +134,5 @@ jobs:
           path: |
             build/synth/${{ inputs.board }}/
             build/release/${{ inputs.board }}/
+            build/candidates/${{ inputs.board }}/
           if-no-files-found: warn

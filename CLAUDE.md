@@ -675,6 +675,27 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- AGENTIC DISPATCH PROTOTYPE -- compute-as-tools + a budgeted tier-escalation loop (2026-06-07).
+  Per the user's design instinct (the two-plane router is "too detached": compute runs a blind batch,
+  judgement happens after -> tighten the COUPLING so agents call compute on demand + defer up). scripts/
+  cec_dispatch.py: (1) compute-as-TOOLS -- request_candidates(board, params, seeds, where) runs FR +
+  scores + DRC-types and returns STRUCTURED METRICS (kelvin_ok/diffpair_ok/drc/unconnected/drc_types/
+  loci) the agent reasons on, NOT raw boards (+ score_board, render); `where='local'` now, 'runner'
+  (dispatch to synth.yml) is the TODO. (2) the budgeted LOOP agent_route(board, tiers, budget): request
+  -> a TIER judges -> accept | request_more(new_params) [budget--, re-request] | escalate [defer UP,
+  reset budget]; budget exhausted -> FORCED escalate (no thrash); ladder exhausted -> human. `tiers` =
+  ordered decide(JudgeContext)->Verdict callables (Haiku swarm -> Sonnet -> Opus -> human); deterministic
+  defaults run headless (loop unit-tested: accept-on-clean, request_more-improves, budget->escalate).
+  KEY INSIGHT recorded: LLM inference and CPU compute are different resources -- 'consolidate' = couple
+  them (compute-as-tools + a budgeted swarm that drives it), NOT co-locate. DEMONSTRATED LIVE end-to-end:
+  request_candidates on EPS @passes5/opt5 -> both candidates kelvin_ok=True but diffpair_ok=FALSE (USB
+  pair unrouted), drc=4 ALL on LOGO1. A real HAIKU sub-agent judge correctly distinguished the cosmetic
+  logo DRC from the real diffpair-gate FAIL, judged it localized-not-structural, and returned
+  request_more(passes=10,opt=15); the re-dispatch CONVERGED -> diffpair_ok=True, gates pass, DRC
+  finishing-only -> accept. The agent drove the compute on demand, exactly the intended loop. NEXT: wire
+  where='runner' (the Haiku swarm in the cloud dispatches the heavy route to the self-hosted runner);
+  generalize the same loop to the cascade flags + the placement sweep; spawn a real PARALLEL Haiku swarm
+  (one per region/candidate/flag). On branch claude/agent-dispatch.
 - SYNTHESIS PIPELINE -- physics FEA + sign-off + build/freeze + run_pipeline = RUNNABLE END-TO-END
   (2026-06-07). (1) PHYSICS (analytic IPC, per user's choice): electrothermal_solve() -- per
   high-current net the parallel copper cross-section (tracks + pours, pour cut = area/path x
