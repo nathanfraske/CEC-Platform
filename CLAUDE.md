@@ -520,6 +520,26 @@ this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
 
+-2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
+   (scripts/cec_synth_pipeline.py, place_with_consent + macro-block auto_cluster + overhang +
+   anneal) is a strong GENERAL designer -- DRC-clean at the gen-eps-condensed bar (96x37, courtyard
+   0 / short 0), fully synthesized from the netlist + Stage-1 asks -- BUT it is DOMAIN-BLIND: it has
+   NO model of the high-current paths, the shunts, or the requirement that the sense devices
+   (INA238/INA181) sit hard against their shunt's inner edge (short Kelvin), nor the high-current
+   pour corridor (J_IN->shunt->J_OUT) kept clear, nor thermal separation. The user's read: it can
+   likely go SMALLER still, and adding these as HARD constraints is a LOT more work or an entire
+   reconsideration of the placement approach. DECISION: put the design pass ASIDE; for any ACTUAL
+   board use the OLD design (the existing gen-*-condensed boards + cec_pcb explicit placement, which
+   are untouched and remain the source of truth). The placer code stays as committed WIP on
+   claude/synth-pipeline. WHEN RESUMED, the design pass must add: (1) high-current corridor keepout +
+   pour reservation; (2) sense-IC-adjacent-to-shunt as a hard constraint (Kelvin); (3) the rest of
+   the considerations list (thermal sep, routing channels, diff-pair proximity, symmetry) as hard
+   constraints/score terms; (4) the drop-keepout trimmed-courtyard materialize for the real area win
+   (currently the placer respects the ESP keepout for DRC-honesty -> bigger than needed); (5) the
+   huge runner sweep wired to synth.yml. The cascade/resolve/triage/route-swarm-bridge backbone is
+   DONE and independent of the placer. NEXT pipeline work is the placer-INDEPENDENT stages (physics
+   FEA, sign-off, build+freeze, the run_pipeline driver on an existing board).
+
 -1. v3.10 SPEC-vs-BOARD divergence (digital modules). The consolidated spec moved the
    24-pin/EPS/PCIe to ESP32-C6-MINI-1 (C3-MINI cost-down option) and added the §6.13
    per-cable transient DETECTION front-end (INA181-class CSA + hysteresis comparator +
@@ -655,6 +675,160 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- physics FEA + sign-off + build/freeze + run_pipeline = RUNNABLE END-TO-END
+  (2026-06-07). (1) PHYSICS (analytic IPC, per user's choice): electrothermal_solve() -- per
+  high-current net the parallel copper cross-section (tracks + pours, pour cut = area/path x
+  thickness), the J->T->rho(T)->J Picard loop as a closed-form fixed point dT=dt0(1+a(amb-20))/(1-dt0a)
+  with a runaway clamp (dt0*a>=0.95 = fusing) so a grossly over-current feature fails the gate not
+  returns 1e40; dt_ipc() IPC-2221 closed form (k tunable to 2152); per-via split current + barrel
+  cross-section; per-shunt I^2R; _net_currents() role model (cable=40A default, cfg-overridable);
+  physics_gates() J/T/derating; wired the THERMAL armed-analysis to physics(). Verified on the routed+
+  poured EPS @40A/enclosed: cable pours dT 18-46C (hottest the thinnest pour, T=96C), shunts 0.8W->20C,
+  vias flagged FUSING (the §6.7/OQ-10 vertical-transition concern) -- 3 real thermal gates. (2) SIGN-OFF
+  human_signoff() (cert-grade human rung; cautious headless = release only if nothing blocking). (3)
+  BUILD+FREEZE freeze_build() (release board + frozen decision log = reproducible). (4) run_pipeline()
+  THE TOP-LEVEL DRIVER on an EXISTING board (place/size DEFERRED): ERC+BOM gate -> triage -> existing
+  board (opt route_swarm) -> physics+cascade loop (resolve on fail) -> sign-off -> build+freeze. CLI
+  --run [--routed-board B] [--route]. VERIFIED end-to-end on the poured EPS: ran every stage and
+  correctly WITHHELD release (residual DFM + conductor-over-temp + fusing-via flags) -- the cautious,
+  defensible decision. THE PIPELINE IS NOW VIABLE END-TO-END (on the old-design board; the synth
+  placer/size-oracle remains the deferred design-pass TODO -2).
+  RUNNER (2026-06-07): (a) the self-hosted runner is VERIFIED LIVE -- a dispatched route.yml health
+  check (run #13) was picked up + ran on the user's CEC-Workstation. (b) Fixed a real RUNNER BLOCKER:
+  PCB_VIA.GetWidth() WITHOUT a layer asserts in KiCad 10; on the user's Windows debug build it pops a
+  MODAL 'Debug Alert' dialog that blocks the runner -- cec_fr.normalize_via_annular now passes
+  t.GetWidth(t.TopLayer()) (SetWidth and PCB_TRACK.GetWidth do NOT assert; only PCB_VIA.GetWidth(no-arg)
+  does). (c) Added the SYNTH RUNNER DISPATCH: .github/workflows/synth.yml (workflow_dispatch, self-
+  hosted cec-router, modes run|sweep) + scripts/synth.ps1 (Windows launcher mirroring route.ps1's
+  KiCad-python+java discovery, runs cec_synth_pipeline.py). Committed on claude/synth-pipeline so it is
+  DISPATCHABLE the moment this branch merges to main (workflow_dispatch needs the file on the default
+  branch). STILL OPEN: merge the synth-pipeline branch to main; the deferred placer design pass; size
+  oracle once the placer resumes.
+- SYNTHESIS PIPELINE -- placer BEATS/MATCHES the bar, DRC-verified (2026-06-07). The overlap-vs-size
+  sweep (per user: candidates are overlap-vs-SIZE, not min-overlap at one size) exposed that the real
+  blocker was ANCHOR placement, not macros: two ~21mm cable connectors don't fit a 37mm board unless
+  they OVERHANG (the user's exact ask). Implemented: seed_anchors() now seats connectors by their PAD
+  BAND at the edge with the body/courtyard OFF-board (overhang), and packs multiple connectors on an
+  edge by COURTYARD extent (not pad extent -- that left bodies overlapping). + place_mechanical mounts/
+  fiducials nudged to free slots; + anneal_macros() SA on the macro positions (compaction + the
+  diversity engine for best-of-N). RECURRING DRC-MISMATCH ROOT-CAUSED at last (the model kept under-
+  counting vs kicad-cli): (a) the placer DROPPED the ESP antenna keepout but materialize embeds the
+  FULL footprint -> now respects the keepout for DRC-consistency (the drop-keepout area win needs a
+  trimmed-courtyard materialize, a follow-up); (b) the M3 mount courtyard PARSES DEGENERATE in
+  cec_pcb (half 1.73x0.0) -> hardcoded a 3mm M3 keepout in _half_extent/_courtyard_info; (c)
+  derive_passive_spec wrongly owned decoupling caps to BUTTONS (SW*) -> excluded buttons from owners
+  (was the 2 SW1<->C21/C30 pad shorts). RESULT, REAL kicad-cli DRC (count now MATCHES DRC): 96x37 =
+  courtyard 0 / short 0 -- FULLY CLEAN, matching the gen-eps-condensed bar, fully automated from the
+  netlist + Stage-1 asks (overhang/mounts/fiducials/antenna); 88x36 (0.89x bar) = 1 courtyard, 0 short
+  (essentially below the bar). LESSON RE-LEARNED + acted on: a placement's residual MUST be the real
+  DRC (or pcbnew courtyards), never a self-reported bbox count -- root-caused 3 model-vs-DRC gaps this
+  pass. STILL OPEN: push 88x36 to 0 (drop-keepout trimmed-materialize for the real area win + more
+  sweep diversity); the considerations scoring (Kelvin/thermal/corridor/channels) as ranking terms;
+  the huge runner sweep wired to synth.yml; fiducials not yet materialized; size oracle + FEA ahead.
+- SYNTHESIS PIPELINE -- MACRO-BLOCK placer (auto_cluster) + generalized asks + perf cache (2026-06-07).
+  The barycentric placer was 1.8x the area of my gen-eps-condensed board (the real bar -- that board
+  is ALSO Opus-placed, not hand). Root cause: I drifted from the spec (place_with_consent =
+  relative_place(ICs) + auto_cluster(passives)). Rebuilt to the spec + a MACRO-BLOCK model: derive each
+  passive's owner IC from the netlist (derive_passive_spec, generalizing the hand PASSIVE_SPEC --
+  signal-net coupling, pure-decoupling balanced across the rail; 26/26 EPS passives -> sensible owners),
+  auto_cluster each IC's passives in ISOLATION to learn the cluster bbox + passive offsets, place the
+  CLUSTERS by their full bbox (relative_place cyinfo_override) so the legalizer reserves the room, then
+  stamp the passives rigidly. (Placing bare ICs tight then fanning passives into nonexistent gaps was the
+  26-overlap/30-short failure.) _classify() splits anchors/ICs/shunts/passives; _count_overlaps() gives a
+  DRC-ACCURATE residual (no more self-reported phantom-0). RESULT: density 1.8x -> ~1.12x bar, best
+  residual 2 at 100x40 (12-candidate bulk), minimal + hand-finalizable. GENERALIZED ask-first Stage-1
+  (per user -- not baked per-board): mount_holes / connector_overhang / fiducials added to REQUIREMENTS;
+  place_mechanical() emits mounts (build_board mounts list) + fiducials from the asks. PERF: cec_pcb
+  local_pads + courtyard_bbox MEMOIZED (_PADS_CACHE/_CRTYD_CACHE) -- auto_cluster's O(iters x parts^2)
+  courtyard reads went from a hang to ~0.3s/candidate (pure cache, identical geometry, safe for all
+  callers). Bulk candidate gen runs parallel on the spawn pool (runner-capable). STILL OPEN: not yet
+  BEATING the bar (residual 0 at <=96x37 needs a compaction/anneal pass + structure-aware cable columns
+  + a bigger bulk sweep); the considerations scoring (Kelvin/thermal/high-current-corridor/channels) not
+  yet a ranking term; connector OVERHANG geometry + fiducial materialize still pending; size oracle +
+  feasibility + FEA still ahead.
+- SYNTHESIS PIPELINE -- Stage-1 human I/O + synth runner + placer-quality fix (2026-06-07).
+  Per the user: (1) Stage-1 REQUIREMENTS elicitation -- elicit_requirements() + a REQUIREMENTS
+  registry the orchestrator asks the human via AskUserQuestion (the human rung); answers recorded
+  to cfg.params and wired through: antenna keepout (respect_antenna_keepout -> the placer trims the
+  ESP32 courtyard 219->153mm2 via cec_pcb drop_keepout, AND EMC's RF arm only fires if the radio is
+  populated), thermal_env (-> THERMAL arming + FEA derating), placement_handoff_mode, size_target.
+  Collected the EPS answers live (wired-only, hand-off, enclosed/passive). (2) PLACEMENT HUMAN-HANDOFF
+  -- place_finalize_handoff(): if the auto-placement isn't clean it materializes (cec_pcb.build_board)
+  + renders the board and hands it to the human to finalize in the GUI before continuing (the user's
+  step), or 'grow'/'proceed' per the mode. (3) SYNTH RUNNER -- run_sweep() (the headless runner-side
+  compute: parallel place_candidates across sizes -> materialize + render + JSON report) + the CLI
+  --sweep/--answers/--max-workers + (pending) a self-hosted synth.yml. (4) PLACER-QUALITY FIX (two
+  real bugs the user caught from the render): the legalizer was point-relaxation that piled parts at
+  high density -> replaced with legalize_pack() greedy nearest-free-slot (zero overlap by
+  construction); AND it modelled each part as an ORIGIN-centred +-half box, but footprint origins are
+  NOT the courtyard centre (asymmetric connector courtyards) and rotated anchors swap w/h -> now uses
+  _courtyard_info() = the TRUE courtyard (centre offset + half at the placed rotation, from
+  cec_pcb.courtyard_bbox) so the overlap test matches KiCad/DRC. DRC-VERIFIED on a materialized EPS
+  synth board: courtyards_overlap 24->1 and shorting_items 7->0 at 125x52 (minimal, hand-finalizable).
+  LESSON (added to my practice): verify a placement with REAL DRC before trusting a self-reported
+  residual or a render. STILL OPEN (next, per the user): seed_anchors needs MOUNTING-HOLE handling
+  (ask count/size/position -> footprint + placement; the synth board has none today) and CONNECTOR
+  EDGE-OVERHANG logic (ask whether connectors hang off the edge to save area); plus the size oracle +
+  feasibility probe + electrothermal FEA. NOTE: the EPS runs are BUILDING+TESTING the placer on the
+  real EPS netlist as input -- NOT re-synthesizing the as-built EPS board (hand-designed, stays); a
+  true top-down synthesis run (a new board) is where the full Stage-1 questionnaire fires.
+- SYNTHESIS PIPELINE -- stages 2-3: size-oracle inputs + constructive placer (2026-06-07).
+  Continued down the pipeline (deep-build, stage by stage). scripts/cec_synth_pipeline.py now
+  also carries, all real + verified on EPS: (STAGE 2) read_placement() (pcbnew positions +
+  courtyards + pad nets); packing_lower_bound() -- the geometric FLOOR, a true lower bound from
+  total courtyard area + largest-part extent (NO efficiency divisor, which would inflate it above
+  achievable sizes; EPS floor 86.6x33.4 / 2897mm2 sits below the as-built 96x37); placement_proxy()
+  = hpwl() + rudy() (Rectangular Uniform wire DensitY congestion grid) + thermal_proxy() (per-part
+  power binned -> hotspot); proxy_reject() -- a RELATIVE congestion gate (rejects when RUDY peak
+  grows past baseline x factor as the board shrinks) + an absolute thermal-hotspot ceiling (a
+  known-routable board with no baseline is NOT rejected); route_swarm() bridge wiring the pipeline's
+  ROUTE SWARM stage onto cec_router.route() (real FR + gates + pour-after-route + decision log).
+  (STAGE 3) the constructive PLACER (place_with_consent): seed_anchors() places connectors at edges
+  by ROLE (power_in top / power_out bottom / host+usb right) + mounts at corners + honors user pins;
+  relative_place() barycentric-places the rest by net connectivity (grid-seeded) under a strategy
+  (dataflow / thermal_separated / compact) then legalize() (overlap relaxation); place_candidates()
+  generates the strategy x seed variants on a PARALLEL spawn pool with max_workers (the runner-capable
+  pattern from cec_fr -- per the user's call to let the packer use the runner CPU for a large candidate
+  count); place_with_consent() picks best-by-proxy + runs the user-pin CONSENT loop (ask APPROVE/KEEP/
+  EDIT rather than silently override a pin). VERIFIED: anchors land at the right edges, all 45 parts
+  in-bounds, synth HPWL ~892 == the as-built 888 (connectivity captures the structure), residual
+  overlaps fall as the board grows (the size oracle's 'too tight -> grow' signal), the spawn pool
+  returns all candidates, the consent loop triggers on a binding pin. KNOWN LIMIT (honest): at ~80%
+  part-area density the point-relaxation legalizer leaves residual courtyard overlap (the hand layout
+  reaches 0 via structure) -- a shelf/row legalizer + structure-aware refinement is the noted next
+  quality step; the route swarm + the cascade's re-place escalation also refine it. STILL TO BUILD:
+  the FEASIBILITY probe (N low-effort cec_fr routes per candidate -> confidence; reuses the
+  runner-capable parallel pool) + the SIZE ORACLE bisection, the top-level run_pipeline() driver, the
+  electrothermal physics FEA, human sign-off, build+freeze. A self-hosted SYNTH workflow (like route.yml)
+  so the packer/feasibility candidate sweep runs on the user's runner lands with the size oracle.
+- SYNTHESIS PIPELINE -- stage 1: cascade + resolve backbone (2026-06-07). Began building the
+  user's full board-SYNTHESIS pipeline (run_pipeline: Config -> ERC+BOM gate -> triage -> geometric
+  floor -> place+proxy -> feasibility/size oracle -> ROUTE SWARM -> physics FEA -> full cascade ->
+  gates+DRC -> sign-off -> build+freeze; POSTURE=CAUTIOUS, every failure/uncertainty calls resolve()).
+  Per the user's choice (deep-build stage by stage; cascade+resolve FIRST -- it's the backbone every
+  other stage hangs on), scripts/cec_synth_pipeline.py now carries, production-grade + verified on the
+  real EPS module: (1) a real KiCad .net s-expr PARSER (Netlist: 45 comps / 54 nets on EPS); (2) the
+  data model -- Config (board/profile/pins/params + artifact paths), Flag/Kind, Check, View (lazy
+  netlist/DRC/ERC/score access); (3) the SIX marker-criteria STAGE LISTS, each REAL checks --
+  ERC_BOM (erc/unconnected/power/CAN/JLC-BOM), PLACEMENT (courtyard/on-board via DRC), ROUTE_GATE
+  (cec_score kelvin+diffpair hard gates + DRC + unconnected), MEASURE (Kelvin sense topology +
+  rail-divider), DFM (width/annular/hole/clearance DRC), CONFORMANCE (the CLAUDE.md locked-decision
+  suite: RJ-45-not-Mini-Fit on the link, pin allocation incl. pin7=reserved-not-AUX_REF, DETECT §2.3
+  code resistor, §6.4 shunt values, RS-485 tiering, no module CAN term); (4) run_stage/
+  run_full_cascade; (5) the OPTIONAL-analysis REGISTRY + triage_arm (EMC/THERMAL/PDN, cautious
+  arm-on-doubt; EPS armed THERMAL+EMC); (6) the resolve() ESCALATION LADDER worker->manager->frontier
+  ->human -- the LLM tiers are PLUGGABLE callables exactly like cec_router.make_subagent_policy
+  (deterministic defaults run headless; supply tiers={'manager':fn,'frontier':fn}/ask=fn for the
+  Opus/Sonnet sub-agents + the human consent rung). VERIFIED with teeth both ways: CONFORMANCE
+  positively matches J1 RJ-45 / R1 2.2k DETECT / RS1,2 0.5mOhm / the full pin map; a forced wrong
+  expectation FIRES; ROUTE_GATE FAILS on the unrouted floorplan (kelvin/diffpair/183 ratlines) and on
+  the routed candidate the kelvin+diffpair HARD GATES PASS while drc/unconnected still report the 4
+  logo + 2 shield finishing items (correct cautious gate). Run: python3 scripts/cec_synth_pipeline.py
+  --board eps-8pin [--stage CONFORMANCE] [--resolve]. STILL TO BUILD (next stages, in pipeline order):
+  the top-level run_pipeline() driver + ERC_BOM gate loop, geometric floor (packing_lower_bound),
+  place+proxy+consent, feasibility probe + size oracle, route_swarm (wire onto cec_router.route),
+  electrothermal physics FEA (electrothermal_solve Picard loop -- the biggest new subsystem), human
+  sign-off, build+freeze. Diagram+pseudocode are the spec; this file is the orchestrator.
 - ROUTE-TO-CLEAN + FULL AGENT-PIPELINE test (2026-06-06). Ran the whole automated routing system
   on EPS with the TIERED LLM control plane LIVE -- Opus planner/escalator (me) + a real Sonnet
   MANAGER sub-agent judging the candidates -- not the deterministic default policies. Findings:

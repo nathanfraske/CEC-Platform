@@ -426,7 +426,10 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
     for t in board.GetTracks():
         if t.Type() != pcbnew.PCB_VIA_T:
             continue
-        dia = t.GetWidth()
+        # PCB_VIA.GetWidth() WITHOUT a layer asserts in KiCad 10 (via width is per-layer now).
+        # On Linux that just prints to stderr, but on a Windows debug build it pops a MODAL
+        # "Debug Alert" dialog that BLOCKS a self-hosted runner. Pass the via's top copper layer.
+        dia = t.GetWidth(t.TopLayer())
         drill = t.GetDrillValue()
         if (dia - drill) // 2 >= lo:
             continue
