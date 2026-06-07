@@ -271,16 +271,16 @@ def _direct_sense_pairs(board, kelvin):
 def _sense_nets(board):
     """Nets at the INA current-sense IC INPUT pins -- the real Kelvin sense (direct _HI/_LO on
     INA238/228, or the post-filter IN_P/_N on the filtered INA240 lanes). Power/gnd/ref/output excluded.
-    (Calibration from the 12VHPWR swarm review: scope the F.Cu/no-via check to these, not the force nets.)"""
-    SKIP = ("GND", "+3V3", "+5V", "VCC", "VDD", "VREF", "ISENSE", "/OUT", "V+", "+12V")
+    (Calibration from the 12VHPWR swarm review: scope to these, not the force nets. And restrict to the
+    analog SENSE-pair suffixes -- an INA238 also has I2C/SCL/SDA/ALERT digital pins that route freely.)"""
     out = set()
     for fp in board.GetFootprints():
         if "INA2" not in _val(fp).upper():
             continue
         for pad in fp.Pads():
-            n = pad.GetNetname() or ""
-            if n and not any(s in n.upper() for s in SKIP):
-                out.add(n)
+            nu = (pad.GetNetname() or "").upper()
+            if nu and (nu.endswith("_HI") or nu.endswith("_LO") or nu.endswith("_P") or nu.endswith("_N")):
+                out.add(pad.GetNetname())
     return out
 
 
@@ -535,12 +535,12 @@ def _chk_decap(board, path, ctx):
     max_mm = _param("decoupling-cap-owner", "max_mm", 3.5)
     POWER = ("+3V3", "+5VSB", "VBUS", "VREF", "+3.3", "VDD", "VCC")
     by_net = _pads_by_net(board)
-    ic_pad_by_net = collections.defaultdict(list)   # power net -> [IC pad]  (measure the real bypass loop)
+    ic_pad_by_net = collections.defaultdict(list)   # power net -> [(IC pad, IC ref)]  (real bypass loop)
     for n, lst in by_net.items():
         if any(p in n.upper() for p in POWER):
             for r, pad, fp in lst:
                 if r.startswith("U"):
-                    ic_pad_by_net[n].append(pad)
+                    ic_pad_by_net[n].append((pad, r))
     if not ic_pad_by_net:
         return None, "no IC power pads resolved"
     fails = []
@@ -553,17 +553,20 @@ def _chk_decap(board, path, ctx):
         if not (("n" in val and "u" not in val) or "0.1u" in val):
             continue
         # measure the actual bypass loop: cap power pad -> the IC power pad on the SAME net (not IC centre)
-        best = 1e9
+        best, owner = 1e9, None
         for cpad in fp.Pads():
             cn = cpad.GetNetname()
-            for ipad in ic_pad_by_net.get(cn, []):
+            for ipad, iref in ic_pad_by_net.get(cn, []):
                 a, b = cpad.GetPosition(), ipad.GetPosition()
-                best = min(best, math.hypot(_mm(a.x - b.x), _mm(a.y - b.y)))
-        if best < 1e8 and best > max_mm:
-            fails.append("%s %.1fmm" % (r, best))
+                dd = math.hypot(_mm(a.x - b.x), _mm(a.y - b.y))
+                if dd < best:
+                    best, owner = dd, iref
+        if best < 1e8 and best > max_mm and owner:
+            fails.append((r, best, owner))
     if fails:
-        return (False, "decoupling caps far from their IC power pad (>%.1fmm bypass loop): %s" % (max_mm, ", ".join(fails[:8])),
-                [{"type": "adjacent", "a": f.split()[0], "b": "owner_IC_power_pad", "max_mm": max_mm} for f in fails[:8]])
+        return (False, "decoupling caps far from their IC power pad (>%.1fmm bypass loop): %s"
+                % (max_mm, ", ".join("%s %.1fmm" % (f[0], f[1]) for f in fails[:8])),
+                [{"type": "adjacent", "a": f[0], "b": f[2], "max_mm": max_mm} for f in fails[:8]])
     return True, "decoupling caps within %.1fmm of their IC power pad" % max_mm
 
 

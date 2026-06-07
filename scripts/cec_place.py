@@ -71,6 +71,17 @@ def _move(fp, dx_mm, dy_mm):
     fp.SetPosition(pcbnew.VECTOR2I(p.x + _nm(dx_mm), p.y + _nm(dy_mm)))
 
 
+def _overlaps(board, fp, exclude, clear=0.4):
+    """Minimal legalization guard: ref of the nearest non-excluded footprint within `clear` mm of fp
+    (so a move stops before piling a part on top of another)."""
+    for o in board.GetFootprints():
+        if o is fp or o.GetReference() in exclude or not list(o.Pads()):
+            continue
+        if _pad_dist(fp, o) < clear:
+            return o.GetReference()
+    return None
+
+
 def _on_board(board, fp):
     bb = board.GetBoardEdgesBoundingBox()
     l, t, r, b = _mm(bb.GetLeft()), _mm(bb.GetTop()), _mm(bb.GetRight()), _mm(bb.GetBottom())
@@ -91,17 +102,26 @@ def apply_separate(board, a_ref, b_ref, min_mm, margin=0.8, step=0.4, max_move=1
     n = math.hypot(ux, uy) or 1.0
     ux, uy = ux / n, uy / n
     cluster = _cluster(board, a)
+    exclude = {a_ref, b_ref} | {c.GetReference() for c in cluster}
     start = _pad_dist(a, b)
     moved = 0.0
+    stopped = ""
     while _pad_dist(a, b) < min_mm + margin and moved < max_move and _on_board(board, a):
         _move(a, ux * step, uy * step)
         for c in cluster:
             _move(c, ux * step, uy * step)
+        hit = _overlaps(board, a, exclude)
+        if hit:                                  # legalize: back off and stop before colliding
+            _move(a, -ux * step, -uy * step)
+            for c in cluster:
+                _move(c, -ux * step, -uy * step)
+            stopped = "blocked by %s" % hit
+            break
         moved += step
     return {"op": "separate", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2),
             "cluster": [c.GetReference() for c in cluster],
             "moved_refs": [a_ref] + [c.GetReference() for c in cluster],
-            "pad_mm": "%.2f->%.2f" % (start, _pad_dist(a, b))}
+            "pad_mm": "%.2f->%.2f" % (start, _pad_dist(a, b)), "note": stopped}
 
 
 def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=20.0):
@@ -109,20 +129,30 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=2
     if not a or not b:
         return None
     cluster = _cluster(board, a)
+    exclude = {a_ref, b_ref} | {c.GetReference() for c in cluster}
     start = _pad_dist(a, b)
     moved = 0.0
+    stopped = ""
     while _pad_dist(a, b) > max_mm - margin and moved < max_move:
         ax, ay = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
         bx, by = _mm(b.GetPosition().x), _mm(b.GetPosition().y)
         ux, uy = bx - ax, by - ay
         nn = math.hypot(ux, uy) or 1.0
-        _move(a, ux / nn * step, uy / nn * step)
+        dx, dy = ux / nn * step, uy / nn * step
+        _move(a, dx, dy)
         for c in cluster:
-            _move(c, ux / nn * step, uy / nn * step)
+            _move(c, dx, dy)
+        hit = _overlaps(board, a, exclude)
+        if hit:                                  # legalize: back off and stop before colliding
+            _move(a, -dx, -dy)
+            for c in cluster:
+                _move(c, -dx, -dy)
+            stopped = "blocked by %s" % hit
+            break
         moved += step
     return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2),
             "moved_refs": [a_ref] + [c.GetReference() for c in cluster],
-            "pad_mm": "%.2f->%.2f" % (start, _pad_dist(a, b))}
+            "pad_mm": "%.2f->%.2f" % (start, _pad_dist(a, b)), "note": stopped}
 
 
 def apply_pin(board, target, x, y, rot=None):
