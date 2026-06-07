@@ -140,7 +140,41 @@ class DecisionLog:
     def to_json(self, path):
         json.dump({"final": self.final, "entries": self.entries}, open(path, "w"), indent=2)
         print(f"WROTE {os.path.relpath(path, ROOT) if path.startswith(ROOT) else path}")
+        archive_log(self, (self.final or {}).get("board", "board"))
         return path
+
+
+# ---- corpus archive --------------------------------------------------------------------------
+# The per-run <board>-decision-log.json written by to_json() is OVERWRITTEN every run. archive_log()
+# ALSO drops a uniquely-named copy under build/route/corpus/ so the logs ACCUMULATE across runs --
+# the labeled substrate the surrogate candidate-ranker trains/evaluates on (Thrust C,
+# docs/local-compute-exploration.md). build/ is gitignored, so the corpus is never committed churn.
+# Never raises: corpus archiving must not break a routing run.
+CORPUS_DIR = os.path.join(ROOT, "build", "route", "corpus")
+
+
+def archive_log(payload, board_name, *, kind="route", corpus_dir=None):
+    """Append a decision log to the accumulating corpus. `payload` is a DecisionLog (this file) or
+    an already-built log dict (e.g. cec_synth_pipeline's stage log). Returns the corpus path written,
+    or None on any error (archiving is best-effort)."""
+    try:
+        cdir = corpus_dir or CORPUS_DIR
+        os.makedirs(cdir, exist_ok=True)
+        data = ({"final": payload.final, "entries": payload.entries}
+                if isinstance(payload, DecisionLog) else payload)
+        base = os.path.basename(str(board_name))
+        if base.endswith(".kicad_pcb"):
+            base = base[:-len(".kicad_pcb")]
+        safe = "".join(c if (c.isalnum() or c in "._-") else "_" for c in base) or "board"
+        stamp = time.strftime("%Y%m%dT%H%M%S")
+        path = os.path.join(cdir, f"{safe}-{kind}-{stamp}-{os.getpid()}.json")
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2, default=str)
+        print(f"ARCHIVED {os.path.relpath(path, ROOT)}")
+        return path
+    except Exception as e:
+        print(f"WARN corpus archive skipped: {e}")
+        return None
 
 
 # ============================================================ rules: spec -> .kicad_dru / netclasses

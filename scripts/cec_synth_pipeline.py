@@ -2238,6 +2238,18 @@ def human_signoff(board, cfg, flags, *, ask=None):
     return not blocking
 
 
+def _archive_corpus(log, board_name, *, kind):
+    """Best-effort: append this run's decision log to the accumulating corpus (build/route/corpus/)
+    via cec_router.archive_log -- the training/eval substrate for the surrogate ranker (Thrust C,
+    docs/local-compute-exploration.md). Lazy import (cec_router pulls pcbnew) + swallow errors so a
+    release is never blocked by archiving."""
+    try:
+        import cec_router
+        cec_router.archive_log(log, board_name, kind=kind)
+    except Exception as e:
+        print(f"  WARN corpus archive skipped: {e}")
+
+
 def freeze_build(cfg, board, log, out_dir):
     """Stage 12: assemble the release + FREEZE the decision log (board = f(decision log) ->
     reproducible). Copies the routed board + the board rules into the release dir and writes the
@@ -2251,6 +2263,7 @@ def freeze_build(cfg, board, log, out_dir):
             shutil.copy(s, rel[:-len(".kicad_pcb")] + ext)
     logp = os.path.join(out_dir, f"{cfg.board}-decision-log.json")
     json.dump(log, open(logp, "w"), indent=2, default=str)
+    _archive_corpus(log, cfg.board, kind="synth-freeze")
     return {"board": rel, "log": logp, "frozen": True}
 
 
@@ -2318,6 +2331,7 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
     os.makedirs(out_dir, exist_ok=True)
     logp = os.path.join(out_dir, f"{cfg.board}-decision-log.json")
     json.dump(log, open(logp, "w"), indent=2, default=str)
+    _archive_corpus(log, cfg.board, kind="synth")
     tag = "release" if signed else "withheld"
     out_board = ""
     if routed and os.path.isfile(routed):

@@ -1,0 +1,87 @@
+# ----------------------------------------------------------------------------------------------
+# CEC compute plane -- Linux container home (Phase 0 of docs/local-compute-exploration.md).
+#
+# Services share ONE passed-through RTX 5090 (the card is not MIG-capable -> at most one heavy GPU
+# job at a time; share via MPS/time-slicing if needed). The split is deliberate:
+#   * routing    -- CPU: Freerouting JVM swarm + kicad-cli DRC (the actual throughput engine).
+#   * freerouting-- the official headless Freerouting REST server (the future path for cec_fr).
+#   * inference  -- GPU, OPT-IN (profile): one batched vLLM server for the local judge tiers.
+#   * fem        -- GPU/CPU, OPT-IN (profile): placeholder for the Elmer/openEMS tier (Phase 2/3).
+#
+# IMPORTANT: run this with the repo on the WSL2 ext4 home (~/), NOT on /mnt/c -- the DSN/SES round
+# trip is many-small-file churn that is dramatically slower over the /mnt/c 9P mount.
+#
+# Quickstart:
+#   docker compose -f docker/compose.yaml build routing
+#   docker compose -f docker/compose.yaml up -d freerouting routing
+#   docker compose -f docker/compose.yaml run --rm routing \
+#       python3 scripts/cec_router.py --board eps-8pin --seeds 0,1,2,3 --passes 12 --opt-time 30
+#   # opt-in GPU inference for the local judge tiers:
+#   docker compose -f docker/compose.yaml --profile inference up -d inference
+# ----------------------------------------------------------------------------------------------
+
+services:
+  # CPU compute plane: the cec_* pipeline (Freerouting JVMs + kicad-cli DRC). No GPU.
+  routing:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.routing
+      args:
+        KICAD_IMAGE: ${KICAD_IMAGE:-kicad/kicad:10.0}   # keep in sync with versions.env
+    image: cec/routing:kicad10
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace                       # the repo (keep it on the WSL ext4 home, not /mnt/c)
+      - cec-cache:/root/.cache/cec          # persist the downloaded Freerouting 1.7.0 jar
+    environment:
+      # Point cec_fr at the headless REST server instead of spawning a local jar (Task #2 wiring):
+      - CEC_FREEROUTING_URL=http://freerouting:37864
+    depends_on:
+      - freerouting
+    command: ["sleep", "infinity"]          # stay alive; exec in or use `compose run`
+
+  # Official Freerouting headless REST server (no Xvfb, no interactive desktop). Bundles its own JRE.
+  # cec_fr currently spawns the pinned 1.7.0 jar itself; switching it to this REST API is Task #2.
+  freerouting:
+    image: ghcr.io/freerouting/freerouting:latest   # consider pinning a specific tag for reproducibility
+    ports:
+      - "37864:37864"
+    volumes:
+      - fr-data:/mnt/freerouting
+    restart: unless-stopped
+
+  # GPU local-inference server for the control-plane judge tiers (Thrust A). OPT-IN.
+  # Pick a Blackwell-ready (CUDA 12.8 / sm_120) vLLM image and an AWQ model (FP8/FP4 is not yet
+  # usefully exposed through WSL2 dxgkrnl -- use AWQ/BF16). Cap GPU mem so a FEM/router job has room.
+  inference:
+    profiles: ["inference"]
+    image: ${CEC_VLLM_IMAGE:-vllm/vllm-openai:latest}
+    ports:
+      - "8000:8000"
+    volumes:
+      - hf-cache:/root/.cache/huggingface
+    command:
+      - "--model"
+      - "${CEC_VLLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct-AWQ}"
+      - "--quantization"
+      - "awq"
+      - "--gpu-memory-utilization"
+      - "${CEC_VLLM_GPU_FRACTION:-0.5}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # Placeholder for the physics tier (Elmer / openEMS via gerber2ems). Filled in Phase 2/3.
+  # fem:
+  #   profiles: ["fem"]
+  #   build: { context: .., dockerfile: docker/Dockerfile.fem }
+  #   volumes: [ "..:/workspace" ]
+
+volumes:
+  cec-cache:
+  fr-data:
+  hf-cache:
