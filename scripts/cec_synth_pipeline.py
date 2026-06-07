@@ -2202,20 +2202,24 @@ def physics(board_path, cfg, armed=()):
 
 
 # ============================================================ route swarm bridge
-def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1, 2, 3), manager=None,
-                worker=None, escalator=None, verbose=True, **board_spec_kw):
+def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1), manager=None,
+                worker=None, escalator=None, verbose=True, max_iters=1, kmax=1, **board_spec_kw):
     """Wire the synthesis pipeline's ROUTE SWARM stage (pipeline line 38) onto the existing
     cec_router.route() loop -- the real Freerouting + score + gate + repair/escalate +
     pour-after-route + decision-log machinery. Returns (final_board_path, DecisionLog).
 
-    The route loop's own control tiers (its candidate-judging manager / repair worker /
-    re-plan escalator) are supplied here when the orchestrator wants the LLM tiers driving;
-    by default they run deterministically. (These are cec_router's per-candidate tiers, a
-    DIFFERENT interface from the pipeline's flag-level resolve() ladder.)"""
+    DEFAULTS TO A SINGLE PASS (max_iters=1, kmax=1, 2 seeds): without a real LLM manager judging
+    the candidates, the deterministic default manager never ACCEPTS a non-perfect DRC (e.g. the
+    DRC=4 logo+shield residual) and grinds to the iteration ceiling -- 16 Freerouting runs for a
+    board that's effectively done (this is what 'repeated a lot' on the runner). A single pass
+    routes once and hands the result to the pipeline's physics+cascade, which judges quality. When
+    a real Sonnet MANAGER sub-agent IS supplied (in a Claude session), raise max_iters/kmax to let
+    it accept/repair/escalate properly. (These are cec_router's per-candidate tiers -- a DIFFERENT
+    interface from the pipeline's flag-level resolve() ladder.)"""
     import cec_router
     out_dir = out_dir or os.path.join(tempfile.gettempdir(), f"cec_synth_route_{cfg.board}")
     spec, name = cec_router.board_spec(board or cfg.board, out_dir, seeds=tuple(seeds),
-                                       **board_spec_kw)
+                                       max_iters=max_iters, kmax=kmax, **board_spec_kw)
     final, log = cec_router.route(spec.board, spec, manager=manager, worker=worker,
                                   escalator=escalator, verbose=verbose)
     return final, log
@@ -2307,15 +2311,27 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
     # 5. sign-off
     signed = human_signoff(routed, cfg, residual, ask=ask)
     rec("signoff", signed=signed, residual=len(residual))
-    if not signed:
-        rec("release", status="WITHHELD")
-        return {"status": "sign-off withheld", "residual": [str(f) for f in residual], "log": log}
 
-    # 6. build + freeze
+    # 6. ALWAYS freeze the decision log + the board (release if signed, else the withheld board for
+    #    review) so the run is never void -- the verdict + log are the deliverable either way.
     out_dir = out_dir or os.path.join(tempfile.gettempdir(), f"cec_release_{cfg.board}")
-    rel = freeze_build(cfg, routed, log, out_dir)
-    rec("release", status="RELEASED", board=os.path.basename(rel["board"]))
-    return {"status": "RELEASED", **rel, "log": log}
+    os.makedirs(out_dir, exist_ok=True)
+    logp = os.path.join(out_dir, f"{cfg.board}-decision-log.json")
+    json.dump(log, open(logp, "w"), indent=2, default=str)
+    tag = "release" if signed else "withheld"
+    out_board = ""
+    if routed and os.path.isfile(routed):
+        out_board = os.path.join(out_dir, f"{cfg.board}-{tag}.kicad_pcb")
+        shutil.copy(routed, out_board)
+        for ext in (".kicad_pro", ".kicad_dru"):
+            s = routed[:-len(".kicad_pcb")] + ext
+            if os.path.isfile(s):
+                shutil.copy(s, out_board[:-len(".kicad_pcb")] + ext)
+    status = "RELEASED" if signed else "sign-off withheld"
+    rec("release", status=("RELEASED" if signed else "WITHHELD"),
+        board=os.path.basename(out_board) if out_board else None)
+    return {"status": status, "board": out_board, "log": logp, "frozen": True,
+            "residual": [str(f) for f in residual]}
 
 
 # ============================================================ headless synthesis sweep (runner)
@@ -2433,7 +2449,9 @@ def main(argv=None):
             print(f"  frozen log:    {result['log']}")
         if result.get("residual"):
             print(f"  residual flags: {result['residual']}")
-        return 0 if result["status"] == "RELEASED" else 1
+        # A COMPLETED run (RELEASED or sign-off withheld) is a SUCCESS -- the verdict + frozen log
+        # are the deliverable (same posture as cec_router). Reserve non-zero for a real failure.
+        return 0
     print("=" * 72)
     print(f"  cec_synth_pipeline -- cascade backbone on {cfg.board} (profile={cfg.profile})")
     print("=" * 72)
