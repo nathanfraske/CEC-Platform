@@ -54,31 +54,86 @@ def _kelvin_stubs(board, hc_nets):
         val = (fp.GetValue() or "").upper()
         is_238 = ("INA238" in val) or ("INA228" in val)
         is_ina = "INA" in val
-        padlist = []                                          # [(net, px, py, sx, sy), ...] -- primitives only
+        padlist = []                                          # [(net, px, py, hw, hh), ...] -- primitives only
         for p in fp.Pads():
             n = p.GetNetname()
-            pos, sz = p.GetPosition(), p.GetSize()
-            padlist.append((n, pos.x, pos.y, sz.x, sz.y))
+            pos, bb = p.GetPosition(), p.GetBoundingBox()     # bbox = BOARD-frame extent (rotation-correct)
+            hw, hh = (bb.GetRight() - bb.GetLeft()) / 2.0, (bb.GetBottom() - bb.GetTop()) / 2.0
+            padlist.append((n, pos.x, pos.y, hw, hh))
             if n and is_u:
                 (ina238 if is_238 else ina_other if is_ina else u_other)[n].append((pos.x, pos.y))
         if ref.upper().startswith("RS") and len(padlist) == 2:
             shunts.append(padlist)
     stubs = []
     for padlist in shunts:
-        cen = [(px, py) for (_n, px, py, _sx, _sy) in padlist]
-        for i, (net, px, py, sx, sy) in enumerate(padlist):
+        cen = [(px, py) for (_n, px, py, _hw, _hh) in padlist]
+        for i, (net, px, py, hw, hh) in enumerate(padlist):
             if net not in hc_nets:
                 continue
             ox, oy = cen[1 - i]
             ix, iy = ox - px, oy - py                         # inner direction (toward the other terminal)
             inn = math.hypot(ix, iy) or 1.0
             ix, iy = ix / inn, iy / inn
-            reach = (abs(ix) * sx + abs(iy) * sy) / 2 * 0.8   # ~80% to the inner pad edge (stays on copper)
-            inner = ((px + ix * reach) / MM, (py + iy * reach) / MM)
+            reach = (abs(ix) * hw + abs(iy) * hh) * 0.7       # ~70% of the BOARD-frame half-extent toward
+            inner = ((px + ix * reach) / MM, (py + iy * reach) / MM)   # the inner edge -- stays on pad copper
             targets = ina238.get(net) or ina_other.get(net) or u_other.get(net) or []
             for (tx, ty) in targets:                          # tap the inner edge to EACH sense pad on the net
                 stubs.append((net, [inner, (tx / MM, ty / MM)]))
     return stubs
+
+
+def _tap_paths(inner, pad):
+    """Candidate tap routes from the shunt inner edge `inner` to the INA input `pad`, BEST FIRST. A
+    straight diagonal often clips the pad's neighbour (the INA's GND pin sits next to its sense pins), so
+    after the straight try two L-paths whose FINAL leg approaches the pad along an axis (perpendicular
+    entry between the pad's row-neighbours -- the clean way into a fine-pitch pad). The do-no-harm gate
+    picks the first whose every leg is clear."""
+    ix, iy = inner
+    px, py = pad
+    return [
+        [inner, pad],                                        # straight
+        [inner, (ix, py), pad],                              # vertical leg, then approach the pad along x
+        [inner, (px, iy), pad],                              # horizontal leg, then approach the pad along y
+    ]
+
+
+def kelvin_keepouts(board_path, margin=0.3):
+    """FR keepout rects over each shunt<->INA238 GAP (F.Cu only), so Freerouting keeps FOREIGN signals out
+    of the Kelvin corridor and the deterministic sense tap lands clean. The rect spans the two parts'
+    courtyard gap but is trimmed NOT to cover the INA body (FR must still reach the INA's power/I2C pads).
+    Feed to route_once(hints=...). Loaded in its own call (one board load)."""
+    board = pcbnew.LoadBoard(board_path)
+    pairs = _kelvin_pairs_local(board)
+    kos = []
+    for k, (sx0, sy0, sx1, sy1) in enumerate(pairs):
+        kos.append({"name": "kelvin_%d" % k, "x0": sx0 - margin, "y0": sy0 - margin,
+                    "x1": sx1 + margin, "y1": sy1 + margin, "layers": ("F.Cu",), "allow_vias": True})
+    return kos
+
+
+def _kelvin_pairs_local(board):
+    """[(x0,y0,x1,y1), ...] -- the mm bbox of the GAP between each shunt's sense pads and its INA238 sense
+    pads (the corridor the Kelvin tap runs through). Primitives only (no retained SWIG wrappers)."""
+    shunts, inas = [], []
+    for fp in board.GetFootprints():
+        ref, val = fp.GetReference(), (fp.GetValue() or "").upper()
+        is_238 = ("INA238" in val) or ("INA228" in val)
+        sense = [(p.GetNetname(), p.GetPosition().x / MM, p.GetPosition().y / MM)
+                 for p in fp.Pads() if (p.GetNetname() or "").endswith(("_HI", "_LO"))]
+        if ref.upper().startswith("RS") and sense:
+            shunts.append(sense)
+        elif ref.startswith("U") and is_238 and sense:
+            inas.append(sense)
+    out = []
+    for s in shunts:
+        snets = {n for n, _x, _y in s}
+        for i in inas:
+            if snets & {n for n, _x, _y in i}:
+                xs = [x for _n, x, _y in s + i]
+                ys = [y for _n, _x, y in s + i]
+                out.append((min(xs), min(ys), max(xs), max(ys)))
+                break
+    return out
 
 
 def keepouts_from_pours(pours, margin=0.2):
@@ -120,15 +175,33 @@ def _seg_seg_dist(ax0, ay0, ax1, ay1, bx0, by0, bx1, by1):
                _seg_pt_dist(bx0, by0, bx1, by1, ax0, ay0), _seg_pt_dist(bx0, by0, bx1, by1, ax1, ay1))
 
 
+def _seg_rect_dist(x0, y0, x1, y1, l, t, r, b):
+    """Min distance (mm) from segment (x0,y0)-(x1,y1) to AABB (l,t,r,b); 0 if it enters the box. Using the
+    real pad rectangle (not a half-diagonal disc) is essential for fine-pitch pads -- a 0.3mm-wide VSSOP
+    pad's half-diagonal is ~0.7mm, which falsely 'blocks' a tap to a 0.5mm-pitch neighbour."""
+    if l <= x0 <= r and t <= y0 <= b:
+        return 0.0
+    if l <= x1 <= r and t <= y1 <= b:
+        return 0.0
+    return min(_seg_seg_dist(x0, y0, x1, y1, l, t, r, t),     # the 4 rectangle edges
+               _seg_seg_dist(x0, y0, x1, y1, r, t, r, b),
+               _seg_seg_dist(x0, y0, x1, y1, r, b, l, b),
+               _seg_seg_dist(x0, y0, x1, y1, l, b, l, t))
+
+
 def _obstacle_pads(board):
-    """Footprint-pad obstacles as primitives (mm): [(net, cx, cy, radius)] (radius = pad half-diagonal,
-    a conservative disc). MUST be read BEFORE any board.Remove() -- a rip invalidates the footprint
-    container view (board.GetFootprints() then yields raw SwigPyObjects with no .Pads())."""
+    """Footprint-pad obstacles as primitives (mm): [(net, l, t, r, b)] -- the pad's REAL bounding box (not
+    a half-diagonal disc; a thin fine-pitch pad's half-diagonal grossly overstates it). MUST be read
+    BEFORE any board.Remove() -- a rip invalidates the footprint container view (board.GetFootprints()
+    then yields raw SwigPyObjects with no .Pads())."""
     pads = []
     for fp in board.GetFootprints():
         for p in fp.Pads():
-            pos, sz = p.GetPosition(), p.GetSize()
-            pads.append((p.GetNetname() or "", pos.x / MM, pos.y / MM, math.hypot(sz.x, sz.y) / 2 / MM))
+            if not p.GetLayerSet().Contains(pcbnew.F_Cu):    # the tap is F.Cu; a B.Cu-only pad can't short it
+                continue
+            bb = p.GetBoundingBox()
+            pads.append((p.GetNetname() or "", bb.GetLeft() / MM, bb.GetTop() / MM,
+                         bb.GetRight() / MM, bb.GetBottom() / MM))
     return pads
 
 
@@ -136,19 +209,20 @@ def _obstacle_tracks(board, exclude_nets=()):
     """Track/via obstacles. MUST be read BEFORE the rip (board.Remove invalidates the track view too);
     pass exclude_nets=hc_nets so the about-to-be-ripped _HI/_LO tracks aren't counted (same-net copper is
     ignored by the clearance gate anyway, but the OTHER sense net's old track would otherwise mis-block).
-    Returns (via_discs as pad tuples, track segs as [(net, x0,y0,x1,y1, halfwidth)])."""
+    Returns (via_boxes as pad tuples (net,l,t,r,b), track segs as [(net, x0,y0,x1,y1, halfwidth)])."""
     vpads, segs = [], []
     for t in board.GetTracks():
         if t.GetNetname() in exclude_nets:
             continue
         if t.Type() == pcbnew.PCB_VIA_T:
-            c = t.GetPosition()
+            c = t.GetPosition()                              # a via spans F.Cu -> it CAN short the F.Cu tap
             try:
                 r = t.GetWidth(t.TopLayer()) / 2 / MM
             except Exception:
                 r = 0.3
-            vpads.append((t.GetNetname() or "", c.x / MM, c.y / MM, r))
-        else:
+            cx, cy = c.x / MM, c.y / MM
+            vpads.append((t.GetNetname() or "", cx - r, cy - r, cx + r, cy + r))
+        elif t.GetLayer() == pcbnew.F_Cu:                    # only F.Cu tracks short an F.Cu tap (B.Cu is fine)
             s, e = t.GetStart(), t.GetEnd()
             segs.append((t.GetNetname() or "", s.x / MM, s.y / MM, e.x / MM, e.y / MM, t.GetWidth() / 2 / MM))
     return vpads, segs
@@ -159,10 +233,10 @@ def _tap_clear(seg, net, pads, segs, laid, halfw=0.125, clear=0.2):
     (pads, tracks, and already-laid taps). Same-net copper can't short, so it's ignored -- this is what
     makes the pass do-no-harm: a tap that would clip a GND pad / cross +3V3 is rejected, not laid."""
     x0, y0, x1, y1 = seg
-    for pn, cx, cy, r in pads:
+    for pn, pl, pt, pr, pb in pads:
         if pn == net:
             continue
-        if _seg_pt_dist(x0, y0, x1, y1, cx, cy) < r + halfw + clear:
+        if _seg_rect_dist(x0, y0, x1, y1, pl, pt, pr, pb) < halfw + clear:
             return False
     for sn, sx0, sy0, sx1, sy1, hw in segs:
         if sn == net:
@@ -214,12 +288,19 @@ def route_high_current(in_path, out_path):
     w = int(0.25 * MM)
     added, laid, skipped = 0, [], []
     for net, pts in stubs:
-        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
-            if math.hypot(x1 - x0, y1 - y0) < 0.05:
-                continue                                     # skip a degenerate (zero-length) segment
-            if not _tap_clear((x0, y0, x1, y1), net, obstacle_pads, obstacle_segs, laid):
-                skipped.append(net)
-                continue
+        inner, pad = pts[0], pts[-1]
+        chosen = None
+        for path in _tap_paths(inner, pad):                  # straight first, then the two L approaches
+            segs = [((x0, y0), (x1, y1)) for (x0, y0), (x1, y1) in zip(path, path[1:])
+                    if math.hypot(x1 - x0, y1 - y0) >= 0.05]
+            if segs and all(_tap_clear((a[0], a[1], b[0], b[1]), net, obstacle_pads, obstacle_segs, laid)
+                            for a, b in segs):
+                chosen = segs
+                break
+        if not chosen:
+            skipped.append(net)
+            continue
+        for (x0, y0), (x1, y1) in chosen:                    # lay every leg of the clear path
             tr = pcbnew.PCB_TRACK(board)
             tr.SetStart(pcbnew.VECTOR2I(int(x0 * MM), int(y0 * MM)))
             tr.SetEnd(pcbnew.VECTOR2I(int(x1 * MM), int(y1 * MM)))
@@ -228,7 +309,7 @@ def route_high_current(in_path, out_path):
             tr.SetNetCode(netcode.get(net, 0))
             board.Add(tr)
             laid.append((net, x0, y0, x1, y1))
-            added += 1
+        added += 1
 
     # 4. save the ripped+stubbed board (NO fill yet)
     pcbnew.SaveBoard(out_path, board)
@@ -271,8 +352,10 @@ def main(argv=None):
         _fill_only(argv[1])
         return 0
     out = argv[1] if len(argv) > 1 else argv[0].replace(".kicad_pcb", "-hc.kicad_pcb")
-    print(route_high_current(argv[0], out))
-    print("->", out)
+    import json
+    result = route_high_current(argv[0], out)
+    print(json.dumps(result))                                # machine-readable for the loop
+    print("->", out, file=sys.stderr)
     return 0
 
 

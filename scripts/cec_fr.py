@@ -535,7 +535,12 @@ def bake_hints(
             z = pcbnew.ZONE(board)
             z.SetIsRuleArea(True)
             z.SetDoNotAllowTracks(True)
-            z.SetDoNotAllowVias(True)
+            # allow_vias=True keeps FOREIGN F.Cu tracks out of the corridor while letting a boxed-in pad
+            # (e.g. an INA238's GND/+3V3 pin sitting in the Kelvin corridor) via DOWN to an inner plane --
+            # without it, a tracks+vias keepout strands the sensor's own power. A foreign net can't place a
+            # useful via here anyway (no F.Cu track may reach it), and cec_hc's gate still treats any via as
+            # a tap obstacle, so tap cleanliness is preserved.
+            z.SetDoNotAllowVias(not bool(ko.get("allow_vias", False)))
             # KiCad 9/10 renamed SetDoNotAllowCopperPour -> SetDoNotAllowZoneFills
             if hasattr(z, "SetDoNotAllowZoneFills"):
                 z.SetDoNotAllowZoneFills(True)

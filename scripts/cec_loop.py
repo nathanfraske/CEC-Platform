@@ -42,8 +42,17 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
     place = os.path.join(out, "placement.kicad_pcb")
     shutil.copyfile(src, place)
 
+    import cec_hc
     log, routed_path, verdicts, directives = [], None, [], []
     for it in range(iters):
+        # 0. KELVIN tighten -- pull+ROTATE each INA238 hard against its shunt (§6.8 short Kelvin loop),
+        #    BEFORE the decoupling refine so the caps re-cluster to the INA's tight final position. This
+        #    is the placement side of the high-current feedback: it makes the deterministic sense tap a
+        #    short, clean segment instead of a long diagonal across foreign copper.
+        ktight = os.path.join(out, "ktight_%d.kicad_pcb" % it)
+        kmoves = cec_place.tighten_kelvin(place, ktight)
+        shutil.copyfile(ktight, place)
+
         # 1. PLACE -- refine the placement against the movable constraints
         placed = os.path.join(out, "placed_%d.kicad_pcb" % it)
         _, rlog = cec_place.refine(place, placed, ctx)
@@ -52,25 +61,38 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         logo_ko = cec_place.relocate_logo_to_clear(placed)
         shutil.copyfile(placed, place)                      # carry the placement (+ logo move) forward
 
-        # 2. ROUTE -- Freerouting with the high-current corridor reserved: the logo keepout + the
+        # 2. ROUTE -- Freerouting with the high-current corridor reserved: the logo keepout, the
         #    pour-region keepouts (foreign signals kept off the 12V pour layers so the fill stays whole),
-        #    plus the additive pours.
+        #    the KELVIN keepouts (foreign signals kept out of each shunt<->INA238 gap so the sense tap
+        #    lands clean), plus the additive pours.
         routed_path = os.path.join(out, "routed_%d.kicad_pcb" % it)
-        import cec_hc
         try:
             pours = cec_fr.derive_power_pours(placed)
         except Exception:
             pours = ()
-        hints = ([logo_ko] if logo_ko else []) + cec_hc.keepouts_from_pours(pours)
+        try:
+            kelvin_ko = cec_hc.kelvin_keepouts(placed)
+        except Exception:
+            kelvin_ko = []
+        hints = ([logo_ko] if logo_ko else []) + cec_hc.keepouts_from_pours(pours) + kelvin_ko
         cand = cec_fr.route_once(placed, routed_path, passes=passes, opt_time=opt_time,
                                  hints=hints, power_pours=pours)
         ok = bool(getattr(cand, "ok", False))
         # 2b. DETERMINISTIC high-current pass (fresh subprocess; pcbnew multi-load is unsafe in-process):
-        #     rip FR's via'd sense, lay the Kelvin sense stubs from the inner shunt edge.
+        #     rip FR's via'd sense, lay the clean Kelvin sense tap (do-no-harm). Parse its report so the
+        #     loop knows how many taps landed and which sense nets still need a placement fix.
+        hc_info = {}
         if ok:
             import subprocess
-            subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
-                            routed_path, routed_path], capture_output=True)
+            r = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
+                                routed_path, routed_path], capture_output=True, text=True)
+            for line in (r.stdout or "").splitlines():
+                line = line.strip()
+                if line.startswith("{"):
+                    try:
+                        hc_info = json.loads(line)
+                    except Exception:
+                        pass
 
         # 3. CHECK -- full registry on the routed board (fresh subprocess)
         target = routed_path if ok else placed
@@ -79,15 +101,16 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         movable = [d for d in directives if (d.get("type") or d.get("directive")) in cec_place.MOVABLE]
 
         entry = {"iter": it, "placement_moves": [m.get("op") + ":" + str(m.get("a") or m.get("target")) for m in moves],
-                 "logo_moved": bool(logo_ko), "pours": len(pours), "routed_ok": ok,
-                 "route_err": (str(getattr(cand, "err", ""))[:100] if not ok else None),
-                 "checked": os.path.basename(target), "fails": sorted(fails),
-                 "movable_left": len(movable)}
+                 "kelvin_tightened": len(kmoves), "logo_moved": bool(logo_ko), "pours": len(pours),
+                 "routed_ok": ok, "route_err": (str(getattr(cand, "err", ""))[:100] if not ok else None),
+                 "kelvin_taps_laid": hc_info.get("stubs"), "kelvin_needs_placement": hc_info.get("needs_placement"),
+                 "checked": os.path.basename(target), "fails": sorted(fails), "movable_left": len(movable)}
         log.append(entry)
-        print("[loop iter %d] moves=%d pours=%d routed=%s | FAILs=%s | movable_left=%d"
-              % (it, len(moves), len(pours), ok, sorted(fails), len(movable)))
-        if not movable:
-            break                                           # placement converged
+        print("[loop iter %d] moves=%d ktight=%d pours=%d routed=%s | kelvin_taps=%s needs_place=%s | FAILs=%s | movable_left=%d"
+              % (it, len(moves), len(kmoves), len(pours), ok, hc_info.get("stubs"),
+                 hc_info.get("needs_placement"), sorted(fails), len(movable)))
+        if not movable and not hc_info.get("needs_placement"):
+            break                                           # placement + Kelvin converged
 
     # HUMAN-REVIEW HANDOFF: a copper plot + a 3D render of the final routed board for the human to review
     review = {}

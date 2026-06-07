@@ -235,8 +235,15 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5):
         rr = round(r % 360.0, 1)
         if rr not in rots:
             rots.append(rr)
+    # SIZE-AWARE ring: two big parts (a 3mm INA238 next to a 3mm shunt) can't sit within 3.5mm
+    # centre-to-centre without a courtyard overlap, so the ring must reach out past the sum of their
+    # half-extents. A tiny decoupling cap still finds its clear pose at a small radius and early-breaks,
+    # so extending the ceiling only ADDS candidates (the closest clear one wins).
+    ah = _crtyd_bbox(a)
+    bh = _crtyd_bbox(b)
+    reach = (max(ah[2] - ah[0], ah[3] - ah[1]) + max(bh[2] - bh[0], bh[3] - bh[1])) / 2.0
     best, bestd = None, 1e9                                   # best = (cx, cy, rot)
-    for rad in (1.0, 1.5, 2.0, 2.5, 3.0, 3.5):
+    for rad in _arange(1.0, max(3.5, reach + 3.0), 0.5):
         for rot in rots:
             a.SetOrientationDegrees(rot)
             for ang in range(0, 360, 20):
@@ -265,6 +272,46 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5):
     note = "" if end <= max_mm else "no clear spot within %.1fmm of %s" % (max_mm, b_ref)
     return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2), "rot": rot_applied,
             "moved_refs": [a_ref], "shoved": [], "pad_mm": "%.2f->%.2f" % (start, end), "note": note}
+
+
+def _kelvin_pairs(board):
+    """[(shunt_ref, ina238_ref), ...] -- each RS* shunt paired with the INA238/INA228 CURRENT-SENSE part
+    that shares one of its _HI/_LO sense nets (the §6.8 precision Kelvin pair). The coarse INA181
+    detection CSA is intentionally NOT paired here -- it is a secondary tap, left to the router."""
+    shunts, inas = {}, []
+    for fp in board.GetFootprints():
+        ref, val = fp.GetReference(), (fp.GetValue() or "").upper()
+        nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
+        if ref.upper().startswith("RS"):
+            shunts[ref] = {n for n in nets if n.endswith("_HI") or n.endswith("_LO")}
+        elif ref.startswith("U") and ("INA238" in val or "INA228" in val):
+            inas.append((ref, nets))
+    pairs = []
+    for sref, snets in shunts.items():
+        for iref, inets in inas:
+            if snets & inets:
+                pairs.append((sref, iref))
+                break
+    return pairs
+
+
+def tighten_kelvin(in_path, out_path, max_mm=2.0):
+    """Pull+ROTATE each INA238 hard against its shunt (short Kelvin loop, §6.8), tighter than the ratified
+    5mm PASS bar -- an optimisation so the deterministic Kelvin tap (cec_hc) is a short, straight,
+    DRC-clean segment. Run BEFORE the decoupling refine so the caps re-cluster to the INA's final tight
+    position (no oscillation). Rips the moved INAs' signal nets for re-route. Returns the applied moves."""
+    shutil.copyfile(in_path, out_path)
+    board = pcbnew.LoadBoard(out_path)
+    applied, moved_refs = [], []
+    for shunt_ref, ina_ref in _kelvin_pairs(board):
+        r = apply_adjacent(board, ina_ref, shunt_ref, max_mm)
+        if r and r.get("moved_mm", 0.0) > 0.0:
+            applied.append(r)
+            moved_refs += r.get("moved_refs", [])
+    if moved_refs:
+        _ripup_signal_nets(board, sorted(set(moved_refs)))
+    board.Save(out_path)
+    return applied
 
 
 def apply_pin(board, target, x, y, rot=None):
