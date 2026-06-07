@@ -655,6 +655,27 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- MACRO-BLOCK placer (auto_cluster) + generalized asks + perf cache (2026-06-07).
+  The barycentric placer was 1.8x the area of my gen-eps-condensed board (the real bar -- that board
+  is ALSO Opus-placed, not hand). Root cause: I drifted from the spec (place_with_consent =
+  relative_place(ICs) + auto_cluster(passives)). Rebuilt to the spec + a MACRO-BLOCK model: derive each
+  passive's owner IC from the netlist (derive_passive_spec, generalizing the hand PASSIVE_SPEC --
+  signal-net coupling, pure-decoupling balanced across the rail; 26/26 EPS passives -> sensible owners),
+  auto_cluster each IC's passives in ISOLATION to learn the cluster bbox + passive offsets, place the
+  CLUSTERS by their full bbox (relative_place cyinfo_override) so the legalizer reserves the room, then
+  stamp the passives rigidly. (Placing bare ICs tight then fanning passives into nonexistent gaps was the
+  26-overlap/30-short failure.) _classify() splits anchors/ICs/shunts/passives; _count_overlaps() gives a
+  DRC-ACCURATE residual (no more self-reported phantom-0). RESULT: density 1.8x -> ~1.12x bar, best
+  residual 2 at 100x40 (12-candidate bulk), minimal + hand-finalizable. GENERALIZED ask-first Stage-1
+  (per user -- not baked per-board): mount_holes / connector_overhang / fiducials added to REQUIREMENTS;
+  place_mechanical() emits mounts (build_board mounts list) + fiducials from the asks. PERF: cec_pcb
+  local_pads + courtyard_bbox MEMOIZED (_PADS_CACHE/_CRTYD_CACHE) -- auto_cluster's O(iters x parts^2)
+  courtyard reads went from a hang to ~0.3s/candidate (pure cache, identical geometry, safe for all
+  callers). Bulk candidate gen runs parallel on the spawn pool (runner-capable). STILL OPEN: not yet
+  BEATING the bar (residual 0 at <=96x37 needs a compaction/anneal pass + structure-aware cable columns
+  + a bigger bulk sweep); the considerations scoring (Kelvin/thermal/high-current-corridor/channels) not
+  yet a ranking term; connector OVERHANG geometry + fiducial materialize still pending; size oracle +
+  feasibility + FEA still ahead.
 - SYNTHESIS PIPELINE -- Stage-1 human I/O + synth runner + placer-quality fix (2026-06-07).
   Per the user: (1) Stage-1 REQUIREMENTS elicitation -- elicit_requirements() + a REQUIREMENTS
   registry the orchestrator asks the human via AskUserQuestion (the human rung); answers recorded

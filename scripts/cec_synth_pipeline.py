@@ -1241,6 +1241,117 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     return ((x0 + x1) / 2.0, (y0 + y1) / 2.0, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
 
 
+_MOUNT_FP = "cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via"
+_FID_FP = "cec-Fiducial:Fiducial_1mm_Mask2mm"
+_POWER_NET = re.compile(r"(^|/)(GND|\+?3V3|\+?5VSB|\+?5V|VBUS|VCC|\+?12V)$", re.I)
+
+
+def _is_power_net(n):
+    """A global power/GND rail (decoupling hairball) -- or a sense FORCE net (*_HI/_LO), which is
+    'power-like' for ownership (it shouldn't bind a filter cap to the shunt as a signal owner)."""
+    base = n.rsplit("/", 1)[-1]
+    return bool(_POWER_NET.search(n)) or base in ("GND",) or n.endswith(("_HI", "_LO"))
+
+
+def _classify(nl):
+    """Partition the netlist parts: anchors {ref:role} (connectors/mounts by _role), ICs (active,
+    placed by relative_place), shunts (RS*, the cable-column structure), passives (everything else
+    1-2 pin -> auto_clustered onto an owner IC). Buttons (SW*) count as ICs so they place
+    deliberately (e.g. edge-accessible BOOT/RESET), not clustered."""
+    anchors, ics, shunts, passives = {}, [], [], []
+    for ref, c in nl.comps.items():
+        if not c.footprint or ":" not in c.footprint:
+            continue
+        role = _role(ref, c.value, c.footprint)
+        if role:
+            anchors[ref] = role
+        elif ref.startswith("RS"):
+            shunts.append(ref)
+        elif ref.startswith("U") or ref.startswith("SW"):
+            ics.append(ref)
+        else:
+            passives.append(ref)
+    return anchors, ics, shunts, passives
+
+
+def _owner_pad(nl, owner, shared_nets):
+    """A pad number of *owner* that sits on one of *shared_nets* (prefer a power pad, so the cap
+    parks at the owner's power-pin edge -- where decoupling belongs)."""
+    cand = []
+    for n in shared_nets:
+        for r, p in nl.nets.get(n, []):
+            if r == owner:
+                cand.append((1 if _is_power_net(n) else 0, p))
+    if not cand:
+        return None
+    cand.sort(reverse=True)
+    return cand[0][1]
+
+
+def derive_passive_spec(nl, passives, ic_refs):
+    """Generalize the hand PASSIVE_SPEC: ref -> (owner_ic, owner_pad). A passive's owner is the IC
+    it shares the most SIGNAL nets with (filter caps -> their INA, RC -> their IC); a pure-decoupling
+    cap (only power+GND) is BALANCED across the ICs on that rail (distributed decoupling) so the caps
+    don't pile on one IC. owner_pad = the owner's pad on a shared net (power preferred). This is what
+    feeds cec_pcb.auto_cluster -- the density engine the condensed boards use. The route swarm + the
+    placement handoff refine where connectivity can't disambiguate."""
+    nets_of = defaultdict(set)
+    for n, nodes in nl.nets.items():
+        for r, _p in nodes:
+            nets_of[r].add(n)
+    ic_nets = {ic: nets_of[ic] for ic in ic_refs}
+    load = {ic: 0 for ic in ic_refs}                    # decoupling-balance counter
+    spec = {}
+    for pref in passives:
+        pnets = nets_of.get(pref, set())
+        if not pnets:
+            continue
+        sig = []
+        for ic, icn in ic_nets.items():
+            signals = [n for n in (pnets & icn) if not _is_power_net(n)]
+            if signals:
+                sig.append((len(signals), ic))
+        if sig:
+            owner = max(sig)[1]                         # strongest signal-net coupling
+        else:
+            pwr_ics = [ic for ic, icn in ic_nets.items() if (pnets & icn)]
+            if not pwr_ics:
+                continue
+            owner = min(pwr_ics, key=lambda ic: load[ic])   # balance decoupling across the rail
+            load[owner] += 1
+        pad = _owner_pad(nl, owner, pnets & nets_of[owner])
+        if pad:
+            spec[pref] = (owner, pad)
+    return spec
+
+
+def place_mechanical(W, H, params):
+    """Place mounting holes + fiducials per the GENERALIZED Stage-1 asks (mount_holes / fiducials).
+    Returns ({ref:(x,y,rot)}, {ref:libid}) for the board-level mechanical parts (H1.., FID1..) that
+    are NOT in the netlist. e = edge inset. These become fixed obstacles for the placer (keep parts
+    off the screw heads / fiducial windows) and are emitted at materialize time."""
+    pos, fp = {}, {}
+    e = 3.5
+    m = params.get("mount_holes", "3_2logic_1conn")
+    if m == "4_corner":
+        pts = [(e, e), (W - e, e), (e, H - e), (W - e, H - e)]
+    elif m == "2_diag":
+        pts = [(e, e), (W - e, H - e)]
+    else:                                               # 3: 2 logic-side (right) + 1 conn-side (left)
+        pts = [(W - e, e), (W - e, H - e), (e, H / 2)]
+    for i, (x, y) in enumerate(pts, 1):
+        pos[f"H{i}"] = (x, y, 0.0)
+        fp[f"H{i}"] = _MOUNT_FP
+    f = params.get("fiducials", "3")
+    if f and f != "none":
+        nf = int(f) if str(f).isdigit() else 3
+        fpts = [(W * 0.85, e), (W * 0.85, H - e), (W * 0.5, H - e)][:nf]
+        for i, (x, y) in enumerate(fpts, 1):
+            pos[f"FID{i}"] = (x, y, 0.0)
+            fp[f"FID{i}"] = _FID_FP
+    return pos, fp
+
+
 def seed_anchors(nl, W, H, halfext, pins, *, margin=1.5):
     """Place anchors (connectors by edge role, mounts at corners). Honor user pins last
     (a user-pinned part overrides its role placement). Returns {ref:(x,y,rot)}."""
@@ -1403,13 +1514,38 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
     return residual
 
 
-def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataflow", seed=0):
-    """Relative-place the non-anchor parts by net connectivity (barycentric sweeps from the
-    fixed anchors), under a strategy, then legalize against the TRUE courtyards. Returns
-    ({ref:(x,y,rot)}, residual)."""
+def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0):
+    """DRC-accurate courtyard-overlap count (matches kicad-cli courtyards_overlap): the honest
+    placement residual, not a self-reported one. Uses the real (cached) courtyard bboxes."""
+    import cec_pcb
+    refs = [r for r in P if r in comps]
+    bb = {}
+    for r in refs:
+        rf = drop_antenna and ("esp32" in comps[r].lower() or "rf_module" in comps[r].lower())
+        bb[r] = cec_pcb.courtyard_bbox(comps[r], *P[r], drop_keepout=rf)
+    n = 0
+    for i, a in enumerate(refs):
+        ax = bb[a]
+        for b in refs[i + 1:]:
+            bx = bb[b]
+            if not (ax[1] <= bx[0] - clr or bx[1] <= ax[0] - clr or
+                    ax[3] <= bx[2] - clr or bx[3] <= ax[2] - clr):
+                n += 1
+    return n
+
+
+def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataflow", seed=0,
+                   only=None, cyinfo_override=None):
+    """Relative-place parts by net connectivity (barycentric sweeps from the fixed anchors),
+    under a strategy, then legalize against the TRUE courtyards. *only* restricts placement to
+    that ref list (the rest of fp_of is left to a later pass, e.g. auto_cluster of the passives).
+    *cyinfo_override* {ref:(cx,cy,hw,hh)} replaces a part's courtyard for legalization -- used to
+    place IC MACRO-BLOCKS (IC + its clustered passives) by their full bbox so the legalizer reserves
+    the cluster's room. Returns ({ref:(x,y,rot)}, residual)."""
     rnd = random.Random(seed)
     P = dict(anchors)
-    movable = [r for r in fp_of if r not in anchors]
+    pool = only if only is not None else list(fp_of)
+    movable = [r for r in pool if r not in anchors and r in fp_of]
     # seed on a coarse GRID across the board (not clustered at centre) so the legalizer
     # starts near-tessellated -- far fewer initial overlaps than a central blob.
     ncol = max(1, int(math.ceil(math.sqrt(len(movable) * max(W, 1) / max(H, 1)))))
@@ -1436,8 +1572,11 @@ def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataf
                     if h != r and h in P and abs(P[h][0] - tx) < 8 and abs(P[h][1] - ty) < 8:
                         tx += math.copysign(4.0, tx - P[h][0] or 1.0)
             P[r] = (tx, ty, P[r][2])
-    # the TRUE courtyard (centre offset + half) of every part at its placed rotation
+    # the TRUE courtyard (centre offset + half) of every part at its placed rotation,
+    # overridden by the macro-block bbox where given (IC + its passive cluster)
     cyinfo = {r: _courtyard_info(fp_of[r], P[r][2], drop_antenna=drop_antenna) for r in P if r in fp_of}
+    if cyinfo_override:
+        cyinfo.update(cyinfo_override)
     clr = 0.3 if strat == "compact" else 0.45
     res = legalize_pack(P, movable, cyinfo, W, H, clr=clr)
     return P, res
@@ -1479,14 +1618,66 @@ class Candidate:
 def synth_one(cfg_dict, W, H, strat, seed):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
     in a spawn-pool worker (on the runner's cores). Takes/returns plain types only."""
+    import cec_pcb
     cfg = Config(**cfg_dict)
     nl = View(cfg).nl
     drop_antenna = not cfg.params.get("respect_antenna_keepout", True)
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
+    anchors_roles, ics, shunts, passives = _classify(nl)
+    # 1. anchors: connectors (by role) + the generalized mechanical asks (mounts + fiducials)
     anchors = seed_anchors(nl, W, H, halfext, cfg.pins)
-    P, res = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
-                            strat=strat, seed=seed)
+    mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
+    anchors.update(mech_pos)
+    comps = dict(fp_of)
+    comps.update(mech_fp)                               # ref->libid incl. mounts/fiducials
+    for r, fpp in mech_fp.items():
+        try:
+            halfext[r] = _half_extent(fpp)
+        except Exception:
+            halfext[r] = (1.6, 1.6)
+    # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
+    #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
+    #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
+    #    cluster as one macro and legalize with its full bbox, reserving the room.
+    spec = derive_passive_spec(nl, passives, ics)
+    by_owner = defaultdict(list)
+    for pref, (own, pad) in spec.items():
+        if own in ics:
+            by_owner[own].append((pref, pad))
+    drop_kc = tuple(r for r in comps if "esp32" in comps[r].lower()) if drop_antenna else ()
+    macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
+    cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
+    for unit in ics + shunts:
+        members = by_owner.get(unit, [])
+        if unit not in comps:
+            continue
+        if members:
+            Ptmp = {unit: (0.0, 0.0, 0.0)}
+            cec_pcb.auto_cluster(Ptmp, comps, {p: (unit, pad) for p, pad in members},
+                                 drop_keepout=((unit,) if unit in drop_kc else ()))
+            xs, ys = [], []
+            for r in Ptmp:
+                x0, x1, y0, y1 = cec_pcb.courtyard_bbox(comps[r], *Ptmp[r],
+                                                        drop_keepout=(r in drop_kc))
+                xs += [x0, x1]; ys += [y0, y1]
+            macro[unit] = ((min(xs) + max(xs)) / 2, (min(ys) + max(ys)) / 2,
+                           (max(xs) - min(xs)) / 2, (max(ys) - min(ys)) / 2)
+            cluster_offsets[unit] = {p: Ptmp[p] for p, _ in members}
+        else:
+            macro[unit] = _courtyard_info(comps[unit], 0.0, drop_antenna=drop_antenna)
+            cluster_offsets[unit] = {}
+    # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
+    P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
+                          strat=strat, seed=seed, only=ics + shunts, cyinfo_override=macro)
+    # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
+    for unit, offs in cluster_offsets.items():
+        if unit not in P:
+            continue
+        ux, uy, _ur = P[unit]
+        for pref, (dx, dy, pr) in offs.items():
+            P[pref] = (ux + dx, uy + dy, pr)
+    res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     proxy = placement_proxy(obj)
     return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy)
@@ -1592,6 +1783,28 @@ REQUIREMENTS = [
                  ("margin", "margin", "shrink but keep a margin above the routable floor"),
                  ("as_built", "as_built", "optimize placement only, keep the start size")],
                 default="margin", affects="size oracle shrink target"),
+    # --- MECHANICAL + manufacturing: generalized ask-first (NOT baked per-board) ---
+    Requirement("mount_holes",
+                "How many mounting holes, what size, where?",
+                "mount_holes",
+                [("3_2logic_1conn", "3_2logic_1conn", "3x M3: 2 logic-side + 1 connector-side"),
+                 ("4_corner", "4_corner", "4x M3 at the board corners"),
+                 ("2_diag", "2_diag", "2x M3 on a diagonal")],
+                default="3_2logic_1conn", affects="seed_anchors mount placement + keepout"),
+    Requirement("connector_overhang",
+                "Should connectors overhang the board edge to save area?",
+                "connector_overhang",
+                [("power_able", "power_able", "all connectors that can overhang without issue do"),
+                 ("all", "all", "every edge connector overhangs"),
+                 ("none", "none", "all connectors fully on-board")],
+                default="power_able", affects="seed_anchors edge overhang"),
+    Requirement("fiducials",
+                "How many fiducials and where?",
+                "fiducials",
+                [("3", "3", "3 fiducials (2 top + 1 bottom), assembly registration"),
+                 ("2", "2", "2 fiducials diagonal"),
+                 ("none", "none", "no fiducials")],
+                default="3", affects="board-level fiducial placement + keepout"),
 ]
 
 
@@ -1612,9 +1825,12 @@ def elicit_requirements(cfg, answers=None):
 
 
 # The inputs collected interactively for the EPS module (demonstration of Stage-1 elicitation):
-# wired-only (drop the antenna keepout), hand off placement to the human, enclosed/passive thermal.
+# wired-only (drop the antenna keepout), hand off placement to the human, enclosed/passive thermal,
+# 3x M3 (2 logic + 1 conn-side), connectors overhang where they can, 3 fiducials.
 EPS_ANSWERS = {"antenna_keepout": False, "placement_handoff": "handoff",
-               "thermal_env": "enclosed_passive", "size_target": "margin"}
+               "thermal_env": "enclosed_passive", "size_target": "margin",
+               "mount_holes": "3_2logic_1conn", "connector_overhang": "power_able",
+               "fiducials": "3"}
 
 
 # ============================================================ materialize + placement handoff
@@ -1627,8 +1843,9 @@ def materialize(cand, cfg, out, *, logo=None):
     def _is_mount(r):
         return r.startswith("H") and r[1:].isdigit()
     mounts = [(p[0], p[1]) for r, p in cand.P.items() if _is_mount(r)]
+    # build_board places mounts (H1..) itself; FID/LOGO are board-level finishing it doesn't emit.
     P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
-          if not _is_mount(r) and not r.startswith("LOGO")}
+          if not _is_mount(r) and not r.startswith(("LOGO", "FID"))}
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     cec_pcb.build_board(out, cfg.net, P3, mounts, logo, cand.W, cand.H, force_argv=False)
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module

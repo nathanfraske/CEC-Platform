@@ -55,8 +55,16 @@ carve         = _gmp.carve
 fp_path       = _gmp.fp_path
 
 # ============================================================ geometry
+_PADS_CACHE = {}
+_CRTYD_CACHE = {}
+
+
 def local_pads(libid):
-    """{pad-number: (lx, ly)} local pad centres of a footprint (lib `nick:name`)."""
+    """{pad-number: (lx, ly)} local pad centres of a footprint (lib `nick:name`). Memoized: the
+    footprint geometry is fixed, so the file is read+parsed once per libid (not per overlap check
+    -- auto_cluster's relaxation calls this O(iters x parts^2) times)."""
+    if libid in _PADS_CACHE:
+        return _PADS_CACHE[libid]
     nick, name = libid.split(":")
     t = open(fp_path(nick, name)).read(); out = {}
     for m in re.finditer(r'\(pad ', t):
@@ -64,6 +72,7 @@ def local_pads(libid):
         num = re.match(r'\(pad "([^"]*)"', b); at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', b)
         if num and at and num.group(1):
             out[num.group(1)] = (float(at.group(1)), float(at.group(2)))
+    _PADS_CACHE[libid] = out
     return out
 
 def _rot(lx, ly, A):
@@ -75,26 +84,39 @@ def pad_global(ref, pad, P, comps):
     X, Y, A = P[ref]; lx, ly = local_pads(comps[ref])[pad]
     dx, dy = _rot(lx, ly, A); return (X + dx, Y + dy)
 
+def _crtyd_local(libid):
+    """Cached (pts, pad_lo, pad_hi): the footprint's local CrtYd points + pad band. Read+parsed
+    once per libid (the geometry is fixed); courtyard_bbox then just rotates/translates."""
+    if libid in _CRTYD_CACHE:
+        return _CRTYD_CACHE[libid]
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read()
+    pys = [ly for (_lx, ly) in local_pads(libid).values()]
+    pad_lo, pad_hi = (min(pys), max(pys)) if pys else (-1e9, 1e9)
+    pts = []
+    for m in re.finditer(r'\(fp_(?:line|poly|rect|circle)\b', t):
+        b = carve(t, m.start())
+        if 'CrtYd' not in b:
+            continue
+        for a, c in re.findall(r'\((?:start|end|xy|mid|center) (-?[\d.]+) (-?[\d.]+)\)', b):
+            pts.append((float(a), float(c)))
+    _CRTYD_CACHE[libid] = (pts, pad_lo, pad_hi)
+    return _CRTYD_CACHE[libid]
+
+
 def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
     """Global courtyard bbox (xmin,xmax,ymin,ymax) of a placed footprint. If
     drop_keepout, trim an RF-module antenna keepout (a courtyard lobe extending far
-    past the pad rows) to the pad band -- used when wireless is unpopulated."""
-    nick, name = libid.split(":")
-    t = open(fp_path(nick, name)).read()
-    # pad band (to detect a keepout lobe)
-    pys = [ly for (_lx, ly) in local_pads(libid).values()]
-    pad_lo, pad_hi = (min(pys), max(pys)) if pys else (-1e9, 1e9)
+    past the pad rows) to the pad band -- used when wireless is unpopulated. The footprint
+    parse is memoized (see _crtyd_local), so this is cheap even under auto_cluster's relaxation."""
+    pts, pad_lo, pad_hi = _crtyd_local(libid)
     xs = []; ys = []
-    for m in re.finditer(r'\(fp_(?:line|poly|rect|circle)\b', t):
-        b = carve(t, m.start())
-        if 'CrtYd' not in b: continue
-        for a, c in re.findall(r'\((?:start|end|xy|mid|center) (-?[\d.]+) (-?[\d.]+)\)', b):
-            lx, ly = float(a), float(c)
-            if drop_keepout and ly < pad_lo - 3.0:      # antenna lobe past the pads
-                ly = pad_lo - 1.0
-            if drop_keepout and ly > pad_hi + 3.0:
-                ly = pad_hi + 1.0
-            dx, dy = _rot(lx, ly, rot); xs.append(x + dx); ys.append(y + dy)
+    for (lx, ly) in pts:
+        if drop_keepout and ly < pad_lo - 3.0:          # antenna lobe past the pads
+            ly = pad_lo - 1.0
+        elif drop_keepout and ly > pad_hi + 3.0:
+            ly = pad_hi + 1.0
+        dx, dy = _rot(lx, ly, rot); xs.append(x + dx); ys.append(y + dy)
     if not xs:
         return (x - 1, x + 1, y - 1, y + 1)
     return (min(xs), max(xs), min(ys), max(ys))
