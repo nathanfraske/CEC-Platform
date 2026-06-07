@@ -1,0 +1,123 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# Run the SYNTHESIS PIPELINE on a SELF-HOSTED runner -- the CPU-heavy compute plane
+# (cec_synth_pipeline: placement sweep / route swarm / electrothermal FEA / cascade) on YOUR
+# hardware. The LLM control plane (planning/judging/sign-off) stays a remote Claude session;
+# this workflow is the deterministic plane only.
+#
+# Two modes:
+#   * run   -- the full pipeline end-to-end on a board (run_pipeline): ERC+BOM gate -> triage ->
+#              [existing board, optionally --route via the swarm] -> physics+cascade -> sign-off
+#              -> build+freeze. Uploads the release board + frozen decision log.
+#   * sweep -- the placement candidate sweep across sizes (the overlap-vs-size surface), bulk on
+#              the runner's cores. Uploads the candidates + renders + the synth report.
+#
+# Same runner as route.yml (label cec-router). Windows uses scripts\synth.ps1 (finds KiCad's
+# bundled python -- pcbnew is only importable from it -- no manual PATH config); Linux/macOS run
+# cec_synth_pipeline.py directly. Setup + the full prereqs/PATH story: docs/self-hosted-router.md.
+# NOTE: workflow_dispatch only works once this file is on the DEFAULT branch (main).
+name: Synthesize (self-hosted)
+
+on:
+  workflow_dispatch:
+    inputs:
+      board:
+        description: "Module (dir under modules/)"
+        type: choice
+        default: eps-8pin
+        options:
+          - eps-8pin
+          - pcie-8pin-2port
+          - pcie-8pin-3port
+          - 12vhpwr-standard
+          - atx-24pin
+      mode:
+        description: "run = full pipeline end-to-end | sweep = placement candidate sweep"
+        type: choice
+        default: run
+        options:
+          - run
+          - sweep
+      route:
+        description: "run mode: route the board via the swarm before physics/cascade"
+        type: boolean
+        default: false
+      routed_board:
+        description: "run mode: an existing routed .kicad_pcb to run on (repo-relative; blank = the module floorplan)"
+        default: ""
+      sizes:
+        description: "sweep mode: board sizes 'WxH,WxH' or 'auto'"
+        default: "auto"
+      seeds:
+        description: "comma-separated placement seeds"
+        default: "0,1,2,3"
+      strategies:
+        description: "comma-separated placement strategies"
+        default: "dataflow,thermal_separated,compact"
+      max_workers:
+        description: "parallel candidate workers (0 = auto: min(candidates, CPU threads))"
+        default: "0"
+
+jobs:
+  synth:
+    runs-on: [self-hosted, cec-router]
+    timeout-minutes: 180
+    env:
+      CEC_FREEROUTING_JAR: ${{ vars.CEC_FREEROUTING_JAR }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ---- prerequisites ----
+      - name: Verify prerequisites (Windows)
+        if: runner.os == 'Windows'
+        shell: 'powershell -ExecutionPolicy Bypass -File "{0}"'
+        run: .\scripts\route-prereqs.ps1
+
+      - name: Verify prerequisites (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: ./scripts/route-prereqs.sh
+
+      # ---- synthesize on the runner's CPU ----
+      - name: Synthesize (Windows)
+        if: runner.os == 'Windows'
+        shell: 'powershell -ExecutionPolicy Bypass -File "{0}"'
+        run: >
+          .\scripts\synth.ps1
+          -Mode        "${{ inputs.mode }}"
+          -Board       "${{ inputs.board }}"
+          ${{ inputs.route == true && '-Route' || '' }}
+          -RoutedBoard "${{ inputs.routed_board }}"
+          -Sizes       "${{ inputs.sizes }}"
+          -Seeds       "${{ inputs.seeds }}"
+          -Strategies  "${{ inputs.strategies }}"
+          -MaxWorkers   ${{ inputs.max_workers }}
+
+      - name: Synthesize (Linux/macOS)
+        if: runner.os != 'Windows'
+        run: |
+          set -e
+          OUT="build/$([ '${{ inputs.mode }}' = sweep ] && echo synth || echo release)/${{ inputs.board }}"
+          if [ "${{ inputs.mode }}" = "sweep" ]; then
+            python3 scripts/cec_synth_pipeline.py --board "${{ inputs.board }}" \
+              --sweep "${{ inputs.sizes }}" --seeds "${{ inputs.seeds }}" \
+              --strategies "${{ inputs.strategies }}" --max-workers "${{ inputs.max_workers }}" \
+              --out "$OUT"
+          else
+            ARGS="--run"
+            [ -n "${{ inputs.routed_board }}" ] && ARGS="$ARGS --routed-board ${{ inputs.routed_board }}"
+            [ "${{ inputs.route }}" = "true" ] && ARGS="$ARGS --route"
+            python3 scripts/cec_synth_pipeline.py --board "${{ inputs.board }}" $ARGS --out "$OUT"
+          fi
+
+      # ---- collect ----
+      - name: Upload synthesis outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: synth-${{ inputs.board }}-${{ inputs.mode }}-${{ github.run_id }}
+          path: |
+            build/synth/${{ inputs.board }}/
+            build/release/${{ inputs.board }}/
+          if-no-files-found: warn

@@ -692,8 +692,18 @@ Done (kept for context):
   --run [--routed-board B] [--route]. VERIFIED end-to-end on the poured EPS: ran every stage and
   correctly WITHHELD release (residual DFM + conductor-over-temp + fusing-via flags) -- the cautious,
   defensible decision. THE PIPELINE IS NOW VIABLE END-TO-END (on the old-design board; the synth
-  placer/size-oracle remains the deferred design-pass TODO -2). STILL OPEN: synth.yml runner workflow
-  + a live runner test; the deferred placer design pass; size oracle once the placer resumes.
+  placer/size-oracle remains the deferred design-pass TODO -2).
+  RUNNER (2026-06-07): (a) the self-hosted runner is VERIFIED LIVE -- a dispatched route.yml health
+  check (run #13) was picked up + ran on the user's CEC-Workstation. (b) Fixed a real RUNNER BLOCKER:
+  PCB_VIA.GetWidth() WITHOUT a layer asserts in KiCad 10; on the user's Windows debug build it pops a
+  MODAL 'Debug Alert' dialog that blocks the runner -- cec_fr.normalize_via_annular now passes
+  t.GetWidth(t.TopLayer()) (SetWidth and PCB_TRACK.GetWidth do NOT assert; only PCB_VIA.GetWidth(no-arg)
+  does). (c) Added the SYNTH RUNNER DISPATCH: .github/workflows/synth.yml (workflow_dispatch, self-
+  hosted cec-router, modes run|sweep) + scripts/synth.ps1 (Windows launcher mirroring route.ps1's
+  KiCad-python+java discovery, runs cec_synth_pipeline.py). Committed on claude/synth-pipeline so it is
+  DISPATCHABLE the moment this branch merges to main (workflow_dispatch needs the file on the default
+  branch). STILL OPEN: merge the synth-pipeline branch to main; the deferred placer design pass; size
+  oracle once the placer resumes.
 - SYNTHESIS PIPELINE -- placer BEATS/MATCHES the bar, DRC-verified (2026-06-07). The overlap-vs-size
   sweep (per user: candidates are overlap-vs-SIZE, not min-overlap at one size) exposed that the real
   blocker was ANCHOR placement, not macros: two ~21mm cable connectors don't fit a 37mm board unless
