@@ -655,6 +655,34 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- stage 1: cascade + resolve backbone (2026-06-07). Began building the
+  user's full board-SYNTHESIS pipeline (run_pipeline: Config -> ERC+BOM gate -> triage -> geometric
+  floor -> place+proxy -> feasibility/size oracle -> ROUTE SWARM -> physics FEA -> full cascade ->
+  gates+DRC -> sign-off -> build+freeze; POSTURE=CAUTIOUS, every failure/uncertainty calls resolve()).
+  Per the user's choice (deep-build stage by stage; cascade+resolve FIRST -- it's the backbone every
+  other stage hangs on), scripts/cec_synth_pipeline.py now carries, production-grade + verified on the
+  real EPS module: (1) a real KiCad .net s-expr PARSER (Netlist: 45 comps / 54 nets on EPS); (2) the
+  data model -- Config (board/profile/pins/params + artifact paths), Flag/Kind, Check, View (lazy
+  netlist/DRC/ERC/score access); (3) the SIX marker-criteria STAGE LISTS, each REAL checks --
+  ERC_BOM (erc/unconnected/power/CAN/JLC-BOM), PLACEMENT (courtyard/on-board via DRC), ROUTE_GATE
+  (cec_score kelvin+diffpair hard gates + DRC + unconnected), MEASURE (Kelvin sense topology +
+  rail-divider), DFM (width/annular/hole/clearance DRC), CONFORMANCE (the CLAUDE.md locked-decision
+  suite: RJ-45-not-Mini-Fit on the link, pin allocation incl. pin7=reserved-not-AUX_REF, DETECT §2.3
+  code resistor, §6.4 shunt values, RS-485 tiering, no module CAN term); (4) run_stage/
+  run_full_cascade; (5) the OPTIONAL-analysis REGISTRY + triage_arm (EMC/THERMAL/PDN, cautious
+  arm-on-doubt; EPS armed THERMAL+EMC); (6) the resolve() ESCALATION LADDER worker->manager->frontier
+  ->human -- the LLM tiers are PLUGGABLE callables exactly like cec_router.make_subagent_policy
+  (deterministic defaults run headless; supply tiers={'manager':fn,'frontier':fn}/ask=fn for the
+  Opus/Sonnet sub-agents + the human consent rung). VERIFIED with teeth both ways: CONFORMANCE
+  positively matches J1 RJ-45 / R1 2.2k DETECT / RS1,2 0.5mOhm / the full pin map; a forced wrong
+  expectation FIRES; ROUTE_GATE FAILS on the unrouted floorplan (kelvin/diffpair/183 ratlines) and on
+  the routed candidate the kelvin+diffpair HARD GATES PASS while drc/unconnected still report the 4
+  logo + 2 shield finishing items (correct cautious gate). Run: python3 scripts/cec_synth_pipeline.py
+  --board eps-8pin [--stage CONFORMANCE] [--resolve]. STILL TO BUILD (next stages, in pipeline order):
+  the top-level run_pipeline() driver + ERC_BOM gate loop, geometric floor (packing_lower_bound),
+  place+proxy+consent, feasibility probe + size oracle, route_swarm (wire onto cec_router.route),
+  electrothermal physics FEA (electrothermal_solve Picard loop -- the biggest new subsystem), human
+  sign-off, build+freeze. Diagram+pseudocode are the spec; this file is the orchestrator.
 - ROUTE-TO-CLEAN + FULL AGENT-PIPELINE test (2026-06-06). Ran the whole automated routing system
   on EPS with the TIERED LLM control plane LIVE -- Opus planner/escalator (me) + a real Sonnet
   MANAGER sub-agent judging the candidates -- not the deterministic default policies. Findings:
