@@ -1529,6 +1529,32 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
 - Confirm universal-interface parts are sourced from `lib/` rather than
   duplicated per board.
 
+### The constraint loop's human-ratification boundary — SET IN STONE (2026-06-07)
+
+The constraint-aware **place → route → check** loop (`scripts/cec_loop.py`: `cec_place` +
+`cec_fr` + `cec_hc` + `cec_constraints`) is DESIGNED to run itself to a wall and then ESCALATE
+TO THE HUMAN. When the only remaining fix is a **constraint-level or design-level change** —
+loosen a ratified target, change the stackup, add a plane/pour, alter a footprint, relax a
+locked decision — the loop does NOT silently change a ratified constraint or assume a design
+decision. Reaching that wall is the loop **WORKING AS INTENDED**, not a failure (this is the
+`discover → ratify → enforce` migration's top rung: the human is the ratifier tier).
+
+At the wall the loop has **two levers**, and it should prefer (1) before asking for (2):
+1. **Go back to the top — regenerate a PLACEMENT CANDIDATE.** Vary the placement (rotation /
+   tighten target / seed / strategy) and re-run place→route→check to try to clear the wall
+   WITHOUT any design change. A different candidate often fixes what looked like a constraint
+   problem (e.g. a sense IC boxed against its shunt so its own power/GND can't escape).
+2. **Surface the design/constraint decision to the HUMAN, who ratifies it.** A ratified change
+   is **BOARD-SPECIFIC by default** — it applies to the one board, NOT generalized to the
+   platform unless the human/spec says so. (Worked example, 2026-06-07: the EPS tight-Kelvin
+   placement strands the INA238's own +3V3/GND; the human ratified *loosen the EPS Kelvin
+   target a hair* — recorded BOARD-SPECIFIC in `cec_loop.BOARD_PARAMS`, not as a platform
+   default; the alternative, lever 1, is to regenerate a looser placement candidate.)
+
+Never relax a ratified threshold or make a stackup/footprint/locked-decision change to "get a
+board to pass" without this escalation. Lever-1 candidate regeneration is automatic; lever-2 is
+the human's call and is logged with its board scope.
+
 ### Sub-agent routing pass (real copper) — GO-AHEAD (2026-06-06)
 
 **DEFAULT TO THE FULL TIERED PIPELINE FOR ANY ROUTE-QUALITY / ROUTE-TO-CLEAN / GATE
