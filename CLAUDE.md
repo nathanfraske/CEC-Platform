@@ -655,6 +655,35 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- stages 2-3: size-oracle inputs + constructive placer (2026-06-07).
+  Continued down the pipeline (deep-build, stage by stage). scripts/cec_synth_pipeline.py now
+  also carries, all real + verified on EPS: (STAGE 2) read_placement() (pcbnew positions +
+  courtyards + pad nets); packing_lower_bound() -- the geometric FLOOR, a true lower bound from
+  total courtyard area + largest-part extent (NO efficiency divisor, which would inflate it above
+  achievable sizes; EPS floor 86.6x33.4 / 2897mm2 sits below the as-built 96x37); placement_proxy()
+  = hpwl() + rudy() (Rectangular Uniform wire DensitY congestion grid) + thermal_proxy() (per-part
+  power binned -> hotspot); proxy_reject() -- a RELATIVE congestion gate (rejects when RUDY peak
+  grows past baseline x factor as the board shrinks) + an absolute thermal-hotspot ceiling (a
+  known-routable board with no baseline is NOT rejected); route_swarm() bridge wiring the pipeline's
+  ROUTE SWARM stage onto cec_router.route() (real FR + gates + pour-after-route + decision log).
+  (STAGE 3) the constructive PLACER (place_with_consent): seed_anchors() places connectors at edges
+  by ROLE (power_in top / power_out bottom / host+usb right) + mounts at corners + honors user pins;
+  relative_place() barycentric-places the rest by net connectivity (grid-seeded) under a strategy
+  (dataflow / thermal_separated / compact) then legalize() (overlap relaxation); place_candidates()
+  generates the strategy x seed variants on a PARALLEL spawn pool with max_workers (the runner-capable
+  pattern from cec_fr -- per the user's call to let the packer use the runner CPU for a large candidate
+  count); place_with_consent() picks best-by-proxy + runs the user-pin CONSENT loop (ask APPROVE/KEEP/
+  EDIT rather than silently override a pin). VERIFIED: anchors land at the right edges, all 45 parts
+  in-bounds, synth HPWL ~892 == the as-built 888 (connectivity captures the structure), residual
+  overlaps fall as the board grows (the size oracle's 'too tight -> grow' signal), the spawn pool
+  returns all candidates, the consent loop triggers on a binding pin. KNOWN LIMIT (honest): at ~80%
+  part-area density the point-relaxation legalizer leaves residual courtyard overlap (the hand layout
+  reaches 0 via structure) -- a shelf/row legalizer + structure-aware refinement is the noted next
+  quality step; the route swarm + the cascade's re-place escalation also refine it. STILL TO BUILD:
+  the FEASIBILITY probe (N low-effort cec_fr routes per candidate -> confidence; reuses the
+  runner-capable parallel pool) + the SIZE ORACLE bisection, the top-level run_pipeline() driver, the
+  electrothermal physics FEA, human sign-off, build+freeze. A self-hosted SYNTH workflow (like route.yml)
+  so the packer/feasibility candidate sweep runs on the user's runner lands with the size oracle.
 - SYNTHESIS PIPELINE -- stage 1: cascade + resolve backbone (2026-06-07). Began building the
   user's full board-SYNTHESIS pipeline (run_pipeline: Config -> ERC+BOM gate -> triage -> geometric
   floor -> place+proxy -> feasibility/size oracle -> ROUTE SWARM -> physics FEA -> full cascade ->

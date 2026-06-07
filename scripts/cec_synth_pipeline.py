@@ -41,11 +41,13 @@ import json
 import glob
 import math
 import time
+import random
 import shutil
 import tempfile
 import subprocess
 from enum import Enum
 from collections import defaultdict
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field, asdict
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1156,6 +1158,294 @@ def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0)
     return (bool(reasons), reasons)
 
 
+# ============================================================ place + proxy + consent
+# The constructive placer (pipeline place_with_consent, lines 77-86): seed the anchors
+# (connectors at edges by ROLE, mounts at corners), honor user pins, then relative-place
+# the rest by net connectivity under a strategy, legalize the overlaps, and score by the
+# cheap proxy. A handful of strategy/seed VARIANTS -- and the candidate sweep runs on a
+# PARALLEL spawn pool (max_workers), the same runner-capable pattern as cec_fr, so a large
+# candidate count offloads onto the self-hosted runner's cores.
+STRATEGIES = ("dataflow", "thermal_separated", "compact")
+
+
+def _role(ref, value, fp):
+    """Anchor role of a part, or None if it's a free (relative-placed) part."""
+    f = (fp or "").lower()
+    v = (value or "").upper()
+    if ref.startswith(("H", "MK", "FID", "LOGO")) or "mountinghole" in f or "fiducial" in f:
+        return "mount"
+    if "rj45" in f or "8p8c" in f or "to-hub" in v:
+        return "host"
+    if "usb" in f:
+        return "usb"
+    if ref.startswith("J"):
+        u = ref.upper()
+        if "IN" in u:
+            return "power_in"
+        if "OUT" in u:
+            return "power_out"
+        return "host"
+    return None
+
+
+def _part_halfext(nl):
+    """ref -> (hw, hh) courtyard half-extent from the netlist footprint libid (no placement)."""
+    import cec_pcb
+    out = {}
+    for ref, c in nl.comps.items():
+        if not c.footprint or ":" not in c.footprint:
+            continue
+        try:
+            out[ref] = cec_pcb.part_half(c.footprint)
+        except Exception:
+            out[ref] = (1.0, 1.0)
+    return out
+
+
+def seed_anchors(nl, W, H, halfext, pins, *, margin=1.5):
+    """Place anchors (connectors by edge role, mounts at corners). Honor user pins last
+    (a user-pinned part overrides its role placement). Returns {ref:(x,y,rot)}."""
+    roles = defaultdict(list)
+    for ref in halfext:
+        r = _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint)
+        if r:
+            roles[r].append(ref)
+
+    A = {}
+
+    def _spread(refs, edge):
+        """Lay refs evenly along an edge, mouth facing outward (rot by edge)."""
+        if not refs:
+            return
+        n = len(refs)
+        for i, ref in enumerate(sorted(refs)):
+            hw, hh = halfext[ref]
+            frac = (i + 1) / (n + 1)
+            if edge == "top":
+                A[ref] = (frac * W, hh + margin, 180.0)
+            elif edge == "bottom":
+                A[ref] = (frac * W, H - hh - margin, 0.0)
+            elif edge == "right":
+                A[ref] = (W - hw - margin, frac * H, 90.0)
+            elif edge == "left":
+                A[ref] = (hw + margin, frac * H, 270.0)
+
+    _spread(roles.get("power_in", []), "top")
+    _spread(roles.get("power_out", []), "bottom")
+    _spread(roles.get("host", []) + roles.get("usb", []), "right")
+    # mounts at the four corners (as many as exist)
+    corners = [(margin + 2, margin + 2), (W - margin - 2, margin + 2),
+               (margin + 2, H - margin - 2), (W - margin - 2, H - margin - 2)]
+    for ref, (cx, cy) in zip(sorted(roles.get("mount", [])), corners):
+        A[ref] = (cx, cy, 0.0)
+    # honor user pins (override)
+    for ref, xy in (pins or {}).items():
+        if isinstance(xy, (tuple, list)) and len(xy) >= 2 and ref in halfext:
+            A[ref] = (float(xy[0]), float(xy[1]), float(xy[2]) if len(xy) > 2 else 0.0)
+    return A
+
+
+def _adjacency(nl, *, hairball=8):
+    """ref -> set(connected refs), skipping dense power/GND hairballs (>hairball nodes)
+    which carry no placement signal (they pull everything to one blob)."""
+    nbrs = defaultdict(set)
+    for net, nodes in nl.nets.items():
+        refs = {r for r, _ in nodes}
+        if len(refs) > hairball:
+            continue
+        for a in refs:
+            nbrs[a] |= (refs - {a})
+    return nbrs
+
+
+def legalize(P, movable, halfext, W, H, *, clr=0.4, iters=400):
+    """Overlap-relaxation: push overlapping courtyards apart, keep parts in-board. Anchors
+    (not in *movable*) stay fixed. Returns the number of residual overlaps. Note: at high
+    part-area density (a tight board) some residual is unavoidable for point-relaxation --
+    that residual is itself the size oracle's 'too tight, grow' signal."""
+    def hx(r):
+        return halfext.get(r, (1.0, 1.0))
+    refs = list(P.keys())
+    rnd = random.Random(0)
+    for _ in range(iters):
+        moved = 0
+        for a in refs:
+            if a not in movable:
+                continue
+            ax, ay = P[a][0], P[a][1]
+            ahw, ahh = hx(a)
+            dx = dy = 0.0
+            for b in refs:
+                if b == a:
+                    continue
+                bx, by = P[b][0], P[b][1]
+                bhw, bhh = hx(b)
+                ox = (ahw + bhw + clr) - abs(ax - bx)
+                oy = (ahh + bhh + clr) - abs(ay - by)
+                if ox > 0 and oy > 0:                # courtyards overlap -> push along min axis
+                    if ox <= oy:
+                        s = (ax - bx) if abs(ax - bx) > 1e-6 else (rnd.uniform(-1, 1))
+                        dx += math.copysign(ox, s)
+                    else:
+                        s = (ay - by) if abs(ay - by) > 1e-6 else (rnd.uniform(-1, 1))
+                        dy += math.copysign(oy, s)
+                    moved += 1
+            nx = min(W - ahw, max(ahw, ax + max(-3.0, min(3.0, dx * 0.6))))
+            ny = min(H - ahh, max(ahh, ay + max(-3.0, min(3.0, dy * 0.6))))
+            P[a] = (nx, ny, P[a][2])
+        if moved == 0:
+            break
+    # count residual overlaps (courtyards still interpenetrating beyond a small tolerance)
+    res = 0
+    for i, a in enumerate(refs):
+        for b in refs[i + 1:]:
+            ahw, ahh = hx(a); bhw, bhh = hx(b)
+            if (abs(P[a][0] - P[b][0]) < ahw + bhw and
+                    abs(P[a][1] - P[b][1]) < ahh + bhh):
+                res += 1
+    return res
+
+
+def relative_place(anchors, nl, W, H, halfext, *, strat="dataflow", seed=0):
+    """Relative-place the non-anchor parts by net connectivity (barycentric sweeps from the
+    fixed anchors), under a strategy, then legalize. Returns ({ref:(x,y,rot)}, residual)."""
+    rnd = random.Random(seed)
+    P = dict(anchors)
+    movable = [r for r in halfext if r not in anchors]
+    # seed on a coarse GRID across the board (not clustered at centre) so the legalizer
+    # starts near-tessellated -- far fewer initial overlaps than a central blob.
+    ncol = max(1, int(math.ceil(math.sqrt(len(movable) * max(W, 1) / max(H, 1)))))
+    order = list(movable)
+    rnd.shuffle(order)
+    for i, r in enumerate(order):
+        col, row = i % ncol, i // ncol
+        nrow = max(1, int(math.ceil(len(movable) / ncol)))
+        P[r] = (W * (col + 0.5) / ncol, H * (row + 0.5) / nrow, 0.0)
+    nbrs = _adjacency(nl)
+    hot = {r for r in movable if _part_power_w(r, nl.comps.get(r, Comp(r)).value) >= 0.3}
+    for _ in range(45):
+        for r in movable:
+            ns = [P[n] for n in nbrs.get(r, ()) if n in P]
+            if not ns:
+                continue
+            tx = sum(p[0] for p in ns) / len(ns)
+            ty = sum(p[1] for p in ns) / len(ns)
+            if strat == "compact":                   # pull harder toward neighbours
+                tx = 0.7 * tx + 0.3 * P[r][0]
+                ty = 0.7 * ty + 0.3 * P[r][1]
+            elif strat == "thermal_separated" and r in hot:   # nudge hot parts apart
+                for h in hot:
+                    if h != r and h in P and abs(P[h][0] - tx) < 8 and abs(P[h][1] - ty) < 8:
+                        tx += math.copysign(4.0, tx - P[h][0] or 1.0)
+            P[r] = (tx, ty, P[r][2])
+    clr = 0.3 if strat == "compact" else 0.5
+    res = legalize(P, movable, halfext, W, H, clr=clr)
+    return P, res
+
+
+def _placement_obj(cfg, P, W, H, halfext, nl):
+    """Build a Placement (pos + pads_by_net via real footprint pad geometry) for the proxy."""
+    import cec_pcb
+    comps = {r: c.footprint for r, c in nl.comps.items() if c.footprint and ":" in c.footprint}
+    pads_by_net = defaultdict(list)
+    for net, nodes in nl.nets.items():
+        for ref, pin in nodes:
+            if ref not in P:
+                continue
+            try:
+                x, y = cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps)
+            except Exception:
+                x, y = P[ref][0], P[ref][1]
+            pads_by_net[net].append((x, y))
+    pos = {r: (P[r][0], P[r][1], P[r][2], halfext.get(r, (1.0, 1.0))[0], halfext.get(r, (1.0, 1.0))[1])
+           for r in P}
+    value = {r: nl.comps[r].value for r in P if r in nl.comps}
+    return Placement(pos=pos, pads_by_net=dict(pads_by_net), value=value, W=W, H=H, x0=0.0, y0=0.0)
+
+
+@dataclass
+class Candidate:
+    """A placement candidate + its cheap proxy + (later) its feasibility confidence."""
+    strat: str
+    seed: int
+    P: dict                       # ref -> (x, y, rot)
+    W: float
+    H: float
+    residual: int                 # legalization residual overlaps
+    proxy: dict
+    feasible: float = -1.0        # filled by the feasibility probe (stage: size oracle)
+
+
+def synth_one(cfg_dict, W, H, strat, seed):
+    """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
+    in a spawn-pool worker (on the runner's cores). Takes/returns plain types only."""
+    cfg = Config(**cfg_dict)
+    nl = View(cfg).nl
+    halfext = _part_halfext(nl)
+    anchors = seed_anchors(nl, W, H, halfext, cfg.pins)
+    P, res = relative_place(anchors, nl, W, H, halfext, strat=strat, seed=seed)
+    obj = _placement_obj(cfg, P, W, H, halfext, nl)
+    proxy = placement_proxy(obj)
+    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy)
+
+
+def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_workers=None):
+    """Generate the placement candidates (strategy x seed), in PARALLEL on a spawn pool.
+    Mirrors cec_fr.generate_batch's runner-capable design: a large candidate count offloads
+    onto the self-hosted runner's cores (max_workers=0/None -> min(#candidates, CPUs)).
+    Returns the candidates sorted best-first by (residual, proxy HPWL)."""
+    work = [(s, seed) for s in strategies for seed in seeds]
+    cfg_dict = {k: getattr(cfg, k) for k in ("board", "profile", "pins", "params",
+                                             "dir", "sch", "net", "pcb", "bom_csv")}
+    n = max_workers if max_workers else min(len(work), os.cpu_count() or 1)
+    cands = []
+    if n <= 1 or len(work) == 1:                     # in-process (cheap / single)
+        for s, seed in work:
+            cands.append(synth_one(cfg_dict, W, H, s, seed))
+    else:
+        import multiprocessing as mp
+        ctx = mp.get_context("spawn")               # pcbnew/cec_pcb is not fork-safe
+        with ProcessPoolExecutor(max_workers=n, mp_context=ctx) as pool:
+            futs = {pool.submit(synth_one, cfg_dict, W, H, s, seed): (s, seed) for s, seed in work}
+            for f in as_completed(futs):
+                cands.append(f.result())
+    cands.sort(key=lambda c: (c.residual, c.proxy["hpwl"]))
+    return cands
+
+
+def place_with_consent(cfg, W, H, *, pins=None, ask=None, strategies=STRATEGIES,
+                       seeds=(0, 1), max_workers=None, verbose=False):
+    """place_with_consent (pipeline lines 77-86): synthesize the candidate variants, pick the
+    best by proxy, and run the user-pin CONSENT loop -- if a USER-pinned part is the binding
+    cause of a poor placement, ASK the human (APPROVE move / KEEP / EDIT) rather than silently
+    overriding the pin. Returns the chosen Candidate. *ask(reason, suggestion, cfg)->Action*."""
+    if pins:
+        cfg = Config(**{**{k: getattr(cfg, k) for k in
+                          ("board", "profile", "pins", "params", "dir", "sch", "net", "pcb", "bom_csv")},
+                        "pins": {**cfg.pins, **pins}})
+    cands = place_candidates(cfg, W, H, strategies=strategies, seeds=seeds, max_workers=max_workers)
+    best = cands[0]
+    if verbose:
+        for c in cands:
+            print(f"    cand {c.strat:16s} seed{c.seed} residual={c.residual} "
+                  f"HPWL={c.proxy['hpwl']} RUDYpk={c.proxy['rudy_peak']}")
+    # consent: a user-pinned part that is the binding cause of a bad (overlapping) placement
+    if best.residual > 0 and cfg.pins and ask is not None:
+        binding = [r for r in cfg.pins if r in best.P]
+        if binding:
+            act = ask(f"user-pinned {binding} forces {best.residual} residual overlap(s)",
+                      {"relax": binding[0]}, cfg)
+            if getattr(act, "resolved", False) and getattr(act, "note", "") == "relax":
+                # KEEP the pin, relax elsewhere: re-place without that pin pinned
+                relaxed = {k: v for k, v in cfg.pins.items() if k != binding[0]}
+                cfg2 = Config(**{**{k: getattr(cfg, k) for k in
+                                    ("board", "profile", "params", "dir", "sch", "net", "pcb", "bom_csv")},
+                                 "pins": relaxed, "profile": cfg.profile})
+                best = place_candidates(cfg2, W, H, strategies=strategies, seeds=seeds,
+                                        max_workers=max_workers)[0]
+    return best
+
+
 # ============================================================ route swarm bridge
 def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1, 2, 3), manager=None,
                 worker=None, escalator=None, verbose=True, **board_spec_kw):
@@ -1225,8 +1515,13 @@ def main(argv=None):
             print(f"  placement proxy : HPWL={prox['hpwl']} RUDY peak/mean={prox['rudy_peak']}/"
                   f"{prox['rudy_mean']} thermal peak/total={prox['thermal_peak_w']}/"
                   f"{prox['thermal_total_w']}W  reject={rej} {reasons}")
+            # constructive placer: synthesize the candidate variants at the board size
+            cands = place_candidates(cfg, pl.W, pl.H, seeds=(0, 1), max_workers=1)
+            b = cands[0]
+            print(f"  place variants  : {len(cands)} synthesized; best={b.strat} seed{b.seed} "
+                  f"residual={b.residual} HPWL={b.proxy['hpwl']} (vs as-built HPWL={prox['hpwl']})")
         except Exception as exc:
-            print(f"\n  (geometric floor/proxy skipped: {exc})")
+            print(f"\n  (geometric floor/proxy/placer skipped: {exc})")
 
     # run stages
     if a.stage:
