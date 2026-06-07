@@ -80,8 +80,20 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         if not movable:
             break                                           # placement converged
 
+    # HUMAN-REVIEW HANDOFF: a copper plot + a 3D render of the final routed board for the human to review
+    review = {}
+    if routed_path and os.path.isfile(routed_path):
+        try:
+            import cec_plot
+            plot_png = os.path.join(out, "review-copper.png")
+            top_png = os.path.join(out, "review-top.png")
+            cec_plot.copper_plot(routed_path, plot_png, title="%s -- loop result (place->route->check)" % board)
+            cec_plot.render_3d(routed_path, top_png, side="top")
+            review = {"copper_plot": plot_png, "render_top": top_png}
+        except Exception as e:
+            review = {"error": repr(e)}
     return {"board": board, "routed": routed_path, "final_fails": sorted(cec_place._fails(verdicts)),
-            "log": log}
+            "log": log, "review": review}
 
 
 def main(argv=None):
@@ -98,6 +110,10 @@ def main(argv=None):
     print(json.dumps(res["log"], indent=1))
     print("final FAILs:", res["final_fails"])
     print("routed board ->", res["routed"])
+    rv = res.get("review") or {}
+    if rv.get("copper_plot"):
+        print("REVIEW copper plot ->", rv["copper_plot"])
+        print("REVIEW 3D render   ->", rv.get("render_top"))
     return 0
 
 

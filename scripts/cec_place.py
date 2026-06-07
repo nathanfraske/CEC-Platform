@@ -194,40 +194,39 @@ def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=2
     a, b = _fp(board, a_ref), _fp(board, b_ref)
     if not a or not b:
         return None
-    # a (a decoupling cap) owns nothing -> NO cluster (dragging peer caps shoved C1 into U3). And b (the
-    # owner IC) is NOT excluded, so the cap stops CLEAR of it rather than landing a pad on it (which had
-    # created +3V3<->GND and sense<->GND shorts the adversarial verifier caught).
-    exclude = {a_ref}
-    start, _ = _owner_pad_dist(a, b)
-    moved, stopped, shoved = 0.0, "", []
-    while moved < max_move:
-        d, tgt = _owner_pad_dist(a, b)           # pull toward the shared (power) pad, checker's metric
-        if d <= max_mm - margin:
+    # Place the cap CLEAR-but-CLOSE to its owner IC's POWER pad. A straight slide stalls when the pad is
+    # reachable only from one side; instead SEARCH a ring of candidate positions around the power pad and
+    # take the clear one with the shortest power-pad bypass loop (the cap owns nothing, so it moves alone;
+    # _overlaps includes the IC, so it can never land a pad on it).
+    start, tgt = _owner_pad_dist(a, b)
+    if start <= max_mm - margin:
+        return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": 0.0, "moved_refs": [a_ref],
+                "shoved": [], "pad_mm": "%.2f->%.2f" % (start, start), "note": "already ok"}
+    px, py = _mm(tgt.x), _mm(tgt.y)
+    orig = a.GetPosition()
+    best, bestd = None, 1e9
+    for rad in (1.0, 1.5, 2.0, 2.5, 3.0, 3.5):
+        for ang in range(0, 360, 20):
+            cx = px + rad * math.cos(math.radians(ang))
+            cy = py + rad * math.sin(math.radians(ang))
+            a.SetPosition(pcbnew.VECTOR2I(_nm(cx), _nm(cy)))
+            if _overlaps(board, a, {a_ref}):
+                continue
+            dd, _ = _owner_pad_dist(a, b)
+            if dd < bestd:
+                bestd, best = dd, (cx, cy)
+        if best and bestd <= max_mm - margin:
             break
-        ax, ay = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
-        ux, uy = _mm(tgt.x) - ax, _mm(tgt.y) - ay
-        nn = math.hypot(ux, uy) or 1.0
-        dx, dy = ux / nn * step, uy / nn * step
-        _move(a, dx, dy)
-        hit = _overlaps(board, a, exclude)       # checks against EVERY other part, incl. the target IC b
-        if hit:
-            hf = _fp(board, hit)
-            cleared = False
-            # MAKE ROOM: shove a blocking PASSIVE out of the path (never the target IC or a non-passive)
-            if hf and hit[0] in ("C", "R") and hit != b_ref:
-                hx, hy = _mm(hf.GetPosition().x), _mm(hf.GetPosition().y)
-                if _shove(board, hf, hx - ax, hy - ay, {a_ref}) > 0 and not _overlaps(board, a, exclude):
-                    shoved.append(hit)
-                    cleared = True
-            if not cleared:                      # reached the IC / a fixed part -> back off, stop (honest)
-                _move(a, -dx, -dy)
-                stopped = "blocked by %s" % hit
-                break
-        moved += step
+    if best:
+        a.SetPosition(pcbnew.VECTOR2I(_nm(best[0]), _nm(best[1])))
+        moved = math.hypot(_mm(a.GetPosition().x - orig.x), _mm(a.GetPosition().y - orig.y))
+    else:
+        a.SetPosition(orig)
+        moved = 0.0
     end, _ = _owner_pad_dist(a, b)
+    note = "" if end <= max_mm else "no clear spot within %.1fmm of the power pad" % max_mm
     return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2),
-            "moved_refs": [a_ref] + shoved, "shoved": shoved,
-            "pad_mm": "%.2f->%.2f" % (start, end), "note": stopped}
+            "moved_refs": [a_ref], "shoved": [], "pad_mm": "%.2f->%.2f" % (start, end), "note": note}
 
 
 def apply_pin(board, target, x, y, rot=None):
