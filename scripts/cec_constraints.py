@@ -952,6 +952,95 @@ def _chk_fp_ds(board, path, ctx):
 
 
 # ===========================================================================
+#  min-pour-cross-section ENFORCE LEG: field solve -> ratified DRC rule
+# ===========================================================================
+# discover -> ratify -> enforce, completing the min-pour-cross-section migration.
+#   * DISCOVER: cec_dcir's field solve finds each high-current net's bottleneck cross-section.
+#   * the deterministic ENFORCEMENT splits by net topology (a platform fact, empirically verified):
+#       - SHARED force+sense net (an INA sense input lives ON it -> thin ~0.25mm Kelvin stubs): a
+#         geometric DRC width rule (track_width OR connection_width) FALSE-FLAGS those stubs
+#         (verified 2026-06-07: connection_width min 2.86mm fired on the 0.2-0.3mm sense taps). The
+#         cec_dcir CHECKER is the correct enforcement -- it injects current only connector<->shunt, so
+#         a zero-current sense branch is never scored as a 'neck'. EVERY current CEC high-current net
+#         is this kind (the INA senses across the shunt = on the force net), so today this is the
+#         universal path: enforcement = the min-pour-cross-section checker, ratified per board.
+#       - FORCE-ONLY net (no sense tap on it -- e.g. a future plane tapped by a Hall sensor): safe to
+#         enforce in the DRC. derive_cross_section_dru() emits a KiCad `connection_width` rule (min =
+#         the physics-required width) that flows through cec_router.spec_to_dru / a .kicad_dru into the
+#         DRC. (connection_width is the right primitive: it measures copper width INCLUDING zone fills,
+#         so it catches a thin POUR neck, which track_width cannot.)
+#   * RATIFY is the HUMAN's act (CLAUDE.md board-specific human-ratification boundary): ratify_cross_
+#     section(write=True) appends the force-only rules to a board's committed .kicad_dru. Promoting the
+#     checker itself from advisory->gating is the human's separate bench-validated call (the solver's
+#     dt_ipc/shunt_rth are not yet bench-calibrated; per cec_dcir, "calibration, not a hard re-gate").
+CU_OZ_MM = 0.0348   # copper thickness per oz, mm (= cec_dcir.CU_OZ_M / cec_synth_pipeline.CU_OZ_MM)
+
+
+def _net_cu_thickness_mm(layers, oz_outer, oz_inner):
+    """Total copper thickness (mm) a net's copper occupies, summed over the layers it is on
+    (F.Cu/B.Cu = oz_outer, inner = oz_inner). The required min width = required_cross / this."""
+    t = sum((oz_outer if ln in ("F.Cu", "B.Cu") else oz_inner) * CU_OZ_MM for ln in layers)
+    return t or (oz_outer * CU_OZ_MM)
+
+
+def derive_cross_section_dru(board_path, *, j_max=None, oz_outer=2.0, oz_inner=1.0):
+    """ENFORCE-LEG derive (writes nothing). Run the cec_dcir DC field solve and, per high-current net
+    over the j_max current-density limit, decide HOW to enforce its cross-section:
+      FORCE-ONLY  -> a KiCad connection_width DRU rule (min = physics-required width) for spec_to_dru.
+      SHARED f+s  -> CHECKER-enforced (a DRC width rule would false-flag the Kelvin sense tap).
+    Returns {"rules":[(name,constraint,condition)...], "checker_enforced":[net...], "notes":[str...],
+             "j_max":float}. Fallback-safe -> {"rules":[],...,"error":..} if numpy/cec_dcir absent."""
+    if j_max is None:
+        j_max = _param("min-pour-cross-section", "j_max_A_mm2", 100.0)
+    try:
+        import cec_dcir
+        res = cec_dcir.solve(board_path, oz_outer=oz_outer, oz_inner=oz_inner)
+    except Exception as e:
+        return {"rules": [], "checker_enforced": [], "notes": [], "j_max": j_max, "error": repr(e)}
+    board = pcbnew.LoadBoard(board_path)
+    sense = _sense_nets(board)            # nets present at an INA sense input pin (the Kelvin taps)
+    rules, checker, notes = [], [], []
+    for net, r in sorted((res or {}).items()):
+        if not r or r["j_p995_A_mm2"] <= j_max:
+            continue
+        need_cross = r["I"] / j_max
+        need_w = round(need_cross / _net_cu_thickness_mm(r["layers"], oz_outer, oz_inner), 3)
+        if net in sense:
+            checker.append(net)
+            notes.append("%s SHARED force+sense -> CHECKER-enforced (need cross %.3f mm^2; a DRC width "
+                         "rule would false-flag the ~0.25mm Kelvin tap on this net)" % (net, need_cross))
+        else:
+            rules.append(("HC cross-section %s" % net.replace("/", "").replace(" ", "_"),
+                          "connection_width (min %.3fmm)" % need_w,
+                          "A.NetName == '%s'" % net))
+            notes.append("%s FORCE-ONLY -> connection_width min %.3fmm (need cross %.3f mm^2 over %s)"
+                         % (net, need_w, need_cross, "+".join(r["layers"])))
+    return {"rules": rules, "checker_enforced": checker, "notes": notes, "j_max": j_max}
+
+
+def ratify_cross_section(board_path, *, write=False, j_max=None, oz_outer=2.0, oz_inner=1.0):
+    """ENFORCE-LEG ratify+enforce (the HUMAN's board-specific act). Derive the rules and, if write=True,
+    APPEND the force-only connection_width rules to the board's committed .kicad_dru -- text-append that
+    PRESERVES the existing hand rules (spec_to_dru would rewrite the whole file, dropping them). Idempotent:
+    a rule already present by name is skipped. Returns the derivation + the .kicad_dru path + n written."""
+    d = derive_cross_section_dru(board_path, j_max=j_max, oz_outer=oz_outer, oz_inner=oz_inner)
+    dru = (board_path[:-len(".kicad_pcb")] if board_path.endswith(".kicad_pcb") else board_path) + ".kicad_dru"
+    written = 0
+    if write and d["rules"]:
+        existing = open(dru).read() if os.path.exists(dru) else "(version 1)\n"
+        blocks = ["", "# ENFORCE-LEG (ratify_cross_section): physics-required cross-section on a force-only",
+                  "# high-current net, from the cec_dcir DC field solve (j_max=%g A/mm^2)." % d["j_max"]]
+        for name, constraint, cond in d["rules"]:
+            if ('"%s"' % name) in existing:
+                continue
+            blocks.append('(rule "%s"\n\t(constraint %s)\n\t(condition "%s"))' % (name, constraint, cond))
+            written += 1
+        if written:
+            open(dru, "w").write(existing.rstrip() + "\n" + "\n".join(blocks) + "\n")
+    return {**d, "dru": dru, "written": written}
+
+
+# ===========================================================================
 #  directive consumer
 # ===========================================================================
 def directives(rows):
@@ -1024,6 +1113,30 @@ def main(argv=None):
     ctx = {"radio": "--radio" in argv}
     as_json = "--json" in argv
     boards = [a for a in argv if not a.startswith("--")]
+
+    # ENFORCE-LEG CLI: derive (or --write to ratify) the min-pour-cross-section DRC rules.
+    if "--enforce-cross-section" in argv:
+        write = "--write" in argv
+        blobs = []
+        for b in boards:
+            d = ratify_cross_section(b, write=write)
+            if as_json:
+                blobs.append({"board": os.path.basename(b), **d})
+                continue
+            print("ENFORCE-LEG :: %s  (j_max=%g A/mm^2)" % (os.path.basename(b), d["j_max"]))
+            for n in d["notes"]:
+                print("  " + n)
+            print("  DRC rules (force-only, -> spec_to_dru/.kicad_dru): %d%s" % (
+                len(d["rules"]), ("  WROTE %d to %s" % (d["written"], os.path.relpath(d["dru"], ROOT)))
+                if write else "  (dry run; --write to ratify)"))
+            print("  checker-enforced (shared force+sense / Kelvin): %d net(s)%s" % (
+                len(d["checker_enforced"]),
+                "" if d["rules"] else "  [-> the min-pour-cross-section checker is the enforcement]"))
+            print()
+        if as_json:
+            print(json.dumps(blobs, indent=1, default=str))
+        return 0
+
     blobs = []
     for b in boards:
         if as_json:

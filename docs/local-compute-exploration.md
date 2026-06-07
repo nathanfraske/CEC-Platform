@@ -117,8 +117,20 @@ gates on `dT_max=30 / T_max=105 / J_max=100`.
   **advisory / proposed** by design — the solver is not yet bench-validated, so it SURFACES
   **OQ-10 (copper coin) / OQ-12 (stackup)** real numbers (it lands in `final_fails`, never `hard_fails`,
   so it neither hard-gates a release nor triggers the loop's human-escalation) — OQ input, not
-  resolved. **Still open (the enforce-leg):** flow a ratified min-width on the carved high-current
-  netclass through `spec_to_dru` into the DRC, once a bench measurement calibrates `dt_ipc` / `shunt_rth`.
+  resolved.
+- **Enforce-leg — DONE (2026-06-07):** `cec_constraints.derive_cross_section_dru` /
+  `ratify_cross_section` turn the field solve into the deterministic enforcement, split by net
+  topology (an empirically-verified platform fact). A geometric DRC width rule (`track_width` OR
+  KiCad's `connection_width`) FALSE-FLAGS the thin ~0.25 mm Kelvin sense tap (verified:
+  `connection_width min 2.86 mm` fired on the 0.2–0.3 mm taps), so a **shared force+sense** net is
+  **checker-enforced** (the field solve injects current only connector↔shunt, so the zero-current
+  sense branch is never a "neck"). EVERY current CEC high-current net is shared (the INA senses
+  *across* the shunt), so today enforcement = the `min-pour-cross-section` checker, ratified per
+  board. A **force-only** net (future plane tapped by a Hall sensor) gets a `connection_width` DRU
+  rule (min = physics-required width) that flows through `spec_to_dru` / `.kicad_dru` into the DRC —
+  validated end-to-end (force-only sim: derive → ratify-write → **DRC enforces, 76 hits**, hand rules
+  preserved). RATIFY is the human's board-specific act (`--enforce-cross-section --write`); promoting
+  the checker itself from advisory→gating still wants the bench calibration of `dt_ipc` / `shunt_rth`.
 - **Sign-off tier (later):** Elmer coupled steady+transient electrothermal to calibrate the
   hardcoded `dt_ipc` k-constant and `shunt_rth_CW=25 C/W` placeholder; validate against one bench
   measurement before a FEM flag blocks a release.
