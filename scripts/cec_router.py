@@ -599,6 +599,9 @@ def main(argv=None):
                          "seeds (0 = off; makes the deterministic-FR candidates genuinely different)")
     ap.add_argument("--out", default="build/route", help="output dir for the routed board + log")
     ap.add_argument("--render", action="store_true", help="also write a top render PNG")
+    ap.add_argument("--judge", choices=("default", "local"), default="default",
+                    help="manager judge tier: 'default' = deterministic; 'local' = the local vLLM "
+                         "judge (cec_judge_local; falls back to deterministic if the server is down)")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
 
@@ -607,7 +610,16 @@ def main(argv=None):
     spec, name = board_spec(a.board, out_dir, seeds=seeds, passes=a.passes, opt_time=a.opt_time,
                             threads=a.threads, kmax=a.kmax, max_iters=a.max_iters,
                             max_workers=(a.max_workers or None), opt_spread=a.opt_spread)
-    final, log = route(spec.board, spec, verbose=not a.quiet)
+    manager = None
+    if a.judge == "local":
+        import cec_judge_local
+        if cec_judge_local.available():
+            manager = cec_judge_local.make_manager(spec, verbose=not a.quiet)
+            print(f"[route] manager judge tier: LOCAL vLLM ({cec_judge_local.VLLM_URL}, {cec_judge_local.MODEL})")
+        else:
+            print(f"[route] --judge local requested but vLLM unreachable at {cec_judge_local.VLLM_URL} "
+                  f"-> using the deterministic manager")
+    final, log = route(spec.board, spec, manager=manager, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
     if final and a.render:
         png = render(final, os.path.join(out_dir, f"{name}-routed-top.png"))

@@ -37,6 +37,8 @@ services:
     environment:
       # Point cec_fr at the headless REST server instead of spawning a local jar (Task #2 wiring):
       - CEC_FREEROUTING_URL=http://freerouting:37864
+      # The local vLLM judge tier (Thrust A) -- reachable as the compose service `inference`:
+      - CEC_VLLM_URL=http://inference:8000/v1
     depends_on:
       - freerouting
     command: ["sleep", "infinity"]          # stay alive; exec in or use `compose run`
@@ -52,22 +54,32 @@ services:
     restart: unless-stopped
 
   # GPU local-inference server for the control-plane judge tiers (Thrust A). OPT-IN.
-  # Pick a Blackwell-ready (CUDA 12.8 / sm_120) vLLM image and an AWQ model (FP8/FP4 is not yet
-  # usefully exposed through WSL2 dxgkrnl -- use AWQ/BF16). Cap GPU mem so a FEM/router job has room.
+  # vLLM image ships torch 2.11/cu13 -> verified to run on Blackwell sm_120 (cap 12.0) in WSL2.
+  # AWQ model (FP8/FP4 is not yet usefully exposed through WSL2 dxgkrnl). The default is a community
+  # AWQ of the MoE Qwen3-Coder-30B-A3B (3B active -> fast) -- the official Qwen ...-AWQ repo is gated
+  # (401), so cpatonn's public AWQ is the working pick (verified 200). --served-model-name gives a
+  # stable alias cec_router targets; --enforce-eager skips CUDA-graph capture (the Blackwell/WSL2
+  # fragile path -- drop it for ~throughput once WSL >= 2.7.0 graph fix is confirmed).
   inference:
     profiles: ["inference"]
     image: ${CEC_VLLM_IMAGE:-vllm/vllm-openai:latest}
+    ipc: host                              # vLLM needs a large /dev/shm for NCCL/tensor sharing
     ports:
       - "8000:8000"
     volumes:
       - hf-cache:/root/.cache/huggingface
+    environment:
+      - HF_HUB_ENABLE_HF_TRANSFER=1        # faster model download
     command:
       - "--model"
-      - "${CEC_VLLM_MODEL:-Qwen/Qwen3-Coder-30B-A3B-Instruct-AWQ}"
-      - "--quantization"
-      - "awq"
+      - "${CEC_VLLM_MODEL:-cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ}"
+      - "--served-model-name"
+      - "cec-judge"
       - "--gpu-memory-utilization"
-      - "${CEC_VLLM_GPU_FRACTION:-0.5}"
+      - "${CEC_VLLM_GPU_FRACTION:-0.85}"
+      - "--max-model-len"
+      - "${CEC_VLLM_MAX_LEN:-32768}"
+      - "--enforce-eager"
     deploy:
       resources:
         reservations:

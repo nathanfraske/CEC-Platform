@@ -76,6 +76,29 @@ vLLM/PyTorch/openEMS.
 
 ## Thrust A — Local agent swarm (hybrid control plane)
 
+> **MANAGER TIER WIRED + VALIDATED in-container (2026-06-07).** The local vLLM judge is live on the
+> 5090. vLLM **0.22.1** (torch 2.11/cu13) runs on Blackwell **sm_120** (cap 12.0) in WSL2 — verified
+> bf16 compute + serving. Model: **`cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ`** (16.85 GiB AWQ, MoE
+> 3B-active; the *official* `Qwen/...-AWQ` repo is gated → 401, so the public community AWQ is the
+> pick), served as `cec-judge` (`docker/compose.yaml` `inference` profile, `--enforce-eager`,
+> `--gpu-memory-utilization 0.85`, ipc=host). `scripts/cec_judge_local.py` adapts it into
+> `cec_router`'s `manager=` slot via vLLM **guided JSON** constrained to the `Verdict` schema, FAIL-SAFE
+> (any error/timeout → `default_manager`) and unable to widen the safety envelope (`route()` only
+> accepts a `gates_pass` candidate; an LLM `accept` on a non-passing board is downgraded to `repair`).
+> Wired through `cec_router.py --judge local` (+ `CEC_VLLM_URL` on the routing container). Validated:
+> `/v1/models` serves `cec-judge`; a gate-passing finishing-residual candidate → the judge returns
+> `accept` with a correct rationale; a full `eps-8pin` route ran with the local judge in the loop
+> (`[judge:local] all -> repair: DRC count is 4 but require_drc_zero=True` — a correct verdict, tier
+> `local:qwen3-coder-30b-awq`).
+> **ON-DEMAND GATE (the server is profile-gated, never auto-started — it holds ~0.85× VRAM while up):**
+> `cec_judge_local.ensure_up()` lazily starts the service + polls ready + warms the grammar;
+> `shutdown()` frees the VRAM. `scripts/route-local.sh <board> [args]` is the one-command gated path
+> (spin up → warm → route → stop), `python3 scripts/cec_judge_local.py up|down|warm|status` the manual
+> control. Verified: a gated route spun vLLM up on demand (ready 43 s from cache, grammar warm 1 s),
+> judged in-loop, then stopped → VRAM back to 2.5 GB. The cold first-compile is absorbed by the
+> warm-up (then ~2 s/call); the manager is fail-safe (any error → `default_manager`). **Still hybrid:**
+> only the manager tier is local; planner/escalator structural re-plans stay cloud-Opus (below).
+
 Best GPU use; unlocks routing depth. The deterministic `default_manager` never accepts
 non-perfect DRC, which is why `route_swarm` is pinned to `max_iters=1`.
 
