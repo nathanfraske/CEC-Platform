@@ -295,6 +295,15 @@ def main(argv=None):
     rc.add_argument("--threads", type=int, default=1)
     rc.add_argument("--max-workers", type=int, default=0)
     rc.add_argument("--out", default=None)
+
+    ar = sub.add_parser("agent-route", help="run the budgeted agent_route ladder (optionally with the "
+                                            "LOCAL swarm Haiku tier)")
+    ar.add_argument("--board", default="eps-8pin")
+    ar.add_argument("--seeds", default="0,1")
+    ar.add_argument("--budget", type=int, default=2)
+    ar.add_argument("--panel", type=int, default=3)
+    ar.add_argument("--swarm", action="store_true",
+                    help="tier-0 = the local-LLM swarm (else the deterministic det_haiku)")
     a = ap.parse_args(argv)
 
     if a.cmd == "request-candidates":
@@ -324,6 +333,30 @@ def main(argv=None):
             os.makedirs(a.out, exist_ok=True)
             with open(os.path.join(a.out, "candidates.json"), "w") as fh:
                 fh.write(blob)
+
+    elif a.cmd == "agent-route":
+        import glob
+        import contextlib
+        bp = a.board if a.board.endswith(".kicad_pcb") else None
+        if not bp:
+            cands = [p for p in glob.glob(f"{ROOT}/modules/{a.board}/*.kicad_pcb")
+                     if "-routed" not in p and ".merged." not in p]
+            bp = sorted(cands)[0]
+        tiers = list(DEFAULT_TIERS)
+        if a.swarm:
+            import cec_judge_local
+            if cec_judge_local.available():
+                tiers = [cec_judge_local.make_dispatch_swarm_tier(panel=a.panel, verbose=True), det_escalate]
+                print(f"[dispatch] tier-0 = LOCAL SWARM (panel={a.panel}, {cec_judge_local.MODEL})",
+                      file=sys.stderr)
+            else:
+                print("[dispatch] --swarm requested but vLLM down -> deterministic tiers", file=sys.stderr)
+        # the FR/pcbnew compute + the loop's progress print to stderr so stdout stays clean JSON
+        with contextlib.redirect_stdout(sys.stderr):
+            best, log = agent_route(bp, tiers=tiers, budget=a.budget,
+                                    seeds=tuple(int(s) for s in a.seeds.split(",")))
+        print(json.dumps({"accepted": (asdict(best) if best else None), "log": log},
+                         indent=2, default=str))
     return 0
 
 

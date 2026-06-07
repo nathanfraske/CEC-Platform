@@ -108,6 +108,20 @@ vLLM/PyTorch/openEMS.
 > boards SERIALLY — running multiple `cec_router` processes at once oversubscribes the shared Xvfb /
 > FR JVMs and starves some routes to 0 candidates (the concurrent *judge* swarm is the `swarm_judge`
 > path, not parallel routes).
+>
+> **TRUE AGENT SWARM -- manager + worker + dispatch tiers as concurrent voted panels (2026-06-07).**
+> The control plane is now a swarm of local agents, not a single judge: `make_manager_swarm` (the
+> `cec_router` manager slot) fires N concurrent agents each with a DISTINCT LENS (safety / finishing /
+> progress) and VOTES conservatively (accept needs a true majority AND a gate-passing candidate);
+> `make_worker_swarm` (the worker slot) fires N concurrent agents that propose repair effort,
+> aggregated to a bounded consensus; `make_dispatch_swarm_tier` is the parallel "Haiku swarm" rung for
+> `cec_dispatch.agent_route`. All fail-safe (-> the deterministic policy). Wired via
+> `cec_router.py --judge local --swarm N` and `cec_dispatch.py agent-route --swarm`. Full-gamut run on
+> eps (panel 3): the manager panel voted `{repair:3}` while the worker swarm escalated effort
+> (`passes 8->15->25`), and at it3 the **progress lens diverged to `escalate`** (`{repair:2,escalate:1}`)
+> -- catching the stall a single judge would miss, before Kmax did; the dispatch ladder ran the same
+> way (`request_more` x2 then a budget-lens `escalate` divergence). `cec_synth_pipeline.route_swarm`
+> passes `manager=`/`worker=` straight through, so the same swarm drops into the synthesis pipeline.
 
 Best GPU use; unlocks routing depth. The deterministic `default_manager` never accepts
 non-perfect DRC, which is why `route_swarm` is pinned to `max_iters=1`.

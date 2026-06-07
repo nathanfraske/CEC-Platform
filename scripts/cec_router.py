@@ -602,6 +602,9 @@ def main(argv=None):
     ap.add_argument("--judge", choices=("default", "local"), default="default",
                     help="manager judge tier: 'default' = deterministic; 'local' = the local vLLM "
                          "judge (cec_judge_local; falls back to deterministic if the server is down)")
+    ap.add_argument("--swarm", type=int, default=0,
+                    help="with --judge local: panel/fanout size (>0) -> the MANAGER becomes a voted "
+                         "diverse-lens agent panel and the WORKER a consensus repair swarm")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args(argv)
 
@@ -610,16 +613,22 @@ def main(argv=None):
     spec, name = board_spec(a.board, out_dir, seeds=seeds, passes=a.passes, opt_time=a.opt_time,
                             threads=a.threads, kmax=a.kmax, max_iters=a.max_iters,
                             max_workers=(a.max_workers or None), opt_spread=a.opt_spread)
-    manager = None
+    manager = worker = None
     if a.judge == "local":
         import cec_judge_local
         if cec_judge_local.available():
-            manager = cec_judge_local.make_manager(spec, verbose=not a.quiet)
-            print(f"[route] manager judge tier: LOCAL vLLM ({cec_judge_local.VLLM_URL}, {cec_judge_local.MODEL})")
+            if a.swarm > 0:
+                manager = cec_judge_local.make_manager_swarm(spec, panel=a.swarm, verbose=not a.quiet)
+                worker = cec_judge_local.make_worker_swarm(spec, fanout=a.swarm, verbose=not a.quiet)
+                print(f"[route] judge tier: LOCAL SWARM (manager panel + worker swarm, size={a.swarm}; "
+                      f"{cec_judge_local.MODEL})")
+            else:
+                manager = cec_judge_local.make_manager(spec, verbose=not a.quiet)
+                print(f"[route] manager judge tier: LOCAL vLLM ({cec_judge_local.VLLM_URL}, {cec_judge_local.MODEL})")
         else:
             print(f"[route] --judge local requested but vLLM unreachable at {cec_judge_local.VLLM_URL} "
-                  f"-> using the deterministic manager")
-    final, log = route(spec.board, spec, manager=manager, verbose=not a.quiet)
+                  f"-> using the deterministic manager/worker")
+    final, log = route(spec.board, spec, manager=manager, worker=worker, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
     if final and a.render:
         png = render(final, os.path.join(out_dir, f"{name}-routed-top.png"))

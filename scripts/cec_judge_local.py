@@ -28,6 +28,8 @@ import time
 import shutil
 import subprocess
 import urllib.request
+from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 
 # cec_router / cec_score are imported LAZILY (inside make_manager/_context) -- they pull pcbnew, which
 # is absent on the host. Keeping the module top pcbnew-free lets the LIFECYCLE + HTTP run on the host
@@ -86,19 +88,26 @@ def available(timeout=3):
         return False
 
 
-def chat_verdict(system, user, *, timeout=None):
-    """One guided-JSON judge call -> the parsed verdict dict. Raises on any transport/parse error
-    (the caller's make_manager() wraps this and falls back to the deterministic policy)."""
+def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=400, timeout=None):
+    """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
+    error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
+    diverse reply for swarm replicas."""
     payload = {
         "model": MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
-        "temperature": 0,
-        "max_tokens": 400,
+        "temperature": temperature,
+        "max_tokens": max_tokens,
         "response_format": {"type": "json_schema",
-                            "json_schema": {"name": "verdict", "schema": VERDICT_SCHEMA, "strict": True}},
+                            "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
     resp = _post("/chat/completions", payload, timeout=timeout)
     return json.loads(resp["choices"][0]["message"]["content"])
+
+
+def chat_verdict(system, user, *, timeout=None, temperature=0.0):
+    """One guided-JSON manager-verdict call -> {action, reason}."""
+    return _chat_json(system, user, VERDICT_SCHEMA, name="verdict",
+                      temperature=temperature, timeout=timeout)
 
 
 def _context(region, scored, history, spec):
@@ -165,6 +174,213 @@ def swarm_judge(contexts, *, max_workers=8, timeout=None):
 
     with ThreadPoolExecutor(max_workers=max_workers) as ex:
         return list(ex.map(_one, contexts))
+
+
+# ===========================================================================
+#  TRUE AGENT SWARM -- the manager + worker + dispatch tiers as CONCURRENT, PERSPECTIVE-DIVERSE,
+#  VOTED panels of local agents (the batched vLLM serves them in parallel). Wires into
+#  cec_router.route(manager=, worker=) and cec_dispatch.agent_route(tiers=).
+# ===========================================================================
+# Each manager decision is judged by a PANEL of agents, each with a DISTINCT LENS, then voted --
+# diversity catches failure modes a single judge misses, and the vote is conservative (an `accept`
+# needs a true majority AND a gate-passing candidate; disagreement falls to the safer action).
+MANAGER_LENSES = [
+    ("safety", "You are the SAFETY lens of a routing MANAGER panel. Judge ONLY the hard safety gates: "
+               "choose `accept` IFF the best candidate has gates_pass=true (kelvin_ok AND diffpair_ok). "
+               "If either is false (the shunt-sense pair or USB diff pair is not fully routed), choose "
+               "`repair`. Never weigh cosmetics. Reply JSON {action,reason} (reason < 25 words)."),
+    ("finishing", "You are the FINISHING lens of a routing MANAGER panel. Assume the hard gates are "
+                  "judged elsewhere. Decide whether the residual drc/unconnected is FINISHING/cosmetic "
+                  "(a decorative LOGO touching only GND, the RJ-45 shield tabs SH1/SH2, or a "
+                  "same-footprint false short) versus a REAL fault. If gates_pass=true and the residual "
+                  "is finishing-only, `accept`; if a real fault remains, `repair`. JSON {action,reason}."),
+    ("progress", "You are the PROGRESS lens of a routing MANAGER panel. Judge the trajectory across "
+                 "iterations: if drc/unconnected are improving, `repair` (keep going); if they have "
+                 "STALLED for two or more iterations with no improvement, `escalate` (structural re-plan); "
+                 "if the best candidate already passes the gates cleanly, `accept`. JSON {action,reason}."),
+]
+
+
+def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_word="escalate",
+          repair_word="repair"):
+    """Conservative tally of (lens, action, reason) votes -> (action, tally, picks_str). `accept_ok`
+    is whether an accept is even allowed (best candidate gate-passing). Accept needs a strict majority
+    AND accept_ok; else escalate if it has >= half (and is the plurality over repair); else repair."""
+    valid = []
+    for (ln, a, r) in votes:
+        if a == accept_word and not accept_ok:
+            a = repair_word
+        if a in valid_actions:
+            valid.append((ln, a, r))
+    if not valid:
+        return None, Counter(), ""
+    tally = Counter(a for (_, a, _) in valid)
+    n = len(valid)
+    picks = "; ".join(f"{ln}:{a}" for (ln, a, _) in valid)
+    if accept_ok and tally.get(accept_word, 0) > n / 2:
+        return accept_word, tally, picks
+    if tally.get(escalate_word, 0) >= n / 2 and tally.get(escalate_word, 0) >= tally.get(repair_word, 0):
+        return escalate_word, tally, picks
+    return repair_word, tally, picks
+
+
+def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None):
+    """Fire one judge per lens CONCURRENTLY at the batched server. `user_or_fn` is a user string (same
+    for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
+    temps = temps or {}
+
+    def one(idx_lens):
+        idx, (lname, lsys) = idx_lens
+        user = user_or_fn(lname) if callable(user_or_fn) else user_or_fn
+        try:
+            return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0)))
+        except Exception as e:
+            return (lname, {"error": type(e).__name__})
+
+    with ThreadPoolExecutor(max_workers=max_workers or len(lenses)) as ex:
+        return list(ex.map(one, list(enumerate(lenses))))
+
+
+def make_manager_swarm(spec, *, panel=3, verbose=False):
+    """A TRUE manager SWARM for cec_router.route's manager= slot: `panel` concurrent local agents,
+    each a distinct lens (safety / finishing / progress, cycled with temperature for replicas), voting
+    on accept/repair/escalate. Fail-safe -> default_manager; cannot accept a non-gate-passing board."""
+    import cec_router
+    lenses = [MANAGER_LENSES[i % len(MANAGER_LENSES)] for i in range(max(1, panel))]
+    temps = {i: (0.0 if i < len(MANAGER_LENSES) else 0.4) for i in range(len(lenses))}
+
+    def manager(region, scored, history):
+        try:
+            user = _context(region, scored, history, spec)
+            best = scored[0][1] if scored else None
+            results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps)
+            votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
+            action, tally, picks = _vote(votes, ("accept", "repair", "escalate"),
+                                         accept_ok=bool(best is not None and best.gates_pass))
+            if action is None:
+                raise RuntimeError("no valid panel vote")
+            if verbose:
+                print(f"[swarm-mgr] {getattr(region,'name','all')} panel={dict(tally)} -> {action}")
+            return cec_router.Verdict(action, f"panel {dict(tally)} -> {action} | {picks}"[:240],
+                                      tier=f"local-swarm-mgr({sum(tally.values())})")
+        except Exception as e:
+            fb = cec_router.default_manager(region, scored, history, spec)
+            fb.tier = (fb.tier or "") + f" (swarm-fallback:{type(e).__name__})"
+            return fb
+
+    return manager
+
+
+WORKER_SYS = (
+    "You are a WORKER in a routing REPAIR swarm. The manager asked to repair a route whose hard gate "
+    "failed (unrouted ratlines). Given the current Freerouting effort and the failure reason, propose "
+    "NEW effort to clear it: more routing passes and/or more optimization seconds. Be decisive but "
+    "bounded: passes 1..60, opt_time 1..120, and at least a real increase over current. Reply JSON "
+    "{passes:int, opt_time:int, reason}."
+)
+WORKER_SCHEMA = {
+    "type": "object",
+    "properties": {"passes": {"type": "integer"}, "opt_time": {"type": "integer"},
+                   "reason": {"type": "string"}},
+    "required": ["passes", "opt_time", "reason"], "additionalProperties": False,
+}
+
+
+def make_worker_swarm(spec, *, fanout=3, verbose=False):
+    """A TRUE worker SWARM for cec_router.route's worker= slot: `fanout` concurrent agents each propose
+    a repair effort (passes/opt_time), aggregated to a CONSENSUS (mean, bounded, > current). Fail-safe
+    -> default_worker."""
+    import cec_router
+
+    def worker(region, verdict, state, history):
+        cur_p, cur_o = int(state.fr.get("passes", 10)), int(state.fr.get("opt_time", 30))
+        try:
+            user = json.dumps({"current_passes": cur_p, "current_opt_time": cur_o,
+                               "gate_failure_reason": str(verdict.reason)[:200],
+                               "iteration": len(history) + 1})
+
+            def one(i):
+                try:
+                    r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort",
+                                   temperature=(0.0 if i == 0 else 0.5))
+                    return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
+                except Exception:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=fanout) as ex:
+                props = [p for p in ex.map(one, range(fanout)) if p]
+            if not props:
+                raise RuntimeError("no worker proposal")
+            P = max(cur_p + 1, min(60, round(sum(p for p, _ in props) / len(props))))
+            O = max(cur_o + 1, min(120, round(sum(o for _, o in props) / len(props))))
+            if verbose:
+                print(f"[swarm-wrk] {len(props)} proposals -> passes={P} opt={O}")
+            return cec_router.Verdict("repair", f"swarm worker({len(props)}) consensus passes={P} opt={O}",
+                                      tier=f"local-swarm-wrk({len(props)})",
+                                      edit={"type": "fr_params", "set": {"passes": P, "opt_time": O}})
+        except Exception as e:
+            fb = cec_router.default_worker(region, verdict, state, history, spec)
+            fb.tier = (fb.tier or "") + f" (swarm-fallback:{type(e).__name__})"
+            return fb
+
+    return worker
+
+
+DISPATCH_LENSES = [
+    ("safety", "You are the SAFETY lens of a candidate-judge SWARM tier. `accept` IFF the best candidate "
+               "has gates_pass=true (kelvin_ok AND diffpair_ok); else `request_more` (route harder). "
+               "Reply JSON {action,reason}."),
+    ("finishing", "You are the FINISHING lens. If gates_pass=true and the residual drc is finishing-only "
+                  "per the gate_note (LOGO-on-GND, shield tabs, same-footprint false short), `accept`; if "
+                  "a real fault remains, `request_more`. JSON {action,reason}."),
+    ("budget", "You are the BUDGET lens. If budget_left is 0 and no candidate passes the gates, "
+               "`escalate` (defer up a tier); if a candidate passes, `accept`; else `request_more`. "
+               "JSON {action,reason}."),
+]
+DISPATCH_SCHEMA = {
+    "type": "object",
+    "properties": {"action": {"type": "string", "enum": ["accept", "request_more", "escalate"]},
+                   "reason": {"type": "string"}},
+    "required": ["action", "reason"], "additionalProperties": False,
+}
+
+
+def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=False):
+    """A cec_dispatch decide(JudgeContext)->Verdict SWARM tier (the parallel 'Haiku swarm' rung of
+    agent_route): `panel` concurrent diverse-lens agents vote accept/request_more/escalate. Fail-safe
+    -> cec_dispatch.det_haiku."""
+    import cec_dispatch
+    lenses = [DISPATCH_LENSES[i % len(DISPATCH_LENSES)] for i in range(max(1, panel))]
+    temps = {i: (0.0 if i < len(DISPATCH_LENSES) else 0.4) for i in range(len(lenses))}
+
+    def decide(ctx):
+        try:
+            cands = ctx.candidates or []
+            best = cands[0] if cands else None
+            user = json.dumps({"candidates_best_first": cands[:4], "budget_left": ctx.budget_left,
+                               "gate_note": ctx.gate_note}, default=str)
+            results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps)
+            votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
+            action, tally, picks = _vote(votes, ("accept", "request_more", "escalate"),
+                                         accept_ok=bool(best and best.get("gates_pass")),
+                                         repair_word="request_more")
+            if action is None:
+                return cec_dispatch.det_haiku(ctx)
+            if verbose:
+                print(f"[swarm-tier:{tier_name}] panel={dict(tally)} -> {action}")
+            if action == "accept":
+                return cec_dispatch.Verdict("accept", seed=(best or {}).get("seed"),
+                                            reason=f"swarm {dict(tally)} | {picks}"[:200], tier=tier_name)
+            if action == "escalate":
+                return cec_dispatch.Verdict("escalate", reason=f"swarm {dict(tally)}"[:200], tier=tier_name)
+            opt = ctx.history[-1]["params"]["opt_time"] if ctx.history else 12
+            return cec_dispatch.Verdict("request_more", params={"opt_time": int(opt * 1.6)},
+                                        reason=f"swarm {dict(tally)} | {picks}"[:200], tier=tier_name)
+        except Exception:
+            return cec_dispatch.det_haiku(ctx)
+
+    decide.tier_name = tier_name
+    return decide
 
 
 # ===========================================================================
