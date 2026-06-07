@@ -187,6 +187,96 @@ def _ripup_signal_nets(board, refs):
     return sorted(nets), removed
 
 
+def _arange(a, b, step):
+    out, x = [], a
+    while x <= b:
+        out.append(x)
+        x += step
+    return out
+
+
+def _box_gap(a, b):
+    """Edge-to-edge gap (mm) between two AABBs (l,t,r,b); 0 when they overlap or touch."""
+    dx = max(b[0] - a[2], a[0] - b[2], 0.0)
+    dy = max(b[1] - a[3], a[1] - b[3], 0.0)
+    return math.hypot(dx, dy)
+
+
+def _scale_logo(logo, factor):
+    """Shrink the decorative logo's copper graphics about its origin (the logo is resizable).
+    Best-effort -- a failure just leaves the logo full-size."""
+    o = logo.GetPosition()
+    for gi in list(logo.GraphicalItems()):
+        try:
+            ps = gi.GetPolyShape()
+        except Exception:
+            ps = None
+        if ps is None:
+            continue
+        try:
+            for oi in range(ps.OutlineCount()):
+                ch = ps.Outline(oi)
+                for pi in range(ch.PointCount()):
+                    p = ch.CPoint(pi)
+                    ch.SetPoint(pi, pcbnew.VECTOR2I(o.x + int((p.x - o.x) * factor),
+                                                    o.y + int((p.y - o.y) * factor)))
+            gi.SetPolyShape(ps)
+        except Exception:
+            pass
+
+
+def relocate_logo_to_clear(board_path, margin=0.6, save=True):
+    """The decorative LOGO is movable/resizable, so the clean fix for a logo<->routing conflict is to
+    move it OUT of the traffic: relocate it to the clearest open board region and return an FR keepout
+    rect over its new location (so the router still never crosses it). Returns the keepout dict, or None."""
+    board = pcbnew.LoadBoard(board_path)
+    logo = next((fp for fp in board.GetFootprints()
+                 if fp.GetReference().upper().startswith("LOGO")), None)
+    if not logo:
+        return None
+    bb = logo.GetBoundingBox()
+    w, h = _mm(bb.GetWidth()), _mm(bb.GetHeight())
+    eb = board.GetBoardEdgesBoundingBox()
+    l, t, r, b = _mm(eb.GetLeft()), _mm(eb.GetTop()), _mm(eb.GetRight()), _mm(eb.GetBottom())
+    obxs = []                                              # other footprints' bboxes (mm)
+    for fp in board.GetFootprints():
+        if fp is logo or not list(fp.Pads()):
+            continue
+        fb = fp.GetBoundingBox()
+        obxs.append((_mm(fb.GetLeft()), _mm(fb.GetTop()), _mm(fb.GetRight()), _mm(fb.GetBottom())))
+
+    def _clearance(cx, cy, ww, hh):
+        box = (cx - ww / 2, cy - hh / 2, cx + ww / 2, cy + hh / 2)
+        return min((_box_gap(box, o) for o in obxs), default=1e3)
+
+    # the logo is RESIZABLE: try the full size first, shrink only if nothing fits clear.
+    best, best_score, scale = None, -1.0, 1.0
+    for s in (1.0, 0.75, 0.55, 0.4):
+        ww, hh = w * s, h * s
+        bb_, bs_ = None, -1.0
+        for cx in _arange(l + ww / 2 + margin, r - ww / 2 - margin, 1.5):
+            for cy in _arange(t + hh / 2 + margin, b - hh / 2 - margin, 1.5):
+                g = _clearance(cx, cy, ww, hh)
+                if g > bs_:
+                    bs_, bb_ = g, (cx, cy)
+        if bb_ and bs_ >= margin:                          # a non-overlapping spot at this size
+            best, best_score, scale = bb_, bs_, s
+            break
+    if not best:
+        return None                                        # nowhere clear even shrunk -> leave it
+    if scale < 1.0:
+        _scale_logo(logo, scale)
+        w, h = w * scale, h * scale
+    # SetPosition sets the footprint ORIGIN; offset so the logo's bbox CENTRE lands at `best`
+    cur, cen = logo.GetPosition(), bb.GetCenter()
+    logo.SetPosition(pcbnew.VECTOR2I(_nm(best[0]) + (cur.x - cen.x), _nm(best[1]) + (cur.y - cen.y)))
+    if save:
+        board.Save(board_path)
+    return {"name": "logo_keepout", "layers": ("F.Cu", "B.Cu"),
+            "x0": best[0] - w / 2 - margin, "y0": best[1] - h / 2 - margin,
+            "x1": best[0] + w / 2 + margin, "y1": best[1] + h / 2 + margin}
+
+
 def apply_directive(board, d):
     t = d.get("type") or d.get("directive")
     try:

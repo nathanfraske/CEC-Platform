@@ -48,15 +48,19 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         placed = os.path.join(out, "placed_%d.kicad_pcb" % it)
         _, rlog = cec_place.refine(place, placed, ctx)
         moves = [a for h in rlog for a in h.get("applied", [])]
-        shutil.copyfile(placed, place)                      # carry the placement forward
+        # relocate the movable decorative LOGO to clear space (placement-side logo fix)
+        logo_ko = cec_place.relocate_logo_to_clear(placed)
+        shutil.copyfile(placed, place)                      # carry the placement (+ logo move) forward
 
-        # 2. ROUTE -- Freerouting + additive high-current pours
+        # 2. ROUTE -- Freerouting (logo keepout hint + additive high-current pours)
         routed_path = os.path.join(out, "routed_%d.kicad_pcb" % it)
         try:
             pours = cec_fr.derive_power_pours(placed)
         except Exception:
             pours = ()
-        cand = cec_fr.route_once(placed, routed_path, passes=passes, opt_time=opt_time, power_pours=pours)
+        hints = [logo_ko] if logo_ko else []
+        cand = cec_fr.route_once(placed, routed_path, passes=passes, opt_time=opt_time,
+                                 hints=hints, power_pours=pours)
         ok = bool(getattr(cand, "ok", False))
 
         # 3. CHECK -- full registry on the routed board (fresh subprocess)
@@ -66,7 +70,7 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         movable = [d for d in directives if (d.get("type") or d.get("directive")) in cec_place.MOVABLE]
 
         entry = {"iter": it, "placement_moves": [m.get("op") + ":" + str(m.get("a") or m.get("target")) for m in moves],
-                 "pours": len(pours), "routed_ok": ok,
+                 "logo_moved": bool(logo_ko), "pours": len(pours), "routed_ok": ok,
                  "route_err": (str(getattr(cand, "err", ""))[:100] if not ok else None),
                  "checked": os.path.basename(target), "fails": sorted(fails),
                  "movable_left": len(movable)}

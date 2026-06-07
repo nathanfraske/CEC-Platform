@@ -536,7 +536,11 @@ def bake_hints(
             z.SetIsRuleArea(True)
             z.SetDoNotAllowTracks(True)
             z.SetDoNotAllowVias(True)
-            z.SetDoNotAllowCopperPour(True)
+            # KiCad 9/10 renamed SetDoNotAllowCopperPour -> SetDoNotAllowZoneFills
+            if hasattr(z, "SetDoNotAllowZoneFills"):
+                z.SetDoNotAllowZoneFills(True)
+            else:
+                z.SetDoNotAllowCopperPour(True)
 
             ls = pcbnew.LSET()
             for lname in layers:
