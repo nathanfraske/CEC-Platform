@@ -263,9 +263,18 @@ def main(argv=None):
                                                  "threads": a.threads},
                                      seeds=tuple(int(s) for s in a.seeds.split(",")),
                                      max_workers=(a.max_workers or None), out_dir=a.out)
-        # emit the metrics a tier agent judges (drop the board path's noise to a basename)
+        # emit the metrics a tier agent judges (drop the board path's noise to a basename).
+        # The MARKERS let the orchestrator pull the JSON cleanly out of a GitHub Actions job log
+        # (where stdout+stderr interleave) when this runs via synth.yml on the self-hosted runner.
         payload = [{**asdict(c), "board": os.path.basename(c.board)} for c in res]
-        print(json.dumps(payload, indent=2))
+        blob = json.dumps(payload, indent=2)
+        print("===CEC_CANDIDATES_JSON_BEGIN===")
+        print(blob)
+        print("===CEC_CANDIDATES_JSON_END===")
+        if a.out:                                        # also persist for an artifact upload
+            os.makedirs(a.out, exist_ok=True)
+            with open(os.path.join(a.out, "candidates.json"), "w") as fh:
+                fh.write(blob)
     return 0
 
 

@@ -14,13 +14,15 @@
 #   .\scripts\synth.ps1 -Mode sweep -Board eps-8pin -Sizes auto -Seeds 0,1,2,3 -MaxWorkers 0
 [CmdletBinding()]
 param(
-  [ValidateSet("run", "sweep")][string]$Mode = "run",
+  [ValidateSet("run", "sweep", "candidates")][string]$Mode = "run",
   [string]$Board       = "eps-8pin",
   [switch]$Route,                                   # run mode: route via the swarm before physics/cascade
   [string]$RoutedBoard = "",                        # run mode: a routed .kicad_pcb to run on
   [string]$Sizes       = "auto",                    # sweep mode: 'auto' or 'WxH,WxH'
   [string]$Seeds       = "0,1,2,3",
   [string]$Strategies  = "dataflow,thermal_separated,compact",
+  [int]   $Passes      = 8,                          # candidates mode: Freerouting passes
+  [int]   $OptTime     = 12,                         # candidates mode: Freerouting opt seconds
   [int]   $MaxWorkers  = 0,
   [string]$Out         = ""
 )
@@ -85,23 +87,32 @@ function Ensure-Java {
     }
   }
 }
-if ($Route -or $Mode -eq "sweep") { Ensure-Java }   # java only needed when the swarm/feasibility routes
+# java needed when the swarm/feasibility routes -- sweep, run --route, OR candidates (FR)
+if ($Route -or $Mode -eq "sweep" -or $Mode -eq "candidates") { Ensure-Java }
 
 & $py -c "import pcbnew; print('pcbnew', pcbnew.GetBuildVersion())"
 if ($LASTEXITCODE -ne 0) { throw "pcbnew failed to import with $py" }
 
-$script = Join-Path $repo "scripts\cec_synth_pipeline.py"
-if ($Mode -eq "sweep") {
-  $cliArgs = @($script, "--board", $Board, "--sweep", $Sizes, "--seeds", $Seeds,
-               "--strategies", $Strategies, "--max-workers", $MaxWorkers)
+if ($Mode -eq "candidates") {
+  # the AGENTIC-LOOP tool: run cec_dispatch.request_candidates on the runner; the metrics JSON
+  # lands between the ===CEC_CANDIDATES_JSON_BEGIN/END=== markers in the job log (+ an artifact),
+  # which the cloud orchestrator pulls back to judge.
+  if (-not $Out) { $Out = "build/candidates/$Board" }
+  $cliArgs = @((Join-Path $repo "scripts\cec_dispatch.py"), "request-candidates",
+               "--board", $Board, "--seeds", $Seeds, "--passes", $Passes, "--opt-time", $OptTime,
+               "--max-workers", $MaxWorkers, "--out", $Out)
+} elseif ($Mode -eq "sweep") {
+  $script = Join-Path $repo "scripts\cec_synth_pipeline.py"
   if (-not $Out) { $Out = "build/synth/$Board" }
+  $cliArgs = @($script, "--board", $Board, "--sweep", $Sizes, "--seeds", $Seeds,
+               "--strategies", $Strategies, "--max-workers", $MaxWorkers, "--out", $Out)
 } else {
-  $cliArgs = @($script, "--board", $Board, "--run")
+  $script = Join-Path $repo "scripts\cec_synth_pipeline.py"
+  if (-not $Out) { $Out = "build/release/$Board" }
+  $cliArgs = @($script, "--board", $Board, "--run", "--out", $Out)
   if ($RoutedBoard) { $cliArgs += @("--routed-board", $RoutedBoard) }
   if ($Route)       { $cliArgs += "--route" }
-  if (-not $Out) { $Out = "build/release/$Board" }
 }
-$cliArgs += @("--out", $Out)
 
 & $py @cliArgs
 exit $LASTEXITCODE
