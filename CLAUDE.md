@@ -655,6 +655,27 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- placer BEATS/MATCHES the bar, DRC-verified (2026-06-07). The overlap-vs-size
+  sweep (per user: candidates are overlap-vs-SIZE, not min-overlap at one size) exposed that the real
+  blocker was ANCHOR placement, not macros: two ~21mm cable connectors don't fit a 37mm board unless
+  they OVERHANG (the user's exact ask). Implemented: seed_anchors() now seats connectors by their PAD
+  BAND at the edge with the body/courtyard OFF-board (overhang), and packs multiple connectors on an
+  edge by COURTYARD extent (not pad extent -- that left bodies overlapping). + place_mechanical mounts/
+  fiducials nudged to free slots; + anneal_macros() SA on the macro positions (compaction + the
+  diversity engine for best-of-N). RECURRING DRC-MISMATCH ROOT-CAUSED at last (the model kept under-
+  counting vs kicad-cli): (a) the placer DROPPED the ESP antenna keepout but materialize embeds the
+  FULL footprint -> now respects the keepout for DRC-consistency (the drop-keepout area win needs a
+  trimmed-courtyard materialize, a follow-up); (b) the M3 mount courtyard PARSES DEGENERATE in
+  cec_pcb (half 1.73x0.0) -> hardcoded a 3mm M3 keepout in _half_extent/_courtyard_info; (c)
+  derive_passive_spec wrongly owned decoupling caps to BUTTONS (SW*) -> excluded buttons from owners
+  (was the 2 SW1<->C21/C30 pad shorts). RESULT, REAL kicad-cli DRC (count now MATCHES DRC): 96x37 =
+  courtyard 0 / short 0 -- FULLY CLEAN, matching the gen-eps-condensed bar, fully automated from the
+  netlist + Stage-1 asks (overhang/mounts/fiducials/antenna); 88x36 (0.89x bar) = 1 courtyard, 0 short
+  (essentially below the bar). LESSON RE-LEARNED + acted on: a placement's residual MUST be the real
+  DRC (or pcbnew courtyards), never a self-reported bbox count -- root-caused 3 model-vs-DRC gaps this
+  pass. STILL OPEN: push 88x36 to 0 (drop-keepout trimmed-materialize for the real area win + more
+  sweep diversity); the considerations scoring (Kelvin/thermal/corridor/channels) as ranking terms;
+  the huge runner sweep wired to synth.yml; fiducials not yet materialized; size oracle + FEA ahead.
 - SYNTHESIS PIPELINE -- MACRO-BLOCK placer (auto_cluster) + generalized asks + perf cache (2026-06-07).
   The barycentric placer was 1.8x the area of my gen-eps-condensed board (the real bar -- that board
   is ALSO Opus-placed, not hand). Root cause: I drifted from the spec (place_with_consent =

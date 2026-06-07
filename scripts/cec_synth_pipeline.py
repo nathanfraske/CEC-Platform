@@ -1200,6 +1200,8 @@ def _half_extent(fp, *, drop_antenna=False):
     """(hw, hh) courtyard half-extent of a footprint. When *drop_antenna* and the part is an
     RF module (ESP32 / RF_Module), trim the PCB-antenna keepout lobe to the pad band -- the
     Stage-1 'wireless not populated' answer makes the ESP courtyard materially smaller."""
+    if "mountinghole" in fp.lower():
+        return (3.0, 3.0)                            # M3 keepout (the footprint courtyard parses degenerate)
     import cec_pcb
     is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
     x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, drop_keepout=(drop_antenna and is_rf))
@@ -1231,6 +1233,8 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     badly mismodels the real courtyard -> phantom 'legal' placements that DRC then flags. This
     uses cec_pcb.courtyard_bbox(fp, 0, 0, rot) = the real courtyard bbox around the origin at this
     rotation, exactly what KiCad/DRC sees, so the legalizer's overlap test matches the board."""
+    if "mountinghole" in fp.lower():
+        return (0.0, 0.0, 3.0, 3.0)                  # M3 keepout (footprint courtyard parses degenerate)
     import cec_pcb
     is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
     try:
@@ -1352,45 +1356,76 @@ def place_mechanical(W, H, params):
     return pos, fp
 
 
-def seed_anchors(nl, W, H, halfext, pins, *, margin=1.5):
-    """Place anchors (connectors by edge role, mounts at corners). Honor user pins last
-    (a user-pinned part overrides its role placement). Returns {ref:(x,y,rot)}."""
+def _pad_band(fp, rot):
+    """((px_lo,px_hi),(py_lo,py_hi)): the global-relative x/y span of a footprint's PADS at
+    rotation *rot* (relative to the origin). Used to seat a connector by its pads at the board
+    edge while its body/courtyard overhangs off-board."""
+    import cec_pcb
+    pads = cec_pcb.local_pads(fp)
+    if not pads:
+        return ((0.0, 0.0), (0.0, 0.0))
+    xs, ys = [], []
+    for (lx, ly) in pads.values():
+        dx, dy = cec_pcb._rot(lx, ly, rot)
+        xs.append(dx); ys.append(dy)
+    return ((min(xs), max(xs)), (min(ys), max(ys)))
+
+
+def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8):
+    """Place connector anchors by edge role. With *overhang* != 'none' a connector is seated by its
+    PAD BAND at the edge so its body/courtyard hangs OFF-board (pads on-board) -- the area lever the
+    condensed boards use, and what lets two tall cable connectors fit a short board. 'none' seats the
+    whole courtyard on-board. Honors user pins last. Returns {ref:(x,y,rot)}."""
     roles = defaultdict(list)
-    for ref in halfext:
+    for ref in fp_of:
         r = _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint)
         if r:
             roles[r].append(ref)
-
     A = {}
+    oh = (overhang != "none")
 
-    def _spread(refs, edge):
-        """Lay refs evenly along an edge, mouth facing outward (rot by edge)."""
+    _ROT = {"top": 180.0, "bottom": 0.0, "right": 90.0, "left": 270.0}
+
+    def place_edge(refs, edge, gap=2.0):
+        """Pack the refs along *edge* by their real COURTYARD extent (+gap), centred, so the bodies
+        can't collide; the perpendicular (edge) coord uses the PAD BAND so an overhanging connector
+        seats its pads at the margin with the body off-board."""
         if not refs:
             return
-        n = len(refs)
-        for i, ref in enumerate(sorted(refs)):
-            hw, hh = halfext[ref]
-            frac = (i + 1) / (n + 1)
-            if edge == "top":
-                A[ref] = (frac * W, hh + margin, 180.0)
-            elif edge == "bottom":
-                A[ref] = (frac * W, H - hh - margin, 0.0)
-            elif edge == "right":
-                A[ref] = (W - hw - margin, frac * H, 90.0)
-            elif edge == "left":
-                A[ref] = (hw + margin, frac * H, 270.0)
+        rot = _ROT[edge]
+        horiz = edge in ("top", "bottom")
+        items = []
+        for ref in sorted(refs):
+            fp = fp_of.get(ref, "")
+            cx, cy, hw, hh = _courtyard_info(fp, rot)
+            (pxl, pxh), (pyl, pyh) = _pad_band(fp, rot)
+            along = (2 * hw) if horiz else (2 * hh)              # COURTYARD extent along the edge
+            coff = cx if horiz else cy                           # courtyard centre offset along edge
+            if horiz:                                            # perpendicular (edge) coord
+                if oh:
+                    perp = (pad_margin - pyl) if edge == "top" else (H - pad_margin - pyh)
+                else:
+                    perp = (margin + hh - cy) if edge == "top" else (H - margin - hh - cy)
+            else:
+                if oh:
+                    perp = (W - pad_margin - pxh) if edge == "right" else (pad_margin - pxl)
+                else:
+                    perp = (W - margin - hw - cx) if edge == "right" else (margin + hw - cx)
+            items.append((ref, along, coff, perp))
+        total = sum(it[1] for it in items) + gap * (len(items) - 1)
+        edge_len = W if horiz else H
+        cursor = max(margin, (edge_len - total) / 2.0)
+        for ref, along, coff, perp in items:
+            center = cursor + along / 2.0
+            cursor += along + gap
+            pa = center - coff                                   # origin so courtyard-centre at center
+            A[ref] = (pa, perp, rot) if horiz else (perp, pa, rot)
 
-    _spread(roles.get("power_in", []), "top")
-    _spread(roles.get("power_out", []), "bottom")
-    _spread(roles.get("host", []) + roles.get("usb", []), "right")
-    # mounts at the four corners (as many as exist)
-    corners = [(margin + 2, margin + 2), (W - margin - 2, margin + 2),
-               (margin + 2, H - margin - 2), (W - margin - 2, H - margin - 2)]
-    for ref, (cx, cy) in zip(sorted(roles.get("mount", [])), corners):
-        A[ref] = (cx, cy, 0.0)
-    # honor user pins (override)
-    for ref, xy in (pins or {}).items():
-        if isinstance(xy, (tuple, list)) and len(xy) >= 2 and ref in halfext:
+    place_edge(roles.get("power_in", []), "top")
+    place_edge(roles.get("power_out", []), "bottom")
+    place_edge(roles.get("host", []) + roles.get("usb", []), "right")
+    for ref, xy in (pins or {}).items():               # honor user pins (override)
+        if isinstance(xy, (tuple, list)) and len(xy) >= 2 and ref in fp_of:
             A[ref] = (float(xy[0]), float(xy[1]), float(xy[2]) if len(xy) > 2 else 0.0)
     return A
 
@@ -1534,6 +1569,63 @@ def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0):
     return n
 
 
+def _ov_area(A, B, clr=0.0):
+    """Overlap area of two bboxes (xmin,xmax,ymin,ymax), counting copper that comes within clr."""
+    dx = min(A[1], B[1]) - max(A[0], B[0]) + clr
+    dy = min(A[3], B[3]) - max(A[2], B[2]) + clr
+    return dx * dy if (dx > 0 and dy > 0) else 0.0
+
+
+def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, alpha=0.04,
+                  clr=0.4, t0=8.0, cool=0.9985):
+    """Simulated annealing on the MACRO-BLOCK positions (IC clusters + shunts; anchors fixed) to
+    ESCAPE the greedy legalizer's local minimum. Objective = courtyard overlap AREA (heavily) +
+    alpha*HPWL to connected parts (stay routable). Being STOCHASTIC, different *seed*s settle into
+    different minima -- THAT spread is what makes a huge best-of-N sweep pay off (a deterministic
+    placer just yields identical candidates). Mutates P in place; returns P."""
+    rnd = random.Random(seed)
+    mv = [r for r in movable if r in cyinfo and r in P]
+    placed = [r for r in P if r in cyinfo]
+    if not mv:
+        return P
+
+    def bbox(r):
+        cx, cy, hw, hh = cyinfo[r]
+        x, y = P[r][0], P[r][1]
+        return (x + cx - hw, x + cx + hw, y + cy - hh, y + cy + hh)
+
+    def cost(r):
+        ar = bbox(r)
+        c = 0.0
+        for o in placed:
+            if o != r:
+                c += _ov_area(ar, bbox(o), clr)
+        if nbrs:
+            for n in nbrs.get(r, ()):
+                if n in P:
+                    c += alpha * (abs(P[r][0] - P[n][0]) + abs(P[r][1] - P[n][1]))
+        return c
+
+    T = t0
+    for _ in range(iters):
+        r = rnd.choice(mv)
+        cx, cy, hw, hh = cyinfo[r]
+        ox, oy, orot = P[r]
+        before = cost(r)
+        if rnd.random() < 0.7:                        # local jitter
+            nx, ny = ox + rnd.uniform(-3, 3), oy + rnd.uniform(-3, 3)
+        else:                                         # occasional teleport (escape)
+            nx, ny = rnd.uniform(hw - cx, W - hw - cx), rnd.uniform(hh - cy, H - hh - cy)
+        nx = min(W - hw - cx, max(hw - cx, nx))
+        ny = min(H - hh - cy, max(hh - cy, ny))
+        P[r] = (nx, ny, orot)
+        d = cost(r) - before
+        if d > 0 and rnd.random() >= math.exp(-d / max(T, 1e-3)):
+            P[r] = (ox, oy, orot)                     # reject
+        T *= cool
+    return P
+
+
 def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataflow", seed=0,
                    only=None, cyinfo_override=None):
     """Relative-place parts by net connectivity (barycentric sweeps from the fixed anchors),
@@ -1621,12 +1713,18 @@ def synth_one(cfg_dict, W, H, strat, seed):
     import cec_pcb
     cfg = Config(**cfg_dict)
     nl = View(cfg).nl
-    drop_antenna = not cfg.params.get("respect_antenna_keepout", True)
+    # materialize() embeds the FULL ESP footprint (antenna keepout intact), so for DRC-CONSISTENCY
+    # the placer must respect the keepout too -- otherwise it packs into space the board doesn't have
+    # (the J_IN2<->U1 overlap). Honouring the Stage-1 'drop the keepout' area win needs a trimmed-
+    # courtyard materialize (a follow-up); until then we keep the keepout to stay honest with DRC.
+    drop_antenna = False
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
     anchors_roles, ics, shunts, passives = _classify(nl)
-    # 1. anchors: connectors (by role) + the generalized mechanical asks (mounts + fiducials)
-    anchors = seed_anchors(nl, W, H, halfext, cfg.pins)
+    # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
+    #    mechanical asks (mounts + fiducials)
+    anchors = seed_anchors(nl, W, H, fp_of, cfg.pins,
+                           overhang=cfg.params.get("connector_overhang", "none"))
     mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
     anchors.update(mech_pos)
     comps = dict(fp_of)
@@ -1636,11 +1734,16 @@ def synth_one(cfg_dict, W, H, strat, seed):
             halfext[r] = _half_extent(fpp)
         except Exception:
             halfext[r] = (1.6, 1.6)
+    # nudge the mounts/fiducials to the nearest free spot clear of the connectors (the default
+    # mount/fiducial coords don't know where the connectors landed)
+    anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
+                 for r in anchors if r in comps}
+    legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
     #    cluster as one macro and legalize with its full bbox, reserving the room.
-    spec = derive_passive_spec(nl, passives, ics)
+    spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
     by_owner = defaultdict(list)
     for pref, (own, pad) in spec.items():
         if own in ics:
@@ -1670,6 +1773,17 @@ def synth_one(cfg_dict, W, H, strat, seed):
     # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
     P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
                           strat=strat, seed=seed, only=ics + shunts, cyinfo_override=macro)
+    # 3b. ANNEAL the macros to escape the greedy minimum (compaction + the diversity engine), then
+    #     a final greedy snap from the annealed start. Full cyinfo = macro bbox for ICs/shunts,
+    #     real courtyard for the fixed anchors.
+    cyinfo_all = {}
+    for r in P:
+        if r in macro:
+            cyinfo_all[r] = macro[r]
+        elif r in comps:
+            cyinfo_all[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
+    anneal_macros(P, cyinfo_all, ics + shunts, W, H, nbrs=_adjacency(nl), seed=seed)
+    legalize_pack(P, [r for r in (ics + shunts) if r in P], cyinfo_all, W, H, clr=0.4)
     # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
     for unit, offs in cluster_offsets.items():
         if unit not in P:
