@@ -190,42 +190,80 @@ def apply_separate(board, a_ref, b_ref, min_mm, margin=0.8, step=0.4, max_move=1
             "pad_mm": "%.2f->%.2f" % (start, _pad_dist(a, b)), "note": stopped}
 
 
-def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5, step=0.4, max_move=20.0):
+def _adj_score(a, b):
+    """RANKING metric for an adjacency candidate (lower = better). Sum of the per-shared-net nearest
+    pad-pair distances between a and b. PREFERS power nets if any are shared (the decoupling-loop metric
+    -- keeps cap placement identical to the power-pad-only behaviour); otherwise uses ALL shared nets, so
+    a sense IC <-> shunt candidate is rewarded for bringing BOTH its sense pads (IN+/IN-, i.e. _HI AND _LO)
+    to the shunt at once -- the orientation that faces the input pads at the shunt inner edge wins."""
+    POWER = ("+3V3", "+5VSB", "VBUS", "VREF", "+3.3", "VDD", "VCC")
+    per_net = {}
+    for pa in a.Pads():
+        na = pa.GetNetname() or ""
+        if not na:
+            continue
+        for pb in b.Pads():
+            if pb.GetNetname() == na:
+                d = math.hypot(_mm(pa.GetPosition().x - pb.GetPosition().x),
+                               _mm(pa.GetPosition().y - pb.GetPosition().y))
+                per_net[na] = min(per_net.get(na, 1e9), d)
+    if not per_net:
+        return _pad_dist(a, b)
+    pw = {n: d for n, d in per_net.items() if any(p in n.upper() for p in POWER)}
+    return sum((pw or per_net).values())
+
+
+def apply_adjacent(board, a_ref, b_ref, max_mm, margin=0.5):
     a, b = _fp(board, a_ref), _fp(board, b_ref)
     if not a or not b:
         return None
-    # Place the cap CLEAR-but-CLOSE to its owner IC's POWER pad. A straight slide stalls when the pad is
-    # reachable only from one side; instead SEARCH a ring of candidate positions around the power pad and
-    # take the clear one with the shortest power-pad bypass loop (the cap owns nothing, so it moves alone;
-    # _overlaps includes the IC, so it can never land a pad on it).
+    # Place a CLEAR-but-CLOSE to b, searching POSITION *and* ROTATION. A straight slide stalls when the
+    # target is reachable from one side only, and a fixed orientation can't face a multi-pad IC's input
+    # pads at its neighbour. So: SEARCH a ring of candidate centres around b's relevant pad AND a set of
+    # candidate rotations, scoring each clear pose by _adj_score (the shared-net pad loop). For a
+    # decoupling cap this reduces to the old power-pad behaviour; for an INA238 <-> shunt it lets the part
+    # ROTATE so IN+/IN- (the _HI/_LO sense pads) both end up against the shunt inner edge (user's call --
+    # rotation is a valid test option). _overlaps includes b, so a can never land a pad on it.
     start, tgt = _owner_pad_dist(a, b)
     if start <= max_mm - margin:
-        return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": 0.0, "moved_refs": [a_ref],
+        return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": 0.0, "rot": None, "moved_refs": [a_ref],
                 "shoved": [], "pad_mm": "%.2f->%.2f" % (start, start), "note": "already ok"}
     px, py = _mm(tgt.x), _mm(tgt.y)
-    orig = a.GetPosition()
-    best, bestd = None, 1e9
+    orig, orot = a.GetPosition(), a.GetOrientationDegrees()
+    rots = []
+    for r in (orot, 0.0, 90.0, 180.0, 270.0):                # current first, then the cardinals (deduped)
+        rr = round(r % 360.0, 1)
+        if rr not in rots:
+            rots.append(rr)
+    best, bestd = None, 1e9                                   # best = (cx, cy, rot)
     for rad in (1.0, 1.5, 2.0, 2.5, 3.0, 3.5):
-        for ang in range(0, 360, 20):
-            cx = px + rad * math.cos(math.radians(ang))
-            cy = py + rad * math.sin(math.radians(ang))
-            a.SetPosition(pcbnew.VECTOR2I(_nm(cx), _nm(cy)))
-            if _overlaps(board, a, {a_ref}):
-                continue
-            dd, _ = _owner_pad_dist(a, b)
-            if dd < bestd:
-                bestd, best = dd, (cx, cy)
+        for rot in rots:
+            a.SetOrientationDegrees(rot)
+            for ang in range(0, 360, 20):
+                cx = px + rad * math.cos(math.radians(ang))
+                cy = py + rad * math.sin(math.radians(ang))
+                a.SetPosition(pcbnew.VECTOR2I(_nm(cx), _nm(cy)))
+                if _overlaps(board, a, {a_ref}):
+                    continue
+                dd = _adj_score(a, b)
+                # tie-break toward the ORIGINAL rotation so a symmetric part isn't flipped gratuitously
+                dd += 0.05 * (abs(((rot - orot + 180) % 360) - 180) / 90.0)
+                if dd < bestd:
+                    bestd, best = dd, (cx, cy, rot)
         if best and bestd <= max_mm - margin:
             break
     if best:
+        a.SetOrientationDegrees(best[2])
         a.SetPosition(pcbnew.VECTOR2I(_nm(best[0]), _nm(best[1])))
         moved = math.hypot(_mm(a.GetPosition().x - orig.x), _mm(a.GetPosition().y - orig.y))
+        rot_applied = None if round(best[2], 1) == round(orot, 1) else best[2]
     else:
+        a.SetOrientationDegrees(orot)
         a.SetPosition(orig)
-        moved = 0.0
+        moved, rot_applied = 0.0, None
     end, _ = _owner_pad_dist(a, b)
-    note = "" if end <= max_mm else "no clear spot within %.1fmm of the power pad" % max_mm
-    return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2),
+    note = "" if end <= max_mm else "no clear spot within %.1fmm of %s" % (max_mm, b_ref)
+    return {"op": "adjacent", "a": a_ref, "b": b_ref, "moved_mm": round(moved, 2), "rot": rot_applied,
             "moved_refs": [a_ref], "shoved": [], "pad_mm": "%.2f->%.2f" % (start, end), "note": note}
 
 
