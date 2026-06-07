@@ -29,6 +29,7 @@ services:
       args:
         KICAD_IMAGE: ${KICAD_IMAGE:-kicad/kicad:10.0}   # keep in sync with versions.env
     image: cec/routing:kicad10
+    init: true                              # tini as PID 1 -> reaps any orphaned Xvfb/JVM children
     working_dir: /workspace
     volumes:
       - ..:/workspace                       # the repo (keep it on the WSL ext4 home, not /mnt/c)

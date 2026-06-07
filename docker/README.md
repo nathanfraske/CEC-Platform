@@ -13,8 +13,9 @@ JVM per core) — the GPU is only for the inference tier and future ML, not for 
 
 | File | What |
 |---|---|
-| `Dockerfile.routing` | CPU compute container: `kicad/kicad:10.0` + JRE 21 + xvfb + numpy/scipy/requests. Runs the `cec_*` pipeline. |
-| `compose.yaml` | `routing` (CPU) + `freerouting` (headless REST) + `inference` (GPU, opt-in) + a commented `fem` stub. |
+| `Dockerfile.routing` | CPU compute container: `kicad/kicad:10.0` + the **FULL** `openjdk-21-jre` (not `-headless`) + xvfb + numpy/scipy/requests. Runs the `cec_*` pipeline. |
+| `xvfb-entrypoint.sh` | Starts a **persistent Xvfb** on `$DISPLAY` at container start so Freerouting's Swing GUI has a display (and `cec_fr` runs `java` directly, skipping `xvfb-run`). |
+| `compose.yaml` | `routing` (CPU, `init: true`) + `freerouting` (headless REST) + `inference` (GPU, opt-in) + a commented `fem` stub. |
 | `.wslconfig.example` | RAM/core split for WSL2 — copy to `%UserProfile%\.wslconfig`. |
 
 ## One-time host setup (Windows 11 + WSL2)
@@ -56,14 +57,27 @@ training substrate for the surrogate ranker, Thrust C).
 
 ## Notes, caveats, and the things to verify
 
+- **Freerouting 1.7.0 needs the FULL JRE, not `-headless`** (validated 2026-06-07 — this was the
+  blocker that made every in-container route die). FR is a Java/**Swing** app: even run "headless" it
+  constructs AWT/Swing objects on startup. `openjdk-21-jre-headless` omits `libawt_xawt.so` and
+  hard-forces `java.awt.headless=true`, so FR throws `java.awt.HeadlessException` *even with a live
+  Xvfb*. The Dockerfile installs the full `openjdk-21-jre`; `xvfb-entrypoint.sh` then gives that GUI a
+  persistent virtual display (`DISPLAY=:99`) so `cec_fr` runs `java` directly (no per-run `xvfb-run`
+  server-number races / zombie pileup; `compose.yaml init: true` reaps any orphans). Verified
+  end-to-end from a clean image: `eps-8pin` routes 2 seeds in ~14 s, `kelvin_ok`/`diffpair_ok` pass,
+  `drc=4` (the known LOGO1 + shield-tab floor).
 - **`kicad-cli` has no Specctra export.** The DSN/SES round-trip rides KiCad's SWIG `pcbnew` bindings
   (`cec_fr.ExportSpecctraDSN`/`ImportSpecctraSES`), which work in the `kicad/kicad:10.0` image — the
   Dockerfile fails the build early if `import pcbnew` doesn't work. SWIG is deprecated upstream;
   the eventual migration is to the KiCad **IPC API server** (`kicad-cli api-server`).
 - **Freerouting wiring.** Today `cec_fr` spawns the pinned **1.7.0** jar itself (works headless
-  in-container via xvfb). The `freerouting` REST service + the `CEC_FREEROUTING_URL` env var are the
-  **future path** (Task #2) — switching `cec_fr` to POST jobs to the REST API. Until that's wired, the
-  REST service is just running alongside; the jar path is what executes.
+  in-container via the persistent Xvfb above). The `freerouting` REST service + the
+  `CEC_FREEROUTING_URL` env var are the **future path** (Task #2) — switching `cec_fr` to POST jobs to
+  the REST API. Until that's wired, the REST service is just running alongside; the jar path executes.
+  **Known gap (Task #2):** the official `ghcr.io/freerouting/freerouting` (v2.2.4) binds its API to
+  `127.0.0.1:37864` *inside its own netns*, so it is not reachable from the host port-map or from the
+  `routing` container (`freerouting:37864`) as shipped — wiring `cec_fr` to it needs a host-bind flag
+  on that service first.
 - **GPU sharing.** The 5090 is **not MIG-capable**: run at most one heavy GPU job at a time, or share
   via **MPS**/time-slicing. The `inference` service caps itself at `--gpu-memory-utilization 0.5` so a
   FEM/router job has headroom; since the judge tiers default to deterministic, keep it **off** unless a

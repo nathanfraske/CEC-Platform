@@ -61,6 +61,19 @@ vLLM/PyTorch/openEMS.
 - **Start persisting** `DecisionLog` JSON to a `build/route/*-decision-log.json` corpus (today
   emitted and discarded) — prerequisite for Thrust C.
 
+> **VALIDATED in-container (2026-06-07, WSL2 on the workstation).** The substrate is up and proven
+> end-to-end. The one real blocker found + fixed: Freerouting 1.7.0 needs the **FULL** `openjdk-21-jre`
+> (the `-headless` JRE omits `libawt_xawt.so` and forces `java.awt.headless=true` → `HeadlessException`
+> on every route, even with a live Xvfb — it's a Swing app). `docker/Dockerfile.routing` now installs
+> the full JRE + `docker/xvfb-entrypoint.sh` runs a persistent Xvfb (`DISPLAY=:99`, so `cec_fr` skips
+> `xvfb-run`); `compose.yaml` sets `init: true`. Confirmed from a clean rebuilt image: `eps-8pin`
+> routes 2 seeds in parallel (~14 s), **`kelvin_ok` + `diffpair_ok` pass**, `drc=4` (the documented
+> LOGO1 + shield-tab floor); DecisionLogs persist + accumulate under `build/route/corpus/`; GPU
+> passthrough works (`nvidia-smi` sees the RTX 5090, 32 GB, driver 595.97). The Phase-1 `cec_dcir.py`
+> DC IR-drop solver also runs in-container (6/6 nets on the 24-pin board; 4/4 on the routed EPS, where
+> it flags a real `SENSEC2_LO` pour neck — 337 mV / ~2870 A/mm²). **Still open:** the headless
+> Freerouting REST service binds `127.0.0.1` only (Task #2 host-bind, see `docker/README.md`).
+
 ## Thrust A — Local agent swarm (hybrid control plane)
 
 Best GPU use; unlocks routing depth. The deterministic `default_manager` never accepts
