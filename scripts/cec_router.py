@@ -82,6 +82,9 @@ class Spec:
     max_workers: object = None                       # parallel FR workers (None = min(seeds, nproc))
     opt_spread: int = 0                              # >0: sweep FR opt_time from this floor -> opt_time across seeds
     seeds: tuple = (0, 1, 2)
+    power_pours: list = field(default_factory=list)  # additive same-net high-current pours laid
+                                                     # AFTER each FR route (see cec_fr.add_power_pours);
+                                                     # [] = none. Each: {net, polygon[(x,y) mm], layer?, ...}
 
 
 @dataclass
@@ -425,6 +428,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 def _mkparams(s, base=base):
                     return base
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
+                                          power_pours=spec.power_pours,
                                           out_dir=outd, params=_mkparams,
                                           max_workers=spec.max_workers)
             scored = _candidate_pool(cands, rules, spec.weights)
@@ -524,6 +528,11 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     spec.regions = [Region(name="all", nets=[],
                            hints=_vital_keepouts_from_rules(board_path, rules),
                            fr_params={"passes": passes, "opt_time": opt_time, "threads": threads})]
+    # High-current nets get a real copper POUR laid AFTER each FR route (additive same-net,
+    # so it can't strand the Kelvin sense that shares the net). Auto-derived from geometry --
+    # the bbox of each cable net's THT connector + shunt pads -- so it's general across the
+    # interposer family (EPS/PCIe) and a no-op on boards with no such nets.
+    spec.power_pours = cec_fr.derive_power_pours(board_path)
     return spec, name
 
 
