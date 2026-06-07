@@ -2221,6 +2221,103 @@ def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1, 2, 3), manager=No
     return final, log
 
 
+# ============================================================ Stage 11-12: sign-off + build/freeze
+def human_signoff(board, cfg, flags, *, ask=None):
+    """Stage 11: the cert-grade HUMAN sign-off. Interactive -> ask() (the human approves/withholds);
+    headless -> CAUTIOUS auto: sign off ONLY if nothing blocking remains (a residual flag with no
+    human present is NOT a release). Returns True iff signed off."""
+    blocking = [f for f in flags if f.conf >= 0.5]
+    if ask is not None:
+        act = ask(f"cert-grade sign-off: {len(flags)} residual flag(s), {len(blocking)} blocking. "
+                  f"Release?", {"flags": [str(f) for f in flags]}, cfg)
+        return bool(getattr(act, "resolved", False))
+    return not blocking
+
+
+def freeze_build(cfg, board, log, out_dir):
+    """Stage 12: assemble the release + FREEZE the decision log (board = f(decision log) ->
+    reproducible). Copies the routed board + the board rules into the release dir and writes the
+    frozen log. Returns the release dict."""
+    os.makedirs(out_dir, exist_ok=True)
+    rel = os.path.join(out_dir, f"{cfg.board}-release.kicad_pcb")
+    shutil.copy(board, rel)
+    for ext in (".kicad_pro", ".kicad_dru"):
+        s = board[:-len(".kicad_pcb")] + ext
+        if os.path.isfile(s):
+            shutil.copy(s, rel[:-len(".kicad_pcb")] + ext)
+    logp = os.path.join(out_dir, f"{cfg.board}-decision-log.json")
+    json.dump(log, open(logp, "w"), indent=2, default=str)
+    return {"board": rel, "log": logp, "frozen": True}
+
+
+# ============================================================ run_pipeline (the top-level driver)
+def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=None,
+                 verbose=True, max_loops=2):
+    """The top-level pipeline (pseudocode run_pipeline) on an EXISTING board -- the synth place/size
+    -oracle is DEFERRED (placer TODO), so this threads: ERC+BOM gate -> triage -> [use the existing/
+    old-design board, optional route_swarm] -> physics+cascade loop (resolve on failure) -> human
+    sign-off -> build+freeze. POSTURE CAUTIOUS: unresolved flags block the release. Returns a result
+    dict (status RELEASED / sign-off withheld / failed) with the frozen decision log."""
+    log = {"board": cfg.board, "profile": cfg.profile, "params": dict(cfg.params), "stages": []}
+
+    def rec(stage, **kw):
+        log["stages"].append({"stage": stage, **kw})
+        if verbose:
+            print(f"  [{stage}] " + "  ".join(f"{k}={v}" for k, v in kw.items()
+                                              if k not in ("flags",)))
+
+    # 1. ERC + BOM gate (loop until clean or unresolvable)
+    view = View(cfg)
+    gate_flags = run_stage(ERC_BOM, view)
+    ok, _ = resolve_each(gate_flags, cfg, ask=ask, tiers=tiers)
+    rec("erc_bom_gate", n_flags=len(gate_flags), resolved=ok)
+    if not ok and ask is None:
+        rec("relax_or_fail", reason="unresolved netlist/BOM flags (headless)")
+
+    # 2. triage (arm the optional analyses)
+    armed = triage_arm(cfg)
+    rec("triage", armed=[a.name for a in armed])
+
+    # 3. place / size oracle DEFERRED -> use the existing (old-design) board; optionally route
+    routed = board or cfg.pcb
+    if route:
+        routed, _rlog = route_swarm(cfg, board=routed, verbose=verbose)
+        rec("route_swarm", board=os.path.basename(routed) if routed else None)
+    else:
+        rec("place_size", status="DEFERRED (placer TODO) -> existing board",
+            board=os.path.basename(routed) if routed else None)
+
+    # 4. physics + full cascade, re-route/re-place on failure (bounded)
+    rview = View(cfg, board=routed)
+    residual = []
+    for it in range(max_loops):
+        flags = run_full_cascade(rview, armed=armed)        # 6 stages + armed (THERMAL = physics FEA)
+        m = rview.metrics
+        rec("physics_cascade", iteration=it, n_flags=len(flags),
+            gates_pass=(m.gates_pass if m else None))
+        if not flags:
+            residual = []
+            break
+        okc, acts = resolve_each(flags, cfg, ask=ask, tiers=tiers)
+        residual = [f for (f, a) in acts if not a.resolved]
+        actionable = any(a.re_place or a.fixes for _, a in acts)
+        if okc or not actionable:
+            break                                            # all resolved, or nothing to re-try
+
+    # 5. sign-off
+    signed = human_signoff(routed, cfg, residual, ask=ask)
+    rec("signoff", signed=signed, residual=len(residual))
+    if not signed:
+        rec("release", status="WITHHELD")
+        return {"status": "sign-off withheld", "residual": [str(f) for f in residual], "log": log}
+
+    # 6. build + freeze
+    out_dir = out_dir or os.path.join(tempfile.gettempdir(), f"cec_release_{cfg.board}")
+    rel = freeze_build(cfg, routed, log, out_dir)
+    rec("release", status="RELEASED", board=os.path.basename(rel["board"]))
+    return {"status": "RELEASED", **rel, "log": log}
+
+
 # ============================================================ headless synthesis sweep (runner)
 def run_sweep(cfg, sizes, *, strategies=STRATEGIES, seeds=(0, 1), max_workers=None,
               out_dir=None, render=True):
@@ -2297,6 +2394,9 @@ def main(argv=None):
     ap.add_argument("--seeds", default="0,1", help="comma-list of placement seeds")
     ap.add_argument("--max-workers", type=int, default=0, help="parallel candidate workers (0=auto=min(cands,CPUs))")
     ap.add_argument("--out", default=None, help="output dir for the sweep (default build/synth/<board>)")
+    ap.add_argument("--run", action="store_true", help="RUN the full pipeline end-to-end (run_pipeline)")
+    ap.add_argument("--routed-board", default=None, help="a routed .kicad_pcb to run the pipeline on")
+    ap.add_argument("--route", action="store_true", help="route the board via the swarm before physics/cascade")
     a = ap.parse_args(argv)
 
     cfg = Config.load(a.board, profile=a.profile)
@@ -2318,6 +2418,22 @@ def main(argv=None):
         run_sweep(cfg, sizes, strategies=strategies, seeds=seeds,
                   max_workers=(a.max_workers or None), out_dir=out_dir)
         return 0
+
+    # ---- RUN the full pipeline end-to-end ----
+    if a.run:
+        print("=" * 72)
+        print(f"  cec_synth_pipeline RUN on {cfg.board} (profile={cfg.profile})")
+        print("=" * 72)
+        out_dir = a.out if (a.out and os.path.isabs(a.out)) else (
+            os.path.join(ROOT, a.out) if a.out else None)
+        result = run_pipeline(cfg, board=a.routed_board, route=a.route, out_dir=out_dir)
+        print(f"\n  === pipeline result: {result['status']} ===")
+        if result.get("board"):
+            print(f"  release board: {result['board']}")
+            print(f"  frozen log:    {result['log']}")
+        if result.get("residual"):
+            print(f"  residual flags: {result['residual']}")
+        return 0 if result["status"] == "RELEASED" else 1
     print("=" * 72)
     print(f"  cec_synth_pipeline -- cascade backbone on {cfg.board} (profile={cfg.profile})")
     print("=" * 72)

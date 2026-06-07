@@ -675,6 +675,25 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- SYNTHESIS PIPELINE -- physics FEA + sign-off + build/freeze + run_pipeline = RUNNABLE END-TO-END
+  (2026-06-07). (1) PHYSICS (analytic IPC, per user's choice): electrothermal_solve() -- per
+  high-current net the parallel copper cross-section (tracks + pours, pour cut = area/path x
+  thickness), the J->T->rho(T)->J Picard loop as a closed-form fixed point dT=dt0(1+a(amb-20))/(1-dt0a)
+  with a runaway clamp (dt0*a>=0.95 = fusing) so a grossly over-current feature fails the gate not
+  returns 1e40; dt_ipc() IPC-2221 closed form (k tunable to 2152); per-via split current + barrel
+  cross-section; per-shunt I^2R; _net_currents() role model (cable=40A default, cfg-overridable);
+  physics_gates() J/T/derating; wired the THERMAL armed-analysis to physics(). Verified on the routed+
+  poured EPS @40A/enclosed: cable pours dT 18-46C (hottest the thinnest pour, T=96C), shunts 0.8W->20C,
+  vias flagged FUSING (the §6.7/OQ-10 vertical-transition concern) -- 3 real thermal gates. (2) SIGN-OFF
+  human_signoff() (cert-grade human rung; cautious headless = release only if nothing blocking). (3)
+  BUILD+FREEZE freeze_build() (release board + frozen decision log = reproducible). (4) run_pipeline()
+  THE TOP-LEVEL DRIVER on an EXISTING board (place/size DEFERRED): ERC+BOM gate -> triage -> existing
+  board (opt route_swarm) -> physics+cascade loop (resolve on fail) -> sign-off -> build+freeze. CLI
+  --run [--routed-board B] [--route]. VERIFIED end-to-end on the poured EPS: ran every stage and
+  correctly WITHHELD release (residual DFM + conductor-over-temp + fusing-via flags) -- the cautious,
+  defensible decision. THE PIPELINE IS NOW VIABLE END-TO-END (on the old-design board; the synth
+  placer/size-oracle remains the deferred design-pass TODO -2). STILL OPEN: synth.yml runner workflow
+  + a live runner test; the deferred placer design pass; size oracle once the placer resumes.
 - SYNTHESIS PIPELINE -- placer BEATS/MATCHES the bar, DRC-verified (2026-06-07). The overlap-vs-size
   sweep (per user: candidates are overlap-vs-SIZE, not min-overlap at one size) exposed that the real
   blocker was ANCHOR placement, not macros: two ~21mm cable connectors don't fit a 37mm board unless
