@@ -719,8 +719,9 @@ def _chk_ic_power(board, path, ctx):
     bad = sorted(set(bad))
     if bad:
         ics = sorted({r for r, _ in bad})
-        return (False, "IC power/ground STRANDED (unpowered/floating pin): "
-                + ", ".join("%s[%s]" % (r, n) for r, n in bad[:8]),
+        more = "" if len(bad) <= 8 else " (+%d more)" % (len(bad) - 8)
+        return (False, "IC power/ground STRANDED (unpowered/floating pin) [%d]: " % len(bad)
+                + ", ".join("%s[%s]" % (r, n) for r, n in bad[:8]) + more,
                 [{"type": "power_escape", "ic": r, "nets": sorted({n for rr, n in bad if rr == r})}
                  for r in ics])
     return True, "every IC power + GND pad is connected"
@@ -735,7 +736,8 @@ def _chk_routed(board, path, ctx):
         return True, "0 unconnected ratlines (fully routed)"
     by_net = collections.Counter(n for n, _ in unc)
     top = ", ".join("%s x%d" % (k, v) for k, v in by_net.most_common(8))
-    return False, "%d unconnected ratlines (not fully routed): %s" % (len(unc), top)
+    more = "" if len(by_net) <= 8 else " (+%d nets)" % (len(by_net) - 8)
+    return False, "%d unconnected ratlines across %d nets (not fully routed): %s%s" % (len(unc), len(by_net), top, more)
 
 
 @checker("trace-width-high-current")
