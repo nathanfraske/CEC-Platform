@@ -34,8 +34,21 @@ def _resolve(board):
     return sorted(cands)[0]
 
 
-def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
+# BOARD-SPECIFIC overrides -- a ratified design/constraint relaxation applies to ONE board, deliberately
+# NOT generalized to the platform (CLAUDE.md "human-ratification boundary", lever 2). Each entry is the
+# human's ratified call at a design wall; the constraint defaults in cec_constraints stay the platform bar.
+BOARD_PARAMS = {
+    # EPS: the tight Kelvin (~3.8mm, courtyard-limited) boxes the INA238's own +3V3/GND against the shunt.
+    # The human ratified LOOSENING the Kelvin tighten target a hair so the power pins get escape room
+    # (2026-06-07). Board-specific -- NOT a change to the §6.8 platform 5mm pass bar.
+    "eps-8pin": {"kelvin_tighten_mm": 5.0},
+}
+
+
+def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None, params=None):
     ctx = ctx or {}
+    params = params if params is not None else BOARD_PARAMS.get(board, {})
+    ktarget = float(params.get("kelvin_tighten_mm", 2.0))
     src = _resolve(board)
     out = out or os.path.join(ROOT, "build", "loop", board)
     os.makedirs(out, exist_ok=True)
@@ -45,12 +58,12 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
     import cec_hc
     log, routed_path, verdicts, directives = [], None, [], []
     for it in range(iters):
-        # 0. KELVIN tighten -- pull+ROTATE each INA238 hard against its shunt (§6.8 short Kelvin loop),
-        #    BEFORE the decoupling refine so the caps re-cluster to the INA's tight final position. This
-        #    is the placement side of the high-current feedback: it makes the deterministic sense tap a
-        #    short, clean segment instead of a long diagonal across foreign copper.
+        # 0. KELVIN tighten -- pull+ROTATE each INA238 toward its shunt (§6.8 short Kelvin loop) to the
+        #    board's target distance, BEFORE the decoupling refine so the caps re-cluster to the INA's
+        #    final position. The target is board-specific (BOARD_PARAMS): a tighter target gives a shorter
+        #    sense tap; a looser one leaves the INA's shunt-facing power/GND pins room to escape.
         ktight = os.path.join(out, "ktight_%d.kicad_pcb" % it)
-        kmoves = cec_place.tighten_kelvin(place, ktight)
+        kmoves = cec_place.tighten_kelvin(place, ktight, max_mm=ktarget)
         shutil.copyfile(ktight, place)
 
         # 1. PLACE -- refine the placement against the movable constraints
@@ -147,8 +160,47 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
             review = {"copper_plot": plot_png, "render_top": top_png}
         except Exception as e:
             review = {"error": repr(e)}
-    return {"board": board, "routed": routed_path, "final_fails": sorted(cec_place._fails(verdicts)),
+    fails_final = cec_place._fails(verdicts)
+    hard_fails = sorted(v["id"] for v in verdicts
+                        if v.get("status") == "FAIL" and v.get("severity") == "hard")
+    return {"board": board, "routed": routed_path, "params": params,
+            "final_fails": sorted(fails_final), "hard_fails": hard_fails,
             "log": log, "review": review}
+
+
+def _score(res):
+    """Rank a candidate result -- lower is better: (#hard FAILs, #total FAILs). The hard FAILs (e.g.
+    ic-power-ground-connected) dominate; ties break on the total. A candidate with 0 hard FAILs cleared
+    the wall WITHOUT a design change (lever 1)."""
+    return (len(res.get("hard_fails", [])), len(res.get("final_fails", [])))
+
+
+def run_candidates(board, ctx=None, configs=None, iters=1, passes=12, opt_time=14):
+    """LEVER 1 of the design-wall escalation (CLAUDE.md): go back to the top and regenerate PLACEMENT
+    CANDIDATES with varied params, then pick the best by hard-constraint satisfaction -- trying to clear
+    the wall WITHOUT a design change. If NO candidate clears the hard wall, the result is flagged
+    escalate_to_human=True (lever 2: a board-specific design/constraint change the human ratifies)."""
+    ctx = ctx or {}
+    if configs is None:                                      # default sweep: tight vs the board-ratified loosen
+        loose = BOARD_PARAMS.get(board, {}).get("kelvin_tighten_mm", 5.0)
+        configs = [{"kelvin_tighten_mm": 2.0, "_tag": "tight"},
+                   {"kelvin_tighten_mm": loose, "_tag": "loose"}]
+    results = []
+    for i, cfg in enumerate(configs):
+        tag = cfg.get("_tag", "c%d" % i)
+        out = os.path.join(ROOT, "build", "loop", board, "cand_%s" % tag)
+        print("\n=== CANDIDATE %s (params=%s) ===" % (tag, {k: v for k, v in cfg.items() if not k.startswith("_")}))
+        r = run_loop(board, ctx, iters=iters, passes=passes, opt_time=opt_time, out=out,
+                     params={k: v for k, v in cfg.items() if not k.startswith("_")})
+        r["tag"] = tag
+        results.append(r)
+    results.sort(key=_score)
+    best = results[0]
+    cleared = len(best.get("hard_fails", [])) == 0
+    return {"board": board, "best_tag": best.get("tag"), "best": best,
+            "cleared_wall": cleared, "escalate_to_human": not cleared,
+            "ranking": [{"tag": r.get("tag"), "score": _score(r), "hard_fails": r.get("hard_fails"),
+                         "final_fails": r.get("final_fails")} for r in results]}
 
 
 def main(argv=None):
@@ -159,7 +211,20 @@ def main(argv=None):
     ap.add_argument("--passes", type=int, default=12)
     ap.add_argument("--opt-time", type=int, default=30)
     ap.add_argument("--radio", action="store_true")
+    ap.add_argument("--candidates", action="store_true",
+                    help="lever 1: regenerate placement candidates (tight vs the board-ratified loosen) and pick best")
     a = ap.parse_args(argv)
+    if a.candidates:
+        res = run_candidates(a.board, ctx={"radio": a.radio}, iters=a.iters, passes=a.passes, opt_time=a.opt_time)
+        print("\n=== CANDIDATE LOOP-BACK RESULT ===")
+        for r in res["ranking"]:
+            print("  %-7s score=%s hard_fails=%s fails=%s" % (r["tag"], r["score"], r["hard_fails"], r["final_fails"]))
+        print("BEST: %s (cleared_wall=%s)" % (res["best_tag"], res["cleared_wall"]))
+        if res["escalate_to_human"]:
+            print("ESCALATE TO HUMAN: no candidate cleared the hard wall -> a board-specific design/constraint")
+            print("  decision is needed (lever 2). Best candidate hard FAILs:", res["best"].get("hard_fails"))
+        print("best routed board ->", res["best"].get("routed"))
+        return 0
     res = run_loop(a.board, ctx={"radio": a.radio}, iters=a.iters, passes=a.passes, opt_time=a.opt_time)
     print("\n=== LOOP RESULT ===")
     print(json.dumps(res["log"], indent=1))
