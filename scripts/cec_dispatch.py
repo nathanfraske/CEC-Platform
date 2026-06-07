@@ -133,13 +133,53 @@ class CandidateMetrics:
                         # finishing tie (SH1/SH2 shield tabs) from a real functional-net failure
 
 
-def request_candidates(board, *, params, seeds=(0, 1), max_workers=None, out_dir=None,
-                       where="local"):
-    """TOOL: generate + score N Freerouting candidates and return STRUCTURED METRICS (not raw
-    boards) for a tier agent to judge. *params* = {passes, opt_time, threads}. Returns the list of
-    CandidateMetrics (ok ones), best-first by (gates_pass, drc, unconnected)."""
-    if where == "runner":
-        raise NotImplementedError("runner dispatch (synth.yml) is the next step; use where='local'")
+# ---- the LOCAL runner: a bounded compute pool on THIS system (NOT a GitHub Actions runner) --------
+# A cross-process slot semaphore (flock on N files under build/.runner_slots) bounds the TOTAL number
+# of concurrent Freerouting jobs across every caller -- so a TEAM of agents (each driving its own
+# swarm + routes) can't oversubscribe the CPU and lock the box (the 3-parallel-routes / 48-seed
+# lockup failure mode). Slots default to ~cores/4 (each FR job already spawns a seed-pool of JVMs);
+# tune with CEC_RUNNER_SLOTS. A holder that dies releases its flock automatically (OS-backed).
+import contextlib
+
+def runner_slots():
+    return int(os.environ.get("CEC_RUNNER_SLOTS", max(1, (os.cpu_count() or 4) // 4)))
+
+
+@contextlib.contextmanager
+def runner_slot(*, poll=0.5, label=""):
+    """Acquire one of CEC_RUNNER_SLOTS global compute slots (blocking) for a local FR job; release on
+    exit. No-op-safe on a platform without fcntl (degrades to unbounded)."""
+    try:
+        import fcntl
+    except Exception:
+        yield -1
+        return
+    n = runner_slots()
+    d = os.path.join(ROOT, "build", ".runner_slots")
+    os.makedirs(d, exist_ok=True)
+    fd = held = None
+    try:
+        while held is None:
+            for i in range(n):
+                f = os.open(os.path.join(d, f"slot{i}.lock"), os.O_CREAT | os.O_RDWR)
+                try:
+                    fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    fd, held = f, i
+                    break
+                except OSError:
+                    os.close(f)
+            if held is None:
+                time.sleep(poll)
+        yield held
+    finally:
+        if fd is not None:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+            finally:
+                os.close(fd)
+
+
+def _generate_scored(board, params, seeds, max_workers, out_dir):
     out_dir = out_dir or tempfile.mkdtemp(prefix="cec_disp_", dir=tempfile.gettempdir())
     cands = cec_fr.generate_batch(board, seeds=tuple(seeds), params=(lambda s: dict(params)),
                                   out_dir=out_dir, max_workers=max_workers)
@@ -157,6 +197,22 @@ def request_candidates(board, *, params, seeds=(0, 1), max_workers=None, out_dir
             unconn_nets=m.detail.get("unconn_nets", [])))
     res.sort(key=lambda c: (0 if c.gates_pass else 1, c.drc, c.unconnected))
     return res
+
+
+def request_candidates(board, *, params, seeds=(0, 1), max_workers=None, out_dir=None,
+                       where="local"):
+    """TOOL: generate + score N Freerouting candidates and return STRUCTURED METRICS (not raw
+    boards) for a tier agent to judge. *params* = {passes, opt_time, threads}. Returns the list of
+    CandidateMetrics (ok ones), best-first by (gates_pass, drc, unconnected).
+
+    where='local'  -> run FR in-process (unbounded; the caller owns concurrency).
+    where='runner' -> run FR through THIS system's bounded local runner (runner_slot, a cross-process
+                      slot semaphore), so a team of agents can't oversubscribe the CPU. NOT a GitHub
+                      Actions runner -- the compute runs here, just centrally rate-limited."""
+    if where == "runner":
+        with runner_slot(label=os.path.basename(str(board))):
+            return _generate_scored(board, params, seeds, max_workers, out_dir)
+    return _generate_scored(board, params, seeds, max_workers, out_dir)
 
 
 def score_board(board):
@@ -209,15 +265,16 @@ class JudgeContext:
 
 # ============================================================ the budgeted loop
 def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_workers=None,
-                request_fn=None, verbose=True):
+                request_fn=None, where="local", verbose=True):
     """The tiered-judge loop. request candidates -> tier judges -> accept | request_more (budget--,
     re-request with changed params) | escalate (defer UP a tier, reset budget). Budget exhausted ->
     FORCED escalate (no thrash). Returns (accepted CandidateMetrics|None, decision_log).
 
     *tiers*: ordered decide(JudgeContext)->Verdict callables (Haiku swarm -> Sonnet -> Opus ->
-    human). *request_fn*: defaults to request_candidates; inject a stub to unit-test the loop."""
+    human). *where*: 'runner' routes the FR compute through the bounded local runner (safe under a
+    team of agents). *request_fn*: defaults to request_candidates; inject a stub to unit-test the loop."""
     req = request_fn or (lambda p, s: request_candidates(board, params=p, seeds=s,
-                                                          max_workers=max_workers))
+                                                          max_workers=max_workers, where=where))
     params = dict(init_params or {"passes": 8, "opt_time": 12, "threads": 1})
     log = []
     ti = 0
@@ -295,6 +352,8 @@ def main(argv=None):
     rc.add_argument("--threads", type=int, default=1)
     rc.add_argument("--max-workers", type=int, default=0)
     rc.add_argument("--out", default=None)
+    rc.add_argument("--where", choices=("local", "runner"), default="local",
+                    help="'runner' = the bounded local compute pool (team-safe)")
 
     ar = sub.add_parser("agent-route", help="run the budgeted agent_route ladder (optionally with the "
                                             "LOCAL swarm Haiku tier)")
@@ -304,6 +363,8 @@ def main(argv=None):
     ar.add_argument("--panel", type=int, default=3)
     ar.add_argument("--swarm", action="store_true",
                     help="tier-0 = the local-LLM swarm (else the deterministic det_haiku)")
+    ar.add_argument("--where", choices=("local", "runner"), default="local",
+                    help="'runner' routes FR compute through the bounded local runner (team-safe)")
     a = ap.parse_args(argv)
 
     if a.cmd == "request-candidates":
@@ -320,7 +381,7 @@ def main(argv=None):
             res = request_candidates(bp, params={"passes": a.passes, "opt_time": a.opt_time,
                                                  "threads": a.threads},
                                      seeds=tuple(int(s) for s in a.seeds.split(",")),
-                                     max_workers=(a.max_workers or None), out_dir=a.out)
+                                     max_workers=(a.max_workers or None), out_dir=a.out, where=a.where)
         # emit the metrics a tier agent judges (drop the board path's noise to a basename).
         # The MARKERS let the orchestrator pull the JSON cleanly out of a GitHub Actions job log
         # (where stdout+stderr interleave) when this runs via synth.yml on the self-hosted runner.
@@ -353,7 +414,7 @@ def main(argv=None):
                 print("[dispatch] --swarm requested but vLLM down -> deterministic tiers", file=sys.stderr)
         # the FR/pcbnew compute + the loop's progress print to stderr so stdout stays clean JSON
         with contextlib.redirect_stdout(sys.stderr):
-            best, log = agent_route(bp, tiers=tiers, budget=a.budget,
+            best, log = agent_route(bp, tiers=tiers, budget=a.budget, where=a.where,
                                     seeds=tuple(int(s) for s in a.seeds.split(",")))
         print(json.dumps({"accepted": (asdict(best) if best else None), "log": log},
                          indent=2, default=str))
