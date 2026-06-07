@@ -93,6 +93,18 @@ REGISTRY = [
            "fill carves a clearance gap around the trace, splitting the pour and necking the current "
            "path. Route foreign signals on another layer or around the pour region.",
       source="user review 2026-06-07; spec §6.7 (current = copper area)", status="ratified"),
+    C(id="min-pour-cross-section", title="High-current pour cross-section adequate (DC field solve)",
+      category="high-current", severity="advisory", checkable="yes", directive="keepout",
+      rule="Each poured high-current net's BOTTLENECK copper cross-section -- from the cec_dcir 2.5D DC "
+           "IR-drop / current-density field solve on the routed copper -- keeps peak current density at or "
+           "below j_max_A_mm2 for its design current (eff_cross >= I / j_max). ADVISORY + CALIBRATION: the "
+           "solver is not yet bench-validated, so this SURFACES OQ-10 (copper coin / filled-via field) and "
+           "OQ-12 (high-current stackup) with real numbers (IR drop, J, bottleneck cross-section) -- it does "
+           "NOT resolve those OQs or hard-gate a release. The spec_to_dru/DRC enforce-leg (a ratified "
+           "min-width on the carved high-current netclass) is the follow-up, once a bench measurement "
+           "calibrates the dt_ipc k / shunt_rth placeholders (docs/local-compute-exploration.md Thrust B).",
+      source="docs/local-compute-exploration.md Thrust B; scripts/cec_dcir.py; physics_gates J_max=100",
+      status="proposed", params={"j_max_A_mm2": 100.0, "grid_mm": 0.4, "oz_outer": 2.0, "oz_inner": 1.0}),
     C(id="kelvin-sense-from-inner-pad", title="Kelvin sense tapped from the shunt inner edge",
       category="high-current", severity="strong", checkable="partial", directive="none",
       rule="The Kelvin sense trace leaves the shunt pad from its INNER edge (the sense point facing the "
@@ -359,6 +371,29 @@ def _unconnected(path, ctx):
     return out
 
 
+def _dcir_solve(path, ctx):
+    """Run the cec_dcir 2.5D DC IR-drop / current-density field solve ONCE per board, cached on ctx
+    (shaped like _drc_json so a future second consumer shares it). Returns {net: result|None}, or None
+    if the solver / numpy is unavailable -- FALLBACK-SAFE so the checker N/A-s out rather than ERRORing
+    on a box without numpy. Params (grid pitch, oz weights) come from the min-pour-cross-section entry."""
+    key = "_dcir::" + path
+    if key in ctx:
+        return ctx[key]
+    res = None
+    try:
+        import cec_dcir
+        res = cec_dcir.solve(
+            path,
+            h=_param("min-pour-cross-section", "grid_mm", 0.4),
+            oz_outer=_param("min-pour-cross-section", "oz_outer", 2.0),
+            oz_inner=_param("min-pour-cross-section", "oz_inner", 1.0),
+        )
+    except Exception:
+        res = None
+    ctx[key] = res
+    return res
+
+
 # -- checkers ----------------------------------------------------------------
 @checker("kelvin-sense-fcu-no-via")
 def _chk_kelvin_fcu(board, path, ctx):
@@ -493,6 +528,42 @@ def _chk_pour_integrity(board, path, ctx):
         return (False, "12V pour cut by a same-layer foreign trace: " + "; ".join("%s<-%s" % (a, b) for a, b in sorted(cut)[:6]),
                 [{"type": "keepout", "reserve": "pour-region-foreign-signal", "nets": sorted({a for a, _ in cut})}])
     return True, "no foreign same-layer trace cuts a high-current pour"
+
+
+@checker("min-pour-cross-section")
+def _chk_min_cross(board, path, ctx):
+    """ADVISORY: run the cec_dcir DC field solve and flag any poured high-current net whose bottleneck
+    cross-section runs the current density past j_max (= eff_cross < I/j_max). Surfaces OQ-10/OQ-12
+    numbers; does NOT hard-gate (severity advisory). FAIL emits a 'reserve more pour' placer keepout."""
+    if _track_count(board) == 0:
+        return None, "floorplan: cross-section is a route-time field solve"
+    hc_poured = {z.GetNetname() for z in board.Zones()
+                 if "12V" in z.GetNetname().upper() or z.GetNetname().endswith(("_HI", "_LO"))}
+    if not hc_poured:
+        return None, "no poured high-current net"
+    res = _dcir_solve(path, ctx)
+    if res is None:
+        return None, "DC field solver unavailable (numpy/cec_dcir)"
+    solved = {n: r for n, r in res.items() if r}
+    if not solved:
+        return None, "no net resolved a 2-terminal force path (no field solution)"
+    j_max = _param("min-pour-cross-section", "j_max_A_mm2", 100.0)
+    fails, payload, worst = [], [], []
+    for net, r in sorted(solved.items()):
+        j, cur = r["j_p995_A_mm2"], r["I"]
+        need, got = round(cur / j_max, 3), r["eff_cross_mm2"]
+        worst.append((j, net))
+        if j > j_max:
+            fails.append("%s I=%.0fA J=%.0f>%.0f (cross %.3f<%.3f mm^2, IRdrop %.0fmV)"
+                         % (net, cur, j, j_max, got, need, r["ir_drop_V"] * 1000))
+            payload.append({"type": "keepout", "reserve": "pour-cross-section", "net": net,
+                            "got_mm2": got, "need_mm2": need, "j_p995_A_mm2": j, "j_max_A_mm2": j_max})
+    if fails:
+        return (False, "pour cross-section under J<=%.0f A/mm^2 (advisory; OQ-10/12 input): %s"
+                % (j_max, "; ".join(fails[:6])), payload)
+    hi = max(worst)
+    return True, ("all %d solved high-current nets within J<=%.0f A/mm^2 (worst %s J=%.0f)"
+                  % (len(solved), j_max, hi[1], hi[0]))
 
 
 @checker("kelvin-sense-from-inner-pad")

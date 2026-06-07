@@ -104,14 +104,21 @@ Upgrade the **already-implemented** analytic stage; don't build GPU-FEM. `electr
 → `physics_gates` already reads copper from `pcbnew`, pulls currents from `_net_currents`, and
 gates on `dT_max=30 / T_max=105 / J_max=100`.
 
-- **First slice (days):** a 2.5D **DC IR-drop + current-density** solve on the EPS/PCIe 55 A spine
-  — discretize poured nets into a copper-square resistor mesh (scipy.sparse, native, sub-second),
-  inject `_net_currents` as sources. Keep the `ThermalResult` schema so `physics_gates` + the
-  cascade are untouched.
-- **Close the loop:** add `C(id='min-pour-cross-section', directive='keepout', …)` to
-  `cec_constraints.REGISTRY` + a `@checker`, so the result **ratifies a deterministic constraint**
-  that flows through `spec_to_dru` into the DRC (the discover→ratify→enforce migration). Gives
-  **OQ-10 (copper coin) / OQ-12 (stackup)** real numbers — surfaced as OQ input, not resolved.
+- **First slice — DONE (2026-06-07), `scripts/cec_dcir.py`:** a 2.5D **DC IR-drop + current-density**
+  field solve on the routed copper — rasterizes each poured net to a copper-square resistor mesh
+  (numpy-only Jacobi-CG, not scipy, so it runs in KiCad's bundled python too; sub-second/net),
+  injects the design current between the connector ↔ shunt pads, returns IR drop / peak J / bottleneck
+  cross-section per net. Fallback-safe (None per unresolvable net). Validated in-container: 6/6 nets
+  on the 24-pin, 4/4 on the routed EPS.
+- **Close the loop — DONE (2026-06-07):** `C(id='min-pour-cross-section', directive='keepout', …)` is
+  in `cec_constraints.REGISTRY` + a `@checker` (`_chk_min_cross`) that runs the `cec_dcir` solve and
+  flags any poured high-current net whose bottleneck density exceeds `j_max` (= `physics_gates`'
+  100 A/mm²), emitting a `reserve: pour-cross-section` placer directive with the numbers. It is
+  **advisory / proposed** by design — the solver is not yet bench-validated, so it SURFACES
+  **OQ-10 (copper coin) / OQ-12 (stackup)** real numbers (it lands in `final_fails`, never `hard_fails`,
+  so it neither hard-gates a release nor triggers the loop's human-escalation) — OQ input, not
+  resolved. **Still open (the enforce-leg):** flow a ratified min-width on the carved high-current
+  netclass through `spec_to_dru` into the DRC, once a bench measurement calibrates `dt_ipc` / `shunt_rth`.
 - **Sign-off tier (later):** Elmer coupled steady+transient electrothermal to calibrate the
   hardcoded `dt_ipc` k-constant and `shunt_rth_CW=25 C/W` placeholder; validate against one bench
   measurement before a FEM flag blocks a release.
