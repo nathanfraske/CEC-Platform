@@ -52,16 +52,25 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None):
         logo_ko = cec_place.relocate_logo_to_clear(placed)
         shutil.copyfile(placed, place)                      # carry the placement (+ logo move) forward
 
-        # 2. ROUTE -- Freerouting (logo keepout hint + additive high-current pours)
+        # 2. ROUTE -- Freerouting with the high-current corridor reserved: the logo keepout + the
+        #    pour-region keepouts (foreign signals kept off the 12V pour layers so the fill stays whole),
+        #    plus the additive pours.
         routed_path = os.path.join(out, "routed_%d.kicad_pcb" % it)
+        import cec_hc
         try:
             pours = cec_fr.derive_power_pours(placed)
         except Exception:
             pours = ()
-        hints = [logo_ko] if logo_ko else []
+        hints = ([logo_ko] if logo_ko else []) + cec_hc.keepouts_from_pours(pours)
         cand = cec_fr.route_once(placed, routed_path, passes=passes, opt_time=opt_time,
                                  hints=hints, power_pours=pours)
         ok = bool(getattr(cand, "ok", False))
+        # 2b. DETERMINISTIC high-current pass (fresh subprocess; pcbnew multi-load is unsafe in-process):
+        #     rip FR's via'd sense, lay the Kelvin sense stubs from the inner shunt edge.
+        if ok:
+            import subprocess
+            subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
+                            routed_path, routed_path], capture_output=True)
 
         # 3. CHECK -- full registry on the routed board (fresh subprocess)
         target = routed_path if ok else placed

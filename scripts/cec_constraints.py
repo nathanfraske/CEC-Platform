@@ -475,17 +475,18 @@ def _chk_kelvin_inner(board, path, ctx):
             ix, iy = _mm(other.x) - _mm(pc.x), _mm(other.y) - _mm(pc.y)   # inner direction (toward other terminal)
             inn = math.hypot(ix, iy) or 1.0
             ix, iy = ix / inn, iy / inn
+            sz = pad.GetSize()
+            diag = math.hypot(_mm(sz.x), _mm(sz.y)) / 2 + 0.3
             best = None
             for t in thin.get(net, []):
-                for end, far in ((t.GetStart(), t.GetEnd()), (t.GetEnd(), t.GetStart())):
-                    if math.hypot(_mm(end.x) - _mm(pc.x), _mm(end.y) - _mm(pc.y)) < 0.6:   # stub connects at this pad
-                        dx, dy = _mm(far.x) - _mm(pc.x), _mm(far.y) - _mm(pc.y)
-                        dn = math.hypot(dx, dy) or 1.0
-                        dot = (dx / dn) * ix + (dy / dn) * iy
-                        best = dot if best is None else max(best, dot)
+                for end in (t.GetStart(), t.GetEnd()):
+                    ex, ey = _mm(end.x) - _mm(pc.x), _mm(end.y) - _mm(pc.y)
+                    if math.hypot(ex, ey) <= diag:           # the stub connects on/near this pad
+                        inner = ex * ix + ey * iy            # the connection point's inner-ness (mm toward the sense edge)
+                        best = inner if best is None else max(best, inner)
             if best is not None:
                 checked += 1
-                if best < -0.3:            # the sense stub leaves clearly OUTWARD, away from the sense edge
+                if best < 0.1:            # the sense connects at the centre/outer edge, not the INNER sense edge
                     bad.append("%s pad %s" % (sh.GetReference(), pad.GetPadName()))
     if checked == 0:
         return None, "no thin Kelvin sense stub resolvable (sense merged with the force pour?)"
