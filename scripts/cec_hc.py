@@ -401,6 +401,122 @@ def escape_gnd_pins(in_path, out_path, ic_refs=None):
     return {"vias": placed, "skipped_boxed_in": len(skipped), "ics": sorted(refset) if refset else "all-U"}
 
 
+def _power_pins(board, ic_refs, nets):
+    """[(net, x_nm, y_nm), ...] -- the F.Cu power/GND pads of the target ICs (primitives)."""
+    refset = set(ic_refs) if ic_refs else None
+    out = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if not ref.startswith("U") or (refset is not None and ref not in refset):
+            continue
+        for p in fp.Pads():
+            n = p.GetNetname() or ""
+            if n in nets and p.GetLayerSet().Contains(pcbnew.F_Cu):
+                c = p.GetPosition()
+                out.append((n, c.x, c.y))
+    return out
+
+
+def escape_reservations(board_path, ic_refs, nets=("GND", "+3V3"), via_dia=0.5, clear=0.2):
+    """GENERIC reserve-reroute-place -- the user's "rip the route, redo it with a SPECIFIC KEEPOUT for the
+    via spot" idea, genericized. For each target IC power/GND pad, decide whether an escape via can be made
+    to fit by RESERVING its spot:
+      * blocked by a FIXED pad neighbour (e.g. INA238 pin7 GND between +3V3 pin6 and the sense pad at
+        0.5mm pitch) -> a keepout can't move a pad -> NOT reservable (skip; it is a redundant duplicate
+        pin or a genuine design wall).
+      * blocked only by a MOVABLE foreign F.Cu trace (or already clear) -> emit a small F.Cu reservation
+        keepout (allow_vias) at the via spot. Fed to the next FR route it makes FR route that conflicting
+        trace AROUND the spot ("nudge the trace down"); the via is then dropped in and FR wires the net to
+        it on B.Cu (keepout is F.Cu-only, so B.Cu stays free).
+    Returns {"keepouts": [FR keepout dicts], "vias": [(net, x_mm, y_mm)], "skipped_pad_boxed": [...]}."""
+    board = pcbnew.LoadBoard(board_path)
+    fixed_pads = _obstacle_pads(board)                       # F.Cu pads (fixed -- a keepout can't move them)
+    vp, fcu_segs = _obstacle_tracks(board)                   # F.Cu tracks (movable) + via discs
+    fixed_pads = fixed_pads + vp
+    r = via_dia / 2.0
+
+    def _pad_clear(px, py, net):                             # via disc at (px,py) clears every FIXED foreign pad?
+        return not any(pn != net and _seg_rect_dist(px, py, px, py, pl, pt, pr, pb) < r + clear
+                       for pn, pl, pt, pr, pb in fixed_pads)
+
+    def _stub_clear(ax, ay, bx, by, net):                   # the pad->via stub clears every FIXED foreign pad?
+        return not any(pn != net and _seg_rect_dist(ax, ay, bx, by, pl, pt, pr, pb) < 0.125 + clear
+                       for pn, pl, pt, pr, pb in fixed_pads)
+
+    keepouts, vias, boxed = [], [], []
+    for k, (net, xn, yn) in enumerate(_power_pins(board, ic_refs, nets)):
+        px, py = xn / MM, yn / MM
+        spot = None
+        if _pad_clear(px, py, net):
+            spot = (px, py)                                  # via-in-pad fits (only a movable trace, if any, is near)
+        else:
+            # NUDGE: search just outside the pad for a via spot that clears the FIXED neighbours, with a
+            # short same-net stub back to the pad (the user's "nudge the via down and fit it"). Smallest
+            # offset first so the stub stays short.
+            for rad in (0.6, 0.85, 1.1, 1.4):
+                for ang in range(0, 360, 30):
+                    vx = px + rad * math.cos(math.radians(ang))
+                    vy = py + rad * math.sin(math.radians(ang))
+                    if _pad_clear(vx, vy, net) and _stub_clear(px, py, vx, vy, net):
+                        spot = (vx, vy)
+                        break
+                if spot:
+                    break
+        if not spot:
+            boxed.append((net, round(px, 2), round(py, 2)))  # fully fixed-pad-boxed -> reservation can't help
+            continue
+        vx, vy = spot
+        m = r + clear + 0.15
+        keepouts.append({"name": "escape_%s_%d" % (net.strip("/+"), k), "x0": vx - m, "y0": vy - m,
+                         "x1": vx + m, "y1": vy + m, "layers": ("F.Cu",), "allow_vias": True})
+        vias.append((net, round(vx, 3), round(vy, 3), round(px, 3), round(py, 3)))   # net, via, stub-from-pad
+    return {"keepouts": keepouts, "vias": vias, "skipped_pad_boxed": boxed}
+
+
+def place_vias(in_path, out_path, vias):
+    """Drop a via (+ a short F.Cu stub back to its pad when the via was NUDGED off-pad) at each via spec
+    (net, via_x, via_y, [pad_x, pad_y]) -- the place step of reserve-reroute-place. Placed PRE-route (so FR
+    then wires the net to the via on B.Cu) and gated do-no-harm against FIXED foreign copper. Re-fills."""
+    board = pcbnew.LoadBoard(in_path)
+    code = {n.GetNetname(): n.GetNetCode() for n in board.GetNetInfo().NetsByNetcode().values()}
+    obstacle_pads = _obstacle_pads(board)
+    vp, obstacle_segs = _obstacle_tracks(board)
+    obstacle_pads = obstacle_pads + vp
+    fcu, bcu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    drill, dia, r = int(0.3 * MM), int(0.5 * MM), 0.25
+    placed, skipped = 0, 0
+    for spec in vias:
+        net, x, y = spec[0], spec[1], spec[2]
+        px, py = (spec[3], spec[4]) if len(spec) >= 5 else (x, y)
+        stub = (px, py) != (x, y)
+        if not _via_clear(x, y, r, net, obstacle_pads, obstacle_segs):
+            skipped += 1
+            continue
+        if stub and not _tap_clear((px, py, x, y), net, obstacle_pads, obstacle_segs, []):
+            skipped += 1
+            continue
+        v = pcbnew.PCB_VIA(board)
+        v.SetPosition(pcbnew.VECTOR2I(int(x * MM), int(y * MM)))
+        v.SetDrill(drill)
+        v.SetWidth(dia)
+        v.SetViaType(pcbnew.VIATYPE_THROUGH)
+        v.SetLayerPair(fcu, bcu)
+        v.SetNetCode(code.get(net, 0))
+        board.Add(v)
+        if stub:
+            tr = pcbnew.PCB_TRACK(board)
+            tr.SetStart(pcbnew.VECTOR2I(int(px * MM), int(py * MM)))
+            tr.SetEnd(pcbnew.VECTOR2I(int(x * MM), int(y * MM)))
+            tr.SetWidth(int(0.25 * MM))
+            tr.SetLayer(fcu)
+            tr.SetNetCode(code.get(net, 0))
+            board.Add(tr)
+        placed += 1
+    pcbnew.SaveBoard(out_path, board)
+    _refill_subprocess(out_path)
+    return {"placed": placed, "skipped": skipped}
+
+
 def _fill_only(path):
     """Load a board fresh, UnFill + re-Fill every zone, save in place. Run in its OWN process."""
     board = pcbnew.LoadBoard(path)
@@ -430,6 +546,14 @@ def main(argv=None):
     if argv and argv[0] == "--escape-gnd":                    # cec_hc.py --escape-gnd in out [U10,U11,...]
         ics = argv[3].split(",") if len(argv) > 3 and argv[3] else None
         print(json.dumps(escape_gnd_pins(argv[1], argv[2], ics)))
+        return 0
+    if argv and argv[0] == "--reservations":                  # cec_hc.py --reservations board [U10,...] -> plan json
+        ics = argv[2].split(",") if len(argv) > 2 and argv[2] else None
+        print(json.dumps(escape_reservations(argv[1], ics)))
+        return 0
+    if argv and argv[0] == "--place-vias":                    # cec_hc.py --place-vias in out '<json [[net,x,y],...]>'
+        vias = [tuple(v) for v in json.loads(argv[3])] if len(argv) > 3 else []
+        print(json.dumps(place_vias(argv[1], argv[2], vias)))
         return 0
     out = argv[1] if len(argv) > 1 else argv[0].replace(".kicad_pcb", "-hc.kicad_pcb")
     result = route_high_current(argv[0], out)

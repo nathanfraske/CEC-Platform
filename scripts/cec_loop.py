@@ -133,18 +133,53 @@ def run_loop(board, ctx=None, iters=2, passes=12, opt_time=30, out=None, params=
         target = routed_path if ok else placed
         verdicts, directives = cec_place._check(target, ctx)
         fails = cec_place._fails(verdicts)
-        movable = [d for d in directives if (d.get("type") or d.get("directive")) in cec_place.MOVABLE]
 
+        # 3b. RESERVE-REROUTE-PLACE -- the generic "rip route + specific keepout + redo": if power is still
+        #     stranded after the do-no-harm escape, reserve each escapable power pin's via spot (NUDGE off a
+        #     fixed neighbour + stub), place those vias on the PLACEMENT, and RE-ROUTE with the reservations
+        #     so FR wires the power nets (esp. +3V3, which has NO plane under the locked GND-inner stackup)
+        #     to the vias while nudging the conflicting traces aside. This is what distributes +3V3 to the
+        #     boxed sensors; only a genuinely fixed-pad-boxed redundant pin is left.
+        resv_info = {}
+        if ok and "ic-power-ground-connected" in fails:
+            plan = cec_hc.escape_reservations(routed_path, esc_ics or None, nets=("GND", "+3V3"))
+            if plan.get("vias"):
+                placed_v = os.path.join(out, "placed_v_%d.kicad_pcb" % it)
+                subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
+                                "--place-vias", placed, placed_v, json.dumps(plan["vias"])], capture_output=True, text=True)
+                routed_v = os.path.join(out, "routed_v_%d.kicad_pcb" % it)
+                try:
+                    pours2 = cec_fr.derive_power_pours(placed_v)
+                except Exception:
+                    pours2 = pours
+                hints2 = ([logo_ko] if logo_ko else []) + cec_hc.keepouts_from_pours(pours2) \
+                    + cec_hc.kelvin_keepouts(placed_v) + plan["keepouts"]
+                cand2 = cec_fr.route_once(placed_v, routed_v, passes=passes, opt_time=opt_time,
+                                          hints=hints2, power_pours=pours2)
+                if getattr(cand2, "ok", False):
+                    subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
+                                    routed_v, routed_v], capture_output=True, text=True)
+                    if esc_ics:
+                        subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_hc.py"),
+                                        "--escape-gnd", routed_v, routed_v, ",".join(esc_ics)], capture_output=True, text=True)
+                    routed_path = routed_v
+                    verdicts, directives = cec_place._check(routed_path, ctx)
+                    fails = cec_place._fails(verdicts)
+                    resv_info = {"reservations": len(plan["keepouts"]), "vias": len(plan["vias"]),
+                                 "pad_boxed": len(plan["skipped_pad_boxed"])}
+
+        movable = [d for d in directives if (d.get("type") or d.get("directive")) in cec_place.MOVABLE]
         entry = {"iter": it, "placement_moves": [m.get("op") + ":" + str(m.get("a") or m.get("target")) for m in moves],
                  "kelvin_tightened": len(kmoves), "logo_moved": bool(logo_ko), "pours": len(pours),
                  "routed_ok": ok, "route_err": (str(getattr(cand, "err", ""))[:100] if not ok else None),
                  "kelvin_taps_laid": hc_info.get("stubs"), "kelvin_needs_placement": hc_info.get("needs_placement"),
                  "gnd_escape_vias": esc_info.get("vias"), "gnd_escape_skipped_boxed_in": esc_info.get("skipped_boxed_in"),
-                 "checked": os.path.basename(target), "fails": sorted(fails), "movable_left": len(movable)}
+                 "power_reservation": resv_info or None,
+                 "checked": os.path.basename(routed_path if ok else target), "fails": sorted(fails), "movable_left": len(movable)}
         log.append(entry)
-        print("[loop iter %d] moves=%d ktight=%d pours=%d routed=%s | kelvin_taps=%s needs_place=%s | gnd_escape=%s(skip %s) | FAILs=%s"
+        print("[loop iter %d] moves=%d ktight=%d pours=%d routed=%s | kelvin_taps=%s | gnd_escape=%s(skip %s) | power_resv=%s | FAILs=%s"
               % (it, len(moves), len(kmoves), len(pours), ok, hc_info.get("stubs"),
-                 hc_info.get("needs_placement"), esc_info.get("vias"), esc_info.get("skipped_boxed_in"), sorted(fails)))
+                 esc_info.get("vias"), esc_info.get("skipped_boxed_in"), (resv_info.get("vias") if resv_info else None), sorted(fails)))
         if not movable and not hc_info.get("needs_placement"):
             break                                           # placement + Kelvin converged
 
