@@ -87,6 +87,17 @@ REGISTRY = [
       category="high-current", severity="hard", checkable="no", directive="none",
       rule="High-current modules: 4-layer, 2oz outer copper, 12V on outers, GND on inners.",
       source="spec §6.7", status="ratified"),
+    C(id="high-current-pour-integrity", title="No same-layer trace cuts the high-current pour",
+      category="high-current", severity="hard", checkable="yes", directive="keepout",
+      rule="A foreign-net trace on the SAME layer as a 12V/_HI/_LO pour must not pass through it -- the "
+           "fill carves a clearance gap around the trace, splitting the pour and necking the current "
+           "path. Route foreign signals on another layer or around the pour region.",
+      source="user review 2026-06-07; spec §6.7 (current = copper area)", status="ratified"),
+    C(id="kelvin-sense-from-inner-pad", title="Kelvin sense tapped from the shunt inner edge",
+      category="high-current", severity="strong", checkable="partial", directive="none",
+      rule="The Kelvin sense trace leaves the shunt pad from its INNER edge (the sense point facing the "
+           "other terminal), not an arbitrary side -- §6.8 four-wire sense taps the shunt element only.",
+      source="user review 2026-06-07; spec §6.8", status="ratified"),
 
     # ---- thermal -----------------------------------------------------------------------
     C(id="hot-sensitive-separation", title="Hot parts separated from temp-sensitive parts",
@@ -407,6 +418,80 @@ def _chk_pour(board, path, ctx):
         return (False, "high-current nets not carried by a pour or wide copper: %s" % ", ".join(missing[:6]),
                 [{"type": "keepout", "reserve": "pour_or_wide", "nets": missing}])
     return True, "all %d high-current nets carried (pour/wide copper)" % len(set(hc))
+
+
+@checker("high-current-pour-integrity")
+def _chk_pour_integrity(board, path, ctx):
+    if _track_count(board) == 0:
+        return None, "floorplan (pours are route-time)"
+    zones = [z for z in board.Zones()
+             if "12V" in z.GetNetname().upper() or z.GetNetname().endswith("_HI") or z.GetNetname().endswith("_LO")]
+    if not zones:
+        return None, "no high-current pour"
+    cut = set()
+    for z in zones:
+        zn, zl, outline = z.GetNetname(), z.GetLayer(), z.Outline()
+        for t in board.GetTracks():
+            if t.Type() != pcbnew.PCB_TRACE_T or t.GetNetname() == zn or t.GetLayer() != zl:
+                continue   # same net merges into the pour; a different layer is fine
+            s, e = t.GetStart(), t.GetEnd()
+            mid = pcbnew.VECTOR2I((s.x + e.x) // 2, (s.y + e.y) // 2)
+            for pt in (s, e, mid):
+                try:
+                    if outline.Contains(pt):
+                        cut.add((zn, t.GetNetname()))
+                        break
+                except Exception:
+                    pass
+    if cut:
+        return (False, "12V pour cut by a same-layer foreign trace: " + "; ".join("%s<-%s" % (a, b) for a, b in sorted(cut)[:6]),
+                [{"type": "keepout", "reserve": "pour-region-foreign-signal", "nets": sorted({a for a, _ in cut})}])
+    return True, "no foreign same-layer trace cuts a high-current pour"
+
+
+@checker("kelvin-sense-from-inner-pad")
+def _chk_kelvin_inner(board, path, ctx):
+    if _track_count(board) == 0:
+        return None, "floorplan (route-time)"
+    shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
+    sense = _sense_nets(board)
+    if not shunts or not sense:
+        return None, "no shunt / sense nets"
+    thin = collections.defaultdict(list)   # thin (sense, not force-pour) tracks by net
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense and _mm(t.GetWidth()) <= 0.4:
+            thin[t.GetNetname()].append(t)
+    bad, checked = [], 0
+    for sh in shunts:
+        pads = list(sh.Pads())
+        if len(pads) < 2:
+            continue
+        cen = [p.GetPosition() for p in pads]
+        for i, pad in enumerate(pads):
+            net = pad.GetNetname()
+            if net not in sense:
+                continue
+            pc, other = pad.GetPosition(), cen[1 - i] if len(pads) == 2 else cen[(i + 1) % len(pads)]
+            ix, iy = _mm(other.x) - _mm(pc.x), _mm(other.y) - _mm(pc.y)   # inner direction (toward other terminal)
+            inn = math.hypot(ix, iy) or 1.0
+            ix, iy = ix / inn, iy / inn
+            best = None
+            for t in thin.get(net, []):
+                for end, far in ((t.GetStart(), t.GetEnd()), (t.GetEnd(), t.GetStart())):
+                    if math.hypot(_mm(end.x) - _mm(pc.x), _mm(end.y) - _mm(pc.y)) < 0.6:   # stub connects at this pad
+                        dx, dy = _mm(far.x) - _mm(pc.x), _mm(far.y) - _mm(pc.y)
+                        dn = math.hypot(dx, dy) or 1.0
+                        dot = (dx / dn) * ix + (dy / dn) * iy
+                        best = dot if best is None else max(best, dot)
+            if best is not None:
+                checked += 1
+                if best < -0.3:            # the sense stub leaves clearly OUTWARD, away from the sense edge
+                    bad.append("%s pad %s" % (sh.GetReference(), pad.GetPadName()))
+    if checked == 0:
+        return None, "no thin Kelvin sense stub resolvable (sense merged with the force pour?)"
+    if bad:
+        return False, "Kelvin sense not tapped from the inner shunt edge: " + "; ".join(bad[:6])
+    return True, "Kelvin sense stubs leave from the inner shunt edge (%d checked)" % checked
 
 
 @checker("diffpair-gate")
