@@ -98,6 +98,16 @@ vLLM/PyTorch/openEMS.
 > judged in-loop, then stopped → VRAM back to 2.5 GB. The cold first-compile is absorbed by the
 > warm-up (then ~2 s/call); the manager is fail-safe (any error → `default_manager`). **Still hybrid:**
 > only the manager tier is local; planner/escalator structural re-plans stay cloud-Opus (below).
+>
+> **SWARM + full-sweep validation (`scripts/cec_sweep.py`, 2026-06-07).** The batched server serves a
+> concurrent judge SWARM: **16 judges in 1.75 s — 9.5× over serial, 16/16 valid**, correctly split
+> 8 `accept` (gate-passing contexts) / 8 `repair` (diff-pair-fail contexts) — confirming the Thrust-A
+> "one batched server, not many" throughput claim. Full sweep: the constraint registry runs clean
+> (`ERROR=0`) on all 9 boards; the 3 interposers route (eps → drc=4 floor, kelvin+diff pass; PCIe route
+> but their Kelvin needs the `cec_hc` pass via `cec_loop`). LESSON baked into `cec_sweep`: route the
+> boards SERIALLY — running multiple `cec_router` processes at once oversubscribes the shared Xvfb /
+> FR JVMs and starves some routes to 0 candidates (the concurrent *judge* swarm is the `swarm_judge`
+> path, not parallel routes).
 
 Best GPU use; unlocks routing depth. The deterministic `default_manager` never accepts
 non-perfect DRC, which is why `route_swarm` is pinned to `max_iters=1`.
