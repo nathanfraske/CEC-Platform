@@ -520,6 +520,26 @@ this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
 
+-2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
+   (scripts/cec_synth_pipeline.py, place_with_consent + macro-block auto_cluster + overhang +
+   anneal) is a strong GENERAL designer -- DRC-clean at the gen-eps-condensed bar (96x37, courtyard
+   0 / short 0), fully synthesized from the netlist + Stage-1 asks -- BUT it is DOMAIN-BLIND: it has
+   NO model of the high-current paths, the shunts, or the requirement that the sense devices
+   (INA238/INA181) sit hard against their shunt's inner edge (short Kelvin), nor the high-current
+   pour corridor (J_IN->shunt->J_OUT) kept clear, nor thermal separation. The user's read: it can
+   likely go SMALLER still, and adding these as HARD constraints is a LOT more work or an entire
+   reconsideration of the placement approach. DECISION: put the design pass ASIDE; for any ACTUAL
+   board use the OLD design (the existing gen-*-condensed boards + cec_pcb explicit placement, which
+   are untouched and remain the source of truth). The placer code stays as committed WIP on
+   claude/synth-pipeline. WHEN RESUMED, the design pass must add: (1) high-current corridor keepout +
+   pour reservation; (2) sense-IC-adjacent-to-shunt as a hard constraint (Kelvin); (3) the rest of
+   the considerations list (thermal sep, routing channels, diff-pair proximity, symmetry) as hard
+   constraints/score terms; (4) the drop-keepout trimmed-courtyard materialize for the real area win
+   (currently the placer respects the ESP keepout for DRC-honesty -> bigger than needed); (5) the
+   huge runner sweep wired to synth.yml. The cascade/resolve/triage/route-swarm-bridge backbone is
+   DONE and independent of the placer. NEXT pipeline work is the placer-INDEPENDENT stages (physics
+   FEA, sign-off, build+freeze, the run_pipeline driver on an existing board).
+
 -1. v3.10 SPEC-vs-BOARD divergence (digital modules). The consolidated spec moved the
    24-pin/EPS/PCIe to ESP32-C6-MINI-1 (C3-MINI cost-down option) and added the §6.13
    per-cable transient DETECTION front-end (INA181-class CSA + hysteresis comparator +
