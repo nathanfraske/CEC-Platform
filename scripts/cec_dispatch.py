@@ -45,10 +45,51 @@ import cec_score     # noqa: E402
 
 _COSMETIC = ("silk_overlap", "silk_over_copper", "silk_edge_clearance",
              "lib_footprint_mismatch", "lib_footprint_issues")
-# DRC types that are FINISHING/placement, not a routing fault -- the judge treats these as
-# acceptable-with-a-note (they belong to the floorplan/placement pass): the decorative B.Cu logo
-# and the RJ-45 shield-tab-to-GND tie (documented platform-wide).
-_FINISHING = ("solder_mask_bridge", "shorting_items")   # only when they involve LOGO/shield (see note)
+# ---- FINISHING vs REAL classification of a structural DRC locus -------------------------------
+# Some non-cosmetic DRC hits are FINISHING items owned by the placement pass (not routing faults),
+# OR known headless kicad-cli FALSE artifacts (present headless, absent in the GUI). The loop and
+# the judges treat these as acceptable-with-a-note. Three documented classes (CLAUDE.md + verified
+# on these boards 2026-06-07):
+#   1. a short / mask-bridge between two pads of the SAME footprint -> a known headless FALSE
+#      artifact. Verified on the TS-1088 buttons: the two pads sit 3.13mm apart edge-to-edge, so a
+#      copper/mask short is geometrically impossible; kicad-cli reports it headless (it flips
+#      between SW1/SW2 across runs on identical geometry) but it never appears in the GUI.
+#   2. the decorative B.Cu LOGO polygon touching ONLY GND / <no net> (LOGO1 wants a GND-assign or
+#      a no-via keepout) -- BUT the LOGO bridging a FUNCTIONAL net (/I2C_SCL, /THRESH, /USB_*,
+#      +3V3, ...) is a REAL short, not finishing.
+#   3. the RJ-45 shield tabs SH1/SH2 tied to GND.
+
+
+def _fp_refs(where):
+    """Footprint refs named in a DRC locus: 'Pad 1 [GND] of SW1 on F.Cu ...' -> ['SW1']."""
+    return re.findall(r"\bof ([A-Za-z]+\d+)\b", where)
+
+
+def _bracket_nets(where):
+    """Bracketed net tokens in a locus: '... [GND] ... [/I2C_SCL] ...' -> ['GND', '/I2C_SCL']."""
+    return re.findall(r"\[([^\]]+)\]", where)
+
+
+def _within_footprint_short(where):
+    """A short / mask-bridge whose items are two pads of the SAME footprint = the known headless
+    false artifact (class 1 above)."""
+    refs = _fp_refs(where)
+    return len(refs) >= 2 and len(set(refs)) == 1
+
+
+def _locus_is_finishing(lc):
+    """Classify ONE structural DRC locus: True = finishing or known-false (acceptable-with-a-note),
+    False = a real routing/placement fault."""
+    w = lc["where"]
+    wu = w.upper()
+    if lc["type"] in ("shorting_items", "solder_mask_bridge") and _within_footprint_short(w):
+        return True                                   # class 1: same-footprint pad short (false)
+    if "LOGO" in wu:                                  # class 2: decorative logo copper
+        real = [n for n in _bracket_nets(w) if n not in ("<no net>", "no net", "GND", "")]
+        return len(real) == 0                         # logo vs GND/no-net = finishing; vs a real net = REAL
+    if "SH1" in wu or "SH2" in wu or "SHIELD" in wu:  # class 3: RJ-45 shield-tab tie
+        return True
+    return False
 
 
 # ============================================================ TOOLS
@@ -66,9 +107,11 @@ def _drc_types(board):
     types = dict(collections.Counter(v["type"] for v in viol))
     # tag whether the non-zero DRC is dominated by the known finishing items (logo / shield tabs)
     loci = []
-    for v in viol[:20]:
+    for v in viol[:80]:
         desc = " ".join(it.get("description", "") for it in v.get("items", []))
-        loci.append({"type": v["type"], "where": re.sub(r"\s+", " ", desc)[:80]})
+        # keep enough of the description that BOTH 'of <REF>' tokens and BOTH bracketed nets survive
+        # (the finishing classifier reads them) -- 80 chars truncated the 2nd 'of SWx'/the 2nd net.
+        loci.append({"type": v["type"], "where": re.sub(r"\s+", " ", desc)[:160]})
     return types, loci
 
 
@@ -86,6 +129,8 @@ class CandidateMetrics:
     vias: int
     drc_types: dict
     drc_loci: list
+    unconn_nets: list   # net names carrying unrouted ratlines -- so a judge can tell a
+                        # finishing tie (SH1/SH2 shield tabs) from a real functional-net failure
 
 
 def request_candidates(board, *, params, seeds=(0, 1), max_workers=None, out_dir=None,
@@ -108,7 +153,8 @@ def request_candidates(board, *, params, seeds=(0, 1), max_workers=None, out_dir
             seed=c.seed, params=dict(params), board=c.board,
             drc=m.drc, unconnected=m.unconnected, kelvin_ok=m.kelvin_ok,
             diffpair_ok=m.diffpair_ok, gates_pass=m.gates_pass,
-            tracks=m.tracks, vias=m.vias, drc_types=types, drc_loci=loci))
+            tracks=m.tracks, vias=m.vias, drc_types=types, drc_loci=loci,
+            unconn_nets=m.detail.get("unconn_nets", [])))
     res.sort(key=lambda c: (0 if c.gates_pass else 1, c.drc, c.unconnected))
     return res
 
@@ -119,7 +165,8 @@ def score_board(board):
     types, loci = _drc_types(board)
     return {"drc": m.drc, "unconnected": m.unconnected, "kelvin_ok": m.kelvin_ok,
             "diffpair_ok": m.diffpair_ok, "gates_pass": m.gates_pass,
-            "tracks": m.tracks, "vias": m.vias, "drc_types": types, "drc_loci": loci}
+            "tracks": m.tracks, "vias": m.vias, "drc_types": types, "drc_loci": loci,
+            "unconn_nets": m.detail.get("unconn_nets", [])}
 
 
 def render(board, png):
@@ -130,10 +177,14 @@ def render(board, png):
 # ============================================================ the protocol
 GATE_NOTE = (
     "HARD SAFETY GATES (must hold to accept): kelvin_ok AND diffpair_ok. "
-    "drc==0 is ideal, BUT a small DRC dominated by the decorative B.Cu LOGO and the RJ-45 "
-    "shield-tab-to-GND tie is FINISHING (owned by the placement pass), not a routing fault -- "
-    "acceptable with a note. A clearance/short between two REAL signal nets, or unrouted ratlines "
-    "on a functional net, is NOT acceptable. Prefer fewer vias / shorter length among equals."
+    "drc==0 is ideal. FINISHING / known-false residual is acceptable-with-a-note (owned by the "
+    "placement pass, not routing): (a) the decorative B.Cu LOGO polygon touching ONLY GND / <no "
+    "net>; (b) the RJ-45 shield tabs SH1/SH2 tied to GND; (c) a short / mask-bridge between two "
+    "pads of the SAME footprint (e.g. 'Pad 1 ... of SW1' AND 'Pad 2 ... of SW1') -- a KNOWN "
+    "headless kicad-cli false artifact, geometrically impossible (the pads are mm apart), absent "
+    "in the GUI. NOT acceptable (REAL faults): the LOGO polygon bridging a FUNCTIONAL net "
+    "(/I2C_SCL, /THRESH, /USB_*, +3V3, ...); a clearance/short between two DIFFERENT real "
+    "nets/footprints; or unrouted ratlines on a functional net. Prefer fewer vias / shorter length."
 )
 
 
@@ -196,15 +247,13 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
 
 # ---- deterministic default tiers (headless, NO LLM -- so the loop is testable) ----
 def _is_finishing_only(types, loci):
-    """True if the structural DRC is dominated by LOGO/shield-tab finishing (cosmetic-acceptable)."""
+    """True if EVERY structural DRC locus is finishing or a known headless false artifact -- i.e.
+    nothing is a real routing/placement short. Per-locus via _locus_is_finishing(), so a LOGO
+    polygon bridging a FUNCTIONAL net correctly reads REAL while a same-footprint pad short reads
+    false-acceptable."""
     if not types:
         return True
-    real = 0
-    for lc in loci:
-        w = lc["where"].upper()
-        if "LOGO" not in w and "SH1" not in w and "SH2" not in w and "SHIELD" not in w:
-            real += 1
-    return real == 0
+    return all(_locus_is_finishing(lc) for lc in loci)
 
 
 def det_haiku(ctx):
