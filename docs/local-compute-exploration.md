@@ -122,6 +122,27 @@ vLLM/PyTorch/openEMS.
 > -- catching the stall a single judge would miss, before Kmax did; the dispatch ladder ran the same
 > way (`request_more` x2 then a budget-lens `escalate` divergence). `cec_synth_pipeline.route_swarm`
 > passes `manager=`/`worker=` straight through, so the same swarm drops into the synthesis pipeline.
+>
+> **OPUS-TEAM x LOCAL-SWARM stress test + bounded runner (2026-06-07).** A team of cloud-Opus agents,
+> each driving a local swarm on the box, was stress-tested. Enablers: `cec_dispatch.request_candidates
+> (where='runner')` is now real -- THIS system's compute plane (not GitHub Actions), gated by
+> `runner_slot()`, a cross-process flock semaphore (`CEC_RUNNER_SLOTS`, default ~cores/4) that bounds
+> total concurrent Freerouting jobs so a team can't lock the box. Capacity ramp: the single batched
+> vLLM serves **~48 concurrent judge calls @ ~36/s, 0 errors, 23% GPU util** (~40x over serial) -> the
+> GPU has ~4x headroom and is NOT the team bottleneck. A 3-Opus-agent team (one per interposer board,
+> via a Workflow) routed all three concurrently through the local swarm + bounded runner in 88/121/133 s,
+> **zero errors**, with the box healthy throughout (3 runner slots held, 6 FR JVMs, load ~5.5/18 cores).
+> **HONEST value verdict:** the architecture WORKS and is SAFE (the swarm cannot widen the safety
+> envelope by construction; the bounded runner contains the CPU), and the *parallelism* is a real
+> latency win. BUT this run did NOT prove the swarm adds DECISION value: all three boards took the
+> IDENTICAL ladder (`request_more` x3 -> budget-forced escalate -> the cloud Sonnet tier made every
+> `accept`); the local Qwen lenses never independently converged on accept or differentiated the boards,
+> and the round-3 "divergence" was the BUDGET counter, not semantic reasoning. **Binding bottleneck =
+> CPU-FR slots** (~4 concurrent routes on ~18 cores), not the GPU and not cloud-agent count. **Where it
+> pays:** a cheap local-swarm TRIAGE filter that handles the easy "keep routing" cycles for ~free and
+> reserves the paid cloud tier for gate-relevant/structural cases. **To actually prove the swarm's
+> judgment** (the open follow-up): re-run on a scenario where the correct calls DIFFER per board
+> (one accept-now, one real-repair, one structural-escalate) -- identical-outcome boards can't show it.
 
 Best GPU use; unlocks routing depth. The deterministic `default_manager` never accepts
 non-perfect DRC, which is why `route_swarm` is pinned to `max_iters=1`.
