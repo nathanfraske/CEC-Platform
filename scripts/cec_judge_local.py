@@ -418,6 +418,61 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
     return decide
 
 
+PLACEMENT_SCHEMA = {
+    "type": "object",
+    "properties": {"action": {"type": "string", "enum": ["accept", "refine", "escalate"]},
+                   "reason": {"type": "string"}},
+    "required": ["action", "reason"], "additionalProperties": False,
+}
+PLACEMENT_LENSES = [
+    ("constraints", "You are the CONSTRAINTS lens of a PLACEMENT panel. The board's HARD placement "
+                    "constraints (Kelvin sense IC within 5mm of its shunt; every IC's power/GND pin able "
+                    "to escape; shunt inline in the J_IN->J_OUT corridor; RJ-45/DETECT/CAN pinmap) MUST "
+                    "hold. Given hard_fails/strong_fails, choose `accept` if there are NO hard fails, else "
+                    "`refine` (a local placement-refinement pass can fix it). JSON {action,reason}."),
+    ("density", "You are the DENSITY/DFM lens of a PLACEMENT panel. Judge courtyard_overlaps (MUST be 0 -- "
+                "a real short risk) and the placement density. `refine` if courtyard_overlaps>0 or the "
+                "layout is clearly too dense to route; else `accept`. JSON {action,reason}."),
+    ("routability", "You are the ROUTABILITY/structural lens of a PLACEMENT panel. Will this placement "
+                    "ROUTE? `escalate` (regenerate a DIFFERENT placement candidate, or change the design) "
+                    "ONLY if it is structurally unroutable -- e.g. a sense IC boxed so its power/GND can't "
+                    "escape (hard_fail ic-power-ground-connected), or no channel for the control->sense "
+                    "spine. Otherwise `refine` (locally fixable) or `accept` (clean). JSON {action,reason}."),
+]
+
+
+def make_placement_swarm(*, panel=3, verbose=False):
+    """A PLACEMENT swarm -- the SAME diverse-lens voted panel idea applied to PLACEMENT candidates.
+    decide(metrics)->{action,tally,reason}: judges a placement's constraint-check metrics ->
+      accept   (placement is good; route it),
+      refine   (a local placement-refinement pass; the routing analog of 'repair'),
+      escalate (regenerate a DIFFERENT placement candidate [lever 1] or a human design change [lever 2]).
+    Dimension-aware (routability owns escalate, corroborated by a real hard_fail; constraints owns accept,
+    only with no hard_fails). Fail-safe to a deterministic call on error."""
+    lenses = [PLACEMENT_LENSES[i % len(PLACEMENT_LENSES)] for i in range(max(1, panel))]
+    temps = {i: (0.0 if i < len(PLACEMENT_LENSES) else 0.4) for i in range(len(lenses))}
+
+    def decide(metrics):
+        hard = metrics.get("hard_fails") or []
+        try:
+            user = json.dumps(metrics, default=str)
+            results = _panel(user, lenses, PLACEMENT_SCHEMA, name="verdict", temps=temps)
+            votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
+            action, tally, picks = _vote(votes, ("accept", "refine", "escalate"),
+                                         accept_ok=(not hard), repair_word="refine",
+                                         escalate_lens="routability", escalate_ok=bool(hard))
+            if action is None:
+                action = "refine"
+            if verbose:
+                print(f"[swarm-place] {metrics.get('board','?')} {dict(tally)} -> {action}")
+            return {"action": action, "tally": dict(tally), "reason": picks[:200]}
+        except Exception as e:
+            return {"action": ("escalate" if hard else "accept"),
+                    "reason": f"fallback ({type(e).__name__})", "tally": {}}
+
+    return decide
+
+
 def differentiated_test(*, panel=3, verbose=True):
     """PROVE (or disprove) that the swarm makes DISTINCT, correct calls -- the open question from the
     Opus-team stress test (identical-outcome boards couldn't show it). Feeds the dispatch swarm three
