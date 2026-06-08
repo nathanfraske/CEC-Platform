@@ -201,26 +201,48 @@ MANAGER_LENSES = [
 ]
 
 
+def _escalate_corroborated(drc_trail, loci):
+    """Deterministic guard so the structural lens can't over-escalate (verify pattern): escalate is
+    justified by the METRICS, not just a lens's word -- the DRC has STALLED (>=3 identical recent
+    values, FR's deterministic no-progress signature) OR a DRC locus shorts two DIFFERENT functional
+    nets (a real cross-net fault more routing won't fix). A still-improving / merely-unrouted board
+    does NOT corroborate -> the escalate is downgraded to repair."""
+    import re
+    trail = [d for d in (drc_trail or []) if isinstance(d, (int, float))]
+    for lc in (loci or []):
+        nets = re.findall(r"\[(/[^\]]+|\+[0-9A-Za-z_]+)\]", str(lc.get("where", "")))
+        if len({n for n in nets if n != "GND"}) >= 2:
+            return True
+    return len(trail) >= 3 and len(set(trail[-3:])) == 1
+
+
 def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_word="escalate",
-          repair_word="repair"):
-    """Conservative tally of (lens, action, reason) votes -> (action, tally, picks_str). `accept_ok`
-    is whether an accept is even allowed (best candidate gate-passing). Accept needs a strict majority
-    AND accept_ok; else escalate if it has >= half (and is the plurality over repair); else repair."""
+          repair_word="repair", escalate_lens=None, escalate_ok=True):
+    """DIMENSION-AWARE aggregation of (lens, action, reason) votes -> (action, tally, picks). Each lens
+    judges a DIFFERENT dimension, so a naive majority is wrong (only ONE lens is qualified to call
+    escalate). Rules: (1) the `escalate_lens` is AUTHORITATIVE on escalate -- if it (or a majority)
+    escalates, escalate, since it's the only lens judging structural/stall merit; (2) else accept only
+    when accept_ok AND >=1 lens accepts AND none escalate AND accept is not outvoted by repair (the
+    SAFETY lens owns the accept gate); (3) else repair. Conservative: ties favor the safer action."""
     valid = []
     for (ln, a, r) in votes:
         if a == accept_word and not accept_ok:
-            a = repair_word
+            a = repair_word          # SAFETY: never accept a non-gate-passing candidate
+        if a == escalate_word and not escalate_ok:
+            a = repair_word          # VERIFY: an uncorroborated escalate (lens over-fired) -> repair
         if a in valid_actions:
             valid.append((ln, a, r))
     if not valid:
         return None, Counter(), ""
     tally = Counter(a for (_, a, _) in valid)
     n = len(valid)
+    by = {ln: a for (ln, a, _) in valid}
     picks = "; ".join(f"{ln}:{a}" for (ln, a, _) in valid)
-    if accept_ok and tally.get(accept_word, 0) > n / 2:
-        return accept_word, tally, picks
-    if tally.get(escalate_word, 0) >= n / 2 and tally.get(escalate_word, 0) >= tally.get(repair_word, 0):
+    if (escalate_lens and by.get(escalate_lens) == escalate_word) or tally.get(escalate_word, 0) > n / 2:
         return escalate_word, tally, picks
+    if accept_ok and tally.get(accept_word, 0) >= 1 and tally.get(escalate_word, 0) == 0 \
+            and tally.get(accept_word, 0) >= tally.get(repair_word, 0):
+        return accept_word, tally, picks
     return repair_word, tally, picks
 
 
@@ -255,8 +277,12 @@ def make_manager_swarm(spec, *, panel=3, verbose=False):
             best = scored[0][1] if scored else None
             results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
+            trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
+                + ([best.drc] if best is not None else [])
+            esc_ok = _escalate_corroborated(trail, [])
             action, tally, picks = _vote(votes, ("accept", "repair", "escalate"),
-                                         accept_ok=bool(best is not None and best.gates_pass))
+                                         accept_ok=bool(best is not None and best.gates_pass),
+                                         escalate_lens="progress", escalate_ok=esc_ok)
             if action is None:
                 raise RuntimeError("no valid panel vote")
             if verbose:
@@ -333,9 +359,13 @@ DISPATCH_LENSES = [
     ("finishing", "You are the FINISHING lens. If gates_pass=true and the residual drc is finishing-only "
                   "per the gate_note (LOGO-on-GND, shield tabs, same-footprint false short), `accept`; if "
                   "a real fault remains, `request_more`. JSON {action,reason}."),
-    ("budget", "You are the BUDGET lens. If budget_left is 0 and no candidate passes the gates, "
-               "`escalate` (defer up a tier); if a candidate passes, `accept`; else `request_more`. "
-               "JSON {action,reason}."),
+    ("structural", "You are the STRUCTURAL lens. Choose `escalate` (defer UP a tier for a re-plan) ONLY "
+                   "when more Freerouting passes won't help: the best candidate has a REAL fault between "
+                   "two DIFFERENT functional nets (a genuine short/clearance per the gate_note -- NOT a "
+                   "finishing LOGO/shield/same-footprint item), OR drc/unconnected have NOT improved "
+                   "across the prior `history` rounds (stalled). Otherwise `request_more` (still improving) "
+                   "or `accept` (gates pass + finishing-only). Budget-exhaustion is handled by the loop, "
+                   "not you -- escalate on the MERITS. JSON {action,reason}."),
 ]
 DISPATCH_SCHEMA = {
     "type": "object",
@@ -357,13 +387,18 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
         try:
             cands = ctx.candidates or []
             best = cands[0] if cands else None
+            hist = [{"round": i, "drc": h.get("best_drc"), "unconnected": h.get("best_unconnected"),
+                     "verdict": h.get("verdict")} for i, h in enumerate(ctx.history or [])]
             user = json.dumps({"candidates_best_first": cands[:4], "budget_left": ctx.budget_left,
-                               "gate_note": ctx.gate_note}, default=str)
+                               "history_drc_trail": hist, "gate_note": ctx.gate_note}, default=str)
             results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
+            trail = [h.get("best_drc") for h in (ctx.history or [])] + [(best or {}).get("drc")]
+            esc_ok = _escalate_corroborated(trail, (best or {}).get("drc_loci"))
             action, tally, picks = _vote(votes, ("accept", "request_more", "escalate"),
                                          accept_ok=bool(best and best.get("gates_pass")),
-                                         repair_word="request_more")
+                                         repair_word="request_more", escalate_lens="structural",
+                                         escalate_ok=esc_ok)
             if action is None:
                 return cec_dispatch.det_haiku(ctx)
             if verbose:
@@ -373,7 +408,7 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
                                             reason=f"swarm {dict(tally)} | {picks}"[:200], tier=tier_name)
             if action == "escalate":
                 return cec_dispatch.Verdict("escalate", reason=f"swarm {dict(tally)}"[:200], tier=tier_name)
-            opt = ctx.history[-1]["params"]["opt_time"] if ctx.history else 12
+            opt = (ctx.history[-1].get("params", {}).get("opt_time", 12) if ctx.history else 12)
             return cec_dispatch.Verdict("request_more", params={"opt_time": int(opt * 1.6)},
                                         reason=f"swarm {dict(tally)} | {picks}"[:200], tier=tier_name)
         except Exception:
@@ -381,6 +416,57 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
 
     decide.tier_name = tier_name
     return decide
+
+
+def differentiated_test(*, panel=3, verbose=True):
+    """PROVE (or disprove) that the swarm makes DISTINCT, correct calls -- the open question from the
+    Opus-team stress test (identical-outcome boards couldn't show it). Feeds the dispatch swarm three
+    contexts whose CORRECT answer differs and checks it returns accept / request_more / escalate:
+      * accept-now           : clean, gate-passing, drc=0           -> accept
+      * real-repair          : a hard gate fails, but improving      -> request_more
+      * structural-escalate  : gates 'pass' yet a REAL cross-net short, STALLED at drc=40 -> escalate
+    Returns {scenario: {expected, got, ok, reason}}. Needs the vLLM server up."""
+    import cec_dispatch
+    GN = cec_dispatch.GATE_NOTE
+    tier = make_dispatch_swarm_tier(panel=panel)
+
+    def cand(**kw):
+        b = dict(seed=0, params={}, board="b", drc=0, unconnected=0, kelvin_ok=True, diffpair_ok=True,
+                 gates_pass=True, tracks=500, vias=80, drc_types={}, drc_loci=[], unconn_nets=[])
+        b.update(kw)
+        return b
+
+    scen = {
+        "accept-now": ("accept", cec_dispatch.JudgeContext(
+            board="b", tier="haiku", budget_left=2, gate_note=GN, history=[],
+            candidates=[cand(gates_pass=True)])),
+        "real-repair": ("request_more", cec_dispatch.JudgeContext(
+            board="b", tier="haiku", budget_left=2, gate_note=GN,
+            history=[{"verdict": "request_more", "best_drc": 22, "best_unconnected": 26}],   # improving 26->14
+            candidates=[cand(drc=12, unconnected=14, kelvin_ok=False, gates_pass=False,
+                             drc_types={"clearance": 12},
+                             drc_loci=[{"where": "unrouted sense pair SENSEC1_HI/SENSEC1_LO", "type": "clearance"}],
+                             unconn_nets=["/SENSEC1_HI", "/SENSEC1_LO"])])),
+        "structural-escalate": ("escalate", cec_dispatch.JudgeContext(
+            board="b", tier="haiku", budget_left=2, gate_note=GN,
+            history=[{"verdict": "request_more", "best_drc": 40, "best_unconnected": 8},
+                     {"verdict": "request_more", "best_drc": 40, "best_unconnected": 8},
+                     {"verdict": "request_more", "best_drc": 40, "best_unconnected": 8}],   # STALLED at 40
+            candidates=[cand(drc=40, unconnected=8, gates_pass=False, drc_types={"shorting_items": 40},
+                             drc_loci=[{"where": "clearance: +3V3 track to /USB_DP via < 0.1mm [+3V3] [/USB_DP]",
+                                        "type": "shorting_items"}], unconn_nets=[])])),
+    }
+    out = {}
+    for name, (exp, ctx) in scen.items():
+        v = tier(ctx)
+        ok = (v.action == exp)
+        out[name] = {"expected": exp, "got": v.action, "ok": ok, "reason": str(v.reason)[:160]}
+        if verbose:
+            print(f"  [{'OK' if ok else 'XX'}] {name:21s} expected={exp:13s} got={v.action:13s}  {str(v.reason)[:80]}")
+    n = sum(1 for r in out.values() if r["ok"])
+    if verbose:
+        print(f"  -> {n}/{len(out)} distinct scenarios judged correctly by the local swarm")
+    return out
 
 
 # ===========================================================================
@@ -458,8 +544,9 @@ if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(description="cec_judge_local -- local vLLM judge gate + smoke")
     ap.add_argument("cmd", nargs="?", default="status",
-                    choices=["up", "down", "warm", "status", "smoke"],
-                    help="up=start+warm on demand, down=stop (free VRAM), warm, status, smoke=judge a fake candidate")
+                    choices=["up", "down", "warm", "status", "smoke", "diff-test"],
+                    help="up=start+warm, down=stop (free VRAM), warm, status, smoke=judge a fake candidate, "
+                         "diff-test=prove the swarm differentiates accept/repair/escalate")
     ap.add_argument("--url", default=VLLM_URL)
     ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for the server to come up")
     a = ap.parse_args()
@@ -471,6 +558,12 @@ if __name__ == "__main__":
         sys.exit(0 if shutdown() else 1)
     if a.cmd == "warm":
         sys.exit(0 if warmup() else 1)
+    if a.cmd == "diff-test":
+        if not available():
+            print("vLLM down -- run 'up' first")
+            sys.exit(2)
+        res = differentiated_test(panel=3)
+        sys.exit(0 if all(r["ok"] for r in res.values()) else 1)
     if a.cmd == "status":
         print(f"server URL: {VLLM_URL} | model: {MODEL} | available: {available()}")
         sys.exit(0)

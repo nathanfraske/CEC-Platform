@@ -286,8 +286,12 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
                            tier=tier_name, history=list(log), gate_note=GATE_NOTE)
         v = tiers[ti](ctx)
         v.tier = v.tier or tier_name
+        _bm = cands[0] if cands else None
         log.append({"tier": tier_name, "budget_left": b, "params": dict(params),
-                    "n_cands": len(cands), "verdict": v.action, "reason": v.reason[:200]})
+                    "n_cands": len(cands), "verdict": v.action, "reason": v.reason[:200],
+                    "best_drc": (_bm.drc if _bm else None),               # the stall trail: a
+                    "best_unconnected": (_bm.unconnected if _bm else None),  # structural lens reads
+                    "best_gates_pass": (_bm.gates_pass if _bm else None)})   # this to detect no-progress
         if verbose:
             print(f"  [{tier_name}] {len(cands)} cands, budget={b} -> {v.action}: {v.reason[:90]}")
         if v.action == "accept":
