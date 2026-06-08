@@ -234,6 +234,16 @@ gates on `dT_max=30 / T_max=105 / J_max=100`.
   OQ-12 stackup, re-spec the transient, or accept on project needs — never auto-resolved). Verified on
   eps: PLACE accept → ROUTE kelvin+diff pass → FEM via over-temp → re-place → still via over-temp →
   DESIGN OVERSEER. CLI `--route-budget` / `--place-budget`.
+- **CLOSED LOOP — OQ-10 ratified + the EPS reaches release (2026-06-07).** At the overseer the human
+  ratified **"more parallel vias first"** (board-specific OQ-10 direction). Implemented:
+  `cec_fr.derive_via_field`/`add_via_field` lay a grid of same-net F.Cu↔B.Cu through-vias in each
+  cable net's transition region (more barrels in parallel → less current per via), applied additively
+  via `cec_cascade --via-field N`. Effect on eps: +48 vias (12/cable net) takes the transient FEM from
+  `{via over-temp, transient via fusing}` → **`{}` clean** (max_T 65.7 °C), and the cascade then runs
+  ALL THE WAY UP → **APEX SIGNED, release-ready** (the residual 4 DRC are the LOGO-keepout / shield-tab
+  finishing items, not a release blocker). The full discover→escalate→**ratify**→enforce→release loop
+  is closed: the cascade surfaced the one real decision, the human made it, the swarm pipeline carried
+  it to a signed result.
 - **Sign-off tier (later):** Elmer coupled steady+transient electrothermal to calibrate the
   hardcoded `dt_ipc` k-constant and `shunt_rth_CW=25 C/W` placeholder; validate against one bench
   measurement before a FEM flag blocks a release.
