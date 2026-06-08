@@ -109,21 +109,23 @@ def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes
         elif verbose:
             print("[cascade:ROUTE] vLLM down -> deterministic routing tiers")
     final, log = cec_router.route(placement, spec, manager=manager, worker=worker, verbose=verbose)
-    if final and via_field > 0:                          # OQ-10 ratified fix: more parallel vias
+    if final and via_field > 0:                          # OQ-10 ratified fix: B.Cu mirror pour + via field
         try:
             import cec_fr
             import pcbnew
+            # compute from the file first (each does its own LoadBoard), then mutate one board:
             fields = cec_fr.derive_via_field(final, per_net=via_field)
-            if fields:
-                b = pcbnew.LoadBoard(final)
-                added = cec_fr.add_via_field(b, fields)
-                for z in b.Zones():                      # re-fill so GND antipads the new vias
-                    z.UnFill()
-                pcbnew.ZONE_FILLER(b).Fill(b.Zones())
-                pcbnew.SaveBoard(final, b)
-                if verbose:
-                    print(f"[cascade:ROUTE] +via field: {len(added)} parallel vias over "
-                          f"{len(fields)} cable nets (OQ-10 more-parallel-vias)")
+            bpours = cec_fr.derive_power_pours(final, layer="B.Cu")   # mirror the F.Cu high-current pour
+            b = pcbnew.LoadBoard(final)
+            cec_fr.add_power_pours(b, bpours)            # additive same-net B.Cu copper -> the vias connect
+            added = cec_fr.add_via_field(b, fields)
+            for z in b.Zones():                          # re-fill: form the pours + GND antipads the vias
+                z.UnFill()
+            pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+            pcbnew.SaveBoard(final, b)
+            if verbose:
+                print(f"[cascade:ROUTE] +B.Cu mirror pour ({len(bpours)}) + via field "
+                      f"({len(added)} vias / {len(fields)} nets) -- OQ-10; vias stitch F.Cu<->B.Cu pour")
         except Exception as e:
             if verbose:
                 print(f"[cascade:ROUTE] via field skipped ({type(e).__name__}: {e})")

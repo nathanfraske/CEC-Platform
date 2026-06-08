@@ -402,15 +402,26 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
 # ---------------------------------------------------------------------------
 # derive_via_field / add_via_field -- the OQ-10 "more parallel vias" fix
 # ---------------------------------------------------------------------------
-def derive_via_field(board_path, *, per_net=12, drill=0.3, dia=0.6, pitch=1.1, keepout=0.45,
-                     kelvin_pairs=None):
+def _pt_seg_dist(px, py, ax, ay, bx, by):
+    """Distance (mm) from point (px,py) to segment (ax,ay)-(bx,by)."""
+    dx, dy = bx - ax, by - ay
+    L2 = dx * dx + dy * dy
+    if L2 < 1e-12:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L2))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
+                     clearance=0.2, kelvin_pairs=None):
     """Auto-derive a PARALLEL VIA FIELD for each high-current cable net at its vertical-transition
-    region (the §6.7/OQ-10 'more parallel vias' fix: more barrels in parallel -> less current per via
-    -> lower via dT). A grid of up to `per_net` same-net through-vias placed in the OPEN copper of the
-    net's heavy-pad bbox (the cable+shunt region, same as the power pour), skipping any grid point
-    within `keepout` mm of a pad (own or foreign) so a via lands in the pour channel, never in a pad /
-    on the opposite shunt terminal. Returns [{net, positions:[(x,y)...], drill, dia}]; self-gating ->
-    [] when there is no cable high-current net (a no-op on those boards)."""
+    region (the §6.7/OQ-10 'more parallel vias' fix: more barrels in parallel -> less current per via).
+    A grid of up to `per_net` same-net through-vias in the net's heavy-pad bbox, skipping any grid point
+    that is: within keepout of ANY pad; within (clearance + via radius) of a FOREIGN-net track; within
+    (clearance + radii) of an EXISTING via (no stacked/coincident drills); or over a decorative LOGO.
+    So the field lands in the OPEN same-net pour channel and shorts nothing. To CONNECT (not dangle) the
+    through-vias need same-net copper on BOTH spanned layers -- pair this with a B.Cu mirror pour (the
+    caller lays one). Returns [{net, positions:[(x,y)...], drill, dia}]; self-gating -> [] if no cable net."""
     from collections import defaultdict
     board = pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
@@ -420,8 +431,20 @@ def derive_via_field(board_path, *, per_net=12, drill=0.3, dia=0.6, pitch=1.1, k
     pads_by_net = defaultdict(list)
     padcount = defaultdict(int)
     all_pads = []                          # (x, y, half_extent_mm) -- every pad, for the keepout
+    segs = []                              # (net, ax, ay, bx, by, halfwidth) -- every track
+    ex_vias = []                           # (x, y, radius) -- existing vias
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p = t.GetPosition(); ex_vias.append((p.x / MM, p.y / MM, t.GetWidth() / MM / 2.0))
+        elif t.Type() == pcbnew.PCB_TRACE_T:
+            s, e = t.GetStart(), t.GetEnd()
+            segs.append((t.GetNetname(), s.x / MM, s.y / MM, e.x / MM, e.y / MM, t.GetWidth() / MM / 2.0))
+    logo_rects = []
     for fp in board.GetFootprints():
         ref = fp.GetReference()
+        if ref.upper().startswith("LOGO"):
+            bb = fp.GetBoundingBox()
+            logo_rects.append((bb.GetLeft() / MM, bb.GetTop() / MM, bb.GetRight() / MM, bb.GetBottom() / MM))
         for p in fp.Pads():
             padcount[ref] += 1
             pos = p.GetPosition(); sz = p.GetSize()
@@ -429,6 +452,7 @@ def derive_via_field(board_path, *, per_net=12, drill=0.3, dia=0.6, pitch=1.1, k
             if p.GetNetname():
                 pads_by_net[p.GetNetname()].append((ref, p))
 
+    vr = dia / 2.0
     fields = []
     for hi, lo in kelvin_pairs:
         refs_hi = {ref for ref, _ in pads_by_net.get(hi, [])}
@@ -448,12 +472,20 @@ def derive_via_field(board_path, *, per_net=12, drill=0.3, dia=0.6, pitch=1.1, k
             pos = []
             for ix in range(nx + 1):
                 for iy in range(ny + 1):
-                    x, y = x0 + ix * pitch, y0 + iy * pitch
-                    if all(math.hypot(x - px, y - py) >= (pr + keepout + dia / 2.0)
-                           for (px, py, pr) in all_pads):
-                        pos.append((round(x, 3), round(y, 3)))
                     if len(pos) >= per_net:
                         break
+                    x, y = x0 + ix * pitch, y0 + iy * pitch
+                    if any(math.hypot(x - px, y - py) < pr + keepout + vr for (px, py, pr) in all_pads):
+                        continue           # too close to a pad
+                    if any(snet != net and _pt_seg_dist(x, y, ax, ay, bx, by) < hw + clearance + vr
+                           for (snet, ax, ay, bx, by, hw) in segs):
+                        continue           # too close to a FOREIGN-net track
+                    if any(math.hypot(x - vx, y - vy) < r + vr + clearance for (vx, vy, r) in ex_vias):
+                        continue           # would stack on / crowd an existing via
+                    if any(lx - keepout <= x <= rx + keepout and ty - keepout <= y <= by_ + keepout
+                           for (lx, ty, rx, by_) in logo_rects):
+                        continue           # over the decorative LOGO
+                    pos.append((round(x, 3), round(y, 3)))
                 if len(pos) >= per_net:
                     break
             if pos:
