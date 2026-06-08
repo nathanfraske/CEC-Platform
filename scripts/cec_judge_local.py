@@ -46,7 +46,15 @@ MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-judge")     # --served-model-
 # is a MoE 30B-A3B = 3B active params/token), so this only earns its keep if a bigger MANAGER model is
 # brought up and a tiny worker model is served alongside it. Unset -> one model, zero extra VRAM.
 WORKER_MODEL = os.environ.get("CEC_VLLM_WORKER_MODEL") or MODEL
+WORKER_URL = (os.environ.get("CEC_VLLM_WORKER_URL") or VLLM_URL).rstrip("/")
+# TIERED MANAGER: the (low-volume, high-stakes) MANAGER judgment can run on a SEPARATE, SMARTER server
+# -- e.g. gpt-oss-120b / Qwen3-235B on a llama.cpp endpoint (experts in RAM) -- while the high-volume
+# WORKER/dispatch calls stay on the fast vLLM. Unset -> the manager uses the same server/model as the
+# workers (one model). This is the "big slow smart manager + small fast workers" split.
+MANAGER_URL = (os.environ.get("CEC_VLLM_MANAGER_URL") or VLLM_URL).rstrip("/")
+MANAGER_MODEL = os.environ.get("CEC_VLLM_MANAGER_MODEL") or MODEL
 TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "120"))   # absorbs the cold first guided-JSON grammar compile
+MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "300"))   # a big RAM-offload manager is slow
 TIER = "local:qwen3-coder-30b-awq"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
@@ -77,8 +85,8 @@ SYSTEM = (
 )
 
 
-def _post(path, payload, timeout=None):
-    req = urllib.request.Request(VLLM_URL + path, data=json.dumps(payload).encode(),
+def _post(path, payload, timeout=None, url=None):
+    req = urllib.request.Request((url or VLLM_URL) + path, data=json.dumps(payload).encode(),
                                  headers={"Content-Type": "application/json"}, method="POST")
     with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
         return json.load(r)
@@ -94,10 +102,10 @@ def available(timeout=3):
 
 
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=400, timeout=None,
-               model=None):
+               model=None, url=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
-    diverse reply for swarm replicas."""
+    diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker)."""
     payload = {
         "model": model or MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -106,14 +114,14 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
         "response_format": {"type": "json_schema",
                             "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
-    resp = _post("/chat/completions", payload, timeout=timeout)
+    resp = _post("/chat/completions", payload, timeout=timeout, url=url)
     return json.loads(resp["choices"][0]["message"]["content"])
 
 
-def chat_verdict(system, user, *, timeout=None, temperature=0.0):
+def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None):
     """One guided-JSON manager-verdict call -> {action, reason}."""
     return _chat_json(system, user, VERDICT_SCHEMA, name="verdict",
-                      temperature=temperature, timeout=timeout)
+                      temperature=temperature, timeout=timeout, url=url, model=model)
 
 
 def _context(region, scored, history, spec):
@@ -145,7 +153,7 @@ def make_manager(spec, *, verbose=False):
     def manager(region, scored, history):
         try:
             user = _context(region, scored, history, spec)
-            v = chat_verdict(SYSTEM, user)
+            v = chat_verdict(SYSTEM, user, url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
             action = v.get("action", "repair")
             best = scored[0][1] if scored else None
             if action == "accept" and not (best is not None and best.gates_pass):
@@ -252,16 +260,18 @@ def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_wor
     return repair_word, tally, picks
 
 
-def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None):
-    """Fire one judge per lens CONCURRENTLY at the batched server. `user_or_fn` is a user string (same
-    for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
+def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, url=None, model=None,
+           timeout=None):
+    """Fire one judge per lens CONCURRENTLY at the (per-tier) server. `user_or_fn` is a user string
+    (same for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
     temps = temps or {}
 
     def one(idx_lens):
         idx, (lname, lsys) = idx_lens
         user = user_or_fn(lname) if callable(user_or_fn) else user_or_fn
         try:
-            return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0)))
+            return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0),
+                                      url=url, model=model, timeout=timeout))
         except Exception as e:
             return (lname, {"error": type(e).__name__})
 
@@ -281,7 +291,8 @@ def make_manager_swarm(spec, *, panel=3, verbose=False):
         try:
             user = _context(region, scored, history, spec)
             best = scored[0][1] if scored else None
-            results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps)
+            results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps,
+                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
                 + ([best.drc] if best is not None else [])
@@ -358,7 +369,7 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False):
             def one(i):
                 try:
                     r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort",
-                                   temperature=(0.0 if i == 0 else 0.5), model=WORKER_MODEL)
+                                   temperature=(0.0 if i == 0 else 0.5), model=WORKER_MODEL, url=WORKER_URL)
                     return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
                 except Exception:
                     return None
@@ -421,7 +432,8 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
                      "verdict": h.get("verdict")} for i, h in enumerate(ctx.history or [])]
             user = json.dumps({"candidates_best_first": cands[:4], "budget_left": ctx.budget_left,
                                "history_drc_trail": hist, "gate_note": ctx.gate_note}, default=str)
-            results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps)
+            results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps,
+                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h.get("best_drc") for h in (ctx.history or [])] + [(best or {}).get("drc")]
             esc_ok = _escalate_corroborated(trail, (best or {}).get("drc_loci"))
@@ -486,7 +498,8 @@ def make_placement_swarm(*, panel=3, verbose=False):
         hard = metrics.get("hard_fails") or []
         try:
             user = json.dumps(metrics, default=str)
-            results = _panel(user, lenses, PLACEMENT_SCHEMA, name="verdict", temps=temps)
+            results = _panel(user, lenses, PLACEMENT_SCHEMA, name="verdict", temps=temps,
+                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             action, tally, picks = _vote(votes, ("accept", "refine", "escalate"),
                                          accept_ok=(not hard), repair_word="refine",
