@@ -244,6 +244,24 @@ gates on `dT_max=30 / T_max=105 / J_max=100`.
   finishing items, not a release blocker). The full discover→escalate→**ratify**→enforce→release loop
   is closed: the cascade surfaced the one real decision, the human made it, the swarm pipeline carried
   it to a signed result.
+- **!! THAT SIGNED RELEASE WAS REFUTED by an adversarial panel (2026-06-07) — do NOT trust it.** A
+  5-agent adversarial workflow + a render (the copper plot flagged "REAL short = 60") proved the
+  "release" INVALID. The as-built board has drc=64 / **kelvin_ok=FALSE**. THREE compounding defects,
+  all confirmed against the file: (1) **stale verify** — `cec_cascade.route_tier` adds the via field
+  AFTER `cec_router.route()` computes the verdict and the apex signs that PRE-mutation verdict; the
+  gates are never re-scored on the board that ships. (2) **dangling via field** — the SENSEC sense
+  pours are F.Cu-ONLY, but `derive_via_field` spans F.Cu↔B.Cu, so 42/48 field vias DANGLE and fragment
+  cable-2's four-wire Kelvin sense (the hard gate flips False) + a GND-via→LOGO1 short + coincident GND
+  drills. (3) **FEM credits phantom copper** — `electrothermal_solve` counts every same-net via
+  (`iv=I/nvias`) with no connectivity check, so the "0 flags" thermal pass was an artifact of dividing
+  current across DEAD barrels; and the pass also rests on an optimistic `sustained_ratio=0.5` (≥68%
+  sustained → conductor over-temp, which the vias don't help). REQUIRED FIXES (panel): re-score gates
+  on the POST-via-field board before sign-off; lay real same-net copper on BOTH layers a field via
+  spans (or only place vias where the net has connected copper on both layers); have the FEM count
+  only non-dangling vias; defend/raise the transient sustained_ratio. What HELD UP: the generate+score
+  backbone, the diff-pair gate, the clean pre-via-field route, and the apex LOGIC itself (fed the real
+  FEM it correctly escalates) — the architecture is sound; the via-field impl + verify-ordering are the
+  defects. LESSON (re-confirmed, CLAUDE.md): verify the ARTIFACT THAT SHIPS, never an earlier one.
 - **Sign-off tier (later):** Elmer coupled steady+transient electrothermal to calibrate the
   hardcoded `dt_ipc` k-constant and `shunt_rth_CW=25 C/W` placeholder; validate against one bench
   measurement before a FEM flag blocks a release.
