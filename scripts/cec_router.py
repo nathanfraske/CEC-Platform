@@ -28,7 +28,7 @@
 # whole framework runs end-to-end with no LLM (reproducible + testable). The tiered LLM
 # realisation plugs sub-agent verdicts into those same callable slots -- see
 # make_subagent_policy() and scripts/README-cec_pcb.md ("automated routing system").
-import os, sys, json, time, shutil, copy, tempfile
+import os, re, sys, json, time, shutil, copy, tempfile
 from dataclasses import dataclass, field, asdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -223,6 +223,18 @@ def apply_edit(state, edit):
         fp.SetPosition(pcbnew.VECTOR2I(int(round(x * 1e6)), int(round(y * 1e6))))
         fp.SetOrientationDegrees(rot)
         pcbnew.SaveBoard(state.board, b)
+    elif t == "place_nudge":
+        # RELATIVE part move (the manager-tier 'nudge'): shift a footprint by (dx,dy) mm off a
+        # conflict, then FR re-routes around the new position. Refuses a fixed/mechanical part.
+        import pcbnew
+        b = pcbnew.LoadBoard(state.board)
+        fp = b.FindFootprintByReference(edit["ref"])
+        if not fp:
+            raise KeyError(f"apply_edit place_nudge: footprint {edit['ref']} not found")
+        dx, dy = edit["delta"]
+        p = fp.GetPosition()
+        fp.SetPosition(pcbnew.VECTOR2I(p.x + int(round(dx * 1e6)), p.y + int(round(dy * 1e6))))
+        pcbnew.SaveBoard(state.board, b)
     else:
         raise ValueError(f"apply_edit: unknown edit type {t!r}")
     state.edits.append(edit)
@@ -268,13 +280,30 @@ def default_manager(region, scored, history, spec):
     # not passing -> repair. Diagnose from the best candidate's failing gates.
     best = scored[0][1] if scored else None
     why = "; ".join(cec_score.gate(best, region_rules(region, spec))[1][:3]) if best else "no candidate routed"
-    return Verdict("repair", why, tier="sonnet:default", edit=None)
+    # MANAGER-tier finer-grained repair: if a PART-congestion locus exists, attach a NUDGE (moving a
+    # part is the more consequential, manager-tier call; track rip-ups are left to the worker tier).
+    edit = None
+    if scored:
+        try:
+            nudge = targeted_repair(scored[0][0].board, tier="manager")
+        except Exception:
+            nudge = None
+        if nudge:
+            edit, why = nudge, f"NUDGE {nudge['why']}"
+    return Verdict("repair", why, tier="sonnet:default", edit=edit)
 
 
 def default_worker(region, verdict, state, history, spec):
-    """Haiku-tier default: a cheap edit. Escalate Freerouting effort first (more passes +
-    opt time), then widen the seed spread. (A real Haiku worker proposes a targeted keep-out
-    or a small nudge from the snag text; this is the deterministic fallback.)"""
+    """Haiku-tier default: a finer-grained TARGETED RIP-UP at the worst real DRC locus if there is one
+    (reserve the conflict so FR re-routes that net around it), else bump Freerouting effort/spread."""
+    cand = getattr(state, "last_candidate", None)
+    if cand and os.path.isfile(cand):
+        try:
+            ed = targeted_repair(cand, tier="worker")
+        except Exception:
+            ed = None
+        if ed:
+            return Verdict("repair", f"RIP-UP {ed['why']}", tier="haiku:ripup", edit=ed)
     passes = min(int(state.fr.get("passes", 10) * 1.6) + 1, 60)
     opt = min(int(state.fr.get("opt_time", 30) * 1.6) + 1, 120)
     return Verdict("repair", f"bump FR effort -> passes={passes} opt={opt}", tier="haiku:default",
@@ -288,6 +317,62 @@ def default_escalator(region, state, history, spec):
     edit = {"type": "fr_params", "set": {"passes": 24, "opt_time": 60, "threads": 1}}
     return Verdict("escalate", "Kmax repairs stalled -> reset effort + (re-plan hook)",
                    tier="opus:default", edit=edit)
+
+
+# ---- locus-aware FINER-GRAINED repair (targeted rip-up / part nudge) -----------------------------
+_REAL_DRC = ("clearance", "shorting_items", "hole_to_hole", "hole_clearance")
+
+
+def targeted_repair(board_path, *, tier="worker"):
+    """Read the worst REAL DRC violation on a routed candidate and propose a TARGETED edit -- finer than
+    a global effort bump. For a track/via clearance or short between DIFFERENT nets: a 'keepout' RIP-UP
+    (reserve the conflict spot so FR re-routes that net around it). For a courtyard/pad part conflict: a
+    'place_nudge' (shift the congested part). Returns the edit dict (+ 'tier','why','locus') or None.
+    The WORKER tier owns rip-ups (track-level); a part nudge is escalated to the MANAGER tier (a part
+    move is the more consequential call). Pass tier='worker' to get only rip-ups, 'manager' for nudges."""
+    out = os.path.join(tempfile.gettempdir(), "cec_tr_%d.json" % os.getpid())
+    import subprocess
+    subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out, board_path],
+                   capture_output=True)
+    try:
+        viols = json.load(open(out)).get("violations", [])
+    except Exception:
+        return None
+    for v in viols:
+        if v.get("type") not in _REAL_DRC:
+            continue
+        items = v.get("items", [])
+        descs = " ".join(it.get("description", "") for it in items)
+        if "LOGO" in descs.upper():
+            continue                                    # decorative-logo residual -> a finishing pass, not a rip-up
+        refs = re.findall(r"\bof ([A-Z]+[0-9]+)", descs)
+        if len(set(refs)) == 1 and len(refs) >= 2:
+            continue                                    # same-footprint headless false short -> skip
+        # positions are in MM in the kicad-cli DRC JSON; center the edit on the point-like item
+        # (a Via/Pad) if there is one, else the first located item.
+        ptlike = [it for it in items if it.get("pos") and ("Via" in it.get("description", "")
+                                                           or "Pad" in it.get("description", ""))]
+        src = ptlike[0] if ptlike else next((it for it in items if it.get("pos")), None)
+        if not src:
+            continue
+        x = round(src["pos"]["x"], 3)
+        y = round(src["pos"]["y"], 3)
+        nets = [n for n in re.findall(r"\[([^\]]+)\]", descs) if n not in ("", "<no net>")]
+        is_part = ("courtyard" in descs.lower()) or ("Pad" in descs and refs)
+        if is_part and refs:                            # part conflict -> MANAGER-tier nudge
+            if tier != "manager":
+                continue
+            return {"type": "place_nudge", "ref": sorted(set(refs))[0], "delta": (0.4, 0.4),
+                    "tier": "manager", "locus": (x, y),
+                    "why": f"nudge {sorted(set(refs))[0]} off the {v['type']} at ({x},{y})"}
+        if tier != "worker":                            # track conflict -> WORKER-tier rip-up
+            continue
+        return {"type": "keepout", "tier": "worker", "locus": (x, y),
+                "keepout": {"name": ("ripup_%s_%s" % (x, y)).replace(".", "p").replace("-", "n"),
+                            "x0": x - 0.6, "y0": y - 0.6, "x1": x + 0.6, "y1": y + 0.6,
+                            "layers": ("F.Cu", "B.Cu")},
+                "why": f"rip-up: reserve ({x},{y}) so {nets[:2]} re-route around the {v['type']}"}
+    return None
 
 
 def make_subagent_policy(decide):
@@ -467,6 +552,8 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                                           max_workers=spec.max_workers)
             scored = _candidate_pool(cands, rules, spec.weights)
             best = scored[0] if scored else None
+            if best:                                     # so the worker can target a rip-up at this candidate's loci
+                state.last_candidate = best[0].board
             verdict = manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,

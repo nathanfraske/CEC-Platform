@@ -285,10 +285,21 @@ def make_manager_swarm(spec, *, panel=3, verbose=False):
                                          escalate_lens="progress", escalate_ok=esc_ok)
             if action is None:
                 raise RuntimeError("no valid panel vote")
+            # MANAGER-tier finer-grained repair: attach a part NUDGE if a part-congestion locus exists.
+            edit = None
+            if action == "repair" and scored:
+                try:
+                    nudge = cec_router.targeted_repair(scored[0][0].board, tier="manager")
+                except Exception:
+                    nudge = None
+                if nudge:
+                    edit = nudge
+                    if verbose:
+                        print(f"[swarm-mgr] +NUDGE {nudge['why']}")
             if verbose:
                 print(f"[swarm-mgr] {getattr(region,'name','all')} panel={dict(tally)} -> {action}")
             return cec_router.Verdict(action, f"panel {dict(tally)} -> {action} | {picks}"[:240],
-                                      tier=f"local-swarm-mgr({sum(tally.values())})")
+                                      tier=f"local-swarm-mgr({sum(tally.values())})", edit=edit)
         except Exception as e:
             fb = cec_router.default_manager(region, scored, history, spec)
             fb.tier = (fb.tier or "") + f" (swarm-fallback:{type(e).__name__})"
@@ -319,6 +330,19 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False):
     import cec_router
 
     def worker(region, verdict, state, history):
+        # WORKER-tier finer-grained repair: try a TARGETED RIP-UP at the worst real DRC locus on the
+        # current candidate first (reserve the conflict so FR re-routes that net), before a global bump.
+        cand = getattr(state, "last_candidate", None)
+        if cand and os.path.isfile(cand):
+            try:
+                ed = cec_router.targeted_repair(cand, tier="worker")
+            except Exception:
+                ed = None
+            if ed:
+                if verbose:
+                    print(f"[swarm-wrk] RIP-UP {ed['why']}")
+                return cec_router.Verdict("repair", f"swarm worker RIP-UP {ed['why']}",
+                                          tier="local-swarm-wrk:ripup", edit=ed)
         cur_p, cur_o = int(state.fr.get("passes", 10)), int(state.fr.get("opt_time", 30))
         try:
             user = json.dumps({"current_passes": cur_p, "current_opt_time": cur_o,
