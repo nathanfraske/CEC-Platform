@@ -41,6 +41,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # from the host it is http://localhost:8000. Override with CEC_VLLM_URL.
 VLLM_URL = os.environ.get("CEC_VLLM_URL", "http://localhost:8000/v1").rstrip("/")
 MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-judge")     # --served-model-name in compose
+# Optional TIERING: workers (cheap, high-volume effort-sizing) can use a SMALLER served model than the
+# managers (judgment). Defaults to the manager model -- the worker is ALREADY cheap (the manager model
+# is a MoE 30B-A3B = 3B active params/token), so this only earns its keep if a bigger MANAGER model is
+# brought up and a tiny worker model is served alongside it. Unset -> one model, zero extra VRAM.
+WORKER_MODEL = os.environ.get("CEC_VLLM_WORKER_MODEL") or MODEL
 TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "120"))   # absorbs the cold first guided-JSON grammar compile
 TIER = "local:qwen3-coder-30b-awq"
 
@@ -88,12 +93,13 @@ def available(timeout=3):
         return False
 
 
-def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=400, timeout=None):
+def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=400, timeout=None,
+               model=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
     diverse reply for swarm replicas."""
     payload = {
-        "model": MODEL,
+        "model": model or MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "temperature": temperature,
         "max_tokens": max_tokens,
@@ -352,7 +358,7 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False):
             def one(i):
                 try:
                     r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort",
-                                   temperature=(0.0 if i == 0 else 0.5))
+                                   temperature=(0.0 if i == 0 else 0.5), model=WORKER_MODEL)
                     return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
                 except Exception:
                     return None
