@@ -218,6 +218,22 @@ gates on `dT_max=30 / T_max=105 / J_max=100`.
   validated end-to-end (force-only sim: derive → ratify-write → **DRC enforces, 76 hits**, hand rules
   preserved). RATIFY is the human's board-specific act (`--enforce-cross-section --write`); promoting
   the checker itself from advisory→gating still wants the bench calibration of `dt_ipc` / `shunt_rth`.
+- **TRANSIENT FEM + the bidirectional cascade — DONE (2026-06-07).** The cable design current (40 A)
+  is a TRANSIENT peak, not sustained (per the user); the steady-at-peak FEM over-penalized it.
+  `electrothermal_solve` is now transient-aware (opt-in `cfg.params['transient']`): the SUSTAINED
+  thermal runs on the RMS-over-thermal-time-constant current (a sustained baseline + a brief spike at
+  `peak_duty`), a ms spike ≪ τ adds a bounded excursion, and the PEAK is modelled for instantaneous
+  J / fusing (what §6.10/§6.13 capture). `physics_gates` separates SUSTAINED over-temp (blocking) from
+  the brief excursion (a `T_max_transient_C` allowance) and peak-J fusing. Effect on eps: steady-at-peak
+  max_T 128 °C (conductor + via over-temp) → transient max_T **66 °C, the conductor over-temp GONE**
+  (pours at I_rms≈21 A), narrowing the escalation to the single **via over-temp** = the genuine §6.7/
+  OQ-10 vertical transition. `cec_cascade.py` is now BIDIRECTIONAL: UP on success
+  (PLACE-swarm→ROUTE-swarm→FEM→APEX release); DOWN on failure (a route-gate fail re-routes; a
+  gate-clean FEM fail cascades DOWN INTO PLACEMENT for a different candidate; if neither resolves it,
+  DOWN to the **DESIGN OVERSEER (you)** with the project-level levers — OQ-10 via field/copper coin,
+  OQ-12 stackup, re-spec the transient, or accept on project needs — never auto-resolved). Verified on
+  eps: PLACE accept → ROUTE kelvin+diff pass → FEM via over-temp → re-place → still via over-temp →
+  DESIGN OVERSEER. CLI `--route-budget` / `--place-budget`.
 - **Sign-off tier (later):** Elmer coupled steady+transient electrothermal to calibrate the
   hardcoded `dt_ipc` k-constant and `shunt_rth_CW=25 C/W` placeholder; validate against one bench
   measurement before a FEM flag blocks a release.
