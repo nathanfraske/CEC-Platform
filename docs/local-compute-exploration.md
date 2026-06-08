@@ -143,6 +143,25 @@ vLLM/PyTorch/openEMS.
 > reserves the paid cloud tier for gate-relevant/structural cases. **To actually prove the swarm's
 > judgment** (the open follow-up): re-run on a scenario where the correct calls DIFFER per board
 > (one accept-now, one real-repair, one structural-escalate) -- identical-outcome boards can't show it.
+>
+> **DECISION VALUE PROVEN + the CASCADING SWARM (2026-06-07).** The follow-up is done:
+> `cec_judge_local.differentiated_test` feeds the swarm three contexts whose correct call DIFFERS and
+> it returns **accept / request_more / escalate -- 3/3** (`cec_judge_local.py diff-test`). Two fixes
+> made it sound: (1) DIMENSION-AWARE voting -- each lens judges a different dimension, so the
+> escalate-authority lens (structural/progress) owns escalate as the safety lens owns accept (a naive
+> majority can never escalate on a lone qualified vote); (2) a VERIFY guard (`_escalate_corroborated`)
+> -- a structural escalate is honored only when the METRICS corroborate (DRC stalled = >=3 identical
+> recent values, or a locus shorting two DIFFERENT functional nets), which stopped the lens
+> over-escalating a still-improving board (the 2/3 failure before the guard). So the swarm is NOT just
+> a "route-N-then-escalate" policy -- it makes distinct, correct calls. The **full cascade** is then
+> wired (`cec_cascade.py`): PLACE-swarm (`make_placement_swarm` -- the same panel on a placement's
+> constraint metrics) -> ROUTE-swarm (manager panel + worker swarm) -> FEM (`physics_gates`: J/dT/T/
+> via/shunt) -> APEX, which classifies the escalation that comes back UP: release-ready (sign) |
+> design-change lever-2 (a FEM over-temp re-route can't fix -> a human stackup/copper decision) |
+> cascade-down. Verified end-to-end on eps (deterministic + swarm): PLACE accept -> ROUTE drc=4 floor
+> -> FEM 5 over-temp flags -> APEX correctly escalates the 40 A thermal as a **lever-2 human design
+> decision** (the §6.7 / OQ-10 boundary), not a re-route. This is the discover->ratify->enforce ladder
+> with a local swarm at every tier and the human/Opus at the apex.
 
 Best GPU use; unlocks routing depth. The deterministic `default_manager` never accepts
 non-perfect DRC, which is why `route_swarm` is pinned to `max_iters=1`.
