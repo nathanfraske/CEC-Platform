@@ -2069,9 +2069,41 @@ class ThermalResult:
     ambient: float
     max_T: float
     max_dT: float
-    nets: dict                  # net -> {I, cross_mm2, J, dT, T, poured}
+    nets: dict                  # net -> {I, cross_mm2, J, dT, T, poured} (+ transient fields if modelled)
     vias: list                  # worst vias
     shunts: list                # shunt dissipators
+
+
+# ---- transient current model ---------------------------------------------------------------------
+# The cable design current is NOT sustained: the GPU draws a lower SUSTAINED baseline (the "saner
+# longer peak") with brief TRANSIENT spikes to the peak (the 40A figure). Steady heating is governed
+# by the RMS current over the copper's thermal time constant (a ms spike << tau adds little heat);
+# the PEAK still matters for the instantaneous excursion + via fusing (and is what the platform's
+# §6.10/§6.13 transient capture measures). Opt-in via cfg.params['transient'] (a dict); absent -> the
+# old steady-at-peak behaviour (backward compatible).
+def _is_cable_net(net):
+    return net.endswith(("_HI", "_LO")) or "12V" in net or net.rsplit("/", 1)[-1] == "GND"
+
+
+def _rms_current(i_peak, cfg, is_cable):
+    """Thermal-effective (RMS-over-tau) current for a cable net under the transient model: a sustained
+    baseline = sustained_ratio x peak, at the peak for peak_duty of the time. Non-cable / no-model -> peak."""
+    tm = cfg.params.get("transient")
+    if not tm or not is_cable:
+        return i_peak
+    ratio = float(tm.get("sustained_ratio", 0.5))     # the sustained 'longer peak' as a fraction of peak
+    duty = float(tm.get("peak_duty", 0.05))           # fraction of time at the transient peak
+    i_sus = i_peak * ratio
+    return math.sqrt(i_sus * i_sus * (1.0 - duty) + i_peak * i_peak * duty)
+
+
+def _transient_excursion(dt_steady_at_peak, cfg):
+    """Extra dT from ONE transient pulse, bounded by the thermal time constant: a pulse much shorter
+    than tau heats far less than its steady value. dT_pulse = dt_steady_peak * (1 - exp(-t_pulse/tau))."""
+    tm = cfg.params.get("transient") or {}
+    t_s = float(tm.get("peak_ms", 5.0)) / 1000.0
+    tau = float(tm.get("tau_s", 10.0))
+    return dt_steady_at_peak * (1.0 - math.exp(-t_s / max(tau, 1e-6)))
 
 
 def electrothermal_solve(board_path, cfg, *, ambient=None):
@@ -2126,30 +2158,43 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
 
     net_res = {}
     max_T, max_dT = ambient, 0.0
-    for net, I in cur.items():
-        if I <= 0 or cross.get(net, 0) <= 0:
+    for net, I_peak in cur.items():
+        if I_peak <= 0 or cross.get(net, 0) <= 0:
             continue
         c = cross[net]
+        is_cable = _is_cable_net(net)
+        I = _rms_current(I_peak, cfg, is_cable)              # thermal-effective (RMS-over-tau) current
         dt = _picard_dt(I, c, ambient, external=(net in poured))
-        net_res[net] = {"I": round(I, 1), "cross_mm2": round(c, 4),
-                        "J": round(I / c, 1), "dT": round(dt, 1), "T": round(ambient + dt, 1),
-                        "poured": net in poured}
-        if ambient + dt > max_T:
-            max_T, max_dT = ambient + dt, dt
+        rec = {"I": round(I, 1), "cross_mm2": round(c, 4), "J": round(I / c, 1),
+               "dT": round(dt, 1), "T": round(ambient + dt, 1), "poured": net in poured}
+        if cfg.params.get("transient") and is_cable and I_peak > I + 0.05:
+            dt_peak = _picard_dt(I_peak, c, ambient, external=(net in poured))   # if peak were sustained
+            exc = _transient_excursion(dt_peak, cfg)
+            rec.update({"I_peak": round(I_peak, 1), "J_peak": round(I_peak / c, 1),
+                        "dT_transient": round(exc, 1), "T_peak": round(ambient + dt + exc, 1)})
+        net_res[net] = rec
+        T_hot = rec.get("T_peak", rec["T"])
+        if T_hot > max_T:
+            max_T, max_dT = T_hot, dt + rec.get("dT_transient", 0.0)
 
     vias = []
     for t in b.GetTracks():
         if t.Type() != pcbnew.PCB_VIA_T:
             continue
-        net = t.GetNetname(); I = cur.get(net, 0.0)
-        if I <= 0:
+        net = t.GetNetname(); I_peak = cur.get(net, 0.0)
+        if I_peak <= 0:
             continue
+        is_cable = _is_cable_net(net)
+        I = _rms_current(I_peak, cfg, is_cable)
         iv = I / max(1, nvias[net])                          # current splits among parallel vias
         drill = t.GetDrillValue() / 1e6
         cv = math.pi * drill * 0.025                         # plated barrel ~25um
         dt = _picard_dt(iv, cv, ambient, external=True)
-        vias.append({"net": net, "I_via": round(iv, 2), "drill_mm": round(drill, 3),
-                     "J": round(iv / cv, 1) if cv else 0, "dT": round(dt, 1), "T": round(ambient + dt, 1)})
+        rec = {"net": net, "I_via": round(iv, 2), "drill_mm": round(drill, 3),
+               "J": round(iv / cv, 1) if cv else 0, "dT": round(dt, 1), "T": round(ambient + dt, 1)}
+        if cfg.params.get("transient") and is_cable and cv and I_peak > I + 0.05:
+            rec["J_peak"] = round((I_peak / max(1, nvias[net])) / cv, 1)   # peak J for fusing
+        vias.append(rec)
     vias.sort(key=lambda v: -v["T"])
 
     shunts = []
@@ -2157,10 +2202,11 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
         if not fp.GetReference().startswith("RS"):
             continue
         R = _r_value_ohms(fp.GetValue()) or 0.5e-3
-        I = cfg.params.get("cable_current_A", 40.0)
+        I_peak = cfg.params.get("cable_current_A", 40.0)
+        I = _rms_current(I_peak, cfg, True)                  # shunt heats on RMS (steady I^2R)
         P = I * I * R
         dt = P * cfg.params.get("shunt_rth_CW", 25.0)        # 2512 shunt+pad thermal resistance °C/W
-        shunts.append({"ref": fp.GetReference(), "R_ohm": R, "I": I, "P_W": round(P, 3),
+        shunts.append({"ref": fp.GetReference(), "R_ohm": R, "I": round(I, 1), "P_W": round(P, 3),
                        "dT": round(dt, 1), "T": round(ambient + dt, 1)})
         if ambient + dt > max_T:
             max_T, max_dT = ambient + dt, dt
@@ -2170,23 +2216,39 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
 
 
 def physics_gates(res, cfg):
-    """J / temperature-rise / derating gates on a ThermalResult (pipeline physics() J/T/derating)."""
+    """J / temperature-rise / derating gates on a ThermalResult. Transient-aware: a SUSTAINED over-temp
+    (computed on the RMS current) is the real blocking thermal fault; a brief TRANSIENT peak excursion
+    is gated against a higher allowance (T_max_transient_C); peak current density is checked against a
+    FUSING ceiling (J_fuse_A_mm2) rather than the sustained J ceiling."""
     flags = []
     dt_max = cfg.params.get("dT_max_C", 30.0)
     t_max = cfg.params.get("T_max_C", 105.0)
-    j_max = cfg.params.get("J_max_A_mm2", 100.0)             # sustained current density ceiling
+    t_max_tr = cfg.params.get("T_max_transient_C", t_max + 20.0)   # brief-excursion allowance
+    j_max = cfg.params.get("J_max_A_mm2", 100.0)             # SUSTAINED current density ceiling
+    j_fuse = cfg.params.get("J_fuse_A_mm2", 400.0)           # TRANSIENT peak fusing ceiling
     for net, r in res.nets.items():
-        if r["T"] > t_max or r["dT"] > dt_max:
+        if r["T"] > t_max or r["dT"] > dt_max:               # SUSTAINED over-temp -- the real fault
             flags.append(Flag("conductor over-temp", net, 0.85, Kind.MEASURE,
                               {"dT": r["dT"], "T": r["T"], "I": r["I"], "cross_mm2": r["cross_mm2"],
                                "poured": r["poured"], "limit_dT": dt_max, "limit_T": t_max}))
+        elif r.get("T_peak", r["T"]) > t_max_tr:             # brief peak excursion past its allowance
+            flags.append(Flag("transient over-temp", net, 0.6, Kind.MEASURE,
+                              {"T_peak": r.get("T_peak"), "dT_transient": r.get("dT_transient"),
+                               "I_peak": r.get("I_peak"), "limit_T_transient": t_max_tr}))
         elif r["J"] > j_max:
             flags.append(Flag("current density high", net, 0.6, Kind.MEASURE,
                               {"J": r["J"], "limit": j_max}))
+        elif r.get("J_peak", 0) > j_fuse:                    # transient peak J -> fusing risk
+            flags.append(Flag("transient fusing risk", net, 0.6, Kind.MEASURE,
+                              {"J_peak": r.get("J_peak"), "I_peak": r.get("I_peak"), "limit_fuse": j_fuse}))
     for v in res.vias:
         if v["T"] > t_max or v["dT"] > dt_max:
             flags.append(Flag("via over-temp", v["net"], 0.7, Kind.MEASURE, dict(v, limit_T=t_max)))
             break                                            # one representative via flag
+    for v in res.vias:
+        if v.get("J_peak", 0) > j_fuse:
+            flags.append(Flag("transient via fusing", v["net"], 0.6, Kind.MEASURE, dict(v, limit_fuse=j_fuse)))
+            break
     for s in res.shunts:
         if s["T"] > t_max or s["dT"] > dt_max:
             flags.append(Flag("shunt over-temp", s["ref"], 0.8, Kind.MEASURE, dict(s, limit_T=t_max)))

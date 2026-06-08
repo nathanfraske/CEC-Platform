@@ -112,26 +112,37 @@ def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes
 
 
 # ----------------------------------------------------------------- FEM tier
-def fem_tier(board, routed, *, verbose=True):
-    """Electrothermal FEM gate on the routed board: physics_gates flags (J / dT / T / via / shunt).
-    Returns {pass, blocking, flags:[...]}. A board that won't solve (no routed copper) -> pass=False."""
+# the cable design current is a TRANSIENT peak, not sustained (the user's design call): a lower
+# sustained 'longer peak' baseline + a brief spike to the peak. The FEM heats on the RMS-over-tau
+# current and models the peak excursion separately. Tune per board via cfg.params['transient'].
+DEFAULT_TRANSIENT = {"sustained_ratio": 0.5, "peak_duty": 0.05, "peak_ms": 5.0, "tau_s": 10.0}
+# SUSTAINED over-temp is the real blocking thermal fault; sustained-J / transient-fusing are advisory
+# (need an I^2t analysis to confirm), matching the min-pour-cross-section advisory stance.
+FEM_ADVISORY = ("current density high", "transient fusing risk", "transient via fusing")
+
+
+def fem_tier(board, routed, *, transient=None, verbose=True):
+    """Transient-aware electrothermal FEM gate on the routed board. SUSTAINED over-temp (RMS current)
+    BLOCKS; a brief transient excursion / peak-J fusing is advisory. Returns
+    {pass, blocking, advisory, flags, max_T, transient}."""
     try:
         cfg = synth.Config.load(board)
     except Exception:
         cfg = synth.Config(board=board)
+    cfg.params.setdefault("transient", dict(transient or DEFAULT_TRANSIENT))
     try:
         res = synth.electrothermal_solve(routed, cfg)
         flags = synth.physics_gates(res, cfg)
     except Exception as e:
-        return {"pass": False, "blocking": ["solver_error"], "flags": [], "error": repr(e)}
-    # over-temp / fusing flags BLOCK; a bare 'current density high' is advisory (matches the
-    # min-pour-cross-section advisory stance until the solver is bench-calibrated).
-    blocking = [f.name for f in flags if f.name != "current density high"]
+        return {"pass": False, "blocking": ["solver_error"], "advisory": [], "flags": [], "error": repr(e)}
+    blocking = sorted({f.name for f in flags if f.name not in FEM_ADVISORY})
+    advisory = sorted({f.name for f in flags if f.name in FEM_ADVISORY})
     detail = [{"name": f.name, "where": str(f.where)[:60], "conf": f.conf} for f in flags]
     if verbose:
-        print(f"[cascade:FEM] {len(flags)} physics flag(s), {len(blocking)} blocking: "
-              f"{Counter(f.name for f in flags)}")
-    return {"pass": not blocking, "blocking": sorted(set(blocking)), "flags": detail}
+        print(f"[cascade:FEM] {len(flags)} flag(s); blocking={blocking} advisory={advisory} "
+              f"(max_T={res.max_T}C, transient on)")
+    return {"pass": not blocking, "blocking": blocking, "advisory": advisory, "flags": detail,
+            "max_T": res.max_T, "transient": cfg.params["transient"]}
 
 
 # ----------------------------------------------------------------- APEX
