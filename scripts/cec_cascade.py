@@ -127,7 +127,29 @@ def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes
         except Exception as e:
             if verbose:
                 print(f"[cascade:ROUTE] via field skipped ({type(e).__name__}: {e})")
+    # VERIFY THE ARTIFACT THAT SHIPS. Re-score the gates + DRC on `final` AS SAVED -- after any additive
+    # via field / pour mutation -- never trust the route verdict computed BEFORE that mutation. (The
+    # adversarial panel caught the cascade signing a stale pre-via-field verdict while the saved board
+    # had kelvin_ok=False + drc=64; the apex must verify the board it actually signs.)
     verdict = (log.final or {}).get("verdict", {})
+    if final and os.path.isfile(final):
+        try:
+            import cec_score
+            m = cec_score.score(final)
+            reasons = []
+            if not m.gates_pass:
+                reasons = cec_score.gate(m, cec_score.Rules.from_board(final))[1]
+            verdict = {"gates_pass": m.gates_pass, "drc": m.drc, "unconnected": m.unconnected,
+                       "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok, "reasons": reasons}
+            if verbose:
+                pre = (log.final or {}).get("verdict", {})
+                tag = " (CHANGED by the post-route mutation)" if pre.get("kelvin_ok") != m.kelvin_ok \
+                    or pre.get("drc") != m.drc else ""
+                print(f"[cascade:ROUTE] RE-VERIFY on the saved board: kelvin={m.kelvin_ok} "
+                      f"diff={m.diffpair_ok} drc={m.drc} unconn={m.unconnected}{tag}")
+        except Exception as e:
+            if verbose:
+                print(f"[cascade:ROUTE] re-verify failed ({type(e).__name__}: {e}); using route verdict")
     return final, log, verdict
 
 
@@ -214,6 +236,15 @@ def default_overseer(board, trail, fem, *, reason):
     """The DESIGN OVERSEER terminus (you / Opus): when neither re-route nor re-place resolves the
     failure, the call is made on PROJECT NEEDS. Deterministic stand-in -- it presents the decision and
     does NOT auto-resolve a design/physics change (the CLAUDE.md human-ratification boundary)."""
+    if reason == "route-stuck":            # a HARD route gate (kelvin/diff) fails on the as-built board
+        return {"decision": "human-call-needed", "by": "design-overseer (you)", "trigger": reason,
+                "reason": "down-cascade exhausted re-route+re-place but the HARD ROUTE GATES (kelvin/diff) "
+                          "still FAIL on the AS-BUILT board -- a routing / via-field implementation defect "
+                          "broke a safety gate; this is NOT a thermal design call",
+                "options": ["fix the via-field / route implementation so the sense stays connected on the "
+                            "SHIPPED board (lay real same-net copper on both layers a via spans)",
+                            "drop the via field and pursue OQ-10 a different way",
+                            "escalate to engineering: the automated tiers cannot connect the sense"]}
     return {"decision": "human-call-needed", "by": "design-overseer (you)", "trigger": reason,
             "reason": f"down-cascade exhausted re-route+re-place; residual {fem.get('blocking')} "
                       f"({reason}) needs a project-level design decision -- not auto-resolved",
