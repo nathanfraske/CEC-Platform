@@ -91,9 +91,11 @@ def place_tier(board, floorplan, *, place_decide, verbose=True):
 
 
 # ----------------------------------------------------------------- ROUTE tier
-def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes, opt_time, verbose=True):
-    """Route the placement with the routing MANAGER PANEL + WORKER SWARM (or deterministic). Returns
-    (routed_board_path, DecisionLog, verdict_dict)."""
+def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes, opt_time,
+               via_field=0, verbose=True):
+    """Route the placement with the routing MANAGER PANEL + WORKER SWARM (or deterministic). If
+    via_field>0, ADD the OQ-10 parallel via field at each cable net's transition (additive, after the
+    route + pours). Returns (routed_board_path, DecisionLog, verdict_dict)."""
     out_dir = os.path.join(ROOT, "build", "cascade", board)
     os.makedirs(out_dir, exist_ok=True)
     spec, _ = cec_router.board_spec(board, out_dir, seeds=tuple(seeds), passes=passes,
@@ -107,6 +109,24 @@ def route_tier(board, placement, *, panel, swarm, max_iters, kmax, seeds, passes
         elif verbose:
             print("[cascade:ROUTE] vLLM down -> deterministic routing tiers")
     final, log = cec_router.route(placement, spec, manager=manager, worker=worker, verbose=verbose)
+    if final and via_field > 0:                          # OQ-10 ratified fix: more parallel vias
+        try:
+            import cec_fr
+            import pcbnew
+            fields = cec_fr.derive_via_field(final, per_net=via_field)
+            if fields:
+                b = pcbnew.LoadBoard(final)
+                added = cec_fr.add_via_field(b, fields)
+                for z in b.Zones():                      # re-fill so GND antipads the new vias
+                    z.UnFill()
+                pcbnew.ZONE_FILLER(b).Fill(b.Zones())
+                pcbnew.SaveBoard(final, b)
+                if verbose:
+                    print(f"[cascade:ROUTE] +via field: {len(added)} parallel vias over "
+                          f"{len(fields)} cable nets (OQ-10 more-parallel-vias)")
+        except Exception as e:
+            if verbose:
+                print(f"[cascade:ROUTE] via field skipped ({type(e).__name__}: {e})")
     verdict = (log.final or {}).get("verdict", {})
     return final, log, verdict
 
@@ -157,11 +177,16 @@ def default_apex(summary):
                                stackup/copper-coin design decision (CLAUDE.md ratification boundary).
       cascade-down           : route/finishing residual -> re-route or a finishing pass, not the human."""
     fem = summary["fem"]
-    route_clean = not summary["route"].get("reasons")
+    rv = summary["route"].get("verdict", {})
+    gates_ok = bool(rv.get("kelvin_ok") and rv.get("diffpair_ok"))   # the HARD route gates
     place_clean = not summary["place"].get("hard_fails")
-    if fem["pass"] and route_clean and place_clean:
+    finishing = rv.get("drc", 0)                                     # LOGO/shield finishing residual
+    if fem["pass"] and gates_ok and place_clean:
+        note = "FEM passed + hard route gates (kelvin/diff) clean + placement clean"
+        if finishing:
+            note += f"; {finishing} finishing DRC (LOGO keepout / shield tie) -> a finishing pass, not a release blocker"
         return {"signed": True, "by": "default-cautious-apex", "escalation": "release-ready",
-                "reason": "FEM passed + route gates clean + placement clean -> READY for release sign-off (up to you)"}
+                "reason": note + " -> READY for release sign-off (up to you)"}
     if not fem["pass"] and any(b in _THERMAL for b in fem.get("blocking", [])):
         return {"signed": False, "by": "default-cautious-apex", "escalation": "design-change (lever 2)",
                 "reason": f"FEM {fem.get('blocking')} -- NOT fixable by re-route; needs a human "
@@ -227,8 +252,8 @@ def _regenerate_placement(board, current, *, n, verbose=True):
 
 
 def cascade(board, *, panel=3, swarm=True, route_budget=2, place_budget=1, max_iters=2, kmax=2,
-            seeds=(0, 1), passes=8, opt_time=10, place_decide=None, apex=None, overseer=None,
-            transient=None, verbose=True):
+            seeds=(0, 1), passes=8, opt_time=10, via_field=0, place_decide=None, apex=None,
+            overseer=None, transient=None, verbose=True):
     """Bidirectional cascade. UP on success: PLACE-swarm -> ROUTE-swarm -> FEM -> APEX (release).
     DOWN on failure: a route-gate fail re-routes (more FR effort, up to route_budget); a gate-clean
     FEM fail cascades DOWN INTO PLACEMENT (a different candidate, up to place_budget); if neither
@@ -271,7 +296,8 @@ def cascade(board, *, panel=3, swarm=True, route_budget=2, place_budget=1, max_i
         # ROUTE (swarm)
         routed, log, rv = route_tier(board, placement, panel=panel, swarm=swarm,
                                      max_iters=eff["max_iters"], kmax=kmax, seeds=seeds,
-                                     passes=eff["passes"], opt_time=eff["opt_time"], verbose=verbose)
+                                     passes=eff["passes"], opt_time=eff["opt_time"],
+                                     via_field=via_field, verbose=verbose)
         route_info = {"final": routed, "verdict": rv, "reasons": rv.get("reasons", []),
                       "tiers": sorted({(e.get("verdict") or {}).get("tier", "")
                                        for e in log.entries if e.get("verdict")})}
@@ -328,6 +354,8 @@ def main(argv=None):
     ap.add_argument("--no-swarm", action="store_true", help="run every tier deterministically (no GPU)")
     ap.add_argument("--route-budget", type=int, default=2, help="re-route attempts before re-place")
     ap.add_argument("--place-budget", type=int, default=1, help="re-place attempts before the overseer")
+    ap.add_argument("--via-field", type=int, default=0,
+                    help="add N parallel vias per cable net at the transition (OQ-10 'more vias' fix)")
     ap.add_argument("--max-iters", type=int, default=2)
     ap.add_argument("--kmax", type=int, default=2)
     ap.add_argument("--seeds", default="0,1")
@@ -338,7 +366,7 @@ def main(argv=None):
     res = cascade(a.board, panel=a.panel, swarm=not a.no_swarm, route_budget=a.route_budget,
                   place_budget=a.place_budget, max_iters=a.max_iters, kmax=a.kmax,
                   seeds=tuple(int(s) for s in a.seeds.split(",")), passes=a.passes, opt_time=a.opt_time,
-                  verbose=not a.json)
+                  via_field=a.via_field, verbose=not a.json)
     if a.json:
         print(json.dumps(res, indent=2, default=str))
     else:

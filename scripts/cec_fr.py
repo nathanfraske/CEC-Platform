@@ -36,6 +36,7 @@
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
 import os
 import sys
+import math
 import shutil
 import tempfile
 import subprocess
@@ -396,6 +397,90 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             pours.append({"net": net, "layer": layer,
                           "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
     return pours
+
+
+# ---------------------------------------------------------------------------
+# derive_via_field / add_via_field -- the OQ-10 "more parallel vias" fix
+# ---------------------------------------------------------------------------
+def derive_via_field(board_path, *, per_net=12, drill=0.3, dia=0.6, pitch=1.1, keepout=0.45,
+                     kelvin_pairs=None):
+    """Auto-derive a PARALLEL VIA FIELD for each high-current cable net at its vertical-transition
+    region (the §6.7/OQ-10 'more parallel vias' fix: more barrels in parallel -> less current per via
+    -> lower via dT). A grid of up to `per_net` same-net through-vias placed in the OPEN copper of the
+    net's heavy-pad bbox (the cable+shunt region, same as the power pour), skipping any grid point
+    within `keepout` mm of a pad (own or foreign) so a via lands in the pour channel, never in a pad /
+    on the opposite shunt terminal. Returns [{net, positions:[(x,y)...], drill, dia}]; self-gating ->
+    [] when there is no cable high-current net (a no-op on those boards)."""
+    from collections import defaultdict
+    board = pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    pads_by_net = defaultdict(list)
+    padcount = defaultdict(int)
+    all_pads = []                          # (x, y, half_extent_mm) -- every pad, for the keepout
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        for p in fp.Pads():
+            padcount[ref] += 1
+            pos = p.GetPosition(); sz = p.GetSize()
+            all_pads.append((pos.x / MM, pos.y / MM, max(sz.x, sz.y) / MM / 2.0))
+            if p.GetNetname():
+                pads_by_net[p.GetNetname()].append((ref, p))
+
+    fields = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {ref for ref, _ in pads_by_net.get(hi, [])}
+        refs_lo = {ref for ref, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            if not any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries):
+                continue                   # not a cable high-current net
+            heavy = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for ref, p in entries
+                     if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH or ref in shunt_refs]
+            if not heavy:
+                continue
+            xs = [x for x, _ in heavy]; ys = [y for _, y in heavy]
+            x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+            nx = max(1, int((x1 - x0) / pitch)); ny = max(1, int((y1 - y0) / pitch))
+            pos = []
+            for ix in range(nx + 1):
+                for iy in range(ny + 1):
+                    x, y = x0 + ix * pitch, y0 + iy * pitch
+                    if all(math.hypot(x - px, y - py) >= (pr + keepout + dia / 2.0)
+                           for (px, py, pr) in all_pads):
+                        pos.append((round(x, 3), round(y, 3)))
+                    if len(pos) >= per_net:
+                        break
+                if len(pos) >= per_net:
+                    break
+            if pos:
+                fields.append({"net": net, "positions": pos, "drill": drill, "dia": dia})
+    return fields
+
+
+def add_via_field(board, fields):
+    """Place the parallel via field from derive_via_field as REAL same-net F.Cu<->B.Cu through-vias
+    (additive, like add_power_pours). The GND inner plane antipads around each foreign-net via, so no
+    short. Returns the added PCB_VIA objects. Re-fill zones after calling if you poured."""
+    added = []
+    f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    for f in fields:
+        nc = board.GetNetcodeFromNetname(f["net"])
+        if nc <= 0:
+            raise KeyError(f"cec_fr.add_via_field: net {f['net']!r} not found on board")
+        for (x, y) in f["positions"]:
+            v = pcbnew.PCB_VIA(board)
+            v.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
+            v.SetDrill(_nm(f.get("drill", 0.3)))
+            v.SetWidth(_nm(f.get("dia", 0.6)))
+            v.SetNetCode(nc)
+            v.SetLayerPair(f_cu, b_cu)
+            board.Add(v)
+            added.append(v)
+    return added
 
 
 # ---------------------------------------------------------------------------
