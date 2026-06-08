@@ -170,52 +170,154 @@ def default_apex(summary):
             "reason": "route/finishing residual -> re-route or a finishing pass (cascade back down)"}
 
 
-# ----------------------------------------------------------------- the cascade
-def cascade(board, *, panel=3, swarm=True, max_iters=2, kmax=2, seeds=(0, 1), passes=8, opt_time=10,
-            place_decide=None, apex=None, verbose=True):
-    """Run PLACE-swarm -> ROUTE-swarm -> FEM -> APEX and return the full structured result."""
+# ----------------------------------------------------------------- DESIGN OVERSEER (the terminus)
+def _design_options(fem):
+    """The levers the design overseer chooses among, derived from the residual FEM blocker."""
+    b = set(fem.get("blocking", []))
+    opts = []
+    if "via over-temp" in b or "transient via fusing" in [f["name"] for f in fem.get("flags", [])]:
+        opts += ["filled-via field / copper coin at the shunt site (OQ-10)",
+                 "more parallel vias on the high-current vertical transition"]
+    if "conductor over-temp" in b:
+        opts += ["heavier outer copper / more layers (OQ-12 stackup)", "wider pour / shorter path"]
+    opts += ["re-spec the transient profile (sustained current / duty) if the assumption is off",
+             "accept the residual on PROJECT NEEDS (within margin for this product)"]
+    return opts
+
+
+def default_overseer(board, trail, fem, *, reason):
+    """The DESIGN OVERSEER terminus (you / Opus): when neither re-route nor re-place resolves the
+    failure, the call is made on PROJECT NEEDS. Deterministic stand-in -- it presents the decision and
+    does NOT auto-resolve a design/physics change (the CLAUDE.md human-ratification boundary)."""
+    return {"decision": "human-call-needed", "by": "design-overseer (you)", "trigger": reason,
+            "reason": f"down-cascade exhausted re-route+re-place; residual {fem.get('blocking')} "
+                      f"({reason}) needs a project-level design decision -- not auto-resolved",
+            "options": _design_options(fem)}
+
+
+# ----------------------------------------------------------------- the bidirectional cascade
+def _route_ok(rv):
+    """Hard safety gates only -- a drc finishing residual is NOT a route failure for the cascade."""
+    return bool(rv.get("kelvin_ok") and rv.get("diffpair_ok"))
+
+
+def _classify_failure(rv):
+    """Where the DOWN-cascade routes the failure next: 'reroute' if a hard route gate fails (more FR
+    effort may help); else 'replace' (the route is gate-clean but FEM fails -- a DIFFERENT placement
+    might give more via room / a shorter path). If re-route + re-place are both exhausted the caller
+    falls through to the design overseer."""
+    return "reroute" if not _route_ok(rv) else "replace"
+
+
+def _regenerate_placement(board, current, *, n, verbose=True):
+    """Down-cascade INTO placement: produce a DIFFERENT placement candidate (lever 1). Uses cec_place
+    refinement as a real placement change; falls back to the current placement if it can't."""
+    try:
+        import cec_place
+        out = os.path.join(ROOT, "build", "cascade", f"{board}-replace{n}.kicad_pcb")
+        os.makedirs(os.path.dirname(out), exist_ok=True)
+        cec_place.refine(current, out, {"radio": False})
+        if verbose:
+            print(f"[cascade:DOWN] re-place #{n} -> new placement candidate {os.path.basename(out)}")
+        return out
+    except Exception as e:
+        if verbose:
+            print(f"[cascade:DOWN] re-place #{n} could not regenerate ({type(e).__name__}); reusing placement")
+        return current
+
+
+def cascade(board, *, panel=3, swarm=True, route_budget=2, place_budget=1, max_iters=2, kmax=2,
+            seeds=(0, 1), passes=8, opt_time=10, place_decide=None, apex=None, overseer=None,
+            transient=None, verbose=True):
+    """Bidirectional cascade. UP on success: PLACE-swarm -> ROUTE-swarm -> FEM -> APEX (release).
+    DOWN on failure: a route-gate fail re-routes (more FR effort, up to route_budget); a gate-clean
+    FEM fail cascades DOWN INTO PLACEMENT (a different candidate, up to place_budget); if neither
+    resolves it, DOWN to the DESIGN OVERSEER (you) for the project-needs call."""
     apex = apex or default_apex
+    overseer = overseer or default_overseer
+    det_place = (lambda m: {"action": "escalate" if m["hard_fails"] else "accept",
+                            "reason": "deterministic", "tally": {}})
     if place_decide is None:
         if swarm:
             import cec_judge_local
             place_decide = (cec_judge_local.make_placement_swarm(panel=panel, verbose=verbose)
-                            if cec_judge_local.available()
-                            else (lambda m: {"action": "escalate" if m["hard_fails"] else "accept",
-                                             "reason": "deterministic", "tally": {}}))
+                            if cec_judge_local.available() else det_place)
         else:
-            place_decide = (lambda m: {"action": "escalate" if m["hard_fails"] else "accept",
-                                       "reason": "deterministic", "tally": {}})
+            place_decide = det_place
 
     floorplan = cec_router.find_board(board)
     if verbose:
-        print(f"=== CASCADE :: {board} (swarm={swarm}, panel={panel}) ===")
+        print(f"=== CASCADE :: {board} (swarm={swarm}, panel={panel}, route_budget={route_budget}, "
+              f"place_budget={place_budget}) ===")
+    placement = floorplan
+    eff = {"max_iters": max_iters, "passes": passes, "opt_time": opt_time}
+    reroutes = replaces = 0
+    trail = []
 
-    # PLACE
-    placement, pv = place_tier(board, floorplan, place_decide=place_decide, verbose=verbose)
-    pm = pv.get("metrics_after") or placement_metrics(floorplan)
-    if pv["action"] == "escalate":
-        summary = {"board": board, "place": {**pm, "verdict": pv}, "route": {}, "fem": {"pass": False},
-                   "stopped_at": "PLACE", "reason": "placement swarm escalated -> regenerate candidate / human"}
-        summary["apex"] = {"signed": False, "by": "n/a", "reason": "did not reach FEM"}
+    while True:
+        # PLACE (swarm)
+        placement, pv = place_tier(board, placement, place_decide=place_decide, verbose=verbose)
+        pm = pv.get("metrics_after") or placement_metrics(placement)
+        if pv["action"] == "escalate":
+            summary = {"board": board, "place": {**pm, "verdict": pv}, "route": {}, "fem": {"pass": False},
+                       "trail_len": len(trail), "stopped_at": "OVERSEER"}
+            summary["overseer"] = overseer(board, trail, {"blocking": ["placement-unroutable"]},
+                                           reason="placement-escalate")
+            summary["apex"] = {"signed": False}
+            if verbose:
+                print(f"[cascade:OVERSEER] placement swarm escalated -> {summary['overseer']['reason'][:100]}")
+            return summary
+
+        # ROUTE (swarm)
+        routed, log, rv = route_tier(board, placement, panel=panel, swarm=swarm,
+                                     max_iters=eff["max_iters"], kmax=kmax, seeds=seeds,
+                                     passes=eff["passes"], opt_time=eff["opt_time"], verbose=verbose)
+        route_info = {"final": routed, "verdict": rv, "reasons": rv.get("reasons", []),
+                      "tiers": sorted({(e.get("verdict") or {}).get("tier", "")
+                                       for e in log.entries if e.get("verdict")})}
+        # FEM (transient-aware)
+        fem = (fem_tier(board, routed, transient=transient, verbose=verbose) if routed
+               else {"pass": False, "blocking": ["no routed board"], "advisory": [], "flags": []})
+        trail.append({"reroutes": reroutes, "replaces": replaces, "route_ok": _route_ok(rv),
+                      "fem_pass": fem["pass"], "fem_blocking": fem.get("blocking")})
+
+        summary = {"board": board, "place": {**pm, "verdict": pv}, "route": route_info, "fem": fem,
+                   "trail": trail}
+
+        # UP -> APEX (release) when route gates clean AND FEM passes
+        if fem["pass"] and _route_ok(rv):
+            summary["stopped_at"] = "APEX"
+            summary["apex"] = apex(summary)
+            if verbose:
+                a = summary["apex"]
+                print(f"[cascade:APEX] -> {'SIGNED' if a['signed'] else 'WITHHELD'} ({a['by']}): {a['reason']}")
+            return summary
+
+        # DOWN-cascade
+        cls = _classify_failure(rv)
+        if cls == "reroute" and reroutes < route_budget:
+            reroutes += 1
+            eff["passes"] = min(60, eff["passes"] * 2)
+            eff["opt_time"] = min(120, int(eff["opt_time"] * 1.6))
+            eff["max_iters"] += 1
+            if verbose:
+                print(f"[cascade:DOWN] re-route #{reroutes} (route gate fail) -> "
+                      f"passes={eff['passes']} opt={eff['opt_time']}")
+            continue
+        if replaces < place_budget:                          # gate-clean FEM fail (or route stuck) -> re-place
+            replaces += 1
+            placement = _regenerate_placement(board, placement, n=replaces, verbose=verbose)
+            continue
+
+        # neither re-route nor re-place left -> DESIGN OVERSEER (the project-needs call)
+        summary["stopped_at"] = "OVERSEER"
+        summary["apex"] = apex(summary) if (fem["pass"] and _route_ok(rv)) else {"signed": False}
+        summary["overseer"] = overseer(board, trail, fem, reason=cls if _route_ok(rv) else "route-stuck")
+        if verbose:
+            print(f"[cascade:OVERSEER] (you) {summary['overseer']['reason'][:130]}")
+            for o in summary["overseer"]["options"]:
+                print(f"     option: {o}")
         return summary
-
-    # ROUTE
-    routed, log, rv = route_tier(board, placement, panel=panel, swarm=swarm, max_iters=max_iters,
-                                 kmax=kmax, seeds=seeds, passes=passes, opt_time=opt_time, verbose=verbose)
-    route_info = {"final": routed, "verdict": rv, "reasons": rv.get("reasons", []),
-                  "tiers": sorted({(e.get("verdict") or {}).get("tier", "") for e in log.entries if e.get("verdict")})}
-
-    # FEM
-    fem = fem_tier(board, routed, verbose=verbose) if routed else {"pass": False, "blocking": ["no routed board"], "flags": []}
-
-    # APEX -- back up to you
-    summary = {"board": board, "place": {**pm, "verdict": pv},
-               "route": route_info, "fem": fem, "stopped_at": "APEX"}
-    summary["apex"] = apex(summary)
-    if verbose:
-        a = summary["apex"]
-        print(f"[cascade:APEX] -> {'SIGNED' if a['signed'] else 'WITHHELD'} ({a['by']}): {a['reason']}")
-    return summary
 
 
 def main(argv=None):
@@ -224,6 +326,8 @@ def main(argv=None):
     ap.add_argument("--board", default="eps-8pin")
     ap.add_argument("--panel", type=int, default=3)
     ap.add_argument("--no-swarm", action="store_true", help="run every tier deterministically (no GPU)")
+    ap.add_argument("--route-budget", type=int, default=2, help="re-route attempts before re-place")
+    ap.add_argument("--place-budget", type=int, default=1, help="re-place attempts before the overseer")
     ap.add_argument("--max-iters", type=int, default=2)
     ap.add_argument("--kmax", type=int, default=2)
     ap.add_argument("--seeds", default="0,1")
@@ -231,21 +335,31 @@ def main(argv=None):
     ap.add_argument("--opt-time", type=int, default=10)
     ap.add_argument("--json", action="store_true", help="emit the full summary as JSON")
     a = ap.parse_args(argv)
-    res = cascade(a.board, panel=a.panel, swarm=not a.no_swarm, max_iters=a.max_iters, kmax=a.kmax,
+    res = cascade(a.board, panel=a.panel, swarm=not a.no_swarm, route_budget=a.route_budget,
+                  place_budget=a.place_budget, max_iters=a.max_iters, kmax=a.kmax,
                   seeds=tuple(int(s) for s in a.seeds.split(",")), passes=a.passes, opt_time=a.opt_time,
                   verbose=not a.json)
     if a.json:
         print(json.dumps(res, indent=2, default=str))
     else:
         print("\n=== CASCADE SUMMARY ===")
-        print(f"  board:      {res['board']}")
+        print(f"  board:      {res['board']}  (stopped at {res.get('stopped_at')})")
         print(f"  PLACE:      {res['place']['verdict']['action']} (hard_fails={res['place'].get('hard_fails')})")
         if res.get("route"):
-            print(f"  ROUTE:      gates_pass={res['route'].get('verdict',{}).get('gates_pass')} "
-                  f"tiers={res['route'].get('tiers')}")
-        print(f"  FEM:        pass={res['fem']['pass']} blocking={res['fem'].get('blocking')}")
-        print(f"  APEX:       {'SIGNED' if res['apex']['signed'] else 'WITHHELD'} -- {res['apex']['reason']}")
-    return 0 if res.get("apex", {}).get("signed") else 1
+            rv = res['route'].get('verdict', {})
+            print(f"  ROUTE:      kelvin={rv.get('kelvin_ok')} diff={rv.get('diffpair_ok')} "
+                  f"drc={rv.get('drc')} tiers={res['route'].get('tiers')}")
+        print(f"  FEM:        pass={res['fem'].get('pass')} blocking={res['fem'].get('blocking')} "
+              f"advisory={res['fem'].get('advisory')}")
+        print(f"  down-cascade: {[ (t['reroutes'],t['replaces'],t['fem_blocking']) for t in res.get('trail',[]) ]}")
+        if res.get("overseer"):
+            print(f"  OVERSEER (you): {res['overseer']['reason']}")
+            for o in res['overseer'].get('options', []):
+                print(f"       - {o}")
+        elif res.get("apex"):
+            print(f"  APEX:       {'SIGNED' if res['apex'].get('signed') else 'WITHHELD'} -- "
+                  f"{res['apex'].get('reason', '')}")
+    return 0 if (res.get("apex") or {}).get("signed") else 1
 
 
 if __name__ == "__main__":
