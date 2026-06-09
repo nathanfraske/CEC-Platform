@@ -780,6 +780,20 @@ Done (kept for context):
   (cec-judge->:8000, cec-manager->:8001); cec_judge_local VLLM_URL default -> broker + X-CEC-Client header,
   cec_overnight host reviews -> broker, docker compose routing CEC_VLLM_URL -> host.docker.internal:8080
   + extra_hosts. Fail-safe (broker down -> deterministic fallback). Broker runs on 0.0.0.0:8080.
+  UPDATED 2026-06-09 (same day, later session) -- BROKER v2 = MODEL ORCHESTRATOR: the broker now
+  STARTS backends ON DEMAND from its models.json registry (start/stop commands, health URLs,
+  vram_gb arbitration vs gpu_budget_gb on the single 5090 -- it SWAPS the conflicting model out,
+  letting in-flight generations finish), rewrites alias->served names, lists the full catalog at
+  GET /v1/models even with nothing running, and an IDLE REAPER stops backends after idle_stop_s
+  (30 min default), freeing GPU+RAM automatically. NEVER compose up/down LLM services by hand --
+  just request the model through :8080. MODEL LINEUP (2026-06-09 refresh; new GGUFs on
+  "E:\AI Models" = /mnt/e/AI Models, old models kept in place): cec-worker = Qwen3.6-35B-A3B
+  UD-Q4_K_M (VOLUME worker, 4 slots, :8002, alias local-model), cec-worker-quality = Qwen3.6-27B
+  dense Q4_K_M (:8004, swap-in for max per-call quality), cec-manager = MiniMax-M2.7 229B-A10B
+  UD-Q4_K_XL (:8003, PARTIAL expert offload CEC_M27_NCPUMOE since 141GB > RAM; replaces the 235B
+  in use), cec-manager-235b = the old Qwen3-235B (:8001, kept), cec-judge = the old vLLM 30B AWQ
+  (:8000, kept). Verified live: on-demand cold start (vLLM 55s), GPU swap (28+11>30GB budget ->
+  stop+load+answer in 96s), idle reap (auto-stop + GPU back to 2.7GB).
 - TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
   runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
   Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-
