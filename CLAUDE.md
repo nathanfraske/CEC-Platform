@@ -812,10 +812,17 @@ Done (kept for context):
   "E:\AI Models" = /mnt/e/AI Models, old models kept in place): cec-worker = Qwen3.6-35B-A3B
   UD-Q4_K_M (VOLUME worker, 4 slots, :8002, alias local-model), cec-worker-quality = Qwen3.6-27B
   dense Q4_K_M (:8004, swap-in for max per-call quality), cec-manager = MiniMax-M2.7 229B-A10B
-  UD-Q4_K_XL (:8003, PARTIAL expert offload CEC_M27_NCPUMOE since 141GB > RAM; replaces the 235B
-  in use), cec-manager-235b = the old Qwen3-235B (:8001, kept), cec-judge = the old vLLM 30B AWQ
-  (:8000, kept). Verified live: on-demand cold start (vLLM 55s), GPU swap (28+11>30GB budget ->
-  stop+load+answer in 96s), idle reap (auto-stop + GPU back to 2.7GB).
+  UD-Q3_K_XL (:8003 -- Path C 2026-06-09: 102GB fits FULLY in page cache, MEASURED warm 12.9 tok/s
+  = 3.5x the briefly-tried Q4_K_XL's 3.73 [141GB > RAM -> ~20GB expert rotation through 9p]; cold
+  boot ~10.5min), cec-manager-fast = gpt-oss-120b MXFP4 (:8005, 5.1B active, experts-in-RAM ~6GB
+  GPU, MEASURED warm 22.3 tok/s -- manager-class at ~6x the deep tier), cec-judge = the old vLLM
+  30B AWQ (:8000, kept). The old 235B is RETIRED (2026-06-09, owner call: a remnant -- files
+  deleted from the C:-backed VHDX [ext4 234->130GB used], registry entry removed; the Windows-side
+  VHDX compact to hand C: back ~110GB is on the owner's todo). MEASURED worker tiers: cec-worker
+  cold swap 90.7s, 4 CONCURRENT requests in 1.75s wall; cec-worker-quality 27B verified (thinking
+  model -- WORKER_MAX_TOKENS 1200 covers it). Broker is now a systemd unit (survives WSL restarts).
+  Verified live: on-demand cold start, GPU swap arbitration, queued-request ride-through on a
+  10+min model load, idle reap (auto-stop + GPU back to baseline).
 - TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
   runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
   Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-
