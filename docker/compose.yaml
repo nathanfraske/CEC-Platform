@@ -118,10 +118,13 @@ services:
       - "-ngl"
       - "99"                                 # all layers' non-expert tensors -> GPU
       - "--n-cpu-moe"
-      - "${CEC_MANAGER_NCPUMOE:-80}"         # keep MOST experts in RAM, but OFFLOAD ~14 layers' experts
-                                             # into the idle VRAM (manager runs ALONE on the 5090 -> ~26GB
-                                             # used, ~6GB headroom). 99 = pure experts-in-RAM (11GB) if a
-                                             # co-resident worker ever needs the VRAM back.
+      - "${CEC_MANAGER_NCPUMOE:-99}"         # ALL experts in RAM (11GB VRAM). MEASURED: partial GPU
+                                             # offload (e.g. 80 = 14 layers on GPU) is SLOWER for
+                                             # single-stream decode (2.7 vs 4.3 tok/s) -- the per-layer
+                                             # CPU<->GPU handoff overhead beats the GPU compute gain, AND
+                                             # costs +15GB VRAM. So experts-in-RAM is both faster + leaner
+                                             # here; real decode speedups would need spec-decoding (draft
+                                             # model), not offload. Knob kept for future hardware.
       - "--ctx-size"
       - "${CEC_MANAGER_CTX:-16384}"          # judge prompts are small; bound the KV cache
       - "-fa"

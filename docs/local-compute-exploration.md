@@ -11,9 +11,12 @@ workstation's own models, split by reasoning depth and straddling the single-509
   accept/repair/escalate gate as a concurrent voted panel (`cec_judge_local.swarm_judge`, ~2× speedup
   measured at 5 agents). This is the routing loop's judge.
 - **MANAGER tier** — `Qwen3-235B-A22B-Thinking-2507` GGUF Q3_K_M on llama.cpp (service `manager`,
-  `:8001`). "Experts in RAM, attention on the 5090": `-ngl 99 --n-cpu-moe 80` offloads ~14 expert
-  layers into the otherwise-idle VRAM (~26 GB used) while the bulk of experts stay in the 125 GB RAM,
-  ~4–5 tok/s. Thinking-ONLY (no off-switch) → reserved for the LOW-FREQUENCY, deep job.
+  `:8001`). "Experts in RAM, attention on the 5090": `-ngl 99 --n-cpu-moe 99` keeps all experts in the
+  125 GB RAM (11 GB VRAM), ~4.3 tok/s decode. MEASURED + REJECTED a partial GPU offload (`--n-cpu-moe 80`,
+  14 layers on GPU): it ran *slower* (2.7 tok/s) for single-stream decode — the per-layer CPU↔GPU handoff
+  overhead beats the compute gain — and cost +15 GB VRAM, so experts-in-RAM is both faster and leaner; a
+  real decode speedup would need speculative decoding, not offload. Thinking-ONLY (no off-switch) →
+  reserved for the LOW-FREQUENCY, deep job.
 - **CORPUS-FIT REVIEWER** (`cec_judge_local.corpus_fit_review`) — the deep tier's job: once per routed
   board it judges whether the result FITS its same-family corpus of past `DecisionLog`s. A deterministic
   Python prepass does ALL the numbers (robust MAD/median z-scores, envelope/direction, gate-flips vs the

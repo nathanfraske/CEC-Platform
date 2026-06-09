@@ -678,8 +678,10 @@ Done (kept for context):
 - TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
   runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
   Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-
-  gated), "experts in RAM, attention on the 5090" via `-ngl 99 --n-cpu-moe 80` (~26GB VRAM, ~4-5 tok/s,
-  thinking-ONLY). WORKER tier stays the fast vLLM 30B-A3B-AWQ (`inference` :8000). Single 5090 fits ONE
+  gated), "experts in RAM, attention on the 5090" via `-ngl 99 --n-cpu-moe 99` (11GB VRAM, ~4.3 tok/s,
+  thinking-ONLY). MEASURED: a partial GPU expert offload (--n-cpu-moe 80) is SLOWER (2.7 tok/s, CPU<->GPU
+  handoff overhead) + costs +15GB VRAM -> rejected; spec-decoding is the real decode lever, not offload.
+  WORKER tier stays the fast vLLM 30B-A3B-AWQ (`inference` :8000). Single 5090 fits ONE
   heavy model -> they SWAP. (2) cec_judge_local: the manager tier got its OWN token budget (a thinking
   model overruns the worker's 400-default -> MANAGER_MAX_TOKENS 4096 / CEC_CORPUS_* knobs); `available()`
   takes a url. (3) `corpus_fit_review` -- deep per-board precedent-fit audit vs the same-family corpus
