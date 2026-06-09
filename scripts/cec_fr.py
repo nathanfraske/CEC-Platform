@@ -330,7 +330,7 @@ def add_power_pours(board, pours, *, fill: bool = False):
 # derive_power_pours -- auto-find the high-current pour rectangles from geometry
 # ---------------------------------------------------------------------------
 def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
-                       layer: str = "F.Cu", kelvin_pairs=None) -> list:
+                       layer: str = "F.Cu", kelvin_pairs=None, board=None) -> list:
     """Auto-derive additive high-current pour rectangles for an interposer board.
 
     For each Kelvin pair (``*_HI`` / ``*_LO``) the pour is the bounding box of that net's
@@ -347,9 +347,11 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     the four 12V pours (/SENSEC1_HI,_LO,/SENSEC2_HI,_LO) matching the hand-tuned regions.
 
     Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
+    Pass an already-loaded *board* to reuse it (pcbnew shares the cached BOARD per path, so callers
+    that also mutate the board must load it ONCE and pass it here rather than re-load board_path).
     """
     from collections import defaultdict
-    board = pcbnew.LoadBoard(board_path)
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
         kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
@@ -413,7 +415,7 @@ def _pt_seg_dist(px, py, ax, ay, bx, by):
 
 
 def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
-                     clearance=0.2, kelvin_pairs=None):
+                     clearance=0.2, kelvin_pairs=None, board=None):
     """Auto-derive a PARALLEL VIA FIELD for each high-current cable net at its vertical-transition
     region (the §6.7/OQ-10 'more parallel vias' fix: more barrels in parallel -> less current per via).
     A grid of up to `per_net` same-net through-vias in the net's heavy-pad bbox, skipping any grid point
@@ -423,7 +425,7 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
     through-vias need same-net copper on BOTH spanned layers -- pair this with a B.Cu mirror pour (the
     caller lays one). Returns [{net, positions:[(x,y)...], drill, dia}]; self-gating -> [] if no cable net."""
     from collections import defaultdict
-    board = pcbnew.LoadBoard(board_path)
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
         kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
@@ -540,38 +542,34 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
     rules) so both the F.Cu AND B.Cu corridors are clear -> both mirror layers fill solid."""
     from collections import defaultdict
     import shutil
-    # names/kelvin from a READ-ONLY load of board_path (pcbnew shares the cached BOARD per path, so the
-    # MUTABLE board must come from a DIFFERENT path -- else mutating it corrupts the board_path loads the
-    # derive_*() helpers re-read).
-    src = pcbnew.LoadBoard(board_path)
-    names = {n.GetNetname() for n in src.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    board = pcbnew.LoadBoard(board_path)
+    # carry DRC context (.kicad_pro/.kicad_dru) next to the output board
+    for ext in (".kicad_pro", ".kicad_dru"):
+        s = board_path[:-len(".kicad_pcb")] + ext
+        if os.path.isfile(s):
+            shutil.copy2(s, out_path[:-len(".kicad_pcb")] + ext)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
         kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
                         if h.endswith("_HI") and (h[:-3] + "_LO") in names]
     force_nets = {n for pr in kelvin_pairs for n in pr}
 
-    # All file-reading derivations (each re-loads board_path read-only) BEFORE we touch the mutable copy.
+    # Which pour layers each force net ALREADY carries (the router's pour-after-route lays a single F.Cu
+    # pour). We ADD ONLY THE MISSING layer -- never REMOVE a zone (zone removal corrupts pcbnew's net info
+    # -> SwigPyObject on the next GetNetInfo) and never double a layer (-> zones_intersect/isolated_copper).
+    existing = defaultdict(set)
+    for z in board.Zones():
+        nn = z.GetNetname()
+        if nn in force_nets:
+            for L in pour_layers:
+                if z.IsOnLayer(board.GetLayerID(L)):
+                    existing[nn].add(L)
+
     base = derive_power_pours(board_path, kelvin_pairs=kelvin_pairs)
     fields = derive_via_field(board_path, per_net=via_per_net, drill=via_drill, dia=via_dia,
                               pitch=via_pitch, kelvin_pairs=kelvin_pairs)
-    pours = [{**p, "layer": layer, "priority": 2, "min_thickness": 0.25}
-             for p in base for layer in pour_layers]
-
-    # The MUTABLE board is a COPY at out_path (its own pcbnew cache entry); carry the .kicad_pro/.kicad_dru
-    # so DRC context travels. The router's pour-after-route step may already have laid a SINGLE-layer F.Cu
-    # pour on each force net; remove those so THIS synthesizer is the SOLE owner of the power copper --
-    # else the new F.Cu mirror stacks on the old one (zones_intersect + isolated_copper DRC).
-    shutil.copy2(board_path, out_path)
-    for ext in (".kicad_pro", ".kicad_dru"):
-        s = board_path[:-len(".kicad_pcb")] + ext
-        if os.path.isfile(s):
-            shutil.copy2(s, out_path[:-len(".kicad_pcb")] + ext)
-    board = pcbnew.LoadBoard(out_path)
-    for z in list(board.Zones()):
-        if z.GetNetname() in force_nets:
-            board.Remove(z)
-
-    # 1. force-corridor rects MIRRORED onto every pour layer; 2. same-net via field stitching F<->B
+    pours = [{**p, "layer": L, "priority": 2, "min_thickness": 0.25}
+             for p in base for L in pour_layers if L not in existing[p["net"]]]
     added_zones = add_power_pours(board, pours, fill=False)
     added_vias = add_via_field(board, fields)
 
