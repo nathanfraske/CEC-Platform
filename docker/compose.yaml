@@ -34,7 +34,10 @@ services:
     volumes:
       - ..:/workspace                       # the repo (keep it on the WSL ext4 home, not /mnt/c)
       - cec-cache:/root/.cache/cec          # persist the downloaded Freerouting 1.7.0 jar
+      - ../../cec-runs:/cec-runs            # SB-01: the sibling run-ledger repo (ledger.jsonl)
     environment:
+      # SB-01: where cec_ledger appends run lines (the sibling cec-runs repo mounted above)
+      - CEC_RUNS_DIR=/cec-runs
       # Point cec_fr at the headless REST server instead of spawning a local jar (Task #2 wiring):
       - CEC_FREEROUTING_URL=http://freerouting:37864
       # The local LLM judge tier goes through the cec-llm-broker on the HOST (:8080), which serializes

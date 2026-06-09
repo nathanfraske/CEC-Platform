@@ -141,9 +141,18 @@ class DecisionLog:
                       "elapsed_s": round(time.time() - self.t0, 2), "decisions": len(self.entries)}
 
     def to_json(self, path):
-        json.dump({"final": self.final, "entries": self.entries}, open(path, "w"), indent=2)
+        # SB-01: every decision log carries the determinism manifest, so a log is
+        # self-describing (same manifest + same inputs => same board).
+        try:
+            import cec_ledger
+            mani = cec_ledger.manifest()
+        except Exception:
+            mani = None
+        json.dump({"final": self.final, "manifest": mani, "entries": self.entries},
+                  open(path, "w"), indent=2)
         print(f"WROTE {os.path.relpath(path, ROOT) if path.startswith(ROOT) else path}")
         archive_log(self, (self.final or {}).get("board", "board"))
+        return path
         return path
 
 
@@ -931,6 +940,19 @@ def main(argv=None):
                   f"-> using the deterministic manager/worker")
     final, log = route(spec.board, spec, manager=manager, worker=worker, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
+    # SB-01: durable ledger line in the sibling cec-runs repo. FAIL-SAFE -- a missing
+    # ledger repo degrades to a warning; it must never break a route run.
+    try:
+        import cec_ledger
+        fin = log.final or {}
+        rec = cec_ledger.append(board=name, mode="route",
+                                verdict=fin.get("verdict"),
+                                board_file=final, input_board=spec.board,
+                                elapsed_s=fin.get("elapsed_s"), artifact=os.path.relpath(out_dir, ROOT),
+                                parent_run_id=os.environ.get("CEC_PARENT_RUN_ID"))
+        print(f"[route] ledger: {rec['run_id']}")
+    except Exception as e:
+        print(f"[route] ledger append skipped: {type(e).__name__}: {e}", file=sys.stderr)
     # CORPUS-FIT REVIEW (Thrust A, deep tier) -- opt-in, fail-safe, OUTSIDE the per-region loop. When
     # CEC_CORPUS_REVIEW=1 and the big MANAGER endpoint is up, deep-review this route vs its same-family
     # corpus and drop a <board>-corpus-fit.json sidecar (advisory; never feeds back into the route). When
