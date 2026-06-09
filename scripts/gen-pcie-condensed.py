@@ -155,10 +155,13 @@ def frame(N, PITCH):
         # 12V flows straight down through the shunt. Both mouths overhang their edge.
         P[f"J_IN{c}"]  = (LIB["J"], Xc, JIN_Y, 180)
         P[f"J_OUT{c}"] = (LIB["J"], Xc + 12.6, H_ - JIN_Y, 0)
-        # sense band across the column at BAND_Y: INA238 | shunt rot90 | INA181/TLV
+        # sense band across the column at BAND_Y: INA238 | shunt rot270 | INA181/TLV
         # stacked (+/-2.2 in y). Spread so courtyards clear; band right edge Xc+13.05.
         P[f"U1{i}"] = (LIB["INA238"], Xc + 0.5,  BAND_Y, 0)         # INA238 (U10/U11/U12), Kelvin-taps the shunt
-        P[f"RS{c}"] = (LIB["RS"],     Xc + 6.5,  BAND_Y, 90)        # 0.5mOhm shunt, vertical in the 12V column
+        # shunt rot 270 (was 90): pad1 (=/SENSEC*_HI, J_IN/top side) becomes the UPPER terminal so
+        # 12V flows straight top->bottom and the INA238 Kelvin taps no longer cross. At rot90 (HI the
+        # LOWER pad) the taps cross and FR strands the last cable's /SENSEC*_LO -- the EPS sense fix.
+        P[f"RS{c}"] = (LIB["RS"],     Xc + 6.5,  BAND_Y, 270)       # 0.5mOhm shunt, vertical in the 12V column
         P[f"U2{i}"] = (LIB["INA181"], Xc + 11.0, BAND_Y - 2.2, 0)  # INA181A2 (U20/U21/U22)
         P[f"U3{i}"] = (LIB["TLV"],    Xc + 11.0, BAND_Y + 2.2, 0)  # TLV7011 (U30/U31/U32)
     for ref, (lk, dx, dy, r) in CORE.items():
@@ -277,23 +280,23 @@ def _txt(t, x, y, layer, sz=0.8):
             f'(effects (font (size {sz} {sz}) (thickness 0.12))))')
 
 # Per-cable 12V pour OUTLINES, pad-derived so they track Xc for any N/PITCH. The shunt
-# (RS, rot90) sits in the 12V column: /SENSEC_HI ties the J_IN +12V pads (y~10) to the
-# shunt's LOWER pad (RS.1, y~24.96); /SENSEC_LO ties the J_OUT +12V pads (y~34) to the
-# shunt's UPPER pad (RS.2, y~19.04) -- a deliberate crossover so 12V runs straight down
-# the column through the shunt. IN pour = J_IN pads down to RS.1; OUT pour = RS.2 down
-# to J_OUT pads. Both wrap the shunt body; the split is AT the shunt.
+# (RS, rot270) sits in the 12V column: /SENSEC_HI ties the J_IN +12V pads (y~10) to the
+# shunt's UPPER pad (RS.1, y~19.04); /SENSEC_LO ties the shunt's LOWER pad (RS.2, y~24.96)
+# to the J_OUT +12V pads (y~34) -- 12V runs straight down the column through the shunt, no
+# crossover. IN pour = J_IN pads down to RS.1 (upper); OUT pour = RS.2 (lower) down to the
+# J_OUT pads. The pours meet only AT the shunt and no longer overlap around its body.
 def _pour_outline(P, comps, c, side):
     j = f"J_IN{c}" if side == "in" else f"J_OUT{c}"
     p1 = pg(j, "1", P, comps); p2 = pg(j, "2", P, comps); p3 = pg(j, "3", P, comps)
     xs = sorted(x for x, _ in (p1, p2, p3)); xl, xr = xs[0] - 1.5, xs[-1] + 1.5
-    rs = f"RS{c}"; rhi = pg(rs, "1", P, comps); rlo = pg(rs, "2", P, comps)  # HI=lower, LO=upper
+    rs = f"RS{c}"; rhi = pg(rs, "1", P, comps); rlo = pg(rs, "2", P, comps)  # HI=upper, LO=lower (rot270)
     rcx = rhi[0]
-    if side == "in":            # J_IN band (top) funneling down to the shunt LOWER pad
+    if side == "in":            # J_IN band (top) funneling down to the shunt HI (upper) pad
         ytop, ybot = 8.0, rhi[1] + 0.9
         ymid = 14.5
         return [(xl, ytop), (xr, ytop), (xr, ymid), (rcx + 1.6, ymid),
                 (rcx + 1.6, ybot), (rcx - 1.6, ybot), (rcx - 1.6, ymid), (xl, ymid), (xl, ytop)]
-    else:                        # shunt UPPER pad funneling down to the J_OUT band (bottom)
+    else:                        # shunt LO (lower) pad funneling down to the J_OUT band (bottom)
         ytop, ybot = rlo[1] - 0.9, 36.0
         ymid = 29.5
         return [(rcx - 1.6, ytop), (rcx + 1.6, ytop), (rcx + 1.6, ymid), (xr, ymid),
@@ -314,8 +317,8 @@ def routing_guides(P, W, H_, ex, comps):
     # pair to INA238 IN+/IN- (pads 10/8) and INA181 IN+/IN- (pads 3/4).
     for i in range(N):
         c = i + 1; rs = f"RS{c}"; u10 = f"U1{i}"; u20 = f"U2{i}"
-        rhi = pg(rs, "1", P, comps); rlo = pg(rs, "2", P, comps)      # HI lower / LO upper
-        hi_tap = (rhi[0], rhi[1] - 0.9); lo_tap = (rlo[0], rlo[1] + 0.9)  # inner edges toward center
+        rhi = pg(rs, "1", P, comps); rlo = pg(rs, "2", P, comps)      # HI upper / LO lower (rot270)
+        hi_tap = (rhi[0], rhi[1] + 0.9); lo_tap = (rlo[0], rlo[1] - 0.9)  # inner edges toward center
         hi_in,  lo_in  = pg(u10, "10", P, comps), pg(u10, "8", P, comps)
         hi_181, lo_181 = pg(u20, "3", P, comps),  pg(u20, "4", P, comps)
         g.append(_line([hi_tap, hi_in],  "Cmts.User", 0.25))         # RS.HI -> INA238 IN+
