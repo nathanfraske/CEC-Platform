@@ -47,7 +47,14 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # the host, so there CEC_VLLM_URL=http://host.docker.internal:8080/v1 (set in docker/compose.yaml).
 BROKER_URL = os.environ.get("CEC_LLM_BROKER_URL", "http://localhost:8080/v1").rstrip("/")
 VLLM_URL = (os.environ.get("CEC_VLLM_URL") or BROKER_URL).rstrip("/")
-MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-judge")     # --served-model-name; broker routes this -> :8000
+# 2026-06-09 model refresh: the volume/swarm tier default is now cec-worker (Qwen3.6-35B-A3B
+# UD-Q4_K_M, llama.cpp :8002, 4 parallel slots) -- the broker BOOTS it on demand. The old vLLM
+# 30B AWQ stays registered as cec-judge (CEC_VLLM_MODEL_NAME=cec-judge to use it). For MAX
+# PER-CALL QUALITY over throughput, point the worker tier at the 27B dense:
+#   CEC_VLLM_WORKER_MODEL=cec-worker-quality
+# The deep manager tier stays CEC_VLLM_MANAGER_MODEL=cec-manager (now MiniMax-M2.7 via the
+# broker registry; NOTE a cold load takes minutes -- the broker holds the request meanwhile).
+MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-worker")    # served alias; the broker starts/routes it
 # Optional TIERING: workers (cheap, high-volume effort-sizing) can use a SMALLER served model than the
 # managers (judgment). Defaults to the manager model -- the worker is ALREADY cheap (the manager model
 # is a MoE 30B-A3B = 3B active params/token), so this only earns its keep if a bigger MANAGER model is
@@ -70,9 +77,15 @@ MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a
 # whole point of the big manager. Give the manager tier its OWN, generous-but-bounded budget; the
 # MANAGER_TIMEOUT (at ~5 tok/s on the RAM-offload split, 600s ~= 3000 tokens) is the practical wall.
 # This deep reasoning is a FEATURE for the corpus-level "does this board fit our prior decisions?" judge
-# -- raise MANAGER_MAX_TOKENS / MANAGER_TIMEOUT / CEC_MANAGER_CTX further for that role. Workers keep 400.
+# -- raise MANAGER_MAX_TOKENS / MANAGER_TIMEOUT / CEC_MANAGER_CTX further for that role.
 MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
-TIER = "local:qwen3-coder-30b-awq"
+# WORKER budget (2026-06-09): was a hardcoded 400, sized for the NON-thinking 30B AWQ. The new
+# worker tier (cec-worker 35B-A3B / cec-worker-quality 27B, Qwen3.6) THINKS before answering --
+# a 400 cap truncates mid-reason -> empty content -> JSON parse fail -> silent deterministic
+# fallback (the exact failure mode the manager budget fix documented). 1200 covers measured
+# reasoning (trivial ask ~160 tokens; real verdicts a few hundred) with margin.
+WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "1200"))
+TIER = "local:cec-worker"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
 VERDICT_SCHEMA = {
@@ -127,7 +140,7 @@ def available(timeout=3, url=None):
         return False
 
 
-def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=400, timeout=None,
+def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
                model=None, url=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
@@ -136,7 +149,8 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
         "model": model or MODEL,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "temperature": temperature,
-        "max_tokens": max_tokens,
+        # None -> the worker budget (single chokepoint; manager callers pass MANAGER_MAX_TOKENS)
+        "max_tokens": max_tokens if max_tokens is not None else WORKER_MAX_TOKENS,
         "response_format": {"type": "json_schema",
                             "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
@@ -144,7 +158,7 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     return json.loads(resp["choices"][0]["message"]["content"])
 
 
-def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=400):
+def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=None):
     """One guided-JSON manager-verdict call -> {action, reason}. `max_tokens` defaults to the worker
     budget; manager-tier callers pass MANAGER_MAX_TOKENS so a thinking model's reasoning fits."""
     return _chat_json(system, user, VERDICT_SCHEMA, name="verdict",
@@ -289,7 +303,7 @@ def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_wor
 
 
 def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, url=None, model=None,
-           timeout=None, max_tokens=400):
+           timeout=None, max_tokens=None):
     """Fire one judge per lens CONCURRENTLY at the (per-tier) server. `user_or_fn` is a user string
     (same for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
     temps = temps or {}
