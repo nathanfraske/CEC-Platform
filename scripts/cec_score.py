@@ -26,6 +26,8 @@ import os, sys, json, re, subprocess, tempfile
 from dataclasses import dataclass, field
 
 import pcbnew
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import cec_toolchain as _tc   # dependency-free toolchain presence helpers (R-05)
 
 # ---------------------------------------------------------------------------
 #  DRC filter — MUST match cec_route.verify() exactly
@@ -133,8 +135,9 @@ class Metrics:
 # ---------------------------------------------------------------------------
 def _run_drc(board_path: str, tmp: str) -> dict:
     """Run kicad-cli DRC and return raw JSON dict."""
+    cli = _tc.require_kicad_cli("scoring DRC")    # FAIL FAST with the install hint (R-05)
     subprocess.run(
-        ["kicad-cli", "pcb", "drc", "--exit-code-violations",
+        [cli, "pcb", "drc", "--exit-code-violations",
          "--format", "json", "-o", tmp, board_path],
         capture_output=True,
     )

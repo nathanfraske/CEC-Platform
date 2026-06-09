@@ -1,0 +1,51 @@
+# syntax=docker/dockerfile:1
+# ----------------------------------------------------------------------------------------------
+# CEC compute-plane container -- the Linux home for the CPU compute plane.
+#   KiCad 10 (pcbnew + kicad-cli) + Java + xvfb for headless Freerouting + the Python deps the
+#   cec_* pipeline needs (incl. scipy for the upcoming 2.5D DC IR-drop FEM slice). CPU ONLY:
+#   this runs the Freerouting JVM swarm + kicad-cli DRC. The GPU goes to the `inference` service.
+#
+# Based on the SAME image the repo already pins (versions.env KICAD_IMAGE = kicad/kicad:10.0), so
+# the in-container KiCad major matches the project's forward-only .kicad_* format.
+# See docker/README.md and docs/local-compute-exploration.md (Phase 0).
+# ----------------------------------------------------------------------------------------------
+ARG KICAD_IMAGE=kicad/kicad:10.0
+FROM ${KICAD_IMAGE}
+
+USER root
+ENV DEBIAN_FRONTEND=noninteractive
+
+# openjdk 21 runs the pinned Freerouting 1.7.0 jar (cec_fr.FR_VERSION); 17+ is required, 21 rec.
+# CRITICAL: the FULL openjdk-21-jre, NOT openjdk-21-jre-headless. Freerouting is a Java/Swing GUI
+# app; even "headless" it constructs AWT/Swing objects on startup, and the -headless JRE omits
+# libawt_xawt.so and hard-forces java.awt.headless=true -> every route dies with HeadlessException
+# (validated 2026-06-07: -headless = HeadlessException even with a live Xvfb; full JRE = routes).
+# xvfb gives that GUI a virtual display. We start a PERSISTENT Xvfb (docker/xvfb-entrypoint.sh,
+# ENV DISPLAY below) rather than per-invocation `xvfb-run -a`: cec_fr._fr_command() runs `java`
+# directly when $DISPLAY is set, so the whole DSN/SES round trip + the parallel JVM swarm share one
+# server with no xvfb-run server-number races or zombie pileup. (The official
+# ghcr.io/freerouting/freerouting REST image is the cleaner future path -- compose `freerouting`.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        openjdk-21-jre xvfb xauth python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pipeline Python deps + the scipy/numpy the DC IR-drop slice (Phase 1) will use. --break-system-
+# packages: the KiCad image base is PEP-668 managed and pcbnew lives in the system python3, so we
+# install alongside it rather than in a venv (which would not see pcbnew).
+RUN python3 -m pip install --no-cache-dir --break-system-packages \
+        numpy scipy requests
+
+WORKDIR /workspace
+
+# Fail the build early if this image's python3 cannot import pcbnew (the whole round-trip needs it).
+RUN python3 -c "import pcbnew; print('pcbnew OK:', pcbnew.GetBuildVersion())"
+
+# Persistent Xvfb: start a virtual X display at container start so Freerouting's Swing GUI has one,
+# and export DISPLAY so cec_fr runs `java` directly (skips xvfb-run). See docker/xvfb-entrypoint.sh.
+ENV DISPLAY=:99
+COPY docker/xvfb-entrypoint.sh /usr/local/bin/xvfb-entrypoint.sh
+RUN chmod +x /usr/local/bin/xvfb-entrypoint.sh
+ENTRYPOINT ["/usr/local/bin/xvfb-entrypoint.sh"]
+
+# Default: stay alive so you can `docker compose exec routing bash` or `docker compose run routing ...`.
+CMD ["sleep", "infinity"]

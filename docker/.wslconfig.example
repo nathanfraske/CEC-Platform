@@ -1,0 +1,20 @@
+# Example .wslconfig for the CEC compute-plane box (RTX 5090 / 192 GB / Core Ultra 7 265K).
+# COPY this to  %UserProfile%\.wslconfig  on Windows (NOT into the repo), then run:  wsl --shutdown
+# Docs: https://learn.microsoft.com/windows/wsl/wsl-config
+#
+# Rationale (see docs/local-compute-exploration.md):
+#   - The Freerouting swarm wants most cores (one ~0.5 GB JVM per core); 18 leaves ~2 for Windows.
+#   - 128 GB to WSL2 leaves ~64 GB for the Windows host; plenty for parallel JVMs + FEM meshes.
+#   - GPU passthrough needs the WINDOWS NVIDIA driver only -- do NOT install a Linux driver in WSL2.
+#   - Use WSL2 >= 2.7.0 (CUDA-graph capture fix for Blackwell): check with  wsl --version
+
+[wsl2]
+memory=128GB
+processors=18
+swap=0
+localhostForwarding=true
+
+# After editing: `wsl --shutdown`, then verify the GPU is visible inside the distro:
+#   nvidia-smi
+#   docker run --rm --gpus all nvidia/cuda:12.8.0-base-ubuntu24.04 nvidia-smi
+# If the 5090 isn't seen in a container, run `nvidia-cdi-refresh` (the documented Blackwell-in-WSL fix).

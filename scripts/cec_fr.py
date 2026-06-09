@@ -36,6 +36,7 @@
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
 import os
 import sys
+import math
 import shutil
 import tempfile
 import subprocess
@@ -329,7 +330,7 @@ def add_power_pours(board, pours, *, fill: bool = False):
 # derive_power_pours -- auto-find the high-current pour rectangles from geometry
 # ---------------------------------------------------------------------------
 def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
-                       layer: str = "F.Cu", kelvin_pairs=None) -> list:
+                       layer: str = "F.Cu", kelvin_pairs=None, board=None) -> list:
     """Auto-derive additive high-current pour rectangles for an interposer board.
 
     For each Kelvin pair (``*_HI`` / ``*_LO``) the pour is the bounding box of that net's
@@ -346,9 +347,11 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     the four 12V pours (/SENSEC1_HI,_LO,/SENSEC2_HI,_LO) matching the hand-tuned regions.
 
     Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
+    Pass an already-loaded *board* to reuse it (pcbnew shares the cached BOARD per path, so callers
+    that also mutate the board must load it ONCE and pass it here rather than re-load board_path).
     """
     from collections import defaultdict
-    board = pcbnew.LoadBoard(board_path)
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
         kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
@@ -396,6 +399,229 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             pours.append({"net": net, "layer": layer,
                           "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
     return pours
+
+
+# ---------------------------------------------------------------------------
+# derive_via_field / add_via_field -- the OQ-10 "more parallel vias" fix
+# ---------------------------------------------------------------------------
+def _pt_seg_dist(px, py, ax, ay, bx, by):
+    """Distance (mm) from point (px,py) to segment (ax,ay)-(bx,by)."""
+    dx, dy = bx - ax, by - ay
+    L2 = dx * dx + dy * dy
+    if L2 < 1e-12:
+        return math.hypot(px - ax, py - ay)
+    t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L2))
+    return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
+                     clearance=0.2, kelvin_pairs=None, board=None):
+    """Auto-derive a PARALLEL VIA FIELD for each high-current cable net at its vertical-transition
+    region (the §6.7/OQ-10 'more parallel vias' fix: more barrels in parallel -> less current per via).
+    A grid of up to `per_net` same-net through-vias in the net's heavy-pad bbox, skipping any grid point
+    that is: within keepout of ANY pad; within (clearance + via radius) of a FOREIGN-net track; within
+    (clearance + radii) of an EXISTING via (no stacked/coincident drills); or over a decorative LOGO.
+    So the field lands in the OPEN same-net pour channel and shorts nothing. To CONNECT (not dangle) the
+    through-vias need same-net copper on BOTH spanned layers -- pair this with a B.Cu mirror pour (the
+    caller lays one). Returns [{net, positions:[(x,y)...], drill, dia}]; self-gating -> [] if no cable net."""
+    from collections import defaultdict
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    pads_by_net = defaultdict(list)
+    padcount = defaultdict(int)
+    all_pads = []                          # (x, y, half_extent_mm) -- every pad, for the keepout
+    segs = []                              # (net, ax, ay, bx, by, halfwidth) -- every track
+    ex_vias = []                           # (x, y, radius) -- existing vias
+    for t in board.GetTracks():
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p = t.GetPosition(); ex_vias.append((p.x / MM, p.y / MM, t.GetWidth() / MM / 2.0))
+        elif t.Type() == pcbnew.PCB_TRACE_T:
+            s, e = t.GetStart(), t.GetEnd()
+            segs.append((t.GetNetname(), s.x / MM, s.y / MM, e.x / MM, e.y / MM, t.GetWidth() / MM / 2.0))
+    logo_rects = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if ref.upper().startswith("LOGO"):
+            bb = fp.GetBoundingBox()
+            logo_rects.append((bb.GetLeft() / MM, bb.GetTop() / MM, bb.GetRight() / MM, bb.GetBottom() / MM))
+        for p in fp.Pads():
+            padcount[ref] += 1
+            pos = p.GetPosition(); sz = p.GetSize()
+            all_pads.append((pos.x / MM, pos.y / MM, max(sz.x, sz.y) / MM / 2.0))
+            if p.GetNetname():
+                pads_by_net[p.GetNetname()].append((ref, p))
+
+    vr = dia / 2.0
+    fields = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {ref for ref, _ in pads_by_net.get(hi, [])}
+        refs_lo = {ref for ref, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            if not any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries):
+                continue                   # not a cable high-current net
+            heavy = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for ref, p in entries
+                     if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH or ref in shunt_refs]
+            if not heavy:
+                continue
+            xs = [x for x, _ in heavy]; ys = [y for _, y in heavy]
+            x0, x1, y0, y1 = min(xs), max(xs), min(ys), max(ys)
+            nx = max(1, int((x1 - x0) / pitch)); ny = max(1, int((y1 - y0) / pitch))
+            pos = []
+            for ix in range(nx + 1):
+                for iy in range(ny + 1):
+                    if len(pos) >= per_net:
+                        break
+                    x, y = x0 + ix * pitch, y0 + iy * pitch
+                    if any(math.hypot(x - px, y - py) < pr + keepout + vr for (px, py, pr) in all_pads):
+                        continue           # too close to a pad
+                    if any(snet != net and _pt_seg_dist(x, y, ax, ay, bx, by) < hw + clearance + vr
+                           for (snet, ax, ay, bx, by, hw) in segs):
+                        continue           # too close to a FOREIGN-net track
+                    if any(math.hypot(x - vx, y - vy) < r + vr + clearance for (vx, vy, r) in ex_vias):
+                        continue           # would stack on / crowd an existing via
+                    if any(lx - keepout <= x <= rx + keepout and ty - keepout <= y <= by_ + keepout
+                           for (lx, ty, rx, by_) in logo_rects):
+                        continue           # over the decorative LOGO
+                    pos.append((round(x, 3), round(y, 3)))
+                if len(pos) >= per_net:
+                    break
+            if pos:
+                fields.append({"net": net, "positions": pos, "drill": drill, "dia": dia})
+    return fields
+
+
+def add_via_field(board, fields):
+    """Place the parallel via field from derive_via_field as REAL same-net F.Cu<->B.Cu through-vias
+    (additive, like add_power_pours). The GND inner plane antipads around each foreign-net via, so no
+    short. Returns the added PCB_VIA objects. Re-fill zones after calling if you poured."""
+    added = []
+    f_cu, b_cu = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    for f in fields:
+        nc = board.GetNetcodeFromNetname(f["net"])
+        if nc <= 0:
+            raise KeyError(f"cec_fr.add_via_field: net {f['net']!r} not found on board")
+        for (x, y) in f["positions"]:
+            v = pcbnew.PCB_VIA(board)
+            v.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
+            v.SetDrill(_nm(f.get("drill", 0.3)))
+            v.SetWidth(_nm(f.get("dia", 0.6)))
+            v.SetNetCode(nc)
+            v.SetLayerPair(f_cu, b_cu)
+            board.Add(v)
+            added.append(v)
+    return added
+
+
+# ---------------------------------------------------------------------------
+# synthesize_power_copper -- the high-current copper SYNTHESIZER (not a router)
+# ---------------------------------------------------------------------------
+def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"),
+                            via_per_net=16, via_drill=0.5, via_dia=0.9, via_pitch=1.0,
+                            strip_redundant=True, kelvin_pairs=None):
+    """SYNTHESIZE fab-grade high-current copper for the cable force path -- construct it to spec, don't
+    autoroute-then-patch it. Freerouting models a 40A net as a 0.2mm wire; the right object is a copper
+    POUR + via field. For each cable FORCE net (J_IN->shunt = *_HI, shunt->J_OUT = *_LO) this lays a
+    SOLID F.Cu+B.Cu MIRROR pour over the connector->shunt corridor (doubling the cross-section), stitched
+    by a same-net VIA FIELD that carries the current between the two outer layers and through the shunt-
+    terminal neck (the §6.7/OQ-10 via array); the four-wire Kelvin tap window (shunt inner edge -> INA,
+    which derive_power_pours deliberately excludes) is left open.
+
+    Runs AFTER Freerouting (purely ADDITIVE same-net copper, like add_power_pours -> never strands the
+    sense tap). Then, BECAUSE the pour is now the solid conductor, it STRIPS the redundant thin force
+    traces FR laid inside the pour (keeping the sense taps that exit it) -- so the zone carries the
+    current, not the trace. Realises corpus rules high-current-copper-area-not-traces /
+    -pour-on-outer-layers / high-current-via-stitch-spacing. Verify with cec_constraints
+    (min-pour-cross-section) and cec_synth_pipeline.physics (electrothermal FEM). Returns a report dict.
+
+    Pre-req: route the board WITH the force-corridor keepouts active (cec_router _vital_keepouts_from_
+    rules) so both the F.Cu AND B.Cu corridors are clear -> both mirror layers fill solid."""
+    from collections import defaultdict
+    import shutil
+    board = pcbnew.LoadBoard(board_path)
+    # carry DRC context (.kicad_pro/.kicad_dru) next to the output board
+    for ext in (".kicad_pro", ".kicad_dru"):
+        s = board_path[:-len(".kicad_pcb")] + ext
+        if os.path.isfile(s):
+            shutil.copy2(s, out_path[:-len(".kicad_pcb")] + ext)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+
+    # Which pour layers each force net ALREADY carries (the router's pour-after-route lays a single F.Cu
+    # pour). We ADD ONLY THE MISSING layer -- never REMOVE a zone (zone removal corrupts pcbnew's net info
+    # -> SwigPyObject on the next GetNetInfo) and never double a layer (-> zones_intersect/isolated_copper).
+    existing = defaultdict(set)
+    for z in board.Zones():
+        nn = z.GetNetname()
+        if nn in force_nets:
+            for L in pour_layers:
+                if z.IsOnLayer(board.GetLayerID(L)):
+                    existing[nn].add(L)
+
+    base = derive_power_pours(board_path, kelvin_pairs=kelvin_pairs)
+    fields = derive_via_field(board_path, per_net=via_per_net, drill=via_drill, dia=via_dia,
+                              pitch=via_pitch, kelvin_pairs=kelvin_pairs)
+    pours = [{**p, "layer": L, "priority": 2, "min_thickness": 0.25}
+             for p in base for L in pour_layers if L not in existing[p["net"]]]
+    added_zones = add_power_pours(board, pours, fill=False)
+    added_vias = add_via_field(board, fields)
+
+    # 3. fill the mirror pours with the real engine (UnFill first -- re-fill segfault guard)
+    for z in board.Zones():
+        z.UnFill()
+    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+
+    # SAVE the solid-pour baseline (un-stripped) first -- if the strip below disconnects anything it
+    # is REVERTED to exactly this.
+    pcbnew.SaveBoard(out_path, board)
+
+    # 4. strip the redundant FORCE traces the solid pour now carries (keep taps that exit the pour),
+    # but ONLY if it does not disconnect the net. The pour can still have a fill-neck where a foreign
+    # trace crosses it (-> two same-net islands the in-pour trace bridges); removing that bridge would
+    # strand the net, so the strip is CONDITIONAL: revert the whole batch if unconnected count rises.
+    stripped = 0
+    strip_reverted = False
+    if strip_redundant:
+        board.BuildConnectivity()
+        unc0 = board.GetConnectivity().GetUnconnectedCount(False)
+        pour_polys = defaultdict(list)
+        for z in board.Zones():
+            if z.GetNetname() in force_nets:
+                pour_polys[z.GetNetname()].append(z.Outline())
+        remove = []
+        for t in board.GetTracks():
+            if t.Type() != pcbnew.PCB_TRACE_T:
+                continue
+            nm = t.GetNetname()
+            if nm not in pour_polys:
+                continue
+            s, e = t.GetStart(), t.GetEnd()
+            if all(any(poly.Contains(pt) for poly in pour_polys[nm]) for pt in (s, e)):
+                remove.append(t)                       # both ends inside the same-net pour -> candidate
+        if remove:
+            for t in remove:
+                board.Remove(t)
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            board.BuildConnectivity()
+            unc1 = board.GetConnectivity().GetUnconnectedCount(False)
+            if unc1 <= unc0:                           # pour genuinely holds -> commit the strip
+                stripped = len(remove)
+                pcbnew.SaveBoard(out_path, board)
+            else:                                       # a bridge -> keep the traces (out_path stays baseline)
+                strip_reverted = True
+
+    return {"out": out_path, "force_nets": sorted(force_nets), "mirror_pours": len(added_zones),
+            "via_field": len(added_vias), "stripped_force_traces": stripped,
+            "strip_reverted": strip_reverted}
 
 
 # ---------------------------------------------------------------------------
@@ -535,8 +761,17 @@ def bake_hints(
             z = pcbnew.ZONE(board)
             z.SetIsRuleArea(True)
             z.SetDoNotAllowTracks(True)
-            z.SetDoNotAllowVias(True)
-            z.SetDoNotAllowCopperPour(True)
+            # allow_vias=True keeps FOREIGN F.Cu tracks out of the corridor while letting a boxed-in pad
+            # (e.g. an INA238's GND/+3V3 pin sitting in the Kelvin corridor) via DOWN to an inner plane --
+            # without it, a tracks+vias keepout strands the sensor's own power. A foreign net can't place a
+            # useful via here anyway (no F.Cu track may reach it), and cec_hc's gate still treats any via as
+            # a tap obstacle, so tap cleanliness is preserved.
+            z.SetDoNotAllowVias(not bool(ko.get("allow_vias", False)))
+            # KiCad 9/10 renamed SetDoNotAllowCopperPour -> SetDoNotAllowZoneFills
+            if hasattr(z, "SetDoNotAllowZoneFills"):
+                z.SetDoNotAllowZoneFills(True)
+            else:
+                z.SetDoNotAllowCopperPour(True)
 
             ls = pcbnew.LSET()
             for lname in layers:

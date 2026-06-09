@@ -10,7 +10,30 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.10 (2026-06-05).
+Spec revision reflected here: **v1.1.0 (2026-06-09), controlled baseline** (semantic
+versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed log is
+retained for provenance in spec §11.1). The canonical-spec-line question (the old repo
+v3.x file vs the controlled release) is now RESOLVED: the v1.1.0 controlled baseline is
+canonical (owner direction, 2026-06-09), installed as `CEC-Platform-Ground-Truth-Spec.md`.
+The pre-release (vX.Y) tags below remain valid as references into spec §11.1.
+
+What v1.1.0 adds over the v3.10 summary below (no hardware change, no LOCKED decision
+altered): (a) document control + semantic versioning + a TOC/index; (b) **Appendix D —
+the support pipeline** (PROPOSED throughout, gating decisions OQ-61..OQ-74): the eight-stage
+closed loop (request → collect diagnostics → swarm candidate-plan generation with sandbox
+validation on config-replica VMs holding no user data → judge routing/scoring → signed-plan
+execution behind a verified restore point + rendered consent → verification with a monitored
+horizon → human/verifier sign-off emitting an outcome label → de-identified corpus write).
+Appendix D is the **actuation half** of the loop whose sensing half the platform already
+builds, it is the conceptual backbone the agentic-pipeline addendum
+(`docs/self-building-pipeline-addendum-2026-06-09.md`) and the punchlist
+(`docs/agentic-pipeline-review-2026-06-09.md`) operate against, and its design rules
+(agent neutrality = no generative model on the customer machine; evidence-over-local-
+intelligence; gates at zone crossings) mirror the §1 processing-placement principle. The
+OQ range grew to **OQ-1..OQ-74** (Appendix D opened OQ-61..74; v3.11 opened OQ-60). Companion
+diagrams `cec-subsystem-power-management.svg` (§2.9) and `cec_closed_loop_support_pipeline.svg`
+(Appendix D) are referenced but NOT vendored in the repo; both have inline text renderings in
+the spec, so the absence is non-blocking (track as a docs follow-up).
 
 v3.10 (2026-06-05) — SPEC CONSOLIDATION (merged the canonical v3.9 upload's revised
 architecture into this board-reconciled line; both forked from the shared v3.7 base).
@@ -675,6 +698,61 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- PCIe KELVIN FIX + HIGH-CURRENT COPPER SYNTHESIZER + LLM BROKER (2026-06-09, commits 8fd02f9..9fbac79).
+  Five-part session off the overnight run (which finished its 6.5h budget despite the Claude-RC
+  disconnect: 63 routes, all EPS at the cosmetic floor, BOTH PCIe SKUs kelvin_ok=FALSE).
+  (1) PCIe KELVIN GATE FIXED, both SKUs. Root cause: the PCIe shunt sat rot 90 with pad1(_HI) the LOWER
+  terminal -> the INA238 Kelvin taps had to CROSS to reach it, FR stranded /SENSEC{N}_LO on the congested
+  last cable. Same inversion EPS fixed (corpus rule shunt-rotation-hi-upper-terminal) but PCIe never got.
+  Flipped gen-pcie-condensed.py shunt rot 90->270 (INA181 needed no change), regenerated both committed
+  boards. VERIFIED: kelvin_ok F->T -- 2-port drc 20->4 obj 20754->4257, 3-port drc 12->2 obj 12766->4257.
+  (2) MANAGER REPAIR REPERTOIRE (cec_router): default_manager now walks an extensible MANAGER_REPAIRS
+  registry. place_rotate {ref,by} apply_edit primitive + kelvin_inversion_repair() (geometric perception:
+  shunt HI/LO inverted vs the INA sense pads -> place_rotate RS{c} 180; identifies the shunt by TOTAL pad
+  count==2 since the INA181 contributes 2 pads to the pair). Unit-tested + demonstrated AUTONOMOUSLY
+  healing a re-inverted board (it1 rotate RS1, it2 rotate RS2 -> kelvin). logo_finishing_repair() written
+  but NOT wired (a copper keepout cuts the GND plane -- needs the GND-assign approach).
+  (3) FORCE-CORRIDOR ENFORCEMENT (cec_router._vital_keepouts_from_rules, rewritten): the old version only
+  reserved _HI and centroid-skewed the column off-corridor (INA181 pad). New version reserves each cable's
+  connector->shunt corridor (both _HI/_LO, clipped at the shunt so the inner-edge tap window stays open) ->
+  FR routes signal AROUND it AND the tap is forced onto the shunt inner edge. In-pour redundant force
+  traces 63->13, kelvin held, tap-off-inner 4->1.
+  (4) HIGH-CURRENT COPPER SYNTHESIZER (cec_fr.synthesize_power_copper) + FEM. The real fix to "shunts
+  connected by thin traces, not zones": Freerouting models a 40A net as a 0.2mm wire, so CONSTRUCT the
+  power copper instead -- derive_power_pours corridor + a B.Cu mirror pour (ADD ONLY the missing layer, so
+  the route's F.Cu stays; NEVER remove a zone -- zone removal corrupts pcbnew net info -> SwigPyObject) +
+  derive_via_field stitching F<->B + real ZONE_FILLER + a SAFE conditional strip (reverts if it would
+  disconnect). Wired through the electrothermal FEM (cec_synth_pipeline.physics). VERIFIED both SKUs:
+  DRC-clean, kelvin_ok held, cross-section 0.10 -> 0.97-1.20 mm^2 (~10x), max_T 158->81C -- ~1C OVER the
+  30C-rise budget at the thinnest neck. OPEN: a NOTCHED corridor keepout (exclude foreign from the FULL
+  pour region except a tap notch) to clear the residual foreign-trace cuts -> full-width pour -> close the
+  last neck; the shunt-PAD physical neck + 2-layer limit may still need the GUI 4-terminal Kelvin geometry.
+  cec_constraints already has the checkers (high-current-pour-integrity / min-pour-cross-section /
+  kelvin-sense-from-inner-pad) that flag exactly this; the corpus (scripts/constraints/corpus-extracted.json,
+  269 rows) already encodes every rule -- the gap was ENFORCEMENT, now partly wired.
+  (5) LLM BROKER. All local-LLM access defaults through cec-llm-broker (/home/nathan/cec-llm-broker, :8080)
+  so this project and the other LLM project on the box don't thrash the single 5090. Routes by model name
+  (cec-judge->:8000, cec-manager->:8001); cec_judge_local VLLM_URL default -> broker + X-CEC-Client header,
+  cec_overnight host reviews -> broker, docker compose routing CEC_VLLM_URL -> host.docker.internal:8080
+  + extra_hosts. Fail-safe (broker down -> deterministic fallback). Broker runs on 0.0.0.0:8080.
+- TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
+  runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
+  Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-
+  gated), "experts in RAM, attention on the 5090" via `-ngl 99 --n-cpu-moe 99` (11GB VRAM, ~4.3 tok/s,
+  thinking-ONLY). MEASURED: a partial GPU expert offload (--n-cpu-moe 80) is SLOWER (2.7 tok/s, CPU<->GPU
+  handoff overhead) + costs +15GB VRAM -> rejected; spec-decoding is the real decode lever, not offload.
+  WORKER tier stays the fast vLLM 30B-A3B-AWQ (`inference` :8000). Single 5090 fits ONE
+  heavy model -> they SWAP. (2) cec_judge_local: the manager tier got its OWN token budget (a thinking
+  model overruns the worker's 400-default -> MANAGER_MAX_TOKENS 4096 / CEC_CORPUS_* knobs); `available()`
+  takes a url. (3) `corpus_fit_review` -- deep per-board precedent-fit audit vs the same-family corpus
+  (deterministic robust-z/MAD prepass -> compact evidence -> 235B critique; per-family scoping, <3-peer
+  insufficient floor; fail-safe + add-only + a clamp so a gate-false board can't read "fits"). Verified
+  live: caught trajectory THRASH on a layout-clean eps board, citing precedents by id. Wired into
+  cec_router.route() (gated by CEC_CORPUS_REVIEW=1, writes a <board>-corpus-fit.json sidecar). (4)
+  scripts/cec_overnight.py -- deadline-bounded driver alternating ROUTE blocks (worker up, routing in the
+  `routing` container generating candidates) and REVIEW blocks (swap to manager, deep-review on the host).
+  NOTE: routing needs pcbnew so it runs IN the routing container; corpus_fit_review is pcbnew-free and
+  runs on the host. The local judge is opt-in (`--judge local`); the deterministic default is unchanged.
 - AGENTIC DISPATCH PROTOTYPE -- compute-as-tools + a budgeted tier-escalation loop (2026-06-07).
   Per the user's design instinct (the two-plane router is "too detached": compute runs a blind batch,
   judgement happens after -> tighten the COUPLING so agents call compute on demand + defer up). scripts/
@@ -1528,6 +1606,32 @@ with `kicad-cli jobset run` so settings match the GUI. Confirm exact flags with
   board state after every revision (see "Active action items").
 - Confirm universal-interface parts are sourced from `lib/` rather than
   duplicated per board.
+
+### The constraint loop's human-ratification boundary — SET IN STONE (2026-06-07)
+
+The constraint-aware **place → route → check** loop (`scripts/cec_loop.py`: `cec_place` +
+`cec_fr` + `cec_hc` + `cec_constraints`) is DESIGNED to run itself to a wall and then ESCALATE
+TO THE HUMAN. When the only remaining fix is a **constraint-level or design-level change** —
+loosen a ratified target, change the stackup, add a plane/pour, alter a footprint, relax a
+locked decision — the loop does NOT silently change a ratified constraint or assume a design
+decision. Reaching that wall is the loop **WORKING AS INTENDED**, not a failure (this is the
+`discover → ratify → enforce` migration's top rung: the human is the ratifier tier).
+
+At the wall the loop has **two levers**, and it should prefer (1) before asking for (2):
+1. **Go back to the top — regenerate a PLACEMENT CANDIDATE.** Vary the placement (rotation /
+   tighten target / seed / strategy) and re-run place→route→check to try to clear the wall
+   WITHOUT any design change. A different candidate often fixes what looked like a constraint
+   problem (e.g. a sense IC boxed against its shunt so its own power/GND can't escape).
+2. **Surface the design/constraint decision to the HUMAN, who ratifies it.** A ratified change
+   is **BOARD-SPECIFIC by default** — it applies to the one board, NOT generalized to the
+   platform unless the human/spec says so. (Worked example, 2026-06-07: the EPS tight-Kelvin
+   placement strands the INA238's own +3V3/GND; the human ratified *loosen the EPS Kelvin
+   target a hair* — recorded BOARD-SPECIFIC in `cec_loop.BOARD_PARAMS`, not as a platform
+   default; the alternative, lever 1, is to regenerate a looser placement candidate.)
+
+Never relax a ratified threshold or make a stackup/footprint/locked-decision change to "get a
+board to pass" without this escalation. Lever-1 candidate regeneration is automatic; lever-2 is
+the human's call and is logged with its board scope.
 
 ### Sub-agent routing pass (real copper) — GO-AHEAD (2026-06-06)
 
