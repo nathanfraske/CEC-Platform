@@ -146,6 +146,127 @@ services:
               count: all
               capabilities: [gpu]
 
+  # ---- 2026-06-09 model-store refresh: new GGUFs live on E:\AI Models (the WSL
+  # drvfs mount /mnt/e/AI Models -- big & roomy, but slower I/O than ext4, so cold
+  # loads take minutes; the broker's 30-min idle reaper keeps a hot model warm).
+  # All three are llama.cpp; the broker (cec-llm-broker :8080) starts/stops these
+  # on demand by registry entry -- do NOT compose up/down by hand.
+
+  # VOLUME worker -- Qwen3.6-35B-A3B UD-Q4_K_M (MoE, 3B active): the high-throughput
+  # swarm tier. Fully on the 5090 (22.1 GB weights), 4 parallel slots.
+  worker-volume:
+    profiles: ["worker-volume"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8002:8002"
+    volumes:
+      - "/mnt/e/AI Models/qwen3.6-35b-a3b:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"
+      - "--alias"
+      - "cec-worker"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8002"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "${CEC_WORKER_CTX:-32768}"           # shared across slots (-np 4 -> 8k each)
+      - "-np"
+      - "${CEC_WORKER_SLOTS:-4}"             # the throughput knob (cont. batching)
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # QUALITY worker -- Qwen3.6-27B dense Q4_K_M: swapped in over the volume worker
+  # when a call wants maximum per-call quality rather than throughput. Fully on GPU.
+  worker-quality:
+    profiles: ["worker-quality"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8004:8004"
+    volumes:
+      - "/mnt/e/AI Models/qwen3.6-27b:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwen3.6-27B-Q4_K_M.gguf"
+      - "--alias"
+      - "cec-worker-quality"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8004"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "${CEC_WORKERQ_CTX:-32768}"
+      - "-np"
+      - "${CEC_WORKERQ_SLOTS:-2}"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  # MANAGER (new) -- MiniMax-M2.7 229B-A10B UD-Q4_K_XL (141 GB, 4-part split GGUF;
+  # llama.cpp loads part 00001 and finds the rest). Pure experts-in-RAM does NOT fit
+  # (~130 GB experts vs ~122 GiB available), so a PARTIAL expert offload puts a few
+  # layers' experts on the 5090: --n-cpu-moe keeps the FIRST N layers' experts on
+  # CPU; the remaining layers' experts ride the GPU next to attention/KV.
+  # TUNE CEC_M27_NCPUMOE at first run: too low -> CUDA OOM; too high -> RAM
+  # overflow -> page-thrash from the slow drvfs mount. Start ~56 and adjust.
+  # Served alias stays "cec-manager" so every existing manager-tier client is
+  # unchanged; the old 235B service below stays available as cec-manager-235b.
+  manager-m27:
+    profiles: ["manager-m27"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8003:8003"
+    volumes:
+      - "/mnt/e/AI Models/minimax-m2.7-ud-q4kxl:/models:ro"
+    command:
+      - "-m"
+      - "/models/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf"
+      - "--alias"
+      - "cec-manager"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8003"
+      - "-ngl"
+      - "99"
+      - "--n-cpu-moe"
+      - "${CEC_M27_NCPUMOE:-56}"
+      - "--ctx-size"
+      - "${CEC_M27_CTX:-16384}"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
   # Placeholder for the physics tier (Elmer / openEMS via gerber2ems). Filled in Phase 2/3.
   # fem:
   #   profiles: ["fem"]
