@@ -39,6 +39,9 @@ if command -v python3 >/dev/null 2>&1; then
   python3 "$CEC_SCRIPTS_DIR/audit-sch.py" || status=1
 fi
 
+# tests/ is pruned from both sweeps: it holds FIXTURES (e.g. the frozen, deliberately
+# UNROUTED golden floorplan for scripts/cec_golden.py), not design sources.
+
 # Electrical rule check over schematics that contain symbols.
 while IFS= read -r -d '' f; do
   found=1
@@ -56,7 +59,7 @@ while IFS= read -r -d '' f; do
     continue
   fi
   "$CEC_SCRIPTS_DIR/erc.sh" "$f" || status=1
-done < <(find "$CEC_REPO_ROOT" \( -path '*/build' -o -path '*/.git' \) -prune -o \
+done < <(find "$CEC_REPO_ROOT" \( -path '*/build' -o -path '*/.git' -o -path "$CEC_REPO_ROOT/tests" \) -prune -o \
          -type f -name '*.kicad_sch' -print0)
 
 # Design rule check over layouts that contain footprints.
@@ -76,7 +79,7 @@ while IFS= read -r -d '' f; do
     continue
   fi
   "$CEC_SCRIPTS_DIR/drc.sh" "$f" || status=1
-done < <(find "$CEC_REPO_ROOT" \( -path '*/build' -o -path '*/.git' \) -prune -o \
+done < <(find "$CEC_REPO_ROOT" \( -path '*/build' -o -path '*/.git' -o -path "$CEC_REPO_ROOT/tests" \) -prune -o \
          -type f -name '*.kicad_pcb' -print0)
 
 if [ "$found" -eq 0 ]; then

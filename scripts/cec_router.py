@@ -6,6 +6,10 @@
 #  cec_router -- the route() orchestration framework for the automated routing
 #                system (the "control plane" wiring over the deterministic plane).
 # ============================================================================
+# NOT cec_route: you may want the other file (R-10). cec_router (this file) =
+# the route() ORCHESTRATION loop route.yml runs; cec_route.py = the pcbnew
+# hand-routing PRIMITIVES (track/via/zone/fill/verify) for a sub-agent pass.
+# ============================================================================
 # The redesign splits routing into two planes:
 #
 #   DETERMINISTIC PLANE (pure, reproducible, no LLM):

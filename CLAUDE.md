@@ -698,6 +698,51 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch
+  claude/agentic-pipeline-punchlist; spec v1.1.0 + R-05 landed earlier via PR #18 merge).
+  Executed docs/agentic-pipeline-review-2026-06-09.md (R-*) + the first wave of
+  docs/self-building-pipeline-addendum-2026-06-09.md (SB-*), every item VERIFIED on-device
+  in the docker routing container (this box has NO host kicad-cli/pcbnew/java -- apt only
+  has KiCad 7; the cec/routing:kicad10 container is the compute plane).
+  * R-01 seed diversity: opt_spread=0 multi-seed now derives a 0.5x..1.5x opt_time spread
+    (router + dispatch _spread_params; RESOLVED per-seed params recorded; sha256 dedupe
+    before scoring). Verified: 4/4 distinct candidate hashes (was 4 identical).
+  * R-02 single DRC: Metrics gains drc_types/drc_loci from the SAME run;
+    cec_score.drc_types() for path-only callers; ONE cosmetic filter (cec_score);
+    View.drc() feeds View.metrics; mkstemp temp files. Verified: 1 `pcb drc`/candidate.
+  * R-03 CI gate: fab/<board>-* snapshot => ALWAYS checked (DRAFT override);
+    hub-standard + 12vhpwr-standard graduated out of DRAFT (owner-approved); gate fails on
+    ERROR severity only (CEC_SEVERITY_FLAGS; the all-severity red was 100% documented-benign
+    warnings). Both boards ERROR-CLEAN; Actions confirmed ENABLED (644 runs).
+  * R-04 verdicts on the run page ($GITHUB_STEP_SUMMARY, both workflows, both OSes);
+    synth modes + the ===CEC_CANDIDATES_JSON=== marker contract documented in
+    docs/self-hosted-router.md. R-06 prereqs (xvfb only on headless Linux). R-07
+    atx-24pin-rev2 dispatchable (Quilter locked-placement caveat). R-08 dispatch CLI uses
+    find_board + agent_route edge guards; tests/test_dispatch_loop.py 5/5.
+  * R-05 toolchain degradation: scripts/cec_toolchain.py (dependency-free); DRC/ERC fail
+    fast w/ install hint, netlist/render degrade. Full cascade runs tracebackless on a
+    KiCad-less host. R-10 cec_route<->cec_router cross-notes; the stop-hook claim corrected
+    (.gitignore is the backstop). R-11 README reconciled (boards/layout/tooling + v1.1.0).
+  * SB-01 run ledger: scripts/cec_ledger.py -> SIBLING github.com/nathanfraske/cec-runs
+    (private; owner decision) runs/ledger.jsonl; determinism manifest (KiCad pin + resolved
+    kicad-cli, FR version, scripts SHA+dirty) embedded in EVERY decision log; router +
+    run_pipeline append fail-safe; compose mounts /cec-runs. CEC_PARENT_RUN_ID threads
+    restart lineage; `lineage` CLI reconstructs chains.
+  * SB-08 golden regression: tests/golden/eps-8pin (frozen floorplan) +
+    scripts/cec_golden.py (route w/ power pours -> score -> electrothermal; expectation
+    BANDS in tests/golden/expectations.json; --freeze = human-approved band bump). Baseline:
+    gates PASS, drc=4 finishing, 556 tracks/84 vias, max_T 128.2C. Teeth: a deliberate
+    kelvin-gate bug -> FAIL exit 1. RUN IT (in-container) BEFORE MERGING scripts/** CHANGES.
+  * SB-13/14 corpus: corpus/general/ (classes A/B/C/H, lifecycle, README schema; owner:
+    stays OPEN, revisit at Class C) seeded w/ IPC-2221 k params + CAN/§6.6 Class B;
+    scripts/cec_corpus_lint.py wired into checklist.sh (rejects sourceless/model-sourced/
+    dup/Class-C-without-run-id; validates the project corpus' spec §refs still resolve in
+    v1.1.0 -- mechanical SB-11 half). AUDIT: the 269-row corpus had FULL provenance already
+    but 11 DOUBLE-EXTRACTED rules -> deduped to 258, unique deltas folded into kept rows.
+  STILL OPEN (addendum later waves): SB-02 inbox (GitHub Issues queue), SB-03 footprint
+  intake gate, SB-05 fab preflight, SB-07 firmware contracts (DECISION: location), SB-10
+  policy-as-code, SB-11 full traceability map, R-09 finishing-filter structured matching,
+  R-12 where='runner' GitHub-dispatch leg; SB-04/06/09/12 await hardware/history.
 - PCIe KELVIN FIX + HIGH-CURRENT COPPER SYNTHESIZER + LLM BROKER (2026-06-09, commits 8fd02f9..9fbac79).
   Five-part session off the overnight run (which finished its 6.5h budget despite the Claude-RC
   disconnect: 63 routes, all EPS at the cosmetic floor, BOTH PCIe SKUs kelvin_ok=FALSE).
