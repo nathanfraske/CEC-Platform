@@ -675,6 +675,43 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- PCIe KELVIN FIX + HIGH-CURRENT COPPER SYNTHESIZER + LLM BROKER (2026-06-09, commits 8fd02f9..9fbac79).
+  Five-part session off the overnight run (which finished its 6.5h budget despite the Claude-RC
+  disconnect: 63 routes, all EPS at the cosmetic floor, BOTH PCIe SKUs kelvin_ok=FALSE).
+  (1) PCIe KELVIN GATE FIXED, both SKUs. Root cause: the PCIe shunt sat rot 90 with pad1(_HI) the LOWER
+  terminal -> the INA238 Kelvin taps had to CROSS to reach it, FR stranded /SENSEC{N}_LO on the congested
+  last cable. Same inversion EPS fixed (corpus rule shunt-rotation-hi-upper-terminal) but PCIe never got.
+  Flipped gen-pcie-condensed.py shunt rot 90->270 (INA181 needed no change), regenerated both committed
+  boards. VERIFIED: kelvin_ok F->T -- 2-port drc 20->4 obj 20754->4257, 3-port drc 12->2 obj 12766->4257.
+  (2) MANAGER REPAIR REPERTOIRE (cec_router): default_manager now walks an extensible MANAGER_REPAIRS
+  registry. place_rotate {ref,by} apply_edit primitive + kelvin_inversion_repair() (geometric perception:
+  shunt HI/LO inverted vs the INA sense pads -> place_rotate RS{c} 180; identifies the shunt by TOTAL pad
+  count==2 since the INA181 contributes 2 pads to the pair). Unit-tested + demonstrated AUTONOMOUSLY
+  healing a re-inverted board (it1 rotate RS1, it2 rotate RS2 -> kelvin). logo_finishing_repair() written
+  but NOT wired (a copper keepout cuts the GND plane -- needs the GND-assign approach).
+  (3) FORCE-CORRIDOR ENFORCEMENT (cec_router._vital_keepouts_from_rules, rewritten): the old version only
+  reserved _HI and centroid-skewed the column off-corridor (INA181 pad). New version reserves each cable's
+  connector->shunt corridor (both _HI/_LO, clipped at the shunt so the inner-edge tap window stays open) ->
+  FR routes signal AROUND it AND the tap is forced onto the shunt inner edge. In-pour redundant force
+  traces 63->13, kelvin held, tap-off-inner 4->1.
+  (4) HIGH-CURRENT COPPER SYNTHESIZER (cec_fr.synthesize_power_copper) + FEM. The real fix to "shunts
+  connected by thin traces, not zones": Freerouting models a 40A net as a 0.2mm wire, so CONSTRUCT the
+  power copper instead -- derive_power_pours corridor + a B.Cu mirror pour (ADD ONLY the missing layer, so
+  the route's F.Cu stays; NEVER remove a zone -- zone removal corrupts pcbnew net info -> SwigPyObject) +
+  derive_via_field stitching F<->B + real ZONE_FILLER + a SAFE conditional strip (reverts if it would
+  disconnect). Wired through the electrothermal FEM (cec_synth_pipeline.physics). VERIFIED both SKUs:
+  DRC-clean, kelvin_ok held, cross-section 0.10 -> 0.97-1.20 mm^2 (~10x), max_T 158->81C -- ~1C OVER the
+  30C-rise budget at the thinnest neck. OPEN: a NOTCHED corridor keepout (exclude foreign from the FULL
+  pour region except a tap notch) to clear the residual foreign-trace cuts -> full-width pour -> close the
+  last neck; the shunt-PAD physical neck + 2-layer limit may still need the GUI 4-terminal Kelvin geometry.
+  cec_constraints already has the checkers (high-current-pour-integrity / min-pour-cross-section /
+  kelvin-sense-from-inner-pad) that flag exactly this; the corpus (scripts/constraints/corpus-extracted.json,
+  269 rows) already encodes every rule -- the gap was ENFORCEMENT, now partly wired.
+  (5) LLM BROKER. All local-LLM access defaults through cec-llm-broker (/home/nathan/cec-llm-broker, :8080)
+  so this project and the other LLM project on the box don't thrash the single 5090. Routes by model name
+  (cec-judge->:8000, cec-manager->:8001); cec_judge_local VLLM_URL default -> broker + X-CEC-Client header,
+  cec_overnight host reviews -> broker, docker compose routing CEC_VLLM_URL -> host.docker.internal:8080
+  + extra_hosts. Fail-safe (broker down -> deterministic fallback). Broker runs on 0.0.0.0:8080.
 - TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
   runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
   Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-
