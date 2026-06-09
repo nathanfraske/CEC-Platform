@@ -174,6 +174,36 @@ candidate can be useful (sense + diff pairs routed) while `gates_pass` is still 
 structural DRC isn't 0 yet; that's the loop's signal to keep iterating (more passes, keep-outs, or
 a placement/plan change).
 
+Both workflows also append the run **verdict to the job Summary page** (`if: always()`), so a
+"sign-off withheld" outcome is visible without downloading the artifact — a run-mode pipeline that
+completes with sign-off withheld **exits 0 by design** (a cautious completed verdict is a success,
+not a failure) and previously looked identical to RELEASED on the run page.
+
+## Synthesis workflow (`synth.yml`)
+
+*Synthesize (self-hosted)* runs `scripts/cec_synth_pipeline.py` / `scripts/cec_dispatch.py` on the
+same runner, in one of **three modes** (the `mode` input):
+
+| Mode | What runs | Output dir (artifact `synth-<board>-<mode>-<run_id>`) |
+|---|---|---|
+| `run` | the full pipeline (`run_pipeline`): ERC+BOM gate → triage → [optionally `--route` via the swarm, or `--routed-board`] → physics + cascade → sign-off → build + freeze | `build/release/<board>/` — `<board>-release.kicad_pcb` **or** `<board>-withheld.kicad_pcb`, plus `<board>-decision-log.json` (a `stages` list whose `release` record carries `status: RELEASED \| WITHHELD`) |
+| `sweep` | the placement sweep (`run_sweep`): parallel place candidates across sizes → materialize + render | `build/synth/<board>/` — `synth-report.json` + the materialized boards/renders |
+| `candidates` | `cec_dispatch request-candidates`: generate + score Freerouting candidates, emit structured metrics for a judging tier | `build/candidates/<board>/` — `candidates.json` |
+
+**The marker contract (orchestrator-facing, do not change):** in `candidates` mode the metrics
+JSON is printed to stdout between two literal marker lines —
+
+```
+===CEC_CANDIDATES_JSON_BEGIN===
+[ ...CandidateMetrics list... ]
+===CEC_CANDIDATES_JSON_END===
+```
+
+— so an orchestrator session can pull the JSON cleanly out of the Actions job log, where stdout
+and stderr interleave. The same payload is persisted as `candidates.json` in the artifact (the
+durable copy; prefer it when the run has finished — job-log retention is shorter and interleaving
+is possible). The run Summary panel additionally shows the verdict / payload per mode (R-04).
+
 ## Security note
 
 Self-hosted runners execute the workflow's code on your machine. This workflow is

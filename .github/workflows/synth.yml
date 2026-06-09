@@ -32,6 +32,7 @@ on:
           - pcie-8pin-3port
           - 12vhpwr-standard
           - atx-24pin
+          - atx-24pin-rev2   # current 24-pin line; honor the Quilter locked placements (R-07)
       mode:
         description: "run = full pipeline | sweep = placement sweep | candidates = route-candidate metrics (agentic loop)"
         type: choice
@@ -124,6 +125,84 @@ jobs:
             python3 scripts/cec_synth_pipeline.py --board "${{ inputs.board }}" $ARGS \
               --out "build/release/${{ inputs.board }}"
           fi
+
+      # ---- run summary (R-04): surface the verdict on the run page. A run-mode pipeline
+      # ending "sign-off withheld" exits 0 BY DESIGN (a completed cautious verdict is a
+      # success), so without this step it looks identical to RELEASED. The
+      # ===CEC_CANDIDATES_JSON_BEGIN/END=== stdout markers are the ORCHESTRATOR contract
+      # and are unchanged; this summary is for humans.
+      - name: Run summary (Linux/macOS)
+        if: always() && runner.os != 'Windows'
+        run: |
+          {
+            echo "## Synth: ${{ inputs.board }} (${{ inputs.mode }})"
+            case "${{ inputs.mode }}" in
+              candidates)
+                CJ="build/candidates/${{ inputs.board }}/candidates.json"
+                if [ -f "$CJ" ]; then
+                  echo '```json'
+                  head -c 60000 "$CJ"   # summary cap is 1 MiB; keep it sane
+                  echo; echo '```'
+                else
+                  echo "_no candidates.json produced_"
+                fi ;;
+              run)
+                LOG="build/release/${{ inputs.board }}/${{ inputs.board }}-decision-log.json"
+                if [ -f "$LOG" ]; then
+                  python3 - "$LOG" <<'PYEOF'
+          import json, sys
+          log = json.load(open(sys.argv[1]))
+          entries = log if isinstance(log, list) else (log.get("stages") or log.get("entries") or [])
+          rel = [e for e in entries if isinstance(e, dict) and e.get("stage") == "release"]
+          status = rel[-1].get("status") if rel else "UNKNOWN (no release record)"
+          print(f"**Pipeline verdict: {status}**")
+          PYEOF
+                else
+                  echo "_no decision log produced (pipeline failed before freeze)_"
+                fi ;;
+              sweep)
+                RP="build/synth/${{ inputs.board }}/synth-report.json"
+                if [ -f "$RP" ]; then
+                  echo '```json'
+                  head -c 60000 "$RP"
+                  echo; echo '```'
+                else
+                  echo "_no synth-report.json produced_"
+                fi ;;
+            esac
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run summary (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: 'powershell -ExecutionPolicy Bypass -Command "{0}"'
+        run: |
+          $board = "${{ inputs.board }}"; $mode = "${{ inputs.mode }}"
+          $lines = @("## Synth: $board ($mode)")
+          switch ($mode) {
+            "candidates" {
+              $cj = "build/candidates/$board/candidates.json"
+              if (Test-Path $cj) { $lines += '```json'
+                $raw = Get-Content $cj -Raw
+                $lines += $raw.Substring(0, [Math]::Min(60000, $raw.Length)); $lines += '```' }
+              else { $lines += "_no candidates.json produced_" } }
+            "run" {
+              $log = "build/release/$board/$board-decision-log.json"
+              if (Test-Path $log) {
+                $entries = Get-Content $log -Raw | ConvertFrom-Json
+                if ($entries.stages) { $entries = $entries.stages }
+                elseif ($entries.entries) { $entries = $entries.entries }
+                $rel = @($entries | Where-Object { $_.stage -eq "release" })
+                $status = if ($rel) { $rel[-1].status } else { "UNKNOWN (no release record)" }
+                $lines += "**Pipeline verdict: $status**" }
+              else { $lines += "_no decision log produced (pipeline failed before freeze)_" } }
+            "sweep" {
+              $rp = "build/synth/$board/synth-report.json"
+              if (Test-Path $rp) { $lines += '```json'
+                $raw = Get-Content $rp -Raw
+                $lines += $raw.Substring(0, [Math]::Min(60000, $raw.Length)); $lines += '```' }
+              else { $lines += "_no synth-report.json produced_" } }
+          }
+          $lines | Add-Content $env:GITHUB_STEP_SUMMARY
 
       # ---- collect ----
       - name: Upload synthesis outputs

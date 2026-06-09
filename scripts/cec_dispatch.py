@@ -316,12 +316,28 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
         if verbose:
             print(f"  [{tier_name}] {len(cands)} cands, budget={b} -> {v.action}: {v.reason[:90]}")
         if v.action == "accept":
-            best = next((c for c in cands if c.seed == v.seed), cands[0] if cands else None)
+            if not cands:
+                # R-08: an accept against an EMPTY candidate list is not a success. Coerce to
+                # escalate (logged) instead of returning None indistinguishably from failure.
+                log[-1]["note"] = "accept-with-no-candidates coerced to escalate"
+                ti += 1
+                b = budget
+                continue
+            best = next((c for c in cands if c.seed == v.seed), None)
+            if best is None:
+                # R-08: a verdict naming an unknown seed falls back to the best candidate,
+                # but the fallback is RECORDED -- the tier's stated intent must not be lost.
+                log[-1]["note"] = f"seed fallback: verdict seed {v.seed!r} not in candidates; using best"
+                best = cands[0]
             return best, log
         if v.action == "request_more" and b > 0:
             params = {**params, **(v.params or {})}
             b -= 1
         else:                                            # escalate, or budget exhausted -> forced up
+            if v.action == "request_more":
+                # R-08: the coercion is recorded -- the log must show the tier ASKED for more
+                # but the budget forced the escalation.
+                log[-1]["note"] = "budget-coerced escalate (tier requested more with budget 0)"
             ti += 1
             b = budget
     return None, log
@@ -392,13 +408,18 @@ def main(argv=None):
                     help="'runner' routes FR compute through the bounded local runner (team-safe)")
     a = ap.parse_args(argv)
 
+    def _find_board(name):
+        # R-08: cec_router.find_board is the ONE board-lookup (same skip rules, and a
+        # friendly error instead of a bare IndexError when a module dir has no floorplan).
+        import cec_router
+        try:
+            return cec_router.find_board(name)
+        except FileNotFoundError as e:
+            print(f"cec_dispatch: {e}", file=sys.stderr)
+            sys.exit(2)
+
     if a.cmd == "request-candidates":
-        import glob
-        bp = a.board if a.board.endswith(".kicad_pcb") else None
-        if not bp:
-            cands = [p for p in glob.glob(f"{ROOT}/modules/{a.board}/*.kicad_pcb")
-                     if "-routed" not in p and ".merged." not in p]
-            bp = sorted(cands)[0]
+        bp = _find_board(a.board)
         # the compute (Freerouting / pcbnew) logs to stdout; send that to stderr so stdout is
         # CLEAN JSON the calling agent can parse.
         import contextlib
@@ -421,13 +442,8 @@ def main(argv=None):
                 fh.write(blob)
 
     elif a.cmd == "agent-route":
-        import glob
         import contextlib
-        bp = a.board if a.board.endswith(".kicad_pcb") else None
-        if not bp:
-            cands = [p for p in glob.glob(f"{ROOT}/modules/{a.board}/*.kicad_pcb")
-                     if "-routed" not in p and ".merged." not in p]
-            bp = sorted(cands)[0]
+        bp = _find_board(a.board)               # R-08: one lookup, friendly error
         tiers = list(DEFAULT_TIERS)
         if a.swarm:
             import cec_judge_local
