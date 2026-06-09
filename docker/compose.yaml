@@ -224,15 +224,15 @@ services:
               count: all
               capabilities: [gpu]
 
-  # MANAGER (new) -- MiniMax-M2.7 229B-A10B UD-Q4_K_XL (141 GB, 4-part split GGUF;
-  # llama.cpp loads part 00001 and finds the rest). Pure experts-in-RAM does NOT fit
-  # (~130 GB experts vs ~122 GiB available), so a PARTIAL expert offload puts a few
-  # layers' experts on the 5090: --n-cpu-moe keeps the FIRST N layers' experts on
-  # CPU; the remaining layers' experts ride the GPU next to attention/KV.
-  # TUNE CEC_M27_NCPUMOE at first run: too low -> CUDA OOM; too high -> RAM
-  # overflow -> page-thrash from the slow drvfs mount. Start ~56 and adjust.
-  # Served alias stays "cec-manager" so every existing manager-tier client is
-  # unchanged; the old 235B service below stays available as cec-manager-235b.
+  # MANAGER (new) -- MiniMax-M2.7 229B-A10B, UD-Q3_K_XL by default (102 GB, 4-part
+  # split GGUF; llama.cpp loads part 00001 and finds the rest). Path-C decision
+  # (2026-06-09): Q3_K_XL FITS FULLY in the 122 GiB page cache, so after one cold
+  # load there is NO steady-state paging from the slow drvfs mount -- the Q4_K_XL
+  # (141 GB > RAM) measured 3.7 tok/s because ~20 GB of experts rotated through 9p,
+  # and its loose copy was retired for space. Quant swaps: set CEC_M27_DIR +
+  # CEC_M27_FILE (no compose edit). llama.cpp's auto-fit picks the GPU/CPU split;
+  # CEC_M27_NCPUMOE remains the manual override. Served alias stays "cec-manager"
+  # so every manager-tier client is unchanged.
   manager-m27:
     profiles: ["manager-m27"]
     image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
@@ -240,10 +240,10 @@ services:
     ports:
       - "8003:8003"
     volumes:
-      - "/mnt/e/AI Models/minimax-m2.7-ud-q4kxl:/models:ro"
+      - "${CEC_M27_DIR:-/mnt/e/AI Models/minimax-m2.7-ud-q3kxl}:/models:ro"
     command:
       - "-m"
-      - "/models/MiniMax-M2.7-UD-Q4_K_XL-00001-of-00004.gguf"
+      - "/models/${CEC_M27_FILE:-MiniMax-M2.7-UD-Q3_K_XL-00001-of-00004.gguf}"
       - "--alias"
       - "cec-manager"
       - "--host"
