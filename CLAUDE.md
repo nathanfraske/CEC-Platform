@@ -10,7 +10,30 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: v3.10 (2026-06-05).
+Spec revision reflected here: **v1.1.0 (2026-06-09), controlled baseline** (semantic
+versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed log is
+retained for provenance in spec §11.1). The canonical-spec-line question (the old repo
+v3.x file vs the controlled release) is now RESOLVED: the v1.1.0 controlled baseline is
+canonical (owner direction, 2026-06-09), installed as `CEC-Platform-Ground-Truth-Spec.md`.
+The pre-release (vX.Y) tags below remain valid as references into spec §11.1.
+
+What v1.1.0 adds over the v3.10 summary below (no hardware change, no LOCKED decision
+altered): (a) document control + semantic versioning + a TOC/index; (b) **Appendix D —
+the support pipeline** (PROPOSED throughout, gating decisions OQ-61..OQ-74): the eight-stage
+closed loop (request → collect diagnostics → swarm candidate-plan generation with sandbox
+validation on config-replica VMs holding no user data → judge routing/scoring → signed-plan
+execution behind a verified restore point + rendered consent → verification with a monitored
+horizon → human/verifier sign-off emitting an outcome label → de-identified corpus write).
+Appendix D is the **actuation half** of the loop whose sensing half the platform already
+builds, it is the conceptual backbone the agentic-pipeline addendum
+(`docs/self-building-pipeline-addendum-2026-06-09.md`) and the punchlist
+(`docs/agentic-pipeline-review-2026-06-09.md`) operate against, and its design rules
+(agent neutrality = no generative model on the customer machine; evidence-over-local-
+intelligence; gates at zone crossings) mirror the §1 processing-placement principle. The
+OQ range grew to **OQ-1..OQ-74** (Appendix D opened OQ-61..74; v3.11 opened OQ-60). Companion
+diagrams `cec-subsystem-power-management.svg` (§2.9) and `cec_closed_loop_support_pipeline.svg`
+(Appendix D) are referenced but NOT vendored in the repo; both have inline text renderings in
+the spec, so the absence is non-blocking (track as a docs follow-up).
 
 v3.10 (2026-06-05) — SPEC CONSOLIDATION (merged the canonical v3.9 upload's revised
 architecture into this board-reconciled line; both forked from the shared v3.7 base).
