@@ -696,6 +696,28 @@ Open items (surface before acting):
    (GND/+3V3/+5VSB/VRAIL_DIV/CAN_H/CAN_L) — add in the GUI, not the schematic
    (TestPoint symbol isn't embedded). Plan + diagram:
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
+   FEM PROBE FINDINGS (2026-06-09, adversarially verified; corrected for the model's
+   segment-sum optimism — see the model-debt note below): balanced 600W (8.33A/pin)
+   worst-lane dT ~+14C / 64C max (pass); connector-rating 9.2A/pin ~+18C / 68C (pass,
+   ~1.7x margin to the 30C gate); a SUSTAINED 12A pin-hog (imbalance) puts the hog
+   lane at ~+28-35C => ~78-85C — AT/OVER the 30C-rise gate, with the shunt-LO 6-via
+   transition at J~85 A/mm2 (~15% under the sustained ceiling). GUI pour/route pass
+   should therefore ALSO: (a) refill BOTH inner GND fills + stitch the J3/J4 GND
+   barrel fields (the ~18mm funnel into 6 GND barrels is the real return constriction;
+   plane-average +1.5C hides tens of C locally); (b) mirror the LO lanes onto F.Cu
+   with stitching (the 45mm single-layer 2.5mm B.Cu run = 0.174mm2 is the board's
+   longest narrow serial cut, first to flag at the 12A hog); (c) widen the F->B
+   transition at each shunt LO pad + patch the lane-1 HI 0.063mm2 sliver at y~67.
+   Detection thesis CONFIRMED by the probe: the 12A hog is a 58% instant electrical
+   outlier on INA240 ch3 vs a lagging ~2.2C shunt thermal asymmetry — and at a
+   sustained hog the electrical alarm also protects the module's own copper.
+   MODEL DEBT (deliberate follow-up, NOT silently fixed — changes the SB-08 golden
+   thermal band): electrothermal cross_mm2 SUMS all net segments (incl. zero-current
+   Kelvin stubs) instead of the serial min-cut => lane dT ~5x optimistic; via split
+   should be per transition cluster; IPC k is keyed to pour membership instead of the
+   feature's actual layer. One fix LANDED (2026-06-09): the shunt I^2R current now
+   reads the straddled net's current (honours net_currents overrides) instead of the
+   40A per-cable default — essential on per-pin boards.
 
 Done (kept for context):
 - AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch

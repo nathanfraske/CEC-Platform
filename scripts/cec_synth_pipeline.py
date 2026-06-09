@@ -2233,7 +2233,14 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
         if not fp.GetReference().startswith("RS"):
             continue
         R = _r_value_ohms(fp.GetValue()) or 0.5e-3
-        I_peak = cfg.params.get("cable_current_A", 40.0)
+        # The shunt carries the current of the net it STRADDLES -- read it from the
+        # per-net current model (which honours cfg.params['net_currents'] overrides;
+        # essential on per-pin boards like the 12VHPWR where the per-cable default
+        # would be ~4x high). Fall back to cable_current_A when the pads' nets are
+        # not in the model (e.g. an unnetted fixture).
+        pad_amps = [cur.get(p.GetNetname(), 0.0) for p in fp.Pads()]
+        I_peak = max(pad_amps) if any(a > 0 for a in pad_amps) \
+            else cfg.params.get("cable_current_A", 40.0)
         I = _rms_current(I_peak, cfg, True)                  # shunt heats on RMS (steady I^2R)
         P = I * I * R
         dt = P * cfg.params.get("shunt_rth_CW", 25.0)        # 2512 shunt+pad thermal resistance °C/W
