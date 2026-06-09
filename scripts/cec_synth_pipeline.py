@@ -53,6 +53,8 @@ from dataclasses import dataclass, field, asdict
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
+import cec_toolchain as _tc  # noqa: E402  -- dependency-free; safe on a KiCad-less box (R-05)
+
 # cec_score gives the routed-board hard gates (kelvin / diffpair / DRC / unconnected).
 # Import is wrapped so the cascade's non-route stages still work if pcbnew is unavailable.
 try:
@@ -321,8 +323,15 @@ class View:
     def _export_netlist(self):
         if not self.sch:
             return Netlist(comps={}, nets={})
+        # DEGRADE (R-05): on a KiCad-less box, cascade stages that only need the netlist
+        # (CONFORMANCE etc.) still run against an empty netlist instead of a traceback.
+        if not _tc.have_kicad_cli():
+            _tc.warn_once("synth_netlist",
+                          "kicad-cli absent -- netlist-derived stages degrade to empty. "
+                          + _tc.KICAD_CLI_HINT)
+            return Netlist(comps={}, nets={})
         out = os.path.join(tempfile.gettempdir(), f"cec_synth_{os.getpid()}.net")
-        subprocess.run(["kicad-cli", "sch", "export", "netlist", "-o", out, self.sch],
+        subprocess.run([_tc.kicad_cli(), "sch", "export", "netlist", "-o", out, self.sch],
                        capture_output=True)
         return Netlist.from_file(out) if os.path.isfile(out) else Netlist(comps={}, nets={})
 
@@ -344,8 +353,9 @@ class View:
 
 
 def _run_drc(board):
+    cli = _tc.require_kicad_cli("DRC")          # FAIL FAST with the install hint (R-05)
     out = os.path.join(tempfile.gettempdir(), f"cec_synth_drc_{os.getpid()}.json")
-    subprocess.run(["kicad-cli", "pcb", "drc", "--exit-code-violations",
+    subprocess.run([cli, "pcb", "drc", "--exit-code-violations",
                     "--format", "json", "-o", out, board], capture_output=True)
     try:
         return json.load(open(out))
@@ -354,8 +364,9 @@ def _run_drc(board):
 
 
 def _run_erc(sch):
+    cli = _tc.require_kicad_cli("ERC")          # FAIL FAST with the install hint (R-05)
     out = os.path.join(tempfile.gettempdir(), f"cec_synth_erc_{os.getpid()}.json")
-    subprocess.run(["kicad-cli", "sch", "erc", "--exit-code-violations",
+    subprocess.run([cli, "sch", "erc", "--exit-code-violations",
                     "--format", "json", "-o", out, sch], capture_output=True)
     try:
         return json.load(open(out))
@@ -1995,7 +2006,10 @@ def place_finalize_handoff(cand, cfg, *, ask=None, work_dir=None):
     os.makedirs(work_dir, exist_ok=True)
     board = materialize(cand, cfg, os.path.join(work_dir, f"{cfg.board}-synth.kicad_pcb"))
     png = os.path.join(work_dir, f"{cfg.board}-synth-top.png")
-    subprocess.run(["kicad-cli", "pcb", "render", "-o", png, board], capture_output=True)
+    if _tc.have_kicad_cli():                    # DEGRADE: render is optional (R-05)
+        subprocess.run([_tc.kicad_cli(), "pcb", "render", "-o", png, board], capture_output=True)
+    else:
+        _tc.warn_once("synth_render", "kicad-cli absent -- skipping render. " + _tc.KICAD_CLI_HINT)
     detail = {"board": board, "render": png if os.path.isfile(png) else None,
               "residual": cand.residual, "W": cand.W, "H": cand.H, "proxy": cand.proxy}
     reason = (f"auto-placement at {cand.W:.0f}x{cand.H:.0f} has {cand.residual} residual "
@@ -2432,11 +2446,13 @@ def run_sweep(cfg, sizes, *, strategies=STRATEGIES, seeds=(0, 1), max_workers=No
         entry = {"W": W, "H": H, "best_strat": best.strat, "best_seed": best.seed,
                  "residual": best.residual, "proxy": best.proxy, "n_candidates": len(cands),
                  "board": os.path.relpath(board, ROOT)}
-        if render:
+        if render and _tc.have_kicad_cli():     # DEGRADE: render is optional (R-05)
             png = board[:-len(".kicad_pcb")] + "-top.png"
-            subprocess.run(["kicad-cli", "pcb", "render", "-o", png, board], capture_output=True)
+            subprocess.run([_tc.kicad_cli(), "pcb", "render", "-o", png, board], capture_output=True)
             if os.path.isfile(png):
                 entry["render"] = os.path.relpath(png, ROOT)
+        elif render:
+            _tc.warn_once("synth_render", "kicad-cli absent -- skipping render. " + _tc.KICAD_CLI_HINT)
         report["sizes"].append(entry)
         print(f"  swept {W:.0f}x{H:.0f}: {len(cands)} cand, best={best.strat} "
               f"residual={best.residual} HPWL={best.proxy['hpwl']}")

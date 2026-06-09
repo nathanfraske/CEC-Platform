@@ -35,6 +35,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_fr
 import cec_score
 import cec_pcb as cp
+import cec_toolchain as _tc   # toolchain presence helpers (R-05)
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -843,7 +844,10 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
 def render(board_path, png_path):
     """Best-effort top render of the routed board (kicad-cli). Returns png_path or None."""
     import subprocess
-    r = subprocess.run(["kicad-cli", "pcb", "render", "-o", png_path, board_path],
+    if not _tc.have_kicad_cli():                  # DEGRADE: render is optional (R-05)
+        _tc.warn_once("router_render", "kicad-cli absent -- skipping render. " + _tc.KICAD_CLI_HINT)
+        return None
+    r = subprocess.run([_tc.kicad_cli(), "pcb", "render", "-o", png_path, board_path],
                        capture_output=True, text=True)
     return png_path if (r.returncode == 0 and os.path.exists(png_path)) else None
 

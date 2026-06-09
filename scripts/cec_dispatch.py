@@ -42,6 +42,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_fr        # noqa: E402
 import cec_score     # noqa: E402
+import cec_toolchain as _tc   # noqa: E402  -- toolchain presence helpers (R-05)
 
 _COSMETIC = ("silk_overlap", "silk_over_copper", "silk_edge_clearance",
              "lib_footprint_mismatch", "lib_footprint_issues")
@@ -96,8 +97,9 @@ def _locus_is_finishing(lc):
 def _drc_types(board):
     """Structural DRC violation-type counts (cosmetic filtered) -- so a tier agent can tell a real
     short from the logo/shield-tab finishing residual."""
+    cli = _tc.require_kicad_cli("DRC")           # FAIL FAST with the install hint (R-05)
     out = os.path.join(tempfile.gettempdir(), f"cec_disp_drc_{os.getpid()}.json")
-    subprocess.run(["kicad-cli", "pcb", "drc", "--exit-code-violations", "--format", "json",
+    subprocess.run([cli, "pcb", "drc", "--exit-code-violations", "--format", "json",
                     "-o", out, board], capture_output=True)
     try:
         d = json.load(open(out))
@@ -226,7 +228,11 @@ def score_board(board):
 
 
 def render(board, png):
-    subprocess.run(["kicad-cli", "pcb", "render", "-o", png, board], capture_output=True)
+    if not _tc.have_kicad_cli():                 # DEGRADE: render is optional (R-05)
+        _tc.warn_once("disp_render", "kicad-cli absent -- skipping render. " + _tc.KICAD_CLI_HINT)
+        return None
+    subprocess.run([_tc.kicad_cli(), "pcb", "render", "-o", png, board], capture_output=True)
+    return png if os.path.isfile(png) else None
     return png if os.path.isfile(png) else None
 
 
