@@ -199,7 +199,9 @@ def apply_edit(state, edit):
       "fr_params" {set:{passes,opt_time,threads}}      -- bump Freerouting effort/spread
       "keepout"   {keepout:{name,x0,y0,x1,y1,layers}}  -- reserve a vital area (added to hints)
       "drop_keepout" {name}                            -- remove a hint by name
-      "place"     {ref, at:(x,y,rot)}                  -- move/rotate a footprint (PLACEMENT, sanctioned)
+      "place"     {ref, at:(x,y,rot)}                  -- move/rotate a footprint to an ABSOLUTE pose
+      "place_nudge"  {ref, delta:(dx,dy)}              -- shift a footprint RELATIVELY (manager nudge)
+      "place_rotate" {ref, by}                         -- rotate a footprint by N deg in place (manager rotate)
       "seeds"     {seeds:(...)}                         -- change the seed spread for the next batch
     Placement edits go through pcbnew (footprint .SetPosition / .SetOrientationDegrees) on the
     region's working board -- placement is allowed; this never lays a track."""
@@ -234,6 +236,17 @@ def apply_edit(state, edit):
         dx, dy = edit["delta"]
         p = fp.GetPosition()
         fp.SetPosition(pcbnew.VECTOR2I(p.x + int(round(dx * 1e6)), p.y + int(round(dy * 1e6))))
+        pcbnew.SaveBoard(state.board, b)
+    elif t == "place_rotate":
+        # RELATIVE in-place rotation (the manager-tier 'rotate'): turn a footprint by `by` degrees,
+        # position preserved. The Kelvin-inversion fix rotates an inverted shunt 180 so its HI/LO
+        # terminals line up with the INA's sense pads and the four-wire taps stop crossing. Never a track.
+        import pcbnew
+        b = pcbnew.LoadBoard(state.board)
+        fp = b.FindFootprintByReference(edit["ref"])
+        if not fp:
+            raise KeyError(f"apply_edit place_rotate: footprint {edit['ref']} not found")
+        fp.SetOrientationDegrees(fp.GetOrientationDegrees() + float(edit["by"]))
         pcbnew.SaveBoard(state.board, b)
     else:
         raise ValueError(f"apply_edit: unknown edit type {t!r}")
@@ -277,19 +290,24 @@ def default_manager(region, scored, history, spec):
         m = scored[0][1]
         return Verdict("accept", f"gates pass; drc={m.drc} unconn={m.unconnected} "
                        f"obj={cec_score.objective(m, spec.weights):.1f}", tier="sonnet:default")
-    # not passing -> repair. Diagnose from the best candidate's failing gates.
+    # not passing -> repair. Diagnose from the best candidate's failing gates, then walk the manager
+    # repair REPERTOIRE in priority order (kelvin-inversion rotate -> logo finishing -> part nudge) and
+    # emit the FIRST fix it perceives. A part move/rotate is the manager-tier call; track rip-ups are
+    # left to the worker tier (default_worker).
     best = scored[0][1] if scored else None
-    why = "; ".join(cec_score.gate(best, region_rules(region, spec))[1][:3]) if best else "no candidate routed"
-    # MANAGER-tier finer-grained repair: if a PART-congestion locus exists, attach a NUDGE (moving a
-    # part is the more consequential, manager-tier call; track rip-ups are left to the worker tier).
+    rules = region_rules(region, spec)
+    why = "; ".join(cec_score.gate(best, rules)[1][:3]) if best else "no candidate routed"
     edit = None
     if scored:
-        try:
-            nudge = targeted_repair(scored[0][0].board, tier="manager")
-        except Exception:
-            nudge = None
-        if nudge:
-            edit, why = nudge, f"NUDGE {nudge['why']}"
+        bp = scored[0][0].board
+        for name, strat in MANAGER_REPAIRS:
+            try:
+                ed = strat(bp, rules, best)
+            except Exception:
+                ed = None
+            if ed:
+                edit, why = ed, f"{name.upper()}: {ed.get('why', name)}"
+                break
     return Verdict("repair", why, tier="sonnet:default", edit=edit)
 
 
@@ -375,6 +393,139 @@ def targeted_repair(board_path, *, tier="worker"):
     return None
 
 
+# ---- MANAGER repair REPERTOIRE -------------------------------------------------------------------
+# The manager tier's catalogue of fixes, each grounded in a documented failure mode of THIS project
+# (see CLAUDE.md "Done" / "Active action items"). A strategy is a pure perception->edit function with
+# the uniform signature  strategy(board_path, rules, metrics) -> edit | None.  default_manager() tries
+# them in PRIORITY order (structural-gate fixes first, then finishing, then a generic part nudge) and
+# emits the first edit it gets; the loop applies it via apply_edit() (a worker mechanism). To widen the
+# manager's repertoire, add a strategy below -- nothing else needs to change.
+
+def _centroid(pts):
+    n = max(len(pts), 1)
+    return (sum(p[0] for p in pts) / n, sum(p[1] for p in pts) / n)
+
+
+def _unconnected_net_set(board_path):
+    """Net names that still carry an unconnected ratline on a routed candidate (reuses cec_score's
+    DRC parse). Empty set on any error -- a fail-safe that just widens, never narrows, a strategy."""
+    try:
+        tmp = os.path.join(tempfile.gettempdir(), "cec_unc_%d.json" % os.getpid())
+        raw = cec_score._run_drc(board_path, tmp)
+        return cec_score._unconnected_nets(raw.get("unconnected_items", []))
+    except Exception:
+        return set()
+
+
+def kelvin_inversion_repair(board_path, rules=None, metrics=None):
+    """MANAGER-tier perception: a four-wire Kelvin pair (*_HI/*_LO) is left UNCONNECTED because the
+    shunt's HI/LO terminals are INVERTED relative to the precision INA's sense pads -- so the two taps
+    must CROSS to reach the shunt, which Freerouting cannot resolve on a congested cable. Detect it
+    purely from geometry and propose rotating the shunt 180 deg so the taps uncross (the proven EPS
+    sense-band fix; an inverted PCIe shunt is exactly what stranded the last cable's /SENSEC*_LO).
+
+    The shunt is the 2-pad footprint straddling the pair; the precision INA is the multi-pad straddler.
+    Inversion = the HI-vs-LO ordering along the axis perpendicular to (INA->shunt) is OPPOSITE between
+    the shunt pads and the INA sense pads. Returns a 'place_rotate' edit or None. Never touches copper."""
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    pads_by_net = {}                                   # net -> [(ref, (x,y)), ...]
+    npads = {}                                         # ref -> total pad count on the footprint
+    for f in b.GetFootprints():
+        npads[f.GetReference()] = f.GetPadCount()
+        for p in f.Pads():
+            nm = p.GetNetname()
+            if not nm:
+                continue
+            c = p.GetPosition()
+            pads_by_net.setdefault(nm, []).append((f.GetReference(), (pcbnew.ToMM(c.x), pcbnew.ToMM(c.y))))
+    names = set(pads_by_net)
+    pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+             if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    if not pairs:
+        return None
+    unconn = _unconnected_net_set(board_path)          # gate on a genuinely failing pair
+    for hi, lo in pairs:
+        if unconn and hi not in unconn and lo not in unconn:
+            continue
+        strad = {}                                     # ref -> {'hi':[pos], 'lo':[pos]}
+        for net, key in ((hi, "hi"), (lo, "lo")):
+            for ref, pos in pads_by_net[net]:
+                strad.setdefault(ref, {"hi": [], "lo": []})[key].append(pos)
+        strad = {r: s for r, s in strad.items() if s["hi"] and s["lo"]}   # only HI&LO straddlers
+        # the SHUNT is the 2-pad element straddling the pair (TOTAL pad count == 2); the precision INA
+        # is a multi-pad straddler. Classify by total footprint pad count, NOT pads-on-the-pair -- the
+        # INA181 also lands exactly 1 HI + 1 LO pad on the pair, so a pads-on-pair test would mistake it
+        # for a 2-pad shunt. (Same rule cec_fr.derive_power_pours uses.)
+        shunts = [(r, s) for r, s in strad.items() if npads.get(r, 0) == 2]
+        inas = [(r, s) for r, s in strad.items() if npads.get(r, 0) > 2]
+        if not shunts or not inas:
+            continue
+        sref, ss = shunts[0]
+        iref, isd = max(inas, key=lambda kv: npads.get(kv[0], 0))
+        sc = _centroid(ss["hi"] + ss["lo"])
+        ic = _centroid(isd["hi"] + isd["lo"])
+        shi, slo = ss["hi"][0], ss["lo"][0]
+        ihi = min(isd["hi"], key=lambda p: (p[0] - sc[0]) ** 2 + (p[1] - sc[1]) ** 2)
+        ilo = min(isd["lo"], key=lambda p: (p[0] - sc[0]) ** 2 + (p[1] - sc[1]) ** 2)
+        perp = (-(sc[1] - ic[1]), (sc[0] - ic[0]))     # perpendicular to the INA->shunt axis
+
+        def _proj(p, c):
+            return (p[0] - c[0]) * perp[0] + (p[1] - c[1]) * perp[1]
+        s_order = _proj(shi, sc) - _proj(slo, sc)
+        i_order = _proj(ihi, ic) - _proj(ilo, ic)
+        if s_order * i_order < 0:                       # opposite ordering -> taps cross -> inverted
+            return {"type": "place_rotate", "ref": sref, "by": 180, "tier": "manager", "locus": sc,
+                    "why": (f"kelvin pair {hi}/{lo} unconnected: shunt {sref} HI/LO inverted vs {iref} "
+                            f"sense pads -> rotate 180 to uncross the four-wire taps")}
+    return None
+
+
+def logo_finishing_repair(board_path, rules=None, metrics=None):
+    """MANAGER-tier perception: a decorative LOGO copper pour is a FINISHING DRC (copper island /
+    edge-clearance / a via dropped into it), NOT a routing fault. Reserve the logo's footprint area as
+    a no-route/no-via keepout so Freerouting stops touching it -- the documented 'LOGO1 B.Cu no-via
+    keepout'. Fires only when a LOGO footprint is actually implicated in a structural DRC. Returns a
+    'keepout' edit (idempotent by name, so re-proposing it is a no-op) or None."""
+    try:
+        tmp = os.path.join(tempfile.gettempdir(), "cec_logo_%d.json" % os.getpid())
+        raw = cec_score._run_drc(board_path, tmp)
+    except Exception:
+        return None
+    viols = raw.get("violations", [])
+    if not any("LOGO" in " ".join(it.get("description", "") for it in v.get("items", [])).upper()
+               for v in viols):
+        return None
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    logo = next((f for f in b.GetFootprints()
+                 if "LOGO" in (f.GetReference() + " " + f.GetValue()).upper()), None)
+    if not logo:
+        return None
+    bb = logo.GetBoundingBox()
+    x0, y0 = pcbnew.ToMM(bb.GetLeft()), pcbnew.ToMM(bb.GetTop())
+    x1, y1 = pcbnew.ToMM(bb.GetRight()), pcbnew.ToMM(bb.GetBottom())
+    return {"type": "keepout", "tier": "manager", "locus": (round((x0 + x1) / 2, 2), round((y0 + y1) / 2, 2)),
+            "keepout": {"name": "logo_finish_%s" % logo.GetReference().lower(),
+                        "x0": round(x0 - 0.3, 2), "y0": round(y0 - 0.3, 2),
+                        "x1": round(x1 + 0.3, 2), "y1": round(y1 + 0.3, 2),
+                        "layers": ("F.Cu", "B.Cu")},
+            "why": f"finishing: reserve decorative {logo.GetReference()} so FR keeps copper/vias out of it"}
+
+
+# Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
+# generic part nudge. The loop stops at the first hit.
+# NOTE: logo_finishing_repair is implemented but NOT wired in yet -- a full-copper keepout over the logo
+# cuts the GND plane stitching (observed: unconnected 2 -> 24 on a demo route). The correct fix per the
+# corpus ('logo-not-in-high-current-corridor' / the documented 'GND-assign') is to ASSIGN the decorative
+# logo copper to the GND net (so it is not an isolated island) or a NO-VIA-ONLY keepout -- not a
+# tracks+vias copper keepout. Re-enable once that edit type exists.
+MANAGER_REPAIRS = [
+    ("kelvin_inversion", kelvin_inversion_repair),
+    ("part_nudge", lambda bp, rules, metrics: targeted_repair(bp, tier="manager")),
+]
+
+
 def make_subagent_policy(decide):
     """Adapt a sub-agent decision function into the manager/worker/escalator slot. `decide`
     takes a structured context dict (region, candidate metrics, history, snag reasons) and
@@ -393,26 +544,58 @@ def region_rules(region, spec):
 
 
 def _vital_keepouts_from_rules(board, rules):
-    """Derive vital-area keep-outs (the 12V pour columns) from the board's 12V nets, so
-    Freerouting reserves them. Conservative: a thin column at each 12V net's pad span.
-    (The Kelvin windows are protected by the gate, not a keep-out, since they share the
-    force net.) Returns a possibly-empty hint list; safe if pcbnew/geometry is unavailable."""
+    """Reserve each high-current FORCE corridor (cable connector -> shunt) as a Freerouting keepout.
+
+    This is the ENFORCE leg of three corpus hard-constraints at once (see scripts/constraints):
+      * high-current-corridor-keepout / high-current-pour-integrity -- FR routes signal AROUND the
+        corridor, so the post-route additive pour fills it SOLID instead of being cut into islands by
+        foreign +3V3/GND traces (which leaves the thin 0.2mm FR trace carrying the 40A);
+      * kelvin-tap-inner-shunt-edge -- with the connector-side corridor reserved, the ONLY clear
+        approach left to the shunt pad is its INNER (body-facing) edge, so FR is forced to originate
+        the Kelvin sense tap there rather than off the connector.
+
+    Per high-current force net (every Kelvin _HI = cable-in and _LO = cable-out, plus any 12V net) the
+    corridor is the connector THT pads' span extended to the 2-pad shunt pad, but CLIPPED at the shunt
+    on its inner side so the tap window (shunt-inner-edge -> INA, which the pour deliberately excludes)
+    stays open. allow_vias=True so a boxed-in sensor pin can still escape down. Vertical interposer
+    geometry (J_IN top / J_OUT bottom); self-gating -> [] on boards with no THT cable net or no shunt."""
     try:
         import pcbnew
     except Exception:
         return []
     b = pcbnew.LoadBoard(board)
+    pads_by_net = {}
+    npads = {}
+    for fp in b.GetFootprints():
+        npads[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append(p)
+    force_nets = set(rules.nets_12v)
+    for hi, lo in rules.kelvin_pairs:
+        force_nets.add(hi); force_nets.add(lo)
     hints = []
-    for nm in rules.nets_12v:
-        pads = [p for fp in b.GetFootprints() for p in fp.Pads() if p.GetNetname() == nm]
-        if len(pads) < 2:
-            continue
-        xs = [p.GetPosition().x / 1e6 for p in pads]; ys = [p.GetPosition().y / 1e6 for p in pads]
-        x0, x1 = min(xs), max(xs); y0, y1 = min(ys), max(ys)
-        if (x1 - x0) < (y1 - y0):                       # vertical run -> a vertical column
-            cx = (x0 + x1) / 2
-            hints.append({"name": f"12V_{nm.strip('/')}", "x0": cx - 1.4, "y0": y0 - 0.5,
-                          "x1": cx + 1.4, "y1": y1 + 0.5, "layers": ("F.Cu", "B.Cu")})
+    for net in sorted(force_nets):
+        entries = pads_by_net.get(net, [])
+        tht = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6) for p in entries
+               if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+        shunt = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6)
+                 for fp in b.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
+                 for p in fp.Pads() if p.GetNetname() == net]
+        if not tht or not shunt:
+            continue                                    # not a cable-connector high-current net
+        sx, sy = shunt[0]
+        txs = [x for x, _ in tht]; tys = [y for _, y in tht]
+        tcy = sum(tys) / len(tys)
+        x0 = min(txs + [sx]) - 1.0; x1 = max(txs + [sx]) + 1.0
+        if sy >= tcy:                                   # shunt BELOW the connector (cable-in): clip bottom AT shunt
+            y0, y1 = min(tys) - 1.0, sy
+        else:                                           # shunt ABOVE the connector (cable-out): clip top AT shunt
+            y0, y1 = sy, max(tys) + 1.0
+        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
+                      "x1": round(x1, 2), "y1": round(y1, 2),
+                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True})
     return hints
 
 
