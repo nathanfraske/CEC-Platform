@@ -4,6 +4,28 @@ Status: **plan / capability build-out** (chosen scope, 2026-06-07). Sequenced Ph
 This is a planning/reference doc, not a locked decision. It does not resolve any open
 question (OQ-*); where physics informs an OQ it is surfaced as OQ input, per CLAUDE.md.
 
+REALIZED — Thrust A two-tier local judge is LIVE (2026-06-09). The control plane now runs on the
+workstation's own models, split by reasoning depth and straddling the single-5090 / RAM limits:
+- **WORKER tier** — `cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ` on vLLM (`docker/compose.yaml`
+  service `inference`, `:8000`, ~27 GB VRAM). High-volume, fast, NON-thinking; serves the per-region
+  accept/repair/escalate gate as a concurrent voted panel (`cec_judge_local.swarm_judge`, ~2× speedup
+  measured at 5 agents). This is the routing loop's judge.
+- **MANAGER tier** — `Qwen3-235B-A22B-Thinking-2507` GGUF Q3_K_M on llama.cpp (service `manager`,
+  `:8001`). "Experts in RAM, attention on the 5090": `-ngl 99 --n-cpu-moe 80` offloads ~14 expert
+  layers into the otherwise-idle VRAM (~26 GB used) while the bulk of experts stay in the 125 GB RAM,
+  ~4–5 tok/s. Thinking-ONLY (no off-switch) → reserved for the LOW-FREQUENCY, deep job.
+- **CORPUS-FIT REVIEWER** (`cec_judge_local.corpus_fit_review`) — the deep tier's job: once per routed
+  board it judges whether the result FITS its same-family corpus of past `DecisionLog`s. A deterministic
+  Python prepass does ALL the numbers (robust MAD/median z-scores, envelope/direction, gate-flips vs the
+  family modal); the model only reasons over a compact evidence packet (per-family scoping, an
+  insufficient-precedent floor at <3 peers). Fail-safe + add-only: any error → benign `no_opinion`, a
+  sidecar artifact never fed back into the route, with a post-parse clamp so a gate-false board can never
+  read as "fits". Verified live: the 235B caught trajectory THRASH on a layout-clean board, citing
+  precedents by id. Wired into `cec_router.route()` (gated by `CEC_CORPUS_REVIEW=1`).
+- **Overnight driver** (`scripts/cec_overnight.py`) — deadline-bounded; alternates ROUTE blocks (worker
+  up, routing in the `routing` container generating candidates) and REVIEW blocks (swap to the manager,
+  deep-review the new routes on the host), since only one heavy model fits the GPU at a time.
+
 ## Why this doc exists
 
 The goal: use the local workstation (RTX 5090 32 GB, 192 GB RAM, Core Ultra 7 265K

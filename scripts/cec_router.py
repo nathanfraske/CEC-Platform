@@ -717,6 +717,22 @@ def main(argv=None):
                   f"-> using the deterministic manager/worker")
     final, log = route(spec.board, spec, manager=manager, worker=worker, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
+    # CORPUS-FIT REVIEW (Thrust A, deep tier) -- opt-in, fail-safe, OUTSIDE the per-region loop. When
+    # CEC_CORPUS_REVIEW=1 and the big MANAGER endpoint is up, deep-review this route vs its same-family
+    # corpus and drop a <board>-corpus-fit.json sidecar (advisory; never feeds back into the route). When
+    # the manager is down (e.g. the worker is the active GPU model), corpus_fit_review short-circuits to
+    # a cheap no_opinion so this hook never stalls a routing run.
+    if os.environ.get("CEC_CORPUS_REVIEW") == "1":
+        try:
+            import cec_judge_local
+            res = cec_judge_local.corpus_fit_review(log)
+            sidecar = os.path.join(out_dir, f"{name}-corpus-fit.json")
+            with open(sidecar, "w") as f:
+                json.dump(res, f, indent=2)
+            print(f"[route] corpus-fit: {res.get('fit_classification')} / {res.get('recommendation')} "
+                  f"({res.get('confidence')}) -> {os.path.relpath(sidecar, ROOT)}")
+        except Exception as e:
+            print(f"[route] corpus-fit skipped: {type(e).__name__}: {e}")
     if final and a.render:
         png = render(final, os.path.join(out_dir, f"{name}-routed-top.png"))
         if png:

@@ -54,7 +54,17 @@ WORKER_URL = (os.environ.get("CEC_VLLM_WORKER_URL") or VLLM_URL).rstrip("/")
 MANAGER_URL = (os.environ.get("CEC_VLLM_MANAGER_URL") or VLLM_URL).rstrip("/")
 MANAGER_MODEL = os.environ.get("CEC_VLLM_MANAGER_MODEL") or MODEL
 TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "120"))   # absorbs the cold first guided-JSON grammar compile
-MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "300"))   # a big RAM-offload manager is slow
+MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a big RAM-offload thinking manager is slow
+# A THINKING manager (Qwen3-235B-A22B-Thinking-2507) emits a <think> reasoning block BEFORE the JSON.
+# MEASURED: this is a thinking-ONLY model -- enable_thinking=false does NOT suppress it (it reasoned
+# 582-1020 chars even with the flag set), and a simple gate verdict ran to ~2131 tokens. The worker's
+# 400-token default (sized for the non-thinking 30B worker that answers immediately) truncates that
+# mid-reason -> empty content -> JSON parse failure -> silent deterministic fallback, defeating the
+# whole point of the big manager. Give the manager tier its OWN, generous-but-bounded budget; the
+# MANAGER_TIMEOUT (at ~5 tok/s on the RAM-offload split, 600s ~= 3000 tokens) is the practical wall.
+# This deep reasoning is a FEATURE for the corpus-level "does this board fit our prior decisions?" judge
+# -- raise MANAGER_MAX_TOKENS / MANAGER_TIMEOUT / CEC_MANAGER_CTX further for that role. Workers keep 400.
+MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
 TIER = "local:qwen3-coder-30b-awq"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
@@ -92,10 +102,11 @@ def _post(path, payload, timeout=None, url=None):
         return json.load(r)
 
 
-def available(timeout=3):
-    """True if the vLLM server answers /models (the judge is up). Cheap pre-check before wiring."""
+def available(timeout=3, url=None):
+    """True if the server at `url` (default the worker VLLM_URL) answers /models (the judge is up).
+    Cheap pre-check before wiring. Pass url=MANAGER_URL to probe the big manager endpoint instead."""
     try:
-        with urllib.request.urlopen(VLLM_URL + "/models", timeout=timeout) as r:
+        with urllib.request.urlopen((url or VLLM_URL) + "/models", timeout=timeout) as r:
             return bool(json.load(r).get("data"))
     except Exception:
         return False
@@ -118,10 +129,11 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     return json.loads(resp["choices"][0]["message"]["content"])
 
 
-def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None):
-    """One guided-JSON manager-verdict call -> {action, reason}."""
+def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=400):
+    """One guided-JSON manager-verdict call -> {action, reason}. `max_tokens` defaults to the worker
+    budget; manager-tier callers pass MANAGER_MAX_TOKENS so a thinking model's reasoning fits."""
     return _chat_json(system, user, VERDICT_SCHEMA, name="verdict",
-                      temperature=temperature, timeout=timeout, url=url, model=model)
+                      temperature=temperature, timeout=timeout, url=url, model=model, max_tokens=max_tokens)
 
 
 def _context(region, scored, history, spec):
@@ -153,7 +165,8 @@ def make_manager(spec, *, verbose=False):
     def manager(region, scored, history):
         try:
             user = _context(region, scored, history, spec)
-            v = chat_verdict(SYSTEM, user, url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
+            v = chat_verdict(SYSTEM, user, url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
+                             max_tokens=MANAGER_MAX_TOKENS)
             action = v.get("action", "repair")
             best = scored[0][1] if scored else None
             if action == "accept" and not (best is not None and best.gates_pass):
@@ -261,7 +274,7 @@ def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_wor
 
 
 def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, url=None, model=None,
-           timeout=None):
+           timeout=None, max_tokens=400):
     """Fire one judge per lens CONCURRENTLY at the (per-tier) server. `user_or_fn` is a user string
     (same for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
     temps = temps or {}
@@ -271,7 +284,7 @@ def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, ur
         user = user_or_fn(lname) if callable(user_or_fn) else user_or_fn
         try:
             return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0),
-                                      url=url, model=model, timeout=timeout))
+                                      url=url, model=model, timeout=timeout, max_tokens=max_tokens))
         except Exception as e:
             return (lname, {"error": type(e).__name__})
 
@@ -292,7 +305,8 @@ def make_manager_swarm(spec, *, panel=3, verbose=False):
             user = _context(region, scored, history, spec)
             best = scored[0][1] if scored else None
             results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps,
-                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
+                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
+                             max_tokens=MANAGER_MAX_TOKENS)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
                 + ([best.drc] if best is not None else [])
@@ -433,7 +447,8 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
             user = json.dumps({"candidates_best_first": cands[:4], "budget_left": ctx.budget_left,
                                "history_drc_trail": hist, "gate_note": ctx.gate_note}, default=str)
             results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps,
-                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
+                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
+                             max_tokens=MANAGER_MAX_TOKENS)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h.get("best_drc") for h in (ctx.history or [])] + [(best or {}).get("drc")]
             esc_ok = _escalate_corroborated(trail, (best or {}).get("drc_loci"))
@@ -499,7 +514,8 @@ def make_placement_swarm(*, panel=3, verbose=False):
         try:
             user = json.dumps(metrics, default=str)
             results = _panel(user, lenses, PLACEMENT_SCHEMA, name="verdict", temps=temps,
-                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT)
+                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
+                             max_tokens=MANAGER_MAX_TOKENS)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             action, tally, picks = _vote(votes, ("accept", "refine", "escalate"),
                                          accept_ok=(not hard), repair_word="refine",
@@ -637,15 +653,431 @@ def shutdown(*, verbose=True):
     return r.returncode == 0
 
 
+# ===========================================================================
+#  CORPUS-FIT REVIEWER (Thrust A, deep tier) -- a LOW-FREQUENCY, OUT-OF-LOOP advisory pass on the big
+#  235B Thinking manager. Runs ONCE per fully-routed board, AFTER route() finalizes + the hard gates +
+#  independent DRC have decided correctness. It feeds the model a per-FAMILY statistics DIGEST distilled
+#  from the accumulated DecisionLog corpus + the freshly-routed board's log, and asks "does this board
+#  FIT the patterns its same-family precedents embody?" -- producing a precedent-referenced critique.
+#  ALL numeric work (robust MAD/median z-scores, envelope, direction, gate-flips) is done in Python
+#  FIRST; the slow thinking model only reasons over the compact pre-computed evidence (never hand math).
+#  FAIL-SAFE + ADD-ONLY: any error/timeout/thin-corpus -> a benign no_opinion / insufficient_precedent
+#  result; it is a SIDECAR advisory artifact, never fed back into route()'s accept/repair/escalate path
+#  or the hard gates, and a post-parse CODE CLAMP suppresses any "fits" on a gate-false board. The
+#  per-region gate stays on the fast 30B worker; this is the deep reviewer only.
+# ===========================================================================
+import re as _re
+import glob as _glob
+from statistics import median as _median
+
+_CF_METRICS = ["objective", "drc", "unconnected", "tracks", "vias", "length", "elapsed_s", "decisions"]
+_CF_NOTE_K = _re.compile(r"K=(\d+)")
+_CF_NOTE_FR = _re.compile(r"fr=\{[^}]*'passes':\s*(\d+)[^}]*'opt_time':\s*(\d+)")
+
+CORPUS_FIT_SCHEMA = json.loads(r'''{"type":"object","additionalProperties":false,"required":["fit_classification","recommendation","confidence","family","headline","gate_consistency","metric_band","trajectory","residual_treatment","outlier_metrics","matched_precedents","violated_precedents","concerns","critique"],"properties":{"fit_classification":{"type":"string","enum":["in_distribution","fits_with_concerns","outlier","gate_regression","insufficient_precedent","no_opinion"]},"recommendation":{"type":"string","enum":["accept_as_consistent","review_recommended","investigate_regression","no_opinion"]},"confidence":{"type":"string","enum":["low","medium","high"]},"family":{"type":"string"},"headline":{"type":"string","maxLength":200},"gate_consistency":{"type":"object","additionalProperties":false,"required":["kelvin_ok","diffpair_ok","gates_pass","flips"],"properties":{"kelvin_ok":{"type":"string","enum":["matches_family","improved_vs_family","regressed_vs_family","no_family_precedent"]},"diffpair_ok":{"type":"string","enum":["matches_family","improved_vs_family","regressed_vs_family","no_family_precedent"]},"gates_pass":{"type":"string","enum":["matches_family","improved_vs_family","regressed_vs_family","no_family_precedent"]},"flips":{"type":"array","maxItems":4,"items":{"type":"string","maxLength":200}}}},"metric_band":{"type":"string","enum":["in_band","better_than_band","worse_than_band","no_band"]},"trajectory":{"type":"object","additionalProperties":false,"required":["shape","coherent","detail"],"properties":{"shape":{"type":"string","enum":["converged","stable_plateau","repair_then_escalate","thrash","gave_up_early","single_shot","no_candidate","unknown"]},"coherent":{"type":"boolean"},"detail":{"type":"string","maxLength":400}}},"residual_treatment":{"type":"string","enum":["consistent","more_lenient_than_family","more_aggressive_than_family","novel_residual","na"]},"outlier_metrics":{"type":"array","maxItems":10,"items":{"type":"object","additionalProperties":false,"required":["metric","new_value","family_median","robust_z","direction","verdict"],"properties":{"metric":{"type":"string","enum":["objective","drc","unconnected","tracks","vias","length","elapsed_s","decisions"]},"new_value":{"type":"number"},"family_median":{"type":"number"},"robust_z":{"type":"number"},"direction":{"type":"string","enum":["improvement","regression","neutral"]},"verdict":{"type":"string","enum":["in_band","mild_outlier","strong_outlier","envelope_breach"]}}}},"matched_precedents":{"type":"array","maxItems":8,"items":{"type":"object","additionalProperties":false,"required":["precedent_id","axis","note"],"properties":{"precedent_id":{"type":"string"},"axis":{"type":"string","enum":["gate","metric","trajectory","residual","objective"]},"note":{"type":"string","maxLength":240}}}},"violated_precedents":{"type":"array","maxItems":8,"items":{"type":"object","additionalProperties":false,"required":["precedent_id","axis","note"],"properties":{"precedent_id":{"type":"string"},"axis":{"type":"string","enum":["gate","metric","trajectory","residual","objective"]},"note":{"type":"string","maxLength":240}}}},"concerns":{"type":"array","maxItems":10,"items":{"type":"object","additionalProperties":false,"required":["severity","kind","detail"],"properties":{"severity":{"type":"string","enum":["info","low","medium","high"]},"kind":{"type":"string","enum":["gate_regression","metric_outlier","best_regression","novel_residual","lenient_residual","convergence_thrash","environment_only","suspiciously_better","insufficient_data"]},"detail":{"type":"string","maxLength":300}}}},"critique":{"type":"string","maxLength":1400}}}''')
+
+CORPUS_FIT_SYSTEM = (
+    "You are the CORPUS-FIT REVIEWER for the CEC power-telemetry PCB auto-routing pipeline. You run "
+    "ONCE per fully-routed board, on a slow deep-reasoning local model, AFTER the fast per-region "
+    "routing loop and the independent DRC have already decided correctness. You are an AUDITOR, not a "
+    "gatekeeper. Take all the reasoning time you need in your thinking block, then emit exactly one JSON object.\n\n"
+    "YOUR JOB: given (a) a per-FAMILY statistics DIGEST distilled from the accumulated corpus of past "
+    "routes, (b) a SUMMARY + decision-trajectory of one freshly-routed board, (c) a PRE-COMPUTED "
+    "EVIDENCE block (robust-z scores, envelope flags, direction labels, gate-flip flags, "
+    "regression-vs-best deltas -- all already calculated in Python), and (d) a few citable same-family "
+    "exemplar trajectories -- judge whether this board's final metrics AND its decision trajectory FIT "
+    "the patterns its SAME-FAMILY precedents embody, and write a precedent-referenced critique.\n\n"
+    "CRITICAL BOUNDARIES:\n"
+    "1. You are ADVISORY and NON-BLOCKING. The hard safety gates (kelvin_ok, diffpair_ok -> gates_pass) "
+    "and the independent DRC own correctness and already ran BEFORE you. You NEVER endorse overriding a "
+    "failed gate, NEVER widen the safety envelope, NEVER recommend shipping an unsafe board, NEVER relax "
+    "a ratified constraint. You only ADD a precedent-consistency opinion a human reads.\n"
+    "2. Judge ONLY within the board's own FAMILY (eps-8pin / pcie-8pin-2port / pcie-8pin-3port / failed). "
+    "Metrics differ enormously across families (an eps-8pin objective ~4257 vs a pcie-2port ~20654 is "
+    "NORMAL family difference, NOT a defect). Never compare a board to a different family's numbers.\n"
+    "3. The EVIDENCE block is AUTHORITATIVE -- computed deterministically. Do NOT recompute statistics "
+    "by hand. Reason about what the numbers MEAN, weigh them together, and decide.\n\n"
+    "WHAT THE DATA MEANS: A DecisionLog has `final` (gates_pass, kelvin_ok, diffpair_ok, drc, "
+    "unconnected, tracks, vias, length, objective, and `reasons` naming what blocked) and an ordered "
+    "trajectory of per-iteration entries (chosen-candidate metrics + verdict action/tier/reason + the "
+    "Freerouting effort fr={passes,opt_time} and rip-up count K). kelvin_ok and diffpair_ok are HARD "
+    "SAFETY GATES (shunt Kelvin sense pairs + USB diff pair fully routed); gates_pass = both true (and "
+    "drc==0 when that run required it). drc is RESIDUAL structural DRC -- a few items are usually "
+    "finishing/cosmetic (a decorative LOGO keepout on GND, the RJ-45 SH1/SH2 shield-tab tie). objective "
+    "is a ranking score, LOWER is better, only for gate-passing candidates. `repair` bumps Freerouting "
+    "effort; `escalate` after a Kmax stall is the SANCTIONED structural re-plan (repair x N then "
+    "escalate-on-stall is COHERENT).\n\n"
+    "HOW TO JUDGE FIT, in priority order:\n"
+    "1. GATE CONSISTENCY (dominates). Compare each hard gate to the family modal. A flip to WORSE (an "
+    "eps-8pin returning kelvin_ok=false where every eps peer is true) is the highest-severity non-fit -> "
+    "fit_classification=gate_regression, recommendation at most investigate_regression, NEVER accept. A "
+    "flip to BETTER (a pcie family that historically failed kelvin now passes it) is a notable POSITIVE "
+    "deviation -- say whether it looks like real progress or a scope/measurement change, recommend a "
+    "human confirm; it is NOT a violation.\n"
+    "2. METRIC BAND (robust outliers). Use the precomputed robust_z + envelope flags. |z|<=3 in-band; "
+    "3<|z|<=6 mild; |z|>6 strong. DIRECTION MATTERS -- every metric is lower-is-better, so an outlier in "
+    "the GOOD direction (drc BELOW the family minimum) is a candidate IMPROVEMENT, not a regression; "
+    "never flag a better board as a defect (metric_band=better_than_band, flag for confirmation). "
+    "IMPORTANCE: drc/unconnected/objective + the gate flags reflect real layout quality. tracks/vias/"
+    "length are secondary structural variation. elapsed_s and decisions are ENVIRONMENT/PROCESS signals "
+    "(wall-clock + loop thrash) -- an outlier there is a convergence/thrash or environment_only concern, "
+    "NEVER a layout regression.\n"
+    "3. TRAJECTORY COHERENCE. Read the entries in order. Coherent = monotone-ish improvement, or a "
+    "stable plateau then accept, or repair x N -> escalate-after-stall. Incoherent = drc/unconnected "
+    "oscillating; Freerouting effort + rip-up K ramping across many iterations with ZERO metric movement "
+    "(thrash); accepting while still improving (gave_up_early); or escalating where peers converged.\n"
+    "4. RESIDUAL TREATMENT (your highest-value call). Did this run accept a residual the corpus "
+    "previously REPAIRED for the same signature (more_lenient_than_family), keep grinding repairs PAST "
+    "the established finishing floor (more_aggressive_than_family), or accept a reasons[] string never "
+    "seen as acceptable in the family (novel_residual)? Name the precedent id and signature.\n\n"
+    "DISCIPLINE: compare LIKE WITH LIKE (same family first). Distinguish genuine drift from benign "
+    "expected variation: a finishing residual at the family floor, or the known-open pcie kelvin gap, is "
+    "`info` severity, NOT a concern. Reserve `high` for a gate regression, a novel structural residual, "
+    "or a strong bad-direction metric outlier. If the family has fewer than min_peers usable precedents "
+    "(you are told the count), set fit_classification=insufficient_precedent, confidence=low, do NOT "
+    "assert a regression on thin evidence. A failed/null route is a trivial non-fit. CITE SPECIFICS: "
+    "every concern and the critique must name precedent ids, iteration numbers, and metric values; "
+    "populate matched_precedents and violated_precedents. The coverage_note says what evidence was "
+    "elided -- if precedent is thin, lower confidence rather than bluffing.\n\n"
+    "CLASSIFICATION RUBRIC (in order): gate_regression (any hard-gate flip to worse) > outlier (strong "
+    "|z|>6 or bad-direction envelope breach in drc/unconnected/objective, OR a residual no peer "
+    "accepted, OR material thrash) > fits_with_concerns (only mild outliers, environment-only outliers, "
+    "improvement-direction deviations, or minor wobble) > in_distribution (all meaningful metrics "
+    "in-band, gates match family, trajectory coherent) > insufficient_precedent (family n < min_peers) > "
+    "no_opinion. Emit EXACTLY ONE JSON object conforming to the provided schema (it is grammar-"
+    "constrained). Keep `critique` a tight, evidence-cited paragraph. Reason as long as you need first; "
+    "only the JSON is parsed."
+)
+
+
+def _cf_load(x):
+    """Accept a DecisionLog instance, a {final,entries} dict, or a path to such JSON. Stamps _src."""
+    if isinstance(x, str):
+        d = json.load(open(x))
+        if isinstance(d, dict):
+            d.setdefault("_src", os.path.basename(x))
+        return d
+    if isinstance(x, dict):
+        return x
+    return {"final": getattr(x, "final", None), "entries": list(getattr(x, "entries", []) or [])}
+
+
+def cf_family_of(log):
+    """Board family = basename(final.board) minus the trailing -routed (+ .kicad_pcb). Failed/null or
+    unparseable -> 'failed', with the corpus filename '<fam>-route-...' as the fallback."""
+    try:
+        board = (log.get("final") or {}).get("board") if isinstance(log, dict) else None
+    except Exception:
+        board = None
+    if board:
+        base = os.path.basename(str(board))
+        base = _re.sub(r"\.kicad_pcb$", "", base)
+        base = _re.sub(r"-routed$", "", base)
+        if base:
+            return base
+    src = (log.get("_src", "") if isinstance(log, dict) else "") or ""
+    m = _re.match(r"(.+?)-route-", src)
+    fam = m.group(1) if m else ""
+    return "failed" if fam in ("", "None", "none") else _re.sub(r"-routed$", "", fam)
+
+
+def _cf_is_failed(log):
+    fin = (log or {}).get("final") or {}
+    v = fin.get("verdict") or {}
+    return (fin.get("board") in (None, "", "null")) or ("drc" not in v)
+
+
+def _cf_same_run(a, b):
+    if a.get("_src") and b.get("_src"):
+        return a["_src"] == b["_src"]
+    fa, fb = (a.get("final") or {}), (b.get("final") or {})
+    return (fa.get("board") == fb.get("board") and fa.get("elapsed_s") == fb.get("elapsed_s")
+            and fa.get("decisions") == fb.get("decisions"))
+
+
+def _cf_id(log):
+    src = (log.get("_src", "") if isinstance(log, dict) else "") or ""
+    m = _re.search(r"-route-\d{8}T(\d{6})-(\d+)", src)
+    fam = cf_family_of(log)
+    if m:
+        return f"{fam}#{m.group(1)}"
+    return f"{fam}#{(log.get('final') or {}).get('elapsed_s', '?')}"
+
+
+def _cf_metric_vec(log):
+    fin = (log or {}).get("final") or {}
+    v = fin.get("verdict") or {}
+    out = {}
+    for m in _CF_METRICS:
+        out[m] = fin.get(m) if m in ("elapsed_s", "decisions") else v.get(m)
+    return out
+
+
+def _cf_mad(xs, med):
+    return _median([abs(x - med) for x in xs]) if xs else 0.0
+
+
+def _cf_trajectory(entries):
+    steps = []
+    for e in entries or []:
+        ch = e.get("chosen") or {}
+        note = e.get("note") or ""
+        k = _CF_NOTE_K.search(note)
+        fr = _CF_NOTE_FR.search(note)
+        ver = e.get("verdict") or {}
+        steps.append({"it": e.get("iteration"), "action": ver.get("action"), "tier": ver.get("tier"),
+                      "drc": ch.get("drc"), "unconnected": ch.get("unconnected"),
+                      "gates_pass": ch.get("gates_pass"),
+                      "K": int(k.group(1)) if k else None,
+                      "fr_passes": int(fr.group(1)) if fr else None,
+                      "fr_opt": int(fr.group(2)) if fr else None})
+    return {"n": len(steps), "actions": [s["action"] for s in steps],
+            "drc_trail": [s["drc"] for s in steps], "steps": steps}
+
+
+def cf_new_summary(log):
+    fin = (log or {}).get("final") or {}
+    v = fin.get("verdict") or {}
+    return {"id": _cf_id(log), "family": cf_family_of(log),
+            "metrics": _cf_metric_vec(log),
+            "gates": {g: v.get(g) for g in ("kelvin_ok", "diffpair_ok", "gates_pass")},
+            "final_reasons": v.get("reasons") or [],
+            "trajectory": _cf_trajectory(log.get("entries"))}
+
+
+def cf_family_digest(peers):
+    mvecs = [_cf_metric_vec(p) for p in peers]
+    metrics = {}
+    for m in _CF_METRICS:
+        xs = [mv[m] for mv in mvecs if isinstance(mv.get(m), (int, float)) and not isinstance(mv.get(m), bool)]
+        if xs:
+            med = _median(xs)
+            metrics[m] = {"median": round(med, 3), "mad": round(_cf_mad(xs, med), 4),
+                          "min": min(xs), "max": max(xs), "best": min(xs), "n": len(xs)}
+    gates = {}
+    for g in ("kelvin_ok", "diffpair_ok", "gates_pass"):
+        vals = [((p.get("final") or {}).get("verdict") or {}).get(g) for p in peers]
+        vals = [v for v in vals if isinstance(v, bool)]
+        t = sum(1 for v in vals if v)
+        gates[g] = {"true": t, "false": len(vals) - t, "modal": (t >= (len(vals) - t)) if vals else None}
+    rc = Counter()
+    for p in peers:
+        for r in (((p.get("final") or {}).get("verdict") or {}).get("reasons") or []):
+            rc[r] += 1
+    decs = [(p.get("final") or {}).get("decisions") for p in peers
+            if isinstance((p.get("final") or {}).get("decisions"), (int, float))]
+    return {"n": len(peers), "metrics": metrics, "gates": gates,
+            "modal_terminal_reasons": [r for r, _ in rc.most_common(3)],
+            "convergence": {"median_decisions": _median(decs) if decs else None}}
+
+
+def cf_compute_evidence(newsum, digest):
+    ev = {"metrics": [], "gate_flips": []}
+    nm = newsum["metrics"]
+    for m, d in digest["metrics"].items():
+        x = nm.get(m)
+        if not isinstance(x, (int, float)) or isinstance(x, bool):
+            continue
+        med, mad = d["median"], d["mad"]
+        z = (x - med) / (1.4826 * mad) if mad > 0 else (0.0 if x == med else (6.0 if x > med else -6.0))
+        breach = (x < d["min"] or x > d["max"]) and d["n"] >= 3
+        direction = "neutral" if abs(z) <= 1e-4 else ("improvement" if x < med else "regression")
+        az = abs(z)
+        verdict = ("envelope_breach" if breach else "strong_outlier" if az > 6
+                   else "mild_outlier" if az > 3 else "in_band")
+        ev["metrics"].append({"metric": m, "new_value": x, "family_median": med, "robust_z": round(z, 2),
+                              "direction": direction, "verdict": verdict,
+                              "regression_vs_best": round(x - d["best"], 3)})
+    for g, gd in digest["gates"].items():
+        modal, nv = gd["modal"], newsum["gates"].get(g)
+        if modal is None or nv is None:
+            flip = "no_family_precedent"
+        elif nv == modal:
+            flip = "matches_family"
+        elif nv and not modal:
+            flip = "improved_vs_family"
+        else:
+            flip = "regressed_vs_family"
+        ev["gate_flips"].append({"gate": g, "new": nv, "family_modal": modal, "flip": flip})
+    return ev
+
+
+def _cf_compact(log):
+    v = ((log.get("final") or {}).get("verdict")) or {}
+    td = _cf_trajectory(log.get("entries"))
+    return {"id": _cf_id(log),
+            "final": {k: v.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok", "drc",
+                                            "unconnected", "objective", "tracks", "vias")},
+            "reasons": v.get("reasons") or [], "actions": td["actions"],
+            "drc_trail": td["drc_trail"], "decisions": (log.get("final") or {}).get("decisions")}
+
+
+def cf_budget_exemplars(peers, new, ctx_tokens, max_exemplars):
+    newm = _cf_metric_vec(new)
+
+    def gate_pass(p):
+        return bool(((p.get("final") or {}).get("verdict") or {}).get("gates_pass"))
+
+    def has_escalate(p):
+        return "escalate" in _cf_trajectory(p.get("entries"))["actions"]
+
+    def near(p):
+        pm = _cf_metric_vec(p)
+        return abs((pm.get("drc") or 0) - (newm.get("drc") or 0)) + \
+            abs((pm.get("unconnected") or 0) - (newm.get("unconnected") or 0))
+
+    ranked = sorted(peers, key=lambda p: (0 if gate_pass(p) else 1, 0 if has_escalate(p) else 1, near(p)))
+    budget = ctx_tokens * 4 * 0.7
+    out, used = [], 0
+    for p in ranked[:max_exemplars]:
+        card = _cf_compact(p)
+        s = len(json.dumps(card))
+        if out and used + s > budget:
+            break
+        out.append(card)
+        used += s
+    coverage = (f"included {len(out)}/{len(peers)} same-family exemplars verbatim; "
+                f"{max(0, len(peers) - len(out))} summarized only in the digest")
+    return out, coverage
+
+
+def _cf_other_families(cdir, exclude):
+    c = Counter()
+    for p in _glob.glob(os.path.join(cdir, "*.json")):
+        try:
+            L = _cf_load(p)
+        except Exception:
+            continue
+        f = cf_family_of(L)
+        if f != exclude:
+            c[f] += 1
+    return dict(c)
+
+
+def _cf_skeleton(fam, fc, rec, conf, headline, critique, concerns=None):
+    return {"fit_classification": fc, "recommendation": rec, "confidence": conf, "family": fam,
+            "headline": headline,
+            "gate_consistency": {"kelvin_ok": "no_family_precedent", "diffpair_ok": "no_family_precedent",
+                                 "gates_pass": "no_family_precedent", "flips": []},
+            "metric_band": "no_band",
+            "trajectory": {"shape": "unknown", "coherent": True, "detail": "reviewer did not run"},
+            "residual_treatment": "na", "outlier_metrics": [], "matched_precedents": [],
+            "violated_precedents": [], "concerns": concerns or [], "critique": critique}
+
+
+def _cf_no_opinion(fam, reason):
+    return _cf_skeleton(fam, "no_opinion", "no_opinion", "low",
+                        "corpus-fit reviewer unavailable; no precedent opinion",
+                        "reviewer unavailable; no opinion rendered.",
+                        [{"severity": "info", "kind": "insufficient_data", "detail": str(reason)[:300]}])
+
+
+def _cf_failed(fam):
+    return _cf_skeleton(fam, "no_opinion", "no_opinion", "low",
+                        "route failed (no board); precedent-fit not applicable",
+                        "Route produced no board (board=null); nothing to compare against precedent.",
+                        [{"severity": "info", "kind": "insufficient_data", "detail": "failed route / board=null"}])
+
+
+def _cf_insufficient(fam, n, new):
+    gp = ((new.get("final") or {}).get("verdict") or {}).get("gates_pass")
+    return _cf_skeleton(fam, "insufficient_precedent", "no_opinion", "low",
+                        f"only {n} same-family precedent(s) (< min); gates-only, no regression asserted",
+                        f"Family '{fam}' has {n} usable precedent(s), below the minimum to judge "
+                        f"precedent-fit. Absolute gates_pass={gp}; no regression asserted on thin evidence.",
+                        [{"severity": "info", "kind": "insufficient_data", "detail": f"{n} same-family peers"}])
+
+
+def _cf_clamp(out, new, digest):
+    """POST-PARSE SAFETY CLAMP: a gate-false board can NEVER read as in_distribution/fits_with_concerns
+    or accept_as_consistent, regardless of what the model emitted. Pulls the family-modal gate-flip
+    facts from the deterministic evidence so a model error cannot understate a real gate regression."""
+    if not isinstance(out, dict):
+        return _cf_no_opinion(cf_family_of(new), "bad_model_output")
+    gp = ((new.get("final") or {}).get("verdict") or {}).get("gates_pass")
+    if gp is False:
+        flips = cf_compute_evidence(cf_new_summary(new), digest)["gate_flips"]
+        regressed = any(f["flip"] == "regressed_vs_family" for f in flips
+                        if f["gate"] in ("kelvin_ok", "diffpair_ok"))
+        if out.get("fit_classification") in ("in_distribution", "fits_with_concerns"):
+            out["fit_classification"] = "gate_regression" if regressed else "outlier"
+        if out.get("recommendation") == "accept_as_consistent":
+            out["recommendation"] = "investigate_regression" if regressed else "review_recommended"
+    return out
+
+
+def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
+    """Deep precedent-fit review of one routed board against its same-family corpus. Returns a
+    schema-conforming dict (advisory; fail-safe to no_opinion). Runs OUTSIDE the per-region loop."""
+    try:
+        import cec_router
+        cdir = corpus_dir or cec_router.CORPUS_DIR
+    except Exception:
+        cdir = corpus_dir or os.path.join(ROOT, "build", "route", "corpus")
+    ctx_tokens = int(os.environ.get("CEC_CORPUS_CTX", "12000"))
+    max_exemplars = int(os.environ.get("CEC_CORPUS_EXEMPLARS", "6"))
+    window = int(os.environ.get("CEC_CORPUS_WINDOW", "200"))
+    # The corpus-fit review is the HEAVIEST reasoning task (digest + exemplars + the new board's full
+    # summary) AND the slowest -- MEASURED ~4.3 tok/s on the RAM-offload split, ~2500-3500 reasoning
+    # tokens. So it gets its OWN generous, low-frequency budget, well above the per-region MANAGER_*
+    # knobs (a 600s/4096 verdict budget truncates it mid-reason). It runs once per board, out of loop.
+    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "1800"))   # MEASURED a thorough review at 1157s
+    cf_max_tokens = int(os.environ.get("CEC_CORPUS_MAX_TOKENS", "6144"))
+    try:
+        new = _cf_load(new_log)
+        fam = cf_family_of(new)
+        if _cf_is_failed(new):
+            return _cf_failed(fam)
+        peers = []
+        for p in sorted(_glob.glob(os.path.join(cdir, "*.json"))):
+            try:
+                L = _cf_load(p)
+            except Exception:
+                continue
+            if cf_family_of(L) == fam and not _cf_is_failed(L) and not _cf_same_run(L, new):
+                peers.append(L)
+        peers = peers[-window:]
+        if len(peers) < min_peers:
+            return _cf_insufficient(fam, len(peers), new)
+        if not available(url=MANAGER_URL):
+            return _cf_no_opinion(fam, "manager_down")
+        digest = cf_family_digest(peers)
+        newsum = cf_new_summary(new)
+        evidence = cf_compute_evidence(newsum, digest)
+        exemplars, coverage = cf_budget_exemplars(peers, new, ctx_tokens, max_exemplars)
+        payload = {"focus_family": fam, "family_precedent_count": digest["n"], "min_peers": min_peers,
+                   "family_digest": digest, "new_board": newsum, "precomputed_evidence": evidence,
+                   "precedent_exemplars": exemplars,
+                   "other_families_in_corpus": _cf_other_families(cdir, fam),
+                   "coverage_note": coverage,
+                   "notes": "All metrics lower-is-better. robust_z/flags/evidence are precomputed; "
+                            "reason about meaning, do not recompute."}
+        user = json.dumps(payload, indent=1, sort_keys=True)
+        out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit",
+                         url=MANAGER_URL, model=MANAGER_MODEL, timeout=cf_timeout,
+                         max_tokens=cf_max_tokens)
+        return _cf_clamp(out, new, digest)
+    except Exception as e:
+        if verbose:
+            print("[corpus-fit] error:", type(e).__name__, e)
+        try:
+            fam = cf_family_of(_cf_load(new_log))
+        except Exception:
+            fam = "unknown"
+        return _cf_no_opinion(fam, type(e).__name__)
+
+
 if __name__ == "__main__":
     # Host-side gate CLI: manage the on-demand GPU judge + a smoke test.
     import argparse
     ap = argparse.ArgumentParser(description="cec_judge_local -- local vLLM judge gate + smoke")
     ap.add_argument("cmd", nargs="?", default="status",
-                    choices=["up", "down", "warm", "status", "smoke", "diff-test"],
+                    choices=["up", "down", "warm", "status", "smoke", "diff-test", "corpus-fit"],
                     help="up=start+warm, down=stop (free VRAM), warm, status, smoke=judge a fake candidate, "
-                         "diff-test=prove the swarm differentiates accept/repair/escalate")
+                         "diff-test=prove the swarm differentiates accept/repair/escalate, "
+                         "corpus-fit=deep precedent-fit review of a routed board's DecisionLog")
     ap.add_argument("--url", default=VLLM_URL)
+    ap.add_argument("--corpus-file", help="DecisionLog JSON to corpus-fit review (default: newest in build/route/corpus)")
     ap.add_argument("--timeout", type=int, default=600, help="seconds to wait for the server to come up")
     a = ap.parse_args()
     VLLM_URL = a.url.rstrip("/")
@@ -662,6 +1094,18 @@ if __name__ == "__main__":
             sys.exit(2)
         res = differentiated_test(panel=3)
         sys.exit(0 if all(r["ok"] for r in res.values()) else 1)
+    if a.cmd == "corpus-fit":
+        f = a.corpus_file
+        if not f:
+            cands = sorted(_glob.glob(os.path.join(ROOT, "build", "route", "corpus", "*.json")))
+            f = cands[-1] if cands else None
+        if not f:
+            print("no --corpus-file given and none found in build/route/corpus/")
+            sys.exit(2)
+        print(f"corpus-fit reviewing {f} (manager {MANAGER_URL} / {MANAGER_MODEL})", file=sys.stderr)
+        res = corpus_fit_review(f, verbose=True)
+        print(json.dumps(res, indent=2))
+        sys.exit(0)
     if a.cmd == "status":
         print(f"server URL: {VLLM_URL} | model: {MODEL} | available: {available()}")
         sys.exit(0)

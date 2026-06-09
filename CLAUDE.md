@@ -675,6 +675,22 @@ Open items (surface before acting):
    modules/12vhpwr-standard/12vhpwr-route-plan.png (scripts/gen-hpwr-route-status.py).
 
 Done (kept for context):
+- TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
+  runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
+  Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-
+  gated), "experts in RAM, attention on the 5090" via `-ngl 99 --n-cpu-moe 80` (~26GB VRAM, ~4-5 tok/s,
+  thinking-ONLY). WORKER tier stays the fast vLLM 30B-A3B-AWQ (`inference` :8000). Single 5090 fits ONE
+  heavy model -> they SWAP. (2) cec_judge_local: the manager tier got its OWN token budget (a thinking
+  model overruns the worker's 400-default -> MANAGER_MAX_TOKENS 4096 / CEC_CORPUS_* knobs); `available()`
+  takes a url. (3) `corpus_fit_review` -- deep per-board precedent-fit audit vs the same-family corpus
+  (deterministic robust-z/MAD prepass -> compact evidence -> 235B critique; per-family scoping, <3-peer
+  insufficient floor; fail-safe + add-only + a clamp so a gate-false board can't read "fits"). Verified
+  live: caught trajectory THRASH on a layout-clean eps board, citing precedents by id. Wired into
+  cec_router.route() (gated by CEC_CORPUS_REVIEW=1, writes a <board>-corpus-fit.json sidecar). (4)
+  scripts/cec_overnight.py -- deadline-bounded driver alternating ROUTE blocks (worker up, routing in the
+  `routing` container generating candidates) and REVIEW blocks (swap to manager, deep-review on the host).
+  NOTE: routing needs pcbnew so it runs IN the routing container; corpus_fit_review is pcbnew-free and
+  runs on the host. The local judge is opt-in (`--judge local`); the deterministic default is unchanged.
 - AGENTIC DISPATCH PROTOTYPE -- compute-as-tools + a budgeted tier-escalation loop (2026-06-07).
   Per the user's design instinct (the two-plane router is "too detached": compute runs a blind batch,
   judgement happens after -> tighten the COUPLING so agents call compute on demand + defer up). scripts/
