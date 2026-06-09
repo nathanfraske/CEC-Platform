@@ -46,6 +46,13 @@ else
   fi
 fi
 
+printf '==> corpus provenance lint (SB-13/14: no sourceless or model-sourced entries)\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_corpus_lint.py" || status=1
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
   --exclude-dir=build --exclude-dir=.git \
