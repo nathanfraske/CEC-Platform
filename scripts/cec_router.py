@@ -132,7 +132,9 @@ class DecisionLog:
             return None
         return {"drc": m.drc, "unconnected": m.unconnected, "tracks": m.tracks, "vias": m.vias,
                 "length": round(m.length, 2), "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
-                "cu12v": round(m.cu12v, 2), "balance": round(m.balance, 3), "gates_pass": m.gates_pass}
+                "cu12v": round(m.cu12v, 2), "balance": round(m.balance, 3), "gates_pass": m.gates_pass,
+                # R-02: the violation-type breakdown rides the same DRC run as the metrics
+                "drc_types": getattr(m, "drc_types", {})}
 
     def finalize(self, *, board, verdict):
         self.final = {"board": board, "verdict": verdict,
@@ -601,8 +603,20 @@ def _vital_keepouts_from_rules(board, rules):
 
 
 def _candidate_pool(cands, rules, weights):
-    """Score ok candidates, sort best-first by (gates_pass desc, objective asc)."""
-    scored = [(c, cec_score.score(c.board, rules)) for c in cands if c.ok and c.board]
+    """Score ok candidates, sort best-first by (gates_pass desc, objective asc).
+    Content-hash dedupe BEFORE scoring (R-01 adjunct): FR is deterministic, so identical
+    params yield byte-identical boards; scoring (a full DRC) is the expensive step."""
+    scored, seen = [], {}
+    for c in cands:
+        if not (c.ok and c.board):
+            continue
+        h = _tc.sha256_file(c.board)
+        if h in seen:
+            scored.append((c, seen[h]))     # reuse the duplicate's metrics, skip the DRC
+            continue
+        m = cec_score.score(c.board, rules)
+        seen[h] = m
+        scored.append((c, m))
     scored.sort(key=lambda cm: (0 if cm[1].gates_pass else 1, cec_score.objective(cm[1], weights)))
     return scored
 
@@ -723,11 +737,24 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             # effort level; the scorer keeps the cleanest. A parallel optimization sweep that
             # also yields a DRC-vs-effort curve. opt_spread=0 -> fixed (current behaviour).
             if spec.opt_spread and len(sl) > 1:
+                spread_note = f"opt_spread={spec.opt_spread}"
                 _lo, _hi = spec.opt_spread, base["opt_time"]
                 def _mkparams(s, sl=sl, lo=_lo, hi=_hi, base=base):
                     i = sl.index(s)
                     return {**base, "opt_time": int(round(lo + (hi - lo) * i / (len(sl) - 1)))}
+            elif len(sl) > 1:
+                # R-01: with opt_spread=0 (the shipped default) every seed used to get the SAME
+                # params -> N byte-identical candidates (FR has no seed input). Derive a default
+                # spread around the requested base (opt_time 0.5x..1.5x, linear across seeds) so
+                # the seeds are genuinely different routes. Sessions wanting fixed params pass
+                # one seed (or an explicit opt_spread).
+                spread_note = "spread=default(0.5x..1.5x)"
+                def _mkparams(s, sl=sl, base=base):
+                    i = sl.index(s)
+                    f = 0.5 + 1.0 * i / (len(sl) - 1)
+                    return {**base, "opt_time": max(5, int(round(base["opt_time"] * f)))}
             else:
+                spread_note = "single-seed"
                 def _mkparams(s, base=base):
                     return base
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
@@ -741,7 +768,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             verdict = manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
-                    note=f"K={K} hints={len(state.hints)} fr={base} opt_spread={spec.opt_spread}")
+                    note=f"K={K} hints={len(state.hints)} fr={base} {spread_note}")
             if verbose:
                 bm = best[1] if best else None
                 print(f"[route] {region.name} it{it}: {len(cands)} cand "

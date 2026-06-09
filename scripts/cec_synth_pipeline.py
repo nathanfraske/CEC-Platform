@@ -309,6 +309,7 @@ class View:
         self._nl = None
         self._metrics = None
         self._drc = None
+        self._drc_path = None                    # JSON path of the single DRC run (R-02)
         self._erc = None
 
     @property
@@ -338,12 +339,18 @@ class View:
     @property
     def metrics(self):
         if self._metrics is None and _HAVE_SCORE and self.board and os.path.isfile(self.board):
-            self._metrics = cec_score.score(self.board)
+            # R-02: feed the View's single DRC run into score() (drc_json=) so metrics and
+            # drc() consumers share ONE kicad-cli DRC instead of two runs of the same check.
+            self.drc()
+            self._metrics = cec_score.score(self.board, drc_json=self._drc_path)
         return self._metrics
 
     def drc(self):
         if self._drc is None:
-            self._drc = _run_drc(self.board) if (self.board and os.path.isfile(self.board)) else {}
+            if self.board and os.path.isfile(self.board):
+                self._drc, self._drc_path = _run_drc(self.board, keep_json=True)
+            else:
+                self._drc = {}
         return self._drc
 
     def erc(self):
@@ -352,20 +359,30 @@ class View:
         return self._erc
 
 
-def _run_drc(board):
+def _run_drc(board, keep_json=False):
     cli = _tc.require_kicad_cli("DRC")          # FAIL FAST with the install hint (R-05)
-    out = os.path.join(tempfile.gettempdir(), f"cec_synth_drc_{os.getpid()}.json")
+    # mkstemp: unique per CALL (getpid-keyed names collide under in-process concurrency, R-02)
+    fd, out = tempfile.mkstemp(prefix="cec_synth_drc_", suffix=".json")
+    os.close(fd)
     subprocess.run([cli, "pcb", "drc", "--exit-code-violations",
                     "--format", "json", "-o", out, board], capture_output=True)
     try:
-        return json.load(open(out))
+        d = json.load(open(out))
     except Exception:
-        return {}
+        d = {}
+    if keep_json:                               # caller reuses the JSON (View.metrics, R-02)
+        return d, (out if os.path.isfile(out) else None)
+    try:
+        os.unlink(out)
+    except OSError:
+        pass
+    return d
 
 
 def _run_erc(sch):
     cli = _tc.require_kicad_cli("ERC")          # FAIL FAST with the install hint (R-05)
-    out = os.path.join(tempfile.gettempdir(), f"cec_synth_erc_{os.getpid()}.json")
+    fd, out = tempfile.mkstemp(prefix="cec_synth_erc_", suffix=".json")  # per-call unique (R-02)
+    os.close(fd)
     subprocess.run([cli, "sch", "erc", "--exit-code-violations",
                     "--format", "json", "-o", out, sch], capture_output=True)
     try:

@@ -128,6 +128,10 @@ class Metrics:
     balance: float       # F.Cu vs B.Cu copper balance [0,1] (1 = perfectly balanced)
     gates_pass: bool     # kelvin_ok AND diffpair_ok AND (drc==0 if require_drc_zero)
     detail: dict         # per-net breakdown, gate reasons, raw counts — decision log
+    # Structural-violation breakdown from the SAME DRC run (R-02: callers must not re-run
+    # DRC to get these -- cec_dispatch._drc_types used to be a second full DRC per board).
+    drc_types: dict = field(default_factory=dict)   # violation type -> count (cosmetic filtered)
+    drc_loci: list = field(default_factory=list)    # [{type, where}] for the first violations
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +147,38 @@ def _run_drc(board_path: str, tmp: str) -> dict:
     )
     with open(tmp) as fh:
         return json.load(fh)
+
+
+def _types_loci(struct: list) -> tuple[dict, list]:
+    """Structural violations -> (type->count, [{type, where}]) -- the judge-facing
+    breakdown. ONE definition (R-02): score() populates Metrics.drc_types/drc_loci from
+    the same DRC run, and drc_types() below serves standalone callers (cec_constraints)."""
+    import collections
+    types = dict(collections.Counter(v["type"] for v in struct))
+    loci = []
+    for v in struct[:80]:
+        desc = " ".join(it.get("description", "") for it in v.get("items", []))
+        # keep enough of the description that BOTH 'of <REF>' tokens and BOTH bracketed nets
+        # survive (the finishing classifier reads them) -- 80 chars truncated the 2nd token.
+        loci.append({"type": v["type"], "where": re.sub(r"\s+", " ", desc)[:160]})
+    return types, loci
+
+
+def drc_types(board_path: str) -> tuple[dict, list]:
+    """Standalone (types, loci) for callers holding only a board path (one DRC run).
+    Callers that already score() the board must read Metrics.drc_types/drc_loci instead
+    -- that is the whole point of R-02 (no second DRC per scored board)."""
+    fd, tmp = tempfile.mkstemp(prefix="cec_score_drc_", suffix=".json")
+    os.close(fd)
+    try:
+        d = _run_drc(board_path, tmp)
+    finally:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+    struct = [v for v in d.get("violations", []) if v.get("type") not in COSMETIC_DRC_TYPES]
+    return _types_loci(struct)
 
 
 def _parse_net_from_desc(desc: str) -> str | None:
@@ -324,9 +360,17 @@ def score(
         with open(drc_json) as fh:
             drc_data = json.load(fh)
     else:
-        # cross-platform + per-process-unique (avoids /tmp [absent on Windows] and a shared-path race)
-        tmp = os.path.join(tempfile.gettempdir(), f"cec_score_drc_{os.getpid()}.json")
-        drc_data = _run_drc(board_path, tmp)
+        # mkstemp: unique per CALL, not per process -- getpid-keyed names collide under
+        # in-process concurrency (threads / repeated calls racing the same path), R-02.
+        fd, tmp = tempfile.mkstemp(prefix="cec_score_drc_", suffix=".json")
+        os.close(fd)
+        try:
+            drc_data = _run_drc(board_path, tmp)
+        finally:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
 
     all_violations = drc_data.get("violations", [])
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
@@ -335,6 +379,9 @@ def score(
 
     drc_count   = len(struct)
     unconn_count = len(unconn)
+
+    # ---- structural-violation breakdown (R-02: from the same run; no second DRC) ----
+    drc_types, drc_loci = _types_loci(struct)
 
     # ---- evaluate hard gates ----
     kelvin_ok, kelvin_reasons, kelvin_detail = _check_pairs(
@@ -382,6 +429,8 @@ def score(
         balance      = round(m["balance"], 6),
         gates_pass   = gates_pass,
         detail       = detail,
+        drc_types    = drc_types,
+        drc_loci     = drc_loci,
     )
 
 

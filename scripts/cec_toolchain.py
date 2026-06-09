@@ -57,6 +57,21 @@ def require_kicad_cli(action="this operation"):
     return p
 
 
+def sha256_file(path, chunk=1 << 20):
+    """Content hash of a file (hex). Used for candidate-board dedupe (punchlist R-01:
+    Freerouting is deterministic, so identical params yield byte-identical candidates;
+    scoring is the expensive step, so dedupe before scoring)."""
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        while True:
+            b = fh.read(chunk)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+
 _warned = set()
 
 
