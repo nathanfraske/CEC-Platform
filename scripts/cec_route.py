@@ -6,6 +6,11 @@
 #  cec_route -- pcbnew-backed REAL-COPPER routing primitives for the candidate
 #               routing sub-agent pass (companion to cec_pcb.py).
 # ============================================================================
+# NOT cec_routeR: you may want the other file (R-10). cec_route (this file) =
+# hand-routing PRIMITIVES (track/via/zone/fill/verify) for a sub-agent pass;
+# cec_router.py = the route() ORCHESTRATION loop (Freerouting candidates +
+# gates + decision log) that route.yml runs.
+# ============================================================================
 # Unlike cec_pcb.guides() (non-copper guide graphics on user layers), this emits
 # ACTUAL routed copper through the real KiCad 10 engine (the same one the GUI uses):
 #   * PCB_TRACK segments with net + width + layer,

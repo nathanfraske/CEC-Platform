@@ -1,0 +1,29 @@
+{
+ "frozen": "2026-06-09T20:19:40Z",
+ "fr_params": {
+  "passes": 10,
+  "opt_time": 20,
+  "threads": 1
+ },
+ "baseline": {
+  "drc": 4,
+  "unconnected": 2,
+  "tracks": 556,
+  "vias": 84,
+  "length": 1048.0276,
+  "thermal_max_T": 128.2,
+  "kelvin_ok": true,
+  "diffpair_ok": true
+ },
+ "bands": {
+  "kelvin_ok": true,
+  "diffpair_ok": true,
+  "drc_max": 6,
+  "unconnected_max": 4,
+  "tracks_min": 389,
+  "tracks_max": 722,
+  "vias_min": 50,
+  "vias_max": 117,
+  "thermal_max_T_max": 147.4
+ }
+}

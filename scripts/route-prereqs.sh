@@ -7,8 +7,8 @@
 #
 #   * python3 with the KiCad pcbnew bindings  (DSN/SES round-trip, board measure)
 #   * kicad-cli                                (DRC + render)
-#   * java 21+                                 (Freerouting)
-#   * xvfb-run                                 (Freerouting is headless-via-virtual-X)
+#   * java 17+ (21 recommended)                (Freerouting)
+#   * xvfb-run on HEADLESS LINUX only          (Freerouting under a virtual X server)
 #   * the Freerouting jar                      (cec_fr.ensure_jar downloads it if absent)
 #
 # Fails fast with an install hint per missing piece, so a misprovisioned runner gives
@@ -56,10 +56,15 @@ else
 fi
 
 # --- xvfb-run ---
+# Only HEADLESS LINUX needs it: cec_fr._fr_command wraps Freerouting in xvfb-run only on
+# Linux with no $DISPLAY. macOS and display-attached Linux run java on the native display,
+# so its absence there is informational, not a failure (punchlist R-06).
 if command -v xvfb-run >/dev/null 2>&1; then
   note "xvfb-run" "OK"
+elif [ "$(uname -s)" = "Linux" ] && [ -z "${DISPLAY:-}" ]; then
+  bad "xvfb-run" "install xvfb (apt install xvfb) -- on headless Linux, Freerouting runs under a virtual X server"
 else
-  bad "xvfb-run" "install xvfb (apt install xvfb) -- Freerouting runs headless under a virtual X server"
+  note "xvfb-run" "absent, but not needed here (only headless Linux wraps Freerouting in xvfb-run)"
 fi
 
 # --- Freerouting jar (informational: cec_fr.ensure_jar downloads it if absent) ---

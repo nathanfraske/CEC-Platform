@@ -30,7 +30,9 @@
 #
 # Freerouting writes a logs/ directory into its CWD. All FR invocations run from a fresh
 # workdir in the OS temp dir (tempfile.gettempdir(): /tmp on Linux/mac, %TEMP% on Windows)
-# to ensure logs/ never appears in the repo (a stop-hook checks for that), regardless of CWD.
+# to ensure logs/ never appears in the repo, regardless of CWD. The repo-side backstop is
+# the .gitignore `logs/` entry (R-10 correction: no Stop hook exists -- .claude/settings.json
+# defines only a SessionStart hook, and the kicad-happy plugin ships none).
 #
 # Verified round-trip (EPS board, 2026-06-06): ExportSpecctraDSN -> FR exit 0 ->
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.

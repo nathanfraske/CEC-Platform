@@ -6,6 +6,10 @@
 #  cec_router -- the route() orchestration framework for the automated routing
 #                system (the "control plane" wiring over the deterministic plane).
 # ============================================================================
+# NOT cec_route: you may want the other file (R-10). cec_router (this file) =
+# the route() ORCHESTRATION loop route.yml runs; cec_route.py = the pcbnew
+# hand-routing PRIMITIVES (track/via/zone/fill/verify) for a sub-agent pass.
+# ============================================================================
 # The redesign splits routing into two planes:
 #
 #   DETERMINISTIC PLANE (pure, reproducible, no LLM):
@@ -132,16 +136,27 @@ class DecisionLog:
             return None
         return {"drc": m.drc, "unconnected": m.unconnected, "tracks": m.tracks, "vias": m.vias,
                 "length": round(m.length, 2), "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
-                "cu12v": round(m.cu12v, 2), "balance": round(m.balance, 3), "gates_pass": m.gates_pass}
+                "cu12v": round(m.cu12v, 2), "balance": round(m.balance, 3), "gates_pass": m.gates_pass,
+                # R-02: the violation-type breakdown rides the same DRC run as the metrics
+                "drc_types": getattr(m, "drc_types", {})}
 
     def finalize(self, *, board, verdict):
         self.final = {"board": board, "verdict": verdict,
                       "elapsed_s": round(time.time() - self.t0, 2), "decisions": len(self.entries)}
 
     def to_json(self, path):
-        json.dump({"final": self.final, "entries": self.entries}, open(path, "w"), indent=2)
+        # SB-01: every decision log carries the determinism manifest, so a log is
+        # self-describing (same manifest + same inputs => same board).
+        try:
+            import cec_ledger
+            mani = cec_ledger.manifest()
+        except Exception:
+            mani = None
+        json.dump({"final": self.final, "manifest": mani, "entries": self.entries},
+                  open(path, "w"), indent=2)
         print(f"WROTE {os.path.relpath(path, ROOT) if path.startswith(ROOT) else path}")
         archive_log(self, (self.final or {}).get("board", "board"))
+        return path
         return path
 
 
@@ -601,8 +616,20 @@ def _vital_keepouts_from_rules(board, rules):
 
 
 def _candidate_pool(cands, rules, weights):
-    """Score ok candidates, sort best-first by (gates_pass desc, objective asc)."""
-    scored = [(c, cec_score.score(c.board, rules)) for c in cands if c.ok and c.board]
+    """Score ok candidates, sort best-first by (gates_pass desc, objective asc).
+    Content-hash dedupe BEFORE scoring (R-01 adjunct): FR is deterministic, so identical
+    params yield byte-identical boards; scoring (a full DRC) is the expensive step."""
+    scored, seen = [], {}
+    for c in cands:
+        if not (c.ok and c.board):
+            continue
+        h = _tc.sha256_file(c.board)
+        if h in seen:
+            scored.append((c, seen[h]))     # reuse the duplicate's metrics, skip the DRC
+            continue
+        m = cec_score.score(c.board, rules)
+        seen[h] = m
+        scored.append((c, m))
     scored.sort(key=lambda cm: (0 if cm[1].gates_pass else 1, cec_score.objective(cm[1], weights)))
     return scored
 
@@ -723,11 +750,24 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             # effort level; the scorer keeps the cleanest. A parallel optimization sweep that
             # also yields a DRC-vs-effort curve. opt_spread=0 -> fixed (current behaviour).
             if spec.opt_spread and len(sl) > 1:
+                spread_note = f"opt_spread={spec.opt_spread}"
                 _lo, _hi = spec.opt_spread, base["opt_time"]
                 def _mkparams(s, sl=sl, lo=_lo, hi=_hi, base=base):
                     i = sl.index(s)
                     return {**base, "opt_time": int(round(lo + (hi - lo) * i / (len(sl) - 1)))}
+            elif len(sl) > 1:
+                # R-01: with opt_spread=0 (the shipped default) every seed used to get the SAME
+                # params -> N byte-identical candidates (FR has no seed input). Derive a default
+                # spread around the requested base (opt_time 0.5x..1.5x, linear across seeds) so
+                # the seeds are genuinely different routes. Sessions wanting fixed params pass
+                # one seed (or an explicit opt_spread).
+                spread_note = "spread=default(0.5x..1.5x)"
+                def _mkparams(s, sl=sl, base=base):
+                    i = sl.index(s)
+                    f = 0.5 + 1.0 * i / (len(sl) - 1)
+                    return {**base, "opt_time": max(5, int(round(base["opt_time"] * f)))}
             else:
+                spread_note = "single-seed"
                 def _mkparams(s, base=base):
                     return base
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
@@ -741,7 +781,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             verdict = manager(region, scored, history)
             log.add(region=region.name, iteration=it, candidates=[m for _, m in scored],
                     chosen=(best[1] if best else None), verdict=verdict,
-                    note=f"K={K} hints={len(state.hints)} fr={base} opt_spread={spec.opt_spread}")
+                    note=f"K={K} hints={len(state.hints)} fr={base} {spread_note}")
             if verbose:
                 bm = best[1] if best else None
                 print(f"[route] {region.name} it{it}: {len(cands)} cand "
@@ -904,6 +944,19 @@ def main(argv=None):
                   f"-> using the deterministic manager/worker")
     final, log = route(spec.board, spec, manager=manager, worker=worker, verbose=not a.quiet)
     logp = log.to_json(os.path.join(out_dir, f"{name}-decision-log.json"))
+    # SB-01: durable ledger line in the sibling cec-runs repo. FAIL-SAFE -- a missing
+    # ledger repo degrades to a warning; it must never break a route run.
+    try:
+        import cec_ledger
+        fin = log.final or {}
+        rec = cec_ledger.append(board=name, mode="route",
+                                verdict=fin.get("verdict"),
+                                board_file=final, input_board=spec.board,
+                                elapsed_s=fin.get("elapsed_s"), artifact=os.path.relpath(out_dir, ROOT),
+                                parent_run_id=os.environ.get("CEC_PARENT_RUN_ID"))
+        print(f"[route] ledger: {rec['run_id']}")
+    except Exception as e:
+        print(f"[route] ledger append skipped: {type(e).__name__}: {e}", file=sys.stderr)
     # CORPUS-FIT REVIEW (Thrust A, deep tier) -- opt-in, fail-safe, OUTSIDE the per-region loop. When
     # CEC_CORPUS_REVIEW=1 and the big MANAGER endpoint is up, deep-review this route vs its same-family
     # corpus and drop a <board>-corpus-fit.json sidecar (advisory; never feeds back into the route). When

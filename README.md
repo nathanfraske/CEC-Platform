@@ -17,7 +17,9 @@ tooling that checks them.
 > **Ground truth.** [`CEC-Platform-Ground-Truth-Spec.md`](CEC-Platform-Ground-Truth-Spec.md)
 > is the canonical specification and holds precedence over everything else,
 > including [`CLAUDE.md`](CLAUDE.md). Read the spec before making any design
-> decision. Working-summary revision: **2026-05-30**.
+> decision. Spec revision: **v1.1.0 (2026-06-09), controlled baseline** (semantic
+> versioning; the pre-release v1.0–v3.11 working log is retained in spec §11.1).
+> Working-summary revision: **2026-06-09**.
 
 ---
 
@@ -25,13 +27,14 @@ tooling that checks them.
 
 | Board | Directory | Tier | MCU | Ports | Host link | BOM target (100q) |
 |---|---|---|---|---|---|---|
-| Hub Standard | [`hubs/hub-standard`](hubs/hub-standard) | 1 | ESP32-S3-MINI-1-N16R2 | 4 | USB Full Speed | ~$36 |
+| Hub Standard | [`hubs/hub-standard`](hubs/hub-standard) | 1 | ESP32-S3-WROOM-1-N16R8 | 4 | USB Full Speed | ~$36 |
 | Hub Pro | [`hubs/hub-pro`](hubs/hub-pro) | 2 | ESP32-P4 | 8 | USB High Speed | ~$45 |
 | Hub Enterprise | [`hubs/hub-enterprise`](hubs/hub-enterprise) | 3 | ESP32-P4 + secure element | n/a | USB HS (+ optional 1000BASE-T1) | ~$50 |
 | Hub Mission Critical | [`hubs/hub-mission-critical`](hubs/hub-mission-critical) | 4 | ESP32-P4 + crypto | n/a | redundant uplinks | ~$80 |
-| 24-pin ATX module | [`modules/atx-24pin`](modules/atx-24pin) | Standard | per module spec | – | – | $35 |
+| 24-pin ATX module | [`modules/atx-24pin`](modules/atx-24pin) (+ [`atx-24pin-rev2`](modules/atx-24pin-rev2), the current line) | Standard | per module spec | – | – | $35 |
 | EPS 8-pin module | [`modules/eps-8pin`](modules/eps-8pin) | Standard | per module spec | – | – | $32 |
-| PCIe 8-pin module | [`modules/pcie-8pin`](modules/pcie-8pin) | Standard | per module spec | – | – | $38 |
+| PCIe 8-pin 2-port | [`modules/pcie-8pin-2port`](modules/pcie-8pin-2port) | Standard | per module spec | – | – | $38 |
+| PCIe 8-pin 3-port | [`modules/pcie-8pin-3port`](modules/pcie-8pin-3port) | Standard | per module spec | – | – | ~$42 |
 | 12VHPWR Standard module | [`modules/12vhpwr-standard`](modules/12vhpwr-standard) | Standard | per module spec | – | – | $49 |
 | 12VHPWR Pro module (lead) | [`modules/12vhpwr-pro`](modules/12vhpwr-pro) | Pro | ESP32-P4 | – | – | $98–$99 |
 
@@ -98,17 +101,22 @@ cec-platform/
     3dmodels/                #   3D models referenced by footprints
   hubs/
     hub-standard/            # Tier 1 — ESP32-S3, 4 ports, classical CAN, USB FS
-    hub-pro/                 # Tier 2 — ESP32-P4, 8 ports, CAN-FD + RS-485, USB HS
+    hub-pro/                 # Tier 2 — ESP32-P4, 8 ports, classical CAN + RS-485, USB HS
     hub-enterprise/          # Tier 3 — platform-summary only for now (OQ-7)
     hub-mission-critical/    # Tier 4 — platform-summary only for now (OQ-7)
   modules/
-    atx-24pin/               # Standard
+    atx-24pin/               # Standard (superseded line)
+    atx-24pin-rev2/          # Standard (current 24-pin line)
     eps-8pin/                # Standard
-    pcie-8pin/               # Standard
+    pcie-8pin-2port/         # Standard (2 ports / 4 connectors)
+    pcie-8pin-3port/         # Standard (3 ports / 6 connectors)
     12vhpwr-standard/        # Standard
     12vhpwr-pro/             # Pro (lead Pro module)
   fab/                       # tagged release snapshots of exactly what was sent to the board house
-  scripts/                   # kicad-cli wrappers and CI helpers
+  corpus/general/            # cross-project rules corpus (SB-13; linted for provenance)
+  tests/                     # pipeline unit tests + the golden-board regression (SB-08)
+  docker/                    # the routing-container compute plane (kicad-cli/pcbnew 10 + JRE)
+  scripts/                   # kicad-cli wrappers, CI helpers, and the agentic routing/synthesis plane
   CEC-Platform-Ground-Truth-Spec.md   # canonical spec (precedence over all)
   CLAUDE.md                  # operating guidance / working summary of the spec
   README.md
@@ -153,15 +161,43 @@ scripts/render.sh  hubs/hub-standard/hub-standard.kicad_pcb
 # Fab package (gerbers + drill + pick-and-place) into the gitignored build/ dir.
 scripts/fab.sh     hubs/hub-standard/hub-standard.kicad_pcb
 
-# CI sweep: ERC over every schematic, DRC over every layout.
+# CI sweep: ERC over every schematic, DRC over every layout. A board with a
+# fab/<board>-* snapshot is ALWAYS checked, DRAFT marker or not; the gate fails
+# on ERROR-level violations (warnings stay visible in the build/ reports).
 scripts/check-all.sh
 
-# Repo hygiene: no Mini-Fit Jr footprints, no absolute library paths.
+# Repo hygiene: no Mini-Fit Jr footprints, no absolute library paths, and the
+# corpus provenance lint (corpus/general/ + scripts/constraints/).
 scripts/checklist.sh
 ```
 
 Reports and fab outputs are written under `build/` (gitignored). Fab packages
 are committed only as tagged release snapshots under `fab/<rev>/`.
+
+### The agentic routing / synthesis plane (Python)
+
+The deterministic compute plane plus its control-plane hooks (see
+[`scripts/README-cec_pcb.md`](scripts/README-cec_pcb.md) and
+[`docs/self-hosted-router.md`](docs/self-hosted-router.md) for depth):
+
+| Script | Role |
+|---|---|
+| `scripts/cec_fr.py` | Freerouting candidate generator (DSN/SES round-trip, pours after route, via normalize) |
+| `scripts/cec_score.py` | scorer + HARD gates (Kelvin `_HI/_LO`, diff `_P/_N`), one cosmetic DRC filter, `drc_types`/`drc_loci` |
+| `scripts/cec_router.py` | the `route()` orchestration loop + decision log (what `route.yml` runs) |
+| `scripts/cec_route.py` | pcbnew real-copper hand-routing primitives for the sub-agent routing pass |
+| `scripts/cec_dispatch.py` | compute-as-tools (`request_candidates`) + the budgeted `agent_route` tier loop |
+| `scripts/cec_synth_pipeline.py` | the synthesis pipeline: cascade stages, placer, physics (IPC electrothermal), `run_pipeline` |
+| `scripts/cec_constraints.py` / `cec_hc.py` / `cec_place.py` / `cec_dcir.py` / `cec_loop.py` | constraint registry + checkers, high-current pass, placer, DC-IR, the place→route→check self-correction loop |
+| `scripts/cec_ledger.py` | SB-01 durable run ledger + determinism manifest (sibling `cec-runs` repo) |
+| `scripts/cec_golden.py` | SB-08 golden-board pipeline regression (run before merging `scripts/**` changes) |
+| `scripts/cec_corpus_lint.py` | SB-13/14 corpus provenance lint (wired into `checklist.sh`) |
+
+Self-hosted workflows: `.github/workflows/route.yml` (Route) and `synth.yml`
+(Synthesize: `run` / `sweep` / `candidates` modes) — manual `workflow_dispatch`
+only; both append the run verdict to the job Summary. On this development box
+the same plane runs in the `docker/` routing container
+(`docker compose -f docker/compose.yaml run --rm --no-deps routing ...`).
 
 ### Self-contained & reproducible (clone parity)
 

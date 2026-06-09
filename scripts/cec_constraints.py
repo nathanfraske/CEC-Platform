@@ -29,7 +29,7 @@ import pcbnew
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
-import cec_dispatch   # noqa: E402  -- _drc_types, _locus_is_finishing, _bracket_nets
+import cec_dispatch   # noqa: E402  -- _locus_is_finishing, _bracket_nets (drc_types moved to cec_score, R-02)
 import cec_score      # noqa: E402  -- _derive_pairs (Kelvin _HI/_LO, diff _P/_N)
 
 
@@ -464,7 +464,7 @@ def _chk_logo(board, path, ctx):
         if any(fp.GetReference().upper().startswith("LOGO") for fp in board.GetFootprints()):
             return None, "unrouted: LOGO needs a routing keepout (can't verify short pre-route)"
         return None, "no LOGO footprint"
-    _, loci = cec_dispatch._drc_types(path)
+    _, loci = cec_score.drc_types(path)   # standalone path-only form (R-02 single-source)
     bad = [lc for lc in loci if "LOGO" in lc["where"].upper() and not cec_dispatch._locus_is_finishing(lc)]
     if bad:
         nets = sorted({n for lc in bad for n in cec_dispatch._bracket_nets(lc["where"])

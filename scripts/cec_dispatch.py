@@ -35,7 +35,7 @@ import json
 import collections
 import tempfile
 import subprocess
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, field, asdict, replace
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
@@ -44,8 +44,9 @@ import cec_fr        # noqa: E402
 import cec_score     # noqa: E402
 import cec_toolchain as _tc   # noqa: E402  -- toolchain presence helpers (R-05)
 
-_COSMETIC = ("silk_overlap", "silk_over_copper", "silk_edge_clearance",
-             "lib_footprint_mismatch", "lib_footprint_issues")
+# Cosmetic DRC filter: ONE definition, in cec_score (R-02 -- the lists were defined twice
+# and the parity rule "MUST match cec_route.verify" lived only on the cec_score copy).
+_COSMETIC = cec_score.COSMETIC_DRC_TYPES
 # ---- FINISHING vs REAL classification of a structural DRC locus -------------------------------
 # Some non-cosmetic DRC hits are FINISHING items owned by the placement pass (not routing faults),
 # OR known headless kicad-cli FALSE artifacts (present headless, absent in the GUI). The loop and
@@ -94,27 +95,10 @@ def _locus_is_finishing(lc):
 
 
 # ============================================================ TOOLS
-def _drc_types(board):
-    """Structural DRC violation-type counts (cosmetic filtered) -- so a tier agent can tell a real
-    short from the logo/shield-tab finishing residual."""
-    cli = _tc.require_kicad_cli("DRC")           # FAIL FAST with the install hint (R-05)
-    out = os.path.join(tempfile.gettempdir(), f"cec_disp_drc_{os.getpid()}.json")
-    subprocess.run([cli, "pcb", "drc", "--exit-code-violations", "--format", "json",
-                    "-o", out, board], capture_output=True)
-    try:
-        d = json.load(open(out))
-    except Exception:
-        return {}, []
-    viol = [v for v in d.get("violations", []) if v.get("type") not in _COSMETIC]
-    types = dict(collections.Counter(v["type"] for v in viol))
-    # tag whether the non-zero DRC is dominated by the known finishing items (logo / shield tabs)
-    loci = []
-    for v in viol[:80]:
-        desc = " ".join(it.get("description", "") for it in v.get("items", []))
-        # keep enough of the description that BOTH 'of <REF>' tokens and BOTH bracketed nets survive
-        # (the finishing classifier reads them) -- 80 chars truncated the 2nd 'of SWx'/the 2nd net.
-        loci.append({"type": v["type"], "where": re.sub(r"\s+", " ", desc)[:160]})
-    return types, loci
+# (R-02) the old _drc_types here ran a SECOND full DRC on every board cec_score had just
+# DRC'd. Removed: Metrics.drc_types / Metrics.drc_loci now ride the score() run, and the
+# standalone path-only form lives in cec_score.drc_types (used by cec_constraints).
+_drc_types = cec_score.drc_types   # deprecated alias; do not add callers
 
 
 @dataclass
@@ -181,22 +165,54 @@ def runner_slot(*, poll=0.5, label=""):
                 os.close(fd)
 
 
+def _spread_params(params, seeds):
+    """R-01: Freerouting 1.7.0 is deterministic, so a constant params dict across multiple
+    seeds produces byte-identical candidates -- the judging tier would be handed duplicate
+    boards. Expand a single requested dict to a per-seed opt_time spread (0.5x .. 1.5x the
+    requested value, linear across seeds) and return {seed: resolved_params}. The RESOLVED
+    per-seed params are what gets recorded in CandidateMetrics.params, so the judge can see
+    the spread. A single seed keeps the dict untouched."""
+    seeds = list(seeds)
+    if len(seeds) <= 1:
+        return {s: dict(params) for s in seeds}
+    base = dict(params)
+    ot = int(base.get("opt_time", 20))
+    out = {}
+    for i, s in enumerate(seeds):
+        f = 0.5 + 1.0 * i / (len(seeds) - 1)
+        out[s] = {**base, "opt_time": max(5, int(round(ot * f)))}
+    return out
+
+
 def _generate_scored(board, params, seeds, max_workers, out_dir):
     out_dir = out_dir or tempfile.mkdtemp(prefix="cec_disp_", dir=tempfile.gettempdir())
-    cands = cec_fr.generate_batch(board, seeds=tuple(seeds), params=(lambda s: dict(params)),
+    resolved = _spread_params(params, seeds)                      # R-01: per-seed spread
+    cands = cec_fr.generate_batch(board, seeds=tuple(seeds),
+                                  params=(lambda s: dict(resolved[s])),
                                   out_dir=out_dir, max_workers=max_workers)
     res = []
+    seen = {}                                                     # sha256 -> CandidateMetrics
     for c in cands:
         if not (c.ok and c.board):
             continue
-        m = cec_score.score(c.board)
-        types, loci = _drc_types(c.board)
-        res.append(CandidateMetrics(
-            seed=c.seed, params=dict(params), board=c.board,
+        # R-01 adjunct: content-hash dedupe BEFORE scoring (scoring is the expensive step).
+        # A duplicate reuses the first occurrence's metrics and is tagged in its params so
+        # the judge sees it is not independent evidence.
+        h = _tc.sha256_file(c.board)
+        if h in seen:
+            first = seen[h]
+            res.append(replace(first, seed=c.seed, board=c.board,
+                               params={**resolved[c.seed], "_dup_of_seed": first.seed}))
+            continue
+        m = cec_score.score(c.board)                              # R-02: ONE DRC, via score()
+        cm = CandidateMetrics(
+            seed=c.seed, params=dict(resolved[c.seed]), board=c.board,
             drc=m.drc, unconnected=m.unconnected, kelvin_ok=m.kelvin_ok,
             diffpair_ok=m.diffpair_ok, gates_pass=m.gates_pass,
-            tracks=m.tracks, vias=m.vias, drc_types=types, drc_loci=loci,
-            unconn_nets=m.detail.get("unconn_nets", [])))
+            tracks=m.tracks, vias=m.vias, drc_types=m.drc_types, drc_loci=m.drc_loci,
+            unconn_nets=m.detail.get("unconn_nets", []))
+        seen[h] = cm
+        res.append(cm)
     res.sort(key=lambda c: (0 if c.gates_pass else 1, c.drc, c.unconnected))
     return res
 
@@ -219,11 +235,10 @@ def request_candidates(board, *, params, seeds=(0, 1), max_workers=None, out_dir
 
 def score_board(board):
     """TOOL: score one board -> dict."""
-    m = cec_score.score(board)
-    types, loci = _drc_types(board)
+    m = cec_score.score(board)                                    # R-02: ONE DRC, via score()
     return {"drc": m.drc, "unconnected": m.unconnected, "kelvin_ok": m.kelvin_ok,
             "diffpair_ok": m.diffpair_ok, "gates_pass": m.gates_pass,
-            "tracks": m.tracks, "vias": m.vias, "drc_types": types, "drc_loci": loci,
+            "tracks": m.tracks, "vias": m.vias, "drc_types": m.drc_types, "drc_loci": m.drc_loci,
             "unconn_nets": m.detail.get("unconn_nets", [])}
 
 
@@ -301,12 +316,28 @@ def agent_route(board, *, tiers, budget=3, init_params=None, seeds=(0, 1), max_w
         if verbose:
             print(f"  [{tier_name}] {len(cands)} cands, budget={b} -> {v.action}: {v.reason[:90]}")
         if v.action == "accept":
-            best = next((c for c in cands if c.seed == v.seed), cands[0] if cands else None)
+            if not cands:
+                # R-08: an accept against an EMPTY candidate list is not a success. Coerce to
+                # escalate (logged) instead of returning None indistinguishably from failure.
+                log[-1]["note"] = "accept-with-no-candidates coerced to escalate"
+                ti += 1
+                b = budget
+                continue
+            best = next((c for c in cands if c.seed == v.seed), None)
+            if best is None:
+                # R-08: a verdict naming an unknown seed falls back to the best candidate,
+                # but the fallback is RECORDED -- the tier's stated intent must not be lost.
+                log[-1]["note"] = f"seed fallback: verdict seed {v.seed!r} not in candidates; using best"
+                best = cands[0]
             return best, log
         if v.action == "request_more" and b > 0:
             params = {**params, **(v.params or {})}
             b -= 1
         else:                                            # escalate, or budget exhausted -> forced up
+            if v.action == "request_more":
+                # R-08: the coercion is recorded -- the log must show the tier ASKED for more
+                # but the budget forced the escalation.
+                log[-1]["note"] = "budget-coerced escalate (tier requested more with budget 0)"
             ti += 1
             b = budget
     return None, log
@@ -377,13 +408,18 @@ def main(argv=None):
                     help="'runner' routes FR compute through the bounded local runner (team-safe)")
     a = ap.parse_args(argv)
 
+    def _find_board(name):
+        # R-08: cec_router.find_board is the ONE board-lookup (same skip rules, and a
+        # friendly error instead of a bare IndexError when a module dir has no floorplan).
+        import cec_router
+        try:
+            return cec_router.find_board(name)
+        except FileNotFoundError as e:
+            print(f"cec_dispatch: {e}", file=sys.stderr)
+            sys.exit(2)
+
     if a.cmd == "request-candidates":
-        import glob
-        bp = a.board if a.board.endswith(".kicad_pcb") else None
-        if not bp:
-            cands = [p for p in glob.glob(f"{ROOT}/modules/{a.board}/*.kicad_pcb")
-                     if "-routed" not in p and ".merged." not in p]
-            bp = sorted(cands)[0]
+        bp = _find_board(a.board)
         # the compute (Freerouting / pcbnew) logs to stdout; send that to stderr so stdout is
         # CLEAN JSON the calling agent can parse.
         import contextlib
@@ -406,13 +442,8 @@ def main(argv=None):
                 fh.write(blob)
 
     elif a.cmd == "agent-route":
-        import glob
         import contextlib
-        bp = a.board if a.board.endswith(".kicad_pcb") else None
-        if not bp:
-            cands = [p for p in glob.glob(f"{ROOT}/modules/{a.board}/*.kicad_pcb")
-                     if "-routed" not in p and ".merged." not in p]
-            bp = sorted(cands)[0]
+        bp = _find_board(a.board)               # R-08: one lookup, friendly error
         tiers = list(DEFAULT_TIERS)
         if a.swarm:
             import cec_judge_local

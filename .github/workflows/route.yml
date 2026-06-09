@@ -32,6 +32,10 @@ on:
           - pcie-8pin-3port
           - 12vhpwr-standard
           - atx-24pin
+          # rev2 is the current 24-pin line (QUILTER-CONSTRAINTS.md). NOTE: Freerouting on
+          # rev2 must honor the same locked placements Quilter is forbidden to move
+          # (connectors, shunts, INAs, U1 region); placement edits only via apply_edit (R-07).
+          - atx-24pin-rev2
       seeds:
         description: "Comma-separated Freerouting param-variant seeds"
         default: "0,1,2,3"
@@ -117,6 +121,38 @@ jobs:
             --opt-spread  "${{ inputs.opt_spread }}" \
             --out         "build/route/${{ inputs.board }}" \
             --render
+
+      # ---- run summary (R-04): the verdict is visible on the run page, not only inside
+      # the artifact -- a "sign-off withheld" run exits 0 by design and looked identical
+      # to success before this step.
+      - name: Run summary (Linux/macOS)
+        if: always() && runner.os != 'Windows'
+        run: |
+          {
+            echo "## Route: ${{ inputs.board }}"
+            LOG=$(ls build/route/${{ inputs.board }}/*-decision-log.json 2>/dev/null | head -1)
+            if [ -n "$LOG" ]; then
+              echo '```json'
+              python3 -c "import json; print(json.dumps(json.load(open('$LOG')).get('final'), indent=2))"
+              echo '```'
+            else
+              echo "_no decision log produced (route failed before logging)_"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run summary (Windows)
+        if: always() && runner.os == 'Windows'
+        shell: 'powershell -ExecutionPolicy Bypass -Command "{0}"'
+        run: |
+          $lines = @("## Route: ${{ inputs.board }}")
+          $log = Get-ChildItem "build/route/${{ inputs.board }}/*-decision-log.json" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($log) {
+            $final = (Get-Content $log.FullName -Raw | ConvertFrom-Json).final | ConvertTo-Json -Depth 6
+            $lines += '```json'; $lines += $final; $lines += '```'
+          } else {
+            $lines += "_no decision log produced (route failed before logging)_"
+          }
+          $lines | Add-Content $env:GITHUB_STEP_SUMMARY
 
       # ---- collect ----
       - name: Upload routed candidate + decision log + render
