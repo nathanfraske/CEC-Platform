@@ -516,6 +516,117 @@ def add_via_field(board, fields):
 
 
 # ---------------------------------------------------------------------------
+# synthesize_power_copper -- the high-current copper SYNTHESIZER (not a router)
+# ---------------------------------------------------------------------------
+def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"),
+                            via_per_net=16, via_drill=0.5, via_dia=0.9, via_pitch=1.0,
+                            strip_redundant=True, kelvin_pairs=None):
+    """SYNTHESIZE fab-grade high-current copper for the cable force path -- construct it to spec, don't
+    autoroute-then-patch it. Freerouting models a 40A net as a 0.2mm wire; the right object is a copper
+    POUR + via field. For each cable FORCE net (J_IN->shunt = *_HI, shunt->J_OUT = *_LO) this lays a
+    SOLID F.Cu+B.Cu MIRROR pour over the connector->shunt corridor (doubling the cross-section), stitched
+    by a same-net VIA FIELD that carries the current between the two outer layers and through the shunt-
+    terminal neck (the §6.7/OQ-10 via array); the four-wire Kelvin tap window (shunt inner edge -> INA,
+    which derive_power_pours deliberately excludes) is left open.
+
+    Runs AFTER Freerouting (purely ADDITIVE same-net copper, like add_power_pours -> never strands the
+    sense tap). Then, BECAUSE the pour is now the solid conductor, it STRIPS the redundant thin force
+    traces FR laid inside the pour (keeping the sense taps that exit it) -- so the zone carries the
+    current, not the trace. Realises corpus rules high-current-copper-area-not-traces /
+    -pour-on-outer-layers / high-current-via-stitch-spacing. Verify with cec_constraints
+    (min-pour-cross-section) and cec_synth_pipeline.physics (electrothermal FEM). Returns a report dict.
+
+    Pre-req: route the board WITH the force-corridor keepouts active (cec_router _vital_keepouts_from_
+    rules) so both the F.Cu AND B.Cu corridors are clear -> both mirror layers fill solid."""
+    from collections import defaultdict
+    import shutil
+    # names/kelvin from a READ-ONLY load of board_path (pcbnew shares the cached BOARD per path, so the
+    # MUTABLE board must come from a DIFFERENT path -- else mutating it corrupts the board_path loads the
+    # derive_*() helpers re-read).
+    src = pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in src.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+
+    # All file-reading derivations (each re-loads board_path read-only) BEFORE we touch the mutable copy.
+    base = derive_power_pours(board_path, kelvin_pairs=kelvin_pairs)
+    fields = derive_via_field(board_path, per_net=via_per_net, drill=via_drill, dia=via_dia,
+                              pitch=via_pitch, kelvin_pairs=kelvin_pairs)
+    pours = [{**p, "layer": layer, "priority": 2, "min_thickness": 0.25}
+             for p in base for layer in pour_layers]
+
+    # The MUTABLE board is a COPY at out_path (its own pcbnew cache entry); carry the .kicad_pro/.kicad_dru
+    # so DRC context travels. The router's pour-after-route step may already have laid a SINGLE-layer F.Cu
+    # pour on each force net; remove those so THIS synthesizer is the SOLE owner of the power copper --
+    # else the new F.Cu mirror stacks on the old one (zones_intersect + isolated_copper DRC).
+    shutil.copy2(board_path, out_path)
+    for ext in (".kicad_pro", ".kicad_dru"):
+        s = board_path[:-len(".kicad_pcb")] + ext
+        if os.path.isfile(s):
+            shutil.copy2(s, out_path[:-len(".kicad_pcb")] + ext)
+    board = pcbnew.LoadBoard(out_path)
+    for z in list(board.Zones()):
+        if z.GetNetname() in force_nets:
+            board.Remove(z)
+
+    # 1. force-corridor rects MIRRORED onto every pour layer; 2. same-net via field stitching F<->B
+    added_zones = add_power_pours(board, pours, fill=False)
+    added_vias = add_via_field(board, fields)
+
+    # 3. fill the mirror pours with the real engine (UnFill first -- re-fill segfault guard)
+    for z in board.Zones():
+        z.UnFill()
+    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+
+    # SAVE the solid-pour baseline (un-stripped) first -- if the strip below disconnects anything it
+    # is REVERTED to exactly this.
+    pcbnew.SaveBoard(out_path, board)
+
+    # 4. strip the redundant FORCE traces the solid pour now carries (keep taps that exit the pour),
+    # but ONLY if it does not disconnect the net. The pour can still have a fill-neck where a foreign
+    # trace crosses it (-> two same-net islands the in-pour trace bridges); removing that bridge would
+    # strand the net, so the strip is CONDITIONAL: revert the whole batch if unconnected count rises.
+    stripped = 0
+    strip_reverted = False
+    if strip_redundant:
+        board.BuildConnectivity()
+        unc0 = board.GetConnectivity().GetUnconnectedCount(False)
+        pour_polys = defaultdict(list)
+        for z in board.Zones():
+            if z.GetNetname() in force_nets:
+                pour_polys[z.GetNetname()].append(z.Outline())
+        remove = []
+        for t in board.GetTracks():
+            if t.Type() != pcbnew.PCB_TRACE_T:
+                continue
+            nm = t.GetNetname()
+            if nm not in pour_polys:
+                continue
+            s, e = t.GetStart(), t.GetEnd()
+            if all(any(poly.Contains(pt) for poly in pour_polys[nm]) for pt in (s, e)):
+                remove.append(t)                       # both ends inside the same-net pour -> candidate
+        if remove:
+            for t in remove:
+                board.Remove(t)
+            for z in board.Zones():
+                z.UnFill()
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+            board.BuildConnectivity()
+            unc1 = board.GetConnectivity().GetUnconnectedCount(False)
+            if unc1 <= unc0:                           # pour genuinely holds -> commit the strip
+                stripped = len(remove)
+                pcbnew.SaveBoard(out_path, board)
+            else:                                       # a bridge -> keep the traces (out_path stays baseline)
+                strip_reverted = True
+
+    return {"out": out_path, "force_nets": sorted(force_nets), "mirror_pours": len(added_zones),
+            "via_field": len(added_vias), "stripped_force_traces": stripped,
+            "strip_reverted": strip_reverted}
+
+
+# ---------------------------------------------------------------------------
 # normalize_via_annular -- fix Freerouting's thin-annular vias
 # ---------------------------------------------------------------------------
 def normalize_via_annular(board, *, min_annular: float = 0.10,
