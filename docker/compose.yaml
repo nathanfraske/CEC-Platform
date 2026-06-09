@@ -267,6 +267,45 @@ services:
               count: all
               capabilities: [gpu]
 
+  # FAST manager -- gpt-oss-120b MXFP4 (117B MoE, 5.1B active, 63.4 GB split GGUF):
+  # manager-class judgment at several-x the MiniMax/235B decode speed. Experts all in
+  # RAM (~58 GB of 122 GiB -- comfortable), attention/KV on the 5090. Registry name
+  # cec-manager-fast; use it when manager-quality reasoning is wanted without the
+  # deep-model latency.
+  manager-fast:
+    profiles: ["manager-fast"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8005:8005"
+    volumes:
+      - "/mnt/e/AI Models/gpt-oss-120b:/models:ro"
+    command:
+      - "-m"
+      - "/models/gpt-oss-120b-mxfp4-00001-of-00003.gguf"
+      - "--alias"
+      - "cec-manager-fast"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8005"
+      - "-ngl"
+      - "99"
+      - "--n-cpu-moe"
+      - "${CEC_OSS_NCPUMOE:-99}"             # all experts in RAM (fits easily)
+      - "--ctx-size"
+      - "${CEC_OSS_CTX:-16384}"
+      - "-fa"
+      - "auto"
+      - "--jinja"                            # gpt-oss harmony chat template
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
   # Placeholder for the physics tier (Elmer / openEMS via gerber2ems). Filled in Phase 2/3.
   # fem:
   #   profiles: ["fem"]
