@@ -37,8 +37,13 @@ services:
     environment:
       # Point cec_fr at the headless REST server instead of spawning a local jar (Task #2 wiring):
       - CEC_FREEROUTING_URL=http://freerouting:37864
-      # The local vLLM judge tier (Thrust A) -- reachable as the compose service `inference`:
-      - CEC_VLLM_URL=http://inference:8000/v1
+      # The local LLM judge tier goes through the cec-llm-broker on the HOST (:8080), which serializes
+      # GPU access against the other LLM project on this box and routes by model name (cec-judge -> the
+      # `inference` vLLM :8000 published on the host). host.docker.internal -> host via the extra_hosts
+      # gateway below. Fail-fast: broker down -> connection-refused -> the judge's deterministic fallback.
+      - CEC_VLLM_URL=http://host.docker.internal:8080/v1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       - freerouting
     command: ["sleep", "infinity"]          # stay alive; exec in or use `compose run`

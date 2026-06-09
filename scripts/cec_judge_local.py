@@ -37,10 +37,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-# inside the routing container the server is reachable as the compose service `inference`;
-# from the host it is http://localhost:8000. Override with CEC_VLLM_URL.
-VLLM_URL = os.environ.get("CEC_VLLM_URL", "http://localhost:8000/v1").rstrip("/")
-MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-judge")     # --served-model-name in compose
+# LLM access is BROKERED by default through the cec-llm-broker (/home/nathan/cec-llm-broker): a tiny
+# OpenAI-compatible reverse proxy on :8080 that FIFO-SERIALIZES per upstream so this project and the
+# OTHER LLM project on this single-GPU box don't thrash the 5090. It ROUTES BY MODEL NAME -- 'cec-judge'
+# -> vLLM :8000 (worker), 'cec-manager' -> llama.cpp :8001 (the 235B manager) -- so pointing every call
+# at the broker and keeping the model names is all it takes. Fail-fast: if the broker is down the client
+# gets connection-refused and the judge fails safe to its deterministic/no_opinion path. Bypass straight
+# to an upstream with CEC_VLLM_URL=http://localhost:8000/v1. Inside the routing container the broker is
+# the host, so there CEC_VLLM_URL=http://host.docker.internal:8080/v1 (set in docker/compose.yaml).
+BROKER_URL = os.environ.get("CEC_LLM_BROKER_URL", "http://localhost:8080/v1").rstrip("/")
+VLLM_URL = (os.environ.get("CEC_VLLM_URL") or BROKER_URL).rstrip("/")
+MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-judge")     # --served-model-name; broker routes this -> :8000
 # Optional TIERING: workers (cheap, high-volume effort-sizing) can use a SMALLER served model than the
 # managers (judgment). Defaults to the manager model -- the worker is ALREADY cheap (the manager model
 # is a MoE 30B-A3B = 3B active params/token), so this only earns its keep if a bigger MANAGER model is
@@ -95,18 +102,26 @@ SYSTEM = (
 )
 
 
+# X-CEC-Client lets the broker's /broker/stats + contention logs attribute requests to this project
+# (vs the other LLM project sharing the GPU); harmless when talking straight to an upstream.
+_CLIENT_HEADERS = {"Content-Type": "application/json", "X-CEC-Client": "CEC-Platform"}
+
+
 def _post(path, payload, timeout=None, url=None):
     req = urllib.request.Request((url or VLLM_URL) + path, data=json.dumps(payload).encode(),
-                                 headers={"Content-Type": "application/json"}, method="POST")
+                                 headers=dict(_CLIENT_HEADERS), method="POST")
     with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
         return json.load(r)
 
 
 def available(timeout=3, url=None):
-    """True if the server at `url` (default the worker VLLM_URL) answers /models (the judge is up).
-    Cheap pre-check before wiring. Pass url=MANAGER_URL to probe the big manager endpoint instead."""
+    """True if the server at `url` (default VLLM_URL, i.e. the broker) answers /models (the judge is up).
+    Cheap pre-check before wiring. Pass url=MANAGER_URL to probe the manager endpoint instead. NOTE: the
+    broker proxies /models to its DEFAULT upstream (the manager :8001), so through the broker this is a
+    manager-liveness probe; worker readiness is checked directly by the caller (e.g. cec_overnight)."""
     try:
-        with urllib.request.urlopen((url or VLLM_URL) + "/models", timeout=timeout) as r:
+        req = urllib.request.Request((url or VLLM_URL) + "/models", headers={"X-CEC-Client": "CEC-Platform"})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
             return bool(json.load(r).get("data"))
     except Exception:
         return False

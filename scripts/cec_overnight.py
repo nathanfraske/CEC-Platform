@@ -39,8 +39,11 @@ REVIEW_DIR = os.path.join(OUT_DIR, "reviews")
 WORKER_URL = "http://localhost:8000/v1/models"
 MANAGER_HEALTH = "http://localhost:8001/health"
 
-# host-side reviews target the manager endpoint; set BEFORE importing cec_judge_local (reads at import)
-os.environ.setdefault("CEC_VLLM_MANAGER_URL", "http://localhost:8001/v1")
+# host-side reviews go through the cec-llm-broker (:8080) so they SERIALIZE against the other LLM project
+# sharing this GPU; the broker routes model 'cec-manager' -> llama.cpp :8001. (The WORKER_URL/MANAGER_HEALTH
+# probes above stay DIRECT -- liveness/model-swap checks, not GPU-contended generation.) set BEFORE
+# importing cec_judge_local (reads at import).
+os.environ.setdefault("CEC_VLLM_MANAGER_URL", "http://localhost:8080/v1")
 os.environ.setdefault("CEC_VLLM_MANAGER_MODEL", "cec-manager")
 
 _LOGF = None
