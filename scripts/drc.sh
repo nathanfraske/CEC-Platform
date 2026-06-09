@@ -5,6 +5,9 @@
 # Design rule check for one board layout.
 #   usage: scripts/drc.sh <board.kicad_pcb>
 #   exit:  0 clean, 5 violations (see JSON report), other = tool error
+#   env:   CEC_SEVERITY_FLAGS — extra kicad-cli severity args (e.g. --severity-error
+#          to gate on errors only; check-all.sh sets this so the CI gate doesn't
+#          fail on documented-benign warning noise). Default: all severities.
 source "$(dirname "${BASH_SOURCE[0]}")/_common.sh"
 
 pcb="${1:-}"
@@ -15,7 +18,8 @@ pcb="$(abspath "$pcb")"
 report="$(out_dir_for "$pcb")/drc.json"
 
 rc=0
-"$CEC_KICAD" pcb drc --exit-code-violations --format json -o "$report" "$pcb" || rc=$?
+# shellcheck disable=SC2086  -- CEC_SEVERITY_FLAGS is deliberately word-split
+"$CEC_KICAD" pcb drc ${CEC_SEVERITY_FLAGS:-} --exit-code-violations --format json -o "$report" "$pcb" || rc=$?
 case "$rc" in
   0) printf 'DRC clean: %s\n' "$(board_name "$pcb")" ;;
   5) printf 'DRC VIOLATIONS: %s — see %s\n' "$(board_name "$pcb")" "$report" >&2 ;;
