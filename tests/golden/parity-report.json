@@ -1,0 +1,1510 @@
+{
+ "corpus_only": [
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-gnd-row-outer-12v-row-inner",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "12vhpwr-j4-pigtail-strain-relief",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-molex-2191161161-polarity",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "12vhpwr-ntc-placement",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-sideband-passthrough",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-sideband-passthrough-and-tap",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-std-divider-0p1pct",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-std-ina240-rc-filters",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-std-ntc-thermistors",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "12vhpwr-std-vrail-div-adc-cap",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "24pin-minifit-male-j3-j4",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "24pin-molex-5569-j3-j4-male",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "24pin-rj45-vcc-no-connect",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "2oz-outer-copper-high-current",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "4700uf-holdup-cap-thermal",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "bom-target-12vhpwr-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "bom-target-atx-24pin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "bom-target-eps-8pin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "bom-target-hub-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "button-ts1088-not-evq",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "cable-column-pitch-uniform-eps-pcie",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "can-coupled-routing",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-hub-only-120-ohm-split-termination",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-no-fd-transceiver",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-pair3-twisted",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "can-routing-paired-coupled-trace",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "can-star-stub-equalization",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-termination-hub-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-termination-hub-only-split-120",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-transceiver-near-esp-can-pins",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "can-transceiver-tja1051t3-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "can.bitrate.classical_500k",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "can.termination.hub_split_120r",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "cec-logo-b-cu-not-under-esp",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "chassis-tim-land-under-eps-pcie-shunts",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "comparator-output-ors-into-freeze",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "conductor-temp-budget",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "copper-pour-after-route",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-code-resistor-pro-rs485",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-code-resistor-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-code-resistor-value-per-module",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-esd-diode-adjacent-rj45-pin8",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-esd-diode-package-correct",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-esd-diode-sod323",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "detect-pullup-hub-side-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "divider-resistors-0p1-percent-hpwr",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "divider-resistors-0p1pct-tolerance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "eps-minifit-87427-connectors",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "eps-pcie-connector-pinmap-gnd-low-12v-high",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "eps-pcie-jin-top-jout-bottom",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "eps-pcie-molex-87427-45586-polarity",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "eps-pcie-section613-ina181-tlv7011",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "eps-pcie-shunt-tim-land",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "erc-clean",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "esp32-away-from-shunt-heat",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "esp32-c6-mini-antenna-dropped-wired-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "esp32-mini-antenna-keepout-conditional",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "esp32-wroom-antenna-keepout",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "esp32-wroom-antenna-keepout-hub",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "fiducial-attributes-board-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "fiducial-count-minimum-3",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "fiducial-not-under-functional-part",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "fiducial-placement-three-non-collinear",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "fiducials-three-per-board",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ftp-shield-grounding",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ftp-shielded-rj45-kinghelm",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "gnd-plane-continuity",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "gnd-plane-intact-under-sense",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "headless-false-artifact-sk6812-pad-short",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "headless-false-artifact-stale-zone-fill",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "headless-false-artifact-sw-mask-bridge",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "high-current-connector-heat",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "high-current-copper-area-not-traces",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "high-current-corridor-clear",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "high-current-path-inline-no-bypass",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "high-current-pour-on-outer-layers",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "high-current-via-signal-corridor",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "high-current-via-stitch-spacing",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hold-up-cap-isolated-reservoir",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hold-up-cap-panasonic-4700uf",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hold-up-cap-polarity-orientation",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hpwr-12v-power-path-top-to-bottom",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "hpwr-board-mount-no-header",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hpwr-cec-12v2x6-footprint",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hpwr-high-current-corridor-keepout",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "hpwr-j3-top-j4-bottom",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hpwr-pin-polarity-check",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-bulk-power-jst-xh",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-detect-esd-4-ports",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "hub-holdup-cap-aluminum-electrolytic",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-jst-xh-bulk-power",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-lp5907-ldo",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "hub-m3-four-corners",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-nanokvm-s5b-ph-k-s",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-nanokvm-uart-33ohm-ratiometric",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-rj45-ports-four",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-sk6812-level-shifter",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-th1-separate-from-hotspots",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-tps2121-mux",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "hub-usblc6-esd",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina-adjacent-to-shunt",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina181-adjacent-to-shunt",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina181-one-per-cable-no-mux",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina181-own-kelvin-pair-independent-of-ina238",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina181-tlv7011-in-column-eps-pcie",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina240-antialiasing-rc-filter-values",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina240-column-per-pin-lane",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "ina240-no-internal-temp",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina240-rc-filter-symmetry",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina240-soic8-d-package-mandatory",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ina240-soic8d-package-not-tssop",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "kelvin-four-wire-topology",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "kelvin-pair-length-matched",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "kelvin-sense-hard-gate",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "kelvin-sense-layer-and-length",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "kelvin-sense-on-top-layer",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "kelvin-sense-top-layer",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "kelvin-tap-inner-shunt-edge",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "kelvin-taps-matched-length-sense",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ldo-bypass-in-out-adjacent",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ldo-separate-from-ntc",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "library-kiprjmod-relative-paths",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "library-paths-kiprjmod-relative",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "logo-attributes-board-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "logo-layer-assignment-bcu",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "logo-not-in-high-current-corridor",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "logo-not-under-esp-antenna",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "m3-mount-gnd-chassis-bond",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "m3-mount-holes-chassis-gnd",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "m3-mounting-holes-chassis-grounded",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "m3-mounts-at-corners",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "m3-mounts-on-gnd-net",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "mcu-12vhpwr-std-s3-mini1",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "mcu-digital-modules-c6-mini1",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "mcu-hub-standard-wroom",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "module-m3-three-mounts",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "module-usb-c-flash-debug",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "mounting-hole-corner-placement",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "mounting-hole-count-hub",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "mounting-holes-gnd-tied",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "nanokvm-aux-right-angle-jst-ph",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "nanokvm-jst-ph-right-angle",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "nanokvm-pin-assignment",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "nanokvm-uart-series-resistors",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "no-distributed-vref-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "no-single-node-nets",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ntc-present-12vhpwr-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ntc-present-hub-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ntc-th1-adjacent-shunt",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ntc-th1-at-shunt-row",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ntc-th2-ambient-cool-corner",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ntc-th2-ambient-separate",
+   "zone": "staging"
+  },
+  {
+   "checkable": "no",
+   "entry": "oq10-vertical-transition-open",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "oq11-shunt-part-not-locked-eps-pcie-hpwr",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "pcb-finish-enig-matte-black",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "pcie-minifit-45586-connectors",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "per-cable-shunt-heat-spread",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "pesd-sod323-not-sod882",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "pin7-reserved-not-aux-ref",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "power-connector-mouth-faces-board-edge",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "power-trace-width-floor",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "ps-connector-male-not-female-24pin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "psu-connector-overhang-edge",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rail-divider-adc-cap-at-node",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rail-divider-input-nearest-pin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rail-voltage-divider-adc-range",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rc-antialiasing-filter-at-ina-pins",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "rc-filter-placed-at-ina-end-not-shunt",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ref3030-away-from-heat",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ref3030-bypass",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ref3030-near-esp-in-adc-range",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "ref3030-not-ref3033",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rfl-rfh-matched-0p1-percent",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "rj45-connector-current-rating",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "rj45-connector-mouth-edge",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-ftp-footprint",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-ftp-shield-tabs-gnd",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-link-not-minifitjr",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-link-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "rj45-min-current-rating",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin-allocation",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin1-vcc",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin2-gnd",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin3-canh",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin4-5-stream-pro-only",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin6-canl",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin7-reserved",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin7-reserved-not-aux-ref",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pin8-detect",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-pins45-std-unused",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rj45-shield-gnd",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "rj45-shield-tabs-silk-clearance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rs485-standard-tier-not-populated",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "rs485-tiering",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "section613-comparator-glitch-filter",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sense-ic-adjacent-shunt-kelvin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "sense-ic-away-from-shunt-selfheat",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sense-ic-count-matches-cable-pin-count",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "sense-ic-thermal-separation-from-pour",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-12vhpwr-pro-ltc2358-ina240",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-12vhpwr-std-ina240-6",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-12vhpwr-std-ref-inputs-gnd",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-12vhpwr-std-ref3030",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-24pin-ina228",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-eps-ina238",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sensing-ic-pcie-ina238",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "shunt-chassis-thermal-coupling-eps-pcie",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "shunt-copper-heatsink",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-count-matches-sense-ic-bijection",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "shunt-kelvin-4wire",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-kelvin-footprint-4terminal",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "shunt-low-tcr-metal-element-required",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-over-temp",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "shunt-power-rating-margin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-rotation-hi-upper-terminal",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "shunt-thermal-vias",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-value-12vhpwr-per-pin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-value-12vhpwr-std",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-value-24pin-5vsb",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-value-24pin-main-rails",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-value-eps-pcie",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "shunt-value-eps-pcie-per-cable",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sideband-sense-pins-gpio-taps-hpwr",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "signal-board-edge-clearance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "silk-no-overlap-pads",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "silk-values-on-f-silks",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sk6812-level-shift-buffer",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "sk6812-level-shifter-near-esp-gpio",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "test-points-if-room",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "thermal-env-enclosed-passive-derating",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "thermal-separation-shunts-from-logic",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.ipc2152.ref.plane_adjacent",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.k_ipc.external",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.k_ipc.internal",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.shunt_chassis_tim.eps_pcie",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "threshold-reference-shared-per-board",
+   "zone": "staging"
+  },
+  {
+   "checkable": "no",
+   "entry": "tim-pad-under-hicurrent-shunts",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "tja1051-decoupling",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "usb-c-edge-adjacent-mcu",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "usb-diff-pair-matched-side-swap",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "usb-diffpair-impedance-window",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "usb-dp-dn-diff-pair",
+   "zone": "staging"
+  },
+  {
+   "checkable": "no",
+   "entry": "usb-hs-hub-pro-impedance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "via-current-rating-high-current-paths",
+   "zone": "staging"
+  },
+  {
+   "checkable": "partial",
+   "entry": "via-field-sized-for-current",
+   "zone": "staging"
+  },
+  {
+   "checkable": "yes",
+   "entry": "vrail-div-adc-cap",
+   "zone": "staging"
+  }
+ ],
+ "counts": {
+  "corpus_only": 246,
+  "matched": 20,
+  "registry": 34,
+  "registry_orphan": 14,
+  "tombstones": 0
+ },
+ "matched": [
+  {
+   "entry": "can-transceiver-tja1051t3",
+   "linked": false,
+   "registry": "can-transceiver-tja1051t3",
+   "status": "proposed",
+   "tier": "exact-id",
+   "zone": "staging"
+  },
+  {
+   "entry": "connector-mouth-faces-board-edge",
+   "linked": false,
+   "registry": "connector-mouth-faces-edge",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "eps-pcie-connector-overhang",
+   "linked": false,
+   "registry": "connector-overhang-bounded",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "decoupling-cap-owner-ic",
+   "linked": false,
+   "registry": "decoupling-cap-owner",
+   "status": "proposed",
+   "tier": "prefix",
+   "zone": "staging"
+  },
+  {
+   "entry": "detect-esd-diode",
+   "linked": false,
+   "registry": "detect-esd-diode-pin8",
+   "status": "proposed",
+   "tier": "prefix",
+   "zone": "staging"
+  },
+  {
+   "entry": "detect-resistor-code",
+   "linked": false,
+   "registry": "detect-resistor-code",
+   "status": "proposed",
+   "tier": "exact-id",
+   "zone": "staging"
+  },
+  {
+   "entry": "esp32-antenna-keepout-wireless-vs-wired",
+   "linked": false,
+   "registry": "esp-antenna-keepout",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "high-current-corridor-keepout",
+   "linked": false,
+   "registry": "high-current-corridor-keepout",
+   "status": "proposed",
+   "tier": "exact-id",
+   "zone": "staging"
+  },
+  {
+   "entry": "high-current-pour-after-route-ordering",
+   "linked": false,
+   "registry": "high-current-pour-integrity",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "high-current-pour-after-route-ordering",
+   "linked": false,
+   "registry": "high-current-pour-present",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "high-current-stackup-2oz-outer",
+   "linked": false,
+   "registry": "high-current-stackup-2oz",
+   "status": "proposed",
+   "tier": "prefix",
+   "zone": "staging"
+  },
+  {
+   "entry": "12vhpwr-per-pin-lane-symmetry",
+   "linked": false,
+   "registry": "ina-lane-symmetry-12vhpwr",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "kelvin-sense-adjacent-shunt",
+   "linked": false,
+   "registry": "kelvin-sense-adjacent-shunt",
+   "status": "proposed",
+   "tier": "exact-id",
+   "zone": "staging"
+  },
+  {
+   "entry": "kelvin-sense-adjacent-shunt",
+   "linked": false,
+   "registry": "kelvin-sense-from-inner-pad",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "logo-bcu-keepout-or-gnd",
+   "linked": false,
+   "registry": "logo-bcu-keepout",
+   "status": "proposed",
+   "tier": "prefix",
+   "zone": "staging"
+  },
+  {
+   "entry": "m3-mount-clear-of-connectors",
+   "linked": false,
+   "registry": "mount-holes-present-clear",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "rj45-link-connector",
+   "linked": false,
+   "registry": "rj45-link-pinmap",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "shunt-value-per-spec-table",
+   "linked": false,
+   "registry": "shunt-values-per-table",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "ipc-2221-high-current-trace-width",
+   "linked": false,
+   "registry": "trace-width-high-current",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  },
+  {
+   "entry": "usb-diffpair-hard-gate",
+   "linked": false,
+   "registry": "usb-diffpair-routed-coupled",
+   "status": "proposed",
+   "tier": "tokens",
+   "zone": "staging"
+  }
+ ],
+ "registry_orphan": [
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "board-routing-complete",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "bom-field-lint",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "can-coupled-no-module-term",
+   "section_candidates": [
+    "can-coupled-routing",
+    "can-routing-paired-coupled-trace",
+    "can-star-stub-equalization"
+   ],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "diffpair-pn-naming",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "fiducials-present",
+   "section_candidates": [],
+   "status": "proposed"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "footprint-matches-datasheet",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "hot-sensitive-separation",
+   "section_candidates": [
+    "chassis-tim-land-under-eps-pcie-shunts",
+    "eps-pcie-shunt-tim-land",
+    "esp32-away-from-shunt-heat"
+   ],
+   "status": "proposed"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "ic-power-ground-connected",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "kelvin-sense-fcu-no-via",
+   "section_candidates": [
+    "high-current-path-inline-no-bypass",
+    "ina-adjacent-to-shunt",
+    "kelvin-four-wire-topology"
+   ],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "min-pour-cross-section",
+   "section_candidates": [],
+   "status": "proposed"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "netclass-geometry-conformance",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "ntc-board-temp-by-shunt",
+   "section_candidates": [
+    "chassis-tim-land-under-eps-pcie-shunts",
+    "eps-pcie-shunt-tim-land",
+    "esp32-away-from-shunt-heat"
+   ],
+   "status": "proposed"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "sch-pcb-sync",
+   "section_candidates": [],
+   "status": "ratified"
+  },
+  {
+   "action": "draft a corpus entry, then promote + tombstone",
+   "registry": "shunt-inline-in-corridor",
+   "section_candidates": [
+    "2oz-outer-copper-high-current",
+    "gnd-plane-continuity",
+    "gnd-plane-intact-under-sense"
+   ],
+   "status": "ratified"
+  }
+ ],
+ "tombstones": []
+}

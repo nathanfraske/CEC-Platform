@@ -149,23 +149,100 @@ documentation (RB-04 finding, noted in CODEOWNERS).
 </details>
 
 ### Wave 2 (protective checks — buildable today from the two audits)
-- **CL-25 audit check pack + intake gate:** six named checks with stable IDs in
-  `cec_constraints.py` (netclass-membership + per-net via/track geometry vs class minima —
-  also unblocks CL-11's via golden; thermal keep-apart; cap-to-node proximity; BOM lint;
-  sch↔pcb sync/freshness; per-board netlist assertions). Intake gate: refuse candidate
-  generation for boards failing the schematic-side subset.
-- **CL-11 golden seeding:** four fixtures (Hub pre/post TPS2121 — expected-fail until its
-  Class B entry exists per AM-02; 12VHPWR pre/post lane-vias) + CI invariants by flag ID +
-  the golden/holdout split (goldens gate CI; holdout grows from overrides/bench labels and is
-  never tuned against).
-- **CL-19 extractor fidelity eval:** (trace, gold) pairs seeded from the two audits; span
-  existence 100%, zero hallucinated verdicts; gates the extractor binding in policy (CI <1 min).
-- **CL-03 compiler (full):** corpus→artifact compilation from promoted entries only
-  (`.kicad_dru` fragments, netlist assertions, keep-apart tables, scorer limits) + staging→
-  `ADV-` advisory set wired through the cascade with `human_signoff` exclusion + RB-02
-  pushdown table (generated, fixture-validated per target, FR-fact-aware per §2.3).
-  Includes deciding how the hand-maintained registry derives from / reconciles with promoted
-  entries — flag to owner if any registry rule lacks a promotable source.
+- **CL-25 audit check pack + intake gate: LANDED 2026-06-10.** The six classes as stable IDs
+  (`cec_constraints.CL25_CLASSES`): three NEW checkers — `netclass-geometry-conformance`
+  (per-net track/via vs `.kicad_pro` class minima; Kelvin-stub track exemption on shared
+  force+sense nets, same split as `derive_cross_section_dru`; vias always checked — **fires
+  on the committed 12VHPWR**, the audit's lane-via pre-fix state, so the CL-11 via golden is
+  unblocked), `bom-field-lint` (placeholder/empty patterns; OQ-11/THT known-open gaps noted
+  not failed), `sch-pcb-sync` (instance-ref set diff with lib_symbols excision + board-only
+  ref exclusion; freshness in detail) — and three mapped to pre-existing checkers (thermal
+  keep-apart, cap-to-node, netlist assertions). `intake_gate()` runs the schematic-side
+  subset + live severity-ERROR ERC (benign-filtered; DRAFT boards skip per repo convention)
+  and is wired into `cec_router.route()` — refusal raises with NAMED reasons, ledger-logged
+  (`mode=intake`), `CEC_SKIP_INTAKE=1` overrides. CLI: `cec_constraints.py <board> --intake`.
+  Also: `detect-resistor-code` taught the Hub posture (≥2 RJ-45/DETECT ⇒ expect the §2.3
+  10k pull-ups, not the module code value — was a false-fail on Hub Standard); synth-pipeline
+  DFM stage gained `netclass_geometry` (delegating Check). Verified in-container: EPS ADMIT
+  (DRAFT ERC-skip), Hub ADMIT (honest — its refs ARE in sync; the CLAUDE.md J7-pending
+  narrative was stale), 12VHPWR netclass fire, cross-wired-sch refusal with named reasons;
+  10 tests (`tests/test_cl25_checks.py`); SB-08 golden PASS post-change.
+- **CL-11 golden seeding: LANDED 2026-06-10.** Four frozen fixtures under
+  `tests/golden/fixtures/` (owner-gated path): `12vhpwr-pre-lanevias` = the committed board
+  (still carries the audit's signal-size lane vias; measured 240 via-dimension hits on
+  `/SENSEP*`, band floor 100), `12vhpwr-post-lanevias` = derived known-good (337 vias
+  normalized to class minima via `cec_golden_fixtures.py --freeze`; invariant: ZERO via hits
+  anywhere, while track hits remain by design — net-scoped assertions ride the new checker
+  payload), `hub-pre/post-tps2121` = git `a271253~1`/`a271253` schematics (the four-resistor
+  R15–R18 divider commit) with the **expected-fail marker** on pre (the TPS2121 Class B
+  entry doesn't exist; the gap reports VISIBLY, and the runner FAILS the day a bound check
+  starts firing, forcing the marker flip per AM-02). Runner `scripts/cec_golden_fixtures.py`
+  (verify = CI gate; `--freeze` = derived-fixture regeneration, owner-reviewed); manifest
+  `tests/golden/fixtures.json`. CI: new kicad-checks.yml step running the verifier inside
+  the pinned KiCad image (pcbnew), unconditional (superset of the framework's path scope).
+  Holdout split: `tests/holdout/` created with the never-tune rules — grown from adjudicated
+  overrides/bench labels, thin-is-honest. Teeth verified in-container (swapped post-fixture
+  → FAIL exit 1); 8 host tests (`tests/test_golden_fixtures.py`).
+- **CL-19 extractor fidelity eval: MACHINERY + RECONSTRUCTED REGISTER LANDED 2026-06-10**
+  per the owner's CL-19/AM-04 rulings doc (vendored:
+  `docs/cl19-am04-implementation-rulings-2026-06-10.md`). Decision 7 CLOSED early as the
+  two-layer lock: `cec-verdict-core/1` (corpus/SCHEMA.md ratified text +
+  `scripts/cec_verdict_core.py` machine validation) — gold labels never touch the CL-12
+  wrapper. ONE span verifier (`scripts/cec_span_verify.py`: NFC, ws-collapse, trim,
+  case-SENSITIVE, zero fuzz; prose ≥20 chars; locus = exact token + facts-resolve) imported
+  by eval AND the future CL-15 production path (identity-tested). Harness
+  `scripts/cec_extractor_eval.py`: per-register report, gate-of-record computes on the REAL
+  register only (no real cases ⇒ INCOMPLETE, never vacuous PASS); zero-tolerance classes
+  incl. correct-but-unsupported + elevated-aside + synthesis-on-no-conclusion +
+  RB-03 distractor-selected; field-accuracy bar 0.90; per-manifest failure. Gate of record =
+  the owner-written `eval_gate` entry in cec-policy.json ({status, date, eval_set_sha,
+  report_hash, model_manifest, verifier_version, grade:smoke}) — staleness guard live in
+  `cec_policy.binding_problems` (stale sha ⇒ refuses load-bearing). Seed: 12 reconstructed
+  cases (4 standard + 4 ratification skip/distractor + 2 no-conclusion + 2 adversarial),
+  structural leg green; `tests/holdout/extractor/` + CI isolation grep. REAL register: M2.7
+  batch over 8 audit questions (REALITY-ADJUSTED from the ruling's stale Qwen3.5-397B name —
+  M2.7 IS the license-clean analyst per the cleared CL-20 decision); gold labels drafted for
+  owner review at the gate-record ritual. 20 mechanics tests (tests/test_cl19_eval.py).
+- **AM-04 analytic anchors: LANDED 2026-06-10** (same rulings doc). dt_ipc 2221 chart-point
+  regression anchors + Picard closed-form anchor + CONSERVATISM assertions vs IPC-2152
+  plane-adjacent reference points — the reference set is a Class A STAGING corpus entry
+  (`thermal.ipc2152.ref.plane_adjacent`, ONE entry/one dataset; values MODIFIER-DERIVED
+  with owner-verify-pending notes, never test-local constants); the same points tighten
+  into a ±20% accuracy band at calibration (wired-and-latched, never red-by-design).
+  Calibration latch per (family, QUANTITY): `ThermalResult.calibration` +
+  `_calibration_state()` reading CL-13 ledger labels; every thermal flag carries the mark;
+  posture = BLOCKING-with-the-mark (binding=authority vs calibration=accuracy, never
+  conflated — tested). Micro-board composition anchor
+  (`tests/golden/fixtures/am04-microboard/` + DERIVATION.md): pins CURRENT model behavior
+  incl. the segment-sum debt made visible (cross 1.044 = 3×0.348 serial min-cut); the
+  debt fix is PR TWO per Ruling 10, with the derivation as its witness and the SB-08 band
+  re-freeze in that diff. Lint refinement: param-kind shadowing keys on the compile param
+  KEY (two different params legitimately share a scope). 8 anchor tests
+  (tests/test_am04_anchors.py, composition leg in-container).
+- **CL-03 compiler (full): LANDED 2026-06-10** per the owner's implementation-rulings doc
+  (8 rulings; the two threads: promotion authorizes KNOWLEDGE never file writes; capture
+  from the first run). `scripts/cec_corpus_compile.py` (pcbnew-free, deterministic —
+  double-compile byte-identical is a checklist leg): compile block IN the entry (schema rev
+  + `families` scope dim, owner-gated, rides this PR; the 5 general entries are exemplars —
+  the TIM entry correctly carries NO block, value:null = prose by construction); horizon
+  COMPUTED from (target type, class) vs RB-02 caps; AM-02 fixture latch refuses blocking at
+  compile (vacuous now, load-bearing at first promotion); build-time artifacts only under
+  `build/corpus-compiled/<board>/` (assembled dru w/ `# corpus: <id> <hash>` annotations;
+  committed writes stay human-only via `write-section` + drift-scan lint); parity report
+  (matched 20 w/ confidence tiers / orphan 14 incl. the three CL-25-born checkers /
+  corpus-only 245, §-ref hints on orphans) = the re-sign worklist, frozen as
+  `tests/golden/parity-report.json`; pushdown table w/ netclass_min dual rows; ADV wiring =
+  `Flag.binding` (orthogonal to kind/conf) + gate filters at human_signoff/cascade/intake +
+  `assert_no_advisory` at halting paths + per-fire `decisions/adv/<run>.jsonl` sidecar from
+  day one (PC-01); `_param()`/`dt_ipc` promoted-first precedence; staging param deltas =
+  ADV fires, promoted-vs-hand conflict = lint ERROR; registry rows gained
+  corpus_id/superseded_by (tombstones excluded from blocking, never auto-retired). The ONE
+  shared scope resolver seeded `scripts/cec_facts.py` (CL-23's future home; KiCad-10
+  name-ref nets + auto-name unwrap). 18 wave tests (tests/test_cl03_compiler.py, all 9
+  checklist items). REAL FINDINGS surfaced by the new machinery: atx-24pin-rev2 names its
+  CAN pair `/CAN1_P`//CAN1_N` (drift from the platform `_H`/`_L` convention — left as a
+  standing zero-resolution warning for the owner); hub-pro/12vhpwr-pro skeletons warn
+  correctly.
 - **AM-04 analytic FEM anchors:** IPC-2152 trace-heating + closed-form 1D conduction goldens;
   FEM scores marked `uncalibrated` in every bundle until a CL-13 bench label exists. (Also
   carries the SB-08 golden's known model-debt note: segment-sum cross-section optimism.)

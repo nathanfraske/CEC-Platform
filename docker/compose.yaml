@@ -180,6 +180,123 @@ services:
               count: all
               capabilities: [gpu]
 
+  # ---- 2026-06-10 VISION tier (CL-22 local seats; parity plan §6) -------------
+  # Qwen3-VL-32B-Instruct = the grounding-proven JUDGE (RefCOCO-trained; 19.8 GB
+  # weights + 1.2 GB mmproj, fully in VRAM). The two text workers gain eyes via
+  # their mmproj files as SEPARATE services on their own ports/profiles, so the
+  # benched text entries stay untouched. All single-slot, ctx 16k (image
+  # embeddings are token-heavy; the bake-off/panel path is serial). Broker
+  # arbitration: only one vision backend fits the 5090 at a time -- registry
+  # vram_gb entries make it swap. Binding into any panel SEAT is gated on the
+  # CL-22 golden-render eval (pre-fix fixtures fire, post-fix stay quiet).
+  vision-judge:
+    profiles: ["vision-judge"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8006:8006"
+    volumes:
+      - "/mnt/e/AI Models/qwen3-vl-32b:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwen3VL-32B-Instruct-Q4_K_M.gguf"
+      - "--mmproj"
+      - "/models/mmproj-Qwen3VL-32B-Instruct-F16.gguf"
+      - "--alias"
+      - "cec-vision-judge"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8006"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "${CEC_VISION_CTX:-16384}"
+      - "-np"
+      - "1"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  worker-volume-vision:
+    profiles: ["worker-volume-vision"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8012:8012"
+    volumes:
+      - "/mnt/e/AI Models/qwen3.6-35b-a3b:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwen3.6-35B-A3B-UD-Q4_K_M.gguf"
+      - "--mmproj"
+      - "/models/mmproj-F16.gguf"
+      - "--alias"
+      - "cec-worker-vision"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8012"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "${CEC_VISION_CTX:-16384}"
+      - "-np"
+      - "1"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+  worker-quality-vision:
+    profiles: ["worker-quality-vision"]
+    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
+    ipc: host
+    ports:
+      - "8014:8014"
+    volumes:
+      - "/mnt/e/AI Models/qwen3.6-27b:/models:ro"
+    command:
+      - "-m"
+      - "/models/Qwen3.6-27B-Q4_K_M.gguf"
+      - "--mmproj"
+      - "/models/mmproj-F16.gguf"
+      - "--alias"
+      - "cec-worker-quality-vision"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8014"
+      - "-ngl"
+      - "99"
+      - "--ctx-size"
+      - "${CEC_VISION_CTX:-16384}"
+      - "-np"
+      - "1"
+      - "-fa"
+      - "auto"
+      - "--jinja"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
   # MANAGER (new) -- MiniMax-M2.7 229B-A10B, UD-Q3_K_XL by default (102 GB, 4-part
   # split GGUF; llama.cpp loads part 00001 and finds the rest). Path-C decision
   # (2026-06-09): Q3_K_XL FITS FULLY in the 122 GiB page cache, so after one cold

@@ -1,0 +1,56 @@
+[
+ {
+  "id": "cl19-adv-0",
+  "register": "reconstructed",
+  "kind": "adversarial",
+  "board": "hub-standard",
+  "trace": "Hub hold-up review. First an aside: C1 at 4700 uF initially looked undersized for the\nflash-flush hold-up against the LDO load -- but checking section 2.7, the sizing was bench-derived\nfor exactly that flush window, so that concern is dismissed and is not a finding. The actual\nsubject: the D1 Schottky isolating the +5V_HOLD reservoir is SB120 as built, with SS14 named as\nthe drop-in higher-margin alternative; both are fine on the 5 V rail, no action needed.\n\n## Conclusions\nHold-up subsystem accepted: C1 sizing is per the bench-derived section 2.7 window and the D1\nSchottky choice is within margin. No findings.",
+  "gold": {
+   "schema": "cec-verdict-core/1",
+   "subject": {
+    "board": "hub-standard",
+    "candidate_hash": "committed",
+    "run_id": "audit-2026-06-10"
+   },
+   "verdict": {
+    "value": "accept",
+    "basis_spans": [
+     "Hold-up subsystem accepted: C1 sizing is per the bench-derived section 2.7 window"
+    ]
+   },
+   "findings": [],
+   "drafted_entry_refs": [],
+   "confidence": 0.9
+  },
+  "aside_locus": [
+   "C1"
+  ]
+ },
+ {
+  "id": "cl19-adv-1",
+  "register": "reconstructed",
+  "kind": "adversarial",
+  "board": "12vhpwr-standard",
+  "trace": "12VHPWR temperature sensing pass. Aside first: TH1 placement next to the shunt row briefly\nread as a hotspot-coupling mistake -- but that adjacency is the design intent (board/shunt temp is\nthe point, TH2 carries ambient), so dismissed, not a finding. The real check: the v3.7 NTC dividers\nland on ADC2 IO13 and IO14 and both nets are present in the netlist with the 10k legs sourced.\n\n## Conclusions\nTemperature sensing wiring is correct: TH1/TH2 dividers reach IO13/IO14 as designed. Accept with\nno findings; TH1-by-the-shunt is intentional.",
+  "gold": {
+   "schema": "cec-verdict-core/1",
+   "subject": {
+    "board": "12vhpwr-standard",
+    "candidate_hash": "committed",
+    "run_id": "audit-2026-06-10"
+   },
+   "verdict": {
+    "value": "accept",
+    "basis_spans": [
+     "Temperature sensing wiring is correct: TH1/TH2 dividers reach IO13/IO14 as designed"
+    ]
+   },
+   "findings": [],
+   "drafted_entry_refs": [],
+   "confidence": 0.9
+  },
+  "aside_locus": [
+   "TH1"
+  ]
+ }
+]

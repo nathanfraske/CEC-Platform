@@ -220,10 +220,34 @@ class Flag:
     conf: float                   # 0..1 confidence the issue is REAL
     kind: Kind
     detail: dict = field(default_factory=dict)
+    # CL-03 Ruling 4: `binding` is ORTHOGONAL to kind and to conf (an advisory
+    # netlist assert and an advisory distance check are different kinds;
+    # confidence and bindingness are different dimensions). Advisory flags
+    # carry the ADV-<entry-id> namespace via entry_id and can NEVER block --
+    # enforcement lives at the aggregation points (human_signoff, the cascade
+    # loop), never by trusting producers. Default "gate" = full back-compat.
+    binding: str = "gate"         # "gate" | "advisory"
+    entry_id: str = None          # corpus entry behind an advisory flag
 
     def __repr__(self):
         w = self.where if isinstance(self.where, str) else type(self.where).__name__
-        return f"Flag[{self.kind.value}:{self.name} conf={self.conf:.2f} @{w}]"
+        adv = " ADV" if self.binding == "advisory" else ""
+        return f"Flag[{self.kind.value}:{self.name}{adv} conf={self.conf:.2f} @{w}]"
+
+
+def gate_flags(flags):
+    """The blocking subset -- every pass/fail predicate filters through this."""
+    return [f for f in flags if getattr(f, "binding", "gate") == "gate"]
+
+
+def assert_no_advisory(flags, where):
+    """Belt and suspenders (CL-03 R4): any code path that HALTS on flags
+    asserts no advisory flag reached its input set, so a future consumer
+    cannot accidentally block on ADV."""
+    adv = [f for f in flags if getattr(f, "binding", "gate") == "advisory"]
+    if adv:
+        raise AssertionError("%s received %d advisory flag(s) in a blocking "
+                             "input set: %s" % (where, len(adv), adv[:3]))
 
 
 @dataclass
@@ -637,8 +661,26 @@ def chk_dfm_drc(view):
     return [Flag("DFM rule violations", view.board, 0.95, Kind.DFM, {"types": by})]
 
 
+def chk_netclass_geometry(view):
+    """CL-25: per-net via/track geometry vs the .kicad_pro netclass minima -- the post-route
+    enforcement Freerouting cannot provide (it provably ignores netclass widths). Delegates
+    to the cec_constraints stable-ID checker; degrades to no-flag when pcbnew is absent."""
+    try:
+        import pcbnew
+        import cec_constraints as K
+        board = pcbnew.LoadBoard(view.board)
+        ok, detail = K.CHECKERS["netclass-geometry-conformance"](board, view.board, {})[:2]
+    except Exception:
+        return []                                # R-05 posture: degrade, never crash the stage
+    if ok is False:
+        return [Flag("netclass geometry under minima", view.board, 0.95, Kind.DFM,
+                     {"detail": detail, "check_id": "netclass-geometry-conformance"})]
+    return []
+
+
 DFM = [
     Check("dfm_drc", chk_dfm_drc, Kind.DFM),
+    Check("netclass_geometry", chk_netclass_geometry, Kind.DFM),   # CL-25
 ]
 
 
@@ -790,9 +832,43 @@ def run_stage(stage, view):
     return flags
 
 
+def corpus_advisory_flags(view):
+    """CL-03 R1/R4: evaluate the COMPILED ADVISORY set for this board --
+    structured staging entries run as the advisory-mode version of their
+    deterministic artifact (`ADV-<entry-id>`). Evaluated this wave:
+    checker_binding targets (the bound check runs, its fires re-bound
+    advisory) and param deltas (R7: staging proposes X against active Y).
+    Review NOTES are bundle material, never cascade flags. Degrades to
+    no-flags when the compiled tree is absent (run the compiler first)."""
+    import dataclasses
+    try:
+        import cec_corpus_compile as CC
+    except Exception:                            # noqa: BLE001
+        return []
+    flags = []
+    arts = CC.load_board_artifacts(view.cfg.board)
+    by_name = {c.name: c for stage in STAGES.values() for c in stage}
+    for row in arts.get("checker_bindings", []):
+        if row.get("binding") != "advisory":
+            continue
+        chk = by_name.get((row.get("params") or {}).get("checker"))
+        if chk is None:
+            continue
+        for f in chk.run(view):
+            flags.append(dataclasses.replace(f, binding="advisory",
+                                             entry_id=row.get("entry_id")))
+    for d in CC.evaluate_param_deltas():
+        flags.append(Flag("ADV-%s: %s" % (d["entry_id"], d["msg"]), view.board or "",
+                          0.3, Kind.CONFORM, dict(d), binding="advisory",
+                          entry_id=d["entry_id"]))
+    return flags
+
+
 def run_full_cascade(view, *, armed=()):
     """The post-route cascade (pipeline line 43): post-ERC, place-DFM, route-gate,
-    MEASURE, DFM-release, CONFORMANCE, + the armed optional analyses. Returns all flags."""
+    MEASURE, DFM-release, CONFORMANCE, + the armed optional analyses + the CL-03
+    corpus ADVISORY set. Returns all flags -- callers that HALT must filter
+    through gate_flags() (advisory can never block)."""
     flags = []
     flags += run_stage(ERC_BOM, view)            # post-ERC (re-validate the netlist still holds)
     flags += run_stage(PLACEMENT, view)          # place-DFM
@@ -802,6 +878,7 @@ def run_full_cascade(view, *, armed=()):
     flags += run_stage(CONFORMANCE, view)        # CONFORMANCE
     for opt in armed:                            # armed optional analyses
         flags += opt.run(view) if callable(getattr(opt, "run", None)) else []
+    flags += corpus_advisory_flags(view)         # CL-03 ADV (shadow evidence)
     return flags
 
 
@@ -2051,11 +2128,21 @@ _AMBIENT = {"enclosed_passive": 50.0, "airflow": 35.0, "worst_case": 60.0}
 
 def dt_ipc(I, cross_mm2, *, external=True):
     """IPC-2221 closed-form conductor temperature rise (°C): I = k·dT^0.44·A^0.725 (A in mils^2,
-    k=0.048 external / 0.024 internal) -> dT = (I/(k·A^0.725))^(1/0.44)."""
+    k=0.048 external / 0.024 internal) -> dT = (I/(k·A^0.725))^(1/0.44).
+    CL-03 R7: k resolves compiled-PROMOTED first (corpus entries
+    thermal.k_ipc.external/internal), else these hand literals -- which a
+    promotion PR reconciles (a fitted IPC-2152 k lands as a NEW Class C entry,
+    never an edit; see the corpus entry notes)."""
     if cross_mm2 <= 0 or I <= 0:
         return 0.0
     area_mils2 = cross_mm2 * 1550.0031
-    k = 0.048 if external else 0.024
+    hand = 0.048 if external else 0.024
+    try:
+        import cec_facts
+        k = cec_facts.compiled_param(
+            "thermal.k_ipc.external" if external else "thermal.k_ipc.internal", hand)
+    except Exception:                                         # noqa: BLE001
+        k = hand
     return (I / (k * area_mils2 ** 0.725)) ** (1.0 / 0.44)
 
 
@@ -2103,6 +2190,11 @@ class ThermalResult:
     nets: dict                  # net -> {I, cross_mm2, J, dT, T, poured} (+ transient fields if modelled)
     vias: list                  # worst vias
     shunts: list                # shunt dissipators
+    # AM-04 Ruling 9: calibration encodes ACCURACY (has reality vouched for the
+    # number), per (family, quantity) -- NEVER conflated with Flag.binding,
+    # which encodes AUTHORITY. Uncalibrated thermal gates still BLOCK (the
+    # solver's tested property is conservatism; cautious posture stands).
+    calibration: str = "uncalibrated"   # "uncalibrated" | "bench:<label-ref>"
 
 
 # ---- transient current model ---------------------------------------------------------------------
@@ -2250,7 +2342,29 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
             max_T, max_dT = ambient + dt, dt
 
     return ThermalResult(ambient=ambient, max_T=round(max_T, 1), max_dT=round(max_dT, 1),
-                         nets=net_res, vias=vias[:8], shunts=shunts)
+                         nets=net_res, vias=vias[:8], shunts=shunts,
+                         calibration=_calibration_state(cfg, "hotspot"))
+
+
+def _calibration_state(cfg, quantity):
+    """AM-04 R9: the (family, quantity) calibration latch. A CL-13 bench label
+    for THIS board family and THIS quantity flips it; a hotspot label says
+    nothing about DC-IR. Reads the ledger label stream; degrades to
+    'uncalibrated' when no ledger/labels exist."""
+    try:
+        import cec_facts
+        import cec_ledger
+        board = getattr(cfg, "board", None) or ""
+        b = cec_facts.find_board(board)
+        fams = set(b["families"]) if b else {board}
+        for rec in cec_ledger.read_decisions():
+            lab = rec.get("label") or rec.get("extra") or {}
+            if (lab.get("quantity") == quantity
+                    and set(lab.get("families") or [lab.get("family")]) & fams):
+                return "bench:%s" % rec.get("decision_id", rec.get("run_id", "label"))
+    except Exception:                                         # noqa: BLE001
+        pass
+    return "uncalibrated"
 
 
 def physics_gates(res, cfg):
@@ -2290,6 +2404,12 @@ def physics_gates(res, cfg):
     for s in res.shunts:
         if s["T"] > t_max or s["dT"] > dt_max:
             flags.append(Flag("shunt over-temp", s["ref"], 0.8, Kind.MEASURE, dict(s, limit_T=t_max)))
+    # AM-04 R9: every thermal flag carries the calibration mark. Accuracy label
+    # ONLY -- the flags stay binding="gate" (blocking-with-the-mark; demoting
+    # uncalibrated thermal to advisory would convert an honesty label into an
+    # authority downgrade, the exact conflation the binding field prevents).
+    for f in flags:
+        f.detail.setdefault("calibration", getattr(res, "calibration", "uncalibrated"))
     return flags
 
 
@@ -2329,8 +2449,11 @@ def route_swarm(cfg, *, board=None, out_dir=None, seeds=(0, 1), manager=None,
 def human_signoff(board, cfg, flags, *, ask=None):
     """Stage 11: the cert-grade HUMAN sign-off. Interactive -> ask() (the human approves/withholds);
     headless -> CAUTIOUS auto: sign off ONLY if nothing blocking remains (a residual flag with no
-    human present is NOT a release). Returns True iff signed off."""
-    blocking = [f for f in flags if f.conf >= 0.5]
+    human present is NOT a release). Returns True iff signed off.
+    CL-03 R4: the blocking count filters binding==gate -- an advisory flag can
+    NEVER feed it (it is still SHOWN to an interactive human, labeled ADV)."""
+    blocking = [f for f in flags if f.conf >= 0.5
+                and getattr(f, "binding", "gate") == "gate"]
     if ask is not None:
         act = ask(f"cert-grade sign-off: {len(flags)} residual flag(s), {len(blocking)} blocking. "
                   f"Release?", {"flags": [str(f) for f in flags]}, cfg)
@@ -2404,26 +2527,46 @@ def run_pipeline(cfg, *, board=None, route=False, ask=None, tiers=None, out_dir=
         rec("place_size", status="DEFERRED (placer TODO) -> existing board",
             board=os.path.basename(routed) if routed else None)
 
-    # 4. physics + full cascade, re-route/re-place on failure (bounded)
+    # 4. physics + full cascade, re-route/re-place on failure (bounded).
+    #    CL-03 R4: the loop, resolve ladder, and sign-off see GATE flags only --
+    #    advisory fires are recorded (shadow evidence) and shown, never driving
+    #    escalation, never blocking, never feeding the residual.
     rview = View(cfg, board=routed)
-    residual = []
+    residual, adv_fires = [], []
     for it in range(max_loops):
-        flags = run_full_cascade(rview, armed=armed)        # 6 stages + armed (THERMAL = physics FEA)
+        all_flags = run_full_cascade(rview, armed=armed)    # 6 stages + armed + ADV
+        adv_fires = [f for f in all_flags
+                     if getattr(f, "binding", "gate") == "advisory"]
+        flags = gate_flags(all_flags)
         m = rview.metrics
         rec("physics_cascade", iteration=it, n_flags=len(flags),
-            gates_pass=(m.gates_pass if m else None))
+            n_advisory=len(adv_fires), gates_pass=(m.gates_pass if m else None))
         if not flags:
             residual = []
             break
+        assert_no_advisory(flags, "run_pipeline cascade loop")
         okc, acts = resolve_each(flags, cfg, ask=ask, tiers=tiers)
         residual = [f for (f, a) in acts if not a.resolved]
         actionable = any(a.re_place or a.fixes for _, a in acts)
         if okc or not actionable:
             break                                            # all resolved, or nothing to re-try
 
-    # 5. sign-off
+    # 4b. ADV fires -> the per-run ledger sidecar (CL-03 R4: per-fire capture
+    #     from day one -- PC-01, capture cannot be retroactive; AM-06 sharding).
+    if adv_fires:
+        try:
+            import cec_ledger
+            cec_ledger.adv_fires(
+                [{"entry_id": f.entry_id, "board": cfg.board,
+                  "locus": str(f.where)[:200], "binding": f.binding,
+                  "name": f.name} for f in adv_fires], board=cfg.board)
+        except Exception as exc:                             # noqa: BLE001
+            rec("adv_ledger_degraded", error=repr(exc))
+
+    # 5. sign-off (human_signoff itself ALSO filters binding -- belt+suspenders)
+    assert_no_advisory(residual, "human_signoff residual")
     signed = human_signoff(routed, cfg, residual, ask=ask)
-    rec("signoff", signed=signed, residual=len(residual))
+    rec("signoff", signed=signed, residual=len(residual), advisory=len(adv_fires))
 
     # 6. ALWAYS freeze the decision log + the board (release if signed, else the withheld board for
     #    review) so the run is never void -- the verdict + log are the deliverable either way.

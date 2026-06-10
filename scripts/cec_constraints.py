@@ -49,6 +49,13 @@ class Constraint:
     status: str = "proposed"    # ratified | proposed
     params: dict = field(default_factory=dict)
     checker: str = ""           # registered checker id (defaults to .id)
+    # CL-03 Ruling 2: registry <-> corpus reconciliation fields. corpus_id links
+    # a row to its corpus-entry source (set in the entry's PROMOTION PR -- the
+    # "linked" parity tier). superseded_by TOMBSTONES the row: authority moved
+    # to the named promoted entry; the row is EXCLUDED from blocking, in the
+    # same human-merged diff as the promotion (retirement is never automatic).
+    corpus_id: str = ""
+    superseded_by: str = ""
 
 
 def C(**kw):
@@ -221,7 +228,54 @@ REGISTRY = [
       category="conformance", severity="hard", checkable="yes", directive="none",
       rule="Every board carrying the transceiver uses TJA1051T/3 (classical CAN).",
       source="spec §3.1 (LOCKED v3.5)", status="ratified"),
+
+    # ---- CL-25 audit-derived check pack (closed-loop framework, 2026-06-10) -------------
+    # The six audit classes as STABLE IDs. Three are NEW below; three map to checks that
+    # already existed (see CL25_CLASSES) -- the class names stay stable either way.
+    C(id="netclass-geometry-conformance", title="Per-net via/track geometry meets its netclass minima",
+      category="conformance", severity="hard", checkable="yes", directive="none",
+      rule="Every net resolves to its intended netclass (.kicad_pro patterns/assignments) and every "
+           "track/via on it meets the class minima (track width, via diameter, via drill). Freerouting "
+           "provably ignores netclass widths (measured), so this is the post-route ENFORCEMENT the "
+           "router cannot provide -- the 12VHPWR audit's 136 signal-size lane vias are this class. "
+           "On a SHARED force+sense net (an INA sense input lives on it) track width is checker-exempt "
+           "(the deliberate ~0.25mm Kelvin stubs; same split as derive_cross_section_dru) -- vias still "
+           "checked.", source="closed-loop CL-25; 12VHPWR audit (lane vias); CLAUDE.md FR-ignores-widths",
+      status="ratified", params={"tol_mm": 0.001}),
+    C(id="bom-field-lint", title="No placeholder/empty BOM fields on assembly-relevant parts",
+      category="conformance", severity="strong", checkable="yes", directive="none",
+      rule="No BOM-relevant footprint carries a placeholder Value (*_Small, '~', empty, TODO/TBD/FIXME) "
+           "or an empty source field where sourcing is expected. Documented-open gaps (OQ-11 shunts, "
+           "consigned THT power headers) are NOTED, not failed -- only UNEXPECTED holes fail.",
+      source="closed-loop CL-25; Hub audit (BOM lint class); 12VHPWR TH1/TH2 R_Small case",
+      status="ratified"),
+    C(id="sch-pcb-sync", title="Schematic and PCB reference sets in sync (no stale board)",
+      category="conformance", severity="strong", checkable="yes", directive="none",
+      rule="The PCB carries a footprint for every schematic symbol (and no orphans): a symbol present "
+           "in the .kicad_sch but absent from the .kicad_pcb means Update-PCB-from-Schematic is "
+           "pending -- routing a stale board all night produces perfectly routed WRONG boards. "
+           "Board-only refs (LOGO/FID/H/MK/TP) and power symbols excluded. Freshness (sch newer than "
+           "pcb) is reported in the detail.", source="closed-loop CL-25; Hub audit (desync class)",
+      status="ratified"),
 ]
+
+# CL-25: the six audit-derived check classes -> stable registry IDs. The fixtures (CL-11),
+# swarm verifies (CL-24) and triage (CL-22/24) key off these class names.
+CL25_CLASSES = {
+    "netclass-geometry":   ["netclass-geometry-conformance"],
+    "thermal-keep-apart":  ["hot-sensitive-separation", "ntc-board-temp-by-shunt"],
+    "cap-to-node":         ["decoupling-cap-owner"],
+    "bom-lint":            ["bom-field-lint"],
+    "sch-pcb-sync":        ["sch-pcb-sync"],
+    "netlist-assertions":  ["rj45-link-pinmap", "detect-resistor-code",
+                            "can-transceiver-tja1051t3", "shunt-values-per-table",
+                            "detect-esd-diode-pin8"],
+}
+
+# CL-25 intake gate: the SCHEMATIC-SIDE subset -- a board failing any of these is refused
+# candidate generation (the TPS2121/desync/R1 classes live upstream of layout).
+INTAKE_CHECKS = (CL25_CLASSES["sch-pcb-sync"] + CL25_CLASSES["bom-lint"]
+                 + CL25_CLASSES["netlist-assertions"])
 
 
 # ===========================================================================
@@ -288,7 +342,25 @@ def _nets(board):
 
 
 def _param(cid, key, default):
-    return next((c.params.get(key, default) for c in REGISTRY if c.id == cid), default)
+    """CL-03 Ruling 7 resolution order: compiled-PROMOTED value if one exists
+    (a promoted param entry whose compile params carry registry_param [cid,key]),
+    else the hand value in REGISTRY. While the registry is the bootstrap
+    authority (R2 phase 0) nothing promoted exists, so hand values govern; a
+    promoted param's promotion PR reconciles the hand value (tombstone in the
+    same diff), so promoted-vs-active-hand conflict is a lint ERROR, not a
+    runtime choice."""
+    hand = next((c.params.get(key, default) for c in REGISTRY if c.id == cid), default)
+    try:
+        import json as _json
+        import cec_facts
+        rows = _json.load(open(os.path.join(cec_facts.COMPILED_ROOT, "params.json")))
+        for row in rows if isinstance(rows, list) else []:
+            if (row.get("binding") == "gate"
+                    and (row.get("params") or {}).get("registry_param") == [cid, key]):
+                return row.get("value", hand)
+    except Exception:                                         # noqa: BLE001
+        pass
+    return hand
 
 
 def _direct_sense_pairs(board, kelvin):
@@ -686,11 +758,21 @@ def _chk_detect_r(board, path, ctx):
     det = [n for n in by_net if "DETECT" in n.upper() and "SENSE" not in n.upper()]
     if not det:
         return None, "no DETECT net"
-    expect_k = _param("detect-resistor-code", "expect_k", 2.2)
     rs = {r for n in det for r, _, fp in by_net[n] if r.startswith("R")}
     if not rs:
         return None, "no resistor on DETECT (Hub-side pullup board?)"
     vals = {r: _val(fp) for fp in board.GetFootprints() for r in [fp.GetReference()] if r in rs}
+    # HUB side (multiple RJ-45 ports => multiple DETECT nets): §2.3 specifies the FIXED
+    # 10k pull-up to the 3.3V ADC reference, one per port -- the code resistor lives on
+    # the MODULE. A module board (single DETECT net) carries the §2.3 code value.
+    n_rj45 = sum(1 for fp in board.GetFootprints()
+                 if "RJ45" in (str(fp.GetFPID().GetLibItemName()) + _val(fp)).upper())
+    if n_rj45 >= 2 or len(det) >= 2:
+        ok = all(re.search(r"^10\s*k", v, re.I) for v in vals.values())
+        if not ok:
+            return False, "Hub DETECT pull-up not 10k (spec §2.3): %s" % vals
+        return True, "Hub: %d DETECT 10k pull-up(s) per §2.3" % len(vals)
+    expect_k = _param("detect-resistor-code", "expect_k", 2.2)
     ok = any(re.search(r"2\.?2\s*k", v, re.I) or "2k2" in v.lower() for v in vals.values())
     if not ok:
         return False, "DETECT resistor not %.1fk (CAN-only): %s" % (expect_k, vals)
@@ -952,6 +1034,313 @@ def _chk_fp_ds(board, path, ctx):
 
 
 # ===========================================================================
+#  CL-25 audit-derived check pack (closed-loop framework, 2026-06-10)
+# ===========================================================================
+# The three NEW classes (netclass-geometry, bom-lint, sch-pcb-sync) -- the other
+# three map to pre-existing checkers (see CL25_CLASSES). Plus the INTAKE GATE:
+# the loop refuses candidate generation for a board failing the schematic-side
+# subset (a loop that routes a broken netlist all night produces perfectly
+# routed WRONG boards).
+
+def _project_file(board_path, ext):
+    """Sibling project file (.kicad_pro / .kicad_sch) for a board: same stem first,
+    else the single file of that ext in the dir, else None."""
+    d = os.path.dirname(os.path.abspath(board_path))
+    stem = os.path.basename(board_path)
+    if stem.endswith(".kicad_pcb"):
+        stem = stem[:-len(".kicad_pcb")]
+    cand = os.path.join(d, stem + ext)
+    if os.path.isfile(cand):
+        return cand
+    hits = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(ext)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def _netclass_rules(board_path):
+    """Parse the sibling .kicad_pro net_settings: returns (classes, resolve) where
+    classes = {name: {track_width, via_diameter, via_drill}} and resolve(net) -> class
+    name (explicit assignment first, then first matching wildcard pattern, else Default).
+    None if no project file / no classes (self-gating)."""
+    import fnmatch
+    pro = _project_file(board_path, ".kicad_pro")
+    if not pro:
+        return None
+    try:
+        ns = json.load(open(pro)).get("net_settings", {})
+    except Exception:
+        return None
+    classes = {}
+    for c in ns.get("classes", []):
+        classes[c.get("name", "")] = {k: c[k] for k in ("track_width", "via_diameter", "via_drill")
+                                      if k in c}
+    if not classes:
+        return None
+    assignments = ns.get("netclass_assignments") or {}
+    patterns = [(p.get("netclass"), p.get("pattern")) for p in (ns.get("netclass_patterns") or [])
+                if p.get("netclass") in classes and p.get("pattern")]
+
+    def resolve(net):
+        a = assignments.get(net)
+        if a:
+            name = a[0] if isinstance(a, list) else a
+            if name in classes:
+                return name
+        for name, pat in patterns:
+            if fnmatch.fnmatchcase(net, pat):
+                return name
+        return "Default"
+    return classes, resolve
+
+
+def _via_width_mm(t):
+    """PCB_VIA width with the KiCad-10 layer-arg form (no-arg GetWidth() asserts on
+    debug builds -- the documented runner blocker)."""
+    try:
+        return _mm(t.GetWidth(t.TopLayer()))
+    except TypeError:
+        return _mm(t.GetWidth())
+
+
+@checker("netclass-geometry-conformance")
+def _chk_netclass_geom(board, path, ctx):
+    nc = _netclass_rules(path)
+    if nc is None:
+        return None, "no .kicad_pro netclasses found (project file absent or empty net_settings)"
+    classes, resolve = nc
+    if not any(t.Type() == pcbnew.PCB_TRACE_T or isinstance(t, pcbnew.PCB_VIA)
+               for t in board.GetTracks()):
+        return None, "unrouted floorplan (no tracks/vias to conform)"
+    tol = _param("netclass-geometry-conformance", "tol_mm", 0.001)
+    sense = _sense_nets(board)            # SHARED force+sense: track width checker-exempt
+    bad = collections.defaultdict(lambda: collections.Counter())
+    for t in board.GetTracks():
+        net = t.GetNetname()
+        if not net:
+            continue
+        cls = resolve(net)
+        minima = classes.get(cls, {})
+        if isinstance(t, pcbnew.PCB_VIA):
+            d = minima.get("via_diameter")
+            dr = minima.get("via_drill")
+            if d and _via_width_mm(t) < d - tol:
+                bad[(net, cls)]["via_dia"] += 1
+            if dr and _mm(t.GetDrillValue()) < dr - tol:
+                bad[(net, cls)]["via_drill"] += 1
+        elif t.Type() == pcbnew.PCB_TRACE_T:
+            w = minima.get("track_width")
+            if net in sense:
+                continue                  # deliberate ~0.25mm Kelvin stub on the force net
+            if w and _mm(t.GetWidth()) < w - tol:
+                bad[(net, cls)]["track"] += 1
+    if bad:
+        worst = sorted(bad.items(), key=lambda kv: -sum(kv[1].values()))
+        det = "; ".join("%s[%s] %s" % (net, cls, ",".join("%s x%d" % (k, n) for k, n in cnt.items()))
+                        for (net, cls), cnt in worst[:6])
+        total = sum(sum(c.values()) for c in bad.values())
+        # payload: per-(net,class,kind) counts -- the CL-11 fixture invariants assert these
+        # NET-SCOPED (e.g. zero via hits on /SENSEP* post-fix while GND track hits remain).
+        payload = [{"net": net, "class": cls, "kind": k, "count": n}
+                   for (net, cls), cnt in bad.items() for k, n in cnt.items()]
+        return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det), payload
+    return True, "all tracks/vias meet their netclass minima (%d classes; sense-stub exemption on %d net(s))" % (
+        len(classes), len(sense))
+
+
+# bom-field-lint: assembly-irrelevant refs + the DOCUMENTED-open sourcing gaps.
+_BOM_KNOWN_OPEN = ("RS", "J_IN", "J_OUT")     # OQ-11 shunts + consigned THT power headers
+_BOM_PLACEHOLDER = re.compile(r"(^$|^~$|_Small$|\b(TODO|TBD|FIXME|PLACEHOLDER|APPROXIMATE)\b)", re.I)
+
+
+@checker("bom-field-lint")
+def _chk_bom_lint(board, path, ctx):
+    placeholders, unsourced_known = [], []
+    n_parts = 0
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if _board_only_ref(ref):
+            continue
+        n_parts += 1
+        val = _val(fp)
+        if _BOM_PLACEHOLDER.search(val or ""):
+            placeholders.append("%s(%s)" % (ref, (val or "<empty>")[:20]))
+        elif ref.startswith(_BOM_KNOWN_OPEN):
+            unsourced_known.append(ref)
+    if n_parts == 0:
+        return None, "no BOM-relevant footprints on the board"
+    if placeholders:
+        return False, "%d placeholder/empty value(s): %s" % (len(placeholders), ", ".join(placeholders[:8]))
+    note = (" (known-open gaps noted, not failed: %s)" % ", ".join(unsourced_known[:6])
+            if unsourced_known else "")
+    return True, "no placeholder/empty BOM fields on %d part(s)%s" % (n_parts, note)
+
+
+_SCH_REF_RE = re.compile(r'\(property\s+"Reference"\s+"([^"]+)"')
+_BOARD_ONLY_RE = re.compile(r"^(M|H|MK|FID|TP)\w*\d|^(LOGO|TP_)")
+
+
+def _board_only_ref(ref):
+    """Refs that legitimately exist on only one side: mounts (M1/H1/MK1), fiducials,
+    test points (GUI-added, never in the sch), logos, power/flag symbols."""
+    return ref.startswith("#") or ref.startswith("REF*") or bool(_BOARD_ONLY_RE.match(ref))
+
+
+def _strip_lib_symbols(text):
+    """Drop the (lib_symbols ...) block by paren-span -- its symbol DEFINITIONS carry
+    placeholder Reference properties (bare 'R'/'U'/'J_KVM'-style prefixes would otherwise
+    be indistinguishable from instances by pattern alone)."""
+    i = text.find("(lib_symbols")
+    if i < 0:
+        return text
+    depth, j = 0, i
+    while j < len(text):
+        if text[j] == "(":
+            depth += 1
+        elif text[j] == ")":
+            depth -= 1
+            if depth == 0:
+                break
+        j += 1
+    return text[:i] + text[j + 1:]
+
+
+def _sch_refs(sch_path):
+    """Instance references from a .kicad_sch: regex over the text AFTER excising the
+    lib_symbols definitions block; unannotated ('?'-suffixed), power/flag, and
+    board-only refs dropped."""
+    refs = set()
+    try:
+        text = _strip_lib_symbols(open(sch_path, encoding="utf-8", errors="replace").read())
+    except OSError:
+        return refs
+    for r in _SCH_REF_RE.findall(text):
+        if r.endswith("?") or _board_only_ref(r):
+            continue
+        refs.add(r)
+    return refs
+
+
+@checker("sch-pcb-sync")
+def _chk_sch_pcb_sync(board, path, ctx):
+    sch = ctx.get("sch") or _project_file(path, ".kicad_sch")
+    if not sch:
+        return None, "no sibling .kicad_sch found"
+    sch_refs = _sch_refs(sch)
+    if not sch_refs:
+        return None, "schematic parsed to 0 instance refs (unexpected format)"
+    pcb_refs = {fp.GetReference() for fp in board.GetFootprints()
+                if not _board_only_ref(fp.GetReference())}
+    sch_only = sorted(sch_refs - pcb_refs)
+    pcb_only = sorted(pcb_refs - sch_refs)
+    fresh = ""
+    try:
+        if os.path.getmtime(sch) > os.path.getmtime(path):
+            fresh = "; sch is NEWER than pcb (Update-PCB-from-Schematic may be pending)"
+    except OSError:
+        pass
+    if sch_only or pcb_only:
+        parts = []
+        if sch_only:
+            parts.append("in sch NOT on pcb (stale board): %s" % ", ".join(sch_only[:10]))
+        if pcb_only:
+            parts.append("on pcb NOT in sch (orphans): %s" % ", ".join(pcb_only[:10]))
+        return False, "; ".join(parts) + fresh
+    return True, "ref sets in sync (%d refs)%s" % (len(pcb_refs), fresh)
+
+
+# ---------------------------------------------------------------------------
+# CL-25 intake gate
+# ---------------------------------------------------------------------------
+_BENIGN_ERC_TYPES = ("lib_symbol_mismatch", "unconnected_wire_endpoint")
+
+
+def _erc_errors(sch_path):
+    """Run a live ERC (kicad-cli) and return the count of severity-ERROR violations
+    excluding the documented-benign types (the R-03 CI posture: errors gate, warnings
+    are the documented noise). None = kicad-cli unavailable (degrade, R-05 posture)."""
+    import shutil
+    if not shutil.which("kicad-cli"):
+        return None
+    out = os.path.join(tempfile.gettempdir(), "cec_intake_erc_%d.json" % os.getpid())
+    subprocess.run(["kicad-cli", "sch", "erc", "--format", "json", "-o", out, sch_path],
+                   capture_output=True)
+    try:
+        j = json.load(open(out))
+    except Exception:
+        return None
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+    n = 0
+    sheets = j.get("sheets", []) or [j]
+    for sh in sheets:
+        for v in sh.get("violations", []):
+            if v.get("severity") == "error" and v.get("type") not in _BENIGN_ERC_TYPES:
+                n += 1
+    return n
+
+
+def intake_gate(board_path, ctx=None):
+    """CL-25 intake gate: the SCHEMATIC-SIDE subset (sync, ERC freshness, BOM lint,
+    netlist assertions). Returns {"ok", "reasons", "results"}; the route loop refuses
+    candidate generation on ok=False (override: CEC_SKIP_INTAKE=1). Named reasons only --
+    a refusal the owner can act on, never a bare False."""
+    ctx = ctx or {}
+    board = pcbnew.LoadBoard(board_path)
+    by_id = {c.id: c for c in REGISTRY}
+    results, reasons = {}, []
+    for cid in INTAKE_CHECKS:
+        fn = CHECKERS.get(cid)
+        c = by_id.get(cid)
+        if not fn or not c:
+            continue
+        try:
+            res = fn(board, board_path, ctx)
+            ok, detail = res[0], res[1]
+        except Exception as e:
+            ok, detail = None, "%s: %s" % (type(e).__name__, e)
+        status = "N/A" if ok is None else ("PASS" if ok else "FAIL")
+        results[cid] = (status, detail)
+        if ok is False:
+            reasons.append("%s [%s]: %s" % (cid, c.severity, detail))
+    # ERC freshness (live; degrades when kicad-cli is absent -- R-05 posture).
+    # DRAFT boards skip ERC by repo convention (the cec_synth_pipeline is_draft rule).
+    sch = ctx.get("sch") or _project_file(board_path, ".kicad_sch")
+    if os.path.isfile(os.path.join(os.path.dirname(os.path.abspath(board_path)), "DRAFT")):
+        results["erc"] = ("N/A", "DRAFT board: ERC skipped by repo convention")
+    elif sch:
+        n = _erc_errors(sch)
+        if n is None:
+            results["erc"] = ("N/A", "kicad-cli unavailable (degraded; not a refusal)")
+        elif n > 0:
+            results["erc"] = ("FAIL", "%d ERROR-severity ERC violation(s)" % n)
+            reasons.append("erc [hard]: %d ERROR-severity violation(s) on %s"
+                           % (n, os.path.basename(sch)))
+        else:
+            results["erc"] = ("PASS", "0 ERROR-severity violations")
+    else:
+        results["erc"] = ("N/A", "no sibling .kicad_sch")
+    # CL-03 R4: the ADVISORY set is REPORTED here, never gated on -- the intake
+    # refusal logic above sees gate-class checks only. Informational summary of
+    # the compiled advisory artifacts applicable to this board (empty when the
+    # corpus compiler has not run -- degrade, never refuse).
+    advisory = {"n": 0, "entries": []}
+    try:
+        import cec_corpus_compile
+        bname = os.path.basename(os.path.dirname(os.path.abspath(board_path)))
+        arts = cec_corpus_compile.load_board_artifacts(bname)
+        rows = [r for rows in arts.values() for r in rows
+                if isinstance(r, dict) and r.get("binding") == "advisory"]
+        advisory = {"n": len(rows),
+                    "entries": sorted({r.get("entry_id") for r in rows})[:20]}
+    except Exception:                                         # noqa: BLE001
+        pass
+    return {"ok": not reasons, "reasons": reasons, "results": results,
+            "advisory": advisory, "board": os.path.basename(board_path)}
+
+
+# ===========================================================================
 #  min-pour-cross-section ENFORCE LEG: field solve -> ratified DRC rule
 # ===========================================================================
 # discover -> ratify -> enforce, completing the min-pour-cross-section migration.
@@ -1068,6 +1457,11 @@ def run(board_path, ctx=None):
     board = pcbnew.LoadBoard(board_path)
     out = []
     for c in REGISTRY:
+        if c.superseded_by:
+            # CL-03 R2: tombstoned row -- authority moved to the promoted corpus
+            # entry; excluded from blocking (reported, never FAIL).
+            out.append((c, "TOMBSTONE", "superseded by corpus entry %s" % c.superseded_by, None))
+            continue
         fn = CHECKERS.get(c.checker or c.id)
         if not fn:
             out.append((c, "DECLARED", "recorded; deterministic checker pending", None))
@@ -1113,6 +1507,23 @@ def main(argv=None):
     ctx = {"radio": "--radio" in argv}
     as_json = "--json" in argv
     boards = [a for a in argv if not a.startswith("--")]
+
+    # CL-25 INTAKE GATE CLI: the schematic-side refuse-candidates subset.
+    if "--intake" in argv:
+        rc = 0
+        blobs = []
+        for b in boards:
+            g = intake_gate(b, ctx)
+            if as_json:
+                blobs.append(g)
+            else:
+                print("INTAKE :: %s -> %s" % (g["board"], "ADMIT" if g["ok"] else "REFUSE"))
+                for cid, (status, detail) in g["results"].items():
+                    print("  [%s] %-32s %s" % (status[0], cid, str(detail)[:100]))
+            rc = rc or (0 if g["ok"] else 1)
+        if as_json:
+            print(json.dumps(blobs, indent=1))
+        return rc
 
     # ENFORCE-LEG CLI: derive (or --write to ratify) the min-pour-cross-section DRC rules.
     if "--enforce-cross-section" in argv:

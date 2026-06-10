@@ -47,7 +47,10 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
   "status": "proposed|sim_validated|bringup_validated|human_approved|deprecated",
   "rule": "...the assertion...",      // (extracted-corpus rows keep their full original fields)
   "scope": {                          // RB-01: coverage DECLARED in facts dimensions only
-    "net_families": [], "netclasses": [], "part_classes": [], "regions": []
+    "net_families": [], "netclasses": [], "part_classes": [], "regions": [],
+    "families": []                    // NEW (CL-03 Ruling 6): board-family applicability --
+                                      // "hub" / "module" / specific board names; per-board
+                                      // compilation binds family scope naturally
   },                                  // inexpressible => unscoped => counts as ZERO coverage
   "source": {                         // provenance is mandatory; model output is NOT a source
     "type": "standard|datasheet|fab|spec|decision|measurement",
@@ -65,9 +68,82 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
   "promotion": {                      // NEW: appended by the promotion PR
     "date": "YYYY-MM-DD", "shadow_record": "ref", "pr": 0
   },
-  "supersedes": "id|null", "migrated": true
+  "supersedes": "id|null", "migrated": true,
+
+  "compile": {                        // NEW (CL-03 Ruling 1): the entry declares its own
+    "targets": [                      // compilation. Valid ONLY on a structured entry
+      {                               // (kind: rule|param, typed non-null value, SCHEMA-shape
+        "type": "dru_rule",           // scope). Absent/invalid => advisory-prose by
+        "params": {}                  // construction: review-bundle note, review horizon.
+      }
+    ]
+  }
 }
 ```
+
+## Compile block (CL-03 / RB-02 rulings, 2026-06-10)
+
+- **Target types:** `dru_rule | netlist_assert | keep_apart | scorer_limit | param |
+  netclass_min | checker_binding | review_note`. `checker_binding` binds the entry to an
+  existing hand-authored Python checker (`params: {module, checker}`) — the binding lives
+  in the entry, never in a code-side mapping table.
+- **Horizon is COMPUTED, never declared** — derived from (target type, entry class) and
+  validated against the RB-02 class caps (A/B hard entries may reach generation/routing;
+  C typically DRC/scorer; heuristic & prose never below review). A declared horizon field
+  would let an entry promote itself past its class.
+- **Zone semantics:** promoted + valid block + passing AM-02 fixture ⇒ BLOCKING artifact
+  (the fixture latch is enforced at compile — a promoted entry without a passing fixture
+  is refused with a named reason). Staging + valid block ⇒ the ADVISORY-mode version of
+  the same deterministic artifact (`ADV-<entry-id>` namespace — evaluated and reported,
+  never blocking). Staging prose ⇒ ADV review note only. This distinction is what makes
+  CL-04 shadow mode real: structured staging entries accumulate fire evidence, prose
+  accumulates nothing until upgraded.
+- **`netclass_min` is intent, not enforcement** (conflict resolution 3: the autorouter
+  ignores netclasses): it emits at generation horizon with
+  `enforced_by: netclass-geometry-conformance (DRC horizon)` — the pushdown table carries
+  BOTH rows so nobody reads netclass emission as enforcement.
+- **Materialization (Ruling 3):** all compiled output lands in gitignored
+  `build/corpus-compiled/` — promotion authorizes the KNOWLEDGE, never committed-file
+  writes. The only committed materialization is the human-run convenience write
+  (marked generated section; lint flags drift against current compiled output).
+- Compiler: `scripts/cec_corpus_compile.py` (host-runnable, pcbnew-free, deterministic —
+  double-compile byte-identical is a CI assertion).
+
+## Verdict core — Decision 7, two-layer lock (CL-19 Ruling 2, ratified in this PR)
+
+**Layer one (locked, `cec-verdict-core/1`):** the per-candidate verdict core — what the
+extractor produces, what RB-03 ratifies, what the CL-19 gold schema labels. **Layer two**
+(the CL-12 bundle wrapper: bundle id, cross-candidate ranking, judge manifest, novel-flag
+list) wraps the core and is NEVER touched by gold labels, so wrapper evolution cannot
+burn the eval set. The CL-22 finding contract and the DF-06 claim/hook shape unify here:
+a finding's `verification_hook` IS its DF-06 hook.
+
+```jsonc
+{
+  "schema": "cec-verdict-core/1",
+  "subject": {"board": "", "candidate_hash": "", "run_id": ""},
+  "verdict": {"value": "accept | hold | escalate | no_conclusion",
+              "basis_spans": []},      // CL-15 conclusions-section rule
+  "findings": [{
+      "id": "F1",
+      "locus": {"refs": [], "nets": [], "region": null},
+      "mechanism": "",
+      "severity": "info | warn | block-candidate",
+      "verification_hook": {"type": "check | fixture | bench | datasheet",
+                            "ref": ""},   // the DF-06 closed vocabulary
+      "evidence_spans": []
+  }],
+  "drafted_entry_refs": [],
+  "confidence": 0.0
+}
+```
+
+Span rules: `scripts/cec_span_verify.py` (ONE implementation, imported by the eval and
+the CL-15 production path) — NFC, whitespace-collapsed, trimmed, case-SENSITIVE exact
+substring; prose spans ≥ 20 normalized chars; locus identifiers exempt from the floor
+but must appear as exact tokens AND resolve against board facts via the shared resolver.
+`no_conclusion` is the CL-15 legal outcome — synthesis on a no-conclusion trace is a
+zero-tolerance eval failure.
 
 ## Standing rules carried from the framework
 

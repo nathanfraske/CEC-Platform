@@ -209,7 +209,16 @@ def lint_general(zone, seen_ids, seen_scope, zone_ids, spec_text):
                        if seen_ids[eid].split(":", 1)[0] != zone else ""))
             seen_ids[eid] = f"{zone}:{rel}"
             zone_ids[zone].add(eid)
-            skey = (e.get("kind"), json.dumps(e.get("scope"), sort_keys=True))
+            # Shadowing key: (kind, scope) for RULES (two rules on one scope =
+            # a conflict). PARAMS are keyed by their compile param key (or id)
+            # in the params channel -- two DIFFERENT parameters legitimately
+            # share a scope (k_ipc + the 2152 reference set both scope
+            # external-conductors); shadowing for params = same KEY.
+            pkey = None
+            if e.get("kind") == "param":
+                tgt = ((e.get("compile") or {}).get("targets") or [{}])[0]
+                pkey = (tgt.get("params") or {}).get("key", eid)
+            skey = (e.get("kind"), pkey, json.dumps(e.get("scope"), sort_keys=True))
             if skey in seen_scope and e.get("status") != "deprecated":
                 other = seen_scope[skey]
                 err(f"{where}: duplicate (kind, scope) conflict with {other} -- supersede "
@@ -290,6 +299,64 @@ def lint_conflicts(zone_ids):
                         f"{cid!r} -- human resolution required; promotion blocked")
 
 
+def lint_cl03():
+    """CL-03 Rulings 1/2/7/8 lint legs (all host-runnable, pcbnew-free):
+      - compile-block validity: block on a prose entry / class-violating
+        target = ERROR (compiler computes; lint independently re-validates)
+      - regenerate-and-validate: fresh compile, then every gate-binding
+        artifact annotation must resolve to promoted + signed entries
+      - committed-file scan: marked generated sections in committed .kicad_dru
+        must byte-match current compiled output (stale convenience copy)
+      - params: promoted-vs-active-hand conflict = ERROR (a reconciliation the
+        promotion PR skipped); staging deltas are the compiler's ADV stream,
+        not lint's business
+      - registry link hygiene: a row whose matched entry has PROMOTED but
+        which lacks corpus_id = warning (escalates after the grace window)"""
+    try:
+        import cec_corpus_compile as CC
+    except Exception as e:                                    # noqa: BLE001
+        warn(f"cl03 lint legs skipped (compiler unavailable: {e})")
+        return
+    # 1+2: compile fresh (validates blocks; emits the tree the next legs read)
+    manifest = CC.compile_corpus()
+    for msg in manifest["errors"]:
+        err(f"compile: {msg}")
+    for msg in manifest["refusals"]:
+        err(f"compile latch: {msg}")
+    for msg in CC.validate_artifacts():
+        err(f"artifact: {msg}")
+    # 3: committed generated-section drift
+    for msg in CC.scan_generated_sections():
+        err(f"generated-section: {msg}")
+    # 4: promoted param vs still-active hand value
+    promoted = {e["id"]: e for e in CC.load_zone(CC.CORPUS_ROOT, "promoted")}
+    registry = CC.extract_registry()
+    for e in promoted.values():
+        for t in (e.get("compile") or {}).get("targets", []):
+            if t.get("type") != "param":
+                continue
+            key = (t.get("params") or {}).get("key", e["id"])
+            rp = (t.get("params") or {}).get("registry_param")
+            if rp:
+                row = next((r for r in registry if r["id"] == rp[0]
+                            and not r.get("superseded_by")), None)
+                if row and row.get("params", {}).get(rp[1]) != e.get("value"):
+                    err(f"param conflict: promoted {e['id']} ({e.get('value')!r}) vs "
+                        f"still-active registry {rp[0]}.{rp[1]} "
+                        f"({row['params'].get(rp[1])!r}) -- the promotion PR must "
+                        f"tombstone the hand value in the same diff")
+            elif key in CC.HAND_DEFAULTS and CC.HAND_DEFAULTS[key] != e.get("value"):
+                err(f"param conflict: promoted {e['id']} ({e.get('value')!r}) vs "
+                    f"active hand default {CC.HAND_DEFAULTS[key]!r}")
+    # 5: registry rows whose matched entry promoted but no corpus_id link yet
+    parity = json.load(open(os.path.join(CC.OUT_ROOT, "parity.json")))
+    for m in parity["matched"]:
+        if m["zone"] == "promoted" and not m["linked"]:
+            warn(f"registry {m['registry']}: matched entry {m['entry']} is PROMOTED "
+                 f"but the row lacks corpus_id (grace window; set the link in the "
+                 f"promotion PR)")
+
+
 def main():
     # legacy locations are an error once the zones exist (run the one-shot migrator)
     for legacy, kind in ((LEGACY_GENERAL, "dir"), (LEGACY_PROJECT, "file")):
@@ -303,6 +370,7 @@ def main():
     n_gen = sum(lint_general(z, seen_ids, seen_scope, zone_ids, spec_text) for z in ZONES)
     n_ext = sum(lint_extracted(z, seen_ids, zone_ids, spec_text) for z in ZONES)
     lint_conflicts(zone_ids)
+    lint_cl03()
     for w in warnings:
         print(f"  warn: {w}")
     for e in errors:

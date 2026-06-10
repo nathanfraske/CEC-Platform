@@ -339,6 +339,37 @@ def counter(stream, key, *, n=1, board=None):
     return _write_line(rec, rel, warn=f"no cec-runs repo -- counter {stream}/{key} NOT persisted")
 
 
+def adv_fires(fires, *, board, run_id=None, candidate_hash=None):
+    """CL-03 R4 / PC-01: per-fire ADVISORY events, captured from the FIRST advisory
+    run (capture cannot be retroactive -- deferring to CL-04 would start shadow
+    evidence at wave 3). Mechanics per AM-06: the fires batch into ONE per-run
+    sidecar JSONL (single-writer by append), and the batch hash goes to the main
+    ledger line so CL-04's aggregation can verify it read what was written.
+    Returns {"rel", "sha256", "n"} (sha None when no runs repo -- degrades)."""
+    rid = run_id or new_run_id()
+    rel = os.path.join("decisions", "adv", f"{rid}.jsonl")
+    ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    lines = []
+    for f in fires:
+        rec = {"ts": ts, "run_id": rid, "board": board,
+               "candidate_hash": candidate_hash, **f}
+        lines.append(json.dumps(rec, sort_keys=True))
+    sha = hashlib.sha256(("\n".join(lines)).encode()).hexdigest() if lines else None
+    base = runs_dir(create=True)
+    if base is None:
+        print(f"[cec_ledger] WARNING: no cec-runs repo -- {len(lines)} ADV fire(s) "
+              f"NOT persisted", file=sys.stderr)
+        return {"rel": rel, "sha256": None, "n": len(lines)}
+    p = os.path.join(base, rel)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
+    with open(p, "a") as fh:
+        for ln in lines:
+            fh.write(ln + "\n")
+    append(board=board, mode="adv-fires", run_id=rid,
+           extra={"adv_sidecar": rel, "adv_fires_sha256": sha, "n_fires": len(lines)})
+    return {"rel": rel, "sha256": sha, "n": len(lines)}
+
+
 def _new_decision_id():
     return f"D-{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}-{uuid.uuid4().hex[:8]}"
 

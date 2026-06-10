@@ -1,0 +1,42 @@
+[
+ {
+  "id": "cl19-rat-skip-0",
+  "register": "reconstructed",
+  "kind": "ratification-skip",
+  "board": "hub-standard",
+  "trace": "Quick pass on the Hub LED shifter chain. U6 buffers LED_DATA up to 5 V through R14 into\nthe SK6812 chain; the AHCT input threshold math holds at the 3.3 V drive.\n\n## Conclusions\nThe LED data level shift is correctly implemented; accept this subsystem.",
+  "gold": null,
+  "gold_statement": "The LED data level shift is correctly implemented; the subsystem is accepted.",
+  "distractor_statement": "The LED data level shift is incorrectly implemented; the subsystem must be reworked."
+ },
+ {
+  "id": "cl19-rat-skip-1",
+  "register": "reconstructed",
+  "kind": "ratification-skip",
+  "board": "eps-8pin",
+  "trace": "Shunt value check on the EPS per-cable sensing. The section 6.4 table locks EPS per-cable\nshunts at 0.5 mOhm; the schematic RS1 and RS2 both read 0.5 mOhm.\n\n## Conclusions\nEPS shunt values match the locked 6.4 table; accept.",
+  "gold": null,
+  "gold_statement": "EPS shunt values match the locked section 6.4 table; accept.",
+  "distractor_statement": "EPS shunt values deviate from the locked section 6.4 table; escalate."
+ },
+ {
+  "id": "cl19-rat-dist-0",
+  "register": "reconstructed",
+  "kind": "ratification-distractor",
+  "board": "12vhpwr-standard",
+  "trace": "The 12VHPWR rail divider feeds IO7 through R5/R6 at 47k/10k, and the v3.8 change added the\nREF3030 ratiometric reference measured on IO8. The divider tolerance was corrected to 0.1 percent\nparts because the reference cannot cancel divider ratio error. Body of analysis confirms the\n0.1 percent sourcing on R5 and R6.\n\n## Conclusions\nThe rail-divider precision chain is consistent: 0.1 percent R5/R6 with the ratiometric REF3030;\nescalation is not needed.",
+  "gold": null,
+  "gold_statement": "The rail-divider precision chain is consistent (0.1% R5/R6 with the ratiometric REF3030); no escalation needed.",
+  "distractor_statement": "The rail-divider precision chain is inconsistent (0.1% R5/R6 with the ratiometric REF3030); escalate immediately."
+ },
+ {
+  "id": "cl19-rat-dist-1",
+  "register": "reconstructed",
+  "kind": "ratification-distractor",
+  "board": "hub-standard",
+  "trace": "Hub DETECT pull-up posture. The Hub reads each port's DETECT through a 10 k pull-up to\n3.3 V; the module side carries the code resistor. R15 is part of the MAIN_5V sense divider, not\nthe DETECT chain.\n\n## Conclusions\nThe DETECT pull-up posture on the Hub is correct, and R15 belongs to the source-sense divider\nnetwork, not DETECT.",
+  "gold": null,
+  "gold_statement": "The Hub DETECT pull-up posture is correct; R15 belongs to the source-sense divider network, not DETECT.",
+  "distractor_statement": "The Hub DETECT pull-up posture is correct; R13 belongs to the source-sense divider network, not DETECT."
+ }
+]

@@ -90,11 +90,33 @@ def binding_problems(policy):
             continue
         if b.get("license_cleared") is False:
             problems.append(f"role {role!r}: binding {b.get('model')!r} has license_cleared:false")
-        gate = (b.get("eval_gate") or {}).get("status")
+        gate_rec = b.get("eval_gate") or {}
+        gate = gate_rec.get("status")
         if gate in _BAD_GATE:
             problems.append(f"role {role!r}: binding {b.get('model')!r} eval_gate is {gate!r} "
                             f"(load-bearing requires a passed gate)")
+        # CL-19 R4: a gate record that cites an eval_set_sha is STALE when the
+        # set has changed since the recorded run -- stale reads as absent.
+        if gate == "pass" and gate_rec.get("eval_set_sha"):
+            cur = _current_eval_set_sha(role)
+            if cur and cur != gate_rec["eval_set_sha"]:
+                problems.append(
+                    f"role {role!r}: eval_gate is STALE (recorded eval_set_sha "
+                    f"{gate_rec['eval_set_sha'][:12]} != current {cur[:12]}) -- "
+                    f"re-run the eval ritual and re-record")
     return problems
+
+
+def _current_eval_set_sha(role):
+    """The live eval-set hash for roles that have one (extractor today).
+    None = no eval set defined for the role (no staleness check)."""
+    if role != "extractor":
+        return None
+    try:
+        import cec_extractor_eval
+        return cec_extractor_eval.eval_set_sha()
+    except Exception:                                         # noqa: BLE001
+        return None
 
 
 # ---------------------------------------------------------------------------

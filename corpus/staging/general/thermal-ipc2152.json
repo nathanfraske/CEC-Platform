@@ -1,0 +1,69 @@
+[
+ {
+  "id": "thermal.ipc2152.ref.plane_adjacent",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "regions": [
+    "external-conductors"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "points": [
+    {
+     "cross_mm2": 0.05,
+     "I_A": 2.0,
+     "dT_2152_plane_adjacent_C": 2.03,
+     "dT_2221_computed_C": 3.7
+    },
+    {
+     "cross_mm2": 0.0884,
+     "I_A": 4.68,
+     "dT_2152_plane_adjacent_C": 5.49,
+     "dT_2221_computed_C": 9.99
+    },
+    {
+     "cross_mm2": 0.2,
+     "I_A": 8.0,
+     "dT_2152_plane_adjacent_C": 4.84,
+     "dT_2221_computed_C": 8.8
+    },
+    {
+     "cross_mm2": 0.5,
+     "I_A": 15.0,
+     "dT_2152_plane_adjacent_C": 4.46,
+     "dT_2221_computed_C": 8.12
+    }
+   ]
+  },
+  "units": "degC",
+  "applies_to": [
+   "physics",
+   "judge"
+  ],
+  "compile": {
+   "targets": [
+    {
+     "type": "param",
+     "params": {
+      "key": "thermal.ipc2152.ref.plane_adjacent"
+     }
+    }
+   ]
+  },
+  "fixture": "tests/test_am04_anchors.py",
+  "source": {
+   "type": "standard",
+   "ref": "IPC-2152 section 5 (plane-adjacent modifier applied to the still-air chart family); derivation: dT_2152 = dT_2221 / 1.3^(1/0.44), the commonly cited ~1.3x plane-adjacent current-capacity modifier expressed as a dT ratio; the (0.0884 mm^2, 4.68 A) point is the classic 100 mil / 1 oz / 10 C IPC-2221 example",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "notes": "AM-04 Ruling 7(b) conservatism reference SET (one dataset, one entry -- four points would shadow each other under the duplicate-(kind,scope) rule). VALUES ARE MODIFIER-DERIVED, not chart-transcribed: the 2221 figures are the solver's own closed form; the 2152 plane-adjacent figures derive from the published plane modifier. OWNER VERIFY against the standard before promotion -- chart-transcribed values supersede this derivation as a revision. The conservatism claim under test: our 4-layer boards are plane-adjacent, so the 2221 solver over-predicts heating (conservative) on this class. The 2152 still-air NO-PLANE chart is MORE conservative than 2221 in parts of its domain -- that comparison deliberately carries no direction assertion. At calibration (CL-13 label, per family+quantity) these same points tighten into accuracy assertions within an owner-set tolerance band (Ruling 7 latch).",
+  "migrated": false
+ }
+]
