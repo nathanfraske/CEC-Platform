@@ -96,55 +96,11 @@ services:
               count: all
               capabilities: [gpu]
 
-  # GPU+RAM local-inference server for the MANAGER judge tier (the big, slow, smart model). OPT-IN.
-  # The "experts in RAM, attention on the 5090" split from commit 370cc2b: a 235B-A22B MoE GGUF whose
-  # expert FFN tensors stay in the 128 GB system RAM (--n-cpu-moe) while attention/shared/KV ride the
-  # 5090 (-ngl). LOW-VOLUME, HIGH-STAKES manager/dispatch/placement judgments only; the high-volume
-  # WORKER swarm stays on the fast vLLM `inference` above. cec_judge_local routes manager calls here via
-  #   CEC_VLLM_MANAGER_URL=http://localhost:8001/v1   CEC_VLLM_MANAGER_MODEL=cec-manager
-  # GPU NOTE: the 5090 is not MIG-capable -> this and `inference` cannot both hold the GPU at full util.
-  # Bring this up ALONE, or drop CEC_VLLM_GPU_FRACTION on `inference` (e.g. 0.45) to co-reside.
-  # MODEL STORE: defaults to the in-repo build/ dir (on the WSL ext4). To move it off the C:-backed
-  # VHDX onto a roomier Windows drive, set CEC_MANAGER_MODEL_DIR=/mnt/e/AI\ Storage/.../Q3_K_M.
-  manager:
-    profiles: ["manager"]
-    image: ${CEC_LLAMA_IMAGE:-ghcr.io/ggml-org/llama.cpp:server-cuda}
-    ipc: host
-    ports:
-      - "8001:8001"
-    volumes:
-      - ${CEC_MANAGER_MODEL_DIR:-../build/models/qwen235b/Q3_K_M}:/models:ro
-    command:
-      - "-m"
-      - "/models/${CEC_MANAGER_MODEL_FILE:-Qwen3-235B-A22B-Thinking-2507-Q3_K_M-00001-of-00003.gguf}"
-      - "--alias"
-      - "cec-manager"
-      - "--host"
-      - "0.0.0.0"
-      - "--port"
-      - "8001"
-      - "-ngl"
-      - "99"                                 # all layers' non-expert tensors -> GPU
-      - "--n-cpu-moe"
-      - "${CEC_MANAGER_NCPUMOE:-99}"         # ALL experts in RAM (11GB VRAM). MEASURED: partial GPU
-                                             # offload (e.g. 80 = 14 layers on GPU) is SLOWER for
-                                             # single-stream decode (2.7 vs 4.3 tok/s) -- the per-layer
-                                             # CPU<->GPU handoff overhead beats the GPU compute gain, AND
-                                             # costs +15GB VRAM. So experts-in-RAM is both faster + leaner
-                                             # here; real decode speedups would need spec-decoding (draft
-                                             # model), not offload. Knob kept for future hardware.
-      - "--ctx-size"
-      - "${CEC_MANAGER_CTX:-16384}"          # judge prompts are small; bound the KV cache
-      - "-fa"
-      - "auto"
-      - "--jinja"                            # apply the model's chat template (Qwen3 chat/thinking)
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
+  # (The old `manager` service -- the Qwen3-235B-A22B-Thinking :8001 "experts in RAM, attention on
+  # the 5090" split -- was REMOVED 2026-06-10: the 235B was retired 2026-06-09 and its model files
+  # deleted, so the service could only crash-loop. Its measured offload findings are preserved in
+  # CLAUDE.md; the n-cpu-moe pattern lives on in manager-m27/manager-fast below. cec-manager now
+  # resolves to manager-m27 via the broker registry.)
 
   # ---- 2026-06-09 model-store refresh: new GGUFs live on E:\AI Models (the WSL
   # drvfs mount /mnt/e/AI Models -- big & roomy, but slower I/O than ext4, so cold
