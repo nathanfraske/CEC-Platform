@@ -557,10 +557,19 @@ Open items (surface before acting):
    CL-03 compiles to post-route copper synthesis + DRC, never router netclasses (FR ignores
    them, measured); CL-26 minimal night ALREADY RAN (2026-06-09). Landed: zones + SCHEMA.md +
    migrator + zone-aware lint + corpus-tree ledger hash + CODEOWNERS + branch protection.
-   NEXT (wave-1 remainder): cec-policy.json + loader assertions, DF-01/06 decision-capture
-   ledger schema + DF-05/07 banned-reward assertions, PC-01 criterion, CR-01/03 registry;
-   then waves 2-5 per the parity plan. VLM for CL-22: Qwen3-VL-32B (judge) + worker mmproj
-   downloads on E:; golden-render eval gates any seat binding.
+   Landed wave-1 remainder (2026-06-10): CL-10 cec-policy.json (CODEOWNERS-gated) + scripts/cec_policy.py
+   loader -- 3 load-time guards (load-bearing binding refused on license_cleared:false / failed-or-absent
+   eval gate -- extractor/verifier/frontier/vision-judge are marked NON-load-bearing until their gates
+   exist; DF-05/07 anti-ratchet firewall scan_banned() equality-on-token over the banned reward fields;
+   clamp() bounds nightly allocations + ledger-logs every clamp -- the loop can never widen a bound);
+   DF-01/06 + PC-01 in cec_ledger.py (decision() w/ claim+hook+settlement, settleable=claim&&hook =>
+   capture:full else counter-eligible; settle()/label append-only DF-07; counter() AM-06 sidecar
+   sharding; CLI decision/settle/label); CR-01/03 registry block in cec-policy.json (ratified:false
+   pending Decision 21 -- owner sign-off). 25 new host tests green (tests/test_cec_policy.py +
+   test_ledger_decision.py); cec_policy validate wired into checklist.sh. STILL OPEN wave-1: CL-02 owner
+   half (machine account + RB-04 audit -- OWNER action). NOTE per SB-08: run the in-container golden
+   (cec_golden.py) before merging the wave-1 PR (scripts/** changed). Then waves 2-5 per the parity plan.
+   VLM for CL-22: Qwen3-VL-32B (judge) + worker mmproj downloads on E:; golden-render eval gates any seat binding.
 
 -2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
    (scripts/cec_synth_pipeline.py, place_with_consent + macro-block auto_cluster + overhang +

@@ -83,7 +83,47 @@ caps), 13 (second forensics reader), 14 (probe opt-in), 15 (vindication weights)
 
 ## 4. Remaining work to parity, by wave
 
-### Wave 1 remainder (enforcement + capture skeletons — next session, ~1 PR)
+### Wave 1 remainder — LANDED 2026-06-10 (the enforcement + capture skeletons)
+Done this session (dependency-free, host- AND container-runnable, `checklist.sh` green):
+- **CL-10** `cec-policy.json` (CODEOWNERS-gated) + `scripts/cec_policy.py` loader. Roles +
+  bindings with MEASURED residency (worker 27 / worker-quality 22 / reviewer-fast 9+60 /
+  analyst M2.7 28+96 GB), `license_cleared` (M2.7 true), eval-gate status (extractor/verifier/
+  frontier/vision-judge marked **non-load-bearing** until their gates exist — that is how an
+  unbuilt seat avoids refusing the night). Three load-time guards: (1) a *load-bearing* binding
+  with `license_cleared:false` or a failed/absent gate **refuses load**; (2) the DF-05/07
+  anti-ratchet firewall — `scan_banned()` walks the whole policy (skipping its own denylist) and
+  any external reward/revision config, equality-on-normalized-token (not substring, so prose is
+  not a false positive) over {acceptance, promotion-likelihood, consensus-agreement,
+  finding-volume, token-thrift-primary}; (3) `clamp()` keeps a nightly allocation inside
+  `bandit_bounds` and logs every clamp to the ledger (`mode=policy-clamp`) — the loop can never
+  widen a bound. `policy_sha256()` is the value stamped into every manifest.
+- **DF-01/DF-06 + PC-01** in `cec_ledger.py`: `decision()` record (class from the closed DF-01
+  taxonomy, artifact, decider+manifest, evidence_bundle_hash, cited_reasons, counterfactual,
+  ambient covariates, DF-02 blinded_view, policy_sha256) **+ the DF-06 three: machine-readable
+  `claim`, closed-vocab `hook` {check_id|fixture|bench|span_match|golden|future_event}, and
+  `settlement` {state, grade 1/2/3}**. PC-01 capture criterion: `settleable = claim AND hook`
+  → `capture: full`, else `counter-eligible` (a claim without a hook is legal and scores zero).
+  `settle()`/`label` are append-only DF-07 updates (`settles:` pointer; `label` = a CL-13
+  physical outcome → Grade-1 settle). **AM-06** sharding: `counter()` streams claimless
+  high-volume micro-decisions to per-stream sidecars (`decisions/counters/<stream>.jsonl`),
+  single-writer by append, never polluting the main decision stream. CLI: `decision`/`settle`/
+  `label`.
+- **CR-01/CR-03 registry** = the `registry` section of `cec-policy.json`: per-tier (routing/
+  placement/scoring/review/corpus) frozen vs owned split, CR-02 rungs, `current_rung`,
+  climb-gate metric, exit condition; `ratified:false` pending **Decision 21** (present the table
+  for owner sign-off). CR-03 adoption protocol (manifest → replay over settled history + the
+  quarantined reality cases → control arm → full budget only on settled vindication) as a
+  standing policy block.
+- Tests: `tests/test_cec_policy.py` (15) + `tests/test_ledger_decision.py` (10) — 25 green on
+  the host. `cec_policy validate` wired into `checklist.sh`.
+
+Still open in wave 1 (owner action): **CL-02 owner half** — create the agent machine account
+(no approval rights), move night-box auth off the owner identity, then the RB-04 weekly
+credential/permission audit script. Until the machine account exists the CL-02 gate is
+documentation (RB-04 finding, noted in CODEOWNERS).
+
+<details><summary>Original wave-1-remainder spec (for reference)</summary>
+
 - **CL-10 `cec-policy.json` + `scripts/cec_policy.py` loader:** role contracts
   (worker/verifier/extractor/manager/reviewer/analyst/judge/frontier + `modality` field per
   CL-22), bindings with MEASURED residency (worker 27, worker-quality 22, manager-fast 9 GB
@@ -105,6 +145,8 @@ caps), 13 (second forensics reader), 14 (probe opt-in), 15 (vindication weights)
   policy assertion. Decision 21 ratifies the initial rungs — present as a table for sign-off.
 - **CL-02 (owner half):** create the agent machine account (no approval rights); move night-box
   auth off the owner identity; then the RB-04 audit script (weekly credential/permission report).
+
+</details>
 
 ### Wave 2 (protective checks — buildable today from the two audits)
 - **CL-25 audit check pack + intake gate:** six named checks with stable IDs in

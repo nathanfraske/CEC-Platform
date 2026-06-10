@@ -197,14 +197,168 @@ def append(*, board, mode, verdict=None, board_file=None, netlist=None, input_bo
     if extra:
         rec["extra"] = extra
 
-    p = ledger_path(create=True) if runs_dir() else None
-    if p is None:
-        print(f"[cec_ledger] WARNING: no cec-runs repo found (CEC_RUNS_DIR / ../cec-runs / "
-              f"~/cec-runs) -- run {rec['run_id']} NOT persisted", file=sys.stderr)
+    return _write_line(rec, LEDGER_REL,
+                       warn=f"no cec-runs repo found (CEC_RUNS_DIR / ../cec-runs / ~/cec-runs) "
+                            f"-- run {rec['run_id']} NOT persisted")
+
+
+def _write_line(rec, rel_path, *, warn):
+    """Append one JSON line to <runs-repo>/<rel_path>. Single-writer by append; returns the
+    record whether or not the ledger repo is present (a missing ledger never errors)."""
+    base = runs_dir(create=True)
+    if base is None:
+        print(f"[cec_ledger] WARNING: {warn}", file=sys.stderr)
         return rec
+    p = os.path.join(base, rel_path)
+    os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "a") as fh:
         fh.write(json.dumps(rec, sort_keys=True) + "\n")
     return rec
+
+
+# ---------------------------------------------------------------------------
+# decision capture (DF-01 / DF-06 / PC-01) -- the forensic record schema.
+# ---------------------------------------------------------------------------
+# Capture cannot be retroactive (DF-01): the schema lands before the analytics matter.
+# Every decision point in the pipeline -- corpus promote/reject/demote, a verdict, a
+# preflight disposition, a swarm finding, a triage call, an extractor selection, a
+# manager attribution, a judge ranking, a bandit allocation, an orchestrator schedule --
+# emits one record. The human is one decider among many, not the only one observed.
+#
+# DF-06 adds three fields over DF-01: a machine-readable CLAIM (what the decision asserts
+# about the world), a VERIFICATION HOOK from a closed vocabulary (which check ID / fixture
+# / bench measurement / future event settles it), and a SETTLEMENT state (open ->
+# provisional -> settled at a DF-07 grade).
+#
+# PC-01 capture criterion: a FULL record iff the decision carries a SETTLEABLE claim
+# (claim + hook present); a claimless micro-decision takes the counter() path instead.
+# A claim WITHOUT a hook is legal and scores zero forever -- vagueness is reward-neutral,
+# never reward-positive (DF-06).
+
+DECISION_REL = os.path.join("decisions", "decisions.jsonl")
+
+# DF-01 taxonomy of decision classes (closed vocabulary).
+DECISION_CLASSES = {
+    "promote", "reject", "demote", "supersede", "scope-correct",   # corpus lifecycle
+    "accept", "override-up", "override-down", "escalate",          # verdicts
+    "confirmed-fixed", "dismissed-with-reason", "accepted-risk",   # preflight dispositions
+    "policy-change", "spec-revision", "attribution-override",      # governance
+    "finding", "triage", "extract", "rank", "allocate", "schedule",  # DF-06 generalization
+}
+
+# DF-06 verification-hook kinds (the closed vocabulary that settles a claim).
+HOOK_KINDS = {"check_id", "fixture", "bench", "span_match", "golden", "future_event"}
+
+# DF-07 settlement grades.
+SETTLEMENT_STATES = {"open", "provisional", "settled"}
+GRADES = {1, 2, 3, None}
+
+
+def decision(*, decision_class, artifact, decider, verdict, cited_reasons=None,
+             claim=None, hook=None, settlement=None, counterfactual=None,
+             evidence_bundle_hash=None, covariates=None, blinded_view=None,
+             policy_sha256=None, run_id=None, parent_run_id=None, extra=None):
+    """Append one DF-01/DF-06 decision record. PC-01: a settleable claim (claim AND hook)
+    yields a FULL record; a claimless decision is still recorded but flagged
+    capture='counter-eligible' so the forensic layer can fold it into aggregates.
+
+    decider: dict {kind: human|model, id, manifest?: {model, quant, prompt_hash, sampling}}.
+    hook: dict {kind: one of HOOK_KINDS, ref} or None (a claim without a hook scores zero).
+    settlement: dict {state, grade} or None (defaults to open / no grade).
+    """
+    if decision_class not in DECISION_CLASSES:
+        raise ValueError(f"decision_class {decision_class!r} not in DF-01 taxonomy {sorted(DECISION_CLASSES)}")
+    if hook is not None and hook.get("kind") not in HOOK_KINDS:
+        raise ValueError(f"hook kind {hook.get('kind')!r} not in DF-06 vocabulary {sorted(HOOK_KINDS)}")
+
+    settleable = bool(claim) and bool(hook)
+    settlement = settlement or {"state": "open", "grade": None}
+    if settlement.get("state") not in SETTLEMENT_STATES:
+        raise ValueError(f"settlement state {settlement.get('state')!r} not in {sorted(SETTLEMENT_STATES)}")
+    if settlement.get("grade") not in GRADES:
+        raise ValueError(f"settlement grade {settlement.get('grade')!r} not in {sorted(g for g in GRADES if g)} or null")
+
+    rec = {
+        "decision_id": run_id or _new_decision_id(),
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "decision_class": decision_class,
+        "artifact": artifact,                       # entry id | candidate hash | run id
+        "decider": decider,                         # human or model+manifest
+        "verdict": verdict,
+        "cited_reasons": cited_reasons or [],       # DF-01: click-to-cite from the bundle, not free text
+        "evidence_bundle_hash": evidence_bundle_hash,  # exactly what was in front of the decider
+        "claim": claim,                             # DF-06: machine-readable assertion about the world
+        "hook": hook,                               # DF-06: closed-vocab verification hook (None => scores zero)
+        "settlement": settlement,                   # DF-06/07: open|provisional|settled + grade 1/2/3
+        "settleable": settleable,                   # PC-01 capture criterion
+        "capture": "full" if settleable else "counter-eligible",
+        "counterfactual": counterfactual,           # DF-01 stub: what the entry would have gated / shipped
+        "covariates": covariates,                   # DF-01: ambient only (queue depth, session position, elapsed)
+        "blinded_view": blinded_view,               # DF-02: which provenance fields were hidden at decision time
+        "policy_sha256": policy_sha256,             # the policy this decision ran under
+        "manifest": manifest(),
+        "parent_run_id": parent_run_id,
+    }
+    if extra:
+        rec["extra"] = extra
+    return _write_line(rec, DECISION_REL,
+                       warn=f"no cec-runs repo -- decision {rec['decision_id']} NOT persisted")
+
+
+def settle(decision_id, *, state, grade=None, evidence=None, regrades=None):
+    """Append-only SETTLEMENT update for an earlier decision (DF-07: re-graded whenever
+    Grade 1/2 evidence arrives). Never edits the original line -- a new line carrying
+    `settles: <decision_id>` (the same append-only discipline as `corrects`)."""
+    if state not in SETTLEMENT_STATES:
+        raise ValueError(f"settlement state {state!r} not in {sorted(SETTLEMENT_STATES)}")
+    if grade not in GRADES:
+        raise ValueError(f"grade {grade!r} not in {sorted(g for g in GRADES if g)} or null")
+    rec = {
+        "decision_id": _new_decision_id(),
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "decision_class": "attribution-override",   # a settlement is a governance event
+        "settles": decision_id,
+        "settlement": {"state": state, "grade": grade},
+        "evidence": evidence,
+        "regrades": regrades,                       # prior grade history if this is a re-grade
+        "manifest": manifest(),
+    }
+    return _write_line(rec, DECISION_REL,
+                       warn=f"no cec-runs repo -- settlement of {decision_id} NOT persisted")
+
+
+def counter(stream, key, *, n=1, board=None):
+    """AM-06: high-volume claimless micro-decisions (per-candidate bandit draws, raw swarm
+    findings, render views) stream to a per-stream SIDECAR as aggregate counters, with the
+    hashes/pointers (not the bulk) flowing to the main ledger. Single-writer by append."""
+    rel = os.path.join("decisions", "counters", f"{stream}.jsonl")
+    rec = {
+        "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "stream": stream, "key": key, "n": n, "board": board,
+    }
+    return _write_line(rec, rel, warn=f"no cec-runs repo -- counter {stream}/{key} NOT persisted")
+
+
+def _new_decision_id():
+    return f"D-{time.strftime('%Y%m%d-%H%M%S', time.gmtime())}-{uuid.uuid4().hex[:8]}"
+
+
+def read_decisions():
+    d = runs_dir()
+    if d is None:
+        return []
+    p = os.path.join(d, DECISION_REL)
+    if not os.path.isfile(p):
+        return []
+    out = []
+    for ln in open(p):
+        ln = ln.strip()
+        if ln:
+            try:
+                out.append(json.loads(ln))
+            except json.JSONDecodeError:
+                print("[cec_ledger] WARNING: skipping malformed decision line", file=sys.stderr)
+    return out
 
 
 def read_all():
@@ -276,8 +430,48 @@ def main(argv=None):
     al = sub.add_parser("lineage")
     al.add_argument("run_id")
 
+    # DF-01/DF-06 decision capture
+    ad = sub.add_parser("decision", help="append a DF-01/DF-06 decision record")
+    ad.add_argument("--class", dest="dclass", required=True, help=f"one of {sorted(DECISION_CLASSES)}")
+    ad.add_argument("--artifact", required=True, help="entry id | candidate hash | run id")
+    ad.add_argument("--decider", required=True, help="decider id (human login or model name)")
+    ad.add_argument("--decider-kind", default="human", choices=["human", "model"])
+    ad.add_argument("--verdict", required=True)
+    ad.add_argument("--reason", action="append", default=[], help="cited reason (repeatable; click-to-cite)")
+    ad.add_argument("--claim", default=None, help="machine-readable assertion (DF-06)")
+    ad.add_argument("--hook-kind", default=None, choices=sorted(HOOK_KINDS))
+    ad.add_argument("--hook-ref", default=None)
+    ad.add_argument("--bundle-hash", default=None)
+
+    # DF-07 settlement / CL-13 outcome label
+    asl = sub.add_parser("settle", help="append-only settlement of a decision (DF-07)")
+    asl.add_argument("decision_id")
+    asl.add_argument("--state", required=True, choices=sorted(SETTLEMENT_STATES))
+    asl.add_argument("--grade", type=int, default=None, choices=[1, 2, 3])
+    asl.add_argument("--evidence", default=None)
+
+    alb = sub.add_parser("label", help="CL-13 reality outcome -> Grade-1 settlement of a decision")
+    alb.add_argument("decision_id")
+    alb.add_argument("--outcome", required=True, choices=["vindicated", "refuted"])
+    alb.add_argument("--evidence", required=True, help="bench/field/fab evidence ref")
+
     a = ap.parse_args(argv)
-    if a.cmd == "append":
+    if a.cmd == "decision":
+        hook = {"kind": a.hook_kind, "ref": a.hook_ref} if a.hook_kind else None
+        rec = decision(decision_class=a.dclass, artifact=a.artifact,
+                       decider={"kind": a.decider_kind, "id": a.decider},
+                       verdict=a.verdict, cited_reasons=a.reason, claim=a.claim, hook=hook,
+                       evidence_bundle_hash=a.bundle_hash)
+        print(json.dumps(rec, indent=2, sort_keys=True))
+    elif a.cmd == "settle":
+        rec = settle(a.decision_id, state=a.state, grade=a.grade, evidence=a.evidence)
+        print(json.dumps(rec, indent=2, sort_keys=True))
+    elif a.cmd == "label":
+        # CL-13: a physical outcome is Grade-1 ground truth; it SETTLES the decision's claim.
+        rec = settle(a.decision_id, state="settled", grade=1,
+                     evidence=f"{a.outcome}: {a.evidence}")
+        print(json.dumps(rec, indent=2, sort_keys=True))
+    elif a.cmd == "append":
         rec = append(board=a.board, mode=a.mode, verdict=a.verdict, board_file=a.board_file,
                      netlist=a.netlist, input_board=a.input_board, artifact=a.artifact,
                      elapsed_s=a.elapsed, parent_run_id=a.parent, corrects=a.corrects)

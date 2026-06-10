@@ -1,0 +1,257 @@
+{
+  "_doc": [
+    "CEC closed-loop POLICY AS CODE (CL-10). The one versioned, PR-gated file the loop may",
+    "tune INSIDE declared bounds and can never widen. CODEOWNERS-protected (CL-02): every edit",
+    "is an owner-approved PR. The orchestrator loads this at start of night, records policy_sha256",
+    "in every ledger manifest, and REFUSES to run if any load-bearing binding has",
+    "license_cleared:false or a failed/absent eval gate, or if any reward/revision config names a",
+    "banned field (DF-05/07). Nightly autonomy = allocation shifts within bandit_bounds only;",
+    "bound/threshold/binding changes are PRs. Loader + assertions: scripts/cec_policy.py.",
+    "",
+    "Residency numbers are MEASURED (broker models.json, 2026-06-10), NOT the framework doc's",
+    "estimates. RAM ceiling is 125 GB (WSL2 runtime), not the 192 GB physical box."
+  ],
+  "policy_version": "1.0.0",
+  "policy_date": "2026-06-10",
+  "owner": "nathanfraske",
+
+  "roles": {
+    "worker": {
+      "modality": "text",
+      "load_bearing": true,
+      "contract": "volume swarm/candidate generation; interleaves with route compute every iteration. Worker-class by design -- a big in-loop model = broker swap thrash.",
+      "tier": "R1"
+    },
+    "verifier": {
+      "modality": "text",
+      "load_bearing": false,
+      "contract": "adversarial-verifier seat on the worker (CL-24, wave 4): decorrelated by input slice/charter/framing; emits micro-schema findings (no severity, no verification path from small models). NON-load-bearing until Decision 9 sets charters/budget/precision floor.",
+      "tier": "R1"
+    },
+    "extractor": {
+      "modality": "text",
+      "load_bearing": false,
+      "contract": "span-verified extraction of analyst traces (CL-15/19); conclusions-only sourcing + RB-03 ratification fallback. NON-load-bearing until the CL-19 fidelity eval gate exists.",
+      "tier": "R1"
+    },
+    "manager": {
+      "modality": "text",
+      "load_bearing": true,
+      "contract": "in-loop attribution + routing (CL-08); narrative is ledger-only. Stays worker-class in-loop (swap-thrash rule).",
+      "tier": "R1"
+    },
+    "reviewer": {
+      "modality": "text",
+      "load_bearing": true,
+      "contract": "out-of-loop corpus-fit / per-board precedent review (cec_judge_local.corpus_fit_review). Bench verdict PR #26: default cec-manager-fast.",
+      "tier": "R1"
+    },
+    "analyst": {
+      "modality": "text",
+      "load_bearing": true,
+      "contract": "deep free-form auditor on the deep path (CL-15); full trace ledgered as rationale_trace, never a corpus source. miner->scribe + sampling floors already productionized.",
+      "tier": "R1"
+    },
+    "judge": {
+      "modality": "text",
+      "load_bearing": true,
+      "contract": "candidate ranking (cec_score-fed). Note the DF-02 dispatch-judge blinding exception recorded in the matrix.",
+      "tier": "R1"
+    },
+    "frontier": {
+      "modality": "text+vision",
+      "load_bearing": false,
+      "contract": "escalation seat (CL-16) + adversarial visual panel seat (CL-22). Gated by Decisions 8/11 (API spend + egress) -- NOT load-bearing until those decisions land.",
+      "tier": "R1"
+    },
+    "vision-judge": {
+      "modality": "vision",
+      "load_bearing": false,
+      "contract": "local VLM grounding-judge seat for CL-22. Binding ABSENT until the golden-render bake-off (CL-11 fixtures: REF3030 adjacency + lane-via must fire pre-fix, stay quiet post-fix).",
+      "tier": "R1"
+    }
+  },
+
+  "bindings": {
+    "_note": "license_cleared + eval_gate are loader-enforced for load_bearing roles. eval_gate.status: passed | failed | absent. An ABSENT or FAILED gate on a load-bearing role refuses load (CL-10).",
+    "worker": {
+      "model": "cec-worker", "model_id": "Qwen3.6-35B-A3B", "quant": "UD-Q4_K_M",
+      "residency": { "vram_gb": 27 }, "license_cleared": true,
+      "eval_gate": { "status": "passed", "ref": "broker bench 2026-06-09 (4 concurrent, 1.75s wall)" }
+    },
+    "worker-quality": {
+      "model": "cec-worker-quality", "model_id": "Qwen3.6-27B", "quant": "Q4_K_M",
+      "residency": { "vram_gb": 22 }, "license_cleared": true,
+      "eval_gate": { "status": "passed", "ref": "broker bench 2026-06-09 (thinking model, WORKER_MAX_TOKENS 1200)" }
+    },
+    "reviewer": {
+      "model": "cec-manager-fast", "model_id": "gpt-oss-120b", "quant": "MXFP4",
+      "residency": { "vram_gb": 9, "ram_gb": 60 }, "license_cleared": true,
+      "eval_gate": { "status": "passed", "ref": "PR #26 reasoning bench (~9.5/10 complete single-call, 22.3 tok/s warm)" }
+    },
+    "analyst": {
+      "model": "cec-manager", "model_id": "MiniMax-M2.7-229B-A10B", "quant": "UD-Q3_K_XL",
+      "residency": { "vram_gb": 28, "ram_gb": 96 }, "license_cleared": true,
+      "eval_gate": { "status": "passed", "ref": "owner 2026-06-10 (license cleared); adversarial-audit bench win PR #26" }
+    },
+    "manager": {
+      "model": "cec-worker", "model_id": "Qwen3.6-35B-A3B", "quant": "UD-Q4_K_M",
+      "residency": { "vram_gb": 27 }, "license_cleared": true,
+      "eval_gate": { "status": "passed", "ref": "in-loop worker-class (swap-thrash rule, §2.6)" }
+    },
+    "judge": {
+      "model": "cec-judge", "model_id": "Qwen3-Coder-30B-A3B", "quant": "AWQ",
+      "residency": { "vram_gb": 28 }, "license_cleared": true,
+      "eval_gate": { "status": "passed", "ref": "Thrust A control plane (kept)" }
+    },
+    "verifier": {
+      "model": "cec-worker", "model_id": "Qwen3.6-35B-A3B", "quant": "UD-Q4_K_M",
+      "residency": { "vram_gb": 27 }, "license_cleared": true,
+      "eval_gate": { "status": "absent", "ref": "CL-24 swarm precision calibration / suspension floor (Decision 9) NOT yet set -- non-load-bearing" }
+    },
+    "extractor": {
+      "model": "cec-worker-quality", "model_id": "Qwen3.6-27B", "quant": "Q4_K_M",
+      "residency": { "vram_gb": 22 }, "license_cleared": true,
+      "eval_gate": { "status": "absent", "ref": "CL-19 fidelity eval NOT yet built -- binding NON-load-bearing until then" }
+    },
+    "vision-judge": {
+      "model": "cec-vision-judge", "model_id": "Qwen3-VL-32B-Instruct", "quant": "Q4_K_M",
+      "residency": { "vram_gb": 21 }, "license_cleared": true,
+      "eval_gate": { "status": "absent", "ref": "CL-22 golden-render bake-off NOT yet run" }
+    },
+    "frontier": {
+      "model": null, "model_id": null, "quant": null,
+      "residency": {}, "license_cleared": true,
+      "eval_gate": { "status": "absent", "ref": "Decisions 8/11 (API spend + egress) unresolved" }
+    }
+  },
+
+  "budgets": {
+    "_note": "Decision 6 (deep-path budgets) is OPEN -- these are CLAMPED placeholders, read by the allocator, never estimates pretending to be measured. Stage wall-times seed from the 2026-06-09 measured night (CL-26 minimal viable night).",
+    "per_night": {
+      "wall_clock_s": 23400,
+      "deep_path_token_cap": 200000,
+      "deep_path_invocations_max": 12
+    }
+  },
+
+  "bandit_bounds": {
+    "_note": "Allocation shifts at night must stay inside [min,max]. The loader clamp() refuses to widen them and logs every clamp to the ledger. AM-08/RB-06 hypervolume + RB-05 outcome diversity floor ride on top.",
+    "route_seeds": { "min": 1, "max": 24, "default": 4 },
+    "route_opt_time_s": { "min": 5, "max": 300, "default": 30 },
+    "route_passes": { "min": 1, "max": 30, "default": 10 },
+    "placement_candidates": { "min": 1, "max": 16, "default": 6 }
+  },
+
+  "reward": {
+    "_note": "DF-07: the reward is graded vindication by reality. Authority routes and gates; reality rewards. The bandit + charters consume ONLY these grades. Any reward/revision config naming a banned_field is refused at load (DF-05/07 anti-ratchet firewall).",
+    "currency": "graded_vindication",
+    "grades": {
+      "grade_1_physical": { "weight": 1.0, "sources": ["bench measurement", "field escape", "fab outcome (CL-13)"] },
+      "grade_2_deterministic": { "weight": 0.4, "sources": ["DRC", "parser check", "triage confirmation", "span match", "golden fixture"] },
+      "grade_3_adjudication": { "weight": 0.15, "provisional": true, "sources": ["higher tier", "human"], "regrade_on": ["grade_1", "grade_2"] }
+    },
+    "novelty": {
+      "_note": "DF-07 novelty weighting against check-simulation: a Grade-2 confirm INSIDE declared scope earns little; a vindicated claim from the RB-01 complement earns much; the largest reward pays when a finding becomes a promoted entry AND its fixture passes AND it scores its first true-positive fire (promotion is necessary, never the paying event).",
+      "in_scope_redundant_multiplier": 0.1,
+      "complement_multiplier": 1.0,
+      "first_true_positive_fire_bonus": 1.0
+    },
+    "banned_fields": [
+      "acceptance_rate",
+      "acceptance",
+      "promotion_likelihood",
+      "promotion_rate",
+      "consensus_agreement",
+      "agreement_with_consensus",
+      "finding_volume",
+      "token_thrift_primary"
+    ]
+  },
+
+  "capture": {
+    "_note": "PC-01 capture criterion (lands with DF-06): FULL records iff a settleable claim exists (training value); aggregate counters otherwise. Tiering is DECLARED here, never improvised. A claim without a verification hook is legal and scores zero forever.",
+    "full_record_when": "claim_is_settleable",
+    "counters_only_when": "claimless_micro_decision",
+    "high_volume_streams_shard": ["bandit_draws", "swarm_findings_raw", "render_views"]
+  },
+
+  "consent": {
+    "_note": "DF-01 consent line for any human whose decisions are captured. Today that is only the owner; the line exists for the day a collaborator holds a queue.",
+    "captured_humans": ["nathanfraske"],
+    "ambient_covariates_only": true
+  },
+
+  "registry": {
+    "_doc": [
+      "CR-01: the registry -- per tier, its frozen components, owned-iteration mechanisms, rungs",
+      "(CR-02 ladders), current rung, the vindication-currency metric gating a climb, and the exit",
+      "condition that stops climbing (the AM-12 family contribution target). Climbs are PRs.",
+      "Decision 21 ratifies the initial current_rung values -- PRESENTED for owner sign-off."
+    ],
+    "ratified": false,
+    "ratifies_decision": 21,
+    "tiers": {
+      "routing": {
+        "frozen": ["Freerouting 1.7.0 jar (by hash)", "Specctra DSN/SES contract", "cec_score hard gates"],
+        "owned": ["seeds", "opt_time", "passes", "keepout hints", "post-route pour synthesis (cec_fr.synthesize_power_copper)"],
+        "rungs": ["G1 detection/assignment", "G2 negotiated congestion", "G3 topological plan", "G4 learned routing (watch only)"],
+        "repair_rungs": ["deterministic battery", "model agent", "repair case law", "trained move-classifier (discriminative, PC-04-legal)"],
+        "current_rung": "G1",
+        "climb_gate_metric": "routing-attributed failure rate at target on the family",
+        "exit_condition": "AM-12 family contribution target met"
+      },
+      "placement": {
+        "frozen": ["cec_pcb geometry/courtyard readers", "DRC courtyard/short verdict"],
+        "owned": ["strategy", "seed", "size target", "anchor/overhang rules"],
+        "rungs": ["P1 constrained portfolio (CL-09, current)", "P2 congestion-aware vs GR-01 grid", "P3 case-law-guided + distilled block templates", "P4 learned placement (watch only)"],
+        "current_rung": "P1",
+        "climb_gate_metric": "placement-attributed failure rate AND placement-class edit distance at target",
+        "exit_condition": "AM-12 family contribution target met"
+      },
+      "scoring": {
+        "frozen": ["analytic IPC anchors (AM-04)", "electrothermal solver (judge of record)"],
+        "owned": ["per-family correction factors (post-bench)"],
+        "rungs": ["S1 uncalibrated solver + analytic anchors (current)", "S2 bench-calibrated per-family correction (SB-06)", "S3 learned surrogates (stage-0 pre-kill only, PC-04-legal)", "S4 surrogate-primary stage-0"],
+        "current_rung": "S1",
+        "climb_gate_metric": "prediction-vs-bench error inside tolerance",
+        "exit_condition": "surrogate bench error inside tolerance, epoch-managed (auto-demote on drift)"
+      },
+      "review": {
+        "frozen": ["base-model manifests (by prompt hash)", "deterministic span verifier", "calibration tracking"],
+        "owned": ["prompt/charter revisions (PR-gated)", "retrieval slices (PC-02)"],
+        "rungs": ["R1 prompted base models + calibration (current)", "R2 retrieval augmentation / case law in context (PC-02)", "R3 trained verifier + judge manifests (PC-04 gates)"],
+        "no_R4": true,
+        "current_rung": "R1",
+        "climb_gate_metric": "per-charter precision calibration in DF-07 currency",
+        "exit_condition": "Decision 17 generative-training moratorium is the ceiling"
+      },
+      "corpus": {
+        "frozen": ["promotion gate (CODEOWNERS + branch protection)", "SCHEMA.md contract"],
+        "owned": ["staging drafts (any tier)"],
+        "rungs": ["draft", "shadow", "promoted"],
+        "current_rung": "draft->shadow (loop building)",
+        "climb_gate_metric": "scope-map coverage per family (RB-01)",
+        "exit_condition": "family scope-map coverage at target"
+      }
+    },
+    "adoption_protocol": {
+      "_note": "CR-03 frozen-component adoption (P0 standing rule). Generalizes the G4 rule to EVERY tier: any external frozen capability (learned router, new solver, new base model) enters only as a manifest, passes replay over settled history PLUS the quarantined reality-anchored gate cases, then runs as a CONTROL ARM against the incumbent on sibling candidates, earning full budget only by settled vindication.",
+      "stages": ["manifest", "replay over settled history", "pass quarantined reality-anchored gate cases", "control arm vs incumbent on sibling candidates", "full budget only on settled vindication"],
+      "replay_is_in_distribution": true,
+      "quarantined_gate_cases_required": true,
+      "control_arm_required": true
+    }
+  },
+
+  "prompt_hashes": {
+    "_note": "Frozen prompt manifests by role. Populated as each seat's prompt lands; a change to any prompt is a PR that updates its hash here (CR-02 review-tier frozen component). Empty until the seats are authored in waves 3-4.",
+    "worker": null,
+    "verifier": null,
+    "extractor": null,
+    "manager": null,
+    "reviewer": null,
+    "analyst": null,
+    "judge": null
+  }
+}

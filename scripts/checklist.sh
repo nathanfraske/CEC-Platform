@@ -53,6 +53,13 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> policy-as-code load assertions (CL-10: bindings usable, DF-05/07 firewall clean)\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_policy.py" validate || status=1
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
   --exclude-dir=build --exclude-dir=.git \
