@@ -57,17 +57,24 @@ class T2Ratification(unittest.TestCase):
                 "distractor_statement": "The widget is incorrect."}
 
     def test_distractor_selected_fails(self):
-        c = self._case("ratification-distractor")          # id ends '1' -> A=distractor
-        with mock.patch.object(E, "_chat", return_value="A"):
+        c = self._case("ratification-distractor")
+        distractor_pick = "B" if E._gold_side(c["id"]) else "A"   # hash-based side
+        with mock.patch.object(E, "_chat", return_value=distractor_pick):
             r = E._run_ratification("m", c)
         self.assertTrue(any(z["class"] == "distractor-selected" for z in r["zt"]), r)
 
     def test_gold_pick_passes(self):
         c = self._case("ratification-distractor")
-        with mock.patch.object(E, "_chat", return_value="B"):   # B = gold here
+        gold_pick = "A" if E._gold_side(c["id"]) else "B"
+        with mock.patch.object(E, "_chat", return_value=gold_pick):
             r = E._run_ratification("m", c)
         self.assertEqual(r["zt"], [])
         self.assertTrue(r["fields"]["ratification.correct"])
+
+    def test_gold_side_stable_for_nondigit_ids(self):
+        """Panel finding: parity-on-last-char degenerated for non-digit ids."""
+        self.assertIn(E._gold_side("rat-01a"), (True, False))
+        self.assertEqual(E._gold_side("rat-01a"), E._gold_side("rat-01a"))
 
     def test_neither_escalates_not_fails(self):
         c = self._case("ratification-distractor")

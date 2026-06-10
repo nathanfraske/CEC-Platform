@@ -68,7 +68,11 @@ def locus_exists(identifier, trace, facts=None):
         return False, "locus %r absent from trace as an exact token" % ident
     if facts is not None:
         import cec_facts
-        in_refs = ident in (facts.get("refs") or [])
+        # refs normalized on BOTH sides (panel hygiene finding); the bare-vs-
+        # slash-prefixed net tolerance below is INTENT, not a false accept:
+        # _net_match deliberately matches net names with or without their
+        # sheet-path prefix (the platform naming convention).
+        in_refs = ident in {normalize(r) for r in (facts.get("refs") or [])}
         in_nets = any(cec_facts._net_match(ident, n) for n in (facts.get("nets") or []))
         if not (in_refs or in_nets):
             return False, "locus %r does not resolve against board facts" % ident
