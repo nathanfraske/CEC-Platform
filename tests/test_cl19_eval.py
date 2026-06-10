@@ -182,3 +182,16 @@ class T7Holdout(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class T8ConclusionsLastMatch(unittest.TestCase):
+    def test_mid_rumination_mention_does_not_misscope(self):
+        """Real M2.7 traces mention the literal heading while planning; the
+        section is the LAST line-anchored match (measured 2026-06-10)."""
+        trace = ('I will end with\n## Conclusions". The answer should be thorough.\n'
+                 'More reasoning here about vias and currents.\n\n'
+                 '## Conclusions\nThe lane vias are undersized; escalate.')
+        sl = E._conclusions_slice(trace)
+        self.assertIn("undersized; escalate", sl)
+        self.assertNotIn("More reasoning here", sl,
+                         "slice must start at the LAST heading, not the mention")

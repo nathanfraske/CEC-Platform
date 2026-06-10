@@ -108,8 +108,12 @@ def _has_conclusions(trace):
 
 
 def _conclusions_slice(trace):
-    m = re.search(r"^##\s*conclusions\b.*?$", trace, re.I | re.M)
-    return trace[m.start():] if m else ""
+    """The conclusions section is the LAST line-anchored heading, never the
+    first: real analyst traces MENTION the literal heading mid-rumination
+    while planning the answer (measured on the first M2.7 real trace,
+    2026-06-10), and the section is terminal by construction (CL-15)."""
+    ms = list(re.finditer(r"^##\s*conclusions\b.*?$", trace, re.I | re.M))
+    return trace[ms[-1].start():] if ms else ""
 
 
 def score_case(case, core_json):
