@@ -49,3 +49,17 @@ From the bench-time session record (raw logs lost):
 
 Unit coverage: `tests/test_judge_local_scribe.py`. Tier wiring details: CLAUDE.md "LLM BROKER"
 done-item, TIER WIRING paragraph.
+
+## 2026-06-10 post-wiring live validation (broker path)
+
+- **Fully-cold boot stamp** (page cache empty after the WSL restart): broker `LIFECYCLE start`
+  00:07:21 → backend RUNNING ~00:15–16 → **~8–9 min** for the 63 GB through 9p (the earlier
+  ~6.5 min figure had a warm-ish cache). Request-to-sidecar for a full corpus-fit review incl.
+  the cold boot: ~11 min; the review itself ~2 min warm.
+- **Live `corpus_fit_review`** on a pcie-8pin-3port corpus log via the new REVIEWER default:
+  schema-conforming single-call JSON (no harmony leakage), real precedent ids cited
+  (`pcie-8pin-3port#070644` …), correct rubric behavior — read the post-fix kelvin flip as
+  improved-vs-family (human-confirm), flagged the one bad-direction outlier (unconnected z=4.7),
+  treated objective z=−22 as improvement-direction. Sidecar: `build/overnight/live-smoke-corpus-fit.json`.
+- **Verdict bench warm rerun through the broker** (`scripts/cec_bench_manager.py`, defaults):
+  **3/3 correct, 405 tok in 40.1 s, 13.4 s/verdict** (`build/bench-gptoss-broker-warm.log`).
