@@ -567,8 +567,20 @@ Open items (surface before acting):
    sharding; CLI decision/settle/label); CR-01/03 registry block in cec-policy.json (ratified:false
    pending Decision 21 -- owner sign-off). 25 new host tests green (tests/test_cec_policy.py +
    test_ledger_decision.py); cec_policy validate wired into checklist.sh. STILL OPEN wave-1: CL-02 owner
-   half (machine account + RB-04 audit -- OWNER action). NOTE per SB-08: run the in-container golden
-   (cec_golden.py) before merging the wave-1 PR (scripts/** changed). Then waves 2-5 per the parity plan.
+   half (machine account + RB-04 audit -- OWNER action). SB-08 golden re-run in-container post-change: PASS.
+   Landed wave-2 start (2026-06-10, branch claude/closed-loop-wave2): CL-25 audit check pack + intake
+   gate -- six classes as stable IDs (cec_constraints.CL25_CLASSES; NEW netclass-geometry-conformance
+   [fires on the committed 12VHPWR lane vias -> CL-11 via golden unblocked; Kelvin-stub track exemption
+   on shared force+sense nets], bom-field-lint [known-open OQ-11/THT gaps noted not failed],
+   sch-pcb-sync [lib_symbols-excised ref-set diff]); intake_gate() (sch-side subset + severity-ERROR
+   ERC, DRAFT-skip per repo convention) wired into cec_router.route() (named-reason refusal, ledger
+   mode=intake, CEC_SKIP_INTAKE=1 override; CLI --intake); detect-resistor-code taught the Hub
+   10k-pullup posture (was a false-fail on Hub Standard); synth DFM stage + netclass_geometry check.
+   NOTE: the Hub "J7/D7/R19-R24 Update-from-Schematic pending" narrative in action item 0 is STALE --
+   the sync checker measured the Hub ref sets IN SYNC (77 refs; sch newer than pcb, so a placement/
+   route pass may remain, but the footprints exist on the PCB). In-container: 10/10 tests
+   (tests/test_cl25_checks.py), EPS+Hub intake ADMIT, SB-08 golden PASS. Wave-2 remainder: CL-11
+   golden seeding, CL-19 extractor eval, CL-03 full compiler, AM-04 FEM anchors; then waves 3-5.
    VLM for CL-22: Qwen3-VL-32B (judge) + worker mmproj downloads on E:; golden-render eval gates any seat binding.
 
 -2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer

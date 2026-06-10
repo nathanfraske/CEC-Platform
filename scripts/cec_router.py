@@ -717,6 +717,33 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
 
     work_dir = work_dir or os.path.join(tempfile.gettempdir(), "cec_route_" + str(int(time.time())))
     os.makedirs(work_dir, exist_ok=True)
+
+    # CL-25 intake gate: refuse candidate generation for a board failing the schematic-side
+    # subset (sync / ERC / BOM lint / netlist assertions) -- routing a broken netlist all
+    # night produces perfectly routed WRONG boards. Named reasons; CEC_SKIP_INTAKE=1 overrides
+    # (lazy import: cec_constraints pulls cec_dispatch, which imports this module).
+    if os.environ.get("CEC_SKIP_INTAKE") != "1":
+        gate = None
+        try:
+            import cec_constraints
+            gate = cec_constraints.intake_gate(board0)
+        except Exception as e:
+            if verbose:
+                print(f"[route] intake gate unavailable ({type(e).__name__}: {e}) -- proceeding")
+        if gate is not None and not gate["ok"]:
+            for r in gate["reasons"]:
+                print(f"[route] INTAKE REFUSAL: {r}")
+            try:
+                import cec_ledger
+                cec_ledger.append(board=os.path.basename(board0), mode="intake",
+                                  verdict="refused", input_board=board0,
+                                  extra={"reasons": gate["reasons"]})
+            except Exception:
+                pass
+            raise RuntimeError(
+                "intake gate refused %s (%d reason(s); CEC_SKIP_INTAKE=1 to override): %s"
+                % (os.path.basename(board0), len(gate["reasons"]), "; ".join(gate["reasons"])[:400]))
+
     rules = spec.rules or cec_score.Rules.from_board(board0)
     spec_to_dru(spec)                                    # rules the candidates + DRC will see
     log = DecisionLog()

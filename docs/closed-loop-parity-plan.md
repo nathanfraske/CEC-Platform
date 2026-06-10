@@ -149,11 +149,24 @@ documentation (RB-04 finding, noted in CODEOWNERS).
 </details>
 
 ### Wave 2 (protective checks — buildable today from the two audits)
-- **CL-25 audit check pack + intake gate:** six named checks with stable IDs in
-  `cec_constraints.py` (netclass-membership + per-net via/track geometry vs class minima —
-  also unblocks CL-11's via golden; thermal keep-apart; cap-to-node proximity; BOM lint;
-  sch↔pcb sync/freshness; per-board netlist assertions). Intake gate: refuse candidate
-  generation for boards failing the schematic-side subset.
+- **CL-25 audit check pack + intake gate: LANDED 2026-06-10.** The six classes as stable IDs
+  (`cec_constraints.CL25_CLASSES`): three NEW checkers — `netclass-geometry-conformance`
+  (per-net track/via vs `.kicad_pro` class minima; Kelvin-stub track exemption on shared
+  force+sense nets, same split as `derive_cross_section_dru`; vias always checked — **fires
+  on the committed 12VHPWR**, the audit's lane-via pre-fix state, so the CL-11 via golden is
+  unblocked), `bom-field-lint` (placeholder/empty patterns; OQ-11/THT known-open gaps noted
+  not failed), `sch-pcb-sync` (instance-ref set diff with lib_symbols excision + board-only
+  ref exclusion; freshness in detail) — and three mapped to pre-existing checkers (thermal
+  keep-apart, cap-to-node, netlist assertions). `intake_gate()` runs the schematic-side
+  subset + live severity-ERROR ERC (benign-filtered; DRAFT boards skip per repo convention)
+  and is wired into `cec_router.route()` — refusal raises with NAMED reasons, ledger-logged
+  (`mode=intake`), `CEC_SKIP_INTAKE=1` overrides. CLI: `cec_constraints.py <board> --intake`.
+  Also: `detect-resistor-code` taught the Hub posture (≥2 RJ-45/DETECT ⇒ expect the §2.3
+  10k pull-ups, not the module code value — was a false-fail on Hub Standard); synth-pipeline
+  DFM stage gained `netclass_geometry` (delegating Check). Verified in-container: EPS ADMIT
+  (DRAFT ERC-skip), Hub ADMIT (honest — its refs ARE in sync; the CLAUDE.md J7-pending
+  narrative was stale), 12VHPWR netclass fire, cross-wired-sch refusal with named reasons;
+  10 tests (`tests/test_cl25_checks.py`); SB-08 golden PASS post-change.
 - **CL-11 golden seeding:** four fixtures (Hub pre/post TPS2121 — expected-fail until its
   Class B entry exists per AM-02; 12VHPWR pre/post lane-vias) + CI invariants by flag ID +
   the golden/holdout split (goldens gate CI; holdout grows from overrides/bench labels and is

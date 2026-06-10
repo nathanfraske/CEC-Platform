@@ -637,8 +637,26 @@ def chk_dfm_drc(view):
     return [Flag("DFM rule violations", view.board, 0.95, Kind.DFM, {"types": by})]
 
 
+def chk_netclass_geometry(view):
+    """CL-25: per-net via/track geometry vs the .kicad_pro netclass minima -- the post-route
+    enforcement Freerouting cannot provide (it provably ignores netclass widths). Delegates
+    to the cec_constraints stable-ID checker; degrades to no-flag when pcbnew is absent."""
+    try:
+        import pcbnew
+        import cec_constraints as K
+        board = pcbnew.LoadBoard(view.board)
+        ok, detail = K.CHECKERS["netclass-geometry-conformance"](board, view.board, {})[:2]
+    except Exception:
+        return []                                # R-05 posture: degrade, never crash the stage
+    if ok is False:
+        return [Flag("netclass geometry under minima", view.board, 0.95, Kind.DFM,
+                     {"detail": detail, "check_id": "netclass-geometry-conformance"})]
+    return []
+
+
 DFM = [
     Check("dfm_drc", chk_dfm_drc, Kind.DFM),
+    Check("netclass_geometry", chk_netclass_geometry, Kind.DFM),   # CL-25
 ]
 
 
