@@ -1,0 +1,58 @@
+[
+ {
+  "id": "can.termination.hub_split_120r",
+  "class": "B",
+  "kind": "rule",
+  "scope": {
+   "net_pair": [
+    "CAN_H",
+    "CAN_L"
+   ],
+   "site": "hub"
+  },
+  "value": {
+   "form": "split",
+   "r_each_ohm": 60,
+   "c_split_nf": 4.7,
+   "total_ohm": 120
+  },
+  "units": "ohm",
+  "applies_to": [
+   "compiler",
+   "judge"
+  ],
+  "source": {
+   "type": "spec",
+   "ref": "CEC-Platform-Ground-Truth-Spec.md section 3.1 (fixed 120 ohm split termination at the Hub; modules carry NO termination)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "Hub-only: 60R + 60R + 4n7 split to GND. A module schematic carrying CAN termination is a conformance failure (chk_* CONFORMANCE suite enforces; this entry is the corpus-side record with spec provenance).",
+  "migrated": true
+ },
+ {
+  "id": "can.bitrate.classical_500k",
+  "class": "B",
+  "kind": "param",
+  "scope": {
+   "bus": "module-to-hub CAN",
+   "tiers": "all"
+  },
+  "value": 500000,
+  "units": "bit/s",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "spec",
+   "ref": "CEC-Platform-Ground-Truth-Spec.md section 3.1 (classical CAN 500 kbps every tier; CAN-FD deferred platform-wide; optional bus-wide 1 Mbps gated on the bench SI test)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "Locked floor and default. The optional 1 Mbps is firmware-only and bus-wide, never per-module; with the non-SIC TJA1051T/3 the passive star/stub SI result at 1 Mbps is the whole story.",
+  "migrated": true
+ }
+]

@@ -1,0 +1,21 @@
+# CL-02: server-side promotion enforcement (closed-loop framework, 2026-06-10).
+# The unforgeable gate: merges touching these paths require the OWNER's GitHub-verified
+# approval (branch protection: require PR + require review from Code Owners). Staging-only
+# PRs touch no owned path and merge without review — the Decision-1b "PRs everywhere,
+# path-gated" topology.
+#
+# NOTE (RB-04 consent-integrity): this gate is real only while agents do NOT authenticate
+# as the owner. Creating the dedicated machine account (no approval rights) is an OWNER
+# action item; until it exists, this file is documentation of intent plus the path map.
+
+# The human-only corpus zone: promotion, demotion, supersession all edit here.
+/corpus/promoted/  @nathanfraske
+
+# Policy as code: role bindings, budgets, bounds, prompt hashes (CL-10).
+/cec-policy.json   @nathanfraske
+
+# Golden regression anchors (CL-11): frozen; burned for tuning the moment they are edited.
+/tests/golden/     @nathanfraske
+
+# The corpus schema contract itself.
+/corpus/SCHEMA.md  @nathanfraske

@@ -543,6 +543,25 @@ this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
 
+-3. CLOSED-LOOP FRAMEWORK (2026-06-10, branch claude/closed-loop-wave1). The owner's refined
+   pipeline model (docs/closed-loop-implementation-list.md, CL/AM/RB/DF/PC/FR/GR/CR items) is
+   being implemented; **docs/closed-loop-parity-plan.md is the working plan of record** --
+   read it BEFORE touching the corpus, judge tiers, orchestrator, or review machinery. Locked
+   owner decisions (do not re-ask): corpus/ at root two-zone split; PRs-everywhere path-gated
+   (CODEOWNERS + branch protection LIVE on main -- promoted/**, cec-policy.json, tests/golden/**
+   need owner approval); all 263 entries migrated to staging (promoted/ empty pending owner
+   re-sign); M2.7 license CLEARED (analyst binding); night venue = WSL2 + routing container;
+   FR stays pinned 1.7.0 (baseline banked) until the FR-01 epoch event. Conflict resolutions
+   (reality won): SB-13 status lifecycle kept (promoted = human_approved + signoff); class
+   letters AS-BUILT (A=standard, B=spec-derived -- the CL-06 spec-first rule binds to B);
+   CL-03 compiles to post-route copper synthesis + DRC, never router netclasses (FR ignores
+   them, measured); CL-26 minimal night ALREADY RAN (2026-06-09). Landed: zones + SCHEMA.md +
+   migrator + zone-aware lint + corpus-tree ledger hash + CODEOWNERS + branch protection.
+   NEXT (wave-1 remainder): cec-policy.json + loader assertions, DF-01/06 decision-capture
+   ledger schema + DF-05/07 banned-reward assertions, PC-01 criterion, CR-01/03 registry;
+   then waves 2-5 per the parity plan. VLM for CL-22: Qwen3-VL-32B (judge) + worker mmproj
+   downloads on E:; golden-render eval gates any seat binding.
+
 -2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
    (scripts/cec_synth_pipeline.py, place_with_consent + macro-block auto_cluster + overhang +
    anneal) is a strong GENERAL designer -- DRC-clean at the gen-eps-condensed bar (96x37, courtyard

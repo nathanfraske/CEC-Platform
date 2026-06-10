@@ -1,0 +1,76 @@
+[
+ {
+  "id": "thermal.k_ipc.external",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "layer": "external",
+   "standard": "ipc2221"
+  },
+  "value": 0.048,
+  "units": "ipc2221-k",
+  "applies_to": [
+   "physics"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "IPC-2221B section 6.2, external-conductor chart (I = k*dT^0.44*A^0.725)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "The formula lives in code (cec_synth_pipeline.dt_ipc); this entry carries the parameter + applicability. Tunable toward IPC-2152 once SB-06 bring-up data exists -- a fitted k lands as a NEW Class C entry scoped per fab/stackup, never an edit of this one.",
+  "migrated": true
+ },
+ {
+  "id": "thermal.k_ipc.internal",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "layer": "internal",
+   "standard": "ipc2221"
+  },
+  "value": 0.024,
+  "units": "ipc2221-k",
+  "applies_to": [
+   "physics"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "IPC-2221B section 6.2, internal-conductor chart (I = k*dT^0.44*A^0.725)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "Internal-layer counterpart of thermal.k_ipc.external; consumed by cec_synth_pipeline.dt_ipc(external=False).",
+  "migrated": true
+ },
+ {
+  "id": "thermal.shunt_chassis_tim.eps_pcie",
+  "class": "B",
+  "kind": "rule",
+  "scope": {
+   "modules": [
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ],
+   "site": "per-cable shunt land"
+  },
+  "value": null,
+  "units": null,
+  "applies_to": [
+   "compiler",
+   "judge"
+  ],
+  "source": {
+   "type": "spec",
+   "ref": "CEC-Platform-Ground-Truth-Spec.md section 6.6 (chassis thermal coupling: TIM pad + bare contact land under the EPS/PCIe shunts; folded v3.8)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "Layout consequence: keep a bare (mask-opened) contact land under each EPS/PCIe per-cable shunt for a TIM pad to the chassis; the thermal model may count this path only when the build profile says the board is chassis-coupled.",
+  "migrated": true
+ }
+]

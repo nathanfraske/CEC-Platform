@@ -30,6 +30,7 @@
 #   python3 scripts/cec_ledger.py query  [--board B] [--since 2026-06-01] [--mode route]
 #   python3 scripts/cec_ledger.py lineage <run_id>
 # ============================================================================
+import hashlib
 import os
 import sys
 import json
@@ -138,9 +139,23 @@ def input_hashes(*, netlist=None, board=None):
     """Hashes of the run's inputs. The constraint corpus is always hashed (the compiler
     reads it); netlist/board hashes when the paths exist."""
     out = {}
-    corpus = os.path.join(ROOT, "scripts", "constraints", "corpus-extracted.json")
-    if os.path.isfile(corpus):
-        out["constraint_corpus_sha256"] = sha256_file(corpus)
+    # CL-01 (2026-06-10): the corpus lives in two zones under corpus/ -- hash the whole
+    # tree (staging + promoted + SCHEMA.md) deterministically so the manifest pins the
+    # exact corpus state a run saw (AM-03 epoching keys off this). Legacy single-file
+    # location still hashed when present (pre-migration checkouts).
+    czones = os.path.join(ROOT, "corpus")
+    if os.path.isdir(czones):
+        h = hashlib.sha256()
+        for dirpath, dirnames, filenames in sorted(os.walk(czones)):
+            dirnames.sort()
+            for fn in sorted(filenames):
+                p = os.path.join(dirpath, fn)
+                h.update(os.path.relpath(p, czones).encode())
+                h.update(open(p, "rb").read())
+        out["constraint_corpus_sha256"] = h.hexdigest()
+    legacy = os.path.join(ROOT, "scripts", "constraints", "corpus-extracted.json")
+    if os.path.isfile(legacy):
+        out["legacy_constraint_corpus_sha256"] = sha256_file(legacy)
     if netlist and os.path.isfile(netlist):
         out["netlist_sha256"] = sha256_file(netlist)
     if board and os.path.isfile(board):
