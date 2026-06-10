@@ -823,6 +823,27 @@ Done (kept for context):
   model -- WORKER_MAX_TOKENS 1200 covers it). Broker is now a systemd unit (survives WSL restarts).
   Verified live: on-demand cold start, GPU swap arbitration, queued-request ride-through on a
   10+min model load, idle reap (auto-stop + GPU back to baseline).
+  TIER WIRING (2026-06-10, the post-bench "which model do we progress with" verdict, wired in).
+  The 2026-06-09 reasoning bench (6 runs, hard quantitative trap problem): gpt-oss-120b ~9.5/10
+  COMPLETE single-call (3.7k tok/172s) vs MiniMax-M2.7 truncating TWICE with EMPTY content (budget
+  burned in reasoning_content at 8k AND 14k caps); M2.7's counter-win is adversarial AUDIT (its
+  rumination surfaced a planted spec inconsistency oss-120b caught internally but OMITTED from its
+  final answer). WIRED in cec_judge_local: (a) NEW out-of-loop REVIEWER tier -- corpus_fit_review
+  runs on CEC_VLLM_REVIEWER_MODEL, default cec-manager-fast (explicit CEC_VLLM_MANAGER_MODEL pin
+  honored second for back-compat); M2.7 is the opt-in deep AUDITOR (CEC_VLLM_REVIEWER_MODEL=
+  cec-manager). The IN-LOOP manager tier deliberately KEEPS its worker-class default (panels
+  interleave with worker calls every iteration; a big manager there = broker-swapping 27GB<->9GB
+  models per iteration). (b) miner->scribe AUTO-RECOVERY in _chat_json: empty content +
+  reasoning_content present -> a SCRIBE transcription call (same model, temp>=0.35 /
+  presence_penalty 0.8 / json_schema grammar, trace TAIL-capped 36k chars for the 16k ctx) instead
+  of the old silent deterministic fallback. (c) M2.7 SAMPLING FLOORS, model-conditional
+  (_FLOOR_MODELS={cec-manager}): temp floored to 0.3 + presence_penalty 0.8 (verbatim decode-loop
+  hazard -- the swarm panels send temp 0.0; the floor makes a M2.7 pin safe there). (d)
+  cec_overnight modernized to BROKER-NATIVE lifecycle: the stale direct :8000/:8001 probes + hand
+  compose stop/start swaps (targeting the gutted 235B `manager` service -- would crash-loop)
+  replaced by broker-catalog `running` checks + a 1-token warm request; `routing` (compute, not
+  LLM) is the only service compose still touches. Tests: tests/test_judge_local_scribe.py (8
+  stub-server tests; host-runnable, no GPU). SB-08 golden PASS in-container post-change.
 - TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
   runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
   Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-

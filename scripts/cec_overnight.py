@@ -5,18 +5,24 @@
 # ============================================================================
 #  cec_overnight -- deadline-bounded overnight pipeline driver.
 # ============================================================================
-# Straddles the single-heavy-GPU-model limit of the one RTX 5090 by SWAPPING between two local tiers:
-#   * the fast vLLM WORKER (`inference`, :8000) judges the per-region accept/repair/escalate decisions
-#     while cec_router GENERATES CANDIDATES -- routing runs in the `routing` container (it needs pcbnew),
-#     the worker is reached over the docker network; this accumulates DecisionLogs in build/route/corpus.
-#   * the deep llama.cpp MANAGER (`manager`, :8001) then DEEP-REVIEWS the freshly-routed boards against
-#     their same-family corpus (cec_judge_local.corpus_fit_review) -- run on the HOST (pcbnew-free), one
+# Straddles the single-heavy-GPU-model limit of the one RTX 5090 by alternating two local tiers,
+# with ALL model lifecycle BROKER-MEDIATED (cec-llm-broker :8080, a systemd unit -- requesting a
+# model by name boots it on demand, swaps the GPU if another model holds it, queues the request
+# through the cold load, and an idle reaper stops it later; NEVER compose up/down LLM services here):
+#   * ROUTE blocks: the volume WORKER (cec-worker, Qwen3.6-35B-A3B) judges the per-region
+#     accept/repair/escalate decisions while cec_router GENERATES CANDIDATES -- routing runs in the
+#     `routing` container (it needs pcbnew; reaches the broker via host.docker.internal:8080); this
+#     accumulates DecisionLogs in build/route/corpus.
+#   * REVIEW blocks: the REVIEWER tier (cec_judge_local.REVIEWER_MODEL -- default cec-manager-fast
+#     = gpt-oss-120b per the 2026-06-09 bench; CEC_VLLM_REVIEWER_MODEL=cec-manager for the MiniMax
+#     M2.7 deep auditor) DEEP-REVIEWS the freshly-routed boards against their same-family corpus
+#     (cec_judge_local.corpus_fit_review) -- run on the HOST (pcbnew-free), one
 #     <corpus-log>-corpus-fit.json sidecar per route.
-# Only the GPU model swaps (inference <-> manager); the routing + freerouting containers stay up.
+# Only the GPU model alternates (broker-arbitrated); the routing + freerouting containers stay up.
 #
-# The driver alternates ROUTE blocks (worker up, escalating Freerouting effort) and REVIEW blocks
-# (manager up), ending on a review, until a wall-clock deadline. Robust for unattended operation: every
-# route/review/swap is wrapped, a failure is logged and the run continues. All output under build/overnight/.
+# The driver alternates ROUTE and REVIEW blocks, ending on a review, until a wall-clock deadline.
+# Robust for unattended operation: every route/review/warm is wrapped, a failure is logged and the
+# run continues. All output under build/overnight/.
 #
 #   python3 scripts/cec_overnight.py --hours 6.5
 #   python3 scripts/cec_overnight.py --hours 0.2 --route-block 6 --review-block 6   # short shakeout
@@ -36,15 +42,13 @@ CORPUS_DIR = os.path.join(ROOT, "build", "route", "corpus")
 OUT_DIR = os.path.join(ROOT, "build", "overnight")
 REVIEW_DIR = os.path.join(OUT_DIR, "reviews")
 
-WORKER_URL = "http://localhost:8000/v1/models"
-MANAGER_HEALTH = "http://localhost:8001/health"
-
-# host-side reviews go through the cec-llm-broker (:8080) so they SERIALIZE against the other LLM project
-# sharing this GPU; the broker routes model 'cec-manager' -> llama.cpp :8001. (The WORKER_URL/MANAGER_HEALTH
-# probes above stay DIRECT -- liveness/model-swap checks, not GPU-contended generation.) set BEFORE
-# importing cec_judge_local (reads at import).
-os.environ.setdefault("CEC_VLLM_MANAGER_URL", "http://localhost:8080/v1")
-os.environ.setdefault("CEC_VLLM_MANAGER_MODEL", "cec-manager")
+# Everything goes through the broker -- liveness via its catalog (GET /models carries per-model
+# `running` flags and answers even with nothing up), boot/swap by simply REQUESTING the model. The
+# old direct :8000/:8001 probes + compose stop/start swaps targeted services that no longer exist
+# (the 235B was retired and its compose `manager` service gutted 2026-06-09). cec_judge_local's own
+# defaults already point at the broker; the review model is its REVIEWER_MODEL resolution.
+BROKER = os.environ.get("CEC_LLM_BROKER_URL", "http://localhost:8080/v1").rstrip("/")
+WORKER_MODEL = "cec-worker"
 
 _LOGF = None
 
@@ -64,50 +68,54 @@ def _sh(args, timeout=None):
         return subprocess.CompletedProcess(args, 124, e.stdout or "", (e.stderr or "") + "\n[timeout]")
 
 
-def _http_ok(url, timeout=3):
+def _broker_models():
+    """The broker catalog: [{id, running, ...}] -- it answers even with nothing running."""
     try:
-        with urllib.request.urlopen(url, timeout=timeout) as r:
-            r.read(1)
-            return True
+        req = urllib.request.Request(BROKER + "/models", headers={"X-CEC-Client": "CEC-Platform"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.load(r).get("data") or []
     except Exception:
+        return []
+
+
+def model_running(model):
+    return any(m.get("id") == model and m.get("running") for m in _broker_models())
+
+
+def broker_warm(model, timeout):
+    """Ensure `model` is live by REQUESTING it through the broker (a 1-token chat is the boot
+    trigger; the broker swaps the GPU if another model holds it and queues the request through the
+    cold load). Idempotent, and the only sanctioned way to start/swap an LLM backend."""
+    if model_running(model):
+        return True
+    log(f"  broker warm -> {model} (cold load rides through, up to {timeout}s)")
+    t0 = time.time()
+    try:
+        payload = {"model": model, "messages": [{"role": "user", "content": "ping"}], "max_tokens": 1}
+        req = urllib.request.Request(BROKER + "/chat/completions", data=json.dumps(payload).encode(),
+                                     headers={"Content-Type": "application/json",
+                                              "X-CEC-Client": "CEC-Platform"}, method="POST")
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            r.read()
+        log(f"  {model} ready in {time.time() - t0:.0f}s")
+        return True
+    except Exception as e:
+        log(f"  !! {model} warm FAILED after {time.time() - t0:.0f}s ({type(e).__name__})")
         return False
 
 
-def worker_up():
-    return _http_ok(WORKER_URL)
-
-
-def manager_up():
-    return _http_ok(MANAGER_HEALTH)
-
-
-def _wait(check, timeout, name):
-    t0 = time.time()
-    while time.time() - t0 < timeout:
-        if check():
-            log(f"  {name} ready in {time.time() - t0:.0f}s")
-            return True
-        time.sleep(8)
-    log(f"  !! {name} NOT ready after {timeout}s")
-    return False
-
-
 def ensure_worker():
-    if worker_up():
-        return True
-    log("SWAP -> worker (stop manager, start inference)")
-    _sh(COMPOSE + ["stop", "manager"], timeout=120)
-    _sh(COMPOSE + ["--profile", "inference", "up", "-d", "inference", "routing"], timeout=180)
-    return _wait(worker_up, 300, "worker")
+    """ROUTE blocks need the `routing` compute container up (kicad/pcbnew -- NOT an LLM service, so
+    compose is fine for it) + the volume worker warm behind the broker."""
+    _sh(COMPOSE + ["up", "-d", "routing"], timeout=180)
+    return broker_warm(WORKER_MODEL, timeout=600)   # measured cold swap 90.7s; margin for arbitration
 
 
 def ensure_manager():
-    if manager_up():
-        return True
-    log("SWAP -> manager (stop inference, start manager)")
-    _sh(COMPOSE + ["stop", "inference"], timeout=120)
-    _sh(COMPOSE + ["--profile", "manager", "up", "-d", "manager"], timeout=180)
-    return _wait(manager_up, 420, "manager")   # large model reload from page cache
+    """REVIEW blocks need the REVIEWER model warm (cec-manager-fast ~6.5 min cold via the broker;
+    a CEC_VLLM_REVIEWER_MODEL=cec-manager pin means M2.7 at ~10.5 min cold)."""
+    import cec_judge_local
+    return broker_warm(cec_judge_local.REVIEWER_MODEL, timeout=1200)
 
 
 # ---- ROUTE phase -----------------------------------------------------------------------------------
@@ -235,7 +243,7 @@ def _save_manifest(manifest):
 
 def main(argv=None):
     global _LOGF
-    ap = argparse.ArgumentParser(description="CEC overnight pipeline driver (swap worker<->manager)")
+    ap = argparse.ArgumentParser(description="CEC overnight pipeline driver (broker-mediated worker/reviewer blocks)")
     ap.add_argument("--hours", type=float, default=6.5, help="total wall-clock budget")
     ap.add_argument("--route-block", type=float, default=80, help="minutes per route block")
     ap.add_argument("--review-block", type=float, default=40, help="minutes per review block")

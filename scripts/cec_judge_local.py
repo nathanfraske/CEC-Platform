@@ -52,8 +52,10 @@ VLLM_URL = (os.environ.get("CEC_VLLM_URL") or BROKER_URL).rstrip("/")
 # 30B AWQ stays registered as cec-judge (CEC_VLLM_MODEL_NAME=cec-judge to use it). For MAX
 # PER-CALL QUALITY over throughput, point the worker tier at the 27B dense:
 #   CEC_VLLM_WORKER_MODEL=cec-worker-quality
-# The deep manager tier stays CEC_VLLM_MANAGER_MODEL=cec-manager (now MiniMax-M2.7 via the
-# broker registry; NOTE a cold load takes minutes -- the broker holds the request meanwhile).
+# TIERING (2026-06-10 bench verdict): the IN-LOOP manager tier (panels/dispatch, interleaved with
+# worker effort calls every route iteration) deliberately defaults to the SAME worker-class model --
+# pointing it at a big manager would make the broker swap the 27GB worker and a big manager in and
+# out EVERY iteration. The big models live in the OUT-OF-LOOP REVIEWER tier below.
 MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-worker")    # served alias; the broker starts/routes it
 # Optional TIERING: workers (cheap, high-volume effort-sizing) can use a SMALLER served model than the
 # managers (judgment). Defaults to the manager model -- the worker is ALREADY cheap (the manager model
@@ -67,17 +69,29 @@ WORKER_URL = (os.environ.get("CEC_VLLM_WORKER_URL") or VLLM_URL).rstrip("/")
 # workers (one model). This is the "big slow smart manager + small fast workers" split.
 MANAGER_URL = (os.environ.get("CEC_VLLM_MANAGER_URL") or VLLM_URL).rstrip("/")
 MANAGER_MODEL = os.environ.get("CEC_VLLM_MANAGER_MODEL") or MODEL
+# OUT-OF-LOOP REVIEWER tier (corpus_fit_review: once per routed board, never inside the route loop).
+# 2026-06-09 reasoning bench (6 runs, hard quantitative trap problem): gpt-oss-120b scored ~9.5/10
+# COMPLETE in ONE call (3.7k tok / 172s; 22.3 tok/s warm; 9GB VRAM, experts in RAM so it coexists
+# with the worker in page cache), while MiniMax-M2.7 truncated TWICE with EMPTY content (the whole
+# budget burned in reasoning_content, at 8k AND 14k caps). So the bounded-JSON reviewer DEFAULTS to
+# cec-manager-fast. M2.7 stays the opt-in deep AUDITOR (CEC_VLLM_REVIEWER_MODEL=cec-manager): its
+# rumination wins adversarial audits (it surfaced a planted spec inconsistency that oss-120b caught
+# internally but OMITTED from its final answer), and the miner->scribe recovery + sampling floors
+# below make it usable programmatically. An explicit CEC_VLLM_MANAGER_MODEL pin is honored second
+# for back-compat (the pre-bench overnight driver pinned the deep manager that way).
+REVIEWER_URL = (os.environ.get("CEC_VLLM_REVIEWER_URL") or MANAGER_URL).rstrip("/")
+REVIEWER_MODEL = (os.environ.get("CEC_VLLM_REVIEWER_MODEL")
+                  or os.environ.get("CEC_VLLM_MANAGER_MODEL") or "cec-manager-fast")
 TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "120"))   # absorbs the cold first guided-JSON grammar compile
 MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a big RAM-offload thinking manager is slow
-# A THINKING manager (Qwen3-235B-A22B-Thinking-2507) emits a <think> reasoning block BEFORE the JSON.
-# MEASURED: this is a thinking-ONLY model -- enable_thinking=false does NOT suppress it (it reasoned
-# 582-1020 chars even with the flag set), and a simple gate verdict ran to ~2131 tokens. The worker's
-# 400-token default (sized for the non-thinking 30B worker that answers immediately) truncates that
-# mid-reason -> empty content -> JSON parse failure -> silent deterministic fallback, defeating the
-# whole point of the big manager. Give the manager tier its OWN, generous-but-bounded budget; the
-# MANAGER_TIMEOUT (at ~5 tok/s on the RAM-offload split, 600s ~= 3000 tokens) is the practical wall.
-# This deep reasoning is a FEATURE for the corpus-level "does this board fit our prior decisions?" judge
-# -- raise MANAGER_MAX_TOKENS / MANAGER_TIMEOUT / CEC_MANAGER_CTX further for that role.
+# THINKING models reason before the JSON; an undersized token budget truncates mid-reason -> empty
+# content -> JSON parse failure -> silent deterministic fallback (first measured on the retired
+# Qwen3-235B-Thinking, re-measured on MiniMax-M2.7). The manager tier keeps its OWN generous-but-
+# bounded budget, and _chat_json below adds the bench-verified recovery (2026-06-09): when `content`
+# comes back EMPTY with the answer stranded in `reasoning_content` (M2.7's signature failure at 8k
+# AND 14k caps -- a "think shorter" directive made it think LONGER), a second SCRIBE call
+# transcribes the trace's conclusion under the json_schema grammar instead of falling back. That is
+# the measured miner->scribe protocol (complete 9.5/10 answer in ~3.6k tok / ~5 min).
 MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
 # WORKER budget (2026-06-09): was a hardcoded 400, sized for the NON-thinking 30B AWQ. The new
 # worker tier (cec-worker 35B-A3B / cec-worker-quality 27B, Qwen3.6) THINKS before answering --
@@ -85,6 +99,19 @@ MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
 # fallback (the exact failure mode the manager budget fix documented). 1200 covers measured
 # reasoning (trivial ask ~160 tokens; real verdicts a few hundred) with margin.
 WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "1200"))
+# M2.7 SAMPLING FLOORS (bench 2026-06-09: NEVER run MiniMax-M2.7 at temp <=0.1-0.2 without a
+# presence penalty -- verbatim decode-loop hazard on repetitive context; watched it lock, 6x the
+# same sentence). Applied automatically whenever the target model is in CEC_VLLM_FLOOR_MODELS.
+_FLOOR_MODELS = {m.strip() for m in
+                 os.environ.get("CEC_VLLM_FLOOR_MODELS", "cec-manager").split(",") if m.strip()}
+_FLOOR_TEMP = float(os.environ.get("CEC_VLLM_FLOOR_TEMP", "0.3"))
+_FLOOR_PRESENCE = float(os.environ.get("CEC_VLLM_FLOOR_PRESENCE", "0.8"))
+# miner->scribe recovery knobs. Trace tail cap: both manager-class services run --ctx-size 16384,
+# so the scribe input must leave room for the system prompt + the 4k answer budget
+# (36000 chars ~= 9k tokens; conclusions form at the trace END, so the TAIL is kept).
+_AUTO_SCRIBE = os.environ.get("CEC_VLLM_AUTO_SCRIBE", "1") != "0"
+_SCRIBE_TRACE_CHARS = int(os.environ.get("CEC_VLLM_SCRIBE_TRACE_CHARS", "36000"))
+_SCRIBE_MAX_TOKENS = int(os.environ.get("CEC_VLLM_SCRIBE_MAX_TOKENS", "4096"))
 TIER = "local:cec-worker"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
@@ -129,9 +156,9 @@ def _post(path, payload, timeout=None, url=None):
 
 def available(timeout=3, url=None):
     """True if the server at `url` (default VLLM_URL, i.e. the broker) answers /models (the judge is up).
-    Cheap pre-check before wiring. Pass url=MANAGER_URL to probe the manager endpoint instead. NOTE: the
-    broker proxies /models to its DEFAULT upstream (the manager :8001), so through the broker this is a
-    manager-liveness probe; worker readiness is checked directly by the caller (e.g. cec_overnight)."""
+    Cheap pre-check before wiring. NOTE: broker v2 serves the model CATALOG itself (it answers with
+    nothing running and boots backends on demand), so through the broker this is a BROKER-liveness
+    check only; talking straight to an upstream it is that model server's liveness."""
     try:
         req = urllib.request.Request((url or VLLM_URL) + "/models", headers={"X-CEC-Client": "CEC-Platform"})
         with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -144,9 +171,13 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
                model=None, url=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
-    diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker)."""
+    diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker).
+    Two bench-verified guards (2026-06-09): models in _FLOOR_MODELS get the sampling floors (the
+    M2.7 decode-loop hazard), and an EMPTY `content` with the answer stranded in `reasoning_content`
+    (a thinking overrun) is recovered by a SCRIBE transcription call instead of raising."""
+    mdl = model or MODEL
     payload = {
-        "model": model or MODEL,
+        "model": mdl,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "temperature": temperature,
         # None -> the worker budget (single chokepoint; manager callers pass MANAGER_MAX_TOKENS)
@@ -154,8 +185,48 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
         "response_format": {"type": "json_schema",
                             "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
+    if mdl in _FLOOR_MODELS:
+        payload["temperature"] = max(temperature, _FLOOR_TEMP)
+        payload["presence_penalty"] = _FLOOR_PRESENCE
     resp = _post("/chat/completions", payload, timeout=timeout, url=url)
-    return json.loads(resp["choices"][0]["message"]["content"])
+    msg = resp["choices"][0]["message"]
+    content = (msg.get("content") or "").strip()
+    if not content:
+        trace = (msg.get("reasoning_content") or "").strip()
+        if trace and _AUTO_SCRIBE:
+            return _scribe_json(trace, schema, name=name, model=mdl, url=url, timeout=timeout)
+        raise ValueError("empty content (thinking overrun, no recoverable trace)")
+    return json.loads(content)
+
+
+SCRIBE_SYSTEM = (
+    "You are a technical EDITOR. The user message is a reasoning trace that already contains a "
+    "final conclusion. Transcribe ONLY that final conclusion as one JSON object conforming to the "
+    "required schema. Do NOT re-derive, re-reason, extend, or second-guess the trace; extract and "
+    "transcribe its answer exactly."
+)
+
+
+def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=None):
+    """SCRIBE half of the bench-verified miner->scribe protocol (2026-06-09, 6-run bench): feed the
+    harvested reasoning trace back to the SAME model as an EDITOR task at temp ~0.35 + presence
+    penalty (the verified anti-loop knobs) under the json_schema grammar -> the JSON the miner call
+    failed to emit. The trace is TAIL-capped to fit the 16k manager context."""
+    payload = {
+        "model": model or MODEL,
+        "messages": [{"role": "system", "content": SCRIBE_SYSTEM},
+                     {"role": "user", "content": "REASONING TRACE:\n" + trace[-_SCRIBE_TRACE_CHARS:]}],
+        "temperature": max(0.35, _FLOOR_TEMP),
+        "presence_penalty": _FLOOR_PRESENCE,
+        "max_tokens": _SCRIBE_MAX_TOKENS,
+        "response_format": {"type": "json_schema",
+                            "json_schema": {"name": name, "schema": schema, "strict": True}},
+    }
+    resp = _post("/chat/completions", payload, timeout=timeout, url=url)
+    content = (resp["choices"][0]["message"].get("content") or "").strip()
+    if not content:
+        raise ValueError("scribe call also returned empty content")
+    return json.loads(content)
 
 
 def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=None):
@@ -683,8 +754,10 @@ def shutdown(*, verbose=True):
 
 
 # ===========================================================================
-#  CORPUS-FIT REVIEWER (Thrust A, deep tier) -- a LOW-FREQUENCY, OUT-OF-LOOP advisory pass on the big
-#  235B Thinking manager. Runs ONCE per fully-routed board, AFTER route() finalizes + the hard gates +
+#  CORPUS-FIT REVIEWER (Thrust A, deep tier) -- a LOW-FREQUENCY, OUT-OF-LOOP advisory pass on the
+#  REVIEWER-tier model (default cec-manager-fast = gpt-oss-120b per the 2026-06-09 bench; set
+#  CEC_VLLM_REVIEWER_MODEL=cec-manager for the MiniMax-M2.7 deep auditor, which auto-recovers via
+#  miner->scribe). Runs ONCE per fully-routed board, AFTER route() finalizes + the hard gates +
 #  independent DRC have decided correctness. It feeds the model a per-FAMILY statistics DIGEST distilled
 #  from the accumulated DecisionLog corpus + the freshly-routed board's log, and asks "does this board
 #  FIT the patterns its same-family precedents embody?" -- producing a precedent-referenced critique.
@@ -1047,10 +1120,13 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
     max_exemplars = int(os.environ.get("CEC_CORPUS_EXEMPLARS", "6"))
     window = int(os.environ.get("CEC_CORPUS_WINDOW", "200"))
     # The corpus-fit review is the HEAVIEST reasoning task (digest + exemplars + the new board's full
-    # summary) AND the slowest -- MEASURED ~4.3 tok/s on the RAM-offload split, ~2500-3500 reasoning
-    # tokens. So it gets its OWN generous, low-frequency budget, well above the per-region MANAGER_*
-    # knobs (a 600s/4096 verdict budget truncates it mid-reason). It runs once per board, out of loop.
-    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "1800"))   # MEASURED a thorough review at 1157s
+    # summary) AND the slowest, so it gets its OWN generous, low-frequency budget, well above the
+    # per-region MANAGER_* knobs (a 600s/4096 verdict budget truncates it mid-reason). It runs once
+    # per board, out of loop. Budget headroom by reviewer: cec-manager-fast (oss-120b, 22.3 tok/s
+    # warm, ~6.5 min cold via the broker) finishes single-call well inside 1800s; cec-manager (M2.7,
+    # 12.9 tok/s warm, ~10.5 min cold) may add the scribe second call -- still inside 1800s warm.
+    # (Historical: the retired 235B measured a thorough review at 1157s @ ~4.3 tok/s.)
+    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "1800"))
     cf_max_tokens = int(os.environ.get("CEC_CORPUS_MAX_TOKENS", "6144"))
     try:
         new = _cf_load(new_log)
@@ -1068,8 +1144,11 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
         peers = peers[-window:]
         if len(peers) < min_peers:
             return _cf_insufficient(fam, len(peers), new)
-        if not available(url=MANAGER_URL):
-            return _cf_no_opinion(fam, "manager_down")
+        # Through the broker this is a BROKER-liveness check (the catalog answers even with nothing
+        # running; the reviewer model is then booted on demand by the call itself). Talking straight
+        # to an upstream it remains the old model-liveness short-circuit.
+        if not available(url=REVIEWER_URL):
+            return _cf_no_opinion(fam, "reviewer_down")
         digest = cf_family_digest(peers)
         newsum = cf_new_summary(new)
         evidence = cf_compute_evidence(newsum, digest)
@@ -1083,7 +1162,7 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
                             "reason about meaning, do not recompute."}
         user = json.dumps(payload, indent=1, sort_keys=True)
         out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit",
-                         url=MANAGER_URL, model=MANAGER_MODEL, timeout=cf_timeout,
+                         url=REVIEWER_URL, model=REVIEWER_MODEL, timeout=cf_timeout,
                          max_tokens=cf_max_tokens)
         return _cf_clamp(out, new, digest)
     except Exception as e:
@@ -1131,12 +1210,14 @@ if __name__ == "__main__":
         if not f:
             print("no --corpus-file given and none found in build/route/corpus/")
             sys.exit(2)
-        print(f"corpus-fit reviewing {f} (manager {MANAGER_URL} / {MANAGER_MODEL})", file=sys.stderr)
+        print(f"corpus-fit reviewing {f} (reviewer {REVIEWER_URL} / {REVIEWER_MODEL})", file=sys.stderr)
         res = corpus_fit_review(f, verbose=True)
         print(json.dumps(res, indent=2))
         sys.exit(0)
     if a.cmd == "status":
         print(f"server URL: {VLLM_URL} | model: {MODEL} | available: {available()}")
+        print(f"manager (in-loop): {MANAGER_URL} / {MANAGER_MODEL} | "
+              f"reviewer (out-of-loop): {REVIEWER_URL} / {REVIEWER_MODEL}")
         sys.exit(0)
     # smoke: a gate-passing finishing-residual candidate -> expect accept
     print(f"server URL: {VLLM_URL} | model: {MODEL} | available: {available()}")
