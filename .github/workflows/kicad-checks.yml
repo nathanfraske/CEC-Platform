@@ -43,3 +43,18 @@ jobs:
             --entrypoint python3 \
             "${KICAD_IMAGE:-kicad/kicad:10.0}" \
             scripts/cec_golden_fixtures.py
+
+      # CL-03 R8 container leg: AM-02 fixture validation for promoted corpus
+      # entries (the compile-time blocking latch reads its results). Vacuously
+      # green while corpus/promoted/ is empty; load-bearing at first promotion.
+      # The CL-03 wave tests themselves are host-runnable (compiler is
+      # pcbnew-free) and run with the checklist above via unittest here.
+      - name: Corpus fixture validation + CL-03 wave tests
+        run: |
+          . ./versions.env
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$PWD":"$PWD" -w "$PWD" \
+            --entrypoint python3 \
+            "${KICAD_IMAGE:-kicad/kicad:10.0}" \
+            scripts/cec_corpus_compile.py fixtures
+          python3 -W ignore -m unittest tests.test_cl03_compiler -v 2>&1 | tail -5

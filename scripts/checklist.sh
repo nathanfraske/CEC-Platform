@@ -60,6 +60,22 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> corpus compiler determinism (CL-03 R8: double-compile byte-identical)\n'
+if command -v python3 >/dev/null 2>&1; then
+  cc1="$(mktemp -d)"; cc2="$(mktemp -d)"
+  if python3 "$CEC_SCRIPTS_DIR/cec_corpus_compile.py" compile --out "$cc1" >/dev/null \
+     && python3 "$CEC_SCRIPTS_DIR/cec_corpus_compile.py" compile --out "$cc2" >/dev/null \
+     && diff -r "$cc1" "$cc2" >/dev/null; then
+    printf '  ok: byte-identical\n'
+  else
+    printf 'FAIL: corpus compile is non-deterministic or errored\n' >&2
+    status=1
+  fi
+  rm -rf "$cc1" "$cc2"
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
   --exclude-dir=build --exclude-dir=.git \

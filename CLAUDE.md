@@ -588,7 +588,23 @@ Open items (surface before acting):
    scripts/cec_golden_fixtures.py (verify=CI gate, --freeze=derive); fixtures.json manifest;
    kicad-checks.yml step runs it in the pinned KiCad image (pcbnew); tests/holdout/ created
    (never-tune pool, grown from overrides/bench labels). Teeth verified (swapped fixture -> exit 1).
-   Wave-2 remainder: CL-19 extractor eval, CL-03 full compiler, AM-04 FEM anchors; then waves 3-5.
+   ALSO landed (2026-06-10, same branch): CL-03 FULL COMPILER per the owner's implementation-
+   rulings doc (vendored decisions; threads: promotion authorizes KNOWLEDGE never file writes,
+   capture from run one). scripts/cec_corpus_compile.py (pcbnew-free, byte-deterministic --
+   checklist leg): entry-resident compile blocks (SCHEMA.md rev + families dim; 5 exemplars,
+   TIM entry deliberately blockless = prose by construction); computed horizons vs RB-02 class
+   caps; AM-02 fixture latch AT COMPILE; build/corpus-compiled/<board>/ artifacts w/ entry-id+
+   hash annotations (committed dru writes stay HUMAN-only: write-section + drift-scan lint);
+   parity report (20 matched w/ tiers / 14 orphans incl. the 3 CL-25-born checkers / §-hints)
+   frozen at tests/golden/parity-report.json; pushdown table (netclass_min dual-row);
+   Flag.binding gate|advisory + ADV-<id> namespace + filters at human_signoff/cascade/intake +
+   per-fire decisions/adv/ sidecar (PC-01 day-one capture); _param()/dt_ipc promoted-first;
+   staging deltas = ADV fires, promoted-vs-hand conflict = lint ERROR; Constraint.corpus_id/
+   superseded_by tombstones (excluded from blocking, never auto-retired); cec_facts.py = the
+   ONE scope resolver (CL-23 seed; KiCad-10 name-ref nets, auto-name unwrap). 18 wave tests
+   host+container; SB-08 golden PASS post-change. REAL FINDING: atx-24pin-rev2 CAN pair is
+   named /CAN1_P //CAN1_N (drifts from the platform _H/_L convention) -- standing compile
+   warning for the owner. Wave-2 remainder: CL-19 extractor eval, AM-04 FEM anchors; then waves 3-5.
    VLM for CL-22 -- BAKE-OFF RUN 2026-06-10 (docs/vlm-bakeoff-2026-06-10.md): all three local
    seats PASS the golden-render gate under the v2 facts-alongside protocol (12/12 gate verdicts;
    v1 naive protocol failed all three -- judge false-fired on the conformant board, Qwen3.6

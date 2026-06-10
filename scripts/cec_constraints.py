@@ -49,6 +49,13 @@ class Constraint:
     status: str = "proposed"    # ratified | proposed
     params: dict = field(default_factory=dict)
     checker: str = ""           # registered checker id (defaults to .id)
+    # CL-03 Ruling 2: registry <-> corpus reconciliation fields. corpus_id links
+    # a row to its corpus-entry source (set in the entry's PROMOTION PR -- the
+    # "linked" parity tier). superseded_by TOMBSTONES the row: authority moved
+    # to the named promoted entry; the row is EXCLUDED from blocking, in the
+    # same human-merged diff as the promotion (retirement is never automatic).
+    corpus_id: str = ""
+    superseded_by: str = ""
 
 
 def C(**kw):
@@ -335,7 +342,25 @@ def _nets(board):
 
 
 def _param(cid, key, default):
-    return next((c.params.get(key, default) for c in REGISTRY if c.id == cid), default)
+    """CL-03 Ruling 7 resolution order: compiled-PROMOTED value if one exists
+    (a promoted param entry whose compile params carry registry_param [cid,key]),
+    else the hand value in REGISTRY. While the registry is the bootstrap
+    authority (R2 phase 0) nothing promoted exists, so hand values govern; a
+    promoted param's promotion PR reconciles the hand value (tombstone in the
+    same diff), so promoted-vs-active-hand conflict is a lint ERROR, not a
+    runtime choice."""
+    hand = next((c.params.get(key, default) for c in REGISTRY if c.id == cid), default)
+    try:
+        import json as _json
+        import cec_facts
+        rows = _json.load(open(os.path.join(cec_facts.COMPILED_ROOT, "params.json")))
+        for row in rows if isinstance(rows, list) else []:
+            if (row.get("binding") == "gate"
+                    and (row.get("params") or {}).get("registry_param") == [cid, key]):
+                return row.get("value", hand)
+    except Exception:                                         # noqa: BLE001
+        pass
+    return hand
 
 
 def _direct_sense_pairs(board, kelvin):
@@ -1296,8 +1321,23 @@ def intake_gate(board_path, ctx=None):
             results["erc"] = ("PASS", "0 ERROR-severity violations")
     else:
         results["erc"] = ("N/A", "no sibling .kicad_sch")
+    # CL-03 R4: the ADVISORY set is REPORTED here, never gated on -- the intake
+    # refusal logic above sees gate-class checks only. Informational summary of
+    # the compiled advisory artifacts applicable to this board (empty when the
+    # corpus compiler has not run -- degrade, never refuse).
+    advisory = {"n": 0, "entries": []}
+    try:
+        import cec_corpus_compile
+        bname = os.path.basename(os.path.dirname(os.path.abspath(board_path)))
+        arts = cec_corpus_compile.load_board_artifacts(bname)
+        rows = [r for rows in arts.values() for r in rows
+                if isinstance(r, dict) and r.get("binding") == "advisory"]
+        advisory = {"n": len(rows),
+                    "entries": sorted({r.get("entry_id") for r in rows})[:20]}
+    except Exception:                                         # noqa: BLE001
+        pass
     return {"ok": not reasons, "reasons": reasons, "results": results,
-            "board": os.path.basename(board_path)}
+            "advisory": advisory, "board": os.path.basename(board_path)}
 
 
 # ===========================================================================
@@ -1417,6 +1457,11 @@ def run(board_path, ctx=None):
     board = pcbnew.LoadBoard(board_path)
     out = []
     for c in REGISTRY:
+        if c.superseded_by:
+            # CL-03 R2: tombstoned row -- authority moved to the promoted corpus
+            # entry; excluded from blocking (reported, never FAIL).
+            out.append((c, "TOMBSTONE", "superseded by corpus entry %s" % c.superseded_by, None))
+            continue
         fn = CHECKERS.get(c.checker or c.id)
         if not fn:
             out.append((c, "DECLARED", "recorded; deterministic checker pending", None))

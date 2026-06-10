@@ -185,12 +185,30 @@ documentation (RB-04 finding, noted in CODEOWNERS).
   → FAIL exit 1); 8 host tests (`tests/test_golden_fixtures.py`).
 - **CL-19 extractor fidelity eval:** (trace, gold) pairs seeded from the two audits; span
   existence 100%, zero hallucinated verdicts; gates the extractor binding in policy (CI <1 min).
-- **CL-03 compiler (full):** corpus→artifact compilation from promoted entries only
-  (`.kicad_dru` fragments, netlist assertions, keep-apart tables, scorer limits) + staging→
-  `ADV-` advisory set wired through the cascade with `human_signoff` exclusion + RB-02
-  pushdown table (generated, fixture-validated per target, FR-fact-aware per §2.3).
-  Includes deciding how the hand-maintained registry derives from / reconciles with promoted
-  entries — flag to owner if any registry rule lacks a promotable source.
+- **CL-03 compiler (full): LANDED 2026-06-10** per the owner's implementation-rulings doc
+  (8 rulings; the two threads: promotion authorizes KNOWLEDGE never file writes; capture
+  from the first run). `scripts/cec_corpus_compile.py` (pcbnew-free, deterministic —
+  double-compile byte-identical is a checklist leg): compile block IN the entry (schema rev
+  + `families` scope dim, owner-gated, rides this PR; the 5 general entries are exemplars —
+  the TIM entry correctly carries NO block, value:null = prose by construction); horizon
+  COMPUTED from (target type, class) vs RB-02 caps; AM-02 fixture latch refuses blocking at
+  compile (vacuous now, load-bearing at first promotion); build-time artifacts only under
+  `build/corpus-compiled/<board>/` (assembled dru w/ `# corpus: <id> <hash>` annotations;
+  committed writes stay human-only via `write-section` + drift-scan lint); parity report
+  (matched 20 w/ confidence tiers / orphan 14 incl. the three CL-25-born checkers /
+  corpus-only 245, §-ref hints on orphans) = the re-sign worklist, frozen as
+  `tests/golden/parity-report.json`; pushdown table w/ netclass_min dual rows; ADV wiring =
+  `Flag.binding` (orthogonal to kind/conf) + gate filters at human_signoff/cascade/intake +
+  `assert_no_advisory` at halting paths + per-fire `decisions/adv/<run>.jsonl` sidecar from
+  day one (PC-01); `_param()`/`dt_ipc` promoted-first precedence; staging param deltas =
+  ADV fires, promoted-vs-hand conflict = lint ERROR; registry rows gained
+  corpus_id/superseded_by (tombstones excluded from blocking, never auto-retired). The ONE
+  shared scope resolver seeded `scripts/cec_facts.py` (CL-23's future home; KiCad-10
+  name-ref nets + auto-name unwrap). 18 wave tests (tests/test_cl03_compiler.py, all 9
+  checklist items). REAL FINDINGS surfaced by the new machinery: atx-24pin-rev2 names its
+  CAN pair `/CAN1_P`//CAN1_N` (drift from the platform `_H`/`_L` convention — left as a
+  standing zero-resolution warning for the owner); hub-pro/12vhpwr-pro skeletons warn
+  correctly.
 - **AM-04 analytic FEM anchors:** IPC-2152 trace-heating + closed-form 1D conduction goldens;
   FEM scores marked `uncalibrated` in every bundle until a CL-13 bench label exists. (Also
   carries the SB-08 golden's known model-debt note: segment-sum cross-section optimism.)

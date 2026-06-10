@@ -982,6 +982,21 @@ def main(argv=None):
                                 elapsed_s=fin.get("elapsed_s"), artifact=os.path.relpath(out_dir, ROOT),
                                 parent_run_id=os.environ.get("CEC_PARENT_RUN_ID"))
         print(f"[route] ledger: {rec['run_id']}")
+        # CL-03 R4: the route leg's pcbnew-free ADVISORY slice (param deltas) ->
+        # per-fire sidecar sharing this route's run_id (PC-01: capture from the
+        # first advisory run; the full checker-binding ADV set runs in the
+        # synth cascade). Fail-safe -- never breaks a route run.
+        try:
+            import cec_corpus_compile
+            deltas = cec_corpus_compile.evaluate_param_deltas()
+            if deltas:
+                side = cec_ledger.adv_fires(
+                    [{"entry_id": d["entry_id"], "locus": d["key"],
+                      "binding": "advisory", "name": d["msg"]} for d in deltas],
+                    board=name, run_id=rec["run_id"])
+                print(f"[route] ADV fires: {side['n']} -> {side['rel']}")
+        except Exception as e:
+            print(f"[route] ADV sidecar skipped: {type(e).__name__}: {e}", file=sys.stderr)
     except Exception as e:
         print(f"[route] ledger append skipped: {type(e).__name__}: {e}", file=sys.stderr)
     # CORPUS-FIT REVIEW (Thrust A, deep tier) -- opt-in, fail-safe, OUTSIDE the per-region loop. When
