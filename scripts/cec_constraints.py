@@ -1112,7 +1112,11 @@ def _chk_netclass_geom(board, path, ctx):
         det = "; ".join("%s[%s] %s" % (net, cls, ",".join("%s x%d" % (k, n) for k, n in cnt.items()))
                         for (net, cls), cnt in worst[:6])
         total = sum(sum(c.values()) for c in bad.values())
-        return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det)
+        # payload: per-(net,class,kind) counts -- the CL-11 fixture invariants assert these
+        # NET-SCOPED (e.g. zero via hits on /SENSEP* post-fix while GND track hits remain).
+        payload = [{"net": net, "class": cls, "kind": k, "count": n}
+                   for (net, cls), cnt in bad.items() for k, n in cnt.items()]
+        return False, "%d under-minima feature(s) on %d net(s): %s" % (total, len(bad), det), payload
     return True, "all tracks/vias meet their netclass minima (%d classes; sense-stub exemption on %d net(s))" % (
         len(classes), len(sense))
 

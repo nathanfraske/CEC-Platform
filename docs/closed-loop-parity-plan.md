@@ -167,10 +167,22 @@ documentation (RB-04 finding, noted in CODEOWNERS).
   (DRAFT ERC-skip), Hub ADMIT (honest — its refs ARE in sync; the CLAUDE.md J7-pending
   narrative was stale), 12VHPWR netclass fire, cross-wired-sch refusal with named reasons;
   10 tests (`tests/test_cl25_checks.py`); SB-08 golden PASS post-change.
-- **CL-11 golden seeding:** four fixtures (Hub pre/post TPS2121 — expected-fail until its
-  Class B entry exists per AM-02; 12VHPWR pre/post lane-vias) + CI invariants by flag ID +
-  the golden/holdout split (goldens gate CI; holdout grows from overrides/bench labels and is
-  never tuned against).
+- **CL-11 golden seeding: LANDED 2026-06-10.** Four frozen fixtures under
+  `tests/golden/fixtures/` (owner-gated path): `12vhpwr-pre-lanevias` = the committed board
+  (still carries the audit's signal-size lane vias; measured 240 via-dimension hits on
+  `/SENSEP*`, band floor 100), `12vhpwr-post-lanevias` = derived known-good (337 vias
+  normalized to class minima via `cec_golden_fixtures.py --freeze`; invariant: ZERO via hits
+  anywhere, while track hits remain by design — net-scoped assertions ride the new checker
+  payload), `hub-pre/post-tps2121` = git `a271253~1`/`a271253` schematics (the four-resistor
+  R15–R18 divider commit) with the **expected-fail marker** on pre (the TPS2121 Class B
+  entry doesn't exist; the gap reports VISIBLY, and the runner FAILS the day a bound check
+  starts firing, forcing the marker flip per AM-02). Runner `scripts/cec_golden_fixtures.py`
+  (verify = CI gate; `--freeze` = derived-fixture regeneration, owner-reviewed); manifest
+  `tests/golden/fixtures.json`. CI: new kicad-checks.yml step running the verifier inside
+  the pinned KiCad image (pcbnew), unconditional (superset of the framework's path scope).
+  Holdout split: `tests/holdout/` created with the never-tune rules — grown from adjudicated
+  overrides/bench labels, thin-is-honest. Teeth verified in-container (swapped post-fixture
+  → FAIL exit 1); 8 host tests (`tests/test_golden_fixtures.py`).
 - **CL-19 extractor fidelity eval:** (trace, gold) pairs seeded from the two audits; span
   existence 100%, zero hallucinated verdicts; gates the extractor binding in policy (CI <1 min).
 - **CL-03 compiler (full):** corpus→artifact compilation from promoted entries only

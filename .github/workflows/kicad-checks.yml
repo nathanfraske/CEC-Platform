@@ -29,3 +29,17 @@ jobs:
 
       - name: ERC + DRC sweep (kicad-cli via Docker)
         run: ./scripts/check-all.sh
+
+      # CL-11 golden fixture invariants (flag-ID anchors): known-bad fires the expected
+      # check IDs, known-good fires none. Needs pcbnew, so it runs INSIDE the pinned KiCad
+      # image (the same image the kicad-cli wrapper pulls). Blocking by the framework rule
+      # for changes to scripts/, cec-policy.json, corpus/promoted/ -- run unconditionally
+      # (it is cheap) so drift is caught everywhere.
+      - name: Golden fixture invariants (CL-11, pcbnew via Docker)
+        run: |
+          . ./versions.env
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$PWD":"$PWD" -w "$PWD" \
+            --entrypoint python3 \
+            "${KICAD_IMAGE:-kicad/kicad:10.0}" \
+            scripts/cec_golden_fixtures.py

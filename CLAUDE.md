@@ -579,8 +579,16 @@ Open items (surface before acting):
    NOTE: the Hub "J7/D7/R19-R24 Update-from-Schematic pending" narrative in action item 0 is STALE --
    the sync checker measured the Hub ref sets IN SYNC (77 refs; sch newer than pcb, so a placement/
    route pass may remain, but the footprints exist on the PCB). In-container: 10/10 tests
-   (tests/test_cl25_checks.py), EPS+Hub intake ADMIT, SB-08 golden PASS. Wave-2 remainder: CL-11
-   golden seeding, CL-19 extractor eval, CL-03 full compiler, AM-04 FEM anchors; then waves 3-5.
+   (tests/test_cl25_checks.py), EPS+Hub intake ADMIT, SB-08 golden PASS.
+   ALSO landed (same session): CL-11 golden fixture seeding -- 4 frozen states in tests/golden/fixtures/
+   (12vhpwr pre = committed lane-via board [240 /SENSEP* via-dim hits, band floor 100] / post = derived
+   337-via normalize [zero via hits invariant, net-scoped via checker payload]; hub pre/post = git
+   a271253~1/a271253 R15-R18 divider pair, pre carries the EXPECTED-FAIL marker until the TPS2121
+   Class B entry lands -- runner fails the day it starts firing, forcing the flip per AM-02);
+   scripts/cec_golden_fixtures.py (verify=CI gate, --freeze=derive); fixtures.json manifest;
+   kicad-checks.yml step runs it in the pinned KiCad image (pcbnew); tests/holdout/ created
+   (never-tune pool, grown from overrides/bench labels). Teeth verified (swapped fixture -> exit 1).
+   Wave-2 remainder: CL-19 extractor eval, CL-03 full compiler, AM-04 FEM anchors; then waves 3-5.
    VLM for CL-22: Qwen3-VL-32B (judge) + worker mmproj downloads on E:; golden-render eval gates any seat binding.
 
 -2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
