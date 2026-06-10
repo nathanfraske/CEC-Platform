@@ -60,6 +60,9 @@ ANALYST TRACE about one PCB candidate. Compile the analyst's conclusions into JS
   (quote basis_spans verbatim from it). If there is NO conclusions section and the
   trace reaches no stated conclusion, return verdict value "no_conclusion" with empty
   basis_spans and NO findings -- never synthesize.
+- QUOTE VERBATIM means CHARACTER-EXACT from the trace: keep markdown markers
+  (**, *), typographic characters, and numbers exactly as written; NEVER elide
+  with '...', never re-flow, never substitute your own figures.
 - Every finding needs evidence_spans QUOTED VERBATIM from the trace (>=20 chars),
   locus refs/nets exactly as the trace names them, a mechanism in YOUR words, a
   severity (info|warn|block-candidate), and a verification_hook
@@ -420,6 +423,25 @@ def structural(eval_dir=EVAL_DIR):
             for f in v["failures"]:
                 errs.append("%s: GOLD span fails: %s %s" % (c["id"], f["field"],
                                                             f["reason"]))
+    # Owner ruling #3 (2026-06-10): holdout CONTENT lives solely in
+    # tests/holdout/ -- assert no committed doc carries a holdout trace slice.
+    hold_dir = os.path.join(ROOT, "tests", "holdout", "extractor")
+    docs = []
+    for dp, _, fs in os.walk(os.path.join(ROOT, "docs")):
+        for f in fs:
+            if f.endswith((".md", ".json", ".html")):
+                try:
+                    docs.append(open(os.path.join(dp, f), encoding="utf-8",
+                                     errors="replace").read())
+                except OSError:
+                    pass
+    blob = cec_span_verify.normalize("\n".join(docs))
+    for hf in glob.glob(os.path.join(hold_dir, "*.json")):
+        for c in json.load(open(hf, encoding="utf-8")):
+            probe = cec_span_verify.normalize(c.get("trace", ""))[100:180]
+            if probe and probe in blob:
+                errs.append("HOLDOUT LEAK: trace slice of %s found in committed docs"
+                            % c.get("id"))
     for e in errs:
         print("ERROR:", e)
     print("structural: %d case(s), %d error(s); eval_set_sha=%s"

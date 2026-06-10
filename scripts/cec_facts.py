@@ -94,6 +94,19 @@ def board_facts(board):
         text = open(board["sch"], encoding="utf-8", errors="replace").read()
         libids = sorted(set(_SCH_LIBID.findall(text)))
         refs = sorted(set(_REF.findall(text)))
+    # board-manifest net ALIASES (owner ruling #11, 2026-06-10): a fixed-in-
+    # stone rev whose net names predate a platform convention declares the
+    # role mapping in board-manifest.json; alias names join the matchable set
+    # so convention-named scopes resolve honestly (the rename itself is a
+    # queued erratum for the next rev, never a silent fact rewrite).
+    mpath = os.path.join(board["dir"], "board-manifest.json")
+    if os.path.isfile(mpath):
+        try:
+            aliases = json.load(open(mpath)).get("net_aliases", {})
+            nets |= {a for a, real in aliases.items()
+                     if any(_net_match(real, n) or real == n for n in nets)}
+        except Exception:                                     # noqa: BLE001
+            pass
     return {"name": board["name"], "families": board["families"],
             "nets": sorted(nets), "refs": refs, "lib_ids": libids}
 

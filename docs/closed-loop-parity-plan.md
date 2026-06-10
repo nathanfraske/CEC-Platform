@@ -21,13 +21,23 @@ record for reaching parity; CLAUDE.md carries only the pointer.
 | 10 | Night venue (AM-07) | WSL2 + routing container on this box (de facto proven: broker systemd unit, overnight ran here) |
 | 18 | Router migration timing | Baseline banked on pinned 1.7.0 (the 2026-06-09 63-route night WAS the baseline); FR-01 → 2.2.4 later as a clean AM-03 epoch event |
 
-**Still open (ask before building the dependent item):** 3 (queue substrate — SB-02's design
-leaned GitHub Issues; confirm at CL-07), 6 (deep-path budgets), 7 (verdict schema lock — owner
-review required BEFORE agents code against CL-12), 8 (panel cadence/seats — API spend), 9
-(swarm charters/budget/precision floor), 11 (frontier data egress), 12 (owner bandwidth/WIP
-caps), 13 (second forensics reader), 14 (probe opt-in), 15 (vindication weights), 16
-(process-corpus custody), 17 (generative-training moratorium), 19 (plan-stage depth), 20
-(topological climb gate), 21 (registry ratification).
+**CLOSED 2026-06-10 (owner session, artifact `docs/decisions/owner-session-2026-06-10.md`,
+14 DF-01 ledger records):** **3** = GitHub Issues queue substrate; **6** = deep-path budgets
+(nightly 90 min / 80K tokens / 12 calls; per-call 15 min / 12K; PR-changeable); **7** =
+cec-verdict-core/1 LOCKED; **21** = registry ratified as written (`ratified: true`);
+**18 + 10 sequencing** = MVN baseline banked on FR 1.7.0, 2.2.4 migration immediately after
+as its own epoch, venue WSL2 with the end-to-end golden first. Same session: Ruling-3
+amendment (verifier v1.1.0 presentation-character canonicalization, NFC+table never NFKC),
+prompt verbatim contract, holdout-content confinement + CI leak assertion, pin-hog fidelity
+relabel, dated M2.7 license ruling in policy, rev2 CAN board-manifest alias (rename = rev3
+erratum).
+
+**Still open (ask before building the dependent item):** 8 (panel cadence/seats — API
+spend), 9 (swarm charters/budget/precision floor), 11 (frontier data egress), 12 (owner
+bandwidth/WIP caps), 13 (second forensics reader), 14 (probe opt-in), 15 (vindication
+weights), 16 (process-corpus custody), 17 (generative-training moratorium), 19 (plan-stage
+depth), 20 (topological climb gate). NOTE: nothing PROMOTES until the branch-protection
+count=1 fix lands (owner ruling #12 caveat).
 
 ## 2. Conflict resolutions (framework doc vs measured tree — reality won)
 

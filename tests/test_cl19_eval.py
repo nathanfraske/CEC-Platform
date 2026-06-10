@@ -127,6 +127,18 @@ class T5SharedVerifier(unittest.TestCase):
                                "prefix the quick brown fox jumps over suffix")
         self.assertTrue(ok)
 
+    def test_emphasis_stripped_quote_passes_v110(self):
+        """Owner ruling #1 (2026-06-10): presentation-character canonicalization."""
+        ok, _ = SV.span_exists("the divider R5/R6 is load-bearing for measurement",
+                               "x **the divider R5/R6 is **load‑bearing** for measurement** y")
+        self.assertTrue(ok)
+
+    def test_underscores_never_stripped(self):
+        self.assertEqual(SV.normalize("CAN_H _emph_ R15"), "CAN_H _emph_ R15")
+
+    def test_typographic_table(self):
+        self.assertEqual(SV.normalize("“a” – b c​"), '"a" - b c')
+
     def test_case_mangled_fails(self):
         ok, _ = SV.span_exists("THE QUICK BROWN FOX JUMPS OVER",
                                "prefix the quick brown fox jumps over suffix")

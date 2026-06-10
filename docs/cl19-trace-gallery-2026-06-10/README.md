@@ -1,11 +1,12 @@
 # CL-19 real-register trace gallery (2026-06-10)
 
-M2.7 analyst batch over the two audit contexts — 8 questions, each with the board
-spot it reasoned about, the **verbatim conclusions**, and the **drafted gold label**
-for the owner gate-record ritual. Labels are FIDELITY records (what the analyst
-concluded), never corrected toward design truth — the two wrong-conclusion traces
-(ntc-placement, the ref3030 ±2% figure) are the robustness jewels of the register.
-Full reasoning traces collapsed per section. Review pairs with PR #29.
+M2.7 analyst batch over the two audit contexts. **EVAL-register cases only** —
+holdout cases appear by ID and pool tag exclusively (owner ruling #3, 2026-06-10:
+holdout content lives solely in tests/holdout/, never in tunable-adjacent docs;
+CI asserts this). Labels are FIDELITY records — wrong analyst conclusions are
+preserved verbatim with the truth confined to annotations (ruling #4).
+
+**Holdout pool (IDs only):** cl19-real-detect-esd, cl19-real-source-sense
 
 ## lane-vias · `12vhpwr-standard` (728s, 25KB reasoning)
 
@@ -22,7 +23,7 @@ Full reasoning traces collapsed per section. Review pairs with PR #29.
 > 
 > **Specific nets/refs involved:** /SENSEP1_HI … /SENSEP6_HI, J3, J4, shunt row RS1‑RS6, and the 120 vias of size 0.6 mm / 0.3 mm.
 
-**Drafted gold label** (real register · **EVAL** pool): verdict `escalate`
+**Drafted gold label** (real register · EVAL): verdict `escalate`
 - `F1` [block-candidate] locus RS1//SENSEP1_HI — 120 lane vias are 0.6/0.3 against the 0.9/0.5 Power12V class minimum -- a design-rule violation and the primary gating factor, despite per-via current sharing being electrically comfortable
 
 <details><summary>full reasoning trace</summary>
@@ -308,7 +309,7 @@ If the design‑rule checker flags the 0.6 mm vias as a violation and no devia
 
 > The temperature‑sensing arrangement is a **hotspot‑coupling mistake**. Placing TH1 (10 kΩ NTC) directly adjacent to the shunt row causes thermal coupling with the shunts and nearby heat sources, leading to an erroneously high temperature reading on **ADC2 IO13**. This introduces error in the temperature compensation for the **INA240**. TH2 (ambient reference) is correctly placed away from heat sources and reads **ADC2 IO14** accurately. The 10 kΩ divider topology is appropriate, but the placement of TH1 is the error.
 
-**Drafted gold label** (real register · **EVAL** pool): verdict `escalate`
+**Drafted gold label** (real register · EVAL): verdict `escalate`
 - `F1` [warn] locus TH1/— — TH1 adjacent to the shunt row thermally couples to the shunts, reading erroneously high on ADC2 IO13 and corrupting INA240 temperature compensation (per the analyst; the v3.7 design record says adjacency is the intent)
 - _board=null: TH1/TH2 live in the schematic only (PCB Update-from-Schematic pending); WRONG-verdict robustness case -- extractor must compile without correcting toward design truth_
 
@@ -615,7 +616,7 @@ The temperature‑sensing arrangement is a **hotspot‑coupling mistake**. Placi
 > - The protection should be sized to trip at or below the ~13 A level (the 58 % outlier seen by the INA240) and must act faster than the thermal time constant of the copper so that the rise never reaches 30 °C.
 > - The **verification hook** is the INA240’s current‑sense output (via the /IN1_P /IN1_N sense pair) feeding an alert to the microcontroller; the firmware or hardware must use this flag to **trigger the protective element (PPTC, thermal fuse, or active limit) and confirm via temperature measurement that the copper stays within the 30 °C rise limit** under the 12 A hog condition.
 
-**Drafted gold label** (real register · **EVAL** pool): verdict `escalate`
+**Drafted gold label** (real register · EVAL): verdict `escalate`
 - `F1` [block-candidate] locus —//IN1_P,/IN1_N — a sustained 12 A single-pin hog breaches the 30 C copper rise gate while the INA240 sees it instantly as a ~58 pct outlier -- the electrical alarm must protect the module's own copper
 
 <details><summary>full reasoning trace</summary>
@@ -730,7 +731,7 @@ We need to phrase it crisply. Let's write the answer.
 > - The 0.1 % tolerance of the divider **R5/R6** is **load‑bearing** for absolute measurement of the rail voltage (+3V3 or +5VSB) on IO7, because the ratiometric calibration does not correct the divider ratio. Consequently, the same error propagates to the current values derived from the INA240 outputs.  
 > - The dominant error source is the reference’s own ±2 % initial accuracy; the divider tolerance contributes a smaller ±0.14 % error but becomes significant when absolute accuracy beyond ~0.2 % is required.
 
-**Drafted gold label** (real register · **EVAL** pool): verdict `accept`
+**Drafted gold label** (real register · EVAL): verdict `accept`
 - `F1` [info] locus U4,R5,R6/— — the 0.1% divider tolerance is load-bearing: ratiometric calibration corrects ADC gain error but not the divider ratio
 - _trace contains the analyst's uncertain +/-2 pct reference-accuracy figure (datasheet says 0.2) -- fidelity gold records conclusions as stated_
 
@@ -1019,7 +1020,7 @@ If the design goal is to achieve, say, 1 % current‑measurement accuracy, the
 > 
 > **In short:** The divider is appropriate for monitoring **+5V_HOLD**, but the claim that it alone satisfies the “read its 5 V sources” requirement is **only partially correct** – it covers that one rail but not the broader set of 5 V rails on the board.
 
-**Drafted gold label** (real register · **EVAL** pool): verdict `hold`
+**Drafted gold label** (real register · EVAL): verdict `hold`
 - `F1` [warn] locus R12,R13/— — R12/R13 correctly scales +5V_HOLD for the ADC but covers only that one rail; the other 5V domains need their own dividers, so the as-stated claim fails
 
 <details><summary>full reasoning trace</summary>
@@ -1317,155 +1318,7 @@ If any of these assumptions differ, the assessment changes accordingly.
 
 </details>
 
-## detect-esd · `hub-standard` (153s, 7KB reasoning)
-
-> **Q:** D2-D5 are PESD5V0S1BA diodes, one per RJ-45 port, cathode to each DETECT line and anode to GND, protecting the bare ESP32 ADC inputs against hot-plug ESD. The DETECT read path is a 10k pull-up to 3.3 V against the module's code resistor. Assess the protection and read-path consistency.
-
-![hub-detect-esd-d2-d5.png](spots/hub-detect-esd-d2-d5.png)
-
-**Analyst conclusions (verbatim):**
-
-> The DETECT line protection is **functional but not optimally designed** for sensitive ESP32 ADC inputs. The PESD5V0S1BA provides adequate clamping for ESD events, but its 6-8V clamping voltage exceeds the ESP32's 3.6V absolute maximum rating, creating a window of vulnerability during fast transients. The read-path topology (10kΩ pull-up to 3.3V) is consistent across all four channels (D2-D5), which is good for uniformity. The "code resistor" interaction on the module should be verified for tolerance and temperature stability to ensure consistent ADC readings across production units. Adding series resistance between the TVS output and ADC input would significantly improve protection robustness without affecting normal operation.
-
-**Drafted gold label** (real register · **HOLDOUT** pool): verdict `hold`
-- `F1` [warn] locus D2,D3,D4,D5/— — PESD5V0S1BA clamps adequately for ESD but its clamping voltage exceeds the ESP32 absolute maximum during fast transients; the analyst recommends series resistance between TVS and ADC
-
-<details><summary>full reasoning trace</summary>
-
-```text
-The user is asking me to assess the ESD protection and read-path consistency for the DETECT lines on this hub-standard board. Let me analyze what we know:
-
-1. **Protection Components**: D2-D5 are PESD5V0S1BA diodes
-   - These are unidirectional TVS (Transient Voltage Suppression) diodes
-   - Clamping voltage around 5V (the "5V0" in the part number indicates 5V working voltage)
-   - One per RJ-45 port, cathode to DETECT line, anode to GND
-
-2. **Protection Topology**: 
-   - Cathode on signal line, anode to GND = protection against positive transients
-   - This is standard ESD protection configuration
-
-3. **Read Path**:
-   - 10k pull-up to 3.3V
-   - Against module's "code resistor" (likely a resistor divider or reference resistor on the ESP32 module)
-
-Let me think about potential issues:
-
-**ESD Protection Analysis:**
-
-The PESD5V0S1BA is a unidirectional TVS diode with:
-- Reverse working voltage: 5V
-- Clamping voltage: typically ~6-8V at some current level
-- Peak pulse power: decent for ESD
-
-For DETECT lines that should read 0V (grounded) or 3.3V (pulled high):
-- When no device connected: DETECT line pulled high to 3.3V through 10k
-- When device connected: DETECT line should be pulled to GND (or through the device's detection circuit)
-
-**Potential Issues:**
-
-1. **Voltage Level Concern**: The ESP32 ADC typically expects signals in the 0-3.3V range. With a 10k pull-up to 3.3V, this seems appropriate.
-
-2. **ESD Protection Adequacy**: 
-   - The PESD5V0S1BA has a reverse standoff voltage of 5V
-   - For 3.3V logic, this provides adequate headroom
-   - The diode will clamp positive transients above ~5V to GND
-
-3. **Read Path Consistency**:
-   - Need to verify the pull-up resistor value and connection
-   - The "code resistor" reference suggests there may be a resistor divider or calibration resistor involved
-   - This could affect the ADC reading consistency
-
-4. **Hot-Plug Considerations**:
-   - RJ-45 connectors can create transient shorts or opens during insertion
-   - The 10k resistor limits current during such events
-   - The TVS diode should absorb the ESD energy from hot-plug events
-
-5. **ADC Input Protection**:
-   - ESP32 ADC is sensitive to overvoltage
-   - The combination of TVS diode + pull-up provides basic protection
-   - However, the clamping voltage of the PESD5V0S1BA might not be low enough for sensitive ADC inputs
-   - Should verify if additional series resistance or clamping is needed
-
-The protection scheme appears functional but warrants closer examination. The 10k pull-up to 3.3V provides current limiting, while the TVS diode clamps overvoltage events. However, the ESP32's ADC has specific input requirements—the clamping voltage of ~6-8V may be too high for direct connection without additional conditioning. The "code resistor" reference suggests a calibration or scaling mechanism that could affect measurement accuracy across different ports.
-
-## Conclusions
-# Analysis: DETECT Line ESD Protection and Read-Path Consistency
-
-## Component Specifications Review
-
-**PESD5V0S1BA Characteristics:**
-- Reverse Working Voltage (Vrwm): 5.0V
-- Breakdown Voltage (Vbr): 5.5V min @ 1mA
-- Clamping Voltage (Vc): ~6-8V @ 5A peak pulse
-- This is a unidirectional TVS diode (single polarity protection)
-
-**Protection Topology:**
-ʼʼʼ
-DETECT line → [Cathode] PESD5V0S1BA [Anode] → GND
-DETECT line → 10kΩ pull-up → +3V3
-DETECT line → ESP32 ADC input
-ʼʼʼ
-
-## Protection Assessment
-
-### Adequacy for Hot-Plug ESD Events
-
-**Strengths:**
-- Diodes provide clamping for positive transients above ~5.5-6V
-- 10kΩ pull-up limits fault current during short-to-ground events
-- Anode directly to GND plane provides low-impedance discharge path
-
-**Concerns:**
-
-1. **Clamping Voltage Margin**: The PESD5V0S1BA clamps at 6-8V, but ESP32 ADC absolute maximum is 3.6V. During a fast ESD transient, the diode's clamping response may not be fast enough to prevent the ADC seeing >3.6V before the diode fully engages.
-
-2. **Unidirectional Only**: This diode only protects against positive transients. While RJ-45 hot-plug primarily creates positive spikes, negative transients (though less common) would not be protected.
-
-3. **No Series Resistance**: The DETECT lines connect directly to ADC pins. A small series resistor (33-100Ω) between the TVS and ADC input would provide additional current limiting during clamping events.
-
-### Read-Path Consistency Analysis
-
-**Pull-Up Configuration:**
-- 10kΩ to +3V3 provides proper logic high level
-- With no device connected: ADC sees ~3.3V (logic HIGH)
-- With device connected: DETECT pulled low through device, ADC sees ~0V (logic LOW)
-
-**Potential Consistency Issues:**
-
-1. **Code Resistor Interaction**: The reference to "module's code resistor" suggests a resistor-divider or calibration network on the ESP32 module itself. If this varies between modules or is temperature-sensitive, it could introduce read inconsistencies.
-
-2. **No Explicit Series Damping**: Long cable runs to RJ-45 ports can create ringing. The 10kΩ pull-up provides some damping, but additional RC snubbing at the connector might improve signal integrity.
-
-3. **Four Identical Channels**: D2-D5 are all PESD5V0S1BA with identical 10kΩ pull-ups, suggesting consistent protection across all four DETECT channels—this is good design practice.
-
-## Specific Concerns
-
-| Issue | Severity | Recommendation |
-|-------|----------|----------------|
-| Clamping voltage (6-8V) exceeds ADC max (3.6V) | Medium | Add series resistor or lower-clamp TVS |
-| Unidirectional protection only | Low | Acceptable for this application |
-| No explicit current limiting at ADC | Medium | Add ~47Ω series resistor |
-| Code resistor variability | Low-Medium | Verify module-level tolerance |
-
-## Missing Verification Points
-
-- Are there any additional protection components between the TVS and ADC input?
-- What is the exact value/tolerance of the "code resistor" on the ESP32 module?
-- Is there a common-mode filter or additional capacitance on these lines?
-- What is the layout proximity between DETECT lines and high-speed signals (CAN, USB)?
-
-## Recommendations for Improvement
-
-1. **Add Series Resistance**: Insert 33-100Ω between TVS cathode and ADC input to limit fault current
-2. **Consider Bidirectional TVS**: PESD5V0S1BA is unidirectional; a bidirectional alternative (e.g., PESD5V0S1BB) would provide symmetric protection
-3. **Add Input Capacitance**: Small cap (10-47pF) at ADC input can filter fast transients the TVS doesn't catch
-
-## Conclusions
-
-The DETECT line protection is **functional but not optimally designed** for sensitive ESP32 ADC inputs. The PESD5V0S1BA provides adequate clamping for ESD events, but its 6-8V clamping voltage exceeds the ESP32's 3.6V absolute maximum rating, creating a window of vulnerability during fast transients. The read-path topology (10kΩ pull-up to 3.3V) is consistent across all four channels (D2-D5), which is good for uniformity. The "code resistor" interaction on the module should be verified for tolerance and temperature stability to ensure consistent ADC readings across production units. Adding series resistance between the TVS output and ADC input would significantly improve protection robustness without affecting normal operation.
-```
-
-</details>
+## detect-esd — **HOLDOUT** (content withheld; see tests/holdout/extractor/)
 
 ## holdup-flush · `hub-standard` (567s, 26KB reasoning)
 
@@ -1481,7 +1334,7 @@ The DETECT line protection is **functional but not optimally designed** for sens
 > 
 > - **In short**: The schematic shows a plausible hold‑up architecture, but the *actual* ride‑through performance is unconfirmed until a bench test (preferably with real firmware, at worst‑case temperature and load) demonstrates that the voltage on **/+5V_HOLD** remains above the flash’s minimum operating voltage for the entire duration of the telemetry flush.
 
-**Drafted gold label** (real register · **EVAL** pool): verdict `hold`
+**Drafted gold label** (real register · EVAL): verdict `hold`
 - `F1` [info] locus C1,D1/— — 4700uF + Schottky gives an estimated 70-210 ms hold-up vs a <50 ms flush -- plausible margin, bench-only confirmation per OQ-56
 
 <details><summary>full reasoning trace</summary>
@@ -1857,149 +1710,7 @@ The component choices (4700 µF, low‑drop Schottky) are *consistent* with a 
 
 </details>
 
-## source-sense · `hub-standard` (202s, 10KB reasoning)
-
-> **Q:** Spec section 2.9 requires firmware to read BOTH 5V source rails (MAIN_5V and 5VSB) through sense dividers into ADC inputs so it can set the load budget. In the current schematic U7 (a second TPS2121) cascades MAIN_5V over the U5 output, and R15/R16 plus R17/R18 form two 47k/10k dividers driving MAIN_5V_SENSE and 5VSB_SENSE into IO9/IO10. Assess whether the section 2.9 requirement is met and what remains open.
-
-![hub-source-sense-u7-r15-r18.png](spots/hub-source-sense-u7-r15-r18.png)
-
-**Analyst conclusions (verbatim):**
-
-> The section 2.9 requirement for reading both 5V rails through sense dividers into ADC inputs is **partially met** by the hardware. The divider networks (R15/R16 and R17/R18) with correct 47k/10k ratios exist and route to IO9/IO10. However, **the cascade dependency creates ambiguity** — when MAIN_5V is absent, the MAIN_5V_SENSE divider reads the U5 output rather than a true MAIN_5V measurement, potentially violating the "both rails read distinctly" requirement. Additionally, firmware implementation details (read sequencing, range validation) remain open and must be verified.
-
-**Drafted gold label** (real register · **HOLDOUT** pool): verdict `hold`
-- `F1` [warn] locus R15,R16,R17,R18/— — divider networks exist with correct ratios routed to IO9/IO10, but the analyst claims a cascade dependency makes MAIN_5V_SENSE ambiguous when MAIN_5V is absent (contradicts the R15-from-MAIN_5V_RAW wiring -- fidelity case)
-
-<details><summary>full reasoning trace</summary>
-
-```text
-Let me carefully analyze this question about the PCB board "hub-standard" and assess whether the section 2.9 requirement is met regarding reading both 5V source rails through sense dividers.
-
-First, let me understand the architecture described:
-
-1. **U7** - A second TPS2121 that cascades MAIN_5V over the U5 output
-2. **R15/R16** - Form a divider (47k/10k) driving MAIN_5V_SENSE into IO9
-3. **R17/R18** - Form a divider (47k/10k) driving 5VSB_SENSE into IO10
-
-The requirement is that firmware must read BOTH 5V source rails (MAIN_5V and 5VSB) through sense dividers into ADC inputs.
-
-Let me trace through the selected nets and references to understand what's happening:
-
-Selected nets relevant to this analysis:
-- /MAIN_5V_RAW
-- /MAIN_5V_SENSE
-- /5VSB_RAW
-- /5VSB_SENSE
-- /PSU_5V (likely the 5VSB source)
-- +5VSB
-
-Selected references:
-- C1 through C16 - likely filter caps
-- R15, R16, R17, R18 - likely the divider resistors
-- U7 - mentioned TPS2121
-- U5 - mentioned as primary TPS2121
-
-Let me think about the TPS2121 power mux architecture:
-
-The TPS2121 is a power mux device that can select between two power sources. The typical configuration has:
-- INA - input A (one power source)
-- INB - input B (another power source)
-- OUT - output (selected power)
-- EN - enable
-
-
-- Current sensing pins
-
-So the architecture appears to be: U5 handles primary power selection between PSU_5V and 5VSB, while U7 cascades MAIN_5V over U5's output. This creates a priority chain where MAIN_5V takes precedence if available, otherwise falling back to U5's selection. The sense dividers then feed both rail voltages back to the microcontroller through IO9 and IO10 for firmware monitoring.
-
-For the divider calculations, I need to verify the resistor values. With 47k and 10k resistors, the ratio gives approximately 0.175 of the input voltage. At 5V input, this produces roughly 0.875V at the ADC—well within typical 3.3V ADC ranges. The dividers appear correctly sized for the measurement requirement.
-
-Looking at the net names more carefully, I notice several with leading slashes that might indicate inverted signals or be artifacts from schematic formatting. The relevant nets are /MAIN_5V_SENSE and /5VSB_SENSE, which should correspond to the divider outputs. The question references R15/R16 and R17/R18 as the divider pairs, so I need to trace which resistors connect to which sense nets to confirm the topology.
-
-The requirement states firmware must read both 5V rails through their respective dividers into ADC inputs. Since the schematic shows MAIN_5V_SENSE and 5VSB_SENSE routed to IO9/IO10, and both divider pairs (47k/10k) are present, the hardware appears to support this. However, the question asks what remains open, suggesting there may be implementation details or connections I haven't fully verified yet.
-
-Looking at the cascade architecture: U7's INB likely receives MAIN_5V while its INA connects to U5's output, with OUT feeding the downstream rail. This means U5 must independently sense 5VSB through its own divider to make switching decisions. The key question is whether firmware can actually access both sense signals—U5's internal sensing versus the external dividers on MAIN_5V_SENSE and 5VSB_SENSE may not be the same measurement points.
-
-The dividers appear correctly implemented with the 47k/10k ratio producing roughly 0.875V from a 5V input, which is appropriate for a 3.3V ADC. However, I need to verify whether the sense nets are properly routed to the microcontroller's ADC inputs and whether U5's internal sensing conflicts with or complements the external divider measurements.
-
-The cascade architecture introduces a timing dependency—U7 must first select MAIN_5V before its output becomes available to U5. This means firmware reading the sense signals needs to account for which rail is active at any given moment. Additionally, the ADC input impedance and sampling timing relative to power state changes could affect measurement accuracy if not properly synchronized.
-
-The divider ratios (47k/10k) appear correctly sized for a 3.3V ADC range, but I should verify the actual resistor values match the schematic and confirm whether firmware can dynamically switch between reading MAIN_5V_SENSE and 5VSB_SENSE based on which rail is currently active. The open items likely involve firmware synchronization logic to handle the cascading selection and ensuring the ADC readings reflect the correct active rail at any given time. The divider outputs need to reach actual ADC pins on the microcontroller—IO9 and IO10 appear to be these pins, but I should verify the routing is complete. Beyond that, there are several practical concerns: whether firmware properly handles reading both rails when they're multiplexed through the mux, if the divider values are accurate for the ADC's input range, whether there's adequate filtering on the sense lines, and whether the timing between power switching and ADC sampling creates any issues. The schematic also needs to confirm that 5VSB is actually connected to the U5 sense input and that MAIN_5V reaches U7's input properly.
-
-Looking at the cascade architecture more carefully, the critical question is whether U5 can independently sense 5VSB or if it's dependent on the upstream rail being active. If U7 fails or disables, U5 loses its input reference, which could prevent proper 5VSB monitoring. The requirement specifies reading both rails through dividers into ADC inputs, so I need to verify this dependency doesn't break that requirement.
-
-The sense divider routing also needs confirmation—whether MAIN_5V_SENSE and 5VSB_SENSE actually connect to the ADC pins (IO9/IO10) as shown in the schematic, and whether firmware reads both values correctly. The cascade topology means U7 must be operational for U5 to function, which could be a single point of failure if one device malfunctions.
-
-The divider ratios appear sound for 5V rails stepping down to roughly 0.875V, well within ADC range. However, I should verify the actual resistor values match the schematic and confirm whether these nets are properly connected or left floating. The firmware's timing and sequencing when reading these voltages also needs scrutiny—particularly how it handles the cascaded power architecture where one rail depends on another.
-
-## Conclusions
-# Analysis: Section 2.9 ADC Sense Divider Requirement for hub-standard Board
-
-## Architecture Overview
-
-The schematic shows a two-stage TPS2121 power mux cascade:
-- **U5** — Primary TPS2121 muxing between PSU_5V and 5VSB
-- **U7** — Secondary TPS2121 cascading MAIN_5V over U5's output
-
-The sense divider network consists of:
-- **R15/R16** → driving /MAIN_5V_SENSE to IO9
-- **R17/R18** → driving /5VSB_SENSE to IO10
-
-## Divider Ratio Verification
-
-Both divider pairs are specified as 47k/10k:
-
-$$V_{ADC} = V_{IN} \times \frac{R_{BOTTOM}}{R_{TOP} + R_{BOTTOM}} = 5V \times \frac{10k}{47k + 10k} = 5V \times 0.175 = 0.875V$$
-
-**Finding:** Both dividers produce ~0.875V from a 5V rail, well within typical 3.3V ADC reference ranges. The ratio is correctly chosen.
-
-## Requirement Assessment
-
-### What IS Present (Requirement Met):
-1. **Two distinct divider networks exist** — R15/R16 for MAIN_5V and R17/R18 for 5VSB
-2. **Both sense nets are routed to MCU ADC pins** — /MAIN_5V_SENSE → IO9, /5VSB_SENSE → IO10
-3. **Correct resistor values** — 47k/10k ratio appropriate for 5V rails into 3.3V ADC
-
-### Open Items / Concerns:
-
-| Item | Status | Notes |
-|------|--------|-------|
-| Divider existence | ✓ Complete | Both pairs present in netlist |
-| ADC pin routing | ⚠ Verify | IO9/IO10 must be actual MCU ADC-capable pins, not just GPIO |
-| Firmware read sequence | ⚠ Open | Must sample both channels; timing relative to mux switching state matters |
-| Cascade dependency | ⚠ Risk | U5's sense input depends on U7 output being active — if U7 is OFF, firmware reads 0V on that path |
-| Filter capacitors | ⚠ Check | C1–C16 present; must verify filter caps on sense lines specifically (not just bulk rails) |
-
-## Cascade Dependency Issue
-
-The cascade architecture creates a critical dependency for the **MAIN_5V_SENSE** reading:
-
-ʼʼʼ
-MAIN_5V → U7 INB → U7 OUT → U5 INA → U5 OUT → downstream rail
-                         ↑
-                   U7 monitors this path
-ʼʼʼ
-
-When firmware reads /MAIN_5V_SENSE, it measures the output of U7 (after selection). However:
-- If MAIN_5V is absent, U7 switches to U5's output
-- The sense divider then reads whatever U5 is providing — **not** 5VSB directly
-- This conflates two separate rail measurements into one ADC channel when MAIN_5V is absent
-
-**The requirement states firmware must read BOTH rails distinctly.** The current cascade may violate this when MAIN_5V is not present, as the sense divider would read the U5 output (which could be PSU_5V or 5VSB depending on U5's state) rather than a dedicated 5VSB measurement.
-
-## Recommendations
-
-1. **Verify independent 5VSB sensing** — Confirm U5 has its own dedicated sense path to /5VSB_SENSE, not dependent on MAIN_5V being present
-2. **Check filter cap placement** — Ensure C_SS1/C_SS2 or other caps are on the ADC sense nodes, not just bulk rail nodes
-3. **Firmware sequencing** — Add logic to read both ADC channels and validate against expected voltage ranges before setting load budget
-4. **IO9/IO10 confirmation** — Verify these are true ADC inputs with adequate input impedance; 47k/10k dividers present ~8.2k output impedance which is acceptable for most microcontrollers but verify sample-and-hold compatibility
-
-## Conclusions
-
-The section 2.9 requirement for reading both 5V rails through sense dividers into ADC inputs is **partially met** by the hardware. The divider networks (R15/R16 and R17/R18) with correct 47k/10k ratios exist and route to IO9/IO10. However, **the cascade dependency creates ambiguity** — when MAIN_5V is absent, the MAIN_5V_SENSE divider reads the U5 output rather than a true MAIN_5V measurement, potentially violating the "both rails read distinctly" requirement. Additionally, firmware implementation details (read sequencing, range validation) remain open and must be verified.
-```
-
-</details>
+## source-sense — **HOLDOUT** (content withheld; see tests/holdout/extractor/)
 
 
 ---
@@ -2013,18 +1724,8 @@ Manifest: cec-worker-quality (27B) + extract-prompt v2 + const-subject grammar v
 | **real (the gate)** | 6 | **49** | **0.278** |
 | reconstructed | 12 | 3 | 0.955 |
 
-Passing properties: schema shape (grammar-enforced), ratification 4/4, both adversarial
-asides resisted, both no-conclusion traces clean. **Failing property: verbatim quote
-discipline on long real traces** — autopsy splits the 49 failures ~40% formatting-stripped
-real quotes (markdown/unicode laundered out) / ~60% true paraphrase (incl. invented
-numbers and a mid-quote ellipsis). The 0.955-vs-0.278 register split vindicates the
-gate-of-record-on-real-only ruling: a reconstructed-only eval would have certified a
-paraphraser.
-
-**Owner question raised (new queue item):** should `normalize()` strip markdown emphasis
-markers before span matching? ~40% of failures clear under markdown-normalization; the
-paraphrase 60% fail regardless. Ruling 3 said zero fuzz / case preserved but did not
-contemplate formatting markers. Until ruled: the verifier stands as ratified, the gate
-stays FAIL for this manifest, and the next manifest iteration hardens the PROMPT
-("copy spans EXACTLY including ** markers; never elide with ...") — contract
-clarification, not gold-tuning.
+Autopsy: ~40% formatting-stripped real quotes / ~60% true paraphrase. Owner rulings
+2026-06-10: presentation-character canonicalization ratified into the verifier (v1.1.0;
+rescues the formatting class for ATTRIBUTION only — the gate verdict for this manifest
+stands FAIL); prompt verbatim-copy contract hardened (new manifest); attribution re-run
+queued for GPU availability.

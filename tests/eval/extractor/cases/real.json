@@ -176,7 +176,7 @@
       ],
       "region": null
      },
-     "mechanism": "a sustained 12 A single-pin hog breaches the 30 C copper rise gate while the INA240 sees it instantly as a ~58 pct outlier -- the electrical alarm must protect the module's own copper",
+     "mechanism": "a sustained 12 A single-pin hog breaches the 30 C copper rise gate while the INA240 sees it instantly as a ~58 pct outlier; the analyst attributes the at-risk copper to the +3V3 and +5VSB planes or the high-current traces feeding the connector pins, and requires over-current protection sized at or below ~13 A",
      "severity": "block-candidate",
      "verification_hook": {
       "type": "bench",
@@ -184,14 +184,15 @@
      },
      "evidence_spans": [
       "The FEM probe shows that a sustained 12 A on a single pin (the “hog” lane) drives the copper temperature up +28 °C to +35 °C",
-      "reports the hog as a ~58 % outlier"
+      "reports the hog as a ~58 % outlier",
+      "The PCB copper (typically the +3V3 and +5VSB planes or the high-current traces feeding the 12 VHPWR connector pins) is not rated for a single-pin current"
      ]
     }
    ],
    "drafted_entry_refs": [],
    "confidence": 0.85
   },
-  "notes": "",
+  "notes": "Ruling #4 (2026-06-10): the analyst's +3V3/+5VSB copper attribution is WRONG (the hog current rides the 12V /SENSEP lanes, not the logic rails) and is PRESERVED in the mechanism/evidence per fidelity labeling -- truth lives here in the annotation only, matching the ntc and ref3030 treatment.",
   "question": "An FEM probe found that a sustained 12 A single-pin hog (against the 8.33 A balanced case) puts the hog lane at roughly +28-35 C rise, at or over the 30 C gate, while the electrical telemetry sees the hog instantly as a ~58% outlier on its INA240 channel. Assess what protection conclusion follows for the module's own copper and what verification hook applies.",
   "model": "cec-manager"
  },
