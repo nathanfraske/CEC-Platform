@@ -624,9 +624,11 @@ Open items (surface before acting):
    (authority vs accuracy never conflated); micro-board composition anchor pins the
    segment-sum debt (cross 1.044 = 3x0.348 min-cut) w/ DERIVATION.md as the PR-TWO witness
    (debt fix + SB-08 band re-freeze = next PR, never this one). Lint: param shadowing keys
-   on compile param KEY. Machine account nathanfraske-bot configured (remote `bot`; token
-   needs Contents+Workflows write -- owner fixing). Wave-2 remainder: real-register labeling
-   + owner gate ritual when the trace batch lands; AM-04 PR-two debt fix; then waves 3-5.
+   on compile param KEY. Machine account nathanfraske-bot LIVE (remote `bot`, classic PAT
+   repo+workflow -- fine-grained PATs cannot scope another personal account's repos, the
+   collaborator limitation; pushes verified, merge stays owner-only via branch protection).
+   Wave-2 remainder: real-register labeling + owner gate ritual when the trace batch lands;
+   AM-04 PR-two debt fix; then waves 3-5.
    VLM for CL-22 -- BAKE-OFF RUN 2026-06-10 (docs/vlm-bakeoff-2026-06-10.md): all three local
    seats PASS the golden-render gate under the v2 facts-alongside protocol (12/12 gate verdicts;
    v1 naive protocol failed all three -- judge false-fired on the conformant board, Qwen3.6
