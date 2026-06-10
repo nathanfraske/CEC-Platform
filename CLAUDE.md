@@ -604,7 +604,29 @@ Open items (surface before acting):
    ONE scope resolver (CL-23 seed; KiCad-10 name-ref nets, auto-name unwrap). 18 wave tests
    host+container; SB-08 golden PASS post-change. REAL FINDING: atx-24pin-rev2 CAN pair is
    named /CAN1_P //CAN1_N (drifts from the platform _H/_L convention) -- standing compile
-   warning for the owner. Wave-2 remainder: CL-19 extractor eval, AM-04 FEM anchors; then waves 3-5.
+   warning for the owner.
+   ALSO landed (2026-06-10, same branch): CL-19 + AM-04 per the owner's second rulings doc
+   (vendored docs/cl19-am04-implementation-rulings-2026-06-10.md). CL-19: Decision 7 CLOSED
+   (cec-verdict-core/1 two-layer lock in SCHEMA.md + cec_verdict_core.py); ONE span verifier
+   cec_span_verify.py (case-sensitive normalized-exact, zero fuzz, prose>=20ch, locus
+   token+facts-resolve; identity-tested shared import); cec_extractor_eval.py harness
+   (gate-of-record on the REAL register only -- INCOMPLETE until real cases, never vacuous
+   PASS; zero-tolerance: correct-but-unsupported IS hallucination, elevated-aside,
+   synthesis-on-no-conclusion, RB-03 distractor; per-manifest failure); gate record =
+   owner-written eval_gate in cec-policy.json w/ STALENESS guard (cec_policy refuses a
+   stale eval_set_sha); 12 reconstructed seed cases + tests/holdout/extractor + checklist
+   isolation grep; REAL register = M2.7 batch (8 audit questions; ruling's Qwen3.5-397B name
+   was stale -- M2.7 is the cleared analyst), labels drafted for the owner ritual. AM-04:
+   2221 chart anchors + Picard anchor + CONSERVATISM vs IPC-2152 plane-adjacent refs (ONE
+   Class A staging entry, MODIFIER-DERIVED values flagged owner-verify; tighten to ±20% at
+   calibration -- latched, never red-by-design); calibration per (family,QUANTITY) via CL-13
+   ledger labels (ThermalResult.calibration + flag mark); posture BLOCKING-with-the-mark
+   (authority vs accuracy never conflated); micro-board composition anchor pins the
+   segment-sum debt (cross 1.044 = 3x0.348 min-cut) w/ DERIVATION.md as the PR-TWO witness
+   (debt fix + SB-08 band re-freeze = next PR, never this one). Lint: param shadowing keys
+   on compile param KEY. Machine account nathanfraske-bot configured (remote `bot`; token
+   needs Contents+Workflows write -- owner fixing). Wave-2 remainder: real-register labeling
+   + owner gate ritual when the trace batch lands; AM-04 PR-two debt fix; then waves 3-5.
    VLM for CL-22 -- BAKE-OFF RUN 2026-06-10 (docs/vlm-bakeoff-2026-06-10.md): all three local
    seats PASS the golden-render gate under the v2 facts-alongside protocol (12/12 gate verdicts;
    v1 naive protocol failed all three -- judge false-fired on the conformant board, Qwen3.6

@@ -2190,6 +2190,11 @@ class ThermalResult:
     nets: dict                  # net -> {I, cross_mm2, J, dT, T, poured} (+ transient fields if modelled)
     vias: list                  # worst vias
     shunts: list                # shunt dissipators
+    # AM-04 Ruling 9: calibration encodes ACCURACY (has reality vouched for the
+    # number), per (family, quantity) -- NEVER conflated with Flag.binding,
+    # which encodes AUTHORITY. Uncalibrated thermal gates still BLOCK (the
+    # solver's tested property is conservatism; cautious posture stands).
+    calibration: str = "uncalibrated"   # "uncalibrated" | "bench:<label-ref>"
 
 
 # ---- transient current model ---------------------------------------------------------------------
@@ -2337,7 +2342,29 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
             max_T, max_dT = ambient + dt, dt
 
     return ThermalResult(ambient=ambient, max_T=round(max_T, 1), max_dT=round(max_dT, 1),
-                         nets=net_res, vias=vias[:8], shunts=shunts)
+                         nets=net_res, vias=vias[:8], shunts=shunts,
+                         calibration=_calibration_state(cfg, "hotspot"))
+
+
+def _calibration_state(cfg, quantity):
+    """AM-04 R9: the (family, quantity) calibration latch. A CL-13 bench label
+    for THIS board family and THIS quantity flips it; a hotspot label says
+    nothing about DC-IR. Reads the ledger label stream; degrades to
+    'uncalibrated' when no ledger/labels exist."""
+    try:
+        import cec_facts
+        import cec_ledger
+        board = getattr(cfg, "board", None) or ""
+        b = cec_facts.find_board(board)
+        fams = set(b["families"]) if b else {board}
+        for rec in cec_ledger.read_decisions():
+            lab = rec.get("label") or rec.get("extra") or {}
+            if (lab.get("quantity") == quantity
+                    and set(lab.get("families") or [lab.get("family")]) & fams):
+                return "bench:%s" % rec.get("decision_id", rec.get("run_id", "label"))
+    except Exception:                                         # noqa: BLE001
+        pass
+    return "uncalibrated"
 
 
 def physics_gates(res, cfg):
@@ -2377,6 +2404,12 @@ def physics_gates(res, cfg):
     for s in res.shunts:
         if s["T"] > t_max or s["dT"] > dt_max:
             flags.append(Flag("shunt over-temp", s["ref"], 0.8, Kind.MEASURE, dict(s, limit_T=t_max)))
+    # AM-04 R9: every thermal flag carries the calibration mark. Accuracy label
+    # ONLY -- the flags stay binding="gate" (blocking-with-the-mark; demoting
+    # uncalibrated thermal to advisory would convert an honesty label into an
+    # authority downgrade, the exact conflation the binding field prevents).
+    for f in flags:
+        f.detail.setdefault("calibration", getattr(res, "calibration", "uncalibrated"))
     return flags
 
 

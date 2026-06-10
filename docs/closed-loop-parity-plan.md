@@ -183,8 +183,42 @@ documentation (RB-04 finding, noted in CODEOWNERS).
   Holdout split: `tests/holdout/` created with the never-tune rules — grown from adjudicated
   overrides/bench labels, thin-is-honest. Teeth verified in-container (swapped post-fixture
   → FAIL exit 1); 8 host tests (`tests/test_golden_fixtures.py`).
-- **CL-19 extractor fidelity eval:** (trace, gold) pairs seeded from the two audits; span
-  existence 100%, zero hallucinated verdicts; gates the extractor binding in policy (CI <1 min).
+- **CL-19 extractor fidelity eval: MACHINERY + RECONSTRUCTED REGISTER LANDED 2026-06-10**
+  per the owner's CL-19/AM-04 rulings doc (vendored:
+  `docs/cl19-am04-implementation-rulings-2026-06-10.md`). Decision 7 CLOSED early as the
+  two-layer lock: `cec-verdict-core/1` (corpus/SCHEMA.md ratified text +
+  `scripts/cec_verdict_core.py` machine validation) — gold labels never touch the CL-12
+  wrapper. ONE span verifier (`scripts/cec_span_verify.py`: NFC, ws-collapse, trim,
+  case-SENSITIVE, zero fuzz; prose ≥20 chars; locus = exact token + facts-resolve) imported
+  by eval AND the future CL-15 production path (identity-tested). Harness
+  `scripts/cec_extractor_eval.py`: per-register report, gate-of-record computes on the REAL
+  register only (no real cases ⇒ INCOMPLETE, never vacuous PASS); zero-tolerance classes
+  incl. correct-but-unsupported + elevated-aside + synthesis-on-no-conclusion +
+  RB-03 distractor-selected; field-accuracy bar 0.90; per-manifest failure. Gate of record =
+  the owner-written `eval_gate` entry in cec-policy.json ({status, date, eval_set_sha,
+  report_hash, model_manifest, verifier_version, grade:smoke}) — staleness guard live in
+  `cec_policy.binding_problems` (stale sha ⇒ refuses load-bearing). Seed: 12 reconstructed
+  cases (4 standard + 4 ratification skip/distractor + 2 no-conclusion + 2 adversarial),
+  structural leg green; `tests/holdout/extractor/` + CI isolation grep. REAL register: M2.7
+  batch over 8 audit questions (REALITY-ADJUSTED from the ruling's stale Qwen3.5-397B name —
+  M2.7 IS the license-clean analyst per the cleared CL-20 decision); gold labels drafted for
+  owner review at the gate-record ritual. 20 mechanics tests (tests/test_cl19_eval.py).
+- **AM-04 analytic anchors: LANDED 2026-06-10** (same rulings doc). dt_ipc 2221 chart-point
+  regression anchors + Picard closed-form anchor + CONSERVATISM assertions vs IPC-2152
+  plane-adjacent reference points — the reference set is a Class A STAGING corpus entry
+  (`thermal.ipc2152.ref.plane_adjacent`, ONE entry/one dataset; values MODIFIER-DERIVED
+  with owner-verify-pending notes, never test-local constants); the same points tighten
+  into a ±20% accuracy band at calibration (wired-and-latched, never red-by-design).
+  Calibration latch per (family, QUANTITY): `ThermalResult.calibration` +
+  `_calibration_state()` reading CL-13 ledger labels; every thermal flag carries the mark;
+  posture = BLOCKING-with-the-mark (binding=authority vs calibration=accuracy, never
+  conflated — tested). Micro-board composition anchor
+  (`tests/golden/fixtures/am04-microboard/` + DERIVATION.md): pins CURRENT model behavior
+  incl. the segment-sum debt made visible (cross 1.044 = 3×0.348 serial min-cut); the
+  debt fix is PR TWO per Ruling 10, with the derivation as its witness and the SB-08 band
+  re-freeze in that diff. Lint refinement: param-kind shadowing keys on the compile param
+  KEY (two different params legitimately share a scope). 8 anchor tests
+  (tests/test_am04_anchors.py, composition leg in-container).
 - **CL-03 compiler (full): LANDED 2026-06-10** per the owner's implementation-rulings doc
   (8 rulings; the two threads: promotion authorizes KNOWLEDGE never file writes; capture
   from the first run). `scripts/cec_corpus_compile.py` (pcbnew-free, deterministic —

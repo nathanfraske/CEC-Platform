@@ -1,0 +1,165 @@
+[
+ {
+  "id": "cl19-std-12v-lanevias",
+  "register": "reconstructed",
+  "kind": "standard",
+  "board": "12vhpwr-standard",
+  "trace": "Reviewing the 12VHPWR Standard committed layout against the netclass minima.\nThe six high-current lanes run from the J3 connector through the shunt row to J4; per the\ndesign each lane carries up to 9.2 A continuous at the connector rating. I walked the via\ntable for the lane nets. The stitching vias on /SENSEP4_HI and its siblings measure 0.6 mm\nouter with 0.3 mm drill, which is the Signal class geometry, while the Power12V class floor\nfor this board is 0.9 mm outer / 0.5 mm drill. That is 120 vias across the six lanes, all\nsignal-size. Current sharing per via at the worst lane puts each barrel well over the\nsustained density ceiling. The fix direction is mechanical: normalize every lane via up to\nthe class minimum; copper is available in all six corridors.\n\n## Conclusions\nThe lane stitching vias are signal-size on high-current copper: every via on /SENSEP4_HI and\nthe other five lanes is 0.6/0.3 against a 0.9/0.5 Power12V floor. This blocks the candidate\nuntil the vias are normalized to class minima; the netclass-geometry-conformance check\nencodes exactly this and fires on the committed board.",
+  "gold": {
+   "schema": "cec-verdict-core/1",
+   "subject": {
+    "board": "12vhpwr-standard",
+    "candidate_hash": "committed",
+    "run_id": "audit-2026-06-10"
+   },
+   "verdict": {
+    "value": "escalate",
+    "basis_spans": [
+     "The lane stitching vias are signal-size on high-current copper",
+     "This blocks the candidate until the vias are normalized to class minima"
+    ]
+   },
+   "findings": [
+    {
+     "id": "F1",
+     "locus": {
+      "refs": [],
+      "nets": [
+       "/SENSEP4_HI"
+      ],
+      "region": "lane corridor"
+     },
+     "mechanism": "signal-class via geometry (0.6/0.3) stitching Power12V-class lanes rated 9.2 A -- per-barrel current density over the sustained ceiling",
+     "severity": "block-candidate",
+     "verification_hook": {
+      "type": "check",
+      "ref": "netclass-geometry-conformance"
+     },
+     "evidence_spans": [
+      "every via on /SENSEP4_HI and\nthe other five lanes is 0.6/0.3 against a 0.9/0.5 Power12V floor",
+      "the\nnetclass-geometry-conformance check\nencodes exactly this and fires on the committed board"
+     ]
+    }
+   ],
+   "drafted_entry_refs": [],
+   "confidence": 0.95
+  }
+ },
+ {
+  "id": "cl19-std-hub-sense",
+  "register": "reconstructed",
+  "kind": "standard",
+  "board": "hub-standard",
+  "trace": "Hub Standard power front-end review, pre-PR1 state. The spec section 2.9 requirement is\nthat firmware can read BOTH 5V source rails so it can pick a load budget. Walking the schematic:\nU5 is the TPS2121 priority mux taking 5VSB_RAW and USB_VBUS. There is a divider R12/R13 but it\nfeeds BLACKOUT_SENSE, which monitors the hold rail decay, not the source rails. I find no\nresistor dividers from MAIN_5V or 5VSB into any ADC-named net; nets like MAIN_5V_SENSE and\n5VSB_SENSE do not exist in this state. Firmware is blind to which source is live.\n\n## Conclusions\nThe section 2.9 source-sense network is absent in this state: no divider pairs feed\nMAIN_5V_SENSE or 5VSB_SENSE, and the only divider present (R12/R13) serves BLACKOUT_SENSE on\nthe hold rail. Hold the candidate; the known-good post state carries R15 through R18 as two\n47k/10k pairs, which is the reference fixture to verify against.",
+  "gold": {
+   "schema": "cec-verdict-core/1",
+   "subject": {
+    "board": "hub-standard",
+    "candidate_hash": "pre-tps2121",
+    "run_id": "audit-2026-06-10"
+   },
+   "verdict": {
+    "value": "hold",
+    "basis_spans": [
+     "The section 2.9 source-sense network is absent in this state: no divider pairs feed\nMAIN_5V_SENSE or 5VSB_SENSE"
+    ]
+   },
+   "findings": [
+    {
+     "id": "F1",
+     "locus": {
+      "refs": [
+       "U5",
+       "R12",
+       "R13"
+      ],
+      "nets": [],
+      "region": "power front-end"
+     },
+     "mechanism": "firmware cannot read the two 5V source rails -- the only divider present serves the hold-rail blackout sense, so the load-budget pick has no input",
+     "severity": "block-candidate",
+     "verification_hook": {
+      "type": "fixture",
+      "ref": "tests/golden/fixtures/hub-pre-tps2121"
+     },
+     "evidence_spans": [
+      "There is a divider R12/R13 but it\nfeeds BLACKOUT_SENSE, which monitors the hold rail decay, not the source rails",
+      "the only divider present (R12/R13) serves BLACKOUT_SENSE on\nthe hold rail"
+     ]
+    }
+   ],
+   "drafted_entry_refs": [],
+   "confidence": 0.9
+  }
+ },
+ {
+  "id": "cl19-std-pcie-kelvin",
+  "register": "reconstructed",
+  "kind": "standard",
+  "board": "pcie-8pin-2port",
+  "trace": "PCIe 2-port interposer Kelvin audit. The shunt RS1 sits between the connector pair with\nits sense taps feeding the INA238. In the overnight route candidates the kelvin gate failed on\nthis SKU: the /SENSEC1_LO tap stranded because the shunt footprint orientation put the LO\nterminal on the congested side. The generator fix rotated the shunt so the HI terminal is the\nupper terminal; post-fix candidates route the tap cleanly and the gate passes. Checking the\ncommitted board: RS1 orientation matches the fixed generator output, and /SENSEC1_LO reaches\nits sense pin without crossing the force path.\n\n## Conclusions\nThe committed 2-port board carries the corrected shunt orientation: RS1 has HI upper and the\n/SENSEC1_LO sense tap routes clean, matching the post-fix generator. Accept on this point;\nthe kelvin gate in the route scorer is the standing verification for any regeneration.",
+  "gold": {
+   "schema": "cec-verdict-core/1",
+   "subject": {
+    "board": "pcie-8pin-2port",
+    "candidate_hash": "committed",
+    "run_id": "audit-2026-06-10"
+   },
+   "verdict": {
+    "value": "accept",
+    "basis_spans": [
+     "The committed 2-port board carries the corrected shunt orientation: RS1 has HI upper and the\n/SENSEC1_LO sense tap routes clean"
+    ]
+   },
+   "findings": [
+    {
+     "id": "F1",
+     "locus": {
+      "refs": [
+       "RS1"
+      ],
+      "nets": [
+       "/SENSEC1_LO"
+      ],
+      "region": "cable-1 sense"
+     },
+     "mechanism": "shunt orientation previously stranded the LO Kelvin tap; corrected orientation routes it without crossing the force path",
+     "severity": "info",
+     "verification_hook": {
+      "type": "check",
+      "ref": "kelvin-gate"
+     },
+     "evidence_spans": [
+      "RS1 orientation matches the fixed generator output, and /SENSEC1_LO reaches\nits sense pin without crossing the force path"
+     ]
+    }
+   ],
+   "drafted_entry_refs": [],
+   "confidence": 0.92
+  }
+ },
+ {
+  "id": "cl19-std-eps-detect",
+  "register": "reconstructed",
+  "kind": "standard",
+  "board": "eps-8pin",
+  "trace": "EPS module DETECT code verification. Per the locked pin-allocation table the DETECT pin 8\ncarries an analog identity resistor; the section 2.3 code table assigns CAN-only modules 2.2 k.\nThe EPS schematic shows R1 = 2.2k from the DETECT net to GND, read through the Hub's 10 k\npull-up to 3.3 V, which lands the divider at 0.595 V -- the CAN-only code point. The module\ncarries no RS-485 transceiver, consistent with the code. Nothing further to flag on this check.\n\n## Conclusions\nEPS DETECT identity is correct: R1 is the 2.2 k CAN-only code from the section 2.3 table and\nthe module's link capability matches. Accept; no findings.",
+  "gold": {
+   "schema": "cec-verdict-core/1",
+   "subject": {
+    "board": "eps-8pin",
+    "candidate_hash": "committed",
+    "run_id": "audit-2026-06-10"
+   },
+   "verdict": {
+    "value": "accept",
+    "basis_spans": [
+     "EPS DETECT identity is correct: R1 is the 2.2 k CAN-only code from the section 2.3 table"
+    ]
+   },
+   "findings": [],
+   "drafted_entry_refs": [],
+   "confidence": 0.97
+  }
+ }
+]

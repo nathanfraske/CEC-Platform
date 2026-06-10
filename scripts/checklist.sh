@@ -76,6 +76,22 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> CL-19 extractor eval: structural half + holdout isolation\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_extractor_eval.py" structural || status=1
+  # R6: the holdout pool is never touched by prompt iteration. No script may
+  # READ tests/holdout as a code path (comments documenting the rule are fine).
+  hd_hits="$(grep -RInE '["'"'"']tests/holdout' "$CEC_SCRIPTS_DIR"/*.py 2>/dev/null || true)"
+  if [ -n "$hd_hits" ]; then
+    printf 'FAIL: a tool references the never-tune holdout pool:\n%s\n' "$hd_hits" >&2
+    status=1
+  else
+    printf '  ok: no tool reads tests/holdout\n'
+  fi
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
   --exclude-dir=build --exclude-dir=.git \

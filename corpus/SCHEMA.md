@@ -109,6 +109,42 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
 - Compiler: `scripts/cec_corpus_compile.py` (host-runnable, pcbnew-free, deterministic —
   double-compile byte-identical is a CI assertion).
 
+## Verdict core — Decision 7, two-layer lock (CL-19 Ruling 2, ratified in this PR)
+
+**Layer one (locked, `cec-verdict-core/1`):** the per-candidate verdict core — what the
+extractor produces, what RB-03 ratifies, what the CL-19 gold schema labels. **Layer two**
+(the CL-12 bundle wrapper: bundle id, cross-candidate ranking, judge manifest, novel-flag
+list) wraps the core and is NEVER touched by gold labels, so wrapper evolution cannot
+burn the eval set. The CL-22 finding contract and the DF-06 claim/hook shape unify here:
+a finding's `verification_hook` IS its DF-06 hook.
+
+```jsonc
+{
+  "schema": "cec-verdict-core/1",
+  "subject": {"board": "", "candidate_hash": "", "run_id": ""},
+  "verdict": {"value": "accept | hold | escalate | no_conclusion",
+              "basis_spans": []},      // CL-15 conclusions-section rule
+  "findings": [{
+      "id": "F1",
+      "locus": {"refs": [], "nets": [], "region": null},
+      "mechanism": "",
+      "severity": "info | warn | block-candidate",
+      "verification_hook": {"type": "check | fixture | bench | datasheet",
+                            "ref": ""},   // the DF-06 closed vocabulary
+      "evidence_spans": []
+  }],
+  "drafted_entry_refs": [],
+  "confidence": 0.0
+}
+```
+
+Span rules: `scripts/cec_span_verify.py` (ONE implementation, imported by the eval and
+the CL-15 production path) — NFC, whitespace-collapsed, trimmed, case-SENSITIVE exact
+substring; prose spans ≥ 20 normalized chars; locus identifiers exempt from the floor
+but must appear as exact tokens AND resolve against board facts via the shared resolver.
+`no_conclusion` is the CL-15 legal outcome — synthesis on a no-conclusion trace is a
+zero-tolerance eval failure.
+
 ## Standing rules carried from the framework
 
 - Trace-to-corpus (CL-18): a drafted entry cites the datasheet/spec/measurement the trace

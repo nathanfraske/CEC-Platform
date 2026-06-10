@@ -209,7 +209,16 @@ def lint_general(zone, seen_ids, seen_scope, zone_ids, spec_text):
                        if seen_ids[eid].split(":", 1)[0] != zone else ""))
             seen_ids[eid] = f"{zone}:{rel}"
             zone_ids[zone].add(eid)
-            skey = (e.get("kind"), json.dumps(e.get("scope"), sort_keys=True))
+            # Shadowing key: (kind, scope) for RULES (two rules on one scope =
+            # a conflict). PARAMS are keyed by their compile param key (or id)
+            # in the params channel -- two DIFFERENT parameters legitimately
+            # share a scope (k_ipc + the 2152 reference set both scope
+            # external-conductors); shadowing for params = same KEY.
+            pkey = None
+            if e.get("kind") == "param":
+                tgt = ((e.get("compile") or {}).get("targets") or [{}])[0]
+                pkey = (tgt.get("params") or {}).get("key", eid)
+            skey = (e.get("kind"), pkey, json.dumps(e.get("scope"), sort_keys=True))
             if skey in seen_scope and e.get("status") != "deprecated":
                 other = seen_scope[skey]
                 err(f"{where}: duplicate (kind, scope) conflict with {other} -- supersede "

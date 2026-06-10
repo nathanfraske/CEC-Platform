@@ -1157,6 +1157,11 @@
   },
   {
    "checkable": "n/a",
+   "entry": "thermal.ipc2152.ref.plane_adjacent",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
    "entry": "thermal.k_ipc.external",
    "zone": "staging"
   },
@@ -1227,7 +1232,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 245,
+  "corpus_only": 246,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,
