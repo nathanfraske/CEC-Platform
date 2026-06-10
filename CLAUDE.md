@@ -589,7 +589,17 @@ Open items (surface before acting):
    kicad-checks.yml step runs it in the pinned KiCad image (pcbnew); tests/holdout/ created
    (never-tune pool, grown from overrides/bench labels). Teeth verified (swapped fixture -> exit 1).
    Wave-2 remainder: CL-19 extractor eval, CL-03 full compiler, AM-04 FEM anchors; then waves 3-5.
-   VLM for CL-22: Qwen3-VL-32B (judge) + worker mmproj downloads on E:; golden-render eval gates any seat binding.
+   VLM for CL-22 -- BAKE-OFF RUN 2026-06-10 (docs/vlm-bakeoff-2026-06-10.md): all three local
+   seats PASS the golden-render gate under the v2 facts-alongside protocol (12/12 gate verdicts;
+   v1 naive protocol failed all three -- judge false-fired on the conformant board, Qwen3.6
+   workers thinking-overran every grammar call -> they run nothink for judging). Registered in
+   broker + compose: cec-vision-judge (Qwen3-VL-32B :8006), cec-worker-vision (:8012),
+   cec-worker-quality-vision (:8014). Harness scripts/cec_vlm_bakeoff.py (assets/run/show/html;
+   full per-call transcript). Measured: seats canNOT measure (selection-vs-references only, CL-21
+   confirmed on our boards; geometry stays with the deterministic checkers); they excel at
+   structure/text reading (judge found the SS2.9 sensing gap BLIND). The 4 CL-11 fixtures are now
+   BURNED for prompt tuning (AM-02) -- future charter iteration validates on tests/holdout/.
+   Seat binding stays owner-gated (cec-policy.json edit = the Decision-8/9 act).
 
 -2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
    (scripts/cec_synth_pipeline.py, place_with_consent + macro-block auto_cluster + overhang +
