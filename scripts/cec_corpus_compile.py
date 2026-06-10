@@ -328,9 +328,11 @@ def compile_corpus(corpus_root=CORPUS_ROOT, out_root=OUT_ROOT,
             continue
 
         # ---- targets -> artifacts, bound per board by the shared resolver (R6)
-        applicable = []
+        applicable, vendor_unresolved = [], []
         for b in boards:
             res = cec_facts.resolve_scope(e.get("scope"), facts[b["name"]])
+            if res.get("vendor_unresolved"):
+                vendor_unresolved.append(b["name"])
             if not res["applicable"]:
                 continue
             applicable.append(b["name"])
@@ -340,6 +342,17 @@ def compile_corpus(corpus_root=CORPUS_ROOT, out_root=OUT_ROOT,
                                 % (e["id"], b["name"]))
         if not applicable:
             warnings.append("%s: applicable to no board in the catalog" % e["id"])
+        # owner ruling D2 (2026-06-10): a vendor-scoped entry on a board with no
+        # declared fab target (or unknown tier) compiles to a REVIEW NOTE for
+        # that board, never a bound artifact -- zero coverage, honest per RB-01.
+        if vendor_unresolved:
+            global_notes.append({
+                "id": "ADV-%s--vendor-unresolved" % e["id"], "entry_id": e["id"],
+                "zone": zone, "binding": "advisory", "kind": "review_note",
+                "title": "vendor-scoped entry unresolved on %s (no fab_target / "
+                         "unknown tier in board-manifest.json) -- zero coverage "
+                         "per RB-01" % ", ".join(sorted(vendor_unresolved)),
+                "structured": structured})
 
         for t in targets:
             ty = t["type"]

@@ -96,6 +96,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "burn.sot23-ref-pinout-suffix",
+   "zone": "staging"
+  },
+  {
    "checkable": "yes",
    "entry": "button-ts1088-not-evq",
    "zone": "staging"
@@ -1232,7 +1237,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 246,
+  "corpus_only": 247,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,

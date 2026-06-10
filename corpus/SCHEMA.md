@@ -48,9 +48,12 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
   "rule": "...the assertion...",      // (extracted-corpus rows keep their full original fields)
   "scope": {                          // RB-01: coverage DECLARED in facts dimensions only
     "net_families": [], "netclasses": [], "part_classes": [], "regions": [],
-    "families": []                    // NEW (CL-03 Ruling 6): board-family applicability --
+    "families": [],                   // NEW (CL-03 Ruling 6): board-family applicability --
                                       // "hub" / "module" / specific board names; per-board
                                       // compilation binds family scope naturally
+    "vendor": [],                     // NEW (ruling D2, 2026-06-10): fab/assembly house the
+                                      // entry is scoped to -- VENDOR-pile entries ONLY
+    "service_tier": []                // NEW (D2): vendor service tier; requires vendor
   },                                  // inexpressible => unscoped => counts as ZERO coverage
   "source": {                         // provenance is mandatory; model output is NOT a source
     "type": "standard|datasheet|fab|spec|decision|measurement",
@@ -61,7 +64,17 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
                                       // to a model artifact (already enforced)
   "fixture": "path-or-inline",        // NEW (AM-02): minimal failing fixture that makes the
                                       // entry fire. REQUIRED for new entries; WARN-only for
-                                      // rows carrying "migrated": true (the 258 legacy rows)
+                                      // rows carrying "migrated": true (the 258 legacy rows).
+                                      // CLASS-H EXEMPTION (ruling D1, 2026-06-10): AM-02
+                                      // attaches to MECHANISMS and H has none, so a firing
+                                      // fixture is impossible by construction -- fixture-less
+                                      // H is legal. CLASS-scoped, never entry-scoped: a class
+                                      // upgrade or a compile block re-engages the requirement
+                                      // automatically (lint) and the CL-03 Ruling 5 latch
+                                      // bites as if the entry were new. H may carry an
+                                      // optional FUTURE-fixture pointer (the incident that
+                                      // burned you seeds the AM-02 fixture at checker_binding
+                                      // time -- which was always the plan).
   "signoff": {                        // NEW: required in promoted/
     "by": "github-login", "date": "YYYY-MM-DD", "evidence": "link-or-ledger-ref"
   },
@@ -144,6 +157,23 @@ substring; prose spans ≥ 20 normalized chars; locus identifiers exempt from th
 but must appear as exact tokens AND resolve against board facts via the shared resolver.
 `no_conclusion` is the CL-15 legal outcome — synthesis on a no-conclusion trace is a
 zero-tolerance eval failure.
+
+## Vendor scope (ruling D2, 2026-06-10)
+
+- **What vendor scope resolves against:** the board manifest's `fab_target` block
+  (`board-manifest.json`: `{"vendor": "...", "service_tier": "..."}`), read by the ONE
+  shared resolver (`cec_facts.resolve_scope`). A board with **no declared fab target**
+  resolves vendor entries to **zero coverage — review-note only**, honest per RB-01.
+  This matters because vendor entries can carry geometric compile targets (a vendor
+  minimum silk width is a perfectly good dru_rule) that are **conditional on where the
+  board is going**. A declared target that mismatches is a resolved non-match.
+- **Pile separation is mechanical (lint-enforced):** an entry carrying `vendor`/
+  `service_tier` may not `applies_to: physics` and may not live in a `*-physics.json`
+  file — physics-of-PCB lessons generalize and carry NO vendor key; an entry that
+  genuinely mixes both **splits into two**. `service_tier` without `vendor` is an error.
+- **Drafting note (not a gate):** vendor entries pin their observation date in
+  `source.date` — capability pages drift and an undated vendor rule rots invisibly
+  (lint warns).
 
 ## Standing rules carried from the framework
 

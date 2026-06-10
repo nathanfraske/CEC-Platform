@@ -1,0 +1,32 @@
+[
+ {
+  "id": "burn.sot23-ref-pinout-suffix",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "part_classes": [
+    "voltage-reference",
+    "SOT-23",
+    "SOT-23-5"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": null,
+  "units": null,
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "CEC incident 2026-06-05: a hand-made REF3030 symbol carried a 1/3 (IN/GND) swap that would have reversed the reference supply; caught by the owner-supplied UltraLibrarian files before fab. Verify-against: REF3030 DBZ3 datasheet SBOS392K (1=IN, 2=OUT, 3=GND).",
+   "date": "2026-06-05"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "12vhpwr-standard:U4 (FUTURE checker_binding fixture per ruling D1 -- symbol-pin vs datasheet-extraction; not a firing fixture, H has no mechanism)",
+  "notes": "TRIGGER: any SOT-23/SOT-23-5 voltage reference or small-signal part whose symbol is authored or edited by hand. VERIFY: pin 1/2/3 assignment against the manufacturer datasheet for the EXACT orderable suffix -- vendors disagree on pin 3, and package variants (PW/TSSOP vs DBZ/SOT-23) carry DIFFERENT pinouts for the same part number family. AGAINST: the datasheet pinout table, never a stock or hand symbol. Single-incident heuristic, honest-H by construction (never gates); hardens toward a checker_binding (datasheet pin extraction vs the schematic symbol) with 12vhpwr-standard U4 as the incident-board AM-02 fixture, at which point the D1 re-engagement clause applies. Intake contract: docs/corpus-experiential-intake-2026-06-10.md cluster 4."
+ }
+]

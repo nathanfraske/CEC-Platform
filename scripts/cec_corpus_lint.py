@@ -117,12 +117,24 @@ def _zone_rules(e, zone, where, spec_text, migrated):
                 warn(f"{where}: human_approved without signoff -- owner re-sign required "
                      f"before promotion (Decision 2 migration state)")
     # AM-02: every NEW entry ships a minimal failing fixture; migrated rows warn only.
-    if not e.get("fixture"):
+    # CLASS-H EXEMPTION (owner ruling D1, 2026-06-10, docs/corpus-experiential-intake-
+    # 2026-06-10.md): AM-02's fixture requirement attaches to MECHANISMS, and Class H
+    # has no mechanism (SCHEMA.md: H never compiles into deterministic gates), so a
+    # firing fixture is impossible by construction. The exemption is CLASS-SCOPED,
+    # never entry-scoped -- it keys on class AND on the absence of a compile block, so
+    # the moment an H entry upgrades class or gains a compile block the requirement
+    # re-engages automatically here, and the CL-03 Ruling 5 compiler latch bites as if
+    # the entry were new. H entries MAY carry an optional future-fixture pointer (the
+    # incident that burned you seeds the AM-02 fixture when the entry someday becomes
+    # a checker_binding).
+    h_exempt = e.get("class") == "H" and not e.get("compile")
+    if not e.get("fixture") and not h_exempt:
         if migrated:
             warn(f"{where}: no fixture (migrated row -- add one to earn shadow evidence)")
         else:
             err(f"{where}: missing fixture (AM-02: every new entry ships a minimal "
-                f"failing fixture that makes it fire)")
+                f"failing fixture that makes it fire; only fixture-less Class H "
+                f"without a compile block is exempt -- ruling D1 2026-06-10)")
 
 
 # ---------------------------------------------------------------------------
@@ -195,6 +207,26 @@ def lint_general(zone, seen_ids, seen_scope, zone_ids, spec_text):
                                  f"{e['class']} cadence ({cad} d) -- re-verify against the source")
                     except ValueError:
                         warn(f"{where}: source.date {src['date']!r} not YYYY-MM-DD")
+            # --- vendor scope discipline (owner ruling D2, 2026-06-10) ---
+            # vendor/service_tier scope keys exist for VENDOR-pile entries only; the
+            # pile separation is mechanical, not editorial.
+            sc = e.get("scope") if isinstance(e.get("scope"), dict) else {}
+            v_keys = bool(sc.get("vendor")) or bool(sc.get("service_tier"))
+            if sc.get("service_tier") and not sc.get("vendor"):
+                err(f"{where}: scope.service_tier without scope.vendor -- a tier is "
+                    f"meaningless unscoped to a vendor (ruling D2)")
+            if v_keys and any(a == "physics" for a in ats):
+                err(f"{where}: vendor-scoped entry applies to 'physics' -- vendor truth "
+                    f"is not physics; an entry that genuinely mixes both SPLITS into "
+                    f"two (ruling D2 pile separation)")
+            if v_keys and os.path.basename(rel).endswith("-physics.json"):
+                err(f"{where}: vendor key in a physics-pile file -- physics lessons "
+                    f"generalize across vendors and carry NO vendor scope; move the "
+                    f"entry to the vendor pile or split it (ruling D2)")
+            if v_keys and isinstance(src, dict) and not src.get("date"):
+                warn(f"{where}: vendor-scoped entry without source.date -- capability "
+                     f"pages drift and an undated vendor rule rots invisibly; pin the "
+                     f"observation date (D2 drafting note)")
             # --- heuristics never gate ---
             if e.get("class") == "H" and any(a in ("physics", "compiler", "preflight") for a in ats):
                 err(f"{where}: a Class H (heuristic) entry may not apply to a deterministic "
