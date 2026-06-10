@@ -64,6 +64,8 @@ ANALYST TRACE about one PCB candidate. Compile the analyst's conclusions into JS
   locus refs/nets exactly as the trace names them, a mechanism in YOUR words, a
   severity (info|warn|block-candidate), and a verification_hook
   (type: check|fixture|bench|datasheet + ref) the trace itself points at.
+- verdict.value MUST be one of: accept | hold | escalate | no_conclusion (these are
+  CANDIDATE verdicts -- never use a finding severity like block-candidate here).
 - Report ONLY what the analyst concluded. Asides the analyst raised and dismissed are
   NOT findings. Never add knowledge of your own.
 Return ONLY the JSON object."""
@@ -216,28 +218,75 @@ def _chat(model, system, user, max_tokens=2000, schema=None, timeout=1800):
     return out
 
 
-_CORE_JSON_SCHEMA = {     # grammar guide for llama.cpp (validation is ours)
-    "type": "object",
-    "properties": {"schema": {"type": "string"}, "subject": {"type": "object"},
-                   "verdict": {"type": "object"}, "findings": {"type": "array"},
-                   "drafted_entry_refs": {"type": "array"},
-                   "confidence": {"type": "number"}},
-    "required": ["schema", "subject", "verdict", "findings",
-                 "drafted_entry_refs", "confidence"],
-}
+def _core_json_schema(subject):
+    """The FULL nested grammar for llama.cpp -- enums enforced mechanically,
+    subject injected as const (caller-owned context: the extractor must never
+    fabricate run identity; v1's loose grammar let the model drift to the
+    severity vocabulary for verdict.value and invent subject keys -- a
+    contract-communication failure, fixed at the contract)."""
+    import cec_verdict_core as VC
+    return {
+        "type": "object",
+        "properties": {
+            "schema": {"const": VC.SCHEMA_ID},
+            "subject": {"type": "object", "properties": {
+                "board": {"const": subject["board"]},
+                "candidate_hash": {"const": subject["candidate_hash"]},
+                "run_id": {"const": subject["run_id"]}},
+                "required": ["board", "candidate_hash", "run_id"]},
+            "verdict": {"type": "object", "properties": {
+                "value": {"enum": sorted(VC.VERDICT_VALUES)},
+                "basis_spans": {"type": "array", "items": {"type": "string"}}},
+                "required": ["value", "basis_spans"]},
+            "findings": {"type": "array", "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "locus": {"type": "object", "properties": {
+                        "refs": {"type": "array", "items": {"type": "string"}},
+                        "nets": {"type": "array", "items": {"type": "string"}},
+                        "region": {"type": ["string", "null"]}},
+                        "required": ["refs", "nets", "region"]},
+                    "mechanism": {"type": "string"},
+                    "severity": {"enum": sorted(VC.SEVERITIES)},
+                    "verification_hook": {"type": "object", "properties": {
+                        "type": {"enum": sorted(VC.HOOK_TYPES)},
+                        "ref": {"type": "string", "minLength": 1}},
+                        "required": ["type", "ref"]},
+                    "evidence_spans": {"type": "array", "minItems": 1,
+                                       "items": {"type": "string"}}},
+                "required": ["id", "locus", "mechanism", "severity",
+                             "verification_hook", "evidence_spans"]}},
+            "drafted_entry_refs": {"type": "array", "items": {"type": "string"}},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        },
+        "required": ["schema", "subject", "verdict", "findings",
+                     "drafted_entry_refs", "confidence"],
+    }
 
 
 def run_eval(model=DEFAULT_MODEL, eval_dir=EVAL_DIR, out_path=None):
     cases = load_cases(eval_dir)
     prompt_sha = hashlib.sha256(EXTRACT_PROMPT.encode()).hexdigest()
+    schema_sha = hashlib.sha256(json.dumps(
+        _core_json_schema({"board": "_", "candidate_hash": "_", "run_id": "_"}),
+        sort_keys=True).encode()).hexdigest()
     results, t0 = [], time.time()
     for c in cases:
         if c.get("kind") in ("ratification-skip", "ratification-distractor"):
             results.append(_run_ratification(model, c))
             continue
-        user = "BOARD: %s\n\nANALYST TRACE:\n%s" % (c.get("board", "n/a"), c["trace"])
+        subject = {"board": c.get("board") or "unknown",
+                   "candidate_hash": "committed",
+                   "run_id": "m27-batch-2026-06-10"}
+        gold_subj = (c.get("gold") or {}).get("subject")
+        if gold_subj:
+            subject = gold_subj
+        user = ("SUBJECT (copy verbatim into the subject field): %s\n\nBOARD: %s\n\n"
+                "ANALYST TRACE:\n%s" % (json.dumps(subject), c.get("board", "n/a"),
+                                         c["trace"]))
         try:
-            out = _chat(model, EXTRACT_PROMPT, user, schema=_CORE_JSON_SCHEMA)
+            out = _chat(model, EXTRACT_PROMPT, user, schema=_core_json_schema(subject))
             r = score_case(c, out)
             r["raw"] = out[:4000]
         except Exception as e:                                # noqa: BLE001
@@ -248,7 +297,7 @@ def run_eval(model=DEFAULT_MODEL, eval_dir=EVAL_DIR, out_path=None):
         print("  [%s/%s] zt=%d fields=%s" % (r["id"], r.get("kind"),
                                              len(r["zt"]), r.get("fields", {})))
 
-    report = _aggregate(results, model, prompt_sha, eval_dir)
+    report = _aggregate(results, model, prompt_sha, eval_dir, schema_sha)
     report["elapsed_s"] = round(time.time() - t0, 1)
     out_path = out_path or os.path.join(ROOT, "build",
                                         "extractor-eval-%s.json" % model)
@@ -293,7 +342,7 @@ def _run_ratification(model, c):
     return res
 
 
-def _aggregate(results, model, prompt_sha, eval_dir):
+def _aggregate(results, model, prompt_sha, eval_dir, schema_sha=None):
     real = [r for r in results if r.get("register") == "real"]
     recon = [r for r in results if r.get("register") != "real"]
 
@@ -318,7 +367,7 @@ def _aggregate(results, model, prompt_sha, eval_dir):
     else:
         gate = "PASS"
     report = {"model_manifest": {"model": model, "prompt_sha": prompt_sha,
-                                 "broker": BROKER},
+                                 "schema_sha": schema_sha, "broker": BROKER},
               "verifier_version": cec_span_verify.VERIFIER_VERSION,
               "eval_set_sha": eval_set_sha(eval_dir),
               "grade": "smoke",

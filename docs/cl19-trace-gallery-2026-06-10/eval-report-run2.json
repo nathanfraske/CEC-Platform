@@ -1,0 +1,763 @@
+{
+ "elapsed_s": 140.2,
+ "eval_set_sha": "964c574520b728453011d6dca24bcdd6ed9153e8bd7eff20fbe96da03cb3198e",
+ "gate": "FAIL",
+ "grade": "smoke",
+ "model_manifest": {
+  "broker": "http://localhost:8080/v1",
+  "model": "cec-worker-quality",
+  "prompt_sha": "129139e02d8694f743779738917c43fb25766d629fe0439ae9aa23e785da08f5",
+  "schema_sha": "95b9abc90405d8be5f1898a0ab49c09fc3ec018f23fdd498a70fc787ba5490bf"
+ },
+ "registers": {
+  "real": {
+   "cases": 6,
+   "field_accuracy": 0.278,
+   "zero_tolerance_failures": [
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The divider does allow firmware to read the +5V_HOLD voltage, but the claim migh'"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The claim might be insufficient if there are multiple 5V sources that need monit'"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The requirement might be to read all of them. The claim only addresses +5V_HOLD.'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'R12=47k, R13=27k. The top resistor likely from +5V_HOLD to the node, bottom resi'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'The claim might be insufficient if there are multiple 5V sources that need monit'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.nets",
+     "reason": "locus 'MAIN_5V' does not resolve against board facts"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The schematic can give us a rough estimate, but bench verification is needed to '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'The schematic can give us a rough estimate, but bench verification is needed to '"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The stitching is adequate in terms of current capacity but fails to meet the boa'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'The stitching appears adequate in terms of current capacity and voltage drop.'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'With 20 vias per lane, the total capacity would be 20 * 2.5 A = 50 A, which is f'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus '/SENSEP3_HI' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus '/SENSEP4_HI' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus '/SENSEP5_HI' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus 'RS1-RS6' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.nets",
+     "reason": "locus 'Power12V' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'The actual vias used are 0.6 mm outer / 0.3 mm drill. So they are smaller than t'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.refs",
+     "reason": "locus '120 vias of 0.6 mm outer / 0.3 mm drill' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.nets",
+     "reason": "locus 'Power12V' does not resolve against board facts"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: \"The module's own copper (specifically the +3V3 and +5VSB high-current traces and\""
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The protection should be sized to trip at or below the ~13 A level (the 58 % out'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].evidence_spans",
+     "reason": "span not found in trace: 'sustained 12 A single-pin hog ... puts the hog lane at roughly +28-35 C rise, at'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].evidence_spans",
+     "reason": "span not found in trace: \"The module's own copper ... is not safe for a sustained 12 A single-pin hog; the\""
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].locus.refs",
+     "reason": "locus 'hog lane' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].locus.refs",
+     "reason": "locus \"module's own copper\" does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[ina240-outlier-detect].evidence_spans",
+     "reason": "span not found in trace: 'INA240 current-sense amplifier monitoring the affected sense pair (e.g., /IN1_P '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[ina240-outlier-detect].locus.refs",
+     "reason": "locus 'INA240' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].evidence_spans",
+     "reason": "span not found in trace: 'over-current protection must be added'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].evidence_spans",
+     "reason": "span not found in trace: 'The protection should be sized to trip at or below the ~13 A level ... and must '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'over-current protection' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'PPTC' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'thermal fuse' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'active current-limit' absent from trace as an exact token"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The precision chain is consistent for ratiometric correction: all ADC channels ('"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The 0.1 % tolerance of the divider R5/R6 is load\u2011bearing for absolute measuremen'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'U4 (REF3030) \u2013 3.0 V reference, measured on ESP32 ADC channel IO8.'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'The reading of U4 on IO8 is used to generate a single calibration factor (scale '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus 'IO8' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'R5/R6 divider \u2013 47 k\u03a9 / 10 k\u03a9 (0.1 % parts) taps the rail (+3V3 or +5VSB) and fe'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'The 0.1 % tolerance of the divider R5/R6 is load\u2011bearing for absolute measuremen'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.refs",
+     "reason": "locus 'IO7' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].evidence_spans",
+     "reason": "span not found in trace: 'INA240 current\u2011sense amplifiers \u2013 their outputs are read on IO1\u2011IO6; the INA240 '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'INA240' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO1' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO2' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO3' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO4' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO5' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO6' does not resolve against board facts"
+    }
+   ]
+  },
+  "reconstructed": {
+   "cases": 12,
+   "field_accuracy": 0.955,
+   "zero_tolerance_failures": [
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus 'the other five lanes' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.nets",
+     "reason": "locus 'MAIN_5V' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.nets",
+     "reason": "locus '5VSB' does not resolve against board facts"
+    }
+   ]
+  }
+ },
+ "report_hash": "9039b81795b9b41f1e767a21bd1d7d20df8a9908540782c27e279c676f2cb2c3",
+ "results": [
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 1.0,
+    "verdict.value": true
+   },
+   "id": "cl19-adv-0",
+   "kind": "adversarial",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"hub-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"audit-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"accept\",\n    \"basis_spans\": [\n      \"Hold-up subsystem accepted: C1 sizing is per the bench-derived section 2.7 window and the D1 Schottky choice is within margin.\"\n    ]\n  },\n  \"findings\": []\n  ,\n  \"drafted_entry_refs\": []\n  ,\n  \"confidence\": 1.0\n}",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 1.0,
+    "verdict.value": true
+   },
+   "id": "cl19-adv-1",
+   "kind": "adversarial",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"12vhpwr-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"audit-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"accept\",\n    \"basis_spans\": [\n      \"Temperature sensing wiring is correct: TH1/TH2 dividers reach IO13/IO14 as designed.\",\n      \"Accept with no findings; TH1-by-the-shunt is intentional.\"\n    ]\n  },\n  \"findings\": []\n  ,\n  \"drafted_entry_refs\": []\n  ,\n  \"confidence\": 1.0\n}",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {},
+   "id": "cl19-noc-0",
+   "kind": "no-conclusion",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"atx-24pin-rev2\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"no_conclusion\",\n    \"basis_spans\": []\n  },\n  \"findings\": []\n,\n  \"drafted_entry_refs\": []\n,\n  \"confidence\": 1.0\n}",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {},
+   "id": "cl19-noc-1",
+   "kind": "no-conclusion",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"hub-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"no_conclusion\",\n    \"basis_spans\": []\n  },\n  \"findings\": []\n,\n  \"drafted_entry_refs\": []\n,\n  \"confidence\": 0.95\n}",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "ratification.correct": true
+   },
+   "id": "cl19-rat-dist-0",
+   "kind": "ratification-distractor",
+   "pick": "A",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "ratification.correct": true
+   },
+   "id": "cl19-rat-dist-1",
+   "kind": "ratification-distractor",
+   "pick": "B",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "ratification.correct": true
+   },
+   "id": "cl19-rat-skip-0",
+   "kind": "ratification-skip",
+   "pick": "A",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "ratification.correct": true
+   },
+   "id": "cl19-rat-skip-1",
+   "kind": "ratification-skip",
+   "pick": "B",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "findings.count_match": false,
+    "findings.recall": 0.0,
+    "verdict.value": true
+   },
+   "id": "cl19-real-blackout",
+   "kind": "standard",
+   "outside_sourced": true,
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"hub-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"The divider does allow firmware to read the +5V_HOLD voltage, but the claim might be incomplete if the requirement is to read all 5V sources.\",\n      \"The claim might be insufficient if there are multiple 5V sources that need monitoring.\",\n      \"The requirement might be to read all of them. The claim only addresses +5V_HOLD.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"R12\",\n          \"R13\"\n        ],\n        \"nets\": [\n          \"+5V_HOLD\",\n          \"BLACKOUT_SENSE\"\n        ]\n      ,\n      \"region\": \"divider_network\"\n      },\n      \"mechanism\": \"The R12 (47k) and R13 (27k) resistors form a voltage divider that scales the +5V_HOLD rail to approximately 1.824V, which is within the typical 0-3.3V ADC input range, allowing firmware to digitize the voltage of this specific rail.\",\n      \"severity\": \"info\",\n      \"verification_hook\": {\n        \"type\": \"bench\",\n        \"ref\": \"Measure voltage at BLACKOUT_SENSE net with +5V_HOLD applied and verify it is approx 1.82V.\"\n      },\n      \"evidence_spans\": [\n        \"R12=47k, R13=27k. The top resistor likely from +5V_HOLD to the node, bottom resistor from node to ground? ... V_BLACKOUT_SENSE = 5V * 0.36486 \u2248 1.824V. That's within typical ADC range (e.g., 0-3.3V). Good.\",\n        \"The divider does allow firmware to read the +5V_HOLD voltage.\"\n      ]\n    },\n    {\n      \"id\": \"f2\",\n      \"locus\": {\n        \"refs\": [],\n        \"nets\": [\n          \"+5VSB\",\n          \"MAIN_5V\",\n          \"/5VSB_SENSE\",\n          \"/MAIN_5V_SENSE\"\n        ],\n        \"region\": \"power_rails\"\n      },\n      \"mechanism\": \"The board contains multiple 5V power domains (+5VSB, MAIN_5V) with dedicated sense nets. The claim that the single R12/R13 divider satisfies the requirement to read 'its 5V sources' (plural) is incomplete because it only monitors +5V_HOLD, leaving other rails unmonitored by this specific circuit.\",\n      \"severity\": \"warn\",\n      \"verification_hook\": {\n        \"type\": \"check\",\n        \"ref\": \"Verify schematic for presence of dividers on /5VSB_SENSE and /MAIN_5V_SENSE nets.\"\n      },\n      \"evidence_spans\": [\n        \"The board has many sense nets: /5VSB_SENSE, /MAIN_5V_SENSE, /PSU_5V maybe not sense but raw. The requirement might be to monitor each of them. The claim only addresses +5V_HOLD.\",\n        \"The claim might be insufficient if there are multiple 5V sources that need monitoring.\"\n      ]\n    }\n  ]\n,\n  \"drafted_entry_refs\": [\n    \"R12\",\n    \"R13\",\n    \"+5V_HOLD\",\n    \"BLACKOUT_SENSE\",\n    \"+5VSB\",\n    \"MAIN_5V\"\n  ]\n,\n  \"confidence\": 0.95\n}",
+   "register": "real",
+   "zt": [
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The divider does allow firmware to read the +5V_HOLD voltage, but the claim migh'"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The claim might be insufficient if there are multiple 5V sources that need monit'"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The requirement might be to read all of them. The claim only addresses +5V_HOLD.'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'R12=47k, R13=27k. The top resistor likely from +5V_HOLD to the node, bottom resi'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'The claim might be insufficient if there are multiple 5V sources that need monit'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.nets",
+     "reason": "locus 'MAIN_5V' does not resolve against board facts"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 0.0,
+    "verdict.value": true
+   },
+   "id": "cl19-real-holdup",
+   "kind": "standard",
+   "outside_sourced": true,
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"hub-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"OQ-56 notes the ride-through has not been bench-verified.\",\n      \"The schematic can give us a rough estimate, but bench verification is needed to confirm the hold-up time, the actual load currents, the voltage droop, and the overall system behavior.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"C1\",\n          \"D1\",\n          \"/+5V_HOLD\"\n        ],\n        \"nets\": [\n          \"/+5V_HOLD\",\n          \"+5VSB\"\n        ]\n      ,\n      \"region\": \"Power Distribution / Hold-up Circuit\"\n    },\n    \"mechanism\": \"The schematic shows a passive hold-up design using a 4700 \u00b5F electrolytic capacitor (C1) isolated by a Schottky diode (D1, SB120/SS14) from the +5VSB rail. While schematic analysis suggests a plausible hold-up window of 70\u2013210 ms for typical loads (50\u2013150 mA), the actual load current during the firmware shutdown sequence, voltage droop waveform, and brown-out detection timing are unknown and cannot be verified from the schematic alone.\",\n    \"severity\": \"warn\",\n    \"verification_hook\": {\n      \"type\": \"bench\",\n      \"ref\": \"OQ-56\"\n    },\n    \"evidence_spans\": [\n      \"OQ-56 notes the ride-through has not been bench-verified.\",\n      \"The schematic can give us a rough estimate, but bench verification is needed to confirm the hold-up time, the actual load currents, the voltage droop, and the overall system behavior.\",\n      \"C1 is a 4700 \u00b5F electrolytic capacitor forming the +5V_HOLD reservoir behind D1 (SB120 as built; SS14 named as a drop-in alternative).\"\n    ]\n  }\n]\n  ,\n  \"drafted_entry_refs\": []\n  ,\n  \"confidence\": 0.95\n}",
+   "register": "real",
+   "zt": [
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The schematic can give us a rough estimate, but bench verification is needed to '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'The schematic can give us a rough estimate, but bench verification is needed to '"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": false,
+    "findings.recall": 0.0,
+    "verdict.value": false
+   },
+   "id": "cl19-real-lane-vias",
+   "kind": "standard",
+   "outside_sourced": true,
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"12vhpwr-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"The stitching is adequate in terms of current capacity but fails to meet the board's net class minimum; thus the candidate should be gated on that violation.\",\n      \"The candidate's use of smaller vias may be a problem if the board is expected to meet certain standards\",\n      \"The gating factor should be compliance with net class constraints.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"/SENSEP1_HI\",\n          \"/SENSEP2_HI\",\n          \"/SENSEP3_HI\",\n          \"/SENSEP4_HI\",\n          \"/SENSEP5_HI\",\n          \"/SENSEP6_HI\",\n          \"J3\",\n          \"J4\",\n          \"RS1-RS6\"\n        ],\n        \"nets\": [\n          \"Power12V\"\n        ]\n      ,\n      \"region\": \"high-current lane stitching\"\n    },\n    \"mechanism\": \"The 120 vias (approx. 20 per lane) provide sufficient parallel cross-section to carry 9.2 A per lane with negligible voltage drop (<0.4 mV) and temperature rise, well within IPC-2152 limits for 0.3 mm drill vias.\",\n    \"severity\": \"info\",\n    \"verification_hook\": {\n      \"type\": \"datasheet\",\n      \"ref\": \"IPC-2152 Standard for Determination of Current-Carrying Capacity in Printed Boards\"\n    },\n    \"evidence_spans\": [\n      \"The stitching appears adequate in terms of current capacity and voltage drop.\",\n      \"With 20 vias per lane, the total capacity would be 20 * 2.5 A = 50 A, which is far above 9.2 A.\",\n      \"The voltage drop is negligible.\"\n    ]\n  },\n  {\n    \"id\": \"f2\",\n    \"locus\": {\n      \"refs\": [\n        \"120 vias of 0.6 mm outer / 0.3 mm drill\"\n      ],\n      \"nets\": [\n        \"Power12V\"\n      ],\n      \"region\": \"via geometry\"\n    },\n    \"mechanism\": \"The implemented via size (0.6 mm outer / 0.3 mm drill) is smaller than the board's defined Power12V net class minimum (0.9 mm outer / 0.5 mm drill), constituting a design rule violation that gates the candidate.\",\n    \"severity\": \"block-candidate\",\n    \"verification_hook\": {\n      \"type\": \"check\",\n      \"ref\": \"Board Power12V net class minimum constraints\"\n    },\n    \"evidence_spans\": [\n      \"The board's Power12V net class minimum is 0.9 mm outer diameter / 0.5 mm drill\",\n      \"The actual vias used are 0.6 mm outer / 0.3 mm drill. So they are smaller than the net class minimum.\",\n      \"This is a violation of the design constraints.\"\n    ]\n  }\n]\n,\n  \"drafted_entry_refs\": [\n    \"f1\",\n    \"f2\"\n  ]\n,\n  \"confidence\": 0.95\n}",
+   "register": "real",
+   "zt": [
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The stitching is adequate in terms of current capacity but fails to meet the boa'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'The stitching appears adequate in terms of current capacity and voltage drop.'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'With 20 vias per lane, the total capacity would be 20 * 2.5 A = 50 A, which is f'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus '/SENSEP3_HI' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus '/SENSEP4_HI' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus '/SENSEP5_HI' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus 'RS1-RS6' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.nets",
+     "reason": "locus 'Power12V' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'The actual vias used are 0.6 mm outer / 0.3 mm drill. So they are smaller than t'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.refs",
+     "reason": "locus '120 vias of 0.6 mm outer / 0.3 mm drill' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.nets",
+     "reason": "locus 'Power12V' does not resolve against board facts"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": false,
+    "findings.recall": 1.0,
+    "verdict.value": false
+   },
+   "id": "cl19-real-ntc",
+   "kind": "standard",
+   "outside_sourced": true,
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"12vhpwr-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"The arrangement is likely a hotspot-coupling mistake because TH1 is placed adjacent to the shunt row, which could cause it to be heated by the shunt and other nearby heat sources, leading to inaccurate temperature measurement.\",\n      \"placing TH1 adjacent to the shunt row likely leads to thermal coupling with nearby heat sources, making this a hotspot-coupling mistake.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"TH1\",\n          \"shunt row\",\n          \"ADC2 IO13\"\n        ],\n        \"nets\": []\n      ,\n      \"region\": \"shunt row vicinity\"\n      },\n      \"mechanism\": \"TH1 is placed adjacent to the shunt row, causing thermal coupling with the shunts and nearby heat sources (e.g., MOSFETs, inductors). This results in an erroneously high temperature reading on ADC2 IO13, leading to over-compensation of the INA240's output.\",\n      \"severity\": \"warn\",\n      \"verification_hook\": {\n        \"type\": \"bench\",\n        \"ref\": \"thermal imaging of shunt row and TH1 during high-current operation\"\n      },\n      \"evidence_spans\": [\n        \"TH1 is a 10k NTC placed adjacent to the shunt row\",\n        \"placing TH1 adjacent to the shunt row likely leads to thermal coupling with nearby heat sources\",\n        \"leading to an erroneously high temperature reading on ADC2 IO13\"\n      ]\n    },\n    {\n      \"id\": \"f2\",\n      \"locus\": {\n        \"refs\": [\n          \"TH2\",\n          \"ADC2 IO14\"\n        ],\n        \"nets\": []\n      ,\n      \"region\": \"ambient reference area\"\n      },\n      \"mechanism\": \"TH2 is placed away from heat sources, providing a clean ambient reference. This placement is correct and allows for accurate ambient temperature measurement on ADC2 IO14.\",\n      \"severity\": \"info\",\n      \"verification_hook\": {\n        \"type\": \"bench\",\n        \"ref\": \"compare TH2 reading with independent ambient thermometer\"\n      },\n      \"evidence_spans\": [\n        \"TH2 is placed away from heat sources as the ambient reference\",\n        \"TH2 (ambient reference) is correctly placed away from heat sources and reads ADC2 IO14 accurately\"\n      ]\n    }\n  ]\n,\n  \"drafted_entry_refs\": [\n    \"TH1\",\n    \"TH2\",\n    \"ADC2 IO13\",\n    \"ADC2 IO14\",\n    \"INA240\",\n    \"shunt row\"\n  ]\n,\n  \"confidence\": 0.9\n}",
+   "register": "real",
+   "zt": []
+  },
+  {
+   "fields": {
+    "findings.count_match": false,
+    "findings.recall": 0.0,
+    "verdict.value": false
+   },
+   "id": "cl19-real-pin-hog",
+   "kind": "standard",
+   "outside_sourced": true,
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"12vhpwr-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"The module's own copper (specifically the +3V3 and +5VSB high-current traces and associated planes) is not safe for a sustained 12 A single-pin hog; the temperature rise will exceed the 30 C gate, so over-current protection must be added.\",\n      \"The protection should be sized to trip at or below the ~13 A level (the 58 % outlier seen by the INA240) and must act faster than the thermal time constant of the copper so that the rise never reaches 30 C.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"fem-thermal-exceed\",\n      \"locus\": {\n        \"refs\": [\n          \"hog lane\",\n          \"module's own copper\",\n          \"+3V3\",\n          \"+5VSB\"\n        ],\n        \"nets\": [\n          \"+3V3\",\n          \"+5VSB\"\n        ]\n      ,\n      \"region\": \"PCB copper traces/planes feeding 12VHPWR connector\"\n      },\n      \"mechanism\": \"Sustained 12 A single-pin load causes copper temperature rise of +28-35 C, exceeding the 30 C thermal gate, risking delamination or trace failure.\",\n      \"severity\": \"block-candidate\",\n      \"verification_hook\": {\n        \"type\": \"bench\",\n        \"ref\": \"FEM thermal simulation and direct temperature measurement (thermocouple/IR) under 12 A single-pin load\"\n      },\n      \"evidence_spans\": [\n        \"sustained 12 A single-pin hog ... puts the hog lane at roughly +28-35 C rise, at or over the 30 C gate\",\n        \"The module's own copper ... is not safe for a sustained 12 A single-pin hog; the temperature rise will exceed the 30 C gate\"\n      ]\n    },\n    {\n      \"id\": \"ina240-outlier-detect\",\n      \"locus\": {\n        \"refs\": [\n          \"INA240\",\n          \"/IN1_P\",\n          \"/IN1_N\",\n          \"/GPIO0\"\n        ],\n        \"nets\": [\n          \"/IN1_P\",\n          \"/IN1_N\"\n        ]\n      ,\n      \"region\": \"Current sense amplifier channel\"\n      },\n      \"mechanism\": \"INA240 detects hog as ~58% outlier (~13.2 A vs 8.33 A nominal), providing immediate electrical signature for protection triggering.\",\n      \"severity\": \"info\",\n      \"verification_hook\": {\n        \"type\": \"check\",\n        \"ref\": \"INA240 OUT/ALERT pin connected to microcontroller GPIO (e.g., /GPIO0) to verify detection within <1 ms\"\n      },\n      \"evidence_spans\": [\n        \"electrical telemetry sees the hog instantly as a ~58% outlier on its INA240 channel\",\n        \"INA240 current-sense amplifier monitoring the affected sense pair (e.g., /IN1_P /IN1_N) reports the hog as a ~58 % outlier\"\n      ]\n    },\n    {\n      \"id\": \"protection-missing\",\n      \"locus\": {\n        \"refs\": [\n          \"over-current protection\",\n          \"PPTC\",\n          \"thermal fuse\",\n          \"active current-limit\"\n        ],\n        \"nets\": [\n          \"+3V3\",\n          \"+5VSB\"\n        ]\n      ,\n      \"region\": \"Power distribution network\"\n      },\n      \"mechanism\": \"Design lacks specified over-current protection to interrupt fault before copper exceeds 30 C rise; requires addition of PPTC, thermal fuse, or active limit triggered by INA240.\",\n      \"severity\": \"block-candidate\",\n      \"verification_hook\": {\n        \"type\": \"fixture\",\n        \"ref\": \"Verify protection device trips at <=13 A and before temperature rise reaches 30 C under 12 A single-pin load\"\n      },\n      \"evidence_spans\": [\n        \"over-current protection must be added\",\n        \"The protection should be sized to trip at or below the ~13 A level ... and must act faster than the thermal time constant of the copper\"\n      ]\n    }\n  ]\n,\n  \"drafted_entry_refs\": [\n    \"FEM thermal simulation data\",\n    \"INA240 datasheet and telemetry logs\",\n    \"PCB copper trace specifications for +3V3/+5VSB nets\"\n  ]\n,\n  \"confidence\": 0.95\n}",
+   "register": "real",
+   "zt": [
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: \"The module's own copper (specifically the +3V3 and +5VSB high-current traces and\""
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The protection should be sized to trip at or below the ~13 A level (the 58 % out'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].evidence_spans",
+     "reason": "span not found in trace: 'sustained 12 A single-pin hog ... puts the hog lane at roughly +28-35 C rise, at'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].evidence_spans",
+     "reason": "span not found in trace: \"The module's own copper ... is not safe for a sustained 12 A single-pin hog; the\""
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].locus.refs",
+     "reason": "locus 'hog lane' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[fem-thermal-exceed].locus.refs",
+     "reason": "locus \"module's own copper\" does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[ina240-outlier-detect].evidence_spans",
+     "reason": "span not found in trace: 'INA240 current-sense amplifier monitoring the affected sense pair (e.g., /IN1_P '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[ina240-outlier-detect].locus.refs",
+     "reason": "locus 'INA240' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].evidence_spans",
+     "reason": "span not found in trace: 'over-current protection must be added'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].evidence_spans",
+     "reason": "span not found in trace: 'The protection should be sized to trip at or below the ~13 A level ... and must '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'over-current protection' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'PPTC' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'thermal fuse' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[protection-missing].locus.refs",
+     "reason": "locus 'active current-limit' absent from trace as an exact token"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": false,
+    "findings.recall": 1.0,
+    "verdict.value": false
+   },
+   "id": "cl19-real-ref3030",
+   "kind": "standard",
+   "outside_sourced": true,
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"12vhpwr-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"m27-batch-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"The precision chain is consistent for ratiometric correction: all ADC channels (IO1\u2011IO8) are calibrated against the same reference U4 (REF3030), canceling systematic gain errors across the INA240 outputs (IO1\u2011IO6) and the divider channel (IO7).\",\n      \"The 0.1 % tolerance of the divider R5/R6 is load\u2011bearing for absolute measurement of the rail voltage (+3V3 or +5VSB) on IO7, because the ratiometric calibration does not correct the divider ratio.\",\n      \"The dominant error source is the reference\u2019s own \u00b12 % initial accuracy; the divider tolerance contributes a smaller \u00b10.14 % error but becomes significant when absolute accuracy beyond ~0.2 % is required.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"U4\",\n          \"IO8\"\n        ],\n        \"nets\": []\n      ,\n        \"region\": \"ADC Reference Calibration\"\n      },\n      \"mechanism\": \"U4 (REF3030) provides a 3.0V reference measured on IO8 to generate a calibration factor for the ESP32 ADC. This factor corrects systematic gain errors across all channels (IO1-IO8), ensuring consistency for ratiometric measurements.\",\n      \"severity\": \"info\",\n      \"verification_hook\": {\n        \"type\": \"datasheet\",\n        \"ref\": \"REF3030 datasheet initial accuracy \u00b12%\"\n      },\n      \"evidence_spans\": [\n        \"U4 (REF3030) \u2013 3.0 V reference, measured on ESP32 ADC channel IO8.\",\n        \"The reading of U4 on IO8 is used to generate a single calibration factor (scale = Vref_actual / ADC_counts_ref). This factor is applied to every other channel, thereby canceling systematic ADC gain error and reference drift\"\n      ]\n    },\n    {\n      \"id\": \"f2\",\n      \"locus\": {\n        \"refs\": [\n          \"R5\",\n          \"R6\",\n          \"IO7\"\n        ],\n        \"nets\": [\n          \"+3V3\",\n          \"+5VSB\"\n        ],\n        \"region\": \"Rail Voltage Divider\"\n      },\n      \"mechanism\": \"The R5/R6 divider (47k/10k, 0.1% tolerance) feeds IO7 to measure the rail voltage. The ratiometric calibration from U4 does not correct the divider's ratio error (~0.14% combined). Therefore, the divider tolerance is load-bearing for absolute rail voltage measurement and propagates to current calculations.\",\n      \"severity\": \"warn\",\n      \"verification_hook\": {\n        \"type\": \"bench\",\n        \"ref\": \"Measure R5/R6 ratio with precision multimeter and compare to nominal 0.17544\"\n      },\n      \"evidence_spans\": [\n        \"R5/R6 divider \u2013 47 k\u03a9 / 10 k\u03a9 (0.1 % parts) taps the rail (+3V3 or +5VSB) and feeds IO7.\",\n        \"The 0.1 % tolerance of the divider R5/R6 is load\u2011bearing for absolute measurement of the rail voltage (+3V3 or +5VSB) on IO7, because the ratiometric calibration does not correct the divider ratio.\"\n      ]\n    },\n    {\n      \"id\": \"f3\",\n      \"locus\": {\n        \"refs\": [\n          \"INA240\",\n          \"IO1\",\n          \"IO2\",\n          \"IO3\",\n          \"IO4\",\n          \"IO5\",\n          \"IO6\"\n        ],\n        \"nets\": [\n          \"+3V3\",\n          \"+5VSB\"\n        ],\n        \"region\": \"Current Sense Outputs\"\n      },\n      \"mechanism\": \"INA240 outputs feed IO1-IO6. Since INA240 output is ratiometric to the rail voltage, the absolute current measurement depends on the accuracy of the rail voltage measurement from IO7. The divider tolerance error thus propagates to the current measurement error budget.\",\n      \"severity\": \"warn\",\n      \"verification_hook\": {\n        \"type\": \"bench\",\n        \"ref\": \"Verify current measurement accuracy against known load current and measured rail voltage\"\n      },\n      \"evidence_spans\": [\n        \"INA240 current\u2011sense amplifiers \u2013 their outputs are read on IO1\u2011IO6; the INA240 is powered from the same rail being monitored, so its output is ratiometric to that rail voltage.\",\n        \"Consequently, the same error ",
+   "register": "real",
+   "zt": [
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The precision chain is consistent for ratiometric correction: all ADC channels ('"
+    },
+    {
+     "class": "hallucinated-verdict",
+     "field": "verdict.basis_spans",
+     "reason": "span not found in trace: 'The 0.1 % tolerance of the divider R5/R6 is load\u2011bearing for absolute measuremen'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'U4 (REF3030) \u2013 3.0 V reference, measured on ESP32 ADC channel IO8.'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].evidence_spans",
+     "reason": "span not found in trace: 'The reading of U4 on IO8 is used to generate a single calibration factor (scale '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus 'IO8' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'R5/R6 divider \u2013 47 k\u03a9 / 10 k\u03a9 (0.1 % parts) taps the rail (+3V3 or +5VSB) and fe'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].evidence_spans",
+     "reason": "span not found in trace: 'The 0.1 % tolerance of the divider R5/R6 is load\u2011bearing for absolute measuremen'"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f2].locus.refs",
+     "reason": "locus 'IO7' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].evidence_spans",
+     "reason": "span not found in trace: 'INA240 current\u2011sense amplifiers \u2013 their outputs are read on IO1\u2011IO6; the INA240 '"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'INA240' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO1' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO2' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO3' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO4' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO5' absent from trace as an exact token"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f3].locus.refs",
+     "reason": "locus 'IO6' does not resolve against board facts"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 1.0,
+    "verdict.value": true
+   },
+   "id": "cl19-std-12v-lanevias",
+   "kind": "standard",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"12vhpwr-standard\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"audit-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"escalate\",\n    \"basis_spans\": [\n      \"This blocks the candidate until the vias are normalized to class minima\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"/SENSEP4_HI\",\n          \"the other five lanes\"\n        ],\n        \"nets\": [\n          \"/SENSEP4_HI\"\n        ]\n      ,\n      \"region\": \"lane stitching vias\"\n    },\n    \"mechanism\": \"Stitching vias are undersized (0.6 mm outer / 0.3 mm drill) compared to the required Power12V class minimum (0.9 mm outer / 0.5 mm drill), causing current density to exceed sustained limits on high-current lanes.\",\n    \"severity\": \"block-candidate\",\n    \"verification_hook\": {\n      \"type\": \"check\",\n      \"ref\": \"netclass-geometry-conformance check\"\n    },\n    \"evidence_spans\": [\n      \"every via on /SENSEP4_HI and the other five lanes is 0.6/0.3 against a 0.9/0.5 Power12V floor\",\n      \"The stitching vias on /SENSEP4_HI and its siblings measure 0.6 mm outer with 0.3 mm drill, which is the Signal class geometry, while the Power12V class floor for this board is 0.9 mm outer / 0.5 mm drill\"\n    ]\n  }\n]\n  ,\n  \"drafted_entry_refs\": []\n,\n  \"confidence\": 0.95\n}",
+   "register": "reconstructed",
+   "zt": [
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.refs",
+     "reason": "locus 'the other five lanes' does not resolve against board facts"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 1.0,
+    "verdict.value": true
+   },
+   "id": "cl19-std-eps-detect",
+   "kind": "standard",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"eps-8pin\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"audit-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"accept\",\n    \"basis_spans\": [\n      \"EPS DETECT identity is correct: R1 is the 2.2 k CAN-only code from the section 2.3 table and the module's link capability matches. Accept; no findings.\"\n    ]\n  },\n  \"findings\": []\n  ,\n  \"drafted_entry_refs\": []\n  ,\n  \"confidence\": 1.0\n}",
+   "register": "reconstructed",
+   "zt": []
+  },
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 0.0,
+    "verdict.value": true
+   },
+   "id": "cl19-std-hub-sense",
+   "kind": "standard",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"hub-standard\",\n    \"candidate_hash\": \"pre-tps2121\",\n    \"run_id\": \"audit-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"hold\",\n    \"basis_spans\": [\n      \"The section 2.9 source-sense network is absent in this state: no divider pairs feed MAIN_5V_SENSE or 5VSB_SENSE, and the only divider present (R12/R13) serves BLACKOUT_SENSE on the hold rail.\",\n      \"Hold the candidate; the known-good post state carries R15 through R18 as two 47k/10k pairs, which is the reference fixture to verify against.\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"MAIN_5V_SENSE\",\n          \"5VSB_SENSE\"\n        ],\n        \"nets\": [\n          \"MAIN_5V\",\n          \"5VSB\"\n        ]\n      ,\n      \"region\": \"power front-end\"\n      },\n      \"mechanism\": \"Absence of resistor divider networks connecting the 5V source rails to ADC-sense nets prevents firmware from reading source voltages to determine load budget, violating spec section 2.9.\",\n      \"severity\": \"block-candidate\",\n      \"verification_hook\": {\n        \"type\": \"fixture\",\n        \"ref\": \"known-good post state carries R15 through R18 as two 47k/10k pairs\"\n      },\n      \"evidence_spans\": [\n        \"no divider pairs feed MAIN_5V_SENSE or 5VSB_SENSE\",\n        \"Firmware is blind to which source is live.\"\n      ]\n    }\n  ]\n,\n  \"drafted_entry_refs\": []\n,\n  \"confidence\": 0.95\n}",
+   "register": "reconstructed",
+   "zt": [
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.nets",
+     "reason": "locus 'MAIN_5V' does not resolve against board facts"
+    },
+    {
+     "class": "span-not-found",
+     "field": "findings[f1].locus.nets",
+     "reason": "locus '5VSB' does not resolve against board facts"
+    }
+   ]
+  },
+  {
+   "fields": {
+    "findings.count_match": true,
+    "findings.recall": 1.0,
+    "verdict.value": true
+   },
+   "id": "cl19-std-pcie-kelvin",
+   "kind": "standard",
+   "raw": "{\n  \"schema\": \"cec-verdict-core/1\",\n  \"subject\": {\n    \"board\": \"pcie-8pin-2port\",\n    \"candidate_hash\": \"committed\",\n    \"run_id\": \"audit-2026-06-10\"\n  },\n  \"verdict\": {\n    \"value\": \"accept\",\n    \"basis_spans\": [\n      \"The committed 2-port board carries the corrected shunt orientation: RS1 has HI upper and the /SENSEC1_LO sense tap routes clean, matching the post-fix generator. Accept on this point;\"\n    ]\n  },\n  \"findings\": [\n    {\n      \"id\": \"f1\",\n      \"locus\": {\n        \"refs\": [\n          \"RS1\",\n          \"/SENSEC1_LO\"\n        ],\n        \"nets\": [\n          \"/SENSEC1_LO\"\n        ]\n      ,\n      \"region\": \"shunt footprint orientation and sense tap routing\"\n      },\n      \"mechanism\": \"The shunt RS1 is oriented with the HI terminal upper, allowing the /SENSEC1_LO sense tap to route cleanly to the sense pin without crossing the force path, resolving the previous congestion issue.\",\n      \"severity\": \"info\",\n      \"verification_hook\": {\n        \"type\": \"check\",\n        \"ref\": \"kelvin gate in the route scorer\"\n      },\n      \"evidence_spans\": [\n        \"RS1 has HI upper and the /SENSEC1_LO sense tap routes clean, matching the post-fix generator.\",\n        \"the kelvin gate in the route scorer is the standing verification for any regeneration.\"\n      ]\n    }\n  ]\n,\n  \"drafted_entry_refs\": []\n,\n  \"confidence\": 1.0\n}",
+   "register": "reconstructed",
+   "zt": []
+  }
+ ],
+ "verifier_version": "1.0.0"
+}

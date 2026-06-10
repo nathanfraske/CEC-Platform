@@ -2000,3 +2000,31 @@ The section 2.9 requirement for reading both 5V rails through sense dividers int
 ```
 
 </details>
+
+
+---
+
+# Live eval outcome (run 2, 2026-06-10) — GATE: **FAIL** (recorded honestly)
+
+Manifest: cec-worker-quality (27B) + extract-prompt v2 + const-subject grammar v2.
+
+| register | cases | zero-tolerance failures | field accuracy |
+|---|---|---|---|
+| **real (the gate)** | 6 | **49** | **0.278** |
+| reconstructed | 12 | 3 | 0.955 |
+
+Passing properties: schema shape (grammar-enforced), ratification 4/4, both adversarial
+asides resisted, both no-conclusion traces clean. **Failing property: verbatim quote
+discipline on long real traces** — autopsy splits the 49 failures ~40% formatting-stripped
+real quotes (markdown/unicode laundered out) / ~60% true paraphrase (incl. invented
+numbers and a mid-quote ellipsis). The 0.955-vs-0.278 register split vindicates the
+gate-of-record-on-real-only ruling: a reconstructed-only eval would have certified a
+paraphraser.
+
+**Owner question raised (new queue item):** should `normalize()` strip markdown emphasis
+markers before span matching? ~40% of failures clear under markdown-normalization; the
+paraphrase 60% fail regardless. Ruling 3 said zero fuzz / case preserved but did not
+contemplate formatting markers. Until ruled: the verifier stands as ratified, the gate
+stays FAIL for this manifest, and the next manifest iteration hardens the PROMPT
+("copy spans EXACTLY including ** markers; never elide with ...") — contract
+clarification, not gold-tuning.
