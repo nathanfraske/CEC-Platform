@@ -119,24 +119,64 @@ mechanically distinguishable: presence of `vendor` ⇒ vendor-scoped, drifts wit
 
 ---
 
-## Cluster 1 — thermal gate constants (HELD; owner doc pending)
+## Cluster 1 — thermal gate constants (**DELIVERED 2026-06-10**; entries drafted)
 
-`physics_gates` swings on five constants: `dT_max 30 °C`, `T_max 105 °C`, transient allowance
-`+20 °C`, `J_max 100 A/mm²`, fusing `400 A/mm²`. The owner will produce a provenance document
-later. Until then these stay **unexplained constants** — not promotable. They are listed here
-as the pending-provenance worklist so the doc has a target:
+The owner's provenance document landed as
+**`docs/research/thermal-gates-derivation-2026-06-10.md`** — the solvable source artifact
+every derivation-class entry cites. **Standing convention (owner, 2026-06-10): any
+research-grade document is placed under `docs/research/` for safekeeping and citation.**
 
-| Constant | Current value | Provenance owed |
-|---|---|---|
-| `dT_max` | 30 °C | IPC derating habit? specific experience? conservative gut? |
-| `T_max` | 105 °C | part/laminate rating? margin choice? |
-| transient allowance | +20 °C | GPU-transient envelope? gut? |
-| `J_max` | 100 A/mm² | IPC current density? bench? |
-| fusing | 400 A/mm² | IPC fusing chart? gut ceiling? |
+Dispositions (owner-enumerated, drafted to `corpus/staging/general/thermal-gates.json` +
+`bom-ratings.json`, 16 entries):
 
-Each one with real provenance becomes a Class A (if it cites a standard chart point) or an
-honest Class H (`decision`-sourced, if it is conservative gut). The gut answers are legitimate
-and type as H — they do not have to be standards-backed to be recorded honestly.
+| Constant | Was | Disposition | Entry |
+|---|---|---|---|
+| design ambient | (implicit) | NEW, 50 °C, H/decision w/ embedded validity clause (measured >55 °C → rise budget cuts to 20 °C) | `thermal.gates.design_ambient` |
+| `dT_max` | 30 °C | KEEP w/ provenance — it is a RISE above local board temp; H/decision for the chart-point choice, verify-against-2152 | `thermal.gates.dt_max_rise` |
+| `T_max` | 105 °C | rule-over-constant: derivation RULE (min-of-BOM) + instantiation param citing Class A sub-facts; floor = 105 °C electrolytic | `thermal.gates.t_max_rule` + `.t_max_ceiling` + 4× `bom.rating.*` |
+| transient | +20 °C | CONVERT to (ΔT, τ) pairs by fault class; durations = Class A sub-facts, τ derivation-class pending bench | `thermal.gates.transient_allowance` + 2× `fault.duration.*` |
+| `J_max` | 100 A/mm² flat | RETIRE; SPLIT by geometry: via ≤75 / external ≤~60 / internal ≤~35 at 30 °C rise; via entry carries the guaranteed-minimum-plating clause (D2 vendor data) | 3× `thermal.jmax.*` |
+| fusing | 400 A/mm² flat | CONVERT to the Onderdonk (J, t) curve — 400 IS the 0.5 s point; Class A (fully public); backstop-only clause | `thermal.fusing.onderdonk_jt` + `service.fused_board_retirement` |
+
+All staging/advisory — the `physics_gates` hand defaults stay until promotion; the
+promotion PR tombstones the flat `J_max`/`J_fuse` constants in the same diff. The flat-gate
+retirement and code bindings are promotion-time human acts, never this draft.
+
+**Three OQs (owner-ruled: OQs, not entries):**
+1. **Measure in-case ambient at the board location** → metrology-table capability row;
+   the CL-13 label upgrades `design_ambient` H→C and tests the 55 °C cutover clause.
+2. **Measure trace thermal τ with a current step on a populated lane** → metrology-table
+   capability row; upgrades the `transient_allowance` τ values H→C.
+3. **Acquire IPC-2152** — the upgrade trigger for every verify-note entry
+   (`dt_max_rise`, the three `thermal.jmax.*` → re-derive from the real Figure 5-2 and
+   via appendix; expected change small and in the safe direction).
+
+**Vendor datum owed (D2 day-one):** JLCPCB guaranteed-minimum via-wall plating — three
+fetch attempts on 2026-06-10 failed (capability tables are JS-rendered); pin from the rev2
+order/DFM data or the quote tool → `fab.jlcpcb.via_plating_min` vendor-pile entry that the
+`thermal.jmax.via_barrel` plating clause resolves against.
+
+**Sonnet-only panel run (2026-06-10, owner-directed; 4 seats: fidelity / taxonomy /
+coherence / refuter; Opus adjudicated).** 11 findings; 8 accepted and applied, 2 rejected
+with reasoning, 1 already-tracked. The two genuine errors the panel caught:
+1. **Hot-start factor erratum (coherence):** the research doc's ≈0.94 matches the 70 °C end
+   of its own "70–80 °C" bracket; at exactly 80 °C the Onderdonk log-term ratio is
+   √(0.6226/0.7148) = 0.933 — non-conservative by ~1% as written. Entry fixed to 0.93
+   (~381 not ~385 at 0.5 s), recorded as a **research-doc erratum** in the entry (the doc
+   itself is the vendored artifact and is not edited).
+2. **Via rise-point mismatch (fidelity + refuter converged):** 75 A/mm² was derived at
+   10 °C rise but recommended as the 30 °C gate without re-derivation — conservative
+   direction, now disclosed in the entry rather than laundered.
+Also applied: cap-entry scope narrowed to the class (the Nichicon source never covers the
+Panasonic MPN — MPN moved to notes w/ verify-at-promotion); smps.us(2152-chart) vs
+k=0.048(2221 closed form ~60→~77 @30 °C) chart-family disambiguation; τ fraction
+recomputed 9.5–22% (doc's ~10–25% rounds); the 1–2 s cooling-onset qualifier restored to
+the fusing validity field; forum-data "not a controlled study" made explicit.
+**Rejected:** cutover `>55` semantics kept (the doc and the owner's enumeration both say
+"exceeds"; touching 105 exactly at 55 IS the documented threshold — clarified in notes);
+fusing Class A kept against a refuter downgrade-to-H (the refuter mis-read the doc — its
+Caveats explicitly rule Onderdonk/Preece "fully public and NOT derivation-class"; noted
+that the authority is published literature, not a standards body).
 
 ---
 
@@ -172,6 +212,8 @@ absent what doesn't.
 | **DC voltage / reference accuracy** | _(what voltage reference is trusted)_ | _(traceable? against what)_ | _(ppm or %)_ | _(V)_ |
 | **DC current accuracy (ammeter)** | _(what ammeter is believed)_ | _(shunt + DMM? clamp?)_ | _(% of reading)_ | _(A)_ |
 | Transient capture (≈10 kHz GPU) | _(scope + current probe)_ | _(probe bandwidth, sample rate)_ | _(BW-limited)_ | _(bandwidth, A)_ |
+| **In-case ambient at board location** (cluster-1 OQ-1) | _(probe + closed case)_ | _(board-adjacent placement, load running)_ | _(°C)_ | _(tests the 55 °C cutover clause; upgrades `design_ambient` H→C)_ |
+| **Trace thermal τ via current step** (cluster-1 OQ-2) | _(step source + temp readout)_ | _(populated lane, step + log to 5τ)_ | _(s)_ | _(upgrades `transient_allowance` τ H→C)_ |
 
 **Two consequences this table sets (the reason it is load-bearing, not inventory):**
 

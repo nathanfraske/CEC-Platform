@@ -97,6 +97,26 @@
   },
   {
    "checkable": "n/a",
+   "entry": "bom.rating.cap_electrolytic_105c",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "bom.rating.connector_minifit_105c",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "bom.rating.fr4_continuous_110c",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "bom.rating.schottky_tj_125c",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
    "entry": "burn.sot23-ref-pinout-suffix",
    "zone": "staging"
   },
@@ -298,6 +318,16 @@
   {
    "checkable": "yes",
    "entry": "esp32-wroom-antenna-keepout-hub",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "fault.duration.pptc_class",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "fault.duration.psu_ocp_eps12v",
    "zone": "staging"
   },
   {
@@ -1036,6 +1066,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "service.fused_board_retirement",
+   "zone": "staging"
+  },
+  {
    "checkable": "partial",
    "entry": "shunt-chassis-thermal-coupling-eps-pcie",
    "zone": "staging"
@@ -1162,7 +1197,52 @@
   },
   {
    "checkable": "n/a",
+   "entry": "thermal.fusing.onderdonk_jt",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.gates.design_ambient",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.gates.dt_max_rise",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.gates.t_max_ceiling",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.gates.t_max_rule",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.gates.transient_allowance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
    "entry": "thermal.ipc2152.ref.plane_adjacent",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.jmax.trace_external",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.jmax.trace_internal",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "thermal.jmax.via_barrel",
    "zone": "staging"
   },
   {
@@ -1237,7 +1317,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 247,
+  "corpus_only": 263,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,

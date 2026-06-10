@@ -1,0 +1,321 @@
+[
+ {
+  "id": "thermal.gates.design_ambient",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "degC": 50,
+   "cutover_if_measured_ambient_above_C": 55,
+   "rise_budget_cuts_to_C": 20
+  },
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-1 (the doc itself: 'the 50C design ambient is a conservative engineering choice, not a measured value for the CEC enclosure'); cited case measurements: ~33C typical / up to ~39C under load at ~27C room (Tom's Hardware forum), 27-30C gaming (Overclockers forum) -- ENTHUSIAST FORUM MEASUREMENTS, NOT A CONTROLLED STUDY (the doc's own caveat), well-ventilated cases; 50C covers hot rooms 30-35C + poor airflow + local board heating",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Local-board DESIGN ambient for the thermal gates -- an engineering choice, never a measurement (H/decision by the doc's own caveat; the forum figures are context, never validation). VALIDITY CLAUSE (embedded in value): if measured in-case ambient at the board location EXCEEDS 55C (strictly greater -- at exactly 55C the triple 55+30+20 touches the 105C ceiling exactly, which IS the documented threshold), the steady-state rise budget cuts from 30C to 20C. Coherence: 50+30=80C steady-state copper, +20C transient=100C, ceiling 105C. OQ (bench, lands in the cluster-2 metrology table): measure in-case ambient at the board location -> a CL-13 label upgrades this to Class C. Hand default today: cec_synth_pipeline physics() ambient handling; code binding rides the eventual promotion PR, never this draft."
+ },
+ {
+  "id": "thermal.gates.dt_max_rise",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 30,
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-1: dT_max is a temperature-RISE limit above LOCAL BOARD temperature (IPC-2152 'local board temperature' language per Olson's public tutorial); 30C is a published 2152 rise-curve point (public sources confirm 10/20/30C curve families) and the upper end of general-purpose",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "H/decision for the CHART-POINT CHOICE (which published rise point to gate on), citing the derivation doc for the 2152 rise-curve structure. COHERENCE STATEMENT: design ambient 50C + 30C rise = 80C copper; +20C transient = 100C; ceiling 105C -- 25C steady-state margin. Conservatism direction: gates built on IPC-2221-style numbers err safe (2152 measured data permits MORE current). VERIFY-AGAINST-2152: exact chart points are paywalled; re-verify against IPC-2152 Figure 5-2 when a copy is acquired (the acquisition is the upgrade trigger H->A for this entry). Subject to the design_ambient cutover clause (measured ambient >55C -> this budget cuts to 20C). Hand default today: cec_synth_pipeline physics_gates dT_max_C=30."
+ },
+ {
+  "id": "thermal.gates.t_max_rule",
+  "class": "H",
+  "kind": "rule",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "rule": "board ceiling = min over BOM of component rated max temperature; steady-state target <= ceiling - transient allowance",
+   "ceiling_derivation": "min(BOM rated max)",
+   "steady_state_target_constraint": "ceiling - transient_allowance_dT"
+  },
+  "units": null,
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-2: 'T_max(board) = min over BOM of {component rated max temperature} - margin'; the rule-over-constant form",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "The RULE-OVER-CONSTANT upgrade: the ceiling is DERIVED from the BOM, never a free constant -- adopt a high-Tg laminate or 125C-rated capacitors and the ceiling re-derives for free (re-run min-of-BOM; the research doc's stated threshold). The instantiated value for the CURRENT BOM is thermal.gates.t_max_ceiling, citing the bom.rating.* sub-facts. Steady-state target <= ceiling - transient allowance keeps the +20C transient from ever exceeding the ceiling (105-20=85C target)."
+ },
+ {
+  "id": "thermal.gates.t_max_ceiling",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 105,
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-2: min-of-BOM instantiation; floor part = the 105C aluminum electrolytic capacitor (bom.rating.cap_electrolytic_105c), matched by the connector housing rating (bom.rating.connector_minifit_105c); FR-4 ~110C continuous and Schottky TJ 125C sit above",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "The CURRENT-BOM instantiation of thermal.gates.t_max_rule -- a derived param citing the Class A sub-facts bom.rating.cap_electrolytic_105c / bom.rating.schottky_tj_125c / bom.rating.fr4_continuous_110c / bom.rating.connector_minifit_105c (min = 105). Effectively ZERO explicit margin against the cap, ~5C against FR-4 continuous -- which is why the steady-state TARGET is 85C (ceiling - 20C transient) and the operating point 80C keeps cap life in the multi-thousand-hour range (Arrhenius: ~11,300 h at 80C vs 2,000 h at 105C). Changes ONLY by re-running min-of-BOM (the rule entry), never by edit. Hand default today: cec_synth_pipeline physics_gates T_max_C=105."
+ },
+ {
+  "id": "thermal.gates.transient_allowance",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "classes": [
+    {
+     "window_s": [0, 0.01],
+     "governs": "fusing-curve",
+     "ref": "thermal.fusing.onderdonk_jt",
+     "note": "copper rise negligible; no transient budget needed"
+    },
+    {
+     "window_s": [0.1, 0.5],
+     "dT_C": 20,
+     "tau_s": [2, 5],
+     "fault_class": "PSU OCP near threshold (EPS12V <=500 ms documented; fault.duration.psu_ocp_eps12v)"
+    },
+    {
+     "window_s": [1, 10],
+     "dT_C": 20,
+     "tau_s": [5, 10],
+     "fault_class": "PPTC / sustained marginal overload (fault.duration.pptc_class)"
+    },
+    {
+     "window_s": [10, null],
+     "governs": "steady-state dT_max gate",
+     "ref": "thermal.gates.dt_max_rise"
+    }
+   ],
+   "interstitial_rule": "windows not enumerated (10-100 ms, 0.5-1 s) take the CONSERVATIVE neighbor: the +20C budget applies"
+  },
+  "units": "degC,s",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-3: +20C has no meaning without a time constant; trace tau ~1-10 s (fine traces) to ~100 s (board mass, IEEE SEMI-THERM); first-order model dT(t)=dT_final*(1-e^(-t/tau)); a 0.5 s event at tau 2-5 s reaches only ~9-22% of dT_final (recomputed 2026-06-10 panel: 1-e^(-0.5/5)=9.5%, 1-e^(-0.5/2)=22%; the doc's ~10-25% rounds)",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "The (dT, tau) PAIRS replacing the bare +20C allowance. Fault-DURATION facts are datasheet/standard-pinned Class A sub-facts (fault.duration.*); the TAU VALUES are derivation-class pending bench -- OQ (cluster-2 metrology): measure trace thermal tau with a current step on a populated lane -> CL-13 label upgrades tau to Class C. The slowest mandatory protection (PSU OCP <=500 ms) sits well inside trace tau, so copper never reaches steady state during a cleared fault -- the +20C budget covers exactly the near-threshold ~500 ms case. Hand default today: cec_synth_pipeline physics_gates T_max_transient_C = T_max+20."
+ },
+ {
+  "id": "thermal.jmax.via_barrel",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "regions": [
+    "via-barrels"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 75,
+  "units": "A/mm2",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-4: in-hand CEC lane-via analysis (0.3 mm drill, 1 oz plating -> ~0.033 mm2 barrel, ~2.5 A at 10C rise -> ~75 A/mm2), corroborated by public via data (QueenEMS/Sierra/Bestpcb) once rise and plating are matched",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Density-split member with NEAR-BENCH support (the 12VHPWR lane-via analysis). RISE-POINT CAVEAT (2026-06-10 panel, fidelity+refuter converged): the 75 A/mm2 figure was DERIVED AT 10C RISE in the source analysis; the research doc recommends it as the 30C-rise gate WITHOUT re-deriving at 30C. Conservative direction (the 30C-rise allowable would be HIGHER), so 75 is safe as the 30C gate -- but it must never be read as a 30C-validated figure; re-derive from the IPC-2152 via appendix at 30C rise when acquired. PLATING CLAUSE (owner-enumerated): barrel area computes from the fab's GUARANTEED-MINIMUM plating, NEVER nominal -- the guaranteed-minimum value is VENDOR DATA and lives in a vendor-pile entry resolved via the D2 fab_target mechanics (fab.jlcpcb.via_plating_min -- VALUE STILL OWED: JLCPCB's capability tables are JS-rendered and would not pin on 2026-06-10; pin from the rev2 order/DFM data or the quote tool). Vias run 20-30% hotter than an equal-area surface trace (embedded in FR-4). Part of retiring the flat J_max=100: at promotion the three thermal.jmax.* entries supersede the flat hand gate (physics_gates J_max_A_mm2=100 tombstones in that PR)."
+ },
+ {
+  "id": "thermal.jmax.trace_external",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "regions": [
+    "external-conductors"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 60,
+  "units": "A/mm2",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-4: from I = k*dT^0.44*A^0.725 (IPC-2221, k=0.048 external -- the corpus thermal.k_ipc.external param) density falls as area grows; worked public point (smps.us, 2152-CHART-derived): 10 A at 20C rise -> ~0.32 mm2 -> ~31 A/mm2; allowable density at the 30C operating rise is order 35-60 A/mm2 for the boards' 1-10 A conductors",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Density-split member, ceiling for EXTERNAL traces at the 30C rise -- SCALE-DEPENDENT (the 0.725 exponent: smaller, higher-rise traces legitimately run higher; this is the 1-10 A conductor class the boards carry). CHART-FAMILY DISAMBIGUATION (2026-06-10 panel, coherence seat; re-verified): the smps.us 31 A/mm2 point and the k=0.048 formula are DIFFERENT chart families that BRACKET the answer -- the IPC-2221 closed form at the same 10 A/20C condition gives ~0.165 mm2 -> ~60 A/mm2, and at the 30C operating rise ~77 A/mm2; the chosen 60 is the conservative end of the doc's 35-60 bracket and sits ~22% under the 2221 closed form at 30C. Flat 100 A/mm2 is NON-CONSERVATIVE here and is retired by this split at promotion. Derivation-class: VERIFY against IPC-2152 Figure 5-2 at 30C rise when acquired (upgrade trigger H->A). Formula params already Class A: thermal.k_ipc.external."
+ },
+ {
+  "id": "thermal.jmax.trace_internal",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "regions": [
+    "internal-conductors"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 35,
+  "units": "A/mm2",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #constant-4: k=0.024 internal (corpus thermal.k_ipc.internal) needs ~2.6x the area of an external trace for the same current/rise -> allowable density roughly 50-60% of external; IPC-2152 found the true internal penalty SMALLER than the old halving rule, but design-conservative practice keeps the lower value",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Density-split member, ceiling for INTERNAL traces at the 30C rise. Deliberately keeps the conservative side of the documented 2221-vs-2152 internal-conductor disagreement (the halving rule had no empirical backing; 2152 measured internal traces nearer free-air -- the conservative LOWER density is kept until the standard is acquired). VERIFY against IPC-2152 when acquired (upgrade trigger H->A). Formula params already Class A: thermal.k_ipc.internal."
+ },
+ {
+  "id": "thermal.fusing.onderdonk_jt",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "J_fuse_A_mm2": "1550*sqrt(0.0346/t_s)",
+   "start_temp_C": 20,
+   "hot_start_factor_80C": 0.93,
+   "documented_point": {
+    "t_s": 0.5,
+    "J_A_mm2": 400
+   },
+   "validity": "adiabatic: valid for pulses < 1 s, conservative to 10 s -- NOTE cooling effects can erode the adiabatic assumption from as little as 1-2 s (Adam), so the 1-10 s span is a narrowing conservative bound, not a validated window; beyond 10 s revert to steady-state ampacity",
+   "curve_points_20C": [
+    {"t_s": 0.01, "J_A_mm2": 2880},
+    {"t_s": 0.1, "J_A_mm2": 910},
+    {"t_s": 0.5, "J_A_mm2": 408},
+    {"t_s": 1.0, "J_A_mm2": 288},
+    {"t_s": 5.0, "J_A_mm2": 129}
+   ]
+  },
+  "units": "A/mm2 vs s",
+  "applies_to": [
+   "physics",
+   "judge"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "Onderdonk adiabatic fusing relation, t = 0.0346*(A/I)^2 (A in mil2; I2t form), via Brooks/Adam UltraCAD papers and Babrauskas (earliest published: Stauffacher 1928); Preece steady-fusing cross-check I = a*d^1.5; derivation and J-t table: docs/research/thermal-gates-derivation-2026-06-10.md #constant-5. Fully public -- NO IPC verify-note needed (only the underlying test method TM-650 2.5.4.1A is IPC)",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "The flat 400 A/mm2 hand gate CONVERTED to the (J, t) curve it silently was: 400 A/mm2 IS the Onderdonk melting density for a ~0.5 s adiabatic pulse from a 20C start (~381 from 80C; elevated start costs ~7%, factor 0.93). RESEARCH-DOC ERRATUM (2026-06-10 panel, coherence seat; independently re-verified): the doc's ~0.94 factor matches the 70C end of its own '70-80C' bracket -- at exactly 80C the Onderdonk log term gives sqrt(0.6226/0.7148)=0.933, so 0.93 is recorded (the conservative AND correct value; the doc's table row '~385' correspondingly reads ~381). CLAUSES (owner-enumerated): (1) BACKSTOP ONLY -- Brooks/Adam simulation shows real traces fuse 1.5-6x SLOWER than Onderdonk predicts, so the curve is conservative; it is a do-not-exceed forensic backstop and NEVER justifies smaller copper; (2) operating density is ~5-12x below the fusing density even at the slowest 500 ms protection window, so platform protection (TPS2121 us-ms, PSU OCP <=500 ms) clears faults long before copper melts -- if protection is ever slower than ~1 s (PPTC near I_trip), the curve becomes design-relevant: size copper so operating density >= 3x below fusing at the actual clearing time. CLASS TYPING (panel-adjudicated): Class A KEPT against a refuter downgrade-to-H -- the doc's Caveats explicitly rule Onderdonk/Preece 'fully public and NOT derivation-class'; the authority is PUBLISHED ENGINEERING LITERATURE (Onderdonk via Brooks/Adam, Babrauskas, Stauffacher 1928), not a standards-body document -- source.type 'standard' is the closest vocabulary fit, recorded as such. The fused-board service rule stands separately as service.fused_board_retirement. Hand default today: cec_synth_pipeline physics_gates J_fuse_A_mm2=400 (tombstones at promotion in favor of the curve). Status proposed: judge-visible only; per lint the physics consumer skips it until *_validated/human_approved -- the binding act is the status move + promotion, never this draft."
+ },
+ {
+  "id": "service.fused_board_retirement",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": null,
+  "units": null,
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/thermal-gates-derivation-2026-06-10.md #caveats (Brooks/Adam caution): 'A fused trace is a destructive, one-time event: never return a fused board to service'",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": null,
+  "notes": "Operational rule, its own one-line H (owner option taken): a board that has experienced a copper fusing event NEVER returns to service -- fusing is destructive and one-time; adjacent copper, laminate, and joints are suspect even where visually intact. Judge-facing; fixture-less Class H per ruling D1 (no mechanism; a service-process rule, not a board checker)."
+ }
+]
