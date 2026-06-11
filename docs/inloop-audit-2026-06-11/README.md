@@ -193,14 +193,21 @@ image); the worker tier is unblocked as-is.
 | # | Tier | Model / seat | Where | Cadence |
 |---|------|-------------|-------|---------|
 | 0 | Placement actuator (NEW — the local-minimum lesson) | deterministic `cec_loop` kelvin_tighten + GR-02 repair battery | container | on placement-class escalation |
-| 1 | Route generation | Freerouting 1.7.0 + FR-02 intents + layer policy | container | every round, BATCH of 4 seeds (R-01 spread) |
-| 2 | Scoring + gates | `cec_score` (plane pricing) + CL-25 checkers — deterministic | container | every candidate |
-| 3 | Worker swarm (in-loop manager) | **cec-worker** = Qwen3.6-35B-A3B, 4 parallel slots, 3-lens panel (`make_manager_swarm`) | container→broker | every round, judges the batch |
-| 4 | Fast auditor (injection) | **Sonnet** headless (stream-json → dashboard), + actuation-space check + novelty gate + rule cap | host | every round |
-| 5 | Vision inspection | **cec-vision-judge** = Qwen3-VL-32B (nothink grammar calls; facts-alongside v2 protocol; structure/text only, never geometry) | host (renders from container) | each NEW Pareto finalist |
-| 6 | Briefed reviewer (out-of-loop) | **cec-manager-fast** = gpt-oss-120b via `corpus_fit_review` w/ the ratified-rules briefing | host | each NEW Pareto finalist |
-| 7 | Deep auditor | **V4** deepseek-v4-flash — opportunistic checkpoints (probe-only) + guaranteed MORNING pass on finalists | host→Windows | ~8th round IF up; morning always |
-| 8 | Self-learning cycle | DecisionLogs→corpus, findings→DF-01 candidates, morning human ratification | host | continuous |
+| 1 | **Intent manager (the ASSISTED ROUTER — model-managed)** | a model seat (worker panel or Sonnet) reads the GR-01 congestion grid + the prior round's failures and EMITS the FR-02 relational waypoints (codifies `gr01_to_fr02_intents()`; replaces last night's STATIC intents dict) | host | every round |
+| 2 | Route generation | Freerouting 1.7.0 + compiled FR-02 intents + layer policy + power pours at import | container | every round, BATCH of 4 seeds (R-01 spread) |
+| 3 | Scoring + gates | `cec_score` (plane pricing) + CL-25 checkers — deterministic | container | every candidate |
+| 3.5 | **FEM/FEA physics (was missing — owner catch)** | `cec_synth_pipeline.electrothermal_solve` + `physics_gates` (analytic IPC Picard: J→T→ρ(T), per-net cross-section, via split, shunt I²R) on poured candidates; max_T/J into the metrics + dashboard. CAVEAT: carries the known AM-04 model debt (segment-sum cross_mm2 ~5x optimistic on lanes) — gates stay advisory-tier until the PR-two debt fix | container | gate-passing candidates |
+| 4 | Worker swarm (in-loop manager) | **cec-worker** = Qwen3.6-35B-A3B, 4 parallel slots, 3-lens panel (`make_manager_swarm`) — judges the batch incl. physics flags, drives FR effort | container→broker | every round |
+| 5 | Fast auditor (injection) | **Sonnet** headless (stream-json → dashboard), + actuation-space check + novelty gate + rule cap | host | every round |
+| 6 | Vision inspection | **cec-vision-judge** = Qwen3-VL-32B (nothink grammar calls; facts-alongside v2 protocol; structure/text only, never geometry) | host (renders from container) | each NEW Pareto finalist |
+| 7 | Briefed reviewer (out-of-loop) | **cec-manager-fast** = gpt-oss-120b via `corpus_fit_review` w/ the ratified-rules briefing | host | each NEW Pareto finalist |
+| 8 | Deep auditor | **V4** deepseek-v4-flash — opportunistic checkpoints (probe-only) + guaranteed MORNING pass on finalists | host→Windows | ~8th round IF up; morning always |
+| 9 | Self-learning cycle | DecisionLogs→corpus, findings→DF-01 candidates, morning human ratification | host | continuous |
+
+Tier-1 note (the "assisted router" question, answered): YES — assisted routing is model-managed
+at two levels: the **intent manager** (tier 1) writes the route intents each round (the FR-02
+waypoint mechanism — geometric judgment intent), and the **worker swarm** (tier 4) judges the
+routed candidates and drives effort. Pareto axes gain `max_T` once tier 3.5 lands.
 
 GPU choreography (single 5090, broker arbitrates): cec-worker (~9GB) resident; vision-judge
 (~20GB) swaps in on finalist events (rare — batch vision+reviewer bursts to amortize the ~90s

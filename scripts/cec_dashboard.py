@@ -45,6 +45,7 @@ CFG = {
     "run_dir": os.path.join(ROOT, "docs", "inloop-audit-2026-06-11"),
     "board_glob": os.path.join(ROOT, "build", "overnight-directed", "*.kicad_pcb"),
     "proc_pattern": "cec_inloop_audit.py|cec_overnight_directed.py",
+    "plot_layers": "F.Cu,B.Cu,In1.Cu,In2.Cu,Edge.Cuts",
 }
 NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|_XSERV|xvfb-entry|wxWidgets")
 
@@ -179,23 +180,36 @@ def _stream_text(off):
 
 # ---------------------------------------------------------------- board render thread
 def _render_loop():
+    """Produce BOTH views of the newest candidate: the raytraced PNG (render) AND the
+    layer PLOT SVG (kicad-cli pcb export svg, copper layers + edge -- the owner's
+    'plotted board' ask: actual track geometry, inspectable, zoomable)."""
     png_host = _runfile("dashboard-board.png")
+    svg_host = _runfile("dashboard-board.svg")
     while True:
         try:
             newest = _latest(CFG["board_glob"])
             if newest and os.path.getmtime(newest) > _render["mtime"]:
                 _render.update(status="rendering", board=os.path.basename(newest))
                 rel = os.path.relpath(newest, ROOT)
-                relpng = os.path.relpath(png_host, ROOT)
                 r = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render",
-                                              "--side", "top", "-o", f"/workspace/{relpng}",
+                                              "--side", "top",
+                                              "-o", f"/workspace/{os.path.relpath(png_host, ROOT)}",
                                               f"/workspace/{rel}"],
                                    capture_output=True, timeout=180)
-                if r.returncode == 0 and os.path.exists(png_host):
-                    _render.update(png=png_host, mtime=os.path.getmtime(newest),
-                                   status="ok", ts=time.time())
+                p = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export",
+                                              "svg", "--layers", CFG["plot_layers"],
+                                              "--page-size-mode", "2", "--exclude-drawing-sheet",
+                                              "-o", f"/workspace/{os.path.relpath(svg_host, ROOT)}",
+                                              f"/workspace/{rel}"],
+                                   capture_output=True, timeout=120)
+                ok_png = r.returncode == 0 and os.path.exists(png_host)
+                ok_svg = p.returncode == 0 and os.path.exists(svg_host)
+                if ok_png or ok_svg:
+                    _render.update(png=png_host if ok_png else _render["png"],
+                                   svg=svg_host if ok_svg else _render.get("svg"),
+                                   mtime=os.path.getmtime(newest), status="ok", ts=time.time())
                 else:
-                    _render.update(status=f"render-failed rc={r.returncode}")
+                    _render.update(status=f"render-failed png_rc={r.returncode} svg_rc={p.returncode}")
         except Exception as e:                                    # noqa: BLE001
             _render.update(status=f"err:{type(e).__name__}")
         time.sleep(10)
@@ -241,17 +255,19 @@ class H(BaseHTTPRequestHandler):
                         "bundle": bundle, "run_dir": CFG["run_dir"]})
         elif path == "/api/stream":
             self._json(_stream_text(int(params.get("off", 0))))
-        elif path == "/board.png":
-            p = _render["png"]
+        elif path in ("/board.png", "/board.svg"):
+            key, ctype = (("png", "image/png") if path.endswith("png")
+                          else ("svg", "image/svg+xml"))
+            p = _render.get(key)
             if p and os.path.exists(p):
                 body = open(p, "rb").read()
                 self.send_response(200)
-                self.send_header("Content-Type", "image/png")
+                self.send_header("Content-Type", ctype)
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
             else:
-                self._json({"error": "no render yet"}, 404)
+                self._json({"error": f"no {key} yet"}, 404)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -272,13 +288,18 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 </style></head><body><div class="grid">
 <div class="card" id="hdr"><h2 style="margin:0">CEC live run</h2><span id="status"></span><span id="bundle"></span></div>
 <div class="card"><h2>step feed (realtime)</h2><div id="log"></div></div>
-<div class="card" id="board"><h2>latest board <span id="bstat" class="dim"></span></h2><img id="bimg" src="/board.png" onerror="this.style.display='none'"></div>
+<div class="card" id="board"><h2>latest board <span id="bstat" class="dim"></span>
+<button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='png';bswap()">render</button>
+<button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='svg';bswap()">plot</button></h2>
+<img id="bimg" src="/board.png" onerror="this.style.display='none'"></div>
 <div class="card"><h2>auditor thoughts (live)</h2><div id="thoughts"></div></div>
 <div class="card" style="grid-column:1/3"><h2>convergence — pen_total (orange) vs drc (blue), kelvin band (red=fail)</h2>
 <canvas id="spark" width="900" height="90"></canvas><div style="max-height:230px;overflow:auto"><table id="mt"></table></div></div>
 <div class="card"><h2>injected ruleset</h2><div id="rules"></div></div>
 </div><script>
-let soff=0, thoughtsBuf="";
+let soff=0, thoughtsBuf="", bmode='svg';
+function bswap(){const im=document.getElementById('bimg');im.style.display='block';
+ im.src='/board.'+bmode+'?t='+(window._bts||0);}
 async function tick(){
  try{
   const s=await (await fetch('/api/state')).json();
@@ -292,8 +313,7 @@ async function tick(){
   const el=document.getElementById('log'); el.scrollTop=el.scrollHeight;
   // board
   document.getElementById('bstat').textContent=`${s.board.name||''} ${s.board.status||''}`;
-  if(s.board.rendered_ts && s.board.rendered_ts>(window._bts||0)){window._bts=s.board.rendered_ts;
-    const im=document.getElementById('bimg'); im.style.display='block'; im.src='/board.png?t='+s.board.rendered_ts;}
+  if(s.board.rendered_ts && s.board.rendered_ts>(window._bts||0)){window._bts=s.board.rendered_ts; bswap();}
   // thoughts: prefer live stream, fallback to latest finding reasoning
   const st=await (await fetch('/api/stream?off='+soff)).json();
   if(st.file){ if(st.off<soff){thoughtsBuf="";} soff=st.off; thoughtsBuf+=st.text;
