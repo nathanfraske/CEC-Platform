@@ -373,6 +373,67 @@ AM-04-equivalent calibration bands (claim vs bench floor, never conflated); pass
 lines for the agent error-budget derivation; CL-15/16 analyst context slices that stop
 the next REF3030-style laundering.
 
+### Cluster 5 ratification (owner, 2026-06-10 — items 1/2/3/5; item 4 + remaining research to follow)
+
+Encoded in `corpus/staging/general/measurement-claims.json` (14 entries, all
+`human_approved` pending the GitHub signoff ritual; anchor fixture
+`tests/test_measurement_claims_corpus.py`):
+
+- **Item 1 — target table ratified** (`meas.targets.v1`): keyed (quantity, tier); columns
+  value / basis (promise | design-outcome) / conditions (temperature, cal state). Voltage:
+  ±0.15% stays design-outcome (Pro promise candidate later); 12VHPWR Standard **promises
+  ±0.5%** (the loose end of the spec's hedge), ±0.3% recorded design-outcome; bare-ADC
+  **promises ±1%**. Current: "±0.1% typ" is not a promise — typ never is; Standard/Pro
+  current = placeholders pending the budget doc. Power: never independent — **RSS of the
+  V/I channels, computed not promised** (`meas.policy.power_error_rss`). Energy: **no
+  promise until a drift characterization exists** (gain integrates linearly, offset over
+  hours, neither measured); Concierge shows a characterized-pending band
+  (`meas.policy.energy_unpromised`). Reconciliation = cluster-1 pattern
+  (`meas.policy.promise_promotion`): no promise promotes until the budget doc shows
+  worst-case floor clearance with recorded headroom.
+- **Item 2 — calibration hedge resolved** (`meas.cal.*`): the trilemma surfaced (per-unit
+  cal | tighter shunts | wider promise — one leg per tier). **Standard ships characterized,
+  no per-unit cal, eats shunt tolerance in its current promise; Pro ships per-unit factory
+  calibrated, SHUNT_CAL trimmed at provisioning.** The no-cal grade is per-quantity:
+  voltage ±0.5% survives (never crosses the shunt); sub-1% current dies on an uncalibrated
+  ±1% shunt. Cal at 25 °C bench, accuracy stated at both 25 °C and 50 °C (TCR terms from
+  the budget doc). Storage **ratified as decided**: factory MAC + database as system of
+  record, SHUNT_CAL programmed at provisioning, cal date + instrument ID per unit.
+  Anchors, each an entry: Standard V → **REF3030 initial 0.2% max** (now datasheet-PINNED:
+  TI product page + vendored `lib/datasheets/REF30E-REF30.pdf`; tempco 50-vs-75 ppm/°C
+  grade question flagged) — the fact the gallery proved missing; Standard I → shunt
+  tolerance as built; Pro → the cal instrument's uncertainty (**cluster-2 electrical rows
+  still owed**).
+- **Item 3 — truth chain** (`meas.truth_chain.*`): Standard claims **"characterized, not
+  NIST-traceable"** publicly and in the spec; Pro reserved for "factory-calibrated against
+  a named instrument" once that instrument has a current cal certificate. Commitments
+  documented (NIST = cert chain + recal cost + uncertainty docs + legal exposure;
+  characterized = honest, cheap, defensible). Dispute chain: reading stands under stated
+  conditions → adjudicate against the named bench instrument → support docs preempt the
+  clamp-meter case.
+- **Item 5 — statement form** (`meas.statement_form` + `judge.reading_assertion_band`):
+  promises are worst-case over stated temp range + cal state; typ is marketing-only,
+  labeled, never in the table; both temperature points stated; Concierge renders
+  per-reading bands from the budget machinery × unit cal state. **The payload: judge tiers
+  assert a reading ± its band, never a bare number; asserting tighter than the band IS the
+  false-claim class for panel and forensics purposes** — the rule that prevents the next
+  REF3030-style laundering.
+
+**Founders-ack gate (owner flag):** items 1 and 3 are company-level public commitments —
+the **promise rows** (`meas.targets.v1`) and the **traceability wording**
+(`meas.truth_chain.claim_level`) need founders' ack **before promotion** (drafted today
+under the owner's signature; the gate is noted in those entries).
+
+**Spec-revision candidates spawned (per the item-1 rule):**
+1. §6.4 — the no-cal grade restated **per quantity** (voltage survives no-cal; current
+   does not).
+2. §6.1/OQ-8 line — the 12VHPWR Standard voltage **promise ±0.5%** vs the current
+   "~±0.3 to 0.5%" design framing (±0.3% stays as design-outcome).
+3. §2/public materials — the **"characterized, not NIST-traceable"** claim-level wording
+   (Standard), and the conditional Pro wording.
+Once these land in the spec, the corresponding promise entries re-class H→B citing the
+new spec lines (the corpus never amends the spec sideways).
+
 **On deck (cluster 6, preview):** the transient definition. The spec designs to a "10 kHz
 burst target" (it sizes the §6.13 RC at ~16.9 kHz, the INA238 "clears the 10 kHz" claim,
 the Pro's ~50 kHz×6) and the §6.13 comparator threshold + the 12 A-hog alarm level are

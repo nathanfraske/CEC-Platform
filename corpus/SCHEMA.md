@@ -33,7 +33,7 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
 
 | Class | Meaning | Source requirement (lint-enforced) |
 |---|---|---|
-| **A** | pointer/parameter citing an EXTERNAL authoritative standard | `source.type: standard` (IPC-2221, IPC-2152, CEM…), resolvable ref |
+| **A** | pointer/parameter citing an EXTERNAL authoritative source | `source.type: standard` (IPC-2221, IPC-2152, CEM…) **or `datasheet`** (manufacturer datasheet — equally external-authoritative; documented 2026-06-10 to match as-built precedent in `bom-ratings.json`/`measurement-claims.json`), resolvable ref |
 | **B** | spec-derived platform rule | `source.type: spec` and the §ref MUST resolve in the CURRENT spec version (the framework's "CL-06 Class A routing exception" binds HERE: a new Class B assertion implies a spec revision FIRST — the corpus is never a side channel for amending the spec) |
 | **C** | measured on this project's hardware/runs | `source.type: measurement` citing a ledger run id |
 | **H** | heuristic prose | never compiles into deterministic gates (existing lint rule); hardens only via the RB-02 horizon cap (review-time only) |

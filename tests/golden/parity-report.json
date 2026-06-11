@@ -591,6 +591,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "judge.reading_assertion_band",
+   "zone": "staging"
+  },
+  {
    "checkable": "yes",
    "entry": "kelvin-four-wire-topology",
    "zone": "staging"
@@ -708,6 +713,71 @@
   {
    "checkable": "yes",
    "entry": "mcu-hub-standard-wroom",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.anchor.pro_cal_instrument",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.anchor.ref3030_initial_accuracy",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.anchor.standard_current",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.cal.storage",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.cal.strategy_per_tier",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.cal.temperature_policy",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.policy.energy_unpromised",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.policy.power_error_rss",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.policy.promise_promotion",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.statement_form",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.targets.v1",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.truth_chain.claim_level",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.truth_chain.dispute",
    "zone": "staging"
   },
   {
@@ -1317,7 +1387,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 263,
+  "corpus_only": 277,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,
