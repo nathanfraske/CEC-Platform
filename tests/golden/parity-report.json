@@ -96,6 +96,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "bench.shunt_drift_protocol",
+   "zone": "staging"
+  },
+  {
    "checkable": "partial",
    "entry": "bom-target-12vhpwr-standard",
    "zone": "staging"
@@ -113,6 +118,11 @@
   {
    "checkable": "partial",
    "entry": "bom-target-hub-standard",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "bom.dvdi_shunt_loadlife_constraint",
    "zone": "staging"
   },
   {
@@ -263,6 +273,11 @@
   {
    "checkable": "n/a",
    "entry": "conn.mating_cycle_life",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.minifit_conservative_terminal_basis",
    "zone": "staging"
   },
   {
@@ -807,6 +822,11 @@
   },
   {
    "checkable": "n/a",
+   "entry": "meas.bench.empty_instrument_state",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
    "entry": "meas.cal.storage",
    "zone": "staging"
   },
@@ -853,6 +873,11 @@
   {
    "checkable": "n/a",
    "entry": "meas.truth_chain.dispute",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "meas.truth_chain.spec_wording",
    "zone": "staging"
   },
   {
@@ -1482,7 +1507,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 296,
+  "corpus_only": 301,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,

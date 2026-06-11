@@ -209,8 +209,8 @@ absent what doesn't.
 | Shunt / milliohm resistance | _(4-wire source-meter? DMM?)_ | _(4-wire Kelvin vs 2-wire — decides the floor)_ | _(mΩ; 2-wire floor if no Kelvin)_ | _(Ω range)_ |
 | Per-pin / lane current (9.2 A class) | _(DC load? current probe?)_ | _(direct load vs probe vs shunt-derived)_ | _(% of reading)_ | _(A — gates the 9.2 A lane label)_ |
 | Module / cable current (~55 A class) | _(DC load ceiling?)_ | _(direct vs ganged)_ | _(% of reading)_ | _(A — gates the 55 A module label)_ |
-| **DC voltage / reference accuracy** | _(what voltage reference is trusted)_ | _(traceable? against what)_ | _(ppm or %)_ | _(V)_ |
-| **DC current accuracy (ammeter)** | _(what ammeter is believed)_ | _(shunt + DMM? clamp?)_ | _(% of reading)_ | _(A)_ |
+| **DC voltage / reference accuracy** | **EMPTY (owner, 2026-06-10): no trusted voltage reference on the bench today** | — | — | — |
+| **DC current accuracy (ammeter)** | **EMPTY (owner, 2026-06-10): no believed ammeter on the bench today** | — | — | — |
 | Transient capture (≈10 kHz GPU) | _(scope + current probe)_ | _(probe bandwidth, sample rate)_ | _(BW-limited)_ | _(bandwidth, A)_ |
 | **In-case ambient at board location** (cluster-1 OQ-1) | _(probe + closed case)_ | _(board-adjacent placement, load running)_ | _(°C)_ | _(tests the 55 °C cutover clause; upgrades `design_ambient` H→C)_ |
 | **Trace thermal τ via current step** (cluster-1 OQ-2) | _(step source + temp readout)_ | _(populated lane, step + log to 5τ)_ | _(s)_ | _(upgrades `transient_allowance` τ H→C)_ |
@@ -561,6 +561,42 @@ field added to the entry; duty figure re-pinned to spec §6.4 watts ≈2.3 %), 3
 against with reasoning (headroom-base misread; the TH1 eval-verdict citation — the
 documented M2.7 miss, not propagated; the unpinned-Arrhenius WSL rehabilitation — the
 promotion rule's worst-case floor governs, symmetric note added).
+
+## Five-ruling ratification batch (owner, 2026-06-10) — encoded
+
+1. **Shunt constraint** (`bom.dvdi_shunt_loadlife_constraint`): CSS-class load-life or
+   better = HARD, PERMANENT BOM constraint on every dV/dI lane. Owner's words carried:
+   quality-positioned platform, cost-down substitution explicitly out of scope — the
+   constraint encodes **product identity, never just margin math**; the budget's 23×
+   clearance rides as evidence. Partially closes the BOM queue item (family class locked;
+   specific parts stay OQ-11, selecting within the class).
+2. **Benchmark protocol** (`bench.shunt_drift_protocol` +
+   **`docs/protocols/shunt-drift-benchmark-2026-06-10.md`**): host rev2 24-pin, clock at
+   first bring-up, load-step cycling, temperature alongside impedance (TCR separates from
+   aging), CL-13 label `(atx-24pin, lane-impedance-drift)`, settlement = the 0.3/0.7 mΩ
+   gates. Checkpoint cadence DELEGATED to the protocol doc (drafted: ≥hourly sampling,
+   weekly checkpoints, 4-week minimum window). Feasible on the empty bench by design —
+   drift is board-self-referenced.
+3. **Terminal basis** (`conn.minifit_conservative_terminal_basis`): EPS/PCIe thresholds
+   rate against the CONSERVATIVE terminal series (customer cables uncontrolled).
+   **Pinning pass attempted same day:** Molex PS-5556 vendored
+   (`lib/datasheets/Molex-PS-5556.pdf`) but the rating table is not machine-extractable
+   here — numbers stay owed, comparator defaults stay placeholders, no model-memory
+   figures recorded.
+4. **Cluster-2 electrical rows: EMPTY, honestly** (`meas.bench.empty_instrument_state`):
+   no trusted voltage reference, no believed ammeter. Consequences encoded: Pro anchor
+   **deferred-pending-instrument, never placeholder-numbered**; per-unit cal execution
+   deferred the same way; Pro target-table rows carry the deferral explicitly; Standard
+   unaffected (datasheet-fact anchors). **Ruling-7 consequence:** no calibration band for
+   absolute electrical quantities until an instrument row exists; the CL-13 vocabulary
+   for those quantities stays limited to board-self-referenced quantities — the carve-out
+   that keeps the drift benchmark and Standard claims fully alive.
+5. **Traceability LOCKED** (`meas.truth_chain.claim_level` + the new
+   `meas.truth_chain.spec_wording`): NIST rejected outright; public language
+   **"characterized," full stop**; the spec wording drafted (spec-revision candidate);
+   Pro's named-instrument sentence deferred-pending-instrument. **Founders-ack scope
+   shrinks to two items: the promise rows (`meas.targets.v1`) and the dV/dI tier framing
+   (`dvdi.requirement_tier_verdict`)** — the traceability wording goes to them as decided.
 
 ## What is blocked on owner data
 

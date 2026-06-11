@@ -11,21 +11,139 @@
   },
   "value": {
    "key": "(quantity, tier)",
-   "columns": ["value", "basis: promise | design_outcome | placeholder | policy | none", "conditions: temperature, cal state"],
+   "columns": [
+    "value",
+    "basis: promise | design_outcome | placeholder | policy | none",
+    "conditions: temperature, cal state"
+   ],
    "rows": [
-    {"quantity": "voltage", "tier_path": "Pro (REF3033 ratiometric + LTC2358)", "value_pct": 0.15, "basis": "design_outcome", "conditions": {"note": "Pro promise candidate later"}},
-    {"quantity": "voltage", "tier_path": "12VHPWR Standard (REF3030 ratiometric)", "value_pct": 0.5, "basis": "promise", "conditions": {"temp_C": 25, "cal_state": "characterized, no per-unit cal"}},
-    {"quantity": "voltage", "tier_path": "12VHPWR Standard (REF3030 ratiometric)", "value_pct": null, "basis": "promise", "conditions": {"temp_C": 50, "cal_state": "characterized, no per-unit cal", "note": "BOTH POINTS STATED (items 2+5): the 50C worst-case is pending the budget doc's TCR terms -- see meas.cal.temperature_policy"}},
-    {"quantity": "voltage", "tier_path": "12VHPWR Standard (REF3030 ratiometric)", "value_pct": 0.3, "basis": "design_outcome", "conditions": {"temp_C": 25, "cal_state": "characterized, no per-unit cal"}},
-    {"quantity": "voltage", "tier_path": "bare-ADC paths (any ESP-ADC channel without ratiometric reference)", "value_pct": 1.0, "basis": "promise", "conditions": {"temp_C": 25}},
-    {"quantity": "voltage", "tier_path": "bare-ADC paths (any ESP-ADC channel without ratiometric reference)", "value_pct": null, "basis": "promise", "conditions": {"temp_C": 50, "note": "BOTH POINTS STATED (items 2+5): pending the budget doc's TCR terms -- see meas.cal.temperature_policy"}},
-    {"quantity": "current", "tier_path": "24-pin (INA228)", "value_pct": null, "basis": "placeholder", "conditions": {"note": "the INA228 '+/-0.1% typ' is NOT a promise -- typ never is; promise pending the budget doc"}},
-    {"quantity": "current", "tier_path": "Standard (all modules)", "value_pct": null, "basis": "placeholder", "conditions": {"note": "pending the budget doc; floored by uncalibrated shunt tolerance -- see meas.cal.strategy_per_tier"}},
-    {"quantity": "current", "tier_path": "Pro", "value_pct": null, "basis": "placeholder", "conditions": {"note": "pending the budget doc; per-unit SHUNT_CAL lifts shunt tolerance out"}},
-    {"quantity": "power", "tier_path": "all", "value_pct": null, "basis": "policy", "conditions": {"ref": "meas.policy.power_error_rss"}},
-    {"quantity": "energy", "tier_path": "all", "value_pct": null, "basis": "none", "conditions": {"ref": "meas.policy.energy_unpromised"}},
-    {"quantity": "stability (per-lane source impedance trend)", "tier_path": "Pro (ships) / Standard (conditional-beta, gated)", "value_pct": null, "basis": "promise", "conditions": {"requirement": "resolve >= 1 mOhm per lane over a days-to-weeks window at >= 3 sigma against drift", "ref": "dvdi.requirement_tier_verdict", "founders_ack": true, "note": "cluster-5 item 4 delivered 2026-06-10 -- the requirement row IS this table's denominator for the stability quantity; tier split + 0.3/0.7 mOhm validity gates live in the referenced entry"}},
-    {"quantity": "imbalance / per-pin hog detection", "tier_path": "12VHPWR Standard + Pro ONLY (per-pin sensed, pins_per_lane=1); EPS/PCIe: cable-level anomalies only (aggregate sensed, 4 and 3 pins/lane)", "value_pct": null, "basis": "policy", "conditions": {"ref": "capability.hog_detection_family_scope", "note": "owner ruling 2026-06-10: the imbalance QUANTITY exists only on per-pin-sensed families -- a product-capability fact, never promised platform-wide; an aggregate EPS lane structurally cannot see intra-cable hogging"}}
+    {
+     "quantity": "voltage",
+     "tier_path": "Pro (REF3033 ratiometric + LTC2358)",
+     "value_pct": 0.15,
+     "basis": "design_outcome",
+     "conditions": {
+      "note": "Pro promise candidate later",
+      "deferral": "Pro promise candidacy DEFERRED-PENDING-INSTRUMENT (owner 2026-06-10: empty bench -- no anchor statable)"
+     }
+    },
+    {
+     "quantity": "voltage",
+     "tier_path": "12VHPWR Standard (REF3030 ratiometric)",
+     "value_pct": 0.5,
+     "basis": "promise",
+     "conditions": {
+      "temp_C": 25,
+      "cal_state": "characterized, no per-unit cal"
+     }
+    },
+    {
+     "quantity": "voltage",
+     "tier_path": "12VHPWR Standard (REF3030 ratiometric)",
+     "value_pct": null,
+     "basis": "promise",
+     "conditions": {
+      "temp_C": 50,
+      "cal_state": "characterized, no per-unit cal",
+      "note": "BOTH POINTS STATED (items 2+5): the 50C worst-case is pending the budget doc's TCR terms -- see meas.cal.temperature_policy"
+     }
+    },
+    {
+     "quantity": "voltage",
+     "tier_path": "12VHPWR Standard (REF3030 ratiometric)",
+     "value_pct": 0.3,
+     "basis": "design_outcome",
+     "conditions": {
+      "temp_C": 25,
+      "cal_state": "characterized, no per-unit cal"
+     }
+    },
+    {
+     "quantity": "voltage",
+     "tier_path": "bare-ADC paths (any ESP-ADC channel without ratiometric reference)",
+     "value_pct": 1.0,
+     "basis": "promise",
+     "conditions": {
+      "temp_C": 25
+     }
+    },
+    {
+     "quantity": "voltage",
+     "tier_path": "bare-ADC paths (any ESP-ADC channel without ratiometric reference)",
+     "value_pct": null,
+     "basis": "promise",
+     "conditions": {
+      "temp_C": 50,
+      "note": "BOTH POINTS STATED (items 2+5): pending the budget doc's TCR terms -- see meas.cal.temperature_policy"
+     }
+    },
+    {
+     "quantity": "current",
+     "tier_path": "24-pin (INA228)",
+     "value_pct": null,
+     "basis": "placeholder",
+     "conditions": {
+      "note": "the INA228 '+/-0.1% typ' is NOT a promise -- typ never is; promise pending the budget doc"
+     }
+    },
+    {
+     "quantity": "current",
+     "tier_path": "Standard (all modules)",
+     "value_pct": null,
+     "basis": "placeholder",
+     "conditions": {
+      "note": "pending the budget doc; floored by uncalibrated shunt tolerance -- see meas.cal.strategy_per_tier"
+     }
+    },
+    {
+     "quantity": "current",
+     "tier_path": "Pro",
+     "value_pct": null,
+     "basis": "placeholder",
+     "conditions": {
+      "note": "pending the budget doc AND deferred-pending-instrument (owner 2026-06-10): per-unit SHUNT_CAL lifts shunt tolerance out only once a trusted instrument exists to trim against"
+     }
+    },
+    {
+     "quantity": "power",
+     "tier_path": "all",
+     "value_pct": null,
+     "basis": "policy",
+     "conditions": {
+      "ref": "meas.policy.power_error_rss"
+     }
+    },
+    {
+     "quantity": "energy",
+     "tier_path": "all",
+     "value_pct": null,
+     "basis": "none",
+     "conditions": {
+      "ref": "meas.policy.energy_unpromised"
+     }
+    },
+    {
+     "quantity": "stability (per-lane source impedance trend)",
+     "tier_path": "Pro (ships) / Standard (conditional-beta, gated)",
+     "value_pct": null,
+     "basis": "promise",
+     "conditions": {
+      "requirement": "resolve >= 1 mOhm per lane over a days-to-weeks window at >= 3 sigma against drift",
+      "ref": "dvdi.requirement_tier_verdict",
+      "founders_ack": true,
+      "note": "cluster-5 item 4 delivered 2026-06-10 -- the requirement row IS this table's denominator for the stability quantity; tier split + 0.3/0.7 mOhm validity gates live in the referenced entry"
+     }
+    },
+    {
+     "quantity": "imbalance / per-pin hog detection",
+     "tier_path": "12VHPWR Standard + Pro ONLY (per-pin sensed, pins_per_lane=1); EPS/PCIe: cable-level anomalies only (aggregate sensed, 4 and 3 pins/lane)",
+     "value_pct": null,
+     "basis": "policy",
+     "conditions": {
+      "ref": "capability.hog_detection_family_scope",
+      "note": "owner ruling 2026-06-10: the imbalance QUANTITY exists only on per-pin-sensed families -- a product-capability fact, never promised platform-wide; an aggregate EPS lane structurally cannot see intra-cable hogging"
+     }
+    }
    ]
   },
   "units": "percent",
@@ -41,7 +159,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
-  "notes": "THE accuracy-target table -- the denominator of every electrical calibration band (the role the 30C-rise gate plays for thermal). Owner rulings encoded: the +/-0.15% platform figure STAYS design-outcome (Pro promise candidate later); 12VHPWR Standard PROMISES +/-0.5% (the loose end of the spec's 0.3-0.5 hedge) with +/-0.3% recorded as design-outcome; bare-ADC paths promise +/-1%; current promises are PLACEHOLDERS pending the budget doc ('typ never is' a promise); power is never an independent promise (RSS policy); energy carries NO promise until drift characterization. FOUNDERS-ACK REQUIRED BEFORE PROMOTION: promise rows are company-level public commitments (owner flag, items 1+3) -- drafted today under the owner's signature, founders ack the promise rows before these entries promote. RECONCILIATION RULE: see meas.policy.promise_promotion (no promise promotes until the budget doc shows worst-case floor clearance with recorded headroom). SPEC-REVISION CANDIDATES spawned: the +/-0.5% Standard V promise vs the spec's design language, and the per-quantity no-cal grade (section 6.4) -- listed in the intake doc; once the spec revision lands these promise rows can re-class H->B citing the new spec lines."
+  "notes": "THE accuracy-target table -- the denominator of every electrical calibration band (the role the 30C-rise gate plays for thermal). Owner rulings encoded: the +/-0.15% platform figure STAYS design-outcome (Pro promise candidate later); 12VHPWR Standard PROMISES +/-0.5% (the loose end of the spec's 0.3-0.5 hedge) with +/-0.3% recorded as design-outcome; bare-ADC paths promise +/-1%; current promises are PLACEHOLDERS pending the budget doc ('typ never is' a promise); power is never an independent promise (RSS policy); energy carries NO promise until drift characterization. FOUNDERS-ACK REQUIRED BEFORE PROMOTION: promise rows are company-level public commitments (owner flag, items 1+3) -- drafted today under the owner's signature, founders ack the promise rows before these entries promote. RECONCILIATION RULE: see meas.policy.promise_promotion (no promise promotes until the budget doc shows worst-case floor clearance with recorded headroom). SPEC-REVISION CANDIDATES spawned: the +/-0.5% Standard V promise vs the spec's design language, and the per-quantity no-cal grade (section 6.4) -- listed in the intake doc; once the spec revision lands these promise rows can re-class H->B citing the new spec lines. CLUSTER-2 EMPTY-BENCH CONSEQUENCE (2026-06-10): the Pro ABSOLUTE-ELECTRICAL rows (voltage, current) carry explicit deferred-pending-instrument conditions; the stability and imbalance rows are deliberately NOT deferred (relative/self-referenced and capability-fact respectively -- the meas.bench.empty_instrument_state carve-out); Standard rows are unaffected (datasheet-fact anchors)."
  },
  {
   "id": "meas.policy.power_error_rss",
@@ -147,7 +265,7 @@
    "trilemma": "for each tier pick ONE leg: per-unit cal | tighter shunts | wider promise",
    "force": "RECOMMENDED DEFAULT, adopted 2026-06-10 (the owner's qualifier heads BOTH tier legs; contrast meas.cal.storage, which is 'ratify that as decided') -- confirmed finally at promotion",
    "standard": "ships CHARACTERIZED with no per-unit cal and eats the shunt tolerance in its current promise",
-   "pro": "ships per-unit FACTORY CALIBRATED with SHUNT_CAL trimmed at provisioning",
+   "pro": "ships per-unit FACTORY CALIBRATED with SHUNT_CAL trimmed at provisioning -- EXECUTION DEFERRED-PENDING-INSTRUMENT (owner 2026-06-10: no trusted instrument exists to calibrate against; the leg choice stands, its execution waits on the cluster-2 instrument row)",
    "no_cal_grade_per_quantity": "the +/-0.5% no-cal grade survives for VOLTAGE (never crosses the shunt); any sub-1% CURRENT claim dies on an uncalibrated +/-1% shunt -- the spec's no-cal grade must be restated per quantity (part of the section 6.4 spec revision)"
   },
   "units": "policy",
@@ -163,7 +281,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
-  "notes": "The hedge resolution: the spec assumed per-unit cal in one clause and made it optional in the next; the ruling picks legs explicitly. Standard's current promise therefore CONTAINS the as-built shunt tolerance (meas.anchor.standard_current); Pro's per-unit SHUNT_CAL trim lifts it out, anchored instead on the cal instrument (meas.anchor.pro_cal_instrument). SPEC-REVISION CANDIDATE: section 6.4 no-cal grade restated per quantity."
+  "notes": "The hedge resolution: the spec assumed per-unit cal in one clause and made it optional in the next; the ruling picks legs explicitly. Standard's current promise therefore CONTAINS the as-built shunt tolerance (meas.anchor.standard_current); Pro's per-unit SHUNT_CAL trim lifts it out, anchored instead on the cal instrument (meas.anchor.pro_cal_instrument). SPEC-REVISION CANDIDATE: section 6.4 no-cal grade restated per quantity. DEFERRAL 2026-06-10: the Pro per-unit-cal leg's EXECUTION is deferred-pending-instrument (the empty-bench ruling); the trilemma choice itself stands. Standard is unaffected (its anchors are datasheet facts needing no bench)."
  },
  {
   "id": "meas.cal.temperature_policy",
@@ -177,7 +295,10 @@
   },
   "value": {
    "calibrate_at_C": 25,
-   "state_accuracy_at_C": [25, 50],
+   "state_accuracy_at_C": [
+    25,
+    50
+   ],
    "operating_point": "the 50C operating point carries TCR terms from the budget doc; both points stated"
   },
   "units": "degC",
@@ -208,7 +329,10 @@
   "value": {
    "system_of_record": "factory MAC plus database",
    "provisioning": "SHUNT_CAL programmed from the database at provisioning",
-   "per_unit_record": ["cal date", "instrument ID"]
+   "per_unit_record": [
+    "cal date",
+    "instrument ID"
+   ]
   },
   "units": "policy",
   "applies_to": [
@@ -297,7 +421,7 @@
   },
   "value": {
    "anchor": "the cal instrument's uncertainty",
-   "value": "OWED -- whatever the cluster-2 metrology table's electrical rows say the bench trusts (voltage reference, ammeter); that data dump is outstanding"
+   "value": "DEFERRED-PENDING-INSTRUMENT (owner ruling 2026-06-10): the cluster-2 electrical rows are recorded EMPTY -- no trusted voltage reference, no believed ammeter on the bench today. The anchor CANNOT BE STATED; deferred, never placeholder-numbered"
   },
   "units": "policy",
   "applies_to": [
@@ -312,7 +436,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
-  "notes": "Per-unit factory cal transfers the instrument's uncertainty onto every Pro unit -- the Pro promise can never be tighter than the named instrument (the Ruling-7 floor logic, electrical edition). VALUE OWED: blocks on the cluster-2 electrical rows (instrument + method + uncertainty + cal certificate state). Also conditions the Pro claim level (meas.truth_chain.claim_level: 'once that instrument has a current cal certificate')."
+  "notes": "Per-unit factory cal transfers the instrument's uncertainty onto every Pro unit -- the Pro promise can never be tighter than the named instrument (the Ruling-7 floor logic, electrical edition). DEFERRED-PENDING-INSTRUMENT (owner, 2026-06-10): the bench rows are honestly EMPTY, so this anchor is marked deferred rather than placeholder-numbered (a placeholder number would invent a floor). Unblocks when an instrument row lands in the cluster-2 metrology table with a current cal certificate. Also conditions the Pro claim level (meas.truth_chain.claim_level) and the per-unit cal leg (meas.cal.strategy_per_tier) -- both carry the same deferral. See meas.bench.empty_instrument_state for the full consequence set."
  },
  {
   "id": "meas.truth_chain.claim_level",
@@ -325,12 +449,13 @@
    ]
   },
   "value": {
-   "force": "RECOMMENDED CLAIM LEVEL, adopted 2026-06-10 -- confirmed finally at the founders-ack promotion gate",
-   "standard": "characterized, not NIST-traceable -- publicly and in the spec",
-   "pro": "factory-calibrated against a named instrument -- reserved until that instrument has a current cal certificate",
+   "force": "LOCKED (owner, 2026-06-10): NIST traceability REJECTED OUTRIGHT",
+   "public_language": "characterized -- full stop",
+   "standard": "characterized",
+   "pro": "factory-calibrated against a named instrument -- DEFERRED-PENDING-INSTRUMENT (no trusted instrument exists; the wording activates only when the cluster-2 instrument row lands with a current cal certificate)",
    "commitments": {
-    "nist_traceable": "a reference instrument with an unbroken cert chain, periodic recalibration cost, uncertainty documentation, plus legal exposure if claimed without the chain",
-    "characterized": "honest, cheap, defensible"
+    "nist_traceable": "REJECTED: a reference instrument with an unbroken cert chain, periodic recalibration cost, uncertainty documentation, plus legal exposure if claimed without the chain",
+    "characterized": "ADOPTED: honest, cheap, defensible"
    }
   },
   "units": "policy",
@@ -346,7 +471,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
-  "notes": "FOUNDERS-ACK REQUIRED BEFORE PROMOTION: the traceability wording is a company-level public commitment (owner flag, items 1+3) -- drafted today under the owner's signature, founders ack before this entry promotes. SPEC-REVISION CANDIDATE: the 'characterized, not NIST-traceable' wording lands in the spec/public materials. Pro's conditional rides meas.anchor.pro_cal_instrument (named instrument + current cal certificate, recorded per unit via meas.cal.storage)."
+  "notes": "TRACEABILITY LOCKED (owner, 2026-06-10): NIST rejected outright; the public claim language is 'characterized,' full stop. The founders-ack gate is REMOVED from this entry -- the traceability wording goes to the founders AS DECIDED, not open (founders-ack scope shrinks to the promise rows + the dV/dI tier framing). SPEC-REVISION CANDIDATE drafts now: meas.truth_chain.spec_wording carries the wording. Pro's named-instrument claim is deferred-pending-instrument (meas.anchor.pro_cal_instrument)."
  },
  {
   "id": "meas.truth_chain.dispute",
@@ -378,7 +503,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
-  "notes": "The adjudication path when CEC and a customer's instrument disagree. 'Stated conditions' = the meas.statement_form temperature points + cal state; 'named bench instrument' = the cluster-2 electrical rows (owed). The clamp-meter support note is a documentation deliverable, not a corpus gate."
+  "notes": "The adjudication path when CEC and a customer's instrument disagree. 'Stated conditions' = the meas.statement_form temperature points + cal state; 'named bench instrument' = the cluster-2 electrical rows (recorded EMPTY 2026-06-10 -- the dispute chain's adjudication leg unblocks when an instrument row lands; see meas.bench.empty_instrument_state). The clamp-meter support note is a documentation deliverable, not a corpus gate."
  },
  {
   "id": "meas.statement_form",
@@ -393,7 +518,10 @@
   "value": {
    "promises": "worst-case over the stated temperature range and cal state",
    "typical": "typ figures may appear in marketing ONLY when labeled typ, and never in the target table",
-   "temperature_points": [25, 50],
+   "temperature_points": [
+    25,
+    50
+   ],
    "concierge": "renders per-reading error bands derived from the budget machinery and that unit's cal state"
   },
   "units": "policy",
@@ -438,5 +566,72 @@
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
   "notes": "THE REAL PAYLOAD of cluster 5 (owner's words). The M2.7 incident class (laundering +/-2%-vs-+/-0.2% REF3030 uncertainty out of conclusions) becomes a DEFINED false-claim class: any panel/analyst/judge assertion of a measured quantity tighter than its band -- or bare, with no band -- is a finding for forensics, same standing as the CL-19 zero-tolerance classes. Wiring into panel charters + the forensics taxonomy is the follow-up; the definition is effective for any charter that cites this entry from today."
+ },
+ {
+  "id": "meas.bench.empty_instrument_state",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "state": "the cluster-2 metrology table's electrical rows are EMPTY, recorded honestly (owner, 2026-06-10): no trusted voltage reference, no believed ammeter on the bench today",
+   "consequences": [
+    "the Pro accuracy anchor cannot be stated -- DEFERRED-PENDING-INSTRUMENT, never placeholder-numbered (meas.anchor.pro_cal_instrument)",
+    "per-unit factory cal execution deferred the same way (meas.cal.strategy_per_tier)",
+    "the Pro promise rows in meas.targets.v1 carry the deferral explicitly",
+    "RULING-7: no calibration band for ABSOLUTE electrical quantities can be claimed until an instrument row exists",
+    "the CL-13 label vocabulary for absolute electrical quantities stays LIMITED to what the board self-references"
+   ],
+   "carve_out": "RELATIVE, board-self-referenced quantities remain labelable -- lane-impedance-DRIFT is the exemplar (the board's own INA228 trends its own shunt; no absolute instrument needed), which is why the shunt-drift benchmark (bench.shunt_drift_protocol) proceeds on the empty bench",
+   "unaffected": "Standard claims anchor on datasheet facts (REF3030 initial tolerance, shunt tolerance as built) that need no bench to state"
+  },
+  "units": "state",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10 (cluster-2 electrical rows recorded empty, honestly) -- an absent row is information, not a gap to fill with plausible instruments (the intake contract's standing rule)",
+   "date": "2026-06-10"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "The honest empty-bench fact with its full consequence set. Clears when an instrument row lands in the cluster-2 metrology table (instrument + method + uncertainty + cal certificate state) -- at which point the Pro anchor states, per-unit cal executes, the Pro deferral lifts, and absolute-quantity calibration bands become claimable under Ruling 7. Until then 'calibrated' is not a word the platform can use about absolute electrical quantities -- and the self-reference carve-out is what keeps the drift benchmark and Standard's datasheet-anchored claims fully alive."
+ },
+ {
+  "id": "meas.truth_chain.spec_wording",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "drafted_wording": "CEC measurement accuracy is CHARACTERIZED: figures are stated worst-case over the stated temperature points (25 C bench, 50 C design ambient) and calibration state, derived from component datasheet limits and the platform's characterization process. CEC makes no NIST-traceability claim.",
+   "destination": "spec-revision candidate -- the accuracy/claim-language section of CEC-Platform-Ground-Truth-Spec.md + customer-facing materials",
+   "pro_extension_deferred": "the 'factory-calibrated against a named instrument' Pro sentence joins this wording only when the instrument row lands (deferred-pending-instrument)"
+  },
+  "units": "wording",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10: 'Traceability locked: NIST rejected outright. Public claim language is characterized, full stop. The spec wording entry drafts now.' Wording drafted from the locked claim level (meas.truth_chain.claim_level) + the statement form (meas.statement_form)",
+   "date": "2026-06-10"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "fixture": "tests/test_measurement_claims_corpus.py",
+  "notes": "The DRAFTED spec wording (the corpus never amends the spec sideways -- this entry carries the candidate text; the owner's spec edit is the act, after which this can re-class H->B citing the new spec line). Goes to the founders AS DECIDED (not an ack gate). Composes the locked pieces: 'characterized' full stop + worst-case statement form + both temperature points + no NIST claim."
  }
 ]

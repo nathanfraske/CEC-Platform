@@ -555,7 +555,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_fault_phenomenology_corpus.py",
-  "notes": "BLOCKS the section-6.13 threshold lock for the EPS/PCIe families (the 12VHPWR families are unblocked -- their ratings are pinned). CHARACTERIZATION WRINKLE to carry into the pinning pass: on an interposer the mating FEMALE terminals live in the PSU vendor's cable, not on the CEC board -- the rating that matters varies with the user's cable (solid-brass/phos-bronze 105C vs formed-brass 80C per the Molex spec language in bom.rating.connector_minifit_105c), so EPS/PCIe threshold semantics must either assume the conservative terminal series or carry a cable-class caveat."
+  "notes": "BLOCKS the section-6.13 threshold lock for the EPS/PCIe families (the 12VHPWR families are unblocked -- their ratings are pinned). CHARACTERIZATION WRINKLE to carry into the pinning pass: on an interposer the mating FEMALE terminals live in the PSU vendor's cable, not on the CEC board -- the rating that matters varies with the user's cable (solid-brass/phos-bronze 105C vs formed-brass 80C per the Molex spec language in bom.rating.connector_minifit_105c), so EPS/PCIe threshold semantics must either assume the conservative terminal series or carry a cable-class caveat. UPDATE 2026-06-10: the terminal BASIS is ratified (conn.minifit_conservative_terminal_basis -- rate against the conservative series; customer cables uncontrolled); the pinning pass was ATTEMPTED same day (PS-5556 vendored at lib/datasheets/Molex-PS-5556.pdf; table not machine-extractable here -- numbers still owed, defaults stay placeholders)."
  },
  {
   "id": "judge.eval_verdicts_not_authority",
@@ -585,5 +585,41 @@
   "supersedes": null,
   "fixture": null,
   "notes": "THE FIDELITY-VS-TRUTH SEPARATION as a standing judge rule (owner: 'the refuter rejecting it with reasoning means the separation is actually understood by the machinery, not just documented'). Operational consequence: panel charters carry this rule; a finding whose evidence chain passes through an eval verdict/gold label is invalid as a design claim and valid only as a claim about extraction fidelity. Fixture-less H per ruling D1 (process rule, no mechanism)."
+ },
+ {
+  "id": "conn.minifit_conservative_terminal_basis",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "Mini-Fit",
+    "EPS12V",
+    "PCIe-8pin"
+   ],
+   "families": [
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ]
+  },
+  "value": {
+   "basis": "EPS and PCIe thresholds rate against the CONSERVATIVE terminal series",
+   "reason": "customer cables are uncontrolled -- the mating female terminals are the PSU vendor's, and Mini-Fit terminal ratings vary by series (solid brass/phos-bronze 105C class vs formed-brass 80C class per bom.rating.connector_minifit_105c)",
+   "status_of_defaults": "EPS/PCIe comparator defaults stay PLACEHOLDERS until the pinning pass lands the conservative-series per-pin ratings"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ratification 2026-06-10 (terminal basis). PINNING PASS ATTEMPTED 2026-06-10: Molex PS-5556 product spec downloaded (vendored lib/datasheets/Molex-PS-5556.pdf, 1.06 MB) but the current-rating/derating table does not text-extract in this environment (rasterized/encoded table; Molex CDN direct fetch times out) -- the table read needs a tooling-equipped or human pass; NO figures recorded from memory",
+   "date": "2026-06-10"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "fixture": null,
+  "notes": "Resolves the basis half of alarm.eps_pcie_threshold_gate: thresholds rate against the WORST terminal series a customer cable may carry, since the interposer cannot control the mating cable. The NUMBERS remain owed: the vendored PS-5556 spec carries the per-circuit derating table (by wire gauge and circuit count) -- read it with a PDF-rendering-equipped pass and land the conservative-series per-pin rating as a Class A entry; only then do the EPS/PCIe comparator defaults leave placeholder state. Fixture-less H per D1 (policy, no mechanism)."
  }
 ]

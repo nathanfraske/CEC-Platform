@@ -139,9 +139,11 @@ class T4Anchors(unittest.TestCase):
         v = self.m["meas.anchor.standard_current"]["value"]
         self.assertEqual(v["anchor"], "shunt tolerance as built")
 
-    def test_pro_anchor_owed(self):
+    def test_pro_anchor_deferred_pending_instrument(self):
+        """Owner 2026-06-10: empty bench -> deferred, never placeholder-numbered."""
         v = self.m["meas.anchor.pro_cal_instrument"]["value"]
-        self.assertIn("OWED", v["value"])
+        self.assertIn("DEFERRED-PENDING-INSTRUMENT", v["value"])
+        self.assertIn("never placeholder-numbered", v["value"])
         self.assertIn("cal instrument", v["anchor"])
 
 
@@ -149,16 +151,35 @@ class T5TruthChainAndJudge(unittest.TestCase):
     def setUp(self):
         self.m = _load()
 
-    def test_claim_levels(self):
+    def test_claim_levels_locked(self):
+        """Owner 2026-06-10: NIST rejected outright; 'characterized' full stop."""
         v = self.m["meas.truth_chain.claim_level"]["value"]
-        self.assertIn("characterized, not NIST-traceable", v["standard"])
-        self.assertIn("named instrument", v["pro"])
-        self.assertIn("cal certificate", v["pro"])
+        self.assertIn("REJECTED OUTRIGHT", v["force"])
+        self.assertEqual(v["public_language"], "characterized -- full stop")
+        self.assertEqual(v["standard"], "characterized")
+        self.assertIn("DEFERRED-PENDING-INSTRUMENT", v["pro"])
 
-    def test_founders_ack_gates_present(self):
-        for eid in ("meas.targets.v1", "meas.truth_chain.claim_level"):
-            self.assertIn("FOUNDERS-ACK REQUIRED BEFORE PROMOTION",
-                          self.m[eid]["notes"], eid)
+    def test_founders_ack_scope_shrunk(self):
+        """Founders-ack = promise rows + dV/dI tier framing ONLY; the
+        traceability wording goes to them as DECIDED."""
+        self.assertIn("FOUNDERS-ACK REQUIRED BEFORE PROMOTION",
+                      self.m["meas.targets.v1"]["notes"])
+        self.assertNotIn("FOUNDERS-ACK REQUIRED BEFORE PROMOTION",
+                         self.m["meas.truth_chain.claim_level"]["notes"])
+        self.assertIn("AS DECIDED", self.m["meas.truth_chain.claim_level"]["notes"])
+
+    def test_empty_bench_state_and_carveout(self):
+        e = self.m["meas.bench.empty_instrument_state"]["value"]
+        self.assertIn("no trusted voltage reference", e["state"])
+        self.assertTrue(any("RULING-7" in c for c in e["consequences"]))
+        self.assertIn("lane-impedance-DRIFT", e["carve_out"])
+        self.assertIn("datasheet facts", e["unaffected"])
+
+    def test_spec_wording_drafted(self):
+        v = self.m["meas.truth_chain.spec_wording"]["value"]
+        self.assertIn("CHARACTERIZED", v["drafted_wording"])
+        self.assertIn("no NIST-traceability claim", v["drafted_wording"])
+        self.assertIn("worst-case", v["drafted_wording"])
 
     def test_judge_band_rule(self):
         v = self.m["judge.reading_assertion_band"]["value"]
