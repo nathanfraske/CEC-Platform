@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Gates fail solely on structural DRC = 19; kelvin_ok and diffpair_ok both pass, confirming Kelvin connectivity and diff-pair integrity are intact. The 4 FEM over-temp flags on SENSEC1_HI, SENSEC1_LO, SENSEC2_HI, SENSEC2_LO are already covered by standing rule 1 (power-pour expansion on those nets). The root routing problem is 7 remaining stubs across /CAN_H, /I2C_SCL, /I2C_SDA with 2 unconnected ratlines — these unresolved control-signal stubs are the most likely source of local clearance violations driving the 19 structural DRC hits. The router did complete critical paths (Kelvin, diff-pair) but insufficient objective pressure on unconnected ratlines left two routes deferred. Raising the unconnected penalty and adding a targeted GR-02 U-detour pass on stub nets are actionable routing-tier levers that do not require placement changes. Failure is routing-class, not placement-class.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "unconnected",
+    "weight": 15.0,
+    "rationale": "At weight 5.0 the 2 unconnected ratlines contribute only 10 objective units, creating negligible gradient pressure relative to the gate_fail term. Raising to 15.0 triples the signal so the router prioritises closing these ratlines before they cascade into DRC clearance violations; the lever is purely routing effort, not a placement-class change."
+  },
+  "manager_rule": "When n_stubs > 5 and drc > 10, run one GR-02 U-detour repair pass targeting each stub net before final scoring, and widen the keepout corridor for each stub net by 0.3 mm per lateral side to open a conflict-free egress channel for those traces."
+}

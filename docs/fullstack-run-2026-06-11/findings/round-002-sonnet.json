@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Hard Kelvin gate fail: /SENSEC2_HI and /SENSEC2_LO are both completely unrouted (kelvin_unrouted=1, ratlines present on both members). This is a routing-class failure — the router ran out of effort or was corridor-blocked on cable 2's shunt egress, not a placement-class blockage (diffpair_ok=true and 4 power pours absorbed show the router did useful work elsewhere). The 4 FEM over-temp flags on all SENSEC*_HI/_LO nets are consistent with under-copper on the force paths and are addressed by the existing standing rule (power-pour expansion + B.Cu mirror). The 41 structural DRC and 6 unconnected ratlines are downstream of the same cable-2 congestion. Lever: increase optimization passes on the cable-2 region and widen its corridor keepout to give the router clean egress for the Kelvin pair — both are live router/intent levers. kelvin_unrouted carries no current penalty weight despite being a hard-gate driver; adding a large penalty will pull the objective away from the DRC-minimisation local minimum and toward routing the stranded pair.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "kelvin_unrouted",
+    "weight": 20000.0,
+    "rationale": "kelvin_unrouted=1 is the direct cause of the hard gate fail yet contributes zero to the current objective; a 20k weight per unrouted Kelvin pair dominates the DRC term (41*50=2050) and forces the optimizer to prioritize routing the sense pair over minimizing DRC count"
+  },
+  "manager_rule": "When kelvin_unrouted >= 1, increase router optimization passes by 50% for the failing cable's net group and widen the shunt corridor keepout for that cable by 0.5 mm on each lateral side to open a clear egress channel for the Kelvin pair before re-running."
+}

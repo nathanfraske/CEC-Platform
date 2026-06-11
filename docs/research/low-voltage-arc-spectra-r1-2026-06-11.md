@@ -1,0 +1,135 @@
+# R-1 Falsification Dive: Does the Sandia Sub-100-kHz Arc Null Transfer to 12 V PC Power? (V-6 Verdict)
+
+## TL;DR
+- **Verdict: CONFIRMED TRANSFER with a bounded residual gap.** Every validated DC arc spectral measurement at 60 V or below that we located clusters below ~100 kHz — most below 20–30 kHz — matching Sandia's photovoltaic finding. No validated ≤60 V measurement shows diagnostically usable arc spectral content above a few hundred kHz. The Sandia null transfers down to PC voltages.
+- **The closest validated voltage to CEC's 12 V — 28 V DC aerospace — independently reproduces the clustering:** NASA Glenn's 2025 28 VDC arc-detector dataset put usable arc-versus-baseline contrast in a 5–20 kHz passband (live arc detected within 2 ms, all 20 test arcs caught), and the canonical Eaton aircraft AFCB design monitors 10–100 kHz. The 42 V automotive literature is almost entirely time-domain (rate-of-change), which is itself evidence that the community judged high-frequency spectral capture unnecessary at low voltage.
+- **Capture-chain implication: the Max-tier quad-ADC 20–25 MSPS chain is not justified by the arc-detection use case.** The prior dives' 1–2 MS/s ceiling already oversamples the physically-supported band (DC–100 kHz needs only ~200 kS/s–1 MS/s by Nyquist with margin). The fast chain should de-scope unless CEC's own bench rig finds a 12 V exception — which the physics and the 28–48 V evidence both predict it will not.
+
+## Key Findings
+
+1. **The Sandia baseline is real and precisely worded.** Johnson et al. (2011), measuring PV string current at 10 MS/s, found that "from 1-100 Hz and 100 kHz to 5 MHz there is little or no difference in the arcing noise content when compared to the baseline," while "for the frequencies between 100 Hz-100 kHz, there is a clear separation between the arcing noise and the baseline." This is the null being tested. It was measured at PV string voltages (80 V+, typically hundreds of volts).
+
+2. **The 42 V automotive corpus is predominantly time-domain, not frequency-domain.** The flagship paper (Naidu, Schoepf, Gopalakrishnan, 2006) detects arcs purely by rate-of-change of shunt current — no FFT, no spectral band. This is a load-bearing negative finding: the automotive community at the voltage class nearest CEC's never found it necessary to characterize arc noise spectra at all, let alone above 100 kHz.
+
+3. **28 V DC aerospace — the closest validated voltage to 12 V — independently confirms sub-100-kHz clustering.** NASA Glenn (Malone et al., 2025) measured a 28 VDC / 25 A arc bus and implemented detection on a 5–20 kHz passband. The certified-AFCB lineage (Eaton US Patent 6,625,550) monitors 10–100 kHz with 30/60 kHz center frequencies. SAE AS6019 (the 28 VDC aircraft AFCB standard) specifies no detection band at all — it is outcome-based (guillotine dry-arc test, trip within a time limit).
+
+4. **48 V telecom arc detection historically used sub-100-kHz current spectra.** Foundational telecom central-office arc patents digitized arc current at a 50 kHz rate and detected on a frequency-domain energy pattern below that.
+
+5. **The modern low-voltage corpus (24–80 V DC houses, batteries, microgrids) agrees.** Taufik & Muchtar (2018), characterizing DC arc current at 24–80 V, found usable arc signatures in the 244 Hz–100 kHz band and deliberately filtered out content below 30 kHz — explicitly because "higher frequencies are often used for other processes such as communications, microprocessors, and DC-DC converters." The broader PV/DC review literature codifies the same window: "most of the fault signatures are extracted from the 1–100 kHz frequency band" (Lu et al., RSER 2018) and "broadband noise (typically from tens of kilohertz up to 100 kHz)" (Artale et al., Measurement 2021).
+
+6. **High-frequency (hundreds of kHz to MHz) usable arc content appears only at HIGH voltage** (270–540 V "More Electric Aircraft" HVDC) — which strengthens rather than weakens the case that low voltage clusters low.
+
+## Details
+
+### 1. The Sandia baseline (T2, load-bearing)
+Johnson, Pahl, Luebke, Pier, Miller, Strauch, Kuszmaul, Bower, "Photovoltaic DC Arc Fault Detector Testing at Sandia National Laboratories," 37th IEEE PVSC, 2011 (SAND2011-3871C; OSTI 1120327). Data acquisition: Tektronix MSO4054 500-MHz scope, TCP0150A current probe, Ion Physics CM-1-L CT, 10 MS/s sample rate. Verbatim finding (Figure 12 discussion): arc-versus-baseline separation is clear only in 100 Hz–100 kHz; "100 kHz to 5 MHz there is little or no difference." Arc noise is characterized as 1/f ("pink") broadband. Downstream PV literature codified this as a recommendation to detect below 100 kHz, citing RF attenuation and antenna effects above 100 kHz.
+
+### 2. The 42 V automotive evidence (priority target #1)
+
+**Naidu, Schoepf, Gopalakrishnan, "Arc Fault Detection Scheme for 42-V Automotive DC Networks Using Current Shunt," IEEE Trans. Power Electron. 21(3):633–639, 2006 (T1).**
+- Test conditions: 42 V DC. Series arc by motorized hot disconnection of connector terminals at opening speed 2.2 cm/s, 5 A, 10 mH inductive load; also tested with a 42 V PM brush DC engine-cooling-fan motor. Parallel arc by "dangling wire" test — stripped AWG-16 wire brushed over a grounded plate. Circuits fused at 20 A/58 V.
+- Measurement chain: input-side current shunt → analog comparator/amplifier discrimination circuit. Arc current and voltage captured on a digital oscilloscope (sample rate not specified; used only for waveform documentation, not spectral analysis).
+- **Frequency-domain findings: NONE.** Detection principle is rate-of-change of shunt current versus a low-pass-filtered reference — pure time-domain. The low-pass filter is used to reject motor ripple, not to find an arc band. Arc energies reported in watt-seconds (series 0.237 Ws suppressed vs 35 Ws unsuppressed; parallel 0.18 Ws SSR vs 75 Ws fuse-cleared).
+- **Interpretation:** This is the single most-cited 42 V arc-detection paper and it contains no spectral characterization. The companion Holm 2003 paper (Schoepf, Naidu, Gopalakrishnan, "Mitigation and analysis of arc faults in automotive DC networks," 49th IEEE Holm Conf., pp. 163–171) and the Eaton "42 VDC Arcing Faults — Physics & Test Methods" work (Hetzmannseder & Zuercher, 2001) likewise frame the problem in time-domain / energy terms (guillotine test, di/dt, voltage-drop detection). The Eaton DC arc patent (US 2004/0027749) detects series arcs by voltage falling below ~75% of system voltage. **No 42 V automotive study characterizes arc noise above 100 kHz; the community implicitly judged high-frequency spectral methods unnecessary at this voltage.**
+
+### 3. 28 V DC aerospace evidence (priority target #3 — most valuable, closest to 12 V)
+
+**SAE AS6019, "Arc Fault Circuit Breaker (AFCB), Aircraft, Trip-Free, 28 VDC," SAE International, 2012 (T2).** Note the distinction: AS5692 is the 115 VAC/400 Hz aircraft AFCB standard; **AS6019 is the 28 VDC standard** — this is the relevant one. AS6019 mandates a guillotine "dry arc track" test (Section 4.7.7.6.1): fixed 28 VDC source through a limiting resistance, grounded blade driven through a powered wire. **The standard specifies no detection frequency band** — it is performance/outcome-based (the breaker must trip within a time limit on a real arc). Detection band is left to the manufacturer.
+
+**Malone et al., NASA Glenn Research Center, "A System-Agnostic Process to Design DC Series Arc Fault Detectors," IEEE ITEC+ 2025 (NASA NTRS 20250003153) (T1) — the best available measured 28 V dataset.** Testbench: 28 VDC, current-limited 25 A, 20 µH inductor, 1300 µF load cap, 420 W constant-power load. Arc generator: sharp graphite electrode against a flat copper electrode (copper-copper would not repeatably sustain an arc at 28 V), separation 0.75 mm at 0.75 mm/s, FPGA at 400 kS/s. **Implemented detector: "a 100-order FIR bandpass filter via the least-squares method for a passband of 5 kHz to 20 kHz... The sample rate was 400 kHz. A live arc was detected within 2 ms," and the envelope detector "successfully detected all 20 arcs."** This is a clean, low-voltage, independently-derived corroboration of the sub-100-kHz clustering — at the voltage class closest to CEC's, the usable arc band sits at 5–20 kHz and a 400 kS/s ADC is more than sufficient.
+
+**Eaton/Square D, "Arc fault detection for aircraft," US Patent 6,625,550 B1 (T3).** Bandpass filters chosen across 10 kHz–100 kHz; two-band example with center frequencies 30 kHz and 60 kHz; rectified and low-pass filtered (5 kHz corner). The broadband arc signature is defined as 10 kHz–100 kHz. This is a design/filter choice (not a published PSD with SNR), but it is consistent with sub-100-kHz clustering and represents the certified-AFCB design lineage.
+
+Caveat / counter-signal: Eaton US Patent 9,797,941 defines DC sub-bands at 10–30 kHz, 140–160 kHz, and 290–310 kHz — reaching ~300 kHz — but this is a patent design claim, not a validated ≤60 V measurement, and the voltage class is not stated as ≤60 V. It should not be treated as a low-voltage measured datapoint.
+
+### 4. 48 V telecom evidence (priority target #2)
+
+**"Power cable arcing fault detection system," US Patent 5,047,724, and "Electrical cable arcing fault detection by monitoring power spectrum in distribution line," US Patent 5,359,293 (T3).** Telecom central-office −48 V DC plant. Test circuit: 48 V from three parallel strings of four 12 V automotive batteries, 180 A fuse, 20 µH inductor + current-limiting resistor simulating ~20 m of cable; arc struck across a 2–3 mm gap to grounded Type-AC armored cable cladding via a 0.5 mm graphite rod, persisting a few tenths of a second without blowing the fuse. **Measurement: current/voltage digitized at a 50 kHz rate with 10-bit resolution, transformed to a frequency-domain pattern.** Detection is on a characteristic sub-50-kHz frequency-domain energy distribution. Arc currents noted at 0.5–10 A vs 40–50 A breaker thresholds. **The telecom 48 V arc characterization that exists operated entirely below 50 kHz** — no high-frequency content was sought or reported. (No INTELEC-published PSD of a 48 V arc with contrast extending above 100 kHz was located.)
+
+### 5. Modern low-voltage corpus (priority target #4)
+
+**Taufik & Muchtar, "Characterization of DC Arc Fault Currents in Low Voltage Residential Electricity," Int. Conf. on Applied Electromagnetic Technology, 2018 (T1) — the single most directly transferable study.** DC "house"/microgrid context, source varied between minimum-arc voltage and 80 V (prototype rated 48 V/600 W). Series and parallel-load arcing; contact materials, shapes, and sizes interchanged. Measurement: frequency spectrum of arc current via spectrum analyzer + current transformer + low-noise gain stage. **Finding: usable arc signatures in the 244 Hz–100 kHz band**; the authors explicitly chose this range and filtered out content below 30 kHz — verbatim, "the 244 Hz to 100 kHz was chosen. In addition, higher frequencies are often used for other processes such as communications, microprocessors, and DC-DC converters." Hardware AFCI prototype stepped 48 V down to 5 V. This study deliberately characterized arc spectra below 80 V and found nothing requiring capture above 100 kHz.
+
+**Eger et al., "DC arc fault scenarios and detection methods in battery storage systems," 2017 IEEE 2nd Int. Conf. on DC Microgrids (ICDCM), pp. 8–11 (Fraunhofer ISE) (T1).** Surveys which DC system parameters are useful for arc detection and introduces a hardware arc-fault simulator for various low-voltage DC systems; consistent with the broadband-but-low-frequency model.
+
+**Supporting review consensus (T1):** Lu, Sahoo et al., "A comprehensive review on DC arc faults and their diagnosis methods in photovoltaic systems," Renewable & Sustainable Energy Reviews, 2018: "most of the fault signatures are extracted from the 1–100 kHz frequency band, where it has the least impact on the arc fault diagnosis from the majority of disturbance except inverter/converter noise." Artale et al., Measurement, 2021: "one of the most studied signal characteristics is the broadband noise (typically from tens of kilohertz up to 100 kHz)"; their instrumentation is specified only to 100 kHz.
+
+### Physics anchor: why 12 V is a micro-arc regime
+Minimum arc (sustaining) voltage for common contact metals is, per TE Connectivity's "Contact Arcing Phenomenon," exactly: "For fine silver, the arc voltage is 12 volts. For cadmium, it is 10 volts; and for gold and palladium it is 15 volts… if circuit voltage is 12 volts or more, voltage breakover occurs. If circuit voltage is less than 12 volts, breakover cannot occur and there will be no arc." (T3.) An Eaton DC-arc patent (US 6,683,766) states DC arcs "generally do not persist unless the voltage across the air gap is at least 14 volts," which is precisely why 14 V automotive systems marginally arc and 42 V sustains them. At 12 V, a degraded connector produces transient/unstable micro-arcs at the moment of contact separation, not sustained free-burning arcs. This physically bounds available arc energy and argues against — not for — strong high-frequency content. Arc gaps across which 12 V can sustain are sub-millimeter; the resulting micro-arc is a low-energy, intermittent event.
+
+## Synthesis Against V-6 (the Verdict)
+
+### (a) Does any validated ≤60 V measurement show usable arc spectral content above a few hundred kHz?
+**No.** Across the automotive (42 V), telecom (48 V), aerospace (28 V), and DC-microgrid/battery (24–80 V) literatures, every validated low-voltage DC arc spectral measurement located clusters below ~100 kHz, and most below 20–50 kHz:
+- 28 V (NASA Glenn 2025): usable band 5–20 kHz (measured/implemented detector).
+- 28 V aircraft AFCB (Eaton patent lineage): 10–100 kHz, centers 30/60 kHz (design).
+- 48 V telecom (patents): digitized at 50 kHz, detection sub-50 kHz (measured).
+- 24–80 V DC house (Taufik 2018): 244 Hz–100 kHz, 30 kHz high-pass (measured).
+- 42 V automotive (Naidu 2006 et al.): no spectral content sought — time-domain only.
+
+The only counter-signal reaching ~300 kHz is an Eaton patent design claim (9,797,941) with no stated voltage class and no validated measurement — explicitly not load-bearing. Genuine high-frequency (hundreds of kHz–MHz) usable arc content appears only at 270–540 V HVDC aircraft systems, which supports the inference that higher source voltage is required to push usable spectral content high.
+
+### (b) Frequency-band coverage map
+
+| Voltage class | Measured spectral range (what was actually captured) | Where arc-vs-baseline contrast was found | Key citation(s) |
+|---|---|---|---|
+| **12–14 V** | **None located** — no deliberate arc-spectrum characterization at 12–14 V DC found | **Unmeasured** (physics: micro-arc, sustaining threshold ~12–14 V) | TE Connectivity / Deringer-Ney arc-voltage data (T3/T4); Eaton US 6,683,766 (≥14 V to persist) |
+| **24–28 V** | DC–400 kHz captured (NASA, 400 kS/s); 10–100 kHz (Eaton AFCB) | **5–20 kHz** (NASA Glenn, implemented detector); 10–100 kHz design band | Malone et al. NASA NTRS 20250003153 (T1); Eaton US 6,625,550 (T3); SAE AS6019 (T2, no band) |
+| **42–48 V** | 42 V: time-domain only (no spectrum). 48 V telecom: digitized at 50 kHz | 42 V: N/A (rate-of-change). 48 V: sub-50 kHz frequency-domain pattern | Naidu et al. 2006 (T1); US 5,047,724 / 5,359,293 (T3); Taufik 2018 24–80 V: 244 Hz–100 kHz (T1) |
+| **(reference) 80–540 V** | DC–5 MHz (Sandia, 10 MS/s); MHz-range at 270–540 V | PV (80 V+): 100 Hz–100 kHz, null 100 kHz–5 MHz. HVDC aircraft: low-MHz | Johnson et al. 2011 (T2); MEA HVDC literature (T1) |
+
+### (c) The transfer verdict for CEC
+This is a **CONFIRMED TRANSFER, with a narrow honestly-bounded gap at exactly 12 V.**
+- **Confirmed:** At 28 V (NASA, closest validated voltage), 48 V (telecom), and 24–80 V (Taufik DC house), validated low-voltage DC arc spectra cluster below 100 kHz — the same clustering Sandia found at PV voltages. The 42 V automotive community went further and used time-domain detection exclusively, never needing spectral capture. Three independent voltage classes below CEC's connector class all confirm.
+- **Not contradicted:** No validated low-voltage measurement places usable arc content above ~100 kHz (let alone above a few hundred kHz). The lone ~300 kHz figure is an unvalidated patent design band.
+- **The bounded gap:** No study deliberately characterized arc spectra at exactly 12–14 V. This is the genuine unmeasured cell. But it is bounded on both sides — by the physics (12 V is the micro-arc/sustaining threshold, so arc energy and therefore spectral content can only be lower and more intermittent than at 28 V, not higher) and by the 28 V measured result (5–20 kHz). The direction of the voltage trend (higher voltage → higher usable frequency) means 12 V is the least likely voltage to exhibit high-frequency content.
+
+In short: this is **confirmed transfer plus a small unmeasured cell whose physics and neighbors both point the same way.** CEC's own bench measurement becomes the deciding instrument only to close that one cell — and it is predicted to confirm.
+
+### (d) Capture-chain implication (stated plainly)
+- **Evidence-supported sample rate for the Max tier:** The arc-detection use case requires capturing DC–100 kHz with margin. By Nyquist, ~200 kS/s is the floor; ~500 kS/s–1 MS/s gives comfortable anti-alias margin and headroom for the upper edge of the band. **The prior dives' 1–2 MS/s diagnostic ceiling already covers the entire physically-supported arc band with an order of magnitude to spare.** A quad-ADC 20–25 MSPS chain is ~20–100× oversized relative to what any validated ≤60 V arc measurement can use. **The evidence supports de-scoping the fast capture chain** for the arc-detection rationale.
+- **What CEC's bench rig must measure to close the 12 V gap:** Build a 12 V degraded-connector micro-arc rig, not a sustained-arc rig:
+  - **Arc generation:** intermittent contact separation appropriate to a real connector — slow connector hot-unplug under load and/or vibration-induced micro-arcing, with realistic contact metallurgy (tin/tin-lead or gold-flash on copper alloy, the actual PC connector materials), not a guillotine or graphite-on-copper sustained arc. The 12 V supply will produce transient micro-arcs that self-extinguish, so the rig must capture many short events.
+  - **Current range:** 1–9 A (the flagship connector's operating range), since the 9 A point is CEC's worst case.
+  - **Sensor + bandwidth:** a wideband current sensor (Rogowski/CT or shunt) with flat response to at least 1 MHz — i.e., deliberately over-bandwidth — so the measurement can either find or rule out content above 100 kHz rather than filter it away by assumption.
+  - **Sample rate for the characterization rig (not the product):** capture at 10–20 MS/s for the one-time characterization so the full DC–5 MHz band is observed exactly as Sandia did; this is the only way to honestly bound the 12 V cell. If — as predicted — all arc-vs-baseline contrast falls below ~100 kHz, the shipping Max product needs only ≤1 MS/s and the 20–25 MSPS chain de-scopes with full confidence.
+  - **Decision threshold:** if the bench rig shows arc-vs-baseline SNR > a few dB anywhere above ~300 kHz at 12 V/9 A under realistic connector conditions, the fast chain earns its place and should be pointed at that band. Absent that, de-scope.
+
+## Recommendations
+1. **De-scope the Max-tier 20–25 MSPS quad-ADC capture chain from the arc-detection justification now, conditionally.** The literature across 28 V, 42 V, 48 V, and 24–80 V DC uniformly supports a sub-100-kHz arc band; a ≤1 MS/s chain covers it with an order of magnitude of margin. Make the de-scope final after step 2. (If the fast chain is justified by a *different* use case — e.g., transient/PDN ringing or switching-edge capture — that rationale must be argued on its own merits; this dive addresses only the arc-detection justification.)
+2. **Run one bench characterization to close the single unmeasured cell (12–14 V).** Use the micro-arc rig parameters above, capture at 10–20 MS/s with ≥1 MHz sensor bandwidth, at 1–9 A, with real PC-connector metallurgy. This is a one-time characterization, not a product feature.
+3. **Decision thresholds:** (a) If no arc-vs-baseline contrast appears above ~100–150 kHz → confirm de-scope; ship the Max tier with a ≤1 MS/s telemetry-grade chain. (b) If usable contrast appears in 150 kHz–1 MHz → keep a single fast ADC pointed at that specific sub-band (not the full quad-ADC 25 MSPS chain). (c) Only a broadband finding above several hundred kHz with good SNR would justify the originally-proposed oversized chain — and the physics make this the least likely outcome.
+4. **Document the absence.** Record in the register that no peer-reviewed 12–14 V DC arc spectral characterization exists, so CEC's bench result will be a genuinely novel datapoint and should be treated as the authority for that cell.
+
+## Caveats
+- **One genuine unmeasured cell remains:** no peer-reviewed deliberate arc-spectrum characterization at exactly 12–14 V DC was located. The verdict rests on the physics argument plus the 28 V / 48 V / 24–80 V measured neighbors, all pointing the same direction. This is a bounded absence, not a blind spot.
+- **AS6019 specifics (guillotine §4.7.7.6.1, trip-time limit) are sourced via Lectromec (T3); the primary standard is paywalled.** Verify against the purchased SAE AS6019 PDF before treating the section number as load-bearing.
+- **The NASA Glenn 2025 figures come from a conference paper / NTRS record;** the 5–20 kHz passband and test conditions should be confirmed against the published figures if this becomes the single deciding citation. Note also that 5–20 kHz is the *implemented detector passband* (an engineering choice for that bus), not necessarily the full extent of measured arc energy — but it confirms detection succeeds well below 100 kHz.
+- **Eaton AFCB frequency bands (10–100 kHz; the 290–310 kHz sub-band in 9,797,941) are patent/design parameters, not published PSDs with SNR.** They indicate where designers expected arc noise, not a measured contrast curve.
+- **Voltage extrapolation is directional, not exact.** "Higher voltage → higher usable frequency" is a robust qualitative trend across the corpus, but no source gives a quantitative arc-energy-vs-frequency-vs-voltage law down to 12 V. CEC's bench measurement is what converts the directional argument into a closed verdict.
+
+## Source Documentation (tiered, by load-bearing weight)
+- **[T2] Johnson et al., "Photovoltaic DC Arc Fault Detector Testing at Sandia National Laboratories," 37th IEEE PVSC 2011 (SAND2011-3871C / OSTI 1120327).** Carries: the baseline null being tested (100 Hz–100 kHz contrast; no contrast 100 kHz–5 MHz; 10 MS/s).
+- **[T1] Malone et al., "A System-Agnostic Process to Design DC Series Arc Fault Detectors," NASA Glenn, IEEE ITEC+ 2025 (NTRS 20250003153).** Carries: the closest-voltage (28 V) measured confirmation — detection on a 5–20 kHz passband, 400 kS/s, all 20 arcs caught within 2 ms.
+- **[T1] Naidu, Schoepf, Gopalakrishnan, "Arc Fault Detection Scheme for 42-V Automotive DC Networks Using Current Shunt," IEEE Trans. Power Electron. 21(3):633–639, 2006.** Carries: the 42 V automotive null (time-domain only; no spectral characterization).
+- **[T1] Taufik & Muchtar, "Characterization of DC Arc Fault Currents in Low Voltage Residential Electricity," ICAET 2018.** Carries: the 24–80 V measured band (244 Hz–100 kHz; 30 kHz high-pass).
+- **[T2] SAE AS6019, "Arc Fault Circuit Breaker (AFCB), Aircraft, Trip-Free, 28 VDC," 2012.** Carries: the 28 VDC aerospace standard mandates a guillotine arc test but specifies no detection band (outcome-based).
+- **[T1] Lu, Sahoo et al., "A comprehensive review on DC arc faults and their diagnosis methods in photovoltaic systems," Renewable & Sustainable Energy Reviews 89:88–98, 2018.** Carries: the field-consensus 1–100 kHz arc-signature window.
+- **[T1] Artale et al., "Characterization of DC series arc faults in PV systems based on current low frequency spectral analysis," Measurement, 2021.** Carries: corroboration that the studied broadband arc-noise band is "tens of kHz up to 100 kHz"; instrumentation specified only to 100 kHz.
+- **[T3] US Patents 5,047,724 and 5,359,293, telecom −48 V cable arc detection.** Carry: 48 V telecom arc current digitized at 50 kHz; sub-50 kHz detection.
+- **[T3] Eaton/Square D, "Arc fault detection for aircraft," US 6,625,550 B1.** Carries: certified aircraft AFCB design band 10–100 kHz (30/60 kHz centers).
+- **[T1] Schoepf, Naidu, Gopalakrishnan, "Mitigation and analysis of arc faults in automotive DC networks," 49th IEEE Holm Conf. 2003, pp. 163–171.** Carries: corroboration that 42 V work is time-domain / guillotine-test based.
+- **[T1] Eger et al., "DC arc fault scenarios and detection methods in battery storage systems," ICDCM 2017.** Carries: low-voltage battery/microgrid arc detection survey, consistent low-frequency model.
+- **[T3] Hetzmannseder & Zuercher (Eaton), "42 VDC Arcing Faults — Physics & Test Methods," 2001; Eaton US 2004/0027749 & US 6,683,766.** Carry: 42 V arc physics framed in voltage-drop/energy terms; ≥14 V to sustain.
+- **[T3/T4] TE Connectivity "Contact Arcing Phenomenon"; Deringer-Ney "AC vs DC Arc Extinguishment."** Carry (corroboration only): minimum arc voltages (12 V Ag, 10 V Cd, 15 V Au/Pd; no breakover below 12 V); 12 V micro-arc regime physics.
+- **[T3] Eaton US 9,797,941 — DC sub-bands 10–30 / 140–160 / 290–310 kHz.** FLAGGED non-load-bearing: patent design claim, no stated ≤60 V voltage class, no validated measurement.
+
+### Searches / source classes that came back EMPTY (documented absences)
+- **No deliberate arc-spectrum characterization at exactly 12–14 V DC** in peer-reviewed literature (the genuine V-6 gap).
+- **No INTELEC-published PSD of a 48 V telecom arc** with contrast extending above 100 kHz (only the older central-office patents, which worked sub-50 kHz).
+- **No 42 V automotive frequency-domain arc study** at any frequency — the corpus is time-domain.
+- **No USB-C / laptop-adapter arc spectral study** in the academic literature (only connector-degradation/CTI materials work and enthusiast reports of disconnect arcing).
+- **No validated ≤60 V DC measurement of usable arc contrast above ~300 kHz** — the central null of this dive, confirmed absent.
+
+---
+*Bottom line for the Max-tier architecture decision: The literature confirms the Sandia sub-100-kHz clustering transfers down to at least 28 V, with the 12–14 V cell unmeasured but bounded by physics pointing the same way. The 20–25 MSPS quad-ADC chain is not warranted by arc detection; a ≤1 MS/s chain suffices with an order of magnitude of margin. De-scope conditionally now, and let one 12 V/9 A micro-arc bench characterization (captured at 10–20 MS/s, ≥1 MHz sensor bandwidth) close the file.*

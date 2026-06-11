@@ -1,0 +1,26 @@
+{
+ "round": 4,
+ "final": "refute",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "refute",
+   "reason": "The finding introduces an unauthorized manager_rule (GR-02 repair battery) and a scorer_penalty that are not present in the ratified rules or locked decisions, directly contradicting the strict spec-conformance charter which only permits Rules 1 and 2.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "evidence-provenance": {
+   "verdict": "refute",
+   "reason": "The evidence only confirms structural DRC=24, kelvin_ok=true, and unconnected=2. It completely lacks support for diffpair_ok, specific unconnected nets (/CAN_H, I2C), FEM over-temp flags, max_T=99C, standing rule 1, and scorer penalty details. Under zero-tolerance sourcing, the claim is unsupported.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "The finding targets `gate_fail`, but the loop's owned levers cannot move this metric. The failures are driven by placement-class copper geometry and structural DRC/thermal constraints, which are outside the router's repair scope.",
+   "failure_class": "placement",
+   "status": "advisory"
+  }
+ },
+ "arbiter": null
+}

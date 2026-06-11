@@ -1,0 +1,26 @@
+{
+ "round": 8,
+ "final": "refute",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "refute",
+   "reason": "The finding states that the structural DRC failure is 'DRC=29 with 5 unconnected ratlines', which directly contradicts Claim 2's assertion that it is a 'routing convergence failure'. Unconnected ratlines indicate a routing or constraint issue, but the specific DRC code and count point to a distinct structural violation rather than a generic convergence problem. Additionally, the presence of multiple standing rules firing (FEM over-temp, stub nets) suggests underlying thermal and signal integrity issues that may influence routing behavior, making the 'sole gate failure' attribution to routing convergence an oversimplification that ignores the thermal and stub-related rule triggers explicitly noted in the finding.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "evidence-provenance": {
+   "verdict": "refute",
+   "reason": "The evidence only confirms kelvin_ok=true, drc=29, and unconnected=5. It does not support assertions regarding diffpair_ok, kelvin_unrouted, the sole gate failure being structural DRC=29 with 5 unconnected ratlines, Rule 1 firing, Rule 4 firing, or the manager rule conditions. Multiple key claims are completely unsupported by the provided evidence.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "The finding incorrectly targets max_T (thermal) when the core issue is a routing convergence failure (DRC=29, 5 unconnected ratlines). Increasing max_T weight will not resolve routing convergence; the loop owns direct routing levers (router passes/opt_time, GR-02 repair battery) that should address the real problem.",
+   "failure_class": "routing",
+   "status": "advisory"
+  }
+ },
+ "arbiter": null
+}

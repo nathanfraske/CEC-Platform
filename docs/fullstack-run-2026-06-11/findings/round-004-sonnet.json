@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Gates fail solely on structural DRC = 24; kelvin_ok and diffpair_ok are both true, meaning the hard safety gates pass and the failures are finishing/clearance violations the router can address. Unconnected = 2 (likely /CAN_H and one I2C net per the stub summary) are actionable ratlines whose closure may relieve some clearance cascades driving the 24 DRC hits. Four FEM conductor over-temp flags on SENSEC*_HI/LO persist at max_T = 99 C, but standing rule 1 already prescribes pour expansion on those nets; attributing the remaining temperature margin to placement-class copper geometry, not a new routing lever. The gate_fail metric (= 1) is absent from current penalty weights, leaving the objective insensitive to gate-pass vs gate-fail status beyond the per-violation DRC weight; the optimizer can therefore settle on a 24-hit local minimum that looks cheap relative to a gate-passing board with higher DRC iteration cost. Adding a heavy gate_fail penalty makes gate-failing candidates strongly penalised in seed ranking and candidate selection, directing effort toward DRC-zero solutions rather than the current local minimum. A new GR-02 repair rule triggered when both hard gates pass but finishing DRC > 10 with ratlines remaining fills a gap not covered by the two standing rules (which target kelvin_unrouted and FEM over-temp respectively).",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "gate_fail",
+    "weight": 5000.0,
+    "rationale": "gate_fail is currently unweighted; a heavy penalty makes gate-failing candidates strongly less preferred in objective ranking, driving seed selection and re-routing iterations toward the DRC-zero threshold rather than settling in local minima where Kelvin and diff-pair pass but finishing violations remain."
+  },
+  "manager_rule": "When structural DRC > 10 and unconnected >= 2 and kelvin_ok=True and diffpair_ok=True, invoke GR-02 repair battery on all nets carrying remaining ratlines before the next routing pass to close finishing violations without disturbing the already-passing Kelvin and diff-pair routes."
+}

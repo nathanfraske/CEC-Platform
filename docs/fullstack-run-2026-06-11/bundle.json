@@ -1,0 +1,113 @@
+{
+ "board": "eps-8pin",
+ "rounds": 8,
+ "records": 8,
+ "gate_passing": 0,
+ "pareto_finalists": 0,
+ "final_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 50.0,
+  "unconnected": 40.0,
+  "max_T": 0.5,
+  "kelvin_unrouted": 1000.0
+ },
+ "n_rules": 4,
+ "rules": [
+  "When \u22652 FEM over-temp flags target SENSEC*_HI or SENSEC*_LO nets, trigger power-pour expansion on those nets (widen corridor keepout and add B.Cu mirror pour if absent) before accepting the candidate.",
+  "When kelvin_unrouted >= 1, increase router optimization passes by 50% for the failing cable's net group and widen the shunt corridor keepout for that cable by 0.5 mm on each lateral side to open a clear egress channel for the Kelvin pair before re-running.",
+  "When a via over-temp FEM flag targets any SENSEC* net, reduce the stitch-via pitch in that cable's power-pour via field by 50% (halve the inter-via spacing) before the next route pass, distributing current across more via barrels to lower per-via temperature without enlarging the pour footprint.",
+  "When n_stubs >= 5 and stub nets include /CAN_H, /I2C_SCL, or /I2C_SDA, increase router optimization passes for those nets by 40% and apply GR-02 single-net U-detour repair on each stubbed control net to force stub endpoints to within 0.5 mm of their target pad before scoring."
+ ],
+ "injections": [
+  {
+   "kind": "penalty",
+   "metric": "max_T",
+   "from": 0.0,
+   "to": 0.3,
+   "action": "accepted:raised",
+   "rationale": "max_T=113\u00b0C with 4 FEM over-temp flags on cable carry nets is unpriced by current penalties (which target drc, unconnected, plane_signal_mm only). Adding a weight on max_T directly incentivizes pour expansion on the SENSEC*_HI/_LO nets \u2014 a concrete loop lever. Weight 0.3 is enough to differentiate c",
+   "round": 1,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When \u22652 FEM over-temp flags target SENSEC*_HI or SENSEC*_LO nets, trigger power-pour expansion on those nets (widen corridor keepout and add B.Cu mirror pour if absent) before accepting the candidate.",
+   "round": 1,
+   "source": "sonnet"
+  },
+  {
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "from": 0.0,
+   "to": 1000.0,
+   "action": "accepted:raised",
+   "rationale": "kelvin_unrouted=1 is the direct cause of the hard gate fail yet contributes zero to the current objective; a 20k weight per unrouted Kelvin pair dominates the DRC term (41*50=2050) and forces the optimizer to prioritize routing the sense pair over minimizing DRC count",
+   "round": 2,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When kelvin_unrouted >= 1, increase router optimization passes by 50% for the failing cable's net group and widen the shunt corridor keepout for that cable by 0.5 mm on each lateral side to open a clear egress channel for the Kelvin pair before re-running.",
+   "round": 2,
+   "source": "sonnet"
+  },
+  {
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 5.0,
+   "to": 20.0,
+   "action": "accepted:raised",
+   "rationale": "3 unconnected ratlines on control nets contribute only 15 to the objective against 1900 from DRC=38; the 127:1 imbalance allows the router to leave ratlines while chasing clearance. Raising unconnected weight to 20.0 (from 5.0) equalizes relative pressure and incentivizes full connection before DRC ",
+   "round": 5,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When a via over-temp FEM flag targets any SENSEC* net, reduce the stitch-via pitch in that cable's power-pour via field by 50% (halve the inter-via spacing) before the next route pass, distributing current across more via barrels to lower per-via temperature without enlarging the pour footprint.",
+   "round": 5,
+   "source": "sonnet"
+  },
+  {
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 20.0,
+   "to": 40.0,
+   "action": "accepted:raised",
+   "rationale": "Current weight 20.0 under-penalizes unclosed ratlines relative to structural DRC: with drc weight at 50.0 the 34 DRC violations dominate the gradient while the 2 unconnected nets (which likely seed additional DRC entries) receive only 40 total penalty points. Raising unconnected to 40.0 strengthens ",
+   "round": 6,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When n_stubs >= 5 and stub nets include /CAN_H, /I2C_SCL, or /I2C_SDA, increase router optimization passes for those nets by 40% and apply GR-02 single-net U-detour repair on each stubbed control net to force stub endpoints to within 0.5 mm of their target pad before scoring.",
+   "round": 6,
+   "source": "sonnet"
+  },
+  {
+   "kind": "penalty",
+   "metric": "max_T",
+   "from": 0.3,
+   "to": 0.5,
+   "action": "accepted:raised",
+   "rationale": "Four confirmed conductor over-temp flags at 0.85 confidence on all SENSEC HI/LO nets are a real thermal failure, yet max_T contributes only ~36 to the objective vs DRC contributing ~1900. Raising weight from 0.3 to 0.5 gives pour-expansion solutions (already triggered by rule 1) meaningful objective",
+   "round": 7,
+   "source": "sonnet"
+  }
+ ],
+ "rejections": 6,
+ "verifier": {
+  "spent": 26,
+  "budget": 200,
+  "charter_status": {
+   "spec-conformance": "advisory",
+   "evidence-provenance": "advisory",
+   "actuation-space": "advisory"
+  }
+ },
+ "front": [],
+ "updated": "2026-06-11T13:39:33"
+}

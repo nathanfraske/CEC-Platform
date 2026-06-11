@@ -1,0 +1,26 @@
+{
+ "round": 3,
+ "final": "refute",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "uncertain",
+   "reason": "seat error: TimeoutError: timed out",
+   "failure_class": "unknown",
+   "status": "error"
+  },
+  "evidence-provenance": {
+   "verdict": "refute",
+   "reason": "The evidence only confirms structural DRC = 19 and kelvin_ok = true. It provides no data regarding diffpair_ok, FEM over-temp flags, specific stub counts/nets, or router completion status for critical paths. Under zero-tolerance sourcing, unsupported assertions in the claim result in a refutation.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "Increasing the unconnected metric weight will not resolve the stubs or unconnected ratlines because the router already completed critical paths, indicating a topological or placement limitation rather than a routing effort/pricing issue. The owned levers are routing-focused and cannot override these fundamental constraints.",
+   "failure_class": "placement",
+   "status": "advisory"
+  }
+ },
+ "arbiter": null
+}
