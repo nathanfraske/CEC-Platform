@@ -31,15 +31,36 @@
 import re
 import unicodedata
 
-VERIFIER_VERSION = "1.0.0"      # rides the gate record (eval_set staleness pairing)
+VERIFIER_VERSION = "1.1.0"      # rides the gate record (eval_set staleness pairing)
 PROSE_MIN_CHARS = 20
 
 _WS = re.compile(r"\s+")
 
+# Owner ruling #1 (2026-06-10, Ruling-3 amendment): PRESENTATION-CHARACTER
+# canonicalization -- an ENUMERATED typographic table applied after NFC
+# (never NFKC: compatibility folding would rewrite identifiers wholesale).
+# Markdown EMPHASIS asterisks strip; underscores deliberately DO NOT (net and
+# ref identifiers are underscore-bearing -- stripping them would corrupt the
+# exact-identifier guarantee). The amendment rescues formatting-stripped real
+# quotes for ATTRIBUTION; paraphrase still fails, by design.
+_TYPO_TABLE = str.maketrans({
+    "‐": "-", "‑": "-", "‒": "-", "–": "-",   # hyphen family
+    "—": "-", "―": "-", "−": "-",                  # dashes, minus
+    "‘": "'", "’": "'",                                 # curly single
+    "“": '"', "”": '"',                                 # curly double
+    " ": " ", " ": " ", " ": " ",                  # NBSP family
+    "​": None, "‌": None, "‍": None,               # zero-widths
+})
+_EMPHASIS = re.compile(r"\*{1,3}")
+
 
 def normalize(text):
-    """NFC + whitespace-collapse + trim. Case preserved. The ONE normal form."""
-    return _WS.sub(" ", unicodedata.normalize("NFC", text or "")).strip()
+    """NFC + the enumerated typographic table + emphasis-asterisk strip +
+    whitespace-collapse + trim. Case preserved. The ONE normal form
+    (verifier 1.1.0 -- owner-ratified amendment, 2026-06-10)."""
+    t = unicodedata.normalize("NFC", text or "").translate(_TYPO_TABLE)
+    t = _EMPHASIS.sub("", t)
+    return _WS.sub(" ", t).strip()
 
 
 def span_exists(span, trace):
@@ -68,7 +89,11 @@ def locus_exists(identifier, trace, facts=None):
         return False, "locus %r absent from trace as an exact token" % ident
     if facts is not None:
         import cec_facts
-        in_refs = ident in (facts.get("refs") or [])
+        # refs normalized on BOTH sides (panel hygiene finding); the bare-vs-
+        # slash-prefixed net tolerance below is INTENT, not a false accept:
+        # _net_match deliberately matches net names with or without their
+        # sheet-path prefix (the platform naming convention).
+        in_refs = ident in {normalize(r) for r in (facts.get("refs") or [])}
         in_nets = any(cec_facts._net_match(ident, n) for n in (facts.get("nets") or []))
         if not (in_refs or in_nets):
             return False, "locus %r does not resolve against board facts" % ident

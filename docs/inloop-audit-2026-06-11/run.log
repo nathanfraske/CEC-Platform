@@ -1,0 +1,385 @@
+[03:04:06] IN-LOOP AUDIT: board=eps-8pin hours=7.0 v4_every=8 start penalties={'plane_signal_mm': 50.0, 'drc': 50.0, 'unconnected': 5.0}
+[03:04:07] --- round 1 (~420 min left) passes=18 opt=30 ---
+[03:04:26]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=4 base_obj=26452.46 live_obj=26452.46 repeat=False
+[03:05:30]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=False (SENSEC1 pair fully unrouted — both HI and LO have ratlin
+[03:05:30] --- round 2 (~419 min left) passes=24 opt=40 ---
+[03:05:54]   routed: gates=FAIL kelvin=False plane=0mm drc=28 unconn=7 base_obj=28753.08 live_obj=29753.08 repeat=False
+[03:07:05]   sonnet: verdict=repair new=True -- Hard gate fail on kelvin_ok. Failing reasons show BOTH cables stranded: /SENSEC1_HI, /SENS
+[03:07:05] --- round 3 (~417 min left) passes=30 opt=50 ---
+[03:07:19]   routed: gates=FAIL kelvin=False plane=0mm drc=36 unconn=3 base_obj=36352.86 live_obj=38352.86 repeat=False
+[03:08:41]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false with kelvin_unrouted=1. Both /SENSEC1_HI and /SENSEC1_L
+[03:08:41] --- round 4 (~415 min left) passes=36 opt=60 ---
+[03:08:56]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34354.06 live_obj=36354.06 repeat=False
+[03:10:08]   sonnet: verdict=repair new=True -- Cable 1 Kelvin pair (/SENSEC1_HI, /SENSEC1_LO) remains unrouted: both nets carry open ratl
+[03:10:08] --- round 5 (~414 min left) passes=42 opt=70 ---
+[03:10:23]   routed: gates=FAIL kelvin=False plane=0mm drc=22 unconn=5 base_obj=22551.63 live_obj=25026.63 repeat=False
+[03:12:15]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false, gates_pass=false. /SENSEC1_HI and /SENSEC1_LO both hav
+[03:12:15] --- round 6 (~412 min left) passes=48 opt=80 ---
+[03:12:29]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=4 base_obj=26452.49 live_obj=28832.49 repeat=False
+[03:14:36]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false with three Kelvin net ratlines outstanding (SENSEC1_HI,
+[03:14:36] --- round 7 (~409 min left) passes=54 opt=90 ---
+[03:14:52]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=4 base_obj=34453.79 live_obj=37233.79 repeat=False
+[03:16:26]   sonnet: verdict=escalate new=True -- Seven rounds in, the Kelvin stub enforcement is in a confirmed silent-failure state. The s
+[03:16:26] --- round 8 (~408 min left) passes=60 opt=110 ---
+[03:16:42]   routed: gates=FAIL kelvin=False plane=0mm drc=42 unconn=8 base_obj=42853.26 live_obj=46413.26 repeat=False
+[03:18:52]   sonnet: verdict=escalate new=True -- Hard gate fails (kelvin_ok=false, gates_pass=false) with kelvin_unrouted=1 and gate_fail=1
+[03:18:52]   v4 deep checkpoint (round 8)...
+[03:23:16]   v4: local_minimum_risk=high accepted_penalty=0 rule=1
+[03:23:16] --- round 9 (~401 min left) passes=60 opt=120 ---
+[03:23:30]   routed: gates=FAIL kelvin=False plane=0mm drc=25 unconn=4 base_obj=25452.46 live_obj=28632.46 repeat=True
+[03:25:07]   sonnet: verdict=escalate new=True -- Round 9 and the Kelvin gate is still failing. The stub compiler's nets list is ['/CAN_H', 
+[03:25:07] --- round 10 (~399 min left) passes=60 opt=120 ---
+[03:25:27]   routed: gates=FAIL kelvin=False plane=0mm drc=40 unconn=7 base_obj=40754.33 live_obj=44819.33 repeat=False
+[03:28:31]   sonnet: verdict=escalate new=True -- Round 10 is a hard Kelvin failure with a specific new structural observation that goes bey
+[03:28:31] --- round 11 (~396 min left) passes=60 opt=120 ---
+[03:28:45]   routed: gates=FAIL kelvin=False plane=0mm drc=42 unconn=3 base_obj=42352.69 live_obj=45237.69 repeat=False
+[03:29:58]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false, with both /SENSEC1_HI and /SENSEC1_LO carrying unconne
+[03:29:58] --- round 12 (~394 min left) passes=60 opt=90 ---
+[03:30:12]   routed: gates=FAIL kelvin=False plane=0mm drc=28 unconn=3 base_obj=28354.36 live_obj=31239.36 repeat=False
+[03:33:50]   sonnet: verdict=escalate new=True -- Round 12 repeats the identical /SENSEC1_HI and /SENSEC1_LO Kelvin failure (kelvin_unrouted
+[03:33:50] --- round 13 (~390 min left) passes=60 opt=110 ---
+[03:34:07]   routed: gates=FAIL kelvin=False plane=0mm drc=25 unconn=5 base_obj=25551.76 live_obj=29026.76 repeat=False
+[03:36:41]   sonnet: verdict=repair new=True -- Hard gates failed: kelvin_ok=false (SENSEC1 both HI/LO unrouted, SENSEC2_HI unrouted), DRC
+[03:36:41] --- round 14 (~387 min left) passes=60 opt=90 ---
+[03:36:55]   routed: gates=FAIL kelvin=False plane=0mm drc=40 unconn=4 base_obj=40455.54 live_obj=43635.54 repeat=False
+[03:38:41]   sonnet: verdict=repair new=True -- Three Kelvin nets fail: /SENSEC1_HI and /SENSEC1_LO (symmetric cable-1 failure — both unro
+[03:38:41] --- round 15 (~385 min left) passes=60 opt=90 ---
+[03:38:55]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=4 base_obj=38454.67 live_obj=41634.67 repeat=False
+[03:40:14]   sonnet: verdict=escalate new=True -- Hard pipeline-enforcement failure: the post-compilation stub nets list contains ZERO /SENS
+[03:40:14] --- round 16 (~384 min left) passes=60 opt=110 ---
+[03:40:28]   routed: gates=FAIL kelvin=False plane=0mm drc=46 unconn=7 base_obj=46751.52 live_obj=50816.52 repeat=False
+[03:43:02]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (cable 1 both HI+LO unrouted, cable 2 HI unrouted), gates
+[03:43:02]   v4 deep checkpoint (round 16)...
+[03:48:16]   v4: local_minimum_risk=high accepted_penalty=0 rule=1
+[03:48:16] --- round 17 (~376 min left) passes=60 opt=90 ---
+[03:48:33]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=6 base_obj=39652.1 live_obj=43422.1 repeat=False
+[03:50:44]   sonnet: verdict=escalate new=True -- Round 17 is structurally identical to round 16: absorbed=6 stubs, trimmed_spurs=1, stub ne
+[03:50:44] --- round 18 (~373 min left) passes=60 opt=110 ---
+[03:51:09]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=7 base_obj=24754.29 live_obj=28819.29 repeat=False
+[03:53:50]   sonnet: verdict=repair new=True -- Both cable-1 and cable-2 Kelvin pairs are completely unrouted — all four nets /SENSEC1_HI,
+[03:53:50] --- round 19 (~370 min left) passes=60 opt=90 ---
+[03:54:04]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=3 base_obj=39354.78 live_obj=42239.78 repeat=False
+[03:56:05]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (both /SENSEC1_HI and /SENSEC1_LO have unconnected ratlin
+[03:56:05] --- round 20 (~368 min left) passes=60 opt=90 ---
+[03:56:19]   routed: gates=FAIL kelvin=False plane=0mm drc=32 unconn=3 base_obj=32353.57 live_obj=35238.57 repeat=False
+[03:58:28]   sonnet: verdict=escalate new=True -- Round 20 with kelvin_ok=false and both /SENSEC1_HI and /SENSEC1_LO still unconnected. Thre
+[03:58:28] --- round 21 (~366 min left) passes=60 opt=110 ---
+[03:58:46]   routed: gates=FAIL kelvin=False plane=0mm drc=36 unconn=4 base_obj=36451.91 live_obj=39631.91 repeat=False
+[04:00:41]   sonnet: verdict=repair new=True -- Hard Kelvin gate failure persists: both /SENSEC1_HI and /SENSEC1_LO appear in failing_reas
+[04:00:41] --- round 22 (~363 min left) passes=60 opt=90 ---
+[04:00:56]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=4 base_obj=24454.0 live_obj=27634.0 repeat=False
+[04:02:31]   sonnet: verdict=escalate new=True -- Round 22 triggers a mandatory permanent halt under standing Rule 8 (absorber_exclusion_bro
+[04:02:31] --- round 23 (~362 min left) passes=60 opt=110 ---
+[04:02:46]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=4 base_obj=39453.48 live_obj=42633.48 repeat=False
+[04:03:56]   sonnet: verdict=escalate new=False -- Round 23 must be escalated, not retried. Two distinct failure modes are active simultaneou
+[04:03:56] --- round 24 (~360 min left) passes=60 opt=120 ---
+[04:04:21]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=8 base_obj=38852.09 live_obj=43212.09 repeat=False
+[04:07:41]   sonnet: verdict=escalate new=True -- Round 24 requires immediate permanent halt per Rule 11. (1) kelvin_ok=false with SENSEC1_H
+[04:07:41]   v4 deep checkpoint (round 24)...
+[04:14:18]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[04:14:18] --- round 25 (~350 min left) passes=60 opt=120 ---
+[04:14:33]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=4 base_obj=26452.99 live_obj=29632.99 repeat=False
+[04:16:20]   sonnet: verdict=escalate new=True -- Hard gates are failing: kelvin_ok=false, gates_pass=false, DRC=26, unconnected=4. The cand
+[04:16:21] --- round 26 (~348 min left) passes=60 opt=120 ---
+[04:16:41]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=7 base_obj=24752.16 live_obj=28817.16 repeat=False
+[04:19:41]   sonnet: verdict=repair new=True -- Hard gates fail on both Kelvin and DRC axes. Detailed analysis follows.
+
+**Kelvin undercou
+[04:19:41] --- round 27 (~344 min left) passes=60 opt=90 ---
+[04:19:55]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34354.47 live_obj=37239.47 repeat=False
+[04:22:36]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, 3 unconnected ratlines (both /SENSEC1_HI and /SENSEC1_LO
+[04:22:36] --- round 28 (~341 min left) passes=60 opt=90 ---
+[04:22:50]   routed: gates=FAIL kelvin=False plane=0mm drc=41 unconn=3 base_obj=41354.54 live_obj=45264.54 repeat=False
+[04:25:10]   sonnet: verdict=escalate new=True -- Round 28 continues the cable-1 Kelvin structural stall: /SENSEC1_HI and /SENSEC1_LO both a
+[04:25:10] --- round 29 (~339 min left) passes=60 opt=110 ---
+[04:25:28]   routed: gates=FAIL kelvin=False plane=0mm drc=58 unconn=5 base_obj=58552.85 live_obj=63477.85 repeat=False
+[04:27:28]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, gates_pass=false. Three Kelvin-net ratlines are unconnec
+[04:27:28] --- round 30 (~337 min left) passes=60 opt=90 ---
+[04:27:42]   routed: gates=FAIL kelvin=False plane=0mm drc=20 unconn=4 base_obj=20452.59 live_obj=24132.59 repeat=False
+[04:29:27]   sonnet: verdict=repair new=True -- Gates fail on two axes: kelvin_ok=false (cable-1 both HI/LO unrouted; cable-2 HI unrouted)
+[04:29:27] --- round 31 (~335 min left) passes=60 opt=90 ---
+[04:29:42]   routed: gates=FAIL kelvin=False plane=0mm drc=22 unconn=4 base_obj=22453.79 live_obj=26183.79 repeat=False
+[04:32:55]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (cable 1 both HI+LO unconnected; cable 2 HI unconnected),
+[04:32:55] --- round 32 (~331 min left) passes=60 opt=90 ---
+[04:33:10]   routed: gates=FAIL kelvin=False plane=0mm drc=37 unconn=8 base_obj=37853.26 live_obj=43138.26 repeat=True
+[04:35:41]   sonnet: verdict=repair new=True -- Hard Kelvin gate fails: /SENSEC1_HI, /SENSEC1_LO (cable N=1, both members unconnected) and
+[04:35:41]   v4 deep checkpoint (round 32)...
+[04:43:39]   v4: local_minimum_risk=high accepted_penalty=0 rule=1
+[04:43:39] --- round 33 (~320 min left) passes=60 opt=90 ---
+[04:43:53]   routed: gates=FAIL kelvin=False plane=0mm drc=33 unconn=4 base_obj=33454.67 live_obj=37459.67 repeat=False
+[04:45:33]   sonnet: verdict=escalate new=True -- Round 33 triggers mandatory halt under Rules 8 and 11 simultaneously. (1) Rule 8 (absorber
+[04:45:33] --- round 34 (~319 min left) passes=60 opt=110 ---
+[04:45:55]   routed: gates=FAIL kelvin=False plane=0mm drc=35 unconn=7 base_obj=35754.29 live_obj=40694.29 repeat=True
+[04:48:16]   sonnet: verdict=escalate new=True -- Hard gates fail on both Kelvin pairs and DRC. Failing reasons show /SENSEC1_HI, /SENSEC1_L
+[04:48:16] --- round 35 (~316 min left) passes=60 opt=120 ---
+[04:48:30]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=3 base_obj=24354.77 live_obj=27839.77 repeat=False
+[04:50:39]   sonnet: verdict=repair new=False -- Cable 1 Kelvin pair (/SENSEC1_HI and /SENSEC1_LO) both carry unconnected ratlines; gates_p
+[04:50:39] --- round 36 (~313 min left) passes=60 opt=90 ---
+[04:50:54]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=3 base_obj=38354.43 live_obj=42189.43 repeat=False
+[04:54:33]   sonnet: verdict=repair new=True -- Both /SENSEC1_HI and /SENSEC1_LO have unconnected ratlines, making kelvin_ok=false — a har
+[04:54:33] --- round 37 (~310 min left) passes=60 opt=90 ---
+[04:54:50]   routed: gates=FAIL kelvin=False plane=0mm drc=41 unconn=4 base_obj=41452.63 live_obj=45657.63 repeat=False
+[04:56:38]   sonnet: verdict=escalate new=False -- Hard gates fail: kelvin_ok=false (cable 1 Kelvin pair unrouted), gates_pass=false, DRC=41.
+[04:56:38] --- round 38 (~307 min left) passes=60 opt=110 ---
+[04:56:52]   routed: gates=FAIL kelvin=False plane=0mm drc=35 unconn=4 base_obj=35452.59 live_obj=39507.59 repeat=True
+[05:00:30]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, gates_pass=false, 4 unconnected ratlines, DRC=35. Verdic
+[05:00:30] --- round 39 (~304 min left) passes=60 opt=90 ---
+[05:00:44]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=4 base_obj=38454.35 live_obj=42584.35 repeat=False
+[05:03:36]   sonnet: verdict=escalate new=True -- Round 39 has gates_pass=false, kelvin_ok=false. Multiple standing-rule halt conditions are
+[05:03:36] --- round 40 (~300 min left) passes=60 opt=110 ---
+[05:04:18]   routed: gates=FAIL kelvin=False plane=0mm drc=37 unconn=7 base_obj=37749.67 live_obj=42739.67 repeat=False
+[05:06:53]   sonnet: verdict=escalate new=True -- Round 40 has at least two active halt conditions that should have already suspended FR dis
+[05:06:53]   v4 deep checkpoint (round 40)...
+[05:12:52]   v4: local_minimum_risk=high accepted_penalty=0 rule=0
+[05:12:52] --- round 41 (~291 min left) passes=60 opt=120 ---
+[05:13:07]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=4 base_obj=39452.99 live_obj=43607.99 repeat=False
+[05:16:37]   sonnet: verdict=repair new=True -- Hard gate failures: kelvin_ok=false, gates_pass=false, drc=39. Multiple standing rules fir
+[05:16:37] --- round 42 (~287 min left) passes=60 opt=90 ---
+[05:17:00]   routed: gates=FAIL kelvin=False plane=0mm drc=28 unconn=7 base_obj=28754.84 live_obj=34569.84 repeat=False
+[05:18:12]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false, gates_pass=false. Both cable pairs (/SENSEC1_HI//SENSE
+[05:18:12] --- round 43 (~286 min left) passes=60 opt=90 ---
+[05:18:27]   routed: gates=FAIL kelvin=False plane=0mm drc=23 unconn=3 base_obj=23352.13 live_obj=27262.13 repeat=False
+[05:21:01]   sonnet: verdict=repair new=True -- Kelvin gate is failing: both /SENSEC1_HI and /SENSEC1_LO carry unconnected ratlines, kelvi
+[05:21:01] --- round 44 (~283 min left) passes=60 opt=90 ---
+[05:21:16]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34354.06 live_obj=38539.06 repeat=False
+[05:22:49]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false with both /SENSEC1_HI and /SENSEC1_LO carrying unconnecte
+[05:22:49] --- round 45 (~281 min left) passes=60 opt=90 ---
+[05:23:05]   routed: gates=FAIL kelvin=False plane=0mm drc=27 unconn=4 base_obj=27452.63 live_obj=31907.63 repeat=False
+[05:25:38]   sonnet: verdict=escalate new=True -- Round 45 has a hard gate failure: kelvin_ok=false with both /SENSEC1_HI and /SENSEC1_LO ca
+[05:25:38] --- round 46 (~278 min left) passes=60 opt=110 ---
+[05:25:52]   routed: gates=FAIL kelvin=False plane=0mm drc=44 unconn=4 base_obj=44454.09 live_obj=49334.09 repeat=False
+[05:28:21]   sonnet: verdict=escalate new=False -- Hard gates fail: kelvin_ok=false (gate_fail=1), drc=44. Two cables have Kelvin defects: SE
+[05:28:21] --- round 47 (~276 min left) passes=60 opt=120 ---
+[05:28:35]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=4 base_obj=24454.05 live_obj=28834.05 repeat=False
+[05:30:59]   sonnet: verdict=escalate new=False -- Gates fail: kelvin_ok=false, gates_pass=false, gate_fail=1. Two distinct Kelvin cables hav
+[05:30:59] --- round 48 (~273 min left) passes=60 opt=120 ---
+[05:31:13]   routed: gates=FAIL kelvin=False plane=0mm drc=36 unconn=7 base_obj=36752.36 live_obj=42767.36 repeat=False
+[05:33:39]   sonnet: verdict=escalate new=True -- Round 48 has kelvin_ok=false, gate_fail=1, DRC=36, and 7 unconnected ratlines. The compile
+[05:33:39]   v4 deep checkpoint (round 48)...
+[05:39:28]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[05:39:28] --- round 49 (~265 min left) passes=60 opt=120 ---
+[05:39:44]   routed: gates=FAIL kelvin=False plane=0mm drc=41 unconn=4 base_obj=41454.23 live_obj=46259.23 repeat=False
+[05:42:26]   sonnet: verdict=escalate new=True -- Round 49 presents a state worse than kelvin_unrouted=1 implies. failing_reasons reveals ca
+[05:42:26] --- round 50 (~262 min left) passes=60 opt=120 ---
+[05:42:50]   routed: gates=FAIL kelvin=False plane=0mm drc=47 unconn=7 base_obj=47754.84 live_obj=54044.84 repeat=False
+[05:45:13]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, gates_pass=false. Both cable 1 and cable 2 Kelvin pairs 
+[05:45:13] --- round 51 (~259 min left) passes=60 opt=90 ---
+[05:45:26]   routed: gates=FAIL kelvin=False plane=0mm drc=29 unconn=3 base_obj=29352.85 live_obj=33412.85 repeat=False
+[05:47:49]   sonnet: verdict=repair new=True -- Hard gate failures: kelvin_ok=false (both /SENSEC1_HI and /SENSEC1_LO have unconnected rat
+[05:47:49] --- round 52 (~256 min left) passes=60 opt=90 ---
+[05:48:05]   routed: gates=FAIL kelvin=False plane=0mm drc=36 unconn=3 base_obj=36354.16 live_obj=40589.16 repeat=False
+[05:51:08]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false (both /SENSEC1_HI and /SENSEC1_LO unconnected), gates_p
+[05:51:08] --- round 53 (~253 min left) passes=60 opt=90 ---
+[05:51:25]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=5 base_obj=26552.27 live_obj=31427.27 repeat=False
+[05:53:59]   sonnet: verdict=repair new=False -- Round 53 fails on kelvin_ok with two distinct cable failures concealed behind an undercoun
+[05:53:59] --- round 54 (~250 min left) passes=60 opt=90 ---
+[05:54:13]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=4 base_obj=38454.09 live_obj=43184.09 repeat=True
+[05:58:08]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, gates_pass=false. diffpair_ok=true. DRC=38; unconnected=
+[05:58:08] --- round 55 (~246 min left) passes=60 opt=90 ---
+[05:58:25]   routed: gates=FAIL kelvin=False plane=0mm drc=31 unconn=5 base_obj=31553.98 live_obj=36553.98 repeat=False
+[06:02:30]   sonnet: verdict=repair new=None -- sonnet timeout
+[06:02:30] --- round 56 (~242 min left) passes=60 opt=90 ---
+[06:02:54]   routed: gates=FAIL kelvin=False plane=0mm drc=35 unconn=8 base_obj=35852.09 live_obj=42287.09 repeat=False
+[06:07:00]   sonnet: verdict=repair new=None -- sonnet timeout
+[06:07:00]   v4 deep checkpoint (round 56)...
+[06:13:15]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[06:13:15] --- round 57 (~231 min left) passes=60 opt=90 ---
+[06:13:29]   routed: gates=FAIL kelvin=False plane=0mm drc=33 unconn=4 base_obj=33454.67 live_obj=38059.67 repeat=False
+[06:14:57]   sonnet: verdict=repair new=False -- Gates fail: kelvin_ok=false, gates_pass=false. Detailed failure accounting: (1) failing_re
+[06:14:57] --- round 58 (~229 min left) passes=60 opt=90 ---
+[06:15:19]   routed: gates=FAIL kelvin=False plane=0mm drc=41 unconn=7 base_obj=41753.08 live_obj=47893.08 repeat=False
+[06:17:02]   sonnet: verdict=repair new=False -- Hard gates fail on multiple fronts: kelvin_ok=false, drc=41, unconnected=7. Detailed break
+[06:17:02] --- round 59 (~227 min left) passes=60 opt=90 ---
+[06:17:16]   routed: gates=FAIL kelvin=False plane=0mm drc=37 unconn=3 base_obj=37354.78 live_obj=41614.78 repeat=False
+[06:19:26]   sonnet: verdict=repair new=False -- Hard gate failure: kelvin_ok=false (both /SENSEC1_HI and /SENSEC1_LO have unconnected ratl
+[06:19:26] --- round 60 (~225 min left) passes=60 opt=90 ---
+[06:19:39]   routed: gates=FAIL kelvin=False plane=0mm drc=36 unconn=3 base_obj=36354.54 live_obj=40589.54 repeat=False
+[06:22:22]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false with /SENSEC1_HI and /SENSEC1_LO both unconnected. The 
+[06:22:22] --- round 61 (~222 min left) passes=60 opt=90 ---
+[06:22:38]   routed: gates=FAIL kelvin=False plane=0mm drc=25 unconn=5 base_obj=25551.76 live_obj=30401.76 repeat=True
+[06:25:57]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false with /SENSEC1_HI and /SENSEC1_LO both unrouted (cable 1 f
+[06:25:57] --- round 62 (~218 min left) passes=60 opt=90 ---
+[06:26:11]   routed: gates=FAIL kelvin=False plane=0mm drc=29 unconn=4 base_obj=29452.59 live_obj=33957.59 repeat=False
+[06:28:22]   sonnet: verdict=escalate new=True -- Multiple simultaneous halt conditions apply and at least one is new.
+
+1. M_ACTUAL UNDERCOU
+[06:28:22] --- round 63 (~216 min left) passes=60 opt=110 ---
+[06:28:41]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=5 base_obj=24553.98 live_obj=29378.98 repeat=True
+[06:30:32]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, gates_pass=false. Three Kelvin-class nets have unconnect
+[06:30:32] --- round 64 (~214 min left) passes=60 opt=90 ---
+[06:30:58]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=8 base_obj=39852.09 live_obj=46387.09 repeat=True
+[06:33:43]   sonnet: verdict=repair new=True -- Gates fail hard: kelvin_ok=false, gates_pass=false, drc=39, unconnected=8. Multiple compou
+[06:33:43]   v4 deep checkpoint (round 64)...
+[06:38:26]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[06:38:26] --- round 65 (~206 min left) passes=60 opt=90 ---
+[06:38:45]   routed: gates=FAIL kelvin=False plane=0mm drc=40 unconn=6 base_obj=40652.1 live_obj=46322.1 repeat=True
+[06:41:30]   sonnet: verdict=repair new=True -- Hard gates fail on two axes: kelvin_ok=false (cable 1 both HI+LO unrouted, cable 2 HI unro
+[06:41:30] --- round 66 (~203 min left) passes=60 opt=90 ---
+[06:43:18]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=8 base_obj=34853.07 live_obj=41263.07 repeat=False
+[06:46:18]   sonnet: verdict=repair new=True -- Gates fail: kelvin_ok=false (both cables 1 and 2 have BOTH HI and LO unconnected — 4 faili
+[06:46:18] --- round 67 (~198 min left) passes=60 opt=90 ---
+[06:46:32]   routed: gates=FAIL kelvin=False plane=0mm drc=35 unconn=3 base_obj=35354.8 live_obj=39564.8 repeat=False
+[06:49:16]   sonnet: verdict=repair new=True -- Hard gate failure: kelvin_ok=false, gate_fail=1. Cable 1's /SENSEC1_HI and /SENSEC1_LO bot
+[06:49:16] --- round 68 (~195 min left) passes=60 opt=90 ---
+[06:49:32]   routed: gates=FAIL kelvin=False plane=0mm drc=20 unconn=3 base_obj=20354.37 live_obj=24435.37 repeat=False
+[06:51:30]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (SENSEC1_HI and SENSEC1_LO both have unconnected ratlines
+[06:51:30] --- round 69 (~193 min left) passes=60 opt=90 ---
+[06:51:49]   routed: gates=FAIL kelvin=False plane=0mm drc=44 unconn=5 base_obj=44553.18 live_obj=50118.18 repeat=False
+[06:54:51]   sonnet: verdict=repair new=True -- Hard Kelvin gate failure on two cables: cable 1 (both /SENSEC1_HI and /SENSEC1_LO have unc
+[06:54:51] --- round 70 (~189 min left) passes=60 opt=90 ---
+[06:55:07]   routed: gates=FAIL kelvin=False plane=0mm drc=30 unconn=4 base_obj=30454.0 live_obj=35224.0 repeat=True
+[06:57:34]   sonnet: verdict=repair new=True -- Round 70 is a clear repeat of the same compound failure: kelvin_ok=false, gates_pass=false
+[06:57:34] --- round 71 (~187 min left) passes=60 opt=90 ---
+[06:57:47]   routed: gates=FAIL kelvin=False plane=0mm drc=50 unconn=4 base_obj=50453.92 live_obj=55726.92 repeat=False
+[07:00:10]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (cable 1 both HI/LO unrouted, cable 2 HI unrouted) and st
+[07:00:10] --- round 72 (~184 min left) passes=60 opt=90 ---
+[07:00:23]   routed: gates=FAIL kelvin=False plane=0mm drc=43 unconn=7 base_obj=43752.36 live_obj=50176.36 repeat=False
+[07:03:00]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false with 3 Kelvin net instances unrouted (SENSEC1_HI and SENS
+[07:03:00]   v4 deep checkpoint (round 72)...
+[07:09:24]   v4: local_minimum_risk=high accepted_penalty=0 rule=1
+[07:09:24] --- round 73 (~175 min left) passes=60 opt=90 ---
+[07:09:38]   routed: gates=FAIL kelvin=False plane=0mm drc=27 unconn=4 base_obj=27454.67 live_obj=32155.67 repeat=True
+[07:13:44]   sonnet: verdict=repair new=None -- sonnet timeout
+[07:13:44] --- round 74 (~170 min left) passes=60 opt=90 ---
+[07:15:32]   routed: gates=FAIL kelvin=False plane=0mm drc=35 unconn=8 base_obj=35850.6 live_obj=42510.6 repeat=False
+[07:17:57]   sonnet: verdict=repair new=True -- Both Kelvin cable pairs (SENSEC1 and SENSEC2) are fully unrouted — all four members (HI an
+[07:17:57] --- round 75 (~166 min left) passes=60 opt=90 ---
+[07:18:10]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34352.9 live_obj=38771.9 repeat=False
+[07:20:33]   sonnet: verdict=repair new=True -- Cable 1 Kelvin pair is bilaterally unrouted — both /SENSEC1_HI and /SENSEC1_LO carry open 
+[07:20:33] --- round 76 (~164 min left) passes=60 opt=90 ---
+[07:20:46]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34354.54 live_obj=38785.54 repeat=True
+[07:24:42]   sonnet: verdict=repair new=True -- Hard gate failure: both /SENSEC1_HI and /SENSEC1_LO are unrouted (symmetric Kelvin failure
+[07:24:42] --- round 77 (~159 min left) passes=60 opt=90 ---
+[07:25:00]   routed: gates=FAIL kelvin=False plane=0mm drc=40 unconn=4 base_obj=40451.91 live_obj=45459.91 repeat=False
+[07:28:25]   sonnet: verdict=repair new=True -- Both members of the cable-1 Kelvin pair (/SENSEC1_HI and /SENSEC1_LO) are simultaneously u
+[07:28:25] --- round 78 (~156 min left) passes=60 opt=90 ---
+[07:28:39]   routed: gates=FAIL kelvin=False plane=0mm drc=20 unconn=4 base_obj=20452.59 live_obj=24966.59 repeat=True
+[07:31:36]   sonnet: verdict=repair new=True -- Hard Kelvin gate is failing with kelvin_unrouted=1 and gates_pass=false. Two distinct fail
+[07:31:36] --- round 79 (~153 min left) passes=60 opt=90 ---
+[07:31:49]   routed: gates=FAIL kelvin=False plane=0mm drc=25 unconn=4 base_obj=25453.45 live_obj=30495.45 repeat=False
+[07:33:45]   sonnet: verdict=repair new=False -- Gates are failing on two fronts: kelvin_ok=false and drc=25 structural errors. The Kelvin 
+[07:33:45] --- round 80 (~150 min left) passes=60 opt=90 ---
+[07:34:01]   routed: gates=FAIL kelvin=False plane=0mm drc=49 unconn=7 base_obj=49753.12 live_obj=57030.12 repeat=False
+[07:36:56]   sonnet: verdict=repair new=True -- Hard gate fails: kelvin_ok=false, gates_pass=false. Cable 1 is in a symmetric-unrouted sta
+[07:36:56]   v4 deep checkpoint (round 80)...
+[07:44:14]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[07:44:15] --- round 81 (~140 min left) passes=60 opt=90 ---
+[07:44:30]   routed: gates=FAIL kelvin=False plane=0mm drc=23 unconn=4 base_obj=23454.23 live_obj=28452.23 repeat=True
+[07:48:14]   sonnet: verdict=repair new=True -- Both Kelvin cables are failing. Cable 1 is in symmetric failure (both /SENSEC1_HI and /SEN
+[07:48:14] --- round 82 (~136 min left) passes=60 opt=90 ---
+[07:48:35]   routed: gates=FAIL kelvin=False plane=0mm drc=28 unconn=7 base_obj=28754.33 live_obj=36215.33 repeat=True
+[07:52:15]   sonnet: verdict=repair new=True -- Hard Kelvin gate failure persists with a notable inconsistency: failing_reasons lists all 
+[07:52:15] --- round 83 (~132 min left) passes=60 opt=90 ---
+[07:52:30]   routed: gates=FAIL kelvin=False plane=0mm drc=22 unconn=3 base_obj=22354.47 live_obj=27332.47 repeat=False
+[07:55:46]   sonnet: verdict=repair new=True -- Hard Kelvin gate failure on cable 1 — both /SENSEC1_HI and /SENSEC1_LO are unconnected (sy
+[07:55:46] --- round 84 (~128 min left) passes=60 opt=90 ---
+[07:56:01]   routed: gates=FAIL kelvin=False plane=0mm drc=37 unconn=3 base_obj=37354.15 live_obj=43082.15 repeat=False
+[07:58:49]   sonnet: verdict=repair new=True -- Both members of cable 1's Kelvin pair remain symmetrically unrouted at round 84 (kelvin_un
+[07:58:49] --- round 85 (~125 min left) passes=60 opt=90 ---
+[07:59:04]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=4 base_obj=38452.83 live_obj=44766.83 repeat=False
+[08:01:44]   sonnet: verdict=repair new=True -- Cable 1 has a symmetric Kelvin failure — both /SENSEC1_HI and /SENSEC1_LO carry unconnecte
+[08:01:44] --- round 86 (~122 min left) passes=60 opt=90 ---
+[08:01:57]   routed: gates=FAIL kelvin=False plane=0mm drc=24 unconn=4 base_obj=24453.69 live_obj=30550.69 repeat=False
+[08:05:34]   sonnet: verdict=repair new=True -- Hard Kelvin gate failing: cable 1 is fully symmetric-unrouted (both /SENSEC1_HI and /SENSE
+[08:05:34] --- round 87 (~119 min left) passes=60 opt=90 ---
+[08:05:47]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=4 base_obj=34453.92 live_obj=41256.92 repeat=False
+[08:08:30]   sonnet: verdict=repair new=False -- Hard Kelvin gate fail with a mixed two-cable state: cable 1 symmetric (both /SENSEC1_HI an
+[08:08:30] --- round 88 (~116 min left) passes=60 opt=90 ---
+[08:08:55]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=8 base_obj=39852.09 live_obj=49170.09 repeat=True
+[08:13:03]   sonnet: verdict=repair new=None -- sonnet timeout
+[08:13:03]   v4 deep checkpoint (round 88)...
+[08:18:37]   v4: local_minimum_risk=medium accepted_penalty=0 rule=0
+[08:18:37] --- round 89 (~105 min left) passes=60 opt=90 ---
+[08:18:52]   routed: gates=FAIL kelvin=False plane=0mm drc=28 unconn=4 base_obj=28453.56 live_obj=34833.56 repeat=False
+[08:22:41]   sonnet: verdict=repair new=True -- Hard Kelvin gate failure across two cables: cable 1 is symmetric (both /SENSEC1_HI and /SE
+[08:22:41] --- round 90 (~101 min left) passes=60 opt=90 ---
+[08:23:00]   routed: gates=FAIL kelvin=False plane=0mm drc=25 unconn=7 base_obj=25754.03 live_obj=34615.03 repeat=False
+[08:26:49]   sonnet: verdict=repair new=True -- Hard gate failure confirmed: kelvin_ok=false with 4 Kelvin member nets failing across both
+[08:26:49] --- round 91 (~97 min left) passes=60 opt=90 ---
+[08:27:04]   routed: gates=FAIL kelvin=False plane=0mm drc=19 unconn=3 base_obj=19353.19 live_obj=25005.19 repeat=False
+[08:29:26]   sonnet: verdict=repair new=True -- Round 91 has cable-1-only symmetric Kelvin failure (both /SENSEC1_HI and /SENSEC1_LO uncon
+[08:29:26] --- round 92 (~95 min left) passes=60 opt=90 ---
+[08:29:40]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=3 base_obj=38355.07 live_obj=45349.07 repeat=False
+[08:32:56]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_unrouted=1 (both /SENSEC1_HI and /SENSEC1_LO unrouted for cable 1)
+[08:32:56] --- round 93 (~91 min left) passes=60 opt=90 ---
+[08:33:13]   routed: gates=FAIL kelvin=False plane=0mm drc=21 unconn=5 base_obj=21551.63 live_obj=28730.63 repeat=True
+[08:36:23]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false, gates_pass=false, structural DRC=21. The critical new ob
+[08:36:23] --- round 94 (~88 min left) passes=60 opt=90 ---
+[08:36:38]   routed: gates=FAIL kelvin=False plane=0mm drc=20 unconn=4 base_obj=20452.59 live_obj=27266.59 repeat=True
+[08:39:59]   sonnet: verdict=repair new=True -- Hard Kelvin gate failure on two cables simultaneously: cable 1 symmetric (both /SENSEC1_HI
+[08:39:59] --- round 95 (~84 min left) passes=60 opt=90 ---
+[08:40:13]   routed: gates=FAIL kelvin=False plane=0mm drc=22 unconn=4 base_obj=22452.72 live_obj=29849.72 repeat=False
+[08:42:25]   sonnet: verdict=repair new=False -- Round 95 presents a dual-cable Kelvin failure: cable 1 is symmetric (both /SENSEC1_HI and 
+[08:42:25] --- round 96 (~82 min left) passes=60 opt=90 ---
+[08:42:40]   routed: gates=FAIL kelvin=False plane=0mm drc=36 unconn=7 base_obj=36752.36 live_obj=47791.36 repeat=False
+[08:45:40]   sonnet: verdict=repair new=True -- Hard gate fails: kelvin_ok=false (kelvin_unrouted=1), gates_pass=false. Cable 1 has a symm
+[08:45:40]   v4 deep checkpoint (round 96)...
+[08:51:23]   v4: local_minimum_risk=high accepted_penalty=0 rule=0
+[08:51:23] --- round 97 (~73 min left) passes=60 opt=90 ---
+[08:51:40]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=4 base_obj=26451.0 live_obj=35103.0 repeat=False
+[08:55:26]   sonnet: verdict=repair new=True -- Gates fail: kelvin_ok=false (cable-1 SYMMETRIC failure: both /SENSEC1_HI and /SENSEC1_LO u
+[08:55:26] --- round 98 (~69 min left) passes=60 opt=90 ---
+[08:55:48]   routed: gates=FAIL kelvin=False plane=0mm drc=37 unconn=8 base_obj=37854.53 live_obj=52013.53 repeat=False
+[08:58:55]   sonnet: verdict=escalate new=False -- Round 98, gates_pass=false, kelvin_ok=false. All four Kelvin nets (/SENSEC1_HI, /SENSEC1_L
+[08:58:55] --- round 99 (~65 min left) passes=60 opt=110 ---
+[08:59:10]   routed: gates=FAIL kelvin=False plane=0mm drc=44 unconn=3 base_obj=44354.16 live_obj=55582.16 repeat=False
+[09:02:48]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (symmetric cable-1 failure, both /SENSEC1_HI and /SENSEC1
+[09:02:48] --- round 100 (~61 min left) passes=60 opt=90 ---
+[09:03:02]   routed: gates=FAIL kelvin=False plane=0mm drc=31 unconn=3 base_obj=31354.37 live_obj=40635.37 repeat=True
+[09:06:22]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (both /SENSEC1_HI and /SENSEC1_LO unrouted — symmetric ca
+[09:06:22] --- round 101 (~58 min left) passes=60 opt=90 ---
+[09:06:40]   routed: gates=FAIL kelvin=False plane=0mm drc=39 unconn=5 base_obj=39552.85 live_obj=51614.85 repeat=True
+[09:10:48]   sonnet: verdict=repair new=None -- sonnet timeout
+[09:10:48] --- round 102 (~53 min left) passes=60 opt=90 ---
+[09:11:03]   routed: gates=FAIL kelvin=False plane=0mm drc=41 unconn=4 base_obj=41452.49 live_obj=53013.49 repeat=False
+[09:15:12]   sonnet: verdict=repair new=None -- sonnet timeout
+[09:15:12] --- round 103 (~49 min left) passes=60 opt=90 ---
+[09:15:25]   routed: gates=FAIL kelvin=False plane=0mm drc=29 unconn=4 base_obj=29453.81 live_obj=39223.81 repeat=False
+[09:17:52]   sonnet: verdict=repair new=False -- Hard gate fails: kelvin_ok=false (cable-1 symmetric: both /SENSEC1_HI and /SENSEC1_LO unro
+[09:17:52] --- round 104 (~46 min left) passes=60 opt=90 ---
+[09:18:06]   routed: gates=FAIL kelvin=False plane=0mm drc=28 unconn=7 base_obj=28753.0 live_obj=40755.0 repeat=False
+[09:21:49]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (cable 1 symmetric: both /SENSEC1_HI and /SENSEC1_LO unro
+[09:21:49]   v4 deep checkpoint (round 104)...
+[09:21:51]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[09:21:51] --- round 105 (~42 min left) passes=60 opt=90 ---
+[09:22:06]   routed: gates=FAIL kelvin=False plane=0mm drc=32 unconn=4 base_obj=32452.46 live_obj=42663.46 repeat=False
+[09:26:16]   sonnet: verdict=repair new=None -- sonnet timeout
+[09:26:16] --- round 106 (~38 min left) passes=60 opt=90 ---
+[09:28:12]   routed: gates=FAIL kelvin=False plane=0mm drc=41 unconn=8 base_obj=41853.07 live_obj=56609.07 repeat=True
+[09:30:40]   sonnet: verdict=repair new=True -- Both Kelvin pairs fail in failing_reasons: /SENSEC1_HI+LO and /SENSEC2_HI+LO all have unco
+[09:30:40] --- round 107 (~33 min left) passes=60 opt=90 ---
+[09:30:56]   routed: gates=FAIL kelvin=False plane=0mm drc=38 unconn=3 base_obj=38353.19 live_obj=49275.19 repeat=False
+[09:35:00]   sonnet: verdict=repair new=True -- Hard gates fail: kelvin_ok=false (kelvin_unrouted=1, cable-1 both members unrouted), gate_
+[09:35:00] --- round 108 (~29 min left) passes=60 opt=90 ---
+[09:35:16]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34354.06 live_obj=45235.42 repeat=True
+[09:39:19]   sonnet: verdict=repair new=True -- Cable-1 Kelvin gate is down (kelvin_unrouted=1, both /SENSEC1_HI and /SENSEC1_LO with unco
+[09:39:19] --- round 109 (~25 min left) passes=60 opt=90 ---
+[09:39:36]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=4 base_obj=26452.83 live_obj=37121.65 repeat=False
+[09:42:26]   sonnet: verdict=repair new=True -- Round 109: gates_pass=false, kelvin_ok=false (cable 1 both /SENSEC1_HI and /SENSEC1_LO unc
+[09:42:26] --- round 110 (~22 min left) passes=60 opt=90 ---
+[09:42:40]   routed: gates=FAIL kelvin=False plane=0mm drc=26 unconn=4 base_obj=26454.09 live_obj=37124.89 repeat=False
+[09:45:41]   sonnet: verdict=repair new=True -- Round 110: gates_pass=false, kelvin_ok=false. Cable 1: symmetric failure (both /SENSEC1_HI
+[09:45:41] --- round 111 (~18 min left) passes=60 opt=90 ---
+[09:45:55]   routed: gates=FAIL kelvin=False plane=0mm drc=42 unconn=4 base_obj=42453.48 live_obj=55543.73 repeat=True
+[09:48:16]   sonnet: verdict=repair new=True -- Hard gate failures persist: kelvin_ok=false (cable 1 fully unrouted, kelvin_unrouted=1), s
+[09:48:16] --- round 112 (~16 min left) passes=60 opt=90 ---
+[09:48:33]   routed: gates=FAIL kelvin=False plane=0mm drc=43 unconn=7 base_obj=43752.36 live_obj=59949.68 repeat=False
+[09:51:59]   sonnet: verdict=repair new=True -- Both cables are failing simultaneously: cable 1 symmetric (both /SENSEC1_HI and /SENSEC1_L
+[09:51:59]   v4 deep checkpoint (round 112)...
+[09:52:01]   v4: local_minimum_risk=None accepted_penalty=0 rule=0
+[09:52:01] --- round 113 (~12 min left) passes=60 opt=90 ---
+[09:52:16]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=4 base_obj=34453.67 live_obj=46341.2 repeat=False
+[09:54:22]   sonnet: verdict=repair new=True -- Cable 1 symmetric Kelvin failure (both /SENSEC1_HI and /SENSEC1_LO unconnected, kelvin_unr
+[09:54:22] --- round 114 (~10 min left) passes=60 opt=90 ---
+[09:54:46]   routed: gates=FAIL kelvin=False plane=0mm drc=27 unconn=7 base_obj=27752.51 live_obj=41563.88 repeat=False
+[09:57:17]   sonnet: verdict=repair new=True -- Both hard gates fail: kelvin_ok=false and structural DRC=27. Diffpair is clean. Kelvin fai
+[09:57:17] --- round 115 (~7 min left) passes=60 opt=90 ---
+[09:57:36]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=4 base_obj=34452.77 live_obj=46324.9 repeat=False
+[09:58:48]   sonnet: verdict=repair new=False -- Round 115 is a direct continuation of the cable-1 Kelvin stall with no new failure mode. B
+[09:58:48] --- round 116 (~5 min left) passes=60 opt=90 ---
+[09:59:06]   routed: gates=FAIL kelvin=False plane=0mm drc=34 unconn=3 base_obj=34354.06 live_obj=45235.42 repeat=True
+[10:02:46]   sonnet: verdict=repair new=True -- Gates fail: kelvin_ok=false (cable 1, both /SENSEC1_HI and /SENSEC1_LO unrouted — symmetri
+[10:02:46] --- round 117 (~1 min left) passes=60 opt=90 ---
+[10:03:03]   routed: gates=FAIL kelvin=False plane=0mm drc=31 unconn=4 base_obj=31452.82 live_obj=42870.18 repeat=False
+[10:05:39]   sonnet: verdict=repair new=True -- Cable 1 Kelvin gate fails symmetrically: both /SENSEC1_HI and /SENSEC1_LO have unconnected
+[10:05:39] DONE: 117 rounds. CONVERGENCE=productive. 101 usable ratification candidates, 83 rules, 0 Pareto finalists -> /home/nathan/CEC-Platform/docs/inloop-audit-2026-06-11/morning-bundle.json

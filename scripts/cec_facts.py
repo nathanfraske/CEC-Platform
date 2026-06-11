@@ -94,8 +94,34 @@ def board_facts(board):
         text = open(board["sch"], encoding="utf-8", errors="replace").read()
         libids = sorted(set(_SCH_LIBID.findall(text)))
         refs = sorted(set(_REF.findall(text)))
+    # board-manifest net ALIASES (owner ruling #11, 2026-06-10): a fixed-in-
+    # stone rev whose net names predate a platform convention declares the
+    # role mapping in board-manifest.json; alias names join the matchable set
+    # so convention-named scopes resolve honestly (the rename itself is a
+    # queued erratum for the next rev, never a silent fact rewrite).
+    mpath = os.path.join(board["dir"], "board-manifest.json")
+    fab_target = None
+    if os.path.isfile(mpath):
+        try:
+            manifest = json.load(open(mpath))
+            aliases = manifest.get("net_aliases", {})
+            nets |= {a for a, real in aliases.items()
+                     if any(_net_match(real, n) or real == n for n in nets)}
+            # fab-target block (owner ruling D2, 2026-06-10): vendor-scoped corpus
+            # entries resolve against where the board is GOING -- {vendor,
+            # service_tier}. Absent block => vendor entries resolve to zero
+            # coverage on this board (review-note only, honest per RB-01).
+            ft = manifest.get("fab_target")
+            if isinstance(ft, dict) and ft.get("vendor"):
+                fab_target = {"vendor": str(ft["vendor"]).lower(),
+                              "service_tier": (str(ft["service_tier"]).lower()
+                                               if ft.get("service_tier") else None)}
+        except Exception:                                     # noqa: BLE001
+            pass
     return {"name": board["name"], "families": board["families"],
-            "nets": sorted(nets), "refs": refs, "lib_ids": libids}
+            "nets": sorted(nets), "refs": refs, "lib_ids": libids,
+            "fab_target": fab_target,
+            "pins_per_lane": pins_per_lane(board["name"])}
 
 
 _AUTONAME = re.compile(r"^Net-\(([^-]+)-(.+)\)$")
@@ -116,7 +142,36 @@ def _net_match(pattern, net):
     return pattern.lstrip("/") in cands
 
 
-SCOPE_DIMS = ("net_families", "netclasses", "part_classes", "regions", "families")
+# --------------------------------------------------- §6.13 lane topology --
+# Owner ruling 2026-06-10 (cluster-6 follow-through): alarm thresholds are
+# defined PER-PIN, matching the spec ratings; per-lane trip values resolve
+# through THIS fact at §6.13 lock time -- the single-resolver discipline.
+# pins_per_lane = how many connector power pins one sensed lane (one shunt)
+# aggregates. CONFIRMED 2026-06-10 via BOTH paths: the generator ground truth
+# (gen-modules PINMAP: EPS 12V=[5,6,7,8], PCIe 12V=[1,2,3]) AND an independent
+# schematic read (SENSEC1_HI label count in the hand-sourced schematics: 4
+# connector-area labels on EPS, 3 on PCIe -- panel wf_1ad00275 verification).
+# 12VHPWR Standard/Pro sense PER PIN (6 shunts, one per +12V pin).
+PINS_PER_LANE = {
+    "12vhpwr-standard": 1,
+    "12vhpwr-pro": 1,
+    "eps-8pin": 4,
+    "pcie-8pin-2port": 3,
+    "pcie-8pin-3port": 3,
+}
+
+
+def pins_per_lane(board_or_family):
+    """Per-family lane-aggregation fact (None = the board has no sensed
+    power lanes, e.g. Hubs). Per-lane trip = per-pin threshold x this."""
+    return PINS_PER_LANE.get(board_or_family)
+
+
+SCOPE_DIMS = ("net_families", "netclasses", "part_classes", "regions", "families",
+              # owner ruling D2 (2026-06-10): vendor-pile scope keys. Carried ONLY by
+              # vendor-pile entries (lint enforces the pile separation); resolved
+              # against the board manifest's fab_target block.
+              "vendor", "service_tier")
 
 
 def is_schema_scope(scope):
@@ -142,6 +197,26 @@ def resolve_scope(scope, facts):
         return {"applicable": False, "matches": {}, "object_count": 0, "countable": False}
     if "families" in scope and not families_match(scope["families"], facts["families"]):
         return {"applicable": False, "matches": {}, "object_count": 0, "countable": False}
+    # vendor scope (owner ruling D2, 2026-06-10): resolves against the board
+    # manifest's fab_target. No declared fab target => ZERO coverage on this
+    # board (vendor_unresolved=True; the compiler reports it as a review note --
+    # honest per RB-01, because vendor entries can carry geometric compile
+    # targets conditional on where the board is going). A declared target that
+    # MISMATCHES is a resolved non-match, not unresolved.
+    if "vendor" in scope or "service_tier" in scope:
+        ft = facts.get("fab_target") or {}
+        if not ft.get("vendor"):
+            return {"applicable": False, "matches": {}, "object_count": 0,
+                    "countable": False, "vendor_unresolved": True}
+        if "vendor" in scope and ft["vendor"] not in [v.lower() for v in scope["vendor"]]:
+            return {"applicable": False, "matches": {}, "object_count": 0, "countable": False}
+        if "service_tier" in scope:
+            if not ft.get("service_tier"):
+                # vendor known, tier unknown: a tier-conditional rule cannot bind
+                return {"applicable": False, "matches": {}, "object_count": 0,
+                        "countable": False, "vendor_unresolved": True}
+            if ft["service_tier"] not in [t.lower() for t in scope["service_tier"]]:
+                return {"applicable": False, "matches": {}, "object_count": 0, "countable": False}
     matches, countable = {}, False
     if "net_families" in scope:
         countable = True
@@ -176,6 +251,67 @@ def compiled_param(key, default=None, *, root=None):
         if row.get("key") == key and row.get("binding") == "gate":
             return row.get("value", default)
     return default
+
+
+# ---------------------------------------------------------------------------
+# corpus_briefing -- the MANAGER-SEAT briefing payload (owner directive 2026-06-11,
+# the FR-04 round lesson: the corpus knew gnd-plane-continuity, the intents manager
+# was never shown it). Assembles, for one board:
+#   * the routing/layer/plane/netclass-relevant RATIFIED rule subset from the
+#     staging corpus (selected by keyword, never cherry-picked per-call),
+#   * the board's compiled artifacts (assembled.kicad_dru + checker bindings),
+#   * the platform stackup/netclass facts.
+# Returns (text, info). Pure file reads -- pcbnew-free, host- and container-safe.
+# ---------------------------------------------------------------------------
+_BRIEF_KEYS = ("plane", "inner layer", "in1", "l2", "netclass", "diff", "kelvin",
+               "return path", "outer layers", "route", "pour")
+
+
+def corpus_briefing(board, *, max_chars=24000, root=None):
+    rootd = root or ROOT
+    import glob as _glob
+    rules, seen = [], set()
+    for f in sorted(_glob.glob(os.path.join(rootd, "corpus", "staging", "*", "*.json"))):
+        try:
+            d = json.load(open(f))
+        except Exception:                                        # noqa: BLE001
+            continue
+        for e in (d if isinstance(d, list) else d.get("entries", [])):
+            if not isinstance(e, dict):
+                continue
+            rid, rule = e.get("id"), (e.get("rule") or e.get("title") or "")
+            if not rid or rid in seen:
+                continue
+            if any(k in rule.lower() for k in _BRIEF_KEYS):
+                seen.add(rid)
+                rules.append((rid, " ".join(rule.split())[:420]))
+    parts = ["RATIFIED DESIGN-RULE CORPUS (routing/layer/plane-relevant subset, %d rules):"
+             % len(rules)]
+    parts += ["* %s: %s" % (rid, rule) for rid, rule in rules]
+    parts.append("")
+    parts.append("STACKUP & PLATFORM FACTS:")
+    parts.append("* 4-layer stackup, cable-interposer modules (EPS/PCIe): F.Cu (2oz) / In1 = GND "
+                 "PLANE / In2 / B.Cu (2oz). PLANE LAYERS CARRY ZONES, NEVER ROUTED SIGNAL TRACKS "
+                 "(corpus gnd-plane-continuity; cec_fr layer policy denies them to the router).")
+    parts.append("* Hub Standard differs: In2 is a deliberate slow-signal routing layer under the "
+                 "In1 GND plane.")
+    comp = os.path.join(rootd, "build", "corpus-compiled", board)
+    for fn, label in (("assembled.kicad_dru", "COMPILED DESIGN-RULE FILE (corpus-compiled)"),
+                      ("checker_bindings.json", "CHECKER BINDINGS")):
+        p = os.path.join(comp, fn)
+        if os.path.isfile(p):
+            try:
+                body = open(p).read().strip()
+                if body and body not in ("{}", "[]"):
+                    parts.append("")
+                    parts.append(label + ":")
+                    parts.append(body[:4000])
+            except Exception:                                    # noqa: BLE001
+                pass
+    text = "\n".join(parts)
+    if len(text) > max_chars:
+        text = text[:max_chars] + "\n[...briefing truncated...]"
+    return text, {"rules": len(rules), "chars": len(text), "compiled_dir": os.path.isdir(comp)}
 
 
 if __name__ == "__main__":

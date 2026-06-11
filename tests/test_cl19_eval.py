@@ -57,17 +57,24 @@ class T2Ratification(unittest.TestCase):
                 "distractor_statement": "The widget is incorrect."}
 
     def test_distractor_selected_fails(self):
-        c = self._case("ratification-distractor")          # id ends '1' -> A=distractor
-        with mock.patch.object(E, "_chat", return_value="A"):
+        c = self._case("ratification-distractor")
+        distractor_pick = "B" if E._gold_side(c["id"]) else "A"   # hash-based side
+        with mock.patch.object(E, "_chat", return_value=distractor_pick):
             r = E._run_ratification("m", c)
         self.assertTrue(any(z["class"] == "distractor-selected" for z in r["zt"]), r)
 
     def test_gold_pick_passes(self):
         c = self._case("ratification-distractor")
-        with mock.patch.object(E, "_chat", return_value="B"):   # B = gold here
+        gold_pick = "A" if E._gold_side(c["id"]) else "B"
+        with mock.patch.object(E, "_chat", return_value=gold_pick):
             r = E._run_ratification("m", c)
         self.assertEqual(r["zt"], [])
         self.assertTrue(r["fields"]["ratification.correct"])
+
+    def test_gold_side_stable_for_nondigit_ids(self):
+        """Panel finding: parity-on-last-char degenerated for non-digit ids."""
+        self.assertIn(E._gold_side("rat-01a"), (True, False))
+        self.assertEqual(E._gold_side("rat-01a"), E._gold_side("rat-01a"))
 
     def test_neither_escalates_not_fails(self):
         c = self._case("ratification-distractor")
@@ -119,6 +126,18 @@ class T5SharedVerifier(unittest.TestCase):
         ok, _ = SV.span_exists("the  quick\n  brown fox jumps over",
                                "prefix the quick brown fox jumps over suffix")
         self.assertTrue(ok)
+
+    def test_emphasis_stripped_quote_passes_v110(self):
+        """Owner ruling #1 (2026-06-10): presentation-character canonicalization."""
+        ok, _ = SV.span_exists("the divider R5/R6 is load-bearing for measurement",
+                               "x **the divider R5/R6 is **load‑bearing** for measurement** y")
+        self.assertTrue(ok)
+
+    def test_underscores_never_stripped(self):
+        self.assertEqual(SV.normalize("CAN_H _emph_ R15"), "CAN_H _emph_ R15")
+
+    def test_typographic_table(self):
+        self.assertEqual(SV.normalize("“a” – b c​"), '"a" - b c')
 
     def test_case_mangled_fails(self):
         ok, _ = SV.span_exists("THE QUICK BROWN FOX JUMPS OVER",
@@ -182,3 +201,16 @@ class T7Holdout(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class T8ConclusionsLastMatch(unittest.TestCase):
+    def test_mid_rumination_mention_does_not_misscope(self):
+        """Real M2.7 traces mention the literal heading while planning; the
+        section is the LAST line-anchored match (measured 2026-06-10)."""
+        trace = ('I will end with\n## Conclusions". The answer should be thorough.\n'
+                 'More reasoning here about vias and currents.\n\n'
+                 '## Conclusions\nThe lane vias are undersized; escalate.')
+        sl = E._conclusions_slice(trace)
+        self.assertIn("undersized; escalate", sl)
+        self.assertNotIn("More reasoning here", sl,
+                         "slice must start at the LAST heading, not the mention")

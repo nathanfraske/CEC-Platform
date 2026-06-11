@@ -60,10 +60,15 @@ ANALYST TRACE about one PCB candidate. Compile the analyst's conclusions into JS
   (quote basis_spans verbatim from it). If there is NO conclusions section and the
   trace reaches no stated conclusion, return verdict value "no_conclusion" with empty
   basis_spans and NO findings -- never synthesize.
+- QUOTE VERBATIM means CHARACTER-EXACT from the trace: keep markdown markers
+  (**, *), typographic characters, and numbers exactly as written; NEVER elide
+  with '...', never re-flow, never substitute your own figures.
 - Every finding needs evidence_spans QUOTED VERBATIM from the trace (>=20 chars),
   locus refs/nets exactly as the trace names them, a mechanism in YOUR words, a
   severity (info|warn|block-candidate), and a verification_hook
   (type: check|fixture|bench|datasheet + ref) the trace itself points at.
+- verdict.value MUST be one of: accept | hold | escalate | no_conclusion (these are
+  CANDIDATE verdicts -- never use a finding severity like block-candidate here).
 - Report ONLY what the analyst concluded. Asides the analyst raised and dismissed are
   NOT findings. Never add knowledge of your own.
 Return ONLY the JSON object."""
@@ -108,8 +113,12 @@ def _has_conclusions(trace):
 
 
 def _conclusions_slice(trace):
-    m = re.search(r"^##\s*conclusions\b.*?$", trace, re.I | re.M)
-    return trace[m.start():] if m else ""
+    """The conclusions section is the LAST line-anchored heading, never the
+    first: real analyst traces MENTION the literal heading mid-rumination
+    while planning the answer (measured on the first M2.7 real trace,
+    2026-06-10), and the section is terminal by construction (CL-15)."""
+    ms = list(re.finditer(r"^##\s*conclusions\b.*?$", trace, re.I | re.M))
+    return trace[ms[-1].start():] if ms else ""
 
 
 def score_case(case, core_json):
@@ -135,6 +144,11 @@ def score_case(case, core_json):
                               "reason": "verdict=%r findings=%d"
                               % ((core.get("verdict") or {}).get("value"),
                                  len(core.get("findings") or []))})
+        elif schema_errs:
+            # Sonnet-panel finding (2026-06-10): a structurally corrupt output
+            # that happens to say no_conclusion must not pass with zero zt --
+            # the synthesis class keeps PRIORITY (checked first), schema second.
+            res["zt"].append({"class": "schema", "reason": "; ".join(schema_errs[:4])})
         return res
 
     if schema_errs:
@@ -212,28 +226,75 @@ def _chat(model, system, user, max_tokens=2000, schema=None, timeout=1800):
     return out
 
 
-_CORE_JSON_SCHEMA = {     # grammar guide for llama.cpp (validation is ours)
-    "type": "object",
-    "properties": {"schema": {"type": "string"}, "subject": {"type": "object"},
-                   "verdict": {"type": "object"}, "findings": {"type": "array"},
-                   "drafted_entry_refs": {"type": "array"},
-                   "confidence": {"type": "number"}},
-    "required": ["schema", "subject", "verdict", "findings",
-                 "drafted_entry_refs", "confidence"],
-}
+def _core_json_schema(subject):
+    """The FULL nested grammar for llama.cpp -- enums enforced mechanically,
+    subject injected as const (caller-owned context: the extractor must never
+    fabricate run identity; v1's loose grammar let the model drift to the
+    severity vocabulary for verdict.value and invent subject keys -- a
+    contract-communication failure, fixed at the contract)."""
+    import cec_verdict_core as VC
+    return {
+        "type": "object",
+        "properties": {
+            "schema": {"const": VC.SCHEMA_ID},
+            "subject": {"type": "object", "properties": {
+                "board": {"const": subject["board"]},
+                "candidate_hash": {"const": subject["candidate_hash"]},
+                "run_id": {"const": subject["run_id"]}},
+                "required": ["board", "candidate_hash", "run_id"]},
+            "verdict": {"type": "object", "properties": {
+                "value": {"enum": sorted(VC.VERDICT_VALUES)},
+                "basis_spans": {"type": "array", "items": {"type": "string"}}},
+                "required": ["value", "basis_spans"]},
+            "findings": {"type": "array", "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "locus": {"type": "object", "properties": {
+                        "refs": {"type": "array", "items": {"type": "string"}},
+                        "nets": {"type": "array", "items": {"type": "string"}},
+                        "region": {"type": ["string", "null"]}},
+                        "required": ["refs", "nets", "region"]},
+                    "mechanism": {"type": "string"},
+                    "severity": {"enum": sorted(VC.SEVERITIES)},
+                    "verification_hook": {"type": "object", "properties": {
+                        "type": {"enum": sorted(VC.HOOK_TYPES)},
+                        "ref": {"type": "string", "minLength": 1}},
+                        "required": ["type", "ref"]},
+                    "evidence_spans": {"type": "array", "minItems": 1,
+                                       "items": {"type": "string"}}},
+                "required": ["id", "locus", "mechanism", "severity",
+                             "verification_hook", "evidence_spans"]}},
+            "drafted_entry_refs": {"type": "array", "items": {"type": "string"}},
+            "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        },
+        "required": ["schema", "subject", "verdict", "findings",
+                     "drafted_entry_refs", "confidence"],
+    }
 
 
 def run_eval(model=DEFAULT_MODEL, eval_dir=EVAL_DIR, out_path=None):
     cases = load_cases(eval_dir)
     prompt_sha = hashlib.sha256(EXTRACT_PROMPT.encode()).hexdigest()
+    schema_sha = hashlib.sha256(json.dumps(
+        _core_json_schema({"board": "_", "candidate_hash": "_", "run_id": "_"}),
+        sort_keys=True).encode()).hexdigest()
     results, t0 = [], time.time()
     for c in cases:
         if c.get("kind") in ("ratification-skip", "ratification-distractor"):
             results.append(_run_ratification(model, c))
             continue
-        user = "BOARD: %s\n\nANALYST TRACE:\n%s" % (c.get("board", "n/a"), c["trace"])
+        subject = {"board": c.get("board") or "unknown",
+                   "candidate_hash": "committed",
+                   "run_id": "m27-batch-2026-06-10"}
+        gold_subj = (c.get("gold") or {}).get("subject")
+        if gold_subj:
+            subject = gold_subj
+        user = ("SUBJECT (copy verbatim into the subject field): %s\n\nBOARD: %s\n\n"
+                "ANALYST TRACE:\n%s" % (json.dumps(subject), c.get("board", "n/a"),
+                                         c["trace"]))
         try:
-            out = _chat(model, EXTRACT_PROMPT, user, schema=_CORE_JSON_SCHEMA)
+            out = _chat(model, EXTRACT_PROMPT, user, schema=_core_json_schema(subject))
             r = score_case(c, out)
             r["raw"] = out[:4000]
         except Exception as e:                                # noqa: BLE001
@@ -244,7 +305,7 @@ def run_eval(model=DEFAULT_MODEL, eval_dir=EVAL_DIR, out_path=None):
         print("  [%s/%s] zt=%d fields=%s" % (r["id"], r.get("kind"),
                                              len(r["zt"]), r.get("fields", {})))
 
-    report = _aggregate(results, model, prompt_sha, eval_dir)
+    report = _aggregate(results, model, prompt_sha, eval_dir, schema_sha)
     report["elapsed_s"] = round(time.time() - t0, 1)
     out_path = out_path or os.path.join(ROOT, "build",
                                         "extractor-eval-%s.json" % model)
@@ -263,6 +324,13 @@ def run_eval(model=DEFAULT_MODEL, eval_dir=EVAL_DIR, out_path=None):
     return report
 
 
+def _gold_side(cid):
+    """Deterministic A/B assignment from the id HASH. Sonnet-panel finding
+    (2026-06-10): last-char digit parity silently degenerates to always-B for
+    ids not ending in a digit."""
+    return int(hashlib.sha256(cid.encode()).hexdigest(), 16) % 2 == 0
+
+
 def _run_ratification(model, c):
     """RB-03 forced choice. The distractor is template-perturbed from gold
     (polarity flip / locus swap) -- never generated by the extractor."""
@@ -270,7 +338,7 @@ def _run_ratification(model, c):
            "zt": [], "fields": {}}
     gold_stmt = c["gold_statement"]
     distractor = c["distractor_statement"]
-    a, b = (gold_stmt, distractor) if c["id"][-1] in "02468" else (distractor, gold_stmt)
+    a, b = (gold_stmt, distractor) if _gold_side(c["id"]) else (distractor, gold_stmt)
     user = ("YOUR TRACE:\n%s\n\nA: %s\nB: %s\nC: neither is faithful\n\nAnswer A, B or C."
             % (c["trace"], a, b))
     try:
@@ -289,7 +357,7 @@ def _run_ratification(model, c):
     return res
 
 
-def _aggregate(results, model, prompt_sha, eval_dir):
+def _aggregate(results, model, prompt_sha, eval_dir, schema_sha=None):
     real = [r for r in results if r.get("register") == "real"]
     recon = [r for r in results if r.get("register") != "real"]
 
@@ -314,7 +382,7 @@ def _aggregate(results, model, prompt_sha, eval_dir):
     else:
         gate = "PASS"
     report = {"model_manifest": {"model": model, "prompt_sha": prompt_sha,
-                                 "broker": BROKER},
+                                 "schema_sha": schema_sha, "broker": BROKER},
               "verifier_version": cec_span_verify.VERIFIER_VERSION,
               "eval_set_sha": eval_set_sha(eval_dir),
               "grade": "smoke",
@@ -355,6 +423,25 @@ def structural(eval_dir=EVAL_DIR):
             for f in v["failures"]:
                 errs.append("%s: GOLD span fails: %s %s" % (c["id"], f["field"],
                                                             f["reason"]))
+    # Owner ruling #3 (2026-06-10): holdout CONTENT lives solely in
+    # tests/holdout/ -- assert no committed doc carries a holdout trace slice.
+    hold_dir = os.path.join(ROOT, "tests", "holdout", "extractor")
+    docs = []
+    for dp, _, fs in os.walk(os.path.join(ROOT, "docs")):
+        for f in fs:
+            if f.endswith((".md", ".json", ".html")):
+                try:
+                    docs.append(open(os.path.join(dp, f), encoding="utf-8",
+                                     errors="replace").read())
+                except OSError:
+                    pass
+    blob = cec_span_verify.normalize("\n".join(docs))
+    for hf in glob.glob(os.path.join(hold_dir, "*.json")):
+        for c in json.load(open(hf, encoding="utf-8")):
+            probe = cec_span_verify.normalize(c.get("trace", ""))[100:180]
+            if probe and probe in blob:
+                errs.append("HOLDOUT LEAK: trace slice of %s found in committed docs"
+                            % c.get("id"))
     for e in errs:
         print("ERROR:", e)
     print("structural: %d case(s), %d error(s); eval_set_sha=%s"

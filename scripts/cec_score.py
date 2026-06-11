@@ -132,6 +132,9 @@ class Metrics:
     # DRC to get these -- cec_dispatch._drc_types used to be a second full DRC per board).
     drc_types: dict = field(default_factory=dict)   # violation type -> count (cosmetic filtered)
     drc_loci: list = field(default_factory=list)    # [{type, where}] for the first violations
+    # mm of TRACK on detected plane layers (any net -- planes carry zones, never tracks;
+    # corpus gnd-plane-continuity / the FR-04 owner-override finding). Priced in objective().
+    plane_signal_mm: float = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +220,22 @@ def _measure_board(b) -> dict:
     total_b    = 0.0
     via_count  = 0
 
+    # PLANE-LAYER tracks (the FR-04 owner-override finding, 2026-06-11): a copper layer
+    # carrying a near-board-sized zone is a PLANE; tracks do not belong on it AT ALL
+    # (they carve return-path slots -- corpus rule gnd-plane-continuity). Detect planes
+    # the same way cec_fr.plane_layers does (kept inline: no cec_fr import coupling).
+    bb = b.GetBoardEdgesBoundingBox()
+    barea = max(1, bb.GetWidth()) * max(1, bb.GetHeight())
+    plane_lids = set()
+    for z in b.Zones():
+        if z.GetIsRuleArea():
+            continue
+        zb = z.GetBoundingBox()
+        if (zb.GetWidth() * zb.GetHeight()) / barea >= 0.5:
+            for lid in z.GetLayerSet().CuStack():
+                plane_lids.add(lid)
+    net_plane_mm = {}  # net_name -> mm of track on plane layers (ANY net: all is illegal)
+
     for t in b.GetTracks():
         if t.Type() == pcbnew.PCB_TRACE_T:
             name = t.GetNetname()
@@ -230,6 +249,8 @@ def _measure_board(b) -> dict:
             elif ly == B_CU:
                 net_len_b[name] = net_len_b.get(name, 0.0) + l
                 total_b += l
+            if ly in plane_lids:
+                net_plane_mm[name] = net_plane_mm.get(name, 0.0) + l
         elif t.Type() == pcbnew.PCB_VIA_T:
             via_count += 1
 
@@ -249,6 +270,8 @@ def _measure_board(b) -> dict:
         track_count=track_count,
         via_count=via_count,
         balance=balance,
+        net_plane_mm=net_plane_mm,
+        plane_signal_mm=round(sum(net_plane_mm.values()), 4),
     )
 
 
@@ -415,6 +438,7 @@ def score(
         "require_drc_zero": rules.require_drc_zero,
         "nets_12v":        nets_12v,
         "cu12v_mm":        round(cu12v, 4),
+        "net_plane_mm":    {k: round(v, 3) for k, v in m.get("net_plane_mm", {}).items()},
     }
 
     return Metrics(
@@ -431,6 +455,7 @@ def score(
         detail       = detail,
         drc_types    = drc_types,
         drc_loci     = drc_loci,
+        plane_signal_mm = m.get("plane_signal_mm", 0.0),
     )
 
 
@@ -477,6 +502,11 @@ DEFAULT_WEIGHTS: dict = {
     "length":         0.01,  # +cost per mm of total routed copper (penalise meandering)
     "vias":           0.5,   # +cost per via
     "balance":       -5.0,   # NEGATIVE weight: (1-balance) * |W| → bonus for balanced F/B copper
+    # +cost per mm of track on a plane layer: 50/mm makes 20mm of plane carving cost a
+    # full DRC violation -- a candidate can never win by hiding copper in the GND plane
+    # (the FR-04 scorer blind spot, owner-overridden 2026-06-11; normally 0 mm under the
+    # cec_fr layer policy, so this prices REGRESSIONS, not routine routing).
+    "plane_mm":      50.0,
 }
 
 
@@ -509,6 +539,7 @@ def objective(m: "Metrics", weights: dict | None = None) -> float:
         + m.unconnected * w["unconnected"]
         + m.length      * w["length"]
         + m.vias        * w["vias"]
+        + getattr(m, "plane_signal_mm", 0.0) * w.get("plane_mm", 0.0)
         + (1.0 - m.balance) * abs(w["balance"])
     )
     return cost

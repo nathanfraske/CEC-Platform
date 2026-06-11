@@ -1,0 +1,180 @@
+[
+ {
+  "id": "bom.rating.cap_electrolytic_105c",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "aluminum-electrolytic"
+   ],
+   "families": [
+    "hub"
+   ]
+  },
+  "value": 105,
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Nichicon GL series datasheet (e-gl.pdf): category temperature -25..+105C, load life 2,000 h at 105C with DC bias + rated ripple; rating class representative of the Hub's 105C aluminum electrolytic hold-up (Panasonic EEVFK1C472M 16V, same 105C class). Research context: docs/research/thermal-gates-derivation-2026-06-10.md #constant-2",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "THE BOM FLOOR PART for the t_max min-of-BOM derivation -- the lowest-rated component class on the boards. Arrhenius 10C rule: life doubles per 10C drop -> ~11,300 h at 80C vs 2,000 h at 105C vs ~4,000 h at 95C; this is why the 80C operating point matters beyond mere survival. Consumed by thermal.gates.t_max_ceiling. SCOPE NARROWED to the class per the 2026-06-10 panel (fidelity+taxonomy converged): the source is the Nichicon GL datasheet, the public exemplar of the 105C class -- the as-built Hub part is the Panasonic EEVFK1C472M (same 105C category class, NOT covered by this source); verify the Panasonic EEVFK datasheet figure at promotion, at which point a part-specific entry may split out with that datasheet as its own source."
+ },
+ {
+  "id": "bom.rating.schottky_tj_125c",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "schottky",
+    "SS14",
+    "SB120",
+    "SS34"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 125,
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "SS14: TJ -65..+125C (onsemi / Vishay datasheets). SB120: TJ +125C (Vishay 88715, onsemi/Fairchild Rev. C) vs +150C (Diodes Inc DS23022, Diotec) -- DOCUMENTED SOURCE CONFLICT, conservative side (125C) adopted. Research context: docs/research/thermal-gates-derivation-2026-06-10.md #constant-2",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Schottky junction ceiling for the min-of-BOM derivation; sits ABOVE the 105C cap floor either way, so the 125-vs-150 SB120 conflict does not move the board ceiling -- the conservative 125 is recorded per the doc's source-conflict ruling. Consumed by thermal.gates.t_max_ceiling."
+ },
+ {
+  "id": "bom.rating.fr4_continuous_110c",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "FR-4",
+    "laminate"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 110,
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Tg-20..25C design rule applied to standard FR-4 (Tg 130-140C) -> ~110C continuous; UL/ANSI MOT historically 130C, now up to 150C with LTTA data (I-Connect007/Shengyi via docs/research/thermal-gates-derivation-2026-06-10.md #constant-2). The CONSERVATIVE ~110C is adopted",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "DELIBERATELY H, not A (typing call, deviating from the owner letter): the ~110C figure is the Tg-20 DESIGN RULE applied to a laminate class, not a datasheet pin -- the authoritative number is the chosen laminate's part-specific UL RTI, which is unverified (the research doc's own caveat). Honest H over retrofitted A. Upgrade path: pin the actual JLCPCB stackup laminate's UL RTI -> Class A with the laminate datasheet as source. Sits above the 105C cap floor, so the typing does not move the ceiling. Consumed by thermal.gates.t_max_ceiling."
+ },
+ {
+  "id": "bom.rating.connector_minifit_105c",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "Mini-Fit",
+    "connector-housing"
+   ],
+   "families": [
+    "module"
+   ]
+  },
+  "value": 105,
+  "units": "degC",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Molex PS-5556-004 / PS-45750-001: Mini-Fit Jr / Mini-Fit family 105C operating (solid-brass/phos-bronze terminals); the current rating 'includes 30C terminal temperature rise at maximum rated current'. Formed-brass terminal variant only -40..+80C. Research context: docs/research/thermal-gates-derivation-2026-06-10.md #constant-2",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Connector housing rating MATCHING the cap floor at 105C, with its own 30C-RISE SPEC LANGUAGE -- the connector world independently uses the same 30C T-rise gate (mirrored by the 12V-2x6: 9.2 A/pin at 30C T-rise per PCIe CEM 5.1 / ATX 3.0, already a spec-locked platform fact; see the extracted corpus high-current-connector-heat row). CAVEAT carried from the doc: the connector, not PCB copper, is often the real thermal weak point -- board rules cannot protect a poorly-seated connector. WATCH the terminal variant: formed-brass is only 80C -- BOM selection must stay on solid-brass/phos-bronze terminals. Consumed by thermal.gates.t_max_ceiling."
+ },
+ {
+  "id": "fault.duration.psu_ocp_eps12v",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "eps12v_min_trip_ms": 500,
+   "eps12v_rule": "17 A rail trips at <=25.5 A peak, minimum 500 ms",
+   "near_threshold": "several tens of ms or longer; few ms with large overdrive (Keysight: 7 ms at 12 A / 113 ms at 6 A on a 5 A limit)"
+  },
+  "units": "ms",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "SSI EPS12V Power Supply Design Guide v2.92 (OCP trip window); Keysight OCP characterization app material (near-threshold timing). Research context: docs/research/thermal-gates-derivation-2026-06-10.md #constant-3b",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Fault-DURATION fact pinning the 0.1-0.5 s transient window of thermal.gates.transient_allowance: the slowest MANDATORY platform protection is PSU OCP at up to ~500 ms -- well inside trace thermal tau (1-100 s), so copper does not reach steady state during a cleared fault. The near-threshold ~500 ms persistence is exactly the case the +20C transient budget must cover."
+ },
+ {
+  "id": "fault.duration.pptc_class",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "typical_trip_s": [0.7, 2],
+   "examples": "2016L075: ~0.7 s at 3 A / ~2 s at 2 A; some SMD ~13-20 ms at 50 A; near I_trip can be TENS OF SECONDS"
+  },
+  "units": "s",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Littelfuse PPTC datasheets (2016L075 family); Eaton TN 11055; Circuit Cellar PPTC characterization. CLASS-REPRESENTATIVE points -- no PPTC is on the current BOM. Research context: docs/research/thermal-gates-derivation-2026-06-10.md #constant-3b",
+   "date": "2026-06-10"
+  },
+  "status": "proposed",
+  "supersedes": null,
+  "fixture": "tests/test_thermal_gates_corpus.py",
+  "notes": "Fault-DURATION fact pinning the 1-10 s transient window of thermal.gates.transient_allowance. PPTCs are thermal devices: trip times stretch to tens of seconds near I_trip -- the research doc's threshold rule applies: if protection is ever slower than ~1 s (a PPTC chosen near its I_trip), the Onderdonk fusing curve becomes DESIGN-relevant rather than forensic (size copper >=3x below fusing density at the actual clearing time). Class-representative datapoints, not a BOM part -- re-pin against the specific part if a PPTC ever lands on a board."
+ }
+]

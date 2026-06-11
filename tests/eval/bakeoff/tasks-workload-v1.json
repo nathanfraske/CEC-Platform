@@ -1,0 +1,124 @@
+{
+ "seed": 20260610,
+ "version": "workload-v1",
+ "tasks": [
+  {
+   "id": "verdict-1",
+   "family": "verdict",
+   "prompt": "You are the routing-pipeline manager. Pipeline policy, apply the FIRST matching rule:\n1. ESCALATE if any hard-check failed in both of the last two iterations, OR the DRC error count increased versus the previous iteration, OR iteration >= 8 with any violation remaining.\n2. REPAIR if violations remain and every failing metric improved versus the previous iteration.\n3. ACCEPT if there are zero DRC errors and every hard-check passes.\n\nCurrent state:\n{\n \"iteration\": 3,\n \"drc_errors_prev_iter\": 1,\n \"drc_errors_now\": 0,\n \"hard_checks\": {\n  \"clearance\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"current_density\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"thermal\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  }\n }\n}\n\nWhich action does the policy require?",
+   "answer": "accept",
+   "answer_type": "string"
+  },
+  {
+   "id": "verdict-2",
+   "family": "verdict",
+   "prompt": "You are the routing-pipeline manager. Pipeline policy, apply the FIRST matching rule:\n1. ESCALATE if any hard-check failed in both of the last two iterations, OR the DRC error count increased versus the previous iteration, OR iteration >= 8 with any violation remaining.\n2. REPAIR if violations remain and every failing metric improved versus the previous iteration.\n3. ACCEPT if there are zero DRC errors and every hard-check passes.\n\nCurrent state:\n{\n \"iteration\": 2,\n \"drc_errors_prev_iter\": 3,\n \"drc_errors_now\": 7,\n \"hard_checks\": {\n  \"clearance\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"current_density\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"thermal\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  }\n }\n}\n\nWhich action does the policy require?",
+   "answer": "escalate",
+   "answer_type": "string"
+  },
+  {
+   "id": "verdict-3",
+   "family": "verdict",
+   "prompt": "You are the routing-pipeline manager. Pipeline policy, apply the FIRST matching rule:\n1. ESCALATE if any hard-check failed in both of the last two iterations, OR the DRC error count increased versus the previous iteration, OR iteration >= 8 with any violation remaining.\n2. REPAIR if violations remain and every failing metric improved versus the previous iteration.\n3. ACCEPT if there are zero DRC errors and every hard-check passes.\n\nCurrent state:\n{\n \"iteration\": 4,\n \"drc_errors_prev_iter\": 6,\n \"drc_errors_now\": 2,\n \"hard_checks\": {\n  \"clearance\": {\n   \"prev_iter\": \"FAIL\",\n   \"now\": \"FAIL\"\n  },\n  \"current_density\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"thermal\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  }\n }\n}\n\nWhich action does the policy require?",
+   "answer": "escalate",
+   "answer_type": "string"
+  },
+  {
+   "id": "verdict-4",
+   "family": "verdict",
+   "prompt": "You are the routing-pipeline manager. Pipeline policy, apply the FIRST matching rule:\n1. ESCALATE if any hard-check failed in both of the last two iterations, OR the DRC error count increased versus the previous iteration, OR iteration >= 8 with any violation remaining.\n2. REPAIR if violations remain and every failing metric improved versus the previous iteration.\n3. ACCEPT if there are zero DRC errors and every hard-check passes.\n\nCurrent state:\n{\n \"iteration\": 3,\n \"drc_errors_prev_iter\": 9,\n \"drc_errors_now\": 4,\n \"hard_checks\": {\n  \"clearance\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"current_density\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  },\n  \"thermal\": {\n   \"prev_iter\": \"PASS\",\n   \"now\": \"PASS\"\n  }\n }\n}\n\nWhich action does the policy require?",
+   "answer": "repair",
+   "answer_type": "string"
+  },
+  {
+   "id": "extract-1",
+   "family": "extract",
+   "answer": "finding",
+   "answer_type": "verdict_span",
+   "trace": "Analyst trace T-101: Reviewed the 12 V return path on the interposer rev C. Plane stitching on the left edge is dense and well distributed. Sense divider values at U7 match the schematic (49.9k/10k). However, the return lane between L2 and L4 funnels through a single 0.5 mm via near the connector keep-out; at the rated 7 A load this exceeds the 3 A per-via budget by a wide margin. Decoupling placement near U3 is nominal. Thermal camera spot-checks at 60% load showed no anomalies elsewhere.",
+   "span_required": true,
+   "span_must_contain": "exceeds the 3 A per-via budget",
+   "prompt": "You are the verdict extractor. Read the analyst trace and report what IT concludes -- do not add conclusions of your own, and do not report claims the trace retracts. If the trace ends without reaching a conclusion, the verdict is no-conclusion.\n\nAnalyst trace T-101: Reviewed the 12 V return path on the interposer rev C. Plane stitching on the left edge is dense and well distributed. Sense divider values at U7 match the schematic (49.9k/10k). However, the return lane between L2 and L4 funnels through a single 0.5 mm via near the connector keep-out; at the rated 7 A load this exceeds the 3 A per-via budget by a wide margin. Decoupling placement near U3 is nominal. Thermal camera spot-checks at 60% load showed no anomalies elsewhere.\n\nReply with: ANSWER: <pass|finding|no-conclusion> | \"<one verbatim supporting quote copied exactly from the trace>\" (the quote is required only for a finding)."
+  },
+  {
+   "id": "extract-2",
+   "family": "extract",
+   "answer": "pass",
+   "answer_type": "verdict_span",
+   "trace": "Analyst trace T-102: Full audit of the hub-standard sense network. The divider at U2 reads 49.9k over 10k, matching the corrected schematic. ADC reference is buffered, and the feedback trace is routed away from the switching node with a solid ground pour beneath. DRC reports zero violations after the rework. Current density on every supply lane stays under half of budget at worst-case load. No further issues identified; the board meets all checked criteria.",
+   "span_required": false,
+   "span_must_contain": null,
+   "prompt": "You are the verdict extractor. Read the analyst trace and report what IT concludes -- do not add conclusions of your own, and do not report claims the trace retracts. If the trace ends without reaching a conclusion, the verdict is no-conclusion.\n\nAnalyst trace T-102: Full audit of the hub-standard sense network. The divider at U2 reads 49.9k over 10k, matching the corrected schematic. ADC reference is buffered, and the feedback trace is routed away from the switching node with a solid ground pour beneath. DRC reports zero violations after the rework. Current density on every supply lane stays under half of budget at worst-case load. No further issues identified; the board meets all checked criteria.\n\nReply with: ANSWER: <pass|finding|no-conclusion> | \"<one verbatim supporting quote copied exactly from the trace>\" (the quote is required only for a finding)."
+  },
+  {
+   "id": "extract-3",
+   "family": "extract",
+   "answer": "no-conclusion",
+   "answer_type": "verdict_span",
+   "trace": "Analyst trace T-103: Began the electrothermal sweep on the 12VHPWR module. Captured baseline copper temperatures at 25%, 50% and 75% load steps; data logged to runs/th-0312. The 100% load step and the post-soak DRC re-check were still queued when the session was terminated by a host reboot. No verdict was recorded for the remaining steps and the partial data has not been reviewed.",
+   "span_required": false,
+   "span_must_contain": null,
+   "prompt": "You are the verdict extractor. Read the analyst trace and report what IT concludes -- do not add conclusions of your own, and do not report claims the trace retracts. If the trace ends without reaching a conclusion, the verdict is no-conclusion.\n\nAnalyst trace T-103: Began the electrothermal sweep on the 12VHPWR module. Captured baseline copper temperatures at 25%, 50% and 75% load steps; data logged to runs/th-0312. The 100% load step and the post-soak DRC re-check were still queued when the session was terminated by a host reboot. No verdict was recorded for the remaining steps and the partial data has not been reviewed.\n\nReply with: ANSWER: <pass|finding|no-conclusion> | \"<one verbatim supporting quote copied exactly from the trace>\" (the quote is required only for a finding)."
+  },
+  {
+   "id": "extract-4",
+   "family": "extract",
+   "answer": "finding",
+   "answer_type": "verdict_span",
+   "trace": "Analyst trace T-104: Re-examined the connector footprint. An earlier report claimed the sense divider was misvalued, but that claim was RETRACTED after re-measurement confirmed 49.9k/10k as designed. Separately, the fab notes flag that the solder mask web between the pads is below the 0.2 mm minimum on pins 9-12, which the assembler lists as a bridging risk at reflow. All other footprint checks pass.",
+   "span_required": true,
+   "span_must_contain": "solder mask web between the pads is below the 0.2 mm minimum",
+   "prompt": "You are the verdict extractor. Read the analyst trace and report what IT concludes -- do not add conclusions of your own, and do not report claims the trace retracts. If the trace ends without reaching a conclusion, the verdict is no-conclusion.\n\nAnalyst trace T-104: Re-examined the connector footprint. An earlier report claimed the sense divider was misvalued, but that claim was RETRACTED after re-measurement confirmed 49.9k/10k as designed. Separately, the fab notes flag that the solder mask web between the pads is below the 0.2 mm minimum on pins 9-12, which the assembler lists as a bridging risk at reflow. All other footprint checks pass.\n\nReply with: ANSWER: <pass|finding|no-conclusion> | \"<one verbatim supporting quote copied exactly from the trace>\" (the quote is required only for a finding)."
+  },
+  {
+   "id": "triage-1",
+   "family": "triage",
+   "answer": "hardware|medium|rma",
+   "answer_type": "string",
+   "prompt": "You are the AutoDiagnoser triage stage. Taxonomy -- category: hardware|firmware|network|data. Severity: critical if safety risk or >100 devices down; high if ongoing production data loss; medium if degraded with a workaround; low otherwise. Action: rma for a confirmed hardware fault; firmware-rollback if the issue began immediately after an update and persists across reboot; config-fix when a settings mismatch is identified; remote-diagnostic when the cause is unknown; escalate-engineering for a reproducible product-wide defect.\n\nTicket S-2201: Single CEC telemetry node reports 12 V rail sag under load. On-site tech swapped the PSU and the sag followed the unit, not the site; bench test confirms a failing buck stage on the carrier board. Customer runs duplicate nodes, so monitoring continues on the twin while this unit is out.\n\nClassify this ticket. Reply with: ANSWER: category|severity|action"
+  },
+  {
+   "id": "triage-2",
+   "family": "triage",
+   "answer": "network|low|config-fix",
+   "answer_type": "string",
+   "prompt": "You are the AutoDiagnoser triage stage. Taxonomy -- category: hardware|firmware|network|data. Severity: critical if safety risk or >100 devices down; high if ongoing production data loss; medium if degraded with a workaround; low otherwise. Action: rma for a confirmed hardware fault; firmware-rollback if the issue began immediately after an update and persists across reboot; config-fix when a settings mismatch is identified; remote-diagnostic when the cause is unknown; escalate-engineering for a reproducible product-wide defect.\n\nTicket S-2203: One depot's dashboard shows a single node as offline, but the node's local display shows normal operation and local logging is intact. Site IT confirms they changed the VLAN last week and the node still has the old gateway address configured. No data loss: local buffer is uploading via cellular fallback.\n\nClassify this ticket. Reply with: ANSWER: category|severity|action"
+  },
+  {
+   "id": "triage-3",
+   "family": "triage",
+   "answer": "data|critical|escalate-engineering",
+   "answer_type": "string",
+   "prompt": "You are the AutoDiagnoser triage stage. Taxonomy -- category: hardware|firmware|network|data. Severity: critical if safety risk or >100 devices down; high if ongoing production data loss; medium if degraded with a workaround; low otherwise. Action: rma for a confirmed hardware fault; firmware-rollback if the issue began immediately after an update and persists across reboot; config-fix when a settings mismatch is identified; remote-diagnostic when the cause is unknown; escalate-engineering for a reproducible product-wide defect.\n\nTicket S-2204: Three separate customers (300+ devices total) report the same defect: energy totals double-count whenever a meter rolls over 999999 kWh. Reproduced in the lab on current firmware AND two prior versions. Billing exports are affected at all sites; one customer flagged invoices already sent.\n\nClassify this ticket. Reply with: ANSWER: category|severity|action"
+  },
+  {
+   "id": "triage-4",
+   "family": "triage",
+   "answer": "firmware|high|firmware-rollback",
+   "answer_type": "string",
+   "prompt": "You are the AutoDiagnoser triage stage. Taxonomy -- category: hardware|firmware|network|data. Severity: critical if safety risk or >100 devices down; high if ongoing production data loss; medium if degraded with a workaround; low otherwise. Action: rma for a confirmed hardware fault; firmware-rollback if the issue began immediately after an update and persists across reboot; config-fix when a settings mismatch is identified; remote-diagnostic when the cause is unknown; escalate-engineering for a reproducible product-wide defect.\n\nTicket S-2202: Fleet site reports 14 of 40 gateways stopped logging flow-meter data right after last night's 3.2.1 firmware push. Power-cycling does not restore logging. Data for those meters is being lost continuously. The 26 gateways still on 3.2.0 log normally.\n\nClassify this ticket. Reply with: ANSWER: category|severity|action"
+  },
+  {
+   "id": "route-1",
+   "family": "routecalc",
+   "answer": 16,
+   "answer_type": "number",
+   "prompt": "A stitching array must carry 27 A between layers. Each via is rated 3 A, derated to 60% of rating for reliability. What is the minimum WHOLE number of vias required?"
+  },
+  {
+   "id": "route-2",
+   "family": "routecalc",
+   "answer": 9,
+   "answer_type": "number",
+   "prompt": "A routing channel is 18 mm wide. Traces are 1.0 mm wide and need 0.8 mm clearance between adjacent traces AND 0.8 mm to each channel edge. What is the maximum number of traces that fit?"
+  },
+  {
+   "id": "route-3",
+   "family": "routecalc",
+   "answer": 36.0,
+   "answer_type": "number",
+   "tolerance": 0.01,
+   "prompt": "6 identical vias of 1.5 milliohm each share a lane current of 12 A equally (parallel array). How much power does the ARRAY dissipate, in MILLIWATTS?"
+  }
+ ]
+}

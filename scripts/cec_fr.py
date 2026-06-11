@@ -65,100 +65,308 @@ def _nm(v): return int(round(v * MM))
 _TMP = tempfile.gettempdir()
 
 
-def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads):
+def _fr_engine(jar, version=None):
+    """The argv prefix that launches Freerouting *version*.
+
+    1.7.0 (and any release whose min_java the PATH `java` satisfies) runs `java -jar`.
+    2.2.4 is compiled for Java 25 (class-file 69); when the PATH java is older, fall back
+    to the hash-pinned official jpackage APP-IMAGE launcher (bundled JRE 25, Linux only).
+    """
+    v = version or FR_VERSION
+    rel = FR_RELEASES.get(v) or {}
+    need = int(rel.get("min_java", 17))
+    have = _java_major()
+    if have >= need:
+        return ["java", "-jar", jar]
+    if rel.get("appimage_launcher") and sys.platform.startswith("linux"):
+        return [ensure_appimage(v)]
+    raise RuntimeError(
+        f"cec_fr: Freerouting {v} needs Java >= {need} (found {have or 'none'}) and no "
+        f"bundled-runtime app-image is pinned for this platform. Install a JRE {need}+ "
+        f"or set CEC_FR_VERSION/CEC_FREEROUTING_JAR appropriately."
+    )
+
+
+def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
+                version=None, workdir=None):
     """Build the Freerouting invocation for THIS platform.
 
-    Freerouting is a Java/Swing app that touches AWT at startup, so it needs a display.
+    Freerouting 1.7.0 is a Java/Swing app that touches AWT at startup, so it needs a display.
       * Linux, no $DISPLAY: wrap in `xvfb-run -a` (a virtual X server) -- if xvfb-run is
         missing on headless Linux, FR will throw HeadlessException (route-prereqs flags it).
       * Linux WITH $DISPLAY, macOS, Windows: run `java` directly -- the native windowing
         system (X / Quartz / Win32) provides the display. There is NO xvfb on Windows and
         none is needed; a Windows runner must just be in an interactive desktop session.
+
+    2.x runs TRUE headless (`--gui.enabled=false`, no display at all) and additionally gets:
+      -da                      analytics/telemetry OFF (no phone-home in a determinism epoch)
+      --user_data_path=<wd>    settings (freerouting.json) + logs corralled in the per-run
+                               workdir, so no persisted global settings can leak between
+                               runs and perturb determinism
+
+    NOTE -oit semantics: 2.x documents -oit as the optimizer improvement threshold in
+    PERCENT per pass (default 0.1), not a time. The R-01 spread still varies it as its
+    diversity axis; the FR-01 gate measures whether that still yields distinct candidates.
     """
-    base = ["java", "-jar", jar,
+    v = version or FR_VERSION
+    base = _fr_engine(jar, v) + [
             "-de", os.path.abspath(dsn_path),
             "-do", os.path.abspath(ses_path),
             "-mp", str(int(passes)),
             "-oit", str(int(opt_time)),
             "-mt", str(int(threads))]
+    if not v.startswith("1."):
+        base += ["-da", "--gui.enabled=false"]
+        if workdir:
+            base += [f"--user_data_path={os.path.abspath(workdir)}"]
+        return base                                   # true headless: no xvfb needed
     if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
         return ["xvfb-run", "-a"] + base
     return base
 
 # ---------------------------------------------------------------------------
-# Freerouting jar metadata
+# Freerouting release metadata (FR-01: version-parametric, hash-pinned)
 # ---------------------------------------------------------------------------
-FR_VERSION = "1.7.0"
-FR_JAR_URL = (
-    "https://github.com/freerouting/freerouting/releases/download"
-    f"/v{FR_VERSION}/freerouting-{FR_VERSION}.jar"
-)
-_FR_JAR_CACHE = os.path.expanduser(
-    f"~/.cache/cec/freerouting-{FR_VERSION}.jar"
-)
-# extra known-location candidates (checked, never required): the Linux convention path and
-# a jar dropped in the OS temp dir. Both are just os.path.isfile()-probed, so harmless when absent.
-_FR_JAR_TMP = f"/tmp/fr_{FR_VERSION}.jar"
-_FR_JAR_TMP2 = os.path.join(_TMP, f"fr_{FR_VERSION}.jar")
+# The active version resolves from $CEC_FR_VERSION at import (the ledger manifest reads
+# cec_fr.FR_VERSION, so an env override is automatically an AM-03 epoch boundary in every
+# decision log). The DEFAULT stays the banked-baseline pin until the FR-01 migration gate
+# passes on the successor.
+FR_VERSION = os.environ.get("CEC_FR_VERSION", "1.7.0")
+
+# Hash pins (sha256). The 2.2.4 jar digest matches the official GitHub release-asset
+# digest (verified 2026-06-10); 1.7.0 is the hash of the jar the banked baseline ran on.
+# 2.2.4 is compiled for Java 25 (class-file 69) -- Debian trixie (the routing container)
+# tops out at openjdk-21, so on a <25 JVM the linux-x64 jpackage APP-IMAGE (bundled JRE,
+# also hash-pinned) is used instead of `java -jar`.
+FR_RELEASES = {
+    "1.7.0": {
+        "jar_sha256": "e6c5db33792a00f99799b1113bb9f5e1576731f885b069da8850520528f7ef8f",
+        "min_java": 17,
+    },
+    "2.2.4": {
+        "jar_sha256": "f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b",
+        "min_java": 25,
+        "appimage_zip": "freerouting-2.2.4-linux-x64.zip",
+        "appimage_zip_sha256": "d712dd0dc1f51c8bab4868d8435d90e8cbba00e0c4bab45837334b17b382578f",
+        "appimage_launcher": "freerouting-2.2.4-linux-x64/bin/freerouting",
+    },
+}
+
+_FR_RELEASE_BASE = "https://github.com/freerouting/freerouting/releases/download"
+
+
+def _jar_url(version=None):
+    v = version or FR_VERSION
+    return f"{_FR_RELEASE_BASE}/v{v}/freerouting-{v}.jar"
+
+
+def _jar_cache(version=None):
+    v = version or FR_VERSION
+    return os.path.expanduser(f"~/.cache/cec/freerouting-{v}.jar")
+
+
+def _jar_tmp_candidates(version=None):
+    """Extra known-location candidates (checked, never required): the Linux convention
+    path and a jar dropped in the OS temp dir. isfile()-probed, harmless when absent."""
+    v = version or FR_VERSION
+    return [f"/tmp/fr_{v}.jar", os.path.join(_TMP, f"fr_{v}.jar")]
+
+
+# Back-compat module constants (consumers may read these; derived from the active pin).
+FR_JAR_URL = _jar_url()
+_FR_JAR_CACHE = _jar_cache()
+_FR_JAR_TMP, _FR_JAR_TMP2 = _jar_tmp_candidates()
+
+
+def _sha256(path, chunk=1 << 20):
+    import hashlib
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        while True:
+            b = f.read(chunk)
+            if not b:
+                break
+            h.update(b)
+    return h.hexdigest()
+
+
+def _verify_pin(path, expected, what):
+    """Hard-fail on a hash-pin mismatch for a CONVENTIONAL location (cache/tmp/download).
+    Explicit user overrides (path arg / $CEC_FREEROUTING_JAR) are trusted instead."""
+    got = _sha256(path)
+    if got != expected:
+        raise RuntimeError(
+            f"cec_fr: sha256 mismatch for {what} at {path!r}\n"
+            f"  expected {expected}\n  got      {got}\n"
+            f"  Delete the file and re-run (it will be re-downloaded and re-verified)."
+        )
+
+
+def _java_major():
+    """Major version of the `java` on PATH, or 0 when absent/unparsable."""
+    try:
+        r = subprocess.run(["java", "-version"], capture_output=True, text=True, timeout=30)
+        out = r.stderr + r.stdout
+        import re as _re
+        m = _re.search(r'version "(\d+)', out)
+        return int(m.group(1)) if m else 0
+    except Exception:
+        return 0
+
+
+def ensure_appimage(version=None):
+    """Return the launcher path of the hash-pinned jpackage app-image (bundled JRE) for
+    *version*, downloading + extracting the official linux-x64 zip into ~/.cache/cec on
+    first use. Linux-only (the jpackage runtime ships no standalone bin/java; the native
+    launcher is the entry point and passes CLI args straight through to the app)."""
+    v = version or FR_VERSION
+    rel = FR_RELEASES.get(v) or {}
+    zip_name = rel.get("appimage_zip")
+    if not zip_name:
+        raise RuntimeError(f"cec_fr.ensure_appimage: no app-image pinned for FR {v}")
+    cache_dir = os.path.expanduser("~/.cache/cec")
+    launcher = os.path.join(cache_dir, rel["appimage_launcher"])
+    if os.path.isfile(launcher) and os.access(launcher, os.X_OK):
+        return launcher
+    os.makedirs(cache_dir, exist_ok=True)
+    zip_path = os.path.join(cache_dir, zip_name)
+    if not os.path.isfile(zip_path):
+        url = f"{_FR_RELEASE_BASE}/v{v}/{zip_name}"
+        print(f"[cec_fr] Downloading Freerouting {v} app-image from {url} ...", file=sys.stderr)
+        urllib.request.urlretrieve(url, zip_path)
+    _verify_pin(zip_path, rel["appimage_zip_sha256"], f"FR {v} app-image zip")
+    import zipfile
+    with zipfile.ZipFile(zip_path) as z:
+        z.extractall(cache_dir)
+        for info in z.infolist():                       # restore exec bits (zipfile drops them)
+            mode = (info.external_attr >> 16) & 0o7777
+            if mode:
+                try:
+                    os.chmod(os.path.join(cache_dir, info.filename), mode)
+                except OSError:
+                    pass
+    if not (os.path.isfile(launcher) and os.access(launcher, os.X_OK)):
+        raise RuntimeError(f"cec_fr.ensure_appimage: launcher missing after extract: {launcher!r}")
+    return launcher
 
 
 # ---------------------------------------------------------------------------
 # ensure_jar
 # ---------------------------------------------------------------------------
-def ensure_jar(path: str | None = None) -> str:
-    """Return a path to the Freerouting jar.
+def ensure_jar(path: str | None = None, version: str | None = None) -> str:
+    """Return a path to the Freerouting jar for *version* (default: FR_VERSION).
 
     Resolution order:
-      1) ``path`` arg if given and exists
-      2) $CEC_FREEROUTING_JAR env var if set and the file exists
-      3) /tmp/fr_1.7.0.jar if it exists
-      4) ~/.cache/cec/freerouting-1.7.0.jar if it exists
-      5) download FR_JAR_URL to ~/.cache/cec/freerouting-1.7.0.jar and return it
+      1) ``path`` arg if given and exists                    (explicit -> trusted, hash logged)
+      2) $CEC_FREEROUTING_JAR env var if set and exists      (explicit -> trusted, hash logged)
+      3) /tmp/fr_<v>.jar / <tempdir>/fr_<v>.jar if present   (conventional -> pin-verified)
+      4) ~/.cache/cec/freerouting-<v>.jar if present         (conventional -> pin-verified)
+      5) download to ~/.cache/cec and pin-verify
 
+    A hash-pin mismatch on a conventional location or fresh download is a hard error
+    (FR-01: the jar is vendored BY HASH; a silent swap would corrupt the epoch).
     Raises RuntimeError if all options fail.
     """
-    candidates = []
+    v = version or FR_VERSION
+    pin = (FR_RELEASES.get(v) or {}).get("jar_sha256")
+    explicit = []
     if path:
-        candidates.append(path)
+        explicit.append(path)
     env_jar = os.environ.get("CEC_FREEROUTING_JAR")
     if env_jar:
-        candidates.append(env_jar)
-    candidates.append(_FR_JAR_TMP)
-    candidates.append(_FR_JAR_TMP2)
-    candidates.append(_FR_JAR_CACHE)
-
-    for c in candidates:
+        explicit.append(env_jar)
+    for c in explicit:
         if c and os.path.isfile(c):
+            if pin:
+                print(f"[cec_fr] explicit jar override {c!r} sha256={_sha256(c)[:16]}... "
+                      f"(pin for {v}: {pin[:16]}...)", file=sys.stderr)
+            return c
+
+    jar_cache = _jar_cache(v)
+    for c in _jar_tmp_candidates(v) + [jar_cache]:
+        if c and os.path.isfile(c):
+            if pin:
+                _verify_pin(c, pin, f"FR {v} jar")
             return c
 
     # Download to the cache location
-    cache_dir = os.path.dirname(_FR_JAR_CACHE)
-    os.makedirs(cache_dir, exist_ok=True)
-    print(f"[cec_fr] Downloading Freerouting {FR_VERSION} jar from {FR_JAR_URL} ...",
-          file=sys.stderr)
+    url = _jar_url(v)
+    os.makedirs(os.path.dirname(jar_cache), exist_ok=True)
+    print(f"[cec_fr] Downloading Freerouting {v} jar from {url} ...", file=sys.stderr)
     try:
-        urllib.request.urlretrieve(FR_JAR_URL, _FR_JAR_CACHE)
+        urllib.request.urlretrieve(url, jar_cache)
     except Exception as exc:
         raise RuntimeError(
-            f"cec_fr: Could not download Freerouting jar from {FR_JAR_URL}: {exc}\n"
-            f"  Place the jar manually at one of: {_FR_JAR_TMP}, {_FR_JAR_CACHE}"
+            f"cec_fr: Could not download Freerouting jar from {url}: {exc}\n"
+            f"  Place the jar manually at one of: {_jar_tmp_candidates(v)[0]}, {jar_cache}"
         ) from exc
-    if not os.path.isfile(_FR_JAR_CACHE):
+    if not os.path.isfile(jar_cache):
         raise RuntimeError(
-            f"cec_fr: Download appeared to succeed but {_FR_JAR_CACHE} is missing"
+            f"cec_fr: Download appeared to succeed but {jar_cache} is missing"
         )
-    return _FR_JAR_CACHE
+    if pin:
+        _verify_pin(jar_cache, pin, f"FR {v} jar (fresh download)")
+    return jar_cache
 
 
 # ---------------------------------------------------------------------------
 # export_dsn
 # ---------------------------------------------------------------------------
-def export_dsn(board_path: str, dsn_path: str) -> str:
+def plane_layers(board) -> list:
+    """Copper layers that carry a PLANE: any zone whose outline bbox covers more than
+    half the board outline bbox. Board-derived, no per-board config -- the EPS/PCIe
+    In1 'GND' plane is detected; the Hub's In2 (a deliberate slow-signal ROUTING layer)
+    is not, because no board-sized zone lives on it."""
+    bb = board.GetBoardEdgesBoundingBox()
+    barea = max(1, bb.GetWidth()) * max(1, bb.GetHeight())
+    out = []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        zb = z.GetBoundingBox()
+        if (zb.GetWidth() * zb.GetHeight()) / barea < 0.5:
+            continue
+        for lid in z.GetLayerSet().CuStack():
+            name = board.GetLayerName(lid)
+            if name not in out:
+                out.append(name)
+    return out
+
+
+def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
+    """LAYER POLICY (owner-ratified 2026-06-11, the FR-04 plane-carving finding): mark the
+    named layers ``(type power)`` in the exported DSN so Freerouting EXCLUDES them from
+    signal routing. pcbnew exports plane layers as ``(type signal)`` whenever the layer is
+    a plain copper layer, and FR then happily routes signals THROUGH the ground plane
+    (measured: 61.7mm of /I2C_SDA on the EPS GND plane), carving return-path slots the
+    corpus rule ``gnd-plane-continuity`` forbids. Returns the list actually rewritten."""
+    import re
+    if not layer_names:
+        return []
+    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    done = []
+    for name in layer_names:
+        pat = re.compile(r"(\(layer\s+" + re.escape(name) + r"\s*\(\s*type\s+)signal(\s*\))")
+        text, n = pat.subn(r"\1power\2", text)
+        if n:
+            done.append(name)
+    if done:
+        open(dsn_path, "w", encoding="utf-8").write(text)
+    return done
+
+
+def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
+
+    plane_to_power (default ON; env CEC_FR_PLANE_POLICY=0 disables): after export,
+    detected plane layers are rewritten ``(type power)`` so FR cannot route signals
+    through them (see _dsn_force_power_layers).
 
     Returns *dsn_path*.  Raises RuntimeError if the export returns False or the
     output file is missing/empty.
     """
+    if plane_to_power is None:
+        plane_to_power = os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0"
     board = pcbnew.LoadBoard(board_path)
     ok = pcbnew.ExportSpecctraDSN(board, dsn_path)
     if not ok:
@@ -169,6 +377,11 @@ def export_dsn(board_path: str, dsn_path: str) -> str:
         raise RuntimeError(
             f"cec_fr.export_dsn: DSN file missing or empty after export: {dsn_path!r}"
         )
+    if plane_to_power:
+        rewritten = _dsn_force_power_layers(dsn_path, plane_layers(board))
+        if rewritten:
+            print(f"[cec_fr] layer policy: plane layer(s) {rewritten} -> (type power) "
+                  f"(FR signal routing excluded)", file=sys.stderr)
     return dsn_path
 
 
@@ -186,8 +399,9 @@ def run_freerouting(
     jar: str | None = None,
     workdir: str | None = None,
     timeout: int = 600,
+    version: str | None = None,   # FR release to run (default: the FR_VERSION pin)
 ) -> str:
-    """Run Freerouting 1.7.0 and produce a .ses file.
+    """Run Freerouting (FR_VERSION pin, or *version*) and produce a .ses file.
 
     Invocation (see _fr_command for the per-platform form)::
 
@@ -204,7 +418,8 @@ def run_freerouting(
     Returns *ses_path*.  Raises RuntimeError (with captured stdout/stderr tail) if
     FR exits non-zero or the SES is missing/empty.
     """
-    jar = ensure_jar(jar)
+    v = version or FR_VERSION
+    jar = ensure_jar(jar, version=v)
 
     # Always route under /tmp to keep logs/ away from the repo.
     _own_workdir = workdir is None
@@ -212,10 +427,11 @@ def run_freerouting(
         workdir = tempfile.mkdtemp(prefix="cec_fr_run_", dir=_TMP)
 
     if seed is not None:
-        print(f"[cec_fr] note: seed={seed!r} logged (no -seed flag in FR {FR_VERSION})",
+        print(f"[cec_fr] note: seed={seed!r} logged (no -seed flag in FR {v})",
               file=sys.stderr)
 
-    cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads)
+    cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
+                      version=v, workdir=workdir)
 
     run_kw = dict(cwd=workdir, capture_output=True, text=True, timeout=timeout)
     if sys.platform == "win32":
@@ -703,6 +919,22 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             f"cec_fr.import_ses: ImportSpecctraSES returned False\n"
             f"  board={board_path!r}\n  ses={ses_path!r}"
         )
+    # LAYER POLICY, import half (complements the export-side (type power) rewrite):
+    # plane layers carry ZONES, never tracks. FR may still drop POWER-classified net
+    # segments onto a (type power) layer (Specctra semantics allow it; measured: two
+    # 4.2mm /SENSEC*_HI segments on the EPS GND plane) -- strip ALL track segments on
+    # detected plane layers before the fill (the pours/zones carry those nets).
+    if os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0":
+        _plane_names = set(plane_layers(board))
+        if _plane_names:
+            _doomed = [t for t in board.GetTracks()
+                       if t.GetClass() == "PCB_TRACK"
+                       and board.GetLayerName(t.GetLayer()) in _plane_names]
+            for t in _doomed:
+                board.Remove(t)
+            if _doomed:
+                print(f"[cec_fr] layer policy: stripped {len(_doomed)} track segment(s) "
+                      f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
         add_power_pours(board, power_pours, fill=False)
     if fix_annular:
@@ -839,6 +1071,7 @@ def route_once(
     workdir: str | None = None,
     jar: str | None = None,
     timeout: int = 600,
+    version: str | None = None,   # FR release to run (default: the FR_VERSION pin)
 ) -> Candidate:
     """Full single-candidate pipeline: (bake_hints) -> export_dsn -> run_freerouting -> import_ses.
 
@@ -854,13 +1087,15 @@ def route_once(
             f"cec_fr.route_once: input board not found: {board_path!r}"
         )
 
-    params = {"passes": passes, "opt_time": opt_time, "threads": threads}
+    v = version or FR_VERSION
+    params = {"passes": passes, "opt_time": opt_time, "threads": threads,
+              "fr_version": v}
     _own_wd = workdir is None
     if _own_wd:
         workdir = tempfile.mkdtemp(prefix="cec_fr_once_", dir=_TMP)
 
     try:
-        jar = ensure_jar(jar)
+        jar = ensure_jar(jar, version=v)
 
         # 1. Bake hints (keepouts) into a working copy
         hinted_board = os.path.join(workdir, "hinted.kicad_pcb")
@@ -878,7 +1113,7 @@ def route_once(
                 dsn_path, ses_path,
                 passes=passes, opt_time=opt_time, threads=threads,
                 seed=seed, jar=jar,
-                workdir=fr_wd, timeout=timeout,
+                workdir=fr_wd, timeout=timeout, version=v,
             )
         finally:
             shutil.rmtree(fr_wd, ignore_errors=True)
@@ -937,6 +1172,7 @@ def _worker(args: dict) -> Candidate:
         workdir=None,   # each worker gets its own /tmp workdir
         jar=args.get("jar"),
         timeout=args.get("timeout", 600),
+        version=args.get("version"),   # None -> the worker's own FR_VERSION pin (env-aware)
     )
 
 

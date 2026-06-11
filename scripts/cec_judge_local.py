@@ -138,6 +138,10 @@ SYSTEM = (
     "`repair` -- the loop will bump Freerouting effort and re-route.\n"
     "4. If repairs have already run for several iterations with no improvement in drc/unconnected, "
     "choose `escalate` (a structural re-plan is needed).\n"
+    "5. `plane_signal_mm` is signal copper routed ON a ground/power PLANE layer -- it breaks the "
+    "return path under that net (ratified rule gnd-plane-continuity) and is already penalised in the "
+    "objective. It is normally 0. NEVER `accept` a candidate with a non-zero `plane_signal_mm` when a "
+    "lower-plane candidate is available; prefer `repair` so the router re-routes off the plane.\n"
     "Reply ONLY with the JSON object {\"action\":..., \"reason\":...}. Keep the reason under 30 words."
 )
 
@@ -831,7 +835,16 @@ CORPUS_FIT_SYSTEM = (
     "4. RESIDUAL TREATMENT (your highest-value call). Did this run accept a residual the corpus "
     "previously REPAIRED for the same signature (more_lenient_than_family), keep grinding repairs PAST "
     "the established finishing floor (more_aggressive_than_family), or accept a reasons[] string never "
-    "seen as acceptable in the family (novel_residual)? Name the precedent id and signature.\n\n"
+    "seen as acceptable in the family (novel_residual)? Name the precedent id and signature.\n"
+    "5. RATIFIED-RULE CONFORMANCE. If a `ratified_design_rules` field is present, it is the platform's "
+    "RATIFIED routing/layer/plane rule corpus (each an id + statement). The experiential digest tells you "
+    "how this board compares to PAST runs; these rules tell you what is CORRECT regardless of precedent. "
+    "A board can beat the family objective while VIOLATING a ratified rule -- the headline metrics and the "
+    "scorer will not catch it, you must. In particular `gnd-plane-continuity`: signal copper routed ON a "
+    "ground/power plane layer breaks the return path (watch `plane_signal_mm` / per-net plane copper in "
+    "the summary); a board that 'wins' by carving the plane is NOT a better engineering result. When you "
+    "flag a ratified-rule violation, CITE THE RULE ID, set fit_classification accordingly, and recommend "
+    "at most investigate_regression -- never let a precedent-statistics 'fit' launder a rule violation.\n\n"
     "DISCIPLINE: compare LIKE WITH LIKE (same family first). Distinguish genuine drift from benign "
     "expected variation: a finishing residual at the family floor, or the known-open pcie kelvin gap, is "
     "`info` severity, NOT a concern. Reserve `high` for a gate regression, a novel structural residual, "
@@ -1160,6 +1173,25 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
                    "coverage_note": coverage,
                    "notes": "All metrics lower-is-better. robust_z/flags/evidence are precomputed; "
                             "reason about meaning, do not recompute."}
+        # CORPUS WIRING (FR-04 lesson, 2026-06-11): the experiential digest above tells the reviewer
+        # how this board compares to PAST runs, but NOT whether it honours the platform's RATIFIED
+        # DESIGN RULES. The blind/briefed bake-off showed a board can beat the scorer's objective while
+        # violating a ratified rule (signal carved through the GND plane) -- a blind judge and the
+        # scorer both miss it; a briefed judge catches it. Feed the routing/layer/plane-relevant
+        # ratified rule subset (cec_facts.corpus_briefing) so this seat can flag exactly that.
+        if os.environ.get("CEC_CORPUS_BRIEFING", "1") != "0":
+            try:
+                sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+                import cec_facts
+                brief, binfo = cec_facts.corpus_briefing(
+                    fam, max_chars=int(os.environ.get("CEC_CORPUS_BRIEFING_CHARS", "9000")))
+                if brief:
+                    payload["ratified_design_rules"] = brief
+                    if verbose:
+                        print(f"[corpus-fit] briefing wired: {binfo}")
+            except Exception as _be:                                 # noqa: BLE001
+                if verbose:
+                    print("[corpus-fit] briefing skipped:", type(_be).__name__, _be)
         user = json.dumps(payload, indent=1, sort_keys=True)
         out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit",
                          url=REVIEWER_URL, model=REVIEWER_MODEL, timeout=cf_timeout,

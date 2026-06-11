@@ -182,13 +182,23 @@ is reproducible.
 
 ## Tier 0 — `cec_fr.py`: the Freerouting candidate generator
 
-Round-trips a board through the **real autorouter**: `pcbnew.ExportSpecctraDSN` → Freerouting (headless,
-`xvfb-run java -jar`, **pinned v1.7.0** — 1.9.0 is broken headless) → `pcbnew.ImportSpecctraSES` → real
-routed copper. This produces genuine tracks/vias `kicad-cli` can DRC, identical in format to GUI routing.
+Round-trips a board through the **real autorouter**: `pcbnew.ExportSpecctraDSN` → Freerouting (headless)
+→ `pcbnew.ImportSpecctraSES` → real routed copper. This produces genuine tracks/vias `kicad-cli` can DRC,
+identical in format to GUI routing.
+
+**Version-parametric + hash-pinned (FR-01):** the active release resolves from `$CEC_FR_VERSION`
+(module default in `cec_fr.FR_VERSION`; the ledger manifest reads it, so a version change is
+automatically an AM-03 epoch boundary). Pinned releases live in `FR_RELEASES` with sha256 pins —
+a hash mismatch on a conventional cache path or fresh download is a hard error. **1.7.0** runs
+`xvfb-run java -jar` (Java 17+; 1.9.0 was broken headless). **2.2.4** is compiled for **Java 25**;
+on an older JVM (the routing container has 21) `cec_fr` automatically falls back to the official
+hash-pinned jpackage **app-image** (bundled JRE 25, Linux), and 2.x runs TRUE headless
+(`--gui.enabled=false`, no xvfb) with analytics off (`-da`) and per-run `--user_data_path`.
 
 | Function | What it does |
 |---|---|
-| `ensure_jar(path=None)` | Resolve the FR jar: arg → `$CEC_FREEROUTING_JAR` → `/tmp/fr_1.7.0.jar` → `~/.cache/cec/…` → download the pinned release. |
+| `ensure_jar(path=None, version=None)` | Resolve the FR jar for a release: arg → `$CEC_FREEROUTING_JAR` (explicit → trusted, hash logged) → `/tmp/fr_<v>.jar` → `~/.cache/cec/…` (conventional → **pin-verified**) → download + pin-verify. |
+| `ensure_appimage(version=None)` | Resolve (download+extract+verify) the official Linux app-image launcher for releases needing a newer JRE than PATH `java`. |
 | `export_dsn(board, dsn)` | `ExportSpecctraDSN(board, dsn)` (headless 2-arg form). |
 | `run_freerouting(dsn, ses, *, passes, opt_time, threads, …)` | `xvfb-run java -jar <jar> -de … -do … -mp … -oit …`, **from a `/tmp` workdir** so FR's `logs/` never lands in the repo. Verifies the SES exists+non-empty. |
 | `import_ses(board, ses, out, *, fill_zones=True, fix_annular=True, power_pours=())` | `ImportSpecctraSES` + (lay `power_pours`) + (fix thin-annular vias) + **FILL zones** + `SaveBoard`. Fill is essential — SES import lays tracks/vias but never fills pours (only the real `ZONE_FILLER` does); without it every plane via reads `via_dangling` and every plane pad `unconnected` (EPS: DRC 99→53, unconn 71→2). |
@@ -197,7 +207,7 @@ routed copper. This produces genuine tracks/vias `kicad-cli` can DRC, identical 
 | `normalize_via_annular(board, *, min_annular=0.10, …)` | Fix Freerouting's **thin-annular vias** (FR ignores netclass via sizes) by **shrinking the drill** (copper unchanged → no new clearance; blanket via-enlarge made it worse). EPS: 49 fixed, DRC 53→4. |
 | `bake_hints(board, out, *, keepouts=…)` | Add **rule-area keep-out zones** for the vital areas (12V columns, Kelvin windows) — they export into the DSN, so Freerouting *routes around them*. |
 | `route_once(board, out, *, hints, power_pours=(), passes, …) → Candidate` | One full pipeline: hints→DSN→FR→SES→(pours+annular-fix+fill)→board. Never raises on a routing failure (returns `Candidate(ok=False, err=…)`). |
-| `generate_batch(board, hints, seeds, *, power_pours=(), params, …) → [Candidate]` | One candidate per seed, **in parallel** (`ProcessPoolExecutor`; only strings/dicts cross the boundary, each worker `LoadBoard`s itself). `params` varies effort per seed (FR 1.7.0 has no seed flag → variation is `passes`/`opt_time`/`threads`). |
+| `generate_batch(board, hints, seeds, *, power_pours=(), params, …) → [Candidate]` | One candidate per seed, **in parallel** (`ProcessPoolExecutor`; only strings/dicts cross the boundary, each worker `LoadBoard`s itself). `params` varies effort per seed (FR has no seed flag → variation is `passes`/`opt_time`/`threads`; NOTE 2.x documents `-oit` as the optimizer improvement threshold in **percent**, not a time). |
 
 > **Why Freerouting, not hand-routing the spine?** A single `cec_route` pass collided at **343 structural
 > DRC** on the dense EPS spine; the same board through Freerouting (no rules/keep-outs yet) came back at
@@ -287,9 +297,10 @@ python3 scripts/cec_score.py     # scorer self-test: gates a routed vs an unrout
 python3 scripts/cec_router.py    # end-to-end demo on EPS (deterministic plane, real FR + scoring)
 ```
 
-Dependency: a Freerouting **1.7.0** jar (`ensure_jar()` downloads the pinned release if it isn't already at
-`$CEC_FREEROUTING_JAR`, the OS temp dir, or `~/.cache/cec/`). The jar is **not** vendored (a 4.7 MB binary doesn't
-belong in the board repo); the version is pinned in `cec_fr.FR_VERSION`.
+Dependency: the pinned Freerouting release (`ensure_jar()` downloads + sha256-verifies it if it isn't already at
+`$CEC_FREEROUTING_JAR`, the OS temp dir, or `~/.cache/cec/`). The artifacts are **not** vendored in-repo (multi-MB
+binaries don't belong in the board repo); version + sha256 pins live in `cec_fr.FR_VERSION` / `cec_fr.FR_RELEASES`,
+overridable per-run via `$CEC_FR_VERSION` (each version change is an AM-03 epoch event in the ledger manifest).
 
 **Cross-platform** (the compute plane runs anywhere KiCad + Java do — see `docs/self-hosted-router.md`):
 `cec_fr._fr_command()` is platform-aware — on **headless Linux** it wraps Freerouting in `xvfb-run`; on
