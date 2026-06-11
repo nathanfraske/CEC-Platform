@@ -76,6 +76,21 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "alarm.12vhpwr_per_pin",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "atx3.aic_excursion_curve",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "atx3.psu_excursion_tables",
+   "zone": "staging"
+  },
+  {
    "checkable": "partial",
    "entry": "bom-target-12vhpwr-standard",
    "zone": "staging"
@@ -191,6 +206,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "capture.10khz_disposition",
+   "zone": "staging"
+  },
+  {
    "checkable": "yes",
    "entry": "cec-logo-b-cu-not-under-esp",
    "zone": "staging"
@@ -208,6 +228,36 @@
   {
    "checkable": "yes",
    "entry": "conductor-temp-budget",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.12vhpwr_pin_ratings",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.inspection_paradox",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.llcr_cable_assembly",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.malucci_runaway_onset",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.mating_cycle_life",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "conn.power_per_mohm",
    "zone": "staging"
   },
   {
@@ -258,6 +308,11 @@
   {
    "checkable": "yes",
    "entry": "divider-resistors-0p1pct-tolerance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "dvdi.requirement_tier_verdict",
    "zone": "staging"
   },
   {
@@ -318,6 +373,11 @@
   {
    "checkable": "yes",
    "entry": "esp32-wroom-antenna-keepout-hub",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "evidence.gpu_transient_measured",
    "zone": "staging"
   },
   {
@@ -1251,6 +1311,26 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "stab.ina240_precision_terms",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "stab.ref3030_drift",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "stab.shunt_loadlife_bourns_css",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "stab.shunt_loadlife_tcr_vishay_wsl",
+   "zone": "staging"
+  },
+  {
    "checkable": "yes",
    "entry": "test-points-if-room",
    "zone": "staging"
@@ -1387,7 +1467,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 277,
+  "corpus_only": 293,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,

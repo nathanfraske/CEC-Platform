@@ -434,12 +434,85 @@ under the owner's signature; the gate is noted in those entries).
 Once these land in the spec, the corresponding promise entries re-class H→B citing the
 new spec lines (the corpus never amends the spec sideways).
 
-**On deck (cluster 6, preview):** the transient definition. The spec designs to a "10 kHz
-burst target" (it sizes the §6.13 RC at ~16.9 kHz, the INA238 "clears the 10 kHz" claim,
-the Pro's ~50 kHz×6) and the §6.13 comparator threshold + the 12 A-hog alarm level are
-firmware-punted — but no provenance pins what GPU transient (rise/magnitude/duration
-distribution) the platform is hunting. Public measurements exist (the GPU spike
-literature); cluster-1-style deep research applies. Gates OQ-57..59.
+## Cluster 6 + cluster-5 item 4 — **DELIVERED 2026-06-10**; decision slate executed
+
+The owner's dive landed as **`docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md`**
+(standing convention). Encoded: `corpus/staging/general/fault-phenomenology.json` (12
+entries) + `stability-terms.json` (4 datasheet-pinned entries) + the **stability row** in
+`meas.targets.v1` (the cluster-5 item-1 denominator for the stability quantity). Anchor
+fixture `tests/test_fault_phenomenology_corpus.py` (21 tests).
+
+**The erratum (owner's own, in the doc's corrections):** "0.78 W/mΩ at 9.2 A" originated in
+the owner's task prompt to the research consultant — **grep-confirmed it never landed in
+corpus/spec/CLAUDE.md/scripts before the dive**. Correct: **0.085 W/mΩ at 9.2 A**; 0.78
+holds near 28 A (hog territory). Entry `conn.power_per_mohm` carries the correction with
+the injected-upstream provenance. Second machinery catch of owner arithmetic; both catches
+cheaper than the miss.
+
+**Decision slate (all encoded as human_approved H/decision entries):**
+- **OQ-57 disposition** (`capture.10khz_disposition`): keep 10 kHz as RMS/thermal capture;
+  sub-100 µs waveform reconstruction formally DE-SCOPED; §6.13 consistency resolved by
+  **oversample-and-decimate** (SADC 50–100 kHz → 10 kHz report; the 16.9 kHz RC stands as
+  correct anti-alias), fallback = corner drops to 2–5 kHz; either path = **§6.13
+  spec-revision candidate, documented never implied**.
+- **Comparator defaults + hog tightening** (`alarm.12vhpwr_per_pin`): per-pin = lane/2;
+  WARN >9.5 A sustained; ALARM >11 A sustained >1 s (tightened from the 12 A default —
+  12 A survives only as instantaneous ceiling); CRITICAL on imbalance ratio >2.0 or an
+  energized ~0 A lane. The documented der8auer failure reads ratio 2.6 — fires.
+- **dV/dI ratified** (`dvdi.requirement_tier_verdict`): *resolve ≥1 mΩ/lane over
+  days-to-weeks at ≥3σ against drift* (~3× margin before the 3–4 mΩ Malucci onset).
+  **Pro ships; Standard conditional/beta** gated on shunt family + temp comp +
+  differential trending. Validity gates: in-situ multi-week drift **<0.3 mΩ → Standard
+  full; >0.7 mΩ → Pro-only**. **Shunt BOM = the deciding variable (Bourns CSS-class beats
+  Vishay WSL-class for this duty) — owner BOM decision QUEUED** (interacts with OQ-11 +
+  the CSS2H R-vs-K flag).
+- **Duty-cycle source conflict**: Intel 336521 rev 2.1 governs (5/8/12.5/25 % test duty);
+  the quoted 10 % is superseded draft material — recorded in `atx3.psu_excursion_tables`,
+  conservative side.
+- **Founders-ack extended**: the Standard-beta vs Pro dV/dI framing is a product-tier
+  commitment, same class as the cluster-5 promises — gate noted on
+  `dvdi.requirement_tier_verdict` + the targets-table stability row.
+
+**Pinned-fact entries:** ATX 3.0 PSU excursion tables (both columns, public Intel doc — no
+verify note) · the AIC curve R=3 ≤100 µs / R=4−0.2171·ln(T µs) (CEM ECN paywalled noted) ·
+9.2/9.5/55 A pin ratings (CEM-exact verify note) · 6 mΩ LLCR w/ conditions (H, verify CEM
+5.1) · Malucci onset (10–30 mV, ~3.5 mΩ @9.2 A, 0.8 mΩ baseline, 0.143 V tin, explicitly
+statistical → trend-over-fixed-limit) · ~30 mating cycles (A) + the **inspection paradox**
+(H clause: re-seating to inspect accelerates the wear inspected for) · the measured-evidence
+slice (`evidence.gpu_transient_measured`, H/judge, **never standalone authority**) · the
+stability-term table (REF3030 drift — which also resolved the cluster-5 tempco question as
+RANGE-dependent 50/75 ppm, not grade; INA240 terms; Bourns CSS vs Vishay WSL load-life w/
+format-normalization caveat riding the budget task).
+
+**Three new OQs (bench/metrology rows):**
+1. **In-house dI/dt scope measurement at the connector** — published sources give power and
+   current vs time, never slew rate.
+2. **ESP32-S3 SADC long-term drift characterization** — unpublished by Espressif.
+3. **In-situ multi-week shunt drift benchmark** — settles the Standard dV/dI gate
+   (0.3/0.7 mΩ); **worth starting early: its clock runs in weeks.**
+
+**Spec-revision candidates grew:** §6.13 capture path (oversample-decimate vs corner drop) +
+the alarm threshold defaults (spec OQ-57's "lock the threshold default"). NUMBERING NOTE:
+the slate's OQ-58/59 usage maps onto spec OQ-57's threshold-lock scope (spec OQ-58/59 are
+the EPS/PCIe Pro and Max SKU questions) — dispositions bind to §6.13 content, recorded in
+the entries.
+
+**Sonnet panel (3 seats, Opus adjudicated): 8 findings, 7 applied, 1 surfaced back to the
+owner.** Applied: the `>22 A` clamp-ceiling floor flag (every der8auer-derived ratio is a
+lower bound); the `<20 ppm` element-TCR qualifier (`_max` convention); the Malucci 0.0322 V
+derivation-opacity note (the 9 A figure is the paper's extrapolation from 17/20 A tests —
+formula not reproduced; load-bearing for the 3.5 mΩ conversion and the ~3× margin);
+corpus-level-arithmetic labeling on the 22 A heating figures; the OQ-59→slate-item-3
+disambiguation in the alarm value field; the ≈3.00 continuity rounding note; the WSL
+"same order" endpoint-vs-window clarification (aging non-linearity defers to the in-situ
+benchmark). **SURFACED — OWNER RESOLVES at the §6.13 threshold lock:** the ruled "per-pin
+current = lane current / 2" does not map onto the 12VHPWR Standard's architecture (each
++12V pin sensed DIRECTLY, 6 INA240s — no division; EPS = 4×12V/cable, PCIe = 3×12V/cable,
+neither /2). Ruling encoded verbatim; the architecture binding is the open half.
+
+**Stability-budget derivation: GO.** Entry 11 delivers the capability-side terms; slate
+item 4 fixes the requirement curve. Where those curves cross on the shunt-aging term is
+the Standard verdict — exactly as the dive predicted.
 
 ## What is blocked on owner data
 

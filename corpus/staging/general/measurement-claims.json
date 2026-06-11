@@ -23,7 +23,8 @@
     {"quantity": "current", "tier_path": "Standard (all modules)", "value_pct": null, "basis": "placeholder", "conditions": {"note": "pending the budget doc; floored by uncalibrated shunt tolerance -- see meas.cal.strategy_per_tier"}},
     {"quantity": "current", "tier_path": "Pro", "value_pct": null, "basis": "placeholder", "conditions": {"note": "pending the budget doc; per-unit SHUNT_CAL lifts shunt tolerance out"}},
     {"quantity": "power", "tier_path": "all", "value_pct": null, "basis": "policy", "conditions": {"ref": "meas.policy.power_error_rss"}},
-    {"quantity": "energy", "tier_path": "all", "value_pct": null, "basis": "none", "conditions": {"ref": "meas.policy.energy_unpromised"}}
+    {"quantity": "energy", "tier_path": "all", "value_pct": null, "basis": "none", "conditions": {"ref": "meas.policy.energy_unpromised"}},
+    {"quantity": "stability (per-lane source impedance trend)", "tier_path": "Pro (ships) / Standard (conditional-beta, gated)", "value_pct": null, "basis": "promise", "conditions": {"requirement": "resolve >= 1 mOhm per lane over a days-to-weeks window at >= 3 sigma against drift", "ref": "dvdi.requirement_tier_verdict", "founders_ack": true, "note": "cluster-5 item 4 delivered 2026-06-10 -- the requirement row IS this table's denominator for the stability quantity; tier split + 0.3/0.7 mOhm validity gates live in the referenced entry"}}
    ]
   },
   "units": "percent",
@@ -250,7 +251,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_measurement_claims_corpus.py",
-  "notes": "THE ABSOLUTE ANCHOR of the 12VHPWR Standard voltage channel (cluster-5 item 2, owner: 'Standard voltage anchors on the REF3030 initial +/-0.2%'). The datasheet-pinned fact the cl19 gallery proved was missing: M2.7 laundered its +/-2%-vs-+/-0.2% REF3030 confusion out of its conclusions because no corpus fact pinned this. The ratiometric scheme cancels ADC gain/reference DRIFT (relative correction); this initial tolerance is what bounds ABSOLUTE accuracy on a no-per-unit-cal Standard board -- it enters the +/-0.5% voltage promise directly. PROMOTION GATE (named, per the 2026-06-10 panel): verify the REF3030AIDBZR grade row in the vendored datasheet table -- the family parametric shows 75 ppm/C max tempco vs 50 ppm/C in the part headline, GRADE-DEPENDENT, and the tempco term is LOAD-BEARING for the 50C accuracy budget (the 50C rows of meas.targets.v1 cannot populate without it; initial accuracy 0.2% is grade-independent and stands). The 0.1% divider (R5/R6) and ESP INL stack on top (budget doc)."
+  "notes": "THE ABSOLUTE ANCHOR of the 12VHPWR Standard voltage channel (cluster-5 item 2, owner: 'Standard voltage anchors on the REF3030 initial +/-0.2%'). The datasheet-pinned fact the cl19 gallery proved was missing: M2.7 laundered its +/-2%-vs-+/-0.2% REF3030 confusion out of its conclusions because no corpus fact pinned this. The ratiometric scheme cancels ADC gain/reference DRIFT (relative correction); this initial tolerance is what bounds ABSOLUTE accuracy on a no-per-unit-cal Standard board -- it enters the +/-0.5% voltage promise directly. PROMOTION GATE (named 2026-06-10, REFINED same day by the cluster-6 dive): the 50-vs-75 ppm/C tempco discrepancy is TEMPERATURE-RANGE-dependent, not grade-dependent -- 50 ppm/C max over 0-70C, 75 ppm/C max over -40..+125C (stab.ref3030_drift); verify both rows in the vendored datasheet at promotion. The tempco term is LOAD-BEARING for the 50C accuracy budget (the 50C rows of meas.targets.v1 populate from it; initial accuracy 0.2% is range/grade-independent and stands). The 0.1% divider (R5/R6) and ESP INL stack on top (budget doc)."
  },
  {
   "id": "meas.anchor.standard_current",
