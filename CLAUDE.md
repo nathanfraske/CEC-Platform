@@ -569,6 +569,19 @@ Open items (surface before acting):
    GetTracks() ids, Remove segfault. NEXT in this lane: FR-04 ladder (per-net tier manifest
    + the control arm -- rides the wave-3 orchestrator), GR-03 locus agent, FR-03 corridor
    executor (only if waypoints prove insufficient), GR-01->FR-02 intent compilation.
+   FR-01 GATE RUN (2026-06-10, Decision 18 recorded): VERDICT REPAIR -- **pin stays 1.7.0**
+   (ledger D-20260611-042438-2273eef8). Landed: cec_fr is version-parametric + sha256
+   hash-pinned (FR_RELEASES; $CEC_FR_VERSION override = automatic AM-03 epoch via the
+   ledger manifest; 2.2.4 needs Java 25 -> official app-image fallback w/ bundled JRE;
+   2.x runs true-headless w/ -da + per-run user_data_path). 2.2.4 PASSED determinism
+   (byte-identical raw), eps side-by-side, FR-02 bench (force_protect LOAD-BEARING on
+   2.2.4 too) + SB-08 golden within existing bands. TWO BLOCKERS: (a) upstream
+   PolylineTrace.normalize infinite loop on the 12vhpwr GND net (0 passes/1800s vs 6.6s
+   on 1.7.0; freerouting#608-adjacent); (b) NO R-01 diversity axis on 2.2.4 (opt_time/
+   passes/-us/-hr/-is/via_costs all byte-identical at convergence, 17 probe runs) --
+   repair = board-side per-seed bake_hints perturbation, then re-run gate leg B. The 2.x
+   -drc flag is broken upstream; stage-0 pre-kill = per-pass unrouted trajectory from the
+   FR log. Full state: docs/owner-queue.md §9 + the memory handoff.
 
 -3. CLOSED-LOOP FRAMEWORK (2026-06-10, branch claude/closed-loop-wave1). The owner's refined
    pipeline model (docs/closed-loop-implementation-list.md, CL/AM/RB/DF/PC/FR/GR/CR items) is

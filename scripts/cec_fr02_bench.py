@@ -144,7 +144,8 @@ def run_bench():
     import cec_fr
 
     work = tempfile.mkdtemp(prefix="fr02bench_")
-    res = {"router": "freerouting-1.7.0 (pinned, Decision 18)",
+    res = {"router": f"freerouting-{cec_fr.FR_VERSION} (the FR_VERSION pin; "
+                     f"Decision 18 baseline = 1.7.0, FR-01 epoch = 2.2.4)",
            "board": os.path.relpath(BOARD)}
 
     # ---- arm A: locked stub ------------------------------------------------

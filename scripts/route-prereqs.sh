@@ -43,16 +43,25 @@ else
 fi
 
 # --- java ---
+# FR-version aware (FR-01): FR 1.x needs java 17+; FR 2.2.x is compiled for java 25.
+# On Linux with an older java, cec_fr falls back automatically to the hash-pinned
+# official jpackage app-image (bundled JRE 25), so java<25 is a note there, not a failure.
+FRV="${CEC_FR_VERSION:-1.7.0}"
+case "$FRV" in 1.*) jneed=17 ;; *) jneed=25 ;; esac
 if command -v java >/dev/null 2>&1; then
   jver="$(java -version 2>&1 | head -1)"
   jmaj="$(java -version 2>&1 | sed -nE 's/.*version "([0-9]+).*/\1/p' | head -1)"
-  if [ "${jmaj:-0}" -ge 17 ] 2>/dev/null; then
-    note "java" "OK ($jver)"
+  if [ "${jmaj:-0}" -ge "$jneed" ] 2>/dev/null; then
+    note "java" "OK ($jver) for FR $FRV"
+  elif [ "$jneed" -ge 25 ] && [ "$(uname -s)" = "Linux" ]; then
+    note "java" "found $jver < $jneed for FR $FRV -- cec_fr will use the bundled-JRE app-image"
   else
-    bad "java" "found $jver -- Freerouting 1.7.0 needs java 17+ (21 recommended)"
+    bad "java" "found $jver -- Freerouting $FRV needs java ${jneed}+"
   fi
+elif [ "$jneed" -ge 25 ] && [ "$(uname -s)" = "Linux" ]; then
+  note "java" "absent, but FR $FRV runs via the bundled-JRE app-image on Linux"
 else
-  bad "java" "install a JRE 21 (e.g. apt install openjdk-21-jre-headless)"
+  bad "java" "install a JRE (Freerouting $FRV needs java ${jneed}+)"
 fi
 
 # --- xvfb-run ---

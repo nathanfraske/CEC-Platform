@@ -105,8 +105,24 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 
 ## 9. Watch items (no action until their trigger)
 
-- FR-01 router migration (1.7.0 → 2.2.4) — its own AM-03 epoch event, after the MVN
-  baseline; re-run the FR-02 gating bench on 2.2.4 at that epoch.
+- FR-01 router migration (1.7.0 → 2.2.4) — **GATE RUN 2026-06-10, VERDICT: REPAIR — pin
+  stays 1.7.0** (ledger D-20260611-042438-2273eef8; battery workflow wf_11fb2ac3-11a;
+  artifacts build/fr01/). Landed anyway: version-parametric cec_fr (sha256 pins for both
+  releases, `CEC_FR_VERSION` override, Java-25 app-image fallback, 2.x true-headless +
+  analytics-off + per-run settings isolation); FR-02 bench + 10/10 fixtures PASS on
+  2.2.4; SB-08 golden PASS under both pins; determinism PASS (2.2.4 byte-identical raw).
+  TWO BLOCKERS before any flip:
+  (a) UPSTREAM: 2.2.4 infinite-loops (PolylineTrace.normalize max-depth-16) on the
+      12vhpwr GND net — 0 passes in 1800 s vs 6.6 s complete on 1.7.0. Related:
+      freerouting#608 (2.2.x regression vs 1.9 baseline; parity work post-dates 2.2.4;
+      SMD fanout disabled in 2.2). OWNER CALL: report our clean repro upstream
+      (12vhpwr DSN + log)? Otherwise watch the next FR release.
+  (b) TOOLKIT: no R-01 diversity axis exists on 2.2.4 — opt_time/-oit (improvement-%),
+      passes, -us/-hr/-is (incl. random), --router.via_costs ALL byte-identical at
+      convergence (measured, 17 runs). Repair design: board-side per-seed perturbation
+      (bake_hints micro-keepouts), then re-run gate leg B (needs ≥3/4 distinct hashes).
+  At flip time only: Windows runner needs a JRE 25 (no portable Windows app-image; MSI
+  only) — ten-minute desk task.
 - Windows-side VHDX compact (~110 GB back to C:) — owner todo from the 235B retirement.
 - Companion diagrams (§2.9 / Appendix D SVGs) — docs follow-up, non-blocking.
 - OQ-2 5VSB cap, OQ-4 cable policy, OQ-7 Enterprise/MC scoping — platform OQs, unchanged.
