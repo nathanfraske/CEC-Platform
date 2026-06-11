@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Gates fail solely on structural DRC=38 with 3 unconnected ratlines — both are router-addressable. kelvin_ok and diffpair_ok are clean, so the remaining violations are clearance/annular artifacts from the current pass, not placement-class blockages. Existing rule 1 should already fire for the 3 conductor over-temp SENSEC flags (≥2 threshold met), triggering pour expansion; that lever is wired. The via over-temp on /SENSEC2_LO is a residual thermal issue distinct from conductor width — a denser stitch-via field lowers per-via current density without enlarging the pour footprint and is not covered by rule 1. On the penalty side, the 3 unconnected ratlines on control nets (/CAN_H, /I2C_SCL, /I2C_SDA) contribute only 15 to the objective (3×5.0) while DRC=38 contributes 1900 (38×50.0); the 127:1 ratio lets the router deprioritize ratline completion in favor of clearance chasing. Rebalancing the unconnected weight closes that gap and creates proportional pressure to fully connect these stub-net endpoints before DRC polish.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "unconnected",
+    "weight": 20.0,
+    "rationale": "3 unconnected ratlines on control nets contribute only 15 to the objective against 1900 from DRC=38; the 127:1 imbalance allows the router to leave ratlines while chasing clearance. Raising unconnected weight to 20.0 (from 5.0) equalizes relative pressure and incentivizes full connection before DRC polish — a lever the router can act on directly."
+  },
+  "manager_rule": "When a via over-temp FEM flag targets any SENSEC* net, reduce the stitch-via pitch in that cable's power-pour via field by 50% (halve the inter-via spacing) before the next route pass, distributing current across more via barrels to lower per-via temperature without enlarging the pour footprint."
+}

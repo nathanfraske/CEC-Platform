@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Gates fail on structural DRC=39 with 3 unconnected ratlines — both are routing-class issues addressable by higher effort (more passes, longer opt_time). Kelvin and diff-pair hard gates both pass, which is the most important safety signal. FEM flags all four SENSEC cable carry nets as over-temp (conf 0.85) at max_T=113°C; the stub summary shows 4 power pours were placed but the per-net cross-section is clearly insufficient. Power pour expansion on SENSEC*_HI/_LO is a direct loop lever (synthesize_power_copper / B.Cu mirror pour). The 3 unconnected ratlines likely correspond to stubs on /CAN_H, /I2C_SCL, /I2C_SDA that the router did not close — more passes should absorb them. Do not escalate to placement; the thermal and connectivity issues are both routing-tier resolvable.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "max_T",
+    "weight": 0.3,
+    "rationale": "max_T=113°C with 4 FEM over-temp flags on cable carry nets is unpriced by current penalties (which target drc, unconnected, plane_signal_mm only). Adding a weight on max_T directly incentivizes pour expansion on the SENSEC*_HI/_LO nets — a concrete loop lever. Weight 0.3 is enough to differentiate candidates at 100–130°C without crowding out the DRC gate signal."
+  },
+  "manager_rule": "When ≥2 FEM over-temp flags target SENSEC*_HI or SENSEC*_LO nets, trigger power-pour expansion on those nets (widen corridor keepout and add B.Cu mirror pour if absent) before accepting the candidate."
+}

@@ -1,0 +1,26 @@
+{
+ "round": 5,
+ "final": "uncertain",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "uncertain",
+   "reason": "seat error: TimeoutError: timed out",
+   "failure_class": "unknown",
+   "status": "error"
+  },
+  "evidence-provenance": {
+   "verdict": "uncertain",
+   "reason": "seat error: TimeoutError: timed out",
+   "failure_class": "unknown",
+   "status": "error"
+  },
+  "actuation-space": {
+   "verdict": "uncertain",
+   "reason": "seat error: TimeoutError: timed out",
+   "failure_class": "unknown",
+   "status": "error"
+  }
+ },
+ "arbiter": null
+}

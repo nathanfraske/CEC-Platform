@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Kelvin and diffpair gates both pass (kelvin_ok=true, diffpair_ok=true, kelvin_unrouted=0). The sole gate failure is structural DRC=29 with 5 unconnected ratlines — a routing convergence failure attributable to routing, not placement or constraints. Two existing standing rules fire on this candidate: Rule 1 (4 FEM over-temp flags on SENSEC1_HI, SENSEC1_LO, SENSEC2_HI, SENSEC2_LO → pour expansion + widen corridor keepout) and Rule 4 (n_stubs=7 ≥ 5, stub nets include /CAN_H, /I2C_SCL, /I2C_SDA → increase passes 40% + GR-02 U-detour repair on control nets). The DRC=29 + unconnected=5 co-occurrence pattern is distinct from stub-only failures: routing collisions on congested nets are simultaneously starving nearby connectivity. A targeted rip-up pass on the highest-DRC nets combined with a global pass increase should clear both the structural hits and the remaining ratlines in concert with the queued Rule 1/4 actuations. Proposing a new rule to address this DRC+unconnected joint-failure pattern, and a max_T penalty increase to steer objective selection toward the thermally sound candidates that Rule 1 will produce.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "max_T",
+    "weight": 2.0,
+    "rationale": "Four FEM conductor over-temp flags at 116.8°C on all four SENSEC* nets indicate a persistent thermal deficit. The current max_T weight of 0.5 is insufficient to distinguish thermally borderline candidates in objective ranking; increasing to 2.0 makes thermal cost visible at selection time. The actuation lever that reduces max_T is pour expansion (Rule 1 already fires); the higher weight ensures the objective steers candidate selection toward the expanded-pour solutions Rule 1 produces rather than accepting a thermally similar alternative."
+  },
+  "manager_rule": "When structural DRC >= 15 and unconnected >= 3 in the same candidate, apply targeted rip-up on the top-5 nets ranked by DRC violation count and increase global router optimization passes by 30% to resolve routing-collision-driven connectivity starvation before the next scoring pass."
+}

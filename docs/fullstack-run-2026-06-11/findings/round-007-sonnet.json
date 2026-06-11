@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Gates fail solely on structural DRC=38; kelvin_ok and diffpair_ok both pass, confirming violations are residual clearance or collision artifacts rather than critical-path connectivity gaps. Two unconnected nets remain. Four conductor over-temp FEM flags on all SENSEC1/SENSEC2 HI and LO nets at 0.85 confidence signal active thermal risk: rule 1 should trigger pour expansion on those nets. Rule 4 should trigger on the 7 stubs spanning /CAN_H, /I2C_SCL, /I2C_SDA. However, the max_T thermal term contributes only ~36 to the objective (118.7 * 0.3) versus the DRC term at ~1900 (38 * 50), severely under-weighting the thermal failure relative to DRC; the loop has little incentive to resolve the over-temp condition before the DRC. No novel rule is warranted: the observed failure modes (conductor over-temp on SENSEC*, stubbed control nets) are already covered by rules 1 and 4 respectively. Repair is achievable via those levers plus raising the max_T objective weight to rebalance incentives.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "max_T",
+    "weight": 0.5,
+    "rationale": "Four confirmed conductor over-temp flags at 0.85 confidence on all SENSEC HI/LO nets are a real thermal failure, yet max_T contributes only ~36 to the objective vs DRC contributing ~1900. Raising weight from 0.3 to 0.5 gives pour-expansion solutions (already triggered by rule 1) meaningful objective credit and prevents the optimizer from accepting a thermally unsafe candidate the moment DRC clears."
+  },
+  "manager_rule": null
+}
