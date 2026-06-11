@@ -98,8 +98,10 @@ per-round seat.
 - [x] V4 + Sonnet blind judges run + persisted (§3).
 - [x] `scripts/cec_overnight_directed.py` — directed-routing overnight base with Pareto-
       frontier finalist selection (split arch: route+score in-container worker via
-      `docker compose exec routing ... --route-one`; review on host — the container CANNOT
-      reach the broker, the known `E:\toolchain\fix-firewall.bat` gap). Worker leg VERIFIED:
+      `docker compose exec routing ... --route-one`; review on host. CORRECTION 2026-06-11:
+      the container CAN reach the broker — the earlier "firewall gap" was `curl` missing
+      from the routing image, exit 127 misread as unreachable; verified with python3 urllib.
+      The split stays as a design choice). Worker leg VERIFIED:
       one round routed directed (7 stubs, 5 absorbed, 2 trimmed), `plane_signal_mm=0`,
       DecisionLog archived. KNOWN ISSUE: a single FR pass at low `passes` does not close the
       Kelvin gate (drc=27, kelvin_ok=false) → the in-loop driver must ADAPT effort (manager
@@ -178,6 +180,49 @@ Artifacts (ALL permanent — under this dir or a non-/tmp build dir copied here)
 
 ## 7. Still-open ledger/handoff items (from before this experiment)
 
-- FR-04 owner override-up not yet DF-01 ledgered (the override + the re-settle on the fixed
-  field). The fixed field is now in place (layer policy + pricing), so the re-settle can run.
-- Pin stays FR 1.7.0. Branch work uncommitted.
+- FR-04 owner override-up: DF-01 LEDGERED 2026-06-11 (class override-up, ../cec-runs
+  decisions.jsonl). Pin stays FR 1.7.0. Code committed d26651d.
+
+## 8. FULL-STACK night plan (owner-requested 2026-06-11; next build)
+
+Last night was deliberately LEAN (one auditor, deterministic everything else) so injection
+effects were attributable. The full-stack night exercises every tier. **Firewall note: there
+is NOTHING to fix** — the container reaches the broker (the "gap" was `curl` missing from the
+image); the worker tier is unblocked as-is.
+
+| # | Tier | Model / seat | Where | Cadence |
+|---|------|-------------|-------|---------|
+| 0 | Placement actuator (NEW — the local-minimum lesson) | deterministic `cec_loop` kelvin_tighten + GR-02 repair battery | container | on placement-class escalation |
+| 1 | Route generation | Freerouting 1.7.0 + FR-02 intents + layer policy | container | every round, BATCH of 4 seeds (R-01 spread) |
+| 2 | Scoring + gates | `cec_score` (plane pricing) + CL-25 checkers — deterministic | container | every candidate |
+| 3 | Worker swarm (in-loop manager) | **cec-worker** = Qwen3.6-35B-A3B, 4 parallel slots, 3-lens panel (`make_manager_swarm`) | container→broker | every round, judges the batch |
+| 4 | Fast auditor (injection) | **Sonnet** headless (stream-json → dashboard), + actuation-space check + novelty gate + rule cap | host | every round |
+| 5 | Vision inspection | **cec-vision-judge** = Qwen3-VL-32B (nothink grammar calls; facts-alongside v2 protocol; structure/text only, never geometry) | host (renders from container) | each NEW Pareto finalist |
+| 6 | Briefed reviewer (out-of-loop) | **cec-manager-fast** = gpt-oss-120b via `corpus_fit_review` w/ the ratified-rules briefing | host | each NEW Pareto finalist |
+| 7 | Deep auditor | **V4** deepseek-v4-flash — opportunistic checkpoints (probe-only) + guaranteed MORNING pass on finalists | host→Windows | ~8th round IF up; morning always |
+| 8 | Self-learning cycle | DecisionLogs→corpus, findings→DF-01 candidates, morning human ratification | host | continuous |
+
+GPU choreography (single 5090, broker arbitrates): cec-worker (~9GB) resident; vision-judge
+(~20GB) swaps in on finalist events (rare — batch vision+reviewer bursts to amortize the ~90s
+swap); gpt-oss-120b (~6GB GPU + experts in RAM). **V4 stays excluded overnight** (pins ~160GB
+host RAM against the WSL2 pool); its depth arrives as the morning pass.
+
+Driver changes required (the convergence lessons baked in):
+1. **Actuation-space check** before penalty escalation: "can any lever I own move this
+   metric?" — placement-class failures route to tier 0, never to penalty inflation.
+2. **Novelty gate** stronger than the fast seat's self-report (n-gram/semantic dedupe vs
+   the standing ruleset; the night produced 76 rules, mostly rephrased epicycles).
+3. **Rule cap + consolidation**: standing manager rules capped (~10); auditor must
+   consolidate, not append.
+4. Worker-swarm verdicts drive FR effort; the auditor only injects pricing/rules.
+
+## 9. Live dashboard (built 2026-06-11, owner ask)
+
+`scripts/cec_dashboard.py` — stdlib-only, read-only, **http://localhost:8090** (nohup'd;
+log at `dashboard.log`). Panels: status header (alive/PID/rounds/final-verdict banner),
+realtime step feed (run.log tail), latest-board render (auto re-rendered in-container when a
+new candidate lands), live auditor thoughts (tails `findings/*-sonnet.stream.jsonl` —
+`claude -p --output-format=stream-json --include-partial-messages` teed by `sonnet_audit`;
+falls back to the newest finding's full reasoning + V4 checkpoint), convergence sparkline
+(pen_total vs drc, red band = kelvin fail), injected ruleset. Restart:
+`nohup python3 scripts/cec_dashboard.py --port 8090 > docs/inloop-audit-2026-06-11/dashboard.log 2>&1 &`

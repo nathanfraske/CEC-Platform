@@ -29,8 +29,9 @@
 # ratifies in the morning.
 #
 # Split compute: ROUTE+SCORE in the routing container (cec_overnight_directed worker);
-# the SONNET auditor + V4 checkpoint + all bookkeeping run on the HOST (broker +
-# claude CLI are host-reachable; the container is not -- the known firewall gap).
+# the SONNET auditor + V4 checkpoint + all bookkeeping run on the HOST. (CORRECTION
+# 2026-06-11: the container CAN reach the broker -- the earlier "firewall gap" was curl
+# missing from the image. The split stays as a choice: LLM orchestration host-side.)
 #
 # Usage:
 #   python3 scripts/cec_inloop_audit.py --hours 7 --board eps-8pin
@@ -200,9 +201,16 @@ def sonnet_audit(rec, lr, rnd, timeout=240):
     out_path = os.path.join(FIND_DIR, f"round-{rnd:03d}-sonnet.json")
     os.makedirs(FIND_DIR, exist_ok=True)
     prompt = _audit_prompt(rec, lr, rnd, out_path)
+    # stdout = stream-json event tee -> the live dashboard tails this for realtime
+    # "thoughts" (owner ask 2026-06-11); the findings JSON stays agent-written via Write.
+    stream_path = os.path.join(FIND_DIR, f"round-{rnd:03d}-sonnet.stream.jsonl")
     try:
-        subprocess.run(["claude", "-p", "--model", "sonnet", "--allowedTools", "Write"],
-                       input=prompt, text=True, capture_output=True, timeout=timeout)
+        with open(stream_path, "w") as sfh:
+            subprocess.run(["claude", "-p", "--model", "sonnet", "--allowedTools", "Write",
+                            "--output-format", "stream-json", "--verbose",
+                            "--include-partial-messages"],
+                           input=prompt, text=True, stdout=sfh, stderr=subprocess.DEVNULL,
+                           timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"verdict": "repair", "reasoning": "sonnet timeout", "error": "timeout"}
     for _ in range(3):                                         # small grace for the file write

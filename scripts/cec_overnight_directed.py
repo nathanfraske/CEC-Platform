@@ -31,8 +31,10 @@
 #   micro-keepout that nudges the global solution, then sha256-dedupe the routed
 #   copper so identical candidates do not re-enter the frontier.
 #
-# SPLIT ARCHITECTURE (matches cec_overnight; the container CANNOT reach the broker
-# -- the known host-firewall gap, E:\toolchain\fix-firewall.bat pending):
+# SPLIT ARCHITECTURE (matches cec_overnight). CORRECTION 2026-06-11: the container CAN
+# reach the broker (verified python3 urllib -> host.docker.internal:8080; the earlier
+# "unreachable" was curl being ABSENT from the routing image, exit 127 misread). The
+# split is kept as a design CHOICE -- LLM orchestration host-side, compute in-container:
 #   * ROUTE+SCORE runs IN the routing container (pcbnew + java + the FR jar), via
 #     `docker compose exec -T routing ... --route-one`, writing the DecisionLog to
 #     the shared /workspace volume and printing one RECORD_JSON line.
