@@ -1,0 +1,60 @@
+{
+  "_doc": [
+    "CL-11 golden fixture manifest (closed-loop framework, 2026-06-10). Four frozen board",
+    "states from the two audits; invariants by FLAG ID -- known-bad fires the expected check",
+    "IDs, known-good fires none of them. Runner: scripts/cec_golden_fixtures.py (CI gate).",
+    "",
+    "FROZEN ANCHORS: these fixtures are burned for tuning the moment a prompt/charter is",
+    "adjusted against them. The held-out complement lives in tests/holdout/ and is never",
+    "tuned against. tests/golden/** is CODEOWNERS-gated -- changing a fixture or a band is",
+    "an owner-approved act.",
+    "",
+    "Provenance: 12vhpwr-pre = the committed board at branch claude/closed-loop-wave2",
+    "(2026-06-10), which still carries the audit's signal-size lane vias (the GUI pour/route",
+    "pass had not landed); 12vhpwr-post = derived from pre by normalizing every under-minima",
+    "via UP to its netclass minima (scripts/cec_golden_fixtures.py --freeze); hub-pre/post =",
+    "git a271253~1 / a271253 (the SS2.9 power-switching commit that added the four-resistor",
+    "source-sense divider network R15-R18), schematic only -- the TPS2121 class is",
+    "schematic-side."
+  ],
+  "fixtures": [
+    {
+      "id": "12vhpwr-pre-lanevias",
+      "file": "12vhpwr-standard-module.kicad_pcb",
+      "audit": "12VHPWR: signal-size lane vias (the 136-via finding)",
+      "invariants": [
+        { "check": "netclass-geometry-conformance", "assert": "fires" },
+        { "check": "netclass-geometry-conformance", "assert": "net_scoped",
+          "nets": ["/SENSEP*"], "kinds": ["via_dia", "via_drill"],
+          "min": 100,
+          "_note": "measured 240 at freeze (120 lane vias x dia+drill); band floor 100 so a partial fix still fires until ALL lanes conform" }
+      ]
+    },
+    {
+      "id": "12vhpwr-post-lanevias",
+      "file": "12vhpwr-standard-module.kicad_pcb",
+      "audit": "12VHPWR: netclass-conformant vias (derived known-good)",
+      "derive": { "from": "12vhpwr-pre-lanevias", "method": "via-normalize-to-class-minima" },
+      "invariants": [
+        { "check": "netclass-geometry-conformance", "assert": "net_scoped",
+          "nets": ["*"], "kinds": ["via_dia", "via_drill"],
+          "min": 0, "max": 0,
+          "_note": "ZERO via hits anywhere post-normalize. The check overall still fires on this fixture (track-width hits remain by design) -- the via invariant is the scoped assertion, not a clean board" }
+      ]
+    },
+    {
+      "id": "hub-pre-tps2121",
+      "file": "hub-standard.kicad_sch",
+      "audit": "Hub Standard: TPS2121 PR1 defect (pre four-resistor divider, git a271253~1)",
+      "check": null,
+      "expected_fail": "the TPS2121 Class B corpus entry does not exist yet (CL-18 flow: spec/datasheet-sourced entry -> compiled check). Until it lands, no check binds to this known-bad state -- the gap stays VISIBLE here instead of silently green. AM-02: the entry's own fixture replaces this marker the day it is drafted."
+    },
+    {
+      "id": "hub-post-tps2121",
+      "file": "hub-standard.kicad_sch",
+      "audit": "Hub Standard: four-resistor source-sense divider fix (R15-R18, git a271253)",
+      "invariants": [],
+      "_note": "the known-good pair of hub-pre-tps2121; gains its quiet-invariant when the Class B entry's check lands. Presence is verified meanwhile."
+    }
+  ]
+}

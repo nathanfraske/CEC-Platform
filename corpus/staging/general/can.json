@@ -1,0 +1,92 @@
+[
+ {
+  "id": "can.termination.hub_split_120r",
+  "class": "B",
+  "kind": "rule",
+  "scope": {
+   "net_families": [
+    "CAN_H",
+    "CAN_L",
+    "CAN1_H",
+    "CAN1_L"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "form": "split",
+   "r_each_ohm": 60,
+   "c_split_nf": 4.7,
+   "total_ohm": 120
+  },
+  "units": "ohm",
+  "applies_to": [
+   "compiler",
+   "judge"
+  ],
+  "compile": {
+   "targets": [
+    {
+     "type": "checker_binding",
+     "params": {
+      "module": "cec_synth_pipeline",
+      "checker": "no_module_can_term"
+     }
+    }
+   ]
+  },
+  "source": {
+   "type": "spec",
+   "ref": "CEC-Platform-Ground-Truth-Spec.md section 3.1 (fixed 120 ohm split termination at the Hub; modules carry NO termination)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "Hub-only: 60R + 60R + 4n7 split to GND. A module schematic carrying CAN termination is a conformance failure (chk_* CONFORMANCE suite enforces; this entry is the corpus-side record with spec provenance). Scope normalized 2026-06-10 (CL-03 Ruling 6): was {net_pair: [CAN_H, CAN_L], site: hub} -- the rule binds BOTH families (hub must carry the split, modules must carry none). net_families carries BOTH platform conventions (schematic CAN_H/CAN_L + the locked pin-table CAN1_H/CAN1_L).",
+  "migrated": true
+ },
+ {
+  "id": "can.bitrate.classical_500k",
+  "class": "B",
+  "kind": "param",
+  "scope": {
+   "net_families": [
+    "CAN_H",
+    "CAN_L",
+    "CAN1_H",
+    "CAN1_L"
+   ],
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": 500000,
+  "units": "bit/s",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "compile": {
+   "targets": [
+    {
+     "type": "param",
+     "params": {
+      "key": "can.bitrate.classical_500k"
+     }
+    }
+   ]
+  },
+  "source": {
+   "type": "spec",
+   "ref": "CEC-Platform-Ground-Truth-Spec.md section 3.1 (classical CAN 500 kbps every tier; CAN-FD deferred platform-wide; optional bus-wide 1 Mbps gated on the bench SI test)",
+   "date": "2026-06-09"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "notes": "Locked floor and default. The optional 1 Mbps is firmware-only and bus-wide, never per-module; with the non-SIC TJA1051T/3 the passive star/stub SI result at 1 Mbps is the whole story. Scope normalized 2026-06-10 (CL-03 Ruling 6): was {bus: module-to-hub CAN, tiers: all}. net_families carries BOTH platform conventions (schematic CAN_H/CAN_L + the locked pin-table CAN1_H/CAN1_L).",
+  "migrated": true
+ }
+]

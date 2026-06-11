@@ -717,6 +717,33 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
 
     work_dir = work_dir or os.path.join(tempfile.gettempdir(), "cec_route_" + str(int(time.time())))
     os.makedirs(work_dir, exist_ok=True)
+
+    # CL-25 intake gate: refuse candidate generation for a board failing the schematic-side
+    # subset (sync / ERC / BOM lint / netlist assertions) -- routing a broken netlist all
+    # night produces perfectly routed WRONG boards. Named reasons; CEC_SKIP_INTAKE=1 overrides
+    # (lazy import: cec_constraints pulls cec_dispatch, which imports this module).
+    if os.environ.get("CEC_SKIP_INTAKE") != "1":
+        gate = None
+        try:
+            import cec_constraints
+            gate = cec_constraints.intake_gate(board0)
+        except Exception as e:
+            if verbose:
+                print(f"[route] intake gate unavailable ({type(e).__name__}: {e}) -- proceeding")
+        if gate is not None and not gate["ok"]:
+            for r in gate["reasons"]:
+                print(f"[route] INTAKE REFUSAL: {r}")
+            try:
+                import cec_ledger
+                cec_ledger.append(board=os.path.basename(board0), mode="intake",
+                                  verdict="refused", input_board=board0,
+                                  extra={"reasons": gate["reasons"]})
+            except Exception:
+                pass
+            raise RuntimeError(
+                "intake gate refused %s (%d reason(s); CEC_SKIP_INTAKE=1 to override): %s"
+                % (os.path.basename(board0), len(gate["reasons"]), "; ".join(gate["reasons"])[:400]))
+
     rules = spec.rules or cec_score.Rules.from_board(board0)
     spec_to_dru(spec)                                    # rules the candidates + DRC will see
     log = DecisionLog()
@@ -955,6 +982,21 @@ def main(argv=None):
                                 elapsed_s=fin.get("elapsed_s"), artifact=os.path.relpath(out_dir, ROOT),
                                 parent_run_id=os.environ.get("CEC_PARENT_RUN_ID"))
         print(f"[route] ledger: {rec['run_id']}")
+        # CL-03 R4: the route leg's pcbnew-free ADVISORY slice (param deltas) ->
+        # per-fire sidecar sharing this route's run_id (PC-01: capture from the
+        # first advisory run; the full checker-binding ADV set runs in the
+        # synth cascade). Fail-safe -- never breaks a route run.
+        try:
+            import cec_corpus_compile
+            deltas = cec_corpus_compile.evaluate_param_deltas()
+            if deltas:
+                side = cec_ledger.adv_fires(
+                    [{"entry_id": d["entry_id"], "locus": d["key"],
+                      "binding": "advisory", "name": d["msg"]} for d in deltas],
+                    board=name, run_id=rec["run_id"])
+                print(f"[route] ADV fires: {side['n']} -> {side['rel']}")
+        except Exception as e:
+            print(f"[route] ADV sidecar skipped: {type(e).__name__}: {e}", file=sys.stderr)
     except Exception as e:
         print(f"[route] ledger append skipped: {type(e).__name__}: {e}", file=sys.stderr)
     # CORPUS-FIT REVIEW (Thrust A, deep tier) -- opt-in, fail-safe, OUTSIDE the per-region loop. When

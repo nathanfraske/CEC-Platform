@@ -53,6 +53,45 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> policy-as-code load assertions (CL-10: bindings usable, DF-05/07 firewall clean)\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_policy.py" validate || status=1
+else
+  printf '  skip: python3 not available\n'
+fi
+
+printf '==> corpus compiler determinism (CL-03 R8: double-compile byte-identical)\n'
+if command -v python3 >/dev/null 2>&1; then
+  cc1="$(mktemp -d)"; cc2="$(mktemp -d)"
+  if python3 "$CEC_SCRIPTS_DIR/cec_corpus_compile.py" compile --out "$cc1" >/dev/null \
+     && python3 "$CEC_SCRIPTS_DIR/cec_corpus_compile.py" compile --out "$cc2" >/dev/null \
+     && diff -r "$cc1" "$cc2" >/dev/null; then
+    printf '  ok: byte-identical\n'
+  else
+    printf 'FAIL: corpus compile is non-deterministic or errored\n' >&2
+    status=1
+  fi
+  rm -rf "$cc1" "$cc2"
+else
+  printf '  skip: python3 not available\n'
+fi
+
+printf '==> CL-19 extractor eval: structural half + holdout isolation\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_extractor_eval.py" structural || status=1
+  # R6: the holdout pool is never touched by prompt iteration. No script may
+  # READ tests/holdout as a code path (comments documenting the rule are fine).
+  hd_hits="$(grep -RInE '["'"'"']tests/holdout' "$CEC_SCRIPTS_DIR"/*.py 2>/dev/null || true)"
+  if [ -n "$hd_hits" ]; then
+    printf 'FAIL: a tool references the never-tune holdout pool:\n%s\n' "$hd_hits" >&2
+    status=1
+  else
+    printf '  ok: no tool reads tests/holdout\n'
+  fi
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
   --exclude-dir=build --exclude-dir=.git \

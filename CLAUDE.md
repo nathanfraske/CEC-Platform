@@ -543,6 +543,104 @@ this file in the same change that touches the board, not later.
 
 Open items (surface before acting):
 
+-3. CLOSED-LOOP FRAMEWORK (2026-06-10, branch claude/closed-loop-wave1). The owner's refined
+   pipeline model (docs/closed-loop-implementation-list.md, CL/AM/RB/DF/PC/FR/GR/CR items) is
+   being implemented; **docs/closed-loop-parity-plan.md is the working plan of record** --
+   read it BEFORE touching the corpus, judge tiers, orchestrator, or review machinery. Locked
+   owner decisions (do not re-ask): corpus/ at root two-zone split; PRs-everywhere path-gated
+   (CODEOWNERS + branch protection LIVE on main -- promoted/**, cec-policy.json, tests/golden/**
+   need owner approval); all 263 entries migrated to staging (promoted/ empty pending owner
+   re-sign); M2.7 license CLEARED (analyst binding); night venue = WSL2 + routing container;
+   FR stays pinned 1.7.0 (baseline banked) until the FR-01 epoch event. Conflict resolutions
+   (reality won): SB-13 status lifecycle kept (promoted = human_approved + signoff); class
+   letters AS-BUILT (A=standard, B=spec-derived -- the CL-06 spec-first rule binds to B);
+   CL-03 compiles to post-route copper synthesis + DRC, never router netclasses (FR ignores
+   them, measured); CL-26 minimal night ALREADY RAN (2026-06-09). Landed: zones + SCHEMA.md +
+   migrator + zone-aware lint + corpus-tree ledger hash + CODEOWNERS + branch protection.
+   Landed wave-1 remainder (2026-06-10): CL-10 cec-policy.json (CODEOWNERS-gated) + scripts/cec_policy.py
+   loader -- 3 load-time guards (load-bearing binding refused on license_cleared:false / failed-or-absent
+   eval gate -- extractor/verifier/frontier/vision-judge are marked NON-load-bearing until their gates
+   exist; DF-05/07 anti-ratchet firewall scan_banned() equality-on-token over the banned reward fields;
+   clamp() bounds nightly allocations + ledger-logs every clamp -- the loop can never widen a bound);
+   DF-01/06 + PC-01 in cec_ledger.py (decision() w/ claim+hook+settlement, settleable=claim&&hook =>
+   capture:full else counter-eligible; settle()/label append-only DF-07; counter() AM-06 sidecar
+   sharding; CLI decision/settle/label); CR-01/03 registry block in cec-policy.json (ratified:false
+   pending Decision 21 -- owner sign-off). 25 new host tests green (tests/test_cec_policy.py +
+   test_ledger_decision.py); cec_policy validate wired into checklist.sh. STILL OPEN wave-1: CL-02 owner
+   half (machine account + RB-04 audit -- OWNER action). SB-08 golden re-run in-container post-change: PASS.
+   Landed wave-2 start (2026-06-10, branch claude/closed-loop-wave2): CL-25 audit check pack + intake
+   gate -- six classes as stable IDs (cec_constraints.CL25_CLASSES; NEW netclass-geometry-conformance
+   [fires on the committed 12VHPWR lane vias -> CL-11 via golden unblocked; Kelvin-stub track exemption
+   on shared force+sense nets], bom-field-lint [known-open OQ-11/THT gaps noted not failed],
+   sch-pcb-sync [lib_symbols-excised ref-set diff]); intake_gate() (sch-side subset + severity-ERROR
+   ERC, DRAFT-skip per repo convention) wired into cec_router.route() (named-reason refusal, ledger
+   mode=intake, CEC_SKIP_INTAKE=1 override; CLI --intake); detect-resistor-code taught the Hub
+   10k-pullup posture (was a false-fail on Hub Standard); synth DFM stage + netclass_geometry check.
+   NOTE: the Hub "J7/D7/R19-R24 Update-from-Schematic pending" narrative in action item 0 is STALE --
+   the sync checker measured the Hub ref sets IN SYNC (77 refs; sch newer than pcb, so a placement/
+   route pass may remain, but the footprints exist on the PCB). In-container: 10/10 tests
+   (tests/test_cl25_checks.py), EPS+Hub intake ADMIT, SB-08 golden PASS.
+   ALSO landed (same session): CL-11 golden fixture seeding -- 4 frozen states in tests/golden/fixtures/
+   (12vhpwr pre = committed lane-via board [240 /SENSEP* via-dim hits, band floor 100] / post = derived
+   337-via normalize [zero via hits invariant, net-scoped via checker payload]; hub pre/post = git
+   a271253~1/a271253 R15-R18 divider pair, pre carries the EXPECTED-FAIL marker until the TPS2121
+   Class B entry lands -- runner fails the day it starts firing, forcing the flip per AM-02);
+   scripts/cec_golden_fixtures.py (verify=CI gate, --freeze=derive); fixtures.json manifest;
+   kicad-checks.yml step runs it in the pinned KiCad image (pcbnew); tests/holdout/ created
+   (never-tune pool, grown from overrides/bench labels). Teeth verified (swapped fixture -> exit 1).
+   ALSO landed (2026-06-10, same branch): CL-03 FULL COMPILER per the owner's implementation-
+   rulings doc (vendored decisions; threads: promotion authorizes KNOWLEDGE never file writes,
+   capture from run one). scripts/cec_corpus_compile.py (pcbnew-free, byte-deterministic --
+   checklist leg): entry-resident compile blocks (SCHEMA.md rev + families dim; 5 exemplars,
+   TIM entry deliberately blockless = prose by construction); computed horizons vs RB-02 class
+   caps; AM-02 fixture latch AT COMPILE; build/corpus-compiled/<board>/ artifacts w/ entry-id+
+   hash annotations (committed dru writes stay HUMAN-only: write-section + drift-scan lint);
+   parity report (20 matched w/ tiers / 14 orphans incl. the 3 CL-25-born checkers / §-hints)
+   frozen at tests/golden/parity-report.json; pushdown table (netclass_min dual-row);
+   Flag.binding gate|advisory + ADV-<id> namespace + filters at human_signoff/cascade/intake +
+   per-fire decisions/adv/ sidecar (PC-01 day-one capture); _param()/dt_ipc promoted-first;
+   staging deltas = ADV fires, promoted-vs-hand conflict = lint ERROR; Constraint.corpus_id/
+   superseded_by tombstones (excluded from blocking, never auto-retired); cec_facts.py = the
+   ONE scope resolver (CL-23 seed; KiCad-10 name-ref nets, auto-name unwrap). 18 wave tests
+   host+container; SB-08 golden PASS post-change. REAL FINDING: atx-24pin-rev2 CAN pair is
+   named /CAN1_P //CAN1_N (drifts from the platform _H/_L convention) -- standing compile
+   warning for the owner.
+   ALSO landed (2026-06-10, same branch): CL-19 + AM-04 per the owner's second rulings doc
+   (vendored docs/cl19-am04-implementation-rulings-2026-06-10.md). CL-19: Decision 7 CLOSED
+   (cec-verdict-core/1 two-layer lock in SCHEMA.md + cec_verdict_core.py); ONE span verifier
+   cec_span_verify.py (case-sensitive normalized-exact, zero fuzz, prose>=20ch, locus
+   token+facts-resolve; identity-tested shared import); cec_extractor_eval.py harness
+   (gate-of-record on the REAL register only -- INCOMPLETE until real cases, never vacuous
+   PASS; zero-tolerance: correct-but-unsupported IS hallucination, elevated-aside,
+   synthesis-on-no-conclusion, RB-03 distractor; per-manifest failure); gate record =
+   owner-written eval_gate in cec-policy.json w/ STALENESS guard (cec_policy refuses a
+   stale eval_set_sha); 12 reconstructed seed cases + tests/holdout/extractor + checklist
+   isolation grep; REAL register = M2.7 batch (8 audit questions; ruling's Qwen3.5-397B name
+   was stale -- M2.7 is the cleared analyst), labels drafted for the owner ritual. AM-04:
+   2221 chart anchors + Picard anchor + CONSERVATISM vs IPC-2152 plane-adjacent refs (ONE
+   Class A staging entry, MODIFIER-DERIVED values flagged owner-verify; tighten to ±20% at
+   calibration -- latched, never red-by-design); calibration per (family,QUANTITY) via CL-13
+   ledger labels (ThermalResult.calibration + flag mark); posture BLOCKING-with-the-mark
+   (authority vs accuracy never conflated); micro-board composition anchor pins the
+   segment-sum debt (cross 1.044 = 3x0.348 min-cut) w/ DERIVATION.md as the PR-TWO witness
+   (debt fix + SB-08 band re-freeze = next PR, never this one). Lint: param shadowing keys
+   on compile param KEY. Machine account nathanfraske-bot LIVE (remote `bot`, classic PAT
+   repo+workflow -- fine-grained PATs cannot scope another personal account's repos, the
+   collaborator limitation; pushes verified, merge stays owner-only via branch protection).
+   Wave-2 remainder: real-register labeling + owner gate ritual when the trace batch lands;
+   AM-04 PR-two debt fix; then waves 3-5.
+   VLM for CL-22 -- BAKE-OFF RUN 2026-06-10 (docs/vlm-bakeoff-2026-06-10.md): all three local
+   seats PASS the golden-render gate under the v2 facts-alongside protocol (12/12 gate verdicts;
+   v1 naive protocol failed all three -- judge false-fired on the conformant board, Qwen3.6
+   workers thinking-overran every grammar call -> they run nothink for judging). Registered in
+   broker + compose: cec-vision-judge (Qwen3-VL-32B :8006), cec-worker-vision (:8012),
+   cec-worker-quality-vision (:8014). Harness scripts/cec_vlm_bakeoff.py (assets/run/show/html;
+   full per-call transcript). Measured: seats canNOT measure (selection-vs-references only, CL-21
+   confirmed on our boards; geometry stays with the deterministic checkers); they excel at
+   structure/text reading (judge found the SS2.9 sensing gap BLIND). The 4 CL-11 fixtures are now
+   BURNED for prompt tuning (AM-02) -- future charter iteration validates on tests/holdout/.
+   Seat binding stays owner-gated (cec-policy.json edit = the Decision-8/9 act).
+
 -2. SYNTH-PIPELINE PLACER -- design-pass deferred (2026-06-07, per user). The auto-placer
    (scripts/cec_synth_pipeline.py, place_with_consent + macro-block auto_cluster + overhang +
    anneal) is a strong GENERAL designer -- DRC-clean at the gen-eps-condensed bar (96x37, courtyard
@@ -823,6 +921,27 @@ Done (kept for context):
   model -- WORKER_MAX_TOKENS 1200 covers it). Broker is now a systemd unit (survives WSL restarts).
   Verified live: on-demand cold start, GPU swap arbitration, queued-request ride-through on a
   10+min model load, idle reap (auto-stop + GPU back to baseline).
+  TIER WIRING (2026-06-10, the post-bench "which model do we progress with" verdict, wired in).
+  The 2026-06-09 reasoning bench (6 runs, hard quantitative trap problem): gpt-oss-120b ~9.5/10
+  COMPLETE single-call (3.7k tok/172s) vs MiniMax-M2.7 truncating TWICE with EMPTY content (budget
+  burned in reasoning_content at 8k AND 14k caps); M2.7's counter-win is adversarial AUDIT (its
+  rumination surfaced a planted spec inconsistency oss-120b caught internally but OMITTED from its
+  final answer). WIRED in cec_judge_local: (a) NEW out-of-loop REVIEWER tier -- corpus_fit_review
+  runs on CEC_VLLM_REVIEWER_MODEL, default cec-manager-fast (explicit CEC_VLLM_MANAGER_MODEL pin
+  honored second for back-compat); M2.7 is the opt-in deep AUDITOR (CEC_VLLM_REVIEWER_MODEL=
+  cec-manager). The IN-LOOP manager tier deliberately KEEPS its worker-class default (panels
+  interleave with worker calls every iteration; a big manager there = broker-swapping 27GB<->9GB
+  models per iteration). (b) miner->scribe AUTO-RECOVERY in _chat_json: empty content +
+  reasoning_content present -> a SCRIBE transcription call (same model, temp>=0.35 /
+  presence_penalty 0.8 / json_schema grammar, trace TAIL-capped 36k chars for the 16k ctx) instead
+  of the old silent deterministic fallback. (c) M2.7 SAMPLING FLOORS, model-conditional
+  (_FLOOR_MODELS={cec-manager}): temp floored to 0.3 + presence_penalty 0.8 (verbatim decode-loop
+  hazard -- the swarm panels send temp 0.0; the floor makes a M2.7 pin safe there). (d)
+  cec_overnight modernized to BROKER-NATIVE lifecycle: the stale direct :8000/:8001 probes + hand
+  compose stop/start swaps (targeting the gutted 235B `manager` service -- would crash-loop)
+  replaced by broker-catalog `running` checks + a 1-token warm request; `routing` (compute, not
+  LLM) is the only service compose still touches. Tests: tests/test_judge_local_scribe.py (8
+  stub-server tests; host-runnable, no GPU). SB-08 golden PASS in-container post-change.
 - TWO-TIER LOCAL JUDGE + CORPUS-FIT REVIEWER + OVERNIGHT DRIVER (2026-06-09). Thrust A control plane now
   runs on the workstation's own models (docs/local-compute-exploration.md "REALIZED"). (1) MANAGER tier:
   Qwen3-235B-A22B-Thinking-2507 GGUF Q3_K_M on llama.cpp (docker/compose.yaml `manager` :8001, profile-

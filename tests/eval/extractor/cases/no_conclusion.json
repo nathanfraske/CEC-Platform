@@ -1,0 +1,18 @@
+[
+ {
+  "id": "cl19-noc-0",
+  "register": "reconstructed",
+  "kind": "no-conclusion",
+  "board": "atx-24pin-rev2",
+  "trace": "Started looking at the 24-pin rev2 power path. The INA228 energy accumulators are\nconfigured per channel; the 5VSB shunt is 25 mOhm per the table. Was going to check the bridging\ncable gender convention next but switched to the netlist export first. The export shows the four\nrails present. Need to come back to the J3/J4 header verification and the rev2 RJ-45 VCC\nparallel-path mitigation before saying anything definitive.",
+  "gold": null
+ },
+ {
+  "id": "cl19-noc-1",
+  "register": "reconstructed",
+  "kind": "no-conclusion",
+  "board": "hub-standard",
+  "trace": "Partial thermal pass on the Hub. The NTC TH1 divider lands on IO3. Ambient coupling to\nthe LDO needs the placement check but the render cache was stale; queued a re-render. No numbers\nyet on the dT margin.",
+  "gold": null
+ }
+]
