@@ -1,0 +1,333 @@
+{
+ "board": "eps-8pin",
+ "rounds": 117,
+ "candidates": 117,
+ "convergence_verdict": "productive",
+ "pareto_finalists": 0,
+ "final_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 200.0,
+  "unconnected": 1000.0,
+  "kelvin_unrouted": 1000.0,
+  "gate_fail": 1000.0,
+  "vias": 3.0,
+  "length": 0.5
+ },
+ "n_manager_rules": 83,
+ "n_usable_ratification_candidates": 101,
+ "usable_candidates": [
+  {
+   "round": 75,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Extend Rule 37's net_absorption_count accounting to include spur-trimming events: after each round in which the trimmed_spurs counter is greater than zero, inspect the per-stub records produced by the spur-trimmer to identify the specific net name(s) of every stub classified as a spur and trimmed. F"
+  },
+  {
+   "round": 76,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a gate-aware fast-track exclusion path using the session-scoped net_absorption_count data tracked by Rules 37 and 38. At the start of each round's compiler invocation: if kelvin_unrouted > 0 in the immediately preceding round's result, evaluate net_absorption_count[N] for every net N that i"
+  },
+  {
+   "round": 77,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_total_elimination_with_kelvin_active'. At the end of each round: if (absorbed + trimmed_spurs + removed_orphans >= n_stubs AND n_stubs > 0 AND kelvin_unrouted > 0 in that round's result), increment the counter; otherwise reset it to 0. When the "
+  },
+  {
+   "round": 78,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 450.0,
+   "to": 550.0,
+   "action": "accepted:raised",
+   "rationale": "Raise from 450 to 550: in this round 3 of the 4 unconnected ratlines are Kelvin sense nets (/SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI), each of which directly blocks a hard gate. The per-unit cost of an unconnected ratline has grown because the dominant unconnected nets are gate-critical, not generic si"
+  },
+  {
+   "round": 78,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When round R's failing_reasons contains Kelvin net unconnected-ratline entries for two or more distinct cable indices simultaneously \u2014 where at least one cable C_sym has BOTH its /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO members failing (symmetric state), AND at least one other cable C_asym has ONLY O"
+  },
+  {
+   "round": 80,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped boolean flag 'double_blindness_bypass_armed'. At the end of each round R, if ALL of the following hold simultaneously: (a) compiler_zero_failing_net_overlap fired for round R (the compiler's nets list had zero overlap with failing_reasons unconnected-ratline nets), AND (b) "
+  },
+  {
+   "round": 81,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 75.0,
+   "to": 100.0,
+   "action": "accepted:raised",
+   "rationale": "Raise drc penalty from 75 to 100. With drc=23 contributing 1725 to the objective alongside a Kelvin+gate total of 2000 (kelvin_unrouted*1000 + gate_fail*1000), the DRC term is large enough that when DRC conflicts and Kelvin routing compete for the same channel geometry near the shunt pads, FR's cost"
+  },
+  {
+   "round": 81,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_double_blindness_bypass_kelvin_failures'. After each round R dispatched under an active double_blindness_bypass_armed=True flag (Rule 41): if kelvin_unrouted > 0 in round R's result, increment the counter; if kelvin_unrouted == 0, reset the coun"
+  },
+  {
+   "round": 83,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When kelvin_unrouted > 0 in round R's result AND the compiler's candidate pool \u2014 after applying all normal exclusions from Rules 37, 38, and 39 \u2014 consists EXCLUSIVELY of nets whose net_absorption_count >= 3 (i.e., every net remaining in the pool is a fast-track-exclusion candidate whose exclusion ha"
+  },
+  {
+   "round": 84,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-cable integer counter 'consecutive_symmetric_kelvin_failure[C]'. After each round R: if BOTH /SENSEC{C}_HI and /SENSEC{C}_LO appear in failing_reasons with 'has unconnected ratlines', increment consecutive_symmetric_kelvin_failure[C]; otherwise reset it to 0. When conse"
+  },
+  {
+   "round": 85,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 100.0,
+   "to": 120.0,
+   "action": "accepted:raised",
+   "rationale": "DRC=38 alongside kelvin_unrouted=1 indicates FR is packing non-Kelvin tracks through the cable-1 shunt approach zone, producing geometry violations that block the Kelvin escape. The current 100/violation penalty contributes 3800 to this candidate's objective but has not deterred a pattern of high-DR"
+  },
+  {
+   "round": 85,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Pre-bypass shunt-proximate DRC clearance: immediately before dispatching any absorber-bypass round mandated by Rule 40 or Rule 41 \u2014 when the bypass is triggered, kelvin_unrouted > 0, AND the most recent completed round's structural DRC count > 20 \u2014 execute the following: (1) query all structural DRC"
+  },
+  {
+   "round": 86,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped boolean flag 'absorber_false_positive_bypass_armed'. After each round R: compute inferred_non_kelvin_unconnected = unconnected[R] minus (count of distinct Kelvin member net names appearing in failing_reasons[R] with 'has unconnected ratlines'). If ALL of the following hold "
+  },
+  {
+   "round": 89,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 550.0,
+   "to": 700.0,
+   "action": "accepted:raised",
+   "rationale": "Cable 2's asymmetric Kelvin failure (/SENSEC2_HI unrouted) does not register in kelvin_unrouted because that metric requires both pair members to be unrouted to increment. Its sole scoring pressure comes through the unconnected ratline count. Raising unconnected from 550 to 700 increases the per-rat"
+  },
+  {
+   "round": 89,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_high_drc_kelvin_stall'. After each round R: if structural DRC > 20 AND kelvin_unrouted > 0, increment the counter; otherwise reset it to 0. When the counter reaches 5: (1) query all structural DRC violation loci from round R's DRC output; (2) gr"
+  },
+  {
+   "round": 90,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_dual_cable_symmetric_kelvin'. After each round R: if ALL FOUR of /SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI, and /SENSEC2_LO appear in failing_reasons with 'has unconnected ratlines' in the same round, increment the counter; otherwise reset it to 0. "
+  },
+  {
+   "round": 91,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_near_threshold_drc_kelvin'. After each round R: if structural DRC >= 15 AND structural DRC <= 20 AND kelvin_unrouted > 0, increment the counter; otherwise reset it to 0. When the counter reaches 3: (1) query all structural DRC violation loci fro"
+  },
+  {
+   "round": 92,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-net integer counter 'consecutive_rule46_suppression_count[net]'. After each round R where Rule 46 fires: for each net name in round R's compiler nets list, increment consecutive_rule46_suppression_count[net] by 1. After any round where Rule 46 does NOT fire (either beca"
+  },
+  {
+   "round": 93,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 700.0,
+   "to": 800.0,
+   "action": "accepted:raised",
+   "rationale": "Raising from 700 to 800. The asymmetric Kelvin failure for cable 2 (SENSEC2_HI unrouted, SENSEC2_LO routed) contributes to the unconnected count but contributes 0 to kelvin_unrouted, which only counts symmetric pairs. The unconnected metric is the only existing scorer handle on asymmetric Kelvin mem"
+  },
+  {
+   "round": 93,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect and force-inject for ASYMMETRIC Kelvin failures. After evaluating round R: for each cable index C, if exactly one member of the pair (/SENSEC{C}_HI or /SENSEC{C}_LO) appears in failing_reasons with 'has unconnected ratlines' while the other member does NOT appear in failing_reasons (partner i"
+  },
+  {
+   "round": 94,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 120.0,
+   "to": 140.0,
+   "action": "accepted:raised",
+   "rationale": "DRC has persistently sat in the 15-20 range across recent rounds (rounds 89, 91, 94 all show DRC >= 15) despite the existing 120.0/hit penalty. A modest 17% increase to 140.0 strengthens candidate-selection pressure toward lower-DRC outcomes. This is particularly relevant when DRC violations co-loca"
+  },
+  {
+   "round": 94,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect and serialize Rule-33 + Rule-50 co-firing. After evaluating round R: if Rule 33 fires for cable index C_sym (both /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO appear in failing_reasons with 'has unconnected ratlines') AND Rule 50 also fires for a DIFFERENT cable index C_asym (exactly one member of"
+  },
+  {
+   "round": 96,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 140.0,
+   "to": 175.0,
+   "action": "accepted:raised",
+   "rationale": "Raising drc penalty from 140\u2192175 increases selection pressure against structurally congested routes. DRC=36 is persistently co-elevated with Kelvin failures across many rounds, indicating geometric conflict near shunt clusters is both a DRC problem and a Kelvin routing problem. A stronger DRC penalt"
+  },
+  {
+   "round": 96,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect Rule-46 + Rule-51 co-fire and defer the Rule-46 absorber bypass by one round. After each round R: if Rule 46 fires (absorber_false_positive_bypass_armed set to True, with a non-empty compiler nets list) AND Rule 51 also fires in the SAME round R (both Rule 33 for cable C_sym AND Rule 50 for c"
+  },
+  {
+   "round": 97,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 175.0,
+   "to": 200.0,
+   "action": "accepted:raised",
+   "rationale": "Modest increase from 175 to 200 (14%). At round 97, DRC=26 persists alongside Kelvin failure. The current 175/hit weight contributes 4550 to the objective but has not driven convergence toward DRC=0 across many rounds. A modest increase raises FR pressure to find DRC-cleaner routes. Kelvin protectio"
+  },
+  {
+   "round": 97,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Resolve the Rule-52 vs Rule-34 compiler-suppression conflict in round R+2. When BOTH of the following are simultaneously active in a round designated R_2 by the Rule-52 protocol: (A) Rule 52 has stored a non-empty deferred_rule46_bypass_nets (e.g. {/CAN_H, /I2C_SCL, /I2C_SDA}) awaiting bypass applic"
+  },
+  {
+   "round": 99,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped variable 'session_min_drc' initialized to positive infinity. After each round R: (1) if round R's structural DRC < session_min_drc, update session_min_drc = round R's structural DRC and record 'session_min_drc_round' = R; (2) if round R's structural DRC > session_min_drc + "
+  },
+  {
+   "round": 100,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect Rule-46 + Rule-33-alone co-fire and defer the Rule-46 absorber bypass by one round (symmetric single-cable case, no Rule-50/51). After evaluating round R: if Rule 46 fires (all compiler stubs eliminated \u2014 n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0, storing the"
+  },
+  {
+   "round": 106,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 800.0,
+   "to": 1000.0,
+   "action": "accepted:raised",
+   "rationale": "Cable 2's partially-routed Kelvin pair (tracks exist, ratlines remain) does not increment kelvin_unrouted, so its 2 unconnected Kelvin ratlines are penalized only at the generic unconnected rate. The kelvin_unrouted penalty (1000) does not apply to cable 2 at all. Raising unconnected from 800 to 100"
+  },
+  {
+   "round": 106,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After evaluating round R: if failing_reasons contains both '/SENSEC{C}_HI has unconnected ratlines' AND '/SENSEC{C}_LO has unconnected ratlines' for any cable index C, AND cable C is NOT counted in kelvin_unrouted (it has at least one track on each member but still has unconnected ratlines \u2014 partial"
+  },
+  {
+   "round": 107,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "length",
+   "from": 0.0,
+   "to": 0.5,
+   "action": "accepted:raised",
+   "rationale": "length=1139.24mm is currently unpenalized. Long indirect signal/control routes occupy the shunt exit corridors, increasing congestion around the cable-1 Kelvin escape path. A 0.5/mm weight (~570 points at this length) adds a compact-routing bias that is large enough to influence FR candidate selecti"
+  },
+  {
+   "round": 107,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-cable integer counter 'consecutive_kelvin_stall_rounds[C]' initialized to 0 for all cable indices C. After each round R: for each cable index C whose Kelvin pair is counted in kelvin_unrouted (both /SENSEC{C}_HI and /SENSEC{C}_LO absent from routed nets) OR whose both m"
+  },
+  {
+   "round": 108,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped counter `kelvin_keepout_escalation_count[C]` initialized to 0 for each cable index C. Each time Rule 56 fires for cable C (injecting the shunt-exit corridor keepout), increment `kelvin_keepout_escalation_count[C]` by 1 and apply an escalated keepout geometry determined by t"
+  },
+  {
+   "round": 109,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-cable integer counter 'post_max_escalation_stall[C]' initialized to 0 for each cable index C. After each round R where kelvin_keepout_escalation_count[C] >= 10 (Rule 57 maximum tier, 12x16mm keepout geometry) AND cable C is still counted in kelvin_unrouted OR both /SENS"
+  },
+  {
+   "round": 110,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Amend Rule 58 step (2): when performing the post-max-escalation corridor ripup for cable C in round R, expand the track exclusion criterion to protect ALL Kelvin net members for ALL cable indices, not just cable C's pair. Specifically, replace the current exclusion condition 'whose net is neither /S"
+  },
+  {
+   "round": 111,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Extend Rule 56's consecutive_kelvin_stall_rounds[C] counter to also increment for asymmetric single-member Kelvin failures. After each round R: if exactly ONE of /SENSEC{C}_HI or /SENSEC{C}_LO (but NOT both) appears in failing_reasons with 'has unconnected ratlines', AND cable C is NOT counted in ke"
+  },
+  {
+   "round": 113,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Amend Rule 59 step (2) with a failing-route exception: when building the ripup exclusion set during cable C's corridor clearing (Rule 58), do NOT extend Rule 59 protection to a cross-cable Kelvin segment belonging to net /SENSEC{C'}_HI or /SENSEC{C'}_LO (C' != C) if that net appears in failing_reaso"
+  },
+  {
+   "round": 114,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When Rule 46 fires in round R (n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0, arming absorber_false_positive_bypass_armed with the compiler nets list) AND the count of cable indices C for which BOTH /SENSEC{C}_HI AND /SENSEC{C}_LO appear in failing_reasons with 'has unc"
+  },
+  {
+   "round": 116,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped set 'compiler_excess_unconnected_targets' initialized to empty. After each round R: compute excess_unconnected = unconnected - (2 * kelvin_unrouted) - (count of cables C where exactly one of /SENSEC{C}_HI or /SENSEC{C}_LO appears in failing_reasons with 'has unconnected rat"
+  },
+  {
+   "round": 117,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped boolean flag 'rule66_slot_yield_active' initialized to false. After each round R where ALL of the following hold simultaneously: (a) Rule 46 fires (n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0), AND (b) excess_unconnected > 0 in round R (exces"
+  }
+ ],
+ "rejections_noops": 16,
+ "pareto_front": [],
+ "updated": "2026-06-11T10:05:39"
+}

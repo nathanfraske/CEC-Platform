@@ -1,0 +1,1005 @@
+{
+ "scorer_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 200.0,
+  "unconnected": 1000.0,
+  "kelvin_unrouted": 1000.0,
+  "gate_fail": 1000.0,
+  "vias": 3.0,
+  "length": 0.5
+ },
+ "manager_rules": [
+  "If kelvin_unrouted > 0 after scoring, parse the failing-reasons strings to identify the unrouted cable(s), then compile directed stubs for SENSEC_N_HI and SENSEC_N_LO at the shunt inner-edge pad coordinates for each failing cable before the next FR run; do not re-attempt the route without those Kelvin stubs locked in the DSN.",
+  "Before each FR run, cross-check the compiled stub nets list against every Kelvin net name appearing in failing_reasons; if any /SENSEC*_HI or /SENSEC*_LO net is present in failing_reasons but absent from the compiled stub nets, raise an explicit compile error and abort \u2014 do not launch FR until every failing Kelvin net has a locked stub at its shunt inner-edge pad coordinates. A missing Kelvin stub with no compile_failure entry is a silent mis-dispatch, not a pass.",
+  "After stub compilation and BEFORE launching FR, perform an independent set-membership check: collect every /SENSEC*_HI and /SENSEC*_LO net that appears in the previous round's failing_reasons, then verify each appears in the compiled stub nets list \u2014 do NOT rely solely on the compiler's compile_failures field as the gate signal. If any Kelvin net is absent from the stub nets list regardless of whether compile_failures is empty, inject an explicit compile_failure entry for that net, log it by name, and abort the FR dispatch. Kelvin stubs must be treated as mandatory and compiled before any opportunistic stubs for non-Kelvin nets such as CAN or I2C.",
+  "After each FR round completes and scores are recorded, perform a post-round enforcement audit: collect every /SENSEC*_HI and /SENSEC*_LO net from THAT round's failing_reasons, then check whether each appeared in the stub nets list that was used for THAT round's FR dispatch. If any Kelvin net was in failing_reasons but absent from the stub nets used \u2014 regardless of whether compile_failures was empty \u2014 record an explicit 'enforcement_violation' entry for that net in the round log (named by net, not just a boolean), and inject each such net as a mandatory compile_failure in the next round's pre-dispatch input before the set-membership check (Rule 3) runs. The post-round audit is the backstop when the pre-dispatch check fails to fire; it must run even if compile_failures is empty and the dispatch appeared to succeed.",
+  "Before finalizing the compiled stub nets list for any FR dispatch, apply a mandatory priority-order filter inside the stub compiler: (1) collect all Kelvin nets (/SENSEC*_HI and /SENSEC*_LO) that appeared in the previous round's failing_reasons and insert them at the HEAD of the stub nets list with their shunt inner-edge pad coordinates; (2) only after all required Kelvin stubs are confirmed present, append opportunistic non-Kelvin stubs such as /CAN_H or /I2C_*; (3) if a stub-count budget or slot limit would force any entry to be dropped, drop opportunistic stubs first \u2014 a Kelvin stub must never be omitted to make room for a non-Kelvin stub. A compiled stub list that is non-empty but contains zero Kelvin nets when Kelvin nets appear in the previous round's failing_reasons is itself a compile_failure and must trigger the Rule 3 abort, regardless of what the list does contain.",
+  "Kelvin stubs are a structural pre-condition of this board, not a response to prior-round failures. Before EVERY FR dispatch \u2014 including round 1 and any round that follows a Kelvin-clean prior round \u2014 enumerate all /SENSEC*_HI and /SENSEC*_LO net pairs from the board netlist, resolve their shunt inner-edge pad coordinates, and inject them at the HEAD of the stub nets list. If any Kelvin net cannot be resolved to a valid (non-null, non-(0,0)) pad coordinate, inject an explicit compile_failure for that net and abort the dispatch. Do not treat an absence of prior-round Kelvin failures as permission to omit Kelvin stubs; treat stub presence as unconditional.",
+  "If the post-compilation stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO entries AND compile_failures is empty AND the prior round's failing_reasons contained any /SENSEC* net, treat this as a HARD ESCALATION immediately \u2014 do not launch FR, do not increment the round counter. Emit a top-level 'stub_compiler_silent_failure' error that names every /SENSEC* net that should have been compiled. This rule overrides all retry logic and takes precedence over all prior Kelvin-stub rules: a silent omission with an empty compile_failures list is a more severe failure mode than a logged compile error, and continuing to route against a broken stub-injection path wastes budget without any path to convergence.",
+  "When scoring reveals an asymmetric Kelvin result for any cable \u2014 exactly one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons while its partner does not \u2014 treat the partner's stub coordinates as potentially stale or incorrect regardless of whether they produced a routed net. Before the next FR dispatch, re-derive BOTH members' shunt inner-edge pad coordinates for that cable by re-parsing the current board file from disk (never from any in-memory cache, prior-round value, or the stub compiler's own state). After derivation, verify that the resolved HI and LO coordinates for each cable are DISTINCT \u2014 if HI and LO resolve to the same (X, Y) value, this is a pad-resolution error: inject an explicit compile_failure for both nets of that cable, log the duplicate coordinate pair by cable number and net names, and abort the FR dispatch per Rule 3. A duplicate-coordinate compile_failure must be treated as a hard blocker equivalent to a null-coordinate failure under Rule 6.",
+  "If the same net appears in failing_reasons for three or more consecutive rounds, re-derive its stub coordinates from disk and force re-compilation before next dispatch.",
+  "Kelvin stubs (/SENSEC*_HI and /SENSEC*_LO) must be explicitly marked immune from the spur-trimming pass and the absorbed classifier inside the stub compiler. If the spur-trimmer or absorber would remove or reclassify a stub whose origin net matches /SENSEC*_HI or /SENSEC*_LO, skip that removal, preserve the stub in the final nets list unchanged, and emit a WARNING log entry. After the cleanup passes complete, verify that every Kelvin net whose stub was successfully resolved and queued still appears in the final stub nets list; if any is absent \u2014 whether removed as a spur, absorbed as redundant, or otherwise \u2014 inject an explicit compile_failure for that net by name and treat it as a hard blocker per Rule 3. The count of absorbed or trimmed_spurs must never include a Kelvin stub; if the compiler's accounting cannot distinguish by net type, mark all Kelvin stubs as protected before the cleanup pass runs and assert that protected stubs survive the pass intact.",
+  "After the stub cleanup passes (spur-trimmer and absorber) complete and before the stub nets list is finalised, the compiler MUST emit a per-net disposition record that maps every INPUT net name to its outcome: 'kept', 'absorbed', 'trimmed_spur', or 'compile_failure'. The aggregate absorbed=N and trimmed_spurs=M summary counts are insufficient for enforcement: Rule 2's post-round audit and Rule 10's Kelvin-survival guarantee cannot be verified without knowing which specific nets were absorbed. If the compiler does not or cannot emit per-net dispositions, the manager must apply the following conservative inference: assume all absorbed entries MAY be Kelvin stubs, compute absorbed_kelvin_risk = min(absorbed_count, total_kelvin_input_net_count), and if absorbed_kelvin_risk > 0 AND any /SENSEC*_HI or /SENSEC*_LO net is absent from the final stub nets list, inject an explicit compile_failure for each missing Kelvin net by name and treat the dispatch as blocked per Rule 3. An absorbed=6 result with zero Kelvin nets in the output and no per-net disposition record must never be allowed to proceed to FR dispatch.",
+  "Rule 5 hard-escalation must be grounded in board topology, not prior-round state. Replace the current precondition 'the prior round\u2019s failing_reasons contained any /SENSEC* net' with 'the board netlist contains at least one /SENSEC*_HI or /SENSEC*_LO net pair.' The revised trigger is: if the post-compilation stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO entries AND compile_failures is empty AND the board netlist contains any /SENSEC*_HI or /SENSEC*_LO pair \u2014 immediately emit stub_compiler_silent_failure (naming every missing Kelvin net), abort the FR dispatch, and do not increment the round counter. This condition must fire on round 1 and on any round following a Kelvin-clean prior round, because the board\u2019s Kelvin pairs are a static structural fact that never becomes optional regardless of prior-round history. The prior-round-failure precondition is removed entirely; the unconditional board-topology check is the sole gate.",
+  "After any round where an asymmetric Kelvin result is detected for cable N (one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons while its partner does not), add that cable's two net names to a persistent 'kelvin_force_recheck' set that survives across round boundaries. At every subsequent FR dispatch, before allowing the stub nets list to be finalised, the manager must verify that BOTH nets of every cable in kelvin_force_recheck appear in the final stub nets list. If either net is absent \u2014 regardless of whether compile_failures is empty, absorbed counts seem small, or trimmed_spurs seems harmless \u2014 inject an explicit compile_failure for the absent net by name and abort the dispatch per Rule 3. A cable is removed from kelvin_force_recheck only after a round in which BOTH its HI and LO nets are absent from failing_reasons (i.e., both confirmed routed). This cross-round carry-forward is distinct from Rule 4's single-round re-derivation requirement: Rule 4 ensures correct coordinates are re-derived; this rule ensures the re-derived stub actually survives to FR dispatch in every subsequent round until the cable is clean.",
+  "Maintain a persistent integer counter named 'rule_enforcement_failures' across all rounds. Increment it by 1 after any round in which ALL of the following hold: (a) the dispatch-abort condition under Rule 7 was met \u2014 the post-compilation stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO entries, compile_failures is empty, and the board netlist contains at least one /SENSEC* pair; AND (b) FR was dispatched and returned a scored result despite that condition. When rule_enforcement_failures reaches 3, immediately hard-escalate to human review without dispatching FR and without incrementing the round counter. The escalation payload must include: the round numbers in which the abort condition was met but bypassed, the specific rule numbers triggered (at minimum Rule 7 and any triggered Rule 11 conservative-inference paths), and the fully-qualified names of every /SENSEC*_HI and /SENSEC*_LO net that should have appeared in the stub list but did not. Reset rule_enforcement_failures to 0 only after a round in which every /SENSEC*_HI and /SENSEC*_LO net in the board netlist is present in the final post-compilation stub nets list and compile_failures is empty. This counter measures pipeline-enforcement integrity independently of per-net kelvin_force_recheck sets and the per-round Kelvin routing state; it must not be reset by a Kelvin-clean routing result alone if the stub list was populated correctly in that round by means other than proper enforcement of Rule 7.",
+  "Before the stub absorber processes any stubs, the compiler MUST extract the complete set of /SENSEC*_HI and /SENSEC*_LO net names from the board netlist and register them as a PRE-COMPUTED exclusion list passed directly into the absorber as an initialization argument. The absorber must skip any stub whose origin net is in this exclusion list unconditionally, without evaluating its redundancy predicate. This is an architectural requirement, not a post-hoc audit: if the absorber's interface does not accept an exclusion list, the Kelvin stubs must be partitioned out of the absorber's input before the call and re-merged into the output afterward. A round in which absorbed_count >= 1 AND zero /SENSEC*_HI or /SENSEC*_LO nets appear in the stub output is diagnostic of a missing pre-exclusion: log it as 'absorber_kelvin_purge_detected', increment rule_enforcement_failures, and escalate to human review with the absorber's full input stub list and the board's Kelvin net set \u2014 do not retry until the exclusion-list initialization path is confirmed present in the compiler code.",
+  "After each scored round, before any per-cable escalation threshold check or convergence-trend assessment, the manager MUST compute `kelvin_pairs_gate_fail` = the count of distinct cable indices N for which ANY /SENSEC{N}_HI or /SENSEC{N}_LO net appears in failing_reasons with the phrase 'has unconnected ratlines'. If `kelvin_pairs_gate_fail` > `kelvin_unrouted`, emit a WARNING log entry 'kelvin_undercount_detected' that records: (a) the reported kelvin_unrouted value, (b) the corrected kelvin_pairs_gate_fail count, and (c) a per-cable breakdown listing each failing cable index and which specific net(s) from that cable appear in failing_reasons. All downstream decisions \u2014 kelvin_force_recheck set population, convergence-trend comparison against prior rounds, and any rule that references 'number of failing Kelvin pairs' \u2014 MUST use kelvin_pairs_gate_fail, not kelvin_unrouted. The current round (round 16) is the reference case: kelvin_unrouted=1 but kelvin_pairs_gate_fail=2 (cable 1: both SENSEC1_HI and SENSEC1_LO failing; cable 2: SENSEC2_HI failing, SENSEC2_LO not in failing_reasons). Both cable 2's entry into kelvin_force_recheck and the Rule 1 coordinate re-derivation trigger must fire on the basis of kelvin_pairs_gate_fail, not the reported metric.",
+  "After each round, compute a composite physical metric `phys_score = DRC + unconnected + gate_fail`. If the round number \u2265 10 and `phys_score` has not decreased by at least 20% relative to the best `phys_score` in the last 10 rounds, the manager must immediately flag `local_minimum_stagnation`, abort further FR dispatches, and escalate to human review with a summary of all rounds' physical metrics.",
+  "Amend the phys_score formula in Rule 9's local_minimum_stagnation check to replace the single kelvin_ok gate contribution with the per-cable count from Rule 8. The revised formula is: phys_score = DRC + unconnected + non_kelvin_gate_fails + kelvin_pairs_gate_fail, where non_kelvin_gate_fails = gate_fail - (1 if kelvin_ok is false else 0) (i.e., remove the single Kelvin boolean gate's contribution and substitute the per-cable count). The Rule 8 kelvin_pairs_gate_fail value MUST be computed before phys_score is evaluated in the same round so the corrected count feeds into the stagnation check immediately. For the current round: revised phys_score = 39 + 6 + 0 + 2 = 47 (vs the naive 46), correctly reflecting two distinct failing Kelvin cable pairs rather than one. This prevents the stagnation trigger from being blind to multi-cable Kelvin degradation and ensures that a round where an additional cable's Kelvin pair regresses is never miscounted as neutral progress.",
+  "After any round where a /SENSEC{N}_HI or /SENSEC{N}_LO net appears in failing_reasons with the phrase 'has unconnected ratlines', the manager MUST add both /SENSEC{N}_HI and /SENSEC{N}_LO to a persistent set named 'kelvin_stub_priority' that survives across round boundaries. Before the stub compiler runs in the next round, every net in kelvin_stub_priority MUST be injected into the compiler's input as a mandatory stub candidate, with stub coordinates re-derived from the current board netlist per Rule 4. If the compiler's stub slot capacity requires dropping candidates, stubs for nets in kelvin_stub_priority take precedence over all control and signal nets (including /CAN_H, /I2C_SCL, /I2C_SDA, and any net not currently in failing_reasons). After compilation, if any net in kelvin_stub_priority is absent from the final stub nets list AND absent from compile_failures, the manager MUST treat this as a compile_failure for that net by name and abort the FR dispatch per Rule 3 \u2014 this condition is distinct from the Rule 7 zero-Kelvin-in-output check and fires even when other Kelvin nets are present in the output. A net is removed from kelvin_stub_priority only after a round in which it does not appear in failing_reasons (confirmed routed). This rule operates at stub GENERATION time; it complements but does not replace the Rule 1 absorber exclusion list (which operates at stub SURVIVAL time).",
+  "After each scored round where unconnected > 0, the manager MUST count the distinct net names appearing in failing_reasons with the phrase 'has unconnected ratlines' (call this named_unconnected_nets) and compare to the reported unconnected metric. If unconnected > named_unconnected_nets, immediately log 'unconnected_count_mismatch' recording: (a) the unconnected value, (b) named_unconnected_nets, and (c) the delta. The manager must then retrieve the full per-net unconnected list from the FR/DRC scoring artifacts for that round (not just the gate-failure summary). Every net present in the full unconnected list but absent from failing_reasons MUST be added to kelvin_stub_priority on equal footing with Kelvin nets, with stub coordinates re-derived from the current board netlist per Rule 4, before the next FR dispatch. If the full unconnected net list cannot be retrieved from the scoring artifacts, treat the unnamed delta as an unresolvable fault: escalate to human review and do not dispatch FR until the missing net names are identified and injected. This rule applies to the current round (round 20): unconnected=3 but only /SENSEC1_HI and /SENSEC1_LO appear in failing_reasons, leaving at least 1 ratline from an unidentified net untracked by any existing priority, force-recheck, or stub-exclusion mechanism.",
+  "When a 'absorber_kelvin_purge_detected' event is logged \u2014 defined as: absorbed >= 1 in a round's stub summary AND the post-absorption stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO net names \u2014 the manager MUST immediately set a persistent flag 'absorber_exclusion_broken = True' and PERMANENTLY halt all further FR dispatches until this flag is explicitly cleared by a human. This flag takes precedence over rule_enforcement_failures counters, kelvin_force_recheck sets, kelvin_stub_priority injections, and any auto-retry logic: none of those mechanisms can clear it. The halt payload must include: (a) the round number, (b) the absorber's complete input stub list before absorption, (c) the absorber's complete output stub list after absorption, (d) the board's full /SENSEC*_HI and /SENSEC*_LO net set, and (e) the absorbed_count. The flag may only be cleared by a human who provides: (1) a code diff showing the absorber exclusion list initialization has been corrected, (2) a test result showing the corrected absorber rejects a synthetic Kelvin-net stub from absorption, and (3) explicit written authorization to resume. The rationale for a permanent halt rather than a 3-strike counter (Rules 2 and 3's existing mechanism) is that absorber exclusion failure is a deterministic code-path defect: every subsequent FR dispatch will produce the same absorb-purge outcome regardless of stub-priority injection, coordinate re-derivation, or hint perturbation, making retry a waste of compute that cannot converge. Rule 3's existing 'do not retry' declaration is hereby strengthened to a machine-enforced gate.",
+  "When emitting the absorber_exclusion_broken halt payload required by Rule 8, the payload MUST additionally include field (f): the complete per-net unconnected list retrieved from the FR/DRC scoring artifacts for the triggering round \u2014 not merely the net names that appear in gate-failure failing_reasons \u2014 with each entry annotated as either a /SENSEC*_HI or /SENSEC*_LO net (Kelvin class) or a non-Kelvin net. This augments Rule 8's required fields (a)\u2013(e) and is mandatory for every halt: it allows the human reviewer to determine whether the unidentified unconnected ratlines are themselves Kelvin nets that the absorber consumed and left unrouted (which widens the scope of the required code fix) or are separate routing failures (which may indicate an independent issue requiring a separate corrective action beyond the absorber exclusion-list fix). If the full per-net unconnected list cannot be retrieved from the scoring artifacts at halt time, this retrieval failure must itself be logged in the halt payload as 'unconnected_list_unavailable' and treated as an additional blocking condition: human authorization to resume must explicitly acknowledge the incomplete payload and authorize resumption despite the missing data.",
+  "The spur trimmer MUST apply the same /SENSEC*_HI and /SENSEC*_LO exclusion list required of the absorber by Rule 1 before classifying or removing any stub as a spur. Specifically: (1) Before the spur trimmer executes, pre-compute or retrieve the Kelvin exclusion list (all /SENSEC{N}_HI and /SENSEC{N}_LO net names from the board netlist) and pass it as an initialization argument to the trimmer, mirroring Rule 1's architectural requirement. (2) Any stub whose origin net is in this exclusion list MUST NOT be classified as a spur and MUST be forwarded to the absorber's input unchanged, regardless of stub length, dangling status, or proximity to its anchor. (3) After each round where trimmed_spurs >= 1, the manager MUST verify that no Kelvin-exclusion-list net was removed by comparing the trimmer's full input stub list against its output. If any /SENSEC*_HI or /SENSEC*_LO net is found to have been trimmed, log 'trimmer_kelvin_purge_detected', set a persistent flag 'trimmer_exclusion_broken=True', and halt FR dispatch under the same protocol as Rule 8's absorber_exclusion_broken flag \u2014 including the same human-clearance requirements (code diff showing exclusion-list initialization corrected, test result showing a synthetic Kelvin stub is rejected by the trimmer, and explicit written authorization to resume). The trimmer_exclusion_broken flag is independent of and accumulates alongside absorber_exclusion_broken; both must be cleared before FR dispatch can resume.",
+  "When the same cable index N \u2014 determined each round by parsing all /SENSEC{N}_HI and /SENSEC{N}_LO net names from failing_reasons entries that contain 'has unconnected ratlines' \u2014 appears with at least one of /SENSEC{N}_HI or /SENSEC{N}_LO failing in five or more consecutive rounds, the manager MUST immediately emit a 'kelvin_structural_stall' event and halt all FR dispatch, regardless of whether any Rule-8, Rule-11, or Rule-13 halt fired or was bypassed during any of those five rounds. The halt payload MUST include: (a) cable index N and the exact consecutive-failure round numbers; (b) the stub coordinates most recently derived from the board netlist for /SENSEC{N}_HI and /SENSEC{N}_LO; (c) for each of the five consecutive rounds: whether those net names appeared in the final stub nets list, the absorbed count, the trimmed_spurs count, and whether Rule-11's abort condition was evaluated and what its result was; (d) all bake_hints keepout regions (net name, bounding box) whose bounding box intersects or lies within 2 mm of either stub endpoint; and (e) the full per-net unconnected list from the scoring artifacts for the most recent round, annotated by Kelvin vs non-Kelvin class. This halt is independent of and accumulates alongside absorber_exclusion_broken and trimmer_exclusion_broken flags; all three must be cleared before FR dispatch can resume. Human clearance requires: (1) revised stub coordinates or removal/shrinkage of the conflicting keepout, AND (2) explicit written authorization confirming a viable routing path for cable N's Kelvin pair exists in the current board state.",
+  "When cable index N's Kelvin pair (/SENSEC{N}_HI and /SENSEC{N}_LO) both appear in failing_reasons with 'has unconnected ratlines' for 3 or more consecutive rounds, the manager MUST dispatch exactly one 'Kelvin-isolation round' before applying Rule 14's structural-stall halt (if Rule 14 has not already fired): remove ALL non-Kelvin stub candidates from the stub compiler output \u2014 including /CAN_H, /I2C_SCL, /I2C_SDA and every other control or signal net \u2014 producing a stub set containing ONLY /SENSEC{N}_HI and /SENSEC{N}_LO. The purpose is to test whether the Kelvin pair is geometrically routable in the absence of competing stub resources; it is a diagnostic, not a retry. The isolation round counts toward Rule 14's consecutive-failure counter. If the Kelvin pair is successfully routed in the isolation round (neither net appears in failing_reasons and unconnected is zero for those nets), log 'kelvin_isolation_success: cable N' and resume normal stub composition on the following round. If the Kelvin pair still fails after the isolation round, immediately emit 'kelvin_isolation_fail: cable N' and halt all FR dispatch under the same protocol as Rule 8's absorber_exclusion_broken flag \u2014 a Kelvin-isolation failure is definitive evidence that the current board state has no viable routing path for cable N's Kelvin pair regardless of stub configuration, FR passes count, or optimization time, and no further automated dispatch can converge. Human clearance requires: (1) a revised board floorplan or keepout modification that opens a clear routing channel for /SENSEC{N}_HI and /SENSEC{N}_LO, verified by showing their pad coordinates lie within a routing-channel gap in the keepout map, and (2) explicit written authorization to resume. This rule is subordinate to Rules 8, 11, and 14: if any of those halt conditions fires before 3 consecutive rounds elapse, those halts take precedence and the isolation round is not dispatched.",
+  "After each scored round, compute kelvin_pairs_failing = the count of distinct cable indices N where at least one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons with the phrase 'has unconnected ratlines' (parse N as the integer in the net name). If kelvin_pairs_failing > kelvin_unrouted as reported in the scored metrics, immediately log a 'kelvin_unrouted_undercount' event recording: (a) the round number, (b) the reported kelvin_unrouted value, (c) kelvin_pairs_failing, (d) the delta, and (e) the list of cable indices contributing to the discrepancy. For ALL subsequent rule evaluations in this round and every future round that reference the kelvin_unrouted count \u2014 including Rule 1's phys_score formula, Rule 14's consecutive-failure counter, the kelvin_isolation dispatching threshold in Rule 15, and any escalation or halt-threshold logic \u2014 substitute kelvin_pairs_failing for the raw kelvin_unrouted value. Do NOT use the raw reported kelvin_unrouted metric when it is known to undercount. This substitution is mandatory and silent failure to apply it (e.g., the stagnation checker still using 1 when the true count is 2) is itself a 'rule_enforcement_failure' to be logged and counted against the 3-strike limit.",
+  "If the objective value does not decrease by at least 1% over the last 10 consecutive rounds, then log 'stagnation_detected' and halt all FR dispatch. The halt payload must include the last 10 round metrics (objective, DRC, unconnected, length, vias, gate_fail, kelvin_ok) and the current board state. Human clearance requires evidence of a modified routing strategy or board layout change that breaks the stagnation.",
+  "When both absorbed >= 1 AND trimmed_spurs >= 1 occur in the same round AND the post-absorption stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO net names, the halt payload required by Rules 8 and 11 MUST include a component-level attribution step before setting either exclusion-broken flag: (i) log the trimmer's full input stub list (the raw compiler output before any trimming), (ii) log the trimmer's full output stub list (which is the absorber's exact input), and (iii) log the absorber's full output stub list (the final stub set forwarded to FR). If any /SENSEC*_HI or /SENSEC*_LO net name is present in (i) but absent from (ii), set trimmer_exclusion_broken=True and invoke Rule 11's halt protocol for that net. If any /SENSEC*_HI or /SENSEC*_LO net name is present in (ii) but absent from (iii), set absorber_exclusion_broken=True and invoke Rule 8's halt protocol for that net. If /SENSEC* nets are absent from all three lists, both flags must be set and both halt protocols invoked. Human clearance requires separate code diffs and test results for each flagged tool; clearing only one flag while the other remains set does not authorize FR resumption. This attribution requirement is mandatory because a round where both mechanisms ran cannot be remediated by a single targeted fix without knowing which tool performed the purge \u2014 applying only the absorber exclusion-list correction when the trimmer also removed Kelvin stubs would leave a live code defect that produces the same outcome on the next dispatch.",
+  "After each stub compilation step, and before any trimming or absorption step executes, retrieve the stub compiler's raw output (the complete stub list as emitted, prior to spur trimming and prior to absorber processing). For every /SENSEC{N}_HI and /SENSEC{N}_LO net that had at least one unconnected ratline in the immediately preceding scored round (as determined from that round's per-net unconnected list or failing_reasons entries containing 'has unconnected ratlines'), verify that net appears by name in the compiler's raw output. If any such Kelvin net is absent from the raw compiler output AND compile_failures is empty for that round, immediately log 'kelvin_stub_compiler_silent_skip' with fields: (a) round number, (b) the absent net name(s), (c) the full raw compiler output list, (d) the full compile_failures list, and (e) the prior round's unconnected ratline count for that net. Treat this condition as a blocking halt equal in severity to absorber_exclusion_broken: set a persistent flag 'compiler_kelvin_skip=True', halt all further FR dispatch, and do not proceed to trimming, absorption, or FR invocation for the current round. Human clearance requires: (1) a code diff showing the stub generation logic path for Kelvin nets that have unconnected ratlines, (2) a test demonstrating that a synthetic board state with a /SENSEC{N}_HI or /SENSEC{N}_LO net carrying at least one unconnected ratline produces a named stub entry in the compiler's raw output, and (3) explicit written authorization to resume. This rule is additive to and independent of Rules 1, 3, and 18: those rules address Kelvin nets that enter the pipeline and are then removed; this rule addresses the earlier failure mode where Kelvin nets are never emitted into the pipeline at all.",
+  "When absorbed + trimmed_spurs >= n_stubs in a round (total stub absorption: every compiled stub was consumed by the trimmer or absorber before reaching FR) AND kelvin_unrouted > 0 in the same round, the manager MUST: (1) log 'total_stub_absorption_with_kelvin_fail' with fields: round number, n_stubs, absorbed, trimmed_spurs, kelvin_unrouted, and the list of failing Kelvin net names from failing_reasons; (2) on the immediately following round, enforce an absorber bypass for all /SENSEC{N}_HI and /SENSEC{N}_LO stubs generated for every failing Kelvin cable \u2014 those stubs MUST be forwarded to FR as directed routing seeds regardless of existing copper coverage on those nets, overriding the absorber's normal merge logic for Kelvin-class nets only; (3) if the compiler's raw output for the following round contains zero /SENSEC{N}_HI or /SENSEC{N}_LO entries for any failing cable, treat this immediately as a 'compiler_kelvin_skip' event per Rule 18 and halt without FR dispatch. This rule is additive to and accumulates alongside all existing halt conditions; it does not replace, defer, or satisfy any halt that would otherwise fire under Rules 8, 11, 14, 15, 17, or 18.",
+  "After each round where the stub summary `nets` field contains zero /SENSEC{N}_HI or /SENSEC{N}_LO entries AND kelvin_unrouted > 0, the manager MUST perform a trim-budget crosscheck before invoking Rule 18's full raw-output audit: compute expected_kelvin_stubs = 2 \u00d7 kelvin_pairs_failing (using the Rule-16-corrected count, i.e. the number of distinct cable indices N with at least one Kelvin net in failing_reasons). Compare expected_kelvin_stubs against trimmed_spurs. If trimmed_spurs < expected_kelvin_stubs, the deficit (expected_kelvin_stubs \u2212 trimmed_spurs) represents Kelvin stubs that the trimmer did not remove and therefore were never compiled; log 'kelvin_compiler_gap_detected' with fields: round number, expected_kelvin_stubs, trimmed_spurs, gap = expected_kelvin_stubs \u2212 trimmed_spurs, and the list of absent Kelvin net names. Treat every net in the gap as a confirmed compiler_kelvin_skip event per Rule 18 \u2014 set compiler_kelvin_skip=True for each absent net and halt FR dispatch under Rule 18's halt protocol without waiting for the full raw-output log comparison, since the arithmetic alone is sufficient to establish that those nets were never emitted. If trimmed_spurs >= expected_kelvin_stubs, the trimmer may account for all missing Kelvin stubs; proceed to Rule 18's full raw-output audit to determine whether the trimmer or the absorber performed the removal, and invoke Rule 6's attribution protocol if both absorbed >= 1 and trimmed_spurs >= 1. This trim-budget crosscheck is additive to Rules 6, 8, 18, and 19; it does not replace or defer any of those rules, and all applicable halts accumulate independently.",
+  "When building the Kelvin stub candidate set for each round, the stub compiler MUST emit directed stubs for /SENSEC{N}_HI and /SENSEC{N}_LO whenever AT LEAST ONE of those two nets for cable N has unconnected ratlines in the immediately preceding round's failing_reasons or per-net unconnected metrics \u2014 it MUST NOT require both nets to be failing (AND condition) before including cable N in the stub set. After each round where kelvin_unrouted > 0 or failing_reasons contains any /SENSEC{N}_HI or /SENSEC{N}_LO entry, the manager MUST audit the stub compiler's triggering predicate to confirm it uses an OR condition; if any cable N has a partial Kelvin failure (exactly one of /SENSEC{N}_HI or /SENSEC{N}_LO in failing_reasons while the other is absent) and the compiler emitted zero stubs for that cable, log 'kelvin_partial_failure_compiler_gap' with fields: (a) round number, (b) cable index N, (c) which net is failing and which is not, and (d) whether stubs were present for that cable in the compiler's raw output. Treat the absence of stubs for a partially-failing cable as a compiler_kelvin_skip event under Rule 18 for the missing net, halt FR dispatch, and require before resumption: (1) a code fix demonstrating OR-based triggering, (2) a test showing that a synthetic board state with only /SENSEC{N}_HI unconnected (and /SENSEC{N}_LO fully routed) produces a stub entry for /SENSEC{N}_HI in the compiler raw output, and (3) explicit written authorization. This rule is additive to Rules 18 and 19: those rules detect that a Kelvin stub is absent after the fact; this rule targets the compiler's input predicate as a distinct, earlier failure mode.",
+  "When the stub compiler's nets list (as reported in the stub summary `nets` field) contains at least one net name that does NOT appear in the current round's failing_reasons with the phrase 'has unconnected ratlines' AND simultaneously omits at least one /SENSEC{N}_HI or /SENSEC{N}_LO net name that DOES appear in failing_reasons with 'has unconnected ratlines', the manager MUST log 'stub_compiler_stale_targeting' with fields: (a) round number, (b) the over-targeted nets (present in compiler nets but absent from current failing_reasons unconnected list), (c) the under-targeted Kelvin nets (present in failing_reasons but absent from compiler nets), and (d) the full stub summary. On the immediately following round, the manager MUST instruct the stub compiler to derive its candidate net set exclusively from the current round's failing_reasons unconnected entries \u2014 discarding any carry-forward priority or decay state from prior rounds \u2014 before applying the OR-predicate Kelvin inclusion required by Rule 21. This corrective reset does not require human clearance provided the following round's compiler nets list contains at least one /SENSEC{N}_HI or /SENSEC{N}_LO entry for every cable index N that appeared in the current round's failing_reasons; if that condition is not met, the stale-targeting correction failed, and the manager MUST treat the absence as a non-stale compiler_kelvin_skip under Rule 18 and invoke that rule's full halt protocol requiring human clearance. This rule is additive to Rules 18, 20, and 21: those rules detect Kelvin absence and halt; this rule targets the distinct prior failure mode of stale net selection as an auto-correctable condition.",
+  "When stub_compiler_stale_targeting fires (Rule 22) AND every over-targeted net \u2014 every net present in the compiler's nets list but absent from the current round's failing_reasons unconnected entries \u2014 belongs exclusively to a non-gating net class (for this board: CAN-class nets such as /CAN_H, I2C-class nets such as /I2C_SCL and /I2C_SDA, or any net whose absence from the routed board does not trigger a hard gate failure under the current scoring policy), the manager MUST perform an immediate SAME-ROUND correction before dispatching FR: (1) remove all over-targeted nets from the stub candidate set, (2) substitute the full set of currently-failing Kelvin nets derived from the current round's failing_reasons (applying Rule 21's OR predicate), and (3) dispatch FR in the current round with the corrected stub set. Log 'stale_targeting_same_round_corrected' with fields: (a) round number, (b) original compiler nets list, (c) corrected nets list, (d) removed over-targeted nets, (e) added Kelvin nets. This same-round correction does not require human clearance because it is strictly additive (removes nothing from the board, only replaces stale FR seeds), the removed stale nets are non-critical and can be re-targeted in a subsequent round if needed, and deferring to the following round as Rule 22 normally requires wastes one full FR dispatch cycle for a correction that is mechanically safe to apply immediately. If after the same-round correction the compiler's output still contains zero /SENSEC{N}_HI or /SENSEC{N}_LO entries for any cable N appearing in failing_reasons, treat this as a non-stale compiler_kelvin_skip under Rule 18 and invoke that rule's full halt protocol \u2014 the same-round correction does not satisfy or defer Rule 18.",
+  "Track a persistent 'stale_targeting_consecutive_rounds' counter: after any round where stub_compiler_stale_targeting fires (a /SENSEC{N}_HI or /SENSEC{N}_LO net is in failing_reasons but absent from the compiler's nets list), increment the counter; reset it to zero only in a round where the compiler's nets list contains at least one /SENSEC{N}_HI or /SENSEC{N}_LO entry for every cable N present in failing_reasons. When this counter reaches 5 without a reset, HALT all FR dispatch and log 'persistent_stale_targeting_halt' with fields: (a) the counter value, (b) the list of rounds in which stale targeting fired, (c) the compiler nets list and failing_reasons for each such round, and (d) the current stub compiler's full priority/decay weight table. Human clearance requires: (1) a code change that rebuilds the compiler's entire net-priority state from scratch using ONLY the most recent round's failing_reasons as input, discarding all accumulated historical weights, (2) a test demonstrating that after this reset the compiler's nets list for a synthetic board state with /SENSEC1_HI and /SENSEC1_LO in failing_reasons contains at least one of those two net names, and (3) explicit written authorization to resume. The rationale: a per-round same-round correction (existing Rule 23) adjusts the current dispatch but cannot fix a priority model that has chronically mis-ranked Kelvin nets across many rounds; five consecutive stale rounds is evidence the priority model itself is miscalibrated beyond what incremental corrections can repair, and continuing to dispatch FR with a broken priority model wastes compute budget with no convergence path.",
+  "When both total_stub_absorption_with_kelvin_fail (Rule 19) AND stub_compiler_stale_targeting (Rule 22) fire in the same round \u2014 defined as: (absorbed + trimmed_spurs >= n_stubs AND kelvin_unrouted > 0) AND (at least one /SENSEC{N}_HI or /SENSEC{N}_LO net is in failing_reasons but absent from the compiler's nets list) \u2014 the manager MUST apply BOTH corrections simultaneously on the immediately following round, not independently: (1) Rule 22 compiler retargeting: rebuild the compiler's candidate net set exclusively from the current round's failing_reasons unconnected entries (discard all historical priority/decay weights) before any OR-predicate Kelvin inclusion per Rule 21; AND (2) Rule 19 absorber bypass: forward all /SENSEC{N}_HI and /SENSEC{N}_LO stubs for every failing cable N directly to FR, bypassing the absorber's merge logic. Log 'rule19_rule22_co_fire_composite_correction' with fields: (a) round number, (b) the stale over-targeted nets removed from compiler input, (c) the Kelvin nets substituted by Rule 22 retargeting, (d) confirmation that absorber bypass is active for those nets. If either correction is omitted, treat the omission as a halt under the respective rule's protocol: an omitted compiler retarget is a persistent_stale_targeting event (Rule 24 counter increments), and an omitted absorber bypass is a violation of Rule 19's mandate. This rule is additive to and independent of Rules 19, 22, 23, and 24; it does not replace or defer any halt condition those rules would independently impose.",
+  "Maintain a persistent integer counter 'kelvin_fail_streak' that increments by 1 after every round where kelvin_unrouted > 0, and resets to 0 only in a round where kelvin_unrouted = 0. When kelvin_fail_streak reaches 10, immediately HALT all further FR dispatch and log 'kelvin_fail_streak_ceiling' with fields: (a) the streak length, (b) the list of round numbers included in the streak, (c) the compiler nets list and failing_reasons from each round in the streak, (d) a summary of which halt conditions (Rules 1, 19, 20, 21, 22, 23, 24, 25) fired during the streak and how many times each fired, and (e) whether any round in the streak had the compiler emit at least one /SENSEC{N}_HI or /SENSEC{N}_LO stub (i.e., whether stale-targeting counter resets occurred during the streak). Human clearance requires: (1) a root-cause analysis identifying WHY the Kelvin pair has remained unrouted for 10+ consecutive rounds \u2014 specifically distinguishing between: compiler never emitting Kelvin stubs, absorber consuming emitted Kelvin stubs before FR sees them, FR receiving Kelvin stubs but failing to route them, or a placement or keepout geometry physically preventing FR from routing the pair; (2) a proposed fix matched to the identified root cause (code fix for compiler/absorber defects; placement or hint-geometry change for FR-level routing failures); and (3) explicit written authorization to resume. This rule is additive to and independent of all existing halt conditions: it fires on streak length alone and does not require any other condition to be simultaneously active, nor does it satisfy or defer any halt that would independently fire under Rules 1, 19, 20, 21, 22, 23, 24, or 25. The rationale: 10 consecutive rounds of Kelvin failure indicates a structural routing impediment that incremental parameter adjustments, absorber bypasses, and compiler retargeting corrections cannot resolve; without a streak ceiling the loop will consume unbounded compute budget with no convergence path, as demonstrated by the current state at round 45.",
+  "Extend Rule 19's total-stub-absorption trigger to include removed_orphans: the condition (absorbed + trimmed_spurs + removed_orphans) >= n_stubs AND kelvin_unrouted > 0 MUST also constitute a total-stub-absorption-with-kelvin-fail event, regardless of which disposal mechanism consumed the stubs. When this extended condition fires, the manager MUST: (1) immediately audit the orphan-removal log to determine whether any removed orphan was a /SENSEC{N}_HI or /SENSEC{N}_LO stub for a currently-failing cable N; (2) if any such Kelvin-class stub was discarded as an orphan, log 'kelvin_stub_orphan_disposal' with: round number, the specific Kelvin net names removed as orphans, and the criteria the orphan-removal stage used to classify them; (3) halt FR dispatch and require human clearance confirming that the orphan-removal stage MUST unconditionally exclude all /SENSEC{N}_HI and /SENSEC{N}_LO nets from orphan disposal \u2014 those stubs MUST be forwarded to the absorber/trimmer pipeline regardless of topology or coverage heuristics; (4) if the orphan audit shows removed_orphans were exclusively non-Kelvin nets, apply Rule 19's normal absorber-bypass protocol (forward Kelvin stubs for failing cables directly to FR on the next round) since the effective result \u2014 zero stubs reaching FR with kelvin_unrouted>0 \u2014 is identical. This rule is additive to Rule 19 and does not replace or defer any halt that would independently fire under Rules 19, 22, 24, or 26.",
+  "When failing_reasons for round R contains exactly one net of a Kelvin pair for cable N \u2014 specifically /SENSEC{N}_HI appears with 'has unconnected ratlines' but /SENSEC{N}_LO does NOT (or vice versa) \u2014 the manager MUST log 'partial_kelvin_pair_failure' with fields: (a) round number, (b) cable index N, (c) the failing net name, (d) the routed partner net name, (e) unconnected ratline count for the failing net, (f) absorbed and trimmed_spurs counts from the stub summary. On the immediately following round the stub compiler MUST emit at least one stub targeting exclusively the failing net's source-pad-to-INA-input connection \u2014 NOT a symmetric pair stub covering both HI and LO \u2014 and that stub MUST be forwarded to FR bypassing the absorber's merge logic, because the routed partner net's existing copper may cause the absorber to classify the asymmetric stub as topologically redundant and silently discard it before FR sees it. This non-absorbable asymmetric stub is additive to any symmetric pair stubs that Rules 19 and 21 would generate for cable N; it does not replace those stubs. If the partial failure for cable N persists for 3 consecutive rounds with the asymmetric non-absorbable stub active, the manager MUST escalate immediately for physical routing geometry inspection of the failing net's pad connections and any keepout regions adjacent to its pads, without waiting for Rule-26's kelvin_fail_streak ceiling.",
+  "After each round, derive M_actual = the count of distinct cable indices N for which at least one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons with 'has unconnected ratlines'. If M_actual > kelvin_unrouted (the reported metric value), log 'kelvin_unrouted_metric_undercount' with fields: (a) round number, (b) M_actual as derived from failing_reasons, (c) reported kelvin_unrouted value, (d) the specific cable indices present in failing_reasons but unaccounted for in the metric. For all same-round rule evaluations in which the rules reference the kelvin_unrouted VALUE rather than a >0 threshold \u2014 specifically: objective-function severity assessments, per-cable stub budget allocation, and any rule that scales an action by the number of failing cable pairs \u2014 substitute M_actual for kelvin_unrouted. Rules that only check kelvin_unrouted > 0 (Rules 19, 21, 22, 23, 24, 25, 26, 27, 28) are unaffected by this substitution and continue to trigger normally. If M_actual > kelvin_unrouted for 3 consecutive rounds, escalate as a metric calibration defect requiring inspection of the kelvin_unrouted computation path, without waiting for any other halt condition.",
+  "Track a persistent mapping 'priority_contamination_streak': the key is the frozenset of net names removed as over-targeted in a Rule 23 (stale_targeting_same_round_corrected) log entry; the value is the count of consecutive Rule 23 firings in which that exact frozenset appeared as the removed over-targeted nets. Increment the count when the current Rule 23 firing's removed-nets frozenset matches the immediately prior Rule 23 firing's removed-nets frozenset; reset a frozenset's count to 1 when it appears after having been absent for at least one intervening round. When priority_contamination_streak reaches 3 for any frozenset S, the manager MUST: (1) add every net in S to a session-scoped exclusion list 'compiler_excluded_nets'; (2) instruct the stub compiler to unconditionally omit every net in compiler_excluded_nets from its candidate set for all remaining rounds of the session, regardless of accumulated priority score or decay state; (3) log 'priority_contamination_exclusion' with fields: (a) round number, (b) the excluded frozenset S, (c) streak length = 3, (d) the round numbers in which that frozenset appeared as the stale over-targeted set. This exclusion is permanent for the session and does not require human clearance, because all nets in S are demonstrably non-critical (each firing of Rule 23 already classified them as non-critical CAN/I2C-class), their repeated identical appearance after per-round correction demonstrates a structural priority-model bias beyond incremental repair, and no net in S is a Kelvin, diffpair, or other hard-gated net, so exclusion cannot block a gate. If after applying compiler_excluded_nets the compiler's residual candidate set is empty for any round, the manager MUST immediately escalate with log 'compiler_candidate_set_exhausted_post_exclusion', reporting the full compiler_excluded_nets list and the compiler's current priority weight table, and halt FR dispatch pending human inspection.",
+  "After each round, compute N_non_kelvin = (unconnected metric value) minus (count of distinct net names matching /SENSEC{N}_HI or /SENSEC{N}_LO for any cable index N that appear in failing_reasons with 'has unconnected ratlines'). If N_non_kelvin > 0, log 'non_kelvin_unconnected_surplus_detected' with fields: (a) round number, (b) unconnected metric value, (c) count of Kelvin unconnected nets in failing_reasons, (d) N_non_kelvin. On the immediately following round the stub compiler MUST, IN ADDITION to any Kelvin stubs required by Rules 19/21/22/23/25, emit at least N_non_kelvin stubs targeting nets that appear in the board's unconnected-ratlines list and are NOT Kelvin-class nets. These non-Kelvin surplus stubs MUST be forwarded to FR without removal by the Rule 22/23 stale-targeting correction, because they target nets verified unrouted by the unconnected metric rather than stale compiler priorities. If the specific identity of the non-Kelvin unconnected net(s) cannot be determined from failing_reasons alone (failing_reasons only surfaces gate-triggering nets), the manager MUST escalate with log 'non_kelvin_unconnected_identity_unknown', reporting N_non_kelvin and the compiler's current candidate list, and halt FR dispatch for that round pending an explicit unconnected-ratlines query on the current board state. If N_non_kelvin > 0 persists for 3 consecutive rounds with non-Kelvin surplus stubs active, escalate as 'persistent_non_kelvin_unconnected' for routing geometry inspection. This rule is additive to Rules 19, 22, 23, 25, and 27 and does not replace or defer any halt those rules would independently impose.",
+  "Maintain a persistent per-net integer mapping 'net_stale_count': for every net name N that is listed as a removed over-targeted net in any Rule 23 ('stale_targeting_same_round_corrected') log entry for any round, increment net_stale_count[N] by 1, regardless of the frozenset the net was part of in that entry. When net_stale_count[N] reaches 5 for any net N that is not a /SENSEC{M}_HI or /SENSEC{M}_LO Kelvin net and not a USB or CAN differential-pair net, immediately add N to the session-scoped compiler_excluded_nets list (the same list maintained by Rule 30), and log 'per_net_stale_ceiling_exclusion' with fields: (a) round number, (b) net name N, (c) net_stale_count[N] = 5, (d) the round numbers in which N appeared in Rule 23 removal events, (e) the frozenset composition in each such round. This per-net ceiling is additive to and independent of Rule 30: Rule 30 catches frozensets that repeat with identical composition, while this rule catches individual nets that persistently accumulate stale-targeting appearances across varied frozenset compositions, preventing the Rule 30 ceiling from being evaded by minor round-to-round variation in the compiler's candidate set. If after applying per_net_stale_ceiling_exclusion the compiler's residual candidate set is empty for any round, apply Rule 30's 'compiler_candidate_set_exhausted_post_exclusion' escalation and halt FR dispatch pending human inspection.",
+  "After any round in which a 'non_kelvin_unconnected_identity_unknown' escalation is logged and an explicit unconnected-ratlines query is subsequently resolved \u2014 yielding a confirmed list of unconnected net names \u2014 the compiler MUST on the immediately following FR dispatch round: (1) discard all accumulated priority-score-based candidates and seed its target set exclusively from the confirmed unconnected net list returned by the query (both Kelvin-class and non-Kelvin nets), augmented by any Kelvin stubs independently required by Rules 19/21/22/23/25; (2) instruct the absorber to BYPASS merge-logic for every stub whose target net appears in the confirmed unconnected list, because those nets are verified unrouted by a live board query rather than by heuristic priority, making a 'topologically redundant' classification provably incorrect for them; (3) log 'post_query_compiler_reseeding' with fields: (a) round number, (b) the confirmed unconnected net list from the query, (c) confirmation that priority-score-based candidates were discarded, (d) the list of nets for which absorber bypass is active, (e) the prior round's stale compiler target set that was replaced. If the resolved query returns zero non-Kelvin unconnected nets (ratlines resolved between rounds), proceed with Kelvin-only stubs per Rules 19/21/22/23/25 and log 'post_query_no_non_kelvin_unconnected'. This rule is additive to Rules 19, 22, 23, 27, and 28 and closes the re-entry gap: Rule 27 mandates the halt and query but without this rule the compiler re-enters with stale priorities, reproducing non_kelvin_unconnected_identity_unknown on the post-query round and creating an unbounded halt-query-resume-halt cycle consuming budget with no convergence.",
+  "After computing the stub compiler's output for any round R in which kelvin_unrouted > 0: inspect the compiler's nets list (the 'nets' field of the directed stub summary). If that list contains NO net name matching /SENSEC{N}_HI or /SENSEC{N}_LO for ANY cable index N that appears in failing_reasons with 'has unconnected ratlines', this constitutes a 'compiler_kelvin_omission' event. Log 'compiler_kelvin_omission' with fields: (a) round number, (b) the failing Kelvin cable indices derived from failing_reasons, (c) the compiler's nets list as observed, (d) absorbed and trimmed_spurs counts. Then, BEFORE FR dispatch for round R proceeds, force-inject into the FR stub set at least one stub for EACH failing cable's pair: for cables where both HI and LO appear in failing_reasons, inject a symmetric pair stub covering both /SENSEC{N}_HI and /SENSEC{N}_LO; for cables where only one member appears in failing_reasons (per Rule 21), inject an asymmetric stub covering only the failing member. These force-injected stubs MUST bypass both the compiler's priority-score selection gate AND the absorber's merge/trim stages entirely \u2014 they are not candidates ranked by priority; they are mandatory corrections substituting for a failed compiler pass. The force-injected stubs are additive to any stubs the compiler DID generate for other nets; they do not replace those stubs nor cancel any halt or bypass already triggered by Rules 19, 21, 22, 27, or 29 on the same round. If compiler_kelvin_omission fires for 3 consecutive rounds (i.e., the compiler fails to self-correct its priority model to include Kelvin nets across 3 rounds even with force-injection active), escalate immediately with log 'compiler_kelvin_omission_streak_3', reporting the full compiler priority-weight table and the Kelvin net priority scores for each round in the streak, and halt FR dispatch pending human inspection of the compiler's priority-score initialization and decay logic for Kelvin-class nets.",
+  "When a 'compiler_kelvin_omission' event fires for round R (per Rule 33) AND the total-stub-absorption condition also fires in the same round (absorbed + trimmed_spurs + removed_orphans >= n_stubs), the force-injected Kelvin stubs mandated by Rule 33 MUST explicitly bypass the orphan-removal stage in addition to the compiler priority-score gate and absorber merge/trim stages already required by Rule 33. Rationale: the total-stub-absorption condition confirms the orphan-removal stage is actively discarding stubs this round (removed_orphans > 0); a force-injected Kelvin stub targeting a currently-unrouted net may appear topologically orphaned to the heuristic (it is the only stub for a sparse net), causing silent disposal before FR sees it \u2014 defeating the force-injection entirely. Implementation: tag each force-injected stub with a 'mandatory_kelvin_bypass' flag at injection time; the orphan-removal stage MUST unconditionally forward any stub carrying this flag without applying topology or coverage heuristics. Log 'force_injected_stub_orphan_bypass_active' with fields: (a) round number, (b) the Kelvin cable indices receiving force-injected stubs, (c) the net names of all force-injected stubs with bypass flag active. This rule is additive to Rule 33 and does not replace or defer any halt or action Rule 33, Rule 19, Rule 21, Rule 27, or Rule 29 would independently impose on the same round.",
+  "When ALL of the following conditions are simultaneously true for round R: (a) compiler_kelvin_omission fires (Rule 33 \u2014 the compiler's nets list contains no /SENSEC{N}_HI or /SENSEC{N}_LO for any cable N that appears in failing_reasons with 'has unconnected ratlines'); (b) the total-stub-absorption condition is active (absorbed + trimmed_spurs + removed_orphans >= n_stubs, per the Rule-34 trigger); (c) M_actual >= 2 distinct cable indices are failing (per Rule-2 derivation from failing_reasons); (d) the compiler's nets list contains exclusively non-Kelvin, non-diffpair nets \u2014 THEN, before dispatching FR for round R+1, the manager MUST execute a routing-layer occupancy query on the CURRENT board state. The query must cover a 6mm bounding box centred on each failing cable's shunt pads and report per copper layer: (i) via count within the bounding box, (ii) track-segment count, (iii) net names of any segments or vias belonging to nets other than /SENSEC{N}_HI or /SENSEC{N}_LO. Log 'kelvin_congestion_diagnostic' with fields: (a) round number, (b) failing cable indices, (c) per-layer via counts per cable bounding box, (d) per-layer track-segment counts, (e) list of foreign net names present in each bounding box. If the query shows that ANY copper layer within the bounding box for a failing cable carries more than 8 vias OR more than 12 track segments belonging to nets other than /SENSEC{N}_HI or /SENSEC{N}_LO, classify that cable as 'congestion_blocked' and: (1) add a narrow rectangular routing-exclusion keepout (minimum 0.5mm wide, covering the shunt inner-edge escape path, excluding all nets except /SENSEC{N}_HI and /SENSEC{N}_LO) to the FR input for round R+1 before stub injection, so FR's global router is forced to reserve a routing channel for the Kelvin pair; (2) log 'kelvin_congestion_keepout_added' with the keepout geometry and the cable index; (3) ensure the force-injected Kelvin stubs from Rule 33 target pad coordinates WITHIN the reserved channel. If the query is not executable (board state unavailable), log 'kelvin_congestion_diagnostic_failed' and escalate immediately without FR dispatch, citing inability to distinguish congestion blockage from compiler bias after the compound compound-condition trigger. This rule is additive to Rules 33 and 34 and does not replace or defer any action those rules independently mandate; it addresses the root-cause diagnostic gap that exists when force-injection alone fails across multiple consecutive rounds at M_actual >= 2.",
+  "When compiler_kelvin_omission fires (Rule 33) AND total-stub-absorption is active (absorbed + trimmed_spurs + removed_orphans >= n_stubs, per Rule 34) AND M_actual EQUALS 1 (exactly one cable index present in failing_reasons with 'has unconnected ratlines') AND that same cable index appeared in failing_reasons with 'has unconnected ratlines' in at least one of the two immediately preceding rounds: execute a routing-layer occupancy query on a 6mm bounding box centred on the failing cable's shunt pads, using the identical procedure specified in Rule 35 \u2014 report per copper layer: (i) via count within the bounding box, (ii) track-segment count, (iii) net names of any segments or vias belonging to nets other than /SENSEC{N}_HI or /SENSEC{N}_LO for the failing cable N. Log 'kelvin_congestion_diagnostic_m1' with fields: (a) round number, (b) failing cable index, (c) per-layer via counts, (d) per-layer track-segment counts, (e) list of foreign net names present. If any copper layer within the bounding box carries more than 8 vias OR more than 12 track segments belonging to nets other than /SENSEC{N}_HI or /SENSEC{N}_LO, classify that cable as congestion_blocked and: (1) add a narrow rectangular routing-exclusion keepout (minimum 0.5mm wide, covering the shunt inner-edge escape path, excluding all nets except /SENSEC{N}_HI and /SENSEC{N}_LO) to the FR input for the next round before force-injected stub injection; (2) log 'kelvin_congestion_keepout_added_m1' with the keepout geometry and cable index; (3) ensure the force-injected Kelvin stubs from Rule 33 target pad coordinates within the reserved channel. If the occupancy query is not executable (board state unavailable), log 'kelvin_congestion_diagnostic_m1_failed' and escalate immediately without FR dispatch. This rule is additive to Rules 33 and 34 and does not replace or defer any action those rules independently mandate; it closes the M_actual=1 diagnostic gap left by Rule 35's M_actual>=2 requirement.",
+  "Maintain a persistent per-net integer mapping 'net_absorption_count'. After each round in which the absorber's 'absorbed' count is greater than zero: inspect the per-stub records produced by the absorber to identify the specific net name(s) of every stub that was classified as topologically redundant and absorbed. For each such net N, increment net_absorption_count[N] by 1. When net_absorption_count[N] reaches 5 for any net N that is NOT a /SENSEC{M}_HI or /SENSEC{M}_LO Kelvin net AND NOT a USB or CAN differential-pair net AND NOT currently appearing in failing_reasons with unconnected ratlines, immediately add N to the session-scoped compiler_excluded_nets list (the same list maintained by Rules 30 and 31), and log 'per_net_absorption_ceiling_exclusion' with fields: (a) round number, (b) net name N, (c) net_absorption_count[N]=5, (d) the round numbers in which N was absorbed, (e) the stub slot count freed by this exclusion. Rationale: stubs for already-routed nets that are repeatedly absorbed consume compiler stub capacity without advancing routing; the Rule-30/31 exclusion machinery never catches these nets because absorption is NOT a Rule-23 stale-targeting-correction event, creating a leakage path that persistently crowds out Kelvin and other critical stubs. This rule closes that gap. If after applying per_net_absorption_ceiling_exclusion the compiler's residual candidate set is empty for any round, apply Rule 30's 'compiler_candidate_set_exhausted_post_exclusion' escalation and halt FR dispatch pending human inspection.",
+  "When 'non_kelvin_unconnected_identity_unknown' (Rule 27) and 'compiler_kelvin_omission' (Rule 33) both fire in the same round R, Rule 27's FR-dispatch halt takes unconditional precedence. Do NOT dispatch FR for round R. The force-injected Kelvin stubs mandated by Rule 33 (one asymmetric stub for each cable where only one member appears in failing_reasons; one symmetric pair stub for each cable where both members appear) MUST be held and queued \u2014 not discarded \u2014 pending resolution of the non-Kelvin identity query. On the immediately following round R+1, after the unconnected-ratlines query resolves the non-Kelvin net identities, combine additively: (a) the queued Rule-33 force-injected Kelvin stubs (with their mandatory_kelvin_bypass flags intact, per Rule 34), (b) the Rule-28 post-query compiler reseeding stubs targeting the resolved non-Kelvin unconnected nets with absorber bypass, and (c) any independently required Kelvin stubs from Rules 19/21/22/23/25. Deduplicate by net name before FR dispatch (prefer force-injected over compiler-generated for Kelvin nets). The halt round R does NOT increment the Rule-33 compiler_kelvin_omission streak counter, because the halt is externally imposed by Rule 27, not a repeated unforced compiler failure. Log 'rule27_halt_overrides_rule33_dispatch' with fields: (a) round number, (b) the held force-injected Kelvin stub set (net names and target pad coordinates), (c) confirmation FR dispatch is halted, (d) N_non_kelvin and confirmation that the unconnected-ratlines query is pending. This rule is additive to Rules 27, 28, 33, and 34 and does not replace or defer any action those rules independently mandate beyond the single-round halt/queue substitution described here.",
+  "When failing_reasons for round R shows that for any cable index N, exactly ONE member of the Kelvin pair (/SENSEC{N}_HI or /SENSEC{N}_LO) has 'has unconnected ratlines' while the other member does NOT appear in failing_reasons with unconnected ratlines \u2014 an asymmetric-unrouted state where one member is routed but the other is not \u2014 AND this same asymmetric condition for cable N was also present in failing_reasons for the immediately preceding round R-1: (1) before FR dispatch for round R+1, issue an explicit rip-up directive for BOTH /SENSEC{N}_HI AND /SENSEC{N}_LO, removing the existing route of the 'good' member so FR re-routes the pair from scratch without being constrained by the blocking prior path; (2) inject a symmetric Kelvin stub pair for cable N with mandatory_kelvin_bypass flag active (per Rule 34), bypassing the compiler priority gate, absorber merge/trim, and orphan-removal stages entirely; (3) log 'kelvin_asymmetric_ripup' with fields: (a) round number, (b) cable index N, (c) the member that was unrouted (failing), (d) the member ripped up despite being routed, (e) any bounding-box occupancy data from a Rule 35/36 congestion query if one was executed this round. This rule is additive to Rules 33, 34, 35, and 36 and does not replace or defer any action those rules independently mandate. Rationale: after 2+ consecutive rounds in the asymmetric state, the routed member demonstrably occupies geometry that prevents the unrouted member from escaping the shunt inner edge; stub injection for the failing member alone cannot succeed because FR treats the routed member's copper as fixed; only ripping both and re-routing as a symmetric pair from the same shunt restores the geometric freedom needed to satisfy the Kelvin gate.",
+  "If the objective value has not decreased by at least 5% over the last 5 consecutive rounds, force a full rip-up of all nets and restart routing from scratch with a different random seed. Log 'objective_stagnation_escape' with round number and previous objective values.",
+  "When the compiler's nets list for round R contains NO net that also appears in failing_reasons with 'has unconnected ratlines' (i.e., the compiler targets exclusively nets not currently failing \u2014 zero failing-net overlap), classify the event as 'compiler_zero_failing_net_overlap' and execute the following BEFORE the absorber and before Rule 33 force-injection: (1) set the compiler's internal priority score for every net in the compiler's nets list to 0 for this round; (2) re-run the compiler's candidate-selection pass using a restricted candidate pool consisting only of nets drawn from failing_reasons (both Kelvin failing nets and any non-Kelvin unconnected nets identified via Rule 27's query, if available); (3) skip the absorber's merge, trim-spurs, and orphan-removal stages for ALL stubs produced by this restricted re-run \u2014 these stubs target genuinely unrouted nets and absorption would discard valid guidance; (4) log 'compiler_zero_failing_net_overlap' with fields: (a) round number, (b) original compiler nets list, (c) the failing_reasons net set used as the replacement candidate pool, (d) the stub set produced by the re-run and their priority scores. If after the restricted re-run the Kelvin failing nets are STILL absent from the compiler's output, apply Rule 33 force-injection additively. The zero-out of original priority scores persists only for the current round R; the compiler's underlying priority model is not modified, but the nets whose scores were zeroed must have their absorption counter incremented by 1 in net_absorption_count (Rule 37) regardless of whether their stubs were generated this round, since the zero-overlap event is evidence of the same persistent-targeting pattern Rule 37 tracks. This rule fires before Rule 33 and is additive to Rules 33, 34, 35, 36, and 37; it does not replace or defer any action those rules independently mandate.",
+  "Extend Rule 37's net_absorption_count accounting to include spur-trimming events: after each round in which the trimmed_spurs counter is greater than zero, inspect the per-stub records produced by the spur-trimmer to identify the specific net name(s) of every stub classified as a spur and trimmed. For each such net N, increment net_absorption_count[N] by 1, applying the same exclusion threshold (5), the same exclusion conditions (N is not a /SENSEC{M}_HI or /SENSEC{M}_LO Kelvin net, not a USB or CAN differential-pair net, not currently appearing in failing_reasons with unconnected ratlines), and the same exclusion action (add N to compiler_excluded_nets) as Rule 37 specifies for absorption events. Log 'per_net_spur_trim_count_toward_absorption_ceiling' with fields: (a) round number, (b) net name N, (c) net_absorption_count[N] after increment, (d) the round numbers in which N was previously spur-trimmed. Rationale: a stub trimmed as a spur consumes the same compiler stub slot as an absorbed stub and delivers equally zero routing benefit; Rule 37 closes the absorption leakage path but leaves the spur-trim leakage path open, allowing a net that is repeatedly spur-trimmed rather than absorbed to permanently drain compiler capacity without ever triggering exclusion. This rule is additive to Rule 37 and does not replace or defer any action Rule 37 independently mandates.",
+  "Maintain a gate-aware fast-track exclusion path using the session-scoped net_absorption_count data tracked by Rules 37 and 38. At the start of each round's compiler invocation: if kelvin_unrouted > 0 in the immediately preceding round's result, evaluate net_absorption_count[N] for every net N that is NOT a /SENSEC{M}_HI or /SENSEC{M}_LO Kelvin net, NOT a USB differential-pair net (/USB_D_P, /USB_D_N), NOT a CAN differential-pair net (/CAN_H, /CAN_L), and NOT currently appearing in failing_reasons with 'has unconnected ratlines'. For each such net N where net_absorption_count[N] >= 3 (versus the normal Rule-37 threshold of 5), add N to compiler_excluded_nets immediately before the compiler runs for the current round, and log 'kelvin_active_fast_track_exclusion' with fields: (a) round number, (b) net name N, (c) net_absorption_count[N], (d) kelvin_unrouted value from the preceding round, (e) the stub slots freed by this pre-exclusion. Safety gate: if applying this exclusion would leave the compiler's candidate pool entirely empty, suppress the fast-track exclusion for that net in the current round (do not modify net_absorption_count for it), and log 'fast_track_exclusion_suppressed_pool_empty' with the net name. Rationale: during an active Kelvin gate failure each compiler stub slot consumed by a repeatedly-absorbed already-routed net is a direct opportunity cost against the gate-critical Kelvin routing goal; the Rule-37/38 fixed threshold of 5 allows up to 2 additional misdirected rounds beyond the count-3 point where the absorption pattern is already established. Lowering the effective threshold from 5 to 3 specifically when kelvin_unrouted > 0 provides a faster compiler-correction response proportional to gate-failure urgency. This rule is additive to Rules 37 and 38 and shares their net_absorption_count state without modifying it; it does not replace or defer any action those rules independently mandate, and it does not apply to rounds where kelvin_unrouted == 0.",
+  "Maintain a session-scoped integer counter 'consecutive_total_elimination_with_kelvin_active'. At the end of each round: if (absorbed + trimmed_spurs + removed_orphans >= n_stubs AND n_stubs > 0 AND kelvin_unrouted > 0 in that round's result), increment the counter; otherwise reset it to 0. When the counter reaches 3: (1) for the immediately following FR-dispatch round only, disable the absorber, spur-trimmer, and orphan-removal stages entirely for ALL stubs produced by the compiler \u2014 allowing FR to receive the full unfiltered compiler output alongside the force-injected Kelvin stubs from Rule 33; (2) log 'absorber_bypass_total_elimination_sustained' with fields: (a) round number, (b) counter value=3, (c) compiler nets list, (d) count of stubs that would have been eliminated under normal operation; (3) reset the counter to 0 immediately after the bypass round is dispatched, regardless of whether the Kelvin gate passes that round. Rationale: when the absorber eliminates 100% of compiler guidance across 3+ consecutive rounds while kelvin_unrouted > 0, its heuristic that targeted nets are already-routed and therefore redundant is provably wrong as a collective judgment \u2014 the board is in active routing flux (DRC=40, unconnected=4), and the suppressed stubs may carry valid topological signal about channel geometry near the shunt that force-injection alone, targeting only the Kelvin pair from fixed pad coordinates, cannot convey. A single bypass round provides FR with the full compiler output; even one non-Kelvin stub that guides FR away from a congested channel adjacent to the shunt may unlock the Kelvin escape path that repeated force-only rounds have failed to open. This rule does not modify net_absorption_count, does not alter compiler_excluded_nets, and does not replace or defer any action Rules 33, 34, 37, 38, or 39 independently mandate. It fires only when the collective suppression pattern is sustained, not on isolated elimination rounds.",
+  "When round R's failing_reasons contains Kelvin net unconnected-ratline entries for two or more distinct cable indices simultaneously \u2014 where at least one cable C_sym has BOTH its /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO members failing (symmetric state), AND at least one other cable C_asym has ONLY ONE member failing (asymmetric state) AND this is the FIRST occurrence of the asymmetric condition for C_asym (the immediately preceding round R-1 did NOT contain C_asym's partial Kelvin failure in failing_reasons) \u2014 execute the full asymmetric ripup protocol for C_asym IMMEDIATELY, bypassing Rule 3's 2-consecutive-round threshold: (1) issue a rip-up directive for BOTH members of C_asym's Kelvin pair (including the currently-routed member); (2) force-inject a symmetric Kelvin stub pair for C_asym with mandatory_kelvin_bypass flag active (per Rule 34), bypassing compiler, absorber, spur-trimmer, and orphan-removal; (3) simultaneously force-inject a symmetric Kelvin stub pair for C_sym per Rule 33 with mandatory_kelvin_bypass active; (4) log 'multi_cable_first_occurrence_asymmetric_accelerated_ripup' with fields: (a) round number R, (b) C_sym cable index and both failing member nets, (c) C_asym cable index, (d) the C_asym member that was ripped up despite being currently routed, (e) the C_asym member that was unrouted (failing). Rationale: Rule 3 waits for 2 consecutive asymmetric rounds to confirm the blocking geometry is stable before ripping the routed member; however when a second cable C_sym is simultaneously fully unrouted, the combined congestion near the shared shunt pad cluster is provably elevated beyond the single-cable baseline that motivates the 2-round wait \u2014 the routed-member geometry of C_asym is more likely to be a FR artifact of routing around C_sym's congestion than a stable shortest-path solution, making first-round asymmetric recovery statistically unlikely. One wasted round under the standard 2-round rule is an unacceptable cost when both cables must converge to satisfy the Kelvin gate. This rule is additive to Rules 3, 33, 34, and the compiler_zero_failing_net_overlap rule; it does not alter net_absorption_count, does not modify compiler_excluded_nets, and does not suppress any action those rules independently mandate for other cables or nets in the same round.",
+  "Maintain a session-scoped boolean flag 'double_blindness_bypass_armed'. At the end of each round R, if ALL of the following hold simultaneously: (a) compiler_zero_failing_net_overlap fired for round R (the compiler's nets list had zero overlap with failing_reasons unconnected-ratline nets), AND (b) absorbed + trimmed_spurs + removed_orphans >= n_stubs AND n_stubs > 0 (total elimination), AND (c) kelvin_unrouted > 0 in round R's result -- then: (1) set double_blindness_bypass_armed = True; (2) do NOT wait for Rule 40's consecutive_total_elimination_with_kelvin_active counter to reach 3; instead apply Rule 40's absorber_bypass_total_elimination_sustained protocol on the immediately following round R+1 regardless of the counter value; (3) on round R+1, additionally skip Rule 4's restricted compiler re-run if the Kelvin failing nets are already known from failing_reasons (they do not require re-discovery; go directly to Rule 33 force-injection for those nets, bypassing the restricted-pool candidate-selection step); (4) reset double_blindness_bypass_armed = False immediately after the bypass round R+1 is dispatched; (5) log 'double_blindness_immediate_bypass' with fields: (a) round R, (b) original compiler nets list, (c) total elimination counts (absorbed/trimmed_spurs/removed_orphans/n_stubs), (d) Kelvin nets from failing_reasons scheduled for Rule-33 force-injection in R+1, (e) confirmation that absorber bypass is active for R+1 and that the Rule-4 restricted re-run is skipped. Rationale: when the compiler targets exclusively non-failing nets (zero topological signal for the gate-critical path) AND the absorber simultaneously discards all stubs (zero guidance reaches FR), FR received no corrective routing direction this round. Rule 4 alone would re-run the compiler with failing nets but those stubs still pass through an armed absorber; Rule 40 alone increments a counter requiring 2 more rounds before bypass. The combined state makes both paths individually insufficient -- the absorber-bypass must fire on the next round, not 2 rounds later, because each wasted round in double-blindness is a round where FR reinforces the same non-Kelvin routing topology it would have produced without any guidance at all. This rule shares Rule 40's consecutive_total_elimination_with_kelvin_active counter state and is additive to Rules 4, 33, 34, 40; it does not replace or defer any action those rules independently mandate for other cables or nets.",
+  "Maintain a session-scoped integer counter 'consecutive_double_blindness_bypass_kelvin_failures'. After each round R dispatched under an active double_blindness_bypass_armed=True flag (Rule 41): if kelvin_unrouted > 0 in round R's result, increment the counter; if kelvin_unrouted == 0, reset the counter to 0. When the counter reaches 2 (two successive bypass rounds failed to clear the Kelvin gate): (1) query the DRC loci from round R's DRC output; (2) for each cable C that still has a failing Kelvin net, compute the bounding box of /SENSEC{C}_HI and /SENSEC{C}_LO shunt pad centroids expanded by 3 mm on each side; (3) identify any structural DRC error locus that falls inside this expanded box \u2014 call these 'shunt-proximate DRC hits'; (4) if shunt-proximate hits exist for any cable C, inject a targeted keepout directive covering exactly those loci (not the shunt itself, not the full bounding box) for the immediately following round so FR resolves those conflicts outside the Kelvin approach channel, and log 'shunt_proximate_drc_blocking_keepout_injected' with fields: (a) round number, (b) cable index C, (c) shunt bounding box coordinates, (d) DRC error types and loci inside the box, (e) keepout geometry injected; (5) if no shunt-proximate hits exist, escalate to the human: the double_blindness bypass fired twice, FR received correct guidance and a clean absorber, but the Kelvin gate still failed and no spatially-located DRC conflict explains the blockage \u2014 a placement or routing-topology change is likely required. Reset the counter to 0 after either action. Rationale: the existing double_blindness_bypass rule (Rule 41) solves the compiler-guidance and absorber-elimination problems; when it fires twice and still fails to route the Kelvin nets, the obstacle is physical rather than guidance-related. A spatial correlation between DRC errors and the shunt bounding box is the most informative discriminator between 'FR needs a cleaner local channel' (addressable by keepout) and 'the board topology is fundamentally misrouted near the shunt' (requires human escalation). This rule is additive to Rules 33, 34, 40, and 41 and shares their session state without modifying it.",
+  "When kelvin_unrouted > 0 in round R's result AND the compiler's candidate pool \u2014 after applying all normal exclusions from Rules 37, 38, and 39 \u2014 consists EXCLUSIVELY of nets whose net_absorption_count >= 3 (i.e., every net remaining in the pool is a fast-track-exclusion candidate whose exclusion has been suppressed only by Rule 39's pool-empty safety gate), execute the safety-gate bypass protocol: (1) override the Rule 39 safety gate for this round and allow the compiler's output to be empty (zero compiler stubs produced); (2) deliver ONLY Rule 33's force-injected Kelvin stubs to FR for this round, bypassing the absorber, spur-trimmer, and orphan-removal stages for those stubs per Rule 34's mandatory_kelvin_bypass semantics; (3) do NOT increment net_absorption_count for any net that was suppressed by the safety gate this round \u2014 they were not targeted and the count should not advance; (4) log 'safety_gate_bypassed_all_pool_nets_above_fast_track_threshold' with fields: (a) round number R, (b) the list of nets suppressed by the safety gate and their net_absorption_count values, (c) kelvin_unrouted value from round R, (d) the Kelvin force-stubs injected via Rule 33, (e) confirmation that zero compiler stubs were produced. Rationale: the Rule 39 safety gate was designed to prevent a completely empty compiler round, but when every remaining pool net has net_absorption_count >= 3 and is being kept only by the safety gate, those nets produce stubs that are absorbed with probability approaching 1.0 every round \u2014 they consume all compiler slot capacity while delivering zero net routing guidance to FR. A Kelvin-force-injection-only round is strictly preferable: FR receives the same Kelvin force stubs it would have received under normal dual-path operation, with no slot competition from absorbed-bound stubs and no misleading topological signal from repeatedly-absorbed non-failing nets. This rule is additive to Rules 33, 34, 37, 38, 39, 40, 41, and 42; it shares net_absorption_count state without modifying it beyond clause (3); it fires before Rule 33 force-injection is appended for the current round; and it does not suppress any action those rules independently mandate for other cables or conditions in the same round.",
+  "Maintain a session-scoped per-cable integer counter 'consecutive_symmetric_kelvin_failure[C]'. After each round R: if BOTH /SENSEC{C}_HI and /SENSEC{C}_LO appear in failing_reasons with 'has unconnected ratlines', increment consecutive_symmetric_kelvin_failure[C]; otherwise reset it to 0. When consecutive_symmetric_kelvin_failure[C] reaches 8 for any cable index C: (1) for the immediately following round, suppress all compiler stub output entirely (zero stubs from the compiler, regardless of the compiler's normal priority scoring); (2) inject ONLY Rule 33's Kelvin force stubs for cable C using Rule 34's mandatory_kelvin_bypass semantics, bypassing the absorber, spur-trimmer, and orphan-removal stages; (3) ADDITIONALLY inject one supplementary waypoint stub for each of /SENSEC{C}_HI and /SENSEC{C}_LO at a point 4 mm offset from the respective pad centroid along the vector pointing from that pad centroid toward the centroid of the board's signal-routing region (the midboard zone containing the ESP32, CAN transceiver, and I2C devices), providing FR with a staged two-step routing target that decouples the congested shunt-cluster exit from the longer run to the signal region; (4) log 'consecutive_symmetric_kelvin_waypoint_round' with fields: (a) round number, (b) cable index C, (c) consecutive_symmetric_kelvin_failure[C] value, (d) pad centroid coordinates for both /SENSEC{C}_HI and /SENSEC{C}_LO, (e) computed 4mm waypoint coordinates for both members, (f) signal-region centroid used for direction computation; (5) reset consecutive_symmetric_kelvin_failure[C] to 0 after this bypass round regardless of whether the Kelvin gate clears that round. Rationale: when both Kelvin members for the same cable remain unrouted for 8 consecutive rounds despite Rule-33 force-injection, double-blindness bypass (Rule 41), absorber bypass (Rule 40), and safety-gate bypass (Rule 43), the pad-centroid stub geometry is confirmed insufficient as a routing guide \u2014 FR cannot solve the congested-pad-cluster exit in one step. A waypoint stub 4 mm toward the signal region provides a two-step target, reducing the per-step routing difficulty at the shunt cluster boundary. This rule is additive to Rules 33, 34, 40, 41, 42, and 43; it does not modify net_absorption_count, compiler_excluded_nets, or any session-scoped state maintained by those rules, and does not replace or defer any action they independently mandate.",
+  "Pre-bypass shunt-proximate DRC clearance: immediately before dispatching any absorber-bypass round mandated by Rule 40 or Rule 41 \u2014 when the bypass is triggered, kelvin_unrouted > 0, AND the most recent completed round's structural DRC count > 20 \u2014 execute the following: (1) query all structural DRC violation loci from the most recent round's DRC output; (2) for each cable index C whose Kelvin pair appears in failing_reasons with unconnected-ratline entries, compute the bounding box of /SENSEC{C}_HI and /SENSEC{C}_LO shunt pad centroids expanded by 2 mm on each side; (3) identify every structural DRC error locus falling inside this expanded box \u2014 call these 'pre-bypass shunt-proximate hits'; (4) if pre-bypass shunt-proximate hits exist for any cable C, issue a ripup directive for each track or via segment at those loci AND inject a keepout zone covering exactly those loci (not the full bounding box) for the bypass round, so FR resolves those conflicts outside the Kelvin approach channel before attempting the force-injected Kelvin stubs; (5) log 'pre_bypass_shunt_proximate_drc_clearance' with fields: (a) round number, (b) cable index C, (c) shunt bounding box coordinates, (d) DRC error types and loci inside the box, (e) ripup directives issued, (f) keepout geometry injected; (6) if no shunt-proximate hits exist, proceed with the bypass round unmodified. This rule fires once per bypass invocation and does not modify net_absorption_count, compiler_excluded_nets, or any session-scoped state maintained by Rules 37\u201343; it does not replace or defer any action those rules independently mandate. Rationale: Rule 42 applies the same spatial DRC-locus correlation but only after 2 consecutive bypass failures; when DRC is already high (>20) at the point the bypass is first triggered, the shunt-proximate congestion is confirmed without needing 2 failure rounds to diagnose it. Clearing those violations before the bypass gives Rule-33 force-injected Kelvin stubs a higher probability of routing cleanly in the same bypass attempt, collapsing what would otherwise be a 2-round Rule-42 remediation cycle into a single bypass round.",
+  "Maintain a session-scoped boolean flag 'absorber_false_positive_bypass_armed'. After each round R: compute inferred_non_kelvin_unconnected = unconnected[R] minus (count of distinct Kelvin member net names appearing in failing_reasons[R] with 'has unconnected ratlines'). If ALL of the following hold simultaneously: (a) inferred_non_kelvin_unconnected >= 1, AND (b) absorbed + trimmed_spurs + removed_orphans >= n_stubs AND n_stubs > 0 (total elimination this round), AND (c) kelvin_unrouted > 0 in round R's result, AND (d) the compiler's nets list is non-empty: then (1) set absorber_false_positive_bypass_armed = True; (2) do NOT increment net_absorption_count for any net in round R's compiler nets list \u2014 the absorption verdict for those nets is suspect and should not accumulate toward Rules 37/38/39 thresholds; (3) for the immediately following round R+1, allow stubs produced by the compiler for every net that appeared in round R's compiler nets list to pass through the absorber, spur-trimmer, and orphan-removal stages without elimination (treat those stubs as exempt from absorption for round R+1 only, in the same manner as mandatory_kelvin_bypass for absorber purposes \u2014 this exemption does NOT affect compiler_excluded_nets or force-injection for Kelvin nets); (4) log 'absorber_false_positive_bypass_armed' with fields: (a) round R, (b) compiler nets list, (c) inferred_non_kelvin_unconnected count, (d) absorbed/trimmed_spurs/removed_orphans/n_stubs values, (e) confirmation that net_absorption_count was not incremented for listed nets, (f) confirmation absorber bypass is active for those nets in R+1; (5) reset absorber_false_positive_bypass_armed = False immediately after round R+1 is dispatched. This rule is additive to Rules 37, 38, 39, 40, 41, 43, 44, and 45; it does not replace or defer any action those rules independently mandate, and in rounds where Rule 41 also fires (zero-overlap + total elimination), both protocols apply concurrently \u2014 Rule 41 bypasses absorber for ALL R+1 stubs while this rule additionally suppresses R's net_absorption_count increments. Rationale: when the absorber eliminates all compiler stubs (marking target nets as fully routed) yet DRC reports more unconnected ratlines than Kelvin failures alone account for, at least one absorbed stub targeted a net that FR failed to fully route in the current candidate \u2014 a false positive where historical routing state diverges from current connectivity. Bypassing the absorber for those specific nets in R+1 gives FR routing guidance for nets it did not complete. Suppressing the net_absorption_count increment prevents the false-positive absorption from incorrectly advancing those nets toward the fast-track exclusion threshold in Rules 37/38/39, which would eventually exclude from the compiler nets that still genuinely need routing guidance.",
+  "Maintain a session-scoped integer counter 'consecutive_high_drc_kelvin_stall'. After each round R: if structural DRC > 20 AND kelvin_unrouted > 0, increment the counter; otherwise reset it to 0. When the counter reaches 5: (1) query all structural DRC violation loci from round R's DRC output; (2) group loci into spatial clusters where any two loci within 4 mm of each other belong to the same cluster; (3) rank clusters by error count descending; (4) for the top-2 clusters by count: if the cluster centroid falls within 4 mm of the bounding box of any failing Kelvin cable C's /SENSEC{C}_HI and /SENSEC{C}_LO shunt pad centroids (the shunt-proximate test), issue a ripup directive for every track or via at that cluster's loci AND inject a 3 mm keepout covering those loci for the immediately following round; (5) if a top-2 cluster is NOT shunt-proximate for any failing cable, skip the ripup for that cluster to avoid disrupting non-blocking regions; (6) after cluster ripup, proceed with normal stub injection and Rule-33 force-injection for the round; (7) log 'drc_stagnation_cluster_ripup' with fields: (a) round number R, (b) counter value, (c) all cluster centroids and error counts, (d) which clusters were deemed shunt-proximate and for which cable index C, (e) ripup loci issued, (f) keepout geometries injected; (8) reset consecutive_high_drc_kelvin_stall to 0 after this action regardless of whether the Kelvin gate clears that round. This rule is additive to Rules 33, 34, 40-46 and does not modify net_absorption_count, compiler_excluded_nets, or any session-scoped state maintained by those rules. Distinction from Rule 45: Rule 45 fires immediately before absorber-bypass dispatch rounds when DRC > 20; this rule fires after 5 consecutive stuck rounds regardless of bypass state, addressing the case where DRC and Kelvin failure remain co-elevated across extended non-bypass stretches where Rule 45 has no trigger. Rationale: at round 89, DRC=28 persisting alongside kelvin_unrouted > 0 indicates geometric congestion near the shunt is not resolving through normal FR optimization or bypass-round-only spatial ripup. A threshold-triggered cluster ripup independent of bypass state breaks the mutual reinforcement between residual DRC violations and blocked Kelvin paths by clearing the densest conflict regions before the next routing attempt.",
+  "Maintain a session-scoped integer counter 'consecutive_dual_cable_symmetric_kelvin'. After each round R: if ALL FOUR of /SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI, and /SENSEC2_LO appear in failing_reasons with 'has unconnected ratlines' in the same round, increment the counter; otherwise reset it to 0. When the counter reaches 4: (1) for the immediately following round R+1, inject ONLY Rule 33's Kelvin force stubs for cable 1 (/SENSEC1_HI and /SENSEC1_LO) using mandatory_kelvin_bypass semantics per Rule 34 \u2014 suppress all compiler stubs AND all cable 2 Kelvin stubs for this round; (2) for round R+2 (the round after the serial cable-1 round), inject ONLY Rule 33's Kelvin force stubs for cable 2 (/SENSEC2_HI and /SENSEC2_LO) using mandatory_kelvin_bypass semantics per Rule 34, regardless of whether cable 1 succeeded in R+1; (3) reset the counter to 0 immediately after dispatching R+1 (do not wait for R+2 outcome to reset); (4) log 'dual_cable_symmetric_kelvin_serial_protocol' with fields: (a) round number R at trigger, (b) counter value at trigger, (c) which cable is targeted in R+1 (cable 1) and R+2 (cable 2), (d) confirmation that all cable-2 Kelvin stubs and all compiler stubs are suppressed for R+1, (e) kelvin_unrouted and DRC from round R. Rationale: when both shunt clusters fail symmetrically for 4+ consecutive rounds while both simultaneously receive Kelvin force stubs, the two cables' unrouted Kelvin paths create mutual congestion near the shared inter-shunt routing channel \u2014 neither can route while both are contending for the same constrained escape paths. Serialized injection reduces the per-round Kelvin routing problem from 4 contested nets to 2, allowing FR to find a stable exit path for cable 1 without cable 2's stubs competing for the same channel, then clearing cable 2 in the subsequent round. This rule is additive to Rules 1, 5, 33, 34, 40\u201346; it does not modify net_absorption_count or compiler_excluded_nets, and does not replace or defer any action those rules independently mandate for other conditions in the same round.",
+  "Maintain a session-scoped integer counter 'consecutive_near_threshold_drc_kelvin'. After each round R: if structural DRC >= 15 AND structural DRC <= 20 AND kelvin_unrouted > 0, increment the counter; otherwise reset it to 0. When the counter reaches 3: (1) query all structural DRC violation loci from round R's DRC output; (2) for each cable index C whose Kelvin pair appears in failing_reasons with 'has unconnected ratlines', compute the bounding box of /SENSEC{C}_HI and /SENSEC{C}_LO shunt pad centroids expanded by 2 mm on each side; (3) identify every structural DRC error locus falling inside this expanded box \u2014 call these 'near-threshold shunt-proximate hits'; (4) if any near-threshold shunt-proximate hits exist for any cable C, inject a keepout zone covering exactly those loci for the immediately following round \u2014 NO ripup (unlike Rule 47's full intervention), so FR receives spatial guidance without forced track removal; (5) log 'near_threshold_drc_kelvin_keepout' with fields: (a) round number R, (b) counter value at trigger, (c) cable index C, (d) shunt bounding box coordinates, (e) DRC error types and loci inside the box, (f) keepout geometry injected; (6) reset consecutive_near_threshold_drc_kelvin to 0 after this action regardless of whether the Kelvin gate clears that round. If no near-threshold shunt-proximate hits exist for any failing cable, take no spatial action but log the null result and continue. This rule is additive to Rules 45 and 47 and does not modify net_absorption_count, compiler_excluded_nets, or any session-scoped state maintained by those rules; it does not replace or defer any action they independently mandate. Rationale: Rules 45 and 47 both gate on DRC > 20 to avoid over-intervention on cosmetic violations, but DRC in [15, 20] with persistent Kelvin failure is materially problematic \u2014 round 91 (DRC=19, kelvin_unrouted=1) demonstrates a case that escapes both rules despite being equivalent in severity to cases they do handle. The 3-round threshold and keepout-only action are deliberately conservative relative to Rules 45 and 47 given the lower DRC level.",
+  "Maintain a session-scoped per-net integer counter 'consecutive_rule46_suppression_count[net]'. After each round R where Rule 46 fires: for each net name in round R's compiler nets list, increment consecutive_rule46_suppression_count[net] by 1. After any round where Rule 46 does NOT fire (either because the total-elimination condition is not met, or because kelvin_unrouted=0, or because inferred_non_kelvin_unconnected=0), reset consecutive_rule46_suppression_count[net] to 0 for every net NOT in round R's compiler nets list; nets that ARE in R's compiler nets list but Rule 46 did not fire this round have their count reset to 0 as well (the suppression chain broke). When consecutive_rule46_suppression_count[net] reaches 4 for any net: (1) add that net to compiler_excluded_nets for 5 rounds using the same mechanism as Rule 38 (net is skipped by the compiler's candidate pool for those rounds, even if its net_absorption_count is below the normal fast-track threshold); (2) reset consecutive_rule46_suppression_count[net] to 0 immediately after applying the exclusion; (3) log 'rule46_suppression_deadlock_exclusion' with fields: (a) round number R, (b) net name, (c) consecutive_rule46_suppression_count value at trigger, (d) exclusion duration in rounds, (e) net's current net_absorption_count at time of exclusion, (f) kelvin_unrouted from round R. Rationale: Rule 46 correctly suppresses net_absorption_count increments to avoid false-positive exclusion when total stub elimination co-occurs with Kelvin failure \u2014 but if Rule 46 fires repeatedly for the same nets across consecutive rounds, the suppression mechanism creates an accidental freeze where the net's absorption count cannot advance regardless of how many rounds it is absorbed or spur-trimmed. The net remains permanently in the compiler pool, consuming slot capacity with stubs that are consistently eliminated, while never accumulating the absorption count evidence that Rules 37-39 require to exclude it. Four consecutive Rule 46 suppressions for the same net constitutes equivalent evidence of persistent non-routability: the net has been targeted across at least 4 rounds, all stubs were eliminated each round (the Rule 46 trigger condition), and the Kelvin gate remained failed throughout \u2014 this is the same signal as 4 absorptions but routed through a different state path. Temporary exclusion for 5 rounds gives the compiler output to Kelvin-only guidance without the slot competition from a deadlocked net, without permanently removing the net from the pool (it re-enters after 5 rounds in case board state changes). This rule is additive to Rules 37, 38, 39, and 46; it does not modify any other session-scoped state, and does not replace or defer any action those rules independently mandate.",
+  "Detect and force-inject for ASYMMETRIC Kelvin failures. After evaluating round R: for each cable index C, if exactly one member of the pair (/SENSEC{C}_HI or /SENSEC{C}_LO) appears in failing_reasons with 'has unconnected ratlines' while the other member does NOT appear in failing_reasons (partner is routed), AND that cable is NOT already contributing to kelvin_unrouted for round R (because kelvin_unrouted only counts fully-unrouted symmetric pairs where both members are absent): in round R+1, inject a force stub for the unrouted member only (the single member with unconnected ratlines) using mandatory_kelvin_bypass semantics per Rule 34, bypassing the absorber, spur-trimmer, and orphan-removal stages for that stub. Do NOT inject a force stub for the already-routed partner member \u2014 injecting both would risk FR rerouting the established partner path to satisfy a competing stub geometry. This asymmetric single-member stub injection is additive to any Rule 33 symmetric force stubs and any compiler stubs generated for round R+1; it does not suppress compiler output or other force injections for that round. Log 'asymmetric_kelvin_single_member_force_inject' with fields: (a) round R, (b) cable index C, (c) which member is unrouted (e.g. /SENSEC2_HI), (d) which member is already routed (e.g. /SENSEC2_LO), (e) stub coordinates injected for the unrouted member. Rationale: Rule 33 force-injects Kelvin stubs only for cables contributing to kelvin_unrouted (symmetric failures); an asymmetric failure where one member is blocked but the other is routed falls entirely outside Rule 33's scope and outside the compiler's normal priority if that net's absorption count is low but FR simply failed to route it. In round 93, SENSEC2_HI received zero routing guidance while remaining the sole cable-2 Kelvin gate blocker \u2014 a gap that will repeat every round without an explicit injection protocol for asymmetric cases.",
+  "Detect and serialize Rule-33 + Rule-50 co-firing. After evaluating round R: if Rule 33 fires for cable index C_sym (both /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO appear in failing_reasons with 'has unconnected ratlines') AND Rule 50 also fires for a DIFFERENT cable index C_asym (exactly one member of the /SENSEC{C_asym}_HI or /SENSEC{C_asym}_LO pair appears in failing_reasons with 'has unconnected ratlines' while the other member does NOT appear in failing_reasons) in the SAME round R: (1) in round R+1, inject ONLY Rule 33's Kelvin force stubs for cable C_sym (/SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO) using mandatory_kelvin_bypass semantics per Rule 34 \u2014 suppress the Rule-50 single-member stub for cable C_asym for round R+1 only; (2) in round R+2, inject the Rule-50 single-member stub for cable C_asym (the unrouted member identified in round R) using mandatory_kelvin_bypass semantics per Rule 34, regardless of whether cable C_sym's Kelvin gate cleared in round R+1; (3) all other active rules (Rule 46 absorber bypass, Rule 48 keepout injection, Rule 33 force stubs) proceed for rounds R+1 and R+2 per their own trigger conditions \u2014 only the Rule-50 stub is deferred, not suppressed permanently; (4) log 'rule33_rule50_cofire_serialization' with fields: (a) round number R at trigger, (b) symmetric cable index C_sym, (c) asymmetric cable index C_asym, (d) which member of C_asym is deferred (e.g. /SENSEC2_HI), (e) the round R+2 in which the deferred stub will be injected, (f) kelvin_unrouted, DRC, and unconnected from round R. This rule is additive to Rules 33, 34, 40-50 and does not modify net_absorption_count, compiler_excluded_nets, or any other session-scoped state maintained by those rules. It does not replace or defer any action those rules independently mandate for conditions other than the Rule-50 stub timing. Rationale: round 94 is the first observed round where cable-1 symmetric failure (Rule 33) and cable-2 asymmetric failure (Rule 50) co-occur, with no existing rule governing their relative priority. Both generate absorber-bypassing force stubs targeting the same congested shunt-cluster exit region in the same round (R+1), creating maximal inter-cable routing contention. Serializing across rounds gives cable C_sym exclusive routing priority in the shared exit corridor during R+1 before cable C_asym re-enters in R+2, reducing the per-round competing-stub pressure at the narrowest point of the Kelvin escape path.",
+  "Detect Rule-46 + Rule-51 co-fire and defer the Rule-46 absorber bypass by one round. After each round R: if Rule 46 fires (absorber_false_positive_bypass_armed set to True, with a non-empty compiler nets list) AND Rule 51 also fires in the SAME round R (both Rule 33 for cable C_sym AND Rule 50 for cable C_asym trigger simultaneously): (1) store the round R compiler nets list as a session-scoped set 'deferred_rule46_bypass_nets', e.g. {/CAN_H, /I2C_SCL, /I2C_SDA}; (2) in round R+1, Rule 51's mandatory_kelvin_bypass correctly suppresses all compiler stubs per Rule 34 \u2014 do NOT attempt to apply Rule 46's absorber bypass in round R+1 (it has nothing to operate on); (3) in round R+2, if the compiler generates stubs for any net in deferred_rule46_bypass_nets, pass those stubs through the absorber, spur-trimmer, and orphan-removal stages WITHOUT elimination, treating them as exempt from absorption for round R+2 only (the same bypass-pass-through semantics Rule 46 would have applied in R+1); do NOT suppress net_absorption_count increments in R+2 since the false-positive risk is re-evaluated fresh from R+2's round state; (4) reset deferred_rule46_bypass_nets to empty immediately after round R+2 is dispatched regardless of outcome; (5) log 'rule46_rule51_cofire_bypass_deferral' with fields: (a) round R, (b) C_sym and C_asym from Rule 51, (c) nets in deferred_rule46_bypass_nets, (d) confirmation that bypass is deferred to R+2 because mandatory_kelvin_bypass in R+1 suppresses all compiler stubs, (e) net_absorption_count suppression status for round R (still applied per Rule 46 even when bypass is deferred). This rule is additive to Rules 34, 46, and 51 and does not modify any other session-scoped state or replace any action those rules independently mandate. Rationale: Rule 51 mandates mandatory_kelvin_bypass for round R+1, which per Rule 34 suppresses ALL compiler stubs; Rule 46 arms absorber_false_positive_bypass_armed=True for round R+1 expecting compiler stubs to be present, but those stubs are suppressed before they reach the absorber \u2014 the bypass fires on an empty set and then Rule 46 resets the flag before round R+2. The CAN_H/I2C nets that triggered Rule 46 never receive the bypass round that would allow FR to route them under guidance, while their net_absorption_count suppression (correctly applied in R) means they accumulate no false-positive absorptions toward Rule 49's deadlock-exclusion threshold but also receive no routing opportunity. Deferring the bypass by one round preserves Rule 46's intent across the mandatory_kelvin_bypass suppression window.",
+  "Resolve the Rule-52 vs Rule-34 compiler-suppression conflict in round R+2. When BOTH of the following are simultaneously active in a round designated R_2 by the Rule-52 protocol: (A) Rule 52 has stored a non-empty deferred_rule46_bypass_nets (e.g. {/CAN_H, /I2C_SCL, /I2C_SDA}) awaiting bypass application in round R_2, AND (B) Rule 51 mandates mandatory_kelvin_bypass in round R_2 for cable C_asym's single-member Kelvin force stub injection, which per Rule 34 suppresses ALL compiler stubs: (1) override the mandatory_kelvin_bypass compiler suppression ONLY for nets whose names are members of deferred_rule46_bypass_nets \u2014 compiler stubs for those specific nets are passed through the absorber, spur-trimmer, and orphan-removal stages WITHOUT elimination, honoring Rule 52's deferred bypass intent; (2) compiler stubs for ALL other nets (not in deferred_rule46_bypass_nets) remain suppressed per Rule 34's mandatory_kelvin_bypass protocol as normal; (3) the cable C_asym Kelvin force stub is still injected with full absorber-exempt mandatory_kelvin_bypass status as Rule 51 mandates \u2014 this part of Rule 34's mandatory_kelvin_bypass behavior is not overridden; (4) log 'rule52_rule34_partial_override_applied' with fields: (a) round R_2, (b) cable C_asym and the injected force stub coordinates, (c) nets in deferred_rule46_bypass_nets that received the partial override with confirmation absorber bypass was honored for each, (d) confirmation all other compiler stubs were suppressed per Rule 34, (e) DRC and kelvin_unrouted from round R_2; (5) clear deferred_rule46_bypass_nets to empty immediately after round R_2 is dispatched regardless of outcome, per Rule 52's existing reset protocol. This rule is additive to Rules 34, 46, 51, and 52; it does not modify net_absorption_count, compiler_excluded_nets, consecutive_rule46_suppression_count, or any other session-scoped state maintained by those rules, and does not replace or defer any action they independently mandate beyond the specific compiler-suppression override described here. Rationale: Rule 52 was authored to defer the Rule-46 absorber bypass by one round when Rule 51's mandatory_kelvin_bypass suppression would otherwise void it in R+1 \u2014 but Rule 52 did not account for Rule 51 also imposing mandatory_kelvin_bypass in R+2 (for cable C_asym). Rule 34's 'suppress ALL compiler stubs' clause applies in R+2 by default, silently voiding Rule 52's deferred bypass for deferred_rule46_bypass_nets in exactly the round it was meant to fire. Without an explicit precedence rule, both Rules 51 and 52 are technically honored in spirit but their effects are contradictory in execution: Rule 52's bypass-deferral mechanism becomes inoperative whenever it lands on a mandatory_kelvin_bypass round, wasting both the Rule-46 false-positive detection and the Rule-52 deferral. The partial override preserves Rule 34's primary intent (Kelvin injection priority; all other compiler stubs suppressed) while rescuing Rule 52's bypass for the specific nets it identified, preventing the deferral mechanism from silently failing.",
+  "Maintain a session-scoped variable 'session_min_drc' initialized to positive infinity. After each round R: (1) if round R's structural DRC < session_min_drc, update session_min_drc = round R's structural DRC and record 'session_min_drc_round' = R; (2) if round R's structural DRC > session_min_drc + 15 AND kelvin_unrouted > 0 AND no keepout or ripup spatial intervention was applied in rounds R-3, R-2, or R-1 (inclusive): (a) query all structural DRC violation loci from round R's DRC output; (b) bin loci into a spatial grid with 3mm cells; (c) identify the cell with the highest locus count (the 'regression hotspot'); (d) inject a single 3mm-radius circular keepout centered on the regression hotspot centroid for the immediately following round R+1 only -- do NOT ripup tracks, only restrict future routing in that region; (e) log 'drc_regression_targeted_keepout' with fields: round R, structural DRC for round R, session_min_drc value, session_min_drc_round, regression magnitude (round_R_drc - session_min_drc), regression hotspot centroid and locus count, keepout geometry injected, kelvin_unrouted from round R; (f) do NOT update session_min_drc after a regression event -- session_min_drc tracks the all-time best observed DRC and is only updated when DRC strictly improves below the current minimum. This rule does NOT fire if spatial intervention (keepout or ripup from any rule) was applied in the 3 preceding rounds, to avoid compounding spatial constraints immediately after another intervention. This rule is additive to Rules 47, 48, and 49 and does not modify net_absorption_count, compiler_excluded_nets, consecutive_high_drc_kelvin_stall, or any other session-scoped state maintained by those rules. Rationale: Rules 47/48/49 all require sustained consecutive-round counters at DRC > 20 before triggering spatial intervention, making them responsive to prolonged plateaus but blind to regression events where DRC increases sharply above a prior session minimum in a single step. Round 99's DRC=44 versus a prior observed DRC=19 at round 91 represents a 2.3x regression that does not satisfy any existing rule's counter threshold (the counter may have recently reset if DRC briefly dipped), yet it indicates FR has adopted a routing topology in some spatial region that is strictly worse than a state it previously achieved. A single targeted keepout at the densest DRC locus after a regression event applies minimal constraint (one round, one region) to redirect FR away from the backsliding region without the aggressive ripup that Rules 47/48 reserve for extended stagnation.",
+  "Detect Rule-46 + Rule-33-alone co-fire and defer the Rule-46 absorber bypass by one round (symmetric single-cable case, no Rule-50/51). After evaluating round R: if Rule 46 fires (all compiler stubs eliminated \u2014 n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0, storing the compiler nets list as absorber_false_positive_bypass_armed per Rule 46's normal protocol) AND Rule 33 fires for exactly one cable index C_sym (both /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO appear in failing_reasons with 'has unconnected ratlines') in the same round R, AND Rule 50 does NOT fire for any cable in round R (no asymmetric single-member Kelvin failure exists \u2014 Rule 51 therefore cannot fire, and Rule 52 is not armed): (1) store the round-R compiler nets (e.g. {/CAN_H, /I2C_SCL, /I2C_SDA}) as a session-scoped set 'deferred_rule46_bypass_nets_r33_only'; (2) in round R+1, Rule 33's mandatory_kelvin_bypass proceeds as normal \u2014 Kelvin force stubs for C_sym are injected with full absorber-exempt status per Rule 34, and ALL compiler stubs are suppressed per Rule 34; Rule 46's absorber_false_positive_bypass_armed flag is cleared (it has nothing to operate on in R+1 because there are no compiler stubs); (3) in round R+2, if the compiler generates stubs for any net whose name is a member of deferred_rule46_bypass_nets_r33_only, pass those stubs through the absorber, spur-trimmer, and orphan-removal stages WITHOUT elimination for round R+2 only \u2014 exactly the bypass-pass-through semantics Rule 46 would have applied in R+1 had mandatory_kelvin_bypass not suppressed all compiler stubs; do NOT suppress net_absorption_count increments for round R+2 (the false-positive suppression already applied in R per Rule 46's normal protocol); compiler stubs for nets NOT in deferred_rule46_bypass_nets_r33_only in R+2 are processed normally; (4) reset deferred_rule46_bypass_nets_r33_only to empty immediately after round R+2 is dispatched, regardless of outcome; (5) log 'rule46_rule33_only_cofire_bypass_deferral' with fields: (a) round R, (b) C_sym and failing Kelvin member names, (c) nets stored in deferred_rule46_bypass_nets_r33_only, (d) confirmation that Rule 50 did not fire in round R and therefore Rule 51/52 are not armed, (e) confirmation that R+1 applies mandatory_kelvin_bypass per Rule 34 suppressing all compiler stubs, (f) confirmation that R+2 will apply the deferred bypass for stored nets, (g) net_absorption_count values for the stored nets at time of storage. This rule is additive to Rules 33, 34, 46, 52, and 53; it does not modify net_absorption_count (Rule 46's round-R suppression still applies), compiler_excluded_nets, consecutive_rule46_suppression_count, or any other session-scoped state maintained by those rules, and does not replace or defer any action they independently mandate. It is explicitly subordinate to Rule 52 and Rule 53: if Rule 51 DOES fire (Rule 52 is armed), Rule 52/53 govern instead of this rule. Rationale: Rule 52 was authored to handle Rule-46 + Rule-51 co-fire, where Rule 51's mandatory_kelvin_bypass voids Rule 46's bypass intent in R+1. The identical voiding mechanism occurs in the simpler case where only Rule 33 fires (symmetric single-cable failure, no Rule-50 asymmetric co-fire) \u2014 Rule 34 suppresses all compiler stubs in R+1 regardless of whether the mandatory_kelvin_bypass originates from Rule 33 alone or Rule 51. Round 100 demonstrates the gap directly: cable-1 symmetric failure (Rule 33), all 7 compiler stubs for /CAN_H, /I2C_SCL, /I2C_SDA absorbed (Rule 46 fires), cable 2 fully routed (Rule 50 absent, Rule 51 absent, Rule 52 not armed) \u2014 Rule 46's bypass for those signal nets will be silently voided by round 101's mandatory_kelvin_bypass with no recovery path. Deferring one round to R+2 (the first round without a mandatory_kelvin_bypass from R's Rule 33) preserves Rule 46's false-positive-prevention intent across the suppression window.",
+  "After evaluating round R: if failing_reasons contains both '/SENSEC{C}_HI has unconnected ratlines' AND '/SENSEC{C}_LO has unconnected ratlines' for any cable index C, AND cable C is NOT counted in kelvin_unrouted (it has at least one track on each member but still has unconnected ratlines \u2014 partial routing), inject force stubs for both /SENSEC{C}_HI and /SENSEC{C}_LO in round R+1 using mandatory_kelvin_bypass semantics per Rule 34, exactly as Rule 33 does for cables that ARE in kelvin_unrouted. This extension uses failing_reasons inspection rather than the kelvin_unrouted metric as the trigger, closing the coverage gap where symmetric Kelvin failures on a partially-routed cable escape Rule 33's metric-gated scope. Do NOT duplicate stubs if Rule 33 already covers cable C (i.e., cable C IS in kelvin_unrouted \u2014 native Rule 33 handles it). Treat these extended stubs as Rule 33 stubs for all co-fire resolution purposes: apply Rules 51, 52, 53, and 54 serialization logic identically to how they handle native Rule 33 stubs. Log 'failing_reasons_symmetric_kelvin_force_inject_extension' with: (a) round R, (b) cable index C, (c) confirmation cable C appears in failing_reasons with both members unconnected but is absent from the kelvin_unrouted count, (d) stub coordinates injected for /SENSEC{C}_HI and /SENSEC{C}_LO, (e) kelvin_unrouted and unconnected from round R. This rule is additive to Rules 33, 34, 50, 51, 52, 53, and 54; it does not modify net_absorption_count, compiler_excluded_nets, or any other session-scoped state maintained by those rules.",
+  "Maintain a session-scoped per-cable integer counter 'consecutive_kelvin_stall_rounds[C]' initialized to 0 for all cable indices C. After each round R: for each cable index C whose Kelvin pair is counted in kelvin_unrouted (both /SENSEC{C}_HI and /SENSEC{C}_LO absent from routed nets) OR whose both members appear in failing_reasons with 'has unconnected ratlines' (per the failing_reasons_symmetric scope of Rule 55), increment consecutive_kelvin_stall_rounds[C] by 1; for all other cable indices C not meeting either condition, reset consecutive_kelvin_stall_rounds[C] to 0. When consecutive_kelvin_stall_rounds[C] reaches 6 for any cable index C (or reaches 6 again after a prior injection reset it to 3 \u2014 i.e., fires at 6, then at 3+3=6 from last reset, and so on): (1) derive the cable-C shunt exit corridor as the 5mm-wide \u00d7 8mm-tall bounding rectangle centered on the geometric midpoint between cable C's shunt inner-edge pad centroids (the INA238 Kelvin tap window on the shunt inner face); (2) inject this rectangle as a routing keepout for round R+1 ONLY \u2014 do NOT ripup any existing tracks, only restrict future FR routing in that region for that one round; (3) reset consecutive_kelvin_stall_rounds[C] to 3 immediately after injecting (so it retriggers 3 rounds later if cable C continues to fail, giving FR two recovery rounds before re-injection); (4) log 'persistent_cable_kelvin_corridor_keepout' with fields: (a) round R, (b) cable index C, (c) stall count at trigger, (d) keepout geometry (centroid + dimensions), (e) kelvin_unrouted and DRC from round R, (f) whether this is a first-trigger (count reached 6 from 0) or re-trigger (count reached 6 from 3). This rule is additive to Rules 33, 34, 47/48, and the DRC-regression keepout rule; it does not modify net_absorption_count, compiler_excluded_nets, consecutive_rule46_suppression_count, or any other session-scoped state maintained by those rules, and does not replace or defer any action they independently mandate. Rationale: Rule 33 correctly injects Kelvin force stubs every round cable C fails, but force stubs alone do not displace stable competitor tracks that FR has already placed in the cable-C shunt exit corridor and will not reroute voluntarily. After 6 consecutive rounds of failure \u2014 during which Rule 33's guidance fires every round \u2014 the corridor is demonstrably occupied; a one-round keepout forces FR to find alternative routing for those competitors, clearing the Kelvin exit zone without a full regional ripup. The 3-round cooldown after re-injection gives FR time to converge on the freed corridor before re-evaluating whether a second injection is needed. This is spatially distinct from the DRC-regression keepout rule (which targets the highest aggregate DRC locus, not necessarily cable C's shunt exit) and from Rules 47/48 (which require sustained high-DRC counter thresholds before a broader ripup).",
+  "Maintain a session-scoped counter `kelvin_keepout_escalation_count[C]` initialized to 0 for each cable index C. Each time Rule 56 fires for cable C (injecting the shunt-exit corridor keepout), increment `kelvin_keepout_escalation_count[C]` by 1 and apply an escalated keepout geometry determined by the updated count: count 1-4 \u2192 standard 5mm x 8mm; count 5-9 \u2192 expanded 8mm x 12mm; count >= 10 \u2192 maximum 12mm x 16mm. All three tiers share the same centroid (geometric midpoint between cable C's shunt inner-edge pad centroids, identical to Rule 56's existing centroid derivation). Apply the escalated geometry to the keepout injected in the current Rule 56 trigger -- do NOT defer to a later round. Do NOT reset `kelvin_keepout_escalation_count[C]` for any reason; escalation accumulates across the session to reflect that the smaller geometry has demonstrably failed to free the corridor. Log `kelvin_keepout_size_escalation` with fields: (a) round R, (b) cable C, (c) `kelvin_keepout_escalation_count[C]` at time of injection, (d) keepout geometry used (centroid + dimensions in mm), (e) whether this trigger crossed into a new escalation tier (prior count was in a different tier than current count). This rule is additive to Rule 56 and all other rules; it does not modify net_absorption_count, compiler_excluded_nets, consecutive_kelvin_stall_rounds[C], or any other session-scoped state maintained by any existing rule. Rationale: Rule 56's fixed 5mm x 8mm keepout correctly targets the immediate cable-C shunt tap window but cannot displace competitor tracks that enter the Kelvin escape corridor from points outside the fixed boundary. At round 108 cable-1 Kelvin has stalled despite repeated Rule 56 fires at static geometry; progressively widening the keepout with each successive fire forces FR to route competitors increasingly far from the corridor, increasing the probability the tap window stays accessible without imposing an unnecessarily large constraint from the session's start.",
+  "Maintain a session-scoped per-cable integer counter 'post_max_escalation_stall[C]' initialized to 0 for each cable index C. After each round R where kelvin_keepout_escalation_count[C] >= 10 (Rule 57 maximum tier, 12x16mm keepout geometry) AND cable C is still counted in kelvin_unrouted OR both /SENSEC{C}_HI and /SENSEC{C}_LO appear in failing_reasons with 'has unconnected ratlines': increment post_max_escalation_stall[C] by 1; reset post_max_escalation_stall[C] to 0 immediately whenever cable C's Kelvin gate clears (cable C absent from kelvin_unrouted AND neither member appears in failing_reasons with 'has unconnected ratlines'). When post_max_escalation_stall[C] reaches 4: (1) derive the cable-C corridor rectangle as the 12x16mm region centered on the geometric midpoint between cable C's shunt inner-edge pad centroids, identical to the current Rule 56/57 keepout geometry; (2) identify all track segments whose bounding box intersects this corridor rectangle AND whose net is neither /SENSEC{C}_HI nor /SENSEC{C}_LO \u2014 these are the competitor tracks to ripup; (3) ripup those competitor segments from the board (remove them, leaving ratlines); do NOT touch segments belonging to /SENSEC{C}_HI or /SENSEC{C}_LO; (4) in round R+1, inject both: (a) the standard Rule 56/57 keepout for cable C at the current escalation tier geometry (12x16mm), AND (b) Kelvin force stubs for /SENSEC{C}_HI and /SENSEC{C}_LO via Rule 33's mandatory_kelvin_bypass protocol per Rule 34 \u2014 FR now has both a physically cleared corridor and explicit placement guidance for the Kelvin pair; (5) reset post_max_escalation_stall[C] to 2 immediately after round R+1 is dispatched (retriggers 2 rounds later at stall count 4 again if cable C continues to fail, providing one recovery round before re-clearing); (6) log 'post_max_escalation_corridor_ripup' with fields: (a) round R, (b) cable index C, (c) post_max_escalation_stall count at trigger, (d) list of ripped nets with segment count per net, (e) corridor rectangle geometry (centroid + dimensions), (f) kelvin_unrouted, DRC, and unconnected from round R, (g) whether this is a first-trigger (post_max_escalation_stall reached 4 from 0) or re-trigger (reached 4 from 2). This rule is additive to Rules 33, 34, 56, and 57; it does not modify net_absorption_count, compiler_excluded_nets, kelvin_keepout_escalation_count, consecutive_kelvin_stall_rounds, or any other session-scoped state maintained by those rules, and does not replace or defer any independent action they mandate. Rationale: Rules 56 and 57 progressively escalate keepout geometry to prevent new routing in the cable-C Kelvin corridor, but keepouts cannot remove tracks FR has already placed there in prior rounds \u2014 those competitor tracks are stable, and FR will not voluntarily reroute them even under the maximum 12x16mm constraint. Once kelvin_keepout_escalation_count[C] has reached its ceiling and cable C continues to fail across multiple additional rounds, the corridor contains entrenched competitor tracks that are the proximate cause of the Kelvin stall; keepout-only escalation has demonstrably exhausted its effectiveness. The post-max-escalation ripup is the logical next tier: physically clear the competitor tracks from the corridor, then immediately re-apply the keepout plus Kelvin force stubs so FR can route the Kelvin pair into the now-available space without the same tracks re-entering the corridor in the same round.",
+  "Amend Rule 58 step (2): when performing the post-max-escalation corridor ripup for cable C in round R, expand the track exclusion criterion to protect ALL Kelvin net members for ALL cable indices, not just cable C's pair. Specifically, replace the current exclusion condition 'whose net is neither /SENSEC{C}_HI nor /SENSEC{C}_LO' with 'whose net is not /SENSEC{C\u2019}_HI or /SENSEC{C\u2019}_LO for ANY cable index C\u2019 present in the board.' Apply this expanded exclusion in the same step and with the same ripup mechanics as Rule 58 already specifies; all other Rule 58 behavior (post_max_escalation_stall counter, reset to 2, keepout re-injection, Kelvin force stubs, logging) is unchanged. Add an additional log field 'rule58_cross_cable_kelvin_protected' listing each protected cable C\u2019 (C\u2019 \u2260 C) with its net names and the count of segments within the corridor rectangle that were excluded from the ripup. If this protected set is non-empty, also log a warning 'rule58_cross_cable_kelvin_in_corridor_detected' so the manager can observe cross-cable corridor sharing for future keepout geometry decisions. This amendment is additive to Rule 58 only; it does not modify net_absorption_count, compiler_excluded_nets, kelvin_keepout_escalation_count, consecutive_kelvin_stall_rounds, post_max_escalation_stall, or any session-scoped state maintained by other rules. Rationale: Rule 58's ripup exclusion was scoped only to cable C's own Kelvin nets, but an adjacent cable C\u2019 may legitimately route /SENSEC{C\u2019}_HI or /SENSEC{C\u2019}_LO through cable C's corridor as part of its own established path. Without cross-cable exclusion, a cable-C ripup treats those segments as 'competitor tracks' and removes them, converting cable C\u2019's previously-routed Kelvin member to an unconnected ratline and cascading a new Kelvin gate failure onto a cable that was previously clean. Round 110 evidence: /SENSEC2_HI appears freshly unconnected in round 110 \u2014 absent from failing_reasons in round 109 \u2014 timed with the first round in which Rule 58 would trigger for cable 1 after post_max_escalation_stall[1] accumulated to 4 from round 109's observation. Expanding the exclusion to all Kelvin nets prevents this collateral cascade and preserves the integrity of cables that Rule 58 was not targeting.",
+  "Extend Rule 56's consecutive_kelvin_stall_rounds[C] counter to also increment for asymmetric single-member Kelvin failures. After each round R: if exactly ONE of /SENSEC{C}_HI or /SENSEC{C}_LO (but NOT both) appears in failing_reasons with 'has unconnected ratlines', AND cable C is NOT counted in kelvin_unrouted (the failing member has at least one track but still has ratlines \u2014 the asymmetric partial-routing case detected by Rule 50), increment consecutive_kelvin_stall_rounds[C] by 1, using the same counter and the same keepout injection threshold (count reaches 6, or the re-trigger threshold after a prior reset per Rule 56's protocol) as Rule 56 uses for symmetric failures. Apply Rule 57's escalated keepout geometry (per kelvin_keepout_escalation_count[C]) when the threshold is reached. Log 'asymmetric_kelvin_stall_counter_increment' with: (a) round R, (b) cable index C, (c) the single failing member name, (d) consecutive_kelvin_stall_rounds[C] after increment, (e) whether a keepout was injected this round, (f) kelvin_keepout_escalation_count[C] at time of any injection. This amendment is additive to Rules 50, 51, 56, 57, 58, and 59; it does not modify kelvin_unrouted, post_max_escalation_stall, net_absorption_count, compiler_excluded_nets, or any other session-scoped state maintained by those rules. Rationale: Rule 56 triggers on symmetric failures (both members unrouted or both in failing_reasons) but not on asymmetric single-member failures that Rule 50 detects. Cable 2's /SENSEC2_HI has been persistently unconnected across at least rounds 110-111 while /SENSEC2_LO is routed, yet consecutive_kelvin_stall_rounds[2] has not advanced and no corridor keepout has been applied to cable 2. The same competitor-track displacement logic that justifies escalating keepouts for symmetrically-stalled cables applies equally to a persistently-failing single member \u2014 a foreign track is occupying the HI tap exit corridor whether or not the LO member was successfully routed around it. Without this extension, cable 2 can stall indefinitely in an asymmetric state and receive no spatial intervention until it degrades to a full symmetric failure.",
+  "Amend Rule 59 step (2) with a failing-route exception: when building the ripup exclusion set during cable C's corridor clearing (Rule 58), do NOT extend Rule 59 protection to a cross-cable Kelvin segment belonging to net /SENSEC{C'}_HI or /SENSEC{C'}_LO (C' != C) if that net appears in failing_reasons with 'has unconnected ratlines' in the current round R. Such a segment is a partially-routed incomplete connection \u2014 it occupies cable C's corridor without forming a valid route for cable C' \u2014 and is therefore a competitor track subject to the same ripup criteria as any non-Kelvin segment. Include these failing cross-cable segments in the ripup set. All cross-cable Kelvin segments whose nets do NOT appear in failing_reasons retain full Rule 59 protection unchanged. Log 'rule59_failing_cross_cable_exception_applied' with: (a) round R, (b) cable C being cleared, (c) each affected cross-cable net name and its failing_reasons entry confirming unconnected ratlines, (d) segment count removed under the exception, (e) kelvin_unrouted and unconnected from round R. Rationale: Rule 59 was authored to prevent the collateral cascade observed at round 110, where a successfully-routed /SENSEC2_HI path was destroyed by cable 1's corridor ripup. The inverse case \u2014 a failing /SENSEC2_HI partial route occupying cable 1's corridor \u2014 was not present at that time. When /SENSEC2_HI is itself unconnected and its partial route sits inside cable 1's shunt-exit corridor, Rule 59 protection creates a mutual deadlock: cable 1's ripup is neutralized, cable 2's HI remains incomplete, and no spatial intervention can free either cable. The failing-route exception resolves the deadlock by restoring the ripup's ability to clear the corridor when the blocking segment provides no completed route benefit.",
+  "When Rule 46 fires in round R (n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0, arming absorber_false_positive_bypass_armed with the compiler nets list) AND the count of cable indices C for which BOTH /SENSEC{C}_HI AND /SENSEC{C}_LO appear in failing_reasons with 'has unconnected ratlines' is two or more (call this symmetric_kelvin_fail_count >= 2 \u2014 spanning cables in kelvin_unrouted via Rule 33 and cables detected via Rule 55's failing_reasons scope, per Rule 55's explicit directive to treat its stubs as Rule 33 stubs for co-fire resolution) AND Rule 50 does NOT fire for any cable in round R (no asymmetric single-member failure; Rule 51 therefore cannot fire and Rule 52 is not armed): apply Rule 64's R+2 deferral semantics in full. Specifically: (1) store the round-R compiler nets (e.g. {/CAN_H, /I2C_SCL, /I2C_SDA}) as deferred_rule46_bypass_nets_r33_only, unioning with any value already present in that session-scoped set; (2) in round R+1, mandatory_kelvin_bypass from Rules 33 and 55 proceeds normally for ALL symmetric-failing cable indices per Rule 34, suppressing all compiler stubs \u2014 Rule 46's absorber_false_positive_bypass_armed flag is cleared (no compiler stubs remain to bypass); (3) in round R+2, compiler stubs for any net whose name is a member of deferred_rule46_bypass_nets_r33_only are passed through the absorber, spur-trimmer, and orphan-removal stages WITHOUT elimination for that round only, exactly as Rule 64 specifies for its R+2 pass-through; compiler stubs for nets NOT in deferred_rule46_bypass_nets_r33_only are processed normally in R+2; do NOT suppress net_absorption_count increments for R+2; (4) reset deferred_rule46_bypass_nets_r33_only to empty immediately after round R+2 is dispatched, regardless of outcome; (5) log 'rule46_multi_cable_rule33_cofire_bypass_deferral' with fields: (a) round R, (b) all symmetric-failing cable indices (both kelvin_unrouted cables via Rule 33 and failing_reasons-only cables via Rule 55) with their failing member net names, (c) symmetric_kelvin_fail_count at time of trigger, (d) count of Rule 33 fires (cables in kelvin_unrouted) vs Rule 55 fires (cables in failing_reasons only) contributing to symmetric_kelvin_fail_count, (e) nets stored in deferred_rule46_bypass_nets_r33_only, (f) confirmation Rule 50 did not fire and Rule 51/52 are not armed, (g) confirmation R+1 applies mandatory_kelvin_bypass per Rule 34 suppressing all compiler stubs for ALL failing cable indices, (h) confirmation R+2 will apply deferred bypass for stored nets, (i) net_absorption_count values for the stored nets at time of storage. This rule is additive to Rules 33, 34, 46, 52, 53, 55, and 64; it does not modify net_absorption_count, compiler_excluded_nets, consecutive_rule46_suppression_count, consecutive_kelvin_stall_rounds, kelvin_keepout_escalation_count, post_max_escalation_stall, or any other session-scoped state maintained by those rules beyond deferred_rule46_bypass_nets_r33_only (shared write with Rule 64). It is explicitly subordinate to Rule 52/53: if Rule 51 fires (Rule 52 is armed), Rules 52/53 govern instead. Rationale: Rule 64 was authored to handle Rule 46 + Rule 33-alone co-fire for exactly one cable, closing the gap where a single cable's mandatory_kelvin_bypass in R+1 voids Rule 46's bypass intent with no recovery path. The identical voiding mechanism occurs when TWO cables have symmetric Kelvin failures \u2014 cable A counted in kelvin_unrouted (Rule 33) and cable B detected via Rule 55's failing_reasons scope (treated as Rule 33 for co-fire purposes) \u2014 because Rule 34 suppresses ALL compiler stubs regardless of how many mandatory_kelvin_bypass injections are active. Rule 64's 'exactly one cable' condition is not met (symmetric_kelvin_fail_count=2), so Rule 64 does not fire and there is no R+2 deferral path. Round 114 demonstrates the gap directly: cable 1 in kelvin_unrouted (Rule 33), cable 2 with both members in failing_reasons (Rule 55 as Rule 33), symmetric_kelvin_fail_count=2, all 7 compiler stubs for /CAN_H, /I2C_SCL, /I2C_SDA absorbed or trimmed (Rule 46 fires) \u2014 without this extension, those signal nets' bypass is permanently voided.",
+  "Maintain a session-scoped set 'compiler_excess_unconnected_targets' initialized to empty. After each round R: compute excess_unconnected = unconnected - (2 * kelvin_unrouted) - (count of cables C where exactly one of /SENSEC{C}_HI or /SENSEC{C}_LO appears in failing_reasons with 'has unconnected ratlines'). If excess_unconnected > 0: inspect the board to enumerate all nets with one or more unconnected ratlines; subtract from that set all Kelvin nets (/SENSEC{C}_HI and /SENSEC{C}_LO for all cable indices C) and all nets already in the compiler's current stub injection target list (i.e., nets that appeared in the directed stub summary 'nets' field in round R, regardless of absorbed/trimmed outcome); add each remaining net to compiler_excess_unconnected_targets; in round R+1, inject directed stubs for every net in compiler_excess_unconnected_targets using the same waypoint-compilation semantics as the existing /CAN_H, /I2C_SCL, /I2C_SDA mechanism. Remove a net from compiler_excess_unconnected_targets as soon as it no longer has unconnected ratlines (i.e., it does not contribute to excess_unconnected in any subsequent round). Do NOT add Kelvin nets to this set under any condition \u2014 those are governed by Rules 33/34/55. Log 'excess_non_kelvin_unconnected_stub_injection' with: (a) round R, (b) excess_unconnected count, (c) net names added to or retained in compiler_excess_unconnected_targets with their ratline counts, (d) nets removed from the set this round because they cleared, (e) kelvin_unrouted and unconnected values from round R. Rationale: round 116 has unconnected=3 with kelvin_unrouted=1 (2 Kelvin ratlines) and all 7 compiler stubs absorbed/trimmed (those 3 nets are connected), leaving exactly 1 unconnected ratline belonging to a net outside both the Kelvin set and the compiler's injection list. No existing rule detects or targets this residual. This rule closes that coverage gap by making the manager inspect and explicitly stub any non-Kelvin net that FR persistently fails to connect on its own.",
+  "Maintain a session-scoped boolean flag 'rule66_slot_yield_active' initialized to false. After each round R where ALL of the following hold simultaneously: (a) Rule 46 fires (n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0), AND (b) excess_unconnected > 0 in round R (excess_unconnected = unconnected - 2*kelvin_unrouted - count of cables C with exactly one member in failing_reasons), AND (c) Rule 66 has at least one net in compiler_excess_unconnected_targets for R+1: apply the following slot-yield protocol. In round R+1: (1) identify the 'fully-absorbed nets' as every net that appeared in round R's directed stub summary 'nets' field AND whose stubs were entirely absorbed or trimmed (per-net absorbed_count + trimmed_count == stub_count_for_that_net); (2) suppress compiler stub injection for fully-absorbed nets in round R+1 ONLY \u2014 do NOT add them to compiler_excluded_nets and do NOT modify net_absorption_count; (3) allocate all freed stub slots in round R+1 first to mandatory Kelvin stubs (Rules 33/34/55 take absolute priority), then to nets in compiler_excess_unconnected_targets (Rule 66), then to any remaining compiler targets not in the suppressed set; (4) set rule66_slot_yield_active to true and log 'rule46_rule66_slot_yield' with: (a) round R, (b) suppressed net names and per-net absorbed+trimmed counts, (c) excess_unconnected count and net names in compiler_excess_unconnected_targets that receive freed slots, (d) kelvin_unrouted from round R, (e) confirmation suppression is round-R+1-only. In round R+2: restore all suppressed nets to normal compiler targeting unconditionally and reset rule66_slot_yield_active to false; log 'rule46_rule66_slot_yield_restored' with the restored net names. This rule is additive to Rules 46, 64, 65, and 66 and does not modify net_absorption_count, compiler_excluded_nets, kelvin_keepout_escalation_count, consecutive_kelvin_stall_rounds, post_max_escalation_stall, or deferred_rule46_bypass_nets_r33_only. It is explicitly subordinate to Rules 33/34/55: mandatory Kelvin bypass always fires first regardless of slot-yield state. If Rule 64 or 65 also fires in round R for the same event, the slot-yield protocol applies additively to round R+1 alongside their deferral semantics; the R+2 bypass pass from Rule 64/65 proceeds normally in R+2. Rationale: at round 117, all 7 stubs for /CAN_H, /I2C_SCL, /I2C_SDA were absorbed or trimmed, confirming FR connects those nets without guidance. Simultaneously, excess_unconnected=2 identifies 2 non-Kelvin ratlines on nets that Rule 66 has added to compiler_excess_unconnected_targets. Rule 66 schedules those nets for R+1 injection but does not prevent the 3 established nets from consuming all stub slots first, leaving the excess targets with zero guidance. The suppression costs nothing \u2014 the absorbed nets will be connected in R+1 without help, as demonstrated by their absorption in R \u2014 while giving Rule 66's excess targets dedicated slots they cannot otherwise compete for."
+ ],
+ "injections": [
+  {
+   "round": 1,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "from": 0.0,
+   "to": 1000.0,
+   "action": "accepted:raised",
+   "rationale": "kelvin_unrouted has zero weight today so the objective function gives no signal to batch candidate ranking on this hard-gate metric. A weight of 5000 makes one unrouted Kelvin pair dominate the objective score, forcing seed and parameter selection to strongly prefer candidates where SENSEC_HI/LO are"
+  },
+  {
+   "round": 1,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "If kelvin_unrouted > 0 after scoring, parse the failing-reasons strings to identify the unrouted cable(s), then compile directed stubs for SENSEC_N_HI and SENSEC_N_LO at the shunt inner-edge pad coordinates for each failing cable before the next FR run; do not re-attempt the route without those Kelv"
+  },
+  {
+   "round": 2,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "gate_fail",
+   "from": 0.0,
+   "to": 1000.0,
+   "action": "accepted:raised",
+   "rationale": "gate_fail currently has no penalty weight; each hard gate failure (kelvin_ok, diffpair_ok) produces gate_fail=1 but the only cost comes from per-metric penalties (kelvin_unrouted, drc). A direct 5000-per-gate-fail term creates a steep objective cliff ensuring any gate-failing candidate ranks far bel"
+  },
+  {
+   "round": 2,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Before each FR run, cross-check the compiled stub nets list against every Kelvin net name appearing in failing_reasons; if any /SENSEC*_HI or /SENSEC*_LO net is present in failing_reasons but absent from the compiled stub nets, raise an explicit compile error and abort \u2014 do not launch FR until every"
+  },
+  {
+   "round": 3,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After stub compilation and BEFORE launching FR, perform an independent set-membership check: collect every /SENSEC*_HI and /SENSEC*_LO net that appears in the previous round's failing_reasons, then verify each appears in the compiled stub nets list \u2014 do NOT rely solely on the compiler's compile_fail"
+  },
+  {
+   "round": 4,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 5.0,
+   "to": 100.0,
+   "action": "accepted:raised",
+   "rationale": "Current weight 5.0 contributes only 15 points against a 34354 objective \u2014 effectively zero pressure on FR to close open ratlines. Two of the three unconnected ratlines are the failing Kelvin nets; penalising each at 100 points makes ratline closure a meaningful score lever without overriding the dom"
+  },
+  {
+   "round": 4,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each FR round completes and scores are recorded, perform a post-round enforcement audit: collect every /SENSEC*_HI and /SENSEC*_LO net from THAT round's failing_reasons, then check whether each appeared in the stub nets list that was used for THAT round's FR dispatch. If any Kelvin net was in "
+  },
+  {
+   "round": 5,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Before finalizing the compiled stub nets list for any FR dispatch, apply a mandatory priority-order filter inside the stub compiler: (1) collect all Kelvin nets (/SENSEC*_HI and /SENSEC*_LO) that appeared in the previous round's failing_reasons and insert them at the HEAD of the stub nets list with "
+  },
+  {
+   "round": 6,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 100.0,
+   "to": 200.0,
+   "action": "accepted:raised",
+   "rationale": "Raising from 100 to 200 to increase objective pressure on partial-pair Kelvin failures. kelvin_unrouted counts only fully stranded pairs (=1 for SENSEC1); SENSEC2_HI is unconnected but kelvin_unrouted does not increment because SENSEC2_LO is routed. The only metric that captures SENSEC2_HI's ratline"
+  },
+  {
+   "round": 6,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Kelvin stubs are a structural pre-condition of this board, not a response to prior-round failures. Before EVERY FR dispatch \u2014 including round 1 and any round that follows a Kelvin-clean prior round \u2014 enumerate all /SENSEC*_HI and /SENSEC*_LO net pairs from the board netlist, resolve their shunt inne"
+  },
+  {
+   "round": 7,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "If the post-compilation stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO entries AND compile_failures is empty AND the prior round's failing_reasons contained any /SENSEC* net, treat this as a HARD ESCALATION immediately \u2014 do not launch FR, do not increment the round counter. Emit a top-level"
+  },
+  {
+   "round": 8,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 200.0,
+   "to": 300.0,
+   "action": "accepted:raised",
+   "rationale": "Raising unconnected penalty from 200 to 300 per ratline. With 8 unconnected ratlines (3 Kelvin + 5 others), the current 200-weight contributes 1600 to objective \u2014 insufficient to fully differentiate candidates that leave multiple non-Kelvin ratlines open. Once the stub compiler is repaired and Kelvi"
+  },
+  {
+   "round": 8,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When scoring reveals an asymmetric Kelvin result for any cable \u2014 exactly one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons while its partner does not \u2014 treat the partner's stub coordinates as potentially stale or incorrect regardless of whether they produced a routed net. Before the n"
+  },
+  {
+   "round": 8,
+   "source": "v4",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "If the same net appears in failing_reasons for three or more consecutive rounds, re-derive its stub coordinates from disk and force re-compilation before next dispatch."
+  },
+  {
+   "round": 9,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Kelvin stubs (/SENSEC*_HI and /SENSEC*_LO) must be explicitly marked immune from the spur-trimming pass and the absorbed classifier inside the stub compiler. If the spur-trimmer or absorber would remove or reclassify a stub whose origin net matches /SENSEC*_HI or /SENSEC*_LO, skip that removal, pres"
+  },
+  {
+   "round": 11,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After the stub cleanup passes (spur-trimmer and absorber) complete and before the stub nets list is finalised, the compiler MUST emit a per-net disposition record that maps every INPUT net name to its outcome: 'kept', 'absorbed', 'trimmed_spur', or 'compile_failure'. The aggregate absorbed=N and tri"
+  },
+  {
+   "round": 12,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Rule 5 hard-escalation must be grounded in board topology, not prior-round state. Replace the current precondition 'the prior round\u2019s failing_reasons contained any /SENSEC* net' with 'the board netlist contains at least one /SENSEC*_HI or /SENSEC*_LO net pair.' The revised trigger is: if the post-co"
+  },
+  {
+   "round": 13,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After any round where an asymmetric Kelvin result is detected for cable N (one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons while its partner does not), add that cable's two net names to a persistent 'kelvin_force_recheck' set that survives across round boundaries. At every subsequen"
+  },
+  {
+   "round": 14,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a persistent integer counter named 'rule_enforcement_failures' across all rounds. Increment it by 1 after any round in which ALL of the following hold: (a) the dispatch-abort condition under Rule 7 was met \u2014 the post-compilation stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO entrie"
+  },
+  {
+   "round": 15,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Before the stub absorber processes any stubs, the compiler MUST extract the complete set of /SENSEC*_HI and /SENSEC*_LO net names from the board netlist and register them as a PRE-COMPUTED exclusion list passed directly into the absorber as an initialization argument. The absorber must skip any stub"
+  },
+  {
+   "round": 16,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each scored round, before any per-cable escalation threshold check or convergence-trend assessment, the manager MUST compute `kelvin_pairs_gate_fail` = the count of distinct cable indices N for which ANY /SENSEC{N}_HI or /SENSEC{N}_LO net appears in failing_reasons with the phrase 'has unconne"
+  },
+  {
+   "round": 16,
+   "source": "v4",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each round, compute a composite physical metric `phys_score = DRC + unconnected + gate_fail`. If the round number \u2265 10 and `phys_score` has not decreased by at least 20% relative to the best `phys_score` in the last 10 rounds, the manager must immediately flag `local_minimum_stagnation`, abort"
+  },
+  {
+   "round": 17,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Amend the phys_score formula in Rule 9's local_minimum_stagnation check to replace the single kelvin_ok gate contribution with the per-cable count from Rule 8. The revised formula is: phys_score = DRC + unconnected + non_kelvin_gate_fails + kelvin_pairs_gate_fail, where non_kelvin_gate_fails = gate_"
+  },
+  {
+   "round": 19,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After any round where a /SENSEC{N}_HI or /SENSEC{N}_LO net appears in failing_reasons with the phrase 'has unconnected ratlines', the manager MUST add both /SENSEC{N}_HI and /SENSEC{N}_LO to a persistent set named 'kelvin_stub_priority' that survives across round boundaries. Before the stub compiler"
+  },
+  {
+   "round": 20,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each scored round where unconnected > 0, the manager MUST count the distinct net names appearing in failing_reasons with the phrase 'has unconnected ratlines' (call this named_unconnected_nets) and compare to the reported unconnected metric. If unconnected > named_unconnected_nets, immediately"
+  },
+  {
+   "round": 21,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When a 'absorber_kelvin_purge_detected' event is logged \u2014 defined as: absorbed >= 1 in a round's stub summary AND the post-absorption stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO net names \u2014 the manager MUST immediately set a persistent flag 'absorber_exclusion_broken = True' and PERMANEN"
+  },
+  {
+   "round": 22,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When emitting the absorber_exclusion_broken halt payload required by Rule 8, the payload MUST additionally include field (f): the complete per-net unconnected list retrieved from the FR/DRC scoring artifacts for the triggering round \u2014 not merely the net names that appear in gate-failure failing_reas"
+  },
+  {
+   "round": 25,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "The spur trimmer MUST apply the same /SENSEC*_HI and /SENSEC*_LO exclusion list required of the absorber by Rule 1 before classifying or removing any stub as a spur. Specifically: (1) Before the spur trimmer executes, pre-compute or retrieve the Kelvin exclusion list (all /SENSEC{N}_HI and /SENSEC{N"
+  },
+  {
+   "round": 27,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 50.0,
+   "to": 75.0,
+   "action": "accepted:raised",
+   "rationale": "Current DRC=34 at weight 50 contributes 1700 to the objective; raising to 75 increases DRC-avoidance incentive by 850 points (34\u00d725). Routing congestion that produces 34 clearance/annular violations in a solved candidate is the same congestion that traps the Kelvin pair; a stronger DRC penalty pushe"
+  },
+  {
+   "round": 27,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When the same cable index N \u2014 determined each round by parsing all /SENSEC{N}_HI and /SENSEC{N}_LO net names from failing_reasons entries that contain 'has unconnected ratlines' \u2014 appears with at least one of /SENSEC{N}_HI or /SENSEC{N}_LO failing in five or more consecutive rounds, the manager MUST"
+  },
+  {
+   "round": 28,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When cable index N's Kelvin pair (/SENSEC{N}_HI and /SENSEC{N}_LO) both appear in failing_reasons with 'has unconnected ratlines' for 3 or more consecutive rounds, the manager MUST dispatch exactly one 'Kelvin-isolation round' before applying Rule 14's structural-stall halt (if Rule 14 has not alrea"
+  },
+  {
+   "round": 29,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each scored round, compute kelvin_pairs_failing = the count of distinct cable indices N where at least one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons with the phrase 'has unconnected ratlines' (parse N as the integer in the net name). If kelvin_pairs_failing > kelvin_unrouted"
+  },
+  {
+   "round": 32,
+   "source": "v4",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "If the objective value does not decrease by at least 1% over the last 10 consecutive rounds, then log 'stagnation_detected' and halt all FR dispatch. The halt payload must include the last 10 round metrics (objective, DRC, unconnected, length, vias, gate_fail, kelvin_ok) and the current board state."
+  },
+  {
+   "round": 33,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When both absorbed >= 1 AND trimmed_spurs >= 1 occur in the same round AND the post-absorption stub nets list contains zero /SENSEC*_HI or /SENSEC*_LO net names, the halt payload required by Rules 8 and 11 MUST include a component-level attribution step before setting either exclusion-broken flag: ("
+  },
+  {
+   "round": 34,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each stub compilation step, and before any trimming or absorption step executes, retrieve the stub compiler's raw output (the complete stub list as emitted, prior to spur trimming and prior to absorber processing). For every /SENSEC{N}_HI and /SENSEC{N}_LO net that had at least one unconnected"
+  },
+  {
+   "round": 36,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When absorbed + trimmed_spurs >= n_stubs in a round (total stub absorption: every compiled stub was consumed by the trimmer or absorber before reaching FR) AND kelvin_unrouted > 0 in the same round, the manager MUST: (1) log 'total_stub_absorption_with_kelvin_fail' with fields: round number, n_stubs"
+  },
+  {
+   "round": 38,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each round where the stub summary `nets` field contains zero /SENSEC{N}_HI or /SENSEC{N}_LO entries AND kelvin_unrouted > 0, the manager MUST perform a trim-budget crosscheck before invoking Rule 18's full raw-output audit: compute expected_kelvin_stubs = 2 \u00d7 kelvin_pairs_failing (using the Ru"
+  },
+  {
+   "round": 39,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When building the Kelvin stub candidate set for each round, the stub compiler MUST emit directed stubs for /SENSEC{N}_HI and /SENSEC{N}_LO whenever AT LEAST ONE of those two nets for cable N has unconnected ratlines in the immediately preceding round's failing_reasons or per-net unconnected metrics "
+  },
+  {
+   "round": 40,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When the stub compiler's nets list (as reported in the stub summary `nets` field) contains at least one net name that does NOT appear in the current round's failing_reasons with the phrase 'has unconnected ratlines' AND simultaneously omits at least one /SENSEC{N}_HI or /SENSEC{N}_LO net name that D"
+  },
+  {
+   "round": 41,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 300.0,
+   "to": 450.0,
+   "action": "accepted:raised",
+   "rationale": "Raise unconnected from 300 to 450. Three of the 4 remaining unconnected ratlines are Kelvin-class; each contributes directly to the hard kelvin_ok gate failure. The current 300/ratline provides 1200 of per-ratline signal while the cable-level kelvin_unrouted gate adds 1000 coarsely. A finer-grained "
+  },
+  {
+   "round": 41,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When stub_compiler_stale_targeting fires (Rule 22) AND every over-targeted net \u2014 every net present in the compiler's nets list but absent from the current round's failing_reasons unconnected entries \u2014 belongs exclusively to a non-gating net class (for this board: CAN-class nets such as /CAN_H, I2C-c"
+  },
+  {
+   "round": 43,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Track a persistent 'stale_targeting_consecutive_rounds' counter: after any round where stub_compiler_stale_targeting fires (a /SENSEC{N}_HI or /SENSEC{N}_LO net is in failing_reasons but absent from the compiler's nets list), increment the counter; reset it to zero only in a round where the compiler"
+  },
+  {
+   "round": 44,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When both total_stub_absorption_with_kelvin_fail (Rule 19) AND stub_compiler_stale_targeting (Rule 22) fire in the same round \u2014 defined as: (absorbed + trimmed_spurs >= n_stubs AND kelvin_unrouted > 0) AND (at least one /SENSEC{N}_HI or /SENSEC{N}_LO net is in failing_reasons but absent from the com"
+  },
+  {
+   "round": 45,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a persistent integer counter 'kelvin_fail_streak' that increments by 1 after every round where kelvin_unrouted > 0, and resets to 0 only in a round where kelvin_unrouted = 0. When kelvin_fail_streak reaches 10, immediately HALT all further FR dispatch and log 'kelvin_fail_streak_ceiling' wi"
+  },
+  {
+   "round": 48,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Extend Rule 19's total-stub-absorption trigger to include removed_orphans: the condition (absorbed + trimmed_spurs + removed_orphans) >= n_stubs AND kelvin_unrouted > 0 MUST also constitute a total-stub-absorption-with-kelvin-fail event, regardless of which disposal mechanism consumed the stubs. Whe"
+  },
+  {
+   "round": 49,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When failing_reasons for round R contains exactly one net of a Kelvin pair for cable N \u2014 specifically /SENSEC{N}_HI appears with 'has unconnected ratlines' but /SENSEC{N}_LO does NOT (or vice versa) \u2014 the manager MUST log 'partial_kelvin_pair_failure' with fields: (a) round number, (b) cable index N"
+  },
+  {
+   "round": 50,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each round, derive M_actual = the count of distinct cable indices N for which at least one of /SENSEC{N}_HI or /SENSEC{N}_LO appears in failing_reasons with 'has unconnected ratlines'. If M_actual > kelvin_unrouted (the reported metric value), log 'kelvin_unrouted_metric_undercount' with field"
+  },
+  {
+   "round": 51,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Track a persistent mapping 'priority_contamination_streak': the key is the frozenset of net names removed as over-targeted in a Rule 23 (stale_targeting_same_round_corrected) log entry; the value is the count of consecutive Rule 23 firings in which that exact frozenset appeared as the removed over-t"
+  },
+  {
+   "round": 54,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After each round, compute N_non_kelvin = (unconnected metric value) minus (count of distinct net names matching /SENSEC{N}_HI or /SENSEC{N}_LO for any cable index N that appear in failing_reasons with 'has unconnected ratlines'). If N_non_kelvin > 0, log 'non_kelvin_unconnected_surplus_detected' wit"
+  },
+  {
+   "round": 60,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a persistent per-net integer mapping 'net_stale_count': for every net name N that is listed as a removed over-targeted net in any Rule 23 ('stale_targeting_same_round_corrected') log entry for any round, increment net_stale_count[N] by 1, regardless of the frozenset the net was part of in t"
+  },
+  {
+   "round": 61,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After any round in which a 'non_kelvin_unconnected_identity_unknown' escalation is logged and an explicit unconnected-ratlines query is subsequently resolved \u2014 yielding a confirmed list of unconnected net names \u2014 the compiler MUST on the immediately following FR dispatch round: (1) discard all accum"
+  },
+  {
+   "round": 63,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After computing the stub compiler's output for any round R in which kelvin_unrouted > 0: inspect the compiler's nets list (the 'nets' field of the directed stub summary). If that list contains NO net name matching /SENSEC{N}_HI or /SENSEC{N}_LO for ANY cable index N that appears in failing_reasons w"
+  },
+  {
+   "round": 64,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When a 'compiler_kelvin_omission' event fires for round R (per Rule 33) AND the total-stub-absorption condition also fires in the same round (absorbed + trimmed_spurs + removed_orphans >= n_stubs), the force-injected Kelvin stubs mandated by Rule 33 MUST explicitly bypass the orphan-removal stage in"
+  },
+  {
+   "round": 66,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When ALL of the following conditions are simultaneously true for round R: (a) compiler_kelvin_omission fires (Rule 33 \u2014 the compiler's nets list contains no /SENSEC{N}_HI or /SENSEC{N}_LO for any cable N that appears in failing_reasons with 'has unconnected ratlines'); (b) the total-stub-absorption "
+  },
+  {
+   "round": 67,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "vias",
+   "from": 0.0,
+   "to": 3.0,
+   "action": "accepted:raised",
+   "rationale": "Via count (currently 82) carries no penalty in the existing scorer. Dense via fields contribute to routing congestion that plausibly blocks cable 1's Kelvin escape path \u2014 the symptom that Rule 35 would diagnose at M_actual>=2 but which lacks a diagnostic at M_actual=1. A weight of 3.0 adds 246 to th"
+  },
+  {
+   "round": 67,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When compiler_kelvin_omission fires (Rule 33) AND total-stub-absorption is active (absorbed + trimmed_spurs + removed_orphans >= n_stubs, per Rule 34) AND M_actual EQUALS 1 (exactly one cable index present in failing_reasons with 'has unconnected ratlines') AND that same cable index appeared in fail"
+  },
+  {
+   "round": 68,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a persistent per-net integer mapping 'net_absorption_count'. After each round in which the absorber's 'absorbed' count is greater than zero: inspect the per-stub records produced by the absorber to identify the specific net name(s) of every stub that was classified as topologically redundan"
+  },
+  {
+   "round": 69,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When 'non_kelvin_unconnected_identity_unknown' (Rule 27) and 'compiler_kelvin_omission' (Rule 33) both fire in the same round R, Rule 27's FR-dispatch halt takes unconditional precedence. Do NOT dispatch FR for round R. The force-injected Kelvin stubs mandated by Rule 33 (one asymmetric stub for eac"
+  },
+  {
+   "round": 72,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When failing_reasons for round R shows that for any cable index N, exactly ONE member of the Kelvin pair (/SENSEC{N}_HI or /SENSEC{N}_LO) has 'has unconnected ratlines' while the other member does NOT appear in failing_reasons with unconnected ratlines \u2014 an asymmetric-unrouted state where one member"
+  },
+  {
+   "round": 72,
+   "source": "v4",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "If the objective value has not decreased by at least 5% over the last 5 consecutive rounds, force a full rip-up of all nets and restart routing from scratch with a different random seed. Log 'objective_stagnation_escape' with round number and previous objective values."
+  },
+  {
+   "round": 74,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When the compiler's nets list for round R contains NO net that also appears in failing_reasons with 'has unconnected ratlines' (i.e., the compiler targets exclusively nets not currently failing \u2014 zero failing-net overlap), classify the event as 'compiler_zero_failing_net_overlap' and execute the fol"
+  },
+  {
+   "round": 75,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Extend Rule 37's net_absorption_count accounting to include spur-trimming events: after each round in which the trimmed_spurs counter is greater than zero, inspect the per-stub records produced by the spur-trimmer to identify the specific net name(s) of every stub classified as a spur and trimmed. F"
+  },
+  {
+   "round": 76,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a gate-aware fast-track exclusion path using the session-scoped net_absorption_count data tracked by Rules 37 and 38. At the start of each round's compiler invocation: if kelvin_unrouted > 0 in the immediately preceding round's result, evaluate net_absorption_count[N] for every net N that i"
+  },
+  {
+   "round": 77,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_total_elimination_with_kelvin_active'. At the end of each round: if (absorbed + trimmed_spurs + removed_orphans >= n_stubs AND n_stubs > 0 AND kelvin_unrouted > 0 in that round's result), increment the counter; otherwise reset it to 0. When the "
+  },
+  {
+   "round": 78,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 450.0,
+   "to": 550.0,
+   "action": "accepted:raised",
+   "rationale": "Raise from 450 to 550: in this round 3 of the 4 unconnected ratlines are Kelvin sense nets (/SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI), each of which directly blocks a hard gate. The per-unit cost of an unconnected ratline has grown because the dominant unconnected nets are gate-critical, not generic si"
+  },
+  {
+   "round": 78,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When round R's failing_reasons contains Kelvin net unconnected-ratline entries for two or more distinct cable indices simultaneously \u2014 where at least one cable C_sym has BOTH its /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO members failing (symmetric state), AND at least one other cable C_asym has ONLY O"
+  },
+  {
+   "round": 80,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped boolean flag 'double_blindness_bypass_armed'. At the end of each round R, if ALL of the following hold simultaneously: (a) compiler_zero_failing_net_overlap fired for round R (the compiler's nets list had zero overlap with failing_reasons unconnected-ratline nets), AND (b) "
+  },
+  {
+   "round": 81,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 75.0,
+   "to": 100.0,
+   "action": "accepted:raised",
+   "rationale": "Raise drc penalty from 75 to 100. With drc=23 contributing 1725 to the objective alongside a Kelvin+gate total of 2000 (kelvin_unrouted*1000 + gate_fail*1000), the DRC term is large enough that when DRC conflicts and Kelvin routing compete for the same channel geometry near the shunt pads, FR's cost"
+  },
+  {
+   "round": 81,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_double_blindness_bypass_kelvin_failures'. After each round R dispatched under an active double_blindness_bypass_armed=True flag (Rule 41): if kelvin_unrouted > 0 in round R's result, increment the counter; if kelvin_unrouted == 0, reset the coun"
+  },
+  {
+   "round": 83,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When kelvin_unrouted > 0 in round R's result AND the compiler's candidate pool \u2014 after applying all normal exclusions from Rules 37, 38, and 39 \u2014 consists EXCLUSIVELY of nets whose net_absorption_count >= 3 (i.e., every net remaining in the pool is a fast-track-exclusion candidate whose exclusion ha"
+  },
+  {
+   "round": 84,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-cable integer counter 'consecutive_symmetric_kelvin_failure[C]'. After each round R: if BOTH /SENSEC{C}_HI and /SENSEC{C}_LO appear in failing_reasons with 'has unconnected ratlines', increment consecutive_symmetric_kelvin_failure[C]; otherwise reset it to 0. When conse"
+  },
+  {
+   "round": 85,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 100.0,
+   "to": 120.0,
+   "action": "accepted:raised",
+   "rationale": "DRC=38 alongside kelvin_unrouted=1 indicates FR is packing non-Kelvin tracks through the cable-1 shunt approach zone, producing geometry violations that block the Kelvin escape. The current 100/violation penalty contributes 3800 to this candidate's objective but has not deterred a pattern of high-DR"
+  },
+  {
+   "round": 85,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Pre-bypass shunt-proximate DRC clearance: immediately before dispatching any absorber-bypass round mandated by Rule 40 or Rule 41 \u2014 when the bypass is triggered, kelvin_unrouted > 0, AND the most recent completed round's structural DRC count > 20 \u2014 execute the following: (1) query all structural DRC"
+  },
+  {
+   "round": 86,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped boolean flag 'absorber_false_positive_bypass_armed'. After each round R: compute inferred_non_kelvin_unconnected = unconnected[R] minus (count of distinct Kelvin member net names appearing in failing_reasons[R] with 'has unconnected ratlines'). If ALL of the following hold "
+  },
+  {
+   "round": 89,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 550.0,
+   "to": 700.0,
+   "action": "accepted:raised",
+   "rationale": "Cable 2's asymmetric Kelvin failure (/SENSEC2_HI unrouted) does not register in kelvin_unrouted because that metric requires both pair members to be unrouted to increment. Its sole scoring pressure comes through the unconnected ratline count. Raising unconnected from 550 to 700 increases the per-rat"
+  },
+  {
+   "round": 89,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_high_drc_kelvin_stall'. After each round R: if structural DRC > 20 AND kelvin_unrouted > 0, increment the counter; otherwise reset it to 0. When the counter reaches 5: (1) query all structural DRC violation loci from round R's DRC output; (2) gr"
+  },
+  {
+   "round": 90,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_dual_cable_symmetric_kelvin'. After each round R: if ALL FOUR of /SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI, and /SENSEC2_LO appear in failing_reasons with 'has unconnected ratlines' in the same round, increment the counter; otherwise reset it to 0. "
+  },
+  {
+   "round": 91,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped integer counter 'consecutive_near_threshold_drc_kelvin'. After each round R: if structural DRC >= 15 AND structural DRC <= 20 AND kelvin_unrouted > 0, increment the counter; otherwise reset it to 0. When the counter reaches 3: (1) query all structural DRC violation loci fro"
+  },
+  {
+   "round": 92,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-net integer counter 'consecutive_rule46_suppression_count[net]'. After each round R where Rule 46 fires: for each net name in round R's compiler nets list, increment consecutive_rule46_suppression_count[net] by 1. After any round where Rule 46 does NOT fire (either beca"
+  },
+  {
+   "round": 93,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 700.0,
+   "to": 800.0,
+   "action": "accepted:raised",
+   "rationale": "Raising from 700 to 800. The asymmetric Kelvin failure for cable 2 (SENSEC2_HI unrouted, SENSEC2_LO routed) contributes to the unconnected count but contributes 0 to kelvin_unrouted, which only counts symmetric pairs. The unconnected metric is the only existing scorer handle on asymmetric Kelvin mem"
+  },
+  {
+   "round": 93,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect and force-inject for ASYMMETRIC Kelvin failures. After evaluating round R: for each cable index C, if exactly one member of the pair (/SENSEC{C}_HI or /SENSEC{C}_LO) appears in failing_reasons with 'has unconnected ratlines' while the other member does NOT appear in failing_reasons (partner i"
+  },
+  {
+   "round": 94,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 120.0,
+   "to": 140.0,
+   "action": "accepted:raised",
+   "rationale": "DRC has persistently sat in the 15-20 range across recent rounds (rounds 89, 91, 94 all show DRC >= 15) despite the existing 120.0/hit penalty. A modest 17% increase to 140.0 strengthens candidate-selection pressure toward lower-DRC outcomes. This is particularly relevant when DRC violations co-loca"
+  },
+  {
+   "round": 94,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect and serialize Rule-33 + Rule-50 co-firing. After evaluating round R: if Rule 33 fires for cable index C_sym (both /SENSEC{C_sym}_HI and /SENSEC{C_sym}_LO appear in failing_reasons with 'has unconnected ratlines') AND Rule 50 also fires for a DIFFERENT cable index C_asym (exactly one member of"
+  },
+  {
+   "round": 96,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 140.0,
+   "to": 175.0,
+   "action": "accepted:raised",
+   "rationale": "Raising drc penalty from 140\u2192175 increases selection pressure against structurally congested routes. DRC=36 is persistently co-elevated with Kelvin failures across many rounds, indicating geometric conflict near shunt clusters is both a DRC problem and a Kelvin routing problem. A stronger DRC penalt"
+  },
+  {
+   "round": 96,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect Rule-46 + Rule-51 co-fire and defer the Rule-46 absorber bypass by one round. After each round R: if Rule 46 fires (absorber_false_positive_bypass_armed set to True, with a non-empty compiler nets list) AND Rule 51 also fires in the SAME round R (both Rule 33 for cable C_sym AND Rule 50 for c"
+  },
+  {
+   "round": 97,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "drc",
+   "from": 175.0,
+   "to": 200.0,
+   "action": "accepted:raised",
+   "rationale": "Modest increase from 175 to 200 (14%). At round 97, DRC=26 persists alongside Kelvin failure. The current 175/hit weight contributes 4550 to the objective but has not driven convergence toward DRC=0 across many rounds. A modest increase raises FR pressure to find DRC-cleaner routes. Kelvin protectio"
+  },
+  {
+   "round": 97,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Resolve the Rule-52 vs Rule-34 compiler-suppression conflict in round R+2. When BOTH of the following are simultaneously active in a round designated R_2 by the Rule-52 protocol: (A) Rule 52 has stored a non-empty deferred_rule46_bypass_nets (e.g. {/CAN_H, /I2C_SCL, /I2C_SDA}) awaiting bypass applic"
+  },
+  {
+   "round": 99,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped variable 'session_min_drc' initialized to positive infinity. After each round R: (1) if round R's structural DRC < session_min_drc, update session_min_drc = round R's structural DRC and record 'session_min_drc_round' = R; (2) if round R's structural DRC > session_min_drc + "
+  },
+  {
+   "round": 100,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Detect Rule-46 + Rule-33-alone co-fire and defer the Rule-46 absorber bypass by one round (symmetric single-cable case, no Rule-50/51). After evaluating round R: if Rule 46 fires (all compiler stubs eliminated \u2014 n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0, storing the"
+  },
+  {
+   "round": 106,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "unconnected",
+   "from": 800.0,
+   "to": 1000.0,
+   "action": "accepted:raised",
+   "rationale": "Cable 2's partially-routed Kelvin pair (tracks exist, ratlines remain) does not increment kelvin_unrouted, so its 2 unconnected Kelvin ratlines are penalized only at the generic unconnected rate. The kelvin_unrouted penalty (1000) does not apply to cable 2 at all. Raising unconnected from 800 to 100"
+  },
+  {
+   "round": 106,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "After evaluating round R: if failing_reasons contains both '/SENSEC{C}_HI has unconnected ratlines' AND '/SENSEC{C}_LO has unconnected ratlines' for any cable index C, AND cable C is NOT counted in kelvin_unrouted (it has at least one track on each member but still has unconnected ratlines \u2014 partial"
+  },
+  {
+   "round": 107,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "length",
+   "from": 0.0,
+   "to": 0.5,
+   "action": "accepted:raised",
+   "rationale": "length=1139.24mm is currently unpenalized. Long indirect signal/control routes occupy the shunt exit corridors, increasing congestion around the cable-1 Kelvin escape path. A 0.5/mm weight (~570 points at this length) adds a compact-routing bias that is large enough to influence FR candidate selecti"
+  },
+  {
+   "round": 107,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-cable integer counter 'consecutive_kelvin_stall_rounds[C]' initialized to 0 for all cable indices C. After each round R: for each cable index C whose Kelvin pair is counted in kelvin_unrouted (both /SENSEC{C}_HI and /SENSEC{C}_LO absent from routed nets) OR whose both m"
+  },
+  {
+   "round": 108,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped counter `kelvin_keepout_escalation_count[C]` initialized to 0 for each cable index C. Each time Rule 56 fires for cable C (injecting the shunt-exit corridor keepout), increment `kelvin_keepout_escalation_count[C]` by 1 and apply an escalated keepout geometry determined by t"
+  },
+  {
+   "round": 109,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped per-cable integer counter 'post_max_escalation_stall[C]' initialized to 0 for each cable index C. After each round R where kelvin_keepout_escalation_count[C] >= 10 (Rule 57 maximum tier, 12x16mm keepout geometry) AND cable C is still counted in kelvin_unrouted OR both /SENS"
+  },
+  {
+   "round": 110,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Amend Rule 58 step (2): when performing the post-max-escalation corridor ripup for cable C in round R, expand the track exclusion criterion to protect ALL Kelvin net members for ALL cable indices, not just cable C's pair. Specifically, replace the current exclusion condition 'whose net is neither /S"
+  },
+  {
+   "round": 111,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Extend Rule 56's consecutive_kelvin_stall_rounds[C] counter to also increment for asymmetric single-member Kelvin failures. After each round R: if exactly ONE of /SENSEC{C}_HI or /SENSEC{C}_LO (but NOT both) appears in failing_reasons with 'has unconnected ratlines', AND cable C is NOT counted in ke"
+  },
+  {
+   "round": 113,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Amend Rule 59 step (2) with a failing-route exception: when building the ripup exclusion set during cable C's corridor clearing (Rule 58), do NOT extend Rule 59 protection to a cross-cable Kelvin segment belonging to net /SENSEC{C'}_HI or /SENSEC{C'}_LO (C' != C) if that net appears in failing_reaso"
+  },
+  {
+   "round": 114,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When Rule 46 fires in round R (n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0, arming absorber_false_positive_bypass_armed with the compiler nets list) AND the count of cable indices C for which BOTH /SENSEC{C}_HI AND /SENSEC{C}_LO appear in failing_reasons with 'has unc"
+  },
+  {
+   "round": 116,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped set 'compiler_excess_unconnected_targets' initialized to empty. After each round R: compute excess_unconnected = unconnected - (2 * kelvin_unrouted) - (count of cables C where exactly one of /SENSEC{C}_HI or /SENSEC{C}_LO appears in failing_reasons with 'has unconnected rat"
+  },
+  {
+   "round": 117,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Maintain a session-scoped boolean flag 'rule66_slot_yield_active' initialized to false. After each round R where ALL of the following hold simultaneously: (a) Rule 46 fires (n_stubs > 0 AND absorbed + trimmed_spurs == n_stubs AND kelvin_unrouted > 0), AND (b) excess_unconnected > 0 in round R (exces"
+  }
+ ],
+ "rejections": [
+  {
+   "round": 10,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 18,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 24,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 26,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 30,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 31,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 32,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 42,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 52,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "gate_fail",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 62,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 65,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 70,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 71,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 82,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 104,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  },
+  {
+   "round": 112,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "gate_fail",
+   "proposed": 1000.0,
+   "current": 1000.0,
+   "action": "noop:not_a_tightening"
+  }
+ ]
+}
