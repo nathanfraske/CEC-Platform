@@ -510,9 +510,26 @@ current = lane current / 2" does not map onto the 12VHPWR Standard's architectur
 +12V pin sensed DIRECTLY, 6 INA240s — no division; EPS = 4×12V/cable, PCIe = 3×12V/cable,
 neither /2). Ruling encoded verbatim; the architecture binding is the open half.
 
-**Stability-budget derivation: GO.** Entry 11 delivers the capability-side terms; slate
-item 4 fixes the requirement curve. Where those curves cross on the shunt-aging term is
-the Standard verdict — exactly as the dive predicted.
+**Stability-budget derivation: DONE 2026-06-10** —
+`docs/research/stability-budget-dvdi-2026-06-10.md` + fixture
+`tests/test_stability_budget.py` (every figure recomputes from corpus entries; durations
+and the lane-impedance estimate read from the entries, no magic numbers). **The crossing
+lands on the shunt-aging term and nowhere else, exactly as the dive predicted:**
+CSS-class worst-case in-window total ≈13 µΩ → ≈23× under the 0.3 mΩ promote-gate (≈76×
+under the signal) even with zero temperature-compensation credit and the full 21,000-h
+aging budget front-loaded; WSL-class ≈531 µΩ → **fails the worst-case paper test
+outright** (linear pro-rate sneaks under at 1.75× — why worst-case governs). BOM
+recommendation hardens: CSS-class for every dV/dI lane (the 24-pin locked parts and the
+12VHPWR candidate already are); OQ-11 should confirm ≥1 mΩ post-tolerance (the 275/400
+ppm tier boundary). Standard stays conditional/beta — paper clearance, bench gate
+decides; the in-situ benchmark also bounds the terms no datasheet pins (aging shape,
+SADC channel mismatch, NTC-comp residual). Adversarially reviewed: 2-seat refuter panel,
+13 findings, 10 applied (unpinned lane-Z now derived inline from Malucci+LLCR entries;
+the invented 20 °C comp-residual replaced by the zero-credit 50 °C bound; WSL duration
+field added to the entry; duty figure re-pinned to spec §6.4 watts ≈2.3 %), 3 adjudicated
+against with reasoning (headroom-base misread; the TH1 eval-verdict citation — the
+documented M2.7 miss, not propagated; the unpinned-Arrhenius WSL rehabilitation — the
+promotion rule's worst-case floor governs, symmetric note added).
 
 ## What is blocked on owner data
 

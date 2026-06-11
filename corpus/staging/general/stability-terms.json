@@ -121,6 +121,7 @@
   },
   "value": {
    "load_life": "+/-(1.0% + 0.0005 Ohm) after 1000 h at rated power, 70C",
+   "load_life_duration_h": 1000,
    "load_life_additive_mohm": 0.5,
    "bias_humidity": "+/-(0.5% + 0.5 mOhm)",
    "tcr_component_ppm_per_C": {
@@ -143,6 +144,6 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_fault_phenomenology_corpus.py",
-  "notes": "Stability-budget input -- THE CRUX TERM: a WSL-class 1 mOhm shunt carries a ~0.5 mOhm/1000 h load-life ADDITIVE, the SAME ORDER as the 1 mOhm dV/dI signal to be resolved over weeks (NB: 0.5 mOhm is the FULL 1000-h test-endpoint figure; a 2-week trend window sees some fraction of it, and aging is NOT necessarily linear -- the in-situ multi-week benchmark OQ measures the real rate, which is exactly why it gates the Standard verdict), plus copper-terminal-dominated TCR (+/-275 ppm/C at the 1 mOhm class) -- this is why the shunt BOM choice decides the Standard dV/dI verdict (dvdi.requirement_tier_verdict). NOTE the platform's 5VSB shunt is WSK2512 (25 mOhm, the 75 ppm band) -- fine for its rail; the low-ohm WSL tiers are what the dV/dI lanes must avoid. FORMAT CAVEAT (rides the budget task): %+additive over 1,000 h vs Bourns pure-% over 21,000 h -- normalize before comparison."
+  "notes": "Stability-budget input -- THE CRUX TERM: a WSL-class 1 mOhm shunt carries a ~0.5 mOhm/1000 h load-life ADDITIVE, the SAME ORDER as the 1 mOhm dV/dI signal to be resolved over weeks (NB: 0.5 mOhm is the FULL 1000-h test-endpoint figure; a 2-week trend window sees some fraction of it, and aging is NOT necessarily linear -- the in-situ multi-week benchmark OQ measures the real rate, which is exactly why it gates the Standard verdict), plus copper-terminal-dominated TCR (+/-275 ppm/C at the 1 mOhm class; TIER-BOUNDARY CAVEAT per the 2026-06-10 budget panel: nominal 1 mOhm sits exactly at the 1.0-2.9 tier's lower edge -- a part below 1 mOhm after initial tolerance lands in the 400 ppm/C tier; OQ-11 selection should confirm the value stays >=1 mOhm post-tolerance) -- this is why the shunt BOM choice decides the Standard dV/dI verdict (dvdi.requirement_tier_verdict). NOTE the platform's 5VSB shunt is WSK2512 (25 mOhm, the 75 ppm band) -- fine for its rail; the low-ohm WSL tiers are what the dV/dI lanes must avoid. FORMAT CAVEAT (rides the budget task): %+additive over 1,000 h vs Bourns pure-% over 21,000 h -- normalize before comparison."
  }
 ]
