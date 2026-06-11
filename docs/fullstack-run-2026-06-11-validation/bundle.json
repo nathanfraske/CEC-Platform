@@ -1,0 +1,34 @@
+{
+ "board": "eps-8pin",
+ "rounds": 4,
+ "records": 4,
+ "gate_passing": 0,
+ "pareto_finalists": 0,
+ "pour_clipped_rounds": [
+  2,
+  3,
+  4
+ ],
+ "pour_clip_summary": "pours clipped by routed traces in 3/4 rounds -- needs a notched-corridor keepout or re-pour-after-route",
+ "end_of_run_review": true,
+ "final_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 50.0,
+  "unconnected": 5.0
+ },
+ "n_rules": 0,
+ "rules": [],
+ "injections": [],
+ "rejections": 7,
+ "verifier": {
+  "spent": 14,
+  "budget": 200,
+  "charter_status": {
+   "spec-conformance": "advisory",
+   "evidence-provenance": "advisory",
+   "actuation-space": "advisory"
+  }
+ },
+ "front": [],
+ "updated": "2026-06-11T16:22:42"
+}

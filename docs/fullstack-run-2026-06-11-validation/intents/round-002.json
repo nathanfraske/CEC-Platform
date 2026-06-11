@@ -1,0 +1,62 @@
+[
+ {
+  "net": "/I2C_SDA",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     10,
+     0
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/I2C_SCL",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     10,
+     0
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/CAN_H",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U2",
+    "offset_mm": [
+     -10,
+     0
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/CAN_L",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U2",
+    "offset_mm": [
+     -10,
+     0
+    ]
+   }
+  ]
+ }
+]

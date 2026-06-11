@@ -1,0 +1,11 @@
+{
+  "verdict": "repair",
+  "reasoning": "Cable-2 Kelvin pair (/SENSEC2_HI//SENSEC2_LO) is the sole gate failure: both nets carry unconnected ratlines. Root cause is SENSEC2_LO pour fragmentation — 2 islands and 16 foreign crosses, highest of any net by a factor of 2x — indicating signal traces are routing through the cable-2 corridor and severing pour continuity before the Kelvin sense can connect. This is routing-class: the corridor geometry is viable but FR is not keeping cable-2's lane clear. GR-02 corridor-clear on SENSEC2_LO before the next FR pass is the primary lever; increased passes/effort on cable-2 is secondary. DRC=14 and unconnected=6 are downstream of the same stranded-LO root cause and will collapse once the corridor is cleared.",
+  "failure_class": "routing",
+  "scorer_penalty": {
+    "metric": "kelvin_unrouted",
+    "weight": 500.0,
+    "rationale": "kelvin_unrouted=1 is the direct gate-fail signal but currently carries zero scoring weight, so a candidate with a stranded Kelvin pair ranks identically to one that closes it. A 500-unit penalty ensures kelvin_unrouted>0 candidates are decisively outscored, driving the manager to prioritise cable-2 Kelvin completion in subsequent pass requests — a lever the router can act on by clearing the corridor."
+  },
+  "manager_rule": "For any cable-N pour with foreign_cross > 10, run GR-02 corridor-clear on that cable's LO net (evict all crossing foreign-net segments from the shunt-column keepout band) before the next FR invocation, to restore single-island pour integrity and unblock the Kelvin sense connection."
+}

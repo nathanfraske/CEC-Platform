@@ -1,0 +1,26 @@
+{
+ "round": 4,
+ "final": "refute",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "uncertain",
+   "reason": "The ratified rules / locked decisions corpus is empty ([]), providing no governing constraints to validate or refute the finding's claims regarding DRC=5, island counts, foreign_cross metrics, or GR-02 U-detour procedures.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "evidence-provenance": {
+   "verdict": "refute",
+   "reason": "The evidence only confirms a structural DRC count of 5 and an unconnected count of 2. It provides zero information regarding the specific nets (/SENSEC2_HI, /SENSEC2_LO), ratline status, pour-fragmentation artifacts, foreign_cross counts, island counts, or any manager rules. Under zero-tolerance sourcing, all unsupported specifics refute the claim.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "The finding targets DRC reduction via a routing repair rule, but the loop's owned levers cannot resolve hard DRC=5 violations caused by pour fragmentation and unconnected ratlines. These are fundamentally structural issues driven by layout density constraints rather than routing logic or repair battery parameters.",
+   "failure_class": "placement",
+   "status": "advisory"
+  }
+ },
+ "arbiter": null
+}

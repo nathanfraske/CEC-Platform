@@ -1,0 +1,7 @@
+{
+  "verdict": "repair",
+  "reasoning": "Gate failure is structural DRC=5 driven by 2 unconnected ratlines on /SENSEC2_HI and /SENSEC2_LO plus likely 3 pour-fragmentation artefacts. SENSEC2 has critically high foreign_cross counts (11–13) fragmenting its pour into 2–3 islands; by contrast SENSEC1 sits at 1 island with foreign_cross 3–12. The FR-02 stubs for both SENSEC2 nets were compiled and absorbed (absorbed=2) yet the ratlines remain open, confirming FR cannot escape the congested corridor unaided. GR-02 U-detour against the top foreign-crossing nets through the SENSEC2 pour corridor is the correct next action: clearing even a handful of crossings should collapse the 3-island SENSEC2_HI pour to 1 island and open an escape path for the 2 stub endpoints. The 4 FEM over-temp flags on all SENSEC nets are secondary consequences of reduced pour area and will resolve once pour integrity is restored — no scoring lever can substitute for the structural corridor repair, so scorer_penalty is withheld.",
+  "failure_class": "routing",
+  "scorer_penalty": null,
+  "manager_rule": "When any power pour has island_count >= 2 after pour synthesis, trigger GR-02 U-detour on the top-2 foreign-crossing nets in that pour corridor before the next FR attempt; gate acceptance on island_count collapsing to 1 for the repaired net."
+}
