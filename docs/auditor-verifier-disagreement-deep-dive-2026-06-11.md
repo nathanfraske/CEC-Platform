@@ -218,7 +218,8 @@ charter (lessons 2–4), add the two deterministic detectors (1, 5), close the f
 (6), and fix the objective shape so DRC reduction earns no credit while `gates_pass=false`
 (7, the T8 V4 local-minimum call).
 
-**Run-level result (rounds 1–4, eps validation):** 0 LLM rules admitted, 6 refused
+**Run-level result (rounds 1–4, eps validation):** 0 LLM rules admitted, **7 refused** (closed
+ledger: 3 penalties + 4 rules; the "6" in an earlier draft was the rounds-1–3 snapshot)
 (`live-rules.json`); active penalties are pre-seeded defaults only. Verifier discipline
 absolute. T8 V4 seat 502'd and declined (anti-epicycle behaviour correct, seat still
 un-exercised live). Vision seat down all run (timeouts). The validation's headline win is
