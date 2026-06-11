@@ -224,15 +224,22 @@ def _routed_sha(routed):
 
 
 # ---- in-container WORKER (route+score one round, emit RECORD_JSON) ----------------------------------
-def route_one_worker(board, rnd, passes=None, opt_time=None):
+def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
     """Runs IN the routing container. Directed-route + score one round, persist the routed
     board + the DecisionLog to the shared volume, and print a single RECORD_JSON= line the
     host orchestrator parses. Never touches the broker (the container can't reach it).
-    passes/opt_time let the host drive adaptive effort (manager repair -> bump)."""
+    passes/opt_time let the host drive adaptive effort (manager repair -> bump).
+    intents_file (tier-1 INTENT MANAGER, 2026-06-11): a JSON file on the shared volume
+    carrying the model-written FR-02 intents for THIS round -- replaces the static
+    INTENTS dict when present (the assisted-router mechanism)."""
     board_pcb = BOARD_PCB[board]
+    intents = INTENTS[board]
+    if intents_file:
+        with open(intents_file) as fh:
+            intents = json.load(fh)
     work = tempfile.mkdtemp(prefix=f"ovd_{board}_{rnd}_")
     try:
-        routed, stub_summary, params = route_directed(board_pcb, INTENTS[board], rnd, work,
+        routed, stub_summary, params = route_directed(board_pcb, intents, rnd, work,
                                                        passes=passes, opt_time=opt_time)
         sha = _routed_sha(routed)
         rec, log_path = score_and_log(routed, board, stub_summary, params, rnd)
@@ -255,12 +262,16 @@ def route_one_worker(board, rnd, passes=None, opt_time=None):
         shutil.rmtree(work, ignore_errors=True)
 
 
-def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None):
-    """HOST side: docker compose exec the worker for one round; parse its RECORD_JSON."""
+def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intents_file=None):
+    """HOST side: docker compose exec the worker for one round; parse its RECORD_JSON.
+    intents_file is a HOST repo-relative path; it is translated to the container mount."""
     import subprocess
     cmd = COMPOSE + ["exec", "-T", "routing", "python3",
                      f"{CONTAINER_ROOT}/scripts/cec_overnight_directed.py",
                      "--route-one", "--board", board, "--round", str(rnd)]
+    if intents_file is not None:
+        rel = os.path.relpath(os.path.abspath(intents_file), ROOT)
+        cmd += ["--intents-file", f"{CONTAINER_ROOT}/{rel}"]
     if passes is not None:
         cmd += ["--passes", str(passes)]
     if opt_time is not None:
@@ -458,9 +469,11 @@ def main(argv=None):
     ap.add_argument("--round", type=int, default=1, help="round index for --route-one")
     ap.add_argument("--passes", type=int, default=None, help="FR passes override (--route-one)")
     ap.add_argument("--opt-time", type=int, default=None, help="FR opt_time override (--route-one)")
+    ap.add_argument("--intents-file", default=None,
+                    help="tier-1 intent manager: JSON intents for this round (--route-one)")
     a = ap.parse_args(argv)
     if a.route_one:                                                # in-container worker leg
-        sys.exit(route_one_worker(a.board, a.round, a.passes, a.opt_time))
+        sys.exit(route_one_worker(a.board, a.round, a.passes, a.opt_time, a.intents_file))
     if a.shakeout:
         a.hours = min(a.hours, 0.5)
     run(a.board, a.hours, a.review_every, a.max_rounds, a.shakeout)
