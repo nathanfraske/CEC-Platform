@@ -296,15 +296,48 @@ def verify_intents(routed_path, manifest):
     return out
 
 
+def _end_connected(board, net_code, pt, stub_ends, tol_nm=int(0.01e6)):
+    """Is anything ELSE on the net attached at *pt*? Tracks/vias by endpoint
+    coincidence, pads by hit-test. The stub itself is excluded by matching BOTH
+    its endpoints (identity compares on re-proxied GetTracks() objects are a
+    known pcbnew SWIG footgun -- never use ``is`` here)."""
+    (ax, ay), (bx, by) = stub_ends
+
+    def _near(p, x, y):
+        return abs(p.x - x) <= tol_nm and abs(p.y - y) <= tol_nm
+
+    for t in board.GetTracks():
+        if t.GetNetCode() != net_code:
+            continue
+        if t.GetClass() == "PCB_VIA":
+            if _near(t.GetPosition(), pt.x, pt.y):
+                return True
+            continue
+        s, e = t.GetStart(), t.GetEnd()
+        if (_near(s, ax, ay) and _near(e, bx, by)) or (_near(s, bx, by) and _near(e, ax, ay)):
+            continue                                   # the stub itself
+        if _near(s, pt.x, pt.y) or _near(e, pt.x, pt.y):
+            return True
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() == net_code and p.HitTest(pt):
+                return True
+    return False
+
+
 def clean_orphan_stubs(routed_path, manifest, out_path=None):
     """Stub hygiene: a stub on a net that FAILED to route (net still has
-    unconnected items) is an orphan -- remove it; a stub on a ROUTED net is
-    absorbed as ordinary copper -- unlock it."""
+    unconnected items) is an orphan -- remove it. A stub on a ROUTED net is
+    absorbed as ordinary copper ONLY if the route genuinely attaches at BOTH
+    endpoints (a true through-stub -> unlock); a stub touched at one end (or
+    none) is a SPUR -- the dangling tail the FR-04 control arm measured as 9x
+    track_dangling -- and is removed (route continuity is unaffected: the
+    route only shares the endpoint)."""
     import pcbnew
     import cec_score
     board = pcbnew.LoadBoard(routed_path)
     unconn_nets = set(cec_score.score(routed_path).detail.get("unconn_nets", []))
-    removed, absorbed = 0, 0
+    removed, absorbed, trimmed = 0, 0, 0
     for stub in manifest["stubs"]:
         t = _stub_present(board, stub)
         if t is None:
@@ -312,11 +345,18 @@ def clean_orphan_stubs(routed_path, manifest, out_path=None):
         if stub["net"] in unconn_nets or stub["net"].lstrip("/") in unconn_nets:
             board.Remove(t)
             removed += 1
-        else:
+            continue
+        net_code = t.GetNetCode()
+        a_conn = _end_connected(board, net_code, t.GetStart(), stub["ends"])
+        b_conn = _end_connected(board, net_code, t.GetEnd(), stub["ends"])
+        if a_conn and b_conn:
             t.SetLocked(False)
             absorbed += 1
+        else:
+            board.Remove(t)
+            trimmed += 1
     pcbnew.SaveBoard(out_path or routed_path, board)
-    return {"removed_orphans": removed, "absorbed": absorbed}
+    return {"removed_orphans": removed, "absorbed": absorbed, "trimmed_spurs": trimmed}
 
 
 # ------------------------------------------------------------------- CLI --

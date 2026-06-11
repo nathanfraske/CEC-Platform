@@ -1,0 +1,44 @@
+{
+ "board": "eps-8pin",
+ "rounds": 2,
+ "candidates": 2,
+ "convergence_verdict": "inconclusive",
+ "pareto_finalists": 0,
+ "final_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 50.0,
+  "unconnected": 5.0,
+  "kelvin_unrouted": 200.0
+ },
+ "n_manager_rules": 2,
+ "n_usable_ratification_candidates": 3,
+ "usable_candidates": [
+  {
+   "round": 1,
+   "source": "sonnet",
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "from": 0.0,
+   "to": 200.0,
+   "action": "accepted:raised",
+   "rationale": "kelvin_unrouted currently carries no injected penalty, so FR treats stranded Kelvin sense nets as ordinary ratlines. Weight=200 makes one unrouted Kelvin pair cost as much as four DRC violations (4*50), biasing the objective to solve Kelvin connectivity first without overwhelming the DRC and unconne"
+  },
+  {
+   "round": 1,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "When kelvin_unrouted > 0, add directed LOCKED stubs for every SENSEC*_HI and SENSEC*_LO net from their INA238 sense pad to the corresponding shunt inner edge (same waypoint mechanism already applied to CAN_H/I2C_SCL/I2C_SDA), so FR has a forced entry point and routes into the tap window instead of a"
+  },
+  {
+   "round": 2,
+   "source": "sonnet",
+   "kind": "rule",
+   "action": "accepted:added",
+   "rule": "Before launching every FR run, assert that the compiled stub manifest contains at least one entry for each net in every Kelvin pair (all nets matching /SENSEC*_HI and /SENSEC*_LO); if any Kelvin net is absent AND there is no matching compile_failure entry for it, inject a synthetic compile_failure f"
+  }
+ ],
+ "rejections_noops": 0,
+ "pareto_front": [],
+ "updated": "2026-06-11T03:01:05"
+}

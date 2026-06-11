@@ -253,6 +253,67 @@ def compiled_param(key, default=None, *, root=None):
     return default
 
 
+# ---------------------------------------------------------------------------
+# corpus_briefing -- the MANAGER-SEAT briefing payload (owner directive 2026-06-11,
+# the FR-04 round lesson: the corpus knew gnd-plane-continuity, the intents manager
+# was never shown it). Assembles, for one board:
+#   * the routing/layer/plane/netclass-relevant RATIFIED rule subset from the
+#     staging corpus (selected by keyword, never cherry-picked per-call),
+#   * the board's compiled artifacts (assembled.kicad_dru + checker bindings),
+#   * the platform stackup/netclass facts.
+# Returns (text, info). Pure file reads -- pcbnew-free, host- and container-safe.
+# ---------------------------------------------------------------------------
+_BRIEF_KEYS = ("plane", "inner layer", "in1", "l2", "netclass", "diff", "kelvin",
+               "return path", "outer layers", "route", "pour")
+
+
+def corpus_briefing(board, *, max_chars=24000, root=None):
+    rootd = root or ROOT
+    import glob as _glob
+    rules, seen = [], set()
+    for f in sorted(_glob.glob(os.path.join(rootd, "corpus", "staging", "*", "*.json"))):
+        try:
+            d = json.load(open(f))
+        except Exception:                                        # noqa: BLE001
+            continue
+        for e in (d if isinstance(d, list) else d.get("entries", [])):
+            if not isinstance(e, dict):
+                continue
+            rid, rule = e.get("id"), (e.get("rule") or e.get("title") or "")
+            if not rid or rid in seen:
+                continue
+            if any(k in rule.lower() for k in _BRIEF_KEYS):
+                seen.add(rid)
+                rules.append((rid, " ".join(rule.split())[:420]))
+    parts = ["RATIFIED DESIGN-RULE CORPUS (routing/layer/plane-relevant subset, %d rules):"
+             % len(rules)]
+    parts += ["* %s: %s" % (rid, rule) for rid, rule in rules]
+    parts.append("")
+    parts.append("STACKUP & PLATFORM FACTS:")
+    parts.append("* 4-layer stackup, cable-interposer modules (EPS/PCIe): F.Cu (2oz) / In1 = GND "
+                 "PLANE / In2 / B.Cu (2oz). PLANE LAYERS CARRY ZONES, NEVER ROUTED SIGNAL TRACKS "
+                 "(corpus gnd-plane-continuity; cec_fr layer policy denies them to the router).")
+    parts.append("* Hub Standard differs: In2 is a deliberate slow-signal routing layer under the "
+                 "In1 GND plane.")
+    comp = os.path.join(rootd, "build", "corpus-compiled", board)
+    for fn, label in (("assembled.kicad_dru", "COMPILED DESIGN-RULE FILE (corpus-compiled)"),
+                      ("checker_bindings.json", "CHECKER BINDINGS")):
+        p = os.path.join(comp, fn)
+        if os.path.isfile(p):
+            try:
+                body = open(p).read().strip()
+                if body and body not in ("{}", "[]"):
+                    parts.append("")
+                    parts.append(label + ":")
+                    parts.append(body[:4000])
+            except Exception:                                    # noqa: BLE001
+                pass
+    text = "\n".join(parts)
+    if len(text) > max_chars:
+        text = text[:max_chars] + "\n[...briefing truncated...]"
+    return text, {"rules": len(rules), "chars": len(text), "compiled_dir": os.path.isdir(comp)}
+
+
 if __name__ == "__main__":
     import argparse
     ap = argparse.ArgumentParser(description="CEC board facts (CL-23 seed)")

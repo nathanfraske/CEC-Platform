@@ -1,0 +1,178 @@
+{
+ "seed": 20260610,
+ "version": "v1",
+ "tasks": [
+  {
+   "id": "quant-a1",
+   "family": "quant",
+   "prompt": "A plant runs 4 presses. Each press stamps 165 parts per hour and runs 8 hours per day. Quality control rejects 10% of all stamped parts. The maintenance crew has 11 technicians. Assuming the reject rate divides evenly, how many GOOD parts ship per day?",
+   "answer": 4752,
+   "answer_type": "number"
+  },
+  {
+   "id": "quant-a2",
+   "family": "quant",
+   "prompt": "A plant runs 5 presses. Each press stamps 130 parts per hour and runs 8 hours per day. Quality control rejects 5% of all stamped parts. The maintenance crew has 15 technicians. Assuming the reject rate divides evenly, how many GOOD parts ship per day?",
+   "answer": 4940,
+   "answer_type": "number"
+  },
+  {
+   "id": "quant-b1",
+   "family": "quant",
+   "prompt": "Two service vans start 360 km apart and drive toward each other, one at 43 km/h, the other at 62 km/h. The dispatcher's briefing took 37 minutes before either van moved (it does not count as driving time). How many MINUTES of driving until they meet? Round to the nearest minute.",
+   "answer": 206,
+   "answer_type": "number"
+  },
+  {
+   "id": "quant-b2",
+   "family": "quant",
+   "prompt": "Two service vans start 420 km apart and drive toward each other, one at 41 km/h, the other at 71 km/h. The dispatcher's briefing took 21 minutes before either van moved (it does not count as driving time). How many MINUTES of driving until they meet? Round to the nearest minute.",
+   "answer": 225,
+   "answer_type": "number"
+  },
+  {
+   "id": "quant-c1",
+   "family": "quant",
+   "prompt": "A metered plan costs $45 flat, plus 17 cents per unit for the first 100 units, plus 29 cents for each unit beyond 100. A customer used 278 units. What is the total bill in CENTS (a whole number)?",
+   "answer": 11362,
+   "answer_type": "number"
+  },
+  {
+   "id": "quant-c2",
+   "family": "quant",
+   "prompt": "A metered plan costs $35 flat, plus 15 cents per unit for the first 150 units, plus 27 cents for each unit beyond 150. A customer used 384 units. What is the total bill in CENTS (a whole number)?",
+   "answer": 12068,
+   "answer_type": "number"
+  },
+  {
+   "id": "logic-1",
+   "family": "logic",
+   "prompt": "Four technicians (Ava, Ben, Cy, Dee) each have one badge color (red, blue, green, gold) and one drink (tea, coffee, cocoa, juice); no two share a color or a drink.\n- Ben's badge is not red.\n- Ben does not drink coffee.\n- Ben's badge is not blue.\n- Ben does not drink juice.\n- Dee does not drink tea.\n- Cy's badge is not blue.\n- Ava's badge is not gold.\n- Ben does not drink cocoa.\n- Cy does not drink cocoa.\n- Cy's badge is gold.\n- The person with the gold badge drinks juice.\n- The person with the blue badge drinks coffee.\n- Dee's badge is red.\nExactly one assignment satisfies all clues. What does Dee drink?",
+   "answer": "cocoa",
+   "answer_type": "string"
+  },
+  {
+   "id": "logic-2",
+   "family": "logic",
+   "prompt": "Four technicians (Ava, Ben, Cy, Dee) each have one badge color (red, blue, green, gold) and one drink (tea, coffee, cocoa, juice); no two share a color or a drink.\n- Ben does not drink tea.\n- Dee does not drink juice.\n- Ava does not drink juice.\n- Cy's badge is not green.\n- Ben's badge is red.\n- Ava's badge is not gold.\n- Ava's badge is green.\n- The person with the gold badge drinks coffee.\n- Dee's badge is gold.\n- The person with the blue badge drinks cocoa.\nExactly one assignment satisfies all clues. What does Dee drink?",
+   "answer": "coffee",
+   "answer_type": "string"
+  },
+  {
+   "id": "logic-3",
+   "family": "logic",
+   "prompt": "Four technicians (Ava, Ben, Cy, Dee) each have one badge color (red, blue, green, gold) and one drink (tea, coffee, cocoa, juice); no two share a color or a drink.\n- The person with the green badge drinks coffee.\n- Cy does not drink cocoa.\n- Ben's badge is red.\n- Dee's badge is not green.\n- Ava does not drink coffee.\n- The person with the red badge drinks juice.\n- The person with the gold badge drinks cocoa.\n- Ava's badge is not gold.\nExactly one assignment satisfies all clues. What does Cy drink?",
+   "answer": "coffee",
+   "answer_type": "string"
+  },
+  {
+   "id": "logic-4",
+   "family": "logic",
+   "prompt": "Four technicians (Ava, Ben, Cy, Dee) each have one badge color (red, blue, green, gold) and one drink (tea, coffee, cocoa, juice); no two share a color or a drink.\n- Dee does not drink coffee.\n- Cy's badge is not gold.\n- Cy's badge is red.\n- Ava's badge is not blue.\n- Ava does not drink juice.\n- Ben's badge is blue.\n- Ava's badge is green.\n- Ben does not drink cocoa.\n- Dee does not drink cocoa.\n- Ava does not drink coffee.\n- Ben does not drink tea.\n- Cy does not drink juice.\n- The person with the gold badge drinks tea.\nExactly one assignment satisfies all clues. What does Dee drink?",
+   "answer": "tea",
+   "answer_type": "string"
+  },
+  {
+   "id": "math-1",
+   "family": "math",
+   "prompt": "How many integers from 1 to 1200 inclusive are divisible by 6 or 10 but NOT both?",
+   "answer": 240,
+   "answer_type": "number"
+  },
+  {
+   "id": "math-2",
+   "family": "math",
+   "prompt": "What are the last two decimal digits of 7^394? Give them as a number (0-99).",
+   "answer": 49,
+   "answer_type": "number"
+  },
+  {
+   "id": "math-3",
+   "family": "math",
+   "prompt": "How many trailing zeros does 290! (factorial of 290) have?",
+   "answer": 71,
+   "answer_type": "number"
+  },
+  {
+   "id": "math-4",
+   "family": "math",
+   "prompt": "Find the smallest non-negative integer x with x mod 11 = 3 and x mod 13 = 1.",
+   "answer": 14,
+   "answer_type": "number"
+  },
+  {
+   "id": "math-5",
+   "family": "math",
+   "prompt": "6 test reports are returned randomly, one to each of 6 engineers. In how many ways can they be returned so that NO engineer gets their own report (derangements of 6)?",
+   "answer": 265,
+   "answer_type": "number"
+  },
+  {
+   "id": "code-1",
+   "family": "code",
+   "prompt": "A Python 3 program:\n```python\ndef f(x, acc=[]):\n    acc.append(x)\n    return len(acc)\nprint(f(1) + f(2) + f(3))\n```\nWhat exactly does it print (the single output line, verbatim)?",
+   "answer": "6",
+   "answer_type": "string"
+  },
+  {
+   "id": "code-2",
+   "family": "code",
+   "prompt": "A Python 3 program:\n```python\nfs = [lambda: i * j for i in range(3) for j in range(2)]\nprint(sum(f() for f in fs))\n```\nWhat exactly does it print (the single output line, verbatim)?",
+   "answer": "12",
+   "answer_type": "string"
+  },
+  {
+   "id": "code-3",
+   "family": "code",
+   "prompt": "A Python 3 program:\n```python\na = [-7, 8]\nprint(a[0] // 3, a[0] % 3, -8 // a[1])\n```\nWhat exactly does it print (the single output line, verbatim)?",
+   "answer": "-3 2 -1",
+   "answer_type": "string"
+  },
+  {
+   "id": "code-4",
+   "family": "code",
+   "prompt": "A Python 3 program:\n```python\nx = [[0] * 2] * 3\nx[0][1] = 5\ny = x[1][:]\ny[0] = 9\nprint(x[2][1], x[1][0], sum(y))\n```\nWhat exactly does it print (the single output line, verbatim)?",
+   "answer": "5 0 14",
+   "answer_type": "string"
+  },
+  {
+   "id": "code-5",
+   "family": "code",
+   "prompt": "A Python 3 program:\n```python\nd = {k % 3: k for k in range(7)}\nprint(d.get(0, -1) + d.get(3, 10) + len(d))\n```\nWhat exactly does it print (the single output line, verbatim)?",
+   "answer": "19",
+   "answer_type": "string"
+  },
+  {
+   "id": "dom-1",
+   "family": "domain",
+   "tolerance": 0.01,
+   "prompt": "A divider from 24 V uses R1=6800 ohm (top) and R2=2200 ohm (bottom). An ADC input of 10000 ohm loads R2 in parallel. What is the loaded output voltage in volts? Three significant figures.",
+   "answer": 5.03,
+   "answer_type": "number"
+  },
+  {
+   "id": "dom-2",
+   "family": "domain",
+   "tolerance": 0.01,
+   "prompt": "A PCB power trace has resistance 1.2 milliohm per cm and runs 12 cm, carrying a steady 6.0 A. How much power does the trace dissipate, in MILLIWATTS?",
+   "answer": 518.4,
+   "answer_type": "number"
+  },
+  {
+   "id": "dom-3",
+   "family": "domain",
+   "tolerance": 0.01,
+   "prompt": "An RC charges from 0 V toward 5 V through R=10 kilo-ohm into C=1.0 microfarad. After how many MILLISECONDS does the capacitor first reach 3.0 V? Three significant figures.",
+   "answer": 9.163,
+   "answer_type": "number"
+  },
+  {
+   "id": "dom-4",
+   "family": "domain",
+   "tolerance": 0.01,
+   "prompt": "A midpoint divider from 2.5 V uses two EQUAL nominal resistors with +/-1% tolerance. What is the WORST-CASE MINIMUM midpoint voltage in volts? Four significant figures.",
+   "answer": 1.2375,
+   "answer_type": "number"
+  }
+ ]
+}

@@ -312,12 +312,61 @@ def ensure_jar(path: str | None = None, version: str | None = None) -> str:
 # ---------------------------------------------------------------------------
 # export_dsn
 # ---------------------------------------------------------------------------
-def export_dsn(board_path: str, dsn_path: str) -> str:
+def plane_layers(board) -> list:
+    """Copper layers that carry a PLANE: any zone whose outline bbox covers more than
+    half the board outline bbox. Board-derived, no per-board config -- the EPS/PCIe
+    In1 'GND' plane is detected; the Hub's In2 (a deliberate slow-signal ROUTING layer)
+    is not, because no board-sized zone lives on it."""
+    bb = board.GetBoardEdgesBoundingBox()
+    barea = max(1, bb.GetWidth()) * max(1, bb.GetHeight())
+    out = []
+    for z in board.Zones():
+        if z.GetIsRuleArea():
+            continue
+        zb = z.GetBoundingBox()
+        if (zb.GetWidth() * zb.GetHeight()) / barea < 0.5:
+            continue
+        for lid in z.GetLayerSet().CuStack():
+            name = board.GetLayerName(lid)
+            if name not in out:
+                out.append(name)
+    return out
+
+
+def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
+    """LAYER POLICY (owner-ratified 2026-06-11, the FR-04 plane-carving finding): mark the
+    named layers ``(type power)`` in the exported DSN so Freerouting EXCLUDES them from
+    signal routing. pcbnew exports plane layers as ``(type signal)`` whenever the layer is
+    a plain copper layer, and FR then happily routes signals THROUGH the ground plane
+    (measured: 61.7mm of /I2C_SDA on the EPS GND plane), carving return-path slots the
+    corpus rule ``gnd-plane-continuity`` forbids. Returns the list actually rewritten."""
+    import re
+    if not layer_names:
+        return []
+    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    done = []
+    for name in layer_names:
+        pat = re.compile(r"(\(layer\s+" + re.escape(name) + r"\s*\(\s*type\s+)signal(\s*\))")
+        text, n = pat.subn(r"\1power\2", text)
+        if n:
+            done.append(name)
+    if done:
+        open(dsn_path, "w", encoding="utf-8").write(text)
+    return done
+
+
+def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
+
+    plane_to_power (default ON; env CEC_FR_PLANE_POLICY=0 disables): after export,
+    detected plane layers are rewritten ``(type power)`` so FR cannot route signals
+    through them (see _dsn_force_power_layers).
 
     Returns *dsn_path*.  Raises RuntimeError if the export returns False or the
     output file is missing/empty.
     """
+    if plane_to_power is None:
+        plane_to_power = os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0"
     board = pcbnew.LoadBoard(board_path)
     ok = pcbnew.ExportSpecctraDSN(board, dsn_path)
     if not ok:
@@ -328,6 +377,11 @@ def export_dsn(board_path: str, dsn_path: str) -> str:
         raise RuntimeError(
             f"cec_fr.export_dsn: DSN file missing or empty after export: {dsn_path!r}"
         )
+    if plane_to_power:
+        rewritten = _dsn_force_power_layers(dsn_path, plane_layers(board))
+        if rewritten:
+            print(f"[cec_fr] layer policy: plane layer(s) {rewritten} -> (type power) "
+                  f"(FR signal routing excluded)", file=sys.stderr)
     return dsn_path
 
 
@@ -865,6 +919,22 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             f"cec_fr.import_ses: ImportSpecctraSES returned False\n"
             f"  board={board_path!r}\n  ses={ses_path!r}"
         )
+    # LAYER POLICY, import half (complements the export-side (type power) rewrite):
+    # plane layers carry ZONES, never tracks. FR may still drop POWER-classified net
+    # segments onto a (type power) layer (Specctra semantics allow it; measured: two
+    # 4.2mm /SENSEC*_HI segments on the EPS GND plane) -- strip ALL track segments on
+    # detected plane layers before the fill (the pours/zones carry those nets).
+    if os.environ.get("CEC_FR_PLANE_POLICY", "1") != "0":
+        _plane_names = set(plane_layers(board))
+        if _plane_names:
+            _doomed = [t for t in board.GetTracks()
+                       if t.GetClass() == "PCB_TRACK"
+                       and board.GetLayerName(t.GetLayer()) in _plane_names]
+            for t in _doomed:
+                board.Remove(t)
+            if _doomed:
+                print(f"[cec_fr] layer policy: stripped {len(_doomed)} track segment(s) "
+                      f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
         add_power_pours(board, power_pours, fill=False)
     if fix_annular:

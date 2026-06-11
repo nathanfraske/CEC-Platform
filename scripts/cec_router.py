@@ -138,7 +138,11 @@ class DecisionLog:
                 "length": round(m.length, 2), "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
                 "cu12v": round(m.cu12v, 2), "balance": round(m.balance, 3), "gates_pass": m.gates_pass,
                 # R-02: the violation-type breakdown rides the same DRC run as the metrics
-                "drc_types": getattr(m, "drc_types", {})}
+                "drc_types": getattr(m, "drc_types", {}),
+                # FR-04 plane-carving finding: mm of signal copper on a ground/power plane layer
+                # (return-path break; corpus gnd-plane-continuity). Normally 0 under the cec_fr
+                # layer policy -- a non-zero value is a regression the manager should not accept.
+                "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 2)}
 
     def finalize(self, *, board, verdict):
         self.final = {"board": board, "verdict": verdict,
