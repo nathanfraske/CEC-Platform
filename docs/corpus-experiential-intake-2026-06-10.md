@@ -598,6 +598,20 @@ promotion rule's worst-case floor governs, symmetric note added).
    shrinks to two items: the promise rows (`meas.targets.v1`) and the dV/dI tier framing
    (`dvdi.requirement_tier_verdict`)** — the traceability wording goes to them as decided.
 
+## Assisted routing (2026-06-10/11) — built from the implementation sheet
+
+(The full record lives in CLAUDE.md item −4 and the commit; noted here because the owner
+queue and the corpus session share this document.) The FR-02 gating bench **PASSED on the
+pinned FR 1.7.0** — KiCad exports locked tracks as `(type fix)`, a guide stub survives
+headless FR and the route passes through it. `scripts/cec_fr02.py` (the route intent
+compiler — relational waypoints → locked stubs; `force_protect_in_dsn` measured necessary;
+full-extent stub legality measured necessary), `cec_router.gr02_repair_battery` (the
+deterministic repair battery, Grade-2 same-run claims) and `cec_router.gr01_congestion_grid`
+landed with 8 container-verified fixtures; the sheet's FR-02 verify clause passed in full
+(3 waypoints, all survived, net routed through, paths differ). **Owner queue impact: none
+added** — the next items in this lane (FR-04 ladder, GR-03 locus agent, GR-01→FR-02 intent
+compilation) are agent work riding the wave-3 orchestrator.
+
 ## What is blocked on owner data
 
 | Cluster | Scaffold ready | Owner supplies |

@@ -541,7 +541,34 @@ ESD diode, the FTP jack) must reflect real, verified board state — not intent 
 so a fresh reader can trust them without re-deriving from the schematic. Update
 this file in the same change that touches the board, not later.
 
+**OWNER QUEUE: `docs/owner-queue.md` is the standing, maintained list of everything waiting
+on the OWNER** (decisions / GitHub rituals / spec edits / bench items with real clocks /
+ten-minute desk tasks / the deferred-pending-instrument set / research dumps / GUI board
+work). Agents update it in the SAME change that creates or retires an owner item — the same
+discipline as this section. The corpus-side intake contract is
+docs/corpus-experiential-intake-2026-06-10.md.
+
 Open items (surface before acting):
+
+-4. ASSISTED ROUTING (2026-06-10/11, branch claude/corpus-experiential-intake): the FR-02/
+   GR-01/GR-02 slice of the closed-loop list is BUILT + fixture-verified in-container.
+   FR-02 GATING BENCH PASSED on pinned FR 1.7.0 (scripts/cec_fr02_bench.py: KiCad exports
+   locked tracks as "(type fix)" -- FR keeps a useful fixed stub, the route passes through
+   it, directed != free path). scripts/cec_fr02.py = the route intent compiler (relational
+   waypoints {ref|between+bias|at_mm|offset} -> resolved -> DRC-legal LOCKED stubs;
+   force_protect_in_dsn() upgrades fix->protect, MEASURED NECESSARY: FR 1.7.0 DROPS dangling
+   fix wires; full-extent stub legality, MEASURED NECESSARY: a stub END touching a foreign
+   pad gets its net silently REASSIGNED by KiCad connectivity on save/load; orphan hygiene +
+   absorb; intent avoid-regions -> bake_hints keepouts; DF-06-shaped claims for FR-04).
+   cec_router.py gained gr02_repair_battery() (deterministic moves: shift-out-of-corridor
+   w/ connectivity jogs -> layer swap -> via insertion; single-net U-detour router; rollback
+   via held proxies; Grade-2 same-run claim settlement) + gr01_congestion_grid() (RUDY-style
+   per-net demand, hotspot + contested-first order). tests/test_gr_fr02_fixtures.py = the
+   sheet's verify fixtures (8, container-only). FOUR pcbnew SWIG footguns found+recorded
+   (memory: toolchain): chained Inflate()=garbage, live GetStart() refs, re-proxied
+   GetTracks() ids, Remove segfault. NEXT in this lane: FR-04 ladder (per-net tier manifest
+   + the control arm -- rides the wave-3 orchestrator), GR-03 locus agent, FR-03 corridor
+   executor (only if waypoints prove insufficient), GR-01->FR-02 intent compilation.
 
 -3. CLOSED-LOOP FRAMEWORK (2026-06-10, branch claude/closed-loop-wave1). The owner's refined
    pipeline model (docs/closed-loop-implementation-list.md, CL/AM/RB/DF/PC/FR/GR/CR items) is

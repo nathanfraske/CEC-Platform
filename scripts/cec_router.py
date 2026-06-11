@@ -908,6 +908,362 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     return spec, name
 
 
+# ============================================================ GR-01 / GR-02
+# Global plan + local repair (closed-loop list, Part 11). GR-02 is the
+# DETERMINISTIC REPAIR BATTERY -- "runs before any model": on a blocked net,
+# the mechanical moves in order (shift the free-class obstacle out of the
+# corridor with connectivity jogs -> layer swap -> a final retry whose
+# candidate set includes via insertion), re-route the single blocked net,
+# full DRC as the judge. GR-01 is the congestion grid v1: deterministic
+# hotspot detection from airwire-bbox demand (RUDY-style, seeded from
+# cec_synth_pipeline.rudy's model), contested-first ordering returned.
+# INTEGRATION STATE (honest): neither is wired into route()'s repair branch
+# yet -- that wiring (battery before the worker callable; contested order +
+# fr02 intent compilation under the manager) rides the wave-3 orchestrator.
+
+def _net_pads_xy(board, net_name):
+    return [(p.GetPosition().x, p.GetPosition().y)
+            for fp in board.GetFootprints() for p in fp.Pads()
+            if p.GetNetname() == net_name]
+
+
+def _corridor_band(board, net_name, half_w_nm):
+    """The blocked net's airwire corridor: the segment between its two pad
+    clusters, as (p_start, p_end, half_width). v1: two-pad nets / dominant pair."""
+    pads = _net_pads_xy(board, net_name)
+    if len(pads) < 2:
+        return None
+    # the widest-apart pad pair = the dominant airwire
+    best = max(((a, b) for a in pads for b in pads),
+               key=lambda ab: (ab[0][0] - ab[1][0]) ** 2 + (ab[0][1] - ab[1][1]) ** 2)
+    return best[0], best[1], half_w_nm
+
+
+def _seg_corridor_overlap(s, e, band):
+    """Does segment (s,e) cross the corridor band? Coarse: segment-vs-segment
+    distance below half-width (sampled)."""
+    (ax, ay), (bx, by), half = band
+
+    def _pt_seg_d2(px, py, x1, y1, x2, y2):
+        dx, dy = x2 - x1, y2 - y1
+        L2 = dx * dx + dy * dy or 1
+        t = max(0.0, min(1.0, ((px - x1) * dx + (py - y1) * dy) / L2))
+        cx, cy = x1 + t * dx, y1 + t * dy
+        return (px - cx) ** 2 + (py - cy) ** 2
+    for i in range(11):                                  # sample the obstacle
+        t = i / 10.0
+        px, py = s[0] + (e[0] - s[0]) * t, s[1] + (e[1] - s[1]) * t
+        if _pt_seg_d2(px, py, ax, ay, bx, by) <= half * half:
+            return True
+    return False
+
+
+def _path_is_clear(board, pts, layer_id, net_code, clear_nm):
+    """Sampled clearance scan along a polyline (full DRC remains the judge).
+    PCBNEW GOTCHA (found 2026-06-10, fixture-caught): NEVER chain
+    GetBoundingBox().Inflate(...).Contains(...) -- Inflate returns a reference
+    proxy into the freed temporary and the chained box reads GARBAGE (silently
+    'clear'). Inflate on a HELD box, then test. Same footgun class as the
+    documented PCB_VIA.GetWidth() no-arg assert."""
+    import pcbnew
+    # pre-inflate HELD boxes once (also lifts the obstacle scan out of the
+    # per-sample loop: O(samples + tracks), not O(samples x tracks))
+    boxes = []
+    for tr in board.GetTracks():
+        if tr.GetNetCode() == net_code:
+            continue
+        if tr.GetLayer() == layer_id or tr.GetClass() == "PCB_VIA":
+            bb = tr.GetBoundingBox()
+            bb.Inflate(clear_nm)
+            boxes.append(bb)
+    for fp in board.GetFootprints():
+        for pad in fp.Pads():
+            if pad.GetNetCode() == net_code:
+                continue
+            if pad.IsOnLayer(layer_id):
+                bb = pad.GetBoundingBox()
+                bb.Inflate(clear_nm)
+                boxes.append(bb)
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+        n = max(2, int((abs(x2 - x1) + abs(y2 - y1)) / max(1, clear_nm)))
+        for i in range(n + 1):
+            t = i / n
+            pt = pcbnew.VECTOR2I(int(x1 + (x2 - x1) * t), int(y1 + (y2 - y1) * t))
+            if any(bb.Contains(pt) for bb in boxes):
+                return False
+    return True
+
+
+def _lay_path(board, net, pts, layer_id, width_nm):
+    """Lay segments; RETURN the created objects (stable proxies -- the only
+    safe rollback handle: swig re-proxies GetTracks() per call, so identity
+    games over the track list are useless and Remove on them segfaults)."""
+    import pcbnew
+    laid = []
+    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+        if (x1, y1) == (x2, y2):
+            continue
+        t = pcbnew.PCB_TRACK(board)
+        t.SetStart(pcbnew.VECTOR2I(int(x1), int(y1)))
+        t.SetEnd(pcbnew.VECTOR2I(int(x2), int(y2)))
+        t.SetWidth(width_nm)
+        t.SetLayer(layer_id)
+        t.SetNet(net)
+        board.Add(t)
+        laid.append(t)
+    return laid
+
+
+def _route_blocked_net(board, net_name, *, width_mm=0.25, clear_mm=0.25):
+    """v1 single-net router: straight, then the two L-bends, F.Cu first then
+    B.Cu, then F->via->B with the layer change at the corner. Clearance-scanned;
+    full DRC settles it. Returns the move used or None."""
+    import pcbnew
+    net = board.FindNet(net_name)
+    pads = _net_pads_xy(board, net_name)
+    if net is None or len(pads) < 2:
+        return None
+    (ax, ay), (bx, by) = pads[0], pads[1]
+    w, c = pcbnew.FromMM(width_mm), pcbnew.FromMM(clear_mm)
+    F, B = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    cands = []
+    for lid, lname in ((F, "F.Cu"), (B, "B.Cu")):
+        cands.append(([(ax, ay), (bx, by)], lid, lname, None))
+        cands.append(([(ax, ay), (bx, ay), (bx, by)], lid, lname, None))
+        cands.append(([(ax, ay), (ax, by), (bx, by)], lid, lname, None))
+        # U-DETOURS: lateral exploration around small corridor crossings (a
+        # shifted obstacle's connectivity jog legitimately crosses the
+        # corridor once -- route around it, both sides, growing depth)
+        horiz = abs(bx - ax) >= abs(by - ay)
+        for d_mm in (2.0, 4.0, 6.0):
+            d = pcbnew.FromMM(d_mm)
+            for sgn in (-1, 1):
+                if horiz:
+                    yy = ay + sgn * d
+                    pts = [(ax, ay), (ax, yy), (bx, yy), (bx, by)]
+                else:
+                    xx = ax + sgn * d
+                    pts = [(ax, ay), (xx, ay), (xx, by), (bx, by)]
+                cands.append((pts, lid, lname, None))
+    # via move: first half on F, second on B, corner = via site
+    for corner in (((bx, ay)), ((ax, by))):
+        cands.append(("VIA", corner, None, None))
+    for cand in cands:
+        if cand[0] == "VIA":
+            corner = cand[1]
+            if (_path_is_clear(board, [(ax, ay), corner], F, net.GetNetCode(), c)
+                    and _path_is_clear(board, [corner, (bx, by)], B, net.GetNetCode(), c)):
+                laid = _lay_path(board, net, [(ax, ay), corner], F, w)
+                laid += _lay_path(board, net, [corner, (bx, by)], B, w)
+                v = pcbnew.PCB_VIA(board)
+                v.SetPosition(pcbnew.VECTOR2I(int(corner[0]), int(corner[1])))
+                v.SetDrill(pcbnew.FromMM(0.4))
+                v.SetWidth(pcbnew.FromMM(0.8))
+                v.SetNet(net)
+                board.Add(v)
+                laid.append(v)
+                return "via_insertion", laid
+        else:
+            pts, lid, lname, _ = cand
+            if _path_is_clear(board, pts, lid, net.GetNetCode(), c):
+                laid = _lay_path(board, net, pts, lid, w)
+                return "direct_%s" % lname, laid
+    return None, []
+
+
+def gr02_repair_battery(board_path, out_path, *, blocked_net=None,
+                        immovable=(), clear_mm=0.25):
+    """GR-02: the deterministic repair battery. Mechanical moves in order on a
+    blocked net's corridor obstacles -- (1) SHIFT the free-class obstacle out
+    of the corridor (perpendicular, by overlap + clearance + width, with
+    connectivity JOGS so the obstacle's own net stays connected), (2) LAYER
+    SWAP the obstacle, (3) VIA INSERTION on the blocked net -- then route the
+    single blocked net and let FULL DRC judge. Cheapest hypothesis first; no
+    model call anywhere (the CL-08 pattern). Returns a result dict carrying a
+    DF-06-shaped claim settled by the DRC outcome in the SAME RUN (Grade 2)."""
+    import pcbnew
+    import shutil as _sh
+    _sh.copy(board_path, out_path)
+    board = pcbnew.LoadBoard(out_path)
+    if blocked_net is None:
+        unconn = sorted(_unconnected_net_set(board_path))
+        if not unconn:
+            return {"repaired": False, "why": "no blocked net found"}
+        blocked_net = unconn[0]
+    w_nm = pcbnew.FromMM(0.25)
+    c_nm = pcbnew.FromMM(clear_mm)
+    band = _corridor_band(board, blocked_net, w_nm // 2 + c_nm)
+    if band is None:
+        return {"repaired": False, "why": "blocked net has <2 pads"}
+
+    # corridor obstacles: foreign tracks crossing the band, mobility-filtered
+    obstacles = []
+    for t in list(board.GetTracks()):
+        if (t.GetClass() == "PCB_TRACK" and t.GetNetname() != blocked_net
+                and t.GetNetname() not in immovable and not t.IsLocked()):
+            s, e = t.GetStart(), t.GetEnd()
+            if _seg_corridor_overlap((s.x, s.y), (e.x, e.y), band):
+                obstacles.append(t)
+
+    (ax, ay), (bx, by), half = band
+    # corridor-perpendicular unit direction
+    import math
+    L = math.hypot(bx - ax, by - ay) or 1.0
+    px, py = -(by - ay) / L, (bx - ax) / L
+
+    moves_tried = []
+
+    def _drc_and_connect():
+        pcbnew.SaveBoard(out_path, board)
+        m = cec_score.score(out_path)
+        ok = (blocked_net not in m.detail.get("unconn_nets", [])
+              and blocked_net.lstrip("/") not in m.detail.get("unconn_nets", []))
+        return ok, m
+
+    # ---- move 1: SHIFT each obstacle out of the corridor (with jogs) -------
+    def _attempt(tag):
+        """Route the blocked net, judge by FULL DRC; ROLL BACK the attempt
+        copper if the arm fails (each arm starts from clean blocked-net state).
+        Rollback removes exactly the objects the router CREATED -- the only
+        safe handles (swig re-proxies the track list per call)."""
+        used, laid = _route_blocked_net(board, blocked_net, clear_mm=clear_mm)
+        if not used:
+            return None
+        ok, m = _drc_and_connect()
+        if ok and m.drc == 0:
+            return _gr02_result(True, tag + used, blocked_net,
+                                moves_tried, m, out_path)
+        for t in laid:                                   # rollback
+            board.Remove(t)
+        return None
+
+    for t in obstacles:
+        s, e = t.GetStart(), t.GetEnd()
+        sx, sy, ex, ey = s.x, s.y, e.x, e.y              # PLAIN ints: GetStart()
+        # returns a LIVE reference -- captured before mutation or the jogs
+        # collapse to zero length (found by the fixture, 2026-06-10)
+        need = half + t.GetWidth() // 2 + c_nm
+
+        def _signed_d(qx, qy):
+            return (qx - ax) * px + (qy - ay) * py
+        ds, de = _signed_d(sx, sy), _signed_d(ex, ey)
+        side = 1 if (ds + de) >= 0 else -1
+        # move until the LEAST-cleared endpoint sits `need` beyond the
+        # centerline on the chosen side (m may be negative = crosses it)
+        m = min(ds * side, de * side)
+        shift = max(int(need - m), int(need))
+        dx, dy = int(px * side * shift), int(py * side * shift)
+        net = t.GetNet()
+        wid = t.GetWidth()
+        lid = t.GetLayer()
+        t.SetStart(pcbnew.VECTOR2I(sx + dx, sy + dy))
+        t.SetEnd(pcbnew.VECTOR2I(ex + dx, ey + dy))
+        _lay_path(board, net, [(sx, sy), (sx + dx, sy + dy)], lid, wid)   # jogs
+        _lay_path(board, net, [(ex, ey), (ex + dx, ey + dy)], lid, wid)
+        moves_tried.append({"move": "shift", "net": net.GetNetname(),
+                            "by_mm": round(shift / 1e6, 3)})
+    if obstacles:
+        r = _attempt("shift+")
+        if r:
+            return r
+    # ---- move 2: LAYER SWAP the obstacles (operates on the shifted state --
+    # legal copper either way; full DRC remains the judge) -------------------
+    F, B = board.GetLayerID("F.Cu"), board.GetLayerID("B.Cu")
+    for t in obstacles:
+        t.SetLayer(B if t.GetLayer() == F else F)
+        moves_tried.append({"move": "layer_swap", "net": t.GetNetname()})
+    if obstacles:
+        r = _attempt("layer_swap+")
+        if r:
+            return r
+    # ---- move 3: final route retry (the candidate set includes the VIA-
+    # INSERTION arm; planar candidates fire first within the same attempt) ----
+    r = _attempt("")
+    if r:
+        return r
+    # TOTAL FAILURE: restore the PRISTINE input (panel-caught 2026-06-11 --
+    # otherwise out_path silently carried shifted obstacles + jogs + layer
+    # swaps with repaired=False, misleading any caller that treats it as a
+    # clean copy). repaired=False  =>  out_path == board_path, by contract.
+    _sh.copy(board_path, out_path)
+    return _gr02_result(False, None, blocked_net, moves_tried, None, out_path)
+
+
+def _gr02_result(repaired, move, net, tried, metrics, out_path):
+    res = {"repaired": repaired, "move": move, "net": net, "moves_tried": tried,
+           "board": out_path,
+           # DF-06 shape: the claim settles on the SAME-RUN DRC (Grade 2).
+           # State is 'settled' for BOTH outcomes BY DESIGN (panel-adjudicated
+           # 2026-06-11): a tested-and-failed claim IS settled, with
+           # settled_value carrying the outcome -- 'counter-eligible' is the
+           # PC-01 capture class for claims WITHOUT hooks, never for
+           # adjudicated failures.
+           "claim": {"claim": "blocked net %s repairs mechanically (%s) DRC-clean"
+                              % (net, move or "battery"),
+                     "hook": {"kind": "check_id", "ref": "cec_router.gr02_repair_battery"},
+                     "settlement": {"state": "settled", "grade": 2},
+                     "settled_value": bool(repaired)}}
+    if metrics is not None:
+        res["drc"] = metrics.drc
+        res["unconnected"] = metrics.unconnected
+    return res
+
+
+def gr01_congestion_grid(board_path, *, cell_mm=2.0, hotspot_factor=2.0):
+    """GR-01 v1: coarse congestion grid. Demand per cell from UNROUTED nets'
+    airwire bounding boxes (RUDY-style: each net spreads (w+h)/(w*h) wiring
+    density over its bbox -- the cec_synth_pipeline.rudy model, attributed
+    per net so contested nets are identifiable). Hotspot = cell demand above
+    hotspot_factor x mean. RETURNS hotspots + the CONTESTED-net subset in
+    route-first order. NOT YET WIRED (the GR-01 completion step): compiling
+    the contested assignments into cec_fr02 directed intents under a manager
+    presiding over the contested calls -- that wiring rides the wave-3
+    orchestrator; this function is the deterministic detection half."""
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    routed = {t.GetNetname() for t in board.GetTracks() if t.GetClass() == "PCB_TRACK"}
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            n = p.GetNetname()
+            if n and n not in routed and not n.startswith("unconnected"):
+                pads_by_net.setdefault(n, []).append(p.GetPosition())
+    bb = board.GetBoardEdgesBoundingBox()
+    x0, y0 = bb.GetLeft(), bb.GetTop()
+    cell = pcbnew.FromMM(cell_mm)
+    nx = max(1, int(bb.GetWidth() / cell) + 1)
+    ny = max(1, int(bb.GetHeight() / cell) + 1)
+    demand = {}
+    cells_of_net = {}
+    for n, pads in pads_by_net.items():
+        if len(pads) < 2:
+            continue
+        xs, ys = [p.x for p in pads], [p.y for p in pads]
+        w = max(xs) - min(xs) + cell
+        h = max(ys) - min(ys) + cell
+        dens = (w + h) / float(w * h)                    # RUDY wiring density
+        i0, i1 = int((min(xs) - x0) / cell), int((max(xs) - x0) / cell)
+        j0, j1 = int((min(ys) - y0) / cell), int((max(ys) - y0) / cell)
+        for i in range(max(0, i0), min(nx - 1, i1) + 1):
+            for j in range(max(0, j0), min(ny - 1, j1) + 1):
+                demand[(i, j)] = demand.get((i, j), 0.0) + dens
+                cells_of_net.setdefault(n, set()).add((i, j))
+    if not demand:
+        return {"grid": (nx, ny), "cell_mm": cell_mm, "hotspots": [],
+                "contested": [], "order": []}
+    mean = sum(demand.values()) / len(demand)
+    hotspots = sorted(((i, j, round(d / mean, 2)) for (i, j), d in demand.items()
+                       if d > hotspot_factor * mean), key=lambda h: -h[2])
+    hot = {(i, j) for i, j, _ in hotspots}
+    contested = sorted(
+        ((n, len(cs & hot)) for n, cs in cells_of_net.items() if cs & hot),
+        key=lambda kv: -kv[1])
+    return {"grid": (nx, ny), "cell_mm": cell_mm,
+            "hotspots": hotspots[:20],
+            "contested": [n for n, _ in contested],
+            "order": [n for n, _ in contested]}          # contested route FIRST
+
+
 def render(board_path, png_path):
     """Best-effort top render of the routed board (kicad-cli). Returns png_path or None."""
     import subprocess
