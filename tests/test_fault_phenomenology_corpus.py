@@ -169,6 +169,52 @@ class T6DvdiChain(unittest.TestCase):
         self.assertTrue(stab[0]["conditions"]["founders_ack"])
 
 
+class T8LaneTopologyAndCapability(unittest.TestCase):
+    """Owner ruling 2026-06-10 (lane/2 resolution): per-pin thresholds +
+    pins_per_lane facts + the family-scoped capability consequences."""
+
+    def test_pins_per_lane_facts(self):
+        import sys
+        sys.path.insert(0, os.path.join(ROOT, "scripts"))
+        import cec_facts as F
+        self.assertEqual(F.pins_per_lane("12vhpwr-standard"), 1)
+        self.assertEqual(F.pins_per_lane("12vhpwr-pro"), 1)
+        self.assertEqual(F.pins_per_lane("eps-8pin"), 4)
+        self.assertEqual(F.pins_per_lane("pcie-8pin-2port"), 3)
+        self.assertEqual(F.pins_per_lane("pcie-8pin-3port"), 3)
+        self.assertIsNone(F.pins_per_lane("hub-standard"))
+
+    def test_alarm_entry_resolved_to_per_pin(self):
+        v = _load(FAULT)["alarm.12vhpwr_per_pin"]["value"]
+        self.assertIn("PER-PIN", v["per_pin_computation"])
+        self.assertIn("PINS_PER_LANE", v["per_pin_computation"])
+        self.assertNotIn("lane current / 2", v["per_pin_computation"],
+                         "the slate's lane/2 is superseded by the per-pin ruling")
+
+    def test_capability_entry_and_targets_row(self):
+        cap = _load(FAULT)["capability.hog_detection_family_scope"]["value"]
+        self.assertEqual(cap["per_pin_families"], ["12vhpwr-standard", "12vhpwr-pro"])
+        self.assertIn("eps-8pin", cap["aggregate_families"])
+        self.assertIn("pcie-8pin-2port", cap["aggregate_families"])
+        self.assertIn("pcie-8pin-3port", cap["aggregate_families"])
+        rows = _load(MEAS)["meas.targets.v1"]["value"]["rows"]
+        imb = [r for r in rows if r["quantity"].startswith("imbalance")]
+        self.assertEqual(len(imb), 1)
+        self.assertEqual(imb[0]["conditions"]["ref"],
+                         "capability.hog_detection_family_scope")
+
+    def test_eps_pcie_threshold_gate(self):
+        g = _load(FAULT)["alarm.eps_pcie_threshold_gate"]["value"]
+        self.assertIn("pinned entries", g["gate"])
+        self.assertIn("TERMINAL SERIES", g["reason"])
+
+    def test_eval_verdicts_never_authority(self):
+        e = _load(FAULT)["judge.eval_verdicts_not_authority"]
+        self.assertEqual(e["applies_to"], ["judge"])
+        self.assertIn("NEVER citable as design truth", e["value"]["rule"])
+        self.assertIn("BY CONSTRUCTION", e["value"]["why"])
+
+
 class T7CrossRefsAndTyping(unittest.TestCase):
     def test_cited_entry_ids_resolve(self):
         f = _load(FAULT)

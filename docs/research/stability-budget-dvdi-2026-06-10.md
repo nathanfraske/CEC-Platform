@@ -70,9 +70,11 @@ sub-µΩ figures.
    OQ-11 + the CSS2H R-vs-K suffix flag): the dV/dI duty requires the CSS-class load-life
    spec — under the SAME worst-case treatment CSS clears by ≈23× while WSL does not clear
    at all. The platform's locked 24-pin parts and the 12VHPWR candidate are already
-   CSS2H-class; the 5VSB WSK2512 (25 mΩ, not a dV/dI lane) is unaffected. OQ-11 selection
-   should also confirm the chosen 1 mΩ part stays ≥1 mΩ after initial tolerance (the
-   275-vs-400 ppm/°C tier boundary).
+   CSS2H-class; the 5VSB WSK2512 (25 mΩ, not a dV/dI lane) is unaffected. The
+   275-vs-400 ppm/°C tier-boundary concern resolved at the datasheet (2026-06-10): the
+   Vishay 30100 TCR table binds tiers by NOMINAL value and tolerance is an orthogonal
+   ordering code — a nominal 1 mΩ part stays in its tier; no OQ-11 action needed on this
+   point.
 2. **Standard stays conditional/beta** — this is a PAPER clearance, and the validity gate
    is a BENCH gate by design: the in-situ multi-week benchmark validates (a) the aging
    shape and early-life behavior the datasheets don't give, (b) the unpublished SADC term

@@ -120,7 +120,8 @@ def board_facts(board):
             pass
     return {"name": board["name"], "families": board["families"],
             "nets": sorted(nets), "refs": refs, "lib_ids": libids,
-            "fab_target": fab_target}
+            "fab_target": fab_target,
+            "pins_per_lane": pins_per_lane(board["name"])}
 
 
 _AUTONAME = re.compile(r"^Net-\(([^-]+)-(.+)\)$")
@@ -139,6 +140,31 @@ def _net_match(pattern, net):
         if fnmatch.fnmatch(cand, pattern) or fnmatch.fnmatch(cand, pattern.lstrip("/")):
             return True
     return pattern.lstrip("/") in cands
+
+
+# --------------------------------------------------- §6.13 lane topology --
+# Owner ruling 2026-06-10 (cluster-6 follow-through): alarm thresholds are
+# defined PER-PIN, matching the spec ratings; per-lane trip values resolve
+# through THIS fact at §6.13 lock time -- the single-resolver discipline.
+# pins_per_lane = how many connector power pins one sensed lane (one shunt)
+# aggregates. CONFIRMED 2026-06-10 via BOTH paths: the generator ground truth
+# (gen-modules PINMAP: EPS 12V=[5,6,7,8], PCIe 12V=[1,2,3]) AND an independent
+# schematic read (SENSEC1_HI label count in the hand-sourced schematics: 4
+# connector-area labels on EPS, 3 on PCIe -- panel wf_1ad00275 verification).
+# 12VHPWR Standard/Pro sense PER PIN (6 shunts, one per +12V pin).
+PINS_PER_LANE = {
+    "12vhpwr-standard": 1,
+    "12vhpwr-pro": 1,
+    "eps-8pin": 4,
+    "pcie-8pin-2port": 3,
+    "pcie-8pin-3port": 3,
+}
+
+
+def pins_per_lane(board_or_family):
+    """Per-family lane-aggregation fact (None = the board has no sensed
+    power lanes, e.g. Hubs). Per-lane trip = per-pin threshold x this."""
+    return PINS_PER_LANE.get(board_or_family)
 
 
 SCOPE_DIMS = ("net_families", "netclasses", "part_classes", "regions", "families",

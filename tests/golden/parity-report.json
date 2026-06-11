@@ -82,6 +82,11 @@
   },
   {
    "checkable": "n/a",
+   "entry": "alarm.eps_pcie_threshold_gate",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
    "entry": "atx3.aic_excursion_curve",
    "zone": "staging"
   },
@@ -203,6 +208,11 @@
   {
    "checkable": "n/a",
    "entry": "can.termination.hub_split_120r",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "capability.hog_detection_family_scope",
    "zone": "staging"
   },
   {
@@ -648,6 +658,11 @@
   {
    "checkable": "yes",
    "entry": "ina240-soic8d-package-not-tssop",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "judge.eval_verdicts_not_authority",
    "zone": "staging"
   },
   {
@@ -1467,7 +1482,7 @@
   }
  ],
  "counts": {
-  "corpus_only": 293,
+  "corpus_only": 296,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,

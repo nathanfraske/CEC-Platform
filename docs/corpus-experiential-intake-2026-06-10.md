@@ -497,6 +497,37 @@ the slate's OQ-58/59 usage maps onto spec OQ-57's threshold-lock scope (spec OQ-
 the EPS/PCIe Pro and Max SKU questions) — dispositions bind to §6.13 content, recorded in
 the entries.
 
+### lane/2 RESOLVED (owner, second ruling 2026-06-10) + consequences encoded
+
+**Thresholds are defined PER-PIN, matching the spec ratings.** `pins_per_lane` fact landed
+in `cec_facts.PINS_PER_LANE` (single-resolver discipline; the compiler resolves per-lane
+trip values through it at the §6.13 lock): 12VHPWR Standard/Pro = **1**;
+**schematic-confirmed** EPS = **4** (PINMAP 12V=[5,6,7,8], per-cable SENSEC shunts) and
+PCIe = **3** (PINMAP 12V=[1,2,3]). Two consequence entries:
+- `capability.hog_detection_family_scope` — per-pin hog/imbalance detection is a
+  FAMILY-SCOPED capability (12VHPWR families only); an aggregate-sensed EPS/PCIe lane
+  structurally cannot see intra-cable hogging. The cluster-5 target table gained the
+  **imbalance row** (the quantity exists only on some families).
+- `alarm.eps_pcie_threshold_gate` — EPS/PCIe thresholds BLOCKED until their Mini-Fit
+  terminal-series per-pin ratings are pinned (existing pins cover 12VHPWR/12V-2x6 only);
+  wrinkle recorded: the mating female terminals live in the PSU vendor's cable.
+
+**The TH1-rejection reinforcement** became a standing rule:
+`judge.eval_verdicts_not_authority` — eval gold preserves analyst wrongness BY
+CONSTRUCTION; citing an eval verdict as design truth is a category error (valid only as a
+claim about extraction fidelity). Panel charters carry it from now on.
+
+**REF3030 rider executed as a CHECK, not an assumption:** U4 is placed at (149.4, 105.75),
+~25 mm from the nearest shunt (RS6) on the control side — stated-conditions envelope
+plausibly <70 °C (50 ppm would govern), but the **conservative posture gates on 75 ppm**
+until the in-case-ambient OQ or a local check at U4's coordinates confirms.
+
+**OQ-11 tier-boundary CONFIRMED at the datasheet** (owner: "confirm is the right verb"):
+Vishay 30100 binds TCR tiers by NOMINAL value ranges; tolerance is an orthogonal ordering
+code — a nominal 1 mΩ part stays in the 275 tier; concern moot. Datasheet vendored
+(`lib/datasheets/WSL-30100.pdf`, load-life line verified verbatim; the full table also
+carries ±110/±150 intermediate tiers the dive's summary skipped).
+
 **Sonnet panel (3 seats, Opus adjudicated): 8 findings, 7 applied, 1 surfaced back to the
 owner.** Applied: the `>22 A` clamp-ceiling floor flag (every der8auer-derived ratio is a
 lower bound); the `<20 ppm` element-TCR qualifier (`_max` convention); the Malucci 0.0322 V

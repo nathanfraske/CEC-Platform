@@ -11,13 +11,38 @@
   },
   "value": {
    "psu_over_450w_with_12v2x6": [
-    {"excursion_pct": 200, "duration": "100us", "test_duty_pct": 5},
-    {"excursion_pct": 180, "duration": "1ms", "test_duty_pct": 8},
-    {"excursion_pct": 160, "duration": "10ms", "test_duty_pct": 12.5},
-    {"excursion_pct": 120, "duration": "100ms", "test_duty_pct": 25},
-    {"excursion_pct": 100, "duration": "infinite"}
+    {
+     "excursion_pct": 200,
+     "duration": "100us",
+     "test_duty_pct": 5
+    },
+    {
+     "excursion_pct": 180,
+     "duration": "1ms",
+     "test_duty_pct": 8
+    },
+    {
+     "excursion_pct": 160,
+     "duration": "10ms",
+     "test_duty_pct": 12.5
+    },
+    {
+     "excursion_pct": 120,
+     "duration": "100ms",
+     "test_duty_pct": 25
+    },
+    {
+     "excursion_pct": 100,
+     "duration": "infinite"
+    }
    ],
-   "psu_under_450w_or_no_12v2x6": [150, 145, 135, 110, 100],
+   "psu_under_450w_or_no_12v2x6": [
+    150,
+    145,
+    135,
+    110,
+    100
+   ],
    "worked_example_1000w": "100us@2000W/1900us@917.7W; 1ms@1800W/11.5ms@897.3W; 10ms@1600W/70ms@881.6W; 100ms@1200W/300ms@923.8W (Table 3-4)"
   },
   "units": "percent vs duration",
@@ -49,9 +74,18 @@
    "R_below_100us": 3.0,
    "R_formula_100us_to_1s": "R = 4 - 0.2171*ln(T_us)",
    "points": [
-    {"T": "1ms", "R": 2.5},
-    {"T": "10ms", "R": 2.0},
-    {"T": "1s", "R": 1.0}
+    {
+     "T": "1ms",
+     "R": 2.5
+    },
+    {
+     "T": "10ms",
+     "R": 2.0
+    },
+    {
+     "T": "1s",
+     "R": 1.0
+    }
    ],
    "definition": "R = ratio of average power in interval T to max sustained power, at the add-in-card"
   },
@@ -156,7 +190,10 @@
    ]
   },
   "value": {
-   "onset_contact_drop_change_V": [0.01, 0.03],
+   "onset_contact_drop_change_V": [
+    0.01,
+    0.03
+   ],
    "onset_statistical_avg_V": 0.028,
    "onset_at_9A_V": 0.0322,
    "onset_resistance_rise_mohm_at_9p2A": 3.5,
@@ -251,10 +288,24 @@
    ]
   },
   "value": {
-   "rtx5090_duration_resolved_W": {"under_1ms": 901.1, "1_to_5ms": 823.6, "5_to_10ms": 738.2, "10_to_20ms": 627.5, "tgp_W": 575, "sub_1ms_ratio": 1.57},
+   "rtx5090_duration_resolved_W": {
+    "under_1ms": 901.1,
+    "1_to_5ms": 823.6,
+    "5_to_10ms": 738.2,
+    "10_to_20ms": 627.5,
+    "tgp_W": 575,
+    "sub_1ms_ratio": 1.57
+   },
    "rtx3090ti_spike_ratio_100us": 1.2,
    "rtx3090ti_significance": "first card designed to the excursion spec -- ratio collapsed from ~1.625-1.875 (3080/3090 era) to 1.2: DIRECT evidence spec-designed cards tame transients",
-   "der8auer_failing_cable_A_per_wire": [2, 5, 11, 8, 3, 22],
+   "der8auer_failing_cable_A_per_wire": [
+    2,
+    5,
+    11,
+    8,
+    3,
+    22
+   ],
    "der8auer_hog_wire_is_floor": true,
    "der8auer_hog_note": "the source reads '>22 A' -- the current clamp was at its ceiling, the true hog current is UNKNOWN and >=22 A; every downstream ratio derived from 22 is a LOWER BOUND",
    "der8auer_temps": "GPU-side socket 90C; PSU-side >140C, spiking past 150C in ~4 minutes; hog wire ~half the load",
@@ -289,7 +340,7 @@
    ]
   },
   "value": {
-   "per_pin_computation": "per-pin current = lane current / 2",
+   "per_pin_computation": "thresholds are defined PER-PIN, matching the spec ratings; per-lane trip value = per-pin threshold x pins_per_lane, resolved through cec_facts.PINS_PER_LANE at the section-6.13 lock (single-resolver discipline). 12VHPWR Standard/Pro sense per pin (pins_per_lane=1: lane current IS pin current); EPS aggregates 4 pins/lane, PCIe 3 (schematic-confirmed)",
    "warn_A_sustained": 9.5,
    "alarm_A_sustained": 11,
    "alarm_min_duration_s": 1,
@@ -310,7 +361,7 @@
   "status": "human_approved",
   "supersedes": null,
   "fixture": "tests/test_fault_phenomenology_corpus.py",
-  "notes": "Firmware comparator/alarm defaults, owner-ruled: WARN above 9.5 A sustained per pin; ALARM above 11 A sustained >1 s (tightened from the FEM-probe-era 12 A hog default -- 12 A survives only as an instantaneous ceiling); CRITICAL on imbalance ratio >2.0 or an energized ~0 A lane. Ordering sanity: balanced 600 W = 8.3 A < rating 9.2 <= WARN 9.5 < ALARM 11 << measured failure >=22 (der8auer cable reads ratio >=22/8.5 = 2.6 > 2.0, a LOWER BOUND since the hog reading is a clamp-ceiling floor -- the CRITICAL trigger fires on the documented failure with margin). Industry corroboration: ASUS ships the same per-pin + open-pin posture. SURFACED AMBIGUITY (2026-06-10 panel, OWNER TO RESOLVE at the section-6.13 threshold lock): the ruled 'per-pin current = lane current / 2' does not map cleanly onto the 12VHPWR Standard architecture, which senses each +12V pin DIRECTLY (6 INA240s on 6 per-pin shunts -- no division); EPS carries 4x12V/cable and PCIe 3x12V/cable, so neither gives /2 either. The ruling is encoded VERBATIM; the computation's architecture binding is the open half. SPEC-REVISION CANDIDATE: these defaults land in section 6.13 at promotion (threshold default lock, spec OQ-57)."
+  "notes": "Firmware comparator/alarm defaults, owner-ruled: WARN above 9.5 A sustained per pin; ALARM above 11 A sustained >1 s (tightened from the FEM-probe-era 12 A hog default -- 12 A survives only as an instantaneous ceiling); CRITICAL on imbalance ratio >2.0 or an energized ~0 A lane. Ordering sanity: balanced 600 W = 8.3 A < rating 9.2 <= WARN 9.5 < ALARM 11 << measured failure >=22 (der8auer cable reads ratio >=22/8.5 = 2.6 > 2.0, a LOWER BOUND since the hog reading is a clamp-ceiling floor -- the CRITICAL trigger fires on the documented failure with margin). Industry corroboration: ASUS ships the same per-pin + open-pin posture. AMBIGUITY RESOLVED (owner, 2026-06-10, second ruling): thresholds are PER-PIN by definition, matching the spec ratings -- the slate's 'lane/2' is SUPERSEDED; per-lane trip values derive as per-pin threshold x pins_per_lane through cec_facts.PINS_PER_LANE (12vhpwr 1, EPS 4, PCIe 3 -- schematic-confirmed against gen-modules PINMAP + the SENSEC-per-cable shunt topology), resolved by the compiler at the section-6.13 lock. TWO RIDING CONSEQUENCES, each its own entry: capability.hog_detection_family_scope (per-pin hog detection is family-scoped) + alarm.eps_pcie_threshold_gate (EPS/PCIe thresholds blocked on their own pinned connector ratings). SPEC-REVISION CANDIDATE: these defaults land in section 6.13 at promotion (threshold default lock, spec OQ-57)."
  },
  {
   "id": "capture.10khz_disposition",
@@ -424,5 +475,115 @@
   "supersedes": null,
   "fixture": "tests/test_fault_phenomenology_corpus.py",
   "notes": "The per-contact heating arithmetic for degradation reasoning: at the 9.2 A rated pin, each additional mOhm of contact resistance adds ~0.085 W -- small individually, but the Malucci onset (~3.5 mOhm rise) adds ~0.3 W concentrated in a sub-mm2 contact interface, and a >=22 A hog pin at the same rise adds >=~1.7 W (0.484 W/mOhm at 22 A -- CORPUS-LEVEL arithmetic combining this formula with the der8auer failure-current floor from evidence.gpu_transient_measured; not a figure from the source doc). The 28 A context preserves WHY the old figure existed: it described hog-pin territory."
+ },
+ {
+  "id": "capability.hog_detection_family_scope",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro",
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ]
+  },
+  "value": {
+   "rule": "per-pin hog and imbalance detection exists ONLY where sensing is per-pin (pins_per_lane=1)",
+   "per_pin_families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ],
+   "aggregate_families": {
+    "eps-8pin": "4 pins/lane",
+    "pcie-8pin-2port": "3 pins/lane",
+    "pcie-8pin-3port": "3 pins/lane"
+   },
+   "aggregate_consequence": "an aggregate-sensed EPS/PCIe lane STRUCTURALLY CANNOT see intra-cable hogging -- it sees cable-level anomalies only (total over-current, cable-vs-cable imbalance)"
+  },
+  "units": "capability",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10 (lane/2 resolution, consequence 1): hog and imbalance detection semantics are FAMILY-SCOPED capabilities. Sensing topology schematic-confirmed (cec_facts.PINS_PER_LANE provenance comment)",
+   "date": "2026-06-10"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "PRODUCT-CAPABILITY FACT for the cluster-5 target table (meas.targets.v1 carries the imbalance row referencing this entry): the per-pin imbalance QUANTITY only exists on per-pin-sensed families. A der8auer-class single-wire hog (22 A on one of six) is INVISIBLE to an aggregate EPS lane reading 4 pins summed -- the hog raises the aggregate by its excess only, indistinguishable from balanced load growth until the cable-level threshold. This is also tier/marketing truth: the imbalance alarm is a 12VHPWR-family feature, never promised platform-wide."
+ },
+ {
+  "id": "alarm.eps_pcie_threshold_gate",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "Mini-Fit",
+    "EPS12V",
+    "PCIe-8pin"
+   ],
+   "families": [
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ]
+  },
+  "value": {
+   "gate": "EPS and PCIe per-pin connector ratings need their OWN pinned entries before those families' thresholds can lock",
+   "reason": "Mini-Fit family terminal ratings VARY BY TERMINAL SERIES; the existing pinned ratings (conn.12vhpwr_pin_ratings) cover 12VHPWR 9.2 A and 12V-2x6 9.5 A only",
+   "covered_today": [
+    "12VHPWR 9.2 A/pin",
+    "12V-2x6 9.5 A/pin",
+    "55 A assembly"
+   ]
+  },
+  "units": "gate",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10 (lane/2 resolution, consequence 2). Context: bom.rating.connector_minifit_105c already pins the 105C/30C-rise housing fact (PS-5556-004) but NOT per-pin ampere ratings by terminal series",
+   "date": "2026-06-10"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "BLOCKS the section-6.13 threshold lock for the EPS/PCIe families (the 12VHPWR families are unblocked -- their ratings are pinned). CHARACTERIZATION WRINKLE to carry into the pinning pass: on an interposer the mating FEMALE terminals live in the PSU vendor's cable, not on the CEC board -- the rating that matters varies with the user's cable (solid-brass/phos-bronze 105C vs formed-brass 80C per the Molex spec language in bom.rating.connector_minifit_105c), so EPS/PCIe threshold semantics must either assume the conservative terminal series or carry a cable-class caveat."
+ },
+ {
+  "id": "judge.eval_verdicts_not_authority",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "rule": "eval-pool verdicts and gold labels are NEVER citable as design truth",
+   "why": "the eval gold preserves analyst wrongness BY CONSTRUCTION (fidelity labels measure faithful extraction of what the analyst said, not whether the analyst was right); citing an eval verdict as a design fact is a CATEGORY ERROR",
+   "recurrence": "the error class recurs every time the eval pool grows -- any judge/panel/analyst reaching for eval artifacts as evidence about the BOARD (rather than about extraction fidelity) commits it"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner reinforcement 2026-06-10, endorsing the wf_9dcf45c9-9b3 refuter-panel adjudication that REJECTED a finding citing the TH1-placement eval verdict as design authority (that verdict is the documented M2.7 miss of the v3.7 TCR-compensation intent -- preserved in the eval gold precisely AS a miss)",
+   "date": "2026-06-10"
+  },
+  "status": "human_approved",
+  "supersedes": null,
+  "fixture": null,
+  "notes": "THE FIDELITY-VS-TRUTH SEPARATION as a standing judge rule (owner: 'the refuter rejecting it with reasoning means the separation is actually understood by the machinery, not just documented'). Operational consequence: panel charters carry this rule; a finding whose evidence chain passes through an eval verdict/gold label is invalid as a design claim and valid only as a claim about extraction fidelity. Fixture-less H per ruling D1 (process rule, no mechanism)."
  }
 ]
