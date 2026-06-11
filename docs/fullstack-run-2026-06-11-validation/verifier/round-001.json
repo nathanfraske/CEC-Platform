@@ -1,0 +1,30 @@
+{
+ "round": 1,
+ "final": "refute",
+ "contention": true,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "uncertain",
+   "reason": "The provided ratified rules / locked decisions corpus is empty ([]). There are no governing constraints to validate or contradict the finding, making the corpus silent on the matter.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "evidence-provenance": {
+   "verdict": "support",
+   "reason": "The evidence only confirms DRC=28, unconnected=2, and kelvin_ok=true. It completely lacks the FEM data, pour-integrity/foreign_cross metrics, diffpair_ok status, convergence/placement details, and FR routing behavior cited in the claim. Therefore, the evidence does not support the claim as stated.",
+   "failure_class": "evidence",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "No owned lever can move max_T; the blockage is a convergence failure, not a thermal scoring issue.",
+   "failure_class": "constraint",
+   "status": "advisory"
+  }
+ },
+ "arbiter": {
+  "verdict": "refute",
+  "reason": "The actuation-space verifier is correct: the hard gate failure is convergence (unconnected=2, DRC=28), not a thermal scoring problem, and the scorer_penalty misprices this. Pricing max_T at weight 15 biases candidate selection toward boards where max_T is lower, but does not directly target the unconnected ratlines that are the actual gate blocker. The GR-02 U-detour in the manager_rule is the right repair \u2014 rerouting signal nets out of pour corridors should reduce foreign_cross, recover copper cross-section, and plausibly help convergence by relieving pour-corridor congestion \u2014 but the causal chain from detour\u2192lower max_T is indirect and downstream; a board can pass the detour and still fail the convergence gate. The evidence-provenance verifier's 'support' verdict is internally contradictory (its own reasoning states the FEM data and pour-integrity metrics are absent from the evidence), so that vote does not weigh against refute. Spec-conformance is inconclusive (empty corpus). The finding correctly diagnoses the mechanism (foreign_cross incursion as root cause) and the right lever (GR-02), but the scorer_penalty targets a thermal proxy instead of the primary convergence gate. The penalty should price routing convergence directly (unconnected count, or a foreign_cross-weighted routing cost) and reserve the max_T signal for the thermal gate tier, not conflate them.",
+  "failure_class": "scoring"
+ }
+}

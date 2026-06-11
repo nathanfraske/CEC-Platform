@@ -1,0 +1,31 @@
+{
+ "fit_classification": "no_opinion",
+ "recommendation": "no_opinion",
+ "confidence": "low",
+ "family": "unknown",
+ "headline": "corpus-fit reviewer unavailable; no precedent opinion",
+ "gate_consistency": {
+  "kelvin_ok": "no_family_precedent",
+  "diffpair_ok": "no_family_precedent",
+  "gates_pass": "no_family_precedent",
+  "flips": []
+ },
+ "metric_band": "no_band",
+ "trajectory": {
+  "shape": "unknown",
+  "coherent": true,
+  "detail": "reviewer did not run"
+ },
+ "residual_treatment": "na",
+ "outlier_metrics": [],
+ "matched_precedents": [],
+ "violated_precedents": [],
+ "concerns": [
+  {
+   "severity": "info",
+   "kind": "insufficient_data",
+   "detail": "FileNotFoundError"
+  }
+ ],
+ "critique": "reviewer unavailable; no opinion rendered."
+}

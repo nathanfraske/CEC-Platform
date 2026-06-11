@@ -1,0 +1,26 @@
+{
+ "round": 3,
+ "final": "refute",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "uncertain",
+   "reason": "The ratified rules / locked decisions corpus is empty ([]). No governing rules or locked decisions are provided to evaluate consistency or contradiction. The finding's claims regarding DRC failures, pour fragmentation, FEM over-temp flags, and the GR-02 U-detour manager rule cannot be verified or refuted against a silent corpus.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "evidence-provenance": {
+   "verdict": "refute",
+   "reason": "The evidence only confirms DRC=8 and unconnected=2. It completely lacks data on clipped nets, pour fragmentation, foreign crossing counts, FEM temperature flags, or specific net routing details claimed in the trace. Therefore, the detailed technical claims are unsupported.",
+   "failure_class": "evidence",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "The loop does not own levers to reroute foreign signal nets; foreign crossings are controlled by the signal router or placement, not by power pour geometry or GR-02 repair tools. Therefore, the proposed U-detour rule cannot be executed by this loop.",
+   "failure_class": "routing",
+   "status": "advisory"
+  }
+ },
+ "arbiter": null
+}

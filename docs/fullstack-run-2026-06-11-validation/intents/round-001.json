@@ -1,0 +1,90 @@
+[
+ {
+  "net": "+5VSB",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     0,
+     6
+    ]
+   },
+   {
+    "ref": "U2",
+    "offset_mm": [
+     0,
+     6
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/THRESH",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     4,
+     7
+    ]
+   },
+   {
+    "ref": "U2",
+    "offset_mm": [
+     4,
+     7
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/DETC1",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     -4,
+     8
+    ]
+   },
+   {
+    "ref": "U2",
+    "offset_mm": [
+     -4,
+     8
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/CAN_L",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     6,
+     4
+    ]
+   },
+   {
+    "ref": "U2",
+    "offset_mm": [
+     6,
+     8
+    ]
+   }
+  ]
+ }
+]

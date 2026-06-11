@@ -1,0 +1,60 @@
+{
+ "scorer_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 50.0,
+  "unconnected": 5.0
+ },
+ "manager_rules": [],
+ "injections": [],
+ "rejections": [
+  {
+   "kind": "penalty",
+   "metric": "max_T",
+   "action": "rejected:verifier_refuted",
+   "round": 1,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "rejected:verifier_refuted",
+   "rule": "EPS cable boards: if any /SENSEC*_HI or /SENSEC*_LO pour reports foreign_cross > 5, trigger GR-02 U-detour for all signa",
+   "round": 1,
+   "source": "sonnet"
+  },
+  {
+   "kind": "penalty",
+   "metric": "kelvin_unrouted",
+   "action": "rejected:verifier_refuted",
+   "round": 2,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "rejected:verifier_refuted",
+   "rule": "For any cable-N pour with foreign_cross > 10, run GR-02 corridor-clear on that cable's LO net (evict all crossing foreig",
+   "round": 2,
+   "source": "sonnet"
+  },
+  {
+   "kind": "penalty",
+   "metric": "max_T",
+   "action": "rejected:verifier_refuted",
+   "round": 3,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "rejected:verifier_refuted",
+   "rule": "When any power pour reports foreign_cross > 8 AND n_fem_flags >= 3, invoke GR-02 U-detour on the top-foreign-crossing si",
+   "round": 3,
+   "source": "sonnet"
+  },
+  {
+   "kind": "rule",
+   "action": "rejected:verifier_refuted",
+   "rule": "When any power pour has island_count >= 2 after pour synthesis, trigger GR-02 U-detour on the top-2 foreign-crossing net",
+   "round": 4,
+   "source": "sonnet"
+  }
+ ]
+}

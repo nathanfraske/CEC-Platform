@@ -1,0 +1,29 @@
+{
+ "error": "TimeoutError: timed out",
+ "det_clipped_nets": [
+  "/SENSEC2_HI",
+  "/SENSEC2_LO"
+ ],
+ "facts": {
+  "/SENSEC1_LO": {
+   "islands": 1,
+   "area_mm2": 111.29,
+   "foreign_cross": 14
+  },
+  "/SENSEC2_LO": {
+   "islands": 2,
+   "area_mm2": 93.33,
+   "foreign_cross": 10
+  },
+  "/SENSEC1_HI": {
+   "islands": 1,
+   "area_mm2": 78.56,
+   "foreign_cross": 6
+  },
+  "/SENSEC2_HI": {
+   "islands": 2,
+   "area_mm2": 78.01,
+   "foreign_cross": 6
+  }
+ }
+}

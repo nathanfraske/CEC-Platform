@@ -1,0 +1,32 @@
+[
+ {
+  "net": "/SENSEC2_HI",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     -5,
+     5
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/SENSEC2_LO",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U2",
+    "offset_mm": [
+     5,
+     -5
+    ]
+   }
+  ]
+ }
+]

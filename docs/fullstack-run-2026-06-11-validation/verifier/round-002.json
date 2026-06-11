@@ -1,0 +1,26 @@
+{
+ "round": 2,
+ "final": "refute",
+ "contention": false,
+ "verdicts": {
+  "spec-conformance": {
+   "verdict": "uncertain",
+   "reason": "seat error: TimeoutError: timed out",
+   "failure_class": "unknown",
+   "status": "error"
+  },
+  "evidence-provenance": {
+   "verdict": "refute",
+   "reason": "The evidence does not contain data on pour fragmentation, island counts, foreign crosses, or comparative routing factors. Under zero-tolerance sourcing, unsupported technical details in the claim result in a refutation.",
+   "failure_class": "unknown",
+   "status": "advisory"
+  },
+  "actuation-space": {
+   "verdict": "refute",
+   "reason": "The proposed lever `GR-02 corridor-clear` is not in the owned levers list (`router passes/opt_time`, `FR-02 waypoint intents`, `bake_hints keepouts`, `GR-02 repair battery (shift/swap/via)`, `power pours`). No owned lever can directly address the routing-class/pour fragmentation issue as claimed.",
+   "failure_class": "routing",
+   "status": "advisory"
+  }
+ },
+ "arbiter": null
+}

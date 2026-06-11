@@ -1,0 +1,26 @@
+{
+ "skipped": "vision seat down",
+ "det_clipped_nets": [],
+ "facts": {
+  "/SENSEC2_LO": {
+   "islands": 1,
+   "area_mm2": 111.43,
+   "foreign_cross": 12
+  },
+  "/SENSEC1_HI": {
+   "islands": 1,
+   "area_mm2": 86.74,
+   "foreign_cross": 3
+  },
+  "/SENSEC2_HI": {
+   "islands": 1,
+   "area_mm2": 85.44,
+   "foreign_cross": 7
+  },
+  "/SENSEC1_LO": {
+   "islands": 1,
+   "area_mm2": 110.8,
+   "foreign_cross": 8
+  }
+ }
+}
