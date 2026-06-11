@@ -49,6 +49,7 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 | §6.13 alarm threshold defaults (WARN >9.5 A / ALARM >11 A >1 s / CRITICAL imbalance >2.0 or ~0 A lane; 12 A = instantaneous ceiling only) — the spec-OQ-57 threshold lock | `alarm.12vhpwr_per_pin` | 2026-06-10 |
 | dV/dI tier framing into the spec (Pro ships / Standard conditional-beta + the 0.3/0.7 mΩ gates) — after founders ack | `dvdi.requirement_tier_verdict` | 2026-06-10 |
 | atx-24pin-rev2 CAN-pair naming erratum (`/CAN1_P,/CAN1_N` → `_H/_L`) — already queued as a rev3 erratum; spec mention optional | board-manifest.json | 2026-06-10 |
+| **Max instrument-channel ruling → spec** (OQ-17: ONE shared wideband V+I channel, six-channel fast array RETIRED; OQ-18: deconvolved shunt + PCB Rogowski, never a second shunt; OQ-15/19 inputs re-derive; ADC option **A1 (50–65 MS/s spec-faithful) vs A2 (25 MS/s reduced-scope, documented deviation)** still owner's pick) — ruling recorded in `docs/research/max-instrument-channel-decision-2026-06-11.md`; spec edit rides the owner pen | `docs/research/max-instrument-channel-decision-2026-06-11.md` §5 | 2026-06-11 |
 
 ## 4. Physical bench / lab (the items with real-world clocks)
 
@@ -61,6 +62,9 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 | **ESP32-S3 SADC long-term drift characterization** | unpublished by Espressif; the one unquantified dV/dI term the differential scheme bounds but can't eliminate | cluster-6 OQs |
 | 12VHPWR U4 local-temperature check (FEM probe at U4's coordinates or thermocouple) | clears the conservative 75 ppm gate to 50 ppm if <70 °C confirmed | `stab.ref3030_drift` notes |
 | OQ-56 hold-up bench check (4700 µF rides a flash write) | §2.9 power-management validation | CLAUDE.md item 0(e) |
+| **Z(f) extraction jig** (MOSFET-switched resistive step-load; board measures its own step → per-unit R+L cal constants) — one build serves BOTH this and the drift benchmark's load-step profile | the Max instrument channel's deconvolution path needs per-unit cal; also V-3 (CSS2H ESL stability) | instrument-channel decision doc §4.1 |
+| **VRM-residue first-article measurement** (real GPU harness, gaming+synthetic, full band; >1% of DC or clean N×f_sw line reopens fingerprinting, absence = the published null) | closes the genuinely-unmeasured cell; CEC-published null either way | instrument-channel decision doc §4.2 |
+| **R-1 12 V micro-arc characterization rig** (degraded-connector metallurgy, 1–9 A, 10–20 MS/s capture) — closes the last unmeasured cell of the Sandia-null transfer (verdict already CONFIRMED at 28/42/48 V) | the novel datapoint the literature lacks; final confirmation of the fast-chain de-scope | `low-voltage-arc-spectra-r1-2026-06-11.md` §(d) |
 
 ## 5. Ten-minute desk tasks (data the agent needs, human-readable sources)
 
