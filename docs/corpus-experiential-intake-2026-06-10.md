@@ -319,6 +319,67 @@ pointer," this entry is admissible as written.
 
 ---
 
+## Cluster 5 — the measurement claim (ISSUED 2026-06-10; owner reasoning)
+
+The platform's product IS measurement, and the spec scatters accuracy assertions on thin
+provenance: a "+/- 0.15% rail-voltage" platform goal (§ around REF3033), "~+/- 0.3 to 0.5%
+(INL-limited)" for the 12VHPWR Standard (OQ-8 resolution), "~+/- 1%" bare-ADC, INA228
+"+/- 0.1% typ", shunt-floor decompositions — but no per-quantity target table, no power or
+energy target at all, and a calibration strategy the spec hedges in adjacent sentences
+(§6.4: the ±1% shunt tolerance "is a fixed gain error trimmed out in the INA228 SHUNT_CAL
+register **at calibration** and so costs nothing in final accuracy; a ±0.5% grade exists
+for a board that **ships without per-unit calibration**" — per-unit cal is assumed in one
+clause and optional in the next). The M2.7 real-trace incident (cl19 gallery) was exactly
+this gap: the analyst laundered its own ±2%-vs-±0.2% REF3030 uncertainty because the corpus
+holds no facts that would have pinned it.
+
+**Division of labor:** the agent derives the datasheet ERROR BUDGET (INA240 gain/offset/
+CMRR, ESP32-S3 ADC INL, REF3030 initial+tempco, divider chain, shunt TCR×self-heating —
+companion piece to the thermal doc, runs once targets exist or in parallel). The owner
+answers what no datasheet holds:
+
+1. **The target table — what must each number MEAN, per (quantity, tier)?** Voltage /
+   current / power / energy per board class (24-pin INA228 4-rail, EPS/PCIe per-cable
+   INA238, 12VHPWR Standard per-pin, Pro LTC2358). Which spec figures are PROMISES
+   (customer-facing) vs design outcomes? Power compounds two channels' errors and has no
+   stated target; the INA228 energy accumulators integrate error over hours and have none
+   either. Each answer = an accuracy-target entry (H/decision) — the denominator of every
+   electrical calibration band, the same role the 30 °C-rise gate plays for thermal.
+2. **Calibration strategy — resolve the spec's hedge.** Per-unit factory cal or not?
+   If yes: against what bench instrument (loops into cluster 2's electrical column), at
+   what temperature (a 25 °C bench cal crosses the TCR terms before the 50 °C design
+   ambient), stored where (the "factory MAC plus database" identity is the obvious home —
+   decided?). If no: the claims derate to the no-cal grade — say so per tier. And per
+   board class: what is the ABSOLUTE anchor? The REF3030 ratiometric scheme cancels ADC
+   drift (relative); its initial tolerance is the absolute anchor of the whole Standard
+   V-channel unless something calibrates it — the exact confusion M2.7 laundered.
+3. **The truth chain.** When CEC and the customer's instrument disagree, what wins,
+   through what chain? What does the product CLAIM publicly — NIST-traceable (a legal/cost
+   commitment), "ratiometric-consistent", "characterized, not calibrated"? This sets the
+   Ruling-7 floor for electrical quantities jointly with cluster 2's bench rows.
+4. **Stability vs accuracy — the dV/dI feature's real requirement.** The spec leans on
+   REF3030 *stability* (explicitly "not just accuracy") to trend delivery-path source
+   impedance as connector-degradation early warning. What resistance delta over what
+   horizon must that trend resolve to be actionable (a mΩ-over-months number)? Stability
+   budgets differ from accuracy budgets; nothing quantifies this one, and it gates whether
+   the feature is real on Standard hardware or a Pro-only claim.
+5. **The statement form.** Typical vs worst-case? Temperature-qualified (accuracy AT the
+   50 °C design ambient vs the bench 25 °C)? Per-reading error bars in Concierge vs a
+   spec-sheet line? The form decides what the eval/judge tiers are allowed to assert about
+   a reading — and what counts as a false claim.
+
+What rides on it: the CL-13 (family, quantity) vocabulary for electrical quantities; the
+AM-04-equivalent calibration bands (claim vs bench floor, never conflated); pass/fail
+lines for the agent error-budget derivation; CL-15/16 analyst context slices that stop
+the next REF3030-style laundering.
+
+**On deck (cluster 6, preview):** the transient definition. The spec designs to a "10 kHz
+burst target" (it sizes the §6.13 RC at ~16.9 kHz, the INA238 "clears the 10 kHz" claim,
+the Pro's ~50 kHz×6) and the §6.13 comparator threshold + the 12 A-hog alarm level are
+firmware-punted — but no provenance pins what GPU transient (rise/magnitude/duration
+distribution) the platform is hunting. Public measurements exist (the GPU spike
+literature); cluster-1-style deep research applies. Gates OQ-57..59.
+
 ## What is blocked on owner data
 
 | Cluster | Scaffold ready | Owner supplies |
