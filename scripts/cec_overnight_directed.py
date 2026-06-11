@@ -94,7 +94,7 @@ INTENTS = {
 }
 
 # Pareto axes -- all lower-is-better. gates are a hard prefilter (not an axis).
-PARETO_AXES = ("drc", "unconnected", "plane_signal_mm", "length", "vias")
+PARETO_AXES = ("drc", "unconnected", "plane_signal_mm", "length", "vias", "max_T")
 
 
 def log(msg):
@@ -136,10 +136,19 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
     cec_fr02.force_protect_in_dsn(dsn, nets)
     cec_fr.run_freerouting(dsn, ses, passes=passes, opt_time=opt_time, timeout=900)
     routed = os.path.join(workdir, "routed.kicad_pcb")
-    cec_fr.import_ses(baked, ses, routed)                        # strips plane-layer tracks
+    # POWER POURS (regression fix 2026-06-11, owner-caught from the r117 render): the high-
+    # current 12V nets are carried by COPPER AREA, never FR's thin traces -- derive the
+    # additive same-net pour rects (pad-geometry-derived, route-independent) and lay them
+    # at import, AFTER the route (the proven ordering: a pour on an already-routed net only
+    # ADDS copper, never strands the Kelvin tap). Self-gating: boards with no qualifying
+    # nets get [] and a no-op. CEC_OVD_POWER_POURS=0 restores the bare-trace behaviour.
+    pours = []
+    if os.environ.get("CEC_OVD_POWER_POURS", "1") != "0":
+        pours = cec_fr.derive_power_pours(baked)
+    cec_fr.import_ses(baked, ses, routed, power_pours=pours)     # strips plane-layer tracks
     hygiene = cec_fr02.clean_orphan_stubs(routed, res)
     stub_summary = {"n_stubs": len(res["stubs"]), "compile_failures": res["failures"],
-                    "nets": nets, **hygiene}
+                    "nets": nets, "n_power_pours": len(pours), **hygiene}
     return routed, stub_summary, {"passes": passes, "opt_time": opt_time}
 
 
@@ -182,6 +191,27 @@ def score_and_log(routed, board, stub_summary, params, rnd):
     return rec, log_path
 
 
+def fem_advisory(routed, board):
+    """Tier 3.5 (README §8): analytic electrothermal FEM on the routed+POURED candidate --
+    cec_synth_pipeline.electrothermal_solve (IPC Picard: J -> T -> rho(T), per-net parallel
+    cross-section incl. the new pours, via split, shunt I^2R) + physics_gates.
+    ADVISORY ONLY until the AM-04 PR-two debt fix (segment-sum cross_mm2 is ~5x optimistic
+    on lanes): max_T / flags go into the record + dashboard + Pareto axes, NEVER into
+    gates_pass. Fail-safe: any error costs the fields, not the round."""
+    try:
+        import cec_synth_pipeline as sp
+        cfg = sp.Config.load(board)
+        res = sp.electrothermal_solve(routed, cfg)
+        flags = sp.physics_gates(res, cfg)
+        return {"max_T": round(res.max_T, 1), "max_dT": round(res.max_dT, 1),
+                "fem_ambient": res.ambient, "fem_calibration": res.calibration,
+                "n_fem_flags": len(flags),
+                "fem_flags": [{"name": f.name, "where": str(f.where), "conf": f.conf}
+                              for f in flags[:8]]}
+    except Exception as e:                                       # noqa: BLE001
+        return {"fem_error": f"{type(e).__name__}: {e}"}
+
+
 def _routed_sha(routed):
     """sha256 of the routed copper (tracks+vias) for R-01 candidate dedupe."""
     import pcbnew
@@ -206,6 +236,7 @@ def route_one_worker(board, rnd, passes=None, opt_time=None):
                                                        passes=passes, opt_time=opt_time)
         sha = _routed_sha(routed)
         rec, log_path = score_and_log(routed, board, stub_summary, params, rnd)
+        rec.update(fem_advisory(routed, board))                 # tier 3.5 (advisory)
         persisted = os.path.join(OUT_DIR, f"{board}-r{rnd}.kicad_pcb")
         os.makedirs(OUT_DIR, exist_ok=True)
         import shutil
@@ -260,8 +291,11 @@ def _dominates(a, b):
 
 
 def pareto_frontier(records):
-    """Non-dominated set over PARETO_AXES, among GATE-PASSING candidates only."""
-    pool = [r for r in records if r["gates_pass"]]
+    """Non-dominated set over PARETO_AXES, among GATE-PASSING candidates only.
+    A record missing an axis (e.g. fem_error left no max_T) is excluded -- it cannot
+    be compared, and the FEM-advisory tier should never silently advantage a candidate
+    the solver crashed on."""
+    pool = [r for r in records if r["gates_pass"] and all(k in r for k in PARETO_AXES)]
     front = []
     for r in pool:
         if any(_dominates(o, r) for o in pool if o is not r):
