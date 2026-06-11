@@ -32,11 +32,13 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 
 | Item | Why | Recorded |
 |---|---|---|
-| **Merge the open PR chain** (`claude/corpus-experiential-intake` stacked on `claude/cl19-real-register`; PR #26 first if still open) | everything this session staged | branch state |
+| ~~Merge the open PR chain~~ DONE 2026-06-11 (PRs #29/#30 merged; cl19 was contained in #30). Remaining: **merge PR #31** (pour wiring fix + FEM tier 3.5) + the seat-bindings PR (vision/extractor/frontier policy edits); prune the stale `claude/cl19-real-register` + recreated `claude/corpus-experiential-intake` remote branches | the full-stack night driver builds on #31 | branch state |
 | **Re-sign pass over staging** (Decision 2): promote what you stand behind — now 61 general entries (all the session's `human_approved`-without-signoff rows await the GitHub signoff act) + 258 extracted rows needing class/typed-source upgrades at promotion | the promoted/ zone is still EMPTY; nothing blocks until promotion is wanted, but no blocking artifact exists until then | corpus lint warnings (designed) |
 | **Founders ack — exactly two items** (scope shrunk 2026-06-10): the promise rows (`meas.targets.v1`) and the dV/dI tier framing (`dvdi.requirement_tier_verdict`). The traceability wording goes to them **as decided**, not open | those two entries cannot promote without it | `meas.targets.v1` / `dvdi.requirement_tier_verdict` notes |
 | Branch-protection count=1 fix (owner ruling #12 caveat) | NOTHING promotes until it lands | owner-session doc 2026-06-10 |
-| CL-19 owner gate ritual: review the drafted real-register gold labels, write the `eval_gate` record into cec-policy.json | the 27B extractor seat stays non-load-bearing until then (gate FAIL recorded honestly — quote-discipline) | cl19 branch, trace gallery |
+| CL-19 owner gate ritual: ~~review labels + write the record~~ IN PROGRESS 2026-06-11 — owner verbally ratified the seat ("stand behind the extractor"); the run-2 FAIL was against a STALE eval set (the owner-session relabel changed `eval_set_sha`), so run 3 against the current set is the gate-of-record; the record lands in the seat-bindings PR on its honest result | the 27B extractor seat flips load-bearing only on a PASS | seat-bindings PR, `build/extractor-eval-run3.json` |
+| Vision-judge binding: DONE 2026-06-11 (owner ratified; eval_gate→passed on the CL-22 bake-off evidence, load_bearing→true, selection/structure-only contract) — lands in the seat-bindings PR | CL-22 vision tier live for the full-stack night | seat-bindings PR |
+| Frontier seat: **DEFERRED-NOT-DEAD** (owner 2026-06-11): Decisions 8/11 stay open, option explicitly held — scaffolding stays wired so a later binding is a policy edit, not a build. Revisit when a night surfaces a contention class the local seats can't settle | nothing blocks; revisit trigger recorded | cec-policy.json frontier ref |
 
 ## 3. Spec edits (drafted, waiting on the owner's pen — the corpus never amends the spec sideways)
 

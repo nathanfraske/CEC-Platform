@@ -97,7 +97,9 @@ def binding_problems(policy):
                             f"(load-bearing requires a passed gate)")
         # CL-19 R4: a gate record that cites an eval_set_sha is STALE when the
         # set has changed since the recorded run -- stale reads as absent.
-        if gate == "pass" and gate_rec.get("eval_set_sha"):
+        # ("passed" is the bindings convention per the _note; accept both so the
+        # guard actually fires -- it was dead code against real records before.)
+        if gate in ("pass", "passed") and gate_rec.get("eval_set_sha"):
             cur = _current_eval_set_sha(role)
             if cur and cur != gate_rec["eval_set_sha"]:
                 problems.append(

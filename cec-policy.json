@@ -65,8 +65,8 @@
   },
   "vision-judge": {
    "modality": "vision",
-   "load_bearing": false,
-   "contract": "local VLM grounding-judge seat for CL-22. Binding ABSENT until the golden-render bake-off (CL-11 fixtures: REF3030 adjacency + lane-via must fire pre-fix, stay quiet post-fix).",
+   "load_bearing": true,
+   "contract": "local VLM grounding-judge seat for CL-22 under the v2 facts-alongside protocol. Structure/text reading + selection-vs-references ONLY (CL-21: seats canNOT measure -- geometry stays with the deterministic checkers). Gate: golden-render bake-off PASSED 2026-06-10; owner ratified the binding 2026-06-11.",
    "tier": "R1"
   }
  },
@@ -194,8 +194,9 @@
    },
    "license_cleared": true,
    "eval_gate": {
-    "status": "absent",
-    "ref": "CL-22 golden-render bake-off NOT yet run"
+    "status": "passed",
+    "ref": "CL-22 golden-render bake-off 2026-06-10: 12/12 gate verdicts under the v2 facts-alongside protocol (docs/vlm-bakeoff-2026-06-10.md; CL-11 fixtures fired pre-fix, quiet post-fix). Owner sign-off 2026-06-11 (Decision 8/9 binding act). CAVEAT carried from the bake-off: 1/2 on the A/B perception probe (A-bias) -- selection/structure duties only, never measurement.",
+    "signed_off": "nathanfraske 2026-06-11"
    }
   },
   "frontier": {
@@ -206,7 +207,7 @@
    "license_cleared": true,
    "eval_gate": {
     "status": "absent",
-    "ref": "Decisions 8/11 (API spend + egress) unresolved"
+    "ref": "Decisions 8/11 (API spend + egress) DEFERRED by owner 2026-06-11 -- explicitly NOT closed: the option stays open and the seat scaffolding (CL-16 escalation triggers, CL-22 panel slot) is kept wired so binding a frontier model later is a policy edit, not a build."
    }
   }
  },
