@@ -181,8 +181,9 @@
    },
    "license_cleared": true,
    "eval_gate": {
-    "status": "absent",
-    "ref": "CL-19 fidelity eval NOT yet built -- binding NON-load-bearing until then"
+    "status": "failed",
+    "ref": "CL-19 eval run 3, 2026-06-11 (the gate-of-record on the CURRENT post-relabel set; run-2 FAIL was against the stale pre-relabel set): GATE FAIL -- real register 6 cases, field_accuracy 0.333, zero-tolerance failures all span/quote-discipline (the 27B paraphrases trace spans instead of verbatim quotes; verifier is zero-fuzz by owner ruling). Owner intends to stand behind the seat (2026-06-11) -- the gate stays honest until a remediation passes: candidate fixes = seat-model swap (gpt-oss-120b comparison run dispatched) or extraction-side exact-span location. Report build/extractor-eval-run3.json sha256 9cbd122d24c9.",
+    "eval_set_sha": "cf7355a405343611802a90f095ca6d385aa9249a3133eba846730cd6ea326623"
    }
   },
   "vision-judge": {
