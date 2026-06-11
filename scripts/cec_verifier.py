@@ -56,6 +56,7 @@ PRECISION_FLOOR = 0.70                     # Decision 9
 CAL_WINDOW = 30                            # rolling settlements per charter
 CAL_MIN_SETTLED = 10                       # below this, suspension can never fire
 SEAT_MAX_TOKENS = 600                      # micro-schema ceiling
+SEAT_TIMEOUT = int(os.environ.get("CEC_VERIFIER_TIMEOUT", "300"))   # ride a swap (caller warms first)
 V4_MODEL = os.environ.get("CEC_V4_MODEL", "deepseek-v4-flash")
 V4_MAX_TOKENS = int(os.environ.get("CEC_V4_MAX_TOKENS", "14000"))   # measured convergence budget
 
@@ -243,7 +244,7 @@ class VerifierSession:
             out = jl._chat_json(spec["system"], spec["slice"](finding, ctx), VERDICT_SCHEMA,
                                 name="verifier", temperature=spec["temperature"],
                                 max_tokens=SEAT_MAX_TOKENS, model=self.model, url=self.url,
-                                timeout=180)
+                                timeout=SEAT_TIMEOUT)
             out["status"] = self.cal.status(charter)
             return out
         except Exception as e:                                   # noqa: BLE001
