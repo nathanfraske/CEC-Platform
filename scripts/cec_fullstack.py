@@ -76,6 +76,14 @@ SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "600"))   # was 120-180
 WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min cold start
 PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
                "gate_fail", "kelvin_unrouted", "diffpair_unrouted", "max_T")
+# OWNED LEVERS -- the corrected actuation-space owned-list (retrospective §2/§4, lesson 2).
+# Single source of truth: fed to the auditor prompt AND the verifier actuation-space ctx so
+# the generator and the gate share one definition of "a lever the loop can pull". A scorer-
+# metric REWEIGHT is NOT in this set -- it only reorders the existing candidate population
+# (lesson 4: selection cannot create candidates).
+OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
+                "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
+                "battery (shift/swap/via), power pours")
 
 INTENTS_SCHEMA = {
     "type": "object",
@@ -400,15 +408,30 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None):
         pour_line = (f"POUR-INTEGRITY (vision + deterministic): clipped_nets="
                      f"{pourcheck.get('clipped_nets') or pourcheck.get('det_clipped_nets')}, "
                      f"facts={json.dumps(pourcheck.get('facts', {}))[:400]}\n")
+    # PRIOR REFUTES this run, threaded back in (lesson 6) so the auditor does not re-derive a
+    # class the verifier already killed. Compact: kind+metric/rule-head+reason-class.
+    prior_refutes = [{"kind": e.get("kind"), "metric": e.get("metric"),
+                      "rule": (e.get("rule") or "")[:60]}
+                     for e in lr.get("rejections", [])[-8:]
+                     if "refuted" in e.get("action", "") or "tripwire" in e.get("action", "")]
+    refuted_metrics = sorted(set(lr.get("refuted_metrics", [])))
     prompt = (
         "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Constraints "
         "you operate under, learned from the last run converging to a local minimum:\n"
+        f"- ALLOWED LEVERS (the ONLY things the loop can pull): {OWNED_LEVERS}.\n"
+        "- A SCORER-METRIC REWEIGHT IS NOT A LEVER. It only reorders the candidates that already "
+        "exist; it cannot create a better board. If the real fix needs generation (a different "
+        "route / placement / keepout / waypoint), name THAT lever in `proposed_lever` and leave "
+        "`scorer_penalty` null. Only price a metric when a gate-passing candidate ALREADY exists "
+        "and pricing is needed to rank it first.\n"
+        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} have "
+        "already been refuted this run and will be auto-rejected by a deterministic tripwire. "
+        "Switch lever class instead.\n"
         f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. "
-        "At the cap you may only propose a CONSOLIDATION (one rule replacing several) or nothing.\n"
-        "- ACTUATION: propose a penalty ONLY if a lever in the loop (router effort, intents, "
-        "keepouts, GR-02 repair) can actually move that metric. A placement-class blockage must be "
-        "attributed as failure_class=placement, NOT priced.\n"
-        "- NOVELTY: a rephrase of an existing rule will be rejected by a deterministic gate.\n\n"
+        "At the cap propose only a CONSOLIDATION or nothing.\n"
+        "- ACTUATION: a placement/structural-density blockage must be attributed "
+        "failure_class=placement, NOT priced.\n"
+        "- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.\n\n"
         f"ROUND {rnd} candidate:\n{json.dumps(metrics, indent=1)}\n"
         f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}\n"
         f"FEM flags: {json.dumps(rec.get('fem_flags', [])[:4])}\n"
@@ -416,10 +439,16 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None):
         f"stub summary: {json.dumps(rec.get('stub_summary', {}))}\n\n"
         f"Current injected penalties: {json.dumps(lr['scorer_penalties'])}\n"
         f"Standing rules ({len(lr['manager_rules'])}): {json.dumps(lr['manager_rules'][-6:])}\n"
+        f"Prior refutes this run (do not repeat the class): {json.dumps(prior_refutes)}\n"
         f"Penalisable keys: {list(PENALISABLE)}\n\n"
+        "SCHEMA -- `root_cause` is your bankable diagnosis (ALWAYS fill it; it is kept even if the "
+        "lever is refused). `proposed_lever` is gated against the allowed set; `scorer_penalty` is "
+        "for ranking only and must be null unless a gate-passing candidate already exists.\n"
         f"Use the Write tool to write ONLY this JSON to {out_path} :\n"
-        '{"verdict":"accept|repair|escalate","reasoning":"...","failure_class":'
-        '"routing|placement|scoring|constraint|none",'
+        '{"verdict":"accept|repair|escalate","root_cause":"<diagnosis, always filled>",'
+        '"reasoning":"...","failure_class":"routing|placement|scoring|constraint|none",'
+        '"proposed_lever":{"lever":"<one of the ALLOWED LEVERS>","target":"<net/ref/region>",'
+        '"detail":"..."}|null,'
         '"scorer_penalty":{"metric":"...","weight":<number>,"rationale":"..."}|null,'
         '"manager_rule":"..."|null}\nThen reply DONE.')
     try:
@@ -459,10 +488,37 @@ def novelty_ok(rule, lr):
     return True
 
 
+# Fact classes the auditor may cite -> the evidence-bundle key that must carry them. The
+# citable set and the bundle set are ONE contract (lesson 9/10): if the auditor cites a class
+# the bundle lacks, the provenance seat refutes a TRUE fact. bundle_gaps() is the contract check.
+_FACT_CLASSES = {"island": "pour_facts", "foreign_cross": "pour_facts",
+                 "foreign cross": "pour_facts", "copper": "pour_facts", "pour": "pour_facts",
+                 "fem": "fem_flags", "thermal": "fem_flags", "over-temp": "fem_flags",
+                 "max_t": "max_T"}
+
+
+def bundle_gaps(finding, evidence):
+    """Which fact classes the finding cites that the evidence bundle does not carry (empty/absent).
+    Empty list = the bundle is complete for what the auditor said."""
+    text = json.dumps(finding).lower()
+    gaps = set()
+    for kw, key in _FACT_CLASSES.items():
+        if kw in text and not evidence.get(key):
+            gaps.add(key)
+    return sorted(gaps)
+
+
 def inject(finding, lr, rnd, source, verifier_final):
     """Additive-only injection with rule cap + novelty + verifier gate. Every
     accepted item -> DF-01 ratification candidate (never auto-promoted)."""
     events = []
+    # BANK THE DIAGNOSIS (lesson 3): root_cause persists even when the lever is refused, so a
+    # good causal trace is not discarded with a bad fix. Deduped by normalized text.
+    rc = (finding.get("root_cause") or "").strip()
+    if rc and len(rc) >= 12:
+        seen = {_norm_text(d["root_cause"]) for d in lr.setdefault("diagnoses", [])}
+        if _norm_text(rc) not in seen:
+            lr["diagnoses"].append({"round": rnd, "source": source, "root_cause": rc[:400]})
     sp = finding.get("scorer_penalty")
     if isinstance(sp, dict) and sp.get("metric") in PENALISABLE:
         metric, ok = sp["metric"], True
@@ -470,7 +526,13 @@ def inject(finding, lr, rnd, source, verifier_final):
             w = float(sp.get("weight"))
         except (TypeError, ValueError):
             w, ok = None, False
-        if verifier_final == "refute":
+        if metric in lr.setdefault("refuted_metrics", []):
+            # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
+            # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
+            events.append({"kind": "penalty", "metric": metric,
+                           "action": "rejected:knob_tripwire"})
+        elif verifier_final == "refute":
+            lr["refuted_metrics"].append(metric)
             events.append({"kind": "penalty", "metric": metric,
                            "action": "rejected:verifier_refuted"})
         elif not ok or w < 0:
@@ -547,7 +609,8 @@ def run(board, rounds, hours):
     os.makedirs(PERM, exist_ok=True)
     deadline = time.time() + hours * 3600.0 if hours else None
     lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
-          "manager_rules": [], "injections": [], "rejections": []}
+          "manager_rules": [], "injections": [], "rejections": [],
+          "diagnoses": [], "refuted_metrics": []}
     vs = cec_verifier.VerifierSession()
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
         f"v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP}")
@@ -561,6 +624,8 @@ def run(board, rounds, hours):
     records, intents, rnd = [], ovd.INTENTS[board], 0
     passes, opt_time, kelvin_stall, finalists_seen = 24, 40, 0, set()
     batch_for_v4 = []
+    prev_pour_sig = None              # (sum islands, sum foreign_cross) -- pour-geometry delta guard
+    pending_corridor_avoid = []       # item 4: offending-net avoid-intents carried to the next round
     while True:
         rnd += 1
         if rounds and rnd > rounds:
@@ -575,6 +640,14 @@ def run(board, rounds, hours):
             # T1 intent manager
             last = records[-1] if records else None
             intents, why, src = intent_manager(board, grid, intents, last, rnd)
+            # Item 4 lever: carry last round's OFFENDING-net corridor-avoidance intents in, so the
+            # foreign signal nets that clipped the pours route AROUND the corridor THIS round (the
+            # untried lever -- r3 only waypointed the victim Kelvin nets).
+            if pending_corridor_avoid:
+                have = {i["net"] for i in intents}
+                intents = intents + [i for i in pending_corridor_avoid if i["net"] not in have]
+                log(f"  T1 + corridor-avoid (offending): "
+                    f"{[i['net'] for i in pending_corridor_avoid]}")
             ipath = _d("intents", f"round-{rnd:03d}.json")
             json.dump(intents, open(ipath, "w"), indent=1)
             log(f"  T1 intents[{src}]: {[i['net'] for i in intents]} -- {why[:80]}")
@@ -610,32 +683,90 @@ def run(board, rounds, hours):
             pour_clipped_nets = sorted(set((pourcheck.get("clipped_nets") or []) +
                                            (pourcheck.get("det_clipped_nets") or [])))
 
+            # SCORER HOTFIX (retrospective lesson 7): re-rank with the pour-aware, gate-gated
+            # objective. While gates fail, DRC earns NO credit and pour integrity (island excess +
+            # sense-corridor copper) is the first-class differentiator -- so the loop cannot shave
+            # DRC by fragmenting the pours. This becomes rec["objective"] for the frontier + best pick.
+            import cec_score
+            _pf = pourcheck.get("facts", {}) or {}
+            islands_excess = sum(max(0, (v.get("islands", 1) or 1) - 1)
+                                 for v in _pf.values() if isinstance(v, dict))
+            sense_copper = sum((v.get("area_mm2", 0) or 0)
+                               for v in _pf.values() if isinstance(v, dict))
+            rec["islands_excess"] = islands_excess
+            rec["sense_copper"] = round(sense_copper, 2)
+            rec["objective_base"] = rec.get("objective", 0.0)
+            rec["objective"] = round(cec_score.objective_v2(
+                gates_pass=rec["gates_pass"], drc=rec["drc"], islands_excess=islands_excess,
+                sense_copper=sense_copper, base=rec.get("objective", 0.0)), 2)
+
+            # Item 4: if a sense corridor clipped, prepare OFFENDING-net avoidance intents for the
+            # NEXT round -- route the contested SIGNAL nets (not sense, not power) around the clipped
+            # corridor. Geometry from cec_fr02.clipped_corridor_rects (in-container; safe no-op host).
+            pending_corridor_avoid = []
+            if pour_clipped_nets:
+                import cec_fr02
+                corridors = cec_fr02.clipped_corridor_rects(rec["routed"], pour_clipped_nets)
+                contested = [c if isinstance(c, str) else c.get("net")
+                             for c in grid.get("contested", [])]
+                offending = [n for n in contested if n and not cec_fr02.is_sense_net(n)
+                             and not str(n).startswith(("GND", "+"))]
+                pending_corridor_avoid = cec_fr02.offending_net_intents(corridors, offending)
+                if pending_corridor_avoid:
+                    log(f"  item4: next-round corridor-avoid for "
+                        f"{[i['net'] for i in pending_corridor_avoid]} around {list(corridors)}")
+
             # T5 auditor (host Sonnet; SEES the pour-clip) -> CL-24 verifier -> guarded injection
             sj = sonnet_audit(rec, lr, rnd, pourcheck=pourcheck)
-            vres, events = None, []
-            if sj.get("scorer_penalty") or sj.get("manager_rule"):
-                warm("cec-worker")           # verifier seats are worker calls; vision swapped it out
-                ctx = {"rules_excerpt": json.dumps(lr["manager_rules"]),
-                       "evidence": json.dumps({k: rec.get(k) for k in
-                                               ("drc", "kelvin_ok", "plane_signal_mm",
-                                                "unconnected", "reasons")}),
-                       "levers": "router passes/opt_time, FR-02 waypoint intents, bake_hints "
-                                 "keepouts, GR-02 repair battery (shift/swap/via), power pours",
-                       "metrics": json.dumps([{k: r.get(k) for k in ("round", "drc", "kelvin_ok")}
-                                              for r in records[-6:]])}
-                vres = vs.verify({"issue": sj.get("reasoning", "")[:600],
-                                  "scorer_penalty": sj.get("scorer_penalty"),
-                                  "manager_rule": sj.get("manager_rule")}, ctx)
-                vfinal = vres.final if vres else "uncertain"
-                json.dump({"round": rnd, "final": vfinal,
-                           "contention": vres.contention if vres else None,
-                           "verdicts": vres.verdicts if vres else None,
-                           "arbiter": vres.arbiter if vres else None},
-                          open(_d("verifier", f"round-{rnd:03d}.json"), "w"), indent=1, default=str)
-                events = inject(sj, lr, rnd, "sonnet", vfinal)
-                log(f"  T5+CL24: auditor={sj.get('verdict')} fc={sj.get('failure_class')} "
-                    f"verifier={vfinal}{' CONTENTION' if vres and vres.contention else ''} "
-                    f"-> {[e['action'] for e in events]}")
+            vres, events, miss = None, [], []
+            sp = sj.get("scorer_penalty") if isinstance(sj.get("scorer_penalty"), dict) else {}
+            has_rule = bool(sj.get("manager_rule"))
+            tripwired = sp.get("metric") in lr.get("refuted_metrics", [])
+            if sp or has_rule:
+                if tripwired and not has_rule:
+                    # KNOB TRIPWIRE pre-check (lesson 5 + lesson 1): a refuted-metric reweight with
+                    # nothing else to judge is auto-rejected with NO verifier spend.
+                    events = inject(sj, lr, rnd, "sonnet", "tripwire")
+                    log(f"  T5 TRIPWIRE: refuted metric '{sp.get('metric')}' re-proposed -> "
+                        f"auto-reject, no verifier spend -> {[e['action'] for e in events]}")
+                else:
+                    warm("cec-worker")       # verifier seats are worker calls; vision swapped it out
+                    # BUNDLE COMPLETENESS (lesson 9/10): the verifier's evidence bundle must carry
+                    # every fact class the auditor was permitted to cite (pour facts, FEM, max_T) or
+                    # the provenance seat refutes TRUE facts. Built from the SAME facts.
+                    evidence = {k: rec.get(k) for k in ("drc", "kelvin_ok", "plane_signal_mm",
+                                                        "unconnected", "max_T", "reasons")}
+                    evidence["fem_flags"] = (rec.get("fem_flags") or [])[:6]
+                    evidence["pour_facts"] = pourcheck.get("facts", {})
+                    evidence["pour_clipped_nets"] = pour_clipped_nets
+                    miss = bundle_gaps(sj, evidence)
+                    if miss:
+                        log(f"  ! bundle-completeness gap (auditor cited, bundle lacked): {miss}")
+                    ctx = {"rules_excerpt": json.dumps(lr["manager_rules"]),
+                           "evidence": json.dumps(evidence),
+                           "levers": OWNED_LEVERS,
+                           "metrics": json.dumps([{k: r.get(k) for k in ("round", "drc", "kelvin_ok")}
+                                                  for r in records[-6:]])}
+                    vres = vs.verify({"issue": sj.get("reasoning", "")[:600],
+                                      "root_cause": sj.get("root_cause"),
+                                      "scorer_penalty": sj.get("scorer_penalty"),
+                                      "proposed_lever": sj.get("proposed_lever"),
+                                      "manager_rule": sj.get("manager_rule")}, ctx)
+                    vfinal = vres.final if vres else "uncertain"
+                    json.dump({"round": rnd, "final": vfinal,
+                               "verdict_type": getattr(vres, "verdict_type", None),
+                               "live_seats": getattr(vres, "live_seats", None),
+                               "dark_seats": getattr(vres, "dark_seats", None),
+                               "contention": vres.contention if vres else None,
+                               "verdicts": vres.verdicts if vres else None,
+                               "arbiter": vres.arbiter if vres else None,
+                               "bundle_gaps": miss},
+                              open(_d("verifier", f"round-{rnd:03d}.json"), "w"), indent=1, default=str)
+                    events = inject(sj, lr, rnd, "sonnet", vfinal)
+                    log(f"  T5+CL24: auditor={sj.get('verdict')} fc={sj.get('failure_class')} "
+                        f"verifier={vfinal}/{getattr(vres, 'verdict_type', '?')}"
+                        f"{' CONTENTION' if vres and vres.contention else ''} "
+                        f"-> {[e['action'] for e in events]}")
             else:
                 log(f"  T5: auditor={sj.get('verdict')} (no proposals)")
 
@@ -689,6 +820,20 @@ def run(board, rounds, hours):
                     f"findings={len(v4.get('findings', []))}")
                 batch_for_v4 = []
 
+            # VISION-REQUIRED guard (lesson 9): when pour geometry moves materially between rounds
+            # but the vision seat did not run, the round's pour verdict rests on the deterministic
+            # facts alone -- flag it so scoring credit / promotion treats it as unverified.
+            _pf = pourcheck.get("facts", {}) or {}
+            pour_sig = (sum((v.get("islands", 1) or 1) for v in _pf.values() if isinstance(v, dict)),
+                        sum((v.get("foreign_cross", 0) or 0) for v in _pf.values() if isinstance(v, dict)))
+            vision_ran = "pours_intact" in pourcheck
+            geom_delta = (abs(pour_sig[0] - prev_pour_sig[0]) + abs(pour_sig[1] - prev_pour_sig[1])
+                          if prev_pour_sig else 0)
+            vision_required_unmet = bool(geom_delta >= 3 and not vision_ran)
+            if vision_required_unmet:
+                log(f"  ! VISION-REQUIRED unmet: pour-geometry delta={geom_delta} but vision seat down")
+            prev_pour_sig = pour_sig
+
             # T9 measurement + ledger
             row = {"round": rnd, "ts": time.strftime("%H:%M:%S"), "sha": rec.get("sha"),
                    "intents_src": src, "passes": passes, "opt_time": opt_time,
@@ -703,6 +848,8 @@ def run(board, rounds, hours):
                    "pour_clipped": bool(pour_clipped_nets), "pour_clipped_nets": pour_clipped_nets,
                    "pour_vision": (pourcheck.get("pours_intact") if "pours_intact" in pourcheck
                                    else pourcheck.get("skipped") or pourcheck.get("error")),
+                   "vision_required_unmet": vision_required_unmet,
+                   "verdict_type": getattr(vres, "verdict_type", None),
                    "v4_risk": (v4 or {}).get("local_minimum_risk")}
             with open(_d("measurement.jsonl"), "a") as fh:
                 fh.write(json.dumps(row) + "\n")

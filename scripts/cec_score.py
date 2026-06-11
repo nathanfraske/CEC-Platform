@@ -25,7 +25,10 @@
 import os, sys, json, re, subprocess, tempfile
 from dataclasses import dataclass, field
 
-import pcbnew
+try:
+    import pcbnew                       # only the DRC paths need it; the scoring math is pure-python
+except ImportError:                     # host without KiCad (R-05 toolchain degradation)
+    pcbnew = None
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_toolchain as _tc   # dependency-free toolchain presence helpers (R-05)
 
@@ -543,6 +546,38 @@ def objective(m: "Metrics", weights: dict | None = None) -> float:
         + (1.0 - m.balance) * abs(w["balance"])
     )
     return cost
+
+
+# Pour-aware, gate-gated ranking weights (retrospective lesson 7). gate_fail_base dominates so any
+# gate-FAILING board ranks strictly worse than any gate-passing one; island/copper price pour
+# integrity as a first-class term.
+DEFAULT_V2_WEIGHTS = {"gate_fail_base": 1_000_000.0, "island": 5_000.0, "copper": 100.0}
+
+
+def objective_v2(*, gates_pass, drc, islands_excess, sense_copper, base=0.0, weights=None):
+    """Pour-aware, gate-gated ranking cost (LOWER IS BETTER) -- retrospective lesson 7.
+
+    The last run rode its DRC proxy into a physically worse board: it shaved DRC by routing signal
+    through the sense corridors, fragmenting the pours, while gates never passed. Fix:
+
+      * NO DRC CREDIT WHILE gates_pass IS FALSE. A gate-failing board's cost is a fixed base plus the
+        pour-integrity term ONLY -- shaving DRC cannot lower it, so the loop cannot buy proxy
+        improvement with sense-copper destruction.
+      * POUR INTEGRITY IS FIRST-CLASS: + island-excess cost (fragmentation) and - copper reward
+        (sense-corridor copper area). The round-1 board (intact pours, worst DRC) then wins the
+        scorer the way it won the eye.
+
+    For a gate-PASSING board the supplied `base` (the normal soft cost, which credits DRC=0,
+    length, vias, balance) is used and the pour term refines it; gate_fail_base keeps every
+    gate-failing board above every gate-passing one regardless of pour state.
+    """
+    w = dict(DEFAULT_V2_WEIGHTS)
+    if weights:
+        w.update(weights)
+    pour = w["island"] * max(0.0, islands_excess) - w["copper"] * max(0.0, sense_copper)
+    if gates_pass:
+        return base + pour
+    return w["gate_fail_base"] + pour      # drc intentionally NOT credited while failing
 
 
 # ---------------------------------------------------------------------------

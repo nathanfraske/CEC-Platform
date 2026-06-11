@@ -200,6 +200,9 @@ class VerifierResult:
     arbiter: dict | None
     final: str                           # support | refute | uncertain
     spent: int
+    verdict_type: str = "full"           # full (all seats substantive) | quorum (>=1 dark seat)
+    live_seats: list = None              # charters that voted support/refute
+    dark_seats: list = None              # [{seat, reason}] -- abstentions (lesson 11)
 
 
 @dataclass
@@ -303,7 +306,21 @@ class VerifierSession:
             final = "support"
         else:
             final = "uncertain"
-        return VerifierResult(key, verdicts, contention, arb, final, self.spent)
+        # FULL vs QUORUM (lesson 11): a seat is DARK if it errored/exhausted/suspended OR returned a
+        # non-substantive 'uncertain' (an abstention -- e.g. spec-conformance on an empty corpus). The
+        # panel verdict is FULL only when every seat voted substantively; otherwise it is a QUORUM and
+        # carries the live/dark roster so downstream treats it as lower-confidence -- never a flat full.
+        dark = {}
+        for c, v in verdicts.items():
+            if v["status"] in ("error", "budget", "suspended"):
+                dark[c] = v["status"]
+            elif v["verdict"] == "uncertain":
+                dark[c] = "empty_corpus" if c == "spec-conformance" else "abstained"
+        live_seats = [c for c in verdicts if c not in dark]
+        dark_seats = [{"seat": c, "reason": r} for c, r in dark.items()]
+        verdict_type = "full" if not dark else "quorum"
+        return VerifierResult(key, verdicts, contention, arb, final, self.spent,
+                              verdict_type, live_seats, dark_seats)
 
     # -- V4 deep batch auditor (owner: every N rounds, not just morning) --
     def v4_batch_audit(self, batch, ctx=None, timeout=1800):
