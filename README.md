@@ -113,6 +113,7 @@ cec-platform/
     12vhpwr-standard/        # Standard
     12vhpwr-pro/             # Pro (lead Pro module)
   fab/                       # tagged release snapshots of exactly what was sent to the board house
+  firmware/                  # module firmware: shared ESP-IDF components, per-app trees, RTL
   corpus/general/            # cross-project rules corpus (SB-13; linted for provenance)
   tests/                     # pipeline unit tests + the golden-board regression (SB-08)
   docker/                    # the routing-container compute plane (kicad-cli/pcbnew 10 + JRE)
@@ -126,6 +127,16 @@ cec-platform/
 Each board is its own KiCad project. The universal-interface parts are sourced
 from `lib/` rather than duplicated per board, and library tables use
 project-relative paths (`${KIPRJMOD}`) — **never** absolute paths.
+
+**Firmware lives in [`firmware/`](firmware/)** — consolidated from the
+former `cec-24pin-idf` and `cec-eps-idf` repos (subtree-imported with
+history) plus the 12VHPWR prototype's RTL + ESP32-P4 app: shared
+ESP-IDF components under `firmware/esp/components/`, one app tree per
+module, and the GW5A acquisition RTL under `firmware/rtl/` with its
+simulation gate. Pin maps live next to the KiCad projects that define
+them; `firmware/FOLLOWUPS.md` tracks deferred work, and
+`.github/workflows/firmware-ci.yml` builds all three apps + runs the
+RTL sim on every firmware push (toolchain pins in `versions.env`).
 
 ---
 

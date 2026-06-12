@@ -6,7 +6,7 @@ The original Arduino-ESP32 firmware at v0.5.9 remains the working backup until t
 
 ## Related projects
 
-- [`cec-eps-idf`](https://github.com/nathanfraske/cec-eps-idf) — companion firmware for the CEC EPS module. Both repos share the same ESP-IDF component layout (`cec_sensors` / `cec_detection` / `cec_capture` / `cec_telemetry` / `cec_cli`), build flow, and TelePlot-over-USB-CDC output format, so any reproducible-firmware tooling that works against one works against the other.
+- [`../eps-8pin`](../eps-8pin) — companion firmware for the CEC EPS module, in this same tree since the 2026-06-12 consolidation. Both apps share the ESP-IDF components under [`../components`](../components) (`cec_sensors` / `cec_detection` / `cec_capture` / `cec_telemetry` / `cec_cli` …), build flow, and TelePlot-over-USB-CDC output format, so any reproducible-firmware tooling that works against one works against the other.
 
 ## Project layout
 
@@ -29,7 +29,7 @@ cec-24pin-idf/
     └── cec_cli/                Line-based serial command interface
 ```
 
-Component-based layout is intentional. Each component is hardware-agnostic where possible so it can be reused in the planned ESP32-P4 firmware for the 12VHPWR module, and the small headers-only components (`cec_common`, `cec_filters`) are explicitly shaped to be vendored unchanged into the sibling [`cec-eps-idf`](https://github.com/nathanfraske/cec-eps-idf) repo.
+Component-based layout is intentional. Each component is hardware-agnostic where possible so it can be reused in the planned ESP32-P4 firmware for the 12VHPWR module, and the components are shared with the sibling [`../eps-8pin`](../eps-8pin) app via [`../components`](../components).
 
 ## Build
 
@@ -77,7 +77,7 @@ Tracking the port progress from Arduino-ESP32 v0.5.9 to ESP-IDF:
 | Shutdown detection + mute window | Done |
 
 Deferred work — EPS-parity items, a code-review cleanup (lint) list, and the
-hardware-driven INA226 swap — is tracked in [FOLLOWUPS.md](FOLLOWUPS.md).
+hardware-driven INA226 swap — is tracked in [`firmware/FOLLOWUPS.md`](../../FOLLOWUPS.md) (the merged tracker).
 
 ## Behavior parity check
 

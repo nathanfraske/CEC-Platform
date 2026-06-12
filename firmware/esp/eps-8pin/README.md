@@ -2,7 +2,7 @@
 
 Firmware reference for the dual-EPS current monitoring module in the Critical Error Computing (CEC) PC power monitoring platform. This document contains everything needed to start firmware development for the EPS module prototype.
 
-> **Status:** Hardware prototype in bring-up. Firmware not yet started. This spec is the starting point.
+> **Status:** Firmware implemented and running on the prototype; the tree now lives in `CEC-Platform/firmware/esp/eps-8pin` (consolidated 2026-06-12, shared components under [`../components`](../components)). This document remains the firmware reference spec the implementation was built from.
 
 ---
 
