@@ -6,7 +6,7 @@ The original Arduino-ESP32 firmware at v0.5.9 remains the working backup until t
 
 ## Related projects
 
-- [`../eps-8pin`](../eps-8pin) — companion firmware for the CEC EPS module, in this same tree since the 2026-06-12 consolidation. Both apps share the ESP-IDF components under [`../components`](../components) (`cec_sensors` / `cec_detection` / `cec_capture` / `cec_telemetry` / `cec_cli` …), build flow, and TelePlot-over-USB-CDC output format, so any reproducible-firmware tooling that works against one works against the other.
+- [`../eps-8pin`](../eps-8pin) — companion firmware for the CEC EPS module, in this same tree since the 2026-06-12 consolidation. Both apps share the ESP-IDF components under [`../../components`](../../components) (`cec_sensors` / `cec_detection` / `cec_capture` / `cec_telemetry` / `cec_cli` …), build flow, and TelePlot-over-USB-CDC output format, so any reproducible-firmware tooling that works against one works against the other.
 
 ## Project layout
 
@@ -29,7 +29,7 @@ cec-24pin-idf/
     └── cec_cli/                Line-based serial command interface
 ```
 
-Component-based layout is intentional. Each component is hardware-agnostic where possible so it can be reused in the planned ESP32-P4 firmware for the 12VHPWR module, and the components are shared with the sibling [`../eps-8pin`](../eps-8pin) app via [`../components`](../components).
+Component-based layout is intentional. Each component is hardware-agnostic where possible so it can be reused in the planned ESP32-P4 firmware for the 12VHPWR module, and the components are shared with the sibling [`../eps-8pin`](../eps-8pin) app via [`../../components`](../../components).
 
 ## Build
 

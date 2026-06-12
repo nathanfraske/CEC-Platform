@@ -2010,9 +2010,13 @@ firmware/
                          #   cec_common cec_filters cec_nvs cec_cli cec_capture
                          #   cec_detection cec_sensors cec_telemetry cec_comms
                          #   cec_fpga_link
-    atx-24pin/           # ESP32-S3 app (24-pin module)
-    eps-8pin/            # ESP32-S3 app (EPS module)
-    12vhpwr-proto/       # ESP32-P4 app (GW5A/AD7606 perfboard prototype readout)
+    proto/               # PROTOTYPE apps (dev-board/perfboard rigs; none of
+                         #   these runs on a production module board)
+      atx-24pin/         #   ESP32-S3 dev board: ACS712/divider rig for the 24-pin
+      eps-8pin/          #   ESP32-S3 dev board: ACS758 rig for the EPS
+      12vhpwr/           #   ESP32-P4-NANO: GW5A/AD7606 perfboard readout
+                         # the FLAT esp/<name> level is RESERVED for production
+                         #   apps matching modules/<name> 1:1 (none exist yet)
   rtl/
     common/              # shared Verilog (cec_spi_slave.v), consumed by
                          #   RELATIVE PATH from any target — no packaging
@@ -2023,7 +2027,7 @@ firmware/
                          #   action items above
 ```
 
-Three conventions (do not regress them):
+Four conventions (do not regress them):
 
 - **Shared code lives in `firmware/esp/components/`.** An app-local
   `components/` dir would shadow a same-named shared component — the
@@ -2034,6 +2038,13 @@ Three conventions (do not regress them):
   thresholds, dividers, or board constants inside
   `firmware/esp/components/` — the final-acceptance grep enforces the
   obvious cases.
+- **Prototype apps live under `firmware/esp/proto/`; the flat
+  `firmware/esp/<name>` level is reserved for production apps** matching
+  `modules/<name>` 1:1. Today's three apps are all dev-board/perfboard
+  prototypes whose sensors don't match the production schematics (Hall
+  parts vs the production INA2xx sets); production firmware lands as new
+  flat-level apps on the same shared components, it does not grow out of
+  a proto app in place.
 - **Enum numeric values in `cec_common/cec_state.h` are FROZEN** —
   `cec_nvs` persists blobs containing them (L3 profiles indexed by
   `cec_state_t`, flag bytes). New enumerators are appended before the
@@ -2049,10 +2060,10 @@ sessions, `IDF_PATH=/opt/esp-idf-v60`):
 cd firmware/rtl/12vhpwr-proto
 iverilog -g2012 -o tb tb_top.v top.v ../common/cec_spi_slave.v && vvp tb | grep -q '^PASS'
 cd -
-# All three apps (12vhpwr-proto targets esp32p4, the others esp32s3)
+# All three apps (proto/12vhpwr targets esp32p4, the others esp32s3)
 . "${IDF_PATH:-/opt/esp-idf-v60}/export.sh"
-for app in atx-24pin eps-8pin 12vhpwr-proto; do
-  ( cd firmware/esp/$app && idf.py set-target $( [ $app = 12vhpwr-proto ] && echo esp32p4 || echo esp32s3 ) build ) || exit 1
+for app in proto/atx-24pin proto/eps-8pin proto/12vhpwr; do
+  ( cd firmware/esp/$app && idf.py set-target $( [ $app = proto/12vhpwr ] && echo esp32p4 || echo esp32s3 ) build ) || exit 1
 done
 ```
 

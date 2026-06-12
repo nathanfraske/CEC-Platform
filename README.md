@@ -131,8 +131,10 @@ project-relative paths (`${KIPRJMOD}`) — **never** absolute paths.
 **Firmware lives in [`firmware/`](firmware/)** — consolidated from the
 former `cec-24pin-idf` and `cec-eps-idf` repos (subtree-imported with
 history) plus the 12VHPWR prototype's RTL + ESP32-P4 app: shared
-ESP-IDF components under `firmware/esp/components/`, one app tree per
-module, and the GW5A acquisition RTL under `firmware/rtl/` with its
+ESP-IDF components under `firmware/esp/components/`, the prototype
+(dev-board/perfboard) apps under `firmware/esp/proto/` — the flat
+`firmware/esp/<name>` level is reserved for production apps matching
+`modules/<name>` — and the GW5A acquisition RTL under `firmware/rtl/` with its
 simulation gate. Pin maps live next to the KiCad projects that define
 them; `firmware/FOLLOWUPS.md` tracks deferred work, and
 `.github/workflows/firmware-ci.yml` builds all three apps + runs the

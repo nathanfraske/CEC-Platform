@@ -19,8 +19,11 @@ firmware/
   esp/
     components/      shared ESP-IDF components; every app sees them via
                      EXTRA_COMPONENT_DIRS in its project CMakeLists
-    12vhpwr-proto/        ESP32-P4-NANO readout app for the prototype
-    (hub, 24pin...)  (later) ESP32-S3 apps; same component mechanism
+    proto/           PROTOTYPE apps (dev-board/perfboard rigs):
+      12vhpwr/         ESP32-P4-NANO readout app for this prototype
+      atx-24pin/       ESP32-S3 dev-board rig (24-pin)
+      eps-8pin/        ESP32-S3 dev-board rig (EPS)
+    (flat esp/<name> is reserved for production apps matching modules/<name>)
   tools/             host-side Python (decoders, cal) as they appear
 ```
 
@@ -64,7 +67,7 @@ and `12vhpwr-proto.cst`, synthesize, place-route, program the dock over its USB-
 
 ESP app:
 
-    cd esp/12vhpwr-proto
+    cd esp/proto/12vhpwr
     idf.py set-target esp32p4
     idf.py build flash monitor
 
@@ -109,7 +112,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: |
-          cd firmware/esp/12vhpwr-proto
+          cd firmware/esp/proto/12vhpwr
           idf.py set-target esp32p4 build
 ```
 

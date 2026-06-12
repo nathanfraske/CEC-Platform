@@ -3,7 +3,7 @@
 The acquisition fabric for the 12VHPWR prototype: a Gowin **GW5A-25** on a
 **Tang Primer 25K** dock, reading an **AD7606** (8-ch, serial mode) and
 presenting frames to the ESP32-P4 over SPI. This directory is the RTL +
-pin constraints; the ESP readout app is [`../../esp/12vhpwr-proto`](../../esp/12vhpwr-proto).
+pin constraints; the ESP readout app is [`../../esp/proto/12vhpwr`](../../esp/proto/12vhpwr).
 
 > **Two chips, two toolchains.** The bitstream is built **by hand in
 > Gowin EDA** (closed vendor GUI — there is no open headless flow for
@@ -92,7 +92,7 @@ assumes it.
 ```
 1. Program the GW5A first  (so it's pacing CONVST and can raise DRDY).
 2. Flash + monitor the ESP:
-     cd ../../esp/12vhpwr-proto
+     cd ../../esp/proto/12vhpwr
      idf.py set-target esp32p4 build flash monitor
    Expect: "12vhpwr-proto v0: waiting on DRDY"  then  seq lines ~5 Hz.
 ```

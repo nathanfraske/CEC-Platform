@@ -34,9 +34,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - { app: atx-24pin,     target: esp32s3 }
-          - { app: eps-8pin,      target: esp32s3 }
-          - { app: 12vhpwr-proto, target: esp32p4 }
+          - { app: proto/atx-24pin, target: esp32s3 }
+          - { app: proto/eps-8pin,   target: esp32s3 }
+          - { app: proto/12vhpwr,    target: esp32p4 }
     steps:
       - uses: actions/checkout@v4
       - run: |

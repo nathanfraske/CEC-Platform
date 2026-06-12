@@ -8,13 +8,13 @@
 #   * iverilog (Icarus Verilog 12, Ubuntu archive) -- the RTL sim gate
 #     for firmware/rtl/**.
 #   * ESP-IDF v6.0.1 at /opt/esp-idf-v60 with the esp32s3 + esp32p4
-#     toolchains -- builds firmware/esp/{atx-24pin,eps-8pin,12vhpwr-proto}.
+#     toolchains -- builds the firmware/esp/proto/* apps.
 #     v6.0.1 is the platform pin (versions.env): the eps-8pin app's CAN
 #     code needs IDF >= 6.x esp_twai APIs, the others build there too.
 #
 # Build gate, once this has run:
 #   . "${IDF_PATH:-/opt/esp-idf-v60}/export.sh"
-#   cd firmware/esp/<app> && idf.py set-target <esp32s3|esp32p4> build
+#   cd firmware/esp/proto/<app> && idf.py set-target <esp32s3|esp32p4> build
 #
 # Idempotent, root-only, non-interactive, and FAIL-SOFT like
 # scripts/setup-kicad-cli.sh: never exits nonzero, so the SessionStart
