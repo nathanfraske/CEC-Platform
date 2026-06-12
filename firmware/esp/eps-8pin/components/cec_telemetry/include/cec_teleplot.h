@@ -71,7 +71,7 @@ void teleplot_emit_t(const char *name, int64_t time_ms, float value);
  * optional raw values, temp, load state, status flags). Uses
  * teleplot_emit_t with the state->timestamp_us.
  */
-void teleplot_emit_state(const cec_state_t *state, bool include_raw);
+void teleplot_emit_state(const cec_shared_state_t *state, bool include_raw);
 
 #ifdef __cplusplus
 }

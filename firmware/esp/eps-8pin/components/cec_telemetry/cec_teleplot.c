@@ -82,7 +82,7 @@ void teleplot_emit_t(const char *name, int64_t time_ms, float value)
     if (n > 0) teleplot_write_raw(buf, (size_t)n);
 }
 
-void teleplot_emit_state(const cec_state_t *state, bool include_raw)
+void teleplot_emit_state(const cec_shared_state_t *state, bool include_raw)
 {
     int64_t t_ms = state->timestamp_us / 1000;
 

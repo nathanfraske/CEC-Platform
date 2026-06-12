@@ -23,7 +23,7 @@
 static const char *TAG = "eps_main";
 
 // ---- Global state ----
-static cec_state_t   g_state;
+static cec_shared_state_t   g_state;
 static cec_config_t  g_config;
 static acs758_ctx_t  g_acs;
 // NTC on GPIO 7 -> ADC1_CH6. 10K @ 25C, B=3950, 10K series pull-up to
@@ -186,7 +186,7 @@ static void output_task(void *arg)
     (void)arg;
 
     while (1) {
-        cec_state_t snap;
+        cec_shared_state_t snap;
         if (xSemaphoreTake(g_state.mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
             snap = g_state;
             xSemaphoreGive(g_state.mutex);
@@ -217,7 +217,7 @@ static void capture_channel_snapshot(int idx, cec_capture_channel_t *out)
 static int cmd_show(int argc, char **argv)
 {
     (void)argc; (void)argv;
-    cec_state_t snap;
+    cec_shared_state_t snap;
     if (xSemaphoreTake(g_state.mutex, pdMS_TO_TICKS(100)) != pdTRUE) {
         printf("error: state mutex timeout\n");
         return 1;
@@ -414,7 +414,7 @@ static void comms_task(void *arg)
     (void)arg;
 
     while (1) {
-        cec_state_t snap;
+        cec_shared_state_t snap;
         if (xSemaphoreTake(g_state.mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
             snap = g_state;
             xSemaphoreGive(g_state.mutex);
