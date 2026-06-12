@@ -118,6 +118,21 @@ provision() {
     SUDO systemctl restart cec-llm-broker
     ok "cec-llm-broker active on :$BROKER_PORT"
   fi
+
+  step "bot git auth (from the survives-WSL secrets file, if present)"
+  # shellcheck disable=SC1091
+  . "$REPO_ROOT/ops/secrets/load-secrets.sh" 2>/dev/null || true
+  if [ -n "${CEC_BOT_PAT:-}" ]; then
+    git config --local user.name "${CEC_BOT_USER:-nathanfraske-bot}"
+    bot_id="$(GH_TOKEN="$CEC_BOT_PAT" gh api user --jq '.id' 2>/dev/null || true)"
+    [ -n "$bot_id" ] && git config --local user.email "${bot_id}+${CEC_BOT_USER:-nathanfraske-bot}@users.noreply.github.com"
+    git config --local credential.https://github.com.helper ""
+    git config --local --add credential.https://github.com.helper "$REPO_ROOT/ops/secrets/git-credential-cec.sh"
+    ok "git authors + pushes as ${CEC_BOT_USER:-nathanfraske-bot} (PAT from $CEC_SECRETS_FILE)"
+  else
+    printf '%s  warn%s no bot PAT at %s -- git falls back to the WSL-local gh login (disposable). See ops/secrets/README.md\n' \
+      "$c_ylw" "$c_rst" "${CEC_SECRETS_FILE:-/mnt/e/secrets/cec-bot.env}"
+  fi
 }
 
 # ============================================================================

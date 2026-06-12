@@ -31,14 +31,31 @@ the PAT for the push; if the PAT is absent it falls back to the WSL-local `gh`
 credential **with a warning** (that fallback is exactly the disposable-state
 failure mode this policy exists to kill — fix it by placing the file).
 
-## OWNER ACTION REQUIRED (one-time)
+## Git authenticates + authors as the bot
 
-The PAT cannot be created or placed by the agent. To complete the policy:
+`ops/secrets/git-credential-cec.sh` is a git credential helper that serves the
+`nathanfraske-bot` PAT (from the file above) for `github.com` pushes, and
+`ops/provision.sh` wires it repo-locally along with the bot author identity:
 
-1. Create a fine-grained GitHub PAT: repo `nathanfraske/CEC-Platform`,
-   **Contents: Read and write** (no other scopes).
-2. Save it as `E:\secrets\cec-bot.env` in the `CEC_BOT_PAT=...` form above.
+```bash
+git config --local user.name  nathanfraske-bot
+git config --local user.email <id>+nathanfraske-bot@users.noreply.github.com
+git config --local credential.https://github.com.helper ""        # reset gh login
+git config --local --add credential.https://github.com.helper \
+    "$PWD/ops/secrets/git-credential-cec.sh"
+```
 
-Until then the handoff hook still works via the WSL-local `gh` login, but that
-copy does not survive a reinstall — so this is the one remaining single-point-of-
-loss after the 2026-06-12 recovery.
+So the agent's commits + pushes are the bot, never the owner — which keeps the
+CODEOWNERS promotion gate unforgeable (RB-04 consent-integrity). After a WSL
+rebuild, `bash ops/provision.sh` re-establishes all of this from the `E:` file.
+
+## Status (2026-06-12)
+
+**Done** — the owner placed the `nathanfraske-bot` PAT at `/mnt/e/secrets/cec-bot.env`
+(token id verified: account `nathanfraske-bot`, scopes `repo, workflow`). Git is
+wired to author + push as the bot; verified by a bot-authored push.
+
+> Note: the supplied token is a **classic** PAT (`repo, workflow` — broad). A
+> fine-grained PAT scoped to **Contents: write on `CEC-Platform` only** would
+> shrink the blast radius; swap it into the same file when convenient (no code
+> change). The token was shared in chat, so rotating it eventually is prudent.
