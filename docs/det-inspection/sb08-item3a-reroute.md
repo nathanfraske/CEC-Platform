@@ -25,16 +25,26 @@ hard gates passing.** The via count rises 78→142 (the §6.7/OQ-10 stitch field
 mirror layers); tracks drop as the pour replaces thin force traces. The thermal criterion is cleared
 decisively, and the result is byte-reproducible (route+synth twice → identical drc 0 / 75.5 / 501 / 142).
 
-### OPEN ISSUE — pour-integrity gate fails on SENSEC2_LO (must resolve before merge)
+### RESOLVED — pour-integrity now F+B-mirror-aware (full gate stack green)
 
-The full gate stack (not just the three above) surfaces one real problem: the PR-#35 **pour-integrity
-gate FAILS** — `/SENSEC2_LO` has **3 F.Cu islands** (the other three sense nets are 1). The strip-redundant
-step split the F.Cu pour. The **B.Cu mirror is intact (1 island, 122 mm²)** and the net is electrically
-whole (kelvin ✓ proves connectivity via the via field), so it's a **topology-vs-gate mismatch**: the gate
-counts F.Cu islands only (written before the F+B mirror existed). **Resolution required, one of:**
-(a) make the synth keep `*_LO` as a single F.Cu island (don't strip the bridging trace), or
-(b) make `pour_integrity_ok` F+B-mirror-aware (islands per net across the stitched layers).
-Until then 3a fails a *blocking* loop gate — so 3a is the right direction but **not merge-ready**.
+The full gate stack first surfaced a real problem: the PR-#35 pour-integrity gate FAILED on `/SENSEC2_LO`
+(3 F.Cu islands; the other three sense nets 1). **Reading one was attempted and rejected:** the F.Cu
+fragments are a main 69 mm² corridor pour + two tiny (5–6 mm²) **pad-region slivers** split off by foreign
+GND/signal traces near the connector/shunt pads — and it is 3 islands with strip ON *or* OFF, so the strip
+is not the cause; the pour region itself fragments. Island-removal can't drop the slivers (they're
+pad-connected, and KiCad never removes pad-connected fill); a spine would have to thread F.Cu around 6
+foreign nets (incl. the GND plane) in a congested pad region. Genuinely expensive/fragile.
+
+**Escalated to the F+B-aware gate redefinition (with the R4 regression).** `cec_score.sense_pour_components`
+counts connected components of each sense net's pour copper across F.Cu + B.Cu, with same-net vias **and
+the THT connector/shunt pads** as inter-layer bridges; `pour_integrity_ok` prefers that `components` count
+over the raw F.Cu `islands`. **Measured on the synth board: every sense net = 1 component** (SENSEC2_LO's
+3 F.Cu islands + 1 B.Cu island are stitched by 21 via/pad bridges) → **pour-integrity PASSES**. The
+regression holds by construction: the validation-run **R4 shape (3 F.Cu islands, no mirror/stitch → 3
+components) still FAILS** (`tests/test_pour_integrity_fb_aware.py`, 6/6). Back-compat: facts without a
+`components` key fall back to `islands`.
+
+So the **full gate stack is now green**: kelvin ✓, diffpair ✓, drc 0, thermal 75.5 °C, **pour-integrity ✓**.
 
 Cost (informed sign): +64 vias (78→142, near-free), +~446 mm² B.Cu mirror copper (total sense-pour copper
 804.5 mm² F+B); drc=0 → no clearance violation with the LOGO1 B.Cu keepout or bottom-side parts.
@@ -75,8 +85,9 @@ Proposed bands from the 75.5 baseline (you pick the headroom):
 
 ## Recommendation
 
-**3a is the right direction over 3b — but resolve the pour-integrity fragmentation (SENSEC2_LO, above)
-before merging.** It produces a genuinely cooler, fab-honest board (proper high-current copper, the §6.7
-design intent) rather than accepting a hot one; the only blocker is the F.Cu-island gate mismatch, which
-is a synth tweak or a gate-topology fix, not a fundamental flaw. 3b (accept 157.9) is the fallback only if
-the synthesis can't be made gate-clean on the real fab stackup. See `sb08-item3b-accept.md`.
+**3a wins over 3b — and is now merge-ready.** It produces a genuinely cooler, fab-honest board (75.5 °C,
+proper high-current copper per the §6.7 design intent) that passes the FULL gate stack (kelvin / diffpair /
+drc 0 / thermal / pour-integrity), rather than accepting a hot one on a more expensive laminate. The lone
+blocker — the F.Cu-island gate mismatch — is resolved by the F+B-aware pour-integrity redefinition, with
+the R4 regression preserved. 3b (accept 157.9) remains the fallback only if the synthesized copper has a
+problem on the real fab stackup. See `sb08-item3b-accept.md`.
