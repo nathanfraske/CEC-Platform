@@ -75,8 +75,29 @@ def _prompt(diff_regions, reference_present):
     return "\n".join(lines)
 
 
+def _toks(s):
+    import re
+    return set(re.findall(r"[a-z]{3,}", str(s).lower()))
+
+
+def subtract_baseline(anomalies, baseline_anomalies, thresh=0.45):
+    """Drop anomalies that RECUR on the known-good reference (owner ask 2026-06-11): run the anomaly
+    pass on the reference ONCE, cache its flags, and subtract them from candidate output by token-set
+    overlap. This removes benign-but-flagged features (e.g. the intentional CEC copper logo) WITHOUT
+    putting a logo prior in the prompt -- the model is never told to ignore anything; the baseline is
+    subtracted after the fact, exactly like the DFM baseline subtraction."""
+    bt = [t for t in (_toks(b) for b in (baseline_anomalies or [])) if t]
+    kept = []
+    for a in anomalies:
+        ta = _toks(a)
+        if ta and any(len(ta & b) / len(ta | b) >= thresh for b in bt):
+            continue                                   # recurs on the reference -> benign, drop
+        kept.append(a)
+    return kept
+
+
 def narrate(candidate_png, diff_regions=None, *, model=None, chat=None, max_tokens=700, timeout=600,
-            ctx=None):
+            ctx=None, baseline_anomalies=None):
     """Run the narration + anomaly pass. `diff_regions` = cec_render_diff(...)['regions'] (may be []
     or None -> anomaly-only). `chat` is a callable(model, text, png, schema=..., max_tokens=...,
     timeout=..., ctx=...) -> dict|str (defaults to cec_vlm_bakeoff._chat). Returns a FLAG dict; never
@@ -107,6 +128,9 @@ def narrate(candidate_png, diff_regions=None, *, model=None, chat=None, max_toke
     # normalize + stamp; the output is advisory narration, re-checked by determinism, never a gate
     out.setdefault("region_narration", [])
     out.setdefault("anomalies", [])
+    if baseline_anomalies:                     # subtract flags that recur on the known-good reference
+        out["anomalies_raw"] = list(out["anomalies"])
+        out["anomalies"] = subtract_baseline(out["anomalies"], baseline_anomalies)
     out["role"] = "narration+anomaly"          # explicit: not a verdict
     out["n_diff_regions"] = len(diff_regions)
     return out

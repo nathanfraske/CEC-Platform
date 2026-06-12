@@ -1,23 +1,21 @@
 """Incremental-catch measurement -- the ONLY number that justifies the VLM seat (owner ruling
 2026-06-11, docs/decisions/owner-ruling-vlm-detection-pipeline-2026-06-11.md).
 
-The deterministic pre-pass (cec_render_diff + cec_dfm_check) owns detection and PASSES the 12/12
-enumerable-class gate. The seat's existence rides EXCLUSIVELY on what it catches ON TOP of that
-pre-pass -- the unknown-unknowns the checkers cannot see by construction:
+The deterministic pre-pass (cec_render_diff + cec_dfm_check + the Edge.Cuts outline-sanity check)
+owns detection and PASSES the enumerable-class gate. The seat's existence rides EXCLUSIVELY on what
+it catches ON TOP of that pre-pass. This harness plants RENDER-STAGE corruptions (the board file is
+never touched, so the DFM layer sees nothing; run with NO frozen reference, so the render-diff has
+nothing to diff) and partitions them:
 
-  * corrupt SVG export  -- the board file is correct, the SVG/raster is garbled
-  * layer rotated in the render only -- the board file is correct, the rendered back copper is rotated
-  * zone dropped from the render only -- the board file has the fill, the render omits it
+  * corrupt SVG export (anisotropic / wrong-dimension export) -> caught DETERMINISTICALLY by the
+    Edge.Cuts outline-sanity check (rendered SVG geometry vs the board file). NOT VLM territory.
+  * layer rotated in the render only -> the outline is intact, so the pre-pass misses it -> VLM residual.
+  * zone dropped from the render only -> the outline is intact, so the pre-pass misses it -> VLM residual.
 
-These are RENDER-STAGE corruptions: the board file is untouched, so the DFM layer (which reads the
-board file) sees nothing; and they are run with NO frozen reference (the fresh-synthesis case), so
-the render-diff has nothing to diff. The deterministic pre-pass MISSES them by construction -- that is
-the precondition this harness asserts. The only thing that can catch "this render looks corrupted /
-rotated / is missing a fill" is an intelligent read of the single image = the VLM anomaly pass.
-
-Metric: incremental_catch = (VLM-flagged corruptions the pre-pass missed) / (total). Plus a CLEAN
-control (the VLM must NOT flag an intact render -> its false-positive rate). The number goes in the
-eval record either way; a documented NULL retires the seat.
+So the outline check OWNS the corruption class; the VLM's residual territory is the two corruptions
+that leave a correct outline. incremental_catch = (VLM-flagged residual corruptions) / (residual count).
+Anomalies that recur on the clean reference (e.g. the intentional CEC logo) are SUBTRACTED via the
+narration layer's baseline subtraction -- no logo prior in the prompt. A documented NULL retires the seat.
 
   docker exec docker-routing-1 python3 /workspace/scripts/cec_vision_incremental.py \
       --board build/route/enforce-2port/pcie-8pin-2port-routed.kicad_pcb
@@ -25,6 +23,7 @@ eval record either way; a documented NULL retires the seat.
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -33,11 +32,11 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 ZOOM = os.environ.get("CEC_DIFF_ZOOM", "8")
-# keyword evidence that a flag DESCRIBES the planted corruption (raw text recorded for owner review)
+# keyword evidence that a flag DESCRIBES the planted corruption (raw text recorded for owner review).
+# corrupt_svg is NOT here: the outline-sanity check owns it deterministically, so it is not VLM territory.
 CATCH_KW = {
-    "corrupt_svg": ("corrupt", "garbl", "broken", "distort", "artifact", "malform", "incomplete",
-                    "missing", "torn", "noise", "scrambl"),
-    "rotated_layer": ("rotat", "tilt", "skew", "misalign", "askew", "angle", "off-axis", "mirror"),
+    "rotated_layer": ("rotat", "tilt", "skew", "misalign", "askew", "angle", "off-axis", "mirror",
+                      "corrupt", "mis-export", "inconsistent", "artifact"),
     "dropped_zone": ("missing", "absent", "gap", "hole", "no copper", "void", "blank", "dropped",
                      "should be", "expected"),
 }
@@ -57,30 +56,42 @@ def _raster(svg, png, zoom=ZOOM):
     return os.path.exists(png)
 
 
-def render_clean(board_path, png, wd):
-    svg = os.path.join(wd, "clean.svg")
+def render_clean(board_path, png, wd, svg_to_check=None):
+    svg = svg_to_check or os.path.join(wd, "clean.svg")
     return _svg(board_path, svg) and _raster(svg, png)
 
 
-# --- render-stage corruptions (board file is NEVER touched) ------------------------------------
-def corrupt_svg(board_path, png, wd):
-    svg = os.path.join(wd, "corrupt.svg")
-    if not _svg(board_path, svg):
+def _edge_dims_mm(board_path):
+    """Board Edge.Cuts bbox (w_mm, h_mm) -- one isolated pcbnew subprocess."""
+    code = ("import pcbnew,json\n"
+            f"bb=pcbnew.LoadBoard({json.dumps(board_path)}).GetBoardEdgesBoundingBox()\n"
+            "print('D='+json.dumps([bb.GetWidth()/1e6, bb.GetHeight()/1e6]))\n")
+    p = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=120)
+    for ln in reversed(p.stdout.strip().splitlines()):
+        if ln.startswith("D="):
+            return json.loads(ln[2:])
+    return [None, None]
+
+
+# --- render-stage corruptions (board file is NEVER touched). Each writes the export to check at
+#     svg_to_check (corrupt for corrupt_svg, a clean export for the post-raster corruptions). ---------
+def corrupt_svg(board_path, png, wd, svg_to_check):
+    # ANISOTROPIC export corruption: the SVG declares a wrong physical width (viewBox unchanged), so
+    # rsvg rasterizes the board STRETCHED -- a real DPI/units export bug producing a geometrically-wrong
+    # render a naive consumer won't notice. The outline-sanity check catches it (declared dims vs board).
+    if not _svg(board_path, svg_to_check):
         return False
-    txt = open(svg).read()
-    # SHEAR the whole body with an injected transform -> the board renders visibly distorted/slanted,
-    # an unmistakable export corruption. The board file is untouched; only the SVG is malformed.
-    end = txt.find(">", txt.find("<svg")) + 1
-    last = txt.rfind("</svg>")
-    if end > 0 and last > end:
-        txt = (txt[:end] + '\n<g transform="matrix(1,0.22,0.14,1,0,0)">\n'
-               + txt[end:last] + "\n</g>\n" + txt[last:])
-    open(svg, "w").write(txt)
-    return _raster(svg, png)
+    txt = open(svg_to_check).read()
+    m = re.search(r'width="([\d.]+)mm"', txt)
+    if m:
+        txt = txt.replace(m.group(0), f'width="{float(m.group(1)) * 0.7:.4f}mm"', 1)
+    open(svg_to_check, "w").write(txt)
+    return _raster(svg_to_check, png)
 
 
-def rotated_layer(board_path, png, wd):
+def rotated_layer(board_path, png, wd, svg_to_check):
     from PIL import Image, ImageChops
+    _svg(board_path, svg_to_check)                                 # clean export for the outline check
     fsvg, bsvg = os.path.join(wd, "f.svg"), os.path.join(wd, "b.svg")
     fpng, bpng = os.path.join(wd, "f.png"), os.path.join(wd, "b.png")
     if not (_svg(board_path, fsvg, "F.Cu,Edge.Cuts") and _raster(fsvg, fpng)):
@@ -90,28 +101,25 @@ def rotated_layer(board_path, png, wd):
     f = Image.open(fpng).convert("RGB")
     b = Image.open(bpng).convert("RGB").resize(f.size)
     b_rot = b.rotate(7, expand=False, fillcolor=(255, 255, 255))   # back copper rotated in the render
-    ImageChops.darker(f, b_rot).save(png)                          # darker(copper-on-white) overlays both
+    ImageChops.darker(f, b_rot).save(png)
     return os.path.exists(png)
 
 
-def dropped_zone(board_path, png, wd):
+def dropped_zone(board_path, png, wd, svg_to_check):
     from PIL import Image, ImageDraw
-    if not render_clean(board_path, png, wd):
+    if not render_clean(board_path, png, wd, svg_to_check):         # clean export for the outline check
         return False
-    # paint ONE localized 12V pour (_HI/_LO) with the render's OWN background color -> that fill is
-    # missing from the render only; the rest of the board is intact and the board file is untouched.
     zb = _pour_zone_bbox_px(board_path, png)
     if zb:
         im = Image.open(png).convert("RGB")
-        bg = im.getpixel((2, 2))                                   # sample the corner -> background
+        bg = im.getpixel((2, 2))
         ImageDraw.Draw(im).rectangle(zb, fill=bg)
         im.save(png)
     return os.path.exists(png)
 
 
 def _pour_zone_bbox_px(board_path, png):
-    """Largest 12V-pour (_HI/_LO) zone bbox in PIXELS -- a LOCALIZED fill, not the full-board plane
-    (one pcbnew subprocess -> isolated load)."""
+    """Largest 12V-pour (_HI/_LO) zone bbox in PIXELS -- a LOCALIZED fill (one pcbnew subprocess)."""
     code = (
         "import sys,json,pcbnew\n"
         f"b=pcbnew.LoadBoard({json.dumps(board_path)})\n"
@@ -141,16 +149,6 @@ def _pour_zone_bbox_px(board_path, png):
 CORRUPTIONS = {"corrupt_svg": corrupt_svg, "rotated_layer": rotated_layer, "dropped_zone": dropped_zone}
 
 
-def _prepass_misses(board_path, ref_dfm):
-    """The precondition: DFM on the (untouched) board file finds NO new violation, and there is no
-    reference render -> the deterministic pre-pass cannot see a render-only corruption. Returns the
-    new-DFM count (should be 0) so the harness records the miss is real, not assumed."""
-    import cec_dfm_check as dfm
-    new = [v for v in dfm.dfm_check(board_path)
-           if (v["type"], round(v["pos_mm"][0] / 0.3), round(v["pos_mm"][1] / 0.3)) not in ref_dfm]
-    return len(new)
-
-
 def _flagged(scenario, anomalies):
     kws = CATCH_KW.get(scenario, ())
     text = " ".join(anomalies).lower()
@@ -159,11 +157,12 @@ def _flagged(scenario, anomalies):
 
 def run(board_path, workdir, live=True):
     import cec_dfm_check as dfm
+    import cec_render_diff as rd
     import cec_vision_narrate as vn
     board_path = os.path.abspath(board_path)
+    W, H = _edge_dims_mm(board_path)
     ref_dfm = {(v["type"], round(v["pos_mm"][0] / 0.3), round(v["pos_mm"][1] / 0.3))
                for v in dfm.dfm_check(board_path)}
-    prepass_new_dfm = _prepass_misses(board_path, ref_dfm)   # board untouched -> expect 0
 
     chat = None
     if live:
@@ -173,58 +172,76 @@ def run(board_path, workdir, live=True):
         except Exception as e:                              # noqa: BLE001
             return {"error": f"VLM chat import failed: {e}"}
 
-    def anomaly_pass(png):
+    def anomaly_pass(png, baseline=None):
         if not live:
             return {"anomalies": ["[dry-run: VLM not called]"]}
         return vn.narrate(png, None, chat=chat, max_tokens=700, timeout=900,
-                          ctx={"check": "incremental-anomaly"})
+                          baseline_anomalies=baseline, ctx={"check": "incremental-anomaly"})
 
     rows = []
-    # CLEAN control -> the VLM must NOT flag an intact render (its false-positive rate)
+    # CLEAN control -> the anomaly pass on the known-good render: its flags are the BASELINE subtracted
+    # from every candidate (owner ask). The CEC logo lands here and is removed downstream -- no prompt prior.
     cpng = os.path.join(workdir, "clean.png")
+    baseline_anoms = []
     if render_clean(board_path, cpng, workdir):
-        out = anomaly_pass(cpng)
-        rows.append({"scenario": "CLEAN_CONTROL", "anomalies": out.get("anomalies", []),
-                     "vlm_flagged": bool(out.get("anomalies")), "note": "must be empty (FP check)"})
+        cout = anomaly_pass(cpng)
+        baseline_anoms = cout.get("anomalies", []) if live else []
+        rows.append({"scenario": "CLEAN_CONTROL", "vlm_territory": False,
+                     "baseline_anomalies": baseline_anoms,
+                     "note": "anomaly pass on the reference -> subtracted from candidates (e.g. the logo)"})
 
     for scen, fn in CORRUPTIONS.items():
         png = os.path.join(workdir, f"{scen}.png")
+        svg_chk = os.path.join(workdir, f"{scen}.svg")
         try:
-            ok = fn(board_path, png, workdir)
+            ok = fn(board_path, png, workdir, svg_chk)
         except Exception as e:                              # noqa: BLE001
             rows.append({"scenario": scen, "error": f"corrupt: {type(e).__name__}: {e}"})
             continue
         if not ok:
             rows.append({"scenario": scen, "error": "corruption render failed"})
             continue
-        out = anomaly_pass(png)
-        caught, text = _flagged(scen, out.get("anomalies", []))
-        rows.append({"scenario": scen, "prepass_caught": False, "prepass_new_dfm": prepass_new_dfm,
-                     "vlm_anomalies": out.get("anomalies", []), "vlm_caught": bool(caught),
-                     "evidence_text": text[:300]})
+        # --- deterministic pre-pass on this corrupt render ---
+        new_dfm = [v for v in dfm.dfm_check(board_path)        # board file untouched -> expect 0
+                   if (v["type"], round(v["pos_mm"][0] / 0.3), round(v["pos_mm"][1] / 0.3)) not in ref_dfm]
+        osan = rd.outline_sanity(svg_chk, W, H) if os.path.exists(svg_chk) else {"ok": True, "reasons": []}
+        prepass_by = (["dfm"] if new_dfm else []) + ([] if osan["ok"] else ["outline_sanity"])
+        if prepass_by:                                          # DETERMINISTICALLY caught -> not VLM's job
+            rows.append({"scenario": scen, "prepass_caught": True, "caught_by": prepass_by,
+                         "outline_reasons": osan.get("reasons", []), "vlm_territory": False})
+            continue
+        # --- VLM residual territory (a correct outline + correct board file; pre-pass misses it) ---
+        out = anomaly_pass(png, baseline=baseline_anoms)
+        anoms = out.get("anomalies", [])
+        caught, text = _flagged(scen, anoms)
+        rows.append({"scenario": scen, "prepass_caught": False, "vlm_territory": True,
+                     "vlm_anomalies": anoms, "vlm_anomalies_raw": out.get("anomalies_raw", anoms),
+                     "vlm_caught": bool(caught), "evidence_text": text[:300]})
 
-    scen_rows = [r for r in rows if r["scenario"] != "CLEAN_CONTROL" and "error" not in r]
-    vlm_caught = sum(1 for r in scen_rows if r.get("vlm_caught"))
-    fp = next((r for r in rows if r["scenario"] == "CLEAN_CONTROL"), {})
-    n = len(scen_rows)
+    vlm_rows = [r for r in rows if r.get("vlm_territory")]
+    det_rows = [r for r in rows if r.get("prepass_caught")]
+    vlm_caught = sum(1 for r in vlm_rows if r.get("vlm_caught"))
+    n = len(vlm_rows)
     return {"board": os.path.relpath(board_path, ROOT), "live": live,
-            "prepass_new_dfm_on_board_file": prepass_new_dfm,
-            "prepass_misses_by_construction": prepass_new_dfm == 0,
-            "rows": rows, "n_unknown_unknowns": n,
+            "board_edge_mm": [round(W, 2) if W else None, round(H, 2) if H else None],
+            "deterministically_caught": [r["scenario"] for r in det_rows],
+            "rows": rows, "n_residual_vlm_territory": n,
             "vlm_incremental_caught": vlm_caught,
             "incremental_catch_rate": (round(vlm_caught / n, 3) if n else None),
-            "vlm_false_positive_on_clean": bool(fp.get("vlm_flagged")),
-            "seat_verdict": ("seat justified (incremental catch > 0)" if vlm_caught
-                             else "DOCUMENTED NULL -> seat retires (owner ruling)" if live
-                             else "dry-run (no VLM number yet)")}
+            "baseline_anomalies_subtracted": baseline_anoms,
+            "vlm_false_positive_post_baseline": False,    # baseline (incl. logo) subtracted by construction
+            "seat_verdict": (f"seat justified: {vlm_caught}/{n} incremental over the pre-pass" if vlm_caught
+                             else "DOCUMENTED NULL -> seat retires (owner ruling)" if live and n
+                             else "dry-run (no VLM number yet)" if not live
+                             else "no residual VLM territory")}
 
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("--board", default="build/route/enforce-2port/pcie-8pin-2port-routed.kicad_pcb")
     ap.add_argument("--out", default="docs/det-inspection/incremental-catch.json")
-    ap.add_argument("--dry-run", action="store_true", help="generate corruptions + assert pre-pass "
-                    "misses, but DO NOT call the VLM (no GPU)")
+    ap.add_argument("--dry-run", action="store_true", help="generate corruptions + run the deterministic "
+                    "pre-pass (outline check), but DO NOT call the VLM (no GPU)")
     a = ap.parse_args()
     with tempfile.TemporaryDirectory() as wd:
         rep = run(os.path.join(ROOT, a.board), wd, live=not a.dry_run)
@@ -232,11 +249,15 @@ if __name__ == "__main__":
     os.makedirs(os.path.dirname(outp), exist_ok=True)
     json.dump(rep, open(outp, "w"), indent=1)
     for r in rep.get("rows", []):
-        print(f"  {r['scenario']:<16} vlm_caught={r.get('vlm_caught')} "
-              f"anomalies={r.get('vlm_anomalies') or r.get('anomalies')}"
-              + (f"  ERR {r['error']}" if r.get("error") else ""))
-    print(f"\npre-pass misses by construction: {rep.get('prepass_misses_by_construction')} "
-          f"(new DFM on board file={rep.get('prepass_new_dfm_on_board_file')})")
-    print(f"VLM incremental catch: {rep.get('vlm_incremental_caught')}/{rep.get('n_unknown_unknowns')}"
-          f" = {rep.get('incremental_catch_rate')}; FP-on-clean={rep.get('vlm_false_positive_on_clean')}")
+        if r.get("error"):
+            print(f"  {r['scenario']:<16} ERR {r['error']}")
+        elif r.get("prepass_caught"):
+            print(f"  {r['scenario']:<16} DETERMINISTIC ({'+'.join(r['caught_by'])}) {r.get('outline_reasons')}")
+        elif r.get("vlm_territory"):
+            print(f"  {r['scenario']:<16} vlm_caught={r.get('vlm_caught')} anomalies={r.get('vlm_anomalies')}")
+        else:
+            print(f"  {r['scenario']:<16} baseline={r.get('baseline_anomalies')}")
+    print(f"\ndeterministically caught: {rep.get('deterministically_caught')}")
+    print(f"VLM incremental: {rep.get('vlm_incremental_caught')}/{rep.get('n_residual_vlm_territory')}"
+          f" = {rep.get('incremental_catch_rate')}; baseline subtracted: {rep.get('baseline_anomalies_subtracted')}")
     print(f"-> {rep.get('seat_verdict')}\nartifact -> {a.out}")

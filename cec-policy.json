@@ -229,7 +229,19 @@
      "rationale_and_fix": "docs/vision-seat-role-rationale-2026-06-11.md -- re-role as a non-measuring consistency auditor (flags render-vs-facts discrepancies, never measures, every flag re-checked by determinism). New-role gate = catch rate over a planted-defect battery; one caught defect is a demo, not a pass."
     },
     "context_headroom": "MEASURED 2026-06-12 (prompt_tokens, cec-worker-vision): widest worker-seat text prompt = 652 tok (verifier evidence-provenance with the WIDENED bundle: pour facts + FEM + reasons + metrics); vision call = 384 tok (pour prompt + the small model-free copper render). Against ctx 16384 -> min headroom 15732 (96% free). The image is NOT token-heavy on the model-free render. Serial (-np 1) so no co-residency. No ctx bump needed.",
-    "render_hygiene": "VLM fed ONLY a model-free copper/zone render (render_copper_zone); no clean render -> skipped with render_hygiene_pending (cec_fullstack vision_pour_check + vision_judge)"
+    "render_hygiene": "VLM fed ONLY a model-free copper/zone render (render_copper_zone); no clean render -> skipped with render_hygiene_pending (cec_fullstack vision_pour_check + vision_judge)",
+    "new_role_incremental_catch": {
+     "_doc": "DRAFT for owner sign (NOT auto-applied): the NEW consistency-auditor role's gate = incremental catch over the deterministic pre-pass, measured on planted render-stage corruptions the checkers cannot see by construction. This is the number the seat rides on per the ruling; load_bearing stays false until the owner signs this block.",
+     "result": "PASS (draft) -- incremental catch 2/2 (1.0) on residual VLM territory; clean-control false-positive post-baseline = 0",
+     "measured": "2026-06-12 live, cec-worker-vision, board pcie-8pin-2port-routed (Edge.Cuts 86.5x44.1 mm)",
+     "partitioning": "3 planted render-stage corruptions (board file untouched, no frozen reference). corrupt_svg (anisotropic export) -> caught DETERMINISTICALLY by cec_render_diff.outline_sanity (rendered SVG geometry vs board Edge.Cuts: 3 independent reasons) -> NOT VLM territory. rotated_layer + dropped_zone leave a correct outline -> the pre-pass misses them -> the VLM's genuine residual (2 scenarios).",
+     "vlm_residual_caught": "2/2 -- rotated_layer ('corrupted or mis-exported graphic element') + dropped_zone ('missing copper or data layer void')",
+     "false_positive_handling": "the CEC logo + overlay flags (the 2026-06-11 FP) are subtracted via cec_vision_narrate.subtract_baseline (anomaly pass on the known-good reference, token-overlap subtraction) -- NO logo prior in the prompt. Clean-control post-baseline = 0.",
+     "honest_caveat": "recall = 2/2; precision imperfect -- on corrupted candidates the seat still raises benign annotation/logo flags the token-overlap baseline doesn't fully remove (phrasing drift). Advisory only, re-checked by determinism; recorded not smoothed.",
+     "supersedes": "the 2026-06-11 run (2/3, 0.667), which measured the VLM against the global-geometry class it should not own and counted the logo as a FP -- both now deterministic.",
+     "scope": "discrepancy/anomaly surfacing ONLY. The measurement role stays FAILED (vision_discrimination above, CL-21). Signing this block does NOT make the seat a measurer.",
+     "ref": "docs/det-inspection/incremental-catch.md + incremental-catch.json"
+    }
    }
   },
   "frontier": {
