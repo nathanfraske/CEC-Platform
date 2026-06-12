@@ -38,3 +38,11 @@ CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 
 # Compiler optimization
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# CEC sensor selection (shared cec_sensors component): this board reads
+# rails via the continuous-DMA cec_adc backend, INA226 on 5VSB, ACS712
+# rail currents, and the thermistor board-temp divider.
+CONFIG_CEC_ADC_BACKEND_CONTINUOUS=y
+CONFIG_CEC_SENSOR_INA226=y
+CONFIG_CEC_SENSOR_ACS712=y
+CONFIG_CEC_SENSOR_THERMISTOR=y

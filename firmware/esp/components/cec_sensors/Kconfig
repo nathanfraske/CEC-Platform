@@ -1,0 +1,47 @@
+menu "CEC sensors"
+
+    choice CEC_ADC_BACKEND
+        prompt "cec_adc backend"
+        default CEC_ADC_BACKEND_ONESHOT
+        help
+            How cec_adc drives ADC1. Each app selects the backend its
+            board architecture was built around (sdkconfig.defaults).
+
+        config CEC_ADC_BACKEND_ONESHOT
+            bool "adc_oneshot (averaged reads; pause/resume hand-off)"
+            help
+                eps lineage: per-read averaging, plus the pause/resume
+                hand-off so cec_capture's adc_continuous HS path can
+                borrow the unit.
+
+        config CEC_ADC_BACKEND_CONTINUOUS
+            bool "adc_continuous (DMA latest-mV table; fixed pattern)"
+            help
+                24-pin lineage: hardware-clocked sampling into a
+                lock-free latest-mV table; samples param ignored.
+    endchoice
+
+    config CEC_SENSOR_ACS712
+        bool "ACS712 Hall current sensor driver"
+        default n
+
+    config CEC_SENSOR_ACS758
+        bool "ACS758 Hall current sensor driver"
+        default n
+
+    config CEC_SENSOR_INA226
+        bool "INA226 I2C bus-monitor driver"
+        default n
+
+    config CEC_SENSOR_NTC
+        bool "NTC thermistor driver (eps-named API)"
+        default n
+        help
+            Same Beta-equation divider math as CEC_SENSOR_THERMISTOR;
+            ntc.h is a compatibility header over the one shared source.
+
+    config CEC_SENSOR_THERMISTOR
+        bool "Thermistor driver (24-pin-named API)"
+        default n
+
+endmenu

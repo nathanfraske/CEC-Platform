@@ -27,7 +27,7 @@
 #pragma once
 
 #include "esp_err.h"
-#include "esp_adc/adc_oneshot.h"
+#include "hal/adc_types.h"
 
 #ifdef __cplusplus
 extern "C" {

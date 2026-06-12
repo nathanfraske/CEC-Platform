@@ -26,3 +26,10 @@ CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
 # Compiler
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
+
+# CEC sensor selection (shared cec_sensors component): oneshot cec_adc
+# backend (with the pause/resume hand-off for burst capture), ACS758
+# per-cable Hall sensors, NTC board-temp divider.
+CONFIG_CEC_ADC_BACKEND_ONESHOT=y
+CONFIG_CEC_SENSOR_ACS758=y
+CONFIG_CEC_SENSOR_NTC=y
