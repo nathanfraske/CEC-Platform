@@ -56,6 +56,15 @@ stop on an unassigned pin.
 
 ## Wiring (verified against both `12vhpwr-proto.cst` and the ESP app)
 
+>  **⚠ ESP-SIDE PINS UNDER REVISION (bench finding 2026-06-12).** The v0
+>  ESP GPIO map below (20–24) collides with the P4's flash/PSRAM MSPI bus
+>  (IO_MUX: GPIO22=PSRAM_CK, 23=PSRAM_CS) and **hangs the P4** at
+>  `gpio_config` — it was simulation-verified only, never run on silicon.
+>  The ESP-GPIO / dock-ball columns are being re-mapped to safe header pins
+>  (the FPGA-ball ↔ dock-field side and the AD7606 table are unaffected).
+>  See `firmware/FOLLOWUPS.md` (bench findings). Do not jumper the ESP side
+>  to these pins yet.
+
 **ESP32-P4 ↔ GW5A link** — these five must be jumpered P4-NANO header →
 dock field. The ESP-app GPIO/header and the FPGA ball were
 cross-checked and **agree on every signal**:
