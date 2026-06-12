@@ -1,31 +1,34 @@
 # Current work handoff
 
-_Updated 2026-06-12 by the env-rebuild session._
+_Updated 2026-06-12 (env-rebuild + WSL-ephemeral policy + Windows-native Phase B)._
 
 ## Context
-The WSL distro was reinstalled fresh on 2026-06-12 after a failed move to E:. The
-Linux home (repos, toolchains, the cec-llm-broker, persistent memory) was wiped; the
-GGUF models on `/mnt/e/AI Models` survived. This session rebuilt the whole environment
-from scratch. See [[env-rebuild-2026-06-12]] and [[llm-broker]].
+WSL distro reinstalled 2026-06-12 after a failed move to E:. Whole Linux home lost; GGUFs
+on `/mnt/e/AI Models` survived. Rebuilt the toolchain + broker from scratch, then implemented
+the owner's WSL-ephemeral state policy, then started the Windows-native serving migration.
+See [[env-rebuild-2026-06-12]], [[llm-broker]], [[bot-git-auth]], [[windows-native-serving]].
 
-## Done + verified this session
-- Re-cloned `nathanfraske/CEC-Platform` → `/home/nathan/CEC-Platform`.
-- Python deps (apt, system python3): numpy/matplotlib/PIL/scipy — import OK with pcbnew.
-- KiCad 10.0.3 (kicad-cli + pcbnew), Java 21 full JRE + xvfb.
-- Docker 29.5 + NVIDIA Container Toolkit; GPU passthrough into a container verified (RTX 5090).
-- Routing image `cec/routing:kicad10` built.
-- `cec-llm-broker` rebuilt at `/home/nathan/cec-llm-broker`, installed as a systemd unit,
-  catalog/health/stats endpoints verified, compose orchestration wiring cross-checked.
-- llama.cpp `server-cuda` image pre-pulled.
+## Done + on the remote (branch `claude/wsl-ephemeral-recovery`, PR #51, authored as nathanfraske-bot)
+- **Toolchain rebuilt + verified**: KiCad 10/pcbnew, Python deps, Docker+NVIDIA toolkit (GPU
+  in-container), routing image, the cec-llm-broker (end-to-end model boot proven).
+- **WSL-ephemeral policy**: CLAUDE.md policy; `ops/provision.sh` (one-shot recovery + 4 smoke
+  tests); `.claude/hooks/session-end.sh` Stop hook (pushes handoff+memory to `ops/agent-handoff`
+  every session, git-plumbing, never touches the worktree); `.claude/memory/` committed; secrets
+  policy + the bot PAT placed at `/mnt/e/secrets/cec-bot.env`; broker VENDORED into
+  `ops/cec-llm-broker/`; corpus incident entry (lint-clean).
+- **Git authors/pushes as nathanfraske-bot** via `ops/secrets/git-credential-cec.sh`.
+- **Windows-native Phase B** (`docs/local-compute-windows-native-migration.md`): mainline
+  llama.cpp b9611 CUDA 13.3 on `E:\llama-cpp-win\`; networking verified; broker external-backend
+  support (`managed:false`, seat `cec-worker-vision-win:8090`); versions.env pinned; launchers
+  vendored at `ops/windows-serving/`.
 
-## Verified end-to-end
-- Real broker boot of `cec-worker-quality` round-tripped: request → on-demand `compose up`
-  → GPU cold-load (~165 s) → proxied llama.cpp `chat.completion`. GPU then returned to
-  baseline after stop. The full toolchain rebuild is COMPLETE and the LLM stack is live.
-
-## Notes / next
-- Not provisioned (out of scope / weren't present before): `deepseek-v4-flash` GGUF, the
-  vLLM `cec-judge` HF model (auto-downloads on first request), the sibling `cec-runs` repo
-  (clone next to CEC-Platform when ledger writes are needed — compose mounts `../../cec-runs`).
-- The previous session's own current-work-handoff was lost in the wipe and could not be
-  recovered; project state should be re-derived from git history + docs/owner-queue.md.
+## BLOCKED / next (Windows-native)
+- The Windows binaries fail to load: System32 Microsoft `libomp140.x86_64.dll` lacks
+  `__kmpc_dispatch_deinit` and loads before llama.cpp's bundled copy (DotLocal `.local` does NOT
+  fix it). **Fix needs ONE elevated action** (owner, when at a console with UAC):
+  `copy /Y E:\llama-cpp-win\b9611\libomp140.x86_64.dll C:\Windows\System32\libomp140.x86_64.dll`
+  (back up first; bundled is a superset). Or a source build with `GGML_OPENMP=OFF` (needs CUDA>=12.8).
+- After the fix: start the server (Task Scheduler `CEC-WorkerVision` via `ops/windows-serving/`),
+  then finish **B3** (cold-load + decode medians, Win-native vs drvfs) and **B5** (validate the
+  broker proxy end-to-end). The broker seat is already wired.
+- The WSL llama.cpp stack is the working production path meanwhile.

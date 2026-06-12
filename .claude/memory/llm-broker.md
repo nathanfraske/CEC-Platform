@@ -7,10 +7,15 @@ metadata:
   originSessionId: 481c50f1-03c6-4988-bdb6-aa3ffd3f3706
 ---
 
-`cec-llm-broker` lives at **`/home/nathan/cec-llm-broker`** (outside the repo, so it is
-NOT version-controlled with CEC-Platform). It is a stdlib-only Python OpenAI-compatible
-reverse proxy on `0.0.0.0:8080` that orchestrates the local-LLM backends defined in
-`CEC-Platform/docker/compose.yaml`.
+`cec-llm-broker` runs from **`/home/nathan/cec-llm-broker`** but its source is now
+**vendored in the repo at `ops/cec-llm-broker/`** (WSL-ephemeral policy — it must be
+recoverable from the remote, since the WSL-only original got wiped 2026-06-12).
+`ops/provision.sh` deploys it from there. It is a stdlib-only OpenAI-compatible reverse
+proxy on `0.0.0.0:8080` that orchestrates the local-LLM backends in `docker/compose.yaml`.
+
+Supports **external backends** (`"managed": false` + `"host": "windows-host"`): proxied
+but never started/stopped, excluded from idle-reap, never evicted (for Windows-native
+seats — see [[windows-native-serving]]). Seat `cec-worker-vision-win` (:8090) is registered.
 
 Rebuilt from scratch 2026-06-12 from the CLAUDE.md "BROKER v2 = MODEL ORCHESTRATOR" spec
 after the WSL reinstall wiped the original (see [[env-rebuild-2026-06-12]]). Files:
