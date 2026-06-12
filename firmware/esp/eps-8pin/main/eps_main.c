@@ -389,7 +389,14 @@ static int cmd_set(int argc, char **argv)
         printf("alpha=%.3f\n", v);
     } else if (strcmp(argv[1], "oc") == 0) {
         g_config.oc_threshold_a = v;
-        cec_detection_init(&g_detect, v);   // re-init layer 1 with new threshold
+        cec_detection_config_t dcfg = {
+            .oc_threshold_a        = v,
+            .dropout_floor_a       = EPS_DETECT_DROPOUT_FLOOR_A,
+            .crit_required         = EPS_DETECT_CRIT_REQUIRED,
+            .l2_threshold_a_per_ms = EPS_DETECT_L2_RATE_A_PER_MS,
+            .l3_adapt_rate         = EPS_DETECT_L3_ADAPT_RATE,
+        };
+        cec_detection_init(&g_detect, &dcfg);   // re-init layer 1 with new threshold
         printf("oc=%.2f A\n", v);
     } else if (strcmp(argv[1], "supply") == 0) {
         g_config.supply_voltage = v;
@@ -574,8 +581,16 @@ void app_main(void)
         ema_init(&g_ema[i], g_config.ema_alpha);
     }
 
-    // Detection
-    cec_detection_init(&g_detect, g_config.oc_threshold_a);
+    // Detection (tuning from cec_config.h, the board-variation point;
+    // the OC ceiling is runtime config).
+    cec_detection_config_t dcfg = {
+        .oc_threshold_a        = g_config.oc_threshold_a,
+        .dropout_floor_a       = EPS_DETECT_DROPOUT_FLOOR_A,
+        .crit_required         = EPS_DETECT_CRIT_REQUIRED,
+        .l2_threshold_a_per_ms = EPS_DETECT_L2_RATE_A_PER_MS,
+        .l3_adapt_rate         = EPS_DETECT_L3_ADAPT_RATE,
+    };
+    cec_detection_init(&g_detect, &dcfg);
 
     // Burst capture engine: pre-trigger ring at SAMPLE_RATE_HZ, HS path
     // at 10 kHz/channel via adc_continuous. Channel conversion params

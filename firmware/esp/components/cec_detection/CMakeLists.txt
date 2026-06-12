@@ -1,5 +1,6 @@
 idf_component_register(
     SRCS
+        "cec_state.c"
         "cec_layer1.c"
         "cec_layer2.c"
         "cec_layer3.c"
@@ -7,5 +8,7 @@ idf_component_register(
         "cec_classifier.c"
         "cec_detection.c"
     INCLUDE_DIRS "include"
-    REQUIRES cec_filters cec_common
+    REQUIRES
+        cec_common
+        cec_filters
 )

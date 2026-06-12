@@ -16,7 +16,9 @@
  * by (state, rail), selects profiles[current_state][rail] each
  * iteration, calls update() with the latest filtered value, then
  * checks z_score() against a threshold (v0.5.9 uses |z| > 4 for
- * anomaly trigger).
+ * anomaly trigger). On eps the same primitive is the per-cable
+ * noise/std baseline for the load classifier (high std_dev ->
+ * CEC_LOAD_TRANSIENT).
  */
 
 #pragma once

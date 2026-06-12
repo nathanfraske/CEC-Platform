@@ -17,22 +17,16 @@
 
 #include "cec_detection.h"
 
-/* Detector-tuning defaults. */
-#define LAYER1_CRIT_REQUIRED        3
-#define LAYER1_DROPOUT_FLOOR_A      0.5f
-#define LAYER2_THRESHOLD_A_PER_MS   1.0f
-/* Layer 3 adapt rate. 0.0005 at 50 Hz gives a ~2000-sample (40 s)
- * effective averaging window once warm, matching the 24-pin's value. */
-#define LAYER3_ADAPT_RATE           0.0005f
-
-void cec_detection_init(cec_detection_ctx_t *ctx, float oc_threshold_a)
+void cec_detection_init(cec_detection_ctx_t *ctx,
+                        const cec_detection_config_t *cfg)
 {
+    ctx->cfg = *cfg;
     for (int i = 0; i < CEC_NUM_CABLES; i++) {
-        cec_layer1_init(&ctx->l1[i],
-                        oc_threshold_a, oc_threshold_a,
-                        LAYER1_DROPOUT_FLOOR_A,
-                        LAYER1_CRIT_REQUIRED);
-        cec_layer2_init(&ctx->l2[i], LAYER2_THRESHOLD_A_PER_MS);
+        cec_layer1_init_ceiling(&ctx->l1[i],
+                                cfg->oc_threshold_a, cfg->oc_threshold_a,
+                                cfg->dropout_floor_a,
+                                cfg->crit_required);
+        cec_layer2_init_rate(&ctx->l2[i], cfg->l2_threshold_a_per_ms);
         cec_rail_profile_init(&ctx->l3[i]);
     }
 }
@@ -59,14 +53,14 @@ bool cec_detection_run(cec_detection_ctx_t *ctx,
         }
 
         /* Layer 2: rate-of-change on the raw stream (fast transients). */
-        if (cec_layer2_update(&ctx->l2[i], current_raw[i], now_us)) {
+        if (cec_layer2_update_rate(&ctx->l2[i], current_raw[i], now_us)) {
             flags |= CEC_FLAG_SWING;
         }
 
         /* Layer 3: rail profile. Feed the filtered value so brief raw
          * spikes don't widen the std estimate; the classifier picks
          * up the resulting std_dev as a noise/variability gauge. */
-        cec_rail_profile_update(&ctx->l3[i], current_filt[i], LAYER3_ADAPT_RATE);
+        cec_rail_profile_update(&ctx->l3[i], current_filt[i], ctx->cfg.l3_adapt_rate);
 
         if (ctx->l3[i].std_dev > max_std)  max_std     = ctx->l3[i].std_dev;
         if (current_filt[i]    > max_current) max_current = current_filt[i];

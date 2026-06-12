@@ -21,18 +21,30 @@
 extern "C" {
 #endif
 
+/* Detector tuning. Board/application values live in the app's
+ * cec_config (the board-variation point), never in this component. */
+typedef struct {
+    float oc_threshold_a;         /* L1 ceiling; warn tier == crit initially */
+    float dropout_floor_a;        /* L1 dropout floor (armed separately) */
+    int   crit_required;          /* L1 debounce (consecutive samples) */
+    float l2_threshold_a_per_ms;  /* L2 rate-of-change threshold */
+    float l3_adapt_rate;          /* L3 steady-state adapt rate */
+} cec_detection_config_t;
+
 typedef struct {
     cec_layer1_detector_t l1[CEC_NUM_CABLES];   /* current threshold */
     cec_layer2_detector_t l2[CEC_NUM_CABLES];   /* fast transient (dI/dt) */
     cec_rail_profile_t    l3[CEC_NUM_CABLES];   /* mean+std rail profile */
+    cec_detection_config_t cfg;
 } cec_detection_ctx_t;
 
 /*
- * Initialize all detectors. The OC ceiling comes from cec_config; the
- * warn band is set to the same value initially (single-tier) and can
- * be lowered later for a sub-critical warning.
+ * Initialize all detectors from the app-supplied tuning. The OC ceiling
+ * doubles as the warn tier initially (single-tier) and can be lowered
+ * later for a sub-critical warning.
  */
-void cec_detection_init(cec_detection_ctx_t *ctx, float oc_threshold_a);
+void cec_detection_init(cec_detection_ctx_t *ctx,
+                        const cec_detection_config_t *cfg);
 
 /*
  * Run all layers on one sample set. Folds Layer 1 severities and

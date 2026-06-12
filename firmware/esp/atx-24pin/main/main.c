@@ -33,6 +33,7 @@
 #include "acs712.h"
 #include "cec_filters.h"
 #include "cec_state.h"
+#include "cec_config.h"
 #include "cec_layer1.h"
 #include "cec_layer2.h"
 #include "cec_layer3.h"
@@ -191,11 +192,10 @@ static ema_t s_temp_ema;
 static cec_state_t s_state = CEC_STATE_OFF;
 static int64_t s_state_entered_us = 0;
 
-/* Layer 1 static-threshold detectors per rail. Bands carry forward from
- * v0.5.9: 5%/10% on main rails, 10%/20% on 5VSB. */
-#define L1_CRIT_CONSECUTIVE 3
-
-/* Mask Layer 1 for this long after every state transition. Covers the
+/* Layer 1 static-threshold detectors per rail. Bands + debounce live
+ * in cec_config.{c,h} (the board-variation point).
+ *
+ * Mask Layer 1 for this long after every state transition. Covers the
  * PSU inrush (most visibly on 5VSB OFF -> STANDBY ramp, where the rail
  * passes through 1..5 V on its way up and would otherwise sustain
  * CRITICAL for the consecutive-sample window). 500 ms is loose enough
@@ -209,17 +209,7 @@ static cec_severity_t s_last_sev_3v3  = CEC_SEV_NONE;
 static cec_severity_t s_last_sev_5vsb = CEC_SEV_NONE;
 
 /* Layer 2 adaptive transient detectors. Per-rail min-thresholds and
- * k_sigma carry forward from v0.5.9. The fire condition is
- * |instant - ema| > max(min, k*std) for 3 consecutive samples. */
-#define LAYER2_K_SIGMA       5.0f
-#define LAYER2_CONSECUTIVE   3
-#define L2_MIN_V_12V         0.50f
-#define L2_MIN_V_5V          0.20f
-#define L2_MIN_V_3V3         0.15f
-#define L2_MIN_V_5VSB        0.30f
-#define L2_MIN_I_12V         1.00f
-#define L2_MIN_I_5V          0.50f
-#define L2_MIN_I_3V3         0.30f
+ * k_sigma live in cec_config.h (the board-variation point). */
 static cec_layer2_detector_t s_l2_v_12v, s_l2_v_5v, s_l2_v_3v3, s_l2_v_5vsb;
 static cec_layer2_detector_t s_l2_i_12v, s_l2_i_5v, s_l2_i_3v3;
 
@@ -354,25 +344,21 @@ static esp_err_t init_ina226_5vsb(void)
 
 static void init_layer1(void)
 {
-    static const cec_rail_spec_t SPEC_12V  = { 12.0f, 0.05f, 0.10f };
-    static const cec_rail_spec_t SPEC_5V   = {  5.0f, 0.05f, 0.10f };
-    static const cec_rail_spec_t SPEC_3V3  = {  3.3f, 0.05f, 0.10f };
-    static const cec_rail_spec_t SPEC_5VSB = {  5.0f, 0.10f, 0.20f };
-    cec_layer1_init(&s_l1_12v,  &SPEC_12V,  L1_CRIT_CONSECUTIVE);
-    cec_layer1_init(&s_l1_5v,   &SPEC_5V,   L1_CRIT_CONSECUTIVE);
-    cec_layer1_init(&s_l1_3v3,  &SPEC_3V3,  L1_CRIT_CONSECUTIVE);
-    cec_layer1_init(&s_l1_5vsb, &SPEC_5VSB, L1_CRIT_CONSECUTIVE);
+    cec_layer1_init_band(&s_l1_12v,  &CEC_CFG_L1_SPEC_12V,  L1_CRIT_CONSECUTIVE);
+    cec_layer1_init_band(&s_l1_5v,   &CEC_CFG_L1_SPEC_5V,   L1_CRIT_CONSECUTIVE);
+    cec_layer1_init_band(&s_l1_3v3,  &CEC_CFG_L1_SPEC_3V3,  L1_CRIT_CONSECUTIVE);
+    cec_layer1_init_band(&s_l1_5vsb, &CEC_CFG_L1_SPEC_5VSB, L1_CRIT_CONSECUTIVE);
 }
 
 static void init_layer2(void)
 {
-    cec_layer2_init(&s_l2_v_12v,  L2_MIN_V_12V,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
-    cec_layer2_init(&s_l2_v_5v,   L2_MIN_V_5V,   LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
-    cec_layer2_init(&s_l2_v_3v3,  L2_MIN_V_3V3,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
-    cec_layer2_init(&s_l2_v_5vsb, L2_MIN_V_5VSB, LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
-    cec_layer2_init(&s_l2_i_12v,  L2_MIN_I_12V,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
-    cec_layer2_init(&s_l2_i_5v,   L2_MIN_I_5V,   LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
-    cec_layer2_init(&s_l2_i_3v3,  L2_MIN_I_3V3,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_v_12v,  L2_MIN_V_12V,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_v_5v,   L2_MIN_V_5V,   LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_v_3v3,  L2_MIN_V_3V3,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_v_5vsb, L2_MIN_V_5VSB, LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_i_12v,  L2_MIN_I_12V,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_i_5v,   L2_MIN_I_5V,   LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
+    cec_layer2_init_adaptive(&s_l2_i_3v3,  L2_MIN_I_3V3,  LAYER2_K_SIGMA, LAYER2_CONSECUTIVE);
 }
 
 static void init_layer3_profiles(void)
@@ -1117,13 +1103,18 @@ void app_main(void)
          * can silence either layer at runtime. */
         bool l2_fired = false;
         if (l2_active) {
-            l2_fired |= cec_layer2_update(&s_l2_v_12v,  v_12v,  v_12v_ema);
-            l2_fired |= cec_layer2_update(&s_l2_v_5v,   v_5v,   v_5v_ema);
-            l2_fired |= cec_layer2_update(&s_l2_v_3v3,  v_3v3,  v_3v3_ema);
-            l2_fired |= cec_layer2_update(&s_l2_v_5vsb, v_5vsb, v_5vsb_ema);
-            l2_fired |= cec_layer2_update(&s_l2_i_12v,  i_12v,  i_12v_ema);
-            l2_fired |= cec_layer2_update(&s_l2_i_5v,   i_5v,   i_5v_ema);
-            l2_fired |= cec_layer2_update(&s_l2_i_3v3,  i_3v3,  i_3v3_ema);
+            /* On a failed read the raw local stays 0.0 while the EMA
+             * holds last-good — feeding that pair to Layer 2 reads as a
+             * huge spurious deviation (FOLLOWUPS L1). Feed the EMA as
+             * the instant on a failed read so the deviation is zero for
+             * that channel this iteration. */
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_v_12v,  ok_v_12v ? v_12v  : v_12v_ema,  v_12v_ema);
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_v_5v,   ok_v_5v  ? v_5v   : v_5v_ema,   v_5v_ema);
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_v_3v3,  ok_v_3v3 ? v_3v3  : v_3v3_ema,  v_3v3_ema);
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_v_5vsb, ok_5vsb  ? v_5vsb : v_5vsb_ema, v_5vsb_ema);
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_i_12v,  ok_i_12v ? i_12v  : i_12v_ema,  i_12v_ema);
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_i_5v,   ok_i_5v  ? i_5v   : i_5v_ema,   i_5v_ema);
+            l2_fired |= cec_layer2_update_adaptive(&s_l2_i_3v3,  ok_i_3v3 ? i_3v3  : i_3v3_ema,  i_3v3_ema);
         } else {
             reset_layer2_counters();
         }
