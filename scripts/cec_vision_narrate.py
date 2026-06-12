@@ -89,8 +89,21 @@ def narrate(candidate_png, diff_regions=None, *, model=None, chat=None, max_toke
     text = _prompt(diff_regions, reference_present=bool(diff_regions))
     out = chat(model, text, candidate_png, schema=NARRATE_SCHEMA, max_tokens=max_tokens,
                timeout=timeout, ctx=ctx or {})
+    if isinstance(out, tuple):                 # cec_vlm_bakeoff._chat -> (content, dt, usage)
+        out = out[0]
     if isinstance(out, str):
-        out = json.loads(out)
+        try:
+            out = json.loads(out)
+        except (ValueError, json.JSONDecodeError):
+            import re
+            m = re.search(r"\{.*\}", out, re.S)        # grammar/thinking overrun -> salvage a block
+            try:
+                out = json.loads(m.group(0)) if m else {}
+            except (ValueError, json.JSONDecodeError):
+                out = {}
+            if not isinstance(out, dict):
+                out = {}
+            out.setdefault("note", "unparseable model output (recorded as no-catch)")
     # normalize + stamp; the output is advisory narration, re-checked by determinism, never a gate
     out.setdefault("region_narration", [])
     out.setdefault("anomalies", [])
