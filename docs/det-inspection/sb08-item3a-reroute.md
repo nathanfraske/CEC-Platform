@@ -22,7 +22,22 @@ connector→shunt corridor + a same-net via field, then strips the redundant thi
 
 **75.5 °C — about half the current 157.9 and well below the old 128.2 "baseline class", at drc 0 with both
 hard gates passing.** The via count rises 78→142 (the §6.7/OQ-10 stitch field carrying current between the
-mirror layers); tracks drop as the pour replaces thin force traces. The criterion is cleared decisively.
+mirror layers); tracks drop as the pour replaces thin force traces. The thermal criterion is cleared
+decisively, and the result is byte-reproducible (route+synth twice → identical drc 0 / 75.5 / 501 / 142).
+
+### OPEN ISSUE — pour-integrity gate fails on SENSEC2_LO (must resolve before merge)
+
+The full gate stack (not just the three above) surfaces one real problem: the PR-#35 **pour-integrity
+gate FAILS** — `/SENSEC2_LO` has **3 F.Cu islands** (the other three sense nets are 1). The strip-redundant
+step split the F.Cu pour. The **B.Cu mirror is intact (1 island, 122 mm²)** and the net is electrically
+whole (kelvin ✓ proves connectivity via the via field), so it's a **topology-vs-gate mismatch**: the gate
+counts F.Cu islands only (written before the F+B mirror existed). **Resolution required, one of:**
+(a) make the synth keep `*_LO` as a single F.Cu island (don't strip the bridging trace), or
+(b) make `pour_integrity_ok` F+B-mirror-aware (islands per net across the stitched layers).
+Until then 3a fails a *blocking* loop gate — so 3a is the right direction but **not merge-ready**.
+
+Cost (informed sign): +64 vias (78→142, near-free), +~446 mm² B.Cu mirror copper (total sense-pour copper
+804.5 mm² F+B); drc=0 → no clearance violation with the LOGO1 B.Cu keepout or bottom-side parts.
 
 ## What this branch contains (and what it deliberately does NOT do)
 
@@ -60,6 +75,8 @@ Proposed bands from the 75.5 baseline (you pick the headroom):
 
 ## Recommendation
 
-**3a is the clear winner over 3b.** It produces a genuinely cooler, fab-honest board (proper high-current
-copper, the §6.7 design intent) rather than accepting a hot one. 3b (accept 157.9) is the fallback only if
-the synthesis has a problem on the real fab stackup. See `sb08-item3b-accept.md` for that fallback.
+**3a is the right direction over 3b — but resolve the pour-integrity fragmentation (SENSEC2_LO, above)
+before merging.** It produces a genuinely cooler, fab-honest board (proper high-current copper, the §6.7
+design intent) rather than accepting a hot one; the only blocker is the F.Cu-island gate mismatch, which
+is a synth tweak or a gate-topology fix, not a fundamental flaw. 3b (accept 157.9) is the fallback only if
+the synthesis can't be made gate-clean on the real fab stackup. See `sb08-item3b-accept.md`.
