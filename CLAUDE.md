@@ -173,6 +173,7 @@ cec-platform/
     12vhpwr-standard/
     12vhpwr-pro/
   fab/                       # tagged release snapshots of exactly what was sent to the board house
+  firmware/                  # module firmware: shared ESP-IDF components + per-app trees + RTL (see "Firmware tree" below)
   scripts/                   # kicad-cli wrappers and CI helpers
   CLAUDE.md
   .gitignore
@@ -1994,3 +1995,71 @@ Use this as a recurring review pass:
 - Libraries and 3D models are vendored in-repo and referenced by
   `${KIPRJMOD}`-relative paths only — no machine-global or absolute paths.
 - BOM totals are in line with the spec targets.
+
+## Firmware tree (`firmware/`)
+
+Consolidated 2026-06-12 from `cec-24pin-idf`, `cec-eps-idf` (both
+subtree-imported with history), and the proto12v v0 deliverable. One
+repo, one SHA, one coherent hardware-plus-firmware state.
+
+```
+firmware/
+  esp/
+    components/          # shared ESP-IDF components (every app sees them
+                         #   via EXTRA_COMPONENT_DIRS in its project CMakeLists):
+                         #   cec_common cec_filters cec_nvs cec_cli cec_capture
+                         #   cec_detection cec_sensors cec_telemetry cec_comms
+                         #   cec_fpga_link
+    atx-24pin/           # ESP32-S3 app (24-pin module)
+    eps-8pin/            # ESP32-S3 app (EPS module)
+    12vhpwr-proto/       # ESP32-P4 app (GW5A/AD7606 perfboard prototype readout)
+  rtl/
+    common/              # shared Verilog (cec_spi_slave.v), consumed by
+                         #   RELATIVE PATH from any target — no packaging
+    12vhpwr-proto/       # GW5A top + self-checking sim + dock pin map
+  tools/                 # host-side helpers (setup-esp-idf.sh toolchain install)
+  FOLLOWUPS.md           # deferred-work tracker incl. the consolidation
+                         #   stop-and-report log — keep it honest like the
+                         #   action items above
+```
+
+Three conventions (do not regress them):
+
+- **Shared code lives in `firmware/esp/components/`.** An app-local
+  `components/` dir would shadow a same-named shared component — the
+  migration deleted every app-local copy; do not reintroduce one.
+- **Board variation lives ONLY in each app's `main/cec_config.{c,h}`**
+  (plus its `sdkconfig.defaults` Kconfig selections: sensor set,
+  cec_adc backend, telemetry UART, CAN bitrate/pins). No pins,
+  thresholds, dividers, or board constants inside
+  `firmware/esp/components/` — the final-acceptance grep enforces the
+  obvious cases.
+- **Enum numeric values in `cec_common/cec_state.h` are FROZEN** —
+  `cec_nvs` persists blobs containing them (L3 profiles indexed by
+  `cec_state_t`, flag bytes). New enumerators are appended before the
+  `_COUNT` sentinel, never renumbered.
+
+Build gate (run before committing firmware changes; CI runs the same in
+`firmware-ci.yml` — toolchain pins in `versions.env`, ESP-IDF v6.0.1 +
+Icarus Verilog 12; the SessionStart hook installs both in remote
+sessions, `IDF_PATH=/opt/esp-idf-v60`):
+
+```sh
+# RTL sim (self-checking; expect PASS)
+cd firmware/rtl/12vhpwr-proto
+iverilog -g2012 -o tb tb_top.v top.v ../common/cec_spi_slave.v && vvp tb | grep -q '^PASS'
+cd -
+# All three apps (12vhpwr-proto targets esp32p4, the others esp32s3)
+. "${IDF_PATH:-/opt/esp-idf-v60}/export.sh"
+for app in atx-24pin eps-8pin 12vhpwr-proto; do
+  ( cd firmware/esp/$app && idf.py set-target $( [ $app = 12vhpwr-proto ] && echo esp32p4 || echo esp32s3 ) build ) || exit 1
+done
+```
+
+TelePlot output bytes on USB-CDC are a compatibility contract (existing
+capture tooling consumes them); each app's burst-dump renderers live in
+its main and must stay byte-identical unless that tooling moves with
+them. The capture/detection engines are config-driven — judge a change
+against BOTH apps' postures (the dual lineages are documented in the
+component headers and `firmware/FOLLOWUPS.md`).
+
