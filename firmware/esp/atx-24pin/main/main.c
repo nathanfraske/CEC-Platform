@@ -564,17 +564,115 @@ static void log_acs712_zero_measurements(void)
                   "disconnected, paste the measured V into ACS712_ZERO_<rail>.");
 }
 
-/* Burst capture HS sample callback. Runs at 1 kHz on the cec_hs_cap task
- * (Core 1) — must stay well under 1 ms. Six oneshot ADC reads + scaling
- * comfortably fit. */
-static void hs_sample_fn(cec_capture_hs_sample_t *out)
+/* ---- Burst-capture shapes + hooks (app-side) ----
+ * The shared cec_capture engine treats rows as opaque bytes and calls
+ * back here for HS acquisition + dump rendering. Shapes and dump
+ * formats match v0.5.9 so existing capture-analysis tooling works
+ * unchanged. */
+
+/* Pre-trigger sample (50 Hz, full sensor set). */
+typedef struct {
+    uint32_t ts_ms;
+    uint8_t  state;     /* cec_state_t cast to byte */
+    float    v_12v,  i_12v;
+    float    v_5v,   i_5v;
+    float    v_3v3,  i_3v3;
+    float    v_5vsb, i_5vsb;
+    float    temp_c;
+} cec_capture_sample_t;
+
+/* HS sample (1 kHz, main rails only). Slim by design. */
+typedef struct {
+    uint32_t ts_us_offset;   /* microseconds since HS capture start */
+    float    v_12v, i_12v;
+    float    v_5v,  i_5v;
+    float    v_3v3, i_3v3;
+} cec_capture_hs_sample_t;
+
+/* Sizes from v0.5.9 (preserved exactly): pre-trigger covers 20 s at
+ * 50 Hz, HS covers 4 s at 1 kHz, 10 s cooldown between bursts. */
+#define PRE_TRIGGER_BUF_SIZE   1000
+#define HS_BURST_BUF_SIZE      4000
+#define HS_SAMPLE_RATE_HZ      1000
+#define BURST_COOLDOWN_MS      10000
+
+/* Newest state byte pushed into the pre-trigger ring; rendered into the
+ * BURST_BEGIN line's state token (the engine snapshots it at dispatch,
+ * matching the old state_at_trigger semantics). */
+static volatile uint8_t s_last_capture_state = 0;
+
+static void capture_state_token(char *buf, size_t cap)
 {
-    cec_adc_read(&s_hs_rail_12v, &out->v_12v);
-    cec_adc_read(&s_hs_rail_5v,  &out->v_5v);
-    cec_adc_read(&s_hs_rail_3v3, &out->v_3v3);
-    acs712_read_amps(&s_hs_acs_12v, &out->i_12v);
-    acs712_read_amps(&s_hs_acs_5v,  &out->i_5v);
-    acs712_read_amps(&s_hs_acs_3v3, &out->i_3v3);
+    snprintf(buf, cap, "%d", (int)s_last_capture_state);
+}
+
+/* HS fill callback. Paced at 1 kHz on the dispatcher task (Core 1) —
+ * must stay well under 1 ms. Six reads off the cec_adc continuous-mode
+ * latest-mV table + scaling comfortably fit. */
+static void capture_hs_fill(void *row_v, const void *prev_v, uint32_t ts_us_offset)
+{
+    cec_capture_hs_sample_t *s = row_v;
+    s->ts_us_offset = ts_us_offset;
+    cec_adc_read(&s_hs_rail_12v, &s->v_12v);
+    cec_adc_read(&s_hs_rail_5v,  &s->v_5v);
+    cec_adc_read(&s_hs_rail_3v3, &s->v_3v3);
+    acs712_read_amps(&s_hs_acs_12v, &s->i_12v);
+    acs712_read_amps(&s_hs_acs_5v,  &s->i_5v);
+    acs712_read_amps(&s_hs_acs_3v3, &s->i_3v3);
+
+    /* All-zero-rails carry-forward (v0.5.9 lineage). With cec_adc in
+     * continuous/DMA mode the latest-mV table holds the last value, so
+     * a true all-zero row is rare now (it meant a SAR glitch in the
+     * oneshot era); kept as cheap insurance. Only bites if a burst runs
+     * across a real full-rail collapse, which then shows as a flat-line
+     * in the carried-forward window. */
+    if (prev_v != NULL && s->v_12v == 0.0f && s->v_5v == 0.0f && s->v_3v3 == 0.0f) {
+        const cec_capture_hs_sample_t *prev = prev_v;
+        s->v_12v = prev->v_12v; s->i_12v = prev->i_12v;
+        s->v_5v  = prev->v_5v;  s->i_5v  = prev->i_5v;
+        s->v_3v3 = prev->v_3v3; s->i_3v3 = prev->i_3v3;
+    }
+}
+
+/* Dump renderers: byte-identical to the pre-merge (v0.5.9-format) dump. */
+static int capture_render_pre(const void *sample, char *buf, size_t cap)
+{
+    const cec_capture_sample_t *p = sample;
+    unsigned ts = (unsigned)p->ts_ms;
+    return snprintf(buf, cap,
+                    ">b_v_12v:%u:%.3f\n"
+                    ">b_i_12v:%u:%.3f\n"
+                    ">b_v_5v:%u:%.3f\n"
+                    ">b_i_5v:%u:%.3f\n"
+                    ">b_v_3v3:%u:%.3f\n"
+                    ">b_i_3v3:%u:%.3f\n"
+                    ">b_v_5vsb:%u:%.3f\n"
+                    ">b_i_5vsb:%u:%.4f\n"
+                    ">b_temp:%u:%.2f\n"
+                    ">b_state:%u:%d\n",
+                    ts, p->v_12v,  ts, p->i_12v,
+                    ts, p->v_5v,   ts, p->i_5v,
+                    ts, p->v_3v3,  ts, p->i_3v3,
+                    ts, p->v_5vsb, ts, p->i_5vsb,
+                    ts, p->temp_c, ts, (int)p->state);
+}
+
+static int capture_render_hs(const void *row_v, int64_t hs_start_us,
+                             char *buf, size_t cap)
+{
+    const cec_capture_hs_sample_t *s = row_v;
+    unsigned ts = (unsigned)((uint32_t)(hs_start_us / 1000)
+                             + (s->ts_us_offset / 1000));
+    return snprintf(buf, cap,
+                    ">hs_v_12v:%u:%.3f\n"
+                    ">hs_i_12v:%u:%.3f\n"
+                    ">hs_v_5v:%u:%.3f\n"
+                    ">hs_i_5v:%u:%.3f\n"
+                    ">hs_v_3v3:%u:%.3f\n"
+                    ">hs_i_3v3:%u:%.3f\n",
+                    ts, s->v_12v, ts, s->i_12v,
+                    ts, s->v_5v,  ts, s->i_5v,
+                    ts, s->v_3v3, ts, s->i_3v3);
 }
 
 /* ---------------------------- CLI handlers ---------------------------- */
@@ -809,7 +907,26 @@ void app_main(void)
 
     log_acs712_zero_measurements();
 
-    err = cec_capture_init(hs_sample_fn);
+    cec_capture_config_t cap_cfg = {
+        .pre_trigger_capacity = PRE_TRIGGER_BUF_SIZE,
+        .pre_sample_size      = sizeof(cec_capture_sample_t),
+        .hs_row_size          = sizeof(cec_capture_hs_sample_t),
+        .hs_sample_rate_hz    = HS_SAMPLE_RATE_HZ,
+        .hs_duration_ms       = (HS_BURST_BUF_SIZE * 1000) / HS_SAMPLE_RATE_HZ,
+        .cooldown_ms          = BURST_COOLDOWN_MS,
+        .hs_dump_decimation   = 1,       /* dump every HS row, as v0.5.9 did */
+        /* v0.5.9 lineage: pre-ring indices computed at dump time, so
+         * pushes during the 4 s HS window are part of the dump. */
+        .snapshot_pre_at_trigger = false,
+        .dispatch_task_stack  = 8192,    /* legacy HS task margin */
+        .write          = teleplot_write_raw,
+        .render_pre     = capture_render_pre,
+        .render_hs      = capture_render_hs,
+        .state_token    = capture_state_token,
+        .hs_source      = CEC_CAPTURE_HS_CALLBACK,
+        .hs_fill        = capture_hs_fill,
+    };
+    err = cec_capture_init(&cap_cfg);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "cec_capture_init failed: %s", esp_err_to_name(err));
         ESP_LOGW(TAG, "Continuing without burst capture");
@@ -1137,6 +1254,7 @@ void app_main(void)
             .v_5vsb = v_5vsb_ema, .i_5vsb = i_5vsb_ema,
             .temp_c = temp_ema,
         };
+        s_last_capture_state = pre.state;
         cec_capture_push(&pre);
 
         if (iter % TELEPLOT_DIVIDER == 0) {

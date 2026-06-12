@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <inttypes.h>
 #include "esp_log.h"
 #include "driver/uart.h"
@@ -86,6 +87,11 @@ static int clamp_len(int n, size_t cap)
 {
     if (n < 0) return 0;
     return (n < (int)cap) ? n : (int)cap - 1;
+}
+
+void teleplot_write_raw(const char *buf, size_t n)
+{
+    write_line(buf, (int)n);
 }
 
 void teleplot_emit(const char *name, float value)

@@ -30,6 +30,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 #include "esp_err.h"
 
 #ifdef __cplusplus
@@ -43,6 +44,14 @@ extern "C" {
  * stdio fallback).
  */
 esp_err_t cec_telemetry_init_uart(void);
+
+/*
+ * Write a pre-formatted byte buffer into the telemetry stream. Used by
+ * cec_capture's burst dump where building one printf per row is too
+ * slow. Blocks when the UART TX ring is full (or via stdio when UART
+ * isn't initialized).
+ */
+void teleplot_write_raw(const char *buf, size_t n);
 
 /*
  * Emit a TelePlot sample with no embedded timestamp (TelePlot stamps

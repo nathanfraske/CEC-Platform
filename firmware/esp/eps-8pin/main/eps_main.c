@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -65,6 +66,91 @@ static cec_detection_ctx_t g_detect;
 // Default dump decimation: emit every 5th HS row to TelePlot (2 kHz
 // visible from 10 kHz captured). Override via `set decim <N>`.
 #define EPS_BURST_HS_DUMP_DECIM     5
+
+// ---- Burst-capture shapes + hooks (app-side) ----
+// The shared cec_capture engine treats rows as opaque bytes and calls
+// back here for HS acquisition + dump rendering, so the eps dump stays
+// byte-identical to its pre-merge format.
+
+// Pre-trigger sample - 50 Hz, full state snapshot.
+typedef struct {
+    uint32_t ts_ms;
+    float    eps1_a, eps2_a;
+    float    eps1_raw_a, eps2_raw_a;
+    float    bus_voltage_v;  // 12V rail measurement (V)
+    float    temp_c;
+    uint8_t  load_state;     // cec_load_state_t cast to byte
+    uint8_t  flags;          // CEC_FLAG_* bits
+} cec_capture_sample_t;
+
+// HS sample - 10 kHz, currents only. Slim by design so the PSRAM
+// footprint stays modest and the DMA consumer's per-sample work is cheap.
+typedef struct {
+    uint32_t ts_us_offset;   // microseconds since HS capture start
+    float    eps1_a;
+    float    eps2_a;
+} cec_capture_hs_sample_t;
+
+// raw ADC mv -> amps via the engine-cached per-channel conversion params
+// (mirrors acs758_read_current; cec_capture_update_channel keeps the
+// cached params current after runtime calibration changes).
+static float hs_convert_to_amps(const cec_capture_channel_t *ch, int mv)
+{
+    float v_chip = (mv / 1000.0f) * ch->divider_gain;
+    float v_sig  = v_chip - ch->quiescent_v - ch->zero_offset_v;
+    if (ch->sensitivity_v_a == 0.0f) return 0.0f;
+    return v_sig / ch->sensitivity_v_a;
+}
+
+static void capture_hs_on_reading(void *row_v, int cidx, int mv)
+{
+    cec_capture_hs_sample_t *row = row_v;
+    const cec_capture_channel_t *ch = cec_capture_channel_get(cidx);
+    if (ch == NULL) return;
+    float amps = hs_convert_to_amps(ch, mv);
+    if (cidx == 0)      row->eps1_a = amps;
+    else if (cidx == 1) row->eps2_a = amps;
+}
+
+static void capture_hs_row_finish(void *row_v, uint32_t ts_us_offset)
+{
+    ((cec_capture_hs_sample_t *)row_v)->ts_us_offset = ts_us_offset;
+}
+
+// Dump renderers: byte-identical to the pre-merge eps burst dump.
+static int capture_render_pre(const void *sample, char *buf, size_t cap)
+{
+    const cec_capture_sample_t *s = sample;
+    return snprintf(buf, cap,
+                    ">b_eps1_a:%" PRIu32 ":%.6f\n"
+                    ">b_eps2_a:%" PRIu32 ":%.6f\n"
+                    ">b_eps1_raw_a:%" PRIu32 ":%.6f\n"
+                    ">b_eps2_raw_a:%" PRIu32 ":%.6f\n"
+                    ">b_bus_v:%" PRIu32 ":%.6f\n"
+                    ">b_temp_c:%" PRIu32 ":%.6f\n"
+                    ">b_load:%" PRIu32 ":%u\n"
+                    ">b_flags:%" PRIu32 ":%u\n",
+                    s->ts_ms, s->eps1_a,
+                    s->ts_ms, s->eps2_a,
+                    s->ts_ms, s->eps1_raw_a,
+                    s->ts_ms, s->eps2_raw_a,
+                    s->ts_ms, s->bus_voltage_v,
+                    s->ts_ms, s->temp_c,
+                    s->ts_ms, (unsigned)s->load_state,
+                    s->ts_ms, (unsigned)s->flags);
+}
+
+static int capture_render_hs(const void *row_v, int64_t hs_start_us,
+                             char *buf, size_t cap)
+{
+    (void)hs_start_us;   // eps rows carry their own us offsets
+    const cec_capture_hs_sample_t *h = row_v;
+    return snprintf(buf, cap,
+                    ">hs_eps1_a:%" PRIu32 ":%.6f\n"
+                    ">hs_eps2_a:%" PRIu32 ":%.6f\n",
+                    h->ts_us_offset, h->eps1_a,
+                    h->ts_us_offset, h->eps2_a);
+}
 
 // Telemetry transport - hybrid setup on the Lonely Binary N16R8 board.
 // UART USB-C (CH340K bridge) carries TelePlot output (steady telemetry
@@ -496,11 +582,24 @@ void app_main(void)
     // come from the live ACS758 calibration so HS samples land in amps.
     cec_capture_config_t cap_cfg = {
         .pre_trigger_capacity = EPS_PRE_TRIGGER_SECONDS * SAMPLE_RATE_HZ,
+        .pre_sample_size      = sizeof(cec_capture_sample_t),
+        .hs_row_size          = sizeof(cec_capture_hs_sample_t),
         .hs_sample_rate_hz    = EPS_BURST_HS_RATE_HZ,
         .hs_duration_ms       = EPS_BURST_HS_DURATION,
         .cooldown_ms          = EPS_BURST_COOLDOWN_MS,
         .hs_dump_decimation   = EPS_BURST_HS_DUMP_DECIM,
-        .n_channels           = CEC_NUM_CABLES,
+        // eps lineage: the dump reflects the ring as of trigger time.
+        .snapshot_pre_at_trigger = true,
+        .write          = teleplot_write_raw,
+        .render_pre     = capture_render_pre,
+        .render_hs      = capture_render_hs,
+        .hs_source      = CEC_CAPTURE_HS_ADC_CONTINUOUS,
+        .n_channels     = CEC_NUM_CABLES,
+        .hs_on_reading  = capture_hs_on_reading,
+        .hs_row_finish  = capture_hs_row_finish,
+        .adc_acquire    = cec_adc_pause,
+        .adc_release    = cec_adc_resume,
+        .get_cali       = cec_adc_get_cali_handle,
     };
     for (int i = 0; i < CEC_NUM_CABLES; i++) {
         cap_cfg.channels[i] = (cec_capture_channel_t){
