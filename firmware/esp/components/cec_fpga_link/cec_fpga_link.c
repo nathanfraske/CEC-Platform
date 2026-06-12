@@ -30,6 +30,8 @@ esp_err_t cec_fpga_link_init(const cec_fpga_link_config_t *cfg)
     };
     esp_err_t err = gpio_config(&drdy);
     if (err != ESP_OK) return err;
+    ESP_LOGI(TAG, "init: DRDY gpio ok; bringing up SPI host %d (sclk=%d mosi=%d miso=%d cs=%d)",
+             (int)cfg->host, cfg->pin_sclk, cfg->pin_mosi, cfg->pin_miso, cfg->pin_cs);
 
     spi_bus_config_t bus = {
         .mosi_io_num   = cfg->pin_mosi,
@@ -41,6 +43,7 @@ esp_err_t cec_fpga_link_init(const cec_fpga_link_config_t *cfg)
     };
     err = spi_bus_initialize(cfg->host, &bus, SPI_DMA_CH_AUTO);
     if (err != ESP_OK) return err;
+    ESP_LOGI(TAG, "init: spi_bus_initialize ok; adding device");
 
     spi_device_interface_config_t dev = {
         .clock_speed_hz = cfg->clock_speed_hz,

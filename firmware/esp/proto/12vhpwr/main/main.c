@@ -114,9 +114,19 @@ static void raw_console_loop(void)
 
 void app_main(void)
 {
+    ESP_LOGI(TAG, "app_main: start (proto bring-up)");
+
     cec_fpga_link_config_t link_cfg;
     cec_config_fpga_link(&link_cfg);
-    ESP_ERROR_CHECK(cec_fpga_link_init(&link_cfg));
+    /* Non-fatal: a stuck/failed FPGA link must not boot-loop the board
+     * via ESP_ERROR_CHECK -- log and continue so the console stays up
+     * and the failing step is visible. */
+    esp_err_t link_err = cec_fpga_link_init(&link_cfg);
+    if (link_err != ESP_OK) {
+        ESP_LOGE(TAG, "cec_fpga_link_init failed: %s", esp_err_to_name(link_err));
+    } else {
+        ESP_LOGI(TAG, "app_main: fpga link up");
+    }
 
     esp_err_t cli_err = cec_cli_init(CLI_COMMANDS,
                                      sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]));
