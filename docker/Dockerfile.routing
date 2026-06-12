@@ -27,7 +27,12 @@ ENV DEBIAN_FRONTEND=noninteractive
 # ghcr.io/freerouting/freerouting REST image is the cleaner future path -- compose `freerouting`.)
 RUN apt-get update && apt-get install -y --no-install-recommends \
         openjdk-21-jre xvfb xauth python3-pip \
+        librsvg2-bin \
     && rm -rf /var/lib/apt/lists/*
+# librsvg2-bin -> rsvg-convert: rasterizes the MODEL-FREE copper/zone SVG (kicad-cli export svg of
+# F.Cu/B.Cu/Edge.Cuts) to PNG for the VISION seat, so the VLM never reads the 3D-body render's
+# rotated-footprint artifact (cec_fullstack.render_copper_zone, review item 3). Until this image is
+# rebuilt, render_copper_zone returns False and the vision seat stays gated (render_hygiene_pending).
 
 # Pipeline Python deps + the scipy/numpy the DC IR-drop slice (Phase 1) will use. --break-system-
 # packages: the KiCad image base is PEP-668 managed and pcbnew lives in the system python3, so we

@@ -74,11 +74,14 @@ MANAGER_MODEL = os.environ.get("CEC_VLLM_MANAGER_MODEL") or MODEL
 # COMPLETE in ONE call (3.7k tok / 172s; 22.3 tok/s warm; 9GB VRAM, experts in RAM so it coexists
 # with the worker in page cache), while MiniMax-M2.7 truncated TWICE with EMPTY content (the whole
 # budget burned in reasoning_content, at 8k AND 14k caps). So the bounded-JSON reviewer DEFAULTS to
-# cec-manager-fast. M2.7 stays the opt-in deep AUDITOR (CEC_VLLM_REVIEWER_MODEL=cec-manager): its
-# rumination wins adversarial audits (it surfaced a planted spec inconsistency that oss-120b caught
-# internally but OMITTED from its final answer), and the miner->scribe recovery + sampling floors
-# below make it usable programmatically. An explicit CEC_VLLM_MANAGER_MODEL pin is honored second
-# for back-compat (the pre-bench overnight driver pinned the deep manager that way).
+# cec-manager-fast. The opt-in deep AUDITOR (CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash) is now
+# DeepSeek-V4-Flash 284B -- owner directive 2026-06-11 RETIRED MiniMax-M2.7 (cec-manager) from THIS
+# pipeline and replaced it with DeepSeek now that V4's deep-reasoning performance is established;
+# the heavy cold load (~160 GB host-RAM mmap + WSL cache-drop preflight, see the broker entry) is
+# the accepted cost of the deep tier. M2.7's broker backend is LEFT REGISTERED (other project may
+# use it) but no CEC pipeline path points at it. The miner->scribe recovery + sampling floors below
+# now protect the DeepSeek deep tier. An explicit CEC_VLLM_MANAGER_MODEL pin is honored second for
+# back-compat (the pre-bench overnight driver pinned the deep manager that way).
 REVIEWER_URL = (os.environ.get("CEC_VLLM_REVIEWER_URL") or MANAGER_URL).rstrip("/")
 REVIEWER_MODEL = (os.environ.get("CEC_VLLM_REVIEWER_MODEL")
                   or os.environ.get("CEC_VLLM_MANAGER_MODEL") or "cec-manager-fast")
@@ -99,11 +102,13 @@ MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
 # fallback (the exact failure mode the manager budget fix documented). 1200 covers measured
 # reasoning (trivial ask ~160 tokens; real verdicts a few hundred) with margin.
 WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "1200"))
-# M2.7 SAMPLING FLOORS (bench 2026-06-09: NEVER run MiniMax-M2.7 at temp <=0.1-0.2 without a
-# presence penalty -- verbatim decode-loop hazard on repetitive context; watched it lock, 6x the
-# same sentence). Applied automatically whenever the target model is in CEC_VLLM_FLOOR_MODELS.
+# DEEP-TIER SAMPLING FLOORS: large reasoning models can verbatim decode-loop at temp <=0.1-0.2
+# without a presence penalty (first seen on MiniMax-M2.7: watched it lock, 6x the same sentence).
+# Applied to whatever is in CEC_VLLM_FLOOR_MODELS. Default now covers the DeepSeek-V4-Flash deep
+# tier (defensive: it is a large reasoning model on the same heavy-thinking path); cec-manager kept
+# so the clamp still protects M2.7 if invoked from outside this pipeline.
 _FLOOR_MODELS = {m.strip() for m in
-                 os.environ.get("CEC_VLLM_FLOOR_MODELS", "cec-manager").split(",") if m.strip()}
+                 os.environ.get("CEC_VLLM_FLOOR_MODELS", "deepseek-v4-flash,cec-manager").split(",") if m.strip()}
 _FLOOR_TEMP = float(os.environ.get("CEC_VLLM_FLOOR_TEMP", "0.3"))
 _FLOOR_PRESENCE = float(os.environ.get("CEC_VLLM_FLOOR_PRESENCE", "0.8"))
 # miner->scribe recovery knobs. Trace tail cap: both manager-class services run --ctx-size 16384,
@@ -760,8 +765,8 @@ def shutdown(*, verbose=True):
 # ===========================================================================
 #  CORPUS-FIT REVIEWER (Thrust A, deep tier) -- a LOW-FREQUENCY, OUT-OF-LOOP advisory pass on the
 #  REVIEWER-tier model (default cec-manager-fast = gpt-oss-120b per the 2026-06-09 bench; set
-#  CEC_VLLM_REVIEWER_MODEL=cec-manager for the MiniMax-M2.7 deep auditor, which auto-recovers via
-#  miner->scribe). Runs ONCE per fully-routed board, AFTER route() finalizes + the hard gates +
+#  CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash for the DeepSeek-V4-Flash deep auditor, which
+#  auto-recovers via miner->scribe -- M2.7 retired from this pipeline, owner 2026-06-11). Runs ONCE per fully-routed board, AFTER route() finalizes + the hard gates +
 #  independent DRC have decided correctness. It feeds the model a per-FAMILY statistics DIGEST distilled
 #  from the accumulated DecisionLog corpus + the freshly-routed board's log, and asks "does this board
 #  FIT the patterns its same-family precedents embody?" -- producing a precedent-referenced critique.

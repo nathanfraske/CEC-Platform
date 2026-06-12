@@ -194,6 +194,24 @@ on the host.)
    auditor's context is the cheapest fix and the one that would actually break the cycle.
    This is the closed-loop (PC/DF feedback) gap.
 
+## Implementation status (PR #35, 2026-06-11) — the agent actionables landed
+
+The retrospective's agent items (fix-plan §5 items 2–5) are implemented and host-tested; rounds
+can restart after owner merge. Lesson → mechanism:
+
+| Lesson(s) | Mechanism (where) | Test |
+|---|---|---|
+| 2 charter / 3 schema / 6 thread-refutes | `OWNED_LEVERS` set + "scorer reweights are not levers" + prior-refute context in the auditor prompt; finding schema split into bankable `root_cause` + gated `proposed_lever`; `inject()` banks `root_cause` even on refute (`cec_fullstack.py`) | parse + smoke |
+| 4 selection≠generation / 7 proxy-vs-goal | `cec_score.objective_v2`: **no DRC credit while `gates_pass` false** + pour-integrity (island excess + sense copper) first-class; wired as the loop ranking objective | `tests/test_scorer_pour_integrity.py` — **round 1 wins** |
+| 5 cycling-knob | deterministic tripwire: a refuted scorer metric re-proposed → auto-reject, **no verifier spend** (`inject()` + pre-verify skip) | parse |
+| 8 route to the owned lever (untried) | `cec_fr02.offending_net_intents` / `clipped_corridor_rects` — waypoint the **OFFENDING foreign nets** around the clipped corridor (r3 only tried the victim Kelvin nets); carried round→round in the loop | `tests/test_offending_net_intents.py` |
+| 9 fact-contract / 10 bundle | verifier evidence bundle now carries the pour/FEM facts the auditor cites; `bundle_gaps()` deterministic contract check | parse |
+| 11 quorum-not-full | `VerifierResult.verdict_type` FULL/QUORUM + `live_seats`/`dark_seats` roster (`cec_verifier.py`) | smoke |
+
+Corpus: 4 evidence-complete process rules staged (`corpus/staging/general/loop-discipline-2026-06-11.json`,
+lint-clean) for owner sign — candidates 2/5/6/7. Owner half (promoted/ signing → lights the dark
+spec-conformance seat; reasoning-sheet settle; vision-contention fix) tracked in `docs/owner-queue.md`.
+
 ## Vision-render hygiene (owner note, 2026-06-11) — strip component models before a VLM reads it
 
 The per-round renders fed to the CL-22 vision seat are **3D-body top renders**
@@ -218,7 +236,8 @@ charter (lessons 2–4), add the two deterministic detectors (1, 5), close the f
 (6), and fix the objective shape so DRC reduction earns no credit while `gates_pass=false`
 (7, the T8 V4 local-minimum call).
 
-**Run-level result (rounds 1–4, eps validation):** 0 LLM rules admitted, 6 refused
+**Run-level result (rounds 1–4, eps validation):** 0 LLM rules admitted, **7 refused** (closed
+ledger: 3 penalties + 4 rules; the "6" in an earlier draft was the rounds-1–3 snapshot)
 (`live-rules.json`); active penalties are pre-seeded defaults only. Verifier discipline
 absolute. T8 V4 seat 502'd and declined (anti-epicycle behaviour correct, seat still
 un-exercised live). Vision seat down all run (timeouts). The validation's headline win is

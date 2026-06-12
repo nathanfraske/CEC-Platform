@@ -1,0 +1,35 @@
+{
+ "gate": "pour_integrity_ok (islands==1 per /SENSEC* net)",
+ "boards": [
+  {
+   "board": "tests/golden/eps-8pin/eps8pin-module.kicad_pcb",
+   "in_scope": false,
+   "sense_nets": {},
+   "gate_ok": true,
+   "reasons": []
+  },
+  {
+   "board": "tests/golden/fixtures/12vhpwr-post-lanevias/12vhpwr-standard-module.kicad_pcb",
+   "in_scope": false,
+   "sense_nets": {},
+   "gate_ok": true,
+   "reasons": []
+  },
+  {
+   "board": "tests/golden/fixtures/12vhpwr-pre-lanevias/12vhpwr-standard-module.kicad_pcb",
+   "in_scope": false,
+   "sense_nets": {},
+   "gate_ok": true,
+   "reasons": []
+  },
+  {
+   "board": "tests/golden/fixtures/am04-microboard/microboard.kicad_pcb",
+   "in_scope": false,
+   "sense_nets": {},
+   "gate_ok": true,
+   "reasons": []
+  }
+ ],
+ "tripped": [],
+ "verdict": "CLEAN -- gate may merge in PR #35"
+}

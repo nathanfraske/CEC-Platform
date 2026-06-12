@@ -25,7 +25,10 @@
 import os, sys, json, re, subprocess, tempfile
 from dataclasses import dataclass, field
 
-import pcbnew
+try:
+    import pcbnew                       # only the DRC paths need it; the scoring math is pure-python
+except ImportError:                     # host without KiCad (R-05 toolchain degradation)
+    pcbnew = None
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_toolchain as _tc   # dependency-free toolchain presence helpers (R-05)
 
@@ -543,6 +546,68 @@ def objective(m: "Metrics", weights: dict | None = None) -> float:
         + (1.0 - m.balance) * abs(w["balance"])
     )
     return cost
+
+
+# Pour-aware, gate-gated ranking weights (retrospective lesson 7). gate_fail_base dominates so any
+# gate-FAILING board ranks strictly worse than any gate-passing one; island/copper price pour
+# integrity as a first-class term.
+DEFAULT_V2_WEIGHTS = {"gate_fail_base": 1_000_000.0, "island": 5_000.0, "copper": 100.0}
+
+
+def objective_v2(*, gates_pass, drc, islands_excess, sense_copper, base=0.0, weights=None):
+    """Pour-aware, gate-gated ranking cost (LOWER IS BETTER) -- retrospective lesson 7.
+
+    The last run rode its DRC proxy into a physically worse board: it shaved DRC by routing signal
+    through the sense corridors, fragmenting the pours, while gates never passed. Fix:
+
+      * NO DRC CREDIT WHILE gates_pass IS FALSE. A gate-failing board's cost is a fixed base plus the
+        pour-integrity term ONLY -- shaving DRC cannot lower it, so the loop cannot buy proxy
+        improvement with sense-copper destruction.
+      * POUR INTEGRITY IS FIRST-CLASS: + island-excess cost (fragmentation) and - copper reward
+        (sense-corridor copper area). The round-1 board (intact pours, worst DRC) then wins the
+        scorer the way it won the eye.
+
+    For a gate-PASSING board the supplied `base` (the normal soft cost, which credits DRC=0,
+    length, vias, balance) is used and only the fragmentation PENALTY refines it; gate_fail_base
+    keeps every gate-failing board above every gate-passing one regardless of pour state.
+
+    Copper-reward loophole (PR #35 review item 1): the - copper*area reward is a PROXY, and on a
+    gate-passing board it could dominate `base` and let raw copper area buy rank between two passing
+    candidates -- the exact proxy pressure this change exists to kill. So the copper reward is
+    GATE-FAILING-ONLY: it exists solely to make the intact round-1 board win among failing
+    candidates. Passing boards carry the fragmentation penalty (island excess) but NO copper bonus,
+    so copper area can never reorder two passing boards.
+    """
+    w = dict(DEFAULT_V2_WEIGHTS)
+    if weights:
+        w.update(weights)
+    island_pen = w["island"] * max(0.0, islands_excess)
+    if gates_pass:
+        return base + island_pen                     # no copper reward -> copper can't buy rank
+    copper_reward = w["copper"] * max(0.0, sense_copper)
+    return w["gate_fail_base"] + island_pen - copper_reward   # drc NOT credited while failing
+
+
+_SENSE_POUR_RE = re.compile(r"/?SENSEC\d+_(HI|LO)$", re.I)
+
+
+def pour_integrity_ok(pour_facts, *, min_copper_mm2=None):
+    """BLOCKING pour-integrity gate (PR #35 review item 2). Every sense-pour net (/SENSEC*_HI|LO)
+    must be ONE island (islands == 1). The existing kelvin_ok gate checks CONNECTIVITY only and is
+    BLIND to pour fragmentation -- it returned True on the round-4 board that had SENSEC2_HI at 3
+    islands and -21% sense copper. This is a NEW gate, not a tightening of kelvin. Optional
+    `min_copper_mm2` per-sense-net copper floor. Returns (ok: bool, reasons: list). Vacuously True
+    on a board with no sense pours (the gate scopes itself to the cable-interposer family)."""
+    reasons = []
+    for net, v in (pour_facts or {}).items():
+        if not isinstance(v, dict) or not _SENSE_POUR_RE.search(str(net)):
+            continue
+        isl = v.get("islands", 1) or 1
+        if isl != 1:
+            reasons.append(f"{net}: fragmented ({isl} islands, expected 1)")
+        if min_copper_mm2 is not None and (v.get("area_mm2", 0) or 0) < min_copper_mm2:
+            reasons.append(f"{net}: copper {v.get('area_mm2')}mm2 < floor {min_copper_mm2}")
+    return (not reasons), reasons
 
 
 # ---------------------------------------------------------------------------

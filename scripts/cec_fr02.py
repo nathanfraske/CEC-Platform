@@ -40,9 +40,12 @@
 # ============================================================================
 import json
 import os
+import re
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+_SENSE_NET_RE = re.compile(r"/?SENSEC\d+_(HI|LO)$", re.I)
 
 STUB_LEN_MM = 1.2          # bench proved 2.0; shortened so stubs FIT near pad
                            # fields (full-extent legality rejects long stubs in
@@ -268,6 +271,62 @@ def intent_keepouts(intents):
                 hints.append({"rect_mm": av["rect_mm"],
                               "layers": av.get("layers", ["F.Cu", "B.Cu"])})
     return hints
+
+
+# ------------------------------------------- offending-net corridor avoidance --
+# The UNTRIED lever (retrospective §9 #4): the SENSEC pours are the VICTIMS; the OFFENDING nets are
+# the signal traces routed THROUGH their corridor that fragment them. Round 3 waypointed the victim
+# Kelvin nets and the pours still clipped. This lever instead makes the OFFENDING foreign signal
+# nets AVOID the corridor (a keepout over the corridor pushes FR to route them around), restoring
+# pour integrity at generation time -- the actuation-space-owned lever, not a scorer reweight.
+def is_sense_net(net):
+    """True for a /SENSEC<n>_HI|LO Kelvin/power net (a pour victim, never an offender)."""
+    return bool(_SENSE_NET_RE.search(str(net or "")))
+
+
+def _inflate_rect(rect, margin):
+    x1, y1, x2, y2 = rect
+    return [min(x1, x2) - margin, min(y1, y2) - margin,
+            max(x1, x2) + margin, max(y1, y2) + margin]
+
+
+def offending_net_intents(clipped_corridors, offending_nets, *, margin_mm=0.5,
+                          layers=("F.Cu", "B.Cu")):
+    """FR-02 intents that route each OFFENDING net AROUND the clipped sense corridors.
+
+    clipped_corridors : {sense_net: {"rect_mm": [x1,y1,x2,y2], "layers": [...]}}  (geometry; see
+                        clipped_corridor_rects()).  offending_nets : the signal nets to steer out
+                        of those corridors (sense nets are filtered out -- they belong in the pour).
+
+    Returns one intent per offending net carrying an `avoid` region = the union of the inflated
+    clipped corridor rects, which intent_keepouts() turns into bake_hints keepouts. Deterministic;
+    no pcbnew (the rects are supplied)."""
+    avoid = [{"rect_mm": _inflate_rect(c["rect_mm"], margin_mm),
+              "layers": list(c.get("layers", layers))}
+             for c in clipped_corridors.values() if c.get("rect_mm")]
+    if not avoid:
+        return []
+    return [{"net": n, "layers": list(layers[:1]), "waypoints": [], "avoid": avoid}
+            for n in offending_nets if not is_sense_net(n)]
+
+
+def clipped_corridor_rects(board_path, clipped_nets, *, margin=1.0):
+    """Geometry helper (needs pcbnew/in-container): the pour-corridor bounding rect of each clipped
+    sense net, via cec_fr.derive_power_pours. Returns {net: {rect_mm, layers}} for offending_net_
+    intents(). Safe no-op ({}) if pcbnew/derive is unavailable."""
+    try:
+        import cec_fr
+        pours = cec_fr.derive_power_pours(board_path, margin=margin)
+    except Exception:                                            # noqa: BLE001
+        return {}
+    out = {}
+    want = {str(n).lstrip("/") for n in (clipped_nets or [])}
+    for p in (pours or []):
+        net = str(p.get("net", "")).lstrip("/")
+        rect = p.get("rect_mm") or p.get("rect")
+        if net in want and rect:
+            out["/" + net] = {"rect_mm": list(rect), "layers": p.get("layers", ["F.Cu", "B.Cu"])}
+    return out
 
 
 # ----------------------------------------------------- verification + hygiene --

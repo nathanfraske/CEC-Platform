@@ -968,8 +968,12 @@ Done (kept for context):
   rumination surfaced a planted spec inconsistency oss-120b caught internally but OMITTED from its
   final answer). WIRED in cec_judge_local: (a) NEW out-of-loop REVIEWER tier -- corpus_fit_review
   runs on CEC_VLLM_REVIEWER_MODEL, default cec-manager-fast (explicit CEC_VLLM_MANAGER_MODEL pin
-  honored second for back-compat); M2.7 is the opt-in deep AUDITOR (CEC_VLLM_REVIEWER_MODEL=
-  cec-manager). The IN-LOOP manager tier deliberately KEEPS its worker-class default (panels
+  honored second for back-compat); the opt-in deep AUDITOR is now DeepSeek-V4-Flash
+  (CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash) -- OWNER 2026-06-11 RETIRED MiniMax-M2.7 (cec-manager)
+  from this pipeline and replaced it with DeepSeek (V4 deep-reasoning perf established; the ~160 GB
+  host-RAM cold load is the accepted cost). M2.7's broker backend stays REGISTERED (other project
+  may use it) but no CEC path points at it; _FLOOR_MODELS default now covers deepseek-v4-flash.
+  The IN-LOOP manager tier deliberately KEEPS its worker-class default (panels
   interleave with worker calls every iteration; a big manager there = broker-swapping 27GB<->9GB
   models per iteration). (b) miner->scribe AUTO-RECOVERY in _chat_json: empty content +
   reasoning_content present -> a SCRIBE transcription call (same model, temp>=0.35 /

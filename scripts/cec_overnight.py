@@ -14,8 +14,9 @@
 #     `routing` container (it needs pcbnew; reaches the broker via host.docker.internal:8080); this
 #     accumulates DecisionLogs in build/route/corpus.
 #   * REVIEW blocks: the REVIEWER tier (cec_judge_local.REVIEWER_MODEL -- default cec-manager-fast
-#     = gpt-oss-120b per the 2026-06-09 bench; CEC_VLLM_REVIEWER_MODEL=cec-manager for the MiniMax
-#     M2.7 deep auditor) DEEP-REVIEWS the freshly-routed boards against their same-family corpus
+#     = gpt-oss-120b per the 2026-06-09 bench; CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash for the
+#     DeepSeek-V4-Flash deep auditor -- M2.7 retired here, owner 2026-06-11) DEEP-REVIEWS the
+#     freshly-routed boards against their same-family corpus
 #     (cec_judge_local.corpus_fit_review) -- run on the HOST (pcbnew-free), one
 #     <corpus-log>-corpus-fit.json sidecar per route.
 # Only the GPU model alternates (broker-arbitrated); the routing + freerouting containers stay up.
@@ -113,7 +114,7 @@ def ensure_worker():
 
 def ensure_manager():
     """REVIEW blocks need the REVIEWER model warm (cec-manager-fast ~6.5 min cold via the broker;
-    a CEC_VLLM_REVIEWER_MODEL=cec-manager pin means M2.7 at ~10.5 min cold)."""
+    a CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash pin means the DeepSeek deep tier, heavy cold load)."""
     import cec_judge_local
     return broker_warm(cec_judge_local.REVIEWER_MODEL, timeout=1200)
 
