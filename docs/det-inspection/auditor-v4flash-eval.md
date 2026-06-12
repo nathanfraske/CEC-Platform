@@ -24,14 +24,19 @@ HTTP 502 after 330.9 s.** The broker could not serve `deepseek-v4-flash`: it pag
 125 GB WSL2 ceiling and the load thrashed/aborted — empirically the exact residency constraint
 `ai-box-upgrade-analysis-2026-06-12.md` predicts (V4 needs the 256 GB box to be resident). **Two things
 this DID validate:** (1) `deepseek_audit` is **fail-safe** — the 502 degraded to `{"verdict":"repair",
-"error":...}` and never raised into the loop; (2) the harness + packet reconstruction run end-to-end (it
-reached the broker, timed the call, compared to the Sonnet baseline). The **competent-finding validation +
-economics still require a resident V4** (the 256 GB box, or the first overnight where the broker schedules
-the deep tier). Re-run where V4 is resident:
+"error":...}` and never raised into the loop; (2) the harness + packet reconstruction run end-to-end.
+
+**The run venue is the WINDOWS-HOSTED workaround, NOT the WSL broker** (owner 2026-06-12): V4-Flash runs
+natively on Windows (full 192 GB physical, no WSL 125 GB cap). The deep auditor now has its own endpoint
+knob, **`CEC_FS_AUDITOR_URL`** (`cec_fullstack.DEEP_AUDITOR_URL`), so ONLY the auditor targets Windows
+while the worker seats stay on the WSL broker; warm-at-start is skipped there (the Windows host keeps V4
+resident). Re-run pointed at the Windows V4 endpoint:
 ```bash
-docker exec docker-routing-1 python3 /workspace/scripts/cec_auditor_eval.py \
-    --run docs/fullstack-run-2026-06-11-validation --rounds 1,2 --model deepseek-v4-flash
+python3 scripts/cec_auditor_eval.py --rounds 1,2 --model deepseek-v4-flash \
+    --url http://<win-host>:<port>/v1        # or: CEC_FS_AUDITOR_URL=http://<win-host>:<port>/v1 ...
 ```
+The **competent-finding validation + economics** (tokens/s, per-round wall vs the ~17-min Sonnet baseline)
+land from that Windows-hosted run / the first V4-Flash overnight.
 The full per-round **economics — tokens/s, per-round wall vs the ~17-min Sonnet baseline** — are recorded
 from the **first V4-Flash overnight** (owner item 4) and appended here.
 

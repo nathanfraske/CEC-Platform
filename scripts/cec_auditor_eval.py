@@ -104,8 +104,13 @@ if __name__ == "__main__":
     ap.add_argument("--run", default="docs/fullstack-run-2026-06-11-validation")
     ap.add_argument("--rounds", default="1", help="comma list of round numbers to replay")
     ap.add_argument("--model", default=None, help="default = resolve_auditor() (V4-Flash)")
+    ap.add_argument("--url", default=None, help="deep-auditor endpoint, e.g. the WINDOWS-hosted V4 "
+                    "http://<win-host>:<port>/v1 -- V4-Flash cannot run under the WSL broker (it pages "
+                    "at the 125 GB ceiling). Sets CEC_FS_AUDITOR_URL.")
     ap.add_argument("--out", default="docs/det-inspection/auditor-v4flash-replay.json")
     a = ap.parse_args()
+    if a.url:                                            # MUST set before importing cec_fullstack
+        os.environ["CEC_FS_AUDITOR_URL"] = a.url         # (DEEP_AUDITOR_URL is read at import)
     import cec_fullstack as fs
     model = a.model or fs.resolve_auditor(None)
     rounds = [int(x) for x in a.rounds.split(",") if x.strip()]

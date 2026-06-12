@@ -100,6 +100,11 @@ VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
 # latency-sensitive DAILY run. Resolution: explicit --auditor > CEC_FS_AUDITOR_MODEL env > V4-Flash default.
 SONNET_AUDITOR = "sonnet"
 DEEP_AUDITOR = os.environ.get("CEC_FS_DEEP_AUDITOR", "deepseek-v4-flash")
+# DEEP-AUDITOR ENDPOINT (owner 2026-06-12): V4-Flash (~160 GB) cannot run under the WSL broker -- it pages
+# at the 125 GB WSL2 ceiling (a live replay 502'd after 330 s). It runs via the WINDOWS-HOSTED workaround
+# (full 192 GB physical, no WSL cap). Point ONLY the deep auditor there with CEC_FS_AUDITOR_URL=<win
+# endpoint>/v1; the worker seats stay on the WSL broker. None -> _chat_json's default (the broker).
+DEEP_AUDITOR_URL = os.environ.get("CEC_FS_AUDITOR_URL") or None
 
 
 def resolve_auditor(cli_auditor, hours=None):
@@ -584,7 +589,8 @@ def deepseek_audit(rec, lr, rnd, model=None, timeout=900, pourcheck=None, intent
               "unless a gate-passing candidate already exists.")
     try:
         out = jl._chat_json(system, core, AUDIT_SCHEMA, name="audit", temperature=0.0,
-                            max_tokens=jl.MANAGER_MAX_TOKENS, timeout=timeout, model=model)
+                            max_tokens=jl.MANAGER_MAX_TOKENS, timeout=timeout, model=model,
+                            url=DEEP_AUDITOR_URL)            # Windows-hosted V4 endpoint if set, else broker
     except Exception as e:                                       # noqa: BLE001
         return {"verdict": "repair", "error": f"deepseek_audit: {type(e).__name__}: {e}"}
     if not isinstance(out, dict) or "verdict" not in out:
@@ -758,15 +764,18 @@ def run(board, rounds, hours, auditor=None):
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
         f"auditor={auditor_model} v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP}")
     subprocess.run(ovd.COMPOSE + ["up", "-d", "routing"], capture_output=True, timeout=180)
-    # WARM-AT-START (owner 2026-06-12): a deep broker auditor (V4-Flash ~7 min cold load) is warmed up
-    # front so the FIRST round's auditor call never loses its own race to a cold start. Sonnet (claude
-    # CLI) needs no warming. Fail-safe: a warm miss just means the first call eats the cold load.
-    if auditor_model != SONNET_AUDITOR:
+    # WARM-AT-START (owner 2026-06-12): a deep BROKER auditor (V4-Flash ~7 min cold load) is warmed up
+    # front so the FIRST round's auditor call never loses its own race. Sonnet (claude CLI) needs no
+    # warming; a Windows-hosted auditor (CEC_FS_AUDITOR_URL set) keeps its own residency, so the broker-
+    # warm is skipped there. Fail-safe: a warm miss just means the first call eats the cold load.
+    if auditor_model != SONNET_AUDITOR and not DEEP_AUDITOR_URL:
         log(f"warming auditor seat {auditor_model} at start (deep cold load)...")
         try:
             warm(auditor_model, timeout=WARM_TIMEOUT)
         except Exception as e:                                  # noqa: BLE001
             log(f"  auditor warm miss ({type(e).__name__}); first call will cold-load")
+    elif DEEP_AUDITOR_URL:
+        log(f"auditor seat {auditor_model} on Windows endpoint {DEEP_AUDITOR_URL} (broker-warm skipped)")
 
     grid = congestion_grid(board)
     log(f"GR-01 grid: {len(grid.get('hotspots', []))} hotspots, "
