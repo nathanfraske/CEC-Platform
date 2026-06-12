@@ -58,6 +58,18 @@ def run_golden(out_dir=None):
     if not ok:
         return {"error": "no candidate routed", "elapsed_s": round(time.time() - t0, 1)}
     board = ok[0].board
+    # SYNTHESIZE high-current copper (SB-08 item 3a, 2026-06-12). The owner-ratified FR-04 layer policy
+    # (d26651d) correctly denies FR signal routing on the power planes; without it the board leaned on
+    # plane routing for thermal spread (the +25 C the SB-08 forensic pinned). The principled fix is to give
+    # the cable force corridors REAL thermal copper -- F.Cu+B.Cu mirror pour + via field -- so current
+    # spreads through proper copper area, not the planes. Additive same-net (never strands the Kelvin tap).
+    # Measured: 157.9 -> 75.5 C at drc 0, kelvin+diffpair pass. OPT-IN (CEC_GOLDEN_SYNTH=1) so this branch
+    # changes nothing by default -- enabling it is the owner's item-3a act, coupled with the item-4
+    # re-freeze (the committed golden stays red-pending until the owner picks 3a and re-freezes).
+    if os.environ.get("CEC_GOLDEN_SYNTH") == "1":
+        synth_out = os.path.join(out_dir, "golden-synth.kicad_pcb")
+        cec_fr.synthesize_power_copper(board, synth_out)
+        board = synth_out
     m = cec_score.score(board)
     cfg = sp.Config.load(GOLDEN_DIR)
     th = sp.electrothermal_solve(board, cfg)
@@ -78,11 +90,31 @@ def run_golden(out_dir=None):
     }
 
 
-def make_bands(res):
-    """Derive expectation bands from a measured baseline. Counts get +/-20-30%;
-    gates and bounded counts are hard."""
+def make_bands(res, *, thermal_headroom=None, rationale=None):
+    """Derive expectation bands from a measured baseline at the FIXED CI params.
+
+    SB-08 item 6 (2026-06-12): the old version set thermal_max_T_max = baseline*1.15 -- a baked
+    multiplier that FLOATS UP with whatever baseline you freeze, so re-freezing a hotter board silently
+    raises the ceiling (the PR #37 147.4->181.6 re-band). That is a self-ratifying gate. The ceiling now
+    requires an EXPLICIT thermal_headroom (fraction) chosen and recorded by the owner -- there is no
+    default multiplier; passing none refuses to invent one. FR 1.7.0 is deterministic at the CI params
+    (no seed; sb08-fr-variance proves stdev 0), so any headroom is modelling slack, not variance cover --
+    which is exactly why it must be a recorded decision, not a constant. Provenance is written into the
+    frozen file so a future reader sees the params + headroom + rationale behind every band."""
+    if thermal_headroom is None:
+        raise ValueError("make_bands: thermal_headroom is REQUIRED (owner-chosen; no baked multiplier -- "
+                         "SB-08 item 6). Pass e.g. thermal_headroom=0.10 with a rationale.")
     return {
         "frozen": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "frozen_from": {
+            "fr_params": dict(FR_PARAMS),
+            "fr_version": "1.7.0 (pinned, no seed -- deterministic at these params)",
+            "thermal_headroom": thermal_headroom,
+            "thermal_basis": f"fixed-param baseline {res['thermal_max_T']} C x (1+{thermal_headroom}) "
+                             f"= {round(res['thermal_max_T'] * (1 + thermal_headroom), 1)}; "
+                             "headroom is owner-chosen modelling slack (FR is deterministic, stdev 0)",
+            "rationale": rationale or "(none supplied)",
+        },
         "fr_params": dict(FR_PARAMS),
         "baseline": {k: res[k] for k in ("drc", "unconnected", "tracks", "vias", "length",
                                           "thermal_max_T", "kelvin_ok", "diffpair_ok")},
@@ -90,14 +122,14 @@ def make_bands(res):
             # HARD gates: the safety result must not regress, period.
             "kelvin_ok": res["kelvin_ok"],
             "diffpair_ok": res["diffpair_ok"],
-            # bounded counts: a regression is MORE of these, not fewer
-            "drc_max": res["drc"] + max(2, int(res["drc"] * 0.5)),
+            # bounded counts: a regression is MORE of these. Anchor to the (deterministic) baseline + 1.
+            "drc_max": res["drc"] + 1,
             "unconnected_max": res["unconnected"] + max(2, int(res["unconnected"] * 0.5)),
             # structure bands: wildly different copper means the generator changed behavior
             "tracks_min": int(res["tracks"] * 0.7), "tracks_max": int(res["tracks"] * 1.3),
             "vias_min": int(res["vias"] * 0.6), "vias_max": int(res["vias"] * 1.4),
-            # physics band: the analytic model's read of the same copper
-            "thermal_max_T_max": round(res["thermal_max_T"] * 1.15, 1),
+            # physics band: fixed-param baseline + the EXPLICIT owner headroom (no baked multiplier)
+            "thermal_max_T_max": round(res["thermal_max_T"] * (1 + thermal_headroom), 1),
         },
     }
 
@@ -129,6 +161,10 @@ def main(argv=None):
                          "(a band bump is a human-approved act -- commit it in the same PR "
                          "as the change that legitimately moved the numbers)")
     ap.add_argument("--out", default=None)
+    ap.add_argument("--thermal-headroom", type=float, default=None,
+                    help="REQUIRED with --freeze (SB-08 item 6): explicit owner-chosen fraction of "
+                         "headroom over the fixed-param thermal baseline. No baked multiplier.")
+    ap.add_argument("--rationale", default=None, help="provenance note recorded with --freeze")
     a = ap.parse_args(argv)
 
     res = run_golden(a.out)
@@ -138,7 +174,7 @@ def main(argv=None):
         return 1
 
     if a.freeze:
-        exp = make_bands(res)
+        exp = make_bands(res, thermal_headroom=a.thermal_headroom, rationale=a.rationale)
         json.dump(exp, open(EXPECT, "w"), indent=1)
         print(f"GOLDEN: baseline frozen -> {os.path.relpath(EXPECT, ROOT)}")
         return 0
