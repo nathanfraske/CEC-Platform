@@ -1,21 +1,33 @@
 /*
- * TelePlot output helpers.
+ * TelePlot output helpers — shared superset. The transport core is the
+ * eps lineage (parameterized UART init, write_raw backend, the
+ * field-debugged UART_SCLK_APB pin — UART_SCLK_DEFAULT can resolve to
+ * the REF_TICK/XTAL the bootloader leaves configured on ESP32-S3,
+ * putting the baud divider far off and feeding the host garbage); the
+ * 24-pin lineage contributes teleplot_writef and the truncation clamp
+ * on every formatted emit.
  */
 
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 #include <inttypes.h>
+#include "sdkconfig.h"
 #include "esp_check.h"
 #include "esp_log.h"
-#include "driver/uart.h"
 #include "cec_teleplot.h"
+
+#if CONFIG_CEC_TELEMETRY_UART0
+#include "driver/uart.h"
+#endif
 
 static const char *TAG = "cec_teleplot";
 
-/* -1 = transport unconfigured, fall back to stdio (printf). >= 0 = UART
- * port that telemetry writes go to. */
+/* -1 = transport unconfigured, fall back to stdio. >= 0 = UART port
+ * that telemetry writes go to. */
 static int s_uart_port = -1;
 
+#if CONFIG_CEC_TELEMETRY_UART0
 esp_err_t cec_telemetry_init_uart(int uart_port,
                                   int tx_pin, int rx_pin,
                                   int baud_rate,
@@ -56,22 +68,45 @@ esp_err_t cec_telemetry_init_uart(int uart_port,
              uart_port, baud_rate, tx_pin, rx_pin, (unsigned)tx_buffer_size);
     return ESP_OK;
 }
+#else  /* !CONFIG_CEC_TELEMETRY_UART0 */
+esp_err_t cec_telemetry_init_uart(int uart_port,
+                                  int tx_pin, int rx_pin,
+                                  int baud_rate,
+                                  size_t tx_buffer_size)
+{
+    (void)uart_port; (void)tx_pin; (void)rx_pin;
+    (void)baud_rate; (void)tx_buffer_size;
+    ESP_LOGW(TAG, "UART transport compiled out (CONFIG_CEC_TELEMETRY_UART0=n); "
+                  "TelePlot stays on stdio");
+    return ESP_ERR_NOT_SUPPORTED;
+}
+#endif /* CONFIG_CEC_TELEMETRY_UART0 */
 
 void teleplot_write_raw(const char *buf, size_t n)
 {
     if (n == 0) return;
+#if CONFIG_CEC_TELEMETRY_UART0
     if (s_uart_port >= 0) {
         uart_write_bytes((uart_port_t)s_uart_port, buf, n);
-    } else {
-        fwrite(buf, 1, n, stdout);
+        return;
     }
+#endif
+    fwrite(buf, 1, n, stdout);
+}
+
+/* Clamp snprintf's documented "I would have written N bytes" return so
+ * we never read past the formatting buffer on truncation. */
+static size_t clamp_len(int n, size_t cap)
+{
+    if (n <= 0) return 0;
+    return ((size_t)n < cap) ? (size_t)n : cap - 1;
 }
 
 void teleplot_emit(const char *name, float value)
 {
     char buf[80];
     int n = snprintf(buf, sizeof(buf), ">%s:%.6f\n", name, value);
-    if (n > 0) teleplot_write_raw(buf, (size_t)n);
+    teleplot_write_raw(buf, clamp_len(n, sizeof(buf)));
 }
 
 void teleplot_emit_t(const char *name, int64_t time_ms, float value)
@@ -79,23 +114,15 @@ void teleplot_emit_t(const char *name, int64_t time_ms, float value)
     char buf[96];
     int n = snprintf(buf, sizeof(buf), ">%s:%" PRId64 ":%.6f\n",
                      name, time_ms, value);
-    if (n > 0) teleplot_write_raw(buf, (size_t)n);
+    teleplot_write_raw(buf, clamp_len(n, sizeof(buf)));
 }
 
-void teleplot_emit_state(const cec_shared_state_t *state, bool include_raw)
+void teleplot_writef(const char *fmt, ...)
 {
-    int64_t t_ms = state->timestamp_us / 1000;
-
-    teleplot_emit_t("eps1_current", t_ms, state->current_a[0]);
-    teleplot_emit_t("eps2_current", t_ms, state->current_a[1]);
-
-    if (include_raw) {
-        teleplot_emit_t("eps1_raw", t_ms, state->current_raw_a[0]);
-        teleplot_emit_t("eps2_raw", t_ms, state->current_raw_a[1]);
-    }
-
-    teleplot_emit_t("bus_voltage", t_ms, state->bus_voltage_v);
-    teleplot_emit_t("board_temp",  t_ms, state->board_temp_c);
-    teleplot_emit_t("load_state",  t_ms, (float)state->load_state);
-    teleplot_emit_t("flags",       t_ms, (float)state->status_flags);
+    char buf[192];
+    va_list ap;
+    va_start(ap, fmt);
+    int n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    teleplot_write_raw(buf, clamp_len(n, sizeof(buf)));
 }

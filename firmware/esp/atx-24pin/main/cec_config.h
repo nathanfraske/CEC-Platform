@@ -42,6 +42,16 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define L2_MIN_I_5V          0.50f
 #define L2_MIN_I_3V3         0.30f
 
+/* Dedicated TelePlot UART transport (CH340K USB-C bridge on UART0,
+ * GPIO 43 TX / 44 RX, 921600 baud — see the Serial topology section of
+ * the app README). Hoisted from the old component-baked values when
+ * cec_telemetry went shared. */
+#define TELEMETRY_UART_NUM       0
+#define TELEMETRY_UART_TXD       43
+#define TELEMETRY_UART_RXD       44
+#define TELEMETRY_UART_BAUD      921600
+#define TELEMETRY_UART_TX_BUF    4096   /* Burst dumps need headroom */
+
 #ifdef __cplusplus
 }
 #endif

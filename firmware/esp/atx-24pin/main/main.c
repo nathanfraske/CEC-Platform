@@ -844,7 +844,10 @@ void app_main(void)
      * ESP_LOG, and command responses stay on the JTAG USB-C. If the
      * UART init fails (cable not plugged in, etc.) the helpers fall
      * back to stdout so capture-tool workflows still work over JTAG. */
-    if (cec_telemetry_init_uart() != ESP_OK) {
+    if (cec_telemetry_init_uart(TELEMETRY_UART_NUM,
+                                TELEMETRY_UART_TXD, TELEMETRY_UART_RXD,
+                                TELEMETRY_UART_BAUD,
+                                TELEMETRY_UART_TX_BUF) != ESP_OK) {
         ESP_LOGW(TAG, "telemetry UART unavailable; TelePlot will share the JTAG USB-C with logs");
     }
 

@@ -1,0 +1,13 @@
+menu "CEC telemetry"
+
+    config CEC_TELEMETRY_UART0
+        bool "Compile the dedicated TelePlot UART transport"
+        default n
+        help
+            Routes every TelePlot line through a dedicated UART (the
+            CH340K UART USB-C on the s3 boards, 921600 baud) once the
+            app calls cec_telemetry_init_uart, keeping burst dumps off
+            the CLI/console wire. Disabled: the init call returns
+            ESP_ERR_NOT_SUPPORTED and TelePlot output stays on stdio.
+
+endmenu
