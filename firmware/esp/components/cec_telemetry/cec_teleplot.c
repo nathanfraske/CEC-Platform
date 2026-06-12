@@ -23,11 +23,11 @@
 
 static const char *TAG = "cec_teleplot";
 
+#if CONFIG_CEC_TELEMETRY_UART0
 /* -1 = transport unconfigured, fall back to stdio. >= 0 = UART port
  * that telemetry writes go to. */
 static int s_uart_port = -1;
 
-#if CONFIG_CEC_TELEMETRY_UART0
 esp_err_t cec_telemetry_init_uart(int uart_port,
                                   int tx_pin, int rx_pin,
                                   int baud_rate,

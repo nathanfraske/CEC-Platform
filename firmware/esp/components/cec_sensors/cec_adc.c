@@ -18,6 +18,18 @@
  */
 
 #include "sdkconfig.h"
+#include "esp_adc/adc_cali_scheme.h"
+
+/* Both backends use the curve-fitting calibration scheme, which every
+ * CEC target has (esp32s3, esp32p4, esp32c6). If this fires, the build
+ * is targeting a line-fitting-only chip (plain esp32 / esp32s2) --
+ * almost certainly a wrong set-target: run
+ *   idf.py set-target <esp32s3|esp32p4>
+ * (each app's sdkconfig.defaults names its chip; the VSCode extension's
+ * "Set Espressif Device Target" overrides it and defaults to esp32). */
+#ifndef ADC_CALI_SCHEME_CURVE_FITTING_SUPPORTED
+#error "cec_adc: IDF_TARGET has no curve-fitting ADC cali (plain esp32/esp32s2?). Wrong set-target -- CEC apps build for esp32s3 or esp32p4; see the app's sdkconfig.defaults."
+#endif
 
 #if CONFIG_CEC_ADC_BACKEND_CONTINUOUS
 /* ======================================================================
