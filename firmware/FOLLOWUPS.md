@@ -91,29 +91,32 @@ still-present / needs-bench-measurement.
 ## Bench bring-up findings (12vhpwr proto on real P4 silicon, 2026-06-12)
 
 The v0 ESP app was simulation-verified only, never run on hardware; the
-first silicon bring-up (ESP32-P4-NANO, **rev v1.3 early silicon**) surfaced
-three real issues, two fixed and one OPEN:
+first silicon bring-up (ESP32-P4-Module-DEV-KIT, **ESP32-P4NRW32 SoC, rev
+v1.3 early silicon**) surfaced three real issues, all now fixed:
 
 1. **Chip-revision floor (FIXED, commit landed).** IDF v6.0.1 defaults the
    P4 min revision to v3.1 (production); the bench chip is v1.3 -> illegal-
    instruction boot loop. Fixed: `CONFIG_ESP32P4_REV_MIN_100=y` in the
    proto sdkconfig.defaults (v1.0 floor, forward-compatible to v3.x).
 2. **Console transport (FIXED).** Proto inherited the IDF P4 default UART0
-   console; the NANO is a single native-USB-C board -> the printf banner was
-   invisible. Fixed: `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`.
-3. **v0 SPI pin map collides with the P4 flash/PSRAM bus (OPEN -- re-pin
-   needed).** The v0 link pins (GPIO 20-24: sclk20/mosi21/miso22/cs23/drdy24)
-   sit on the P4 MSPI bus -- the IO_MUX names GPIO22=DBG_PSRAM_CK,
+   console; the DEV-KIT's exposed native USB-C is the USB-Serial-JTAG -> the
+   printf banner was invisible. Fixed: `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`.
+3. **v0 SPI pin map collided with the P4 flash/PSRAM bus (FIXED, re-pinned
+   to GPIO 1-5).** The v0 link pins (GPIO 20-24: sclk20/mosi21/miso22/cs23/
+   drdy24) sit on the P4 MSPI bus -- the IO_MUX names GPIO22=DBG_PSRAM_CK,
    23=DBG_PSRAM_CS, 28/29/30=PSRAM D/Q/WP, and the P4NRW32 has 32 MB
    in-package PSRAM there. `gpio_config(GPIO 24)` HANGS the CPU (breaks the
    flash the code runs from; no panic possible). cec_fpga_link_init was made
-   non-fatal + instrumented to localize this. FIX: re-pin all 5 FPGA-link
-   signals to GPIOs OUTSIDE the memory region (avoid ~GPIO 20-33), NOT the
-   console UART (GPIO 37/38), NOT boot straps -- chosen from the P4-NANO's
-   broken-out header pins -- then update main/cec_config.h (PROTO_PIN_*) AND
-   the rtl/12vhpwr-proto/README wiring table (the dock jumpers move with the
-   ESP pins) AND re-jumper at the bench. The FPGA .cst (dock<->FPGA balls) is
-   unaffected; only the ESP<->dock link side changes.
+   non-fatal + instrumented to localize this. FIX (landed): re-pinned all 5
+   FPGA-link signals to **GPIO 1-5** (sclk1/mosi2/miso3/cs4/drdy5) -- plain-
+   GPIO-only per the P4 IO_MUX (no flash/PSRAM/Ethernet/console-UART/strap
+   function), all exposed on the DEV-KIT header. Updated main/cec_config.h
+   (PROTO_PIN_*) AND the rtl/12vhpwr-proto/README wiring table (the dock
+   jumpers move with the ESP pins); the FPGA .cst (dock<->FPGA balls) and the
+   AD7606 table are unaffected -- only the ESP<->dock link side changed. The
+   non-fatal + instrumented init from the diagnosis is kept (a stuck link now
+   logs and continues instead of boot-looping). Re-jumper at the bench per the
+   new GPIO column, then reflash.
 
 ## Adoption / integration items
 

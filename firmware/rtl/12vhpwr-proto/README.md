@@ -29,8 +29,8 @@ pin constraints; the ESP readout app is [`../../esp/proto/12vhpwr`](../../esp/pr
    your MAC — request it from Gowin, drops in under Help → License).
 2. The Tang Primer 25K dock + its **USB-C** (carries both the programmer
    and the dock's power).
-3. The ESP32-P4-NANO with its own USB-C (for the readout app — separate
-   cable, separate chip).
+3. The ESP32-P4-Module-DEV-KIT with its own USB-C (for the readout app —
+   separate cable, separate chip).
 
 ## Build the bitstream (Gowin EDA)
 
@@ -56,26 +56,26 @@ stop on an unassigned pin.
 
 ## Wiring (verified against both `12vhpwr-proto.cst` and the ESP app)
 
->  **⚠ ESP-SIDE PINS UNDER REVISION (bench finding 2026-06-12).** The v0
->  ESP GPIO map below (20–24) collides with the P4's flash/PSRAM MSPI bus
->  (IO_MUX: GPIO22=PSRAM_CK, 23=PSRAM_CS) and **hangs the P4** at
+>  **ESP-side pins RE-MAPPED (bench finding 2026-06-12, resolved).** The v0
+>  ESP GPIO map (20–24) collided with the P4's flash/PSRAM MSPI bus
+>  (IO_MUX: GPIO22=DBG_PSRAM_CK, 23=DBG_PSRAM_CS, …) and **hung the P4** at
 >  `gpio_config` — it was simulation-verified only, never run on silicon.
->  The ESP-GPIO / dock-ball columns are being re-mapped to safe header pins
->  (the FPGA-ball ↔ dock-field side and the AD7606 table are unaffected).
->  See `firmware/FOLLOWUPS.md` (bench findings). Do not jumper the ESP side
->  to these pins yet.
+>  The link now uses **GPIO 1–5** (plain-GPIO-only, no flash/PSRAM/Ethernet/
+>  console/strap function, all exposed on the DEV-KIT header). The FPGA-ball
+>  ↔ dock-field side and the AD7606 table are unchanged — only which ESP
+>  header pin each jumper lands on moved. See `firmware/FOLLOWUPS.md`.
 
-**ESP32-P4 ↔ GW5A link** — these five must be jumpered P4-NANO header →
-dock field. The ESP-app GPIO/header and the FPGA ball were
-cross-checked and **agree on every signal**:
+**ESP32-P4 ↔ GW5A link** — these five must be jumpered from the
+ESP32-P4-Module-DEV-KIT GPIO header → dock field. The ESP-app GPIO and
+the FPGA ball were cross-checked and **agree on every signal**:
 
-| FPGA signal | dock ball | dock field silk | ESP P4 GPIO | ESP P1 hdr | direction |
-|---|---|---|---|---|---|
-| `esp_sclk` | F2 | T13 | GPIO20 | P1-13 | ESP → FPGA |
-| `esp_mosi` | B2 | T14 | GPIO21 | P1-15 | ESP → FPGA (unused in v0) |
-| `esp_miso` | C2 | B14 | GPIO22 | P1-16 | FPGA → ESP |
-| `esp_cs_n` | F1 | B13 | GPIO23 | P1-7  | ESP → FPGA |
-| `esp_drdy` | A1 | B12 | GPIO24 | P1-18 | FPGA → ESP |
+| FPGA signal | dock ball | dock field silk | ESP P4 GPIO | direction |
+|---|---|---|---|---|
+| `esp_sclk` | F2 | T13 | GPIO1 | ESP → FPGA |
+| `esp_mosi` | B2 | T14 | GPIO2 | ESP → FPGA (unused in v0) |
+| `esp_miso` | C2 | B14 | GPIO3 | FPGA → ESP |
+| `esp_cs_n` | F1 | B13 | GPIO4 | ESP → FPGA |
+| `esp_drdy` | A1 | B12 | GPIO5 | FPGA → ESP |
 
 **GW5A ↔ AD7606** (per the `.cst` + doc §9; the AD7606 module silk is
 RST/CA/CS/RD/BUSY/D7/D8):
@@ -91,7 +91,7 @@ RST/CA/CS/RD/BUSY/D7/D8):
 | `adc_doutb`  | K10 | D8 (DOUTB, V5–V8) | ADC → FPGA |
 | `clk50`      | E2  | (dock 50 MHz osc) | → FPGA |
 
-**Grounds common** between the P4-NANO, the dock, and the AD7606 module
+**Grounds common** between the P4 DEV-KIT, the dock, and the AD7606 module
 (the v0 build used the T15 Y-ground). AD7606 **OS straps = 000** (no
 oversampling, ±5 V, internal ref) — the FSM's 64-clock serial read
 assumes it.
@@ -129,7 +129,7 @@ after step 3 below — leave it as-is for the first smoke.)
 
 | Symptom | Likely cause |
 |---|---|
-| `waiting on DRDY` forever | DRDY not wired (A1↔GPIO24), or the FPGA isn't programmed / not pacing (check BUSY on a scope) |
+| `waiting on DRDY` forever | DRDY not wired (A1↔GPIO5), or the FPGA isn't programmed / not pacing (check BUSY on a scope) |
 | `bad header 0x..` (not 0xA5) | SPI bit-alignment — CS/SCLK swap, or SPI clock too fast (keep ≤ 5 MHz; the slave needs fabric ≥ 5× SPI, and fabric is 50 MHz so ≤ 10 MHz is the hard ceiling) |
 | `seq` frozen | FSM stuck — BUSY never asserting (CONVST or BUSY mis-wired), or grounds not common |
 | All channels ≈ same garbage | DOUTA/DOUTB (D7/D8) swapped or one not wired; or OS straps ≠ 000 (changes the serial frame length) |
