@@ -92,6 +92,9 @@ OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing a
 # binding is owner-gated (cec-policy.json); these env knobs let it be split/reverted without a code edit.
 WORKER_SEAT = os.environ.get("CEC_FS_WORKER_MODEL", "cec-worker-vision")
 VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
+# Frozen known-good model-free copper render per board, for the deterministic render-diff the VLM
+# NARRATES (owner ruling 2026-06-11). Absent -> the narration pass runs anomaly-only (no regions).
+VISION_REFERENCE = {"eps-8pin": os.path.join(ROOT, "tests/golden/refs/eps-8pin-known-good-copper.png")}
 
 INTENTS_SCHEMA = {
     "type": "object",
@@ -216,57 +219,53 @@ def pour_facts(routed_host_path):
 
 
 def vision_pour_check(rec, rnd):
-    """T6 (owner ask 2026-06-11): a VISION model verifies the 12V power pours EVERY round and
-    STATES clipping loudly. The pours are getting clipped by routed traces; this surfaces it
-    repeatedly (deterministic island count + the VLM's read), into the log + a per-round
-    artifact + the measurement row + the auditor context. Warmed before the call."""
-    facts = pour_facts(rec["routed"])
+    """T6 RE-ROLED (owner ruling 2026-06-11): the VISION seat NO LONGER judges pour integrity --
+    detection is deterministic (pour_facts islands + the BLOCKING pour_integrity gate + the
+    render-diff). The seat now only NARRATES the deterministic render-diff regions and runs an
+    open-ended ANOMALY pass. It is NEVER fed the numeric facts (it parrots them, CL-21) and emits a
+    FLAG, never a verdict. The lever + gate read the deterministic facts/det_clipped ONLY;
+    narration/anomalies are advisory (auditor context + log), re-checked by determinism."""
+    facts = pour_facts(rec["routed"])                              # DETERMINISTIC -- owns integrity
     det_clipped = sorted(n for n, v in facts.items()
                          if isinstance(v, dict) and (v.get("islands", 1) or 1) > 1)
-    log(f"  T6 POUR (deterministic): {json.dumps(facts)}")          # re-stated #1: the numbers
+    log(f"  T6 POUR (deterministic): {json.dumps(facts)}")
+    base = {"facts": facts, "det_clipped_nets": det_clipped, "role": "narration+anomaly"}
     png = _d("vision", f"pour-r{rnd}.png")
-    # RENDER-HYGIENE PRECONDITION (review item 3): the VLM is fed ONLY a model-free copper/zone
-    # render -- never the 3D-body render (kicad-cli rotated-footprint artifact -> false findings).
-    # If the model-free render cannot be produced, SKIP the VLM with render_hygiene_pending; the
-    # deterministic facts (det_clipped) still drive pour integrity. The code cannot run the seat on
-    # an artifact-laden render by construction.
+    # RENDER-HYGIENE PRECONDITION: the VLM is fed ONLY a model-free copper render -- never the 3D-body
+    # render (kicad-cli rotated-footprint artifact -> false findings). No clean render -> SKIP.
     if not render_copper_zone(rec["routed"], png):
-        log("  T6 POUR-CHECK: VLM SKIPPED -- render_hygiene_pending (no model-free render)")
-        return {"skipped": "render_hygiene_pending", "det_clipped_nets": det_clipped, "facts": facts}
-    if not warm(VISION_SEAT):       # unified seat (cec-worker-vision); model-free render fed above
-        return {"skipped": "vision seat down", "det_clipped_nets": det_clipped, "facts": facts}
-    schema = {"type": "object", "properties": {
-        "pours_intact": {"type": "boolean"},
-        "clipped_nets": {"type": "array", "items": {"type": "string"}},
-        "detail": {"type": "string"}},
-        "required": ["pours_intact", "clipped_nets", "detail"], "additionalProperties": False}
-    text = (
-        "You are verifying the F.Cu copper of a routed CEC eps-8pin power interposer. The large "
-        "rectangular copper fills flanking the shunt resistors are the 12V POWER POURS (nets "
-        "SENSEC1_HI / SENSEC1_LO / SENSEC2_HI / SENSEC2_LO). Your ONE job: are those pours INTACT, "
-        "or are they CLIPPED/interrupted by signal traces routed across them?\n\n"
-        "DETERMINISTIC FACTS extracted from the board file (trust these over any visual estimate; "
-        "you are reading STRUCTURE, not measuring): " + json.dumps(facts) + "\n"
-        "A HEALTHY pour is ONE solid island (islands=1) with no foreign trace crossing it. "
-        "islands>1 or foreign_cross>0 means a 'run' (signal trace) was routed THROUGH the pour and "
-        "fragmented it. For each pour net, confirm intact vs clipped and describe the crossing "
-        "trace(s) you see. Reply ONLY the JSON object.")
+        log("  T6 NARRATE: VLM SKIPPED -- render_hygiene_pending (no model-free render)")
+        base["skipped"] = "render_hygiene_pending"
+        return base
+    if not warm(VISION_SEAT):
+        base["skipped"] = "vision seat down"
+        return base
+    # DETERMINISTIC detection layer the VLM narrates: render-diff vs a frozen known-good reference
+    # (if one exists + image deps present). Absent -> anomaly-only narration.
+    diff_regions = None
+    ref = VISION_REFERENCE.get(rec.get("board", "eps-8pin"))
     try:
-        import cec_vlm_bakeoff as vb
-        out = vb._chat(VISION_SEAT, text, png, schema=schema, max_tokens=700,
-                       timeout=SEAT_TIMEOUT, ctx={"round": rnd, "check": "pour-integrity"})
-        if isinstance(out, str):
-            out = json.loads(out)
-        out["det_clipped_nets"] = det_clipped
-        out["facts"] = facts
-        # re-stated #2: the vision verdict, loud
-        verb = "INTACT" if out.get("pours_intact") and not out.get("clipped_nets") else "CLIPPED"
-        log(f"  T6 POUR-CHECK (vision): {verb}  clipped={out.get('clipped_nets')} "
-            f"-- {str(out.get('detail',''))[:120]}")
-        return out
-    except Exception as e:                                       # noqa: BLE001
-        log(f"  T6 POUR-CHECK vision error: {type(e).__name__}: {e}")
-        return {"error": f"{type(e).__name__}: {e}", "det_clipped_nets": det_clipped, "facts": facts}
+        import cec_render_diff as rdf
+        if ref and os.path.exists(ref) and rdf._DEPS:
+            d = rdf.render_diff(png, ref)
+            diff_regions = d["regions"]
+            base["diff_regions"] = diff_regions
+            log(f"  T6 render-diff vs reference: {d['n_regions']} region(s)")
+    except Exception as e:                                         # noqa: BLE001
+        log(f"  T6 render-diff skipped: {type(e).__name__}: {e}")
+    try:
+        import cec_vision_narrate as vn
+        out = vn.narrate(png, diff_regions, model=VISION_SEAT, max_tokens=700, timeout=SEAT_TIMEOUT,
+                         ctx={"round": rnd, "check": "pour-narration"})
+        base.update({"region_narration": out.get("region_narration", []),
+                     "anomalies": out.get("anomalies", []), "note": out.get("note", "")})
+        log(f"  T6 NARRATE: {len(base['region_narration'])} region note(s), "
+            f"{len(base['anomalies'])} anomaly flag(s)"
+            + (f" -- ANOMALIES: {base['anomalies']}" if base["anomalies"] else ""))
+    except Exception as e:                                         # noqa: BLE001
+        log(f"  T6 NARRATE vision error: {type(e).__name__}: {e}")
+        base["error"] = f"{type(e).__name__}: {e}"
+    return base
 
 
 def congestion_grid(board):
@@ -451,9 +450,12 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model")
     # keepout / re-pour fix instead of letting the clip pass silently.
     pour_line = ""
     if pourcheck:
-        pour_line = (f"POUR-INTEGRITY (vision + deterministic): clipped_nets="
-                     f"{pourcheck.get('clipped_nets') or pourcheck.get('det_clipped_nets')}, "
+        pour_line = (f"POUR-INTEGRITY (deterministic, OWNS detection): clipped_nets="
+                     f"{pourcheck.get('det_clipped_nets')}, "
                      f"facts={json.dumps(pourcheck.get('facts', {}))[:400]}\n")
+        anoms = pourcheck.get("anomalies")
+        if anoms:       # advisory VLM flags -- re-check before acting, never authoritative
+            pour_line += f"VISION ANOMALY FLAGS (advisory, re-check; not a verdict): {anoms}\n"
     # PRIOR REFUTES this run, threaded back in (lesson 6) so the auditor does not re-derive a
     # class the verifier already killed. Compact: kind+metric/rule-head+reason-class.
     prior_refutes = [{"kind": e.get("kind"), "metric": e.get("metric"),
@@ -741,8 +743,9 @@ def run(board, rounds, hours):
             pourcheck = vision_pour_check(rec, rnd)
             json.dump(pourcheck, open(_d("vision", f"pour-r{rnd:03d}.json"), "w"),
                       indent=1, default=str)
-            pour_clipped_nets = sorted(set((pourcheck.get("clipped_nets") or []) +
-                                           (pourcheck.get("det_clipped_nets") or [])))
+            # DETERMINISTIC-ONLY (owner ruling 2026-06-11): the corridor-avoid lever + pour gate fire
+            # from det_clipped_nets (pour_facts), NEVER the VLM -- the VLM only narrates/anomaly-flags.
+            pour_clipped_nets = pourcheck.get("det_clipped_nets") or []
 
             # SCORER HOTFIX (retrospective lesson 7): re-rank with the pour-aware, gate-gated
             # objective. While gates fail, DRC earns NO credit and pour integrity (island excess +
@@ -909,7 +912,7 @@ def run(board, rounds, hours):
             _pf = pourcheck.get("facts", {}) or {}
             pour_sig = (sum((v.get("islands", 1) or 1) for v in _pf.values() if isinstance(v, dict)),
                         sum((v.get("foreign_cross", 0) or 0) for v in _pf.values() if isinstance(v, dict)))
-            vision_ran = "pours_intact" in pourcheck
+            vision_ran = "anomalies" in pourcheck       # narration pass produced output (re-roled seat)
             geom_delta = (abs(pour_sig[0] - prev_pour_sig[0]) + abs(pour_sig[1] - prev_pour_sig[1])
                           if prev_pour_sig else 0)
             vision_required_unmet = bool(geom_delta >= 3 and not vision_ran)
@@ -930,7 +933,8 @@ def run(board, rounds, hours):
                    "t0_fired": bool(t0), "n_finalists": len(front),
                    "pour_clipped": bool(pour_clipped_nets), "pour_clipped_nets": pour_clipped_nets,
                    "pour_integrity_ok": rec.get("pour_integrity_ok"),    # blocking gate (item 2)
-                   "pour_vision": (pourcheck.get("pours_intact") if "pours_intact" in pourcheck
+                   # re-roled seat: narration/anomaly flags (advisory), not a verdict
+                   "pour_vision": (pourcheck.get("anomalies") if "anomalies" in pourcheck
                                    else pourcheck.get("skipped") or pourcheck.get("error")),
                    "vision_required_unmet": vision_required_unmet,
                    "verdict_type": vt,                       # "tripwire" on a tripwired round (item 6)
