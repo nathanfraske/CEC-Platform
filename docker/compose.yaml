@@ -265,6 +265,9 @@ services:
       # free (UNSAFE, and unused by the serial pipeline -- the +7.4 GiB is KV for slots nothing fills,
       # and it does NOT shrink with --ctx-size). Only raise CEC_VISION_NP if you first parallelize the
       # panel/verifier in code, and even then cap at 2 for headroom.
+      # CTX HEADROOM (measured 2026-06-12, prompt_tokens): widest worker-seat text prompt = 652 tok
+      # (verifier w/ the widened pour+FEM bundle), vision call = 384 tok (small model-free render) ->
+      # 15732 free of 16384 (96%). The image is NOT token-heavy; 16384 is ample, no bump needed.
       - "--ctx-size"
       - "${CEC_VISION_CTX:-16384}"
       - "-np"

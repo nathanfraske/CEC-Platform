@@ -213,18 +213,22 @@
    },
    "license_cleared": true,
    "eval_gate": {
-    "status": "pending_owner_signature",
-    "_what_you_sign": "Owner flips to passed to make the seat load-bearing. Honest split: the TEXT role is validated; the VISION-discrimination role FAILED its test (see below). Signing endorses the text role + swap elimination, NOT a vision pour-measurement claim.",
+    "status": "failed",
+    "test": "vision measurement-role (pour-integrity discrimination, r1 intact vs r4 fragmented)",
+    "_what_this_means": "CL-19 pattern: the gate FAILED and is recorded honestly -- this is NOT a gate to sign to passed. The seat stays NON-LOAD-BEARING. A load-bearing sign comes later and ONLY for the NEW (consistency-auditor) role, after it passes the planted-defect battery. The TEXT-seat half PASSED separately (it is what makes the unification's text quality safe), but that does not make the VISION role pass.",
     "text_seats": {
-     "result": "PASS -- 3/3 charter agreement vs cec-worker, 3/3 valid JSON, 0.93x latency (same base model)",
+     "result": "PASS -- no_regression: 3/3 charter agreement vs cec-worker, 3/3 valid JSON, 0.93x latency (same base model, so text verdicts are identical by construction)",
      "ref": "docs/fullstack-run-2026-06-11-validation/seat-compare-unify.json"
     },
     "vision_discrimination": {
-     "result": "FAIL -- the VLM cannot discriminate intact (r1) from fragmented (r4) pours on the model-free render; it parrots the fed foreign_cross facts (CL-21: VLM seats cannot measure geometry). The deterministic pour_integrity_ok gate is the discriminator.",
+     "result": "FAIL -- on the model-free render the seat marked ALL four rounds clipped and flagged intact round-1 (4 nets) as WORSE than fragmented round-4 (3 nets). Two distinct, independently-disqualifying failure mechanisms:",
+     "mechanism_1_prompt_induced": "The fed `foreign_cross>0 -> clipped` heuristic in the prompt PREDETERMINED the verdict: every round has foreign_cross>0, so the seat output 'clipped' for all four without reading the render -- including round-1 whose pours are structurally INTACT (islands==1). Conflates 'a trace crosses near' with 'the pour is fragmented'.",
+     "mechanism_2_hallucination": "Worse than prompt-following: the round-1 detail text ASSERTED 'fragmentation (islands > 1)' when the supplied ground-truth facts had islands==1 for every round-1 net. It fabricated a measurement that CONTRADICTS the facts it was handed -- a hallucination against fed input, not merely a prompt artifact.",
+     "conclusion": "CL-21 confirmed: VLM seats cannot measure geometry. The deterministic pour_integrity_ok gate (PR #35) is the discriminator (r1 pass / r4 fail).",
      "ref": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
-     "rationale_and_fix": "docs/vision-seat-role-rationale-2026-06-11.md -- re-role the seat as a non-measuring consistency auditor (flags render-vs-facts discrepancies, never measures, every flag re-checked by determinism). Re-run the discrimination test under that framing before sign-off."
+     "rationale_and_fix": "docs/vision-seat-role-rationale-2026-06-11.md -- re-role as a non-measuring consistency auditor (flags render-vs-facts discrepancies, never measures, every flag re-checked by determinism). New-role gate = catch rate over a planted-defect battery; one caught defect is a demo, not a pass."
     },
-    "context_headroom": "ctx 16384 ample: largest single call ~1.5k tokens (verifier with widened bundle) / vision call ~2k incl. small model-free image; serial (-np 1) so no co-residency; empirically all 3 text charters completed at 16384",
+    "context_headroom": "MEASURED 2026-06-12 (prompt_tokens, cec-worker-vision): widest worker-seat text prompt = 652 tok (verifier evidence-provenance with the WIDENED bundle: pour facts + FEM + reasons + metrics); vision call = 384 tok (pour prompt + the small model-free copper render). Against ctx 16384 -> min headroom 15732 (96% free). The image is NOT token-heavy on the model-free render. Serial (-np 1) so no co-residency. No ctx bump needed.",
     "render_hygiene": "VLM fed ONLY a model-free copper/zone render (render_copper_zone); no clean render -> skipped with render_hygiene_pending (cec_fullstack vision_pour_check + vision_judge)"
    }
   },
