@@ -1,0 +1,28 @@
+{
+ "eval": "v4-flash auditor packet-replay",
+ "run": "docs/fullstack-run-2026-06-11-validation",
+ "model": "deepseek-v4-flash",
+ "n_rounds": 1,
+ "n_ok": 0,
+ "competent_findings": 0,
+ "mean_wall_s": null,
+ "class_agreement_with_sonnet": 0,
+ "rows": [
+  {
+   "round": 1,
+   "model": "deepseek-v4-flash",
+   "wall_s": 330.9,
+   "verdict": "repair",
+   "failure_class": null,
+   "root_cause_present": false,
+   "root_cause": "",
+   "error": "deepseek_audit: HTTPError: HTTP Error 502: Bad Gateway",
+   "baseline_sonnet": {
+    "verdict": "repair",
+    "failure_class": "routing"
+   },
+   "agrees_with_baseline_class": false
+  }
+ ],
+ "note": "Validates the seat emits a verdict + bankable root_cause on real packets. Per-round ECONOMICS (tokens/s, wall vs the ~17-min Sonnet baseline) are recorded from the first V4-Flash overnight, appended here. Class-agreement with Sonnet is informational, not a target -- the seats decorrelate by design."
+}

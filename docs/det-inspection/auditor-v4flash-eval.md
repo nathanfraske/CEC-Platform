@@ -19,10 +19,15 @@ the eval-gate evidence for the seat.
 
 ## Packet-replay result
 
-<!-- REPLAY_RESULT: filled from scripts/cec_auditor_eval.py (docs/det-inspection/auditor-v4flash-replay.json) -->
-**Status: PENDING the first live V4-Flash run.** On the *current* box V4-Flash (~160 GB) exceeds the 125 GB
-WSL2 ceiling and **pages** (the exact constraint `ai-box-upgrade-analysis-2026-06-12.md` calls out: it needs
-the 256 GB box to be resident). Run it where V4 is resident:
+**Live attempt 2026-06-12 (`auditor-v4flash-replay.json`): V4-Flash UNSERVABLE on the current box —
+HTTP 502 after 330.9 s.** The broker could not serve `deepseek-v4-flash`: it pages at ~160 GB against the
+125 GB WSL2 ceiling and the load thrashed/aborted — empirically the exact residency constraint
+`ai-box-upgrade-analysis-2026-06-12.md` predicts (V4 needs the 256 GB box to be resident). **Two things
+this DID validate:** (1) `deepseek_audit` is **fail-safe** — the 502 degraded to `{"verdict":"repair",
+"error":...}` and never raised into the loop; (2) the harness + packet reconstruction run end-to-end (it
+reached the broker, timed the call, compared to the Sonnet baseline). The **competent-finding validation +
+economics still require a resident V4** (the 256 GB box, or the first overnight where the broker schedules
+the deep tier). Re-run where V4 is resident:
 ```bash
 docker exec docker-routing-1 python3 /workspace/scripts/cec_auditor_eval.py \
     --run docs/fullstack-run-2026-06-11-validation --rounds 1,2 --model deepseek-v4-flash
