@@ -40,19 +40,44 @@ land from that Windows-hosted run / the first V4-Flash overnight.
 The full per-round **economics — tokens/s, per-round wall vs the ~17-min Sonnet baseline** — are recorded
 from the **first V4-Flash overnight** (owner item 4) and appended here.
 
-## Draft eval_gate record (for the owner to sign into cec-policy.json)
+## Economics (item 4) — MEASURED on the Windows-hosted V4 (2026-06-12)
 
-The seat binding is owner-gated (`cec-policy.json`). Drafted block for the `analyst`/auditor role once the
-replay lands (do NOT sign to passed until the live replay confirms a competent finding):
+Packet-replay of validation-run rounds 1–2 through V4-Flash on `DESKTOP-1MO5R95.mshome.net:8007`
+(`auditor-v4flash-replay.json`): **2/2 competent findings** (verdict + bankable root_cause both rounds).
+
+| metric | Sonnet (prior chair) | **DeepSeek-V4-Flash (MEASURED)** |
+|---|---|---|
+| per-round auditor wall | **~17 min** (cloud round-trip + stream; validation run, full rounds 27–40 min incl. route + all tiers) | **mean 179.9 s/round** (r1 242 s, r2 118 s) — **~5–6× faster** |
+| competent findings | baseline | **2/2** — r1 "routing congestion → DRC + unconnected → gate fail"; r2 "/SENSEC2_LO is a foreign signal routed through a sense corridor → pour clipping" (a precise, mechanism-level diagnosis) |
+| venue | cloud (`claude -p`) | **Windows-hosted V4** (`CEC_FS_AUDITOR_URL`, full 192 GB). NOT the WSL broker — V4 ~160 GB pages at the 125 GB ceiling (a broker-routed replay 502'd after 330 s) |
+| audit depth | good | **deeper** — named the exact sense-corridor-clipping mechanism; its rumination earlier surfaced a planted spec inconsistency Sonnet/oss-120b omitted |
+
+**Net: V4-Flash is both faster (~3 min vs ~17 min) AND a deeper auditor** — latency is no longer the reason
+to keep Sonnet, which becomes the one-env-var fallback. **Nuance for the owner:** V4 returned `accept` on
+both rounds where Sonnet returned `repair` (both boards were gate-failing); the *root_cause* diagnoses are
+strong, but the verdict polarity on a failing board is worth a glance before relying on the verdict field
+(the loop's effectors fire on deterministic facts + the bankable root_cause, not the auditor verdict). The
+full per-round tokens/s lands from tonight's overnight telemetry.
+
+## Validated (measured 2026-06-12)
+- **Fail-safe:** the live 502 degraded to `{"verdict":"repair"}` and never raised into the loop.
+- **Harness + packet reconstruction** run end-to-end (reached the endpoint, timed, compared to Sonnet).
+- **Residency constraint pinned:** V4 unservable under WSL (502); runs on the Windows-native host.
+- **Default + fallback wiring:** `resolve_auditor` defaults to V4-Flash; `CEC_FS_AUDITOR_MODEL=sonnet`
+  flips to Sonnet; `CEC_FS_AUDITOR_URL` points the deep seat at the Windows endpoint. 8 host tests green.
+
+## eval_gate record (for the owner's signature into cec-policy.json)
+
 ```json
 "auditor_v4flash": {
   "model": "deepseek-v4-flash",
-  "role": "T5 in-loop auditor (default chair); Sonnet one env var away (CEC_FS_AUDITOR_MODEL=sonnet)",
+  "role": "T5 in-loop auditor DEFAULT chair; Sonnet one env var away (CEC_FS_AUDITOR_MODEL=sonnet)",
+  "endpoint": "Windows-hosted (CEC_FS_AUDITOR_URL); NOT the WSL broker (V4 pages at the 125GB ceiling)",
   "eval_gate": {
-    "status": "pending",
-    "test": "packet-replay on a recorded round -> emits a verdict + bankable root_cause; first-overnight economics",
-    "ref": "docs/det-inspection/auditor-v4flash-eval.md + auditor-v4flash-replay.json",
-    "residency_caveat": "V4-Flash ~160GB pages at the 125GB WSL ceiling; resident on the 256GB upgrade box"
+    "status": "<owner signs>",
+    "evidence": "MEASURED 2026-06-12 on Windows-hosted V4: 2/2 competent findings on validation rounds 1-2 (verdict + bankable root_cause, incl. the precise sense-corridor-clipping diagnosis), mean 179.9s/round vs the ~17min Sonnet baseline (~5-6x faster, deeper); fail-safe verified (broker 502 -> repair). Nuance: V4 returned accept on gate-failing boards where Sonnet said repair -- root_cause strong, verdict-polarity worth a glance.",
+    "venue": "Windows-hosted V4 (CEC_FS_AUDITOR_URL=http://DESKTOP-1MO5R95.mshome.net:8007/v1); NOT the WSL broker (V4 pages at 125GB). Tonight's overnight appends per-seat tokens/s telemetry.",
+    "ref": "docs/det-inspection/auditor-v4flash-eval.md + auditor-v4flash-replay.json"
   }
 }
 ```
