@@ -1,0 +1,16 @@
+// 12vhpwr-proto pin constraints: Tang Primer 25K dock 2x20 GPIO field
+// Balls verified against the core board Specification v1.0 and the field silk
+// (doc section 9). All banks confirmed or fixed 3.3 V.
+IO_LOC "clk50"      E2;  IO_PORT "clk50"      IO_TYPE=LVCMOS33;
+IO_LOC "adc_reset"  F7;  IO_PORT "adc_reset"  IO_TYPE=LVCMOS33;
+IO_LOC "adc_convst" J8;  IO_PORT "adc_convst" IO_TYPE=LVCMOS33;
+IO_LOC "adc_cs_n"   L9;  IO_PORT "adc_cs_n"   IO_TYPE=LVCMOS33;
+IO_LOC "adc_sclk"   L10; IO_PORT "adc_sclk"   IO_TYPE=LVCMOS33;
+IO_LOC "adc_busy"   K8;  IO_PORT "adc_busy"   IO_TYPE=LVCMOS33;
+IO_LOC "adc_douta"  K9;  IO_PORT "adc_douta"  IO_TYPE=LVCMOS33;
+IO_LOC "adc_doutb"  K10; IO_PORT "adc_doutb"  IO_TYPE=LVCMOS33;
+IO_LOC "esp_sclk"   F2;  IO_PORT "esp_sclk"   IO_TYPE=LVCMOS33;
+IO_LOC "esp_mosi"   B2;  IO_PORT "esp_mosi"   IO_TYPE=LVCMOS33;
+IO_LOC "esp_miso"   C2;  IO_PORT "esp_miso"   IO_TYPE=LVCMOS33;
+IO_LOC "esp_cs_n"   F1;  IO_PORT "esp_cs_n"   IO_TYPE=LVCMOS33;
+IO_LOC "esp_drdy"   A1;  IO_PORT "esp_drdy"   IO_TYPE=LVCMOS33;
