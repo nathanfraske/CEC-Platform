@@ -1,1 +1,8 @@
 CONFIG_IDF_TARGET="esp32p4"
+
+# Target early-silicon ESP32-P4 rev v1.3 (the bench P4-NANO engineering
+# sample). IDF v6.0.1 defaults the P4 min revision to v3.1 (production);
+# that mismatch boot-loops on v1.3 silicon with an illegal-instruction
+# panic. v1.0 is the tightest floor that includes v1.3, and is
+# forward-compatible (also runs on production v3.x).
+CONFIG_ESP32P4_REV_MIN_100=y
