@@ -66,6 +66,17 @@ def test_gatepass_outranks_gatefail():
     assert passing < failing
 
 
+def test_copper_cannot_buy_rank_between_passing():
+    """Review item 1: copper area must NOT reorder two gate-passing candidates (no proxy pressure
+    in the PR that exists to kill proxy pressure). Same base + intact pours, differing only in
+    sense copper -> identical cost."""
+    a = cec_score.objective_v2(gates_pass=True, drc=0, islands_excess=0, sense_copper=200.0,
+                               base=5000.0)
+    b = cec_score.objective_v2(gates_pass=True, drc=0, islands_excess=0, sense_copper=400.0,
+                               base=5000.0)
+    assert a == b, f"copper area must not buy rank among passing boards: {a} vs {b}"
+
+
 if __name__ == "__main__":
     test_round1_wins_pour_aware_scorer()
     test_drc_not_credited_while_failing()

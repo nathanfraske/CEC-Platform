@@ -217,8 +217,14 @@ def vision_pour_check(rec, rnd):
                          if isinstance(v, dict) and (v.get("islands", 1) or 1) > 1)
     log(f"  T6 POUR (deterministic): {json.dumps(facts)}")          # re-stated #1: the numbers
     png = _d("vision", f"pour-r{rnd}.png")
-    if not render_board(rec["routed"], png):
-        return {"skipped": "render failed", "det_clipped_nets": det_clipped, "facts": facts}
+    # RENDER-HYGIENE PRECONDITION (review item 3): the VLM is fed ONLY a model-free copper/zone
+    # render -- never the 3D-body render (kicad-cli rotated-footprint artifact -> false findings).
+    # If the model-free render cannot be produced, SKIP the VLM with render_hygiene_pending; the
+    # deterministic facts (det_clipped) still drive pour integrity. The code cannot run the seat on
+    # an artifact-laden render by construction.
+    if not render_copper_zone(rec["routed"], png):
+        log("  T6 POUR-CHECK: VLM SKIPPED -- render_hygiene_pending (no model-free render)")
+        return {"skipped": "render_hygiene_pending", "det_clipped_nets": det_clipped, "facts": facts}
     if not warm("cec-vision-judge"):
         return {"skipped": "vision seat down", "det_clipped_nets": det_clipped, "facts": facts}
     schema = {"type": "object", "properties": {
@@ -279,13 +285,45 @@ def congestion_grid(board):
 
 
 def render_board(routed_host_path, out_png):
-    """kicad-cli render in-container -> host path under PERM."""
+    """kicad-cli 3D render in-container -> host path under PERM. NOTE: this is the 3D-body raytrace
+    render and carries the kicad-cli rotated-footprint artifact (false rotations/offsets absent in
+    the GUI) -- it MUST NOT be fed to the VISION seat (see render_copper_zone + review item 3)."""
     rel_in = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
     rel_out = os.path.relpath(os.path.abspath(out_png), ROOT)
     try:
         subprocess.run(ovd.COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render",
                                       "-o", f"/workspace/{rel_out}", f"/workspace/{rel_in}"],
                        capture_output=True, text=True, timeout=300)
+        return os.path.exists(out_png)
+    except Exception:                                            # noqa: BLE001
+        return False
+
+
+def render_copper_zone(routed_host_path, out_png):
+    """MODEL-FREE render for the VISION seat (review item 3 / render hygiene). Exports ONLY the
+    copper + edge layers (no 3D bodies, no silk/fab) via kicad-cli SVG, then rasterizes to PNG, so
+    the VLM reads copper + zone GEOMETRY and never the rotated-footprint 3D artifact. Returns True
+    ONLY if a clean PNG was produced; False => the caller MUST skip the VLM with
+    render_hygiene_pending. This is the precondition the code cannot violate: no model-free render,
+    no VLM. (Rasterizer: rsvg-convert or ImageMagick `convert` in the routing container.)"""
+    rel_in = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
+    svg = out_png.rsplit(".", 1)[0] + "-copper.svg"
+    rel_svg = os.path.relpath(os.path.abspath(svg), ROOT)
+    rel_out = os.path.relpath(os.path.abspath(out_png), ROOT)
+    try:
+        if os.path.exists(out_png):
+            os.remove(out_png)                       # never fall back to a stale 3D render
+        subprocess.run(ovd.COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
+                                      "--layers", "F.Cu,B.Cu,Edge.Cuts", "--exclude-drawing-sheet",
+                                      "--page-size-mode", "2",
+                                      "-o", f"/workspace/{rel_svg}", f"/workspace/{rel_in}"],
+                       capture_output=True, text=True, timeout=180)
+        if not os.path.exists(svg):
+            return False
+        subprocess.run(ovd.COMPOSE + ["exec", "-T", "routing", "sh", "-c",
+                                      f"rsvg-convert -o /workspace/{rel_out} /workspace/{rel_svg} "
+                                      f"|| convert /workspace/{rel_svg} /workspace/{rel_out}"],
+                       capture_output=True, text=True, timeout=120)
         return os.path.exists(out_png)
     except Exception:                                            # noqa: BLE001
         return False
@@ -393,7 +431,7 @@ def worker_panel(rec, rnd):
 
 
 # ---- T5: the Sonnet auditor (rule cap + novelty + actuation handled by caller) ------------------------
-def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None):
+def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model"):
     out_path = _d("findings", f"round-{rnd:03d}-sonnet.json")
     m = dict(rec)
     m["gate_fail"] = 0 if rec.get("gates_pass") else 1
@@ -433,7 +471,15 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None):
         "failure_class=placement, NOT priced.\n"
         "- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.\n\n"
         f"ROUND {rnd} candidate:\n{json.dumps(metrics, indent=1)}\n"
-        f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}\n"
+        # GENERATION SOURCE (review item 5): a fallback round ran on crude fixed-offset waypoints,
+        # not the model's intents -- a degraded GENERATION, its own hazard class. The auditor must
+        # judge such a board as fallback-generated, NOT mistake a worse board for a scorer/rule issue.
+        + (f"GENERATION SOURCE: intents_src={intents_src}"
+           + (" -- THIS ROUND RAN ON FALLBACK INTENTS (degraded generation: crude fixed-offset "
+              "waypoints, not the model's plan). A worse board here may be the fallback, not a "
+              "scorer/rule problem -- prefer failure_class=routing/placement over a penalty.\n"
+              if intents_src == "fallback" else "\n"))
+        + f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}\n"
         f"FEM flags: {json.dumps(rec.get('fem_flags', [])[:4])}\n"
         f"{pour_line}"
         f"stub summary: {json.dumps(rec.get('stub_summary', {}))}\n\n"
@@ -442,8 +488,10 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None):
         f"Prior refutes this run (do not repeat the class): {json.dumps(prior_refutes)}\n"
         f"Penalisable keys: {list(PENALISABLE)}\n\n"
         "SCHEMA -- `root_cause` is your bankable diagnosis (ALWAYS fill it; it is kept even if the "
-        "lever is refused). `proposed_lever` is gated against the allowed set; `scorer_penalty` is "
-        "for ranking only and must be null unless a gate-passing candidate already exists.\n"
+        "lever is refused). `proposed_lever` is VERIFIER-CONTEXT-ONLY today: it is recorded and the "
+        "verifier judges its actuation-space, but it has NO direct effector -- the corridor-avoidance "
+        "lever fires DETERMINISTICALLY from pour_clipped_nets, not from this field. `scorer_penalty` "
+        "is for ranking only and must be null unless a gate-passing candidate already exists.\n"
         f"Use the Write tool to write ONLY this JSON to {out_path} :\n"
         '{"verdict":"accept|repair|escalate","root_cause":"<diagnosis, always filled>",'
         '"reasoning":"...","failure_class":"routing|placement|scoring|constraint|none",'
@@ -695,6 +743,16 @@ def run(board, rounds, hours):
                                for v in _pf.values() if isinstance(v, dict))
             rec["islands_excess"] = islands_excess
             rec["sense_copper"] = round(sense_copper, 2)
+            # BLOCKING pour-integrity gate (review item 2): kelvin_ok checks connectivity and is BLIND
+            # to fragmentation (it passed the round-4 board at 3 islands). A sense pour split into >1
+            # island fails the gate -> gates_pass forced False so the board can't be accepted/finalist.
+            # Golden dry-run was CLEAN (tests/golden/pour-integrity-dryrun.json), so it merges here.
+            pour_ok, pour_reasons = cec_score.pour_integrity_ok(_pf)
+            rec["pour_integrity_ok"] = pour_ok
+            if not pour_ok and rec.get("gates_pass"):
+                log(f"  POUR-INTEGRITY GATE FAIL -> gates_pass forced False: {pour_reasons}")
+                rec["gates_pass"] = False
+                rec.setdefault("reasons", []).append("pour_integrity: " + "; ".join(pour_reasons))
             rec["objective_base"] = rec.get("objective", 0.0)
             rec["objective"] = round(cec_score.objective_v2(
                 gates_pass=rec["gates_pass"], drc=rec["drc"], islands_excess=islands_excess,
@@ -717,8 +775,8 @@ def run(board, rounds, hours):
                         f"{[i['net'] for i in pending_corridor_avoid]} around {list(corridors)}")
 
             # T5 auditor (host Sonnet; SEES the pour-clip) -> CL-24 verifier -> guarded injection
-            sj = sonnet_audit(rec, lr, rnd, pourcheck=pourcheck)
-            vres, events, miss = None, [], []
+            sj = sonnet_audit(rec, lr, rnd, pourcheck=pourcheck, intents_src=src)
+            vres, events, miss, vt = None, [], [], None
             sp = sj.get("scorer_penalty") if isinstance(sj.get("scorer_penalty"), dict) else {}
             has_rule = bool(sj.get("manager_rule"))
             tripwired = sp.get("metric") in lr.get("refuted_metrics", [])
@@ -727,6 +785,14 @@ def run(board, rounds, hours):
                     # KNOB TRIPWIRE pre-check (lesson 5 + lesson 1): a refuted-metric reweight with
                     # nothing else to judge is auto-rejected with NO verifier spend.
                     events = inject(sj, lr, rnd, "sonnet", "tripwire")
+                    vt = "tripwire"
+                    # Review item 6: a tripwired round must NOT masquerade as a null verifier row --
+                    # write a minimal stub so the verifier/ artifact + the measurement row say "tripwire".
+                    json.dump({"round": rnd, "final": "tripwire", "verdict_type": "tripwire",
+                               "note": "refuted-metric reweight auto-rejected; no verifier spend",
+                               "scorer_penalty": sj.get("scorer_penalty"),
+                               "root_cause": sj.get("root_cause")},
+                              open(_d("verifier", f"round-{rnd:03d}.json"), "w"), indent=1, default=str)
                     log(f"  T5 TRIPWIRE: refuted metric '{sp.get('metric')}' re-proposed -> "
                         f"auto-reject, no verifier spend -> {[e['action'] for e in events]}")
                 else:
@@ -750,9 +816,13 @@ def run(board, rounds, hours):
                     vres = vs.verify({"issue": sj.get("reasoning", "")[:600],
                                       "root_cause": sj.get("root_cause"),
                                       "scorer_penalty": sj.get("scorer_penalty"),
+                                      # proposed_lever is verifier-context-only (review item 4): the
+                                      # panel judges its actuation-space, but no effector reads it --
+                                      # corridor-avoidance fires deterministically from pour_clipped_nets.
                                       "proposed_lever": sj.get("proposed_lever"),
                                       "manager_rule": sj.get("manager_rule")}, ctx)
                     vfinal = vres.final if vres else "uncertain"
+                    vt = getattr(vres, "verdict_type", None)
                     json.dump({"round": rnd, "final": vfinal,
                                "verdict_type": getattr(vres, "verdict_type", None),
                                "live_seats": getattr(vres, "live_seats", None),
@@ -846,10 +916,11 @@ def run(board, rounds, hours):
                    "verifier_spent": vs.spent, "n_rules": len(lr["manager_rules"]),
                    "t0_fired": bool(t0), "n_finalists": len(front),
                    "pour_clipped": bool(pour_clipped_nets), "pour_clipped_nets": pour_clipped_nets,
+                   "pour_integrity_ok": rec.get("pour_integrity_ok"),    # blocking gate (item 2)
                    "pour_vision": (pourcheck.get("pours_intact") if "pours_intact" in pourcheck
                                    else pourcheck.get("skipped") or pourcheck.get("error")),
                    "vision_required_unmet": vision_required_unmet,
-                   "verdict_type": getattr(vres, "verdict_type", None),
+                   "verdict_type": vt,                       # "tripwire" on a tripwired round (item 6)
                    "v4_risk": (v4 or {}).get("local_minimum_risk")}
             with open(_d("measurement.jsonl"), "a") as fh:
                 fh.write(json.dumps(row) + "\n")
