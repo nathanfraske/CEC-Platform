@@ -44,6 +44,18 @@ jobs:
             "${KICAD_IMAGE:-kicad/kicad:10.0}" \
             scripts/cec_golden_fixtures.py
 
+      # SB-08 item 5: golden boards must round-trip byte-stable through the pinned pcbnew.
+      # Catches a writer reflow (PR #37 buried a band change inside a 20k-line re-save) BEFORE
+      # it can hide in a substantive PR -- a reflow must ship as its own format-only PR.
+      - name: Golden byte-stability guard (SB-08 item 5, pcbnew via Docker)
+        run: |
+          . ./versions.env
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v "$PWD":"$PWD" -w "$PWD" \
+            --entrypoint python3 \
+            "${KICAD_IMAGE:-kicad/kicad:10.0}" \
+            scripts/cec_golden_stability.py
+
       # CL-03 R8 container leg: AM-02 fixture validation for promoted corpus
       # entries (the compile-time blocking latch reads its results). Vacuously
       # green while corpus/promoted/ is empty; load-bearing at first promotion.
