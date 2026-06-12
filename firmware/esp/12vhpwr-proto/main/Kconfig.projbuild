@@ -1,0 +1,14 @@
+menu "12vhpwr-proto bring-up"
+
+    config CEC_PROTO_RAW_CONSOLE
+        bool "v0 raw console loop (simulation-verified bring-up path)"
+        default y
+        help
+            Run the v0 raw printf loop (poll DRDY, pull a frame, print
+            codes + volts at ~5 Hz) instead of the TelePlot streaming
+            loop. Default ON until bring-up step 3 passes on hardware,
+            so the first hardware session uses the exact path verified
+            in simulation. The TelePlot path and the CLI 'frame' command
+            compile in either mode.
+
+endmenu

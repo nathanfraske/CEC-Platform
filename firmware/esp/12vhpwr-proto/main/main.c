@@ -1,76 +1,133 @@
-/* 12vhpwr-proto ESP32-P4 bring-up v0.
- * SPI master to the GW5A: poll DRDY, pull an 18-byte frame
- * (0xA5, seq, V1..V8 big-endian), print codes and volts.
- * Pins per doc section 6.3 / 10. License: Apache-2.0 (CEC-Platform). */
+/* 12vhpwr-proto ESP32-P4 bring-up.
+ * SPI master to the GW5A via the shared cec_fpga_link component: poll
+ * DRDY, pull an 18-byte frame (0xA5, seq, V1..V8 big-endian).
+ *
+ * Two output paths (Kconfig CEC_PROTO_RAW_CONSOLE):
+ *   - RAW (default until bench step 3 passes): the v0 printf loop,
+ *     byte-for-byte — the path verified in simulation.
+ *   - TelePlot: eight channels (volts) plus seq through the shared
+ *     cec_teleplot engine, ~5 Hz.
+ * Either way the cec_cli 'frame' command dumps one frame on demand.
+ *
+ * Pins per main/cec_config.h (doc section 6.3 / 10).
+ * License: Apache-2.0 (CEC-Platform). */
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-#include "driver/spi_master.h"
-#include "driver/gpio.h"
+#include "esp_log.h"
+#include "esp_timer.h"
+#include "cec_fpga_link.h"
+#include "cec_config.h"
+#include "cec_teleplot.h"
+#include "cec_cli.h"
 
-#define PIN_SCLK  20   /* P1-13 -> field T13 (F2)  */
-#define PIN_MOSI  21   /* P1-15 -> field T14 (B2)  */
-#define PIN_MISO  22   /* P1-16 -> field B14 (C2)  */
-#define PIN_CS    23   /* P1-7  -> field B13 (F1)  */
-#define PIN_DRDY  24   /* P1-18 <- field B12 (A1)  */
+static const char *TAG = "12vhpwr_proto";
 
-#define FRAME_BYTES 18
-#define LSB_VOLTS   (5.0 / 32768.0)   /* +/-5 V range: 152.59 uV per LSB */
+/* ---------------------------- CLI handlers ---------------------------- */
 
-void app_main(void)
+/* Dump one frame on demand (any mode). Reads whatever the fabric has
+ * latched; DRDY state is reported rather than awaited so the command
+ * never blocks the console. */
+static int cli_cmd_frame(int argc, char **argv)
 {
-    gpio_config_t drdy = {
-        .pin_bit_mask = 1ULL << PIN_DRDY,
-        .mode         = GPIO_MODE_INPUT,
-    };
-    ESP_ERROR_CHECK(gpio_config(&drdy));
+    (void)argc; (void)argv;
+    bool drdy = cec_fpga_link_poll();
+    cec_fpga_frame_t f;
+    esp_err_t err = cec_fpga_link_read(&f);
+    if (err != ESP_OK) {
+        printf("error: %s\n", esp_err_to_name(err));
+        return 1;
+    }
+    printf("drdy=%d header=0x%02x (%s) seq=%u\n",
+           drdy ? 1 : 0, f.header, f.header_ok ? "ok" : "BAD", f.seq);
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
+        printf("  V%d %+6d (%+8.4f V)\n",
+               ch + 1, f.code[ch], f.code[ch] * PROTO_LSB_VOLTS);
+    }
+    return 0;
+}
 
-    spi_bus_config_t bus = {
-        .mosi_io_num   = PIN_MOSI,
-        .miso_io_num   = PIN_MISO,
-        .sclk_io_num   = PIN_SCLK,
-        .quadwp_io_num = -1,
-        .quadhd_io_num = -1,
-        .max_transfer_sz = 64,
-    };
-    ESP_ERROR_CHECK(spi_bus_initialize(SPI2_HOST, &bus, SPI_DMA_CH_AUTO));
+static const cec_cli_command_t CLI_COMMANDS[] = {
+    { "frame", "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
+};
 
-    spi_device_interface_config_t dev = {
-        .clock_speed_hz = 4 * 1000 * 1000,   /* 4 MHz: < 5 MHz oversample rec */
-        .mode           = 0,
-        .spics_io_num   = PIN_CS,
-        .queue_size     = 2,
-    };
-    spi_device_handle_t spi;
-    ESP_ERROR_CHECK(spi_bus_add_device(SPI2_HOST, &dev, &spi));
-
-    uint8_t tx[FRAME_BYTES] = {0};
-    uint8_t rx[FRAME_BYTES];
-
-    printf("12vhpwr-proto v0: waiting on DRDY\n");
+#if !CONFIG_CEC_PROTO_RAW_CONSOLE
+/* TelePlot streaming loop: eight channels (volts) plus seq. */
+static void teleplot_loop(void)
+{
+    ESP_LOGI(TAG, "TelePlot loop: waiting on DRDY");
+    char name[8];
     while (1) {
-        if (!gpio_get_level(PIN_DRDY)) {
+        if (!cec_fpga_link_poll()) {
             vTaskDelay(pdMS_TO_TICKS(1));
             continue;
         }
-        spi_transaction_t t = {
-            .length    = FRAME_BYTES * 8,
-            .tx_buffer = tx,
-            .rx_buffer = rx,
-        };
-        ESP_ERROR_CHECK(spi_device_transmit(spi, &t));
-
-        if (rx[0] != 0xA5) {
-            printf("bad header 0x%02x (alignment?)\n", rx[0]);
+        cec_fpga_frame_t f;
+        if (cec_fpga_link_read(&f) != ESP_OK) {
             vTaskDelay(pdMS_TO_TICKS(100));
             continue;
         }
-        printf("seq %3u |", rx[1]);
-        for (int ch = 0; ch < 8; ch++) {
-            int16_t code = (int16_t)(((uint16_t)rx[2 + 2*ch] << 8) | rx[3 + 2*ch]);
-            printf(" V%d %+6d (%+8.4f V)", ch + 1, code, code * LSB_VOLTS);
+        if (!f.header_ok) {
+            ESP_LOGW(TAG, "bad header 0x%02x (alignment?)", f.header);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+        int64_t now_ms = esp_timer_get_time() / 1000;
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
+            snprintf(name, sizeof(name), "v%d", ch + 1);
+            teleplot_emit_t(name, now_ms, (float)(f.code[ch] * PROTO_LSB_VOLTS));
+        }
+        teleplot_emit_t("seq", now_ms, (float)f.seq);
+        vTaskDelay(pdMS_TO_TICKS(200));   /* ~5 Hz; FPGA keeps pacing */
+    }
+}
+#else
+/* v0 raw console loop, byte-for-byte (the simulation-verified path). */
+static void raw_console_loop(void)
+{
+    printf("12vhpwr-proto v0: waiting on DRDY\n");
+    while (1) {
+        if (!cec_fpga_link_poll()) {
+            vTaskDelay(pdMS_TO_TICKS(1));
+            continue;
+        }
+        cec_fpga_frame_t f;
+        if (cec_fpga_link_read(&f) != ESP_OK) {
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+        if (!f.header_ok) {
+            printf("bad header 0x%02x (alignment?)\n", f.header);
+            vTaskDelay(pdMS_TO_TICKS(100));
+            continue;
+        }
+        printf("seq %3u |", f.seq);
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
+            printf(" V%d %+6d (%+8.4f V)", ch + 1, f.code[ch],
+                   f.code[ch] * PROTO_LSB_VOLTS);
         }
         printf("\n");
         vTaskDelay(pdMS_TO_TICKS(200));   /* ~5 Hz console; FPGA keeps pacing */
     }
+}
+#endif
+
+void app_main(void)
+{
+    cec_fpga_link_config_t link_cfg;
+    cec_config_fpga_link(&link_cfg);
+    ESP_ERROR_CHECK(cec_fpga_link_init(&link_cfg));
+
+    esp_err_t cli_err = cec_cli_init(CLI_COMMANDS,
+                                     sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]));
+    if (cli_err != ESP_OK) {
+        ESP_LOGW(TAG, "cec_cli_init failed: %s — serial commands unavailable",
+                 esp_err_to_name(cli_err));
+    }
+
+#if CONFIG_CEC_PROTO_RAW_CONSOLE
+    raw_console_loop();
+#else
+    teleplot_loop();
+#endif
 }
