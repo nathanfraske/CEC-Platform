@@ -195,7 +195,37 @@
    "license_cleared": true,
    "eval_gate": {
     "status": "absent",
-    "ref": "CL-22 golden-render bake-off NOT yet run"
+    "ref": "CL-22 golden-render bake-off NOT yet run. RETIRED from the CEC hot path 2026-06-11 (PR #36); backend stays registered for other projects."
+   }
+  },
+  "vision-seat": {
+   "_doc": "The UNIFIED seat (PR #36): cec-worker-vision = the cec-worker GGUF + mmproj serves BOTH the text seats (T1/T4/verifier) AND the vision seat (T6), deleting the per-round worker<->vision swap. The vision seat is GATED on render hygiene (model-free copper render) and NON-LOAD-BEARING; the deterministic pour_integrity_ok gate (PR #35) owns pour judgment, not this seat.",
+   "model": "cec-worker-vision",
+   "model_id": "Qwen3.6-35B-A3B + mmproj-F16",
+   "quant": "UD-Q4_K_M",
+   "load_bearing": false,
+   "residency": {
+    "vram_gb": 24,
+    "ctx": 16384,
+    "np": 1,
+    "free_gb_headroom": 8,
+    "measured": "2026-06-11 nvidia-smi; np4 = <1 GiB free (unsafe), np1 = ~8 GiB free; pipeline calls are serial so np1 is correct"
+   },
+   "license_cleared": true,
+   "eval_gate": {
+    "status": "pending_owner_signature",
+    "_what_you_sign": "Owner flips to passed to make the seat load-bearing. Honest split: the TEXT role is validated; the VISION-discrimination role FAILED its test (see below). Signing endorses the text role + swap elimination, NOT a vision pour-measurement claim.",
+    "text_seats": {
+     "result": "PASS -- 3/3 charter agreement vs cec-worker, 3/3 valid JSON, 0.93x latency (same base model)",
+     "ref": "docs/fullstack-run-2026-06-11-validation/seat-compare-unify.json"
+    },
+    "vision_discrimination": {
+     "result": "FAIL -- the VLM cannot discriminate intact (r1) from fragmented (r4) pours on the model-free render; it parrots the fed foreign_cross facts (CL-21: VLM seats cannot measure geometry). The deterministic pour_integrity_ok gate is the discriminator.",
+     "ref": "docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json",
+     "rationale_and_fix": "docs/vision-seat-role-rationale-2026-06-11.md -- re-role the seat as a non-measuring consistency auditor (flags render-vs-facts discrepancies, never measures, every flag re-checked by determinism). Re-run the discrimination test under that framing before sign-off."
+    },
+    "context_headroom": "ctx 16384 ample: largest single call ~1.5k tokens (verifier with widened bundle) / vision call ~2k incl. small model-free image; serial (-np 1) so no co-residency; empirically all 3 text charters completed at 16384",
+    "render_hygiene": "VLM fed ONLY a model-free copper/zone render (render_copper_zone); no clean render -> skipped with render_hygiene_pending (cec_fullstack vision_pour_check + vision_judge)"
    }
   },
   "frontier": {

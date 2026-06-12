@@ -1,0 +1,65 @@
+{
+ "round": 1,
+ "baseline": "cec-worker",
+ "candidate": "cec-worker-vision",
+ "candidate_nothink": false,
+ "agreement": "3/3",
+ "candidate_valid_json": "3/3",
+ "latency_s": {
+  "worker": 55.6,
+  "candidate": 51.9
+ },
+ "verdict": "no_regression",
+ "baseline_rows": [
+  {
+   "charter": "spec-conformance",
+   "verdict": "uncertain",
+   "failure_class": "unknown",
+   "reason": "The ratified rules/locked decisions corpus is empty, so the corpus is silent on the finding's claims.",
+   "ok": true,
+   "secs": 17.9
+  },
+  {
+   "charter": "evidence-provenance",
+   "verdict": "support",
+   "failure_class": "unknown",
+   "reason": "The evidence only partially matches the claim. While it confirms DRC=28, unconnected=2, kelvin_ok=true, and the pour_facts (islands=1, foreign_cross counts), it completely lacks data for diffpair_ok, blockage type/convergence, FEM over-temp flags/confidence, and FR routing behavior through 12V corridors. Under zero-tolerance sourcing, these missing assertions prevent full support.",
+   "ok": true,
+   "secs": 18.5
+  },
+  {
+   "charter": "actuation-space",
+   "verdict": "refute",
+   "failure_class": "constraint",
+   "reason": "The design has DRC=28 with unconnected routing-class nets, indicating a hard convergence blockage. Since routing fails completely, thermal metrics like max_T are irrelevant and cannot be moved by routing detours or pricing adjustments. The real failure class is convergence.",
+   "ok": true,
+   "secs": 19.2
+  }
+ ],
+ "candidate_rows": [
+  {
+   "charter": "spec-conformance",
+   "verdict": "uncertain",
+   "failure_class": "scoring",
+   "reason": "The ratified rules/locked decisions corpus is empty ([]). Since there are no ratified rules or locked decisions to contradict the finding, the corpus is silent.",
+   "ok": true,
+   "secs": 9.4
+  },
+  {
+   "charter": "evidence-provenance",
+   "verdict": "support",
+   "failure_class": "unknown",
+   "reason": "The evidence directly matches the claim's core factual assertions: DRC=28, unconnected=2, kelvin_ok=true, and the pour_facts dictionary contains identical net names, island counts (1), and foreign_cross values (12, 3, 7, 8) as stated. While some contextual details (e.g., diffpair_ok, blockage type, FEM flags, FR routing rationale) are absent from the evidence, the verifiable numerical and structural claims are fully supported.",
+   "ok": true,
+   "secs": 23.3
+  },
+  {
+   "charter": "actuation-space",
+   "verdict": "refute",
+   "failure_class": "constraint",
+   "reason": "The finding targets max_T via pricing, but the design is blocked by DRC=28 with unconnected nets, indicating a hard convergence failure. The proposed GR-02 detour for signal nets does not address over-temp on sense nets or the unconnected routing-class failures. No owned lever can move max_T because the layout has not yet converged to a thermally viable state; pricing thermal metrics at this stage is premature and misdirected.",
+   "ok": true,
+   "secs": 19.2
+  }
+ ]
+}

@@ -1,0 +1,86 @@
+{
+ "model": "cec-worker-vision",
+ "render_class": "model-free copper/zone (kicad-cli svg -> rsvg-convert)",
+ "protocol": "v2 facts-alongside",
+ "boards": "build/overnight-directed/eps-8pin-r{1..4}",
+ "rows": [
+  {
+   "round": 1,
+   "render": "docs/fullstack-run-2026-06-11-validation/vision/pour-r1-modelfree.png",
+   "gt_islands": {
+    "/SENSEC2_LO": 1,
+    "/SENSEC1_HI": 1,
+    "/SENSEC2_HI": 1,
+    "/SENSEC1_LO": 1
+   },
+   "pours_intact": false,
+   "clipped_nets": [
+    "/SENSEC2_LO",
+    "/SENSEC1_HI",
+    "/SENSEC2_HI",
+    "/SENSEC1_LO"
+   ],
+   "detail": "All four power pours are CLIPPED. The data confirms fragmentation (islands > 1) and foreign trace crossings (foreign_cross > 0) for every net. The signal traces routed across the large rectangular copper fills have interrupted the pours, cr",
+   "secs": 1.3
+  },
+  {
+   "round": 2,
+   "render": "docs/fullstack-run-2026-06-11-validation/vision/pour-r2-modelfree.png",
+   "gt_islands": {
+    "/SENSEC2_HI": 1,
+    "/SENSEC1_LO": 1,
+    "/SENSEC2_LO": 2,
+    "/SENSEC1_HI": 1
+   },
+   "pours_intact": false,
+   "clipped_nets": [
+    "/SENSEC2_HI",
+    "/SENSEC1_LO",
+    "/SENSEC2_LO",
+    "/SENSEC1_HI"
+   ],
+   "detail": "All four power pours are clipped/interrupted. Each net has foreign_cross > 0, indicating signal traces routed across them, fragmenting the copper fill. Specifically: /SENSEC2_HI has 3 crossings, /SENSEC1_LO has 7, /SENSEC2_LO has 16 (and is",
+   "secs": 1.1
+  },
+  {
+   "round": 3,
+   "render": "docs/fullstack-run-2026-06-11-validation/vision/pour-r3-modelfree.png",
+   "gt_islands": {
+    "/SENSEC1_LO": 1,
+    "/SENSEC2_LO": 2,
+    "/SENSEC1_HI": 1,
+    "/SENSEC2_HI": 2
+   },
+   "pours_intact": false,
+   "clipped_nets": [
+    "/SENSEC1_LO",
+    "/SENSEC2_LO",
+    "/SENSEC1_HI",
+    "/SENSEC2_HI"
+   ],
+   "detail": "All four 12V power pours are CLIPPED. Data confirms fragmentation (islands > 1) and foreign trace crossings (foreign_cross > 0) for every net. The routing traces crossing the pours are visible as red and blue lines intersecting the large co",
+   "secs": 1.1
+  },
+  {
+   "round": 4,
+   "render": "docs/fullstack-run-2026-06-11-validation/vision/pour-r4-modelfree.png",
+   "gt_islands": {
+    "/SENSEC1_LO": 1,
+    "/SENSEC2_HI": 3,
+    "/SENSEC2_LO": 2,
+    "/SENSEC1_HI": 1
+   },
+   "pours_intact": false,
+   "clipped_nets": [
+    "/SENSEC2_HI",
+    "/SENSEC2_LO",
+    "/SENSEC1_LO"
+   ],
+   "detail": "/SENSEC1_HI is intact (1 island, 0 foreign_cross). /SENSEC1_LO is clipped (12 foreign_cross). /SENSEC2_HI is clipped (3 islands, 11 foreign_cross). /SENSEC2_LO is clipped (2 islands, 13 foreign_cross). All clipped nets show signal traces ro",
+   "secs": 1.1
+  }
+ ],
+ "discrimination_r1_vs_r4": false,
+ "pass_bar": "round-4 (fragmented) reads worse than round-1 (intact)",
+ "verdict": "FAIL/INCONCLUSIVE -- see rows"
+}

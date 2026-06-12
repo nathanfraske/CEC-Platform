@@ -49,7 +49,8 @@ REVIEW_DIR = os.path.join(OUT_DIR, "reviews")
 # (the 235B was retired and its compose `manager` service gutted 2026-06-09). cec_judge_local's own
 # defaults already point at the broker; the review model is its REVIEWER_MODEL resolution.
 BROKER = os.environ.get("CEC_LLM_BROKER_URL", "http://localhost:8080/v1").rstrip("/")
-WORKER_MODEL = "cec-worker"
+WORKER_MODEL = "cec-worker-vision"   # unified seat (PR #36 item 2): overnight ROUTE blocks no longer
+# warm the OLD cec-worker service -> no 24 GB worker<->vision swap on the night run.
 
 _LOGF = None
 

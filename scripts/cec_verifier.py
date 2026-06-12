@@ -211,7 +211,7 @@ class VerifierSession:
     the calibration latch clears (policy gate stays absent until then)."""
     budget: int = None
     url: str = None
-    model: str = "cec-worker"
+    model: str = "cec-worker-vision"   # unified seat (PR #36 item 2): no worker<->vision swap
     cal: Calibration = field(default_factory=Calibration)
     spent: int = 0
     seen: set = field(default_factory=set)
