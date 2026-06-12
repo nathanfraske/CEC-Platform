@@ -1,15 +1,25 @@
 CONFIG_IDF_TARGET="esp32p4"
 
-# Target early-silicon ESP32-P4 rev v1.3 (the bench P4-NANO engineering
+# Target early-silicon ESP32-P4 rev v1.3 (the bench ESP32-P4-Module-DEV-KIT engineering
 # sample). IDF v6.0.1 defaults the P4 min revision to v3.1 (production);
 # that mismatch boot-loops on v1.3 silicon with an illegal-instruction
 # panic. v1.0 is the tightest floor that includes v1.3, and is
 # forward-compatible (also runs on production v3.x).
 CONFIG_ESP32P4_REV_MIN_100=y
 
-# Console on the native USB-Serial-JTAG. The P4-NANO bench board is a
+# Console on the native USB-Serial-JTAG. The ESP32-P4-Module-DEV-KIT bench board is a
 # single native-USB-C device (esptool reports COM as "USB-Serial/JTAG"),
 # so printf/stdout, the CLI, and idf.py monitor all ride that one cable.
 # (The s3 apps keep UART0 primary for their CH340 TelePlot bridge; this
 # proto has no such bridge -- it was only inheriting the IDF P4 default.)
 CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+
+# Output path: TelePlot streaming instead of the v0 raw printf loop --
+# eight channels (volts) plus seq as ">name:ms:value" lines at ~5 Hz. The
+# AD7606 acquisition chain is verified on hardware, so this app now ships
+# the TelePlot path. (The Kconfig default stays =y = the sim-verified raw
+# loop, so a fresh bring-up still starts on the known-good path.) No
+# telemetry UART is initialized on this proto, so teleplot_emit_t falls
+# back to stdout -- the lines ride the same USB-Serial-JTAG console as
+# idf.py monitor; point the TelePlot viewer at that COM port.
+CONFIG_CEC_PROTO_RAW_CONSOLE=n
