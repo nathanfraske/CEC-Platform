@@ -1,0 +1,203 @@
+{
+ "board": "tests/golden/eps-8pin/eps8pin-module.kicad_pcb (post-LOGO1-keepout, main)",
+ "fr_determinism_note": "FR 1.7.0 has no seed; fixed-param routes are byte-stable (measured). Variance below is across opt_time effort, FR's only diversity lever.",
+ "passes": 10,
+ "opt_times_s": [
+  10,
+  15,
+  20,
+  30,
+  45,
+  60
+ ],
+ "n_variants": 6,
+ "n_routed": 6,
+ "elapsed_s": 107.0,
+ "opt_time_axis": [
+  {
+   "opt_time": 10,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 15,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 20,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 30,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 45,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 60,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  }
+ ],
+ "passes_axis": [
+  {
+   "opt_time": 20,
+   "passes": 4,
+   "drc": 0,
+   "unconnected": 5,
+   "tracks": 502,
+   "vias": 73,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 131.8
+  },
+  {
+   "opt_time": 20,
+   "passes": 10,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 20,
+   "passes": 20,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  },
+  {
+   "opt_time": 20,
+   "passes": 40,
+   "drc": 0,
+   "unconnected": 2,
+   "tracks": 526,
+   "vias": 78,
+   "kelvin_ok": true,
+   "diffpair_ok": true,
+   "thermal_max_T": 157.9
+  }
+ ],
+ "distributions_opt_time": {
+  "drc": {
+   "n": 6,
+   "min": 0,
+   "max": 0,
+   "mean": 0,
+   "median": 0.0,
+   "stdev": 0.0
+  },
+  "unconnected": {
+   "n": 6,
+   "min": 2,
+   "max": 2,
+   "mean": 2,
+   "median": 2.0,
+   "stdev": 0.0
+  },
+  "tracks": {
+   "n": 6,
+   "min": 526,
+   "max": 526,
+   "mean": 526,
+   "median": 526.0,
+   "stdev": 0.0
+  },
+  "vias": {
+   "n": 6,
+   "min": 78,
+   "max": 78,
+   "mean": 78,
+   "median": 78.0,
+   "stdev": 0.0
+  },
+  "thermal_max_T": {
+   "n": 6,
+   "min": 157.9,
+   "max": 157.9,
+   "mean": 157.9,
+   "median": 157.9,
+   "stdev": 0.0
+  }
+ },
+ "gate_pass_counts": {
+  "kelvin_ok": 6,
+  "diffpair_ok": 6
+ },
+ "zero_fr_variance": true,
+ "finding": "ZERO FR variance across opt_time: drc and thermal stdev = 0. The board routes to one deterministic solution; the 157.9C is converged, not noise. The 'drc-10 variance event' does not reproduce here (drc=0 at every setting). Bands need no variance width -- the real decision is fix-or-accept the deterministic thermal (owner item 3).",
+ "band_proposal_derived": {
+  "anchor": {
+   "params": {
+    "passes": 10,
+    "opt_time": 20
+   },
+   "thermal_max_T": 157.9,
+   "drc": 0,
+   "note": "the CI fixed-param route (cec_golden.FR_PARAMS) -- the only params CI runs"
+  },
+  "thermal_ceiling_candidates_owner_picks_headroom": {
+   "+5%": 165.8,
+   "+10%": 173.7,
+   "+15%": 181.6
+  },
+  "drc_max_candidates": {
+   "baseline_plus_1": 1,
+   "baseline_plus_2": 2
+  },
+  "envelope_is_context_only": {
+   "opt_time_10_60s": "thermal 157.9-157.9 (stdev 0.0)",
+   "note": "attached as sensitivity context, NOT the ceiling source"
+  },
+  "rule": "ceiling = fixed-param baseline + EXPLICIT owner headroom; never baseline*const baked in code (that is the make_bands self-ratifying flaw). Re-freeze records the chosen headroom + rationale in expectations.json provenance."
+ }
+}
