@@ -213,6 +213,11 @@ def pour_facts(routed_host_path):
         "        l,tp,r,bm=z['_bb']\n"
         "        if min(s.x,e.x)<=r and max(s.x,e.x)>=l and min(s.y,e.y)<=bm and max(s.y,e.y)>=tp:\n"
         "            z['foreign_cross']+=1\n"
+        # F+B-mirror-AWARE component count (SB-08 item 2): F.Cu islands stitched through the via field +
+        # THT pads count as ONE; the blocking gate prefers this over the raw F.Cu island count.
+        "import cec_score\n"
+        f"comp=cec_score.sense_pour_components('/workspace/{rel}')\n"
+        "for nn in Z: Z[nn]['components']=comp.get(nn)\n"
         "out={nn:{k:v for k,v in z.items() if k!='_bb'} for nn,z in Z.items()}\n"
         "print('POUR_JSON='+json.dumps(out))\n")
     try:
