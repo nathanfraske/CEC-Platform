@@ -93,8 +93,15 @@ OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing a
 WORKER_SEAT = os.environ.get("CEC_FS_WORKER_MODEL", "cec-worker-vision")
 VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
 # Frozen known-good model-free copper render per board, for the deterministic render-diff the VLM
-# NARRATES (owner ruling 2026-06-11). Absent -> the narration pass runs anomaly-only (no regions).
-VISION_REFERENCE = {"eps-8pin": os.path.join(ROOT, "tests/golden/refs/eps-8pin-known-good-copper.png")}
+# NARRATES (owner ruling 2026-06-11). Render-diff is a REGRESSION tool -- it only has meaning for a
+# board that IS known-good and is being REPROCESSED (toolchain/library/re-pour); diffing an
+# in-development board (e.g. eps-8pin mid-routing-loop) against an arbitrary baseline measures drift,
+# not defects. So this map holds ONLY genuinely-known-good boards (graduated-out-of-DRAFT / fab
+# snapshots); a board absent here (the iterative loop case) runs the narration ANOMALY-ONLY, and its
+# deterministic detection is the absolute DFM layer (cec_dfm_check) + the pour-integrity gate, which
+# need no reference. No entry yet: the graduated boards (hub-standard / 12vhpwr-standard) get a frozen
+# reference render when their regression check is wired; eps-8pin is mid-development -> intentionally absent.
+VISION_REFERENCE = {}
 
 INTENTS_SCHEMA = {
     "type": "object",
