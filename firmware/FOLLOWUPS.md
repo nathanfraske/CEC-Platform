@@ -92,7 +92,8 @@ still-present / needs-bench-measurement.
 
 The v0 ESP app was simulation-verified only, never run on hardware; the
 first silicon bring-up (ESP32-P4-Module-DEV-KIT, **ESP32-P4NRW32 SoC, rev
-v1.3 early silicon**) surfaced four real issues, all now fixed:
+v1.3 early silicon**) surfaced five real issues, all now fixed (1-4
+ESP-side, 5 FPGA/Gowin-side):
 
 1. **Chip-revision floor (FIXED, commit landed).** IDF v6.0.1 defaults the
    P4 min revision to v3.1 (production); the bench chip is v1.3 -> illegal-
@@ -126,6 +127,19 @@ v1.3 early silicon**) surfaced four real issues, all now fixed:
    << the ~200 ms frame period). printf output bytes unchanged (the teleplot/
    raw-console byte contract holds). This also makes the "waiting on DRDY" state
    stable so the FPGA side can be brought up without the board resetting.
+5. **Gowin Place & Route rejected clk50/esp_mosi on dedicated config pins
+   (FPGA side; FIXED via project config).** On the GW5A, ball E2 (`clk50`)
+   is a CPU/SSPI config pin and B2 (`esp_mosi`) is an I2C pin; the fitter
+   refuses a user signal on a dedicated pin until it's released (errors
+   PR2017 "cannot be placed … dedicated pin" + PR2028). Fix: Project →
+   Configuration → Place & Route → Dual-Purpose Pin → check "Use SSPI as
+   regular IO" + "Use CPU as regular IO" + "Use I2C as regular IO" (leave
+   MSPI/JTAG UNCHECKED — those are the boot/program pins). This is a Gowin
+   project setting, not a `.cst` directive, so it lives in the local Gowin
+   project rather than the repo; recorded in the rtl/12vhpwr-proto README
+   build steps. The `.cst` ball map is unchanged and correct — **E2 is the
+   dock's 50 MHz oscillator** (physically wired there; it just doubles as a
+   config pin), so the pin is released, not relocated.
 
 ## Adoption / integration items
 

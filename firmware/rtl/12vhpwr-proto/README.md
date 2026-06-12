@@ -42,11 +42,21 @@ pin constraints; the ESP readout app is [`../../esp/proto/12vhpwr`](../../esp/pr
    either is fine; keep `cec_spi_slave.v` shared if you can.)
 3. **Set `top` as the top module** (Project → Configuration, or it
    auto-detects since the module is named `top`).
-4. **Synthesize → Place & Route.** Timing closes trivially at these
+4. **Release the dual-purpose config pins** (one-time; saved with the
+   project). **Project → Configuration → Place & Route → Dual-Purpose
+   Pin**, and check **Use SSPI as regular IO**, **Use CPU as regular IO**,
+   and **Use I2C as regular IO**. Without this, Place & Route fails with
+   "… cannot be placed … the location is a dedicated pin": `clk50` sits on
+   ball **E2** (a CPU/SSPI config pin — the dock's 50 MHz oscillator is
+   physically wired there, so it can't move) and `esp_mosi` on ball **B2**
+   (an I2C pin). Leave **MSPI** and **JTAG** UNCHECKED — the board boots
+   the FPGA from its SPI flash over MSPI and is programmed over JTAG, so
+   releasing those breaks boot/programming.
+5. **Synthesize → Place & Route.** Timing closes trivially at these
    clocks; if PnR reports an unconstrained-clock warning on `clk50`,
    it's cosmetic for a 50 MHz design (add a 50 MHz clock constraint to
    silence it).
-5. **Program:** Programmer → scan → load the generated `.fs` to **SRAM**
+6. **Program:** Programmer → scan → load the generated `.fs` to **SRAM**
    for bench iteration (volatile, fastest), or **embedded flash** to
    make it survive a power cycle. Program over the dock's USB-C.
 
