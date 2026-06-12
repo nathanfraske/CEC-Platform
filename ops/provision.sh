@@ -107,16 +107,22 @@ provision() {
     ok "cec/routing:kicad10 built"
   fi
 
-  step "6/6  Install + start the cec-llm-broker systemd unit"
-  if [ ! -f "$BROKER_DIR/broker.py" ]; then
-    printf '%s  warn%s broker source not found at %s -- skipping (clone/restore it, then re-run)\n' \
-      "$c_ylw" "$c_rst" "$BROKER_DIR"
-  else
+  step "6/6  Deploy + start the cec-llm-broker systemd unit (from the vendored repo copy)"
+  # The broker source is vendored at ops/cec-llm-broker (WSL-ephemeral policy: it must be
+  # recoverable from the remote, not WSL-only). Deploy it to $BROKER_DIR, preserving an
+  # existing models.json if the operator tuned it locally.
+  vendored="$REPO_ROOT/ops/cec-llm-broker"
+  if [ -f "$vendored/broker.py" ]; then
+    mkdir -p "$BROKER_DIR"
+    cp "$vendored/broker.py" "$vendored/cec-llm-broker.service" "$vendored/README.md" "$BROKER_DIR/"
+    [ -f "$BROKER_DIR/models.json" ] || cp "$vendored/models.json" "$BROKER_DIR/"
     SUDO cp "$BROKER_DIR/cec-llm-broker.service" /etc/systemd/system/
     SUDO systemctl daemon-reload
     SUDO systemctl enable --now cec-llm-broker >/dev/null 2>&1 || true
     SUDO systemctl restart cec-llm-broker
-    ok "cec-llm-broker active on :$BROKER_PORT"
+    ok "cec-llm-broker deployed from repo, active on :$BROKER_PORT"
+  else
+    printf '%s  warn%s vendored broker not found at %s -- skipping\n' "$c_ylw" "$c_rst" "$vendored"
   fi
 
   step "bot git auth (from the survives-WSL secrets file, if present)"

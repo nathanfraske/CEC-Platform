@@ -41,9 +41,45 @@ the fallback until the last seat moves** — nothing is one-way.
 
 ## Broker support for external (Windows-native) backends
 
-The broker (`/home/nathan/cec-llm-broker`) already proxies by alias and lists a catalog. For a
-Windows-native seat, add a registry entry with the Windows host `port` + `health` and **omit**
-`profile`/`service` so the broker treats it as always-on (no `compose up`, no idle-reap stop — it
-cannot manage a process it did not start). Small follow-up: teach the broker an explicit
-`"managed": false` flag so external backends are excluded from VRAM arbitration eviction and the
-idle reaper. Tracked here; not needed until the first seat moves.
+The broker (`/home/nathan/cec-llm-broker`) proxies by alias and lists a catalog. A Windows-native
+seat is a registry entry with `"managed": false` and `"host": "windows-host"` (resolved at runtime
+to the WSL default gateway). **Implemented 2026-06-12:** the broker now honors `managed:false` —
+it proxies but never `compose up`/stops the backend, excludes it from idle-reap, and counts its
+`vram_gb` toward the budget but never evicts it (it can't stop a process it didn't start). The
+seat `cec-worker-vision-win` (`:8090`) is registered.
+
+---
+
+## Buildout log (2026-06-12)
+
+**Binaries.** Mainline llama.cpp **`b9611`**, Windows **CUDA 13.3** build (Blackwell-capable) at
+`E:\llama-cpp-win\b9611\` (+ the CUDA 13.3 cudart). sha256 in `versions.env`. `llama-server.exe`:
+`7b7bfe262b4dd0ec7b9dc5f13286284119f5e6b20283af3e90f643cf1b42ec13`.
+
+**The load blocker — root-caused + fixed.** Every binary initially died at load with
+`0xC0000139 ENTRYPOINT_NOT_FOUND` (before `main`). Cause: a Microsoft VC-redist
+**`libomp140.x86_64.dll` in `C:\Windows\System32`** is missing `__kmpc_dispatch_deinit` /
+`__kmpc_dispatch_init_4`, which llama.cpp's `ggml-base.dll` imports — and that System32 copy was
+winning the load over llama.cpp's bundled LLVM libomp (which *has* them; confirmed by dumpbin
+export diff). Fix: a **DotLocal redirection** — `llama-server.exe.local\libomp140.x86_64.dll`
+(the bundled copy) — forces the correct libomp. No System32 changes. `--version` went `57 → 0`.
+
+**Launch.** Must run as a real Windows process, **not** a WSL-spawned child (WSL-interop CWD
+becomes an unusable `\\wsl.localhost\...` UNC path, and detached children get reaped when the
+launcher exits). Launcher: `E:\llama-cpp-win\run-worker-vision.bat` (sets CWD, applies `.local`,
+redirects to `srv.log`). Persistent run = the **`CEC-WorkerVision` Scheduled Task** (logon trigger,
+`E:\llama-cpp-win\install-task.ps1`, registered elevated by the owner).
+
+**Networking (verify item 3 — DONE).** NAT; broker (WSL) → Windows server over the default
+gateway `172.27.192.1`; container→host ~0.72 ms. No firewall rule needed for the gateway path.
+
+**Cold-load / decode (verify item 2).** Pending the persistent server; the broker watcher + a
+benched request will fill the medians (Windows-native NTFS read vs the WSL `/mnt/e` drvfs path).
+
+**ik_llama.cpp (verify item 1).** Risk **confirmed**: even *mainline* prebuilt Windows CUDA needed
+the libomp/DotLocal fix to load, and ik_llama.cpp (a llama.cpp fork over the same ggml/libomp)
+does **not** publish Windows CUDA prebuilts — so the MoE-offload seats (`cec-manager-fast`,
+`cec-manager`) would need a from-source Windows build (the box has only CUDA **12.1**, too old for
+sm_120 — a newer toolkit is an owner decision). Recommendation stands: move the dense/full-GPU
+seats first (mainline, working), keep the MoE-offload seats on WSL until a source build is gated by
+their seat-compare eval.
