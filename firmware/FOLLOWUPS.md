@@ -109,6 +109,15 @@ still-present / needs-bench-measurement.
 - **12vhpwr-proto:** flip `CONFIG_CEC_PROTO_RAW_CONSOLE` default off
   once bring-up step 3 passes on hardware; the TelePlot loop + CLI
   `frame` command are already built and verified to compile.
+- **12vhpwr-proto console routing (pre-bench note):** the app keeps the
+  v0 default esp32p4 console — UART0 primary with USB-Serial-JTAG as
+  the SECONDARY console — so the raw smoke-test loop's printf output IS
+  visible over the board's USB-C (`idf.py monitor`), exactly as v0
+  intended. CLI *input* (`frame`), however, binds to stdin = UART0 as
+  configured; to type commands over the USB-C instead, set
+  `CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y` in the app's
+  sdkconfig.defaults (deliberately NOT flipped pre-bench: the smoke
+  test should run the exact v0-default console arrangement first).
 
 ## Bench items (need hardware attached)
 
