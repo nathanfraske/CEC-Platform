@@ -6,3 +6,10 @@ CONFIG_IDF_TARGET="esp32p4"
 # panic. v1.0 is the tightest floor that includes v1.3, and is
 # forward-compatible (also runs on production v3.x).
 CONFIG_ESP32P4_REV_MIN_100=y
+
+# Console on the native USB-Serial-JTAG. The P4-NANO bench board is a
+# single native-USB-C device (esptool reports COM as "USB-Serial/JTAG"),
+# so printf/stdout, the CLI, and idf.py monitor all ride that one cable.
+# (The s3 apps keep UART0 primary for their CH340 TelePlot bridge; this
+# proto has no such bridge -- it was only inheriting the IDF P4 default.)
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
