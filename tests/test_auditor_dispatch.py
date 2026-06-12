@@ -27,13 +27,17 @@ class TestResolveAuditor(unittest.TestCase):
     def tearDown(self):
         os.environ.pop("CEC_FS_AUDITOR_MODEL", None)
 
-    def test_overnight_defaults_deepseek(self):
+    def test_default_is_deepseek_regardless_of_run_length(self):
+        # V4-Flash is the default chair for BOTH overnight and daily (owner 2026-06-12)
         self.assertEqual(fs.resolve_auditor(None, 6.5), fs.DEEP_AUDITOR)
+        self.assertEqual(fs.resolve_auditor(None, None), fs.DEEP_AUDITOR)
+        self.assertEqual(fs.resolve_auditor(None), fs.DEEP_AUDITOR)   # hours optional
 
-    def test_daily_defaults_sonnet(self):
-        self.assertEqual(fs.resolve_auditor(None, None), fs.SONNET_AUDITOR)
+    def test_sonnet_is_one_env_var_away(self):
+        os.environ["CEC_FS_AUDITOR_MODEL"] = "sonnet"
+        self.assertEqual(fs.resolve_auditor(None, None), "sonnet")
 
-    def test_explicit_overrides_overnight_default(self):
+    def test_explicit_overrides_default(self):
         self.assertEqual(fs.resolve_auditor("sonnet", 6.5), "sonnet")
 
     def test_env_overrides_default_but_not_explicit(self):

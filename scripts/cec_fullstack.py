@@ -19,7 +19,8 @@
 #        the record + Pareto axes; AM-04 debt -> advisory, never gates).
 #   T4   WORKER PANEL (cec-worker, 3 lenses) votes accept/repair/escalate and
 #        drives FR effort -- the manager actuator.
-#   T5   SONNET AUDITOR proposes at most one penalty + one rule, under:
+#   T5   AUDITOR (default DeepSeek-V4-Flash via broker; Sonnet one env var away)
+#        proposes at most one penalty + one rule, under:
 #          - the RULE CAP (10 standing rules; beyond -> consolidate or reject),
 #          - the NOVELTY GATE (normalized dedup vs the standing ruleset --
 #            stronger than the seat's own is_new self-report),
@@ -93,22 +94,18 @@ OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing a
 WORKER_SEAT = os.environ.get("CEC_FS_WORKER_MODEL", "cec-worker-vision")
 VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
 
-# T5 AUDITOR SEAT (owner 2026-06-12): OVERNIGHT (deadline-bounded --hours night) retires the cloud Sonnet
-# auditor for the deep local DeepSeek-V4-Flash via the broker -- throughput, not latency, is the deliverable
-# at night, and DeepSeek's deep rumination is the better auditor (it surfaced a planted spec inconsistency
-# Sonnet/oss-120b omitted). DAILY runs (bounded --rounds) KEEP Sonnet, where latency IS the deliverable.
-# Resolution order: explicit --auditor > CEC_FS_AUDITOR_MODEL env > (deepseek-v4-flash if overnight else sonnet).
+# T5 AUDITOR SEAT (owner 2026-06-12): the deep local DeepSeek-V4-Flash (via the broker) is the DEFAULT
+# auditor chair -- its deep rumination is the better auditor (it surfaced a planted spec inconsistency
+# Sonnet/oss-120b omitted). Cloud Sonnet is ONE ENV VAR AWAY (CEC_FS_AUDITOR_MODEL=sonnet) for a
+# latency-sensitive DAILY run. Resolution: explicit --auditor > CEC_FS_AUDITOR_MODEL env > V4-Flash default.
 SONNET_AUDITOR = "sonnet"
 DEEP_AUDITOR = os.environ.get("CEC_FS_DEEP_AUDITOR", "deepseek-v4-flash")
 
 
-def resolve_auditor(cli_auditor, hours):
-    if cli_auditor:
-        return cli_auditor
-    env = os.environ.get("CEC_FS_AUDITOR_MODEL")
-    if env:
-        return env
-    return DEEP_AUDITOR if hours else SONNET_AUDITOR        # overnight -> DeepSeek; daily -> Sonnet
+def resolve_auditor(cli_auditor, hours=None):
+    # hours kept for signature/back-compat; the seat no longer keys on run length -- V4-Flash is the
+    # default chair, Sonnet the explicit opt-in (the latency escape hatch).
+    return cli_auditor or os.environ.get("CEC_FS_AUDITOR_MODEL") or DEEP_AUDITOR
 
 
 # The auditor output contract (mirrors the inline Sonnet JSON template). The broker path enforces it as a
@@ -753,15 +750,23 @@ def briefed_review(rec):
 def run(board, rounds, hours, auditor=None):
     os.makedirs(PERM, exist_ok=True)
     deadline = time.time() + hours * 3600.0 if hours else None
-    auditor_model = resolve_auditor(auditor, hours)            # overnight -> DeepSeek; daily -> Sonnet
+    auditor_model = resolve_auditor(auditor, hours)            # default DeepSeek-V4-Flash; Sonnet via env
     lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}
     vs = cec_verifier.VerifierSession(model=WORKER_SEAT)
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
-        f"auditor={auditor_model} ({'overnight' if hours else 'daily'}) "
-        f"v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP}")
+        f"auditor={auditor_model} v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP}")
     subprocess.run(ovd.COMPOSE + ["up", "-d", "routing"], capture_output=True, timeout=180)
+    # WARM-AT-START (owner 2026-06-12): a deep broker auditor (V4-Flash ~7 min cold load) is warmed up
+    # front so the FIRST round's auditor call never loses its own race to a cold start. Sonnet (claude
+    # CLI) needs no warming. Fail-safe: a warm miss just means the first call eats the cold load.
+    if auditor_model != SONNET_AUDITOR:
+        log(f"warming auditor seat {auditor_model} at start (deep cold load)...")
+        try:
+            warm(auditor_model, timeout=WARM_TIMEOUT)
+        except Exception as e:                                  # noqa: BLE001
+            log(f"  auditor warm miss ({type(e).__name__}); first call will cold-load")
 
     grid = congestion_grid(board)
     log(f"GR-01 grid: {len(grid.get('hotspots', []))} hotspots, "
@@ -1077,9 +1082,9 @@ def main(argv=None):
     ap.add_argument("--rounds", type=int, default=None, help="bounded run-through")
     ap.add_argument("--hours", type=float, default=None, help="deadline-bounded night")
     ap.add_argument("--auditor", default=None,
-                    help="T5 auditor seat model. Default: DeepSeek (deepseek-v4-flash) for an OVERNIGHT "
-                         "run (--hours), Sonnet for a DAILY run (--rounds). Override e.g. --auditor sonnet "
-                         "or --auditor deepseek-v4-flash; CEC_FS_AUDITOR_MODEL env also overrides.")
+                    help="T5 auditor seat model. Default: DeepSeek-V4-Flash (the deep chair). Sonnet is "
+                         "one env var away (CEC_FS_AUDITOR_MODEL=sonnet) for a latency-sensitive run; "
+                         "--auditor overrides both.")
     a = ap.parse_args(argv)
     if not a.rounds and not a.hours:
         a.rounds = 8
