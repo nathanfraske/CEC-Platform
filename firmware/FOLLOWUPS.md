@@ -92,7 +92,7 @@ still-present / needs-bench-measurement.
 
 The v0 ESP app was simulation-verified only, never run on hardware; the
 first silicon bring-up (ESP32-P4-Module-DEV-KIT, **ESP32-P4NRW32 SoC, rev
-v1.3 early silicon**) surfaced three real issues, all now fixed:
+v1.3 early silicon**) surfaced four real issues, all now fixed:
 
 1. **Chip-revision floor (FIXED, commit landed).** IDF v6.0.1 defaults the
    P4 min revision to v3.1 (production); the bench chip is v1.3 -> illegal-
@@ -117,6 +117,15 @@ v1.3 early silicon**) surfaced three real issues, all now fixed:
    non-fatal + instrumented init from the diagnosis is kept (a stuck link now
    logs and continues instead of boot-looping). Re-jumper at the bench per the
    new GPIO column, then reflash.
+4. **DRDY idle-poll starved IDLE -> task watchdog (FIXED).** With the link
+   finally up, the v0 wait-loop `vTaskDelay(pdMS_TO_TICKS(1))` in the
+   DRDY-low branch rounds to **0 ticks** at the IDF default 100 Hz tick rate,
+   so `vTaskDelay(0)` never yields; while DRDY stays low (FPGA not pacing yet)
+   `main` spins at 100% on CPU0 and IDLE0 starves -> TWDT reset at ~5 s. Fixed:
+   both loops now `vTaskDelay(PROTO_DRDY_POLL_TICKS)` (>= 1 tick, 10 ms @ 100 Hz
+   << the ~200 ms frame period). printf output bytes unchanged (the teleplot/
+   raw-console byte contract holds). This also makes the "waiting on DRDY" state
+   stable so the FPGA side can be brought up without the board resetting.
 
 ## Adoption / integration items
 

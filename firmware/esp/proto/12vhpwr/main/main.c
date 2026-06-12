@@ -23,6 +23,13 @@
 
 static const char *TAG = "12vhpwr_proto";
 
+/* DRDY idle-poll delay. Must be >= 1 tick so the idle task gets to run
+ * (the task watchdog watches it): pdMS_TO_TICKS(1) rounds to 0 at the
+ * default 100 Hz tick rate, and vTaskDelay(0) never yields -> a low DRDY
+ * (FPGA not pacing yet) spins the loop at 100% and starves IDLE -> TWDT.
+ * One tick (10 ms @ 100 Hz) is far below the ~200 ms frame period. */
+#define PROTO_DRDY_POLL_TICKS  1
+
 /* ---------------------------- CLI handlers ---------------------------- */
 
 /* Dump one frame on demand (any mode). Reads whatever the fabric has
@@ -59,7 +66,7 @@ static void teleplot_loop(void)
     char name[8];
     while (1) {
         if (!cec_fpga_link_poll()) {
-            vTaskDelay(pdMS_TO_TICKS(1));
+            vTaskDelay(PROTO_DRDY_POLL_TICKS);
             continue;
         }
         cec_fpga_frame_t f;
@@ -88,7 +95,7 @@ static void raw_console_loop(void)
     printf("12vhpwr-proto v0: waiting on DRDY\n");
     while (1) {
         if (!cec_fpga_link_poll()) {
-            vTaskDelay(pdMS_TO_TICKS(1));
+            vTaskDelay(PROTO_DRDY_POLL_TICKS);
             continue;
         }
         cec_fpga_frame_t f;
