@@ -1,8 +1,17 @@
 # Vision-seat role rationale — stop it judging geometry, give it a job it can do
 
-**Status:** design rationale for review (proposal). Feeds the vision-seat eval binding in
-`cec-policy.json` and a follow-up to PR #36 (which correctly gates the seat off on render
-hygiene + leaves it non-load-bearing until its role is fixed).
+> **SUPERSEDED (owner ruling, 2026-06-11).** This doc's Role-1-primary recommendation (VLM as
+> consistency auditor / judge) is superseded by the head-two dive
+> (`docs/research/grounding-cl21-vlm-seat-redesign-2026-06-11.md`) and the owner design ruling
+> (`docs/decisions/owner-ruling-vlm-detection-pipeline-2026-06-11.md`): a **deterministic diff +
+> morphology + DRC/DFM pre-pass owns detection**, and the VLM is restricted to **narration +
+> open-ended anomaly surfacing only** (never a judge, Roles 1 & 2 retired). The seat's existence
+> rides exclusively on its incremental catch number. The diagnosis below stands; the prescription
+> is replaced by that pipeline shape.
+
+**Status:** SUPERSEDED design rationale (kept for the diagnosis + the lineage). Originally fed the
+vision-seat eval binding in `cec-policy.json` and a follow-up to PR #36 (which correctly gates the
+seat off on render hygiene + leaves it non-load-bearing until its role is fixed).
 **Trigger:** the PR #36 item-4 artifact (`docs/fullstack-run-2026-06-11-validation/vision-unify-evidence.json`)
 showed the vision seat marking ALL four rounds "clipped" on the model-free render — flagging
 intact round-1 as *worse* than fragmented round-4. It was parroting the fed `foreign_cross>0`

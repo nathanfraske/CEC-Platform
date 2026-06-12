@@ -1,0 +1,80 @@
+{
+ "board": "build/route/enforce-2port/pcie-8pin-2port-routed.kicad_pcb",
+ "live": true,
+ "board_edge_mm": [
+  86.5,
+  44.1
+ ],
+ "deterministically_caught": [
+  "corrupt_svg"
+ ],
+ "rows": [
+  {
+   "scenario": "CLEAN_CONTROL",
+   "vlm_territory": false,
+   "baseline_anomalies": [
+    "Blue overlay graphics (arrows, text, shapes) obscure underlying copper features in bottom-right quadrant, potentially masking routing or pad structures.",
+    "Text 'CEC' appears mirrored/reversed within the blue overlay, suggesting incorrect export or rendering orientation of annotation layer."
+   ],
+   "note": "anomaly pass on the reference -> subtracted from candidates (e.g. the logo)"
+  },
+  {
+   "scenario": "corrupt_svg",
+   "prepass_caught": true,
+   "caught_by": [
+    "outline_sanity"
+   ],
+   "outline_reasons": [
+    "declared width 60.47mm != board Edge.Cuts 86.50mm",
+    "aspect 1.375 != board aspect 1.961 (distorted export)",
+    "viewBox aspect 1.964 != canvas aspect 1.375 (stretched)"
+   ],
+   "vlm_territory": false
+  },
+  {
+   "scenario": "rotated_layer",
+   "prepass_caught": false,
+   "vlm_territory": true,
+   "vlm_anomalies": [
+    "Large isolated oval feature on far left with internal white dot \u2014 structurally inconsistent with surrounding via/pad geometry",
+    "Bottom-right corner contains large red arc with white inner circle and three white dots \u2014 appears as corrupted or mis-exported graphic element, not matching PCB copper features",
+    "Top-right corner shows fragmented blue/white/red shapes \u2014 possibly clipped or misrendered component outline or fiducial, inconsistent with model-free copper-only render",
+    "Scattered tiny red/blue specks across right half \u2014 may indicate rendering artifacts or noise rather than intentional copper features"
+   ],
+   "vlm_anomalies_raw": [
+    "Large isolated oval feature on far left with internal white dot \u2014 structurally inconsistent with surrounding via/pad geometry",
+    "Bottom-right corner contains large red arc with white inner circle and three white dots \u2014 appears as corrupted or mis-exported graphic element, not matching PCB copper features",
+    "Top-right corner shows fragmented blue/white/red shapes \u2014 possibly clipped or misrendered component outline or fiducial, inconsistent with model-free copper-only render",
+    "Scattered tiny red/blue specks across right half \u2014 may indicate rendering artifacts or noise rather than intentional copper features"
+   ],
+   "vlm_caught": true,
+   "evidence_text": "large isolated oval feature on far left with internal white dot \u2014 structurally inconsistent with surrounding via/pad geometry bottom-right corner contains large red arc with white inner circle and three white dots \u2014 appears as corrupted or mis-exported graphic element, not matching pcb copper featur"
+  },
+  {
+   "scenario": "dropped_zone",
+   "prepass_caught": false,
+   "vlm_territory": true,
+   "vlm_anomalies": [
+    "Large black rectangular void in lower-left quadrant appears to be missing copper or data layer, not explained by component body omission",
+    "Blue triangular annotation overlay obscures underlying copper traces and pads in lower-right region, potentially masking structural features",
+    "Text 'CEC' rendered upside-down within blue annotation area, suggesting possible export or layer inversion artifact"
+   ],
+   "vlm_anomalies_raw": [
+    "Large black rectangular void in lower-left quadrant appears to be missing copper or data layer, not explained by component body omission",
+    "Blue triangular annotation overlay obscures underlying copper traces and pads in lower-right region, potentially masking structural features",
+    "Text 'CEC' rendered upside-down within blue annotation area, suggesting possible export or layer inversion artifact"
+   ],
+   "vlm_caught": true,
+   "evidence_text": "large black rectangular void in lower-left quadrant appears to be missing copper or data layer, not explained by component body omission blue triangular annotation overlay obscures underlying copper traces and pads in lower-right region, potentially masking structural features text 'cec' rendered up"
+  }
+ ],
+ "n_residual_vlm_territory": 2,
+ "vlm_incremental_caught": 2,
+ "incremental_catch_rate": 1.0,
+ "baseline_anomalies_subtracted": [
+  "Blue overlay graphics (arrows, text, shapes) obscure underlying copper features in bottom-right quadrant, potentially masking routing or pad structures.",
+  "Text 'CEC' appears mirrored/reversed within the blue overlay, suggesting incorrect export or rendering orientation of annotation layer."
+ ],
+ "vlm_false_positive_post_baseline": false,
+ "seat_verdict": "seat justified: 2/2 incremental over the pre-pass"
+}
