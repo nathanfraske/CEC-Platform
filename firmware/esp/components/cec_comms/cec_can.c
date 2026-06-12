@@ -14,26 +14,11 @@
 #include "esp_twai_onchip.h"
 #include "esp_log.h"
 
-/*
- * Bus bitrate.
- *
- * ====== TODO: RAISE TO 500000 FOR PRODUCTION ======
- * 500 kbps is the production target (matches the 24-pin + Hub spec).
- * Currently parked at 125 kbps because the Waveshare SN65HVD230 bench
- * breakout has its Rs pin tied to GND through a 10 kohm resistor,
- * putting the transceiver in slope-control mode rather than
- * high-speed mode. Slope-control's slewed edges trip the controller's
- * bit-monitoring at 500 kbps and the node bus-offs every few seconds;
- * 125 kbps gives the edges enough margin to land on the right bit.
- *
- * Bump back to 500000 once either:
- *   - the bench breakout's Rs pin is bridged directly to GND (cuts out
- *     the 10 kohm and forces high-speed mode), or
- *   - the firmware is running against the production CAN front-end
- *     where Rs is wired straight to GND by design.
- * ==================================================
- */
-#define CAN_BITRATE_BPS        125000
+/* Bus bitrate, TX/RX pins: Kconfig (CEC_CAN_BITRATE_BPS,
+ * CEC_CAN_{TX,RX}_GPIO). The bench-vs-production bitrate story (125 k
+ * on the slope-controlled Waveshare breakout vs the 500 k platform
+ * target) lives in the Kconfig help text. */
+#define CAN_BITRATE_BPS        CONFIG_CEC_CAN_BITRATE_BPS
 #define CAN_TX_QUEUE_DEPTH     8
 #define CAN_TX_TIMEOUT_MS      10
 
@@ -93,16 +78,8 @@ static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
     return false; /* no higher-prio task to unblock */
 }
 
-/*
- * Diagnostic toggle: set to 1 to force the controller into
- * listen-only mode (no TX, no ACK, just RX-monitor). If bus-off
- * still happens with this on, the controller / wire / bias is
- * fundamentally broken and TX path isn't the cause. If bus-off
- * stops with this on but resumes with it off, every TX attempt is
- * the trigger and the issue is downstream of TXD. Leave at 0 for
- * normal operation.
- */
-#define CEC_CAN_DIAG_LISTEN_ONLY 0
+/* Listen-only diagnostic: Kconfig CEC_CAN_DIAG_LISTEN_ONLY (the
+ * bus-off triage procedure is its help text). */
 
 esp_err_t can_init(bool loopback)
 {
@@ -112,8 +89,8 @@ esp_err_t can_init(bool loopback)
 
     twai_onchip_node_config_t cfg = {
         .io_cfg = {
-            .tx                = CAN_TX_GPIO,
-            .rx                = CAN_RX_GPIO,
+            .tx                = CONFIG_CEC_CAN_TX_GPIO,
+            .rx                = CONFIG_CEC_CAN_RX_GPIO,
             .quanta_clk_out    = GPIO_NUM_NC,
             .bus_off_indicator = GPIO_NUM_NC,
         },
@@ -133,7 +110,7 @@ esp_err_t can_init(bool loopback)
          * happy until the Hub arrives. */
         cfg.flags.enable_self_test = 1;
     }
-#if CEC_CAN_DIAG_LISTEN_ONLY
+#if CONFIG_CEC_CAN_DIAG_LISTEN_ONLY
     cfg.flags.enable_listen_only = 1;
     cfg.flags.enable_self_test = 0;  /* listen-only overrides */
 #endif
@@ -169,7 +146,7 @@ esp_err_t can_init(bool loopback)
     s_enabled = true;
     ESP_LOGI(TAG, "TWAI node up @ %d bps (%s%s)", CAN_BITRATE_BPS,
              loopback ? "self-test" : "normal",
-#if CEC_CAN_DIAG_LISTEN_ONLY
+#if CONFIG_CEC_CAN_DIAG_LISTEN_ONLY
              " + listen-only DIAG"
 #else
              ""

@@ -1,0 +1,45 @@
+menu "CEC comms (CAN/TWAI)"
+
+    config CEC_CAN_BITRATE_BPS
+        int "CAN bus bitrate (bps)"
+        default 125000
+        help
+            PRODUCTION TARGET IS 500000 (matches the 24-pin + Hub
+            platform spec, classical CAN at 500 kbps). The default is
+            parked at the bench rate of 125000 because the Waveshare
+            SN65HVD230 bench breakout ties the transceiver Rs pin to
+            GND through a 10 kohm resistor, putting it in slope-control
+            mode; the slewed edges trip the controller's bit-monitoring
+            at 500 kbps and the node bus-offs every few seconds, while
+            125 kbps gives the edges enough margin.
+
+            Raise to 500000 once either the bench breakout's Rs pin is
+            bridged directly to GND (forcing high-speed mode), or the
+            firmware runs against the production CAN front-end where Rs
+            is wired straight to GND by design.
+
+    config CEC_CAN_DIAG_LISTEN_ONLY
+        bool "Force listen-only mode (bus-off triage diagnostic)"
+        default n
+        help
+            Forces the controller into listen-only mode (no TX, no ACK,
+            just RX-monitor). If bus-off still happens with this on,
+            the controller / wire / bias is fundamentally broken and
+            the TX path isn't the cause. If bus-off stops with this on
+            but resumes with it off, every TX attempt is the trigger
+            and the issue is downstream of TXD. Leave off for normal
+            operation.
+
+    config CEC_CAN_TX_GPIO
+        int "CAN TX GPIO"
+        default 4
+        help
+            TWAI TX pin (board wiring; the eps daughterboard uses 4).
+
+    config CEC_CAN_RX_GPIO
+        int "CAN RX GPIO"
+        default 15
+        help
+            TWAI RX pin (board wiring; the eps daughterboard uses 15).
+
+endmenu

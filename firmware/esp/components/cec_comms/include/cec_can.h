@@ -4,8 +4,8 @@
 #include "esp_err.h"
 #include "cec_state.h"
 
-#define CAN_TX_GPIO  4
-#define CAN_RX_GPIO  15
+/* TX/RX pins come from Kconfig (CEC_CAN_{TX,RX}_GPIO) — board wiring
+ * never lives in a shared component. */
 
 // Frame ID scheme (see EPS-FIRMWARE-SPEC.md)
 #define CAN_ID_ANOMALY_BASE    0x100
