@@ -3,10 +3,10 @@
  *
  * Thin wrapper around ESP-IDF NVS that handles the boring parts:
  * initialization + namespace, magic-number sanity check on load, and
- * commit-on-save. Used initially by Layer 3 profile persistence so
- * the learned baseline survives reboots; designed to be generic enough
- * that other persistent state (ACS712 calibration, layer enables, etc.)
- * can ride the same path.
+ * commit-on-save. Used by Layer 3 profile persistence (so the learned
+ * baseline survives reboots), the eps cec_config layer, per-sensor
+ * calibration persistence, and layer enables; generic enough that any
+ * other persistent state can ride the same path.
  *
  * Stored layout per key:
  *   [4 bytes: magic][payload bytes]
