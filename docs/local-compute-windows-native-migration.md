@@ -56,13 +56,25 @@ seat `cec-worker-vision-win` (`:8090`) is registered.
 `E:\llama-cpp-win\b9611\` (+ the CUDA 13.3 cudart). sha256 in `versions.env`. `llama-server.exe`:
 `7b7bfe262b4dd0ec7b9dc5f13286284119f5e6b20283af3e90f643cf1b42ec13`.
 
-**The load blocker — root-caused + fixed.** Every binary initially died at load with
-`0xC0000139 ENTRYPOINT_NOT_FOUND` (before `main`). Cause: a Microsoft VC-redist
-**`libomp140.x86_64.dll` in `C:\Windows\System32`** is missing `__kmpc_dispatch_deinit` /
-`__kmpc_dispatch_init_4`, which llama.cpp's `ggml-base.dll` imports — and that System32 copy was
-winning the load over llama.cpp's bundled LLVM libomp (which *has* them; confirmed by dumpbin
-export diff). Fix: a **DotLocal redirection** — `llama-server.exe.local\libomp140.x86_64.dll`
-(the bundled copy) — forces the correct libomp. No System32 changes. `--version` went `57 → 0`.
+**The load blocker — root-caused; needs an admin fix.** Every binary dies at load with
+`0xC0000139 ENTRYPOINT_NOT_FOUND` (the on-screen dialog: *"__kmpc_dispatch_deinit could not be
+located in ... ggml-base.dll"*). Cause: a Microsoft VC-redist **`libomp140.x86_64.dll` in
+`C:\Windows\System32`** is missing `__kmpc_dispatch_deinit` / `__kmpc_dispatch_init_4`, which
+llama.cpp's `ggml-base.dll` imports — and that System32 copy wins the load over llama.cpp's bundled
+LLVM libomp (which *has* them; confirmed by dumpbin export diff). It wins even though the bundled
+copy is in the exe dir, because it is pulled resident **at process init** (via the VC runtime),
+before the app-dir copy is searched — so a **DotLocal `.local` redirect does NOT fix it** (verified:
+the dialog still fires with `.local` in place).
+
+**The real fix needs one elevated action** — replace the deficient System32 libomp with llama.cpp's
+bundled LLVM copy (a superset; backward-compatible, so it won't break other apps):
+```
+copy /Y E:\llama-cpp-win\b9611\libomp140.x86_64.dll C:\Windows\System32\libomp140.x86_64.dll
+```
+(run elevated; back up the original first). Alternatively, a from-source llama.cpp build with
+`GGML_OPENMP=OFF` drops the dependency entirely — but needs a CUDA ≥ 12.8 toolkit (box has 12.1).
+Either is gated on console/UAC access (the limited remote session can't approve UAC) or an owner
+decision to install the toolkit. Until then, the seat stays on the working WSL stack.
 
 **Launch.** Must run as a real Windows process, **not** a WSL-spawned child (WSL-interop CWD
 becomes an unusable `\\wsl.localhost\...` UNC path, and detached children get reaped when the
