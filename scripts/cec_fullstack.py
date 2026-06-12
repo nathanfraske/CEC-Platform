@@ -31,8 +31,8 @@
 #   T0   PLACEMENT ACTUATOR (deterministic): on a placement-class attribution
 #        or a Kelvin stall, run the GR-02 repair battery in-container on the
 #        candidate (shift/layer-swap/via-insert + single-net reroute + DRC).
-#   T6   VISION JUDGE (cec-vision-judge) on each NEW Pareto finalist render
-#        (v2 facts-alongside protocol; structure/text only).
+#   T6   VISION JUDGE (cec-worker-vision = the unified text+vision seat) on each
+#        NEW Pareto finalist render (v2 facts-alongside protocol; structure/text only).
 #   T7   BRIEFED REVIEWER (cec-manager-fast) corpus_fit_review on finalists.
 #   T8   V4 DEEP BATCH AUDITOR every N rounds (owner 2026-06-11: a recurring
 #        batch auditor, not morning-only). Serialized with routing; invited
@@ -84,6 +84,14 @@ PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
 OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
                 "battery (shift/swap/via), power pours")
+# UNIFIED SEAT MODEL (2026-06-11): cec-worker-vision is the cec-worker GGUF (Qwen3.6-35B-A3B) + an
+# mmproj, so ONE resident 27 GB backend serves BOTH the text seats (T1/T4/verifier, thinking) AND
+# the vision seat (T6, nothink via cec_vlm_bakeoff._NOTHINK). Pointing every local seat at it deletes
+# the per-round worker<->vision swap; text quality == cec-worker by construction (same base), and it
+# passed the CL-22 vision bakeoff 2/2. cec-vision-judge (Qwen3-VL-32B) leaves the hot path. The seat
+# binding is owner-gated (cec-policy.json); these env knobs let it be split/reverted without a code edit.
+WORKER_SEAT = os.environ.get("CEC_FS_WORKER_MODEL", "cec-worker-vision")
+VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
 
 INTENTS_SCHEMA = {
     "type": "object",
@@ -225,7 +233,7 @@ def vision_pour_check(rec, rnd):
     if not render_copper_zone(rec["routed"], png):
         log("  T6 POUR-CHECK: VLM SKIPPED -- render_hygiene_pending (no model-free render)")
         return {"skipped": "render_hygiene_pending", "det_clipped_nets": det_clipped, "facts": facts}
-    if not warm("cec-vision-judge"):
+    if not warm(VISION_SEAT):       # unified seat (cec-worker-vision); model-free render fed above
         return {"skipped": "vision seat down", "det_clipped_nets": det_clipped, "facts": facts}
     schema = {"type": "object", "properties": {
         "pours_intact": {"type": "boolean"},
@@ -245,7 +253,7 @@ def vision_pour_check(rec, rnd):
         "trace(s) you see. Reply ONLY the JSON object.")
     try:
         import cec_vlm_bakeoff as vb
-        out = vb._chat("cec-vision-judge", text, png, schema=schema, max_tokens=700,
+        out = vb._chat(VISION_SEAT, text, png, schema=schema, max_tokens=700,
                        timeout=SEAT_TIMEOUT, ctx={"round": rnd, "check": "pour-integrity"})
         if isinstance(out, str):
             out = json.loads(out)
@@ -382,7 +390,7 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd):
         import cec_judge_local as jl
         out = jl._chat_json("You write routing intents as strict JSON.", user, INTENTS_SCHEMA,
                             name="intents", temperature=0.2, max_tokens=900,
-                            model="cec-worker", timeout=SEAT_TIMEOUT)
+                            model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
         intents = out.get("intents") or []
         ok = [i for i in intents if i.get("net") and i.get("waypoints")]
         if ok:
@@ -413,7 +421,7 @@ def worker_panel(rec, rnd):
                     f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
                     f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
                     PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
-                    max_tokens=300, model="cec-worker", timeout=SEAT_TIMEOUT)
+                    max_tokens=300, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
                 votes.append((lens.split()[0], d.get("action"), d.get("reason", "")[:120]))
             except Exception:                                    # noqa: BLE001
                 continue
@@ -627,8 +635,13 @@ def inject(finding, lr, rnd, source, verifier_final):
 def vision_judge(routed, rec, rnd):
     """v2 facts-alongside protocol: facts ride with the render; structure/text only."""
     png = _d("vision", f"finalist-r{rnd}.png")
-    if not render_board(routed, png):
-        return {"skipped": "render failed"}
+    # RENDER-HYGIENE PRECONDITION (PR #36 item 3): the finalist judge gets the SAME treatment as the
+    # pour check -- a model-free copper/zone render only, never the 3D-body artifact. No clean render
+    # -> skip with render_hygiene_pending. (Structure/text review still benefits: the rotated-footprint
+    # silk is exactly the "structural oddity" that would false-fire this seat.)
+    if not render_copper_zone(routed, png):
+        log("  T6 FINALIST JUDGE SKIPPED -- render_hygiene_pending (no model-free render)")
+        return {"skipped": "render_hygiene_pending"}
     facts = {k: rec.get(k) for k in ("kelvin_ok", "diffpair_ok", "drc", "unconnected",
                                      "plane_signal_mm", "max_T")}
     text = ("FACTS (deterministic, trust these over visual estimates -- you judge STRUCTURE "
@@ -638,7 +651,7 @@ def vision_judge(routed, rec, rnd):
             "with the facts. 3 bullets max." % json.dumps(facts))
     try:
         import cec_vlm_bakeoff as vb
-        out = vb._chat("cec-vision-judge", text, png, max_tokens=500, timeout=600)
+        out = vb._chat(VISION_SEAT, text, png, max_tokens=500, timeout=600)
         return {"png": os.path.relpath(png, PERM), "review": out if isinstance(out, str) else str(out)}
     except Exception as e:                                       # noqa: BLE001
         return {"skipped": f"{type(e).__name__}: {e}"}
@@ -659,7 +672,7 @@ def run(board, rounds, hours):
     lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}
-    vs = cec_verifier.VerifierSession()
+    vs = cec_verifier.VerifierSession(model=WORKER_SEAT)
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
         f"v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP}")
     subprocess.run(ovd.COMPOSE + ["up", "-d", "routing"], capture_output=True, timeout=180)
@@ -684,7 +697,7 @@ def run(board, rounds, hours):
         try:
             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
             # losing their timeout to a cold start / swap (the last run's 0/8 intent failures).
-            warm("cec-worker")
+            warm(WORKER_SEAT)
             # T1 intent manager
             last = records[-1] if records else None
             intents, why, src = intent_manager(board, grid, intents, last, rnd)
@@ -796,7 +809,7 @@ def run(board, rounds, hours):
                     log(f"  T5 TRIPWIRE: refuted metric '{sp.get('metric')}' re-proposed -> "
                         f"auto-reject, no verifier spend -> {[e['action'] for e in events]}")
                 else:
-                    warm("cec-worker")       # verifier seats are worker calls; vision swapped it out
+                    warm(WORKER_SEAT)       # verifier seats are worker calls; vision swapped it out
                     # BUNDLE COMPLETENESS (lesson 9/10): the verifier's evidence bundle must carry
                     # every fact class the auditor was permitted to cite (pour facts, FEM, max_T) or
                     # the provenance seat refutes TRUE facts. Built from the SAME facts.

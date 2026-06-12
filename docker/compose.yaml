@@ -231,6 +231,17 @@ services:
     ipc: host
     ports:
       - "8012:8012"
+    # The llama.cpp image ships a built-in HEALTHCHECK hardcoded to :8080, but this service runs on
+    # :8012 (every CEC service overrides --port), so the inherited check ALWAYS fails -> perpetual
+    # Docker "unhealthy". Override it to the real port. start_period rides the ~8-min drvfs cold load
+    # (/mnt/e is the Windows drive over WSL2 drvfs, ~47 MB/s) without flapping. The broker uses its
+    # own probe regardless; this just makes `docker ps` status truthful.
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8012/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 600s
     volumes:
       - "/mnt/e/AI Models/qwen3.6-35b-a3b:/models:ro"
     command:
@@ -246,10 +257,21 @@ services:
       - "8012"
       - "-ngl"
       - "99"
+      # Unified text+vision seat (2026-06-11): one resident backend serves BOTH the text seats
+      # (T1/T4/verifier) and the vision seat (T6), deleting the per-round worker<->vision swap.
+      # -np 1 is correct and SAFE here: cec_fullstack issues every seat call SERIALLY (worker_panel
+      # and verifier.verify() are both for-loops -- no concurrent worker calls within a round).
+      # MEASURED on the 32 GiB 5090: np1 = ~24.3 GiB resident / ~8 GiB free; np4 = ~31.7 GiB / <1 GiB
+      # free (UNSAFE, and unused by the serial pipeline -- the +7.4 GiB is KV for slots nothing fills,
+      # and it does NOT shrink with --ctx-size). Only raise CEC_VISION_NP if you first parallelize the
+      # panel/verifier in code, and even then cap at 2 for headroom.
+      # CTX HEADROOM (measured 2026-06-12, prompt_tokens): widest worker-seat text prompt = 652 tok
+      # (verifier w/ the widened pour+FEM bundle), vision call = 384 tok (small model-free render) ->
+      # 15732 free of 16384 (96%). The image is NOT token-heavy; 16384 is ample, no bump needed.
       - "--ctx-size"
       - "${CEC_VISION_CTX:-16384}"
       - "-np"
-      - "1"
+      - "${CEC_VISION_NP:-1}"
       - "-fa"
       - "auto"
       - "--jinja"

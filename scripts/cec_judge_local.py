@@ -56,7 +56,9 @@ VLLM_URL = (os.environ.get("CEC_VLLM_URL") or BROKER_URL).rstrip("/")
 # worker effort calls every route iteration) deliberately defaults to the SAME worker-class model --
 # pointing it at a big manager would make the broker swap the 27GB worker and a big manager in and
 # out EVERY iteration. The big models live in the OUT-OF-LOOP REVIEWER tier below.
-MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-worker")    # served alias; the broker starts/routes it
+MODEL = os.environ.get("CEC_VLLM_MODEL_NAME", "cec-worker-vision")  # unified text+vision seat: same
+# weights as cec-worker + mmproj, so defaulting here keeps text-only callers off the OLD cec-worker
+# service and prevents the 24 GB worker<->vision swap (PR #36 item 2). Override via CEC_VLLM_MODEL_NAME.
 # Optional TIERING: workers (cheap, high-volume effort-sizing) can use a SMALLER served model than the
 # managers (judgment). Defaults to the manager model -- the worker is ALREADY cheap (the manager model
 # is a MoE 30B-A3B = 3B active params/token), so this only earns its keep if a bigger MANAGER model is
@@ -117,7 +119,7 @@ _FLOOR_PRESENCE = float(os.environ.get("CEC_VLLM_FLOOR_PRESENCE", "0.8"))
 _AUTO_SCRIBE = os.environ.get("CEC_VLLM_AUTO_SCRIBE", "1") != "0"
 _SCRIBE_TRACE_CHARS = int(os.environ.get("CEC_VLLM_SCRIBE_TRACE_CHARS", "36000"))
 _SCRIBE_MAX_TOKENS = int(os.environ.get("CEC_VLLM_SCRIBE_MAX_TOKENS", "4096"))
-TIER = "local:cec-worker"
+TIER = "local:cec-worker-vision"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
 VERDICT_SCHEMA = {
@@ -177,7 +179,7 @@ def available(timeout=3, url=None):
 
 
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
-               model=None, url=None):
+               model=None, url=None, nothink=False):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
     diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker).
@@ -194,6 +196,10 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
         "response_format": {"type": "json_schema",
                             "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
+    if nothink:
+        # Qwen3-VL / Qwen3.6 thinking models overrun a grammar-constrained reply and return EMPTY
+        # content (measured 100% of schema'd calls); disable thinking when judging structured JSON.
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     if mdl in _FLOOR_MODELS:
         payload["temperature"] = max(temperature, _FLOOR_TEMP)
         payload["presence_penalty"] = _FLOOR_PRESENCE
