@@ -27,43 +27,53 @@ changed. So:
 
 The "variance event" was never variance: it was the pre-keepout board scored by drifted code.
 
-## Naming the delta (candidates, by git archaeology since the 06-09 freeze)
+## Naming the delta — PINNED by runtime bisect to FR layer-policy `d26651d` (thermal model exonerated)
 
 `versions.env` / the FR jar are **unchanged** (still 1.7.0 pinned) — not a toolchain version bump. The
-changed inputs are all **code paths**:
+bisect was run by holding the pre-keepout board constant and swapping code via git worktrees:
 
-| input | changed | commit(s) | why it could move thermal/drc |
-|---|---|---|---|
-| **thermal-FEM** (`cec_synth_pipeline.electrothermal_solve`) | 2026-06-10 | `6f10b96` (AM-04 analytic anchors), `bb9fb7a` (CL-03), `1549b69` (CL-25) | the model that reads max_T from the copper. The handoff's "MODEL DEBT" note states the fix **"changes the SB-08 golden thermal band"**; AM-04 added IPC-2152 conservatism. **Prime suspect.** |
-| **FR layer-policy** (`cec_fr`) | 2026-06-11 | `d26651d` (layer policy + plane pricing) | observed live: `layer policy: stripped 2 track segment(s) from plane layer(s) ['12V','GND']`. Changes which copper FR lays → routed-copper input to the thermal model. Explains the **drc 4 → 10** (routing changed). |
-| **scorer** (`cec_score`) | 2026-06-11 | `20c8978`, `30a38c7` | DRC filtering / gates; could shift the reported drc count. |
-| **board** | only at the keepout | `9eb33b0` | accounts for the +4.7, not the +25. |
+| code state | drc | thermal | tracks | vias | reads |
+|---|---|---|---|---|---|
+| **thermal model** old vs new, *same routed board* | — | **153.2 both** | — | — | **thermal-FEM is NOT the cause** (invariant) |
+| FR at `d26651d~1` (pre-layer-policy = `545f28e`) | **4** | **128.2** | 556 | 84 | reproduces the 06-09 freeze EXACTLY |
+| FR current (post-`d26651d`) | 10 | 153.2 | 519 | 79 | the "variance" red |
+
+→ **The entire +25 °C (and drc 4 → 10) is `d26651d`** — the **owner-ratified FR-04 layer-policy** change
+(`CEC_FR_PLANE_POLICY`: deny FR from routing signal on plane layers 12V/GND; blind auditors re-derived it).
+Before it, FR routed ~37 extra segments **on the power planes** (556 vs 519 tracks), which spread current
+and ran cooler. After it those plane segments are stripped, so current concentrates in the routed
+corridor → +25 °C. The thermal-FEM (`cec_synth_pipeline`, AM-04) is **not** involved (it gives 153.2 on
+the same routed board under both old and new code).
+
+**This is not a bug to revert.** The 128.2 was achieved by FR routing on power planes — which the
+owner-ratified FR-04 policy correctly forbids. So the old baseline was partly an artifact of improper
+plane routing; **153.2 is the honest thermal under the correct layer policy**.
 
 ## Scope flag (item 2c's explicit ask)
 
-This is **not** a toolchain version bump (FR jar / KiCad / container pinned), so it does **not** silently
-touch every future route via a dependency. BUT the thermal-FEM change is a **platform-wide model change**:
-every board's reported `thermal_max_T` shifted when `cec_synth_pipeline` changed on 06-10 — the SB-08
-golden is just where it surfaced. If the new model is the more-correct one (the MODEL DEBT note says the
-**old** model was ~5× optimistic — summing all net segments incl. zero-current Kelvin stubs instead of the
-serial min-cut), then **128.2 was an optimistic-model artifact and ~153–158 is the honest read of the same
-copper**. That materially reframes item 3:
+Not a toolchain version bump — but `d26651d` is **platform-wide**: it denies FR plane-layer routing on
+*every* board. The SB-08 golden surfaced it because this board **leaned on plane-layer routing for thermal
+spreading** — a real design signal: the eps cable corridors don't carry enough dedicated thermal copper,
+so FR was (improperly) using the planes to spread current. That dependency is now exposed.
 
-- The board did not get 30 °C worse. The **model got more conservative** (+25), and the keepout added a
-  real but small +4.7.
-- So item-3a re-route targets the **+4.7 keepout term** (restore the displaced current to a cooler
-  corridor → back toward 153). The 128.2 "old baseline class" is likely unreachable under the corrected
-  model and should not be the re-route target — the honest target is the corrected-model pre-keepout
-  number (~153), not the optimistic-model 128.2.
-- Item-3b acceptance rationale should state plainly that the baseline moved because the **thermal model
-  was corrected**, with margin-to-material-limits computed under the new (conservative) model.
+## Reframing item 3 (the decision)
 
-## Confirmation still owed (the precise per-commit bisect)
+- The board did not get 30 °C worse, and the thermal model did not change. A **correct, ratified routing
+  policy removed an improper thermal crutch** (plane-layer signal routing), revealing the board's true
+  ~153 °C under proper routing; the keepout adds the last +4.7.
+- **Item-3a re-route must NOT revert the ratified FR-04 policy.** The principled fix is to give the board
+  *real* thermal copper so it no longer needs plane routing — widen the cable corridors / add pour, and/or
+  FR-02 waypoint the hot-corridor current — targeting back toward ~128–132 at drc 0 under the *current*
+  layer policy. If that target is reachable, re-route wins.
+- **Item-3b acceptance** states plainly: the baseline moved because the **owner-ratified FR-04 layer
+  policy** stopped FR from spreading current across the power planes; 153/157.9 is the honest thermal
+  under correct routing, with margin to material limits computed accordingly.
 
-This forensic NAMES the candidate deltas and proves code-drift is dominant. To pin the exact commit that
-moved 128.2 → 153.2, bisect: run the pre-keepout board with `cec_synth_pipeline` / `cec_fr` checked out
-at each candidate commit. Expected: the AM-04 thermal-FEM commit (`6f10b96`) carries most of the +25; the
-FR layer-policy commit (`d26651d`) carries the drc 4 → 10. That bisect is the next no-approval step.
+Bisect reproduction (worktree the pre-policy commit, route the pre-keepout board, thermal it):
+```bash
+git worktree add /tmp/wt d26651d~1
+# route tests/golden/eps-8pin/eps8pin-module.kicad_pcb@9eb33b0~1 with /tmp/wt/scripts/cec_fr -> drc 4 / 128.2
+```
 
 Reproduce the decisive experiment:
 ```bash
