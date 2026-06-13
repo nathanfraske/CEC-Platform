@@ -51,6 +51,11 @@ import cec_overnight_directed as ovd          # route worker + pareto + ledger h
 
 PERM = os.path.join(ROOT, "docs", "inloop-audit-2026-06-11")
 FIND_DIR = os.path.join(PERM, "findings")
+# Per-seat live-stream recorder (cec_seat_stream): default it to the run dir so the host-side seats
+# (the corpus_fit_review reviewer, any host manager/panel) stream their thoughts to PERM/streams, which
+# the live dashboard renders one section per seat. setdefault -> the operator can still override.
+STREAM_DIR = os.path.join(PERM, "streams")
+os.environ.setdefault("CEC_STREAM_DIR", STREAM_DIR)
 LIVE_RULES_PATH = os.path.join(PERM, "live-rules.json")
 MEASURE_PATH = os.path.join(PERM, "measurement.jsonl")
 BUNDLE_PATH = os.path.join(PERM, "morning-bundle.json")
@@ -265,13 +270,20 @@ def v4_checkpoint(rec, lr, rnd, timeout=1800):
     payload = {"model": V4_MODEL, "messages": [{"role": "user", "content": prompt}],
                "max_tokens": 9000, "temperature": 0.3, "presence_penalty": 0.8}
     t0 = time.time()
+    import cec_seat_stream as _stream
+    _call = _stream.start("v4-checkpoint", model=V4_MODEL, role="deep-checkpoint", prompt_chars=len(prompt))
     try:
         req = urllib.request.Request(BROKER + "/chat/completions", json.dumps(payload).encode(),
                                      {"Content-Type": "application/json", "X-CEC-Client": "inloop-v4-checkpoint"})
         d = json.load(urllib.request.urlopen(req, timeout=timeout))
         msg = d["choices"][0]["message"]
         content, reasoning = msg.get("content") or "", msg.get("reasoning_content") or ""
+        # raw (non-streaming) call -> record the whole reasoning+answer as one block on the v4 seat
+        _call.delta(reasoning, "reasoning")
+        _call.delta(content, "content")
+        _call.end(ok=True)
     except Exception as e:                                     # noqa: BLE001
+        _call.error(e)
         json.dump({"round": rnd, "error": f"{type(e).__name__}: {e}"}, open(out_path, "w"), indent=1)
         return {"error": str(e)}
     findings = {}
@@ -298,6 +310,10 @@ def _findings_list(d):
 
 def run(board, hours, shakeout):
     os.makedirs(FIND_DIR, exist_ok=True)
+    import shutil
+    _sdir = os.environ.get("CEC_STREAM_DIR", STREAM_DIR)      # fresh per-seat streams each run -- the
+    shutil.rmtree(_sdir, ignore_errors=True)                 # recorder appends, so clear stale runs first
+    os.makedirs(_sdir, exist_ok=True)
     deadline = time.time() + hours * 3600.0
     lr = load_live_rules()
     records, seen, rnd = [], set(), 0

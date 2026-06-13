@@ -157,12 +157,69 @@ SYSTEM = (
 # (vs the other LLM project sharing the GPU); harmless when talking straight to an upstream.
 _CLIENT_HEADERS = {"Content-Type": "application/json", "X-CEC-Client": "CEC-Platform"}
 
+# Ambient seat label for the per-seat stream recorder (cec_seat_stream). Resolution order in
+# _chat_json: explicit seat= kwarg > this contextvar > the model name. Set it inside panel worker
+# threads (contextvars do not auto-propagate across a ThreadPoolExecutor).
+import contextvars as _ctxvars                                # noqa: E402
+_SEAT = _ctxvars.ContextVar("cec_seat", default=None)
+
+
+def set_seat(label):
+    """Set the ambient seat for calls on THIS thread/context (returns the token to reset)."""
+    return _SEAT.set(label)
+
 
 def _post(path, payload, timeout=None, url=None):
     req = urllib.request.Request((url or VLLM_URL) + path, data=json.dumps(payload).encode(),
                                  headers=dict(_CLIENT_HEADERS), method="POST")
     with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
         return json.load(r)
+
+
+def _post_stream(path, payload, timeout=None, url=None, call=None):
+    """SSE streaming POST: tees content + reasoning_content deltas to `call` (a cec_seat_stream.Call)
+    as they arrive, then returns a SYNTHESIZED non-streaming response dict so _chat_json's downstream
+    logic is unchanged. Raises on any transport error (caller falls back to the blocking _post, so the
+    overnight is never at the mercy of streaming). Used only when CEC_STREAM_DIR is set."""
+    p = dict(payload)
+    p["stream"] = True
+    req = urllib.request.Request((url or VLLM_URL) + path, data=json.dumps(p).encode(),
+                                 headers=dict(_CLIENT_HEADERS), method="POST")
+    content, reasoning, finish = [], [], None
+    saw_frame = False
+    with urllib.request.urlopen(req, timeout=timeout or TIMEOUT) as r:
+        for raw in r:                                        # the response iterates by line
+            line = raw.decode("utf-8", "replace").strip()
+            if not line.startswith("data:"):
+                continue
+            saw_frame = True
+            data = line[5:].strip()
+            if data == "[DONE]":
+                break
+            try:
+                ch = (json.loads(data).get("choices") or [{}])[0]
+            except Exception:                                # noqa: BLE001 -- skip a malformed frame
+                continue
+            delta = ch.get("delta") or {}
+            cd, rd = delta.get("content"), delta.get("reasoning_content")
+            if cd:
+                content.append(cd)
+                if call:
+                    call.delta(cd, "content")
+            if rd:
+                reasoning.append(rd)
+                if call:
+                    call.delta(rd, "reasoning")
+            if ch.get("finish_reason"):
+                finish = ch["finish_reason"]
+    if not saw_frame:
+        # the server answered stream=true with a NON-SSE body (degraded broker, error JSON, or an
+        # upstream that ignored stream): raise so _chat_json falls back to the blocking _post instead
+        # of returning a synthesized EMPTY message that would mis-trigger the empty-content path.
+        raise ValueError("non-SSE response to stream=true (no data: frames)")
+    return {"choices": [{"message": {"content": "".join(content),
+                                     "reasoning_content": "".join(reasoning)},
+                         "finish_reason": finish}]}
 
 
 def available(timeout=3, url=None):
@@ -179,7 +236,7 @@ def available(timeout=3, url=None):
 
 
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
-               model=None, url=None, nothink=False):
+               model=None, url=None, nothink=False, seat=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
     diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker).
@@ -203,13 +260,29 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     if mdl in _FLOOR_MODELS:
         payload["temperature"] = max(temperature, _FLOOR_TEMP)
         payload["presence_penalty"] = _FLOOR_PRESENCE
-    resp = _post("/chat/completions", payload, timeout=timeout, url=url)
+    # Transport: when CEC_STREAM_DIR is set (a dashboard run), STREAM via SSE and tee per-seat deltas
+    # to the recorder; on any streaming error fall back to the blocking POST so a model call never
+    # depends on streaming working. When unset, this is byte-identical to the old blocking path.
+    import cec_seat_stream as _stream
+    resp = None
+    if _stream.enabled():
+        seat_name = seat or _SEAT.get() or mdl
+        call = _stream.start(seat_name, model=mdl, role=name,
+                             prompt_chars=len(system) + len(user), temperature=payload["temperature"])
+        try:
+            resp = _post_stream("/chat/completions", payload, timeout=timeout, url=url, call=call)
+            call.end(ok=True)
+        except Exception as e:                               # noqa: BLE001 -- degrade to blocking
+            call.error(e)
+            resp = None
+    if resp is None:
+        resp = _post("/chat/completions", payload, timeout=timeout, url=url)
     msg = resp["choices"][0]["message"]
     content = (msg.get("content") or "").strip()
     if not content:
         trace = (msg.get("reasoning_content") or "").strip()
         if trace and _AUTO_SCRIBE:
-            return _scribe_json(trace, schema, name=name, model=mdl, url=url, timeout=timeout)
+            return _scribe_json(trace, schema, name=name, model=mdl, url=url, timeout=timeout, seat=seat)
         raise ValueError("empty content (thinking overrun, no recoverable trace)")
     return json.loads(content)
 
@@ -222,7 +295,7 @@ SCRIBE_SYSTEM = (
 )
 
 
-def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=None):
+def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=None, seat=None):
     """SCRIBE half of the bench-verified miner->scribe protocol (2026-06-09, 6-run bench): feed the
     harvested reasoning trace back to the SAME model as an EDITOR task at temp ~0.35 + presence
     penalty (the verified anti-loop knobs) under the json_schema grammar -> the JSON the miner call
@@ -237,17 +310,30 @@ def _scribe_json(trace, schema, *, name="out", model=None, url=None, timeout=Non
         "response_format": {"type": "json_schema",
                             "json_schema": {"name": name, "schema": schema, "strict": True}},
     }
-    resp = _post("/chat/completions", payload, timeout=timeout, url=url)
+    import cec_seat_stream as _stream
+    resp = None
+    if _stream.enabled():
+        call = _stream.start(seat or _SEAT.get() or (model or MODEL), model=model or MODEL,
+                             role="scribe", prompt_chars=len(trace), temperature=payload["temperature"])
+        try:
+            resp = _post_stream("/chat/completions", payload, timeout=timeout, url=url, call=call)
+            call.end(ok=True)
+        except Exception as e:                               # noqa: BLE001 -- degrade to blocking
+            call.error(e)
+            resp = None
+    if resp is None:
+        resp = _post("/chat/completions", payload, timeout=timeout, url=url)
     content = (resp["choices"][0]["message"].get("content") or "").strip()
     if not content:
         raise ValueError("scribe call also returned empty content")
     return json.loads(content)
 
 
-def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=None):
+def chat_verdict(system, user, *, timeout=None, temperature=0.0, url=None, model=None, max_tokens=None,
+                 seat=None):
     """One guided-JSON manager-verdict call -> {action, reason}. `max_tokens` defaults to the worker
     budget; manager-tier callers pass MANAGER_MAX_TOKENS so a thinking model's reasoning fits."""
-    return _chat_json(system, user, VERDICT_SCHEMA, name="verdict",
+    return _chat_json(system, user, VERDICT_SCHEMA, name="verdict", seat=seat,
                       temperature=temperature, timeout=timeout, url=url, model=model, max_tokens=max_tokens)
 
 
@@ -281,7 +367,7 @@ def make_manager(spec, *, verbose=False):
         try:
             user = _context(region, scored, history, spec)
             v = chat_verdict(SYSTEM, user, url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="manager")
             action = v.get("action", "repair")
             best = scored[0][1] if scored else None
             if action == "accept" and not (best is not None and best.gates_pass):
@@ -389,17 +475,21 @@ def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_wor
 
 
 def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, url=None, model=None,
-           timeout=None, max_tokens=None):
+           timeout=None, max_tokens=None, seat=None):
     """Fire one judge per lens CONCURRENTLY at the (per-tier) server. `user_or_fn` is a user string
-    (same for all) or a fn(lens_name)->user. Returns [(lens_name, dict|None), ...]."""
+    (same for all) or a fn(lens_name)->user. `seat` is the panel's recorder section base; each member
+    records under `<seat>:<lens>` so every panel member's thoughts get their own dashboard section.
+    Returns [(lens_name, dict|None), ...]."""
     temps = temps or {}
 
     def one(idx_lens):
         idx, (lname, lsys) = idx_lens
         user = user_or_fn(lname) if callable(user_or_fn) else user_or_fn
+        member_seat = ("%s:%s" % (seat, lname)) if seat else lname
         try:
             return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0),
-                                      url=url, model=model, timeout=timeout, max_tokens=max_tokens))
+                                      url=url, model=model, timeout=timeout, max_tokens=max_tokens,
+                                      seat=member_seat))
         except Exception as e:
             return (lname, {"error": type(e).__name__})
 
@@ -421,7 +511,7 @@ def make_manager_swarm(spec, *, panel=3, verbose=False):
             best = scored[0][1] if scored else None
             results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps,
                              url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="manager")
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
                 + ([best.drc] if best is not None else [])
@@ -497,7 +587,7 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False):
 
             def one(i):
                 try:
-                    r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort",
+                    r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort", seat="worker:%d" % i,
                                    temperature=(0.0 if i == 0 else 0.5), model=WORKER_MODEL, url=WORKER_URL)
                     return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
                 except Exception:
@@ -563,7 +653,7 @@ def make_dispatch_swarm_tier(*, panel=3, tier_name="local-haiku-swarm", verbose=
                                "history_drc_trail": hist, "gate_note": ctx.gate_note}, default=str)
             results = _panel(user, lenses, DISPATCH_SCHEMA, name="verdict", temps=temps,
                              url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="dispatch")
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h.get("best_drc") for h in (ctx.history or [])] + [(best or {}).get("drc")]
             esc_ok = _escalate_corroborated(trail, (best or {}).get("drc_loci"))
@@ -630,7 +720,7 @@ def make_placement_swarm(*, panel=3, verbose=False):
             user = json.dumps(metrics, default=str)
             results = _panel(user, lenses, PLACEMENT_SCHEMA, name="verdict", temps=temps,
                              url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS)
+                             max_tokens=MANAGER_MAX_TOKENS, seat="placement")
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             action, tally, picks = _vote(votes, ("accept", "refine", "escalate"),
                                          accept_ok=(not hard), repair_word="refine",
@@ -1204,7 +1294,7 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
                 if verbose:
                     print("[corpus-fit] briefing skipped:", type(_be).__name__, _be)
         user = json.dumps(payload, indent=1, sort_keys=True)
-        out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit",
+        out = _chat_json(CORPUS_FIT_SYSTEM, user, CORPUS_FIT_SCHEMA, name="corpus_fit", seat="reviewer",
                          url=REVIEWER_URL, model=REVIEWER_MODEL, timeout=cf_timeout,
                          max_tokens=cf_max_tokens)
         return _cf_clamp(out, new, digest)
