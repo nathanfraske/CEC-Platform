@@ -415,9 +415,16 @@ static int cli_cmd_rate(int argc, char **argv)
     if (ms < 50)   ms = 50;
     if (ms > 5000) ms = 5000;
 
+    /* Pause the TelePlot loop: otherwise it keeps reading the link (MOSI=0x00 =
+     * live) during the measurement window and flips the fabric out of status
+     * mode, so the 2nd counter read grabs live channel data -> garbage rate. */
+    s_capturing = true;
+    vTaskDelay(pdMS_TO_TICKS(3));
+
     cec_fpga_frame_t f;
     cec_fpga_link_read_status(&f);              /* select status mode (discard) */
     if (cec_fpga_link_read_status(&f) != ESP_OK || f.header != 0x5C) {
+        s_capturing = false;
         printf("rate: no status frame (hdr 0x%02x) -- old bitstream? rebuild the FPGA\n",
                f.header);
         return 1;
@@ -425,9 +432,14 @@ static int cli_cmd_rate(int argc, char **argv)
     uint32_t c1 = ((uint32_t)(uint16_t)f.code[0] << 16) | (uint16_t)f.code[1];
     int64_t  t1 = esp_timer_get_time();
     vTaskDelay(pdMS_TO_TICKS(ms));
-    if (cec_fpga_link_read_status(&f) != ESP_OK) { printf("rate: read failed\n"); return 1; }
+    if (cec_fpga_link_read_status(&f) != ESP_OK || f.header != 0x5C) {
+        s_capturing = false;
+        printf("rate: status read failed (hdr 0x%02x)\n", f.header);
+        return 1;
+    }
     uint32_t c2 = ((uint32_t)(uint16_t)f.code[0] << 16) | (uint16_t)f.code[1];
     int64_t  t2 = esp_timer_get_time();
+    s_capturing = false;
 
     uint32_t dframes = c2 - c1;                 /* unsigned -> wrap-safe */
     double   dt_s    = (t2 - t1) / 1.0e6;
