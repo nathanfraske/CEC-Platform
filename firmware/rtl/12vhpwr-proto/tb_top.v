@@ -13,7 +13,7 @@
 //   * BURST (fastburst): frozen native ring, consecutive sequence, payload intact.
 //   * STREAM (piece 2): continuous decimated FIFO -- dropcount byte reads ZERO
 //     when drained promptly (gap-free) and NONZERO after a deliberate stall.
-// Run: iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v && vvp tb
+// Run: iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v ../common/cec_spi_slave.v && vvp tb
 // ----------------------------------------------------------------------------
 module tb_top;
     reg clk50 = 1'b0;
@@ -27,7 +27,8 @@ module tb_top;
     wire esp_miso, esp_drdy;
 
     // tiny ring + FIFO + small M so the sim fills/wraps/overflows quickly
-    top #(.SAMPLE_HZ(20_000), .DECIM_M(4), .DEPTH(8), .STREAM_DEPTH(8)) dut (
+    top #(.SAMPLE_HZ(20_000), .DECIM_M(4), .DEPTH(8), .STREAM_DEPTH(8),
+          .DET_KSHIFT(4), .DET_THRESH(800), .DET_WARMUP(4)) dut (
         .clk50(clk50),
         .adc_reset(adc_reset), .adc_convst(adc_convst),
         .adc_cs_n(adc_cs_n),   .adc_sclk(adc_sclk),
@@ -43,13 +44,20 @@ module tb_top;
     localparam [15:0] C1=16'h1234, C2=16'h2345, C3=16'h3456, C4=16'h4567,
                       C5=16'h5678, C6=16'h6789, C7=16'h789A, C8=16'h89AB;
     reg [63:0] stubA = 64'd0, stubB = 64'd0;
-    reg signed [15:0] inj = 16'sd0;            // injected step on V3 (native-detector test)
+    reg               det_mode = 1'b0;         // anomaly test: drive a BALANCED current set...
+    reg signed [15:0] det_imb  = 16'sd0;       // ...with this imbalance added to V3 (== detector ch5)
 
     always @(posedge adc_convst) begin
         #50  adc_busy = 1'b1;                  // t_conv start
         #4000;                                 // 4 us conversion, OS = 000
-        stubA = {C1, C2, C3 + inj, C4};        // V3 carries the injected transient
-        stubB = {C5, C6, C7, C8};
+        if (det_mode) begin
+            // masked currents V3/V4/V5/V8 balanced at 5000; det_imb diverges V3.
+            stubA = {C1, C2, 16'sd5000 + det_imb, 16'sd5000};   // V3(ch5)=5000+imb, V4(ch4)=5000
+            stubB = {16'sd5000, C6, C7, 16'sd5000};             // V5(ch3)=5000, V8(ch0)=5000
+        end else begin
+            stubA = {C1, C2, C3, C4};
+            stubB = {C5, C6, C7, C8};
+        end
         adc_busy = 1'b0;
     end
 
@@ -270,47 +278,51 @@ module tb_top;
         end
         esp_mosi = 1'b0;
 
-        // ---- NATIVE DETECTOR: arm, inject a transient on a current channel
-        //      (V3 == detector ch5), verify it trips + freezes the ring CENTERED
-        //      + reports in STATUS V3, then disarm/re-arm clears it. ------------
-        esp_read_cmd(8'h44);                    // ARM the detector (sticky latch)
-        #300_000;                               // seed the baseline at C3 over a few frames
-        inj = 16'sd2000;                        // step V3 well past DET_THRESH (500)
-        #700_000;                               // trip + post-roll + centered freeze
-        esp_read_cmd(8'h33);                     // STATUS prime (cmd_reg <- 0x33)
-        esp_read_cmd(8'h33);                     // STATUS frame (status beats frozen in the mux)
+        // ---- NATIVE ANOMALY DETECTOR: a BALANCED current set must NOT trip; a
+        //      single-pin SHARE divergence (V3 == ch5) must trip on ch5 + freeze
+        //      the ring; STATUS V3 reports it; disarm/re-arm clears it. ---------
+        det_mode = 1'b1; det_imb = 16'sd0;       // balanced masked currents (5000 each)
+        esp_read_cmd(8'h44);                      // ARM (sticky)
+        #500_000;                                // past DET_WARMUP=4 on the balanced set
+        esp_read_cmd(8'h33); esp_read_cmd(8'h33);
+        if (rx[95] !== 1'b0) begin               // V3 bit15 = tripped -- MUST be 0 on a balanced load
+            $display("FAIL: anomaly tripped on a BALANCED load (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        det_imb = 16'sd500;                      // V3 (ch5) hogs ~+500 -> a share divergence
+        #1_000_000;                              // average follows + post-roll + centered freeze
+        esp_read_cmd(8'h33); esp_read_cmd(8'h33);
         if (rx[143:136] !== 8'h5C) begin
-            $display("FAIL: det status header %02x", rx[143:136]); errors = errors + 1;
+            $display("FAIL: anomaly status header %02x", rx[143:136]); errors = errors + 1;
         end
-        if (rx[95] !== 1'b1) begin               // V3 bit15 = tripped
-            $display("FAIL: detector did not trip (status V3=%04x)", rx[95:80]); errors = errors + 1;
+        if (rx[95] !== 1'b1) begin               // tripped
+            $display("FAIL: anomaly did not trip on a share divergence (V3=%04x)", rx[95:80]); errors = errors + 1;
         end
-        if (rx[85] !== 1'b1) begin               // trip_ch bit5 = V3 (channel-map check)
+        if (rx[85] !== 1'b1) begin               // trip_ch bit5 = ch5 (V3) -- the diverging pin
             $display("FAIL: trip_ch ch5 (V3) not set (V3=%04x)", rx[95:80]); errors = errors + 1;
         end
-        if (rx[94] !== 1'b1) begin               // V3 bit14 = det_frozen (ring frozen)
-            $display("FAIL: detector did not freeze the ring (V3=%04x)", rx[95:80]); errors = errors + 1;
+        if (rx[94] !== 1'b1) begin               // det_frozen
+            $display("FAIL: anomaly did not freeze the ring (V3=%04x)", rx[95:80]); errors = errors + 1;
         end
-        esp_mosi = 1'b1;                         // read the detector-frozen ring (0xFF)
+        esp_mosi = 1'b1;                          // read the centered ring (0xFF)
         esp_read;                                // discard (cmd_reg 0x33 -> 0xFF)
         esp_read;                                // ring frame
         if (rx[143:136] !== 8'hA5) begin
-            $display("FAIL: det-frozen ring header %02x", rx[143:136]); errors = errors + 1;
+            $display("FAIL: anomaly-frozen ring header %02x", rx[143:136]); errors = errors + 1;
         end
         esp_mosi = 1'b0;
-        inj = 16'sd0;                            // transient gone
-        esp_read_cmd(8'h46);                     // DISARM -> clears the freeze, ring resumes
-        esp_read_cmd(8'h44);                     // RE-ARM -> detector re-seeds (arm low->high)
-        #300_000;
-        esp_read_cmd(8'h33);                     // STATUS prime
-        esp_read_cmd(8'h33);                     // STATUS frame
-        if (rx[95] !== 1'b0) begin               // tripped cleared after re-arm
-            $display("FAIL: detector tripped not cleared after re-arm (V3=%04x)", rx[95:80]); errors = errors + 1;
+        det_imb = 16'sd0;                         // back to balanced
+        esp_read_cmd(8'h46);                      // DISARM -> clears trip + freeze, ring resumes
+        esp_read_cmd(8'h44);                      // RE-ARM
+        #500_000;                                 // warm-up on the balanced set
+        esp_read_cmd(8'h33); esp_read_cmd(8'h33);
+        if (rx[95] !== 1'b0) begin                // tripped cleared (balanced, re-armed)
+            $display("FAIL: anomaly tripped not cleared after disarm/re-arm (V3=%04x)", rx[95:80]); errors = errors + 1;
         end
+        det_mode = 1'b0;
         esp_mosi = 1'b0;
 
         if (errors == 0)
-            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter, NATIVE-DETECT trip+center+rearm");
+            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter, NATIVE-ANOMALY balanced-pass+divergence-trip+rearm");
         else
             $display("FAILED with %0d errors", errors);
         $finish;

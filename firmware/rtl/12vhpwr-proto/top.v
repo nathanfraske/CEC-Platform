@@ -62,7 +62,12 @@ module top #(
     // numbers on the bench -- /8 was tried for the bit glitches and made the
     // DATA worse (the glitches were on the ESP link, a different clock), so the
     // read stays at /4. Slower = lower native rate, so retune DECIM_M if changed.
-    parameter integer SCLK_DIV  = 4
+    parameter integer SCLK_DIV  = 4,
+    // Native imbalance/anomaly detector config (cec_native_anomaly). Board
+    // defaults; the tb overrides KSHIFT/THRESH/WARMUP for fast sim.
+    parameter integer DET_KSHIFT = 12,     // slow EMA shift: tau ~ 2^12 = 41 ms @ 100k (>> load period)
+    parameter integer DET_THRESH = 600,    // |NMASK*(avg_i-mean)| codes -> imbalance trip (~5.6% @ 4A)
+    parameter integer DET_WARMUP = 16384   // frames (~164 ms) to converge the average before arming trips
 )(
     input  wire clk50,
     // AD7606 module (silk: RST, CA, CS, RD, BUSY, D7, D8)
@@ -251,33 +256,33 @@ module top #(
         .out_data (decim_data)
     );
 
-    // ---- native-rate transient/imbalance detector (FPGA-side §6.10/§6.13) ----
-    // Watches the native frames; on a per-channel deviation > DET_THRESH it
-    // freezes the burst ring DET_POSTROLL frames later so the event lands
-    // CENTERED in the ring (vs the ESP autoburst's tail-load). Config is
-    // COMPILE-TIME here (runtime-over-MOSI is the next increment) -- bench-tune
-    // the four constants and rebuild the bitstream.
-    localparam [15:0] DET_THRESH = 16'd500;        // |deviation| codes (~655 codes/A -> ~0.75 A)
-    localparam [3:0]  DET_KSHIFT = 4'd6;           // EMA tau ~ 2^6 = 64 native frames (~0.6 ms @ 100k)
-    // Mask the four CURRENT channels. NOTE the frame packs {shA,shB} = V1..V8 with
-    // V1 in the HIGH word, so detector ch i = V(8-i): the ESP-frame currents
-    // V3/V4/V5/V8 (cec_config i3/i4/i5/i8) land on detector ch 5/4/3/0. VERIFY on
-    // the bench (tb_top injects on V3 == ch5 to check this mapping).
-    localparam [7:0]   DET_MASK = 8'b0011_1001;
-    localparam integer DPRW     = AW + 1;          // post-roll width >= clog2(DEPTH)
+    // ---- native-rate IMBALANCE / anomaly detector (FPGA-side §6.10/§6.13) ----
+    // Rejects the COMMON load swing + edge-skew (a slow per-pin average, common-
+    // mode rejected: e_i = NMASK*(avg_i - mean), so the per-channel ADC bias AND
+    // the common 342 Hz load swing both cancel) and freezes the ring DET_POSTROLL
+    // frames later (CENTERED) only when a pin's SHARE departs from fair share by
+    // > DET_THRESH codes -- an ANOMALOUS imbalance, not the normal GPU cycle (a
+    // plain transient detector fires on every load edge -- proven on the bench).
+    // Mask the four CURRENT channels: the frame packs {shA,shB}=V1..V8 with V1
+    // HIGH, so detector ch i = V(8-i) -- the currents V3/V4/V5/V8 (cec_config
+    // i3/i4/i5/i8) land on ch 5/4/3/0 (tb_top checks this map).
+    localparam [7:0]   DET_MASK  = 8'b0011_1001;
+    localparam integer DET_NMASK = 4;              // popcount(DET_MASK)
+    localparam integer DPRW      = AW + 1;          // post-roll width >= clog2(DEPTH)
     localparam [DPRW-1:0] DET_POSTROLL = DEPTH/2;  // center the event in the ring
     wire       det_freeze, det_tripped;
     wire [7:0] det_trip_ch;
-    cec_native_detect #(.CHANNELS(8), .W(16), .KMAX(12), .PRW(DPRW)) u_detect (
+    cec_native_anomaly #(.CHANNELS(8), .W(16), .NMASK(DET_NMASK), .KMAX(14), .PRW(DPRW)) u_detect (
         .clk      (clk50),
         .rst      (rst),
         .arm      (det_armed),
         .in_stb   (cap_stb),
         .in_data  ({shA, shB}),
         .ch_mask  (DET_MASK),
-        .k_shift  (DET_KSHIFT),
-        .thresh   (DET_THRESH),
+        .k_shift  (DET_KSHIFT[3:0]),
+        .thresh   (DET_THRESH[15:0]),
         .postroll (DET_POSTROLL),
+        .warmup   (DET_WARMUP[15:0]),
         .freeze   (det_freeze),
         .tripped  (det_tripped),
         .trip_ch  (det_trip_ch)

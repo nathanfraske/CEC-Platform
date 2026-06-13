@@ -26,8 +26,10 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y iverilog
       - run: |
           cd firmware/rtl/12vhpwr-proto
-          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v
+          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v ../common/cec_spi_slave.v
           vvp tb | tee sim.log && grep -q '^PASS' sim.log
+          iverilog -g2012 -o tb_anomaly tb_native_anomaly.v cec_native_anomaly.v
+          vvp tb_anomaly | tee anomaly.log && grep -q '^PASS' anomaly.log
   esp-build:
     runs-on: ubuntu-latest
     container: espressif/idf:v6.0.1

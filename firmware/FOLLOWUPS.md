@@ -224,14 +224,36 @@ cal + auto-burst are ESP-only (reflash only); `rate` adds a small FPGA counter
   ESP stream can't, closer to the §6.13 comparator) + a runtime-settable threshold
   over a MOSI write; runtime EMA-K; center the trigger via FPGA post-roll.
 
-## FPGA native-rate detector (RTL, 2026-06-13)
+## FPGA native-rate ANOMALY detector (RTL, 2026-06-13)
 
-`rtl/12vhpwr-proto/cec_native_detect.v` -- the FPGA half of the §6.10/§6.13
-event-capture model the `autoburst` DEFERRED note above calls for. Module +
-self-checking sim (`tb_native_detect.v`, PASS) AND now WIRED INTO `top.v`
-(2026-06-13); the `tb_top` gate exercises the full path and PASSes. Add
-`cec_native_detect.v` to the gate file list (done in CLAUDE.md / firmware-ci.yml /
-both READMEs / tb_top header).
+`rtl/12vhpwr-proto/cec_native_anomaly.v` -- the FPGA half of the §6.10/§6.13
+event-capture model the `autoburst` DEFERRED note above calls for, but triggered
+on an ANOMALOUS load (a per-pin SHARE departure), NOT on a transient. Module +
+self-checking sim (`tb_native_anomaly.v`, PASS) AND WIRED INTO `top.v`
+(2026-06-13); the `tb_top` gate exercises the full path and PASSes. The gate file
+list carries `cec_native_anomaly.v` (CLAUDE.md / firmware-ci.yml / both READMEs /
+tb_top header); CI also runs the standalone `tb_native_anomaly` unit test, and the
+Gowin synthesis file lists (both READMEs) were corrected to add it (and
+`cec_boxcar_decim.v`, which they were silently missing) so the bitstream rebuild
+includes every module `top.v` instantiates.
+
+WHY ANOMALY, NOT TRANSIENT (the design pivot, owner direction 2026-06-13): the
+first cut (`cec_native_detect.v`, kept below) fired on |sample - own EMA baseline|.
+The bench data killed that as a trigger -- the GPU load is a ~342 Hz periodic swing
+and ALL pins swing TOGETHER (per-pin ~4 A peak-to-peak), so a "departure from my own
+baseline" detector trips on EVERY load edge: no signal, every GPU cycle. The
+melt-relevant ANOMALY is a pin's SHARE of the load departing from fair-share (a
+contact degrading so one pin hogs / starves while the rest carry the common swing).
+
+METRIC (common-mode rejected, bias-free): keep a SLOW per-pin average (EMA, tau >>
+the load period so the periodic swing AND the few-us edge-skew average out), then
+per masked pin form `e_i = NMASK*avg_i - Σ(masked avg)` ( = `NMASK*(avg_i - mean)` ).
+The per-channel ADC bias is common to all current channels so it CANCELS in e_i, AND
+the common load swing cancels too -- a balanced load gives e_i = 0 regardless of the
+load LEVEL or its swing. e_i is non-zero only for a pin off fair-share. Trip on
+`|e_i| > DET_THRESH` on any masked pin. WARM-UP: the slow EMA needs a few tau to
+converge after arming, so trips are held off until DET_WARMUP frames pass (acc seeds
+to sample<<k on the first armed frame).
 
 AS-BUILT top.v protocol (compile-time config for now -- runtime-over-MOSI is the
 next increment): a STICKY arm latch driven by MOSI command bytes -- `0x44` arms,
@@ -243,38 +265,49 @@ trip is unreadable), and the ring read-pointer only advances on a real 0xFF read
 not on a poll. STATUS frame V3 = `{tripped, det_frozen, 6'b0, trip_ch[7:0]}` (V1/V2
 rate counter unchanged, so `rate` still works). ESP flow: send 0x44 (arm) -> poll
 0x33 (V3.bit15 = tripped) -> 0xFF read the centered dump -> 0x46 then 0x44 to
-re-arm. DEFAULTS: DET_THRESH=500 codes (~0.75 A), DET_KSHIFT=6 (tau ~64 frames),
-DET_MASK=8'b0011_1001. CHANNEL MAP (verified in the gate): the frame packs
-{shA,shB}=V1..V8 with V1 HIGH, so detector ch i = V(8-i) -- the currents V3/V4/V5/V8
-land on detector ch 5/4/3/0; tb_top injects on V3 and checks trip_ch bit5.
+re-arm. DEFAULTS (top.v): DET_KSHIFT=12 (tau ~41 ms @ 100k native, >> the 2.9 ms
+load period), DET_THRESH=600 codes (~5.6% imbalance @ 4 A/pin -- ABOVE the board's
+normal ~3.5% fingerprint so the normal cycle passes), DET_WARMUP=16384 (~164 ms),
+DET_MASK=8'b0011_1001 / DET_NMASK=4. CHANNEL MAP (verified in the gate): the frame
+packs {shA,shB}=V1..V8 with V1 HIGH, so detector ch i = V(8-i) -- the currents
+V3/V4/V5/V8 land on detector ch 5/4/3/0; tb_top diverges V3's share and checks
+trip_ch bit5.
 
-What it does: runs at `cap_stb` on the same packed bus as `cec_boxcar_decim`;
-per-channel single-pole EMA baseline (high-res accumulator, seeds to the first
-sample so NO warm-up trip); trips on |sample - baseline| > THRESH for any masked
-channel -> fires on a global transient AND a sudden per-pin imbalance shift (the
-contact-resistance early-warning measured on the bench 2026-06-13). The win over
-the ESP `autoburst`: a POSTROLL counter waits N native frames before asserting
-`freeze`, so the event lands CENTERED in the ring (POSTROLL = DEPTH/2) instead of
-tail-loaded. Config (THRESH / K_SHIFT / CH_MASK / POSTROLL) are module INPUTS, so
-the deferred runtime-config (MOSI-written threshold / EMA-K) is just how `top.v`
-drives them -- no module change. Cheap in RAM: reuses the existing BSRAM ring +
-a pointer + 8 per-channel EMA accs (the SSRAM headroom from the version-B part).
+Cheap in RAM: reuses the existing BSRAM ring + a pointer + 8 per-pin EMA accs (the
+SSRAM headroom from the version-B part). Config (THRESH / K_SHIFT / CH_MASK /
+POSTROLL / WARMUP) are module INPUTS, so the deferred runtime-config (MOSI-written
+threshold / EMA-K / mask) is just how `top.v` drives them -- no module change.
 
-REMAINING (bench, not blocking the gate): (1) FPGA bitstream rebuild + reflash.
-(2) ESP `detect` CLI -- DONE 2026-06-13: `detect [timeout_ms]` arms (0x44), polls
+SCOPE / a known limit: DET_THRESH is a FIXED code count, so it is tuned for a load
+LEVEL (the imbalance is a fixed % of the load, so its absolute size scales with
+current). A fully load-INVARIANT trip wants the ratio `e_i / total_current`, which
+needs the bias to recover total current (a divide / a bias config) -- folded into
+the runtime-config increment. For a fixed bench workload the fixed threshold is the
+right tool and is what rejects the normal cycle.
+
+`cec_native_detect.v` (the per-pin TRANSIENT detector) is KEPT in the tree as the
+documented alternative trigger -- its `tb_native_detect.v` still PASSes -- but
+`top.v` no longer instantiates it. Do NOT add it to the Gowin project (it would be
+an unused, conflicting top-level candidate).
+
+REMAINING (bench, not blocking the gate): (1) FPGA bitstream rebuild + reflash
+(add `cec_native_anomaly.v` to the Gowin project per the README). (2) ESP `detect`
+CLI -- DONE 2026-06-13 and METRIC-AGNOSTIC (same arm/status/freeze interface, no
+change needed for the anomaly metric): `detect [timeout_ms]` arms (0x44), polls
 0x33 for V3.bit15, reports which pin via trip_ch (detector ch i -> ESP idx 7-i),
-drains the centered 0xFF ring like `fastburst`, then disarms (0x46);
-cec_fpga_link gained `_detect_arm()`/`_detect_clear()`. Builds clean under the IDF
-gate. (3) BENCH-TUNE the four compile-time constants for the real GPU: DET_THRESH
-(start ~0.75 A, lower until it catches a real OCCT edge without false-firing),
-DET_KSHIFT (baseline tau), DET_MASK (confirm the V(8-i) map on real captures).
-(4) NEXT INCREMENT = runtime config over MOSI (multi-byte write) so threshold/k/
-mask are tunable WITHOUT a bitstream rebuild -- the whole point of the FPGA path;
-deferred to keep this integration small. (5) BRAM unchanged (detector adds only 8
-EMA accs + a counter, no new buffer); re-confirm at Gowin P&R anyway. Two NOTES
-recorded while building:
-`expect` and `cross` are reserved -g2012 keywords (renamed `chk`/`hits`); a task
-that reuses a test's loop iterator clobbers it (give tasks their own integer).
+drains the centered 0xFF ring like `fastburst`, then disarms (0x46); cec_fpga_link
+gained `_detect_arm()`/`_detect_clear()`. Builds clean under the IDF gate.
+(3) BENCH-TUNE the three compile-time constants for the real GPU: DET_THRESH
+(start ~5.6% / 600 codes, lower toward the ~3.5% fingerprint until a deliberately
+unseated pin trips without the balanced load false-firing), DET_KSHIFT (tau >> the
+load period AND the edge skew), DET_WARMUP (a few tau); confirm the V(8-i) map +
+DET_MASK on real captures. (4) NEXT INCREMENT = runtime config over MOSI (multi-byte
+write) so threshold/k/mask -- AND the load-invariant ratio threshold -- are tunable
+WITHOUT a bitstream rebuild; deferred to keep this integration small. (5) BRAM
+unchanged (detector adds only 8 EMA accs + a counter, no new buffer); re-confirm at
+Gowin P&R anyway. Two NOTES recorded while building: `expect` and `cross` are
+reserved -g2012 keywords (renamed `chk`/`hits`); a task that reuses a test's loop
+iterator clobbers it (give tasks their own integer).
 
 ## Bench host tooling (firmware/tools/, 2026-06-13)
 
