@@ -224,7 +224,27 @@ cal + auto-burst are ESP-only (reflash only); `rate` adds a small FPGA counter
   ESP stream can't, closer to the §6.13 comparator) + a runtime-settable threshold
   over a MOSI write; runtime EMA-K; center the trigger via FPGA post-roll.
 
-## Adoption / integration items
+## Bench host tooling (firmware/tools/, 2026-06-13)
+
+Host-side, replaces PuTTY-log + hand-extraction + manual matplotlib. The
+capture->organize->analyze path is the Concierge (Appendix C) precursor.
+
+- **cec_bench.py** -- owns the serial (no PuTTY line-drops), sends commands /
+  scripts a setup sequence, splits each ===BURST_CSV=== block into
+  runs/<ts>/captures/ + a manifest.md, and (--analyze) runs the analyzer per
+  capture. Needs pyserial (bench machine only). Not unit-tested here (no serial
+  device); syntax-checked, the user validates on the bench.
+- **cec_capture_analyze.py** -- per-MODULE analysis (the user's "different
+  analysis per module"). Core (parse + FFT-at-measured-rate + time-domain) +
+  pluggable Profile; 12vhpwr DONE (per-pin imbalance flagged under load, rail
+  droop, load fundamental w/ analog-ceiling overlay), atx-24pin/eps/pcie are
+  STUBS. VALIDATED here: idle real capture -> "no_load" (no false flag); a
+  synthetic loaded board with an i4 hog -> "IMBALANCE 23.5% FLAG". Uses the
+  header's MEASURED rate; flags NOMINAL captures ~2x suspect.
+- DEFERRED: the atx-24pin/eps/pcie profiles (energy / per-cable / §6.13 events);
+  the firmware self-describing header (module id + channel roles) so the analyzer
+  auto-selects the profile instead of --module; optional unified live+burst viewer
+  (held -- TelePlot covers live).
 
 - **atx-24pin onto the shared top-layer detection (E4):**
   `cec_detection.c` / `cec_classifier.c` compile unused there — its
