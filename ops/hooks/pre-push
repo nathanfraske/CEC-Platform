@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2026 Nathan M. Fraske
+#
+# CEC bot-push guard (owner directive 2026-06-13: "make sure you're pushing as nathanfraske-bot and
+# not me -- set it in stone"). A push from this repo MUST authenticate as the bot, never the owner's
+# WSL-local gh login. This catches the failure mode where the repo-local credential wiring (ops/
+# provision.sh / ops/secrets/README.md) was not applied, so git silently falls back to the inherited
+# global helper `!gh auth git-credential` -- which is logged in as the OWNER.
+#
+# Installed to .git/hooks/pre-push by ops/provision.sh (and re-installable by hand:
+#   install -m755 ops/hooks/pre-push .git/hooks/pre-push ).
+set -uo pipefail
+url="${2:-}"
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# 1) The session-end handoff pushes via an explicit bot-PAT URL (x-access-token:<PAT>@github.com) --
+#    that is already the bot, allow it.
+case "$url" in *x-access-token:*@github.com*) exit 0 ;; esac
+
+# 2) Only guard github.com pushes (a local/other remote is none of our business).
+case "$url" in *github.com*) : ;; *) exit 0 ;; esac
+
+# 3) Resolve who git WOULD authenticate as (runs the full configured helper chain: the local ""-reset
+#    + the bot helper if wired). Must be the bot.
+who="$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill 2>/dev/null | sed -n 's/^username=//p')"
+if [ "$who" != "nathanfraske-bot" ]; then
+  echo "pre-push ABORT: a github.com push would authenticate as '${who:-<owner / gh login>}', NOT nathanfraske-bot." >&2
+  echo "  The agent must push as the bot (owner directive; CODEOWNERS integrity)." >&2
+  echo "  Fix: bash ops/provision.sh   (wires the bot credential helper from /mnt/e/secrets/cec-bot.env)" >&2
+  echo "  or apply the repo-local config in ops/secrets/README.md. Refusing to push as the owner." >&2
+  exit 1
+fi
+exit 0
