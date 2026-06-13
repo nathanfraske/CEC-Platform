@@ -2,6 +2,31 @@
 
 Operating guidance for Claude Code working in the CEC platform repository.
 
+## WSL-ephemeral state policy (owner directive, 2026-06-12)
+
+**WSL volumes are ephemeral by definition.** Anything load-bearing lives in exactly
+one of: (1) the git remote, (2) the Windows filesystem (`E:`/`C:`), or (3) is
+rebuildable from the repo. **No exceptions.** This rule exists because a 2026-06-12
+attempt to move the distro to `E:` destroyed it; the entire Linux home — repos,
+toolchains, the `cec-llm-broker`, and the agent's persistent memory — was lost. The
+only casualty that was *not* recoverable was the prior session's handoff, because it
+existed only on the WSL volume. Everything else came back from the remote or from
+`ops/provision.sh`.
+
+Concretely:
+- **Disaster recovery is one script.** Install WSL + the Windows NVIDIA driver,
+  `git clone`, then `bash ops/provision.sh` (installs deps, builds the pinned
+  containers, brings up the broker, runs the four smoke tests).
+- **The handoff goes to git, every session.** The `Stop` hook
+  (`.claude/hooks/session-end.sh`) writes `docs/agent/handoff.md`, snapshots durable
+  memory, and pushes both to the `ops/agent-handoff` branch — no owner approval (it
+  touches no CODEOWNERS path). The handoff can never again exist only locally.
+- **Durable agent memory lives in the committed tree** (`CLAUDE.md` + the `.claude/`
+  tree, incl. `.claude/memory/`). User-level `~/.claude` is **disposable**; anything
+  worth surviving is promoted into committed files by the session-end hook.
+- **Secrets are never WSL-only.** The bot PAT lives in a Windows-side / `E:` secrets
+  file mounted read-only (`ops/secrets/`), never solely in the WSL `gh` login.
+
 ## Ground truth and precedence
 
 `CEC-Platform-Ground-Truth-Spec.md` is the canonical specification and holds

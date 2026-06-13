@@ -1,0 +1,21 @@
+[Unit]
+Description=CEC local-LLM broker (on-demand model orchestrator on :8080)
+Documentation=https://github.com/nathanfraske/CEC-Platform
+After=docker.service network-online.target
+Wants=docker.service network-online.target
+
+[Service]
+Type=simple
+User=nathan
+# docker group -> compose can reach the daemon socket without a re-login.
+Group=docker
+WorkingDirectory=/home/nathan/cec-llm-broker
+ExecStart=/usr/bin/python3 /home/nathan/cec-llm-broker/broker.py
+Restart=on-failure
+RestartSec=3
+# The broker manages slow (multi-minute) model cold-loads itself; never let
+# systemd think it has hung.
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
