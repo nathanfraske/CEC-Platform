@@ -85,20 +85,23 @@ static int cli_cmd_burst(int argc, char **argv)
 
     s_capturing = true;
     vTaskDelay(pdMS_TO_TICKS(3));              /* let the TelePlot loop pause */
-    int got = 0;
+    int  got  = 0;
+    bool dead = false;
     int64_t t0 = esp_timer_get_time();
-    for (; got < n; got++) {
+    for (; got < n && !dead; got++) {
         uint32_t spin = 0;
         while (!cec_fpga_link_poll()) {
-            if (++spin > 2000000u) goto done;  /* no DRDY -> link dead, bail */
+            if (++spin > 2000000u) { dead = true; break; }   /* no DRDY -> bail */
         }
-        if (cec_fpga_link_read(&buf[got].f) != ESP_OK) break;
+        if (dead || cec_fpga_link_read(&buf[got].f) != ESP_OK) break;
         buf[got].us = esp_timer_get_time() - t0;
     }
-done:
-    s_capturing = false;
 
+    /* Dump with the link still owned (TelePlot stays paused) so the CSV block
+     * prints clean -- no live ">..." lines interleaved into it. Markers
+     * (===) bracket the block so it is trivial to extract from a serial log. */
     int64_t span = got ? buf[got - 1].us : 0;
+    printf("\n===BURST_CSV_BEGIN===\n");
     printf("# burst: %d frames in %lld us (~%.1f kHz)\n",
            got, span, span ? 1000.0 * (got - 1) / span : 0.0);
     printf("us,seq");
@@ -112,6 +115,8 @@ done:
                 printf(",%.4f", proto_channel_phys(ch, buf[i].f.code[ch]));
         printf("\n");
     }
+    printf("===BURST_CSV_END===\n");
+    s_capturing = false;
     free(buf);
     return 0;
 }
