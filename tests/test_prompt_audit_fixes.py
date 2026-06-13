@@ -6,6 +6,7 @@
 # No broker / no container: the T1 intent_manager's broker call is monkeypatched, so these assert the
 # PROMPT GROUNDING (P1: manifest refs + sense corridor injected; P2: fence stated) and the GENERATION
 # GUARD (P2: fenced-net / fenced-ref intents dropped) deterministically.
+import json
 import os
 import sys
 import unittest
@@ -24,7 +25,8 @@ MANIFEST = {
         "RS1": {"xy": [20.0, 8.0], "v": "shunt"}, "RS2": {"xy": [24.0, 8.0], "v": "shunt"},
         "U20": {"xy": [21.0, 10.0], "v": "INA238"}, "J1": {"xy": [90.0, 17.0], "v": "RJ45"},
     },
-    "net_refs": {"/CAN_H": ["U2", "J1"], "/THRESH": ["U10", "U20"], "/DETC1": ["U10", "U11"]},
+    "net_refs": {"/CAN_H": ["U2", "J1"], "/THRESH": ["U10", "U20"], "/DETC1": ["U10", "U11"],
+                 "/SENSEC1_HI": ["RS1", "U20"]},     # a sense net so the M1 corridor block is produced
 }
 # fence shape is what cec_fs_actuator.is_fenced consumes: nets (slash-stripped) + refs sets.
 FENCE = {"nets": set(), "refs": {"RS1", "RS2", "U20", "U21", "U2"}}
@@ -154,6 +156,94 @@ class P4SpecExcerpt(unittest.TestCase):
         self.assertIn("IN-RUN STANDING RULES (unratified", out)
         self.assertIn("some-in-run-rule", out)              # the relabeled standing rule reaches the seat
         self.assertIn("pin allocation pin1=VCC", out)       # a specific locked decision reaches the seat
+
+
+class MergeAuditFixes(unittest.TestCase):
+    """M1/M3/M4/M5 from the PR #56 merge audit."""
+
+    # ---- M1: SENSE CORRIDOR derived from sense refs only, excludes the CAN transceiver ----
+    def test_m1_corridor_excludes_can_transceiver(self):
+        manifest = {
+            "outline_mm": [96, 35],
+            "refs": {"RS1": {"xy": [20, 8], "v": "shunt"}, "U20": {"xy": [21, 10], "v": "INA238"},
+                     "U2": {"xy": [60, 17], "v": "TJA1051"}, "U10": {"xy": [10, 12], "v": "x"}},
+            "net_refs": {"/SENSEC1_HI": ["RS1", "U20"], "/CAN_H": ["U2"], "/THRESH": ["U10"]},
+        }
+        fence = {"nets": set(), "refs": {"RS1", "U20", "U2"}}      # U2 is fenced but is the CAN xcvr
+        cap = {}
+
+        def stub(system, user, schema, **kw):
+            cap["user"] = user
+            return {"reasoning": "x", "intents": []}
+        orig = jl._chat_json
+        jl._chat_json = stub
+        try:
+            fs.intent_manager("eps-8pin", {}, [], None, 1, manifest=manifest, fence=fence)
+        finally:
+            jl._chat_json = orig
+        u = cap["user"]
+        corridor = next(ln for ln in u.splitlines() if "SENSE CORRIDOR" in ln)
+        self.assertIn("'RS1'", corridor)
+        self.assertIn("'U20'", corridor)
+        self.assertNotIn("'U2'", corridor)                        # the CAN xcvr is NOT in the corridor
+        self.assertIn("FENCED", u)                                # U2 still appears in the fence line
+
+    # ---- M3: board_manifest parses the in-container output; fail-safe to {} ----
+    def test_m3_board_manifest_parse_and_failsafe(self):
+        payload = {"outline_mm": [96.0, 35.0], "refs": {"U1": {"xy": [1, 2], "v": "ESP32"}},
+                   "net_refs": {"GND": ["U1"]}}
+        orig = fs._exec_py
+        fs._exec_py = lambda code, timeout=120: (0, "noise\nMANIFEST_JSON=" + json.dumps(payload) + "\n")
+        try:
+            self.assertEqual(fs.board_manifest("eps-8pin"), payload)
+        finally:
+            fs._exec_py = orig
+
+        def boom(code, timeout=120):
+            raise RuntimeError("container down")
+        fs._exec_py = boom
+        try:
+            self.assertEqual(fs.board_manifest("eps-8pin"), {})    # fail-safe, never raises
+        finally:
+            fs._exec_py = orig
+
+    # ---- M4: lane-gated carry-forward never leaks augmented state into a control round ----
+    def test_m4_lane_carry_helper(self):
+        self.assertEqual(fs._lane_carry("augmented", ["a"], ["seed"]), ["a"])
+        self.assertEqual(fs._lane_carry("control", ["a"], ["seed"]), ["seed"])
+        self.assertEqual(fs._lane_carry("control", ["a"], ()), ())
+
+    def test_m4_carry_forward_invariant(self):
+        seed = ["S"]
+        intents_aug = seed
+        model_out = {1: ["A1"], 2: ["A2"], 3: ["C3"], 4: ["A4"]}
+        seen = {}
+        for rnd, lane in [(1, "augmented"), (2, "augmented"), (3, "control"), (4, "augmented")]:
+            seen[rnd] = fs._lane_carry(lane, intents_aug, seed)   # what T1 sees as prev_intents
+            if lane == "augmented":                               # run()'s update rule (augmented only)
+                intents_aug = list(model_out[rnd])
+        self.assertEqual(seen[1], seed)                           # first augmented: the seed
+        self.assertEqual(seen[2], ["A1"])                         # carries the prior augmented plan
+        self.assertEqual(seen[3], seed)                           # CONTROL: the seed, NOT ["A2"]
+        self.assertEqual(seen[4], ["A2"])                         # augmented resumes from last augmented
+
+    # ---- M5: promoted_corpus_brief in-family scoping + relevance-ordered truncation + cache key ----
+    def test_m5_in_family_only_drops_off_family(self):
+        full = fs.promoted_corpus_brief("eps-8pin")
+        gen = fs.promoted_corpus_brief("eps-8pin", in_family_only=True)
+        self.assertTrue(full.startswith("RATIFIED CORPUS"))
+        self.assertTrue(gen.startswith("RATIFIED CORPUS"))
+        self.assertNotIn("[scope:", gen)                          # off-family entries dropped for gen seats
+        if "[scope:" in full:                                     # off-family entries exist in the corpus
+            self.assertLess(len(gen), len(full))
+        self.assertIsNot(full, gen)                               # distinct cache entries
+        self.assertIs(full, fs.promoted_corpus_brief("eps-8pin"))  # same key -> cached object
+
+    def test_m5_truncation_drops_off_family_tail_first(self):
+        trunc = fs.promoted_corpus_brief("eps-8pin", max_chars=400)   # max_chars in cache key (M5)
+        self.assertIn("brief truncated", trunc)                       # truncation fired
+        head = trunc[:trunc.index("brief truncated")]
+        self.assertNotIn("[scope:", head)                            # in-family ordered first -> head is in-family
 
 
 if __name__ == "__main__":

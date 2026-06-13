@@ -267,6 +267,14 @@ def lane_for(rnd, *, control_every=None):
     return "augmented"
 
 
+def _lane_carry(lane, prev_aug, seed):
+    """EI-02 P3 (A/B integrity): the value (prev_intents or prev_dropped) the T1 seat sees this round.
+    The AUGMENTED lane carries the model's last value forward; a CONTROL round gets the signed `seed`
+    (intents) or () (dropped) -- so augmented-learned state never leaks into the signed-only baseline.
+    Pure -- unit-tested (M4) so a regression in the carry can't silently corrupt the control lane."""
+    return prev_aug if lane == "augmented" else seed
+
+
 # Evidence anchors, partitioned by EI-07 GROUNDING. DETERMINISTIC = a gate / DRC / pour-fact / FEM
 # signal (a number a checker produced, reproducible without a model); MODEL = an auditor / panel /
 # vision judgement (a seat's opinion). real_anchor_ratio = deterministic / (deterministic + model):
@@ -436,7 +444,7 @@ def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
     truncation drops the least-relevant tail (never an in-family layout rule), and in_family_only=True
     drops off-family entries entirely (a routing decision does not need another board's connector
     ratings). Staging is excluded by construction. Fail-safe to ''."""
-    key = (board, in_family_only)
+    key = (board, in_family_only, max_chars)        # M5: max_chars in the key (it changes the output)
     if key in _CORPUS_BRIEF_CACHE:
         return _CORPUS_BRIEF_CACHE[key]
     import glob as _g
@@ -787,7 +795,14 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
         nr = json.dumps(manifest.get("net_refs", {}))[:1500]
         refs_block = (f"BOARD FOOTPRINTS (board {manifest.get('outline_mm')} mm; anchor waypoints ONLY "
                       f"to these refs):\n{ref_lines}\nNET->REFS (footprints each net touches):\n{nr}\n\n")
-        sense_refs = [r for r in fence.get("refs", ()) if r in refs]
+        # M1 (merge-audit): the corridor is the SENSE cluster (shunts + INA), NOT the whole fence --
+        # exclude the CAN transceiver (U2 is fenced as a pinned part but is not a sense part; including
+        # it inflated the corridor and told the model to route CAN around its own source pin). Keep only
+        # fence refs that actually touch a sense net.
+        import cec_fr02 as _fr
+        on_sense = {r for n, rl in manifest.get("net_refs", {}).items()
+                    if _fr.is_sense_net(n) for r in rl}
+        sense_refs = [r for r in fence.get("refs", ()) if r in refs and r in on_sense]
         if sense_refs:
             xs = [refs[r]['xy'][0] for r in sense_refs]
             ys = [refs[r]['xy'][1] for r in sense_refs]
@@ -1359,8 +1374,8 @@ def run(board, rounds, hours, auditor=None):
             # T1 intent manager (P3: lane-gated carry-forward; P1/P2: manifest + fence grounded;
             # P1c: re-prompt the last augmented round's invalid refs, control lane stays pristine)
             last = records[-1] if records else None
-            prev_intents = intents_aug if lane == "augmented" else seed_intents
-            prev_dropped = prev_dropped_aug if lane == "augmented" else ()
+            prev_intents = _lane_carry(lane, intents_aug, seed_intents)
+            prev_dropped = _lane_carry(lane, prev_dropped_aug, ())
             intents, why, src, dropped = intent_manager(board, grid, prev_intents, last, rnd,
                                                         manifest=manifest, fence=fence,
                                                         prev_dropped=prev_dropped)

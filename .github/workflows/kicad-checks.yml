@@ -75,4 +75,5 @@ jobs:
             tests.test_cl03_compiler \
             tests.test_measurement_claims_corpus \
             tests.test_fault_phenomenology_corpus \
-            tests.test_stability_budget -v 2>&1 | tail -8
+            tests.test_stability_budget \
+            tests.test_prompt_audit_fixes -v 2>&1 | tail -8
