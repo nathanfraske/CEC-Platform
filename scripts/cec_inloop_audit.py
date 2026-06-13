@@ -276,7 +276,7 @@ def v4_up():
         return False
 
 
-def v4_checkpoint(rec, lr, rnd, timeout=1800):
+def v4_checkpoint(rec, lr, rnd, timeout=3000):   # room for the 14000-tok deep checkpoint, never timeout-cut
     import urllib.request
     out_path = os.path.join(FIND_DIR, f"round-{rnd:03d}-v4.json")
     if not v4_up():
@@ -297,7 +297,7 @@ def v4_checkpoint(rec, lr, rnd, timeout=1800):
         "\"manager_rule\":\"...\"|null,\"local_minimum_risk\":\"low|medium|high\"}"
     )
     payload = {"model": V4_MODEL, "messages": [{"role": "user", "content": prompt}],
-               "max_tokens": 9000, "temperature": 0.3, "presence_penalty": 0.8}
+               "max_tokens": 14000, "temperature": 0.3, "presence_penalty": 0.8}   # 14000 (was 9000): V4 ctx 32768, no mid-reason cut
     t0 = time.time()
     import cec_seat_stream as _stream
     _call = _stream.start("v4-checkpoint", model=V4_MODEL, role="deep-checkpoint", prompt_chars=len(prompt))

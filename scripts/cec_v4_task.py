@@ -28,7 +28,7 @@ def v4_up(timeout=6):
         return False
 
 
-def run_task(prompt, *, system=None, schema=None, max_tokens=6000, timeout=1800, temperature=0.2):
+def run_task(prompt, *, system=None, schema=None, max_tokens=14000, timeout=3000, temperature=0.2):
     """Synchronous V4 call. With `schema` (a JSON Schema) the output is grammar-constrained JSON. Returns
     {content, reasoning, usage, elapsed_s} -- content falls back to the reasoning tail if V4 stranded the
     answer in reasoning_content."""
@@ -58,8 +58,8 @@ def main(argv=None):
     ap.add_argument("--system-file", default=None)
     ap.add_argument("--schema-file", default=None, help="JSON-schema file -> grammar-constrained output")
     ap.add_argument("--out", default=None, help="write the result JSON here (else stdout)")
-    ap.add_argument("--max-tokens", type=int, default=6000)
-    ap.add_argument("--timeout", type=int, default=1800)
+    ap.add_argument("--max-tokens", type=int, default=14000)   # V4 ctx 32768; a deep design must not truncate
+    ap.add_argument("--timeout", type=int, default=3000)        # 14000 tok at ~5 tok/s; never timeout-cut
     a = ap.parse_args(argv)
     prompt = a.prompt or (open(a.prompt_file).read() if a.prompt_file else None)
     if not prompt:

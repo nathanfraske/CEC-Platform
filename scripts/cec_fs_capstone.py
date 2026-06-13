@@ -225,8 +225,8 @@ def main(argv=None):
     ap.add_argument("--model", default=fs.DEEP_AUDITOR)
     ap.add_argument("--ts-before", default="10:05:00",
                     help="exclude measurement rows at/after this HH:MM:SS (the watchdog relaunch)")
-    ap.add_argument("--timeout", type=int, default=1800)
-    ap.add_argument("--max-tokens", type=int, default=6000)
+    ap.add_argument("--timeout", type=int, default=3000)        # room for a full deep capstone, never timeout-cut
+    ap.add_argument("--max-tokens", type=int, default=12000)    # 12000 (was 6000): a capstone must not truncate mid-analysis
     a = ap.parse_args(argv)
     run_dir = a.run_dir if os.path.isabs(a.run_dir) else os.path.join(ROOT, a.run_dir)
     board = a.board or (_load_json(os.path.join(run_dir, "bundle.json"), {}) or {}).get("board") \

@@ -73,7 +73,7 @@ KELVIN_STALL_K = 3                              # consecutive fails -> T0 escala
 # cold start / GPU swap never makes the seat lose its own race, and give seats a budget
 # wide enough to ride a swap. The last run's misses (intent manager 0/8, V4 0 live) were
 # ALL swap-starvation, not logic. Slower, but every tier actually fires.
-SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "600"))   # was 120-180 (lost the swap race)
+SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "900"))   # was 120-180 (lost the swap race); a ceiling -- generous so no seat is timeout-cut mid-thought
 WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min cold start
 PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
                "gate_fail", "kelvin_unrouted", "diffpair_unrouted", "max_T")
@@ -577,7 +577,7 @@ def vision_pour_check(rec, rnd, run_vlm=True):
         log(f"  T6 render-diff skipped: {type(e).__name__}: {e}")
     try:
         import cec_vision_narrate as vn
-        out = vn.narrate(png, diff_regions, model=VISION_SEAT, max_tokens=700, timeout=SEAT_TIMEOUT,
+        out = vn.narrate(png, diff_regions, model=VISION_SEAT, max_tokens=1500, timeout=SEAT_TIMEOUT,
                          ctx={"round": rnd, "check": "pour-narration"})
         base.update({"region_narration": out.get("region_narration", []),
                      "anomalies": out.get("anomalies", []), "note": out.get("note", "")})
@@ -710,7 +710,7 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd):
     try:
         import cec_judge_local as jl
         out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF + user, INTENTS_SCHEMA,
-                            name="intents", temperature=0.2, max_tokens=900, seat="manager:intent",
+                            name="intents", temperature=0.2, max_tokens=3000, seat="manager:intent",
                             model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
         intents = out.get("intents") or []
         ok = [i for i in intents if i.get("net") and i.get("waypoints")]
@@ -742,7 +742,7 @@ def worker_panel(rec, rnd):
                     CORPUS_BRIEF + f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
                     f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
                     PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
-                    seat="panel:" + lens.split()[0], max_tokens=300, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+                    seat="panel:" + lens.split()[0], max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
                 votes.append((lens.split()[0], d.get("action"), d.get("reason", "")[:120]))
             except Exception:                                    # noqa: BLE001
                 continue
@@ -868,7 +868,9 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
     return {"verdict": "repair", "error": "no_file"}
 
 
-def deepseek_audit(rec, lr, rnd, model=None, timeout=900, pourcheck=None, intents_src="model"):
+def deepseek_audit(rec, lr, rnd, model=None, timeout=2700, pourcheck=None, intents_src="model"):
+    # 2700 (was 900): the deep auditor now has a 12000-token ceiling (jl.MANAGER_MAX_TOKENS); at ~5 tok/s a
+    # full deep audit can run ~2400s -- never timeout-cut it mid-reason (a partial audit poisons the next round).
     """Deep LOCAL auditor (OVERNIGHT / throughput) via the broker -- DeepSeek-V4-Flash by default. Uses
     cec_judge_local._chat_json (json_schema grammar + miner->scribe recovery for the deep reasoner), so
     no `claude` CLI / no Write tool. Writes the SAME out_path the Sonnet path does, for artifact parity."""
@@ -899,10 +901,11 @@ def audit(rec, lr, rnd, model, *, timeout=None, pourcheck=None, intents_src="mod
     a CLOUD_AUDITORS member ('sonnet'/'opus') -> cloud claude CLI; anything else -> the deep broker
     auditor (overnight). Opus gets a longer default timeout (deep effort runs slower)."""
     if model in CLOUD_AUDITORS:
-        return sonnet_audit(rec, lr, rnd, timeout=timeout or (900 if model == "opus" else 240),
+        # Opus at max effort runs long; give it room. Sonnet a generous ceiling too (never mid-thought cut).
+        return sonnet_audit(rec, lr, rnd, timeout=timeout or (2400 if model == "opus" else 600),
                             pourcheck=pourcheck, intents_src=intents_src,
                             model=model, effort=CLOUD_AUDIT_EFFORT)
-    return deepseek_audit(rec, lr, rnd, model=model, timeout=timeout or 900,
+    return deepseek_audit(rec, lr, rnd, model=model, timeout=timeout or 2700,
                           pourcheck=pourcheck, intents_src=intents_src)
 
 
@@ -1032,7 +1035,7 @@ def vision_judge(routed, rec, rnd):
             "with the facts. 3 bullets max." % json.dumps(facts))
     try:
         import cec_vlm_bakeoff as vb
-        out = vb._chat(VISION_SEAT, text, png, max_tokens=500, timeout=600)
+        out = vb._chat(VISION_SEAT, text, png, max_tokens=1500, timeout=900)
         return {"png": os.path.relpath(png, PERM), "review": out if isinstance(out, str) else str(out)}
     except Exception as e:                                       # noqa: BLE001
         return {"skipped": f"{type(e).__name__}: {e}"}

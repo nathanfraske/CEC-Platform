@@ -33,7 +33,7 @@ def _ensure():
         os.makedirs(d, exist_ok=True)
 
 
-def enqueue(prompt, *, system=None, schema=None, label="task", max_tokens=6000):
+def enqueue(prompt, *, system=None, schema=None, label="task", max_tokens=14000):
     """Drop a task for the idle V4 runner. Returns the task path."""
     _ensure()
     tid = time.strftime("%Y%m%d-%H%M%S", time.gmtime()) + "-" + uuid.uuid4().hex[:6]
@@ -82,7 +82,7 @@ def run_idle(*, max_tasks=1):
             task = json.load(open(p))
             try:
                 task["result"] = v4.run_task(task["prompt"], system=task.get("system"),
-                                             schema=task.get("schema"), max_tokens=task.get("max_tokens", 6000))
+                                             schema=task.get("schema"), max_tokens=task.get("max_tokens", 14000))
             except Exception as e:                           # noqa: BLE001
                 task["result"] = {"error": f"{type(e).__name__}: {e}"}
             task["done"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -104,7 +104,7 @@ def main(argv=None):
     ae.add_argument("--prompt", required=True)
     ae.add_argument("--system", default=None)
     ae.add_argument("--label", default="task")
-    ae.add_argument("--max-tokens", type=int, default=6000)
+    ae.add_argument("--max-tokens", type=int, default=14000)
     sub.add_parser("run-idle")
     sub.add_parser("status")
     a = ap.parse_args(argv)
