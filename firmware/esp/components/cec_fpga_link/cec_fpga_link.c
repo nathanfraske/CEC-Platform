@@ -78,13 +78,18 @@ bool cec_fpga_link_poll(void)
     return gpio_get_level(s_cfg.pin_drdy) != 0;
 }
 
-esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out)
+/* The MOSI byte selects the fabric's read path: 0x00 = live latest frame,
+ * 0xFF = buffered (stream the capture ring). polling_transmit busy-waits the
+ * hardware instead of queueing + blocking on an ISR semaphore -- a few us
+ * instead of ~64 us per 18-byte frame. */
+static esp_err_t read_tx(cec_fpga_frame_t *out, uint8_t mosi_fill)
 {
     if (s_spi == NULL)  return ESP_ERR_INVALID_STATE;
     if (out == NULL)    return ESP_ERR_INVALID_ARG;
 
-    uint8_t tx[FRAME_BYTES] = {0};
+    uint8_t tx[FRAME_BYTES];
     uint8_t rx[FRAME_BYTES];
+    memset(tx, mosi_fill, sizeof(tx));
 
     spi_transaction_t t = {
         .length    = FRAME_BYTES * 8,
@@ -92,10 +97,6 @@ esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out)
         .rx_buffer = rx,
     };
     xSemaphoreTake(s_lock, portMAX_DELAY);
-    /* polling_transmit busy-waits the hardware instead of queueing +
-     * blocking on an ISR semaphore -- ~64 us of RTOS overhead per 18-byte
-     * frame becomes a few us, which is what lets a tight loop keep up with
-     * the 50 kHz frame rate (the queued spi_device_transmit caps it ~12 kHz). */
     esp_err_t err = spi_device_polling_transmit(s_spi, &t);
     xSemaphoreGive(s_lock);
     if (err != ESP_OK) return err;
@@ -107,4 +108,14 @@ esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out)
         out->code[ch] = (int16_t)(((uint16_t)rx[2 + 2*ch] << 8) | rx[3 + 2*ch]);
     }
     return ESP_OK;
+}
+
+esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out)
+{
+    return read_tx(out, 0x00);
+}
+
+esp_err_t cec_fpga_link_read_buffered(cec_fpga_frame_t *out)
+{
+    return read_tx(out, 0xFF);
 }

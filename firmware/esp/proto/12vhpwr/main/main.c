@@ -124,9 +124,62 @@ static int cli_cmd_burst(int argc, char **argv)
     return 0;
 }
 
+/* Pull the FPGA's native-rate capture ring in one shot: hold MOSI high
+ * (buffered reads), discard the ARM read, then read N frames straight out of
+ * BRAM and dump a CSV. Unlike `burst` (ESP-paced, ~12 kHz), this is the FPGA's
+ * full native rate -- uniform and gap-free (the seq column is consecutive).
+ * N <= PROTO_RING_DEPTH. Usage: `fastburst [N]` (default = full ring). */
+static int cli_cmd_fastburst(int argc, char **argv)
+{
+    int n = (argc >= 2) ? atoi(argv[1]) : PROTO_RING_DEPTH;
+    if (n < 1)                n = 1;
+    if (n > PROTO_RING_DEPTH) n = PROTO_RING_DEPTH;
+
+    cec_fpga_frame_t *buf = malloc((size_t)n * sizeof(*buf));
+    if (buf == NULL) { printf("fastburst: out of memory for %d frames\n", n); return 1; }
+
+    s_capturing = true;
+    vTaskDelay(pdMS_TO_TICKS(3));
+    UBaseType_t old_prio = uxTaskPriorityGet(NULL);
+    vTaskPrioritySet(NULL, configMAX_PRIORITIES - 2);
+    cec_fpga_frame_t armf;
+    cec_fpga_link_read_buffered(&armf);       /* ARM: freeze ring at oldest (discard) */
+    int got = 0;
+    for (; got < n; got++)
+        if (cec_fpga_link_read_buffered(&buf[got]) != ESP_OK) break;
+    vTaskPrioritySet(NULL, old_prio);
+    s_capturing = false;
+
+    int gaps = 0, badhdr = 0;
+    for (int i = 0; i < got; i++) {
+        if (!buf[i].header_ok) badhdr++;
+        if (i && buf[i].seq != (uint8_t)(buf[i - 1].seq + 1)) gaps++;
+    }
+    const double us_per = 1.0e6 / (double)PROTO_NATIVE_HZ;
+    printf("\n===BURST_CSV_BEGIN===\n");
+    printf("# fastburst: %d frames @ ~%d kHz native, %d seq-gaps, %d bad-hdr; "
+           "us = idx x %.2f us (nominal 1/%d kHz)\n",
+           got, PROTO_NATIVE_HZ / 1000, gaps, badhdr, us_per, PROTO_NATIVE_HZ / 1000);
+    printf("us,seq");
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+        if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
+    printf("\n");
+    for (int i = 0; i < got; i++) {
+        printf("%.1f,%u", i * us_per, buf[i].seq);
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+            if (PROTO_CH_CAL[ch].label)
+                printf(",%.4f", proto_channel_phys(ch, buf[i].code[ch]));
+        printf("\n");
+    }
+    printf("===BURST_CSV_END===\n");
+    free(buf);
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
-    { "frame", "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
-    { "burst", "capture [N] frames at ~50 kHz to RAM, dump CSV (default 2048)", cli_cmd_burst },
+    { "frame",     "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
+    { "burst",     "ESP-paced capture [N] frames to RAM, dump CSV (~12 kHz)", cli_cmd_burst },
+    { "fastburst", "FPGA ring readout [N] at the full native rate (uniform)", cli_cmd_fastburst },
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE

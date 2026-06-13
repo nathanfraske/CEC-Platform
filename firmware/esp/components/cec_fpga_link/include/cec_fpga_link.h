@@ -60,9 +60,20 @@ bool cec_fpga_link_poll(void);
 /*
  * Pull one 18-byte frame and decode it. Returns ESP_OK with the frame
  * filled (check frame->header_ok before trusting the codes), or
- * ESP_ERR_INVALID_STATE before init.
+ * ESP_ERR_INVALID_STATE before init. Drives MOSI low: the fabric returns
+ * the LIVE latest frame.
  */
 esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out);
+
+/*
+ * Same, but drives MOSI HIGH: the fabric streams its native-rate capture
+ * ring. The FIRST buffered read after a run of live reads ARMS (freezes
+ * the ring at the oldest frame; its returned data is the still-live frame
+ * -- discard it), and each subsequent buffered read returns the next ring
+ * frame and advances. A normal (live) read resumes the fill. Use this in a
+ * tight loop to pull a gap-free, FPGA-paced window in one go.
+ */
+esp_err_t cec_fpga_link_read_buffered(cec_fpga_frame_t *out);
 
 #ifdef __cplusplus
 }

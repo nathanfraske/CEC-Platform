@@ -43,6 +43,14 @@ extern "C" {
 /* AD7606 +/-5 V range: 152.59 uV per LSB. */
 #define PROTO_LSB_VOLTS      (5.0 / 32768.0)
 
+/* FPGA native capture rate -- keep in sync with top.v SAMPLE_HZ. Used only for
+ * the nominal time axis of `fastburst`; the real rate is the AD7606 conv+read
+ * ceiling if SAMPLE_HZ over-paces it (the seq column reveals gap-free-ness). */
+#define PROTO_NATIVE_HZ      100000
+
+/* RTL capture-ring DEPTH (top.v) -- the max `fastburst` window. */
+#define PROTO_RING_DEPTH     2048
+
 /* 12V-rail voltage divider: 47k top / 10k bottom -> rail = adc * (47+10)/10. */
 #define PROTO_RAIL_DIVIDER   (57.0f / 10.0f)
 
