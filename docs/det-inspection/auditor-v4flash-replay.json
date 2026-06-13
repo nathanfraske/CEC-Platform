@@ -1,0 +1,43 @@
+{
+ "eval": "v4-flash auditor packet-replay",
+ "run": "docs/fullstack-run-2026-06-11-validation",
+ "model": "deepseek-v4-flash",
+ "n_rounds": 2,
+ "n_ok": 2,
+ "competent_findings": 2,
+ "mean_wall_s": 179.9,
+ "class_agreement_with_sonnet": 1,
+ "rows": [
+  {
+   "round": 1,
+   "model": "deepseek-v4-flash",
+   "wall_s": 242.2,
+   "verdict": "accept",
+   "failure_class": "routing",
+   "root_cause_present": true,
+   "root_cause": "Routing congestion causing DRC violations and unconnected nets, leading to gate failure.",
+   "error": null,
+   "baseline_sonnet": {
+    "verdict": "repair",
+    "failure_class": "routing"
+   },
+   "agrees_with_baseline_class": true
+  },
+  {
+   "round": 2,
+   "model": "deepseek-v4-flash",
+   "wall_s": 117.7,
+   "verdict": "accept",
+   "failure_class": "placement",
+   "root_cause_present": true,
+   "root_cause": "Net /SENSEC2_LO is a foreign signal routed through a sense corridor, causing pour clipping and gate failure.",
+   "error": null,
+   "baseline_sonnet": {
+    "verdict": "repair",
+    "failure_class": "routing"
+   },
+   "agrees_with_baseline_class": false
+  }
+ ],
+ "note": "Validates the seat emits a verdict + bankable root_cause on real packets. Per-round ECONOMICS (tokens/s, wall vs the ~17-min Sonnet baseline) are recorded from the first V4-Flash overnight, appended here. Class-agreement with Sonnet is informational, not a target -- the seats decorrelate by design."
+}
