@@ -1,6 +1,23 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~08:00Z (DeepSeek-V4 LIVE in the cec_fullstack auditor seat, run launched for the night)._
+_Updated 2026-06-13 ~10:30 CDT (status check). The overnight run COMPLETED; a redundant watchdog relaunch is now running; V4 is DOWN._
+
+## STATUS CHECK 2026-06-13 10:30 CDT (read this first)
+- **The intended overnight `cec_fullstack` run COMPLETED NATURALLY ~10:03** — ran its full 7 h (02:51→10:03),
+  35 rounds, wrote the morning bundle (`docs/fullstack-run-2026-06-13/bundle.json`, `end_of_run_review:true`)
+  + REVIEW.md (1.7 MB) + per-seat streams. Deliverable is DONE.
+- **Result: did NOT converge** — `gate_passing:0`, `pareto_finalists:0`. Stuck in a local minimum: pours
+  clipped by routed traces in 32/34 rounds ("needs a notched-corridor keepout or re-pour-after-route"),
+  drc not improving, panel consistently escalating, max_T 271–297 °C. The board never reached a passing route.
+- **V4 auditor worked rounds 1–~22 then DIED at ~08:51** (watchdog `v4=000 / V4_000` from round 23;
+  GPU 18 GB→6.9 GB, RAM committed 100→73 GB as V4's mmap released). It injected 4 governance rules
+  (rounds 8 & 12, `source:v4`) before dying. Windows-native `:8007` is **unreachable now** (broker
+  `running:false`). Relaunch on the Windows side (`E:\toolchain\run-v4-flash.bat`) if more V4 auditing wanted.
+- **A REDUNDANT run is "in progress"**: the watchdog misread the clean 10:03 exit as a crash (`RUN_DOWN`,
+  "absent 2 checks") and **relaunched a fresh run at 10:11** (PID 310300, deadline ~17:11, ~6h40m left).
+  It is re-doing eps-8pin from round 1 in the daytime with NO V4 (auditor=deterministic no-op). Recommend
+  KILLING it — the deliverable is already produced and it'll burn compute all day. Watchdog gap: it can't
+  tell normal completion from a crash (should check for bundle.json / a DONE marker before relaunching).
 
 ## TONIGHT (2026-06-13): DeepSeek-V4 auditor + cec_fullstack overnight run — LIVE
 Owner ask evolved: "make DeepSeek run in the auditor seat and play nice," then (key correction from owner
