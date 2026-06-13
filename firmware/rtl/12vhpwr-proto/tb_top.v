@@ -13,7 +13,7 @@
 //   * BURST (fastburst): frozen native ring, consecutive sequence, payload intact.
 //   * STREAM (piece 2): continuous decimated FIFO -- dropcount byte reads ZERO
 //     when drained promptly (gap-free) and NONZERO after a deliberate stall.
-// Run: iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v ../common/cec_spi_slave.v && vvp tb
+// Run: iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v && vvp tb
 // ----------------------------------------------------------------------------
 module tb_top;
     reg clk50 = 1'b0;
@@ -43,11 +43,12 @@ module tb_top;
     localparam [15:0] C1=16'h1234, C2=16'h2345, C3=16'h3456, C4=16'h4567,
                       C5=16'h5678, C6=16'h6789, C7=16'h789A, C8=16'h89AB;
     reg [63:0] stubA = 64'd0, stubB = 64'd0;
+    reg signed [15:0] inj = 16'sd0;            // injected step on V3 (native-detector test)
 
     always @(posedge adc_convst) begin
         #50  adc_busy = 1'b1;                  // t_conv start
         #4000;                                 // 4 us conversion, OS = 000
-        stubA = {C1, C2, C3, C4};
+        stubA = {C1, C2, C3 + inj, C4};        // V3 carries the injected transient
         stubB = {C5, C6, C7, C8};
         adc_busy = 1'b0;
     end
@@ -269,8 +270,47 @@ module tb_top;
         end
         esp_mosi = 1'b0;
 
+        // ---- NATIVE DETECTOR: arm, inject a transient on a current channel
+        //      (V3 == detector ch5), verify it trips + freezes the ring CENTERED
+        //      + reports in STATUS V3, then disarm/re-arm clears it. ------------
+        esp_read_cmd(8'h44);                    // ARM the detector (sticky latch)
+        #300_000;                               // seed the baseline at C3 over a few frames
+        inj = 16'sd2000;                        // step V3 well past DET_THRESH (500)
+        #700_000;                               // trip + post-roll + centered freeze
+        esp_read_cmd(8'h33);                     // STATUS prime (cmd_reg <- 0x33)
+        esp_read_cmd(8'h33);                     // STATUS frame (status beats frozen in the mux)
+        if (rx[143:136] !== 8'h5C) begin
+            $display("FAIL: det status header %02x", rx[143:136]); errors = errors + 1;
+        end
+        if (rx[95] !== 1'b1) begin               // V3 bit15 = tripped
+            $display("FAIL: detector did not trip (status V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        if (rx[85] !== 1'b1) begin               // trip_ch bit5 = V3 (channel-map check)
+            $display("FAIL: trip_ch ch5 (V3) not set (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        if (rx[94] !== 1'b1) begin               // V3 bit14 = det_frozen (ring frozen)
+            $display("FAIL: detector did not freeze the ring (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        esp_mosi = 1'b1;                         // read the detector-frozen ring (0xFF)
+        esp_read;                                // discard (cmd_reg 0x33 -> 0xFF)
+        esp_read;                                // ring frame
+        if (rx[143:136] !== 8'hA5) begin
+            $display("FAIL: det-frozen ring header %02x", rx[143:136]); errors = errors + 1;
+        end
+        esp_mosi = 1'b0;
+        inj = 16'sd0;                            // transient gone
+        esp_read_cmd(8'h46);                     // DISARM -> clears the freeze, ring resumes
+        esp_read_cmd(8'h44);                     // RE-ARM -> detector re-seeds (arm low->high)
+        #300_000;
+        esp_read_cmd(8'h33);                     // STATUS prime
+        esp_read_cmd(8'h33);                     // STATUS frame
+        if (rx[95] !== 1'b0) begin               // tripped cleared after re-arm
+            $display("FAIL: detector tripped not cleared after re-arm (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        esp_mosi = 1'b0;
+
         if (errors == 0)
-            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter");
+            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter, NATIVE-DETECT trip+center+rearm");
         else
             $display("FAILED with %0d errors", errors);
         $finish;

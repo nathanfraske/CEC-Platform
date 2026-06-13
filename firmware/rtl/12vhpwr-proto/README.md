@@ -147,7 +147,7 @@ after step 3 below — leave it as-is for the first smoke.)
 
 ## What the simulation does and doesn't prove
 
-`iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v ../common/cec_spi_slave.v && vvp tb`
+`iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v && vvp tb`
 (run by CI + the build gate; expect `PASS`) exercises the FSM, the frame
 latch, the DRDY handshake, and the ESP SPI slave against **behavioral**
 AD7606 and ESP-master models. It proves the *logic and protocol*. It

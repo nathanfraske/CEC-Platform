@@ -58,7 +58,7 @@ all eight channels as raw codes and volts at 152.59 uV/LSB, about 5 Hz.
 Sim (CI-able, no vendor tools):
 
     cd rtl/12vhpwr-proto
-    iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v ../common/cec_spi_slave.v && vvp tb
+    iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v && vvp tb
     # expect: PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount
 
 Bitstream: Gowin EDA V1.9.9Beta-4 or newer (Yosys 0.33 does not target GW5A).
@@ -104,7 +104,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y iverilog
       - run: |
           cd firmware/rtl/12vhpwr-proto
-          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v ../common/cec_spi_slave.v
+          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v
           vvp tb | tee sim.log
           grep -q '^PASS' sim.log
   esp-build:

@@ -26,7 +26,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y iverilog
       - run: |
           cd firmware/rtl/12vhpwr-proto
-          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v ../common/cec_spi_slave.v
+          iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_detect.v ../common/cec_spi_slave.v
           vvp tb | tee sim.log && grep -q '^PASS' sim.log
   esp-build:
     runs-on: ubuntu-latest

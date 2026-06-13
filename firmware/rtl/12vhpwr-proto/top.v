@@ -225,6 +225,20 @@ module top #(
     wire stream_sel = (cmd_reg == 8'h55);
     wire status_sel = (cmd_reg == 8'h33);   // MSB=0 -> never trips the 0xFF burst freeze
 
+    // Native-detector ARM latch -- STICKY so STATUS polling (0x33) and BURST
+    // reads (0xFF) do NOT disarm it: 0x44 arms, 0x46 disarms+clears. Both MSB=0
+    // (never the 0xFF freeze). Re-arm after a trip = 0x46 then 0x44 (drops arm
+    // low->high so the detector re-seeds). DISARMED at reset, so LIVE/BURST/
+    // STREAM/STATUS are untouched until the ESP explicitly arms it.
+    reg det_armed = 1'b0;
+    always @(posedge clk50) begin
+        if (rst) det_armed <= 1'b0;
+        else if (esp_done) begin
+            if      (cmd_accum == 8'h44) det_armed <= 1'b1;
+            else if (cmd_accum == 8'h46) det_armed <= 1'b0;
+        end
+    end
+
     // ---- piece 1: boxcar decimator (native frames -> ~25 kSPS) --------------
     wire         decim_stb;
     wire [127:0] decim_data;
@@ -235,6 +249,38 @@ module top #(
         .in_data  ({shA, shB}),
         .out_stb  (decim_stb),
         .out_data (decim_data)
+    );
+
+    // ---- native-rate transient/imbalance detector (FPGA-side §6.10/§6.13) ----
+    // Watches the native frames; on a per-channel deviation > DET_THRESH it
+    // freezes the burst ring DET_POSTROLL frames later so the event lands
+    // CENTERED in the ring (vs the ESP autoburst's tail-load). Config is
+    // COMPILE-TIME here (runtime-over-MOSI is the next increment) -- bench-tune
+    // the four constants and rebuild the bitstream.
+    localparam [15:0] DET_THRESH = 16'd500;        // |deviation| codes (~655 codes/A -> ~0.75 A)
+    localparam [3:0]  DET_KSHIFT = 4'd6;           // EMA tau ~ 2^6 = 64 native frames (~0.6 ms @ 100k)
+    // Mask the four CURRENT channels. NOTE the frame packs {shA,shB} = V1..V8 with
+    // V1 in the HIGH word, so detector ch i = V(8-i): the ESP-frame currents
+    // V3/V4/V5/V8 (cec_config i3/i4/i5/i8) land on detector ch 5/4/3/0. VERIFY on
+    // the bench (tb_top injects on V3 == ch5 to check this mapping).
+    localparam [7:0]   DET_MASK = 8'b0011_1001;
+    localparam integer DPRW     = AW + 1;          // post-roll width >= clog2(DEPTH)
+    localparam [DPRW-1:0] DET_POSTROLL = DEPTH/2;  // center the event in the ring
+    wire       det_freeze, det_tripped;
+    wire [7:0] det_trip_ch;
+    cec_native_detect #(.CHANNELS(8), .W(16), .KMAX(12), .PRW(DPRW)) u_detect (
+        .clk      (clk50),
+        .rst      (rst),
+        .arm      (det_armed),
+        .in_stb   (cap_stb),
+        .in_data  ({shA, shB}),
+        .ch_mask  (DET_MASK),
+        .k_shift  (DET_KSHIFT),
+        .thresh   (DET_THRESH),
+        .postroll (DET_POSTROLL),
+        .freeze   (det_freeze),
+        .tripped  (det_tripped),
+        .trip_ch  (det_trip_ch)
     );
 
     // ---- burst capture ring + frozen readout (UNCHANGED v0 path) ------------
@@ -248,6 +294,7 @@ module top #(
     reg [143:0]  rd_data = 144'd0;
     reg [23:0]   wdog    = 24'd0;
     reg [31:0]   frame_count = 32'd0;   // free-running native frames (STATUS rate)
+    reg          det_frozen = 1'b0;     // this freeze came from the native detector
 
     always @(posedge clk50) begin
         mosi_s  <= {mosi_s[0], esp_mosi};
@@ -256,7 +303,7 @@ module top #(
         if (rst) begin
             wr_ptr <= {AW{1'b0}}; cap_seq <= 8'd0;
             frozen <= 1'b0; rd_ptr <= {AW{1'b0}}; wdog <= 24'd0;
-            frame_count <= 32'd0;
+            frame_count <= 32'd0; det_frozen <= 1'b0;
         end else begin
             if (cap_stb) frame_count <= frame_count + 1'b1;  // EVERY native frame (even frozen)
             if (cap_stb && !frozen) begin
@@ -268,14 +315,26 @@ module top #(
                 wdog <= 24'd0;
                 if (mosi_s[1]) begin        // 0xFF -> BURST (MSB high)
                     if (!frozen) begin frozen <= 1'b1; rd_ptr <= wr_ptr; end
-                end else begin
-                    frozen <= 1'b0;
+                end else if (!det_frozen) begin   // non-0xFF auto-unfreeze, but a
+                    frozen <= 1'b0;               // DETECTOR freeze survives polls
                 end
             end else if (frozen) begin
                 wdog <= wdog + 1'b1;
-                if (&wdog) frozen <= 1'b0;
+                if (&wdog) begin frozen <= 1'b0; det_frozen <= 1'b0; end
             end
-            if (frozen && esp_done) rd_ptr <= rd_ptr + 1'b1;
+            // Detector CENTERED freeze: placed AFTER the transaction logic so it
+            // wins (by source order) over the auto-unfreeze above.
+            if (det_freeze && !frozen) begin
+                frozen <= 1'b1; rd_ptr <= wr_ptr; det_frozen <= 1'b1;
+            end
+            // Explicit disarm (0x46 -> det_armed=0) drops the detector freeze and
+            // lets the ring resume writing.
+            if (!det_armed && det_frozen) begin
+                det_frozen <= 1'b0; frozen <= 1'b0;
+            end
+            // advance the read pointer only on a real ring read (0xFF), NOT on a
+            // STATUS poll -- so polling for the trip doesn't consume the dump.
+            if (frozen && esp_done && !status_sel) rd_ptr <= rd_ptr + 1'b1;
         end
     end
 
@@ -329,12 +388,16 @@ module top #(
     //   otherwise     -> LIVE latest frame {0xA5, seq, V1..V8}
     wire [143:0] live_frame   = {8'hA5, seq,  frame};
     wire [143:0] stream_frame = {shdr,  sdrop, sr_data};
-    wire [143:0] status_frame = {8'h5C, 8'h00, frame_count[31:16], frame_count[15:0], 96'd0};
+    // V1/V2 = the rate counter (unchanged); V3 = detector status
+    // {tripped, det_frozen, 0, trip_ch[7:0]}; V4..V8 = 0.
+    wire [15:0]  det_status  = {det_tripped, det_frozen, 6'b0, det_trip_ch};
+    wire [143:0] status_frame = {8'h5C, 8'h00, frame_count[31:16], frame_count[15:0],
+                                 det_status, 80'd0};
     cec_spi_slave #(.FRAME_BITS(144)) u_esp (
         .clk        (clk50),
         .rst        (rst),
-        .frame      (frozen      ? rd_data
-                   : status_sel  ? status_frame
+        .frame      (status_sel  ? status_frame   // pollable even while the detector froze the ring
+                   : frozen      ? rd_data
                    : stream_sel  ? stream_frame
                    :               live_frame),
         .sclk       (esp_sclk),

@@ -227,10 +227,26 @@ cal + auto-burst are ESP-only (reflash only); `rate` adds a small FPGA counter
 ## FPGA native-rate detector (RTL, 2026-06-13)
 
 `rtl/12vhpwr-proto/cec_native_detect.v` -- the FPGA half of the §6.10/§6.13
-event-capture model the `autoburst` DEFERRED note above calls for, BUILT as a
-STANDALONE module + self-checking sim (`tb_native_detect.v`, PASS). NOT yet wired
-into `top.v` (the committed `tb_top` gate is unchanged + still PASS; this is the
-clean increment before integration).
+event-capture model the `autoburst` DEFERRED note above calls for. Module +
+self-checking sim (`tb_native_detect.v`, PASS) AND now WIRED INTO `top.v`
+(2026-06-13); the `tb_top` gate exercises the full path and PASSes. Add
+`cec_native_detect.v` to the gate file list (done in CLAUDE.md / firmware-ci.yml /
+both READMEs / tb_top header).
+
+AS-BUILT top.v protocol (compile-time config for now -- runtime-over-MOSI is the
+next increment): a STICKY arm latch driven by MOSI command bytes -- `0x44` arms,
+`0x46` disarms+clears (both MSB=0 so they never trip the 0xFF freeze; STATUS/BURST
+polls do NOT disarm it). On a trip the detector freezes the ring DET_POSTROLL=
+DEPTH/2 frames later (CENTERED) via a `det_frozen` flag that survives status polls;
+the mux was reordered so `0x33` STATUS is readable EVEN while frozen (else the
+trip is unreadable), and the ring read-pointer only advances on a real 0xFF read,
+not on a poll. STATUS frame V3 = `{tripped, det_frozen, 6'b0, trip_ch[7:0]}` (V1/V2
+rate counter unchanged, so `rate` still works). ESP flow: send 0x44 (arm) -> poll
+0x33 (V3.bit15 = tripped) -> 0xFF read the centered dump -> 0x46 then 0x44 to
+re-arm. DEFAULTS: DET_THRESH=500 codes (~0.75 A), DET_KSHIFT=6 (tau ~64 frames),
+DET_MASK=8'b0011_1001. CHANNEL MAP (verified in the gate): the frame packs
+{shA,shB}=V1..V8 with V1 HIGH, so detector ch i = V(8-i) -- the currents V3/V4/V5/V8
+land on detector ch 5/4/3/0; tb_top injects on V3 and checks trip_ch bit5.
 
 What it does: runs at `cap_stb` on the same packed bus as `cec_boxcar_decim`;
 per-channel single-pole EMA baseline (high-res accumulator, seeds to the first
@@ -244,13 +260,17 @@ the deferred runtime-config (MOSI-written threshold / EMA-K) is just how `top.v`
 drives them -- no module change. Cheap in RAM: reuses the existing BSRAM ring +
 a pointer + 8 per-channel EMA accs (the SSRAM headroom from the version-B part).
 
-INTEGRATION PLAN (next, on user go): instantiate in `top.v` fed by `cap_stb` +
-`{shA,shB}`; OR its `freeze` into the ring's `frozen<=1 / rd_ptr<=wr_ptr` set
-(alongside the 0xFF burst path); arm/threshold/k/mask/postroll from new
-MOSI-command registers (a new cmd byte, MSB=0 so it can't trip the 0xFF freeze,
-like the 0x33 STATUS path); expose `tripped`/`trip_ch` in the STATUS frame so the
-ESP/host learns which pin fired. Then add the 3 files to the `tb_top` gate (or a
-second sim line) and bench-confirm on the GW5A. Two NOTES recorded while building:
+REMAINING (bench + ESP, not blocking the gate): (1) FPGA bitstream rebuild +
+reflash. (2) ESP firmware: a `detect` CLI that sends 0x44, polls 0x33 for V3.bit15,
+then drains the 0xFF ring like `fastburst` and re-arms (0x46/0x44) -- not written
+yet. (3) BENCH-TUNE the four compile-time constants for the real GPU: DET_THRESH
+(start ~0.75 A, lower until it catches a real OCCT edge without false-firing),
+DET_KSHIFT (baseline tau), DET_MASK (confirm the V(8-i) map on real captures).
+(4) NEXT INCREMENT = runtime config over MOSI (multi-byte write) so threshold/k/
+mask are tunable WITHOUT a bitstream rebuild -- the whole point of the FPGA path;
+deferred to keep this integration small. (5) BRAM unchanged (detector adds only 8
+EMA accs + a counter, no new buffer); re-confirm at Gowin P&R anyway. Two NOTES
+recorded while building:
 `expect` and `cross` are reserved -g2012 keywords (renamed `chk`/`hits`); a task
 that reuses a test's loop iterator clobbers it (give tasks their own integer).
 
