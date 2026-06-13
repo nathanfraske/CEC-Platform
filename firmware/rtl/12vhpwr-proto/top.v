@@ -11,7 +11,7 @@
 // ----------------------------------------------------------------------------
 module top #(
     parameter integer CLK_HZ    = 50_000_000,
-    parameter integer SAMPLE_HZ = 1_000          // v0 pace; raise after step 3
+    parameter integer SAMPLE_HZ = 50_000         // 50 kHz transient pace (v0 was 1 kHz)
 )(
     input  wire clk50,
     // AD7606 module (silk: RST, CA, CS, RD, BUSY, D7, D8)
@@ -45,11 +45,29 @@ module top #(
         db_s   <= {db_s[0],   adc_doutb};
     end
 
+    // ---- free-running conversion pacer ----
+    // A 1-clock do_conv pulse every DIV clocks, INDEPENDENT of the read FSM,
+    // so the CONVST cadence is an exact CLK_HZ/SAMPLE_HZ. The convert+read
+    // (~9 us: ~4 us BUSY + ~5 us 64-SCLK read) must fit inside one DIV window
+    // (20 us at 50 kHz) -- it does, ~10 us to spare. If SAMPLE_HZ is pushed
+    // past the read-limited ceiling, ticks that land mid-read are simply
+    // skipped (the rate floors at the read time) -- never a corrupt frame.
+    reg [31:0] pace    = 32'd0;
+    reg        do_conv = 1'b0;
+    always @(posedge clk50) begin
+        if (rst) begin
+            pace <= 32'd0; do_conv <= 1'b0;
+        end else if (pace >= DIV-1) begin
+            pace <= 32'd0; do_conv <= 1'b1;
+        end else begin
+            pace <= pace + 1'b1; do_conv <= 1'b0;
+        end
+    end
+
     // ---- acquisition FSM ----
     localparam [2:0] S_RST=3'd0, S_IDLE=3'd1, S_CONV=3'd2, S_WHI=3'd3,
                      S_WLO=3'd4, S_GAP=3'd5, S_READ=3'd6, S_LATCH=3'd7;
     reg [2:0]   st     = S_RST;
-    reg [31:0]  pace   = 32'd0;
     reg [3:0]   k      = 4'd0;
     reg [1:0]   ph     = 2'd0;       // SCLK phase counter: 12.5 MHz from 50 MHz
     reg [6:0]   bit_n  = 7'd0;       // 0..63
@@ -63,7 +81,7 @@ module top #(
 
     always @(posedge clk50) begin
         if (rst) begin
-            st <= S_RST; k <= 4'd0; pace <= 32'd0;
+            st <= S_RST; k <= 4'd0;
             adc_reset <= 1'b0; adc_convst <= 1'b0;
             adc_cs_n  <= 1'b1; adc_sclk   <= 1'b0;
             drdy <= 1'b0; seq <= 8'd0;
@@ -75,16 +93,10 @@ module top #(
                     k <= k + 1'b1;
                     if (k == 4'd9) begin
                         adc_reset <= 1'b0;
-                        pace <= 32'd0;
                         st <= S_IDLE;
                     end
                 end
-                S_IDLE: begin
-                    pace <= pace + 1'b1;
-                    if (pace >= DIV-1) begin
-                        pace <= 32'd0; k <= 4'd0; st <= S_CONV;
-                    end
-                end
+                S_IDLE: if (do_conv) begin k <= 4'd0; st <= S_CONV; end
                 S_CONV: begin                      // CONVST high 3 clks = 60 ns
                     adc_convst <= 1'b1;
                     k <= k + 1'b1;
