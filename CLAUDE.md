@@ -874,13 +874,28 @@ Open items (surface before acting):
    Detection thesis CONFIRMED by the probe: the 12A hog is a 58% instant electrical
    outlier on INA240 ch3 vs a lagging ~2.2C shunt thermal asymmetry — and at a
    sustained hog the electrical alarm also protects the module's own copper.
-   MODEL DEBT (deliberate follow-up, NOT silently fixed — changes the SB-08 golden
-   thermal band): electrothermal cross_mm2 SUMS all net segments (incl. zero-current
-   Kelvin stubs) instead of the serial min-cut => lane dT ~5x optimistic; via split
-   should be per transition cluster; IPC k is keyed to pour membership instead of the
-   feature's actual layer. One fix LANDED (2026-06-09): the shunt I^2R current now
-   reads the straddled net's current (honours net_currents overrides) instead of the
-   40A per-cable default — essential on per-pin boards.
+   MODEL DEBT — RESOLVED 2026-06-13 (branch claude/am04-electrothermal-mincut, AM-04
+   PR-two). electrothermal cross_mm2 used to SUM all net segments (incl. zero-current
+   Kelvin stubs) instead of the serial min-cut (lane dT ~5x optimistic); the via split
+   used nvias[net]; IPC k was keyed to pour membership. ALL THREE FIXED in
+   electrothermal_solve: (1) `_min_cut` — the thermally-governing cross is the BOTTLENECK
+   cut along the flow axis (parallel-sum within a cut, min over cuts), and for a poured
+   net the cut is restricted to the pour's flow span so a zero-current sense/Kelvin stub
+   sharing the net cannot masquerade as a series neck (the naive min-cut's mirror-image
+   over-correction); (2) via split is per-transition for non-poured nets (`_via_cluster_sizes`,
+   spatial single-linkage) and distributed (I/total) for poured stitching fields (GND
+   plane / mirror-poured lane); (3) IPC k taken from the bottleneck cut's actual layer by
+   rename-proof layer ID, not pour membership. The AM-04 micro-board anchor moved to the
+   DERIVATION.md CORRECTED column (cross 1.044→0.348, dT 4.8→6.12; via/shunt unchanged) and
+   `test_am04_anchors.T8cCompositionAnchor` now asserts it; the chart-point/Picard anchors
+   did NOT move (the formula was never the debt). The earlier shunt-I^2R fix (2026-06-09,
+   straddled-net current via net_currents) stands. SB-08 GOLDEN RE-FREEZE IS OWNER-GATED
+   (the coupled item-3a CEC_GOLDEN_SYNTH decision + the owner-chosen --thermal-headroom;
+   make_bands refuses a default): measured post-fix — synth-OFF correctly exposes a fusing
+   condition (40A on bare 0.2mm FR traces, which the old segment-sum hid as max_T 157.9);
+   synth-ON gives a sane max_T 120.5°C / dT 70.5 limited by the +5VSB 0.2mm rail (no clamp,
+   cable nets 9.8–38°C, GND 37°C, vias ≤16°C). The committed golden was already red-pending
+   on item-3a, so this changes WHAT it produces, not green→red.
 
 Done (kept for context):
 - AGENTIC-PIPELINE PUNCHLIST + SELF-BUILDING FOUNDATION (2026-06-09, branch

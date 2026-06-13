@@ -2229,11 +2229,81 @@ def _transient_excursion(dt_steady_at_peak, cfg):
     return dt_steady_at_peak * (1.0 - math.exp(-t_s / max(tau, 1e-6)))
 
 
+def _flow_axis(bb):
+    """Dominant current-flow axis (0=x, 1=y) from a pad bbox [xmin,xmax,ymin,ymax]: the
+    longer pad spread is the source->sink direction. Returns (axis, span_mm)."""
+    xext, yext = bb[1] - bb[0], bb[3] - bb[2]
+    return (0, xext) if xext >= yext else (1, yext)
+
+
+def _min_cut(features):
+    """Serial min-cut of a net's copper along its flow axis. `features` is a list of
+    (lo, hi, cross_mm2, ext_cross_mm2, is_pour): each spans [lo,hi] on the flow axis and
+    contributes `cross_mm2` of copper there (ext_cross_mm2 = the part on an OUTER layer).
+    The thermally-governing cross-section is the BOTTLENECK -- the minimum, over positions
+    copper occupies, of the PARALLEL copper crossing that position. Series segments do NOT
+    add (summing them was the AM-04 segment-sum debt).
+
+    When the net is POURED, the pour is the force conductor (the platform routes high
+    current as copper area, not traces); the cut is then restricted to the pour's flow
+    span so a zero-current sense/Kelvin stub that merely shares the net but sits OUTSIDE
+    the force path cannot masquerade as a 40A series neck (the over-correction the naive
+    min-cut would make -- the mirror of the old over-count). Returns (min_cross_mm2,
+    external_bool) where external reflects the bottleneck cut's layer (IPC k, debt #3).
+    Degenerate (all zero-width) -> the single largest feature."""
+    if not features:
+        return 0.0, False
+    pours = [f for f in features if f[4]]
+    span = (min(f[0] for f in pours), max(f[1] for f in pours)) if pours else None
+    pts = sorted({p for f in features for p in (f[0], f[1])})
+    best, best_ext = None, False
+    for i in range(len(pts) - 1):
+        mid = 0.5 * (pts[i] + pts[i + 1])
+        if span and not (span[0] <= mid <= span[1]):         # outside the force-path span
+            continue
+        tot = ext = 0.0
+        for lo, hi, cs, ecs, _ in features:
+            if lo <= mid <= hi:
+                tot += cs
+                ext += ecs
+        if tot > 0 and (best is None or tot < best):
+            best, best_ext = tot, (ext >= 0.5 * tot)
+    if best is None:                                         # all zero-width (or empty span)
+        lo, hi, cs, ecs, _ = max(features, key=lambda f: f[2])
+        return cs, (cs > 0 and ecs >= 0.5 * cs)
+    return best, best_ext
+
+
+def _via_cluster_sizes(pts, thr=3.0):
+    """Single-linkage cluster of via positions (mm); returns the cluster size for each via.
+    Vias at ONE layer transition (a via pair / stitching field) are a parallel group the
+    net current splits across; the old nvias[net] divisor split across EVERY via on the
+    net, under-counting current per via on a multi-transition net (debt fix #2)."""
+    n = len(pts)
+    parent = list(range(n))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    for i in range(n):
+        for j in range(i + 1, n):
+            if abs(pts[i][0] - pts[j][0]) <= thr and abs(pts[i][1] - pts[j][1]) <= thr:
+                parent[find(i)] = find(j)
+    from collections import Counter
+    roots = [find(i) for i in range(n)]
+    cnt = Counter(roots)
+    return [cnt[roots[i]] for i in range(n)]
+
+
 def electrothermal_solve(board_path, cfg, *, ambient=None):
-    """Solve the analytic electrothermal model on a ROUTED board: per high-current net the parallel
-    copper cross-section (tracks + pours, the pour's perpendicular cut = area/path_len x thickness),
-    the Picard dT; per via the split current + barrel cross-section; per shunt the I^2R dissipation.
-    Returns a ThermalResult. (Approximations documented inline; this is the analytic first model.)"""
+    """Solve the analytic electrothermal model on a ROUTED board: per high-current net the
+    SERIAL MIN-CUT copper cross-section (the bottleneck cut perpendicular to current flow,
+    NOT the sum of every series segment + pour), the Picard dT; per via the per-transition-
+    cluster split current + barrel cross-section; per shunt the I^2R dissipation. Returns a
+    ThermalResult. (Approximations documented inline; this is the analytic first model.)"""
     import pcbnew
     b = pcbnew.LoadBoard(board_path)
     nets = {n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
@@ -2252,32 +2322,59 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
                 bb[0], bb[1] = min(bb[0], x), max(bb[1], x)
                 bb[2], bb[3] = min(bb[2], y), max(bb[3], y)
 
-    cross = defaultdict(float)            # net -> total parallel cross-section (mm^2)
+    # Per-net copper as flow-axis features for the SERIAL MIN-CUT. The old model summed
+    # every track segment + pour layer into one parallel cross -- but series copper adds
+    # RESISTANCE, not area, so the effective cross was inflated and dT read optimistic
+    # (~5x on the cable lanes; the AM-04 micro-board pins the 3-segment case at 1.044 sum
+    # vs 0.348 min-cut). Outer-layer membership is read by layer ID (rename-proof) and
+    # drives the IPC k per feature, not by whether the net happens to be poured.
+    OUTER = (pcbnew.F_Cu, pcbnew.B_Cu)
+    feat = defaultdict(list)              # net -> [(lo, hi, cross_mm2, ext_cross_mm2)]
     poured = set()
-    nvias = defaultdict(int)
+    via_pts = defaultdict(list)           # net -> [(x, y, drill_mm)]
+    flow = {n: (_flow_axis(pad_bb[n])[0] if n in pad_bb else 1) for n in cur}
     for t in b.GetTracks():
         net = t.GetNetname(); I = cur.get(net, 0.0)
         if I <= 0:
             continue
+        ax = flow.get(net, 1)
         if t.Type() == pcbnew.PCB_TRACE_T:
-            ext = b.GetLayerName(t.GetLayer()) in ("F.Cu", "B.Cu")
-            cross[net] += (t.GetWidth() / 1e6) * ((2 if ext else 1) * CU_OZ_MM)
+            ext = t.GetLayer() in OUTER
+            cs = (t.GetWidth() / 1e6) * ((2 if ext else 1) * CU_OZ_MM)
+            s, e = t.GetStart(), t.GetEnd()
+            a0 = (s.x if ax == 0 else s.y) / 1e6
+            a1 = (e.x if ax == 0 else e.y) / 1e6
+            feat[net].append((min(a0, a1), max(a0, a1), cs, cs if ext else 0.0, False))
         elif t.Type() == pcbnew.PCB_VIA_T:
-            nvias[net] += 1
+            p = t.GetPosition()
+            via_pts[net].append((p.x / 1e6, p.y / 1e6, t.GetDrillValue() / 1e6))
     for z in b.Zones():
         net = z.GetNetname(); I = cur.get(net, 0.0)
         if I <= 0:
             continue
         poured.add(net)
-        bb = pad_bb.get(net)
-        path = max(2.0, (bb[3] - bb[2])) if bb else 10.0     # perpendicular-cut path length
+        ax = flow.get(net, 1)
         for layer in z.GetLayerSet().Seq():
-            ext = b.GetLayerName(layer) in ("F.Cu", "B.Cu")
+            ext = layer in OUTER
             try:
-                area = z.GetFilledPolysList(layer).Area() / 1e12   # planar mm^2 (per layer)
+                poly = z.GetFilledPolysList(layer)
+                area = poly.Area() / 1e12                     # planar mm^2 (per layer)
             except Exception:
                 area = 0.0
-            cross[net] += (area / path) * ((2 if ext else 1) * CU_OZ_MM)
+            if area <= 0:
+                continue
+            bbp = poly.BBox()                                # pour extent ALONG the flow axis
+            lo = (bbp.GetLeft() if ax == 0 else bbp.GetTop()) / 1e6
+            hi = (bbp.GetRight() if ax == 0 else bbp.GetBottom()) / 1e6
+            span = max(hi - lo, 2.0)
+            cs = (area / span) * ((2 if ext else 1) * CU_OZ_MM)   # avg perpendicular cut
+            feat[net].append((lo, hi, cs, cs if ext else 0.0, True))
+
+    cross, cross_ext = {}, {}             # net -> serial min-cut (mm^2), bottleneck-is-outer
+    for net, fl in feat.items():
+        mc, ext = _min_cut(fl)
+        if mc > 0:
+            cross[net], cross_ext[net] = mc, ext
 
     net_res = {}
     max_T, max_dT = ambient, 0.0
@@ -2287,11 +2384,12 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
         c = cross[net]
         is_cable = _is_cable_net(net)
         I = _rms_current(I_peak, cfg, is_cable)              # thermal-effective (RMS-over-tau) current
-        dt = _picard_dt(I, c, ambient, external=(net in poured))
+        ext = cross_ext.get(net, net in poured)              # IPC k by the bottleneck's actual layer
+        dt = _picard_dt(I, c, ambient, external=ext)
         rec = {"I": round(I, 1), "cross_mm2": round(c, 4), "J": round(I / c, 1),
                "dT": round(dt, 1), "T": round(ambient + dt, 1), "poured": net in poured}
         if cfg.params.get("transient") and is_cable and I_peak > I + 0.05:
-            dt_peak = _picard_dt(I_peak, c, ambient, external=(net in poured))   # if peak were sustained
+            dt_peak = _picard_dt(I_peak, c, ambient, external=ext)   # if peak were sustained
             exc = _transient_excursion(dt_peak, cfg)
             rec.update({"I_peak": round(I_peak, 1), "J_peak": round(I_peak / c, 1),
                         "dT_transient": round(exc, 1), "T_peak": round(ambient + dt + exc, 1)})
@@ -2301,23 +2399,30 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
             max_T, max_dT = T_hot, dt + rec.get("dT_transient", 0.0)
 
     vias = []
-    for t in b.GetTracks():
-        if t.Type() != pcbnew.PCB_VIA_T:
-            continue
-        net = t.GetNetname(); I_peak = cur.get(net, 0.0)
+    for net, pts in via_pts.items():
+        I_peak = cur.get(net, 0.0)
         if I_peak <= 0:
             continue
         is_cable = _is_cable_net(net)
         I = _rms_current(I_peak, cfg, is_cable)
-        iv = I / max(1, nvias[net])                          # current splits among parallel vias
-        drill = t.GetDrillValue() / 1e6
-        cv = math.pi * drill * 0.025                         # plated barrel ~25um
-        dt = _picard_dt(iv, cv, ambient, external=True)
-        rec = {"net": net, "I_via": round(iv, 2), "drill_mm": round(drill, 3),
-               "J": round(iv / cv, 1) if cv else 0, "dT": round(dt, 1), "T": round(ambient + dt, 1)}
-        if cfg.params.get("transient") and is_cable and cv and I_peak > I + 0.05:
-            rec["J_peak"] = round((I_peak / max(1, nvias[net])) / cv, 1)   # peak J for fusing
-        vias.append(rec)
+        if net in poured:
+            # Vias stitching a poured net (GND plane, mirror-poured force lane) are PARALLEL
+            # paths of one plane-to-plane transition the plane copper already bridges -- the
+            # current spreads across all of them, it is not funneled through any single via.
+            sizes = [len(pts)] * len(pts)
+        else:
+            # A non-poured net's vias are discrete SERIES transitions; the full net current
+            # crosses each, split only among the vias co-located at that transition cluster.
+            sizes = _via_cluster_sizes([(x, y) for x, y, _ in pts])
+        for idx, (x, y, drill) in enumerate(pts):
+            iv = I / max(1, sizes[idx])                      # split among the vias at THIS transition
+            cv = math.pi * drill * 0.025                     # plated barrel ~25um
+            dt = _picard_dt(iv, cv, ambient, external=True)
+            rec = {"net": net, "I_via": round(iv, 2), "drill_mm": round(drill, 3),
+                   "J": round(iv / cv, 1) if cv else 0, "dT": round(dt, 1), "T": round(ambient + dt, 1)}
+            if cfg.params.get("transient") and is_cable and cv and I_peak > I + 0.05:
+                rec["J_peak"] = round((I_peak / max(1, sizes[idx])) / cv, 1)   # peak J for fusing
+            vias.append(rec)
     vias.sort(key=lambda v: -v["T"])
 
     shunts = []

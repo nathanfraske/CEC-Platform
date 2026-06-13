@@ -141,8 +141,10 @@ class T11BlockingWithTheMark(unittest.TestCase):
 @unittest.skipUnless(os.path.exists(MICRO), "micro-board fixture absent")
 class T8cCompositionAnchor(unittest.TestCase):
     """Ruling 8: the hand-derivable micro-board pins the COMPOSITION (where the
-    known debt lives). PR one pins CURRENT behavior; PR two moves these to the
-    DERIVATION.md corrected column. Container leg (needs pcbnew)."""
+    known debt lived). PR two (the debt fix: serial min-cut, per-cluster via
+    split, k-by-feature-layer) moves the anchor to the DERIVATION.md CORRECTED
+    column. The chart-point/Picard anchors above must NOT move -- the formula was
+    never the debt, the composition was. Container leg (needs pcbnew)."""
 
     def setUp(self):
         try:
@@ -150,18 +152,22 @@ class T8cCompositionAnchor(unittest.TestCase):
         except ImportError:
             self.skipTest("pcbnew absent (host) -- container leg")
 
-    def test_pinned_current_behavior(self):
+    def test_corrected_composition(self):
         cfg = S.Config(board="am04-microboard",
                        params={"net_currents": {"HC": 10.0}, "shunt_rth_CW": 25.0})
         res = S.electrothermal_solve(MICRO, cfg, ambient=25.0)
         hc = res.nets["HC"]
-        # the segment-sum debt, PINNED (3 x 0.348 serial sections summed):
-        self.assertAlmostEqual(hc["cross_mm2"], 1.044, delta=0.01)
-        self.assertAlmostEqual(hc["dT"], 4.8, delta=0.3)
+        # CORRECTED: the three 0.348 mm^2 F.Cu/B.Cu sections are in SERIES -> the
+        # serial min-cut governs (0.348), NOT the 1.044 segment-sum; and the
+        # bottleneck is on an OUTER layer (k external) so dT lands on the Picard
+        # anchor _picard_dt(10, 0.348, 25, True) = 6.12. (Was the pinned-debt
+        # 1.044 / 4.8 in PR one.)
+        self.assertAlmostEqual(hc["cross_mm2"], 0.348, delta=0.005)
+        self.assertAlmostEqual(hc["dT"], 6.12, delta=0.1)
         self.assertEqual(len(res.vias), 2)
         for v in res.vias:
-            self.assertAlmostEqual(v["I_via"], 5.0, delta=0.01)   # split correct
-            self.assertAlmostEqual(v["dT"], 175.3, delta=2.0)
+            self.assertAlmostEqual(v["I_via"], 5.0, delta=0.01)   # per-cluster split
+            self.assertAlmostEqual(v["dT"], 175.3, delta=2.0)     # via barrel anchor unchanged
         self.assertAlmostEqual(res.shunts[0]["P_W"], 0.05, delta=0.005)
         self.assertEqual(res.calibration, "uncalibrated")
 
