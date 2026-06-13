@@ -45,7 +45,7 @@ except ImportError:
 
 
 class Bench:
-    def __init__(self, port, baud, run_dir, analyze, module, analyzer):
+    def __init__(self, port, baud, run_dir, analyze, module, analyzer, show_teleplot, tp_addr):
         self.ser = serial.Serial(port, baud, timeout=0.2)
         self.run_dir = run_dir
         self.captures_dir = os.path.join(run_dir, "captures")
@@ -53,6 +53,12 @@ class Bench:
         self.analyze = analyze
         self.module = module
         self.analyzer = analyzer
+        self.show_teleplot = show_teleplot
+        self.tp_sock = None
+        self.tp_addr = tp_addr
+        if tp_addr:
+            import socket
+            self.tp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.last_rx = time.time()
         self._buf = None
         self._cap_n = 0
@@ -76,9 +82,18 @@ class Bench:
                 break
             if not raw:
                 continue
-            self.last_rx = time.time()
             line = raw.decode("utf-8", "replace").rstrip("\r\n")
             self.session_log.write(line + "\n")
+            if line.startswith(">"):              # teleplot: keep it OFF the terminal so you can
+                if self.tp_sock:                  #   type + read command output; forward/log it.
+                    try:
+                        self.tp_sock.sendto(line[1:].encode(), self.tp_addr)
+                    except Exception:
+                        pass
+                if self.show_teleplot:
+                    sys.stdout.write(line + "\n"); sys.stdout.flush()
+                continue                          # don't mark activity, don't treat as capture
+            self.last_rx = time.time()
             sys.stdout.write(line + "\n")
             sys.stdout.flush()
             if "===BURST_CSV_BEGIN===" in line:
@@ -141,6 +156,8 @@ class Bench:
             self.ser.close()
         except Exception:
             pass
+        if self.tp_sock:
+            self.tp_sock.close()
         self.session_log.close()
         self._man.close()
 
@@ -154,7 +171,18 @@ def main():
     ap.add_argument("--module", default="12vhpwr")
     ap.add_argument("--script", default=None, help="';'-separated commands to run first")
     ap.add_argument("--script-idle", type=float, default=1.5, help="quiet seconds = command done")
+    ap.add_argument("--show-teleplot", action="store_true",
+                    help="show the 5Hz teleplot '>' lines in the terminal (default: hidden so "
+                         "you can type and read command output)")
+    ap.add_argument("--teleplot-udp", default=None, metavar="HOST:PORT",
+                    help="forward teleplot to UDP (e.g. 127.0.0.1:47269) so Teleplot can graph "
+                         "live WHILE this owns the serial port")
     args = ap.parse_args()
+
+    tp_addr = None
+    if args.teleplot_udp:
+        h, _, p = args.teleplot_udp.partition(":")
+        tp_addr = (h or "127.0.0.1", int(p or "47269"))
 
     run_dir = args.run_dir or os.path.join(
         "runs", datetime.datetime.now().strftime("run-%Y%m%d-%H%M%S"))
@@ -165,13 +193,17 @@ def main():
         analyzer = None
 
     try:
-        b = Bench(args.port, args.baud, run_dir, args.analyze, args.module, analyzer)
+        b = Bench(args.port, args.baud, run_dir, args.analyze, args.module, analyzer,
+                  args.show_teleplot, tp_addr)
     except serial.SerialException as e:
         sys.exit(f"cec_bench: cannot open {args.port}: {e}")
 
     threading.Thread(target=b.reader, daemon=True).start()
     print(f"[bench] run dir: {run_dir}")
-    print("[bench] type device commands (frame/cal/rate/fastburst/autoburst/...), "
+    if tp_addr:
+        print(f"[bench] forwarding teleplot -> UDP {tp_addr[0]}:{tp_addr[1]} (point Teleplot there)")
+    print("[bench] teleplot '>' lines are HIDDEN here (use --show-teleplot to see them).")
+    print("[bench] type device commands + Enter (frame/cal/rate/fastburst/autoburst), "
           "'quit' to stop.\n")
     try:
         if args.script:
@@ -180,7 +212,7 @@ def main():
                 if cmd:
                     b.send(cmd)
                     b.wait_idle(idle_s=args.script_idle)
-            print("[bench] script done -- interactive (induce transients, run `autoburst`).")
+            print("[bench] script done -- interactive now (induce a load, run `autoburst`).")
         for line in sys.stdin:
             cmd = line.rstrip("\n").strip()
             if cmd in ("quit", "exit"):

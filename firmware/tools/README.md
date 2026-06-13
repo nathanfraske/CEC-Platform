@@ -75,11 +75,26 @@ Everything lands in `runs/run-<timestamp>/` — captures, the manifest doc, and
 ```
 python3 cec_bench.py --port PORT [--analyze] [--module 12vhpwr]
                      [--script "cal; rate; fastburst"] [--run-dir DIR]
+                     [--show-teleplot] [--teleplot-udp 127.0.0.1:47269]
 ```
-Owns the port (pyserial), mirrors the device output to your terminal, **and** in
+Owns the port (pyserial), shows device output + lets you type commands, **and** in
 the background splits each `===BURST_CSV===` block into `captures/`, appends to
-`manifest.md`, and (`--analyze`) runs the analyzer per capture. Type commands as
-you would in PuTTY; `quit` to stop.
+`manifest.md`, and (`--analyze`) runs the analyzer per capture. `quit` to stop.
+
+**The 5 Hz teleplot `>` lines are HIDDEN in the terminal by default** — they'd
+otherwise bury your typing and the command output (and break the `--script`
+step-detection). They still go to `session.log`. `--show-teleplot` un-hides them.
+
+**Live graphing + capture at the same time:** a serial port has exactly one owner,
+so you cannot run Teleplot *and* `cec_bench` on the same COM port. Two ways to get
+both:
+- **`--teleplot-udp 127.0.0.1:47269`** — `cec_bench` owns the port and re-broadcasts
+  the teleplot stream over UDP; point Teleplot's **UDP input** at that address and
+  it graphs live while `cec_bench` captures. (Works with the UDP-capable Teleplot;
+  the VS Code extension reading *serial* can't share the port this way.)
+- Or just run them **separately** — Teleplot for live monitoring, `cec_bench` for a
+  capture session. (During `autoburst`/`fastburst` the device pauses teleplot
+  anyway, so you're not losing much by not having both at once.)
 
 ## `cec_capture_analyze.py` — per-module analysis
 
