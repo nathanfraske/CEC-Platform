@@ -67,6 +67,18 @@ float proto_channel_phys(int ch, int16_t code)
     return (float)((code * PROTO_LSB_VOLTS - s_cal_offset_v[ch]) * c->scale);
 }
 
+/* Measured native sample rate (Hz). 0 = not yet measured -> fall back to the
+ * nominal PROTO_NATIVE_HZ. The `rate` command sets it; the burst/autoburst time
+ * axes use it so the FFT frequency scale is honest, not the nominal label. */
+static float s_measured_native_hz = 0.0f;
+
+void  proto_set_measured_native_hz(float hz) { if (hz > 1.0f) s_measured_native_hz = hz; }
+bool  proto_native_hz_measured(void)         { return s_measured_native_hz > 1.0f; }
+float proto_measured_native_hz(void)
+{
+    return (s_measured_native_hz > 1.0f) ? s_measured_native_hz : (float)PROTO_NATIVE_HZ;
+}
+
 const char *proto_kind_unit(proto_kind_t kind)
 {
     switch (kind) {

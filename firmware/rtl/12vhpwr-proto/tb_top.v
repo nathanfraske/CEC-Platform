@@ -85,6 +85,7 @@ module tb_top;
 
     // ---- ESP master stub: mode 0, ~2 MHz, MOSI held at a level (LIVE/BURST) ----
     reg [143:0] rx;
+    reg [31:0]  cnt1, cnt2;
     task esp_read;
         begin
             esp_cs_n = 1'b0;
@@ -249,8 +250,27 @@ module tb_top;
         esp_read_cmd(8'h55); check_stream_dropped;
         esp_mosi = 1'b0;
 
+        // ---- STATUS (free-running native-frame counter for the rate check) ----
+        esp_read_cmd(8'h33);                    // prime: cmd_reg <- 0x33
+        esp_read_cmd(8'h33);                    // status frame
+        if (rx[143:136] !== 8'h5C) begin
+            $display("FAIL: status header %02x (expected 5C)", rx[143:136]); errors = errors + 1;
+        end
+        cnt1 = rx[127:96];                      // frame_count: ch0<<16 | ch1
+        if (cnt1 === 32'd0) begin
+            $display("FAIL: status frame_count is 0 (no native frames counted)"); errors = errors + 1;
+        end
+        #1_000_000;                             // ~20 more native frames @ 20 kHz
+        esp_read_cmd(8'h33);                    // status frame again
+        cnt2 = rx[127:96];
+        if (!(cnt2 > cnt1)) begin
+            $display("FAIL: status counter did not advance (%0d -> %0d)", cnt1, cnt2);
+            errors = errors + 1;
+        end
+        esp_mosi = 1'b0;
+
         if (errors == 0)
-            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount (gap-free + starved)");
+            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter");
         else
             $display("FAILED with %0d errors", errors);
         $finish;

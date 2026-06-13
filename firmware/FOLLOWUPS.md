@@ -192,9 +192,22 @@ STILL OPEN (deliberately deferred — not in pieces 1+2):
   ~13 kHz on the LIVE path despite +25% link bandwidth) and to measure the real
   native rate + the `stream` dropcount under load.
 
-## Bench instruments: cal + auto-burst (12vhpwr proto, 2026-06-13)
+## Bench instruments: cal + auto-burst + rate (12vhpwr proto, 2026-06-13)
 
-ESP-only, no bitstream change (reflash only). Both build + gate green.
+cal + auto-burst are ESP-only (reflash only); `rate` adds a small FPGA counter
+(bitstream rebuild). All build + gate green.
+
+- **`rate [ms]`** -- measures the TRUE native sample rate. A free-running 32-bit
+  native-frame counter in top.v (increments every cap_stb, even when frozen) is
+  read via a new 0x33 STATUS mode (header 0x5C, count[31:16] in ch0 / [15:0] in
+  ch1; MSB=0 so it can't trip the 0xFF burst freeze). The ESP reads it twice over
+  a known interval -> the real rate. Fixes the ~2x error from the nominal label:
+  the conv+read FSM self-limits to ~100k at /4, not the 200k PROTO_NATIVE_HZ
+  nominal, so an FFT scaled to 200k is 2x high. fastburst + autoburst now stamp
+  proto_measured_native_hz() into the CSV header (marked measured/nominal); the
+  analyzer must use that, never the nominal. This is the seed for the
+  self-describing-capture header (module id + real rate + channel roles) that
+  the per-module analyzer + Concierge need.
 
 - **`cal [N]`** -- per-channel zero offset. Averages N no-load frames and sets
   each AMP channel's bias to its measured 0-A output (per-channel INA offset; the

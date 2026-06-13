@@ -155,11 +155,14 @@ static int cli_cmd_fastburst(int argc, char **argv)
         if (!buf[i].header_ok) badhdr++;
         if (i && buf[i].seq != (uint8_t)(buf[i - 1].seq + 1)) gaps++;
     }
-    const double us_per = 1.0e6 / (double)PROTO_NATIVE_HZ;
+    const double real_hz = proto_measured_native_hz();
+    const double us_per  = 1.0e6 / real_hz;
     printf("\n===BURST_CSV_BEGIN===\n");
-    printf("# fastburst: %d frames @ ~%d kHz native, %d seq-gaps, %d bad-hdr; "
-           "us = idx x %.2f us (nominal 1/%d kHz)\n",
-           got, PROTO_NATIVE_HZ / 1000, gaps, badhdr, us_per, PROTO_NATIVE_HZ / 1000);
+    printf("# fastburst: %d frames @ %.2f kSPS native %s, %d seq-gaps, %d bad-hdr; "
+           "us = idx x %.3f us\n",
+           got, real_hz / 1000.0,
+           proto_native_hz_measured() ? "(measured)" : "(NOMINAL -- run `rate`)",
+           gaps, badhdr, us_per);
     printf("us,seq");
     for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
         if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
@@ -364,13 +367,15 @@ static int cli_cmd_autoburst(int argc, char **argv)
             int gaps = 0;
             for (int i = 1; i < rgot; i++)
                 if (buf[i].seq != (uint8_t)(buf[i - 1].seq + 1)) gaps++;
-            const double us_per = 1.0e6 / (double)PROTO_NATIVE_HZ;
+            const double real_hz = proto_measured_native_hz();
+            const double us_per  = 1.0e6 / real_hz;
             printf("\n===BURST_CSV_BEGIN===\n");
             printf("# autoburst TRIGGER %d/%d: ch=%s dev=%d codes (~%.2f A); native ring "
-                   "%d frames, %d seq-gaps; us = idx x %.2f (transient is near the TAIL)\n",
+                   "%d frames @ %.2f kSPS %s, %d seq-gaps; us = idx x %.3f (transient near the TAIL)\n",
                    fired + 1, ntrig,
                    PROTO_CH_CAL[trig_ch].label ? PROTO_CH_CAL[trig_ch].label : "?",
-                   (int)trig_dev, trig_dev / codes_per_A, rgot, gaps, us_per);
+                   (int)trig_dev, trig_dev / codes_per_A, rgot, real_hz / 1000.0,
+                   proto_native_hz_measured() ? "(measured)" : "(nominal)", gaps, us_per);
             printf("us,seq");
             for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
                 if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
@@ -399,6 +404,44 @@ static int cli_cmd_autoburst(int argc, char **argv)
     return 0;
 }
 
+/* Measure the TRUE native sample rate: read the FPGA's free-running native-frame
+ * counter (status mode, header 0x5C) twice over a known interval. The conv+read
+ * FSM self-limits below the nominal pacer, so the burst/FFT time axis must use
+ * THIS, not the nominal label -- a 2x error otherwise. Stores it for the
+ * burst/autoburst dumps. Usage: `rate [ms]` (default 250). */
+static int cli_cmd_rate(int argc, char **argv)
+{
+    int ms = (argc >= 2) ? atoi(argv[1]) : 250;
+    if (ms < 50)   ms = 50;
+    if (ms > 5000) ms = 5000;
+
+    cec_fpga_frame_t f;
+    cec_fpga_link_read_status(&f);              /* select status mode (discard) */
+    if (cec_fpga_link_read_status(&f) != ESP_OK || f.header != 0x5C) {
+        printf("rate: no status frame (hdr 0x%02x) -- old bitstream? rebuild the FPGA\n",
+               f.header);
+        return 1;
+    }
+    uint32_t c1 = ((uint32_t)(uint16_t)f.code[0] << 16) | (uint16_t)f.code[1];
+    int64_t  t1 = esp_timer_get_time();
+    vTaskDelay(pdMS_TO_TICKS(ms));
+    if (cec_fpga_link_read_status(&f) != ESP_OK) { printf("rate: read failed\n"); return 1; }
+    uint32_t c2 = ((uint32_t)(uint16_t)f.code[0] << 16) | (uint16_t)f.code[1];
+    int64_t  t2 = esp_timer_get_time();
+
+    uint32_t dframes = c2 - c1;                 /* unsigned -> wrap-safe */
+    double   dt_s    = (t2 - t1) / 1.0e6;
+    if (dt_s <= 0.0 || dframes == 0) {
+        printf("rate: no frames counted (FPGA not pacing?)\n"); return 1;
+    }
+    double hz = dframes / dt_s;
+    proto_set_measured_native_hz((float)hz);
+    printf("rate: %u native frames in %.3f s = %.0f Hz (%.2f kSPS) [nominal %d kSPS] "
+           "-- burst/autoburst now use the measured rate\n",
+           (unsigned)dframes, dt_s, hz, hz / 1000.0, PROTO_NATIVE_HZ / 1000);
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "frame",     "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
     { "burst",     "ESP-paced capture [N] frames to RAM, dump CSV (~12 kHz)", cli_cmd_burst },
@@ -406,6 +449,7 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
     { "stream",    "continuous decimated FIFO drain [N] (~25 kSPS, dropcount)", cli_cmd_stream },
     { "cal",       "zero-cal current-sense offsets at no load [N avg]", cli_cmd_cal },
     { "autoburst", "auto-dump native ring on a transient <thresh_codes> [ntrig]", cli_cmd_autoburst },
+    { "rate",      "measure the true native sample rate [ms avg]", cli_cmd_rate },
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE

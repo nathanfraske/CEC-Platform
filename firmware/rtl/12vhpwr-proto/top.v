@@ -26,6 +26,11 @@
 //                  and the header is 0x5A instead of 0xA5 on an underrun read
 //                  (FIFO momentarily empty = ESP too fast) -- so a stall is a
 //                  NUMBER in the record, never silently missing time.
+//   0x33 STATUS -> returns a free-running native-frame counter (header 0x5C,
+//                  count[31:16] in ch0, count[15:0] in ch1). The ESP reads it
+//                  twice over a known wall-time to MEASURE the true native rate
+//                  (the conv+read FSM self-limits below the nominal pace) so the
+//                  burst time/FFT axis is honest, not the nominal label.
 // Pin map: rtl/12vhpwr-proto/12vhpwr-proto.cst (dock 2x20 GPIO field, doc section 9).
 // License: Apache-2.0 (CEC-Platform)
 // ----------------------------------------------------------------------------
@@ -218,6 +223,7 @@ module top #(
         end
     end
     wire stream_sel = (cmd_reg == 8'h55);
+    wire status_sel = (cmd_reg == 8'h33);   // MSB=0 -> never trips the 0xFF burst freeze
 
     // ---- piece 1: boxcar decimator (native frames -> ~25 kSPS) --------------
     wire         decim_stb;
@@ -241,6 +247,7 @@ module top #(
     reg [AW-1:0] rd_ptr  = {AW{1'b0}};
     reg [143:0]  rd_data = 144'd0;
     reg [23:0]   wdog    = 24'd0;
+    reg [31:0]   frame_count = 32'd0;   // free-running native frames (STATUS rate)
 
     always @(posedge clk50) begin
         mosi_s  <= {mosi_s[0], esp_mosi};
@@ -249,7 +256,9 @@ module top #(
         if (rst) begin
             wr_ptr <= {AW{1'b0}}; cap_seq <= 8'd0;
             frozen <= 1'b0; rd_ptr <= {AW{1'b0}}; wdog <= 24'd0;
+            frame_count <= 32'd0;
         end else begin
+            if (cap_stb) frame_count <= frame_count + 1'b1;  // EVERY native frame (even frozen)
             if (cap_stb && !frozen) begin
                 cap_buf[wr_ptr] <= {8'hA5, cap_seq, shA, shB};
                 wr_ptr  <= wr_ptr  + 1'b1;
@@ -315,14 +324,19 @@ module top #(
 
     // ---- ESP link: 18-byte payload = header, seq/drop, eight channels -------
     //   frozen        -> BURST ring frame {0xA5, ring-seq, V1..V8}
+    //   status_sel    -> STATUS frame {0x5C, 0, frame_count[31:16], [15:0], 0...}
     //   stream_sel    -> STREAM frame {hdr, dropcount, decimated V1..V8}
     //   otherwise     -> LIVE latest frame {0xA5, seq, V1..V8}
     wire [143:0] live_frame   = {8'hA5, seq,  frame};
     wire [143:0] stream_frame = {shdr,  sdrop, sr_data};
+    wire [143:0] status_frame = {8'h5C, 8'h00, frame_count[31:16], frame_count[15:0], 96'd0};
     cec_spi_slave #(.FRAME_BITS(144)) u_esp (
         .clk        (clk50),
         .rst        (rst),
-        .frame      (frozen ? rd_data : (stream_sel ? stream_frame : live_frame)),
+        .frame      (frozen      ? rd_data
+                   : status_sel  ? status_frame
+                   : stream_sel  ? stream_frame
+                   :               live_frame),
         .sclk       (esp_sclk),
         .cs_n       (esp_cs_n),
         .miso       (esp_miso),

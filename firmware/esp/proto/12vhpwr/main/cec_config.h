@@ -135,6 +135,17 @@ void  proto_cal_set_offset_v(int ch, float offset_v);
 float proto_cal_get_offset_v(int ch);
 
 /*
+ * Measured native sample rate. The `rate` command reads the FPGA status counter
+ * twice over a known interval and stores the result here; the burst/autoburst
+ * time axes use proto_measured_native_hz() so the FFT frequency scale is the
+ * REAL rate (the conv+read FSM self-limits below the nominal pacer), not the
+ * PROTO_NATIVE_HZ label. Returns the nominal until `rate` has run.
+ */
+void  proto_set_measured_native_hz(float hz);
+bool  proto_native_hz_measured(void);
+float proto_measured_native_hz(void);
+
+/*
  * Fill a link config from the constants above.
  */
 void cec_config_fpga_link(cec_fpga_link_config_t *out);

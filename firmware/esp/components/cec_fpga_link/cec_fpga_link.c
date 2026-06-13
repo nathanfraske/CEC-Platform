@@ -80,11 +80,12 @@ bool cec_fpga_link_poll(void)
 
 /* The MOSI fill byte selects the fabric's read path: 0x00 = live latest frame,
  * 0xFF = buffered burst (native-rate ring), 0x55 = continuous decimated stream
- * (the free-running FIFO). The fabric latches the source at CS-fall, so a mode
- * takes effect on the transaction AFTER the one carrying its command byte: send
- * the command once, discard one frame, then read. polling_transmit busy-waits
- * the hardware instead of queueing + blocking on an ISR semaphore -- a few us
- * instead of ~64 us per 18-byte frame. */
+ * (the free-running FIFO), 0x33 = status (free-running native-frame counter,
+ * header 0x5C, count[31:16] in code[0] / [15:0] in code[1]). The fabric latches
+ * the source at CS-fall, so a mode takes effect on the transaction AFTER the one
+ * carrying its command byte: send the command once, discard one frame, then
+ * read. polling_transmit busy-waits the hardware instead of queueing + blocking
+ * on an ISR semaphore -- a few us instead of ~64 us per 18-byte frame. */
 static esp_err_t read_tx(cec_fpga_frame_t *out, uint8_t mosi_fill)
 {
     if (s_spi == NULL)  return ESP_ERR_INVALID_STATE;
@@ -126,4 +127,9 @@ esp_err_t cec_fpga_link_read_buffered(cec_fpga_frame_t *out)
 esp_err_t cec_fpga_link_read_stream(cec_fpga_frame_t *out)
 {
     return read_tx(out, 0x55);
+}
+
+esp_err_t cec_fpga_link_read_status(cec_fpga_frame_t *out)
+{
+    return read_tx(out, 0x33);
 }

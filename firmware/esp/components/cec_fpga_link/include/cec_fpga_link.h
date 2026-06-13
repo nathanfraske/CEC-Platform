@@ -88,6 +88,16 @@ esp_err_t cec_fpga_link_read_buffered(cec_fpga_frame_t *out);
  */
 esp_err_t cec_fpga_link_read_stream(cec_fpga_frame_t *out);
 
+/*
+ * Drives MOSI = 0x33: the fabric returns a STATUS frame -- header 0x5C, a
+ * free-running native-frame counter packed as count[31:16] in code[0] and
+ * count[15:0] in code[1] (the rest zero). Read it twice over a known wall-time
+ * and (count2 - count1) / dt is the TRUE native sample rate (the conv+read FSM
+ * self-limits below the nominal pacer), so the burst/FFT time axis is measured,
+ * not the nominal label. Send one read to select the mode (discard it), then read.
+ */
+esp_err_t cec_fpga_link_read_status(cec_fpga_frame_t *out);
+
 #ifdef __cplusplus
 }
 #endif
