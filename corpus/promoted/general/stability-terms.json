@@ -1,0 +1,283 @@
+[
+ {
+  "id": "stab.ref3030_drift",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "REF3030",
+    "voltage-reference"
+   ],
+   "families": [
+    "12vhpwr-standard"
+   ]
+  },
+  "value": {
+   "long_term_drift_ppm_0_1000h": 24,
+   "long_term_drift_ppm_1000_2000h": 15,
+   "long_term_drift_grade": "typ",
+   "tempco_ppm_per_C_max_0_70C": 50,
+   "tempco_ppm_per_C_max_full_range": 75,
+   "tempco_note": "RANGE-dependent (0-70C vs -40..+125C), resolving the earlier 50-vs-75 grade question"
+  },
+  "units": "ppm",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "TI REF30xx datasheet (SBVS032I per the dive; vendored lib/datasheets/REF30E-REF30.pdf -- verify table identity between doc revisions at promotion). Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md stability-term table",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "Stability-budget input (the dV/dI capability side). 24 ppm long-term = ~72 uV on the 3 V reference -- NEGLIGIBLE against the shunt aging term (the dive's crux). ALSO RESOLVES the meas.anchor.ref3030_initial_accuracy promotion-gate question: the 50-vs-75 ppm tempco discrepancy is TEMPERATURE-RANGE-dependent (50 max over 0-70C, 75 max over the full industrial range), not grade-dependent -- both numbers are real. WHICH GOVERNS = U4's LOCAL temperature at the design point (owner rider 2026-06-10). PLACEMENT CHECK DONE 2026-06-10 (not assumed; verbatim PCB read): U4 sits at (149.38, 105.75) on the 12vhpwr-standard PCB, 25.5 mm from the nearest shunt (RS6 at 146.88, 80.35), control side -- under STATED accuracy conditions (50C design ambient, balanced load; lane rise +14C decays well below that at 25 mm) U4's local T plausibly stays <70C, which would let 50 ppm govern; CONSERVATIVE POSTURE: the accuracy budget gates on the 75 ppm full-range figure until the in-case-ambient measurement (cluster-1 OQ) or a local FEM/thermocouple check at U4's coordinates confirms <70C. Sustained-hog states push the LANES past 70C but are alarm states outside stated accuracy conditions. Long-term figures are TYP (not max) -- carried as typ, never promoted into a worst-case promise without the qualifier.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "stab.ina240_precision_terms",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "INA240",
+    "current-sense-amplifier"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "offset_uV_max": 25,
+   "gain_error_pct_max": 0.2,
+   "gain_drift_ppm_per_C_max": 2.5
+  },
+  "units": "uV, percent, ppm/C",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "TI INA240 datasheet SBOS662 (offset +/-25 uV max; gain error 0.20% max; gain drift 2.5 ppm/C max). Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md stability-term table",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "Stability-budget input. At a 1 mOhm shunt the 25 uV offset maps to 25 mA-equivalent -- a FIXED term that differential lane-vs-lane trending cancels; gain drift 2.5 ppm/C is negligible against shunt TCR. These are also accuracy-budget inputs for the cluster-5 current placeholders (the spec's 'INA240 gain error ~0.2%' line now carries its datasheet pin).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "stab.shunt_loadlife_bourns_css",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "shunt",
+    "CSS2H",
+    "CSS",
+    "CSM"
+   ],
+   "families": [
+    "module"
+   ]
+  },
+  "value": {
+   "load_life_dRR_pct_max": 1.0,
+   "load_life_duration_h": 21000,
+   "load_life_conditions": "rated power, 130C",
+   "tcr_ppm_per_C": 50
+  },
+  "units": "percent, h, ppm/C",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Bourns Application Note N1702 (CSS/CSM metal-element line: dR/R <= 1% for 21,000 h at rated power, 130C; TCR 50 ppm/C). Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md stability-term table",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "Stability-budget input -- the FAVORED shunt family for the dV/dI duty (dvdi.requirement_tier_verdict deciding variable): pure-ratio load-life over 21x the Vishay test duration, no additive low-ohm term, 50 ppm/C. The platform's locked 24-pin parts are already CSS2H (spec section 6.4) and the 12VHPWR candidate is CSS2H-class (OQ-11; R-vs-K suffix flag stands). FORMAT CAVEAT (rides the budget task): Bourns states pure dR/R% over 21,000 h vs Vishay's %+additive over 1,000 h -- normalize before direct comparison.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "stab.shunt_loadlife_tcr_vishay_wsl",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "shunt",
+    "WSL",
+    "WSK"
+   ],
+   "families": [
+    "module"
+   ]
+  },
+  "value": {
+   "load_life": "+/-(1.0% + 0.0005 Ohm) after 1000 h at rated power, 70C",
+   "load_life_duration_h": 1000,
+   "load_life_additive_mohm": 0.5,
+   "bias_humidity": "+/-(0.5% + 0.5 mOhm)",
+   "tcr_component_ppm_per_C": {
+    "7_to_500_mohm": 75,
+    "1_to_2p9_mohm": 275,
+    "0p5_to_0p99_mohm": 400
+   },
+   "tcr_element_ppm_per_C_max": 20
+  },
+  "units": "percent+mOhm, ppm/C",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Vishay document 30100 (WSL metal-strip: load-life +/-(1.0%+0.0005 Ohm)/1000 h at 70C; bias-humidity +/-(0.5%+0.5 mOhm); component TCR incl. copper terminals +/-75 ppm/C at 7-500 mOhm, +/-275 at 1-2.9 mOhm, +/-400 at 0.5-0.99 mOhm; element alone <20 ppm/C). Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md stability-term table; datasheet vendored lib/datasheets/WSL-30100.pdf (load-life line verified verbatim: 'Load life 1000 h at rated power, +70C, 1.5h ON, 0.5h OFF +/-(1.0% + 0.0005 Ohm)')",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "Stability-budget input -- THE CRUX TERM: a WSL-class 1 mOhm shunt carries a ~0.5 mOhm/1000 h load-life ADDITIVE, the SAME ORDER as the 1 mOhm dV/dI signal to be resolved over weeks (NB: 0.5 mOhm is the FULL 1000-h test-endpoint figure; a 2-week trend window sees some fraction of it, and aging is NOT necessarily linear -- the in-situ multi-week benchmark OQ measures the real rate, which is exactly why it gates the Standard verdict), plus copper-terminal-dominated TCR (+/-275 ppm/C at the 1 mOhm class; TIER-BOUNDARY: CONFIRMED AT THE DATASHEET 2026-06-10 per the owner's 'confirm is the right verb' -- the Vishay 30100 TCR table binds tiers by NOMINAL resistance-value ranges ('+/-75 for 7 mOhm to 500 mOhm ... +/-400 for 0.5 mOhm to 0.99 mOhm', vendored lib/datasheets/WSL-30100.pdf) and tolerance is an orthogonal ordering code (D/F/J), so a NOMINAL 1 mOhm part stays in the 275 tier regardless of tolerance -- the boundary concern is moot; the full table also carries intermediate +/-110 and +/-150 tiers the dive's three-tier summary skipped; TRANSPARENCY: the 275 tier's 2.9 mOhm UPPER bound is inferred from adjacency to the ~3 mOhm lower bound of the 150 tier, not directly quoted from the primary table row) -- this is why the shunt BOM choice decides the Standard dV/dI verdict (dvdi.requirement_tier_verdict). NOTE the platform's 5VSB shunt is WSK2512 (25 mOhm, the 75 ppm band) -- fine for its rail; the low-ohm WSL tiers are what the dV/dI lanes must avoid. FORMAT CAVEAT (rides the budget task): %+additive over 1,000 h vs Bourns pure-% over 21,000 h -- normalize before comparison.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "bom.dvdi_shunt_loadlife_constraint",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "shunt"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro",
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port",
+    "module"
+   ]
+  },
+  "value": {
+   "constraint": "CSS-class load-life specification OR BETTER is a HARD BOM constraint on every dV/dI lane shunt",
+   "permanence": "PERMANENT",
+   "reference_spec": "Bourns CSS/CSM class: dR/R <= 1% / 21,000 h at rated power, 130C (stab.shunt_loadlife_bourns_css); 'or better' = equal-or-tighter pure-ratio load-life with no low-ohm additive term"
+  },
+  "units": "constraint",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ratification 2026-06-10, IN THE OWNER'S WORDS: 'the platform is quality-positioned and cost-down substitution is explicitly out of scope, so the constraint encodes product identity, never just margin math.' Evidence riding: the stability budget's 23x worst-case clearance for CSS-class vs the WSL-class outright failure (docs/research/stability-budget-dvdi-2026-06-10.md)",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_stability_budget.py",
+  "notes": "HARD + PERMANENT (owner-ratified): no cost-down substitution onto a dV/dI lane, ever -- the constraint encodes PRODUCT IDENTITY. Partially closes the queued shunt BOM decision: the FAMILY CLASS is locked; the specific parts remain OQ-11 (which now selects WITHIN the CSS-class-or-better set; the CSS2H R-vs-K suffix flag still resolves there). The 5VSB WSK2512 is unaffected (not a dV/dI lane). FUTURE checker_binding path: a bom-field-lint rule asserting CSS-class-or-better load-life on every dV/dI lane shunt BOM line -- at which point the D1 re-engagement clause applies and this entry takes the incident-board fixture.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "bench.shunt_drift_protocol",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "atx-24pin-rev2"
+   ],
+   "part_classes": [
+    "shunt",
+    "INA228"
+   ]
+  },
+  "value": {
+   "protocol_doc": "docs/protocols/shunt-drift-benchmark-2026-06-10.md",
+   "cl13_label": "(atx-24pin, lane-impedance-drift)",
+   "host": "atx-24pin-rev2 (CSS2H 2mOhm x3 + WSK 25mOhm, INA228 w/ die-temp per rail)",
+   "clock": "starts at FIRST BRING-UP",
+   "profile": "load-step cycling; temperature logged alongside impedance so TCR separates from aging",
+   "settlement": "the dvdi.requirement_tier_verdict validity gates: <0.3 mOhm temperature-compensated multi-week drift -> Standard dV/dI promotes to full; >0.7 mOhm -> Pro-only",
+   "cadence": "per the protocol doc (continuous >=hourly sampling, weekly checkpoints, minimum 4-week window)"
+  },
+  "units": "protocol",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ratification 2026-06-10: host/clock/profile/temp-logging/CL-13-framing/settlement ratified; checkpoint cadence delegated to the protocol doc. Framed as a CL-13 labeling protocol with the 0.3/0.7 mOhm gates as the settlement criteria",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_stability_budget.py",
+  "notes": "THE bench item that settles the Standard dV/dI verdict; its clock runs in WEEKS -- start at rev2 first bring-up (the dependency). Feasible on the EMPTY bench by design: lane-impedance DRIFT is a relative, board-self-referenced quantity (the carve-out in meas.bench.empty_instrument_state) -- no absolute instrument required. Transfer caveat carried in the protocol doc: the 24-pin label transfers to the dV/dI verdict via the CSS-family class (bom.dvdi_shunt_loadlife_constraint), not raw equivalence.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ }
+]

@@ -1,0 +1,732 @@
+[
+ {
+  "id": "atx3.psu_excursion_tables",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "psu_over_450w_with_12v2x6": [
+    {
+     "excursion_pct": 200,
+     "duration": "100us",
+     "test_duty_pct": 5
+    },
+    {
+     "excursion_pct": 180,
+     "duration": "1ms",
+     "test_duty_pct": 8
+    },
+    {
+     "excursion_pct": 160,
+     "duration": "10ms",
+     "test_duty_pct": 12.5
+    },
+    {
+     "excursion_pct": 120,
+     "duration": "100ms",
+     "test_duty_pct": 25
+    },
+    {
+     "excursion_pct": 100,
+     "duration": "infinite"
+    }
+   ],
+   "psu_under_450w_or_no_12v2x6": [
+    150,
+    145,
+    135,
+    110,
+    100
+   ],
+   "worked_example_1000w": "100us@2000W/1900us@917.7W; 1ms@1800W/11.5ms@897.3W; 10ms@1600W/70ms@881.6W; 100ms@1200W/300ms@923.8W (Table 3-4)"
+  },
+  "units": "percent vs duration",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "Intel ATX 3.0 Multi-Rail Desktop Platform PSU Design Guide, document 336521, rev 2.1 (2023-09-13, classification Public), Tables 3-3/3-4. Derivation context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md thread one. PUBLIC GUIDE -- no verify note needed (owner ruling)",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "The PSU-level transient envelope the platform observes. SOURCE CONFLICT RECORDED (owner slate, conservative side taken): Intel rev 2.1 GOVERNS with 5/8/12.5/25 percent test duty across the four tiers; the widely quoted '10% duty at 200%/100us' (Tom's Hardware, Hardware Busters) traces to superseded draft material -- treat 10% as superseded. Both PSU columns carried per the owner's enumeration.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "atx3.aic_excursion_curve",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "R_below_100us": 3.0,
+   "R_formula_100us_to_1s": "R = 4 - 0.2171*ln(T_us)",
+   "points": [
+    {
+     "T": "1ms",
+     "R": 2.5
+    },
+    {
+     "T": "10ms",
+     "R": 2.0
+    },
+    {
+     "T": "1s",
+     "R": 1.0
+    }
+   ],
+   "definition": "R = ratio of average power in interval T to max sustained power, at the add-in-card"
+  },
+  "units": "ratio vs duration",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "Intel ATX 3.0 PSU Design Guide 336521 rev 2.1 (Public), Table 3-1; derived from PCIe CEM Gen 5 ECN 'Power Excursion Limits for 300W-600W PCIe AICs' (Doc# 16495) -- NOTE the underlying CEM ECN is PAYWALLED; the public Intel guide is the citable authority. Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "The add-in-card excursion curve -- THE transient the platform hunts, bounded publicly: up to 3x sustained for <=100us, ~2.5x at 1ms, ~2x at 10ms, 1x at 1s. The curve is continuous at the 100us boundary (4 - 0.2171*ln(100) ~= 3.00 to four significant figures; the published coefficient is rounded). Spike magnitude falls monotonically with duration -- exactly the shape the measured RTX 5090 distribution follows (evidence.gpu_transient_measured).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.12vhpwr_pin_ratings",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "12vhpwr_A_per_pin": 9.2,
+   "12vhpwr_condition": "30C T-rise, all 12 contacts energized (H+)",
+   "12v2x6_A_per_pin": 9.5,
+   "12v2x6_condition": "12 power + 4 signal pins energized (H++, Minitek Pwr CEM-5)",
+   "assembly_ceiling_A_rms": 55,
+   "cem_warning": "due to variations in contact resistance, a single pin may see more than 9.2 A"
+  },
+  "units": "A",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Amphenol GS-12-1031 (12VHPWR 9.2 A/pin, 30C rise) + GS-12-1706 (12V-2x6 9.5 A/pin); Molex PCIe-CEM-5 spec; Intel ATX 3.0 guide 336521 rev 2.1. VERIFY NOTE (owner): the CEM-EXACT language for these ratings lives in the paywalled PCIe CEM 5.0/5.1 -- verify exact wording against the CEM when acquired. Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "The per-pin and assembly ratings the alarm thresholds derive from (alarm.12vhpwr_per_pin). Healthy balanced loading at 600 W is ~8.3 A/pin -- inside rating with thin margin. The CEM's own single-pin warning is the spec-side acknowledgment of the hog-pin failure mode. Consistent with the platform's locked 9.2A/30C-rise facts (spec section 2.8/6.11 line); this entry adds the 9.5 A 12V-2x6 distinction + the 55 A assembly ceiling as pinned facts.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.llcr_cable_assembly",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "llcr_max_mohm_per_conductor": 6,
+   "conditions": "measured footprint-to-50mm, after 30 mating cycles + 20 N side load"
+  },
+  "units": "mOhm",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "DERIVATION-CLASS via secondary coverage: igor'sLAB CEM 5.1 coverage of the 12V-2x6 cable-assembly LLCR limit; the authoritative source is the PAYWALLED PCIe CEM 5.1 -- VERIFY against the spec when acquired (owner ruling: derivation-class with verify note). Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md thread two",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "The cable-assembly resistance limit WITH its measurement conditions (the conditions are what make the number usable -- a bare 6 mOhm without the 30-cycle + side-load protocol is a different claim). Typed H/derivation-class because the citable source is secondary coverage, not the paywalled CEM itself; upgrades to Class A at CEM 5.1 acquisition. Sits far above the Malucci per-contact onset (~3-4 mOhm rise, conn.malucci_runaway_onset) -- the assembly limit and the contact-runaway threshold are different quantities.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.malucci_runaway_onset",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6",
+    "tin-plated-power-contact"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "onset_contact_drop_change_V": [
+    0.01,
+    0.03
+   ],
+   "onset_statistical_avg_V": 0.028,
+   "onset_at_9A_V": 0.0322,
+   "onset_resistance_rise_mohm_at_9p2A": 3.5,
+   "healthy_baseline_mohm": 0.8,
+   "tin_melting_voltage_V": 0.143,
+   "nature": "STATISTICAL -- 'one cannot in general predict the outcome of an individual contact'"
+  },
+  "units": "V, mOhm",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "standard",
+   "ref": "Malucci & Ruffino, 'Current Rating Power Connectors Using Voltage Drop Criteria' (Molex white paper, content.molex.com, PUBLIC); tests at 17/20 A on 8-contact tin-plated connectors; healthy Ro ~0.8 mOhm (Rms ~0.3); Amphenol GS-12-1031 initial high-power contact resistance <=0.8 mOhm. Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md thread two",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "THE KEY DEGRADATION NUMBER: thermal-runaway onset when contact voltage drop rises 10-30 mV (32 mV at the 9 A class = ~3.5 mOhm above the ~0.8 mOhm healthy baseline); runaway then proceeds to tin's 0.143 V melting voltage. The threshold's EXPLICITLY STATISTICAL nature is the documented argument for TREND-AND-IMBALANCE detection over any fixed limit (owner slate) -- it grounds both the alarm imbalance trigger (alarm.12vhpwr_per_pin) and the dV/dI requirement (dvdi.requirement_tier_verdict, ~3x margin at 1 mOhm resolution). DERIVATION OPACITY (2026-06-10 panel): the Malucci tests ran at 17/20 A (~2x the 7-9 A rating); the 0.0322 V figure for the 9 A class is the PAPER'S extrapolation whose formula the research doc does not reproduce -- distinguish it from the directly-averaged 0.028 V statistical onset; verify the extrapolation against the white paper at promotion (the 3.5 mOhm conversion and the dV/dI ~3x margin are load-bearing on it).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.mating_cycle_life",
+  "class": "A",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6",
+    "Micro-Fit",
+    "Mini-Fit"
+   ],
+   "families": [
+    "module"
+   ]
+  },
+  "value": 30,
+  "units": "mating cycles (typical)",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "datasheet",
+   "ref": "Molex Micro-Fit 3.0 family ('typically 30 cycles'); corroborated by Corsair and Seasonic 12VHPWR guidance. Mechanism: fretting corrosion dominates tin-plated power contacts (Samtec 'The Pain of Fretting Corrosion'; connectorsupplier.com) -- micro-motion fractures brittle tin oxide, fresh metal re-oxidizes, resistance rises, I2R heats, positive feedback. Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "The pinned cycle-life fact + the fretting mechanism. Field timeline context: documented melting cases run weeks-to-months between install and failure. The inspection-paradox CLAUSE rides as its own H entry (conn.inspection_paradox) citing this fact -- class purity: the pinned number is A, the operational inference is H.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.inspection_paradox",
+  "class": "H",
+  "kind": "heuristic",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6",
+    "Mini-Fit",
+    "Micro-Fit"
+   ],
+   "families": [
+    "module"
+   ]
+  },
+  "value": null,
+  "units": null,
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner slate 2026-06-10, riding the pinned conn.mating_cycle_life fact (~30 cycles) + the fretting mechanism: re-seating a connector to INSPECT it consumes mating-cycle life and accelerates the fretting wear being inspected for. Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": null,
+  "notes": "THE INSPECTION PARADOX: physical inspection of a melt-prone connector is itself a wear event (~30-cycle life, fretting accelerated by re-seating; one documented case was 'inspected every 3 months' and melted anyway). This is the product argument for ELECTRICAL trend monitoring (dV/dI + imbalance) over physical inspection regimes -- CEC watches the connector without touching it. Fixture-less H per ruling D1 (operational inference, no mechanism).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "evidence.gpu_transient_measured",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "rtx5090_duration_resolved_W": {
+    "under_1ms": 901.1,
+    "1_to_5ms": 823.6,
+    "5_to_10ms": 738.2,
+    "10_to_20ms": 627.5,
+    "tgp_W": 575,
+    "sub_1ms_ratio": 1.57
+   },
+   "rtx3090ti_spike_ratio_100us": 1.2,
+   "rtx3090ti_significance": "first card designed to the excursion spec -- ratio collapsed from ~1.625-1.875 (3080/3090 era) to 1.2: DIRECT evidence spec-designed cards tame transients",
+   "der8auer_failing_cable_A_per_wire": [
+    2,
+    5,
+    11,
+    8,
+    3,
+    22
+   ],
+   "der8auer_hog_wire_is_floor": true,
+   "der8auer_hog_note": "the source reads '>22 A' -- the current clamp was at its ceiling, the true hog current is UNKNOWN and >=22 A; every downstream ratio derived from 22 is a LOWER BOUND",
+   "der8auer_temps": "GPU-side socket 90C; PSU-side >140C, spiking past 150C in ~4 minutes; hog wire ~half the load",
+   "falcon_northwest": "could NOT reproduce the imbalance across many RTX 5090 FE samples (balanced 6-8 A band) -- the imbalance is real but NOT universal; correlates with cable mating history and seating"
+  },
+  "units": "W, A",
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner slate 2026-06-10: the measured-evidence slice types as CITED EVIDENCE INSIDE DECISION ENTRIES, never standalone authority -- third-party measurements (igor'sLAB 10us-step FurMark capture; TechPowerUp duration table; der8auer current-clamp teardown; Falcon Northwest survey) are neither spec nor our bench. Vendored derivation: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md thread one",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "NEVER STANDALONE AUTHORITY (owner clause): this slice exists as analyst/judge context cited by the decision entries (alarm.12vhpwr_per_pin, capture.10khz_disposition) -- it is exactly the context that prevents the next confabulation about what GPU transients look like. Key shapes: spike magnitude falls monotonically with duration (matching atx3.aic_excursion_curve); the measured failure is per-pin IMBALANCE (22 A on one wire at spec-balanced totals), not total over-power; non-reproduction (Falcon Northwest) is part of the evidence -- the fault is seating/history-correlated, which is the strongest argument for trend/imbalance detection.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "alarm.12vhpwr_per_pin",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "per_pin_computation": "thresholds are defined PER-PIN, matching the spec ratings; per-lane trip value = per-pin threshold x pins_per_lane, resolved through cec_facts.PINS_PER_LANE at the section-6.13 lock (single-resolver discipline). 12VHPWR Standard/Pro sense per pin (pins_per_lane=1: lane current IS pin current); EPS aggregates 4 pins/lane, PCIe 3 (schematic-confirmed)",
+   "warn_A_sustained": 9.5,
+   "alarm_A_sustained": 11,
+   "alarm_min_duration_s": 1,
+   "critical": "lane-imbalance ratio (max lane / mean lane) > 2.0 OR any energized lane reading ~0 A (open-pin / hog precursor)",
+   "instantaneous_ceiling_A": 12,
+   "instantaneous_ceiling_role": "survives ONLY as an instantaneous-tolerated ceiling if a single scalar threshold is mandated (owner-slate item-3 tightening, spec home section 6.13/OQ-57: the old 12 A sustained default is retired)"
+  },
+  "units": "A",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner slate 2026-06-10 (comparator defaults + hog tightening; slate numbering OQ-58/OQ-59 -- the spec-side home is section 6.13/OQ-57 'lock the threshold default'). Grounds: the 9.2/9.5 A ratings (conn.12vhpwr_pin_ratings), der8auer's 22 A failure capture + Malucci statistics (conn.malucci_runaway_onset, evidence.gpu_transient_measured), and ASUS shipping the same 9.2 A + open-pin trip in Power Detector+ ('one or more 12VHPWR pins exceed 9.2 amps or are at 0 amps'). CEM-EXACT BASIS carries the derivation-class verify note (CEM 5.1 paywalled)",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "Firmware comparator/alarm defaults, owner-ruled: WARN above 9.5 A sustained per pin; ALARM above 11 A sustained >1 s (tightened from the FEM-probe-era 12 A hog default -- 12 A survives only as an instantaneous ceiling); CRITICAL on imbalance ratio >2.0 or an energized ~0 A lane. Ordering sanity: balanced 600 W = 8.3 A < rating 9.2 <= WARN 9.5 < ALARM 11 << measured failure >=22 (der8auer cable reads ratio >=22/8.5 = 2.6 > 2.0, a LOWER BOUND since the hog reading is a clamp-ceiling floor -- the CRITICAL trigger fires on the documented failure with margin). Industry corroboration: ASUS ships the same per-pin + open-pin posture. AMBIGUITY RESOLVED (owner, 2026-06-10, second ruling): thresholds are PER-PIN by definition, matching the spec ratings -- the slate's 'lane/2' is SUPERSEDED; per-lane trip values derive as per-pin threshold x pins_per_lane through cec_facts.PINS_PER_LANE (12vhpwr 1, EPS 4, PCIe 3 -- schematic-confirmed against gen-modules PINMAP + the SENSEC-per-cable shunt topology), resolved by the compiler at the section-6.13 lock. TWO RIDING CONSEQUENCES, each its own entry: capability.hog_detection_family_scope (per-pin hog detection is family-scoped) + alarm.eps_pcie_threshold_gate (EPS/PCIe thresholds blocked on their own pinned connector ratings). SPEC-REVISION CANDIDATE: these defaults land in section 6.13 at promotion (threshold default lock, spec OQ-57).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "capture.10khz_disposition",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port",
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "keep": "10 kHz as the RMS/thermal capture rate",
+   "descope": "sub-100us waveform reconstruction -- FORMALLY DE-SCOPED (thermally irrelevant to connector melting; deposits negligible I2R energy in connector thermal mass; a PSU-hold-up problem; and it aliases at 10 kHz anyway)",
+   "path": "OVERSAMPLE-AND-DECIMATE: ESP32-S3 SADC runs 50-100 kHz, decimates to the 10 kHz report rate; the 16.9 kHz RC corner STANDS as correct front-end anti-alias",
+   "fallback": "if firmware genuinely cannot oversample, the analog corner drops to 2-5 kHz instead",
+   "documentation_rule": "the chosen path is a section 6.13 spec-revision candidate -- documented, never implied"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner slate 2026-06-10, OQ-57 disposition. Grounds: atx3.psu_excursion_tables + atx3.aic_excursion_curve (the 1-10 ms excursion classes that actually heat connectors are cleanly captured at 10 kHz) + the measured duration-resolved distribution (evidence.gpu_transient_measured). Consistency flag resolved: a 16.9 kHz corner in front of a bare 10 kHz sampler (5 kHz Nyquist) passes alias-producing content -- the oversample-and-decimate path is what makes the corner correct. Context: docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md thread one",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "Resolves the spec's '10 kHz burst target' provenance question (cluster 6's trigger) AND the section 6.13 RC-corner consistency: 10 kHz is the REPORT rate for the thermally-relevant 1-10 ms classes, not a waveform-reconstruction claim; sub-100us shape is de-scoped (the 100us/200% class is a PSU-hold-up concern, not connector melting). SPEC-REVISION CANDIDATE either way (oversample-decimate or corner drop) -- documented, never implied. NEW OQ attached (owner): in-house dI/dt scope measurement at the connector -- published sources give power/current vs time, never slew rate.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.power_per_mohm",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "12VHPWR",
+    "12V-2x6",
+    "tin-plated-power-contact"
+   ],
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ]
+  },
+  "value": {
+   "W_per_mohm_at_9p2A": 0.085,
+   "formula": "P = I^2 * dR (9.2^2 * 0.001 = 0.0846)",
+   "old_figure_context": "0.78 W/mOhm holds only near ~28 A (28^2 * 0.001 = 0.784) -- hog-pin territory, never a balanced pin"
+  },
+  "units": "W/mOhm",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "docs/research/gpu-12vhpwr-fault-phenomenology-2026-06-10.md, the doc's own corrections section. PROVENANCE (owner, 2026-06-10): the erroneous '0.78 W per mOhm at 9.2 A' figure ORIGINATED IN THE OWNER'S TASK PROMPT to the research consultant -- injected upstream, NOT from the corpus or spec. GREP-CONFIRMED 2026-06-10: the bad figure never landed in corpus/, the spec, CLAUDE.md, scripts/, or docs/ before this dive. Second time the machinery caught the owner's arithmetic; both catches cheaper than the miss",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "The per-contact heating arithmetic for degradation reasoning: at the 9.2 A rated pin, each additional mOhm of contact resistance adds ~0.085 W -- small individually, but the Malucci onset (~3.5 mOhm rise) adds ~0.3 W concentrated in a sub-mm2 contact interface, and a >=22 A hog pin at the same rise adds >=~1.7 W (0.484 W/mOhm at 22 A -- CORPUS-LEVEL arithmetic combining this formula with the der8auer failure-current floor from evidence.gpu_transient_measured; not a figure from the source doc). The 28 A context preserves WHY the old figure existed: it described hog-pin territory.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "capability.hog_detection_family_scope",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro",
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ]
+  },
+  "value": {
+   "rule": "per-pin hog and imbalance detection exists ONLY where sensing is per-pin (pins_per_lane=1)",
+   "per_pin_families": [
+    "12vhpwr-standard",
+    "12vhpwr-pro"
+   ],
+   "aggregate_families": {
+    "eps-8pin": "4 pins/lane",
+    "pcie-8pin-2port": "3 pins/lane",
+    "pcie-8pin-3port": "3 pins/lane"
+   },
+   "aggregate_consequence": "an aggregate-sensed EPS/PCIe lane STRUCTURALLY CANNOT see intra-cable hogging -- it sees cable-level anomalies only (total over-current, cable-vs-cable imbalance)"
+  },
+  "units": "capability",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10 (lane/2 resolution, consequence 1): hog and imbalance detection semantics are FAMILY-SCOPED capabilities. Sensing topology schematic-confirmed (cec_facts.PINS_PER_LANE provenance comment)",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "PRODUCT-CAPABILITY FACT for the cluster-5 target table (meas.targets.v1 carries the imbalance row referencing this entry): the per-pin imbalance QUANTITY only exists on per-pin-sensed families. A der8auer-class single-wire hog (22 A on one of six) is INVISIBLE to an aggregate EPS lane reading 4 pins summed -- the hog raises the aggregate by its excess only, indistinguishable from balanced load growth until the cable-level threshold. This is also tier/marketing truth: the imbalance alarm is a 12VHPWR-family feature, never promised platform-wide.",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "alarm.eps_pcie_threshold_gate",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "Mini-Fit",
+    "EPS12V",
+    "PCIe-8pin"
+   ],
+   "families": [
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ]
+  },
+  "value": {
+   "gate": "EPS and PCIe per-pin connector ratings need their OWN pinned entries before those families' thresholds can lock",
+   "reason": "Mini-Fit family terminal ratings VARY BY TERMINAL SERIES; the existing pinned ratings (conn.12vhpwr_pin_ratings) cover 12VHPWR 9.2 A and 12V-2x6 9.5 A only",
+   "covered_today": [
+    "12VHPWR 9.2 A/pin",
+    "12V-2x6 9.5 A/pin",
+    "55 A assembly"
+   ]
+  },
+  "units": "gate",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ruling 2026-06-10 (lane/2 resolution, consequence 2). Context: bom.rating.connector_minifit_105c already pins the 105C/30C-rise housing fact (PS-5556-004) but NOT per-pin ampere ratings by terminal series",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": "tests/test_fault_phenomenology_corpus.py",
+  "notes": "BLOCKS the section-6.13 threshold lock for the EPS/PCIe families (the 12VHPWR families are unblocked -- their ratings are pinned). CHARACTERIZATION WRINKLE to carry into the pinning pass: on an interposer the mating FEMALE terminals live in the PSU vendor's cable, not on the CEC board -- the rating that matters varies with the user's cable (solid-brass/phos-bronze 105C vs formed-brass 80C per the Molex spec language in bom.rating.connector_minifit_105c), so EPS/PCIe threshold semantics must either assume the conservative terminal series or carry a cable-class caveat. UPDATE 2026-06-10: the terminal BASIS is ratified (conn.minifit_conservative_terminal_basis -- rate against the conservative series; customer cables uncontrolled); the pinning pass was ATTEMPTED same day (PS-5556 vendored at lib/datasheets/Molex-PS-5556.pdf; table not machine-extractable here -- numbers still owed, defaults stay placeholders).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "judge.eval_verdicts_not_authority",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "families": [
+    "hub",
+    "module"
+   ]
+  },
+  "value": {
+   "rule": "eval-pool verdicts and gold labels are NEVER citable as design truth",
+   "why": "the eval gold preserves analyst wrongness BY CONSTRUCTION (fidelity labels measure faithful extraction of what the analyst said, not whether the analyst was right); citing an eval verdict as a design fact is a CATEGORY ERROR",
+   "recurrence": "the error class recurs every time the eval pool grows -- any judge/panel/analyst reaching for eval artifacts as evidence about the BOARD (rather than about extraction fidelity) commits it"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner reinforcement 2026-06-10, endorsing the wf_9dcf45c9-9b3 refuter-panel adjudication that REJECTED a finding citing the TH1-placement eval verdict as design authority (that verdict is the documented M2.7 miss of the v3.7 TCR-compensation intent -- preserved in the eval gold precisely AS a miss)",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": null,
+  "notes": "THE FIDELITY-VS-TRUTH SEPARATION as a standing judge rule (owner: 'the refuter rejecting it with reasoning means the separation is actually understood by the machinery, not just documented'). Operational consequence: panel charters carry this rule; a finding whose evidence chain passes through an eval verdict/gold label is invalid as a design claim and valid only as a claim about extraction fidelity. Fixture-less H per ruling D1 (process rule, no mechanism).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ },
+ {
+  "id": "conn.minifit_conservative_terminal_basis",
+  "class": "H",
+  "kind": "param",
+  "scope": {
+   "part_classes": [
+    "Mini-Fit",
+    "EPS12V",
+    "PCIe-8pin"
+   ],
+   "families": [
+    "eps-8pin",
+    "pcie-8pin-2port",
+    "pcie-8pin-3port"
+   ]
+  },
+  "value": {
+   "basis": "EPS and PCIe thresholds rate against the CONSERVATIVE terminal series",
+   "reason": "customer cables are uncontrolled -- the mating female terminals are the PSU vendor's, and Mini-Fit terminal ratings vary by series (solid brass/phos-bronze 105C class vs formed-brass 80C class per bom.rating.connector_minifit_105c)",
+   "status_of_defaults": "EPS/PCIe comparator defaults stay PLACEHOLDERS until the pinning pass lands the conservative-series per-pin ratings"
+  },
+  "units": "policy",
+  "applies_to": [
+   "judge",
+   "informational"
+  ],
+  "source": {
+   "type": "decision",
+   "ref": "Owner ratification 2026-06-10 (terminal basis). PINNING PASS ATTEMPTED 2026-06-10: Molex PS-5556 product spec downloaded (vendored lib/datasheets/Molex-PS-5556.pdf, 1.06 MB) but the current-rating/derating table does not text-extract in this environment (rasterized/encoded table; Molex CDN direct fetch times out) -- the table read needs a tooling-equipped or human pass; NO figures recorded from memory",
+   "date": "2026-06-10"
+  },
+  "status": "promoted",
+  "supersedes": null,
+  "fixture": null,
+  "notes": "Resolves the basis half of alarm.eps_pcie_threshold_gate: thresholds rate against the WORST terminal series a customer cable may carry, since the interposer cannot control the mating cable. The NUMBERS remain owed: the vendored PS-5556 spec carries the per-circuit derating table (by wire gauge and circuit count) -- read it with a PDF-rendering-equipped pass and land the conservative-series per-pin rating as a Class A entry; only then do the EPS/PCIe comparator defaults leave placeholder state. Fixture-less H per D1 (policy, no mechanism).",
+  "signoff": {
+   "by": "nathanfraske",
+   "date": "2026-06-13",
+   "evidence": "owner promotion directive (session 2026-06-13); ratified by the CODEOWNERS-gated merge of the promotion PR (GitHub-verified approval)"
+  },
+  "promotion": {
+   "date": "2026-06-13",
+   "promoted_by": "nathanfraske-bot",
+   "pr": 53
+  }
+ }
+]

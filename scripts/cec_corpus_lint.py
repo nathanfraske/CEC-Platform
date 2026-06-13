@@ -14,7 +14,7 @@
 #     status+migrated stamped) under {staging,promoted}/extracted/
 # Validates per shape (source whitelist, no model sources, Class C run refs,
 # spec-section resolution, duplicate ids ACROSS zones), plus the zone rules:
-#   * promoted/ requires status=human_approved + a complete signoff block
+#   * promoted/ requires status=promoted + a complete signoff block
 #     {by,date,evidence}; promoted EXTRACTED rows must also carry the full
 #     SB-13 upgrade (class/kind/applies_to/typed source) -- promotion forces
 #     the schema upgrade.
@@ -50,7 +50,7 @@ SPEC = os.path.join(ROOT, "CEC-Platform-Ground-Truth-Spec.md")
 
 CLASSES = {"A", "B", "C", "H"}
 KINDS = {"param", "rule", "heuristic", "profile"}
-STATUSES = {"proposed", "sim_validated", "bringup_validated", "human_approved", "deprecated"}
+STATUSES = {"proposed", "sim_validated", "bringup_validated", "human_approved", "promoted", "deprecated"}
 SOURCE_TYPES = {"standard", "datasheet", "fab", "spec", "decision", "measurement"}
 APPLIES_TO = {"physics", "compiler", "preflight", "judge", "informational"}
 SEVERITIES = {"hard", "strong", "soft", "advisory"}
@@ -94,8 +94,8 @@ def _signoff_ok(e):
 def _zone_rules(e, zone, where, spec_text, migrated):
     """CL-01/02/06 + AM-02 zone discipline, shared by both entry shapes."""
     if zone == "promoted":
-        if e.get("status") != "human_approved":
-            err(f"{where}: promoted/ requires status=human_approved (got {e.get('status')!r})")
+        if e.get("status") != "promoted":
+            err(f"{where}: promoted/ requires status=promoted (got {e.get('status')!r})")
         if not _signoff_ok(e):
             err(f"{where}: promoted/ requires a complete signoff block {{by,date,evidence}} "
                 f"-- a model can write the field; the CODEOWNERS gate makes it real")
@@ -109,10 +109,17 @@ def _zone_rules(e, zone, where, spec_text, migrated):
             else:
                 _secs_resolve(src.get("ref", ""), spec_text, where)
     else:  # staging
-        if e.get("status") == "human_approved":
+        if e.get("status") == "promoted":
+            # status=promoted is the promoted/ ZONE marker; it must never sit in staging.
+            # Closes the demotion silent-misbehavior path: a promoted->staging move must
+            # revert status to human_approved, else the entry would read as promoted while
+            # living outside the gated zone.
+            err(f"{where}: status=promoted in staging/ -- the promoted lifecycle value is "
+                f"valid ONLY in corpus/promoted/ (a demotion must revert status to human_approved)")
+        elif e.get("status") == "human_approved":
             if _signoff_ok(e):
                 warn(f"{where}: human_approved + signoff in staging/ -- ready for the "
-                     f"promotion PR (move to corpus/promoted/, id unchanged)")
+                     f"promotion PR (move to corpus/promoted/, flip status to promoted, id unchanged)")
             else:
                 warn(f"{where}: human_approved without signoff -- owner re-sign required "
                      f"before promotion (Decision 2 migration state)")

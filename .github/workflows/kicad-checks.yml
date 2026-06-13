@@ -69,4 +69,10 @@ jobs:
             --entrypoint python3 \
             "${KICAD_IMAGE:-kicad/kicad:10.0}" \
             scripts/cec_corpus_compile.py fixtures
-          python3 -W ignore -m unittest tests.test_cl03_compiler -v 2>&1 | tail -5
+          # The corpus anchor tests ARE the AM-02 fixtures the promoted entries declare;
+          # run them in CI so a promotion that strands an anchor cannot pass green.
+          python3 -W ignore -m unittest \
+            tests.test_cl03_compiler \
+            tests.test_measurement_claims_corpus \
+            tests.test_fault_phenomenology_corpus \
+            tests.test_stability_budget -v 2>&1 | tail -8

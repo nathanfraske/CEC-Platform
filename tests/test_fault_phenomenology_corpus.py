@@ -16,13 +16,22 @@ import os
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FAULT = os.path.join(ROOT, "corpus", "staging", "general", "fault-phenomenology.json")
-STAB = os.path.join(ROOT, "corpus", "staging", "general", "stability-terms.json")
-MEAS = os.path.join(ROOT, "corpus", "staging", "general", "measurement-claims.json")
+# Promotion MOVES entries staging->promoted (id unchanged; one zone per id, lint-enforced),
+# so the anchor fixture merges each family file across BOTH zones.
+GEN_DIRS = (os.path.join(ROOT, "corpus", "staging", "general"),
+            os.path.join(ROOT, "corpus", "promoted", "general"))
+FAULT = "fault-phenomenology.json"
+STAB = "stability-terms.json"
+MEAS = "measurement-claims.json"
 
 
-def _load(path):
-    return {e["id"]: e for e in json.load(open(path))}
+def _load(fname):
+    out = {}
+    for d in GEN_DIRS:
+        p = os.path.join(d, fname)
+        if os.path.exists(p):
+            out.update({e["id"]: e for e in json.load(open(p))})
+    return out
 
 
 def aic_R(t_us):

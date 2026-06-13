@@ -344,10 +344,11 @@ not over-build:
 ```
 
 **Lifecycle:** `proposed -> sim_validated -> bringup_validated | human_approved ->
-deprecated`. The constraint compiler (stage 3) and the physics model consume only
-`*_validated` or `human_approved` entries; `proposed` entries are visible to judges as
-context, never compiled into hard gates. Prose heuristics never become deterministic gates
-by any path.
+promoted -> deprecated`. The constraint compiler (stage 3) and the physics model emit
+BLOCKING artifacts from entries in the `promoted/` ZONE and advisory (`ADV-`) artifacts from
+`staging/` — selection is by ZONE, never by the `status` string (`status: promoted` is the
+lifecycle marker, not the selector); `proposed` entries are visible to judges as context,
+never compiled into hard gates. Prose heuristics never become deterministic gates by any path.
 
 **DECISION (owner):** does the general corpus stay in the open repo (PR #18's
 corpus-extracted.json is currently headed that way, and the spec it derives from is public)
