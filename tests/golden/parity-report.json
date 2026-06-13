@@ -78,27 +78,32 @@
   {
    "checkable": "n/a",
    "entry": "alarm.12vhpwr_per_pin",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "alarm.eps_pcie_threshold_gate",
+   "zone": "promoted"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "analysis-reads-seat-reasoning",
    "zone": "staging"
   },
   {
    "checkable": "n/a",
    "entry": "atx3.aic_excursion_curve",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "atx3.psu_excursion_tables",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "bench.shunt_drift_protocol",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "partial",
@@ -123,7 +128,7 @@
   {
    "checkable": "n/a",
    "entry": "bom.dvdi_shunt_loadlife_constraint",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
@@ -223,12 +228,12 @@
   {
    "checkable": "n/a",
    "entry": "capability.hog_detection_family_scope",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "capture.10khz_disposition",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "yes",
@@ -238,6 +243,31 @@
   {
    "checkable": "partial",
    "entry": "chassis-tim-land-under-eps-pcie-shunts",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "cl21-0-vlm-seat-core-principle",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "cl21-1-text-prior-dominance",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "cl21-2-prompt-rule-trap",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "cl21-3-pairwise-beats-absolute",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "cl21-4-tool-delegation",
    "zone": "staging"
   },
   {
@@ -253,37 +283,37 @@
   {
    "checkable": "n/a",
    "entry": "conn.12vhpwr_pin_ratings",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "conn.inspection_paradox",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "conn.llcr_cable_assembly",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "conn.malucci_runaway_onset",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "conn.mating_cycle_life",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "conn.minifit_conservative_terminal_basis",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "conn.power_per_mohm",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "partial",
@@ -402,8 +432,13 @@
   },
   {
    "checkable": "n/a",
-   "entry": "evidence.gpu_transient_measured",
+   "entry": "evidence-bundle-completeness",
    "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "evidence.gpu_transient_measured",
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
@@ -441,6 +476,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "fr-seed-inert-opt-time-is-the-lever",
+   "zone": "staging"
+  },
+  {
    "checkable": "yes",
    "entry": "ftp-shield-grounding",
    "zone": "staging"
@@ -458,6 +498,16 @@
   {
    "checkable": "partial",
    "entry": "gnd-plane-intact-under-sense",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "golden-band-derivation",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "golden-change-pr-convention",
    "zone": "staging"
   },
   {
@@ -678,12 +728,12 @@
   {
    "checkable": "n/a",
    "entry": "judge.eval_verdicts_not_authority",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "judge.reading_assertion_band",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "yes",
@@ -808,57 +858,57 @@
   {
    "checkable": "n/a",
    "entry": "meas.anchor.pro_cal_instrument",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.anchor.ref3030_initial_accuracy",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.anchor.standard_current",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.bench.empty_instrument_state",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.cal.storage",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.cal.strategy_per_tier",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.cal.temperature_policy",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.policy.energy_unpromised",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.policy.power_error_rss",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.policy.promise_promotion",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "meas.statement_form",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
@@ -873,7 +923,7 @@
   {
    "checkable": "n/a",
    "entry": "meas.truth_chain.dispute",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
@@ -888,6 +938,11 @@
   {
    "checkable": "yes",
    "entry": "module-usb-c-flash-debug",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "monotonic-knob-tripwire",
    "zone": "staging"
   },
   {
@@ -1008,6 +1063,11 @@
   {
    "checkable": "yes",
    "entry": "power-trace-width-floor",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "proxy-credit-gating",
    "zone": "staging"
   },
   {
@@ -1178,6 +1238,16 @@
   {
    "checkable": "yes",
    "entry": "section613-comparator-glitch-filter",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "selection-not-generation",
+   "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "sense-corridor-protection",
    "zone": "staging"
   },
   {
@@ -1353,22 +1423,22 @@
   {
    "checkable": "n/a",
    "entry": "stab.ina240_precision_terms",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "stab.ref3030_drift",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "stab.shunt_loadlife_bourns_css",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "n/a",
    "entry": "stab.shunt_loadlife_tcr_vishay_wsl",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "yes",
@@ -1448,7 +1518,7 @@
   {
    "checkable": "n/a",
    "entry": "thermal.shunt_chassis_tim.eps_pcie",
-   "zone": "staging"
+   "zone": "promoted"
   },
   {
    "checkable": "yes",
@@ -1491,6 +1561,11 @@
    "zone": "staging"
   },
   {
+   "checkable": "n/a",
+   "entry": "verifier-quorum-on-dark-seat",
+   "zone": "staging"
+  },
+  {
    "checkable": "yes",
    "entry": "via-current-rating-high-current-paths",
    "zone": "staging"
@@ -1504,10 +1579,15 @@
    "checkable": "yes",
    "entry": "vrail-div-adc-cap",
    "zone": "staging"
+  },
+  {
+   "checkable": "n/a",
+   "entry": "wsl-ephemeral-load-bearing-state",
+   "zone": "staging"
   }
  ],
  "counts": {
-  "corpus_only": 301,
+  "corpus_only": 317,
   "matched": 20,
   "registry": 34,
   "registry_orphan": 14,
@@ -1775,8 +1855,8 @@
    "registry": "shunt-inline-in-corridor",
    "section_candidates": [
     "2oz-outer-copper-high-current",
-    "gnd-plane-continuity",
-    "gnd-plane-intact-under-sense"
+    "analysis-reads-seat-reasoning",
+    "gnd-plane-continuity"
    ],
    "status": "ratified"
   }

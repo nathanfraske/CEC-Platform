@@ -17,7 +17,11 @@ import os
 import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GEN = os.path.join(ROOT, "corpus", "staging", "general")
+# Promotion MOVES entries staging->promoted (id unchanged; one zone per id, lint-enforced),
+# so entries are resolved across BOTH zones (e.g. dvdi.* held in staging while
+# conn.malucci_runaway_onset / the CSS terms moved to promoted).
+GEN_DIRS = (os.path.join(ROOT, "corpus", "staging", "general"),
+            os.path.join(ROOT, "corpus", "promoted", "general"))
 
 W_HOURS = 336.0            # the budget's working window: 14 days
 SHUNT_UOHM = 1000.0        # 1 mOhm lane shunt in uOhm
@@ -28,8 +32,13 @@ ZERO_CREDIT_SWING_C = 50.0  # thermal bound with NO compensation credit
 
 
 def _entry(fname, eid):
-    rows = json.load(open(os.path.join(GEN, fname)))
-    return next(e for e in rows if e["id"] == eid)
+    for d in GEN_DIRS:
+        p = os.path.join(d, fname)
+        if os.path.exists(p):
+            for e in json.load(open(p)):
+                if e["id"] == eid:
+                    return e
+    raise KeyError(eid)
 
 
 def lane_z_uohm():

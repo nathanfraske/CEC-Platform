@@ -42,7 +42,7 @@ def _promoted(**over):
         "scope": {"net_families": ["CAN_H"], "families": ["hub"]},
         "value": {"x": 1}, "units": None,
         "source": {"type": "spec", "ref": "spec section 3.1", "date": "2026-06-10"},
-        "status": "human_approved",
+        "status": "promoted",
         "signoff": {"by": "nathanfraske", "date": "2026-06-10", "evidence": "test"},
         "compile": {"targets": [{"type": "dru_rule", "params": {
             "name": "test-rule", "constraint": "clearance (min 0.2mm)",

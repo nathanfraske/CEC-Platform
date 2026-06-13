@@ -13,21 +13,28 @@ Where the framework doc and the as-built vocabulary disagreed, the as-built voca
 | **staging** | `corpus/staging/**` | agents (any tier) | ADVISORY checks only — flag namespace `ADV-<id>`; can never block, never auto-sign-deny, never count toward `human_signoff`'s blocking flags |
 | **promoted** | `corpus/promoted/**` | human only (CODEOWNERS + branch protection: owner's GitHub-verified approval) | blocking artifacts (DRC fragments, netlist assertions, keep-apart tables, scorer limits) |
 
-Promotion MOVES an entry file between zones without changing its `id`. Demotion,
-supersession, and scope correction are human-only by the same gate (they edit `promoted/**`).
+Promotion MOVES an entry file between zones without changing its `id`, and flips its
+`status` to `promoted`. Demotion, supersession, and scope correction are human-only by the
+same gate (they edit `promoted/**`); a demotion (promoted → staging) MUST revert the status
+to `human_approved` (lint refuses `status: promoted` outside `promoted/`).
 
 ## Lifecycle (SB-13 `status`, KEPT — the framework's `state` vocabulary maps onto it)
 
 ```
-proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
+proposed -> sim_validated -> bringup_validated | human_approved -> promoted -> deprecated
 ```
 
-- Framework `promoted`   ≡ `status: human_approved` + a complete `signoff` block + residence in `corpus/promoted/`
+- Framework `promoted`   ≡ `status: promoted` + a complete `signoff` block + residence in `corpus/promoted/`.
+  `status: promoted` is the machine-readable lifecycle marker — the entry reads its own state,
+  it is NOT inferred only from the directory. (Selection of blocking-vs-advisory artifacts is by
+  ZONE, never by this status string — see "Standing rules"; the two disciplines stay separate so
+  the marker can change without moving the gate.)
 - Framework `draft`/`under-review` ≡ `proposed`/`sim_validated` in `corpus/staging/`
 - Framework `superseded` ≡ `deprecated` + the existing `supersedes`/`superseded_by` pointer fields
-- Zone/status consistency is lint-enforced: an entry in `promoted/` MUST be `human_approved`
-  with `signoff`; a `human_approved`+`signoff` entry SHOULD be in `promoted/` (lint warns —
-  the gap is legitimate only between owner approval and the promotion PR landing).
+- Zone/status consistency is lint-enforced: an entry in `promoted/` MUST be `status: promoted`
+  with `signoff`; `status: promoted` is REFUSED in `staging/`; a `human_approved`+`signoff`
+  staging entry SHOULD be in `promoted/` (lint warns — the gap is legitimate only between owner
+  approval and the promotion PR landing).
 
 ## Classes (AS-BUILT taxonomy — the framework doc's letters were inverted; corrected here)
 
@@ -44,7 +51,7 @@ proposed -> sim_validated -> bringup_validated | human_approved -> deprecated
 {
   "id": "stable-kebab-id",            // never changes across zone moves
   "class": "A|B|C|H",
-  "status": "proposed|sim_validated|bringup_validated|human_approved|deprecated",
+  "status": "proposed|sim_validated|bringup_validated|human_approved|promoted|deprecated",
   "rule": "...the assertion...",      // (extracted-corpus rows keep their full original fields)
   "scope": {                          // RB-01: coverage DECLARED in facts dimensions only
     "net_families": [], "netclasses": [], "part_classes": [], "regions": [],

@@ -53,6 +53,18 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> corpus anchor fixtures (AM-02: the tests the promoted entries declare must pass)\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 -W ignore -m unittest \
+    tests.test_measurement_claims_corpus \
+    tests.test_fault_phenomenology_corpus \
+    tests.test_stability_budget >/dev/null 2>&1 \
+    && printf '  ok: anchor fixtures pass\n' \
+    || { printf 'FAIL: a corpus anchor fixture is red (a promoted entry stranded its AM-02 fixture)\n' >&2; status=1; }
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> policy-as-code load assertions (CL-10: bindings usable, DF-05/07 firewall clean)\n'
 if command -v python3 >/dev/null 2>&1; then
   python3 "$CEC_SCRIPTS_DIR/cec_policy.py" validate || status=1
