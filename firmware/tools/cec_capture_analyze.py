@@ -192,6 +192,19 @@ class Profile12VHPWR(Profile):
     name = "12vhpwr"
     IMBALANCE_FLAG_PCT = 20.0   # spread/mean above this -> flag (tune to spec)
     MIN_LOAD_A = 1.0            # below this the pins are idle -> imbalance undefined
+    ISENSE_TOL_PCT = 1.0        # per-channel current-sense (shunt) tolerance, %.
+                                #   1% alloy shunts; INDEPENDENT per pin, so it sets a
+                                #   measurement FLOOR on the imbalance (--isense-tol to change).
+
+    @staticmethod
+    def _imbalance_floor_pct(n_carrying, tol_pct):
+        """Worst-case per-pin deviation-from-fair-share that independent per-channel
+        shunt tolerance alone can produce -- the band inside which a bar may be
+        measurement, not real imbalance. (The headline spread = max-min has a ~2*tol
+        floor; this per-pin band is 2*tol*(N-1)/N, e.g. 1.5% at N=4, tol=1%.)"""
+        if n_carrying < 2:
+            return 0.0
+        return 2.0 * tol_pct * (n_carrying - 1) / n_carrying
 
     def classify(self, cap):
         sig = cap.signal_columns()
@@ -239,6 +252,10 @@ class Profile12VHPWR(Profile):
                 "imbalance_pct": c_imb, "worst_pin": worst,
                 "worst_pin_excess_pct": (float((cm.max() - c_mean) / abs(c_mean) * 100.0)
                                          if abs(c_mean) > 1e-6 else None),
+                "isense_tol_pct": self.ISENSE_TOL_PCT,
+                "shunt_match_floor_pct": self._imbalance_floor_pct(int(carrying.sum()),
+                                                                   self.ISENSE_TOL_PCT),
+                "spread_floor_pct": 2.0 * self.ISENSE_TOL_PCT,
                 "FLAG": bool(c_imb is not None and c_imb > self.IMBALANCE_FLAG_PCT),
             })
         else:
@@ -333,8 +350,15 @@ class Profile12VHPWR(Profile):
                                          gridspec_kw={"height_ratios": [1.1, 1]})
             x = np.arange(len(ci))
             vals = pct[order]
+            # measurement floor: with independent +/-tol shunts a pin's share is only
+            # known to +/-floor, so a bar inside this band may be shunt mismatch, not
+            # real imbalance. Shaded behind the bars.
+            floor = self._imbalance_floor_pct(len(ci), self.ISENSE_TOL_PCT)
             colors = ["#c0392b" if v - 100 > self.IMBALANCE_FLAG_PCT
                       else "#e67e22" if v > 100 else "#2980b9" for v in vals]
+            if floor > 0:
+                ab.axhspan(100 - floor, 100 + floor, color="0.6", alpha=0.18, zorder=0,
+                           label=f"±{floor:.1f}% shunt-match floor (±{self.ISENSE_TOL_PCT:g}% indep. shunts)")
             ab.bar(x, vals - 100.0, bottom=100.0, color=colors, width=0.62, zorder=2)
             for xi in range(len(ci)):
                 k = order[xi]
@@ -343,8 +367,8 @@ class Profile12VHPWR(Profile):
                 ab.annotate(f"{vals[xi]:.1f}%", (xi, vals[xi]), ha="center",
                             va="bottom" if vals[xi] >= 100 else "top", fontsize=9, zorder=4)
             ab.axhline(100, color="k", lw=1.0)
-            lo = min(float(vals.min()), float((100 + whisk).min()))
-            hi = max(float(vals.max()), float((100 + whisk).max()))
+            lo = min(float(vals.min()), float((100 + whisk).min()), 100 - floor)
+            hi = max(float(vals.max()), float((100 + whisk).max()), 100 + floor)
             mrg = max(0.6, (hi - lo) * 0.18)
             ab.set_ylim(lo - mrg, hi + mrg)
             ab.set_xticks(x); ab.set_xticklabels([cnames[order[xi]] for xi in range(len(ci))])
@@ -352,6 +376,8 @@ class Profile12VHPWR(Profile):
             ab.set_title(f"per-pin IMBALANCE — share of the load  (fair = {fair:.2f} A = 100%; "
                          f"hog {hog} at {pct.max():.1f}%, +{pct.max()-100:.1f}%; "
                          f"melt-watch +{self.IMBALANCE_FLAG_PCT:.0f}%)", fontsize=10)
+            if floor > 0:
+                ab.legend(fontsize=8, loc="best")
             ab.grid(True, axis="y", alpha=0.3)
 
             for j in range(len(ci)):
@@ -433,6 +459,11 @@ def write_metrics(m, stem, out):
                 f.write(f"- worst (hog): {im['worst_pin']} (+{im['worst_pin_excess_pct']:.1f}% over the "
                         f"carrying mean); worst instantaneous spread "
                         f"{im['worst_instantaneous_spread_A']:.3f} A\n")
+                if im.get("shunt_match_floor_pct"):
+                    f.write(f"- measurement floor: ±{im['shunt_match_floor_pct']:.1f}% per pin from "
+                            f"±{im.get('isense_tol_pct', 1.0):g}% independent shunts — a bar inside the "
+                            f"band may be shunt mismatch, not real imbalance; the spread is real above "
+                            f"~{im.get('spread_floor_pct', 2.0):.1f}%\n")
             if im.get("dead_pins"):
                 f.write(f"- dead / not-carrying: {im['dead_pins']} — a dead pin pushes its share onto "
                         f"the rest, raising their absolute current\n")
@@ -468,6 +499,9 @@ def main():
     ap.add_argument("--out", default=None, help="output dir (default <input>.analysis)")
     ap.add_argument("--analog-rc-hz", type=float, default=15900.0)
     ap.add_argument("--analog-adc-hz", type=float, default=14000.0)
+    ap.add_argument("--isense-tol", type=float, default=None,
+                    help="per-channel shunt tolerance %% for the imbalance measurement-floor "
+                         "band (default 1.0 = 1%% alloy shunts)")
     args = ap.parse_args()
 
     with open(args.input) as f:
@@ -479,6 +513,8 @@ def main():
     out = args.out or (os.path.splitext(args.input)[0] + ".analysis")
     os.makedirs(out, exist_ok=True)
     prof = PROFILES[args.module]
+    if args.isense_tol is not None and hasattr(prof, "ISENSE_TOL_PCT"):
+        prof.ISENSE_TOL_PCT = args.isense_tol
     base = os.path.splitext(os.path.basename(args.input))[0]
 
     flagged = 0

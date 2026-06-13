@@ -132,6 +132,11 @@ Each module asks a different question, so analysis is a **profile** (pluggable):
 - **Imbalance needs load:** at idle the mean pin current is ~0 (and dominated by
   uncalibrated INA offsets), so the imbalance % is undefined and reported as
   `no_load`. Run `cal`, then capture under GPU load for a real imbalance number.
+- **Imbalance has a measurement floor:** the per-pin shunts are ±1% *independent*,
+  so each pin's share is only known to ±`2·tol·(N-1)/N` (≈ ±1.5% at 4 pins) — drawn
+  as the grey band on the imbalance chart. A bar inside the band may be shunt
+  mismatch, not real imbalance; the headline spread is trustworthy above ~2×tol.
+  `--isense-tol PCT` sets the shunt class (default 1.0).
 - **FFT validity:** uniform only for `fastburst`/`autoburst` (FPGA-paced). The
   ESP-paced `burst` has a non-uniform time axis — time-domain + stats only.
 - **Analog ceiling** defaults to the perfboard RC (15.9 kHz) × AD7606 (14 kHz) ≈
