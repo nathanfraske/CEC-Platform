@@ -312,6 +312,18 @@ def compile_corpus(corpus_root=CORPUS_ROOT, out_root=OUT_ROOT,
                     refusals.append("%s: blocking artifact refused -- %s (AM-02 latch)"
                                     % (e["id"], why))
                     targets = []
+                else:
+                    # EI-06: the source-revocation latch, IN the compiler (not only the lint leg) so a
+                    # direct compile_corpus() caller (e.g. cec_router materialization) cannot bypass it.
+                    try:
+                        import cec_source_registry as _sr
+                        rev = _sr.refusal_reason(e)
+                    except Exception:                          # noqa: BLE001
+                        rev = None
+                    if rev:
+                        refusals.append("%s: blocking artifact refused -- %s (EI-06 revocation)"
+                                        % (e["id"], rev))
+                        targets = []
 
         # ---- no valid block => advisory review note (R1: prose by construction)
         if not targets:

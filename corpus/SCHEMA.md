@@ -192,4 +192,133 @@ zero-tolerance eval failure.
 - The blocking compiler consumes ONLY promoted entries (CL-03). Until the corpus→artifact
   compiler lands (wave 2), the hand-maintained `scripts/cec_constraints.py` registry remains
   the blocking set; the registry-from-corpus derivation is tracked in the wave plan.
+
+## Monotone-tightening law (EI-07 — stated as law; `apply_findings` already enforces it)
+
+This is the formal statement of the invariant that `scripts/cec_inloop_audit.py`'s
+`apply_findings` (and the `cec_fullstack` mirror) already enforce in code. It is written
+here so the contract is a LAW the reader can hold the loop to, not an emergent property of
+one function. Nothing below changes code behavior — it documents what the code does.
+
+An **unsigned** influence is any change to the loop's behavior that did NOT pass the
+promoted-zone owner gate: an auditor finding, a panel/manager scorer penalty, a staging
+advisory, a live-rules injection. The corpus splits unsigned influence into two channels
+with two different freedoms:
+
+1. **Unsigned influence on EVALUATION is MONOTONE-TIGHTENING ONLY.**
+   The scorer/judge ranking that decides *which candidate wins* is the EVALUATION channel.
+   An unsigned finding may only make that channel STRICTER, never looser:
+   - **Raise-only.** A scorer penalty weight may only be RAISED above its current value;
+     a proposed weight `≤` the current weight is a no-op (`noop:not_a_tightening`), and a
+     NEGATIVE weight — which would *reward* a bad metric — is rejected outright
+     (`rejected:negative_would_reward`). Penalties attach only to lower-is-better,
+     non-negative cost metrics (`PENALISABLE`); sign-special metrics (balance/length) are
+     excluded from raise-only so a tightening can never be smuggled through a sign flip.
+   - **Clamped at `PENALTY_MAX`.** Every raise is clamped at `PENALTY_MAX` (1000.0) so an
+     unsigned channel can never inflate a single metric to runaway dominance — the clamp
+     bounds how much the evaluation can tighten in one move, and is logged.
+   - **Base gates are untouchable.** The HARD gates (Kelvin routed, diff-pair routed,
+     DRC-clean, the base `cec_score` weights) are NOT in the unsigned channel's reach. An
+     unsigned finding can add cost ON TOP of the base objective for a penalisable metric;
+     it cannot lower a base weight, disarm a gate, or reward a gate failure. A board that
+     fails a base gate still fails, no matter what the loop injects.
+   The consequence is the safety property the paper rests on: **the unsigned loop can only
+   ever make the bar HARDER to clear.** It cannot lower the bar to let a worse board
+   through, and a control (uninfluenced) round always sees a bar no harder than any
+   influenced round — so a treatment that beats its control did so against an equal-or-
+   stricter standard, never an eased one.
+
+2. **Unsigned influence on GENERATION is UNRESTRICTED but LEDGER-ATTRIBUTED.**
+   The GENERATION channel — corridor-avoid keepouts, waypoints, placement re-tries, effort
+   bumps, the item-4 lever, the `cec_fs_actuator` deltas — proposes *new candidates to
+   evaluate*. It is deliberately NOT monotone: an avoid-region can move a route anywhere, a
+   re-placement can restructure the board, an escape hypothesis is structurally different by
+   design. This freedom is safe ONLY because generation does not decide the winner —
+   EVERY generated candidate is still judged by the monotone-tightening evaluation channel
+   above and gated by the untouchable base gates. The price of the freedom is
+   **attribution**: every unsigned generation move is recorded (the `cec_fs_actuator`
+   `Delta`/`DeltaLog`, the EI-01 `corpus_state` pin on the ledger row, the symmetric
+   `Outcome` win/loss/overturn record) and is **rolled back** unless its treatment round
+   beats its paired uninfluenced control. Generation may explore freely; it may not KEEP a
+   move that did not earn it against a control.
+
+**Why the asymmetry is correct.** Tightening evaluation is monotone because a stricter bar
+can only reject candidates a looser bar would have accepted — it can never manufacture a
+false win. Generation is unrestricted because proposing a candidate cannot, by itself,
+lower the bar that candidate must clear. Collapsing the two channels — letting generation
+loosen evaluation, or forcing evaluation to be as free as generation — is exactly the
+ratchet/survivorship failure the closed loop is built to avoid.
+
+## External source registry and revocation (EI-06)
+
+Every Class-A pointer (`source.type: standard | datasheet | fab`) and every spec/decision
+cite roots in EXTERNAL authority. The registry (`scripts/cec_source_registry.py`) derives,
+deterministically from the live corpus, the set of external ROOTS those entries depend on —
+each root keyed by `(type, normalized-identifier)` (e.g. `standard:ipc-2221`,
+`datasheet:ti-ina240-sbos662`, `fab:jlcpcb`), with the document version/revision and the
+observation date pulled from the citing entries' `source.ref`/`source.date`. The registry is
+the dependency graph from corpus knowledge to the outside world: it answers "which entries
+rest on IPC-2221B?" and "which compiled artifacts fall if that document is found
+non-authoritative or is superseded?".
+
+- **Revocation is an OWNER-ONLY, promoted-zone act.** The revocation list lives at
+  `corpus/promoted/source-revocations.json` — under the same `/corpus/promoted/` CODEOWNERS
+  gate as promotion itself (a revocation is a knowledge-state change with the same weight as
+  a promotion, so it carries the same unforgeable owner signature). An agent in staging
+  cannot revoke a root.
+- **A revoked root POISONS every entry that cites it.** `cec_corpus_lint.py` and the CL-03
+  compile path both REFUSE any entry whose source resolves to a revoked root, with a NAMED
+  reason that quotes the revocation's `reason` and `revoked_by`/`revoked_date` — mirroring
+  the AM-02 fixture latch (`cec_corpus_compile.fixture_latch`): a blocking artifact is
+  refused at compile, and the citing entry fails lint. The refusal is by ROOT, so revoking
+  one datasheet takes down exactly the entries that depend on it and nothing else.
+- **The revocation report enumerates the blast radius.**
+  `cec_source_registry.revocation_report()` lists each revoked root, every dependent entry
+  (by id + zone), and the compiled artifacts those entries produced (from
+  `build/corpus-compiled/`) — so the owner sees, before and after a revocation, exactly
+  which gates and notes disappear. Un-revoking (removing the root from the promoted list)
+  restores them with no other change.
+
+Revocation record shape (one object per revoked root in
+`corpus/promoted/source-revocations.json`):
+
+```jsonc
+{
+  "root": "datasheet:ti-ina240-sbos662",   // (type, normalized-id) registry key
+  "reason": "...why this root is no longer authoritative...",
+  "revoked_by": "github-login",
+  "revoked_date": "YYYY-MM-DD",
+  "supersedes": "datasheet:ti-ina240-sbos662c"  // optional: the replacement root
+}
 ```
+
+## Dormant lifecycle (EI-05 — staging-expiry / corroboration budget)
+
+A staging entry that the loop keeps SEEING but never CONFIRMS is dead weight that quietly
+inflates the corpus's apparent coverage. EI-05 makes that visible. A staging entry has a
+**corroboration budget**: it may appear in the control lane (or pass nights) up to a
+threshold before it must show evidence it MATTERS. The budget is spent by appearances and
+earned back only by genuine corroboration:
+
+- **Budget spend** = control-lane appearances (`N`, default 12) OR nights elapsed
+  (`M`, default 14) since the entry's first observation, whichever crosses first.
+- **Corroboration** = an UNTAINTED corroboration (a control / uninfluenced round in which
+  the entry's check fired and was confirmed — not a round the entry itself steered) OR a
+  judge TRUE-POSITIVE attributed to the entry. A merely-PASSING fixture does NOT corroborate
+  and does NOT reset the budget: proving a check *can* fire is not proving it *matters*
+  (this is the EI-05 anti-self-justification rule — the budget tracks real-world signal, not
+  self-test signal).
+- **Outcome:** a staging entry that crosses its budget with ZERO untainted corroboration and
+  zero judge true-positives is stamped **`dormant`**. `dormant` is a staging-only WARNING
+  status surfaced in lint's **deprecation-candidate list** — it never blocks (staging never
+  blocks) and is not an automatic deletion (retirement is human-only, like every
+  `promoted/` edit). It flags the entry for the owner's review: corroborate it, re-scope it,
+  or deprecate it.
+
+`dormant` sits beside `deprecated` in the lifecycle as an ADVISORY marker, not a `status`
+value: it is computed by lint from the corroboration ledger
+(`corpus/corroboration-budget.json`, an append-only per-entry record of
+`first_seen` / `control_appearances` / `nights` / `untainted_corroborations` /
+`judge_true_positives`), never written into the entry. An entry leaves the dormant list the
+moment it earns one untainted corroboration or a judge true-positive — or when the owner
+deprecates it.
