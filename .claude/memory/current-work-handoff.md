@@ -20,8 +20,15 @@ Mediums: T5 proposed_lever imperative-but-inert; cloud-auditor path ungrammared 
 _PENALTY_METRIC phantom-lever drift; T7 coverage_note not in schema; T4 safety lens judges plane-integrity with
 no backing data + shared accept-rule collapses the decorrelated panel; CORPUS_BRIEF ~83% off-family + sort-order
 truncation; T1 temp 0.2 thinking model no nothink/floor. Verified vs real run logs (U4/U5/U6/U7 across many
-rounds). NOT YET IMPLEMENTED — fixes proposed only. Highest-value next: the H1 board-manifest + emit-time ref
-validation (retires H1/M1/M2), then H4 lane-gating (it biases the very EI-02 A/B). NOTE ei02verify run DONE
+rounds). PUNCHLIST WRITTEN: docs/prompt-audit-2026-06-13/punchlist.md — P1-P12, **35 actionable items**
+(30 Claude-confirmed + 5 V4-new: P5e CONSOLIDATION undefined, P6f finishing-lens no DRC loci, P11b/c T6
+defer-to-facts+advisory-role, P12 T8 decline criteria), 8 dispositioned non-issues (3 Claude-rejected + 5
+V4 catalog-only false-positives — evidence/actuation slices + VERDICT/CORPUS_FIT schemas DO exist). V4
+cross-check folded in (CORROBORATES H1+H3 as HIGH independently). NOT YET IMPLEMENTED — fixes planned only.
+Recommended order: P1 (U5 root cause, retires M1/M2) -> P3 (A/B integrity) -> P2 (fence) -> P4 -> P5/P6 ->
+P7 -> small finishers -> RE-BASELINE the EI-02 A/B (instrument change mid-experiment; PP-06). Owner decisions
+D1 (ref validation: drop+reprompt vs schema enum), D2 (CORPUS_BRIEF in-family-only for gen seats), D3
+(confirm re-baseline wanted). NOTE ei02verify run DONE
 14:49: 0 gate-passing, 0 deltas applied (actuator fully bounded), drc_mean aug 22.0 / ctrl 9.67, real_anchor aug
 0.73 / ctrl 0.84.
 
