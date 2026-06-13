@@ -80,9 +80,21 @@ unrelated pre-existing `cec_facts.py` working-tree change — do NOT sweep that 
    CEC_FS_AUDIT_EFFORT=max`.
 - **LIVE TEST RUNNING**: `docs/fullstack-run-2026-06-13-levertest/` — `--rounds 3`, auditor=opus effort=max,
   vision gated. Watching for the `item4:` lever-fire line (proof the lever now actuates in the real loop).
-- Files touched (uncommitted): cec_fr02, cec_fullstack, cec_ledger, cec_inloop_audit, cec_overnight_directed,
-  cec_night_watch.sh, + new cec_fs_capstone.py, tests/test_ei01_lever_vision.py. (cec_facts.py = NOT mine.)
-- Review full result: `/tmp/claude-1000/.../tasks/w86las2ps.output`.
+- **COMMITTED + PUSHED + PR'd**: commit `bb0f4bd` on `claude/overnight-corpus-preflight` (bot), **PR #55 →
+  main** (owner-merge). 8 files, 588+/31-: cec_fr02, cec_fullstack, cec_ledger, cec_inloop_audit,
+  cec_overnight_directed, cec_night_watch.sh, + new cec_fs_capstone.py, tests/test_ei01_lever_vision.py.
+  DELIBERATELY EXCLUDED from the commit (left in the working tree): `cec_facts.py` (pre-existing unrelated
+  corpus_briefing change — NOT mine) + the docs/inloop-audit-2026-06-11 deletions + the levertest run dir.
+- **END-TO-END PROVEN (all 4)**: (1) item4 fires — container proof on real clipped board r8 (`ITEM4_FIRES=True`,
+  steers /I2C_SDA,/I2C_SCL,/THRESH out of the 4 sense corridors, avoid layers ['B.Cu','F.Cu']); (2) vision
+  gated, (3) corpus_state live-populated, (4) Opus max-effort auditor — all confirmed in the levertest run.
+- **REVIEWS**: 3-agent (`w86las2ps`) + 6-dimension panel w/ adversarial verify (`wsyiyexa3`) = 0 blockers,
+  GO_WITH_FIXES; the should-fix (decision-row corpus_state) + 4 panel should-fixes (T3 layer/RS-1 git-memo/
+  T1-T2 test gaps) all folded in. 10/10 tests. (T3: kept both-layer avoid — correct for the mirrored pour,
+  a substantiated divergence from the panel's single-layer suggestion.)
+- Followups NOT done (owner call): widen the PROACTIVE keepout in cec_router._vital_keepouts_from_rules
+  (needs a route-verify for kelvin-stranding); item4 actuator telemetry; commit the night's
+  docs/fullstack-run-2026-06-13 data packet (currently WSL-only).
 
 ### V4 CAPSTONE RESULT + reconciliation (done; `docs/fullstack-run-2026-06-13/CAPSTONE-v4.{json,md}`)
 V4 (deepseek-v4-flash, 588s) verdict: `local_minimum`, bundle_accurate=true, confidence=high. Root cause (CORRECT):
