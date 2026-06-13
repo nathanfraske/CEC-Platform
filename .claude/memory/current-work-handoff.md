@@ -1,6 +1,29 @@
 # Current work handoff
 
-_Updated 2026-06-13 (AM-04 electrothermal min-cut + corpus promotion; env-rebuild context below)._
+_Updated 2026-06-13 ~07:00Z (DeepSeek-V4 auditor seat brought live for the overnight run; older context below)._
+
+## TONIGHT (2026-06-13): wire DeepSeek-V4-Flash into the auditor seat + start the overnight run
+Owner ask: "make DeepSeek run in the auditor seat and play nice with the rest of the stack," then start
+the overnight run. Owner is AT the PC and authorizes UAC prompts. Full detail in memory [[deepseek-v4-auditor]].
+
+- **Found it**: DeepSeek-V4-Flash GGUF (Q4_K_M-XL, 163 GB, 4 shards) is at `/mnt/e/models/DeepSeek-V4-Flash-GGUF/Q4_K_M-XL/`
+  (NOT `/mnt/e/AI Models`). Runs **Windows-native** on a V4-fork llama.cpp (`E:\toolchain\llama.cpp-v4`), launcher
+  `E:\toolchain\run-v4-flash.bat` → `0.0.0.0:8007` alias `deepseek-v4-flash`, experts in host RAM (~135–140 GB),
+  attention/KV on the 5090. Preflight needs ≥145 GB free RAM (box has 191.5 GB). Firewall rule `CEC-v4flash-8007-WSL`
+  already allows TCP 8007 from the WSL NAT subnet.
+- **Launched** from WSL: `powershell.exe ... Start-Process cmd /c E:\toolchain\run-v4-flash.bat`. Cold-loading now
+  (163 GB mmap off NTFS, several min). Watch `/mnt/e/toolchain/v4-flash-server.log`.
+- **Broker**: registering `deepseek-v4-flash` as a `managed:false` external backend (host `windows-host`→WSL gw,
+  port 8007), mirroring `cec-worker-vision-win:8090`. Broker proxies; never starts/stops/reaps it; counts its
+  `vram_gb` in arbitration but never evicts it. Editing live `/home/nathan/cec-llm-broker/models.json` + vendored
+  `ops/cec-llm-broker/models.json`, then `systemctl restart cec-llm-broker`.
+- **PLAY-NICE risk (the crux)**: V4 holds GPU the whole time it's loaded. 5090 = 32 GB. V4 footprint measured
+  climbing ~3.4→~13 GB during warmup — must finalize and set `vram_gb` to the real number; then verify the in-loop
+  worker seat (`cec-worker-vision` 25 GB) does NOT co-reside with V4 (32 GB cap, broker can't evict the external V4).
+- **NEXT**: finish V4 load → measure GPU → set vram_gb → restart broker → e2e auditor call via :8080 →
+  `sudo docker compose up -d routing` (owner authed) → launch `cec_inloop_audit.py --hours 7 --board eps-8pin`.
+- HOOKS: made session-start/-end self-sync the committed `.claude/memory/` ↔ ephemeral `~/.claude/.../memory`
+  (the committed handoff had drifted stale). See below.
 
 ## Two PRs opened 2026-06-13 as nathanfraske-bot (idle-time work, owner away from PC)
 
