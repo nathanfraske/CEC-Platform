@@ -302,38 +302,66 @@ class Profile12VHPWR(Profile):
         p = os.path.join(out, f"{stem}-time.png"); fig.savefig(p, dpi=110); plt.close(fig)
         files.append(p)
 
-        # --- IMBALANCE: deviation from the shared (carrying-pin) load -----------
-        # Subtract the instantaneous mean of the CARRYING pins: the big common
-        # (pulsing) load cancels, leaving only the per-pin difference, scaled to
-        # the carrying pins so a ~0.2 A imbalance invisible in 0-4 A pops out.
-        # Dead/idle pins are excluded (off this scale) and noted, not drawn.
+        # --- IMBALANCE: % of fair share (bar) + smoothed drift (time) ----------
+        # The imbalance is a per-pin LEVEL, so the headline is a sorted bar of
+        # each pin's share of the load (fair = total/N = 100%) -- a time average,
+        # immune to the few-us pulse-EDGE skew that swamps a raw time-series. The
+        # lower panel is the per-pin deviation smoothed ~0.5 ms (edge skew gone)
+        # to show drift / load-cycle dynamics.
         I = np.vstack([cap.data[c] for c in currents])
         pin_mean = I.mean(axis=1)
         carry_thr = max(0.3 * float(np.abs(pin_mean).max()), self.MIN_LOAD_A)
         carrying = np.abs(pin_mean) >= carry_thr
+        ci = [k for k in range(len(currents)) if carrying[k]]
         dead = [currents[k] for k in range(len(currents)) if not carrying[k]]
-        if int(carrying.sum()) >= 2:
-            ref = I[carrying].mean(axis=0)                 # instantaneous shared load
-            dev = I - ref                                  # common load removed
-            cmean = float(pin_mean[carrying].mean())
-            fig, a3 = plt.subplots(figsize=(11, 5))
-            for k, c in enumerate(currents):
-                if carrying[k]:
-                    a3.plot(t_ms, dev[k], lw=0.9,
-                            label=f"{c}  {pin_mean[k] - cmean:+.3f} A ({(pin_mean[k]-cmean)/cmean*100:+.1f}%)")
-            a3.axhline(0, color="k", lw=0.9, alpha=0.6)
-            ymax = float(np.abs(dev[carrying]).max()) * 1.25
-            a3.set_ylim(-ymax, ymax)
-            a3.set_xlabel("time (ms)")
-            a3.set_ylabel("current − shared load  (A)")
-            spread = float(pin_mean[carrying].max() - pin_mean[carrying].min())
-            worst = currents[int(np.where(carrying, pin_mean, -np.inf).argmax())]
-            sub = f"carrying spread {spread:.3f} A = {spread/cmean*100:.1f}% of {cmean:.2f} A; hog {worst}"
+        if len(ci) >= 2:
+            cnames = [currents[k] for k in ci]
+            Ic = I[ci]
+            ref_t = Ic.mean(axis=0)                        # instantaneous fair share
+            fair = float(ref_t.mean())                     # time-avg fair share (A)
+            pct = Ic.mean(axis=1) / fair * 100.0           # each pin's % of fair share
+            W = max(5, int(round(cap.rate_hz * 0.5e-3)))   # ~0.5 ms smoothing
+            ker = np.ones(W) / W
+            dev_s = np.vstack([np.convolve(Ic[j] - ref_t, ker, mode="same")
+                               for j in range(len(ci))])    # smoothed deviation (A)
+            whisk = np.vstack([np.percentile(dev_s[j], [10, 90])
+                               for j in range(len(ci))]) / fair * 100.0
+            order = np.argsort(pct)
+            hog = cnames[int(np.argmax(pct))]
+
+            fig, (ab, at) = plt.subplots(2, 1, figsize=(11, 8.5),
+                                         gridspec_kw={"height_ratios": [1.1, 1]})
+            x = np.arange(len(ci))
+            vals = pct[order]
+            colors = ["#c0392b" if v - 100 > self.IMBALANCE_FLAG_PCT
+                      else "#e67e22" if v > 100 else "#2980b9" for v in vals]
+            ab.bar(x, vals - 100.0, bottom=100.0, color=colors, width=0.62, zorder=2)
+            for xi in range(len(ci)):
+                k = order[xi]
+                ab.plot([xi, xi], [100 + whisk[k, 0], 100 + whisk[k, 1]],
+                        color="k", lw=1.3, alpha=0.55, zorder=3)
+                ab.annotate(f"{vals[xi]:.1f}%", (xi, vals[xi]), ha="center",
+                            va="bottom" if vals[xi] >= 100 else "top", fontsize=9, zorder=4)
+            ab.axhline(100, color="k", lw=1.0)
+            lo = min(float(vals.min()), float((100 + whisk).min()))
+            hi = max(float(vals.max()), float((100 + whisk).max()))
+            mrg = max(0.6, (hi - lo) * 0.18)
+            ab.set_ylim(lo - mrg, hi + mrg)
+            ab.set_xticks(x); ab.set_xticklabels([cnames[order[xi]] for xi in range(len(ci))])
+            ab.set_ylabel("% of fair share")
+            ab.set_title(f"per-pin IMBALANCE — share of the load  (fair = {fair:.2f} A = 100%; "
+                         f"hog {hog} at {pct.max():.1f}%, +{pct.max()-100:.1f}%; "
+                         f"melt-watch +{self.IMBALANCE_FLAG_PCT:.0f}%)", fontsize=10)
+            ab.grid(True, axis="y", alpha=0.3)
+
+            for j in range(len(ci)):
+                at.plot(t_ms, dev_s[j], lw=0.9, label=cnames[j])
+            at.axhline(0, color="k", lw=0.8, alpha=0.5)
+            at.set_xlabel("time (ms)"); at.set_ylabel("deviation from fair (A), ~0.5 ms smoothed")
+            at.legend(fontsize=8, ncol=len(ci)); at.grid(True, alpha=0.3)
             if dead:
-                sub += f";  dead/not-carrying: {', '.join(dead)}"
-            a3.set_title("per-pin IMBALANCE — deviation from the shared load (common-mode removed)\n"
-                         + sub, fontsize=10)
-            a3.legend(fontsize=8, ncol=min(int(carrying.sum()), 4)); a3.grid(True, alpha=0.3)
+                at.annotate("not carrying: " + ", ".join(dead), (0.01, 0.03),
+                            xycoords="axes fraction", fontsize=8, alpha=0.7)
             fig.tight_layout()
             p = os.path.join(out, f"{stem}-imbalance.png"); fig.savefig(p, dpi=110); plt.close(fig)
             files.append(p)
