@@ -48,6 +48,11 @@ a finding is "not corroborated by its own steering."
   `is_fenced` -- refuses any finding targeting a sense net / kelvin-pair / pinned ref; (d) `v4_structural_
   escape` -- HIGH local_minimum_risk + `physics_flat` -> a STRUCTURAL avoid/replace, NEVER a penalty.
   `finding_to_delta` defensively maps proposed_lever (no grammar) -> avoid|effort|replace|noop|refused.
+  SYMMETRIC OUTCOME RECORDING (owner 2026-06-13): `Outcome`/`settle_outcome`/`DeltaLog.record_outcome` log
+  victory AND failure AND OVERTURN with IDENTICAL detail (full finding + BOTH treatment & control metrics +
+  margin + corpus_state) -- no survivorship bias, no terse loss records. Overturn = a prior vindicated
+  hypothesis later beaten by its control (hypothesis_key + _prior_win tracking). gate-pass dominates the
+  objective. 17/17 tests.
 - **STILL TO BUILD:** wire cec_fs_actuator into cec_fullstack's run loop (call finding_to_delta after the
   verifier, gate on vfinal=='support', append applied deltas to pending_corridor_avoid [now LIVE via FIX 1])
   + FIX 4 control arm (paired treatment/control route per steered round; settle vindicated iff treatment>
