@@ -47,9 +47,23 @@ for the night unattended. Full V4 detail in memory [[deepseek-v4-auditor]].
 - **HOW TO CHECK in the morning:** `tail docs/fullstack-run-2026-06-13/run.log` (rounds + V4 auditor every 4th);
   open the dashboard :8095; read REVIEW.md. **Relaunch if down:** the `sg docker ... setsid nohup python3
   scripts/cec_fullstack.py ...` line above (worker stays broker-resident across run restarts).
-- **KNOWN/NEXT:** RAM-tight → per-round is slow (worker reasons heavily over the 35-entry brief, ~3-5 min/round
-  → ~14 V4 auditor passes over 7 h). NOT YET COMMITTED at handoff time: the durable changes (compose n-cpu-moe,
-  broker vram_gb, cec_fullstack corpus+seat-labels, cec_review_doc.py, v4_up fix, hooks) — commit + push.
+- **COMMITTED + PUSHED** (cbb9ef0 on `claude/overnight-corpus-preflight`, bot): compose n-cpu-moe, broker
+  vram_gb, cec_fullstack corpus+seat-labels, cec_review_doc.py, v4_up fix, hooks. Durable on the remote.
+- **CONFIRMED WORKING (monitored to ~03:10):** round 1 completed, V4 T5 auditor fired EVERY round, completed
+  NATURALLY (`T5: auditor=repair`, 5.5k reasoning chars captured to deepseek-v4-flash.jsonl), round 2 started.
+  The DeepSeek call is NOT stuck — it's just slow: cec_fullstack runs the deep V4 auditor EVERY round
+  (`audit()` per-round, NOT gated by V4_EVERY; V4_EVERY=4 is the SEPARATE T8 deep-BATCH auditor) at ~4 tok/s
+  over the big corpus-briefed prompt → ~12 min/V4-audit, ~15-20 min/round total. Auditor max_tokens=4096
+  (jl.MANAGER_MAX_TOKENS), deepseek_audit timeout=900s. So ~15-20 deeply-audited rounds over 7 h (FEWER but
+  DEEPER than the old 100+-round runs — the cost of V4-every-round + the 35-entry brief). NO hard OOM (committed
+  ~92 GB of 268 limit; avail 0.6-4.6 GB is just V4's reclaimable mmap; mild paging).
+- **THROUGHPUT LEVER (if owner wants more rounds, not deeper):** `CEC_FS_AUDITOR_MODEL=sonnet` (cloud, fast
+  per-round T5) keeps V4 only on the T8 every-4th batch; or raise `CEC_FS_V4_EVERY`; or trim the corpus brief
+  (promoted_corpus_brief max_chars) so the worker/auditor reason less. NOT changed — owner chose deep+whole-corpus.
+- **MONITORING:** owner asked to monitor overnight + fix issues. Benign noise confirmed harmless: T6 vision
+  anomaly flags are advisory-only (owner ruling, re-checked by determinism); `property.h(607) m_choices` asserts
+  are benign kicad-cli stderr. Watch: run.log advancing (a new `--- round N` every ~15-20 min), RAM committed
+  < 268 limit, V4 audits completing not timing out.
 
 ## Two PRs opened 2026-06-13 as nathanfraske-bot (idle-time work, owner away from PC)
 
