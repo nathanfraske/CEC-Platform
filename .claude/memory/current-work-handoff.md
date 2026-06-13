@@ -2,6 +2,23 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## MERGE AUDIT + REBASE VERIFY 2026-06-13 ~16:10 CDT
+Reviewer flagged PR #56 "behind main / conflicts on corpus tooling (forked cf950cc, lacks 5b47e32
+promotion)". VERIFIED STALE: fa63d22 (EI-stack base) parent IS 5b47e32; merge-base(origin/main,HEAD)=5b47e32;
+HEAD not behind; no conflict markers; `gh pr` mergeable=MERGEABLE (both #56 AND #55); BLOCKED=CODEOWNERS
+approval pending, not a conflict. 35 promoted entries SURVIVE the new governance -- PROVEN: lint 0-err,
+compile validate/compile/parity exit0, governance 22/22 (revocation+expiry+monotone), anchor 8/8, shadow 8/8,
+intake 17/17. Artifact: docs/prompt-audit-2026-06-13/merge-review/rebase-verification.md. NO rebase needed.
+OWNER: CODEOWNERS approval + PR-scope call (#56 base=main carries the whole EI stack; base it on
+overnight-corpus-preflight for prompt-audit-only, or merge the stack as one).
+MERGE AUDIT of PR #56 (Claude panel wf_ccd46f8a-583: 15 confirmed, **0 blockers**; V4 cross-check running):
+REAL BUGS in MY prompt-audit code to fix -- (HIGH) P4 rules_excerpt truncated: _slice_spec[:4000] cuts off
+LOCKED_DECISIONS_BRIEF+fence+unratified label because CORPUS_BRIEF (8364 ch) is ordered FIRST -> P4's
+deliverable never reaches the spec charter; fix = lead with LOCKED_DECISIONS_BRIEF+fence and/or raise the
+4000 cap. (MEDIUM) intent_manager unknown-net guard uses strict membership w/o slash-normalization (GND/+3V3
+bare vs /CAN_H) -> could drop valid intents; fix = normalize both sides. NOT yet fixed (standby for review).
+Report: docs/prompt-audit-2026-06-13/merge-review/claude-merge-review.md.
+
 ## PROMPT-TIER AUDIT 2026-06-13 ~15:05 CDT (owner asked: audit the promptings we feed each tier)
 Triggered by the ei02verify run exposing T1 hallucinating a non-existent ref `U5`. Root cause: the T1
 intent_manager prompt demands ref-anchored FR-02 waypoints but interpolates NO board ref inventory / no
