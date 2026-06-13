@@ -248,6 +248,7 @@ def score_and_log(routed, board, stub_summary, params, rnd):
            "drc": m.drc, "unconnected": m.unconnected, "length": round(m.length, 2),
            "vias": m.vias, "tracks": m.tracks,
            "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 3),
+           "drc_loci": list(getattr(m, "drc_loci", []) or [])[:12],   # P6f: finishing-lens grounding (cosmetic vs structural)
            "reasons": reasons[:6], "stub_summary": stub_summary}
     return rec, log_path
 

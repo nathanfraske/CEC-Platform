@@ -890,28 +890,59 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
 
 
 # ---- T4: worker panel (3 lenses) ---------------------------------------------------------------------
-_LENSES = ("safety (hard gates: kelvin, diffpair, plane integrity)",
-           "finishing (DRC count, dangling copper, cosmetics vs structure)",
-           "progress (is effort spend still buying improvement?)")
+# P6 (prompt-audit merge-audit): each lens judges its OWN axis -- the old shared "accept iff hard gates
+# pass AND your lens" rule collapsed the decorrelated panel toward one gate-driven vote, and gave the
+# finishing/progress lenses no data for their job. Now: SAFETY reads the deterministic gate state (does
+# not re-judge it); FINISHING reads the DRC loci (cosmetic vs structural residual); PROGRESS reads the
+# cross-round trajectory (is effort still buying improvement). The schema field is named explicitly.
+_PANEL_FIELD = ' Reply ONLY the JSON object: field "action" = one of accept|repair|escalate, and "reason".'
 
 
-def worker_panel(rec, rnd):
+def _panel_prompts(rec, rnd, history):
+    """Per-lens (system, user, temperature) for the T4 panel. `history` is the prior records (the
+    trajectory the progress lens judges). Pure -- testable without a broker."""
+    gates = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok",
+                                     "pour_integrity_ok", "plane_signal_mm")}
+    reasons = rec.get("reasons", [])[:6]
+    traj = [{"round": r.get("round"), "objective": r.get("objective"), "drc": r.get("drc"),
+             "passes": (r.get("params") or {}).get("passes"),
+             "opt_time": (r.get("params") or {}).get("opt_time")} for r in list(history)[-3:]]
+    return [
+        ("safety",
+         "You are the SAFETY lens of a routing panel. The hard gates (kelvin_ok, diffpair_ok, pour/plane "
+         "integrity) are ALREADY computed deterministically -- do NOT re-judge or recompute them. Given the "
+         "gate state: accept ONLY if gates_pass is true; else repair if more router EFFORT could close the "
+         "gate; escalate if the failure is structural (needs a re-plan, not more effort)." + _PANEL_FIELD,
+         f"GATE STATE (deterministic): {json.dumps(gates)}\nfailing reasons: {json.dumps(reasons)}", 0.0),
+        ("finishing",
+         "You are the FINISHING lens. Gate state is the safety lens's job, NOT yours. Judge whether the "
+         "RESIDUAL DRC is finishing/cosmetic-class (a decorative logo keepout, an RJ-45 shield-tab tie) or "
+         "structural. accept if the residual is finishing-only; repair if more effort clears it; escalate "
+         "if it is structural." + _PANEL_FIELD,
+         f"drc={rec.get('drc')} unconnected={rec.get('unconnected')}\n"
+         f"DRC loci (type/where): {json.dumps(rec.get('drc_loci', [])[:12])}\n"
+         f"failing reasons: {json.dumps(reasons)}", 0.0),
+        ("progress",
+         "You are the PROGRESS lens. Do NOT judge the gates. Judge the TRAJECTORY across rounds: is effort "
+         "still buying improvement? accept if converged (metrics flat at a good state); repair if metrics "
+         "are still improving as effort rises; escalate if effort/passes ramped across rounds with NO "
+         "metric movement (a stall that needs a re-plan, not more effort)." + _PANEL_FIELD,
+         f"this round: objective={rec.get('objective')} drc={rec.get('drc')} "
+         f"params={json.dumps(rec.get('params', {}))}\n"
+         f"recent trajectory (oldest first): {json.dumps(traj)}", 0.3),
+    ]
+
+
+def worker_panel(rec, rnd, history=()):
     votes = []
-    m = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok", "drc",
-                                 "unconnected", "plane_signal_mm", "max_T", "objective")}
     try:
         import cec_judge_local as jl
-        for i, lens in enumerate(_LENSES):
+        for key, system, user, temp in _panel_prompts(rec, rnd, history):
             try:
-                d = jl._chat_json(
-                    f"You judge a routed PCB candidate through ONE lens: {lens}. "
-                    "accept only if hard gates pass AND your lens is satisfied; repair if more "
-                    "router effort could fix it; escalate if stuck/structural.",
-                    CORPUS_BRIEF_GEN + f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
-                    f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
-                    PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
-                    seat="panel:" + lens.split()[0], max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
-                votes.append((lens.split()[0], d.get("action"), d.get("reason", "")[:120]))
+                d = jl._chat_json(system, CORPUS_BRIEF_GEN + user, PANEL_SCHEMA, name="panel",
+                                  temperature=temp, nothink=True, seat="panel:" + key,
+                                  max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+                votes.append((key, d.get("action"), d.get("reason", "")[:120]))
             except Exception:                                    # noqa: BLE001
                 continue
     except Exception:                                            # noqa: BLE001
@@ -956,22 +987,30 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
                      if "refuted" in e.get("action", "") or "tripwire" in e.get("action", "")]
     refuted_metrics = sorted(set(lr.get("refuted_metrics", [])))
     prompt = (
-        "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Constraints "
-        "you operate under, learned from the last run converging to a local minimum:\n"
+        # P5a (prompt-audit): LEAD with what actuates -- failure_class is the steering field, not the
+        # discarded proposed_lever. The placement arm is called out FIRST (owner: the placement tier is
+        # itself a gate on convergence -- more router effort cannot fix a bad placement).
+        "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Your `failure_class` "
+        "is what STEERS the loop -- choose it deliberately:\n"
+        "- failure_class=placement -> FIRES the T0 PLACEMENT ACTUATOR (the deterministic GR-02 repair "
+        "battery: shift a part out of a congested corridor, layer-swap, insert a via). Choose this when "
+        "the route cannot close because of PLACEMENT -- a sense IC boxed against its shunt with no escape, "
+        "a congested corridor, parts with no routing room. Placement is an UPSTREAM gate on convergence: "
+        "more router passes cannot fix a bad placement, so prefer this over effort once effort has stalled.\n"
+        "- failure_class=routing -> records the diagnosis; the deterministic corridor-avoid lever fires "
+        "from pour_clipped_nets and the panel bumps router effort. Choose this when the placement is fine "
+        "and more/better routing can close it.\n"
+        "- failure_class=scoring -> you MAY price a metric, but ONLY if a gate-passing candidate ALREADY "
+        "exists and pricing is needed to rank it first. A scorer reweight cannot create a better board; it "
+        "only reorders the candidates that already exist.\n"
+        "- failure_class=constraint/none when apt.\n\n"
+        "Constraints (learned from a prior run converging to a local minimum):\n"
         f"- ALLOWED LEVERS (the ONLY things the loop can pull): {OWNED_LEVERS}.\n"
-        "- A SCORER-METRIC REWEIGHT IS NOT A LEVER. It only reorders the candidates that already "
-        "exist; it cannot create a better board. If the real fix needs generation (a different "
-        "route / placement / keepout / waypoint), name THAT lever in `proposed_lever` and leave "
-        "`scorer_penalty` null. Only price a metric when a gate-passing candidate ALREADY exists "
-        "and pricing is needed to rank it first.\n"
-        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} have "
-        "already been refuted this run and will be auto-rejected by a deterministic tripwire. "
-        "Switch lever class instead.\n"
-        f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. "
-        "At the cap propose only a CONSOLIDATION (merge two existing standing rules into one tighter "
-        "rule covering both cases, naming the two it replaces) or nothing.\n"
-        "- ACTUATION: a placement/structural-density blockage must be attributed "
-        "failure_class=placement, NOT priced.\n"
+        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} are already "
+        "refuted this run (a deterministic tripwire auto-rejects them). Switch lever class instead.\n"
+        f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. At "
+        "the cap propose only a CONSOLIDATION (merge two existing rules into one tighter rule, naming the "
+        "two it replaces) or nothing.\n"
         "- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.\n\n"
         f"ROUND {rnd} candidate:\n{json.dumps(metrics, indent=1)}\n"
         # GENERATION SOURCE (review item 5): a fallback round ran on crude fixed-offset waypoints,
@@ -989,12 +1028,15 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
         f"Current injected penalties: {json.dumps(lr['scorer_penalties'])}\n"
         f"Standing rules ({len(lr['manager_rules'])}): {json.dumps(lr['manager_rules'][-6:])}\n"
         f"Prior refutes this run (do not repeat the class): {json.dumps(prior_refutes)}\n"
-        f"Penalisable keys: {list(PENALISABLE)}\n\n"
-        "SCHEMA -- `root_cause` is your bankable diagnosis (ALWAYS fill it; it is kept even if the "
-        "lever is refused). `proposed_lever` is VERIFIER-CONTEXT-ONLY today: it is recorded and the "
-        "verifier judges its actuation-space, but it has NO direct effector -- the corridor-avoidance "
-        "lever fires DETERMINISTICALLY from pour_clipped_nets, not from this field. `scorer_penalty` "
-        "is for ranking only and must be null unless a gate-passing candidate already exists.\n")
+        # P5d: advertise the ACTUALLY-priceable metrics (a penalty on anything else is rejected by inject()).
+        f"Priceable metrics (a penalty on any other metric is rejected): {sorted(_PENALTY_METRIC)}\n\n"
+        # P5c: role-define `verdict`; P5a: `proposed_lever` is advisory-only, fill briefly.
+        "SCHEMA -- `root_cause`: your bankable diagnosis (ALWAYS fill it; kept even if a lever is refused). "
+        "`failure_class`: the steering field above (this is what acts). `verdict` (accept|repair|escalate): "
+        "your read of whether THIS round's board is acceptable AS DIAGNOSED -- it does NOT itself drive "
+        "routing (the panel drives effort). `proposed_lever`: ADVISORY CONTEXT ONLY -- it has NO direct "
+        "effector (the corridor-avoid lever fires deterministically from pour_clipped_nets); fill it "
+        "briefly, do not over-invest. `scorer_penalty`: null unless a gate-passing candidate already exists.\n")
     return prompt, out_path
 
 
@@ -1005,6 +1047,23 @@ _AUDIT_JSON_TEMPLATE = (
     '"detail":"..."}|null,'
     '"scorer_penalty":{"metric":"...","weight":<number>,"rationale":"..."}|null,'
     '"manager_rule":"..."|null}')
+
+_AUDIT_VERDICTS = ("accept", "repair", "escalate")
+_AUDIT_FCLASS = ("routing", "placement", "scoring", "constraint", "none")
+
+
+def _coerce_audit(d):
+    """P5b (prompt-audit): the cloud (claude CLI) auditor path is ungrammared, unlike the deepseek
+    json_schema path -- coerce its loaded JSON to the schema so a malformed/out-of-enum verdict or
+    failure_class can't silently disable a load-bearing consumer (failure_class drives the T0
+    placement actuator; verdict is the anchor-presence flag). Fail-safe to a repair verdict."""
+    if not isinstance(d, dict):
+        return {"verdict": "repair", "failure_class": "routing", "error": "non-dict audit"}
+    if d.get("verdict") not in _AUDIT_VERDICTS:
+        d["verdict"] = "repair"
+    if d.get("failure_class") not in _AUDIT_FCLASS:
+        d["failure_class"] = "routing"
+    return d
 
 
 def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
@@ -1030,7 +1089,7 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
     for _ in range(3):
         if os.path.exists(out_path):
             try:
-                return json.load(open(out_path))
+                return _coerce_audit(json.load(open(out_path)))   # P5b: validate the ungrammared cloud output
             except Exception:                                    # noqa: BLE001
                 time.sleep(1)
         time.sleep(1)
@@ -1128,35 +1187,43 @@ def inject(finding, lr, rnd, source, verifier_final):
         if _norm_text(rc) not in seen:
             lr["diagnoses"].append({"round": rnd, "source": source, "root_cause": rc[:400]})
     sp = finding.get("scorer_penalty")
-    if isinstance(sp, dict) and sp.get("metric") in PENALISABLE:
-        metric, ok = sp["metric"], True
-        try:
-            w = float(sp.get("weight"))
-        except (TypeError, ValueError):
-            w, ok = None, False
-        if metric in lr.setdefault("refuted_metrics", []):
-            # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
-            # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:knob_tripwire"})
-        elif verifier_final == "refute":
-            lr["refuted_metrics"].append(metric)
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:verifier_refuted"})
-        elif not ok or w < 0:
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:invalid_or_negative"})
+    if isinstance(sp, dict) and sp.get("metric"):
+        metric = sp["metric"]
+        if metric not in _PENALTY_METRIC:
+            # P5d (prompt-audit): reject a penalty on a metric the scorer CANNOT apply. PENALISABLE used
+            # to advertise gate-derived metrics (gate_fail/kelvin_unrouted/diffpair_unrouted) that
+            # _penalty_weighted_base silently drops -- so they were logged accepted:raised but never
+            # reweighted (a phantom lever). Now the gate is _PENALTY_METRIC and the rest reject explicitly.
+            events.append({"kind": "penalty", "metric": metric, "action": "rejected:not_priceable"})
         else:
-            cur = lr["scorer_penalties"].get(metric, 0.0)
-            w = min(w, PENALTY_MAX)
-            if w <= cur:
+            ok = True
+            try:
+                w = float(sp.get("weight"))
+            except (TypeError, ValueError):
+                w, ok = None, False
+            if metric in lr.setdefault("refuted_metrics", []):
+                # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
+                # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
                 events.append({"kind": "penalty", "metric": metric,
-                               "action": "noop:not_a_tightening"})
+                               "action": "rejected:knob_tripwire"})
+            elif verifier_final == "refute":
+                lr["refuted_metrics"].append(metric)
+                events.append({"kind": "penalty", "metric": metric,
+                               "action": "rejected:verifier_refuted"})
+            elif not ok or w < 0:
+                events.append({"kind": "penalty", "metric": metric,
+                               "action": "rejected:invalid_or_negative"})
             else:
-                lr["scorer_penalties"][metric] = w
-                events.append({"kind": "penalty", "metric": metric, "from": cur, "to": w,
-                               "action": "accepted:raised",
-                               "rationale": str(sp.get("rationale", ""))[:300]})
+                cur = lr["scorer_penalties"].get(metric, 0.0)
+                w = min(w, PENALTY_MAX)
+                if w <= cur:
+                    events.append({"kind": "penalty", "metric": metric,
+                                   "action": "noop:not_a_tightening"})
+                else:
+                    lr["scorer_penalties"][metric] = w
+                    events.append({"kind": "penalty", "metric": metric, "from": cur, "to": w,
+                                   "action": "accepted:raised",
+                                   "rationale": str(sp.get("rationale", ""))[:300]})
     rule = finding.get("manager_rule")
     if isinstance(rule, str) and len(rule.strip()) >= 12:
         if verifier_final == "refute":
@@ -1412,7 +1479,7 @@ def run(board, rounds, hours, auditor=None):
             kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1
 
             # T4 worker panel -> effort actuation
-            action, votes = worker_panel(rec, rnd)
+            action, votes = worker_panel(rec, rnd, history=records)   # P6b: progress lens gets the trajectory
             log(f"  T4 panel: {action} ({[(v[0], v[1]) for v in votes]})")
             if action == "repair":
                 passes, opt_time = min(passes + 8, 60), min(opt_time + 12, 100)

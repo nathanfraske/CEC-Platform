@@ -246,5 +246,60 @@ class MergeAuditFixes(unittest.TestCase):
         self.assertNotIn("[scope:", head)                            # in-family ordered first -> head is in-family
 
 
+class PanelRedesign(unittest.TestCase):
+    """P6: per-lens panel prompts (each lens judges its own axis, named field, real inputs)."""
+
+    REC = {"round": 2, "gates_pass": False, "kelvin_ok": True, "diffpair_ok": True,
+           "pour_integrity_ok": False, "plane_signal_mm": 0, "drc": 8, "unconnected": 2,
+           "objective": 1000.0, "params": {"passes": 38, "opt_time": 60},
+           "drc_loci": [{"type": "silk", "where": "LOGO1"}], "reasons": ["pour_integrity: clipped"]}
+    HIST = [{"round": 1, "objective": 1100.0, "drc": 12, "params": {"passes": 24, "opt_time": 40}}, REC]
+
+    def test_three_lenses_named_field_own_axis(self):
+        ps = fs._panel_prompts(self.REC, 2, self.HIST)
+        self.assertEqual([k for k, *_ in ps], ["safety", "finishing", "progress"])
+        sysm = {k: s for k, s, u, t in ps}
+        for s in sysm.values():
+            self.assertIn('field "action"', s)                            # P6d: schema field named
+        self.assertIn("ALREADY computed deterministically", sysm["safety"])   # P6c: doesn't re-judge gates
+        self.assertIn("safety lens", sysm["finishing"])                   # finishing defers gates to safety
+        self.assertIn("TRAJECTORY", sysm["progress"])
+
+    def test_finishing_gets_drc_loci_progress_gets_trajectory(self):
+        ps = fs._panel_prompts(self.REC, 2, self.HIST)
+        fin_user = next(u for k, s, u, t in ps if k == "finishing")
+        prog_user = next(u for k, s, u, t in ps if k == "progress")
+        self.assertIn("LOGO1", fin_user)                                  # P6f: DRC loci fed to finishing
+        self.assertIn("1100", prog_user)                                  # prior round's objective (trajectory)
+
+
+class AuditorRedesign(unittest.TestCase):
+    """P5: auditor prompt leads with failure_class actuation; cloud-output coercion; priceable guard."""
+
+    def test_coerce_audit_normalizes_enums(self):
+        self.assertEqual(fs._coerce_audit({"verdict": "bogus", "failure_class": "weird"}),
+                         {"verdict": "repair", "failure_class": "routing"})
+        good = {"verdict": "escalate", "failure_class": "placement", "root_cause": "x"}
+        self.assertEqual(fs._coerce_audit(dict(good)), good)
+        self.assertEqual(fs._coerce_audit("nope")["verdict"], "repair")   # non-dict fail-safe
+
+    def test_inject_rejects_non_priceable_metric(self):
+        lr = {"scorer_penalties": {}, "manager_rules": [], "injections": [], "rejections": [],
+              "diagnoses": [], "refuted_metrics": []}
+        fs.inject({"scorer_penalty": {"metric": "gate_fail", "weight": 100}}, lr, 1, "auditor", "support")
+        self.assertNotIn("gate_fail", lr["scorer_penalties"])             # phantom lever no longer "accepted"
+        self.assertIn("rejected:not_priceable", [e["action"] for e in lr["rejections"]])
+
+    def test_audit_prompt_leads_with_placement_actuator(self):
+        lr = {"scorer_penalties": {}, "manager_rules": [], "refuted_metrics": [], "rejections": [], "diagnoses": []}
+        rec = {"gates_pass": False, "kelvin_ok": True, "diffpair_ok": True, "drc": 8, "unconnected": 2,
+               "plane_signal_mm": 0, "objective": 1000.0, "reasons": [], "stub_summary": {}}
+        prompt, _ = fs._audit_prompt(rec, lr, 1)
+        self.assertIn("T0 PLACEMENT ACTUATOR", prompt)                    # P5a + placement-tier emphasis
+        self.assertIn("ADVISORY CONTEXT ONLY", prompt)                    # proposed_lever demoted
+        self.assertIn("Priceable metrics", prompt)                        # P5d advertises the real set
+        self.assertNotIn("Penalisable keys", prompt)                      # old (phantom) advert gone
+
+
 if __name__ == "__main__":
     unittest.main()
