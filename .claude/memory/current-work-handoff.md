@@ -2,6 +2,17 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## PR #55/#54 MERGED; PR #56 VERIFIED GOOD ON NEW MAIN 2026-06-13 ~16:55 CDT
+Owner merged most: **#55 (EI backbone) + #54 (dashboard) MERGED to main** (main now 0432ba8, contains the EI
+stack). GitHub auto-retargeted PR #56 base back to main -> now shows just the 3 prompt-audit commits / 13
+files vs trunk, mergeable=MERGEABLE, BLOCKED=CODEOWNERS approval pending (NOT a conflict). "Audit is good"
+PROVEN: isolated worktree test-merge of claude/prompt-tier-audit onto origin/main applies 0-conflict; on the
+merged tree py_compile OK + 9/9 host suites green (prompt-audit, ei02, governance, am04-anchors, shadow 8/8,
+auditor, reason, cl25, policy) + corpus lint 0-err + compile validate 0-err. H1/M2 fixed+tested. Verification
+comment posted to PR #56. #56 is READY for owner CODEOWNERS merge. Open follow-ups (non-blocking): H2 wire
+test into checklist/CI, M1 corridor-excludes-U2, M3/M4/M5 coverage; plus P5a-d/P6 from the punchlist.
+(Unrelated: PR #50 firmware is CONFLICTING -- not ours.)
+
 ## PR #56 RE-BASED FOR INDEPENDENT REVIEW 2026-06-13 ~16:45 CDT
 Owner: "do the rebase so we can review independently." Re-pointed PR #56 base main -> claude/overnight-
 corpus-preflight (PR #55) via `gh api -X PATCH repos/.../pulls/56 -f base=...` (gh pr edit is broken on the
