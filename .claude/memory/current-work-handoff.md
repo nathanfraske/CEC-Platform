@@ -2,6 +2,29 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## PROMPT-TIER AUDIT 2026-06-13 ~15:05 CDT (owner asked: audit the promptings we feed each tier)
+Triggered by the ei02verify run exposing T1 hallucinating a non-existent ref `U5`. Root cause: the T1
+intent_manager prompt demands ref-anchored FR-02 waypoints but interpolates NO board ref inventory / no
+coordinates (only example refs U2/U1), and INTENTS_SCHEMA leaves net/ref/between as free strings (no enum,
+no existence check); `compile_intents` silently DROPS a bad ref into failures -> wasted round. Ran a Claude
+audit PANEL (workflow `wf_62719b67-487`, 6 lenses -> dedup -> batched adversarial verify vs source -> synth)
++ a DeepSeek-V4 independent cross-check (`cec_v4_task.py` bg). Artifacts in docs/prompt-audit-2026-06-13/:
+catalog.md (verbatim per-tier prompts, the audit ground truth), claude-panel-report.md (30 confirmed / 3
+rejected), v4-findings.json (V4 half). HIGH findings: **H1** T1 no ref/net manifest+no validation (the U5
+class; ONE board-manifest fix also retires M1 corridor-geom + M2 hotspot-cell mapping); **H2** T1 never told
+the actuator FENCE (can lock force-protected stubs onto Kelvin nets / RS1/RS2/U20/U21 with no compile_intents
+guard); **H3** CL24 spec-conformance charter labeled "ratified corpus" but fed ephemeral manager_rules (empty
+on control rounds -> empty_corpus); **H4** EI-02 control lane CONTAMINATED — `intents` is one carry-forward var,
+not lane-gated, so augmented-learned waypoints leak into the signed-only control round and bias the A/B lift.
+Mediums: T5 proposed_lever imperative-but-inert; cloud-auditor path ungrammared vs deepseek; PENALISABLE vs
+_PENALTY_METRIC phantom-lever drift; T7 coverage_note not in schema; T4 safety lens judges plane-integrity with
+no backing data + shared accept-rule collapses the decorrelated panel; CORPUS_BRIEF ~83% off-family + sort-order
+truncation; T1 temp 0.2 thinking model no nothink/floor. Verified vs real run logs (U4/U5/U6/U7 across many
+rounds). NOT YET IMPLEMENTED — fixes proposed only. Highest-value next: the H1 board-manifest + emit-time ref
+validation (retires H1/M1/M2), then H4 lane-gating (it biases the very EI-02 A/B). NOTE ei02verify run DONE
+14:49: 0 gate-passing, 0 deltas applied (actuator fully bounded), drc_mean aug 22.0 / ctrl 9.67, real_anchor aug
+0.73 / ctrl 0.84.
+
 ## EI BACKBONE PANEL DONE + COMMITTED 2026-06-13 ~14:05 CDT
 Opus-4.8 panel (`wf_4839b54a-e0b`) completed: 0 review blockers; minor concerns folded in (doc 31/34->29/34,
 instrumentation corpus_state-citation caveat, EI-06 revocation latch MOVED into cec_corpus_compile not just
