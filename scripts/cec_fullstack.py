@@ -93,6 +93,12 @@ OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing a
 # binding is owner-gated (cec-policy.json); these env knobs let it be split/reverted without a code edit.
 WORKER_SEAT = os.environ.get("CEC_FS_WORKER_MODEL", "cec-worker-vision")
 VISION_SEAT = os.environ.get("CEC_FS_VISION_MODEL", "cec-worker-vision")
+# VISION GATING (owner 2026-06-13): the per-round VLM narrate produced only advisory anomaly flags
+# (owner-ruled non-authoritative; geometry is owned by the deterministic checkers, CL-21) at real RAM/
+# GPU/latency cost. So the VLM now fires ONLY on FINALISTS (the existing finalist path runs vision_judge);
+# every round still gets the DETERMINISTIC pour-integrity facts (which feed the blocking gate + the item4
+# corridor-avoid lever). Set CEC_FS_VISION_EVERY_ROUND=1 to restore per-round narration.
+VISION_EVERY_ROUND = os.environ.get("CEC_FS_VISION_EVERY_ROUND", "0") == "1"
 # Frozen known-good model-free copper render per board, for the deterministic render-diff the VLM
 # NARRATES (owner ruling 2026-06-11). Render-diff is a REGRESSION tool -- it only has meaning for a
 # board that IS known-good and is being REPROCESSED (toolchain/library/re-pour); diffing an
@@ -109,6 +115,11 @@ VISION_REFERENCE = {}
 # Sonnet/oss-120b omitted). Cloud Sonnet is ONE ENV VAR AWAY (CEC_FS_AUDITOR_MODEL=sonnet) for a
 # latency-sensitive DAILY run. Resolution: explicit --auditor > CEC_FS_AUDITOR_MODEL env > V4-Flash default.
 SONNET_AUDITOR = "sonnet"
+# Cloud (claude-CLI) auditor seats vs the deep broker auditor: a model in CLOUD_AUDITORS routes to the
+# claude CLI with --model <name> (+ --effort), anything else -> the broker (deepseek-v4-flash etc.).
+# CEC_FS_AUDIT_EFFORT sets the CLI effort level (low|medium|high|xhigh|max) for the cloud auditor.
+CLOUD_AUDITORS = {"sonnet", "opus"}
+CLOUD_AUDIT_EFFORT = os.environ.get("CEC_FS_AUDIT_EFFORT")
 DEEP_AUDITOR = os.environ.get("CEC_FS_DEEP_AUDITOR", "deepseek-v4-flash")
 # DEEP-AUDITOR ENDPOINT (owner 2026-06-12): V4-Flash (~160 GB) cannot run under the WSL broker -- it pages
 # at the 125 GB WSL2 ceiling (a live replay 502'd after 330 s). It runs via the WINDOWS-HOSTED workaround
@@ -186,6 +197,24 @@ def _d(*parts):
     p = os.path.join(PERM, *parts)
     os.makedirs(os.path.dirname(p) if "." in os.path.basename(p) else p, exist_ok=True)
     return p
+
+
+def _corpus_state(lr):
+    """EI-01: knowledge-state pin for the measurement row (fail-safe to {} so a row always writes)."""
+    try:
+        import cec_ledger
+        return cec_ledger.corpus_state(lr)
+    except Exception:                                          # noqa: BLE001
+        return {}
+
+
+def _vision_required_unmet(pourcheck, geom_delta, threshold=3):
+    """True only when the VLM was ATTEMPTED (not finalist-gated) yet produced no anomalies despite a
+    pour-geometry shift >= threshold -- i.e. the vision seat was genuinely needed but DOWN. A gated round
+    (run_vlm=False -> vlm_gated) is an intentional skip, never flagged as a seat outage."""
+    vlm_attempted = not pourcheck.get("vlm_gated")
+    vision_ran = "anomalies" in pourcheck
+    return bool(vlm_attempted and geom_delta >= threshold and not vision_ran)
 
 
 # ---- promoted-corpus brief: ratified knowledge for the manager panel + auditor (owner 2026-06-13) ----
@@ -327,18 +356,26 @@ def pour_facts(routed_host_path):
     return {}
 
 
-def vision_pour_check(rec, rnd):
+def vision_pour_check(rec, rnd, run_vlm=True):
     """T6 RE-ROLED (owner ruling 2026-06-11): the VISION seat NO LONGER judges pour integrity --
     detection is deterministic (pour_facts islands + the BLOCKING pour_integrity gate + the
     render-diff). The seat now only NARRATES the deterministic render-diff regions and runs an
     open-ended ANOMALY pass. It is NEVER fed the numeric facts (it parrots them, CL-21) and emits a
     FLAG, never a verdict. The lever + gate read the deterministic facts/det_clipped ONLY;
-    narration/anomalies are advisory (auditor context + log), re-checked by determinism."""
+    narration/anomalies are advisory (auditor context + log), re-checked by determinism.
+
+    VISION GATING (owner 2026-06-13): with run_vlm=False the DETERMINISTIC facts (which own integrity and
+    feed the gate + item4 lever) still compute every round, but the advisory VLM narrate is SKIPPED --
+    the per-round VLM only produced non-authoritative anomaly flags at real RAM/GPU cost. The VLM now
+    fires on finalists (the vision_judge path) / when CEC_FS_VISION_EVERY_ROUND=1."""
     facts = pour_facts(rec["routed"])                              # DETERMINISTIC -- owns integrity
     det_clipped = sorted(n for n, v in facts.items()
                          if isinstance(v, dict) and (v.get("islands", 1) or 1) > 1)
     log(f"  T6 POUR (deterministic): {json.dumps(facts)}")
     base = {"facts": facts, "det_clipped_nets": det_clipped, "role": "narration+anomaly"}
+    if not run_vlm:                                                # VISION-GATED: deterministic-only round
+        base["vlm_gated"] = "non-finalist"
+        return base
     png = _d("vision", f"pour-r{rnd}.png")
     # RENDER-HYGIENE PRECONDITION: the VLM is fed ONLY a model-free copper render -- never the 3D-body
     # render (kicad-cli rotated-footprint artifact -> false findings). No clean render -> SKIP.
@@ -625,17 +662,23 @@ _AUDIT_JSON_TEMPLATE = (
     '"manager_rule":"..."|null}')
 
 
-def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model"):
-    """Cloud Sonnet auditor (DAILY / latency). Spawns `claude -p --model sonnet`, Write-tool -> out_path."""
+def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
+                 model="sonnet", effort=None):
+    """Cloud claude-CLI auditor (DAILY / latency). Spawns `claude -p --model <model> [--effort <lvl>]`,
+    Write-tool -> out_path. model defaults to sonnet; pass model='opus' + effort='max' for a deep cloud
+    auditor test. (Kept the historical name; routes any CLOUD_AUDITORS member.)"""
     core, out_path = _audit_prompt(rec, lr, rnd, pourcheck, intents_src)
     prompt = (core + f"Use the Write tool to write ONLY this JSON to {out_path} :\n"
               + _AUDIT_JSON_TEMPLATE + "\nThen reply DONE.")
+    cmd = ["claude", "-p", "--model", model]
+    if effort:
+        cmd += ["--effort", effort]
+    cmd += ["--allowedTools", "Write", "--output-format", "stream-json", "--verbose",
+            "--include-partial-messages"]
+    log(f"  T5 cloud auditor: {model}" + (f" effort={effort}" if effort else ""))
     try:
         with open(_d("findings", f"round-{rnd:03d}-sonnet.stream.jsonl"), "w") as sfh:
-            subprocess.run(["claude", "-p", "--model", "sonnet", "--allowedTools", "Write",
-                            "--output-format", "stream-json", "--verbose",
-                            "--include-partial-messages"],
-                           input=prompt, text=True, stdout=sfh, stderr=subprocess.DEVNULL,
+            subprocess.run(cmd, input=prompt, text=True, stdout=sfh, stderr=subprocess.DEVNULL,
                            timeout=timeout)
     except subprocess.TimeoutExpired:
         return {"verdict": "repair", "error": "timeout"}
@@ -677,10 +720,12 @@ def deepseek_audit(rec, lr, rnd, model=None, timeout=900, pourcheck=None, intent
 
 def audit(rec, lr, rnd, model, *, timeout=None, pourcheck=None, intents_src="model"):
     """Dispatch the T5 auditor by seat model (resolve_auditor() picks it once per run):
-    'sonnet' -> cloud Sonnet (daily); anything else -> the deep broker auditor (overnight)."""
-    if model == SONNET_AUDITOR:
-        return sonnet_audit(rec, lr, rnd, timeout=timeout or 240,
-                            pourcheck=pourcheck, intents_src=intents_src)
+    a CLOUD_AUDITORS member ('sonnet'/'opus') -> cloud claude CLI; anything else -> the deep broker
+    auditor (overnight). Opus gets a longer default timeout (deep effort runs slower)."""
+    if model in CLOUD_AUDITORS:
+        return sonnet_audit(rec, lr, rnd, timeout=timeout or (900 if model == "opus" else 240),
+                            pourcheck=pourcheck, intents_src=intents_src,
+                            model=model, effort=CLOUD_AUDIT_EFFORT)
     return deepseek_audit(rec, lr, rnd, model=model, timeout=timeout or 900,
                           pourcheck=pourcheck, intents_src=intents_src)
 
@@ -784,6 +829,7 @@ def inject(finding, lr, rnd, source, verifier_final):
             try:
                 import cec_ledger
                 cec_ledger.append(board="fullstack-candidate", mode="decision",
+                                  live_rules=lr,            # EI-01: pin the INJECTION boundary itself
                                   verdict=f"ratification-candidate {e['kind']}", extra=e)
             except Exception:                                    # noqa: BLE001
                 pass
@@ -844,7 +890,7 @@ def run(board, rounds, hours, auditor=None):
     # front so the FIRST round's auditor call never loses its own race. Sonnet (claude CLI) needs no
     # warming; a Windows-hosted auditor (CEC_FS_AUDITOR_URL set) keeps its own residency, so the broker-
     # warm is skipped there. Fail-safe: a warm miss just means the first call eats the cold load.
-    if auditor_model != SONNET_AUDITOR and not DEEP_AUDITOR_URL:
+    if auditor_model not in CLOUD_AUDITORS and not DEEP_AUDITOR_URL:
         log(f"warming auditor seat {auditor_model} at start (deep cold load)...")
         try:
             warm(auditor_model, timeout=WARM_TIMEOUT)
@@ -912,9 +958,11 @@ def run(board, rounds, hours, auditor=None):
             else:
                 passes, opt_time = 24, 40
 
-            # T6 POUR-INTEGRITY vision check -- EVERY round (owner: pours are getting clipped by
-            # runs; state and RE-STATE it). Swaps to the vision seat; warmed inside.
-            pourcheck = vision_pour_check(rec, rnd)
+            # T6 POUR-INTEGRITY check -- deterministic facts EVERY round (owner: pours are getting clipped;
+            # state and RE-STATE it). The advisory VLM narrate is GATED to finalists (owner 2026-06-13);
+            # CEC_FS_VISION_EVERY_ROUND=1 restores per-round narration. Deterministic facts feed the gate
+            # + the item4 corridor-avoid lever regardless.
+            pourcheck = vision_pour_check(rec, rnd, run_vlm=VISION_EVERY_ROUND)
             json.dump(pourcheck, open(_d("vision", f"pour-r{rnd:03d}.json"), "w"),
                       indent=1, default=str)
             # DETERMINISTIC-ONLY (owner ruling 2026-06-11): the corridor-avoid lever + pour gate fire
@@ -1086,10 +1134,9 @@ def run(board, rounds, hours, auditor=None):
             _pf = pourcheck.get("facts", {}) or {}
             pour_sig = (sum((v.get("islands", 1) or 1) for v in _pf.values() if isinstance(v, dict)),
                         sum((v.get("foreign_cross", 0) or 0) for v in _pf.values() if isinstance(v, dict)))
-            vision_ran = "anomalies" in pourcheck       # narration pass produced output (re-roled seat)
             geom_delta = (abs(pour_sig[0] - prev_pour_sig[0]) + abs(pour_sig[1] - prev_pour_sig[1])
                           if prev_pour_sig else 0)
-            vision_required_unmet = bool(geom_delta >= 3 and not vision_ran)
+            vision_required_unmet = _vision_required_unmet(pourcheck, geom_delta)   # gated != seat-down
             if vision_required_unmet:
                 log(f"  ! VISION-REQUIRED unmet: pour-geometry delta={geom_delta} but vision seat down")
             prev_pour_sig = pour_sig
@@ -1112,11 +1159,12 @@ def run(board, rounds, hours, auditor=None):
                                    else pourcheck.get("skipped") or pourcheck.get("error")),
                    "vision_required_unmet": vision_required_unmet,
                    "verdict_type": vt,                       # "tripwire" on a tripwired round (item 6)
-                   "v4_risk": (v4 or {}).get("local_minimum_risk")}
+                   "v4_risk": (v4 or {}).get("local_minimum_risk"),
+                   "corpus_state": _corpus_state(lr)}        # EI-01: knowledge state at round time
             with open(_d("measurement.jsonl"), "a") as fh:
                 fh.write(json.dumps(row) + "\n")
             json.dump(lr, open(_d("live-rules.json"), "w"), indent=1)
-            ovd.ledger_round(board, rec, len(front))
+            ovd.ledger_round(board, rec, len(front), live_rules=lr)
         except Exception as e:                                   # noqa: BLE001
             log(f"  round {rnd} FAILED: {type(e).__name__}: {e}")
             import traceback
@@ -1155,6 +1203,7 @@ def run(board, rounds, hours, auditor=None):
               "front": [{k: r.get(k) for k in ("round", "objective", "drc", "unconnected",
                                                "plane_signal_mm", "max_T", "kelvin_ok")}
                         for r in front],
+              "corpus_state": _corpus_state(lr),        # EI-01: make the run deliverable self-describing
               "updated": time.strftime("%Y-%m-%dT%H:%M:%S")}
     json.dump(bundle, open(_d("bundle.json"), "w"), indent=1)
     log(f"DONE: {len(records)} candidates, {bundle['gate_passing']} gate-passing, "

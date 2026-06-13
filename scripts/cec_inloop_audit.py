@@ -82,6 +82,15 @@ def log(msg):
 
 
 # ---- live ruleset (persisted, additive-only) -------------------------------------------------------
+def _corpus_state(lr):
+    """EI-01: knowledge-state pin for the measurement row (fail-safe to {} so a row always writes)."""
+    try:
+        import cec_ledger
+        return cec_ledger.corpus_state(lr)
+    except Exception:                                          # noqa: BLE001
+        return {}
+
+
 def load_live_rules():
     if os.path.exists(LIVE_RULES_PATH):
         try:
@@ -161,6 +170,7 @@ def apply_findings(findings, lr, rnd, source):
             try:
                 import cec_ledger
                 cec_ledger.append(board="inloop-audit-candidate", mode="decision",
+                                  live_rules=lr,            # EI-01: pin the INJECTION boundary itself
                                   verdict=f"ratification-candidate {e['kind']} {e.get('metric') or 'rule'}",
                                   extra=e)
             except Exception:                                  # noqa: BLE001
@@ -398,10 +408,11 @@ def run(board, hours, shakeout):
                    "n_rules": len(lr["manager_rules"]),
                    "accepted_penalty": na_p, "accepted_rule": na_r,
                    "n_rejected_or_noop": sum(1 for e in events if not e["action"].startswith("accepted")),
-                   "sonnet_is_new": sj.get("is_new_finding"), "v4_local_min_risk": v4_risk}
+                   "sonnet_is_new": sj.get("is_new_finding"), "v4_local_min_risk": v4_risk,
+                   "corpus_state": _corpus_state(lr)}     # EI-01: knowledge state at round time
             with open(MEASURE_PATH, "a") as fh:
                 fh.write(json.dumps(row) + "\n")
-            ovd.ledger_round(board, rec, len(ovd.pareto_frontier(records)))
+            ovd.ledger_round(board, rec, len(ovd.pareto_frontier(records)), live_rules=lr)
         except Exception as e:                                 # noqa: BLE001
             log(f"  round {rnd} FAILED: {type(e).__name__}: {e}")
             import traceback; traceback.print_exc()

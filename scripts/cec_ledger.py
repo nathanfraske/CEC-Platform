@@ -132,6 +132,8 @@ def manifest():
         "scripts_sha": _git("rev-parse", "HEAD"),
         "scripts_dirty": bool(_git("status", "--porcelain")),
         "python": ".".join(str(v) for v in sys.version_info[:3]),
+        # NOTE (EI-01): the commit-time corpus pins (promoted_tree/staging_tree) ride corpus_state on the
+        # SAME appended row -- not duplicated here -- so manifest stays the pure code/tool determinism pin.
     }
 
 
@@ -164,6 +166,61 @@ def input_hashes(*, netlist=None, board=None):
 
 
 # ---------------------------------------------------------------------------
+# EI-01: knowledge-state pin (shadow-evidence partition)
+# ---------------------------------------------------------------------------
+def _sha_obj(o):
+    """Stable content hash of a JSON-able object (sorted keys, compact, str-coerced)."""
+    return hashlib.sha256(
+        json.dumps(o, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+
+
+_TREE_CACHE = {}
+
+
+def corpus_tree(path):
+    """git TREE object id of a tracked dir at HEAD -- the commit-time ratified/staging knowledge the
+    compiler reads. None off-git (degrades, never raises). Memoized for the process lifetime: a run
+    never commits to its own HEAD mid-flight, so the tree id is stable -- this avoids re-spawning
+    `git rev-parse` on every append/round (EI-01 RS-1: was computed twice per append)."""
+    if path not in _TREE_CACHE:
+        _TREE_CACHE[path] = _git("rev-parse", f"HEAD:{path}")
+    return _TREE_CACHE[path]
+
+
+def corpus_state(live_rules=None):
+    """EI-01: pin the KNOWLEDGE STATE a round/run saw, so shadow evidence can be partitioned into
+    INFLUENCED vs UNINFLUENCED rounds. promoted_tree/staging_tree are git tree object ids (commit-time
+    ratified + staging corpus). live_rules_sha is a CONTENT hash of the WHOLE live-rules object AT ROUND
+    TIME (not commit time) -- note it includes the bookkeeping logs (injections/rejections/diagnoses),
+    so it flips on a rejection-only round too; manager_rules_sha / adv_set_sha are the EFFECTIVE-influence
+    pins a partitioner should key on (the standing rules and the advisory penalties that actually steer
+    routing). `live_rules` may be a path to live-rules.json, the in-memory lr dict, or None (-> only the
+    corpus-tree pins). Fail-safe: every unavailable field is None, never raises."""
+    st = {
+        "promoted_tree": corpus_tree("corpus/promoted"),
+        "staging_tree": corpus_tree("corpus/staging"),
+        "live_rules_sha": None,
+        "manager_rules_sha": None,
+        "adv_set_sha": None,
+    }
+    lr = None
+    try:
+        if isinstance(live_rules, str) and os.path.isfile(live_rules):
+            lr = json.load(open(live_rules))
+        elif isinstance(live_rules, dict):
+            lr = live_rules
+    except Exception:                                          # noqa: BLE001
+        lr = None
+    if isinstance(lr, dict):
+        st["live_rules_sha"] = _sha_obj(lr)
+        st["manager_rules_sha"] = _sha_obj(lr.get("manager_rules", []))
+        # advisory set = an explicit `adv` list if a driver carries one, else the injected scorer
+        # penalties (the advisory ranking weights that influence selection without binding a gate).
+        st["adv_set_sha"] = _sha_obj(lr.get("adv", lr.get("scorer_penalties", {})))
+    return st
+
+
+# ---------------------------------------------------------------------------
 # append / query / lineage
 # ---------------------------------------------------------------------------
 def new_run_id():
@@ -172,9 +229,10 @@ def new_run_id():
 
 def append(*, board, mode, verdict=None, board_file=None, netlist=None, input_board=None,
            artifact=None, elapsed_s=None, parent_run_id=None, corrects=None, extra=None,
-           run_id=None):
+           run_id=None, live_rules=None):
     """Append one run line. Returns the record dict (with its run_id) whether or not the
-    ledger repo is present -- a missing ledger degrades to a warning, never an error."""
+    ledger repo is present -- a missing ledger degrades to a warning, never an error.
+    EI-01: `live_rules` (path | lr dict | None) pins the round-time knowledge state on the row."""
     rec = {
         "run_id": run_id or new_run_id(),
         "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -182,6 +240,7 @@ def append(*, board, mode, verdict=None, board_file=None, netlist=None, input_bo
         "mode": mode,                                  # route | synth-run | sweep | candidates | ...
         "inputs": input_hashes(netlist=netlist, board=input_board),
         "manifest": manifest(),
+        "corpus_state": corpus_state(live_rules),      # EI-01: knowledge state at append time
         "outputs": {},
         "verdict": verdict,
         "elapsed_s": elapsed_s,
@@ -457,6 +516,9 @@ def main(argv=None):
     aq.add_argument("--board", default=None)
     aq.add_argument("--since", default=None, help="ISO date floor, e.g. 2026-06-01")
     aq.add_argument("--mode", default=None)
+    aq.add_argument("--corpus-state", action="store_true",
+                    help="EI-01: compact per-row knowledge-state view (scripts/live_rules/manager/adv "
+                         "shas + promoted tree) so an injection boundary is visible at a glance")
 
     al = sub.add_parser("lineage")
     al.add_argument("run_id")
@@ -508,8 +570,23 @@ def main(argv=None):
                      elapsed_s=a.elapsed, parent_run_id=a.parent, corrects=a.corrects)
         print(json.dumps(rec, indent=2, sort_keys=True))
     elif a.cmd == "query":
-        for r in query(board=a.board, since=a.since, mode=a.mode):
-            print(json.dumps(r, sort_keys=True))
+        rows = query(board=a.board, since=a.since, mode=a.mode)
+        if a.corpus_state:
+            def _s(x):
+                return (x or "--------")[:8]
+            print(f"{'ts':20} {'mode':16} {'round':>5} {'scripts':8} {'live_rules':10} "
+                  f"{'mgr_rules':10} {'adv_set':8} {'promoted':8}")
+            for r in rows:
+                cs = r.get("corpus_state", {}) or {}
+                man = r.get("manifest", {}) or {}
+                rnd = (r.get("extra", {}) or {}).get("round", "")
+                print(f"{r.get('ts',''):20} {r.get('mode',''):16} {str(rnd):>5} "
+                      f"{_s(man.get('scripts_sha')):8} {_s(cs.get('live_rules_sha')):10} "
+                      f"{_s(cs.get('manager_rules_sha')):10} {_s(cs.get('adv_set_sha')):8} "
+                      f"{_s(cs.get('promoted_tree')):8}")
+        else:
+            for r in rows:
+                print(json.dumps(r, sort_keys=True))
     elif a.cmd == "lineage":
         chain = lineage(a.run_id)
         if not chain:

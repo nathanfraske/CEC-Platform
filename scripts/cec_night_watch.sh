@@ -18,11 +18,20 @@ WLOG="$RUN_DIR/watchdog.log"
 GW="$(ip route 2>/dev/null | awk '/default/{print $3}')"
 RUN_PAT='cec_fullstack[.]py --board'
 DASH_PAT='cec_dashboard[.]py'
-run_miss=0; dash_miss=0
+run_miss=0; dash_miss=0; run_done=0
 
 log() { echo "[$(date '+%m-%d %H:%M:%S')] $*" >> "$WLOG"; }
 
 relaunch_run() {
+  # PHANTOM-RELAUNCH GUARD (2026-06-13): a clean completion logs a "DONE:" line and writes bundle.json.
+  # The watchdog can't otherwise tell normal completion from a crash, so it once resurrected a FINISHED
+  # run (a fresh daytime run from round 1). If the run already completed, never relaunch -- and latch
+  # run_done so a deliverable is produced exactly once.
+  if grep -qE '^\[[0-9:]+\] DONE:' "$RUN_DIR/run.log" 2>/dev/null; then
+    log "run already COMPLETED (DONE marker present) -- NOT relaunching (phantom-relaunch guard)"
+    run_done=1
+    return
+  fi
   log "RELAUNCH run (absent 2 checks) ..."
   CEC_STREAM_DIR="$RUN_DIR/streams" CEC_VLLM_REVIEWER_MODEL=cec-worker-vision \
     setsid nohup python3 scripts/cec_fullstack.py --board eps-8pin --hours 7 \
@@ -52,8 +61,8 @@ for i in $(seq 1 96); do
   [ "$run_up" = 0 ] && warn="$warn RUN_DOWN"
   [ "$v4" != "200" ] && warn="$warn V4_$v4"
   log "run=$run_up dash=$dash_up | ${round:-pre-round} log_age=${age}s | gpu=${gpu} ram=${ram} v4=${v4}${warn:+ ||WARN:$warn}"
-  # --- self-heal (clean death only) ---
-  [ "$run_miss" -ge 2 ] && { relaunch_run; run_miss=0; }
+  # --- self-heal (clean death only; never resurrect a COMPLETED run) ---
+  [ "$run_miss" -ge 2 ] && [ "$run_done" = 0 ] && { relaunch_run; run_miss=0; }
   [ "$dash_miss" -ge 2 ] && { relaunch_dash; dash_miss=0; }
 done
 log "watchdog END (8h elapsed)"

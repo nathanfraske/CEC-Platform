@@ -343,10 +343,11 @@ def review_finalist(rec):
 
 
 # ---- ledger -----------------------------------------------------------------------------------------
-def ledger_round(board, rec, n_front):
+def ledger_round(board, rec, n_front, live_rules=None):
     try:
         import cec_ledger
         cec_ledger.append(board=f"overnight-directed:{board}", mode="route",
+                          live_rules=live_rules,          # EI-01: pin round-time knowledge state
                           verdict=("gates_pass" if rec["gates_pass"] else "gate_fail")
                                   + f" obj={rec['objective']} plane={rec['plane_signal_mm']}mm",
                           extra={"round": rec["round"], "params": rec["params"],
