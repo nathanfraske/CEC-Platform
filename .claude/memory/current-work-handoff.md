@@ -15,9 +15,11 @@ MERGE AUDIT of PR #56 (Claude panel wf_ccd46f8a-583: 15 confirmed, **0 blockers*
 REAL BUGS in MY prompt-audit code to fix -- (HIGH) P4 rules_excerpt truncated: _slice_spec[:4000] cuts off
 LOCKED_DECISIONS_BRIEF+fence+unratified label because CORPUS_BRIEF (8364 ch) is ordered FIRST -> P4's
 deliverable never reaches the spec charter; fix = lead with LOCKED_DECISIONS_BRIEF+fence and/or raise the
-4000 cap. (MEDIUM) intent_manager unknown-net guard uses strict membership w/o slash-normalization (GND/+3V3
-bare vs /CAN_H) -> could drop valid intents; fix = normalize both sides. NOT yet fixed (standby for review).
-Report: docs/prompt-audit-2026-06-13/merge-review/claude-merge-review.md.
+4000 cap. **P4 FIXED + committed 3af8bc6** (pushed to PR #56): new _spec_rules_excerpt() helper builds the
+excerpt SPINE-FIRST + _slice_spec cap 4000->12000; proven on real eps corpus (slice out 9265 w/ LOCKED/FENCE/
+pin-alloc present); +2 tests (8/8). (MEDIUM, NOT yet fixed) intent_manager unknown-net guard uses strict
+membership w/o slash-normalization (GND/+3V3 bare vs /CAN_H) -> could drop valid intents; fix = normalize both
+sides. V4 cross-check still running. Report: docs/prompt-audit-2026-06-13/merge-review/claude-merge-review.md.
 
 ## PROMPT-TIER AUDIT 2026-06-13 ~15:05 CDT (owner asked: audit the promptings we feed each tier)
 Triggered by the ei02verify run exposing T1 hallucinating a non-existent ref `U5`. Root cause: the T1
