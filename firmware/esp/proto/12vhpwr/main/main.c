@@ -85,6 +85,8 @@ static int cli_cmd_burst(int argc, char **argv)
 
     s_capturing = true;
     vTaskDelay(pdMS_TO_TICKS(3));              /* let the TelePlot loop pause */
+    UBaseType_t old_prio = uxTaskPriorityGet(NULL);
+    vTaskPrioritySet(NULL, configMAX_PRIORITIES - 2); /* min preemption jitter while capturing */
     int  got  = 0;
     bool dead = false;
     int64_t t0 = esp_timer_get_time();
@@ -96,6 +98,7 @@ static int cli_cmd_burst(int argc, char **argv)
         if (dead || cec_fpga_link_read(&buf[got].f) != ESP_OK) break;
         buf[got].us = esp_timer_get_time() - t0;
     }
+    vTaskPrioritySet(NULL, old_prio);          /* restore before the slow dump */
 
     /* Dump with the link still owned (TelePlot stays paused) so the CSV block
      * prints clean -- no live ">..." lines interleaved into it. Markers

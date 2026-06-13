@@ -92,7 +92,11 @@ esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out)
         .rx_buffer = rx,
     };
     xSemaphoreTake(s_lock, portMAX_DELAY);
-    esp_err_t err = spi_device_transmit(s_spi, &t);
+    /* polling_transmit busy-waits the hardware instead of queueing +
+     * blocking on an ISR semaphore -- ~64 us of RTOS overhead per 18-byte
+     * frame becomes a few us, which is what lets a tight loop keep up with
+     * the 50 kHz frame rate (the queued spi_device_transmit caps it ~12 kHz). */
+    esp_err_t err = spi_device_polling_transmit(s_spi, &t);
     xSemaphoreGive(s_lock);
     if (err != ESP_OK) return err;
 
