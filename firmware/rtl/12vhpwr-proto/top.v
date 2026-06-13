@@ -51,13 +51,13 @@ module top #(
     parameter integer STREAM_DEPTH = 2048,
     // AD7606 readout SCLK divider: adc_sclk = CLK_HZ / SCLK_DIV (EVEN). Nothing
     // forces a ceiling here (the AD7606 serial max is ~23.5 MHz) -- it trades the
-    // native sample rate against the per-bit setup window the 2-FF DOUT
-    // synchronizer sees, so it is the knob for read-side bit-glitch reliability:
-    //   4 -> 12.5 MHz (~40 ns bit window, marginal),  6 -> 8.33 MHz,
-    //   8 ->  6.25 MHz (~80 ns window, the reliable default),  10 -> 5.0 MHz.
-    // Slower = fewer glitches but lower native rate (read time scales with it),
-    // so retune DECIM_M to hold the stream near 25 kSPS after the SCLK is fixed.
-    parameter integer SCLK_DIV  = 8
+    // native sample rate against the per-bit DOUT setup window, the knob for
+    // read-side reliability:  4 -> 12.5 MHz,  6 -> 8.33 MHz,  8 -> 6.25 MHz,
+    // 10 -> 5.0 MHz.  Default 4 (12.5 MHz): the value that gave real per-channel
+    // numbers on the bench -- /8 was tried for the bit glitches and made the
+    // DATA worse (the glitches were on the ESP link, a different clock), so the
+    // read stays at /4. Slower = lower native rate, so retune DECIM_M if changed.
+    parameter integer SCLK_DIV  = 4
 )(
     input  wire clk50,
     // AD7606 module (silk: RST, CA, CS, RD, BUSY, D7, D8)

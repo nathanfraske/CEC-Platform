@@ -32,18 +32,20 @@ extern "C" {
 #define PROTO_PIN_DRDY  5    /* <- dock field B12 (FPGA A1)  */
 
 #define PROTO_LINK_HOST      SPI2_HOST
-#define PROTO_LINK_CLOCK_HZ  (12500 * 1000)     /* 12.5 MHz = fabric/4, the REAL
-                                                 * oversampled-slave ceiling. The
-                                                 * cec_spi_slave edge detector
-                                                 * (3-FF sync, edges on sclk_s[2:1])
-                                                 * needs >=2 fabric clocks per SCLK
-                                                 * half-period: fabric/4 = 12.5 MHz
-                                                 * is the hard edge, fabric/5 =
-                                                 * 10 MHz the margin number. 15 MHz
-                                                 * (fabric/3.33, 1.67 clk/half)
-                                                 * does NOT recover -> bad headers.
-                                                 * If the monitor shows bad headers
-                                                 * at 12.5, back off to 10 MHz. */
+#define PROTO_LINK_CLOCK_HZ  (8 * 1000 * 1000)   /* 8 MHz. The ESP<->FPGA LINK
+                                                  * SCLK (NOT the AD7606 readout).
+                                                  * 12.5 MHz (fabric/4) is the
+                                                  * slave's hard edge and bit-
+                                                  * errored on the bench: the
+                                                  * constant 0xA5 header arrived
+                                                  * with single bits flipped
+                                                  * (0xB5/0xA1/0xA7). 8 MHz sits
+                                                  * below the known-good 10 MHz for
+                                                  * MISO settle margin on the
+                                                  * perfboard link; raise toward
+                                                  * 10-12.5 only once the headers
+                                                  * are 100% solid. Floor for the
+                                                  * 25k stream keep-up is ~5 MHz. */
 
 /* AD7606 +/-5 V range: 152.59 uV per LSB. */
 #define PROTO_LSB_VOLTS      (5.0 / 32768.0)
