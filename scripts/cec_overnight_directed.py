@@ -114,6 +114,63 @@ def _round_params(rnd):
     return passes, opt_time, perturb
 
 
+def _avoid_to_bake(rect_keepouts):
+    """Convert cec_fr02.intent_keepouts() output [{rect_mm:[x1,y1,x2,y2], layers}] into bake_hints keepout
+    dicts. allow_vias=True mirrors the Kelvin-corridor keepout (cec_fr.bake_hints) so a boxed-in sensor pad
+    can still via to an inner plane -- never strand a sense tap. THIS is the wire that makes the avoid-region
+    lever (deterministic item4 AND an auditor 'route around corridor') actually fire: without it the avoid
+    intents are carried but never become FR keepouts (intent_keepouts had 0 callers; compile_intents reads
+    only waypoints)."""
+    out = []
+    for i, k in enumerate(rect_keepouts or []):
+        r = k.get("rect_mm")
+        if not r or len(r) < 4:
+            continue
+        x0, y0, x1, y1 = float(r[0]), float(r[1]), float(r[2]), float(r[3])
+        out.append({"name": f"avoid_{i}", "x0": min(x0, x1), "y0": min(y0, y1),
+                    "x1": max(x0, x1), "y1": max(y0, y1),
+                    "layers": tuple(k.get("layers", ("F.Cu", "B.Cu"))), "allow_vias": True})
+    return out
+
+
+def _safe_perturb(board_pcb, perturb, *, margin=0.3):
+    """Keep the route-diversity micro-keepout (divjit) OFF footprint pads. The walking perturb lands on a
+    different footprint each round; round 1 boxed U11's pads -> 4 phantom items_not_allowed DRC (and the
+    walk makes it a MOVING self-inflicted defect the auditor could misattribute). Load the pads once; if
+    the perturb intersects any, scan it down-board to a free band; if none free, drop it (diversity loses
+    one jitter, harmless). pcbnew-only; no pcbnew (host) -> unchanged."""
+    if not perturb:
+        return perturb
+    try:
+        import pcbnew
+        b = pcbnew.LoadBoard(board_pcb)
+    except Exception:                                          # noqa: BLE001
+        return perturb
+    M = 1e6
+    pads = []
+    for fp in b.GetFootprints():
+        for p in fp.Pads():
+            bb = p.GetBoundingBox()
+            pads.append((bb.GetLeft() / M, bb.GetTop() / M, bb.GetRight() / M, bb.GetBottom() / M))
+
+    def hits(qx0, qy0, qx1, qy1):
+        return any(not (qx1 < x0 - margin or qx0 > x1 + margin
+                        or qy1 < y0 - margin or qy0 > y1 + margin)
+                   for (x0, y0, x1, y1) in pads)
+
+    if not hits(perturb["x0"], perturb["y0"], perturb["x1"], perturb["y1"]):
+        return perturb
+    h = perturb["y1"] - perturb["y0"]
+    eb = b.GetBoardEdgesBoundingBox()
+    ylo, yhi = eb.GetTop() / M + 1.0, eb.GetBottom() / M - 1.0
+    y = ylo
+    while y + h <= yhi:
+        if not hits(perturb["x0"], y, perturb["x1"], y + h):
+            return {**perturb, "y0": round(y, 2), "y1": round(y + h, 2)}
+        y += 1.0
+    return None                                                # no free band -> drop this round's jitter
+
+
 def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=None, perturb_on=True):
     """Compile intents -> baked perturbation -> DSN(layer policy) -> protect -> FR ->
     import(strip) -> stub hygiene. Returns (routed_path, stub_summary, params).
@@ -128,7 +185,11 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
     directed = os.path.join(workdir, "directed.kicad_pcb")
     res = cec_fr02.compile_intents(board_pcb, intents, directed)
     baked = os.path.join(workdir, "baked.kicad_pcb")
-    cec_fr.bake_hints(directed, baked, keepouts=[perturb])
+    perturb = _safe_perturb(board_pcb, perturb)              # keep route-diversity jitter OFF pads (U11 bug)
+    # WIRE avoid-region intents into FR keepouts -- the SECOND half of the item4 lever (item4 + any auditor
+    # 'route around corridor'). intent_keepouts() had zero callers, so avoid intents used to silently no-op.
+    kos = ([perturb] if perturb else []) + _avoid_to_bake(cec_fr02.intent_keepouts(intents))
+    cec_fr.bake_hints(directed, baked, keepouts=kos)
     dsn = os.path.join(workdir, "r.dsn")
     ses = os.path.join(workdir, "r.ses")
     cec_fr.export_dsn(baked, dsn)                                 # layer policy auto-applies
