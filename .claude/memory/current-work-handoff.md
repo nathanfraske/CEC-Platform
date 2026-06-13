@@ -43,6 +43,28 @@ is ABSENT (it lives on the unmerged PR #51 branch), but the git `--local` config
   NOTE the credential helper now works on this branch (post-#51 base), no transient-credential workaround
   needed.
 
+## Dashboard per-seat streaming + overnight prep (2026-06-13, branch claude/dashboard-per-seat-streams, PR #54)
+- **Live dashboard REWRITTEN** to show real per-seat streaming (owner ask). New `scripts/cec_seat_stream.py`
+  recorder (env-gated `CEC_STREAM_DIR`, per-seat NDJSON, no-op when unset). `cec_judge_local` transport
+  now SSE-streams + tees per-seat deltas with a blocking fallback on ANY error; seat labels threaded:
+  manager, manager:safety/finishing/progress, worker:<i>, reviewer, scribe, v4-checkpoint, auditor.
+  `cec_dashboard` replaced the single thoughts panel with a live per-seat stack (/api/seats, /api/seat).
+  cec_inloop_audit defaults+clears `CEC_STREAM_DIR=<run-dir>/streams`; passes it through the container exec.
+  Adversarially reviewed (0 blockers; 5 should-fixes folded in). 10/10 judge_local tests (2 new streaming).
+  **Dashboard is RUNNING** (setsid, :8090). Relaunch: `setsid python3 scripts/cec_dashboard.py --port 8090
+  --run-dir docs/inloop-audit-2026-06-11 > .../dashboard.log 2>&1 < /dev/null &`. SAFETY: CEC_STREAM_DIR
+  unset => byte-identical blocking transport (overnight unaffected unless a dashboard run opts in).
+- **Overnight run = `cec_inloop_audit.py`**. Launch: `nohup python3 scripts/cec_inloop_audit.py --hours 7
+  --board eps-8pin > docs/inloop-audit-2026-06-11/run.log 2>&1 &`. BLOCKED on owner (sudo): the route step
+  execs the routing container -> first `sudo docker compose -f docker/compose.yaml up -d routing` (+ `build
+  routing` if the WSL wipe dropped the image). To get per-seat streaming tonight, MERGE PR #54 first (or run
+  from the branch checkout). Gap: deepseek-v4-flash (V4 morning checkpoint) not in the broker + intentionally
+  unloaded for the night -> V4 is a no-op tonight by design.
+- **ARCHIVE NOTE**: docs/inloop-audit-2026-06-11/ was cleared concurrently (round-117's 153 files MOVED to
+  docs/inloop-audit-2026-06-12-archived-round117/ -- data safe, verified). NOT done by me; I left the
+  deletions/archive UNSTAGED (owner's call) and committed only the 5 feature scripts.
+- PRs now open (all bot-authored, owner-merge-only): #52 AM-04 (MERGED), #53 corpus (MERGED), #54 dashboard.
+
 _Below: env-rebuild + WSL-ephemeral policy + Windows-native Phase B (2026-06-12)._
 
 ## Context
