@@ -28,7 +28,26 @@ cross-check folded in (CORROBORATES H1+H3 as HIGH independently). NOT YET IMPLEM
 Recommended order: P1 (U5 root cause, retires M1/M2) -> P3 (A/B integrity) -> P2 (fence) -> P4 -> P5/P6 ->
 P7 -> small finishers -> RE-BASELINE the EI-02 A/B (instrument change mid-experiment; PP-06). Owner decisions
 D1 (ref validation: drop+reprompt vs schema enum), D2 (CORPUS_BRIEF in-family-only for gen seats), D3
-(confirm re-baseline wanted). NOTE ei02verify run DONE
+(confirm re-baseline wanted).
+
+### IMPLEMENTED 2026-06-13 turn 1 (branch claude/overnight-corpus-preflight, NOT committed)
+DONE+host-tested (tests/test_prompt_audit_fixes.py 4/4; EI-02/EI-01/auditor/reason suites still green;
+py_compile clean): P1a board_manifest() in-container helper; P1b/d/e T1 prompt grounded (ref inventory +
+net->refs + SENSE CORRIDOR + real-ref examples; manifest wired into run()+T1 call); P2 fence stated in T1
+prompt + generation-path drop guard (fenced-net / all-fenced-ref-waypoint intents dropped, logged); P3 EI-02
+lane-gated carry-forward (intents_aug augmented-only, control seeds from ovd.INTENTS[board]); P4 CL24 spec
+charter fed CORPUS_BRIEF+LOCKED_DECISIONS_BRIEF+fence (manager_rules relabeled unratified); P5e CONSOLIDATION
+defined; P9 T1 temp0+nothink; P10 actuation charter effector note; P12 T8 decline criteria.
+WITHDRAWN as false-positives (verified vs source): P8 (coverage_note is an INPUT field, not output), P11b
+(narrate seat deliberately NOT fed facts per CL-21), P11c (narrate already states 'not a judge'). REMAINING
+decision-independent: P5a/b/c/d (auditor reorder + cloud-output validation + verdict role + penalisable),
+P6a-f (T4 panel redesign), P7b/c (truncation order), P11a (region net/ref, latent). BLOCKED on decisions:
+P1c (D1), P7a (D2), re-baseline (D3). DECISIONS RESOLVED: D1=drop+re-prompt (P1c DONE), D2=in-family-only
+(P7a/b DONE), D3=batch+re-baseline (pending after P5/P6). COMMITTED + PUSHED for review: branch
+claude/prompt-tier-audit, commit e735de5, **PR #56 (DRAFT)** -> main (11 files, +1217/-53; 6 host tests).
+REMAINING decision-independent (next): P5a-d (auditor reorder + cloud-output validation + verdict role +
+penalisable->_PENALTY_METRIC), P6a-f (T4 panel redesign), P7c (task-first), P11a (region net/ref latent),
+THEN the EI-02 re-baseline run + PP-06 annotation. Full status: docs/prompt-audit-2026-06-13/punchlist.md. NOTE ei02verify run DONE
 14:49: 0 gate-passing, 0 deltas applied (actuator fully bounded), drc_mean aug 22.0 / ctrl 9.67, real_anchor aug
 0.73 / ctrl 0.84.
 
