@@ -17,15 +17,15 @@ module tb_top;
     wire adc_reset, adc_convst, adc_cs_n, adc_sclk;
     reg  adc_busy = 1'b0;
     wire adc_douta, adc_doutb;
-    reg  esp_sclk = 1'b0, esp_cs_n = 1'b1;
+    reg  esp_sclk = 1'b0, esp_cs_n = 1'b1, esp_mosi = 1'b0;
     wire esp_miso, esp_drdy;
 
-    top #(.SAMPLE_HZ(20_000)) dut (          // 50 us pace to keep the sim short
+    top #(.SAMPLE_HZ(20_000), .DEPTH(8)) dut (   // 50 us pace, tiny ring for the sim
         .clk50(clk50),
         .adc_reset(adc_reset), .adc_convst(adc_convst),
         .adc_cs_n(adc_cs_n),   .adc_sclk(adc_sclk),
         .adc_busy(adc_busy),   .adc_douta(adc_douta), .adc_doutb(adc_doutb),
-        .esp_sclk(esp_sclk),   .esp_mosi(1'b0),
+        .esp_sclk(esp_sclk),   .esp_mosi(esp_mosi),
         .esp_miso(esp_miso),   .esp_cs_n(esp_cs_n),   .esp_drdy(esp_drdy)
     );
 
@@ -86,6 +86,24 @@ module tb_top;
         end
     endtask
 
+    // Buffered-readout check: header + payload intact, sequence consecutive.
+    reg [7:0] bseq0;
+    task check_buf(input integer idx);
+        begin
+            if (rx[143:136] !== 8'hA5) begin
+                $display("FAIL: buf header %02x", rx[143:136]); errors = errors + 1;
+            end
+            if (rx[127:0] !== {C1,C2,C3,C4,C5,C6,C7,C8}) begin
+                $display("FAIL: buf payload %032x", rx[127:0]); errors = errors + 1;
+            end
+            if (idx == 0) bseq0 = rx[135:128];
+            else if (rx[135:128] !== (bseq0 + idx[7:0])) begin
+                $display("FAIL: buf seq %0d expected %0d", rx[135:128], bseq0 + idx);
+                errors = errors + 1;
+            end
+        end
+    endtask
+
     initial begin
         // through POR (~1.31 ms) and the RESET pulse
         #1_400_000;
@@ -103,7 +121,20 @@ module tb_top;
         wait (esp_drdy === 1'b1);
         esp_read; check_frame(8'd2);
 
-        if (errors == 0) $display("PASS: two frames intact, seq advances, DRDY handshake clean");
+        // ---- buffered-readout (fastburst) test ----
+        // Let the tiny DEPTH=8 ring fill + wrap (>8 frames at 50 us), then read
+        // it out by holding MOSI high: the 1st read ARMS (discard), the next
+        // reads walk the ring with a consecutive sequence and intact payload.
+        #1_000_000;
+        esp_mosi = 1'b1;
+        esp_read;                 // arm (returns the live frame, discarded)
+        esp_read; check_buf(0);
+        esp_read; check_buf(1);
+        esp_read; check_buf(2);
+        esp_read; check_buf(3);
+        esp_mosi = 1'b0;
+
+        if (errors == 0) $display("PASS: frames intact, seq advances, DRDY + buffered readout clean");
         else             $display("FAILED with %0d errors", errors);
         $finish;
     end

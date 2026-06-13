@@ -1,17 +1,34 @@
 `default_nettype none
 // ----------------------------------------------------------------------------
-// 12vhpwr-proto top, bring-up v0.
+// 12vhpwr-proto top.
 // AD7606 in serial mode (OS=000 strapped, +/-5 V, internal ref):
 //   pulse RESET once, pace CONVST, wait BUSY, clock 64 SCLKs at 12.5 MHz,
 //   shift V1-V4 off DOUTA and V5-V8 off DOUTB, latch an 8x16 frame.
 // ESP32-P4 reads frames as SPI slave: 18 bytes = 0xA5, seq, V1..V8 MSB first.
-// DRDY is high while an unread frame is waiting.
+//
+// TWO read paths over the one SPI link, selected by MOSI:
+//   MOSI low  -> LIVE: returns the latest frame (DRDY high while one waits).
+//                The 5 Hz monitor + the ESP-paced `burst` use this; the ESP's
+//                per-frame handshake caps it ~12 kHz regardless of read speed.
+//   MOSI high -> BUFFERED: every frame is captured into a DEPTH-deep BRAM ring
+//                at the NATIVE rate (no drops, no per-frame handshake); the ESP
+//                holds MOSI high to freeze the ring and stream the whole window
+//                out (1st read arms+discards, then consecutive ring frames).
+//                This is the path to the AD7606's native rate / the ~80 kHz
+//                inductive corner -- capture is FPGA-paced, immune to ESP jitter.
 // Pin map: rtl/12vhpwr-proto/12vhpwr-proto.cst (dock 2x20 GPIO field, doc section 9).
 // License: Apache-2.0 (CEC-Platform)
 // ----------------------------------------------------------------------------
 module top #(
     parameter integer CLK_HZ    = 50_000_000,
-    parameter integer SAMPLE_HZ = 50_000         // 50 kHz transient pace (v0 was 1 kHz)
+    // Native capture pace. 100 kHz pushes toward the AD7606 serial-read ceiling
+    // (~107 kSPS at the 12.5 MHz read SCLK: ~4 us conv + ~5 us 64-SCLK read).
+    // Raising the read SCLK toward the AD7606's ~23.5 MHz max reaches ~149 kSPS
+    // (~75 kHz Nyquist) -- the practical limit at the ~80 kHz inductive corner.
+    parameter integer SAMPLE_HZ = 100_000,
+    // Capture-ring depth in frames (BRAM). 2048 x 144b = 288 kbit. The sim
+    // overrides this small so the ring fills + wraps quickly.
+    parameter integer DEPTH     = 2048
 )(
     input  wire clk50,
     // AD7606 module (silk: RST, CA, CS, RD, BUSY, D7, D8)
@@ -30,6 +47,7 @@ module top #(
     output wire esp_drdy
 );
     localparam integer DIV = CLK_HZ / SAMPLE_HZ;
+    localparam integer AW  = $clog2(DEPTH);      // ring address width
 
     // ---- power-on reset: ~1.3 ms, then a 200 ns ADC reset pulse ----
     reg [16:0] por = 17'd0;
@@ -76,6 +94,7 @@ module top #(
     reg [127:0] frame  = 128'd0;
     reg [7:0]   seq    = 8'd0;
     reg         drdy   = 1'b0;
+    reg         cap_stb = 1'b0;     // 1-clk: a frame completed -> capture it
     wire        esp_busy;
     wire        esp_done;
 
@@ -84,9 +103,10 @@ module top #(
             st <= S_RST; k <= 4'd0;
             adc_reset <= 1'b0; adc_convst <= 1'b0;
             adc_cs_n  <= 1'b1; adc_sclk   <= 1'b0;
-            drdy <= 1'b0; seq <= 8'd0;
+            drdy <= 1'b0; seq <= 8'd0; cap_stb <= 1'b0;
         end else begin
             if (esp_done) drdy <= 1'b0;
+            cap_stb <= 1'b0;
             case (st)
                 S_RST: begin                       // RESET high for 10 clks = 200 ns
                     adc_reset <= 1'b1;
@@ -133,13 +153,18 @@ module top #(
                     endcase
                 end
                 S_LATCH: begin
-                    // Skip the update if the ESP is mid-read; the frame must
-                    // stay stable under an active CS. The sample is dropped.
+                    // LIVE single-frame path (5 Hz monitor / slow burst): held
+                    // stable under an active CS, so dropped while the ESP reads.
                     if (!esp_busy) begin
                         frame <= {shA, shB};
                         seq   <= seq + 1'b1;
                         drdy  <= 1'b1;
                     end
+                    // CAPTURE path: EVERY completed frame goes to the ring (the
+                    // ring write is independent of the live frame register, so
+                    // it never drops -- this is what makes the buffered readout
+                    // a gap-free native-rate window).
+                    cap_stb <= 1'b1;
                     st <= S_IDLE;
                 end
                 default: st <= S_RST;
@@ -147,11 +172,59 @@ module top #(
         end
     end
 
+    // ---- capture ring + buffered readout ----------------------------------
+    // Every completed frame lands in a DEPTH-deep BRAM ring at the native rate.
+    // The ESP reads the whole window by holding MOSI HIGH across a run of
+    // transactions: the FIRST high transaction ARMS (freezes the ring + points
+    // at the oldest frame; its returned data is the still-live frame, discarded
+    // by the host), and each subsequent high transaction returns the next ring
+    // frame {0xA5, ring-seq, V1..V8} and advances. A MOSI-low (normal) read
+    // resumes the fill; a stalled readout auto-resumes via the watchdog. This
+    // decouples capture (uniform, FPGA-paced, gap-free) from the slow ESP read.
+    reg [143:0]  cap_buf [0:DEPTH-1];
+    reg [AW-1:0] wr_ptr  = {AW{1'b0}};
+    reg [7:0]    cap_seq = 8'd0;
+    reg [1:0]    mosi_s  = 2'b00;
+    reg          busy_d  = 1'b0;
+    reg          frozen  = 1'b0;
+    reg [AW-1:0] rd_ptr  = {AW{1'b0}};
+    reg [143:0]  rd_data = 144'd0;
+    reg [23:0]   wdog    = 24'd0;          // ~0.33 s stalled -> auto-resume fill
+
+    always @(posedge clk50) begin
+        mosi_s  <= {mosi_s[0], esp_mosi};
+        busy_d  <= esp_busy;
+        rd_data <= cap_buf[rd_ptr];        // registered (BRAM) read port
+        if (rst) begin
+            wr_ptr <= {AW{1'b0}}; cap_seq <= 8'd0;
+            frozen <= 1'b0; rd_ptr <= {AW{1'b0}}; wdog <= 24'd0;
+        end else begin
+            if (cap_stb && !frozen) begin  // write port: capture this frame
+                cap_buf[wr_ptr] <= {8'hA5, cap_seq, shA, shB};
+                wr_ptr  <= wr_ptr  + 1'b1;
+                cap_seq <= cap_seq + 1'b1;
+            end
+            if (esp_busy & ~busy_d) begin  // transaction start (~cs_fall)
+                wdog <= 24'd0;
+                if (mosi_s[1]) begin
+                    if (!frozen) begin frozen <= 1'b1; rd_ptr <= wr_ptr; end
+                end else begin
+                    frozen <= 1'b0;
+                end
+            end else if (frozen) begin
+                wdog <= wdog + 1'b1;
+                if (&wdog) frozen <= 1'b0;
+            end
+            if (frozen && esp_done) rd_ptr <= rd_ptr + 1'b1;
+        end
+    end
+
     // ---- ESP link: 18-byte payload = header, sequence, eight channels ----
+    // frozen -> stream the ring (rd_data); else the live latest frame.
     cec_spi_slave #(.FRAME_BITS(144)) u_esp (
         .clk        (clk50),
         .rst        (rst),
-        .frame      ({8'hA5, seq, frame}),
+        .frame      (frozen ? rd_data : {8'hA5, seq, frame}),
         .sclk       (esp_sclk),
         .cs_n       (esp_cs_n),
         .miso       (esp_miso),
@@ -160,9 +233,5 @@ module top #(
     );
 
     assign esp_drdy = drdy;
-
-    // MOSI is unused in v0 (read-only link); keep the pad in the port list so
-    // the .cst stays complete for later command traffic.
-    wire unused_mosi = esp_mosi;
 endmodule
 `default_nettype wire
