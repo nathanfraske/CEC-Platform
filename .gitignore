@@ -59,3 +59,6 @@ logs/
 # binaries, _work/ (a recursive checkout of this repo + build artifacts), and
 # .credentials/.runner which hold the runner's AUTH TOKEN. Never commit it.
 actions-runner/
+
+# V4 idle-task queue (runtime tasks/results)
+docs/v4-queue/
