@@ -77,9 +77,12 @@ VERDICT_SCHEMA = {
 
 # --- the three charters: (system prompt, input slicer, temperature) ----------------------
 def _slice_spec(finding, ctx):
+    # cap raised 4000 -> 12000 (prompt-audit P4 fix 2026-06-13): the rules_excerpt now carries the
+    # locked-decision spine + fence + the promoted corpus (CORPUS_BRIEF's own cap is 13000); 4000 cut
+    # the corpus body to a stub. The excerpt is built spine-first so the spine survives regardless.
     return ("FINDING UNDER ADVERSARIAL REVIEW:\n%s\n\nRATIFIED RULES / LOCKED DECISIONS "
             "(the governing corpus extract):\n%s" % (
-                json.dumps(finding, indent=1)[:3000], ctx.get("rules_excerpt", "(none provided)")[:4000]))
+                json.dumps(finding, indent=1)[:3000], ctx.get("rules_excerpt", "(none provided)")[:12000]))
 
 
 def _slice_evidence(finding, ctx):

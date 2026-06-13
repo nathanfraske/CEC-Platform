@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 import cec_fullstack as fs            # noqa: E402
 import cec_judge_local as jl          # noqa: E402
+import cec_verifier                   # noqa: E402
 
 MANIFEST = {
     "outline_mm": [96.0, 35.0],
@@ -108,6 +109,33 @@ class IntentManagerGrounded(unittest.TestCase):
                                                        manifest=MANIFEST, fence=FENCE)
         self.assertEqual(src, "fallback")
         self.assertEqual(intents, prev)
+
+
+class P4SpecExcerpt(unittest.TestCase):
+    """P4 fix: the locked-decision spine + fence + unratified relabel must reach the CL24
+    spec-conformance charter even though _slice_spec truncates the (large) rules_excerpt."""
+
+    def test_spine_leads_so_it_survives_old_truncation(self):
+        big_corpus = "RATIFIED CORPUS (...):\n" + ("- [x] filler corpus entry\n" * 600)
+        self.assertGreater(len(big_corpus), 9000)            # bigger than the old 4000 cap
+        ex = fs._spec_rules_excerpt(big_corpus, fs.LOCKED_DECISIONS_BRIEF,
+                                    {"nets": set(), "refs": {"RS1", "RS2"}}, [])
+        head = ex[:4000]                                     # what the OLD cap would have kept
+        self.assertIn("LOCKED DECISIONS", head)             # spine survives even the old cap now
+        self.assertIn("FENCE (never steer)", head)
+        self.assertIn("IN-RUN STANDING RULES (unratified", head)
+        self.assertIn("RS1", head)
+        self.assertIn("filler corpus entry", ex)            # corpus still present, after the spine
+
+    def test_slice_spec_surfaces_the_spine(self):
+        ex = fs._spec_rules_excerpt("X" * 9000, fs.LOCKED_DECISIONS_BRIEF,
+                                    {"nets": set(), "refs": {"RS1"}}, ["some-in-run-rule"])
+        out = cec_verifier._slice_spec({"issue": "test"}, {"rules_excerpt": ex})
+        self.assertIn("LOCKED DECISIONS", out)
+        self.assertIn("FENCE (never steer)", out)
+        self.assertIn("IN-RUN STANDING RULES (unratified", out)
+        self.assertIn("some-in-run-rule", out)              # the relabeled standing rule reaches the seat
+        self.assertIn("pin allocation pin1=VCC", out)       # a specific locked decision reaches the seat
 
 
 if __name__ == "__main__":

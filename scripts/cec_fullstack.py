@@ -98,6 +98,20 @@ LOCKED_DECISIONS_BRIEF = (
     "(CAN-FD deferred); RS-485 + receivers Pro+ only; CAN termination = fixed 120Ω split at the Hub; "
     "the §6.8 Kelvin sense geometry + the shunt/sense-IC refs are FENCED (never re-routed or steered)."
 )
+
+
+def _spec_rules_excerpt(corpus_brief, locked, fence, manager_rules):
+    """P4 (prompt-audit fix 2026-06-13): build the CL24 spec-conformance charter's rules_excerpt with the
+    LOAD-BEARING content FIRST -- the locked-decision spine + the fence + the 'unratified' relabel -- then
+    the promoted corpus. The downstream cec_verifier._slice_spec truncates this excerpt, so leading with
+    the spine guarantees it survives even if the (much larger) corpus tail is cut. The reviewer caught the
+    original CORPUS_BRIEF-first ordering being sliced off before the spine reached the seat."""
+    fence = fence or {}
+    return (locked
+            + f"\nFENCE (never steer): nets={sorted(fence.get('nets', []))[:12]}, "
+            f"refs={sorted(fence.get('refs', []))}."
+            + "\nIN-RUN STANDING RULES (unratified, this run only): " + json.dumps(manager_rules)
+            + "\n\n" + (corpus_brief or ""))
 # UNIFIED SEAT MODEL (2026-06-11): cec-worker-vision is the cec-worker GGUF (Qwen3.6-35B-A3B) + an
 # mmproj, so ONE resident 27 GB backend serves BOTH the text seats (T1/T4/verifier, thinking) AND
 # the vision seat (T6, nothink via cec_vlm_bakeoff._NOTHINK). Pointing every local seat at it deletes
@@ -1491,13 +1505,11 @@ def run(board, rounds, hours, auditor=None):
                     miss = bundle_gaps(sj, evidence)
                     if miss:
                         log(f"  ! bundle-completeness gap (auditor cited, bundle lacked): {miss}")
-                    # P4: feed the spec charter RATIFIED knowledge (promoted corpus + locked decisions
-                    # + the per-run fence), with the run's standing rules clearly relabeled unratified.
-                    rules_excerpt = (CORPUS_BRIEF + "\n" + LOCKED_DECISIONS_BRIEF
-                                     + f"\nFENCE (never steer): nets={sorted(fence['nets'])[:12]}, "
-                                     f"refs={sorted(fence['refs'])}."
-                                     + "\nIN-RUN STANDING RULES (unratified, this run only): "
-                                     + json.dumps(lr_view["manager_rules"]))
+                    # P4 (fix 2026-06-13): lead with the locked-decision spine + fence + unratified
+                    # relabel so the downstream _slice_spec truncation drops the corpus tail, not P4's
+                    # deliverable (the reviewer caught CORPUS_BRIEF-first being cut off by _slice_spec[:N]).
+                    rules_excerpt = _spec_rules_excerpt(CORPUS_BRIEF, LOCKED_DECISIONS_BRIEF, fence,
+                                                        lr_view["manager_rules"])
                     ctx = {"rules_excerpt": rules_excerpt,
                            "evidence": json.dumps(evidence),
                            "levers": OWNED_LEVERS,
