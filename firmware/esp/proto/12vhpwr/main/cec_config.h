@@ -40,6 +40,15 @@ extern "C" {
 /* 12V-rail voltage divider: 47k top / 10k bottom -> rail = adc * (47+10)/10. */
 #define PROTO_RAIL_DIVIDER   (57.0f / 10.0f)
 
+/* Per-pin current sense (PROVISIONAL -- confirm against the perfboard):
+ *   amps = (adc_volts - PROTO_ISENSE_BIAS_V) / PROTO_ISENSE_V_PER_A
+ * BIAS  = sense-amp output at 0 A (the capture's steady channels sit ~2.40 V).
+ * V_PER_A = Rshunt * gain. The spec 12VHPWR-Std front-end is 1 mOhm * INA240A3
+ * (gain 100) = 0.1 V/A; set this to the board's ACTUAL shunt*gain. Only the
+ * magnitude scales with V_PER_A -- the sign and zero are right regardless. */
+#define PROTO_ISENSE_BIAS_V    2.40f
+#define PROTO_ISENSE_V_PER_A   0.10f
+
 /*
  * Per-channel physical calibration. The TelePlot loop turns each raw AD7606
  * channel (ADC volts, ±5 V full-scale) into a physical quantity:

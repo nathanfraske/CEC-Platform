@@ -50,6 +50,11 @@ static int cli_cmd_frame(int argc, char **argv)
            drdy ? 1 : 0, f.header, f.header_ok ? "ok" : "BAD", f.seq);
     for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
         const proto_ch_cal_t *c = &PROTO_CH_CAL[ch];
+        if (c->label == NULL) {
+            printf("  ch%-2d  (unconnected)         (raw %+6d, %+7.4f Vadc)\n",
+                   ch + 1, f.code[ch], f.code[ch] * PROTO_LSB_VOLTS);
+            continue;
+        }
         printf("  %-5s %+9.4f %-4s (raw %+6d, %+7.4f Vadc)\n",
                c->label, proto_channel_phys(ch, f.code[ch]), proto_kind_unit(c->kind),
                f.code[ch], f.code[ch] * PROTO_LSB_VOLTS);
@@ -91,6 +96,7 @@ static void teleplot_loop(void)
         }
         int64_t now_ms = esp_timer_get_time() / 1000;
         for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
+            if (PROTO_CH_CAL[ch].label == NULL) continue;   /* unconnected channel */
             float v = proto_channel_phys(ch, f.code[ch]);
             if (PROTO_CH_CAL[ch].median) v = median_update(&s_med[ch], v);
             teleplot_emit_t(PROTO_CH_CAL[ch].label, now_ms, v);

@@ -5,21 +5,25 @@
 #include "cec_config.h"
 
 /*
- * Per-channel calibration. v6 (index 5) is the 12V-rail divider -> volts.
- * The seven others stream RAW ADC volts until the perfboard current
- * front-end (shunt / amp gain / bias) is pinned -- see cec_config.h. Flip a
- * channel to AMP by setting kind/scale/offset_v/label here; nothing else
- * changes.
+ * Per-channel calibration. v6 (index 5) is the 12V-rail divider -> volts;
+ * v3-v5,v7,v8 are per-pin current senses -> amps via the PROVISIONAL
+ * PROTO_ISENSE_* constants (see cec_config.h -- confirm the shunt*gain and
+ * the channel->pin map). v1/v2 are NOT wired into the measuring cable yet,
+ * so they carry a NULL label = "unconnected": not emitted to TelePlot (the
+ * `frame` CLI still shows their raw value). To enable one, give it a label
+ * + kind; to mark another unconnected, set its label NULL.
  */
+#define ISCALE  (1.0f / PROTO_ISENSE_V_PER_A)
+#define IBIAS   PROTO_ISENSE_BIAS_V
 const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS] = {
-    /* idx 0  v1 */ { "v1",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
-    /* idx 1  v2 */ { "v2",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
-    /* idx 2  v3 */ { "v3",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
-    /* idx 3  v4 */ { "v4",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
-    /* idx 4  v5 */ { "v5",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
-    /* idx 5  v6 */ { "vrail", PROTO_KIND_VOLT, PROTO_RAIL_DIVIDER, 0.0f, true  },
-    /* idx 6  v7 */ { "v7",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
-    /* idx 7  v8 */ { "v8",    PROTO_KIND_RAW,  1.0f,               0.0f, false },
+    /* idx 0  v1 */ { NULL,    PROTO_KIND_RAW,  1.0f,               0.0f,  false }, /* unconnected */
+    /* idx 1  v2 */ { NULL,    PROTO_KIND_RAW,  1.0f,               0.0f,  false }, /* unconnected */
+    /* idx 2  v3 */ { "i3",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 3  v4 */ { "i4",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 4  v5 */ { "i5",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 5  v6 */ { "vrail", PROTO_KIND_VOLT, PROTO_RAIL_DIVIDER, 0.0f,  true  },
+    /* idx 6  v7 */ { "i7",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 7  v8 */ { "i8",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
 };
 
 float proto_channel_phys(int ch, int16_t code)
