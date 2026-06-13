@@ -178,6 +178,59 @@ def _stream_text(off):
     return {"file": os.path.basename(f), "off": off + len(raw), "text": "".join(chunks)}
 
 
+# ---------------------------------------------------------------- per-seat streams
+def _seats():
+    """Every seat with recorded thoughts: the local NDJSON streams (cec_seat_stream wrote
+    <run-dir>/streams/<seat>.jsonl for each manager / panel-lens / worker / reviewer call) PLUS the
+    host-side auditor (the claude -p stream-json). Newest-active first -> the live seat is on top."""
+    out = []
+    sd = os.path.join(CFG["run_dir"], "streams")
+    if os.path.isdir(sd):
+        for fn in os.listdir(sd):
+            if fn.endswith(".jsonl"):
+                key = fn[:-6]
+                if not re.match(r"^[A-Za-z0-9_.-]+$", key):  # only recorder-written keys (safe in HTML/URL)
+                    continue
+                out.append({"key": key, "name": key.replace("__", ":"),
+                            "mtime": os.path.getmtime(os.path.join(sd, fn))})
+    af = _latest(os.path.join(CFG["run_dir"], "findings", "*.stream.jsonl"))
+    if af:
+        out.append({"key": "auditor", "name": "auditor (claude -p)", "mtime": os.path.getmtime(af)})
+    out.sort(key=lambda s: -s["mtime"])
+    return out
+
+
+def _seat_events(key, off):
+    """Incremental events for one seat since byte-offset `off`. The auditor seat reuses the claude -p
+    stream parser (returned as one content delta); a local seat returns its NDJSON events (start /
+    delta{ch:content|reasoning} / end). Only COMPLETE lines are consumed, so a half-written final line
+    is re-read next poll. `key` is filename-safe (no URL-encoding needed)."""
+    if key == "auditor":
+        st = _stream_text(off)
+        evs = [{"kind": "delta", "ch": "content", "call": 0, "d": st["text"]}] if st["text"] else []
+        return {"key": "auditor", "off": st["off"], "file": st["file"], "events": evs}
+    safe = os.path.basename(key)                                  # traversal-safe
+    f = os.path.join(CFG["run_dir"], "streams", safe + ".jsonl")
+    if not os.path.exists(f):
+        return {"key": key, "off": 0, "file": None, "events": []}
+    if off > os.path.getsize(f):                                  # rotated / truncated
+        off = 0
+    with open(f, "rb") as fh:
+        fh.seek(off)
+        raw = fh.read(1 << 20)
+    parts = raw.split(b"\n")
+    consumed = len(raw) - len(parts[-1])                          # bytes of complete lines only
+    evs = []
+    for b in parts[:-1]:
+        b = b.strip()
+        if b:
+            try:
+                evs.append(json.loads(b.decode("utf-8", "replace")))
+            except Exception:                                     # noqa: BLE001
+                pass
+    return {"key": key, "off": off + consumed, "file": safe + ".jsonl", "events": evs}
+
+
 # ---------------------------------------------------------------- board render thread
 def _render_loop():
     """Produce BOTH views of the newest candidate: the raytraced PNG (render) AND the
@@ -272,6 +325,11 @@ class H(BaseHTTPRequestHandler):
                         "bundle": bundle, "run_dir": CFG["run_dir"]})
         elif path == "/api/stream":
             self._json(_stream_text(int(params.get("off", 0))))
+        elif path == "/api/seats":
+            self._json({"seats": _seats()})
+        elif path == "/api/seat":
+            self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
+                                    int(params.get("off", 0))))
         elif path in ("/board.png", "/board.svg") or path.startswith("/layer/"):
             if path.startswith("/layer/"):
                 name = os.path.basename(path[len("/layer/"):])      # traversal-safe
@@ -306,6 +364,12 @@ table{border-collapse:collapse;width:100%}td,th{padding:1px 6px;text-align:right
 th{color:#80cbc4;position:sticky;top:0;background:#161c22}
 canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 .pill{background:#263238;border-radius:10px;padding:2px 10px;margin-right:6px}
+.seat{border:1px solid #2e3c44;border-radius:6px;margin-bottom:8px;background:#0e1419}
+.seathdr{font-size:11px;color:#80cbc4;padding:4px 8px;border-bottom:1px solid #2e3c44;position:sticky;top:0;background:#11181e;text-transform:uppercase;letter-spacing:.5px}
+.seatbody{white-space:pre-wrap;word-break:break-word;font-size:11.5px;padding:6px 8px;max-height:280px;overflow:auto}
+.callhdr{color:#546e7a;margin:6px 0 2px}
+.reason{color:#7e8ea0;font-style:italic}
+.answer{color:#c5e1a5}
 </style></head><body><div class="grid">
 <div class="card" id="hdr"><h2 style="margin:0">CEC live run</h2><span id="status"></span><span id="bundle"></span></div>
 <div class="card"><h2>step feed (realtime)</h2><div id="log"></div></div>
@@ -317,7 +381,7 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <img id="bimg" src="/board.png" style="display:none;max-width:100%;border-radius:4px">
 <div id="pwrap" style="flex:1;overflow:auto;cursor:grab;border-radius:4px;background:#0d1117;min-height:0">
 <div id="pstack" style="position:relative;width:860px"></div></div></div>
-<div class="card"><h2>auditor thoughts (live)</h2><div id="thoughts"></div></div>
+<div class="card" id="seatcard" style="display:flex;flex-direction:column"><h2 style="flex:none">seat streams (live) — per manager · panel lens · worker · reviewer · auditor</h2><div id="seats" style="flex:1;overflow:auto;min-height:0"><span class="dim">waiting for seats…</span></div></div>
 <div class="card" style="grid-column:1/3"><h2>convergence — pen_total (orange) vs drc (blue), kelvin band (red=fail)</h2>
 <canvas id="spark" width="900" height="90"></canvas><div style="max-height:230px;overflow:auto"><table id="mt"></table></div></div>
 <div class="card"><h2>injected ruleset</h2><div id="rules"></div></div>
@@ -375,15 +439,7 @@ async function tick(){
    for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L];
    lyrBoxes();}
   if(s.board.rendered_ts && s.board.rendered_ts>(window._bts||0)){window._bts=s.board.rendered_ts; bswap();}
-  // thoughts: prefer live stream, fallback to latest finding reasoning
-  const st=await (await fetch('/api/stream?off='+soff)).json();
-  if(st.file){ if(st.off<soff){thoughtsBuf="";} soff=st.off; thoughtsBuf+=st.text;
-    document.getElementById('thoughts').textContent='['+st.file+']\n'+thoughtsBuf.slice(-8000);}
-  else{ const f=s.finding||{}; let t='';
-    if(f.sonnet) t+=`[${f.sonnet.file}] verdict=${f.sonnet.verdict} new=${f.sonnet.is_new}\n${f.sonnet.reasoning}\n\nrule: ${f.sonnet.manager_rule||'-'}\n`;
-    if(f.v4) t+=`\n=== V4 checkpoint [${f.v4.file}] risk=${f.v4.local_minimum_risk} ===\n${(f.v4.reasoning||'').slice(0,3000)}`;
-    document.getElementById('thoughts').textContent=t||'(no findings yet)';}
-  const th=document.getElementById('thoughts'); th.scrollTop=th.scrollHeight;
+  // (per-seat thoughts are handled by seatTick below — one live section per seat)
   // rules
   const ru=s.rules||{};
   document.getElementById('rules').innerHTML=
@@ -405,7 +461,44 @@ async function tick(){
    cv.strokeStyle='#64b5f6';cv.beginPath();m.forEach((r,i)=>{const x=i*W/(n-1),y=H-4-(r.drc/md)*(H-10);i?cv.lineTo(x,y):cv.moveTo(x,y)});cv.stroke();}
  }catch(e){document.getElementById('status').innerHTML='<span class="pill bad">dashboard error: '+e+'</span>';}
 }
+// ---- per-seat live streams: one section per manager / panel lens / worker / reviewer / auditor ----
+let seatState={};
+function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+async function seatTick(){
+ try{
+  const sl=await (await fetch('/api/seats')).json();
+  const cont=document.getElementById('seats');
+  const seats=sl.seats||[];
+  if(seats.length && cont.firstChild && cont.firstChild.nodeType===3) cont.innerHTML='';  // clear placeholder
+  for(const s of seats){
+   let st=seatState[s.key];
+   if(!st){
+    const d=document.createElement('div'); d.className='seat';
+    d.innerHTML=`<div class="seathdr">▸ ${esc(s.name)} <span class="dim" id="sm_${s.key}"></span></div>`+
+                `<div class="seatbody" id="sb_${s.key}"></div>`;
+    cont.appendChild(d);
+    st={off:0,frags:[]}; seatState[s.key]=st;
+    st.body=document.getElementById('sb_'+s.key); st.meta=document.getElementById('sm_'+s.key);
+   }
+   const r=await (await fetch('/api/seat?key='+encodeURIComponent(s.key)+'&off='+st.off)).json();
+   if(r.off<st.off) st.frags=[];                 // rotated -> restart
+   st.off=r.off;
+   for(const ev of (r.events||[])){
+    if(ev.kind==='start'){ st.frags.push(`<div class="callhdr">── call ${ev.call} · ${esc(ev.model||'')} ${esc(ev.role||'')} ──</div>`); if(st.meta)st.meta.textContent='call '+ev.call; }
+    else if(ev.kind==='delta'){ st.frags.push(`<span class="${ev.ch==='reasoning'?'reason':'answer'}">${esc(ev.d)}</span>`); }
+    else if(ev.kind==='end'){ st.frags.push(`<span class="dim"> [${ev.ok?'done':'FAIL'} ${ev.ms||0}ms]</span>\n`); }
+   }
+   if((r.events||[]).length){
+    if(st.frags.length>500) st.frags=st.frags.slice(-500);
+    const near=st.body.scrollTop+st.body.clientHeight>=st.body.scrollHeight-40;
+    st.body.innerHTML=st.frags.join('');
+    if(near) st.body.scrollTop=st.body.scrollHeight;   // follow the live tail, but don't yank a scrolled-up reader
+   }
+  }
+ }catch(e){}
+}
 tick(); setInterval(tick,2000);
+seatTick(); setInterval(seatTick,1500);
 </script></body></html>"""
 
 

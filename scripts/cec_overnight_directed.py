@@ -266,7 +266,15 @@ def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intent
     """HOST side: docker compose exec the worker for one round; parse its RECORD_JSON.
     intents_file is a HOST repo-relative path; it is translated to the container mount."""
     import subprocess
-    cmd = COMPOSE + ["exec", "-T", "routing", "python3",
+    # Pass the per-seat stream dir THROUGH to the container so any in-container LLM seat records to the
+    # SAME shared-volume dir the host dashboard reads (only when it's under the repo = the /workspace mount).
+    env_args = []
+    sdir = os.environ.get("CEC_STREAM_DIR")
+    if sdir:
+        relsd = os.path.relpath(os.path.abspath(sdir), ROOT)
+        if not relsd.startswith(".."):
+            env_args = ["-e", f"CEC_STREAM_DIR={CONTAINER_ROOT}/{relsd}"]
+    cmd = COMPOSE + ["exec", "-T"] + env_args + ["routing", "python3",
                      f"{CONTAINER_ROOT}/scripts/cec_overnight_directed.py",
                      "--route-one", "--board", board, "--round", str(rnd)]
     if intents_file is not None:
