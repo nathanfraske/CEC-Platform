@@ -833,7 +833,11 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
         # tokens fed back next round. known_*=None means the manifest was unavailable -> skip that check.
         import cec_fs_actuator as _act
         fref = set(fence.get("refs", []))
-        known_nets = set(manifest.get("net_refs", {})) or None
+        # net membership is slash-TOLERANT (mirrors is_fenced / cec_fr02): pcbnew GetNetname() yields
+        # mixed forms -- local nets slash-prefixed (/CAN_H), global/power bare (GND, +3V3) -- and the
+        # free-text model may add/drop a slash. Compare on the lstripped form both sides so a valid
+        # intent is never dropped as "unknown" over a leading slash. (refs never carry a slash.)
+        known_nets = ({n.lstrip("/") for n in manifest["net_refs"]} if manifest.get("net_refs") else None)
         known_refs = set(refs) or None
         kept = []
         for i in ok:
@@ -841,7 +845,7 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
             if fence and _act.is_fenced(net, fence):
                 log(f"  T1 DROP fenced-net intent: {net}")
                 continue
-            if known_nets is not None and net not in known_nets:
+            if known_nets is not None and str(net).lstrip("/") not in known_nets:
                 log(f"  T1 DROP unknown-net intent: {net}")
                 dropped.append(net)
                 continue

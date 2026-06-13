@@ -92,6 +92,24 @@ class IntentManagerGrounded(unittest.TestCase):
         self.assertIn("/NOPE", dropped)                          # unknown net recorded for re-prompt
         self.assertIn("U99", dropped)                            # unknown ref recorded for re-prompt
 
+    def test_p1c_net_membership_is_slash_tolerant(self):
+        # pcbnew mixes forms: bare GND/+3V3, slash-prefixed /CAN_H. The model may add/drop a slash.
+        manifest = {"refs": {"U10": {"xy": [1, 1], "v": "x"}},
+                    "net_refs": {"GND": ["U10"], "+3V3": ["U10"], "/CAN_H": ["U10"]}}
+
+        def stub(system, user, schema, **kw):
+            return {"reasoning": "x", "intents": [
+                {"net": "/GND", "layers": ["F.Cu"], "waypoints": [{"ref": "U10"}]},    # slash added vs bare key -> keep
+                {"net": "+3V3", "layers": ["F.Cu"], "waypoints": [{"ref": "U10"}]},    # bare matches bare -> keep
+                {"net": "CAN_H", "layers": ["F.Cu"], "waypoints": [{"ref": "U10"}]},   # bare vs slash key -> keep
+                {"net": "/NOPE", "layers": ["F.Cu"], "waypoints": [{"ref": "U10"}]},   # genuinely unknown -> drop
+            ]}
+        jl._chat_json = stub
+        intents, why, src, dropped = fs.intent_manager("eps-8pin", {}, [], None, 1,
+                                                       manifest=manifest, fence=FENCE)
+        self.assertEqual({i["net"] for i in intents}, {"/GND", "+3V3", "CAN_H"})
+        self.assertIn("/NOPE", dropped)
+
     def test_p1c_reprompts_prior_invalid_tokens(self):
         self._run.__self__  # no-op to keep the stub set in setUp
         fs.intent_manager("eps-8pin", {}, [], None, 2, manifest=MANIFEST, fence=FENCE,
