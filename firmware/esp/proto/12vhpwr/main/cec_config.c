@@ -13,7 +13,10 @@
  * `frame` CLI still shows their raw value). To enable one, give it a label
  * + kind; to mark another unconnected, set its label NULL.
  */
-#define ISCALE  (1.0f / PROTO_ISENSE_V_PER_A)
+/* Negated: the sense is wired so load current pulls the ADC BELOW bias, so
+ * a GPU draw read as negative -- flip it so a draw is positive amps
+ * (bench-confirmed 2026-06-13). Drop the '-' if a board reads inverted. */
+#define ISCALE  (-1.0f / PROTO_ISENSE_V_PER_A)
 #define IBIAS   PROTO_ISENSE_BIAS_V
 const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS] = {
     /* idx 0  v1 */ { NULL,    PROTO_KIND_RAW,  1.0f,               0.0f,  false }, /* unconnected */
