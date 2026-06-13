@@ -21,11 +21,15 @@
 // ----------------------------------------------------------------------------
 module top #(
     parameter integer CLK_HZ    = 50_000_000,
-    // Native capture pace. 100 kHz pushes toward the AD7606 serial-read ceiling
-    // (~107 kSPS at the 12.5 MHz read SCLK: ~4 us conv + ~5 us 64-SCLK read).
-    // Raising the read SCLK toward the AD7606's ~23.5 MHz max reaches ~149 kSPS
-    // (~75 kHz Nyquist) -- the practical limit at the ~80 kHz inductive corner.
-    parameter integer SAMPLE_HZ = 100_000,
+    // Native capture pace = "run at max" for oversample + host-side decimate.
+    // 200 kHz is the AD7606 OS=000 throughput target; the free-running pacer
+    // self-limits to what the FSM can service, and `fastburst` reports the real
+    // achieved rate. The CURRENT sequential conv->read at 12.5 MHz SCLK caps it
+    // well below 200 kSPS -- reaching the full 200 kSPS needs (a) the read SCLK
+    // toward the AD7606's ~23.5 MHz max and (b) a PIPELINED FSM (read frame N
+    // while converting N+1: throughput -> max(conv ~4us, read) -> ~200 kSPS).
+    // The host decimates 200 k -> ~25 kSPS useful band (sqrt(N) noise drop).
+    parameter integer SAMPLE_HZ = 200_000,
     // Capture-ring depth in frames (BRAM). 2048 x 144b = 288 kbit. The sim
     // overrides this small so the ring fills + wraps quickly.
     parameter integer DEPTH     = 2048

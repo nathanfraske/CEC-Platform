@@ -43,10 +43,16 @@ extern "C" {
 /* AD7606 +/-5 V range: 152.59 uV per LSB. */
 #define PROTO_LSB_VOLTS      (5.0 / 32768.0)
 
-/* FPGA native capture rate -- keep in sync with top.v SAMPLE_HZ. Used only for
- * the nominal time axis of `fastburst`; the real rate is the AD7606 conv+read
- * ceiling if SAMPLE_HZ over-paces it (the seq column reveals gap-free-ness). */
-#define PROTO_NATIVE_HZ      100000
+/* FPGA native capture rate -- keep in sync with top.v SAMPLE_HZ. This is the
+ * "burst at 200k for oversampling, decimate to the ~25 kSPS useful band" target
+ * (the host averages each 200k/25k = 8 raw samples -> sqrt(8) ~ 2.8x noise drop).
+ * Used only for the nominal time axis of `fastburst`; the real rate is the
+ * AD7606 conv+read ceiling if SAMPLE_HZ over-paces it -- the sequential FSM
+ * (conv ~4us + 64-SCLK read at 12.5 MHz) self-limits BELOW 200 kSPS, so the
+ * fastburst header reports the ACHIEVED rate from the seq spacing, not this
+ * nominal. Reaching the full 200 kSPS needs the read-SCLK speedup + pipelined
+ * FSM noted in top.v. */
+#define PROTO_NATIVE_HZ      200000
 
 /* RTL capture-ring DEPTH (top.v) -- the max `fastburst` window. */
 #define PROTO_RING_DEPTH     2048
