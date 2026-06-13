@@ -2,6 +2,20 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## P5/P6 DONE + PLACEMENT-TIER FLAGGED AS CONVERGENCE GATE 2026-06-13 ~17:35 CDT
+P5 (auditor) + P6 (panel) committed to PR #56 (d0b1566): P5a auditor prompt LEADS with failure_class
+actuation, placement arm FIRST (failure_class=placement -> T0 GR-02 placement actuator); P5b _coerce_audit
+validates ungrammared cloud auditor output; P5c verdict role-defined; P5d inject() REJECTS non-priceable
+metrics (gate_fail/kelvin_unrouted phantom levers) + prompt advertises _PENALTY_METRIC; P6 per-lens panel
+(safety reads gate state / finishing reads drc_loci [now surfaced in rec] / progress reads cross-round
+trajectory), named field, nothink. Tests 20/20; regressions green. **OWNER INSIGHT: the PLACEMENT TIER is
+a gate on convergence** -- P5a routes placement-class failures to T0, but T0 GR-02 only does LOCAL repairs
+(shift/swap/via); the fundamental placement quality (committed floorplan / the DEFERRED synth placer,
+CLAUDE.md action item -2 -- currently DOMAIN-BLIND: no model of high-current/shunt/Kelvin) is the real
+upstream ceiling. eps-8pin likely won't converge on control-plane tuning alone; next lever = a placement
+pass (better floorplan candidate / resume the synth placer w/ domain constraints). mergeval live validation
+still running (slow 2nd round); U5 fix already confirmed live (round 1 intents all real refs).
+
 ## BOT-AUTH HARDENED + MERGE-AUDIT FOLLOW-UPS + LIVE VALIDATION 2026-06-13 ~17:15 CDT
 BOT-AUTH (owner "push as bot not me, set in stone"): ROOT CAUSE = git pushes were ALREADY bot (PushEvent
 actors confirm), but the **`gh` CLI is authed as the OWNER** (nathanfraske) -> `gh pr create/comment/api`
