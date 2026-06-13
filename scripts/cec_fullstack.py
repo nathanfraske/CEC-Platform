@@ -85,6 +85,19 @@ PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
 OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
                 "battery (shift/swap/via), power pours")
+# P4 (prompt-audit 2026-06-13): the CL24 spec-conformance charter must judge against RATIFIED
+# knowledge, not the run's ephemeral manager_rules (empty on a control round -> empty_corpus). This
+# is the compact locked-decision spine the charter cites; the full promoted corpus rides alongside it
+# in CORPUS_BRIEF, and the per-run fence is appended at the call site.
+LOCKED_DECISIONS_BRIEF = (
+    "LOCKED DECISIONS (CLAUDE.md / spec; ratified, do not contradict): module<->Hub connector is "
+    "RJ-45 8P8C platform-wide (Mini-Fit Jr retired for that link); pin allocation pin1=VCC/+5VSB, "
+    "pin2=GND, pin3=CAN1_H, pin4/5=RS-485 STREAM (Pro+ only), pin6=CAN1_L, pin7=reserved spare (NOT "
+    "AUX_REF), pin8=DETECT analog ID; DETECT code §2.3 (CAN-only 2.2k); §6.4 shunts (24-pin 2mΩ / "
+    "5VSB 25mΩ, EPS+PCIe 0.5mΩ, 12VHPWR 1mΩ), Kelvin-sensed; classical CAN 500k platform-wide "
+    "(CAN-FD deferred); RS-485 + receivers Pro+ only; CAN termination = fixed 120Ω split at the Hub; "
+    "the §6.8 Kelvin sense geometry + the shunt/sense-IC refs are FENCED (never re-routed or steered)."
+)
 # UNIFIED SEAT MODEL (2026-06-11): cec-worker-vision is the cec-worker GGUF (Qwen3.6-35B-A3B) + an
 # mmproj, so ONE resident 27 GB backend serves BOTH the text seats (T1/T4/verifier, thinking) AND
 # the vision seat (T6, nothink via cec_vlm_bakeoff._NOTHINK). Pointing every local seat at it deletes
@@ -398,19 +411,22 @@ def render_ab_table(ab):
 # corpus, so every model seat reasons against the same owner-signed knowledge the compiler/reviewer
 # already use. PROMOTED ZONE ONLY (corpus/promoted/general) -- staging is excluded by construction, so
 # an unratified draft can never steer a seat. Family-scoped + platform-wide entries; fail-safe to "".
-CORPUS_BRIEF = ""                          # set once per run() from promoted_corpus_brief(board)
+CORPUS_BRIEF = ""                          # full brief (auditor T5/T8); set once per run()
+CORPUS_BRIEF_GEN = ""                       # P7a: in-family-only brief for the generation seats (T1/T4)
 _CORPUS_BRIEF_CACHE = {}
 
 
-def promoted_corpus_brief(board, max_chars=13000):
-    """The WHOLE promoted corpus (owner 2026-06-13: 'the whole promoted corpus is added'). Every entry
-    in corpus/promoted/general is included; an entry scoped to OTHER families is kept but tagged with its
-    scope so the seat applies it with judgement (this-family entries carry no tag). Staging is excluded by
-    construction. Fail-safe to ''."""
-    if board in _CORPUS_BRIEF_CACHE:
-        return _CORPUS_BRIEF_CACHE[board]
+def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
+    """The promoted corpus as ratified knowledge for the seats. P7 (prompt-audit 2026-06-13, owner
+    D2=in-family-only for generation seats): in-family entries are ordered FIRST and off-family LAST so
+    truncation drops the least-relevant tail (never an in-family layout rule), and in_family_only=True
+    drops off-family entries entirely (a routing decision does not need another board's connector
+    ratings). Staging is excluded by construction. Fail-safe to ''."""
+    key = (board, in_family_only)
+    if key in _CORPUS_BRIEF_CACHE:
+        return _CORPUS_BRIEF_CACHE[key]
     import glob as _g
-    lines, n_total, n_in = [], 0, 0
+    in_lines, off_lines, n_total, n_in = [], [], 0, 0
     try:
         for fp in sorted(_g.glob(os.path.join(ROOT, "corpus", "promoted", "general", "*.json"))):
             try:
@@ -423,8 +439,6 @@ def promoted_corpus_brief(board, max_chars=13000):
                 n_total += 1
                 fams = ((e.get("scope") or {}).get("families")) or []
                 in_family = (not fams) or (board in fams)
-                if in_family:
-                    n_in += 1
                 scope_tag = "" if in_family else f" [scope: {','.join(fams)}]"
                 val, unit = e.get("value"), e.get("units") or ""
                 if val is None:
@@ -435,19 +449,25 @@ def promoted_corpus_brief(board, max_chars=13000):
                 else:
                     vs = f" = {val}{(' ' + unit) if unit else ''}"
                 note = (e.get("notes") or "").split(". ")[0][:150]
-                line = f"- [{e.get('id','?')}] ({e.get('kind','rule')}){scope_tag}{vs}: {note}"
-                lines.append(line[:240])
+                line = (f"- [{e.get('id', '?')}] ({e.get('kind', 'rule')}){scope_tag}{vs}: {note}")[:240]
+                if in_family:
+                    n_in += 1
+                    in_lines.append(line)
+                elif not in_family_only:                             # P7a: drop off-family for gen seats
+                    off_lines.append(line)
     except Exception:                                               # noqa: BLE001
         pass
     brief = ""
+    lines = in_lines + off_lines            # P7b: in-family FIRST -> truncation drops the off-family tail
     if lines:
         body = "\n".join(lines)
         if len(body) > max_chars:
-            body = body[:max_chars] + "\n- ...(brief truncated)"
-        brief = (f"RATIFIED CORPUS (the WHOLE promoted/general corpus, {n_total} owner-signed entries; "
-                 f"{n_in} in scope for this {board} family, the rest tagged with their family scope -- "
-                 "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
-    _CORPUS_BRIEF_CACHE[board] = brief
+            body = body[:max_chars] + "\n- ...(brief truncated; off-family tail dropped first)"
+        scope_note = (f"{n_in} in scope for this {board} family"
+                      + ("" if in_family_only else ", the rest tagged with their family scope"))
+        brief = (f"RATIFIED CORPUS ({n_total} owner-signed entries; {scope_note} -- treat as "
+                 "authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+    _CORPUS_BRIEF_CACHE[key] = brief
     return brief
 
 
@@ -613,6 +633,39 @@ def congestion_grid(board):
     return {}
 
 
+def board_manifest(board):
+    """P1 (prompt-audit 2026-06-13): the board's PLACED-FOOTPRINT inventory, so the T1 intent
+    manager can anchor FR-02 waypoints to refs that EXIST (the U5-hallucination fix). Built once
+    per run in-container from the committed floorplan (refs/positions are placement-derived, so
+    the committed board is authoritative and available round 1). Returns:
+      {outline_mm:[w,h], refs:{ref:{xy:[x,y],v:value}}, net_refs:{net:[ref,...]}}
+    Fail-safe to {} (T1 then degrades to its prior, ungrounded behavior -- never blocks a round)."""
+    pcb = os.path.relpath(ovd.BOARD_PCB[board], ROOT)
+    code = (
+        "import sys, json, pcbnew\n"
+        f"b=pcbnew.LoadBoard('/workspace/{pcb}')\n"
+        "refs={}; net_refs={}\n"
+        "for fp in b.GetFootprints():\n"
+        "    r=fp.GetReference(); p=fp.GetPosition()\n"
+        "    refs[r]={'xy':[round(pcbnew.ToMM(p.x),1),round(pcbnew.ToMM(p.y),1)],'v':(fp.GetValue() or '')[:24]}\n"
+        "    for pad in fp.Pads():\n"
+        "        nn=pad.GetNetname()\n"
+        "        if nn: net_refs.setdefault(nn,set()).add(r)\n"
+        "net_refs={k:sorted(v) for k,v in net_refs.items()}\n"
+        "bb=b.GetBoardEdgesBoundingBox()\n"
+        "out={'outline_mm':[round(pcbnew.ToMM(bb.GetWidth()),1),round(pcbnew.ToMM(bb.GetHeight()),1)],\n"
+        "     'refs':refs,'net_refs':net_refs}\n"
+        "print('MANIFEST_JSON='+json.dumps(out))\n")
+    try:
+        rc, out = _exec_py(code, timeout=120)
+        for ln in out.splitlines():
+            if ln.startswith("MANIFEST_JSON="):
+                return json.loads(ln[len("MANIFEST_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  manifest error: {type(e).__name__}: {e}")
+    return {}
+
+
 def render_board(routed_host_path, out_png):
     """kicad-cli 3D render in-container -> host path under PERM. NOTE: this is the 3D-body raytrace
     render and carries the kicad-cli rotated-footprint artifact (false rotations/offsets absent in
@@ -688,37 +741,119 @@ def gr02_repair(routed_host_path, blocked_net, rnd):
 
 
 # ---- T1: the intent manager (the model-managed assisted router) -------------------------------------
-def intent_manager(board, grid, prev_intents, last_rec, rnd):
-    """A worker-model seat WRITES the FR-02 intents for this round from the GR-01
-    grid + the last round's failures. Valid waypoint keys only; falls back to the
-    previous intents on any error (the route never waits on a model)."""
-    failures = []
-    if last_rec:
-        failures = last_rec.get("reasons", [])[:6]
+def _wp_refs(w):
+    """Refs a waypoint anchors to ({ref:...} and/or {between:[a,b]})."""
+    rs = []
+    if isinstance(w, dict):
+        if w.get("ref"):
+            rs.append(w["ref"])
+        if isinstance(w.get("between"), (list, tuple)):
+            rs += list(w["between"])
+    return rs
+
+
+def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fence=None, prev_dropped=()):
+    """A worker-model seat WRITES the FR-02 intents for this round from the GR-01 grid + the last
+    round's failures, GROUNDED in the board's placed-footprint manifest (P1, prompt-audit 2026-06-13:
+    refs+coords + net->refs + the sense corridor, so waypoints anchor to refs that EXIST -- the U5 fix)
+    and told the actuator FENCE (P2). Fenced-net / fenced-ref AND unknown (not-on-board) net/ref intents
+    are DROPPED and LOGGED; the dropped tokens are RETURNED so the next round's prompt can tell the seat
+    not to reuse them (P1c, owner D1 = drop + re-prompt). Falls back to the previous intents on any
+    error (the route never waits on a model). Returns (intents, reasoning, src, dropped)."""
+    failures = last_rec.get("reasons", [])[:6] if last_rec else []
+    manifest = manifest or {}
+    refs = manifest.get("refs") or {}
+    fence = fence or {}
+    dropped = []
+    # P1b: real ref inventory + net->refs. P1d: the sense corridor derived from the fenced refs.
+    refs_block = corridor_block = ""
+    if refs:
+        ref_lines = ", ".join(f"{r}@({d['xy'][0]},{d['xy'][1]})[{d.get('v', '')}]"
+                              for r, d in sorted(refs.items()))
+        nr = json.dumps(manifest.get("net_refs", {}))[:1500]
+        refs_block = (f"BOARD FOOTPRINTS (board {manifest.get('outline_mm')} mm; anchor waypoints ONLY "
+                      f"to these refs):\n{ref_lines}\nNET->REFS (footprints each net touches):\n{nr}\n\n")
+        sense_refs = [r for r in fence.get("refs", ()) if r in refs]
+        if sense_refs:
+            xs = [refs[r]['xy'][0] for r in sense_refs]
+            ys = [refs[r]['xy'][1] for r in sense_refs]
+            corridor_block = (f"SENSE CORRIDOR (route signal nets AROUND it): refs {sense_refs} span "
+                              f"x[{min(xs)},{max(xs)}] y[{min(ys)},{max(ys)}] mm.\n")
+    # P2: state the actuator fence to the seat.
+    fence_block = ""
+    if fence:
+        fence_block = ("FENCED -- never list these as a target net and never anchor to these refs: "
+                       f"nets={sorted(fence.get('nets', []))[:12]}, refs={sorted(fence.get('refs', []))}.\n")
+    # P1c: re-prompt feedback -- name the invalid refs/nets the seat emitted last round.
+    dropped_block = ""
+    if prev_dropped:
+        dropped_block = ("PREVIOUS ROUND named these INVALID refs/nets that are NOT on this board -- "
+                         f"do NOT use them again: {sorted(set(prev_dropped))}\n")
+    # P1b: ground the waypoint-form examples in real refs (was the bare U2/U1).
+    ex = sorted(refs)
+    ex1, ex2 = (ex[0], ex[1]) if len(ex) >= 2 else ("U1", "U3")
     user = (
-        "You are the ROUTING INTENT MANAGER for the CEC %s board. Each round you may direct "
-        "up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through "
-        "each waypoint and routes the rest around it. Use this to route contested/failing nets "
-        "AROUND the sense regions (shunt Kelvin windows) instead of through them.\n\n"
-        "GR-01 CONGESTION GRID (hotspots + contested nets, route-first order):\n%s\n\n"
-        "LAST ROUND failures: %s\n"
-        "LAST ROUND intents: %s\n\n"
-        "Waypoint forms: {\"ref\": \"U2\", \"offset_mm\": [dx, dy]} (relative to a footprint) or "
-        "{\"between\": [\"U2\", \"U1\"]} (midpoint). Only F.Cu/B.Cu (plane layers are denied to the "
-        "router). Prefer keeping I2C/CAN OUT of the mid-board shunt corridor. Reply the JSON object."
-        % (board, json.dumps(grid)[:4000], json.dumps(failures), json.dumps(prev_intents)[:1500]))
+        f"You are the ROUTING INTENT MANAGER for the CEC {board} board. Each round you may direct "
+        "up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through each "
+        "waypoint and routes the rest around it. Use this to route contested/failing nets AROUND "
+        "the sense regions (shunt Kelvin windows) instead of through them.\n\n"
+        f"{refs_block}{corridor_block}{fence_block}{dropped_block}\n"
+        "GR-01 CONGESTION GRID (the `contested`/`order` NET list is the actionable signal; hotspots "
+        f"are advisory):\n{json.dumps(grid)[:3000]}\n\n"
+        f"LAST ROUND failures: {json.dumps(failures)}\n"
+        f"LAST ROUND intents: {json.dumps(prev_intents)[:1200]}\n\n"
+        f"Waypoint forms: {{\"ref\": \"{ex1}\", \"offset_mm\": [dx, dy]}} (relative to a placed footprint) "
+        f"or {{\"between\": [\"{ex1}\", \"{ex2}\"]}} (midpoint). Anchor ONLY to refs in the BOARD "
+        "FOOTPRINTS list above. Only F.Cu/B.Cu (plane layers are denied to the router). Prefer keeping "
+        "I2C/CAN OUT of the sense corridor. Reply the JSON object.")
     try:
         import cec_judge_local as jl
-        out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF + user, INTENTS_SCHEMA,
-                            name="intents", temperature=0.2, max_tokens=3000, seat="manager:intent",
-                            model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+        out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF_GEN + user,
+                            INTENTS_SCHEMA, name="intents", temperature=0.0, nothink=True, max_tokens=3000,
+                            seat="manager:intent", model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
         intents = out.get("intents") or []
         ok = [i for i in intents if i.get("net") and i.get("waypoints")]
+        # P2 + P1c: validate each model intent against the fence AND the manifest. Drop fenced or
+        # unknown-net intents; strip fenced/unknown-ref waypoints (drop the intent if none remain). A net
+        # merely loses its DIRECTED stub (it still routes freely) -- safe, logged not silent, dropped
+        # tokens fed back next round. known_*=None means the manifest was unavailable -> skip that check.
+        import cec_fs_actuator as _act
+        fref = set(fence.get("refs", []))
+        known_nets = set(manifest.get("net_refs", {})) or None
+        known_refs = set(refs) or None
+        kept = []
+        for i in ok:
+            net = i.get("net")
+            if fence and _act.is_fenced(net, fence):
+                log(f"  T1 DROP fenced-net intent: {net}")
+                continue
+            if known_nets is not None and net not in known_nets:
+                log(f"  T1 DROP unknown-net intent: {net}")
+                dropped.append(net)
+                continue
+            wps = []
+            for w in (i.get("waypoints") or []):
+                wr = _wp_refs(w)
+                bad_fenced = set(wr) & fref
+                bad_unknown = {r for r in wr if known_refs is not None and r not in known_refs}
+                if bad_fenced:
+                    log(f"  T1 drop waypoint on fenced ref(s) {sorted(bad_fenced)} ({net})")
+                if bad_unknown:
+                    log(f"  T1 drop waypoint on unknown ref(s) {sorted(bad_unknown)} ({net})")
+                    dropped.extend(sorted(bad_unknown))
+                if not (bad_fenced or bad_unknown):
+                    wps.append(w)
+            if not wps:
+                log(f"  T1 DROP intent {net} (no valid waypoints left)")
+                continue
+            i["waypoints"] = wps
+            kept.append(i)
+        ok = kept
         if ok:
-            return ok, out.get("reasoning", "")[:400], "model"
+            return ok, out.get("reasoning", "")[:400], "model", dropped
     except Exception as e:                                       # noqa: BLE001
         log(f"  intent-manager fallback: {type(e).__name__}: {e}")
-    return prev_intents, "fallback to previous intents", "fallback"
+    return prev_intents, "fallback to previous intents", "fallback", dropped
 
 
 # ---- T4: worker panel (3 lenses) ---------------------------------------------------------------------
@@ -739,7 +874,7 @@ def worker_panel(rec, rnd):
                     f"You judge a routed PCB candidate through ONE lens: {lens}. "
                     "accept only if hard gates pass AND your lens is satisfied; repair if more "
                     "router effort could fix it; escalate if stuck/structural.",
-                    CORPUS_BRIEF + f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
+                    CORPUS_BRIEF_GEN + f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
                     f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
                     PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
                     seat="panel:" + lens.split()[0], max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
@@ -800,7 +935,8 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
         "already been refuted this run and will be auto-rejected by a deterministic tripwire. "
         "Switch lever class instead.\n"
         f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. "
-        "At the cap propose only a CONSOLIDATION or nothing.\n"
+        "At the cap propose only a CONSOLIDATION (merge two existing standing rules into one tighter "
+        "rule covering both cases, naming the two it replaces) or nothing.\n"
         "- ACTUATION: a placement/structural-density blockage must be attributed "
         "failure_class=placement, NOT priced.\n"
         "- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.\n\n"
@@ -1122,10 +1258,12 @@ def run(board, rounds, hours, auditor=None):
     os.makedirs(PERM, exist_ok=True)
     deadline = time.time() + hours * 3600.0 if hours else None
     auditor_model = resolve_auditor(auditor, hours)            # default DeepSeek-V4-Flash; Sonnet via env
-    global CORPUS_BRIEF                                          # owner 2026-06-13: brief T1/T4/T5 with promoted corpus
-    CORPUS_BRIEF = promoted_corpus_brief(board)
+    global CORPUS_BRIEF, CORPUS_BRIEF_GEN                        # owner 2026-06-13: brief the seats with the promoted corpus
+    CORPUS_BRIEF = promoted_corpus_brief(board)                  # full (auditor T5 / batch T8)
+    CORPUS_BRIEF_GEN = promoted_corpus_brief(board, in_family_only=True)  # P7a (owner D2): generation seats T1/T4
     n_brief = CORPUS_BRIEF.count("\n- ") if CORPUS_BRIEF else 0
-    log(f"promoted-corpus brief: {n_brief} ratified entrie(s) in scope for {board} -> T1 intent / T4 panel / T5 auditor")
+    n_gen = CORPUS_BRIEF_GEN.count("\n- ") if CORPUS_BRIEF_GEN else 0
+    log(f"promoted-corpus brief: {n_brief} entrie(s) full (T5/T8 auditor) / {n_gen} in-family (T1/T4 generation)")
     lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}
@@ -1159,8 +1297,20 @@ def run(board, rounds, hours, auditor=None):
     log(f"GR-01 grid: {len(grid.get('hotspots', []))} hotspots, "
         f"contested={[c if isinstance(c, str) else c.get('net') for c in grid.get('contested', [])][:6]}")
     json.dump(grid, open(_d("gr01-grid.json"), "w"), indent=1)
+    # P1 (prompt-audit 2026-06-13): the placed-footprint manifest grounds the T1 waypoint refs (the
+    # U5 fix) + supplies the sense corridor; built once per run (placement is static across rounds).
+    manifest = board_manifest(board)
+    log(f"board manifest: {len(manifest.get('refs', {}))} placed refs, "
+        f"{len(manifest.get('net_refs', {}))} nets"
+        + ("" if manifest.get("refs") else " (UNAVAILABLE -- T1 falls back to ungrounded prompt)"))
+    json.dump(manifest, open(_d("board-manifest.json"), "w"), indent=1)
 
-    records, intents, rnd = [], ovd.INTENTS[board], 0
+    # EI-02 H4 (prompt-audit P3): the AUGMENTED lane carries the model's prior intents forward; a
+    # CONTROL round seeds from the SIGNED seed only, so augmented-learned waypoints never leak into
+    # the signed-only baseline (the A/B-integrity fix). intents_aug updates on augmented rounds only.
+    seed_intents = ovd.INTENTS[board]
+    records, intents_aug, rnd = [], seed_intents, 0
+    prev_dropped_aug = []                 # P1c: invalid refs/nets T1 emitted last AUGMENTED round (re-prompt feedback)
     passes, opt_time, kelvin_stall, finalists_seen = 24, 40, 0, set()
     batch_for_v4 = []
     prev_pour_sig = None              # (sum islands, sum foreign_cross) -- pour-geometry delta guard
@@ -1188,9 +1338,17 @@ def run(board, rounds, hours, auditor=None):
             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
             # losing their timeout to a cold start / swap (the last run's 0/8 intent failures).
             warm(WORKER_SEAT)
-            # T1 intent manager
+            # T1 intent manager (P3: lane-gated carry-forward; P1/P2: manifest + fence grounded;
+            # P1c: re-prompt the last augmented round's invalid refs, control lane stays pristine)
             last = records[-1] if records else None
-            intents, why, src = intent_manager(board, grid, intents, last, rnd)
+            prev_intents = intents_aug if lane == "augmented" else seed_intents
+            prev_dropped = prev_dropped_aug if lane == "augmented" else ()
+            intents, why, src, dropped = intent_manager(board, grid, prev_intents, last, rnd,
+                                                        manifest=manifest, fence=fence,
+                                                        prev_dropped=prev_dropped)
+            if lane == "augmented":
+                intents_aug = list(intents)         # carry the model's plan forward (augmented lane only)
+                prev_dropped_aug = dropped          # P1c: feed invalid refs into the next augmented round
             # Item 4 lever: carry last round's OFFENDING-net corridor-avoidance intents in, so the
             # foreign signal nets that clipped the pours route AROUND the corridor THIS round (the
             # untried lever -- r3 only waypointed the victim Kelvin nets). CONTROL rounds DO NOT carry
@@ -1333,7 +1491,14 @@ def run(board, rounds, hours, auditor=None):
                     miss = bundle_gaps(sj, evidence)
                     if miss:
                         log(f"  ! bundle-completeness gap (auditor cited, bundle lacked): {miss}")
-                    ctx = {"rules_excerpt": json.dumps(lr_view["manager_rules"]),
+                    # P4: feed the spec charter RATIFIED knowledge (promoted corpus + locked decisions
+                    # + the per-run fence), with the run's standing rules clearly relabeled unratified.
+                    rules_excerpt = (CORPUS_BRIEF + "\n" + LOCKED_DECISIONS_BRIEF
+                                     + f"\nFENCE (never steer): nets={sorted(fence['nets'])[:12]}, "
+                                     f"refs={sorted(fence['refs'])}."
+                                     + "\nIN-RUN STANDING RULES (unratified, this run only): "
+                                     + json.dumps(lr_view["manager_rules"]))
+                    ctx = {"rules_excerpt": rules_excerpt,
                            "evidence": json.dumps(evidence),
                            "levers": OWNED_LEVERS,
                            "metrics": json.dumps([{k: r.get(k) for k in ("round", "drc", "kelvin_ok")}

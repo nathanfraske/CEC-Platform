@@ -119,7 +119,11 @@ CHARTERS = {
         "system": ("You are an adversarial VERIFIER (actuation-space charter). The one question: "
                    "can any lever the loop owns move the metric this finding targets? If not, the "
                    "finding launders an unactionable failure into pricing/rules -- refute and name "
-                   "the real failure_class. Reply ONLY the JSON object."),
+                   "the real failure_class. Note (P10, prompt-audit 2026-06-13): the levers with a "
+                   "real EFFECTOR are failure_class (placement->GR-02 repair), scorer_penalty "
+                   "(ranking, only if a gate-passing candidate exists), and manager_rule; "
+                   "proposed_lever is RECORDED-ONLY (no direct effector) -- judge actuation against "
+                   "the real effector set, not the proposed_lever text. Reply ONLY the JSON object."),
         "slice": _slice_actuation, "temperature": 0.2,
     },
 }
@@ -353,7 +357,13 @@ class VerifierSession:
                   "results). Your measured value is RESTRAINT: if the loop is minimizing penalties "
                   "rather than achieving routability, say so (local_minimum_risk) and DECLINE to "
                   "add findings (declined=true) rather than contribute epicycles. Only emit "
-                  "findings that are distinct, sourced in the batch evidence, and ratifiable.")
+                  "findings that are distinct, sourced in the batch evidence, and ratifiable. "
+                  # P12 (prompt-audit 2026-06-13): explicit decline-vs-audit criteria so the seat
+                  # neither over-declines (skipping useful audits) nor over-audits (epicycles).
+                  "DECLINE (declined=true) when the batch metrics are flat across rounds with no NEW "
+                  "failure class, or the board is already gate-passing with only finishing-class "
+                  "residual. AUDIT (emit findings) only when a distinct, batch-sourced pattern an "
+                  "OWNED lever could act on is present; if in doubt, decline -- restraint is the win.")
         user = ("BATCH (last %d rounds):\n%s\n\nSTANDING CONTEXT:\n%s" % (
             len(batch), json.dumps(batch, indent=1)[:24000],
             json.dumps(ctx, indent=1)[:6000]))
