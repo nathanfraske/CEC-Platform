@@ -31,9 +31,21 @@ analysis stage.
 
 ## One-time setup (your bench machine)
 
+Install into the **same** interpreter you'll run the tools with — use
+`python -m pip` (not bare `pip`) so it can't land in a different Python than the
+one you launch. These tools do **not** need ESP-IDF; a plain PowerShell/terminal
+is fine (and avoids polluting the IDF venv).
+
 ```
-pip install pyserial numpy matplotlib
+python -m pip install pyserial numpy matplotlib
+python -c "import serial, numpy, matplotlib; print('ok', serial.__version__)"   # verify
 ```
+
+> Windows uses `python`; Linux/macOS use `python3`. The examples below say
+> `python3` — substitute `python` on Windows. **Gotcha:** in the ESP-IDF terminal
+> `pip` and `python3` can be *different* Pythons, so a `pip install` then a
+> `python3 ...` gives "pyserial is required". The `python -m pip` form above + the
+> matching `python` (Windows) / `python3` (Linux/mac) avoids it.
 
 ## A bench session
 
