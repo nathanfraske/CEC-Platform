@@ -53,6 +53,37 @@ dict key-name mismatch — VERIFIED at source + in run.log (not just an LLM clai
   at r~22 the T8 guard returned 503/findings=0 (== "all clear") — silently removed the local-minimum tripwire.
 - Cross-check full result: `/tmp/claude-1000/.../tasks/wrmxgdloc.output`.
 
+### IMPLEMENTED 2026-06-13 (3 owner-directed changes + Opus-auditor test wiring) — verified, UNCOMMITTED
+All verified (host tests 8/8, container proof, EI-01 spec-verify, existing tests green, 3-agent adversarial
+review = 0 blockers; the 1 should-fix + 2 nits folded in). NOT committed yet (kept separate from the
+unrelated pre-existing `cec_facts.py` working-tree change — do NOT sweep that into the commit).
+1. **LEVER FIX (make item4 work)** — `cec_fr02.clipped_corridor_rects` now derives `rect_mm` from the
+   producer's `polygon` bbox (was reading absent `rect_mm`/`rect` → `{}` → item4 dead). CONTAINER-PROVEN on
+   real board eps-8pin-r34: producer keys `['layer','net','polygon']` → 4 corridor rects → 4 FR-02
+   avoid-intents (`LEVER_WORKS=True`). (Did NOT widen the proactive keepout in
+   `cec_router._vital_keepouts_from_rules` — that's the cross-check's other rec; it needs a route-verify for
+   kelvin-stranding, left as a follow-up.)
+2. **VISION GATE** — `cec_fullstack.vision_pour_check(rec,rnd,run_vlm=False)`: per round computes only the
+   DETERMINISTIC pour facts (which feed the blocking gate + item4); the advisory VLM narrate is gated to
+   finalists (existing `vision_judge` path). Knob `CEC_FS_VISION_EVERY_ROUND=1` restores per-round narrate.
+   `vision_required_unmet` now uses `vlm_attempted` so a gated round isn't a false "seat down".
+3. **EI-01 corpus_state** — `cec_ledger.corpus_state(live_rules)` → `{promoted_tree, staging_tree,
+   live_rules_sha, manager_rules_sha, adv_set_sha}` (trees=git `HEAD:corpus/{promoted,staging}`;
+   live_rules_sha=round-time content hash; manager/adv = effective-influence pins). Wired into:
+   `append()` (new `live_rules=` kwarg + on every row), `manifest()` (trees), the fullstack + inloop
+   measurement rows, the two `mode="decision"` injection-boundary appends, and `ledger_round(...,live_rules)`.
+   `query --corpus-state` = compact per-row view. SPEC-VERIFY reproduced: rounds share scripts_sha while
+   live_rules_sha flips across an injection (temp-ledger demo). New test: `tests/test_ei01_lever_vision.py`.
+4. **Opus-auditor test wiring** (owner asked to test Opus4.8 max-effort as auditor): `CLOUD_AUDITORS={sonnet,
+   opus}` route to the claude CLI; `sonnet_audit(model=,effort=)` builds `claude -p --model <m> [--effort
+   <lvl>]`; `CEC_FS_AUDIT_EFFORT` knob; warm() skips cloud models. Run with `CEC_FS_AUDITOR_MODEL=opus
+   CEC_FS_AUDIT_EFFORT=max`.
+- **LIVE TEST RUNNING**: `docs/fullstack-run-2026-06-13-levertest/` — `--rounds 3`, auditor=opus effort=max,
+  vision gated. Watching for the `item4:` lever-fire line (proof the lever now actuates in the real loop).
+- Files touched (uncommitted): cec_fr02, cec_fullstack, cec_ledger, cec_inloop_audit, cec_overnight_directed,
+  cec_night_watch.sh, + new cec_fs_capstone.py, tests/test_ei01_lever_vision.py. (cec_facts.py = NOT mine.)
+- Review full result: `/tmp/claude-1000/.../tasks/w86las2ps.output`.
+
 ### V4 CAPSTONE RESULT + reconciliation (done; `docs/fullstack-run-2026-06-13/CAPSTONE-v4.{json,md}`)
 V4 (deepseek-v4-flash, 588s) verdict: `local_minimum`, bundle_accurate=true, confidence=high. Root cause (CORRECT):
 "pour fragmentation on SENSEC2_HI/LO from foreign signal nets crossing the sense corridors → DRC; not resolved by
