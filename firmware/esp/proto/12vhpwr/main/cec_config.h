@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
 #include "cec_fpga_link.h"
 
 #ifdef __cplusplus
@@ -34,6 +36,44 @@ extern "C" {
 
 /* AD7606 +/-5 V range: 152.59 uV per LSB. */
 #define PROTO_LSB_VOLTS      (5.0 / 32768.0)
+
+/* 12V-rail voltage divider: 47k top / 10k bottom -> rail = adc * (47+10)/10. */
+#define PROTO_RAIL_DIVIDER   (57.0f / 10.0f)
+
+/*
+ * Per-channel physical calibration. The TelePlot loop turns each raw AD7606
+ * channel (ADC volts, ±5 V full-scale) into a physical quantity:
+ *
+ *     physical = (adc_volts - offset_v) * scale
+ *
+ *   VOLTAGE via a divider:  scale = (Rtop + Rbot) / Rbot,  offset_v = 0
+ *   CURRENT via shunt+amp:  scale = 1 / (Rshunt * Again),  offset_v = Vbias
+ *
+ * `label` is the TelePlot series name; `median` runs the channel through a
+ * small rolling median to reject the per-channel glitch -- use it on steady
+ * VOLTAGE channels, NOT on current channels whose real transients you keep.
+ *
+ * TODO(bench): the current channels are RAW (ADC volts) until the perfboard
+ * front-end is pinned. Per per-pin current channel set kind=PROTO_KIND_AMP,
+ * scale=1/(Rshunt*gain), offset_v=Vbias, label="i<pin>" and it streams amps.
+ * v6 (index 5) is the confirmed 12V-rail divider and is already calibrated.
+ */
+typedef enum { PROTO_KIND_RAW, PROTO_KIND_VOLT, PROTO_KIND_AMP } proto_kind_t;
+
+typedef struct {
+    const char  *label;     /* TelePlot series name                        */
+    proto_kind_t kind;      /* RAW=adc volts, VOLT=volts, AMP=amps         */
+    float        scale;     /* multiplies (adc_volts - offset_v)           */
+    float        offset_v;  /* bias subtracted before scaling              */
+    bool         median;    /* rolling-median de-glitch (steady channels)  */
+} proto_ch_cal_t;
+
+extern const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS];
+
+/* Apply PROTO_CH_CAL[ch] to a raw ADC code -> physical value (no filtering). */
+float       proto_channel_phys(int ch, int16_t code);
+/* Unit suffix for a calibration kind ("V" / "A" / "Vadc"). */
+const char *proto_kind_unit(proto_kind_t kind);
 
 /*
  * Fill a link config from the constants above.

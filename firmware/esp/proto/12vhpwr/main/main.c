@@ -20,6 +20,7 @@
 #include "cec_config.h"
 #include "cec_teleplot.h"
 #include "cec_cli.h"
+#include "cec_filters.h"
 
 static const char *TAG = "12vhpwr_proto";
 
@@ -48,8 +49,10 @@ static int cli_cmd_frame(int argc, char **argv)
     printf("drdy=%d header=0x%02x (%s) seq=%u\n",
            drdy ? 1 : 0, f.header, f.header_ok ? "ok" : "BAD", f.seq);
     for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
-        printf("  V%d %+6d (%+8.4f V)\n",
-               ch + 1, f.code[ch], f.code[ch] * PROTO_LSB_VOLTS);
+        const proto_ch_cal_t *c = &PROTO_CH_CAL[ch];
+        printf("  %-5s %+9.4f %-4s (raw %+6d, %+7.4f Vadc)\n",
+               c->label, proto_channel_phys(ch, f.code[ch]), proto_kind_unit(c->kind),
+               f.code[ch], f.code[ch] * PROTO_LSB_VOLTS);
     }
     return 0;
 }
@@ -59,11 +62,18 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE
-/* TelePlot streaming loop: eight channels (volts) plus seq. */
+/* Rolling-median de-glitch for the median-flagged (steady) channels. */
+#define PROTO_MEDIAN_WIN 5
+static float    s_med_buf[CEC_FPGA_FRAME_CHANNELS][PROTO_MEDIAN_WIN];
+static median_t s_med[CEC_FPGA_FRAME_CHANNELS];
+
+/* TelePlot streaming loop: calibrated channels (volts/amps per PROTO_CH_CAL)
+ * plus seq. The rail is median-filtered to reject its per-channel glitch. */
 static void teleplot_loop(void)
 {
     ESP_LOGI(TAG, "TelePlot loop: waiting on DRDY");
-    char name[8];
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+        median_init(&s_med[ch], s_med_buf[ch], PROTO_MEDIAN_WIN);
     while (1) {
         if (!cec_fpga_link_poll()) {
             vTaskDelay(PROTO_DRDY_POLL_TICKS);
@@ -81,8 +91,9 @@ static void teleplot_loop(void)
         }
         int64_t now_ms = esp_timer_get_time() / 1000;
         for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
-            snprintf(name, sizeof(name), "v%d", ch + 1);
-            teleplot_emit_t(name, now_ms, (float)(f.code[ch] * PROTO_LSB_VOLTS));
+            float v = proto_channel_phys(ch, f.code[ch]);
+            if (PROTO_CH_CAL[ch].median) v = median_update(&s_med[ch], v);
+            teleplot_emit_t(PROTO_CH_CAL[ch].label, now_ms, v);
         }
         teleplot_emit_t("seq", now_ms, (float)f.seq);
         vTaskDelay(pdMS_TO_TICKS(200));   /* ~5 Hz; FPGA keeps pacing */
