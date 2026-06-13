@@ -324,8 +324,19 @@ def clipped_corridor_rects(board_path, clipped_nets, *, margin=1.0):
     for p in (pours or []):
         net = str(p.get("net", "")).lstrip("/")
         rect = p.get("rect_mm") or p.get("rect")
+        poly = p.get("polygon")                      # derive_power_pours emits a 'polygon' (vertex list),
+        if not rect and poly and all(len(v) >= 2 for v in poly):   # NOT a rect -- bbox it. THIS was the
+            xs = [v[0] for v in poly]                # dead-lever bug: the old code read rect_mm/rect only,
+            ys = [v[1] for v in poly]                # found neither, returned {} every round -> item4
+            rect = [min(xs), min(ys), max(xs), max(ys)]            # fired 0 times across a 34-round run.
         if net in want and rect:
-            out["/" + net] = {"rect_mm": list(rect), "layers": p.get("layers", ["F.Cu", "B.Cu"])}
+            # Keep the corridor clear on BOTH copper layers regardless of the single layer the producer
+            # tagged this rect with: the post-route high-current pour is the routed F.Cu corridor PLUS a
+            # B.Cu mirror (cec_fr.add_power_pours), so a foreign trace on EITHER layer re-fragments it.
+            # (derive_power_pours emits 'layer' singular; we read it but deliberately widen to both.)
+            lays = sorted(set((p.get("layers") or [])
+                              + ([p["layer"]] if p.get("layer") else []) + ["F.Cu", "B.Cu"]))
+            out["/" + net] = {"rect_mm": list(rect), "layers": lays}
     return out
 
 

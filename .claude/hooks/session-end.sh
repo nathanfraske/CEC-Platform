@@ -9,9 +9,12 @@
 # This guarantees the handoff can never again exist only on the (ephemeral) WSL
 # volume -- the failure that lost the prior session's handoff in the 2026-06-12 wipe.
 #
-# It is NON-DISRUPTIVE BY CONSTRUCTION: it never checks out, never touches HEAD, the
-# working tree, or the normal index. The commit is assembled with git plumbing
-# (hash-object -> a temp index -> commit-tree) and pushed straight to the branch ref.
+# It is NON-DISRUPTIVE BY CONSTRUCTION: it never checks out, never touches HEAD or the
+# normal index. The commit is assembled with git plumbing (hash-object -> a temp index ->
+# commit-tree) and pushed straight to the branch ref. The ONLY working-tree write is
+# refreshing the agent's own durable memory mirror (.claude/memory/*.md, already git-tracked
+# and meant to be committed) from the live ~/.claude memory, so the in-tree handoff never
+# drifts stale -- the start hook seeds the live dir back from it after a WSL wipe.
 # Fail-soft + time-bounded: a Stop hook must never block or fail the session.
 set -uo pipefail
 exec 2>/dev/null            # never leak noise onto the session's Stop path
@@ -25,6 +28,20 @@ git rev-parse --git-dir >/dev/null 2>&1 || exit 0   # not a git repo -> nothing 
 # Resolve the persistent-memory dir (same derivation as session-start.sh).
 memdir="$HOME/.claude/projects/$(echo "$ROOT" | tr '/.' '--')/memory"
 [ -d "$memdir" ] || memdir="$HOME/.claude/projects/-home-nathan-CEC-Platform/memory"
+
+# --- refresh the DURABLE in-tree memory mirror (WSL-ephemeral state policy) ----------
+# Mirror the live ~/.claude memory *.md into the committed, git-tracked .claude/memory/
+# so the versioned handoff stays current (it had drifted stale -- the live handoff was
+# 8 KB while the committed copy was 2 KB). Plain file copy: no HEAD/index touch; the next
+# normal commit carries them. The off-tree side-branch push below is the wipe-proof copy;
+# this in-tree mirror is what the start hook seeds from on a fresh clone.
+committed="$ROOT/.claude/memory"
+if [ -d "$memdir" ] && [ -d "$committed" ]; then
+  for f in "$memdir"/*.md; do
+    [ -e "$f" ] || continue
+    cp "$f" "$committed/$(basename "$f")" 2>/dev/null || true
+  done
+fi
 
 # Pull in the survives-WSL bot PAT if present (else fall back to the gh credential).
 # shellcheck disable=SC1091

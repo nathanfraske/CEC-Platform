@@ -257,6 +257,13 @@ services:
       - "8012"
       - "-ngl"
       - "99"
+      # EXPERTS-IN-RAM (2026-06-13, owner directive to run fullstack + V4 together): with DeepSeek-
+      # V4-Flash resident on the 5090 (~13 GiB), the all-GPU worker (np1 = 24.3 GiB) OOMs the 32 GiB
+      # card (13+24 > 32). --n-cpu-moe moves the MoE experts to host RAM so the worker's GPU footprint
+      # drops to ~8-10 GiB (fits beside V4); the ~18 GiB of experts join host RAM (the RAM-tight
+      # tradeoff the owner accepted). Set CEC_VISION_NCPUMOE=0 to revert to all-GPU when V4 is unloaded.
+      - "--n-cpu-moe"
+      - "${CEC_VISION_NCPUMOE:-99}"
       # Unified text+vision seat (2026-06-11): one resident backend serves BOTH the text seats
       # (T1/T4/verifier) and the vision seat (T6), deleting the per-round worker<->vision swap.
       # -np 1 is correct and SAFE here: cec_fullstack issues every seat call SERIALLY (worker_panel

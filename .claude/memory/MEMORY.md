@@ -4,3 +4,4 @@
 - [LLM broker](llm-broker.md) — cec-llm-broker at /home/nathan/cec-llm-broker, :8080, systemd unit; orchestrates the compose LLM backends.
 - [Bot git auth](bot-git-auth.md) — git authors/pushes as nathanfraske-bot via PAT on /mnt/e; never the owner.
 - [Windows-native serving](windows-native-serving.md) — Phase B: moving LLM seats off WSL/drvfs to Windows-native llama.cpp.
+- [DeepSeek-V4 auditor](deepseek-v4-auditor.md) — T5 deep auditor seat; Windows-native llama-server on :8007, broker external backend; GGUF in /mnt/e/models.

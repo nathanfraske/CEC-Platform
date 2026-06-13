@@ -33,8 +33,8 @@
     "cec-worker-vision": {
       "profile": "worker-volume-vision", "service": "worker-volume-vision",
       "port": 8012, "served": "cec-worker-vision", "health": "/health",
-      "vram_gb": 25, "backend": "llama",
-      "note": "Qwen3.6-35B-A3B + mmproj; the DEFAULT unified text+vision seat (cec_judge_local default model)."
+      "vram_gb": 10, "backend": "llama",
+      "note": "Qwen3.6-35B-A3B + mmproj; the DEFAULT unified text+vision seat (cec_judge_local default model). vram_gb lowered 25->10 (2026-06-13): when V4-Flash is co-resident the compose command runs --n-cpu-moe 99 (experts in host RAM) so the GPU footprint is ~8-10GB instead of 24GB; set CEC_VISION_NCPUMOE=0 + raise this back to 25 when V4 is unloaded."
     },
     "cec-worker-quality-vision": {
       "profile": "worker-quality-vision", "service": "worker-quality-vision",
@@ -59,6 +59,12 @@
       "port": 8090, "served": "cec-worker-vision-win", "health": "/health",
       "vram_gb": 25, "backend": "llama-win",
       "note": "EXTERNAL: Windows-native llama-server (b9611, CUDA 13.3) serving Qwen3.6-35B-A3B + mmproj from E: at native NTFS speed (no drvfs cold-load tax). Launched Windows-side via the CEC-WorkerVision scheduled task (E:/llama-cpp-win/run-worker-vision.bat); the broker proxies but never starts/stops it. Phase-B migration target -- flip cec_judge_local CEC_VLLM_MODEL_NAME here to use it; WSL cec-worker-vision stays the fallback."
+    },
+    "deepseek-v4-flash": {
+      "managed": false, "host": "windows-host",
+      "port": 8007, "served": "deepseek-v4-flash", "health": "/health",
+      "vram_gb": 13, "backend": "llama-win",
+      "note": "EXTERNAL: Windows-native llama-server (V4-fork build E:/toolchain/llama.cpp-v4) serving DeepSeek-V4-Flash-284B Q4_K_M-XL from E:/models/DeepSeek-V4-Flash-GGUF; routed experts in host RAM (~135-140GB), attention/KV on the 5090 (~10-13GB GPU, MEASURED). Launched Windows-side via E:/toolchain/run-v4-flash.bat (preflight >=145GB free RAM; firewall rule CEC-v4flash-8007-WSL allows TCP 8007 from the WSL NAT). The T5 DEEP AUDITOR seat (cec_fullstack DEEP_AUDITOR / CEC_VLLM_REVIEWER_MODEL=deepseek-v4-flash / cec_inloop_audit V4 checkpoint). Broker proxies but NEVER starts/stops/reaps it; counts vram_gb in arbitration but never evicts it -- so a managed seat >~17GB cannot co-reside with V4 on the 32GB card (route worker uses no GPU seat; gpt-oss reviewer 8GB coexists fine)."
     }
   }
 }

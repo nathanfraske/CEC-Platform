@@ -55,8 +55,8 @@ DEFAULT_BUDGET = 200                       # mirrors bandit_bounds.verifier_call
 PRECISION_FLOOR = 0.70                     # Decision 9
 CAL_WINDOW = 30                            # rolling settlements per charter
 CAL_MIN_SETTLED = 10                       # below this, suspension can never fire
-SEAT_MAX_TOKENS = 600                      # micro-schema ceiling
-SEAT_TIMEOUT = int(os.environ.get("CEC_VERIFIER_TIMEOUT", "300"))   # ride a swap (caller warms first)
+SEAT_MAX_TOKENS = int(os.environ.get("CEC_VERIFIER_SEAT_MAX_TOKENS", "2500"))   # 2500 (was 600): even a micro-schema verdict must not truncate a reasoning seat mid-thought
+SEAT_TIMEOUT = int(os.environ.get("CEC_VERIFIER_TIMEOUT", "600"))   # ride a swap (caller warms first) + room to finish
 V4_MODEL = os.environ.get("CEC_V4_MODEL", "deepseek-v4-flash")
 V4_MAX_TOKENS = int(os.environ.get("CEC_V4_MAX_TOKENS", "14000"))   # measured convergence budget
 
@@ -254,7 +254,7 @@ class VerifierSession:
             return {"verdict": "uncertain", "reason": f"seat error: {type(e).__name__}: {e}",
                     "failure_class": "unknown", "status": "error"}
 
-    def _arbiter(self, finding, verdicts, timeout=240):
+    def _arbiter(self, finding, verdicts, timeout=600):
         """Sonnet contention arbiter (host, no GPU -- the zero-swap seat). Fail-safe
         to uncertain; the contention is still recorded for the V4 batch."""
         if self.spent >= self.budget:
@@ -323,7 +323,7 @@ class VerifierSession:
                               verdict_type, live_seats, dark_seats)
 
     # -- V4 deep batch auditor (owner: every N rounds, not just morning) --
-    def v4_batch_audit(self, batch, ctx=None, timeout=1800):
+    def v4_batch_audit(self, batch, ctx=None, timeout=3000):   # 3000 (was 1800): 14000 tok at ~5 tok/s needs the room, never timeout-cut
         """One deep V4 call over a BATCH of rounds/findings (serialized with routing by
         the caller -- V4 pins ~160GB host RAM; the broker handles start/swap). The deep
         seat's measured value is RESTRAINT: it is explicitly invited to decline."""

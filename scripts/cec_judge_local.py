@@ -87,8 +87,10 @@ MANAGER_MODEL = os.environ.get("CEC_VLLM_MANAGER_MODEL") or MODEL
 REVIEWER_URL = (os.environ.get("CEC_VLLM_REVIEWER_URL") or MANAGER_URL).rstrip("/")
 REVIEWER_MODEL = (os.environ.get("CEC_VLLM_REVIEWER_MODEL")
                   or os.environ.get("CEC_VLLM_MANAGER_MODEL") or "cec-manager-fast")
-TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "120"))   # absorbs the cold first guided-JSON grammar compile
-MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a big RAM-offload thinking manager is slow
+TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "300"))   # absorbs the cold first guided-JSON grammar compile
+# Timeouts are a CEILING (a fast response returns immediately) -- set them generous so a long deep-tier
+# generation is never timeout-cut mid-thought (owner 2026-06-13: a mid-process cut poisons every later pass).
+MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "2400"))   # a big RAM-offload thinking manager is slow
 # THINKING models reason before the JSON; an undersized token budget truncates mid-reason -> empty
 # content -> JSON parse failure -> silent deterministic fallback (first measured on the retired
 # Qwen3-235B-Thinking, re-measured on MiniMax-M2.7). The manager tier keeps its OWN generous-but-
@@ -97,13 +99,16 @@ MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "600"))   # a
 # AND 14k caps -- a "think shorter" directive made it think LONGER), a second SCRIBE call
 # transcribes the trace's conclusion under the json_schema grammar instead of falling back. That is
 # the measured miner->scribe protocol (complete 9.5/10 answer in ~3.6k tok / ~5 min).
-MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "4096"))
+# 12000 (was 4096): max_tokens is a CEILING (short answers stop early, no cost), so size it for the DEEP
+# tier -- a V4/Opus per-round audit reasons before the JSON and 4096 truncated it mid-reason. V4 ctx is
+# 32768 so 12000 fits with margin; the verifier's V4 batch uses 14000. Env-overridable.
+MANAGER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_MANAGER_MAX_TOKENS", "12000"))
 # WORKER budget (2026-06-09): was a hardcoded 400, sized for the NON-thinking 30B AWQ. The new
 # worker tier (cec-worker 35B-A3B / cec-worker-quality 27B, Qwen3.6) THINKS before answering --
 # a 400 cap truncates mid-reason -> empty content -> JSON parse fail -> silent deterministic
 # fallback (the exact failure mode the manager budget fix documented). 1200 covers measured
 # reasoning (trivial ask ~160 tokens; real verdicts a few hundred) with margin.
-WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "1200"))
+WORKER_MAX_TOKENS = int(os.environ.get("CEC_VLLM_WORKER_MAX_TOKENS", "3000"))   # 3000 (was 1200): headroom so a thinking worker never truncates a long JSON
 # DEEP-TIER SAMPLING FLOORS: large reasoning models can verbatim decode-loop at temp <=0.1-0.2
 # without a presence penalty (first seen on MiniMax-M2.7: watched it lock, 6x the same sentence).
 # Applied to whatever is in CEC_VLLM_FLOOR_MODELS. Default now covers the DeepSeek-V4-Flash deep
@@ -118,7 +123,7 @@ _FLOOR_PRESENCE = float(os.environ.get("CEC_VLLM_FLOOR_PRESENCE", "0.8"))
 # (36000 chars ~= 9k tokens; conclusions form at the trace END, so the TAIL is kept).
 _AUTO_SCRIBE = os.environ.get("CEC_VLLM_AUTO_SCRIBE", "1") != "0"
 _SCRIBE_TRACE_CHARS = int(os.environ.get("CEC_VLLM_SCRIBE_TRACE_CHARS", "36000"))
-_SCRIBE_MAX_TOKENS = int(os.environ.get("CEC_VLLM_SCRIBE_MAX_TOKENS", "4096"))
+_SCRIBE_MAX_TOKENS = int(os.environ.get("CEC_VLLM_SCRIBE_MAX_TOKENS", "6000"))   # 6000 (was 4096): bounded by the 16384 manager ctx (9k trace tail + ~6k answer + system)
 TIER = "local:cec-worker-vision"
 
 # guided-JSON schema the server is constrained to (vLLM structured outputs)
@@ -1240,8 +1245,8 @@ def corpus_fit_review(new_log, corpus_dir=None, *, min_peers=3, verbose=False):
     # warm, ~6.5 min cold via the broker) finishes single-call well inside 1800s; cec-manager (M2.7,
     # 12.9 tok/s warm, ~10.5 min cold) may add the scribe second call -- still inside 1800s warm.
     # (Historical: the retired 235B measured a thorough review at 1157s @ ~4.3 tok/s.)
-    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "1800"))
-    cf_max_tokens = int(os.environ.get("CEC_CORPUS_MAX_TOKENS", "6144"))
+    cf_timeout = float(os.environ.get("CEC_CORPUS_TIMEOUT", "2700"))        # 2700 (was 1800): room for a deep V4 review at the ceiling
+    cf_max_tokens = int(os.environ.get("CEC_CORPUS_MAX_TOKENS", "12000"))   # 12000 (was 6144): a deep precedent review must not truncate
     try:
         new = _cf_load(new_log)
         fam = cf_family_of(new)
