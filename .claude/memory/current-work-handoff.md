@@ -1,6 +1,38 @@
 # Current work handoff
 
-_Updated 2026-06-12 (env-rebuild + WSL-ephemeral policy + Windows-native Phase B)._
+_Updated 2026-06-13 (AM-04 electrothermal min-cut + corpus promotion; env-rebuild context below)._
+
+## Two PRs opened 2026-06-13 as nathanfraske-bot (idle-time work, owner away from PC)
+
+NOTE on bot push: on a branch off `main` the credential helper `ops/secrets/git-credential-cec.sh`
+is ABSENT (it lives on the unmerged PR #51 branch), but the git `--local` config still points at it
+-> normal push fails. Workaround used: transient inline helper reading `CEC_BOT_PAT` from
+`/mnt/e/secrets/cec-bot.env` (`git -c credential.helper= -c 'credential.helper=!f(){...}; f' push`);
+`gh` via `GH_TOKEN`. Real fix = merge PR #51 (lands the helper on main).
+
+- **PR #52 — `claude/am04-electrothermal-mincut`** (AM-04 PR-two model-debt fix in
+  `cec_synth_pipeline.electrothermal_solve`): segment-sum -> serial min-cut (`_min_cut`, pour-span
+  restricted so zero-current Kelvin stubs don't read as series necks); per-transition via clustering
+  for non-poured nets vs distributed `I/total` for poured stitching fields; IPC k by the bottleneck's
+  actual layer (rename-proof ID). Micro-board anchor moved to the DERIVATION.md CORRECTED column
+  (cross 1.044->0.348, dT 4.8->6.12); 8/8 AM-04 + 18/18 thermal-gates tests pass. **SB-08 golden
+  re-freeze left OWNER-GATED** (coupled item-3a CEC_GOLDEN_SYNTH + owner `--thermal-headroom`;
+  measured: synth-OFF now correctly EXPOSES the 40A-on-0.2mm-trace fusing the old sum hid; synth-ON
+  max_T 120.5C limited by the +5VSB rail, no clamp). `expectations.json` untouched (already red-pending).
+  CLAUDE.md model-debt note marked RESOLVED.
+
+- **PR #53 — `claude/corpus-promote-43`** (owner-directed corpus promotion): 37 of 43 human_approved
+  `staging/general` entries -> `promoted/general`, VERBATIM + signoff{by:nathanfraske}/promotion{promoted_by:
+  nathanfraske-bot, pr:53}. `status` stays `human_approved` (schema: "promoted" is a ZONE not a status;
+  literal flip would fail lint -- flagged to owner). HELD in staging: 2 founders-gated
+  (dvdi.requirement_tier_verdict, meas.targets.v1) + 4 AM-02 fixture-blocked (can.termination.hub_split_120r,
+  can.bitrate.classical_500k, thermal.k_ipc.external/internal -- compile-block entries need a fixture before
+  promoting as blocking artifacts; NOT fabricated, surfaced as owner follow-up). Re-froze
+  tests/golden/parity-report.json (matched=20 unchanged; corpus_only 301->316 is PRE-EXISTING drift, also
+  clears the stale cl03 parity test). 0 tombstones (nothing superseded). Lint 0 errors; CODEOWNERS gates
+  both paths to @nathanfraske.
+
+_Below: env-rebuild + WSL-ephemeral policy + Windows-native Phase B (2026-06-12)._
 
 ## Context
 WSL distro reinstalled 2026-06-12 after a failed move to E:. Whole Linux home lost; GGUFs
