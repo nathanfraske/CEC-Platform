@@ -309,6 +309,63 @@ Gowin P&R anyway. Two NOTES recorded while building: `expect` and `cross` are
 reserved -g2012 keywords (renamed `chk`/`hits`); a task that reuses a test's loop
 iterator clobbers it (give tasks their own integer).
 
+## FPGA 12V-rail detector (RTL, 2026-06-13)
+
+`rtl/12vhpwr-proto/cec_native_rail.v` -- a SEPARATE sibling detector on the rail
+voltage (vrail = v6 = detector ch 2), wired into `top.v` alongside the imbalance
+detector: it shares the 0x44/0x46 arm and ORs into the SAME centered ring-freeze +
+the STATUS V3 word. Standalone sim `tb_native_rail.v` PASS; the `tb_top` gate
+exercises the integration (a spike on V6 trips ch 2 + freezes while the balanced
+currents keep the imbalance detector quiet) and PASSes. The gate + Gowin synthesis
+lists carry it (CLAUDE.md / firmware-ci.yml [+ its own standalone leg] / both READMEs
+/ tb_top header).
+
+THE PROBLEM: the rail droops/sags as the GPU loads (~40 mVpp, ~46 ADC codes, ANTI-
+PHASE with the current) and that is IN SPEC -- it must NOT trip; a PSU turn-on/off, a
+brownout, or a degrading feed must. TWO discriminators, stacked (the module header has
+the full derivation):
+  (1) MAGNITUDE -- the in-spec droop (~46 codes pp) sits in a ~30x gap below the ATX
+      +/-5% window (~1380 codes pp) / a PSU on/off edge (~full scale). The BAND test
+      trips on |vrail - slow_baseline| > VDEV with VDEV in that gap. Catches PSU
+      on/off + any gross excursion by itself.
+  (2) LOAD-CORRELATION -- the normal droop is CAUSED by the current. Predict it and
+      trip on the UNEXPLAINED residual r = (vrail-vbase) + KGAIN*(isum-ibase): the
+      droop is predicted and cancels, a sag the load does NOT account for survives.
+      Same common-mode-rejection idea as the imbalance detector, across V<->I -- lets
+      you tighten below the droop envelope (a degrading connector at constant current).
+THREE tests, each disable-able, all gated by warm-up: BAND (above), WINDOW (vrail
+outside an absolute [VMIN,VMAX] = the +/-5% limits -> slow out-of-spec drift), RESIDUAL
+(the load-line, off until KGAIN is fit). trip_ch one-hots the vrail channel so the ESP
+`detect` CLI already reports it as a `vrail` event (metric-agnostic, unchanged); STATUS
+V3 = {tripped[15], det_frozen[14], rail_cause[13:11]={residual,window,band}, 0[10:8],
+trip_ch[7:0]} with tripped/trip_ch = OR of both detectors.
+
+DEFAULTS (top.v): RAIL_VDEV=400 codes (~0.35 V; >> the droop, < the ~690-code spec
+edge), RAIL_KSHIFT=12 / RAIL_WARMUP=16384 (like the imbalance detector), RAIL_KGAIN=0
++ RAIL_VRES=0 (residual OFF until fit), WINDOW default-OFF (RAIL_VMIN/MAX full-scale)
+until the rail nominal code is bench-confirmed. Turn-OFF capture works because the
+instrument is on its own USB power, not the rail under test.
+
+REMAINING (bench): (1) bitstream rebuild (add cec_native_rail.v to the Gowin project).
+(2) BENCH-TUNE: confirm the rail nominal code (~13800 for 12V / 5.7x divider on the
++/-5V AD7606) and ENABLE the WINDOW (RAIL_VMIN/MAX ~13106..14486 = ATX +/-5%); set
+RAIL_VDEV in the droop->spec gap; FIT RAIL_KGAIN from a normal capture (regress the
+vrail deviation against the summed-current deviation) then enable RAIL_VRES to catch
+in-envelope sags. (3) the runtime-config-over-MOSI increment makes VDEV/KGAIN/VRES/
+VMIN/VMAX/K tunable without a rebuild. (4) ESP `detect` nicety: print "RAIL" vs
+"IMBALANCE" + the rail_cause from STATUS V3, deferred.
+
+DETECTOR TAXONOMY (owner direction 2026-06-13) -- three distinct classes:
+ * IMBALANCE (`cec_native_anomaly.v`, BUILT) -- a per-pin SHARE departure from fair
+   share. NOTE the FILE is named "anomaly" but is really the IMBALANCE detector; the
+   owner reserves "anomaly" for the statistical class below. Clean follow-up: rename
+   `cec_native_anomaly.v` -> `cec_native_imbalance.v` so the name is free.
+ * RAIL (`cec_native_rail.v`, BUILT) -- a 12V-rail spike / brownout / load-unexplained
+   event.
+ * ANOMALY (the REAL one, NOT yet built) -- a high-impedance STATISTICAL anomaly: a
+   deviation from a REGISTERED norm (a learned/stored baseline distribution, not just a
+   single EMA). Owner-flagged as the next detector class to build.
+
 ## Bench host tooling (firmware/tools/, 2026-06-13)
 
 Host-side, replaces PuTTY-log + hand-extraction + manual matplotlib. The

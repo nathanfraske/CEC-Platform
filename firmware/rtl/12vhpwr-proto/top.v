@@ -63,11 +63,18 @@ module top #(
     // DATA worse (the glitches were on the ESP link, a different clock), so the
     // read stays at /4. Slower = lower native rate, so retune DECIM_M if changed.
     parameter integer SCLK_DIV  = 4,
-    // Native imbalance/anomaly detector config (cec_native_anomaly). Board
-    // defaults; the tb overrides KSHIFT/THRESH/WARMUP for fast sim.
+    // Native IMBALANCE detector config (cec_native_anomaly -- per-pin share
+    // departure). Board defaults; the tb overrides KSHIFT/THRESH/WARMUP for sim.
     parameter integer DET_KSHIFT = 12,     // slow EMA shift: tau ~ 2^12 = 41 ms @ 100k (>> load period)
     parameter integer DET_THRESH = 600,    // |NMASK*(avg_i-mean)| codes -> imbalance trip (~5.6% @ 4A)
-    parameter integer DET_WARMUP = 16384   // frames (~164 ms) to converge the average before arming trips
+    parameter integer DET_WARMUP = 16384,  // frames (~164 ms) to converge the average before arming trips
+    // Native 12V-RAIL detector config (cec_native_rail -- spike / brownout /
+    // load-unexplained). Shares the 0x44/0x46 arm; trips tag the vrail channel.
+    parameter integer RAIL_KSHIFT = 12,    // slow rail+current baseline EMA (~41 ms @ 100k)
+    parameter integer RAIL_VDEV   = 400,   // BAND |vrail-baseline| codes (~0.35 V; >> ~46-code droop, < ~690 spec edge)
+    parameter integer RAIL_KGAIN  = 0,     // load-line gain (signed, /2^8); 0 = residual OFF until bench-fit
+    parameter integer RAIL_VRES   = 0,     // RESIDUAL |r| codes; 0 = OFF (enable with RAIL_KGAIN)
+    parameter integer RAIL_WARMUP = 16384  // frames (~164 ms) to converge the baselines before arming trips
 )(
     input  wire clk50,
     // AD7606 module (silk: RST, CA, CS, RD, BUSY, D7, D8)
@@ -288,6 +295,35 @@ module top #(
         .trip_ch  (det_trip_ch)
     );
 
+    // ---- native 12V-rail spike / brownout / load-unexplained detector -------
+    // Watches vrail = v6 = detector ch 2 (ch i = V(8-i)); sums the same 4 current
+    // channels (DET_MASK) for the load-line residual. Shares det_armed + the
+    // centered POSTROLL, ORs into the ring freeze + STATUS below. The in-spec load
+    // droop (~46 codes, load-correlated) passes: it is below RAIL_VDEV AND, once
+    // RAIL_KGAIN is bench-fit, the load-line predicts it so the residual cancels.
+    localparam [3:0] RAIL_CH = 4'd2;       // vrail channel index in the native frame
+    // WINDOW (absolute) is DEFAULT-OFF (full-scale) until the rail nominal code is
+    // bench-confirmed. For a 12V / (47k+10k):10k = 5.7x divider on the +/-5V AD7606
+    // the ATX +/-5% band is ~13106..14486 codes -- set RAIL_VMIN/MAX to enable it.
+    localparam signed [15:0] RAIL_VMIN = 16'sh8000;  // -> never below (window disabled)
+    localparam signed [15:0] RAIL_VMAX = 16'sh7FFF;  // -> never above (window disabled)
+    wire       rail_freeze, rail_tripped;
+    wire [7:0] rail_trip_ch;
+    wire [2:0] rail_cause;
+    cec_native_rail #(.CHANNELS(8), .W(16), .KMAX(14), .KG_SHIFT(8), .PRW(DPRW)) u_rail (
+        .clk(clk50), .rst(rst), .arm(det_armed), .in_stb(cap_stb), .in_data({shA, shB}),
+        .rail_ch(RAIL_CH), .cur_mask(DET_MASK), .k_shift(RAIL_KSHIFT[3:0]),
+        .vdev(RAIL_VDEV[15:0]), .vmin(RAIL_VMIN), .vmax(RAIL_VMAX),
+        .kgain(RAIL_KGAIN[15:0]), .vres(RAIL_VRES[15:0]),
+        .postroll(DET_POSTROLL), .warmup(RAIL_WARMUP[15:0]),
+        .freeze(rail_freeze), .tripped(rail_tripped),
+        .trip_ch(rail_trip_ch), .trip_cause(rail_cause)
+    );
+    // Either detector freezes the ring (centered) and either trips -> OR both.
+    wire       any_freeze  = det_freeze  | rail_freeze;
+    wire       any_tripped = det_tripped | rail_tripped;
+    wire [7:0] any_trip_ch = det_trip_ch | rail_trip_ch;
+
     // ---- burst capture ring + frozen readout (UNCHANGED v0 path) ------------
     reg [143:0]  cap_buf [0:DEPTH-1];
     reg [AW-1:0] wr_ptr  = {AW{1'b0}};
@@ -329,7 +365,7 @@ module top #(
             end
             // Detector CENTERED freeze: placed AFTER the transaction logic so it
             // wins (by source order) over the auto-unfreeze above.
-            if (det_freeze && !frozen) begin
+            if (any_freeze && !frozen) begin
                 frozen <= 1'b1; rd_ptr <= wr_ptr; det_frozen <= 1'b1;
             end
             // Explicit disarm (0x46 -> det_armed=0) drops the detector freeze and
@@ -393,9 +429,12 @@ module top #(
     //   otherwise     -> LIVE latest frame {0xA5, seq, V1..V8}
     wire [143:0] live_frame   = {8'hA5, seq,  frame};
     wire [143:0] stream_frame = {shdr,  sdrop, sr_data};
-    // V1/V2 = the rate counter (unchanged); V3 = detector status
-    // {tripped, det_frozen, 0, trip_ch[7:0]}; V4..V8 = 0.
-    wire [15:0]  det_status  = {det_tripped, det_frozen, 6'b0, det_trip_ch};
+    // V1/V2 = the rate counter (unchanged); V3 = detector status =
+    // {tripped[15], det_frozen[14], rail_cause[13:11], 0[10:8], trip_ch[7:0]}.
+    // tripped/trip_ch are the OR of BOTH detectors -- a rail event sets the vrail
+    // channel bit (ch 2) with rail_cause={residual,window,band}; an imbalance sets
+    // the current-channel bits with rail_cause=0. V4..V8 = 0.
+    wire [15:0]  det_status  = {any_tripped, det_frozen, rail_cause, 3'b0, any_trip_ch};
     wire [143:0] status_frame = {8'h5C, 8'h00, frame_count[31:16], frame_count[15:0],
                                  det_status, 80'd0};
     cec_spi_slave #(.FRAME_BITS(144)) u_esp (

@@ -2058,7 +2058,7 @@ sessions, `IDF_PATH=/opt/esp-idf-v60`):
 ```sh
 # RTL sim (self-checking; expect PASS)
 cd firmware/rtl/12vhpwr-proto
-iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v ../common/cec_spi_slave.v && vvp tb | grep -q '^PASS'
+iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v cec_native_rail.v ../common/cec_spi_slave.v && vvp tb | grep -q '^PASS'
 cd -
 # All three apps (proto/12vhpwr targets esp32p4, the others esp32s3)
 . "${IDF_PATH:-/opt/esp-idf-v60}/export.sh"

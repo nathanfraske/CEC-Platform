@@ -13,7 +13,7 @@
 //   * BURST (fastburst): frozen native ring, consecutive sequence, payload intact.
 //   * STREAM (piece 2): continuous decimated FIFO -- dropcount byte reads ZERO
 //     when drained promptly (gap-free) and NONZERO after a deliberate stall.
-// Run: iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v ../common/cec_spi_slave.v && vvp tb
+// Run: iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v cec_native_rail.v ../common/cec_spi_slave.v && vvp tb
 // ----------------------------------------------------------------------------
 module tb_top;
     reg clk50 = 1'b0;
@@ -28,7 +28,8 @@ module tb_top;
 
     // tiny ring + FIFO + small M so the sim fills/wraps/overflows quickly
     top #(.SAMPLE_HZ(20_000), .DECIM_M(4), .DEPTH(8), .STREAM_DEPTH(8),
-          .DET_KSHIFT(4), .DET_THRESH(800), .DET_WARMUP(4)) dut (
+          .DET_KSHIFT(4), .DET_THRESH(800), .DET_WARMUP(4),
+          .RAIL_KSHIFT(4), .RAIL_VDEV(800), .RAIL_WARMUP(4)) dut (
         .clk50(clk50),
         .adc_reset(adc_reset), .adc_convst(adc_convst),
         .adc_cs_n(adc_cs_n),   .adc_sclk(adc_sclk),
@@ -46,6 +47,7 @@ module tb_top;
     reg [63:0] stubA = 64'd0, stubB = 64'd0;
     reg               det_mode = 1'b0;         // anomaly test: drive a BALANCED current set...
     reg signed [15:0] det_imb  = 16'sd0;       // ...with this imbalance added to V3 (== detector ch5)
+    reg signed [15:0] rail_v6  = C6;           // rail test: drives V6 (== detector ch2 = vrail); default C6
 
     always @(posedge adc_convst) begin
         #50  adc_busy = 1'b1;                  // t_conv start
@@ -53,7 +55,7 @@ module tb_top;
         if (det_mode) begin
             // masked currents V3/V4/V5/V8 balanced at 5000; det_imb diverges V3.
             stubA = {C1, C2, 16'sd5000 + det_imb, 16'sd5000};   // V3(ch5)=5000+imb, V4(ch4)=5000
-            stubB = {16'sd5000, C6, C7, 16'sd5000};             // V5(ch3)=5000, V8(ch0)=5000
+            stubB = {16'sd5000, rail_v6, C7, 16'sd5000};        // V5(ch3)=5000, V6(ch2=vrail)=rail_v6, V8(ch0)=5000
         end else begin
             stubA = {C1, C2, C3, C4};
             stubB = {C5, C6, C7, C8};
@@ -318,11 +320,47 @@ module tb_top;
         if (rx[95] !== 1'b0) begin                // tripped cleared (balanced, re-armed)
             $display("FAIL: anomaly tripped not cleared after disarm/re-arm (V3=%04x)", rx[95:80]); errors = errors + 1;
         end
+
+        // ---- NATIVE RAIL DETECTOR: the rail (V6 = detector ch2 = vrail) is steady
+        //      and the re-arm check above already saw tripped=0; a SPIKE on V6 must
+        //      trip on ch2 + freeze the ring with rail_cause=BAND; disarm/re-arm
+        //      clears. Currents stay balanced so the imbalance detector is quiet. -
+        rail_v6 = C6 + 16'sd4000;                 // +4000-code rail spike (>> RAIL_VDEV 800)
+        #1_000_000;                               // post-roll + centered freeze
+        esp_read_cmd(8'h33); esp_read_cmd(8'h33);
+        if (rx[95] !== 1'b1) begin                // tripped
+            $display("FAIL: rail did not trip on a spike (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        if (rx[82] !== 1'b1) begin                // trip_ch bit2 = ch2 (V6 = vrail)
+            $display("FAIL: rail trip_ch ch2 (vrail) not set (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        if (rx[91] !== 1'b1) begin                // rail_cause bit0 = BAND
+            $display("FAIL: rail cause not BAND (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        if (rx[94] !== 1'b1) begin                // det_frozen
+            $display("FAIL: rail did not freeze the ring (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        esp_mosi = 1'b1;                          // read the centered ring (0xFF)
+        esp_read; esp_read;
+        if (rx[143:136] !== 8'hA5) begin
+            $display("FAIL: rail-frozen ring header %02x", rx[143:136]); errors = errors + 1;
+        end
+        esp_mosi = 1'b0;
+        rail_v6 = C6;                             // rail back to steady
+        esp_read_cmd(8'h46);                      // DISARM -> clears trip + freeze
+        esp_read_cmd(8'h44);                      // RE-ARM (seeds at steady C6)
+        #500_000;                                 // warm-up on the steady rail
+        esp_read_cmd(8'h33); esp_read_cmd(8'h33);
+        if (rx[95] !== 1'b0) begin                // cleared
+            $display("FAIL: rail tripped not cleared after disarm/re-arm (V3=%04x)", rx[95:80]); errors = errors + 1;
+        end
+        esp_read_cmd(8'h46);                      // leave both disarmed
+
         det_mode = 1'b0;
         esp_mosi = 1'b0;
 
         if (errors == 0)
-            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter, NATIVE-ANOMALY balanced-pass+divergence-trip+rearm");
+            $display("PASS: decimator average, LIVE seq, BURST ring, STREAM dropcount, STATUS rate counter, NATIVE-ANOMALY balanced-pass+divergence-trip+rearm, NATIVE-RAIL steady-pass+spike-trip+rearm");
         else
             $display("FAILED with %0d errors", errors);
         $finish;

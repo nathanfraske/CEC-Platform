@@ -1,6 +1,8 @@
 tb
 tb_nd
 tb_anomaly
+tb_rail
 sim.log
 anomaly.log
+rail.log
 *.vcd

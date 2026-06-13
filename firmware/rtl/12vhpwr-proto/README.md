@@ -19,10 +19,12 @@ pin constraints; the ESP readout app is [`../../esp/proto/12vhpwr`](../../esp/pr
 | `top.v` | acquisition FSM + ESP SPI-slave link (the synthesizable top) |
 | `cec_boxcar_decim.v` | streaming boxcar decimator (the 0x55 STREAM path) |
 | `cec_native_anomaly.v` | per-pin imbalance / share-departure detector (the 0x44 ARM path) |
+| `cec_native_rail.v` | 12V-rail spike / brownout / load-unexplained detector (shares the 0x44 ARM; tags the vrail channel) |
 | `cec_native_detect.v` | per-pin transient detector — the documented alternative trigger, NOT instantiated by `top.v` (kept for reference + its own `tb_native_detect.v`) |
 | `../common/cec_spi_slave.v` | shared oversampled SPI slave (FPGA-Max reuses it) |
 | `tb_top.v` | self-checking testbench (behavioral AD7606 + ESP master) |
-| `tb_native_anomaly.v` | standalone anomaly-detector unit test (common-mode rejection + imbalance trip) |
+| `tb_native_anomaly.v` | standalone imbalance-detector unit test (common-mode rejection + share-divergence trip) |
+| `tb_native_rail.v` | standalone rail-detector unit test (rejects in-spec droop, trips on PSU on/off + unexplained sag + out-of-window) |
 | `12vhpwr-proto.cst` | dock 2×20 GPIO-field pin constraints (renamed from v0 `proto12v.cst`; ball map unchanged) |
 
 ## Prerequisites (one-time)
@@ -42,13 +44,13 @@ pin constraints; the ESP readout app is [`../../esp/proto/12vhpwr`](../../esp/pr
    (part `GW5A-25`, package MG121). Pick the exact speed grade your dock
    carries if prompted; logic is identical for this design.
 2. **Add Files:** `top.v`, `cec_boxcar_decim.v`, `cec_native_anomaly.v`,
-   `../common/cec_spi_slave.v`, and `12vhpwr-proto.cst`. (Add the `.v` by
-   relative path or copy them in — either is fine; keep `cec_spi_slave.v`
-   shared if you can.) `top.v` instantiates both `cec_boxcar_decim` and
-   `cec_native_anomaly`, so both must be in the project or PnR fails on the
-   missing module. (`cec_native_detect.v` is the deprecated transient
-   alternative — do NOT add it; it would be an unused, conflicting top-level
-   candidate.)
+   `cec_native_rail.v`, `../common/cec_spi_slave.v`, and `12vhpwr-proto.cst`.
+   (Add the `.v` by relative path or copy them in — either is fine; keep
+   `cec_spi_slave.v` shared if you can.) `top.v` instantiates `cec_boxcar_decim`,
+   `cec_native_anomaly`, AND `cec_native_rail`, so all three must be in the
+   project or PnR fails on the missing module. (`cec_native_detect.v` is the
+   deprecated transient alternative — do NOT add it; it would be an unused,
+   conflicting top-level candidate.)
 3. **Set `top` as the top module** (Project → Configuration, or it
    auto-detects since the module is named `top`).
 4. **Release the dual-purpose config pins** (one-time; saved with the
@@ -156,7 +158,7 @@ after step 3 below — leave it as-is for the first smoke.)
 
 ## What the simulation does and doesn't prove
 
-`iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v ../common/cec_spi_slave.v && vvp tb`
+`iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v cec_native_rail.v ../common/cec_spi_slave.v && vvp tb`
 (run by CI + the build gate; expect `PASS`) exercises the FSM, the frame
 latch, the DRDY handshake, and the ESP SPI slave against **behavioral**
 AD7606 and ESP-master models. It proves the *logic and protocol*. It
