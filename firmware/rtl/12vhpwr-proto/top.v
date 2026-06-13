@@ -2,7 +2,8 @@
 // ----------------------------------------------------------------------------
 // 12vhpwr-proto top.
 // AD7606 in serial mode (OS=000 strapped, +/-5 V, internal ref):
-//   pulse RESET once, pace CONVST, wait BUSY, clock 64 SCLKs at 12.5 MHz,
+//   pulse RESET once, pace CONVST, wait BUSY, clock 64 SCLKs at CLK_HZ/SCLK_DIV
+//   (default 6.25 MHz; SCLK_DIV is the read-glitch reliability knob),
 //   shift V1-V4 off DOUTA and V5-V8 off DOUTB, latch an 8x16 frame.
 // ESP32-P4 reads frames as SPI slave: 18 bytes = 0xA5, seq, V1..V8 MSB first.
 //
@@ -47,7 +48,16 @@ module top #(
     // 2048 @ 25k = ~80 ms of ESP drain-jitter slack. NOTE both BRAMs together are
     // ~0.57 Mbit -- confirm against the GW5A-25 BSRAM budget at Gowin P&R; drop
     // STREAM_DEPTH if tight (the stream is slow, 1024 = ~40 ms still ample).
-    parameter integer STREAM_DEPTH = 2048
+    parameter integer STREAM_DEPTH = 2048,
+    // AD7606 readout SCLK divider: adc_sclk = CLK_HZ / SCLK_DIV (EVEN). Nothing
+    // forces a ceiling here (the AD7606 serial max is ~23.5 MHz) -- it trades the
+    // native sample rate against the per-bit setup window the 2-FF DOUT
+    // synchronizer sees, so it is the knob for read-side bit-glitch reliability:
+    //   4 -> 12.5 MHz (~40 ns bit window, marginal),  6 -> 8.33 MHz,
+    //   8 ->  6.25 MHz (~80 ns window, the reliable default),  10 -> 5.0 MHz.
+    // Slower = fewer glitches but lower native rate (read time scales with it),
+    // so retune DECIM_M to hold the stream near 25 kSPS after the SCLK is fixed.
+    parameter integer SCLK_DIV  = 8
 )(
     input  wire clk50,
     // AD7606 module (silk: RST, CA, CS, RD, BUSY, D7, D8)
@@ -68,6 +78,8 @@ module top #(
     localparam integer DIV = CLK_HZ / SAMPLE_HZ;
     localparam integer AW  = $clog2(DEPTH);          // burst ring address width
     localparam integer SAW = $clog2(STREAM_DEPTH);   // stream FIFO address width
+    localparam integer PHW = $clog2(SCLK_DIV);       // SCLK phase counter width
+    localparam integer SCLK_HALF = SCLK_DIV / 2;     // 50% duty; rise at mid, fall+sample at end
 
     // ---- power-on reset: ~1.3 ms, then a 200 ns ADC reset pulse ----
     reg [16:0] por = 17'd0;
@@ -101,7 +113,7 @@ module top #(
                      S_WLO=3'd4, S_GAP=3'd5, S_READ=3'd6, S_LATCH=3'd7;
     reg [2:0]   st     = S_RST;
     reg [3:0]   k      = 4'd0;
-    reg [1:0]   ph     = 2'd0;
+    reg [PHW-1:0] ph   = {PHW{1'b0}};       // SCLK phase: 0 .. SCLK_DIV-1
     reg [6:0]   bit_n  = 7'd0;
     reg [63:0]  shA    = 64'd0;
     reg [63:0]  shB    = 64'd0;
@@ -145,26 +157,25 @@ module top #(
                     k <= k + 1'b1;
                     if (k == 4'd3) begin
                         adc_cs_n <= 1'b0;
-                        ph <= 2'd0; bit_n <= 7'd0;
+                        ph <= {PHW{1'b0}}; bit_n <= 7'd0;
                         st <= S_READ;
                     end
                 end
                 S_READ: begin
-                    ph <= ph + 1'b1;
-                    case (ph)
-                        2'd1: adc_sclk <= 1'b1;
-                        2'd3: begin
-                            adc_sclk <= 1'b0;
-                            shA <= {shA[62:0], da_s[1]};
-                            shB <= {shB[62:0], db_s[1]};
-                            bit_n <= bit_n + 1'b1;
-                            if (bit_n == 7'd63) begin
-                                adc_cs_n <= 1'b1;
-                                st <= S_LATCH;
-                            end
+                    // SCLK = CLK_HZ/SCLK_DIV: rise at the midpoint, fall + sample
+                    // the synchronized DOUT at the end (max DOUT setup window).
+                    ph <= (ph == SCLK_DIV-1) ? {PHW{1'b0}} : ph + 1'b1;
+                    if (ph == SCLK_HALF-1) adc_sclk <= 1'b1;
+                    if (ph == SCLK_DIV-1) begin
+                        adc_sclk <= 1'b0;
+                        shA <= {shA[62:0], da_s[1]};
+                        shB <= {shB[62:0], db_s[1]};
+                        bit_n <= bit_n + 1'b1;
+                        if (bit_n == 7'd63) begin
+                            adc_cs_n <= 1'b1;
+                            st <= S_LATCH;
                         end
-                        default: ;
-                    endcase
+                    end
                 end
                 S_LATCH: begin
                     // LIVE single-frame path: held stable under an active CS, so
