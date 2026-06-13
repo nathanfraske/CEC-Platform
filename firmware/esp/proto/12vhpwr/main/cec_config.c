@@ -4,6 +4,8 @@
 
 #include "cec_config.h"
 
+#include <stdbool.h>
+
 /*
  * Per-channel calibration. v6 (index 5) is the 12V-rail divider -> volts;
  * v3-v5,v7,v8 are per-pin current senses -> amps via the PROVISIONAL
@@ -29,10 +31,40 @@ const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS] = {
     /* idx 7  v8 */ { "i8",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
 };
 
+/* Runtime per-channel offset (subtracted ADC volts). Starts at the config
+ * offset_v; the `cal` command overwrites the AMP channels with their measured
+ * no-load bias. Auto-seeds on first use so call order never matters. */
+static bool  s_cal_inited = false;
+static float s_cal_offset_v[CEC_FPGA_FRAME_CHANNELS];
+
+static void cal_ensure(void)
+{
+    if (!s_cal_inited) {
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+            s_cal_offset_v[ch] = PROTO_CH_CAL[ch].offset_v;
+        s_cal_inited = true;
+    }
+}
+
+void proto_cal_init(void) { cal_ensure(); }
+
+void proto_cal_set_offset_v(int ch, float offset_v)
+{
+    cal_ensure();
+    if (ch >= 0 && ch < CEC_FPGA_FRAME_CHANNELS) s_cal_offset_v[ch] = offset_v;
+}
+
+float proto_cal_get_offset_v(int ch)
+{
+    cal_ensure();
+    return (ch >= 0 && ch < CEC_FPGA_FRAME_CHANNELS) ? s_cal_offset_v[ch] : 0.0f;
+}
+
 float proto_channel_phys(int ch, int16_t code)
 {
+    cal_ensure();
     const proto_ch_cal_t *c = &PROTO_CH_CAL[ch];
-    return (float)((code * PROTO_LSB_VOLTS - c->offset_v) * c->scale);
+    return (float)((code * PROTO_LSB_VOLTS - s_cal_offset_v[ch]) * c->scale);
 }
 
 const char *proto_kind_unit(proto_kind_t kind)

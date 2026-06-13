@@ -241,11 +241,171 @@ static int cli_cmd_stream(int argc, char **argv)
     return 0;
 }
 
+/* Zero-calibrate the per-channel current-sense offset at NO LOAD: average N
+ * frames and set each AMP channel's bias to its measured 0-A output (the INA
+ * offset differs per channel, so a single provisional bias can't null them all).
+ * VOLT/RAW channels (vrail) are left as configured -- the rail is not 0 at idle.
+ * Run with the GPU idle / sense pins at ~0 A. Offsets are runtime-only (lost on
+ * reboot; NVS-persist is a follow-up). Usage: `cal [N]` (default 256). */
+static int cli_cmd_cal(int argc, char **argv)
+{
+    int n = (argc >= 2) ? atoi(argv[1]) : 256;
+    if (n < 16)   n = 16;
+    if (n > 4096) n = 4096;
+
+    double sum[CEC_FPGA_FRAME_CHANNELS] = {0};
+    int got = 0;
+    s_capturing = true;
+    vTaskDelay(pdMS_TO_TICKS(3));
+    for (int i = 0; i < n; i++) {
+        cec_fpga_frame_t f;
+        if (cec_fpga_link_read(&f) == ESP_OK && f.header_ok) {
+            for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+                sum[ch] += (double)f.code[ch];
+            got++;
+        }
+        if ((i & 0x1F) == 0x1F) vTaskDelay(1);   /* keep IDLE alive during the average */
+    }
+    s_capturing = false;
+    if (got == 0) { printf("cal: no good frames (link down?)\n"); return 1; }
+
+    printf("cal: averaged %d frames; per-channel zero:\n", got);
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
+        const proto_ch_cal_t *c = &PROTO_CH_CAL[ch];
+        double avg_code = sum[ch] / got;
+        float  avg_v    = (float)(avg_code * PROTO_LSB_VOLTS);
+        if (c->kind == PROTO_KIND_AMP) {
+            float old = proto_cal_get_offset_v(ch);
+            proto_cal_set_offset_v(ch, avg_v);            /* this channel's 0-A bias */
+            printf("  %-5s code %+8.1f -> bias %+7.4f V (was %+7.4f) [SET]\n",
+                   c->label ? c->label : "?", avg_code, avg_v, old);
+        } else {
+            printf("  %-5s code %+8.1f -> %+7.4f V  (%s, offset unchanged)\n",
+                   c->label ? c->label : "(nc)", avg_code, avg_v, proto_kind_unit(c->kind));
+        }
+    }
+    printf("cal: done -- current channels now read ~0 A at idle.\n");
+    return 0;
+}
+
+/* Auto-burst on an anomalous transient -- the platform's event-driven capture
+ * (spec 6.10/6.13: detect -> freeze the pre-roll ring -> dump), in firmware on
+ * this rig. Continuously drain the decimated stream, track each current
+ * channel's running baseline (software EMA), and when one DEVIATES past the
+ * threshold, freeze the FPGA native ring and dump it (the detailed transient +
+ * its pre-roll, at the native rate). Detection runs on the ~13 kSPS stream (the
+ * ESP keeps up there) so it catches transients to a few kHz -- which is all the
+ * perfboard anti-alias passes anyway; the DETAIL is the native-rate ring.
+ * Usage: `autoburst <thresh_codes> [<ntrig>]`  (~655 codes/A on i*; default
+ * ntrig 1). Returns after ntrig captures or a 30 s no-trigger timeout. */
+static int cli_cmd_autoburst(int argc, char **argv)
+{
+    const double codes_per_A = PROTO_ISENSE_V_PER_A / PROTO_LSB_VOLTS;  /* ~655 */
+    if (argc < 2) {
+        printf("usage: autoburst <thresh_codes> [<ntrig>]  (~%.0f codes/A on i*)\n",
+               codes_per_A);
+        return 1;
+    }
+    int thresh = atoi(argv[1]); if (thresh < 1) thresh = 1;
+    int ntrig  = (argc >= 3) ? atoi(argv[2]) : 1; if (ntrig < 1) ntrig = 1;
+
+    bool watch[CEC_FPGA_FRAME_CHANNELS];
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+        watch[ch] = (PROTO_CH_CAL[ch].kind == PROTO_KIND_AMP);
+
+    cec_fpga_frame_t *buf = malloc((size_t)PROTO_RING_DEPTH * sizeof(*buf));
+    if (buf == NULL) { printf("autoburst: out of memory\n"); return 1; }
+
+    const int     K       = 6;                      /* EMA shift, ~64-sample baseline */
+    const int     ARM_N   = 256;                    /* settle the baseline before arming */
+    const int     YIELD_N = 1024;                   /* reads between IDLE yields */
+    const int64_t MAX_US  = 30LL * 1000 * 1000;
+
+    printf("autoburst: thresh=%d codes (~%.2f A), ntrig=%d -- watching the stream, "
+           "induce the transient...\n", thresh, thresh / codes_per_A, ntrig);
+
+    s_capturing = true;
+    vTaskDelay(pdMS_TO_TICKS(3));
+    cec_fpga_frame_t f;
+    cec_fpga_link_read_stream(&f);                  /* select stream mode (discard) */
+
+    int     fired   = 0;
+    int64_t t0      = esp_timer_get_time();
+    int32_t base[CEC_FPGA_FRAME_CHANNELS] = {0};
+    int     seen    = 0;                            /* fresh samples since (re)arm */
+    int     yield_i = 0;
+
+    while (fired < ntrig && (esp_timer_get_time() - t0) < MAX_US) {
+        if (cec_fpga_link_read_stream(&f) != ESP_OK) break;
+        if (f.header != CEC_FPGA_FRAME_HEADER) continue;   /* skip underruns (0x5A) */
+
+        int     trig_ch  = -1;
+        int32_t trig_dev = 0;
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++) {
+            if (!watch[ch]) continue;
+            if (seen == 0) base[ch] = f.code[ch];          /* first fresh sample seeds */
+            int32_t dev = (int32_t)f.code[ch] - base[ch];
+            if (dev < 0) dev = -dev;
+            if (seen >= ARM_N && dev > thresh && dev > trig_dev) { trig_ch = ch; trig_dev = dev; }
+            base[ch] += ((int32_t)f.code[ch] - base[ch]) >> K;   /* EMA update */
+        }
+        seen++;
+
+        if (trig_ch >= 0) {                            /* TRIGGER: freeze + dump native ring */
+            UBaseType_t op = uxTaskPriorityGet(NULL);
+            vTaskPrioritySet(NULL, configMAX_PRIORITIES - 2);
+            cec_fpga_frame_t armf;
+            cec_fpga_link_read_buffered(&armf);        /* arm/freeze (discard) */
+            int rgot = 0;
+            for (; rgot < PROTO_RING_DEPTH; rgot++)
+                if (cec_fpga_link_read_buffered(&buf[rgot]) != ESP_OK) break;
+            vTaskPrioritySet(NULL, op);
+
+            int gaps = 0;
+            for (int i = 1; i < rgot; i++)
+                if (buf[i].seq != (uint8_t)(buf[i - 1].seq + 1)) gaps++;
+            const double us_per = 1.0e6 / (double)PROTO_NATIVE_HZ;
+            printf("\n===BURST_CSV_BEGIN===\n");
+            printf("# autoburst TRIGGER %d/%d: ch=%s dev=%d codes (~%.2f A); native ring "
+                   "%d frames, %d seq-gaps; us = idx x %.2f (transient is near the TAIL)\n",
+                   fired + 1, ntrig,
+                   PROTO_CH_CAL[trig_ch].label ? PROTO_CH_CAL[trig_ch].label : "?",
+                   (int)trig_dev, trig_dev / codes_per_A, rgot, gaps, us_per);
+            printf("us,seq");
+            for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+                if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
+            printf("\n");
+            for (int i = 0; i < rgot; i++) {
+                printf("%.1f,%u", i * us_per, buf[i].seq);
+                for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+                    if (PROTO_CH_CAL[ch].label)
+                        printf(",%.4f", proto_channel_phys(ch, buf[i].code[ch]));
+                printf("\n");
+            }
+            printf("===BURST_CSV_END===\n");
+            fired++;
+            cec_fpga_link_read_stream(&f);             /* resume stream + re-arm baseline */
+            seen = 0; yield_i = 0;
+            continue;
+        }
+
+        if (++yield_i >= YIELD_N) { yield_i = 0; vTaskDelay(1); }   /* let IDLE run */
+    }
+
+    s_capturing = false;
+    free(buf);
+    printf("autoburst: %s after %d/%d triggers\n",
+           (fired >= ntrig) ? "done" : "stopped (timeout)", fired, ntrig);
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "frame",     "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
     { "burst",     "ESP-paced capture [N] frames to RAM, dump CSV (~12 kHz)", cli_cmd_burst },
     { "fastburst", "FPGA ring readout [N] at the full native rate (uniform)", cli_cmd_fastburst },
     { "stream",    "continuous decimated FIFO drain [N] (~25 kSPS, dropcount)", cli_cmd_stream },
+    { "cal",       "zero-cal current-sense offsets at no load [N avg]", cli_cmd_cal },
+    { "autoburst", "auto-dump native ring on a transient <thresh_codes> [ntrig]", cli_cmd_autoburst },
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE
@@ -325,6 +485,8 @@ static void raw_console_loop(void)
 void app_main(void)
 {
     ESP_LOGI(TAG, "app_main: start (proto bring-up)");
+
+    proto_cal_init();   /* seed runtime cal offsets (also auto-seeds on first use) */
 
     cec_fpga_link_config_t link_cfg;
     cec_config_fpga_link(&link_cfg);

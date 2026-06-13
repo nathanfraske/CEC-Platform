@@ -192,6 +192,25 @@ STILL OPEN (deliberately deferred — not in pieces 1+2):
   ~13 kHz on the LIVE path despite +25% link bandwidth) and to measure the real
   native rate + the `stream` dropcount under load.
 
+## Bench instruments: cal + auto-burst (12vhpwr proto, 2026-06-13)
+
+ESP-only, no bitstream change (reflash only). Both build + gate green.
+
+- **`cal [N]`** -- per-channel zero offset. Averages N no-load frames and sets
+  each AMP channel's bias to its measured 0-A output (per-channel INA offset; the
+  single provisional 2.40 V can't null them all). VOLT/RAW (vrail) left alone.
+  Runtime `proto_cal_*` offsets in cec_config.c (auto-seed from PROTO_CH_CAL).
+  DEFERRED: NVS-persist (offsets are lost on reboot); SPAN (V_PER_A) fit against
+  a known current still owner/bench (vrail is confirmed, the amps' gain is not).
+- **`autoburst <thresh_codes> [ntrig]`** -- the §6.10/§6.13 event-capture model in
+  firmware: drain the decimated stream, per-channel software EMA baseline, and on
+  a deviation > threshold freeze the native ring and dump it (detail + pre-roll;
+  ~655 codes/A). Detection BW ~ the stream (a few kHz) = all the perfboard anti-
+  alias passes; the transient lands near the dump TAIL (reactive freeze, pre-roll
+  model). DEFERRED: FPGA-side native-rate detector (catches the 6-13 kHz band the
+  ESP stream can't, closer to the §6.13 comparator) + a runtime-settable threshold
+  over a MOSI write; runtime EMA-K; center the trigger via FPGA post-roll.
+
 ## Adoption / integration items
 
 - **atx-24pin onto the shared top-layer detection (E4):**

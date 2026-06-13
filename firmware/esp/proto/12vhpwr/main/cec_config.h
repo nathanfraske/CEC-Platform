@@ -124,6 +124,17 @@ float       proto_channel_phys(int ch, int16_t code);
 const char *proto_kind_unit(proto_kind_t kind);
 
 /*
+ * Runtime per-channel zero/offset calibration. proto_channel_phys() subtracts
+ * a per-channel offset (ADC volts) seeded from PROTO_CH_CAL[].offset_v; the
+ * `cal` command captures the AMP channels' no-load (0 A) bias and overwrites
+ * it, fixing the per-channel INA offset that the single provisional bias can't.
+ * Auto-seeds on first use; proto_cal_init() is optional (call once at startup).
+ */
+void  proto_cal_init(void);
+void  proto_cal_set_offset_v(int ch, float offset_v);
+float proto_cal_get_offset_v(int ch);
+
+/*
  * Fill a link config from the constants above.
  */
 void cec_config_fpga_link(cec_fpga_link_config_t *out);
