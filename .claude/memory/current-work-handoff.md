@@ -51,7 +51,25 @@ dict key-name mismatch — VERIFIED at source + in run.log (not just an LLM clai
   rectangle minus a Kelvin-tap notch, for `/SENSEC1_HI/LO` + `/SENSEC2_HI/LO`. Do NOT change pour-after-route ordering.
   Expected: pour-clip 32/34→~0, drc→~4 finishing floor, gate-passing reachable. Also a process gap: after V4 dropped
   at r~22 the T8 guard returned 503/findings=0 (== "all clear") — silently removed the local-minimum tripwire.
-- Cross-check full result: `/tmp/claude-1000/.../tasks/wrmxgdloc.output`. V4 capstone reconciliation pending (running).
+- Cross-check full result: `/tmp/claude-1000/.../tasks/wrmxgdloc.output`.
+
+### V4 CAPSTONE RESULT + reconciliation (done; `docs/fullstack-run-2026-06-13/CAPSTONE-v4.{json,md}`)
+V4 (deepseek-v4-flash, 588s) verdict: `local_minimum`, bundle_accurate=true, confidence=high. Root cause (CORRECT):
+"pour fragmentation on SENSEC2_HI/LO from foreign signal nets crossing the sense corridors → DRC; not resolved by
+the loop levers in 34 rounds." Fix: "add a keepout preventing foreign nets crossing the sense corridors" — but
+classified **design_escalation** ("requires human design intervention").
+- V4 GOT RIGHT: the failure MECHANISM (foreign-nets-crossing-corridors, sharper than the bundle's generic "pour
+  clipping"); did NOT blame thermal/scoring; verdict + bundle-accuracy match the code cross-check.
+- V4 GOT WRONG (both due to NO code visibility — it got a factual metrics+findings dossier, not source):
+  (1) MISSED the dead-lever bug — said levers "were unable to resolve it" (ran-but-insufficient) when item4 was
+  silently dead (fired 0×). (2) OVER-ESCALATED the fix to design_escalation; the force-corridor keepout capability
+  ALREADY exists in-loop (cec_router._vital_keepouts_from_rules → bake_hints DoNotAllowTracks) — the real fix is a
+  routing-class in-loop change (widen keepout + fix the polygon/rect_mm key), NOT a human constraint change.
+- META-FINDING (actionable): evidence-auditor (V4, behavior) vs code-auditor (Claude agents, source). The auditor
+  has an OBSERVABILITY GAP — it can't tell "lever ran & insufficient" from "lever silently dead." FIX: give item4
+  actuator telemetry (log "corridor-avoid produced N intents for clipped nets {…}" each round) so a dead lever
+  shows up in the auditor's own evidence. Same blind spot: the T8 guard's `findings=0` after V4 crashed at r22 read
+  as "all clear."
 
 ## TONIGHT (2026-06-13): DeepSeek-V4 auditor + cec_fullstack overnight run — LIVE
 Owner ask evolved: "make DeepSeek run in the auditor seat and play nice," then (key correction from owner
