@@ -8,11 +8,12 @@
 
 /*
  * Per-channel calibration. v6 (index 5) is the 12V-rail divider -> volts;
- * v3-v5,v7,v8 are per-pin current senses -> amps via the PROVISIONAL
- * PROTO_ISENSE_* constants (see cec_config.h -- confirm the shunt*gain and
- * the channel->pin map). v1/v2 are NOT wired into the measuring cable yet,
- * so they carry a NULL label = "unconnected": not emitted to TelePlot (the
- * `frame` CLI still shows their raw value). To enable one, give it a label
+ * v7 (index 6) is a VCC tap through a 10k/10k divider (/2) + 100nF -> volts
+ * (scale 2.0); v3-v5,v8 are the FOUR per-pin current senses -> amps via the
+ * PROVISIONAL PROTO_ISENSE_* constants (see cec_config.h -- confirm the
+ * shunt*gain and the channel->pin map). v1/v2 are NOT wired into the measuring
+ * cable yet, so they carry a NULL label = "unconnected": not emitted to TelePlot
+ * (the `frame` CLI still shows their raw value). To enable one, give it a label
  * + kind; to mark another unconnected, set its label NULL.
  */
 /* Negated: the sense is wired so load current pulls the ADC BELOW bias, so
@@ -27,7 +28,7 @@ const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS] = {
     /* idx 3  v4 */ { "i4",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
     /* idx 4  v5 */ { "i5",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
     /* idx 5  v6 */ { "vrail", PROTO_KIND_VOLT, PROTO_RAIL_DIVIDER, 0.0f,  true  },
-    /* idx 6  v7 */ { "i7",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 6  v7 */ { "vcc",   PROTO_KIND_VOLT, 2.0f,               0.0f,  true  }, /* VCC tap: 10k/10k /2 + 100nF */
     /* idx 7  v8 */ { "i8",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
 };
 

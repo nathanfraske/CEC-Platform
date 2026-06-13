@@ -199,36 +199,48 @@ class Profile12VHPWR(Profile):
                           "min_A": float(I[k].min()), "rms_A": float(np.sqrt((I[k] ** 2).mean()))}
         m["per_pin"] = per_pin
 
-        # IMBALANCE -- the headline metric. Across-pin spread vs the mean pin.
-        # Only defined UNDER LOAD: at idle the mean pin current is ~0 (and is
-        # dominated by uncalibrated INA offsets -- run `cal`), so spread/mean
-        # blows up meaninglessly. Guard on a minimum load.
-        mean_of_means = float(pin_mean.mean())
-        spread = float(pin_mean.max() - pin_mean.min())
-        worst = currents[int(np.argmax(pin_mean))]
-        inst_spread = float((I.max(axis=0) - I.min(axis=0)).max())   # worst instantaneous
-        loaded = abs(mean_of_means) >= self.MIN_LOAD_A
-        imb_pct = (spread / abs(mean_of_means) * 100.0) if loaded else None
-        m["imbalance"] = {
-            "load_state": "loaded" if loaded else "no_load (idle/uncal -- run under load)",
-            "mean_pin_A": mean_of_means, "spread_A": spread, "worst_pin": worst,
-            "worst_instantaneous_spread_A": inst_spread,
-            "imbalance_pct": imb_pct,
-            "worst_pin_excess_pct": (float((pin_mean.max() - mean_of_means) / abs(mean_of_means) * 100.0)
-                                     if loaded else None),
-            "FLAG": bool(loaded and imb_pct is not None and imb_pct > self.IMBALANCE_FLAG_PCT),
-        }
+        # IMBALANCE -- the melt metric. The pins share a big common (often pulsing)
+        # load, so the headline is the spread among the CARRYING pins; dead/idle
+        # pins are excluded from the % (they'd dominate it and make the live pins
+        # all look like hogs) but reported separately.
+        carry_thr = max(0.3 * float(np.abs(pin_mean).max()), self.MIN_LOAD_A)
+        carrying = np.abs(pin_mean) >= carry_thr
+        dead = [currents[k] for k in range(len(currents)) if not carrying[k]]
+        inst_spread = float((I.max(axis=0) - I.min(axis=0)).max())
+        imb = {"dead_pins": dead, "worst_instantaneous_spread_A": inst_spread}
+        if int(carrying.sum()) >= 2:
+            cm = pin_mean[carrying]
+            c_mean = float(cm.mean())
+            c_spread = float(cm.max() - cm.min())
+            c_imb = (c_spread / abs(c_mean) * 100.0) if abs(c_mean) > 1e-6 else None
+            worst = currents[int(np.where(carrying, pin_mean, -np.inf).argmax())]
+            imb.update({
+                "load_state": "loaded",
+                "carrying_pins": [currents[k] for k in range(len(currents)) if carrying[k]],
+                "carrying_mean_A": c_mean, "carrying_spread_A": c_spread,
+                "imbalance_pct": c_imb, "worst_pin": worst,
+                "worst_pin_excess_pct": (float((cm.max() - c_mean) / abs(c_mean) * 100.0)
+                                         if abs(c_mean) > 1e-6 else None),
+                "FLAG": bool(c_imb is not None and c_imb > self.IMBALANCE_FLAG_PCT),
+            })
+        else:
+            imb.update({"load_state": "no_load (idle/uncal -- run under GPU load)",
+                        "imbalance_pct": None, "worst_pin": None,
+                        "worst_pin_excess_pct": None, "FLAG": False})
+        m["imbalance"] = imb
 
         total = I.sum(axis=0)
         m["total"] = {"mean_A": float(total.mean()), "peak_A": float(total.max()),
                       "min_A": float(total.min())}
 
         if rails:
-            v = cap.data[rails[0]]
-            m["rail"] = {"name": rails[0], "mean_V": float(v.mean()),
+            rail_name = "vrail" if "vrail" in rails else rails[0]
+            v = cap.data[rail_name]
+            m["rail"] = {"name": rail_name, "mean_V": float(v.mean()),
                          "min_V": float(v.min()), "max_V": float(v.max()),
                          "droop_mV": float((v.mean() - v.min()) * 1000.0),
                          "ripple_pkpk_mV": float((v.max() - v.min()) * 1000.0)}
+            m["voltages"] = {r: round(float(cap.data[r].mean()), 4) for r in rails}
 
         # spectral: fundamental of the total current (the load cadence)
         if cap.uniform and cap.rate_hz and cap.n > 16:
@@ -244,6 +256,7 @@ class Profile12VHPWR(Profile):
 
     def plots(self, cap, stem, out, args):
         currents, rails = self.classify(cap)
+        rail0 = "vrail" if "vrail" in rails else (rails[0] if rails else None)
         files = []
         t_ms = np.arange(cap.n) * (1.0e3 / cap.rate_hz) if cap.rate_hz else np.arange(cap.n)
         ratetag = "measured" if cap.rate_measured else "NOMINAL(2x?)"
@@ -258,7 +271,7 @@ class Profile12VHPWR(Profile):
             ax[0].set_ylabel("per-pin current (A)"); ax[0].legend(ncol=len(currents), fontsize=8)
             ax[1].plot(t_ms, I.sum(axis=0), lw=0.8, color="tab:blue", label="sum of sensed pins")
             ax[1].set_ylabel("total (A)"); ax[1].legend(fontsize=8)
-            ax[2].plot(t_ms, cap.data[rails[0]], lw=0.8, color="tab:red", label=rails[0])
+            ax[2].plot(t_ms, cap.data[rail0], lw=0.8, color="tab:red", label=rail0)
             ax[2].set_ylabel("rail (V)"); ax[2].legend(fontsize=8)
             ax[-1].set_xlabel("time (ms)")
         else:
@@ -271,6 +284,42 @@ class Profile12VHPWR(Profile):
         p = os.path.join(out, f"{stem}-time.png"); fig.savefig(p, dpi=110); plt.close(fig)
         files.append(p)
 
+        # --- IMBALANCE: deviation from the shared (carrying-pin) load -----------
+        # Subtract the instantaneous mean of the CARRYING pins: the big common
+        # (pulsing) load cancels, leaving only the per-pin difference, scaled to
+        # the carrying pins so a ~0.2 A imbalance invisible in 0-4 A pops out.
+        # Dead/idle pins are excluded (off this scale) and noted, not drawn.
+        I = np.vstack([cap.data[c] for c in currents])
+        pin_mean = I.mean(axis=1)
+        carry_thr = max(0.3 * float(np.abs(pin_mean).max()), self.MIN_LOAD_A)
+        carrying = np.abs(pin_mean) >= carry_thr
+        dead = [currents[k] for k in range(len(currents)) if not carrying[k]]
+        if int(carrying.sum()) >= 2:
+            ref = I[carrying].mean(axis=0)                 # instantaneous shared load
+            dev = I - ref                                  # common load removed
+            cmean = float(pin_mean[carrying].mean())
+            fig, a3 = plt.subplots(figsize=(11, 5))
+            for k, c in enumerate(currents):
+                if carrying[k]:
+                    a3.plot(t_ms, dev[k], lw=0.9,
+                            label=f"{c}  {pin_mean[k] - cmean:+.3f} A ({(pin_mean[k]-cmean)/cmean*100:+.1f}%)")
+            a3.axhline(0, color="k", lw=0.9, alpha=0.6)
+            ymax = float(np.abs(dev[carrying]).max()) * 1.25
+            a3.set_ylim(-ymax, ymax)
+            a3.set_xlabel("time (ms)")
+            a3.set_ylabel("current − shared load  (A)")
+            spread = float(pin_mean[carrying].max() - pin_mean[carrying].min())
+            worst = currents[int(np.where(carrying, pin_mean, -np.inf).argmax())]
+            sub = f"carrying spread {spread:.3f} A = {spread/cmean*100:.1f}% of {cmean:.2f} A; hog {worst}"
+            if dead:
+                sub += f";  dead/not-carrying: {', '.join(dead)}"
+            a3.set_title("per-pin IMBALANCE — deviation from the shared load (common-mode removed)\n"
+                         + sub, fontsize=10)
+            a3.legend(fontsize=8, ncol=min(int(carrying.sum()), 4)); a3.grid(True, alpha=0.3)
+            fig.tight_layout()
+            p = os.path.join(out, f"{stem}-imbalance.png"); fig.savefig(p, dpi=110); plt.close(fig)
+            files.append(p)
+
         # --- FFT with the analog-ceiling overlay ---
         if cap.uniform and cap.rate_hz and cap.n > 16:
             total = np.vstack([cap.data[c] for c in currents]).sum(axis=0)
@@ -278,8 +327,8 @@ class Profile12VHPWR(Profile):
             fig, a2 = plt.subplots(figsize=(11, 5))
             a2.semilogx(f[1:], db[1:], lw=0.7, color="tab:blue", label="sum current")
             if rails:
-                fr, dbr = fft_dbc(cap.data[rails[0]], cap.rate_hz)
-                a2.semilogx(fr[1:], dbr[1:], lw=0.6, color="tab:red", alpha=0.7, label=rails[0])
+                fr, dbr = fft_dbc(cap.data[rail0], cap.rate_hz)
+                a2.semilogx(fr[1:], dbr[1:], lw=0.6, color="tab:red", alpha=0.7, label=rail0)
             a2.semilogx(f[1:], analog_ceiling_db(f[1:], args.analog_rc_hz, args.analog_adc_hz),
                         "g--", lw=1.2, label=f"analog ceiling ({args.analog_rc_hz/1000:.1f}k x "
                                              f"{args.analog_adc_hz/1000:.0f}k)")
@@ -326,22 +375,29 @@ def write_metrics(m, stem, out):
                 f"({'measured' if m['rate_measured'] else 'NOMINAL -- run `rate`, axes ~2x suspect'})\n")
         if "imbalance" in m:
             im = m["imbalance"]
-            flag = "  **<-- FLAG: over the imbalance limit**" if im["FLAG"] else ""
+            flag = "  **<-- FLAG: over the imbalance limit**" if im.get("FLAG") else ""
             f.write(f"\n## Imbalance (the melt metric){flag}\n")
-            if im["imbalance_pct"] is None:
-                f.write(f"- **{im['load_state']}** -- mean pin {im['mean_pin_A']:.3f} A "
-                        f"(below load threshold; capture under GPU load for a meaningful number)\n")
+            if im.get("imbalance_pct") is None:
+                f.write(f"- **{im['load_state']}** -- capture under GPU load for a meaningful number\n")
             else:
-                f.write(f"- mean pin: {im['mean_pin_A']:.3f} A; spread: {im['spread_A']:.3f} A; "
-                        f"**imbalance {im['imbalance_pct']:.1f}%**\n")
-                f.write(f"- worst pin: {im['worst_pin']} (+{im['worst_pin_excess_pct']:.1f}% over mean); "
-                        f"worst instantaneous spread {im['worst_instantaneous_spread_A']:.3f} A\n")
+                f.write(f"- carrying pins {im['carrying_pins']}: mean {im['carrying_mean_A']:.3f} A, "
+                        f"spread {im['carrying_spread_A']:.3f} A -> **imbalance {im['imbalance_pct']:.1f}%**\n")
+                f.write(f"- worst (hog): {im['worst_pin']} (+{im['worst_pin_excess_pct']:.1f}% over the "
+                        f"carrying mean); worst instantaneous spread "
+                        f"{im['worst_instantaneous_spread_A']:.3f} A\n")
+            if im.get("dead_pins"):
+                f.write(f"- dead / not-carrying: {im['dead_pins']} — a dead pin pushes its share onto "
+                        f"the rest, raising their absolute current\n")
         if "total" in m:
             f.write(f"\n## Total\n- mean {m['total']['mean_A']:.2f} A, peak {m['total']['peak_A']:.2f} A\n")
         if "rail" in m:
             r = m["rail"]
             f.write(f"\n## Rail ({r['name']})\n- {r['mean_V']:.3f} V mean, droop {r['droop_mV']:.1f} mV, "
                     f"ripple {r['ripple_pkpk_mV']:.1f} mVpp\n")
+        if "voltages" in m and len(m["voltages"]) > 1:
+            f.write("\n## Voltages\n")
+            for name, val in m["voltages"].items():
+                f.write(f"- {name}: {val:.3f} V\n")
         if "spectral" in m:
             s = m["spectral"]
             f.write(f"\n## Spectral\n- load fundamental {s['load_fundamental_Hz']:.0f} Hz, "
@@ -392,8 +448,10 @@ def main():
         flag = m.get("imbalance", {}).get("FLAG")
         flagged += 1 if flag else 0
         tag = "" if cap.rate_measured else "  [RATE NOMINAL -- run `rate`]"
-        if "imbalance" in m and m["imbalance"]["imbalance_pct"] is not None:
+        if "imbalance" in m and m["imbalance"].get("imbalance_pct") is not None:
             imbtag = f"  IMBALANCE {m['imbalance']['imbalance_pct']:.1f}%" + (" FLAG" if flag else "")
+            if m["imbalance"].get("dead_pins"):
+                imbtag += f"  dead:{','.join(m['imbalance']['dead_pins'])}"
         elif "imbalance" in m:
             imbtag = "  (no load -- imbalance N/A)"
         else:
