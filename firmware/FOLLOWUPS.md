@@ -141,6 +141,57 @@ ESP-side, 5 FPGA/Gowin-side):
    dock's 50 MHz oscillator** (physically wired there; it just doubles as a
    config pin), so the pin is released, not relocated.
 
+## Continuous decimated stream (12vhpwr proto, pieces 1+2, 2026-06-13)
+
+The two-rate plan ("stream at 20-25 kSPS, burst at 200k for oversampling +
+decimate"). Root cause of the ~13 kHz live ceiling is the per-frame
+console/teleplot path, NOT the SPI link (`fastburst` already sustains the link
+at the native rate) — confirmed by the bench polling experiment. LANDED + sim-
+verified (RTL sim PASS: decimator average, LIVE, BURST, STREAM dropcount):
+
+- **A1 — SCLK ceiling resolved analytically.** The `cec_spi_slave` 3-FF sync +
+  edge detect on `sclk_s[2:1]` needs ≥2 fabric clocks per SCLK half-period:
+  **fabric/4 = 12.5 MHz is the hard edge**, fabric/5 = 10 MHz the margin; 15 MHz
+  (fabric/3.33, 1.67 clk/half) does NOT recover. `PROTO_LINK_CLOCK_HZ` set to
+  12.5 MHz (the valid bench re-run point; back off to 10 if headers corrupt).
+- **Piece 1 — boxcar decimator** (`rtl/12vhpwr-proto/cec_boxcar_decim.v`): 8
+  parallel signed accumulators, M-sample average (`>> log2(M)`, M power-of-two),
+  feeds the FIFO not the slave. DECIM_M is a top.v parameter beside NATIVE_HZ
+  (A2: M tracks native, retune to keep the stream ~25 kSPS — NOT pinned to either
+  FSM speed). Boxcar/sinc caveat documented in the module header (OK only because
+  the ~14 kHz analog ceiling sits far below native Nyquist).
+- **Piece 2 — free-running stream FIFO + per-session dropped-sample counter**
+  (top.v): producer = decimator at native/M, consumer = ESP one frame/transaction.
+  A 0x55 MOSI command selects the stream source (LIVE/BURST paths untouched). The
+  frame's seq byte carries the saturating dropcount (FIFO overrun = ESP behind);
+  header 0x5A = underrun (FIFO empty, stale). So a stall is a NUMBER in the record
+  (C2). ESP side: `cec_fpga_link_read_stream()` + the `stream [N]` CLI (tight
+  block drain off the console path; reports dropcount/underruns/rate). Teleplot
+  output bytes UNCHANGED (D1 contract held).
+
+STILL OPEN (deliberately deferred — not in pieces 1+2):
+- **Overlapped-read FSM (native ~107k -> ~195k).** Would lift oversampling 2x->
+  2.8x (M 4->8). NOT built: it must overlap the AD7606 convert under the previous
+  read, and the single-bank AD7606's register-overwrite hazard is a SILICON-TIMING
+  property an idealized-stub sim can't de-risk — bench-gated. The decimator/FIFO
+  already work at any native rate, so this is an oversampling refinement, not a
+  blocker. ("measured native rate" is itself a bench number, not a sim number.)
+- **Piece 3 — output framing (BLOCKED on owner's tooling decision).** A true
+  continuous telemetry stream to the host can't be per-sample teleplot ASCII.
+  Default rec: keep teleplot as a decimated ~1-2 kHz display tap (byte-identical),
+  log the 25k as a compact binary record. The C4 acquisition/console TASK SPLIT
+  lands with this (its console output IS the framing question). Do not touch the
+  teleplot contract until the owner calls binary-vs-decimated-teleplot.
+- **Multi-frame-per-CS slave** (C3 optimization): the current slave is one frame
+  per CS; the `stream` drain amortizes the EXPENSIVE part (per-frame teleplot) via
+  a tight block loop, but a slave that reloads `frame` per FRAME_BITS within one CS
+  would further cut the per-CS tax (~1-2 us/frame). Minor; bench-measure first.
+- **BRAM budget**: burst ring + stream FIFO ≈ 0.57 Mbit. Confirm against the
+  GW5A-25 BSRAM at Gowin P&R; drop STREAM_DEPTH (1024 = ~40 ms still ample) if tight.
+- **Bench re-run** at 12.5 MHz to confirm the print-path diagnosis (rate stays
+  ~13 kHz on the LIVE path despite +25% link bandwidth) and to measure the real
+  native rate + the `stream` dropcount under load.
+
 ## Adoption / integration items
 
 - **atx-24pin onto the shared top-layer detection (E4):**

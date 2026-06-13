@@ -75,6 +75,19 @@ esp_err_t cec_fpga_link_read(cec_fpga_frame_t *out);
  */
 esp_err_t cec_fpga_link_read_buffered(cec_fpga_frame_t *out);
 
+/*
+ * Drives MOSI = 0x55: the fabric returns the CONTINUOUS decimated stream from
+ * its free-running FIFO (every native frame boxcar-averaged by DECIM_M, ~25
+ * kSPS). Unlike the burst ring this is NOT frozen -- it streams indefinitely.
+ * The frame's `seq` byte carries the saturating PER-SESSION dropped-sample
+ * count (FIFO overrun = the ESP fell behind); `header` is 0x5A instead of 0xA5
+ * on an underrun read (FIFO momentarily empty -- stale codes, skip the frame).
+ * Send one read to select the mode (discard it), then drain in a tight block
+ * loop with NO per-frame formatting -- the decimation already cut the rate, and
+ * keeping the drain free of the console path is what lets it run gap-free.
+ */
+esp_err_t cec_fpga_link_read_stream(cec_fpga_frame_t *out);
+
 #ifdef __cplusplus
 }
 #endif

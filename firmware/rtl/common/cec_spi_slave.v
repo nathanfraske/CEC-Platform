@@ -1,7 +1,11 @@
 `default_nettype none
 // ----------------------------------------------------------------------------
 // CEC common RTL: oversampled SPI slave, mode 0, MSB first, read-only payload.
-// Fabric clock must be >= 5x the SPI clock (50 MHz fabric, <= 5 MHz SPI rec.).
+// The async SCLK is synchronized through 3 FFs and edges are detected on
+// sclk_s[2:1], so SCLK needs >= 2 fabric clocks per half-period: fabric/4 is the
+// hard ceiling (12.5 MHz at the 50 MHz fabric, zero margin), fabric/5 = 10 MHz
+// the with-margin number, and fabric/10 = 5 MHz the conservative recommendation.
+// fabric/3 (16.67 MHz) does NOT recover (1.5 clk/half-period).
 // The payload is latched on the CS falling edge, so the producer must hold
 // `frame` stable while `busy` is high.
 // Shared between 12vhpwr-proto and FPGA-Max targets.

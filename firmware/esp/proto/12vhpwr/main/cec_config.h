@@ -32,13 +32,18 @@ extern "C" {
 #define PROTO_PIN_DRDY  5    /* <- dock field B12 (FPGA A1)  */
 
 #define PROTO_LINK_HOST      SPI2_HOST
-#define PROTO_LINK_CLOCK_HZ  (10 * 1000 * 1000) /* 10 MHz: the oversampled-slave
-                                                 * ceiling (fabric 50 MHz / 5).
-                                                 * Needed to read an 18-byte
-                                                 * frame (~14.4 us) inside the
-                                                 * 50 kHz period (20 us). If the
-                                                 * monitor shows bad headers at
-                                                 * 10 MHz, back off to 8 MHz. */
+#define PROTO_LINK_CLOCK_HZ  (12500 * 1000)     /* 12.5 MHz = fabric/4, the REAL
+                                                 * oversampled-slave ceiling. The
+                                                 * cec_spi_slave edge detector
+                                                 * (3-FF sync, edges on sclk_s[2:1])
+                                                 * needs >=2 fabric clocks per SCLK
+                                                 * half-period: fabric/4 = 12.5 MHz
+                                                 * is the hard edge, fabric/5 =
+                                                 * 10 MHz the margin number. 15 MHz
+                                                 * (fabric/3.33, 1.67 clk/half)
+                                                 * does NOT recover -> bad headers.
+                                                 * If the monitor shows bad headers
+                                                 * at 12.5, back off to 10 MHz. */
 
 /* AD7606 +/-5 V range: 152.59 uV per LSB. */
 #define PROTO_LSB_VOLTS      (5.0 / 32768.0)
@@ -56,6 +61,18 @@ extern "C" {
 
 /* RTL capture-ring DEPTH (top.v) -- the max `fastburst` window. */
 #define PROTO_RING_DEPTH     2048
+
+/* Continuous decimated stream (top.v DECIM_M boxcar -> free-running FIFO).
+ * The FPGA averages DECIM_M native samples into one stream sample, so the
+ * stream rate = native / DECIM_M. With native ~200k and DECIM_M 8 -> ~25k;
+ * with the v0 sequential FSM (~107k) and DECIM_M 4 -> ~27k. Keep
+ * PROTO_STREAM_HZ in sync with top.v's NATIVE_HZ/DECIM_M -- it is only the
+ * nominal time axis; the host derives the TRUE rate from the frame cadence,
+ * and the per-frame dropcount byte exposes any FIFO overrun (lost samples). */
+#define PROTO_STREAM_HZ      25000
+/* Stream FIFO depth in FPGA (top.v STREAM_DEPTH) -- the ESP drain-jitter slack
+ * (2048 @ 25k = ~80 ms). Reads >this in one block just wrap the FIFO. */
+#define PROTO_STREAM_DEPTH   2048
 
 /* 12V-rail voltage divider: 47k top / 10k bottom -> rail = adc * (47+10)/10. */
 #define PROTO_RAIL_DIVIDER   (57.0f / 10.0f)

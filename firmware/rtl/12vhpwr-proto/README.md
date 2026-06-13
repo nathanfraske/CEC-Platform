@@ -140,14 +140,14 @@ after step 3 below — leave it as-is for the first smoke.)
 | Symptom | Likely cause |
 |---|---|
 | `waiting on DRDY` forever | DRDY not wired (A1↔GPIO5), or the FPGA isn't programmed / not pacing (check BUSY on a scope) |
-| `bad header 0x..` (not 0xA5) | SPI bit-alignment — CS/SCLK swap, or SPI clock too fast (keep ≤ 5 MHz; the slave needs fabric ≥ 5× SPI, and fabric is 50 MHz so ≤ 10 MHz is the hard ceiling) |
+| `bad header 0x..` (not 0xA5) | SPI bit-alignment — CS/SCLK swap, or SPI clock too fast. The oversampled slave needs ≥ 2 fabric clocks per SCLK half-period: fabric/4 = **12.5 MHz is the hard ceiling**, fabric/5 = 10 MHz the margin number; 15 MHz (fabric/3.33) does NOT recover. Back off to 10 MHz if 12.5 shows bad headers. |
 | `seq` frozen | FSM stuck — BUSY never asserting (CONVST or BUSY mis-wired), or grounds not common |
 | All channels ≈ same garbage | DOUTA/DOUTB (D7/D8) swapped or one not wired; or OS straps ≠ 000 (changes the serial frame length) |
 | Half/double codes | SCLK count or edge phase off — scope `adc_sclk` vs `adc_busy`; this is the one thing the sim can't vouch for (see below) |
 
 ## What the simulation does and doesn't prove
 
-`iverilog -g2012 -o tb tb_top.v top.v ../common/cec_spi_slave.v && vvp tb`
+`iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v ../common/cec_spi_slave.v && vvp tb`
 (run by CI + the build gate; expect `PASS`) exercises the FSM, the frame
 latch, the DRDY handshake, and the ESP SPI slave against **behavioral**
 AD7606 and ESP-master models. It proves the *logic and protocol*. It

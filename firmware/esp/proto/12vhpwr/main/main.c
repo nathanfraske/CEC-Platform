@@ -176,10 +176,76 @@ static int cli_cmd_fastburst(int argc, char **argv)
     return 0;
 }
 
+/* Drain the FPGA's CONTINUOUS decimated stream (the free-running FIFO) in a
+ * tight block loop -- the ~25 kSPS path. The FPGA boxcar-averages DECIM_M native
+ * samples per stream sample (oversample + decimate), so the link rate is modest
+ * and the drain stays OFF the per-frame console/teleplot path -- which is what
+ * lets it run continuously instead of capping at the ~13 kHz live ceiling. The
+ * seq byte is the per-session dropped-sample count (FIFO overrun = the ESP fell
+ * behind -> constant 0 == gap-free); a 0x5A header is an underrun (FIFO empty,
+ * stale codes -> skipped). Usage: `stream [N]` (default = full window). */
+static int cli_cmd_stream(int argc, char **argv)
+{
+    int n = (argc >= 2) ? atoi(argv[1]) : PROTO_STREAM_DEPTH;
+    if (n < 1)    n = 1;
+    if (n > 8192) n = 8192;
+
+    cec_fpga_frame_t *buf = malloc((size_t)n * sizeof(*buf));
+    if (buf == NULL) { printf("stream: out of memory for %d frames\n", n); return 1; }
+
+    s_capturing = true;
+    vTaskDelay(pdMS_TO_TICKS(3));              /* let the TelePlot loop pause */
+    UBaseType_t old_prio = uxTaskPriorityGet(NULL);
+    vTaskPrioritySet(NULL, configMAX_PRIORITIES - 2);
+    cec_fpga_frame_t primef;
+    cec_fpga_link_read_stream(&primef);        /* select stream mode (discard) */
+    int64_t t0 = esp_timer_get_time();
+    int got = 0;
+    for (; got < n; got++)
+        if (cec_fpga_link_read_stream(&buf[got]) != ESP_OK) break;
+    int64_t span = esp_timer_get_time() - t0;
+    vTaskPrioritySet(NULL, old_prio);
+    s_capturing = false;
+
+    int     under = 0;
+    uint8_t drop0 = 0, dropN = 0;
+    bool    first = true;
+    for (int i = 0; i < got; i++) {
+        if (buf[i].header == 0x5A) {
+            under++;
+        } else if (buf[i].header_ok) {
+            if (first) { drop0 = buf[i].seq; first = false; }
+            dropN = buf[i].seq;
+        }
+    }
+    printf("\n===BURST_CSV_BEGIN===\n");
+    printf("# stream: %d frames in %lld us (~%.1f kSPS link), %d underruns, "
+           "dropcount %u->%u (%u lost); nominal %d kSPS\n",
+           got, span, span ? 1000.0 * got / span : 0.0, under,
+           drop0, dropN, (uint8_t)(dropN - drop0), PROTO_STREAM_HZ / 1000);
+    printf("us,drop");
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+        if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
+    printf("\n");
+    const double us_per = 1.0e6 / (double)PROTO_STREAM_HZ;
+    for (int i = 0; i < got; i++) {
+        if (buf[i].header == 0x5A) continue;   /* underrun: stale codes, skip */
+        printf("%.1f,%u", i * us_per, buf[i].seq);
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+            if (PROTO_CH_CAL[ch].label)
+                printf(",%.4f", proto_channel_phys(ch, buf[i].code[ch]));
+        printf("\n");
+    }
+    printf("===BURST_CSV_END===\n");
+    free(buf);
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "frame",     "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
     { "burst",     "ESP-paced capture [N] frames to RAM, dump CSV (~12 kHz)", cli_cmd_burst },
     { "fastburst", "FPGA ring readout [N] at the full native rate (uniform)", cli_cmd_fastburst },
+    { "stream",    "continuous decimated FIFO drain [N] (~25 kSPS, dropcount)", cli_cmd_stream },
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE
