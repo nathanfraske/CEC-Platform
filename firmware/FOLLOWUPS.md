@@ -224,6 +224,36 @@ cal + auto-burst are ESP-only (reflash only); `rate` adds a small FPGA counter
   ESP stream can't, closer to the §6.13 comparator) + a runtime-settable threshold
   over a MOSI write; runtime EMA-K; center the trigger via FPGA post-roll.
 
+## FPGA native-rate detector (RTL, 2026-06-13)
+
+`rtl/12vhpwr-proto/cec_native_detect.v` -- the FPGA half of the §6.10/§6.13
+event-capture model the `autoburst` DEFERRED note above calls for, BUILT as a
+STANDALONE module + self-checking sim (`tb_native_detect.v`, PASS). NOT yet wired
+into `top.v` (the committed `tb_top` gate is unchanged + still PASS; this is the
+clean increment before integration).
+
+What it does: runs at `cap_stb` on the same packed bus as `cec_boxcar_decim`;
+per-channel single-pole EMA baseline (high-res accumulator, seeds to the first
+sample so NO warm-up trip); trips on |sample - baseline| > THRESH for any masked
+channel -> fires on a global transient AND a sudden per-pin imbalance shift (the
+contact-resistance early-warning measured on the bench 2026-06-13). The win over
+the ESP `autoburst`: a POSTROLL counter waits N native frames before asserting
+`freeze`, so the event lands CENTERED in the ring (POSTROLL = DEPTH/2) instead of
+tail-loaded. Config (THRESH / K_SHIFT / CH_MASK / POSTROLL) are module INPUTS, so
+the deferred runtime-config (MOSI-written threshold / EMA-K) is just how `top.v`
+drives them -- no module change. Cheap in RAM: reuses the existing BSRAM ring +
+a pointer + 8 per-channel EMA accs (the SSRAM headroom from the version-B part).
+
+INTEGRATION PLAN (next, on user go): instantiate in `top.v` fed by `cap_stb` +
+`{shA,shB}`; OR its `freeze` into the ring's `frozen<=1 / rd_ptr<=wr_ptr` set
+(alongside the 0xFF burst path); arm/threshold/k/mask/postroll from new
+MOSI-command registers (a new cmd byte, MSB=0 so it can't trip the 0xFF freeze,
+like the 0x33 STATUS path); expose `tripped`/`trip_ch` in the STATUS frame so the
+ESP/host learns which pin fired. Then add the 3 files to the `tb_top` gate (or a
+second sim line) and bench-confirm on the GW5A. Two NOTES recorded while building:
+`expect` and `cross` are reserved -g2012 keywords (renamed `chk`/`hits`); a task
+that reuses a test's loop iterator clobbers it (give tasks their own integer).
+
 ## Bench host tooling (firmware/tools/, 2026-06-13)
 
 Host-side, replaces PuTTY-log + hand-extraction + manual matplotlib. The
