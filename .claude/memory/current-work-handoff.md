@@ -19,7 +19,14 @@ deliverable never reaches the spec charter; fix = lead with LOCKED_DECISIONS_BRI
 excerpt SPINE-FIRST + _slice_spec cap 4000->12000; proven on real eps corpus (slice out 9265 w/ LOCKED/FENCE/
 pin-alloc present); +2 tests (8/8). (MEDIUM, NOT yet fixed) intent_manager unknown-net guard uses strict
 membership w/o slash-normalization (GND/+3V3 bare vs /CAN_H) -> could drop valid intents; fix = normalize both
-sides. V4 cross-check still running. Report: docs/prompt-audit-2026-06-13/merge-review/claude-merge-review.md.
+sides. V4 cross-check DONE (overran 11k tok mid-reasoning -> no structured JSON, but 39k-char reasoning
+VALIDATED the hard items: 4-tuple returns, lane-gating, CORPUS_BRIEF/GEN split all traced as correct; its
+2 "blockers" nothink/fence were diff-only FALSE POSITIVES -- both verified present; it missed P4 cross-file).
+CONSOLIDATED VERDICT: docs/prompt-audit-2026-06-13/merge-review/merge-verdict.md = MERGE-READY for the code
+(0 blockers; H1/M2 FIXED). STILL OPEN (recommend, none block code logic): H2 wire test_prompt_audit_fixes
+into checklist.sh/CI; M1 SENSE CORRIDOR includes U2 (CAN xcvr) -> derive from sense refs only; M3/M4/M5
+test-coverage gaps (board_manifest, lane-gating, promoted_corpus_brief); LOW x5 nits. OWNER: H3 PR scope
+(#56 base=main carries whole EI stack) + CODEOWNERS approval.
 
 ## PROMPT-TIER AUDIT 2026-06-13 ~15:05 CDT (owner asked: audit the promptings we feed each tier)
 Triggered by the ei02verify run exposing T1 hallucinating a non-existent ref `U5`. Root cause: the T1
