@@ -2,6 +2,21 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## BOT-AUTH HARDENED + MERGE-AUDIT FOLLOW-UPS + LIVE VALIDATION 2026-06-13 ~17:15 CDT
+BOT-AUTH (owner "push as bot not me, set in stone"): ROOT CAUSE = git pushes were ALREADY bot (PushEvent
+actors confirm), but the **`gh` CLI is authed as the OWNER** (nathanfraske) -> `gh pr create/comment/api`
+were attributed to the owner. Also this clone's repo-local credential wiring needed a clean re-apply (it
+had duplicate helper values; git credential fill now = nathanfraske-bot). FIXES (branch claude/bot-push-guard,
+**PR #57**): ops/hooks/pre-push (refuses any github.com push that would auth as non-bot; installed to
+.git/hooks + wired into provision.sh) + ops/secrets/gh-bot.sh (run gh as the bot via GH_TOKEN). Memory
+[[bot-git-auth]] updated. **USE ./ops/secrets/gh-bot.sh FOR ALL gh WRITES** (plain gh = owner).
+MERGE-AUDIT FOLLOW-UPS committed to PR #56 (ae0c674): H2 (test wired into kicad-checks CI), M1 (SENSE
+CORRIDOR derives from sense refs only, excludes CAN xcvr U2), M4 (_lane_carry helper + unit test), M5
+(max_chars in corpus-brief cache key + truncation test), M3 (board_manifest parse+failsafe test). Tests
+15/15; regressions green. LIVE VALIDATION running (docs/fullstack-run-mergeval, rounds=2, sonnet auditor):
+already CONFIRMED LIVE -- "35 full (auditor) / 6 in-family (generation)" (P7a) + "board manifest: 49 placed
+refs, 54 nets" (P1a). Intents-hallucination check (U5 fix holds) pending the waiter. Remaining: P5a-d/P6.
+
 ## PR #55/#54 MERGED; PR #56 VERIFIED GOOD ON NEW MAIN 2026-06-13 ~16:55 CDT
 Owner merged most: **#55 (EI backbone) + #54 (dashboard) MERGED to main** (main now 0432ba8, contains the EI
 stack). GitHub auto-retargeted PR #56 base back to main -> now shows just the 3 prompt-audit commits / 13
