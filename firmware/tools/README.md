@@ -12,10 +12,12 @@ everything, extract CSVs by hand, plot offline" with a clean capture → organiz
         │               splits each capture into its own file + a run manifest
         ▼
   runs/run-<ts>/
-    captures/NNN-<hhmmss>-<kind>.csv     one file per fastburst/autoburst/stream
-    manifest.md                          every command + capture, with timestamps
+    captures/NNN-<hhmmss>-<kind>.csv     one file per capture (version-stamped header line)
+    analysis/NNN-<hhmmss>-<kind>/        (--analyze) per-capture subfolder:
+                                           *-time.png  *-imbalance.png  *-fft.png
+                                           *-metrics.md/.json (analyzer version stamped)
+    manifest.md                          every command + capture + version, timestamped
     session.log                          raw terminal mirror
-    analysis/                            (--analyze) metrics + plots, written for you
         ▲
         │
   cec_capture_analyze.py ... per-MODULE analysis: parses a capture, computes the
@@ -80,6 +82,13 @@ python3 cec_bench.py --port PORT [--analyze] [--module 12vhpwr]
 Owns the port (pyserial), shows device output + lets you type commands, **and** in
 the background splits each `===BURST_CSV===` block into `captures/`, appends to
 `manifest.md`, and (`--analyze`) runs the analyzer per capture. `quit` to stop.
+
+**Auto-analyze needs numpy + matplotlib in the *same* Python** that runs
+`cec_bench` (the analyzer runs as its subprocess). `--analyze` checks this at
+startup and prints the exact `pip` line if they're missing — that's the usual
+reason charts don't appear. Each capture's charts land in their own subfolder
+`analysis/<capture>/`, and the CSVs + manifest carry a version
+(`cec_bench v1.0+<git-sha>`) so a run is documented + reproducible.
 
 **The 5 Hz teleplot `>` lines are HIDDEN in the terminal by default** — they'd
 otherwise bury your typing and the command output (and break the `--script`

@@ -30,12 +30,30 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 
 import numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
+
+def tool_version():
+    """TOOL_VERSION + the repo's short git SHA (best-effort), for documentation."""
+    v = "v1.0"
+    try:
+        sha = subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                             cwd=os.path.dirname(os.path.abspath(__file__)),
+                             capture_output=True, text=True, timeout=5).stdout.strip()
+        if sha:
+            v += "+" + sha
+    except Exception:
+        pass
+    return v
+
+
+_VERSION = tool_version()
 
 
 # ----------------------------------------------------------------------------
@@ -363,12 +381,14 @@ PROFILES = {
 # Driver
 # ----------------------------------------------------------------------------
 def write_metrics(m, stem, out):
+    m["analyzer_version"] = _VERSION
     jp = os.path.join(out, f"{stem}-metrics.json")
     with open(jp, "w") as f:
         json.dump(m, f, indent=2)
     mp = os.path.join(out, f"{stem}-metrics.md")
     with open(mp, "w") as f:
         f.write(f"# {stem}  ({m.get('module','?')} / {m.get('kind','?')})\n\n")
+        f.write(f"*analyzer {_VERSION}*\n\n")
         if "error" in m:
             f.write(f"**{m['error']}**\n"); return [jp, mp]
         f.write(f"- samples: {m['n']} @ {m['rate_hz']/1000:.2f} kSPS "
