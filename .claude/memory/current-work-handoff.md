@@ -2,7 +2,27 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
-## EI + PAPER-TRACK BACKBONE 2026-06-13 ~13:20 CDT (Opus-4.8 panel running `wf_4839b54a-e0b`)
+## EI BACKBONE PANEL DONE + COMMITTED 2026-06-13 ~14:05 CDT
+Opus-4.8 panel (`wf_4839b54a-e0b`) completed: 0 review blockers; minor concerns folded in (doc 31/34->29/34,
+instrumentation corpus_state-citation caveat, EI-06 revocation latch MOVED into cec_corpus_compile not just
+the lint leg). **COMMITTED 4727d2d** (14 files, ~2970 lines), pushed to PR #55 branch:
+- EI-02 cec_fullstack: control LANE (every CEC_FS_CONTROL_EVERY=4th round signed-only) + lane=control|augmented
+  tag on every measurement row + ledger extra + A/B table in the bundle; EI-07 real_anchor_ratio; actuator
+  wired (finding_to_delta bounded/fenced -> carry; v4_structural_escape; record_outcome control-gated + rollback).
+- EI-03 cec_shadow.py: CL-04 calibration aggregator, untainted-only admission (corpus_state-keyed). 8 tests.
+- EI-05/06/07 cec_source_registry.py + cec_corpus_lint.py + SCHEMA.md: source registry + owner-only revocation
+  (latched in compile + lint) + staging dormancy + monotone-tightening law. 22 tests.
+- Paper track docs/research/: PP-01 claims, PP-04 negative-results, PP-06 control-lane PREREG, PP-07 inventory.
+84 host tests green; lint 0 errors. V4-SEAT committed earlier (1755b2c): cec_v4_task.py + cec_v4_queue.py + Stop
+hook + [[v4-seat]] memory -- hand V4 deep tasks sync or via the idle queue.
+**IN-CONTAINER VERIFY RUNNING** (task bl9qhogoz): cec_fullstack --rounds 4 -> docs/fullstack-run-ei02verify/.
+Confirm round 4 logs [control]/NOT-injected, measurement rows carry lane + real_anchor_ratio + n_deltas_applied,
+ab-table + bundle.ab populate. THEN: the LOGO->GND assign (owner APPROVED; fp-poly-net approach) for the
+gate-passing candidate. NEXT PANEL CAN USE V4 as a deep seat. PP-10 (IP/counsel) = OWNER action pre-preprint.
+Open from panel: prereg must predate first lane-tagged night (commit landed -> ok); cec-policy.json shadow
+thresholds (Decision 9, owner); corroboration-budget WRITER (loop hook); replace-kind deltas not yet effected.
+
+## EI + PAPER-TRACK BACKBONE 2026-06-13 ~13:20 CDT (Opus-4.8 panel ran `wf_4839b54a-e0b`)
 Owner uploaded the EI punchlist (EI-01..08) + the PAPER-TRACK punchlist (PP-01..13); wants the closed-loop
 evidence-integrity backbone built out via a full Opus-4.8 panel, inline with the paper track (eventual paper).
 RECONCILED vs tree: **DONE** EI-01 (corpus_state, PR #55), EI-08 (machine account + branch protection).
