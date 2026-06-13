@@ -2,6 +2,16 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## PR #56 RE-BASED FOR INDEPENDENT REVIEW 2026-06-13 ~16:45 CDT
+Owner: "do the rebase so we can review independently." Re-pointed PR #56 base main -> claude/overnight-
+corpus-preflight (PR #55) via `gh api -X PATCH repos/.../pulls/56 -f base=...` (gh pr edit is broken on the
+projectCards GraphQL deprecation -> exit 1; REST PATCH works). PR #56 now shows ONLY the 3 prompt-audit
+commits / 13 files (was 52), mergeable=MERGEABLE, stacked on #55. A literal rebase onto bare main is NOT
+possible -- the prompt-audit work edits functions the EI stack CREATES (EI-02 lane logic, cec_fs_actuator
+fence, CORPUS_BRIEF, verifier charters). Once #55 merges to main, move #56 base back to main. Reviewer note
+added to the PR. H1+M2 fixed in-PR; H2/M1/M3-M5 still open (non-blocking); H3 scope now RESOLVED by the base
+re-point.
+
 ## MERGE AUDIT + REBASE VERIFY 2026-06-13 ~16:10 CDT
 Reviewer flagged PR #56 "behind main / conflicts on corpus tooling (forked cf950cc, lacks 5b47e32
 promotion)". VERIFIED STALE: fa63d22 (EI-stack base) parent IS 5b47e32; merge-base(origin/main,HEAD)=5b47e32;
