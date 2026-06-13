@@ -188,6 +188,64 @@ def _d(*parts):
     return p
 
 
+# ---- promoted-corpus brief: ratified knowledge for the manager panel + auditor (owner 2026-06-13) ----
+# Owner directive: wire the T1 intent-manager + T4 worker-panel AND the T5 auditor to the PROMOTED
+# corpus, so every model seat reasons against the same owner-signed knowledge the compiler/reviewer
+# already use. PROMOTED ZONE ONLY (corpus/promoted/general) -- staging is excluded by construction, so
+# an unratified draft can never steer a seat. Family-scoped + platform-wide entries; fail-safe to "".
+CORPUS_BRIEF = ""                          # set once per run() from promoted_corpus_brief(board)
+_CORPUS_BRIEF_CACHE = {}
+
+
+def promoted_corpus_brief(board, max_chars=13000):
+    """The WHOLE promoted corpus (owner 2026-06-13: 'the whole promoted corpus is added'). Every entry
+    in corpus/promoted/general is included; an entry scoped to OTHER families is kept but tagged with its
+    scope so the seat applies it with judgement (this-family entries carry no tag). Staging is excluded by
+    construction. Fail-safe to ''."""
+    if board in _CORPUS_BRIEF_CACHE:
+        return _CORPUS_BRIEF_CACHE[board]
+    import glob as _g
+    lines, n_total, n_in = [], 0, 0
+    try:
+        for fp in sorted(_g.glob(os.path.join(ROOT, "corpus", "promoted", "general", "*.json"))):
+            try:
+                entries = json.load(open(fp))
+            except Exception:                                       # noqa: BLE001
+                continue
+            for e in (entries if isinstance(entries, list) else [entries]):
+                if not isinstance(e, dict):
+                    continue
+                n_total += 1
+                fams = ((e.get("scope") or {}).get("families")) or []
+                in_family = (not fams) or (board in fams)
+                if in_family:
+                    n_in += 1
+                scope_tag = "" if in_family else f" [scope: {','.join(fams)}]"
+                val, unit = e.get("value"), e.get("units") or ""
+                if val is None:
+                    vs = ""
+                elif isinstance(val, (dict, list)):                 # param value-dicts: compact summary
+                    vj = json.dumps(val, separators=(",", ":"))
+                    vs = " = " + (vj[:150] + "…" if len(vj) > 150 else vj)
+                else:
+                    vs = f" = {val}{(' ' + unit) if unit else ''}"
+                note = (e.get("notes") or "").split(". ")[0][:150]
+                line = f"- [{e.get('id','?')}] ({e.get('kind','rule')}){scope_tag}{vs}: {note}"
+                lines.append(line[:240])
+    except Exception:                                               # noqa: BLE001
+        pass
+    brief = ""
+    if lines:
+        body = "\n".join(lines)
+        if len(body) > max_chars:
+            body = body[:max_chars] + "\n- ...(brief truncated)"
+        brief = (f"RATIFIED CORPUS (the WHOLE promoted/general corpus, {n_total} owner-signed entries; "
+                 f"{n_in} in scope for this {board} family, the rest tagged with their family scope -- "
+                 "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+    _CORPUS_BRIEF_CACHE[board] = brief
+    return brief
+
+
 # ---- broker choreography: warm a model BEFORE its timed call (completeness > speed) ----------------
 def warm(model, timeout=None):
     """Ensure `model` is resident before a timed seat call. Already-running -> instant; else a
@@ -438,8 +496,8 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd):
         % (board, json.dumps(grid)[:4000], json.dumps(failures), json.dumps(prev_intents)[:1500]))
     try:
         import cec_judge_local as jl
-        out = jl._chat_json("You write routing intents as strict JSON.", user, INTENTS_SCHEMA,
-                            name="intents", temperature=0.2, max_tokens=900,
+        out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF + user, INTENTS_SCHEMA,
+                            name="intents", temperature=0.2, max_tokens=900, seat="manager:intent",
                             model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
         intents = out.get("intents") or []
         ok = [i for i in intents if i.get("net") and i.get("waypoints")]
@@ -468,10 +526,10 @@ def worker_panel(rec, rnd):
                     f"You judge a routed PCB candidate through ONE lens: {lens}. "
                     "accept only if hard gates pass AND your lens is satisfied; repair if more "
                     "router effort could fix it; escalate if stuck/structural.",
-                    f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
+                    CORPUS_BRIEF + f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
                     f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
                     PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
-                    max_tokens=300, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+                    seat="panel:" + lens.split()[0], max_tokens=300, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
                 votes.append((lens.split()[0], d.get("action"), d.get("reason", "")[:120]))
             except Exception:                                    # noqa: BLE001
                 continue
@@ -602,7 +660,7 @@ def deepseek_audit(rec, lr, rnd, model=None, timeout=900, pourcheck=None, intent
               "ONLY the JSON object the schema defines -- root_cause ALWAYS filled; scorer_penalty null "
               "unless a gate-passing candidate already exists.")
     try:
-        out = jl._chat_json(system, core, AUDIT_SCHEMA, name="audit", temperature=0.0,
+        out = jl._chat_json(system, CORPUS_BRIEF + core, AUDIT_SCHEMA, name="audit", temperature=0.0,
                             max_tokens=jl.MANAGER_MAX_TOKENS, timeout=timeout, model=model,
                             url=DEEP_AUDITOR_URL)            # Windows-hosted V4 endpoint if set, else broker
     except Exception as e:                                       # noqa: BLE001
@@ -771,6 +829,10 @@ def run(board, rounds, hours, auditor=None):
     os.makedirs(PERM, exist_ok=True)
     deadline = time.time() + hours * 3600.0 if hours else None
     auditor_model = resolve_auditor(auditor, hours)            # default DeepSeek-V4-Flash; Sonnet via env
+    global CORPUS_BRIEF                                          # owner 2026-06-13: brief T1/T4/T5 with promoted corpus
+    CORPUS_BRIEF = promoted_corpus_brief(board)
+    n_brief = CORPUS_BRIEF.count("\n- ") if CORPUS_BRIEF else 0
+    log(f"promoted-corpus brief: {n_brief} ratified entrie(s) in scope for {board} -> T1 intent / T4 panel / T5 auditor")
     lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}

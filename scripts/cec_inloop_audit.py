@@ -230,18 +230,37 @@ def sonnet_audit(rec, lr, rnd, timeout=240):
 
 
 # ---- V4 deep checkpoint (broker; OPPORTUNISTIC + probe-only; persists full reasoning) ---------------
+def _win_gateway():
+    """WSL default gateway = the Windows host (broker.host() resolves 'windows-host' the same way)."""
+    try:
+        out = subprocess.run(["ip", "route"], capture_output=True, text=True, timeout=3).stdout
+        for line in out.splitlines():
+            if line.startswith("default"):
+                return line.split()[2]
+    except Exception:                                          # noqa: BLE001
+        pass
+    return "127.0.0.1"
+
+
 def v4_up():
-    """Reachability pre-check: read /broker/models, GET V4's health directly (2s). NEVER asks the
-    broker to START it -- a cold start pins ~160GB host RAM + ~7min, which would starve the WSL2
-    routing container over a 7h run. If V4 is reaped/down, the checkpoint cleanly SKIPS."""
+    """Reachability pre-check against the broker catalog (GET /v1/models), then a direct 3s health
+    GET on V4's own host:port. NEVER asks the broker to START it -- a cold start pins ~160GB host
+    RAM + ~7min, which would starve the WSL2 routing container over a 7h run. If V4 is down, the
+    checkpoint cleanly SKIPS. Matches the rebuilt broker contract: external backends carry
+    host ('windows-host' -> WSL gateway) + port, NOT an 'upstream' URL, and the catalog route is
+    /v1/models (the old /broker/models + m['upstream'] schema is gone)."""
     import urllib.request
     try:
-        reg = json.load(urllib.request.urlopen(BROKER.rsplit("/v1", 1)[0] + "/broker/models", timeout=5))
-        m = reg["models"][V4_MODEL]
-        if not m.get("running"):
+        base = BROKER.rsplit("/v1", 1)[0]
+        reg = json.load(urllib.request.urlopen(base + "/v1/models", timeout=5))
+        m = next((x for x in reg.get("data", []) if x.get("id") == V4_MODEL), None)
+        if not m:
             return False
-        health = m["upstream"].rsplit("/v1", 1)[0] + "/health"
-        with urllib.request.urlopen(health, timeout=3) as h:
+        host = m.get("host") or "127.0.0.1"
+        if host == "windows-host":
+            host = _win_gateway()
+        url = f"http://{host}:{m.get('port')}{m.get('health', '/health')}"
+        with urllib.request.urlopen(url, timeout=3) as h:
             return h.status == 200
     except Exception:                                          # noqa: BLE001
         return False
