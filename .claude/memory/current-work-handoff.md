@@ -2,6 +2,24 @@
 
 _Updated 2026-06-13 ~10:55 CDT (status-check + cleanup + V4 capstone running)._
 
+## EI + PAPER-TRACK BACKBONE 2026-06-13 ~13:20 CDT (Opus-4.8 panel running `wf_4839b54a-e0b`)
+Owner uploaded the EI punchlist (EI-01..08) + the PAPER-TRACK punchlist (PP-01..13); wants the closed-loop
+evidence-integrity backbone built out via a full Opus-4.8 panel, inline with the paper track (eventual paper).
+RECONCILED vs tree: **DONE** EI-01 (corpus_state, PR #55), EI-08 (machine account + branch protection).
+**PARTIAL** EI-02 (per-finding control arm built in cec_fs_actuator; the PERIODIC signed-only control LANE +
+lane tag + A/B table NOT built). **NOT BUILT** EI-03 (cec_shadow aggregator), EI-04 (self-corroboration lint),
+EI-05 (staging expiry), EI-06 (source registry + revocation), EI-07 (monotone law in SCHEMA + real_anchor_ratio).
+PANEL (4 parallel Opus-4.8 build agents on DISJOINT files + a review phase):
+- paper-docs -> docs/research/{claims PP-01, negative-results PP-04, prereg PP-06, inventory PP-07, README}.
+- ei03-shadow -> scripts/cec_shadow.py + tests/test_shadow.py (CL-04 aggregator, UNTAINTED-only admission).
+- ei0567-governance -> corpus/SCHEMA.md + cec_corpus_lint.py + cec_source_registry.py + test (EI-05/06/07).
+- ei02-runloop -> cec_fullstack.py + cec_overnight_directed.py + cec_ledger.py (EI-02 control lane + lane tag
+  + A/B table + EI-07 real_anchor_ratio + actuator wiring [finding_to_delta/select_deltas/v4 escape] +
+  control-gated promotion via record_outcome + rollback).
+Checkpoint committed first as a recovery point: **2e95bc0** (item4 second-half wire + cec_fs_actuator + 17 tests),
+pushed to PR #55 branch. AFTER the panel: integrate, run full suite + a container route, the LOGO->GND assign
+(owner APPROVED; LOGO1 is a footprint copper GRAPHIC), then commit. PP-10 (counsel/IP) is an OWNER action.
+
 ## IN PROGRESS 2026-06-13 ~12:45 CDT: route FINDINGS into the actuator + control-gated promotion (owner ask)
 Owner wants: (1) a finding must CHANGE THE NEXT ROUND (today only the deterministic item4 corridor-avoid
 actuates; the auditor's `proposed_lever` is recorded but INERT). (2) Drive eps-8pin to a GATE-PASSING
