@@ -454,6 +454,102 @@ static int cli_cmd_rate(int argc, char **argv)
     return 0;
 }
 
+/* FPGA-side native-rate detector: ARM the in-fabric detector (top.v
+ * cec_native_detect), wait for it to catch a transient / per-pin imbalance step
+ * (it freezes the ring CENTERED on the event), then dump that centered native
+ * window as CSV and disarm. Unlike `autoburst` (ESP software EMA on the decimated
+ * stream, event lands near the TAIL), the threshold + EMA run in the fabric at
+ * the full native rate and the dump is centered. Threshold/k/mask live in the
+ * bitstream (top.v DET_*); this just drives the arm/poll/read/rearm protocol.
+ * Usage: `detect [timeout_ms]` (default 5000). */
+static int cli_cmd_detect(int argc, char **argv)
+{
+    int timeout_ms = (argc >= 2) ? atoi(argv[1]) : 5000;
+    if (timeout_ms < 100) timeout_ms = 100;
+
+    cec_fpga_frame_t *buf = malloc((size_t)PROTO_RING_DEPTH * sizeof(*buf));
+    if (buf == NULL) { printf("detect: out of memory\n"); return 1; }
+
+    s_capturing = true;                          /* pause the TelePlot loop (shares the link) */
+    vTaskDelay(pdMS_TO_TICKS(3));
+    cec_fpga_link_detect_arm();                  /* 0x44: arm the sticky detector */
+    printf("detect: armed; watching for a transient (timeout %d ms)...\n", timeout_ms);
+
+    /* Poll STATUS for the tripped bit (code[2] bit15). Status reads do NOT
+     * disarm the detector or consume the ring; skip non-status frames (the
+     * mode-select discard returns a live frame first). */
+    cec_fpga_frame_t f;
+    bool    tripped = false;
+    uint8_t trip_ch = 0;
+    cec_fpga_link_read_status(&f);               /* select status mode (discard) */
+    for (int waited = 0; waited < timeout_ms; waited += 5) {
+        if (cec_fpga_link_read_status(&f) == ESP_OK && f.header == 0x5C) {
+            uint16_t det = (uint16_t)f.code[2];
+            if (det & 0x8000) { tripped = true; trip_ch = (uint8_t)(det & 0xFF); break; }
+        }
+        vTaskDelay(pdMS_TO_TICKS(5));
+    }
+
+    if (!tripped) {
+        cec_fpga_link_detect_clear();            /* 0x46: disarm + resume the ring */
+        s_capturing = false;
+        free(buf);
+        printf("detect: no trip within %d ms (disarmed). Lower DET_THRESH in the "
+               "bitstream or check the load.\n", timeout_ms);
+        return 0;
+    }
+
+    /* Which pin crossed: detector ch i maps to ESP frame index (7 - i). */
+    printf("detect: TRIP (trip_ch=0x%02x) on", trip_ch);
+    for (int i = 0; i < CEC_FPGA_FRAME_CHANNELS; i++)
+        if (trip_ch & (1 << i)) {
+            const char *lbl = PROTO_CH_CAL[7 - i].label;
+            printf(" %s", lbl ? lbl : "ch?");
+        }
+    printf(" -- reading the centered ring\n");
+
+    /* Read the centered, frozen ring (0xFF); discard one for the 0x33->0xFF switch. */
+    UBaseType_t old_prio = uxTaskPriorityGet(NULL);
+    vTaskPrioritySet(NULL, configMAX_PRIORITIES - 2);
+    cec_fpga_frame_t armf;
+    cec_fpga_link_read_buffered(&armf);          /* mode switch (discard) */
+    int got = 0;
+    for (; got < PROTO_RING_DEPTH; got++)
+        if (cec_fpga_link_read_buffered(&buf[got]) != ESP_OK) break;
+    vTaskPrioritySet(NULL, old_prio);
+
+    cec_fpga_link_detect_clear();                /* disarm + resume the ring */
+    s_capturing = false;
+
+    int gaps = 0, badhdr = 0;
+    for (int i = 0; i < got; i++) {
+        if (!buf[i].header_ok) badhdr++;
+        if (i && buf[i].seq != (uint8_t)(buf[i - 1].seq + 1)) gaps++;
+    }
+    const double real_hz = proto_measured_native_hz();
+    const double us_per  = 1.0e6 / real_hz;
+    printf("\n===BURST_CSV_BEGIN===\n");
+    printf("# detect TRIP trip_ch=0x%02x: %d frames @ %.2f kSPS native %s, %d seq-gaps, "
+           "%d bad-hdr; us = idx x %.3f us (transient ~CENTERED near idx %d)\n",
+           trip_ch, got, real_hz / 1000.0,
+           proto_native_hz_measured() ? "(measured)" : "(NOMINAL -- run `rate`)",
+           gaps, badhdr, us_per, got / 2);
+    printf("us,seq");
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+        if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
+    printf("\n");
+    for (int i = 0; i < got; i++) {
+        printf("%.1f,%u", i * us_per, buf[i].seq);
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+            if (PROTO_CH_CAL[ch].label)
+                printf(",%.4f", proto_channel_phys(ch, buf[i].code[ch]));
+        printf("\n");
+    }
+    printf("===BURST_CSV_END===\n");
+    free(buf);
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "frame",     "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
     { "burst",     "ESP-paced capture [N] frames to RAM, dump CSV (~12 kHz)", cli_cmd_burst },
@@ -462,6 +558,7 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
     { "cal",       "zero-cal current-sense offsets at no load [N avg]", cli_cmd_cal },
     { "autoburst", "auto-dump native ring on a transient <thresh_codes> [ntrig]", cli_cmd_autoburst },
     { "rate",      "measure the true native sample rate [ms avg]", cli_cmd_rate },
+    { "detect",    "arm the FPGA native detector; dump the centered ring on a trip [timeout_ms]", cli_cmd_detect },
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE

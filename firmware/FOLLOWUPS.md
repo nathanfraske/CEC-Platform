@@ -260,10 +260,12 @@ the deferred runtime-config (MOSI-written threshold / EMA-K) is just how `top.v`
 drives them -- no module change. Cheap in RAM: reuses the existing BSRAM ring +
 a pointer + 8 per-channel EMA accs (the SSRAM headroom from the version-B part).
 
-REMAINING (bench + ESP, not blocking the gate): (1) FPGA bitstream rebuild +
-reflash. (2) ESP firmware: a `detect` CLI that sends 0x44, polls 0x33 for V3.bit15,
-then drains the 0xFF ring like `fastburst` and re-arms (0x46/0x44) -- not written
-yet. (3) BENCH-TUNE the four compile-time constants for the real GPU: DET_THRESH
+REMAINING (bench, not blocking the gate): (1) FPGA bitstream rebuild + reflash.
+(2) ESP `detect` CLI -- DONE 2026-06-13: `detect [timeout_ms]` arms (0x44), polls
+0x33 for V3.bit15, reports which pin via trip_ch (detector ch i -> ESP idx 7-i),
+drains the centered 0xFF ring like `fastburst`, then disarms (0x46);
+cec_fpga_link gained `_detect_arm()`/`_detect_clear()`. Builds clean under the IDF
+gate. (3) BENCH-TUNE the four compile-time constants for the real GPU: DET_THRESH
 (start ~0.75 A, lower until it catches a real OCCT edge without false-firing),
 DET_KSHIFT (baseline tau), DET_MASK (confirm the V(8-i) map on real captures).
 (4) NEXT INCREMENT = runtime config over MOSI (multi-byte write) so threshold/k/

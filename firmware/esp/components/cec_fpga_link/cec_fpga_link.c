@@ -133,3 +133,17 @@ esp_err_t cec_fpga_link_read_status(cec_fpga_frame_t *out)
 {
     return read_tx(out, 0x33);
 }
+
+/* 0x44 / 0x46 drive the native detector's sticky arm latch. The returned frame
+ * is the prior mode's data (discarded into a scratch). */
+esp_err_t cec_fpga_link_detect_arm(void)
+{
+    cec_fpga_frame_t scratch;
+    return read_tx(&scratch, 0x44);
+}
+
+esp_err_t cec_fpga_link_detect_clear(void)
+{
+    cec_fpga_frame_t scratch;
+    return read_tx(&scratch, 0x46);
+}

@@ -98,6 +98,21 @@ esp_err_t cec_fpga_link_read_stream(cec_fpga_frame_t *out);
  */
 esp_err_t cec_fpga_link_read_status(cec_fpga_frame_t *out);
 
+/*
+ * Native-rate detector control. The fabric carries a per-channel transient/
+ * imbalance detector (top.v cec_native_detect); these drive its STICKY arm
+ * latch via MOSI command bytes -- 0x44 ARMs, 0x46 DISARMs+clears (and resumes
+ * the ring). Both are MSB=0 so STATUS polling / BURST reads never disarm it and
+ * never trip the 0xFF burst freeze. On a trip the fabric freezes the burst ring
+ * CENTERED on the event; poll cec_fpga_link_read_status() and read the STATUS
+ * word in code[2] = {tripped[15], frozen[14], 0, trip_ch[7:0]} (V1/V2 stay the
+ * rate counter). When tripped, read the centered dump with read_buffered() like
+ * fastburst, then call _detect_clear() to disarm. The command byte's returned
+ * frame is the prior mode's data -- discard it.
+ */
+esp_err_t cec_fpga_link_detect_arm(void);
+esp_err_t cec_fpga_link_detect_clear(void);
+
 #ifdef __cplusplus
 }
 #endif
