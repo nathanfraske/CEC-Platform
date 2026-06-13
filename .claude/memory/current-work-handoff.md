@@ -33,6 +33,26 @@ ggml-cuda.cu:3445 — not OOM); rounds 23–34 ran on the deterministic auditor 
 
 **NOT yet committed:** `scripts/cec_fs_capstone.py` + the `cec_night_watch.sh` patch (will offer to the owner).
 
+### VERIFIED BUG found by the capstone cross-check (the night's real finding) — item4 corridor-avoid lever DEAD all 34 rounds
+The loop's primary REACTIVE actuator for the dominant failure class (pour clipping) **fired zero times** due to a
+dict key-name mismatch — VERIFIED at source + in run.log (not just an LLM claim):
+- `cec_fr.derive_power_pours` emits pour dicts keyed `{"net","layer","polygon"}` (cec_fr.py:617-618) — NO `rect_mm`.
+- `cec_fr02.clipped_corridor_rects` reads `p.get("rect_mm") or p.get("rect")` (cec_fr02.py:326) → always `None` →
+  `if net in want and rect:` always False → **returns `{}` unconditionally** (cec_fr02.py:322-329).
+- `cec_fullstack` item4 (957→962→963) gets `{}` → `pending_corridor_avoid=[]` → the `item4:` log (964) + the
+  `T1 + corridor-avoid` log (886) NEVER print. Confirmed: 0 occurrences in run.log across the run + relaunch.
+- CONSEQUENCE: V4 correctly diagnosed "foreign nets crossing `/SENSEC*` sense corridors → pour fragments → DRC+thermal"
+  EVERY round and proposed the right lever, but the deterministic effector was a silent no-op → 34 rounds of correct
+  diagnosis, zero actuation = the local minimum. (max_T 243-712C is an ADVISORY thin-neck artifact, not a gate;
+  plane_signal_mm is a scorer WEIGHT not a gate; gate = kelvin_ok AND diffpair_ok AND drc==0 AND pour_integrity_ok.)
+- RECOMMENDED FIX (routing-class, board-specific, no ratified constraint touched; NOT yet applied — owner PR process):
+  (1) `clipped_corridor_rects` derive `rect_mm` from the `polygon` bbox (one-line correctness fix);
+  (2) widen the force-corridor keepout in `cec_router._vital_keepouts_from_rules` to the FULL connector→shunt pour
+  rectangle minus a Kelvin-tap notch, for `/SENSEC1_HI/LO` + `/SENSEC2_HI/LO`. Do NOT change pour-after-route ordering.
+  Expected: pour-clip 32/34→~0, drc→~4 finishing floor, gate-passing reachable. Also a process gap: after V4 dropped
+  at r~22 the T8 guard returned 503/findings=0 (== "all clear") — silently removed the local-minimum tripwire.
+- Cross-check full result: `/tmp/claude-1000/.../tasks/wrmxgdloc.output`. V4 capstone reconciliation pending (running).
+
 ## TONIGHT (2026-06-13): DeepSeek-V4 auditor + cec_fullstack overnight run — LIVE
 Owner ask evolved: "make DeepSeek run in the auditor seat and play nice," then (key correction from owner
 watching the dashboard) the overnight run they want is **`cec_fullstack`** (manager panels + seat swap +
