@@ -32,7 +32,13 @@ extern "C" {
 #define PROTO_PIN_DRDY  5    /* <- dock field B12 (FPGA A1)  */
 
 #define PROTO_LINK_HOST      SPI2_HOST
-#define PROTO_LINK_CLOCK_HZ  (4 * 1000 * 1000)  /* 4 MHz: < 5 MHz oversample rec */
+#define PROTO_LINK_CLOCK_HZ  (10 * 1000 * 1000) /* 10 MHz: the oversampled-slave
+                                                 * ceiling (fabric 50 MHz / 5).
+                                                 * Needed to read an 18-byte
+                                                 * frame (~14.4 us) inside the
+                                                 * 50 kHz period (20 us). If the
+                                                 * monitor shows bad headers at
+                                                 * 10 MHz, back off to 8 MHz. */
 
 /* AD7606 +/-5 V range: 152.59 uV per LSB. */
 #define PROTO_LSB_VOLTS      (5.0 / 32768.0)

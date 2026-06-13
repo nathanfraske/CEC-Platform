@@ -12,6 +12,7 @@
  * Pins per main/cec_config.h (doc section 6.3 / 10).
  * License: Apache-2.0 (CEC-Platform). */
 #include <stdio.h>
+#include <stdlib.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
@@ -30,6 +31,10 @@ static const char *TAG = "12vhpwr_proto";
  * (FPGA not pacing yet) spins the loop at 100% and starves IDLE -> TWDT.
  * One tick (10 ms @ 100 Hz) is far below the ~200 ms frame period. */
 #define PROTO_DRDY_POLL_TICKS  1
+
+/* Set while a `burst` capture is running so the TelePlot loop yields the
+ * FPGA link to the tight capture loop. */
+static volatile bool s_capturing = false;
 
 /* ---------------------------- CLI handlers ---------------------------- */
 
@@ -62,8 +67,58 @@ static int cli_cmd_frame(int argc, char **argv)
     return 0;
 }
 
+/* Capture N frames at the FPGA rate (~50 kHz) into RAM, then dump a CSV
+ * block (us offset, seq, calibrated channels) for host plotting. The 50 kHz
+ * stream is too fast to send live over USB-CDC (text ~6 MB/s vs ~1 MB/s),
+ * so this grabs a finite window and dumps it afterward. The us/seq columns
+ * reveal the true captured rate and any dropped frames. Usage: `burst [N]`
+ * (default 2048; ~41 ms window). */
+static int cli_cmd_burst(int argc, char **argv)
+{
+    int n = (argc >= 2) ? atoi(argv[1]) : 2048;
+    if (n < 1)    n = 1;
+    if (n > 8192) n = 8192;
+
+    struct cap { int64_t us; cec_fpga_frame_t f; };
+    struct cap *buf = malloc((size_t)n * sizeof(*buf));
+    if (buf == NULL) { printf("burst: out of memory for %d frames\n", n); return 1; }
+
+    s_capturing = true;
+    vTaskDelay(pdMS_TO_TICKS(3));              /* let the TelePlot loop pause */
+    int got = 0;
+    int64_t t0 = esp_timer_get_time();
+    for (; got < n; got++) {
+        uint32_t spin = 0;
+        while (!cec_fpga_link_poll()) {
+            if (++spin > 2000000u) goto done;  /* no DRDY -> link dead, bail */
+        }
+        if (cec_fpga_link_read(&buf[got].f) != ESP_OK) break;
+        buf[got].us = esp_timer_get_time() - t0;
+    }
+done:
+    s_capturing = false;
+
+    int64_t span = got ? buf[got - 1].us : 0;
+    printf("# burst: %d frames in %lld us (~%.1f kHz)\n",
+           got, span, span ? 1000.0 * (got - 1) / span : 0.0);
+    printf("us,seq");
+    for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+        if (PROTO_CH_CAL[ch].label) printf(",%s", PROTO_CH_CAL[ch].label);
+    printf("\n");
+    for (int i = 0; i < got; i++) {
+        printf("%lld,%u", buf[i].us, buf[i].f.seq);
+        for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
+            if (PROTO_CH_CAL[ch].label)
+                printf(",%.4f", proto_channel_phys(ch, buf[i].f.code[ch]));
+        printf("\n");
+    }
+    free(buf);
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "frame", "pull + dump one FPGA frame (header, seq, V1..V8)", cli_cmd_frame },
+    { "burst", "capture [N] frames at ~50 kHz to RAM, dump CSV (default 2048)", cli_cmd_burst },
 };
 
 #if !CONFIG_CEC_PROTO_RAW_CONSOLE
@@ -80,6 +135,10 @@ static void teleplot_loop(void)
     for (int ch = 0; ch < CEC_FPGA_FRAME_CHANNELS; ch++)
         median_init(&s_med[ch], s_med_buf[ch], PROTO_MEDIAN_WIN);
     while (1) {
+        if (s_capturing) {                 /* a `burst` owns the link */
+            vTaskDelay(pdMS_TO_TICKS(5));
+            continue;
+        }
         if (!cec_fpga_link_poll()) {
             vTaskDelay(PROTO_DRDY_POLL_TICKS);
             continue;
