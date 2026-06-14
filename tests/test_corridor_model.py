@@ -323,11 +323,10 @@ def _have_kicad_cli():
 @unittest.skipUnless(HAVE_PCBNEW and _have_kicad_cli() and os.path.isfile(EPS_PCB),
                      "pcbnew + kicad-cli + the eps-8pin board required")
 class TestPlacerCorridorEps(unittest.TestCase):
-    """Phase 1a wires the rank key, HONESTLY. The constructive placer does NOT yet FORM corridors
-    (shunts not inline, J_IN/J_OUT not aligned -- the band degenerates to ~board width), so
-    corridor_cross is 0 (inert) on raw synth output, NOT a false clean. The rank key only
-    discriminates once corridors are formed (Phase 2) or on a well-formed board (the committed one,
-    covered by TestCorridorModelEps). synth_one is process-deterministic per (strat, seed)."""
+    """Phase 2 FORMS the per-cable corridors (spine seed: align J_OUT under J_IN, shunt on the cable
+    axis at rot270), so build_corridor_model reports formed bands and corridor_cross is MEANINGFUL on
+    synth output (Phase 1a left it inert). NOTE: a formed corridor is not yet corridor-CLEAN -- driving
+    cc down is the open Phase-2/3 work. synth_one is process-deterministic per (strat, seed)."""
 
     @classmethod
     def setUpClass(cls):
@@ -338,16 +337,16 @@ class TestPlacerCorridorEps(unittest.TestCase):
     def _cand(self, strat, seed):
         return sp.synth_one(self.cd, 96.0, 37.0, strat, seed)
 
-    def test_raw_synth_corridors_not_yet_formed(self):
-        # the honest Phase-1a state: the placer hasn't put the shunts inline, so the bands are
-        # degenerate (corridor not formed) and corridor_cross is 0 -- inert, not a false clean
+    def test_phase2_forms_the_corridors(self):
+        # Phase 2: the spine seed makes each per-cable corridor FORMED (tight band) and seats the
+        # shunt on the cable axis at rot270 (H3) -- so corridor_cross is now MEANINGFUL, not inert.
         cand = self._cand("thermal_separated", 7)
         nl = sp.View(self.cfg).nl
         model = sp.build_corridor_model(nl, cand.P, sp._fp_of(nl), board_w=cand.W)
-        self.assertTrue(any(not c.formed for c in model.cables),
-                        "raw synth output should have at least one unformed (degenerate) corridor")
-        self.assertEqual(cand.corridor_cross, 0,
-                         "an unformed corridor must score 0 (inert), not a false-positive cross")
+        self.assertEqual(len(model.cables), 2)
+        for cab in model.cables:
+            self.assertTrue(cab.formed, "%s corridor must be FORMED after the spine seed" % cab.base)
+            self.assertEqual(cand.P[cab.shunt][2], 270.0, "shunt %s must be seated rot270" % cab.shunt)
 
     def test_synth_one_process_deterministic(self):
         # the sorted-iteration fix: corridor_cross is stable for a given (strat, seed)

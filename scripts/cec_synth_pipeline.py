@@ -2029,21 +2029,40 @@ def _cable_topology(nl):
     return out
 
 
-def _seed_corridor_spine(topo, anchors, H):
-    """FORM each per-cable corridor: align J_OUT under its J_IN (same x column) and seat the shunt on
-    the cable axis at mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross). Mutates
-    *anchors* in place; returns the seated shunt refs (now FIXED, to drop from the annealed set so the
-    spine cannot be pushed off-axis). J_IN keeps the x seed_anchors packed it to (columns stay spaced
-    by connector width)."""
+def _net_pad_centroid_x(nl, comps, ref, net, P):
+    """Mean global x of *ref*'s pads on *net* (the cable's force column). J_IN(rot180) pads extend one
+    way, J_OUT(rot0) the other from the origin, so aligning ORIGINS misaligns the current columns ~12mm;
+    aligning these CENTROIDS is what tightens the band to one connector width (the as-built geometry)."""
+    import cec_pcb
+    xs = []
+    for r, pin in nl.nets.get(net, []):
+        if r != ref:
+            continue
+        try:
+            x, _y = cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps)
+            xs.append(x)
+        except Exception:
+            pass
+    return (sum(xs) / len(xs)) if xs else P[ref][0]
+
+
+def _seed_corridor_spine(topo, anchors, H, nl, comps):
+    """FORM each per-cable corridor: align J_OUT's LO force-pad column UNDER J_IN's HI force-pad column
+    (so the +12V current runs straight J_IN -> shunt -> J_OUT) and seat the shunt on that column axis at
+    mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross), all as FIXED anchors. Mutates
+    *anchors*; returns the seated shunt refs (dropped from the annealed set so the spine can't be pushed
+    off-axis). J_IN keeps the x seed_anchors packed it to (columns stay spaced by connector width)."""
     seated = []
     for c in topo:
         jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
         if jin not in anchors or jout not in anchors:
             continue
-        xcol = anchors[jin][0]
-        _ox, oy, orot = anchors[jout]
-        anchors[jout] = (xcol, oy, orot)              # align J_OUT under J_IN
-        anchors[sh] = (xcol, H / 2.0, 270.0)          # shunt on the cable axis, rot270
+        col = _net_pad_centroid_x(nl, comps, jin, c["hi"], anchors)   # the J_IN +12V column
+        # shift J_OUT in x so its LO force-pad column lands under the J_IN column
+        ox, oy, orot = anchors[jout]
+        out_col = _net_pad_centroid_x(nl, comps, jout, c["lo"], anchors)
+        anchors[jout] = (ox + (col - out_col), oy, orot)
+        anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
         seated.append(sh)
     return seated
 
@@ -2114,7 +2133,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
     # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
     #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
     #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
-    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H)
+    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps)
     free_shunts = [r for r in shunts if r not in seated]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
