@@ -1716,7 +1716,7 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
             if o != r:
                 c += _ov_area(ar, bbox(o), clr)
         if nbrs:
-            for n in nbrs.get(r, ()):
+            for n in sorted(nbrs.get(r, ())):           # sorted: deterministic across processes
                 if n in P:
                     c += alpha * (abs(P[r][0] - P[n][0]) + abs(P[r][1] - P[n][1]))
         return c
@@ -1766,7 +1766,7 @@ def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataf
     hot = {r for r in movable if _part_power_w(r, nl.comps.get(r, Comp(r)).value) >= 0.3}
     for _ in range(45):
         for r in movable:
-            ns = [P[n] for n in nbrs.get(r, ()) if n in P]
+            ns = [P[n] for n in sorted(nbrs.get(r, ())) if n in P]   # sorted: process-deterministic
             if not ns:
                 continue
             tx = sum(p[0] for p in ns) / len(ns)
@@ -1775,7 +1775,7 @@ def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataf
                 tx = 0.7 * tx + 0.3 * P[r][0]
                 ty = 0.7 * ty + 0.3 * P[r][1]
             elif strat == "thermal_separated" and r in hot:   # nudge hot parts apart
-                for h in hot:
+                for h in sorted(hot):                # sorted: tx is mutated in-loop, order matters
                     if h != r and h in P and abs(P[h][0] - tx) < 8 and abs(P[h][1] - ty) < 8:
                         tx += math.copysign(4.0, tx - P[h][0] or 1.0)
             P[r] = (tx, ty, P[r][2])
@@ -1816,8 +1816,10 @@ def _placement_obj(cfg, P, W, H, halfext, nl):
 # net forced THROUGH a band cuts the pour on its layer (the eps-8pin ~300C thin-neck failure).
 # corridor_cross_count turns "foreign_cross" into a pre-route, pure-geometry NUMBER the placer
 # can rank on; build_corridor_model derives the bands from the netlist (no per-board hardcoding),
-# reusing _kelvin_pairs + the same HI/LO pads derive_power_pours pours -- so the placement-time
-# corridor and the route-time pour keepout are provably the same rectangle (no drift).
+# reusing _kelvin_pairs + the same CONNECTOR+shunt pad class derive_power_pours pours (the INA SMD
+# sense pads excluded) -- so the placement-time corridor and the route-time pour keepout track the
+# same J_IN->shunt->J_OUT current path. The band is meaningful only once the corridor is FORMED
+# (shunt inline, J_IN/J_OUT aligned); a degenerate near-board-wide band is guarded out, not trusted.
 def _net_pads_global(nl, net, P, comps):
     """Global (x,y) of every pad on *net*, from the placement P (ref->(x,y,rot)) + footprints.
     pad_global is a pure footprint-text parse (no pcbnew), so this runs host-side."""
@@ -1846,7 +1848,10 @@ def _corridor_net_role(net, corridor_nets):
     base = net.rsplit("/", 1)[-1].upper()
     if _POWER_NET.search(net) or base == "GND":
         return "decouple"
-    if net.endswith(("_HI", "_LO")) or base.startswith(("SENSEC", "ISENSE")):
+    # a Kelvin/INA sense net (force pair _HI/_LO, or the post-filter INA input _P/_N) is part of
+    # the cable's own sensing, not a foreign signal -- the 12VHPWR INA240 inputs are /IN{n}_P/_N.
+    # (USB_D_P/_N is conservatively swept in too; it lives at the board edge, never the corridor.)
+    if net.endswith(("_HI", "_LO", "_P", "_N")) or base.startswith(("SENSEC", "ISENSE")):
         return "sense"
     return "signal"
 
@@ -1861,6 +1866,7 @@ class Cable:
     shunt: str                    # RS{n} (2-pad straddle), or "" if none resolved
     sense_ics: list               # INA/INA181 refs on hi or lo
     band: tuple                   # (x0, x1, y0, y1)
+    formed: bool = True           # False if the corridor is degenerate (J_IN/shunt/J_OUT not collinear)
 
 
 @dataclass
@@ -1890,14 +1896,58 @@ def _hot_sensitive(nl):
     return hot, sensitive
 
 
-def build_corridor_model(nl, P, comps, *, x_clr=1.5):
+def _corridor_band_pads(nl, hi, lo, band_refs, P, comps):
+    """Global pads on the HI/LO nets restricted to *band_refs* (the cable connectors + shunt) --
+    excludes the INA sense pads, so the band is the J_IN->shunt->J_OUT current path, not the
+    sense fan-out. This mirrors cec_fr.derive_power_pours (THT connector pads + the 2-pad shunt)."""
+    import cec_pcb
+    pts = []
+    for net in (hi, lo):
+        for ref, pin in nl.nets.get(net, []):
+            if ref not in band_refs or ref not in P or ref not in comps:
+                continue
+            try:
+                pts.append(cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps))
+            except Exception:
+                pts.append((P[ref][0], P[ref][1]))
+    return pts
+
+
+def _band_formed(band, W, *, max_frac=0.55):
+    """A corridor is FORMED only if its band is a tight column -- J_IN/shunt/J_OUT roughly collinear.
+    A band wider than max_frac of the board means the shunt is not inline or J_IN/J_OUT are not
+    aligned (the synth placer before corridor formation), so corridor_cross over it is meaningless
+    (a near-board-wide band can't be straddled -> a FALSE clean). Also flags the 24-pin shared-bus
+    connector, whose multi-rail _HI/_LO pads span the whole board (not a per-cable corridor)."""
+    x0, x1, _y0, _y1 = band
+    return (x1 - x0) <= max(1.0, max_frac * W)
+
+
+def build_corridor_model(nl, P, comps, *, x_clr=1.5, board_w=None):
     """Derive the CorridorModel (§2.1) from the netlist + a placement. The band of cable n is the
-    bbox over its HI and LO pads (= J_IN force-in + shunt + J_OUT force-out + the INA taps -- the
-    SAME pads derive_power_pours uses), inflated *x_clr* mm on the signal-channel (x) sides only.
-    Pure geometry: no pcbnew, just pad_global on the footprint files."""
+    bbox over the cable CONNECTOR (J*) + shunt pads on its HI/LO nets -- the J_IN->shunt->J_OUT
+    current path, the SAME pad class cec_fr.derive_power_pours pours (THT connector + 2-pad shunt;
+    the INA's SMD sense pads are EXCLUDED so they don't inflate the band and swallow the channel).
+    Inflated *x_clr* mm on the signal-channel (x) sides. A band wider than ~half the board is marked
+    NOT formed (shunt not inline / connectors not aligned) -- corridor_cross ignores it (a wide band
+    can't be straddled, which would read as a FALSE clean). Pure geometry; no pcbnew."""
+    if board_w is None:
+        board_w = max((P[r][0] for r in P), default=100.0) + 10.0
     cables, bands, corridor_nets = [], {}, set()
     for hi, lo in _kelvin_pairs(nl):
-        pts = _net_pads_global(nl, hi, P, comps) + _net_pads_global(nl, lo, P, comps)
+        corridor_nets.add(hi)
+        corridor_nets.add(lo)
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        straddle = refs_hi & refs_lo                       # a part on BOTH halves = the shunt
+        shunt = next((r for r in sorted(straddle)          # prefer the RS-named shunt
+                      if r.startswith("RS") and _ref_padcount(nl, r) == 2),
+                     next((r for r in sorted(straddle)
+                           if r.startswith("R") and _ref_padcount(nl, r) == 2), ""))
+        band_refs = {r for r in (refs_hi | refs_lo) if r.startswith("J")}
+        if shunt:
+            band_refs.add(shunt)
+        pts = _corridor_band_pads(nl, hi, lo, band_refs, P, comps)
         if not pts:
             continue
         xs = [p[0] for p in pts]
@@ -1905,27 +1955,26 @@ def build_corridor_model(nl, P, comps, *, x_clr=1.5):
         band = (min(xs) - x_clr, max(xs) + x_clr, min(ys), max(ys))
         base = hi[:-3]
         bands[base] = band
-        corridor_nets.add(hi)
-        corridor_nets.add(lo)
-        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
-        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
-        straddle = refs_hi & refs_lo                       # a part on BOTH halves = the shunt
-        shunt = next((r for r in sorted(straddle)
-                      if r.startswith("R") and _ref_padcount(nl, r) == 2), "")
         sense_ics = sorted(r for r in (refs_hi | refs_lo) if r.startswith("U"))
-        cables.append(Cable(base=base, hi=hi, lo=lo, shunt=shunt, sense_ics=sense_ics, band=band))
+        cables.append(Cable(base=base, hi=hi, lo=lo, shunt=shunt, sense_ics=sense_ics,
+                            band=band, formed=_band_formed(band, board_w)))
     hot, sensitive = _hot_sensitive(nl)
     return CorridorModel(cables=cables, bands=bands, corridor_nets=corridor_nets,
                          hot=hot, sensitive=sensitive)
 
 
-def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True):
-    """The PRIMARY rank key (placement-strategy §2.3 / §0): how many foreign SIGNAL nets are forced
-    THROUGH a high-current band. A net crosses band_n when its pad-bbox y-overlaps the band AND it
-    has a pad strictly LEFT of the band x-range AND a pad strictly RIGHT of it -- i.e. its routing
-    must pass through the corridor (a topological invariant no router effort can undo). A net that
-    merely terminates at a band edge (one pad inside) is NOT a through-cross. Pure geometry on the
-    pads_by_net the proxy already builds; 0 == corridor-clean."""
+def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True, board_w=None):
+    """The corridor predictor (placement-strategy §2.3 / §0): how many (foreign SIGNAL net, band)
+    pairs are forced THROUGH a high-current band. A net crosses band_n when its pad-bbox y-overlaps
+    the band AND it has a pad strictly LEFT of the band x-range AND a pad strictly RIGHT of it -- its
+    routing must pass through the corridor (a topological invariant no router effort can undo). A net
+    that merely terminates at a band edge (one pad inside) is NOT a through-cross. A DEGENERATE band
+    (wider than ~half the board: shunt not inline / connectors not aligned) is SKIPPED -- it can't be
+    straddled, so counting it would read as a false clean; pass *board_w* to enable that guard. Pure
+    geometry on the pads_by_net the proxy already builds; 0 over FORMED bands == corridor-clean. NOTE:
+    this counts (net, band) pairs, so a net crossing two bands scores 2."""
+    usable = {b: rect for b, rect in bands.items()
+              if board_w is None or _band_formed(rect, board_w)}
     total = 0
     for net, pts in pads_by_net.items():
         if net in corridor_nets or len(pts) < 2:
@@ -1935,7 +1984,7 @@ def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True)
         xs = [p[0] for p in pts]
         ys = [p[1] for p in pts]
         bx0, bx1, by0, by1 = min(xs), max(xs), min(ys), max(ys)
-        for base, (X0, X1, Y0, Y1) in bands.items():
+        for base, (X0, X1, Y0, Y1) in usable.items():
             if by1 >= Y0 and by0 <= Y1 and bx0 < X0 and bx1 > X1:
                 total += 1
     return total
@@ -2042,9 +2091,13 @@ def synth_one(cfg_dict, W, H, strat, seed):
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
-    # through a high-current band. The PRIMARY rank key + a pre-route reject (proxy_reject).
-    model = build_corridor_model(nl, P, comps)
-    cc = corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets)
+    # through a FORMED high-current band. The rank key + a pre-route reject (proxy_reject). The
+    # board_w degeneracy guard means a placement that has NOT yet formed its corridors (shunt not
+    # inline / J_IN/J_OUT not aligned -- the pre-Phase-2 state) scores 0 honestly (inert), rather
+    # than a FALSE clean from a near-board-wide band. So the rank key only discriminates once
+    # corridors are formed (Phase 2) or on a well-formed board.
+    model = build_corridor_model(nl, P, comps, board_w=W)
+    cc = corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets, board_w=W)
     proxy = placement_proxy(obj)
     proxy["corridor_cross"] = cc
     return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy, corridor_cross=cc)

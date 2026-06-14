@@ -207,23 +207,38 @@ dropped from ~11 to ~0 and the `/SENSEC2_LO` pour fills as ONE island. **This is
 proves the ceiling is broken.** If the winner still crosses, the seed nudge needs more channel offset
 (tunable, board-specific) — caught here, cheaply.
 
-> **IMPLEMENTATION NOTE (2026-06-14, what actually shipped as "Phase 1a", commit on
-> claude/placement-corridor / PR #60).** Measurement reordered the work: with the rank key wired and
-> `corridor_cross` measured across the existing sweep (`place_candidates(cfg, 96, 37, seeds=0..7)`),
-> **the constructive placer ALREADY produces corridor-clean basins** — 7 of 24 candidates have
-> `corridor_cross == 0`. The old `(residual, hpwl)` sort was simply BLIND to them: it picked
-> `compact s5` (HPWL 1639, **cc=4**); the new `(residual, corridor_cross, hpwl)` sort picks
-> `thermal_separated s7` (**cc=0**). So **the ranking change alone breaks the ceiling on eps** — the
-> seed nudge is robustness insurance (Phase 2's concern: make EVERY seed land clean), not the
-> load-bearing lever, and eps does not need it. Shipped in Phase 1a: the `Candidate.corridor_cross`
-> field + the model build in `synth_one`, the sort key, and an **opt-in** `proxy_reject(corridor_max=)`
-> (left OFF by default so a board with no clean candidate in its set still routes its best-ranked one —
-> never reject every candidate before a clean basin is guaranteed). **Deferred to Phase 2** (where they
-> compose with the anneal's hard veto + soft terms — an ACTIVE corridor-avoiding SA is strictly stronger
-> than a passive seed bias, and the rot270 stamp belongs with the Kelvin soft term): the `seed_anchors`
-> channel nudge and the **H3 shunt-rot270 stamp**. The Phase-1 milestone met: the winning eps candidate
-> is `corridor_cross == 0` (deterministic; `tests/test_corridor_model.py::TestPlacerCorridorEps`). The
-> route-confirm half of the validation (foreign_cross ~11→~0, one-island pour) is Phase 3 by design.
+> **IMPLEMENTATION NOTE (2026-06-14, "Phase 1a" + its audit remediation, claude/placement-corridor / PR #60).**
+>
+> _First cut (RETRACTED):_ with the rank key wired, `place_candidates(cfg, 96, 37, seeds=0..7)` showed the
+> new `(residual, corridor_cross, hpwl)` sort picking a `cc=0` winner where the old `(residual, hpwl)` sort
+> picked `cc=4` — and I claimed "the ranking alone breaks the ceiling." **A 4-skeptic adversarial audit
+> proved that claim is a MEASUREMENT ARTIFACT and it is withdrawn.** The constructive placer does NOT form
+> corridors: it leaves the shunts ~24 mm off their connectors (RS1 at x≈7.5, J_IN1 at x≈30.8) and does not
+> column-align J_IN/J_OUT per cable, so the band (computed over the cable's pads) inflates to **~73 mm on a
+> 96 mm board**. A near-board-wide band cannot be straddled, so `cc=0` is trivially true — it does NOT mean
+> the placement is corridor-clean. The ranking does not yet break the ceiling.
+>
+> _What Phase 1a actually is, after remediation:_ the corridor rank-key **plumbing**, made HONEST.
+> - **Band corrected** to the J_IN→shunt→J_OUT **connector + 2-pad-shunt pads only** (the INA SMD sense pads
+>   are excluded) — this matches `cec_fr.derive_power_pours`, the earlier "same rectangle as the pour" claim
+>   having been false (it included the INA taps). On the committed (well-formed) board this still gives the
+>   real ≥5 crossings / `/CAN_L`=0; on raw synth output the band is degenerate.
+> - **Degeneracy guard** (`build_corridor_model(board_w=)` / `corridor_cross_count(board_w=)`): a band wider
+>   than ~½ the board is marked `formed=False` and SKIPPED, so an unformed corridor scores 0 **inertly**, not
+>   as a false clean. The rank key therefore does nothing on raw synth output (all `cc=0` → falls back to
+>   HPWL) and only discriminates once corridors are **formed** (Phase 2) or on a well-formed board.
+> - **Determinism fixed**: `relative_place`/`anneal_macros` iterated hash-randomized sets (`nbrs`, `hot`), so
+>   `corridor_cross` varied across processes (`compact s6` ∈ {0,1,2}); the iterations are now `sorted()`.
+> - **Checkers scoped**: `shunt-inline-in-corridor` / `high-current-corridor-keepout` now **N/A on shared-bus
+>   boards** (24-pin / 12VHPWR J3/J4 serve every pair → the per-cable model doesn't apply, a Phase-5 per-pin
+>   variant) and exclude the INA sense nets (`_sense_nets`, incl. 12VHPWR `/IN_P/_N`) — they were false-FAILing
+>   on every routed 12VHPWR/24-pin/EPS board. Plus an opt-in `proxy_reject(corridor_max=)`, default OFF.
+>
+> **So the real ceiling-break is NOT done; it needs Phase 2 to FORM the corridor** (the `current_axis_offset`
+> term pulls the shunt onto the J_IN→J_OUT line; the connector-alignment seat aligns J_IN/J_OUT; then the
+> band is tight and `corridor_cross` discriminates) — and Phase 3 to route-confirm. Phase 1a's standing value
+> is the honest measurement tooling + the bug fixes, proven on the committed board, not a ranking win on synth
+> output. The deferred `seed_anchors` channel nudge and **H3 shunt-rot270 stamp** fold into that Phase-2 work.
 
 ### Phase 2 — Domain cost in the anneal + hard veto (HARDENS it; ~1 day)
 

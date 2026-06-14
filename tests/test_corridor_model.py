@@ -67,6 +67,30 @@ class TestCorridorCrossPure(unittest.TestCase):
         # an I2C-shaped net crossing band-1 AND band-2
         self.assertEqual(self._n({"/I2C_SCL": [(5.0, 19.0), (73.0, 20.0)]}), 2)
 
+    def test_three_bands_pcie_shaped(self):
+        # a 3-cable (PCIe) board: a net spanning all three bands counts 3
+        bands = {"/SENSEC1": (10.0, 20.0, 9.0, 28.0), "/SENSEC2": (34.0, 47.0, 9.0, 28.0),
+                 "/SENSEC3": (60.0, 75.0, 9.0, 28.0)}
+        corridor = {"/SENSEC%d_%s" % (i, s) for i in (1, 2, 3) for s in ("HI", "LO")}
+        self.assertEqual(sp.corridor_cross_count({"/N": [(5.0, 19.0), (80.0, 20.0)]}, bands, corridor), 3)
+
+    def test_degenerate_band_skipped_with_board_w(self):
+        # a near-board-wide band (corridor not formed) is NOT counted -> no false clean/cross.
+        # (a net must reach OUTSIDE the 73mm band on both sides to straddle it at all -- which is
+        # itself why a wide band is meaningless; the guard makes that explicit.)
+        wide = {"/SENSEC1": (3.0, 76.0, 9.0, 28.0)}            # 73mm on a 96mm board
+        net = {"/N": [(1.0, 19.0), (90.0, 20.0)]}
+        self.assertEqual(sp.corridor_cross_count(net, wide, set()), 1)              # no guard: counts
+        self.assertEqual(sp.corridor_cross_count(net, wide, set(), board_w=96.0), 0)  # guard: skipped
+
+    def test_build_model_no_kelvin_empty(self):
+        # a board with no Kelvin pair -> empty model, no crash (Hub boards)
+        nl = sp.Netlist(comps={"U1": sp.Comp(ref="U1", value="ESP32", footprint="x:y")},
+                        nets={"/GND": [("U1", "1")], "/+3V3": [("U1", "2")]})
+        model = sp.build_corridor_model(nl, {"U1": (0.0, 0.0, 0.0)}, {"U1": "x:y"}, board_w=50.0)
+        self.assertEqual(model.cables, [])
+        self.assertEqual(model.bands, {})
+
     def test_single_pad_net_skipped(self):
         self.assertEqual(self._n({"/ONEPAD": [(22.0, 19.0)]}), 0)
 
@@ -118,12 +142,19 @@ def _board_pads_by_net(path):
 class TestCorridorModelEps(unittest.TestCase):
     """The Phase-0 falsifiable proof on the committed eps-8pin floorplan."""
 
+    BOARD_W = 96.0
+
     @classmethod
     def setUpClass(cls):
         cls.nl, cls.P, cls.comps = _board_nl(EPS_PCB)
-        cls.model = sp.build_corridor_model(cls.nl, cls.P, cls.comps)
+        cls.model = sp.build_corridor_model(cls.nl, cls.P, cls.comps, board_w=cls.BOARD_W)
         cls.pbn = _board_pads_by_net(EPS_PCB)
-        cls.crossings = sp.corridor_cross_count(cls.pbn, cls.model.bands, cls.model.corridor_nets)
+        cls.crossings = sp.corridor_cross_count(cls.pbn, cls.model.bands, cls.model.corridor_nets,
+                                                board_w=cls.BOARD_W)
+
+    def _cc(self, pbn):
+        return sp.corridor_cross_count(pbn, self.model.bands, self.model.corridor_nets,
+                                       board_w=self.BOARD_W)
 
     def test_two_cables_resolved(self):
         self.assertEqual(len(self.model.cables), 2)
@@ -131,30 +162,36 @@ class TestCorridorModelEps(unittest.TestCase):
             self.assertTrue(cab.shunt.upper().startswith("RS"), "shunt: %r" % cab.shunt)
             self.assertTrue(cab.sense_ics, "no sense IC on %s" % cab.base)
 
+    def test_committed_corridors_are_formed(self):
+        # the committed board has inline shunts + aligned connectors -> tight, FORMED bands
+        for cab in self.model.cables:
+            self.assertTrue(cab.formed, "%s band should be formed (tight column)" % cab.base)
+            self.assertLess(cab.band[1] - cab.band[0], 0.55 * self.BOARD_W)
+
     def test_band2_covers_the_sandwich(self):
-        # the doc's empirically re-confirmed band: x[34..46.9] y ~ [9.5..27.5]
+        # connector+shunt band (INA pads excluded): x ~ [32.5,48.1] y ~ [9.5,27.5]
         x0, x1, y0, y1 = self.model.bands["/SENSEC2"]
         self.assertLess(x0, 36.0)
         self.assertGreater(x1, 45.0)
         self.assertLessEqual(y0, 15.0)
         self.assertGreaterEqual(y1, 26.0)
 
-    def test_at_least_three_through_crossers(self):
-        # the real /DETC1 /THRESH /I2C ceiling -- no router effort can undo it
-        self.assertGreaterEqual(self.crossings, 3,
+    def test_through_crossers_match_the_known_ceiling(self):
+        # the real ceiling on the committed board: /DETC1 + /THRESH + /I2C_SCL(x2) + /I2C_SDA(x2) = 6
+        # (band,net) pairs. >=5 keeps headroom if the board is lightly re-placed; the companion
+        # offender + false-positive tests pin the exact set.
+        self.assertGreaterEqual(self.crossings, 5,
                                 "model must see the real corridor crossings; got %d" % self.crossings)
 
     def test_can_contributes_zero(self):
-        only_can = {k: v for k, v in self.pbn.items() if k == "/CAN_L"}
-        self.assertEqual(sp.corridor_cross_count(only_can, self.model.bands, self.model.corridor_nets), 0,
+        self.assertEqual(self._cc({k: v for k, v in self.pbn.items() if k == "/CAN_L"}), 0,
                          "/CAN_L must NOT be a false corridor offender")
 
-    def test_detc1_and_thresh_are_offenders(self):
-        for net in ("/DETC1", "/THRESH"):
-            one = {net: self.pbn[net]}
-            self.assertGreaterEqual(
-                sp.corridor_cross_count(one, self.model.bands, self.model.corridor_nets), 1,
-                "%s should be a through-crosser on the committed board" % net)
+    def test_known_offenders(self):
+        # the named through-crossers; /I2C_* dominate (cross both bands) and must not be missed
+        for net in ("/DETC1", "/THRESH", "/I2C_SCL", "/I2C_SDA"):
+            self.assertGreaterEqual(self._cc({net: self.pbn[net]}), 1,
+                                    "%s should be a through-crosser on the committed board" % net)
 
 
 # --------------------------------------------------------------------------- the two new checkers
@@ -199,6 +236,40 @@ class TestCorridorCheckers(unittest.TestCase):
         res = self.cc.CHECKERS["high-current-corridor-keepout"](b, EPS_PCB, {})
         self.assertFalse(res[0], "foreign track in the corridor must FAIL: %s" % res[1])
         self.assertIn("/DETC1", res[1])
+
+    def test_corridor_keepout_via_teeth(self):
+        # the VIA code path: a foreign /DETC1 via INSIDE band-2 must FAIL (distinct from the track path)
+        b = pcbnew.LoadBoard(EPS_PCB)
+        det = b.FindNet("/DETC1")
+        v = pcbnew.PCB_VIA(b)
+        v.SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))   # inside band-2 (x~[32,48] y~[9,28])
+        v.SetDrill(300_000)
+        v.SetWidth(600_000)
+        v.SetNet(det)
+        b.Add(v)
+        res = self.cc.CHECKERS["high-current-corridor-keepout"](b, EPS_PCB, {})
+        self.assertFalse(res[0], "foreign via in the corridor must FAIL: %s" % res[1])
+
+    def test_shunt_inline_fail_teeth(self):
+        # move a shunt far off the J_IN->J_OUT axis -> the checker must FAIL it
+        b = pcbnew.LoadBoard(EPS_PCB)
+        rs1 = b.FindFootprintByReference("RS1")
+        rs1.SetPosition(pcbnew.VECTOR2I(7_500_000, 17_500_000))   # x=7.5, far left of the connectors
+        res = self.cc.CHECKERS["shunt-inline-in-corridor"](b, EPS_PCB, {})
+        self.assertFalse(res[0], "an off-axis shunt must FAIL the inline check: %s" % res[1])
+        self.assertIn("RS1", res[1])
+
+    def test_shared_bus_boards_na(self):
+        # 12VHPWR / 24-pin share J3/J4 across pairs -> the per-cable checkers must N/A, never false-FAIL
+        for rel in ("12vhpwr-standard/12vhpwr-standard-module.kicad_pcb",
+                    "atx-24pin/atx24pin-module.kicad_pcb"):
+            p = os.path.normpath(os.path.join(HERE, "..", "modules", rel))
+            if not os.path.isfile(p):
+                continue
+            board = pcbnew.LoadBoard(p)
+            for cid in ("shunt-inline-in-corridor", "high-current-corridor-keepout"):
+                ok = self.cc.CHECKERS[cid](board, p, {})[0]
+                self.assertIsNone(ok, "%s on %s must be N/A (shared-bus), got %r" % (cid, rel, ok))
 
     def test_registry_entries_marked_checkable(self):
         by_id = {c.id: c for c in self.cc.REGISTRY}
@@ -252,9 +323,11 @@ def _have_kicad_cli():
 @unittest.skipUnless(HAVE_PCBNEW and _have_kicad_cli() and os.path.isfile(EPS_PCB),
                      "pcbnew + kicad-cli + the eps-8pin board required")
 class TestPlacerCorridorEps(unittest.TestCase):
-    """Phase 1 BREAKS THE CEILING on eps-8pin: the constructive placer DOES produce a
-    corridor-clean basin -- the old (residual, hpwl) ranking was just blind to it. synth_one is
-    deterministic per (strat, seed): thermal_separated s7 -> 0, s6 -> a sandwich."""
+    """Phase 1a wires the rank key, HONESTLY. The constructive placer does NOT yet FORM corridors
+    (shunts not inline, J_IN/J_OUT not aligned -- the band degenerates to ~board width), so
+    corridor_cross is 0 (inert) on raw synth output, NOT a false clean. The rank key only
+    discriminates once corridors are formed (Phase 2) or on a well-formed board (the committed one,
+    covered by TestCorridorModelEps). synth_one is process-deterministic per (strat, seed)."""
 
     @classmethod
     def setUpClass(cls):
@@ -265,12 +338,31 @@ class TestPlacerCorridorEps(unittest.TestCase):
     def _cand(self, strat, seed):
         return sp.synth_one(self.cd, 96.0, 37.0, strat, seed)
 
-    def test_corridor_clean_basin_exists(self):
-        self.assertEqual(self._cand("thermal_separated", 7).corridor_cross, 0)
+    def test_raw_synth_corridors_not_yet_formed(self):
+        # the honest Phase-1a state: the placer hasn't put the shunts inline, so the bands are
+        # degenerate (corridor not formed) and corridor_cross is 0 -- inert, not a false clean
+        cand = self._cand("thermal_separated", 7)
+        nl = sp.View(self.cfg).nl
+        model = sp.build_corridor_model(nl, cand.P, sp._fp_of(nl), board_w=cand.W)
+        self.assertTrue(any(not c.formed for c in model.cables),
+                        "raw synth output should have at least one unformed (degenerate) corridor")
+        self.assertEqual(cand.corridor_cross, 0,
+                         "an unformed corridor must score 0 (inert), not a false-positive cross")
 
-    def test_a_crossing_placement_also_exists(self):
-        # if every candidate were clean the rank key would be inert; a sandwich must exist too
-        self.assertGreater(self._cand("thermal_separated", 6).corridor_cross, 0)
+    def test_synth_one_process_deterministic(self):
+        # the sorted-iteration fix: corridor_cross is stable for a given (strat, seed)
+        a = self._cand("compact", 6).corridor_cross
+        b = self._cand("compact", 6).corridor_cross
+        self.assertEqual(a, b)
+
+    def test_place_candidates_uses_production_sort_key(self):
+        # NOT a shadow re-implementation: call the real place_candidates and assert its output IS
+        # ordered by the production key, so a drift in the sort key is caught here.
+        cands = sp.place_candidates(self.cfg, 96.0, 37.0,
+                                    strategies=("thermal_separated", "compact"), seeds=(0, 1),
+                                    max_workers=1)
+        keys = [(c.residual, c.corridor_cross, c.proxy["hpwl"]) for c in cands]
+        self.assertEqual(keys, sorted(keys))
 
     def test_stored_corridor_cross_matches_recompute(self):
         # the Candidate.corridor_cross attached by synth_one must equal an independent recompute
@@ -279,8 +371,9 @@ class TestPlacerCorridorEps(unittest.TestCase):
         nl = sp.View(self.cfg).nl
         comps = sp._fp_of(nl)
         obj = sp._placement_obj(self.cfg, cand.P, cand.W, cand.H, sp._part_halfext(nl), nl)
-        model = sp.build_corridor_model(nl, cand.P, comps)
-        cc = sp.corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets)
+        model = sp.build_corridor_model(nl, cand.P, comps, board_w=cand.W)
+        cc = sp.corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets,
+                                     board_w=cand.W)
         self.assertEqual(cc, cand.corridor_cross)
 
 
