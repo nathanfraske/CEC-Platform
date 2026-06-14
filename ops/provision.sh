@@ -139,6 +139,16 @@ provision() {
     printf '%s  warn%s no bot PAT at %s -- git falls back to the WSL-local gh login (disposable). See ops/secrets/README.md\n' \
       "$c_ylw" "$c_rst" "${CEC_SECRETS_FILE:-/mnt/e/secrets/cec-bot.env}"
   fi
+
+  # bot-push GUARD -- installed UNCONDITIONALLY (its whole point is to catch the no-PAT case above,
+  # where git would otherwise silently push as the owner via the inherited gh helper). Owner directive
+  # 2026-06-13: the agent must push as nathanfraske-bot, never the owner.
+  step "bot-push guard hook (.git/hooks/pre-push: refuses a push that would authenticate as the owner)"
+  if install -m755 "$REPO_ROOT/ops/hooks/pre-push" "$REPO_ROOT/.git/hooks/pre-push" 2>/dev/null; then
+    ok "installed .git/hooks/pre-push (bot-push guard)"
+  else
+    printf '%s  warn%s could not install the pre-push guard\n' "$c_ylw" "$c_rst"
+  fi
 }
 
 # ============================================================================
