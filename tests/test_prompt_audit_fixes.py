@@ -410,5 +410,72 @@ class NewImplPolishFixes(unittest.TestCase):
         self.assertTrue(hasattr(fs, "_PENALTY_METRIC"))
 
 
+class AuditPR56Fixes(unittest.TestCase):
+    """Adversarial audit of PR #56 (docs/prompt-audit-2026-06-13/audit-pr56.md): PG-1/2/3 + TCW-1."""
+
+    def test_pg1_sense_net_fenced_even_with_empty_fence(self):
+        # is_fenced protects /SENSEC* unconditionally; an EMPTY fence ({}) must NOT disable that drop.
+        manifest = {"refs": {"U20": {"xy": [1, 1], "v": "INA"}, "RS1": {"xy": [2, 1], "v": "shunt"}},
+                    "net_refs": {"/SENSEC1_HI": ["RS1", "U20"], "/THRESH": ["U20"]}}
+
+        def stub(system, user, schema, **kw):
+            return {"reasoning": "x", "intents": [
+                {"net": "/SENSEC1_HI", "layers": ["F.Cu"], "waypoints": [{"ref": "U20"}]},   # fenced
+                {"net": "/THRESH", "layers": ["F.Cu"], "waypoints": [{"ref": "U20"}]}]}        # keep
+        orig = jl._chat_json
+        jl._chat_json = stub
+        try:
+            intents, why, src, dropped = fs.intent_manager("eps-8pin", {}, [], None, 1,
+                                                           manifest=manifest, fence={})         # EMPTY
+        finally:
+            jl._chat_json = orig
+        self.assertEqual({i["net"] for i in intents}, {"/THRESH"})   # /SENSEC dropped despite empty fence
+
+    def test_pg2_example_excludes_fenced_refs(self):
+        cap = {}
+
+        def stub(system, user, schema, **kw):
+            cap["user"] = user
+            return {"reasoning": "x", "intents": []}
+        manifest = {"refs": {"RS1": {"xy": [1, 1], "v": "shunt"}, "U10": {"xy": [2, 2], "v": "x"},
+                             "U11": {"xy": [3, 3], "v": "y"}},        # >=2 non-fenced -> no placeholder fallback
+                    "net_refs": {"/THRESH": ["U10"]}}
+        orig = jl._chat_json
+        jl._chat_json = stub
+        try:
+            fs.intent_manager("eps-8pin", {}, [], None, 1, manifest=manifest,
+                              fence={"nets": set(), "refs": {"RS1"}})
+        finally:
+            jl._chat_json = orig
+        self.assertIn('"ref": "U10"', cap["user"])               # the example seeds a NON-fenced ref
+        self.assertNotIn('"ref": "RS1"', cap["user"])            # never the fenced shunt
+
+    def test_pg3_malformed_winning_vote_repairs_on_gatefail(self):
+        # a malformed/None modal panel vote on a gate-FAIL must become repair, not fall through (which
+        # would reset router effort to baseline -- the opposite of repair).
+        def stub(system, user, schema, **kw):
+            return {"action": None, "reason": "x"}
+        orig = jl._chat_json
+        jl._chat_json = stub
+        try:
+            action, votes = fs.worker_panel(
+                {"gates_pass": False, "kelvin_ok": False, "drc": 9, "reasons": [], "drc_loci": [],
+                 "objective": 1.0, "params": {}}, 1)
+        finally:
+            jl._chat_json = orig
+        self.assertEqual(action, "repair")                       # not None / not a baseline reset
+
+    def test_tcw1_spec_excerpt_survives_past_old_4000_cap(self):
+        # a corpus-tail marker beyond char 4000 must reach the seat through _slice_spec (cap now 12000);
+        # this FAILS if the cap is reverted to 4000.
+        big = "RATIFIED CORPUS:\n" + ("- [x] filler corpus entry\n" * 250) + "- [TAILMARKER] sentinel\n"
+        ex = fs._spec_rules_excerpt(big, fs.LOCKED_DECISIONS_BRIEF,
+                                    {"nets": set(), "refs": {"RS1"}}, [])
+        self.assertGreater(ex.index("TAILMARKER"), 4000)         # marker past the old 4000 cap
+        self.assertLess(ex.index("TAILMARKER"), 12000)           # but within the new 12000 cap
+        out = cec_verifier._slice_spec({"issue": "t"}, {"rules_excerpt": ex})
+        self.assertIn("TAILMARKER", out)
+
+
 if __name__ == "__main__":
     unittest.main()

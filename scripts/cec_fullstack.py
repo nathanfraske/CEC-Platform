@@ -504,8 +504,13 @@ def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
             brief = (f"RATIFIED CORPUS ({n_shown} owner-signed entries in scope for this {board} family -- "
                      "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
         else:
-            scope_note = f"{n_in} in scope for this {board} family, the rest tagged with their family scope"
-            brief = (f"RATIFIED CORPUS ({n_total} owner-signed entries; {scope_note} -- treat as "
+            # PG-5 (audit): count entries SHOWN (post-truncation), not the pre-truncation n_total/n_in, so
+            # the header never claims rules the seat can't see (latent: the default brief never truncates).
+            shown = [ln for ln in body.split("\n") if ln.startswith("- [")]
+            n_in_shown = sum(1 for ln in shown if "[scope:" not in ln)
+            scope_note = (f"{n_in_shown} in scope for this {board} family, the rest tagged with their "
+                          "family scope")
+            brief = (f"RATIFIED CORPUS ({len(shown)} owner-signed entries; {scope_note} -- treat as "
                      "authoritative, do not contradict or re-derive):\n" + body + "\n\n")
     _CORPUS_BRIEF_CACHE[key] = brief
     return brief
@@ -850,8 +855,9 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
     if prev_dropped:
         dropped_block = ("PREVIOUS ROUND named these INVALID refs/nets that are NOT on this board -- "
                          f"do NOT use them again: {sorted(set(prev_dropped))}\n")
-    # P1b: ground the waypoint-form examples in real refs (was the bare U2/U1).
-    ex = sorted(refs)
+    # P1b: ground the waypoint-form examples in real refs (was the bare U2/U1). PG-2 (audit): exclude
+    # fenced refs so the example never anchors to a ref the FENCE line in this same prompt forbids.
+    ex = sorted(set(refs) - set((fence or {}).get("refs", []))) or sorted(refs)
     ex1, ex2 = (ex[0], ex[1]) if len(ex) >= 2 else ("U1", "U3")
     user = (
         f"You are the ROUTING INTENT MANAGER for the CEC {board} board. Each round you may direct "
@@ -889,9 +895,9 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
         kept = []
         for i in ok:
             net = i.get("net")
-            if fence and _act.is_fenced(net, fence):
-                log(f"  T1 DROP fenced-net intent: {net}")
-                continue
+            if _act.is_fenced(net, fence or {}):     # PG-1 (audit): is_fenced protects /SENSEC* nets
+                log(f"  T1 DROP fenced-net intent: {net}")   # unconditionally via regex -- never short-
+                continue                                     # circuit that on a falsy fence ({}/None)
             if known_nets is not None and str(net).lstrip("/") not in known_nets:
                 log(f"  T1 DROP unknown-net intent: {net}")
                 dropped.append(net)
@@ -985,7 +991,10 @@ def worker_panel(rec, rnd, history=()):
     for _, a, _r in votes:
         tally[a] = tally.get(a, 0) + 1
     action = max(tally, key=tally.get)
-    if action == "accept" and not rec.get("gates_pass"):
+    # PG-3 (audit): a gate-FAIL round must end on repair/escalate. Guard on "not a bump action" (not just
+    # the literal 'accept'), so a malformed/None modal vote can't fall through to the caller's else and
+    # RESET router effort to baseline on a failing round (the opposite of repair).
+    if action not in ("repair", "escalate") and not rec.get("gates_pass"):
         action = "repair"                                        # a panel cannot accept a gate-fail
     return action, votes
 
@@ -1581,11 +1590,16 @@ def run(board, rounds, hours, auditor=None):
             # deterministic item4 corridor-avoid is run-learned state and stays on the augmented lane only.
             if pour_clipped_nets and lane == "augmented":
                 import cec_fr02
+                import cec_fs_actuator as _act
                 corridors = cec_fr02.clipped_corridor_rects(rec["routed"], pour_clipped_nets)
                 contested = [c if isinstance(c, str) else c.get("net")
                              for c in grid.get("contested", [])]
+                # PG-4 (audit): exclude FENCED nets too (not just /SENSEC + power) -- a corridor-avoid
+                # intent is added to `intents` directly (line ~1504), bypassing intent_manager's fence
+                # drop, so a fenced net must never become one. is_fenced covers /SENSEP* + pinned refs.
                 offending = [n for n in contested if n and not cec_fr02.is_sense_net(n)
-                             and not str(n).startswith(("GND", "+"))]
+                             and not str(n).startswith(("GND", "+"))
+                             and not _act.is_fenced(n, fence or {})]
                 pending_corridor_avoid = cec_fr02.offending_net_intents(corridors, offending)
                 if pending_corridor_avoid:
                     log(f"  item4: next-round corridor-avoid for "
