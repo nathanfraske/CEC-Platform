@@ -448,11 +448,20 @@ def apply_corridor_evict(board, ref, band, margin=1.5):
         return None
     x0, x1, y0, y1 = band
     cx, cy = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
+    # CONTAINMENT GUARD (panel G1): only evict a part whose body is ACTUALLY inside the band NOW. The
+    # refine() directive is computed at iter start; an earlier mover (e.g. the Kelvin `adjacent` pull)
+    # may have already relocated the part home -- re-evicting from a stale snapshot would shove it back
+    # in AND (via the cluster) drag the corridor shunt, a false-clean. No-op if it is no longer inside.
+    if not (x0 <= cx <= x1 and y0 <= cy <= y1):
+        return None
     # nearest edge -> the displacement that carries the part just past it
     moves = sorted([(cx - x0, (-(cx - x0) - margin, 0.0)), (x1 - cx, (x1 - cx + margin, 0.0)),
                     (cy - y0, (0.0, -(cy - y0) - margin)), (y1 - cy, (0.0, y1 - cy + margin))])
     dx, dy = moves[0][1]
-    cluster = _cluster(board, a)
+    # carry ONLY the part's own passive cluster -- NEVER a structural corridor part (a shunt RS*/a
+    # connector J*), or evicting an INA would drag the band-defining shunt and corrupt the corridor.
+    cluster = [c for c in _cluster(board, a)
+               if not c.GetReference().upper().startswith(("RS", "J"))]
     _move(a, dx, dy)
     for c in cluster:
         _move(c, dx, dy)

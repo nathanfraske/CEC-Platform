@@ -477,6 +477,20 @@ class TestCorridorLever(unittest.TestCase):
         import cec_place
         self.assertIn("evict", cec_place.MOVABLE)
 
+    def test_evict_containment_guard_and_no_shunt_drag(self):
+        # panel G1: a stale directive whose part is NOT in the band must NO-OP (not shove it back in
+        # and drag the corridor shunt); a real eviction must never carry a structural RS*/J* part.
+        import cec_place
+        b = pcbnew.LoadBoard(EPS_PCB)
+        rs1 = b.FindFootprintByReference("RS1").GetPosition().x
+        # U10 is in its OWN cable-1 band on the committed board -> NOT in the cable-2 band below
+        self.assertIsNone(cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5)))
+        self.assertEqual(rs1, b.FindFootprintByReference("RS1").GetPosition().x, "shunt must not move")
+        # a genuine in-band eviction carries no structural part
+        b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
+        mv = cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5))
+        self.assertTrue(all(not r.upper().startswith(("RS", "J")) for r in mv["moved_refs"]))
+
 
 if __name__ == "__main__":
     unittest.main()

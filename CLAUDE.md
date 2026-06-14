@@ -1735,9 +1735,18 @@ Done (kept for context):
   sense off the INNER shunt edges, RC filter at the INA. NOTE the plan calls for
   BOTH inner pours = GND on this board (the shared stackup's In2 net hint is 12V, a
   cable-board leftover; the pour net is per-zone in the GUI). The copper itself is
-  routed in the GUI (CLAUDE routing boundary). All:
-  4-layer, 2oz outer / 1oz inner (hpwr: 12V on both outers, GND both inners; cable
-  boards In1=GND, In2=12V).
+  routed in the GUI (CLAUDE routing boundary). All: 4-layer, 2oz outer / 1oz inner.
+  STACKUP BY BOARD CLASS (owner, 2026-06-14 — corrects the stale "In2=12V" cable-board
+  hint): the CABLE boards (eps / PCIe / 12VHPWR) carry 12V on BOTH outers and GND on
+  BOTH inners (the shared-generator In2=12V net hint is a stale leftover — see the
+  per-board NOTE above; the actual eps/PCIe/12VHPWR boards pour both inners = GND). The
+  24-pin and the Hub are the EXCEPTIONS: each has ONE solid inner GND plane plus a SECOND
+  inner layer used for routing — the Hub's second inner is a SIGNAL layer; the 24-pin's
+  is a POWER-routing layer (it carries several rails — 12V / 5V / 3V3 / 5VSB — that must
+  route around each other). So the corridor layer-assignment lever (route a band-crossing
+  foreign signal off the pour) is a CABLE-BOARD concept: on those boards the 12V is the
+  two outer pours only, so the lever staggers each crossing across F.Cu vs B.Cu so the
+  un-cut mirror always carries; the Hub/24-pin have a real inner routing layer instead.
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
   INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of
