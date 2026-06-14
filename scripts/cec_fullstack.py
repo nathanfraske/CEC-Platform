@@ -75,8 +75,6 @@ KELVIN_STALL_K = 3                              # consecutive fails -> T0 escala
 # ALL swap-starvation, not logic. Slower, but every tier actually fires.
 SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "900"))   # was 120-180 (lost the swap race); a ceiling -- generous so no seat is timeout-cut mid-thought
 WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min cold start
-PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
-               "gate_fail", "kelvin_unrouted", "diffpair_unrouted", "max_T")
 # OWNED LEVERS -- the corrected actuation-space owned-list (retrospective §2/§4, lesson 2).
 # Single source of truth: fed to the auditor prompt AND the verifier actuation-space ctx so
 # the generator and the gate share one definition of "a lever the loop can pull". A scorer-
@@ -85,6 +83,33 @@ PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
 OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
                 "battery (shift/swap/via), power pours")
+# P4 (prompt-audit 2026-06-13): the CL24 spec-conformance charter must judge against RATIFIED
+# knowledge, not the run's ephemeral manager_rules (empty on a control round -> empty_corpus). This
+# is the compact locked-decision spine the charter cites; the full promoted corpus rides alongside it
+# in CORPUS_BRIEF, and the per-run fence is appended at the call site.
+LOCKED_DECISIONS_BRIEF = (
+    "LOCKED DECISIONS (CLAUDE.md / spec; ratified, do not contradict): module<->Hub connector is "
+    "RJ-45 8P8C platform-wide (Mini-Fit Jr retired for that link); pin allocation pin1=VCC/+5VSB, "
+    "pin2=GND, pin3=CAN1_H, pin4/5=RS-485 STREAM (Pro+ only), pin6=CAN1_L, pin7=reserved spare (NOT "
+    "AUX_REF), pin8=DETECT analog ID; DETECT code §2.3 (CAN-only 2.2k); §6.4 shunts (24-pin 2mΩ / "
+    "5VSB 25mΩ, EPS+PCIe 0.5mΩ, 12VHPWR 1mΩ), Kelvin-sensed; classical CAN 500k platform-wide "
+    "(CAN-FD deferred); RS-485 + receivers Pro+ only; CAN termination = fixed 120Ω split at the Hub; "
+    "the §6.8 Kelvin sense geometry + the shunt/sense-IC refs are FENCED (never re-routed or steered)."
+)
+
+
+def _spec_rules_excerpt(corpus_brief, locked, fence, manager_rules):
+    """P4 (prompt-audit fix 2026-06-13): build the CL24 spec-conformance charter's rules_excerpt with the
+    LOAD-BEARING content FIRST -- the locked-decision spine + the fence + the 'unratified' relabel -- then
+    the promoted corpus. The downstream cec_verifier._slice_spec truncates this excerpt, so leading with
+    the spine guarantees it survives even if the (much larger) corpus tail is cut. The reviewer caught the
+    original CORPUS_BRIEF-first ordering being sliced off before the spine reached the seat."""
+    fence = fence or {}
+    return (locked
+            + f"\nFENCE (never steer): nets={sorted(fence.get('nets', []))[:12]}, "
+            f"refs={sorted(fence.get('refs', []))}."
+            + "\nIN-RUN STANDING RULES (unratified, this run only): " + json.dumps(manager_rules)
+            + "\n\n" + (corpus_brief or ""))
 # UNIFIED SEAT MODEL (2026-06-11): cec-worker-vision is the cec-worker GGUF (Qwen3.6-35B-A3B) + an
 # mmproj, so ONE resident 27 GB backend serves BOTH the text seats (T1/T4/verifier, thinking) AND
 # the vision seat (T6, nothink via cec_vlm_bakeoff._NOTHINK). Pointing every local seat at it deletes
@@ -238,6 +263,25 @@ def lane_for(rnd, *, control_every=None):
     if ce and ce > 0 and rnd % ce == 0:
         return "control"
     return "augmented"
+
+
+def _lane_carry(lane, prev_aug, seed):
+    """EI-02 P3 (A/B integrity): the value (prev_intents or prev_dropped) the T1 seat sees this round.
+    The AUGMENTED lane carries the model's last value forward; a CONTROL round gets the signed `seed`
+    (intents) or () (dropped) -- so augmented-learned state never leaks into the signed-only baseline.
+    Pure -- unit-tested (M4) so a regression in the carry can't silently corrupt the control lane."""
+    return prev_aug if lane == "augmented" else seed
+
+
+def _t0_should_fire(lane, placement_attr, kelvin_stall, kelvin_ok):
+    """M2 (new-impl audit): the T0 placement-actuator gate, factored out so it is unit-testable.
+    T0 (the deterministic GR-02 repair) fires ONLY on the AUGMENTED lane -- a control round is
+    signed-only, so firing GR-02 / resetting kelvin_stall / stamping t0_fired there would perturb
+    the A/B. Within the augmented lane it fires when a placement diagnosis OR a kelvin stall coincides
+    with an unrouted Kelvin sense net (the consumer then derives the blocked /SENSEC net)."""
+    return (lane == "augmented"
+            and (placement_attr or kelvin_stall >= KELVIN_STALL_K)
+            and not kelvin_ok)
 
 
 # Evidence anchors, partitioned by EI-07 GROUNDING. DETERMINISTIC = a gate / DRC / pour-fact / FEM
@@ -398,19 +442,22 @@ def render_ab_table(ab):
 # corpus, so every model seat reasons against the same owner-signed knowledge the compiler/reviewer
 # already use. PROMOTED ZONE ONLY (corpus/promoted/general) -- staging is excluded by construction, so
 # an unratified draft can never steer a seat. Family-scoped + platform-wide entries; fail-safe to "".
-CORPUS_BRIEF = ""                          # set once per run() from promoted_corpus_brief(board)
+CORPUS_BRIEF = ""                          # full brief (auditor T5/T8); set once per run()
+CORPUS_BRIEF_GEN = ""                       # P7a: in-family-only brief for the generation seats (T1/T4)
 _CORPUS_BRIEF_CACHE = {}
 
 
-def promoted_corpus_brief(board, max_chars=13000):
-    """The WHOLE promoted corpus (owner 2026-06-13: 'the whole promoted corpus is added'). Every entry
-    in corpus/promoted/general is included; an entry scoped to OTHER families is kept but tagged with its
-    scope so the seat applies it with judgement (this-family entries carry no tag). Staging is excluded by
-    construction. Fail-safe to ''."""
-    if board in _CORPUS_BRIEF_CACHE:
-        return _CORPUS_BRIEF_CACHE[board]
+def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
+    """The promoted corpus as ratified knowledge for the seats. P7 (prompt-audit 2026-06-13, owner
+    D2=in-family-only for generation seats): in-family entries are ordered FIRST and off-family LAST so
+    truncation drops the least-relevant tail (never an in-family layout rule), and in_family_only=True
+    drops off-family entries entirely (a routing decision does not need another board's connector
+    ratings). Staging is excluded by construction. Fail-safe to ''."""
+    key = (board, in_family_only, max_chars)        # M5: max_chars in the key (it changes the output)
+    if key in _CORPUS_BRIEF_CACHE:
+        return _CORPUS_BRIEF_CACHE[key]
     import glob as _g
-    lines, n_total, n_in = [], 0, 0
+    in_lines, off_lines, n_total, n_in = [], [], 0, 0
     try:
         for fp in sorted(_g.glob(os.path.join(ROOT, "corpus", "promoted", "general", "*.json"))):
             try:
@@ -423,8 +470,6 @@ def promoted_corpus_brief(board, max_chars=13000):
                 n_total += 1
                 fams = ((e.get("scope") or {}).get("families")) or []
                 in_family = (not fams) or (board in fams)
-                if in_family:
-                    n_in += 1
                 scope_tag = "" if in_family else f" [scope: {','.join(fams)}]"
                 val, unit = e.get("value"), e.get("units") or ""
                 if val is None:
@@ -435,19 +480,39 @@ def promoted_corpus_brief(board, max_chars=13000):
                 else:
                     vs = f" = {val}{(' ' + unit) if unit else ''}"
                 note = (e.get("notes") or "").split(". ")[0][:150]
-                line = f"- [{e.get('id','?')}] ({e.get('kind','rule')}){scope_tag}{vs}: {note}"
-                lines.append(line[:240])
+                line = (f"- [{e.get('id', '?')}] ({e.get('kind', 'rule')}){scope_tag}{vs}: {note}")[:240]
+                if in_family:
+                    n_in += 1
+                    in_lines.append(line)
+                elif not in_family_only:                             # P7a: drop off-family for gen seats
+                    off_lines.append(line)
     except Exception:                                               # noqa: BLE001
         pass
     brief = ""
+    lines = in_lines + off_lines            # P7b: in-family FIRST -> truncation drops the off-family tail
     if lines:
         body = "\n".join(lines)
         if len(body) > max_chars:
-            body = body[:max_chars] + "\n- ...(brief truncated)"
-        brief = (f"RATIFIED CORPUS (the WHOLE promoted/general corpus, {n_total} owner-signed entries; "
-                 f"{n_in} in scope for this {board} family, the rest tagged with their family scope -- "
-                 "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
-    _CORPUS_BRIEF_CACHE[board] = brief
+            body = body[:max_chars] + "\n- ...(brief truncated; off-family tail dropped first)"
+        # L3 (new-impl audit): headline the count the seat can ACTUALLY see. in_family_only shows ONLY
+        # the in-scope subset, so headlining n_total (e.g. 35) would imply the off-family rules are
+        # present -- a generation seat could "know" a dropped rule it was never shown. Count the entry
+        # lines SURVIVING in `body` (already truncated above) -- not n_in -- so the header still matches
+        # what is shown when truncation drops the in-family tail too (the latent char-slice case).
+        if in_family_only:
+            n_shown = sum(1 for ln in body.split("\n") if ln.startswith("- ["))
+            brief = (f"RATIFIED CORPUS ({n_shown} owner-signed entries in scope for this {board} family -- "
+                     "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+        else:
+            # PG-5 (audit): count entries SHOWN (post-truncation), not the pre-truncation n_total/n_in, so
+            # the header never claims rules the seat can't see (latent: the default brief never truncates).
+            shown = [ln for ln in body.split("\n") if ln.startswith("- [")]
+            n_in_shown = sum(1 for ln in shown if "[scope:" not in ln)
+            scope_note = (f"{n_in_shown} in scope for this {board} family, the rest tagged with their "
+                          "family scope")
+            brief = (f"RATIFIED CORPUS ({len(shown)} owner-signed entries; {scope_note} -- treat as "
+                     "authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+    _CORPUS_BRIEF_CACHE[key] = brief
     return brief
 
 
@@ -613,6 +678,39 @@ def congestion_grid(board):
     return {}
 
 
+def board_manifest(board):
+    """P1 (prompt-audit 2026-06-13): the board's PLACED-FOOTPRINT inventory, so the T1 intent
+    manager can anchor FR-02 waypoints to refs that EXIST (the U5-hallucination fix). Built once
+    per run in-container from the committed floorplan (refs/positions are placement-derived, so
+    the committed board is authoritative and available round 1). Returns:
+      {outline_mm:[w,h], refs:{ref:{xy:[x,y],v:value}}, net_refs:{net:[ref,...]}}
+    Fail-safe to {} (T1 then degrades to its prior, ungrounded behavior -- never blocks a round)."""
+    pcb = os.path.relpath(ovd.BOARD_PCB[board], ROOT)
+    code = (
+        "import sys, json, pcbnew\n"
+        f"b=pcbnew.LoadBoard('/workspace/{pcb}')\n"
+        "refs={}; net_refs={}\n"
+        "for fp in b.GetFootprints():\n"
+        "    r=fp.GetReference(); p=fp.GetPosition()\n"
+        "    refs[r]={'xy':[round(pcbnew.ToMM(p.x),1),round(pcbnew.ToMM(p.y),1)],'v':(fp.GetValue() or '')[:24]}\n"
+        "    for pad in fp.Pads():\n"
+        "        nn=pad.GetNetname()\n"
+        "        if nn: net_refs.setdefault(nn,set()).add(r)\n"
+        "net_refs={k:sorted(v) for k,v in net_refs.items()}\n"
+        "bb=b.GetBoardEdgesBoundingBox()\n"
+        "out={'outline_mm':[round(pcbnew.ToMM(bb.GetWidth()),1),round(pcbnew.ToMM(bb.GetHeight()),1)],\n"
+        "     'refs':refs,'net_refs':net_refs}\n"
+        "print('MANIFEST_JSON='+json.dumps(out))\n")
+    try:
+        rc, out = _exec_py(code, timeout=120)
+        for ln in out.splitlines():
+            if ln.startswith("MANIFEST_JSON="):
+                return json.loads(ln[len("MANIFEST_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  manifest error: {type(e).__name__}: {e}")
+    return {}
+
+
 def render_board(routed_host_path, out_png):
     """kicad-cli 3D render in-container -> host path under PERM. NOTE: this is the 3D-body raytrace
     render and carries the kicad-cli rotated-footprint artifact (false rotations/offsets absent in
@@ -688,62 +786,201 @@ def gr02_repair(routed_host_path, blocked_net, rnd):
 
 
 # ---- T1: the intent manager (the model-managed assisted router) -------------------------------------
-def intent_manager(board, grid, prev_intents, last_rec, rnd):
-    """A worker-model seat WRITES the FR-02 intents for this round from the GR-01
-    grid + the last round's failures. Valid waypoint keys only; falls back to the
-    previous intents on any error (the route never waits on a model)."""
-    failures = []
-    if last_rec:
-        failures = last_rec.get("reasons", [])[:6]
+def _wp_refs(w):
+    """Refs a waypoint anchors to ({ref:...} and/or {between:[a,b]})."""
+    rs = []
+    if isinstance(w, dict):
+        if w.get("ref"):
+            rs.append(w["ref"])
+        if isinstance(w.get("between"), (list, tuple)):
+            rs += list(w["between"])
+    return rs
+
+
+def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fence=None, prev_dropped=()):
+    """A worker-model seat WRITES the FR-02 intents for this round from the GR-01 grid + the last
+    round's failures, GROUNDED in the board's placed-footprint manifest (P1, prompt-audit 2026-06-13:
+    refs+coords + net->refs + the sense corridor, so waypoints anchor to refs that EXIST -- the U5 fix)
+    and told the actuator FENCE (P2). Fenced-net / fenced-ref AND unknown (not-on-board) net/ref intents
+    are DROPPED and LOGGED; the dropped tokens are RETURNED so the next round's prompt can tell the seat
+    not to reuse them (P1c, owner D1 = drop + re-prompt). Falls back to the previous intents on any
+    error (the route never waits on a model). Returns (intents, reasoning, src, dropped)."""
+    failures = last_rec.get("reasons", [])[:6] if last_rec else []
+    manifest = manifest or {}
+    refs = manifest.get("refs") or {}
+    fence = fence or {}
+    dropped = []
+    # P1b: real ref inventory + net->refs. P1d: the sense corridor derived from the fenced refs.
+    refs_block = corridor_block = ""
+    if refs:
+        ref_lines = ", ".join(f"{r}@({d['xy'][0]},{d['xy'][1]})[{d.get('v', '')}]"
+                              for r, d in sorted(refs.items()))
+        nr = json.dumps(manifest.get("net_refs", {}))[:1500]
+        refs_block = (f"BOARD FOOTPRINTS (board {manifest.get('outline_mm')} mm; anchor waypoints ONLY "
+                      f"to these refs):\n{ref_lines}\nNET->REFS (footprints each net touches):\n{nr}\n\n")
+        # M1 (merge-audit): the corridor is the SENSE cluster (shunts + INA), NOT the whole fence --
+        # exclude the CAN transceiver (U2 is fenced as a pinned part but is not a sense part; including
+        # it inflated the corridor and told the model to route CAN around its own source pin). Keep only
+        # fence refs that actually touch a sense net.
+        import cec_fr02 as _fr
+        on_sense = {r for n, rl in manifest.get("net_refs", {}).items()
+                    if _fr.is_sense_net(n) for r in rl}
+        sense_refs = [r for r in fence.get("refs", ()) if r in refs and r in on_sense]
+        if not sense_refs:
+            # M1 fallback (new-impl audit): the narrow /SENSEC*_(HI|LO) filter matched no ref -- a board
+            # with non-standard sense naming (e.g. 12VHPWR /SENSEP*) or a fence with no pinned refs. Fall
+            # back to the fenced refs PRESENT on this board; if there are none, the corridor cannot be
+            # sited. LOG in EITHER case -- the panel's "never let the SENSE CORRIDOR vanish silently"
+            # minimum -- so a renamed-net or missing-BOARD_PINNED_REFS regression stays visible. (eps-8pin
+            # matches /SENSEC* so on_sense is non-empty and this whole block is skipped -- U2 stays out.)
+            fb = [r for r in fence.get("refs", ()) if r in refs]
+            if fb:
+                sense_refs = fb
+                log(f"  T1 corridor: no /SENSEC sense-net match; fell back to all fenced refs {fb}")
+            else:
+                log("  T1 corridor: no /SENSEC sense-net match AND no fenced ref on the board manifest -- "
+                    "NO sense-corridor hint this round (check is_sense_net naming / BOARD_PINNED_REFS)")
+        if sense_refs:
+            xs = [refs[r]['xy'][0] for r in sense_refs]
+            ys = [refs[r]['xy'][1] for r in sense_refs]
+            corridor_block = (f"SENSE CORRIDOR (route signal nets AROUND it): refs {sense_refs} span "
+                              f"x[{min(xs)},{max(xs)}] y[{min(ys)},{max(ys)}] mm.\n")
+    # P2: state the actuator fence to the seat.
+    fence_block = ""
+    if fence:
+        fence_block = ("FENCED -- never list these as a target net and never anchor to these refs: "
+                       f"nets={sorted(fence.get('nets', []))[:12]}, refs={sorted(fence.get('refs', []))}.\n")
+    # P1c: re-prompt feedback -- name the invalid refs/nets the seat emitted last round.
+    dropped_block = ""
+    if prev_dropped:
+        dropped_block = ("PREVIOUS ROUND named these INVALID refs/nets that are NOT on this board -- "
+                         f"do NOT use them again: {sorted(set(prev_dropped))}\n")
+    # P1b: ground the waypoint-form examples in real refs (was the bare U2/U1). PG-2 (audit): exclude
+    # fenced refs so the example never anchors to a ref the FENCE line in this same prompt forbids.
+    ex = sorted(set(refs) - set((fence or {}).get("refs", []))) or sorted(refs)
+    ex1, ex2 = (ex[0], ex[1]) if len(ex) >= 2 else ("U1", "U3")
     user = (
-        "You are the ROUTING INTENT MANAGER for the CEC %s board. Each round you may direct "
-        "up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through "
-        "each waypoint and routes the rest around it. Use this to route contested/failing nets "
-        "AROUND the sense regions (shunt Kelvin windows) instead of through them.\n\n"
-        "GR-01 CONGESTION GRID (hotspots + contested nets, route-first order):\n%s\n\n"
-        "LAST ROUND failures: %s\n"
-        "LAST ROUND intents: %s\n\n"
-        "Waypoint forms: {\"ref\": \"U2\", \"offset_mm\": [dx, dy]} (relative to a footprint) or "
-        "{\"between\": [\"U2\", \"U1\"]} (midpoint). Only F.Cu/B.Cu (plane layers are denied to the "
-        "router). Prefer keeping I2C/CAN OUT of the mid-board shunt corridor. Reply the JSON object."
-        % (board, json.dumps(grid)[:4000], json.dumps(failures), json.dumps(prev_intents)[:1500]))
+        f"You are the ROUTING INTENT MANAGER for the CEC {board} board. Each round you may direct "
+        "up to 4 nets through relational waypoints (FR-02): the router LOCKS a stub through each "
+        "waypoint and routes the rest around it. Use this to route contested/failing nets AROUND "
+        "the sense regions (shunt Kelvin windows) instead of through them.\n\n"
+        f"{refs_block}{corridor_block}{fence_block}{dropped_block}\n"
+        "GR-01 CONGESTION GRID (the `contested`/`order` NET list is the actionable signal; hotspots "
+        f"are advisory):\n{json.dumps(grid)[:3000]}\n\n"
+        f"LAST ROUND failures: {json.dumps(failures)}\n"
+        f"LAST ROUND intents: {json.dumps(prev_intents)[:1200]}\n\n"
+        f"Waypoint forms: {{\"ref\": \"{ex1}\", \"offset_mm\": [dx, dy]}} (relative to a placed footprint) "
+        f"or {{\"between\": [\"{ex1}\", \"{ex2}\"]}} (midpoint). Anchor ONLY to refs in the BOARD "
+        "FOOTPRINTS list above. Only F.Cu/B.Cu (plane layers are denied to the router). Prefer keeping "
+        "I2C/CAN OUT of the sense corridor. Reply the JSON object.")
     try:
         import cec_judge_local as jl
-        out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF + user, INTENTS_SCHEMA,
-                            name="intents", temperature=0.2, max_tokens=3000, seat="manager:intent",
-                            model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+        out = jl._chat_json("You write routing intents as strict JSON.", CORPUS_BRIEF_GEN + user,
+                            INTENTS_SCHEMA, name="intents", temperature=0.0, nothink=True, max_tokens=3000,
+                            seat="manager:intent", model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
         intents = out.get("intents") or []
         ok = [i for i in intents if i.get("net") and i.get("waypoints")]
+        # P2 + P1c: validate each model intent against the fence AND the manifest. Drop fenced or
+        # unknown-net intents; strip fenced/unknown-ref waypoints (drop the intent if none remain). A net
+        # merely loses its DIRECTED stub (it still routes freely) -- safe, logged not silent, dropped
+        # tokens fed back next round. known_*=None means the manifest was unavailable -> skip that check.
+        import cec_fs_actuator as _act
+        fref = set(fence.get("refs", []))
+        # net membership is slash-TOLERANT (mirrors is_fenced / cec_fr02): pcbnew GetNetname() yields
+        # mixed forms -- local nets slash-prefixed (/CAN_H), global/power bare (GND, +3V3) -- and the
+        # free-text model may add/drop a slash. Compare on the lstripped form both sides so a valid
+        # intent is never dropped as "unknown" over a leading slash. (refs never carry a slash.)
+        known_nets = ({n.lstrip("/") for n in manifest["net_refs"]} if manifest.get("net_refs") else None)
+        known_refs = set(refs) or None
+        kept = []
+        for i in ok:
+            net = i.get("net")
+            if _act.is_fenced(net, fence or {}):     # PG-1 (audit): is_fenced protects /SENSEC* nets
+                log(f"  T1 DROP fenced-net intent: {net}")   # unconditionally via regex -- never short-
+                continue                                     # circuit that on a falsy fence ({}/None)
+            if known_nets is not None and str(net).lstrip("/") not in known_nets:
+                log(f"  T1 DROP unknown-net intent: {net}")
+                dropped.append(net)
+                continue
+            wps = []
+            for w in (i.get("waypoints") or []):
+                wr = _wp_refs(w)
+                bad_fenced = set(wr) & fref
+                bad_unknown = {r for r in wr if known_refs is not None and r not in known_refs}
+                if bad_fenced:
+                    log(f"  T1 drop waypoint on fenced ref(s) {sorted(bad_fenced)} ({net})")
+                if bad_unknown:
+                    log(f"  T1 drop waypoint on unknown ref(s) {sorted(bad_unknown)} ({net})")
+                    dropped.extend(sorted(bad_unknown))
+                if not (bad_fenced or bad_unknown):
+                    wps.append(w)
+            if not wps:
+                log(f"  T1 DROP intent {net} (no valid waypoints left)")
+                continue
+            i["waypoints"] = wps
+            kept.append(i)
+        ok = kept
         if ok:
-            return ok, out.get("reasoning", "")[:400], "model"
+            return ok, out.get("reasoning", "")[:400], "model", dropped
     except Exception as e:                                       # noqa: BLE001
         log(f"  intent-manager fallback: {type(e).__name__}: {e}")
-    return prev_intents, "fallback to previous intents", "fallback"
+    return prev_intents, "fallback to previous intents", "fallback", dropped
 
 
 # ---- T4: worker panel (3 lenses) ---------------------------------------------------------------------
-_LENSES = ("safety (hard gates: kelvin, diffpair, plane integrity)",
-           "finishing (DRC count, dangling copper, cosmetics vs structure)",
-           "progress (is effort spend still buying improvement?)")
+# P6 (prompt-audit merge-audit): each lens judges its OWN axis -- the old shared "accept iff hard gates
+# pass AND your lens" rule collapsed the decorrelated panel toward one gate-driven vote, and gave the
+# finishing/progress lenses no data for their job. Now: SAFETY reads the deterministic gate state (does
+# not re-judge it); FINISHING reads the DRC loci (cosmetic vs structural residual); PROGRESS reads the
+# cross-round trajectory (is effort still buying improvement). The schema field is named explicitly.
+_PANEL_FIELD = ' Reply ONLY the JSON object: field "action" = one of accept|repair|escalate, and "reason".'
 
 
-def worker_panel(rec, rnd):
+def _panel_prompts(rec, rnd, history):
+    """Per-lens (system, user, temperature) for the T4 panel. `history` is the prior records (the
+    trajectory the progress lens judges). Pure -- testable without a broker."""
+    gates = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok",
+                                     "pour_integrity_ok", "plane_signal_mm")}
+    reasons = rec.get("reasons", [])[:6]
+    traj = [{"round": r.get("round"), "objective": r.get("objective"), "drc": r.get("drc"),
+             "passes": (r.get("params") or {}).get("passes"),
+             "opt_time": (r.get("params") or {}).get("opt_time")} for r in list(history)[-3:]]
+    return [
+        ("safety",
+         "You are the SAFETY lens of a routing panel. The hard gates (kelvin_ok, diffpair_ok, pour/plane "
+         "integrity) are ALREADY computed deterministically -- do NOT re-judge or recompute them. Given the "
+         "gate state: accept ONLY if gates_pass is true; else repair if more router EFFORT could close the "
+         "gate; escalate if the failure is structural (needs a re-plan, not more effort)." + _PANEL_FIELD,
+         f"GATE STATE (deterministic): {json.dumps(gates)}\nfailing reasons: {json.dumps(reasons)}", 0.0),
+        ("finishing",
+         "You are the FINISHING lens. Gate state is the safety lens's job, NOT yours. Judge whether the "
+         "RESIDUAL DRC is finishing/cosmetic-class (a decorative logo keepout, an RJ-45 shield-tab tie) or "
+         "structural. accept if the residual is finishing-only; repair if more effort clears it; escalate "
+         "if it is structural." + _PANEL_FIELD,
+         f"drc={rec.get('drc')} unconnected={rec.get('unconnected')}\n"
+         f"DRC loci (type/where): {json.dumps(rec.get('drc_loci', [])[:12])}\n"
+         f"failing reasons: {json.dumps(reasons)}", 0.0),
+        ("progress",
+         "You are the PROGRESS lens. Do NOT judge the gates. Judge the TRAJECTORY across rounds: is effort "
+         "still buying improvement? accept if converged (metrics flat at a good state); repair if metrics "
+         "are still improving as effort rises; escalate if effort/passes ramped across rounds with NO "
+         "metric movement (a stall that needs a re-plan, not more effort)." + _PANEL_FIELD,
+         f"this round: objective={rec.get('objective')} drc={rec.get('drc')} "
+         f"params={json.dumps(rec.get('params', {}))}\n"
+         f"recent trajectory (oldest first): {json.dumps(traj)}", 0.3),
+    ]
+
+
+def worker_panel(rec, rnd, history=()):
     votes = []
-    m = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok", "drc",
-                                 "unconnected", "plane_signal_mm", "max_T", "objective")}
     try:
         import cec_judge_local as jl
-        for i, lens in enumerate(_LENSES):
+        for key, system, user, temp in _panel_prompts(rec, rnd, history):
             try:
-                d = jl._chat_json(
-                    f"You judge a routed PCB candidate through ONE lens: {lens}. "
-                    "accept only if hard gates pass AND your lens is satisfied; repair if more "
-                    "router effort could fix it; escalate if stuck/structural.",
-                    CORPUS_BRIEF + f"Round {rnd} candidate metrics: {json.dumps(m)}\n"
-                    f"failing reasons: {json.dumps(rec.get('reasons', [])[:6])}",
-                    PANEL_SCHEMA, name="panel", temperature=0.0 if i < 2 else 0.3,
-                    seat="panel:" + lens.split()[0], max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
-                votes.append((lens.split()[0], d.get("action"), d.get("reason", "")[:120]))
+                d = jl._chat_json(system, CORPUS_BRIEF_GEN + user, PANEL_SCHEMA, name="panel",
+                                  temperature=temp, nothink=True, seat="panel:" + key,
+                                  max_tokens=1500, model=WORKER_SEAT, timeout=SEAT_TIMEOUT)
+                votes.append((key, d.get("action"), d.get("reason", "")[:120]))
             except Exception:                                    # noqa: BLE001
                 continue
     except Exception:                                            # noqa: BLE001
@@ -754,7 +991,10 @@ def worker_panel(rec, rnd):
     for _, a, _r in votes:
         tally[a] = tally.get(a, 0) + 1
     action = max(tally, key=tally.get)
-    if action == "accept" and not rec.get("gates_pass"):
+    # PG-3 (audit): a gate-FAIL round must end on repair/escalate. Guard on "not a bump action" (not just
+    # the literal 'accept'), so a malformed/None modal vote can't fall through to the caller's else and
+    # RESET router effort to baseline on a failing round (the opposite of repair).
+    if action not in ("repair", "escalate") and not rec.get("gates_pass"):
         action = "repair"                                        # a panel cannot accept a gate-fail
     return action, votes
 
@@ -788,21 +1028,34 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
                      if "refuted" in e.get("action", "") or "tripwire" in e.get("action", "")]
     refuted_metrics = sorted(set(lr.get("refuted_metrics", [])))
     prompt = (
-        "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Constraints "
-        "you operate under, learned from the last run converging to a local minimum:\n"
+        # P5a (prompt-audit): LEAD with what actuates -- failure_class is the steering field, not the
+        # discarded proposed_lever. The placement arm is called out FIRST (owner: the placement tier is
+        # itself a gate on convergence -- more router effort cannot fix a bad placement).
+        "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Your `failure_class` "
+        "is what STEERS the loop -- choose it deliberately:\n"
+        "- failure_class=placement -> the steering field for a PLACEMENT-class failure: the route cannot "
+        "close because of WHERE parts sit (a sense IC boxed against its shunt with no escape, a congested "
+        "corridor, parts with no routing room). Placement is an UPSTREAM gate on convergence -- more router "
+        "passes cannot fix a bad placement, so prefer this over effort once effort has stalled. ACTUATION "
+        "BOUNDARY: this FIRES the deterministic T0 PLACEMENT ACTUATOR (the GR-02 repair battery: shift a "
+        "part out of the way, layer-swap, insert a via) ONLY when a Kelvin SENSE net is left unrouted "
+        "(kelvin_ok=false). For a congested-corridor / no-routing-room placement failure where the gate is "
+        "NOT a stranded sense net, T0 does not act -- the diagnosis is still recorded and the corridor-avoid "
+        "lever + panel effort carry it; say so in root_cause so the stall stays visible.\n"
+        "- failure_class=routing -> records the diagnosis; the deterministic corridor-avoid lever fires "
+        "from pour_clipped_nets and the panel bumps router effort. Choose this when the placement is fine "
+        "and more/better routing can close it.\n"
+        "- failure_class=scoring -> you MAY price a metric, but ONLY if a gate-passing candidate ALREADY "
+        "exists and pricing is needed to rank it first. A scorer reweight cannot create a better board; it "
+        "only reorders the candidates that already exist.\n"
+        "- failure_class=constraint/none when apt.\n\n"
+        "Constraints (learned from a prior run converging to a local minimum):\n"
         f"- ALLOWED LEVERS (the ONLY things the loop can pull): {OWNED_LEVERS}.\n"
-        "- A SCORER-METRIC REWEIGHT IS NOT A LEVER. It only reorders the candidates that already "
-        "exist; it cannot create a better board. If the real fix needs generation (a different "
-        "route / placement / keepout / waypoint), name THAT lever in `proposed_lever` and leave "
-        "`scorer_penalty` null. Only price a metric when a gate-passing candidate ALREADY exists "
-        "and pricing is needed to rank it first.\n"
-        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} have "
-        "already been refuted this run and will be auto-rejected by a deterministic tripwire. "
-        "Switch lever class instead.\n"
-        f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. "
-        "At the cap propose only a CONSOLIDATION or nothing.\n"
-        "- ACTUATION: a placement/structural-density blockage must be attributed "
-        "failure_class=placement, NOT priced.\n"
+        f"- DO NOT RE-PROPOSE A REFUTED CLASS: scorer reweights on {refuted_metrics or '[]'} are already "
+        "refuted this run (a deterministic tripwire auto-rejects them). Switch lever class instead.\n"
+        f"- RULE CAP: at most {RULE_CAP} standing manager rules. Currently {len(lr['manager_rules'])}. At "
+        "the cap propose only a CONSOLIDATION (merge two existing rules into one tighter rule, naming the "
+        "two it replaces) or nothing.\n"
         "- NOVELTY: a rephrase of an existing rule is rejected by a deterministic gate.\n\n"
         f"ROUND {rnd} candidate:\n{json.dumps(metrics, indent=1)}\n"
         # GENERATION SOURCE (review item 5): a fallback round ran on crude fixed-offset waypoints,
@@ -820,12 +1073,15 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
         f"Current injected penalties: {json.dumps(lr['scorer_penalties'])}\n"
         f"Standing rules ({len(lr['manager_rules'])}): {json.dumps(lr['manager_rules'][-6:])}\n"
         f"Prior refutes this run (do not repeat the class): {json.dumps(prior_refutes)}\n"
-        f"Penalisable keys: {list(PENALISABLE)}\n\n"
-        "SCHEMA -- `root_cause` is your bankable diagnosis (ALWAYS fill it; it is kept even if the "
-        "lever is refused). `proposed_lever` is VERIFIER-CONTEXT-ONLY today: it is recorded and the "
-        "verifier judges its actuation-space, but it has NO direct effector -- the corridor-avoidance "
-        "lever fires DETERMINISTICALLY from pour_clipped_nets, not from this field. `scorer_penalty` "
-        "is for ranking only and must be null unless a gate-passing candidate already exists.\n")
+        # P5d: advertise the ACTUALLY-priceable metrics (a penalty on anything else is rejected by inject()).
+        f"Priceable metrics (a penalty on any other metric is rejected): {sorted(_PENALTY_METRIC)}\n\n"
+        # P5c: role-define `verdict`; P5a: `proposed_lever` is advisory-only, fill briefly.
+        "SCHEMA -- `root_cause`: your bankable diagnosis (ALWAYS fill it; kept even if a lever is refused). "
+        "`failure_class`: the steering field above (this is what acts). `verdict` (accept|repair|escalate): "
+        "your read of whether THIS round's board is acceptable AS DIAGNOSED -- it does NOT itself drive "
+        "routing (the panel drives effort). `proposed_lever`: ADVISORY CONTEXT ONLY -- it has NO direct "
+        "effector (the corridor-avoid lever fires deterministically from pour_clipped_nets); fill it "
+        "briefly, do not over-invest. `scorer_penalty`: null unless a gate-passing candidate already exists.\n")
     return prompt, out_path
 
 
@@ -836,6 +1092,23 @@ _AUDIT_JSON_TEMPLATE = (
     '"detail":"..."}|null,'
     '"scorer_penalty":{"metric":"...","weight":<number>,"rationale":"..."}|null,'
     '"manager_rule":"..."|null}')
+
+_AUDIT_VERDICTS = ("accept", "repair", "escalate")
+_AUDIT_FCLASS = ("routing", "placement", "scoring", "constraint", "none")
+
+
+def _coerce_audit(d):
+    """P5b (prompt-audit): the cloud (claude CLI) auditor path is ungrammared, unlike the deepseek
+    json_schema path -- coerce its loaded JSON to the schema so a malformed/out-of-enum verdict or
+    failure_class can't silently disable a load-bearing consumer (failure_class drives the T0
+    placement actuator; verdict is the anchor-presence flag). Fail-safe to a repair verdict."""
+    if not isinstance(d, dict):
+        return {"verdict": "repair", "failure_class": "routing", "error": "non-dict audit"}
+    if d.get("verdict") not in _AUDIT_VERDICTS:
+        d["verdict"] = "repair"
+    if d.get("failure_class") not in _AUDIT_FCLASS:
+        d["failure_class"] = "routing"
+    return d
 
 
 def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
@@ -861,7 +1134,7 @@ def sonnet_audit(rec, lr, rnd, timeout=240, pourcheck=None, intents_src="model",
     for _ in range(3):
         if os.path.exists(out_path):
             try:
-                return json.load(open(out_path))
+                return _coerce_audit(json.load(open(out_path)))   # P5b: validate the ungrammared cloud output
             except Exception:                                    # noqa: BLE001
                 time.sleep(1)
         time.sleep(1)
@@ -888,6 +1161,7 @@ def deepseek_audit(rec, lr, rnd, model=None, timeout=2700, pourcheck=None, inten
         return {"verdict": "repair", "error": f"deepseek_audit: {type(e).__name__}: {e}"}
     if not isinstance(out, dict) or "verdict" not in out:
         return {"verdict": "repair", "error": "deepseek_audit: no verdict"}
+    out = _coerce_audit(out)        # L1 (new-impl audit): enum-validate for parity with the cloud path
     try:
         with open(out_path, "w") as fh:
             json.dump(out, fh, indent=1)
@@ -959,35 +1233,43 @@ def inject(finding, lr, rnd, source, verifier_final):
         if _norm_text(rc) not in seen:
             lr["diagnoses"].append({"round": rnd, "source": source, "root_cause": rc[:400]})
     sp = finding.get("scorer_penalty")
-    if isinstance(sp, dict) and sp.get("metric") in PENALISABLE:
-        metric, ok = sp["metric"], True
-        try:
-            w = float(sp.get("weight"))
-        except (TypeError, ValueError):
-            w, ok = None, False
-        if metric in lr.setdefault("refuted_metrics", []):
-            # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
-            # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:knob_tripwire"})
-        elif verifier_final == "refute":
-            lr["refuted_metrics"].append(metric)
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:verifier_refuted"})
-        elif not ok or w < 0:
-            events.append({"kind": "penalty", "metric": metric,
-                           "action": "rejected:invalid_or_negative"})
+    if isinstance(sp, dict) and sp.get("metric"):
+        metric = sp["metric"]
+        if metric not in _PENALTY_METRIC:
+            # P5d (prompt-audit): reject a penalty on a metric the scorer CANNOT apply. PENALISABLE used
+            # to advertise gate-derived metrics (gate_fail/kelvin_unrouted/diffpair_unrouted) that
+            # _penalty_weighted_base silently drops -- so they were logged accepted:raised but never
+            # reweighted (a phantom lever). Now the gate is _PENALTY_METRIC and the rest reject explicitly.
+            events.append({"kind": "penalty", "metric": metric, "action": "rejected:not_priceable"})
         else:
-            cur = lr["scorer_penalties"].get(metric, 0.0)
-            w = min(w, PENALTY_MAX)
-            if w <= cur:
+            ok = True
+            try:
+                w = float(sp.get("weight"))
+            except (TypeError, ValueError):
+                w, ok = None, False
+            if metric in lr.setdefault("refuted_metrics", []):
+                # KNOB TRIPWIRE (lesson 5): a scorer-metric reweight already refuted this run --
+                # cycling or rising -- is auto-rejected with no verifier spend. Forces a lever change.
                 events.append({"kind": "penalty", "metric": metric,
-                               "action": "noop:not_a_tightening"})
+                               "action": "rejected:knob_tripwire"})
+            elif verifier_final == "refute":
+                lr["refuted_metrics"].append(metric)
+                events.append({"kind": "penalty", "metric": metric,
+                               "action": "rejected:verifier_refuted"})
+            elif not ok or w < 0:
+                events.append({"kind": "penalty", "metric": metric,
+                               "action": "rejected:invalid_or_negative"})
             else:
-                lr["scorer_penalties"][metric] = w
-                events.append({"kind": "penalty", "metric": metric, "from": cur, "to": w,
-                               "action": "accepted:raised",
-                               "rationale": str(sp.get("rationale", ""))[:300]})
+                cur = lr["scorer_penalties"].get(metric, 0.0)
+                w = min(w, PENALTY_MAX)
+                if w <= cur:
+                    events.append({"kind": "penalty", "metric": metric,
+                                   "action": "noop:not_a_tightening"})
+                else:
+                    lr["scorer_penalties"][metric] = w
+                    events.append({"kind": "penalty", "metric": metric, "from": cur, "to": w,
+                                   "action": "accepted:raised",
+                                   "rationale": str(sp.get("rationale", ""))[:300]})
     rule = finding.get("manager_rule")
     if isinstance(rule, str) and len(rule.strip()) >= 12:
         if verifier_final == "refute":
@@ -1122,10 +1404,12 @@ def run(board, rounds, hours, auditor=None):
     os.makedirs(PERM, exist_ok=True)
     deadline = time.time() + hours * 3600.0 if hours else None
     auditor_model = resolve_auditor(auditor, hours)            # default DeepSeek-V4-Flash; Sonnet via env
-    global CORPUS_BRIEF                                          # owner 2026-06-13: brief T1/T4/T5 with promoted corpus
-    CORPUS_BRIEF = promoted_corpus_brief(board)
+    global CORPUS_BRIEF, CORPUS_BRIEF_GEN                        # owner 2026-06-13: brief the seats with the promoted corpus
+    CORPUS_BRIEF = promoted_corpus_brief(board)                  # full (auditor T5 / batch T8)
+    CORPUS_BRIEF_GEN = promoted_corpus_brief(board, in_family_only=True)  # P7a (owner D2): generation seats T1/T4
     n_brief = CORPUS_BRIEF.count("\n- ") if CORPUS_BRIEF else 0
-    log(f"promoted-corpus brief: {n_brief} ratified entrie(s) in scope for {board} -> T1 intent / T4 panel / T5 auditor")
+    n_gen = CORPUS_BRIEF_GEN.count("\n- ") if CORPUS_BRIEF_GEN else 0
+    log(f"promoted-corpus brief: {n_brief} entrie(s) full (T5/T8 auditor) / {n_gen} in-family (T1/T4 generation)")
     lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}
@@ -1159,8 +1443,20 @@ def run(board, rounds, hours, auditor=None):
     log(f"GR-01 grid: {len(grid.get('hotspots', []))} hotspots, "
         f"contested={[c if isinstance(c, str) else c.get('net') for c in grid.get('contested', [])][:6]}")
     json.dump(grid, open(_d("gr01-grid.json"), "w"), indent=1)
+    # P1 (prompt-audit 2026-06-13): the placed-footprint manifest grounds the T1 waypoint refs (the
+    # U5 fix) + supplies the sense corridor; built once per run (placement is static across rounds).
+    manifest = board_manifest(board)
+    log(f"board manifest: {len(manifest.get('refs', {}))} placed refs, "
+        f"{len(manifest.get('net_refs', {}))} nets"
+        + ("" if manifest.get("refs") else " (UNAVAILABLE -- T1 falls back to ungrounded prompt)"))
+    json.dump(manifest, open(_d("board-manifest.json"), "w"), indent=1)
 
-    records, intents, rnd = [], ovd.INTENTS[board], 0
+    # EI-02 H4 (prompt-audit P3): the AUGMENTED lane carries the model's prior intents forward; a
+    # CONTROL round seeds from the SIGNED seed only, so augmented-learned waypoints never leak into
+    # the signed-only baseline (the A/B-integrity fix). intents_aug updates on augmented rounds only.
+    seed_intents = ovd.INTENTS[board]
+    records, intents_aug, rnd = [], seed_intents, 0
+    prev_dropped_aug = []                 # P1c: invalid refs/nets T1 emitted last AUGMENTED round (re-prompt feedback)
     passes, opt_time, kelvin_stall, finalists_seen = 24, 40, 0, set()
     batch_for_v4 = []
     prev_pour_sig = None              # (sum islands, sum foreign_cross) -- pour-geometry delta guard
@@ -1188,9 +1484,17 @@ def run(board, rounds, hours, auditor=None):
             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
             # losing their timeout to a cold start / swap (the last run's 0/8 intent failures).
             warm(WORKER_SEAT)
-            # T1 intent manager
+            # T1 intent manager (P3: lane-gated carry-forward; P1/P2: manifest + fence grounded;
+            # P1c: re-prompt the last augmented round's invalid refs, control lane stays pristine)
             last = records[-1] if records else None
-            intents, why, src = intent_manager(board, grid, intents, last, rnd)
+            prev_intents = _lane_carry(lane, intents_aug, seed_intents)
+            prev_dropped = _lane_carry(lane, prev_dropped_aug, ())
+            intents, why, src, dropped = intent_manager(board, grid, prev_intents, last, rnd,
+                                                        manifest=manifest, fence=fence,
+                                                        prev_dropped=prev_dropped)
+            if lane == "augmented":
+                intents_aug = list(intents)         # carry the model's plan forward (augmented lane only)
+                prev_dropped_aug = dropped          # P1c: feed invalid refs into the next augmented round
             # Item 4 lever: carry last round's OFFENDING-net corridor-avoidance intents in, so the
             # foreign signal nets that clipped the pours route AROUND the corridor THIS round (the
             # untried lever -- r3 only waypointed the victim Kelvin nets). CONTROL rounds DO NOT carry
@@ -1218,10 +1522,12 @@ def run(board, rounds, hours, auditor=None):
                 f"kelvin={rec['kelvin_ok']} drc={rec['drc']} plane={rec['plane_signal_mm']} "
                 f"pours={rec.get('stub_summary', {}).get('n_power_pours')} "
                 f"max_T={rec.get('max_T')} fem_flags={rec.get('n_fem_flags')}")
-            kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1
+            if lane == "augmented":     # M2 (new-impl audit): advance the stall counter on the STEERED
+                kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1   # lane only; a control round
+                                                                            # must not perturb T0/the A/B
 
             # T4 worker panel -> effort actuation
-            action, votes = worker_panel(rec, rnd)
+            action, votes = worker_panel(rec, rnd, history=records[:-1])   # P6b/L4: PRIOR rounds only (rec already appended)
             log(f"  T4 panel: {action} ({[(v[0], v[1]) for v in votes]})")
             if action == "repair":
                 passes, opt_time = min(passes + 8, 60), min(opt_time + 12, 100)
@@ -1284,11 +1590,16 @@ def run(board, rounds, hours, auditor=None):
             # deterministic item4 corridor-avoid is run-learned state and stays on the augmented lane only.
             if pour_clipped_nets and lane == "augmented":
                 import cec_fr02
+                import cec_fs_actuator as _act
                 corridors = cec_fr02.clipped_corridor_rects(rec["routed"], pour_clipped_nets)
                 contested = [c if isinstance(c, str) else c.get("net")
                              for c in grid.get("contested", [])]
+                # PG-4 (audit): exclude FENCED nets too (not just /SENSEC + power) -- a corridor-avoid
+                # intent is added to `intents` directly (line ~1504), bypassing intent_manager's fence
+                # drop, so a fenced net must never become one. is_fenced covers /SENSEP* + pinned refs.
                 offending = [n for n in contested if n and not cec_fr02.is_sense_net(n)
-                             and not str(n).startswith(("GND", "+"))]
+                             and not str(n).startswith(("GND", "+"))
+                             and not _act.is_fenced(n, fence or {})]
                 pending_corridor_avoid = cec_fr02.offending_net_intents(corridors, offending)
                 if pending_corridor_avoid:
                     log(f"  item4: next-round corridor-avoid for "
@@ -1333,7 +1644,12 @@ def run(board, rounds, hours, auditor=None):
                     miss = bundle_gaps(sj, evidence)
                     if miss:
                         log(f"  ! bundle-completeness gap (auditor cited, bundle lacked): {miss}")
-                    ctx = {"rules_excerpt": json.dumps(lr_view["manager_rules"]),
+                    # P4 (fix 2026-06-13): lead with the locked-decision spine + fence + unratified
+                    # relabel so the downstream _slice_spec truncation drops the corpus tail, not P4's
+                    # deliverable (the reviewer caught CORPUS_BRIEF-first being cut off by _slice_spec[:N]).
+                    rules_excerpt = _spec_rules_excerpt(CORPUS_BRIEF, LOCKED_DECISIONS_BRIEF, fence,
+                                                        lr_view["manager_rules"])
+                    ctx = {"rules_excerpt": rules_excerpt,
                            "evidence": json.dumps(evidence),
                            "levers": OWNED_LEVERS,
                            "metrics": json.dumps([{k: r.get(k) for k in ("round", "drc", "kelvin_ok")}
@@ -1371,7 +1687,7 @@ def run(board, rounds, hours, auditor=None):
             placement_attr = (sj.get("failure_class") == "placement") or (
                 vres and any(v.get("failure_class") == "placement"
                              for v in vres.verdicts.values()))
-            if (placement_attr or kelvin_stall >= KELVIN_STALL_K) and not rec["kelvin_ok"]:
+            if _t0_should_fire(lane, placement_attr, kelvin_stall, rec["kelvin_ok"]):
                 blocked = next((r.split()[0] for r in rec.get("reasons", [])
                                 if "/SENSEC" in r), None)
                 if blocked:

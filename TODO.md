@@ -14,9 +14,11 @@ Times are UTC.
 
 ## Active
 
-- [ ] [added 2026-06-13 23:25] Await DeepSeek new-impl audit → consolidate the Opus-4.8 + DeepSeek verdict + polish-fix list
-- [ ] [added 2026-06-13 23:25] Apply new-impl polish fixes to the prompt-audit PRs (M1 corridor fallback+log; in_family_only header count; progress-lens current-round double-count; _coerce_audit/EI-07 anchor-count check)
-- [ ] [added 2026-06-13 23:25] Build `claude/seat-bakeoff` PR: cloud-seat shim → 2-D variant×model bake-off → 6-judge leave-one-out panel → de-overfit → data-chosen `--seats cloud` defaults (+ DeepSeek `--stream` live thinking)
+- [x] [added 2026-06-13 23:25 · done 2026-06-13 23:33] Await DeepSeek new-impl audit → consolidate the Opus-4.8 + DeepSeek verdict (both merge-ready, 0 blockers; DeepSeek's 3 HIGHs = diff-only false positives)
+- [x] [added 2026-06-13 23:33 · done 2026-06-14 00:10] new-impl polish fixes — #56 portion: H1 temper T0-overpromise prompt; M1 corridor fallback+log; M2 lane-gate T0/kelvin_stall (_t0_should_fire helper); M3 wire host suites into checklist.sh+CI; L3 in_family_only n_in; L4 progress history[:-1]; L1 deepseek_audit _coerce parity; L6 delete dead PENALISABLE (+6 tests; 159 host tests green)
+- [x] [added 2026-06-14 00:10 · done 2026-06-14 00:30] new-impl polish fixes — #57 portion (claude/bot-push-guard, commit 70e176d): H2 pre-push GIT_TERMINAL_PROMPT=0 on the credential-fill probe (fail-closed, no-hang verified); L14 drop unused `root` var. Deferred pre-push LOWs L12/L13/L15/L16 → FOLLOWUPS.md (owner-scoped)
+- [x] [added 2026-06-14 00:35 · done 2026-06-14 01:05] Adversarially verify the #56 polish fixes (wf_789eb5bc-b59, 8 skeptics + synth = SHIP-WITH-FIXES) → harden M1 (log even on empty fence) + L3 (header counts shown-under-truncation) + 2 tests; residuals (12vhpwr corridor siting, run()-level H1/L4 coverage, verifier worktree-isolation) → FOLLOWUPS. 161 host tests green
+- [ ] [added 2026-06-13 23:25 · in progress 2026-06-14 01:20] Build `claude/seat-bakeoff` PR: cloud-seat shim → 2-D variant×model bake-off → 6-judge leave-one-out panel → de-overfit → data-chosen `--seats cloud` defaults (+ DeepSeek `--stream` live thinking). Owner: BUILD + RUN the full sweep.
 
 ## Done / obsolete (history)
 

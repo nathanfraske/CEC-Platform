@@ -53,14 +53,20 @@ else
   printf '  skip: python3 not available\n'
 fi
 
-printf '==> corpus anchor fixtures (AM-02: the tests the promoted entries declare must pass)\n'
+printf '==> host test suites (AM-02 corpus anchors + prompt-tier-audit / EI-02 control-lane; all pcbnew-free)\n'
 if command -v python3 >/dev/null 2>&1; then
+  # M3 (new-impl audit): the prompt-audit / auditor-dispatch / EI-02 control-lane suites cover code this
+  # branch changes and were CI-only -- run them in the checklist too so a regression cannot pass the
+  # local disaster-recovery gate (CLAUDE.md WSL-ephemeral policy warns against relying on manual runs).
   python3 -W ignore -m unittest \
     tests.test_measurement_claims_corpus \
     tests.test_fault_phenomenology_corpus \
-    tests.test_stability_budget >/dev/null 2>&1 \
-    && printf '  ok: anchor fixtures pass\n' \
-    || { printf 'FAIL: a corpus anchor fixture is red (a promoted entry stranded its AM-02 fixture)\n' >&2; status=1; }
+    tests.test_stability_budget \
+    tests.test_prompt_audit_fixes \
+    tests.test_auditor_dispatch \
+    tests.test_ei02_control_lane >/dev/null 2>&1 \
+    && printf '  ok: host suites pass\n' \
+    || { printf 'FAIL: a host suite is red (corpus AM-02 anchor or a prompt-audit / EI-02 regression)\n' >&2; status=1; }
 else
   printf '  skip: python3 not available\n'
 fi
