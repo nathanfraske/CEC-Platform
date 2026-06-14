@@ -525,6 +525,41 @@ class TestLayerLever(unittest.TestCase):
                 layers.setdefault(t.GetNetname(), set()).add(t.GetLayer())
         self.assertIn(pcbnew.B_Cu, layers["/THRESH"])            # the 2nd crossing now uses B.Cu
 
+    def test_l_bend_crossing_is_detected_and_flipped(self):
+        """An L-bend crossing (3 short segments, NO single segment spans the band x-width) was silently
+        missed by the old _seg_crosses_band (the audit's flipped=0). The net-extent + band-clip detector
+        catches it and staggers the whole in-band subpath onto the alternate layer."""
+        import tempfile
+        import cec_fr
+        b = pcbnew.LoadBoard(EPS_PCB)
+        nc = b.FindNet("/DETC2").GetNetCode()
+        # band-2 (/SENSEC2) = x[32.5,48.1] y[9.5,27.5]; an L-bend on B.Cu through it -- no single
+        # segment reaches from left of x0 to right of x1, so the old full-span test found nothing.
+        pts = [((30, 15), (40, 15)), ((40, 15), (40, 20)), ((40, 20), (52, 20))]
+        for (sx, sy), (ex, ey) in pts:
+            t = pcbnew.PCB_TRACK(b)
+            t.SetStart(pcbnew.VECTOR2I(int(sx * 1e6), int(sy * 1e6)))
+            t.SetEnd(pcbnew.VECTOR2I(int(ex * 1e6), int(ey * 1e6)))
+            t.SetWidth(200_000); t.SetLayer(pcbnew.B_Cu); t.SetNetCode(nc)
+            b.Add(t)
+        # sanity: NO single segment spans the band x-width (this is what defeated the old detector)
+        self.assertFalse(any(min(s[0], e[0]) < 32.5 and max(s[0], e[0]) > 48.1 for s, e in pts))
+        p = os.path.join(tempfile.mkdtemp(), "eps-lbend.kicad_pcb")
+        pcbnew.SaveBoard(p, b)
+        rep = cec_fr.stagger_corridor_crossings(p, verify=False)
+        self.assertEqual(rep["flipped"], 1)                  # the L-bend IS detected (was 0)
+        self.assertEqual(rep["vias_added"], 2)               # one transition via at each band x-edge
+        # the in-band copper is now on F.Cu (the alternate layer); B.Cu only on the out-of-band tails
+        bb = pcbnew.LoadBoard(p)
+        in_band_layers = set()
+        for t in bb.GetTracks():
+            if t.Type() != pcbnew.PCB_TRACE_T or t.GetNetname() != "/DETC2":
+                continue
+            mx = (t.GetStart().x + t.GetEnd().x) / 2 / 1e6
+            if 32.5 <= mx <= 48.1:
+                in_band_layers.add(t.GetLayer())
+        self.assertEqual(in_band_layers, {pcbnew.F_Cu})      # whole in-band subpath staggered to F.Cu
+
     def test_shared_bus_noop(self):
         import cec_fr, tempfile
         p = os.path.normpath(os.path.join(HERE, "..", "modules",

@@ -760,40 +760,69 @@ def _corridor_foreign_net(net, corridor_nets, sense_nets):
     return True
 
 
-def _seg_crosses_band(t, band):
-    """If PCB_TRACE_T *t* SPANS the band in x (one end left of x0, the other right of x1) and passes
-    through the band's y-range, return (entry_pt, exit_pt) in nm at the band's x-edges; else None."""
+def _seg_band_clip(t, band):
+    """Clip PCB_TRACE_T *t* against the band RECTANGLE [x0,x1]x[y0,y1] (Liang-Barsky). Returns
+    (p_in_nm, p_out_nm, edge_in, edge_out) for the in-band portion, or None if the segment does not
+    intersect the band. ``edge_in``/``edge_out`` are True when that clip endpoint is a real band-boundary
+    crossing (the segment continues OUTSIDE the band there, so a layer transition + via is needed) and
+    False when it is the segment's own endpoint sitting INSIDE the band (no transition).
+
+    Unlike the old _seg_crosses_band (which required ONE segment to span the whole band x-width), this
+    flags ANY segment with copper inside the band -- so an L-bend / 45-degree route whose crossing is
+    realised by several short segments is detected, not silently missed (the audit's "83% of real
+    crossings missed -> flipped=0 live")."""
     x0, x1, y0, y1 = band
     s, e = t.GetStart(), t.GetEnd()
-    sx, sy, ex, ey = s.x / MM, s.y / MM, e.x / MM, e.y / MM
-    if not (min(sx, ex) < x0 and max(sx, ex) > x1):
+    sx, sy = s.x / MM, s.y / MM
+    dx, dy = e.x / MM - sx, e.y / MM - sy
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, sx - x0), (dx, x1 - sx), (-dy, sy - y0), (dy, y1 - sy)):
+        if abs(p) < 1e-12:                                  # segment parallel to this edge
+            if q < 0:
+                return None                                 # wholly outside this edge
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return None
+            if r > t0:
+                t0 = r
+        else:
+            if r < t0:
+                return None
+            if r < t1:
+                t1 = r
+    if t1 - t0 < 1e-9:                                       # only grazes a corner -> not a crossing
         return None
-    cyc = (sy + ey) / 2 if ex == sx else sy + (ey - sy) * ((x0 + x1) / 2 - sx) / (ex - sx)
-    if not (y0 <= cyc <= y1):
-        return None
-
-    def at_x(xt):
-        yt = (sy + ey) / 2 if ex == sx else sy + (ey - sy) * (xt - sx) / (ex - sx)
-        return (int(round(xt * MM)), int(round(yt * MM)))
-    return (at_x(x0), at_x(x1))
+    p_in = (int(round((sx + dx * t0) * MM)), int(round((sy + dy * t0) * MM)))
+    p_out = (int(round((sx + dx * t1) * MM)), int(round((sy + dy * t1) * MM)))
+    return (p_in, p_out, t0 > 1e-9, t1 < 1.0 - 1e-9)
 
 
-def _flip_crossing(board, t, entry, exit_, target_layer, *, drill=0.3, dia=0.6):
-    """Move the in-band span of crossing track *t* to *target_layer*: shorten *t* to its entry, add a
-    middle segment on the target layer across the band, an after segment back on the original layer, and
-    a transition via at each band edge (so the net stays connected). Returns the 3 added objects."""
+def _relayer_segment_inband(board, t, clip, target_layer, *, drill=0.3, dia=0.6):
+    """Move the IN-BAND portion of track *t* (clip = the _seg_band_clip tuple) onto *target_layer*,
+    leaving any out-of-band portion on the original layer and adding a transition via at each real
+    band-boundary crossing so the net stays connected. *t* itself becomes the in-band (target-layer)
+    piece. Returns the list of added objects (0..4: up to a before-seg+via and an after-seg+via).
+
+    Generalises the old _flip_crossing (which handled only the both-ends-outside full-span case) to
+    every case: fully-inside (just re-layer, no via -- its neighbours carry the transition), straddling
+    one edge (one via), and spanning the band (two vias)."""
+    p_in_xy, p_out_xy, edge_in, edge_out = clip
     nc, w, orig = t.GetNetCode(), t.GetWidth(), t.GetLayer()
-    e_end = pcbnew.VECTOR2I(t.GetEnd().x, t.GetEnd().y)
-    p_in, p_out = pcbnew.VECTOR2I(*entry), pcbnew.VECTOR2I(*exit_)
-    t.SetEnd(p_in)                                          # original track now ends at the band entry
+    start = pcbnew.VECTOR2I(t.GetStart().x, t.GetStart().y)
+    end = pcbnew.VECTOR2I(t.GetEnd().x, t.GetEnd().y)
+    p_in, p_out = pcbnew.VECTOR2I(*p_in_xy), pcbnew.VECTOR2I(*p_out_xy)
+    t.SetStart(p_in); t.SetEnd(p_out); t.SetLayer(target_layer)   # reuse t as the in-band middle piece
     added = []
-    for (a, b, ly) in ((p_in, p_out, target_layer), (p_out, e_end, orig)):
+    for (boundary, far, present) in ((p_in, start, edge_in), (p_out, end, edge_out)):
+        if not present:
+            continue                                        # the segment's own endpoint sits in-band
         seg = pcbnew.PCB_TRACK(board)
-        seg.SetStart(a); seg.SetEnd(b); seg.SetWidth(w); seg.SetLayer(ly); seg.SetNetCode(nc)
+        seg.SetStart(boundary); seg.SetEnd(far); seg.SetWidth(w); seg.SetLayer(orig); seg.SetNetCode(nc)
         board.Add(seg); added.append(seg)
-    for pt in (p_in, p_out):
         v = pcbnew.PCB_VIA(board)
-        v.SetPosition(pt); v.SetDrill(_nm(drill)); v.SetWidth(_nm(dia))
+        v.SetPosition(boundary); v.SetDrill(_nm(drill)); v.SetWidth(_nm(dia))
         v.SetLayerPair(orig, target_layer); v.SetNetCode(nc); board.Add(v); added.append(v)
     return added
 
@@ -823,26 +852,42 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
             shutil.copy2(board_path, out_path)
         return {**report, "note": "no formed cable corridor (shared-bus/degenerate) -- no-op"}
     for base, band in bands.items():
-        crossings = []
+        x0, x1 = band[0], band[1]
+        # Collect, per foreign net: its in-band clipped segments AND the x-extent of ALL its F/B copper.
+        # NOTE: collection is read-only and FULLY completes before any board mutation below -- we hold the
+        # track refs and never re-call GetTracks() mid-mutation (the re-proxied-ids SWIG footgun).
+        by_net = {}                                          # net -> [(track, clip), ...]
+        spans = {}                                           # net -> (min endpoint x, max endpoint x) mm
         for t in board.GetTracks():
             if t.Type() != pcbnew.PCB_TRACE_T or t.GetLayer() not in (pcbnew.F_Cu, pcbnew.B_Cu):
                 continue
-            if not _corridor_foreign_net(t.GetNetname(), model.corridor_nets, sense):
+            n = t.GetNetname()
+            if not _corridor_foreign_net(n, model.corridor_nets, sense):
                 continue
-            ee = _seg_crosses_band(t, band)
-            if ee:
-                crossings.append((t.GetNetname(), t, ee, ee[0][0]))
-        by_net = {}
-        for n, t, ee, ex in crossings:
-            by_net.setdefault(n, []).append((t, ee, ex))
-        for i, (n, segs) in enumerate(sorted(by_net.items(), key=lambda kv: min(s[2] for s in kv[1]))):
+            sx, ex = t.GetStart().x / MM, t.GetEnd().x / MM
+            lo, hi = spans.get(n, (1e18, -1e18))
+            spans[n] = (min(lo, sx, ex), max(hi, sx, ex))
+            clip = _seg_band_clip(t, band)
+            if clip:
+                by_net.setdefault(n, []).append((t, clip))
+        # A net CROSSES the band only if it has in-band copper AND its routed copper reaches BOTH x-sides
+        # of the band (so it severs the pour across the corridor, rather than merely dipping in). L-bend
+        # routes qualify now because the test is on the net's whole x-extent, not one spanning segment.
+        crossers = {n: segs for n, segs in by_net.items()
+                    if spans[n][0] < x0 and spans[n][1] > x1}
+        # Order by leftmost in-band entry x and ALTERNATE target layer so no two cross at the same x on
+        # the same layer -> the un-cut outer pour mirror always carries past each single-layer cut.
+        for i, n in enumerate(sorted(crossers, key=lambda nn: min(c[1][0][0] for c in crossers[nn]))):
             target = pcbnew.F_Cu if i % 2 == 0 else pcbnew.B_Cu
-            for t, ee, _ex in segs:
+            flipped_any = False
+            for t, clip in crossers[n]:
                 if t.GetLayer() != target:
-                    _flip_crossing(board, t, ee[0], ee[1], target)
-                    report["flipped"] += 1
-                    report["vias_added"] += 2
-        report["bands"][base] = len(by_net)
+                    added = _relayer_segment_inband(board, t, clip, target)
+                    report["vias_added"] += sum(1 for o in added if o.Type() == pcbnew.PCB_VIA_T)
+                    flipped_any = True
+            if flipped_any:
+                report["flipped"] += 1
+        report["bands"][base] = len(crossers)
     tmp = tempfile.mkstemp(suffix=".kicad_pcb", prefix="cec_stagger_", dir=_TMP)[1]
     pcbnew.SaveBoard(tmp, board)
     del board
