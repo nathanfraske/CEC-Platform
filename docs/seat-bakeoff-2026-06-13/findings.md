@@ -26,8 +26,11 @@ the spread (max−min across models) flagging OVERFIT-prone formats.
 | T5 auditor | current | 0.95 | 0.15 | strong |
 | T5 auditor | json-skeleton | 0.89 | 0.17 | weakest for T5 (0.83–0.85 on cloud) |
 
-_(deepseek-v4-flash T5 row pending — its 12 producer calls re-run with the token fix, ~2 h; refines the
-LOCAL auditor recommendation only, NOT the cloud default.)_
+**deepseek-v4-flash (T5) — the PRODUCTION auditor, token-fixed (0 scribe, 3/3 schema each, ~150–275 s/call):**
+decision-tree **1.00**, terse **1.00**, json-skeleton **1.00**, current **0.85**. The pattern holds across
+EVERY model: decision-tree/terse = 1.00 everywhere; **`current` is the weakest (0.85) on cloud AND the
+production auditor.** Since the LIVE cec_fullstack T5 prompt is the `current` form, switching it to
+`decision-tree` is a concrete data-backed improvement for the production auditor (0.85 → 1.00).
 
 ## Headline finding — the best format is SEAT-DEPENDENT
 No single format wins everywhere: **json-skeleton is BEST for T1 but WORST for T5**; **terse is great for
