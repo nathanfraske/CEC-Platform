@@ -55,6 +55,13 @@ CLOUD = {"sonnet", "opus", "haiku"}
 # Local thinking models overrun a grammar-constrained reply -> empty content; judge non-thinking.
 NOTHINK = {"cec-worker-vision", "cec-worker", "cec-worker-quality", "cec-worker-quality-vision",
            "cec-vision-judge"}
+# Deep reasoners reason for THOUSANDS of tokens BEFORE the JSON -- a small budget truncates mid-thought
+# (empty content, no JSON). Give them production-class headroom; non-thinking/cloud keep a tight budget.
+THINKING = {"deepseek-v4-flash", "cec-manager", "cec-manager-fast"}
+
+
+def _tok_budget(model, base, big):
+    return big if model in THINKING else base
 # Heavy host-RAM models that must run in their own broker residency (cold-boot amortized by batching).
 HEAVY_LOCAL = {"deepseek-v4-flash", "cec-manager", "cec-manager-fast"}
 
@@ -664,6 +671,7 @@ def _produce_one(seat, variant, model, cid):
     for label, system, user in items:
         parsed, dt, raw, reasoning, scribe, err = call(
             model, system, user, schema, timeout=BAKEOFF_TIMEOUT,
+            max_tokens=_tok_budget(model, 1200, 8000),
             ctx={"seat": seat, "variant": variant, "case": cid, "item": label})
         outs.append(parsed)
         secs.append(dt)
@@ -773,7 +781,8 @@ def judge(tag="", judges=None, run_dir=None):
                 continue
             sysm, usr = _judge_prompt(p["seat"], p)
             parsed, dt, raw, reasoning, scribe, err = call(
-                j, sysm, usr, JUDGE_SCHEMA, max_tokens=400, timeout=BAKEOFF_TIMEOUT,
+                j, sysm, usr, JUDGE_SCHEMA, max_tokens=_tok_budget(j, 400, 3000),
+                timeout=BAKEOFF_TIMEOUT,
                 ctx={"judge": j, "seat": p["seat"], "variant": p["variant"],
                      "producer": "HIDDEN", "case": p["case"]})
             if isinstance(parsed, dict) and isinstance(parsed.get("score"), int):
