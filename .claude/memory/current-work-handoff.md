@@ -1,6 +1,29 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~19:05 CDT (new-impl polish fixes applied to PR #56)._
+_Updated 2026-06-13 ~19:15 CDT (new-impl polish fixes + adversarial verification both landed)._
+
+## VERIFICATION FOLLOW-ON LANDED 2026-06-13 ~19:15 CDT (PR #56 + #57)
+Adversarially verified the polish fixes (workflow wf_789eb5bc-b59: 8 per-fix skeptics reading live source +
+diff, + a synthesis/completeness pass). VERDICT **SHIP-WITH-FIXES**. H1/M2/M3/L1/L4/L6 confirmed correct,
+no regression. TWO latent residuals HARDENED + committed (5f6e9d0):
+- **M1**: fallback only LOGGED when fence["refs"] non-empty -> 12vhpwr (empty fence: no BOARD_PINNED_REFS
+  entry, /SENSEP* not matched by is_sense_net) still vanished SILENTLY. Now logs in BOTH sub-cases (the
+  panel's "never vanish without a log" minimum). FILLING that corridor (is_sense_net /SENSEP* OR a
+  BOARD_PINNED_REFS["12vhpwr-standard"] entry) is a FOLLOWUPS item -- latent, only eps-8pin is live.
+- **L3**: under char-slice truncation the in_family header counted lines FED (n_in) not SHOWN -> re-introduced
+  "claims a rule it can't see". Now counts surviving "- [" lines (eps in_family @700 truncates 6->3, header now 3).
+- +2 tests (M1 empty-fence logs-not-vanishes; L3 truncation count==shown); **161 host tests green**, checklist exit 0.
+- The verifiers' "order-fragile test" report was a FALSE ALARM: the M1 verifier disabled the fallback to prove
+  non-tautology while parallel verifiers ran the suite (cross-AGENT race, NOT cross-test leak). Did NOT reproduce
+  (5 repeat runs OK); source restored + intact. LESSON -> FOLLOWUPS: source-mutating verifiers need worktree isolation.
+- Provenance vendored: docs/prompt-audit-2026-06-13/new-impl-review/{opus48-panel-report,polish-fix-verification}.md (c11ca31).
+
+**PR #56 head = c11ca31** (8d11c13 polish -> 5f6e9d0 verify-follow-on -> c11ca31 provenance), all pushed as bot.
+**PR #57 (claude/bot-push-guard) head = 70e176d**: H2 GIT_TERMINAL_PROMPT=0 fail-closed (no-hang verified) + L14
+drop unused root; deferred pre-push LOWs L12/L13/L15/L16 -> FOLLOWUPS. Both PRs ready for owner CODEOWNERS merge.
+TODO item 2 (both #56+#57 portions) DONE. NEXT = TODO item 3: the claude/seat-bakeoff PR (own branch, large).
+
+## NEW-IMPL POLISH FIXES (Opus-4.8 panel audit) — APPLIED to PR #56 2026-06-13 ~19:05 CDT
 
 ## NEW-IMPL POLISH FIXES (Opus-4.8 panel audit) — APPLIED to PR #56 2026-06-13 ~19:05 CDT
 The Opus-4.8 panel audit of the prompt-audit branch (docs/prompt-audit-2026-06-13/new-impl-review/
