@@ -77,6 +77,37 @@ correct oracle-derived frame and a quantified gap. To reach a clean routed Hub t
 MV5 generative closers (esp. antenna-edge ESP seed) + a legalizer tightening (residual 4 → 0) + the route
 leg (L1). All in FOLLOWUPS.
 
+## FULL PIPELINE (place→route→check) WIRED + RUN — placement works, FR-on-Hub route gap found (2026-06-14)
+
+`scripts/hub_pipeline_run.py` wires the route leg (FOLLOWUPS L1): place (oracle) → materialize →
+route (cec_router/Freerouting) → score (gates+DRC) → electrothermal, budget-bounded. Run in the
+kicad10 container. The chain runs end-to-end without crashing. TWO real gaps surfaced + one fixed:
+
+- **FIXED — materialize is now "onto the reference stackup".** `build_board`'s from-scratch output is
+  NOT DSN-exportable (KiCad's Specctra exporter silently returns False — verified: committed Hub+eps
+  export fine, every build_board output does not; not the outline, not no-net pads). Fix:
+  `materialize_onto_reference()` COPIES the committed Hub (which exports + routes fine — real
+  netclasses / 4-layer stackup / mounts / logo preserved), repositions the 80 synth components, unfills
+  zones, rips the routing → a clean routable floorplan with the synth placement (matches the owner's
+  "base stackup = committed Hub"). Runs the pcbnew work in a SPAWN SUBPROCESS — `bd.Remove()` corrupts
+  the parent's pcbnew SWIG state (a later LoadBoard returns a raw SwigPyObject; the recorded footgun).
+- **OPEN (blocker for a clean routed Hub) — Freerouting does not route the Hub.** On the reposed Hub,
+  FR emits **1 wire / 1 via** (SES) even at passes=40/opt=90; the FR log shows `autoroute_pass #1:
+  making 1 changes` then `#2: 0 changes` → FR declares the board already routed and stops. cec_score
+  then reads **216 unconnected** (the board is NOT actually connected). The identical cec_fr path
+  routes the cable modules to 556 tracks, so this is Hub-specific. The Hub has ONE GND zone (like eps),
+  so it is NOT a multi-zone issue; the FR autorouter genuinely makes ~no progress on the Hub's dense
+  4-layer core (F.Cu / In1=GND-plane / In2 / B.Cu, USB diff pair, CAN, 80 parts). Root cause within FR
+  (why it routes 1 trace then stops) needs FR-specific tuning — see FOLLOWUPS. Placement residual is 4
+  (not 0), which also contributes real-structural DRC.
+- **What the pipeline DID produce** (representative full run): correct oracle frame (98.1×74.1, 8 edges,
+  antenna left), 80-component materialize onto the real stackup, gates kelvin_ok+diffpair_ok True,
+  electrothermal max_T 68.7°C / dT 18.7 — but route unconnected 216, ~2 tracks (FR gap above). So the
+  PLACE + MATERIALIZE + CHECK stages are solid; ROUTE on the Hub is the open work.
+
+NET: an hour-long run is NOT worthwhile until FR routes the Hub (it would just reproduce the 1-trace
+result). The wiring + materialize-onto-reference are committed (reusable harness for the FR fix).
+
 ## CONSULTATIVE AUDIT (4 parallel skeptics, 2026-06-14) + REMEDIATION
 
 Dimensions: geometry/math · anti-overfit charter · regression/integration · test rigor. All four
