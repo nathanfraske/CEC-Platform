@@ -82,7 +82,8 @@ WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min 
 # (lesson 4: selection cannot create candidates).
 OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
-                "battery (shift/swap/via), power pours")
+                "battery (shift/swap/via), power pours, LAYER-STAGGER (route a band-crossing foreign "
+                "signal on the F.Cu/B.Cu layer that keeps the un-cut outer pour mirror carrying)")
 # P4 (prompt-audit 2026-06-13): the CL24 spec-conformance charter must judge against RATIFIED
 # knowledge, not the run's ephemeral manager_rules (empty on a control round -> empty_corpus). This
 # is the compact locked-decision spine the charter cites; the full promoted corpus rides alongside it
@@ -783,6 +784,34 @@ def gr02_repair(routed_host_path, blocked_net, rnd):
     except Exception as e:                                       # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     return {"error": "no GR02_JSON"}
+
+
+def layer_stagger(routed_host_path, rnd):
+    """LAYER-TIER lever (route-time corridor fix): in-container, stagger the foreign signals that cross
+    each formed high-current corridor across F.Cu/B.Cu (cec_fr.stagger_corridor_crossings, DRC
+    safe-revert) so the un-cut outer pour mirror carries, then rescore. Sibling of the corridor-avoid;
+    fired AUGMENTED-lane only. Returns {report, rescored, board} or {error}."""
+    rel = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
+    out_rel = f"build/fullstack/stagger-r{rnd}.kicad_pcb"
+    code = (
+        "import sys, json; sys.path.insert(0, '/workspace/scripts')\n"
+        "import cec_fr, cec_score, os\n"
+        "os.makedirs('/workspace/build/fullstack', exist_ok=True)\n"
+        f"rep = cec_fr.stagger_corridor_crossings('/workspace/{rel}', '/workspace/{out_rel}')\n"
+        f"m = cec_score.score('/workspace/{out_rel}')\n"
+        "out = {'report': {k: rep.get(k) for k in ('flipped','vias_added','reverted','bands','note')},\n"
+        "       'rescored': {'kelvin_ok': m.kelvin_ok, 'drc': m.drc, 'unconnected': m.unconnected}}\n"
+        "print('STAGGER_JSON=' + json.dumps(out, default=str))\n")
+    try:
+        rc, out = _exec_py(code, timeout=600)
+        for ln in out.splitlines():
+            if ln.startswith("STAGGER_JSON="):
+                d = json.loads(ln[len("STAGGER_JSON="):])
+                d["board"] = out_rel
+                return d
+    except Exception as e:                                       # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+    return {"error": "no STAGGER_JSON"}
 
 
 # ---- T1: the intent manager (the model-managed assisted router) -------------------------------------
@@ -1586,6 +1615,18 @@ def run(board, rounds, hours, auditor=None):
             # NEXT round -- route the contested SIGNAL nets (not sense, not power) around the clipped
             # corridor. Geometry from cec_fr02.clipped_corridor_rects (in-container; safe no-op host).
             pending_corridor_avoid = []
+            stagger_result = None
+            # LAYER-TIER lever (augmented only): on a pour-clip, stagger the foreign crossings across
+            # F.Cu/B.Cu on THIS round's routed board so the un-cut outer pour mirror carries -- the
+            # route-time corridor fix, complement to the next-round corridor-AVOID. DRC safe-revert, so
+            # a bad stagger no-ops. Lane-gated like the corridor-avoid: the control lane never staggers.
+            if pour_clipped_nets and lane == "augmented" and rec.get("routed"):
+                stagger_result = layer_stagger(rec["routed"], rnd)
+                _sr = (stagger_result or {}).get("report", {}) if not (stagger_result or {}).get("error") else {}
+                if _sr:
+                    log(f"  layer-stagger: flipped {_sr.get('flipped')} crossing(s) across F/B "
+                        f"(reverted={_sr.get('reverted')}, rescored "
+                        f"{(stagger_result or {}).get('rescored')})")
             # EI-02: a CONTROL round seeds NO next-round steering (it is the signed-only baseline) -- the
             # deterministic item4 corridor-avoid is run-learned state and stays on the augmented lane only.
             if pour_clipped_nets and lane == "augmented":
@@ -1864,6 +1905,9 @@ def run(board, rounds, hours, auditor=None):
                    "t0_fired": bool(t0), "n_finalists": len(front),
                    "pour_clipped": bool(pour_clipped_nets), "pour_clipped_nets": pour_clipped_nets,
                    "pour_integrity_ok": rec.get("pour_integrity_ok"),    # blocking gate (item 2)
+                   "layer_stagger": ((stagger_result or {}).get("report")     # LAYER-TIER lever (augmented)
+                                     if stagger_result and not stagger_result.get("error")
+                                     else ({"error": stagger_result.get("error")} if stagger_result else None)),
                    # re-roled seat: narration/anomaly flags (advisory), not a verdict
                    "pour_vision": (pourcheck.get("anomalies") if "anomalies" in pourcheck
                                    else pourcheck.get("skipped") or pourcheck.get("error")),
