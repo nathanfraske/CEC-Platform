@@ -75,11 +75,12 @@ REGISTRY = [
            "Threshold calibrated to the as-built boards (ratified 5mm).",
       source="spec §6.8 + as-built calibration", status="ratified", params={"max_mm": 5.0}),
     C(id="shunt-inline-in-corridor", title="Shunt sits inline in the J_IN->J_OUT current path",
-      category="high-current", severity="strong", checkable="partial", directive="region",
+      category="high-current", severity="strong", checkable="yes", directive="region",
       rule="Each cable/pin shunt lies between its input and output connector pads, so current flows "
-           "through it with no bypass.", source="spec §6.7; user-named", status="ratified"),
+           "through it with no bypass.", source="spec §6.7; user-named", status="ratified",
+      params={"tol_mm": 2.0}),
     C(id="high-current-corridor-keepout", title="High-current corridor clear of foreign signals",
-      category="high-current", severity="strong", checkable="partial", directive="keepout",
+      category="high-current", severity="strong", checkable="yes", directive="keepout",
       rule="The J_IN->shunt->J_OUT corridor carries no foreign-net via/track (reserved for the pour).",
       source="CLAUDE.md considerations", status="ratified"),
     C(id="high-current-pour-present", title="High-current nets carried by a filled pour",
@@ -600,6 +601,111 @@ def _chk_pour_integrity(board, path, ctx):
         return (False, "12V pour cut by a same-layer foreign trace: " + "; ".join("%s<-%s" % (a, b) for a, b in sorted(cut)[:6]),
                 [{"type": "keepout", "reserve": "pour-region-foreign-signal", "nets": sorted({a for a, _ in cut})}])
     return True, "no foreign same-layer trace cuts a high-current pour"
+
+
+def _corridor_bands(board):
+    """(bands, corridor_nets): per Kelvin pair the reserved band = bbox over its HI+LO pads (the
+    J_IN force-in + shunt + J_OUT force-out + INA taps, the SAME pads derive_power_pours pours),
+    inflated 1.5mm on the signal-channel (x) sides. The post-route mirror of
+    cec_synth_pipeline.build_corridor_model -- same rectangle, so placement and DRC agree."""
+    kelvin, _ = cec_score._derive_pairs(_nets(board))
+    by_net = _pads_by_net(board)
+    bands, corridor = {}, set()
+    for hi, lo in kelvin:
+        pts = [p.GetPosition() for _r, p, _fp in by_net.get(hi, []) + by_net.get(lo, [])]
+        if not pts:
+            continue
+        xs = [_mm(p.x) for p in pts]
+        ys = [_mm(p.y) for p in pts]
+        bands[hi[:-3]] = (min(xs) - 1.5, max(xs) + 1.5, min(ys), max(ys))
+        corridor |= {hi, lo}
+    return bands, corridor
+
+
+def _is_corridor_signal(net, corridor):
+    """A foreign net that can intrude the corridor: not a corridor force net, not GND/a power rail
+    (those legitimately stitch/pour), not another sense pair -- i.e. a routed control/signal net."""
+    if net in corridor or not net:
+        return False
+    base = net.rsplit("/", 1)[-1].upper()
+    if base in ("GND",) or re.search(r"(^|/)\+?(3V3|5VSB|5V|12V|VBUS|VCC)$", net, re.I):
+        return False
+    if net.endswith(("_HI", "_LO")) or base.startswith(("SENSEC", "ISENSE")):
+        return False
+    return True
+
+
+@checker("shunt-inline-in-corridor")
+def _chk_shunt_inline(board, path, ctx):
+    """PLACEMENT check (no route needed): each cable shunt RS{n} lies between its J_IN (force-in,
+    on _HI) and J_OUT (force-out, on _LO) connector pads, so current flows THROUGH it with no
+    bypass (spec §6.7). The shunt centroid must fall inside the bbox spanned by the in/out
+    connector force-pad centroids (+tol)."""
+    kelvin, _ = cec_score._derive_pairs(_nets(board))
+    if not kelvin:
+        return None, "no Kelvin pair (board carries no high-current cable)"
+    by_net = _pads_by_net(board)
+    tol = _param("shunt-inline-in-corridor", "tol_mm", 2.0)
+    fails, oks, checked = [], [], 0
+    for hi, lo in kelvin:
+        hi_nodes, lo_nodes = by_net.get(hi, []), by_net.get(lo, [])
+        hi_refs = {r for r, _, _ in hi_nodes}
+        lo_refs = {r for r, _, _ in lo_nodes}
+        straddle = sorted(hi_refs & lo_refs)
+        shunt = next((r for r in straddle if r.upper().startswith("RS")),
+                     next((r for r in straddle if r.startswith("R")), None))
+        jin = [p.GetPosition() for r, p, _ in hi_nodes if r.upper().startswith("J")]
+        jout = [p.GetPosition() for r, p, _ in lo_nodes if r.upper().startswith("J")]
+        if not shunt or not jin or not jout:
+            continue
+        sh_fp = next(fp for r, _p, fp in (hi_nodes + lo_nodes) if r == shunt)
+        sx, sy = _mm(sh_fp.GetPosition().x), _mm(sh_fp.GetPosition().y)
+        ix = sum(_mm(p.x) for p in jin) / len(jin)
+        iy = sum(_mm(p.y) for p in jin) / len(jin)
+        ox = sum(_mm(p.x) for p in jout) / len(jout)
+        oy = sum(_mm(p.y) for p in jout) / len(jout)
+        checked += 1
+        inline = (min(ix, ox) - tol <= sx <= max(ix, ox) + tol and
+                  min(iy, oy) - tol <= sy <= max(iy, oy) + tol)
+        (oks if inline else fails).append("%s @(%.1f,%.1f) in[%s] out[%s]"
+                                          % (shunt, sx, sy, hi[1:], lo[1:]))
+    if checked == 0:
+        return None, "no shunt with both in/out connector pads resolvable"
+    if fails:
+        return (False, "shunt not inline in the J_IN->J_OUT current path: " + "; ".join(fails[:6]),
+                [{"type": "region", "reserve": "shunt-on-current-axis"}])
+    return True, "all %d shunts inline between their in/out connectors" % len(oks)
+
+
+@checker("high-current-corridor-keepout")
+def _chk_corridor_keepout(board, path, ctx):
+    """ROUTE-time check: no foreign signal track/via inside a cable's J_IN->shunt->J_OUT band (it
+    is reserved for the pour; a foreign trace there cuts the fill -- the eps-8pin failure mode).
+    The post-route teeth for the placer's corridor_cross_count."""
+    if _track_count(board) == 0:
+        return None, "floorplan (corridor keepout is a route-time check)"
+    bands, corridor = _corridor_bands(board)
+    if not bands:
+        return None, "no high-current corridor resolved"
+    intruders = set()
+    for t in board.GetTracks():
+        n = t.GetNetname()
+        if not _is_corridor_signal(n, corridor):
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            pts = [t.GetPosition()]
+        else:
+            s, e = t.GetStart(), t.GetEnd()
+            pts = [s, e, pcbnew.VECTOR2I((s.x + e.x) // 2, (s.y + e.y) // 2)]
+        for base, (X0, X1, Y0, Y1) in bands.items():
+            if any(X0 <= _mm(p.x) <= X1 and Y0 <= _mm(p.y) <= Y1 for p in pts):
+                intruders.add((base, n))
+    if intruders:
+        return (False, "foreign signal inside a high-current corridor: "
+                + "; ".join("%s<-%s" % (b, n) for b, n in sorted(intruders)[:6]),
+                [{"type": "keepout", "reserve": "corridor-foreign-signal",
+                  "bands": sorted(bands)}])
+    return True, "no foreign signal track/via inside a high-current corridor (%d band(s))" % len(bands)
 
 
 @checker("min-pour-cross-section")

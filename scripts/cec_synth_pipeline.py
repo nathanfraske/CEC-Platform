@@ -1801,6 +1801,138 @@ def _placement_obj(cfg, P, W, H, halfext, nl):
     return Placement(pos=pos, pads_by_net=dict(pads_by_net), value=value, W=W, H=H, x0=0.0, y0=0.0)
 
 
+# ============================================================ STAGE: CORRIDOR MODEL
+# The domain model the placer is blind to (CLAUDE.md action item -2, placement-strategy
+# 2026-06-14 §2.1). A high-current cable runs J_IN -> shunt -> J_OUT; that band is reserved
+# for the pour (high-current-corridor-keepout / high-current-pour-integrity). A foreign signal
+# net forced THROUGH a band cuts the pour on its layer (the eps-8pin ~300C thin-neck failure).
+# corridor_cross_count turns "foreign_cross" into a pre-route, pure-geometry NUMBER the placer
+# can rank on; build_corridor_model derives the bands from the netlist (no per-board hardcoding),
+# reusing _kelvin_pairs + the same HI/LO pads derive_power_pours pours -- so the placement-time
+# corridor and the route-time pour keepout are provably the same rectangle (no drift).
+def _net_pads_global(nl, net, P, comps):
+    """Global (x,y) of every pad on *net*, from the placement P (ref->(x,y,rot)) + footprints.
+    pad_global is a pure footprint-text parse (no pcbnew), so this runs host-side."""
+    import cec_pcb
+    pts = []
+    for ref, pin in nl.nets.get(net, []):
+        if ref not in P or ref not in comps:
+            continue
+        try:
+            pts.append(cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps))
+        except Exception:
+            pts.append((P[ref][0], P[ref][1]))           # fall back to the part origin
+    return pts
+
+
+def _ref_padcount(nl, ref):
+    """How many net-pad nodes *ref* has across the netlist (a 2-pad shunt straddles HI/LO)."""
+    return sum(1 for nodes in nl.nets.values() for (r, _p) in nodes if r == ref)
+
+
+def _corridor_net_role(net, corridor_nets):
+    """net -> {power_corridor, decouple, sense, signal}. Only role=='signal' nets can be a
+    corridor offender (a power rail / GND / the sense pair itself never 'crosses' its band)."""
+    if net in corridor_nets:
+        return "power_corridor"
+    base = net.rsplit("/", 1)[-1].upper()
+    if _POWER_NET.search(net) or base == "GND":
+        return "decouple"
+    if net.endswith(("_HI", "_LO")) or base.startswith(("SENSEC", "ISENSE")):
+        return "sense"
+    return "signal"
+
+
+@dataclass
+class Cable:
+    """One high-current lane: its Kelvin pair, the straddling shunt, the sense ICs on it, and
+    the reserved band rect (global mm, x-inflated by the signal clearance)."""
+    base: str                     # e.g. "/SENSEC2"
+    hi: str
+    lo: str
+    shunt: str                    # RS{n} (2-pad straddle), or "" if none resolved
+    sense_ics: list               # INA/INA181 refs on hi or lo
+    band: tuple                   # (x0, x1, y0, y1)
+
+
+@dataclass
+class CorridorModel:
+    """Built once per synth (placement-strategy §2.1). The placer reads this to rank/veto."""
+    cables: list                  # [Cable]
+    bands: dict                   # base -> (x0, x1, y0, y1)
+    corridor_nets: set            # {each cable's hi, lo} -- the ONLY nets allowed inside its band
+    hot: set                      # {RS*, J_IN*, J_OUT*, LDO} refs
+    sensitive: set                # {INA/INA181, REF3030, ESP32 U1} refs (paired INA exempt for its own band)
+
+
+def _hot_sensitive(nl):
+    """(hot, sensitive) ref sets per §2.1: HOT = shunts + power connectors + LDO; SENSITIVE =
+    every current-sense IC + voltage reference + the ESP. Derived from ref + value (no hardcoding)."""
+    hot, sensitive = set(), set()
+    for ref, c in nl.comps.items():
+        v = (c.value or "").upper()
+        if ref.startswith("RS") or ("MINI-FIT" in v or "12V" in v or "EPS" in v) and ref.startswith("J"):
+            hot.add(ref)
+        if ref.startswith("J") and ("IN" in ref.upper() or "OUT" in ref.upper()):
+            hot.add(ref)
+        if "LP59" in v or "TPS6" in v or "LDO" in v or "REG" in v:
+            hot.add(ref)
+        if "INA" in v or "REF30" in v or "ESP32" in v:
+            sensitive.add(ref)
+    return hot, sensitive
+
+
+def build_corridor_model(nl, P, comps, *, x_clr=1.5):
+    """Derive the CorridorModel (§2.1) from the netlist + a placement. The band of cable n is the
+    bbox over its HI and LO pads (= J_IN force-in + shunt + J_OUT force-out + the INA taps -- the
+    SAME pads derive_power_pours uses), inflated *x_clr* mm on the signal-channel (x) sides only.
+    Pure geometry: no pcbnew, just pad_global on the footprint files."""
+    cables, bands, corridor_nets = [], {}, set()
+    for hi, lo in _kelvin_pairs(nl):
+        pts = _net_pads_global(nl, hi, P, comps) + _net_pads_global(nl, lo, P, comps)
+        if not pts:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        band = (min(xs) - x_clr, max(xs) + x_clr, min(ys), max(ys))
+        base = hi[:-3]
+        bands[base] = band
+        corridor_nets.add(hi)
+        corridor_nets.add(lo)
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        straddle = refs_hi & refs_lo                       # a part on BOTH halves = the shunt
+        shunt = next((r for r in sorted(straddle)
+                      if r.startswith("R") and _ref_padcount(nl, r) == 2), "")
+        sense_ics = sorted(r for r in (refs_hi | refs_lo) if r.startswith("U"))
+        cables.append(Cable(base=base, hi=hi, lo=lo, shunt=shunt, sense_ics=sense_ics, band=band))
+    hot, sensitive = _hot_sensitive(nl)
+    return CorridorModel(cables=cables, bands=bands, corridor_nets=corridor_nets,
+                         hot=hot, sensitive=sensitive)
+
+
+def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True):
+    """The PRIMARY rank key (placement-strategy §2.3 / §0): how many foreign SIGNAL nets are forced
+    THROUGH a high-current band. A net crosses band_n when its pad-bbox y-overlaps the band AND it
+    has a pad strictly LEFT of the band x-range AND a pad strictly RIGHT of it -- i.e. its routing
+    must pass through the corridor (a topological invariant no router effort can undo). A net that
+    merely terminates at a band edge (one pad inside) is NOT a through-cross. Pure geometry on the
+    pads_by_net the proxy already builds; 0 == corridor-clean."""
+    total = 0
+    for net, pts in pads_by_net.items():
+        if net in corridor_nets or len(pts) < 2:
+            continue
+        if signal_only and _corridor_net_role(net, corridor_nets) != "signal":
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        bx0, bx1, by0, by1 = min(xs), max(xs), min(ys), max(ys)
+        for base, (X0, X1, Y0, Y1) in bands.items():
+            if by1 >= Y0 and by0 <= Y1 and bx0 < X0 and bx1 > X1:
+                total += 1
+    return total
+
+
 @dataclass
 class Candidate:
     """A placement candidate + its cheap proxy + (later) its feasibility confidence."""
