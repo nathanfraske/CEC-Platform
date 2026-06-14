@@ -496,9 +496,12 @@ def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
             body = body[:max_chars] + "\n- ...(brief truncated; off-family tail dropped first)"
         # L3 (new-impl audit): headline the count the seat can ACTUALLY see. in_family_only shows ONLY
         # the in-scope subset, so headlining n_total (e.g. 35) would imply the off-family rules are
-        # present -- a generation seat could "know" a dropped rule it was never shown. Headline n_in here.
+        # present -- a generation seat could "know" a dropped rule it was never shown. Count the entry
+        # lines SURVIVING in `body` (already truncated above) -- not n_in -- so the header still matches
+        # what is shown when truncation drops the in-family tail too (the latent char-slice case).
         if in_family_only:
-            brief = (f"RATIFIED CORPUS ({n_in} owner-signed entries in scope for this {board} family -- "
+            n_shown = sum(1 for ln in body.split("\n") if ln.startswith("- ["))
+            brief = (f"RATIFIED CORPUS ({n_shown} owner-signed entries in scope for this {board} family -- "
                      "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
         else:
             scope_note = f"{n_in} in scope for this {board} family, the rest tagged with their family scope"
@@ -818,15 +821,20 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
         on_sense = {r for n, rl in manifest.get("net_refs", {}).items()
                     if _fr.is_sense_net(n) for r in rl}
         sense_refs = [r for r in fence.get("refs", ()) if r in refs and r in on_sense]
-        if not sense_refs and fence.get("refs"):
-            # M1 fallback (new-impl audit): no fenced ref touched a /SENSEC*_(HI|LO) net -- a board with
-            # non-standard sense naming (e.g. 12VHPWR /SENSEP*, or a renamed /SENSE_HI). Don't let the
-            # SENSE CORRIDOR silently vanish; fall back to the fenced refs present on this board and LOG
-            # the degrade so a renamed-net regression is visible. (eps-8pin keeps the narrow filter, which
-            # correctly excludes the CAN transceiver U2 -- this branch only fires when nothing matched.)
-            sense_refs = [r for r in fence.get("refs", ()) if r in refs]
-            if sense_refs:
-                log(f"  T1 corridor: no /SENSEC sense-net match; fell back to all fenced refs {sense_refs}")
+        if not sense_refs:
+            # M1 fallback (new-impl audit): the narrow /SENSEC*_(HI|LO) filter matched no ref -- a board
+            # with non-standard sense naming (e.g. 12VHPWR /SENSEP*) or a fence with no pinned refs. Fall
+            # back to the fenced refs PRESENT on this board; if there are none, the corridor cannot be
+            # sited. LOG in EITHER case -- the panel's "never let the SENSE CORRIDOR vanish silently"
+            # minimum -- so a renamed-net or missing-BOARD_PINNED_REFS regression stays visible. (eps-8pin
+            # matches /SENSEC* so on_sense is non-empty and this whole block is skipped -- U2 stays out.)
+            fb = [r for r in fence.get("refs", ()) if r in refs]
+            if fb:
+                sense_refs = fb
+                log(f"  T1 corridor: no /SENSEC sense-net match; fell back to all fenced refs {fb}")
+            else:
+                log("  T1 corridor: no /SENSEC sense-net match AND no fenced ref on the board manifest -- "
+                    "NO sense-corridor hint this round (check is_sense_net naming / BOARD_PINNED_REFS)")
         if sense_refs:
             xs = [refs[r]['xy'][0] for r in sense_refs]
             ys = [refs[r]['xy'][1] for r in sense_refs]

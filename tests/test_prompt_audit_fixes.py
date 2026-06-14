@@ -323,16 +323,14 @@ class NewImplPolishFixes(unittest.TestCase):
         self.assertFalse(fs._t0_should_fire("augmented", False, fs.KELVIN_STALL_K - 1, False))
 
     # ---- M1: the SENSE CORRIDOR falls back (does not vanish) for non-/SENSEC sense naming ----
-    def test_m1_corridor_falls_back_when_no_sensec_match(self):
-        # 12VHPWR-style sense nets (/SENSEP*) match neither is_sense_net -> the narrow filter finds
-        # nothing -> fall back to the fenced refs present (corridor must not silently disappear).
+    def _run_corridor(self, fence):
+        """Drive intent_manager with a non-/SENSEC board; return (prompt, logs)."""
         manifest = {
             "outline_mm": [58, 80],
             "refs": {"RS1": {"xy": [10, 20], "v": "shunt"}, "U10": {"xy": [12, 22], "v": "INA240"},
                      "U2": {"xy": [40, 17], "v": "TJA1051"}},
-            "net_refs": {"/SENSEP1_HI": ["RS1", "U10"], "/CAN_H": ["U2"]},
+            "net_refs": {"/SENSEP1_HI": ["RS1", "U10"], "/CAN_H": ["U2"]},   # /SENSEP* != is_sense_net
         }
-        fence = {"nets": set(), "refs": {"RS1", "U10"}}        # U2 not fenced -> not in the corridor
         cap, logs = {}, []
         orig, origlog = jl._chat_json, fs.log
 
@@ -345,11 +343,28 @@ class NewImplPolishFixes(unittest.TestCase):
             fs.intent_manager("12vhpwr-standard", {}, [], None, 1, manifest=manifest, fence=fence)
         finally:
             jl._chat_json, fs.log = orig, origlog
-        self.assertIn("SENSE CORRIDOR", cap["user"])           # corridor did NOT vanish
-        corridor = next(ln for ln in cap["user"].splitlines() if "SENSE CORRIDOR" in ln)
+        return cap.get("user", ""), logs
+
+    def test_m1_corridor_falls_back_when_no_sensec_match(self):
+        # MECHANISM: the narrow filter finds nothing (/SENSEP* is not a /SENSEC sense net), but the FENCE
+        # HAS refs -> fall back to those refs so the corridor does not silently disappear. (This injects a
+        # populated fence; the production 12vhpwr empty-fence shape is the separate test below.)
+        prompt, logs = self._run_corridor({"nets": set(), "refs": {"RS1", "U10"}})   # U2 not fenced
+        self.assertIn("SENSE CORRIDOR", prompt)                # corridor did NOT vanish
+        corridor = next(ln for ln in prompt.splitlines() if "SENSE CORRIDOR" in ln)
         self.assertIn("RS1", corridor)
         self.assertIn("U10", corridor)
+        self.assertNotIn("U2", corridor)                       # CAN xcvr stays out of the corridor
         self.assertTrue(any("fell back to all fenced refs" in m for m in logs))   # degrade is logged
+
+    def test_m1_corridor_logs_when_no_fenced_refs(self):
+        # PRODUCTION 12vhpwr shape: no /SENSEC match AND an empty fence (no BOARD_PINNED_REFS entry) ->
+        # the corridor CANNOT be sited, but per the panel's minimum it must not vanish SILENTLY: a log
+        # fires naming the real cause. (Filling that corridor is a FOLLOWUPS item -- is_sense_net /SENSEP*
+        # or a BOARD_PINNED_REFS entry; latent, no live board today.)
+        prompt, logs = self._run_corridor({"nets": set(), "refs": set()})
+        self.assertNotIn("SENSE CORRIDOR", prompt)             # genuinely no corridor (nothing to site it on)
+        self.assertTrue(any("no fenced ref on the board manifest" in m for m in logs))   # NOT silent
 
     # ---- L1: the default (deepseek) auditor path coerces an out-of-enum verdict, like the cloud path ----
     def test_l1_deepseek_audit_coerces_out_of_enum(self):
@@ -378,6 +393,16 @@ class NewImplPolishFixes(unittest.TestCase):
         if "[scope:" in full:                                  # off-family entries exist in the corpus
             fn = int(re.match(r"RATIFIED CORPUS \((\d+)", full).group(1))
             self.assertLess(gn, fn)                            # gen header < full (off-family not claimed)
+
+    def test_l3_in_family_header_count_matches_shown_under_truncation(self):
+        # The char-slice truncation can drop in-family entries too; the header must still equal the
+        # number of entry lines ACTUALLY shown, never the count fed in (else it re-introduces the
+        # "claims a rule it can't see" bug at the truncation boundary).
+        import re
+        trunc = fs.promoted_corpus_brief("eps-8pin", in_family_only=True, max_chars=700)
+        gn = int(re.match(r"RATIFIED CORPUS \((\d+)", trunc).group(1))
+        shown = sum(1 for ln in trunc.splitlines() if ln.startswith("- ["))
+        self.assertEqual(gn, shown)                            # header == shown, even mid-truncation
 
     # ---- L6: the dead PENALISABLE tuple is removed from cec_fullstack (the live gate is _PENALTY_METRIC) ----
     def test_l6_penalisable_dead_tuple_removed(self):
