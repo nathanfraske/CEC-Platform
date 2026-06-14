@@ -492,5 +492,57 @@ class TestCorridorLever(unittest.TestCase):
         self.assertTrue(all(not r.upper().startswith(("RS", "J")) for r in mv["moved_refs"]))
 
 
+# --------------------------------------------------------------------------- the LAYER lever
+@unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(EPS_PCB),
+                     "pcbnew + the committed eps-8pin board required")
+class TestLayerLever(unittest.TestCase):
+    """The route-time LAYER-TIER lever (cec_fr.stagger_corridor_crossings): foreign signals that must
+    cross a high-current corridor are staggered across F.Cu/B.Cu so the un-cut outer pour mirror carries."""
+
+    def _board_with_two_crossings(self):
+        import tempfile
+        b = pcbnew.LoadBoard(EPS_PCB)
+        for net, y in (("/DETC1", 18.0), ("/THRESH", 20.0)):     # both on F.Cu across band-2
+            t = pcbnew.PCB_TRACK(b)
+            t.SetStart(pcbnew.VECTOR2I(30_000_000, int(y * 1e6)))
+            t.SetEnd(pcbnew.VECTOR2I(50_000_000, int(y * 1e6)))
+            t.SetWidth(200_000); t.SetLayer(pcbnew.F_Cu); t.SetNetCode(b.FindNet(net).GetNetCode())
+            b.Add(t)
+        p = os.path.join(tempfile.mkdtemp(), "eps-cross.kicad_pcb")
+        pcbnew.SaveBoard(p, b)
+        return p
+
+    def test_staggers_across_f_and_b(self):
+        import cec_fr
+        p = self._board_with_two_crossings()
+        rep = cec_fr.stagger_corridor_crossings(p, verify=False)
+        self.assertEqual(rep["flipped"], 1)                      # 2 crossings -> 1 stays F, 1 -> B
+        self.assertEqual(rep["vias_added"], 2)                   # transition vias at both band edges
+        layers = {}
+        bb = pcbnew.LoadBoard(p)
+        for t in bb.GetTracks():
+            if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in ("/DETC1", "/THRESH"):
+                layers.setdefault(t.GetNetname(), set()).add(t.GetLayer())
+        self.assertIn(pcbnew.B_Cu, layers["/THRESH"])            # the 2nd crossing now uses B.Cu
+
+    def test_shared_bus_noop(self):
+        import cec_fr, tempfile
+        p = os.path.normpath(os.path.join(HERE, "..", "modules",
+                                          "12vhpwr-standard", "12vhpwr-standard-module.kicad_pcb"))
+        if os.path.isfile(p):
+            rep = cec_fr.stagger_corridor_crossings(
+                p, out_path=os.path.join(tempfile.mkdtemp(), "h.kicad_pcb"), verify=False)
+            self.assertEqual(rep["flipped"], 0)                  # no formed cable corridor -> no-op
+
+    def test_foreign_net_classifier(self):
+        import cec_fr
+        cn = {"/SENSEC1_HI", "/SENSEC1_LO"}
+        self.assertTrue(cec_fr._corridor_foreign_net("/DETC1", cn, set()))
+        self.assertFalse(cec_fr._corridor_foreign_net("/SENSEC1_HI", cn, set()))   # corridor net
+        self.assertFalse(cec_fr._corridor_foreign_net("/IN1_P", cn, {"/IN1_P"}))   # sense net
+        self.assertFalse(cec_fr._corridor_foreign_net("GND", cn, set()))
+        self.assertFalse(cec_fr._corridor_foreign_net("/+3V3", cn, set()))
+
+
 if __name__ == "__main__":
     unittest.main()

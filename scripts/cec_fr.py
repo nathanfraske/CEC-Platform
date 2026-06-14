@@ -37,6 +37,7 @@
 # Verified round-trip (EPS board, 2026-06-06): ExportSpecctraDSN -> FR exit 0 ->
 # ImportSpecctraSES -> 481 tracks / 64 vias on the EPS 8-pin module.
 import os
+import re
 import sys
 import math
 import shutil
@@ -733,6 +734,143 @@ def add_via_field(board, fields):
             board.Add(v)
             added.append(v)
     return added
+
+
+# ---------------------------------------------------------------------------
+# stagger_corridor_crossings -- the LAYER-TIER lever (route-time corridor fix)
+# ---------------------------------------------------------------------------
+# The cc=6 floor (placement-strategy CORE-PREMISE FINDING): on a cable board some foreign signals MUST
+# cross the J_IN->shunt->J_OUT high-current corridor to reach the central ESP -- placement can't avoid
+# it. Each crossing on an outer layer cuts that layer's 12V pour. The cable boards carry 12V on BOTH
+# outers (GND on both inners), so the fix is to STAGGER the crossings across F.Cu vs B.Cu: no two cross
+# at the same x on the same layer, so the un-cut outer pour mirror always carries the current past each
+# single-layer cut (the additive F+B pours + via stitching from derive_power_pours/synthesize_power_
+# copper then carry it). The placement-side corridor-evict lever clears a body-IN-band; THIS lever
+# handles the unavoidable trace crossings -- the actual route-time fix.
+def _corridor_foreign_net(net, corridor_nets, sense_nets):
+    """A foreign net that, crossing a band, cuts the pour: not a corridor force net, not an INA sense
+    net, not GND/a power rail (those legitimately pour/stitch). Mirrors cec_constraints._is_corridor_signal."""
+    if not net or net in corridor_nets or net in sense_nets:
+        return False
+    base = net.rsplit("/", 1)[-1].upper()
+    if base in ("GND",) or re.search(r"(^|/)\+?(3V3|5VSB|5V|12V|VBUS|VCC)$", net, re.I):
+        return False
+    if net.endswith(("_HI", "_LO")) or base.startswith(("SENSEC", "ISENSE")) or "unconnected-" in net.lower():
+        return False
+    return True
+
+
+def _seg_crosses_band(t, band):
+    """If PCB_TRACE_T *t* SPANS the band in x (one end left of x0, the other right of x1) and passes
+    through the band's y-range, return (entry_pt, exit_pt) in nm at the band's x-edges; else None."""
+    x0, x1, y0, y1 = band
+    s, e = t.GetStart(), t.GetEnd()
+    sx, sy, ex, ey = s.x / MM, s.y / MM, e.x / MM, e.y / MM
+    if not (min(sx, ex) < x0 and max(sx, ex) > x1):
+        return None
+    cyc = (sy + ey) / 2 if ex == sx else sy + (ey - sy) * ((x0 + x1) / 2 - sx) / (ex - sx)
+    if not (y0 <= cyc <= y1):
+        return None
+
+    def at_x(xt):
+        yt = (sy + ey) / 2 if ex == sx else sy + (ey - sy) * (xt - sx) / (ex - sx)
+        return (int(round(xt * MM)), int(round(yt * MM)))
+    return (at_x(x0), at_x(x1))
+
+
+def _flip_crossing(board, t, entry, exit_, target_layer, *, drill=0.3, dia=0.6):
+    """Move the in-band span of crossing track *t* to *target_layer*: shorten *t* to its entry, add a
+    middle segment on the target layer across the band, an after segment back on the original layer, and
+    a transition via at each band edge (so the net stays connected). Returns the 3 added objects."""
+    nc, w, orig = t.GetNetCode(), t.GetWidth(), t.GetLayer()
+    e_end = pcbnew.VECTOR2I(t.GetEnd().x, t.GetEnd().y)
+    p_in, p_out = pcbnew.VECTOR2I(*entry), pcbnew.VECTOR2I(*exit_)
+    t.SetEnd(p_in)                                          # original track now ends at the band entry
+    added = []
+    for (a, b, ly) in ((p_in, p_out, target_layer), (p_out, e_end, orig)):
+        seg = pcbnew.PCB_TRACK(board)
+        seg.SetStart(a); seg.SetEnd(b); seg.SetWidth(w); seg.SetLayer(ly); seg.SetNetCode(nc)
+        board.Add(seg); added.append(seg)
+    for pt in (p_in, p_out):
+        v = pcbnew.PCB_VIA(board)
+        v.SetPosition(pt); v.SetDrill(_nm(drill)); v.SetWidth(_nm(dia))
+        v.SetLayerPair(orig, target_layer); v.SetNetCode(nc); board.Add(v); added.append(v)
+    return added
+
+
+def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=print):
+    """LAYER-TIER lever (route-time): stagger the foreign signals that cross each formed high-current
+    corridor band across F.Cu/B.Cu so the un-cut outer pour mirror always carries. Per band: collect the
+    foreign crossing tracks, order by crossing-x, assign ALTERNATING target layers, and flip those not
+    already on their target (split + transition vias). SAFE: if *verify*, the structural DRC must not
+    regress -- otherwise the whole transform is REVERTED (a geometry slip can never worsen the board, so
+    this is safe to run in an overnight loop). Returns a report dict. Cable-board / formed-corridor only
+    (shared-bus + degenerate bands yield an empty no-op)."""
+    import cec_synth_pipeline as sp
+    out_path = out_path or board_path
+    if out_path != board_path:
+        shutil.copy2(board_path, out_path)
+    pre = _structural_drc_count(out_path) if verify else None
+    board = pcbnew.LoadBoard(out_path)
+    model, _P = sp._board_corridor_model(board)
+    bands = {c.base: c.band for c in model.cables if c.formed}
+    sense = _sense_input_nets(board)
+    report = {"bands": {}, "flipped": 0, "vias_added": 0, "reverted": False}
+    if not bands:
+        return {**report, "note": "no formed cable corridor (shared-bus/degenerate) -- no-op"}
+    for base, band in bands.items():
+        crossings = []
+        for t in board.GetTracks():
+            if t.Type() != pcbnew.PCB_TRACE_T or t.GetLayer() not in (pcbnew.F_Cu, pcbnew.B_Cu):
+                continue
+            if not _corridor_foreign_net(t.GetNetname(), model.corridor_nets, sense):
+                continue
+            ee = _seg_crosses_band(t, band)
+            if ee:
+                crossings.append((t.GetNetname(), t, ee, (entry_x := ee[0][0])))
+        by_net = {}
+        for n, t, ee, ex in crossings:
+            by_net.setdefault(n, []).append((t, ee, ex))
+        for i, (n, segs) in enumerate(sorted(by_net.items(), key=lambda kv: min(s[2] for s in kv[1]))):
+            target = pcbnew.F_Cu if i % 2 == 0 else pcbnew.B_Cu
+            for t, ee, _ex in segs:
+                if t.GetLayer() != target:
+                    _flip_crossing(board, t, ee[0], ee[1], target)
+                    report["flipped"] += 1
+                    report["vias_added"] += 2
+        report["bands"][base] = len(by_net)
+    pcbnew.SaveBoard(out_path, board)
+    del board
+    if verify and report["flipped"]:
+        post = _structural_drc_count(out_path)
+        if post > pre:                                     # regressed -> revert the whole transform
+            shutil.copy2(board_path, out_path)
+            report.update(reverted=True, drc_pre=pre, drc_post=post, flipped=0, vias_added=0)
+            log(f"[cec_fr] stagger reverted: structural DRC {pre}->{post} (kept the un-staggered route)")
+    return report
+
+
+def _sense_input_nets(board):
+    """Nets at an INA current-sense input pin (the Kelvin/post-filter sense) -- exempt from staggering."""
+    out = set()
+    for fp in board.GetFootprints():
+        if "INA2" not in (fp.GetValue() or "").upper():
+            continue
+        for pad in fp.Pads():
+            nu = (pad.GetNetname() or "")
+            if nu and nu.upper().endswith(("_HI", "_LO", "_P", "_N")):
+                out.add(nu)
+    return out
+
+
+def _structural_drc_count(board_path):
+    """Structural DRC violation count (shorts/clearance/unconnected etc.), benign-filtered like
+    cec_score.verify -- the safe-revert metric for stagger_corridor_crossings."""
+    try:
+        import cec_score
+        return cec_score.score(board_path).drc
+    except Exception:
+        return 0
 
 
 # ---------------------------------------------------------------------------
