@@ -1,5 +1,24 @@
 HYBRID — A (domain-scored annealing) as the spine + the corridor min-cut term from C + a tightly-budgeted route-oracle confirm from D, all wired into cec_loop's run_candidates lever-1 as a "reseed" candidate. Hereafter "**the corridor-aware reseed placer**".
 
+> **⚠ CORE-PREMISE FINDING (2026-06-14, after building Phase 2 — READ THIS FIRST).** This strategy's
+> central premise — that PLACEMENT can drive `corridor_cross` to ~0 — **does NOT hold for the eps
+> topology**, and the same will be true of any board where the high-current corridor runs the full
+> board height. Measured: the committed **best hand-placed** board scores **cc=6**, with 15.6mm bands;
+> Phase 2's placer now produces the IDENTICAL 15.6mm corridors and its best across all seeds is also
+> **cc=6, never lower**. The 6 foreign signals (`/DETC1`, `/THRESH`, `/I2C_SCL`×2, `/I2C_SDA`×2) MUST
+> cross the J_IN→shunt→J_OUT corridors to reach the central ESP — a top-to-bottom current path leaves
+> **no in-plane y-channel** to route around. So the pour-cutting (~300 °C) failure is fundamentally a
+> **route-time LAYER-ASSIGNMENT** problem (route the crossing signals on an inner layer, off the
+> F.Cu/B.Cu pour — which is exactly how the committed board's 6 crossings route without cutting the
+> pour), **not** a placement problem. Phase 0–2 still deliver real value (a correct corridor model +
+> checkers; the placer now forms hand-quality corridors with the shunt on-axis), and `corridor_cross`
+> is a sound **pour-integrity / body-in-band** predictor — but it is NOT a placement objective that
+> reaches 0. **Recommended pivot: a layer-assignment lever at route time** (assign each foreign net
+> that crosses a formed corridor to a non-pour layer), which the FR/pour machinery is positioned to do.
+> The remaining phases below (the anneal soft terms, route-confirm, cec_loop reseed) are still useful
+> for placement QUALITY, but they will not by themselves clear the corridor — temper expectations
+> accordingly. — owner decision point: invest in layer-assignment vs. continue placement tuning.
+
 # Domain-aware placement strategy — eps-8pin corridor ceiling
 
 Author: Lead PCB Architect (synthesis pass, 2026-06-14)
