@@ -90,6 +90,16 @@ REVIEWER_MODEL = (os.environ.get("CEC_VLLM_REVIEWER_MODEL")
 TIMEOUT = float(os.environ.get("CEC_VLLM_TIMEOUT", "300"))   # absorbs the cold first guided-JSON grammar compile
 # Timeouts are a CEILING (a fast response returns immediately) -- set them generous so a long deep-tier
 # generation is never timeout-cut mid-thought (owner 2026-06-13: a mid-process cut poisons every later pass).
+
+# CLOUD-SEAT SHIM (owner ask 2026-06-13: an off-box "--seats cloud" fast-iteration mode + the seat
+# bake-off). A model name in CLOUD_MODELS (or any "claude*") is NOT a broker model -- route it through
+# the `claude -p` CLI instead of the broker, returning the same schema-shaped dict _chat_json yields.
+# The CLI has no json_schema grammar, so we instruct JSON-only + parse + best-effort-validate; the
+# caller (deterministic fallback) and the bake-off scorer treat a non-conforming reply as a failure.
+CLOUD_MODELS = {m.strip() for m in os.environ.get("CEC_CLOUD_MODELS", "sonnet,opus,haiku").split(",")
+                if m.strip()}
+CLOUD_EFFORT = os.environ.get("CEC_CLOUD_EFFORT") or None       # high|max for the deep reasoning seats
+CLOUD_CLI = os.environ.get("CEC_CLOUD_CLI", "claude")
 MANAGER_TIMEOUT = float(os.environ.get("CEC_VLLM_MANAGER_TIMEOUT", "2400"))   # a big RAM-offload thinking manager is slow
 # THINKING models reason before the JSON; an undersized token budget truncates mid-reason -> empty
 # content -> JSON parse failure -> silent deterministic fallback (first measured on the retired
@@ -240,6 +250,100 @@ def available(timeout=3, url=None):
         return False
 
 
+def _is_cloud(model):
+    """A model that lives off-box behind the `claude -p` CLI, not the broker."""
+    m = (model or "").strip().lower()
+    return m in CLOUD_MODELS or m.startswith("claude")
+
+
+def _extract_json_obj(text):
+    """Pull the first PARSEABLE balanced JSON object out of arbitrary model text (CLI replies may wrap it
+    in prose / a markdown fence despite the instruction). Brace-matching so a nested object survives.
+    CSS-2 (audit): a balanced-but-non-JSON brace span in prose BEFORE the real object (e.g. "{not json}")
+    must not abort the scan -- on a json.loads failure of one span, keep scanning for the next top-level
+    {...} instead of giving up."""
+    import re
+    start = 0
+    while True:
+        s = text.find("{", start)
+        if s < 0:
+            break
+        depth, instr, esc = 0, False, False
+        for i in range(s, len(text)):
+            c = text[i]
+            if instr:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    instr = False
+                continue
+            if c == '"':
+                instr = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[s:i + 1])
+                    except Exception:                            # noqa: BLE001 -- not JSON, scan onward
+                        break
+        start = s + 1                                            # advance past this '{' and keep looking
+    # no balanced object parsed -> last-resort greedy regex (best-effort on a trailing-truncated reply)
+    m = re.search(r"\{.*\}", text, re.S)
+    if not m:
+        raise ValueError("cloud seat: no JSON object in reply")
+    return json.loads(m.group(0))
+
+
+def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=None, timeout=None,
+                     seat=None, temperature=0.0, attempts=2):
+    """Cloud-seat shim: run a cloud Claude model via `claude -p --model <m> [--effort <lvl>]
+    --output-format json` and return schema-shaped JSON, so --seats cloud / the seat bake-off can use
+    sonnet/opus without the local broker. The CLI occasionally returns a `result` with no parseable JSON
+    object (an empty/prose reply) -- RETRY once, and on final failure raise WITH a raw snippet so the
+    failure is diagnosable (a bare 'no JSON object' was undebuggable in the bake-off). Raises on
+    transport/parse like _chat_json (callers fall back to the deterministic policy).
+    NOTE (CSS-4): `temperature` is accepted for signature parity with _chat_json but is a NO-OP on the
+    CLI path (the `claude -p` interface exposes no sampling temperature); off-box swarm diversity, if ever
+    needed, must come from varying the prompt, not this arg."""
+    eff = effort if effort is not None else CLOUD_EFFORT
+    prompt = (system + "\n\n" + user + "\n\nRespond with ONLY a single JSON object that conforms to this "
+              "JSON Schema (no prose, no markdown fence, no preamble):\n" + json.dumps(schema))
+    cmd = [CLOUD_CLI, "-p", "--model", str(model)]
+    if eff:
+        cmd += ["--effort", str(eff)]
+    cmd += ["--output-format", "json"]
+    last = "no attempt"
+    for _ in range(max(1, attempts)):
+        try:
+            r = subprocess.run(cmd, input=prompt, text=True, capture_output=True,
+                               timeout=timeout or TIMEOUT)
+        except subprocess.TimeoutExpired as e:
+            raise ValueError("cloud seat timeout: %s" % e)
+        except OSError as e:        # CSS-1 (audit): a spawn failure (missing/!x CLI) must not escape the
+            last = "spawn: %s" % e  # retry loop -- record it and fall through to the unified raise below
+            continue
+        if r.returncode != 0:
+            last = "exit %s: %s" % (r.returncode, (r.stderr or "")[:160])
+            continue
+        # `--output-format json` wraps the reply in a result envelope; fall back to raw stdout if not.
+        text = r.stdout
+        try:
+            env = json.loads(r.stdout)
+            if isinstance(env, dict) and "result" in env:
+                text = env["result"]
+        except Exception:                                        # noqa: BLE001
+            pass
+        try:
+            return _extract_json_obj(text)
+        except Exception as e:                                   # noqa: BLE001 -- retry, then surface raw
+            last = "%s | raw=%r" % (e, (text or "")[:160])
+    raise ValueError("cloud seat: no schema JSON after %d attempts (%s)" % (max(1, attempts), last))
+
+
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
                model=None, url=None, nothink=False, seat=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
@@ -249,6 +353,9 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     M2.7 decode-loop hazard), and an EMPTY `content` with the answer stranded in `reasoning_content`
     (a thinking overrun) is recovered by a SCRIBE transcription call instead of raising."""
     mdl = model or MODEL
+    if _is_cloud(mdl):       # cloud seat -> claude CLI (no broker, no json_schema grammar)
+        return _chat_json_cloud(system, user, schema, name=name, model=mdl, timeout=timeout,
+                                seat=seat, temperature=temperature)
     payload = {
         "model": mdl,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
