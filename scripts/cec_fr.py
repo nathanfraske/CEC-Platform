@@ -802,21 +802,25 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
     """LAYER-TIER lever (route-time): stagger the foreign signals that cross each formed high-current
     corridor band across F.Cu/B.Cu so the un-cut outer pour mirror always carries. Per band: collect the
     foreign crossing tracks, order by crossing-x, assign ALTERNATING target layers, and flip those not
-    already on their target (split + transition vias). SAFE: if *verify*, the structural DRC must not
-    regress -- otherwise the whole transform is REVERTED (a geometry slip can never worsen the board, so
-    this is safe to run in an overnight loop). Returns a report dict. Cable-board / formed-corridor only
-    (shared-bus + degenerate bands yield an empty no-op)."""
+    already on their target (split + transition vias). SAFE: if *verify*, the route QUALITY
+    (_route_quality = structural DRC + unrouted ratlines + a hard-gate penalty) must not regress --
+    otherwise the whole transform is REVERTED, staged via a temp board so an in-place call can never
+    overwrite-then-fail-to-restore the original (panel G2/G5). This is safe to run in an overnight loop.
+    Returns a report dict. Cable-board / formed-corridor only (shared-bus + degenerate bands yield an
+    empty no-op)."""
     import cec_synth_pipeline as sp
     out_path = out_path or board_path
-    if out_path != board_path:
-        shutil.copy2(board_path, out_path)
-    pre = _structural_drc_count(out_path) if verify else None
-    board = pcbnew.LoadBoard(out_path)
+    # SAFE (panel G2): NEVER mutate the original board_path. Stagger a loaded copy, write it to a TEMP,
+    # and only copy the temp onto out_path if it passes verify -- so an in-place call (out_path ==
+    # board_path) can't overwrite-then-fail-to-restore (the old copy2(path,path) SameFileError crash).
+    board = pcbnew.LoadBoard(board_path)
     model, _P = sp._board_corridor_model(board)
     bands = {c.base: c.band for c in model.cables if c.formed}
     sense = _sense_input_nets(board)
     report = {"bands": {}, "flipped": 0, "vias_added": 0, "reverted": False}
     if not bands:
+        if out_path != board_path:
+            shutil.copy2(board_path, out_path)
         return {**report, "note": "no formed cable corridor (shared-bus/degenerate) -- no-op"}
     for base, band in bands.items():
         crossings = []
@@ -827,7 +831,7 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
                 continue
             ee = _seg_crosses_band(t, band)
             if ee:
-                crossings.append((t.GetNetname(), t, ee, (entry_x := ee[0][0])))
+                crossings.append((t.GetNetname(), t, ee, ee[0][0]))
         by_net = {}
         for n, t, ee, ex in crossings:
             by_net.setdefault(n, []).append((t, ee, ex))
@@ -839,14 +843,22 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
                     report["flipped"] += 1
                     report["vias_added"] += 2
         report["bands"][base] = len(by_net)
-    pcbnew.SaveBoard(out_path, board)
+    tmp = tempfile.mkstemp(suffix=".kicad_pcb", prefix="cec_stagger_", dir=_TMP)[1]
+    pcbnew.SaveBoard(tmp, board)
     del board
     if verify and report["flipped"]:
-        post = _structural_drc_count(out_path)
-        if post > pre:                                     # regressed -> revert the whole transform
-            shutil.copy2(board_path, out_path)
-            report.update(reverted=True, drc_pre=pre, drc_post=post, flipped=0, vias_added=0)
-            log(f"[cec_fr] stagger reverted: structural DRC {pre}->{post} (kept the un-staggered route)")
+        pre, post = _route_quality(board_path), _route_quality(tmp)   # original vs staggered
+        # Revert if the staggered board is WORSE, or cannot be scored at all (post == +inf): an
+        # unverifiable transform must never ship over the original.
+        if post > pre or not math.isfinite(post):
+            if out_path != board_path:
+                shutil.copy2(board_path, out_path)
+            os.remove(tmp)
+            report.update(reverted=True, q_pre=pre, q_post=post, flipped=0, vias_added=0)
+            log(f"[cec_fr] stagger reverted: quality(drc+unconn+gates) {pre}->{post} (kept the un-staggered route)")
+            return report
+    shutil.copy2(tmp, out_path)                            # accept the staggered board
+    os.remove(tmp)
     return report
 
 
@@ -863,14 +875,21 @@ def _sense_input_nets(board):
     return out
 
 
-def _structural_drc_count(board_path):
-    """Structural DRC violation count (shorts/clearance/unconnected etc.), benign-filtered like
-    cec_score.verify -- the safe-revert metric for stagger_corridor_crossings."""
+def _route_quality(board_path):
+    """Route-quality scalar for the stagger safe-revert decision -- LOWER is better. Combines the
+    structural DRC count with the unrouted-ratline count AND a heavy penalty when a HARD GATE
+    (Kelvin / diff-pair) is not met, so a stagger that strands a sense tap or opens a ratline -- which
+    a bare structural-DRC count silently misses -- is caught and the transform reverted (panel G5).
+    A measurement FAILURE returns +inf (the worst possible value) so a transform whose result cannot
+    be scored is NEVER accepted over the original board (the old `except: return 0` masked errors as a
+    perfect score)."""
     try:
         import cec_score
-        return cec_score.score(board_path).drc
+        m = cec_score.score(board_path)
+        gate_penalty = 0 if (m.kelvin_ok and m.diffpair_ok) else 10_000
+        return float(m.drc + m.unconnected + gate_penalty)
     except Exception:
-        return 0
+        return float("inf")
 
 
 # ---------------------------------------------------------------------------

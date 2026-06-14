@@ -544,5 +544,77 @@ class TestLayerLever(unittest.TestCase):
         self.assertFalse(cec_fr._corridor_foreign_net("/+3V3", cn, set()))
 
 
+# --------------------------------------------------------------------------- the safe-revert metric
+class TestRouteQuality(unittest.TestCase):
+    """_route_quality (cec_fr): the stagger safe-revert metric. LOWER is better; combines structural
+    DRC + unrouted ratlines + a hard-gate penalty; a measurement FAILURE returns +inf (never 0 -- the
+    old `except: return 0` masked a broken board as a perfect score, panel G5)."""
+
+    def test_measurement_failure_is_inf_not_zero(self):
+        import math
+        import cec_fr
+        q = cec_fr._route_quality("/no/such/board.kicad_pcb")
+        self.assertFalse(math.isfinite(q))        # +inf, NOT 0 -- an unscoreable board is the worst
+
+    def test_gate_failure_dominates(self):
+        """A gate-failing board (Kelvin/diff-pair not routed) must score far worse than a gate-passing
+        one even with a higher raw DRC count -- so a stagger that strands a sense tap is reverted."""
+        import types
+        import cec_fr
+
+        def _fake_score(passing, drc, unconnected):
+            m = types.SimpleNamespace(drc=drc, unconnected=unconnected,
+                                      kelvin_ok=passing, diffpair_ok=passing)
+            fake = types.SimpleNamespace(score=lambda _p: m)
+            return fake
+
+        orig = sys.modules.get("cec_score")
+        try:
+            sys.modules["cec_score"] = _fake_score(True, drc=5, unconnected=0)
+            q_pass = cec_fr._route_quality("x")
+            sys.modules["cec_score"] = _fake_score(False, drc=0, unconnected=0)
+            q_gatefail = cec_fr._route_quality("x")
+        finally:
+            if orig is not None:
+                sys.modules["cec_score"] = orig
+            else:
+                sys.modules.pop("cec_score", None)
+        self.assertEqual(q_pass, 5.0)             # drc + unconnected, gates ok -> no penalty
+        self.assertGreater(q_gatefail, 1000)      # gate fail -> heavy penalty dominates
+        self.assertGreater(q_gatefail, q_pass)
+
+
+@unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(EPS_PCB),
+                     "pcbnew + the committed eps-8pin board required")
+class TestStaggerSafeRevert(unittest.TestCase):
+    """The stagger transform is staged to a TEMP board and only adopted if _route_quality does not
+    regress -- an in-place call can never overwrite-then-fail-to-restore the original (panel G2)."""
+
+    def test_reverts_on_quality_regression_without_corrupting_original(self):
+        import tempfile
+        import cec_fr
+        # A board with two straight full-span crossings (so flipped > 0 and verify runs).
+        b = pcbnew.LoadBoard(EPS_PCB)
+        for net, y in (("/DETC1", 18.0), ("/THRESH", 20.0)):
+            t = pcbnew.PCB_TRACK(b)
+            t.SetStart(pcbnew.VECTOR2I(30_000_000, int(y * 1e6)))
+            t.SetEnd(pcbnew.VECTOR2I(50_000_000, int(y * 1e6)))
+            t.SetWidth(200_000); t.SetLayer(pcbnew.F_Cu); t.SetNetCode(b.FindNet(net).GetNetCode())
+            b.Add(t)
+        src = os.path.join(tempfile.mkdtemp(), "eps-cross.kicad_pcb")
+        pcbnew.SaveBoard(src, b)
+        before = open(src, "rb").read()
+        # Force a "regression" by making the staggered board always score worse than the original.
+        orig_rq = cec_fr._route_quality
+        cec_fr._route_quality = lambda p: (0.0 if p == src else 1.0e9)
+        try:
+            rep = cec_fr.stagger_corridor_crossings(src, verify=True)   # in-place (out_path == src)
+        finally:
+            cec_fr._route_quality = orig_rq
+        self.assertTrue(rep["reverted"])
+        self.assertEqual(rep["flipped"], 0)            # reverted -> no flips reported
+        self.assertEqual(open(src, "rb").read(), before)  # original board byte-identical (not corrupted)
+
+
 if __name__ == "__main__":
     unittest.main()
