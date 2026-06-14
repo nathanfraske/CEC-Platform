@@ -2112,6 +2112,51 @@ def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
     return False
 
 
+def _board_corridor_model(board):
+    """(model, P) from a live pcbnew board -- the loop/tier entry into the corridor domain. Builds the
+    netlist + placement off the board (the same shape as read_placement) and the CorridorModel."""
+    comps, nets, P, vals = {}, defaultdict(list), {}, {}
+    for fp in board.GetFootprints():
+        r = fp.GetReference()
+        comps[r] = fp.GetFPIDAsString()
+        vals[r] = fp.GetValue()
+        pos = fp.GetPosition()
+        P[r] = (pos.x / 1e6, pos.y / 1e6, fp.GetOrientationDegrees())
+        for pad in fp.Pads():
+            nn = pad.GetNetname()
+            if nn:
+                nets[nn].append((r, pad.GetPadName()))
+    nl = Netlist(comps={r: Comp(ref=r, value=vals[r], footprint=comps[r]) for r in comps},
+                 nets=dict(nets))
+    eb = board.GetBoardEdgesBoundingBox()
+    W = max(1.0, eb.GetWidth() / 1e6)
+    return build_corridor_model(nl, P, comps, board_w=W), P
+
+
+def corridor_violations(board_path):
+    """SENSITIVE part bodies that sit inside a FOREIGN FORMED corridor band -- the placement-time
+    body-in-band fault the §2.2 veto prevents at seed time, here detected on an EXISTING board so a
+    cec_place refine pass or a cec_router manager tier can EVICT them (the placement-side analogue of
+    the routing corridor-avoid lever). Returns [{"ref", "band":(x0,x1,y0,y1), "base"}], shared-bus
+    boards yield [] (no per-cable corridor). Loads its own board (pcbnew)."""
+    import pcbnew
+    model, P = _board_corridor_model(pcbnew.LoadBoard(board_path))
+    bands = {c.base: {"band": c.band, "formed": c.formed} for c in model.cables}
+    paired = {c.base: set(c.sense_ics) for c in model.cables}
+    out = []
+    for ref in sorted(model.sensitive):
+        if ref not in P:
+            continue
+        for base, cab in bands.items():
+            if not cab["formed"] or ref in paired.get(base, ()):
+                continue
+            X0, X1, Y0, Y1 = cab["band"]
+            if X0 <= P[ref][0] <= X1 and Y0 <= P[ref][1] <= Y1:
+                out.append({"ref": ref, "band": cab["band"], "base": base})
+                break
+    return out
+
+
 @dataclass
 class Candidate:
     """A placement candidate + its cheap proxy + (later) its feasibility confidence."""

@@ -436,6 +436,32 @@ def relocate_logo_to_clear(board_path, margin=0.6, save=True):
             "x1": best[0] + w / 2 + margin, "y1": best[1] + h / 2 + margin}
 
 
+def apply_corridor_evict(board, ref, band, margin=1.5):
+    """PLACEMENT corridor lever: move *ref* (+ its owned passive cluster) OUT of a foreign high-current
+    corridor *band*=(x0,x1,y0,y1), past the NEAREST band edge + margin. A SENSITIVE body inside a
+    foreign band cuts the pour -- the worst corridor fault. Like the routing corridor-avoid keepout and
+    the manager place_nudge, this moves DIRECTLY (no collision back-off): the eviction is non-negotiable,
+    and any courtyard overlap it opens is resolved by the subsequent separate/legalize passes (the
+    iterative refine model). moved_refs feed the signal-net reroute. Clamped on-board."""
+    a = _fp(board, ref)
+    if not a:
+        return None
+    x0, x1, y0, y1 = band
+    cx, cy = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
+    # nearest edge -> the displacement that carries the part just past it
+    moves = sorted([(cx - x0, (-(cx - x0) - margin, 0.0)), (x1 - cx, (x1 - cx + margin, 0.0)),
+                    (cy - y0, (0.0, -(cy - y0) - margin)), (y1 - cy, (0.0, y1 - cy + margin))])
+    dx, dy = moves[0][1]
+    cluster = _cluster(board, a)
+    _move(a, dx, dy)
+    for c in cluster:
+        _move(c, dx, dy)
+    return {"op": "evict", "ref": ref, "band": [round(v, 1) for v in band],
+            "delta": (round(dx, 2), round(dy, 2)), "out": True,
+            "moved_mm": round(math.hypot(dx, dy), 2),
+            "moved_refs": [ref] + [c.GetReference() for c in cluster]}
+
+
 def apply_directive(board, d):
     t = d.get("type") or d.get("directive")
     try:
@@ -445,13 +471,26 @@ def apply_directive(board, d):
             return apply_adjacent(board, d["a"], d["b"], float(d.get("max_mm", 3.5)))
         if t == "pin" and d.get("target") and d.get("x") is not None:
             return apply_pin(board, d["target"], float(d["x"]), float(d["y"]), d.get("rot"))
+        if t == "evict" and d.get("ref") and d.get("band"):
+            return apply_corridor_evict(board, d["ref"], tuple(d["band"]))
     except Exception as e:
         return {"op": t, "error": repr(e)}
     return None   # region/align/keepout/rename -> not a single-part move (handled elsewhere)
 
 
 # ---- the refinement loop ---------------------------------------------------
-MOVABLE = ("separate", "adjacent", "pin")
+MOVABLE = ("separate", "adjacent", "pin", "evict")
+
+
+def _corridor_evict_directives(board_path):
+    """The PLACEMENT corridor lever as refine() directives: a SENSITIVE body inside a foreign formed
+    corridor band -> an 'evict' mover. Fail-safe (returns [] if the corridor model can't be built)."""
+    try:
+        import cec_synth_pipeline as _sp
+        return [{"type": "evict", "ref": v["ref"], "band": v["band"], "base": v["base"]}
+                for v in _sp.corridor_violations(board_path)]
+    except Exception:
+        return []
 
 
 def _check(board_path, ctx):
@@ -482,6 +521,7 @@ def refine(in_path, out_path, ctx=None, max_iters=4):
     history = []
     for it in range(max_iters):
         _, ds = _check(out_path, ctx)
+        ds = ds + _corridor_evict_directives(out_path)          # PLACEMENT corridor lever
         movers = [d for d in ds if (d.get("type") or d.get("directive")) in MOVABLE]
         if not movers:
             history.append({"iter": it, "applied": [], "note": "no actionable mover directives"})

@@ -533,8 +533,39 @@ def logo_finishing_repair(board_path, rules=None, metrics=None):
             "why": f"finishing: reserve decorative {logo.GetReference()} so FR keeps copper/vias out of it"}
 
 
+def corridor_evict_repair(board_path, rules=None, metrics=None):
+    """MANAGER-tier perception (the PLACEMENT corridor lever): a SENSITIVE part body inside a FOREIGN
+    high-current corridor band cuts the pour -- the worst corridor fault. Emit a 'place_nudge' that
+    pushes it just past the nearest band edge (apply_edit moves it via pcbnew, then FR re-routes). The
+    placement-side analogue of the routing corridor-avoid keepout; never touches copper. None if clean
+    or shared-bus (corridor_violations returns [])."""
+    try:
+        import cec_synth_pipeline as sp
+        viols = sp.corridor_violations(board_path)
+    except Exception:
+        return None
+    if not viols:
+        return None
+    v = viols[0]
+    x0, x1, y0, y1 = v["band"]
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    fp = b.FindFootprintByReference(v["ref"])
+    if not fp:
+        return None
+    cx, cy = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)
+    dl, dr, du, dd = cx - x0, x1 - cx, cy - y0, y1 - cy      # distance to each band edge
+    m = min(dl, dr, du, dd)
+    delta = ((-(dl + 1.5), 0.0) if m == dl else (dr + 1.5, 0.0) if m == dr
+             else (0.0, -(du + 1.5)) if m == du else (0.0, dd + 1.5))
+    return {"type": "place_nudge", "ref": v["ref"], "delta": (round(delta[0], 2), round(delta[1], 2)),
+            "tier": "manager", "locus": (round(cx, 2), round(cy, 2)),
+            "why": (f"corridor: SENSITIVE {v['ref']} sits inside foreign band {v['base']} (cuts the "
+                    f"pour) -> nudge out the nearest edge")}
+
+
 # Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
-# generic part nudge. The loop stops at the first hit.
+# corridor body-in-band eviction, which outranks a generic part nudge. The loop stops at the first hit.
 # NOTE: logo_finishing_repair is implemented but NOT wired in yet -- a full-copper keepout over the logo
 # cuts the GND plane stitching (observed: unconnected 2 -> 24 on a demo route). The correct fix per the
 # corpus ('logo-not-in-high-current-corridor' / the documented 'GND-assign') is to ASSIGN the decorative
@@ -542,6 +573,7 @@ def logo_finishing_repair(board_path, rules=None, metrics=None):
 # tracks+vias copper keepout. Re-enable once that edit type exists.
 MANAGER_REPAIRS = [
     ("kelvin_inversion", kelvin_inversion_repair),
+    ("corridor_evict", corridor_evict_repair),
     ("part_nudge", lambda bp, rules, metrics: targeted_repair(bp, tier="manager")),
 ]
 

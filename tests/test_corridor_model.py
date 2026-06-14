@@ -422,5 +422,61 @@ class TestPlacerCorridorEps(unittest.TestCase):
         self.assertEqual(cc, cand.corridor_cross)
 
 
+# --------------------------------------------------------------------------- the corridor LEVER
+@unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(EPS_PCB),
+                     "pcbnew + the committed eps-8pin board required")
+class TestCorridorLever(unittest.TestCase):
+    """The PLACEMENT corridor lever (the analogue of the routing corridor-avoid): a SENSITIVE body in
+    a foreign formed band is detected (corridor_violations), evicted (cec_place.apply_corridor_evict),
+    and proposed by the routing-tier manager (cec_router.corridor_evict_repair)."""
+
+    def _board_with_violation(self):
+        # move U10 (cable-1 INA) into cable-2's band -> a foreign-band violation
+        b = pcbnew.LoadBoard(EPS_PCB)
+        b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
+        import tempfile
+        p = os.path.join(tempfile.mkdtemp(), "eps-violation.kicad_pcb")
+        pcbnew.SaveBoard(p, b)
+        return p
+
+    def test_violation_detected(self):
+        p = self._board_with_violation()
+        viols = sp.corridor_violations(p)
+        self.assertTrue(any(v["ref"] == "U10" and v["base"] == "/SENSEC2" for v in viols),
+                        "U10 inside cable-2's band must be a corridor violation")
+
+    def test_paired_ina_not_flagged(self):
+        # the committed board: each INA is in its OWN band (exempt) -> no violation
+        self.assertEqual(sp.corridor_violations(EPS_PCB), [])
+
+    def test_shared_bus_board_no_violations(self):
+        p = os.path.normpath(os.path.join(HERE, "..", "modules", "atx-24pin", "24pin-module.kicad_pcb"))
+        if os.path.isfile(p):
+            self.assertEqual(sp.corridor_violations(p), [])   # no per-cable corridor -> nothing to evict
+
+    def test_evict_clears_the_violation(self):
+        import cec_place
+        p = self._board_with_violation()
+        v = sp.corridor_violations(p)[0]
+        b = pcbnew.LoadBoard(p)
+        mv = cec_place.apply_corridor_evict(b, v["ref"], v["band"])
+        pcbnew.SaveBoard(p, b)
+        self.assertTrue(mv["out"])
+        self.assertIn("U10", mv["moved_refs"])
+        self.assertEqual(sp.corridor_violations(p), [])       # evicted -> clean
+
+    def test_manager_repair_emits_place_nudge(self):
+        import cec_router
+        p = self._board_with_violation()
+        rep = cec_router.corridor_evict_repair(p)
+        self.assertIsNotNone(rep)
+        self.assertEqual(rep["type"], "place_nudge")
+        self.assertEqual(rep["ref"], "U10")
+
+    def test_evict_in_movable_set(self):
+        import cec_place
+        self.assertIn("evict", cec_place.MOVABLE)
+
+
 if __name__ == "__main__":
     unittest.main()
