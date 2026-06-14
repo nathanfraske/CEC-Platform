@@ -10,6 +10,18 @@ Conventions:
 - Owner-action items (decisions / GitHub rituals / bench tasks) go to `docs/owner-queue.md`, not here.
 - Remove an item when it's done, or when it graduates into a real task / PR / owner-queue entry.
 
+## EI-02 A/B integrity (PRE-EXISTING, from the #56 audit — out of scope for the PR)
+- [2026-06-14] **AB-1**: `prev_v4_risk` carry in `cec_fullstack.run()` is UNGATED by lane (every other
+  run-learned carry is `augmented`-only) — the V4 batch window mixes a control round in, so control-round
+  data feeds a risk scalar that steers later augmented rounds. Byte-identical to base (NOT #56-introduced);
+  the A/B route baseline itself is never perturbed and the escape delta is control-gated/rolled-back, so
+  it's a slow leak not a corruption. Fix: gate the carry to `lane=='augmented'` + exclude control rows from
+  `batch_for_v4`. **AB-2**: finding-deltas built on rounds 1–3 (before the first round-4 control) are
+  overwritten unsettled (no `rolled_back` Outcome row) → `DeltaLog.tally()` undercounts; end state correct
+  (no ratchet), only the ledger tally is wrong. Fix: seed a synthetic round-0 signed baseline OR emit an
+  explicit rolled_back Outcome before overwrite. Both confirmed by the #56 adversarial audit; deferred as
+  pre-existing. Where: docs/prompt-audit-2026-06-13/audit-pr56.md.
+
 ## Prompt-tier / fullstack (from the new-impl polish verification, wf_789eb5bc-b59)
 - [2026-06-14] 12VHPWR (and any non-/SENSEC-named board) SENSE CORRIDOR cannot be SITED, only logged: the
   corridor derives from fence refs touching a `/SENSEC*_(HI|LO)` net (`is_sense_net`), but 12vhpwr sense
@@ -52,6 +64,21 @@ Conventions:
   llama-server emits `reasoning_content` as streaming deltas (a server flag may be needed; if it only
   streams `content`, the deep-reasoner's thinking won't show). Pairs with the seat bake-off (watch the
   judges reason live). — owner ask 2026-06-13.
+
+## Seat bake-off (claude/seat-bakeoff)
+- [2026-06-14] Run the deferred QUALITY-JUDGE PANEL (leave-one-out, blind) when there's time for a long
+  offline run — `python3 scripts/cec_seat_bakeoff.py judge` then `report`. The owner scoped the first run
+  to producers-only (~1-2h) because the deep-reasoner judges (deepseek ~4 tok/s, MiniMax) over ~120
+  outputs make the literal 6-judge panel ~1-2 days. To bound it: cap deepseek+MiniMax to a representative
+  SAMPLE of outputs while the fast judges (cloud + qwen + gpt-oss) do the full set. Objective metrics stay
+  the primary decider; the panel is the secondary quality cross-check for tied variants. — owner 2026-06-14.
+- [2026-06-14] deepseek-v4-flash as a T1/T4 PRODUCER (only ran it on T5, its real production seat, to stay
+  in the ~1-2h window). Add `--models deepseek-v4-flash --seats t1,t4` for completeness if a full producer
+  matrix is wanted (each call ~3-4min token-fixed). Non-blocking — deepseek isn't a T1/T4 production seat.
+- [2026-06-14] Fold the data-chosen variants into the LIVE cec_fullstack prompts on a prompt-tuning pass
+  (T1->json-skeleton, T4->terse, T5->decision-tree) — but VALIDATE on tests/holdout/ first per AM-02 (the
+  bake-off tuned on 3 cases); this is an instrument change mid-experiment, so re-baseline the EI-02 A/B
+  (PP-06) if landed. Separate from the bake-off PR. — seat-bakeoff findings 2026-06-14.
 
 ## Off-box / model-portability
 - [2026-06-13] Off-box "fast iteration" seat mode (`--seats cloud`): cloud-seat shim in
