@@ -88,6 +88,18 @@ extern "C" {
 #define PROTO_ISENSE_BIAS_V    2.40f
 #define PROTO_ISENSE_V_PER_A   0.10f
 
+/* ACS712T-20A Hall current modules on v1/v2 (idx 0/1) -- the two NON-INA240 rails,
+ * a deliberate precision A/B against the shunt+INA240 set. 5 V ratiometric part:
+ * 100 mV/A sensitivity, zero-current output Vcc/2 = 2.5 V (bidirectional). Same
+ * model as the shunt channels, its own constants:
+ *   amps = (adc_volts - PROTO_HALL_BIAS_V) / PROTO_HALL_V_PER_A
+ * LOWER precision than the shunt path -- ~1.5% total error + offset drift + more
+ * noise (80 kHz BW), and the 2.5 V zero is RATIOMETRIC so it moves with the exact
+ * 5 V rail -- which is exactly what this board is characterizing. Run `cal` at 0 A
+ * to null each module's real quiescent (the ACS712 offset is notable). */
+#define PROTO_HALL_BIAS_V      2.50f    /* Vcc/2 zero-current output (refine with `cal`) */
+#define PROTO_HALL_V_PER_A     0.100f   /* ACS712-20A sensitivity: 100 mV/A */
+
 /*
  * Per-channel physical calibration. The TelePlot loop turns each raw AD7606
  * channel (ADC volts, ±5 V full-scale) into a physical quantity:
@@ -101,10 +113,10 @@ extern "C" {
  * small rolling median to reject the per-channel glitch -- use it on steady
  * VOLTAGE channels, NOT on current channels whose real transients you keep.
  *
- * TODO(bench): the current channels are RAW (ADC volts) until the perfboard
- * front-end is pinned. Per per-pin current channel set kind=PROTO_KIND_AMP,
- * scale=1/(Rshunt*gain), offset_v=Vbias, label="i<pin>" and it streams amps.
- * v6 (index 5) is the confirmed 12V-rail divider and is already calibrated.
+ * All six current channels are calibrated AMP now: v3-v5,v8 = INA240 shunt
+ * (scale 1/(Rshunt*gain), offset Vbias), v1/v2 = ACS712-20A Hall (scale
+ * 1/sensitivity, offset Vcc/2). The provisional biases are nulled per channel by
+ * the `cal` command at 0 A. v6 (index 5) is the confirmed 12V-rail divider.
  */
 typedef enum { PROTO_KIND_RAW, PROTO_KIND_VOLT, PROTO_KIND_AMP } proto_kind_t;
 

@@ -7,29 +7,32 @@
 #include <stdbool.h>
 
 /*
- * Per-channel calibration. v6 (index 5) is the 12V-rail divider -> volts;
- * v7 (index 6) is a VCC tap through a 10k/10k divider (/2) + 100nF -> volts
- * (scale 2.0); v3-v5,v8 are the FOUR per-pin current senses -> amps via the
- * PROVISIONAL PROTO_ISENSE_* constants (see cec_config.h -- confirm the
- * shunt*gain and the channel->pin map). v1/v2 are NOT wired into the measuring
- * cable yet, so they carry a NULL label = "unconnected": not emitted to TelePlot
- * (the `frame` CLI still shows their raw value). To enable one, give it a label
- * + kind; to mark another unconnected, set its label NULL.
+ * Per-channel calibration. v6 (index 5) is the 12V-rail divider -> volts; v7
+ * (index 6) is a VCC tap through a 10k/10k divider (/2) + 100nF -> volts (scale
+ * 2.0). The SIX per-pin current senses split by front-end TYPE -- a deliberate
+ * A/B: v3-v5,v8 are the INA240 SHUNT path (ISCALE/IBIAS), v1/v2 are ACS712-20A
+ * HALL modules (HSCALE/HBIAS -- lower precision, see cec_config.h). All read amps.
  */
-/* Negated: the sense is wired so load current pulls the ADC BELOW bias, so
+/* Negated: the shunt sense is wired so load current pulls the ADC BELOW bias, so
  * a GPU draw read as negative -- flip it so a draw is positive amps
  * (bench-confirmed 2026-06-13). Drop the '-' if a board reads inverted. */
 #define ISCALE  (-1.0f / PROTO_ISENSE_V_PER_A)
 #define IBIAS   PROTO_ISENSE_BIAS_V
+/* ACS712 sign (provisional): per the datasheet a rising IP+ -> IP- current raises
+ * the output above Vcc/2, so a forward draw reads POSITIVE with +scale -- the
+ * OPPOSITE polarity from the shunt wiring above. CONFIRM at the bench and flip the
+ * sign if a draw reads negative (it depends which way the module sits in the line). */
+#define HSCALE  (1.0f / PROTO_HALL_V_PER_A)
+#define HBIAS   PROTO_HALL_BIAS_V
 const proto_ch_cal_t PROTO_CH_CAL[CEC_FPGA_FRAME_CHANNELS] = {
-    /* idx 0  v1 */ { NULL,    PROTO_KIND_RAW,  1.0f,               0.0f,  false }, /* unconnected */
-    /* idx 1  v2 */ { NULL,    PROTO_KIND_RAW,  1.0f,               0.0f,  false }, /* unconnected */
-    /* idx 2  v3 */ { "i3",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
-    /* idx 3  v4 */ { "i4",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
-    /* idx 4  v5 */ { "i5",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 0  v1 */ { "i1",    PROTO_KIND_AMP,  HSCALE,             HBIAS, false }, /* ACS712-20A Hall */
+    /* idx 1  v2 */ { "i2",    PROTO_KIND_AMP,  HSCALE,             HBIAS, false }, /* ACS712-20A Hall */
+    /* idx 2  v3 */ { "i3",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false }, /* INA240 shunt */
+    /* idx 3  v4 */ { "i4",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false }, /* INA240 shunt */
+    /* idx 4  v5 */ { "i5",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false }, /* INA240 shunt */
     /* idx 5  v6 */ { "vrail", PROTO_KIND_VOLT, PROTO_RAIL_DIVIDER, 0.0f,  true  },
     /* idx 6  v7 */ { "vcc",   PROTO_KIND_VOLT, 2.0f,               0.0f,  true  }, /* VCC tap: 10k/10k /2 + 100nF */
-    /* idx 7  v8 */ { "i8",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false },
+    /* idx 7  v8 */ { "i8",    PROTO_KIND_AMP,  ISCALE,             IBIAS, false }, /* INA240 shunt */
 };
 
 /* Runtime per-channel offset (subtracted ADC volts). Starts at the config

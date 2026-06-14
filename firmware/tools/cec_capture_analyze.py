@@ -195,6 +195,10 @@ class Profile12VHPWR(Profile):
     ISENSE_TOL_PCT = 1.0        # per-channel current-sense (shunt) tolerance, %.
                                 #   1% alloy shunts; INDEPENDENT per pin, so it sets a
                                 #   measurement FLOOR on the imbalance (--isense-tol to change).
+    HALL_CHANNELS = ("i1", "i2")  # the ACS712-20A Hall rails (the non-INA240 A/B pair)
+    HALL_TOL_PCT  = 3.0           # ACS712-20A per-pin tolerance ESTIMATE, %: wider than the
+                                  #   shunt (~1.5% total error + offset/noise). REFINE from the
+                                  #   measured Hall-vs-shunt scatter (--hall-tol / --hall-channels).
 
     @staticmethod
     def _imbalance_floor_pct(n_carrying, tol_pct):
@@ -205,6 +209,24 @@ class Profile12VHPWR(Profile):
         if n_carrying < 2:
             return 0.0
         return 2.0 * tol_pct * (n_carrying - 1) / n_carrying
+
+    def _pin_tol(self, name):
+        """Per-channel tolerance %: the wider Hall figure for an ACS712 rail, else
+        the INA240 shunt figure."""
+        return self.HALL_TOL_PCT if name in self.HALL_CHANNELS else self.ISENSE_TOL_PCT
+
+    def _pin_floors(self, names):
+        """Per-pin deviation-from-fair-share floor %, generalized for MIXED sensor
+        tolerances: floor_i = (t_i*(N-2) + sum_k t_k) / N. Reduces EXACTLY to the
+        uniform 2*t*(N-1)/N when every tolerance matches (so a shunt-only board is
+        unchanged); a Hall pin (bigger t_i) just gets a taller band, and its extra
+        noise also widens the shared fair-share term for the shunt pins a hair."""
+        n = len(names)
+        if n < 2:
+            return {c: 0.0 for c in names}
+        tols = {c: self._pin_tol(c) for c in names}
+        tsum = sum(tols.values())
+        return {c: (tols[c] * (n - 2) + tsum) / n for c in names}
 
     def classify(self, cap):
         sig = cap.signal_columns()
@@ -245,17 +267,28 @@ class Profile12VHPWR(Profile):
             c_spread = float(cm.max() - cm.min())
             c_imb = (c_spread / abs(c_mean) * 100.0) if abs(c_mean) > 1e-6 else None
             worst = currents[int(np.where(carrying, pin_mean, -np.inf).argmax())]
+            carrying_names = [currents[k] for k in range(len(currents)) if carrying[k]]
+            pin_floor = self._pin_floors(carrying_names)
+            hall_pins = [c for c in carrying_names if c in self.HALL_CHANNELS]
+            worst_excess = (float((cm.max() - c_mean) / abs(c_mean) * 100.0)
+                            if abs(c_mean) > 1e-6 else None)
             imb.update({
                 "load_state": "loaded",
-                "carrying_pins": [currents[k] for k in range(len(currents)) if carrying[k]],
+                "carrying_pins": carrying_names,
                 "carrying_mean_A": c_mean, "carrying_spread_A": c_spread,
                 "imbalance_pct": c_imb, "worst_pin": worst,
-                "worst_pin_excess_pct": (float((cm.max() - c_mean) / abs(c_mean) * 100.0)
-                                         if abs(c_mean) > 1e-6 else None),
+                "worst_pin_excess_pct": worst_excess,
                 "isense_tol_pct": self.ISENSE_TOL_PCT,
+                "hall_pins": hall_pins, "hall_tol_pct": self.HALL_TOL_PCT,
                 "shunt_match_floor_pct": self._imbalance_floor_pct(int(carrying.sum()),
                                                                    self.ISENSE_TOL_PCT),
-                "spread_floor_pct": 2.0 * self.ISENSE_TOL_PCT,
+                "pin_floor_pct": {c: round(pin_floor[c], 2) for c in carrying_names},
+                "worst_pin_floor_pct": round(pin_floor[worst], 2),
+                # the hog counts as REAL only above ITS OWN sensor's floor (a Hall hog
+                # must clear the wider Hall band, not the tight shunt one).
+                "worst_pin_significant": bool(worst_excess is not None
+                                              and worst_excess > pin_floor[worst]),
+                "spread_floor_pct": 2.0 * max(self._pin_tol(c) for c in carrying_names),
                 "FLAG": bool(c_imb is not None and c_imb > self.IMBALANCE_FLAG_PCT),
             })
         else:
@@ -350,15 +383,22 @@ class Profile12VHPWR(Profile):
                                          gridspec_kw={"height_ratios": [1.1, 1]})
             x = np.arange(len(ci))
             vals = pct[order]
-            # measurement floor: with independent +/-tol shunts a pin's share is only
-            # known to +/-floor, so a bar inside this band may be shunt mismatch, not
-            # real imbalance. Shaded behind the bars.
-            floor = self._imbalance_floor_pct(len(ci), self.ISENSE_TOL_PCT)
+            # measurement floor: PER PIN. With independent +/-tol sensors a pin's
+            # share is only known to +/-floor_i, so a bar inside ITS band may be
+            # sensor mismatch, not real imbalance. The ACS712 HALL rails have a wider
+            # tolerance than the INA240 shunts, so they get a TALLER (tinted) band --
+            # the precision A/B made visible. Drawn behind each bar.
+            from matplotlib.patches import Patch
+            pin_floor = self._pin_floors(cnames)
+            maxfloor = max(pin_floor.values()) if pin_floor else 0.0
+            for xi in range(len(ci)):
+                c = cnames[order[xi]]; fl = pin_floor[c]
+                if fl > 0:
+                    ab.bar(xi, 2 * fl, bottom=100 - fl, width=0.86, zorder=0,
+                           edgecolor="none", alpha=0.16,
+                           color="#8e44ad" if c in self.HALL_CHANNELS else "0.55")
             colors = ["#c0392b" if v - 100 > self.IMBALANCE_FLAG_PCT
                       else "#e67e22" if v > 100 else "#2980b9" for v in vals]
-            if floor > 0:
-                ab.axhspan(100 - floor, 100 + floor, color="0.6", alpha=0.18, zorder=0,
-                           label=f"±{floor:.1f}% shunt-match floor (±{self.ISENSE_TOL_PCT:g}% indep. shunts)")
             ab.bar(x, vals - 100.0, bottom=100.0, color=colors, width=0.62, zorder=2)
             for xi in range(len(ci)):
                 k = order[xi]
@@ -367,17 +407,23 @@ class Profile12VHPWR(Profile):
                 ab.annotate(f"{vals[xi]:.1f}%", (xi, vals[xi]), ha="center",
                             va="bottom" if vals[xi] >= 100 else "top", fontsize=9, zorder=4)
             ab.axhline(100, color="k", lw=1.0)
-            lo = min(float(vals.min()), float((100 + whisk).min()), 100 - floor)
-            hi = max(float(vals.max()), float((100 + whisk).max()), 100 + floor)
+            lo = min(float(vals.min()), float((100 + whisk).min()), 100 - maxfloor)
+            hi = max(float(vals.max()), float((100 + whisk).max()), 100 + maxfloor)
             mrg = max(0.6, (hi - lo) * 0.18)
             ab.set_ylim(lo - mrg, hi + mrg)
-            ab.set_xticks(x); ab.set_xticklabels([cnames[order[xi]] for xi in range(len(ci))])
+            ab.set_xticks(x)
+            ab.set_xticklabels([cnames[order[xi]] + (" (H)" if cnames[order[xi]] in self.HALL_CHANNELS else "")
+                                for xi in range(len(ci))])
             ab.set_ylabel("% of fair share")
             ab.set_title(f"per-pin IMBALANCE — share of the load  (fair = {fair:.2f} A = 100%; "
                          f"hog {hog} at {pct.max():.1f}%, +{pct.max()-100:.1f}%; "
                          f"melt-watch +{self.IMBALANCE_FLAG_PCT:.0f}%)", fontsize=10)
-            if floor > 0:
-                ab.legend(fontsize=8, loc="best")
+            handles = [Patch(facecolor="0.55", alpha=0.16,
+                             label=f"±shunt floor (±{self.ISENSE_TOL_PCT:g}% INA240)")]
+            if any(c in self.HALL_CHANNELS for c in cnames):
+                handles.append(Patch(facecolor="#8e44ad", alpha=0.16,
+                                     label=f"±Hall floor (±{self.HALL_TOL_PCT:g}% ACS712, '(H)')"))
+            ab.legend(handles=handles, fontsize=8, loc="best")
             ab.grid(True, axis="y", alpha=0.3)
 
             for j in range(len(ci)):
@@ -459,11 +505,19 @@ def write_metrics(m, stem, out):
                 f.write(f"- worst (hog): {im['worst_pin']} (+{im['worst_pin_excess_pct']:.1f}% over the "
                         f"carrying mean); worst instantaneous spread "
                         f"{im['worst_instantaneous_spread_A']:.3f} A\n")
-                if im.get("shunt_match_floor_pct"):
-                    f.write(f"- measurement floor: ±{im['shunt_match_floor_pct']:.1f}% per pin from "
-                            f"±{im.get('isense_tol_pct', 1.0):g}% independent shunts — a bar inside the "
-                            f"band may be shunt mismatch, not real imbalance; the spread is real above "
-                            f"~{im.get('spread_floor_pct', 2.0):.1f}%\n")
+                if im.get("pin_floor_pct"):
+                    pf = im["pin_floor_pct"]; hp = im.get("hall_pins", [])
+                    shunt_fl = next((v for c, v in pf.items() if c not in hp), None)
+                    f.write("- measurement floor:")
+                    if shunt_fl is not None:
+                        f.write(f" ±{shunt_fl:.1f}% per shunt pin (±{im.get('isense_tol_pct', 1.0):g}% INA240)")
+                    if hp:
+                        f.write(f"{',' if shunt_fl is not None else ''} ±{pf[hp[0]]:.1f}% on the ACS712 "
+                                f"Hall pins {hp} (±{im.get('hall_tol_pct', 3.0):g}%)")
+                    f.write(f" — a bar inside ITS band may be sensor mismatch, not real imbalance. "
+                            f"Hog {im['worst_pin']} is "
+                            f"**{'above' if im.get('worst_pin_significant') else 'within'}** its own floor"
+                            f" (±{im.get('worst_pin_floor_pct', 0.0):.1f}%).\n")
             if im.get("dead_pins"):
                 f.write(f"- dead / not-carrying: {im['dead_pins']} — a dead pin pushes its share onto "
                         f"the rest, raising their absolute current\n")
@@ -502,6 +556,10 @@ def main():
     ap.add_argument("--isense-tol", type=float, default=None,
                     help="per-channel shunt tolerance %% for the imbalance measurement-floor "
                          "band (default 1.0 = 1%% alloy shunts)")
+    ap.add_argument("--hall-tol", type=float, default=None,
+                    help="per-channel tolerance %% for the ACS712 Hall pins (default 3.0)")
+    ap.add_argument("--hall-channels", default=None,
+                    help="comma-separated Hall channel labels (default i1,i2)")
     args = ap.parse_args()
 
     with open(args.input) as f:
@@ -515,6 +573,10 @@ def main():
     prof = PROFILES[args.module]
     if args.isense_tol is not None and hasattr(prof, "ISENSE_TOL_PCT"):
         prof.ISENSE_TOL_PCT = args.isense_tol
+    if args.hall_tol is not None and hasattr(prof, "HALL_TOL_PCT"):
+        prof.HALL_TOL_PCT = args.hall_tol
+    if args.hall_channels is not None and hasattr(prof, "HALL_CHANNELS"):
+        prof.HALL_CHANNELS = tuple(c.strip() for c in args.hall_channels.split(",") if c.strip())
     base = os.path.splitext(os.path.basename(args.input))[0]
 
     flagged = 0

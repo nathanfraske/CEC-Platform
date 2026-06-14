@@ -366,6 +366,37 @@ DETECTOR TAXONOMY (owner direction 2026-06-13) -- three distinct classes:
    deviation from a REGISTERED norm (a learned/stored baseline distribution, not just a
    single EMA). Owner-flagged as the next detector class to build.
 
+## Mixed-sensor current channels -- ACS712 Hall on v1/v2 (2026-06-14)
+
+The final two +12V pins are sensed by ACS712T-20A HALL modules on v1/v2 (AD7606 idx
+0/1, the two previously-unconnected inputs), alongside the four INA240 SHUNT channels
+(v3-v5,v8) -- a deliberate precision A/B (Hall is lower precision: ~1.5% total error +
+offset drift + 80 kHz BW + more noise; that gap is the test).
+
+FIRMWARE (esp/proto/12vhpwr/main/cec_config.{c,h}): idx 0/1 enabled as labeled AMP
+channels "i1"/"i2" with the ACS712 transfer function -- new PROTO_HALL_V_PER_A (0.100
+= 100 mV/A) / PROTO_HALL_BIAS_V (2.5 = Vcc/2), HSCALE/HBIAS. SIGN is provisional
+(+scale -- datasheet rising IP+->IP- = rising output, the OPPOSITE polarity from the
+shunt wiring); BENCH-CONFIRM and flip if a draw reads negative. The 2.5 V zero is
+RATIOMETRIC and the ACS712 offset is notable, so run `cal` at 0 A to null each module.
+Build PASSES (esp32p4). They RIDE ALONG in capture/stream; the FPGA detectors are
+UNCHANGED and stay on the homogeneous shunt set (DET_MASK = the 4 shunt channels) --
+the imbalance CMR + the rail load-line assume a common bias/scale that mixing Hall in
+would break, so the comparison lives in the ANALYZER (calibrated amps), not the
+raw-code FPGA math.
+
+ANALYZER (tools/cec_capture_analyze.py): the `i#` regex auto-picks up i1/i2, so the
+per-pin chart now covers all 6. The measurement floor is now PER-PIN + sensor-aware:
+HALL_CHANNELS={i1,i2} get HALL_TOL_PCT (3% ESTIMATE -- REFINE from the measured
+scatter) vs the shunt ISENSE_TOL_PCT (1%); floor_i = (t_i*(N-2)+sum t_k)/N, which
+reduces EXACTLY to the old uniform 2*t*(N-1)/N on a shunt-only board (verified -- no
+regression). Hall pins get a taller TINTED floor band + a "(H)" tick mark, and the hog
+counts as REAL only above ITS OWN floor (a Hall hog must clear the wider Hall band).
+CLI: --hall-tol / --hall-channels. Verified on a synthetic 6-channel capture (Hall
+floor 3.7% vs shunt 2.3%, a +1.6% Hall hog correctly "within floor") and backward-
+compat on a 4-channel shunt capture (1.5% unchanged). BENCH-NEXT: confirm the ACS712
+sign, run `cal`, then refine HALL_TOL_PCT from the real Hall-vs-shunt scatter.
+
 ## Bench host tooling (firmware/tools/, 2026-06-13)
 
 Host-side, replaces PuTTY-log + hand-extraction + manual matplotlib. The
@@ -378,8 +409,9 @@ capture->organize->analyze path is the Concierge (Appendix C) precursor.
   device); syntax-checked, the user validates on the bench.
 - **cec_capture_analyze.py** -- per-MODULE analysis (the user's "different
   analysis per module"). Core (parse + FFT-at-measured-rate + time-domain) +
-  pluggable Profile; 12vhpwr DONE (per-pin imbalance flagged under load, rail
-  droop, load fundamental w/ analog-ceiling overlay), atx-24pin/eps/pcie are
+  pluggable Profile; 12vhpwr DONE (per-pin imbalance flagged under load -- 6 current
+  channels incl. the 2 ACS712 Hall, per-pin sensor-aware floor; see the ACS712
+  section above -- rail droop, load fundamental w/ analog-ceiling overlay), atx-24pin/eps/pcie are
   STUBS. VALIDATED here: idle real capture -> "no_load" (no false flag); a
   synthetic loaded board with an i4 hog -> "IMBALANCE 23.5% FLAG". Uses the
   header's MEASURED rate; flags NOMINAL captures ~2x suspect.
