@@ -652,6 +652,10 @@ def _d(*p):
     return path
 
 
+BAKEOFF_TIMEOUT = int(os.environ.get("CEC_BAKEOFF_TIMEOUT", "900"))   # per-call CEILING so a hung
+#   heavy-model call can't stall the whole sweep (a deep deepseek/MiniMax call still has 15 min).
+
+
 def _produce_one(seat, variant, model, cid):
     case = CASES[cid]
     items = SEATS[seat]["variants"][variant](case)
@@ -659,8 +663,8 @@ def _produce_one(seat, variant, model, cid):
     outs, secs, scribes, errs = [], [], [], []
     for label, system, user in items:
         parsed, dt, raw, reasoning, scribe, err = call(
-            model, system, user, schema, ctx={"seat": seat, "variant": variant, "case": cid,
-                                               "item": label})
+            model, system, user, schema, timeout=BAKEOFF_TIMEOUT,
+            ctx={"seat": seat, "variant": variant, "case": cid, "item": label})
         outs.append(parsed)
         secs.append(dt)
         scribes.append(scribe)
@@ -769,7 +773,7 @@ def judge(tag="", judges=None, run_dir=None):
                 continue
             sysm, usr = _judge_prompt(p["seat"], p)
             parsed, dt, raw, reasoning, scribe, err = call(
-                j, sysm, usr, JUDGE_SCHEMA, max_tokens=400,
+                j, sysm, usr, JUDGE_SCHEMA, max_tokens=400, timeout=BAKEOFF_TIMEOUT,
                 ctx={"judge": j, "seat": p["seat"], "variant": p["variant"],
                      "producer": "HIDDEN", "case": p["case"]})
             if isinstance(parsed, dict) and isinstance(parsed.get("score"), int):
