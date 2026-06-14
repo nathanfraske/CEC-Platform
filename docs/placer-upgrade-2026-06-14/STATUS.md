@@ -51,6 +51,32 @@ unless noted; tests in `tests/test_placer_oracle.py` (+ `tests/test_corridor_mod
 - The L-tier items (L1 route leg, L2 Tier-B routed-length calibration, L3/L4 compaction/coupling,
   L7 validation gate) are post-MV.
 
+## HUB PIPELINE TEST RUN (2026-06-14, in the kicad10 container) — IT WORKS
+
+Recipe (reproducible; build/hub-test/ is gitignored):
+```
+docker run --rm -v $PWD:/work -w /work cec/routing:kicad10 python3 -c "
+import sys; sys.path.insert(0,'scripts'); import cec_synth_pipeline as S
+cfg=S.Config.load('hubs/hub-standard')
+cfg.params['oracle_reference_path']='hubs/hub-standard/hub-standard.kicad_pcb'
+S.elicit_requirements(cfg,{'antenna_keepout':True}); S.apply_oracle_stage1(cfg)
+W,H=cfg.params['size_target_wh']
+S.run_sweep(cfg,[(W,H)],strategies=S.STRATEGIES,seeds=(0,1),out_dir='build/hub-test',render=True)"
+```
+Stages exercised: Stage-1 oracle derivation → place_candidates (6) → materialize → render → DRC. ALL ran.
+
+Result (best = thermal_separated/seed1):
+- **frame correct**: size 98.1×74.1 derived; 8 connector edges from the oracle; materialized 80-part board 98.2×74.2; render written.
+- **residual 4, corridor_cross 0** (near-legal placement).
+- **similarity 0.705** vs the reference's 1.0; **HPWL 2498.6 = 1.25× the hand board's 2001.8** (down from the pre-MV ~1.84× — the oracle frame is the win). The reference proxy_score (~1.53) correctly ranks below the synth best (1.871) — MV4 calibration is well-posed.
+- **hub_terms**: port_even 1.0, power_cluster 0.91, usb_prox 0.597, **antenna 0.0** (the ESP did not land on its left edge — the MV5 generative-closer gap, see FOLLOWUPS). hub_penalty 0.373.
+- **DRC 575**: ~506 COSMETIC (silk_overlap 199 / silk_over_copper 199 / silk_edge 27 / lib_footprint 81); ~64 real-structural (shorting 9, courtyards_overlap 4, copper_edge 17, solder_mask_bridge 9, pth/npth_in_courtyard 30) tracking the residual-4 overlaps; **211 unconnected = UNROUTED** (the route leg L1 is not wired — this is placement-only).
+
+VERDICT: the place→materialize→render→DRC→score pipeline is functional on a real fab-class board with the
+correct oracle-derived frame and a quantified gap. To reach a clean routed Hub the remaining levers are the
+MV5 generative closers (esp. antenna-edge ESP seed) + a legalizer tightening (residual 4 → 0) + the route
+leg (L1). All in FOLLOWUPS.
+
 ## CONSULTATIVE AUDIT (4 parallel skeptics, 2026-06-14) + REMEDIATION
 
 Dimensions: geometry/math · anti-overfit charter · regression/integration · test rigor. All four
