@@ -1692,12 +1692,14 @@ def _ov_area(A, B, clr=0.0):
 
 
 def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, alpha=0.04,
-                  clr=0.4, t0=8.0, cool=0.9985):
+                  clr=0.4, t0=8.0, cool=0.9985, veto=None):
     """Simulated annealing on the MACRO-BLOCK positions (IC clusters + shunts; anchors fixed) to
     ESCAPE the greedy legalizer's local minimum. Objective = courtyard overlap AREA (heavily) +
     alpha*HPWL to connected parts (stay routable). Being STOCHASTIC, different *seed*s settle into
     different minima -- THAT spread is what makes a huge best-of-N sweep pay off (a deterministic
-    placer just yields identical candidates). Mutates P in place; returns P."""
+    placer just yields identical candidates). *veto(ref,(x,y))->bool* (Phase 2) HARD-rejects a move
+    that puts a body in a forbidden region (a foreign high-current corridor), independent of T.
+    Mutates P in place; returns P."""
     rnd = random.Random(seed)
     mv = [r for r in movable if r in cyinfo and r in P]
     placed = [r for r in P if r in cyinfo]
@@ -1733,6 +1735,9 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
             nx, ny = rnd.uniform(hw - cx, W - hw - cx), rnd.uniform(hh - cy, H - hh - cy)
         nx = min(W - hw - cx, max(hw - cx, nx))
         ny = min(H - hh - cy, max(hh - cy, ny))
+        if veto is not None and veto(r, (nx, ny)):    # PHASE 2 hard veto -> never enter a foreign band
+            T *= cool
+            continue
         P[r] = (nx, ny, orot)
         d = cost(r) - before
         if d > 0 and rnd.random() >= math.exp(-d / max(T, 1e-3)):
@@ -1990,6 +1995,76 @@ def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True,
     return total
 
 
+# --------------------------------------------------------- Phase 2: corridor FORMATION
+# corridor_cross only discriminates once the corridor is FORMED: J_IN above the shunt above J_OUT in
+# one tight column. The constructive placer left shunts free (anywhere) and packed J_IN/J_OUT on their
+# edges independently, so the band degenerated to ~board width. Phase 2 SEEDS the corridor spine
+# deterministically -- align J_OUT under J_IN, seat the shunt on the cable axis at rot 270 (H3) -- so
+# the band is a tight column and the anneal then only has to keep foreign bodies OUT of it (the veto).
+def _cable_topology(nl):
+    """Per per-cable Kelvin pair, the corridor parts from the NETLIST alone (no positions):
+    {base, hi, lo, j_in (J* on hi), j_out (J* on lo), shunt (RS 2-pad straddle)}. SHARED-BUS pairs
+    (a J ref serving >1 pair -- 24-pin / 12VHPWR) are excluded: their corridor is a Phase-5 per-pin
+    variant, not a J_IN->shunt->J_OUT column."""
+    pairs = _kelvin_pairs(nl)
+    serves = defaultdict(set)
+    for hi, lo in pairs:
+        for net in (hi, lo):
+            for r, _ in nl.nets.get(net, []):
+                if r.startswith("J"):
+                    serves[r].add(hi[:-3])
+    shared = {r for r, ps in serves.items() if len(ps) > 1}
+    out = []
+    for hi, lo in pairs:
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        j_in = sorted(r for r in refs_hi if r.startswith("J") and r not in shared)
+        j_out = sorted(r for r in refs_lo if r.startswith("J") and r not in shared)
+        straddle = refs_hi & refs_lo
+        shunt = next((r for r in sorted(straddle) if r.startswith("RS") and _ref_padcount(nl, r) == 2),
+                     next((r for r in sorted(straddle) if r.startswith("R") and _ref_padcount(nl, r) == 2), ""))
+        if j_in and j_out and shunt:
+            out.append({"base": hi[:-3], "hi": hi, "lo": lo,
+                        "j_in": j_in[0], "j_out": j_out[0], "shunt": shunt})
+    return out
+
+
+def _seed_corridor_spine(topo, anchors, H):
+    """FORM each per-cable corridor: align J_OUT under its J_IN (same x column) and seat the shunt on
+    the cable axis at mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross). Mutates
+    *anchors* in place; returns the seated shunt refs (now FIXED, to drop from the annealed set so the
+    spine cannot be pushed off-axis). J_IN keeps the x seed_anchors packed it to (columns stay spaced
+    by connector width)."""
+    seated = []
+    for c in topo:
+        jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
+        if jin not in anchors or jout not in anchors:
+            continue
+        xcol = anchors[jin][0]
+        _ox, oy, orot = anchors[jout]
+        anchors[jout] = (xcol, oy, orot)              # align J_OUT under J_IN
+        anchors[sh] = (xcol, H / 2.0, 270.0)          # shunt on the cable axis, rot270
+        seated.append(sh)
+    return seated
+
+
+def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
+    """HARD veto (placement-strategy §2.2 H1): a HOT/SENSITIVE part body may not sit inside a FOREIGN
+    cable's FORMED band. *bands* maps base -> {"band":(x0,x1,y0,y1), "formed":bool}; *paired_ina* maps
+    base -> the INA refs EXEMPT for that band (their own cable -- Kelvin needs them adjacent). Returns
+    True if *ref* at *xy* violates."""
+    if ref not in sensitive:
+        return False
+    x, y = xy[0], xy[1]
+    for base, cab in bands.items():
+        if not cab["formed"] or ref in paired_ina.get(base, ()):
+            continue
+        X0, X1, Y0, Y1 = cab["band"]
+        if X0 <= x <= X1 and Y0 <= y <= Y1:
+            return True
+    return False
+
+
 @dataclass
 class Candidate:
     """A placement candidate + its cheap proxy + (later) its feasibility confidence."""
@@ -2036,6 +2111,11 @@ def synth_one(cfg_dict, W, H, strat, seed):
     anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
                  for r in anchors if r in comps}
     legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
+    # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
+    #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
+    #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
+    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H)
+    free_shunts = [r for r in shunts if r not in seated]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
@@ -2048,7 +2128,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
     drop_kc = tuple(r for r in comps if "esp32" in comps[r].lower()) if drop_antenna else ()
     macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
     cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
-    for unit in ics + shunts:
+    for unit in ics + free_shunts:
         members = by_owner.get(unit, [])
         if unit not in comps:
             continue
@@ -2069,7 +2149,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
             cluster_offsets[unit] = {}
     # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
     P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
-                          strat=strat, seed=seed, only=ics + shunts, cyinfo_override=macro)
+                          strat=strat, seed=seed, only=ics + free_shunts, cyinfo_override=macro)
     # 3b. ANNEAL the macros to escape the greedy minimum (compaction + the diversity engine), then
     #     a final greedy snap from the annealed start. Full cyinfo = macro bbox for ICs/shunts,
     #     real courtyard for the fixed anchors.
@@ -2079,8 +2159,19 @@ def synth_one(cfg_dict, W, H, strat, seed):
             cyinfo_all[r] = macro[r]
         elif r in comps:
             cyinfo_all[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
-    anneal_macros(P, cyinfo_all, ics + shunts, W, H, nbrs=_adjacency(nl), seed=seed)
-    legalize_pack(P, [r for r in (ics + shunts) if r in P], cyinfo_all, W, H, clr=0.4)
+    # PHASE 2 hard veto: build the corridor model on the SEEDED spine (J_IN/J_OUT/shunt now placed) and
+    # forbid any HOT/SENSITIVE body from entering a FOREIGN cable's formed band (paired INA exempt for
+    # its own band -- Kelvin). Keeps the detection ICs + ESP out of the corridors.
+    _spine = build_corridor_model(nl, P, comps, board_w=W)
+    _bands = {c.base: {"band": c.band, "formed": c.formed} for c in _spine.cables}
+    _paired = {c.base: set(c.sense_ics) for c in _spine.cables}
+    _sensitive = _spine.sensitive
+
+    def _veto(ref, xy):
+        return _corridor_veto(ref, xy, _bands, _sensitive, _paired)
+
+    anneal_macros(P, cyinfo_all, ics + free_shunts, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
+    legalize_pack(P, [r for r in (ics + free_shunts) if r in P], cyinfo_all, W, H, clr=0.4)
     # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
     for unit, offs in cluster_offsets.items():
         if unit not in P:
