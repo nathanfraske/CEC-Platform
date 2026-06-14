@@ -1,6 +1,35 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~20:15 CDT (seat-bakeoff harness built+tested; FULL SWEEP LAUNCHED detached)._
+_Updated 2026-06-13 ~22:40 CDT (#56-59 all MERGED; PLACEMENT STRATEGY in design)._
+
+## ALL SESSION PRs MERGED + PLACEMENT STRATEGY STARTED 2026-06-13 ~22:40 CDT
+Owner MERGED **#56 (prompt-tier-audit) + #57 (bot-push-guard) + #58 (followups-hook) + #59 (seat-bakeoff)**
+to main. Before merging #56/#59 the owner asked for a FULL ADVERSARIAL AUDIT of both -> ran wf_975a22e6-156
+(34 agents: dimension reviewers -> verify each finding -> per-PR verdict). Both **SHIP-WITH-FIXES, 0 blocker/
+high**. Reports: docs/prompt-audit-2026-06-13/audit-pr56.md + docs/seat-bakeoff-2026-06-13/audit-pr59.md.
+APPLIED + pushed the confirmed fixes:
+- #56 (b19470e): PG-1 (medium -- unconditional /SENSEC fence, was short-circuited on a falsy fence) + PG-2/3/4/5
+  (example excludes fenced refs; panel guard can't reset effort on a gate-fail; corridor-avoid excludes fenced
+  nets; non-in-family header counts shown). AB-1/AB-2 (v4-risk control leak; pre-control delta tally) =
+  PRE-EXISTING -> FOLLOWUPS. +4 tests, 31 host green.
+- #59 (b7bb44a): F1/F2 (medium -- score_t1 false-1.0 on fenced-waypoint / no-op intents), BT-1 (overfit-test
+  tautology), BT-2 (scribe-rescue test) + 8 lows (shim OSError/keep-scanning, family leave-one-out, minItems,
+  fclass, report guard, empty-panel). +10 tests, 28 host green.
+- #56 went CONFLICTING (the #57/#58 merge collided #56's FOLLOWUPS.md/TODO.md add/add) -> merged main into #56
+  in an isolated worktree, unioned (ours was a superset), pushed 6bf82ea -> MERGEABLE. All merged by owner.
+
+## PLACEMENT = THE REAL BLOCKER, NOW IN DESIGN (wf_bc764a00-948 running)
+Proven live in the cloud cec_fullstack run: the loop ONLY ROUTES, never moves parts; foreign nets (/CAN_L,
+/DETC1,/DETC2,/THRESH) are FORCED to cross the /SENSEC sense corridor by the committed floorplan -> pour clips,
+DRC fails, max_T ~300. Owner: "let's get going on the placement strategy." The synth placer (cec_synth_pipeline:
+seed_anchors/relative_place/anneal_macros/place_with_consent + cec_loop place->route->check + cec_pcb +
+cec_constraints checkers) EXISTS but is DOMAIN-BLIND (CLAUDE.md action item -2). Running a design workflow:
+recon (placer internals / eps-8pin failure / domain rules) -> 4 strategy candidates (A domain-scored annealing,
+B structured macro-first template, C zone-partition net-flow, D routability-in-the-loop) -> scored recommendation
++ phased build plan -> docs/placement-strategy-2026-06-14.md. NEXT: review the recommendation w/ owner, then
+build phase 1 (the smallest placement that measurably reduces corridor crossings) on a fresh branch off main.
+
+## SEAT BAKE-OFF (TODO item 3) — HARNESS BUILT + TESTED, SWEEP LAUNCHED 2026-06-13 ~20:05 CDT
 
 ## SWEEP RESULT 2026-06-13 ~20:50 CDT — OWNER SCOPE = PRODUCERS-ONLY; DATA-CHOSEN DEFAULTS DELIVERED
 Owner picked "producers only (~1-2h), fastest path to a data-chosen default" (the deep-reasoner 6-judge
