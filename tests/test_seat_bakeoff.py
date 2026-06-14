@@ -184,9 +184,15 @@ class Report(unittest.TestCase):
         finally:
             bo.OUTDIR = orig
         out = buf.getvalue()
-        self.assertIn("A: mean", out)
-        self.assertIn("generalizes", out)                        # variant A low spread
-        self.assertIn("OVERFIT-prone", out)                      # variant B high spread
+        # BT-1 (audit): assert the per-variant LABEL mapping + spreads, not just that the words appear
+        # anywhere -- the old test passed with the threshold inverted AND with a zeroed mean (tautology).
+        a_line = next(l for l in out.splitlines() if l.strip().startswith("- A:"))
+        b_line = next(l for l in out.splitlines() if l.strip().startswith("- B:"))
+        self.assertIn("generalizes", a_line)                     # A: low spread -> generalizes
+        self.assertNotIn("OVERFIT", a_line)                      # (inverting the threshold would flip this)
+        self.assertIn("OVERFIT-prone", b_line)                   # B: high spread -> overfit
+        self.assertIn("spread 0.05", a_line)                     # A spread = 0.90-0.85
+        self.assertIn("spread 0.75", b_line)                     # B spread = 0.95-0.20
 
 
 class CloudShim(unittest.TestCase):
@@ -235,6 +241,92 @@ class CloudShim(unittest.TestCase):
             self.assertIn("raw=", str(cm.exception))                 # raw snippet surfaced for debug
         finally:
             subprocess.run = orig
+
+
+class AuditPR59Fixes(unittest.TestCase):
+    """Adversarial audit of PR #59 (docs/seat-bakeoff-2026-06-13/audit-pr59.md): F1/F2/F3/F4/F5/F6,
+    BT-2/BT-3, CSS-1/CSS-2."""
+
+    def test_f1_single_fenced_waypoint_ref_is_violation(self):
+        out = {"reasoning": "r", "intents": [{"net": "/THRESH", "layers": ["F.Cu"],
+               "waypoints": [{"ref": "U10"}, {"ref": "RS1"}]}]}   # RS1 is fenced
+        s = bo.score_t1(out, bo.CASES["kelvin-fail"])
+        self.assertEqual(s["correctness"], 0.0)                  # ANY fenced wp ref, not just all-fenced
+
+    def test_f2_noop_intent_gets_no_credit(self):
+        out = {"reasoning": "r", "intents": [{"net": "/THRESH", "layers": ["F.Cu"], "waypoints": []}]}
+        s = bo.score_t1(out, bo.CASES["kelvin-fail"])
+        self.assertEqual(s["correctness"], 0.0)                  # no-op intent the real seat discards
+
+    def test_f3_leave_one_out_by_family(self):
+        self.assertTrue(bo._same_family("cec-worker", "cec-worker-vision"))   # same Qwen family
+        self.assertTrue(bo._same_family("opus", "opus"))
+        self.assertFalse(bo._same_family("cec-manager", "cec-manager-fast"))  # MiniMax vs gpt-oss
+        self.assertFalse(bo._same_family("cec-worker", "deepseek-v4-flash"))
+
+    def test_f4_schema_ok_enforces_minitems(self):
+        # a degenerate between (1 item) must fail structural validation (minItems 2)
+        bad = {"reasoning": "r", "intents": [{"net": "/A", "layers": ["F.Cu"],
+               "waypoints": [{"between": ["U10"]}]}]}
+        self.assertFalse(bo.schema_ok(bad, bo.INTENTS_SCHEMA))
+
+    def test_f5_t5_none_on_gatefail_dinged(self):
+        out = {"verdict": "repair", "root_cause": "x", "reasoning": "r", "failure_class": "none",
+               "proposed_lever": None, "scorer_penalty": None, "manager_rule": None}
+        s = bo.score_t5(out, bo.CASES["drc-residual"])
+        self.assertFalse(s["checks"]["fclass_ok"])              # 'none' invalid on a gate-FAIL case
+
+    def test_f6_report_no_dir_message_not_filenotfound(self):
+        import io
+        import contextlib
+        tmp = tempfile.mkdtemp()                                 # empty: no produced/ or judged/
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            bo.report(run_dir=tmp)                               # must NOT raise FileNotFoundError
+        self.assertIn("no results", buf.getvalue())
+
+    def test_bt3_empty_panel_is_schema_fail(self):
+        s = bo.score_t4([], bo.CASES["gate-pass"])
+        self.assertFalse(s["schema_ok"])
+        self.assertEqual(s["correctness"], 0.0)
+
+    def test_bt2_local_scribe_rescue(self):
+        import urllib.request
+        payload = {"choices": [{"message": {
+            "content": "", "reasoning_content": 'thinking {"action":"repair","reason":"x"} done'},
+            "finish_reason": "length"}], "usage": {}}
+
+        class FakeResp:
+            def read(self, *a):
+                return json.dumps(payload).encode()
+        orig = urllib.request.urlopen
+        urllib.request.urlopen = lambda req, timeout=None: FakeResp()
+        try:
+            parsed, dt, raw, reasoning, scribe, err = bo._call_local(
+                "cec-worker", "s", "u", bo.PANEL_SCHEMA)
+        finally:
+            urllib.request.urlopen = orig
+        self.assertEqual(parsed, {"action": "repair", "reason": "x"})
+        self.assertTrue(scribe)                                  # rescued from reasoning_content
+        self.assertEqual(raw, "")
+
+    def test_css1_spawn_failure_surfaces_value_error(self):
+        import subprocess
+        orig = subprocess.run
+
+        def boom(*a, **k):
+            raise FileNotFoundError("claude: not found")
+        subprocess.run = boom
+        try:
+            with self.assertRaises(ValueError) as cm:
+                jl._chat_json_cloud("s", "u", {"type": "object"}, model="opus")
+            self.assertIn("spawn", str(cm.exception))            # not a bare FileNotFoundError
+        finally:
+            subprocess.run = orig
+
+    def test_css2_extract_skips_non_json_brace_span(self):
+        # a balanced NON-JSON brace span before the real object must not abort the scan
+        self.assertEqual(jl._extract_json_obj('note {not: json} then {"a":1}'), {"a": 1})
 
 
 if __name__ == "__main__":

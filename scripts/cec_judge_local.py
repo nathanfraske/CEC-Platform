@@ -257,35 +257,44 @@ def _is_cloud(model):
 
 
 def _extract_json_obj(text):
-    """Pull the first balanced JSON object out of arbitrary model text (CLI replies may wrap it in
-    prose / a markdown fence despite the instruction). Brace-matching so a nested object survives."""
+    """Pull the first PARSEABLE balanced JSON object out of arbitrary model text (CLI replies may wrap it
+    in prose / a markdown fence despite the instruction). Brace-matching so a nested object survives.
+    CSS-2 (audit): a balanced-but-non-JSON brace span in prose BEFORE the real object (e.g. "{not json}")
+    must not abort the scan -- on a json.loads failure of one span, keep scanning for the next top-level
+    {...} instead of giving up."""
     import re
-    s = text.find("{")
-    if s < 0:
-        raise ValueError("cloud seat: no JSON object in reply")
-    depth, instr, esc = 0, False, False
-    for i in range(s, len(text)):
-        c = text[i]
-        if instr:
-            if esc:
-                esc = False
-            elif c == "\\":
-                esc = True
-            elif c == '"':
-                instr = False
-            continue
-        if c == '"':
-            instr = True
-        elif c == "{":
-            depth += 1
-        elif c == "}":
-            depth -= 1
-            if depth == 0:
-                return json.loads(text[s:i + 1])
-    # unbalanced -> last resort regex (handles a trailing-truncated reply best-effort)
+    start = 0
+    while True:
+        s = text.find("{", start)
+        if s < 0:
+            break
+        depth, instr, esc = 0, False, False
+        for i in range(s, len(text)):
+            c = text[i]
+            if instr:
+                if esc:
+                    esc = False
+                elif c == "\\":
+                    esc = True
+                elif c == '"':
+                    instr = False
+                continue
+            if c == '"':
+                instr = True
+            elif c == "{":
+                depth += 1
+            elif c == "}":
+                depth -= 1
+                if depth == 0:
+                    try:
+                        return json.loads(text[s:i + 1])
+                    except Exception:                            # noqa: BLE001 -- not JSON, scan onward
+                        break
+        start = s + 1                                            # advance past this '{' and keep looking
+    # no balanced object parsed -> last-resort greedy regex (best-effort on a trailing-truncated reply)
     m = re.search(r"\{.*\}", text, re.S)
     if not m:
-        raise ValueError("cloud seat: unbalanced JSON in reply")
+        raise ValueError("cloud seat: no JSON object in reply")
     return json.loads(m.group(0))
 
 
@@ -296,7 +305,10 @@ def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=Non
     sonnet/opus without the local broker. The CLI occasionally returns a `result` with no parseable JSON
     object (an empty/prose reply) -- RETRY once, and on final failure raise WITH a raw snippet so the
     failure is diagnosable (a bare 'no JSON object' was undebuggable in the bake-off). Raises on
-    transport/parse like _chat_json (callers fall back to the deterministic policy)."""
+    transport/parse like _chat_json (callers fall back to the deterministic policy).
+    NOTE (CSS-4): `temperature` is accepted for signature parity with _chat_json but is a NO-OP on the
+    CLI path (the `claude -p` interface exposes no sampling temperature); off-box swarm diversity, if ever
+    needed, must come from varying the prompt, not this arg."""
     eff = effort if effort is not None else CLOUD_EFFORT
     prompt = (system + "\n\n" + user + "\n\nRespond with ONLY a single JSON object that conforms to this "
               "JSON Schema (no prose, no markdown fence, no preamble):\n" + json.dumps(schema))
@@ -311,6 +323,9 @@ def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=Non
                                timeout=timeout or TIMEOUT)
         except subprocess.TimeoutExpired as e:
             raise ValueError("cloud seat timeout: %s" % e)
+        except OSError as e:        # CSS-1 (audit): a spawn failure (missing/!x CLI) must not escape the
+            last = "spawn: %s" % e  # retry loop -- record it and fall through to the unified raise below
+            continue
         if r.returncode != 0:
             last = "exit %s: %s" % (r.returncode, (r.stderr or "")[:160])
             continue

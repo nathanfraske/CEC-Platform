@@ -70,6 +70,17 @@ def _is_cloud(m):
     return m in CLOUD or m.startswith("claude")
 
 
+# Same underlying model FAMILY (a judge must not score a sibling -> no self-preference). NOTE the
+# cec-worker* set is one Qwen family; cec-manager (MiniMax) and cec-manager-fast (gpt-oss) are
+# DIFFERENT families despite the name prefix, so they are deliberately NOT grouped.
+_FAMILIES = [{"cec-worker", "cec-worker-vision", "cec-worker-quality", "cec-worker-quality-vision",
+              "cec-vision-judge"}]
+
+
+def _same_family(a, b):
+    return a == b or any(a in g and b in g for g in _FAMILIES)
+
+
 # ------------------------------------------------------------ vendored contracts --
 INTENTS_SCHEMA = {
     "type": "object",
@@ -169,7 +180,9 @@ CASES = {
                 "drc_loci": [{"type": "silk", "where": "LOGO1"}, {"type": "clearance", "where": "LOGO1"}],
                 "fem_flags": [], "stub_summary": {"n_power_pours": 6}},
         "pourcheck": {"det_clipped_nets": []}, "intents_src": "model",
-        "expect_fclass": {"routing", "constraint", "none"}, "expect_panel": {"repair", "escalate"},
+        # F5 (audit): drc-residual gates FAIL -> failure_class=none is wrong (contradicts the harness's
+        # own decision-tree prompt: a gate-fail is routing/constraint, never none).
+        "expect_fclass": {"routing", "constraint"}, "expect_panel": {"repair", "escalate"},
         "expect_penalty_ok": False},
     "gate-pass": {
         "rec": {"gates_pass": True, "kelvin_ok": True, "diffpair_ok": True, "drc": 0,
@@ -451,6 +464,8 @@ def schema_ok(obj, schema):
             return False
         if "maxItems" in schema and len(obj) > schema["maxItems"]:
             return False
+        if "minItems" in schema and len(obj) < schema["minItems"]:   # F4 (audit): enforce minItems too
+            return False
         it = schema.get("items")
         return all(schema_ok(e, it) for e in obj) if it else True
     if t == "string":
@@ -579,9 +594,11 @@ def score_t1(out, case):
         for r in wp_refs:
             if r not in refs:
                 checks["unknown_refs"].append(r); ok = False
-        if wp_refs and all(r in frefs for r in wp_refs):
-            checks["fence_violations"].append("all-fenced-wp:" + str(it.get("net"))); ok = False
-        valid += 1 if ok else 0
+        if any(r in frefs for r in wp_refs):     # F1 (audit): ANY fenced waypoint ref is a violation
+            checks["fence_violations"].append("fenced-wp:" + str(it.get("net"))); ok = False
+        if not wp_refs:                            # F2 (audit): a no-op intent (no anchoring waypoint ref)
+            checks["no_waypoint"] = checks.get("no_waypoint", 0) + 1; ok = False   # is discarded by the
+        valid += 1 if ok else 0                    # real intent_manager -> not valid credit here either
     # correctness: clean intents (no unknown ref/net, fence-respecting). An empty list is acceptable
     # (1.0) -- not steering is valid -- but a kelvin-fail case rewards >=1 valid steering intent.
     if intents:
@@ -636,8 +653,8 @@ def score_t4(out_items, case):
     each_ok = [isinstance(o, dict) and schema_ok(o, PANEL_SCHEMA) for o in out_items]
     checks = {"schema_ok": all(each_ok),
               "lens_actions": [o.get("action") if isinstance(o, dict) else None for o in out_items]}
-    if not all(each_ok):
-        return {"schema_ok": False, "correctness": 0.0, "checks": checks}
+    if not out_items or not all(each_ok):       # BT-3 (audit): an EMPTY lens list is not a valid panel
+        return {"schema_ok": False, "correctness": 0.0, "checks": checks}   # (all([]) is vacuously True)
     safety_lens = out_items[0].get("action") if out_items else None     # lenses ordered safety-first
     action = _panel_decide(out_items)
     if action == "accept" and not case["rec"]["gates_pass"]:
@@ -777,8 +794,8 @@ def judge(tag="", judges=None, run_dir=None):
     def judge_with(j):
         print("=== judge %s ===" % j)
         for p in produced:
-            if p["model"] == j:                                 # LEAVE-ONE-OUT: never judge own output
-                continue
+            if _same_family(p["model"], j):     # F3 (audit): LEAVE-ONE-OUT by FAMILY -- never judge own
+                continue                        # output OR a same-family sibling's (no self-preference)
             sysm, usr = _judge_prompt(p["seat"], p)
             parsed, dt, raw, reasoning, scribe, err = call(
                 j, sysm, usr, JUDGE_SCHEMA, max_tokens=_tok_budget(j, 400, 3000),
@@ -820,6 +837,9 @@ def report(run_dir=None):
     jdir = os.path.join(run_dir or OUTDIR, "judged")
     pdir = os.path.join(run_dir or OUTDIR, "produced")
     src = jdir if os.path.isdir(jdir) and os.listdir(jdir) else pdir
+    if not os.path.isdir(src):                       # F6 (audit): no produced/ or judged/ -> message, not
+        print("no results (run `produce` first)")    # a bare FileNotFoundError from os.listdir below
+        return
     recs = [json.load(open(os.path.join(src, f))) for f in sorted(os.listdir(src)) if f.endswith(".json")]
     if not recs:
         print("no results in %s" % src)
