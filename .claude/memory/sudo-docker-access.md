@@ -1,6 +1,6 @@
 ---
 name: sudo-docker-access
-description: Sudo password + docker access for the agent (run the container-based overnight loops).
+description: Sudo + docker access for the agent (run the container-based overnight loops); secret value lives in a file, never inline here.
 metadata: 
   node_type: memory
   type: reference
@@ -10,9 +10,13 @@ metadata:
 The owner granted the agent sudo + docker access (2026-06-14) to run the container-based
 overnight loops (`cec_fullstack` / `cec_overnight*`, which do `docker compose exec routing ...`).
 
-- **Sudo password** is stored at **`/mnt/e/secrets/cec-sudo.env`** (`CEC_SUDO_PASS=nathan`), off the
-  ephemeral WSL volume per the WSL-ephemeral policy. drvfs is 0777 so it can't be chmod 600 (same
-  caveat as [[bot-git-auth]]'s cec-bot.env). Use non-interactively: `echo "$CEC_SUDO_PASS" | sudo -S -p '' <cmd>`.
+- **Sudo password** lives ONLY in **`/mnt/e/secrets/cec-sudo.env`** as `CEC_SUDO_PASS=<value>` — the value
+  is NEVER written into this file or any committed/snapshotted file (the session-end Stop hook mirrors this
+  live ~/.claude memory into the git-tracked .claude/memory/ AND pushes to `ops/agent-handoff`, so an inline
+  value leaks to the remote — that hook is what reverted an earlier redaction of the in-tree copy only).
+  Load + use non-interactively: `set -a; . /mnt/e/secrets/cec-sudo.env; set +a; echo "$CEC_SUDO_PASS" | sudo -S -p '' <cmd>`.
+  Off the ephemeral WSL volume per the WSL-ephemeral policy. drvfs is 0777 so it can't be chmod 600 (same
+  caveat as [[bot-git-auth]]'s cec-bot.env).
 - **Docker**: the owner authorized elevating the agent into the `docker` group (done via
   `usermod -aG docker nathan`). A fresh login session has the group; in an existing agent shell that
   predates it, wrap docker commands in **`sg docker -c "<cmd>"`** (the group is active in that

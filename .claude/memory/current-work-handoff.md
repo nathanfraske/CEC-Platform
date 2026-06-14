@@ -1,6 +1,49 @@
 # Current work handoff
 
-_Updated 2026-06-14 ~06:05 UTC (PLACEMENT Phase 0 + 1a + AUDIT REMEDIATION on claude/placement-corridor / PR #60)._
+_Updated 2026-06-14 ~10:20 UTC (LAYER-LEVER REWORK done + 2 audit rounds + 7h run LAUNCHED, claude/placement-corridor / PR #60)._
+
+## LAYER-LEVER REWORK COMPLETE + 7h RUN LIVE 2026-06-14 ~10:20 UTC (HEAD 78ae674, pushed)
+Owner: "rework the layer lever, audit, fix, launch the 7h run + babysit." DONE.
+- **Rework (audit w23i0d8nq's 5 items)** landed (03c4d0b/1ad2b42/eab3752/837a7f4): (1) route lays the B.Cu
+  MIRROR + via stitching (cec_overnight_directed._route -> synthesize_power_copper strip_redundant=False,
+  additive, both lanes, _route_quality safe-revert, CEC_OVD_MIRROR_POUR=0 to disable); (2) L-bend crossing
+  detection (cec_fr _seg_band_clip Liang-Barsky + net-extent + _relayer_segment_inband); (3) _adopt_staggered_
+  board feeds the staggered board into rec["routed"] + the pour RE-FILL that heals the corridor; (4) temp-staged
+  in-place safety; (5) _route_quality safe-revert metric.
+- **TWO adversarial audit rounds** (4 skeptics + 1 focused re-audit). Round 1 found a BLOCKER + 3 HIGH; round 2
+  confirmed the BLOCKER CLOSED + found 1 MEDIUM + 2 LOW. ALL FIXED (fb182b5 + ec0d1d7):
+  * gate-launder (BLOCKER): a board blocked for a fragmented sense pour could be re-promoted gates_pass=True by
+    adoption (the rescore is pour-BLIND). FIX: layer_stagger fully RE-MEASURES the staggered board
+    (ovd.measure_board = score + Pareto axes + FEM + pour facts); _remeasure_pour_gate re-verifies pour
+    integrity on the SHIPPED board and OWNS gates_pass.
+  * stale Pareto (HIGH): _adopt refreshes ALL axes (vias/max_T/plane/length/tracks) + objective_base; FEM-stale
+    max_T dropped on error.
+  * connectivity (HIGH): connectivity-repair via at band-boundary-coincident vertices; revert on ANY unconnected
+    increase (not just the scalar).
+  * MEDIUM/LOW: objective_base refresh, mkstemp fd close, temp .kicad_pro/.kicad_prl sidecar cleanup, no-flip
+    ships exact bytes, mirror logs (mirror_status) not silent, test-isolation (test_stagger_feedback stubbed
+    pcbnew unconditionally -> shadowed real pcbnew for test_corridor_model when run first).
+  Full host suite green (both test orders). +25 tests across the rework.
+- **7h RUN LAUNCHED** ~05:14 UTC: `sg docker -c "CEC_STREAM_DIR=docs/fullstack-run-2026-06-14/streams setsid
+  nohup python3 -u scripts/cec_fullstack.py --board eps-8pin --hours 7 > docs/fullstack-run-2026-06-14/run.log"`.
+  PID 842244. Auditor=deepseek-v4-flash (reachable). Round 1 [augmented] ran clean through route(4 pours)->T4
+  panel(escalate)->T6 pour(/SENSEC2_LO fragmented 3 islands)->layer-stagger(FULL re-measure WORKED live, flipped
+  then SAFE-REVERTED, gates_pass stayed False -> no launder)->T5 deepseek auditor. The new code is exercising
+  live without crashing. **LIVE PANEL on :8095** (PID 817949, pointed at docs/fullstack-run-2026-06-14) -- NOT
+  8090. Watchdog cec_night_watch.sh fixed (today's date, 78ae674) -- launch with
+  `sg docker -c 'setsid nohup bash scripts/cec_night_watch.sh </dev/null >/dev/null 2>&1 &'` for overnight relaunch.
+- **SECURITY (owner action, FOLLOWUPS)**: the sudo password was inline in .claude/memory/sudo-docker-access.md and
+  the Stop hook (session-end.sh) pushes that to origin/ops/agent-handoff -> the plaintext value is ALREADY on
+  that remote branch. Redacted the canonical live memory file (the Stop hook kept reverting the in-tree mirror
+  from it). Owner: ROTATE the password + optionally purge ops/agent-handoff history.
+- NET: rework merge-ready (PR #60), run live + babysat. Monitor docs/fullstack-run-2026-06-14/{run.log,
+  measurement.jsonl} + :8095. If the run dies and the watchdog isn't up, relaunch with the line above.
+
+---
+## (prior) PLACEMENT AUDIT REMEDIATION 2026-06-14 ~06:05 UTC (commit cbd0047, pushed to PR #60)
+Owner: "go ahead [Phase 1] + audit it." Built **Phase 1a** (corridor_cross rank key: Candidate field +
+synth_one model build + sort key (residual,corridor_cross,hpwl) + opt-in proxy_reject(corridor_max=))
+then ran a 4-skeptic adversarial audit (parallel Sonnet sub-agents: geometry / checkers / Phase-1
 
 ## PLACEMENT AUDIT REMEDIATION 2026-06-14 ~06:05 UTC (commit cbd0047, pushed to PR #60)
 Owner: "go ahead [Phase 1] + audit it." Built **Phase 1a** (corridor_cross rank key: Candidate field +
