@@ -1,6 +1,35 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~19:15 CDT (new-impl polish fixes + adversarial verification both landed)._
+_Updated 2026-06-13 ~20:05 CDT (seat-bakeoff harness built+tested; full sweep launching)._
+
+## SEAT BAKE-OFF (TODO item 3) — HARNESS BUILT + TESTED, FULL SWEEP NEXT 2026-06-13 ~20:05 CDT
+Owner chose "BUILD + RUN the full sweep." Branch **claude/seat-bakeoff** (off main, its OWN PR; the
+cloud-seat shim in cec_judge_local is independent of the prompt-audit PRs). Worktree at
+**/home/nathan/cec-bakeoff** (NOT /tmp -- WSL-ephemeral; push frequently). Commits (bot): 3447cc0 harness
++ shim, aae3dd9 variants. BUILT + TESTED (17 host tests green; both transports smoke-verified live):
+- **cloud-seat shim** (cec_judge_local): CLOUD_MODELS/_is_cloud/_extract_json_obj(brace-matched)/
+  _chat_json_cloud -> `claude -p --model <m> [--effort] --output-format json`; dispatched at top of
+  _chat_json. Lets --seats cloud + the bake-off use sonnet/opus with no broker. Smoke: sonnet 13.3s OK.
+- **scripts/cec_seat_bakeoff.py**: 2-D {variant x model} bake-off. SEATS t1(intent)/t4(panel,3 lenses)/
+  t5(auditor); VARIANTS {current,terse,json-skeleton}+t5 decision-tree; FIXED CASES kelvin-fail/
+  drc-residual/gate-pass (vendored manifest+fence+rec). Two signals: OBJECTIVE deterministic (PRIMARY)
+  schema-conformance-WITHOUT-scribe + correctness (t1 real-ref&fence; t5 fclass+priceable-metric; t4
+  safety-lens-never-accepts-gate-fail) + latency; LEAVE-ONE-OUT BLIND rubric judge panel (median+IQR).
+  Local producers/judges sequential-batched per residency (amortize cold boot); cloud concurrent.
+  Subcommands produce/judge/report/show. Smoke: cec-worker-vision 192s cold OK (accept/none correct).
+- PRODUCERS={cec-worker-vision,deepseek-v4-flash,sonnet,opus}; JUDGES={opus,sonnet,cec-worker,
+  cec-manager-fast,deepseek-v4-flash,cec-manager(MiniMax)}. Output build/seat-bakeoff/ (gitignored).
+- REACHABILITY CONCERN: cec-worker TIMED OUT at 128s on a 1-tok probe (volume worker cold/stopped, like
+  worker-volume-vision per the prior handoff). Heavy local models (deepseek Win-native :8007, MiniMax
+  ~10.5min cold) are slow/fragile. The harness is RESILIENT (per-call try/except -> error record, run
+  continues; judge median over AVAILABLE votes), so a down model degrades gracefully, not fatally.
+- **RUN PLAN**: produce (full matrix, ~190 calls; cloud fast, worker-vision ~15s warm, deepseek slow) ->
+  judge (~190 outputs x ~5 leave-one-out judges; the heavy local judges dominate -> MANY hours, overnight)
+  -> report (variant x model matrix + best-per-model + generalize-vs-overfit). Launch detached. RELAUNCH:
+  `cd /home/nathan/cec-bakeoff && python3 scripts/cec_seat_bakeoff.py produce` then `... judge` then
+  `... report`. STILL OPEN FOLLOWUP: DeepSeek --stream live thinking (cec_v4_task.py).
+
+## VERIFICATION FOLLOW-ON LANDED 2026-06-13 ~19:15 CDT (PR #56 + #57)
 
 ## VERIFICATION FOLLOW-ON LANDED 2026-06-13 ~19:15 CDT (PR #56 + #57)
 Adversarially verified the polish fixes (workflow wf_789eb5bc-b59: 8 per-fix skeptics reading live source +
