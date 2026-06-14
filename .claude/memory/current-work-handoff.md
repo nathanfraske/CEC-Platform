@@ -1,8 +1,40 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~22:40 CDT (#56-59 all MERGED; PLACEMENT STRATEGY in design)._
+_Updated 2026-06-14 ~04:50 UTC (PLACEMENT Phase 0 LANDED on claude/placement-corridor)._
 
-## ALL SESSION PRs MERGED + PLACEMENT STRATEGY STARTED 2026-06-13 ~22:40 CDT
+## PLACEMENT — CORRIDOR-AWARE RESEED PLACER, PHASE 0 DONE 2026-06-14 ~04:50 UTC
+Branch **claude/placement-corridor** (worktree /home/nathan/cec-placement, off origin/main b81c65a).
+Plan of record = **docs/placement-strategy-2026-06-14.md** (HYBRID: A's anneal engine + C's corridor
+min-cut term as PRIMARY rank key + light-B seed nudge + D route-confirm-once + cec_loop reseed wiring).
+Phase 0 (the falsifiable proof, no placement behaviour change) IMPLEMENTED + verified:
+- `cec_synth_pipeline.py`: `build_corridor_model(nl,P,comps)` (bands = bbox(HI∪LO pads) per Kelvin pair,
+  x-inflated 1.5mm — SAME pads derive_power_pours pours, so placement↔route keepout are one rect) +
+  `corridor_cross_count(pads_by_net,bands,corridor_nets)` (PRIMARY rank key: a foreign SIGNAL net forced
+  THROUGH a band = y-overlap AND a pad strictly left AND strictly right; 0 = corridor-clean). Plus
+  `Cable`/`CorridorModel` dataclasses, `_corridor_net_role`, `_hot_sensitive`, `_net_pads_global`,
+  `_ref_padcount`. Pure (no pcbnew — pad_global is footprint-text).
+- `cec_constraints.py`: the two registry entries that had NO checker now do — `@checker("shunt-inline-in-
+  corridor")` (placement: shunt between its J_IN/J_OUT pads) + `@checker("high-current-corridor-keepout")`
+  (route-time: no foreign signal track/via in a band) + helpers `_corridor_bands`/`_is_corridor_signal`.
+  Both marked checkable="yes" (+ tol_mm param). discover→ratify→ENFORCE closed.
+- `tests/test_corridor_model.py` (19 tests, in checklist host suite). PROVEN on committed eps-8pin
+  floorplan: model resolves 2 cables (RS1/RS2 shunts), band2 covers the x[34,46.9] sandwich, ≥3
+  through-crossers (/DETC1,/THRESH,/I2C_SCL,/I2C_SDA), **/CAN_L=0** (not a false offender), DETC2=0
+  (edge-terminating not through). Keepout checker has TEETH (injected /DETC1 track→FAIL /SENSEC2<-/DETC1).
+  Full checklist host suite 134 green. NOT yet committed/pushed (do next).
+- NEXT = **Phase 1** (breaks the ceiling, TODO line): in synth_one stamp shunt rot270 + build model + score;
+  seed_anchors nudge each sense IC to its own lane channel (out of any band); add `corridor_cross` field to
+  Candidate + the place_candidates sort key `(residual, corridor_cross, hpwl)`; hard-reject corridor_cross>0
+  in proxy_reject. Validate: winning eps candidate corridor_cross==0 + ICs outside y[9.5,27.5]; route ONCE →
+  foreign_cross ~11→~0, /SENSEC2_LO pour = 1 island. Phases 2-5 in the doc. FOLLOWUPS: 12VHPWR per-pin
+  corridor variant (shared J3/J4 breaks per-cable pairing); SB-08 routed golden of the clean board.
+- GIT NOTE: local `claude/prompt-tier-audit` was accidentally reset to origin/main during branch setup
+  (its 425f799 is safe on origin/claude/prompt-tier-audit + already in origin/main — #56 merged; no loss).
+  Inherited dirty WT (190 files: inloop-audit deletions + cec_facts.py mods, unexplained) stashed on the
+  main checkout as stash "inherited-wt-state-pre-placement-2026-06-14" — NOT mine; left for whoever owns it.
+
+---
+## PRIOR: ALL SESSION PRs MERGED + PLACEMENT STRATEGY STARTED 2026-06-13 ~22:40 CDT
 Owner MERGED **#56 (prompt-tier-audit) + #57 (bot-push-guard) + #58 (followups-hook) + #59 (seat-bakeoff)**
 to main. Before merging #56/#59 the owner asked for a FULL ADVERSARIAL AUDIT of both -> ran wf_975a22e6-156
 (34 agents: dimension reviewers -> verify each finding -> per-PR verdict). Both **SHIP-WITH-FIXES, 0 blocker/
