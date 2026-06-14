@@ -2,6 +2,20 @@
 
 _Updated 2026-06-13 ~20:15 CDT (seat-bakeoff harness built+tested; FULL SWEEP LAUNCHED detached)._
 
+## SWEEP RESULT 2026-06-13 ~20:50 CDT — OWNER SCOPE = PRODUCERS-ONLY; DATA-CHOSEN DEFAULTS DELIVERED
+Owner picked "producers only (~1-2h), fastest path to a data-chosen default" (the deep-reasoner 6-judge
+panel is ~1-2 DAYS: deepseek ~4 tok/s × ~140 calls -> deferred). Producer matrix DONE (cloud+worker) +
+deepseek-T5 finishing (~40min, token-fixed, first call valid 223s). **FINDINGS COMMITTED** (bcccf21):
+docs/seat-bakeoff-2026-06-13/findings.md. DATA-CHOSEN per-seat variant: **T1 json-skeleton, T4 terse,
+T5 decision-tree** (HEADLINE: best format is SEAT-DEPENDENT -- json-skeleton best for T1 / WORST for T5;
+terse breaks the local worker on T1 at 0% schema). `--seats cloud` defaults: gen tier (T1/T4) -> sonnet
+(30/30 clean; opus had 2 unparseable replies), reasoning tier (T5) -> opus (data-confirms the FOLLOWUP).
+CAUGHT+FIXED 2 bugs mid-run: (1) thinking-model token starvation (deepseek 0/8 at 1200 tok -> per-model
+budget 8000/3000, commit cccc64b); (2) cloud-shim opus JSON-extraction misses -> retry + raw-snippet-on-
+failure (939ba7d, hardens the production --seats cloud path). 18 host tests green. WHEN deepseek-T5 lands:
+refresh report + fill the findings T5 deepseek row (its best variant = the production auditor's format) +
+final commit. DEFERRED (FOLLOWUPS): the judge panel; deepseek as a T1/T4 producer; the --stream piece.
+
 ## SWEEP LAUNCHED 2026-06-13 ~19:50 CDT (overnight). Detached chain produce->judge->report:
 `cd /home/nathan/cec-bakeoff && setsid nohup bash -c 'export CEC_BAKEOFF_TIMEOUT=900 CEC_BAKEOFF_CLOUD_WORKERS=4;
 python3 scripts/cec_seat_bakeoff.py produce; python3 scripts/cec_seat_bakeoff.py judge; python3
