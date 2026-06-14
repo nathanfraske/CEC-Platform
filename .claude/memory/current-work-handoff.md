@@ -1,6 +1,18 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~08:00Z (DeepSeek-V4 LIVE in the cec_fullstack auditor seat, run launched for the night)._
+_Updated 2026-06-14 ~23:00 UTC (PLACER-UPGRADE MV2-MV5 done + audited + pushed, PR #60)._
+
+## PLACER-UPGRADE MV2-MV5 COMPLETE + AUDITED + PUSHED 2026-06-14 ~23:00 UTC (branch claude/placement-corridor, PR #60, HEAD eff0136)
+Continued the MV checklist (docs/placer-upgrade-2026-06-14/plan.json) under the anti-overfit charter. Three commits pushed:
+- **e3a21de** — committed the prior session's COMPLETED-but-uncommitted placement EI-parity PL-01..PL-10 (durability; it was sitting in the dirty worktree, a WSL-ephemeral near-miss).
+- **26d9a77** — MV2-MV5 in scripts/cec_synth_pipeline.py: **MV2** net-aware `_role`/`_connector_net_role`/`_is_rail_net` (a power-only J* -> power_in, fixes J_5VSB) + `oracle_stage1_answers`/`apply_oracle_stage1` (derive size/edge_override/mount/antenna FROM the reference Hub) + `seed_anchors(edge_override=)` 4-edge + `place_mechanical(mount_pos_override)`; **MV3** `oracle_similarity` DIAGNOSTIC (never a rank key — `_candidate_sort_key` excludes it); **MV4** `proxy_score` (==hpwl off-oracle = zero regression; ref-normalized HPWL-dominant composite) + sort-key swap; **MV5** `build_hub_model`/`hub_score` (port_even/antenna/power_cluster/usb_prox, gated to >=2 RJ-45 + ESP). tests/test_placer_oracle.py.
+- **eff0136** — consultative-audit remediation: 4 parallel skeptics (geometry/charter/regression/test-rigor) = ALL SHIP-WITH-FIXES, 0 blocker. Fixed H1 (similarity renorm over present terms -> identity 1.0 any board), M2 (sense/ref nets excluded from rails), M3 (edge_override validation), charter MEDIUM (power-loop now TOPOLOGICAL small-fanout, no Hub net-names baked, + cfg override), regression MEDIUM (oracle-failure logging), 2 HIGH test-rigor (MV3/MV4 plan-validation tests) + scramble/sort-key teeth. 41 tests green, checklist exit 0, SB-08 golden NEUTRAL (only the pre-existing owner-gated AM-04 thermal red).
+- Validated on the committed Hub: J2-J5 top / J_5V,J_5VSB right / J_KVM,J_USB bottom; outline 98.1x74.1; reference hub_penalty ~0.27 (scores well) vs synth ~0.60 (the placer's measured gap). Status+audit: docs/placer-upgrade-2026-06-14/STATUS.md.
+- **NEXT (owner goal): launch the Hub full-stack run** scored vs the reference (set cfg.params['oracle_reference_path']='hubs/hub-standard/hub-standard.kicad_pcb'; Stage-1 auto-derived; the committed Hub is already routed so calibration is free). Then (FOLLOWUPS) the MV5 generative closers: antenna-edge ESP seed + power-loop cohesion sweep (the terms MEASURE these gaps + apply selection pressure, but no pass GENERATES candidates that close them yet).
+
+---
+
+_(prior) Updated 2026-06-13 ~08:00Z (DeepSeek-V4 LIVE in the cec_fullstack auditor seat, run launched for the night)._
 
 ## TONIGHT (2026-06-13): DeepSeek-V4 auditor + cec_fullstack overnight run — LIVE
 Owner ask evolved: "make DeepSeek run in the auditor seat and play nice," then (key correction from owner
