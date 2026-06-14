@@ -525,6 +525,43 @@ class TestLayerLever(unittest.TestCase):
                 layers.setdefault(t.GetNetname(), set()).add(t.GetLayer())
         self.assertIn(pcbnew.B_Cu, layers["/THRESH"])            # the 2nd crossing now uses B.Cu
 
+    def test_mirror_pour_is_additive_and_passes_the_adoption_guard(self):
+        """Item 1: the loop poured the force nets F.Cu-only, so the stagger lever's mirror premise was
+        false. synthesize_power_copper(strip_redundant=False) lays the B.Cu mirror + via stitching, purely
+        ADDITIVELY (no copper removed), and _route_quality must not regress -- the guard the route uses to
+        adopt the mirrored board."""
+        import tempfile
+        import cec_fr
+        wd = tempfile.mkdtemp()
+        # build the F.Cu-only poured board the loop's import_ses produces
+        b = pcbnew.LoadBoard(EPS_PCB)
+        pours = cec_fr.derive_power_pours(EPS_PCB, board=b)
+        self.assertEqual(len(pours), 4)                          # 2 cables x (HI, LO)
+        cec_fr.add_power_pours(b, pours, fill=True)
+        routed = os.path.join(wd, "routed.kicad_pcb"); pcbnew.SaveBoard(routed, b)
+        b0 = pcbnew.LoadBoard(routed)
+        force_tracks0 = sum(1 for t in b0.GetTracks()
+                            if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname().startswith("/SENSEC"))
+        del b, b0
+        mirrored = os.path.join(wd, "mirror.kicad_pcb")
+        rep = cec_fr.synthesize_power_copper(routed, mirrored, strip_redundant=False)
+        self.assertEqual(rep["mirror_pours"], 4)                 # the 4 missing B.Cu pours
+        self.assertGreater(rep["via_field"], 0)                  # F<->B stitching
+        self.assertEqual(rep["stripped_force_traces"], 0)        # additive -- nothing removed
+        bm = pcbnew.LoadBoard(mirrored)
+        bcu = sum(1 for z in bm.Zones()
+                  if z.IsOnLayer(bm.GetLayerID("B.Cu")) and z.GetNetname().startswith("/SENSEC"))
+        force_tracks1 = sum(1 for t in bm.GetTracks()
+                            if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname().startswith("/SENSEC"))
+        self.assertEqual(bcu, 4)                                 # B.Cu mirror present for each force net
+        self.assertGreaterEqual(force_tracks1, force_tracks0)    # additive: force copper never decreased
+        del bm
+        # the adoption guard: a purely additive mirror must not regress route quality
+        import math
+        q_routed, q_mirror = cec_fr._route_quality(routed), cec_fr._route_quality(mirrored)
+        self.assertTrue(math.isfinite(q_mirror))
+        self.assertLessEqual(q_mirror, q_routed)                 # the route would ADOPT it
+
     def test_l_bend_crossing_is_detected_and_flipped(self):
         """An L-bend crossing (3 short segments, NO single segment spans the band x-width) was silently
         missed by the old _seg_crosses_band (the audit's flipped=0). The net-extent + band-clip detector

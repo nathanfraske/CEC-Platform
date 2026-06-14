@@ -208,8 +208,27 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
         pours = cec_fr.derive_power_pours(baked)
     cec_fr.import_ses(baked, ses, routed, power_pours=pours)     # strips plane-layer tracks
     hygiene = cec_fr02.clean_orphan_stubs(routed, res)
+    # MIRROR POUR (item 1, audit w23i0d8nq): the loop poured the high-current force nets F.Cu-ONLY, so the
+    # layer-stagger lever's premise -- "the un-cut OUTER pour mirror carries past a single-layer cut" -- was
+    # FALSE (there was no mirror). Lay the B.Cu mirror of each F.Cu force pour + the via-field stitching that
+    # ties the two outer layers (and bridges the SMD-shunt neck) so the premise holds. PURELY ADDITIVE
+    # (synthesize_power_copper strip_redundant=False adds only the missing layer + vias, never removes copper
+    # -- like add_power_pours, so it can't strand the Kelvin tap). DETERMINISTIC copper, so it rides BOTH
+    # lanes like the F.Cu pours (it is not run-learned steer -> does not confound the EI-02 A/B). Safe-
+    # reverted on a _route_quality regression (a stitch via could land on a foreign corridor-crossing trace)
+    # and best-effort (never fails the route). CEC_OVD_MIRROR_POUR=0 restores the F.Cu-only behaviour.
+    n_mirror = 0
+    if pours and os.environ.get("CEC_OVD_MIRROR_POUR", "1") != "0":
+        mirrored = os.path.join(workdir, "routed-mirror.kicad_pcb")
+        try:
+            mrep = cec_fr.synthesize_power_copper(routed, mirrored, strip_redundant=False)
+            if os.path.isfile(mirrored) and cec_fr._route_quality(mirrored) <= cec_fr._route_quality(routed):
+                routed = mirrored
+                n_mirror = mrep.get("mirror_pours", 0)
+        except Exception:                                        # noqa: BLE001 -- mirror is best-effort
+            pass
     stub_summary = {"n_stubs": len(res["stubs"]), "compile_failures": res["failures"],
-                    "nets": nets, "n_power_pours": len(pours), **hygiene}
+                    "nets": nets, "n_power_pours": len(pours), "n_mirror_pours": n_mirror, **hygiene}
     return routed, stub_summary, {"passes": passes, "opt_time": opt_time}
 
 
