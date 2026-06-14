@@ -209,6 +209,33 @@ class CloudShim(unittest.TestCase):
             subprocess.run = orig
         self.assertEqual(out, {"verdict": "accept", "failure_class": "none"})
 
+    def test_cloud_retry_then_succeed_and_raw_on_final_failure(self):
+        import subprocess
+
+        class R:
+            def __init__(self, out):
+                self.returncode = 0
+                self.stderr = ""
+                self.stdout = out
+        orig = subprocess.run
+        calls = []
+
+        def flaky(cmd, **k):
+            calls.append(1)
+            payload = "no json yet" if len(calls) == 1 else '{"action":"repair","reason":"x"}'
+            return R(json.dumps({"type": "result", "result": payload}))
+        subprocess.run = flaky
+        try:
+            out = jl._chat_json_cloud("s", "u", {"type": "object"}, model="opus")
+            self.assertEqual(out, {"action": "repair", "reason": "x"})
+            self.assertEqual(len(calls), 2)                          # retried the bad first reply
+            subprocess.run = lambda cmd, **k: R(json.dumps({"type": "result", "result": "no json here"}))
+            with self.assertRaises(ValueError) as cm:
+                jl._chat_json_cloud("s", "u", {"type": "object"}, model="opus")
+            self.assertIn("raw=", str(cm.exception))                 # raw snippet surfaced for debug
+        finally:
+            subprocess.run = orig
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -290,10 +290,13 @@ def _extract_json_obj(text):
 
 
 def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=None, timeout=None,
-                     seat=None, temperature=0.0):
+                     seat=None, temperature=0.0, attempts=2):
     """Cloud-seat shim: run a cloud Claude model via `claude -p --model <m> [--effort <lvl>]
     --output-format json` and return schema-shaped JSON, so --seats cloud / the seat bake-off can use
-    sonnet/opus without the local broker. Raises on transport/parse like _chat_json (callers fall back)."""
+    sonnet/opus without the local broker. The CLI occasionally returns a `result` with no parseable JSON
+    object (an empty/prose reply) -- RETRY once, and on final failure raise WITH a raw snippet so the
+    failure is diagnosable (a bare 'no JSON object' was undebuggable in the bake-off). Raises on
+    transport/parse like _chat_json (callers fall back to the deterministic policy)."""
     eff = effort if effort is not None else CLOUD_EFFORT
     prompt = (system + "\n\n" + user + "\n\nRespond with ONLY a single JSON object that conforms to this "
               "JSON Schema (no prose, no markdown fence, no preamble):\n" + json.dumps(schema))
@@ -301,22 +304,29 @@ def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=Non
     if eff:
         cmd += ["--effort", str(eff)]
     cmd += ["--output-format", "json"]
-    try:
-        r = subprocess.run(cmd, input=prompt, text=True, capture_output=True,
-                           timeout=timeout or TIMEOUT)
-    except subprocess.TimeoutExpired as e:
-        raise ValueError("cloud seat timeout: %s" % e)
-    if r.returncode != 0:
-        raise ValueError("cloud seat exit %s: %s" % (r.returncode, (r.stderr or "")[:200]))
-    # `--output-format json` wraps the reply in a result envelope; fall back to raw stdout if not.
-    text = r.stdout
-    try:
-        env = json.loads(r.stdout)
-        if isinstance(env, dict) and "result" in env:
-            text = env["result"]
-    except Exception:                                            # noqa: BLE001
-        pass
-    return _extract_json_obj(text)
+    last = "no attempt"
+    for _ in range(max(1, attempts)):
+        try:
+            r = subprocess.run(cmd, input=prompt, text=True, capture_output=True,
+                               timeout=timeout or TIMEOUT)
+        except subprocess.TimeoutExpired as e:
+            raise ValueError("cloud seat timeout: %s" % e)
+        if r.returncode != 0:
+            last = "exit %s: %s" % (r.returncode, (r.stderr or "")[:160])
+            continue
+        # `--output-format json` wraps the reply in a result envelope; fall back to raw stdout if not.
+        text = r.stdout
+        try:
+            env = json.loads(r.stdout)
+            if isinstance(env, dict) and "result" in env:
+                text = env["result"]
+        except Exception:                                        # noqa: BLE001
+            pass
+        try:
+            return _extract_json_obj(text)
+        except Exception as e:                                   # noqa: BLE001 -- retry, then surface raw
+            last = "%s | raw=%r" % (e, (text or "")[:160])
+    raise ValueError("cloud seat: no schema JSON after %d attempts (%s)" % (max(1, attempts), last))
 
 
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
