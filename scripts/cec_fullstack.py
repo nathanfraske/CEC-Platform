@@ -83,7 +83,13 @@ WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min 
 OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
                 "battery (shift/swap/via), power pours, LAYER-STAGGER (route a band-crossing foreign "
-                "signal on the F.Cu/B.Cu layer that keeps the un-cut outer pour mirror carrying)")
+                "signal on the F.Cu/B.Cu layer that keeps the un-cut outer pour mirror carrying), "
+                # PL-02: model-proposable placement lever. Worded WITHOUT 'corridor'/'pour'/'around'
+                # so _lever_kind classifies a model echo to 'replace', not 'avoid' (the keyword trap).
+                "PLACEMENT EVICTION (re-place / move / reposition a SENSITIVE body -- an INA / INA181 "
+                "/ REF / ESP -- OUT of a foreign high-current band that fragments its sense copper, "
+                "carrying the body's owned passive cluster so decoupling caps are not stranded; NEVER "
+                "a shunt RS* / connector J*, NEVER a pinned or Kelvin / sense part)")
 # P4 (prompt-audit 2026-06-13): the CL24 spec-conformance charter must judge against RATIFIED
 # knowledge, not the run's ephemeral manager_rules (empty on a control round -> empty_corpus). This
 # is the compact locked-decision spine the charter cites; the full promoted corpus rides alongside it
@@ -290,7 +296,7 @@ def _t0_should_fire(lane, placement_attr, kelvin_stall, kelvin_ok):
 # vision judgement (a seat's opinion). real_anchor_ratio = deterministic / (deterministic + model):
 # the fraction of the round's evidence that rests on determinism rather than model judgment.
 def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
-                      vision_ran=False, verifier_ran=False):
+                      vision_ran=False, verifier_ran=False, placement_moved=False):
     """EI-07: fraction of THIS round's evidence grounded in deterministic checks vs model judgment.
 
     DETERMINISTIC anchors (a checker produced the number, reproducible without a model):
@@ -320,6 +326,11 @@ def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
     if rec.get("max_T") is not None:
         det += 1
     det += len(rec.get("fem_flags") or [])
+    if placement_moved:
+        det += 1            # PL-09: an APPLIED placement eviction -- band+body from corridor_violations
+                            # (a deterministic §2.2 checker) + reproducible eviction math -> DETERMINISTIC.
+                            # The auditor PROPOSAL that triggered it is the model anchor (already counted
+                            # via audit/verifier); never add to model here (no double-count).
 
     model = 0
     # worker panel: one model anchor per real lens vote (the 'fallback' deterministic vote is NOT a model anchor)
@@ -337,6 +348,19 @@ def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
     total = det + model
     return {"real_anchor_ratio": round(det / total, 4) if total else None,
             "n_deterministic": det, "n_model": model}
+
+
+def _placement_row_fields(summary, lane, settled=None):
+    """PL-08: the placement fields for the per-round measurement row (EI-02 rides the SAME lane-tagged
+    row -- no separate placement.jsonl). Pure (host-testable). A CONTROL round with a pending move shows
+    verdict 'suppressed' and placement_moved False (it never moved -- the A/B-honest invariant)."""
+    s = summary or {}
+    return {"placement_moved": bool(s.get("moved")),
+            "placement_verdict": s.get("verdict", "no_move"),
+            "placement_ref": s.get("ref"),
+            "placement_refs": s.get("refs", []),
+            "placement_moved_mm": s.get("moved_mm", 0),
+            "placement_settled": settled}                # vindicated|refuted|overturned of a prior move
 
 
 # The A/B axes: what the augmented tier is being measured to BUY. plane_signal_mm/drc are
@@ -363,6 +387,13 @@ def _ab_lane_stats(rows):
     # mean real-anchor-ratio of the lane (EI-07 rollup)
     rar = [r.get("real_anchor_ratio") for r in rows if isinstance(r.get("real_anchor_ratio"), (int, float))]
     out["real_anchor_ratio_mean"] = round(sum(rar) / len(rar), 4) if rar else None
+    # PL-08: placement actuation rate per lane (the A/B-honest invariant: control NEVER moves) + the
+    # control-gated placement-outcome tally.
+    pm = [bool(r.get("placement_moved")) for r in rows if r.get("placement_moved") is not None]
+    out["placement_moved_rate"] = round(sum(pm) / len(pm), 4) if pm else None
+    settled = [r.get("placement_settled") for r in rows if r.get("placement_settled")]
+    out["placement_vindicated"] = sum(1 for s in settled if s == "vindicated")
+    out["placement_refuted"] = sum(1 for s in settled if s in ("refuted", "overturned"))
     return out
 
 
@@ -378,7 +409,7 @@ def ab_aggregate(rows):
     for ax in (ax + "_rate" for ax in _AB_BOOL_AXES):
         if control.get(ax) is not None and augmented.get(ax) is not None:
             delta[ax] = round(augmented[ax] - control[ax], 4)
-    for ax in ("convergence", "real_anchor_ratio_mean"):
+    for ax in ("convergence", "real_anchor_ratio_mean", "placement_moved_rate"):
         if control.get(ax) is not None and augmented.get(ax) is not None:
             delta[ax] = round(augmented[ax] - control[ax], 4)
     for ax in (ax + "_mean" for ax in _AB_NUM_AXES):
@@ -427,6 +458,8 @@ def render_ab_table(ab):
         ("drc_mean", c.get("drc_mean"), a.get("drc_mean"), d.get("drc_mean")),
         ("real_anchor_ratio_mean", c.get("real_anchor_ratio_mean"), a.get("real_anchor_ratio_mean"),
          d.get("real_anchor_ratio_mean")),
+        ("placement_moved_rate", c.get("placement_moved_rate"), a.get("placement_moved_rate"),
+         d.get("placement_moved_rate")),
     ]
 
     def _f(x):
@@ -816,6 +849,82 @@ def layer_stagger(routed_host_path, rnd, board):
     except Exception as e:                                       # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     return {"error": "no STAGGER_JSON"}
+
+
+def apply_placement_move(committed_pcb, routed_pcb, intent, fence, rnd, out_rel=None):
+    """PL-04 (the PLACEMENT EVICTION consumer): turn a LIVE 'replace' Delta into a real part move.
+    In-container (mirror layer_stagger): resolves the offending body + its foreign band from
+    corridor_violations (intent ref=None -> viols[0]; ref set -> the matching viol), RE-CHECKS the fence
+    (the 2nd wall -- a NET target can resolve to a locked sense IC the host never named), then evicts the
+    body + its OWNED passive cluster OUT of the band on a per-round COPY of the COMMITTED floorplan
+    (placement edits the SOURCE, never routed copper) -> build/fullstack/placed-r{rnd}.kicad_pcb, which the
+    NEXT route compiles from. Returns {verdict in placed|no_corridor|fenced|no_move, ref, band, moved_mm,
+    moved_refs, restore, board} or {error}."""
+    out_rel = out_rel or f"build/fullstack/placed-r{rnd}.kicad_pcb"
+    rel_committed = os.path.relpath(os.path.abspath(committed_pcb), ROOT)
+    rel_routed = os.path.relpath(os.path.abspath(routed_pcb), ROOT) if routed_pcb else ""
+    payload = {"ref": intent.get("ref"), "net": intent.get("net"),
+               "fence_refs": sorted((fence or {}).get("refs", set())),
+               "fence_nets": sorted((fence or {}).get("nets", set())),
+               "committed": f"{ovd.CONTAINER_ROOT}/{rel_committed}",
+               "routed": (f"{ovd.CONTAINER_ROOT}/{rel_routed}" if rel_routed else ""),
+               "out": f"{ovd.CONTAINER_ROOT}/{out_rel}"}
+    code = (
+        "import sys, json; sys.path.insert(0, '/workspace/scripts')\n"
+        "import cec_synth_pipeline as sp, cec_place, cec_fs_actuator as act, pcbnew, os\n"
+        "os.makedirs('/workspace/build/fullstack', exist_ok=True)\n"
+        f"P = json.loads({json.dumps(json.dumps(payload))})\n"
+        "fence = {'refs': set(P['fence_refs']), 'nets': set(P['fence_nets'])}\n"
+        "src = P['routed'] or P['committed']\n"
+        "viols = sp.corridor_violations(src)\n"
+        "ref = P['ref']; band = None\n"
+        "if ref is None:\n"
+        "    if not viols:\n"
+        "        print('PLACE_JSON=' + json.dumps({'verdict': 'no_corridor'})); sys.exit(0)\n"
+        "    ref, band = viols[0]['ref'], viols[0]['band']\n"
+        "else:\n"
+        "    m = [v for v in viols if v['ref'] == ref]\n"
+        "    if not m:\n"
+        "        print('PLACE_JSON=' + json.dumps({'verdict': 'no_corridor', 'ref': ref})); sys.exit(0)\n"
+        "    band = m[0]['band']\n"
+        "if act.is_fenced(ref, fence):\n"                          # 2nd fence wall (resolved body)
+        "    print('PLACE_JSON=' + json.dumps({'verdict': 'fenced', 'ref': ref})); sys.exit(0)\n"
+        "b = pcbnew.LoadBoard(P['committed'])\n"                   # edit the COMMITTED source, never routed
+        "mv = cec_place.apply_corridor_evict(b, ref, tuple(band), fence=fence)\n"
+        "if not (mv and mv.get('out')):\n"
+        "    print('PLACE_JSON=' + json.dumps({'verdict': 'no_move', 'ref': ref})); sys.exit(0)\n"
+        "pcbnew.SaveBoard(P['out'], b)\n"
+        "del b\n"                                                  # SWIG: never reuse after Save
+        "out = {'verdict': 'placed', 'ref': ref, 'band': [round(z, 2) for z in band],\n"
+        "       'moved_mm': mv['moved_mm'], 'moved_refs': mv['moved_refs'],\n"
+        "       'restore': mv['restore'], 'board': P['out'].replace('/workspace/', '')}\n"
+        "print('PLACE_JSON=' + json.dumps(out, default=str))\n")
+    try:
+        rc, out = _exec_py(code, timeout=300)
+        for ln in out.splitlines():
+            if ln.startswith("PLACE_JSON="):
+                return json.loads(ln[len("PLACE_JSON="):])
+    except Exception as e:                                       # noqa: BLE001
+        return {"error": f"{type(e).__name__}: {e}"}
+    return {"error": "no PLACE_JSON"}
+
+
+def _placement_source_for(lane, placement_base, committed):
+    """PL-05: which floorplan THIS round compiles from. AUGMENTED + a promoted placement_base -> the moved
+    board; CONTROL or no base -> the committed floorplan (the signed-only A/B invariant: a control round
+    NEVER sees a placement override). Pure -- mirrors _lane_carry."""
+    if lane == "augmented" and placement_base:
+        return placement_base
+    return committed
+
+
+def _placement_keep(verdict, pour_integrity_ok):
+    """BLOCKER-01 (kind-aware launder guard): keep/compound a placement move ONLY if it settled
+    'vindicated' AND held pour integrity. settle_outcome credits a both-gates-fail objective_base win and
+    objective_base is pour-BLIND, so a pour-FRAGMENTING move can read 'vindicated' -- this rejects exactly
+    that launder (a move that fragmented a sense pour is never promoted). Pure. (Guards placement only, so
+    legitimate routing-delta progress-crediting while gates fail is unchanged.)"""
+    return verdict == "vindicated" and pour_integrity_ok is not False
 
 
 _STAGGER_BOOL_FIELDS = ("kelvin_ok", "diffpair_ok", "gates_pass")
@@ -1542,6 +1651,9 @@ def run(board, rounds, hours, auditor=None):
     fence, fence_pairs = _resolve_board_fence(board)
     last_control_metrics = None           # the most-recent CONTROL round's metrics (the rollback baseline)
     pending_deltas = []                   # finding-deltas APPLIED last round, awaiting a control-gated verdict
+    placement_base = None                 # PL-05/06: the promoted moved floorplan augmented rounds route from
+    pending_placement = None              # PL-06: {prev_base, override, delta_id} of the move awaiting settle
+    refuted_placement_keys = set()        # PL-06 anti-ratchet: a refuted placement hypothesis is not re-applied
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
         f"auditor={auditor_model} v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP} "
         f"control_every={CONTROL_EVERY} fence_nets={len(fence['nets'])} fence_refs={len(fence['refs'])}")
@@ -1599,6 +1711,9 @@ def run(board, rounds, hours, auditor=None):
         lane = lane_for(rnd)
         lr_view = lr if lane == "augmented" else {**lr, "manager_rules": [],
                                                   "scorer_penalties": {}, "refuted_metrics": []}
+        # PL-08: per-round placement record (set in the actuator BUILD block / control-suppress branch)
+        placement_summary = {"moved": False, "verdict": "no_move", "refs": [], "ref": None, "moved_mm": 0}
+        placement_settled = None          # PL-08: the prior placement delta's verdict if it settles this round
         log(f"--- round {rnd}/{rounds or '∞'} [{lane}] passes={passes} opt={opt_time} ---")
         try:
             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
@@ -1632,8 +1747,31 @@ def run(board, rounds, hours, auditor=None):
             log(f"  T1 intents[{src}]: {[i['net'] for i in intents]} -- {why[:80]}")
 
             # T2/T3/T3.5 route + score + FEM (in-container)
+            # MED-02: defend against a missing/corrupt override -- a silent fall-back to the committed
+            # board would settle a placement hypothesis against a round that NEVER routed the moved board
+            # (a false A/B credit). On an augmented round whose override file is gone, REVERT the base +
+            # DROP the unsettled placement delta so it is never credited, then route committed honestly.
+            if lane == "augmented" and placement_base and not os.path.isfile(placement_base):
+                log(f"  ! placement override missing ({os.path.basename(placement_base)}) -> "
+                    f"revert base + drop the unsettled move")
+                placement_base = (pending_placement or {}).get("prev_base")
+                for pd in [p for p in pending_deltas if p["delta"].kind == "replace"]:
+                    pd["delta"].status = "rolled_back"
+                    pd["delta"].note += " [override file missing -- dropped unsettled]"
+                pending_deltas = [p for p in pending_deltas if p["delta"].kind != "replace"]
+                pending_placement = None
+            # PL-05/CTRL-01: AUGMENTED routes from the promoted placement override (a moved floorplan
+            # COPY); CONTROL routes the committed board (signed-only A/B invariant). _placement_source_for
+            # is given the CONCRETE committed path (honors its contract; no reliance on a falsy fallback).
+            psrc = _placement_source_for(lane, placement_base, ovd.BOARD_PCB[board])
+            if placement_base and lane == "control":
+                log(f"  [control] placement override SUPPRESSED (signed-only): "
+                    f"{os.path.basename(placement_base)}")
+            # pass the override only when it differs from committed (keeps the route cmd clean for the
+            # common no-placement / control case; route_one_worker treats None as committed)
+            override = psrc if psrc != ovd.BOARD_PCB[board] else None
             rec = ovd._exec_route_one(board, rnd, passes=passes, opt_time=opt_time,
-                                      intents_file=ipath)
+                                      intents_file=ipath, board_pcb_override=override)
             if rec.get("error"):
                 log(f"  route error: {rec['error']}")
                 continue
@@ -1855,6 +1993,7 @@ def run(board, rounds, hours, auditor=None):
                                                    "gates_pass", "kelvin_ok", "diffpair_ok",
                                                    "plane_signal_mm", "max_T")}
             cur_metrics["pour_clipped"] = bool(pour_clipped_nets)
+            cur_metrics["pour_integrity_ok"] = rec.get("pour_integrity_ok")   # BLOCKER-01: the launder guard
             # Settle the prior round's applied deltas ONLY on an AUGMENTED round -- the delta's carry
             # (pending_corridor_avoid) is suppressed on a control round (signed-only), so a control round
             # never actually steers the delta and must not be used as its TREATMENT. cur_metrics is then
@@ -1889,15 +2028,55 @@ def run(board, rounds, hours, auditor=None):
                         log(f"  delta-settle ledger skipped: {type(e).__name__}: {e}")
                     log(f"  CONTROL-GATE: {pd['delta'].id} {oc.verdict} (margin={oc.margin}) "
                         f"-> {'kept' if oc.verdict == 'vindicated' else 'ROLLED BACK'}")
+                    # PL-06: two-phase placement promotion. The override was applied + routed THIS round
+                    # (placement_base). KEEP it (good moves COMPOUND) only if it settled vindicated AND
+                    # held pour integrity; otherwise revert to the pre-move base + anti-ratchet.
+                    # BLOCKER-01 (kind-aware launder guard): settle_outcome credits a both-gates-fail
+                    # objective_base win, and objective_base is pour-BLIND, so a pour-FRAGMENTING move can
+                    # read 'vindicated'. A placement move that fragmented a sense pour must NEVER be
+                    # promoted -- that is exactly the launder. (We guard placement here, NOT settle_outcome,
+                    # so legitimate routing-delta progress-crediting while gates fail is unchanged.)
+                    if pd["delta"].kind == "replace":
+                        keep = _placement_keep(oc.verdict, cur_metrics.get("pour_integrity_ok"))
+                        launder = oc.verdict == "vindicated" and not keep
+                        placement_settled = "refuted" if launder else oc.verdict
+                        if launder:
+                            pd["delta"].status = "rolled_back"
+                            pd["delta"].note += (" [launder-blocked: vindicated on pour-blind objective_base "
+                                                 "but fragmented a pour -> NOT promoted]")
+                        if not keep:
+                            placement_base = (pending_placement or {}).get("prev_base")
+                            refuted_placement_keys.add(act.hypothesis_key(pd["finding"], pd["delta"]))
+                            log(f"  PLACEMENT {'LAUNDER-BLOCKED' if launder else oc.verdict}: revert base -> "
+                                f"{os.path.basename(placement_base) if placement_base else 'committed'}")
+                        else:
+                            log(f"  PLACEMENT vindicated: keep base "
+                                f"{os.path.basename(placement_base) if placement_base else 'committed'}")
                 pending_deltas = []
+                pending_placement = None
+            elif pending_deltas and last_control_metrics is None and lane == "augmented":
+                # AUDIT-PL4-001 liveness: no control baseline exists yet (e.g. CONTROL_EVERY<=0 -> a control
+                # round never runs, or before the first one). The deltas cannot be settled; drop them
+                # unsettled + revert any placement move so the one-in-flight guard releases (no deadlock).
+                for pd in pending_deltas:
+                    pd["delta"].status = "rolled_back"
+                    pd["delta"].note += " [no control baseline -- rolled back unsettled]"
+                    if pd["delta"].kind == "replace":
+                        placement_base = (pending_placement or {}).get("prev_base")
+                log(f"  [no-baseline] {len(pending_deltas)} pending delta(s) dropped (no control yet)")
+                pending_deltas = []
+                pending_placement = None
             elif pending_deltas and lane == "control":
                 # the carry was suppressed this round -> the prior deltas never got a steered round; drop
                 # them unsettled (they roll back, never ratchet) rather than mis-credit a later round.
                 for pd in pending_deltas:
                     pd["delta"].status = "rolled_back"
                     pd["delta"].note += " [carry suppressed by control round -- rolled back unsettled]"
+                    if pd["delta"].kind == "replace":           # PL-06: revert an unsettled placement move
+                        placement_base = (pending_placement or {}).get("prev_base")
                 log(f"  [control] {len(pending_deltas)} pending delta(s) dropped (carry suppressed)")
                 pending_deltas = []
+                pending_placement = None
 
             # BUILD next-round finding-deltas from a SUPPORTED auditor finding that carries a proposed_lever.
             # AUGMENTED lane only (a control round produces no deltas -- it is the signed-only baseline). The
@@ -1938,8 +2117,48 @@ def run(board, rounds, hours, auditor=None):
                         if c["delta"].intent["net"] not in {i["net"] for i in pending_corridor_avoid}:
                             pending_corridor_avoid.append(c["delta"].intent)
                         applied_deltas.append(c)
+                    elif (c["delta"].id in kept_ids and c["delta"].kind == "replace"
+                          and isinstance(c["delta"].intent, dict)
+                          and not pending_placement     # one placement move in flight at a time
+                          and act.hypothesis_key(c["finding"], c["delta"]) not in refuted_placement_keys):
+                        # PL-04/05/06: ACTUATE the placement move -- evict the body on a per-round COPY of
+                        # the CURRENT base (compounds on a promoted base), promote placement_base to it so
+                        # the NEXT augmented round routes the moved board, and append the delta so it settles
+                        # against that round's control. The committed floorplan on disk is never mutated.
+                        cur_base = placement_base or ovd.BOARD_PCB[board]
+                        mv = apply_placement_move(cur_base, rec.get("routed"), c["delta"].intent, fence, rnd)
+                        if mv.get("verdict") == "placed":
+                            new_base = os.path.join(ROOT, mv["board"])
+                            pending_placement = {"prev_base": placement_base, "override": new_base,
+                                                 "delta_id": c["delta"].id}
+                            placement_base = new_base
+                            c["delta"].intent["_override_board"] = mv["board"]
+                            c["delta"].note += f" [PLACED {mv['ref']} +{mv['moved_mm']}mm]"
+                            applied_deltas.append(c)
+                            placement_summary = {"moved": True, "verdict": "placed", "ref": mv["ref"],
+                                                 "refs": mv.get("moved_refs", []), "moved_mm": mv["moved_mm"]}
+                            log(f"  ACTUATOR placement: {c['delta'].id} evicted {mv['ref']} "
+                                f"(+{mv['moved_mm']}mm, cluster {mv.get('moved_refs')}) -> base "
+                                f"{os.path.basename(new_base)}")
+                        else:
+                            c["delta"].status = "noop"
+                            vr = mv.get("verdict") or mv.get("error")
+                            c["delta"].note += f" [placement {vr}]"
+                            placement_summary["verdict"] = vr
+                            log(f"  ACTUATOR placement: {c['delta'].id} -> {vr} (no move)")
+                    elif (c["delta"].id in kept_ids and c["delta"].kind == "replace"
+                          and isinstance(c["delta"].intent, dict)):
+                        # AUDIT-PL4-003: a kept placement delta NOT actuated -- one move already in flight, or
+                        # the hypothesis was refuted. Mark + log so the suppression is observable (behavior
+                        # unchanged: one-in-flight + anti-ratchet are by design).
+                        reason = "one-in-flight" if pending_placement else "refuted-hypothesis"
+                        c["delta"].status = "skipped"
+                        c["delta"].note += f" [placement skipped: {reason}]"
+                        log(f"  ACTUATOR placement: {c['delta'].id} SKIPPED ({reason})")
                 pending_deltas = applied_deltas
                 json.dump(dlog.to_records(), open(_d("deltas.json"), "w"), indent=1, default=str)
+            elif lane == "control" and (placement_base or pending_placement):
+                placement_summary["verdict"] = "suppressed"     # PL-08: control round, override held off
 
             # frontier + finalist events (T6 vision + T7 reviewer)
             front = ovd.pareto_frontier(records)
@@ -1993,7 +2212,8 @@ def run(board, rounds, hours, auditor=None):
             # judgment (gates/DRC/pour-facts/FEM = deterministic; panel/auditor/verifier/V4/vision = model).
             vision_ran = ("anomalies" in pourcheck)
             anchors = real_anchor_ratio(rec, pourcheck, panel_votes=votes, audit=sj, v4=v4,
-                                        vision_ran=vision_ran, verifier_ran=bool(vres))
+                                        vision_ran=vision_ran, verifier_ran=bool(vres),
+                                        placement_moved=placement_summary["moved"])   # PL-09
             log(f"  EI-07 real_anchor_ratio={anchors['real_anchor_ratio']} "
                 f"(det={anchors['n_deterministic']} model={anchors['n_model']})")
 
@@ -2025,6 +2245,7 @@ def run(board, rounds, hours, auditor=None):
                    "real_anchor_ratio": anchors["real_anchor_ratio"],    # EI-07
                    "n_deterministic": anchors["n_deterministic"], "n_model": anchors["n_model"],
                    "n_deltas_applied": len(applied_deltas),
+                   **_placement_row_fields(placement_summary, lane, placement_settled),   # PL-08
                    "corpus_state": _corpus_state(lr)}        # EI-01: knowledge state at round time
             with open(_d("measurement.jsonl"), "a") as fh:
                 fh.write(json.dumps(row) + "\n")

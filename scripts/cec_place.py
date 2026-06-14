@@ -84,12 +84,25 @@ def _cluster(board, fp, cluster_mm=4.0):
         onets = {(p.GetNetname() or "") for p in o.Pads()} - {""}
         if (fnets & onets) and _pad_dist(fp, o) <= cluster_mm:
             out.append(o)
-    return out
+    return sorted(out, key=lambda c: c.GetReference())     # PL-03: deterministic moved_refs order
 
 
 def _move(fp, dx_mm, dy_mm):
     p = fp.GetPosition()
     fp.SetPosition(pcbnew.VECTOR2I(p.x + _nm(dx_mm), p.y + _nm(dy_mm)))
+
+
+def nearest_evict_delta(cx, cy, band, margin=1.5):
+    """The (dx,dy) mm that carries a body at (cx,cy) just PAST the nearest edge of band=(x0,x1,y0,y1).
+    The ONE canonical eviction displacement -- shared by apply_corridor_evict (loop tier) and
+    cec_router.corridor_evict_repair (manager tier) so the two cannot drift. Pure (no pcbnew).
+    Diagonal-tie break is deterministic: left, then right, then up, then down."""
+    x0, x1, y0, y1 = band
+    moves = [(cx - x0, (-(cx - x0) - margin, 0.0)),    # left edge
+             (x1 - cx, (x1 - cx + margin, 0.0)),       # right edge
+             (cy - y0, (0.0, -(cy - y0) - margin)),    # top edge
+             (y1 - cy, (0.0, y1 - cy + margin))]       # bottom edge
+    return min(moves, key=lambda m: m[0])[1]           # nearest edge; first on a tie (l,r,u,d)
 
 
 def _pad_union_bbox(fp):
@@ -436,16 +449,22 @@ def relocate_logo_to_clear(board_path, margin=0.6, save=True):
             "x1": best[0] + w / 2 + margin, "y1": best[1] + h / 2 + margin}
 
 
-def apply_corridor_evict(board, ref, band, margin=1.5):
+def apply_corridor_evict(board, ref, band, margin=1.5, fence=None):
     """PLACEMENT corridor lever: move *ref* (+ its owned passive cluster) OUT of a foreign high-current
     corridor *band*=(x0,x1,y0,y1), past the NEAREST band edge + margin. A SENSITIVE body inside a
     foreign band cuts the pour -- the worst corridor fault. Like the routing corridor-avoid keepout and
-    the manager place_nudge, this moves DIRECTLY (no collision back-off): the eviction is non-negotiable,
+    the manager place_cluster, this moves DIRECTLY (no collision back-off): the eviction is non-negotiable,
     and any courtyard overlap it opens is resolved by the subsequent separate/legalize passes (the
-    iterative refine model). moved_refs feed the signal-net reroute. Clamped on-board."""
+    iterative refine model). moved_refs feed the signal-net reroute. Clamped on-board.
+
+    fence (PL-04 defense-in-depth): a {refs:set(),...} guard -- a fenced ref (pinned / Kelvin / sense
+    IC) is REFUSED at the lever itself (no-op None), alongside the cluster-exclude + containment guard.
+    Returns a `restore` record (pre-move poses of exactly the refs moved) for two-phase rollback (PL-06)."""
     a = _fp(board, ref)
     if not a:
         return None
+    if ref in (fence or {}).get("refs", set()):
+        return None                                       # PL-04: lever-level fence wall (defense-in-depth)
     x0, x1, y0, y1 = band
     cx, cy = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
     # CONTAINMENT GUARD (panel G1): only evict a part whose body is ACTUALLY inside the band NOW. The
@@ -454,21 +473,37 @@ def apply_corridor_evict(board, ref, band, margin=1.5):
     # in AND (via the cluster) drag the corridor shunt, a false-clean. No-op if it is no longer inside.
     if not (x0 <= cx <= x1 and y0 <= cy <= y1):
         return None
-    # nearest edge -> the displacement that carries the part just past it
-    moves = sorted([(cx - x0, (-(cx - x0) - margin, 0.0)), (x1 - cx, (x1 - cx + margin, 0.0)),
-                    (cy - y0, (0.0, -(cy - y0) - margin)), (y1 - cy, (0.0, y1 - cy + margin))])
-    dx, dy = moves[0][1]
+    dx, dy = nearest_evict_delta(cx, cy, band, margin)    # PL-03: the ONE canonical displacement
     # carry ONLY the part's own passive cluster -- NEVER a structural corridor part (a shunt RS*/a
     # connector J*), or evicting an INA would drag the band-defining shunt and corrupt the corridor.
     cluster = [c for c in _cluster(board, a)
                if not c.GetReference().upper().startswith(("RS", "J"))]
+    moved = [a] + cluster
+    # PL-06: capture byte-exact pre-move poses (raw nm ints + degrees) BEFORE moving, for rollback.
+    restore = {fp.GetReference(): (fp.GetPosition().x, fp.GetPosition().y, fp.GetOrientationDegrees())
+               for fp in moved}
     _move(a, dx, dy)
     for c in cluster:
         _move(c, dx, dy)
     return {"op": "evict", "ref": ref, "band": [round(v, 1) for v in band],
             "delta": (round(dx, 2), round(dy, 2)), "out": True,
             "moved_mm": round(math.hypot(dx, dy), 2),
-            "moved_refs": [ref] + [c.GetReference() for c in cluster]}
+            "moved_refs": [ref] + [c.GetReference() for c in cluster],
+            "restore": restore}
+
+
+def restore_poses(board, restore):
+    """PL-06 rollback: set each footprint named in `restore` back to its captured (x_nm, y_nm, rot_deg)
+    pose. Byte-exact (raw nm integers + degrees). Returns the count restored."""
+    n = 0
+    for ref, pose in (restore or {}).items():
+        fp = _fp(board, ref)
+        if fp:
+            x, y, rot = pose
+            fp.SetPosition(pcbnew.VECTOR2I(int(x), int(y)))
+            fp.SetOrientationDegrees(rot)
+            n += 1
+    return n
 
 
 def apply_directive(board, d):

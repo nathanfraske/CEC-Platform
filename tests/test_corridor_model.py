@@ -431,11 +431,20 @@ class TestCorridorLever(unittest.TestCase):
     and proposed by the routing-tier manager (cec_router.corridor_evict_repair)."""
 
     def _board_with_violation(self):
-        # move U10 (cable-1 INA) into cable-2's band -> a foreign-band violation
+        # move U10 (cable-1 INA -- a sense IC) into cable-2's band -> a foreign-band violation
         b = pcbnew.LoadBoard(EPS_PCB)
         b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
         import tempfile
         p = os.path.join(tempfile.mkdtemp(), "eps-violation.kicad_pcb")
+        pcbnew.SaveBoard(p, b)
+        return p
+
+    def _board_with_movable_violation(self):
+        # move U1 (ESP -- a SENSITIVE but NON-sense, MOVABLE body) into cable-2's band
+        b = pcbnew.LoadBoard(EPS_PCB)
+        b.FindFootprintByReference("U1").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
+        import tempfile
+        p = os.path.join(tempfile.mkdtemp(), "eps-movable-violation.kicad_pcb")
         pcbnew.SaveBoard(p, b)
         return p
 
@@ -465,13 +474,75 @@ class TestCorridorLever(unittest.TestCase):
         self.assertIn("U10", mv["moved_refs"])
         self.assertEqual(sp.corridor_violations(p), [])       # evicted -> clean
 
-    def test_manager_repair_emits_place_nudge(self):
+    def test_manager_repair_emits_place_cluster(self):
+        # PL-03: the manager tier emits a CLUSTER-aware place_cluster for a MOVABLE sensitive body (the
+        # ESP) -- was the cap-blind place_nudge. FENCE-01: the edit carries the resolved fence.
         import cec_router
-        p = self._board_with_violation()
+        p = self._board_with_movable_violation()
         rep = cec_router.corridor_evict_repair(p)
         self.assertIsNotNone(rep)
-        self.assertEqual(rep["type"], "place_nudge")
-        self.assertEqual(rep["ref"], "U10")
+        self.assertEqual(rep["type"], "place_cluster")
+        self.assertEqual(rep["ref"], "U1")
+        self.assertTrue(rep["cluster"])
+        self.assertIn("band", rep)
+        self.assertIn("fence", rep)                         # FENCE-01: the resolved fence rides the edit
+
+    def test_manager_repair_refuses_fenced_sense_ic(self):
+        # FENCE-01 / TEST-RIGOR-01: a LOCKED Kelvin/§6.13 sense IC (U10) inside a foreign band is NEVER
+        # evicted by the manager tier (the §6.8 geometry is a placement-tier/human decision, not a router
+        # repair). This is the missing tooth that let FENCE-01 ship.
+        import cec_router
+        p = self._board_with_violation()                    # moves U10 (a sense IC) into cable-2's band
+        self.assertTrue(any(v["ref"] == "U10" for v in sp.corridor_violations(p)))   # it IS a violation
+        self.assertIsNone(cec_router.corridor_evict_repair(p))                        # but the manager refuses it
+
+    def test_manager_repair_honors_explicit_fence(self):
+        # FENCE-01: an explicit caller fence is also respected (a movable ESP fenced by the caller -> skip).
+        import cec_router
+        p = self._board_with_movable_violation()
+        self.assertIsNone(cec_router.corridor_evict_repair(p, fence={"refs": {"U1"}}))
+
+    def test_manager_repair_skips_structural_ref(self):
+        # PL-03 fence: the manager must never propose evicting a band-defining shunt RS*/connector J*.
+        import cec_router, cec_synth_pipeline as sp2
+        orig = sp2.corridor_violations
+        sp2.corridor_violations = lambda bp: [{"ref": "RS1", "band": (0, 1, 0, 1), "base": "/SENSEC1"}]
+        try:
+            self.assertIsNone(cec_router.corridor_evict_repair("ignored"))   # returns before any pcbnew
+        finally:
+            sp2.corridor_violations = orig
+
+    def test_evict_restore_record_roundtrips(self):
+        # PL-06: apply_corridor_evict returns a `restore` record; restore_poses puts the body + its
+        # cluster back byte-exact (pos + rot), so the violation reappears (reversible).
+        import cec_place
+        p = self._board_with_violation()
+        b = pcbnew.LoadBoard(p)
+        pre = {r: (b.FindFootprintByReference(r).GetPosition().x,
+                   b.FindFootprintByReference(r).GetPosition().y) for r in ("U10",)}
+        mv = cec_place.apply_corridor_evict(b, "U10", sp.corridor_violations(p)[0]["band"])
+        self.assertIn("restore", mv)
+        self.assertNotEqual(b.FindFootprintByReference("U10").GetPosition().x, pre["U10"][0])  # moved
+        n = cec_place.restore_poses(b, mv["restore"])
+        self.assertEqual(n, len(mv["moved_refs"]))
+        self.assertEqual(b.FindFootprintByReference("U10").GetPosition().x, pre["U10"][0])      # byte-exact back
+        self.assertEqual(b.FindFootprintByReference("U10").GetPosition().y, pre["U10"][1])
+
+    def test_evict_fence_refuses_pinned_ref(self):
+        # PL-04: a fenced ref is refused AT THE LEVER (defense-in-depth), even when in-band.
+        import cec_place
+        b = pcbnew.LoadBoard(EPS_PCB)
+        b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
+        self.assertIsNone(cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5),
+                                                         fence={"refs": {"U10"}}))
+
+    def test_evict_moved_refs_sorted(self):
+        # PL-03: the carried cluster is in deterministic (sorted-ref) order.
+        import cec_place
+        b = pcbnew.LoadBoard(EPS_PCB)
+        b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
+        mv = cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5))
+        self.assertEqual(mv["moved_refs"][1:], sorted(mv["moved_refs"][1:]))
 
     def test_evict_in_movable_set(self):
         import cec_place
@@ -490,6 +561,41 @@ class TestCorridorLever(unittest.TestCase):
         b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
         mv = cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5))
         self.assertTrue(all(not r.upper().startswith(("RS", "J")) for r in mv["moved_refs"]))
+
+
+# --------------------------------------------------------------------------- the dedup'd eviction math
+@unittest.skipUnless(HAVE_PCBNEW, "cec_place imports pcbnew at module load")
+class TestNearestEvictDelta(unittest.TestCase):
+    """PL-03: the ONE canonical eviction displacement, regression-pinned to the former inline router
+    math so apply_corridor_evict (loop tier) and corridor_evict_repair (manager tier) cannot drift."""
+
+    def _old_inline(self, cx, cy, band, margin=1.5):
+        x0, x1, y0, y1 = band
+        dl, dr, du, dd = cx - x0, x1 - cx, cy - y0, y1 - cy
+        m = min(dl, dr, du, dd)
+        return ((-(dl + margin), 0.0) if m == dl else (dr + margin, 0.0) if m == dr
+                else (0.0, -(du + margin)) if m == du else (0.0, dd + margin))
+
+    def test_matches_old_inline_math(self):
+        import cec_place
+        band = (10.0, 20.0, 10.0, 20.0)
+        for cx, cy in [(11, 15), (19, 15), (15, 11), (15, 19),     # four edges
+                       (11, 11), (12, 13), (18, 11), (13, 18)]:    # diagonals + ties
+            self.assertEqual(cec_place.nearest_evict_delta(cx, cy, band),
+                             self._old_inline(cx, cy, band), (cx, cy))
+
+    def test_edge_cases_and_determinism(self):
+        # DETERMINISM-01: board-boundary band, near-corner, extreme coords -- all match the old math, and
+        # repeated calls are bit-identical (the eviction geometry Invariant 6 relies on).
+        import cec_place
+        cases = [(0.05, 1.0, (0.0, 10.0, 0.0, 10.0)),          # band at the board boundary x0=0
+                 (0.001, 0.001, (0.0, 50.0, 0.0, 50.0)),       # sub-0.1mm from a corner
+                 (123.4, 567.8, (100.0, 200.0, 500.0, 600.0))] # extreme coordinates
+        for cx, cy, band in cases:
+            want = self._old_inline(cx, cy, band)
+            results = {cec_place.nearest_evict_delta(cx, cy, band) for _ in range(8)}
+            self.assertEqual(len(results), 1, (cx, cy, band))   # bit-identical across calls
+            self.assertEqual(results.pop(), want, (cx, cy, band))
 
 
 # --------------------------------------------------------------------------- the LAYER lever

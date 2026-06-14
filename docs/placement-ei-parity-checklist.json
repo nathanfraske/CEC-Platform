@@ -1,0 +1,315 @@
+{
+  "checklist": [
+    {
+      "id": "PL-01-INTENT",
+      "title": "Make the 'replace' Delta carry a live, fenced placement intent (kill intent=None in finding_to_delta AND v4_structural_escape)",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fs_actuator.py",
+        "/home/nathan/cec-placement/tests/test_fs_actuator.py"
+      ],
+      "funcs": [
+        "finding_to_delta",
+        "v4_structural_escape",
+        "_placement_intent (new helper)",
+        "Delta.as_record"
+      ],
+      "ei_points": [
+        "actuator-lifecycle (finding->live Delta)",
+        "EI-06 (a settleable hypothesis must carry its instruction)",
+        "EI-02 (fenced BEFORE live)"
+      ],
+      "change": "At finding_to_delta line 108-109 replace `return D('replace', note=...)` with a populated intent. Add `_placement_intent(target)`: a ref = no leading '/' and matching [A-Z]+[0-9]+ -> {'kind':'placement','ref':target,'op':'evict','band':None,'cluster':True}; a NET target (leading '/') -> {'kind':'placement','ref':None,'net':target,'op':'evict','band':None,'cluster':True} so the consumer resolves the owning body from corridor_violations. target = pl.get('target') or pl.get('net'); band stays None (resolved on-board at apply time, never fabricated at finding time so finding_to_delta stays pcbnew-free/host-testable). The line-102 FENCE already covers kind=='replace' -- a fenced ref/net STILL returns D('refused') before this branch; do NOT weaken it. Apply the identical population to v4_structural_escape line 175: intent={'kind':'placement','ref':None,'op':'evict','band':None,'cluster':True,'source':'v4-escape'}. Extend Delta.as_record() (line 39-42) to summarize a placement intent compactly: {'ref','op','net','band_present':bool(intent.get('band')),'cluster'} so the artifact stays small (no large rects).",
+      "acceptance": "tests/test_fs_actuator.py: (a) finding_to_delta(_f('re-place the part','U30'),...) -> kind=='replace', intent=={'kind':'placement','ref':'U30','op':'evict','band':None,'cluster':True}; (b) finding_to_delta(_f('reposition','/SOMENET'),...).intent['net']=='/SOMENET' and ['ref'] is None; (c) the EXISTING test_replace_on_pinned_REFUSED (U2 pinned) STILL returns status=='refused' with intent None (fence runs before intent build); (d) finding_to_delta(_f('re-place','/SENSEC2_LO')) is refused; (e) v4_structural_escape('high', FLAT_ROWS, REC, {'contested':['/SENSEC2_LO']}, ...) returns kind=='replace' with intent a dict (not None); (f) len(json.dumps(Delta.as_record() of a placement Delta)) < 400. Host-runnable, cec_fr02 stubbed.",
+      "order": 1,
+      "depends_on": []
+    },
+    {
+      "id": "PL-02-OWNED-LEVERS",
+      "title": "Add the placement corridor-evict lever to OWNED_LEVERS (model-proposable + verifier-gated) WITHOUT mis-routing it through _lever_kind",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py",
+        "/home/nathan/cec-placement/scripts/cec_fs_actuator.py",
+        "/home/nathan/cec-placement/tests/test_prompt_audit_fixes.py"
+      ],
+      "funcs": [
+        "OWNED_LEVERS (string)",
+        "_lever_kind"
+      ],
+      "ei_points": [
+        "EI-06 (placement enters the shared generator/gate actuation-space)",
+        "EI-02 (a model-proposable lever entering the augmented lane)"
+      ],
+      "change": "Append a placement clause to OWNED_LEVERS (line 83-86). CRITICAL wording: _lever_kind (cec_fs_actuator:73-83) checks 'corridor'->avoid (line 77) BEFORE 'place'/'re-place'/'move'/'reposition'->replace (line 81), so a phrase containing the bare word 'corridor' classifies to AVOID. Use a phrase WITHOUT the bare token 'corridor', e.g. '..., PLACEMENT EVICTION (shift a SENSITIVE body -- an INA/INA181/REF/ESP -- out of a foreign high-current pour band via re-place/move, carrying its owned passive cluster so decoupling caps are not stranded; NEVER a shunt RS*/connector J*, NEVER a pinned or Kelvin/sense part)'. This single string feeds BOTH the auditor prompt AND the verifier actuation-space ctx (the line 78-82 comment), so the auditor can propose it and the CL24 verifier checks it against a known lever. (Owner choice OQ: word it without 'corridor' as above, OR reorder _lever_kind so explicit place/move/reposition wins over the 'corridor' keyword -- pin whichever in the test.)",
+      "acceptance": "(1) assert 'PLACEMENT EVICTION' (or chosen token) in fs.OWNED_LEVERS and OWNED_LEVERS is a non-empty str; (2) ROUND-TRIP: _lever_kind on each proposal verb in the new clause text ('re-place','move','reposition') returns 'replace' (prevents advertising a lever the classifier drops); (3) an auditor finding proposed_lever={'lever':<the new placement clause>,'target':'U30'} flows finding_to_delta -> kind=='replace' with a live intent (the advertised lever actuates). Host-runnable.",
+      "order": 2,
+      "depends_on": [
+        "PL-01-INTENT"
+      ]
+    },
+    {
+      "id": "PL-03-DEDUP-CLUSTER",
+      "title": "Dedup the band-edge eviction math + make the manager-tier (routing) lever cluster-aware and fence-aware (close the stranded-caps MEDIUM)",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_place.py",
+        "/home/nathan/cec-placement/scripts/cec_router.py",
+        "/home/nathan/cec-placement/tests/test_corridor_model.py"
+      ],
+      "funcs": [
+        "nearest_evict_delta (new, cec_place)",
+        "apply_corridor_evict",
+        "_cluster",
+        "corridor_evict_repair",
+        "apply_edit (place_cluster case)"
+      ],
+      "ei_points": [
+        "EI-06 (one canonical placement-move definition; manager-tier and loop-tier levers cannot diverge)",
+        "actuator-fence (manager tier must also refuse a fenced ref)"
+      ],
+      "change": "(1) DEDUP: extract `cec_place.nearest_evict_delta(cx, cy, band, margin=1.5) -> (dx,dy)` (the nearest-band-edge displacement) and call it from BOTH apply_corridor_evict (lines 458-460) and cec_router.corridor_evict_repair (lines 557-560). Pin the diagonal-tie break in the helper. (2) CLUSTER+FENCE the manager tier: corridor_evict_repair currently emits a BARE place_nudge (no cluster -> caps stranded) and has no fence check. Change it to emit {'type':'place_cluster','ref':v['ref'],'band':v['band'],'cluster':True,...} and add a `place_cluster` case to cec_router.apply_edit (alongside place_nudge at 248-259) that calls cec_place.apply_corridor_evict(board, ref, tuple(band)) (which already carries the cluster + has the containment guard + the RS*/J* cluster-exclude at 463-464). Add a fence skip to corridor_evict_repair (resolve pinned refs / Kelvin pairs, or accept a fence dict param) so a pinned/sense ref is never evicted by the manager. (3) DETERMINISM: change _cluster (cec_place.py:87) `return out` -> `return sorted(out, key=lambda c: c.GetReference())` so moved_refs is reproducible.",
+      "acceptance": "(1) nearest_evict_delta returns the SAME (dx,dy) the old inline router math produced on a battery of (cx,cy,band) cases incl. the four edges + diagonal ties (regression-pin both former inline copies through the shared helper); (2) apply_edit place_cluster on a board where U5 in a band has a 4mm decoupling cap C30 sharing +3V3 -> BOTH U5 and C30 moved by the same delta, RS1 in the region NOT moved; (3) corridor_evict_repair with a fenced/pinned ref emits NO edit / skips it; (4) _cluster returns refs in sorted order on a board whose footprint file order differs from ref-sorted. TEETH: the old cap-blind place_nudge FAILS the cap-moved assertion. NOTE: the existing tests/test_corridor_model.py::test_manager_repair_emits_place_nudge asserts type=='place_nudge' -- it MUST be updated in this change to test_manager_repair_emits_place_cluster (type=='place_cluster', carries cluster_refs, RS*/J* excluded), or the host suite goes red.",
+      "order": 3,
+      "depends_on": [
+        "PL-01-INTENT"
+      ]
+    },
+    {
+      "id": "PL-04-CONSUMER",
+      "title": "Consume a kept 'replace' Delta: resolve the body + band and apply the eviction to a per-round override floorplan COPY (fence double-wall, restore record)",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py",
+        "/home/nathan/cec-placement/scripts/cec_place.py",
+        "/home/nathan/cec-placement/scripts/cec_overnight_directed.py"
+      ],
+      "funcs": [
+        "apply_placement_move (new, cec_fullstack host helper)",
+        "apply_corridor_evict (add fence param + return restore record)",
+        "restore_poses (new, cec_place)",
+        "corridor_violations"
+      ],
+      "ei_points": [
+        "EI-02 augmented-only carry-forward (the override board is the placement analogue of intents_aug)",
+        "EI-06 (the move is the treatment settle_outcome will judge)",
+        "actuator-fence (in-container second wall)"
+      ],
+      "change": "Add a host helper apply_placement_move(committed_pcb, routed_pcb, intent, fence, rnd, out_rel) that runs IN-CONTAINER via _exec_py (mirror layer_stagger). In-container it: (a) RESOLVES the target body -- if intent['ref'] is None, call cec_synth_pipeline.corridor_violations(routed_pcb) and take viols[0] for {ref, band}; if intent['ref'] set, derive its band from cec_synth_pipeline._board_corridor_model; (b) RE-CHECKS the fence (is_fenced(ref, fence)) and aborts to {'verdict':'fenced'} if the resolved ref is pinned/sense -- the SECOND fence wall, because a NET target can resolve to a locked INA the host never named; (c) loads the COMMITTED floorplan (NOT the routed board -- placement edits the source, never routed copper) with a FRESH pcbnew LoadBoard, calls cec_place.apply_corridor_evict(board, ref, band, fence=fence), Saves to /workspace/{out_rel} = build/fullstack/placed-r{rnd}.kicad_pcb, `del board`; (d) returns {'verdict':'placed'|'no_corridor'|'fenced'|'no_move','ref','band','moved_mm','moved_refs' (sorted, incl cluster),'restore':{ref:(x,y,rot)},'board':out_rel}. Two cec_place changes: add a `fence=None` param to apply_corridor_evict that returns None when is_fenced(ref) -- defense-in-depth at the lever itself (closes the 439 gap); and make it return a `restore` dict of the pre-move poses of exactly the refs it moved (capture from moved_refs, not a fresh _cluster). Add cec_place.restore_poses(board, restore) to set each footprint back (for PL-06 rollback).",
+      "acceptance": "New tests/test_placement_lever.py: with a stub cec_place+cec_synth_pipeline (host) OR a real eps-8pin board (container, skipUnless HAVE_PCBNEW+EPS_PCB): (a) apply_placement_move with intent ref=None resolves the violated body, verdict='placed', the INA's decoupling cap is IN moved_refs (cluster carried, MEDIUM closed); (b) a NET-target resolving to a pinned ref (RS1/U20) returns verdict='fenced' and writes NO override board; (c) the override path is build/fullstack/placed-r{N}.kicad_pcb and the COMMITTED floorplan file is byte-identical before/after (edits the COPY); (d) restore_poses(board, mv['restore']) returns U10 + its cluster caps byte-identical (GetPosition + GetOrientationDegrees, nm-integer) to pre-evict -> corridor_violations reappears (reversible). Container-tagged real-board leg; host leg uses stub.",
+      "order": 4,
+      "depends_on": [
+        "PL-01-INTENT",
+        "PL-03-DEDUP-CLUSTER"
+      ]
+    },
+    {
+      "id": "PL-05-LANE-GATE-FEED",
+      "title": "Lane-gate the placement lever + feed the override floorplan into route_directed (augmented applies+routes the moved board; control suppresses, routes the committed board)",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py",
+        "/home/nathan/cec-placement/scripts/cec_overnight_directed.py",
+        "/home/nathan/cec-placement/tests/test_ei02_control_lane.py"
+      ],
+      "funcs": [
+        "_placement_source_for (new pure helper)",
+        "route_one_worker",
+        "_exec_route_one",
+        "run() round loop (~1622/1635/1907/1936)"
+      ],
+      "ei_points": [
+        "EI-02 A/B control lane (the load-bearing signed-only invariant)"
+      ],
+      "change": "(1) Init `placement_base=None` and `pending_placement_moves=[]` per round alongside pending_corridor_avoid (~1583). (2) In the ACTUATOR-WIRING augmented block (after select_deltas ~1933, mirroring the avoid branch 1936-1939): for a KEPT replace delta with intent (lane=='augmented' guaranteed by the enclosing 1907 if), call apply_placement_move(committed=ovd.BOARD_PCB[board], routed=rec['routed'], intent=c['delta'].intent, fence, rnd, out_rel) and on verdict=='placed' set a PENDING placement_base candidate (the override path, stashed on the intent as '_override_board') and append c to applied_deltas/pending_deltas exactly like the avoid path (so it enters the SAME settle machinery). (3) Factor the lane choice into a pure helper `_placement_source_for(lane, placement_base, committed)` mirroring _lane_carry: returns placement_base if lane=='augmented' and placement_base else committed; control ALWAYS gets committed. (4) At the route call (~1635) compute src=_placement_source_for(lane, placement_base, None) and pass board_pcb_override=src into ovd._exec_route_one (None -> committed). Add a control-suppression sibling log: `elif placement_base and lane=='control': log('[control] placement override SUPPRESSED (signed-only)')` -- the exact shape of the corridor-avoid gate at 1622-1629. (5) Thread the override through the route path: add --board-pcb-override CLI arg + board_pcb_override kwarg to route_one_worker (replaces hardcoded board_pcb=BOARD_PCB[board] at :376) and to _exec_route_one (appends ['--board-pcb-override', f'{CONTAINER_ROOT}/{rel}'] with the SAME host->container translation as intents_file at 421-423). GUARD: route_one_worker asserts the override path exists and is a .kicad_pcb else falls back to committed + logs (never crashes the round).",
+      "acceptance": "(1) tests/test_ei02_control_lane.py: _placement_source_for('augmented','/x/placed-r5.kicad_pcb','/x/committed')=='/x/placed-r5.kicad_pcb'; _placement_source_for('control','/x/placed-r5.kicad_pcb',committed)==committed (control NEVER sees the override -- the A/B-signed invariant); _placement_source_for('augmented',None,committed)==committed. (2) Host: _exec_route_one builds the cmd with the translated --board-pcb-override arg only when given an override (mock subprocess.run, assert argv); a nonexistent override path -> route_one_worker falls back to committed + logs (no crash). (3) Container (tagged): _exec_route_one(board,rnd,board_pcb_override=placed_board) with U20 evicted from its band routes (gates evaluated) AND corridor_violations(rec['routed']) is [] for that body; a control round routes from the UNMUTATED committed board (the part stays put).",
+      "order": 5,
+      "depends_on": [
+        "PL-04-CONSUMER"
+      ]
+    },
+    {
+      "id": "PL-06-SETTLE-ROLLBACK",
+      "title": "Settle the placement Delta through the SAME symmetric DeltaLog/control-rollback; promote the override only on 'vindicated', revert (two-phase) otherwise",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py",
+        "/home/nathan/cec-placement/tests/test_fs_actuator.py"
+      ],
+      "funcs": [
+        "run() settle block (1862-1900)",
+        "DeltaLog.record_outcome",
+        "settle_outcome",
+        "restore_poses",
+        "_refuted_placement_keys (new set)"
+      ],
+      "ei_points": [
+        "EI-06 governance (symmetric vindicated/refuted/overturned)",
+        "EI-05 corroboration budget (placement outcome counts in control-gated promotion)"
+      ],
+      "change": "The replace delta already enters pending_deltas via PL-05, so the EXISTING settle block (1862-1892) calls dlog.record_outcome with gate_metric='objective_base' -- settle_outcome (fs_actuator:229) is kind-opaque (reads only metrics + gates_pass), so NO new comparison code. The new wiring ties the override LIFECYCLE to the verdict (TWO-PHASE): placement_base only PROMOTES to the override path (pd['delta'].intent['_override_board']) when that delta settles 'vindicated'; on refuted/overturned, placement_base reverts to None / the last-vindicated base (ROLLBACK -- the moved floorplan is discarded; the next augmented round routes from the committed/last-vindicated board). Because each round re-routes from a per-round COPY (never mutating BOARD_PCB[board]) the move is single-round, so rollback = drop the override + do NOT re-propose: add a `_refuted_placement_keys` set (keyed by hypothesis_key), check it in the PL-05 append branch so a refuted placement hypothesis is not re-applied (anti-ratchet, mirrors the avoid carry). The existing control-round drop (1893-1900) already marks pending deltas rolled_back; ALSO set pending_placement_base=None there. If the override is ever persisted to a carried board, restore_poses(committed-copy, restore) restores the captured pre-move bytes (byte-exact guard).",
+      "acceptance": "(1) tests/test_fs_actuator.py TestPlacementOutcome: DeltaLog.record_outcome on a placement Delta (kind='replace', intent={'kind':'placement','ref':'U30'}) with treatment objective_base=950000 vs control=960000 (gate_metric='objective_base') -> verdict=='vindicated', status=='vindicated'; treatment=965000 vs 960000 -> 'refuted', status=='rolled_back', oc carries FULL finding (oc.finding['proposed_lever']['target']=='U30') + both metric sides + corpus_state + margin<0. (2) win-then-loss on the SAME hypothesis_key -> 'overturned' with supersedes set. (3) loop-level harness: a refuted move leaves placement_base reverted to None (NOT pointing at the bad override) and the hypothesis_key in _refuted_placement_keys -> next augmented round's PL-05 append skips it; a vindicated move promotes placement_base to the override path. (4) a control round between two augmented rounds marks the pending placement delta rolled_back + pending_placement_base cleared. TEETH: a refuted move that leaves placement_base on the bad override FAILS.",
+      "order": 6,
+      "depends_on": [
+        "PL-05-LANE-GATE-FEED"
+      ]
+    },
+    {
+      "id": "PL-07-GATE-REMEASURE",
+      "title": "Gate-launder guard: re-route the moved board and fold pour-integrity into gates_pass before the move can be credited/promoted",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py"
+      ],
+      "funcs": [
+        "run() round body (route + _remeasure_pour_gate)",
+        "_remeasure_pour_gate",
+        "_own_gates_after_pour (optional shared helper)"
+      ],
+      "ei_points": [
+        "EI-06 governance (no laundered promotion)",
+        "EI-02 (treatment metrics must be honest)"
+      ],
+      "change": "A placement move is the lever most likely to cut a pour (it shifts a body across the corridor). Because PL-05 feeds the moved override into route_directed (which re-bakes hints + re-routes + re-pours from scratch every round), the round's gates are already evaluated by the normal T2-3.5 path on the SHIPPED moved+routed board. The guard: the treatment metrics RECORDED for the placement delta (cur_metrics at 1854-1857, and what settle reads in PL-06) MUST describe that re-routed board, and pour integrity MUST be folded into gates_pass exactly as the layer-stagger path does via _remeasure_pour_gate (878-904) -- never the cheap pour-BLIND rescore (kelvin AND diffpair AND drc only). Concretely: ensure cur_metrics / objective_base for the round that applied a placement move is taken AFTER the re-route, and that pour_integrity_ok is folded so a placement move that fragments a /SENSEC pour forces rec['gates_pass']=False. placement_base must PROMOTE (PL-06) only on a vindicated, gate-passing settle -- a fragmented-pour board is gate-failed and cannot be vindicated.",
+      "acceptance": "Fullstack-style test (stub route) where the post-eviction routed board's facts show islands>1 on a /SENSEC pour: assert rec['gates_pass'] is forced False and rec['pour_integrity_ok'] False, and the treatment metric the placement delta settles on has gates_pass False (so it cannot vindicate). Negative: a move with clean pours keeps gates_pass True. TEETH: a move whose cheap rescore returns gates_pass=True but whose pour facts are fragmented -> final rec['gates_pass'] is False (launder closed); deleting the re-measure fold leaks the laundered True (test fails).",
+      "order": 7,
+      "depends_on": [
+        "PL-05-LANE-GATE-FEED",
+        "PL-06-SETTLE-ROLLBACK"
+      ]
+    },
+    {
+      "id": "PL-08-MEASURE-ROW",
+      "title": "Emit lane + corpus_state-tagged placement fields on the per-round measurement row + surface placement rates in the A/B table",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py",
+        "/home/nathan/cec-placement/tests/test_ei02_control_lane.py"
+      ],
+      "funcs": [
+        "run() measurement row (2001-2028)",
+        "_placement_row_fields (new pure builder)",
+        "_ab_lane_stats",
+        "ab_aggregate",
+        "render_ab_table"
+      ],
+      "ei_points": [
+        "EI-01 corpus_state pin",
+        "EI-02 lane tag (A/B partitioner counts placement actions per lane)",
+        "EI-03/EI-05 (the row enters the evidence aggregate / budget)"
+      ],
+      "change": "Add placement fields to the row dict (2001-2028) via a pure `_placement_row_fields(placement_summary, lane)` so it is host-testable like ab_aggregate: 'placement_moved': bool(a kept replace delta applied this round), 'placement_verdict': 'placed'|'no_corridor'|'fenced'|'no_move'|'suppressed' (suppressed on a control round that had pending moves), 'placement_refs': moved_refs (incl cluster), 'placement_ref': target body, 'placement_moved_mm': moved_mm, 'placement_settled': the prior-round replace delta's verdict if one settled this round (vindicated|refuted|overturned|None), 'placement_margin': oc.margin for that settlement. The row is written ONCE per round (2029) and ALREADY carries lane (2002) + corpus_state (2028), so placement rides the SAME row -- NO separate placement.jsonl (parity with routing). Carry a per-round placement_summary var (default {'moved':False,'verdict':'no_move','refs':[]}) set in the PL-05 branch. Extend _ab_lane_stats/ab_aggregate/render_ab_table to surface placement_moved_rate per lane (count placement_moved True / n, None-safe) and the vindicated/refuted tally (read dlog.tally()).",
+      "acceptance": "tests/test_ei02_control_lane.py: (1) _placement_row_fields({'moved':True,'verdict':'placed','refs':['U10','C40'],'margin':3.0},'augmented') -> placement_moved True, placement_refs ['U10','C40'], placement_verdict 'placed'; lane=='control' with pending moves -> placement_moved False, placement_verdict 'suppressed'. (2) ab_aggregate over synthetic rows reports placement_moved_rate=1.0 on augmented, 0.0 on control (control NEVER moves -- the A/B-honest invariant); empty axis is None not crash. (3) every row with placement_moved True ALSO has a non-None corpus_state (EI-01 rides the same row); a row lane='augmented' placement_settled='refuted' counts as a refuted placement outcome in the rollup. (4) key-presence test: the live row dict includes {'placement_moved','placement_refs','placement_verdict','placement_ref','placement_moved_mm','placement_settled','placement_margin'}. Host-runnable (rows are dicts).",
+      "order": 8,
+      "depends_on": [
+        "PL-05-LANE-GATE-FEED",
+        "PL-06-SETTLE-ROLLBACK"
+      ]
+    },
+    {
+      "id": "PL-09-ANCHOR-RATIO",
+      "title": "Credit an applied placement move as a DETERMINISTIC anchor in real_anchor_ratio (EI-07), default no-op",
+      "files": [
+        "/home/nathan/cec-placement/scripts/cec_fullstack.py",
+        "/home/nathan/cec-placement/tests/test_ei02_control_lane.py"
+      ],
+      "funcs": [
+        "real_anchor_ratio",
+        "run() anchor call site (~1995)"
+      ],
+      "ei_points": [
+        "EI-07 real_anchor_ratio (the move is constraint-derived geometry, not a model opinion)"
+      ],
+      "change": "Add a `placement_moved=False` kwarg to real_anchor_ratio (292-339); when True, `det += 1` in the deterministic block (alongside the pour-fact/FEM anchors). The move's TARGET+band come from corridor_violations (a deterministic checker on the \u00a72.2 corridor geometry) and the eviction math is reproducible without a model, so it grounds as DETERMINISTIC even though an auditor PROPOSED the lever (that proposal is the model anchor, already counted via audit/verifier -- do NOT also add to the model block; that would double-count and invert the grounding direction). At the call site (~1995) pass placement_moved=placement_summary['moved']. Document inline matching the EI-07 comment block at 288-303. The default MUST be no-op (False) so a non-placement round (and the SB-08 golden / the existing det==13 test) is byte-identical.",
+      "acceptance": "tests/test_ei02_control_lane.py TestRealAnchorRatio: (a) real_anchor_ratio(REC, POUR, placement_moved=True) yields n_deterministic exactly ONE higher than placement_moved=False on the same inputs, n_model UNCHANGED (the move is never a model anchor even when auditor-proposed); (b) real_anchor_ratio(REC, POUR, placement_moved=False) is byte-identical to the current no-kwarg call (pins the existing test_deterministic_count expecting 13); (c) a fenced/no-move round does NOT increment det. TEETH: a version that increments n_model FAILS.",
+      "order": 9,
+      "depends_on": [
+        "PL-08-MEASURE-ROW"
+      ]
+    },
+    {
+      "id": "PL-10-TESTS-ISOLATION",
+      "title": "Update the existing corridor/manager tests for the changed signatures, add the end-to-end dry-run, and keep the host suite green in BOTH orders + SB-08 golden untouched",
+      "files": [
+        "/home/nathan/cec-placement/tests/test_corridor_model.py",
+        "/home/nathan/cec-placement/tests/test_placement_lever.py",
+        "/home/nathan/cec-placement/tests/test_placement_actuation_e2e.py",
+        "/home/nathan/cec-placement/tests/golden/"
+      ],
+      "funcs": [
+        "test_manager_repair_emits_place_cluster (renamed)",
+        "TestPlacementLifecycleDryRun",
+        "TestRealBoardEvictRollback",
+        "cec_golden run"
+      ],
+      "ei_points": [
+        "determinism / test isolation",
+        "golden invariant (committed route/score/electrothermal path unchanged)"
+      ],
+      "change": "(1) Update tests/test_corridor_model.py: rename test_manager_repair_emits_place_nudge -> test_manager_repair_emits_place_cluster (assert type=='place_cluster' + cluster_refs present + RS*/J* excluded); keep test_evict_clears_the_violation / test_evict_containment_guard / test_paired_ina_not_flagged green by making the new apply_corridor_evict fence kwarg DEFAULT None (a no-op when absent so the old 3-arg call is backward-compatible). (2) Add an end-to-end DRY-RUN (host, no GPU/pcbnew/FR): stub cec_fr02 + an in-memory fake_evict that records a move and returns an undo record; drive finding -> finding_to_delta (live intent) -> select_deltas keeps -> augmented-lane consumer fake_evict + _placement_row_fields -> next augmented round record_outcome settles vs control -> verdict drives keep-or-rollback; assert a CONTROL round between the two augmented rounds applies NO move (call count unchanged). Name it ...DryRun (it exercises the extracted seams, NOT cec_fullstack.run()). (3) Real-board leg (skipUnless HAVE_PCBNEW+EPS_PCB): violation -> evict (cluster+fence+restore) -> corridor_violations clean -> restore_poses -> violation reappears; fenced part in band NOT evicted. (4) ISOLATION: stub cec_fr02 only in pure tests; for pcbnew use `try: import pcbnew except: sys.modules.setdefault('pcbnew', ModuleType('pcbnew'))` (the test_stagger_feedback.py guard) -- NEVER an unconditional pcbnew stub (it shadows the real engine for test_corridor_model's real LoadBoard in the same process). (5) SB-08 golden: NO change to cec_golden / the frozen floorplan / electrothermal / scorer -- the lever is augmented-lane, loop-time, on a COPY; run cec_golden in-container before merging scripts/** per CLAUDE.md.",
+      "acceptance": "(1) tests/test_corridor_model.py all green after the rename + fence-default-None backward-compat; (2) the DryRun test: vindicated path keeps the move (fake_evict not undone) + emits a placement_moved=True augmented row with corpus_state; refuted path invokes the undo + the next augmented round does NOT carry the move; control round between them = 0 moves; (3) real-board test passes in-container, SKIPS on a pcbnew-less box; (4) `python -m pytest tests/ -p no:randomly` AND `pytest tests/test_placement_lever.py tests/test_corridor_model.py` AND `pytest tests/test_corridor_model.py tests/test_placement_lever.py` all green (no stub shadowing); (5) in cec/routing:kicad10: cec_golden PASSES within tests/golden/expectations.json bands (no --freeze) and git status for tests/golden/** is clean.",
+      "order": 10,
+      "depends_on": [
+        "PL-02-OWNED-LEVERS",
+        "PL-03-DEDUP-CLUSTER",
+        "PL-04-CONSUMER",
+        "PL-05-LANE-GATE-FEED",
+        "PL-06-SETTLE-ROLLBACK",
+        "PL-07-GATE-REMEASURE",
+        "PL-08-MEASURE-ROW",
+        "PL-09-ANCHOR-RATIO"
+      ]
+    }
+  ],
+  "summary": "Placement today HAS a working corridor-eviction lever (cec_place.apply_corridor_evict carries the part + its passive cluster; cec_router.corridor_evict_repair is the cluster-blind/fence-blind manager analogue; cec_synth_pipeline.corridor_violations is the deterministic detector) but it is EI-BLIND: it fires unconditionally in the offline cec_place.refine() loop (never inside the per-round A/B loop), emits no lane field / corpus_state pin / measurement row / ledger decision, is not model-proposable (absent from OWNED_LEVERS), and the cec_fs_actuator 'replace' Delta that the auditor/v4-escape produce is INERT (intent=None at finding_to_delta:108-109 and v4_structural_escape:175, with no consumer anywhere). The EI gap vs routing: the six EI points (EI-01 corpus_state, EI-02 lane-gated A/B, EI-03/05 shadow aggregate + budget, EI-06 symmetric DeltaLog promotion/rollback, EI-07 real_anchor_ratio) and the full Delta lifecycle (live->apply->measure->settle->rollback, fenced+bounded) all apply to routing every round but NOT to placement. Fully effectuating placement as an actuating tier with parity requires: (1) populate the replace intent so it is live; (2) consume it by editing the COMMITTED floorplan into a per-round override COPY (placed-r{N}.kicad_pcb) that the NEXT route_directed compiles from via a host-carried placement_base, augmented-only, with the control lane reading the committed board (signed-only); (3) settle it through the existing kind-opaque DeltaLog with two-phase override promotion (vindicated only) + rollback; (4) re-measure pour integrity on the moved+routed board so a move can't launder gates; (5) tag the existing measurement row + A/B table; (6) credit it as a deterministic anchor; plus the cross-cutting safety: a double fence wall (host + in-container after a NET resolves to a concrete body), a cluster-aware fence-aware manager tier, deduped band-edge math, sorted/fresh-subprocess determinism. The work is additive and opt-in (no replace finding -> placement_base stays None -> every round routes the committed board exactly as today), so SB-08 and the existing EI-02/actuator tests stay green.",
+  "test_matrix": [
+    "tests/test_fs_actuator.py::TestPlacementDeltaLive::test_replace_has_live_intent -> finding_to_delta(_f('re-place','U30')).intent=={'kind':'placement','ref':'U30','op':'evict','band':None,'cluster':True}",
+    "tests/test_fs_actuator.py::TestPlacementDeltaLive::test_net_target_ref_is_none -> finding_to_delta(_f('reposition','/SOMENET')).intent['net']=='/SOMENET' and intent['ref'] is None",
+    "tests/test_fs_actuator.py::test_replace_on_pinned_REFUSED (EXISTING) -> U2 still status=='refused', intent None (fence runs before intent build)",
+    "tests/test_fs_actuator.py::TestPlacementDeltaLive::test_v4_escape_has_intent -> v4_structural_escape('high',FLAT,REC,{'contested':['/SENSEC2_LO']},...).kind=='replace' and .intent is a dict",
+    "tests/test_fs_actuator.py::TestPlacementDeltaLive::test_as_record_compact -> len(json.dumps(Delta.as_record())) < 400 for a placement Delta",
+    "tests/test_prompt_audit_fixes.py::test_owned_levers_has_placement -> 'PLACEMENT EVICTION' in fs.OWNED_LEVERS and OWNED_LEVERS is non-empty str",
+    "tests/test_prompt_audit_fixes.py::test_placement_clause_classifies_replace -> _lever_kind on each verb of the new OWNED_LEVERS clause ('re-place','move','reposition') returns 'replace' (NOT 'avoid' -- the corridor-keyword ordering trap)",
+    "tests/test_corridor_model.py::test_nearest_evict_delta_matches_old_router_math -> nearest_evict_delta == old inline router (dx,dy) on the 4 edges + diagonal-tie battery",
+    "tests/test_corridor_model.py::test_manager_repair_emits_place_cluster (RENAMED from place_nudge) -> corridor_evict_repair returns type=='place_cluster', cluster_refs non-empty, RS*/J* excluded",
+    "tests/test_corridor_model.py::test_apply_edit_place_cluster_moves_cluster -> U5 + its 4mm +3V3 cap C30 both move by the same delta; RS1 in region NOT moved",
+    "tests/test_corridor_model.py::test_cluster_sorted_deterministic -> _cluster returns refs sorted by GetReference across two LoadBoard calls",
+    "tests/test_corridor_model.py::test_evict_clears_the_violation (EXISTING) -> still green with apply_corridor_evict fence kwarg defaulting None (3-arg call unchanged)",
+    "tests/test_corridor_model.py::test_corridor_evict_repair_skips_fenced -> a pinned/sense ref emits no manager edit",
+    "tests/test_placement_lever.py::test_apply_move_resolves_and_carries_cluster -> apply_placement_move(intent ref=None) verdict=='placed', INA decoupling cap in moved_refs (cluster carried)",
+    "tests/test_placement_lever.py::test_net_target_resolving_to_pinned_is_fenced_in_container -> verdict=='fenced', NO override board written (the 2nd fence wall)",
+    "tests/test_placement_lever.py::test_override_is_a_copy_committed_byte_identical -> override path == build/fullstack/placed-r{N}.kicad_pcb; committed floorplan byte-identical before/after",
+    "tests/test_placement_lever.py::test_restore_poses_round_trips (container) -> evict then restore_poses leaves U10 + cluster byte-identical (pos+rot) and corridor_violations reappears",
+    "tests/test_ei02_control_lane.py::TestPlacementSource::test_control_never_sees_override -> _placement_source_for('control',override,committed)==committed",
+    "tests/test_ei02_control_lane.py::TestPlacementSource::test_augmented_uses_override -> _placement_source_for('augmented',override,committed)==override; (augmented,None,committed)==committed",
+    "tests/test_ei02_control_lane.py::test_exec_route_one_builds_override_arg (host, mock subprocess) -> argv contains --board-pcb-override <translated> only when an override is given",
+    "tests/test_fs_actuator.py::TestPlacementOutcome::test_vindicated -> record_outcome(replace delta, treatment objective_base<control, gate_metric='objective_base') verdict=='vindicated'",
+    "tests/test_fs_actuator.py::TestPlacementOutcome::test_refuted_full_detail -> treatment>control -> 'refuted', status=='rolled_back', oc.finding['proposed_lever']['target']=='U30', margin<0",
+    "tests/test_fs_actuator.py::TestPlacementOutcome::test_overturn -> win-then-loss on the same hypothesis_key -> 'overturned' with supersedes set",
+    "tests/test_placement_settle.py::test_refuted_reverts_placement_base -> a refuted move leaves placement_base None (not the bad override) and the hypothesis_key in _refuted_placement_keys -> not re-applied next round",
+    "tests/test_placement_settle.py::test_control_round_drops_pending -> a control round marks the pending placement delta rolled_back and clears pending_placement_base",
+    "tests/test_placement_gate.py::test_fragmented_pour_forces_gates_false -> post-eviction routed facts with islands>1 on /SENSEC -> rec['gates_pass'] forced False, pour_integrity_ok False, treatment metric gates_pass False (cannot vindicate)",
+    "tests/test_placement_gate.py::test_clean_pour_keeps_gates_true -> a move with clean pours keeps gates_pass True",
+    "tests/test_ei02_control_lane.py::TestPlacementRow::test_augmented_row_fields -> _placement_row_fields({'moved':True,'verdict':'placed','refs':['U10','C40']},'augmented') populates placement_moved/refs/verdict",
+    "tests/test_ei02_control_lane.py::TestPlacementRow::test_control_row_suppressed -> lane=='control' with pending moves -> placement_moved False, placement_verdict 'suppressed'",
+    "tests/test_ei02_control_lane.py::TestPlacementRow::test_ab_placement_moved_rate -> ab_aggregate reports placement_moved_rate=1.0 augmented / 0.0 control",
+    "tests/test_ei02_control_lane.py::TestPlacementRow::test_row_has_corpus_state_with_move -> every placement_moved=True row also has a non-None corpus_state",
+    "tests/test_ei02_control_lane.py::TestRealAnchorRatio::test_placement_is_deterministic -> real_anchor_ratio(REC,POUR,placement_moved=True) n_deterministic == +1 vs False, n_model unchanged",
+    "tests/test_ei02_control_lane.py::TestRealAnchorRatio::test_deterministic_count (EXISTING) -> no-kwarg call still yields n_deterministic==13 (placement_moved default no-op)",
+    "tests/test_placement_actuation_e2e.py::TestPlacementLifecycleDryRun::test_vindicated_keeps -> finding->live Delta->select->fake_evict->row->settle vindicated, move not undone",
+    "tests/test_placement_actuation_e2e.py::TestPlacementLifecycleDryRun::test_refuted_rolls_back -> refuted -> undo invoked, next augmented round does not carry the move",
+    "tests/test_placement_actuation_e2e.py::TestPlacementLifecycleDryRun::test_control_between_applies_no_move -> fake_evict call count unchanged across a control round",
+    "tests/test_placement_actuation_e2e.py::TestRealBoardEvictRollback (container, skipUnless) -> violation->evict->clean->restore->violation reappears; fenced part in band NOT evicted",
+    "tests/ ORDERING -> pytest tests/test_placement_lever.py tests/test_corridor_model.py AND the reverse both green (conditional pcbnew setdefault, no shadowing)",
+    "tests/golden (in cec/routing:kicad10) -> cec_golden PASSES within expectations.json bands, git status tests/golden/** clean (SB-08 untouched)"
+  ],
+  "invariants": [
+    "No gate-launder: a placement move is RE-MEASURED for the kelvin/diffpair/DRC AND pour-integrity gates on the moved+routed board (via _remeasure_pour_gate discipline); placement_base PROMOTES only on a vindicated, gate-passing settle -- a move that fragments a sense pour or strands a Kelvin tap is gate-failed and cannot be adopted.",
+    "Control lane stays signed-only: a control round MUST route from the committed BOARD_PCB[board] floorplan, never the placement override (_placement_source_for('control',...) returns the committed board unconditionally); the row shows placement_moved=False / placement_verdict='suppressed' on control. A leak makes the A/B baseline non-signed.",
+    "Fence holds across BOTH walls: a placement move may NEVER target a pinned ref (BOARD_PINNED_REFS: RS*/U2/INA sense ICs), a /SENSEC*_HI|_LO Kelvin/sense net, or a corridor shunt RS*/connector J* as the eviction target -- checked host-side in finding_to_delta (line 102, already covers replace) AND re-checked in-container after corridor_violations resolves a NET target to a concrete body, AND at the lever (apply_corridor_evict fence param).",
+    "Cluster integrity (the MEDIUM): a moved sensitive body carries its owned decoupling/passive cluster (C*/R* within 4mm on a shared net) and NEVER drags a structural shunt RS* or connector J*; the manager-tier place_cluster path matches apply_corridor_evict, never the old cap-blind place_nudge.",
+    "Two-phase rollback / no ratchet: placement_base PROMOTES to the override path ONLY on 'vindicated'; a refuted/overturned/control-suppressed move reverts placement_base to None/last-vindicated, drops the override, and a refuted hypothesis_key is not re-proposed (mirrors the avoid-delta carry rollback at 1891-1900).",
+    "The committed floorplan is never mutated by the loop: placement edits a per-round COPY (build/fullstack/placed-r{N}.kicad_pcb), exactly as refine() copies before editing and route_directed compiles into a workdir; BOARD_PCB[board] on disk is read-only to the loop.",
+    "Determinism: cluster + moved_refs sorted by ref; the override write + eviction geometry (corridor_violations + nearest_evict_delta) reproducible; a fresh in-container pcbnew LoadBoard per apply, Save, then del board -- never reuse a swig object after Save (the four pcbnew SWIG footguns); any serialized fence emitted as sorted lists.",
+    "Bound holds: placement 'replace' deltas share MAX_DELTAS_PER_ROUND with avoid/effort deltas through the ONE select_deltas call (replace is already in the actionable list); placement cannot get a separate budget.",
+    "Additive / opt-in: when no replace delta fires, placement_base stays None and every round routes from the committed floorplan exactly as today; real_anchor_ratio's placement_moved defaults False -> a non-placement round (and SB-08) is byte-identical. SB-08 golden + the existing EI-02/actuator host tests stay green."
+  ],
+  "open_questions": [
+    "A/B SCOPE: is placement A/B fullstack-loop-scoped (the recommended path here -- apply_placement_move runs inside the per-round loop, lane-gated, settled through DeltaLog, control routes the committed board) OR is placement A/B explicitly DOCUMENTED as cec_loop-scoped (the offline refine() path stays the only consumer and the fullstack lever is deferred)? The grounding names BOTH as acceptable remediations ('wire the replace Delta ... OR explicitly document placement A/B as cec_loop-scoped'). All four panels assume fullstack-scoped; the owner must ratify that the per-round-override architecture (re-route the moved floorplan every augmented round) is the intended design rather than carrying a moved board across rounds.",
+    "real_anchor_ratio MEANING when a part moves: all panels agree the APPLIED eviction is a DETERMINISTIC anchor (det+=1) because the band+body come from corridor_violations (a deterministic \u00a72.2 checker) and the eviction math is reproducible, while the auditor PROPOSAL that triggered it is a separate model anchor already counted via audit/verifier. The owner should confirm this grounding direction (placement RAISES the deterministic fraction, never the model fraction) and that a SUPPRESSED/fenced/no-move round does NOT increment det -- i.e. only an actually-applied move counts, not a proposed-but-refused one.",
+    "OWNED_LEVERS wording vs _lever_kind ordering: _lever_kind checks 'corridor'->avoid BEFORE 'place'->replace, so a clause containing the bare word 'corridor' would mis-classify the placement lever to the routing/avoid branch. Decide: word the OWNED_LEVERS placement clause WITHOUT 'corridor' (e.g. 'PLACEMENT EVICTION ... foreign pour band'), OR reorder _lever_kind so explicit place/move/reposition wins over the corridor keyword. (Recommended: the wording fix -- lower blast radius -- but the owner picks which, and the round-trip test pins it.)",
+    "Override carry across rounds: the design keeps placement single-round (re-route the moved floorplan fresh each augmented round, placement_base just selects which floorplan that round compiles from). Confirm a vindicated move's override should persist as the new placement_base for SUBSEQUENT augmented rounds (so a good move compounds) vs being re-derived from scratch each round -- the two-phase promotion in PL-06 assumes it persists until overturned; the owner should ratify that compounding behavior and the control-round revert semantics."
+  ]
+}

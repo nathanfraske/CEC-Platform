@@ -477,5 +477,31 @@ class AuditPR56Fixes(unittest.TestCase):
         self.assertIn("TAILMARKER", out)
 
 
+class TestPlacementLeverAdvertised(unittest.TestCase):
+    """PL-02: the placement lever is model-proposable (in OWNED_LEVERS) and its proposal verbs
+    classify to 'replace', NOT 'avoid' (the _lever_kind 'corridor'/'pour' keyword trap)."""
+
+    def test_owned_levers_has_placement(self):
+        self.assertIsInstance(fs.OWNED_LEVERS, str)
+        self.assertTrue(fs.OWNED_LEVERS)
+        self.assertIn("PLACEMENT EVICTION", fs.OWNED_LEVERS)
+
+    def test_placement_clause_classifies_replace(self):
+        import cec_fs_actuator as act
+        for verb in ("re-place", "move", "reposition"):           # every advertised verb -> 'replace'
+            self.assertEqual(act._lever_kind(verb), "replace", verb)
+        clause = ("re-place / move / reposition a SENSITIVE body OUT of a foreign high-current "
+                  "band that fragments its sense copper")          # the whole clause must not trip 'avoid'
+        self.assertEqual(act._lever_kind(clause), "replace")
+
+    def test_advertised_lever_actuates_to_live_intent(self):
+        import cec_fs_actuator as act
+        fence = act.resolve_fence(pinned_refs=["RS1", "U2"])
+        f = {"proposed_lever": {"lever": "re-place / move the body out of the band", "target": "U30"}}
+        d = act.finding_to_delta(f, {"routed": ""}, {}, 7, fence, sense_nets=[])
+        self.assertEqual(d.kind, "replace")                        # advertised lever -> a LIVE replace Delta
+        self.assertEqual(d.intent["ref"], "U30")
+
+
 if __name__ == "__main__":
     unittest.main()

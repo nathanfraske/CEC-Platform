@@ -17,6 +17,7 @@
 # Pure + import-light (cec_fr02 only, lazily) so it is host-testable with a stubbed cec_fr02.
 
 import os
+import re
 from dataclasses import dataclass, field, asdict
 
 MAX_DELTAS_PER_ROUND = int(os.environ.get("CEC_FS_MAX_DELTAS", "2"))
@@ -29,17 +30,24 @@ class Delta:
     round: int
     source: str                 # 'auditor' | 'v4-escape' | 'locus'
     kind: str                   # 'avoid' | 'waypoint' | 'effort' | 'replace' | 'noop' | 'refused' | 'capped'
-    intent: dict = None         # the next-round intent (avoid/waypoint); None for effort/replace/noop/refused
+    intent: dict = None         # the next-round intent (avoid/waypoint) or a placement intent
+                                #   (kind=='placement'); None for effort/noop/refused
     note: str = ""
     status: str = "pending"     # pending|applied|vindicated|refuted|rolled_back|refused|capped|noop
 
     def as_record(self):
         d = asdict(self)
-        # keep the record compact (the intent's avoid rects can be large)
+        # keep the record compact (avoid rects / placement bands can be large)
         if isinstance(self.intent, dict):
-            d["intent"] = {"net": self.intent.get("net"),
-                           "n_avoid": len(self.intent.get("avoid", []) or []),
-                           "n_waypoints": len(self.intent.get("waypoints", []) or [])}
+            if self.intent.get("kind") == "placement":
+                d["intent"] = {"kind": "placement", "ref": self.intent.get("ref"),
+                               "net": self.intent.get("net"), "op": self.intent.get("op"),
+                               "band_present": bool(self.intent.get("band")),
+                               "cluster": bool(self.intent.get("cluster"))}
+            else:
+                d["intent"] = {"net": self.intent.get("net"),
+                               "n_avoid": len(self.intent.get("avoid", []) or []),
+                               "n_waypoints": len(self.intent.get("waypoints", []) or [])}
         return d
 
 
@@ -83,6 +91,21 @@ def _lever_kind(lever):
     return "noop"
 
 
+def _placement_intent(target, *, source="auditor"):
+    """Build the LIVE intent for a 'replace' (placement) Delta. A REF target (e.g. 'U30' -- letters
+    then digits, no leading '/') names the body to evict; a NET target ('/...') is left for the
+    consumer to resolve to its OWNING body on-board (via cec_synth_pipeline.corridor_violations). band
+    stays None here -- it is resolved from the live board at apply time, never fabricated at finding
+    time, so finding_to_delta stays pcbnew-free / host-testable. cluster=True -> carry the body's owned
+    passive cluster (decoupling caps), never a structural shunt RS*/connector J*."""
+    t = str(target or "")
+    if t and not t.startswith("/") and re.match(r"^[A-Za-z]+[0-9]+$", t):
+        return {"kind": "placement", "ref": t, "op": "evict", "band": None,
+                "cluster": True, "source": source}
+    return {"kind": "placement", "ref": None, "net": (t or None), "op": "evict",
+            "band": None, "cluster": True, "source": source}
+
+
 def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, source="auditor"):
     """Translate ONE finding's proposed_lever into a bounded, fenced Delta. proposed_lever has NO grammar
     (AUDIT_SCHEMA is object|null), so guard every field and return a noop/refused Delta -- which NEVER
@@ -106,7 +129,11 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
     if kind == "effort":
         return D("effort", note="bounded effort bump (panel-capped)")
     if kind == "replace":
-        return D("replace", note=f"re-placement requested for {target!r} (-> placement escalator)")
+        # LIVE (PL-01): the replace Delta now carries a placement intent the loop consumer actuates
+        # (apply_placement_move -> apply_corridor_evict on a per-round COPY). Fence already ran above,
+        # so a pinned/Kelvin/sense target was refused before this branch.
+        return D("replace", intent=_placement_intent(target),
+                 note=f"placement eviction requested for {target!r} (live; band resolved on-board)")
     if kind == "avoid":
         import cec_fr02
         if not target:
@@ -171,8 +198,10 @@ def v4_structural_escape(v4_risk, rows, rec, grid, rnd, fence, *, sense_nets=())
                 return Delta(id=f"D-r{rnd}-escape", round=rnd, source="v4-escape", kind="avoid",
                              intent=ints[0],
                              note=f"LOCAL-MIN ESCAPE: structural avoid for {cand[0]} (NOT a penalty)")
-    # no routing structural move available -> escalate to a re-placement (the placement escalator), not a penalty
-    return Delta(id=f"D-r{rnd}-escape", round=rnd, source="v4-escape", kind="replace", intent=None,
+    # no routing structural move available -> escalate to a re-placement (live PL-01), not a penalty.
+    # ref=None -> the consumer resolves the offending body from corridor_violations(routed)[0].
+    return Delta(id=f"D-r{rnd}-escape", round=rnd, source="v4-escape", kind="replace",
+                 intent=_placement_intent(None, source="v4-escape"),
                  note="LOCAL-MIN ESCAPE: re-placement requested (flat physics + high risk; never a penalty)")
 
 

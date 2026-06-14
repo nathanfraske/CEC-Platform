@@ -268,6 +268,22 @@ def apply_edit(state, edit):
             raise KeyError(f"apply_edit place_rotate: footprint {edit['ref']} not found")
         fp.SetOrientationDegrees(fp.GetOrientationDegrees() + float(edit["by"]))
         pcbnew.SaveBoard(state.board, b)
+    elif t == "place_cluster":
+        # PLACEMENT EVICTION (cluster-aware, PL-03): move a sensitive body + its OWNED passive cluster
+        # OUT of a foreign high-current band via cec_place.apply_corridor_evict (the ONE canonical
+        # eviction: nearest_evict_delta + containment guard + RS*/J* cluster-exclude). Replaces the
+        # cap-blind place_nudge so the IC's decoupling caps are not stranded in the band.
+        import pcbnew
+        import cec_place
+        b = pcbnew.LoadBoard(state.board)
+        # FENCE-01: honor the lever fence wall -- the edit carries the fenced refs corridor_evict_repair
+        # resolved, so a pinned/Kelvin/sense part is refused at apply_corridor_evict too (defense-in-depth).
+        res = cec_place.apply_corridor_evict(b, edit["ref"], tuple(edit["band"]),
+                                             fence=edit.get("fence"))
+        if res and res.get("out"):
+            pcbnew.SaveBoard(state.board, b)
+            edit["moved_refs"] = res.get("moved_refs")
+        del b                                            # SWIG-01: never reuse a board object after Save
     else:
         raise ValueError(f"apply_edit: unknown edit type {t!r}")
     state.edits.append(edit)
@@ -533,12 +549,14 @@ def logo_finishing_repair(board_path, rules=None, metrics=None):
             "why": f"finishing: reserve decorative {logo.GetReference()} so FR keeps copper/vias out of it"}
 
 
-def corridor_evict_repair(board_path, rules=None, metrics=None):
-    """MANAGER-tier perception (the PLACEMENT corridor lever): a SENSITIVE part body inside a FOREIGN
-    high-current corridor band cuts the pour -- the worst corridor fault. Emit a 'place_nudge' that
-    pushes it just past the nearest band edge (apply_edit moves it via pcbnew, then FR re-routes). The
-    placement-side analogue of the routing corridor-avoid keepout; never touches copper. None if clean
-    or shared-bus (corridor_violations returns [])."""
+def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
+    """MANAGER-tier PLACEMENT corridor lever: a SENSITIVE part body inside a FOREIGN high-current corridor
+    band cuts the pour. Emit a 'place_cluster' that evicts it (+ its owned passive cluster) past the
+    nearest band edge (apply_edit -> cec_place.apply_corridor_evict; then FR re-routes). FENCED parts are
+    NEVER moved (FENCE-01): structural shunts/connectors (RS*/J*), the LOCKED Kelvin/§6.13 sense ICs (any
+    cable's sense_ics -- the §6.8 geometry is a placement-tier/human decision, not a router repair), and
+    any caller-supplied fence['refs']. The lever moves only non-sense sensitive bodies (e.g. the ESP/
+    peripherals). Returns the first MOVABLE violation's edit, or None if clean / shared-bus / all fenced."""
     try:
         import cec_synth_pipeline as sp
         viols = sp.corridor_violations(board_path)
@@ -546,22 +564,37 @@ def corridor_evict_repair(board_path, rules=None, metrics=None):
         return None
     if not viols:
         return None
-    v = viols[0]
-    x0, x1, y0, y1 = v["band"]
+    # FENCE-01: the LOCKED sense ICs (Kelvin INA238 + §6.13 INA181) the manager must never move.
+    fenced = set((fence or {}).get("refs", ()))
+    try:
+        import pcbnew as _pn
+        model, _P = sp._board_corridor_model(_pn.LoadBoard(board_path))
+        for c in model.cables:
+            fenced |= set(c.sense_ics)
+    except Exception:                                       # noqa: BLE001
+        pass
+
+    def _is_fenced(ref):
+        return str(ref).upper().startswith(("RS", "J")) or ref in fenced
+
+    v = next((x for x in viols if not _is_fenced(x["ref"])), None)
+    if v is None:
+        return None                                         # every violation is a locked/fenced part
     import pcbnew
     b = pcbnew.LoadBoard(board_path)
     fp = b.FindFootprintByReference(v["ref"])
     if not fp:
         return None
     cx, cy = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)
-    dl, dr, du, dd = cx - x0, x1 - cx, cy - y0, y1 - cy      # distance to each band edge
-    m = min(dl, dr, du, dd)
-    delta = ((-(dl + 1.5), 0.0) if m == dl else (dr + 1.5, 0.0) if m == dr
-             else (0.0, -(du + 1.5)) if m == du else (0.0, dd + 1.5))
-    return {"type": "place_nudge", "ref": v["ref"], "delta": (round(delta[0], 2), round(delta[1], 2)),
-            "tier": "manager", "locus": (round(cx, 2), round(cy, 2)),
+    del b                                                   # SWIG: don't keep the board past the read
+    # emit place_cluster (carries the band + the resolved fence) -- apply_edit delegates to
+    # cec_place.apply_corridor_evict (the ONE eviction: nearest_evict_delta + containment + cluster +
+    # the fence wall), so the IC's decoupling caps are not stranded and a fenced part is doubly refused.
+    return {"type": "place_cluster", "ref": v["ref"], "band": [round(z, 2) for z in v["band"]],
+            "cluster": True, "tier": "manager", "locus": (round(cx, 2), round(cy, 2)),
+            "fence": {"refs": sorted(fenced)},
             "why": (f"corridor: SENSITIVE {v['ref']} sits inside foreign band {v['base']} (cuts the "
-                    f"pour) -> nudge out the nearest edge")}
+                    f"pour) -> evict the cluster out the nearest edge")}
 
 
 # Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
