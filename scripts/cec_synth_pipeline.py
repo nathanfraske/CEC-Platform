@@ -2113,9 +2113,15 @@ def synth_one(cfg_dict, W, H, strat, seed):
     fp_of = _fp_of(nl)
     anchors_roles, ics, shunts, passives = _classify(nl)
     # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
-    #    mechanical asks (mounts + fiducials)
-    anchors = seed_anchors(nl, W, H, fp_of, cfg.pins,
-                           overhang=cfg.params.get("connector_overhang", "none"))
+    #    mechanical asks (mounts + fiducials). A per-cable INTERPOSER must OVERHANG its cable ports
+    #    (plug overmold off-board, pads on-board) -- otherwise the connector bodies sit in-board and
+    #    crush the J_IN->shunt->J_OUT corridor into the mid-board strip (the as-built boards all
+    #    overhang). So default overhang to "edge" when the board has cable corridors, unless the
+    #    config overrides. (Owner: "it needs to know how to overhang the ports.")
+    _overhang = cfg.params.get("connector_overhang")
+    if _overhang is None:
+        _overhang = "edge" if _cable_topology(nl) else "none"
+    anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang)
     mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
     anchors.update(mech_pos)
     comps = dict(fp_of)
