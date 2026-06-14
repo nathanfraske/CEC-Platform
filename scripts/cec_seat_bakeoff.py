@@ -347,10 +347,79 @@ def t4_terse(case):
          f"obj={rec.get('objective')} drc={rec.get('drc')} params={json.dumps(rec.get('params', {}))}")]
 
 
+def t1_json_skeleton(case):
+    rec, ref_lines, nr, corridor, contested = _t1_inputs(case)
+    sysm = ("T1 INTENT MANAGER. Fill this skeleton EXACTLY (a list of FR-02 intents):\n"
+            '{"reasoning":"<why>","intents":[{"net":"/<real net>","layers":["F.Cu"|"B.Cu"],'
+            '"waypoints":[{"ref":"<real ref>"}|{"between":["<ref>","<ref>"]}]}]}\n'
+            "EXAMPLE (route a contested signal around the sense corridor):\n"
+            '{"reasoning":"steer THRESH off the shunt row","intents":[{"net":"/THRESH",'
+            '"layers":["B.Cu"],"waypoints":[{"ref":"U1"},{"between":["U10","U11"]}]}]}\n'
+            "Anchor ONLY to listed refs; never a fenced net/ref; [] is valid.")
+    usr = (f"REFS: {ref_lines}\nNET->REFS: {nr}\nCORRIDOR (route signal AROUND): {corridor}\n"
+           f"{_fence_line(FENCE)}CONTESTED: {contested}\nREASONS: {json.dumps(rec.get('reasons', [])[:6])}")
+    return [("intent", sysm, usr)]
+
+
+def t5_terse(case):
+    rec = case["rec"]
+    pc = case.get("pourcheck", {})
+    sysm = ("CEC IN-LOOP AUDITOR. Emit ONLY schema JSON; root_cause ALWAYS filled.\n"
+            "failure_class CHECKLIST:\n"
+            "- gates_pass -> none (scoring ONLY to rank a finalist)\n"
+            "- kelvin_ok false (a /SENSEC unrouted) -> placement (the ONLY T0-GR02 trigger)\n"
+            "- cosmetic/congestion DRC -> routing\n"
+            "- locked-constraint block -> constraint\n"
+            f"scorer_penalty: null UNLESS already gate-passing, then a metric in {sorted(PENALTY_METRIC)}.\n"
+            f"proposed_lever: advisory, from {OWNED_LEVERS}.")
+    usr = (f"candidate:\n{json.dumps(_t5_metrics(rec), indent=1)}\n"
+           f"reasons={json.dumps(rec.get('reasons', [])[:6])}  clipped={pc.get('det_clipped_nets')}  "
+           f"fem={json.dumps(rec.get('fem_flags', [])[:4])}")
+    return [("audit", sysm, usr)]
+
+
+def t5_json_skeleton(case):
+    rec = case["rec"]
+    pc = case.get("pourcheck", {})
+    sysm = ("CEC IN-LOOP AUDITOR. Fill this skeleton EXACTLY:\n"
+            '{"verdict":"accept|repair|escalate","root_cause":"<bankable diagnosis>","reasoning":"...",'
+            '"failure_class":"routing|placement|scoring|constraint|none","proposed_lever":{...}|null,'
+            '"scorer_penalty":{"metric":"...","weight":<n>}|null,"manager_rule":"..."|null}\n'
+            "failure_class STEERS the loop: placement (only when a /SENSEC sense net is unrouted -> fires "
+            "T0 GR-02), routing (more/better routing), scoring (ONLY if a gate-passing candidate exists), "
+            f"constraint/none. Priceable metrics: {sorted(PENALTY_METRIC)}. Levers: {OWNED_LEVERS}.")
+    usr = (f"candidate:\n{json.dumps(_t5_metrics(rec), indent=1)}\n"
+           f"reasons={json.dumps(rec.get('reasons', [])[:6])}  clipped={pc.get('det_clipped_nets')}")
+    return [("audit", sysm, usr)]
+
+
+def _t4_lenses_skeleton(case):
+    rec = case["rec"]
+    gates = {k: rec.get(k) for k in ("gates_pass", "kelvin_ok", "diffpair_ok", "plane_signal_mm")}
+    skel = ' Fill EXACTLY: {"action":"accept|repair|escalate","reason":"<one line>"}.'
+    return [
+        ("safety", "SAFETY lens (gates precomputed): accept IFF gates_pass; else repair (effort can "
+         "close) or escalate (structural)." + skel, f"GATE STATE: {json.dumps(gates)}"),
+        ("finishing", "FINISHING lens: residual DRC cosmetic (logo/shield)? accept. effort clears? "
+         "repair. structural? escalate." + skel,
+         f"drc={rec.get('drc')} loci={json.dumps(rec.get('drc_loci', [])[:12])}"),
+        ("progress", "PROGRESS lens: converged? accept. still improving? repair. ramped+stalled? "
+         "escalate." + skel, f"obj={rec.get('objective')} drc={rec.get('drc')} "
+         f"params={json.dumps(rec.get('params', {}))}")]
+
+
+def t4_json_skeleton(case):
+    return _t4_lenses_skeleton(case)
+
+
 SEATS = {
-    "t1": {"schema": INTENTS_SCHEMA, "variants": {"current": t1_current, "terse": t1_terse}},
-    "t4": {"schema": PANEL_SCHEMA, "variants": {"current": t4_current, "terse": t4_terse}},
-    "t5": {"schema": AUDIT_SCHEMA, "variants": {"current": t5_current, "decision-tree": t5_decision_tree}},
+    "t1": {"schema": INTENTS_SCHEMA,
+           "variants": {"current": t1_current, "terse": t1_terse, "json-skeleton": t1_json_skeleton}},
+    "t4": {"schema": PANEL_SCHEMA,
+           "variants": {"current": t4_current, "terse": t4_terse, "json-skeleton": t4_json_skeleton}},
+    "t5": {"schema": AUDIT_SCHEMA,
+           "variants": {"current": t5_current, "terse": t5_terse, "decision-tree": t5_decision_tree,
+                        "json-skeleton": t5_json_skeleton}},
 }
 
 # ===================================================== minimal schema validator ==
@@ -831,7 +900,9 @@ def main():
     sub = ap.add_subparsers(dest="cmd", required=True)
     pp = sub.add_parser("produce", help="run (seat,variant,model,case) generations via broker + cloud CLI")
     pp.add_argument("--seats", default="t1,t4,t5")
-    pp.add_argument("--variants", default="current,terse,decision-tree")
+    # the work list skips a variant a seat doesn't define, so t1/t4 run {current,terse,json-skeleton}
+    # and t5 additionally runs decision-tree.
+    pp.add_argument("--variants", default="current,terse,decision-tree,json-skeleton")
     pp.add_argument("--models", default=",".join(PRODUCERS))
     pp.add_argument("--cases", default=",".join(CASES))
     pp.add_argument("--tag", default="")
