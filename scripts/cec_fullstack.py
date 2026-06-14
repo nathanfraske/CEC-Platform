@@ -75,8 +75,6 @@ KELVIN_STALL_K = 3                              # consecutive fails -> T0 escala
 # ALL swap-starvation, not logic. Slower, but every tier actually fires.
 SEAT_TIMEOUT = int(os.environ.get("CEC_FS_SEAT_TIMEOUT", "900"))   # was 120-180 (lost the swap race); a ceiling -- generous so no seat is timeout-cut mid-thought
 WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min cold start
-PENALISABLE = ("drc", "unconnected", "length", "vias", "plane_signal_mm",
-               "gate_fail", "kelvin_unrouted", "diffpair_unrouted", "max_T")
 # OWNED LEVERS -- the corrected actuation-space owned-list (retrospective §2/§4, lesson 2).
 # Single source of truth: fed to the auditor prompt AND the verifier actuation-space ctx so
 # the generator and the gate share one definition of "a lever the loop can pull". A scorer-
@@ -273,6 +271,17 @@ def _lane_carry(lane, prev_aug, seed):
     (intents) or () (dropped) -- so augmented-learned state never leaks into the signed-only baseline.
     Pure -- unit-tested (M4) so a regression in the carry can't silently corrupt the control lane."""
     return prev_aug if lane == "augmented" else seed
+
+
+def _t0_should_fire(lane, placement_attr, kelvin_stall, kelvin_ok):
+    """M2 (new-impl audit): the T0 placement-actuator gate, factored out so it is unit-testable.
+    T0 (the deterministic GR-02 repair) fires ONLY on the AUGMENTED lane -- a control round is
+    signed-only, so firing GR-02 / resetting kelvin_stall / stamping t0_fired there would perturb
+    the A/B. Within the augmented lane it fires when a placement diagnosis OR a kelvin stall coincides
+    with an unrouted Kelvin sense net (the consumer then derives the blocked /SENSEC net)."""
+    return (lane == "augmented"
+            and (placement_attr or kelvin_stall >= KELVIN_STALL_K)
+            and not kelvin_ok)
 
 
 # Evidence anchors, partitioned by EI-07 GROUNDING. DETERMINISTIC = a gate / DRC / pour-fact / FEM
@@ -485,10 +494,16 @@ def promoted_corpus_brief(board, max_chars=13000, in_family_only=False):
         body = "\n".join(lines)
         if len(body) > max_chars:
             body = body[:max_chars] + "\n- ...(brief truncated; off-family tail dropped first)"
-        scope_note = (f"{n_in} in scope for this {board} family"
-                      + ("" if in_family_only else ", the rest tagged with their family scope"))
-        brief = (f"RATIFIED CORPUS ({n_total} owner-signed entries; {scope_note} -- treat as "
-                 "authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+        # L3 (new-impl audit): headline the count the seat can ACTUALLY see. in_family_only shows ONLY
+        # the in-scope subset, so headlining n_total (e.g. 35) would imply the off-family rules are
+        # present -- a generation seat could "know" a dropped rule it was never shown. Headline n_in here.
+        if in_family_only:
+            brief = (f"RATIFIED CORPUS ({n_in} owner-signed entries in scope for this {board} family -- "
+                     "treat as authoritative, do not contradict or re-derive):\n" + body + "\n\n")
+        else:
+            scope_note = f"{n_in} in scope for this {board} family, the rest tagged with their family scope"
+            brief = (f"RATIFIED CORPUS ({n_total} owner-signed entries; {scope_note} -- treat as "
+                     "authoritative, do not contradict or re-derive):\n" + body + "\n\n")
     _CORPUS_BRIEF_CACHE[key] = brief
     return brief
 
@@ -803,6 +818,15 @@ def intent_manager(board, grid, prev_intents, last_rec, rnd, manifest=None, fenc
         on_sense = {r for n, rl in manifest.get("net_refs", {}).items()
                     if _fr.is_sense_net(n) for r in rl}
         sense_refs = [r for r in fence.get("refs", ()) if r in refs and r in on_sense]
+        if not sense_refs and fence.get("refs"):
+            # M1 fallback (new-impl audit): no fenced ref touched a /SENSEC*_(HI|LO) net -- a board with
+            # non-standard sense naming (e.g. 12VHPWR /SENSEP*, or a renamed /SENSE_HI). Don't let the
+            # SENSE CORRIDOR silently vanish; fall back to the fenced refs present on this board and LOG
+            # the degrade so a renamed-net regression is visible. (eps-8pin keeps the narrow filter, which
+            # correctly excludes the CAN transceiver U2 -- this branch only fires when nothing matched.)
+            sense_refs = [r for r in fence.get("refs", ()) if r in refs]
+            if sense_refs:
+                log(f"  T1 corridor: no /SENSEC sense-net match; fell back to all fenced refs {sense_refs}")
         if sense_refs:
             xs = [refs[r]['xy'][0] for r in sense_refs]
             ys = [refs[r]['xy'][1] for r in sense_refs]
@@ -992,11 +1016,15 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
         # itself a gate on convergence -- more router effort cannot fix a bad placement).
         "You are the IN-LOOP AUDITOR for the CEC routing pipeline (full-stack run). Your `failure_class` "
         "is what STEERS the loop -- choose it deliberately:\n"
-        "- failure_class=placement -> FIRES the T0 PLACEMENT ACTUATOR (the deterministic GR-02 repair "
-        "battery: shift a part out of a congested corridor, layer-swap, insert a via). Choose this when "
-        "the route cannot close because of PLACEMENT -- a sense IC boxed against its shunt with no escape, "
-        "a congested corridor, parts with no routing room. Placement is an UPSTREAM gate on convergence: "
-        "more router passes cannot fix a bad placement, so prefer this over effort once effort has stalled.\n"
+        "- failure_class=placement -> the steering field for a PLACEMENT-class failure: the route cannot "
+        "close because of WHERE parts sit (a sense IC boxed against its shunt with no escape, a congested "
+        "corridor, parts with no routing room). Placement is an UPSTREAM gate on convergence -- more router "
+        "passes cannot fix a bad placement, so prefer this over effort once effort has stalled. ACTUATION "
+        "BOUNDARY: this FIRES the deterministic T0 PLACEMENT ACTUATOR (the GR-02 repair battery: shift a "
+        "part out of the way, layer-swap, insert a via) ONLY when a Kelvin SENSE net is left unrouted "
+        "(kelvin_ok=false). For a congested-corridor / no-routing-room placement failure where the gate is "
+        "NOT a stranded sense net, T0 does not act -- the diagnosis is still recorded and the corridor-avoid "
+        "lever + panel effort carry it; say so in root_cause so the stall stays visible.\n"
         "- failure_class=routing -> records the diagnosis; the deterministic corridor-avoid lever fires "
         "from pour_clipped_nets and the panel bumps router effort. Choose this when the placement is fine "
         "and more/better routing can close it.\n"
@@ -1116,6 +1144,7 @@ def deepseek_audit(rec, lr, rnd, model=None, timeout=2700, pourcheck=None, inten
         return {"verdict": "repair", "error": f"deepseek_audit: {type(e).__name__}: {e}"}
     if not isinstance(out, dict) or "verdict" not in out:
         return {"verdict": "repair", "error": "deepseek_audit: no verdict"}
+    out = _coerce_audit(out)        # L1 (new-impl audit): enum-validate for parity with the cloud path
     try:
         with open(out_path, "w") as fh:
             json.dump(out, fh, indent=1)
@@ -1476,10 +1505,12 @@ def run(board, rounds, hours, auditor=None):
                 f"kelvin={rec['kelvin_ok']} drc={rec['drc']} plane={rec['plane_signal_mm']} "
                 f"pours={rec.get('stub_summary', {}).get('n_power_pours')} "
                 f"max_T={rec.get('max_T')} fem_flags={rec.get('n_fem_flags')}")
-            kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1
+            if lane == "augmented":     # M2 (new-impl audit): advance the stall counter on the STEERED
+                kelvin_stall = 0 if rec["kelvin_ok"] else kelvin_stall + 1   # lane only; a control round
+                                                                            # must not perturb T0/the A/B
 
             # T4 worker panel -> effort actuation
-            action, votes = worker_panel(rec, rnd, history=records)   # P6b: progress lens gets the trajectory
+            action, votes = worker_panel(rec, rnd, history=records[:-1])   # P6b/L4: PRIOR rounds only (rec already appended)
             log(f"  T4 panel: {action} ({[(v[0], v[1]) for v in votes]})")
             if action == "repair":
                 passes, opt_time = min(passes + 8, 60), min(opt_time + 12, 100)
@@ -1634,7 +1665,7 @@ def run(board, rounds, hours, auditor=None):
             placement_attr = (sj.get("failure_class") == "placement") or (
                 vres and any(v.get("failure_class") == "placement"
                              for v in vres.verdicts.values()))
-            if (placement_attr or kelvin_stall >= KELVIN_STALL_K) and not rec["kelvin_ok"]:
+            if _t0_should_fire(lane, placement_attr, kelvin_stall, rec["kelvin_ok"]):
                 blocked = next((r.split()[0] for r in rec.get("reasons", [])
                                 if "/SENSEC" in r), None)
                 if blocked:

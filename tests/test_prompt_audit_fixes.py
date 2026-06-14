@@ -299,6 +299,90 @@ class AuditorRedesign(unittest.TestCase):
         self.assertIn("ADVISORY CONTEXT ONLY", prompt)                    # proposed_lever demoted
         self.assertIn("Priceable metrics", prompt)                        # P5d advertises the real set
         self.assertNotIn("Penalisable keys", prompt)                      # old (phantom) advert gone
+        # H1 (new-impl audit): the prompt must NOT overpromise T0 -- state the actuation boundary so a
+        # placement diagnosis on a kelvin-PASSING / non-/SENSEC board is not steered toward a no-op T0.
+        self.assertIn("ACTUATION BOUNDARY", prompt)
+        self.assertIn("kelvin_ok=false", prompt)                          # T0 fires only on an unrouted sense net
+
+
+class NewImplPolishFixes(unittest.TestCase):
+    """Opus-4.8 panel audit of the prompt-audit branch (docs/.../new-impl-review/opus48-panel-report.md):
+    H1 prompt boundary, M1 corridor fallback, M2 T0 lane-gate, L1 deepseek coercion parity, L3 in-family
+    header count, L6 dead-code removal."""
+
+    # ---- M2: the T0 placement-actuator gate fires on the augmented lane only (A/B integrity) ----
+    def test_m2_t0_gate_augmented_only_and_unrouted_sense(self):
+        # placement diagnosis + unrouted kelvin on the AUGMENTED lane -> fire
+        self.assertTrue(fs._t0_should_fire("augmented", True, 0, False))
+        # SAME conditions on a CONTROL lane -> never fire (signed-only round; would perturb the A/B)
+        self.assertFalse(fs._t0_should_fire("control", True, 0, False))
+        # kelvin already routed -> no T0 even with a placement attribution
+        self.assertFalse(fs._t0_should_fire("augmented", True, 99, True))
+        # stall-threshold path (no placement attribution) on the augmented lane
+        self.assertTrue(fs._t0_should_fire("augmented", False, fs.KELVIN_STALL_K, False))
+        self.assertFalse(fs._t0_should_fire("augmented", False, fs.KELVIN_STALL_K - 1, False))
+
+    # ---- M1: the SENSE CORRIDOR falls back (does not vanish) for non-/SENSEC sense naming ----
+    def test_m1_corridor_falls_back_when_no_sensec_match(self):
+        # 12VHPWR-style sense nets (/SENSEP*) match neither is_sense_net -> the narrow filter finds
+        # nothing -> fall back to the fenced refs present (corridor must not silently disappear).
+        manifest = {
+            "outline_mm": [58, 80],
+            "refs": {"RS1": {"xy": [10, 20], "v": "shunt"}, "U10": {"xy": [12, 22], "v": "INA240"},
+                     "U2": {"xy": [40, 17], "v": "TJA1051"}},
+            "net_refs": {"/SENSEP1_HI": ["RS1", "U10"], "/CAN_H": ["U2"]},
+        }
+        fence = {"nets": set(), "refs": {"RS1", "U10"}}        # U2 not fenced -> not in the corridor
+        cap, logs = {}, []
+        orig, origlog = jl._chat_json, fs.log
+
+        def stub(system, user, schema, **kw):
+            cap["user"] = user
+            return {"reasoning": "x", "intents": []}
+        jl._chat_json = stub
+        fs.log = lambda m: logs.append(m)
+        try:
+            fs.intent_manager("12vhpwr-standard", {}, [], None, 1, manifest=manifest, fence=fence)
+        finally:
+            jl._chat_json, fs.log = orig, origlog
+        self.assertIn("SENSE CORRIDOR", cap["user"])           # corridor did NOT vanish
+        corridor = next(ln for ln in cap["user"].splitlines() if "SENSE CORRIDOR" in ln)
+        self.assertIn("RS1", corridor)
+        self.assertIn("U10", corridor)
+        self.assertTrue(any("fell back to all fenced refs" in m for m in logs))   # degrade is logged
+
+    # ---- L1: the default (deepseek) auditor path coerces an out-of-enum verdict, like the cloud path ----
+    def test_l1_deepseek_audit_coerces_out_of_enum(self):
+        lr = {"scorer_penalties": {}, "manager_rules": [], "rejections": [],
+              "diagnoses": [], "refuted_metrics": []}
+        rec = {"gates_pass": False, "kelvin_ok": True, "diffpair_ok": True, "drc": 8, "unconnected": 2,
+               "plane_signal_mm": 0, "objective": 1000.0, "reasons": [], "stub_summary": {}}
+        orig = jl._chat_json
+        jl._chat_json = lambda system, user, schema, **kw: {
+            "verdict": "bogus", "failure_class": "weird", "root_cause": "x"}
+        try:
+            out = fs.deepseek_audit(rec, lr, 1)
+        finally:
+            jl._chat_json = orig
+        self.assertEqual(out["verdict"], "repair")             # out-of-enum coerced (parity w/ cloud)
+        self.assertEqual(out["failure_class"], "routing")
+
+    # ---- L3: the in_family_only brief headlines the count the seat can actually see ----
+    def test_l3_in_family_header_counts_only_shown_entries(self):
+        import re
+        full = fs.promoted_corpus_brief("eps-8pin")
+        gen = fs.promoted_corpus_brief("eps-8pin", in_family_only=True)
+        gn = int(re.match(r"RATIFIED CORPUS \((\d+)", gen).group(1))
+        shown = sum(1 for ln in gen.splitlines() if ln.startswith("- ["))
+        self.assertEqual(gn, shown)                            # header advertises only the entries shown
+        if "[scope:" in full:                                  # off-family entries exist in the corpus
+            fn = int(re.match(r"RATIFIED CORPUS \((\d+)", full).group(1))
+            self.assertLess(gn, fn)                            # gen header < full (off-family not claimed)
+
+    # ---- L6: the dead PENALISABLE tuple is removed from cec_fullstack (the live gate is _PENALTY_METRIC) ----
+    def test_l6_penalisable_dead_tuple_removed(self):
+        self.assertFalse(hasattr(fs, "PENALISABLE"))
+        self.assertTrue(hasattr(fs, "_PENALTY_METRIC"))
 
 
 if __name__ == "__main__":
