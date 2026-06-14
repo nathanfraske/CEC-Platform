@@ -1,6 +1,36 @@
 # Current work handoff
 
-_Updated 2026-06-14 ~04:50 UTC (PLACEMENT Phase 0 LANDED on claude/placement-corridor)._
+_Updated 2026-06-14 ~06:05 UTC (PLACEMENT Phase 0 + 1a + AUDIT REMEDIATION on claude/placement-corridor / PR #60)._
+
+## PLACEMENT AUDIT REMEDIATION 2026-06-14 ~06:05 UTC (commit cbd0047, pushed to PR #60)
+Owner: "go ahead [Phase 1] + audit it." Built **Phase 1a** (corridor_cross rank key: Candidate field +
+synth_one model build + sort key (residual,corridor_cross,hpwl) + opt-in proxy_reject(corridor_max=))
+then ran a 4-skeptic adversarial audit (parallel Sonnet sub-agents: geometry / checkers / Phase-1
+integration+claim / test rigor). **The audit was high-signal and I RETRACTED my central claim.**
+- **BLOCKER (confirmed): "ranking alone breaks the ceiling" was a MEASUREMENT ARTIFACT.** The synth
+  placer does NOT form corridors -- shunts land ~24mm off their connectors (RS1 x≈7.5 vs J_IN1 x≈30.8),
+  J_IN/J_OUT not column-aligned -> the band inflates to ~73mm on a 96mm board -> can't be straddled ->
+  cc=0 trivially, NOT corridor-clean. The real ceiling-break needs Phase 2 (form the corridor:
+  current_axis_offset + connector alignment), THEN the rank key discriminates.
+- **2 more BLOCKERs (confirmed): the checkers false-FAIL on every routed 12VHPWR (/IN_P/_N INA inputs)
+  + 24-pin (full-board band) + EPS (/DETAMP).** Fixed: N/A on SHARED-BUS boards (J3/J4 serve every pair
+  -> Phase-5 per-pin variant); band from connector+2-pad-shunt pads only (exclude INA SMD, matches
+  cec_fr.derive_power_pours -- the "same rectangle as the pour" claim was ALSO false); exclude _sense_nets.
+- **HIGH: non-determinism** (corridor_cross varied across processes via hash-randomized set iteration in
+  relative_place/anneal_macros) -> sorted() the iterations (compact s6 now stable 0, was {0,1,2}).
+- **BLOCKER (test): tautology** -- TestCorridorRanking re-implemented the sort instead of calling
+  place_candidates -> added a production-sort test + via teeth + shunt-FAIL teeth + shared-bus-NA +
+  multi-cable + no-kelvin + degenerate-guard. Honest reframe of the placer tests (raw synth cc=0 inert).
+- Degeneracy guard added (build_corridor_model/corridor_cross_count board_w=): unformed corridor scores
+  0 INERTLY, not falsely-clean. 34 corridor / 159 host tests green. Committed-board Phase-0 proof intact
+  (>=5 crossings, /CAN_L=0). Deferred->FOLLOWUPS: seg-AABB exact intersection, CI pcbnew-test wiring,
+  parity-report re-freeze (OWNER -- high-current-corridor-keepout status proposed->ratified).
+- **NET STATE: Phase 0 (model + checkers, now corrected) is sound + proven on the committed board.
+  Phase 1a is HONEST plumbing (rank key inert until corridors are formed). The ceiling is NOT yet
+  broken -- that's Phase 2 (corridor formation), the true next step.** PR #60 head = cbd0047.
+
+---
+## PLACEMENT — CORRIDOR-AWARE RESEED PLACER, PHASE 0 DONE 2026-06-14 ~04:50 UTC (superseded above for status)
 
 ## PLACEMENT — CORRIDOR-AWARE RESEED PLACER, PHASE 0 DONE 2026-06-14 ~04:50 UTC
 Branch **claude/placement-corridor** (worktree /home/nathan/cec-placement, off origin/main b81c65a).
