@@ -888,6 +888,16 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
             if flipped_any:
                 report["flipped"] += 1
         report["bands"][base] = len(crossers)
+    # RE-FILL after moving crossings (UnFill-first, like add_power_pours -- a double-fill in one process
+    # can segfault this SWIG build). This HEALS each layer's pour around the new geometry: the F.Cu pour
+    # reclaims the clearance hole the now-departed foreign track left, and -- once the B.Cu mirror exists
+    # -- the B.Cu pour re-carves clearance around the track moved onto it (otherwise the moved track would
+    # short the stale B.Cu fill). Without this the stagger moves copper but never updates the pours, so it
+    # is inert (the audit's "useless"). Only when something flipped, to avoid needless fill work.
+    if report["flipped"]:
+        for z in board.Zones():
+            z.UnFill()
+        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
     tmp = tempfile.mkstemp(suffix=".kicad_pcb", prefix="cec_stagger_", dir=_TMP)[1]
     pcbnew.SaveBoard(tmp, board)
     del board

@@ -800,7 +800,8 @@ def layer_stagger(routed_host_path, rnd):
         f"rep = cec_fr.stagger_corridor_crossings('/workspace/{rel}', '/workspace/{out_rel}')\n"
         f"m = cec_score.score('/workspace/{out_rel}')\n"
         "out = {'report': {k: rep.get(k) for k in ('flipped','vias_added','reverted','bands','note')},\n"
-        "       'rescored': {'kelvin_ok': m.kelvin_ok, 'drc': m.drc, 'unconnected': m.unconnected}}\n"
+        "       'rescored': {'kelvin_ok': m.kelvin_ok, 'diffpair_ok': m.diffpair_ok,\n"
+        "                    'gates_pass': m.gates_pass, 'drc': m.drc, 'unconnected': m.unconnected}}\n"
         "print('STAGGER_JSON=' + json.dumps(out, default=str))\n")
     try:
         rc, out = _exec_py(code, timeout=600)
@@ -812,6 +813,36 @@ def layer_stagger(routed_host_path, rnd):
     except Exception as e:                                       # noqa: BLE001
         return {"error": f"{type(e).__name__}: {e}"}
     return {"error": "no STAGGER_JSON"}
+
+
+def _adopt_staggered_board(rec, stagger_result, root):
+    """Item 3 (audit w23i0d8nq): decide whether the staggered board replaces rec["routed"] for the rest
+    of this round, and if so re-point it + refresh the board-derived metrics from the rescore. Adopt ONLY
+    when the stagger KEPT its flips (cec_fr.stagger_corridor_crossings already DRC-safe-reverts internally,
+    so a non-reverted result is >= the original on _route_quality) AND it does not turn a gate-PASSING
+    board gate-failing. Mutates rec in place; returns a one-line reason string ('' = not adopted) for the
+    caller to log. Pure given (rec, stagger_result, root) -- the unit-testable core of the feedback path."""
+    if not stagger_result or stagger_result.get("error"):
+        return ""
+    sr = stagger_result.get("report", {}) or {}
+    rs = stagger_result.get("rescored", {}) or {}
+    if not sr.get("flipped") or sr.get("reverted"):
+        return ""                                            # nothing kept -> nothing to adopt
+    board_rel = stagger_result.get("board")
+    host = os.path.join(root, board_rel) if board_rel else None
+    if not host or not os.path.isfile(host):
+        return ""
+    if bool(rec.get("gates_pass")) and not bool(rs.get("gates_pass", True)):
+        return ""                                            # never downgrade a gate-passing board
+    rec["routed"] = host
+    for k in ("kelvin_ok", "diffpair_ok", "gates_pass"):
+        if k in rs:
+            rec[k] = bool(rs[k])
+    for k in ("drc", "unconnected"):
+        if rs.get(k) is not None:
+            rec[k] = rs[k]
+    rec["staggered"] = True
+    return f"gates={'PASS' if rec.get('gates_pass') else 'FAIL'} drc={rec.get('drc')}"
 
 
 # ---- T1: the intent manager (the model-managed assisted router) -------------------------------------
@@ -1623,10 +1654,16 @@ def run(board, rounds, hours, auditor=None):
             if pour_clipped_nets and lane == "augmented" and rec.get("routed"):
                 stagger_result = layer_stagger(rec["routed"], rnd)
                 _sr = (stagger_result or {}).get("report", {}) if not (stagger_result or {}).get("error") else {}
+                _rs = (stagger_result or {}).get("rescored", {}) or {}
                 if _sr:
                     log(f"  layer-stagger: flipped {_sr.get('flipped')} crossing(s) across F/B "
-                        f"(reverted={_sr.get('reverted')}, rescored "
-                        f"{(stagger_result or {}).get('rescored')})")
+                        f"(reverted={_sr.get('reverted')}, rescored {_rs})")
+                    # Item 3 (audit w23i0d8nq): ADOPT the staggered board so it actually SHIPS this round
+                    # (previously measured-and-discarded -> the lever could never change which board the
+                    # round records / pours / audits).
+                    adopted = _adopt_staggered_board(rec, stagger_result, ROOT)
+                    if adopted:
+                        log(f"  layer-stagger: ADOPTED staggered board (rec['routed'] re-pointed; {adopted})")
             # EI-02: a CONTROL round seeds NO next-round steering (it is the signed-only baseline) -- the
             # deterministic item4 corridor-avoid is run-learned state and stays on the augmented lane only.
             if pour_clipped_nets and lane == "augmented":
