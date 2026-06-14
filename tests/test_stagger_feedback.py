@@ -28,21 +28,35 @@ class TestAdoptStaggeredBoard(unittest.TestCase):
         os.makedirs(os.path.dirname(p), exist_ok=True)
         open(p, "w").close()                                     # the staggered board exists on disk
         self.rec = {"routed": "/old/routed.kicad_pcb", "gates_pass": True,
-                    "kelvin_ok": True, "diffpair_ok": True, "drc": 6, "unconnected": 2}
+                    "kelvin_ok": True, "diffpair_ok": True, "drc": 6, "unconnected": 2,
+                    "vias": 80, "tracks": 500, "length": 999.0, "plane_signal_mm": 1.0, "max_T": 200.0}
 
-    def _result(self, *, flipped=1, reverted=False, gates_pass=True, drc=4, unconnected=0, board=True):
+    def _result(self, *, flipped=1, reverted=False, gates_pass=True, drc=4, unconnected=0, board=True,
+                facts=None):
         return {"report": {"flipped": flipped, "reverted": reverted},
                 "rescored": {"kelvin_ok": True, "diffpair_ok": True, "gates_pass": gates_pass,
-                             "drc": drc, "unconnected": unconnected},
+                             "drc": drc, "unconnected": unconnected, "vias": 96, "tracks": 510,
+                             "length": 1010.0, "plane_signal_mm": 0.5, "max_T": 150.0},
+                "facts": {"/SENSEC1_HI": {"islands": 1, "area_mm2": 120.0, "components": 1}}
+                         if facts is None else facts,
                 "board": self.board_rel if board else None}
 
-    def test_adopts_and_refreshes_metrics(self):
+    def test_adopts_and_refreshes_all_pareto_axes(self):
         reason = fs._adopt_staggered_board(self.rec, self._result(drc=4, unconnected=0), self.root)
         self.assertTrue(reason)
         self.assertEqual(self.rec["routed"], os.path.join(self.root, self.board_rel))
         self.assertTrue(self.rec["staggered"])
         self.assertEqual(self.rec["drc"], 4)                     # refreshed from the rescore
         self.assertEqual(self.rec["unconnected"], 0)
+        self.assertEqual(self.rec["vias"], 96)                   # vias MUST refresh (stagger ADDS vias)
+        self.assertEqual(self.rec["tracks"], 510)
+        self.assertEqual(self.rec["max_T"], 150.0)               # the axis the lever moves -- refreshed
+        self.assertEqual(self.rec["plane_signal_mm"], 0.5)
+
+    def test_no_adopt_without_facts(self):
+        # the re-measurement (incl. pour facts) MUST be present -- an unverifiable stagger never ships
+        self.assertEqual(fs._adopt_staggered_board(self.rec, self._result(facts={}), self.root), "")
+        self.assertEqual(self.rec["routed"], "/old/routed.kicad_pcb")
 
     def test_no_adopt_when_reverted(self):
         reason = fs._adopt_staggered_board(self.rec, self._result(reverted=True), self.root)
@@ -75,6 +89,34 @@ class TestAdoptStaggeredBoard(unittest.TestCase):
     def test_no_adopt_on_error_or_empty(self):
         self.assertEqual(fs._adopt_staggered_board(self.rec, {"error": "boom"}, self.root), "")
         self.assertEqual(fs._adopt_staggered_board(self.rec, None, self.root), "")
+
+
+class TestRemeasurePourGate(unittest.TestCase):
+    """_remeasure_pour_gate closes the gate-launder (re-audit BLOCKER): the stagger rescore's gates_pass is
+    pour-BLIND, so after adoption the SHIPPED board's pour integrity must be re-verified and folded into
+    gates_pass -- a fragmented sense pour must force gates_pass False even if the rescore said True."""
+
+    def test_fragmented_pour_forces_gate_fail(self):
+        rec = {"gates_pass": True, "drc": 4, "objective": 0.0, "reasons": []}
+        facts = {"/SENSEC1_HI": {"islands": 3, "area_mm2": 90.0, "components": 3},   # FRAGMENTED
+                 "/SENSEC1_LO": {"islands": 1, "area_mm2": 120.0, "components": 1}}
+        det = fs._remeasure_pour_gate(rec, facts, {})
+        self.assertFalse(rec["gates_pass"])                      # laundered True -> forced False
+        self.assertFalse(rec["pour_integrity_ok"])
+        self.assertEqual(rec["islands_excess"], 2)               # 3 islands -> excess 2
+        self.assertIn("/SENSEC1_HI", det)                        # det_clipped reflects the staggered board
+        self.assertTrue(any("pour_integrity(staggered)" in r for r in rec["reasons"]))
+
+    def test_healthy_pour_keeps_gate(self):
+        rec = {"gates_pass": True, "drc": 2, "objective": 0.0, "reasons": []}
+        facts = {"/SENSEC1_HI": {"islands": 1, "area_mm2": 120.0, "components": 1},
+                 "/SENSEC1_LO": {"islands": 1, "area_mm2": 118.0, "components": 1}}
+        det = fs._remeasure_pour_gate(rec, facts, {})
+        self.assertTrue(rec["gates_pass"])                       # healthy pours -> gate stays
+        self.assertTrue(rec["pour_integrity_ok"])
+        self.assertEqual(rec["islands_excess"], 0)
+        self.assertEqual(det, [])
+        self.assertIsInstance(rec["objective"], float)           # objective recomputed from the shipped board
 
 
 if __name__ == "__main__":

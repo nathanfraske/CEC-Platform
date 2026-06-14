@@ -209,26 +209,35 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
     cec_fr.import_ses(baked, ses, routed, power_pours=pours)     # strips plane-layer tracks
     hygiene = cec_fr02.clean_orphan_stubs(routed, res)
     # MIRROR POUR (item 1, audit w23i0d8nq): the loop poured the high-current force nets F.Cu-ONLY, so the
-    # layer-stagger lever's premise -- "the un-cut OUTER pour mirror carries past a single-layer cut" -- was
-    # FALSE (there was no mirror). Lay the B.Cu mirror of each F.Cu force pour + the via-field stitching that
-    # ties the two outer layers (and bridges the SMD-shunt neck) so the premise holds. PURELY ADDITIVE
+    # layer-stagger lever could not "let the un-cut OUTER pour mirror carry past a single-layer cut" -- there
+    # was no mirror. Lay the B.Cu mirror of each F.Cu force pour + the via-field stitching (which ties the
+    # two outer layers and bridges the SMD-shunt neck). This provides the PARALLEL layer; the layer-stagger
+    # lever (cec_fullstack, augmented lane) then distributes the UNAVOIDABLE foreign corridor crossings
+    # across F/B so the un-cut layer carries at each cut's x. The two TOGETHER restore the premise -- the
+    # mirror ALONE does not, because a foreign signal crossing the B.Cu corridor still locally clips the
+    # mirror there (the cc>=6-floor reality the stagger exists to handle). PURELY ADDITIVE
     # (synthesize_power_copper strip_redundant=False adds only the missing layer + vias, never removes copper
-    # -- like add_power_pours, so it can't strand the Kelvin tap). DETERMINISTIC copper, so it rides BOTH
-    # lanes like the F.Cu pours (it is not run-learned steer -> does not confound the EI-02 A/B). Safe-
-    # reverted on a _route_quality regression (a stitch via could land on a foreign corridor-crossing trace)
-    # and best-effort (never fails the route). CEC_OVD_MIRROR_POUR=0 restores the F.Cu-only behaviour.
-    n_mirror = 0
+    # -> cannot strand the Kelvin tap). DETERMINISTIC copper, so it rides BOTH lanes like the F.Cu pours (not
+    # run-learned steer -> does not confound the EI-02 A/B). Safe-reverted on a _route_quality regression (a
+    # stitch via could land on a foreign crossing). NOT silent: every outcome is logged + recorded as
+    # mirror_status (applied/rejected/error/no-pours), so a dead lever is distinguishable from a real no-op
+    # (the observability gap the rework targets). CEC_OVD_MIRROR_POUR=0 restores F.Cu-only.
+    n_mirror, mirror_status = 0, "no-pours"
     if pours and os.environ.get("CEC_OVD_MIRROR_POUR", "1") != "0":
         mirrored = os.path.join(workdir, "routed-mirror.kicad_pcb")
         try:
             mrep = cec_fr.synthesize_power_copper(routed, mirrored, strip_redundant=False)
             if os.path.isfile(mirrored) and cec_fr._route_quality(mirrored) <= cec_fr._route_quality(routed):
-                routed = mirrored
-                n_mirror = mrep.get("mirror_pours", 0)
-        except Exception:                                        # noqa: BLE001 -- mirror is best-effort
-            pass
+                routed, n_mirror, mirror_status = mirrored, mrep.get("mirror_pours", 0), "applied"
+            else:
+                mirror_status = "rejected"                       # would regress route quality -> kept F.Cu-only
+                log("  mirror pour REJECTED (would regress route quality); kept F.Cu-only")
+        except Exception as e:                                   # noqa: BLE001 -- best-effort, but NOT silent
+            mirror_status = "error"
+            log(f"  mirror pour ERROR ({type(e).__name__}: {e}); kept F.Cu-only")
     stub_summary = {"n_stubs": len(res["stubs"]), "compile_failures": res["failures"],
-                    "nets": nets, "n_power_pours": len(pours), "n_mirror_pours": n_mirror, **hygiene}
+                    "nets": nets, "n_power_pours": len(pours), "n_mirror_pours": n_mirror,
+                    "mirror_status": mirror_status, **hygiene}
     return routed, stub_summary, {"passes": passes, "opt_time": opt_time}
 
 
@@ -291,6 +300,53 @@ def fem_advisory(routed, board):
                               for f in flags[:8]]}
     except Exception as e:                                       # noqa: BLE001
         return {"fem_error": f"{type(e).__name__}: {e}"}
+
+
+def measure_board(routed, board):
+    """Full in-container measurement of an already-routed+poured board, WITHOUT writing a corpus/
+    DecisionLog entry: cec_score Metrics (gates/drc/unconnected + the Pareto axes length/vias/tracks/
+    plane_signal_mm) + the FEM advisory (max_T/max_dT/n_fem_flags) + the deterministic pour facts (F.Cu
+    sense-pour islands/area/foreign_cross/components, the same computation as cec_fullstack.pour_facts).
+    Used to RE-MEASURE the staggered board so its record describes the board it SHIPS, not the pre-stagger
+    one (re-audit 2026-06-14: the layer-stagger rescore was pour-blind and only 5 fields, so gates_pass
+    could be laundered and the Pareto axes/objective were stale). Returns a flat dict of the score+fem
+    fields plus a nested 'facts' (the pour_facts shape). Runs in-container (pcbnew/kicad-cli/FEM)."""
+    import cec_score
+    import pcbnew
+    m = cec_score.score(routed)
+    out = {"gates_pass": bool(m.gates_pass), "kelvin_ok": bool(m.kelvin_ok),
+           "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc, "unconnected": m.unconnected,
+           "length": round(m.length, 2), "vias": m.vias, "tracks": m.tracks,
+           "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 3)}
+    out.update(fem_advisory(routed, board))                       # max_T/max_dT/n_fem_flags (advisory)
+    b = pcbnew.LoadBoard(routed)
+    Z = {}
+    for z in b.Zones():
+        nn = z.GetNetname()
+        if not (nn.endswith("_HI") or nn.endswith("_LO")) or not z.IsOnLayer(pcbnew.F_Cu):
+            continue
+        try:
+            spl = z.GetFilledPolysList(pcbnew.F_Cu); isl = spl.OutlineCount(); ar = spl.Area() / 1e12
+        except Exception:                                        # noqa: BLE001
+            isl, ar = -1, -1.0
+        bb = z.GetBoundingBox()
+        Z[nn] = {"islands": isl, "area_mm2": round(ar, 2), "foreign_cross": 0,
+                 "_bb": [bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom()]}
+    for t in b.GetTracks():
+        if t.GetClass() != "PCB_TRACK" or t.GetLayer() != pcbnew.F_Cu:
+            continue
+        tn, s, e = t.GetNetname(), t.GetStart(), t.GetEnd()
+        for nn, z in Z.items():
+            if tn == nn or tn.endswith("GND"):
+                continue
+            l, tp, r, bm = z["_bb"]
+            if min(s.x, e.x) <= r and max(s.x, e.x) >= l and min(s.y, e.y) <= bm and max(s.y, e.y) >= tp:
+                z["foreign_cross"] += 1
+    comp = cec_score.sense_pour_components(routed)
+    for nn in Z:
+        Z[nn]["components"] = comp.get(nn)
+    out["facts"] = {nn: {k: v for k, v in z.items() if k != "_bb"} for nn, z in Z.items()}
+    return out
 
 
 def _routed_sha(routed):

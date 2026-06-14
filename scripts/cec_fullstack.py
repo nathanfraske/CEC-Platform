@@ -786,22 +786,25 @@ def gr02_repair(routed_host_path, blocked_net, rnd):
     return {"error": "no GR02_JSON"}
 
 
-def layer_stagger(routed_host_path, rnd):
+def layer_stagger(routed_host_path, rnd, board):
     """LAYER-TIER lever (route-time corridor fix): in-container, stagger the foreign signals that cross
     each formed high-current corridor across F.Cu/B.Cu (cec_fr.stagger_corridor_crossings, DRC
-    safe-revert) so the un-cut outer pour mirror carries, then rescore. Sibling of the corridor-avoid;
-    fired AUGMENTED-lane only. Returns {report, rescored, board} or {error}."""
+    safe-revert) so the un-cut outer pour mirror carries, then FULLY re-measure the staggered board
+    (ovd.measure_board: score + the Pareto axes + FEM + pour facts) so the adopting record can describe
+    the board it ships -- not just the 5 pour-blind fields the old rescore returned (re-audit 2026-06-14).
+    Sibling of the corridor-avoid; fired AUGMENTED-lane only. Returns {report, rescored, facts, board}
+    or {error}."""
     rel = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
     out_rel = f"build/fullstack/stagger-r{rnd}.kicad_pcb"
     code = (
         "import sys, json; sys.path.insert(0, '/workspace/scripts')\n"
-        "import cec_fr, cec_score, os\n"
+        "import cec_fr, cec_overnight_directed as ovd, os\n"
         "os.makedirs('/workspace/build/fullstack', exist_ok=True)\n"
         f"rep = cec_fr.stagger_corridor_crossings('/workspace/{rel}', '/workspace/{out_rel}')\n"
-        f"m = cec_score.score('/workspace/{out_rel}')\n"
+        f"meas = ovd.measure_board('/workspace/{out_rel}', {board!r})\n"
+        "facts = meas.pop('facts', {})\n"
         "out = {'report': {k: rep.get(k) for k in ('flipped','vias_added','reverted','bands','note')},\n"
-        "       'rescored': {'kelvin_ok': m.kelvin_ok, 'diffpair_ok': m.diffpair_ok,\n"
-        "                    'gates_pass': m.gates_pass, 'drc': m.drc, 'unconnected': m.unconnected}}\n"
+        "       'rescored': meas, 'facts': facts}\n"
         "print('STAGGER_JSON=' + json.dumps(out, default=str))\n")
     try:
         rc, out = _exec_py(code, timeout=600)
@@ -815,34 +818,80 @@ def layer_stagger(routed_host_path, rnd):
     return {"error": "no STAGGER_JSON"}
 
 
+_STAGGER_BOOL_FIELDS = ("kelvin_ok", "diffpair_ok", "gates_pass")
+# the FULL set of board-derived fields the record carries -- refresh ALL of them from the staggered
+# board's re-measurement, or the Pareto frontier / objective / dashboard rank a board on stale metrics
+# (re-audit: vias is deterministically wrong-LOW because the stagger ADDS transition vias; max_T is the
+# very axis the lever moves; plane_signal_mm feeds the EI-02 A/B). The pour-derived fields
+# (islands_excess / sense_copper / pour_integrity_ok / objective) are recomputed separately by
+# _remeasure_pour_gate from the returned facts.
+_STAGGER_NUM_FIELDS = ("drc", "unconnected", "length", "vias", "tracks", "plane_signal_mm",
+                       "max_T", "max_dT", "n_fem_flags")
+
+
 def _adopt_staggered_board(rec, stagger_result, root):
-    """Item 3 (audit w23i0d8nq): decide whether the staggered board replaces rec["routed"] for the rest
-    of this round, and if so re-point it + refresh the board-derived metrics from the rescore. Adopt ONLY
-    when the stagger KEPT its flips (cec_fr.stagger_corridor_crossings already DRC-safe-reverts internally,
-    so a non-reverted result is >= the original on _route_quality) AND it does not turn a gate-PASSING
-    board gate-failing. Mutates rec in place; returns a one-line reason string ('' = not adopted) for the
-    caller to log. Pure given (rec, stagger_result, root) -- the unit-testable core of the feedback path."""
+    """Item 3 (audit w23i0d8nq) + re-audit 2026-06-14: decide whether the staggered board replaces
+    rec["routed"] for the rest of this round, and if so re-point it + refresh ALL board-derived metrics
+    from the FULL re-measurement (not just 5 pour-blind fields). Adopt ONLY when: the stagger KEPT its
+    flips (cec_fr already DRC-safe-reverts internally, so a non-reverted result is >= the original on
+    _route_quality AND opened no new ratline); the board file exists; the full re-measurement (incl. pour
+    'facts') is present (an unverifiable stagger is never shipped); and it does not turn a gate-PASSING
+    board gate-failing on the kelvin/diff-pair gate. The caller MUST follow this with _remeasure_pour_gate
+    (which owns gates_pass after folding in pour integrity -- the rescore's gates_pass here is pour-BLIND
+    and provisional). Mutates rec in place; returns a one-line reason string ('' = not adopted). Pure
+    given (rec, stagger_result, root) -- the unit-testable core of the feedback path."""
     if not stagger_result or stagger_result.get("error"):
         return ""
     sr = stagger_result.get("report", {}) or {}
     rs = stagger_result.get("rescored", {}) or {}
     if not sr.get("flipped") or sr.get("reverted"):
         return ""                                            # nothing kept -> nothing to adopt
+    if not stagger_result.get("facts"):
+        return ""                                            # no full re-measurement -> do not ship unverified
     board_rel = stagger_result.get("board")
     host = os.path.join(root, board_rel) if board_rel else None
     if not host or not os.path.isfile(host):
         return ""
     if bool(rec.get("gates_pass")) and not bool(rs.get("gates_pass", True)):
-        return ""                                            # never downgrade a gate-passing board
+        return ""                                            # never downgrade a gate-passing board (kelvin/diff)
     rec["routed"] = host
-    for k in ("kelvin_ok", "diffpair_ok", "gates_pass"):
+    for k in _STAGGER_BOOL_FIELDS:
         if k in rs:
             rec[k] = bool(rs[k])
-    for k in ("drc", "unconnected"):
+    for k in _STAGGER_NUM_FIELDS:
         if rs.get(k) is not None:
             rec[k] = rs[k]
     rec["staggered"] = True
-    return f"gates={'PASS' if rec.get('gates_pass') else 'FAIL'} drc={rec.get('drc')}"
+    return f"gates(provisional)={'PASS' if rec.get('gates_pass') else 'FAIL'} drc={rec.get('drc')} vias={rec.get('vias')}"
+
+
+def _remeasure_pour_gate(rec, facts, scorer_penalties):
+    """After adopting a staggered board, recompute the deterministic pour-integrity gate + the gate-gated
+    objective from the SHIPPED board's pour FACTS, folding pour integrity into gates_pass. This closes the
+    gate-launder the re-audit found: the stagger rescore's gates_pass is BLIND to pour fragmentation (it is
+    kelvin AND diffpair AND drc_gate only), and the stagger's re-fill can itself re-fragment a pour -- so a
+    board correctly blocked for a fragmented sense pour must NOT be re-promoted without re-verifying the
+    staggered board's pours. Sets islands_excess / sense_copper / pour_integrity_ok / objective and forces
+    gates_pass False on a fragmented pour. Returns the staggered det_clipped_nets (so the caller can refresh
+    pour_clipped_nets for the downstream corridor-avoid)."""
+    import cec_score
+    pf = facts or {}
+    det_clipped = sorted(n for n, v in pf.items()
+                         if isinstance(v, dict) and (v.get("islands", 1) or 1) > 1)
+    islands_excess = sum(max(0, (v.get("islands", 1) or 1) - 1)
+                         for v in pf.values() if isinstance(v, dict))
+    sense_copper = sum((v.get("area_mm2", 0) or 0) for v in pf.values() if isinstance(v, dict))
+    rec["islands_excess"] = islands_excess
+    rec["sense_copper"] = round(sense_copper, 2)
+    pour_ok, pour_reasons = cec_score.pour_integrity_ok(pf)
+    rec["pour_integrity_ok"] = pour_ok
+    if not pour_ok:
+        rec["gates_pass"] = False                            # a fragmented sense pour blocks the board
+        rec.setdefault("reasons", []).append("pour_integrity(staggered): " + "; ".join(pour_reasons))
+    rec["objective"] = round(cec_score.objective_v2(
+        gates_pass=rec["gates_pass"], drc=rec["drc"], islands_excess=islands_excess,
+        sense_copper=sense_copper, base=_penalty_weighted_base(rec, scorer_penalties or {})), 2)
+    return det_clipped
 
 
 # ---- T1: the intent manager (the model-managed assisted router) -------------------------------------
@@ -1451,6 +1500,7 @@ def _ledger_round_laned(board, rec, n_front, lr, lane, anchors):
             extra={"round": rec["round"], "lane": lane,                  # EI-02 A/B tag on the ledger
                    "drc": rec["drc"], "unconnected": rec["unconnected"],
                    "kelvin_ok": rec["kelvin_ok"], "gates_pass": rec["gates_pass"],
+                   "staggered": bool(rec.get("staggered")),              # re-audit: shipped the staggered board
                    "pareto_front_size": n_front,
                    "real_anchor_ratio": anchors.get("real_anchor_ratio"),  # EI-07
                    "n_deterministic": anchors.get("n_deterministic"),
@@ -1652,7 +1702,7 @@ def run(board, rounds, hours, auditor=None):
             # route-time corridor fix, complement to the next-round corridor-AVOID. DRC safe-revert, so
             # a bad stagger no-ops. Lane-gated like the corridor-avoid: the control lane never staggers.
             if pour_clipped_nets and lane == "augmented" and rec.get("routed"):
-                stagger_result = layer_stagger(rec["routed"], rnd)
+                stagger_result = layer_stagger(rec["routed"], rnd, board)
                 _sr = (stagger_result or {}).get("report", {}) if not (stagger_result or {}).get("error") else {}
                 _rs = (stagger_result or {}).get("rescored", {}) or {}
                 if _sr:
@@ -1663,7 +1713,16 @@ def run(board, rounds, hours, auditor=None):
                     # round records / pours / audits).
                     adopted = _adopt_staggered_board(rec, stagger_result, ROOT)
                     if adopted:
-                        log(f"  layer-stagger: ADOPTED staggered board (rec['routed'] re-pointed; {adopted})")
+                        # RE-MEASURE the SHIPPED board's pour gate + objective from the staggered facts
+                        # (re-audit BLOCKER+HIGH): the rescore's gates_pass is pour-BLIND, so a board blocked
+                        # for a fragmented sense pour must NOT be re-promoted without re-verifying its pours;
+                        # and the objective/pour terms must describe the staggered board. This OWNS gates_pass
+                        # after folding in pour integrity.
+                        pour_clipped_nets = _remeasure_pour_gate(
+                            rec, stagger_result.get("facts", {}), lr_view.get("scorer_penalties", {}))
+                        log(f"  layer-stagger: ADOPTED + re-measured ({adopted} -> gates="
+                            f"{'PASS' if rec.get('gates_pass') else 'FAIL'} pour_ok={rec.get('pour_integrity_ok')} "
+                            f"islands_excess={rec.get('islands_excess')} objective={rec.get('objective')})")
             # EI-02: a CONTROL round seeds NO next-round steering (it is the signed-only baseline) -- the
             # deterministic item4 corridor-avoid is run-learned state and stays on the augmented lane only.
             if pour_clipped_nets and lane == "augmented":
@@ -1942,6 +2001,8 @@ def run(board, rounds, hours, auditor=None):
                    "t0_fired": bool(t0), "n_finalists": len(front),
                    "pour_clipped": bool(pour_clipped_nets), "pour_clipped_nets": pour_clipped_nets,
                    "pour_integrity_ok": rec.get("pour_integrity_ok"),    # blocking gate (item 2)
+                   "staggered": bool(rec.get("staggered")),              # re-audit: did the round SHIP the staggered board
+                   "mirror_status": rec.get("stub_summary", {}).get("mirror_status"),  # item 1 mirror: applied/rejected/error/no-pours
                    "layer_stagger": ((stagger_result or {}).get("report")     # LAYER-TIER lever (augmented)
                                      if stagger_result and not stagger_result.get("error")
                                      else ({"error": stagger_result.get("error")} if stagger_result else None)),

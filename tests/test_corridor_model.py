@@ -562,6 +562,70 @@ class TestLayerLever(unittest.TestCase):
         self.assertTrue(math.isfinite(q_mirror))
         self.assertLessEqual(q_mirror, q_routed)                 # the route would ADOPT it
 
+    def test_connectivity_repair_at_boundary_coincident_vertex(self):
+        """Re-audit finding 1: a fully-in-band segment ending EXACTLY on the band edge, meeting an
+        out-of-band segment on the other layer, used to be left with no transition via -> the net severed.
+        The connectivity-repair pass must add the missing target<->other via at that vertex."""
+        import tempfile
+        import cec_fr
+        import cec_synth_pipeline as sp
+        b = pcbnew.LoadBoard(EPS_PCB)
+        model, _ = sp._board_corridor_model(b)
+        band2 = next(c.band for c in model.cables if c.formed and c.base == "/SENSEC2")
+        x0, x1, y0, y1 = band2
+        yc = (y0 + y1) / 2.0
+        nc = b.FindNet("/DETC2").GetNetCode()
+        # B.Cu L-bend: enters the band, a fully-in-band middle seg ENDING EXACTLY on x1, then an
+        # out-of-band tail starting at x1 -> the boundary-coincident vertex the old rule missed.
+        pts = [((x0 - 4, yc), (x0 + 3, yc)), ((x0 + 3, yc), (x1, yc)), ((x1, yc), (x1 + 4, yc))]
+        for (sx, sy), (ex, ey) in pts:
+            t = pcbnew.PCB_TRACK(b)
+            t.SetStart(pcbnew.VECTOR2I(int(sx * 1e6), int(sy * 1e6)))
+            t.SetEnd(pcbnew.VECTOR2I(int(ex * 1e6), int(ey * 1e6)))
+            t.SetWidth(200_000); t.SetLayer(pcbnew.B_Cu); t.SetNetCode(nc)
+            b.Add(t)
+        p = os.path.join(tempfile.mkdtemp(), "eps-boundary.kicad_pcb")
+        pcbnew.SaveBoard(p, b)
+        cec_fr.stagger_corridor_crossings(p, verify=False)
+        # the net must NOT be severed: BuildConnectivity sees zero unconnected ratlines for /DETC2
+        bb = pcbnew.LoadBoard(p)
+        bb.BuildConnectivity()
+        # a transition via must exist at the boundary vertex (x1, yc)
+        vx, vy = int(round(x1 * 1e6)), int(round(yc * 1e6))
+        vias_at_edge = [t for t in bb.GetTracks()
+                        if t.Type() == pcbnew.PCB_VIA_T and t.GetNetname() == "/DETC2"
+                        and abs(t.GetPosition().x - vx) <= 1000 and abs(t.GetPosition().y - vy) <= 1000]
+        self.assertTrue(vias_at_edge, "connectivity-repair via missing at the band-edge-coincident vertex")
+        # and the /DETC2 copper is a single connected component across the layer change
+        layers = {t.GetLayer() for t in bb.GetTracks()
+                  if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() == "/DETC2"}
+        self.assertEqual(layers, {pcbnew.F_Cu, pcbnew.B_Cu})     # both layers present, bridged by the via
+
+    def test_reverts_on_connectivity_regression_even_when_scalar_improves(self):
+        """Re-audit finding 2: a stagger that LOWERS the scalar (re-fill heals drc) but RAISES unconnected
+        (a net disconnect) must still REVERT -- the scalar must not be allowed to mask a severed net."""
+        import tempfile
+        import cec_fr
+        b = pcbnew.LoadBoard(EPS_PCB)
+        for net, y in (("/DETC1", 18.0), ("/THRESH", 20.0)):     # two full-span crossings -> flipped > 0
+            t = pcbnew.PCB_TRACK(b)
+            t.SetStart(pcbnew.VECTOR2I(30_000_000, int(y * 1e6)))
+            t.SetEnd(pcbnew.VECTOR2I(50_000_000, int(y * 1e6)))
+            t.SetWidth(200_000); t.SetLayer(pcbnew.F_Cu); t.SetNetCode(b.FindNet(net).GetNetCode())
+            b.Add(t)
+        src = os.path.join(tempfile.mkdtemp(), "eps-conn.kicad_pcb")
+        pcbnew.SaveBoard(src, b)
+        before = open(src, "rb").read()
+        orig = cec_fr._route_quality_detail
+        # pre: scalar 20, unconnected 5 ; post: scalar 15 (drc improved) but unconnected 8 (a net severed)
+        cec_fr._route_quality_detail = lambda p: ((20.0, 5, True) if p == src else (15.0, 8, True))
+        try:
+            rep = cec_fr.stagger_corridor_crossings(src, verify=True)
+        finally:
+            cec_fr._route_quality_detail = orig
+        self.assertTrue(rep["reverted"])                         # unconnected rose -> reverted despite lower scalar
+        self.assertEqual(open(src, "rb").read(), before)         # original byte-identical
+
     def test_l_bend_crossing_is_detected_and_flipped(self):
         """An L-bend crossing (3 short segments, NO single segment spans the band x-width) was silently
         missed by the old _seg_crosses_band (the audit's flipped=0). The net-extent + band-clip detector
@@ -677,12 +741,12 @@ class TestStaggerSafeRevert(unittest.TestCase):
         pcbnew.SaveBoard(src, b)
         before = open(src, "rb").read()
         # Force a "regression" by making the staggered board always score worse than the original.
-        orig_rq = cec_fr._route_quality
-        cec_fr._route_quality = lambda p: (0.0 if p == src else 1.0e9)
+        orig_rq = cec_fr._route_quality_detail
+        cec_fr._route_quality_detail = lambda p: ((0.0, 0, True) if p == src else (1.0e9, 0, True))
         try:
             rep = cec_fr.stagger_corridor_crossings(src, verify=True)   # in-place (out_path == src)
         finally:
-            cec_fr._route_quality = orig_rq
+            cec_fr._route_quality_detail = orig_rq
         self.assertTrue(rep["reverted"])
         self.assertEqual(rep["flipped"], 0)            # reverted -> no flips reported
         self.assertEqual(open(src, "rb").read(), before)  # original board byte-identical (not corrupted)

@@ -858,6 +858,8 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
         # track refs and never re-call GetTracks() mid-mutation (the re-proxied-ids SWIG footgun).
         by_net = {}                                          # net -> [(track, clip), ...]
         spans = {}                                           # net -> (min endpoint x, max endpoint x) mm
+        inband_pts = {}                                      # net -> set of in-band clip endpoints (nm)
+        outband_pts = {}                                     # net -> {endpoint (nm): layer} of out-of-band segs
         for t in board.GetTracks():
             if t.Type() != pcbnew.PCB_TRACE_T or t.GetLayer() not in (pcbnew.F_Cu, pcbnew.B_Cu):
                 continue
@@ -870,6 +872,11 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
             clip = _seg_band_clip(t, band)
             if clip:
                 by_net.setdefault(n, []).append((t, clip))
+                inband_pts.setdefault(n, set()).update((clip[0], clip[1]))  # post-relayer target endpoints
+            else:
+                d = outband_pts.setdefault(n, {})
+                d[(t.GetStart().x, t.GetStart().y)] = t.GetLayer()
+                d[(t.GetEnd().x, t.GetEnd().y)] = t.GetLayer()
         # A net CROSSES the band only if it has in-band copper AND its routed copper reaches BOTH x-sides
         # of the band (so it severs the pour across the corridor, rather than merely dipping in). L-bend
         # routes qualify now because the test is on the net's whole x-extent, not one spanning segment.
@@ -880,37 +887,65 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
         for i, n in enumerate(sorted(crossers, key=lambda nn: min(c[1][0][0] for c in crossers[nn]))):
             target = pcbnew.F_Cu if i % 2 == 0 else pcbnew.B_Cu
             flipped_any = False
+            via_pts = set()                                  # nm points where _relayer already placed a via
             for t, clip in crossers[n]:
                 if t.GetLayer() != target:
                     added = _relayer_segment_inband(board, t, clip, target)
-                    report["vias_added"] += sum(1 for o in added if o.Type() == pcbnew.PCB_VIA_T)
+                    for o in added:
+                        if o.Type() == pcbnew.PCB_VIA_T:
+                            report["vias_added"] += 1
+                            via_pts.add((o.GetPosition().x, o.GetPosition().y))
                     flipped_any = True
             if flipped_any:
                 report["flipped"] += 1
+                # CONNECTIVITY REPAIR (re-audit finding 1): the per-segment edge-via rule misses a via where
+                # a relayered (now target-layer) segment's endpoint coincides with an out-of-band segment's
+                # endpoint on the OTHER layer (e.g. a fully-in-band segment ending exactly on the band edge,
+                # meeting an unclipped out-of-band neighbour) -> the net would be severed. Add the missing
+                # target<->other transition via at every such point not already vianed.
+                nc = board.FindNet(n).GetNetCode()
+                for pt, oly in outband_pts.get(n, {}).items():
+                    if oly != target and pt in inband_pts.get(n, set()) and pt not in via_pts:
+                        v = pcbnew.PCB_VIA(board)
+                        v.SetPosition(pcbnew.VECTOR2I(*pt)); v.SetDrill(_nm(0.3)); v.SetWidth(_nm(0.6))
+                        v.SetLayerPair(target, oly); v.SetNetCode(nc); board.Add(v)
+                        via_pts.add(pt); report["vias_added"] += 1
         report["bands"][base] = len(crossers)
     # RE-FILL after moving crossings (UnFill-first, like add_power_pours -- a double-fill in one process
-    # can segfault this SWIG build). This HEALS each layer's pour around the new geometry: the F.Cu pour
-    # reclaims the clearance hole the now-departed foreign track left, and -- once the B.Cu mirror exists
-    # -- the B.Cu pour re-carves clearance around the track moved onto it (otherwise the moved track would
-    # short the stale B.Cu fill). Without this the stagger moves copper but never updates the pours, so it
-    # is inert (the audit's "useless"). Only when something flipped, to avoid needless fill work.
-    if report["flipped"]:
-        for z in board.Zones():
-            z.UnFill()
-        pcbnew.ZONE_FILLER(board).Fill(board.Zones())
-    tmp = tempfile.mkstemp(suffix=".kicad_pcb", prefix="cec_stagger_", dir=_TMP)[1]
+    # can segfault this SWIG build). Re-fills ALL zones (the real "Fill All Zones"); for the unchanged
+    # GND/12V planes this is idempotent (they were already filled by import_ses / synthesize_power_copper),
+    # but it HEALS the force pours around the new geometry: the F.Cu pour reclaims the clearance hole the
+    # now-departed foreign track left, and the B.Cu mirror re-carves clearance around the track moved onto
+    # it (otherwise the moved track would short the stale B.Cu fill). Without this the stagger moves copper
+    # but never updates the pours, so it is inert (the audit's "useless"). Only when something flipped.
+    if not report["flipped"]:
+        # Nothing changed -> ship the EXACT original bytes (no pcbnew re-serialize churn / version-stamp).
+        del board
+        if out_path != board_path:
+            shutil.copy2(board_path, out_path)
+        return report
+    for z in board.Zones():
+        z.UnFill()
+    pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+    _fd, tmp = tempfile.mkstemp(suffix=".kicad_pcb", prefix="cec_stagger_", dir=_TMP)
+    os.close(_fd)                                          # don't leak the mkstemp fd (cec_score does this too)
     pcbnew.SaveBoard(tmp, board)
     del board
-    if verify and report["flipped"]:
-        pre, post = _route_quality(board_path), _route_quality(tmp)   # original vs staggered
-        # Revert if the staggered board is WORSE, or cannot be scored at all (post == +inf): an
-        # unverifiable transform must never ship over the original.
-        if post > pre or not math.isfinite(post):
+    if verify:
+        pre, pre_u, _ = _route_quality_detail(board_path)        # original vs staggered
+        post, post_u, _ = _route_quality_detail(tmp)
+        # Revert if the staggered board is worse on the aggregate, OR opens ANY new ratline (post_u > pre_u
+        # -- a net disconnect, which a drc/heal improvement must never be allowed to mask, re-audit finding
+        # 2), OR cannot be scored at all (+inf). An unverifiable or connectivity-regressing transform must
+        # never ship over the original.
+        if post > pre or post_u > pre_u or not math.isfinite(post):
             if out_path != board_path:
                 shutil.copy2(board_path, out_path)
             os.remove(tmp)
-            report.update(reverted=True, q_pre=pre, q_post=post, flipped=0, vias_added=0)
-            log(f"[cec_fr] stagger reverted: quality(drc+unconn+gates) {pre}->{post} (kept the un-staggered route)")
+            report.update(reverted=True, q_pre=pre, q_post=post, unconn_pre=pre_u, unconn_post=post_u,
+                          flipped=0, vias_added=0)
+            log(f"[cec_fr] stagger reverted: quality {pre}->{post} unconnected {pre_u}->{post_u} "
+                f"(kept the un-staggered route)")
             return report
     shutil.copy2(tmp, out_path)                            # accept the staggered board
     os.remove(tmp)
@@ -930,21 +965,29 @@ def _sense_input_nets(board):
     return out
 
 
-def _route_quality(board_path):
-    """Route-quality scalar for the stagger safe-revert decision -- LOWER is better. Combines the
-    structural DRC count with the unrouted-ratline count AND a heavy penalty when a HARD GATE
-    (Kelvin / diff-pair) is not met, so a stagger that strands a sense tap or opens a ratline -- which
-    a bare structural-DRC count silently misses -- is caught and the transform reverted (panel G5).
-    A measurement FAILURE returns +inf (the worst possible value) so a transform whose result cannot
-    be scored is NEVER accepted over the original board (the old `except: return 0` masked errors as a
-    perfect score)."""
+def _route_quality_detail(board_path):
+    """(scalar, unconnected, gates_ok) for the stagger safe-revert. The scalar combines structural DRC +
+    unrouted ratlines + a hard-gate (Kelvin/diff-pair) penalty (LOWER is better). The ``unconnected``
+    count is returned SEPARATELY because the scalar alone is not safe: the post-flip re-fill can LOWER drc
+    while a flip RAISES unconnected (a net disconnect), and the two would net out -- so the caller must
+    veto on any unconnected increase independently of the scalar (re-audit 2026-06-14, finding 2). A
+    measurement FAILURE returns (+inf, +inf, False) -- the worst on every axis, so an unscoreable result
+    is never accepted over the original board (the old `except: return 0` masked errors as a perfect
+    score)."""
     try:
         import cec_score
         m = cec_score.score(board_path)
-        gate_penalty = 0 if (m.kelvin_ok and m.diffpair_ok) else 10_000
-        return float(m.drc + m.unconnected + gate_penalty)
+        gates_ok = bool(m.kelvin_ok and m.diffpair_ok)
+        return float(m.drc + m.unconnected + (0 if gates_ok else 10_000)), int(m.unconnected), gates_ok
     except Exception:
-        return float("inf")
+        return float("inf"), float("inf"), False
+
+
+def _route_quality(board_path):
+    """Scalar form of :func:`_route_quality_detail` (see there). LOWER is better; +inf on a measurement
+    failure. Used where only the aggregate matters (e.g. the purely-additive mirror-pour adoption guard,
+    where unconnected can only fall)."""
+    return _route_quality_detail(board_path)[0]
 
 
 # ---------------------------------------------------------------------------
