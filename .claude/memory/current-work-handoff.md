@@ -1,8 +1,23 @@
 # Current work handoff
 
-_Updated 2026-06-13 ~20:05 CDT (seat-bakeoff harness built+tested; full sweep launching)._
+_Updated 2026-06-13 ~20:15 CDT (seat-bakeoff harness built+tested; FULL SWEEP LAUNCHED detached)._
 
-## SEAT BAKE-OFF (TODO item 3) — HARNESS BUILT + TESTED, FULL SWEEP NEXT 2026-06-13 ~20:05 CDT
+## SWEEP LAUNCHED 2026-06-13 ~19:50 CDT (overnight). Detached chain produce->judge->report:
+`cd /home/nathan/cec-bakeoff && setsid nohup bash -c 'export CEC_BAKEOFF_TIMEOUT=900 CEC_BAKEOFF_CLOUD_WORKERS=4;
+python3 scripts/cec_seat_bakeoff.py produce; python3 scripts/cec_seat_bakeoff.py judge; python3
+scripts/cec_seat_bakeoff.py report' > build/seat-bakeoff/run.log 2>&1 &` (PID was 584217). Python
+block-buffers run.log -> MONITOR via the per-call **build/seat-bakeoff/transcript.jsonl** (flushes per
+call) + **produced/** / **judged/** JSON counts, NOT run.log. First call verified clean (sonnet t1 13.2s).
+Reachability at launch: deepseek-v4-flash UP (9s); cec-worker / cec-manager-fast cold (>130s, boot on first
+batch call w/ the 900s ceiling); cec-worker-vision proven (192s cold). ETA ~produce 45-60min, judge MANY
+hours (heavy local judges dominate) -> overnight. **WHEN DONE**: read build/seat-bakeoff/report.md (variant
+x model matrix + best-per-model + generalize-vs-overfit) -> pick the data-chosen `--seats cloud` defaults
+(NOT assumption) and wire them; commit on claude/seat-bakeoff. **RELAUNCH** if it died: same line, or run the
+3 subcommands individually (produce is idempotent -- overwrites per-combo files; judge re-reads produced/).
+Per-call ceiling 900s; harness is RESILIENT (a down model -> error record, run continues; judge median over
+available votes). STILL OPEN: DeepSeek --stream FOLLOWUP (FOLLOWUPS.md Observability).
+
+## SEAT BAKE-OFF (TODO item 3) — HARNESS BUILT + TESTED, SWEEP LAUNCHED 2026-06-13 ~20:05 CDT
 Owner chose "BUILD + RUN the full sweep." Branch **claude/seat-bakeoff** (off main, its OWN PR; the
 cloud-seat shim in cec_judge_local is independent of the prompt-audit PRs). Worktree at
 **/home/nathan/cec-bakeoff** (NOT /tmp -- WSL-ephemeral; push frequently). Commits (bot): 3447cc0 harness
