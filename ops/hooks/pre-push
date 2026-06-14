@@ -12,7 +12,6 @@
 #   install -m755 ops/hooks/pre-push .git/hooks/pre-push ).
 set -uo pipefail
 url="${2:-}"
-root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 # 1) The session-end handoff pushes via an explicit bot-PAT URL (x-access-token:<PAT>@github.com) --
 #    that is already the bot, allow it.
@@ -22,8 +21,11 @@ case "$url" in *x-access-token:*@github.com*) exit 0 ;; esac
 case "$url" in *github.com*) : ;; *) exit 0 ;; esac
 
 # 3) Resolve who git WOULD authenticate as (runs the full configured helper chain: the local ""-reset
-#    + the bot helper if wired). Must be the bot.
-who="$(printf 'protocol=https\nhost=github.com\n\n' | git credential fill 2>/dev/null | sed -n 's/^username=//p')"
+#    + the bot helper if wired). Must be the bot. GIT_TERMINAL_PROMPT=0 (H2, new-impl audit): with no
+#    helper answering AND a controlling terminal attached, `git credential fill` would otherwise PROMPT
+#    `Username for ...` and BLOCK indefinitely -- defeating the hook's fail-closed purpose in the exact
+#    broken-credentials case it exists to catch. Disabled, it errors fast -> who='' -> the abort below.
+who="$(printf 'protocol=https\nhost=github.com\n\n' | GIT_TERMINAL_PROMPT=0 git credential fill 2>/dev/null | sed -n 's/^username=//p')"
 if [ "$who" != "nathanfraske-bot" ]; then
   echo "pre-push ABORT: a github.com push would authenticate as '${who:-<owner / gh login>}', NOT nathanfraske-bot." >&2
   echo "  The agent must push as the bot (owner directive; CODEOWNERS integrity)." >&2
