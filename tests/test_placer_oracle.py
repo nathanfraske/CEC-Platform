@@ -59,6 +59,16 @@ class TestRoleNetAware(unittest.TestCase):
         # back-compat: a bare J* with no netlist still classifies (the old behaviour), never crashes
         self.assertEqual(sp._role("J_PWR", "", "cec:JST_XH_S2B"), "host")
 
+    def test_sense_ref_tap_makes_connector_host(self):
+        # a connector whose only non-power net is a SENSE/REF tap (a voltage token but NOT a rail)
+        # must be host, not power_in (M2): /KVM_3V3_REF carries a 3V3 token but is data, not a rail
+        nl = _nl({"J_AUXP": ("", "cec:JST_XH_S2B")},
+                 {"+5VSB": [("J_AUXP", "1")], "GND": [("J_AUXP", "2")],
+                  "/KVM_3V3_REF": [("J_AUXP", "3")]})
+        self.assertFalse(sp._is_rail_net("/KVM_3V3_REF"))
+        self.assertFalse(sp._is_rail_net("/MAIN_5V_SENSE"))
+        self.assertEqual(sp._role("J_AUXP", "", "cec:JST_XH_S2B", nl=nl), "host")
+
     def test_in_out_name_heuristic_still_wins(self):
         # an explicit IN/OUT ref name short-circuits before the net test (eps J_IN1/J_OUT1)
         self.assertEqual(sp._role("J_IN1", "", "cec:Molex", nl=self.nl), "power_in")
@@ -136,6 +146,13 @@ class TestSortKey(unittest.TestCase):
         sandwich = self._cand(0, 3, 1.0, 0.0)
         self.assertIs(sorted([sandwich, clean], key=sp._candidate_sort_key)[0], clean)
 
+    def test_similarity_not_even_a_tiebreaker(self):
+        # equal (residual, cc, proxy_score) but different similarity -> the key must be IDENTICAL,
+        # so similarity cannot act even as a hidden tie-breaker (catches an appended `-similarity`)
+        a = self._cand(0, 0, 4.0, 0.95)
+        b = self._cand(0, 0, 4.0, 0.05)
+        self.assertEqual(sp._candidate_sort_key(a), sp._candidate_sort_key(b))
+
 
 # ===================================================================== MV5: hub model + score
 class TestHubModelGate(unittest.TestCase):
@@ -190,6 +207,27 @@ class TestHubModelGate(unittest.TestCase):
         self.assertNotIn("U1", m.power_refs)          # sense net excluded
         self.assertNotIn("J_5V", m.power_refs)        # edge connector excluded
 
+    def test_power_loop_is_topological_not_named(self):
+        # CHARTER rule 1: the input loop is derived by FANOUT (point-to-point rail vs distributed
+        # plane), with NO reference net-name baked in. A small-fanout rail's parts are in; the
+        # distributed +5VSB plane (large fanout) is out -- even though both are voltage rails.
+        nets = {"/VIN_MUX": [("U5", "1"), ("C1", "1"), ("J_5V", "1")],          # input rail, fan 3
+                "+5VSB": [("U5", "2"), ("C2", "1"), ("R1", "1"), ("R2", "1"),    # output plane, fan 8
+                          ("R3", "1"), ("DL1", "1"), ("DL2", "1"), ("J2", "1")]}
+        nl = _nl({r: ("", "cec:x") for r in
+                  ("U5", "C1", "C2", "R1", "R2", "R3", "DL1", "DL2", "J_5V", "J2",
+                   "J3", "U1")}, nets)
+        P = {r: (i, 0, 0) for i, r in enumerate(nl.comps)}
+        m = sp.build_hub_model(nl, P, {r: c.footprint for r, c in nl.comps.items()})
+        self.assertIn("U5", m.power_refs)
+        self.assertIn("C1", m.power_refs)             # on the small-fanout input rail
+        self.assertNotIn("C2", m.power_refs)          # only on the distributed +5VSB plane -> out
+        self.assertNotIn("J_5V", m.power_refs)        # connector excluded
+        # the per-board OVERRIDE escape hatch selects by name substring
+        m2 = sp.build_hub_model(nl, P, {r: c.footprint for r, c in nl.comps.items()},
+                                power_input_nets=["+5VSB"])
+        self.assertIn("C2", m2.power_refs)
+
 
 # ===================================================================== MV3: similarity (synthetic)
 def _ref_placement():
@@ -223,13 +261,38 @@ class TestSimilarity(unittest.TestCase):
         self.assertEqual(det["edge"], 1.0)
         self.assertEqual(det["dist"], 1.0)
 
-    def test_scramble_scores_lower(self):
-        scr = copy.deepcopy({r: list(p) for r, p in self.ref.pos.items()})
+    def test_scramble_scores_lower_with_per_term_teeth(self):
+        scr = {r: list(p) for r, p in self.ref.pos.items()}
         scr["J1"] = [20.0, 20.0, 0.0]                 # port off its edge, into the interior
         cand = self._cand_from({r: tuple(p) for r, p in scr.items()})
         cand.proxy["hpwl"] = sp.hpwl(self.ref.pads_by_net) * 1.8
-        score, _ = sp.oracle_similarity(cand, self.ref, self.nl)
+        score, det = sp.oracle_similarity(cand, self.ref, self.nl)
         self.assertLess(score, 1.0)
+        self.assertLess(det["edge"], 1.0)             # J1 left its edge -> edge term degrades
+        self.assertLess(det["dist"], 1.0)             # ...and moved far -> dist term degrades
+
+    def test_cluster_only_scramble(self):
+        # spread the cluster (C1 far from U1) while every connector stays put -> ONLY cluster drops
+        scr = {r: tuple(p[:3]) for r, p in self.ref.pos.items()}
+        scr = dict(scr); scr["C1"] = (38.0, 38.0, 0.0)
+        cand = self._cand_from(scr)
+        _, det = sp.oracle_similarity(cand, self.ref, self.nl)
+        self.assertEqual(det["edge"], 1.0)            # connectors untouched
+        self.assertLess(det["cluster"], 1.0)          # the U1+C1 cluster is now loose
+
+    def test_sparse_board_identity_is_one(self):
+        # H1: a board with NO connectors must still score identity == 1.0 (renormalize over present
+        # terms) -- not diluted toward 0 by the absent edge/dist terms
+        nl = _nl({"U1": ("", "cec:ESP32"), "C1": ("", "cec:C_0402")},
+                 {"/SIG": [("U1", "1"), ("C1", "1")]})
+        ref = sp.Placement(pos={"U1": (5, 5, 0, 1, 1), "C1": (6, 5, 0, 1, 1)},
+                           pads_by_net={"/SIG": [(5, 5), (6, 5)]}, value={"U1": "", "C1": ""},
+                           W=20.0, H=20.0, x0=0.0, y0=0.0)
+        cand = sp.Candidate(strat="x", seed=0, P={"U1": (5, 5, 0), "C1": (6, 5, 0)}, W=20, H=20,
+                            residual=0, proxy={"hpwl": sp.hpwl(ref.pads_by_net)})
+        score, det = sp.oracle_similarity(cand, ref, nl)
+        self.assertEqual(score, 1.0)
+        self.assertEqual(det["edge"], -1.0)           # absent term reported as -1, not folded as 0
 
     def test_hpwl_term_reads_the_gap(self):
         cand = self._cand_from(self.ref.pos)
@@ -320,6 +383,75 @@ class TestOracleOnHub(unittest.TestCase):
         self.assertNotIn("edge_override", cfg.params)
         self.assertEqual(best.proxy["proxy_score"], best.proxy["hpwl"])
         self.assertEqual(best.similarity, -1.0)
+
+    def test_mounts_roundtrip_near_reference_corners(self):
+        # MV2 plan validation: the derived mount positions round-trip through place_mechanical to
+        # the reference's own corners within ~2mm.
+        ref_pl = sp.read_placement(HUB_PCB)
+        mp = self.ans["mount_pos_override"]
+        w, h = self.ans["size_target_wh"]
+        pos, _fp = sp.place_mechanical(w, h, {"mount_pos_override": mp})
+        ref_corners = sorted((round(p[0] - ref_pl.x0, 2), round(p[1] - ref_pl.y0, 2))
+                             for r, p in ref_pl.pos.items() if sp._is_mount_ref(r))
+        got = sorted((pos[r][0], pos[r][1]) for r in pos if r.startswith("H"))
+        self.assertEqual(len(got), 4)
+        for (gx, gy), (rx, ry) in zip(got, ref_corners):
+            self.assertLess(abs(gx - rx), 2.0)
+            self.assertLess(abs(gy - ry), 2.0)
+
+    def test_rj45_pitch_is_uniform(self):
+        # MV2: the four ganged RJ-45 ports seed at a uniform pitch (~the reference's 18.5mm)
+        nl = sp.View(self.cfg).nl
+        fp_of = sp._fp_of(nl)
+        w, h = self.ans["size_target_wh"]
+        A = sp.seed_anchors(nl, w, h, fp_of, {}, overhang="none",
+                            edge_override=self.ans["edge_override"])
+        xs = sorted(A[r][0] for r in ("J2", "J3", "J4", "J5"))
+        gaps = [b - a for a, b in zip(xs, xs[1:])]
+        for g in gaps:
+            self.assertAlmostEqual(g, gaps[0], delta=0.5)   # uniform pitch
+        self.assertAlmostEqual(gaps[0], 18.5, delta=4.0)    # near the reference pitch
+
+    def test_invalid_edge_override_does_not_drop_connector(self):
+        # M3: a bad human/spec edge value ("TOP", a typo) must fall back to the role default, never
+        # silently drop the connector from the placement.
+        nl = sp.View(self.cfg).nl
+        fp_of = sp._fp_of(nl)
+        w, h = self.ans["size_target_wh"]
+        bad = dict(self.ans["edge_override"]); bad["J2"] = "TOP"; bad["J3"] = "north"
+        A = sp.seed_anchors(nl, w, h, fp_of, {}, overhang="none", edge_override=bad)
+        self.assertIn("J2", A)                         # not dropped
+        self.assertIn("J3", A)
+        # J2/J3 fall back to their role default edge (host -> right), still placed on-board
+        self.assertTrue(0 <= A["J2"][0] <= w and 0 <= A["J2"][1] <= h)
+
+    def test_mv4_reference_ranks_at_or_near_lowest_proxy(self):
+        # MV4 plan validation: the reference must land at/near the lowest proxy_score in a sweep --
+        # if a worse-spread synth candidate outranks it, the weights are wrong.
+        ref_pl = sp.read_placement(HUB_PCB)
+        ref_proxy = sp.placement_proxy(ref_pl)
+        cfg = sp.Config.load(HUB_DIR)
+        cfg.params["oracle_reference_path"] = HUB_PCB
+        w, h = self.ans["size_target_wh"]
+        cands = sp.place_candidates(cfg, w, h, strategies=sp.STRATEGIES, seeds=(0,))
+        ref_score = sp.proxy_score(ref_proxy, ref_proxy=ref_proxy)
+        synth_scores = [c.proxy["proxy_score"] for c in cands]
+        self.assertLessEqual(ref_score, min(synth_scores) + 1e-6,
+                             "reference proxy_score %.3f should be <= every synth %r"
+                             % (ref_score, synth_scores))
+
+    def test_mv3_reference_outscores_every_synth_candidate(self):
+        # MV3 plan validation: the human board is the optimized answer -> it must out-similarity
+        # every synth candidate on its own netlist (and the synth ones must be < 1.0).
+        ref_pl = sp.read_placement(HUB_PCB)
+        nl = sp.View(self.cfg).nl
+        cfg = sp.Config.load(HUB_DIR)
+        cfg.params["oracle_reference_path"] = HUB_PCB
+        w, h = self.ans["size_target_wh"]
+        cands = sp.place_candidates(cfg, w, h, strategies=sp.STRATEGIES, seeds=(0,))
+        for c in cands:
+            self.assertLess(c.similarity, 1.0, "a synth candidate scored == the reference")
+            self.assertGreaterEqual(c.similarity, 0.0)
 
 
 if __name__ == "__main__":

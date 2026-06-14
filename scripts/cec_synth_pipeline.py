@@ -1402,7 +1402,9 @@ def apply_oracle_stage1(cfg):
         return cfg
     try:
         derived = oracle_stage1_answers(cfg, refp)
-    except Exception:
+    except Exception as e:                             # a broken reference must be VISIBLE, not silent
+        _tc.warn_once("oracle_stage1", "oracle Stage-1 derivation failed (%r); placing without the "
+                      "reference frame -- the result may be structurally wrong: %s" % (refp, e))
         return cfg
     for k, v in derived.items():
         cfg.params.setdefault(k, v)
@@ -1419,7 +1421,9 @@ def _oracle_reference(cfg):
     try:
         pl = _read_reference_cached(refp)
         return pl, placement_proxy(pl)
-    except Exception:
+    except Exception as e:
+        _tc.warn_once("oracle_reference", "could not read the oracle reference %r (%s); MV3/MV4 "
+                      "diagnostics + normalization disabled this run" % (refp, e))
         return None, None
 
 
@@ -1429,7 +1433,10 @@ def oracle_similarity(cand, ref_pl, nl, *, weights=None):
     pure structural terms, each board aligned to its own origin: (a) fraction of connectors on the
     same edge; (b) per-anchor distance bucket (<5mm / <15mm); (c) IC-cluster bbox-diagonal ratio
     (cluster tightness); (d) HPWL closeness. The candidate is assumed in a 0-origin frame; the
-    reference is translated by (-x0, -y0). Returns (score, details)."""
+    reference is translated by (-x0, -y0). A term whose inputs are absent (no connectors / no
+    clusters / no reference HPWL) is DROPPED and the score renormalized over the present terms, so
+    identity == 1.0 on ANY board and the number stays comparable across boards (a structurally-absent
+    term must not dilute it toward 0). Returns (score, details)."""
     w = weights or {"edge": 0.35, "dist": 0.25, "cluster": 0.15, "hpwl": 0.25}
     P = cand.P
     rx0, ry0 = ref_pl.x0, ref_pl.y0
@@ -1438,16 +1445,15 @@ def oracle_similarity(cand, ref_pl, nl, *, weights=None):
     conns = [r for r in fp_of
              if _role(r, nl.comps[r].value, nl.comps[r].footprint, nl=nl)
              in ("host", "usb", "power_in", "power_out") and r in P and r in refpos]
-    # (a) edge match
-    em = sum(_edge_of(P[r][0], P[r][1], 0.0, 0.0, cand.W, cand.H)
-             == _edge_of(refpos[r][0], refpos[r][1], 0.0, 0.0, ref_pl.W, ref_pl.H) for r in conns)
-    edge_score = (em / len(conns)) if conns else 0.0
-    # (b) anchor distance bucket
-    ds = []
-    for r in conns:
-        d = math.hypot(P[r][0] - refpos[r][0], P[r][1] - refpos[r][1])
-        ds.append(1.0 if d < 5 else (0.5 if d < 15 else 0.0))
-    dist_score = (sum(ds) / len(ds)) if ds else 0.0
+    present = {}                                       # term -> value, only when the inputs exist
+    # (a) edge match + (b) anchor distance bucket -- both require connectors
+    if conns:
+        em = sum(_edge_of(P[r][0], P[r][1], 0.0, 0.0, cand.W, cand.H)
+                 == _edge_of(refpos[r][0], refpos[r][1], 0.0, 0.0, ref_pl.W, ref_pl.H) for r in conns)
+        present["edge"] = em / len(conns)
+        ds = [1.0 if (d := math.hypot(P[r][0] - refpos[r][0], P[r][1] - refpos[r][1])) < 5
+              else (0.5 if d < 15 else 0.0) for r in conns]
+        present["dist"] = sum(ds) / len(ds)
     # (c) IC-cluster tightness ratio
     _a, ics, _s, passives = _classify(nl)
     spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
@@ -1467,16 +1473,17 @@ def oracle_similarity(cand, ref_pl, nl, *, weights=None):
             ratios.append(0.0)
         else:
             ratios.append(min(cd, rd) / max(cd, rd))
-    cluster_score = (sum(ratios) / len(ratios)) if ratios else 0.0
+    if ratios:
+        present["cluster"] = sum(ratios) / len(ratios)
     # (d) HPWL closeness
     rhpwl = hpwl(ref_pl.pads_by_net)
     chpwl = float(cand.proxy.get("hpwl", 0.0))
-    hpwl_score = max(0.0, 1.0 - abs(chpwl - rhpwl) / rhpwl) if rhpwl else 0.0
-    score = (w["edge"] * edge_score + w["dist"] * dist_score
-             + w["cluster"] * cluster_score + w["hpwl"] * hpwl_score)
-    details = {"edge": round(edge_score, 3), "dist": round(dist_score, 3),
-               "cluster": round(cluster_score, 3), "hpwl": round(hpwl_score, 3),
-               "n_conn": len(conns), "ref_hpwl": round(rhpwl, 1), "cand_hpwl": round(chpwl, 1)}
+    if rhpwl:
+        present["hpwl"] = max(0.0, 1.0 - abs(chpwl - rhpwl) / rhpwl)
+    wsum = sum(w[k] for k in present) or 1.0          # renormalize over PRESENT terms
+    score = sum(w[k] * v for k, v in present.items()) / wsum
+    details = {k: round(present.get(k, -1.0), 3) for k in ("edge", "dist", "cluster", "hpwl")}
+    details.update({"n_conn": len(conns), "ref_hpwl": round(rhpwl, 1), "cand_hpwl": round(chpwl, 1)})
     return round(score, 3), details
 
 
@@ -1521,18 +1528,25 @@ def _role(ref, value, fp, nl=None):
 # end-anchored _is_power_net misses (the Hub names its inputs /MAIN_5V_RAW, /5VSB_RAW, /5V_HOLD).
 # Used ONLY for connector role classification -- _is_power_net (decoupling ownership) is untouched.
 _RAIL_TOKEN = re.compile(r"(^|/|_)(GND|P?GND|AGND|VBUS|VCC|VDD|VIN|VSB|\+?\d+V\d*)", re.I)
+# A net that carries a voltage token but is NOT a current-carrying rail: an ADC sense tap, a
+# detect/reference line, or a status flag. These are DATA for connector classification and are NOT
+# part of the power-input loop for the MV5 cohesion term.
+_PWR_NOT_INPUT = re.compile(r"(SENSE|DET|REF|FLAG)", re.I)
 
 
 def _is_rail_net(n):
     base = n.rsplit("/", 1)[-1]
+    if _PWR_NOT_INPUT.search(n) or _PWR_NOT_INPUT.search(base):
+        return False                                  # a sense/detect/reference/flag tap is not a rail
     return bool(_RAIL_TOKEN.search(n)) or bool(_RAIL_TOKEN.search(base))
 
 
 def _connector_net_role(ref, nl):
     """Classify a connector by the FUNCTION of the nets on its pads (the principle behind edge
     grouping): a pure power-delivery connector (every pad on a power rail or GND, no data/CAN/diff
-    net) is a 'power_in'; a connector carrying any non-rail net is a host/data port. Returns a role
-    or None when it cannot tell (no nets resolved -> caller falls back to 'host')."""
+    net) is a 'power_in'; a connector carrying any non-rail net -- including an ADC sense/reference
+    tap like /KVM_3V3_REF, which is DATA not a rail -- is a host/data port. Returns a role or None
+    when it cannot tell (no nets resolved -> caller falls back to 'host')."""
     nets = [n for n, nodes in nl.nets.items() if any(r == ref for r, _ in nodes)]
     if not nets:
         return None
@@ -1738,6 +1752,7 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
     condensed boards use, and what lets two tall cable connectors fit a short board. 'none' seats the
     whole courtyard on-board. Honors user pins last. Returns {ref:(x,y,rot)}."""
     edge_override = edge_override or {}
+    _VALID_EDGES = ("top", "bottom", "left", "right")
     roles = defaultdict(list)            # ref -> edge (role-default, then per-board override)
     by_edge = defaultdict(list)
     for ref in fp_of:
@@ -1746,7 +1761,16 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
         if not r or r == "mount":
             continue
         roles[r].append(ref)
-        edge = edge_override.get(ref) or _ROLE_EDGE.get(r)
+        ov = edge_override.get(ref)
+        if ov is not None:                            # validate the per-board/human input (M3)
+            ov = str(ov).strip().lower()
+            if ov not in _VALID_EDGES:
+                _tc.warn_once("seed_anchors_edge_" + ref,
+                              "seed_anchors: ignoring invalid edge_override[%r]=%r "
+                              "(expected one of %s); using the role default"
+                              % (ref, edge_override.get(ref), _VALID_EDGES))
+                ov = None
+        edge = ov or _ROLE_EDGE.get(r)
         if edge:
             by_edge[edge].append(ref)
     A = {}
@@ -2417,11 +2441,15 @@ def corridor_violations(board_path):
 # (4) a diff-pair endpoint sits near its driver (length match). Terms are 0..1 (higher = better);
 # hub_penalty = mean(1 - term) folds into the MV4 proxy_score at a small weight. GATED to fire only
 # on a board with >=2 ganged RJ-45 ports + an ESP, so cable/sensing modules are untouched.
-# The muxed high-current 5V input loop (TPS2121 PowerPath inputs + the 4700uF hold-up + the LDO feed):
-# the loop whose AREA drives IR drop + transient response, so it wants to be cohesive. NOT the USB
-# VBUS branch (a separate low-current ESD/cap cluster that sits by the edge USB connector by design).
-_PWR_INPUT_NET = re.compile(r"(5VSB_RAW|5V_HOLD|MAIN_5V|PSU_5V)", re.I)
-_PWR_NOT_INPUT = re.compile(r"(SENSE|DET|REF|FLAG)", re.I)
+# The front-end power-input loop is identified TOPOLOGICALLY (not by the reference board's net
+# spelling, charter rule 1): it is the set of SMALL-FANOUT rail nets -- the point-to-point INPUT
+# rails that connect a power-in connector through the mux/hold-up/LDO -- as distinct from the
+# DISTRIBUTED rails (the output plane, the logic rail, GND), which fan out to the whole board. On any
+# board the input rails connect O(few) parts while a distribution rail connects O(tens); a fanout cap
+# cleanly separates them (Hub: input rails fan 4-5 vs +5VSB 22 / +3V3 16 / GND 78). A per-board
+# cfg.params['power_input_nets'] override (substrings) is the escape hatch when a board's topology
+# is unusual. USB VBUS falls out naturally (its connector branch lifts its fanout above the cap).
+_PWR_LOOP_MAX_FANOUT = 6
 
 
 @dataclass
@@ -2429,26 +2457,37 @@ class HubModel:
     ports: list            # ganged RJ-45 connector refs (identical footprint)
     esp: str               # the PCB-antenna IC ref ('' if none)
     antenna_edge: str      # the edge the antenna should face ('' = use nearest)
-    power_refs: list       # power front-end refs (on an input power rail)
+    power_refs: list       # power front-end refs (on a small-fanout input rail)
     usb: str               # the USB connector ref ('' if none)
     active: bool           # whether the hub terms should fire
 
 
-def build_hub_model(nl, P, comps, *, antenna_edge=""):
+def _power_input_nets(nl, override=None):
+    """The front-end input-loop nets: a per-board override (list of name substrings) if given, else
+    the GENERIC topological derivation -- rail nets (voltage token, not a sense/detect/ref/flag tap)
+    whose fanout is small enough to be a point-to-point input rail rather than a distributed plane."""
+    if override:
+        toks = [t.lower() for t in override]
+        return [n for n in nl.nets if any(t in n.lower() for t in toks)]
+    return [n for n, nodes in nl.nets.items()
+            if _is_rail_net(n) and len(nodes) <= _PWR_LOOP_MAX_FANOUT]
+
+
+def build_hub_model(nl, P, comps, *, antenna_edge="", power_input_nets=None):
     """Identify the Hub-domain anchors from the netlist + placement (pure geometry/strings, no
     pcbnew). *comps* is ref->libid (footprint). active iff >=2 ganged RJ-45 ports + an ESP -- the
-    gate that keeps cable modules (1 port) and sensing modules inert."""
+    gate that keeps cable modules (1 port) and sensing modules inert. *power_input_nets* is the
+    optional per-board override for the front-end loop (see _power_input_nets)."""
     def fp(r):
         return (comps.get(r) or (nl.comps.get(r).footprint if r in nl.comps else "") or "").lower()
     ports = sorted(r for r in P if "rj45" in fp(r) or "8p8c" in fp(r))
     esp = next((r for r in sorted(P) if "esp32" in fp(r) or "rf_module" in fp(r)), "")
     usb = next((r for r in sorted(P) if r.startswith("J") and "usb" in fp(r)), "")
-    # the front-end ACTIVE cluster (mux + hold-up cap + LDO): refs on the muxed INPUT rails, minus
-    # sense/flag taps and the edge-anchored connectors (whose position is set by role, not cohesion) --
-    # the cohesion WHY is the input-loop area / IR drop between the mux, the bulk cap, and the LDO.
-    prefs = sorted({r for n, nodes in nl.nets.items()
-                    if _PWR_INPUT_NET.search(n) and not _PWR_NOT_INPUT.search(n)
-                    for r, _p in nodes if r in P and not r.startswith("J")})
+    # the front-end ACTIVE cluster (mux + hold-up cap + LDO), minus the edge-anchored connectors
+    # (whose position is set by role, not cohesion): the cohesion WHY is input-loop area / IR drop.
+    loop_nets = set(_power_input_nets(nl, power_input_nets))
+    prefs = sorted({r for n in loop_nets for r, _p in nl.nets.get(n, ())
+                    if r in P and not r.startswith("J")})
     return HubModel(ports=ports, esp=esp, antenna_edge=antenna_edge, power_refs=prefs, usb=usb,
                     active=(len(ports) >= 2 and bool(esp)))
 
@@ -2472,12 +2511,19 @@ def hub_score(model, P, W, H):
         gaps = [b - a for a, b in zip(coords, coords[1:])]
         mean_g = sum(gaps) / len(gaps)
         stdev = math.sqrt(sum((g - mean_g) ** 2 for g in gaps) / len(gaps)) if gaps else 0.0
-        terms["port_even"] = round((1.0 / (1.0 + stdev)) * on_edge, 3)
+        # coefficient of variation (stdev/mean) -- a SCALE-FREE uniformity measure, so the term has
+        # no hidden mm-scale knee and reads the same on any board pitch. (With 2 ports there is one
+        # gap -> cv 0 -> 1.0 regardless of spacing; the term is meaningful for >=3 ganged ports.)
+        cv = (stdev / mean_g) if mean_g > 1e-6 else 0.0
+        terms["port_even"] = round((1.0 / (1.0 + cv)) * on_edge, 3)
     if model.esp in P:
         ex, ey = P[model.esp][0], P[model.esp][1]
         want = model.antenna_edge or _edge_of(ex, ey, 0.0, 0.0, W, H)
         d = {"left": ex, "right": W - ex, "top": ey, "bottom": H - ey}.get(
             want, min(ex, W - ex, ey, H - ey))
+        # the reward decays to 0 over a quarter of the SHORT board dimension -- i.e. the antenna IC
+        # should sit in the edge-quarter so its lobe clears the board interior (board-relative scale,
+        # no copied reference value; parts UNDER the lobe are handled by the courtyard keepout).
         terms["antenna"] = round(max(0.0, 1.0 - d / (0.25 * min(W, H) or 1.0)), 3)
     pr = [P[r] for r in model.power_refs if r in P]
     if len(pr) >= 2:
@@ -2634,8 +2680,8 @@ def synth_one(cfg_dict, W, H, strat, seed):
     proxy = placement_proxy(obj)
     proxy["corridor_cross"] = cc
     # MV5: Hub-domain structural quality (inert/0 on non-Hub boards via build_hub_model's gate).
-    hs = hub_score(build_hub_model(nl, P, comps, antenna_edge=cfg.params.get("antenna_edge", "")),
-                   P, W, H)
+    hs = hub_score(build_hub_model(nl, P, comps, antenna_edge=cfg.params.get("antenna_edge", ""),
+                                   power_input_nets=cfg.params.get("power_input_nets")), P, W, H)
     proxy["hub_penalty"] = hs["hub_penalty"]
     proxy["hub_terms"] = {k: v for k, v in hs.items() if k not in ("active", "hub_penalty")}
     return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy, corridor_cross=cc)
@@ -2681,8 +2727,9 @@ def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_worker
             nl = View(cfg).nl
             for c in cands:
                 c.similarity, c.similarity_detail = oracle_similarity(c, ref_pl, nl)
-        except Exception:
-            pass
+        except Exception as e:
+            _tc.warn_once("oracle_similarity", "similarity diagnostic failed (%s); candidates "
+                          "ranked normally, similarity left unset" % e)
     # Phase 1: corridor_cross is the PRIMARY rank key after legality -- a corridor-clean candidate
     # ALWAYS beats a sandwich, regardless of proxy_score (which used to tie them at residual==0).
     # NOTE similarity (MV3) is DELIBERATELY ABSENT from the key (charter: a diagnostic, never a rank).

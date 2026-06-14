@@ -51,6 +51,41 @@ unless noted; tests in `tests/test_placer_oracle.py` (+ `tests/test_corridor_mod
 - The L-tier items (L1 route leg, L2 Tier-B routed-length calibration, L3/L4 compaction/coupling,
   L7 validation gate) are post-MV.
 
+## CONSULTATIVE AUDIT (4 parallel skeptics, 2026-06-14) + REMEDIATION
+
+Dimensions: geometry/math · anti-overfit charter · regression/integration · test rigor. All four
+verdicts: **SHIP-WITH-FIXES, 0 BLOCKER, 0 HIGH-on-the-committed-path**. Findings verified + fixed:
+
+- **H1 (geometry)** `oracle_similarity` identity wasn't 1.0 on boards missing a term's inputs (the
+  weights summed to 1.0 but an absent term scored 0). FIXED: renormalize over PRESENT terms; identity
+  is 1.0 on any board, absent terms reported as -1.0. (+test_sparse_board_identity_is_one.)
+- **M2 (geometry)** `_is_rail_net` matched sense/ref nets with a voltage token (`/KVM_3V3_REF`,
+  `/MAIN_5V_SENSE`) → a connector could mis-key power_in. FIXED: `_PWR_NOT_INPUT` now excludes
+  sense/detect/ref/flag from rails (shared with the power-loop test). (+test_sense_ref_tap_makes_connector_host.)
+- **M3 (geometry)** an invalid/typo `edge_override` value silently DROPPED a connector. FIXED:
+  case-fold + validate against {top,bottom,left,right}, warn-and-fall-back to the role default.
+  (+test_invalid_edge_override_does_not_drop_connector.)
+- **MEDIUM (charter)** `_PWR_INPUT_NET` baked the Hub's literal net names into a general path
+  (laundering WHERE not WHY). FIXED: `_power_input_nets` derives the front-end loop TOPOLOGICALLY
+  (small-fanout rail nets = point-to-point inputs, not the distributed plane) + a per-board
+  `cfg.params['power_input_nets']` override. Reproduces the exact front-end cluster on the Hub with no
+  Hub names. (+test_power_loop_is_topological_not_named.)
+- **MEDIUM (regression)** the oracle guards swallowed failures silently. FIXED: `_tc.warn_once` in
+  `apply_oracle_stage1` / `_oracle_reference` / the similarity except (a broken reference is now visible).
+- **2 HIGH (test rigor)** the plan's MV3/MV4 validation criteria were untested. ADDED Hub-gated tests:
+  `test_mv4_reference_ranks_at_or_near_lowest_proxy` (reference proxy_score ≤ every synth) +
+  `test_mv3_reference_outscores_every_synth_candidate`. MV2 mount round-trip + RJ-45 pitch now tested.
+- **MEDIUM/LOW (test rigor)** strengthened scramble per-term teeth (+cluster-only scramble) and the
+  sort-key teeth (`test_similarity_not_even_a_tiebreaker` — equal proxy_score, differing similarity).
+- **LOW (charter)** port_even is now a scale-free coefficient-of-variation; the antenna divisor + the
+  port_even knee carry documented board-relative WHYs.
+
+NOT changed (documented design, not defects): **M4** MV5 hub terms are inert off-oracle by design
+(the proxy_score==hpwl zero-regression invariant; generative use is the deferred closer → FOLLOWUPS);
+the **24-pin J2 host→power_in** off-oracle reclassification is the net-aware `_role` being *more*
+correct (eps + all placer-target boards byte-identical; the 24-pin is hand-maintained, not a placer
+target). Suite grew 31→41 tests.
+
 ## VERIFICATION
 
 - `tests/test_placer_oracle.py`: 31 tests (logic host-side + pcbnew-gated on the committed Hub), green
