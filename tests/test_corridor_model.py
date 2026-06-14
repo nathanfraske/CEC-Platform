@@ -91,6 +91,36 @@ class TestCorridorCrossPure(unittest.TestCase):
         self.assertEqual(model.cables, [])
         self.assertEqual(model.bands, {})
 
+    def test_shared_bus_connectors_detected(self):
+        # one connector J3 serving BOTH Kelvin pairs -> shared-bus -> excluded from the model + topology
+        nl = sp.Netlist(comps={}, nets={
+            "/SENSEC1_HI": [("J3", "1")], "/SENSEC1_LO": [("J3", "2"), ("RS1", "1")],
+            "/SENSEC2_HI": [("J3", "3")], "/SENSEC2_LO": [("J3", "4"), ("RS2", "1")]})
+        self.assertIn("J3", sp._shared_bus_connectors(nl))
+        # build_corridor_model must SKIP the shared-bus pairs (rank key inert, not spurious)
+        model = sp.build_corridor_model(nl, {}, {}, board_w=58.0)
+        self.assertEqual(model.cables, [])
+        self.assertEqual(sp._cable_topology(nl), [])
+
+    def test_corridor_veto(self):
+        # §2.2 H1: a SENSITIVE body may not enter a FOREIGN formed band; the paired INA is exempt for
+        # its OWN band; a non-sensitive part is never vetoed; an unformed band never vetoes.
+        bands = {"/SENSEC1": {"band": (10.0, 20.0, 5.0, 30.0), "formed": True},
+                 "/SENSEC2": {"band": (40.0, 50.0, 5.0, 30.0), "formed": True}}
+        sensitive = {"U10", "U11", "U1"}
+        paired = {"/SENSEC1": {"U10"}, "/SENSEC2": {"U11"}}
+        # U10 (cable-1 INA) inside cable-2's foreign band -> vetoed
+        self.assertTrue(sp._corridor_veto("U10", (45.0, 15.0), bands, sensitive, paired))
+        # U10 inside its OWN band (cable 1) -> exempt
+        self.assertFalse(sp._corridor_veto("U10", (15.0, 15.0), bands, sensitive, paired))
+        # the ESP (sensitive, paired to neither) in any band -> vetoed
+        self.assertTrue(sp._corridor_veto("U1", (15.0, 15.0), bands, sensitive, paired))
+        # a non-sensitive part (a connector) is never vetoed
+        self.assertFalse(sp._corridor_veto("J_OUT1", (15.0, 15.0), bands, sensitive, paired))
+        # an UNFORMED band never vetoes
+        unformed = {"/SENSEC1": {"band": (10.0, 20.0, 5.0, 30.0), "formed": False}}
+        self.assertFalse(sp._corridor_veto("U1", (15.0, 15.0), unformed, sensitive, {}))
+
     def test_single_pad_net_skipped(self):
         self.assertEqual(self._n({"/ONEPAD": [(22.0, 19.0)]}), 0)
 
@@ -261,15 +291,19 @@ class TestCorridorCheckers(unittest.TestCase):
 
     def test_shared_bus_boards_na(self):
         # 12VHPWR / 24-pin share J3/J4 across pairs -> the per-cable checkers must N/A, never false-FAIL
+        checked = 0
         for rel in ("12vhpwr-standard/12vhpwr-standard-module.kicad_pcb",
-                    "atx-24pin/atx24pin-module.kicad_pcb"):
+                    "atx-24pin/24pin-module.kicad_pcb"):
             p = os.path.normpath(os.path.join(HERE, "..", "modules", rel))
             if not os.path.isfile(p):
                 continue
+            checked += 1
             board = pcbnew.LoadBoard(p)
             for cid in ("shunt-inline-in-corridor", "high-current-corridor-keepout"):
                 ok = self.cc.CHECKERS[cid](board, p, {})[0]
                 self.assertIsNone(ok, "%s on %s must be N/A (shared-bus), got %r" % (cid, rel, ok))
+        # guard against a silent skip from a wrong path (the audit found atx24pin-module was a typo)
+        self.assertGreaterEqual(checked, 2, "both shared-bus boards must exist and be exercised")
 
     def test_registry_entries_marked_checkable(self):
         by_id = {c.id: c for c in self.cc.REGISTRY}
@@ -338,15 +372,27 @@ class TestPlacerCorridorEps(unittest.TestCase):
         return sp.synth_one(self.cd, 96.0, 37.0, strat, seed)
 
     def test_phase2_forms_the_corridors(self):
-        # Phase 2: the spine seed makes each per-cable corridor FORMED (tight band) and seats the
-        # shunt on the cable axis at rot270 (H3) -- so corridor_cross is now MEANINGFUL, not inert.
+        # Phase 2: the spine seed makes each per-cable corridor FORMED + TIGHT (one connector width)
+        # and seats the shunt on the cable axis at rot270 (H3). The band-width assert guards against a
+        # centroid-alignment regression (origin-aligned columns give ~28mm, the real spine ~15.6mm).
         cand = self._cand("thermal_separated", 7)
         nl = sp.View(self.cfg).nl
         model = sp.build_corridor_model(nl, cand.P, sp._fp_of(nl), board_w=cand.W)
         self.assertEqual(len(model.cables), 2)
         for cab in model.cables:
             self.assertTrue(cab.formed, "%s corridor must be FORMED after the spine seed" % cab.base)
+            self.assertLess(cab.band[1] - cab.band[0], 20.0,
+                            "%s band must be a tight column (pad-centroid aligned)" % cab.base)
             self.assertEqual(cand.P[cab.shunt][2], 270.0, "shunt %s must be seated rot270" % cab.shunt)
+
+    def test_phase2_default_placement_is_legal(self):
+        # the overhang default (power_able) frees the mid-board -> a DRC-legal (residual 0) placement
+        # exists; assert residual==0 alongside 'formed' so a geometrically illegal corridor can't pass.
+        cands = sp.place_candidates(self.cfg, 96.0, 37.0,
+                                    strategies=("thermal_separated", "dataflow", "compact"),
+                                    seeds=(0, 3), max_workers=1)
+        self.assertEqual(cands[0].residual, 0,
+                         "best candidate must be DRC-legal (residual 0) with overhang default")
 
     def test_synth_one_process_deterministic(self):
         # the sorted-iteration fix: corridor_cross is stable for a given (strat, seed)

@@ -1,23 +1,38 @@
 HYBRID — A (domain-scored annealing) as the spine + the corridor min-cut term from C + a tightly-budgeted route-oracle confirm from D, all wired into cec_loop's run_candidates lever-1 as a "reseed" candidate. Hereafter "**the corridor-aware reseed placer**".
 
-> **⚠ CORE-PREMISE FINDING (2026-06-14, after building Phase 2 — READ THIS FIRST).** This strategy's
-> central premise — that PLACEMENT can drive `corridor_cross` to ~0 — **does NOT hold for the eps
-> topology**, and the same will be true of any board where the high-current corridor runs the full
-> board height. Measured: the committed **best hand-placed** board scores **cc=6**, with 15.6mm bands;
-> Phase 2's placer now produces the IDENTICAL 15.6mm corridors and its best across all seeds is also
-> **cc=6, never lower**. The 6 foreign signals (`/DETC1`, `/THRESH`, `/I2C_SCL`×2, `/I2C_SDA`×2) MUST
-> cross the J_IN→shunt→J_OUT corridors to reach the central ESP — a top-to-bottom current path leaves
-> **no in-plane y-channel** to route around. So the pour-cutting (~300 °C) failure is fundamentally a
-> **route-time LAYER-ASSIGNMENT** problem (route the crossing signals on an inner layer, off the
-> F.Cu/B.Cu pour — which is exactly how the committed board's 6 crossings route without cutting the
-> pour), **not** a placement problem. Phase 0–2 still deliver real value (a correct corridor model +
-> checkers; the placer now forms hand-quality corridors with the shunt on-axis), and `corridor_cross`
-> is a sound **pour-integrity / body-in-band** predictor — but it is NOT a placement objective that
-> reaches 0. **Recommended pivot: a layer-assignment lever at route time** (assign each foreign net
-> that crosses a formed corridor to a non-pour layer), which the FR/pour machinery is positioned to do.
-> The remaining phases below (the anneal soft terms, route-confirm, cec_loop reseed) are still useful
-> for placement QUALITY, but they will not by themselves clear the corridor — temper expectations
-> accordingly. — owner decision point: invest in layer-assignment vs. continue placement tuning.
+> **⚠ CORE-PREMISE FINDING (2026-06-14, after Phase 2 + a 24-agent adversarial audit — READ FIRST;
+> supersedes the first draft of this box, which an audit corrected).** This strategy's central premise
+> — that PLACEMENT can drive `corridor_cross` to ~0 — **does NOT hold for the eps topology**, but the
+> honest picture is sharper than the first draft (which was measured on an ILLEGAL placement) said:
+>
+> - **cc=6 is a real, ANALYTIC floor for the HAND board.** The committed best-hand board scores
+>   **cc=6** (15.6mm bands). It is derivable, not just empirical: the shared I²C bus (`/I2C_SCL`,
+>   `/I2C_SDA`) connects U10 (the INA on cable 1) ↔ U11 (the INA on cable 2), and each INA is
+>   **Kelvin-locked adjacent to its own shunt** (so it sits *inside* its band). Each I²C net therefore
+>   spans from inside band-1 to inside band-2 → **4 forced crossings**; `/DETC1` + `/THRESH` add 2 → 6.
+>   No placement beats 6 (verified: an automated sweep + hand-built ESP-left / ESP-between variants all
+>   gave ≥ 6).
+> - **The automated placer is currently WORSE than the hand board, not equal.** The first draft's
+>   "identical 15.6mm corridors / cc=6, never lower / hand-quality corridors" was **measured on an
+>   ILLEGAL placement** (`connector_overhang` defaulted to "none" → the tall connectors packed
+>   mid-board, overlapping → residual=6; the band collapsed to ~6mm, which artificially read cc≈6). On
+>   a DRC-LEGAL placement (overhang `power_able`, now the default — commit 192503d) the bands are the
+>   full ~22mm and the placer's **best legal cc is 8, typically 14–24** — i.e. **1.3–4× the hand
+>   board's 6.** The gap is the PERIPHERAL parts (CAN xcvr, USB, ESP, RJ45): the placer scatters them
+>   into corridor-crossing positions where the hand board clusters them on the right. Closing that gap
+>   is the open placement lever (the anneal soft terms + peripheral clustering below).
+> - **`corridor_cross` is layer-agnostic, so its "topological invariant" framing is too strong.** The 4
+>   I²C crossings are genuinely forced *in-plane* (Kelvin-locked INAs), but the metric has **no model of
+>   layers or the ~9mm top/bottom channels**, so it OVER-counts what a router must actually cut. It is a
+>   sound **pour-integrity / required-x-cross** predictor, NOT a placement objective that reaches 0.
+>
+> **So the pour-cutting (~300 °C) failure is fundamentally a route-time LAYER-ASSIGNMENT problem** —
+> route each net that crosses a formed corridor on a non-pour (inner) layer. (Hypothesis, not yet
+> verified on copper: the committed board is a 0-track floorplan.) **Recommended pivot: a
+> layer-assignment lever at route time**, which the FR/pour machinery is positioned to do. The
+> placement phases below still matter for QUALITY (legal residual, formed corridors, peripheral
+> clustering to close the 14→6 gap) but will not by themselves clear the corridor. — owner decision
+> point: invest in layer-assignment vs. continue placement tuning.
 
 # Domain-aware placement strategy — eps-8pin corridor ceiling
 

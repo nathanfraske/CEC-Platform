@@ -1928,6 +1928,19 @@ def _band_formed(band, W, *, max_frac=0.55):
     return (x1 - x0) <= max(1.0, max_frac * W)
 
 
+def _shared_bus_connectors(nl):
+    """J refs that serve MORE THAN ONE Kelvin pair -- a shared-bus / multi-rail connector (the 24-pin
+    ATX J3/J4, the 12VHPWR J3/J4). The per-cable J_IN->shunt->J_OUT corridor model does NOT apply to
+    those (a Phase-5 per-pin variant), so the model + the rank key + the checkers all N/A them."""
+    serves = defaultdict(set)
+    for hi, lo in _kelvin_pairs(nl):
+        for net in (hi, lo):
+            for r, _ in nl.nets.get(net, []):
+                if r.startswith("J"):
+                    serves[r].add(hi[:-3])
+    return {r for r, ps in serves.items() if len(ps) > 1}
+
+
 def build_corridor_model(nl, P, comps, *, x_clr=1.5, board_w=None):
     """Derive the CorridorModel (§2.1) from the netlist + a placement. The band of cable n is the
     bbox over the cable CONNECTOR (J*) + shunt pads on its HI/LO nets -- the J_IN->shunt->J_OUT
@@ -1935,15 +1948,20 @@ def build_corridor_model(nl, P, comps, *, x_clr=1.5, board_w=None):
     the INA's SMD sense pads are EXCLUDED so they don't inflate the band and swallow the channel).
     Inflated *x_clr* mm on the signal-channel (x) sides. A band wider than ~half the board is marked
     NOT formed (shunt not inline / connectors not aligned) -- corridor_cross ignores it (a wide band
-    can't be straddled, which would read as a FALSE clean). Pure geometry; no pcbnew."""
+    can't be straddled, which would read as a FALSE clean). SHARED-BUS pairs (a connector serving >1
+    Kelvin pair, 24-pin/12VHPWR) are SKIPPED -- the per-cable corridor model does not apply, so the
+    rank key stays inert there (matching _cable_topology + the checkers). Pure geometry; no pcbnew."""
     if board_w is None:
         board_w = max((P[r][0] for r in P), default=100.0) + 10.0
+    shared = _shared_bus_connectors(nl)
     cables, bands, corridor_nets = [], {}, set()
     for hi, lo in _kelvin_pairs(nl):
         corridor_nets.add(hi)
         corridor_nets.add(lo)
         refs_hi = {r for r, _ in nl.nets.get(hi, [])}
         refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        if {r for r in (refs_hi | refs_lo) if r.startswith("J")} & shared:
+            continue                                       # shared-bus connector -> Phase-5 variant
         straddle = refs_hi & refs_lo                       # a part on BOTH halves = the shunt
         shunt = next((r for r in sorted(straddle)          # prefer the RS-named shunt
                       if r.startswith("RS") and _ref_padcount(nl, r) == 2),
@@ -1971,9 +1989,12 @@ def build_corridor_model(nl, P, comps, *, x_clr=1.5, board_w=None):
 def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True, board_w=None):
     """The corridor predictor (placement-strategy §2.3 / §0): how many (foreign SIGNAL net, band)
     pairs are forced THROUGH a high-current band. A net crosses band_n when its pad-bbox y-overlaps
-    the band AND it has a pad strictly LEFT of the band x-range AND a pad strictly RIGHT of it -- its
-    routing must pass through the corridor (a topological invariant no router effort can undo). A net
-    that merely terminates at a band edge (one pad inside) is NOT a through-cross. A DEGENERATE band
+    the band AND it has a pad strictly LEFT of the band x-range AND a pad strictly RIGHT of it -- it
+    must terminate on both x-sides, so an IN-PLANE route on the pour layer crosses the corridor. NOTE
+    this is a PREDICTOR, not a hard invariant: it is layer-agnostic and has no model of the top/bottom
+    channels, so it OVER-counts what a router must actually cut -- a crossing can be routed AROUND (an
+    in-plane channel) or UNDER (a non-pour layer). A net that merely terminates at a band edge (one pad
+    inside) is NOT a through-cross. A DEGENERATE band
     (wider than ~half the board: shunt not inline / connectors not aligned) is SKIPPED -- it can't be
     straddled, so counting it would read as a false clean; pass *board_w* to enable that guard. Pure
     geometry on the pads_by_net the proxy already builds; 0 over FORMED bands == corridor-clean. NOTE:
@@ -2007,13 +2028,7 @@ def _cable_topology(nl):
     (a J ref serving >1 pair -- 24-pin / 12VHPWR) are excluded: their corridor is a Phase-5 per-pin
     variant, not a J_IN->shunt->J_OUT column."""
     pairs = _kelvin_pairs(nl)
-    serves = defaultdict(set)
-    for hi, lo in pairs:
-        for net in (hi, lo):
-            for r, _ in nl.nets.get(net, []):
-                if r.startswith("J"):
-                    serves[r].add(hi[:-3])
-    shared = {r for r, ps in serves.items() if len(ps) > 1}
+    shared = _shared_bus_connectors(nl)
     out = []
     for hi, lo in pairs:
         refs_hi = {r for r, _ in nl.nets.get(hi, [])}
@@ -2029,10 +2044,8 @@ def _cable_topology(nl):
     return out
 
 
-def _net_pad_centroid_x(nl, comps, ref, net, P):
-    """Mean global x of *ref*'s pads on *net* (the cable's force column). J_IN(rot180) pads extend one
-    way, J_OUT(rot0) the other from the origin, so aligning ORIGINS misaligns the current columns ~12mm;
-    aligning these CENTROIDS is what tightens the band to one connector width (the as-built geometry)."""
+def _net_pad_xs(nl, comps, ref, net, P):
+    """Global x of every pad of *ref* on *net* (the cable's force column)."""
     import cec_pcb
     xs = []
     for r, pin in nl.nets.get(net, []):
@@ -2043,24 +2056,39 @@ def _net_pad_centroid_x(nl, comps, ref, net, P):
             xs.append(x)
         except Exception:
             pass
+    return xs
+
+
+def _net_pad_centroid_x(nl, comps, ref, net, P):
+    """Mean global x of *ref*'s pads on *net* (the cable's force column). J_IN(rot180) pads extend one
+    way, J_OUT(rot0) the other from the origin, so aligning ORIGINS misaligns the current columns ~12mm;
+    aligning these CENTROIDS is what tightens the band to one connector width (the as-built geometry)."""
+    xs = _net_pad_xs(nl, comps, ref, net, P)
     return (sum(xs) / len(xs)) if xs else P[ref][0]
 
 
-def _seed_corridor_spine(topo, anchors, H, nl, comps):
+def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
     """FORM each per-cable corridor: align J_OUT's LO force-pad column UNDER J_IN's HI force-pad column
     (so the +12V current runs straight J_IN -> shunt -> J_OUT) and seat the shunt on that column axis at
     mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross), all as FIXED anchors. Mutates
     *anchors*; returns the seated shunt refs (dropped from the annealed set so the spine can't be pushed
-    off-axis). J_IN keeps the x seed_anchors packed it to (columns stay spaced by connector width)."""
+    off-axis). J_IN keeps the x seed_anchors packed it to (columns stay spaced by connector width). When
+    *W* is given the column is CLAMPED so the connector/shunt pads stay on-board (no off-board pads on a
+    narrow board)."""
     seated = []
     for c in topo:
         jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
         if jin not in anchors or jout not in anchors:
             continue
-        col = _net_pad_centroid_x(nl, comps, jin, c["hi"], anchors)   # the J_IN +12V column
+        in_xs = _net_pad_xs(nl, comps, jin, c["hi"], anchors)         # the J_IN +12V column
+        col = (sum(in_xs) / len(in_xs)) if in_xs else anchors[jin][0]
+        if W and in_xs:
+            hw = (max(in_xs) - min(in_xs)) / 2.0 + 1.0               # keep the column's pads on-board
+            col = min(max(col, hw), W - hw)
         # shift J_OUT in x so its LO force-pad column lands under the J_IN column
         ox, oy, orot = anchors[jout]
-        out_col = _net_pad_centroid_x(nl, comps, jout, c["lo"], anchors)
+        out_xs = _net_pad_xs(nl, comps, jout, c["lo"], anchors)
+        out_col = (sum(out_xs) / len(out_xs)) if out_xs else ox
         anchors[jout] = (ox + (col - out_col), oy, orot)
         anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
         seated.append(sh)
@@ -2120,7 +2148,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
     #    config overrides. (Owner: "it needs to know how to overhang the ports.")
     _overhang = cfg.params.get("connector_overhang")
     if _overhang is None:
-        _overhang = "edge" if _cable_topology(nl) else "none"
+        _overhang = "power_able" if _cable_topology(nl) else "none"
     anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang)
     mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
     anchors.update(mech_pos)
@@ -2139,7 +2167,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
     # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
     #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
     #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
-    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps)
+    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps, W=W)
     free_shunts = [r for r in shunts if r not in seated]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
