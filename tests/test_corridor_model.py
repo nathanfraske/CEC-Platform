@@ -206,5 +206,83 @@ class TestCorridorCheckers(unittest.TestCase):
             self.assertEqual(by_id[cid].checkable, "yes")
 
 
+# --------------------------------------------------------------------------- Phase 1: ranking
+class TestCorridorRanking(unittest.TestCase):
+    """Phase 1's load-bearing lever: corridor_cross is the PRIMARY rank key after legality, so a
+    corridor-clean placement beats a lower-HPWL sandwich. Pure -- synthetic Candidates."""
+
+    def _cand(self, tag, residual, cc, hpwl):
+        return sp.Candidate(strat=tag, seed=0, P={}, W=96.0, H=37.0, residual=residual,
+                            proxy={"hpwl": hpwl, "corridor_cross": cc}, corridor_cross=cc)
+
+    def _rank(self, cands):
+        return sorted(cands, key=lambda c: (c.residual, c.corridor_cross, c.proxy["hpwl"]))
+
+    def test_corridor_clean_beats_lower_hpwl_sandwich(self):
+        clean = self._cand("clean", 2, 0, 1900.0)      # corridor-clean, but higher HPWL
+        sandwich = self._cand("cross", 2, 4, 1639.0)   # lower HPWL, but crosses 4 corridors
+        self.assertIs(self._rank([sandwich, clean])[0], clean)
+
+    def test_residual_still_dominates_corridor(self):
+        # legality first: a residual-2 crossing beats a residual-5 clean (an illegal board is worse)
+        low_res_cross = self._cand("legal", 2, 8, 1700.0)
+        high_res_clean = self._cand("illegal", 5, 0, 1700.0)
+        self.assertIs(self._rank([high_res_clean, low_res_cross])[0], low_res_cross)
+
+    def test_hpwl_breaks_corridor_ties(self):
+        a = self._cand("a", 2, 0, 1800.0)
+        b = self._cand("b", 2, 0, 1700.0)
+        self.assertIs(self._rank([a, b])[0], b)
+
+    def test_proxy_reject_corridor_opt_in(self):
+        proxy = {"rudy_peak": 1.0, "thermal_peak_w": 0.1, "corridor_cross": 3}
+        self.assertFalse(sp.proxy_reject(proxy)[0])                       # OFF by default -> no reject
+        rej, why = sp.proxy_reject(proxy, corridor_max=0)
+        self.assertTrue(rej)                                             # opt-in rejects a crosser
+        self.assertTrue(any("corridor_cross" in r for r in why))
+        self.assertFalse(sp.proxy_reject({**proxy, "corridor_cross": 0}, corridor_max=0)[0])
+
+
+# --------------------------------------------------------------------------- Phase 1: the placer
+def _have_kicad_cli():
+    import shutil
+    return shutil.which("kicad-cli") is not None
+
+
+@unittest.skipUnless(HAVE_PCBNEW and _have_kicad_cli() and os.path.isfile(EPS_PCB),
+                     "pcbnew + kicad-cli + the eps-8pin board required")
+class TestPlacerCorridorEps(unittest.TestCase):
+    """Phase 1 BREAKS THE CEILING on eps-8pin: the constructive placer DOES produce a
+    corridor-clean basin -- the old (residual, hpwl) ranking was just blind to it. synth_one is
+    deterministic per (strat, seed): thermal_separated s7 -> 0, s6 -> a sandwich."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cfg = sp.Config.load("eps-8pin")
+        cls.cd = {k: getattr(cls.cfg, k) for k in ("board", "profile", "pins", "params",
+                                                   "dir", "sch", "net", "pcb", "bom_csv")}
+
+    def _cand(self, strat, seed):
+        return sp.synth_one(self.cd, 96.0, 37.0, strat, seed)
+
+    def test_corridor_clean_basin_exists(self):
+        self.assertEqual(self._cand("thermal_separated", 7).corridor_cross, 0)
+
+    def test_a_crossing_placement_also_exists(self):
+        # if every candidate were clean the rank key would be inert; a sandwich must exist too
+        self.assertGreater(self._cand("thermal_separated", 6).corridor_cross, 0)
+
+    def test_stored_corridor_cross_matches_recompute(self):
+        # the Candidate.corridor_cross attached by synth_one must equal an independent recompute
+        # from its placement P (the stored rank key is honest, not stale)
+        cand = self._cand("thermal_separated", 7)
+        nl = sp.View(self.cfg).nl
+        comps = sp._fp_of(nl)
+        obj = sp._placement_obj(self.cfg, cand.P, cand.W, cand.H, sp._part_halfext(nl), nl)
+        model = sp.build_corridor_model(nl, cand.P, comps)
+        cc = sp.corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets)
+        self.assertEqual(cc, cand.corridor_cross)
+
+
 if __name__ == "__main__":
     unittest.main()

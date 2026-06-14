@@ -207,6 +207,24 @@ dropped from ~11 to ~0 and the `/SENSEC2_LO` pour fills as ONE island. **This is
 proves the ceiling is broken.** If the winner still crosses, the seed nudge needs more channel offset
 (tunable, board-specific) — caught here, cheaply.
 
+> **IMPLEMENTATION NOTE (2026-06-14, what actually shipped as "Phase 1a", commit on
+> claude/placement-corridor / PR #60).** Measurement reordered the work: with the rank key wired and
+> `corridor_cross` measured across the existing sweep (`place_candidates(cfg, 96, 37, seeds=0..7)`),
+> **the constructive placer ALREADY produces corridor-clean basins** — 7 of 24 candidates have
+> `corridor_cross == 0`. The old `(residual, hpwl)` sort was simply BLIND to them: it picked
+> `compact s5` (HPWL 1639, **cc=4**); the new `(residual, corridor_cross, hpwl)` sort picks
+> `thermal_separated s7` (**cc=0**). So **the ranking change alone breaks the ceiling on eps** — the
+> seed nudge is robustness insurance (Phase 2's concern: make EVERY seed land clean), not the
+> load-bearing lever, and eps does not need it. Shipped in Phase 1a: the `Candidate.corridor_cross`
+> field + the model build in `synth_one`, the sort key, and an **opt-in** `proxy_reject(corridor_max=)`
+> (left OFF by default so a board with no clean candidate in its set still routes its best-ranked one —
+> never reject every candidate before a clean basin is guaranteed). **Deferred to Phase 2** (where they
+> compose with the anneal's hard veto + soft terms — an ACTIVE corridor-avoiding SA is strictly stronger
+> than a passive seed bias, and the rot270 stamp belongs with the Kelvin soft term): the `seed_anchors`
+> channel nudge and the **H3 shunt-rot270 stamp**. The Phase-1 milestone met: the winning eps candidate
+> is `corridor_cross == 0` (deterministic; `tests/test_corridor_model.py::TestPlacerCorridorEps`). The
+> route-confirm half of the validation (foreign_cross ~11→~0, one-island pour) is Phase 3 by design.
+
 ### Phase 2 — Domain cost in the anneal + hard veto (HARDENS it; ~1 day)
 
 Phase 1 ranks; Phase 2 makes the SA itself avoid the corridor and keep Kelvin/thermal so the win is

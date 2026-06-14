@@ -1255,7 +1255,7 @@ def placement_proxy(placement):
     }
 
 
-def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0):
+def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0, corridor_max=None):
     """Cheap rejection (pipeline proxy_reject): is this size too congested / too hot to be
     worth a real route? CALIBRATED RELATIVE to a *baseline* proxy (the largest size tried,
     which the size oracle knows routed) -- a candidate is rejected when its RUDY peak grows
@@ -1263,6 +1263,11 @@ def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0)
     scale is uncalibrated, so with NO baseline we do NOT reject on congestion (a known-routable
     board must pass). The thermal ceiling IS absolute (W concentrated in one proxy cell -> a
     real power-density hotspot; refined later by the electrothermal FEA on the winner).
+    Phase 1: *corridor_max* (OPT-IN, default None=off) hard-rejects a placement whose
+    corridor_cross exceeds it -- never waste a route on a known sandwich (H2). Left off by
+    default so a board whose seed nudge has not yet reached a corridor-clean basin still routes
+    its best-ranked candidate (the sort already prefers low corridor_cross); enable it only once
+    a clean candidate is reliably produced, or the size oracle could reject every candidate.
     Returns (reject: bool, reasons: list)."""
     reasons = []
     if baseline and proxy["rudy_peak"] > baseline["rudy_peak"] * rudy_growth:
@@ -1270,6 +1275,9 @@ def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0)
                        f"{baseline['rudy_peak']} (congestion grew as it shrank)")
     if proxy["thermal_peak_w"] > thermal_peak_max:
         reasons.append(f"thermal peak {proxy['thermal_peak_w']}W > {thermal_peak_max}W (hotspot)")
+    if corridor_max is not None and proxy.get("corridor_cross", 0) > corridor_max:
+        reasons.append(f"corridor_cross {proxy.get('corridor_cross', 0)} > {corridor_max} "
+                       f"(foreign signal forced through a high-current band)")
     return (bool(reasons), reasons)
 
 
@@ -1944,6 +1952,7 @@ class Candidate:
     residual: int                 # legalization residual overlaps
     proxy: dict
     feasible: float = -1.0        # filled by the feasibility probe (stage: size oracle)
+    corridor_cross: int = 0       # foreign signals forced through a high-current band (Phase 1 rank key)
 
 
 def synth_one(cfg_dict, W, H, strat, seed):
@@ -2032,8 +2041,13 @@ def synth_one(cfg_dict, W, H, strat, seed):
             P[pref] = (ux + dx, uy + dy, pr)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
+    # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
+    # through a high-current band. The PRIMARY rank key + a pre-route reject (proxy_reject).
+    model = build_corridor_model(nl, P, comps)
+    cc = corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets)
     proxy = placement_proxy(obj)
-    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy)
+    proxy["corridor_cross"] = cc
+    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy, corridor_cross=cc)
 
 
 def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_workers=None):
@@ -2056,7 +2070,9 @@ def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_worker
             futs = {pool.submit(synth_one, cfg_dict, W, H, s, seed): (s, seed) for s, seed in work}
             for f in as_completed(futs):
                 cands.append(f.result())
-    cands.sort(key=lambda c: (c.residual, c.proxy["hpwl"]))
+    # Phase 1: corridor_cross is the PRIMARY rank key after legality -- a corridor-clean candidate
+    # ALWAYS beats a sandwich, regardless of HPWL (which used to tie them at residual==0).
+    cands.sort(key=lambda c: (c.residual, c.corridor_cross, c.proxy["hpwl"]))
     return cands
 
 
