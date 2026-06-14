@@ -827,6 +827,17 @@ def _relayer_segment_inband(board, t, clip, target_layer, *, drill=0.3, dia=0.6)
     return added
 
 
+def _rm_tmp_board(path):
+    """Remove a temp board AND the .kicad_pro/.kicad_prl sidecars pcbnew.SaveBoard writes next to it
+    (os.remove on the .kicad_pcb alone leaks the two sidecars on every staged stagger -- re-audit LOW)."""
+    base = path[:-len(".kicad_pcb")] if path.endswith(".kicad_pcb") else path
+    for p in (path, base + ".kicad_pro", base + ".kicad_prl"):
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+
+
 def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=print):
     """LAYER-TIER lever (route-time): stagger the foreign signals that cross each formed high-current
     corridor band across F.Cu/B.Cu so the un-cut outer pour mirror always carries. Per band: collect the
@@ -941,14 +952,14 @@ def stagger_corridor_crossings(board_path, out_path=None, *, verify=True, log=pr
         if post > pre or post_u > pre_u or not math.isfinite(post):
             if out_path != board_path:
                 shutil.copy2(board_path, out_path)
-            os.remove(tmp)
+            _rm_tmp_board(tmp)
             report.update(reverted=True, q_pre=pre, q_post=post, unconn_pre=pre_u, unconn_post=post_u,
                           flipped=0, vias_added=0)
             log(f"[cec_fr] stagger reverted: quality {pre}->{post} unconnected {pre_u}->{post_u} "
                 f"(kept the un-staggered route)")
             return report
     shutil.copy2(tmp, out_path)                            # accept the staggered board
-    os.remove(tmp)
+    _rm_tmp_board(tmp)
     return report
 
 

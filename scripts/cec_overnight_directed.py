@@ -317,7 +317,11 @@ def measure_board(routed, board):
     out = {"gates_pass": bool(m.gates_pass), "kelvin_ok": bool(m.kelvin_ok),
            "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc, "unconnected": m.unconnected,
            "length": round(m.length, 2), "vias": m.vias, "tracks": m.tracks,
-           "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 3)}
+           "plane_signal_mm": round(getattr(m, "plane_signal_mm", 0.0), 3),
+           # the PLAIN worker objective of the staggered board -> the adopting rec's objective_base, so the
+           # gate-gated objective_v2 (and the EI-02 objective_base A/B credit) reflect the SHIPPED board, not
+           # the pre-stagger one (re-audit MEDIUM: objective_base was left stale).
+           "objective": round(cec_score.objective(m), 2)}
     out.update(fem_advisory(routed, board))                       # max_T/max_dT/n_fem_flags (advisory)
     b = pcbnew.LoadBoard(routed)
     Z = {}

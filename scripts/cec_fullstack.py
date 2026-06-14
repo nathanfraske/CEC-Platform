@@ -861,6 +861,16 @@ def _adopt_staggered_board(rec, stagger_result, root):
     for k in _STAGGER_NUM_FIELDS:
         if rs.get(k) is not None:
             rec[k] = rs[k]
+    # objective_base = the SHIPPED board's plain worker objective, so _penalty_weighted_base /
+    # objective_v2 and the EI-02 objective_base A/B credit reflect the staggered board (re-audit MEDIUM).
+    if rs.get("objective") is not None:
+        rec["objective_base"] = rs["objective"]
+    # FEM-stale guard (re-audit LOW): if the FEM errored on the staggered board (no max_T in the
+    # re-measurement), DROP the pre-stagger thermal axes rather than rank the frontier on a stale max_T --
+    # a record missing a Pareto axis is excluded from the frontier, which is the safe outcome.
+    if "max_T" not in rs:
+        for k in ("max_T", "max_dT", "n_fem_flags"):
+            rec.pop(k, None)
     rec["staggered"] = True
     return f"gates(provisional)={'PASS' if rec.get('gates_pass') else 'FAIL'} drc={rec.get('drc')} vias={rec.get('vias')}"
 

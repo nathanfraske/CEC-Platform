@@ -15,7 +15,14 @@ import unittest
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
-sys.modules.setdefault("pcbnew", types.ModuleType("pcbnew"))
+# cec_fullstack -> cec_fr does a top-level `import pcbnew`. These tests never touch the engine (they
+# exercise the pure adoption/gate helpers), so on a pcbnew-LESS box we stub it. But if REAL pcbnew is
+# present we must NOT install a stub -- a stub in sys.modules would shadow the real module for any other
+# test in the same process (e.g. test_corridor_model's real LoadBoard), breaking it order-dependently.
+try:
+    import pcbnew                                                 # noqa: F401  (real engine present)
+except Exception:                                                 # noqa: BLE001
+    sys.modules.setdefault("pcbnew", types.ModuleType("pcbnew"))
 
 import cec_fullstack as fs                                        # noqa: E402
 
@@ -29,17 +36,33 @@ class TestAdoptStaggeredBoard(unittest.TestCase):
         open(p, "w").close()                                     # the staggered board exists on disk
         self.rec = {"routed": "/old/routed.kicad_pcb", "gates_pass": True,
                     "kelvin_ok": True, "diffpair_ok": True, "drc": 6, "unconnected": 2,
-                    "vias": 80, "tracks": 500, "length": 999.0, "plane_signal_mm": 1.0, "max_T": 200.0}
+                    "vias": 80, "tracks": 500, "length": 999.0, "plane_signal_mm": 1.0, "max_T": 200.0,
+                    "objective_base": 88.0}
 
     def _result(self, *, flipped=1, reverted=False, gates_pass=True, drc=4, unconnected=0, board=True,
-                facts=None):
+                facts=None, rescored_extra=None, drop_max_T=False):
+        rs = {"kelvin_ok": True, "diffpair_ok": True, "gates_pass": gates_pass,
+              "drc": drc, "unconnected": unconnected, "vias": 96, "tracks": 510,
+              "length": 1010.0, "plane_signal_mm": 0.5, "max_T": 150.0, "objective": 42.0}
+        if drop_max_T:
+            rs.pop("max_T")
+        if rescored_extra:
+            rs.update(rescored_extra)
         return {"report": {"flipped": flipped, "reverted": reverted},
-                "rescored": {"kelvin_ok": True, "diffpair_ok": True, "gates_pass": gates_pass,
-                             "drc": drc, "unconnected": unconnected, "vias": 96, "tracks": 510,
-                             "length": 1010.0, "plane_signal_mm": 0.5, "max_T": 150.0},
+                "rescored": rs,
                 "facts": {"/SENSEC1_HI": {"islands": 1, "area_mm2": 120.0, "components": 1}}
                          if facts is None else facts,
                 "board": self.board_rel if board else None}
+
+    def test_refreshes_objective_base_from_shipped_board(self):
+        fs._adopt_staggered_board(self.rec, self._result(), self.root)
+        self.assertEqual(self.rec["objective_base"], 42.0)       # was 88.0 (pre-stagger) -> shipped board
+
+    def test_drops_stale_max_T_on_fem_error(self):
+        # FEM errored on the staggered board (no max_T in the re-measurement) -> the stale pre-stagger
+        # max_T must be DROPPED (record excluded from the frontier, not ranked on a stale thermal axis)
+        fs._adopt_staggered_board(self.rec, self._result(drop_max_T=True), self.root)
+        self.assertNotIn("max_T", self.rec)
 
     def test_adopts_and_refreshes_all_pareto_axes(self):
         reason = fs._adopt_staggered_board(self.rec, self._result(drc=4, unconnected=0), self.root)
