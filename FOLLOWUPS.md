@@ -154,3 +154,27 @@ Conventions:
 
 ## Workflow hygiene
 - [2026-06-15] Long background Workflows are orphaned when their launching session ends/compacts (the run dies; `resumeFromRunId` is same-session only). The agentic-integration forensics workflow (wf_27c511ed-113) died after phase 1 this way — recovered by reading its `journal.jsonl` + agent transcripts and hand-authoring a continuation (the Workflow tool's documented fallback). LESSON: for a multi-phase design/forensics workflow, either keep the session alive to completion, or expect to reconstruct from the journal. Where: .claude/projects/*/subagents/workflows/<runId>/journal.jsonl.
+
+## Agentic integration (claude/placement-corridor, PR #60)
+- [2026-06-15] **Path-B generalization (checklist step 11, deferred by design)**: generalize
+  cec_router.find_board with a hubs/<board>/ fallback (modules/ first for back-compat), delegate
+  cec_loop._resolve + cec_place.main to it (kill the 3-way glob drift), register hub-standard in
+  cec_overnight_directed.BOARD_PCB/INTENTS (build_hub_model, no /SENSEC fence — gate sense-corridor
+  levers on board-has-sense-nets, SKIP-with-log on the Hub), then the placer<->router feedback loop
+  (request_placements leg + place_then_route: route-confirm top-K -> model selects -> reseed on a
+  placement-caused stall -> escalate, gated lane==augmented). This lets the Hub flow through the full
+  cec_fullstack T0-T9 driver. Larger lever; do after the Path-A Hub route is proven live. Where:
+  docs/agentic-integration-forensics-2026-06-14.md §5.5 + checklist row 11.
+- [2026-06-15] **Cloud seats in the routing container**: hub_pipeline_run.py runs IN cec/routing:kicad10
+  (needs pcbnew). CLOUD seats shell `claude -p`, which must be present+authed in that image — if absent,
+  the swarm makers fail-safe to deterministic (the run LOGS the degrade via _build_seats, not silent).
+  To make cloud seats actually engage from the container: either bake the claude CLI + ~/.claude auth
+  into the image (mount read-only), OR split seats host-side (the cec_fullstack pattern: host driver,
+  container for FR only). LOCAL seats already work (broker via --add-host host.docker.internal:8080).
+  Where: scripts/hub_run.sh comment + scripts/hub_pipeline_run.py _build_seats.
+- [2026-06-15] **Promote the post-route conformance subset to a true abort-level HARD gate**: today it
+  is folded into the candidate ranking key (gates_pass, then conformance_fail) + reported, not an
+  abort. Before making it abort-level, confirm the COMMITTED Hub passes the synth-relevant subset (the
+  holdout must pass the gates being added) — if it fails, fix the gate, never relax toward the holdout.
+  Verify which CONFORMANCE_SUBSET ids actually exist as cec_constraints checkers (non-existent ids
+  silently never fire). Where: scripts/hub_pipeline_run.py CONFORMANCE_SUBSET + _conformance.
