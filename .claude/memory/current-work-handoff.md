@@ -1,8 +1,31 @@
 # Current work handoff
 
-_Updated 2026-06-15 ~15:15 UTC (10h FULL-PIPELINE run COMPLETED — negative result, written up; claude/placement-corridor / PR #60)._
+_Updated 2026-06-15 ~15:30 UTC (run written up + committed [c787595]; FULL ACTUATION LEVER design + build STARTED; claude/placement-corridor / PR #60)._
 
-## 10h FULL-PIPELINE RUN — COMPLETED, NEGATIVE RESULT 2026-06-15 ~15:15 UTC (read-back)
+## FULL ACTUATION LEVER — design + build STARTED 2026-06-15 ~15:30 UTC (PR #60)
+Owner ask: "a rule flags a case → passes a CLEAN-evidence gate (rule cannot be scored on runs it
+influenced) → tallied → if it meets the bar it STEERS the run but does NOT gate it." Owner chose:
+write the design doc, document all steps in handoff+todo, and start building.
+- **Plan of record: docs/actuation-lever-design.md** — 4-state rule lifecycle (PROPOSED→CANDIDATE→
+  RATIFIED-STEER, with REFUTED/RETIRED), 4 invariants, the embryo that already exists (lane_for +
+  lr_view clean firewall `:1712`; in-run vindicated/refuted settlement `:1989`; `_placement_keep`
+  `:921` steer-not-launder; ab_aggregate `:400`), and the **transitive-influence-lineage TRAP**:
+  the augmented board COMPOUNDS (placement_base carries forward `:1754`) so the influence cone is
+  transitive — a clean gate that tags single rows leaks credit. Fix: `influenced_by:{rule_ids}` =
+  this round's steers ∪ the cone of the board it was built from; a (baseline,treatment) pair is
+  clean for R only when R∉influenced_by(baseline).
+- **4 staged steps (one PR each), in TODO.md:** (1) per-rule transitive influence lineage [STARTED]
+  — rule_id + influence_signature + per-run cone + `influenced_by` row field + clean_pairs()
+  comparator + host tests, additive/non-behavioural; (2) cross-run persistence+tally via cec_ledger
+  keyed by rule_id; (3) graduation bar (≥k independent clean pairs + sign-test/effect-size,
+  holdout-validated per AM-02, → promoted/** owner-ratified); (4) steer-only chokepoint
+  (assert_steer_only generalizing _placement_keep; ratified rule steers search, NEVER gates).
+- Hard gates (kelvin/diffpair/DRC/conformance) STAY deterministic+human (CLAUDE.md ratification
+  boundary). VALIDATION caveat: eps lever is inert (run proved it) — exercise on a Hub (post step-11)
+  or a synthetic injected fixture.
+- Build progress this session below; step-1 code in scripts/cec_fullstack.py + tests/test_actuation_lever.py.
+
+## 10h FULL-PIPELINE RUN — COMPLETED, NEGATIVE RESULT 2026-06-15 ~15:15 UTC (committed c787595)
 The run launched ~03:57 UTC finished its full 10h budget cleanly. **Writeup: docs/fullstack-run-2026-06-15/RESULT.md.**
 Both run + watchdog processes have exited. Headline:
 - **Full 10h, 46 rounds, 0 crashes** (run.log traceback/exception grep = 0). Watchdog self-termed at 8h by design;
