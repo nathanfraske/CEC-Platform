@@ -422,19 +422,27 @@ def ab_aggregate(rows):
 
 # ---- Full actuation lever, Step 1: per-rule TRANSITIVE influence lineage --------------------
 # A ratified rule may STEER the search but never gate it; before ratification it must clear a
-# CLEAN-evidence gate -- it may be scored only on outcomes it did NOT influence. The influence
-# cone is TRANSITIVE: the augmented board COMPOUNDS (a kept move carries forward as the next
-# round's placement_base), so a row is influenced by this round's active steers AND by the cone
-# of the board it was built from. A control round routes the committed board with a masked
-# lr_view (override SUPPRESSED + manager_rules/penalties dropped), so its cone is empty -- the
-# clean baseline. See docs/actuation-lever-design.md. These helpers are PURE (host-testable).
+# CLEAN-evidence gate -- it may be scored only on outcomes it did NOT influence. influenced_by
+# on a measurement row is the COMPLETE set of run-learned steer that shaped the board THAT ROW
+# MEASURED. The key discipline is a ROUTE-TIME SNAPSHOT: a steer counts for a row iff it was
+# already baked into the board when this round routed (NOT a move/rule injected later this round,
+# which only shapes the NEXT round). The placement cone is TRANSITIVE -- a kept move compounds
+# into placement_base and so shapes every later augmented round. A control round routes the
+# committed board at base effort with a masked lr_view (override + corridor-avoid + model intents
+# SUPPRESSED), so its cone is empty -- the clean baseline. See docs/actuation-lever-design.md.
+# (Audit wf_f24bddf7-9fd: the cone must include model-intent plans, corridor-avoid, and panel
+# effort, and the two timing bugs are both closed by the route-time snapshot.) Helpers are PURE.
 import hashlib as _hashlib
 
+# Single source of truth for the default scorer weights (run() inits lr['scorer_penalties'] from
+# this same dict, so active_steer_ids never emits a phantom penalty id from a retune drift).
 _DEFAULT_PENALTIES = {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0}
+_BASE_PASSES, _BASE_OPT = 24, 40       # the panel's reset (accept) effort -- "escalated" means above this
 
 
 def rule_id(kind, payload):
-    """Stable short id for one steer. kind in {rule, penalty, placement, layer}. Pure."""
+    """Stable short id for one steer. kind in {rule, penalty, placement, intents, avoid, effort,
+    layer}. Pure."""
     h = _hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:8]
     return f"{kind}:{h}"
 
@@ -451,40 +459,67 @@ def active_steer_ids(lr):
     return ids
 
 
-def placement_move_id(refs):
-    """Stable id for a placement move identified by the set of refs it relocates. Pure."""
-    return rule_id("placement", {"refs": sorted(refs or [])})
+def placement_cone_id(finding, delta):
+    """Stable id for a placement move, keyed by its hypothesis (same key the anti-ratchet uses) so
+    the in-flight tag, the kept-cone entry, and any future per-rule tally all agree. Pure."""
+    import cec_fs_actuator as _act
+    return rule_id("placement", {"hyp": _act.hypothesis_key(finding, delta)})
 
 
-def influence_signature(lr, lane, *, placement_id=None, layer_id=None):
-    """The rule-ids ACTIVE on THIS round (this round's steers only, not the inherited cone).
-    Empty on a control round (lr_view masks all run-learned steer + the override is suppressed)."""
+def intents_steer_id(intents, src):
+    """Id for the run-learned T1 intent PLAN that shaped a route, or None when the plan is not a
+    steer (control's signed-only seed / a non-model source). Keyed by the net set + source so the
+    same evolved plan tallies across rounds. Pure."""
+    if src != "model" or not intents:
+        return None
+    return rule_id("intents", {"nets": sorted(i.get("net") for i in intents), "src": src})
+
+
+def avoid_steer_ids(avoid_intents):
+    """Ids for the corridor-avoid lever -- one per offending net forced around the corridor. Pure."""
+    return sorted({rule_id("avoid", {"net": i.get("net")}) for i in (avoid_intents or [])})
+
+
+def effort_steer_id(passes, opt_time):
+    """Id for the panel's router-effort escalation, or None at base effort. Pure."""
+    if (passes or 0) > _BASE_PASSES or (opt_time or 0) > _BASE_OPT:
+        return rule_id("effort", {"escalated": True})
+    return None
+
+
+def route_placement_cone(kept_cone, pending_move_id):
+    """The placement-move ids baked into the board THIS round routed from: the committed kept cone
+    PLUS the one in-flight (applied last round, not yet settled) move. Pure -- the route-time
+    snapshot that fixes both timing bugs (the apply round is NOT tagged with its own just-applied
+    move; a later-refuted move's OWN routed round IS tagged)."""
+    cone = list(kept_cone or [])
+    if pending_move_id:
+        cone.append(pending_move_id)
+    return cone
+
+
+def compute_influenced_by(lane, *, steer_ids=(), placement_cone=(), intent_id=None,
+                          avoid_ids=(), effort_id=None, layer_id=None):
+    """The COMPLETE route-time influence cone stamped on a measurement row. Control = [] (signed-
+    only). All inputs are SNAPSHOTS taken at route time. Pure -- the ONE function both the loop and
+    the tests call (tested == shipped)."""
     if lane == "control":
         return []
-    ids = list(active_steer_ids(lr))
-    if placement_id:
-        ids.append(placement_id)
-    if layer_id:
-        ids.append(layer_id)
-    return sorted(set(ids))
-
-
-def row_influenced_by(lr, lane, placement_cone, *, placement_id=None, layer_id=None):
-    """The TRANSITIVE influence cone stamped on a measurement row: this round's signature UNION
-    the cone of the placement_base lineage the augmented board was built from. Control = []."""
-    if lane == "control":
-        return []
-    sig = influence_signature(lr, lane, placement_id=placement_id, layer_id=layer_id)
-    return sorted(set(sig) | set(placement_cone or []))
+    ids = set(steer_ids) | set(placement_cone) | set(avoid_ids)
+    for x in (intent_id, effort_id, layer_id):
+        if x:
+            ids.add(x)
+    return sorted(ids)
 
 
 def clean_pairs(rows, rid):
     """CLEAN-evidence partition for rule `rid`: treatment = rows the rule influenced; baseline =
     rows the rule did NOT influence -- the FIREWALL (a row with rid in its cone can never be a
-    baseline for rid). Pure. Rows must carry `influenced_by`."""
-    rows = [r for r in (rows or []) if isinstance(r, dict)]
-    treatment = [r for r in rows if rid in (r.get("influenced_by") or [])]
-    baseline = [r for r in rows if rid not in (r.get("influenced_by") or [])]
+    baseline for rid). A row with NO `influenced_by` key has an UNKNOWN cone and is excluded from
+    BOTH arms (never a universal clean baseline -- e.g. a legacy or cross-run ledger row). Pure."""
+    rows = [r for r in (rows or []) if isinstance(r, dict) and "influenced_by" in r]
+    treatment = [r for r in rows if rid in (r["influenced_by"] or [])]
+    baseline = [r for r in rows if rid not in (r["influenced_by"] or [])]
     return {"baseline": baseline, "treatment": treatment}
 
 
@@ -1726,7 +1761,7 @@ def run(board, rounds, hours, auditor=None):
     n_brief = CORPUS_BRIEF.count("\n- ") if CORPUS_BRIEF else 0
     n_gen = CORPUS_BRIEF_GEN.count("\n- ") if CORPUS_BRIEF_GEN else 0
     log(f"promoted-corpus brief: {n_brief} entrie(s) full (T5/T8 auditor) / {n_gen} in-family (T1/T4 generation)")
-    lr = {"scorer_penalties": {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0},
+    lr = {"scorer_penalties": dict(_DEFAULT_PENALTIES),   # single source -> no phantom penalty id
           "manager_rules": [], "injections": [], "rejections": [],
           "diagnoses": [], "refuted_metrics": []}
     vs = cec_verifier.VerifierSession(model=WORKER_SEAT)
@@ -1808,9 +1843,16 @@ def run(board, rounds, hours, auditor=None):
             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
             # losing their timeout to a cold start / swap (the last run's 0/8 intent failures).
             warm(WORKER_SEAT)
+            # CONTROL-CLEANLINESS (audit wf_f24bddf7-9fd): a control round must be SIGNED-ONLY, so its
+            # router effort is reset to base here -- otherwise it inherits the passes/opt_time the prior
+            # augmented panel escalated to (a run-learned steer leaking into the clean baseline).
+            if lane == "control":
+                passes, opt_time = _BASE_PASSES, _BASE_OPT
             # T1 intent manager (P3: lane-gated carry-forward; P1/P2: manifest + fence grounded;
-            # P1c: re-prompt the last augmented round's invalid refs, control lane stays pristine)
-            last = records[-1] if records else None
+            # P1c: re-prompt the last augmented round's invalid refs, control lane stays pristine).
+            # `last` is LANE-GATED: a control round is NOT briefed with the prior AUGMENTED round's
+            # failures (else the control intents are shaped by run-learned state -> not signed-only).
+            last = records[-1] if (records and lane == "augmented") else None
             prev_intents = _lane_carry(lane, intents_aug, seed_intents)
             prev_dropped = _lane_carry(lane, prev_dropped_aug, ())
             intents, why, src, dropped = intent_manager(board, grid, prev_intents, last, rnd,
@@ -1859,6 +1901,21 @@ def run(board, rounds, hours, auditor=None):
             # pass the override only when it differs from committed (keeps the route cmd clean for the
             # common no-placement / control case; route_one_worker treats None as committed)
             override = psrc if psrc != ovd.BOARD_PCB[board] else None
+            # ROUTE-TIME SNAPSHOT of the influence cone (actuation-lever step 1): capture every steer
+            # baked into the board we are ABOUT to route -- active rules/penalties, the placement cone
+            # (kept moves + the one in-flight move applied last round), the model-intent plan, the
+            # corridor-avoid nets, and the router effort. Taken HERE so a steer injected LATER this
+            # round (which only shapes the NEXT round) is not mis-credited to this row, and a move
+            # later reverted this round still tags the round it actually shaped. layer-stagger is the
+            # one steer added post-route (it transforms the routed board) -> folded in at row build.
+            route_cone = {
+                "steer_ids": active_steer_ids(lr),
+                "placement": route_placement_cone(
+                    placement_cone, (pending_placement or {}).get("move_id")),
+                "intent_id": intents_steer_id(intents, src),
+                "avoid_ids": avoid_steer_ids(pending_corridor_avoid if lane == "augmented" else []),
+                "effort_id": effort_steer_id(passes, opt_time),
+            }
             rec = ovd._exec_route_one(board, rnd, passes=passes, opt_time=opt_time,
                                       intents_file=ipath, board_pcb_override=override)
             if rec.get("error"):
@@ -1881,7 +1938,7 @@ def run(board, rounds, hours, auditor=None):
             elif action == "escalate":
                 passes, opt_time = min(passes + 14, 60), min(opt_time + 20, 120)
             else:
-                passes, opt_time = 24, 40
+                passes, opt_time = _BASE_PASSES, _BASE_OPT
 
             # T6 POUR-INTEGRITY check -- deterministic facts EVERY round (owner: pours are getting clipped;
             # state and RE-STATE it). The advisory VLM narrate is GATED to finalists (owner 2026-06-13);
@@ -2141,8 +2198,7 @@ def run(board, rounds, hours, auditor=None):
                         else:
                             # actuation-lever step 1: a KEPT move now COMPOUNDS into placement_base, so
                             # its id enters the transitive cone every later augmented row inherits.
-                            placement_cone.append(rule_id(
-                                "placement", {"hyp": act.hypothesis_key(pd["finding"], pd["delta"])}))
+                            placement_cone.append(placement_cone_id(pd["finding"], pd["delta"]))
                             log(f"  PLACEMENT vindicated: keep base "
                                 f"{os.path.basename(placement_base) if placement_base else 'committed'}")
                 pending_deltas = []
@@ -2222,8 +2278,11 @@ def run(board, rounds, hours, auditor=None):
                         mv = apply_placement_move(cur_base, rec.get("routed"), c["delta"].intent, fence, rnd)
                         if mv.get("verdict") == "placed":
                             new_base = os.path.join(ROOT, mv["board"])
+                            # move_id = the SAME hypothesis-keyed id the kept-cone + future tally use,
+                            # so next round's route-time snapshot tags the board this move now shapes.
                             pending_placement = {"prev_base": placement_base, "override": new_base,
-                                                 "delta_id": c["delta"].id}
+                                                 "delta_id": c["delta"].id,
+                                                 "move_id": placement_cone_id(c["finding"], c["delta"])}
                             placement_base = new_base
                             c["delta"].intent["_override_board"] = mv["board"]
                             c["delta"].note += f" [PLACED {mv['ref']} +{mv['moved_mm']}mm]"
@@ -2338,14 +2397,15 @@ def run(board, rounds, hours, auditor=None):
                    "real_anchor_ratio": anchors["real_anchor_ratio"],    # EI-07
                    "n_deterministic": anchors["n_deterministic"], "n_model": anchors["n_model"],
                    "n_deltas_applied": len(applied_deltas),
-                   # actuation-lever step 1: the TRANSITIVE influence cone (control=[]) -- this round's
-                   # active steers (rules+penalties+this round's in-flight placement/layer move) UNION
-                   # the cone of KEPT moves the augmented board compounded on. clean_pairs() reads this.
-                   "influenced_by": ([] if lane == "control" else sorted(
-                       set(active_steer_ids(lr)) | set(placement_cone)
-                       | {rule_id("placement", {"hyp": act.hypothesis_key(p["finding"], p["delta"])})
-                          for p in pending_deltas if getattr(p["delta"], "kind", None) == "replace"}
-                       | ({rule_id("layer", {"shipped": True})} if rec.get("staggered") else set()))),
+                   # actuation-lever step 1: the COMPLETE route-time influence cone (control=[]).
+                   # Built from the snapshot taken when this round ROUTED, plus the layer-stagger id
+                   # (the one steer applied post-route -> it shaped the board that SHIPPED). The ONE
+                   # function the tests also call (tested == shipped).
+                   "influenced_by": compute_influenced_by(
+                       lane, steer_ids=route_cone["steer_ids"], placement_cone=route_cone["placement"],
+                       intent_id=route_cone["intent_id"], avoid_ids=route_cone["avoid_ids"],
+                       effort_id=route_cone["effort_id"],
+                       layer_id=(rule_id("layer", {"shipped": True}) if rec.get("staggered") else None)),
                    **_placement_row_fields(placement_summary, lane, placement_settled),   # PL-08
                    "corpus_state": _corpus_state(lr)}        # EI-01: knowledge state at round time
             with open(_d("measurement.jsonl"), "a") as fh:
