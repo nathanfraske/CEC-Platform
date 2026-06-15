@@ -23,7 +23,23 @@ write the design doc, document all steps in handoff+todo, and start building.
 - Hard gates (kelvin/diffpair/DRC/conformance) STAY deterministic+human (CLAUDE.md ratification
   boundary). VALIDATION caveat: eps lever is inert (run proved it) — exercise on a Hub (post step-11)
   or a synthetic injected fixture.
-- Build progress this session below; step-1 code in scripts/cec_fullstack.py + tests/test_actuation_lever.py.
+- BUILD PROGRESS (this session, PR #60):
+  * Step 1 DONE + AUDITED (commit d6ddfba; audit wf_f24bddf7-9fd ship-with-fixes/22-confirmed -> fixes 0e38d35).
+    Route-time-snapshot rewrite: cone now includes model-intent plan / corridor-avoid / avoid-deltas /
+    panel effort; both timing bugs closed; control-lane contamination (effort reset + intent-briefing
+    lane-gate) closed; clean_pairs absent-key hole closed; tested==shipped.
+  * Steps 2-4 DONE (commit 5ab059a): rule_tally (cross-run clean pooling) + graduation_verdict (bar,
+    holdout-validated tests/holdout/actuation/bar-fixtures.json) + assert_steer_only chokepoint;
+    end-of-run lever block + --tally CLI. Promotion stays owner-gated. Caught+fixed a real glob bug in
+    load_runs_from_dirs (cross-run pooling was silently disabled). Host suite 323 green.
+  * Hub generalization DONE (commit 0b09574) + fresh-route strip VERIFIED on host: _placement_only_copy
+    strips 905 tracks/vias, keeps 91 footprints + GND zone, committed board untouched. Hub routes fresh
+    from placement.
+  * SECOND audit RUNNING (wf_24ad4f0c-092 / task wfv6h8pqs): re-verify the fixes + audit steps 2-4.
+  * NEXT after audit: fix any blockers, then the Hub fullstack SMOKE (--rounds 2-3, broker up [10 models],
+    routing container up) to confirm the placement lever engages, then a longer validation run.
+- Step-1/2/3/4 code: scripts/cec_fullstack.py; Hub: scripts/cec_overnight_directed.py + scripts/cec_router.py;
+  tests: tests/test_actuation_lever.py (35).
 
 ## 10h FULL-PIPELINE RUN — COMPLETED, NEGATIVE RESULT 2026-06-15 ~15:15 UTC (committed c787595)
 The run launched ~03:57 UTC finished its full 10h budget cleanly. **Writeup: docs/fullstack-run-2026-06-15/RESULT.md.**
