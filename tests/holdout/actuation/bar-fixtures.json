@@ -1,47 +1,60 @@
 {
-  "_about": "Held-out validation pool for the actuation-lever GRADUATION BAR (cec_fullstack.graduation_verdict). NEVER tune the bar thresholds to make these pass -- the bar is consulted only to EVALUATE a threshold change. Each case is a per-rule cross-run tally (the output of rule_tally) with the expected graduate/reject verdict and why. Grown from real adjudicated tallies as runs accrue; the four seed cases below are the boundary the default bar (min_runs=3, min_pairs=8, min_improving_frac=0.75, drc effect floor 2.0) must classify correctly.",
+  "_about": "Held-out validation pool for the actuation-lever GRADUATION BAR. NEVER tune the bar thresholds to make these pass -- the bar is consulted only to EVALUATE a threshold change. Each case stores PER-RUN ROW SETS (not a hand-fabricated tally); the test feeds them through the REAL rule_tally + graduation_verdict end-to-end, so a case can only assert a verdict the producer can actually emit (closes the fabricated-n_pairs hole, audit wf_24ad4f0c-092). Rows: lane + influenced_by (treatment carries the rule id, baseline does not) + the metric value. The default bar is min_runs=3, min_pairs=6, min_improving_frac=0.75, drc effect floor 2.0; effect gated on the MEDIAN per-run delta.",
+  "rule_id": "rule:seed",
+  "metric": "drc",
   "cases": [
     {
       "name": "clear-graduate-drc",
       "expect_graduate": true,
-      "why": "4 independent clean runs, all improving drc by >= the 2.0 floor, 8 clean pairs -- the bar's positive boundary",
-      "tally": {"rule_id": "rule:seed1", "metric": "drc", "n_runs": 4, "n_pairs": 8,
-                "pooled_delta": -4.5,
-                "per_run": [{"run": "a", "delta": -5, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "b", "delta": -4, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "c", "delta": -6, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "d", "delta": -3, "n_baseline": 1, "n_treatment": 1}]}
+      "why": "4 independent clean runs, each 2 control + 2 treatment rows -> 2 pairs/run = 8 pairs, every run improves drc by 6 (>= the 2.0 floor). The positive boundary, and PRODUCIBLE by rule_tally.",
+      "runs": [
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 14}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 14}],
+        [{"lane": "control", "influenced_by": [], "drc": 22}, {"lane": "control", "influenced_by": [], "drc": 22}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 16}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 16}],
+        [{"lane": "control", "influenced_by": [], "drc": 19}, {"lane": "control", "influenced_by": [], "drc": 19}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 13}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 13}],
+        [{"lane": "control", "influenced_by": [], "drc": 21}, {"lane": "control", "influenced_by": [], "drc": 21}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 15}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 15}]
+      ]
     },
     {
       "name": "reject-too-few-runs",
       "expect_graduate": false,
-      "why": "strong + consistent but only 2 clean runs (< min_runs 3): not enough independent evidence",
-      "tally": {"rule_id": "rule:seed2", "metric": "drc", "n_runs": 2, "n_pairs": 8,
-                "pooled_delta": -6.0,
-                "per_run": [{"run": "a", "delta": -6, "n_baseline": 2, "n_treatment": 2},
-                            {"run": "b", "delta": -6, "n_baseline": 2, "n_treatment": 2}]}
+      "why": "strong + consistent but only 2 clean runs (< min_runs 3)",
+      "runs": [
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 14}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 14}],
+        [{"lane": "control", "influenced_by": [], "drc": 22}, {"lane": "control", "influenced_by": [], "drc": 22}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 16}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 16}]
+      ]
     },
     {
       "name": "reject-inconsistent-direction",
       "expect_graduate": false,
       "why": "4 runs, 8 pairs, but only half improve (improving_frac 0.5 < 0.75): a coin-flip, not a real effect",
-      "tally": {"rule_id": "rule:seed3", "metric": "drc", "n_runs": 4, "n_pairs": 8,
-                "pooled_delta": -0.5,
-                "per_run": [{"run": "a", "delta": -5, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "b", "delta": 6, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "c", "delta": -4, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "d", "delta": 5, "n_baseline": 1, "n_treatment": 1}]}
+      "runs": [
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 14}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 14}],
+        [{"lane": "control", "influenced_by": [], "drc": 14}, {"lane": "control", "influenced_by": [], "drc": 14}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 20}],
+        [{"lane": "control", "influenced_by": [], "drc": 19}, {"lane": "control", "influenced_by": [], "drc": 19}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 13}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 13}],
+        [{"lane": "control", "influenced_by": [], "drc": 13}, {"lane": "control", "influenced_by": [], "drc": 13}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19}]
+      ]
     },
     {
       "name": "reject-effect-too-small",
       "expect_graduate": false,
-      "why": "consistent direction + enough runs/pairs, but |pooled| 1.0 < the 2.0 drc effect floor: noise-level",
-      "tally": {"rule_id": "rule:seed4", "metric": "drc", "n_runs": 4, "n_pairs": 8,
-                "pooled_delta": -1.0,
-                "per_run": [{"run": "a", "delta": -1, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "b", "delta": -1, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "c", "delta": -1, "n_baseline": 1, "n_treatment": 1},
-                            {"run": "d", "delta": -1, "n_baseline": 1, "n_treatment": 1}]}
+      "why": "consistent + enough runs/pairs, but each run improves drc by only 1 (< the 2.0 floor): noise-level",
+      "runs": [
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19}],
+        [{"lane": "control", "influenced_by": [], "drc": 22}, {"lane": "control", "influenced_by": [], "drc": 22}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 21}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 21}],
+        [{"lane": "control", "influenced_by": [], "drc": 19}, {"lane": "control", "influenced_by": [], "drc": 19}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 18}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 18}],
+        [{"lane": "control", "influenced_by": [], "drc": 21}, {"lane": "control", "influenced_by": [], "drc": 21}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 20}]
+      ]
+    },
+    {
+      "name": "reject-single-outlier-carries-mean",
+      "expect_graduate": false,
+      "why": "median-robustness: 3 runs barely move (-0.5 each, < floor) + 1 huge -40 outlier. The MEAN would clear the floor, the MEDIAN does not -- the bar must reject (audit should-fix).",
+      "runs": [
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19.5}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19.5}],
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19.5}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19.5}],
+        [{"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "control", "influenced_by": [], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19.5}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 19.5}],
+        [{"lane": "control", "influenced_by": [], "drc": 60}, {"lane": "control", "influenced_by": [], "drc": 60}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 20}, {"lane": "augmented", "influenced_by": ["rule:seed"], "drc": 20}]
+      ]
     }
   ]
 }

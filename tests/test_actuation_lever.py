@@ -221,18 +221,45 @@ class TestGraduationBar(unittest.TestCase):
         self.assertTrue(any("improving_frac" in r for r in v["reasons"]))
 
     def test_rejected_effect_too_small(self):
-        # consistent direction + enough runs, but |pooled| 1.0 < the 2.0 drc effect floor
+        # consistent direction + enough runs, but |median| 1.0 < the 2.0 drc effect floor
         v = fs.graduation_verdict(self._tally([-1, -1, -1, -1]))
         self.assertFalse(v["graduate"])
-        self.assertTrue(any("pooled" in r for r in v["reasons"]))
+        self.assertTrue(any("median" in r for r in v["reasons"]))
 
     def test_wrong_direction_for_higher_is_better_metric(self):
         # gates_pass is higher-is-better; a NEGATIVE pooled delta is a regression, never graduates
         t = {"rule_id": "rule:R", "metric": "gates_pass", "n_runs": 4, "n_pairs": 8,
              "per_run": [{"run": f"r{i}", "delta": -0.3, "n_baseline": 2, "n_treatment": 2}
-                         for i in range(4)], "pooled_delta": -0.3}
+                         for i in range(4)], "pooled_delta": -0.3, "median_delta": -0.3}
+        self.assertFalse(fs.graduation_verdict(t)["graduate"])
+
+    def test_min_pairs_floor_blocks_with_reason(self):
+        # enough runs + consistent + strong, but n_pairs below the floor -> rejected on n_pairs
+        t = {"rule_id": "rule:R", "metric": "drc", "n_runs": 4, "n_pairs": 3,
+             "per_run": [{"run": f"r{i}", "delta": -5, "n_baseline": 1, "n_treatment": 1}
+                         for i in range(4)], "pooled_delta": -5.0, "median_delta": -5.0}
         v = fs.graduation_verdict(t)
         self.assertFalse(v["graduate"])
+        self.assertTrue(any("n_pairs" in r for r in v["reasons"]))
+
+    def test_unknown_metric_fails_closed(self):
+        t = {"rule_id": "rule:R", "metric": "made_up_metric", "n_runs": 4, "n_pairs": 8,
+             "per_run": [{"run": f"r{i}", "delta": -9, "n_baseline": 2, "n_treatment": 2}
+                         for i in range(4)], "pooled_delta": -9.0, "median_delta": -9.0}
+        v = fs.graduation_verdict(t)
+        self.assertFalse(v["graduate"])
+        self.assertTrue(any("unknown metric" in r for r in v["reasons"]))
+
+    def test_median_gates_effect_not_mean(self):
+        # 3 tiny improvements (< floor) + 1 huge outlier: mean clears the floor, median does not -> reject
+        t = fs.rule_tally("rule:R", "drc", [
+            ("a", [_row("control", [], drc=20), _row("augmented", ["rule:R"], drc=19.5)]),
+            ("b", [_row("control", [], drc=20), _row("augmented", ["rule:R"], drc=19.5)]),
+            ("c", [_row("control", [], drc=20), _row("augmented", ["rule:R"], drc=19.5)]),
+            ("d", [_row("control", [], drc=60), _row("augmented", ["rule:R"], drc=20)])])
+        self.assertLess(abs(t["median_delta"]), 2.0)           # median is the small move
+        self.assertGreater(abs(t["pooled_delta"]), 2.0)        # mean is dragged by the outlier
+        self.assertFalse(fs.graduation_verdict(t)["graduate"])
 
 
 class TestSteerOnlyChokepoint(unittest.TestCase):
@@ -241,8 +268,8 @@ class TestSteerOnlyChokepoint(unittest.TestCase):
     def test_steer_fields_allowed(self):
         self.assertTrue(fs.assert_steer_only({"rank_key": 1, "seed": 7, "passes": 30}))
 
-    def test_gate_field_write_raises(self):
-        for gate in ("gates_pass", "kelvin_ok", "drc", "pour_integrity_ok", "ship"):
+    def test_every_gate_field_write_raises(self):
+        for gate in sorted(fs.GATE_FIELDS):           # the full set, not a sample
             with self.assertRaises(fs.SteerViolation):
                 fs.assert_steer_only({gate: True})
 
@@ -262,13 +289,18 @@ class TestGraduationBarHoldout(unittest.TestCase):
 
     def test_default_bar_classifies_holdout(self):
         path = os.path.join(ROOT, "tests", "holdout", "actuation", "bar-fixtures.json")
-        cases = json.load(open(path))["cases"]
+        spec = json.load(open(path))
+        rid, metric, cases = spec["rule_id"], spec["metric"], spec["cases"]
         self.assertGreaterEqual(len(cases), 4)
         for c in cases:
-            v = fs.graduation_verdict(c["tally"])         # DEFAULT thresholds, no overrides
+            # derive the tally through the REAL producer from the fixture's per-run rows -- so a case
+            # can only assert a verdict rule_tally can actually emit (no fabricated n_pairs).
+            runs = [(f"{c['name']}-r{i}", rows) for i, rows in enumerate(c["runs"])]
+            tally = fs.rule_tally(rid, metric, runs)
+            v = fs.graduation_verdict(tally)              # DEFAULT thresholds, no overrides
             self.assertEqual(v["graduate"], c["expect_graduate"],
                              f"{c['name']}: expected graduate={c['expect_graduate']} ({c['why']}); "
-                             f"got {v['graduate']} reasons={v['reasons']}")
+                             f"got {v['graduate']} reasons={v['reasons']} tally={tally}")
 
 
 class TestActuationLeverReport(unittest.TestCase):
@@ -291,6 +323,33 @@ class TestActuationLeverReport(unittest.TestCase):
         rep = fs.actuation_lever_report(runs)
         self.assertEqual(rep["graduated"], [])
 
+    def test_only_ratifiable_kinds_are_candidates(self):
+        # effort:/intents:/avoid:/layer: are live plumbing -- they belong in the cone but must NOT be
+        # proposed as steer rules; only rule:/penalty:/placement: are candidates.
+        R = "rule:R"
+        runs = [(f"r{i}", [_row("control", [], drc=20), _row("control", [], drc=20),
+                           _row("augmented", [R, "effort:e", "intents:i", "layer:l"], drc=14),
+                           _row("augmented", [R, "effort:e", "intents:i", "layer:l"], drc=14)])
+                for i in range(4)]
+        rep = fs.actuation_lever_report(runs)
+        self.assertIn(R, rep["candidate_rules"])
+        for plumbing in ("effort:e", "intents:i", "layer:l"):
+            self.assertNotIn(plumbing, rep["candidate_rules"])
+            self.assertIn(plumbing, rep["skipped_non_ratifiable"])
+
+    def test_safety_veto_blocks_graduating_while_regressing_a_gate(self):
+        # R improves drc strongly but REGRESSES gates_pass -> vetoed from graduating on ANY metric
+        R = "rule:R"
+        runs = [(f"r{i}", [
+            _row("control", [], drc=20, gates_pass=True), _row("control", [], drc=20, gates_pass=True),
+            _row("augmented", [R], drc=12, gates_pass=False), _row("augmented", [R], drc=12, gates_pass=False)])
+            for i in range(4)]
+        rep = fs.actuation_lever_report(runs)
+        drc_grad = [g for g in rep["graduation"] if g["rule_id"] == R and g["metric"] == "drc"]
+        self.assertTrue(drc_grad)
+        self.assertFalse(drc_grad[0]["graduate"])             # drc win vetoed by the gates_pass regression
+        self.assertEqual(drc_grad[0]["safety_veto"], "gates_pass")
+
     def test_load_runs_from_dirs(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
@@ -306,9 +365,22 @@ class TestActuationLeverReport(unittest.TestCase):
             open(os.path.join(rd2, "measurement.jsonl"), "w").write(
                 json.dumps(_row("augmented", ["rule:R"], drc=99)) + "\n")
             json.dump({"board": "hub-standard"}, open(os.path.join(rd2, "bundle.json"), "w"))
+            # a NO-BUNDLE, NO-STAMP run must be EXCLUDED (fail-closed), not pooled into eps
+            rd3 = os.path.join(d, "fullstack-run-nobundle")
+            os.makedirs(rd3)
+            open(os.path.join(rd3, "measurement.jsonl"), "w").write(
+                json.dumps({"lane": "augmented", "influenced_by": ["rule:R"], "drc": 77}) + "\n")
+            # a NO-BUNDLE but BOARD-STAMPED eps run must be INCLUDED (confirmed via the row stamp)
+            rd4 = os.path.join(d, "fullstack-run-stamped")
+            os.makedirs(rd4)
+            open(os.path.join(rd4, "measurement.jsonl"), "w").write(
+                json.dumps({"board": "eps-8pin", "lane": "augmented", "influenced_by": ["rule:R"], "drc": 11}) + "\n")
             runs = fs.load_runs_from_dirs([os.path.join(d, "*", "measurement.jsonl")], board="eps-8pin")
-            self.assertEqual(len(runs), 2)                # the hub-standard run filtered out
-            self.assertTrue(all(any(r.get("drc") != 99 for r in rows) for _, rows in runs))
+            names = {n for n, _ in runs}
+            self.assertIn("fullstack-run-x0", names)
+            self.assertIn("fullstack-run-stamped", names)     # no bundle but stamped -> included
+            self.assertNotIn("fullstack-run-other", names)    # hub-standard bundle -> excluded
+            self.assertNotIn("fullstack-run-nobundle", names)  # unconfirmed -> fail-closed exclude
 
 
 class TestSingleSourceConstants(unittest.TestCase):

@@ -67,9 +67,21 @@ an augmented row may serve as a baseline for R only if R is absent from its whol
   the model-intent plan, corridor-avoid, avoid-deltas and panel effort; both timing bugs closed;
   control-lane contamination (effort, intent-briefing) closed; `clean_pairs` absent-key hole closed;
   tested == shipped.
-- **Steps 2-4 — DONE** (this commit). `rule_tally` / `actuation_lever_report` (cross-run clean pooling),
-  `graduation_verdict` (the bar, holdout-validated), `assert_steer_only` (the chokepoint). Wired into
-  end-of-run + a `--tally` CLI. Promotion to a live steer stays owner-gated (`promoted/**`).
+- **Steps 2-4 — DEFINED + tested, NOT yet wired to actuation** (audited `wf_24ad4f0c-092`,
+  ship-with-fixes, all must-fix + high-value should-fix closed). `rule_tally` / `actuation_lever_report`
+  (cross-run clean pooling, board-isolated, ratifiable-kinds-only, cross-metric safety veto),
+  `graduation_verdict` (the bar — median-gated effect, holdout-validated from producible rows),
+  `assert_steer_only` (the chokepoint). Wired into end-of-run reporting + a `--tally` CLI. Graduation is
+  **ADVISORY**; `assert_steer_only` / `_placement_keep` have **no live actuation caller yet** — promotion
+  to a live steer stays owner-gated (`promoted/**`). The report is correct the day graduation is wired.
+- **Two promotion-time requirements (DEFERRED — must close when graduation→actuation is wired):**
+  1. **Promoted-corpus control contamination.** A promoted rule rides the corpus brief on BOTH lanes,
+     so the control row is no longer clean of it. On promotion, either drop the graduated rule from the
+     control-lane brief OR stamp its id into the control row's `influenced_by` — else a promoted rule
+     draws a falsely-"clean" control baseline.
+  2. **Claimed-metric scoping (invariant #1).** A candidate should be scored on the metric it CLAIMED,
+     not allowed to graduate on whichever metric happens to clear the bar. Plumb the claim through
+     `finding.proposed_lever` → the candidate id, and scope graduation to it.
 - **Remaining — the Hub validation run** (the lever is inert on eps).
 
 ## Design — four staged steps

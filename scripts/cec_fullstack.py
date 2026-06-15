@@ -472,7 +472,10 @@ def intents_steer_id(intents, src):
     same evolved plan tallies across rounds. Pure."""
     if src != "model" or not intents:
         return None
-    return rule_id("intents", {"nets": sorted(i.get("net") for i in intents), "src": src})
+    nets = sorted(i.get("net") for i in intents if i.get("net"))   # guard a net-less intent (no TypeError)
+    if not nets:
+        return None
+    return rule_id("intents", {"nets": nets, "src": src})
 
 
 def avoid_steer_ids(avoid_intents):
@@ -569,9 +572,16 @@ def rule_tally(rid, metric, runs):
                             "n_baseline": d["n_baseline"], "n_treatment": d["n_treatment"]})
     n_runs = len(per_run)
     n_pairs = sum(min(p["n_baseline"], p["n_treatment"]) for p in per_run)
-    pooled = round(sum(p["delta"] for p in per_run) / n_runs, 4) if n_runs else None
+    deltas = sorted(p["delta"] for p in per_run)
+    pooled = round(sum(deltas) / n_runs, 4) if n_runs else None
+    # median is the effect estimator the bar gates on -- robust to a single outlier run carrying
+    # graduation (a should-fix from audit wf_24ad4f0c-092); mean is kept for the report.
+    median = None
+    if n_runs:
+        mid = n_runs // 2
+        median = round(deltas[mid] if n_runs % 2 else (deltas[mid - 1] + deltas[mid]) / 2, 4)
     return {"rule_id": rid, "metric": metric, "n_runs": n_runs, "n_pairs": n_pairs,
-            "per_run": per_run, "pooled_delta": pooled}
+            "per_run": per_run, "pooled_delta": pooled, "median_delta": median}
 
 
 # ---- Step 3: the GRADUATION BAR (statistical; thresholds holdout-validated, never live-tuned) --
@@ -579,13 +589,23 @@ def rule_tally(rid, metric, runs):
 # code NEVER reads tests/holdout at runtime (checklist enforces it). Owner may override per metric
 # via a cec-policy.json actuation_bar block. A metric's direction (lower-is-better) decides which
 # sign of delta counts as improvement.
-GRADUATION_BAR = {"min_runs": 3, "min_pairs": 8, "min_improving_frac": 0.75}
+# min_pairs is reconciled to min_runs (>= min_runs * 2, i.e. >= 2 clean comparisons per run) so the
+# pair floor never dominates the run floor (a SHORT run yields min(n_control, n_aug) pairs/run).
+GRADUATION_BAR = {"min_runs": 3, "min_pairs": 6, "min_improving_frac": 0.75}
 _METRIC_BETTER_IS_LOWER = {"drc": True, "unconnected": True, "plane_signal_mm": True, "length": True,
                            "vias": True, "max_T": True, "gates_pass": False, "kelvin_ok": False,
                            "convergence": False}
 _MIN_ABS_EFFECT = {"drc": 2.0, "unconnected": 1.0, "plane_signal_mm": 5.0, "length": 20.0,
                    "vias": 4.0, "max_T": 2.0, "gates_pass": 0.15, "kelvin_ok": 0.15,
                    "convergence": 0.15}
+# Only these kinds are CANDIDATE RULES to graduate (a "case + claimed metric", invariant #1). The
+# other cone kinds (effort:/intents:/avoid:/layer:) are live plumbing already steering via the panel/
+# intent-manager/stagger -- they belong in influenced_by for firewall completeness but must NEVER be
+# proposed as a steer rule (audit wf_24ad4f0c-092).
+RATIFIABLE_KINDS = ("rule", "penalty", "placement")
+# Safety metrics: a rule may not GRADUATE on any metric while showing a clean REGRESSION on one of
+# these (the cross-metric veto -- no trading a gate for a drc win).
+_SAFETY_METRICS = ("gates_pass", "kelvin_ok")
 
 
 def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_frac=None,
@@ -599,19 +619,25 @@ def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_fr
     min_pairs = GRADUATION_BAR["min_pairs"] if min_pairs is None else min_pairs
     min_improving_frac = (GRADUATION_BAR["min_improving_frac"] if min_improving_frac is None
                           else min_improving_frac)
+    # unknown-metric => FAIL-CLOSED (no effect floor known -> cannot graduate), unless explicitly given.
+    unknown_metric = min_abs_effect is None and metric not in _MIN_ABS_EFFECT
     min_abs_effect = (_MIN_ABS_EFFECT.get(metric, 0.0) if min_abs_effect is None else min_abs_effect)
     better_is_lower = (_METRIC_BETTER_IS_LOWER.get(metric, True) if better_is_lower is None
                        else better_is_lower)
     per = tally.get("per_run", [])
-    n_runs, n_pairs, pooled = tally.get("n_runs", 0), tally.get("n_pairs", 0), tally.get("pooled_delta")
+    n_runs, n_pairs = tally.get("n_runs", 0), tally.get("n_pairs", 0)
+    pooled, median = tally.get("pooled_delta"), tally.get("median_delta", tally.get("pooled_delta"))
 
     def improves(d):
         return (d < 0) if better_is_lower else (d > 0)
 
     improving = sum(1 for p in per if improves(p["delta"]))
     frac = round(improving / n_runs, 4) if n_runs else 0.0
-    effect_ok = pooled is not None and improves(pooled) and abs(pooled) >= min_abs_effect
+    # the effect test gates on the MEDIAN per-run delta -- robust to one outlier run.
+    effect_ok = median is not None and improves(median) and abs(median) >= min_abs_effect
     reasons = []
+    if unknown_metric:
+        reasons.append(f"unknown metric {metric!r} -- no effect floor (fail-closed)")
     if n_runs < min_runs:
         reasons.append(f"n_runs {n_runs} < {min_runs}")
     if n_pairs < min_pairs:
@@ -619,10 +645,10 @@ def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_fr
     if frac < min_improving_frac:
         reasons.append(f"improving_frac {frac} < {min_improving_frac}")
     if not effect_ok:
-        reasons.append(f"|pooled {pooled}| < {min_abs_effect} or wrong direction")
+        reasons.append(f"|median {median}| < {min_abs_effect} or wrong direction")
     return {"rule_id": tally.get("rule_id"), "metric": metric, "graduate": not reasons,
             "n_runs": n_runs, "n_pairs": n_pairs, "improving_frac": frac, "pooled_delta": pooled,
-            "min_abs_effect": min_abs_effect, "reasons": reasons}
+            "median_delta": median, "min_abs_effect": min_abs_effect, "reasons": reasons}
 
 
 # ---- Step 4: the STEER-ONLY chokepoint -- a ratified rule may STEER, never GATE --------------
@@ -676,13 +702,6 @@ def load_runs_from_dirs(paths, board=None):
         if not os.path.isfile(f):
             continue
         rdir = os.path.dirname(f)
-        if board is not None:
-            try:
-                b = json.load(open(os.path.join(rdir, "bundle.json"))).get("board")
-                if b is not None and b != board:
-                    continue                       # different board -> never pool (cross-board contamination)
-            except Exception:                      # noqa: BLE001  (no bundle yet -> include)
-                pass
         rows = []
         for ln in open(f):
             ln = ln.strip()
@@ -691,24 +710,70 @@ def load_runs_from_dirs(paths, board=None):
                     rows.append(json.loads(ln))
                 except Exception:                  # noqa: BLE001
                     pass
+        if board is not None:
+            # FAIL-CLOSED board identification: a run is pooled only if its board can be CONFIRMED to
+            # match -- via bundle.json OR a board-stamped row. A run with neither (e.g. a crashed run
+            # with no bundle and pre-stamp rows) is SKIPPED, never pooled across boards.
+            run_board = None
+            try:
+                run_board = json.load(open(os.path.join(rdir, "bundle.json"))).get("board")
+            except Exception:                      # noqa: BLE001
+                pass
+            if run_board is None:
+                stamped = {r.get("board") for r in rows if isinstance(r, dict) and r.get("board")}
+                run_board = next(iter(stamped)) if len(stamped) == 1 else None
+            if run_board != board:
+                continue                           # unconfirmed or different board -> never pool
         runs.append((os.path.basename(rdir) or "run", rows))
     return runs
 
 
+def _safety_regression(rule_tallies):
+    """Return the SAFETY metric on which a rule shows a CLEAN regression (>= min_runs runs + median
+    worsens past the floor), else None -- the cross-metric veto input. Pure."""
+    for s in _SAFETY_METRICS:
+        t = rule_tallies.get(s)
+        if not t or t["n_runs"] < GRADUATION_BAR["min_runs"]:
+            continue
+        med = t.get("median_delta")
+        if med is None:
+            continue
+        better_is_lower = _METRIC_BETTER_IS_LOWER.get(s, True)
+        worsens = (med > 0) if better_is_lower else (med < 0)        # opposite of "improves"
+        if worsens and abs(med) >= _MIN_ABS_EFFECT.get(s, 0.0):
+            return s
+    return None
+
+
 def actuation_lever_report(runs):
     """The per-rule CLEAN-evidence tally + graduation advisory across `runs` = [(run_id, rows)].
-    Pure given the rows. Graduation is ADVISORY -- promotion to a live STEER rule stays owner-gated
-    (promoted/** is CODEOWNERS-protected); this only proposes."""
-    rids = rule_ids_in_rows([r for _, rows in runs for r in rows])
-    tallies, grads = [], []
+    Pure given the rows. Only RATIFIABLE kinds are candidates (effort/intents/avoid/layer plumbing
+    stays in the cone for the firewall but is never proposed as a steer rule). A rule that shows a
+    clean regression on a SAFETY metric is vetoed from graduating on ANY metric (no trading a gate
+    for a drc win). Graduation is ADVISORY -- promotion to a live STEER rule stays owner-gated."""
+    all_rids = rule_ids_in_rows([r for _, rows in runs for r in rows])
+    rids = [r for r in all_rids if r.split(":", 1)[0] in RATIFIABLE_KINDS]
+    by_rule, tallies = {}, []
     for rid in rids:
+        by_rule[rid] = {}
         for m in _LEVER_METRICS:
             t = rule_tally(rid, m, runs)
             if t["n_runs"] == 0:
                 continue
             tallies.append(t)
-            grads.append(graduation_verdict(t))
+            by_rule[rid][m] = t
+    grads = []
+    for rid in rids:
+        veto = _safety_regression(by_rule.get(rid, {}))             # cross-metric safety veto
+        for m, t in by_rule[rid].items():
+            g = graduation_verdict(t)
+            if veto and m != veto and g["graduate"]:
+                g = {**g, "graduate": False,
+                     "reasons": g["reasons"] + [f"safety veto: clean regression on {veto}"]}
+            g["safety_veto"] = veto
+            grads.append(g)
     return {"n_runs": len(runs), "n_candidate_rules": len(rids), "candidate_rules": rids,
+            "skipped_non_ratifiable": [r for r in all_rids if r not in rids],
             "tallies": tallies, "graduation": grads,
             "graduated": [g for g in grads if g["graduate"]],
             "note": "graduation is ADVISORY -- a graduated rule may STEER only (assert_steer_only); "
@@ -2052,6 +2117,10 @@ def run(board, rounds, hours, auditor=None):
             if lane == "augmented":
                 intents_aug = list(intents)         # carry the model's plan forward (augmented lane only)
                 prev_dropped_aug = dropped          # P1c: feed invalid refs into the next augmented round
+            # The MODEL plan id is keyed on this BEFORE the corridor-avoid merge below -- else the same
+            # plan gets a different intents id per round as avoid nets come and go (audit fix); avoid is
+            # tracked separately via avoid_steer_ids.
+            model_intents = list(intents)
             # Item 4 lever: carry last round's OFFENDING-net corridor-avoidance intents in, so the
             # foreign signal nets that clipped the pours route AROUND the corridor THIS round (the
             # untried lever -- r3 only waypointed the victim Kelvin nets). CONTROL rounds DO NOT carry
@@ -2103,7 +2172,7 @@ def run(board, rounds, hours, auditor=None):
                 "steer_ids": active_steer_ids(lr),
                 "placement": route_placement_cone(
                     placement_cone, (pending_placement or {}).get("move_id")),
-                "intent_id": intents_steer_id(intents, src),
+                "intent_id": intents_steer_id(model_intents, src),   # model plan only (pre-avoid-merge)
                 "avoid_ids": avoid_steer_ids(pending_corridor_avoid if lane == "augmented" else []),
                 "effort_id": effort_steer_id(passes, opt_time),
             }
@@ -2562,6 +2631,7 @@ def run(board, rounds, hours, auditor=None):
 
             # T9 measurement + ledger
             row = {"round": rnd, "ts": time.strftime("%H:%M:%S"), "sha": rec.get("sha"),
+                   "board": board,                               # self-identifying for cross-run board isolation
                    "lane": lane,                                 # EI-02: control | augmented
                    "intents_src": src, "passes": passes, "opt_time": opt_time,
                    "panel": action, "gates_pass": rec["gates_pass"],
@@ -2646,8 +2716,9 @@ def run(board, rounds, hours, auditor=None):
     log("A/B (control vs augmented):\n" + ab_text)
     # Actuation lever (steps 2-3): the CLEAN-evidence tally + graduation advisory, pooled across all
     # SAME-board committed run dirs plus this run. Promotion stays owner-gated; this only proposes.
-    lever_runs = load_runs_from_dirs([os.path.join(os.path.dirname(PERM), "*", "measurement.jsonl"),
-                                      _d("measurement.jsonl")], board=board)
+    lever_runs = load_runs_from_dirs(
+        [os.path.join(os.path.dirname(PERM), "fullstack-run-*", "measurement.jsonl"),  # narrow glob == --tally
+         _d("measurement.jsonl")], board=board)
     lever = actuation_lever_report(lever_runs)
     _emit_lever_ledger(board, lever)
     json.dump(lever, open(_d("actuation-lever.json"), "w"), indent=1, default=str)
