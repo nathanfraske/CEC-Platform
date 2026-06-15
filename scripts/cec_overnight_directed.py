@@ -379,18 +379,32 @@ def _routed_sha(routed):
 
 
 # ---- in-container WORKER (route+score one round, emit RECORD_JSON) ----------------------------------
+_STRIP_SCRIPT = (
+    "import sys, pcbnew\n"
+    "b = pcbnew.LoadBoard(sys.argv[1])\n"
+    "doomed = list(b.GetTracks())\n"          # PCB_TRACK + PCB_VIA
+    "for t in doomed:\n"
+    "    b.Remove(t)\n"
+    "pcbnew.SaveBoard(sys.argv[2], b)\n"
+    "sys.stdout.write(str(len(doomed)))\n")
+
+
 def _placement_only_copy(src_pcb, dst_pcb):
     """A COPY of *src_pcb* with all tracks AND vias removed -- placement, zones and footprints kept --
-    so the router routes FRESH from placement. The committed board is never mutated (we load it into
-    memory and save the stripped copy elsewhere). In-container only (uses pcbnew). Uses the proven-safe
-    materialize-then-Remove pattern (the re-proxied-GetTracks()-ids SWIG footgun -> collect first)."""
-    import pcbnew
-    b = pcbnew.LoadBoard(src_pcb)
-    doomed = list(b.GetTracks())                 # GetTracks() returns both PCB_TRACK and PCB_VIA
-    for t in doomed:
-        b.Remove(t)
-    pcbnew.SaveBoard(dst_pcb, b)
-    print(f"[ovd] fresh-route: stripped {len(doomed)} track/via(s) -> placement-only copy", flush=True)
+    so the router routes FRESH from placement. The committed board is never mutated.
+
+    Runs in a SHORT-LIVED SUBPROCESS, NOT in-process: the pcbnew track-Remove churn leaves dangling
+    SWIG proxies ('no destructor' warnings) that segfault the NEXT garbage-collection in the SAME
+    interpreter -- observed on the Hub, where a GC during route_directed's `import cec_fr` crashed
+    (rc=139). A subprocess that exits right after SaveBoard confines the churn (teardown only emits
+    the benign leak warnings); the parent then loads the clean saved file fresh."""
+    import subprocess
+    r = subprocess.run([sys.executable, "-c", _STRIP_SCRIPT, src_pcb, dst_pcb],
+                       capture_output=True, text=True, timeout=300)
+    if r.returncode != 0 or not os.path.isfile(dst_pcb):
+        raise RuntimeError(f"_placement_only_copy failed (rc={r.returncode}): {(r.stderr or '')[-300:]}")
+    print(f"[ovd] fresh-route: stripped {(r.stdout or '?').strip()} track/via(s) -> placement-only copy",
+          flush=True)
     return dst_pcb
 
 
