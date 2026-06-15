@@ -609,20 +609,23 @@ def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, ur
         return list(ex.map(one, list(enumerate(lenses))))
 
 
-def make_manager_swarm(spec, *, panel=3, verbose=False):
+def make_manager_swarm(spec, *, panel=3, verbose=False, model=None, url=None):
     """A TRUE manager SWARM for cec_router.route's manager= slot: `panel` concurrent local agents,
     each a distinct lens (safety / finishing / progress, cycled with temperature for replicas), voting
-    on accept/repair/escalate. Fail-safe -> default_manager; cannot accept a non-gate-passing board."""
+    on accept/repair/escalate. Fail-safe -> default_manager; cannot accept a non-gate-passing board.
+    `model`/`url` override the broker default: pass a CLOUD model name (e.g. 'opus') and _chat_json
+    auto-routes the panel through the `claude -p` shim (cec_seats picks it per the residency policy)."""
     import cec_router
     lenses = [MANAGER_LENSES[i % len(MANAGER_LENSES)] for i in range(max(1, panel))]
     temps = {i: (0.0 if i < len(MANAGER_LENSES) else 0.4) for i in range(len(lenses))}
+    mgr_model, mgr_url = (model or MANAGER_MODEL), (url or MANAGER_URL)
 
     def manager(region, scored, history):
         try:
             user = _context(region, scored, history, spec)
             best = scored[0][1] if scored else None
             results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps,
-                             url=MANAGER_URL, model=MANAGER_MODEL, timeout=MANAGER_TIMEOUT,
+                             url=mgr_url, model=mgr_model, timeout=MANAGER_TIMEOUT,
                              max_tokens=MANAGER_MAX_TOKENS, seat="manager")
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
@@ -671,11 +674,13 @@ WORKER_SCHEMA = {
 }
 
 
-def make_worker_swarm(spec, *, fanout=3, verbose=False):
+def make_worker_swarm(spec, *, fanout=3, verbose=False, model=None, url=None):
     """A TRUE worker SWARM for cec_router.route's worker= slot: `fanout` concurrent agents each propose
     a repair effort (passes/opt_time), aggregated to a CONSENSUS (mean, bounded, > current). Fail-safe
-    -> default_worker."""
+    -> default_worker. `model`/`url` override the broker default: a CLOUD model name (e.g. 'sonnet')
+    auto-routes the workers through the `claude -p` shim (cec_seats picks it per the residency policy)."""
     import cec_router
+    wrk_model, wrk_url = (model or WORKER_MODEL), (url or WORKER_URL)
 
     def worker(region, verdict, state, history):
         # WORKER-tier finer-grained repair: try a TARGETED RIP-UP at the worst real DRC locus on the
@@ -700,7 +705,7 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False):
             def one(i):
                 try:
                     r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort", seat="worker:%d" % i,
-                                   temperature=(0.0 if i == 0 else 0.5), model=WORKER_MODEL, url=WORKER_URL)
+                                   temperature=(0.0 if i == 0 else 0.5), model=wrk_model, url=wrk_url)
                     return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
                 except Exception:
                     return None

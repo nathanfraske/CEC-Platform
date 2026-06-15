@@ -22,8 +22,72 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import cec_synth_pipeline as S          # noqa: E402
 import cec_router                       # noqa: E402
 import cec_score                        # noqa: E402
+import cec_seats                        # noqa: E402  (the cloud/local residency resolver)
 
 REF = "hubs/hub-standard/hub-standard.kicad_pcb"
+REF_SCH = "hubs/hub-standard/hub-standard.kicad_sch"
+
+# The synth-relevant PCB-geometry conformance subset (post-route HARD gate). Cable-only checkers
+# (high-current-corridor-keepout) self-N/A on the cable-less Hub -- that is correct, not a miss.
+CONFORMANCE_SUBSET = (
+    "netclass-geometry-conformance", "high-current-corridor-keepout",
+    "high-current-pour-integrity", "high-current-pour-present",
+    "kelvin-sense-fcu-no-via", "kelvin-sense-adjacent-shunt", "kelvin-sense-from-inner-pad",
+    "logo-bcu-keepout", "mount-holes-present-clear", "connector-mouth-faces-edge",
+)
+
+
+def _build_seats(sel, spec, log):
+    """Build (manager, worker) for cec_router.route() per the resolved seat backend, mirroring
+    cec_cascade.route_tier: local -> the broker swarm (gated on available()); cloud -> the SAME
+    swarm makers with cloud model names (cec_judge_local._chat_json auto-routes to the claude shim);
+    off/unavailable -> (None, None) => deterministic defaults. Fail-safe: any error -> deterministic."""
+    backend = sel["backend"]
+    if backend == "off":
+        log("SEATS: off -> deterministic route (no LLM control plane)")
+        return None, None
+    try:
+        import cec_judge_local as jl
+    except Exception as e:
+        log("SEATS: cec_judge_local import failed (%s) -> deterministic" % e)
+        return None, None
+    if backend == "local":
+        if not jl.available():
+            log("SEATS: local chosen but broker :8080 down -> deterministic")
+            return None, None
+        log("SEATS: LOCAL swarm (manager=%s worker=%s, panel=3)"
+            % (sel["manager_model"], sel["worker_model"]))
+        return (jl.make_manager_swarm(spec, panel=3, model=sel["manager_model"]),
+                jl.make_worker_swarm(spec, fanout=3, model=sel["worker_model"]))
+    # cloud: claude -p has no sampling temperature, so a voted panel collapses -> single judge.
+    if not getattr(jl, "CLOUD_MODELS", None):
+        log("SEATS: cloud chosen but CLOUD_MODELS empty -> deterministic")
+        return None, None
+    log("SEATS: CLOUD seats (manager=%s effort=%s, worker=%s, panel=1)"
+        % (sel["manager_model"], sel["effort"], sel["worker_model"]))
+    return (jl.make_manager_swarm(spec, panel=1, model=sel["manager_model"]),
+            jl.make_worker_swarm(spec, fanout=1, model=sel["worker_model"]))
+
+
+def _conformance(final, cfg, log):
+    """Run the synth-relevant PCB-geometry conformance subset post-route. Returns (n_fail, rows)
+    where rows = [{id, status, detail}, ...] for the subset. FAIL here is a real geometry violation
+    (the placer's corridor/pour/kelvin invariants given post-route teeth). Fail-safe -> (0, [])."""
+    try:
+        import cec_constraints
+        ctx = {"radio": bool(cfg.params.get("antenna_edge"))}
+        rows = cec_constraints.run(final, ctx)
+    except Exception as e:
+        log("  conformance: skipped (%s: %s)" % (type(e).__name__, e))
+        return 0, []
+    sub = [{"id": c.id, "status": st, "detail": str(d)[:140]}
+           for c, st, d, _ in rows if c.id in CONFORMANCE_SUBSET]
+    n_fail = sum(1 for r in sub if r["status"] == "FAIL")
+    if sub:
+        log("  conformance: %d FAIL / %d checked (%s)"
+            % (n_fail, len(sub), ", ".join("%s=%s" % (r["id"], r["status"]) for r in sub
+                                           if r["status"] in ("FAIL", "ERROR")) or "all PASS/N-A"))
+    return n_fail, sub
 
 
 def _reposition_worker(P, ref_pcb, out):
@@ -92,9 +156,15 @@ def main():
     ap.add_argument("--board", default="hubs/hub-standard")
     ap.add_argument("--out", default="build/hub-full")
     ap.add_argument("--route-candidates", type=int, default=2, help="how many top placements to route")
+    ap.add_argument("--seats", default="auto", choices=["auto", "cloud", "local", "off"],
+                    help="control-plane seat residency: auto (overnight-long->local, else cloud) | "
+                         "cloud | local | off (deterministic). Owner default: cloud unless --hours>=2.")
     a = ap.parse_args()
 
-    os.environ.setdefault("CEC_SKIP_INTAKE", "1")      # a SYNTH board has no sibling schematic
+    # The route()-internal intake gate runs on the MATERIALIZED candidate (no sibling .kicad_sch
+    # there), so keep it from pre-refusing candidate generation -- but we DO run the schematic-side
+    # intake against the committed REFERENCE schematic below (cheap base-stackup insurance).
+    os.environ.setdefault("CEC_SKIP_INTAKE", "1")
     t0 = time.time()
     deadline = t0 + a.hours * 3600
     os.makedirs(a.out, exist_ok=True)
@@ -106,8 +176,37 @@ def main():
         with open(logf, "a") as h:
             h.write(line + "\n")
 
-    report = {"board": a.board, "hours": a.hours, "stages": [], "placements": [], "routes": []}
+    # ---- seat residency (cloud/local toggle; owner policy via cec_seats) ----
+    sel = cec_seats.select_seat_backend(hours=a.hours, judge=(None if a.seats == "auto" else a.seats))
+    log("SEATS resolved: backend=%s (%s); manager=%s worker=%s effort=%s"
+        % (sel["backend"], sel["reason"], sel["manager_model"], sel["worker_model"], sel["effort"]))
+    if sel["backend"] == "cloud" and sel["manager_model"]:
+        # keep the advisory corpus reviewer on the same venue as the seats
+        os.environ.setdefault("CEC_VLLM_REVIEWER_MODEL", sel["manager_model"])
+
+    report = {"board": a.board, "hours": a.hours, "seats": sel, "stages": [],
+              "placements": [], "routes": [], "policy_ok": None, "ref_intake": None}
     log("=== FULL HUB PIPELINE (place -> route -> check), budget %.2f h ===" % a.hours)
+
+    # ---- run-start guards: policy loadability (DF-05/07 anti-ratchet) + REF schematic intake ----
+    try:
+        import cec_policy
+        cec_policy.assert_loadable(cec_policy.load_policy())
+        report["policy_ok"] = True
+        log("POLICY: cec-policy.json loadable (under the same guard as the night)")
+    except Exception as e:
+        report["policy_ok"] = "%s: %s" % (type(e).__name__, e)
+        log("POLICY: assert_loadable FAILED -> %s (continuing; surfaced in report)" % report["policy_ok"])
+    if os.path.isfile(os.path.join(S.ROOT, REF_SCH)):
+        try:
+            import cec_constraints
+            g = cec_constraints.intake_gate(os.path.join(S.ROOT, REF))
+            report["ref_intake"] = {"ok": bool(getattr(g, "ok", g) if not isinstance(g, dict) else g.get("ok")),
+                                    "detail": str(g)[:300]}
+            log("INTAKE(ref schematic): %s" % report["ref_intake"]["ok"])
+        except Exception as e:
+            report["ref_intake"] = {"error": "%s: %s" % (type(e).__name__, e)}
+            log("INTAKE(ref schematic): skipped (%s)" % e)
 
     # ---- Stage 1: oracle Stage-1 + placement sweep (a couple sizes, keep the best) ----
     cfg = S.Config.load(a.board)
@@ -160,11 +259,19 @@ def main():
             spec, name = cec_router.board_spec(
                 mat, os.path.abspath(os.path.join(a.out, "route-cand%d" % rank)),
                 seeds=(0, 1, 2, 3), passes=20, opt_time=opt, max_iters=3, kmax=2)
-            final, dlog = cec_router.route(mat, spec, verbose=True)
+            # CONTROL PLANE: judge+fix tiers per the resolved residency (cloud Claude / local broker /
+            # off). Two-plane rule: cec_router/cec_fr/cec_score GENERATE+SCORE; the seats only
+            # JUDGE+FIX through these slots. Fail-safe -> deterministic defaults (None,None).
+            manager, worker = _build_seats(sel, spec, log)
+            final, dlog = cec_router.route(mat, spec, manager=manager, worker=worker, verbose=True)
             if not (final and os.path.isfile(final)):
                 log("  cand%d: route produced no board (final=%r) -- skipping score" % (rank, final))
                 continue
+            # VERIFY THE SHIPPED ARTIFACT: score the SAVED board (cec_cascade.py:132-151 precedent).
+            # The Hub does no post-route copper mutation today, so `final` as-saved IS what ships;
+            # if a pour/via mutation is ever added here, re-score AFTER it, never before.
             m = cec_score.score(final)
+            n_conf_fail, conf_rows = _conformance(final, cfg, log)   # synth-relevant geometry gate
             et = {}
             try:
                 th = S.electrothermal_solve(final, cfg)
@@ -176,20 +283,56 @@ def main():
                     "board": os.path.relpath(final, S.ROOT),
                     "gates_pass": m.gates_pass, "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
                     "drc": m.drc, "unconnected": m.unconnected, "tracks": m.tracks, "vias": m.vias,
-                    "length": round(m.length, 1), "electrothermal": et}
+                    "length": round(m.length, 1), "electrothermal": et,
+                    "conformance_fail": n_conf_fail, "conformance": conf_rows}
             report["routes"].append(rrec)
             log("  cand%d ROUTED: gates_pass=%s kelvin=%s diffpair=%s drc=%d unconnected=%d "
-                "tracks=%d vias=%d length=%.0f %s"
-                % (rank, m.gates_pass, m.kelvin_ok, m.diffpair_ok, m.drc, m.unconnected, m.tracks,
-                   m.vias, m.length, et))
-            key = (not m.gates_pass, m.drc, m.unconnected, m.length)
+                "conformance_fail=%d tracks=%d vias=%d length=%.0f %s"
+                % (rank, m.gates_pass, m.kelvin_ok, m.diffpair_ok, m.drc, m.unconnected, n_conf_fail,
+                   m.tracks, m.vias, m.length, et))
+            # selection: gates first, THEN conformance (the synth-geometry HARD signal), then drc/...
+            key = (not m.gates_pass, n_conf_fail > 0, n_conf_fail, m.drc, m.unconnected, m.length)
             if best is None or key < best[0]:
-                best = (key, rrec)
+                best = (key, rrec, final, dlog)
         except Exception as e:
             log("  cand%d ROUTE FAILED: %s\n%s" % (rank, e, traceback.format_exc()))
             continue
 
     report["best_route"] = best[1] if best else None
+
+    # ---- corpus-fit review (ADVISORY sidecar; never a rank key, never feeds back -- holdout rule).
+    # Even with zero same-family peers (the corpus is eps-only -> _cf_insufficient) the BRIEFED path
+    # (ratified routing/layer/plane rules incl. the Hub In2 exception) gives the reviewer teeth. ----
+    if best is not None:
+        try:
+            import cec_judge_local as jl
+            cf = jl.corpus_fit_review(best[3], verbose=False)
+            report["corpus_fit"] = cf
+            json.dump(cf, open(os.path.join(a.out, "hub-corpus-fit.json"), "w"), indent=2, default=str)
+            log("CORPUS-FIT (advisory): %s"
+                % (cf.get("verdict") or cf.get("status") or cf.get("fit") or "recorded"))
+        except Exception as e:
+            report["corpus_fit"] = {"error": "%s: %s" % (type(e).__name__, e)}
+            log("CORPUS-FIT: skipped (%s)" % e)
+
+    # ---- ledger the run (auditable like the night; stamp the policy sha) ----
+    try:
+        import cec_ledger
+        bm = report["best_route"]
+        psha = None
+        try:
+            import cec_policy
+            psha = cec_policy.policy_sha256()
+        except Exception:
+            pass
+        cec_ledger.append(board=a.board, mode="hub-pipeline",
+                          verdict={"best": bm, "seats": sel, "policy_ok": report["policy_ok"],
+                                   "policy_sha": psha},
+                          board_file=(bm["board"] if bm else None))
+        log("LEDGER: hub-pipeline run recorded (policy_sha=%s)" % (str(psha)[:12] if psha else "n/a"))
+    except Exception as e:
+        log("LEDGER: skipped (%s)" % e)
+
     report["elapsed_s"] = round(time.time() - t0, 1)
     json.dump(report, open(os.path.join(a.out, "report.json"), "w"), indent=2, default=str)
     log("=== DONE in %.0fs. best route: %s ===" % (report["elapsed_s"],

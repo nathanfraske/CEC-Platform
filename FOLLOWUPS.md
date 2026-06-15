@@ -151,3 +151,6 @@ Conventions:
      currently in the driver). The committed HAND placement routes to 389 wires (the reference baseline).
   After 1–4, the Hub run IS the place→route→check validation against the fab board; MV3 similarity + the
   routed gates are the scorecard.
+
+## Workflow hygiene
+- [2026-06-15] Long background Workflows are orphaned when their launching session ends/compacts (the run dies; `resumeFromRunId` is same-session only). The agentic-integration forensics workflow (wf_27c511ed-113) died after phase 1 this way — recovered by reading its `journal.jsonl` + agent transcripts and hand-authoring a continuation (the Workflow tool's documented fallback). LESSON: for a multi-phase design/forensics workflow, either keep the session alive to completion, or expect to reconstruct from the journal. Where: .claude/projects/*/subagents/workflows/<runId>/journal.jsonl.
