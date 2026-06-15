@@ -86,9 +86,24 @@ def _lever_kind(lever):
         return "avoid"
     if any(k in l for k in ("pass", "opt", "effort", "more route")):
         return "effort"
-    if any(k in l for k in ("place", "rotate", "re-place", "replace", "move", "reposition")):
+    if any(k in l for k in ("place", "rotate", "re-place", "replace", "move", "reposition", "evict")):
         return "replace"
     return "noop"
+
+
+def _pl_lever(pl):
+    """The lever NAME from a free-form proposed_lever. AUDIT_SCHEMA gives proposed_lever NO grammar,
+    and the finders in practice emit 'lever' OR 'type' OR 'action' (observed on the Hub smoke:
+    {'type':'router_effort'}, {'type':'placement_eviction'}, {'action':...}) -- reading only 'lever'
+    silently noop'd EVERY finding. Read all three (the actuator's job is to guard every field)."""
+    pl = pl or {}
+    return pl.get("lever") or pl.get("type") or pl.get("action")
+
+
+def _pl_target(pl):
+    """The lever TARGET (a ref or net) from a free-form proposed_lever -- 'target' | 'net' | 'ref'."""
+    pl = pl or {}
+    return pl.get("target") or pl.get("net") or pl.get("ref")
 
 
 def _placement_intent(target, *, source="auditor"):
@@ -118,8 +133,8 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
     pl = finding.get("proposed_lever") if isinstance(finding, dict) else None
     if not isinstance(pl, dict):
         return D("noop", note="no proposed_lever")
-    target = pl.get("target") or pl.get("net")
-    kind = _lever_kind(pl.get("lever"))
+    target = _pl_target(pl)
+    kind = _lever_kind(_pl_lever(pl))
 
     # (c) FENCE first -- a target on a locked Kelvin template / pinned part is refused, full stop.
     if kind in ("avoid", "waypoint", "replace") and is_fenced(target, fence):
@@ -148,7 +163,7 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
     if kind == "waypoint":
         # no geometry resolver yet -> noop-safe (logged, never silently mutates the route)
         return D("noop", note=f"waypoint lever for {target!r}: no geometry resolver -- noop-safe")
-    return D("noop", note=f"unmapped lever: {str(pl.get('lever'))[:48]!r}")
+    return D("noop", note=f"unmapped lever: {str(_pl_lever(pl))[:48]!r}")
 
 
 # ---- (a) bound ---------------------------------------------------------------------------------------
@@ -225,7 +240,7 @@ def _finding_detail(finding):
     return {"root_cause": (f.get("root_cause") or "")[:600],
             "failure_class": f.get("failure_class"),
             "reasoning": (f.get("reasoning") or "")[:600],
-            "proposed_lever": {"lever": pl.get("lever"), "target": pl.get("target") or pl.get("net"),
+            "proposed_lever": {"lever": _pl_lever(pl), "target": _pl_target(pl),
                                "detail": pl.get("detail")},
             "manager_rule": f.get("manager_rule"),
             "seat_verdict": f.get("verdict")}
@@ -234,8 +249,8 @@ def _finding_detail(finding):
 def hypothesis_key(finding, delta):
     """Identity of a finding's HYPOTHESIS, so a later control that reverses an earlier win is an OVERTURN."""
     pl = (finding or {}).get("proposed_lever") or {}
-    return (delta.source, delta.kind, str(pl.get("target") or pl.get("net") or ""),
-            _lever_kind(pl.get("lever")))
+    return (delta.source, delta.kind, str(_pl_target(pl) or ""),
+            _lever_kind(_pl_lever(pl)))
 
 
 @dataclass

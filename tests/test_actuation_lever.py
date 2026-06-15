@@ -383,6 +383,42 @@ class TestActuationLeverReport(unittest.TestCase):
             self.assertNotIn("fullstack-run-nobundle", names)  # unconfirmed -> fail-closed exclude
 
 
+class TestActuatorLeverSchemaTolerance(unittest.TestCase):
+    """The Hub smoke found that finders emit proposed_lever.{type|action}, NEVER .lever -- so the
+    actuator (which read only .lever) noop'd EVERY finding (incl. a real placement_eviction). The
+    actuator must read all three (proposed_lever has no grammar). Pins the unblock."""
+
+    def setUp(self):
+        import cec_fs_actuator as act
+        self.act = act
+        self.fence = {"nets": [], "refs": []}
+
+    def _kind(self, pl):
+        d = self.act.finding_to_delta({"proposed_lever": pl}, {"routed": ""}, None, 1, self.fence)
+        return d.kind
+
+    def test_type_field_is_read_as_lever(self):
+        self.assertEqual(self._kind({"type": "router_effort", "detail": "more passes"}), "effort")
+        self.assertEqual(self._kind({"type": "placement_eviction", "target": "U30"}), "replace")
+
+    def test_action_field_is_read_as_lever(self):
+        self.assertEqual(self._kind({"action": "increase router passes/opt"}), "effort")
+        self.assertEqual(self._kind({"action": "reposition U12", "target": "U12"}), "replace")
+
+    def test_lever_field_still_works(self):
+        self.assertEqual(self._kind({"lever": "placement_eviction", "target": "U30"}), "replace")
+
+    def test_genuinely_empty_lever_is_noop(self):
+        self.assertEqual(self._kind({"note": "no lever here"}), "noop")
+        self.assertEqual(self.act.finding_to_delta({}, {"routed": ""}, None, 1, self.fence).kind, "noop")
+
+    def test_real_hub_findings_map_off_noop(self):
+        # the actual r1/r3 shapes from the Hub smoke: effort + a placement replace (not noop)
+        self.assertEqual(self._kind({"type": "router_effort",
+                                     "detail": "increase passes, add waypoints"}), "effort")
+        self.assertEqual(self._kind({"type": "placement_eviction", "target": "C1"}), "replace")
+
+
 class TestSingleSourceConstants(unittest.TestCase):
     """The audit's anti-drift pins: run() must init lr penalties from the shared constant, and the
     panel reset must use the shared base-effort constants -- so a retune cannot fork a phantom id."""
