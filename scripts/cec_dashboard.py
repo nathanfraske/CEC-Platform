@@ -202,6 +202,30 @@ def _seats():
     return out
 
 
+def _agentic():
+    """The Hub run's agentic-decisions summary from report.json: the resolved seat backend +
+    per-tier model (so a silently-deterministic / degraded run is VISIBLE -- the anti-ossification
+    countermeasure), per-candidate gate + conformance verdicts, the advisory corpus-fit, and the
+    policy/intake-gate state. Read-only; empty {} when no report yet."""
+    rf = _runfile("report.json")
+    if not os.path.exists(rf):
+        return {}
+    try:
+        r = json.load(open(rf))
+    except Exception:                                             # noqa: BLE001
+        return {}
+    routes = [{"rank": x.get("rank"), "strat": x.get("strat"), "gates_pass": x.get("gates_pass"),
+               "kelvin_ok": x.get("kelvin_ok"), "diffpair_ok": x.get("diffpair_ok"),
+               "conformance_fail": x.get("conformance_fail"), "drc": x.get("drc"),
+               "unconnected": x.get("unconnected")} for x in (r.get("routes") or [])]
+    cf = r.get("corpus_fit") or {}
+    cf_s = (cf.get("verdict") or cf.get("status") or cf.get("fit")
+            or ("error: " + str(cf.get("error"))[:80] if cf.get("error") else None)) if isinstance(cf, dict) else cf
+    return {"seats": r.get("seats"), "policy_ok": r.get("policy_ok"),
+            "ref_intake": r.get("ref_intake"), "routes": routes, "corpus_fit": cf_s,
+            "best_rank": (r.get("best_route") or {}).get("rank")}
+
+
 def _seat_events(key, off):
     """Incremental events for one seat since byte-offset `off`. The auditor seat reuses the claude -p
     stream parser (returned as one content delta); a local seat returns its NDJSON events (start /
@@ -370,6 +394,8 @@ class H(BaseHTTPRequestHandler):
             self._json(_stream_text(int(params.get("off", 0))))
         elif path == "/api/seats":
             self._json({"seats": _seats()})
+        elif path == "/api/agentic":
+            self._json(_agentic())
         elif path == "/api/seat":
             self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
                                     int(params.get("off", 0))))
@@ -401,7 +427,7 @@ class H(BaseHTTPRequestHandler):
 
 PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>CEC live run</title><style>
 body{background:#101418;color:#cfd8dc;font:13px/1.45 ui-monospace,Menlo,monospace;margin:0}
-.grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:8px;padding:8px;height:97vh;box-sizing:border-box}
+.grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:auto 1fr 1fr auto;gap:8px;padding:8px;min-height:97vh;box-sizing:border-box}
 .card{background:#161c22;border:1px solid #263238;border-radius:8px;padding:8px;overflow:auto;min-height:0}
 h2{font-size:12px;color:#80cbc4;margin:0 0 6px;text-transform:uppercase;letter-spacing:1px}
 #hdr{grid-column:1/4;display:flex;gap:24px;align-items:center}
@@ -439,6 +465,7 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <div class="card" style="grid-column:1/3"><h2>convergence — pen_total (orange) vs drc (blue), kelvin band (red=fail)</h2>
 <canvas id="spark" width="900" height="90"></canvas><div style="max-height:230px;overflow:auto"><table id="mt"></table></div></div>
 <div class="card"><h2>injected ruleset</h2><div id="rules"></div></div>
+<div class="card" id="agentic" style="grid-column:1/4"><h2>agentic decisions — active tier · per-candidate verdicts · corpus-gate</h2><div id="agbody"><span class="dim">no agentic (Hub) run yet…</span></div></div>
 </div><script>
 let soff=0, thoughtsBuf="", bmode='svg', plotW=860, knownLayers=[], lyrOn={};
 let cands=[], selCand=-1, followNewest=true;                  // candidate timeline scroller state
@@ -572,8 +599,40 @@ async function seatTick(){
   }
  }catch(e){}
 }
+// ---- agentic decisions: resolved seat backend + per-candidate verdicts + corpus-gate (Hub report.json) ----
+function vpill(v){const ok=v===true,bad=v===false;return `<span class="pill ${ok?'ok':bad?'bad':'dim'}">${v}</span>`;}
+async function agenticTick(){
+ try{
+  const a=await (await fetch('/api/agentic')).json();
+  const el=document.getElementById('agbody');
+  if(!a||!a.seats){return;}                                   // leave the placeholder until a Hub run exists
+  const s=a.seats||{}, be=s.backend||'?';
+  const becl=be==='cloud'?'warn':(be==='local'?'ok':'dim');   // cloud=amber, local=green, off=dim
+  let h=`<div style="margin-bottom:6px"><span class="pill ${becl}">TIER: ${be.toUpperCase()}</span>`+
+        `<span class="pill">manager: ${esc(s.manager_model||'—')}</span>`+
+        `<span class="pill">worker: ${esc(s.worker_model||'—')}</span>`+
+        (s.effort?`<span class="pill">effort: ${esc(s.effort)}</span>`:'')+
+        `<span class="pill dim">${esc(s.reason||'')}</span></div>`;
+  h+=`<div style="margin-bottom:6px">`+
+     `<span class="pill ${a.policy_ok===true?'ok':'bad'}">policy ${a.policy_ok===true?'ok':'FAIL'}</span>`+
+     (a.ref_intake?`<span class="pill ${a.ref_intake.ok?'ok':'warn'}">ref intake ${a.ref_intake.ok?'ok':a.ref_intake.error?'n/a':'fail'}</span>`:'')+
+     (a.corpus_fit?`<span class="pill dim">corpus-fit: ${esc(String(a.corpus_fit))}</span>`:'')+`</div>`;
+  const rt=a.routes||[];
+  if(rt.length){
+   const cols=['rank','strat','gates_pass','kelvin_ok','diffpair_ok','conformance_fail','drc','unconnected'];
+   h+='<table><tr>'+cols.map(c=>'<th>'+c.replace(/_/g,' ')+'</th>').join('')+'</tr>'+
+     rt.map(r=>'<tr>'+cols.map(c=>{let v=r[c];let cl='';
+       if(c==='gates_pass'||c==='kelvin_ok'||c==='diffpair_ok')cl=v===true?'ok':(v===false?'bad':'');
+       if(c==='conformance_fail')cl=(v>0)?'bad':(v===0?'ok':'');
+       if(c==='rank'&&v===a.best_rank)cl='ok';
+       return `<td class="${cl}">${v}</td>`}).join('')+'</tr>').join('')+'</table>';
+  }
+  el.innerHTML=h;
+ }catch(e){}
+}
 tick(); setInterval(tick,2000);
 seatTick(); setInterval(seatTick,1500);
+agenticTick(); setInterval(agenticTick,3000);
 </script></body></html>"""
 
 
