@@ -110,6 +110,13 @@ container. THREE real gaps were found + fixed; FR now routes the Hub.
 NET: the full place→route→check pipeline produces a real routed Hub on the base stackup. An hour-long
 run is now worthwhile (higher FR effort + multi-candidate + repair → toward a clean routed Hub).
 
+**LIVE PANEL (auto-repointing).** `scripts/hub_run.sh [OUT] [HOURS] [CANDS]` is the one-command launcher:
+it retargets the stable symlink `build/hub-LIVE` → the run's OUT, ensures `cec_dashboard.py` is up on
+:8095 pointed at that symlink, then launches the run detached. The dashboard reads its dir per-poll and
+`abspath` preserves the symlink, so retargeting repoints the LIVE panel with no restart (proven: a
+retarget showed the new dir's feed instantly). Every launch auto-repoints — no manual step. Board render
+uses the compose `routing` service (up). Open: http://localhost:8095.
+
 ## CONSULTATIVE AUDIT (4 parallel skeptics, 2026-06-14) + REMEDIATION
 
 Dimensions: geometry/math · anti-overfit charter · regression/integration · test rigor. All four
