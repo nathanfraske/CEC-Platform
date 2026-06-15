@@ -24,14 +24,20 @@ placement actuators." ALL DONE.
   agentic-decisions card + /api/agentic. **ADVERSARIAL AUDIT wf_28d3ca68-a24 (5 skeptics->verify->synth):
   ship-with-fixes** -- structure sound (resolver 14/14, all 10 conformance ids exist, signatures match); 2
   cloud-effort defects + doc overclaims FIXED. Commits 8ef8e07->5f1d7e5->f738df1->31daa59. 240 host tests green.
-- **10h FULL-PIPELINE RUN LIVE** ~03:05 UTC: `CEC_STREAM_DIR=docs/fullstack-run-2026-06-15/streams setsid nohup
-  python3 -u scripts/cec_fullstack.py --board eps-8pin --hours 10 > docs/fullstack-run-2026-06-15/run.log 2>&1`
-  (via sg docker, host driver). **PID 1190748.** board manifest 49 refs/54 nets; auditor=deepseek-v4-flash
+- **10h FULL-PIPELINE RUN LIVE** (restarted clean ~03:57 UTC after a date-dir fix): `CEC_FS_DATE=2026-06-15
+  CEC_STREAM_DIR=docs/fullstack-run-2026-06-15/streams setsid nohup python3 -u scripts/cec_fullstack.py --board
+  eps-8pin --hours 10 > docs/fullstack-run-2026-06-15/run.log 2>&1` (via sg docker, host driver). **PID 1233137.**
+  DATE-DIR BUG (fixed): box local date=2026-06-14 (CDT) but I'd named the dir 2026-06-15 (UTC) -> cec_fullstack
+  PERM (strftime %Y-%m-%d) wrote measurement/findings/bundle to docs/fullstack-run-2026-06-14 (co-mingling w/
+  yesterday's run + blind dashboard + empty babysit). FIX = relaunch with CEC_FS_DATE=2026-06-15 so ALL artifacts
+  co-locate; ALWAYS pass CEC_FS_DATE matching the dir name. OWNER CONFIRMED the auditor proposed_lever advisory/
+  noop is BY DESIGN (shadow ruling for the EI-02 self-influence proof) -- do NOT make it actuate. board manifest
+  49 refs/54 nets; auditor=deepseek-v4-flash
   (warmed); control_every=4 (EI-02 A/B), fence_nets=4/refs=5, corpus brief 35/6; GR-01 20 hotspots. **Placement
   actuators VERIFIED wired** in the run loop (_t0_should_fire->gr02_repair 1975/1981; finding_to_delta->
   select_deltas->apply_placement_move 2094/2112/2129; control-gated record_outcome + _placement_keep gate-launder
-  guard + fence + rollback). Round 1 [augmented] routing at handoff. **Watchdog PID 1199904** (cec_night_watch.sh,
-  CLAUDE_PROJECT_DIR=/home/nathan/cec-placement -- pinned to THIS worktree so it relaunches the right branch;
+  guard + fence + rollback). Round 1 [augmented] routing at handoff. **Watchdog relaunched 03:57** (cec_night_watch.sh,
+  CEC_FS_DATE=2026-06-15 + CLAUDE_PROJECT_DIR=/home/nathan/cec-placement -- pinned to THIS worktree so it relaunches the right branch;
   crash-relaunch only [run_miss>=2], phantom-guarded, self-terms 8h, relaunch uses --hours 7). **Panel
   http://localhost:8095** (run-dir=docs/fullstack-run-2026-06-15). MONITOR run.log + measurement.jsonl + :8095.
   CAVEAT: on eps the body-in-band placement lever is largely INERT (eps's stall is foreign-signal-in-corridor =
