@@ -60,9 +60,21 @@ rule R is later vindicated against a control baseline, R may be getting credit f
 evidence for R** only when `R ∉ influenced_by(baseline)`. Control rows (empty cone) always qualify;
 an augmented row may serve as a baseline for R only if R is absent from its whole lineage.
 
-## Implementation — four staged steps (one PR each)
+## Implementation status (2026-06-15)
 
-### Step 1 — per-rule transitive influence lineage  *(START HERE)*
+- **Step 1 — DONE + audited** (`d6ddfba`, fixes `0e38d35`). Adversarial audit `wf_f24bddf7-9fd`
+  (ship-with-fixes, 22 confirmed) drove the rewrite to a ROUTE-TIME SNAPSHOT: the cone now includes
+  the model-intent plan, corridor-avoid, avoid-deltas and panel effort; both timing bugs closed;
+  control-lane contamination (effort, intent-briefing) closed; `clean_pairs` absent-key hole closed;
+  tested == shipped.
+- **Steps 2-4 — DONE** (this commit). `rule_tally` / `actuation_lever_report` (cross-run clean pooling),
+  `graduation_verdict` (the bar, holdout-validated), `assert_steer_only` (the chokepoint). Wired into
+  end-of-run + a `--tally` CLI. Promotion to a live steer stays owner-gated (`promoted/**`).
+- **Remaining — the Hub validation run** (the lever is inert on eps).
+
+## Design — four staged steps
+
+### Step 1 — per-rule transitive influence lineage
 - `rule_id(kind, payload)` — stable short hash for each steer kind (`manager_rule`,
   `scorer_penalty`, `finding_delta`, `placement_lever`, `layer_lever`).
 - `influence_signature(lr, lane)` — the rule-ids active this round (∅ on control).

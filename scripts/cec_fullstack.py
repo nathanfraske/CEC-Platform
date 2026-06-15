@@ -542,6 +542,197 @@ def clean_evidence_delta(rows, rid, metric):
             "n_baseline": bn, "n_treatment": tn}
 
 
+# ---- Step 2: cross-run TALLY (clean evidence pooled over INDEPENDENT runs) -------------------
+# A rule must accumulate evidence across runs, scored ONLY on clean (uninfluenced) outcomes. This
+# is firewall-safe across runs because an UNRATIFIED candidate rule does not propagate between
+# independent runs (placement_base / lr reset each run, so each run's influenced_by is self-
+# contained); and once a rule is RATIFIED it shapes every future generation, so every future row
+# is influenced and it stops accruing clean evidence -- the gate closes by construction.
+def rule_ids_in_rows(rows):
+    """Every rule id that appears in any row's influence cone (the candidate rules to tally). Pure."""
+    s = set()
+    for r in (rows or []):
+        if isinstance(r, dict):
+            s.update(r.get("influenced_by") or [])
+    return sorted(s)
+
+
+def rule_tally(rid, metric, runs):
+    """Pool CLEAN evidence for `rid` across INDEPENDENT runs. `runs` = list of (run_id, rows). Keep
+    only runs that yield a valid clean pair for `rid` (a baseline AND a treatment sample with a
+    numeric delta). Returns per-run deltas + a pooled summary. Pure."""
+    per_run = []
+    for run_id, rows in (runs or []):
+        d = clean_evidence_delta(rows, rid, metric)
+        if d["delta"] is not None and d["n_baseline"] > 0 and d["n_treatment"] > 0:
+            per_run.append({"run": run_id, "delta": d["delta"],
+                            "n_baseline": d["n_baseline"], "n_treatment": d["n_treatment"]})
+    n_runs = len(per_run)
+    n_pairs = sum(min(p["n_baseline"], p["n_treatment"]) for p in per_run)
+    pooled = round(sum(p["delta"] for p in per_run) / n_runs, 4) if n_runs else None
+    return {"rule_id": rid, "metric": metric, "n_runs": n_runs, "n_pairs": n_pairs,
+            "per_run": per_run, "pooled_delta": pooled}
+
+
+# ---- Step 3: the GRADUATION BAR (statistical; thresholds holdout-validated, never live-tuned) --
+# Defaults validated on tests/holdout/actuation (a known-graduate + known-reject fixture); the bar
+# code NEVER reads tests/holdout at runtime (checklist enforces it). Owner may override per metric
+# via a cec-policy.json actuation_bar block. A metric's direction (lower-is-better) decides which
+# sign of delta counts as improvement.
+GRADUATION_BAR = {"min_runs": 3, "min_pairs": 8, "min_improving_frac": 0.75}
+_METRIC_BETTER_IS_LOWER = {"drc": True, "unconnected": True, "plane_signal_mm": True, "length": True,
+                           "vias": True, "max_T": True, "gates_pass": False, "kelvin_ok": False,
+                           "convergence": False}
+_MIN_ABS_EFFECT = {"drc": 2.0, "unconnected": 1.0, "plane_signal_mm": 5.0, "length": 20.0,
+                   "vias": 4.0, "max_T": 2.0, "gates_pass": 0.15, "kelvin_ok": 0.15,
+                   "convergence": 0.15}
+
+
+def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_frac=None,
+                       min_abs_effect=None, better_is_lower=None):
+    """Pure. Graduate a candidate rule to STEER iff its CLEAN cross-run evidence clears the bar:
+    >= min_runs independent clean runs, >= min_pairs clean pairs, the per-run deltas CONSISTENTLY
+    improve (sign test: improving_frac >= min_improving_frac), AND |pooled effect| >= min_abs_effect
+    in the improving direction. Graduation authorizes STEERING ONLY (step 4) -- it never gates."""
+    metric = tally.get("metric")
+    min_runs = GRADUATION_BAR["min_runs"] if min_runs is None else min_runs
+    min_pairs = GRADUATION_BAR["min_pairs"] if min_pairs is None else min_pairs
+    min_improving_frac = (GRADUATION_BAR["min_improving_frac"] if min_improving_frac is None
+                          else min_improving_frac)
+    min_abs_effect = (_MIN_ABS_EFFECT.get(metric, 0.0) if min_abs_effect is None else min_abs_effect)
+    better_is_lower = (_METRIC_BETTER_IS_LOWER.get(metric, True) if better_is_lower is None
+                       else better_is_lower)
+    per = tally.get("per_run", [])
+    n_runs, n_pairs, pooled = tally.get("n_runs", 0), tally.get("n_pairs", 0), tally.get("pooled_delta")
+
+    def improves(d):
+        return (d < 0) if better_is_lower else (d > 0)
+
+    improving = sum(1 for p in per if improves(p["delta"]))
+    frac = round(improving / n_runs, 4) if n_runs else 0.0
+    effect_ok = pooled is not None and improves(pooled) and abs(pooled) >= min_abs_effect
+    reasons = []
+    if n_runs < min_runs:
+        reasons.append(f"n_runs {n_runs} < {min_runs}")
+    if n_pairs < min_pairs:
+        reasons.append(f"n_pairs {n_pairs} < {min_pairs}")
+    if frac < min_improving_frac:
+        reasons.append(f"improving_frac {frac} < {min_improving_frac}")
+    if not effect_ok:
+        reasons.append(f"|pooled {pooled}| < {min_abs_effect} or wrong direction")
+    return {"rule_id": tally.get("rule_id"), "metric": metric, "graduate": not reasons,
+            "n_runs": n_runs, "n_pairs": n_pairs, "improving_frac": frac, "pooled_delta": pooled,
+            "min_abs_effect": min_abs_effect, "reasons": reasons}
+
+
+# ---- Step 4: the STEER-ONLY chokepoint -- a ratified rule may STEER, never GATE --------------
+# Generalizes _placement_keep's launder guard: every ratified-rule actuation passes through
+# assert_steer_only, which permits only search-steering writes and forbids ANY gate field. The hard
+# gates (kelvin / diffpair / DRC / conformance) and shipping stay deterministic + human.
+STEER_FIELDS = {"rank_key", "select_weight", "seed", "placement_bias", "intent_bias",
+                "passes", "opt_time", "fr_params", "corridor_avoid"}
+GATE_FIELDS = {"gates_pass", "kelvin_ok", "diffpair_ok", "drc", "unconnected", "pour_integrity_ok",
+               "ship", "promote"}
+
+
+class SteerViolation(Exception):
+    """A ratified rule attempted to GATE (write a gate field / ship) rather than STEER."""
+
+
+def assert_steer_only(action):
+    """`action` = dict of fields a ratified rule would write. Raises SteerViolation on any gate-field
+    write or any field outside STEER_FIELDS. Pure -- the structural guarantee that a graduated rule
+    can only bias the search, never pass/block a board."""
+    touched = set(action or {})
+    bad = touched & GATE_FIELDS
+    if bad:
+        raise SteerViolation(f"steer rule may not write gate field(s): {sorted(bad)}")
+    unknown = touched - STEER_FIELDS
+    if unknown:
+        raise SteerViolation(f"steer rule writes forbidden field(s): {sorted(unknown)} "
+                             f"(allowed STEER_FIELDS: {sorted(STEER_FIELDS)})")
+    return True
+
+
+# ---- Steps 2-3 driver: the per-rule report (clean tally + graduation advisory) ---------------
+_LEVER_METRICS = list(_AB_BOOL_AXES) + list(_AB_NUM_AXES)   # per-ROW metrics (convergence is a lane aggregate)
+
+
+def load_runs_from_dirs(paths, board=None):
+    """Read [(run_id, rows), ...] from each measurement.jsonl in `paths` (file paths, run dirs, or
+    globs). Filters to `board` via each run dir's bundle.json (a run with no bundle yet -- e.g. the
+    live one -- is included). I/O; fail-safe (skips unreadable lines/files)."""
+    import glob as _glob
+    files = []
+    for p in paths or []:
+        if os.path.isdir(p):
+            files.append(os.path.join(p, "measurement.jsonl"))
+        elif os.path.isfile(p) and str(p).endswith(".jsonl"):
+            files.append(p)                        # a concrete file
+        else:
+            files.extend(_glob.glob(p))            # a glob (incl. one ending in *.jsonl) or missing path
+    runs = []
+    for f in sorted(set(files)):
+        if not os.path.isfile(f):
+            continue
+        rdir = os.path.dirname(f)
+        if board is not None:
+            try:
+                b = json.load(open(os.path.join(rdir, "bundle.json"))).get("board")
+                if b is not None and b != board:
+                    continue                       # different board -> never pool (cross-board contamination)
+            except Exception:                      # noqa: BLE001  (no bundle yet -> include)
+                pass
+        rows = []
+        for ln in open(f):
+            ln = ln.strip()
+            if ln:
+                try:
+                    rows.append(json.loads(ln))
+                except Exception:                  # noqa: BLE001
+                    pass
+        runs.append((os.path.basename(rdir) or "run", rows))
+    return runs
+
+
+def actuation_lever_report(runs):
+    """The per-rule CLEAN-evidence tally + graduation advisory across `runs` = [(run_id, rows)].
+    Pure given the rows. Graduation is ADVISORY -- promotion to a live STEER rule stays owner-gated
+    (promoted/** is CODEOWNERS-protected); this only proposes."""
+    rids = rule_ids_in_rows([r for _, rows in runs for r in rows])
+    tallies, grads = [], []
+    for rid in rids:
+        for m in _LEVER_METRICS:
+            t = rule_tally(rid, m, runs)
+            if t["n_runs"] == 0:
+                continue
+            tallies.append(t)
+            grads.append(graduation_verdict(t))
+    return {"n_runs": len(runs), "n_candidate_rules": len(rids), "candidate_rules": rids,
+            "tallies": tallies, "graduation": grads,
+            "graduated": [g for g in grads if g["graduate"]],
+            "note": "graduation is ADVISORY -- a graduated rule may STEER only (assert_steer_only); "
+                    "promotion to a live steer stays owner-gated (promoted/**)"}
+
+
+def _emit_lever_ledger(board, lever):
+    """Durable per-run observation of the clean-evidence tally (DF-01/06: a settleable claim with a
+    check_id hook). Fail-safe -- a missing cec-runs repo just warns."""
+    try:
+        import cec_ledger
+        cec_ledger.decision(
+            decision_class="rank", artifact=f"actuation-lever:{board}",
+            decider={"kind": "model", "id": "cec_fullstack:actuation-lever"},
+            verdict="tally",
+            claim=f"{len(lever.get('graduated', []))} candidate rule(s) cleared the clean-evidence bar "
+                  f"over {lever.get('n_runs')} run(s)",
+            hook={"kind": "check_id", "ref": "clean-evidence-gate"},
+            settlement={"state": "provisional", "grade": 2},
+            extra={"kind": "rule_tally", "lever": lever})
+    except Exception as e:                                       # noqa: BLE001
+        log(f"  actuation-lever ledger skipped: {type(e).__name__}: {e}")
+
+
 # Which record metric each penalisable scorer key reads (the additive penalty cost the AUGMENTED lane
 # applies on top of the base soft cost; the CONTROL lane passes scorer_penalties={} -> no extra cost).
 _PENALTY_METRIC = {"drc": "drc", "unconnected": "unconnected", "plane_signal_mm": "plane_signal_mm",
@@ -2453,6 +2644,20 @@ def run(board, rounds, hours, auditor=None):
     with open(_d("ab-table.txt"), "w") as fh:
         fh.write(ab_text + "\n")
     log("A/B (control vs augmented):\n" + ab_text)
+    # Actuation lever (steps 2-3): the CLEAN-evidence tally + graduation advisory, pooled across all
+    # SAME-board committed run dirs plus this run. Promotion stays owner-gated; this only proposes.
+    lever_runs = load_runs_from_dirs([os.path.join(os.path.dirname(PERM), "*", "measurement.jsonl"),
+                                      _d("measurement.jsonl")], board=board)
+    lever = actuation_lever_report(lever_runs)
+    _emit_lever_ledger(board, lever)
+    json.dump(lever, open(_d("actuation-lever.json"), "w"), indent=1, default=str)
+    if lever["graduated"]:
+        log(f"ACTUATION LEVER: {len(lever['graduated'])} candidate rule(s) cleared the clean-evidence "
+            f"bar (ADVISORY -- promotion is owner-gated): "
+            f"{[(g['rule_id'], g['metric']) for g in lever['graduated']]}")
+    else:
+        log(f"ACTUATION LEVER: {lever['n_candidate_rules']} candidate rule(s) tallied over "
+            f"{lever['n_runs']} run(s); none cleared the bar yet")
     bundle = {"board": board, "rounds": rnd if not rounds else min(rnd, rounds),
               "records": len(records),
               "gate_passing": sum(1 for r in records if r["gates_pass"]),
@@ -2468,6 +2673,8 @@ def run(board, rounds, hours, auditor=None):
               # control-gated promotion (rollback) tallies -- the finding-delta lifecycle.
               "deltas": {"records": dlog.to_records(), "outcomes": dlog.outcome_records(),
                          "tally": dlog.tally()},
+              # actuation lever (steps 2-3): per-rule clean-evidence tally + graduation advisory.
+              "actuation_lever": lever,
               "final_penalties": lr["scorer_penalties"],
               "n_rules": len(lr["manager_rules"]), "rules": lr["manager_rules"],
               "injections": lr["injections"], "rejections": len(lr["rejections"]),
@@ -2495,7 +2702,18 @@ def main(argv=None):
                     help="T5 auditor seat model. Default: DeepSeek-V4-Flash (the deep chair). Sonnet is "
                          "one env var away (CEC_FS_AUDITOR_MODEL=sonnet) for a latency-sensitive run; "
                          "--auditor overrides both.")
+    ap.add_argument("--tally", action="store_true",
+                    help="don't run: print the actuation-lever clean-evidence tally + graduation "
+                         "advisory pooled across all committed same-board run dirs, then exit")
+    ap.add_argument("--runs-glob", default=None,
+                    help="with --tally: override the run-dir glob (default docs/fullstack-run-*)")
     a = ap.parse_args(argv)
+    if a.tally:
+        pattern = a.runs_glob or os.path.join(ROOT, "docs", "fullstack-run-*", "measurement.jsonl")
+        runs = load_runs_from_dirs([pattern], board=a.board)
+        rep = actuation_lever_report(runs)
+        print(json.dumps(rep, indent=1, default=str))
+        return rep
     if not a.rounds and not a.hours:
         a.rounds = 8
     run(a.board, a.rounds, a.hours, auditor=a.auditor)

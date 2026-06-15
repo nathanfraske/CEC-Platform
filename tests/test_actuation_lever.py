@@ -9,6 +9,7 @@
 # These exercise the SAME functions the loop calls (compute_influenced_by / route_placement_cone /
 # the *_steer_id derivers) -- tested == shipped. See docs/actuation-lever-design.md.
 
+import json
 import os
 import re
 import sys
@@ -161,6 +162,153 @@ class TestCleanEvidenceFirewall(unittest.TestCase):
                 _row("augmented", [R, "x:1"], drc=9)]
         part = fs.clean_pairs(rows, R)
         self.assertTrue({id(t) for t in part["treatment"]}.isdisjoint({id(b) for b in part["baseline"]}))
+
+
+class TestCrossRunTally(unittest.TestCase):
+    """Step 2: pooling CLEAN evidence over INDEPENDENT runs, keyed by stable rule id."""
+
+    def _run(self, name, rows):
+        return (name, rows)
+
+    def test_rule_ids_in_rows(self):
+        rows = [_row("augmented", ["rule:a", "placement:b"]), _row("control", []),
+                _row("augmented", ["rule:a"])]
+        self.assertEqual(fs.rule_ids_in_rows(rows), ["placement:b", "rule:a"])
+
+    def test_tally_pools_only_valid_clean_pairs(self):
+        R = "rule:R"
+        run1 = self._run("r1", [_row("control", [], drc=20), _row("augmented", [R], drc=10)])
+        run2 = self._run("r2", [_row("control", [], drc=22), _row("augmented", [R], drc=12)])
+        run3 = self._run("r3", [_row("augmented", [R], drc=11)])   # no clean baseline -> dropped
+        t = fs.rule_tally(R, "drc", [run1, run2, run3])
+        self.assertEqual(t["n_runs"], 2)                          # run3 contributed no clean pair
+        self.assertEqual([p["run"] for p in t["per_run"]], ["r1", "r2"])
+        self.assertEqual(t["pooled_delta"], -10.0)                # (-10 + -10)/2
+        self.assertEqual(t["n_pairs"], 2)
+
+    def test_tally_empty_when_no_clean_evidence(self):
+        R = "rule:R"
+        t = fs.rule_tally(R, "drc", [self._run("r1", [_row("augmented", [R], drc=10)])])
+        self.assertEqual(t["n_runs"], 0)
+        self.assertIsNone(t["pooled_delta"])
+
+
+class TestGraduationBar(unittest.TestCase):
+    """Step 3: the bar -- enough independent clean runs + consistent improving direction + effect."""
+
+    def _tally(self, deltas, n_pairs=None):
+        per = [{"run": f"r{i}", "delta": d, "n_baseline": 2, "n_treatment": 2}
+               for i, d in enumerate(deltas)]
+        return {"rule_id": "rule:R", "metric": "drc", "n_runs": len(per),
+                "n_pairs": n_pairs if n_pairs is not None else 2 * len(per),
+                "per_run": per, "pooled_delta": round(sum(deltas) / len(deltas), 4) if deltas else None}
+
+    def test_graduates_when_consistent_and_strong(self):
+        # drc is lower-is-better; 4 runs all improving by >= the 2.0 effect floor
+        v = fs.graduation_verdict(self._tally([-5, -4, -6, -3]))
+        self.assertTrue(v["graduate"], v["reasons"])
+        self.assertEqual(v["reasons"], [])
+
+    def test_rejected_too_few_runs(self):
+        v = fs.graduation_verdict(self._tally([-5, -6]))          # min_runs default 3
+        self.assertFalse(v["graduate"])
+        self.assertTrue(any("n_runs" in r for r in v["reasons"]))
+
+    def test_rejected_inconsistent_direction(self):
+        # 4 runs but only half improve -> fails the sign test (improving_frac 0.5 < 0.75)
+        v = fs.graduation_verdict(self._tally([-5, +6, -4, +5]))
+        self.assertFalse(v["graduate"])
+        self.assertTrue(any("improving_frac" in r for r in v["reasons"]))
+
+    def test_rejected_effect_too_small(self):
+        # consistent direction + enough runs, but |pooled| 1.0 < the 2.0 drc effect floor
+        v = fs.graduation_verdict(self._tally([-1, -1, -1, -1]))
+        self.assertFalse(v["graduate"])
+        self.assertTrue(any("pooled" in r for r in v["reasons"]))
+
+    def test_wrong_direction_for_higher_is_better_metric(self):
+        # gates_pass is higher-is-better; a NEGATIVE pooled delta is a regression, never graduates
+        t = {"rule_id": "rule:R", "metric": "gates_pass", "n_runs": 4, "n_pairs": 8,
+             "per_run": [{"run": f"r{i}", "delta": -0.3, "n_baseline": 2, "n_treatment": 2}
+                         for i in range(4)], "pooled_delta": -0.3}
+        v = fs.graduation_verdict(t)
+        self.assertFalse(v["graduate"])
+
+
+class TestSteerOnlyChokepoint(unittest.TestCase):
+    """Step 4: a ratified rule may STEER, never GATE."""
+
+    def test_steer_fields_allowed(self):
+        self.assertTrue(fs.assert_steer_only({"rank_key": 1, "seed": 7, "passes": 30}))
+
+    def test_gate_field_write_raises(self):
+        for gate in ("gates_pass", "kelvin_ok", "drc", "pour_integrity_ok", "ship"):
+            with self.assertRaises(fs.SteerViolation):
+                fs.assert_steer_only({gate: True})
+
+    def test_unknown_field_raises(self):
+        with self.assertRaises(fs.SteerViolation):
+            fs.assert_steer_only({"delete_board": True})
+
+    def test_empty_action_is_noop_ok(self):
+        self.assertTrue(fs.assert_steer_only({}))
+
+
+class TestGraduationBarHoldout(unittest.TestCase):
+    """AM-02: the bar's DEFAULT thresholds must correctly classify the held-out pool (tests/holdout/
+    actuation) -- the never-tuned complement that keeps the bar honest. A TEST may read holdout; the
+    bar code (scripts/) may not (checklist enforces). If you change a bar threshold and a holdout case
+    flips, you must understand why -- never edit the fixture to make the bar pass."""
+
+    def test_default_bar_classifies_holdout(self):
+        path = os.path.join(ROOT, "tests", "holdout", "actuation", "bar-fixtures.json")
+        cases = json.load(open(path))["cases"]
+        self.assertGreaterEqual(len(cases), 4)
+        for c in cases:
+            v = fs.graduation_verdict(c["tally"])         # DEFAULT thresholds, no overrides
+            self.assertEqual(v["graduate"], c["expect_graduate"],
+                             f"{c['name']}: expected graduate={c['expect_graduate']} ({c['why']}); "
+                             f"got {v['graduate']} reasons={v['reasons']}")
+
+
+class TestActuationLeverReport(unittest.TestCase):
+    """The steps 2-3 driver: per-rule tally + graduation advisory over runs, and load_runs_from_dirs."""
+
+    def test_report_flags_a_graduating_rule(self):
+        R = "rule:R"
+        # 4 runs, 2 clean control + 2 R-treatment rows each -> 8 clean pairs, drc improves by 6
+        runs = [(f"r{i}", [_row("control", [], drc=20), _row("control", [], drc=20),
+                           _row("augmented", [R], drc=14), _row("augmented", [R], drc=14)])
+                for i in range(4)]
+        rep = fs.actuation_lever_report(runs)
+        self.assertIn(R, rep["candidate_rules"])
+        grad_drc = [g for g in rep["graduated"] if g["rule_id"] == R and g["metric"] == "drc"]
+        self.assertTrue(grad_drc, rep["graduation"])
+
+    def test_report_no_graduation_without_clean_baseline(self):
+        R = "rule:R"
+        runs = [(f"r{i}", [_row("augmented", [R], drc=14)]) for i in range(4)]   # no control rows
+        rep = fs.actuation_lever_report(runs)
+        self.assertEqual(rep["graduated"], [])
+
+    def test_load_runs_from_dirs(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            for i, drc in enumerate((10, 12)):
+                rd = os.path.join(d, f"fullstack-run-x{i}")
+                os.makedirs(rd)
+                with open(os.path.join(rd, "measurement.jsonl"), "w") as fh:
+                    fh.write(json.dumps(_row("augmented", ["rule:R"], drc=drc)) + "\n")
+                json.dump({"board": "eps-8pin"}, open(os.path.join(rd, "bundle.json"), "w"))
+            # add a different-board run that must be filtered OUT
+            rd2 = os.path.join(d, "fullstack-run-other")
+            os.makedirs(rd2)
+            open(os.path.join(rd2, "measurement.jsonl"), "w").write(
+                json.dumps(_row("augmented", ["rule:R"], drc=99)) + "\n")
+            json.dump({"board": "hub-standard"}, open(os.path.join(rd2, "bundle.json"), "w"))
+            runs = fs.load_runs_from_dirs([os.path.join(d, "*", "measurement.jsonl")], board="eps-8pin")
+            self.assertEqual(len(runs), 2)                # the hub-standard run filtered out
+            self.assertTrue(all(any(r.get("drc") != 99 for r in rows) for _, rows in runs))
 
 
 class TestSingleSourceConstants(unittest.TestCase):
