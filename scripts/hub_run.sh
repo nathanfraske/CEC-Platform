@@ -24,15 +24,15 @@ mkdir -p "$OUT" build
 ln -sfn "$(realpath --relative-to=build "$OUT")" "$LIVE"
 echo "panel: $LIVE -> $OUT"
 
-# 2. Ensure the dashboard is up on the host, pointed at the stable symlink (board render via the
-#    compose 'routing' service). If already up it just follows the retargeted symlink.
+# 2. Ensure the dashboard is up, pointed at the stable symlink (board render via the compose
+#    'routing' service -> the panel MUST run with docker-group access, hence `sg docker`). If already
+#    up it just follows the retargeted symlink.
 if curl -sf "http://localhost:$PORT/" >/dev/null 2>&1; then
   echo "panel: already serving http://localhost:$PORT (symlink retargeted -> auto-followed)"
 else
-  setsid nohup python3 scripts/cec_dashboard.py --port "$PORT" \
-    --run-dir "$LIVE" \
-    --board-glob "$(pwd)/$LIVE/route-cand*/*-routed.kicad_pcb" \
-    >build/hub-panel.log 2>&1 </dev/null &
+  GLOB="$(pwd)/$LIVE/hub-cand*.kicad_pcb,$(pwd)/$LIVE/route-cand*/*-routed.kicad_pcb"
+  sg docker -c "setsid nohup python3 scripts/cec_dashboard.py --port $PORT \
+    --run-dir $LIVE --board-glob '$GLOB' >build/hub-panel.log 2>&1 </dev/null &"
   sleep 1
   echo "panel: started http://localhost:$PORT  (run-dir=$LIVE)"
 fi

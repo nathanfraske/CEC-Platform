@@ -117,6 +117,14 @@ it retargets the stable symlink `build/hub-LIVE` → the run's OUT, ensures `cec
 retarget showed the new dir's feed instantly). Every launch auto-repoints — no manual step. Board render
 uses the compose `routing` service (up). Open: http://localhost:8095.
 
+**Candidate timeline scroller (cec_dashboard.py).** The board panel renders EVERY candidate board (not
+just the newest) and has a scroller (◀ / range slider / ▶ / `live`) to step through the timeline — both
+the materialized placements (`hub-cand*`) and the routed boards (`route-cand*/*-routed`), ordered by
+mtime. Each candidate carries its own render + per-layer plot SVGs; selecting one shows its render/plot/
+layers. `live` auto-follows the newest; scrolling back pins a candidate. Board-glob is comma-separated
+(multiple patterns) and the render thread caches by mtime (re-renders only changed/failed boards). Data:
+`/api/state.candidates`; images: `/board.png?cand=N`, `/board.svg?cand=N`, `/layer/<L>?cand=N`.
+
 ## CONSULTATIVE AUDIT (4 parallel skeptics, 2026-06-14) + REMEDIATION
 
 Dimensions: geometry/math · anti-overfit charter · regression/integration · test rigor. All four

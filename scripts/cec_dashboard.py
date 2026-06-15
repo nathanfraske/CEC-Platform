@@ -49,7 +49,9 @@ CFG = {
 }
 NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|_XSERV|xvfb-entry|wxWidgets")
 
-_render = {"png": None, "board": None, "mtime": 0, "status": "idle", "ts": 0}
+_render = {"status": "idle", "board": None, "ts": 0}     # newest-render status (header)
+_cands = []                                             # ordered candidate renders (the timeline)
+_cands_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------- helpers
@@ -232,56 +234,94 @@ def _seat_events(key, off):
 
 
 # ---------------------------------------------------------------- board render thread
+def _board_files():
+    """Every board matching the (comma-separated) board_glob, de-duped + ordered by mtime -- the
+    candidate TIMELINE the scroller steps through. Each glob may use ** (recursive)."""
+    out = {}
+    for g in CFG["board_glob"].split(","):
+        g = g.strip()
+        if not g:
+            continue
+        for b in glob.glob(g, recursive=True):
+            try:
+                out[os.path.abspath(b)] = os.path.getmtime(b)
+            except OSError:
+                pass
+    return [b for b, _ in sorted(out.items(), key=lambda kv: kv[1])]
+
+
+def _render_board(board):
+    """Render ONE board to per-candidate artifacts under run_dir/renders/<stem>.{png,svg} +
+    <stem>-layers/ (the raytraced top render + the per-layer plot SVGs). Returns a candidate dict or
+    None. Paths are passed to the routing container as /workspace/<repo-relative> (the repo is mounted
+    there); the build/hub-LIVE symlink is relative so it resolves identically in-container."""
+    rel = os.path.relpath(board, ROOT)
+    rdir = _runfile("renders")
+    os.makedirs(rdir, exist_ok=True)
+    stem = os.path.splitext(os.path.basename(board))[0]
+    png, svg = os.path.join(rdir, stem + ".png"), os.path.join(rdir, stem + ".svg")
+    ldir = os.path.join(rdir, stem + "-layers")
+    os.makedirs(ldir, exist_ok=True)
+    r = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render", "--side",
+                                  "top", "-o", f"/workspace/{os.path.relpath(png, ROOT)}",
+                                  f"/workspace/{rel}"], capture_output=True, timeout=180)
+    p = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
+                                  "--layers", CFG["plot_layers"], "--page-size-mode", "2",
+                                  "--exclude-drawing-sheet",
+                                  "-o", f"/workspace/{os.path.relpath(svg, ROOT)}",
+                                  f"/workspace/{rel}"], capture_output=True, timeout=120)
+    subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
+                              "--mode-multi", "--layers", CFG["plot_layers"], "--page-size-mode", "2",
+                              "--exclude-drawing-sheet",
+                              "-o", f"/workspace/{os.path.relpath(ldir, ROOT)}",
+                              f"/workspace/{rel}"], capture_output=True, timeout=120)
+    layers = {}
+    for lf in glob.glob(os.path.join(ldir, f"{stem}-*.svg")):
+        layers[os.path.basename(lf)[len(stem) + 1:-4]] = lf       # e.g. "F_Cu"
+    ok_png = r.returncode == 0 and os.path.exists(png)
+    ok_svg = p.returncode == 0 and os.path.exists(svg)
+    if not (ok_png or ok_svg):
+        return None
+    return {"stem": stem, "board": board, "png": png if ok_png else None,
+            "svg": svg if ok_svg else None, "layers": layers,
+            "mtime": os.path.getmtime(board), "ts": time.time()}
+
+
 def _render_loop():
-    """Produce BOTH views of the newest candidate: the raytraced PNG (render) AND the
-    layer PLOT SVG (kicad-cli pcb export svg, copper layers + edge -- the owner's
-    'plotted board' ask: actual track geometry, inspectable, zoomable)."""
-    png_host = _runfile("dashboard-board.png")
-    svg_host = _runfile("dashboard-board.svg")
+    """Render EVERY candidate board (not just the newest) so the UI scroller can step through the
+    timeline. Cache by mtime -- a board is re-rendered only when it changes. Newest = the header."""
     while True:
         try:
-            newest = _latest(CFG["board_glob"])
-            if newest and os.path.getmtime(newest) > _render["mtime"]:
-                _render.update(status="rendering", board=os.path.basename(newest))
-                rel = os.path.relpath(newest, ROOT)
-                r = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render",
-                                              "--side", "top",
-                                              "-o", f"/workspace/{os.path.relpath(png_host, ROOT)}",
-                                              f"/workspace/{rel}"],
-                                   capture_output=True, timeout=180)
-                p = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export",
-                                              "svg", "--layers", CFG["plot_layers"],
-                                              "--page-size-mode", "2", "--exclude-drawing-sheet",
-                                              "-o", f"/workspace/{os.path.relpath(svg_host, ROOT)}",
-                                              f"/workspace/{rel}"],
-                                   capture_output=True, timeout=120)
-                # PER-LAYER plots (mode-multi: one SVG per layer, same board-area viewBox)
-                # -> the dashboard stacks them with checkboxes so the inner-plane fill
-                # doesn't occlude the track layers when zooming.
-                ldir = _runfile("layers")
-                os.makedirs(ldir, exist_ok=True)
-                stem = os.path.splitext(os.path.basename(newest))[0]
-                subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export",
-                                          "svg", "--mode-multi", "--layers", CFG["plot_layers"],
-                                          "--page-size-mode", "2", "--exclude-drawing-sheet",
-                                          "-o", f"/workspace/{os.path.relpath(ldir, ROOT)}",
-                                          f"/workspace/{rel}"],
-                               capture_output=True, timeout=120)
-                layers = {}
-                for lf in glob.glob(os.path.join(ldir, f"{stem}-*.svg")):
-                    layers[os.path.basename(lf)[len(stem) + 1:-4]] = lf   # e.g. "F_Cu"
-                ok_png = r.returncode == 0 and os.path.exists(png_host)
-                ok_svg = p.returncode == 0 and os.path.exists(svg_host)
-                if ok_png or ok_svg:
-                    _render.update(png=png_host if ok_png else _render["png"],
-                                   svg=svg_host if ok_svg else _render.get("svg"),
-                                   layers=layers,
-                                   mtime=os.path.getmtime(newest), status="ok", ts=time.time())
-                else:
-                    _render.update(status=f"render-failed png_rc={r.returncode} svg_rc={p.returncode}")
+            with _cands_lock:
+                have = {c["stem"]: c for c in _cands}
+            rebuilt = []
+            for b in _board_files():
+                stem = os.path.splitext(os.path.basename(b))[0]
+                ex = have.get(stem)
+                if ex and ex.get("mtime", -1) >= os.path.getmtime(b) and (ex["png"] or ex["svg"]):
+                    rebuilt.append(ex)
+                    continue
+                _render.update(status="rendering", board=stem)
+                c = _render_board(b)
+                rebuilt.append(c or ex or {"stem": stem, "board": b, "png": None, "svg": None,
+                                           "layers": {}, "mtime": os.path.getmtime(b), "ts": time.time()})
+            with _cands_lock:
+                _cands[:] = rebuilt
+            if rebuilt:
+                _render.update(status="ok", board=rebuilt[-1]["stem"], ts=rebuilt[-1]["ts"])
         except Exception as e:                                    # noqa: BLE001
             _render.update(status=f"err:{type(e).__name__}")
         time.sleep(10)
+
+
+def _cand_at(idx):
+    """The candidate dict at scroller index *idx* (default = newest), or None."""
+    with _cands_lock:
+        if not _cands:
+            return None
+        if idx is None or idx < 0 or idx >= len(_cands):
+            return _cands[-1]
+        return _cands[idx]
 
 
 # ---------------------------------------------------------------- http
@@ -316,12 +356,15 @@ class H(BaseHTTPRequestHandler):
                               "n_usable_ratification_candidates", "n_manager_rules", "pareto_finalists")}
                 except Exception:                                 # noqa: BLE001
                     pass
+            with _cands_lock:
+                cands = [{"stem": c["stem"], "ts": c["ts"], "has_png": bool(c["png"]),
+                          "has_svg": bool(c["svg"]), "layers": sorted(c["layers"])} for c in _cands]
             self._json({"ts": time.time(), "run": _proc_info(),
                         "measurement": _measurement(), "rules": _live_rules(),
                         "log": _log_tail(), "finding": _latest_finding(),
                         "board": {"name": _render["board"], "status": _render["status"],
-                                  "rendered_ts": _render["ts"],
-                                  "layers": sorted(_render.get("layers", {}))},
+                                  "rendered_ts": _render["ts"]},
+                        "candidates": cands,                      # the timeline scroller's data
                         "bundle": bundle, "run_dir": CFG["run_dir"]})
         elif path == "/api/stream":
             self._json(_stream_text(int(params.get("off", 0))))
@@ -331,13 +374,18 @@ class H(BaseHTTPRequestHandler):
             self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
                                     int(params.get("off", 0))))
         elif path in ("/board.png", "/board.svg") or path.startswith("/layer/"):
+            try:
+                idx = int(params["cand"]) if "cand" in params else None
+            except ValueError:
+                idx = None
+            cand = _cand_at(idx)                                   # the scroller-selected candidate
             if path.startswith("/layer/"):
                 name = os.path.basename(path[len("/layer/"):])      # traversal-safe
-                p, ctype = _render.get("layers", {}).get(name), "image/svg+xml"
+                p, ctype = ((cand or {}).get("layers", {}).get(name)), "image/svg+xml"
             else:
                 key, ctype = (("png", "image/png") if path.endswith("png")
                               else ("svg", "image/svg+xml"))
-                p = _render.get(key)
+                p = (cand or {}).get(key)
             if p and os.path.exists(p):
                 body = open(p, "rb").read()
                 self.send_response(200)
@@ -378,6 +426,12 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='svg';bswap()">plot</button>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="pfit()">fit</button>
 <span id="lyrboxes"></span></h2>
+<div id="cscrub" style="flex:none;display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px">
+ <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="cstep(-1)" title="previous candidate">◀</button>
+ <input type="range" id="crange" min="0" max="0" value="0" step="1" style="flex:1;accent-color:#80cbc4" oninput="cpick(+this.value)">
+ <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="cstep(1)" title="next candidate">▶</button>
+ <button class="pill" id="cfollow" style="cursor:pointer;border:0" onclick="followNewest=true;cpick(cands.length-1)" title="jump to newest + auto-follow">live</button>
+ <span id="clabel" class="dim">no candidates yet</span></div>
 <img id="bimg" src="/board.png" style="display:none;max-width:100%;border-radius:4px">
 <div id="pwrap" style="flex:1;overflow:auto;cursor:grab;border-radius:4px;background:#0d1117;min-height:0">
 <div id="pstack" style="position:relative;width:860px"></div></div></div>
@@ -387,10 +441,25 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <div class="card"><h2>injected ruleset</h2><div id="rules"></div></div>
 </div><script>
 let soff=0, thoughtsBuf="", bmode='svg', plotW=860, knownLayers=[], lyrOn={};
+let cands=[], selCand=-1, followNewest=true;                  // candidate timeline scroller state
 const DEFAULT_ON={F_Cu:1,B_Cu:1,Edge_Cuts:1};                 // inner planes OFF by default
+function cq(){ // image query: scope to the selected candidate + cache-bust on its render ts
+ const c=cands[selCand]; return '?cand='+(selCand<0?0:selCand)+'&v='+((c&&c.ts)||0);}
+function cstep(d){ if(!cands.length)return; cpick(Math.max(0,Math.min(cands.length-1,(selCand<0?cands.length-1:selCand)+d))); }
+function cpick(i){ if(!cands.length)return; selCand=Math.max(0,Math.min(cands.length-1,i));
+ followNewest=(selCand===cands.length-1);
+ const c=cands[selCand], nl=(c&&c.layers)||[];               // adopt THIS candidate's layer set
+ if(nl.join()!==knownLayers.join()){knownLayers=nl; for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L]; lyrBoxes();}
+ clabel(); bswap(); }
+function clabel(){
+ const r=document.getElementById('crange'), lab=document.getElementById('clabel'), fb=document.getElementById('cfollow');
+ r.max=Math.max(0,cands.length-1); r.value=Math.max(0,selCand);
+ const c=cands[selCand];
+ lab.textContent = cands.length? ((selCand+1)+'/'+cands.length+'  '+(c?c.stem:'')) : 'no candidates yet';
+ fb.style.background=followNewest?'#33691e':'#263238'; fb.style.color=followNewest?'#dcedc8':'#90a4ae';}
 function bswap(){
  const im=document.getElementById('bimg'), pw=document.getElementById('pwrap');
- if(bmode==='png'){im.style.display='block';pw.style.display='none';im.src='/board.png?t='+(window._bts||0);}
+ if(bmode==='png'){im.style.display='block';pw.style.display='none';im.src='/board.png'+cq();}
  else{im.style.display='none';pw.style.display='block';buildStack();}}
 function buildStack(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
@@ -398,11 +467,11 @@ function buildStack(){
  // draw order: bottom copper first, F.Cu then Edge on top
  const order=[...knownLayers].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
  for(const L of order){ if(!lyrOn[L])continue;
-  const im=document.createElement('img'); im.src='/layer/'+L+'?t='+(window._bts||0);
+  const im=document.createElement('img'); im.src='/layer/'+L+cq();
   im.style.cssText='width:100%;display:block;pointer-events:none;'+(first?'position:relative':'position:absolute;left:0;top:0');
   first=false; st.appendChild(im);}
  if(first){ // nothing on -> fall back to the combined plot
-  const im=document.createElement('img'); im.src='/board.svg?t='+(window._bts||0);
+  const im=document.createElement('img'); im.src='/board.svg'+cq();
   im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im);}}
 function lyrBoxes(){
  document.getElementById('lyrboxes').innerHTML=knownLayers.map(L=>
@@ -432,13 +501,19 @@ async function tick(){
    `<span class="pill warn">FINAL: ${s.bundle.convergence_verdict} | usable ${s.bundle.n_usable_ratification_candidates} | rules ${s.bundle.n_manager_rules} | finalists ${s.bundle.pareto_finalists}</span>`:'';
   document.getElementById('log').textContent=(s.log||[]).slice(-40).join('\n');
   const el=document.getElementById('log'); el.scrollTop=el.scrollHeight;
-  // board
+  // board + candidate timeline scroller
   document.getElementById('bstat').textContent=`${s.board.name||''} ${s.board.status||''}`;
-  const nl=(s.board.layers||[]);
+  const oldKey = (selCand>=0 && cands[selCand]) ? (selCand+'@'+cands[selCand].ts) : '';
+  cands = s.candidates||[];
+  if(followNewest || selCand<0 || selCand>=cands.length) selCand = cands.length-1;
+  const c = cands[selCand];
+  const nl = (c&&c.layers)||[];
   if(nl.join()!==knownLayers.join()){knownLayers=nl;
    for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L];
    lyrBoxes();}
-  if(s.board.rendered_ts && s.board.rendered_ts>(window._bts||0)){window._bts=s.board.rendered_ts; bswap();}
+  clabel();
+  const newKey = c ? (selCand+'@'+c.ts) : '';   // re-fetch the image when the selected cand/render changes
+  if(newKey && newKey!==oldKey) bswap();
   // (per-seat thoughts are handled by seatTick below — one live section per seat)
   // rules
   const ru=s.rules||{};
