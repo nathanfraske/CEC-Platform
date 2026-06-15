@@ -70,6 +70,10 @@ CONTAINER_ROOT = "/workspace"
 # Board floorplan paths (the committed, hand-finalized boards are the stable input).
 BOARD_PCB = {
     "eps-8pin": os.path.join(ROOT, "modules", "eps-8pin", "eps8pin-module.kicad_pcb"),
+    # Path-B generalization (actuation-lever validation): the Hub is the board where the PLACEMENT
+    # lever actually bites (eps's stall is foreign-signal-in-corridor, inert for placement). The Hub
+    # lives under hubs/, not modules/ -- find_board() resolves both.
+    "hub-standard": os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_pcb"),
 }
 
 # DIRECTED INTENTS per board: the manager's relational waypoints. RELATIONAL only
@@ -91,7 +95,17 @@ INTENTS = {
          "waypoints": [{"ref": "U1", "offset_mm": [0, 12]},
                        {"ref": "U1", "offset_mm": [8, 12]}]},
     ],
+    # The Hub starts with NO directed waypoints (route freely); relational intents can be added once
+    # a congestion grid identifies its contested nets. An empty list is a valid no-op for compile_intents.
+    "hub-standard": [],
 }
+
+# Path-B generalization: boards whose committed .kicad_pcb is already FULLY ROUTED (a finalized board,
+# not a bare floorplan). The directed router must route them FRESH FROM PLACEMENT -- otherwise the DSN
+# export carries the existing wiring and Freerouting has nothing to do (the placement lever never
+# engages). For these we strip tracks+vias on a per-round COPY before routing; the committed board and
+# its zones/footprints/placement are untouched. eps is a bare floorplan, so it is NOT in this set.
+FRESH_ROUTE_BOARDS = {"hub-standard"}
 
 # Pareto axes -- all lower-is-better. gates are a hard prefilter (not an axis).
 PARETO_AXES = ("drc", "unconnected", "plane_signal_mm", "length", "vias", "max_T")
@@ -365,6 +379,21 @@ def _routed_sha(routed):
 
 
 # ---- in-container WORKER (route+score one round, emit RECORD_JSON) ----------------------------------
+def _placement_only_copy(src_pcb, dst_pcb):
+    """A COPY of *src_pcb* with all tracks AND vias removed -- placement, zones and footprints kept --
+    so the router routes FRESH from placement. The committed board is never mutated (we load it into
+    memory and save the stripped copy elsewhere). In-container only (uses pcbnew). Uses the proven-safe
+    materialize-then-Remove pattern (the re-proxied-GetTracks()-ids SWIG footgun -> collect first)."""
+    import pcbnew
+    b = pcbnew.LoadBoard(src_pcb)
+    doomed = list(b.GetTracks())                 # GetTracks() returns both PCB_TRACK and PCB_VIA
+    for t in doomed:
+        b.Remove(t)
+    pcbnew.SaveBoard(dst_pcb, b)
+    print(f"[ovd] fresh-route: stripped {len(doomed)} track/via(s) -> placement-only copy", flush=True)
+    return dst_pcb
+
+
 def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None, board_pcb_override=None):
     """Runs IN the routing container. Directed-route + score one round, persist the routed
     board + the DecisionLog to the shared volume, and print a single RECORD_JSON= line the
@@ -388,6 +417,10 @@ def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None, 
             intents = json.load(fh)
     work = tempfile.mkdtemp(prefix=f"ovd_{board}_{rnd}_")
     try:
+        # Path-B: a finalized (fully-routed) board routes FRESH from placement (committed/override
+        # both carry copper -> strip it on a per-round copy so Freerouting actually routes).
+        if board in FRESH_ROUTE_BOARDS:
+            board_pcb = _placement_only_copy(board_pcb, os.path.join(work, "placement-only.kicad_pcb"))
         routed, stub_summary, params = route_directed(board_pcb, intents, rnd, work,
                                                        passes=passes, opt_time=opt_time)
         sha = _routed_sha(routed)

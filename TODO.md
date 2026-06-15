@@ -72,4 +72,6 @@ Times are UTC.
   - [ ] [added 2026-06-15 15:25] **Step 2 — cross-run persistence + tally**: clean settlements → cec_ledger keyed by rule_id (corpus/staging) + rule_tally().
   - [ ] [added 2026-06-15 15:25] **Step 3 — graduation bar**: ≥k independent clean pairs + sign-test/effect-size margin, validated on tests/holdout/ (AM-02), → promoted/** owner ratification.
   - [ ] [added 2026-06-15 15:25] **Step 4 — steer-only chokepoint**: STEER registry + assert_steer_only() (generalize _placement_keep); ratified rule may steer search, never write gates_pass/call a hard checker.
-  - [ ] [added 2026-06-15 15:25] **Validation**: exercise end-to-end on a board where a lever fires (Hub after step-11 Path-B) or a synthetic injected case (eps lever is inert).
+  - [~] [added 2026-06-15 15:25 · obsolete 2026-06-15 15:50 → split into the two lines below] **Validation**: Hub or synthetic.
+  - [x] [added 2026-06-15 15:50 · done 2026-06-15 15:50] **Hub generalization (Path-B infra)**: BOARD_PCB[hub-standard] + find_board resolves hubs/ + INTENTS[hub-standard]=[] + FRESH_ROUTE_BOARDS (_placement_only_copy strips committed copper so the Hub routes fresh from placement). Import-verified; host suite green.
+  - [ ] [added 2026-06-15 15:50] **Hub validation run**: SMOKE first (--rounds 2-3) to confirm the placement lever engages, then a longer run exercising the full flag→clean-evidence→tally→steer loop. Gated on steps 2-4 landing + the firewall audit fixes.

@@ -940,16 +940,20 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
 
 # ============================================================ board lookup + spec factory
 def find_board(board):
-    """Resolve a module name (dir under modules/) OR a path to its .kicad_pcb floorplan.
+    """Resolve a board name (dir under modules/ OR hubs/) OR a path to its .kicad_pcb floorplan.
     Skips the system's own outputs (*-routed*, *.merged.*)."""
     if board.endswith(".kicad_pcb") and os.path.isfile(board):
         return os.path.abspath(board)
     import glob as _glob
-    cands = [p for p in _glob.glob(f"{ROOT}/modules/{board}/*.kicad_pcb")
+    # Path-B generalization: search modules/ AND hubs/ so the Hub flows through the same router.
+    cands = [p for roots in ("modules", "hubs")
+             for p in _glob.glob(f"{ROOT}/{roots}/{board}/*.kicad_pcb")
              if "-routed" not in p and ".merged." not in p]
     if not cands:
-        raise FileNotFoundError(f"no floorplan .kicad_pcb under modules/{board}/ (have: "
-                                f"{sorted(os.path.basename(os.path.dirname(p)) for p in _glob.glob(ROOT+'/modules/*/'))})")
+        have = sorted(os.path.basename(os.path.dirname(p))
+                      for p in _glob.glob(ROOT + "/modules/*/") + _glob.glob(ROOT + "/hubs/*/"))
+        raise FileNotFoundError(f"no floorplan .kicad_pcb under modules/{board}/ or hubs/{board}/ "
+                                f"(have: {have})")
     return os.path.abspath(sorted(cands)[0])
 
 
