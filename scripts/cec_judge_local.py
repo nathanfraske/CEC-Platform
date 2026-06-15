@@ -345,7 +345,7 @@ def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=Non
 
 
 def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=None, timeout=None,
-               model=None, url=None, nothink=False, seat=None):
+               model=None, url=None, nothink=False, seat=None, effort=None):
     """One guided-JSON call constrained to `schema` -> the parsed dict. Raises on any transport/parse
     error (callers wrap this and fall back to the deterministic policy). `temperature` > 0 gives a
     diverse reply for swarm replicas. `url`/`model` target a per-tier server (manager vs worker).
@@ -355,7 +355,7 @@ def _chat_json(system, user, schema, *, name="out", temperature=0.0, max_tokens=
     mdl = model or MODEL
     if _is_cloud(mdl):       # cloud seat -> claude CLI (no broker, no json_schema grammar)
         return _chat_json_cloud(system, user, schema, name=name, model=mdl, timeout=timeout,
-                                seat=seat, temperature=temperature)
+                                seat=seat, temperature=temperature, effort=effort)
     payload = {
         "model": mdl,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
@@ -587,7 +587,7 @@ def _vote(votes, valid_actions, *, accept_ok, accept_word="accept", escalate_wor
 
 
 def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, url=None, model=None,
-           timeout=None, max_tokens=None, seat=None):
+           timeout=None, max_tokens=None, seat=None, effort=None):
     """Fire one judge per lens CONCURRENTLY at the (per-tier) server. `user_or_fn` is a user string
     (same for all) or a fn(lens_name)->user. `seat` is the panel's recorder section base; each member
     records under `<seat>:<lens>` so every panel member's thoughts get their own dashboard section.
@@ -601,7 +601,7 @@ def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, ur
         try:
             return (lname, _chat_json(lsys, user, schema, name=name, temperature=temps.get(idx, 0.0),
                                       url=url, model=model, timeout=timeout, max_tokens=max_tokens,
-                                      seat=member_seat))
+                                      seat=member_seat, effort=effort))
         except Exception as e:
             return (lname, {"error": type(e).__name__})
 
@@ -609,7 +609,7 @@ def _panel(user_or_fn, lenses, schema, *, name, temps=None, max_workers=None, ur
         return list(ex.map(one, list(enumerate(lenses))))
 
 
-def make_manager_swarm(spec, *, panel=3, verbose=False, model=None, url=None):
+def make_manager_swarm(spec, *, panel=3, verbose=False, model=None, url=None, effort=None):
     """A TRUE manager SWARM for cec_router.route's manager= slot: `panel` concurrent local agents,
     each a distinct lens (safety / finishing / progress, cycled with temperature for replicas), voting
     on accept/repair/escalate. Fail-safe -> default_manager; cannot accept a non-gate-passing board.
@@ -626,7 +626,7 @@ def make_manager_swarm(spec, *, panel=3, verbose=False, model=None, url=None):
             best = scored[0][1] if scored else None
             results = _panel(user, lenses, VERDICT_SCHEMA, name="verdict", temps=temps,
                              url=mgr_url, model=mgr_model, timeout=MANAGER_TIMEOUT,
-                             max_tokens=MANAGER_MAX_TOKENS, seat="manager")
+                             max_tokens=MANAGER_MAX_TOKENS, seat="manager", effort=effort)
             votes = [(ln, (d or {}).get("action"), str((d or {}).get("reason", ""))) for ln, d in results]
             trail = [h["best"].drc for h in (history or []) if h.get("best") is not None] \
                 + ([best.drc] if best is not None else [])
@@ -674,7 +674,7 @@ WORKER_SCHEMA = {
 }
 
 
-def make_worker_swarm(spec, *, fanout=3, verbose=False, model=None, url=None):
+def make_worker_swarm(spec, *, fanout=3, verbose=False, model=None, url=None, effort=None):
     """A TRUE worker SWARM for cec_router.route's worker= slot: `fanout` concurrent agents each propose
     a repair effort (passes/opt_time), aggregated to a CONSENSUS (mean, bounded, > current). Fail-safe
     -> default_worker. `model`/`url` override the broker default: a CLOUD model name (e.g. 'sonnet')
@@ -705,7 +705,8 @@ def make_worker_swarm(spec, *, fanout=3, verbose=False, model=None, url=None):
             def one(i):
                 try:
                     r = _chat_json(WORKER_SYS, user, WORKER_SCHEMA, name="effort", seat="worker:%d" % i,
-                                   temperature=(0.0 if i == 0 else 0.5), model=wrk_model, url=wrk_url)
+                                   temperature=(0.0 if i == 0 else 0.5), model=wrk_model, url=wrk_url,
+                                   effort=effort)
                     return (min(max(int(r["passes"]), 1), 60), min(max(int(r["opt_time"]), 1), 120))
                 except Exception:
                     return None

@@ -41,7 +41,10 @@ class SeatResolver(unittest.TestCase):
         self.assertEqual(r["backend"], "cloud")
         self.assertEqual(r["manager_model"], "opus")
         self.assertEqual(r["worker_model"], "sonnet")
-        self.assertEqual(r["effort"], "high")
+        self.assertEqual(r["effort"], "max")        # owner: cloud effort = max in all cases
+
+    def test_local_has_no_effort(self):
+        self.assertIsNone(cec_seats.select_seat_backend(hours=7, judge=None)["effort"])
 
     def test_no_hours_defaults_cloud(self):
         # owner: "defaulting to cloud"

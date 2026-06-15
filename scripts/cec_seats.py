@@ -23,8 +23,10 @@ hardcoded defaults so behaviour is unchanged. Pure + host-testable; no heavy imp
 import os
 
 # Hardcoded fallbacks (used when no cec-policy.json judge_residency block is present).
+# Cloud effort = "max" in all cases (owner 2026-06-15: run the cloud Opus/Sonnet seats at the
+# highest LLM reasoning-effort level; --effort max on the `claude -p` shim).
 _DEFAULT_THRESHOLD_H = 2.0
-_CLOUD_DEFAULTS = {"manager": "opus", "worker": "sonnet", "effort": "high"}
+_CLOUD_DEFAULTS = {"manager": "opus", "worker": "sonnet", "effort": "max"}
 _LOCAL_DEFAULTS = {"manager": "cec-manager-fast", "worker": "cec-worker", "effort": None}
 
 

@@ -49,9 +49,9 @@ fi
 VLLM_URL="${CEC_VLLM_URL:-http://host.docker.internal:8080}"
 sg docker -c "docker rm -f hub-hour >/dev/null 2>&1 || true; \
   docker run -d --rm --name hub-hour --add-host=host.docker.internal:host-gateway \
-  -e CEC_VLLM_URL='$VLLM_URL' -e CEC_JUDGE='${CEC_JUDGE:-}' \
+  -e CEC_VLLM_URL='$VLLM_URL' -e CEC_JUDGE='${CEC_JUDGE:-}' -e CEC_HUB_SEATS='${CEC_HUB_SEATS:-}' \
   -e CEC_HUB_MANAGER_MODEL='${CEC_HUB_MANAGER_MODEL:-}' -e CEC_HUB_WORKER_MODEL='${CEC_HUB_WORKER_MODEL:-}' \
-  -e CEC_OVERNIGHT_HOURS_MIN='${CEC_OVERNIGHT_HOURS_MIN:-}' \
+  -e CEC_HUB_CLOUD_EFFORT='${CEC_HUB_CLOUD_EFFORT:-}' -e CEC_OVERNIGHT_HOURS_MIN='${CEC_OVERNIGHT_HOURS_MIN:-}' \
   -v $(pwd):/work -w /work cec/routing:kicad10 \
   python3 -u scripts/hub_pipeline_run.py --hours $HOURS --route-candidates $CANDS --out $OUT --seats $SEATS"
 echo "run: launched (container hub-hour, --hours $HOURS --route-candidates $CANDS --seats $SEATS --out $OUT)"

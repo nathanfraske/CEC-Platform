@@ -63,10 +63,10 @@ def _build_seats(sel, spec, log):
     if not getattr(jl, "CLOUD_MODELS", None):
         log("SEATS: cloud chosen but CLOUD_MODELS empty -> deterministic")
         return None, None
-    log("SEATS: CLOUD seats (manager=%s effort=%s, worker=%s, panel=1)"
-        % (sel["manager_model"], sel["effort"], sel["worker_model"]))
-    return (jl.make_manager_swarm(spec, panel=1, model=sel["manager_model"]),
-            jl.make_worker_swarm(spec, fanout=1, model=sel["worker_model"]))
+    log("SEATS: CLOUD seats (manager=%s effort=%s, worker=%s effort=%s, panel=1)"
+        % (sel["manager_model"], sel["effort"], sel["worker_model"], sel["effort"]))
+    return (jl.make_manager_swarm(spec, panel=1, model=sel["manager_model"], effort=sel["effort"]),
+            jl.make_worker_swarm(spec, fanout=1, model=sel["worker_model"], effort=sel["effort"]))
 
 
 def _conformance(final, cfg, log):

@@ -133,7 +133,9 @@ Resolved rule (highest wins):
    **LOCAL** (broker; 5090 free off-peak; zero cloud spend).
 3. **Else ⇒ CLOUD** (short `--hours`, `--rounds`-bounded, or fully unbounded — all default cloud, per
    the owner). Cloud models = the seat-bakeoff data-chosen defaults: **generation/worker = `sonnet`,
-   reasoning/manager = `opus`** (`effort high`).
+   reasoning/manager = `opus`**, run at **`--effort max`** on every cloud seat (owner 2026-06-15:
+   cloud effort = max in all cases). `effort` is threaded maker → `_panel` → `_chat_json` →
+   `_chat_json_cloud` (`--effort max`); env override `CEC_HUB_CLOUD_EFFORT`.
 
 So `hub_run.sh build/hub-full 7` ⇒ LOCAL; `hub_run.sh build/hub-full 1` ⇒ CLOUD;
 `CEC_JUDGE=local hub_run.sh …` pins local. Length, not wall-clock, is the signal. The threshold ships
@@ -155,16 +157,23 @@ fails safe to the env+hardcoded defaults. This is optional polish, not on the cr
    synth-appropriate intake: (a) run the schematic-side `intake_gate` **once against the committed
    REF schematic** at run start (cheap base-stackup insurance; `bom-field-lint`'s OQ-11/consigned-THT
    gaps are NOTED-not-failed per `cec_constraints.py:249-250`); (b) run the **PCB-geometry subset of
-   `cec_constraints.run()` post-route as a HARD gate** on the synth-relevant checkers:
+   `cec_constraints.run()` post-route** on the synth-relevant checkers:
    `high-current-corridor-keepout` (self-N/As on the cable-less Hub — correct, not a miss),
    `netclass-geometry-conformance` (the only enforcement that FR honored widths), `kelvin-sense-*`,
-   `high-current-pour-integrity`, `logo-bcu-keepout`, `mount-holes-present-clear`,
-   `connector-mouth-faces-edge`. Cosmetic/silk + documented-open items stay NOTED-not-failed.
+   `high-current-pour-integrity`/`-present`, `logo-bcu-keepout`, `mount-holes-present-clear`,
+   `connector-mouth-faces-edge` (all 10 ids verified present in the checker registry). **As shipped it
+   is enforced in candidate SELECTION** — the ranking key is `(not gates_pass, conformance_fail>0,
+   conformance_fail, drc, unconnected, length)`, so a conformance-failing candidate can never outrank a
+   clean one — and recorded per-candidate in the report. Promoting it to an **abort-level HARD gate** is
+   deferred until the committed Hub is confirmed to pass the subset (the holdout must pass the gates
+   being added; if it fails, fix the gate, never relax toward it). Cosmetic/silk + documented-open items
+   stay NOTED-not-failed.
 2. **`corpus_fit_review` ON for the Hub but ADVISORY** (sidecar only, never a rank key, never feeds
-   back). Two fixes make it meaningful: route/archive each candidate under a **stable family name
-   (`hub-standard`)** not the per-rank `hub-cand0/1` (so `cf_family_of` accumulates peers); and call
-   `corpus_fit_review(dlog)` **directly from the Hub driver** (do not hoist the `cec_router.main()`
-   block into `route()` — that changes every caller). Even with zero same-family peers (the corpus is
+   back). It is called `corpus_fit_review(dlog)` **directly from the Hub driver** (not by hoisting the
+   `cec_router.main()` block into `route()`, which would change every caller). The family is **stable
+   as built**: `board_spec` derives it from the out-dir basename (e.g. `hub-full`), so peers accumulate
+   under one family across candidates and runs (naming it `hub-standard` is a forward nicety, not done —
+   no functional impact while the corpus is eps-only). Even with zero same-family peers (the corpus is
    100% eps-8pin ⇒ `_cf_insufficient`), the **briefed-rules path** (`cec_facts.corpus_briefing`,
    which encodes the Hub In2 slow-signal exception) gives it teeth from run one. **Do not** seed the
    corpus from the committed Hub — that makes the holdout a tuning target.
@@ -173,7 +182,8 @@ fails safe to the env+hardcoded defaults. This is optional polish, not on the cr
 
 End-to-end gate order: (0) `cec_policy.assert_loadable` [HARD]; (1) schematic intake on REF [HARD];
 (2) route + `cec_score` gates (kelvin/diffpair/drc/unconnected) [HARD, present]; (2b) PCB-geometry
-conformance subset post-route [HARD, new]; (3) `corpus_fit_review` [ADVISORY sidecar, briefed];
+conformance subset post-route [SELECTION gate now — ranking key; abort-level HARD deferred];
+(3) `corpus_fit_review` [ADVISORY sidecar, briefed];
 (4) electrothermal [advisory, present]; (5) `cec_ledger` every run. Run the same gates on the
 committed Hub to confirm calibration — never tune a threshold toward it.
 
@@ -204,8 +214,8 @@ guards any future post-route mutation.
 | 2 | S | `scripts/cec_judge_local.py` | Add `model=/url=` to `make_manager_swarm`/`make_worker_swarm`; thread into `_panel`/`_chat_json` (cloud auto-routes by model name). Keep the existing deterministic fallback. |
 | 3 | M | `scripts/hub_pipeline_run.py` | `--seats {auto,cloud,local,off}`; before the route call build manager/worker per the resolver (cloud panel=1: `claude -p` has no sampling temp; local panel=3); pass them into `cec_router.route(...)`. Log the resolved backend. |
 | 4 | S | `scripts/hub_pipeline_run.py` | Make verify-the-shipped-artifact explicit (re-score the saved board; guard any future post-route mutation). |
-| 5 | M | `scripts/hub_pipeline_run.py` | Stable family name (`hub-standard`); call `corpus_fit_review(dlog)` directly → advisory sidecar. No corpus seeding from the holdout. |
-| 6 | M | `scripts/hub_pipeline_run.py` | Post-route PCB-geometry conformance HARD gate (synth-relevant subset); REF-schematic intake once at start instead of blanket skip. |
+| 5 | M | `scripts/hub_pipeline_run.py` | Call `corpus_fit_review(dlog)` directly → advisory sidecar (family is stable as built — out-dir basename). No corpus seeding from the holdout. |
+| 6 | M | `scripts/hub_pipeline_run.py` | Post-route PCB-geometry conformance gate folded into candidate SELECTION (ranking key; abort-level HARD deferred); REF-schematic intake at start instead of blanket skip. |
 | 7 | S | `scripts/hub_pipeline_run.py` | `cec_policy.assert_loadable()` at start; ledger the run with `policy_sha256`. |
 | 8 | S | `scripts/hub_run.sh` | Forward `CEC_JUDGE`/positional `--seats` to the container invocation. |
 | 9 | M | `scripts/cec_dashboard.py` | Read-only "agentic decisions" card (resolved backend + per-tier model + verdicts + corpus-fit + gate-pass). |
