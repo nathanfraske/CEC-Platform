@@ -69,7 +69,8 @@ if command -v python3 >/dev/null 2>&1; then
     tests.test_ei02_control_lane \
     tests.test_placer_oracle \
     tests.test_cec_seats \
-    tests.test_fs_actuator >/dev/null 2>&1 \
+    tests.test_fs_actuator \
+    tests.test_actuation_lever >/dev/null 2>&1 \
     && printf '  ok: host suites pass\n' \
     || { printf 'FAIL: a host suite is red (corpus AM-02 anchor or a prompt-audit / EI-02 regression)\n' >&2; status=1; }
 else

@@ -420,6 +420,93 @@ def ab_aggregate(rows):
                               "-plane_signal_mm/drc means the augmented tier helps"}
 
 
+# ---- Full actuation lever, Step 1: per-rule TRANSITIVE influence lineage --------------------
+# A ratified rule may STEER the search but never gate it; before ratification it must clear a
+# CLEAN-evidence gate -- it may be scored only on outcomes it did NOT influence. The influence
+# cone is TRANSITIVE: the augmented board COMPOUNDS (a kept move carries forward as the next
+# round's placement_base), so a row is influenced by this round's active steers AND by the cone
+# of the board it was built from. A control round routes the committed board with a masked
+# lr_view (override SUPPRESSED + manager_rules/penalties dropped), so its cone is empty -- the
+# clean baseline. See docs/actuation-lever-design.md. These helpers are PURE (host-testable).
+import hashlib as _hashlib
+
+_DEFAULT_PENALTIES = {"plane_signal_mm": 50.0, "drc": 50.0, "unconnected": 5.0}
+
+
+def rule_id(kind, payload):
+    """Stable short id for one steer. kind in {rule, penalty, placement, layer}. Pure."""
+    h = _hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:8]
+    return f"{kind}:{h}"
+
+
+def active_steer_ids(lr):
+    """Rule-ids of the persistent run-learned steer carried in `lr`: accepted manager rules +
+    scorer penalties reweighted away from the default. Pure; empty for a fresh/masked lr."""
+    ids = []
+    for r in (lr or {}).get("manager_rules", []):
+        ids.append(rule_id("rule", r))
+    for metric, w in sorted(((lr or {}).get("scorer_penalties", {}) or {}).items()):
+        if _DEFAULT_PENALTIES.get(metric) != w:          # a non-default weight is a steer
+            ids.append(rule_id("penalty", {"metric": metric, "w": w}))
+    return ids
+
+
+def placement_move_id(refs):
+    """Stable id for a placement move identified by the set of refs it relocates. Pure."""
+    return rule_id("placement", {"refs": sorted(refs or [])})
+
+
+def influence_signature(lr, lane, *, placement_id=None, layer_id=None):
+    """The rule-ids ACTIVE on THIS round (this round's steers only, not the inherited cone).
+    Empty on a control round (lr_view masks all run-learned steer + the override is suppressed)."""
+    if lane == "control":
+        return []
+    ids = list(active_steer_ids(lr))
+    if placement_id:
+        ids.append(placement_id)
+    if layer_id:
+        ids.append(layer_id)
+    return sorted(set(ids))
+
+
+def row_influenced_by(lr, lane, placement_cone, *, placement_id=None, layer_id=None):
+    """The TRANSITIVE influence cone stamped on a measurement row: this round's signature UNION
+    the cone of the placement_base lineage the augmented board was built from. Control = []."""
+    if lane == "control":
+        return []
+    sig = influence_signature(lr, lane, placement_id=placement_id, layer_id=layer_id)
+    return sorted(set(sig) | set(placement_cone or []))
+
+
+def clean_pairs(rows, rid):
+    """CLEAN-evidence partition for rule `rid`: treatment = rows the rule influenced; baseline =
+    rows the rule did NOT influence -- the FIREWALL (a row with rid in its cone can never be a
+    baseline for rid). Pure. Rows must carry `influenced_by`."""
+    rows = [r for r in (rows or []) if isinstance(r, dict)]
+    treatment = [r for r in rows if rid in (r.get("influenced_by") or [])]
+    baseline = [r for r in rows if rid not in (r.get("influenced_by") or [])]
+    return {"baseline": baseline, "treatment": treatment}
+
+
+def clean_evidence_delta(rows, rid, metric):
+    """mean(metric) treatment - baseline on CLEAN evidence for `rid`, with each arm's n. Returns
+    delta=None where either arm lacks a numeric sample (insufficient clean evidence). Pure."""
+    part = clean_pairs(rows, rid)
+
+    def _mean(rs):
+        vals = [r.get(metric) for r in rs if isinstance(r.get(metric), (int, float, bool))]
+        return (sum(float(v) for v in vals) / len(vals), len(vals)) if vals else (None, 0)
+
+    bmean, bn = _mean(part["baseline"])
+    tmean, tn = _mean(part["treatment"])
+    if bmean is None or tmean is None:
+        return {"rule_id": rid, "metric": metric, "delta": None,
+                "n_baseline": bn, "n_treatment": tn}
+    return {"rule_id": rid, "metric": metric, "delta": round(tmean - bmean, 4),
+            "treatment_mean": round(tmean, 4), "baseline_mean": round(bmean, 4),
+            "n_baseline": bn, "n_treatment": tn}
+
+
 # Which record metric each penalisable scorer key reads (the additive penalty cost the AUGMENTED lane
 # applies on top of the base soft cost; the CONTROL lane passes scorer_penalties={} -> no extra cost).
 _PENALTY_METRIC = {"drc": "drc", "unconnected": "unconnected", "plane_signal_mm": "plane_signal_mm",
@@ -1654,6 +1741,8 @@ def run(board, rounds, hours, auditor=None):
     placement_base = None                 # PL-05/06: the promoted moved floorplan augmented rounds route from
     pending_placement = None              # PL-06: {prev_base, override, delta_id} of the move awaiting settle
     refuted_placement_keys = set()        # PL-06 anti-ratchet: a refuted placement hypothesis is not re-applied
+    placement_cone = []                   # actuation-lever step 1: ids of KEPT placement moves -- the transitive
+                                          # influence cone augmented rows inherit (control routes committed -> [])
     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
         f"auditor={auditor_model} v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP} "
         f"control_every={CONTROL_EVERY} fence_nets={len(fence['nets'])} fence_refs={len(fence['refs'])}")
@@ -2050,6 +2139,10 @@ def run(board, rounds, hours, auditor=None):
                             log(f"  PLACEMENT {'LAUNDER-BLOCKED' if launder else oc.verdict}: revert base -> "
                                 f"{os.path.basename(placement_base) if placement_base else 'committed'}")
                         else:
+                            # actuation-lever step 1: a KEPT move now COMPOUNDS into placement_base, so
+                            # its id enters the transitive cone every later augmented row inherits.
+                            placement_cone.append(rule_id(
+                                "placement", {"hyp": act.hypothesis_key(pd["finding"], pd["delta"])}))
                             log(f"  PLACEMENT vindicated: keep base "
                                 f"{os.path.basename(placement_base) if placement_base else 'committed'}")
                 pending_deltas = []
@@ -2245,6 +2338,14 @@ def run(board, rounds, hours, auditor=None):
                    "real_anchor_ratio": anchors["real_anchor_ratio"],    # EI-07
                    "n_deterministic": anchors["n_deterministic"], "n_model": anchors["n_model"],
                    "n_deltas_applied": len(applied_deltas),
+                   # actuation-lever step 1: the TRANSITIVE influence cone (control=[]) -- this round's
+                   # active steers (rules+penalties+this round's in-flight placement/layer move) UNION
+                   # the cone of KEPT moves the augmented board compounded on. clean_pairs() reads this.
+                   "influenced_by": ([] if lane == "control" else sorted(
+                       set(active_steer_ids(lr)) | set(placement_cone)
+                       | {rule_id("placement", {"hyp": act.hypothesis_key(p["finding"], p["delta"])})
+                          for p in pending_deltas if getattr(p["delta"], "kind", None) == "replace"}
+                       | ({rule_id("layer", {"shipped": True})} if rec.get("staggered") else set()))),
                    **_placement_row_fields(placement_summary, lane, placement_settled),   # PL-08
                    "corpus_state": _corpus_state(lr)}        # EI-01: knowledge state at round time
             with open(_d("measurement.jsonl"), "a") as fh:
