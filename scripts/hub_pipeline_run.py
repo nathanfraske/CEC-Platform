@@ -26,29 +26,44 @@ import cec_score                        # noqa: E402
 REF = "hubs/hub-standard/hub-standard.kicad_pcb"
 
 
-def _materialize_worker(P, ref_pcb, out):
-    """pcbnew body of materialize_onto_reference -- RUN IN A SPAWN SUBPROCESS. The bd.Remove() calls
-    corrupt this process's pcbnew SWIG state (the recorded footgun: a later LoadBoard returns a raw
-    SwigPyObject), so it must be isolated from the parent that then routes/scores. ORDER: move
-    footprints BEFORE any Remove()."""
+def _reposition_worker(P, ref_pcb, out):
+    """Phase 1 (spawn subprocess): copy the reference, reposition the synth components, rip the
+    committed routing. ORDER: move footprints BEFORE any Remove() (a Remove invalidates later SWIG
+    iterators). After Remove() this process's pcbnew state is corrupt, so the zone FILL is a SEPARATE
+    process (_fill_worker)."""
     import pcbnew
     import shutil
     shutil.copy(ref_pcb, out)
     bd = pcbnew.LoadBoard(out)
+    # cand.P is in a 0-origin synth frame, but the committed board's OUTLINE sits at (x0,y0) (the Hub
+    # at (70,90)). Offset by the board-edge origin so the repositioned parts land INSIDE the outline --
+    # otherwise every component is off-board and FR routes nothing.
+    bb = bd.GetBoardEdgesBoundingBox()
+    ox, oy = bb.GetLeft(), bb.GetTop()
     moved = 0
     for fp in bd.GetFootprints():
         r = fp.GetReference()
         if r in P:
             x, y, rot = P[r]
-            fp.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
+            fp.SetPosition(pcbnew.VECTOR2I(int(x * 1e6) + ox, int(y * 1e6) + oy))
             fp.SetOrientationDegrees(rot)
             moved += 1
-    for z in range(bd.GetAreaCount()):
-        bd.GetArea(z).UnFill()
     for t in list(bd.GetTracks()):
         bd.Remove(t)
     bd.Save(out)
     return moved
+
+
+def _fill_worker(out):
+    """Phase 2 (FRESH spawn subprocess): fill the zones at the new positions. The GND plane MUST
+    connect -- FR excludes the plane layer from signal routing, so an unfilled plane leaves every GND
+    ratline unroutable and FR routes ~nothing (measured). Must be a separate process from the Remove()
+    in phase 1, whose corruption would make LoadBoard here return a raw SwigPyObject."""
+    import pcbnew
+    bd = pcbnew.LoadBoard(out)
+    pcbnew.ZONE_FILLER(bd).Fill(bd.Zones())
+    bd.Save(out)
+    return bd.GetAreaCount()
 
 
 def materialize_onto_reference(cand, ref_pcb, out):
@@ -56,15 +71,18 @@ def materialize_onto_reference(cand, ref_pcb, out):
     committed Hub'). build_board's from-scratch output is NOT DSN-exportable (KiCad's Specctra
     exporter silently refuses it), so instead COPY the committed board -- which exports + routes fine,
     with its real net classes / layer stackup / mounts / logo -- then reposition each synth component,
-    unfill the zones, and rip the existing routing -> a clean, routable floorplan with the synth
-    placement. Refs the synth does not model (M*/LOGO/FID/TP) keep their committed (correct) positions.
-    Runs the pcbnew work in an isolated spawn subprocess (see _materialize_worker)."""
+    rip the committed routing, and FILL the zones fresh at the new positions (so the GND plane
+    connects). Refs the synth does not model (M*/LOGO/FID/TP) keep their committed (correct) positions.
+    Runs in TWO isolated spawn subprocesses (reposition+rip, then fill) -- a Remove() corrupts the
+    process's pcbnew state, so the fill must be a fresh process."""
     import multiprocessing as mp
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    ref, dst = os.path.abspath(ref_pcb), os.path.abspath(out)
     ctx = mp.get_context("spawn")
     with ctx.Pool(1) as pool:
-        moved = pool.apply(_materialize_worker,
-                           (dict(cand.P), os.path.abspath(ref_pcb), os.path.abspath(out)))
+        moved = pool.apply(_reposition_worker, (dict(cand.P), ref, dst))
+    with ctx.Pool(1) as pool:                          # FRESH process -> clean pcbnew state for fill
+        pool.apply(_fill_worker, (dst,))
     return out, moved
 
 

@@ -2460,6 +2460,7 @@ class HubModel:
     power_refs: list       # power front-end refs (on a small-fanout input rail)
     usb: str               # the USB connector ref ('' if none)
     active: bool           # whether the hub terms should fire
+    esp_cy: tuple = None   # the ESP courtyard (cx,cy,hw,hh) at its placed rotation (for the antenna term)
 
 
 def _power_input_nets(nl, override=None):
@@ -2488,8 +2489,14 @@ def build_hub_model(nl, P, comps, *, antenna_edge="", power_input_nets=None):
     loop_nets = set(_power_input_nets(nl, power_input_nets))
     prefs = sorted({r for n in loop_nets for r, _p in nl.nets.get(n, ())
                     if r in P and not r.startswith("J")})
+    esp_cy = None
+    if esp and esp in P and esp in comps:
+        try:
+            esp_cy = _courtyard_info(comps[esp], P[esp][2])   # courtyard at the placed rotation
+        except Exception:
+            esp_cy = None
     return HubModel(ports=ports, esp=esp, antenna_edge=antenna_edge, power_refs=prefs, usb=usb,
-                    active=(len(ports) >= 2 and bool(esp)))
+                    active=(len(ports) >= 2 and bool(esp)), esp_cy=esp_cy)
 
 
 def hub_score(model, P, W, H):
@@ -2519,11 +2526,17 @@ def hub_score(model, P, W, H):
     if model.esp in P:
         ex, ey = P[model.esp][0], P[model.esp][1]
         want = model.antenna_edge or _edge_of(ex, ey, 0.0, 0.0, W, H)
-        d = {"left": ex, "right": W - ex, "top": ey, "bottom": H - ey}.get(
-            want, min(ex, W - ex, ey, H - ey))
-        # the reward decays to 0 over a quarter of the SHORT board dimension -- i.e. the antenna IC
-        # should sit in the edge-quarter so its lobe clears the board interior (board-relative scale,
-        # no copied reference value; parts UNDER the lobe are handled by the courtyard keepout).
+        if model.esp_cy:                              # distance from the COURTYARD's near edge (incl.
+            cx, cy, hw, hh = model.esp_cy             # the antenna keepout) to the board edge -- not
+            d = {"left": ex + cx - hw, "right": W - (ex + cx + hw),   # the footprint ORIGIN, which can
+                 "top": ey + cy - hh, "bottom": H - (ey + cy + hh)}.get(want, 0.0)  # sit far in.
+            d = max(0.0, d)
+        else:
+            d = {"left": ex, "right": W - ex, "top": ey, "bottom": H - ey}.get(
+                want, min(ex, W - ex, ey, H - ey))
+        # the reward decays to 0 over a quarter of the SHORT board dimension -- i.e. the antenna IC's
+        # courtyard should sit against its edge so its lobe clears the board interior (board-relative
+        # scale, no copied reference value; parts UNDER the lobe are handled by the courtyard keepout).
         terms["antenna"] = round(max(0.0, 1.0 - d / (0.25 * min(W, H) or 1.0)), 3)
     pr = [P[r] for r in model.power_refs if r in P]
     if len(pr) >= 2:
@@ -2540,6 +2553,34 @@ def hub_score(model, P, W, H):
     out = {"active": True, "hub_penalty": round(pen, 3)}
     out.update(terms)
     return out
+
+
+def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, margin=1.8):
+    """Seat the PCB-antenna IC against its antenna EDGE as a fixed anchor, returning (ref,(x,y,rot))
+    or (None,None). An RF/ESP module is EDGE-CONSTRAINED (its lobe must radiate off a board edge --
+    an RF principle, the WHY), so it is anchored like a connector, not placed as a free IC. Without
+    this the synth placer drops the large ESP courtyard center-board onto the ganged ports -> courtyard
+    overlaps -> Freerouting routes nothing (measured: 1 wire vs 389 on the hand placement). The EDGE
+    is the per-board antenna_edge input; the position is derived from the footprint courtyard, never
+    copied from the reference. Rot 0 -- the macro/cluster offsets are built at rot 0, so seating the
+    ESP unrotated keeps its decoupling cluster valid; the antenna TERM scores edge PROXIMITY (position),
+    independent of rotation. (The precise antenna-faces-off-edge orientation is a refinement.)"""
+    if not antenna_edge:
+        return None, None
+    esp = next((r for r in ics if "esp32" in (comps.get(r, "") or "").lower()
+                or "rf_module" in (comps.get(r, "") or "").lower()), None)
+    if not esp or esp not in comps:
+        return None, None
+    cx, cy, hw, hh = _courtyard_info(comps[esp], 0.0, drop_antenna=drop_antenna)
+    if antenna_edge == "left":
+        x, y = margin + hw - cx, H / 2.0 - cy
+    elif antenna_edge == "right":
+        x, y = W - margin - hw - cx, H / 2.0 - cy
+    elif antenna_edge == "top":
+        x, y = W / 2.0 - cx, margin + hh - cy
+    else:                                              # bottom
+        x, y = W / 2.0 - cx, H - margin - hh - cy
+    return esp, (x, y, 0.0)
 
 
 @dataclass
@@ -2604,6 +2645,15 @@ def synth_one(cfg_dict, W, H, strat, seed):
     #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
     seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps, W=W)
     free_shunts = [r for r in shunts if r not in seated]
+    # 1c. Seat the PCB-antenna IC at its antenna edge as a FIXED anchor (route-unblock + MV5 antenna
+    #     term): otherwise the large ESP courtyard lands center-board on the ganged ports -> overlaps
+    #     -> Freerouting routes nothing. Keep it in `ics` so its decoupling cluster still builds; drop
+    #     it from the ANNEALED set so it stays put at the edge.
+    _esp, _esp_pos = _seat_antenna_ic(ics, comps, W, H, cfg.params.get("antenna_edge"),
+                                      drop_antenna=drop_antenna)
+    if _esp:
+        anchors[_esp] = _esp_pos
+    anneal_units = [r for r in (ics + free_shunts) if r != _esp]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
@@ -2658,8 +2708,8 @@ def synth_one(cfg_dict, W, H, strat, seed):
     def _veto(ref, xy):
         return _corridor_veto(ref, xy, _bands, _sensitive, _paired)
 
-    anneal_macros(P, cyinfo_all, ics + free_shunts, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
-    legalize_pack(P, [r for r in (ics + free_shunts) if r in P], cyinfo_all, W, H, clr=0.4)
+    anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
+    legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4)
     # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
     for unit, offs in cluster_offsets.items():
         if unit not in P:
