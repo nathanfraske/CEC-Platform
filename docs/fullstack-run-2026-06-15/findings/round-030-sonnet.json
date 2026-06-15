@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC=12 from stub violations on +3V3, I2C_SCL, I2C_SDA, GND and clearance issues; pour fragmentation on /SENSEC1_HI (3 islands) causing conductor over-temp FEM flags and high max_T=120.5\u00b0C; routing improvements needed to consolidate pours and resolve DRC.",
+ "reasoning": "The board fails due to structural DRC and thermal FEM flags. The pour-integrity shows /SENSEC1_HI is clipped with 3 islands, indicating poor copper continuity. Stubs on multiple nets contribute to DRC. Routing effort and corridor-avoid lever can address these issues.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_corridor_avoid",
+  "description": "Increase router passes, apply corridor-avoid for /SENSEC1_HI to reduce pour fragmentation, and target stub clearance."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

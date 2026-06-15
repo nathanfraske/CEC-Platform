@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement-class failure: sense nets /SENSEC1_HI, /SENSEC2_HI, /SENSEC2_LO are fragmented into multiple islands (foreign_cross counts 9,15,9) due to foreign signal crossings cutting through the sense copper. This is likely caused by the placement of the sense amplifier (INA/REF) or its passive cluster being within a high-current band that forces foreign signals to cross. Structural DRC count of 37 includes violations from these fragmented pours. Kelvin_ok=true, so the T0 placement actuator (which only fires for stranded sense nets) will not act; the corridor-avoid lever and panel effort will address it via routing around the offending signals, but the underlying placement issue remains.",
+ "reasoning": "The pour-integrity data shows clipped sense nets with multiple islands and high foreign_cross. The FEM flags indicate over-temp on these nets, consistent with poor copper continuity. Since kelvin_ok is true, the sense nets are connected but with degraded integrity. Placement eviction of the sensitive body (e.g., moving the INA/REF out of the foreign current band) would reduce crossings and improve pour integrity. This is a placement-class failure because better routing alone cannot eliminate the foreign crossings if the components are placed in a congested corridor.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement eviction",
+  "target": "Sensitive body (INA/REF) and its owned passive cluster",
+  "action": "Reposition the sense amplifier and its decoupling capacitors out of the high-current band that fragments the sense copper, reducing foreign signal crossings on /SENSEC1_HI, /SENSEC2_HI, /SENSEC2_LO."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

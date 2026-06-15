@@ -1,0 +1,6 @@
+{
+ "local_minimum_risk": "high",
+ "assessment": "DRC improved from 15 to 12 but has been flat for two rounds (35-36). No new failure class emerged; plane_signal_mm remains 0 and max_T constant. The panel switched to 'repair' without any injections, suggesting the loop may be stuck in a local minimum of penalty reduction rather than achieving routability (gates_pass still false). Adding findings would likely produce epicycles.",
+ "findings": [],
+ "declined": true
+}

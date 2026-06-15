@@ -1,0 +1,12 @@
+{
+ "scorer_penalties": {
+  "plane_signal_mm": 50.0,
+  "drc": 50.0,
+  "unconnected": 5.0
+ },
+ "manager_rules": [],
+ "injections": [],
+ "rejections": [],
+ "diagnoses": [],
+ "refuted_metrics": []
+}

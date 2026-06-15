@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense nets SENSEC2_HI and SENSEC2_LO have fragmented pours due to foreign signal crossings (foreign_cross=17 and 15 respectively), causing DRC violations and over-temp. Placement of foreign signals crossing the sense corridors is the root cause.",
+ "reasoning": "The candidate fails with structural DRC=6 and unconnected nets=2. Pour-integrity shows clipped nets with islands and high foreign cross counts, indicating that foreign signals are cutting through the sense pours. This leads to narrow copper paths, causing over-temp FEM flags on these nets. The placement of these foreign signals relative to the sense corridors is the upstream issue; more routing effort alone cannot fix the fragmented pours.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "detail": "Shift foreign signals (e.g., +3V3, /I2C_SDA, /THRESH) away from the SENSEC2_HI and SENSEC2_LO corridors, or use layer-stagger to route them on F.Cu/B.Cu layers that avoid cutting the sense pours. This will restore pour integrity and reduce DRC violations."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "17 structural DRC violations and 3 unconnected nets persist; FEM flags show conductor over-temp on sense nets /SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI and +5VSB. Pour integrity reveals clipped sense nets with islands and foreign cross (e.g., /SENSEC1_HI: 2 islands, 9 foreign cross; /SENSEC2_LO: 2 islands, 11 foreign cross), indicating the router is fragmenting sense copper. This is a routing-quality issue: insufficient effort or poor routing strategy is causing clearance violations and thermal hotspots. The corridor-avoid lever (triggered by clipped_nets) and increased router passes can resolve this.",
+ "reasoning": "kelvin_ok=true and diffpair_ok=true confirm placement is acceptable; the failures are DRC and thermal, both addressable by routing improvements. The pour-clipped_nets list triggers the deterministic corridor-avoid lever. No gate-passing candidate exists (gates_pass=false), so scorer_penalty is null. Prior refutes are empty, so no class repetition concern.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_keepout",
+  "detail": "Increase router passes and apply bake_hints keepouts around /SENSEC1_HI, /SENSEC1_LO, /SENSEC2_HI, /SENSEC2_LO to prevent foreign signal cross and copper fragmentation. The corridor-avoid lever will automatically route offending foreign signals around these sense corridors."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

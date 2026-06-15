@@ -1,0 +1,11 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC count of 15 (require 0) indicates routing quality failure; unconnected nets (2) and pour fragmentation on /SENSEC2_LO (2 islands, 13 foreign crosses) suggest insufficient routing effort and lack of corridor-avoid intents for sense nets. FEM flags show conductor over-temp on multiple nets, likely due to high current density from poor routing.",
+ "reasoning": "The candidate fails gates due to DRC violations and has pour integrity issues that degrade sense-net copper. Placement is not the primary issue since Kelvin nets are routed; the router needs more passes and corridor-avoid intents to clean up DRC and reduce foreign crosses.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "action": "Increase router passes/opt_time and ensure corridor-avoid intents are applied for /SENSEC2_LO and other sense nets to reduce foreign crosses and improve pour integrity."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

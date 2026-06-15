@@ -1,0 +1,11 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of components (likely near U1 or the sense IC) is fragmenting the /SENSEC2_LO copper pour into two islands with 19 foreign crossings, causing structural DRC errors and conductor over-temp flags. The sense net cannot maintain a continuous low-impedance path, leading to thermal and routing violations. Since kelvin_ok is true, the T0 placement actuator does not fire, but the corridor-avoid lever will address pour clipping; however, the underlying placement issue requires repositioning the offending component out of the sense corridor to restore pour integrity.",
+ "reasoning": "Pour-integrity shows /SENSEC2_LO has 2 islands and 19 foreign crossings, indicating that a placed component or via array is bisecting the sense net. FEM flags show over-temp on sense nets, consistent with high current density in a fragmented pour. DRC count of 19 and unconnected nets further confirm routing congestion from poor placement. The I2C stub failures at U1 suggest no clearance for fanout, reinforcing that component placement is blocking routing channels.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "Reposition the component (likely U1 or the sense IC) that is splitting /SENSEC2_LO, or use layer-stagger to route foreign signals on inner layers, keeping the outer pour unbroken for the sense net."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

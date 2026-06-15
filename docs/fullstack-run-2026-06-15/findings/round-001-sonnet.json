@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC = 11 (require 0) indicates unresolved routing conflicts; 2 unconnected nets and 12 stubs confirm incomplete routing. FEM flags show conductor over-temp on GND and sense nets, likely due to inadequate copper pour or high current density. Pour integrity shows foreign cross on sense nets, suggesting foreign signals crossing sense corridors. The routing is not closed.",
+ "reasoning": "The candidate fails gates due to DRC errors and incomplete connectivity. Placement is acceptable (kelvin_ok=true), so the issue is routing. Thermal flags and foreign cross indicate need for better routing strategies.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort",
+  "detail": "Increase router passes/opt_time; apply bake_hints keepouts around sense nets to reduce foreign cross; consider layer-stagger for band-crossing signals."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

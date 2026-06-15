@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC errors (10) and unconnected nets (2) indicate incomplete routing; FEM flags show conductor over-temp on sense nets and GND, likely due to insufficient copper area or high current density exacerbated by foreign crossings in sense pours. Placement is acceptable (kelvin_ok=true), so routing improvements are needed.",
+ "reasoning": "The candidate fails gates due to DRC and unconnected nets. Pour integrity shows foreign_cross on sense nets, which may contribute to thermal issues. Since kelvin_ok=true, placement is not the primary problem; routing adjustments can address DRC, complete connections, and reduce foreign crossings.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_keepouts",
+  "description": "Increase router passes/opt_time, add keepouts around sense pours to reduce foreign crossings, and ensure adequate copper width for high-current nets."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

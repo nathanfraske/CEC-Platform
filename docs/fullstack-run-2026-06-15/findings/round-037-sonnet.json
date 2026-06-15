@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement failure: sense net /SENSEC2_LO is heavily fragmented (4 islands, 18 foreign crossings) due to a sensitive component (likely INA or REF) sitting in a high-current band that chops its copper. This causes structural DRC errors and conductor over-temp flags. The placement is upstream of routing; more router passes cannot fix the fragmented plane. Since kelvin_ok=true, the T0 placement actuator does not fire, but the corridor-avoid lever and panel effort are engaged to mitigate.",
+ "reasoning": "The pour integrity report shows /SENSEC2_LO has 4 islands and 18 foreign crossings, indicating that the sense copper is broken into multiple pieces by other signals. This is a classic placement-induced problem where a sensitive component's sense net is forced through a congested area. The DRC count of 12 and FEM over-temp flags are consequences. The placement must be adjusted to move the sensitive body out of the high-current band.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict sensitive body (INA/REF) from the high-current band that fragments /SENSEC2_LO, carrying its passive cluster to a cleaner area. This is a PLACEMENT EVICTION lever as defined in constraints.",
+  "target": "component near /SENSEC2_LO with high foreign_cross count"
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

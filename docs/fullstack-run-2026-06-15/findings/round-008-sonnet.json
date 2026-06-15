@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense copper pour for SENSEC2 is fragmented into two islands (foreign_cross=10 and 14) causing high resistance and thermal over-temp on sense nets. Structural DRC errors (16) likely stem from clearance violations in the congested sense corridor. Placement of components or vias forces the pour into narrow bands, but kelvin_ok=true so T0 placement actuator does not fire; corridor-avoid lever and panel effort must carry the fix.",
+ "reasoning": "Pour integrity shows clipped nets with islands for SENSEC2_HI and SENSEC2_LO, indicating fragmentation. FEM flags confirm over-temp on these nets. DRC count is high. Since kelvin nets are routed, this is a congested-corridor placement failure where the gate is not a stranded sense net; T0 does not act, but corridor-avoid lever can reroute foreign signals to allow continuous pour.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "corridor_avoid",
+  "detail": "Route offending foreign signals (e.g., those crossing SENSEC2) around the sense corridor to reduce fragmentation and allow a continuous pour. Consider shifting sense IC or shunt if placement allows."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

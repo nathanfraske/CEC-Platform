@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement failure: the sense net /SENSEC2_LO shows severe pour fragmentation (3 islands, 17 foreign crossings) and conductor over-temp flags on multiple sense nets. This indicates a sensitive body (likely an INA/REF or its passive cluster) is positioned within a high-current band, breaking the sense copper into disjoint islands. The 13 DRC errors likely stem from clearance violations around these fragmented regions. Kelvin nets are fully routed (kelvin_ok=true), so the T0 placement actuator will not fire automatically; the corridor-avoid lever and panel effort must address the fragmentation by evicting the offending component.",
+ "reasoning": "Pour integrity shows /SENSEC2_LO with 3 islands and high foreign_cross, a classic sign of a placement blocking copper continuity. FEM flags confirm thermal stress on sense nets. Routing alone cannot fix fragmented pours; the component must be repositioned to allow a clean copper plane.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict",
+  "target": "sensitive body (INA/REF/ESP) and its owned passive cluster from the high-current band fragmenting /SENSEC2_LO pour",
+  "rationale": "Restore copper continuity for the sense net, reducing islands and foreign crossings, which should lower DRC count and improve thermal performance."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -1,0 +1,132 @@
+[
+ {
+  "net": "GND",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "H1",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "H2",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "H3",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   },
+   {
+    "ref": "C1",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "net": "+3V3",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "C10",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   },
+   {
+    "ref": "C11",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   },
+   {
+    "ref": "C20",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   },
+   {
+    "ref": "C21",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/I2C_SDA",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U10",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   },
+   {
+    "ref": "U11",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   },
+   {
+    "ref": "U1",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/THRESH",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "C40",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "R10",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "U30",
+    "offset_mm": [
+     2,
+     2
+    ]
+   }
+  ]
+ }
+]

@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC=14 (require 0) and 3 unconnected nets persist despite kelvin_ok=true. Pour integrity shows /SENSEC1_LO and /SENSEC2_LO clipped with islands (2 each) and high foreign cross (15,13), fragmenting sense-low pours. FEM flags over-temp on GND, +5VSB, and both sense-high nets, indicating current crowding or poor thermal spreading. The DRC errors likely stem from clearance violations near these fragmented pours or from stub compile failures (e.g., /I2C_SDA). Routing improvements\u2014such as waypoint intents to steer foreign signals around sense corridors and increased router effort\u2014can reduce foreign cross, consolidate islands, and resolve DRCs.",
+ "reasoning": "Placement is not the primary gate because kelvin_ok=true (no stranded sense net) and the pour fragmentation is addressable by routing-level corridor avoidance. The deterministic corridor-avoid lever fires from pour_clipped_nets, and additional router passes can close DRCs and unconnected nets. No gate-passing candidate exists, so scorer_penalty remains null.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_waypoints",
+  "detail": "Increase router passes/opt_time; add waypoint intents to route foreign signals (e.g., +5VSB, GND) around /SENSEC1_LO and /SENSEC2_LO corridors. Consider bake_hints keepouts near sense-low islands to reduce foreign cross."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

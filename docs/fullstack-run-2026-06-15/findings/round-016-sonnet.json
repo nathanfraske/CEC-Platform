@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "The board has 30 structural DRC violations and 4 unconnected nets, with pour fragmentation on /SENSEC2_LO (2 islands, foreign_cross=14) causing thermal FEM flags (conductor over-temp on sense nets and GND). The routing is insufficient to provide continuous copper for the sense net pours, leading to current crowding and high temperatures. The corridor-avoid lever will fire from clipped_nets to route foreign signals around the sense corridor.",
+ "reasoning": "The board fails gates due to DRC=30 (require 0). Pour integrity shows /SENSEC2_LO has two islands and high foreign cross, indicating fragmented copper. FEM flags confirm over-temp on sense nets and GND. Since kelvin_ok is true, placement T0 actuator is not triggered; routing improvements (more passes, corridor-avoid intents) can address the DRC, unconnected nets, and pour integrity issues. No gate-passing candidate exists, so scorer_penalty is null.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "increase_router_effort",
+  "details": "Increase router passes and opt_time, apply corridor-avoid intents for /SENSEC2_LO to route foreign signals around its pour area, and consider bake_hints keepouts to reduce foreign cross."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

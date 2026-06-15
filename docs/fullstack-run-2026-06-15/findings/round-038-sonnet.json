@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement-class failure: sense net /SENSEC2_LO is fragmented (2 islands, 15 foreign crossings) due to components or vias cutting the copper pour. This creates DRC violations and over-temp flags. More routing cannot fix a bad placement; the corridor-avoid lever and panel effort will carry it, but T0 placement actuator does not fire because kelvin_ok=true (no stranded sense net).",
+ "reasoning": "The pour-integrity data shows /SENSEC2_LO has 2 islands and 15 foreign crossings, indicating the sense copper is broken by foreign signals. This is a placement issue: sensitive bodies (INA/REF) likely sit in the high-current band, fragmenting the sense net. The DRC count of 14 and over-temp flags on SENSEC nets confirm the thermal and routing impact. Since kelvin_ok=true, the T0 actuator will not shift parts; the corridor-avoid lever and panel effort are the only active levers.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "description": "Evict sense-related components (INA/REF) from the /SENSEC2_LO corridor to reduce foreign crossings and consolidate islands. This is advisory; T0 will not fire automatically because kelvin_ok=true."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}
