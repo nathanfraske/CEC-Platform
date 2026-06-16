@@ -51,22 +51,36 @@ write the design doc, document all steps in handoff+todo, and start building.
     actuated for the first time (status=applied); DRC mean 57→39 augmented-vs-control; deepseek shadow
     auditor correctly declined under a stalled loop. Placement still showed moved_rate 0.0 because the
     eviction findings named target=None.
-  * PROSE-REF FIX DONE 2026-06-16 (this session, not yet committed at time of writing): the placement
-    target now resolves from prose. Added `_prose_ref(finding, known_refs)` (pulls a refdes C1/U30/RS1
-    out of the action/root_cause prose, validated against the live board manifest refs so RS485/INA240/
-    CAN1 look-alikes can't masquerade), threaded `known_refs` into `finding_to_delta` (replace-only), +
-    a finder-prompt nudge to put the refdes in proposed_lever.target. VALIDATED on the REAL Hub-smoke r2
-    finding: was `replace ref=None` → noop, now `replace ref=C1 status=applied` with a resolvable
-    placement intent. scripts/cec_fs_actuator.py + scripts/cec_fullstack.py (call site + _audit_prompt);
-    tests/test_actuation_lever.py TestProseRefFallback (7 new; host suite green; the 9 fr02/vision
-    discover-order failures are baseline-identical, pre-existing).
-    KNOWN residual (FOLLOWUPS 2026-06-16): the Hub r3 finding still noops because its free-form `action`
-    sentence contains "waypoint", which `_lever_kind` ranks above "evict"/"shift" → classified waypoint
-    not replace (separate lever-classification fix; risks regressing legit "add waypoint" findings).
-  * REMAINING: the LONGER Hub validation run — confirm placement_moved_rate > 0 LIVE (apply_placement_move
-    relocates C1-class bodies) and augmented≠control on a placement-shaped board.
+  * PROSE-REF FIX + r3 CLOSE + HARDENING DONE 2026-06-16 (commits fad6bdd, f8ddbd9; pushed): the
+    placement target now resolves from prose, and the r3 lever-misclassification is closed.
+    - prose fallback `_prose_ref(finding, known_refs)` matches the LITERAL known board refs
+      case-insensitively + word-bounded (any ref shape incl. underscore J_5VSB/SW_BOOT; look-alikes
+      RS485/INA240/CAN1 blocked by the whitelist), with verb-proximity (prefer the ref after a move
+      verb); `_placement_intent` ref_hint routes a validated ref to the ref branch; `known_refs`
+      threaded into `finding_to_delta` (replace-only), hoisted once per run; finder-prompt nudge.
+    - **r3 closed**: `_lever_kind(lever, failure_class)` — a placement-class finding whose free-form
+      action sentence carries "waypoint"/"corridor" classifies as a MOVE first (ahead of the
+      waypoint/avoid traps), without regressing routing-class "add a waypoint intent". The real r2 AND
+      r3 findings both now resolve `replace ref=C1` (r3 was waypoint→noop).
+    - ADVERSARIALLY REVIEWED: workflow wf_6653dbfc (6 lenses, 25 agents, every finding verified) →
+      16 confirmed; all real ones fixed this session. tests +11 (suite 63 green; 9 fr02/vision
+      discover-order failures are baseline-identical, pre-existing).
+  * **KEY CORRECTION — the placement actuator is CORRIDOR-GATED, so "a longer Hub run" is the WRONG
+    next step.** `apply_placement_move` derives the eviction band ONLY from `corridor_violations(src)`,
+    which returns a body solely when a SENSITIVE part sits inside a FORMED high-current corridor
+    (EPS/PCIe cables) and returns [] for shared-bus boards. EMPIRICALLY confirmed on host pcbnew:
+    `corridor_violations()` == [] for BOTH committed Hub (shared-bus) AND committed eps (clean
+    placement) → `placement_moved_rate` is structurally 0 on both, regardless of ref resolution
+    (hubsmoke2 r2 already noop'd `[placement no_corridor]`). The prose-ref fix is necessary but not
+    sufficient. The FULL chain is now proven end-to-end on an INJECTED-violation EPS fixture (commit
+    96232e0, real pcbnew: U10 named ONLY in prose → finding_to_delta resolves ref=U10 →
+    apply_placement_move → verdict 'placed', U10 evicted). **OWNER
+    DECISION (docs/owner-queue.md §1 + FOLLOWUPS 2026-06-16 "KEY BLOCKER"): (1) keep the lever
+    EPS/PCIe-corridor-scoped + validate the finder→prose-ref→evict chain via an injected-violation
+    EPS loop [recommended to prove the chain]; or (2) generalize to a non-corridor congestion-eviction
+    band for Hub-class failures [larger; new safety design].**
 - Step-1/2/3/4 code: scripts/cec_fullstack.py; actuator: scripts/cec_fs_actuator.py; Hub:
-  scripts/cec_overnight_directed.py + scripts/cec_router.py; tests: tests/test_actuation_lever.py (52).
+  scripts/cec_overnight_directed.py + scripts/cec_router.py; tests: tests/test_actuation_lever.py (63).
 
 ## 10h FULL-PIPELINE RUN — COMPLETED, NEGATIVE RESULT 2026-06-15 ~15:15 UTC (committed c787595)
 The run launched ~03:57 UTC finished its full 10h budget cleanly. **Writeup: docs/fullstack-run-2026-06-15/RESULT.md.**
