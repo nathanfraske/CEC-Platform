@@ -79,8 +79,25 @@ write the design doc, document all steps in handoff+todo, and start building.
     EPS/PCIe-corridor-scoped + validate the finder→prose-ref→evict chain via an injected-violation
     EPS loop [recommended to prove the chain]; or (2) generalize to a non-corridor congestion-eviction
     band for Hub-class failures [larger; new safety design].**
-- Step-1/2/3/4 code: scripts/cec_fullstack.py; actuator: scripts/cec_fs_actuator.py; Hub:
-  scripts/cec_overnight_directed.py + scripts/cec_router.py; tests: tests/test_actuation_lever.py (63).
+  * **OPTION (1) DONE + VALIDATED 2026-06-16 — the placement lever FIRES LIVE on EPS (commit 7b10fed).**
+    Owner: "Validate the chain on EPS first." Injected U10/INA238 into the /SENSEC2 corridor and ran a
+    live `cec_fullstack` loop (Sonnet finder, host monkeypatch of BOARD_PCB + forced route override;
+    committed board untouched). A SECOND root cause surfaced: `corridor_violations()` was only called
+    INSIDE apply_placement_move, NEVER surfaced to the finder → it diagnosed `routing` and targeted the
+    FENCED sense net `/SENSEC2_LO` (refused every round; baseline placement_moved_rate 0.0, 0/5). FIX:
+    `corridor_body_facts(routed)` (in-container, like pour_facts) → `pourcheck["corridor_bodies"]` →
+    `_audit_prompt` BODY-IN-CORRIDOR directive (set failure_class=placement, put the body refdes in
+    target, NOT the fenced net; same fact both A/B lanes). Re-run: finder flipped to placement/target=U10
+    → finding_to_delta resolved U10 → apply_placement_move evicted +9mm → `placed-rN.kicad_pcb` →
+    **placement_moved_rate 0.667 (2/3)**. Evidence: docs/fullstack-run-2026-06-16-epsinject{,2}/RESULT.md;
+    test_body_in_corridor_fact_steers_to_a_body_eviction. CAVEATS (FOLLOWUPS): U10 is the cable's OWN
+    sense IC so the evict traded corridor→kelvin (convergence detail; a FOREIGN body injection vindicates);
+    CONTROL_EVERY=9 → the move never settled (re-proposed each round it saw the violation).
+  * **REMAINING (owner): option (2) GENERALIZE the lever** to a non-corridor congestion-eviction band so
+    Hub-class (shared-bus, no-corridor) failures move a body. Only path to Hub placement movement.
+- Step-1/2/3/4 code + corridor-fact: scripts/cec_fullstack.py; actuator: scripts/cec_fs_actuator.py;
+  Hub: scripts/cec_overnight_directed.py + scripts/cec_router.py; tests: tests/test_actuation_lever.py
+  (63) + test_prompt_audit_fixes.py + test_placement_actuation_e2e.py.
 
 ## 10h FULL-PIPELINE RUN — COMPLETED, NEGATIVE RESULT 2026-06-15 ~15:15 UTC (committed c787595)
 The run launched ~03:57 UTC finished its full 10h budget cleanly. **Writeup: docs/fullstack-run-2026-06-15/RESULT.md.**
