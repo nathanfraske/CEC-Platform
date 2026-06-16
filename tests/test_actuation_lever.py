@@ -486,6 +486,96 @@ class TestProseRefFallback(unittest.TestCase):
         d = self.act.finding_to_delta(f, {"routed": ""}, None, 1, fence, known_refs={"C1"})
         self.assertEqual(d.status, "refused")
 
+    # ---- hardening from the prose-ref review (wf_6653dbfc) -------------------------------------------
+    def test_lowercase_prose_resolves(self):
+        # case-insensitive membership: 'shift c1' must resolve against uppercase known refs
+        d = self._delta({"proposed_lever": {"type": "placement_eviction", "action": "shift c1 over"}})
+        self.assertEqual(d.intent["ref"], "C1")
+
+    def test_underscore_ref_resolves_and_routes_to_ref_branch(self):
+        # underscore / non-alnum-shaped refs (J_5VSB, C_SS1) the old [A-Za-z]{1,4}[0-9]+ regex could
+        # never produce; the known-ref alternation matches them and ref_hint forces the ref branch.
+        k = {"J_5VSB", "C_SS1", "C1"}
+        d = self.act.finding_to_delta(
+            {"proposed_lever": {"type": "placement_eviction", "action": "relocate J_5VSB out of the way"}},
+            {"routed": ""}, None, 1, self.fence, known_refs=k)
+        self.assertEqual(d.intent["ref"], "J_5VSB")
+        self.assertIsNone(d.intent.get("net"))
+
+    def test_verb_proximity_picks_the_evicted_body_not_the_obstacle(self):
+        # "C1 is blocked by U1; evict U1" -> the body that FOLLOWS the move verb (U1), not the first ref
+        k = {"C1", "U1"}
+        d = self.act.finding_to_delta(
+            {"proposed_lever": {"type": "placement_eviction", "action": "C1 is blocked by U1; evict U1"}},
+            {"routed": ""}, None, 1, self.fence, known_refs=k)
+        self.assertEqual(d.intent["ref"], "U1")
+
+    def test_first_ref_when_no_move_verb(self):
+        # structured replace token (so kind=replace) but prose has two refs and NO move verb
+        # -> first ref in document order
+        k = {"C1", "U1"}
+        d = self.act.finding_to_delta(
+            {"proposed_lever": {"type": "placement_eviction", "action": "U1 and C1 are both crowded"}},
+            {"routed": ""}, None, 1, self.fence, known_refs=k)
+        self.assertEqual(d.intent["ref"], "U1")
+
+    def test_net_shaped_structured_target_on_replace_skips_prose(self):
+        # a '/...'-shaped structured target on a replace lever stays a NET intent; prose is not scraped
+        d = self._delta({"proposed_lever": {"type": "placement_eviction", "target": "/+5VSB",
+                                            "action": "also C1 looks tight"}})
+        self.assertEqual(d.kind, "replace")
+        self.assertIsNone(d.intent["ref"])
+        self.assertEqual(d.intent["net"], "/+5VSB")
+        self.assertNotIn("ref from prose", d.note)
+
+
+class TestLeverKindPlacementClass(unittest.TestCase):
+    """The r3 fix: a placement-class finding whose free-form `action` sentence carries 'waypoint'/'corridor'
+    incidentally must classify as a MOVE (the placement-verb-first override), not get trapped into
+    waypoint/avoid noops -- WITHOUT regressing a routing-class 'add a waypoint intent' finding."""
+
+    def setUp(self):
+        import cec_fs_actuator as act
+        self.act = act
+        self.fence = {"nets": [], "refs": []}
+
+    def _kind(self, lever, failure_class=None):
+        return self.act._lever_kind(lever, failure_class)
+
+    def test_r3_shape_action_sentence_with_waypoint_is_replace_when_placement(self):
+        # the literal round-003-sonnet.json action prose, failure_class=placement
+        action = ("shift component C1 or nearby passives to create clearance for the +5VSB waypoint, "
+                  "and consider evicting any sensitive body (e.g., INA/REF) that may be blocking the corridor")
+        self.assertEqual(self._kind(action, "placement"), "replace")
+        # end-to-end: that finding now resolves the body C1 (was a silent waypoint noop)
+        f = {"failure_class": "placement", "proposed_lever": {"action": action}}
+        d = self.act.finding_to_delta(f, {"routed": ""}, None, 1, self.fence, known_refs={"C1"})
+        self.assertEqual(d.kind, "replace")
+        self.assertEqual(d.intent["ref"], "C1")
+
+    def test_same_action_routing_class_stays_waypoint_no_regression(self):
+        # identical text but failure_class=routing -> the placement override does NOT fire; 'waypoint' wins
+        action = "shift the route via a +5VSB waypoint to clear the corridor"
+        self.assertEqual(self._kind(action, "routing"), "waypoint")
+
+    def test_r1_add_waypoint_intent_unaffected(self):
+        # a real routing finding asking for a waypoint must remain a waypoint (-> noop delta), not a move
+        self.assertEqual(self._kind("add a waypoint intent for the unconnected net", "routing"), "waypoint")
+        self.assertEqual(self._kind("add a waypoint intent for the unconnected net", None), "waypoint")
+
+    def test_shift_is_a_placement_verb(self):
+        self.assertIn("shift", self.act._PLACEMENT_VERBS)
+        self.assertEqual(self._kind("Shift component C1", "placement"), "replace")
+
+    def test_placement_class_without_a_verb_is_not_forced_to_replace(self):
+        # a placement-class finding that genuinely asks for more router effort stays effort
+        self.assertEqual(self._kind("increase router passes and opt_time", "placement"), "effort")
+
+    def test_structured_eviction_token_classifies_without_failure_class(self):
+        # back-compat: a structured 'placement_eviction'/'router_effort' token classifies on its own
+        self.assertEqual(self._kind("placement_eviction", None), "replace")
+        self.assertEqual(self._kind("router_effort", None), "effort")
+
 
 class TestSingleSourceConstants(unittest.TestCase):
     """The audit's anti-drift pins: run() must init lr penalties from the shared constant, and the

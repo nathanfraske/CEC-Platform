@@ -2060,6 +2060,7 @@ def run(board, rounds, hours, auditor=None):
     # P1 (prompt-audit 2026-06-13): the placed-footprint manifest grounds the T1 waypoint refs (the
     # U5 fix) + supplies the sense corridor; built once per run (placement is static across rounds).
     manifest = board_manifest(board)
+    known_refs = set(manifest.get("refs") or {})     # static across rounds -> the prose-ref resolver's whitelist
     log(f"board manifest: {len(manifest.get('refs', {}))} placed refs, "
         f"{len(manifest.get('net_refs', {}))} nets"
         + ("" if manifest.get("refs") else " (UNAVAILABLE -- T1 falls back to ungrounded prompt)"))
@@ -2504,7 +2505,7 @@ def run(board, rounds, hours, auditor=None):
                 if vsupport and isinstance(pl, dict):
                     d = act.finding_to_delta(sj, rec, grid, rnd, fence,
                                              sense_nets=[n for pr in fence_pairs for n in pr], idx=0,
-                                             known_refs=set(manifest.get("refs") or {}))
+                                             known_refs=known_refs)
                     dlog.add(d)
                     cand_deltas.append({"delta": d, "finding": sj})
                     log(f"  ACTUATOR: finding-delta {d.id} kind={d.kind} status={d.status} -- {d.note[:90]}")

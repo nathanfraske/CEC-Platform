@@ -78,15 +78,31 @@ def is_fenced(target, fence):
 
 
 # ---- finding -> Delta --------------------------------------------------------------------------------
-def _lever_kind(lever):
+# Placement verbs (substring-matched against the lever text). 'shift'/'relocate' added: 'shift' is the
+# literal verb the real finders use ("Shift component C1 ...") and was missing from the original set.
+_PLACEMENT_VERBS = ("place", "rotate", "re-place", "replace", "move", "reposition", "relocate",
+                    "evict", "shift")
+
+
+def _lever_kind(lever, failure_class=None):
     l = str(lever or "").lower()
+    # PLACEMENT-CLASS OVERRIDE (the r3 fix): a finder with no structured lever/type token leaves
+    # _pl_lever falling back to the whole free-form `action` SENTENCE, which often carries "waypoint" or
+    # "corridor" incidentally ("shift component C1 ... for the +5VSB waypoint ... evicting any sensitive
+    # body blocking the corridor"). Those keyword traps (waypoint/avoid below) would mis-route a real
+    # placement move to a noop. When the auditor's OWN failure_class is 'placement' AND a placement verb
+    # is present, classify as a move FIRST -- ahead of BOTH the waypoint and the avoid checks. A
+    # routing/effort-class finding (failure_class != 'placement') skips this and keeps the keyword order
+    # below, so a legit "add a waypoint intent" (r1, failure_class=routing) is NOT regressed.
+    if str(failure_class or "").lower() == "placement" and any(k in l for k in _PLACEMENT_VERBS):
+        return "replace"
     if "waypoint" in l:
         return "waypoint"
     if any(k in l for k in ("keepout", "around", "corridor", "avoid", "pour", "offend")):
         return "avoid"
     if any(k in l for k in ("pass", "opt", "effort", "more route")):
         return "effort"
-    if any(k in l for k in ("place", "rotate", "re-place", "replace", "move", "reposition", "evict")):
+    if any(k in l for k in _PLACEMENT_VERBS):
         return "replace"
     return "noop"
 
@@ -106,23 +122,34 @@ def _pl_target(pl):
     return pl.get("target") or pl.get("net") or pl.get("ref")
 
 
-# A refdes token: 1-4 letters then digits (C1, U30, RS1, TH2). Prefix-bounded so it doesn't grab the
-# tail of a longer alnum run. Validated against the live board refs below -- the regex alone would also
-# match part names / protocols (INA240, RS485, CAN1), which is exactly why a token only counts when it
-# is an ACTUAL board ref.
-_REFDES_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]{1,4}[0-9]+)(?![A-Za-z0-9])")
+# Move verbs for prose proximity: the refdes that FOLLOWS one of these is the body to move (vs an
+# obstacle/neighbor named earlier). re-?place catches "re-place" and "replace".
+_MOVE_VERB_RE = re.compile(r"(?:shift|reposition|relocate|evict|re-?place|move|place|rotate)", re.I)
 
 
 def _prose_ref(finding, known_refs):
-    """Fallback target resolver: pull a board refdes out of a placement finding's FREE-FORM prose when
+    """Fallback target resolver: pull a board ref out of a placement finding's FREE-FORM prose when
     proposed_lever carries no structured target (observed on the Hub smoke: r2/r3 named 'C1' only in the
-    `action`/`root_cause` text, so the replace Delta resolved to no body and noop'd). Returns ONLY a token
-    that is an actual board ref (`known_refs`), so 'RS485'/'INA240'/'CAN1'-style look-alikes can never
-    masquerade as a body to move. Returns None when no real ref is named OR the manifest is unavailable --
-    the lever then noops, never guesses. Stays pcbnew-free (prose + a ref set in, nothing read off a board)."""
+    `action`/`root_cause` text, so the replace Delta resolved to no body and noop'd).
+
+    Matches the LITERAL known board refs (`known_refs`) as whole, word-bounded, CASE-INSENSITIVE tokens
+    -- not a refdes regex -- so (a) only an ACTUAL board ref can resolve ('RS485'/'INA240'/'CAN1'
+    look-alikes never match a real ref), and (b) any ref SHAPE works, including underscore/long-prefix
+    refs (J_5VSB, SW_BOOT, C_SS1) that a `[A-Za-z]{1,4}[0-9]+` pattern could never produce. When prose
+    names more than one real ref, prefer the one that FOLLOWS a move verb (the body to move) over an
+    obstacle/neighbor named earlier ("C1 is blocked by U1; evict U1" -> U1, not C1); else the first ref
+    in document order. Returns None when no real ref is named OR the manifest is unavailable -- the lever
+    then noops, never guesses. Stays pcbnew-free (prose + a ref set in, nothing read off a board)."""
     known = {str(r) for r in (known_refs or ())}
     if not known:
         return None
+    canon = {}                                   # UPPER(ref) -> canonical ref (refs are unique)
+    for r in known:
+        canon.setdefault(r.upper(), r)
+    # longest-first alternation so 'C10' wins over 'C1'; word-bounded incl. '_' so 'C1' != 'C10'/'+5VSB'.
+    toks = sorted(canon, key=len, reverse=True)
+    ref_re = re.compile(r"(?<![A-Za-z0-9_])(" + "|".join(re.escape(t) for t in toks) + r")(?![A-Za-z0-9_])",
+                        re.I)
     f = finding if isinstance(finding, dict) else {}
     pl = f.get("proposed_lever") if isinstance(f.get("proposed_lever"), dict) else {}
     # proposed_lever prose first (most specific), then the finding-level diagnosis.
@@ -131,21 +158,35 @@ def _prose_ref(finding, known_refs):
     for b in blobs:
         if not isinstance(b, str):
             continue
-        for tok in _REFDES_RE.findall(b):
-            if tok in known:
-                return tok
+        hits = [(m.start(), canon[m.group(1).upper()]) for m in ref_re.finditer(b)]
+        if not hits:
+            continue
+        # verb-proximity: the first ref that appears AFTER a move verb is the move target.
+        for vend in (m.end() for m in _MOVE_VERB_RE.finditer(b)):
+            after = [(s, r) for (s, r) in hits if s >= vend]
+            if after:
+                return min(after)[1]
+        return hits[0][1]
     return None
 
 
-def _placement_intent(target, *, source="auditor"):
-    """Build the LIVE intent for a 'replace' (placement) Delta. A REF target (e.g. 'U30' -- letters
-    then digits, no leading '/') names the body to evict; a NET target ('/...') is left for the
-    consumer to resolve to its OWNING body on-board (via cec_synth_pipeline.corridor_violations). band
-    stays None here -- it is resolved from the live board at apply time, never fabricated at finding
-    time, so finding_to_delta stays pcbnew-free / host-testable. cluster=True -> carry the body's owned
-    passive cluster (decoupling caps), never a structural shunt RS*/connector J*."""
+def _placement_intent(target, *, source="auditor", ref_hint=None):
+    """Build the LIVE intent for a 'replace' (placement) Delta. A REF target (e.g. 'U30' / 'J_5VSB' --
+    no leading '/') names the body to evict; a NET target ('/...') is left for the consumer to resolve
+    to its OWNING body on-board (via cec_synth_pipeline.corridor_violations). band stays None here -- it
+    is resolved from the live board at apply time, never fabricated at finding time, so finding_to_delta
+    stays pcbnew-free / host-testable. cluster=True -> carry the body's owned passive cluster (decoupling
+    caps), never a structural shunt RS*/connector J*.
+
+    ref_hint=True forces the REF branch (the caller already KNOWS target is a real board ref -- e.g. it
+    came from _prose_ref, validated against the manifest); this is how underscore/long-prefix refs
+    (J_5VSB, SW_BOOT) route to the ref branch even though they don't fit a plain alnum refdes shape.
+    ref_hint=None auto-detects for a structured target: a non-'/' letter-led alnum/underscore token is a
+    ref, otherwise (a '/...'/'+...' net) the net branch."""
     t = str(target or "")
-    if t and not t.startswith("/") and re.match(r"^[A-Za-z]+[0-9]+$", t):
+    is_ref = bool(t) and not t.startswith("/") and (
+        ref_hint is True or re.match(r"^[A-Za-z][A-Za-z0-9_]*$", t) is not None)
+    if is_ref:
         return {"kind": "placement", "ref": t, "op": "evict", "band": None,
                 "cluster": True, "source": source}
     return {"kind": "placement", "ref": None, "net": (t or None), "op": "evict",
@@ -169,7 +210,8 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
     if not isinstance(pl, dict):
         return D("noop", note="no proposed_lever")
     target = _pl_target(pl)
-    kind = _lever_kind(_pl_lever(pl))
+    fail_class = finding.get("failure_class") if isinstance(finding, dict) else None
+    kind = _lever_kind(_pl_lever(pl), fail_class)
     # PROSE FALLBACK (replace only): a placement lever with no structured target tries to name its body
     # from prose, validated against the real board refs. Net-expecting levers (avoid/waypoint) never take
     # a refdes here. The fence check below still runs on the resolved target.
@@ -190,7 +232,7 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
         # (apply_placement_move -> apply_corridor_evict on a per-round COPY). Fence already ran above,
         # so a pinned/Kelvin/sense target was refused before this branch.
         via = " [ref from prose]" if prose_target else ""
-        return D("replace", intent=_placement_intent(target),
+        return D("replace", intent=_placement_intent(target, ref_hint=(prose_target is not None) or None),
                  note=f"placement eviction requested for {target!r} (live; band resolved on-board){via}")
     if kind == "avoid":
         import cec_fr02
@@ -292,8 +334,9 @@ def _finding_detail(finding):
 def hypothesis_key(finding, delta):
     """Identity of a finding's HYPOTHESIS, so a later control that reverses an earlier win is an OVERTURN."""
     pl = (finding or {}).get("proposed_lever") or {}
+    fc = (finding or {}).get("failure_class")
     return (delta.source, delta.kind, str(_pl_target(pl) or ""),
-            _lever_kind(_pl_lever(pl)))
+            _lever_kind(_pl_lever(pl), fc))
 
 
 @dataclass
