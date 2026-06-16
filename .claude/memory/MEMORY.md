@@ -6,3 +6,4 @@
 - [Windows-native serving](windows-native-serving.md) — Phase B: moving LLM seats off WSL/drvfs to Windows-native llama.cpp.
 - [DeepSeek-V4 auditor](deepseek-v4-auditor.md) — T5 deep auditor seat; Windows-native llama-server on :8007, broker external backend; GGUF in /mnt/e/models.
 - [V4 as a panel seat](v4-seat.md) — hand V4 tasks sync (cec_v4_task.py) or async via the idle queue (cec_v4_queue.py + Stop hook); a tier above a Sonnet sub-agent.
+- [AllMyStuff + MyOwnMesh apps](allmystuff-myownmesh-apps.md) — owner's coworker (mrjeeves) Windows apps; per-user Tauri installs; how to update + that AllMyStuff bundles the myownmesh daemon.
