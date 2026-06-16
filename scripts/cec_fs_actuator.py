@@ -106,6 +106,37 @@ def _pl_target(pl):
     return pl.get("target") or pl.get("net") or pl.get("ref")
 
 
+# A refdes token: 1-4 letters then digits (C1, U30, RS1, TH2). Prefix-bounded so it doesn't grab the
+# tail of a longer alnum run. Validated against the live board refs below -- the regex alone would also
+# match part names / protocols (INA240, RS485, CAN1), which is exactly why a token only counts when it
+# is an ACTUAL board ref.
+_REFDES_RE = re.compile(r"(?<![A-Za-z0-9])([A-Za-z]{1,4}[0-9]+)(?![A-Za-z0-9])")
+
+
+def _prose_ref(finding, known_refs):
+    """Fallback target resolver: pull a board refdes out of a placement finding's FREE-FORM prose when
+    proposed_lever carries no structured target (observed on the Hub smoke: r2/r3 named 'C1' only in the
+    `action`/`root_cause` text, so the replace Delta resolved to no body and noop'd). Returns ONLY a token
+    that is an actual board ref (`known_refs`), so 'RS485'/'INA240'/'CAN1'-style look-alikes can never
+    masquerade as a body to move. Returns None when no real ref is named OR the manifest is unavailable --
+    the lever then noops, never guesses. Stays pcbnew-free (prose + a ref set in, nothing read off a board)."""
+    known = {str(r) for r in (known_refs or ())}
+    if not known:
+        return None
+    f = finding if isinstance(finding, dict) else {}
+    pl = f.get("proposed_lever") if isinstance(f.get("proposed_lever"), dict) else {}
+    # proposed_lever prose first (most specific), then the finding-level diagnosis.
+    blobs = [pl.get(k) for k in ("detail", "action", "note", "rationale")]
+    blobs += [f.get(k) for k in ("root_cause", "reasoning", "action")]
+    for b in blobs:
+        if not isinstance(b, str):
+            continue
+        for tok in _REFDES_RE.findall(b):
+            if tok in known:
+                return tok
+    return None
+
+
 def _placement_intent(target, *, source="auditor"):
     """Build the LIVE intent for a 'replace' (placement) Delta. A REF target (e.g. 'U30' -- letters
     then digits, no leading '/') names the body to evict; a NET target ('/...') is left for the
@@ -121,10 +152,14 @@ def _placement_intent(target, *, source="auditor"):
             "band": None, "cluster": True, "source": source}
 
 
-def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, source="auditor"):
+def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, source="auditor",
+                     known_refs=()):
     """Translate ONE finding's proposed_lever into a bounded, fenced Delta. proposed_lever has NO grammar
     (AUDIT_SCHEMA is object|null), so guard every field and return a noop/refused Delta -- which NEVER
-    mutates the round -- on anything unmappable. The returned Delta IS the log record (b)."""
+    mutates the round -- on anything unmappable. The returned Delta IS the log record (b). `known_refs` =
+    the live board's refdes set; a placement (replace) finding with no structured target falls back to a
+    refdes pulled from its prose AND validated against this set (so placement can MOVE even when the
+    finder names the body only in `action`/`root_cause` text -- the Hub-smoke case)."""
     did = f"D-r{rnd}-{idx}"
 
     def D(kind, intent=None, note="", status="pending"):
@@ -135,6 +170,13 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
         return D("noop", note="no proposed_lever")
     target = _pl_target(pl)
     kind = _lever_kind(_pl_lever(pl))
+    # PROSE FALLBACK (replace only): a placement lever with no structured target tries to name its body
+    # from prose, validated against the real board refs. Net-expecting levers (avoid/waypoint) never take
+    # a refdes here. The fence check below still runs on the resolved target.
+    prose_target = None
+    if not target and kind == "replace":
+        prose_target = _prose_ref(finding, known_refs)
+        target = prose_target
 
     # (c) FENCE first -- a target on a locked Kelvin template / pinned part is refused, full stop.
     if kind in ("avoid", "waypoint", "replace") and is_fenced(target, fence):
@@ -147,8 +189,9 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
         # LIVE (PL-01): the replace Delta now carries a placement intent the loop consumer actuates
         # (apply_placement_move -> apply_corridor_evict on a per-round COPY). Fence already ran above,
         # so a pinned/Kelvin/sense target was refused before this branch.
+        via = " [ref from prose]" if prose_target else ""
         return D("replace", intent=_placement_intent(target),
-                 note=f"placement eviction requested for {target!r} (live; band resolved on-board)")
+                 note=f"placement eviction requested for {target!r} (live; band resolved on-board){via}")
     if kind == "avoid":
         import cec_fr02
         if not target:

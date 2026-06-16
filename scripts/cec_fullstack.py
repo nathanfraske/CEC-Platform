@@ -1647,7 +1647,9 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
         "part out of the way, layer-swap, insert a via) ONLY when a Kelvin SENSE net is left unrouted "
         "(kelvin_ok=false). For a congested-corridor / no-routing-room placement failure where the gate is "
         "NOT a stranded sense net, T0 does not act -- the diagnosis is still recorded and the corridor-avoid "
-        "lever + panel effort carry it; say so in root_cause so the stall stays visible.\n"
+        "lever + panel effort carry it; say so in root_cause so the stall stays visible. When you diagnose a "
+        "specific body as the problem, put its REFDES (e.g. C1, U30, RS1) in `proposed_lever.target` -- "
+        "naming it only in prose means the placement lever cannot resolve which body to move.\n"
         "- failure_class=routing -> records the diagnosis; the deterministic corridor-avoid lever fires "
         "from pour_clipped_nets and the panel bumps router effort. Choose this when the placement is fine "
         "and more/better routing can close it.\n"
@@ -2501,7 +2503,8 @@ def run(board, rounds, hours, auditor=None):
                 cand_deltas = []
                 if vsupport and isinstance(pl, dict):
                     d = act.finding_to_delta(sj, rec, grid, rnd, fence,
-                                             sense_nets=[n for pr in fence_pairs for n in pr], idx=0)
+                                             sense_nets=[n for pr in fence_pairs for n in pr], idx=0,
+                                             known_refs=set(manifest.get("refs") or {}))
                     dlog.add(d)
                     cand_deltas.append({"delta": d, "finding": sj})
                     log(f"  ACTUATOR: finding-delta {d.id} kind={d.kind} status={d.status} -- {d.note[:90]}")

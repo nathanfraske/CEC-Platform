@@ -419,6 +419,74 @@ class TestActuatorLeverSchemaTolerance(unittest.TestCase):
         self.assertEqual(self._kind({"type": "placement_eviction", "target": "C1"}), "replace")
 
 
+class TestProseRefFallback(unittest.TestCase):
+    """A placement (replace) finding that names the body only in prose (the Hub-smoke r2/r3 case:
+    'Shift component C1 ...' with NO structured target) must still resolve to a body to move -- but
+    ONLY a token that is a real board ref, so part names / protocols can't masquerade. Pins the
+    'placement never MOVES' unblock (FOLLOWUPS 2026-06-15)."""
+
+    def setUp(self):
+        import cec_fs_actuator as act
+        self.act = act
+        self.fence = {"nets": [], "refs": []}
+        self.known = {"C1", "U30", "RS1", "TH2", "U20"}
+
+    def _delta(self, finding, known=None):
+        return self.act.finding_to_delta(finding, {"routed": ""}, None, 1, self.fence,
+                                         known_refs=self.known if known is None else known)
+
+    def test_prose_action_names_real_ref(self):
+        # exact Hub r2 shape: a placement lever, target only in `action` prose, C1 is a real board ref.
+        f = {"proposed_lever": {"type": "placement_eviction",
+                                "action": "Shift component C1 closer to the +5VSB route"}}
+        d = self._delta(f)
+        self.assertEqual(d.kind, "replace")
+        self.assertEqual(d.intent["ref"], "C1")
+        self.assertIn("ref from prose", d.note)
+
+    def test_prose_root_cause_fallback(self):
+        f = {"proposed_lever": {"action": "evict the blocking body"},
+             "root_cause": "U30 is positioned with no escape for its GND"}
+        d = self._delta(f)
+        self.assertEqual(d.kind, "replace")
+        self.assertEqual(d.intent["ref"], "U30")
+
+    def test_lookalikes_do_not_masquerade(self):
+        # RS485 / INA240 / CAN1 match the refdes regex but are NOT board refs -> no body resolved.
+        f = {"proposed_lever": {"type": "placement_eviction",
+                                "action": "the RS485 transceiver near INA240 on CAN1 has no room"}}
+        d = self._delta(f)
+        self.assertEqual(d.kind, "replace")
+        self.assertIsNone(d.intent["ref"])
+        self.assertNotIn("ref from prose", d.note)
+
+    def test_structured_target_wins_over_prose(self):
+        f = {"proposed_lever": {"type": "placement_eviction", "target": "U30",
+                                "action": "also C1 looks tight"}}
+        d = self._delta(f)
+        self.assertEqual(d.intent["ref"], "U30")
+        self.assertNotIn("ref from prose", d.note)  # structured target -> not a prose resolution
+
+    def test_no_manifest_does_not_guess(self):
+        f = {"proposed_lever": {"type": "placement_eviction", "action": "Shift C1"}}
+        d = self._delta(f, known=set())
+        self.assertEqual(d.kind, "replace")
+        self.assertIsNone(d.intent["ref"])
+
+    def test_prose_fallback_only_for_replace_not_avoid(self):
+        # an avoid lever expects a NET, never a refdes scraped from prose
+        f = {"proposed_lever": {"lever": "corridor_avoid", "action": "route around C1"}}
+        d = self._delta(f)
+        self.assertNotEqual(d.kind, "replace")
+        self.assertNotIn("ref from prose", d.note)
+
+    def test_prose_resolved_ref_is_still_fenced(self):
+        fence = {"nets": [], "refs": ["C1"]}
+        f = {"proposed_lever": {"type": "placement_eviction", "action": "Shift C1"}}
+        d = self.act.finding_to_delta(f, {"routed": ""}, None, 1, fence, known_refs={"C1"})
+        self.assertEqual(d.status, "refused")
+
+
 class TestSingleSourceConstants(unittest.TestCase):
     """The audit's anti-drift pins: run() must init lr penalties from the shared constant, and the
     panel reset must use the shared base-effort constants -- so a retune cannot fork a phantom id."""
