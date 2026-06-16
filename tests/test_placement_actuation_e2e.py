@@ -122,6 +122,27 @@ class TestRealApplyPlacementMove(unittest.TestCase):
         with open(committed, "rb") as fh:
             self.assertEqual(fh.read(), before)                  # source COPY byte-identical (edits override)
 
+    def test_prose_resolved_ref_moves_the_body_end_to_end(self):
+        # closes the wf_6653dbfc seam: a body named ONLY in free-form prose (no structured target) must
+        # ride finding_to_delta -> intent -> apply_placement_move -> a REAL evict. U10 is injected into a
+        # corridor band; the finding names it only in proposed_lever.action.
+        committed = self._violation_board("prose")
+        finding = {"failure_class": "placement",
+                   "root_cause": "the +5VSB route can't close; U10 is blocking the corridor",
+                   "proposed_lever": {"action": "evict U10 out of the high-current band"}}
+        d = act.finding_to_delta(finding, {"routed": ""}, {}, 997,
+                                 act.resolve_fence(pinned_refs=["RS1"]),
+                                 sense_nets=[], known_refs={"U10"})
+        self.assertEqual(d.kind, "replace")
+        self.assertEqual(d.intent["ref"], "U10")                 # resolved from prose, not a structured target
+        self.assertIn("ref from prose", d.note)
+        mv = fs.apply_placement_move(committed, committed, d.intent,
+                                     act.resolve_fence(pinned_refs=["RS1"]), 997,
+                                     out_rel="build/fullstack/e2e-prose-placed.kicad_pcb")
+        self.assertEqual(mv.get("verdict"), "placed", mv)
+        self.assertEqual(mv["ref"], "U10")
+        self.assertIn("U10", mv["moved_refs"])
+
     def test_fenced_target_refused_no_override(self):
         committed = self._violation_board("fenced")
         fence = act.resolve_fence(pinned_refs=["U10"])           # the resolved body is fenced -> 2nd wall
