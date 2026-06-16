@@ -1009,6 +1009,30 @@ def pour_facts(routed_host_path):
     return {}
 
 
+def corridor_body_facts(routed_host_path):
+    """DETERMINISTIC body-in-corridor fault, surfaced to the auditor (in-container, like pour_facts).
+    cec_synth_pipeline.corridor_violations() reports each SENSITIVE part body that sits inside a FOREIGN
+    high-current corridor band -- the PLACEMENT-time root cause of a fragmented sense pour. Without this,
+    the finder sees only the downstream symptom (pour foreign_cross) and mis-diagnoses a body-in-corridor
+    fault as 'routing', proposing a keepout on the FENCED sense net (which the actuator refuses) instead
+    of evicting the body. Handing it the {ref, base, band} lets it name the body to move. Returns []
+    (never crashes the round) when there is no violation OR the check errors. Shared-bus boards yield []."""
+    rel = os.path.relpath(os.path.abspath(routed_host_path), ROOT)
+    code = ("import sys, json; sys.path.insert(0,'/workspace/scripts')\n"
+            "import cec_synth_pipeline as sp\n"
+            f"v=sp.corridor_violations('/workspace/{rel}')\n"
+            "print('CORR_JSON='+json.dumps([{'ref':x['ref'],'base':x.get('base'),"
+            "'band':[round(z,1) for z in x['band']]} for x in v]))\n")
+    try:
+        rc, o = _exec_py(code, timeout=120)
+        for ln in o.splitlines():
+            if ln.startswith("CORR_JSON="):
+                return json.loads(ln[len("CORR_JSON="):])
+    except Exception:                                            # noqa: BLE001
+        return []
+    return []
+
+
 def vision_pour_check(rec, rnd, run_vlm=True):
     """T6 RE-ROLED (owner ruling 2026-06-11): the VISION seat NO LONGER judges pour integrity --
     detection is deterministic (pour_facts islands + the BLOCKING pour_integrity gate + the
@@ -1626,6 +1650,19 @@ def _audit_prompt(rec, lr, rnd, pourcheck=None, intents_src="model"):
         anoms = pourcheck.get("anomalies")
         if anoms:       # advisory VLM flags -- re-check before acting, never authoritative
             pour_line += f"VISION ANOMALY FLAGS (advisory, re-check; not a verdict): {anoms}\n"
+    # BODY-IN-CORRIDOR (deterministic) -- the PLACEMENT root cause of a fragmented sense pour. Stated
+    # explicitly so the finder evicts the BODY (a placement move) rather than mis-reading the symptom
+    # (pour foreign_cross) as routing and proposing a keepout on the FENCED sense net (which is refused).
+    cbodies = (pourcheck or {}).get("corridor_bodies") or []
+    if cbodies:
+        items = "; ".join(f"{b['ref']} inside {b['base']} band {b['band']}" for b in cbodies[:6])
+        pour_line += (
+            f"BODY-IN-CORRIDOR (deterministic, OWNS placement detection): {items}.\n"
+            f"This is a PLACEMENT fault, NOT routing -- a sensitive body sits inside a FOREIGN high-current "
+            f"corridor and fragments that cable's pour; more router effort or a keepout cannot fix it. Set "
+            f"failure_class=placement and put the BODY'S REFDES ({cbodies[0]['ref']}) in "
+            f"proposed_lever.target so the loop EVICTS it. Do NOT target the sense net -- it is a locked "
+            f"Kelvin template (a net target is fenced and refused).\n")
     # PRIOR REFUTES this run, threaded back in (lesson 6) so the auditor does not re-derive a
     # class the verifier already killed. Compact: kind+metric/rule-head+reason-class.
     prior_refutes = [{"kind": e.get("kind"), "metric": e.get("metric"),
@@ -2208,6 +2245,13 @@ def run(board, rounds, hours, auditor=None):
             # CEC_FS_VISION_EVERY_ROUND=1 restores per-round narration. Deterministic facts feed the gate
             # + the item4 corridor-avoid lever regardless.
             pourcheck = vision_pour_check(rec, rnd, run_vlm=VISION_EVERY_ROUND)
+            # DETERMINISTIC body-in-corridor fault -> hand it to the finder so it can name the body to
+            # EVICT (a placement move), instead of mis-reading the symptom as routing and proposing a
+            # keepout on the fenced sense net. Same deterministic facts on both A/B lanes (no leak).
+            pourcheck["corridor_bodies"] = corridor_body_facts(rec["routed"])
+            if pourcheck["corridor_bodies"]:
+                log(f"  body-in-corridor (deterministic): "
+                    f"{[(b['ref'], b['base']) for b in pourcheck['corridor_bodies']]}")
             json.dump(pourcheck, open(_d("vision", f"pour-r{rnd:03d}.json"), "w"),
                       indent=1, default=str)
             # DETERMINISTIC-ONLY (owner ruling 2026-06-11): the corridor-avoid lever + pour gate fire
