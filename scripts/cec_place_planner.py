@@ -169,19 +169,24 @@ def w_analyze(board_pcb, board_dir):
             "corridor_cross": len(crossings)}
 
 
-def w_apply(board_pcb, moves, out_rel, board_dir=None):
+def w_apply(board_pcb, moves, out_rel, board_dir=None, orient=False, faces=None):
     """Apply LLM moves (ref -> x,y[,rot]) then legalize against the true courtyards; write out_rel.
     Reuses cec_synth_pipeline.legalize_pack so an overlapping proposal is resolved, never shipped raw.
     CLUSTER-CARRYING: when an IC moves, its OWNED decoupling passives move by the SAME delta -- otherwise
     a passive carrying a crossing net (+3V3/+5VSB/I2C pull-up) is stranded behind and the net still clips
     (the measured reason a foreign-IC-only cluster only reached 62 clips). Owner map from derive_passive_spec
-    (netlist) when board_dir is given, else a passives-stay fallback."""
+    (netlist) when board_dir is given, else a passives-stay fallback.
+    JOINT position+ORIENTATION (orient=True, the co-opt): after positioning each moved IC, rotate it for
+    pin-facing AT ITS NEW POSITION (sense->shunt for kelvin; spanning pads -> the channel via _best_pin_rot,
+    using a per-ref *faces* directive from the seat when given) BEFORE the legalize -- so the legalize
+    reserves the ROTATED extent (position+rotation co-designed in one pass, not sequentially patched)."""
     import pcbnew
     import cec_synth_pipeline as sp
     board = pcbnew.LoadBoard(board_pcb)
     bb = board.GetBoardEdgesBoundingBox()
     W, H = bb.GetWidth() / 1e6, bb.GetHeight() / 1e6
     P, comps = _board_P_comps(board)
+    nl = None
     owner = {}                                              # passive ref -> owner IC (for cluster-carrying)
     if board_dir:
         try:
@@ -210,6 +215,19 @@ def w_apply(board_pcb, moves, out_rel, board_dir=None):
                 px, py, prot = P[pref]
                 P[pref] = (max(0.5, min(W - 0.5, px + dx)), max(0.5, min(H - 0.5, py + dy)), prot)
                 applied.append(pref)
+    # JOINT ORIENTATION: rotate each moved IC for pin-facing at its NEW position, BEFORE legalize so the
+    # rotated extent is what gets spaced. Done on the loaded board (set the new position first, then score).
+    if orient and nl is not None:
+        faces = faces or {}
+        model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
+        shunt_of = _sense_shunt_map(model, P)
+        for ref in [r for r in dict.fromkeys(applied) if r[:1] == "U" and not r.startswith("SW")]:
+            fp = board.FindFootprintByReference(ref)
+            if fp is None:
+                continue
+            fp.SetPosition(pcbnew.VECTOR2I(int(P[ref][0] * 1e6), int(P[ref][1] * 1e6)))   # new pos first
+            br = _best_pin_rot(fp, shunt_of.get(ref), H, face=faces.get(ref, "auto"))
+            P[ref] = (P[ref][0], P[ref][1], br)
     # legalize ONLY the moved parts against everything (movers yield to fixed neighbours)
     cyinfo = {}
     for r in P:
@@ -324,12 +342,12 @@ def _shelf_moves(board_pcb, board_dir, region="right", refs=None, *, gap=0.6):
     return {"moves": moves, "region_box": [round(v, 1) for v in box], "packed": [m["ref"] for m in moves]}
 
 
-def w_partition(board_pcb, assign, out_rel, board_dir):
-    """REGION-AWARE partition materializer (2026-06-17). *assign* = [{ref, region}] from the LLM: each
-    foreign IC assigned to a named _region_boxes region. Tile each region's refs into its box (deterministic,
-    clean -- no absolute-coord scramble), collect the moves, then w_apply (carry owned passives + legalize).
-    This is the representation the auditor needed: it reasons the partition (regions) correctly, this executes
-    it. Unknown regions / unassigned foreign ICs are left where they are."""
+def w_partition(board_pcb, assign, out_rel, board_dir, orient=False):
+    """REGION-AWARE partition materializer (2026-06-17). *assign* = [{ref, region, face?}] from the LLM:
+    each foreign IC assigned to a named _region_boxes region (position) and optionally a *face* directive
+    (up/down/left/right/auto) saying which way its spanning pads should point (orientation). Tile each
+    region's refs into its box, then w_apply with the per-ref faces -> JOINT position+orientation co-design
+    (orient=True). Unknown regions / unassigned foreign ICs are left where they are."""
     import pcbnew
     import cec_synth_pipeline as sp
     board = pcbnew.LoadBoard(board_pcb)
@@ -346,11 +364,14 @@ def w_partition(board_pcb, assign, out_rel, board_dir):
         except Exception:                                  # noqa: BLE001
             return (0.0, 0.0, 1.0, 1.0)
 
-    by_region = {}
+    by_region, faces = {}, {}
     for a in assign:
         ref, reg = a.get("ref"), a.get("region")
         if ref in P and reg in boxes:
             by_region.setdefault(reg, []).append(ref)
+            f = a.get("face")
+            if f in ("up", "down", "left", "right", "auto"):
+                faces[ref] = f
     moves, used = [], {}
     for reg, refs in by_region.items():
         moves.extend(_tile_into_box(refs, cy, boxes[reg], gap=0.6))
@@ -358,7 +379,7 @@ def w_partition(board_pcb, assign, out_rel, board_dir):
     del board
     if not moves:
         return {"error": "no valid region assignments", "regions": sorted(boxes)}
-    ap = w_apply(board_pcb, moves, out_rel, board_dir=board_dir)
+    ap = w_apply(board_pcb, moves, out_rel, board_dir=board_dir, orient=orient, faces=faces)
     ap["regions_used"] = {k: len(v) for k, v in used.items()}
     return ap
 
@@ -372,15 +393,72 @@ def w_pack(board_pcb, out_rel, board_dir, region="right", refs=None):
     return ap
 
 
+def _is_sense_net(nn):
+    return bool(nn) and (nn.endswith("_HI") or nn.endswith("_LO"))
+
+
+def _best_pin_rot(fp, shunt_xy, H, *, face="auto", w_kelvin=12.0, w_power=1.0):
+    """Pick + apply the best rotation in {0,90,180,270} for *fp* AT ITS CURRENT POSITION. Sense pads
+    (_HI/_LO) are pulled toward *shunt_xy* (kelvin, heavy weight). The SPANNING pads (not GND, not sense)
+    are pushed by *face*: 'up'/'down'/'left'/'right' point their centroid to that side of the IC (so the
+    router runs them out that edge's channel -- the seat's joint position+orientation handle); 'auto'
+    points them to the nearer top/bottom edge (the deterministic default). Mutates fp to the winner;
+    returns the rotation. This is the shared core of w_orient (whole board) and w_apply's joint placement."""
+    import pcbnew  # noqa: F401  (fp is a pcbnew object; ensure module present)
+    pads = list(fp.Pads())
+    c = fp.GetPosition(); cx, cyc = c.x / 1e6, c.y / 1e6
+    best_rot, best_sc = fp.GetOrientationDegrees(), 1e18
+    for rot in (0.0, 90.0, 180.0, 270.0):
+        fp.SetOrientationDegrees(rot)
+        sc = 0.0
+        sx = sy = 0.0
+        n = 0
+        for p in pads:
+            nn = p.GetNetname()
+            if not nn:
+                continue
+            pos = p.GetPosition(); px, py = pos.x / 1e6, pos.y / 1e6
+            if shunt_xy and _is_sense_net(nn):
+                sc += w_kelvin * (((px - shunt_xy[0]) ** 2 + (py - shunt_xy[1]) ** 2) ** 0.5)
+            elif not nn.endswith("GND") and not _is_sense_net(nn):
+                sx += px; sy += py; n += 1
+        if n:
+            spx, spy = sx / n, sy / n                       # spanning-pad centroid at this rotation
+            if face == "up":
+                sc += w_power * (spy - cyc) * 4              # want centroid ABOVE the IC centre (small y)
+            elif face == "down":
+                sc += w_power * (cyc - spy) * 4
+            elif face == "left":
+                sc += w_power * (spx - cx) * 4
+            elif face == "right":
+                sc += w_power * (cx - spx) * 4
+            else:                                           # auto: toward the nearer top/bottom channel
+                sc += w_power * min(max(spy, 0.0), max(H - spy, 0.0))
+        if sc < best_sc - 1e-9:
+            best_sc, best_rot = sc, rot
+    fp.SetOrientationDegrees(best_rot)
+    return best_rot
+
+
+def _sense_shunt_map(model, P):
+    """{sense_ic_ref -> its cable's shunt (x,y)} for the kelvin pull in _best_pin_rot."""
+    out = {}
+    for cab in model.cables:
+        if cab.shunt in P:
+            sxy = (P[cab.shunt][0], P[cab.shunt][1])
+            for ic in cab.sense_ics:
+                out[ic] = sxy
+    return out
+
+
 def w_orient(board_pcb, out_rel, board_dir, *, w_kelvin=12.0, w_power=1.0):
     """PIN-LEVEL placement (the clips=24 last-mile fix, 2026-06-17). The region partition gets the right
     SIDE but not the right ORIENTATION: a net clips when its source pad faces INTO a corridor so the
     router's short path goes THROUGH the pour. The hand board reaches ~3 clips by ROTATING each IC so its
     spanning-net pads face the clear top/bottom CHANNEL (router then runs them along the channel, around the
     pour) and each sense IC's _HI/_LO pads face its SHUNT (kelvin). This pass picks, per significant IC, the
-    rotation in {0,90,180,270} minimizing  w_kelvin*Σdist(sense_pad, shunt) + w_power*Σ(dist of each
-    spanning/power pad to the NEAREST horizontal edge=channel). Position is UNCHANGED (so kelvin seating and
-    the partition are preserved); only orientation turns. The measure validates (rejects if kelvin breaks)."""
+    best rotation (see _best_pin_rot). Position is UNCHANGED (so kelvin seating and the partition are
+    preserved); only orientation turns. The measure validates (rejects if kelvin breaks)."""
     import pcbnew
     import cec_synth_pipeline as sp
     board = pcbnew.LoadBoard(board_pcb)
@@ -390,46 +468,16 @@ def w_orient(board_pcb, out_rel, board_dir, *, w_kelvin=12.0, w_power=1.0):
     P, comps = _board_P_comps(board)
     nl = sp.View(sp.Config.load(board_dir)).nl
     model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
-    # each sense IC -> its cable's shunt position (the kelvin target)
-    shunt_of = {}
-    corridor_anchor = set()
-    for cab in model.cables:
-        corridor_anchor.add(cab.shunt)
-        corridor_anchor |= set(cab.sense_ics)
-        if cab.shunt in P:
-            sx, sy = P[cab.shunt][0], P[cab.shunt][1]
-            for ic in cab.sense_ics:
-                shunt_of[ic] = (sx, sy)
+    shunt_of = _sense_shunt_map(model, P)                   # sense IC -> its cable's shunt (kelvin target)
     # ICs to orient: every U* (sense ICs + ESP/CAN/LDO/comparators); shunts are R* so already excluded
     ics = [r for r in P if r[:1] == "U" and not r.startswith("SW")]
-
-    def is_sense(nn):
-        return nn.endswith("_HI") or nn.endswith("_LO")
-
-    def is_channel_net(nn):                                  # spanning power/control nets the router must
-        return bool(nn) and not nn.endswith("GND") and not is_sense(nn)  # keep out of the pours (GND=plane)
-
     oriented = []
     for ic in ics:
         fp = board.FindFootprintByReference(ic)
         if fp is None:
             continue
-        pads = list(fp.Pads())
-        sh = shunt_of.get(ic)
         cur = fp.GetOrientationDegrees()
-        best_rot, best_sc = cur, 1e18
-        for rot in (0.0, 90.0, 180.0, 270.0):
-            fp.SetOrientationDegrees(rot)
-            sc = 0.0
-            for p in pads:
-                nn = p.GetNetname(); pos = p.GetPosition(); px, py = pos.x / 1e6, pos.y / 1e6
-                if sh and is_sense(nn):
-                    sc += w_kelvin * (((px - sh[0]) ** 2 + (py - sh[1]) ** 2) ** 0.5)
-                elif is_channel_net(nn):
-                    sc += w_power * min(max(py, 0.0), max(H - py, 0.0))   # nearer a horizontal edge = better
-            if sc < best_sc - 1e-9:
-                best_sc, best_rot = sc, rot
-        fp.SetOrientationDegrees(best_rot)
+        best_rot = _best_pin_rot(fp, shunt_of.get(ic), H, face="auto", w_kelvin=w_kelvin, w_power=w_power)
         if abs(best_rot - cur) > 0.1:
             oriented.append({"ref": ic, "rot": best_rot, "was": round(cur, 1)})
     # De-overlap ONLY the rotated NON-SENSE ICs (a 90/270 turn can make their courtyard overlap a
@@ -552,6 +600,10 @@ PARTITION_SCHEMA = {
             "properties": {
                 "ref": {"type": "string"},
                 "region": {"type": "string", "description": "exactly one of the named PLACEMENT REGIONS"},
+                "face": {"type": "string", "enum": ["up", "down", "left", "right", "auto"],
+                         "description": "which way this IC's spanning pads (+3V3/+5VSB/signals) should point "
+                                        "so the router runs them out that edge's channel; 'up'/'down' = the "
+                                        "top/bottom channel, 'auto' = nearest. Omit = auto."},
             }}},
     },
 }
@@ -739,7 +791,12 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
         + "Strategy: the shared rails (+3V3/+5VSB/GND) feed sense ICs in BOTH corridors -- route them via a "
         "TOP/BOTTOM channel, so put their source (LDO) and the ESP where that works. Keep each cable's "
         "detection chain (shunt->INA181->comparator->ESP) LOCAL to its cable's side until past the last "
-        "corridor. Return diagnosis + assignments (ref+region only)."
+        "corridor.\n"
+        + "ALSO set each IC's FACE (joint orientation): which way its spanning pads (+3V3/+5VSB/signals) "
+        "should point so the router runs them out that edge's CHANNEL instead of through a pour -- 'up' for "
+        "the top channel, 'down' for the bottom, 'auto' for nearest. An IC near the top edge whose rails "
+        "should leave upward = face 'up'. This is the lever that turns a clip into a clean channel route. "
+        "Return diagnosis + assignments (ref + region + face)."
     )
     sysmsg = (_AUDITOR_SYSTEM if deep else _PLANNER_SYSTEM) + (
         "\nThis is the REGION-PARTITION pass: assign each foreign IC to a NAMED region; a deterministic "
@@ -808,11 +865,12 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         return (0, clips + drc + 5 * un, clips)
 
     ko_flag = ["--keepout"] if keepout else []               # route every measure WITH the corridor keepout
+    orient_flag = ["--with-orient"] if orient else []        # JOINT position+orientation in every materialize
     if keepout:
         log("corridor keepout ENABLED (foreign nets forced around the corridors via top/bottom channels)")
     if orient:
-        log("pin-level ORIENT ENABLED (rotate ICs so spanning pads face channels / sense pads face shunts)")
-    # measure the SEED -> the first best
+        log("JOINT pin-level ORIENT ENABLED (materialize co-designs position+rotation; seat sets per-IC face)")
+    # measure the SEED -> the first best (blanket-orient it once to establish an oriented baseline)
     orient_board(seed_out)
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
                               "--opt-time", str(opt_time)] + ko_flag)
@@ -863,7 +921,7 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
                             "to_clips": best["measure"].get("clips"), "streak": streak + 1}
                 continue
             ap = _exec_worker(["--partition", "--board-pcb", best["board"], "--out", cand,
-                               "--assign", json.dumps(items), "--board", _rel(board_dir)])
+                               "--assign", json.dumps(items), "--board", _rel(board_dir)] + orient_flag)
         else:
             moves = (plan or {}).get("moves") or []
             moved_refs = [m.get("ref") for m in moves]
@@ -874,13 +932,12 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
                             "to_clips": best["measure"].get("clips"), "streak": streak + 1}
                 continue
             ap = _exec_worker(["--apply", "--board-pcb", best["board"], "--out", cand, "--moves", json.dumps(moves),
-                               "--board", _rel(board_dir)])
+                               "--board", _rel(board_dir)] + orient_flag)
         if ap.get("error"):
             log(f"r{rnd} apply failed: {ap['error']} -> retry next round")
             feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
                         "to_clips": best["measure"].get("clips"), "streak": streak + 1}
             continue
-        orient_board(cand)
         cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)] + ko_flag)
         csc = score(cmeas)
         improved = csc < best["score"]
@@ -918,6 +975,7 @@ def main(argv=None):
     ap.add_argument("--pack", action="store_true", help="deterministic shelf-pack a partition into a region")
     ap.add_argument("--partition", action="store_true", help="region-aware partition: --assign [{ref,region}]")
     ap.add_argument("--orient", action="store_true", help="pin-level orientation pass (rotate ICs for pin-facing)")
+    ap.add_argument("--with-orient", action="store_true", help="apply/partition: co-design rotation jointly")
     ap.add_argument("--assign", default=None, help="JSON [{ref,region}] region assignments for --partition")
     ap.add_argument("--region", default="right", help="pack region: right|left|spine|top|bottom|x0,y0,x1,y1")
     ap.add_argument("--refs", default=None, help="explicit partition refs (comma list); default=all foreign ICs")
@@ -951,14 +1009,14 @@ def main(argv=None):
     elif a.apply:
         _emit(w_apply(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                       json.loads(a.moves), a.out,
-                      board_dir=os.path.join(ROOT, a.board) if a.board else None))
+                      board_dir=os.path.join(ROOT, a.board) if a.board else None, orient=a.with_orient))
     elif a.pack:
         _emit(w_pack(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                      a.out, os.path.join(ROOT, a.board), region=a.region,
                      refs=[r.strip() for r in a.refs.split(",")] if a.refs else None))
     elif a.partition:
         _emit(w_partition(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
-                          json.loads(a.assign), a.out, os.path.join(ROOT, a.board)))
+                          json.loads(a.assign), a.out, os.path.join(ROOT, a.board), orient=a.with_orient))
     elif a.orient:
         _emit(w_orient(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                        a.out, os.path.join(ROOT, a.board)))
