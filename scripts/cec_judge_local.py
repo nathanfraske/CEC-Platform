@@ -315,6 +315,12 @@ def _chat_json_cloud(system, user, schema, *, name="out", model=None, effort=Non
     cmd = [CLOUD_CLI, "-p", "--model", str(model)]
     if eff:
         cmd += ["--effort", str(eff)]
+    # DISABLE the agentic tool loop -> a single fast COMPLETION (a seat call is a one-shot json verdict,
+    # never an agent). Without this `claude -p` runs the full Claude Code harness and, on a substantial
+    # prompt, spends minutes in a tool-using loop (or times out) -- measured: a placement prompt timed out
+    # at 600s WITH tools, vs ~5s WITHOUT. Strict improvement for every cloud seat (judge/auditor/planner).
+    cmd += ["--disallowedTools",
+            "Bash,Read,Write,Edit,MultiEdit,Glob,Grep,WebFetch,WebSearch,Task,TodoWrite,NotebookEdit"]
     cmd += ["--output-format", "json"]
     last = "no attempt"
     for _ in range(max(1, attempts)):

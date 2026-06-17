@@ -355,7 +355,7 @@ def plan_cluster(context, best_measure, model=None, timeout=420, temperature=0.2
     sysmsg = _PLANNER_SYSTEM + "\nThis is the CLUSTER pass: produce a COMPLETE coherent layout of the "\
         "foreign logic on one side, not a few tweaks. Output ref,x,y per move; no rationale text."
     return jl._chat_json(sysmsg, user, MOVE_SCHEMA, name="placecluster",
-                         model=model or "cec-manager-fast", timeout=timeout, max_tokens=2200,
+                         model=model or "sonnet", timeout=timeout, max_tokens=2200,
                          temperature=temperature)
 
 
@@ -391,7 +391,7 @@ def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, te
         "J_IN*/J_OUT*/RS* fixed. Be decisive; terse rationales. Return diagnosis + moves."
     )
     return jl._chat_json(_PLANNER_SYSTEM, user, MOVE_SCHEMA, name="placeplan",
-                         model=model or "cec-manager-fast", timeout=timeout, max_tokens=1400,
+                         model=model or "sonnet", timeout=timeout, max_tokens=1400,
                          temperature=temperature)
 
 
