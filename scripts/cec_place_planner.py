@@ -338,7 +338,8 @@ def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, te
 
 
 # ====================================================================== HOST: the iterate driver
-def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16, opt_time=32):
+def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16, opt_time=32,
+        from_board=None):
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
     os.makedirs(os.path.join(ROOT, out_dir), exist_ok=True)
@@ -348,13 +349,18 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
     def log(m):
         print(f"[planner] {m}", flush=True)
 
-    # 0. deterministic seed
-    seed_out = f"{out_dir}/{board_name}-r0.kicad_pcb"
-    s = _exec_worker(["--seed", "--board", _rel(board_dir), "--out", seed_out,
-                      "--seeds", ",".join(map(str, seeds)), "--strategies", ",".join(strategies)])
-    if s.get("error"):
-        log(f"seed failed: {s['error']}"); return {"error": s["error"]}
-    log(f"seed: {seed_out} corridor_cross={s.get('corridor_cross')} ({s['W']}x{s['H']}mm)")
+    # 0. start board: a deterministic seed, OR continue the hill-climb from a given board (--from-board,
+    #    e.g. a prior run's best) so progress compounds across runs instead of re-seeding from scratch.
+    if from_board:
+        seed_out = from_board
+        log(f"continue from: {seed_out}")
+    else:
+        seed_out = f"{out_dir}/{board_name}-r0.kicad_pcb"
+        s = _exec_worker(["--seed", "--board", _rel(board_dir), "--out", seed_out,
+                          "--seeds", ",".join(map(str, seeds)), "--strategies", ",".join(strategies)])
+        if s.get("error"):
+            log(f"seed failed: {s['error']}"); return {"error": s["error"]}
+        log(f"seed: {seed_out} corridor_cross={s.get('corridor_cross')} ({s['W']}x{s['H']}mm)")
     def score(meas):
         # kelvin is a HARD requirement (never accept a board that loses it); then minimize ACTUAL clips,
         # then drc. gates_pass (drc==0) is informational -- the finishing floor is ~3, so clips is the
@@ -376,8 +382,10 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
         ctx = _exec_worker(["--analyze", "--board-pcb", best["board"], "--board", _rel(board_dir)])
         if ctx.get("error"):
             log(f"r{rnd} analyze failed: {ctx['error']}"); break
-        # temperature rises with consecutive regressions -> escape a repeated move-set
-        temp = 0.0 if feedback is None else min(0.8, 0.3 * (feedback.get("streak", 1)))
+        # EXPLORATORY base temperature (the big wins came from BOLD structural moves at higher temp --
+        # e.g. relocating the shared ESP hub), rising further with consecutive regressions to escape a
+        # repeated move-set. Incremental low-temp tweaks plateau.
+        temp = min(0.9, 0.4 + 0.2 * (feedback.get("streak", 0) if feedback else 0))
         plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
         moves = (plan or {}).get("moves") or []
         log(f"r{rnd}: plan(from best clips={best['measure'].get('clips')}, temp={temp}) "
@@ -421,9 +429,12 @@ def main(argv=None):
                     default="dataflow,thermal_separated,compact")
     ap.add_argument("--rounds", type=int, default=6); ap.add_argument("--model", default=None)
     ap.add_argument("--passes", type=int, default=16); ap.add_argument("--opt-time", type=int, default=32)
+    ap.add_argument("--from-board", default=None, help="continue the hill-climb from this board (vs re-seed)")
+    ap.add_argument("--out-dir", default=None, help="output dir for candidates (default build/place-planner)")
     a = ap.parse_args(argv)
     if a.run:
-        run(a.board, a.rounds, model=a.model, passes=a.passes, opt_time=a.opt_time)
+        run(a.board, a.rounds, model=a.model, passes=a.passes, opt_time=a.opt_time,
+            from_board=a.from_board, out_dir=a.out_dir)
     elif a.seed:
         _emit(w_seed(os.path.join(ROOT, a.board), a.out, [int(s) for s in a.seeds.split(",")], a.strategies.split(",")))
     elif a.analyze:
