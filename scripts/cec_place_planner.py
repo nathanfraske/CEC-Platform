@@ -168,15 +168,31 @@ def w_analyze(board_pcb, board_dir):
             "corridor_cross": len(crossings)}
 
 
-def w_apply(board_pcb, moves, out_rel):
+def w_apply(board_pcb, moves, out_rel, board_dir=None):
     """Apply LLM moves (ref -> x,y[,rot]) then legalize against the true courtyards; write out_rel.
-    Reuses cec_synth_pipeline.legalize_pack so an overlapping proposal is resolved, never shipped raw."""
+    Reuses cec_synth_pipeline.legalize_pack so an overlapping proposal is resolved, never shipped raw.
+    CLUSTER-CARRYING: when an IC moves, its OWNED decoupling passives move by the SAME delta -- otherwise
+    a passive carrying a crossing net (+3V3/+5VSB/I2C pull-up) is stranded behind and the net still clips
+    (the measured reason a foreign-IC-only cluster only reached 62 clips). Owner map from derive_passive_spec
+    (netlist) when board_dir is given, else a passives-stay fallback."""
     import pcbnew
     import cec_synth_pipeline as sp
     board = pcbnew.LoadBoard(board_pcb)
     bb = board.GetBoardEdgesBoundingBox()
     W, H = bb.GetWidth() / 1e6, bb.GetHeight() / 1e6
     P, comps = _board_P_comps(board)
+    owner = {}                                              # passive ref -> owner IC (for cluster-carrying)
+    if board_dir:
+        try:
+            nl = sp.View(sp.Config.load(board_dir)).nl
+            ics = [r for r in P if r[:1] == "U" and not r.startswith("SW")]
+            pas = [r for r in P if r[:1] in ("R", "C") and r[1:2].isdigit()]
+            owner = {pref: own for pref, (own, _pad) in sp.derive_passive_spec(nl, pas, ics).items()}
+        except Exception:                                  # noqa: BLE001 -- ownership is best-effort
+            owner = {}
+    by_owner = {}
+    for pref, own in owner.items():
+        by_owner.setdefault(own, []).append(pref)
     applied = []
     for mv in moves:
         ref = mv.get("ref")
@@ -185,8 +201,14 @@ def w_apply(board_pcb, moves, out_rel):
         x = float(mv.get("x", P[ref][0])); y = float(mv.get("y", P[ref][1]))
         rot = float(mv.get("rot", P[ref][2]))
         x = max(0.5, min(W - 0.5, x)); y = max(0.5, min(H - 0.5, y))   # keep on-board
+        dx, dy = x - P[ref][0], y - P[ref][1]
         P[ref] = (x, y, rot)
         applied.append(ref)
+        for pref in by_owner.get(ref, []):                 # carry the owned passive cluster by the SAME delta
+            if pref in P:
+                px, py, prot = P[pref]
+                P[pref] = (max(0.5, min(W - 0.5, px + dx)), max(0.5, min(H - 0.5, py + dy)), prot)
+                applied.append(pref)
     # legalize ONLY the moved parts against everything (movers yield to fixed neighbours)
     cyinfo = {}
     for r in P:
@@ -433,7 +455,8 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
         if not moves:
             log(f"r{rnd}: no moves -> stop"); break
         cand = f"{out_dir}/{board_name}-r{rnd}.kicad_pcb"
-        ap = _exec_worker(["--apply", "--board-pcb", best["board"], "--out", cand, "--moves", json.dumps(moves)])
+        ap = _exec_worker(["--apply", "--board-pcb", best["board"], "--out", cand, "--moves", json.dumps(moves),
+                           "--board", _rel(board_dir)])
         if ap.get("error"):
             log(f"r{rnd} apply failed: {ap['error']}"); break
         cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)])
@@ -482,7 +505,8 @@ def main(argv=None):
                         os.path.join(ROOT, a.board)))
     elif a.apply:
         _emit(w_apply(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
-                      json.loads(a.moves), a.out))
+                      json.loads(a.moves), a.out,
+                      board_dir=os.path.join(ROOT, a.board) if a.board else None))
     elif a.measure:
         _emit(w_measure(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                         a.passes, a.opt_time))
