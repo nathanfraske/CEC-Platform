@@ -372,6 +372,77 @@ def w_pack(board_pcb, out_rel, board_dir, region="right", refs=None):
     return ap
 
 
+def w_orient(board_pcb, out_rel, board_dir, *, w_kelvin=12.0, w_power=1.0):
+    """PIN-LEVEL placement (the clips=24 last-mile fix, 2026-06-17). The region partition gets the right
+    SIDE but not the right ORIENTATION: a net clips when its source pad faces INTO a corridor so the
+    router's short path goes THROUGH the pour. The hand board reaches ~3 clips by ROTATING each IC so its
+    spanning-net pads face the clear top/bottom CHANNEL (router then runs them along the channel, around the
+    pour) and each sense IC's _HI/_LO pads face its SHUNT (kelvin). This pass picks, per significant IC, the
+    rotation in {0,90,180,270} minimizing  w_kelvin*Σdist(sense_pad, shunt) + w_power*Σ(dist of each
+    spanning/power pad to the NEAREST horizontal edge=channel). Position is UNCHANGED (so kelvin seating and
+    the partition are preserved); only orientation turns. The measure validates (rejects if kelvin breaks)."""
+    import pcbnew
+    import cec_synth_pipeline as sp
+    board = pcbnew.LoadBoard(board_pcb)
+    bb = board.GetBoardEdgesBoundingBox()
+    H = bb.GetHeight() / 1e6
+    W = bb.GetWidth() / 1e6
+    P, comps = _board_P_comps(board)
+    nl = sp.View(sp.Config.load(board_dir)).nl
+    model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
+    # each sense IC -> its cable's shunt position (the kelvin target)
+    shunt_of = {}
+    corridor_anchor = set()
+    for cab in model.cables:
+        corridor_anchor.add(cab.shunt)
+        corridor_anchor |= set(cab.sense_ics)
+        if cab.shunt in P:
+            sx, sy = P[cab.shunt][0], P[cab.shunt][1]
+            for ic in cab.sense_ics:
+                shunt_of[ic] = (sx, sy)
+    # ICs to orient: every U* (sense ICs + ESP/CAN/LDO/comparators); shunts are R* so already excluded
+    ics = [r for r in P if r[:1] == "U" and not r.startswith("SW")]
+
+    def is_sense(nn):
+        return nn.endswith("_HI") or nn.endswith("_LO")
+
+    def is_channel_net(nn):                                  # spanning power/control nets the router must
+        return bool(nn) and not nn.endswith("GND") and not is_sense(nn)  # keep out of the pours (GND=plane)
+
+    oriented = []
+    for ic in ics:
+        fp = board.FindFootprintByReference(ic)
+        if fp is None:
+            continue
+        pads = list(fp.Pads())
+        sh = shunt_of.get(ic)
+        cur = fp.GetOrientationDegrees()
+        best_rot, best_sc = cur, 1e18
+        for rot in (0.0, 90.0, 180.0, 270.0):
+            fp.SetOrientationDegrees(rot)
+            sc = 0.0
+            for p in pads:
+                nn = p.GetNetname(); pos = p.GetPosition(); px, py = pos.x / 1e6, pos.y / 1e6
+                if sh and is_sense(nn):
+                    sc += w_kelvin * (((px - sh[0]) ** 2 + (py - sh[1]) ** 2) ** 0.5)
+                elif is_channel_net(nn):
+                    sc += w_power * min(max(py, 0.0), max(H - py, 0.0))   # nearer a horizontal edge = better
+            if sc < best_sc - 1e-9:
+                best_sc, best_rot = sc, rot
+        fp.SetOrientationDegrees(best_rot)
+        if abs(best_rot - cur) > 0.1:
+            oriented.append({"ref": ic, "rot": best_rot, "was": round(cur, 1)})
+    # NB: a blanket legalize after rotation was tried and made DRC WORSE (it relocates the rotated parts
+    # to "nearest free" and disturbs the good placement: clips 20->21, drc 16->18). Orientation only
+    # ROTATES in place; any courtyard overlap a 90/270 turn introduces is left for the loop's refine tier
+    # to nudge out (a targeted body move) -- cheaper than a global re-pack -- and the measure validates.
+    outp = os.path.join(ROOT, out_rel)
+    os.makedirs(os.path.dirname(outp), exist_ok=True)
+    pcbnew.SaveBoard(outp, board)
+    del board
+    return {"out": out_rel, "oriented": oriented}
+
+
 def _score_routed(routed_board):
     """Score an ALREADY-routed board: kelvin/diffpair/drc/unconnected + the ACTUAL foreign F.Cu clips into
     the high-current pours. Runs in its OWN process (see w_measure) -- loading a board after a route+pour+
@@ -667,7 +738,7 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
 
 # ====================================================================== HOST: the iterate driver
 def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16,
-        opt_time=32, from_board=None, deadline=None, keepout=False):
+        opt_time=32, from_board=None, deadline=None, keepout=False, orient=False):
     import time
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
@@ -677,6 +748,19 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
 
     def log(m):
         print(f"[planner] {m}", flush=True)
+
+    def orient_board(b):
+        # PIN-LEVEL pass: rotate each IC in place so spanning-net pads face the top/bottom channel and sense
+        # pads face the shunt (kelvin). Applied to the seed + every candidate so the loop optimises in the
+        # oriented space; the measure validates (a kelvin-break or drc-spike candidate is rejected).
+        if not orient:
+            return b
+        o = _exec_worker(["--orient", "--board-pcb", b, "--out", b, "--board", _rel(board_dir)])
+        if o.get("error"):
+            log(f"  orient warn: {o['error'][:80]}")
+        elif o.get("oriented"):
+            log(f"  oriented {len(o['oriented'])} IC(s): {[x['ref'] for x in o['oriented']]}")
+        return b
 
     # 0. start board: a deterministic seed, OR continue the hill-climb from a given board (--from-board,
     #    e.g. a prior run's best) so progress compounds across runs instead of re-seeding from scratch.
@@ -710,7 +794,10 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
     ko_flag = ["--keepout"] if keepout else []               # route every measure WITH the corridor keepout
     if keepout:
         log("corridor keepout ENABLED (foreign nets forced around the corridors via top/bottom channels)")
+    if orient:
+        log("pin-level ORIENT ENABLED (rotate ICs so spanning pads face channels / sense pads face shunts)")
     # measure the SEED -> the first best
+    orient_board(seed_out)
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
                               "--opt-time", str(opt_time)] + ko_flag)
     best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
@@ -777,6 +864,7 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
                         "to_clips": best["measure"].get("clips"), "streak": streak + 1}
             continue
+        orient_board(cand)
         cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)] + ko_flag)
         csc = score(cmeas)
         improved = csc < best["score"]
@@ -813,6 +901,7 @@ def main(argv=None):
     ap.add_argument("--score-board", default=None, help="score an already-routed board (fresh-process score)")
     ap.add_argument("--pack", action="store_true", help="deterministic shelf-pack a partition into a region")
     ap.add_argument("--partition", action="store_true", help="region-aware partition: --assign [{ref,region}]")
+    ap.add_argument("--orient", action="store_true", help="pin-level orientation pass (rotate ICs for pin-facing)")
     ap.add_argument("--assign", default=None, help="JSON [{ref,region}] region assignments for --partition")
     ap.add_argument("--region", default="right", help="pack region: right|left|spine|top|bottom|x0,y0,x1,y1")
     ap.add_argument("--refs", default=None, help="explicit partition refs (comma list); default=all foreign ICs")
@@ -825,6 +914,7 @@ def main(argv=None):
                     help="auditor seat (deep-plateau structural review); default cec-worker-quality")
     ap.add_argument("--passes", type=int, default=16); ap.add_argument("--opt-time", type=int, default=32)
     ap.add_argument("--keepout", action="store_true", help="measure WITH the corridor keepout (force around)")
+    ap.add_argument("--loop-orient", action="store_true", help="apply the pin-level orient pass each round")
     ap.add_argument("--from-board", default=None, help="continue the hill-climb from this board (vs re-seed)")
     ap.add_argument("--hours", type=float, default=None, help="wall-clock deadline in hours (stop after)")
     ap.add_argument("--out-dir", default=None, help="output dir for candidates (default build/place-planner)")
@@ -835,7 +925,8 @@ def main(argv=None):
         import time
         deadline = (time.time() + a.hours * 3600) if a.hours else None
         run(a.board, a.rounds, model=a.model, auditor=a.auditor, passes=a.passes, opt_time=a.opt_time,
-            from_board=a.from_board, out_dir=a.out_dir, deadline=deadline, keepout=a.keepout)
+            from_board=a.from_board, out_dir=a.out_dir, deadline=deadline, keepout=a.keepout,
+            orient=a.loop_orient)
     elif a.seed:
         _emit(w_seed(os.path.join(ROOT, a.board), a.out, [int(s) for s in a.seeds.split(",")], a.strategies.split(",")))
     elif a.analyze:
@@ -852,6 +943,9 @@ def main(argv=None):
     elif a.partition:
         _emit(w_partition(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                           json.loads(a.assign), a.out, os.path.join(ROOT, a.board)))
+    elif a.orient:
+        _emit(w_orient(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                       a.out, os.path.join(ROOT, a.board)))
     elif a.measure:
         _emit(w_measure(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                         a.passes, a.opt_time, keepout=a.keepout))
