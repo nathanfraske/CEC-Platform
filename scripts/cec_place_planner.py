@@ -432,10 +432,26 @@ def w_orient(board_pcb, out_rel, board_dir, *, w_kelvin=12.0, w_power=1.0):
         fp.SetOrientationDegrees(best_rot)
         if abs(best_rot - cur) > 0.1:
             oriented.append({"ref": ic, "rot": best_rot, "was": round(cur, 1)})
-    # NB: a blanket legalize after rotation was tried and made DRC WORSE (it relocates the rotated parts
-    # to "nearest free" and disturbs the good placement: clips 20->21, drc 16->18). Orientation only
-    # ROTATES in place; any courtyard overlap a 90/270 turn introduces is left for the loop's refine tier
-    # to nudge out (a targeted body move) -- cheaper than a global re-pack -- and the measure validates.
+    # De-overlap ONLY the rotated NON-SENSE ICs (a 90/270 turn can make their courtyard overlap a
+    # neighbour -> DRC). Sense ICs are EXCLUDED: nudging them off their shunt is what made the earlier
+    # blanket legalize backfire (kelvin routing degraded -> drc 16->18). Sense ICs are small + ~square so
+    # rotation barely changes their extent; leave them pinned to the shunt.
+    movers = [o["ref"] for o in oriented if o["ref"] not in shunt_of]
+    if movers:
+        Pn = {fp.GetReference(): (fp.GetPosition().x / 1e6, fp.GetPosition().y / 1e6, fp.GetOrientationDegrees())
+              for fp in board.GetFootprints()}
+        cyinfo = {}
+        for r in Pn:
+            try:
+                cyinfo[r] = sp._courtyard_info(comps.get(r, ""), Pn[r][2])
+            except Exception:                              # noqa: BLE001
+                cyinfo[r] = (0.0, 0.0, 1.0, 1.0)
+        sp.legalize_pack(Pn, movers, cyinfo, W, H, clr=0.4)
+        for fp in board.GetFootprints():
+            ref = fp.GetReference()
+            if ref in movers:
+                x, y, _r = Pn[ref]
+                fp.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
     outp = os.path.join(ROOT, out_rel)
     os.makedirs(os.path.dirname(outp), exist_ok=True)
     pcbnew.SaveBoard(outp, board)
