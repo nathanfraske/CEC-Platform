@@ -243,7 +243,9 @@ def w_apply(board_pcb, moves, out_rel, board_dir=None, orient=False, faces=None)
             x, y, rot = P[ref]
             fp.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
             fp.SetOrientationDegrees(rot)
-    pcbnew.SaveBoard(os.path.join(ROOT, out_rel), board)
+    outp = os.path.join(ROOT, out_rel)
+    os.makedirs(os.path.dirname(outp) or ".", exist_ok=True)
+    pcbnew.SaveBoard(outp, board)
     del board
     return {"out": out_rel, "applied": applied}
 
