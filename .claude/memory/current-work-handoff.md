@@ -1,6 +1,26 @@
 # Current work handoff
 
-_Updated 2026-06-15 ~15:30 UTC (run written up + committed [c787595]; FULL ACTUATION LEVER design + build STARTED; claude/placement-corridor / PR #60)._
+_Updated 2026-06-16 (CLOSE-THE-LOOP build: keystone route-time corridor keepout + block_fills bug fix committed [91b7d68]; characterization that it needs corridor-clean placement OR inner-layer routing; claude/placement-corridor / PR #60)._
+
+## CLOSE-THE-LOOP (owner: "build it all out to fully close the entire loop") — IN PROGRESS 2026-06-16
+Goal: a self-converging place→route→converge loop (hard gates kelvin+diffpair, finishing DRC) on a fresh board.
+It's MECHANISM not corpus (memory: [[convergence-blocker-mechanism-not-corpus]]). State:
+- **DONE + committed (91b7d68, a65a44a):** `cec_fr.corridor_keepouts` (route-time corridor reservation, shared
+  by cec_router + route_directed) + a REAL bug fix — the keepout's DoNotAllowZoneFills blocked ~89% of the
+  same-net pour → `block_fills` flag (fixes cec_router.route() too). 6 tests, golden track-metrics byte-identical.
+- **KEY FINDING (the loop is NOT closed):** the keepout strands foreign signals + kelvin EVEN on the COMMITTED
+  (hand) eps placement (`cec_router`-style WITH keepout → kelvin_ok=False, unconnected=16) — so the CLAUDE.md
+  "cec_router converges EPS with the keepout" claim is STALE (the existence proof, cec_golden, uses NO keepout).
+  The keepout geometry is fine (shunts/INAs sit in the y-gap between HI/LO keepouts); the stranding is FOREIGN
+  signals (+3V3/GND/DETAMP/THRESH) that the placement routes THROUGH the corridor — the keepout blocks them and
+  the placement leaves no alternative, and FR does NOT reroute them onto In2 under the pour. The fresh placer is
+  far from corridor-clean (corridor_cross 15-24 vs the 0 needed). Keepout DEFAULTS OFF (no regression).
+- **TWO PATHS to actually close it (FOLLOWUPS 2026-06-16):** (A) corridor-clean placer (cc→0; hard, placer at
+  15); (B) **inner-layer crossing** — make FR route corridor-crossing foreign signals on In2 UNDER the pour
+  (the "layer-tier lever"); the keepout is already F.Cu+B.Cu+allow_vias so they SHOULD via to In2 but strand —
+  investigate why (DSN layer policy / via cost). **Recommend probing Path B first** (cheaper, may unlock the
+  keepout on ANY placement without solving the placer). NEXT: Path-B In2-routing probe.
+---
 
 ## FULL ACTUATION LEVER — design + build STARTED 2026-06-15 ~15:30 UTC (PR #60)
 Owner ask: "a rule flags a case → passes a CLEAN-evidence gate (rule cannot be scored on runs it
