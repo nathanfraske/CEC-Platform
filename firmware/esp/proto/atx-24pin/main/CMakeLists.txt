@@ -17,4 +17,5 @@ idf_component_register(
         esp_psram
         spi_flash
         esp_driver_i2c
+        esp_driver_gpio
 )

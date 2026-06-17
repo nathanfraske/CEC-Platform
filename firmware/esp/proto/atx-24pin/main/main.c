@@ -31,6 +31,8 @@
 #include "cec_adc.h"
 #include "thermistor.h"
 #include "acs712.h"
+#include "ina228.h"
+#include "driver/gpio.h"
 #include "cec_filters.h"
 #include "cec_state.h"
 #include "cec_config.h"
@@ -105,18 +107,22 @@ static i2c_master_bus_handle_t s_i2c_bus = NULL;
 /* INA226 instances. For now only 5VSB. Will add 12V/5V/3V3 after PCB rev. */
 static ina226_handle_t s_ina226_5vsb = NULL;
 
-/* ADC rail configs. At 50 Hz the per-iteration ADC time budget is tight,
- * so samples-per-read is dropped from 8 to 4 vs. the 5 Hz era. Calibration
- * curve-fitting handles the rest. */
-static const cec_adc_rail_t s_rail_12v = {
-    .channel = ADC_CH_V_12V, .samples = 4, .scale = SCALE_12V, .trim = TRIM_12V,
-};
-static const cec_adc_rail_t s_rail_5v = {
-    .channel = ADC_CH_V_5V,  .samples = 4, .scale = SCALE_5V,  .trim = TRIM_5V,
-};
-static const cec_adc_rail_t s_rail_3v3 = {
-    .channel = ADC_CH_V_3V3, .samples = 4, .scale = SCALE_3V3, .trim = TRIM_3V3,
-};
+/* PRODUCTION sensing: one INA228 per rail (12V/5V/3V3/5VSB). Each gives bus
+ * voltage + current, replacing the divider/ACS712/INA226 front end. */
+static ina228_handle_t s_ina228_12v  = NULL;
+static ina228_handle_t s_ina228_5v   = NULL;
+static ina228_handle_t s_ina228_3v3  = NULL;
+static ina228_handle_t s_ina228_5vsb = NULL;
+
+/* Read one rail's bus voltage + current. True only if both reads succeed. */
+static bool ina228_read_rail(ina228_handle_t h, float *v, float *i)
+{
+    if (h == NULL) return false;
+    return ina228_read_bus_voltage(h, v) == ESP_OK &&
+           ina228_read_current(h, i) == ESP_OK;
+}
+
+/* (LS divider rail configs removed -- rails now read via INA228.) */
 
 /* NTC config carried forward from v0.5.9. Standard 10k @ 25C, B=3950. */
 static const thermistor_t s_ntc = {
@@ -151,36 +157,7 @@ static const acs712_t s_acs_3v3 = {
     .zero_point_v = ACS712_ZERO_3V3,
 };
 
-/* HS-rate configs (samples=1) used by the burst capture engine to keep
- * each 1 kHz iteration well under the 1 ms budget. Scale/trim/zero match
- * the main-loop configs above. */
-static const cec_adc_rail_t s_hs_rail_12v = {
-    .channel = ADC_CH_V_12V, .samples = 1, .scale = SCALE_12V, .trim = TRIM_12V,
-};
-static const cec_adc_rail_t s_hs_rail_5v = {
-    .channel = ADC_CH_V_5V,  .samples = 1, .scale = SCALE_5V,  .trim = TRIM_5V,
-};
-static const cec_adc_rail_t s_hs_rail_3v3 = {
-    .channel = ADC_CH_V_3V3, .samples = 1, .scale = SCALE_3V3, .trim = TRIM_3V3,
-};
-static const acs712_t s_hs_acs_12v = {
-    .channel = ADC_CH_I_12V, .samples = 1,
-    .divider_scale = ACS712_DIVIDER,
-    .sensitivity_v_per_a = ACS712_30A_SENS,
-    .zero_point_v = ACS712_ZERO_12V,
-};
-static const acs712_t s_hs_acs_5v = {
-    .channel = ADC_CH_I_5V,  .samples = 1,
-    .divider_scale = ACS712_DIVIDER,
-    .sensitivity_v_per_a = ACS712_20A_SENS,
-    .zero_point_v = ACS712_ZERO_5V,
-};
-static const acs712_t s_hs_acs_3v3 = {
-    .channel = ADC_CH_I_3V3, .samples = 1,
-    .divider_scale = ACS712_DIVIDER,
-    .sensitivity_v_per_a = ACS712_20A_SENS,
-    .zero_point_v = ACS712_ZERO_3V3,
-};
+/* (HS-rate divider/ACS configs removed -- burst HS fill now reads INA228.) */
 
 /* Filter state */
 static ema_t s_v_5vsb_ema, s_i_5vsb_ema;
@@ -340,6 +317,48 @@ static esp_err_t init_ina226_5vsb(void)
     cfg.current_trim = 1.0f;      /* No current trim on 5VSB */
 
     return ina226_create(&cfg, &s_ina226_5vsb);
+}
+
+/* Production: create the four per-rail INA228s (addresses/shunts from
+ * cec_config.h, traced from the board netlist). 2 mOhm main rails use the
+ * +/-40.96 mV range (finer); 25 mOhm 5VSB uses +/-163.84 mV. */
+static esp_err_t init_ina228_rails(void)
+{
+    const struct {
+        ina228_handle_t *h; uint8_t addr; float shunt; float max_a; uint8_t range; const char *name;
+    } rails[] = {
+        { &s_ina228_12v,  INA228_ADDR_12V,  INA228_SHUNT_MAIN, 20.0f, 1, "12V"  },
+        { &s_ina228_5v,   INA228_ADDR_5V,   INA228_SHUNT_MAIN, 20.0f, 1, "5V"   },
+        { &s_ina228_3v3,  INA228_ADDR_3V3,  INA228_SHUNT_MAIN, 20.0f, 1, "3V3"  },
+        { &s_ina228_5vsb, INA228_ADDR_5VSB, INA228_SHUNT_5VSB,  6.0f, 0, "5VSB" },
+    };
+    esp_err_t first_err = ESP_OK;
+    for (size_t k = 0; k < sizeof(rails) / sizeof(rails[0]); k++) {
+        ina228_config_t cfg = INA228_CONFIG_DEFAULT();
+        cfg.bus_handle    = s_i2c_bus;
+        cfg.i2c_addr      = rails[k].addr;
+        cfg.shunt_ohms    = rails[k].shunt;
+        cfg.max_current_a = rails[k].max_a;
+        cfg.adc_range     = rails[k].range;
+        esp_err_t e = ina228_create(&cfg, rails[k].h);
+        if (e != ESP_OK) {
+            ESP_LOGE(TAG, "INA228 %s @ 0x%02X init failed: %s",
+                     rails[k].name, rails[k].addr, esp_err_to_name(e));
+            if (first_err == ESP_OK) first_err = e;
+        }
+    }
+    return first_err;
+}
+
+/* Status indicator LED: D2 on STATUS_LED_GPIO, active-high. */
+static void init_status_led(void)
+{
+    gpio_config_t io = {
+        .pin_bit_mask = 1ULL << STATUS_LED_GPIO,
+        .mode = GPIO_MODE_OUTPUT,
+    };
+    gpio_config(&io);
+    gpio_set_level(STATUS_LED_GPIO, 0);
 }
 
 static void init_layer1(void)
@@ -599,12 +618,12 @@ static void capture_hs_fill(void *row_v, const void *prev_v, uint32_t ts_us_offs
 {
     cec_capture_hs_sample_t *s = row_v;
     s->ts_us_offset = ts_us_offset;
-    cec_adc_read(&s_hs_rail_12v, &s->v_12v);
-    cec_adc_read(&s_hs_rail_5v,  &s->v_5v);
-    cec_adc_read(&s_hs_rail_3v3, &s->v_3v3);
-    acs712_read_amps(&s_hs_acs_12v, &s->i_12v);
-    acs712_read_amps(&s_hs_acs_5v,  &s->i_5v);
-    acs712_read_amps(&s_hs_acs_3v3, &s->i_3v3);
+    /* INA228 reads (V+I per rail). NOTE: the INA228 update rate (~315 Hz) is
+     * below this 1 kHz HS cadence, so bursts oversample -- real but stepped.
+     * The proper fast path (INA228 ALERT-triggered, spec 6.10) is a follow-up. */
+    ina228_read_rail(s_ina228_12v, &s->v_12v, &s->i_12v);
+    ina228_read_rail(s_ina228_5v,  &s->v_5v,  &s->i_5v);
+    ina228_read_rail(s_ina228_3v3, &s->v_3v3, &s->i_3v3);
 
     /* All-zero-rails carry-forward (v0.5.9 lineage). With cec_adc in
      * continuous/DMA mode the latest-mV table holds the last value, so
@@ -852,17 +871,15 @@ void app_main(void)
     }
 
     init_i2c_bus();
+    init_status_led();
 
-    esp_err_t err = init_ina226_5vsb();
+    /* PRODUCTION sensing: 4x INA228 (one per rail). Replaces the proto's
+     * divider/ACS712/INA226 front end -- do NOT also call init_ina226_5vsb(),
+     * it grabs 0x40 and writes INA226 registers into the 12V INA228 (U10). */
+    esp_err_t err = init_ina228_rails();
     if (err != ESP_OK) {
-        ESP_LOGE(TAG, "INA226 5VSB init failed: %s", esp_err_to_name(err));
-        ESP_LOGW(TAG, "Continuing without INA226 readings");
-    }
-
-    err = init_adc_rails();
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "ADC rail init failed: %s", esp_err_to_name(err));
-        ESP_LOGW(TAG, "Continuing without ADC rail readings");
+        ESP_LOGE(TAG, "INA228 rail init failed: %s", esp_err_to_name(err));
+        ESP_LOGW(TAG, "Continuing; un-initialized rails read 0");
     }
 
     ema_init(&s_v_5vsb_ema, EMA_ALPHA_FAST);
@@ -894,7 +911,7 @@ void app_main(void)
                  esp_err_to_name(cli_err));
     }
 
-    log_acs712_zero_measurements();
+    /* (ACS712 zero-cal removed; the INA228 needs no per-rail zero) */
 
     cec_capture_config_t cap_cfg = {
         .pre_trigger_capacity = PRE_TRIGGER_BUF_SIZE,
@@ -936,17 +953,14 @@ void app_main(void)
         bool ok_v_12v = false, ok_v_5v = false, ok_v_3v3 = false;
         bool ok_i_12v = false, ok_i_5v = false, ok_i_3v3 = false;
 
-        if (s_ina226_5vsb != NULL) {
-            ok_5vsb = (ina226_read_bus_voltage(s_ina226_5vsb, &v_5vsb) == ESP_OK &&
-                       ina226_read_current(s_ina226_5vsb, &i_5vsb) == ESP_OK);
-        }
-        ok_v_12v = (cec_adc_read(&s_rail_12v, &v_12v) == ESP_OK);
-        ok_v_5v  = (cec_adc_read(&s_rail_5v,  &v_5v)  == ESP_OK);
-        ok_v_3v3 = (cec_adc_read(&s_rail_3v3, &v_3v3) == ESP_OK);
-        ok_i_12v = (acs712_read_amps(&s_acs_12v, &i_12v) == ESP_OK);
-        ok_i_5v  = (acs712_read_amps(&s_acs_5v,  &i_5v)  == ESP_OK);
-        ok_i_3v3 = (acs712_read_amps(&s_acs_3v3, &i_3v3) == ESP_OK);
-        ok_temp  = (thermistor_read_celsius(&s_ntc, &temp_c) == ESP_OK);
+        /* PRODUCTION sensing: one INA228 per rail gives bus voltage + current;
+         * board temp from the 12V INA228's on-die sensor. */
+        ok_v_12v = ok_i_12v = ina228_read_rail(s_ina228_12v,  &v_12v,  &i_12v);
+        ok_v_5v  = ok_i_5v  = ina228_read_rail(s_ina228_5v,   &v_5v,   &i_5v);
+        ok_v_3v3 = ok_i_3v3 = ina228_read_rail(s_ina228_3v3,  &v_3v3,  &i_3v3);
+        ok_5vsb             = ina228_read_rail(s_ina228_5vsb, &v_5vsb, &i_5vsb);
+        ok_temp  = (s_ina228_12v != NULL &&
+                    ina228_read_die_temp_c(s_ina228_12v, &temp_c) == ESP_OK);
 
         /* On a failed read, fall back to the last good filtered value so a
          * single bad sample doesn't ripple into the state classifier. Before
@@ -1294,6 +1308,10 @@ void app_main(void)
                      i_12v_ema, i_5v_ema, i_3v3_ema, i_5vsb_ema,
                      p_total, temp_ema);
         }
+
+        /* Status LED: ~1 Hz heartbeat = firmware alive (toggles every 0.5 s
+         * at the 50 Hz loop rate). State-pattern encoding is a follow-up. */
+        gpio_set_level(STATUS_LED_GPIO, (iter / 25) & 1);
 
         iter++;
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
