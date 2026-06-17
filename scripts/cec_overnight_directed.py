@@ -200,9 +200,32 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
     res = cec_fr02.compile_intents(board_pcb, intents, directed)
     baked = os.path.join(workdir, "baked.kicad_pcb")
     perturb = _safe_perturb(board_pcb, perturb)              # keep route-diversity jitter OFF pads (U11 bug)
+    # ROUTE-TIME CORRIDOR KEEPOUT (2026-06-16, close-the-loop keystone -- the ROUTE half).
+    # Reserve each cable's connector->shunt high-current corridor (notched at the shunt so the Kelvin tap
+    # survives; block_fills=False so the same-net pour still fills SOLID) so FR routes foreign signals
+    # AROUND the pours instead of clipping them into islands.
+    #
+    # COUPLED WITH PLACEMENT (measured 2026-06-16): this only converges on a CORRIDOR-CLEAN placement --
+    # one where no foreign airwire is FORCED through the corridor. The committed eps placement is NOT
+    # corridor-clean (corridor_cross >= 3: /DETC,/THRESH,/I2C route through), so baking the keepout there
+    # strands those nets AND the sense taps (kelvin_ok True->False, unconnected 2->16). The keepout is the
+    # route-half of a coupled keystone+placer mechanism: it is enabled together with the corridor-packing
+    # placer (cec_synth_pipeline seed_anchors corridor-clean columns) that PRODUCES a clean placement.
+    # Hence DEFAULT OFF -- it must not regress the committed-board agentic loop. CEC_OVD_CORRIDOR_KEEPOUT=1
+    # turns it on (use ONLY on a corridor-clean placement). The geometry + the block_fills pour-unblock fix
+    # are correct and shared with cec_router.route() (cec_fr.corridor_keepouts).
+    corridor_kos = []
+    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+        try:
+            corridor_kos = cec_fr.corridor_keepouts(board_pcb)
+        except Exception as e:                              # noqa: BLE001 -- never crash a route on the keepout
+            log(f"  corridor keepout derivation failed ({type(e).__name__}: {e}); routing without it")
     # WIRE avoid-region intents into FR keepouts -- the SECOND half of the item4 lever (item4 + any auditor
     # 'route around corridor'). intent_keepouts() had zero callers, so avoid intents used to silently no-op.
-    kos = ([perturb] if perturb else []) + _avoid_to_bake(cec_fr02.intent_keepouts(intents))
+    kos = ([perturb] if perturb else []) + corridor_kos + _avoid_to_bake(cec_fr02.intent_keepouts(intents))
+    if corridor_kos:
+        log(f"  corridor keepout: reserved {len(corridor_kos)} force corridor(s) "
+            f"{[k['name'] for k in corridor_kos]}")
     cec_fr.bake_hints(directed, baked, keepouts=kos)
     dsn = os.path.join(workdir, "r.dsn")
     ses = os.path.join(workdir, "r.ses")

@@ -620,6 +620,75 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     return pours
 
 
+def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None):
+    """Route-time NOTCHED corridor keepout (the ENFORCE leg of the high-current-corridor-keepout /
+    high-current-pour-integrity / kelvin-tap-inner-shunt-edge corpus rules).
+
+    Reserve each high-current FORCE corridor -- the cable connector THT pads' span extended to the 2-pad
+    Kelvin shunt -- as a Freerouting keepout, CLIPPED on the shunt's inner side so the tap window
+    (shunt-inner-edge -> INA, which the pour deliberately excludes) stays open. That clip IS the "notch":
+    FR routes foreign +3V3/GND/signal AROUND the corridor, so the post-route additive power pour fills it
+    SOLID instead of being cut into islands by a foreign trace (which would otherwise leave the thin
+    0.2mm FR trace carrying the 40A). allow_vias=True so a boxed-in sensor pad can still escape DOWN.
+
+    This is the piece cec_router.route() has (so it converges) and route_directed lacked (so the agentic
+    loop stalled on pour-clip). Force nets = the Kelvin _HI/_LO pairs + the 12V nets (derived from the
+    board via cec_score.Rules when not given). SELF-GATING: a net with no THT cable pad or no 2-pad shunt
+    is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts."""
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    if nets_12v is None:
+        try:
+            import cec_score
+            nets_12v = cec_score.Rules.from_board(board_path).nets_12v
+        except Exception:                                    # noqa: BLE001 -- 12V nets are optional
+            nets_12v = []
+    force_nets = set(nets_12v)
+    for hi, lo in kelvin_pairs:
+        force_nets.add(hi)
+        force_nets.add(lo)
+
+    pads_by_net = {}
+    npads = {}
+    for fp in board.GetFootprints():
+        npads[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append(p)
+
+    hints = []
+    for net in sorted(force_nets):
+        entries = pads_by_net.get(net, [])
+        tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
+               if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+        shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                 for fp in board.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
+                 for p in fp.Pads() if p.GetNetname() == net]
+        if not tht or not shunt:
+            continue                                         # not a cable-connector high-current net
+        sx, sy = shunt[0]
+        txs = [x for x, _ in tht]
+        tys = [y for _, y in tht]
+        tcy = sum(tys) / len(tys)
+        x0 = min(txs + [sx]) - 1.0
+        x1 = max(txs + [sx]) + 1.0
+        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom AT shunt
+            y0, y1 = min(tys) - 1.0, sy
+        else:                                                # shunt ABOVE the connector (cable-out): clip top AT shunt
+            y0, y1 = sy, max(tys) + 1.0
+        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
+                      "x1": round(x1, 2), "y1": round(y1, 2),
+                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True,
+                      # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
+                      # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
+                      "block_fills": False})
+    return hints
+
+
 # ---------------------------------------------------------------------------
 # derive_via_field / add_via_field -- the OQ-10 "more parallel vias" fix
 # ---------------------------------------------------------------------------
@@ -1267,11 +1336,16 @@ def bake_hints(
             # useful via here anyway (no F.Cu track may reach it), and cec_hc's gate still treats any via as
             # a tap obstacle, so tap cleanliness is preserved.
             z.SetDoNotAllowVias(not bool(ko.get("allow_vias", False)))
+            # block_fills=False (corridor keepouts) keeps FOREIGN tracks out during FR routing but lets
+            # the post-route additive SAME-NET power pour FILL the reserved corridor SOLID -- without it
+            # the keepout's DoNotAllowZoneFills blocks ~89% of the pour it was meant to protect (measured),
+            # leaving the thin 0.2mm trace carrying the 40A. Default True preserves the old behaviour.
+            block_fills = bool(ko.get("block_fills", True))
             # KiCad 9/10 renamed SetDoNotAllowCopperPour -> SetDoNotAllowZoneFills
             if hasattr(z, "SetDoNotAllowZoneFills"):
-                z.SetDoNotAllowZoneFills(True)
+                z.SetDoNotAllowZoneFills(block_fills)
             else:
-                z.SetDoNotAllowCopperPour(True)
+                z.SetDoNotAllowCopperPour(block_fills)
 
             ls = pcbnew.LSET()
             for lname in layers:

@@ -643,45 +643,16 @@ def _vital_keepouts_from_rules(board, rules):
     corridor is the connector THT pads' span extended to the 2-pad shunt pad, but CLIPPED at the shunt
     on its inner side so the tap window (shunt-inner-edge -> INA, which the pour deliberately excludes)
     stays open. allow_vias=True so a boxed-in sensor pin can still escape down. Vertical interposer
-    geometry (J_IN top / J_OUT bottom); self-gating -> [] on boards with no THT cable net or no shunt."""
-    try:
-        import pcbnew
-    except Exception:
-        return []
-    b = pcbnew.LoadBoard(board)
-    pads_by_net = {}
-    npads = {}
-    for fp in b.GetFootprints():
-        npads[fp.GetReference()] = fp.GetPadCount()
-        for p in fp.Pads():
-            nn = p.GetNetname()
-            if nn:
-                pads_by_net.setdefault(nn, []).append(p)
-    force_nets = set(rules.nets_12v)
-    for hi, lo in rules.kelvin_pairs:
-        force_nets.add(hi); force_nets.add(lo)
-    hints = []
-    for net in sorted(force_nets):
-        entries = pads_by_net.get(net, [])
-        tht = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6) for p in entries
-               if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        shunt = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6)
-                 for fp in b.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
-                 for p in fp.Pads() if p.GetNetname() == net]
-        if not tht or not shunt:
-            continue                                    # not a cable-connector high-current net
-        sx, sy = shunt[0]
-        txs = [x for x, _ in tht]; tys = [y for _, y in tht]
-        tcy = sum(tys) / len(tys)
-        x0 = min(txs + [sx]) - 1.0; x1 = max(txs + [sx]) + 1.0
-        if sy >= tcy:                                   # shunt BELOW the connector (cable-in): clip bottom AT shunt
-            y0, y1 = min(tys) - 1.0, sy
-        else:                                           # shunt ABOVE the connector (cable-out): clip top AT shunt
-            y0, y1 = sy, max(tys) + 1.0
-        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
-                      "x1": round(x1, 2), "y1": round(y1, 2),
-                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True})
-    return hints
+    geometry (J_IN top / J_OUT bottom); self-gating -> [] on boards with no THT cable net or no shunt.
+
+    The geometry now lives in cec_fr.corridor_keepouts (shared so route_directed -- the agentic loop --
+    bakes the SAME deterministic reservation it always lacked); this thin wrapper passes the rules-derived
+    force nets. Geometry (the rects FR avoids) is byte-identical to before; the shared helper additionally
+    tags each keepout block_fills=False so the post-route SAME-NET power pour FILLS the reserved corridor
+    instead of being blocked by the keepout's own DoNotAllowZoneFills (a latent pour-clip the route_directed
+    validation exposed -- ~89% of the pour was blocked; this also benefits cec_router.route())."""
+    import cec_fr
+    return cec_fr.corridor_keepouts(board, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
 
 
 def _candidate_pool(cands, rules, weights):
