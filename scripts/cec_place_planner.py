@@ -276,12 +276,12 @@ def w_measure(board_pcb, passes, opt_time):
 # ====================================================================== HOST: the LLM planner seat
 MOVE_SCHEMA = {
     "type": "object", "additionalProperties": False,
-    "required": ["diagnosis", "moves"],
-    "properties": {
+    "required": ["moves"],                                  # diagnosis + rationale OPTIONAL -> shorter output,
+    "properties": {                                         # avoids the cluster pass truncating mid-JSON
         "diagnosis": {"type": "string", "description": "the global placement problem you see"},
         "moves": {"type": "array", "items": {
             "type": "object", "additionalProperties": False,
-            "required": ["ref", "x", "y", "rationale"],
+            "required": ["ref", "x", "y"],
             "properties": {
                 "ref": {"type": "string"},
                 "x": {"type": "number", "description": "new centre x in mm"},
@@ -349,13 +349,13 @@ def plan_cluster(context, best_measure, model=None, timeout=420, temperature=0.2
         "BOTH corridors, so those nets live entirely to the right and only the ~2-3 inherent detection "
         "crossings remain. Foreign ICs to place on the right: %s. Keep the corridor parts "
         "(J_IN*/J_OUT*/RS*/the sense INAs in each corridor) fixed. Give a move (x,y) for EACH foreign IC "
-        "above, spread so they don't stack. Terse rationales. Return diagnosis + moves."
+        "above, spread so they don't stack. OMIT rationales -- give ref,x,y only. Return moves."
         % (right_x, W - 2, H - 2, foreign[:24])
     )
     sysmsg = _PLANNER_SYSTEM + "\nThis is the CLUSTER pass: produce a COMPLETE coherent layout of the "\
-        "foreign logic on one side, not a few tweaks."
+        "foreign logic on one side, not a few tweaks. Output ref,x,y per move; no rationale text."
     return jl._chat_json(sysmsg, user, MOVE_SCHEMA, name="placecluster",
-                         model=model or "cec-manager-fast", timeout=timeout, max_tokens=1800,
+                         model=model or "cec-manager-fast", timeout=timeout, max_tokens=2200,
                          temperature=temperature)
 
 
@@ -442,13 +442,19 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
             log(f"r{rnd} analyze failed: {ctx['error']}"); break
         # Round 1 (and after a clustering streak resets) = the CLUSTER pass (the big structural partition
         # jump that the incremental crawl can't make); later rounds = incremental refinement from the best.
-        if rnd == 1 or (feedback and feedback.get("streak", 0) >= 3):
-            plan = plan_cluster(ctx, best["measure"], model=model)
-            kind = "cluster"
-        else:
-            temp = min(0.9, 0.4 + 0.2 * (feedback.get("streak", 0) if feedback else 0))
-            plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
-            kind = f"refine t={temp}"
+        try:
+            if rnd == 1 or (feedback and feedback.get("streak", 0) >= 3):
+                plan = plan_cluster(ctx, best["measure"], model=model)
+                kind = "cluster"
+            else:
+                temp = min(0.9, 0.4 + 0.2 * (feedback.get("streak", 0) if feedback else 0))
+                plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
+                kind = f"refine t={temp}"
+        except Exception as e:                              # noqa: BLE001 -- a seat parse/transport failure
+            log(f"r{rnd}: planner seat failed ({type(e).__name__}: {str(e)[:80]}) -> retry next round")
+            feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
+                        "to_clips": best["measure"].get("clips"), "streak": (feedback.get("streak", 0) + 1) if feedback else 1}
+            continue
         moves = (plan or {}).get("moves") or []
         log(f"r{rnd}: {kind}(from best clips={best['measure'].get('clips')}) "
             f"'{(plan or {}).get('diagnosis','')[:70]}' -> {len(moves)} move(s)")
