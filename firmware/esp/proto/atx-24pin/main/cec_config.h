@@ -52,6 +52,31 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define TELEMETRY_UART_BAUD      921600
 #define TELEMETRY_UART_TX_BUF    4096   /* Burst dumps need headroom */
 
+/*
+ * Production 24-pin sensing — 4x INA228 (one per rail), traced from the
+ * board netlist (24pin-module.kicad_sch). Each INA228 gives bus voltage +
+ * current; the ACS712/divider front end is retired. I2C SDA=IO8 / SCL=IO9.
+ *
+ *   Rail  U     I2C   shunt    ALERT
+ *   12V   U10   0x40  2 mOhm   IO10
+ *   5V    U11   0x41  2 mOhm   IO11
+ *   3V3   U12   0x44  2 mOhm   IO12
+ *   5VSB  U13   0x45  25 mOhm  IO13
+ *
+ * Status LED: D2 on IO21 (active-high, IO21 -> R7 -> LED -> GND).
+ */
+#define INA228_ADDR_12V      0x40
+#define INA228_ADDR_5V       0x41
+#define INA228_ADDR_3V3      0x44
+#define INA228_ADDR_5VSB     0x45
+#define INA228_SHUNT_MAIN    0.002f   /* 12V/5V/3V3 = 2 mOhm */
+#define INA228_SHUNT_5VSB    0.025f   /* 5VSB = 25 mOhm */
+#define INA228_ALERT_12V     10
+#define INA228_ALERT_5V      11
+#define INA228_ALERT_3V3     12
+#define INA228_ALERT_5VSB    13
+#define STATUS_LED_GPIO      21       /* D2, active-high */
+
 #ifdef __cplusplus
 }
 #endif

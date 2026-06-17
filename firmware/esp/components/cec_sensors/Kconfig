@@ -33,6 +33,14 @@ menu "CEC sensors"
         bool "INA226 I2C bus-monitor driver"
         default n
 
+    config CEC_SENSOR_INA228
+        bool "INA228 I2C power monitor (20-bit, energy/charge) driver"
+        default n
+        help
+            24-pin PRODUCTION sensing: one INA228 per rail, giving bus
+            voltage + current over I2C. Distinct register map from the
+            INA226 (20-bit, ADCRANGE, die temp, 40-bit accumulators).
+
     config CEC_SENSOR_NTC
         bool "NTC thermistor driver (eps-named API)"
         default n
