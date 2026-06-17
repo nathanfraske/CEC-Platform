@@ -547,9 +547,11 @@ def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, te
                      "drag a sense IC away from its shunt to chase a clip.\n")
     fb_line = ""
     if feedback:
+        # feedback["moves"] is a list of REF STRINGS (the driver records moved_refs uniformly for both the
+        # partition and refine tiers) -- use them directly; do NOT treat them as move dicts.
         fb_line = ("YOUR LAST ATTEMPT REGRESSED: moving %s took clips %s->%s. Try a DIFFERENT approach -- "
                    "move different parts / a different side; do not repeat those moves.\n"
-                   % ([m.get("ref") for m in (feedback.get("moves") or [])][:8],
+                   % ((feedback.get("moves") or [])[:8],
                       feedback.get("from_clips"), feedback.get("to_clips")))
     user = (
         "BOARD CONTEXT (best placement so far; decoupling R*/C* passives omitted -- they follow their IC):\n"
@@ -653,7 +655,8 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
 
 # ====================================================================== HOST: the iterate driver
 def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16,
-        opt_time=32, from_board=None):
+        opt_time=32, from_board=None, deadline=None):
+    import time
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
     os.makedirs(os.path.join(ROOT, out_dir), exist_ok=True)
@@ -676,16 +679,18 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             log(f"seed failed: {s['error']}"); return {"error": s["error"]}
         log(f"seed: {seed_out} corridor_cross={s.get('corridor_cross')} ({s['W']}x{s['H']}mm)")
     DRC_FLOOR = 4                                            # finishing-only DRC (logo + shield tabs)
+    DRC_CEIL = 16                                            # runaway-DRC gate (blocks the clips=48/drc=28 trap)
     def score(meas):
-        # kelvin is a HARD requirement (never accept a board that loses it). Then a FAB-READINESS objective
-        # that values BOTH pour-integrity (clips) AND manufacturability (DRC): clips + a penalty for DRC
-        # ABOVE the finishing floor, so the loop won't accept a tight-clips win that wrecks DRC (the
-        # clips=48/drc=28 trap the clips-only score fell into); raw drc breaks ties. Lower = better.
+        # FAB-READINESS lexicographic objective: (1) kelvin is HARD (never accept a board that loses it);
+        # (2) keep DRC UNDER A CEILING -- a board whose route blew DRC past the ceiling is strictly worse,
+        # so the loop can't chase a tight-clips win that wrecks manufacturability (the clips=48/drc=28 trap);
+        # (3) minimize ACTUAL pour clips (the placement-quality objective we're driving); (4) DRC as the
+        # finishing tiebreak. This lets a clips win through while DRC stays modest, then prefers lower DRC.
         if not meas.get("kelvin_ok"):
-            return (1, 1e9, 1e9)
+            return (1, 1, 1e9, 1e9)
         clips = meas.get("clips", 9999) or 9999
         drc = meas.get("drc", 9999) or 9999
-        return (0, clips + 3 * max(0, drc - DRC_FLOOR), drc)
+        return (0, 1 if drc > DRC_CEIL else 0, clips, drc)
 
     # measure the SEED -> the first best
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
@@ -697,6 +702,8 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
     feedback = None                                          # last regressed attempt -> diversify the next plan
 
     for rnd in range(1, rounds):
+        if deadline and time.time() >= deadline:
+            log(f"r{rnd}: wall-clock deadline reached -> stop"); break
         # HILL-CLIMB: always plan FROM the best board, accept the candidate only if it improves.
         ctx = _exec_worker(["--analyze", "--board-pcb", best["board"], "--board", _rel(board_dir)])
         if ctx.get("error"):
@@ -797,11 +804,14 @@ def main(argv=None):
     ap.add_argument("--passes", type=int, default=16); ap.add_argument("--opt-time", type=int, default=32)
     ap.add_argument("--keepout", action="store_true", help="measure WITH the corridor keepout (force around)")
     ap.add_argument("--from-board", default=None, help="continue the hill-climb from this board (vs re-seed)")
+    ap.add_argument("--hours", type=float, default=None, help="wall-clock deadline in hours (stop after)")
     ap.add_argument("--out-dir", default=None, help="output dir for candidates (default build/place-planner)")
     a = ap.parse_args(argv)
     if a.run:
+        import time
+        deadline = (time.time() + a.hours * 3600) if a.hours else None
         run(a.board, a.rounds, model=a.model, auditor=a.auditor, passes=a.passes, opt_time=a.opt_time,
-            from_board=a.from_board, out_dir=a.out_dir)
+            from_board=a.from_board, out_dir=a.out_dir, deadline=deadline)
     elif a.seed:
         _emit(w_seed(os.path.join(ROOT, a.board), a.out, [int(s) for s in a.seeds.split(",")], a.strategies.split(",")))
     elif a.analyze:
