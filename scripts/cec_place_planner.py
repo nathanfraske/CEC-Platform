@@ -709,7 +709,7 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
                               "--opt-time", str(opt_time)] + ko_flag)
     best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
     log(f"r0 (seed): kelvin={seed_meas.get('kelvin_ok')} clips={seed_meas.get('clips')} "
-        f"drc={seed_meas.get('drc')}")
+        f"drc={seed_meas.get('drc')} unconn={seed_meas.get('unconnected')}")
     history = [{"round": 0, "board": seed_out, "measure": seed_meas, "accepted": True}]
     feedback = None                                          # last regressed attempt -> diversify the next plan
 
@@ -775,7 +775,8 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         csc = score(cmeas)
         improved = csc < best["score"]
         log(f"r{rnd}: candidate kelvin={cmeas.get('kelvin_ok')} clips={cmeas.get('clips')} "
-            f"drc={cmeas.get('drc')} -> {'ACCEPT (new best)' if improved else 'reject (keep best)'}")
+            f"drc={cmeas.get('drc')} unconn={cmeas.get('unconnected')} "
+            f"-> {'ACCEPT (new best)' if improved else 'reject (keep best)'}")
         history.append({"round": rnd, "board": cand, "measure": cmeas, "moves": moved_refs,
                         "kind": kind, "accepted": improved})
         if improved:
