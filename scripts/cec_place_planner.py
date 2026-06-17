@@ -165,6 +165,7 @@ def w_analyze(board_pcb, board_dir):
 
     return {"outline": {"W": W, "H": H}, "parts": parts, "corridors": corridors,
             "crossings": crossings, "kelvin_tap": kelvin,
+            "region_boxes": _region_boxes(model, W, H),
             "corridor_cross": len(crossings)}
 
 
@@ -229,17 +230,172 @@ def w_apply(board_pcb, moves, out_rel, board_dir=None):
     return {"out": out_rel, "applied": applied}
 
 
-def w_measure(board_pcb, passes, opt_time):
-    """Route the placement (no keepout/intents -- pure route) + score: kelvin_ok, drc, unconnected,
-    and the ACTUAL foreign F.Cu clips into the high-current pours (the pour-integrity signal)."""
+def _tile_into_box(refs, cyfn, box, *, gap=0.6):
+    """Shelf-tile *refs*' courtyards into *box*=[x0,y0,x1,y1] (biggest-first, row-wrapped). cyfn(ref) ->
+    (cx,cy,hw,hh) = courtyard centre-offset + half-extent at the placed rotation. Returns origin-target
+    moves [{ref,x,y}] (origin = courtyard top-left placement - the centre offset). w_apply's legalize then
+    snaps to the nearest free slot, so a slightly-overflowing box just spills to legalize, never overlaps."""
+    x0, y0, x1, y1 = box
+    order = sorted([r for r in refs], key=lambda r: -(cyfn(r)[2] * cyfn(r)[3]))
+    moves, x, y, row_h = [], x0, y0, 0.0
+    for r in order:
+        cx, cyy, hw, hh = cyfn(r)
+        w, h = 2 * hw, 2 * hh
+        if x + w > x1 and x > x0:                            # wrap to the next shelf row
+            x, y, row_h = x0, y + row_h + gap, 0.0
+        ox = x + hw - cx
+        oy = max(y0 + hh - cyy, min(max(y0, y1 - hh) - cyy, y + hh - cyy))
+        moves.append({"ref": r, "x": round(ox, 2), "y": round(oy, 2)})
+        x += w + gap
+        row_h = max(row_h, h)
+    return moves
+
+
+def _region_boxes(model, W, H, *, margin=1.0):
+    """Named PLACEMENT REGIONS for the LLM partition -- the spatial channels foreign logic can occupy
+    WITHOUT its nets being forced to straddle a high-current corridor pour. Derived from the formed
+    corridors (band = x0,y0,x1,y1; the pour spans only the band's y-range, so above/below it is clear):
+      left/right  = left of the leftmost / right of the rightmost corridor (full board height)
+      spine{k}    = the vertical gap BETWEEN corridor k and k+1 (reaches the inner-edge sense ICs of both
+                    neighbours without crossing either pour) -- may be narrow
+      top/bottom  = the horizontal channel ABOVE / BELOW all the pours (full board width) -- the clear
+                    route-around path a power rail uses to feed every corridor's sense ICs
+    A region narrower/shorter than a tiny floor is omitted (no false handle for the LLM)."""
+    bands = sorted((c.band for c in model.cables if c.formed), key=lambda b: b[0])  # band=(x0,x1,y0,y1)
+    if not bands:
+        return {"right": [round(W * 0.5, 1), margin, round(W - margin, 1), round(H - margin, 1)]}
+    yb_top = min(b[2] for b in bands)                        # highest pour top y0 (clear above)
+    yb_bot = max(b[3] for b in bands)                        # lowest  pour bottom y1 (clear below)
+    boxes = {}
+    if bands[0][0] - margin - margin > 3:
+        boxes["left"] = [margin, margin, round(bands[0][0] - margin, 1), round(H - margin, 1)]
+    multi = len(bands) > 2
+    for i in range(len(bands) - 1):
+        gx0, gx1 = bands[i][1] + margin, bands[i + 1][0] - margin   # corridor i right edge .. corridor i+1 left edge
+        if gx1 - gx0 > 3:
+            boxes[f"spine{i + 1}" if multi else "spine"] = [round(gx0, 1), margin, round(gx1, 1), round(H - margin, 1)]
+    boxes["right"] = [round(bands[-1][1] + margin, 1), margin, round(W - margin, 1), round(H - margin, 1)]
+    if yb_top - margin - margin > 3:
+        boxes["top"] = [margin, margin, round(W - margin, 1), round(yb_top - margin, 1)]
+    if H - margin - (yb_bot + margin) > 3:
+        boxes["bottom"] = [margin, round(yb_bot + margin, 1), round(W - margin, 1), round(H - margin, 1)]
+    return boxes
+
+
+def _foreign_refs(P, model):
+    """The movable foreign ICs/diodes (NOT corridor anchors J*/RS*/sense-INAs)."""
+    corridor_refs = {p for c in model.cables for p in ({c.shunt} | set(c.sense_ics))}
+    corridor_refs |= {r for r in P if r.startswith("J")}
+    return [p for p in sorted(P)
+            if p not in corridor_refs and p[:1] in ("U", "D", "L", "Q", "Y", "X") and not p.startswith("SW")]
+
+
+def _shelf_moves(board_pcb, board_dir, region="right", refs=None, *, gap=0.6):
+    """DETERMINISTIC shelf-pack TARGETS for the partition materializer (the lever the 2026-06-16 auditor
+    run pointed at). The auditor reasons the partition CORRECTLY but emitting ABSOLUTE (x,y) per IC gets
+    scrambled by legalize+route -- so let the LLM own only the PARTITION and let THIS lay it out cleanly.
+    region='right'|'left' or a named _region_boxes region or an explicit 'x0,y0,x1,y1' box; refs (optional)
+    overrides the auto foreign-IC set."""
+    import pcbnew
+    import cec_synth_pipeline as sp
+    board = pcbnew.LoadBoard(board_pcb)
+    bb = board.GetBoardEdgesBoundingBox()
+    W, H = round(bb.GetWidth() / 1e6, 1), round(bb.GetHeight() / 1e6, 1)
+    P, comps = _board_P_comps(board)
+    nl = sp.View(sp.Config.load(board_dir)).nl
+    model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
+    boxes = _region_boxes(model, W, H)
+    if region in boxes:
+        box = boxes[region]
+    elif "," in region:
+        v = [float(t) for t in region.split(",")]; box = [v[0], v[1], v[2], v[3]]
+    else:                                                   # 'right'/'left' fall back to the named box
+        box = boxes.get("right" if region != "left" else "left", [W * 0.5, 1.0, W - 1.0, H - 1.0])
+    pack = [r for r in (refs if refs else _foreign_refs(P, model)) if r in P]
+
+    def cy(ref):
+        try:
+            return sp._courtyard_info(comps.get(ref, ""), P[ref][2])
+        except Exception:                                  # noqa: BLE001
+            return (0.0, 0.0, 1.0, 1.0)
+
+    moves = _tile_into_box(pack, cy, box, gap=gap)
+    del board
+    return {"moves": moves, "region_box": [round(v, 1) for v in box], "packed": [m["ref"] for m in moves]}
+
+
+def w_partition(board_pcb, assign, out_rel, board_dir):
+    """REGION-AWARE partition materializer (2026-06-17). *assign* = [{ref, region}] from the LLM: each
+    foreign IC assigned to a named _region_boxes region. Tile each region's refs into its box (deterministic,
+    clean -- no absolute-coord scramble), collect the moves, then w_apply (carry owned passives + legalize).
+    This is the representation the auditor needed: it reasons the partition (regions) correctly, this executes
+    it. Unknown regions / unassigned foreign ICs are left where they are."""
+    import pcbnew
+    import cec_synth_pipeline as sp
+    board = pcbnew.LoadBoard(board_pcb)
+    bb = board.GetBoardEdgesBoundingBox()
+    W, H = round(bb.GetWidth() / 1e6, 1), round(bb.GetHeight() / 1e6, 1)
+    P, comps = _board_P_comps(board)
+    nl = sp.View(sp.Config.load(board_dir)).nl
+    model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
+    boxes = _region_boxes(model, W, H)
+
+    def cy(ref):
+        try:
+            return sp._courtyard_info(comps.get(ref, ""), P[ref][2])
+        except Exception:                                  # noqa: BLE001
+            return (0.0, 0.0, 1.0, 1.0)
+
+    by_region = {}
+    for a in assign:
+        ref, reg = a.get("ref"), a.get("region")
+        if ref in P and reg in boxes:
+            by_region.setdefault(reg, []).append(ref)
+    moves, used = [], {}
+    for reg, refs in by_region.items():
+        moves.extend(_tile_into_box(refs, cy, boxes[reg], gap=0.6))
+        used[reg] = refs
+    del board
+    if not moves:
+        return {"error": "no valid region assignments", "regions": sorted(boxes)}
+    ap = w_apply(board_pcb, moves, out_rel, board_dir=board_dir)
+    ap["regions_used"] = {k: len(v) for k, v in used.items()}
+    return ap
+
+
+def w_pack(board_pcb, out_rel, board_dir, region="right", refs=None):
+    """Single-region partition MATERIALIZER: deterministic shelf-pack of a ref set into one region, then
+    w_apply. The LLM owns WHICH refs (the partition); geometry is deterministic."""
+    sm = _shelf_moves(board_pcb, board_dir, region=region, refs=refs)
+    ap = w_apply(board_pcb, sm["moves"], out_rel, board_dir=board_dir)
+    ap["packed"] = sm["packed"]; ap["region_box"] = sm["region_box"]
+    return ap
+
+
+def w_measure(board_pcb, passes, opt_time, keepout=False):
+    """Route the placement + score: kelvin_ok, drc, unconnected, and the ACTUAL foreign F.Cu clips into
+    the high-current pours (the pour-integrity signal). keepout=True routes WITH the corridor keepout
+    (forces foreign signals AROUND the corridors) -- the test of whether a partition is clean enough that
+    the keepout doesn't strand the +3V3/+5VSB rails feeding the inner-edge sense ICs (high unconnected
+    => the partition forces a power rail across a corridor, which the keepout then blocks)."""
     import pcbnew
     import cec_fr
     import cec_score
     b = pcbnew.LoadBoard(board_pcb)
     pours = cec_fr.derive_power_pours(board_pcb, board=b)
+    # derive kelvin pairs from THIS board's net names (plain strings -> no proxy leak)
+    _names = {n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    _kp = [(h, h[:-3] + "_LO") for h in sorted(_names) if h.endswith("_HI") and (h[:-3] + "_LO") in _names]
     del b
+    hints = []
+    if keepout:
+        # corridor_keepouts must load + OWN its board (board + its pad proxies then share one lifetime and GC
+        # together cleanly); passing board=b and then `del b` orphans its internal Pad proxies -> GC on those
+        # dangling SwigPyObjects corrupts pcbnew state so the later score LoadBoard returns a bare SwigPyObject.
+        # nets_12v=[] keeps it from doing a nested cec_score.Rules.from_board LoadBoard (same hazard).
+        hints = cec_fr.corridor_keepouts(board_pcb, kelvin_pairs=_kp, nets_12v=[])
     routed = os.path.join(tempfile.mkdtemp(), "routed.kicad_pcb")
-    c = cec_fr.route_once(board_pcb, routed, hints=[], power_pours=pours, passes=passes, opt_time=opt_time)
+    c = cec_fr.route_once(board_pcb, routed, hints=hints, power_pours=pours, passes=passes, opt_time=opt_time)
     if not (c.ok and c.board):
         return {"error": f"route failed: {getattr(c, 'err', None)}"}
     m = dataclasses.asdict(cec_score.score(c.board))
@@ -288,6 +444,21 @@ MOVE_SCHEMA = {
                 "y": {"type": "number", "description": "new centre y in mm"},
                 "rot": {"type": "number", "description": "rotation in degrees (optional)"},
                 "rationale": {"type": "string"},
+            }}},
+    },
+}
+
+PARTITION_SCHEMA = {
+    "type": "object", "additionalProperties": False,
+    "required": ["assignments"],                            # region-NAME assignment, not coords -> robust,
+    "properties": {                                         # un-truncatable, and the materializer packs cleanly
+        "diagnosis": {"type": "string", "description": "the partition you chose and why"},
+        "assignments": {"type": "array", "items": {
+            "type": "object", "additionalProperties": False,
+            "required": ["ref", "region"],
+            "properties": {
+                "ref": {"type": "string"},
+                "region": {"type": "string", "description": "exactly one of the named PLACEMENT REGIONS"},
             }}},
     },
 }
@@ -429,6 +600,57 @@ def plan_audit(context, best_measure, history, model=None, timeout=300, temperat
                          temperature=temperature, nothink=True)
 
 
+def plan_partition(context, best_measure, model=None, timeout=300, temperature=0.2, history=None, deep=False):
+    """REGION-AWARE partition plan (2026-06-17 -- the fix for the auditor's execution ceiling). The LLM
+    assigns each foreign IC to a NAMED REGION (left/spine/right/top/bottom from _region_boxes) -- a small,
+    robust, un-scrambleable decision it reasons CORRECTLY -- and w_partition tiles each region deterministically
+    (no absolute-coord legalize+route scramble that capped the hill-climb at clips=48). deep=True is the
+    AUDITOR variant: a more-capable seat sees the whole plateaued trajectory and must pick a STRUCTURALLY
+    different region assignment. The key structural fact handed to the model: the pours span ONLY the corridor
+    band's y-range, so the TOP/BOTTOM channels reach EVERY corridor's inner-edge sense ICs without crossing."""
+    import cec_judge_local as jl
+    rb = context.get("region_boxes", {})
+    corr_anchor = {c.get("shunt") for c in context.get("corridors", [])} | \
+                  {ic for c in context.get("corridors", []) for ic in c.get("sense_ics", [])}
+    foreign = [p["ref"] for p in context.get("parts", [])
+               if p["ref"][:1] in ("U", "D", "L", "Q") and not p["ref"].startswith("SW")
+               and p["ref"] not in corr_anchor]
+    region_help = "\n".join("  %s = [x0,y0,x1,y1]=%s  (%.0f x %.0f mm)"
+                            % (k, v, v[2] - v[0], v[3] - v[1]) for k, v in rb.items())
+    traj_line = ""
+    if deep and history:
+        traj = [{"r": h["round"], "clips": (h.get("measure") or {}).get("clips"), "moved": h.get("moves")}
+                for h in history[-12:]]
+        traj_line = ("\nThe worker is PLATEAUED. ATTEMPT HISTORY (moved=refs, clips=result): "
+                     + json.dumps(traj) + "\nChoose a region assignment STRUCTURALLY DIFFERENT from those.\n")
+    clip_line = ""
+    if best_measure and best_measure.get("clip_nets"):
+        clip_line = "ACTUAL POUR CLIPS to eliminate: " + json.dumps(best_measure["clip_nets"][:24]) + "\n"
+    user = (
+        "BOARD CONTEXT (decoupling R*/C* passives omitted -- they FOLLOW their owner IC automatically):\n"
+        + json.dumps(_trim_context(context), indent=1)[:6000] + "\n\n"
+        + "PLACEMENT REGIONS -- assign each foreign IC to exactly ONE. A net stays CLEAN (no pour clip) when "
+        "all its pads land in regions a router can connect WITHOUT crossing a corridor pour. The pours span "
+        "ONLY each corridor band's y-range, so a part in TOP or BOTTOM can feed EVERY corridor's inner-edge "
+        "sense IC via the clear channel above/below the pours -- that is how the shared rails reach both "
+        "corridors without clipping:\n" + region_help + "\n\n"
+        + ("BEST: kelvin=%s clips=%s drc=%s\n" % (best_measure.get("kelvin_ok"),
+           best_measure.get("clips"), best_measure.get("drc")) if best_measure else "")
+        + clip_line + traj_line + "\n"
+        + "Assign EACH of these foreign ICs to a region: %s\n" % foreign[:24]
+        + "Strategy: the shared rails (+3V3/+5VSB/GND) feed sense ICs in BOTH corridors -- route them via a "
+        "TOP/BOTTOM channel, so put their source (LDO) and the ESP where that works. Keep each cable's "
+        "detection chain (shunt->INA181->comparator->ESP) LOCAL to its cable's side until past the last "
+        "corridor. Return diagnosis + assignments (ref+region only)."
+    )
+    sysmsg = (_AUDITOR_SYSTEM if deep else _PLANNER_SYSTEM) + (
+        "\nThis is the REGION-PARTITION pass: assign each foreign IC to a NAMED region; a deterministic "
+        "packer materializes each region (you do NOT give coordinates). Output ref+region per assignment.")
+    return jl._chat_json(sysmsg, user, PARTITION_SCHEMA, name="placepartition",
+                         model=model or ("cec-worker-quality" if deep else "cec-worker"),
+                         timeout=timeout, max_tokens=2200, temperature=temperature, nothink=True)
+
+
 # ====================================================================== HOST: the iterate driver
 def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16,
         opt_time=32, from_board=None):
@@ -453,12 +675,17 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         if s.get("error"):
             log(f"seed failed: {s['error']}"); return {"error": s["error"]}
         log(f"seed: {seed_out} corridor_cross={s.get('corridor_cross')} ({s['W']}x{s['H']}mm)")
+    DRC_FLOOR = 4                                            # finishing-only DRC (logo + shield tabs)
     def score(meas):
-        # kelvin is a HARD requirement (never accept a board that loses it); then minimize ACTUAL clips,
-        # then drc. gates_pass (drc==0) is informational -- the finishing floor is ~3, so clips is the
-        # real objective once kelvin holds.
-        return (0 if meas.get("kelvin_ok") else 1, meas.get("clips", 9999) or 9999,
-                meas.get("drc", 9999) or 9999)
+        # kelvin is a HARD requirement (never accept a board that loses it). Then a FAB-READINESS objective
+        # that values BOTH pour-integrity (clips) AND manufacturability (DRC): clips + a penalty for DRC
+        # ABOVE the finishing floor, so the loop won't accept a tight-clips win that wrecks DRC (the
+        # clips=48/drc=28 trap the clips-only score fell into); raw drc breaks ties. Lower = better.
+        if not meas.get("kelvin_ok"):
+            return (1, 1e9, 1e9)
+        clips = meas.get("clips", 9999) or 9999
+        drc = meas.get("drc", 9999) or 9999
+        return (0, clips + 3 * max(0, drc - DRC_FLOOR), drc)
 
     # measure the SEED -> the first best
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
@@ -474,17 +701,20 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         ctx = _exec_worker(["--analyze", "--board-pcb", best["board"], "--board", _rel(board_dir)])
         if ctx.get("error"):
             log(f"r{rnd} analyze failed: {ctx['error']}"); break
-        # TIERED ESCALATION by plateau depth: refine (fast worker) -> cluster (re-partition) -> AUDITOR
-        # (a more-capable seat reviews the whole trajectory + proposes a structurally different placement
-        # to escape the local optimum). The auditor is the deepest tier, fired only on a deep plateau.
+        # TIERED ESCALATION by plateau depth. The STRUCTURAL tiers (round-1 + mid-plateau re-partition, and
+        # the deep-plateau AUDITOR) now emit a REGION PARTITION (named-region assignment) materialized cleanly
+        # by w_partition -- NOT absolute coords, which legalize+route scrambled (the 2026-06-17 finding: the
+        # auditor reasons the partition right but can't execute coords). The refine tier keeps absolute moves
+        # for small nudges. A seat parse failure / empty plan RETRIES the next round (never ends the run).
         streak = feedback.get("streak", 0) if feedback else 0
+        mode = "apply"
         try:
             if streak >= 6:
-                plan = plan_audit(ctx, best["measure"], history, model=auditor)
-                kind = "AUDIT"
+                plan = plan_partition(ctx, best["measure"], model=auditor, history=history, deep=True)
+                kind = "PARTITION-AUDIT"; mode = "partition"
             elif rnd == 1 or 3 <= streak < 6:
-                plan = plan_cluster(ctx, best["measure"], model=model)
-                kind = "cluster"
+                plan = plan_partition(ctx, best["measure"], model=model)
+                kind = "partition"; mode = "partition"
             else:
                 temp = min(0.9, 0.4 + 0.2 * streak)
                 plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
@@ -494,32 +724,52 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
                         "to_clips": best["measure"].get("clips"), "streak": (feedback.get("streak", 0) + 1) if feedback else 1}
             continue
-        moves = (plan or {}).get("moves") or []
-        log(f"r{rnd}: {kind}(from best clips={best['measure'].get('clips')}) "
-            f"'{(plan or {}).get('diagnosis','')[:70]}' -> {len(moves)} move(s)")
-        if not moves:
-            log(f"r{rnd}: no moves -> stop"); break
         cand = f"{out_dir}/{board_name}-r{rnd}.kicad_pcb"
-        ap = _exec_worker(["--apply", "--board-pcb", best["board"], "--out", cand, "--moves", json.dumps(moves),
-                           "--board", _rel(board_dir)])
+        if mode == "partition":
+            items = (plan or {}).get("assignments") or []
+            moved_refs = sorted({a.get("ref") for a in items if a.get("ref")})
+            log(f"r{rnd}: {kind}(from best clips={best['measure'].get('clips')}) "
+                f"'{(plan or {}).get('diagnosis','')[:70]}' -> {len(items)} assign")
+            if not items:
+                feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
+                            "to_clips": best["measure"].get("clips"), "streak": streak + 1}
+                continue
+            ap = _exec_worker(["--partition", "--board-pcb", best["board"], "--out", cand,
+                               "--assign", json.dumps(items), "--board", _rel(board_dir)])
+        else:
+            moves = (plan or {}).get("moves") or []
+            moved_refs = [m.get("ref") for m in moves]
+            log(f"r{rnd}: {kind}(from best clips={best['measure'].get('clips')}) "
+                f"'{(plan or {}).get('diagnosis','')[:70]}' -> {len(moves)} move(s)")
+            if not moves:
+                feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
+                            "to_clips": best["measure"].get("clips"), "streak": streak + 1}
+                continue
+            ap = _exec_worker(["--apply", "--board-pcb", best["board"], "--out", cand, "--moves", json.dumps(moves),
+                               "--board", _rel(board_dir)])
         if ap.get("error"):
-            log(f"r{rnd} apply failed: {ap['error']}"); break
+            log(f"r{rnd} apply failed: {ap['error']} -> retry next round")
+            feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
+                        "to_clips": best["measure"].get("clips"), "streak": streak + 1}
+            continue
         cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)])
         csc = score(cmeas)
         improved = csc < best["score"]
         log(f"r{rnd}: candidate kelvin={cmeas.get('kelvin_ok')} clips={cmeas.get('clips')} "
             f"drc={cmeas.get('drc')} -> {'ACCEPT (new best)' if improved else 'reject (keep best)'}")
-        history.append({"round": rnd, "board": cand, "measure": cmeas, "moves": [m.get("ref") for m in moves],
-                        "accepted": improved})
+        history.append({"round": rnd, "board": cand, "measure": cmeas, "moves": moved_refs,
+                        "kind": kind, "accepted": improved})
         if improved:
             best = {"board": cand, "measure": cmeas, "score": csc}
             feedback = None
         else:
             streak = (feedback.get("streak", 1) + 1) if feedback else 1
-            feedback = {"moves": moves, "from_clips": best["measure"].get("clips"),
+            feedback = {"moves": moved_refs, "from_clips": best["measure"].get("clips"),
                         "to_clips": cmeas.get("clips"), "streak": streak}
-        if best["measure"].get("kelvin_ok") and (best["measure"].get("clips") or 99) <= 6:
-            log(f"r{rnd}: clips<=6 with kelvin -> CONVERGED"); break
+        # CONVERGED = fab-ready: kelvin + pour-integrity (clips<=6) + DRC at the finishing floor.
+        bm = best["measure"]
+        if bm.get("kelvin_ok") and (bm.get("clips") or 99) <= 6 and (bm.get("drc") or 99) <= DRC_FLOOR + 4:
+            log(f"r{rnd}: kelvin + clips<=6 + drc<={DRC_FLOOR + 4} -> CONVERGED (fab-ready)"); break
     log(f"DONE: best kelvin={best['measure'].get('kelvin_ok')} clips={best['measure'].get('clips')} "
         f"drc={best['measure'].get('drc')} -> {best['board']}")
     json.dump({"best": best, "history": history},
@@ -532,6 +782,11 @@ def main(argv=None):
     ap.add_argument("--run", action="store_true", help="HOST driver")
     ap.add_argument("--seed", action="store_true"); ap.add_argument("--analyze", action="store_true")
     ap.add_argument("--apply", action="store_true"); ap.add_argument("--measure", action="store_true")
+    ap.add_argument("--pack", action="store_true", help="deterministic shelf-pack a partition into a region")
+    ap.add_argument("--partition", action="store_true", help="region-aware partition: --assign [{ref,region}]")
+    ap.add_argument("--assign", default=None, help="JSON [{ref,region}] region assignments for --partition")
+    ap.add_argument("--region", default="right", help="pack region: right|left|spine|top|bottom|x0,y0,x1,y1")
+    ap.add_argument("--refs", default=None, help="explicit partition refs (comma list); default=all foreign ICs")
     ap.add_argument("--board"); ap.add_argument("--board-pcb"); ap.add_argument("--out")
     ap.add_argument("--moves"); ap.add_argument("--seeds", default="0,1,2,3"); ap.add_argument("--strategies",
                     default="dataflow,thermal_separated,compact")
@@ -540,6 +795,7 @@ def main(argv=None):
     ap.add_argument("--auditor", default=None,
                     help="auditor seat (deep-plateau structural review); default cec-worker-quality")
     ap.add_argument("--passes", type=int, default=16); ap.add_argument("--opt-time", type=int, default=32)
+    ap.add_argument("--keepout", action="store_true", help="measure WITH the corridor keepout (force around)")
     ap.add_argument("--from-board", default=None, help="continue the hill-climb from this board (vs re-seed)")
     ap.add_argument("--out-dir", default=None, help="output dir for candidates (default build/place-planner)")
     a = ap.parse_args(argv)
@@ -555,9 +811,16 @@ def main(argv=None):
         _emit(w_apply(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                       json.loads(a.moves), a.out,
                       board_dir=os.path.join(ROOT, a.board) if a.board else None))
+    elif a.pack:
+        _emit(w_pack(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                     a.out, os.path.join(ROOT, a.board), region=a.region,
+                     refs=[r.strip() for r in a.refs.split(",")] if a.refs else None))
+    elif a.partition:
+        _emit(w_partition(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                          json.loads(a.assign), a.out, os.path.join(ROOT, a.board)))
     elif a.measure:
         _emit(w_measure(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
-                        a.passes, a.opt_time))
+                        a.passes, a.opt_time, keepout=a.keepout))
     else:
         ap.print_help()
 
