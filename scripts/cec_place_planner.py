@@ -228,7 +228,8 @@ def w_measure(board_pcb, passes, opt_time):
         nn = z.GetNetname()
         if (nn.endswith("_HI") or nn.endswith("_LO")) and z.IsOnLayer(pcbnew.F_Cu):
             sp_ = z.GetFilledPolysList(pcbnew.F_Cu); bb = z.GetBoundingBox()
-            Z[nn] = {"isl": sp_.OutlineCount(), "bb": [bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom()], "x": 0}
+            Z[nn] = {"isl": sp_.OutlineCount(), "bb": [bb.GetLeft(), bb.GetTop(), bb.GetRight(), bb.GetBottom()],
+                     "x": 0, "nets": {}}
     for t in rb.GetTracks():
         if t.GetClass() != "PCB_TRACK" or t.GetLayer() != pcbnew.F_Cu:
             continue
@@ -239,10 +240,15 @@ def w_measure(board_pcb, passes, opt_time):
             l, tp, r, bm = z["bb"]
             if min(s.x, e.x) <= r and max(s.x, e.x) >= l and min(s.y, e.y) <= bm and max(s.y, e.y) >= tp:
                 z["x"] += 1
+                z["nets"][tn] = z["nets"].get(tn, 0) + 1     # the ACTUAL foreign net clipping this pour
     del rb
+    # clip_nets: which FOREIGN net actually clips which pour (the real offenders the planner must fix) --
+    # the routed-truth version of the airwire `crossings` proxy, so the LLM targets nets that really clip.
+    clip_nets = sorted({(tn, base.lstrip("/")) for base, z in Z.items() for tn in z["nets"]})
     return {"kelvin_ok": bool(m.get("kelvin_ok")), "diffpair_ok": bool(m.get("diffpair_ok")),
             "gates_pass": bool(m.get("gates_pass")), "drc": m.get("drc"), "unconnected": m.get("unconnected"),
-            "clips": sum(z["x"] for z in Z.values()), "fragmented_pours": sum(1 for z in Z.values() if z["isl"] > 1)}
+            "clips": sum(z["x"] for z in Z.values()), "fragmented_pours": sum(1 for z in Z.values() if z["isl"] > 1),
+            "clip_nets": [{"net": n, "pour": p} for n, p in clip_nets]}
 
 
 # ====================================================================== HOST: the LLM planner seat
@@ -284,21 +290,51 @@ _PLANNER_SYSTEM = (
 )
 
 
-def plan_moves(context, prev_measure, model=None, timeout=360):
-    """HOST: ask the planner seat for placement moves given the analyzed context + last measure.
-    Uses the local broker (a RAW single json-schema completion) -- NOT `claude -p`, which is the agentic
-    Claude Code harness and runs a tool-using loop that times out on a substantial prompt. cec-manager-fast
-    (gpt-oss-120b) is the manager-class fast seat; a cloud model name routes through _is_cloud if ever wanted."""
+def _trim_context(context):
+    """Trim the analyzed context for the planner: keep the SIGNIFICANT, movable parts (connectors J*,
+    shunts RS*, ICs U*, diodes/inductors) -- the decoupling passives (R*/C*) follow their owner IC via
+    legalize, so the LLM should not place them individually. Smaller prompt -> a faster, sharper call."""
+    def sig(ref):
+        return not (ref[:1] in ("R", "C") and ref[1:2].isdigit())   # drop R<n>/C<n> passives
+    t = dict(context)
+    t["parts"] = [p for p in context.get("parts", []) if sig(p["ref"])]
+    return t
+
+
+def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, temperature=0.0):
+    """HOST: ask the planner seat for placement moves to improve on the BEST board so far.
+    *best_measure* is the best board's route (kelvin/clips/clip_nets -- the ACTUAL offenders). *feedback*
+    (optional) is the last REGRESSED attempt {moves, from_clips, to_clips} so the planner tries a DIFFERENT
+    approach instead of repeating a move-set that made it worse (with temperature>0 for diversity)."""
     import cec_judge_local as jl
+    clip_line = ""
+    if best_measure and best_measure.get("clip_nets"):
+        clip_line = ("ACTUAL POUR CLIPS on the current best board (routed-truth -- the REAL offenders, not "
+                     "the airwire proxy): " + json.dumps(best_measure["clip_nets"][:24]) + "\n"
+                     "Each is a FOREIGN net whose routed F.Cu trace cuts a high-current pour. PRIMARY GOAL: "
+                     "drive these to 0. For each, place its endpoints so the net routes ENTIRELY on ONE side "
+                     "of that pour -- the detection chain shunt->amp(INA181)->comparator->ESP must stay LOCAL "
+                     "to its OWN cable's side until past the LAST corridor. Kelvin is already met; do NOT "
+                     "drag a sense IC away from its shunt to chase a clip.\n")
+    fb_line = ""
+    if feedback:
+        fb_line = ("YOUR LAST ATTEMPT REGRESSED: moving %s took clips %s->%s. Try a DIFFERENT approach -- "
+                   "move different parts / a different side; do not repeat those moves.\n"
+                   % ([m.get("ref") for m in (feedback.get("moves") or [])][:8],
+                      feedback.get("from_clips"), feedback.get("to_clips")))
     user = (
-        "BOARD CONTEXT (current placement):\n" + json.dumps(context, indent=1)[:9000] + "\n\n"
-        + ("LAST ROUTE MEASURE: " + json.dumps(prev_measure) + "\n\n" if prev_measure else "")
-        + "Propose the placement MOVES that (1) seat each sense IC against its shunt for a clean Kelvin "
-        "tap and (2) eliminate the corridor crossings (the `crossings` list -- each names the net + which "
-        "refs are left/right of the band). Keep J_IN*/J_OUT*/RS* fixed. Return diagnosis + moves."
+        "BOARD CONTEXT (best placement so far; decoupling R*/C* passives omitted -- they follow their IC):\n"
+        + json.dumps(_trim_context(context), indent=1)[:7000] + "\n\n"
+        + ("BEST ROUTE: kelvin_ok=%s clips=%s drc=%s\n" % (best_measure.get("kelvin_ok"),
+           best_measure.get("clips"), best_measure.get("drc")) if best_measure else "")
+        + clip_line + fb_line + "\n"
+        + "Propose the placement MOVES that drive the ACTUAL pour clips toward 0 (keep each clipping net on "
+        "one side of its corridor) while KEEPING kelvin (sense ICs stay against their shunts). Keep "
+        "J_IN*/J_OUT*/RS* fixed. Be decisive; terse rationales. Return diagnosis + moves."
     )
     return jl._chat_json(_PLANNER_SYSTEM, user, MOVE_SCHEMA, name="placeplan",
-                         model=model or "cec-manager-fast", timeout=timeout)
+                         model=model or "cec-manager-fast", timeout=timeout, max_tokens=1400,
+                         temperature=temperature)
 
 
 # ====================================================================== HOST: the iterate driver
@@ -319,39 +355,57 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
     if s.get("error"):
         log(f"seed failed: {s['error']}"); return {"error": s["error"]}
     log(f"seed: {seed_out} corridor_cross={s.get('corridor_cross')} ({s['W']}x{s['H']}mm)")
-    cur = seed_out
-    best = {"board": None, "score": (1, 9999, 9999)}         # (gate_fail, clips, drc) lower=better
-    history = []
+    def score(meas):
+        # kelvin is a HARD requirement (never accept a board that loses it); then minimize ACTUAL clips,
+        # then drc. gates_pass (drc==0) is informational -- the finishing floor is ~3, so clips is the
+        # real objective once kelvin holds.
+        return (0 if meas.get("kelvin_ok") else 1, meas.get("clips", 9999) or 9999,
+                meas.get("drc", 9999) or 9999)
 
-    for rnd in range(rounds):
-        ctx = _exec_worker(["--analyze", "--board-pcb", cur, "--board", _rel(board_dir)])
+    # measure the SEED -> the first best
+    seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
+                              "--opt-time", str(opt_time)])
+    best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
+    log(f"r0 (seed): kelvin={seed_meas.get('kelvin_ok')} clips={seed_meas.get('clips')} "
+        f"drc={seed_meas.get('drc')}")
+    history = [{"round": 0, "board": seed_out, "measure": seed_meas, "accepted": True}]
+    feedback = None                                          # last regressed attempt -> diversify the next plan
+
+    for rnd in range(1, rounds):
+        # HILL-CLIMB: always plan FROM the best board, accept the candidate only if it improves.
+        ctx = _exec_worker(["--analyze", "--board-pcb", best["board"], "--board", _rel(board_dir)])
         if ctx.get("error"):
             log(f"r{rnd} analyze failed: {ctx['error']}"); break
-        meas = _exec_worker(["--measure", "--board-pcb", cur, "--passes", str(passes), "--opt-time", str(opt_time)])
-        log(f"r{rnd}: corridor_cross={ctx.get('corridor_cross')} | route kelvin={meas.get('kelvin_ok')} "
-            f"gates={meas.get('gates_pass')} drc={meas.get('drc')} clips={meas.get('clips')} "
-            f"unconn={meas.get('unconnected')}")
-        sc = (0 if meas.get("gates_pass") else 1, meas.get("clips", 9999) or 9999, meas.get("drc", 9999) or 9999)
-        history.append({"round": rnd, "board": cur, "measure": meas, "corridor_cross": ctx.get("corridor_cross")})
-        if sc < best["score"]:
-            best = {"board": cur, "score": sc, "measure": meas}
-        if meas.get("gates_pass"):
-            log(f"r{rnd}: GATES PASS -> converged"); break
-        if rnd == rounds - 1:
-            break
-        plan = plan_moves(ctx, meas, model=model)
+        # temperature rises with consecutive regressions -> escape a repeated move-set
+        temp = 0.0 if feedback is None else min(0.8, 0.3 * (feedback.get("streak", 1)))
+        plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
         moves = (plan or {}).get("moves") or []
-        log(f"r{rnd}: planner '{(plan or {}).get('diagnosis','')[:80]}' -> {len(moves)} move(s)")
+        log(f"r{rnd}: plan(from best clips={best['measure'].get('clips')}, temp={temp}) "
+            f"'{(plan or {}).get('diagnosis','')[:70]}' -> {len(moves)} move(s)")
         if not moves:
             log(f"r{rnd}: no moves -> stop"); break
-        nxt = f"{out_dir}/{board_name}-r{rnd + 1}.kicad_pcb"
-        ap = _exec_worker(["--apply", "--board-pcb", cur, "--out", nxt,
-                           "--moves", json.dumps(moves)])
+        cand = f"{out_dir}/{board_name}-r{rnd}.kicad_pcb"
+        ap = _exec_worker(["--apply", "--board-pcb", best["board"], "--out", cand, "--moves", json.dumps(moves)])
         if ap.get("error"):
             log(f"r{rnd} apply failed: {ap['error']}"); break
-        cur = nxt
-    log(f"DONE: best gates={best.get('measure',{}).get('gates_pass')} "
-        f"clips={best.get('measure',{}).get('clips')} -> {best.get('board')}")
+        cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)])
+        csc = score(cmeas)
+        improved = csc < best["score"]
+        log(f"r{rnd}: candidate kelvin={cmeas.get('kelvin_ok')} clips={cmeas.get('clips')} "
+            f"drc={cmeas.get('drc')} -> {'ACCEPT (new best)' if improved else 'reject (keep best)'}")
+        history.append({"round": rnd, "board": cand, "measure": cmeas, "moves": [m.get("ref") for m in moves],
+                        "accepted": improved})
+        if improved:
+            best = {"board": cand, "measure": cmeas, "score": csc}
+            feedback = None
+        else:
+            streak = (feedback.get("streak", 1) + 1) if feedback else 1
+            feedback = {"moves": moves, "from_clips": best["measure"].get("clips"),
+                        "to_clips": cmeas.get("clips"), "streak": streak}
+        if best["measure"].get("kelvin_ok") and (best["measure"].get("clips") or 99) <= 6:
+            log(f"r{rnd}: clips<=6 with kelvin -> CONVERGED"); break
+    log(f"DONE: best kelvin={best['measure'].get('kelvin_ok')} clips={best['measure'].get('clips')} "
+        f"drc={best['measure'].get('drc')} -> {best['board']}")
     json.dump({"best": best, "history": history},
               open(os.path.join(ROOT, out_dir, f"{board_name}-result.json"), "w"), indent=1, default=str)
     return {"best": best, "history": history}
