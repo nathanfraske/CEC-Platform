@@ -301,6 +301,42 @@ def _trim_context(context):
     return t
 
 
+def plan_cluster(context, best_measure, model=None, timeout=420, temperature=0.2):
+    """HOST: the PARTITION/CLUSTER plan -- the big structural jump. Diagnosis (2026-06-16): the clip gap is
+    ~15 foreign nets straddling the corridors, ~13 of them AVOIDABLE (ESP-side power/CAN/I2C/USB/EN/detect).
+    The fix is to move EVERY foreign (non-corridor) part to ONE side in a single coherent layout so only the
+    ~2-3 inherent detection-chain crossings remain. The LLM does the global partition; the placer +
+    legalize do the geometry. One good partition should drop clips far in one step (vs incremental crawl)."""
+    import cec_judge_local as jl
+    corridors = context.get("corridors", [])
+    right_x = max((c["band"][2] for c in corridors), default=context["outline"]["W"] * 0.55) + 2.0
+    W = context["outline"]["W"]; H = context["outline"]["H"]
+    corridor_refs = set()
+    for c in corridors:
+        corridor_refs |= {c.get("shunt")} | set(c.get("sense_ics", []))
+    corridor_refs |= {p["ref"] for p in context.get("parts", []) if p["ref"].startswith("J")}
+    foreign = [p["ref"] for p in context.get("parts", [])
+               if p["ref"] not in corridor_refs and p["ref"][:1] in ("U", "D", "L", "Q", "Y", "X")]
+    user = (
+        "BOARD CONTEXT:\n" + json.dumps(_trim_context(context), indent=1)[:7000] + "\n\n"
+        + ("BEST ROUTE: kelvin_ok=%s clips=%s\n\n" % (best_measure.get("kelvin_ok"),
+           best_measure.get("clips")) if best_measure else "")
+        + "FULL RE-CLUSTER (the structural fix). The clip gap is ~15 FOREIGN nets crossing the corridors; "
+        "~13 are AVOIDABLE (all ESP-side: +3V3/+5VSB/VBUS/CAN/I2C/USB/EN/DETECT). Move EVERY foreign IC to "
+        "the RIGHT region x in [%.0f, %.0f] (y in [2, %.0f]), packed as a tight cluster on the ESP side of "
+        "BOTH corridors, so those nets live entirely to the right and only the ~2-3 inherent detection "
+        "crossings remain. Foreign ICs to place on the right: %s. Keep the corridor parts "
+        "(J_IN*/J_OUT*/RS*/the sense INAs in each corridor) fixed. Give a move (x,y) for EACH foreign IC "
+        "above, spread so they don't stack. Terse rationales. Return diagnosis + moves."
+        % (right_x, W - 2, H - 2, foreign[:24])
+    )
+    sysmsg = _PLANNER_SYSTEM + "\nThis is the CLUSTER pass: produce a COMPLETE coherent layout of the "\
+        "foreign logic on one side, not a few tweaks."
+    return jl._chat_json(sysmsg, user, MOVE_SCHEMA, name="placecluster",
+                         model=model or "cec-manager-fast", timeout=timeout, max_tokens=1800,
+                         temperature=temperature)
+
+
 def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, temperature=0.0):
     """HOST: ask the planner seat for placement moves to improve on the BEST board so far.
     *best_measure* is the best board's route (kelvin/clips/clip_nets -- the ACTUAL offenders). *feedback*
@@ -382,13 +418,17 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
         ctx = _exec_worker(["--analyze", "--board-pcb", best["board"], "--board", _rel(board_dir)])
         if ctx.get("error"):
             log(f"r{rnd} analyze failed: {ctx['error']}"); break
-        # EXPLORATORY base temperature (the big wins came from BOLD structural moves at higher temp --
-        # e.g. relocating the shared ESP hub), rising further with consecutive regressions to escape a
-        # repeated move-set. Incremental low-temp tweaks plateau.
-        temp = min(0.9, 0.4 + 0.2 * (feedback.get("streak", 0) if feedback else 0))
-        plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
+        # Round 1 (and after a clustering streak resets) = the CLUSTER pass (the big structural partition
+        # jump that the incremental crawl can't make); later rounds = incremental refinement from the best.
+        if rnd == 1 or (feedback and feedback.get("streak", 0) >= 3):
+            plan = plan_cluster(ctx, best["measure"], model=model)
+            kind = "cluster"
+        else:
+            temp = min(0.9, 0.4 + 0.2 * (feedback.get("streak", 0) if feedback else 0))
+            plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
+            kind = f"refine t={temp}"
         moves = (plan or {}).get("moves") or []
-        log(f"r{rnd}: plan(from best clips={best['measure'].get('clips')}, temp={temp}) "
+        log(f"r{rnd}: {kind}(from best clips={best['measure'].get('clips')}) "
             f"'{(plan or {}).get('diagnosis','')[:70]}' -> {len(moves)} move(s)")
         if not moves:
             log(f"r{rnd}: no moves -> stop"); break
