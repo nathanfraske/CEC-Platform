@@ -355,8 +355,8 @@ def plan_cluster(context, best_measure, model=None, timeout=420, temperature=0.2
     sysmsg = _PLANNER_SYSTEM + "\nThis is the CLUSTER pass: produce a COMPLETE coherent layout of the "\
         "foreign logic on one side, not a few tweaks. Output ref,x,y per move; no rationale text."
     return jl._chat_json(sysmsg, user, MOVE_SCHEMA, name="placecluster",
-                         model=model or "sonnet", timeout=timeout, max_tokens=2200,
-                         temperature=temperature)
+                         model=model or "cec-worker", timeout=timeout, max_tokens=2600,
+                         temperature=temperature, nothink=True)
 
 
 def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, temperature=0.0):
@@ -391,8 +391,8 @@ def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, te
         "J_IN*/J_OUT*/RS* fixed. Be decisive; terse rationales. Return diagnosis + moves."
     )
     return jl._chat_json(_PLANNER_SYSTEM, user, MOVE_SCHEMA, name="placeplan",
-                         model=model or "sonnet", timeout=timeout, max_tokens=1400,
-                         temperature=temperature)
+                         model=model or "cec-worker", timeout=timeout, max_tokens=2000,
+                         temperature=temperature, nothink=True)
 
 
 # ====================================================================== HOST: the iterate driver
