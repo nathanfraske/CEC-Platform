@@ -1,4 +1,4 @@
-# CEC 24-pin Module — sdkconfig defaults for ESP32-S3 N16R8
+# CEC 24-pin Module — sdkconfig defaults for ESP32-S3-MINI-1 N4R2
 #
 # Generate sdkconfig from this with: idf.py set-target esp32s3 && idf.py menuconfig
 # (the menuconfig step picks up these defaults; modify them there for tuning)
@@ -6,13 +6,14 @@
 # Target
 CONFIG_IDF_TARGET="esp32s3"
 
-# Flash size (Lonely Binary N16R8 has 16 MB flash)
-CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
-CONFIG_ESPTOOLPY_FLASHSIZE="16MB"
+# Flash size (ESP32-S3-MINI-1-N4R2 has 4 MB flash)
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
 
-# PSRAM (Lonely Binary N16R8 uses 8 MB octal PSRAM)
+# PSRAM (ESP32-S3-MINI-1-N4R2 has 2 MB QUAD PSRAM -- not the WROOM N16R8's octal 8 MB.
+# TYPE_AUTO detects the 2 MB; MODE_QUAD is the in-package R2 PSRAM interface.)
 CONFIG_SPIRAM=y
-CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_MODE_QUAD=y
 CONFIG_SPIRAM_TYPE_AUTO=y
 CONFIG_SPIRAM_SPEED_80M=y
 CONFIG_SPIRAM_BOOT_INIT=y
