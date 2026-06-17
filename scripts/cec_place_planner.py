@@ -395,9 +395,43 @@ def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, te
                          temperature=temperature, nothink=True)
 
 
+_AUDITOR_SYSTEM = _PLANNER_SYSTEM + (
+    "\n\nYou are the AUDITOR -- the DEEP-REVIEW tier above the fast worker, which has PLATEAUED (every "
+    "recent attempt regressed or barely moved). You see the FULL attempt history. Do NOT propose a "
+    "variation on what already failed. Diagnose the STRUCTURAL reason the clips are stuck, then propose a "
+    "STRUCTURALLY DIFFERENT full placement (a different partition / arrangement of the significant ICs) to "
+    "escape the local optimum -- a hand-tuned board reaches ~3 clips, so a much better arrangement EXISTS.")
+
+
+def plan_audit(context, best_measure, history, model=None, timeout=300, temperature=0.3):
+    """The AUDITOR tier: a MORE CAPABLE seat (cec-worker-quality, Qwen 27B dense + nothink) that reviews
+    the WHOLE trajectory on a deep plateau and proposes a STRUCTURALLY DIFFERENT placement to escape the
+    local optimum the fast worker is stuck in. Fires rarely (deep plateau), so its higher latency is fine."""
+    import cec_judge_local as jl
+    traj = [{"r": h["round"], "moved": h.get("moves"), "clips": (h.get("measure") or {}).get("clips"),
+             "kelvin": (h.get("measure") or {}).get("kelvin_ok"), "accepted": h.get("accepted")}
+            for h in history[-12:]]
+    user = (
+        "BEST PLACEMENT (decoupling R*/C* passives omitted -- they follow their IC):\n"
+        + json.dumps(_trim_context(context), indent=1)[:6000] + "\n\n"
+        + "BEST: kelvin_ok=%s clips=%s. ACTUAL clipping nets: %s\n"
+        % (best_measure.get("kelvin_ok"), best_measure.get("clips"),
+           json.dumps(best_measure.get("clip_nets", [])[:20])) + "\n"
+        + "ATTEMPT HISTORY (the worker is PLATEAUED -- {moved}=refs it moved, clips=resulting clips):\n"
+        + json.dumps(traj) + "\n\n"
+        + "The clips are STUCK at %s. Diagnose the STRUCTURAL reason, then propose a STRUCTURALLY DIFFERENT "
+        "full placement (move the significant ICs to a different partition/arrangement than anything above) "
+        "to break the plateau toward ~3 clips. Keep J_IN*/J_OUT*/RS* fixed and sense ICs against their "
+        "shunts (kelvin). Return diagnosis + moves." % best_measure.get("clips")
+    )
+    return jl._chat_json(_AUDITOR_SYSTEM, user, MOVE_SCHEMA, name="placeaudit",
+                         model=model or "cec-worker-quality", timeout=timeout, max_tokens=2600,
+                         temperature=temperature, nothink=True)
+
+
 # ====================================================================== HOST: the iterate driver
-def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16, opt_time=32,
-        from_board=None):
+def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16,
+        opt_time=32, from_board=None):
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
     os.makedirs(os.path.join(ROOT, out_dir), exist_ok=True)
@@ -440,14 +474,19 @@ def run(board_dir, rounds, *, model=None, seeds=(0, 1, 2, 3), out_dir=None, pass
         ctx = _exec_worker(["--analyze", "--board-pcb", best["board"], "--board", _rel(board_dir)])
         if ctx.get("error"):
             log(f"r{rnd} analyze failed: {ctx['error']}"); break
-        # Round 1 (and after a clustering streak resets) = the CLUSTER pass (the big structural partition
-        # jump that the incremental crawl can't make); later rounds = incremental refinement from the best.
+        # TIERED ESCALATION by plateau depth: refine (fast worker) -> cluster (re-partition) -> AUDITOR
+        # (a more-capable seat reviews the whole trajectory + proposes a structurally different placement
+        # to escape the local optimum). The auditor is the deepest tier, fired only on a deep plateau.
+        streak = feedback.get("streak", 0) if feedback else 0
         try:
-            if rnd == 1 or (feedback and feedback.get("streak", 0) >= 3):
+            if streak >= 6:
+                plan = plan_audit(ctx, best["measure"], history, model=auditor)
+                kind = "AUDIT"
+            elif rnd == 1 or 3 <= streak < 6:
                 plan = plan_cluster(ctx, best["measure"], model=model)
                 kind = "cluster"
             else:
-                temp = min(0.9, 0.4 + 0.2 * (feedback.get("streak", 0) if feedback else 0))
+                temp = min(0.9, 0.4 + 0.2 * streak)
                 plan = plan_moves(ctx, best["measure"], model=model, feedback=feedback, temperature=temp)
                 kind = f"refine t={temp}"
         except Exception as e:                              # noqa: BLE001 -- a seat parse/transport failure
@@ -496,13 +535,16 @@ def main(argv=None):
     ap.add_argument("--board"); ap.add_argument("--board-pcb"); ap.add_argument("--out")
     ap.add_argument("--moves"); ap.add_argument("--seeds", default="0,1,2,3"); ap.add_argument("--strategies",
                     default="dataflow,thermal_separated,compact")
-    ap.add_argument("--rounds", type=int, default=6); ap.add_argument("--model", default=None)
+    ap.add_argument("--rounds", type=int, default=6); ap.add_argument("--model", default=None,
+                    help="worker seat (per-round refine/cluster); default cec-worker (Qwen3.6 + nothink)")
+    ap.add_argument("--auditor", default=None,
+                    help="auditor seat (deep-plateau structural review); default cec-worker-quality")
     ap.add_argument("--passes", type=int, default=16); ap.add_argument("--opt-time", type=int, default=32)
     ap.add_argument("--from-board", default=None, help="continue the hill-climb from this board (vs re-seed)")
     ap.add_argument("--out-dir", default=None, help="output dir for candidates (default build/place-planner)")
     a = ap.parse_args(argv)
     if a.run:
-        run(a.board, a.rounds, model=a.model, passes=a.passes, opt_time=a.opt_time,
+        run(a.board, a.rounds, model=a.model, auditor=a.auditor, passes=a.passes, opt_time=a.opt_time,
             from_board=a.from_board, out_dir=a.out_dir)
     elif a.seed:
         _emit(w_seed(os.path.join(ROOT, a.board), a.out, [int(s) for s in a.seeds.split(",")], a.strategies.split(",")))
