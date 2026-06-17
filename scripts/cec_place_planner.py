@@ -372,35 +372,15 @@ def w_pack(board_pcb, out_rel, board_dir, region="right", refs=None):
     return ap
 
 
-def w_measure(board_pcb, passes, opt_time, keepout=False):
-    """Route the placement + score: kelvin_ok, drc, unconnected, and the ACTUAL foreign F.Cu clips into
-    the high-current pours (the pour-integrity signal). keepout=True routes WITH the corridor keepout
-    (forces foreign signals AROUND the corridors) -- the test of whether a partition is clean enough that
-    the keepout doesn't strand the +3V3/+5VSB rails feeding the inner-edge sense ICs (high unconnected
-    => the partition forces a power rail across a corridor, which the keepout then blocks)."""
+def _score_routed(routed_board):
+    """Score an ALREADY-routed board: kelvin/diffpair/drc/unconnected + the ACTUAL foreign F.Cu clips into
+    the high-current pours. Runs in its OWN process (see w_measure) -- loading a board after a route+pour+
+    keepout pipeline in the same process corrupts pcbnew SWIG state (later LoadBoard returns a bare
+    SwigPyObject), so the score MUST be a fresh interpreter."""
     import pcbnew
-    import cec_fr
     import cec_score
-    b = pcbnew.LoadBoard(board_pcb)
-    pours = cec_fr.derive_power_pours(board_pcb, board=b)
-    # derive kelvin pairs from THIS board's net names (plain strings -> no proxy leak)
-    _names = {n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
-    _kp = [(h, h[:-3] + "_LO") for h in sorted(_names) if h.endswith("_HI") and (h[:-3] + "_LO") in _names]
-    del b
-    hints = []
-    if keepout:
-        # corridor_keepouts must load + OWN its board (board + its pad proxies then share one lifetime and GC
-        # together cleanly); passing board=b and then `del b` orphans its internal Pad proxies -> GC on those
-        # dangling SwigPyObjects corrupts pcbnew state so the later score LoadBoard returns a bare SwigPyObject.
-        # nets_12v=[] keeps it from doing a nested cec_score.Rules.from_board LoadBoard (same hazard).
-        hints = cec_fr.corridor_keepouts(board_pcb, kelvin_pairs=_kp, nets_12v=[])
-    routed = os.path.join(tempfile.mkdtemp(), "routed.kicad_pcb")
-    c = cec_fr.route_once(board_pcb, routed, hints=hints, power_pours=pours, passes=passes, opt_time=opt_time)
-    if not (c.ok and c.board):
-        return {"error": f"route failed: {getattr(c, 'err', None)}"}
-    m = dataclasses.asdict(cec_score.score(c.board))
-    # actual clips
-    rb = pcbnew.LoadBoard(c.board)
+    m = dataclasses.asdict(cec_score.score(routed_board))
+    rb = pcbnew.LoadBoard(routed_board)
     Z = {}
     for z in rb.Zones():
         nn = z.GetNetname()
@@ -420,13 +400,39 @@ def w_measure(board_pcb, passes, opt_time, keepout=False):
                 z["x"] += 1
                 z["nets"][tn] = z["nets"].get(tn, 0) + 1     # the ACTUAL foreign net clipping this pour
     del rb
-    # clip_nets: which FOREIGN net actually clips which pour (the real offenders the planner must fix) --
-    # the routed-truth version of the airwire `crossings` proxy, so the LLM targets nets that really clip.
     clip_nets = sorted({(tn, base.lstrip("/")) for base, z in Z.items() for tn in z["nets"]})
     return {"kelvin_ok": bool(m.get("kelvin_ok")), "diffpair_ok": bool(m.get("diffpair_ok")),
             "gates_pass": bool(m.get("gates_pass")), "drc": m.get("drc"), "unconnected": m.get("unconnected"),
             "clips": sum(z["x"] for z in Z.values()), "fragmented_pours": sum(1 for z in Z.values() if z["isl"] > 1),
             "clip_nets": [{"net": n, "pour": p} for n, p in clip_nets]}
+
+
+def w_measure(board_pcb, passes, opt_time, keepout=False):
+    """Route the placement, then SCORE IN A SEPARATE SUBPROCESS: kelvin/drc/unconnected + the ACTUAL foreign
+    F.Cu clips into the high-current pours. keepout=True routes WITH the corridor keepout (forces foreign
+    signals AROUND the corridors via the clear top/bottom channels). The route and score MUST be different
+    processes -- a route+pour(+keepout) pipeline leaves pcbnew SWIG state such that a same-process LoadBoard
+    for scoring returns a bare SwigPyObject (the documented footgun); the fresh interpreter is the fix and
+    is what lets the keepout path score at all."""
+    import pcbnew
+    import cec_fr
+    b = pcbnew.LoadBoard(board_pcb)
+    pours = cec_fr.derive_power_pours(board_pcb, board=b)
+    _names = {n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    _kp = [(h, h[:-3] + "_LO") for h in sorted(_names) if h.endswith("_HI") and (h[:-3] + "_LO") in _names]
+    del b
+    hints = cec_fr.corridor_keepouts(board_pcb, kelvin_pairs=_kp, nets_12v=[]) if keepout else []
+    routed = os.path.join(tempfile.mkdtemp(), "routed.kicad_pcb")
+    c = cec_fr.route_once(board_pcb, routed, hints=hints, power_pours=pours, passes=passes, opt_time=opt_time)
+    if not (c.ok and c.board):
+        return {"error": f"route failed: {getattr(c, 'err', None)}"}
+    # score in a FRESH interpreter (SWIG state hygiene)
+    r = subprocess.run([sys.executable, os.path.abspath(__file__), "--score-board", c.board],
+                       capture_output=True, text=True, timeout=300)
+    for ln in (r.stdout or "").splitlines():
+        if ln.startswith("RESULT_JSON="):
+            return json.loads(ln[len("RESULT_JSON="):])
+    return {"error": f"score subprocess failed rc={r.returncode}: {((r.stdout or '') + (r.stderr or ''))[-400:]}"}
 
 
 # ====================================================================== HOST: the LLM planner seat
@@ -655,7 +661,7 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
 
 # ====================================================================== HOST: the iterate driver
 def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16,
-        opt_time=32, from_board=None, deadline=None):
+        opt_time=32, from_board=None, deadline=None, keepout=False):
     import time
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
@@ -692,9 +698,12 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         drc = meas.get("drc", 9999) or 9999
         return (0, clips + drc, clips)
 
+    ko_flag = ["--keepout"] if keepout else []               # route every measure WITH the corridor keepout
+    if keepout:
+        log("corridor keepout ENABLED (foreign nets forced around the corridors via top/bottom channels)")
     # measure the SEED -> the first best
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
-                              "--opt-time", str(opt_time)])
+                              "--opt-time", str(opt_time)] + ko_flag)
     best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
     log(f"r0 (seed): kelvin={seed_meas.get('kelvin_ok')} clips={seed_meas.get('clips')} "
         f"drc={seed_meas.get('drc')}")
@@ -759,7 +768,7 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             feedback = {"moves": [], "from_clips": best["measure"].get("clips"),
                         "to_clips": best["measure"].get("clips"), "streak": streak + 1}
             continue
-        cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)])
+        cmeas = _exec_worker(["--measure", "--board-pcb", cand, "--passes", str(passes), "--opt-time", str(opt_time)] + ko_flag)
         csc = score(cmeas)
         improved = csc < best["score"]
         log(f"r{rnd}: candidate kelvin={cmeas.get('kelvin_ok')} clips={cmeas.get('clips')} "
@@ -789,6 +798,7 @@ def main(argv=None):
     ap.add_argument("--run", action="store_true", help="HOST driver")
     ap.add_argument("--seed", action="store_true"); ap.add_argument("--analyze", action="store_true")
     ap.add_argument("--apply", action="store_true"); ap.add_argument("--measure", action="store_true")
+    ap.add_argument("--score-board", default=None, help="score an already-routed board (fresh-process score)")
     ap.add_argument("--pack", action="store_true", help="deterministic shelf-pack a partition into a region")
     ap.add_argument("--partition", action="store_true", help="region-aware partition: --assign [{ref,region}]")
     ap.add_argument("--assign", default=None, help="JSON [{ref,region}] region assignments for --partition")
@@ -807,11 +817,13 @@ def main(argv=None):
     ap.add_argument("--hours", type=float, default=None, help="wall-clock deadline in hours (stop after)")
     ap.add_argument("--out-dir", default=None, help="output dir for candidates (default build/place-planner)")
     a = ap.parse_args(argv)
-    if a.run:
+    if a.score_board:
+        _emit(_score_routed(a.score_board if os.path.isabs(a.score_board) else os.path.join(ROOT, a.score_board)))
+    elif a.run:
         import time
         deadline = (time.time() + a.hours * 3600) if a.hours else None
         run(a.board, a.rounds, model=a.model, auditor=a.auditor, passes=a.passes, opt_time=a.opt_time,
-            from_board=a.from_board, out_dir=a.out_dir, deadline=deadline)
+            from_board=a.from_board, out_dir=a.out_dir, deadline=deadline, keepout=a.keepout)
     elif a.seed:
         _emit(w_seed(os.path.join(ROOT, a.board), a.out, [int(s) for s in a.seeds.split(",")], a.strategies.split(",")))
     elif a.analyze:
