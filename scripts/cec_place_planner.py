@@ -629,8 +629,11 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
     if deep and history:
         traj = [{"r": h["round"], "clips": (h.get("measure") or {}).get("clips"), "moved": h.get("moves")}
                 for h in history[-12:]]
-        traj_line = ("\nThe worker is PLATEAUED. ATTEMPT HISTORY (moved=refs, clips=result): "
-                     + json.dumps(traj) + "\nChoose a region assignment STRUCTURALLY DIFFERENT from those.\n")
+        traj_line = ("\nThe worker is PLATEAUED and EVERY recent attempt REGRESSED -- do NOT repeat any of "
+                     "their groupings. ATTEMPT HISTORY (moved=refs, clips=result): " + json.dumps(traj)
+                     + "\nPick a region assignment STRUCTURALLY DIFFERENT from all of the above: put the ESP "
+                     "(U1) and the power source (LDO) in a region NONE of these used, and try splitting the "
+                     "per-cable detection comparators to OPPOSITE channels (one top, one bottom).\n")
     clip_line = ""
     if best_measure and best_measure.get("clip_nets"):
         clip_line = "ACTUAL POUR CLIPS to eliminate: " + json.dumps(best_measure["clip_nets"][:24]) + "\n"
@@ -654,9 +657,12 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
     sysmsg = (_AUDITOR_SYSTEM if deep else _PLANNER_SYSTEM) + (
         "\nThis is the REGION-PARTITION pass: assign each foreign IC to a NAMED region; a deterministic "
         "packer materializes each region (you do NOT give coordinates). Output ref+region per assignment.")
+    # the DEEP (auditor) tier runs HOT (0.75) for diversity -- on a plateau it kept emitting an identical
+    # partition at low temp; high temp + the anti-repeat history is what breaks the repetition loop.
+    eff_temp = 0.75 if deep else temperature
     return jl._chat_json(sysmsg, user, PARTITION_SCHEMA, name="placepartition",
                          model=model or ("cec-worker-quality" if deep else "cec-worker"),
-                         timeout=timeout, max_tokens=2200, temperature=temperature, nothink=True)
+                         timeout=timeout, max_tokens=(3000 if deep else 2200), temperature=eff_temp, nothink=True)
 
 
 # ====================================================================== HOST: the iterate driver
