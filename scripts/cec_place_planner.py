@@ -685,18 +685,21 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             log(f"seed failed: {s['error']}"); return {"error": s["error"]}
         log(f"seed: {seed_out} corridor_cross={s.get('corridor_cross')} ({s['W']}x{s['H']}mm)")
     def score(meas):
-        # FAB-READINESS objective: (1) kelvin is HARD (never accept a board that loses it); (2) minimize
-        # the SUM clips+drc -- a SMOOTH scalarization that values BOTH pour-integrity (clips) and
-        # manufacturability (drc) and gives a real gradient toward both-low. It naturally dominates the
-        # clips=48/drc=28 trap (sum 76) with a balanced clips=47/drc=19 (66) and rewards driving either
-        # down; (3) raw clips as the tiebreak (pour integrity is the headline we're chasing). A hard DRC
-        # ceiling was tried first and rejected -- it threw away a clips=47 win for a near-miss drc=19 and
-        # gave no gradient among over-ceiling boards. Lower = better.
-        if not meas.get("kelvin_ok"):
-            return (1, 1e9, 1e9)
+        # FAB-READINESS objective, lexicographic, gives a gradient in BOTH regimes (esp. needed with the
+        # corridor keepout, which can strand routing -> kelvin=False / high unconnected):
+        #   kelvin=False : (1, unconnected, clips+drc)   -- among BROKEN boards prefer FEWER unrouted nets,
+        #                  a gradient that climbs back toward a fully-routable (kelvin-true) placement.
+        #   kelvin=True  : (0, clips+drc+5*unconnected, clips) -- minimize the SUM (smooth, values pour
+        #                  integrity AND manufacturability; heavy unconnected penalty so a not-fully-routed
+        #                  board never beats a routed one), clips as the tiebreak (the headline metric).
+        # The False->True transition is a strict win (0<1). A hard DRC ceiling was tried and rejected (it
+        # threw away a clips=47 win for a near-miss drc and gave no gradient). Lower = better.
         clips = meas.get("clips", 9999) or 9999
         drc = meas.get("drc", 9999) or 9999
-        return (0, clips + drc, clips)
+        un = meas.get("unconnected", 9999) or 9999
+        if not meas.get("kelvin_ok"):
+            return (1, un, clips + drc)
+        return (0, clips + drc + 5 * un, clips)
 
     ko_flag = ["--keepout"] if keepout else []               # route every measure WITH the corridor keepout
     if keepout:
@@ -782,10 +785,12 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             streak = (feedback.get("streak", 1) + 1) if feedback else 1
             feedback = {"moves": moved_refs, "from_clips": best["measure"].get("clips"),
                         "to_clips": cmeas.get("clips"), "streak": streak}
-        # CONVERGED = fab-ready: kelvin + pour-integrity (clips<=6) + DRC near the finishing floor (<=8).
+        # CONVERGED = fab-ready: kelvin + fully routed (unconn<=2) + pour-integrity (clips<=6) + DRC near
+        # the finishing floor (<=8).
         bm = best["measure"]
-        if bm.get("kelvin_ok") and (bm.get("clips") or 99) <= 6 and (bm.get("drc") or 99) <= 8:
-            log(f"r{rnd}: kelvin + clips<=6 + drc<=8 -> CONVERGED (fab-ready)"); break
+        if (bm.get("kelvin_ok") and (bm.get("unconnected") or 99) <= 2
+                and (bm.get("clips") or 99) <= 6 and (bm.get("drc") or 99) <= 8):
+            log(f"r{rnd}: kelvin + unconn<=2 + clips<=6 + drc<=8 -> CONVERGED (fab-ready)"); break
     log(f"DONE: best kelvin={best['measure'].get('kelvin_ok')} clips={best['measure'].get('clips')} "
         f"drc={best['measure'].get('drc')} -> {best['board']}")
     json.dump({"best": best, "history": history},
