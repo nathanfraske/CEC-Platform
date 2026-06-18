@@ -199,10 +199,24 @@ def w_apply(board_pcb, moves, out_rel, board_dir=None, orient=False, faces=None)
     by_owner = {}
     for pref, own in owner.items():
         by_owner.setdefault(own, []).append(pref)
+    # HARD ANCHORS -- never let a move (esp. a refine-tier absolute move, which can name ANY ref) relocate a
+    # FIXED part: the connectors (J* -- RJ-45/USB/cable IN/OUT belong at the board edge) and each cable's
+    # shunt (RS*) + sense ICs (INA*, which MUST sit at their shunt for a short Kelvin tap -- kelvin_ok only
+    # checks the sense net ROUTES, not its length, so without this the loop relocates them and games clips).
+    protected = {r for r in P if r.startswith("J")}
+    try:
+        nl2 = nl if nl is not None else (sp.View(sp.Config.load(board_dir)).nl if board_dir else None)
+        if nl2 is not None:
+            model = sp.build_corridor_model(nl2, {r: P[r] for r in P}, comps, board_w=W)
+            for cab in model.cables:
+                protected.add(cab.shunt)
+                protected |= set(cab.sense_ics)
+    except Exception:                                      # noqa: BLE001 -- fall back to J*-only protection
+        pass
     applied = []
     for mv in moves:
         ref = mv.get("ref")
-        if ref not in P:
+        if ref not in P or ref in protected:               # drop moves that target a fixed anchor
             continue
         x = float(mv.get("x", P[ref][0])); y = float(mv.get("y", P[ref][1]))
         rot = float(mv.get("rot", P[ref][2]))
@@ -509,6 +523,58 @@ def w_orient(board_pcb, out_rel, board_dir, *, w_kelvin=12.0, w_power=1.0):
     return {"out": out_rel, "oriented": oriented}
 
 
+def w_kelvin_seat(board_pcb, out_rel, board_dir, *, offset=4.0, step=3.5):
+    """Seat each sense IC TIGHT against its shunt's INNER (board-centre) edge so the Kelvin tap is SHORT.
+    The deterministic placer leaves some INAs far from their shunt (measured: one 46mm away), and kelvin_ok
+    only checks the sense net ROUTES, not its length -- so a long, useless tap silently passes and the loop
+    gamed it. This snaps every sense IC to its shunt + orients its sense pads toward it; the loop then PROTECTS
+    them there (anchor enforcement in w_apply). Applied to the seed before the loop starts."""
+    import pcbnew
+    import cec_synth_pipeline as sp
+    board = pcbnew.LoadBoard(board_pcb)
+    bb = board.GetBoardEdgesBoundingBox()
+    W, H = bb.GetWidth() / 1e6, bb.GetHeight() / 1e6
+    P, comps = _board_P_comps(board)
+    nl = sp.View(sp.Config.load(board_dir)).nl
+    model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
+    shunt_of = _sense_shunt_map(model, P)
+    cx = W / 2.0
+    seated = []
+    for cab in model.cables:
+        if cab.shunt not in P:
+            continue
+        sx, sy = P[cab.shunt][0], P[cab.shunt][1]
+        sign = 1.0 if sx < cx else -1.0                     # inner edge = toward the board centre
+        for i, ic in enumerate(sorted(cab.sense_ics)):
+            fp = board.FindFootprintByReference(ic)
+            if fp is None or ic not in P:
+                continue
+            nx = max(1.0, min(W - 1.0, sx + sign * (offset + step * i)))
+            ny = max(1.0, min(H - 1.0, sy + (-3.0 if i == 0 else 3.0)))   # stagger the (usually 2) ICs in y
+            fp.SetPosition(pcbnew.VECTOR2I(int(nx * 1e6), int(ny * 1e6)))
+            _best_pin_rot(fp, shunt_of.get(ic), H)          # sense pads -> the shunt
+            P[ic] = (nx, ny, fp.GetOrientationDegrees())
+            seated.append({"ref": ic, "shunt": cab.shunt, "x": round(nx, 1), "y": round(ny, 1)})
+    movers = [s["ref"] for s in seated]
+    if movers:                                              # de-overlap the seated ICs (vs shunt + each other)
+        cyinfo = {}
+        for r in P:
+            try:
+                cyinfo[r] = sp._courtyard_info(comps.get(r, ""), P[r][2])
+            except Exception:                              # noqa: BLE001
+                cyinfo[r] = (0.0, 0.0, 1.0, 1.0)
+        sp.legalize_pack(P, movers, cyinfo, W, H, clr=0.3)
+        for fp in board.GetFootprints():
+            if fp.GetReference() in movers:
+                x, y, _r = P[fp.GetReference()]
+                fp.SetPosition(pcbnew.VECTOR2I(int(x * 1e6), int(y * 1e6)))
+    outp = os.path.join(ROOT, out_rel)
+    os.makedirs(os.path.dirname(outp) or ".", exist_ok=True)
+    pcbnew.SaveBoard(outp, board)
+    del board
+    return {"out": out_rel, "seated": seated}
+
+
 def _score_routed(routed_board):
     """Score an ALREADY-routed board: kelvin/diffpair/drc/unconnected + the ACTUAL foreign F.Cu clips into
     the high-current pours. Runs in its OWN process (see w_measure) -- loading a board after a route+pour+
@@ -720,7 +786,9 @@ def plan_moves(context, best_measure, model=None, timeout=360, feedback=None, te
         + clip_line + fb_line + "\n"
         + "Propose the placement MOVES that drive the ACTUAL pour clips toward 0 (keep each clipping net on "
         "one side of its corridor) while KEEPING kelvin (sense ICs stay against their shunts). Keep "
-        "J_IN*/J_OUT*/RS* fixed. Be decisive; terse rationales. Return diagnosis + moves."
+        "ALL connectors (every J* -- the RJ-45/USB/cable IN+OUT belong at the BOARD EDGE), the shunts (RS*) "
+        "and the sense INAs (they MUST stay seated at their shunt) FIXED -- NEVER move those. Move only the "
+        "foreign logic (ESP/CAN/LDO/comparators + their passives). Be decisive; terse rationales. Return diagnosis + moves."
     )
     return jl._chat_json(_PLANNER_SYSTEM, user, MOVE_SCHEMA, name="placeplan",
                          model=model or "cec-worker", timeout=timeout, max_tokens=2000,
@@ -914,6 +982,14 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         log("corridor keepout ENABLED (foreign nets forced around the corridors via top/bottom channels)")
     if orient:
         log("JOINT pin-level ORIENT ENABLED (materialize co-designs position+rotation; seat sets per-IC face)")
+    # KELVIN-SEAT the sense ICs onto their shunts FIRST (the placer leaves some far -> long taps that game
+    # kelvin_ok), THEN the loop protects them there. Always-on correctness step (no-op without cables).
+    ks = _exec_worker(["--kelvin-seat", "--board-pcb", seed_out, "--out", seed_out, "--board", _rel(board_dir)])
+    if ks.get("seated"):
+        log(f"kelvin-seated {len(ks['seated'])} sense IC(s) to their shunts: "
+            f"{[(s['ref'], s['shunt']) for s in ks['seated']]}")
+    elif ks.get("error"):
+        log(f"kelvin-seat warn: {ks['error'][:80]}")
     # measure the SEED -> the first best (blanket-orient it once to establish an oriented baseline)
     orient_board(seed_out)
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
@@ -1027,6 +1103,7 @@ def main(argv=None):
     ap.add_argument("--pack", action="store_true", help="deterministic shelf-pack a partition into a region")
     ap.add_argument("--partition", action="store_true", help="region-aware partition: --assign [{ref,region}]")
     ap.add_argument("--orient", action="store_true", help="pin-level orientation pass (rotate ICs for pin-facing)")
+    ap.add_argument("--kelvin-seat", action="store_true", help="snap each sense IC to its shunt (short tap)")
     ap.add_argument("--with-orient", action="store_true", help="apply/partition: co-design rotation jointly")
     ap.add_argument("--assign", default=None, help="JSON [{ref,region}] region assignments for --partition")
     ap.add_argument("--region", default="right", help="pack region: right|left|spine|top|bottom|x0,y0,x1,y1")
@@ -1072,6 +1149,9 @@ def main(argv=None):
     elif a.orient:
         _emit(w_orient(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                        a.out, os.path.join(ROOT, a.board)))
+    elif a.kelvin_seat:
+        _emit(w_kelvin_seat(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                            a.out, os.path.join(ROOT, a.board)))
     elif a.measure:
         _emit(w_measure(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                         a.passes, a.opt_time, keepout=a.keepout))
