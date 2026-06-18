@@ -829,12 +829,35 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
     import time
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
-    os.makedirs(os.path.join(ROOT, out_dir), exist_ok=True)
+    out_abs = os.path.join(ROOT, out_dir)
+    os.makedirs(out_abs, exist_ok=True)
     board_name = os.path.basename(board_dir.rstrip("/"))
     strategies = ["dataflow", "thermal_separated", "compact"]
+    # self-describe the run IN its out-dir so the live dashboard auto-tracks it (run.log = step feed,
+    # measurement.jsonl = convergence series; the boards already land here). Dashboard discovers the
+    # running --out-dir and reads these -- no manual --run-dir.
+    _runlog = open(os.path.join(out_abs, "run.log"), "a", buffering=1)
+    _meas = open(os.path.join(out_abs, "measurement.jsonl"), "a", buffering=1)
 
     def log(m):
-        print(f"[planner] {m}", flush=True)
+        line = f"[planner] {m}"
+        print(line, flush=True)
+        try:
+            _runlog.write(line + "\n")
+        except Exception:                                       # noqa: BLE001 -- logging must never crash the run
+            pass
+
+    def measure_row(rnd, meas, verdict):
+        # one convergence row per round, mapped to the dashboard's column names (penalty_total=clips is the
+        # headline pour-integrity metric; drc=drc_placement excludes the edge artifact; live_objective=score)
+        try:
+            dp = meas.get("drc_placement"); dp = meas.get("drc") if dp is None else dp
+            _meas.write(json.dumps({"round": rnd, "verdict": verdict,
+                "kelvin_ok": meas.get("kelvin_ok"), "drc": dp, "drc_raw": meas.get("drc"),
+                "unconnected": meas.get("unconnected"), "penalty_total": meas.get("clips"),
+                "live_objective": (meas.get("clips") or 0) + (dp or 0) + 5 * (meas.get("unconnected") or 0)}) + "\n")
+        except Exception:                                       # noqa: BLE001
+            pass
 
     def orient_board(b):
         # PIN-LEVEL pass: rotate each IC in place so spanning-net pads face the top/bottom channel and sense
@@ -899,6 +922,7 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
     log(f"r0 (seed): kelvin={seed_meas.get('kelvin_ok')} clips={seed_meas.get('clips')} "
         f"drc_p={seed_meas.get('drc_placement')}(raw={seed_meas.get('drc')},edge={seed_meas.get('drc_edge')}) "
         f"unconn={seed_meas.get('unconnected')}")
+    measure_row(0, seed_meas, "seed")
     history = [{"round": 0, "board": seed_out, "measure": seed_meas, "accepted": True}]
     feedback = None                                          # last regressed attempt -> diversify the next plan
 
@@ -969,6 +993,7 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             f"-> {'ACCEPT (new best)' if improved else 'reject (keep best)'}")
         history.append({"round": rnd, "board": cand, "measure": cmeas, "moves": moved_refs,
                         "kind": kind, "accepted": improved})
+        measure_row(rnd, cmeas, "accept" if improved else "reject")
         if improved:
             best = {"board": cand, "measure": cmeas, "score": csc}
             feedback = None

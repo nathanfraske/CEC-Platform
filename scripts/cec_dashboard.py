@@ -44,9 +44,78 @@ COMPOSE = ["docker", "compose", "-f", os.path.join(ROOT, "docker", "compose.yaml
 CFG = {
     "run_dir": os.path.join(ROOT, "docs", "inloop-audit-2026-06-11"),
     "board_glob": os.path.join(ROOT, "build", "overnight-directed", "*.kicad_pcb"),
-    "proc_pattern": "cec_inloop_audit.py|cec_overnight_directed.py",
+    "proc_pattern": "cec_inloop_audit.py|cec_overnight_directed.py|cec_place_planner.py",
     "plot_layers": "F.Cu,B.Cu,In1.Cu,In2.Cu,Edge.Cuts",
+    "auto": True,           # auto-discover the live run (off when --run-dir is given explicitly)
+    "kind": None,           # which run kind is being tracked (set by discovery)
+    "max_boards": 48,       # cap rendered candidates (a long run has 100s) -> newest N
 }
+
+# Known CEC run kinds, newest-PID-first preference. Each: (kind, process regex, --flag whose value is the
+# run/out dir [None -> a fixed dir]). The dashboard auto-points run_dir + board_glob at whichever is live,
+# so it tracks the place-planner / overnight / audit run with no manual --run-dir.
+RUN_KINDS = [
+    # (kind, re.search pattern [discovery], pgrep pattern [_proc_info, no \b], --dir flag, default dir)
+    ("place-planner",      r"cec_place_planner\.py .*--run", "cec_place_planner.py.*--run", "--out-dir",
+     os.path.join(ROOT, "build", "place-planner")),
+    ("overnight-directed", r"cec_overnight_directed\.py",   "cec_overnight_directed.py",   "--out-dir",
+     os.path.join(ROOT, "build", "overnight-directed")),
+    ("inloop-audit",       r"cec_inloop_audit\.py",         "cec_inloop_audit.py",         None,
+     os.path.join(ROOT, "docs", "inloop-audit-2026-06-11")),
+]
+
+
+def _flag_val(cmd, flag):
+    """Value of `flag` in a command line (supports '--flag v' and '--flag=v')."""
+    toks = cmd.split()
+    for i, t in enumerate(toks):
+        if t == flag and i + 1 < len(toks):
+            return toks[i + 1]
+        if t.startswith(flag + "="):
+            return t.split("=", 1)[1]
+    return None
+
+
+def _discover_run():
+    """Find a LIVE CEC run and derive its run_dir + board_glob so the dashboard auto-tracks it. The run's
+    boards land in its --out-dir; cec_place_planner also writes run.log + measurement.jsonl there. Returns
+    a dict to merge into CFG, or None when nothing is running (keep the last config so the final board stays
+    visible after a run ends)."""
+    try:
+        out = subprocess.run(["pgrep", "-af", "cec_place_planner.py|cec_overnight_directed.py|cec_inloop_audit.py"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except Exception:                                            # noqa: BLE001
+        return None
+    for ln in out.splitlines():
+        if "cec_dashboard" in ln or "pgrep" in ln:
+            continue
+        _pid, _, cmd = ln.partition(" ")
+        for kind, rx, pgrep_pat, dirflag, default_dir in RUN_KINDS:
+            if re.search(rx, cmd):
+                d = _flag_val(cmd, dirflag) if dirflag else None
+                run_dir = (d if (d and os.path.isabs(d)) else os.path.join(ROOT, d)) if d else default_dir
+                return {"kind": kind, "run_dir": os.path.abspath(run_dir),
+                        "board_glob": os.path.join(os.path.abspath(run_dir), "*.kicad_pcb"),
+                        "proc_pattern": pgrep_pat}
+    return None
+
+
+def _discover_loop():
+    """Re-discover the live run every few seconds so the dashboard FOLLOWS runs: it re-points at a newly
+    started run, and when one ends it keeps the last run's dir (so the result stays on screen)."""
+    while True:
+        try:
+            if CFG.get("auto"):
+                disc = _discover_run()
+                if disc and disc["run_dir"] != CFG.get("run_dir"):
+                    CFG.update(disc)
+                    with _cands_lock:
+                        _cands.clear()                          # drop the old run's renders
+                elif disc:
+                    CFG["kind"] = disc["kind"]; CFG["proc_pattern"] = disc["proc_pattern"]
+        except Exception:                                       # noqa: BLE001
+            pass
+        time.sleep(5)
 NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|_XSERV|xvfb-entry|wxWidgets")
 
 _render = {"status": "idle", "board": None, "ts": 0}     # newest-render status (header)
@@ -271,7 +340,9 @@ def _board_files():
                 out[os.path.abspath(b)] = os.path.getmtime(b)
             except OSError:
                 pass
-    return [b for b, _ in sorted(out.items(), key=lambda kv: kv[1])]
+    ordered = [b for b, _ in sorted(out.items(), key=lambda kv: kv[1])]
+    cap = CFG.get("max_boards") or 0
+    return ordered[-cap:] if cap and len(ordered) > cap else ordered   # newest N (a long run has 100s)
 
 
 def _render_board(board):
@@ -312,30 +383,34 @@ def _render_board(board):
 
 
 def _render_loop():
-    """Render EVERY candidate board (not just the newest) so the UI scroller can step through the
-    timeline. Cache by mtime -- a board is re-rendered only when it changes. Newest = the header."""
+    """Render every candidate board (timeline scroller) -- but render NEWEST-FIRST and publish _cands
+    INCREMENTALLY after each one, so the live board shows within seconds instead of after a whole pass
+    (a long run has dozens of boards). Cache by mtime -- a board is re-rendered only when it changes."""
     while True:
         try:
             with _cands_lock:
                 have = {c["stem"]: c for c in _cands}
-            rebuilt = []
-            for b in _board_files():
+            boards = _board_files()                              # oldest -> newest
+            stems = [os.path.splitext(os.path.basename(b))[0] for b in boards]
+            live = set(stems)
+            have = {s: c for s, c in have.items() if s in live}  # drop boards no longer present
+            for b in reversed(boards):                           # newest first -> live board appears fast
                 stem = os.path.splitext(os.path.basename(b))[0]
                 ex = have.get(stem)
                 if ex and ex.get("mtime", -1) >= os.path.getmtime(b) and (ex["png"] or ex["svg"]):
-                    rebuilt.append(ex)
-                    continue
+                    continue                                     # cached + current
                 _render.update(status="rendering", board=stem)
-                c = _render_board(b)
-                rebuilt.append(c or ex or {"stem": stem, "board": b, "png": None, "svg": None,
-                                           "layers": {}, "mtime": os.path.getmtime(b), "ts": time.time()})
-            with _cands_lock:
-                _cands[:] = rebuilt
-            if rebuilt:
-                _render.update(status="ok", board=rebuilt[-1]["stem"], ts=rebuilt[-1]["ts"])
+                c = _render_board(b) or ex or {"stem": stem, "board": b, "png": None, "svg": None,
+                                               "layers": {}, "mtime": os.path.getmtime(b), "ts": time.time()}
+                have[stem] = c
+                with _cands_lock:                                # publish after EACH render (board order)
+                    _cands[:] = [have[s] for s in stems if s in have]
+                _render.update(status="ok", board=stem, ts=c.get("ts", 0))
+            if not boards:
+                _render.update(status="idle", board=None)
         except Exception as e:                                    # noqa: BLE001
             _render.update(status=f"err:{type(e).__name__}")
-        time.sleep(10)
+        time.sleep(8)
 
 
 def _cand_at(idx):
@@ -389,7 +464,8 @@ class H(BaseHTTPRequestHandler):
                         "board": {"name": _render["board"], "status": _render["status"],
                                   "rendered_ts": _render["ts"]},
                         "candidates": cands,                      # the timeline scroller's data
-                        "bundle": bundle, "run_dir": CFG["run_dir"]})
+                        "bundle": bundle, "run_dir": CFG["run_dir"],
+                        "kind": CFG.get("kind"), "auto": CFG.get("auto")})
         elif path == "/api/stream":
             self._json(_stream_text(int(params.get("off", 0))))
         elif path == "/api/seats":
@@ -523,7 +599,10 @@ async function tick(){
   const r=s.run||{};
   document.getElementById('status').innerHTML=
    `<span class="pill ${r.alive?'ok':'bad'}">${r.alive?'RUNNING pid '+r.pid+' ('+(r.elapsed||'')+')':'NOT RUNNING'}</span>`+
-   `<span class="pill">rounds: ${s.measurement.length}</span><span class="pill dim">${s.run_dir.split('/').pop()}</span>`;
+   (s.kind?`<span class="pill ${s.auto?'ok':'dim'}">${s.auto?'AUTO ':''}${s.kind}</span>`:'')+
+   `<span class="pill">rounds: ${s.measurement.length}</span>`+
+   `<span class="pill">boards: ${(s.candidates||[]).length}</span>`+
+   `<span class="pill dim">${(s.run_dir||'').split('/').pop()}</span>`;
   document.getElementById('bundle').innerHTML = s.bundle?
    `<span class="pill warn">FINAL: ${s.bundle.convergence_verdict} | usable ${s.bundle.n_usable_ratification_candidates} | rules ${s.bundle.n_manager_rules} | finalists ${s.bundle.pareto_finalists}</span>`:'';
   document.getElementById('log').textContent=(s.log||[]).slice(-40).join('\n');
@@ -637,15 +716,29 @@ agenticTick(); setInterval(agenticTick,3000);
 
 
 def main():
-    ap = argparse.ArgumentParser(description="CEC live run dashboard (read-only)")
+    ap = argparse.ArgumentParser(description="CEC live run dashboard (read-only; auto-tracks the live run)")
     ap.add_argument("--port", type=int, default=8090)
-    ap.add_argument("--run-dir", default=CFG["run_dir"])
-    ap.add_argument("--board-glob", default=CFG["board_glob"])
+    ap.add_argument("--run-dir", default=None, help="pin a run dir (default: AUTO-discover the live run)")
+    ap.add_argument("--board-glob", default=None, help="pin the board glob (default: auto from the run dir)")
+    ap.add_argument("--no-auto", action="store_true", help="disable auto-discovery even with no --run-dir")
     a = ap.parse_args()
-    CFG["run_dir"] = os.path.abspath(a.run_dir)
-    CFG["board_glob"] = a.board_glob
+    if a.run_dir or a.board_glob or a.no_auto:
+        CFG["auto"] = False                                     # explicit config -> don't auto-follow
+        if a.run_dir:
+            CFG["run_dir"] = os.path.abspath(a.run_dir)
+            CFG["board_glob"] = a.board_glob or os.path.join(CFG["run_dir"], "*.kicad_pcb")
+        elif a.board_glob:
+            CFG["board_glob"] = a.board_glob
+    else:
+        disc = _discover_run()                                  # seed from whatever is live right now
+        if disc:
+            CFG.update(disc)
+            print(f"dashboard: auto-tracking {disc['kind']} -> {disc['run_dir']}", flush=True)
+        else:
+            print("dashboard: no live run found yet -- will auto-attach when one starts", flush=True)
     threading.Thread(target=_render_loop, daemon=True).start()
-    print(f"dashboard: http://localhost:{a.port}  (run_dir={CFG['run_dir']})", flush=True)
+    threading.Thread(target=_discover_loop, daemon=True).start()
+    print(f"dashboard: http://localhost:{a.port}  (auto={CFG['auto']}, run_dir={CFG['run_dir']})", flush=True)
     ThreadingHTTPServer(("0.0.0.0", a.port), H).serve_forever()
 
 
