@@ -538,8 +538,16 @@ def _score_routed(routed_board):
                 z["nets"][tn] = z["nets"].get(tn, 0) + 1     # the ACTUAL foreign net clipping this pour
     del rb
     clip_nets = sorted({(tn, base.lstrip("/")) for base, z in Z.items() for tn in z["nets"]})
+    # LEVER A (2026-06-17): split the DRC. copper_edge_clearance is a FREEROUTING ARTIFACT -- it has no
+    # board-edge-clearance awareness and routes tracks against Edge.Cuts (it dominated 100% of the count and
+    # made the loop reject real clip wins). It's a ROUTE-time concern (fixed by the lever-B edge keepout),
+    # NOT placement quality, so report drc_placement = drc - copper_edge_clearance for the loop to optimise,
+    # while keeping the raw drc + the edge count visible.
+    drc_raw = m.get("drc") or 0
+    drc_edge = (m.get("drc_types") or {}).get("copper_edge_clearance", 0)
     return {"kelvin_ok": bool(m.get("kelvin_ok")), "diffpair_ok": bool(m.get("diffpair_ok")),
-            "gates_pass": bool(m.get("gates_pass")), "drc": m.get("drc"), "unconnected": m.get("unconnected"),
+            "gates_pass": bool(m.get("gates_pass")), "drc": drc_raw, "drc_edge": drc_edge,
+            "drc_placement": max(0, drc_raw - drc_edge), "unconnected": m.get("unconnected"),
             "clips": sum(z["x"] for z in Z.values()), "fragmented_pours": sum(1 for z in Z.values() if z["isl"] > 1),
             "clip_nets": [{"net": n, "pour": p} for n, p in clip_nets]}
 
@@ -558,7 +566,11 @@ def w_measure(board_pcb, passes, opt_time, keepout=False):
     _names = {n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     _kp = [(h, h[:-3] + "_LO") for h in sorted(_names) if h.endswith("_HI") and (h[:-3] + "_LO") in _names]
     del b
-    hints = cec_fr.corridor_keepouts(board_pcb, kelvin_pairs=_kp, nets_12v=[]) if keepout else []
+    hints = list(cec_fr.corridor_keepouts(board_pcb, kelvin_pairs=_kp, nets_12v=[])) if keepout else []
+    # LEVER B (default ON): board-edge keepout so Freerouting keeps tracks off Edge.Cuts (no edge-clearance
+    # awareness otherwise -> the copper_edge_clearance artifact). CEC_NO_EDGE_KEEPOUT=1 disables for A/B.
+    if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
+        hints += cec_fr.edge_keepout(board_pcb)
     routed = os.path.join(tempfile.mkdtemp(), "routed.kicad_pcb")
     c = cec_fr.route_once(board_pcb, routed, hints=hints, power_pours=pours, passes=passes, opt_time=opt_time)
     if not (c.ok and c.board):
@@ -854,17 +866,18 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         # corridor keepout, which can strand routing -> kelvin=False / high unconnected):
         #   kelvin=False : (1, unconnected, clips+drc)   -- among BROKEN boards prefer FEWER unrouted nets,
         #                  a gradient that climbs back toward a fully-routable (kelvin-true) placement.
-        #   kelvin=True  : (0, clips+drc+5*unconnected, clips) -- minimize the SUM (smooth, values pour
-        #                  integrity AND manufacturability; heavy unconnected penalty so a not-fully-routed
-        #                  board never beats a routed one), clips as the tiebreak (the headline metric).
-        # The False->True transition is a strict win (0<1). A hard DRC ceiling was tried and rejected (it
-        # threw away a clips=47 win for a near-miss drc and gave no gradient). Lower = better.
+        #   kelvin=True  : (0, clips+drc_p+5*unconnected, clips) -- minimize the SUM (pour integrity AND the
+        #                  PLACEMENT-relevant DRC; heavy unconnected penalty so a not-fully-routed board never
+        #                  beats a routed one), clips as the tiebreak (the headline metric).
+        # LEVER A: drc_p = drc_placement (drc MINUS copper_edge_clearance) -- the raw drc is ~100% a
+        # Freerouting edge-routing artifact (no board-edge awareness), so optimising it made the loop reject
+        # real clip wins; the edge clearance is a route-time concern (lever B). Lower = better.
         clips = meas.get("clips", 9999) or 9999
-        drc = meas.get("drc", 9999) or 9999
+        drc_p = meas.get("drc_placement", meas.get("drc", 9999)) or 9999
         un = meas.get("unconnected", 9999) or 9999
         if not meas.get("kelvin_ok"):
-            return (1, un, clips + drc)
-        return (0, clips + drc + 5 * un, clips)
+            return (1, un, clips + drc_p)
+        return (0, clips + drc_p + 5 * un, clips)
 
     ko_flag = ["--keepout"] if keepout else []               # route every measure WITH the corridor keepout
     orient_flag = ["--with-orient"] if orient else []        # JOINT position+orientation in every materialize
@@ -878,7 +891,8 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
                               "--opt-time", str(opt_time)] + ko_flag)
     best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
     log(f"r0 (seed): kelvin={seed_meas.get('kelvin_ok')} clips={seed_meas.get('clips')} "
-        f"drc={seed_meas.get('drc')} unconn={seed_meas.get('unconnected')}")
+        f"drc_p={seed_meas.get('drc_placement')}(raw={seed_meas.get('drc')},edge={seed_meas.get('drc_edge')}) "
+        f"unconn={seed_meas.get('unconnected')}")
     history = [{"round": 0, "board": seed_out, "measure": seed_meas, "accepted": True}]
     feedback = None                                          # last regressed attempt -> diversify the next plan
 
@@ -944,7 +958,8 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         csc = score(cmeas)
         improved = csc < best["score"]
         log(f"r{rnd}: candidate kelvin={cmeas.get('kelvin_ok')} clips={cmeas.get('clips')} "
-            f"drc={cmeas.get('drc')} unconn={cmeas.get('unconnected')} "
+            f"drc_p={cmeas.get('drc_placement')}(raw={cmeas.get('drc')},edge={cmeas.get('drc_edge')}) "
+            f"unconn={cmeas.get('unconnected')} "
             f"-> {'ACCEPT (new best)' if improved else 'reject (keep best)'}")
         history.append({"round": rnd, "board": cand, "measure": cmeas, "moves": moved_refs,
                         "kind": kind, "accepted": improved})
@@ -955,12 +970,12 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             streak = (feedback.get("streak", 1) + 1) if feedback else 1
             feedback = {"moves": moved_refs, "from_clips": best["measure"].get("clips"),
                         "to_clips": cmeas.get("clips"), "streak": streak}
-        # CONVERGED = fab-ready: kelvin + fully routed (unconn<=2) + pour-integrity (clips<=6) + DRC near
-        # the finishing floor (<=8).
+        # CONVERGED = fab-ready: kelvin + fully routed (unconn<=2) + pour-integrity (clips<=6) + PLACEMENT
+        # DRC near the finishing floor (<=8). Edge-clearance is excluded (route-time, lever B).
         bm = best["measure"]
         if (bm.get("kelvin_ok") and (bm.get("unconnected") or 99) <= 2
-                and (bm.get("clips") or 99) <= 6 and (bm.get("drc") or 99) <= 8):
-            log(f"r{rnd}: kelvin + unconn<=2 + clips<=6 + drc<=8 -> CONVERGED (fab-ready)"); break
+                and (bm.get("clips") or 99) <= 6 and (bm.get("drc_placement", bm.get("drc")) or 99) <= 8):
+            log(f"r{rnd}: kelvin + unconn<=2 + clips<=6 + drc_placement<=8 -> CONVERGED (fab-ready)"); break
     log(f"DONE: best kelvin={best['measure'].get('kelvin_ok')} clips={best['measure'].get('clips')} "
         f"drc={best['measure'].get('drc')} -> {best['board']}")
     json.dump({"best": best, "history": history},

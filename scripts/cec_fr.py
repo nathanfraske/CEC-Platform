@@ -689,6 +689,66 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
     return hints
 
 
+def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs=("J", "H"),
+                 layers=("F.Cu", "B.Cu")):
+    """Route-time board-EDGE keepout (lever B, 2026-06-17). Freerouting has NO board-edge-clearance
+    awareness -- the standard ExportSpecctraDSN gives it only the outline, so it routes signal tracks hard
+    against Edge.Cuts (measured: ~100% of a routed CEC board's DRC is copper_edge_clearance, incl. a 67mm
+    track run along the perimeter). Reserve a *margin*-wide strip just inside each board edge so FR keeps
+    tracks off it. The strip EXCLUDES the (inflated) bounding boxes of edge-resident footprints -- connectors
+    J* + mounts H* (and anything whose footprint name says Mounting/Conn/RJ45/USB) -- whose pads legitimately
+    sit at the edge and must stay routable. allow_vias=False (no copper of any kind in the strip);
+    block_fills=False so the high-current pours still fill to their own edge clamp. Returns bake_hints-ready
+    rects; SELF-GATING (a board with no outline / all-edge parts yields fewer/no strips). Stack with
+    corridor_keepouts in the same hints list."""
+    own = board if board is not None else pcbnew.LoadBoard(board_path)
+    bb = own.GetBoardEdgesBoundingBox()
+    if bb.GetWidth() <= 0 or bb.GetHeight() <= 0:
+        return []
+    L, T = bb.GetLeft() / MM, bb.GetTop() / MM
+    R, Bn = bb.GetRight() / MM, bb.GetBottom() / MM        # T<Bn (KiCad: top=min y, bottom=max y)
+
+    def _edge_resident(fp):
+        ref = fp.GetReference()
+        if ref[:1] in edge_refs:
+            return True
+        name = str(fp.GetFPID().GetLibItemName()).upper()
+        return any(k in name for k in ("MOUNTING", "CONN", "RJ45", "USB", "JST", "MOLEX"))
+
+    allow = []                                              # inflated bboxes that may touch the edge
+    for fp in own.GetFootprints():
+        if _edge_resident(fp):
+            fb = fp.GetBoundingBox()
+            allow.append((fb.GetLeft() / MM - clearance, fb.GetTop() / MM - clearance,
+                          fb.GetRight() / MM + clearance, fb.GetBottom() / MM + clearance))
+
+    def _subtract(a0, a1, spans):                          # 1-D: [a0,a1] minus the exclude spans
+        cuts = sorted(s for s in spans if s[1] > a0 and s[0] < a1)
+        segs, cur = [], a0
+        for s0, s1 in cuts:
+            if s0 > cur:
+                segs.append((cur, min(s0, a1)))
+            cur = max(cur, s1)
+        if cur < a1:
+            segs.append((cur, a1))
+        return [(x, y) for x, y in segs if y - x > 0.5]    # drop slivers FR can't use anyway
+
+    hints = []
+    for nm, y0, y1 in (("top", T, T + margin), ("bottom", Bn - margin, Bn)):   # split by X
+        ex = [(a[0], a[2]) for a in allow if a[1] < y1 and a[3] > y0]
+        for i, (x0, x1) in enumerate(_subtract(L, R, ex)):
+            hints.append({"name": f"edge_{nm}_{i}", "x0": round(x0, 2), "y0": round(y0, 2),
+                          "x1": round(x1, 2), "y1": round(y1, 2), "layers": layers,
+                          "allow_vias": False, "block_fills": False})
+    for nm, x0, x1 in (("left", L, L + margin), ("right", R - margin, R)):      # split by Y
+        ex = [(a[1], a[3]) for a in allow if a[0] < x1 and a[2] > x0]
+        for i, (y0, y1) in enumerate(_subtract(T, Bn, ex)):
+            hints.append({"name": f"edge_{nm}_{i}", "x0": round(x0, 2), "y0": round(y0, 2),
+                          "x1": round(x1, 2), "y1": round(y1, 2), "layers": layers,
+                          "allow_vias": False, "block_fills": False})
+    return hints
+
+
 # ---------------------------------------------------------------------------
 # derive_via_field / add_via_field -- the OQ-10 "more parallel vias" fix
 # ---------------------------------------------------------------------------
