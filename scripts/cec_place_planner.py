@@ -872,9 +872,15 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         # LEVER A: drc_p = drc_placement (drc MINUS copper_edge_clearance) -- the raw drc is ~100% a
         # Freerouting edge-routing artifact (no board-edge awareness), so optimising it made the loop reject
         # real clip wins; the edge clearance is a route-time concern (lever B). Lower = better.
-        clips = meas.get("clips", 9999) or 9999
-        drc_p = meas.get("drc_placement", meas.get("drc", 9999)) or 9999
-        un = meas.get("unconnected", 9999) or 9999
+        # NB: `x or 9999` is WRONG here -- 0 is a LEGITIMATE (ideal) value for drc_p/unconn/clips, and `0 or
+        # 9999` == 9999 clobbers it. Lever A made drc_placement=0 the common good case, which exposed this:
+        # use an explicit None check so a clean board scores low instead of catastrophically high.
+        def _v(x):
+            return 9999 if x is None else x
+        clips = _v(meas.get("clips"))
+        dp = meas.get("drc_placement")
+        drc_p = _v(meas.get("drc") if dp is None else dp)
+        un = _v(meas.get("unconnected"))
         if not meas.get("kelvin_ok"):
             return (1, un, clips + drc_p)
         return (0, clips + drc_p + 5 * un, clips)
@@ -971,10 +977,14 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             feedback = {"moves": moved_refs, "from_clips": best["measure"].get("clips"),
                         "to_clips": cmeas.get("clips"), "streak": streak}
         # CONVERGED = fab-ready: kelvin + fully routed (unconn<=2) + pour-integrity (clips<=6) + PLACEMENT
-        # DRC near the finishing floor (<=8). Edge-clearance is excluded (route-time, lever B).
+        # DRC near the finishing floor (<=8). Edge-clearance is excluded (route-time, lever B). NB: explicit
+        # None checks, not `x or 99` -- 0 is the IDEAL value (a converged board is clips=0/unconn=0/drc_p=0)
+        # and `0 or 99`==99 would make a PERFECT board never register as converged.
         bm = best["measure"]
-        if (bm.get("kelvin_ok") and (bm.get("unconnected") or 99) <= 2
-                and (bm.get("clips") or 99) <= 6 and (bm.get("drc_placement", bm.get("drc")) or 99) <= 8):
+        _bdp = bm.get("drc_placement"); _bdp = bm.get("drc") if _bdp is None else _bdp
+        if (bm.get("kelvin_ok") and (bm.get("unconnected") if bm.get("unconnected") is not None else 99) <= 2
+                and (bm.get("clips") if bm.get("clips") is not None else 99) <= 6
+                and (_bdp if _bdp is not None else 99) <= 8):
             log(f"r{rnd}: kelvin + unconn<=2 + clips<=6 + drc_placement<=8 -> CONVERGED (fab-ready)"); break
     log(f"DONE: best kelvin={best['measure'].get('kelvin_ok')} clips={best['measure'].get('clips')} "
         f"drc={best['measure'].get('drc')} -> {best['board']}")
