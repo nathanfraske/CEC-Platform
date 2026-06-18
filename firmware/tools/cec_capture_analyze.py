@@ -101,7 +101,7 @@ def _parse_rate(meta, kind):
     return None, measured
 
 
-def parse_captures(text):
+def _parse_burst_csv(text):
     """Yield Capture objects for every ===BURST_CSV=== block in `text`."""
     lines = text.splitlines()
     i = 0
@@ -136,6 +136,74 @@ def parse_captures(text):
             kind = meta.split(":", 1)[0].lstrip("# ").split()[0] if meta else "unknown"
             rate, measured = _parse_rate(meta, kind)
             yield Capture(kind, rate, measured, cols, data, meta)
+
+
+# 24-pin (v0.5.9-lineage) burst format: TelePlot-style interleaved series wrapped
+# in >BURST_BEGIN ... >BURST_END. Each pre-trigger sample emits all >b_<series>
+# with a shared ms timestamp; the high-speed window emits >hs_<series>.
+_TP_LINE = re.compile(r'^>(b_|hs_)([a-z0-9_]+):(\d+):(-?[0-9.]+)\s*$')
+
+
+def _teleplot_group_to_capture(group, reason, is_hs, annotation):
+    """Turn {series: [(ts_ms, val), ...]} into a Capture (us axis, rate from ts)."""
+    if not group:
+        return None
+    ref = max(group.values(), key=len)
+    n = len(ref)
+    ts = np.array([t for t, _ in ref], dtype=float)
+    data = {}
+    for k, pairs in group.items():
+        arr = np.array([v for _, v in pairs], dtype=float)
+        data[k] = arr if len(arr) == n else np.resize(arr, n)   # tolerate a dropped line
+    data["us"] = (ts - ts[0]) * 1000.0                          # ms -> us, zero-based
+    dts = np.diff(ts)
+    rate = (1000.0 / float(np.median(dts))) if len(dts) and np.median(dts) > 0 else None
+    cols = ["us"] + [k for k in data if k != "us"]
+    # ESP-paced ~50 Hz pre-trigger and the timer-paced HS are both ~uniform.
+    kind = "autoburst" if (is_hs or reason not in ("MANUAL", "0", "")) else "burst"
+    meta = (f"# {kind}: reason={reason}"
+            + (f" ; {annotation}" if annotation else "")
+            + (" ; hs" if is_hs else "") + f" ; {n} rows (measured)")
+    return Capture(kind, rate, True, cols, data, meta)
+
+
+def _parse_burst_teleplot(text):
+    """Yield Capture(s) from each >BURST_BEGIN ... >BURST_END block: one for the
+    pre-trigger (b_*) rows, one for the high-speed (hs_*) rows if present."""
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        if not lines[i].lstrip().startswith(">BURST_BEGIN"):
+            i += 1
+            continue
+        mb = re.match(r'>BURST_BEGIN:([^:]*):', lines[i].strip())
+        reason = mb.group(1) if mb else "burst"
+        i += 1
+        pre, hs, annotation = {}, {}, None
+        while i < len(lines) and ">BURST_END" not in lines[i]:
+            ln = lines[i].strip(); i += 1
+            if ln.startswith(">BURST_ANNOTATION:"):
+                annotation = ln.split(":", 1)[1]; continue
+            m = _TP_LINE.match(ln)
+            if not m:
+                continue
+            pfx, name, ts, val = m.group(1), m.group(2), int(m.group(3)), float(m.group(4))
+            (hs if pfx == "hs_" else pre).setdefault(name, []).append((ts, val))
+        i += 1  # consume the >BURST_END line
+        cpre = _teleplot_group_to_capture(pre, reason, False, annotation)
+        if cpre is not None:
+            yield cpre
+        chs = _teleplot_group_to_capture(hs, reason, True, annotation)
+        if chs is not None:
+            yield chs
+
+
+def parse_captures(text):
+    """Yield Capture objects for both burst formats found in `text`:
+    the 12VHPWR ===BURST_CSV=== columnar blocks and the 24-pin >BURST_BEGIN
+    TelePlot blocks."""
+    yield from _parse_burst_csv(text)
+    yield from _parse_burst_teleplot(text)
 
 
 # ----------------------------------------------------------------------------
@@ -460,6 +528,119 @@ class Profile12VHPWR(Profile):
         return files
 
 
+class Profile24Pin(Profile):
+    """ATX 24-pin: per-rail voltage/current/power + energy, rail stability vs the
+    ATX +/-5% window, and the PS_ON#/PWR_OK + state timeline. Re-uses the shared
+    parse + time-domain engine; the rail-centric metrics take the place of the
+    12VHPWR per-pin imbalance."""
+    name = "atx-24pin"
+    RAILS = [("12v", 12.0), ("5v", 5.0), ("3v3", 3.3), ("5vsb", 5.0)]
+    ATX_TOL_PCT = 5.0   # ATX rail tolerance window
+
+    def classify(self, cap):
+        cols = set(cap.columns)
+        return [(r, nom) for r, nom in self.RAILS if f"v_{r}" in cols]
+
+    def metrics(self, cap):
+        rails = self.classify(cap)
+        m = {"module": self.name, "kind": cap.kind, "n": cap.n,
+             "rate_hz": cap.rate_hz, "rate_measured": cap.rate_measured,
+             "rails_present": [r for r, _ in rails]}
+        mr = re.search(r"reason=(\w+)", cap.meta or "")
+        if mr:
+            m["trigger_reason"] = mr.group(1)
+        if not rails:
+            m["error"] = "no rail channels (v_12v ...) found"
+            return m
+        us = cap.data.get("us")
+        dt = (np.diff(us) / 1e6) if (us is not None and len(us) > 1) else None   # seconds
+        per_rail = {}
+        total_p = np.zeros(cap.n)
+        total_e = 0.0
+        for r, nom in rails:
+            v = cap.data[f"v_{r}"]
+            i = cap.data.get(f"i_{r}")
+            p = v * i if i is not None else np.zeros_like(v)
+            total_p = total_p + p
+            e = float(np.sum((p[:-1] + p[1:]) * 0.5 * dt)) if dt is not None else None
+            if e is not None:
+                total_e += e
+            per_rail[r] = {
+                "nominal_V": nom,
+                "mean_V": float(v.mean()), "min_V": float(v.min()), "max_V": float(v.max()),
+                "dev_pct": float((v.mean() - nom) / nom * 100.0),
+                "droop_mV": float((v.mean() - v.min()) * 1000.0),
+                "ripple_mV": float((v.max() - v.min()) * 1000.0),
+                "outside_5pct": bool(np.any(np.abs(v - nom) / nom > self.ATX_TOL_PCT / 100.0)),
+                "mean_A": float(i.mean()) if i is not None else None,
+                "peak_A": float(i.max()) if i is not None else None,
+                "mean_W": float(p.mean()), "peak_W": float(p.max()),
+                "energy_J": e,
+            }
+        m["per_rail"] = per_rail
+        m["total"] = {"mean_W": float(total_p.mean()), "peak_W": float(total_p.max()),
+                      "energy_J": (total_e if dt is not None else None)}
+        worst = max(rails, key=lambda rn: abs(per_rail[rn[0]]["dev_pct"]))[0]
+        m["rail_health"] = {"all_in_5pct": not any(per_rail[r]["outside_5pct"] for r, _ in rails),
+                            "worst_rail": worst}
+        for sig in ("ps_on", "pwr_ok"):
+            if sig in cap.data:
+                d = cap.data[sig]
+                m[sig] = {"start": int(round(d[0])), "end": int(round(d[-1])),
+                          "changed": bool(np.any(np.abs(d - d[0]) > 0.5)),
+                          "low_frac": float(np.mean(d < 0.5))}
+        if "state" in cap.data:
+            st = np.rint(cap.data["state"]).astype(int)
+            seq, cur, cnt = [], int(st[0]), 0
+            for s in st:
+                if int(s) == cur:
+                    cnt += 1
+                else:
+                    seq.append({"state": cur, "samples": cnt}); cur = int(s); cnt = 1
+            seq.append({"state": cur, "samples": cnt})
+            m["state_timeline"] = seq
+        return m
+
+    def plots(self, cap, stem, out, args):
+        rails = self.classify(cap)
+        if not rails:
+            return []
+        us = cap.data.get("us")
+        t_ms = (us / 1000.0) if us is not None else np.arange(cap.n, dtype=float)
+        fig, ax = plt.subplots(len(rails) + 1, 1, figsize=(11, 2.0 * (len(rails) + 1)), sharex=True)
+        for k, (r, nom) in enumerate(rails):
+            v = cap.data[f"v_{r}"]; i = cap.data.get(f"i_{r}")
+            a = ax[k]
+            a.axhspan(nom * 0.95, nom * 1.05, color="0.85", alpha=0.6, zorder=0)
+            a.axhline(nom, color="k", lw=0.6, alpha=0.4)
+            a.plot(t_ms, v, lw=0.8, color="tab:red")
+            a.set_ylabel(f"{r}\n(V)", fontsize=8)
+            a.grid(True, alpha=0.25)
+            ttl = f"v_{r} {v.mean():.3f} V ({(v.mean()-nom)/nom*100:+.2f}%), droop {(v.mean()-v.min())*1000:.0f} mV"
+            if i is not None:
+                a2 = a.twinx(); a2.plot(t_ms, i, lw=0.7, color="tab:blue", alpha=0.6)
+                a2.set_ylabel("A", color="tab:blue", fontsize=8)
+                ttl += f"  |  i {i.mean():.2f} A"
+            a.set_title(ttl, fontsize=8)
+        total_p = sum(cap.data[f"v_{r}"] * cap.data.get(f"i_{r}", np.zeros(cap.n)) for r, _ in rails)
+        ax[-1].plot(t_ms, total_p, lw=0.9, color="tab:green", label="total P (W)")
+        ax[-1].set_ylabel("P (W)"); ax[-1].grid(True, alpha=0.25)
+        ax[-1].legend(fontsize=7, loc="upper left")
+        if any(s in cap.data for s in ("state", "ps_on", "pwr_ok")):
+            a3 = ax[-1].twinx()
+            for sig, col in (("state", "tab:purple"), ("ps_on", "tab:orange"), ("pwr_ok", "tab:gray")):
+                if sig in cap.data:
+                    a3.plot(t_ms, cap.data[sig], lw=0.8, color=col, alpha=0.7, label=sig)
+            a3.legend(fontsize=7, loc="upper right")
+        ax[-1].set_xlabel("time (ms)")
+        reason = (re.search(r"reason=(\w+)", cap.meta or "") or [None, "?"])
+        reason = reason.group(1) if hasattr(reason, "group") else "?"
+        fig.suptitle(f"24-pin rails — trigger {reason}  (±5% band shaded)", fontsize=11)
+        fig.tight_layout()
+        p = os.path.join(out, f"{stem}-rails.png"); fig.savefig(p, dpi=110); plt.close(fig)
+        return [p]
+
+
 class _Stub(Profile):
     def __init__(self, name, what):
         self.name = name; self._what = what
@@ -471,7 +652,7 @@ class _Stub(Profile):
 
 PROFILES = {
     "12vhpwr": Profile12VHPWR(),
-    "atx-24pin": _Stub("atx-24pin", "per-rail power + energy (INA228 accumulators), rail stability"),
+    "atx-24pin": Profile24Pin(),
     "eps": _Stub("eps", "per-cable balance + total power + §6.13 transient events"),
     "pcie": _Stub("pcie", "per-cable balance + total power + §6.13 transient events"),
 }
@@ -521,7 +702,32 @@ def write_metrics(m, stem, out):
             if im.get("dead_pins"):
                 f.write(f"- dead / not-carrying: {im['dead_pins']} — a dead pin pushes its share onto "
                         f"the rest, raising their absolute current\n")
-        if "total" in m:
+        if "trigger_reason" in m:
+            f.write(f"\n- trigger: **{m['trigger_reason']}**\n")
+        if "per_rail" in m:
+            f.write("\n## Per-rail (V / I / power / energy, ATX ±5%)\n")
+            f.write("| rail | mean V | dev % | droop mV | ripple mV | mean A | mean W | energy J | in ±5%? |\n")
+            f.write("|---|---|---|---|---|---|---|---|---|\n")
+            for r, d in m["per_rail"].items():
+                a = "-" if d.get("mean_A") is None else f"{d['mean_A']:.2f}"
+                e = "-" if d.get("energy_J") is None else f"{d['energy_J']:.1f}"
+                f.write(f"| {r} | {d['mean_V']:.3f} | {d['dev_pct']:+.2f} | {d['droop_mV']:.1f} | "
+                        f"{d['ripple_mV']:.1f} | {a} | {d['mean_W']:.2f} | {e} | "
+                        f"{'yes' if not d['outside_5pct'] else '**NO**'} |\n")
+            t = m.get("total", {})
+            line = f"- **total: {t.get('mean_W', 0):.2f} W mean, {t.get('peak_W', 0):.2f} W peak"
+            if t.get("energy_J") is not None:
+                line += f", {t['energy_J']:.1f} J over the window"
+            f.write(line + "**\n")
+            rh = m.get("rail_health", {})
+            f.write(f"- rail health: {'all rails within ±5%' if rh.get('all_in_5pct') else '**a rail is OUT of ±5%**'}"
+                    f" (worst deviation: {rh.get('worst_rail', '?')})\n")
+        for sig, lbl in (("ps_on", "PS_ON#"), ("pwr_ok", "PWR_OK")):
+            if sig in m:
+                d = m[sig]
+                f.write(f"- {lbl}: {'**changed** during the window' if d['changed'] else 'steady'}"
+                        f" (asserted-low {d['low_frac']*100:.0f}% of samples)\n")
+        if "total" in m and "mean_A" in m["total"]:
             f.write(f"\n## Total\n- mean {m['total']['mean_A']:.2f} A, peak {m['total']['peak_A']:.2f} A\n")
         if "rail" in m:
             r = m["rail"]
