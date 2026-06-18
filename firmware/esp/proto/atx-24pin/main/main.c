@@ -353,12 +353,19 @@ static esp_err_t init_ina228_rails(void)
 /* Status indicator LED: D2 on STATUS_LED_GPIO, active-high. */
 static void init_status_led(void)
 {
-    gpio_config_t io = {
+    gpio_config_t out = {
         .pin_bit_mask = 1ULL << STATUS_LED_GPIO,
         .mode = GPIO_MODE_OUTPUT,
     };
-    gpio_config(&io);
+    gpio_config(&out);
     gpio_set_level(STATUS_LED_GPIO, 0);
+
+    /* PSU control/status inputs, buffered by U4/U5 (read-only monitoring). */
+    gpio_config_t in = {
+        .pin_bit_mask = (1ULL << PWROK_BUF_GPIO) | (1ULL << PSON_BUF_GPIO),
+        .mode = GPIO_MODE_INPUT,
+    };
+    gpio_config(&in);
 }
 
 static void init_layer1(void)
@@ -584,6 +591,7 @@ typedef struct {
     float    v_3v3,  i_3v3;
     float    v_5vsb, i_5vsb;
     float    temp_c;
+    uint8_t  ps_on, pwr_ok;   /* buffered PS_ON# (1=on) + PWR_OK (1=good) */
 } cec_capture_sample_t;
 
 /* HS sample (1 kHz, main rails only). Slim by design. */
@@ -654,12 +662,16 @@ static int capture_render_pre(const void *sample, char *buf, size_t cap)
                     ">b_v_5vsb:%u:%.3f\n"
                     ">b_i_5vsb:%u:%.4f\n"
                     ">b_temp:%u:%.2f\n"
+                    ">b_ps_on:%u:%d\n"
+                    ">b_pwr_ok:%u:%d\n"
                     ">b_state:%u:%d\n",
                     ts, p->v_12v,  ts, p->i_12v,
                     ts, p->v_5v,   ts, p->i_5v,
                     ts, p->v_3v3,  ts, p->i_3v3,
                     ts, p->v_5vsb, ts, p->i_5vsb,
-                    ts, p->temp_c, ts, (int)p->state);
+                    ts, p->temp_c,
+                    ts, (int)p->ps_on, ts, (int)p->pwr_ok,
+                    ts, (int)p->state);
 }
 
 static int capture_render_hs(const void *row_v, int64_t hs_start_us,
@@ -962,6 +974,11 @@ void app_main(void)
         ok_temp  = (s_ina228_12v != NULL &&
                     ina228_read_die_temp_c(s_ina228_12v, &temp_c) == ESP_OK);
 
+        /* PSU control/status, buffered by U4/U5 (read-only). PS_ON# is
+         * active-low, so ps_on=true means the mobo is commanding the PSU on. */
+        bool pwr_ok = (gpio_get_level(PWROK_BUF_GPIO) != 0);
+        bool ps_on  = (gpio_get_level(PSON_BUF_GPIO)  == 0);
+
         /* On a failed read, fall back to the last good filtered value so a
          * single bad sample doesn't ripple into the state classifier. Before
          * the first successful read an EMA returns 0.0 (its init value). */
@@ -1261,6 +1278,7 @@ void app_main(void)
             .v_3v3  = v_3v3_ema,  .i_3v3  = i_3v3_ema,
             .v_5vsb = v_5vsb_ema, .i_5vsb = i_5vsb_ema,
             .temp_c = temp_ema,
+            .ps_on  = ps_on ? 1 : 0, .pwr_ok = pwr_ok ? 1 : 0,
         };
         s_last_capture_state = pre.state;
         cec_capture_push(&pre);
@@ -1293,6 +1311,8 @@ void app_main(void)
             teleplot_emit_t("sev_5vsb", now_ms, (float)sev_5vsb);
             teleplot_emit_t("z_max",    now_ms, z_max);
             teleplot_emit_t("shutting_down", now_ms, s_shutting_down ? 1.0f : 0.0f);
+            teleplot_emit_t("ps_on",  now_ms, ps_on  ? 1.0f : 0.0f);
+            teleplot_emit_t("pwr_ok", now_ms, pwr_ok ? 1.0f : 0.0f);
             if (cec_swing_detector_is_full(&s_power_swing)) {
                 teleplot_emit_t("p_window_mean", now_ms, p_window_mean);
                 teleplot_emit_t("p_swing_thr",   now_ms, p_swing_thresh);
@@ -1302,16 +1322,16 @@ void app_main(void)
         if (iter % LOG_DIVIDER == 0) {
             ESP_LOGI(TAG, "[%s] V: 12=%.3f 5=%.3f 3V3=%.3f 5SB=%.3f | "
                           "I: 12=%.2f 5=%.2f 3V3=%.2f 5SB=%.4f | "
-                          "P=%.1fW T=%.1fC",
+                          "P=%.1fW T=%.1fC | PS_ON=%d PWR_OK=%d",
                      cec_state_name(s_state),
                      v_12v_ema, v_5v_ema, v_3v3_ema, v_5vsb_ema,
                      i_12v_ema, i_5v_ema, i_3v3_ema, i_5vsb_ema,
-                     p_total, temp_ema);
+                     p_total, temp_ema, ps_on, pwr_ok);
         }
 
-        /* Status LED: ~1 Hz heartbeat = firmware alive (toggles every 0.5 s
-         * at the 50 Hz loop rate). State-pattern encoding is a follow-up. */
-        gpio_set_level(STATUS_LED_GPIO, (iter / 25) & 1);
+        /* Status LED: solid ON when ATX power is good (system running),
+         * ~1 Hz heartbeat otherwise (standby/off, firmware alive). */
+        gpio_set_level(STATUS_LED_GPIO, pwr_ok ? 1 : ((iter / 25) & 1));
 
         iter++;
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));

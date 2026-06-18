@@ -77,6 +77,12 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define INA228_ALERT_5VSB    13
 #define STATUS_LED_GPIO      21       /* D2, active-high */
 
+/* PSU control/status, buffered to 3.3V by U4/U5 (74LVC1G17, non-inverting),
+ * tapped off the ATX pass-through. Read-only: the module monitors these, it
+ * does not drive PS_ON#. */
+#define PWROK_BUF_GPIO       38       /* U4 out: ATX PWR_OK (1 = power good) */
+#define PSON_BUF_GPIO        39       /* U5 out: ATX PS_ON# (0 = PSU on, active-low) */
+
 #ifdef __cplusplus
 }
 #endif
