@@ -990,6 +990,17 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             f"{[(s['ref'], s['shunt']) for s in ks['seated']]}")
     elif ks.get("error"):
         log(f"kelvin-seat warn: {ks['error'][:80]}")
+    # INITIAL CLUSTER (fresh seed only): a raw deterministic seed scatters the foreign logic (corridor_cross
+    # ~15) so it won't route fully (kelvin=False/unconn~12) and the loop crawls. Pack the foreign ICs to one
+    # side as the start -> measured unconn 12->1, drc_p 20->1 (routable) -> the loop refines from there. A
+    # --from-board start is already placed, so skip it.
+    if not from_board:
+        pk = _exec_worker(["--pack", "--region", "right", "--board-pcb", seed_out, "--out", seed_out,
+                           "--board", _rel(board_dir)])
+        if pk.get("packed"):
+            log(f"initial cluster: packed {len(pk['packed'])} foreign IC(s) to the right region")
+        elif pk.get("error"):
+            log(f"initial pack warn: {pk['error'][:80]}")
     # measure the SEED -> the first best (blanket-orient it once to establish an oriented baseline)
     orient_board(seed_out)
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
