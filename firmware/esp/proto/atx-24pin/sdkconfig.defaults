@@ -41,13 +41,11 @@ CONFIG_LOG_DEFAULT_LEVEL_INFO=y
 CONFIG_COMPILER_OPTIMIZATION_PERF=y
 
 # CEC sensor selection (shared cec_sensors component). PRODUCTION board: 4x
-# INA228 (one per rail, bus voltage + current). The INA226/ACS712/divider front
-# end stays enabled until main.c is moved over to the INA228s, then it goes.
+# INA228 (one per rail, bus voltage + current). The divider/ACS712/INA226 dev-
+# board front end is retired -- main.c reads only the INA228s now. (The ADC
+# backend choice is required by Kconfig but cec_adc is otherwise unused here.)
 CONFIG_CEC_ADC_BACKEND_CONTINUOUS=y
 CONFIG_CEC_SENSOR_INA228=y
-CONFIG_CEC_SENSOR_INA226=y
-CONFIG_CEC_SENSOR_ACS712=y
-CONFIG_CEC_SENSOR_THERMISTOR=y
 
 # Dedicated TelePlot UART transport (CH340K USB-C, 921600).
 CONFIG_CEC_TELEMETRY_UART0=y

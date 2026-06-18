@@ -27,10 +27,6 @@
 #include "esp_timer.h"
 #include "driver/i2c_master.h"
 
-#include "ina226.h"
-#include "cec_adc.h"
-#include "thermistor.h"
-#include "acs712.h"
 #include "ina228.h"
 #include "driver/gpio.h"
 #include "cec_filters.h"
@@ -104,9 +100,6 @@ static const char *TAG = "cec_main";
 /* I2C bus handle (shared across components later) */
 static i2c_master_bus_handle_t s_i2c_bus = NULL;
 
-/* INA226 instances. For now only 5VSB. Will add 12V/5V/3V3 after PCB rev. */
-static ina226_handle_t s_ina226_5vsb = NULL;
-
 /* PRODUCTION sensing: one INA228 per rail (12V/5V/3V3/5VSB). Each gives bus
  * voltage + current, replacing the divider/ACS712/INA226 front end. */
 static ina228_handle_t s_ina228_12v  = NULL;
@@ -124,40 +117,8 @@ static bool ina228_read_rail(ina228_handle_t h, float *v, float *i)
 
 /* (LS divider rail configs removed -- rails now read via INA228.) */
 
-/* NTC config carried forward from v0.5.9. Standard 10k @ 25C, B=3950. */
-static const thermistor_t s_ntc = {
-    .channel = ADC_CH_NTC,
-    .samples = 4,
-    .beta = 3950.0f,
-    .nominal_resistance = 10000.0f,
-    .nominal_temperature_k = 298.15f,
-    .pull_up_resistance = 10000.0f,
-    .vcc = 3.3f,
-};
-
-/* ACS712 sensor configs. zero_point_v is the no-load nominal until per-
- * unit calibration lands; expect currents to be a few hundred mA off
- * until that path is wired in. */
-static const acs712_t s_acs_12v = {
-    .channel = ADC_CH_I_12V, .samples = 4,
-    .divider_scale = ACS712_DIVIDER,
-    .sensitivity_v_per_a = ACS712_30A_SENS,
-    .zero_point_v = ACS712_ZERO_12V,
-};
-static const acs712_t s_acs_5v = {
-    .channel = ADC_CH_I_5V,  .samples = 4,
-    .divider_scale = ACS712_DIVIDER,
-    .sensitivity_v_per_a = ACS712_20A_SENS,
-    .zero_point_v = ACS712_ZERO_5V,
-};
-static const acs712_t s_acs_3v3 = {
-    .channel = ADC_CH_I_3V3, .samples = 4,
-    .divider_scale = ACS712_DIVIDER,
-    .sensitivity_v_per_a = ACS712_20A_SENS,
-    .zero_point_v = ACS712_ZERO_3V3,
-};
-
-/* (HS-rate divider/ACS configs removed -- burst HS fill now reads INA228.) */
+/* (NTC + ACS712 + LS/HS divider configs removed -- the INA228s supply
+ * per-rail V/I and the 12V die sensor supplies temperature.) */
 
 /* Filter state */
 static ema_t s_v_5vsb_ema, s_i_5vsb_ema;
@@ -287,36 +248,6 @@ static void init_i2c_bus(void)
     };
     ESP_ERROR_CHECK(i2c_new_master_bus(&bus_cfg, &s_i2c_bus));
     ESP_LOGI(TAG, "I2C bus: SDA=GPIO%d, SCL=GPIO%d", I2C_PIN_SDA, I2C_PIN_SCL);
-}
-
-static esp_err_t init_adc_rails(void)
-{
-    ESP_RETURN_ON_ERROR(cec_adc_init(), TAG, "cec_adc_init");
-    ESP_RETURN_ON_ERROR(cec_adc_setup_channel(ADC_CH_V_12V), TAG, "setup v_12V");
-    ESP_RETURN_ON_ERROR(cec_adc_setup_channel(ADC_CH_V_5V),  TAG, "setup v_5V");
-    ESP_RETURN_ON_ERROR(cec_adc_setup_channel(ADC_CH_V_3V3), TAG, "setup v_3V3");
-    ESP_RETURN_ON_ERROR(acs712_setup(&s_acs_12v),            TAG, "setup i_12V");
-    ESP_RETURN_ON_ERROR(acs712_setup(&s_acs_5v),             TAG, "setup i_5V");
-    ESP_RETURN_ON_ERROR(acs712_setup(&s_acs_3v3),            TAG, "setup i_3V3");
-    ESP_RETURN_ON_ERROR(thermistor_setup(&s_ntc),            TAG, "setup NTC");
-    /* Pattern locked once we hit start; from here on, channel reads
-     * come from the DMA-backed latest-mV table maintained by the
-     * cec_adc reader task. */
-    ESP_RETURN_ON_ERROR(cec_adc_start(),                     TAG, "cec_adc_start");
-    return ESP_OK;
-}
-
-static esp_err_t init_ina226_5vsb(void)
-{
-    ina226_config_t cfg = INA226_CONFIG_DEFAULT();
-    cfg.bus_handle = s_i2c_bus;
-    cfg.i2c_addr = 0x40;          /* INA226 default A0=A1=GND */
-    cfg.shunt_ohms = 0.002f;      /* R002 marking on the physical module */
-    cfg.max_current_a = 5.0f;     /* Matches v0.5.9, gives CAL=0x418A */
-    cfg.voltage_trim = TRIM_5VSB; /* Match v0.5.9 calibration */
-    cfg.current_trim = 1.0f;      /* No current trim on 5VSB */
-
-    return ina226_create(&cfg, &s_ina226_5vsb);
 }
 
 /* Production: create the four per-rail INA228s (addresses/shunts from
@@ -547,34 +478,7 @@ static layer1_step_result_t layer1_step(const char *rail_name,
  * Lets you copy the measured no-load voltages directly into
  * ACS712_ZERO_{12V,5V,3V3} for a per-unit-tuned offset until the proper
  * serial-command / NVS calibration path lands. */
-static void log_acs712_zero_measurements(void)
-{
-    struct {
-        const char *name;
-        const acs712_t *cfg;
-        float compiled_zero;
-        float sens;
-    } rails[] = {
-        { "12V", &s_acs_12v, ACS712_ZERO_12V, ACS712_30A_SENS },
-        { "5V",  &s_acs_5v,  ACS712_ZERO_5V,  ACS712_20A_SENS },
-        { "3V3", &s_acs_3v3, ACS712_ZERO_3V3, ACS712_20A_SENS },
-    };
-    ESP_LOGI(TAG, "ACS712 no-load diagnostic (200-sample average):");
-    for (size_t i = 0; i < sizeof(rails) / sizeof(rails[0]); i++) {
-        float measured = 0.0f;
-        esp_err_t err = acs712_measure_zero_point(rails[i].cfg, 200, &measured);
-        if (err != ESP_OK) {
-            ESP_LOGW(TAG, "  %s: measure failed (%s)", rails[i].name, esp_err_to_name(err));
-            continue;
-        }
-        float implied_a = (measured - rails[i].compiled_zero) / rails[i].sens;
-        ESP_LOGI(TAG, "  %s: measured=%.4f V, compiled=%.4f V "
-                      "=> implied no-load current = %+.3f A",
-                 rails[i].name, measured, rails[i].compiled_zero, implied_a);
-    }
-    ESP_LOGI(TAG, "If \"implied no-load current\" is non-zero with PSU "
-                  "disconnected, paste the measured V into ACS712_ZERO_<rail>.");
-}
+/* (ACS712 no-load diagnostic removed -- the INA228 needs no per-rail zero.) */
 
 /* ---- Burst-capture shapes + hooks (app-side) ----
  * The shared cec_capture engine treats rows as opaque bytes and calls
