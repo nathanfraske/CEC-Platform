@@ -1001,8 +1001,10 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
             log(f"initial cluster: packed {len(pk['packed'])} foreign IC(s) to the right region")
         elif pk.get("error"):
             log(f"initial pack warn: {pk['error'][:80]}")
-    # measure the SEED -> the first best (blanket-orient it once to establish an oriented baseline)
-    orient_board(seed_out)
+    # NB: do NOT blanket-orient the seed -- an un-validated whole-board rotate disrupts the routable
+    # seat+pack start (measured: unconn 1->11). The per-round materialize orients MOVED ICs and the measure
+    # validates each (a routability-hurting rotation is rejected), so orientation enters the loop safely there.
+    # measure the SEED -> the first best
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
                               "--opt-time", str(opt_time)] + ko_flag)
     best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
