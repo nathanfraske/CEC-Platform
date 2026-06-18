@@ -6,6 +6,48 @@ file absorbs `cec-24pin-idf/FOLLOWUPS.md` at the consolidation (the
 per-app file is gone); the EPS-parity section of that file is dissolved
 by construction — the trees are one tree now.
 
+## 24-pin PRODUCTION firmware — the real board (2026-06-18)
+
+The atx-24pin rev1 PCB is on the bench and working; `proto/atx-24pin` is now its
+production firmware (the dev-board ACS712/divider rig is retired). The board fault
+that made a connected PC instantly shut down was an OPEN MAIN-RAIL SHUNT — the rails
+pass through RS1/RS2/RS5/RS6 in series, so an open shunt breaks that rail to the
+motherboard. Schematic was clean (signals pass through, U4/U5 only monitor); it was
+an assembly fix.
+
+LANDED:
+- MCU retarget to S3-MINI-1 N4R2 (4 MB flash / 2 MB quad PSRAM; partition resized to fit).
+- `cec_sensors/ina228.{c,h}` — real INA228 driver (distinct register map from the 226:
+  20-bit values in 24-bit reads, ADCRANGE, die temp, 40-bit energy/charge accumulators).
+  Kconfig `CEC_SENSOR_INA228`.
+- 4× INA228 per-rail sensing (addresses/shunts/ALERT traced from the board netlist into
+  cec_config.h: 12V@0x40, 5V@0x41, 3V3@0x44, 5VSB@0x45; SDA=IO8/SCL=IO9; ALERT IO10-13).
+  The live 50 Hz loop + the burst HS fill read V+I per rail; board temp = the 12V INA228
+  die sensor.
+- PS_ON#/PWR_OK read via the U4/U5 74LVC1G17 buffers (IO38/IO39, read-only) → TelePlot +
+  the 1 Hz log + every burst sample (`b_ps_on`/`b_pwr_ok`). Status LED (IO21): solid =
+  PWR_OK, ~1 Hz heartbeat = standby/alive.
+- Auto-burst was already complete (v0.5.9 lineage: SHUTDOWN / STATIC_CRIT / TRANSIENT /
+  ANOMALY / POWER_SWING / CURRENT_SWING all auto-trigger) — it just needed working
+  sensing, which the INA228s now provide.
+- `tools/cec_capture_analyze.py` generalized: parses BOTH burst formats (12VHPWR
+  `===BURST_CSV===` and the 24-pin `>BURST_BEGIN` TelePlot blocks); `Profile24Pin` does
+  per-rail V/I/power/energy + ATX ±5% stability + the PS_ON/PWR_OK + state timeline.
+- Dead dev-board code (ACS712 / divider / INA226) removed; those drivers de-selected.
+
+DEFERRED:
+- CAN (held per owner; the eps app's TWAI is the reference when it lands here).
+- The INA228 ALERT lines (IO10-13) are wired in HW + mapped in cec_config but NOT used
+  yet — the §6.10 ALERT-triggered fast capture is the next capture upgrade (the 1 kHz HS
+  burst currently oversamples the ~315 Hz INA228 — real but stepped).
+- Per-rail max-current defaults (20 A main / 6 A 5VSB) → tune from real load for best
+  CURRENT_LSB resolution; if a rail pegs, switch that rail to ADCRANGE=0.
+- Cosmetic: leftover ADC_CH/TRIM/SCALE/ACS712 literal `#define`s in main.c (unused,
+  harmless); a true production app would live at the flat `firmware/esp/atx-24pin` level
+  (still under `proto/`; the rename is cosmetic, git history holds the v0.5.9 rig).
+- Energy reporting scope is OQ-13 (the INA228 accumulators are exposed by the driver but
+  the loop doesn't report system energy yet).
+
 ## Consolidation findings (2026-06-12 run — stop-and-report log)
 
 Findings the integration runbook required surfacing rather than fixing
