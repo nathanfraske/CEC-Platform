@@ -1129,3 +1129,20 @@ mostly COST/THERMAL, not routing. A real layer_swap.py BUG was found+fixed (via-
   divergent mesh artifact per validation; use analytic 28 A/mm2 for J) -> r7 now reads PASS not FAIL. Verified:
   -thermal.png produced (~90KB), /thermal.png serves real PNG, dashboard tracks the run. Owner: REFRESH browser +
   click the "thermal" toggle.
+
+### Thermal overlay -> PER-LAYER + plot-stacking fix (2026-06-19)
+Owner: thermal was a "weird opaque view", wanted per-layer toggleable temps; AND the plot showed only F.Cu and
+toggling other layers made F.Cu disappear. ROOT CAUSES + FIXES:
+- THERMAL was a single muddy composite (grey copper 0.55 + heatmap 0.78 over ALL layers). REBUILT: cec_thermal_overlay.py
+  render_per_layer() emits ONE clean TRANSPARENT PNG per board copper layer (T field masked to that layer's OWN filled
+  copper, nothing else), keyed by REAL board layer names (F_Cu/GND/12V/B_Cu) + a _cbar.png colorbar, all same extent.
+  --out-dir mode. The composite verdict also fixed to gate on dT only (maxJ is a mesh artifact).
+- PLOT "front copper disappears": the kicad-cli per-layer SVGs have an OPAQUE black background -> stacking absolute
+  layers paints over lower ones. FIX: CSS mix-blend-mode:lighten on a black backdrop (pstack bg #000, isolation:isolate)
+  -> black contributes nothing, all layers' copper shows; works for BOTH the SVG plot AND the transparent thermal PNGs.
+- Dashboard: _render_thermal -> per-layer (returns {layer:png}, cbar, summary); serves /thermal-layer/<L> (no ext) +
+  /thermal-cbar.png; thermal mode now uses the layer STACK (buildStack mode-aware: svg->/layer/ SVG, thermal->/thermal-layer/
+  PNG) toggleable via the same checkboxes; lyrBoxes mode-aware; thermal never-blank (shows all layers if none toggled).
+  Restart the dashboard process after editing (it caches code). Verified: per-layer PNGs clean (GND plane hotspot,
+  F.Cu corridors), lighten-stack composites correctly, routes serve. NOTE: with the overnight run stopped the dashboard
+  auto-discovered docs/inloop-audit-2026-06-11; it'll re-track the eps boards on the next place-planner run.
