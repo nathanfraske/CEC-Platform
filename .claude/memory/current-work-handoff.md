@@ -1061,3 +1061,20 @@ Realized routing-under TWO ways, verified completeness strictly. SCOREBOARD (ind
   in the teens, COMPLETE. NEXT: (1) wire OPT1 layer_swap into cec_fr as opt-in finishing pass; (2) +3V3 inner
   plane + swap; (3) OWNER must confirm EPS SUSTAINED 12V current (<~31A RMS) -- the single-sided-F.Cu-12V premise
   collapses if real sustained approaches 40A. Drop OPT3.
+
+### CURRENT MODEL CORRECTION — EPS balancing (2026-06-19, owner catch)
+The FEM applied cable_current_A=40 to EACH SENSEC net independently (one-cable-at-rating, conservative). Owner: the
+typical 2-cable EPS config BALANCES, so per-cable 12V = ~half the total. Re-ran (build/fem_balanced.py +
+fem_3v3plane_bal.py) with balanced net_currents (SENSEC = P/12/2 per cable; GND = P/12 TOTAL since the return is SHARED):
+- 12V (SENSEC, single-sided F.Cu 2oz): balanced 350W -> 14.6A/cable -> dT 3-5C; 300W -> 12.5A -> 2-4C; worst-case ONE
+  cable (cap 28A conn limit) -> dT 14C. ALL PASS steady, HUGE margin. The 40A/cable was double-conservative (>1 EPS
+  connector's ~28A rating). So routing-under's 12V premise is rock-solid, NO transient argument needed.
+- BUT GND is the SHARED return -> total 25-29A, does NOT benefit from balancing. DUAL inner GND (current design):
+  dT 16C @29A -> PASS comfortably. SINGLE inner GND (the +3V3-PLANE stackup): dT 56.5C @29A (350W) / 37.6C @25A
+  (300W) -> FAIL steady; only PASS under the transient model (15.6A RMS -> 11.9C). So the +3V3-PLANE is NOT
+  thermally free -- it costs a GND plane the shared return needs at the realistic SUSTAINED current.
+=> REVISED: keep DUAL inner GND (drop the +3V3-plane for the mainstream board). The SAFE routing-under win is the
+LAYER-SWAP on the dual-GND board (40->32, complete, DRC-clean, NO stackup change, thermally neutral). To keep the
++3V3-plane would need 2oz inner copper (heavy, ~halves single-GND dT -> passes) or a PARTIAL inner split (GND in the
+return path under the pours + +3V3 in the logic area). The combine-routers workflow (wf_76757fc3) uses +3V3-plane ->
+interpret its routing result as the CEILING, gated by this thermal caveat.
