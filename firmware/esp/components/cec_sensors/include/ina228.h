@@ -73,10 +73,29 @@ esp_err_t ina228_destroy(ina228_handle_t handle);
 esp_err_t ina228_read_bus_voltage(ina228_handle_t handle, float *out_volts);
 
 /*
- * Read the current in amps (trim applied). 20-bit signed; sign reflects
- * direction. Resolution = CURRENT_LSB = max_current_a / 2^19.
+ * Read the current in amps with the calibration applied:
+ *   amps = gain * raw + offset
+ * (gain = current_trim, offset = 0 until a 2-point cal sets it). 20-bit
+ * signed; sign reflects direction. Resolution = CURRENT_LSB = max_current_a/2^19.
  */
 esp_err_t ina228_read_current(ina228_handle_t handle, float *out_amps);
+
+/*
+ * Read the RAW current in amps with NO gain/offset applied -- the reference
+ * reading used when capturing a calibration point against a known load.
+ */
+esp_err_t ina228_read_current_uncal(ina228_handle_t handle, float *out_amps);
+
+/*
+ * Calibration setters/getters (host- or CLI-driven; persisted by the app).
+ * Current cal is gain + offset; voltage cal is gain only (the INA228 bus
+ * offset is negligible). Defaults: gain 1.0, offset 0.0 (= raw reading).
+ */
+void  ina228_set_current_cal(ina228_handle_t handle, float gain, float offset_a);
+void  ina228_set_voltage_trim(ina228_handle_t handle, float gain);
+float ina228_get_voltage_trim(ina228_handle_t handle);
+float ina228_get_current_trim(ina228_handle_t handle);
+float ina228_get_current_offset(ina228_handle_t handle);
 
 /*
  * Read the shunt voltage directly in microvolts (untrimmed). 20-bit signed;

@@ -59,6 +59,7 @@ struct ina228_dev_t {
     uint8_t  adc_range;
     float    voltage_trim;
     float    current_trim;
+    float    current_offset;   /* amps added after the gain trim (2-point offset cal) */
     uint16_t cal_value;
 };
 
@@ -169,6 +170,7 @@ esp_err_t ina228_create(const ina228_config_t *config, ina228_handle_t *out_hand
     dev->current_lsb  = config->max_current_a / 524288.0f;     /* 2^19 */
     dev->voltage_trim = config->voltage_trim;
     dev->current_trim = config->current_trim;
+    dev->current_offset = 0.0f;
     double cal = 13107.2e6 * (double)dev->current_lsb * (double)dev->shunt_ohms;
     if (config->adc_range) cal *= 4.0;
     uint32_t cal_u = (uint32_t)(cal + 0.5);
@@ -228,9 +230,38 @@ esp_err_t ina228_read_current(ina228_handle_t handle, float *out_amps)
     uint32_t raw;
     esp_err_t err = ina228_read_reg24(handle, INA228_REG_CURRENT, &raw);
     if (err != ESP_OK) return err;
-    *out_amps = (float)ina228_signed20(raw) * handle->current_lsb * handle->current_trim;
+    /* Calibrated: out = gain*raw + offset (offset = 0 until a 2-point cal sets it). */
+    *out_amps = (float)ina228_signed20(raw) * handle->current_lsb * handle->current_trim
+                + handle->current_offset;
     return ESP_OK;
 }
+
+esp_err_t ina228_read_current_uncal(ina228_handle_t handle, float *out_amps)
+{
+    ESP_RETURN_ON_FALSE(handle != NULL && out_amps != NULL, ESP_ERR_INVALID_ARG, TAG, "null arg");
+    uint32_t raw;
+    esp_err_t err = ina228_read_reg24(handle, INA228_REG_CURRENT, &raw);
+    if (err != ESP_OK) return err;
+    /* Raw amps with NO trim/offset -- the reference point for a current cal. */
+    *out_amps = (float)ina228_signed20(raw) * handle->current_lsb;
+    return ESP_OK;
+}
+
+void ina228_set_current_cal(ina228_handle_t handle, float gain, float offset_a)
+{
+    if (handle == NULL) return;
+    handle->current_trim   = gain;
+    handle->current_offset = offset_a;
+}
+
+void ina228_set_voltage_trim(ina228_handle_t handle, float gain)
+{
+    if (handle) handle->voltage_trim = gain;
+}
+
+float ina228_get_voltage_trim(ina228_handle_t handle)   { return handle ? handle->voltage_trim : 1.0f; }
+float ina228_get_current_trim(ina228_handle_t handle)   { return handle ? handle->current_trim : 1.0f; }
+float ina228_get_current_offset(ina228_handle_t handle) { return handle ? handle->current_offset : 0.0f; }
 
 esp_err_t ina228_read_shunt_microvolts(ina228_handle_t handle, int32_t *out_microvolts)
 {

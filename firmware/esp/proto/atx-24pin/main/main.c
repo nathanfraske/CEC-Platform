@@ -16,6 +16,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <math.h>
+#include <stdlib.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
@@ -196,6 +197,23 @@ static float s_i_swing_3v3_buf[CURRENT_SWING_WINDOW_SIZE];
 #define NVS_SAVE_INTERVAL_US (5LL * 60 * 1000 * 1000)   /* 5 minutes */
 static bool    s_profiles_dirty = false;
 static int64_t s_last_nvs_save_us = 0;
+
+/* Per-rail INA228 calibration, persisted so a bench cal survives reboots.
+ * Index 0..3 = 12V/5V/3V3/5VSB (CAL_RAIL_NAME). The shunt sets accuracy
+ * (~±1% tolerance uncalibrated); a one-point load cal sets the current gain
+ * (removing the tolerance), a second point adds the offset, and a DMM point
+ * sets the voltage gain. See cli_cmd_cal. */
+#define NVS_CAL_KEY    "ina_cal"
+#define NVS_CAL_MAGIC  0xCEC60001U
+#define CAL_N_RAILS    4
+typedef struct {
+    float v_trim;     /* bus-voltage gain (1.0 = raw) */
+    float i_trim;     /* current gain (1.0 = raw) */
+    float i_offset;   /* current offset, amps (0.0 = none) */
+} cec_rail_cal_t;
+static cec_rail_cal_t s_cal[CAL_N_RAILS];   /* identity until load_cal_from_nvs() */
+/* Pending current cal points per rail: 1 point -> gain only, 2 -> gain+offset. */
+static struct { int n; float raw[2], tru[2]; } s_cal_pts[CAL_N_RAILS];
 
 /* Shutdown detection: 1-second rate-of-change window on v_12v_ema.
  * Triggers when 12V is dropping faster than 0.5 V/s from a nominal-ish
@@ -426,6 +444,94 @@ static void save_settings_to_nvs(void)
     } else {
         ESP_LOGW(TAG, "NVS: settings save failed: %s", esp_err_to_name(err));
     }
+}
+
+/* ------------------------- INA228 calibration ------------------------- */
+
+static const char *CAL_RAIL_NAME[CAL_N_RAILS] = { "12v", "5v", "3v3", "5vsb" };
+
+static ina228_handle_t cal_handle(int idx)
+{
+    switch (idx) {
+        case 0: return s_ina228_12v;
+        case 1: return s_ina228_5v;
+        case 2: return s_ina228_3v3;
+        case 3: return s_ina228_5vsb;
+        default: return NULL;
+    }
+}
+
+static int cal_rail_index(const char *name)
+{
+    if (!strcmp(name, "12v") || !strcmp(name, "12"))                       return 0;
+    if (!strcmp(name, "5v")  || !strcmp(name, "5"))                        return 1;
+    if (!strcmp(name, "3v3") || !strcmp(name, "3.3") || !strcmp(name, "3")) return 2;
+    if (!strcmp(name, "5vsb")|| !strcmp(name, "5sb") || !strcmp(name, "sb")) return 3;
+    return -1;
+}
+
+/* Push the stored cal for a rail onto its live INA228 handle. */
+static void cal_apply(int idx)
+{
+    ina228_handle_t h = cal_handle(idx);
+    if (h == NULL) return;
+    ina228_set_voltage_trim(h, s_cal[idx].v_trim);
+    ina228_set_current_cal(h, s_cal[idx].i_trim, s_cal[idx].i_offset);
+}
+
+/* Average N back-to-back reads to settle ADC noise for a clean cal point. */
+static esp_err_t cal_read_current_uncal_avg(ina228_handle_t h, float *out)
+{
+    float acc = 0.0f; int got = 0;
+    for (int i = 0; i < 16; i++) {
+        float v;
+        if (ina228_read_current_uncal(h, &v) == ESP_OK) { acc += v; got++; }
+    }
+    if (got == 0) return ESP_FAIL;
+    *out = acc / got;
+    return ESP_OK;
+}
+
+static esp_err_t cal_read_voltage_avg(ina228_handle_t h, float *out)
+{
+    float acc = 0.0f; int got = 0;
+    for (int i = 0; i < 16; i++) {
+        float v;
+        if (ina228_read_bus_voltage(h, &v) == ESP_OK) { acc += v; got++; }
+    }
+    if (got == 0) return ESP_FAIL;
+    *out = acc / got;
+    return ESP_OK;
+}
+
+static void load_cal_from_nvs(void)
+{
+    for (int i = 0; i < CAL_N_RAILS; i++) {
+        s_cal[i] = (cec_rail_cal_t){ 1.0f, 1.0f, 0.0f };
+        s_cal_pts[i].n = 0;
+    }
+    cec_rail_cal_t loaded[CAL_N_RAILS];
+    esp_err_t err = cec_nvs_load_blob(NVS_CAL_KEY, NVS_CAL_MAGIC, loaded, sizeof(loaded));
+    if (err == ESP_OK) {
+        memcpy(s_cal, loaded, sizeof(s_cal));
+        ESP_LOGI(TAG, "NVS: loaded INA228 cal (e.g. 12V gain i=%.4f v=%.4f off=%.4fA)",
+                 s_cal[0].i_trim, s_cal[0].v_trim, s_cal[0].i_offset);
+    } else if (err == ESP_ERR_NOT_FOUND) {
+        ESP_LOGI(TAG, "NVS: no saved cal, using raw (identity) -- run `cal` to calibrate");
+    } else if (err == ESP_ERR_INVALID_VERSION || err == ESP_ERR_INVALID_SIZE) {
+        ESP_LOGW(TAG, "NVS: stored cal unusable (%s), clearing", esp_err_to_name(err));
+        cec_nvs_clear_blob(NVS_CAL_KEY);
+    }
+    for (int i = 0; i < CAL_N_RAILS; i++) cal_apply(i);
+}
+
+static void save_cal_to_nvs(void)
+{
+    esp_err_t err = cec_nvs_save_blob(NVS_CAL_KEY, NVS_CAL_MAGIC, s_cal, sizeof(s_cal));
+    if (err == ESP_OK)
+        ESP_LOGI(TAG, "NVS: saved INA228 cal");
+    else
+        ESP_LOGW(TAG, "NVS: cal save failed: %s", esp_err_to_name(err));
 }
 
 /* Re-prime EMAs to the next sample on transitions UP into the
@@ -756,10 +862,127 @@ static int cli_cmd_status(int argc, char **argv)
     return 0;
 }
 
+/* Per-rail INA228 calibration against a known bench load + reference meter.
+ *   cal                       show the current gains/offsets
+ *   cal i <rail> <known_A>    apply a known load, set current gain (2nd point = +offset)
+ *   cal v <rail> <known_V>    set the voltage gain from a DMM reading
+ *   cal save                  persist to NVS (survives reboot)
+ *   cal clear [rail|all]      reset to identity (raw) + save
+ * rail = 12v|5v|3v3|5vsb. The shunt tolerance (~±1%) is the uncalibrated
+ * error; one current point removes it, a second adds the offset term. */
+static int cli_cmd_cal(int argc, char **argv)
+{
+    if (argc < 2 || !strcmp(argv[1], "show")) {
+        printf("INA228 cal (reading = gain*raw + offset; 1.0/0 = raw):\n");
+        printf("  rail   v_gain   i_gain   i_off(A)  pts\n");
+        for (int i = 0; i < CAL_N_RAILS; i++)
+            printf("  %-5s  %.4f   %.4f   %+.4f   %d\n",
+                   CAL_RAIL_NAME[i], s_cal[i].v_trim, s_cal[i].i_trim,
+                   s_cal[i].i_offset, s_cal_pts[i].n);
+        printf("usage: cal i <rail> <known_A> | cal v <rail> <known_V> | "
+               "cal save | cal clear [rail|all]\n");
+        return 0;
+    }
+    if (!strcmp(argv[1], "save")) {
+        save_cal_to_nvs();
+        printf("cal saved to NVS\n");
+        return 0;
+    }
+    if (!strcmp(argv[1], "clear")) {
+        const char *who = (argc >= 3) ? argv[2] : "all";
+        int only = strcmp(who, "all") ? cal_rail_index(who) : -2;
+        if (only == -1) { printf("error: unknown rail '%s'\n", who); return 1; }
+        for (int i = 0; i < CAL_N_RAILS; i++) {
+            if (only != -2 && i != only) continue;
+            s_cal[i] = (cec_rail_cal_t){ 1.0f, 1.0f, 0.0f };
+            s_cal_pts[i].n = 0;
+            cal_apply(i);
+        }
+        save_cal_to_nvs();
+        printf("cal reset to identity (%s) + saved\n", who);
+        return 0;
+    }
+    if ((!strcmp(argv[1], "i") || !strcmp(argv[1], "v")) && argc == 4) {
+        int idx = cal_rail_index(argv[2]);
+        if (idx < 0) { printf("error: unknown rail '%s' (12v|5v|3v3|5vsb)\n", argv[2]); return 1; }
+        ina228_handle_t h = cal_handle(idx);
+        if (h == NULL) { printf("error: %s sensor not initialized\n", CAL_RAIL_NAME[idx]); return 1; }
+        float known = strtof(argv[3], NULL);
+
+        if (!strcmp(argv[1], "v")) {
+            if (known < 0.5f) { printf("error: reference V too small (%.3f)\n", known); return 1; }
+            float reading = 0.0f;
+            if (cal_read_voltage_avg(h, &reading) != ESP_OK || reading < 0.2f) {
+                printf("error: %s bus-voltage read failed/too low (%.3f) -- rail present?\n",
+                       CAL_RAIL_NAME[idx], reading);
+                return 1;
+            }
+            float g = s_cal[idx].v_trim * (known / reading);   /* compose onto the live gain */
+            if (g < 0.5f || g > 2.0f) {
+                printf("error: implausible v_gain %.4f (read %.3f vs %.3f) -- check reference\n",
+                       g, reading, known);
+                return 1;
+            }
+            s_cal[idx].v_trim = g;
+            cal_apply(idx);
+            printf("%s v_gain = %.4f  (%.3f V -> %.3f V); `cal save` to persist\n",
+                   CAL_RAIL_NAME[idx], g, reading, known);
+            return 0;
+        }
+
+        /* current: capture an UNcalibrated reading against the known load */
+        float raw;
+        if (cal_read_current_uncal_avg(h, &raw) != ESP_OK) {
+            printf("error: %s current read failed\n", CAL_RAIL_NAME[idx]);
+            return 1;
+        }
+        if (fabsf(raw) < 0.05f || fabsf(known) < 0.05f) {
+            printf("error: load too small (raw %.4f A, known %.4f A) -- apply >=~0.1 A\n", raw, known);
+            return 1;
+        }
+        /* solve against the newest existing point (gain+offset), or gain-only for the first */
+        int n = s_cal_pts[idx].n;
+        float gain, off;
+        if (n == 0) {
+            gain = known / raw; off = 0.0f;
+        } else {
+            float r0 = s_cal_pts[idx].raw[n - 1], t0 = s_cal_pts[idx].tru[n - 1];
+            float dr = raw - r0;
+            if (fabsf(dr) < 0.05f) { gain = known / raw; off = 0.0f; }   /* too close -> gain only */
+            else { gain = (known - t0) / dr; off = t0 - gain * r0; }
+        }
+        if (gain < 0.5f || gain > 2.0f) {
+            printf("error: implausible i_gain %.4f -- check load/reference (point rejected)\n", gain);
+            return 1;
+        }
+        /* commit: record the point (keep last two), set + apply the cal */
+        if (s_cal_pts[idx].n < 2) {
+            s_cal_pts[idx].raw[s_cal_pts[idx].n] = raw;
+            s_cal_pts[idx].tru[s_cal_pts[idx].n] = known;
+            s_cal_pts[idx].n++;
+        } else {
+            s_cal_pts[idx].raw[0] = s_cal_pts[idx].raw[1];
+            s_cal_pts[idx].tru[0] = s_cal_pts[idx].tru[1];
+            s_cal_pts[idx].raw[1] = raw;
+            s_cal_pts[idx].tru[1] = known;
+        }
+        s_cal[idx].i_trim = gain;
+        s_cal[idx].i_offset = off;
+        cal_apply(idx);
+        printf("%s i_gain = %.4f  i_off = %+.4f A  (pt %d: raw %.4f A -> %.4f A); `cal save` to persist\n",
+               CAL_RAIL_NAME[idx], gain, off, s_cal_pts[idx].n, raw, known);
+        return 0;
+    }
+    printf("usage: cal [show] | cal i <rail> <known_A> | cal v <rail> <known_V> | "
+           "cal save | cal clear [rail|all]\n");
+    return 1;
+}
+
 static const cec_cli_command_t s_cli_commands[] = {
     { "burst",  "burst now [reason text...] — fire a manual burst capture",  cli_cmd_burst  },
     { "set",    "set <layer1|layer2|layer3|swing_power|swing_current> <on|off>", cli_cmd_set },
     { "status", "status [json] — current state, EMA readings, layer enables, profile warmth", cli_cmd_status },
+    { "cal",    "cal [show|i <rail> <A>|v <rail> <V>|save|clear [rail]] — per-rail INA228 cal", cli_cmd_cal },
 };
 
 static void log_hardware_info(void)
@@ -837,6 +1060,7 @@ void app_main(void)
     if (cec_nvs_init() == ESP_OK) {
         load_profiles_from_nvs();
         load_settings_from_nvs();
+        load_cal_from_nvs();   /* after init_ina228_rails: applies the cal to the handles */
     } else {
         ESP_LOGW(TAG, "NVS init failed; profiles will not persist across boots");
     }
