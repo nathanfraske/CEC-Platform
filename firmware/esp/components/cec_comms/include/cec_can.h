@@ -68,6 +68,12 @@ uint32_t can_get_rx_count(void);
 // auto-recovered by the on_state_change callback.
 uint32_t can_get_bus_off_count(void);
 
+// Enable/disable the per-frame RX ISR log (ESP_EARLY_LOG of every received
+// frame). On by default for bring-up; turn it OFF around a high-rate burst
+// (e.g. a CAN-OTA transfer streams tens of thousands of frames) so the log
+// doesn't flood the console and throttle the transfer.
+void can_set_rx_log(bool enable);
+
 // Snapshot the TWAI controller's current state + error counters and
 // cumulative bus-error count. Returns ESP_ERR_INVALID_STATE if
 // can_init hasn't run. Useful from a debug CLI when bus-off is

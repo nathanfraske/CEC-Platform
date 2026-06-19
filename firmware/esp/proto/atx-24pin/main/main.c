@@ -43,8 +43,16 @@
 #include "cec_teleplot.h"
 #include "cec_can.h"
 #include "cec_telem.h"
+#include "cec_canota.h"
 
 static const char *TAG = "cec_main";
+
+/* Set while a CAN-OTA update is in flight (cec_canota active callback).
+ * can_comms_task pauses telemetry TX so it doesn't contend with the OTA
+ * stream, and the app stays quiet right before it reboots into the new
+ * image. */
+static volatile bool s_ota_active = false;
+static void ota_active_cb(bool active) { s_ota_active = active; }
 
 /* CAN telemetry to the Hub. The live loop publishes the latest readings
  * into s_telem_pub (under a brief critical section); can_comms_task
@@ -60,6 +68,10 @@ static void can_comms_task(void *arg)
              xPortGetCoreID(), CEC_CAN_TX_PERIOD_MS);
     uint8_t seq = 0;
     while (1) {
+        if (s_ota_active) {                 /* hold off telemetry during a CAN-OTA */
+            vTaskDelay(pdMS_TO_TICKS(CEC_CAN_TX_PERIOD_MS));
+            continue;
+        }
         cec_telem_t t;
         portENTER_CRITICAL(&s_telem_mux);
         t = s_telem_pub;
@@ -1044,6 +1056,10 @@ void app_main(void)
     ESP_LOGI(TAG, "Version: 0.6.0-dev (INA226 bringup)");
     ESP_LOGI(TAG, "===========================================");
 
+    /* If we just booted a CAN-OTA image it is PENDING_VERIFY -- confirm it so
+     * the bootloader keeps it instead of rolling back on the next reset. */
+    cec_canota_mark_valid();
+
     log_hardware_info();
 
     /* TelePlot transport: the production 24-pin board has ONLY the MCU's
@@ -1108,6 +1124,12 @@ void app_main(void)
      * cec_can on_state_change handler), logging until a Hub appears. */
     if (can_init(false) == ESP_OK) {
         xTaskCreatePinnedToCore(can_comms_task, "can_comms", 4096, NULL, 4, NULL, 1);
+        /* CAN-OTA receiver: lets the Hub re-flash this module over CAN. It
+         * drains can_receive() and writes the streamed image to the inactive
+         * OTA slot; ota_active_cb pauses telemetry while an update runs. */
+        if (cec_canota_receiver_start(ota_active_cb) != ESP_OK) {
+            ESP_LOGW(TAG, "CAN-OTA receiver failed to start");
+        }
     } else {
         ESP_LOGW(TAG, "CAN init failed — no telemetry to the Hub");
     }

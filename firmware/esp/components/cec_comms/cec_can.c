@@ -30,6 +30,7 @@ static twai_node_handle_t s_node = NULL;
 static bool s_enabled = false;
 static volatile uint32_t s_rx_count = 0;
 static volatile uint32_t s_bus_off_count = 0;
+static volatile bool s_rx_log = true;   /* per-frame RX ISR log (gated for bursts) */
 
 /* Received frames are posted here by the RX ISR for an app to drain via
  * can_receive(). 8 data bytes + id + dlc per slot. */
@@ -78,7 +79,7 @@ static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
     BaseType_t hpw = pdFALSE;
     if (twai_node_receive_from_isr(handle, &rx_frame) == ESP_OK) {
         s_rx_count++;
-        ESP_EARLY_LOGI(TAG,
+        if (s_rx_log) ESP_EARLY_LOGI(TAG,
             "RX id=0x%03x dlc=%u [%02x %02x %02x %02x %02x %02x %02x %02x]",
             (unsigned)rx_frame.header.id,
             (unsigned)rx_frame.header.dlc,
@@ -188,6 +189,11 @@ esp_err_t can_init(bool loopback)
 uint32_t can_get_rx_count(void)
 {
     return s_rx_count;
+}
+
+void can_set_rx_log(bool enable)
+{
+    s_rx_log = enable;
 }
 
 uint32_t can_get_bus_off_count(void)
@@ -367,6 +373,7 @@ esp_err_t can_receive(uint32_t *out_id, uint8_t *out_data, uint8_t *out_len,
 }
 
 void can_stop(void) { }
+void can_set_rx_log(bool enable) { (void)enable; }
 
 uint32_t can_get_rx_count(void) { return 0; }
 uint32_t can_get_bus_off_count(void) { return 0; }
