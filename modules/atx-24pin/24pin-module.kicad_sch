@@ -8511,16 +8511,6 @@
 		)
 		(uuid "c9237981-ce0b-466a-a634-14aa4fb4eee8")
 	)
-	(label "RAIL5VSB_HI"
-		(at 284.48 220.98 180)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "d2121d55-b7c0-461b-aa49-0dcb0c49caae")
-	)
 	(label "EN"
 		(at 285.75 44.45 0)
 		(effects
@@ -8560,6 +8550,82 @@
 			(justify right bottom)
 		)
 		(uuid "f83f7bfb-67cd-48ad-81cb-265d487138eb")
+	)
+	(label "RAIL5VSB_LO"
+		(at 288.29 205.74 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "a1b2c3d4-0001-4002-8003-0000000000aa")
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 288.29 210.82 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b2c3d4e5-0002-4003-8004-0000000000bb")
+		(property "Reference" "#PWR088"
+			(at 288.29 213.36 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5VSB"
+			(at 288.29 207.01 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 288.29 210.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 288.29 210.82 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "c3d4e5f6-0003-4004-8005-0000000000cc")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR088")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "cec-vendor:R_Small")
@@ -10474,7 +10540,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:CEC_SHUNT_4T")
+		(lib_id "cec-vendor:CEC_SHUNT_2T")
 		(at 284.48 208.28 90)
 		(unit 1)
 		(body_style 1)
@@ -10507,7 +10573,7 @@
 				(justify left)
 			)
 		)
-		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 284.48 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -10529,7 +10595,7 @@
 				)
 			)
 		)
-		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
+		(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Kelvin sense tapped off each terminal in LAYOUT; pins 1/2 = current = rail HI/LO."
 			(at 284.48 208.28 0)
 			(hide yes)
 			(show_name no)
@@ -10540,7 +10606,7 @@
 				)
 			)
 		)
-		(property "BOM Comments" "As-built THIS spin: Resistor Today LCSR2512FR025K9L (25mOhm, ±1%, ±100ppm/C, 2W, 2-TERMINAL, LCSC C494568). MISMATCH: this symbol+footprint are the 4-TERMINAL Vishay WSK2512 Kelvin land, but the LCSR is 2-terminal. Reconcile against the board RS6 land -- if it is the honest 2-pad R_2512 like RS1/2/5, convert RS6 to the 2-terminal symbol+footprint (netlist change). OQ-11."
+		(property "BOM Comments" "5VSB shunt, this spin: Resistor Today LCSR2512FR025K9L (25mOhm, ±1%, ±100ppm/C, 2W, 2-terminal, LCSC C494568). Honest 2-pad R_2512 land; Kelvin taps off the terminal copper in layout (spec 6.8). Converted from the stale 4-terminal Vishay WSK2512 to match the board land. OQ-11."
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10562,7 +10628,29 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Vishay"
+		(property "Manufacturer" "Resistor Today"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "LCSR2512FR025K9L"
+			(at 0 0 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C494568"
 			(at 0 0 0)
 			(hide yes)
 			(show_name no)
@@ -10576,13 +10664,7 @@
 		(pin "1"
 			(uuid "619a87c9-e48e-4a11-8fd4-1a7819025096")
 		)
-		(pin "3"
-			(uuid "5e402afe-5b95-476c-a22a-30f5c1834615")
-		)
 		(pin "2"
-			(uuid "064a8430-8ca0-4202-9983-1c97fe0df1fc")
-		)
-		(pin "4"
 			(uuid "afdb35fe-6659-4681-90b9-0c0a438c30a9")
 		)
 		(instances
