@@ -75,6 +75,7 @@ class Bench:
             self.tp_sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.last_rx = time.time()
         self._buf = None
+        self._tp_buf = None     # 24-pin >BURST_BEGIN .. >BURST_END block buffer
         self._cap_n = 0
         self._stop = threading.Event()
         self.version = tool_version()
@@ -100,6 +101,18 @@ class Bench:
                 continue
             line = raw.decode("utf-8", "replace").rstrip("\r\n")
             self.session_log.write(line + "\n")
+            # 24-pin burst block (>BURST_BEGIN .. >BURST_END): its rows are
+            # >b_*/>hs_* and start with '>', so capture the whole block here,
+            # ahead of the plain-teleplot short-circuit below.
+            if self._tp_buf is not None:
+                self._tp_buf.append(line)
+                if line.startswith(">BURST_END"):
+                    self._save_capture(self._tp_buf)
+                    self._tp_buf = None
+                continue
+            if line.startswith(">BURST_BEGIN"):
+                self._tp_buf = [line]
+                continue
             if line.startswith(">"):              # teleplot: keep it OFF the terminal so you can
                 if self.tp_sock:                  #   type + read command output; forward/log it.
                     try:
@@ -123,6 +136,10 @@ class Bench:
     def _save_capture(self, block):
         kind = "capture"
         for ln in block:
+            if ln.startswith(">BURST_BEGIN:"):    # 24-pin: kind = the trigger reason
+                parts = ln.split(":")
+                kind = parts[1] if len(parts) > 1 and parts[1] else "burst"
+                break
             if ln.startswith("#"):
                 kind = ln.lstrip("# ").split(":", 1)[0].split()[0]
                 break
