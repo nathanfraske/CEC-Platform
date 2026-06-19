@@ -1114,3 +1114,18 @@ mostly COST/THERMAL, not routing. A real layer_swap.py BUG was found+fixed (via-
   heatmap). LAUNCH GOTCHAS recorded: out-dir must be HOST-created (nathan-owned, else run.log PermissionError); start
   board must be CONTAINER-cp'd INTO that dir (WSL mount-cache lag on host cp -> LoadBoard None); launch via
   run_in_background (has docker-group); the "2 drivers" was always wrapper-bash + python (1 real driver).
+
+### Overnight run RESULT + heatmap FIX (2026-06-19)
+- OVERNIGHT (build/place-planner-overnight, route-under + grow, from r7): PLATEAUED at clips=32 over ~400 rounds.
+  best_overall never beat the seed (r7+route-under = 32). All 3 grows hurt (44/60/58). So clips=32 COMPLETE is the
+  automated FLOOR for autoroute+route-under -- residual is B.Cu congestion under the pours (placement can't fix it;
+  hand-board ~3 needs manual threading). Best fabricable board = r7 placement, routed with route-under = clips=32
+  complete/clean, on the V2 stackup (dual 0.5oz GND + 1oz outer, thermally validated). Run stopped (plateaued).
+- HEATMAP FIX (owner: "heatmap not rendering"): TWO bugs. (1) cec_thermal_overlay.py solved on the candidate's
+  UNFILLED zones -> blank field (max_T=ambient). FIX: _prepare_filled() pours the SENSEC F.Cu corridors + fills all
+  zones before solve/render -> real field (r7 dT=24.1C, 5 nets). (2) the dashboard PROCESS was 1d6h old -- predated
+  today's thermal code, so it never ran _render_thermal. FIX: restarted cec_dashboard.py (kill by EXACT PID -- pgrep
+  -f self-matches the bash cmd). Also fixed the overlay VERDICT to gate on dT only (the solver's maxJ is a grid-
+  divergent mesh artifact per validation; use analytic 28 A/mm2 for J) -> r7 now reads PASS not FAIL. Verified:
+  -thermal.png produced (~90KB), /thermal.png serves real PNG, dashboard tracks the run. Owner: REFRESH browser +
+  click the "thermal" toggle.
