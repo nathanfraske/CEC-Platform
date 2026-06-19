@@ -774,17 +774,20 @@ void app_main(void)
 
     log_hardware_info();
 
-    /* Bring up the dedicated TelePlot transport on UART0/GPIO 43-44
-     * (CH340K USB-C). All teleplot_* output goes here; CLI input,
-     * ESP_LOG, and command responses stay on the JTAG USB-C. If the
-     * UART init fails (cable not plugged in, etc.) the helpers fall
-     * back to stdout so capture-tool workflows still work over JTAG. */
-    if (cec_telemetry_init_uart(TELEMETRY_UART_NUM,
-                                TELEMETRY_UART_TXD, TELEMETRY_UART_RXD,
-                                TELEMETRY_UART_BAUD,
-                                TELEMETRY_UART_TX_BUF) != ESP_OK) {
-        ESP_LOGW(TAG, "telemetry UART unavailable; TelePlot will share the JTAG USB-C with logs");
-    }
+    /* TelePlot transport: the production 24-pin board has ONLY the MCU's
+     * native USB Serial/JTAG (one USB-C); there is no CH340K UART bridge
+     * (that was the dev board). So we deliberately do NOT initialize the
+     * dedicated UART transport here -- leaving it unconfigured routes every
+     * teleplot_* line to stdio (the USB console), interleaved with the logs
+     * and CLI on the one cable.
+     *
+     * This is independent of CONFIG_CEC_TELEMETRY_UART0 on purpose: a stale
+     * sdkconfig left at =y (sdkconfig.defaults changes don't rewrite an
+     * existing sdkconfig) must not silently send telemetry out the absent
+     * GPIO43/44 again. The shared cec_telemetry component keeps full UART
+     * support for a board that actually has the bridge; this app just
+     * doesn't call it. */
+    ESP_LOGI(TAG, "TelePlot on the native USB console (no CH340K UART on the production board)");
 
     init_i2c_bus();
     init_status_led();
@@ -1188,38 +1191,40 @@ void app_main(void)
         cec_capture_push(&pre);
 
         if (iter % TELEPLOT_DIVIDER == 0) {
-            /* Use the device-side millisecond clock for every TelePlot
-             * row so the slow-loop output shares a time base with the
-             * burst-capture b_*hs_* streams. Without this TelePlot
-             * auto-stamps with the host wallclock and the two streams
-             * can't be aligned. */
-            int64_t now_ms = esp_timer_get_time() / 1000;
+            /* Live monitor rows are emitted UNTIMESTAMPED so TelePlot
+             * auto-stamps each with the host wallclock and they land in
+             * the live window. (An explicit device-uptime-ms timestamp
+             * is read by TelePlot as Unix-epoch ms -> the points plot
+             * decades in the past, off-screen, which looked like "no
+             * graphs".) The burst renderers below KEEP device-ms: those
+             * blocks are saved + aligned offline by cec_capture_analyze,
+             * not viewed in the live TelePlot window. */
             if (ok_5vsb) {
-                teleplot_emit_t("v_5vsb",     now_ms, v_5vsb);
-                teleplot_emit_t("v_5vsb_ema", now_ms, v_5vsb_ema);
-                teleplot_emit_t("i_5vsb_raw", now_ms, i_5vsb);
-                teleplot_emit_t("i_5vsb_ema", now_ms, i_5vsb_ema);
+                teleplot_emit("v_5vsb",     v_5vsb);
+                teleplot_emit("v_5vsb_ema", v_5vsb_ema);
+                teleplot_emit("i_5vsb_raw", i_5vsb);
+                teleplot_emit("i_5vsb_ema", i_5vsb_ema);
             }
-            if (ok_v_12v) { teleplot_emit_t("v_12v", now_ms, v_12v); teleplot_emit_t("v_12v_ema", now_ms, v_12v_ema); }
-            if (ok_v_5v)  { teleplot_emit_t("v_5v",  now_ms, v_5v);  teleplot_emit_t("v_5v_ema",  now_ms, v_5v_ema);  }
-            if (ok_v_3v3) { teleplot_emit_t("v_3v3", now_ms, v_3v3); teleplot_emit_t("v_3v3_ema", now_ms, v_3v3_ema); }
-            if (ok_i_12v) { teleplot_emit_t("i_12v", now_ms, i_12v); teleplot_emit_t("i_12v_ema", now_ms, i_12v_ema); }
-            if (ok_i_5v)  { teleplot_emit_t("i_5v",  now_ms, i_5v);  teleplot_emit_t("i_5v_ema",  now_ms, i_5v_ema);  }
-            if (ok_i_3v3) { teleplot_emit_t("i_3v3", now_ms, i_3v3); teleplot_emit_t("i_3v3_ema", now_ms, i_3v3_ema); }
-            if (ok_temp)  { teleplot_emit_t("temp_c", now_ms, temp_c); teleplot_emit_t("temp_c_ema", now_ms, temp_ema); }
-            teleplot_emit_t("p_total", now_ms, p_total);
-            teleplot_emit_t("state",   now_ms, (float)s_state);
-            teleplot_emit_t("sev_12v",  now_ms, (float)sev_12v);
-            teleplot_emit_t("sev_5v",   now_ms, (float)sev_5v);
-            teleplot_emit_t("sev_3v3",  now_ms, (float)sev_3v3);
-            teleplot_emit_t("sev_5vsb", now_ms, (float)sev_5vsb);
-            teleplot_emit_t("z_max",    now_ms, z_max);
-            teleplot_emit_t("shutting_down", now_ms, s_shutting_down ? 1.0f : 0.0f);
-            teleplot_emit_t("ps_on",  now_ms, ps_on  ? 1.0f : 0.0f);
-            teleplot_emit_t("pwr_ok", now_ms, pwr_ok ? 1.0f : 0.0f);
+            if (ok_v_12v) { teleplot_emit("v_12v", v_12v); teleplot_emit("v_12v_ema", v_12v_ema); }
+            if (ok_v_5v)  { teleplot_emit("v_5v",  v_5v);  teleplot_emit("v_5v_ema",  v_5v_ema);  }
+            if (ok_v_3v3) { teleplot_emit("v_3v3", v_3v3); teleplot_emit("v_3v3_ema", v_3v3_ema); }
+            if (ok_i_12v) { teleplot_emit("i_12v", i_12v); teleplot_emit("i_12v_ema", i_12v_ema); }
+            if (ok_i_5v)  { teleplot_emit("i_5v",  i_5v);  teleplot_emit("i_5v_ema",  i_5v_ema);  }
+            if (ok_i_3v3) { teleplot_emit("i_3v3", i_3v3); teleplot_emit("i_3v3_ema", i_3v3_ema); }
+            if (ok_temp)  { teleplot_emit("temp_c", temp_c); teleplot_emit("temp_c_ema", temp_ema); }
+            teleplot_emit("p_total", p_total);
+            teleplot_emit("state",   (float)s_state);
+            teleplot_emit("sev_12v",  (float)sev_12v);
+            teleplot_emit("sev_5v",   (float)sev_5v);
+            teleplot_emit("sev_3v3",  (float)sev_3v3);
+            teleplot_emit("sev_5vsb", (float)sev_5vsb);
+            teleplot_emit("z_max",    z_max);
+            teleplot_emit("shutting_down", s_shutting_down ? 1.0f : 0.0f);
+            teleplot_emit("ps_on",  ps_on  ? 1.0f : 0.0f);
+            teleplot_emit("pwr_ok", pwr_ok ? 1.0f : 0.0f);
             if (cec_swing_detector_is_full(&s_power_swing)) {
-                teleplot_emit_t("p_window_mean", now_ms, p_window_mean);
-                teleplot_emit_t("p_swing_thr",   now_ms, p_swing_thresh);
+                teleplot_emit("p_window_mean", p_window_mean);
+                teleplot_emit("p_swing_thr",   p_swing_thresh);
             }
         }
 

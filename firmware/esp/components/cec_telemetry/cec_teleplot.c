@@ -92,6 +92,7 @@ void teleplot_write_raw(const char *buf, size_t n)
     }
 #endif
     fwrite(buf, 1, n, stdout);
+    fflush(stdout);   /* USB-CDC console: push each line out now, not on buffer-fill */
 }
 
 /* Clamp snprintf's documented "I would have written N bytes" return so
