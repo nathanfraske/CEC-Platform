@@ -61,19 +61,19 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
  * current; the ACS712/divider front end is retired. I2C SDA=IO8 / SCL=IO9.
  *
  *   Rail  U     I2C   shunt    ALERT   as-built shunt (THIS spin)
- *   12V   U10   0x40  2 mOhm   IO10    PSRP25K6FR002  (F = ±1%)
- *   5V    U11   0x41  2 mOhm   IO11    PSRP25K6FR002  (F = ±1%)
- *   3V3   U12   0x44  2 mOhm   IO12    PSRP25K6FR002  (F = ±1%)
+ *   12V   U10   0x40  2 mOhm   IO10    PSRP25K6FR002 (Prosemi; NiCr, 6 W, ±1%, ±75 ppm/°C)
+ *   5V    U11   0x41  2 mOhm   IO11    PSRP25K6FR002 (Prosemi; NiCr, 6 W, ±1%, ±75 ppm/°C)
+ *   3V3   U12   0x44  2 mOhm   IO12    PSRP25K6FR002 (Prosemi; NiCr, 6 W, ±1%, ±75 ppm/°C)
  *   5VSB  U13   0x45  25 mOhm  IO13    LCSR2512FR025K9L (RESI; ±1%, ±100 ppm/°C, 2 W)
  *
  * The shunt — not the INA228 — sets current/power ACCURACY (the part is
  * 20-bit, ±0.1% gain, ~±1 uV offset; far better than the resistor in front
- * of it). These prototype parts are ±1% tolerance, so UNCALIBRATED current
- * is ~±1%; a one-point per-channel cal (current_trim, below) removes the
- * tolerance and leaves the TCR term (~±0.4% over a 40°C swing at ±100 ppm/°C),
- * which the INA228 die-temp can compensate. OQ-11 is still open (Bourns CSS2H
- * intended for production); the PSRP 2 mOhm TCR is unconfirmed from its
- * datasheet — verify before trusting the temp term on the main rails.
+ * of it). All four are ±1% tolerance, so UNCALIBRATED current is ~±1%; a
+ * one-point per-channel cal (current_trim, below) removes the tolerance and
+ * leaves the TCR term -- ~±0.3% over a 40°C swing on the main rails (PSRP,
+ * ±75 ppm/°C) -- which the INA228 die-temp can compensate. The PSRP is a 6 W
+ * NiCr alloy part, so at 12V/15A (0.45 W, <8% of rating) self-heating drift
+ * is small. OQ-11 is still open (Bourns CSS2H intended for production).
  *
  * Status LED: D2 on IO21 (active-high, IO21 -> R7 -> LED -> GND).
  */
@@ -81,7 +81,7 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define INA228_ADDR_5V       0x41
 #define INA228_ADDR_3V3      0x44
 #define INA228_ADDR_5VSB     0x45
-#define INA228_SHUNT_MAIN    0.002f   /* 12V/5V/3V3 = 2 mOhm  (PSRP25K6FR002, ±1%) */
+#define INA228_SHUNT_MAIN    0.002f   /* 12V/5V/3V3 = 2 mOhm  (PSRP25K6FR002, ±1%/±75ppm) */
 #define INA228_SHUNT_5VSB    0.025f   /* 5VSB = 25 mOhm (LCSR2512FR025K9L, ±1%/±100ppm) */
 #define INA228_ALERT_12V     10
 #define INA228_ALERT_5V      11
