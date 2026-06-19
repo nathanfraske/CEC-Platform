@@ -44,6 +44,7 @@
 #include "cec_can.h"
 #include "cec_telem.h"
 #include "cec_canota.h"
+#include "cec_pokeack.h"
 
 static const char *TAG = "cec_main";
 
@@ -1130,6 +1131,13 @@ void app_main(void)
         if (cec_canota_receiver_start(ota_active_cb) != ESP_OK) {
             ESP_LOGW(TAG, "CAN-OTA receiver failed to start");
         }
+        /* DETECT poke-and-ack responder. The 24-pin has NO pin-8 sense tap
+         * (the MINI-1 GPIO pads sit under the shroud — none can be added), so
+         * this starts INERT: safe fallback / legacy mode. The Hub still reads
+         * this module's comm class from the static DETECT divider; it just
+         * won't get a poke ack, and binds the port as known-but-unbound. */
+        cec_pokeack_responder_start(CEC_POKEACK_TAP_NONE,
+                                    CEC_CFG_MODULE_TYPE, CEC_CFG_MODULE_ID);
     } else {
         ESP_LOGW(TAG, "CAN init failed — no telemetry to the Hub");
     }

@@ -41,6 +41,23 @@ extern "C" {
 #define CEC_HUB_RX_TIMEOUT_MS   1000
 #define CEC_HUB_LOG_PERIOD_US   1000000   /* 1 Hz summary */
 
+/*
+ * DETECT poke-and-ack bench rig (spec §2.3 v2.6). The DETECT line is RJ-45
+ * pin 8, carried to the Hub end by the full RJ-45 cable. Build this small
+ * rig on the Lonely Binary's accessible GPIOs:
+ *
+ *   - 10 kΩ pull-up resistor from 3V3 to the DETECT node (the Hub's pull-up).
+ *   - DETECT node -> IO1 (ADC1_CH0): reads the static divider = comm class
+ *     (the 24-pin's 2.2 kΩ -> ~0.60 V = CAN-only). This is the analog sense.
+ *   - DETECT node -> IO2: the poke driver (idle hi-Z; pulses HIGH to perturb
+ *     the line). A module with a pin-8 GPIO tap would ack over CAN; the 24-pin
+ *     has no tap, so it never acks -> safe fallback to legacy/unbound.
+ *
+ * IO1/IO2 are free here (CAN is IO5/IO4). Change to suit your wiring.
+ */
+#define CEC_HUB_DETECT_ADC_GPIO   1    /* ADC1_CH0; reads the DETECT divider */
+#define CEC_HUB_DETECT_POKE_GPIO  2    /* poke driver into the DETECT node */
+
 #ifdef __cplusplus
 }
 #endif

@@ -35,6 +35,7 @@
 #include "cec_can.h"
 #include "cec_telem.h"
 #include "cec_canota.h"
+#include "cec_pokeack.h"
 #include "cec_cli.h"
 #include "cec_teleplot.h"
 #include "cec_config.h"
@@ -197,9 +198,35 @@ static int cmd_caninfo(int argc, char **argv)
     return 0;
 }
 
+/* DETECT poke-and-ack: read the comm class off the static divider (the analog
+ * sense pin), then poke and try to bind a module to this port. A module with a
+ * pin-8 tap acks over CAN; the 24-pin has no tap, so this falls back safely to
+ * legacy/known-but-unbound. */
+static int cmd_detect(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    int mv = -1;
+    cec_detect_class_t cls = cec_pokeack_read_class(&mv);
+    printf("DETECT: %d mV -> %s\n", mv, cec_detect_class_name(cls));
+    if (cls == CEC_DETECT_ABSENT) { printf("DETECT: no module on the line (open)\n"); return 0; }
+    if (cls == CEC_DETECT_FAULT)  { printf("DETECT: line shorted (fault)\n"); return 1; }
+
+    uint8_t mtype = 0, inst = 0;
+    if (s_display_task) vTaskSuspend(s_display_task);   /* binder owns can_receive() */
+    bool acked = cec_pokeack_poke_and_bind(200, &mtype, &inst);
+    if (s_display_task) vTaskResume(s_display_task);
+
+    if (acked)
+        printf("DETECT: poke ACK -> bound module type 0x%02x inst %u to this port\n", mtype, inst);
+    else
+        printf("DETECT: no poke ack -> legacy module (known-but-unbound; comm class above)\n");
+    return 0;
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "ota",     "flash the module over CAN: ota <size> <crc32hex>, then stream hex lines", cmd_ota },
     { "caninfo", "print TWAI controller state + counters",                                   cmd_caninfo },
+    { "detect",  "read DETECT comm-class + poke-and-ack bind (falls back to legacy)",        cmd_detect },
 };
 
 /* ---------------- app_main ---------------- */
@@ -223,6 +250,16 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(display_task, "hub_disp", 4096, NULL, 4, &s_display_task, 1);
 
-    /* CLI on the USB console (blocking stdin) for the `ota` flash bridge. */
+    /* DETECT poke-and-ack rig (spec §2.3): ADC read of the divider (comm
+     * class) + a poke driver. The 10k pull-up to 3V3 is external; see
+     * cec_config.h for the bench wiring. */
+    if (cec_pokeack_hub_init(CEC_HUB_DETECT_ADC_GPIO, CEC_HUB_DETECT_POKE_GPIO) == ESP_OK) {
+        int mv = -1;
+        cec_detect_class_t cls = cec_pokeack_read_class(&mv);
+        ESP_LOGI(TAG, "DETECT at boot: %d mV -> %s (use `detect` to poke-and-bind)",
+                 mv, cec_detect_class_name(cls));
+    }
+
+    /* CLI on the USB console (blocking stdin): `ota` flash bridge + `detect`. */
     cec_cli_init(CLI_COMMANDS, sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]));
 }

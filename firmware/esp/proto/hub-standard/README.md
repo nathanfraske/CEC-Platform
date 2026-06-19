@@ -81,3 +81,37 @@ image that never marks itself valid).
 
 Manual alternative (no host script): in the Hub console type
 `ota <size> <crc32hex>` then paste the image as hex lines.
+
+## DETECT analog sense + poke-and-ack (`detect` command)
+
+The DETECT line is RJ-45 pin 8. With the full RJ-45 cable it reaches the Hub
+end already, so only a small Hub-side rig is needed (defaults in
+`cec_config.h`, change to suit):
+
+| Part | Connection |
+|---|---|
+| 10 kΩ pull-up | 3V3 → DETECT node (the Hub's pull-up) |
+| ADC read | DETECT node → **IO1** (ADC1_CH0) — reads the divider |
+| Poke driver | DETECT node → **IO2** (idle hi-Z; pulses HIGH to perturb) |
+
+**Analog sense (works on this bench).** The 24-pin's pin-8 carries a 2.2 kΩ to
+GND; against the Hub's 10 kΩ pull-up that's ~0.60 V = the **CAN-only** comm
+class. The Hub reads + classifies it (spec §2.3): open ≈ 3.3 V (absent),
+short ≈ 0 V (fault), 2.2 k / 4.7 k / 10 k / 22 k / 47 k codes in between. Read
+at boot and via the `detect` command.
+
+**Poke-and-ack + safe fallback.** `detect` reads the class, then *pokes* the
+line (4 rising edges) and waits ~200 ms for a module to **ack over CAN** (a
+`MOVED` frame, ID 0x120). A module with a high-Z pin-8 GPIO tap (EPS/PCIe do,
+on IO10) senses the edges and acks, binding its identity to this port.
+
+The **24-pin has no tap** — its MINI-1 GPIO pads are under the shroud, so none
+can be added — so it **never acks**. That is the designed **safe fallback**:
+the Hub times out and reports the port as *legacy / known-but-unbound* (still
+known from CAN, still read for comm class from the divider). So on this bench
+`detect` shows the **comm class read working** and the **fallback working**;
+the positive ack path is exercised later on an EPS/PCIe (which can tap). The
+module-side responder firmware is built and shared (`cec_pokeack`), started
+inert on the 24-pin (`CEC_POKEACK_TAP_NONE`).
+
+OQ-28 (sense method) is implemented as the spec-favored **digital edge** read.
