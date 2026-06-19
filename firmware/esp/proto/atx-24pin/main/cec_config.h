@@ -95,6 +95,19 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define PWROK_BUF_GPIO       38       /* U4 out: ATX PWR_OK (1 = power good) */
 #define PSON_BUF_GPIO        39       /* U5 out: ATX PS_ON# (0 = PSU on, active-low) */
 
+/*
+ * CAN telemetry to the Hub. Transceiver U2 = TJA1051T/3 on the RJ-45
+ * CAN pair (J1 pin 3 = CAN_H, pin 6 = CAN_L). MCU side:
+ *   CAN TX -> ESP IO17 (TJA1051 TXD), CAN RX <- ESP IO18 (TJA1051 RXD).
+ * Pins + bitrate are set in sdkconfig.defaults (CONFIG_CEC_CAN_TX_GPIO=17,
+ * RX=18, BITRATE_BPS=125000 -- the slope-controlled bench rate; 500k is the
+ * platform target once the Hub's SN65HVD230 Rs is bridged to GND). The
+ * shared cec_comms component reads those Kconfig values. This board sends a
+ * 3-frame rail-telemetry burst (cec_telem.h) every CEC_CAN_TX_PERIOD_MS. */
+#define CEC_CFG_MODULE_TYPE      CEC_MODULE_TYPE_ATX24
+#define CEC_CFG_MODULE_ID        0
+#define CEC_CAN_TX_PERIOD_MS     200    /* 5 Hz telemetry to the Hub */
+
 #ifdef __cplusplus
 }
 #endif

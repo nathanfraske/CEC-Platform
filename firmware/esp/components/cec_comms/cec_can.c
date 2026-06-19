@@ -10,6 +10,9 @@
  * CEC_CAN_ENABLED is 0. Verify on the bench when the daughterboard /
  * transceiver is attached and the flag is flipped on.
  */
+#include <string.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/queue.h"
 #include "esp_twai.h"
 #include "esp_twai_onchip.h"
 #include "esp_log.h"
@@ -27,6 +30,12 @@ static twai_node_handle_t s_node = NULL;
 static bool s_enabled = false;
 static volatile uint32_t s_rx_count = 0;
 static volatile uint32_t s_bus_off_count = 0;
+
+/* Received frames are posted here by the RX ISR for an app to drain via
+ * can_receive(). 8 data bytes + id + dlc per slot. */
+typedef struct { uint32_t id; uint8_t len; uint8_t data[8]; } can_rx_slot_t;
+#define CAN_RX_QUEUE_DEPTH 16
+static QueueHandle_t s_rx_queue = NULL;
 
 /*
  * State-change callback (ISR context). Auto-recovers from BUS_OFF by
@@ -66,6 +75,7 @@ static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
         .buffer     = rx_data,
         .buffer_len = sizeof(rx_data),
     };
+    BaseType_t hpw = pdFALSE;
     if (twai_node_receive_from_isr(handle, &rx_frame) == ESP_OK) {
         s_rx_count++;
         ESP_EARLY_LOGI(TAG,
@@ -74,8 +84,20 @@ static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
             (unsigned)rx_frame.header.dlc,
             rx_data[0], rx_data[1], rx_data[2], rx_data[3],
             rx_data[4], rx_data[5], rx_data[6], rx_data[7]);
+        /* Hand the frame to any waiting task (can_receive). Best-effort:
+         * if the queue is full the oldest backlog is dropped rather than
+         * blocking the ISR. */
+        if (s_rx_queue) {
+            can_rx_slot_t slot = { .id = rx_frame.header.id, .len = rx_frame.header.dlc };
+            memcpy(slot.data, rx_data, sizeof(slot.data));
+            if (xQueueSendFromISR(s_rx_queue, &slot, &hpw) != pdTRUE) {
+                can_rx_slot_t drop;
+                xQueueReceiveFromISR(s_rx_queue, &drop, NULL);
+                xQueueSendFromISR(s_rx_queue, &slot, &hpw);
+            }
+        }
     }
-    return false; /* no higher-prio task to unblock */
+    return hpw == pdTRUE;
 }
 
 /* Listen-only diagnostic: Kconfig CEC_CAN_DIAG_LISTEN_ONLY (the
@@ -85,6 +107,14 @@ esp_err_t can_init(bool loopback)
 {
     if (s_node != NULL) {
         return ESP_ERR_INVALID_STATE;
+    }
+
+    if (s_rx_queue == NULL) {
+        s_rx_queue = xQueueCreate(CAN_RX_QUEUE_DEPTH, sizeof(can_rx_slot_t));
+        if (s_rx_queue == NULL) {
+            ESP_LOGE(TAG, "RX queue alloc failed");
+            return ESP_ERR_NO_MEM;
+        }
     }
 
     twai_onchip_node_config_t cfg = {
@@ -247,15 +277,49 @@ esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
     return twai_node_transmit_wait_all_done(s_node, CAN_TX_TIMEOUT_MS);
 }
 
+esp_err_t can_send_frame(uint32_t id, const uint8_t *data, uint8_t len)
+{
+    if (!s_enabled) return ESP_ERR_INVALID_STATE;
+    if (len > 8) len = 8;
+    uint8_t buf[8] = {0};
+    if (data && len) memcpy(buf, data, len);
+    twai_frame_t frame = {
+        .header.id  = id,
+        .buffer     = buf,
+        .buffer_len = len,
+    };
+    esp_err_t ret = twai_node_transmit(s_node, &frame, CAN_TX_TIMEOUT_MS);
+    if (ret != ESP_OK) return ret;
+    return twai_node_transmit_wait_all_done(s_node, CAN_TX_TIMEOUT_MS);
+}
+
+esp_err_t can_receive(uint32_t *out_id, uint8_t *out_data, uint8_t *out_len,
+                      uint32_t timeout_ms)
+{
+    if (s_rx_queue == NULL) return ESP_ERR_INVALID_STATE;
+    can_rx_slot_t slot;
+    if (xQueueReceive(s_rx_queue, &slot, pdMS_TO_TICKS(timeout_ms)) != pdTRUE)
+        return ESP_ERR_TIMEOUT;
+    if (out_id)   *out_id = slot.id;
+    if (out_len)  *out_len = slot.len;
+    if (out_data) memcpy(out_data, slot.data, sizeof(slot.data));
+    return ESP_OK;
+}
+
 void can_stop(void)
 {
-    if (s_node == NULL) return;
-    if (s_enabled) {
-        twai_node_disable(s_node);
-        s_enabled = false;
+    if (s_node != NULL) {
+        if (s_enabled) {
+            twai_node_disable(s_node);
+            s_enabled = false;
+        }
+        twai_node_delete(s_node);
+        s_node = NULL;
     }
-    twai_node_delete(s_node);
-    s_node = NULL;
+    if (s_rx_queue) {
+        vQueueDelete(s_rx_queue);
+        s_rx_queue = NULL;
+    }
 }
 
 #else  /* CEC_CAN_ENABLED */
@@ -286,6 +350,19 @@ esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
                            uint8_t status_flags)
 {
     (void)module_type; (void)module_id; (void)status_flags;
+    return ESP_ERR_INVALID_STATE;
+}
+
+esp_err_t can_send_frame(uint32_t id, const uint8_t *data, uint8_t len)
+{
+    (void)id; (void)data; (void)len;
+    return ESP_ERR_INVALID_STATE;
+}
+
+esp_err_t can_receive(uint32_t *out_id, uint8_t *out_data, uint8_t *out_len,
+                      uint32_t timeout_ms)
+{
+    (void)out_id; (void)out_data; (void)out_len; (void)timeout_ms;
     return ESP_ERR_INVALID_STATE;
 }
 

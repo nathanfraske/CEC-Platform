@@ -1,0 +1,13 @@
+# ESP-IDF build output
+build/
+build_old/
+managed_components/
+dependencies.lock
+
+# sdkconfig snapshots written by menuconfig
+sdkconfig.old
+
+# Editor / OS junk
+.DS_Store
+*.swp
+.ninja_log

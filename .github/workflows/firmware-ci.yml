@@ -3,13 +3,13 @@
 #
 # Firmware CI for the firmware/ tree (consolidation Phase I / FW-12):
 # the RTL simulation gate (iverilog, self-checking testbench) and the
-# three ESP-IDF app builds, path-filtered so a hardware/KiCad push never
+# four ESP-IDF app builds, path-filtered so a hardware/KiCad push never
 # runs these and a firmware push never runs the KiCad gates.
 #
 # The ESP-IDF container pin is v6.0.1 — the single version that builds
-# all three apps (versions.env): the eps-8pin CAN code needs the IDF 6.x
-# esp_twai APIs (the runbook's original v5.3 cannot even resolve
-# esp_driver_twai), and the other two apps build clean on it. GitHub
+# all four apps (versions.env): the CAN code (eps-8pin, hub-standard,
+# atx-24pin) needs the IDF 6.x esp_twai APIs (the runbook's original v5.3
+# cannot even resolve esp_driver_twai), and the rest build clean on it. GitHub
 # Actions container jobs bypass the image entrypoint, so each build step
 # sources $IDF_PATH/export.sh itself.
 name: firmware
@@ -38,9 +38,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - { app: proto/atx-24pin, target: esp32s3 }
-          - { app: proto/eps-8pin,   target: esp32s3 }
-          - { app: proto/12vhpwr,    target: esp32p4 }
+          - { app: proto/atx-24pin,    target: esp32s3 }
+          - { app: proto/eps-8pin,     target: esp32s3 }
+          - { app: proto/12vhpwr,      target: esp32p4 }
+          - { app: proto/hub-standard, target: esp32s3 }
     steps:
       - uses: actions/checkout@v4
       - run: |

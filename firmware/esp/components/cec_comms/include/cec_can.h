@@ -46,6 +46,19 @@ esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
 esp_err_t can_send_anomaly(uint8_t module_type, uint8_t module_id,
                            uint8_t status_flags);
 
+// Send an arbitrary classical-CAN frame (id, up to 8 data bytes). Blocks
+// until the frame is on the wire so the caller's buffer can go out of
+// scope. Used by the rail-telemetry path (cec_telem.h) and any raw sender.
+esp_err_t can_send_frame(uint32_t id, const uint8_t *data, uint8_t len);
+
+// Block until a frame is received (from another node) or `timeout_ms`
+// elapses, then copy it out. `data` must point to at least 8 bytes.
+// Returns ESP_OK, ESP_ERR_TIMEOUT, or ESP_ERR_INVALID_STATE if can_init
+// hasn't run. The RX ISR also logs every frame via ESP_EARLY_LOG; this is
+// the path for an app (e.g. the Hub) that wants to decode them in a task.
+esp_err_t can_receive(uint32_t *out_id, uint8_t *out_data, uint8_t *out_len,
+                      uint32_t timeout_ms);
+
 // Cumulative count of frames received since can_init. In loopback mode
 // each successful TX increments this; in normal mode it only ticks on
 // frames from other nodes.

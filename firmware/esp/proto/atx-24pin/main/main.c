@@ -41,8 +41,39 @@
 #include "cec_capture.h"
 #include "cec_cli.h"
 #include "cec_teleplot.h"
+#include "cec_can.h"
+#include "cec_telem.h"
 
 static const char *TAG = "cec_main";
+
+/* CAN telemetry to the Hub. The live loop publishes the latest readings
+ * into s_telem_pub (under a brief critical section); can_comms_task
+ * snapshots it and sends the 3-frame rail-telemetry burst (cec_telem.h)
+ * at CEC_CAN_TX_PERIOD_MS. */
+static portMUX_TYPE s_telem_mux = portMUX_INITIALIZER_UNLOCKED;
+static cec_telem_t  s_telem_pub;
+
+static void can_comms_task(void *arg)
+{
+    (void)arg;
+    ESP_LOGI(TAG, "CAN comms task on core %d, telemetry every %d ms",
+             xPortGetCoreID(), CEC_CAN_TX_PERIOD_MS);
+    uint8_t seq = 0;
+    while (1) {
+        cec_telem_t t;
+        portENTER_CRITICAL(&s_telem_mux);
+        t = s_telem_pub;
+        portEXIT_CRITICAL(&s_telem_mux);
+        t.module_type = CEC_CFG_MODULE_TYPE;
+        t.seq = seq++;
+        uint8_t f[8];
+        for (uint8_t sub = 0; sub < 3; sub++) {
+            uint32_t id = cec_telem_pack(&t, sub, f);
+            can_send_frame(id, f, sizeof(f));
+        }
+        vTaskDelay(pdMS_TO_TICKS(CEC_CAN_TX_PERIOD_MS));
+    }
+}
 
 /* I2C bus pins, matching v0.5.9 wiring on the Lonely Binary ESP32-S3 N16R8 */
 #define I2C_PIN_SDA       8
@@ -1072,6 +1103,15 @@ void app_main(void)
                  esp_err_to_name(cli_err));
     }
 
+    /* CAN telemetry to the Hub. Normal mode (the Hub ACKs our frames); if
+     * no Hub is on the bus the controller bus-offs and auto-recovers (the
+     * cec_can on_state_change handler), logging until a Hub appears. */
+    if (can_init(false) == ESP_OK) {
+        xTaskCreatePinnedToCore(can_comms_task, "can_comms", 4096, NULL, 4, NULL, 1);
+    } else {
+        ESP_LOGW(TAG, "CAN init failed — no telemetry to the Hub");
+    }
+
     /* (ACS712 zero-cal removed; the INA228 needs no per-rail zero) */
 
     cec_capture_config_t cap_cfg = {
@@ -1146,6 +1186,21 @@ void app_main(void)
         float p_total = (v_12v_ema * i_12v_ema)
                       + (v_5v_ema  * i_5v_ema)
                       + (v_3v3_ema * i_3v3_ema);
+
+        /* Publish the latest readings for the CAN comms task (brief
+         * critical section; the task snapshots and sends at 5 Hz). */
+        portENTER_CRITICAL(&s_telem_mux);
+        s_telem_pub.v[CEC_TELEM_RAIL_12V]  = v_12v_ema;  s_telem_pub.i[CEC_TELEM_RAIL_12V]  = i_12v_ema;
+        s_telem_pub.v[CEC_TELEM_RAIL_5V]   = v_5v_ema;   s_telem_pub.i[CEC_TELEM_RAIL_5V]   = i_5v_ema;
+        s_telem_pub.v[CEC_TELEM_RAIL_3V3]  = v_3v3_ema;  s_telem_pub.i[CEC_TELEM_RAIL_3V3]  = i_3v3_ema;
+        s_telem_pub.v[CEC_TELEM_RAIL_5VSB] = v_5vsb_ema; s_telem_pub.i[CEC_TELEM_RAIL_5VSB] = i_5vsb_ema;
+        s_telem_pub.temp_c   = temp_ema;
+        s_telem_pub.p_total_w = p_total;
+        s_telem_pub.state    = (uint8_t)s_state;
+        s_telem_pub.ps_on    = ps_on;
+        s_telem_pub.pwr_ok   = pwr_ok;
+        s_telem_pub.shutting_down = s_shutting_down;
+        portEXIT_CRITICAL(&s_telem_mux);
 
         /* Update 12V rate-of-change history (1 s window). The "oldest"
          * sample is whatever sits at the slot we're about to overwrite. */

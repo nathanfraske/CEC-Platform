@@ -11,6 +11,7 @@ idf_component_register(
         cec_capture
         cec_telemetry
         cec_cli
+        cec_comms
         # ESP-IDF components used directly by main.c
         esp_timer
         esp_system

@@ -98,6 +98,7 @@ const char *cec_severity_name(cec_severity_t s);
 
 /* Module identity */
 #define CEC_MODULE_TYPE_EPS 0x02
+#define CEC_MODULE_TYPE_ATX24 0x01   /* 24-pin ATX interposer (4 rails) */
 
 /* Status flag bits */
 #define CEC_FLAG_OVERCURRENT  (1 << 0)
