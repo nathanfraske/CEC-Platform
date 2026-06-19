@@ -996,3 +996,14 @@ GOTCHAS HIT (recorded): (1) the --run driver is HOST-side (dispatches workers in
 shell already has docker-group access. (2) --from-board with a HOST-cp'd start board fails LoadBoard=None: WSL
 host->container mount-cache lag. FIX: create the start board CONTAINER-SIDE (`docker compose exec routing cp ...`),
 then --from-board. Run: build/place-planner-grow (from r7=clips40), 2h budget, monitoring for the grow verdict.
+
+### Grow-lever VERDICT (2026-06-18): growing does NOT beat clips=40 — the floor is TOPOLOGICAL.
+From r7 (clips=40): GROW #1 W+5mm (->101.2 wide) grown board=52, loop wandered 47-71 over ~9 rounds, never <40.
+GROW #2 H+5mm (compounding ->101.2x42.2)=74, recovered to 69, never <40. best_overall held at 40 the whole run
+(the lever's safety worked — a grow never costs the baseline). WHY: clips=40 = the ~13 spanning signals crossing
+foreign-logic->corridor sense ICs; more AREA doesn't change the TOPOLOGY (what connects to what), it moves endpoints
+APART (longer nets) and FR still takes the short path THROUGH the pour. Area can't reduce a topological crossing
+count. CONFIRMS the earlier finding: 40->~3 needs FORCING routing AROUND the pours (pour-aware/channel router), not
+area. The lever STAYS (correct, zero-cost escape hatch protecting best_overall; useful on other boards/plateaus).
+Caveat: cleaner confirmation = a FRESH seed AT 101x37 vs 96x37 (grow re-anchors on the disrupted board, not a fresh
+optimal) — but topology predicts the same.
