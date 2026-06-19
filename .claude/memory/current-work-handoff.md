@@ -1094,3 +1094,23 @@ mostly COST/THERMAL, not routing. A real layer_swap.py BUG was found+fixed (via-
   live dashboard (:8095), and deciding V1 (1x0.5oz GND + +3V3 plane) vs V2 (2x0.5oz dual GND) vs 1oz-inner -- to settle
   whether the analytic IPC 56C GND failure is real (a neck at the connector cutouts) or wide-plane pessimism (spreads).
   Owner direction: solid/direct-connect fills on power+GND pins (confirmed necessary: relief @0.5oz = 130 A/mm2).
+
+### 2D THERMAL SOLVER + OVERNIGHT RUN launched (2026-06-19)
+- scripts/cec_thermal2d.py BUILT + VALIDATED (wf_70000bc3): 2D electro-thermal FEA (per-net current-distribution
+  Laplace solve -> Joule q=sheet_R*K^2 -> 2D thermal screened-Poisson + lumped convection). Self-tests pass: energy
+  conserves 0%, grid converges <5%, narrow-trace matches IPC (0.895), wide-plane runs 2.7x COOLER than IPC (real
+  spreading). Heatmap overlay wired into cec_dashboard.py (:8095). VALIDATION CAVEATS: (a) per-pin maxJ is a grid-
+  divergent mesh artifact -> use the analytic solid-annulus 28 A/mm2 for the J gate, NOT the solver's J; (b) verdict
+  rides on h_eff>=15 (free-air both faces) -- at h_eff=10 (sealed enclosure) BOTH fail. Trust it for bulk-T only.
+- STACKUP VERDICT (balanced 350W, solid fills): V2 (2x0.5oz dual GND + 1oz outer) max 74-75C / dT 24C -> PASSES;
+  V1 (1x0.5oz GND + +3V3 plane) 85-88C -> FAILS. GND plane SPREADS (no neck at cutouts; hotspot = bulk center where
+  both cables' returns converge). The IPC 56C was wide-plane pessimism. SHIP = dual 0.5oz inner GND + 1oz outer +
+  SOLID power/GND fills, PENDING owner confirming the real enclosure isn't sealed (h_eff>=15).
+- ROUTE-UNDER WIRED into the loop: scripts/cec_layer_swap.py (promoted from build/under) + w_measure runs it as a
+  subprocess finishing pass when CEC_ROUTE_UNDER=1 (env forwarded into the container exec via _exec_worker -e). The
+  loop scores the UNDER board -> optimises placement for route-under-ability. Verified: r7 40->32 complete, clean.
+- OVERNIGHT RUN LIVE: build/place-planner-overnight, from r7, CEC_ROUTE_UNDER=1 + grow lever (--max-grows 3) + nothink
+  seat, 10h budget. r0 seed = clips=32 complete; refining to beat 32. Monitor: dashboard :8095 (live boards + thermal
+  heatmap). LAUNCH GOTCHAS recorded: out-dir must be HOST-created (nathan-owned, else run.log PermissionError); start
+  board must be CONTAINER-cp'd INTO that dir (WSL mount-cache lag on host cp -> LoadBoard None); launch via
+  run_in_background (has docker-group); the "2 drivers" was always wrapper-bash + python (1 real driver).
