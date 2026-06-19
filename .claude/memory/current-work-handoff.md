@@ -1078,3 +1078,19 @@ LAYER-SWAP on the dual-GND board (40->32, complete, DRC-clean, NO stackup change
 +3V3-plane would need 2oz inner copper (heavy, ~halves single-GND dT -> passes) or a PARTIAL inner split (GND in the
 return path under the pours + +3V3 in the logic area). The combine-routers workflow (wf_76757fc3) uses +3V3-plane ->
 interpret its routing result as the CEILING, gated by this thermal caveat.
+
+### Combine-routers RESULT (2026-06-19, wf_76757fc3, verified) + 2D-thermal-solver launched (wf_70000bc3)
+ROUTING (all on the +3V3-plane stackup, gated by its thermal viability):
+- layer-swap ALONE (dual GND, NO +3V3-plane): 40->32 complete. (the stackup-agnostic win)
+- +3V3 plane + FR + layer-swap (CONTROL): 31 complete, DRC-clean.
+- +3V3 plane + FR + KiCadRoutingTools + layer-swap (FULL): 30 complete, DRC-clean (build/under2/eps-8pin-under-final.kicad_pcb).
+=> The +3V3 inner PLANE buys only ~1-2 clips over the layer-swap (32->31), and KRT buys 1 more (31->30). The residual
+~30 is B.Cu congestion under the pours (already half-full of FR signals) + via-saturation after the plane taps + the
+~5 SENSEC self-pour false-positives. So the +3V3-plane's ROUTING value is MARGINAL -- which DE-RISKS the V2 fallback
+(dual 0.5oz GND, no +3V3-plane, accept ~32 clips): it loses only ~1-2 clips vs V1. The V1-vs-V2 decision is therefore
+mostly COST/THERMAL, not routing. A real layer_swap.py BUG was found+fixed (via-pad copper clearance vs same-pass vias).
+- 2D ELECTRO-THERMAL SOLVER (wf_70000bc3, RUNNING): building scripts/cec_thermal2d.py (per-net current-distribution
+  solve -> Joule -> 2D thermal spreading + convection), validating vs IPC/energy/grid, adding a heatmap overlay to the
+  live dashboard (:8095), and deciding V1 (1x0.5oz GND + +3V3 plane) vs V2 (2x0.5oz dual GND) vs 1oz-inner -- to settle
+  whether the analytic IPC 56C GND failure is real (a neck at the connector cutouts) or wide-plane pessimism (spreads).
+  Owner direction: solid/direct-connect fills on power+GND pins (confirmed necessary: relief @0.5oz = 130 A/mm2).
