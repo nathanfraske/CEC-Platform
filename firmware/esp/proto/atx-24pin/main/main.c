@@ -498,12 +498,17 @@ typedef struct {
     uint8_t  ps_on, pwr_ok;   /* buffered PS_ON# (1=on) + PWR_OK (1=good) */
 } cec_capture_sample_t;
 
-/* HS sample (1 kHz, main rails only). Slim by design. */
+/* HS sample (1 kHz): the main rails plus the PS_ON#/PWR_OK sense-pin
+ * buffer outputs (U4/U5). The sense pins are GPIO reads, so they add no
+ * I2C to the 1 kHz fill; the slow 5VSB rail and die-temp stay in the
+ * 50 Hz pre-roll (an extra INA228 read per HS row would crowd the
+ * sub-1 ms budget for little value -- those signals don't move fast). */
 typedef struct {
     uint32_t ts_us_offset;   /* microseconds since HS capture start */
     float    v_12v, i_12v;
     float    v_5v,  i_5v;
     float    v_3v3, i_3v3;
+    uint8_t  ps_on, pwr_ok;  /* buffered PS_ON# (1=on) + PWR_OK (1=good) */
 } cec_capture_hs_sample_t;
 
 /* Sizes from v0.5.9 (preserved exactly): pre-trigger covers 20 s at
@@ -549,6 +554,16 @@ static void capture_hs_fill(void *row_v, const void *prev_v, uint32_t ts_us_offs
         s->v_5v  = prev->v_5v;  s->i_5v  = prev->i_5v;
         s->v_3v3 = prev->v_3v3; s->i_3v3 = prev->i_3v3;
     }
+
+    /* Sense-pin buffer outputs (U4 PWR_OK / U5 PS_ON#). GPIO reads -- no
+     * I2C, so they fit the 1 kHz HS path, and 1 kHz is where they matter:
+     * PWR_OK deasserts within a few ms of a fault, and the HS window times
+     * that edge against the 12V collapse far better than the 50 Hz pre-roll.
+     * Same polarity as the live loop: PWR_OK active-high (good),
+     * PS_ON# active-low (level 0 = PSU commanded on). Read fresh every row
+     * (digital + instantaneous), so they are never carried forward. */
+    s->pwr_ok = (gpio_get_level(PWROK_BUF_GPIO) != 0) ? 1 : 0;
+    s->ps_on  = (gpio_get_level(PSON_BUF_GPIO)  == 0) ? 1 : 0;
 }
 
 /* Dump renderers: byte-identical to the pre-merge (v0.5.9-format) dump. */
@@ -590,10 +605,13 @@ static int capture_render_hs(const void *row_v, int64_t hs_start_us,
                     ">hs_v_5v:%u:%.3f\n"
                     ">hs_i_5v:%u:%.3f\n"
                     ">hs_v_3v3:%u:%.3f\n"
-                    ">hs_i_3v3:%u:%.3f\n",
+                    ">hs_i_3v3:%u:%.3f\n"
+                    ">hs_ps_on:%u:%d\n"
+                    ">hs_pwr_ok:%u:%d\n",
                     ts, s->v_12v, ts, s->i_12v,
                     ts, s->v_5v,  ts, s->i_5v,
-                    ts, s->v_3v3, ts, s->i_3v3);
+                    ts, s->v_3v3, ts, s->i_3v3,
+                    ts, (int)s->ps_on, ts, (int)s->pwr_ok);
 }
 
 /* ---------------------------- CLI handlers ---------------------------- */
