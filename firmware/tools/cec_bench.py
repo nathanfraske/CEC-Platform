@@ -116,7 +116,7 @@ class Bench:
             if line.startswith(">"):              # teleplot: keep it OFF the terminal so you can
                 if self.tp_sock:                  #   type + read command output; forward/log it.
                     try:
-                        self.tp_sock.sendto(line[1:].encode(), self.tp_addr)
+                        self.tp_sock.sendto((line[1:] + "\n").encode(), self.tp_addr)
                     except Exception:
                         pass
                 if self.show_teleplot:
