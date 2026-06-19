@@ -42,10 +42,11 @@ extern const cec_rail_spec_t CEC_CFG_L1_SPEC_5VSB;
 #define L2_MIN_I_5V          0.50f
 #define L2_MIN_I_3V3         0.30f
 
-/* Dedicated TelePlot UART transport (CH340K USB-C bridge on UART0,
- * GPIO 43 TX / 44 RX, 921600 baud — see the Serial topology section of
- * the app README). Hoisted from the old component-baked values when
- * cec_telemetry went shared. */
+/* TelePlot UART transport pins -- VESTIGIAL on the production board, which has
+ * only the MCU's native USB Serial/JTAG (CONFIG_CEC_TELEMETRY_UART0=n, so the
+ * init below no-ops and TelePlot rides stdio with the logs). These were the dev
+ * board's CH340K UART bridge (GPIO43/44, 921600); kept so the init call still
+ * compiles. Set CONFIG_CEC_TELEMETRY_UART0=y to use them on a board that has it. */
 #define TELEMETRY_UART_NUM       0
 #define TELEMETRY_UART_TXD       43
 #define TELEMETRY_UART_RXD       44

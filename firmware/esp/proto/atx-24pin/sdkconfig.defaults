@@ -47,5 +47,9 @@ CONFIG_COMPILER_OPTIMIZATION_PERF=y
 CONFIG_CEC_ADC_BACKEND_CONTINUOUS=y
 CONFIG_CEC_SENSOR_INA228=y
 
-# Dedicated TelePlot UART transport (CH340K USB-C, 921600).
-CONFIG_CEC_TELEMETRY_UART0=y
+# TelePlot transport. The PRODUCTION 24-pin board has ONLY the MCU's native
+# USB Serial/JTAG -- no CH340K UART bridge (that was the dev board). So route
+# TelePlot + burst dumps to stdio (the console), interleaved with the logs +
+# CLI, so everything rides the one USB-C cable. (=y would send them to the
+# dedicated 921600 UART on GPIO43/44, which the production board doesn't break out.)
+CONFIG_CEC_TELEMETRY_UART0=n
