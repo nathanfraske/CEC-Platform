@@ -99,6 +99,8 @@ const char *cec_severity_name(cec_severity_t s);
 /* Module identity */
 #define CEC_MODULE_TYPE_EPS 0x02
 #define CEC_MODULE_TYPE_ATX24 0x01   /* 24-pin ATX interposer (4 rails) */
+#define CEC_MODULE_TYPE_PCIE 0x03    /* PCIe 8-pin interposer (per-cable, 2-3) */
+#define CEC_MODULE_TYPE_12VHPWR 0x04 /* 12VHPWR Standard (6 per-pin -> ADC) */
 
 /* Status flag bits */
 #define CEC_FLAG_OVERCURRENT  (1 << 0)

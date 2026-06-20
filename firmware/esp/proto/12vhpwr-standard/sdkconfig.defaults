@@ -1,0 +1,40 @@
+# CEC 12VHPWR Standard — sdkconfig defaults (ESP32-S3-MINI-1 N4R2)
+#
+# Regenerate sdkconfig with: idf.py set-target esp32s3
+# (a plain build does NOT re-apply changes here; rm sdkconfig to pick them up.)
+
+CONFIG_IDF_TARGET="esp32s3"
+
+# 4 MB flash, 2 MB QUAD PSRAM (the MINI-1-N4R2 package).
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="4MB"
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_QUAD=y
+CONFIG_SPIRAM_TYPE_AUTO=y
+CONFIG_SPIRAM_SPEED_80M=y
+CONFIG_SPIRAM_BOOT_INIT=y
+CONFIG_SPIRAM_USE_MALLOC=y
+
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# OTA partition layout + CAN-OTA rollback safety.
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
+CONFIG_ESP_WIFI_ENABLED=n
+CONFIG_BT_ENABLED=n
+
+# Console on native USB Serial/JTAG (the one USB-C); TelePlot rides stdio.
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+CONFIG_COMPILER_OPTIMIZATION_PERF=y
+CONFIG_CEC_TELEMETRY_UART0=n
+
+# CAN (TWAI) to the Hub. Transceiver U2 = TJA1051T/3 on the RJ-45 CAN pair.
+# TX/RX pins are PLACEHOLDERS (IO17/IO18, the 24-pin S3 convention) -- VERIFY
+# against the 12vhpwr-standard schematic at bring-up. Bitrate 125k = the bench
+# rate (matches the Hub's slope-controlled SN65HVD230); 500k is the target.
+CONFIG_CEC_CAN_TX_GPIO=17
+CONFIG_CEC_CAN_RX_GPIO=18
+CONFIG_CEC_CAN_BITRATE_BPS=125000

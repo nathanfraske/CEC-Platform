@@ -2012,14 +2012,21 @@ firmware/
                          #   cec_fpga_link
     proto/               # PROTOTYPE apps (dev-board/perfboard rigs; none of
                          #   these runs on a production module board)
-      atx-24pin/         #   ESP32-S3 dev board: ACS712/divider rig for the 24-pin
-      eps-8pin/          #   ESP32-S3 dev board: ACS758 rig for the EPS
-      12vhpwr/           #   ESP32-P4-NANO: GW5A/AD7606 perfboard readout
+      atx-24pin/         #   24-pin ATX: 4x INA228; full app (telemetry+OTA+poke-ack)
+      eps-8pin/          #   EPS: ACS758 dev rig; aggregates + OTA + poke-ack
+      12vhpwr/           #   ESP32-P4-NANO: GW5A/AD7606 perfboard (Pro-tier rig)
       hub-standard/      #   ESP32-S3 N16R8 (Lonely Binary) + SN65HVD230:
-                         #   CAN receiver bring-up (decodes the 24-pin's
-                         #   cec_telem burst over CAN); no sensing/host link
+                         #   the HUB -- multi-module aggregator + CAN-OTA bridge
+                         #   + DETECT poke-ack; consolidates over USB to the host
+      12vhpwr-standard/  #   SCAFFOLD: ESP32-S3 + 6x INA240 -> ADC (no FPGA);
+                         #   per-pin summary over CAN. Stubbed sensor read.
+      pcie-8pin-2port/   #   SCAFFOLD: ESP32-S3 + 2x INA238 per cable. Stubbed.
+      pcie-8pin-3port/   #   SCAFFOLD: ESP32-S3 + 3x INA238 per cable. Stubbed.
                          # the FLAT esp/<name> level is RESERVED for production
-                         #   apps matching modules/<name> 1:1 (none exist yet)
+                         #   apps matching modules/<name> 1:1 (none exist yet).
+                         # Module apps share the cec_module runtime (CAN + OTA
+                         #   receiver + poke-ack + telemetry burst in one call);
+                         #   bring-up only fills the per-board sensor read().
   rtl/
     common/              # shared Verilog (cec_spi_slave.v), consumed by
                          #   RELATIVE PATH from any target — no packaging
@@ -2043,12 +2050,15 @@ Four conventions (do not regress them):
   obvious cases.
 - **Prototype apps live under `firmware/esp/proto/`; the flat
   `firmware/esp/<name>` level is reserved for production apps** matching
-  `modules/<name>` 1:1. Today's four apps are all dev-board/perfboard
-  prototypes: the three sensor apps' front ends don't match the production
-  schematics (Hall parts vs the production INA2xx sets), and `hub-standard`
-  is a CAN-receiver bring-up rig (no port management / host USB / LEDs).
-  Production firmware lands as new flat-level apps on the same shared
-  components, it does not grow out of a proto app in place.
+  `modules/<name>` 1:1. Today's seven apps are all under `proto/`: the 24-pin
+  and EPS are working bring-up apps; `hub-standard` is the Hub (aggregator +
+  CAN-OTA bridge + DETECT poke-ack); `12vhpwr` is the Pro-tier P4/FPGA rig; and
+  `12vhpwr-standard` + `pcie-8pin-2port`/`-3port` are SCAFFOLDS — full runtime
+  (CAN telemetry + CAN-OTA + poke-ack via the shared `cec_module` helper) with
+  the per-board sensor read() STUBBED for bring-up. Standard-module apps that
+  aggregate to the Hub use `cec_module` (one call); only the sensor read is
+  per-board. Production firmware lands as new flat-level apps on the same
+  shared components, it does not grow out of a proto app in place.
 - **Enum numeric values in `cec_common/cec_state.h` are FROZEN** —
   `cec_nvs` persists blobs containing them (L3 profiles indexed by
   `cec_state_t`, flag bytes). New enumerators are appended before the
@@ -2064,9 +2074,10 @@ sessions, `IDF_PATH=/opt/esp-idf-v60`):
 cd firmware/rtl/12vhpwr-proto
 iverilog -g2012 -o tb tb_top.v top.v cec_boxcar_decim.v cec_native_anomaly.v cec_native_rail.v ../common/cec_spi_slave.v && vvp tb | grep -q '^PASS'
 cd -
-# All four apps (proto/12vhpwr targets esp32p4, the others esp32s3)
+# All seven apps (proto/12vhpwr targets esp32p4, the others esp32s3)
 . "${IDF_PATH:-/opt/esp-idf-v60}/export.sh"
-for app in proto/atx-24pin proto/eps-8pin proto/12vhpwr proto/hub-standard; do
+for app in proto/atx-24pin proto/eps-8pin proto/12vhpwr proto/hub-standard \
+           proto/12vhpwr-standard proto/pcie-8pin-2port proto/pcie-8pin-3port; do
   ( cd firmware/esp/$app && idf.py set-target $( [ $app = proto/12vhpwr ] && echo esp32p4 || echo esp32s3 ) build ) || exit 1
 done
 ```

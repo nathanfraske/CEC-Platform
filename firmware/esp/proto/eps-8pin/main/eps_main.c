@@ -18,6 +18,8 @@
 #include "cec_capture.h"
 #include "cec_can.h"
 #include "cec_telem.h"
+#include "cec_canota.h"
+#include "cec_pokeack.h"
 #include "cec_teleplot.h"
 #include "cec_cli.h"
 #include "cec_classifier.h"
@@ -524,6 +526,11 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
 #define CLI_COMMAND_COUNT (sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]))
 
 // ---- Comms task: CAN telemetry to Hub ----
+/* Set while a CAN-OTA update runs (cec_canota active cb); comms_task pauses so
+ * it doesn't contend with the OTA stream. */
+static volatile bool s_ota_active = false;
+static void ota_active_cb(bool active) { s_ota_active = active; }
+
 static void comms_task(void *arg)
 {
     ESP_LOGI(TAG, "comms task started on core %d", xPortGetCoreID());
@@ -531,6 +538,7 @@ static void comms_task(void *arg)
     uint8_t seq = 0;
 
     while (1) {
+        if (s_ota_active) { vTaskDelay(pdMS_TO_TICKS(COMMS_PERIOD_MS)); continue; }
         cec_shared_state_t snap;
         if (xSemaphoreTake(g_state.mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
             snap = g_state;
@@ -570,6 +578,9 @@ static void comms_task(void *arg)
 void app_main(void)
 {
     ESP_LOGI(TAG, "CEC EPS module firmware starting");
+
+    // Confirm a freshly CAN-flashed image so the bootloader keeps it.
+    cec_canota_mark_valid();
 
     // NVS + config
     ESP_ERROR_CHECK(cec_config_init_nvs());
@@ -672,16 +683,18 @@ void app_main(void)
     ESP_ERROR_CHECK(cec_capture_init(&cap_cfg));
 
 #if CEC_CAN_ENABLED
-    // ====== TODO: FLIP TO can_init(false) WHEN HUB IS WIRED ======
-    // TRUE = self-test (NO_ACK) mode. TX goes on the wire through
-    // the transceiver but doesn't need another node to ACK, so the
-    // controller stays happy until the Hub joins the bus. ESP32-S3
-    // has no hardware loopback, so RX of our own TX won't appear in
-    // on_rx_done - verify TX with a scope or USB-CAN dongle until
-    // the Hub is up. Once the Hub is on the bus and ACKing, flip to
-    // can_init(false) for normal mode (TX with ACK required).
-    // =============================================================
-    can_init(true);
+    // Normal mode: the Hub ACKs our frames. Without a Hub the controller
+    // bus-offs and auto-recovers (cec_can on_state_change). The EPS now
+    // aggregates to the Hub (cec_telem burst) and is re-flashable over CAN.
+    can_init(false);
+    // CAN-OTA receiver: the Hub can re-flash this board over CAN (after the
+    // one-time initial USB flash). ota_active_cb pauses telemetry during it.
+    cec_canota_receiver_start(ota_active_cb);
+    // Poke-and-ack DETECT responder. The proto dev rig has no pin-8 sense tap,
+    // so it starts INERT (safe fallback). The production EPS board taps IO10 --
+    // pass that GPIO here on the real board to enable the positive ack.
+    cec_pokeack_responder_start(CEC_POKEACK_TAP_NONE,
+                                CEC_MODULE_TYPE_EPS, g_config.module_id);
 #else
     ESP_LOGW(TAG, "CAN disabled (CEC_CAN_ENABLED=0); skipping TWAI init and comms task");
 #endif

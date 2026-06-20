@@ -1,0 +1,12 @@
+# CEC PCIe 8-pin 2-port partition table — OTA layout
+# Target: ESP32-S3-MINI-1 N4R2 (4 MB flash)
+#
+# Two app slots + otadata so the Hub can re-flash this module over CAN
+# (cec_canota), after the one-time initial USB flash. See proto/atx-24pin.
+#
+# Name,    Type, SubType,  Offset,   Size,
+nvs,       data, nvs,      0x9000,   24K,
+otadata,   data, ota,      0xf000,   8K,
+phy_init,  data, phy,      0x11000,  4K,
+ota_0,     app,  ota_0,    0x20000,  0x1E0000,
+ota_1,     app,  ota_1,    0x200000, 0x1E0000,
