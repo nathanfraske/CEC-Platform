@@ -37,7 +37,10 @@
 // bus-off so the controller doesn't park permanently after a fault.
 esp_err_t can_init(bool loopback);
 
-// Send a telemetry frame from the current shared state snapshot.
+// DEPRECATED single-frame per-cable telemetry (ID 0x200+module_id). Superseded
+// by the module-scoped cec_telem burst (cec_telem.h), which all modules now use
+// so a Hub can aggregate up to CEC_MAX_MODULES on one bus without ID collision.
+// Kept only for reference; do NOT use on a multi-module bus.
 esp_err_t can_send_telemetry(uint8_t module_type, uint8_t module_id,
                              const float current_a[CEC_NUM_CABLES],
                              uint8_t status_flags, float board_temp_c);

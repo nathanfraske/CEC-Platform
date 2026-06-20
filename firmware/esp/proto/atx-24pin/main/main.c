@@ -77,10 +77,11 @@ static void can_comms_task(void *arg)
         portENTER_CRITICAL(&s_telem_mux);
         t = s_telem_pub;
         portEXIT_CRITICAL(&s_telem_mux);
+        t.instance    = CEC_CFG_MODULE_ID;     /* this module's port id (0) */
         t.module_type = CEC_CFG_MODULE_TYPE;
         t.seq = seq++;
         uint8_t f[8];
-        for (uint8_t sub = 0; sub < 3; sub++) {
+        for (uint8_t sub = 0; sub < CEC_TELEM_NUM_SUB; sub++) {
             uint32_t id = cec_telem_pack(&t, sub, f);
             can_send_frame(id, f, sizeof(f));
         }
@@ -1227,9 +1228,9 @@ void app_main(void)
         s_telem_pub.temp_c   = temp_ema;
         s_telem_pub.p_total_w = p_total;
         s_telem_pub.state    = (uint8_t)s_state;
-        s_telem_pub.ps_on    = ps_on;
-        s_telem_pub.pwr_ok   = pwr_ok;
-        s_telem_pub.shutting_down = s_shutting_down;
+        s_telem_pub.flags    = (uint8_t)((ps_on ? CEC_TELEM_FLAG_PS_ON : 0) |
+                                         (pwr_ok ? CEC_TELEM_FLAG_PWR_OK : 0) |
+                                         (s_shutting_down ? CEC_TELEM_FLAG_SHUTTING_DOWN : 0));
         portEXIT_CRITICAL(&s_telem_mux);
 
         /* Update 12V rate-of-change history (1 s window). The "oldest"

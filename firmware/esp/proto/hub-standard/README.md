@@ -30,12 +30,43 @@ the platform spec target. The 24-pin must use the **same** rate.
 
 ## Two jobs
 
-### 1. Telemetry receiver (display_task)
-Brings TWAI up in **normal mode** so it **ACKs the bus** — which is what lets
-the 24-pin's transmits complete (a lone transmitter with no ACKer bus-offs).
-Decodes the 24-pin's 3-frame rail burst (`cec_telem.h`) and emits it to
-TelePlot as `rx_*` series + a 1 Hz summary. Silence on the bus warns once a
-second with the rx / bus-off counts.
+### 1. Multi-module aggregator (display_task)
+Brings TWAI up in **normal mode** so it **ACKs the bus** — which is what lets a
+module's transmits complete (a lone transmitter with no ACKer bus-offs). Then
+it **consolidates up to `CEC_MAX_MODULES` (4) modules** on the one bus and
+forwards everything over USB to the host for analysis.
+
+Each module sends the 3-frame telemetry burst (`cec_telem.h`) in its own
+**CAN-ID block** (so the bus is collision-free with 4 ports):
+
+| Traffic | CAN ID |
+|---|---|
+| anomaly / event | `0x100 + module_id` |
+| poke-ack MOVED | `0x120` |
+| **telemetry** | **`0x200 + instance*0x10 + sub`** (sub: 0 RAILS_V, 1 RAILS_I, 2 STATUS) |
+| CAN-OTA | `0x340–0x342` |
+
+So port 0 = `0x200–0x202`, port 1 = `0x210–0x212`, … The Hub demuxes by
+instance into a per-port table, and on each module's STATUS frame emits the
+consolidated output two ways:
+
+- **TelePlot**, namespaced per port: `m0_12v_v`, `m0_12v_i`, …, `m1_cbl0_i`, …
+  (channel labels are module-type-specific — 12v/5v/3v3/5vsb for the ATX24,
+  cbl0/cbl1 for the EPS, ch0..3 otherwise).
+- **A parseable CSV record line per update**, greppable by its prefix:
+
+  ```
+  # CECTLM,ts_ms,port,type,seq,v0,i0,v1,i1,v2,i2,v3,i3,temp_c,p_w,flags
+  CECTLM,12345,0,0x01,42,12.01,5.20,5.00,1.10,3.30,2.40,5.01,0.30,41,180.5,0x03
+  ```
+
+A 1 Hz human summary lists every active port + the aggregate power, and a port
+that goes quiet past `CEC_HUB_MODULE_TIMEOUT_MS` is reported dropped. The
+`status` flags byte is module-type-defined (ATX24: PS_ON/PWR_OK/SHUTTING_DOWN;
+EPS: the `CEC_FLAG_*` over-current/fault bits).
+
+> The 24-pin is port 0 and the EPS defaults to port 1 (`CEC_DEFAULT_MODULE_ID`);
+> set each module's `module_id` distinct (0..3) for its Hub port.
 
 ### 2. CAN-OTA bridge (`ota` command)
 Flashes the 24-pin over CAN. ESP32-S3 has **no ROM CAN bootloader**, so this is

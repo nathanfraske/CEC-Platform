@@ -17,6 +17,7 @@
 #include "cec_detection.h"
 #include "cec_capture.h"
 #include "cec_can.h"
+#include "cec_telem.h"
 #include "cec_teleplot.h"
 #include "cec_cli.h"
 #include "cec_classifier.h"
@@ -527,6 +528,7 @@ static void comms_task(void *arg)
 {
     ESP_LOGI(TAG, "comms task started on core %d", xPortGetCoreID());
     (void)arg;
+    uint8_t seq = 0;
 
     while (1) {
         cec_shared_state_t snap;
@@ -534,8 +536,28 @@ static void comms_task(void *arg)
             snap = g_state;
             xSemaphoreGive(g_state.mutex);
 
-            can_send_telemetry(CEC_MODULE_TYPE_EPS, g_config.module_id,
-                               snap.current_a, snap.status_flags, snap.board_temp_c);
+            /* Unified module-scoped telemetry burst (cec_telem): cable currents
+             * on ch0/ch1; the rail is the nominal 12V EATX12V (this proto is
+             * current-only Hall, no bus-voltage measurement); EPS status bits
+             * (CEC_FLAG_*) ride the flags byte. instance = module_id (default 1)
+             * so it lands in its own CAN-ID block, clear of the 24-pin's. */
+            cec_telem_t t;
+            memset(&t, 0, sizeof(t));
+            t.instance    = g_config.module_id;
+            t.module_type = CEC_MODULE_TYPE_EPS;
+            t.v[0] = t.v[1] = 12.0f;                       /* nominal rail */
+            t.i[0] = snap.current_a[0];
+            t.i[1] = snap.current_a[1];
+            t.temp_c    = snap.board_temp_c;
+            t.flags     = snap.status_flags;
+            t.p_total_w = (snap.current_a[0] + snap.current_a[1]) * 12.0f;
+            t.seq       = seq++;
+
+            uint8_t f[8];
+            for (uint8_t sub = 0; sub < CEC_TELEM_NUM_SUB; sub++) {
+                uint32_t id = cec_telem_pack(&t, sub, f);
+                can_send_frame(id, f, sizeof(f));
+            }
             if (snap.status_flags != 0) {
                 can_send_anomaly(CEC_MODULE_TYPE_EPS, g_config.module_id,
                                  snap.status_flags);

@@ -42,74 +42,100 @@
 
 static const char *TAG = "hub_main";
 
-/* The telemetry display loop runs here; the `ota` command suspends it for
- * the duration of a transfer so the OTA sender owns can_receive(). */
+/* The aggregator loop runs here; the `ota`/`detect` commands suspend it for
+ * the duration so they own can_receive(). */
 static TaskHandle_t s_display_task = NULL;
 
-/* Friendly name for a module-type byte (cec_state.h IDs). */
-static const char *module_name(uint8_t t)
+/* ---------------- multi-module aggregator ----------------
+ *
+ * One decoded telemetry record per port (instance), demuxed by the CAN ID
+ * block (cec_telem_id_instance). On each module's STATUS frame (burst
+ * complete) the Hub emits the consolidated USB output; a 1 Hz summary lists
+ * every active port; a port that goes quiet past CEC_HUB_MODULE_TIMEOUT_MS is
+ * marked dropped. */
+static cec_telem_t s_mod[CEC_MAX_MODULES];
+static int64_t     s_last_us[CEC_MAX_MODULES];
+static bool        s_seen[CEC_MAX_MODULES];
+static uint32_t    s_bursts[CEC_MAX_MODULES];
+
+/* Per-burst consolidated output for one port: namespaced TelePlot series +
+ * one parseable CSV record line (legend printed once at boot). */
+static void emit_module(uint8_t inst)
 {
-    switch (t) {
-    case CEC_MODULE_TYPE_ATX24: return "ATX24";
-    case CEC_MODULE_TYPE_EPS:   return "EPS";
-    default:                    return "?";
+    cec_telem_t *m = &s_mod[inst];
+    char name[28];
+    for (int c = 0; c < CEC_TELEM_NUM_RAILS; c++) {
+        const char *lbl = cec_telem_chan_label(m->module_type, c);
+        snprintf(name, sizeof(name), "m%u_%s_v", inst, lbl); teleplot_emit(name, m->v[c]);
+        snprintf(name, sizeof(name), "m%u_%s_i", inst, lbl); teleplot_emit(name, m->i[c]);
     }
+    snprintf(name, sizeof(name), "m%u_temp_c", inst); teleplot_emit(name, m->temp_c);
+    snprintf(name, sizeof(name), "m%u_p",      inst); teleplot_emit(name, m->p_total_w);
+
+    printf("CECTLM,%lld,%u,0x%02x,%u,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.2f,0x%02x\n",
+           (long long)(esp_timer_get_time() / 1000), inst, m->module_type, m->seq,
+           m->v[0], m->i[0], m->v[1], m->i[1], m->v[2], m->i[2], m->v[3], m->i[3],
+           m->temp_c, m->p_total_w, m->flags);
+    fflush(stdout);
 }
 
-/* ---------------- telemetry receive / display ---------------- */
+/* 1 Hz human-readable roll-up of every active port. */
+static void print_summary(void)
+{
+    int n = 0; float ptot = 0.0f;
+    for (int i = 0; i < CEC_MAX_MODULES; i++) if (s_seen[i]) { n++; ptot += s_mod[i].p_total_w; }
+
+    if (n == 0) {
+        ESP_LOGW(TAG, "no modules seen (rx=%u bus_off=%u). Check wiring / termination / bitrate.",
+                 (unsigned)can_get_rx_count(), (unsigned)can_get_bus_off_count());
+        return;
+    }
+    ESP_LOGI(TAG, "=== %d module(s) | total P=%.1fW | bus rx=%u boff=%u ===",
+             n, ptot, (unsigned)can_get_rx_count(), (unsigned)can_get_bus_off_count());
+    for (int i = 0; i < CEC_MAX_MODULES; i++) {
+        if (!s_seen[i]) continue;
+        cec_telem_t *m = &s_mod[i];
+        ESP_LOGI(TAG, "  port%d %-6s seq=%3u  %s=%.2f/%.2fA %s=%.2f/%.2fA %s=%.2f/%.2fA "
+                      "%s=%.2f/%.2fA  P=%.1fW T=%.0fC fl=0x%02x b=%u",
+                 i, cec_telem_type_name(m->module_type), m->seq,
+                 cec_telem_chan_label(m->module_type, 0), m->v[0], m->i[0],
+                 cec_telem_chan_label(m->module_type, 1), m->v[1], m->i[1],
+                 cec_telem_chan_label(m->module_type, 2), m->v[2], m->i[2],
+                 cec_telem_chan_label(m->module_type, 3), m->v[3], m->i[3],
+                 m->p_total_w, m->temp_c, m->flags, (unsigned)s_bursts[i]);
+    }
+}
 
 static void display_task(void *arg)
 {
     (void)arg;
-    cec_telem_t t;
-    memset(&t, 0, sizeof(t));
-    uint32_t bursts = 0;
-    int64_t  last_log_us = esp_timer_get_time() - CEC_HUB_LOG_PERIOD_US;
+    int64_t last_log_us = esp_timer_get_time() - CEC_HUB_LOG_PERIOD_US;
 
     while (1) {
         uint32_t id = 0; uint8_t len = 0, data[8];
         esp_err_t r = can_receive(&id, data, &len, CEC_HUB_RX_TIMEOUT_MS);
-        if (r == ESP_ERR_TIMEOUT) {
-            ESP_LOGW(TAG, "no CAN frames in %d ms (rx=%u bus_off=%u). Check wiring / "
-                          "termination / matching bitrate.",
-                     CEC_HUB_RX_TIMEOUT_MS, (unsigned)can_get_rx_count(),
-                     (unsigned)can_get_bus_off_count());
-            continue;
-        }
-        if (r != ESP_OK) continue;
-        if (!cec_telem_unpack(id, data, len, &t)) continue;   /* non-telemetry: ignore */
-        if (id != CEC_TELEM_ID_STATUS) continue;              /* STATUS completes a burst */
-        bursts++;
-
-        teleplot_emit("rx_v_12v",   t.v[CEC_TELEM_RAIL_12V]);
-        teleplot_emit("rx_v_5v",    t.v[CEC_TELEM_RAIL_5V]);
-        teleplot_emit("rx_v_3v3",   t.v[CEC_TELEM_RAIL_3V3]);
-        teleplot_emit("rx_v_5vsb",  t.v[CEC_TELEM_RAIL_5VSB]);
-        teleplot_emit("rx_i_12v",   t.i[CEC_TELEM_RAIL_12V]);
-        teleplot_emit("rx_i_5v",    t.i[CEC_TELEM_RAIL_5V]);
-        teleplot_emit("rx_i_3v3",   t.i[CEC_TELEM_RAIL_3V3]);
-        teleplot_emit("rx_i_5vsb",  t.i[CEC_TELEM_RAIL_5VSB]);
-        teleplot_emit("rx_temp_c",  t.temp_c);
-        teleplot_emit("rx_p_total", t.p_total_w);
-        teleplot_emit("rx_ps_on",   t.ps_on  ? 1.0f : 0.0f);
-        teleplot_emit("rx_pwr_ok",  t.pwr_ok ? 1.0f : 0.0f);
-        teleplot_emit("rx_seq",     (float)t.seq);
-
         int64_t now = esp_timer_get_time();
-        if (now - last_log_us >= CEC_HUB_LOG_PERIOD_US) {
-            last_log_us = now;
-            ESP_LOGI(TAG,
-                "[%s/0x%02x seq=%u] 12V %.2fV/%.2fA  5V %.2fV/%.2fA  3V3 %.2fV/%.2fA  "
-                "5VSB %.2fV/%.2fA  P=%.1fW T=%.0fC PS_ON=%d PWR_OK=%d  bursts=%u rx=%u boff=%u",
-                module_name(t.module_type), t.module_type, t.seq,
-                t.v[CEC_TELEM_RAIL_12V],  t.i[CEC_TELEM_RAIL_12V],
-                t.v[CEC_TELEM_RAIL_5V],   t.i[CEC_TELEM_RAIL_5V],
-                t.v[CEC_TELEM_RAIL_3V3],  t.i[CEC_TELEM_RAIL_3V3],
-                t.v[CEC_TELEM_RAIL_5VSB], t.i[CEC_TELEM_RAIL_5VSB],
-                t.p_total_w, t.temp_c, t.ps_on, t.pwr_ok,
-                (unsigned)bursts, (unsigned)can_get_rx_count(),
-                (unsigned)can_get_bus_off_count());
+
+        if (r == ESP_OK && cec_telem_id_is(id)) {
+            uint8_t inst = cec_telem_id_instance(id);
+            if (inst < CEC_MAX_MODULES) {
+                if (!s_seen[inst]) { s_seen[inst] = true; ESP_LOGI(TAG, "module joined on port %u", inst); }
+                cec_telem_unpack(id, data, len, &s_mod[inst]);
+                s_last_us[inst] = now;
+                if (cec_telem_id_sub(id) == CEC_TELEM_SUB_STATUS) { s_bursts[inst]++; emit_module(inst); }
+            }
         }
+
+        /* Stale-port dropout (can_receive caps the wait at RX_TIMEOUT_MS, so we
+         * re-check at least once a second even with no traffic). */
+        for (int i = 0; i < CEC_MAX_MODULES; i++) {
+            if (s_seen[i] && (now - s_last_us[i]) > (int64_t)CEC_HUB_MODULE_TIMEOUT_MS * 1000) {
+                s_seen[i] = false;
+                ESP_LOGW(TAG, "module on port %d dropped (no telemetry for %d ms)",
+                         i, CEC_HUB_MODULE_TIMEOUT_MS);
+            }
+        }
+        if (now - last_log_us >= CEC_HUB_LOG_PERIOD_US) { last_log_us = now; print_summary(); }
     }
 }
 
@@ -244,11 +270,17 @@ void app_main(void)
         ESP_LOGE(TAG, "can_init failed: %s -- halting", esp_err_to_name(err));
         return;
     }
-    ESP_LOGI(TAG, "CAN up (normal mode, ACKing). Telemetry display + `ota` bridge ready.");
+    ESP_LOGI(TAG, "CAN up (normal mode, ACKing). Aggregating up to %d modules; `ota`/`detect` ready.",
+             CEC_MAX_MODULES);
     ESP_LOGW(TAG, "Bench: 120 ohm at BOTH bus ends; both nodes at %d bps; Rs->GND for 500k.",
              CONFIG_CEC_CAN_BITRATE_BPS);
 
-    xTaskCreatePinnedToCore(display_task, "hub_disp", 4096, NULL, 4, &s_display_task, 1);
+    /* Consolidated per-module record legend for a host parser (one line each
+     * STATUS frame; greppable by the CECTLM prefix). */
+    printf("# CECTLM,ts_ms,port,type,seq,v0,i0,v1,i1,v2,i2,v3,i3,temp_c,p_w,flags\n");
+    fflush(stdout);
+
+    xTaskCreatePinnedToCore(display_task, "hub_agg", 4096, NULL, 4, &s_display_task, 1);
 
     /* DETECT poke-and-ack rig (spec §2.3): ADC read of the divider (comm
      * class) + a poke driver. The 10k pull-up to 3V3 is external; see

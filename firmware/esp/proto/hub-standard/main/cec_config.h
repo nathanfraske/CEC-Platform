@@ -39,7 +39,11 @@ extern "C" {
 /* Cadence (ms) of the "no traffic" heartbeat warning when the bus is silent,
  * and of the 1 Hz human-readable RX summary log. */
 #define CEC_HUB_RX_TIMEOUT_MS   1000
-#define CEC_HUB_LOG_PERIOD_US   1000000   /* 1 Hz summary */
+#define CEC_HUB_LOG_PERIOD_US   1000000   /* 1 Hz consolidated summary */
+
+/* A port with no telemetry for this long is marked dropped in the aggregator
+ * (the module is ~5 Hz, so a few hundred ms of silence is normal). */
+#define CEC_HUB_MODULE_TIMEOUT_MS  3000
 
 /*
  * DETECT poke-and-ack bench rig (spec §2.3 v2.6). The DETECT line is RJ-45
