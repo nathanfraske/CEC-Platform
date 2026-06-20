@@ -17,7 +17,7 @@ public releases). Both are Tauri/NSIS **per-user** installs under `%LOCALAPPDATA
 - **MyOwnMesh** is a SEPARATE app, independently versioned (0.2.x vs AllMyStuff 0.1.x), at
   `AppData\Local\MyOwnMesh\` and `AppData\Local\Programs\MyOwnMesh\`.
 
-Update recipe (verified 2026-06-16, took 0.1.9 → 0.1.13): from WSL drive Windows via `powershell.exe`.
+Update recipe (re-verified 2026-06-19, took 0.1.15 → 0.1.16; first verified 2026-06-16 0.1.9 → 0.1.13): from WSL drive Windows via `powershell.exe`.
 Get assets from `api.github.com/repos/mrjeeves/AllMyStuff/releases/tags/<tag>`; Windows x64 installer =
 `AllMyStuff_<ver>_x64-setup.exe` (NSIS; there's also an `_x64_en-US.msi`). Steps: Stop-Process the 3 image
 names → `Start-Process <setup.exe> -ArgumentList '/S' -Wait` (silent, exit 0) → verify
