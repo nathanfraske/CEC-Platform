@@ -58,6 +58,7 @@ typedef enum {
     CEC_TRIG_SHUTDOWN,
     CEC_TRIG_POWER_SWING,
     CEC_TRIG_CURRENT_SWING,
+    CEC_TRIG_COCAPTURE,      /* frozen by a cross-module FREEZE broadcast (§6.10) */
     CEC_TRIG_COUNT,
 } cec_trigger_t;
 

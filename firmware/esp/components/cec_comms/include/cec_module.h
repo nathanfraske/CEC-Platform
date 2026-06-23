@@ -21,6 +21,7 @@
 #include <stdint.h>
 #include "esp_err.h"
 #include "cec_telem.h"
+#include "cec_freeze.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,7 +38,12 @@ typedef struct {
     int      detect_tap_gpio;    /* poke-ack high-Z tap GPIO, or CEC_POKEACK_TAP_NONE */
     uint32_t period_ms;          /* telemetry cadence (e.g. 200 = 5 Hz) */
     cec_module_read_fn read;     /* per-board sensor read (required) */
-    void    *ctx;                /* passed to read() */
+    void    *ctx;                /* passed to read() and the freeze callbacks */
+    /* Cross-module FREEZE co-capture (§6.10). on_freeze is called when another
+     * node broadcasts FREEZE -- freeze/dump this board's ring here (NULL =
+     * participate with a log only, e.g. a scaffold with no buffer yet). */
+    cec_freeze_on_freeze_fn on_freeze;
+    cec_freeze_on_rearm_fn  on_rearm;
 } cec_module_cfg_t;
 
 /* Start the runtime. Returns ESP_OK once CAN + OTA + responder + telemetry are

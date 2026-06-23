@@ -77,6 +77,14 @@ uint32_t can_get_bus_off_count(void);
 // doesn't flood the console and throttle the transfer.
 void can_set_rx_log(bool enable);
 
+// Register a callback invoked from the RX ISR for EVERY received frame, BEFORE
+// it is queued. Used by cross-module FREEZE (cec_freeze) to timestamp a
+// high-priority broadcast the instant it lands (the §6.10 co-capture alignment
+// point). The callback runs in ISR context: it must be IRAM-safe, quick, and
+// must not block. Pass NULL to clear.
+typedef void (*can_isr_event_cb_t)(uint32_t id, const uint8_t *data, uint8_t len);
+void can_set_isr_event_cb(can_isr_event_cb_t cb);
+
 // Snapshot the TWAI controller's current state + error counters and
 // cumulative bus-error count. Returns ESP_ERR_INVALID_STATE if
 // can_init hasn't run. Useful from a debug CLI when bus-off is

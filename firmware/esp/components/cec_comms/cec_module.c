@@ -2,6 +2,7 @@
 #include "cec_can.h"
 #include "cec_canota.h"
 #include "cec_pokeack.h"
+#include "cec_freeze.h"
 
 #include <string.h>
 #include "freertos/FreeRTOS.h"
@@ -65,6 +66,15 @@ esp_err_t cec_module_start(const cec_module_cfg_t *cfg)
 
     /* Poke-and-ack DETECT responder (inert if detect_tap_gpio < 0). */
     cec_pokeack_responder_start(s_cfg.detect_tap_gpio, s_cfg.module_type, s_cfg.module_id);
+
+    /* Cross-module FREEZE co-capture: this board freezes when any node trips. */
+    cec_freeze_cfg_t fz = {
+        .self_instance = s_cfg.module_id,
+        .on_freeze     = s_cfg.on_freeze,   /* NULL = log-only (cec_freeze logs the event) */
+        .on_rearm      = s_cfg.on_rearm,
+        .ctx           = s_cfg.ctx,
+    };
+    cec_freeze_init(&fz);
 
     if (xTaskCreatePinnedToCore(telemetry_task, "cec_telem", 4096, NULL, 4, NULL, 1) != pdPASS) {
         ESP_LOGE(TAG, "telemetry task create failed");

@@ -20,6 +20,7 @@
 #include "cec_telem.h"
 #include "cec_canota.h"
 #include "cec_pokeack.h"
+#include "cec_freeze.h"
 #include "cec_teleplot.h"
 #include "cec_cli.h"
 #include "cec_classifier.h"
@@ -253,6 +254,8 @@ static void sample_task(void *arg)
             // Fire a burst capture on anomaly. cec_capture's busy/cooldown
             // gates absorb back-to-back triggers; we don't gate again here.
             esp_err_t tr = cec_capture_trigger(CEC_TRIG_ANOMALY);
+            // Freeze the whole system on this local anomaly (§6.10).
+            if (!cec_freeze_is_frozen()) cec_freeze_trigger(CEC_FREEZE_CAUSE_ANOMALY);
             if (tr == ESP_OK) {
                 ESP_LOGW(TAG, "anomaly flags=0x%02x - burst triggered", flags);
             } else if (tr == ESP_ERR_NOT_FINISHED || tr == ESP_ERR_INVALID_STATE) {
@@ -531,6 +534,14 @@ static const cec_cli_command_t CLI_COMMANDS[] = {
 static volatile bool s_ota_active = false;
 static void ota_active_cb(bool active) { s_ota_active = active; }
 
+/* Cross-module FREEZE (§6.10): a FREEZE from any node triggers this module's
+ * real burst capture on the shared instant -> co-capture dump. */
+static void freeze_cocapture_cb(uint8_t origin, uint8_t cause, int64_t instant_us, void *ctx)
+{
+    (void)origin; (void)cause; (void)instant_us; (void)ctx;
+    cec_capture_trigger(CEC_TRIG_COCAPTURE);
+}
+
 static void comms_task(void *arg)
 {
     ESP_LOGI(TAG, "comms task started on core %d", xPortGetCoreID());
@@ -695,6 +706,10 @@ void app_main(void)
     // pass that GPIO here on the real board to enable the positive ack.
     cec_pokeack_responder_start(CEC_POKEACK_TAP_NONE,
                                 CEC_MODULE_TYPE_EPS, g_config.module_id);
+    // Cross-module FREEZE co-capture (§6.10): a FREEZE from any node triggers
+    // this module's burst capture on the shared instant.
+    cec_freeze_cfg_t fz = { .self_instance = g_config.module_id, .on_freeze = freeze_cocapture_cb };
+    cec_freeze_init(&fz);
 #else
     ESP_LOGW(TAG, "CAN disabled (CEC_CAN_ENABLED=0); skipping TWAI init and comms task");
 #endif

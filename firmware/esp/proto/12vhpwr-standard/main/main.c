@@ -27,11 +27,14 @@
 static const char *TAG = "hpwr_std";
 
 /* §6.10 burst capture of the 6 per-pin currents at the full ADC rate. Wired to
- * the INA240 over-threshold / §6.13 detection trigger at bring-up. STUB. */
+ * the INA240 over-threshold / §6.13 detection trigger at bring-up. A per-pin
+ * imbalance also broadcasts a cross-module FREEZE so every module captures the
+ * same instant (the §6.13 thesis: the electrical outlier leads the thermal). */
 static void capture_burst(void)
 {
-    /* TODO bring-up: snapshot the per-pin ring buffer (cec_capture) and dump it
-     * over USB / hold it for CAN read-out on a FREEZE. */
+    /* TODO bring-up: snapshot the per-pin ring buffer (cec_capture) + dump it. */
+    if (!cec_freeze_is_frozen())
+        cec_freeze_trigger(CEC_FREEZE_CAUSE_OVERCURRENT);   /* freeze the whole system */
 }
 
 /* Fold the 6 per-pin currents into the 4-channel telemetry summary. */

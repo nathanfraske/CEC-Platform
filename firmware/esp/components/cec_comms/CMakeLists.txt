@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "cec_can.c" "cec_telem.c" "cec_canota.c" "cec_pokeack.c" "cec_module.c"
+    SRCS "cec_can.c" "cec_telem.c" "cec_canota.c" "cec_pokeack.c" "cec_module.c" "cec_freeze.c"
     INCLUDE_DIRS "include"
     REQUIRES cec_common esp_driver_twai
     # app_update + esp_partition + esp_system: the CAN-OTA receiver writes the

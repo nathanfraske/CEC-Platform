@@ -31,6 +31,7 @@ static bool s_enabled = false;
 static volatile uint32_t s_rx_count = 0;
 static volatile uint32_t s_bus_off_count = 0;
 static volatile bool s_rx_log = true;   /* per-frame RX ISR log (gated for bursts) */
+static can_isr_event_cb_t s_isr_event_cb = NULL;   /* cec_freeze ISR hook */
 
 /* Received frames are posted here by the RX ISR for an app to drain via
  * can_receive(). 8 data bytes + id + dlc per slot. */
@@ -79,6 +80,10 @@ static IRAM_ATTR bool can_on_rx_done(twai_node_handle_t handle,
     BaseType_t hpw = pdFALSE;
     if (twai_node_receive_from_isr(handle, &rx_frame) == ESP_OK) {
         s_rx_count++;
+        /* ISR-fast event hook (cec_freeze): timestamp a FREEZE the instant it
+         * lands, before the slower queue/task path. */
+        if (s_isr_event_cb)
+            s_isr_event_cb(rx_frame.header.id, rx_data, rx_frame.header.dlc);
         if (s_rx_log) ESP_EARLY_LOGI(TAG,
             "RX id=0x%03x dlc=%u [%02x %02x %02x %02x %02x %02x %02x %02x]",
             (unsigned)rx_frame.header.id,
@@ -194,6 +199,11 @@ uint32_t can_get_rx_count(void)
 void can_set_rx_log(bool enable)
 {
     s_rx_log = enable;
+}
+
+void can_set_isr_event_cb(can_isr_event_cb_t cb)
+{
+    s_isr_event_cb = cb;
 }
 
 uint32_t can_get_bus_off_count(void)
@@ -374,6 +384,7 @@ esp_err_t can_receive(uint32_t *out_id, uint8_t *out_data, uint8_t *out_len,
 
 void can_stop(void) { }
 void can_set_rx_log(bool enable) { (void)enable; }
+void can_set_isr_event_cb(can_isr_event_cb_t cb) { (void)cb; }
 
 uint32_t can_get_rx_count(void) { return 0; }
 uint32_t can_get_bus_off_count(void) { return 0; }

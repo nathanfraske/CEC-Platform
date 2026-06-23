@@ -45,8 +45,17 @@
 #include "cec_telem.h"
 #include "cec_canota.h"
 #include "cec_pokeack.h"
+#include "cec_freeze.h"
 
 static const char *TAG = "cec_main";
+
+/* Cross-module FREEZE (§6.10): a FREEZE from any node triggers this module's
+ * real burst capture (cec_capture) on the shared instant -> co-capture dump. */
+static void freeze_cocapture_cb(uint8_t origin, uint8_t cause, int64_t instant_us, void *ctx)
+{
+    (void)origin; (void)cause; (void)instant_us; (void)ctx;
+    cec_capture_trigger(CEC_TRIG_COCAPTURE);
+}
 
 /* Set while a CAN-OTA update is in flight (cec_canota active callback).
  * can_comms_task pauses telemetry TX so it doesn't contend with the OTA
@@ -1139,6 +1148,10 @@ void app_main(void)
          * won't get a poke ack, and binds the port as known-but-unbound. */
         cec_pokeack_responder_start(CEC_POKEACK_TAP_NONE,
                                     CEC_CFG_MODULE_TYPE, CEC_CFG_MODULE_ID);
+        /* Cross-module FREEZE co-capture (§6.10): a FREEZE from any node
+         * triggers this module's real burst capture on the shared instant. */
+        cec_freeze_cfg_t fz = { .self_instance = CEC_CFG_MODULE_ID, .on_freeze = freeze_cocapture_cb };
+        cec_freeze_init(&fz);
     } else {
         ESP_LOGW(TAG, "CAN init failed — no telemetry to the Hub");
     }
@@ -1430,6 +1443,8 @@ void app_main(void)
             if (terr == ESP_OK) {
                 ESP_LOGW(TAG, "burst trigger: ANOMALY (z_max=%.2f)", z_max);
             }
+            /* Freeze the whole system on this local anomaly (§6.10). */
+            if (!cec_freeze_is_frozen()) cec_freeze_trigger(CEC_FREEZE_CAUSE_ANOMALY);
         }
         s_z_above_last = z_above;
 

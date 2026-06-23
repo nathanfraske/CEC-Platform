@@ -60,6 +60,7 @@ static const char *TRIGGER_NAMES[CEC_TRIG_COUNT] = {
     [CEC_TRIG_SHUTDOWN]      = "shutdown",
     [CEC_TRIG_POWER_SWING]   = "power_swing",
     [CEC_TRIG_CURRENT_SWING] = "current_swing",
+    [CEC_TRIG_COCAPTURE]     = "cocapture",
 };
 
 /* Static state. Buffers are byte arrays of app-defined rows. */

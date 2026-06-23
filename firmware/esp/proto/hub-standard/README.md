@@ -1,25 +1,31 @@
 # CEC Hub Standard prototype (CAN bring-up + CAN-OTA bridge)
 
 A bench prototype on the **Lonely Binary ESP32-S3-WROOM-1 N16R8** + a
-**SN65HVD230** CAN transceiver. Nothing else is attached — this is purely a
-CAN node to prove module→Hub signalling end to end, and a bridge for flashing
-a module over CAN. It is **not** the production Hub firmware (no port
-management, host USB protocol, LEDs, or power management).
+**SN65HVD230** CAN transceiver. It is the Hub control plane: a 4-port
+multi-module **aggregator** (forwards telemetry to the host over USB), a
+**CAN-OTA bridge** (re-flash modules over CAN), 4-port **DETECT poke-and-ack**
+port mapping, and **cross-module FREEZE co-capture**. It is wired to the real
+Hub board's pin map (see below). Still missing vs. the production Hub: the
+SK6812 status LEDs and the §2.9 subsystem-power management.
 
 ## Wiring
 
 | Signal | ESP32-S3 | SN65HVD230 |
 |---|---|---|
-| CAN TX | IO5 | D (pin 1) |
-| CAN RX | IO4 | R (pin 4) |
+| CAN TX | IO17 | D (pin 1) |
+| CAN RX | IO18 | R (pin 4) |
 | 3V3 / GND | 3V3 / GND | VCC / GND |
 | Rs (slope) | — | pin 8 → GND for 500k; via 10k for 125k (breakout default) |
 
-Bus: **CAN_H/CAN_L** to the 24-pin's TJA1051T/3, **120 Ω termination at both
-ends**, **both nodes at the same bitrate** (125 kbps default; see below).
+Plus the 4 DETECT lines on **IO4–IO7** (one per port, each with a 10 kΩ pull-up
+to 3V3) — see the DETECT section below.
 
-Console is the native USB Serial/JTAG (the one USB-C). It carries the
-telemetry log, the TelePlot series, and the `ota`/`caninfo` commands.
+Bus: **CAN_H/CAN_L** to each module's TJA1051T/3, **120 Ω termination at both
+ends**, **all nodes at the same bitrate** (125 kbps default; see below).
+
+Console is the native USB Serial/JTAG (the one USB-C). It carries the telemetry
+log + CSV, the TelePlot series, and the `ota`/`caninfo`/`detect`/`freeze`/`rearm`
+commands.
 
 ## Bitrate
 
@@ -155,3 +161,37 @@ senses the poke and acks. The **24-pin has no tap** (MINI-1 pads under the
 shroud) so it never acks — the designed **safe fallback**: the Hub still reads
 its comm class and reports the port *legacy / known-but-unbound*. OQ-28 (sense
 method) is the spec-favored **digital edge** read.
+
+## Cross-module FREEZE co-capture (`freeze` / `rearm`, §6.10)
+
+Any one module's trip freezes **every** module's capture ring on a common
+timeline, so a single rail's event captures the whole system. It rides CAN, no
+spare-pin hardware (`cec_freeze`):
+
+1. The tripping node freezes its own ring, then broadcasts a high-priority
+   **FREEZE** frame (`0x010` — lowest ID, wins arbitration, lands first).
+2. Every other node sees it in its **CAN RX ISR** and timestamps the instant
+   there (the alignment point), then freezes its ring in a task. Alignment is
+   within ~1 bit-time (µs at 500k); the task latency is absorbed by the modules'
+   2 s pre-roll.
+3. Each module dumps its frozen window (the existing burst dump over its own
+   USB); the host overlays them on the FREEZE instant.
+4. **RE-ARM** (`0x011`) re-arms everyone after read-out.
+
+**Hub commands:**
+- `freeze` — broadcast a system-wide FREEZE (every module freezes + dumps). The
+  Hub originates with id `0xFE`.
+- `rearm` — broadcast RE-ARM.
+
+A **module-originated** FREEZE (the 24-pin/EPS on a local anomaly; the 12VHPWR
+scaffold on a per-pin imbalance) lands at the Hub too and is surfaced to the
+host as a `CECFRZ,<ts_ms>,<origin_port>,<cause>` line, so a host capture can be
+aligned across every module on the FREEZE instant.
+
+**Bench test:** with the 24-pin (and/or EPS) on the bus, type `freeze` on the
+Hub → each module logs `FROZEN by port 0xFE (manual)` and fires a `cocapture`
+burst dump on its own USB. Then `rearm`. Trip a real anomaly on the 24-pin and
+the Hub prints a `CECFRZ` line while the other modules dump in sync.
+
+The scaffolds (no ring buffer yet) participate with a log only; the 24-pin and
+EPS do the real `cec_capture` dump.

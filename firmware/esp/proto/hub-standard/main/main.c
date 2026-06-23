@@ -36,9 +36,13 @@
 #include "cec_telem.h"
 #include "cec_canota.h"
 #include "cec_pokeack.h"
+#include "cec_freeze.h"
 #include "cec_cli.h"
 #include "cec_teleplot.h"
 #include "cec_config.h"
+
+/* Hub's own node id on the FREEZE bus (not a module port; 0..3 are ports). */
+#define CEC_HUB_FREEZE_ID  0xFE
 
 static const char *TAG = "hub_main";
 
@@ -275,10 +279,44 @@ static int cmd_detect(int argc, char **argv)
     return 0;
 }
 
+/* §6.10 cross-module FREEZE co-capture. The Hub orchestrates: `freeze`
+ * broadcasts a system-wide FREEZE (every module freezes/dumps its window on a
+ * common timeline); `rearm` re-arms them. A module-originated FREEZE (e.g. an
+ * over-current trip) lands here too -> surfaced to the host. */
+static int cmd_freeze(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    if (cec_freeze_trigger(CEC_FREEZE_CAUSE_MANUAL) == ESP_OK)
+        printf("FREEZE: broadcast -- every module freezes + dumps its window\n");
+    else
+        printf("FREEZE: send failed (CAN up?)\n");
+    return 0;
+}
+
+static int cmd_rearm(int argc, char **argv)
+{
+    (void)argc; (void)argv;
+    cec_freeze_rearm();
+    printf("RE-ARM: broadcast -- every module re-arms\n");
+    return 0;
+}
+
+/* Called when a MODULE broadcasts FREEZE (the Hub itself has no ring). Surface
+ * it to the host so dumps can be aligned on this instant. */
+static void hub_on_freeze(uint8_t origin, uint8_t cause, int64_t instant_us, void *ctx)
+{
+    (void)ctx;
+    printf("CECFRZ,%lld,%u,%s\n", (long long)(instant_us / 1000), origin,
+           cec_freeze_cause_name(cause));
+    fflush(stdout);
+}
+
 static const cec_cli_command_t CLI_COMMANDS[] = {
     { "ota",     "flash the module over CAN: ota <size> <crc32hex>, then stream hex lines", cmd_ota },
     { "caninfo", "print TWAI controller state + counters",                                   cmd_caninfo },
     { "detect",  "read DETECT comm-class + poke-and-ack bind (falls back to legacy)",        cmd_detect },
+    { "freeze",  "broadcast a cross-module FREEZE co-capture (§6.10)",                        cmd_freeze },
+    { "rearm",   "broadcast RE-ARM after reading frozen windows",                             cmd_rearm },
 };
 
 /* ---------------- app_main ---------------- */
@@ -321,6 +359,11 @@ void app_main(void)
         ESP_LOGI(TAG, "use `detect` to poke-and-bind all %d ports", CEC_HUB_NUM_PORTS);
     }
 
-    /* CLI on the USB console (blocking stdin): `ota` flash bridge + `detect`. */
+    /* §6.10 cross-module FREEZE co-capture: the Hub can originate (`freeze`)
+     * and sees module-originated freezes (surfaced to the host). */
+    cec_freeze_cfg_t fz = { .self_instance = CEC_HUB_FREEZE_ID, .on_freeze = hub_on_freeze };
+    cec_freeze_init(&fz);
+
+    /* CLI on the USB console (blocking stdin): ota / detect / freeze / rearm. */
     cec_cli_init(CLI_COMMANDS, sizeof(CLI_COMMANDS) / sizeof(CLI_COMMANDS[0]));
 }
