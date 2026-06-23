@@ -67,21 +67,32 @@ const char *cec_detect_class_name(cec_detect_class_t c);
  * Requires CAN up (can_init) when a tap is present. */
 esp_err_t cec_pokeack_responder_start(int tap_gpio, uint8_t module_type, uint8_t instance);
 
-/* ---------------- Hub side ---------------- */
+/* ---------------- Hub side (multi-port) ---------------- */
 
-/* Set up the DETECT ADC read (adc_gpio, an ADC1 pin) + the poke driver
- * (poke_gpio). The 10 kΩ pull-up from 3.3 V to the DETECT node is EXTERNAL. */
-esp_err_t cec_pokeack_hub_init(int adc_gpio, int poke_gpio);
+#define CEC_POKEACK_MAX_PORTS 4
 
-/* Read the static DETECT divider and classify it. If out_mv != NULL it gets
- * the measured millivolts. Call on a quiet line (not mid-poke). */
-cec_detect_class_t cec_pokeack_read_class(int *out_mv);
+/* Set up the per-port DETECT pins. On the real Hub board each port's DETECT
+ * line goes to ONE ESP32 ADC1 pin with its own 10 kΩ pull-up to 3.3 V (the
+ * pull-ups are EXTERNAL); the same pin does double duty -- ADC input to read
+ * the divider (comm class), and a momentary push-pull output to poke. Pass the
+ * port->GPIO map (e.g. {4,5,6,7} = ports 0..3); all must be ADC1 pins (IO1..10).
+ * n_ports <= CEC_POKEACK_MAX_PORTS. */
+esp_err_t cec_pokeack_hub_init_ports(const int *port_gpios, int n_ports);
 
-/* Poke the line, then wait up to timeout_ms for a module MOVED ack. Returns
- * true and fills module_type/instance if a module acked (bind it to this
- * port); false on no ack within the window (safe fallback → legacy/unbound).
- * The CALLER must own can_receive() for the duration (suspend any RX drain). */
-bool cec_pokeack_poke_and_bind(uint32_t timeout_ms, uint8_t *module_type, uint8_t *instance);
+/* Number of ports successfully configured by hub_init_ports. */
+int cec_pokeack_num_ports(void);
+
+/* Read + classify the static DETECT divider on `port` (0-based). out_mv (if
+ * non-NULL) gets the millivolts. Call on a quiet line (not mid-poke). */
+cec_detect_class_t cec_pokeack_read_class_port(int port, int *out_mv);
+
+/* Poke `port`, then wait up to timeout_ms for a module MOVED ack. Returns true
+ * and fills module_type/instance if the module on that port acked (bind it to
+ * this physical port); false on no ack (safe fallback -> legacy/unbound). The
+ * CALLER must own can_receive() for the duration (suspend any RX drain). Poke
+ * ONE port at a time so the ack is unambiguous. */
+bool cec_pokeack_poke_and_bind_port(int port, uint32_t timeout_ms,
+                                    uint8_t *module_type, uint8_t *instance);
 
 #ifdef __cplusplus
 }

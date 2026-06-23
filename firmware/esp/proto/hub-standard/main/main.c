@@ -224,28 +224,54 @@ static int cmd_caninfo(int argc, char **argv)
     return 0;
 }
 
-/* DETECT poke-and-ack: read the comm class off the static divider (the analog
- * sense pin), then poke and try to bind a module to this port. A module with a
- * pin-8 tap acks over CAN; the 24-pin has no tap, so this falls back safely to
- * legacy/known-but-unbound. */
+/* Per-port DETECT / poke-and-ack binding map (built by `detect`). */
+typedef struct {
+    cec_detect_class_t cls;
+    int                mv;
+    bool               bound;
+    uint8_t            module_type;
+    uint8_t            instance;
+} port_bind_t;
+static port_bind_t s_bind[CEC_HUB_NUM_PORTS];
+
+/* Walk all DETECT ports: read each one's comm class (the analog sense), then
+ * poke and try to bind the module on it. A tapped module acks over CAN and
+ * binds to its physical port; an untapped one (e.g. the 24-pin) falls back
+ * safely to legacy/known-but-unbound. Builds the physical port -> module map. */
 static int cmd_detect(int argc, char **argv)
 {
     (void)argc; (void)argv;
-    int mv = -1;
-    cec_detect_class_t cls = cec_pokeack_read_class(&mv);
-    printf("DETECT: %d mV -> %s\n", mv, cec_detect_class_name(cls));
-    if (cls == CEC_DETECT_ABSENT) { printf("DETECT: no module on the line (open)\n"); return 0; }
-    if (cls == CEC_DETECT_FAULT)  { printf("DETECT: line shorted (fault)\n"); return 1; }
+    int n = cec_pokeack_num_ports();
 
-    uint8_t mtype = 0, inst = 0;
     if (s_display_task) vTaskSuspend(s_display_task);   /* binder owns can_receive() */
-    bool acked = cec_pokeack_poke_and_bind(200, &mtype, &inst);
+    for (int p = 0; p < n; p++) {
+        int mv = -1;
+        cec_detect_class_t cls = cec_pokeack_read_class_port(p, &mv);
+        s_bind[p].cls = cls; s_bind[p].mv = mv; s_bind[p].bound = false;
+        if (cls != CEC_DETECT_ABSENT && cls != CEC_DETECT_FAULT) {
+            uint8_t mt = 0, inst = 0;
+            if (cec_pokeack_poke_and_bind_port(p, 200, &mt, &inst)) {
+                s_bind[p].bound = true; s_bind[p].module_type = mt; s_bind[p].instance = inst;
+            }
+        }
+    }
     if (s_display_task) vTaskResume(s_display_task);
 
-    if (acked)
-        printf("DETECT: poke ACK -> bound module type 0x%02x inst %u to this port\n", mtype, inst);
-    else
-        printf("DETECT: no poke ack -> legacy module (known-but-unbound; comm class above)\n");
+    printf("DETECT port map (%d ports):\n", n);
+    for (int p = 0; p < n; p++) {
+        port_bind_t *b = &s_bind[p];
+        const char *cn = cec_detect_class_name(b->cls);
+        if (b->cls == CEC_DETECT_ABSENT)
+            printf("  port%d: %4d mV  %-16s  (empty)\n", p, b->mv, cn);
+        else if (b->cls == CEC_DETECT_FAULT)
+            printf("  port%d: %4d mV  %-16s  (FAULT: line shorted)\n", p, b->mv, cn);
+        else if (b->bound)
+            printf("  port%d: %4d mV  %-16s  -> %s (id %u) BOUND\n",
+                   p, b->mv, cn, cec_telem_type_name(b->module_type), b->instance);
+        else
+            printf("  port%d: %4d mV  %-16s  -> legacy (no poke ack; known-but-unbound)\n",
+                   p, b->mv, cn);
+    }
     return 0;
 }
 
@@ -282,14 +308,17 @@ void app_main(void)
 
     xTaskCreatePinnedToCore(display_task, "hub_agg", 4096, NULL, 4, &s_display_task, 1);
 
-    /* DETECT poke-and-ack rig (spec §2.3): ADC read of the divider (comm
-     * class) + a poke driver. The 10k pull-up to 3V3 is external; see
-     * cec_config.h for the bench wiring. */
-    if (cec_pokeack_hub_init(CEC_HUB_DETECT_ADC_GPIO, CEC_HUB_DETECT_POKE_GPIO) == ESP_OK) {
-        int mv = -1;
-        cec_detect_class_t cls = cec_pokeack_read_class(&mv);
-        ESP_LOGI(TAG, "DETECT at boot: %d mV -> %s (use `detect` to poke-and-bind)",
-                 mv, cec_detect_class_name(cls));
+    /* DETECT poke-and-ack rig (spec §2.3): 4 ports, each one ADC1 pin that
+     * reads the divider (comm class) + pokes. The 10k pull-ups to 3V3 are
+     * external; see cec_config.h for the bench wiring. */
+    static const int detect_pins[] = CEC_HUB_DETECT_PORT_GPIOS;
+    if (cec_pokeack_hub_init_ports(detect_pins, CEC_HUB_NUM_PORTS) == ESP_OK) {
+        for (int p = 0; p < cec_pokeack_num_ports(); p++) {
+            int mv = -1;
+            cec_detect_class_t cls = cec_pokeack_read_class_port(p, &mv);
+            ESP_LOGI(TAG, "DETECT port%d at boot: %d mV -> %s", p, mv, cec_detect_class_name(cls));
+        }
+        ESP_LOGI(TAG, "use `detect` to poke-and-bind all %d ports", CEC_HUB_NUM_PORTS);
     }
 
     /* CLI on the USB console (blocking stdin): `ota` flash bridge + `detect`. */

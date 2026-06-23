@@ -121,84 +121,99 @@ esp_err_t cec_pokeack_responder_start(int tap_gpio, uint8_t module_type, uint8_t
 
 /* =================== Hub side =================== */
 
-static adc_oneshot_unit_handle_t s_adc = NULL;
-static adc_cali_handle_t          s_cali = NULL;
-static adc_channel_t              s_chan;
-static int                        s_poke_gpio = -1;
-static int                        s_adc_gpio  = -1;
+/* Each port is ONE pin: ADC input to read the divider, momentary push-pull
+ * output to poke. Mode-switched per poke; the ADC channel config is restored
+ * afterward so the next read is clean. */
+typedef struct {
+    int               gpio;
+    adc_channel_t     chan;
+    adc_cali_handle_t cali;
+    bool              valid;
+} pokeack_port_t;
 
-esp_err_t cec_pokeack_hub_init(int adc_gpio, int poke_gpio)
+static adc_oneshot_unit_handle_t s_adc = NULL;
+static pokeack_port_t            s_port[CEC_POKEACK_MAX_PORTS];
+static int                       s_n_ports = 0;
+
+static const adc_oneshot_chan_cfg_t s_chan_cfg = {
+    .bitwidth = ADC_BITWIDTH_DEFAULT, .atten = ADC_ATTEN_DB_12,
+};
+
+esp_err_t cec_pokeack_hub_init_ports(const int *port_gpios, int n_ports)
 {
-    /* ESP32-S3 ADC1: IO1..IO10 = CH0..CH9. */
-    if (adc_gpio < 1 || adc_gpio > 10) {
-        ESP_LOGE(TAG, "adc_gpio IO%d is not an ADC1 pin (IO1..IO10)", adc_gpio);
-        return ESP_ERR_INVALID_ARG;
-    }
-    s_chan = (adc_channel_t)(adc_gpio - 1);
-    s_adc_gpio = adc_gpio;
+    if (!port_gpios || n_ports <= 0) return ESP_ERR_INVALID_ARG;
+    if (n_ports > CEC_POKEACK_MAX_PORTS) n_ports = CEC_POKEACK_MAX_PORTS;
 
     adc_oneshot_unit_init_cfg_t ucfg = { .unit_id = ADC_UNIT_1 };
     ESP_RETURN_ON_ERROR(adc_oneshot_new_unit(&ucfg, &s_adc), TAG, "adc_oneshot_new_unit");
-    adc_oneshot_chan_cfg_t ccfg = { .bitwidth = ADC_BITWIDTH_DEFAULT, .atten = ADC_ATTEN_DB_12 };
-    ESP_RETURN_ON_ERROR(adc_oneshot_config_channel(s_adc, s_chan, &ccfg), TAG, "adc_oneshot_config_channel");
 
-    adc_cali_curve_fitting_config_t cal = {
-        .unit_id = ADC_UNIT_1, .chan = s_chan,
-        .atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT,
-    };
-    if (adc_cali_create_scheme_curve_fitting(&cal, &s_cali) != ESP_OK) {
-        ESP_LOGW(TAG, "ADC cali unavailable; mV will be approximate");
-        s_cali = NULL;
+    s_n_ports = 0;
+    for (int p = 0; p < n_ports; p++) {
+        int g = port_gpios[p];
+        if (g < 1 || g > 10) {     /* ESP32-S3 ADC1 = IO1..IO10 = CH0..CH9 */
+            ESP_LOGE(TAG, "port %d: IO%d is not an ADC1 pin (IO1..IO10) -- skipped", p, g);
+            s_port[p].valid = false;
+            continue;
+        }
+        s_port[p].gpio  = g;
+        s_port[p].chan  = (adc_channel_t)(g - 1);
+        s_port[p].valid = true;
+        if (adc_oneshot_config_channel(s_adc, s_port[p].chan, &s_chan_cfg) != ESP_OK) {
+            ESP_LOGE(TAG, "port %d IO%d: config_channel failed", p, g);
+            s_port[p].valid = false;
+            continue;
+        }
+        adc_cali_curve_fitting_config_t cal = {
+            .unit_id = ADC_UNIT_1, .chan = s_port[p].chan,
+            .atten = ADC_ATTEN_DB_12, .bitwidth = ADC_BITWIDTH_DEFAULT,
+        };
+        if (adc_cali_create_scheme_curve_fitting(&cal, &s_port[p].cali) != ESP_OK)
+            s_port[p].cali = NULL;     /* mV approximate */
+        s_n_ports = p + 1;
+        ESP_LOGI(TAG, "port %d: DETECT on IO%d (ADC1_CH%d, read+poke; external 10k pull-up)",
+                 p, g, (int)s_port[p].chan);
     }
-
-    /* Poke pin: idle hi-Z (input) so it doesn't load the divider; driven only
-     * during a poke. */
-    s_poke_gpio = poke_gpio;
-    gpio_config_t io = {
-        .pin_bit_mask = 1ULL << poke_gpio,
-        .mode = GPIO_MODE_INPUT,
-        .pull_up_en = GPIO_PULLUP_DISABLE, .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE,
-    };
-    gpio_config(&io);
-
-    ESP_LOGI(TAG, "Hub DETECT: ADC read on IO%d (ADC1_CH%d), poke on IO%d "
-                  "(external 10k pull-up to 3V3 on the DETECT node)",
-             adc_gpio, (int)s_chan, poke_gpio);
-    return ESP_OK;
+    return s_n_ports > 0 ? ESP_OK : ESP_FAIL;
 }
 
-cec_detect_class_t cec_pokeack_read_class(int *out_mv)
+int cec_pokeack_num_ports(void) { return s_n_ports; }
+
+cec_detect_class_t cec_pokeack_read_class_port(int port, int *out_mv)
 {
-    if (!s_adc) { if (out_mv) *out_mv = -1; return CEC_DETECT_ABSENT; }
-    /* Average a handful of samples for a steady divider read. */
+    if (out_mv) *out_mv = -1;
+    if (!s_adc || port < 0 || port >= s_n_ports || !s_port[port].valid) return CEC_DETECT_ABSENT;
+
     int acc = 0, n = 0;
     for (int i = 0; i < 8; i++) {
         int raw = 0;
-        if (adc_oneshot_read(s_adc, s_chan, &raw) == ESP_OK) { acc += raw; n++; }
+        if (adc_oneshot_read(s_adc, s_port[port].chan, &raw) == ESP_OK) { acc += raw; n++; }
     }
     int raw = n ? acc / n : 0;
     int mv = 0;
-    if (s_cali) adc_cali_raw_to_voltage(s_cali, raw, &mv);
-    else        mv = raw * 3300 / 4095;     /* rough fallback */
+    if (s_port[port].cali) adc_cali_raw_to_voltage(s_port[port].cali, raw, &mv);
+    else                   mv = raw * 3300 / 4095;
     if (out_mv) *out_mv = mv;
     return classify_mv(mv);
 }
 
-bool cec_pokeack_poke_and_bind(uint32_t timeout_ms, uint8_t *module_type, uint8_t *instance)
+bool cec_pokeack_poke_and_bind_port(int port, uint32_t timeout_ms,
+                                    uint8_t *module_type, uint8_t *instance)
 {
-    if (s_poke_gpio < 0) return false;
+    if (port < 0 || port >= s_n_ports || !s_port[port].valid) return false;
+    int g = s_port[port].gpio;
 
-    /* Drive the poke pattern: PULSES clean rising edges (HIGH/LOW), then
-     * release the pin to hi-Z so the divider returns to its static level. */
-    gpio_set_direction(s_poke_gpio, GPIO_MODE_OUTPUT);
+    /* Poke: drive PULSES clean rising edges on this port's pin, then return it
+     * to hi-Z input and restore the ADC channel config so the next read works. */
+    gpio_set_direction(g, GPIO_MODE_OUTPUT);
     for (int i = 0; i < CEC_POKEACK_PULSES; i++) {
-        gpio_set_level(s_poke_gpio, 1); vTaskDelay(pdMS_TO_TICKS(CEC_POKEACK_PULSE_MS));
-        gpio_set_level(s_poke_gpio, 0); vTaskDelay(pdMS_TO_TICKS(CEC_POKEACK_PULSE_MS));
+        gpio_set_level(g, 1); vTaskDelay(pdMS_TO_TICKS(CEC_POKEACK_PULSE_MS));
+        gpio_set_level(g, 0); vTaskDelay(pdMS_TO_TICKS(CEC_POKEACK_PULSE_MS));
     }
-    gpio_set_direction(s_poke_gpio, GPIO_MODE_INPUT);    /* back to hi-Z */
+    gpio_set_direction(g, GPIO_MODE_INPUT);
+    adc_oneshot_config_channel(s_adc, s_port[port].chan, &s_chan_cfg);   /* re-arm ADC pad */
 
-    /* Wait for a MOVED ack (caller owns can_receive). */
+    /* Wait for a MOVED ack (caller owns can_receive). One port at a time, so
+     * any MOVED in this window is from the module on `port`. */
     TickType_t start = xTaskGetTickCount();
     while ((xTaskGetTickCount() - start) < pdMS_TO_TICKS(timeout_ms)) {
         uint32_t id = 0; uint8_t len = 0, d[8];

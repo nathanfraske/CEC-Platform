@@ -46,21 +46,22 @@ extern "C" {
 #define CEC_HUB_MODULE_TIMEOUT_MS  3000
 
 /*
- * DETECT poke-and-ack bench rig (spec §2.3 v2.6). The DETECT line is RJ-45
- * pin 8, carried to the Hub end by the full RJ-45 cable. Build this small
- * rig on the Lonely Binary's accessible GPIOs:
+ * DETECT poke-and-ack — 4 ports, mirroring the real Hub Standard board
+ * (hubs/hub-standard: DETECT1..4 on IO4/IO5/IO6/IO7, each its own ADC1 pin +
+ * 10 kΩ pull-up + ESD diode). Wire the dev board the same way: per port, the
+ * module's RJ-45 pin 8 (DETECT) -> the Hub pin below + a 10 kΩ pull-up to 3V3.
  *
- *   - 10 kΩ pull-up resistor from 3V3 to the DETECT node (the Hub's pull-up).
- *   - DETECT node -> IO1 (ADC1_CH0): reads the static divider = comm class
- *     (the 24-pin's 2.2 kΩ -> ~0.60 V = CAN-only). This is the analog sense.
- *   - DETECT node -> IO2: the poke driver (idle hi-Z; pulses HIGH to perturb
- *     the line). A module with a pin-8 GPIO tap would ack over CAN; the 24-pin
- *     has no tap, so it never acks -> safe fallback to legacy/unbound.
+ * Each port pin does BOTH jobs: ADC input to read the static divider (comm
+ * class), and a momentary push-pull output to poke. The poke perturbs that one
+ * port's line; the module on it acks over CAN (a tapped module), binding it to
+ * the port. A module with no pin-8 tap (e.g. the 24-pin) never acks -> safe
+ * fallback to legacy/known-but-unbound.
  *
- * IO1/IO2 are free here (CAN is IO5/IO4). Change to suit your wiring.
+ * CAN moved to IO17/IO18 (sdkconfig) to free IO4/IO5 for DETECT1/DETECT2 -- the
+ * real-board pin map. Index = Hub port 0..3 = jacks J2..J5.
  */
-#define CEC_HUB_DETECT_ADC_GPIO   1    /* ADC1_CH0; reads the DETECT divider */
-#define CEC_HUB_DETECT_POKE_GPIO  2    /* poke driver into the DETECT node */
+#define CEC_HUB_NUM_PORTS         4
+#define CEC_HUB_DETECT_PORT_GPIOS { 4, 5, 6, 7 }   /* port 0..3 = IO4/5/6/7 (ADC1 CH3..6) */
 
 #ifdef __cplusplus
 }

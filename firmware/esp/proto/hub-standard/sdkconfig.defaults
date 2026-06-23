@@ -51,11 +51,12 @@ CONFIG_COMPILER_OPTIMIZATION_PERF=y
 # to stdio (the USB console). main.c does not call cec_telemetry_init_uart.
 CONFIG_CEC_TELEMETRY_UART0=n
 
-# CAN (TWAI). Transceiver = SN65HVD230 breakout. MCU CAN TX on IO5 (-> D),
-# CAN RX on IO4 (<- R). Bitrate 125k = the reliable bench rate -- the
-# SN65HVD230 breakout is slope-controlled (Rs via 10k to GND) and bus-offs
-# at 500k unless Rs is bridged to GND; 500k is the platform target. This
-# MUST match the 24-pin module's bitrate (also 125k).
-CONFIG_CEC_CAN_TX_GPIO=5
-CONFIG_CEC_CAN_RX_GPIO=4
+# CAN (TWAI). Transceiver = SN65HVD230 breakout. MCU CAN TX on IO17 (-> D),
+# CAN RX on IO18 (<- R) -- the real Hub board's CAN pins, moved off IO5/IO4 so
+# those free up for DETECT1/DETECT2 (the 4-port DETECT map is IO4..IO7, see
+# cec_config.h). Bitrate 125k = the reliable bench rate -- the SN65HVD230
+# breakout is slope-controlled and bus-offs at 500k unless Rs->GND; 500k is the
+# target. MUST match the modules' bitrate (also 125k).
+CONFIG_CEC_CAN_TX_GPIO=17
+CONFIG_CEC_CAN_RX_GPIO=18
 CONFIG_CEC_CAN_BITRATE_BPS=125000
