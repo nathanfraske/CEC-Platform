@@ -17,7 +17,7 @@ public releases). Both are Tauri/NSIS **per-user** installs under `%LOCALAPPDATA
 - **MyOwnMesh** is a SEPARATE app, independently versioned (0.2.x vs AllMyStuff 0.1.x), at
   `AppData\Local\MyOwnMesh\` and `AppData\Local\Programs\MyOwnMesh\`.
 
-Update recipe (re-verified 2026-06-19, took 0.1.15 → 0.1.16; first verified 2026-06-16 0.1.9 → 0.1.13): from WSL drive Windows via `powershell.exe`.
+Update recipe (re-verified 2026-06-23 via clean uninstall+reinstall, 0.1.23 → 0.2.0 — a minor bump, so the owner asked for uninstall-first not install-over-top; prior: 0.1.15 → 0.1.16 on 2026-06-19; first 0.1.9 → 0.1.13 on 2026-06-16): from WSL drive Windows via `powershell.exe`. Clean uninstall = Stop-Process the 3 image names → run `%LOCALAPPDATA%\AllMyStuff\uninstall.exe /S` -Wait (leaves harmless `.old` leftovers; NSIS, supports /S). The registry Uninstall entry's DisplayVersion can lag the real binary (showed 0.1.16 while the exe was 0.1.23) — trust the exe's ProductVersion, not the registry.
 Get assets from `api.github.com/repos/mrjeeves/AllMyStuff/releases/tags/<tag>`; Windows x64 installer =
 `AllMyStuff_<ver>_x64-setup.exe` (NSIS; there's also an `_x64_en-US.msi`). Steps: Stop-Process the 3 image
 names → `Start-Process <setup.exe> -ArgumentList '/S' -Wait` (silent, exit 0) → verify
