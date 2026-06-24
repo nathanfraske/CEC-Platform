@@ -223,3 +223,22 @@ VCOMP "highest-voltage-wins" mode, NOT IN1-priority. Corrected to a **divider of
 R53 33k, IN1-valid ~4.3V) so IN1>IN2 priority is real. OV1/OV2/CP2→GND placeholders were already
 datasheet-correct (OV disabled, fast-switchover off); ST pull-up tightened 100k→10k (datasheet 6-20k).
 ERC unchanged (1 benign CAN-TXD typing). The cosmetic symbol names (ILM/ILIM, IN/IN-) have no netlist impact.
+
+## Passive quality/type spec (for the BOM pass) — 2026-06-24
+The generated schematic carries VALUE + FOOTPRINT only (platform convention); tolerance / dielectric /
+voltage / LCSC part are assigned at the BOM-sourcing pass. Requirements so the critical ones aren't
+mis-sourced (JLCPCB Basic 0402 resistors are 1% and Basic caps are X7R/X5R by default, so most fall out free):
+
+**Resistors — 1% (precision, they SET a threshold/limit/code):**
+- R1 (2.2k DETECT code, §2.3 divider) · R50 (20k TPS2121 ILIM) · R52 (100k) + R53 (33k) PR1 priority divider ·
+  R60 (10k §6.13 threshold). Use 1% / ≤100ppm.
+**Resistors — 5% (general: pull-ups/downs, series taps):** R2 (10k EN), R3/R4 (2.2k I2C), R7 (100k poke-ack),
+  R8/R9 (5.1k USB CC — 5% is in USB spec), R51 (10k ST pull-up).
+**Caps — dielectric + voltage (no timing/precision caps in this design, so X7R/X5R throughout):**
+- All 100n decoupling (C3/C4/C5/C8/C10-13/C60 + the §6.13 bypasses): **X7R, ≥16V** on the +5V_SYS/+5V_MAIN/+5VSB
+  nets, ≥10V on +3V3-only.
+- 1u bulk (C1 LP5907 in, C2 LP5907 out): X7R, C1 ≥16V / C2 ≥10V.
+- 10u bulk (C6 board-entry, C7 +3V3, C9 VBUS): **X5R, ≥16V** (C7 ≥10V).
+- C50 (2.2u TPS2121 SS soft-start): X7R/X5R ≥16V (sets soft-start time, not precision).
+NOTE: the actual LCSC part assignment (+ the connector MPNs) is the BOM pass, pending jlcsearch coming back up
+(down 2026-06-24); the ICs were cached direct. This table is the spec that pass must honor.
