@@ -12,9 +12,11 @@ and layers on the rev3 deltas:
   - 16-pin vertical MEZZANINE connector (CEC_MEZZANINE_16P) for the stacked Hub.
 Everything is grouped inside cec_sch labelled-section boxes so the sheet reads by function.
 
-NOTE (TPS2121 control pins): OV1/OV2/PR1/CP2/ST wiring below is a FIRST-PASS placeholder so the
-sheet is ERC-clean -- VERIFY the priority/OV/soft-start config against the TPS2121 datasheet
-(SLVSDU5) before fab. ILIM is sized to the MAX running draw (not standby) per the 2026-06-24 audit.
+NOTE (TPS2121 control pins): VERIFIED vs the TPS2121RUXR datasheet (SLVSDU5, 2026-06-24 pinout
+audit). PR1 = a divider off IN1 (IN1>IN2 priority); OV1/OV2 -> GND (OV disabled); CP2 -> GND
+(fast-switchover off); ILIM = R_ILIM 20k to GND (~3.5A, sized to the max running draw per the
+2026-06-24 audit); SS = C_SS to GND; ST = 10k pull-up to +3V3. All 7 placed-IC symbol pinouts
+were datasheet-verified the same day (C6/INA228/INA181/TLV7011/TPS2121/LP5907/TJA1051 = match).
 """
 import sys, os, importlib
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -60,7 +62,9 @@ nets["SENSE5VSB_LO"].append(("J4", "9"))
 parts["U5"] = ("cec-vendor", "TPS2121RUXR", "TPS2121RUXR")
 parts["C50"] = ("cec-vendor", "C_Small", "2u2")    # SS soft-start
 parts["R50"] = ("cec-vendor", "R_Small", "20k")    # ILIM = max running draw (audit 2026-06-24)
-parts["R51"] = ("cec-vendor", "R_Small", "100k")   # ST open-drain pull-up
+parts["R51"] = ("cec-vendor", "R_Small", "10k")    # ST open-drain pull-up (datasheet 6-20k)
+parts["R52"] = ("cec-vendor", "R_Small", "100k")   # PR1 divider top (IN1 -> PR1)
+parts["R53"] = ("cec-vendor", "R_Small", "33k")    # PR1 divider bottom; IN1 valid threshold ~4.3V
 # the board's own supply moves +5VSB -> +5V_SYS (mux output)
 for ref, pin in [("U3", "1"), ("U3", "3"), ("C1", "1"), ("C4", "1"), ("C6", "1"), ("U2", "3"), ("D2", "1")]:
     drop("+5VSB", (ref, pin))
@@ -73,8 +77,14 @@ nets["SS"] = [("U5", "11"), ("C50", "1")]
 nets["ILIM"] = [("U5", "10"), ("R50", "1")]
 nets["MUX_ST"] = [("U5", "9"), ("R51", "1")]                    # status (open-drain) -> pull-up
 nets["+3V3"] += [("R51", "2")]
-# FIRST-PASS control-pin wiring (VERIFY vs TPS2121 datasheet): OV disabled to GND, PR1 to GND.
-nets["GND"] += [("U5", "4"), ("U5", "5"), ("U5", "6"), ("U5", "3")]   # OV2,OV1,PR1,CP2 placeholder
+# Control pins -- VERIFIED vs TPS2121RUXR datasheet (SLVSDU5, 2026-06-24 pinout audit):
+# PR1 must set IN1 PRIORITY = a divider off IN1 so PR1 > VREF (~1.06V) when IN1 valid (Table 9-3);
+# tying PR1 to GND would instead select VCOMP "highest-voltage-wins" mode -- WRONG for this mux.
+# OV1/OV2 -> GND = overvoltage supervisors disabled (correct); CP2 -> GND = fast-switchover
+# external-ref comparator off -> the simple PR1-priority path (correct).
+nets["PR1"] = [("U5", "6"), ("R52", "2"), ("R53", "1")]              # PR1 = IN1 divider tap
+nets["SENSE5V_LO"] += [("R52", "1")]                                 # divider top -> IN1 (main 5V)
+nets["GND"] += [("U5", "4"), ("U5", "5"), ("U5", "3"), ("R53", "2")] # OV2,OV1,CP2 + divider bottom
 
 # ---------------------------------------------------------------- delta 4: 6.13 transient front-end
 # On the two high-current rails (12V, 5V). INA181A2 (gain 50) -> TLV7011 comparator vs shared
@@ -147,7 +157,8 @@ P = {
     "U65V": (275, 95), "U75V": (310, 95), "C65V": (293, 95), "C75V": (328, 95),
     "R60": (360, 60), "C60": (380, 60),
     # mux
-    "U5": (60, 200), "C50": (30, 235), "R50": (50, 235), "R51": (95, 235), "C1": (100, 175), "C6": (30, 175),
+    "U5": (60, 200), "C50": (30, 235), "R50": (50, 235), "R51": (95, 235), "C1": (118, 175), "C6": (30, 175),
+    "R52": (112, 215), "R53": (112, 232),
     # LDO
     "U3": (165, 195), "C2": (190, 175),
     # MCU

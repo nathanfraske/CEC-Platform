@@ -205,3 +205,21 @@ CONNECTOR datasheets remain BOM-pass items (jlcsearch down for the LCSC-CDN pull
 header+socket (generic 2.0mm 2x8, exact MPN TBD at BOM), the ATX Mini-Fit Jr (Molex 5569 — family
 spec Molex-PS-5556.pdf already cached), the FTP RJ-45 (Kinghelm C2683360) and USB-C (XKB). NOTE the
 TPS2121 OV/PR/CP control-pin config still needs verifying against TPS2121RUXR.pdf before fab.
+
+## Pinout verification vs real datasheets (2026-06-24)
+Every placed IC's symbol pinout was cross-checked against its cached datasheet PDF (one agent/part):
+| IC | verdict | notes |
+|---|---|---|
+| ESP32-C6-MINI-1 | ✅ match | all 53 pads vs Espressif Table 3-1 (USB D+/- not swapped; CAN 26/27; I2C 24/25) |
+| INA228 (INA226 body) | ✅ match | DGS VSSOP-10 1-10 vs SLYS021A |
+| INA181A2 | ✅ match | SOT-23-6 vs SBOS793H |
+| TLV7011 | ✅ match | SOT-23-5/DBV vs SLVSDM5F (pin4 name "IN" cosmetic) |
+| TPS2121 | ✅ match* | all 12 numbers vs SLVSDU5 (pin10 "ILM" cosmetic) — **PR1 wiring FIXED, see below** |
+| LP5907 | ✅ match | SOT-23-5 |
+| TJA1051 | ✅ match | SO-8 |
+
+**FIX applied:** the TPS2121 PR1 (pin 6) was a GND placeholder — datasheet Table 9-3 says GND selects
+VCOMP "highest-voltage-wins" mode, NOT IN1-priority. Corrected to a **divider off IN1** (R52 100k /
+R53 33k, IN1-valid ~4.3V) so IN1>IN2 priority is real. OV1/OV2/CP2→GND placeholders were already
+datasheet-correct (OV disabled, fast-switchover off); ST pull-up tightened 100k→10k (datasheet 6-20k).
+ERC unchanged (1 benign CAN-TXD typing). The cosmetic symbol names (ILM/ILIM, IN/IN-) have no netlist impact.
