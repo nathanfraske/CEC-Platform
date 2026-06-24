@@ -260,9 +260,20 @@ def emit_global_power(symname, x, y, project, root, ref, rot=0):
 def gridsnap(x, y):
     return (round(x / GRID) * GRID, round(y / GRID) * GRID)
 
+def emit_section(label, x0, y0, x1, y1):
+    """A labelled functional-group box: a dashed rectangle + a bold title at its top-left.
+    Pure annotation (graphic layer) -- no electrical effect, invisible to ERC/the netlist.
+    Group component clusters inside these so the sheet reads by function."""
+    return (
+        f'\t(rectangle\n\t\t(start {f(x0)} {f(y0)})\n\t\t(end {f(x1)} {f(y1)})\n'
+        f'\t\t(stroke (width 0.254) (type dash))\n\t\t(fill (type none))\n\t\t(uuid "{u()}")\n\t)\n'
+        f'\t(text "{label}"\n\t\t(exclude_from_sim no)\n\t\t(at {f(x0 + 1.5)} {f(y0 + 1.5)} 0)\n'
+        f'\t\t(effects (font (size 2 2) (thickness 0.35) (bold yes)) (justify left top))\n\t\t(uuid "{u()}")\n\t)'
+    )
+
 def build_schematic(out_path, project, parts, nets, used, libs,
                     paper="A3", powerflag_nets=(), nc_skip=(), placement=None,
-                    power_ports=None, wire_nets=None, footprints=None):
+                    power_ports=None, wire_nets=None, footprints=None, sections=None):
     """Write a .kicad_sch.
 
     power_ports: {net: power-symbol} (e.g. {"GND":"GND","+3V3":"+3V3"}). Pins on
@@ -398,6 +409,7 @@ def build_schematic(out_path, project, parts, nets, used, libs,
         "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
         f"\t(uuid \"{root}\")\n\t(paper \"{paper}\")\n"
         f"{lib_symbols_section(used, extra)}\n"
+        + ("\n".join(emit_section(lbl, *box) for lbl, box in (sections or {}).items()) + "\n" if sections else "")
         + "\n".join(body) + "\n"
         + "\n".join(wires) + "\n"
         + "\n".join(labels) + "\n"
