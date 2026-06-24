@@ -95,3 +95,39 @@ cache them once jlcsearch resolves the C-numbers. This table is the checklist so
   3. Hub sch: add the mirrored socket on a port-0 + power-in (+5V_SYS); adapt §2.9 to 2-source; shared-rect mounts. ERC.
   4. BOM/datasheet pass (lcsc skill): the mezzanine MPNs + cache the TPS2121 + connector PDFs (per the datasheet table).
   This is a clean, fully-specified next pass -- best done as a focused GUI/edit session with ERC at each step.
+
+## AUDIT CORRECTIONS (2026-06-24) — read before the GUI splice
+A multi-agent audit (wf_b42b699c) of this session's work found real issues; corrected here authoritatively:
+
+1. **The 24-pin "-30.5%" overhang result is CONNECTIVITY-PRESERVING, NOT DRC-CLEAN.** The asym-overhang board
+   (build/24pin-rev2-tight/rev2-overhang-asym.kicad_pcb) keeps kelvin/diffpair/unconn=0 but **drc=31, gates_pass=FALSE**.
+   The 17 copper_edge_clearance hits are REAL power copper near the new edge (the +5VSB B.Cu run), NOT a free
+   "finishing re-pour" artifact — clearing them needs a genuine RE-ROUTE pulling that copper in from the edge. So
+   the honest claim is "30.5% smaller, connectivity-preserving, but the tight edge still needs a routing pass to be
+   DRC-clean." The size ladder stands; the "clean" framing did not.
+2. **Directed-loop origin bug: NOW FIXED IN CODE** (not just the board-normalize workaround). cec_place_planner
+   `_region_boxes` gained `ox/oy` (the board's top-left) and all 3 callers pass `bb.GetLeft/Top` — so the partition
+   tiles into the board's real frame for ANY origin (verified: 24-pin "right" region 41.5→136.5, now inside x[95..178];
+   eps at origin~0 unchanged = back-compat). The earlier "fixed (unconn 160->24)" claim was a board-normalize hack;
+   this is the real fix.
+3. **Power-mux R_ILIM — corrected.** A SINGLE output current limit also caps the main-5V (S0) running state, so
+   setting it to ~3A would cut a legit full-white load when the PC is ON. Set R_ILIM to the **MAX expected running
+   draw with margin** (toward the TPS2121's ~5.5A ceiling), and protect the LIMITED 5VSB rail in STANDBY via the
+   firmware LED cap (OQ-2), NOT the mux ILIM. If S0 worst-case can exceed the part ceiling, use a 2-source-limit
+   controller (the §2.9 LTC4417 path). Do not set ILIM=3A.
+4. **Mount placement — do NOT assume 4 corners.** A 74x58 corner rectangle collides with 3 of the 24-pin's 4 corner
+   connectors. Solve the mount/standoff positions against the ACTUAL connector keep-outs at layout (the design
+   allows >=3 mounts) — the alignment contract is {connector ref + the mount set that fits both boards' keep-outs},
+   finalized in the GUI, not a fixed corner rect.
+5. **Connector keying — the vendored 2x8 2.0mm header/socket are UN-keyed/un-shrouded.** Since the 8mm M3 standoffs
+   set the gap + alignment + carry the load, retention/keying from the connector is NOT required — DROP the "keyed"
+   wording; the standoffs handle it. If positive keying is still wanted, source a keyed board-to-board (Wurth WR-BHD /
+   Molex SlimStack) and vendor ITS footprint instead. (The vendored footprints' forbidden ${KICAD10_3DMODEL_DIR}
+   3D-model paths were STRIPPED this pass for clone-parity.)
+6. **"Simplifies the Hub" was an overclaim** — moving the mux to the 24-pin RAISES total part count; the Hub doesn't
+   shrink. The real win = ONE consolidated +5V line over the mezzanine (one power conductor in the stacked build),
+   and the §2.9 Hub OR drops from 3-source to 2-source. State it that way.
+7. **Standoffs are a GND BOND, not the primary power return.** The connector's 7 GND pins carry the 5V return; the
+   M3 standoffs are a parallel low-impedance plane-to-plane bond (good for SI), not the main current path.
+8. Forensic wall-wart recovery (§2.9 source 3) for the STACKED unit is undefined — define a rear-bracket power-in
+   (OQ-54) or keep the Hub's USB-C VBUS as the forensic source for the stacked build. (Open item, not a blocker.)

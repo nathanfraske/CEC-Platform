@@ -1,4 +1,11 @@
-# atx-24pin-rev2 — right-angle layout variant
+# atx-24pin-rev3 — respin (SCAFFOLD; not yet implemented)
+
+> **STATUS (2026-06-24):** this dir is a **scaffold = a verbatim copy of `../atx-24pin-rev2`'s
+> fully-placed, fully-routed layout** (NOT a blank slate). The rev3 respin changes — the optional
+> mezzanine stack, the 5V/5VSB power mux (TPS2121), the J1.1-open fix, and the shrink levers — are
+> **NOT applied yet**. They are fully specified in **`../../docs/24pin-rev3-respin-2026-06-24.md`** +
+> `../../docs/mezzanine-stack-design-2026-06-24.md` and are the GUI/edit hand-off. Everything below is
+> the **inherited rev2 layout/erratum** and remains true until the respin splice lands.
 
 Same circuit as [`../atx-24pin`](../atx-24pin) (the canonical 24-pin ATX
 interposer); **different PCB layout only** — 24-pin input (J3) with the 24-pin

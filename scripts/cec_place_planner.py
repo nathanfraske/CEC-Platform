@@ -171,7 +171,7 @@ def w_analyze(board_pcb, board_dir):
 
     return {"outline": {"W": W, "H": H}, "parts": parts, "corridors": corridors,
             "crossings": crossings, "kelvin_tap": kelvin,
-            "region_boxes": _region_boxes(model, W, H),
+            "region_boxes": _region_boxes(model, W, H, ox=bb.GetLeft() / 1e6, oy=bb.GetTop() / 1e6),
             "corridor_cross": len(crossings)}
 
 
@@ -291,7 +291,7 @@ def _tile_into_box(refs, cyfn, box, *, gap=0.6):
     return moves
 
 
-def _region_boxes(model, W, H, *, margin=1.0):
+def _region_boxes(model, W, H, *, ox=0.0, oy=0.0, margin=1.0):
     """Named PLACEMENT REGIONS for the LLM partition -- the spatial channels foreign logic can occupy
     WITHOUT its nets being forced to straddle a high-current corridor pour. Derived from the formed
     corridors (band = x0,y0,x1,y1; the pour spans only the band's y-range, so above/below it is clear):
@@ -301,24 +301,28 @@ def _region_boxes(model, W, H, *, margin=1.0):
       top/bottom  = the horizontal channel ABOVE / BELOW all the pours (full board width) -- the clear
                     route-around path a power rail uses to feed every corridor's sense ICs
     A region narrower/shorter than a tiny floor is omitted (no false handle for the LLM)."""
+    # ox/oy = the board's top-left origin (default 0 for back-compat with origin-0 boards like eps). The
+    # corridor BANDS are already board-absolute; only the board-EDGE references must be offset by ox/oy, or a
+    # board placed away from (0,0) (e.g. the 24-pin rev2 at (95,62)) tiles parts OFF the board -> unroutable.
+    x0e, y0e, x1e, y1e = ox + margin, oy + margin, ox + W - margin, oy + H - margin   # inset board edges
     bands = sorted((c.band for c in model.cables if c.formed), key=lambda b: b[0])  # band=(x0,x1,y0,y1)
     if not bands:
-        return {"right": [round(W * 0.5, 1), margin, round(W - margin, 1), round(H - margin, 1)]}
+        return {"right": [round(ox + W * 0.5, 1), round(y0e, 1), round(x1e, 1), round(y1e, 1)]}
     yb_top = min(b[2] for b in bands)                        # highest pour top y0 (clear above)
     yb_bot = max(b[3] for b in bands)                        # lowest  pour bottom y1 (clear below)
     boxes = {}
-    if bands[0][0] - margin - margin > 3:
-        boxes["left"] = [margin, margin, round(bands[0][0] - margin, 1), round(H - margin, 1)]
+    if bands[0][0] - margin - x0e > 3:
+        boxes["left"] = [round(x0e, 1), round(y0e, 1), round(bands[0][0] - margin, 1), round(y1e, 1)]
     multi = len(bands) > 2
     for i in range(len(bands) - 1):
         gx0, gx1 = bands[i][1] + margin, bands[i + 1][0] - margin   # corridor i right edge .. corridor i+1 left edge
         if gx1 - gx0 > 3:
-            boxes[f"spine{i + 1}" if multi else "spine"] = [round(gx0, 1), margin, round(gx1, 1), round(H - margin, 1)]
-    boxes["right"] = [round(bands[-1][1] + margin, 1), margin, round(W - margin, 1), round(H - margin, 1)]
-    if yb_top - margin - margin > 3:
-        boxes["top"] = [margin, margin, round(W - margin, 1), round(yb_top - margin, 1)]
-    if H - margin - (yb_bot + margin) > 3:
-        boxes["bottom"] = [margin, round(yb_bot + margin, 1), round(W - margin, 1), round(H - margin, 1)]
+            boxes[f"spine{i + 1}" if multi else "spine"] = [round(gx0, 1), round(y0e, 1), round(gx1, 1), round(y1e, 1)]
+    boxes["right"] = [round(bands[-1][1] + margin, 1), round(y0e, 1), round(x1e, 1), round(y1e, 1)]
+    if yb_top - margin - y0e > 3:
+        boxes["top"] = [round(x0e, 1), round(y0e, 1), round(x1e, 1), round(yb_top - margin, 1)]
+    if y1e - (yb_bot + margin) > 3:
+        boxes["bottom"] = [round(x0e, 1), round(yb_bot + margin, 1), round(x1e, 1), round(y1e, 1)]
     return boxes
 
 
@@ -344,7 +348,7 @@ def _shelf_moves(board_pcb, board_dir, region="right", refs=None, *, gap=0.6):
     P, comps = _board_P_comps(board)
     nl = sp.View(sp.Config.load(board_dir)).nl
     model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
-    boxes = _region_boxes(model, W, H)
+    boxes = _region_boxes(model, W, H, ox=bb.GetLeft() / 1e6, oy=bb.GetTop() / 1e6)
     if region in boxes:
         box = boxes[region]
     elif "," in region:
@@ -378,7 +382,7 @@ def w_partition(board_pcb, assign, out_rel, board_dir, orient=False):
     P, comps = _board_P_comps(board)
     nl = sp.View(sp.Config.load(board_dir)).nl
     model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
-    boxes = _region_boxes(model, W, H)
+    boxes = _region_boxes(model, W, H, ox=bb.GetLeft() / 1e6, oy=bb.GetTop() / 1e6)
 
     def cy(ref):
         try:
