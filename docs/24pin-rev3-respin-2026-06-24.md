@@ -131,3 +131,29 @@ A multi-agent audit (wf_b42b699c) of this session's work found real issues; corr
    M3 standoffs are a parallel low-impedance plane-to-plane bond (good for SI), not the main current path.
 8. Forensic wall-wart recovery (§2.9 source 3) for the STACKED unit is undefined — define a rear-bracket power-in
    (OQ-54) or keep the Hub's USB-C VBUS as the forensic source for the stacked build. (Open item, not a blocker.)
+
+## rev3 CHANGE LIST — bring the 24-pin current (verified against rev2, 2026-06-24)
+The 24-pin is the oldest, hand-maintained module and is BEHIND the platform on several locked/spec items the
+other modules already carry. rev3 should fold these in alongside the mezzanine + power mux:
+
+1. **DETECT poke-and-ack tap — MISSING, ADD IT.** rev2's `/DETECT` has only J1.8 + R1 (the 2.2k CAN-only code
+   resistor). The EPS/PCIe/12VHPWR modules carry a ~100k tap from `/DETECT` to a spare ESP GPIO (net
+   `/DETECT_SENSE`) so the module's MCU can sense the Hub's poke and ack the handshake (active presence/ID beyond
+   the passive divider). ADD `R_pa` (100k) `/DETECT -> /DETECT_SENSE -> a free ESP32 GPIO`. The **mezzanine DETECT
+   pin (pin 13) then inherits it automatically** — it's the same `/DETECT` net, not a separate connector signal.
+2. **DETECT ESD diode (PESD5V0S1BA, C5261083) — MISSING, ADD IT** (locked §2.4 platform requirement). rev2's D1 is
+   the VBUS Schottky, NOT the DETECT ESD clamp. Add the low-cap ESD diode cathode-to-`/DETECT`, anode-to-GND.
+3. **FTP shielded RJ-45 — UPGRADE.** rev2 still uses the UNSHIELDED Amphenol 54602; switch to the platform FTP jack
+   (Kinghelm KH-RJ45-58-8P8C / C2683360, `cec:RJ45_FTP_Shielded_Horizontal`) with SH1/SH2 -> GND (per §2.1).
+4. **CAN net rename — `/CAN1_P,/CAN1_N` -> `/CAN_H,/CAN_L`** (platform convention; the queued rev3 erratum in
+   board-manifest.json). Coordinate the mezzanine + RJ-45 CAN pins to the post-rename names.
+5. **J1.1 (RJ-45 VCC) left OPEN** (spec §2.7 v3.3) — fixes the rev2 parallel-feed erratum (RJ-45 VCC bypassing the
+   Hub mux). The bulk 5VSB/+5V_SYS flows over the JST/mezzanine only.
+6. **MCU + §6.13 transient front-end — the BIG one (owner call).** The v3.10 spec moved the digital modules to
+   ESP32-C6-MINI-1 + a §6.13 per-cable transient DETECTION front-end (INA181 CSA + comparator + firmware
+   threshold). EPS/PCIe got it; the 24-pin is still on ESP32-S3-MINI-1 with no §6.13. This is a substantial
+   redesign — fold into rev3 OR keep as its own pass; flag for the owner (action item -1).
+7. **Shunt part lock (OQ-11)** — still open (the §6.4 2mΩ/25mΩ shunt MPNs). Confirm at the BOM pass.
+8. (Plus this respin's mezzanine + TPS2121 power mux + the shrink levers — sections above.)
+
+Items 1-5 are mechanical/small + bring parity with the other modules; #6 is the judgment call; #7 is a BOM item.
