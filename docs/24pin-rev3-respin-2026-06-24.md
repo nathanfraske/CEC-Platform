@@ -59,3 +59,21 @@ limit (R_ILIM)** + reverse-current blocking + status. That current limit is exac
 - NEXT (the build): the schematic splicing (lib parts + cec_sch into both boards + ERC/netlist) -- the careful,
   verification-heavy step. The mux part (TPS2121) + the connector approach (stock 2x8 2.0mm) are settled, so
   the splice is well-defined.
+
+## Datasheets — every new part must carry its real datasheet (referenced + cached)
+Hard requirement: at the schematic-splice/BOM pass, EACH new rev3 part gets its real manufacturer datasheet
+set in the symbol `Datasheet` property AND the PDF cached in `lib/datasheets/`. Status / sources:
+
+| Part | MPN / LCSC | Datasheet | Status |
+|---|---|---|---|
+| Power mux | **TPS2121RUXR** (TI) / **C485916** | https://www.ti.com/lit/gpn/tps2121 (TI SLVSDU5) | REFERENCED in symbol cec-vendor:TPS2121. PDF cache PENDING (TI 403s direct; LCSC CDN: datasheet.lcsc.com/...C485916.pdf -- pull via the lcsc skill when jlcsearch is back up). |
+| Mezzanine header | 2.0mm dual-row 2x8, MALE | family TBD-at-BOM | SELECT a JLCPCB-stocked 2.0mm 2x8 header (XKB/Wcon/generic -- the platform already sources XKB for the USB-C + buttons); confirm stock + pull the LCSC-CDN datasheet at the BOM pass. |
+| Mezzanine socket | 2.0mm dual-row 2x8, FEMALE | family TBD-at-BOM | matched socket to the header above (8mm mated stack). Same BOM-pass selection + datasheet pull. |
+| Mux passives | C_SS 2.2uF, C_IN/OUT 1uF, R_ILIM, R_PR | generic | generic; datasheet optional (reuse the platform's existing cap/resistor MPNs which already carry datasheets). |
+| M3 mounts (x4) | MountingHole_3.2mm | mechanical | no datasheet (mechanical). |
+
+NOTE (2026-06-24): the jlcsearch API was DOWN and TI hosts 403 a direct fetch, so the PDFs could not be
+auto-cached this session. The TPS2121 is properly REFERENCED (TI URL in the symbol). The mezzanine
+connector's exact stocked MPN is a live-stock decision = a BOM-pass task. The LCSC datasheet CDN
+(datasheet.lcsc.com / wmsc.lcsc.com) does NOT bot-block, so the lcsc skill's fetch_datasheet_lcsc.py will
+cache them once jlcsearch resolves the C-numbers. This table is the checklist so nothing ships un-referenced.
