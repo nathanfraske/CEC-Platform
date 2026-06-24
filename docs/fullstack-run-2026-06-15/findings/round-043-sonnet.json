@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Fallback intents produced poor routing: 13 DRC violations, 2 unconnected nets, and 5 FEM over-temp flags (max_T=120.5\u00b0C). Pour integrity shows foreign crosses on sense nets (e.g., /SENSEC2_LO has 12 crosses), indicating signal routing through sense corridors. Stub failures on I2C_SDA/SCL near U1 suggest congestion. Placement appears adequate (kelvin_ok=true), so routing effort and corridor-avoid levers should resolve.",
+ "reasoning": "The board is degraded due to fallback generation. DRC and unconnected nets are high, but kelvin is routed. Foreign crosses on sense pours are a routing issue, not placement. No gate-passing candidate exists, so no scorer penalty. Routing class is appropriate.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "routing_effort",
+  "detail": "Increase router passes/opt_time, apply bake_hints keepouts around sense pours to prevent foreign crosses, and use FR-02 waypoint intents to route I2C signals around congested area near U1."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

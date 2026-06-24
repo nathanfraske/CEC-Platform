@@ -1,0 +1,1194 @@
+diff --git a/FOLLOWUPS.md b/FOLLOWUPS.md
+index b92663f..2fcd2db 100644
+--- a/FOLLOWUPS.md
++++ b/FOLLOWUPS.md
+@@ -124,6 +124,12 @@ Conventions:
+ - [2026-06-14] Placement Phase 2 — the corridor `cc=6` floor finding (docs/placement-strategy-2026-06-14.md CORE-PREMISE FINDING). Open items: (a) **the layer-assignment pivot** — the real fix for the pour-cut/~300C failure is route-time: assign each foreign net that crosses a FORMED corridor (the `high-current-corridor-keepout` checker now identifies them) to a non-pour layer, off the F.Cu/B.Cu pour. This is the owner's strategic call (vs. more placement tuning). (b) Phase 2 residual regression RESOLVED by the overhang default (192503d): the residual 2→6 was NOT the veto (audit corrected my misattribution) — it was the spine seeding J_IN/J_OUT/shunt as fixed CENTER-packed anchors under overhang="none", which overlapped; with overhang="power_able" the connectors seat at the edges and the best candidate is residual 0. Remaining veto note: it covers any SENSITIVE body — consider restricting it to bodies large enough to actually cut a pour. Audit LOWs still deferred: corridor-keepout 3-point under-sampling (seg-vs-AABB), _corridor_net_role _P/_N vs _chk's _sense_nets parity, degeneracy threshold tested pre-inflation (checker) vs post-inflation (model). (c) Phase 2's `current_axis_offset`/`corridor_penetration` soft anneal terms (doc §3 Phase 2) were NOT added — the spine seed + veto subsume the formation; revisit only if a board needs the shunt off the seeded axis.
+ - [2026-06-14] WORKTREE-ISOLATION (re-confirmed, painful): a Workflow/Agent audit told to "mutate source to confirm" ran in the SAME worktree (/home/nathan/cec-placement) and a verify-agent's `git checkout` reverted my UNCOMMITTED Phase-2 edits. RULE: before launching any review workflow on a worktree, COMMIT in-flight work first, OR give the agents `isolation: "worktree"`, OR don't instruct them to mutate tracked files. (Already in the durable-memory toolchain notes; reinforced.)
+ 
++- [2026-06-14 19:10] **NOW IN ACTIVE IMPLEMENTATION (this session, TODO 19:05)** — the line-below corridor-lever G2/G3 gap is being effectuated: panel-review (wf wxo5qk6l0) → checklist → implement → test. When it lands + tests green, REMOVE the entry below (the gap is closed) and record the commit. Open DESIGN QUESTIONS the panel must resolve (flag to owner before locking): (Q1) **A/B scope** — is placement A/B fullstack-scoped (wire the live `replace` Delta through cec_fullstack's lane/control-gate, the richer path) or cec_loop-scoped (cec_loop emits no lane/corpus_state today, so it'd need its own EI harness)? Leaning fullstack-scoped (reuses the kind-agnostic control-gate). (Q2) **real_anchor_ratio (EI-07) meaning for placement** — a part-move is a DETERMINISTIC actuation (no model judgment in the move itself), so it should count as a deterministic anchor; confirm it isn't double-counted against the auditor finding that proposed it. (Q3) **placement carry persistence** — does a vindicated placement move PERSIST into the next round's base board (compounding moves), or re-apply fresh from committed each augmented round? Mirror routing's pending_corridor_avoid (re-applied carry, dropped on rollback) unless compounding is wanted.
+ - [2026-06-14] Corridor-lever PANEL gaps (wzx07zl6f, deferred — prereqs for the overnight A/B run): (G2/G3 HIGH) the placement corridor lever is NOT in the EI-02 harness — it fires unconditionally in cec_place.refine + cec_router MANAGER_REPAIRS, emits NO lane field / NO corpus_state pin / NO measurement.jsonl row / NO laned ledger decision, and is NOT model-proposable (not in cec_fullstack OWNED_LEVERS; the cec_fs_actuator 'replace' Delta is logged-but-inert, intent=None). To A/B-measure it: gate the lever on lane_for()==augmented (control lane suppresses it, like the routing corridor-avoid at cec_fullstack:1502/1591), emit a lane+corpus_state-tagged measurement row, and either wire the 'replace' Delta to actually invoke corridor_evict_repair/apply_corridor_evict on the augmented lane or document placement A/B as cec_loop-scoped (cec_loop emits no lane/corpus_state today either). (MEDIUM) router corridor_evict_repair emits a bare single-ref place_nudge (no passive cluster) → the IC's decoupling caps are stranded in the band until FR-reroute + a later separate pass; cec_place evict carries the cluster — divergent. Fix: a place_cluster apply_edit type, or accept FR handles it (documented). (LOW) band-edge eviction math (nearest-edge + 1.5mm) is duplicated in cec_router:556 and cec_place:452 — factor to one helper (drift risk). NOTE G1 (containment guard) already FIXED in e01ddd7.
+ 
++- [2026-06-14 19:36] **WSL mirrored networking — RESOLVED: owner chose SKIP** (kept as reference if ever reconsidered). Follow-on to the RC hardening (DONE in /home/nathan/CEC-Platform/ops/). NOT enabling `networkingMode=mirrored` because /mnt/c/Users/Natha/.wslconfig is tuned for the compute plane (`localhostForwarding=true`, memory=176GB for the WSL-resident DeepSeek seat) and the broker(:8080) ↔ Windows-host LLM(:8007) ↔ Docker-container topology depends on the current NAT semantics; mirrored overrides localhostForwarding and changes all three reach-paths → real risk to overnight routing runs. The tmux+auto-reup+rc-recover fix already solves RC survival WITHOUT touching networking. IF the owner still wants mirrored: add `networkingMode=mirrored` under `[wsl2]` in .wslconfig (drvfs, no sudo, durable on Windows FS), `wsl --shutdown`, then VERIFY before any run — `curl localhost:8080/v1/models` (broker), a routing container → broker (host.docker.internal:8080), and broker → host LLM :8007 — and revert the line if any break. Requires Win11 22H2+.
++- [2026-06-14 20:05] **PRE-EXISTING test-isolation: 9 `discover`-order failures** (NOT from the placement work — confirmed identical on the committed baseline). `tests/test_fs_actuator.py` (and a couple others) install an UNCONDITIONAL `sys.modules["cec_fr02"] = stub` at import time; under `python3 -m unittest discover` this stub shadows the REAL `cec_fr02` for later-loaded modules (`test_gr_fr02_fixtures` needs `compile_intents`/`_ring_offsets`; `test_ei01_lever_vision` needs the real `clipped_corridor_rects`) → 1 FAIL + 8 ERROR. The curated `checklist.sh` list does NOT hit this (it never co-loads the conflicting pair), so the real gate is green. Fix when convenient: make the `cec_fr02` stub conditional (`sys.modules.setdefault`) or save/restore it in setUp/tearDown, the same hazard class the PL-10 notes + FOLLOWUPS already flag for `pcbnew`. Low priority (discover-only; CI uses the curated list).
++- [2026-06-14 20:05] **SB-08 golden is RED pre-placement (owner-gated AM-04 re-freeze)** — confirmed the placement EI work is NEUTRAL to it: `max_T 253.2 > band 147.4` is byte-identical on the committed baseline and with the placement diff (the lever is augmented-lane, loop-time, additive, on a COPY — it never touches the golden route/score/electrothermal path). When the owner does the AM-04 `--thermal-headroom` + `CEC_GOLDEN_SYNTH` re-freeze (already an owner-queue item), no placement-specific change is needed.
++- [2026-06-14 19:35] **DURABILITY — commit the RC-survivability ops/ artifacts to main + wire provision.sh** (WSL-ephemeral policy). New files in the always-present main checkout /home/nathan/CEC-Platform/ops/: `claude-rc-tmux.sh`, `claude-session.sh`, `rc-recover.sh`, `claude-rc@.service` (canonical), `README-claude-rc.md`. They survive a WSL *restart* (on-disk) but NOT a distro *rebuild* until committed to git. Follow-up: commit to main + add an install step to ops/provision.sh (copy claude-rc@.service → ~/.config/systemd/user/, `systemctl --user enable claude-rc@CEC-Platform claude-rc@CEC_AutoDiagnoser`, daemon-reload). Currently untracked on branch claude/prompt-tier-audit in that checkout.
++- [2026-06-14 19:18] **Claude remote-control ("RC") session hangs — session-survival hardening** (owner ops; non-blocking). Diagnosed: "RC" = `claude remote-control` (PIDs confirmed). The host `claude` + the two `claude remote-control` bridge daemons run BARE in a terminal (NOT under tmux — tmux 3.4 IS installed but unused), and WSL is default NAT networking (no `networkingMode=mirrored` in /etc/wsl.conf). Failure mode = the bridge's network path drops, neither side cleanly tears down → remote UI shows agents "connected" but the local host is a dead/half-open bridge ("unresponsive but looks connected"). The WORK already survives (broker = active systemd unit up 1d+, runs are setsid'd + watchdog'd) — only the SESSION host is fragile. FIXES (ranked, none applied yet — owner choice): (1) **run the host under tmux**: `tmux new -s claude` → run `claude` inside → on a terminal drop, `tmux attach -t claude` instead of restarting; (2) **clean-kill recovery** when zombied: kill the `claude remote-control` daemons + hung `claude`, relaunch under tmux (the stale "connected agents" are just the remote UI's cached view of a dead bridge) — do NOT run while the current session is the one in use; (3) **WSL mirrored networking** (`/etc/wsl.conf` `[wsl2]\nnetworkingMode=mirrored` + `wsl --shutdown`) — far more stable localhost/bridge across Wi-Fi/VPN/sleep-resume that break NAT bridges; (4) keep the client updated — hang-instead-of-reconnect is client-side bridge logic I cannot patch from here. Offered to commit a tmux launcher + a recovery script.
+ - [2026-06-14] **SECURITY — sudo password exposed on `origin/ops/agent-handoff`** (OWNER ACTION). The session-end Stop hook snapshots `.claude/memory/` and pushes to `ops/agent-handoff`; a prior session's `.claude/memory/sudo-docker-access.md` carried the sudo password INLINE (`CEC_SUDO_PASS=<value>`), so the plaintext value is on `origin/ops/agent-handoff` (line 2). NOT on main, the placement branch, or any other branch (verified). Local memory file REDACTED this session (value now lives only in `/mnt/e/secrets/cec-sudo.env`), so future hook runs won't re-leak. Owner to: (1) ROTATE the sudo/login password (assume compromised once in git, even a private remote); (2) optionally purge the value from `ops/agent-handoff` history (filter-repo + force-push a hook-managed branch — agent did NOT do this autonomously). Root-cause fixed: no secret value will be written into a snapshotted file again.
+diff --git a/TODO.md b/TODO.md
+index c7df49b..0f8b57e 100644
+--- a/TODO.md
++++ b/TODO.md
+@@ -36,6 +36,13 @@ Times are UTC.
+ - [ ] [added 2026-06-14 10:25 · in progress] **Babysit the 7h run** — round 1 healthy in the slow deepseek-auditor stage; watchdog (846815) self-heals run/panel over 8h + health-logs every 5 min to docs/fullstack-run-2026-06-14/watchdog.log. Monitor measurement.jsonl growth + :8095. Owner signed out for the night; status in chat + handoff.
+ - [~] [added 2026-06-14 08:30 · obsolete 2026-06-14 08:50 → rework line above] LAYER-TIER LEVER (owner: do it): route each band-crossing foreign signal staggered across F.Cu vs B.Cu so the un-cut outer 12V pour mirror always carries (cable-board-scoped; layer-keepout sibling of the FR-02 corridor-avoid in cec_fr). EI-INSTRUMENTED from the start (lane-gated via lane_for + a corpus_state/lane-tagged measurement row + OWNED_LEVERS entry) so it doesn't repeat the corridor-evict's EI gap AND it satisfies the overnight-run prereq. Then AUDIT it (panel).
+ - [ ] [added 2026-06-14 08:30] **Overnight full-loop run @ 8h** (after the layer lever + its audit): the EI-02 laned loop (cec_fullstack / cec_overnight) with all levers wired (layer-assignment + corridor-evict + kelvin/separate/adjacent), lane+corpus_state tagged so it's A/B-measurable. Launch detached, BABYSIT the first stretch (verify rounds tick, measurement rows write, no crash/thrash), fix issues that assert themselves.
++- [ ] [added 2026-06-14 19:05 · in progress] **Make PLACEMENT a first-class EI-instrumented actuating tier** (owner: panel-review what placement implements vs how routing applies the EI points → checklist → implement all → test). Closes the FOLLOWUPS:127 G2/G3 gap: placement corridor lever (cec_place.apply_corridor_evict / cec_router.corridor_evict_repair) fires unconditionally, NO lane/corpus_state/measurement-row, NOT model-proposable, cec_fs_actuator `replace` Delta inert. Wire it to apply the SAME EI points routing does (EI-01 corpus_state, EI-02 A/B lane gate, EI-07 real_anchor_ratio, DeltaLog symmetric-outcome + control-rollback, fence/bound, OWNED_LEVERS). Panel workflow launched.
++- [x] [added 2026-06-14 19:23 · done 2026-06-14 19:35] **Claude-RC session survivability** (owner interrupt: tmux + recovery script + WSL config + wire the RC systemd auto-reup to tmux). DONE (artifacts in /home/nathan/CEC-Platform/ops/, stable main checkout): (1) `claude-rc-tmux.sh` — systemd ExecStart wrapper runs each `claude remote-control` bridge inside a DEDICATED tmux server (socket claude-rc, session crc-<proj>), foreground-waits so systemd Restart=always still reups; tmux survives console drops + is attachable (`tmux -L claude-rc attach -t crc-CEC-Platform`). (2) `claude-session.sh` — persistent tmux launcher for the INTERACTIVE `claude` (survives terminal drops; re-attach by re-running). (3) `rc-recover.sh` — clean-restart the zombied bridge via systemctl, with a self-guard against killing the current session. (4) Edited `~/.config/systemd/user/claude-rc@.service` ExecStart→wrapper + ExecStop=tmux kill-session + KillMode=mixed; daemon-reloaded (LIVE on next WSL restart, or `systemctl --user restart claude-rc@*`/rc-recover.sh to apply now). Canonical unit + README snapshotted to ops/. tmux wrapper mechanics self-tested (create/env-inject/supervise-exit all verified). WSL mirrored-networking DEFERRED → FOLLOWUPS (risk to the tuned compute-plane NAT: localhostForwarding + broker:8080 ↔ host-LLM:8007 ↔ containers) — owner decision pending.
++- [x] [added 2026-06-14 19:40 · done 2026-06-14 20:05] **Implemented the placement EI-parity checklist PL-03…PL-10** (PL-01/02 done earlier). PL-03: cec_place.nearest_evict_delta (dedup, regression-pinned) + sorted _cluster + apply_corridor_evict gains fence param + restore record; cec_router.corridor_evict_repair→place_cluster (cluster+fence-aware, RS*/J* skip) + apply_edit place_cluster case. PL-04: cec_fullstack.apply_placement_move (in-container, resolves body+band via corridor_violations, 2nd fence wall via is_fenced, evicts on a COPY of the committed→placed-r{N}.kicad_pcb, restore record) + cec_place.restore_poses. PL-05: _placement_source_for (control NEVER sees override) + --board-pcb-override threaded through route_one_worker/_exec_route_one/CLI. PL-06: settle via the existing kind-opaque DeltaLog + two-phase placement_base promote(vindicated)/revert(refuted/control) + refuted_placement_keys anti-ratchet. PL-07: gate-launder INHERITED (the pour_integrity→gates_pass fold at cec_fullstack:1761 runs on the moved+routed board; a fragmented move can't vindicate) + test. PL-08: _placement_row_fields on the measurement row (lane+corpus_state ride it) + placement_moved_rate/vindicated/refuted in ab_aggregate/render_ab_table. PL-09: real_anchor_ratio placement_moved kwarg (applied move=+1 deterministic, model unchanged, default no-op). PL-10: +27 tests across test_fs_actuator/test_prompt_audit_fixes/test_corridor_model/test_ei02_control_lane + NEW test_placement_actuation_e2e.py (host dry-run + REAL container leg) + test_fs_actuator wired into checklist.sh. VERIFIED: checklist exit 0 ("host suites pass"); 27 tests green both orders; e2e 6/6 incl. real container apply_placement_move; SB-08 IDENTICAL to committed baseline (max_T 253.2 = pre-existing owner-gated AM-04 red, NOT a regression). Found+fixed a real bug (CONTAINER_ROOT undefined in cec_fullstack) via the container leg. NEXT: adversarial audit.
++- [ ] [added 2026-06-14 20:05 · in progress] **Adversarial audit of the placement EI-parity implementation** (owner: "do not end until fully audited"). Read-only skeptics on the diff (worktree-isolation: NO file mutation by agents per FOLLOWUPS:125) → verify → fix confirmed findings → re-test.
++- [x] [added 2026-06-14 19:40 · done 2026-06-14 20:05 → split into the two lines above] **Implement the placement EI-parity checklist (PL-01…PL-10)**. DONE + TESTED: **PL-01** (cec_fs_actuator.py) — `replace` Delta now carries a LIVE placement intent (`_placement_intent`: ref-target→{ref,op evict,band None,cluster True}, net-target→ref None for on-board resolution); v4_structural_escape populated; Delta.as_record compact-summarizes a placement intent; fence still refuses pinned/Kelvin BEFORE intent build. +5 tests (tests/test_fs_actuator.py TestPlacementDeltaLive), 22/22 green. **PL-02** (cec_fullstack.py) — placement clause added to OWNED_LEVERS, worded WITHOUT 'corridor'/'pour'/'around' so a model echo classifies to 'replace' not 'avoid' (verified _lever_kind round-trip). +3 tests (tests/test_prompt_audit_fixes.py TestPlacementLeverAdvertised), 34/34 green. REMAINING: PL-03 (dedup nearest_evict_delta + cluster/fence-aware manager corridor_evict_repair=place_cluster + sorted _cluster; cec_place/cec_router/test_corridor_model), PL-04 (apply_placement_move consumer, in-container, 2nd fence wall, edits committed COPY→placed-r{N}, restore record), PL-05 (lane-gate + thread --board-pcb-override into route_one_worker/_exec_route_one), PL-06 (settle via existing DeltaLog + two-phase override promote/rollback + _refuted_placement_keys), PL-07 (gate-launder guard: pour-integrity into gates_pass on moved+routed board), PL-08 (lane+corpus_state placement fields on measurement row + A/B table), PL-09 (applied-move=deterministic anchor EI-07, default no-op), PL-10 (update existing tests + e2e dry-run + host suite both orders + SB-08 in-container). Full checklist: docs/placement-ei-parity-checklist.json.
++- [x] [added 2026-06-14 19:18 · done 2026-06-14 19:25] **Panel review DONE** (wf wxo5qk6l0; 9 agents: 4 recon → 4-lens panel → synthesis). Produced a 10-item dependency-ordered checklist (PL-01…PL-10) + 8 invariants + 38-test matrix + 4 open questions. Saved → docs/placement-ei-parity-checklist.json. CHECKLIST: PL-01 live `replace` intent (kill intent=None in finding_to_delta + v4_escape); PL-02 OWNED_LEVERS placement clause (worded w/o 'corridor' to dodge _lever_kind misclassification); PL-03 dedup nearest_evict_delta + cluster+fence-aware manager corridor_evict_repair (place_cluster) + sorted _cluster; PL-04 apply_placement_move consumer (in-container, resolves body+band, 2nd fence wall, edits committed COPY→placed-r{N}.kicad_pcb, restore record); PL-05 lane-gate + thread --board-pcb-override into route_one_worker/_exec_route_one (control routes committed); PL-06 settle via existing kind-opaque DeltaLog + two-phase override promotion (vindicated-only) + rollback + _refuted_placement_keys; PL-07 gate-launder guard (fold pour-integrity into gates_pass on moved+routed board); PL-08 lane+corpus_state placement fields on measurement row + A/B table; PL-09 applied-move = deterministic anchor (EI-07, default no-op); PL-10 update existing tests + e2e dry-run + host suite both orders + SB-08 untouched. OQ DECISIONS (panel-recommended, owner-vetoable): OQ1 fullstack-loop-scoped; OQ2 applied-move=deterministic anchor; OQ3 word OWNED_LEVERS w/o 'corridor'; OQ4 vindicated override persists/compounds, reverts on refute/overturn/control.
++- [x] [added 2026-06-14 19:10 · done 2026-06-14 19:10] **Recon/grounding (pre-panel)** — mapped the exact placement-vs-routing EI gap in the live code. FINDINGS: (1) DEAD-END is `cec_fullstack.py:1932-1941` — at the actuator BOUND step ONLY `kind=="avoid"` deltas with `intent` feed the live carry `pending_corridor_avoid`; a `replace` (move/rotate) delta from `act.finding_to_delta` (:1915) is `kept` but its `intent` is None (`cec_fs_actuator.py:108-109`) and NOTHING consumes it → inert. (2) DOWNSTREAM IS ALREADY KIND-AGNOSTIC + reusable: control-gate settle `dlog.record_outcome` (:1862-1900) rolls back any non-vindicated delta; measurement row (:2001-2028) already carries lane/corpus_state(EI-01)/real_anchor_ratio(EI-07)/n_deltas_applied; `pending_corridor_avoid` (augmented-only :1622, suppressed-on-control :1627) is the EXACT carry pattern to mirror. (3) MECHANISM: each round routes from the committed board `ovd.BOARD_PCB[board]` via `route_directed(board_pcb,intents,...)`; placement = apply `cec_place.apply_corridor_evict(board,ref,band)` (already moves part+cluster, excludes structural RS*/J*, containment guard e01ddd7) to a COPY on the augmented lane, route that copy; control routes unmutated = rollback baseline. `apply_directive` dispatches an `evict` directive. (4) TO-WIRE: make `finding_to_delta` replace branch resolve a real intent {ref,band,op} (not None); add a `pending_placement` carry mirroring pending_corridor_avoid; add placement to `OWNED_LEVERS` (:83) so the model proposes it; fence must refuse moving a pinned/Kelvin/shunt ref.
+ - [~] [added 2026-06-14 07:25 · obsolete 2026-06-14 07:45 → done above] Phase 1+2 audit remediation (superseded by the done line above) Audit CONFIRMS cc=6 is the real hand-board floor (analytic: shared I2C bus → 4 forced + DETC1 + THRESH), but the placer is now WORSE (legal cc 8-24, not "hand-quality") — overhang(192503d) fixed residual but not peripheral placement. Fixes: (1) doc CORE-PREMISE retract "cc=6 never lower / hand-quality corridors" → honest legal cc + the analytic floor; soften "topological invariant"/"no channel"/"is exactly how committed routes". (2) build_corridor_model/corridor_cross_count MISSING the shared-bus exclusion (spurious 12vhpwr rank key) → factor out + apply. (3) overhang value "edge"→"power_able" (canonical). (4) _seed_corridor_spine clamp pads to [0,W]. (5) tests: fix 24pin filename (silent skip), assert residual==0 + band-width in test_phase2, add _corridor_veto unit test. (6) FOLLOWUPS: residual-misattribution now moot (residual 0). Defer (FOLLOWUPS): seg-AABB, _P/_N classifier parity, degeneracy pre/post-inflation.
+ 
+ ## Done / obsolete (history)
+diff --git a/scripts/cec_fs_actuator.py b/scripts/cec_fs_actuator.py
+index 907bd25..ce33480 100644
+--- a/scripts/cec_fs_actuator.py
++++ b/scripts/cec_fs_actuator.py
+@@ -17,6 +17,7 @@
+ # Pure + import-light (cec_fr02 only, lazily) so it is host-testable with a stubbed cec_fr02.
+ 
+ import os
++import re
+ from dataclasses import dataclass, field, asdict
+ 
+ MAX_DELTAS_PER_ROUND = int(os.environ.get("CEC_FS_MAX_DELTAS", "2"))
+@@ -29,17 +30,24 @@ class Delta:
+     round: int
+     source: str                 # 'auditor' | 'v4-escape' | 'locus'
+     kind: str                   # 'avoid' | 'waypoint' | 'effort' | 'replace' | 'noop' | 'refused' | 'capped'
+-    intent: dict = None         # the next-round intent (avoid/waypoint); None for effort/replace/noop/refused
++    intent: dict = None         # the next-round intent (avoid/waypoint) or a placement intent
++                                #   (kind=='placement'); None for effort/noop/refused
+     note: str = ""
+     status: str = "pending"     # pending|applied|vindicated|refuted|rolled_back|refused|capped|noop
+ 
+     def as_record(self):
+         d = asdict(self)
+-        # keep the record compact (the intent's avoid rects can be large)
++        # keep the record compact (avoid rects / placement bands can be large)
+         if isinstance(self.intent, dict):
+-            d["intent"] = {"net": self.intent.get("net"),
+-                           "n_avoid": len(self.intent.get("avoid", []) or []),
+-                           "n_waypoints": len(self.intent.get("waypoints", []) or [])}
++            if self.intent.get("kind") == "placement":
++                d["intent"] = {"kind": "placement", "ref": self.intent.get("ref"),
++                               "net": self.intent.get("net"), "op": self.intent.get("op"),
++                               "band_present": bool(self.intent.get("band")),
++                               "cluster": bool(self.intent.get("cluster"))}
++            else:
++                d["intent"] = {"net": self.intent.get("net"),
++                               "n_avoid": len(self.intent.get("avoid", []) or []),
++                               "n_waypoints": len(self.intent.get("waypoints", []) or [])}
+         return d
+ 
+ 
+@@ -83,6 +91,21 @@ def _lever_kind(lever):
+     return "noop"
+ 
+ 
++def _placement_intent(target, *, source="auditor"):
++    """Build the LIVE intent for a 'replace' (placement) Delta. A REF target (e.g. 'U30' -- letters
++    then digits, no leading '/') names the body to evict; a NET target ('/...') is left for the
++    consumer to resolve to its OWNING body on-board (via cec_synth_pipeline.corridor_violations). band
++    stays None here -- it is resolved from the live board at apply time, never fabricated at finding
++    time, so finding_to_delta stays pcbnew-free / host-testable. cluster=True -> carry the body's owned
++    passive cluster (decoupling caps), never a structural shunt RS*/connector J*."""
++    t = str(target or "")
++    if t and not t.startswith("/") and re.match(r"^[A-Za-z]+[0-9]+$", t):
++        return {"kind": "placement", "ref": t, "op": "evict", "band": None,
++                "cluster": True, "source": source}
++    return {"kind": "placement", "ref": None, "net": (t or None), "op": "evict",
++            "band": None, "cluster": True, "source": source}
++
++
+ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, source="auditor"):
+     """Translate ONE finding's proposed_lever into a bounded, fenced Delta. proposed_lever has NO grammar
+     (AUDIT_SCHEMA is object|null), so guard every field and return a noop/refused Delta -- which NEVER
+@@ -106,7 +129,11 @@ def finding_to_delta(finding, rec, grid, rnd, fence, *, sense_nets=(), idx=0, so
+     if kind == "effort":
+         return D("effort", note="bounded effort bump (panel-capped)")
+     if kind == "replace":
+-        return D("replace", note=f"re-placement requested for {target!r} (-> placement escalator)")
++        # LIVE (PL-01): the replace Delta now carries a placement intent the loop consumer actuates
++        # (apply_placement_move -> apply_corridor_evict on a per-round COPY). Fence already ran above,
++        # so a pinned/Kelvin/sense target was refused before this branch.
++        return D("replace", intent=_placement_intent(target),
++                 note=f"placement eviction requested for {target!r} (live; band resolved on-board)")
+     if kind == "avoid":
+         import cec_fr02
+         if not target:
+@@ -171,8 +198,10 @@ def v4_structural_escape(v4_risk, rows, rec, grid, rnd, fence, *, sense_nets=())
+                 return Delta(id=f"D-r{rnd}-escape", round=rnd, source="v4-escape", kind="avoid",
+                              intent=ints[0],
+                              note=f"LOCAL-MIN ESCAPE: structural avoid for {cand[0]} (NOT a penalty)")
+-    # no routing structural move available -> escalate to a re-placement (the placement escalator), not a penalty
+-    return Delta(id=f"D-r{rnd}-escape", round=rnd, source="v4-escape", kind="replace", intent=None,
++    # no routing structural move available -> escalate to a re-placement (live PL-01), not a penalty.
++    # ref=None -> the consumer resolves the offending body from corridor_violations(routed)[0].
++    return Delta(id=f"D-r{rnd}-escape", round=rnd, source="v4-escape", kind="replace",
++                 intent=_placement_intent(None, source="v4-escape"),
+                  note="LOCAL-MIN ESCAPE: re-placement requested (flat physics + high risk; never a penalty)")
+ 
+ 
+diff --git a/scripts/cec_fullstack.py b/scripts/cec_fullstack.py
+index 789ca8d..e4c2e45 100644
+--- a/scripts/cec_fullstack.py
++++ b/scripts/cec_fullstack.py
+@@ -83,7 +83,13 @@ WARM_TIMEOUT = int(os.environ.get("CEC_FS_WARM_TIMEOUT", "960"))   # > V4 ~7min
+ OWNED_LEVERS = ("router passes/opt_time, FR-02 waypoint intents (incl. routing an OFFENDING "
+                 "foreign signal net AROUND a sense corridor), bake_hints keepouts, GR-02 repair "
+                 "battery (shift/swap/via), power pours, LAYER-STAGGER (route a band-crossing foreign "
+-                "signal on the F.Cu/B.Cu layer that keeps the un-cut outer pour mirror carrying)")
++                "signal on the F.Cu/B.Cu layer that keeps the un-cut outer pour mirror carrying), "
++                # PL-02: model-proposable placement lever. Worded WITHOUT 'corridor'/'pour'/'around'
++                # so _lever_kind classifies a model echo to 'replace', not 'avoid' (the keyword trap).
++                "PLACEMENT EVICTION (re-place / move / reposition a SENSITIVE body -- an INA / INA181 "
++                "/ REF / ESP -- OUT of a foreign high-current band that fragments its sense copper, "
++                "carrying the body's owned passive cluster so decoupling caps are not stranded; NEVER "
++                "a shunt RS* / connector J*, NEVER a pinned or Kelvin / sense part)")
+ # P4 (prompt-audit 2026-06-13): the CL24 spec-conformance charter must judge against RATIFIED
+ # knowledge, not the run's ephemeral manager_rules (empty on a control round -> empty_corpus). This
+ # is the compact locked-decision spine the charter cites; the full promoted corpus rides alongside it
+@@ -290,7 +296,7 @@ def _t0_should_fire(lane, placement_attr, kelvin_stall, kelvin_ok):
+ # vision judgement (a seat's opinion). real_anchor_ratio = deterministic / (deterministic + model):
+ # the fraction of the round's evidence that rests on determinism rather than model judgment.
+ def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
+-                      vision_ran=False, verifier_ran=False):
++                      vision_ran=False, verifier_ran=False, placement_moved=False):
+     """EI-07: fraction of THIS round's evidence grounded in deterministic checks vs model judgment.
+ 
+     DETERMINISTIC anchors (a checker produced the number, reproducible without a model):
+@@ -320,6 +326,11 @@ def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
+     if rec.get("max_T") is not None:
+         det += 1
+     det += len(rec.get("fem_flags") or [])
++    if placement_moved:
++        det += 1            # PL-09: an APPLIED placement eviction -- band+body from corridor_violations
++                            # (a deterministic §2.2 checker) + reproducible eviction math -> DETERMINISTIC.
++                            # The auditor PROPOSAL that triggered it is the model anchor (already counted
++                            # via audit/verifier); never add to model here (no double-count).
+ 
+     model = 0
+     # worker panel: one model anchor per real lens vote (the 'fallback' deterministic vote is NOT a model anchor)
+@@ -339,6 +350,19 @@ def real_anchor_ratio(rec, pourcheck, *, panel_votes=None, audit=None, v4=None,
+             "n_deterministic": det, "n_model": model}
+ 
+ 
++def _placement_row_fields(summary, lane, settled=None):
++    """PL-08: the placement fields for the per-round measurement row (EI-02 rides the SAME lane-tagged
++    row -- no separate placement.jsonl). Pure (host-testable). A CONTROL round with a pending move shows
++    verdict 'suppressed' and placement_moved False (it never moved -- the A/B-honest invariant)."""
++    s = summary or {}
++    return {"placement_moved": bool(s.get("moved")),
++            "placement_verdict": s.get("verdict", "no_move"),
++            "placement_ref": s.get("ref"),
++            "placement_refs": s.get("refs", []),
++            "placement_moved_mm": s.get("moved_mm", 0),
++            "placement_settled": settled}                # vindicated|refuted|overturned of a prior move
++
++
+ # The A/B axes: what the augmented tier is being measured to BUY. plane_signal_mm/drc are
+ # lower-is-better; gates_pass/kelvin_ok are pass-fraction; convergence is gate-passing-round fraction.
+ _AB_BOOL_AXES = ("gates_pass", "kelvin_ok")
+@@ -363,6 +387,13 @@ def _ab_lane_stats(rows):
+     # mean real-anchor-ratio of the lane (EI-07 rollup)
+     rar = [r.get("real_anchor_ratio") for r in rows if isinstance(r.get("real_anchor_ratio"), (int, float))]
+     out["real_anchor_ratio_mean"] = round(sum(rar) / len(rar), 4) if rar else None
++    # PL-08: placement actuation rate per lane (the A/B-honest invariant: control NEVER moves) + the
++    # control-gated placement-outcome tally.
++    pm = [bool(r.get("placement_moved")) for r in rows if r.get("placement_moved") is not None]
++    out["placement_moved_rate"] = round(sum(pm) / len(pm), 4) if pm else None
++    settled = [r.get("placement_settled") for r in rows if r.get("placement_settled")]
++    out["placement_vindicated"] = sum(1 for s in settled if s == "vindicated")
++    out["placement_refuted"] = sum(1 for s in settled if s in ("refuted", "overturned"))
+     return out
+ 
+ 
+@@ -378,7 +409,7 @@ def ab_aggregate(rows):
+     for ax in (ax + "_rate" for ax in _AB_BOOL_AXES):
+         if control.get(ax) is not None and augmented.get(ax) is not None:
+             delta[ax] = round(augmented[ax] - control[ax], 4)
+-    for ax in ("convergence", "real_anchor_ratio_mean"):
++    for ax in ("convergence", "real_anchor_ratio_mean", "placement_moved_rate"):
+         if control.get(ax) is not None and augmented.get(ax) is not None:
+             delta[ax] = round(augmented[ax] - control[ax], 4)
+     for ax in (ax + "_mean" for ax in _AB_NUM_AXES):
+@@ -427,6 +458,8 @@ def render_ab_table(ab):
+         ("drc_mean", c.get("drc_mean"), a.get("drc_mean"), d.get("drc_mean")),
+         ("real_anchor_ratio_mean", c.get("real_anchor_ratio_mean"), a.get("real_anchor_ratio_mean"),
+          d.get("real_anchor_ratio_mean")),
++        ("placement_moved_rate", c.get("placement_moved_rate"), a.get("placement_moved_rate"),
++         d.get("placement_moved_rate")),
+     ]
+ 
+     def _f(x):
+@@ -818,6 +851,82 @@ def layer_stagger(routed_host_path, rnd, board):
+     return {"error": "no STAGGER_JSON"}
+ 
+ 
++def apply_placement_move(committed_pcb, routed_pcb, intent, fence, rnd, out_rel=None):
++    """PL-04 (the PLACEMENT EVICTION consumer): turn a LIVE 'replace' Delta into a real part move.
++    In-container (mirror layer_stagger): resolves the offending body + its foreign band from
++    corridor_violations (intent ref=None -> viols[0]; ref set -> the matching viol), RE-CHECKS the fence
++    (the 2nd wall -- a NET target can resolve to a locked sense IC the host never named), then evicts the
++    body + its OWNED passive cluster OUT of the band on a per-round COPY of the COMMITTED floorplan
++    (placement edits the SOURCE, never routed copper) -> build/fullstack/placed-r{rnd}.kicad_pcb, which the
++    NEXT route compiles from. Returns {verdict in placed|no_corridor|fenced|no_move, ref, band, moved_mm,
++    moved_refs, restore, board} or {error}."""
++    out_rel = out_rel or f"build/fullstack/placed-r{rnd}.kicad_pcb"
++    rel_committed = os.path.relpath(os.path.abspath(committed_pcb), ROOT)
++    rel_routed = os.path.relpath(os.path.abspath(routed_pcb), ROOT) if routed_pcb else ""
++    payload = {"ref": intent.get("ref"), "net": intent.get("net"),
++               "fence_refs": sorted((fence or {}).get("refs", set())),
++               "fence_nets": sorted((fence or {}).get("nets", set())),
++               "committed": f"{ovd.CONTAINER_ROOT}/{rel_committed}",
++               "routed": (f"{ovd.CONTAINER_ROOT}/{rel_routed}" if rel_routed else ""),
++               "out": f"{ovd.CONTAINER_ROOT}/{out_rel}"}
++    code = (
++        "import sys, json; sys.path.insert(0, '/workspace/scripts')\n"
++        "import cec_synth_pipeline as sp, cec_place, cec_fs_actuator as act, pcbnew, os\n"
++        "os.makedirs('/workspace/build/fullstack', exist_ok=True)\n"
++        f"P = json.loads({json.dumps(json.dumps(payload))})\n"
++        "fence = {'refs': set(P['fence_refs']), 'nets': set(P['fence_nets'])}\n"
++        "src = P['routed'] or P['committed']\n"
++        "viols = sp.corridor_violations(src)\n"
++        "ref = P['ref']; band = None\n"
++        "if ref is None:\n"
++        "    if not viols:\n"
++        "        print('PLACE_JSON=' + json.dumps({'verdict': 'no_corridor'})); sys.exit(0)\n"
++        "    ref, band = viols[0]['ref'], viols[0]['band']\n"
++        "else:\n"
++        "    m = [v for v in viols if v['ref'] == ref]\n"
++        "    if not m:\n"
++        "        print('PLACE_JSON=' + json.dumps({'verdict': 'no_corridor', 'ref': ref})); sys.exit(0)\n"
++        "    band = m[0]['band']\n"
++        "if act.is_fenced(ref, fence):\n"                          # 2nd fence wall (resolved body)
++        "    print('PLACE_JSON=' + json.dumps({'verdict': 'fenced', 'ref': ref})); sys.exit(0)\n"
++        "b = pcbnew.LoadBoard(P['committed'])\n"                   # edit the COMMITTED source, never routed
++        "mv = cec_place.apply_corridor_evict(b, ref, tuple(band), fence=fence)\n"
++        "if not (mv and mv.get('out')):\n"
++        "    print('PLACE_JSON=' + json.dumps({'verdict': 'no_move', 'ref': ref})); sys.exit(0)\n"
++        "pcbnew.SaveBoard(P['out'], b)\n"
++        "del b\n"                                                  # SWIG: never reuse after Save
++        "out = {'verdict': 'placed', 'ref': ref, 'band': [round(z, 2) for z in band],\n"
++        "       'moved_mm': mv['moved_mm'], 'moved_refs': mv['moved_refs'],\n"
++        "       'restore': mv['restore'], 'board': P['out'].replace('/workspace/', '')}\n"
++        "print('PLACE_JSON=' + json.dumps(out, default=str))\n")
++    try:
++        rc, out = _exec_py(code, timeout=300)
++        for ln in out.splitlines():
++            if ln.startswith("PLACE_JSON="):
++                return json.loads(ln[len("PLACE_JSON="):])
++    except Exception as e:                                       # noqa: BLE001
++        return {"error": f"{type(e).__name__}: {e}"}
++    return {"error": "no PLACE_JSON"}
++
++
++def _placement_source_for(lane, placement_base, committed):
++    """PL-05: which floorplan THIS round compiles from. AUGMENTED + a promoted placement_base -> the moved
++    board; CONTROL or no base -> the committed floorplan (the signed-only A/B invariant: a control round
++    NEVER sees a placement override). Pure -- mirrors _lane_carry."""
++    if lane == "augmented" and placement_base:
++        return placement_base
++    return committed
++
++
++def _placement_keep(verdict, pour_integrity_ok):
++    """BLOCKER-01 (kind-aware launder guard): keep/compound a placement move ONLY if it settled
++    'vindicated' AND held pour integrity. settle_outcome credits a both-gates-fail objective_base win and
++    objective_base is pour-BLIND, so a pour-FRAGMENTING move can read 'vindicated' -- this rejects exactly
++    that launder (a move that fragmented a sense pour is never promoted). Pure. (Guards placement only, so
++    legitimate routing-delta progress-crediting while gates fail is unchanged.)"""
++    return verdict == "vindicated" and pour_integrity_ok is not False
++
++
+ _STAGGER_BOOL_FIELDS = ("kelvin_ok", "diffpair_ok", "gates_pass")
+ # the FULL set of board-derived fields the record carries -- refresh ALL of them from the staggered
+ # board's re-measurement, or the Pareto frontier / objective / dashboard rank a board on stale metrics
+@@ -1542,6 +1651,9 @@ def run(board, rounds, hours, auditor=None):
+     fence, fence_pairs = _resolve_board_fence(board)
+     last_control_metrics = None           # the most-recent CONTROL round's metrics (the rollback baseline)
+     pending_deltas = []                   # finding-deltas APPLIED last round, awaiting a control-gated verdict
++    placement_base = None                 # PL-05/06: the promoted moved floorplan augmented rounds route from
++    pending_placement = None              # PL-06: {prev_base, override, delta_id} of the move awaiting settle
++    refuted_placement_keys = set()        # PL-06 anti-ratchet: a refuted placement hypothesis is not re-applied
+     log(f"FULL-STACK: board={board} rounds={rounds or '∞'} hours={hours or '-'} "
+         f"auditor={auditor_model} v4_every={V4_EVERY} verifier_budget={vs.budget} rule_cap={RULE_CAP} "
+         f"control_every={CONTROL_EVERY} fence_nets={len(fence['nets'])} fence_refs={len(fence['refs'])}")
+@@ -1599,6 +1711,9 @@ def run(board, rounds, hours, auditor=None):
+         lane = lane_for(rnd)
+         lr_view = lr if lane == "augmented" else {**lr, "manager_rules": [],
+                                                   "scorer_penalties": {}, "refuted_metrics": []}
++        # PL-08: per-round placement record (set in the actuator BUILD block / control-suppress branch)
++        placement_summary = {"moved": False, "verdict": "no_move", "refs": [], "ref": None, "moved_mm": 0}
++        placement_settled = None          # PL-08: the prior placement delta's verdict if it settles this round
+         log(f"--- round {rnd}/{rounds or '∞'} [{lane}] passes={passes} opt={opt_time} ---")
+         try:
+             # PHASE worker: warm cec-worker so T1/T4/verifier hit a RESIDENT model instead of
+@@ -1632,8 +1747,31 @@ def run(board, rounds, hours, auditor=None):
+             log(f"  T1 intents[{src}]: {[i['net'] for i in intents]} -- {why[:80]}")
+ 
+             # T2/T3/T3.5 route + score + FEM (in-container)
++            # MED-02: defend against a missing/corrupt override -- a silent fall-back to the committed
++            # board would settle a placement hypothesis against a round that NEVER routed the moved board
++            # (a false A/B credit). On an augmented round whose override file is gone, REVERT the base +
++            # DROP the unsettled placement delta so it is never credited, then route committed honestly.
++            if lane == "augmented" and placement_base and not os.path.isfile(placement_base):
++                log(f"  ! placement override missing ({os.path.basename(placement_base)}) -> "
++                    f"revert base + drop the unsettled move")
++                placement_base = (pending_placement or {}).get("prev_base")
++                for pd in [p for p in pending_deltas if p["delta"].kind == "replace"]:
++                    pd["delta"].status = "rolled_back"
++                    pd["delta"].note += " [override file missing -- dropped unsettled]"
++                pending_deltas = [p for p in pending_deltas if p["delta"].kind != "replace"]
++                pending_placement = None
++            # PL-05/CTRL-01: AUGMENTED routes from the promoted placement override (a moved floorplan
++            # COPY); CONTROL routes the committed board (signed-only A/B invariant). _placement_source_for
++            # is given the CONCRETE committed path (honors its contract; no reliance on a falsy fallback).
++            psrc = _placement_source_for(lane, placement_base, ovd.BOARD_PCB[board])
++            if placement_base and lane == "control":
++                log(f"  [control] placement override SUPPRESSED (signed-only): "
++                    f"{os.path.basename(placement_base)}")
++            # pass the override only when it differs from committed (keeps the route cmd clean for the
++            # common no-placement / control case; route_one_worker treats None as committed)
++            override = psrc if psrc != ovd.BOARD_PCB[board] else None
+             rec = ovd._exec_route_one(board, rnd, passes=passes, opt_time=opt_time,
+-                                      intents_file=ipath)
++                                      intents_file=ipath, board_pcb_override=override)
+             if rec.get("error"):
+                 log(f"  route error: {rec['error']}")
+                 continue
+@@ -1855,6 +1993,7 @@ def run(board, rounds, hours, auditor=None):
+                                                    "gates_pass", "kelvin_ok", "diffpair_ok",
+                                                    "plane_signal_mm", "max_T")}
+             cur_metrics["pour_clipped"] = bool(pour_clipped_nets)
++            cur_metrics["pour_integrity_ok"] = rec.get("pour_integrity_ok")   # BLOCKER-01: the launder guard
+             # Settle the prior round's applied deltas ONLY on an AUGMENTED round -- the delta's carry
+             # (pending_corridor_avoid) is suppressed on a control round (signed-only), so a control round
+             # never actually steers the delta and must not be used as its TREATMENT. cur_metrics is then
+@@ -1889,15 +2028,55 @@ def run(board, rounds, hours, auditor=None):
+                         log(f"  delta-settle ledger skipped: {type(e).__name__}: {e}")
+                     log(f"  CONTROL-GATE: {pd['delta'].id} {oc.verdict} (margin={oc.margin}) "
+                         f"-> {'kept' if oc.verdict == 'vindicated' else 'ROLLED BACK'}")
++                    # PL-06: two-phase placement promotion. The override was applied + routed THIS round
++                    # (placement_base). KEEP it (good moves COMPOUND) only if it settled vindicated AND
++                    # held pour integrity; otherwise revert to the pre-move base + anti-ratchet.
++                    # BLOCKER-01 (kind-aware launder guard): settle_outcome credits a both-gates-fail
++                    # objective_base win, and objective_base is pour-BLIND, so a pour-FRAGMENTING move can
++                    # read 'vindicated'. A placement move that fragmented a sense pour must NEVER be
++                    # promoted -- that is exactly the launder. (We guard placement here, NOT settle_outcome,
++                    # so legitimate routing-delta progress-crediting while gates fail is unchanged.)
++                    if pd["delta"].kind == "replace":
++                        keep = _placement_keep(oc.verdict, cur_metrics.get("pour_integrity_ok"))
++                        launder = oc.verdict == "vindicated" and not keep
++                        placement_settled = "refuted" if launder else oc.verdict
++                        if launder:
++                            pd["delta"].status = "rolled_back"
++                            pd["delta"].note += (" [launder-blocked: vindicated on pour-blind objective_base "
++                                                 "but fragmented a pour -> NOT promoted]")
++                        if not keep:
++                            placement_base = (pending_placement or {}).get("prev_base")
++                            refuted_placement_keys.add(act.hypothesis_key(pd["finding"], pd["delta"]))
++                            log(f"  PLACEMENT {'LAUNDER-BLOCKED' if launder else oc.verdict}: revert base -> "
++                                f"{os.path.basename(placement_base) if placement_base else 'committed'}")
++                        else:
++                            log(f"  PLACEMENT vindicated: keep base "
++                                f"{os.path.basename(placement_base) if placement_base else 'committed'}")
++                pending_deltas = []
++                pending_placement = None
++            elif pending_deltas and last_control_metrics is None and lane == "augmented":
++                # AUDIT-PL4-001 liveness: no control baseline exists yet (e.g. CONTROL_EVERY<=0 -> a control
++                # round never runs, or before the first one). The deltas cannot be settled; drop them
++                # unsettled + revert any placement move so the one-in-flight guard releases (no deadlock).
++                for pd in pending_deltas:
++                    pd["delta"].status = "rolled_back"
++                    pd["delta"].note += " [no control baseline -- rolled back unsettled]"
++                    if pd["delta"].kind == "replace":
++                        placement_base = (pending_placement or {}).get("prev_base")
++                log(f"  [no-baseline] {len(pending_deltas)} pending delta(s) dropped (no control yet)")
+                 pending_deltas = []
++                pending_placement = None
+             elif pending_deltas and lane == "control":
+                 # the carry was suppressed this round -> the prior deltas never got a steered round; drop
+                 # them unsettled (they roll back, never ratchet) rather than mis-credit a later round.
+                 for pd in pending_deltas:
+                     pd["delta"].status = "rolled_back"
+                     pd["delta"].note += " [carry suppressed by control round -- rolled back unsettled]"
++                    if pd["delta"].kind == "replace":           # PL-06: revert an unsettled placement move
++                        placement_base = (pending_placement or {}).get("prev_base")
+                 log(f"  [control] {len(pending_deltas)} pending delta(s) dropped (carry suppressed)")
+                 pending_deltas = []
++                pending_placement = None
+ 
+             # BUILD next-round finding-deltas from a SUPPORTED auditor finding that carries a proposed_lever.
+             # AUGMENTED lane only (a control round produces no deltas -- it is the signed-only baseline). The
+@@ -1938,8 +2117,48 @@ def run(board, rounds, hours, auditor=None):
+                         if c["delta"].intent["net"] not in {i["net"] for i in pending_corridor_avoid}:
+                             pending_corridor_avoid.append(c["delta"].intent)
+                         applied_deltas.append(c)
++                    elif (c["delta"].id in kept_ids and c["delta"].kind == "replace"
++                          and isinstance(c["delta"].intent, dict)
++                          and not pending_placement     # one placement move in flight at a time
++                          and act.hypothesis_key(c["finding"], c["delta"]) not in refuted_placement_keys):
++                        # PL-04/05/06: ACTUATE the placement move -- evict the body on a per-round COPY of
++                        # the CURRENT base (compounds on a promoted base), promote placement_base to it so
++                        # the NEXT augmented round routes the moved board, and append the delta so it settles
++                        # against that round's control. The committed floorplan on disk is never mutated.
++                        cur_base = placement_base or ovd.BOARD_PCB[board]
++                        mv = apply_placement_move(cur_base, rec.get("routed"), c["delta"].intent, fence, rnd)
++                        if mv.get("verdict") == "placed":
++                            new_base = os.path.join(ROOT, mv["board"])
++                            pending_placement = {"prev_base": placement_base, "override": new_base,
++                                                 "delta_id": c["delta"].id}
++                            placement_base = new_base
++                            c["delta"].intent["_override_board"] = mv["board"]
++                            c["delta"].note += f" [PLACED {mv['ref']} +{mv['moved_mm']}mm]"
++                            applied_deltas.append(c)
++                            placement_summary = {"moved": True, "verdict": "placed", "ref": mv["ref"],
++                                                 "refs": mv.get("moved_refs", []), "moved_mm": mv["moved_mm"]}
++                            log(f"  ACTUATOR placement: {c['delta'].id} evicted {mv['ref']} "
++                                f"(+{mv['moved_mm']}mm, cluster {mv.get('moved_refs')}) -> base "
++                                f"{os.path.basename(new_base)}")
++                        else:
++                            c["delta"].status = "noop"
++                            vr = mv.get("verdict") or mv.get("error")
++                            c["delta"].note += f" [placement {vr}]"
++                            placement_summary["verdict"] = vr
++                            log(f"  ACTUATOR placement: {c['delta'].id} -> {vr} (no move)")
++                    elif (c["delta"].id in kept_ids and c["delta"].kind == "replace"
++                          and isinstance(c["delta"].intent, dict)):
++                        # AUDIT-PL4-003: a kept placement delta NOT actuated -- one move already in flight, or
++                        # the hypothesis was refuted. Mark + log so the suppression is observable (behavior
++                        # unchanged: one-in-flight + anti-ratchet are by design).
++                        reason = "one-in-flight" if pending_placement else "refuted-hypothesis"
++                        c["delta"].status = "skipped"
++                        c["delta"].note += f" [placement skipped: {reason}]"
++                        log(f"  ACTUATOR placement: {c['delta'].id} SKIPPED ({reason})")
+                 pending_deltas = applied_deltas
+                 json.dump(dlog.to_records(), open(_d("deltas.json"), "w"), indent=1, default=str)
++            elif lane == "control" and (placement_base or pending_placement):
++                placement_summary["verdict"] = "suppressed"     # PL-08: control round, override held off
+ 
+             # frontier + finalist events (T6 vision + T7 reviewer)
+             front = ovd.pareto_frontier(records)
+@@ -1993,7 +2212,8 @@ def run(board, rounds, hours, auditor=None):
+             # judgment (gates/DRC/pour-facts/FEM = deterministic; panel/auditor/verifier/V4/vision = model).
+             vision_ran = ("anomalies" in pourcheck)
+             anchors = real_anchor_ratio(rec, pourcheck, panel_votes=votes, audit=sj, v4=v4,
+-                                        vision_ran=vision_ran, verifier_ran=bool(vres))
++                                        vision_ran=vision_ran, verifier_ran=bool(vres),
++                                        placement_moved=placement_summary["moved"])   # PL-09
+             log(f"  EI-07 real_anchor_ratio={anchors['real_anchor_ratio']} "
+                 f"(det={anchors['n_deterministic']} model={anchors['n_model']})")
+ 
+@@ -2025,6 +2245,7 @@ def run(board, rounds, hours, auditor=None):
+                    "real_anchor_ratio": anchors["real_anchor_ratio"],    # EI-07
+                    "n_deterministic": anchors["n_deterministic"], "n_model": anchors["n_model"],
+                    "n_deltas_applied": len(applied_deltas),
++                   **_placement_row_fields(placement_summary, lane, placement_settled),   # PL-08
+                    "corpus_state": _corpus_state(lr)}        # EI-01: knowledge state at round time
+             with open(_d("measurement.jsonl"), "a") as fh:
+                 fh.write(json.dumps(row) + "\n")
+diff --git a/scripts/cec_overnight_directed.py b/scripts/cec_overnight_directed.py
+index 95af774..b36ed70 100644
+--- a/scripts/cec_overnight_directed.py
++++ b/scripts/cec_overnight_directed.py
+@@ -365,7 +365,7 @@ def _routed_sha(routed):
+ 
+ 
+ # ---- in-container WORKER (route+score one round, emit RECORD_JSON) ----------------------------------
+-def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
++def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None, board_pcb_override=None):
+     """Runs IN the routing container. Directed-route + score one round, persist the routed
+     board + the DecisionLog to the shared volume, and print a single RECORD_JSON= line the
+     host orchestrator parses. Never touches the broker (the container can't reach it).
+@@ -374,6 +374,14 @@ def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
+     carrying the model-written FR-02 intents for THIS round -- replaces the static
+     INTENTS dict when present (the assisted-router mechanism)."""
+     board_pcb = BOARD_PCB[board]
++    # PL-05: the AUGMENTED lane may route from a per-round PLACEMENT override (a moved floorplan COPY);
++    # control / no-placement rounds pass None -> the committed floorplan, exactly as before. Guard: fall
++    # back to committed (never crash the round) if the override path is missing/invalid.
++    if board_pcb_override:
++        if os.path.isfile(board_pcb_override) and board_pcb_override.endswith(".kicad_pcb"):
++            board_pcb = board_pcb_override
++        else:
++            print(f"WARN: board_pcb_override {board_pcb_override!r} missing/invalid -> committed", flush=True)
+     intents = INTENTS[board]
+     if intents_file:
+         with open(intents_file) as fh:
+@@ -403,7 +411,8 @@ def route_one_worker(board, rnd, passes=None, opt_time=None, intents_file=None):
+         shutil.rmtree(work, ignore_errors=True)
+ 
+ 
+-def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intents_file=None):
++def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intents_file=None,
++                    board_pcb_override=None):
+     """HOST side: docker compose exec the worker for one round; parse its RECORD_JSON.
+     intents_file is a HOST repo-relative path; it is translated to the container mount."""
+     import subprocess
+@@ -421,6 +430,9 @@ def _exec_route_one(board, rnd, timeout=1100, passes=None, opt_time=None, intent
+     if intents_file is not None:
+         rel = os.path.relpath(os.path.abspath(intents_file), ROOT)
+         cmd += ["--intents-file", f"{CONTAINER_ROOT}/{rel}"]
++    if board_pcb_override is not None:
++        relb = os.path.relpath(os.path.abspath(board_pcb_override), ROOT)
++        cmd += ["--board-pcb-override", f"{CONTAINER_ROOT}/{relb}"]   # PL-05: route the moved floorplan
+     if passes is not None:
+         cmd += ["--passes", str(passes)]
+     if opt_time is not None:
+@@ -621,9 +633,12 @@ def main(argv=None):
+     ap.add_argument("--opt-time", type=int, default=None, help="FR opt_time override (--route-one)")
+     ap.add_argument("--intents-file", default=None,
+                     help="tier-1 intent manager: JSON intents for this round (--route-one)")
++    ap.add_argument("--board-pcb-override", default=None,
++                    help="PL-05: route from this floorplan instead of the committed one (--route-one)")
+     a = ap.parse_args(argv)
+     if a.route_one:                                                # in-container worker leg
+-        sys.exit(route_one_worker(a.board, a.round, a.passes, a.opt_time, a.intents_file))
++        sys.exit(route_one_worker(a.board, a.round, a.passes, a.opt_time, a.intents_file,
++                                  a.board_pcb_override))
+     if a.shakeout:
+         a.hours = min(a.hours, 0.5)
+     run(a.board, a.hours, a.review_every, a.max_rounds, a.shakeout)
+diff --git a/scripts/cec_place.py b/scripts/cec_place.py
+index f91a270..73a4557 100644
+--- a/scripts/cec_place.py
++++ b/scripts/cec_place.py
+@@ -84,7 +84,7 @@ def _cluster(board, fp, cluster_mm=4.0):
+         onets = {(p.GetNetname() or "") for p in o.Pads()} - {""}
+         if (fnets & onets) and _pad_dist(fp, o) <= cluster_mm:
+             out.append(o)
+-    return out
++    return sorted(out, key=lambda c: c.GetReference())     # PL-03: deterministic moved_refs order
+ 
+ 
+ def _move(fp, dx_mm, dy_mm):
+@@ -92,6 +92,19 @@ def _move(fp, dx_mm, dy_mm):
+     fp.SetPosition(pcbnew.VECTOR2I(p.x + _nm(dx_mm), p.y + _nm(dy_mm)))
+ 
+ 
++def nearest_evict_delta(cx, cy, band, margin=1.5):
++    """The (dx,dy) mm that carries a body at (cx,cy) just PAST the nearest edge of band=(x0,x1,y0,y1).
++    The ONE canonical eviction displacement -- shared by apply_corridor_evict (loop tier) and
++    cec_router.corridor_evict_repair (manager tier) so the two cannot drift. Pure (no pcbnew).
++    Diagonal-tie break is deterministic: left, then right, then up, then down."""
++    x0, x1, y0, y1 = band
++    moves = [(cx - x0, (-(cx - x0) - margin, 0.0)),    # left edge
++             (x1 - cx, (x1 - cx + margin, 0.0)),       # right edge
++             (cy - y0, (0.0, -(cy - y0) - margin)),    # top edge
++             (y1 - cy, (0.0, y1 - cy + margin))]       # bottom edge
++    return min(moves, key=lambda m: m[0])[1]           # nearest edge; first on a tie (l,r,u,d)
++
++
+ def _pad_union_bbox(fp):
+     """Copper extent (mm AABB) = union of the footprint's pad bboxes -- the collision-relevant geometry
+     (NOT GetBoundingBox, which includes silk/value text and is far too large)."""
+@@ -436,16 +449,22 @@ def relocate_logo_to_clear(board_path, margin=0.6, save=True):
+             "x1": best[0] + w / 2 + margin, "y1": best[1] + h / 2 + margin}
+ 
+ 
+-def apply_corridor_evict(board, ref, band, margin=1.5):
++def apply_corridor_evict(board, ref, band, margin=1.5, fence=None):
+     """PLACEMENT corridor lever: move *ref* (+ its owned passive cluster) OUT of a foreign high-current
+     corridor *band*=(x0,x1,y0,y1), past the NEAREST band edge + margin. A SENSITIVE body inside a
+     foreign band cuts the pour -- the worst corridor fault. Like the routing corridor-avoid keepout and
+-    the manager place_nudge, this moves DIRECTLY (no collision back-off): the eviction is non-negotiable,
++    the manager place_cluster, this moves DIRECTLY (no collision back-off): the eviction is non-negotiable,
+     and any courtyard overlap it opens is resolved by the subsequent separate/legalize passes (the
+-    iterative refine model). moved_refs feed the signal-net reroute. Clamped on-board."""
++    iterative refine model). moved_refs feed the signal-net reroute. Clamped on-board.
++
++    fence (PL-04 defense-in-depth): a {refs:set(),...} guard -- a fenced ref (pinned / Kelvin / sense
++    IC) is REFUSED at the lever itself (no-op None), alongside the cluster-exclude + containment guard.
++    Returns a `restore` record (pre-move poses of exactly the refs moved) for two-phase rollback (PL-06)."""
+     a = _fp(board, ref)
+     if not a:
+         return None
++    if ref in (fence or {}).get("refs", set()):
++        return None                                       # PL-04: lever-level fence wall (defense-in-depth)
+     x0, x1, y0, y1 = band
+     cx, cy = _mm(a.GetPosition().x), _mm(a.GetPosition().y)
+     # CONTAINMENT GUARD (panel G1): only evict a part whose body is ACTUALLY inside the band NOW. The
+@@ -454,21 +473,37 @@ def apply_corridor_evict(board, ref, band, margin=1.5):
+     # in AND (via the cluster) drag the corridor shunt, a false-clean. No-op if it is no longer inside.
+     if not (x0 <= cx <= x1 and y0 <= cy <= y1):
+         return None
+-    # nearest edge -> the displacement that carries the part just past it
+-    moves = sorted([(cx - x0, (-(cx - x0) - margin, 0.0)), (x1 - cx, (x1 - cx + margin, 0.0)),
+-                    (cy - y0, (0.0, -(cy - y0) - margin)), (y1 - cy, (0.0, y1 - cy + margin))])
+-    dx, dy = moves[0][1]
++    dx, dy = nearest_evict_delta(cx, cy, band, margin)    # PL-03: the ONE canonical displacement
+     # carry ONLY the part's own passive cluster -- NEVER a structural corridor part (a shunt RS*/a
+     # connector J*), or evicting an INA would drag the band-defining shunt and corrupt the corridor.
+     cluster = [c for c in _cluster(board, a)
+                if not c.GetReference().upper().startswith(("RS", "J"))]
++    moved = [a] + cluster
++    # PL-06: capture byte-exact pre-move poses (raw nm ints + degrees) BEFORE moving, for rollback.
++    restore = {fp.GetReference(): (fp.GetPosition().x, fp.GetPosition().y, fp.GetOrientationDegrees())
++               for fp in moved}
+     _move(a, dx, dy)
+     for c in cluster:
+         _move(c, dx, dy)
+     return {"op": "evict", "ref": ref, "band": [round(v, 1) for v in band],
+             "delta": (round(dx, 2), round(dy, 2)), "out": True,
+             "moved_mm": round(math.hypot(dx, dy), 2),
+-            "moved_refs": [ref] + [c.GetReference() for c in cluster]}
++            "moved_refs": [ref] + [c.GetReference() for c in cluster],
++            "restore": restore}
++
++
++def restore_poses(board, restore):
++    """PL-06 rollback: set each footprint named in `restore` back to its captured (x_nm, y_nm, rot_deg)
++    pose. Byte-exact (raw nm integers + degrees). Returns the count restored."""
++    n = 0
++    for ref, pose in (restore or {}).items():
++        fp = _fp(board, ref)
++        if fp:
++            x, y, rot = pose
++            fp.SetPosition(pcbnew.VECTOR2I(int(x), int(y)))
++            fp.SetOrientationDegrees(rot)
++            n += 1
++    return n
+ 
+ 
+ def apply_directive(board, d):
+diff --git a/scripts/cec_router.py b/scripts/cec_router.py
+index 0b145e1..6bf11a2 100644
+--- a/scripts/cec_router.py
++++ b/scripts/cec_router.py
+@@ -268,6 +268,22 @@ def apply_edit(state, edit):
+             raise KeyError(f"apply_edit place_rotate: footprint {edit['ref']} not found")
+         fp.SetOrientationDegrees(fp.GetOrientationDegrees() + float(edit["by"]))
+         pcbnew.SaveBoard(state.board, b)
++    elif t == "place_cluster":
++        # PLACEMENT EVICTION (cluster-aware, PL-03): move a sensitive body + its OWNED passive cluster
++        # OUT of a foreign high-current band via cec_place.apply_corridor_evict (the ONE canonical
++        # eviction: nearest_evict_delta + containment guard + RS*/J* cluster-exclude). Replaces the
++        # cap-blind place_nudge so the IC's decoupling caps are not stranded in the band.
++        import pcbnew
++        import cec_place
++        b = pcbnew.LoadBoard(state.board)
++        # FENCE-01: honor the lever fence wall -- the edit carries the fenced refs corridor_evict_repair
++        # resolved, so a pinned/Kelvin/sense part is refused at apply_corridor_evict too (defense-in-depth).
++        res = cec_place.apply_corridor_evict(b, edit["ref"], tuple(edit["band"]),
++                                             fence=edit.get("fence"))
++        if res and res.get("out"):
++            pcbnew.SaveBoard(state.board, b)
++            edit["moved_refs"] = res.get("moved_refs")
++        del b                                            # SWIG-01: never reuse a board object after Save
+     else:
+         raise ValueError(f"apply_edit: unknown edit type {t!r}")
+     state.edits.append(edit)
+@@ -533,12 +549,14 @@ def logo_finishing_repair(board_path, rules=None, metrics=None):
+             "why": f"finishing: reserve decorative {logo.GetReference()} so FR keeps copper/vias out of it"}
+ 
+ 
+-def corridor_evict_repair(board_path, rules=None, metrics=None):
+-    """MANAGER-tier perception (the PLACEMENT corridor lever): a SENSITIVE part body inside a FOREIGN
+-    high-current corridor band cuts the pour -- the worst corridor fault. Emit a 'place_nudge' that
+-    pushes it just past the nearest band edge (apply_edit moves it via pcbnew, then FR re-routes). The
+-    placement-side analogue of the routing corridor-avoid keepout; never touches copper. None if clean
+-    or shared-bus (corridor_violations returns [])."""
++def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
++    """MANAGER-tier PLACEMENT corridor lever: a SENSITIVE part body inside a FOREIGN high-current corridor
++    band cuts the pour. Emit a 'place_cluster' that evicts it (+ its owned passive cluster) past the
++    nearest band edge (apply_edit -> cec_place.apply_corridor_evict; then FR re-routes). FENCED parts are
++    NEVER moved (FENCE-01): structural shunts/connectors (RS*/J*), the LOCKED Kelvin/§6.13 sense ICs (any
++    cable's sense_ics -- the §6.8 geometry is a placement-tier/human decision, not a router repair), and
++    any caller-supplied fence['refs']. The lever moves only non-sense sensitive bodies (e.g. the ESP/
++    peripherals). Returns the first MOVABLE violation's edit, or None if clean / shared-bus / all fenced."""
+     try:
+         import cec_synth_pipeline as sp
+         viols = sp.corridor_violations(board_path)
+@@ -546,22 +564,37 @@ def corridor_evict_repair(board_path, rules=None, metrics=None):
+         return None
+     if not viols:
+         return None
+-    v = viols[0]
+-    x0, x1, y0, y1 = v["band"]
++    # FENCE-01: the LOCKED sense ICs (Kelvin INA238 + §6.13 INA181) the manager must never move.
++    fenced = set((fence or {}).get("refs", ()))
++    try:
++        import pcbnew as _pn
++        model, _P = sp._board_corridor_model(_pn.LoadBoard(board_path))
++        for c in model.cables:
++            fenced |= set(c.sense_ics)
++    except Exception:                                       # noqa: BLE001
++        pass
++
++    def _is_fenced(ref):
++        return str(ref).upper().startswith(("RS", "J")) or ref in fenced
++
++    v = next((x for x in viols if not _is_fenced(x["ref"])), None)
++    if v is None:
++        return None                                         # every violation is a locked/fenced part
+     import pcbnew
+     b = pcbnew.LoadBoard(board_path)
+     fp = b.FindFootprintByReference(v["ref"])
+     if not fp:
+         return None
+     cx, cy = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)
+-    dl, dr, du, dd = cx - x0, x1 - cx, cy - y0, y1 - cy      # distance to each band edge
+-    m = min(dl, dr, du, dd)
+-    delta = ((-(dl + 1.5), 0.0) if m == dl else (dr + 1.5, 0.0) if m == dr
+-             else (0.0, -(du + 1.5)) if m == du else (0.0, dd + 1.5))
+-    return {"type": "place_nudge", "ref": v["ref"], "delta": (round(delta[0], 2), round(delta[1], 2)),
+-            "tier": "manager", "locus": (round(cx, 2), round(cy, 2)),
++    del b                                                   # SWIG: don't keep the board past the read
++    # emit place_cluster (carries the band + the resolved fence) -- apply_edit delegates to
++    # cec_place.apply_corridor_evict (the ONE eviction: nearest_evict_delta + containment + cluster +
++    # the fence wall), so the IC's decoupling caps are not stranded and a fenced part is doubly refused.
++    return {"type": "place_cluster", "ref": v["ref"], "band": [round(z, 2) for z in v["band"]],
++            "cluster": True, "tier": "manager", "locus": (round(cx, 2), round(cy, 2)),
++            "fence": {"refs": sorted(fenced)},
+             "why": (f"corridor: SENSITIVE {v['ref']} sits inside foreign band {v['base']} (cuts the "
+-                    f"pour) -> nudge out the nearest edge")}
++                    f"pour) -> evict the cluster out the nearest edge")}
+ 
+ 
+ # Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
+diff --git a/scripts/checklist.sh b/scripts/checklist.sh
+index 9122025..23fa995 100755
+--- a/scripts/checklist.sh
++++ b/scripts/checklist.sh
+@@ -66,7 +66,8 @@ if command -v python3 >/dev/null 2>&1; then
+     tests.test_auditor_dispatch \
+     tests.test_corridor_model \
+     tests.test_stagger_feedback \
+-    tests.test_ei02_control_lane >/dev/null 2>&1 \
++    tests.test_ei02_control_lane \
++    tests.test_fs_actuator >/dev/null 2>&1 \
+     && printf '  ok: host suites pass\n' \
+     || { printf 'FAIL: a host suite is red (corpus AM-02 anchor or a prompt-audit / EI-02 regression)\n' >&2; status=1; }
+ else
+diff --git a/tests/test_corridor_model.py b/tests/test_corridor_model.py
+index 2e58a8b..1945261 100644
+--- a/tests/test_corridor_model.py
++++ b/tests/test_corridor_model.py
+@@ -431,7 +431,7 @@ class TestCorridorLever(unittest.TestCase):
+     and proposed by the routing-tier manager (cec_router.corridor_evict_repair)."""
+ 
+     def _board_with_violation(self):
+-        # move U10 (cable-1 INA) into cable-2's band -> a foreign-band violation
++        # move U10 (cable-1 INA -- a sense IC) into cable-2's band -> a foreign-band violation
+         b = pcbnew.LoadBoard(EPS_PCB)
+         b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
+         import tempfile
+@@ -439,6 +439,15 @@ class TestCorridorLever(unittest.TestCase):
+         pcbnew.SaveBoard(p, b)
+         return p
+ 
++    def _board_with_movable_violation(self):
++        # move U1 (ESP -- a SENSITIVE but NON-sense, MOVABLE body) into cable-2's band
++        b = pcbnew.LoadBoard(EPS_PCB)
++        b.FindFootprintByReference("U1").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
++        import tempfile
++        p = os.path.join(tempfile.mkdtemp(), "eps-movable-violation.kicad_pcb")
++        pcbnew.SaveBoard(p, b)
++        return p
++
+     def test_violation_detected(self):
+         p = self._board_with_violation()
+         viols = sp.corridor_violations(p)
+@@ -465,13 +474,75 @@ class TestCorridorLever(unittest.TestCase):
+         self.assertIn("U10", mv["moved_refs"])
+         self.assertEqual(sp.corridor_violations(p), [])       # evicted -> clean
+ 
+-    def test_manager_repair_emits_place_nudge(self):
++    def test_manager_repair_emits_place_cluster(self):
++        # PL-03: the manager tier emits a CLUSTER-aware place_cluster for a MOVABLE sensitive body (the
++        # ESP) -- was the cap-blind place_nudge. FENCE-01: the edit carries the resolved fence.
+         import cec_router
+-        p = self._board_with_violation()
++        p = self._board_with_movable_violation()
+         rep = cec_router.corridor_evict_repair(p)
+         self.assertIsNotNone(rep)
+-        self.assertEqual(rep["type"], "place_nudge")
+-        self.assertEqual(rep["ref"], "U10")
++        self.assertEqual(rep["type"], "place_cluster")
++        self.assertEqual(rep["ref"], "U1")
++        self.assertTrue(rep["cluster"])
++        self.assertIn("band", rep)
++        self.assertIn("fence", rep)                         # FENCE-01: the resolved fence rides the edit
++
++    def test_manager_repair_refuses_fenced_sense_ic(self):
++        # FENCE-01 / TEST-RIGOR-01: a LOCKED Kelvin/§6.13 sense IC (U10) inside a foreign band is NEVER
++        # evicted by the manager tier (the §6.8 geometry is a placement-tier/human decision, not a router
++        # repair). This is the missing tooth that let FENCE-01 ship.
++        import cec_router
++        p = self._board_with_violation()                    # moves U10 (a sense IC) into cable-2's band
++        self.assertTrue(any(v["ref"] == "U10" for v in sp.corridor_violations(p)))   # it IS a violation
++        self.assertIsNone(cec_router.corridor_evict_repair(p))                        # but the manager refuses it
++
++    def test_manager_repair_honors_explicit_fence(self):
++        # FENCE-01: an explicit caller fence is also respected (a movable ESP fenced by the caller -> skip).
++        import cec_router
++        p = self._board_with_movable_violation()
++        self.assertIsNone(cec_router.corridor_evict_repair(p, fence={"refs": {"U1"}}))
++
++    def test_manager_repair_skips_structural_ref(self):
++        # PL-03 fence: the manager must never propose evicting a band-defining shunt RS*/connector J*.
++        import cec_router, cec_synth_pipeline as sp2
++        orig = sp2.corridor_violations
++        sp2.corridor_violations = lambda bp: [{"ref": "RS1", "band": (0, 1, 0, 1), "base": "/SENSEC1"}]
++        try:
++            self.assertIsNone(cec_router.corridor_evict_repair("ignored"))   # returns before any pcbnew
++        finally:
++            sp2.corridor_violations = orig
++
++    def test_evict_restore_record_roundtrips(self):
++        # PL-06: apply_corridor_evict returns a `restore` record; restore_poses puts the body + its
++        # cluster back byte-exact (pos + rot), so the violation reappears (reversible).
++        import cec_place
++        p = self._board_with_violation()
++        b = pcbnew.LoadBoard(p)
++        pre = {r: (b.FindFootprintByReference(r).GetPosition().x,
++                   b.FindFootprintByReference(r).GetPosition().y) for r in ("U10",)}
++        mv = cec_place.apply_corridor_evict(b, "U10", sp.corridor_violations(p)[0]["band"])
++        self.assertIn("restore", mv)
++        self.assertNotEqual(b.FindFootprintByReference("U10").GetPosition().x, pre["U10"][0])  # moved
++        n = cec_place.restore_poses(b, mv["restore"])
++        self.assertEqual(n, len(mv["moved_refs"]))
++        self.assertEqual(b.FindFootprintByReference("U10").GetPosition().x, pre["U10"][0])      # byte-exact back
++        self.assertEqual(b.FindFootprintByReference("U10").GetPosition().y, pre["U10"][1])
++
++    def test_evict_fence_refuses_pinned_ref(self):
++        # PL-04: a fenced ref is refused AT THE LEVER (defense-in-depth), even when in-band.
++        import cec_place
++        b = pcbnew.LoadBoard(EPS_PCB)
++        b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
++        self.assertIsNone(cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5),
++                                                         fence={"refs": {"U10"}}))
++
++    def test_evict_moved_refs_sorted(self):
++        # PL-03: the carried cluster is in deterministic (sorted-ref) order.
++        import cec_place
++        b = pcbnew.LoadBoard(EPS_PCB)
++        b.FindFootprintByReference("U10").SetPosition(pcbnew.VECTOR2I(40_000_000, 18_000_000))
++        mv = cec_place.apply_corridor_evict(b, "U10", (34.0, 48.0, 9.5, 27.5))
++        self.assertEqual(mv["moved_refs"][1:], sorted(mv["moved_refs"][1:]))
+ 
+     def test_evict_in_movable_set(self):
+         import cec_place
+@@ -492,6 +563,41 @@ class TestCorridorLever(unittest.TestCase):
+         self.assertTrue(all(not r.upper().startswith(("RS", "J")) for r in mv["moved_refs"]))
+ 
+ 
++# --------------------------------------------------------------------------- the dedup'd eviction math
++@unittest.skipUnless(HAVE_PCBNEW, "cec_place imports pcbnew at module load")
++class TestNearestEvictDelta(unittest.TestCase):
++    """PL-03: the ONE canonical eviction displacement, regression-pinned to the former inline router
++    math so apply_corridor_evict (loop tier) and corridor_evict_repair (manager tier) cannot drift."""
++
++    def _old_inline(self, cx, cy, band, margin=1.5):
++        x0, x1, y0, y1 = band
++        dl, dr, du, dd = cx - x0, x1 - cx, cy - y0, y1 - cy
++        m = min(dl, dr, du, dd)
++        return ((-(dl + margin), 0.0) if m == dl else (dr + margin, 0.0) if m == dr
++                else (0.0, -(du + margin)) if m == du else (0.0, dd + margin))
++
++    def test_matches_old_inline_math(self):
++        import cec_place
++        band = (10.0, 20.0, 10.0, 20.0)
++        for cx, cy in [(11, 15), (19, 15), (15, 11), (15, 19),     # four edges
++                       (11, 11), (12, 13), (18, 11), (13, 18)]:    # diagonals + ties
++            self.assertEqual(cec_place.nearest_evict_delta(cx, cy, band),
++                             self._old_inline(cx, cy, band), (cx, cy))
++
++    def test_edge_cases_and_determinism(self):
++        # DETERMINISM-01: board-boundary band, near-corner, extreme coords -- all match the old math, and
++        # repeated calls are bit-identical (the eviction geometry Invariant 6 relies on).
++        import cec_place
++        cases = [(0.05, 1.0, (0.0, 10.0, 0.0, 10.0)),          # band at the board boundary x0=0
++                 (0.001, 0.001, (0.0, 50.0, 0.0, 50.0)),       # sub-0.1mm from a corner
++                 (123.4, 567.8, (100.0, 200.0, 500.0, 600.0))] # extreme coordinates
++        for cx, cy, band in cases:
++            want = self._old_inline(cx, cy, band)
++            results = {cec_place.nearest_evict_delta(cx, cy, band) for _ in range(8)}
++            self.assertEqual(len(results), 1, (cx, cy, band))   # bit-identical across calls
++            self.assertEqual(results.pop(), want, (cx, cy, band))
++
++
+ # --------------------------------------------------------------------------- the LAYER lever
+ @unittest.skipUnless(HAVE_PCBNEW and os.path.isfile(EPS_PCB),
+                      "pcbnew + the committed eps-8pin board required")
+diff --git a/tests/test_ei02_control_lane.py b/tests/test_ei02_control_lane.py
+index bf2588a..614e744 100644
+--- a/tests/test_ei02_control_lane.py
++++ b/tests/test_ei02_control_lane.py
+@@ -176,5 +176,118 @@ class TestOutcomeSerialization(unittest.TestCase):
+         self.assertEqual(out["control"]["objective"], 960000)
+ 
+ 
++class TestPlacementAnchor(unittest.TestCase):
++    """PL-09: an APPLIED placement move is a DETERMINISTIC anchor (det+1), never a model anchor; a
++    non-placement round is byte-identical to the no-kwarg call (default no-op)."""
++    REC = TestRealAnchorRatio.REC
++    POUR = TestRealAnchorRatio.POUR
++
++    def test_placement_is_one_more_deterministic(self):
++        a0 = fs.real_anchor_ratio(self.REC, self.POUR, placement_moved=False)
++        a1 = fs.real_anchor_ratio(self.REC, self.POUR, placement_moved=True)
++        self.assertEqual(a1["n_deterministic"], a0["n_deterministic"] + 1)
++        self.assertEqual(a1["n_model"], a0["n_model"])   # never a model anchor (no double-count)
++
++    def test_default_is_noop_pins_existing_count(self):
++        self.assertEqual(fs.real_anchor_ratio(self.REC, self.POUR)["n_deterministic"], 13)
++        self.assertEqual(fs.real_anchor_ratio(self.REC, self.POUR, placement_moved=False)["n_deterministic"], 13)
++
++
++class TestPlacementSource(unittest.TestCase):
++    """PL-05: the lane-gated route-source selector -- a CONTROL round NEVER sees the placement override."""
++    def test_augmented_uses_override(self):
++        self.assertEqual(fs._placement_source_for("augmented", "/x/placed-r5.kicad_pcb", "/c"),
++                         "/x/placed-r5.kicad_pcb")
++        self.assertEqual(fs._placement_source_for("augmented", None, "/c"), "/c")
++
++    def test_control_never_sees_override(self):
++        self.assertEqual(fs._placement_source_for("control", "/x/placed-r5.kicad_pcb", "/c"), "/c")
++        self.assertEqual(fs._placement_source_for("control", None, "/c"), "/c")
++
++    def test_exec_route_one_threads_override_arg(self):
++        # the host route shim must append --board-pcb-override (container-translated) only when given one.
++        import cec_overnight_directed as ovd
++        captured = {}
++
++        class _R:
++            returncode = 0
++            stdout = "RECORD_JSON={}"
++            stderr = ""
++        orig = ovd.subprocess.run if hasattr(ovd, "subprocess") else None
++        import subprocess as _sp
++        real = _sp.run
++
++        def fake_run(cmd, *a, **k):
++            captured["cmd"] = cmd
++            return _R()
++        _sp.run = fake_run
++        try:
++            ovd._exec_route_one("eps-8pin", 5, board_pcb_override="build/fullstack/placed-r5.kicad_pcb")
++            with_ov = list(captured["cmd"])
++            ovd._exec_route_one("eps-8pin", 5)
++            without = list(captured["cmd"])
++        finally:
++            _sp.run = real
++        self.assertIn("--board-pcb-override", with_ov)
++        self.assertTrue(any(c.endswith("placed-r5.kicad_pcb") for c in with_ov))
++        self.assertNotIn("--board-pcb-override", without)
++
++
++class TestPlacementRow(unittest.TestCase):
++    """PL-08: the placement fields ride the SAME lane+corpus_state-tagged measurement row + A/B table."""
++    def test_augmented_row_fields(self):
++        r = fs._placement_row_fields({"moved": True, "verdict": "placed", "ref": "U10",
++                                      "refs": ["U10", "C40"], "moved_mm": 3.0}, "augmented")
++        self.assertTrue(r["placement_moved"])
++        self.assertEqual(r["placement_refs"], ["U10", "C40"])
++        self.assertEqual(r["placement_verdict"], "placed")
++        self.assertEqual(r["placement_ref"], "U10")
++
++    def test_control_row_suppressed(self):
++        r = fs._placement_row_fields({"moved": False, "verdict": "suppressed"}, "control", "refuted")
++        self.assertFalse(r["placement_moved"])
++        self.assertEqual(r["placement_verdict"], "suppressed")
++        self.assertEqual(r["placement_settled"], "refuted")
++
++    def test_row_field_keyset(self):
++        r = fs._placement_row_fields({"moved": True}, "augmented")
++        self.assertEqual(set(r), {"placement_moved", "placement_verdict", "placement_ref",
++                                  "placement_refs", "placement_moved_mm", "placement_settled"})
++
++    def test_ab_placement_moved_rate(self):
++        rows = [{"lane": "augmented", "placement_moved": True, "placement_settled": "vindicated"},
++                {"lane": "augmented", "placement_moved": True, "placement_settled": "refuted"},
++                {"lane": "control", "placement_moved": False}]
++        ab = fs.ab_aggregate(rows)
++        self.assertEqual(ab["augmented"]["placement_moved_rate"], 1.0)
++        self.assertEqual(ab["control"]["placement_moved_rate"], 0.0)      # control NEVER moves
++        self.assertEqual(ab["augmented"]["placement_vindicated"], 1)
++        self.assertEqual(ab["augmented"]["placement_refuted"], 1)
++        self.assertIn("placement_moved_rate", fs.render_ab_table(ab))
++
++    def test_ab_empty_axis_is_none_not_crash(self):
++        ab = fs.ab_aggregate([{"lane": "augmented", "gates_pass": False}])    # no placement field
++        self.assertIsNone(ab["augmented"]["placement_moved_rate"])
++
++
++class TestPlacementKeepGuard(unittest.TestCase):
++    """BLOCKER-01: the kind-aware launder guard. A placement move is kept/compounded ONLY if it settled
++    vindicated AND held pour integrity -- a pour-FRAGMENTING move that reads 'vindicated' on the pour-blind
++    objective_base (the both-gates-fail launder) is NEVER promoted."""
++    def test_vindicated_pour_ok_keeps(self):
++        self.assertTrue(fs._placement_keep("vindicated", True))
++
++    def test_vindicated_but_fragmented_is_rejected(self):
++        # THE LAUNDER: settle_outcome can return 'vindicated' on objective_base while the pour fragmented.
++        self.assertFalse(fs._placement_keep("vindicated", False))
++
++    def test_unknown_pour_integrity_allowed(self):
++        self.assertTrue(fs._placement_keep("vindicated", None))   # not-False -> not the launder signal
++
++    def test_refuted_never_keeps(self):
++        self.assertFalse(fs._placement_keep("refuted", True))
++        self.assertFalse(fs._placement_keep("overturned", True))
++
++
+ if __name__ == "__main__":
+     unittest.main(verbosity=2)
+diff --git a/tests/test_fs_actuator.py b/tests/test_fs_actuator.py
+index 4e128c6..dceb4fb 100644
+--- a/tests/test_fs_actuator.py
++++ b/tests/test_fs_actuator.py
+@@ -5,6 +5,7 @@
+ # Tests for cec_fs_actuator: the bounded/fenced/logged finding->actuator harness + the v4 local-min escape.
+ # Host-runnable -- cec_fr02 is stubbed (no pcbnew).
+ 
++import json
+ import os
+ import sys
+ import types
+@@ -60,6 +61,7 @@ class TestFindingToDelta(unittest.TestCase):
+     def test_replace_on_pinned_REFUSED(self):
+         d = act.finding_to_delta(_f("re-place the part", "U2"), REC, GRID, 5, FENCE, sense_nets=SENSE)
+         self.assertEqual(d.status, "refused")
++        self.assertIsNone(d.intent)             # PL-01: fence runs BEFORE intent build -> no live intent
+ 
+     def test_effort_and_noop(self):
+         self.assertEqual(act.finding_to_delta(_f("bump router passes"), REC, GRID, 5, FENCE).kind, "effort")
+@@ -67,6 +69,47 @@ class TestFindingToDelta(unittest.TestCase):
+         self.assertEqual(act.finding_to_delta({"proposed_lever": None}, REC, GRID, 5, FENCE).kind, "noop")
+ 
+ 
++class TestPlacementDeltaLive(unittest.TestCase):
++    """PL-01: the 'replace' Delta now carries a LIVE placement intent (was intent=None / inert)."""
++    def test_replace_has_live_intent(self):
++        d = act.finding_to_delta(_f("re-place the part", "U30"), REC, GRID, 5, FENCE, sense_nets=SENSE)
++        self.assertEqual(d.kind, "replace")
++        self.assertIsInstance(d.intent, dict)
++        self.assertEqual(d.intent["kind"], "placement")
++        self.assertEqual(d.intent["ref"], "U30")
++        self.assertEqual(d.intent["op"], "evict")
++        self.assertIsNone(d.intent["band"])         # band resolved on-board at apply time
++        self.assertTrue(d.intent["cluster"])
++
++    def test_net_target_ref_is_none(self):
++        d = act.finding_to_delta(_f("reposition", "/SOMENET"), REC, GRID, 5, FENCE, sense_nets=SENSE)
++        self.assertEqual(d.kind, "replace")
++        self.assertIsNone(d.intent["ref"])          # a NET target -> consumer resolves the owning body
++        self.assertEqual(d.intent["net"], "/SOMENET")
++
++    def test_replace_on_sense_net_REFUSED(self):
++        d = act.finding_to_delta(_f("move", "/SENSEC2_LO"), REC, GRID, 5, FENCE, sense_nets=SENSE)
++        self.assertEqual(d.status, "refused")
++        self.assertIsNone(d.intent)
++
++    def test_v4_escape_has_intent(self):
++        flat = [{"objective": 1000.0, "max_T": 100.0}] * 3      # flat physics -> escape arms
++        esc = act.v4_structural_escape("high", flat, REC, {"contested": ["/SENSEC2_LO"]}, 5, FENCE,
++                                       sense_nets=SENSE)         # only fenced contested -> REPLACE escape
++        self.assertIsNotNone(esc)
++        self.assertEqual(esc.kind, "replace")
++        self.assertIsInstance(esc.intent, dict)
++        self.assertEqual(esc.intent["kind"], "placement")
++        self.assertIsNone(esc.intent["ref"])
++
++    def test_as_record_compact(self):
++        d = act.finding_to_delta(_f("re-place", "U30"), REC, GRID, 5, FENCE, sense_nets=SENSE)
++        rec = d.as_record()
++        self.assertEqual(rec["intent"]["kind"], "placement")
++        self.assertFalse(rec["intent"]["band_present"])
++        self.assertLess(len(json.dumps(rec)), 400)             # stays small (no fabricated rects)
++
++
+ class TestBound(unittest.TestCase):
+     def test_cap(self):
+         ds = [act.finding_to_delta(_f("avoid corridor", n), REC, GRID, 5, FENCE, sense_nets=SENSE, idx=i)
+@@ -177,5 +220,58 @@ class TestSymmetricOutcomes(unittest.TestCase):
+         self.assertEqual(oc.verdict, "refuted")             # different target = different hypothesis
+ 
+ 
++class TestPlacementOutcome(unittest.TestCase):
++    """PL-06: a placement ('replace') delta settles through the SAME kind-opaque DeltaLog/control-gate
++    as a routing delta -- no new comparison code; gate-pass dominates so a launder cannot vindicate."""
++    PF = {"root_cause": "U30 sits in the /SENSEC2 corridor", "failure_class": "placement",
++          "proposed_lever": {"lever": "re-place the body out of the band", "target": "U30"}}
++
++    def _delta(self, rnd):
++        return act.finding_to_delta(self.PF, REC, GRID, rnd, FENCE, sense_nets=SENSE)
++
++    def test_vindicated(self):
++        log = act.DeltaLog()
++        d = log.add(self._delta(5))
++        self.assertEqual(d.kind, "replace")
++        oc = log.record_outcome(d, self.PF, {"objective_base": 950000, "gates_pass": False},
++                                {"objective_base": 960000, "gates_pass": False},
++                                gate_metric="objective_base")
++        self.assertEqual(oc.verdict, "vindicated")
++        self.assertEqual(d.status, "vindicated")
++        self.assertEqual(oc.finding["proposed_lever"]["target"], "U30")   # full detail, like a victory
++
++    def test_refuted_rolls_back_full_detail(self):
++        log = act.DeltaLog()
++        d = log.add(self._delta(5))
++        oc = log.record_outcome(d, self.PF, {"objective_base": 965000, "gates_pass": False},
++                                {"objective_base": 960000, "gates_pass": False},
++                                gate_metric="objective_base", corpus_state={"sha": "z"})
++        self.assertEqual(oc.verdict, "refuted")
++        self.assertEqual(d.status, "rolled_back")
++        self.assertLess(oc.margin, 0)
++        self.assertEqual(oc.corpus_state["sha"], "z")
++
++    def test_fragmented_pour_cannot_vindicate(self):
++        # gate-launder closed: a move whose routed board FAILS gates (pour fragmented) can never win,
++        # even with a better objective_base than the control.
++        log = act.DeltaLog()
++        d = log.add(self._delta(5))
++        oc = log.record_outcome(d, self.PF, {"objective_base": 900000, "gates_pass": False},  # better obj
++                                {"objective_base": 960000, "gates_pass": True},                # control PASSES
++                                gate_metric="objective_base")
++        self.assertEqual(oc.verdict, "refuted")             # control gate-passes -> treatment cannot win
++
++    def test_overturn_on_same_hypothesis(self):
++        log = act.DeltaLog()
++        d1 = log.add(self._delta(5))
++        log.record_outcome(d1, self.PF, {"objective_base": 950000}, {"objective_base": 960000},
++                           gate_metric="objective_base")
++        d2 = log.add(self._delta(9))
++        oc = log.record_outcome(d2, self.PF, {"objective_base": 965000}, {"objective_base": 960000},
++                                gate_metric="objective_base")
++        self.assertEqual(oc.verdict, "overturned")
++        self.assertEqual(oc.supersedes, d1.id)
++
++
+ if __name__ == "__main__":
+     unittest.main(verbosity=2)
+diff --git a/tests/test_prompt_audit_fixes.py b/tests/test_prompt_audit_fixes.py
+index 4c1fded..9e11d13 100644
+--- a/tests/test_prompt_audit_fixes.py
++++ b/tests/test_prompt_audit_fixes.py
+@@ -477,5 +477,31 @@ class AuditPR56Fixes(unittest.TestCase):
+         self.assertIn("TAILMARKER", out)
+ 
+ 
++class TestPlacementLeverAdvertised(unittest.TestCase):
++    """PL-02: the placement lever is model-proposable (in OWNED_LEVERS) and its proposal verbs
++    classify to 'replace', NOT 'avoid' (the _lever_kind 'corridor'/'pour' keyword trap)."""
++
++    def test_owned_levers_has_placement(self):
++        self.assertIsInstance(fs.OWNED_LEVERS, str)
++        self.assertTrue(fs.OWNED_LEVERS)
++        self.assertIn("PLACEMENT EVICTION", fs.OWNED_LEVERS)
++
++    def test_placement_clause_classifies_replace(self):
++        import cec_fs_actuator as act
++        for verb in ("re-place", "move", "reposition"):           # every advertised verb -> 'replace'
++            self.assertEqual(act._lever_kind(verb), "replace", verb)
++        clause = ("re-place / move / reposition a SENSITIVE body OUT of a foreign high-current "
++                  "band that fragments its sense copper")          # the whole clause must not trip 'avoid'
++        self.assertEqual(act._lever_kind(clause), "replace")
++
++    def test_advertised_lever_actuates_to_live_intent(self):
++        import cec_fs_actuator as act
++        fence = act.resolve_fence(pinned_refs=["RS1", "U2"])
++        f = {"proposed_lever": {"lever": "re-place / move the body out of the band", "target": "U30"}}
++        d = act.finding_to_delta(f, {"routed": ""}, {}, 7, fence, sense_nets=[])
++        self.assertEqual(d.kind, "replace")                        # advertised lever -> a LIVE replace Delta
++        self.assertEqual(d.intent["ref"], "U30")
++
++
+ if __name__ == "__main__":
+     unittest.main()

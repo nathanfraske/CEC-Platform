@@ -1,0 +1,11 @@
+{
+ "verdict": "repair",
+ "root_cause": "High DRC count (15) and conductor over-temp FEM flags on sense nets (SENSEC1_HI, SENSEC2_HI) due to fragmented pours from foreign signal crossings. Pour-integrity shows clipped nets with multiple islands and high foreign_cross values, indicating insufficient copper continuity causing thermal issues.",
+ "reasoning": "The candidate fails gates due to structural DRC errors and thermal FEM flags. Placement is acceptable (kelvin_ok=true, diffpair_ok=true), but routing quality is poor. The deterministic corridor-avoid lever should fire from pour_clipped_nets to route offending foreign signals around sense corridors.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "action": "Increase router passes/opt_time and apply bake_hints keepouts around sense corridors to prevent foreign signal crossings. Consider layer-stagger for band-crossing signals."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

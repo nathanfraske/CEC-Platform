@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC errors (14) and FEM over-temp flags on sense nets and GND indicate insufficient routing quality. Pour-integrity shows clipped sense nets and islands with foreign crossings, suggesting the router has not yet achieved clean pours and thermal compliance. Placement appears acceptable; more routing effort and the deterministic corridor-avoid lever (triggered by pour_clipped_nets) can close these gaps.",
+ "reasoning": "The board fails gates due to DRC violations and thermal FEM flags. The pour-clipped nets and island counts on sense nets point to routing congestion or incomplete pours rather than a fundamental placement problem. Since no prior refutes exist and the router has not been exhausted, routing-class failure is appropriate. The corridor-avoid lever will fire automatically, and the panel should increase router passes or opt_time.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "action": "increase router effort",
+  "detail": "Bump router passes or opt_time; consider bake_hints keepouts around sense corridors to reduce foreign crossings and islands."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -1,0 +1,14 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense pours exhibit high foreign net crossings (e.g., /SENSEC2_LO has 18 crossings), causing DRC violations (26 errors) and FEM over-temp flags. This indicates that sense components are placed in a congested area where their pours must cross many other signals, leading to clearance and thermal issues. Placement adjustment is needed to reduce crossings; however, since kelvin_ok=true, the T0 placement actuator will not fire automatically. The diagnosis is recorded for panel effort and corridor-avoid lever (which is inactive due to no clipped nets).",
+ "reasoning": "The high DRC count and thermal flags stem from excessive foreign crossings in sense pours, a placement-class problem. Router effort alone cannot resolve the underlying congestion; repositioning sensitive bodies (INA, REF, ESP) away from high-traffic corridors is required.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "target": "Sense ICs (INA/REF/ESP) and their owned passive clusters",
+  "action": "Shift these components to a less congested region of the board to minimize foreign crossings in sense pours. Avoid moving shunt RS* or connector J*.",
+  "expected_impact": "Reduce DRC count and thermal hotspots by allowing cleaner, shorter sense pours with fewer crossings."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

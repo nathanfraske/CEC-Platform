@@ -284,6 +284,9 @@ class Config:
     DEFAULT_PARAMS = {
         "EPS_SIZE_MM": 1.0, "N_PROBES": 3, "TAU": 0.66, "STALL_K": 3, "Kmax": 3,
         "bom_target": None,
+        # MV2/MV4 oracle knobs (None = off; a reference path turns on Stage-1 derivation, the MV4
+        # composite normalizer, and the MV3 similarity diagnostic):
+        "oracle_reference_path": None, "proxy_weights": None,
     }
 
     @classmethod
@@ -1255,7 +1258,7 @@ def placement_proxy(placement):
     }
 
 
-def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0):
+def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0, corridor_max=None):
     """Cheap rejection (pipeline proxy_reject): is this size too congested / too hot to be
     worth a real route? CALIBRATED RELATIVE to a *baseline* proxy (the largest size tried,
     which the size oracle knows routed) -- a candidate is rejected when its RUDY peak grows
@@ -1263,6 +1266,11 @@ def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0)
     scale is uncalibrated, so with NO baseline we do NOT reject on congestion (a known-routable
     board must pass). The thermal ceiling IS absolute (W concentrated in one proxy cell -> a
     real power-density hotspot; refined later by the electrothermal FEA on the winner).
+    Phase 1: *corridor_max* (OPT-IN, default None=off) hard-rejects a placement whose
+    corridor_cross exceeds it -- never waste a route on a known sandwich (H2). Left off by
+    default so a board whose seed nudge has not yet reached a corridor-clean basin still routes
+    its best-ranked candidate (the sort already prefers low corridor_cross); enable it only once
+    a clean candidate is reliably produced, or the size oracle could reject every candidate.
     Returns (reject: bool, reasons: list)."""
     reasons = []
     if baseline and proxy["rudy_peak"] > baseline["rudy_peak"] * rudy_growth:
@@ -1270,7 +1278,213 @@ def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0)
                        f"{baseline['rudy_peak']} (congestion grew as it shrank)")
     if proxy["thermal_peak_w"] > thermal_peak_max:
         reasons.append(f"thermal peak {proxy['thermal_peak_w']}W > {thermal_peak_max}W (hotspot)")
+    if corridor_max is not None and proxy.get("corridor_cross", 0) > corridor_max:
+        reasons.append(f"corridor_cross {proxy.get('corridor_cross', 0)} > {corridor_max} "
+                       f"(foreign signal forced through a high-current band)")
     return (bool(reasons), reasons)
+
+
+def proxy_score(proxy, *, weights=None, ref_proxy=None):
+    """MV4: the composite placement RANK score (lower = better). With NO reference it returns
+    EXACTLY proxy['hpwl'] -- the prior sort key -- so boards with no oracle are byte-for-byte
+    unchanged. With a reference each term is normalized by the reference's value (so HPWL / RUDY /
+    thermal are commensurate -- the reference sets only the SCALE, never the relative priority) and
+    combined HPWL-dominant; the small RUDY/thermal weights break ties toward the less-congested /
+    cooler candidate without ever overriding a real wirelength win. *hub_penalty* (MV5, 0=ideal)
+    rides in at a small weight when present. Weights are cfg.params['proxy_weights'] knobs."""
+    if ref_proxy is None:
+        return float(proxy.get("hpwl", 0.0))
+    w = {"hpwl": 1.0, "rudy": 0.25, "thermal": 0.15, "hub": 0.5}
+    if weights:
+        w.update(weights)
+
+    def n(key, rk):
+        base = ref_proxy.get(rk) or 0.0
+        return (proxy.get(key, 0.0) / base) if base else 0.0
+
+    return (w["hpwl"] * n("hpwl", "hpwl")
+            + w["rudy"] * n("rudy_peak", "rudy_peak")
+            + w["thermal"] * n("thermal_peak_w", "thermal_peak_w")
+            + w["hub"] * float(proxy.get("hub_penalty", 0.0)))
+
+
+# ============================================================ MV2/MV3: the reference ORACLE
+# Use the committed fab-ready board (the oracle) to (MV2) derive the per-board Stage-1 INPUTS that
+# fix the synth frame and (MV3) score how close a candidate is to it -- treating the reference like
+# the holdout set (docs/placer-upgrade-2026-06-14/anti-overfit-charter.md): VALIDATE against it,
+# never tune toward it. The GENERAL rule is "connectors group on an edge by function"; WHICH edge /
+# what size / where the mounts go are per-board inputs derived here, tagged board-specific, and never
+# laundered into a corpus rule. The similarity score is a DIAGNOSTIC only -- it must never enter a
+# sort or score key (that would drive the placer to COPY the board).
+_REF_CACHE = {}
+
+
+def _have_pcbnew():
+    try:
+        import pcbnew  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _is_mount_ref(ref):
+    """A mechanical mount-hole reference (synth H1.., or a board's M*/MK*/MH* mounts)."""
+    return bool(re.fullmatch(r"(H|M|MK|MH)\d+", ref or ""))
+
+
+def _edge_of(x, y, x0, y0, W, H):
+    """The board edge a point is nearest to, in a frame whose top-left is (x0, y0)."""
+    d = {"left": x - x0, "right": (x0 + W) - x, "top": y - y0, "bottom": (y0 + H) - y}
+    return min(d, key=d.get)
+
+
+def _bbox_diag(pts):
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    return math.hypot(max(xs) - min(xs), max(ys) - min(ys))
+
+
+def _read_reference_cached(path):
+    key = (path, os.path.getmtime(path))
+    if key not in _REF_CACHE:
+        _REF_CACHE[key] = read_placement(path)
+    return _REF_CACHE[key]
+
+
+def oracle_stage1_answers(cfg, ref_pcb):
+    """MV2: derive the per-board Stage-1 INPUTS from a fab-ready reference (the oracle) so the synth
+    frame matches reality instead of the broken role->edge default. Returns:
+      size_target_wh          : the reference outline (W, H);
+      edge_override           : {connector_ref: edge} by binning each connector to its nearest edge;
+      mount_pos_override      : {mount_ref: (x, y)} in board-frame-RELATIVE coords;
+      antenna_edge            : the edge the PCB-antenna IC faces (for MV5's antenna term);
+      respect_antenna_keepout : True when an RF/ESP module is present.
+    Per the charter these are board-specific INPUTS (validated, never a general rule). If the
+    derivation cannot reproduce the reference's own anchor edges, the derivation is wrong -- the MV2
+    validation test rounds this map back through seed_anchors against ground truth."""
+    pl = _read_reference_cached(ref_pcb)
+    nl = View(cfg).nl
+    fp_of = _fp_of(nl)
+    x0, y0, W, H = pl.x0, pl.y0, pl.W, pl.H
+    out = {"size_target_wh": (round(W, 2), round(H, 2))}
+    edge_override = {}
+    for ref in fp_of:
+        c = nl.comps.get(ref)
+        if _role(ref, c.value, c.footprint, nl=nl) not in ("host", "usb", "power_in", "power_out"):
+            continue
+        if ref not in pl.pos:
+            continue
+        x, y = pl.pos[ref][0], pl.pos[ref][1]
+        edge_override[ref] = _edge_of(x, y, x0, y0, W, H)
+    out["edge_override"] = edge_override
+    mounts = {ref: (round(p[0] - x0, 2), round(p[1] - y0, 2))
+              for ref, p in pl.pos.items() if _is_mount_ref(ref)}
+    if mounts:
+        out["mount_pos_override"] = mounts
+    esp = [r for r in fp_of if "esp32" in (fp_of[r] or "").lower()
+           or "rf_module" in (fp_of[r] or "").lower()]
+    if esp and esp[0] in pl.pos:
+        x, y = pl.pos[esp[0]][0], pl.pos[esp[0]][1]
+        out["antenna_edge"] = _edge_of(x, y, x0, y0, W, H)
+        out["respect_antenna_keepout"] = True
+    return out
+
+
+def apply_oracle_stage1(cfg):
+    """Fill cfg.params with the oracle-derived Stage-1 inputs when cfg.params['oracle_reference_path']
+    points at a real reference (and pcbnew is available). Uses setdefault so a value the HUMAN already
+    set wins (human answers override the oracle). Idempotent + a no-op with no reference. Returns cfg
+    (mutated in place)."""
+    refp = cfg.params.get("oracle_reference_path")
+    if not (refp and os.path.isfile(refp) and _have_pcbnew()):
+        return cfg
+    if cfg.params.get("_oracle_applied"):
+        return cfg
+    try:
+        derived = oracle_stage1_answers(cfg, refp)
+    except Exception as e:                             # a broken reference must be VISIBLE, not silent
+        _tc.warn_once("oracle_stage1", "oracle Stage-1 derivation failed (%r); placing without the "
+                      "reference frame -- the result may be structurally wrong: %s" % (refp, e))
+        return cfg
+    for k, v in derived.items():
+        cfg.params.setdefault(k, v)
+    cfg.params["_oracle_applied"] = True
+    return cfg
+
+
+def _oracle_reference(cfg):
+    """(reference Placement, reference proxy) for the configured oracle, or (None, None). The proxy is
+    the normalizer for MV4's composite and the reference HPWL anchor for MV3's similarity."""
+    refp = cfg.params.get("oracle_reference_path")
+    if not (refp and os.path.isfile(refp) and _have_pcbnew()):
+        return None, None
+    try:
+        pl = _read_reference_cached(refp)
+        return pl, placement_proxy(pl)
+    except Exception as e:
+        _tc.warn_once("oracle_reference", "could not read the oracle reference %r (%s); MV3/MV4 "
+                      "diagnostics + normalization disabled this run" % (refp, e))
+        return None, None
+
+
+def oracle_similarity(cand, ref_pl, nl, *, weights=None):
+    """MV3: reproduce-the-reference similarity in [0, 1] -- a DIAGNOSTIC ONLY (never a sort/score key;
+    optimizing it would drive the placer to COPY the board, the over-fit the charter forbids). Four
+    pure structural terms, each board aligned to its own origin: (a) fraction of connectors on the
+    same edge; (b) per-anchor distance bucket (<5mm / <15mm); (c) IC-cluster bbox-diagonal ratio
+    (cluster tightness); (d) HPWL closeness. The candidate is assumed in a 0-origin frame; the
+    reference is translated by (-x0, -y0). A term whose inputs are absent (no connectors / no
+    clusters / no reference HPWL) is DROPPED and the score renormalized over the present terms, so
+    identity == 1.0 on ANY board and the number stays comparable across boards (a structurally-absent
+    term must not dilute it toward 0). Returns (score, details)."""
+    w = weights or {"edge": 0.35, "dist": 0.25, "cluster": 0.15, "hpwl": 0.25}
+    P = cand.P
+    rx0, ry0 = ref_pl.x0, ref_pl.y0
+    refpos = {r: (p[0] - rx0, p[1] - ry0) for r, p in ref_pl.pos.items()}
+    fp_of = _fp_of(nl)
+    conns = [r for r in fp_of
+             if _role(r, nl.comps[r].value, nl.comps[r].footprint, nl=nl)
+             in ("host", "usb", "power_in", "power_out") and r in P and r in refpos]
+    present = {}                                       # term -> value, only when the inputs exist
+    # (a) edge match + (b) anchor distance bucket -- both require connectors
+    if conns:
+        em = sum(_edge_of(P[r][0], P[r][1], 0.0, 0.0, cand.W, cand.H)
+                 == _edge_of(refpos[r][0], refpos[r][1], 0.0, 0.0, ref_pl.W, ref_pl.H) for r in conns)
+        present["edge"] = em / len(conns)
+        ds = [1.0 if (d := math.hypot(P[r][0] - refpos[r][0], P[r][1] - refpos[r][1])) < 5
+              else (0.5 if d < 15 else 0.0) for r in conns]
+        present["dist"] = sum(ds) / len(ds)
+    # (c) IC-cluster tightness ratio
+    _a, ics, _s, passives = _classify(nl)
+    spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
+    by_owner = defaultdict(list)
+    for pref, (own, _pad) in spec.items():
+        by_owner[own].append(pref)
+    ratios = []
+    for ic, members in by_owner.items():
+        cg = [g for g in ([ic] + members) if g in P]
+        rg = [g for g in ([ic] + members) if g in refpos]
+        if len(cg) < 2 or len(rg) < 2:
+            continue
+        cd, rd = _bbox_diag([P[g] for g in cg]), _bbox_diag([refpos[g] for g in rg])
+        if rd <= 1e-6 and cd <= 1e-6:
+            ratios.append(1.0)
+        elif rd <= 1e-6 or cd <= 1e-6:
+            ratios.append(0.0)
+        else:
+            ratios.append(min(cd, rd) / max(cd, rd))
+    if ratios:
+        present["cluster"] = sum(ratios) / len(ratios)
+    # (d) HPWL closeness
+    rhpwl = hpwl(ref_pl.pads_by_net)
+    chpwl = float(cand.proxy.get("hpwl", 0.0))
+    if rhpwl:
+        present["hpwl"] = max(0.0, 1.0 - abs(chpwl - rhpwl) / rhpwl)
+    wsum = sum(w[k] for k in present) or 1.0          # renormalize over PRESENT terms
+    score = sum(w[k] * v for k, v in present.items()) / wsum
+    details = {k: round(present.get(k, -1.0), 3) for k in ("edge", "dist", "cluster", "hpwl")}
+    details.update({"n_conn": len(conns), "ref_hpwl": round(rhpwl, 1), "cand_hpwl": round(chpwl, 1)})
+    return round(score, 3), details
 
 
 # ============================================================ place + proxy + consent
@@ -1283,8 +1497,14 @@ def proxy_reject(proxy, *, baseline=None, rudy_growth=1.8, thermal_peak_max=2.0)
 STRATEGIES = ("dataflow", "thermal_separated", "compact")
 
 
-def _role(ref, value, fp):
-    """Anchor role of a part, or None if it's a free (relative-placed) part."""
+def _role(ref, value, fp, nl=None):
+    """Anchor role of a part, or None if it's a free (relative-placed) part. MV2 (general fix): a
+    bare J* connector is classified by the FUNCTION of the nets on its pads -- the underlying WHY is
+    'function determines edge-grouping' (a connector carrying only power rails + GND is a power
+    input, one carrying data is a host port). Passing *nl* enables that net-derived classification;
+    without it we fall back to the ref-name heuristic (IN/OUT substrings), which mis-keys a power-in
+    connector like J_5VSB (no 'IN' substring) onto the host edge. The WHICH-edge a role lands on is
+    a separate, per-board input (oracle edge_override), never baked here."""
     f = (fp or "").lower()
     v = (value or "").upper()
     if ref.startswith(("H", "MK", "FID", "LOGO")) or "mountinghole" in f or "fiducial" in f:
@@ -1299,8 +1519,39 @@ def _role(ref, value, fp):
             return "power_in"
         if "OUT" in u:
             return "power_out"
-        return "host"
+        return (_connector_net_role(ref, nl) if nl is not None else None) or "host"
     return None
+
+
+# A connector-scoped power-RAIL test: a power-delivery net carries GND or a voltage-rail TOKEN
+# (5V / 5VSB / 3V3 / 12V / VBUS / VCC / VDD / VIN ...), allowing prefixes/suffixes the strict
+# end-anchored _is_power_net misses (the Hub names its inputs /MAIN_5V_RAW, /5VSB_RAW, /5V_HOLD).
+# Used ONLY for connector role classification -- _is_power_net (decoupling ownership) is untouched.
+_RAIL_TOKEN = re.compile(r"(^|/|_)(GND|P?GND|AGND|VBUS|VCC|VDD|VIN|VSB|\+?\d+V\d*)", re.I)
+# A net that carries a voltage token but is NOT a current-carrying rail: an ADC sense tap, a
+# detect/reference line, or a status flag. These are DATA for connector classification and are NOT
+# part of the power-input loop for the MV5 cohesion term.
+_PWR_NOT_INPUT = re.compile(r"(SENSE|DET|REF|FLAG)", re.I)
+
+
+def _is_rail_net(n):
+    base = n.rsplit("/", 1)[-1]
+    if _PWR_NOT_INPUT.search(n) or _PWR_NOT_INPUT.search(base):
+        return False                                  # a sense/detect/reference/flag tap is not a rail
+    return bool(_RAIL_TOKEN.search(n)) or bool(_RAIL_TOKEN.search(base))
+
+
+def _connector_net_role(ref, nl):
+    """Classify a connector by the FUNCTION of the nets on its pads (the principle behind edge
+    grouping): a pure power-delivery connector (every pad on a power rail or GND, no data/CAN/diff
+    net) is a 'power_in'; a connector carrying any non-rail net -- including an ADC sense/reference
+    tap like /KVM_3V3_REF, which is DATA not a rail -- is a host/data port. Returns a role or None
+    when it cannot tell (no nets resolved -> caller falls back to 'host')."""
+    nets = [n for n, nodes in nl.nets.items() if any(r == ref for r, _ in nodes)]
+    if not nets:
+        return None
+    nonrail = [n for n in nets if not _is_rail_net(n)]
+    return "power_in" if not nonrail else None
 
 
 def _half_extent(fp, *, drop_antenna=False):
@@ -1373,7 +1624,7 @@ def _classify(nl):
     for ref, c in nl.comps.items():
         if not c.footprint or ":" not in c.footprint:
             continue
-        role = _role(ref, c.value, c.footprint)
+        role = _role(ref, c.value, c.footprint, nl=nl)
         if role:
             anchors[ref] = role
         elif ref.startswith("RS"):
@@ -1443,13 +1694,21 @@ def place_mechanical(W, H, params):
     off the screw heads / fiducial windows) and are emitted at materialize time."""
     pos, fp = {}, {}
     e = 3.5
-    m = params.get("mount_holes", "3_2logic_1conn")
-    if m == "4_corner":
-        pts = [(e, e), (W - e, e), (e, H - e), (W - e, H - e)]
-    elif m == "2_diag":
-        pts = [(e, e), (W - e, H - e)]
-    else:                                               # 3: 2 logic-side (right) + 1 conn-side (left)
-        pts = [(W - e, e), (W - e, H - e), (e, H / 2)]
+    # MV2: a per-board mount-position INPUT (board-frame-relative coords derived from the reference
+    # oracle, or a spec line) overrides the generic pattern -- mounts are board-specific inputs, not
+    # a rule. Clamped in-board so a slightly different sweep size can't push a screw off the edge.
+    override = params.get("mount_pos_override") or {}
+    if override:
+        pts = [(min(W - e, max(e, float(x))), min(H - e, max(e, float(y))))
+               for _r, (x, y) in sorted(override.items())]
+    else:
+        m = params.get("mount_holes", "3_2logic_1conn")
+        if m == "4_corner":
+            pts = [(e, e), (W - e, e), (e, H - e), (W - e, H - e)]
+        elif m == "2_diag":
+            pts = [(e, e), (W - e, H - e)]
+        else:                                           # 3: 2 logic-side (right) + 1 conn-side (left)
+            pts = [(W - e, e), (W - e, H - e), (e, H / 2)]
     for i, (x, y) in enumerate(pts, 1):
         pos[f"H{i}"] = (x, y, 0.0)
         fp[f"H{i}"] = _MOUNT_FP
@@ -1478,16 +1737,42 @@ def _pad_band(fp, rot):
     return ((min(xs), max(xs)), (min(ys), max(ys)))
 
 
-def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8):
-    """Place connector anchors by edge role. With *overhang* != 'none' a connector is seated by its
+_ROLE_EDGE = {"power_in": "top", "power_out": "bottom", "host": "right", "usb": "right"}
+
+
+def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8,
+                 edge_override=None):
+    """Place connector anchors at board edges. The edge a connector goes to is, by default, its
+    role's generic edge (power_in->top, power_out->bottom, host/usb->right); MV2's *edge_override*
+    {ref: 'top'|'bottom'|'left'|'right'} REPLACES that per connector -- it is a per-board INPUT
+    (derived from the reference oracle by edge-binning, or a spec line), NOT a baked rule, and it is
+    what lets a real board spread its connectors over several edges (the Hub's RJ-45 on top,
+    power-in on the right, USB on the bottom). With *overhang* != 'none' a connector is seated by its
     PAD BAND at the edge so its body/courtyard hangs OFF-board (pads on-board) -- the area lever the
     condensed boards use, and what lets two tall cable connectors fit a short board. 'none' seats the
     whole courtyard on-board. Honors user pins last. Returns {ref:(x,y,rot)}."""
-    roles = defaultdict(list)
+    edge_override = edge_override or {}
+    _VALID_EDGES = ("top", "bottom", "left", "right")
+    roles = defaultdict(list)            # ref -> edge (role-default, then per-board override)
+    by_edge = defaultdict(list)
     for ref in fp_of:
-        r = _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint)
-        if r:
-            roles[r].append(ref)
+        r = _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint,
+                  nl=nl)
+        if not r or r == "mount":
+            continue
+        roles[r].append(ref)
+        ov = edge_override.get(ref)
+        if ov is not None:                            # validate the per-board/human input (M3)
+            ov = str(ov).strip().lower()
+            if ov not in _VALID_EDGES:
+                _tc.warn_once("seed_anchors_edge_" + ref,
+                              "seed_anchors: ignoring invalid edge_override[%r]=%r "
+                              "(expected one of %s); using the role default"
+                              % (ref, edge_override.get(ref), _VALID_EDGES))
+                ov = None
+        edge = ov or _ROLE_EDGE.get(r)
+        if edge:
+            by_edge[edge].append(ref)
     A = {}
     oh = (overhang != "none")
 
@@ -1528,9 +1813,8 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
             pa = center - coff                                   # origin so courtyard-centre at center
             A[ref] = (pa, perp, rot) if horiz else (perp, pa, rot)
 
-    place_edge(roles.get("power_in", []), "top")
-    place_edge(roles.get("power_out", []), "bottom")
-    place_edge(roles.get("host", []) + roles.get("usb", []), "right")
+    for edge in ("top", "bottom", "left", "right"):
+        place_edge(by_edge.get(edge, []), edge)
     for ref, xy in (pins or {}).items():               # honor user pins (override)
         if isinstance(xy, (tuple, list)) and len(xy) >= 2 and ref in fp_of:
             A[ref] = (float(xy[0]), float(xy[1]), float(xy[2]) if len(xy) > 2 else 0.0)
@@ -1684,12 +1968,14 @@ def _ov_area(A, B, clr=0.0):
 
 
 def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, alpha=0.04,
-                  clr=0.4, t0=8.0, cool=0.9985):
+                  clr=0.4, t0=8.0, cool=0.9985, veto=None):
     """Simulated annealing on the MACRO-BLOCK positions (IC clusters + shunts; anchors fixed) to
     ESCAPE the greedy legalizer's local minimum. Objective = courtyard overlap AREA (heavily) +
     alpha*HPWL to connected parts (stay routable). Being STOCHASTIC, different *seed*s settle into
     different minima -- THAT spread is what makes a huge best-of-N sweep pay off (a deterministic
-    placer just yields identical candidates). Mutates P in place; returns P."""
+    placer just yields identical candidates). *veto(ref,(x,y))->bool* (Phase 2) HARD-rejects a move
+    that puts a body in a forbidden region (a foreign high-current corridor), independent of T.
+    Mutates P in place; returns P."""
     rnd = random.Random(seed)
     mv = [r for r in movable if r in cyinfo and r in P]
     placed = [r for r in P if r in cyinfo]
@@ -1708,7 +1994,7 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
             if o != r:
                 c += _ov_area(ar, bbox(o), clr)
         if nbrs:
-            for n in nbrs.get(r, ()):
+            for n in sorted(nbrs.get(r, ())):           # sorted: deterministic across processes
                 if n in P:
                     c += alpha * (abs(P[r][0] - P[n][0]) + abs(P[r][1] - P[n][1]))
         return c
@@ -1725,6 +2011,9 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
             nx, ny = rnd.uniform(hw - cx, W - hw - cx), rnd.uniform(hh - cy, H - hh - cy)
         nx = min(W - hw - cx, max(hw - cx, nx))
         ny = min(H - hh - cy, max(hh - cy, ny))
+        if veto is not None and veto(r, (nx, ny)):    # PHASE 2 hard veto -> never enter a foreign band
+            T *= cool
+            continue
         P[r] = (nx, ny, orot)
         d = cost(r) - before
         if d > 0 and rnd.random() >= math.exp(-d / max(T, 1e-3)):
@@ -1758,7 +2047,7 @@ def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataf
     hot = {r for r in movable if _part_power_w(r, nl.comps.get(r, Comp(r)).value) >= 0.3}
     for _ in range(45):
         for r in movable:
-            ns = [P[n] for n in nbrs.get(r, ()) if n in P]
+            ns = [P[n] for n in sorted(nbrs.get(r, ())) if n in P]   # sorted: process-deterministic
             if not ns:
                 continue
             tx = sum(p[0] for p in ns) / len(ns)
@@ -1767,7 +2056,7 @@ def relative_place(anchors, nl, W, H, fp_of, *, drop_antenna=False, strat="dataf
                 tx = 0.7 * tx + 0.3 * P[r][0]
                 ty = 0.7 * ty + 0.3 * P[r][1]
             elif strat == "thermal_separated" and r in hot:   # nudge hot parts apart
-                for h in hot:
+                for h in sorted(hot):                # sorted: tx is mutated in-loop, order matters
                     if h != r and h in P and abs(P[h][0] - tx) < 8 and abs(P[h][1] - ty) < 8:
                         tx += math.copysign(4.0, tx - P[h][0] or 1.0)
             P[r] = (tx, ty, P[r][2])
@@ -1801,6 +2090,499 @@ def _placement_obj(cfg, P, W, H, halfext, nl):
     return Placement(pos=pos, pads_by_net=dict(pads_by_net), value=value, W=W, H=H, x0=0.0, y0=0.0)
 
 
+# ============================================================ STAGE: CORRIDOR MODEL
+# The domain model the placer is blind to (CLAUDE.md action item -2, placement-strategy
+# 2026-06-14 §2.1). A high-current cable runs J_IN -> shunt -> J_OUT; that band is reserved
+# for the pour (high-current-corridor-keepout / high-current-pour-integrity). A foreign signal
+# net forced THROUGH a band cuts the pour on its layer (the eps-8pin ~300C thin-neck failure).
+# corridor_cross_count turns "foreign_cross" into a pre-route, pure-geometry NUMBER the placer
+# can rank on; build_corridor_model derives the bands from the netlist (no per-board hardcoding),
+# reusing _kelvin_pairs + the same CONNECTOR+shunt pad class derive_power_pours pours (the INA SMD
+# sense pads excluded) -- so the placement-time corridor and the route-time pour keepout track the
+# same J_IN->shunt->J_OUT current path. The band is meaningful only once the corridor is FORMED
+# (shunt inline, J_IN/J_OUT aligned); a degenerate near-board-wide band is guarded out, not trusted.
+def _net_pads_global(nl, net, P, comps):
+    """Global (x,y) of every pad on *net*, from the placement P (ref->(x,y,rot)) + footprints.
+    pad_global is a pure footprint-text parse (no pcbnew), so this runs host-side."""
+    import cec_pcb
+    pts = []
+    for ref, pin in nl.nets.get(net, []):
+        if ref not in P or ref not in comps:
+            continue
+        try:
+            pts.append(cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps))
+        except Exception:
+            pts.append((P[ref][0], P[ref][1]))           # fall back to the part origin
+    return pts
+
+
+def _ref_padcount(nl, ref):
+    """How many net-pad nodes *ref* has across the netlist (a 2-pad shunt straddles HI/LO)."""
+    return sum(1 for nodes in nl.nets.values() for (r, _p) in nodes if r == ref)
+
+
+def _corridor_net_role(net, corridor_nets):
+    """net -> {power_corridor, decouple, sense, signal}. Only role=='signal' nets can be a
+    corridor offender (a power rail / GND / the sense pair itself never 'crosses' its band)."""
+    if net in corridor_nets:
+        return "power_corridor"
+    base = net.rsplit("/", 1)[-1].upper()
+    if _POWER_NET.search(net) or base == "GND":
+        return "decouple"
+    # a Kelvin/INA sense net (force pair _HI/_LO, or the post-filter INA input _P/_N) is part of
+    # the cable's own sensing, not a foreign signal -- the 12VHPWR INA240 inputs are /IN{n}_P/_N.
+    # (USB_D_P/_N is conservatively swept in too; it lives at the board edge, never the corridor.)
+    if net.endswith(("_HI", "_LO", "_P", "_N")) or base.startswith(("SENSEC", "ISENSE")):
+        return "sense"
+    return "signal"
+
+
+@dataclass
+class Cable:
+    """One high-current lane: its Kelvin pair, the straddling shunt, the sense ICs on it, and
+    the reserved band rect (global mm, x-inflated by the signal clearance)."""
+    base: str                     # e.g. "/SENSEC2"
+    hi: str
+    lo: str
+    shunt: str                    # RS{n} (2-pad straddle), or "" if none resolved
+    sense_ics: list               # INA/INA181 refs on hi or lo
+    band: tuple                   # (x0, x1, y0, y1)
+    formed: bool = True           # False if the corridor is degenerate (J_IN/shunt/J_OUT not collinear)
+
+
+@dataclass
+class CorridorModel:
+    """Built once per synth (placement-strategy §2.1). The placer reads this to rank/veto."""
+    cables: list                  # [Cable]
+    bands: dict                   # base -> (x0, x1, y0, y1)
+    corridor_nets: set            # {each cable's hi, lo} -- the ONLY nets allowed inside its band
+    hot: set                      # {RS*, J_IN*, J_OUT*, LDO} refs
+    sensitive: set                # {INA/INA181, REF3030, ESP32 U1} refs (paired INA exempt for its own band)
+
+
+def _hot_sensitive(nl):
+    """(hot, sensitive) ref sets per §2.1: HOT = shunts + power connectors + LDO; SENSITIVE =
+    every current-sense IC + voltage reference + the ESP. Derived from ref + value (no hardcoding)."""
+    hot, sensitive = set(), set()
+    for ref, c in nl.comps.items():
+        v = (c.value or "").upper()
+        if ref.startswith("RS") or ("MINI-FIT" in v or "12V" in v or "EPS" in v) and ref.startswith("J"):
+            hot.add(ref)
+        if ref.startswith("J") and ("IN" in ref.upper() or "OUT" in ref.upper()):
+            hot.add(ref)
+        if "LP59" in v or "TPS6" in v or "LDO" in v or "REG" in v:
+            hot.add(ref)
+        if "INA" in v or "REF30" in v or "ESP32" in v:
+            sensitive.add(ref)
+    return hot, sensitive
+
+
+def _corridor_band_pads(nl, hi, lo, band_refs, P, comps):
+    """Global pads on the HI/LO nets restricted to *band_refs* (the cable connectors + shunt) --
+    excludes the INA sense pads, so the band is the J_IN->shunt->J_OUT current path, not the
+    sense fan-out. This mirrors cec_fr.derive_power_pours (THT connector pads + the 2-pad shunt)."""
+    import cec_pcb
+    pts = []
+    for net in (hi, lo):
+        for ref, pin in nl.nets.get(net, []):
+            if ref not in band_refs or ref not in P or ref not in comps:
+                continue
+            try:
+                pts.append(cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps))
+            except Exception:
+                pts.append((P[ref][0], P[ref][1]))
+    return pts
+
+
+def _band_formed(band, W, *, max_frac=0.55):
+    """A corridor is FORMED only if its band is a tight column -- J_IN/shunt/J_OUT roughly collinear.
+    A band wider than max_frac of the board means the shunt is not inline or J_IN/J_OUT are not
+    aligned (the synth placer before corridor formation), so corridor_cross over it is meaningless
+    (a near-board-wide band can't be straddled -> a FALSE clean). Also flags the 24-pin shared-bus
+    connector, whose multi-rail _HI/_LO pads span the whole board (not a per-cable corridor)."""
+    x0, x1, _y0, _y1 = band
+    return (x1 - x0) <= max(1.0, max_frac * W)
+
+
+def _shared_bus_connectors(nl):
+    """J refs that serve MORE THAN ONE Kelvin pair -- a shared-bus / multi-rail connector (the 24-pin
+    ATX J3/J4, the 12VHPWR J3/J4). The per-cable J_IN->shunt->J_OUT corridor model does NOT apply to
+    those (a Phase-5 per-pin variant), so the model + the rank key + the checkers all N/A them."""
+    serves = defaultdict(set)
+    for hi, lo in _kelvin_pairs(nl):
+        for net in (hi, lo):
+            for r, _ in nl.nets.get(net, []):
+                if r.startswith("J"):
+                    serves[r].add(hi[:-3])
+    return {r for r, ps in serves.items() if len(ps) > 1}
+
+
+def build_corridor_model(nl, P, comps, *, x_clr=1.5, board_w=None):
+    """Derive the CorridorModel (§2.1) from the netlist + a placement. The band of cable n is the
+    bbox over the cable CONNECTOR (J*) + shunt pads on its HI/LO nets -- the J_IN->shunt->J_OUT
+    current path, the SAME pad class cec_fr.derive_power_pours pours (THT connector + 2-pad shunt;
+    the INA's SMD sense pads are EXCLUDED so they don't inflate the band and swallow the channel).
+    Inflated *x_clr* mm on the signal-channel (x) sides. A band wider than ~half the board is marked
+    NOT formed (shunt not inline / connectors not aligned) -- corridor_cross ignores it (a wide band
+    can't be straddled, which would read as a FALSE clean). SHARED-BUS pairs (a connector serving >1
+    Kelvin pair, 24-pin/12VHPWR) are SKIPPED -- the per-cable corridor model does not apply, so the
+    rank key stays inert there (matching _cable_topology + the checkers). Pure geometry; no pcbnew."""
+    if board_w is None:
+        board_w = max((P[r][0] for r in P), default=100.0) + 10.0
+    shared = _shared_bus_connectors(nl)
+    cables, bands, corridor_nets = [], {}, set()
+    for hi, lo in _kelvin_pairs(nl):
+        corridor_nets.add(hi)
+        corridor_nets.add(lo)
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        if {r for r in (refs_hi | refs_lo) if r.startswith("J")} & shared:
+            continue                                       # shared-bus connector -> Phase-5 variant
+        straddle = refs_hi & refs_lo                       # a part on BOTH halves = the shunt
+        shunt = next((r for r in sorted(straddle)          # prefer the RS-named shunt
+                      if r.startswith("RS") and _ref_padcount(nl, r) == 2),
+                     next((r for r in sorted(straddle)
+                           if r.startswith("R") and _ref_padcount(nl, r) == 2), ""))
+        band_refs = {r for r in (refs_hi | refs_lo) if r.startswith("J")}
+        if shunt:
+            band_refs.add(shunt)
+        pts = _corridor_band_pads(nl, hi, lo, band_refs, P, comps)
+        if not pts:
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        band = (min(xs) - x_clr, max(xs) + x_clr, min(ys), max(ys))
+        base = hi[:-3]
+        bands[base] = band
+        sense_ics = sorted(r for r in (refs_hi | refs_lo) if r.startswith("U"))
+        cables.append(Cable(base=base, hi=hi, lo=lo, shunt=shunt, sense_ics=sense_ics,
+                            band=band, formed=_band_formed(band, board_w)))
+    hot, sensitive = _hot_sensitive(nl)
+    return CorridorModel(cables=cables, bands=bands, corridor_nets=corridor_nets,
+                         hot=hot, sensitive=sensitive)
+
+
+def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True, board_w=None):
+    """The corridor predictor (placement-strategy §2.3 / §0): how many (foreign SIGNAL net, band)
+    pairs are forced THROUGH a high-current band. A net crosses band_n when its pad-bbox y-overlaps
+    the band AND it has a pad strictly LEFT of the band x-range AND a pad strictly RIGHT of it -- it
+    must terminate on both x-sides, so an IN-PLANE route on the pour layer crosses the corridor. NOTE
+    this is a PREDICTOR, not a hard invariant: it is layer-agnostic and has no model of the top/bottom
+    channels, so it OVER-counts what a router must actually cut -- a crossing can be routed AROUND (an
+    in-plane channel) or UNDER (a non-pour layer). A net that merely terminates at a band edge (one pad
+    inside) is NOT a through-cross. A DEGENERATE band
+    (wider than ~half the board: shunt not inline / connectors not aligned) is SKIPPED -- it can't be
+    straddled, so counting it would read as a false clean; pass *board_w* to enable that guard. Pure
+    geometry on the pads_by_net the proxy already builds; 0 over FORMED bands == corridor-clean. NOTE:
+    this counts (net, band) pairs, so a net crossing two bands scores 2."""
+    usable = {b: rect for b, rect in bands.items()
+              if board_w is None or _band_formed(rect, board_w)}
+    total = 0
+    for net, pts in pads_by_net.items():
+        if net in corridor_nets or len(pts) < 2:
+            continue
+        if signal_only and _corridor_net_role(net, corridor_nets) != "signal":
+            continue
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        bx0, bx1, by0, by1 = min(xs), max(xs), min(ys), max(ys)
+        for base, (X0, X1, Y0, Y1) in usable.items():
+            if by1 >= Y0 and by0 <= Y1 and bx0 < X0 and bx1 > X1:
+                total += 1
+    return total
+
+
+# --------------------------------------------------------- Phase 2: corridor FORMATION
+# corridor_cross only discriminates once the corridor is FORMED: J_IN above the shunt above J_OUT in
+# one tight column. The constructive placer left shunts free (anywhere) and packed J_IN/J_OUT on their
+# edges independently, so the band degenerated to ~board width. Phase 2 SEEDS the corridor spine
+# deterministically -- align J_OUT under J_IN, seat the shunt on the cable axis at rot 270 (H3) -- so
+# the band is a tight column and the anneal then only has to keep foreign bodies OUT of it (the veto).
+def _cable_topology(nl):
+    """Per per-cable Kelvin pair, the corridor parts from the NETLIST alone (no positions):
+    {base, hi, lo, j_in (J* on hi), j_out (J* on lo), shunt (RS 2-pad straddle)}. SHARED-BUS pairs
+    (a J ref serving >1 pair -- 24-pin / 12VHPWR) are excluded: their corridor is a Phase-5 per-pin
+    variant, not a J_IN->shunt->J_OUT column."""
+    pairs = _kelvin_pairs(nl)
+    shared = _shared_bus_connectors(nl)
+    out = []
+    for hi, lo in pairs:
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        j_in = sorted(r for r in refs_hi if r.startswith("J") and r not in shared)
+        j_out = sorted(r for r in refs_lo if r.startswith("J") and r not in shared)
+        straddle = refs_hi & refs_lo
+        shunt = next((r for r in sorted(straddle) if r.startswith("RS") and _ref_padcount(nl, r) == 2),
+                     next((r for r in sorted(straddle) if r.startswith("R") and _ref_padcount(nl, r) == 2), ""))
+        if j_in and j_out and shunt:
+            out.append({"base": hi[:-3], "hi": hi, "lo": lo,
+                        "j_in": j_in[0], "j_out": j_out[0], "shunt": shunt})
+    return out
+
+
+def _net_pad_xs(nl, comps, ref, net, P):
+    """Global x of every pad of *ref* on *net* (the cable's force column)."""
+    import cec_pcb
+    xs = []
+    for r, pin in nl.nets.get(net, []):
+        if r != ref:
+            continue
+        try:
+            x, _y = cec_pcb.pad_global(ref, pin, {ref: P[ref]}, comps)
+            xs.append(x)
+        except Exception:
+            pass
+    return xs
+
+
+def _net_pad_centroid_x(nl, comps, ref, net, P):
+    """Mean global x of *ref*'s pads on *net* (the cable's force column). J_IN(rot180) pads extend one
+    way, J_OUT(rot0) the other from the origin, so aligning ORIGINS misaligns the current columns ~12mm;
+    aligning these CENTROIDS is what tightens the band to one connector width (the as-built geometry)."""
+    xs = _net_pad_xs(nl, comps, ref, net, P)
+    return (sum(xs) / len(xs)) if xs else P[ref][0]
+
+
+def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
+    """FORM each per-cable corridor: align J_OUT's LO force-pad column UNDER J_IN's HI force-pad column
+    (so the +12V current runs straight J_IN -> shunt -> J_OUT) and seat the shunt on that column axis at
+    mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross), all as FIXED anchors. Mutates
+    *anchors*; returns the seated shunt refs (dropped from the annealed set so the spine can't be pushed
+    off-axis). J_IN keeps the x seed_anchors packed it to (columns stay spaced by connector width). When
+    *W* is given the column is CLAMPED so the connector/shunt pads stay on-board (no off-board pads on a
+    narrow board)."""
+    seated = []
+    for c in topo:
+        jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
+        if jin not in anchors or jout not in anchors:
+            continue
+        in_xs = _net_pad_xs(nl, comps, jin, c["hi"], anchors)         # the J_IN +12V column
+        col = (sum(in_xs) / len(in_xs)) if in_xs else anchors[jin][0]
+        if W and in_xs:
+            hw = (max(in_xs) - min(in_xs)) / 2.0 + 1.0               # keep the column's pads on-board
+            col = min(max(col, hw), W - hw)
+        # shift J_OUT in x so its LO force-pad column lands under the J_IN column
+        ox, oy, orot = anchors[jout]
+        out_xs = _net_pad_xs(nl, comps, jout, c["lo"], anchors)
+        out_col = (sum(out_xs) / len(out_xs)) if out_xs else ox
+        anchors[jout] = (ox + (col - out_col), oy, orot)
+        anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
+        seated.append(sh)
+    return seated
+
+
+def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
+    """HARD veto (placement-strategy §2.2 H1): a HOT/SENSITIVE part body may not sit inside a FOREIGN
+    cable's FORMED band. *bands* maps base -> {"band":(x0,x1,y0,y1), "formed":bool}; *paired_ina* maps
+    base -> the INA refs EXEMPT for that band (their own cable -- Kelvin needs them adjacent). Returns
+    True if *ref* at *xy* violates."""
+    if ref not in sensitive:
+        return False
+    x, y = xy[0], xy[1]
+    for base, cab in bands.items():
+        if not cab["formed"] or ref in paired_ina.get(base, ()):
+            continue
+        X0, X1, Y0, Y1 = cab["band"]
+        if X0 <= x <= X1 and Y0 <= y <= Y1:
+            return True
+    return False
+
+
+def _board_corridor_model(board):
+    """(model, P) from a live pcbnew board -- the loop/tier entry into the corridor domain. Builds the
+    netlist + placement off the board (the same shape as read_placement) and the CorridorModel."""
+    comps, nets, P, vals = {}, defaultdict(list), {}, {}
+    for fp in board.GetFootprints():
+        r = fp.GetReference()
+        comps[r] = fp.GetFPIDAsString()
+        vals[r] = fp.GetValue()
+        pos = fp.GetPosition()
+        P[r] = (pos.x / 1e6, pos.y / 1e6, fp.GetOrientationDegrees())
+        for pad in fp.Pads():
+            nn = pad.GetNetname()
+            if nn:
+                nets[nn].append((r, pad.GetPadName()))
+    nl = Netlist(comps={r: Comp(ref=r, value=vals[r], footprint=comps[r]) for r in comps},
+                 nets=dict(nets))
+    eb = board.GetBoardEdgesBoundingBox()
+    W = max(1.0, eb.GetWidth() / 1e6)
+    return build_corridor_model(nl, P, comps, board_w=W), P
+
+
+def corridor_violations(board_path):
+    """SENSITIVE part bodies that sit inside a FOREIGN FORMED corridor band -- the placement-time
+    body-in-band fault the §2.2 veto prevents at seed time, here detected on an EXISTING board so a
+    cec_place refine pass or a cec_router manager tier can EVICT them (the placement-side analogue of
+    the routing corridor-avoid lever). Returns [{"ref", "band":(x0,x1,y0,y1), "base"}], shared-bus
+    boards yield [] (no per-cable corridor). Loads its own board (pcbnew)."""
+    import pcbnew
+    model, P = _board_corridor_model(pcbnew.LoadBoard(board_path))
+    bands = {c.base: {"band": c.band, "formed": c.formed} for c in model.cables}
+    paired = {c.base: set(c.sense_ics) for c in model.cables}
+    out = []
+    for ref in sorted(model.sensitive):
+        if ref not in P:
+            continue
+        for base, cab in bands.items():
+            if not cab["formed"] or ref in paired.get(base, ()):
+                continue
+            X0, X1, Y0, Y1 = cab["band"]
+            if X0 <= P[ref][0] <= X1 and Y0 <= P[ref][1] <= Y1:
+                out.append({"ref": ref, "band": cab["band"], "base": base})
+                break
+    return out
+
+
+# ============================================================ MV5: Hub-domain structural terms
+# Four net-derived geometric quality terms for a multi-port Hub-class board, each with a stated
+# physical WHY (anti-overfit charter rule 1) and NO hardcoded reference value: (1) ganged identical
+# connectors want uniform pitch (panel cutouts + cable clearance + matched length); (2) a PCB-antenna
+# part radiates off a board edge (RF); (3) the power input chain stays cohesive (loop area + IR drop);
+# (4) a diff-pair endpoint sits near its driver (length match). Terms are 0..1 (higher = better);
+# hub_penalty = mean(1 - term) folds into the MV4 proxy_score at a small weight. GATED to fire only
+# on a board with >=2 ganged RJ-45 ports + an ESP, so cable/sensing modules are untouched.
+# The front-end power-input loop is identified TOPOLOGICALLY (not by the reference board's net
+# spelling, charter rule 1): it is the set of SMALL-FANOUT rail nets -- the point-to-point INPUT
+# rails that connect a power-in connector through the mux/hold-up/LDO -- as distinct from the
+# DISTRIBUTED rails (the output plane, the logic rail, GND), which fan out to the whole board. On any
+# board the input rails connect O(few) parts while a distribution rail connects O(tens); a fanout cap
+# cleanly separates them (Hub: input rails fan 4-5 vs +5VSB 22 / +3V3 16 / GND 78). A per-board
+# cfg.params['power_input_nets'] override (substrings) is the escape hatch when a board's topology
+# is unusual. USB VBUS falls out naturally (its connector branch lifts its fanout above the cap).
+_PWR_LOOP_MAX_FANOUT = 6
+
+
+@dataclass
+class HubModel:
+    ports: list            # ganged RJ-45 connector refs (identical footprint)
+    esp: str               # the PCB-antenna IC ref ('' if none)
+    antenna_edge: str      # the edge the antenna should face ('' = use nearest)
+    power_refs: list       # power front-end refs (on a small-fanout input rail)
+    usb: str               # the USB connector ref ('' if none)
+    active: bool           # whether the hub terms should fire
+    esp_cy: tuple = None   # the ESP courtyard (cx,cy,hw,hh) at its placed rotation (for the antenna term)
+
+
+def _power_input_nets(nl, override=None):
+    """The front-end input-loop nets: a per-board override (list of name substrings) if given, else
+    the GENERIC topological derivation -- rail nets (voltage token, not a sense/detect/ref/flag tap)
+    whose fanout is small enough to be a point-to-point input rail rather than a distributed plane."""
+    if override:
+        toks = [t.lower() for t in override]
+        return [n for n in nl.nets if any(t in n.lower() for t in toks)]
+    return [n for n, nodes in nl.nets.items()
+            if _is_rail_net(n) and len(nodes) <= _PWR_LOOP_MAX_FANOUT]
+
+
+def build_hub_model(nl, P, comps, *, antenna_edge="", power_input_nets=None):
+    """Identify the Hub-domain anchors from the netlist + placement (pure geometry/strings, no
+    pcbnew). *comps* is ref->libid (footprint). active iff >=2 ganged RJ-45 ports + an ESP -- the
+    gate that keeps cable modules (1 port) and sensing modules inert. *power_input_nets* is the
+    optional per-board override for the front-end loop (see _power_input_nets)."""
+    def fp(r):
+        return (comps.get(r) or (nl.comps.get(r).footprint if r in nl.comps else "") or "").lower()
+    ports = sorted(r for r in P if "rj45" in fp(r) or "8p8c" in fp(r))
+    esp = next((r for r in sorted(P) if "esp32" in fp(r) or "rf_module" in fp(r)), "")
+    usb = next((r for r in sorted(P) if r.startswith("J") and "usb" in fp(r)), "")
+    # the front-end ACTIVE cluster (mux + hold-up cap + LDO), minus the edge-anchored connectors
+    # (whose position is set by role, not cohesion): the cohesion WHY is input-loop area / IR drop.
+    loop_nets = set(_power_input_nets(nl, power_input_nets))
+    prefs = sorted({r for n in loop_nets for r, _p in nl.nets.get(n, ())
+                    if r in P and not r.startswith("J")})
+    esp_cy = None
+    if esp and esp in P and esp in comps:
+        try:
+            esp_cy = _courtyard_info(comps[esp], P[esp][2])   # courtyard at the placed rotation
+        except Exception:
+            esp_cy = None
+    return HubModel(ports=ports, esp=esp, antenna_edge=antenna_edge, power_refs=prefs, usb=usb,
+                    active=(len(ports) >= 2 and bool(esp)), esp_cy=esp_cy)
+
+
+def hub_score(model, P, W, H):
+    """Score the MV5 Hub-domain terms on a placement (P: ref->(x,y,rot)). Returns a dict with each
+    present term in 0..1 (higher=better), `active`, and `hub_penalty`=mean(1-term) (0=ideal). Inert
+    (hub_penalty 0, active False) when the model is not a Hub. The PCB-antenna courtyard keepout
+    (respected at materialize) already forbids parts UNDER the antenna; the antenna TERM here only
+    rewards the lobe facing OFF a board edge."""
+    if not model.active:
+        return {"active": False, "hub_penalty": 0.0}
+    terms = {}
+    pts = [P[r] for r in model.ports if r in P]
+    if len(pts) >= 2:
+        edges = [_edge_of(p[0], p[1], 0.0, 0.0, W, H) for p in pts]
+        dom = max(set(edges), key=edges.count)
+        on_edge = sum(e == dom for e in edges) / len(edges)
+        horiz = dom in ("top", "bottom")
+        coords = sorted(p[0] if horiz else p[1] for p in pts)
+        gaps = [b - a for a, b in zip(coords, coords[1:])]
+        mean_g = sum(gaps) / len(gaps)
+        stdev = math.sqrt(sum((g - mean_g) ** 2 for g in gaps) / len(gaps)) if gaps else 0.0
+        # coefficient of variation (stdev/mean) -- a SCALE-FREE uniformity measure, so the term has
+        # no hidden mm-scale knee and reads the same on any board pitch. (With 2 ports there is one
+        # gap -> cv 0 -> 1.0 regardless of spacing; the term is meaningful for >=3 ganged ports.)
+        cv = (stdev / mean_g) if mean_g > 1e-6 else 0.0
+        terms["port_even"] = round((1.0 / (1.0 + cv)) * on_edge, 3)
+    if model.esp in P:
+        ex, ey = P[model.esp][0], P[model.esp][1]
+        want = model.antenna_edge or _edge_of(ex, ey, 0.0, 0.0, W, H)
+        if model.esp_cy:                              # distance from the COURTYARD's near edge (incl.
+            cx, cy, hw, hh = model.esp_cy             # the antenna keepout) to the board edge -- not
+            d = {"left": ex + cx - hw, "right": W - (ex + cx + hw),   # the footprint ORIGIN, which can
+                 "top": ey + cy - hh, "bottom": H - (ey + cy + hh)}.get(want, 0.0)  # sit far in.
+            d = max(0.0, d)
+        else:
+            d = {"left": ex, "right": W - ex, "top": ey, "bottom": H - ey}.get(
+                want, min(ex, W - ex, ey, H - ey))
+        # the reward decays to 0 over a quarter of the SHORT board dimension -- i.e. the antenna IC's
+        # courtyard should sit against its edge so its lobe clears the board interior (board-relative
+        # scale, no copied reference value; parts UNDER the lobe are handled by the courtyard keepout).
+        terms["antenna"] = round(max(0.0, 1.0 - d / (0.25 * min(W, H) or 1.0)), 3)
+    pr = [P[r] for r in model.power_refs if r in P]
+    if len(pr) >= 2:
+        xs = [p[0] for p in pr]
+        ys = [p[1] for p in pr]
+        frac = ((max(xs) - min(xs)) * (max(ys) - min(ys))) / (W * H) if W * H else 1.0
+        # principled linear cohesion (smaller footprint fraction = tighter loop); no magic divisor
+        # so the metric never red-by-design penalizes the hand board's own front-end.
+        terms["power_cluster"] = round(max(0.0, 1.0 - min(frac, 1.0)), 3)
+    if model.usb in P and model.esp in P:
+        d = math.hypot(P[model.usb][0] - P[model.esp][0], P[model.usb][1] - P[model.esp][1])
+        terms["usb_prox"] = round(max(0.0, 1.0 - d / (math.hypot(W, H) or 1.0)), 3)
+    pen = (sum(1.0 - v for v in terms.values()) / len(terms)) if terms else 0.0
+    out = {"active": True, "hub_penalty": round(pen, 3)}
+    out.update(terms)
+    return out
+
+
+def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, margin=1.8):
+    """Seat the PCB-antenna IC against its antenna EDGE as a fixed anchor, returning (ref,(x,y,rot))
+    or (None,None). An RF/ESP module is EDGE-CONSTRAINED (its lobe must radiate off a board edge --
+    an RF principle, the WHY), so it is anchored like a connector, not placed as a free IC. Without
+    this the synth placer drops the large ESP courtyard center-board onto the ganged ports -> courtyard
+    overlaps -> Freerouting routes nothing (measured: 1 wire vs 389 on the hand placement). The EDGE
+    is the per-board antenna_edge input; the position is derived from the footprint courtyard, never
+    copied from the reference. Rot 0 -- the macro/cluster offsets are built at rot 0, so seating the
+    ESP unrotated keeps its decoupling cluster valid; the antenna TERM scores edge PROXIMITY (position),
+    independent of rotation. (The precise antenna-faces-off-edge orientation is a refinement.)"""
+    if not antenna_edge:
+        return None, None
+    esp = next((r for r in ics if "esp32" in (comps.get(r, "") or "").lower()
+                or "rf_module" in (comps.get(r, "") or "").lower()), None)
+    if not esp or esp not in comps:
+        return None, None
+    cx, cy, hw, hh = _courtyard_info(comps[esp], 0.0, drop_antenna=drop_antenna)
+    if antenna_edge == "left":
+        x, y = margin + hw - cx, H / 2.0 - cy
+    elif antenna_edge == "right":
+        x, y = W - margin - hw - cx, H / 2.0 - cy
+    elif antenna_edge == "top":
+        x, y = W / 2.0 - cx, margin + hh - cy
+    else:                                              # bottom
+        x, y = W / 2.0 - cx, H - margin - hh - cy
+    return esp, (x, y, 0.0)
+
+
 @dataclass
 class Candidate:
     """A placement candidate + its cheap proxy + (later) its feasibility confidence."""
@@ -1812,6 +2594,9 @@ class Candidate:
     residual: int                 # legalization residual overlaps
     proxy: dict
     feasible: float = -1.0        # filled by the feasibility probe (stage: size oracle)
+    corridor_cross: int = 0       # foreign signals forced through a high-current band (Phase 1 rank key)
+    similarity: float = -1.0      # MV3: reproduce-the-reference diagnostic (-1 = not computed)
+    similarity_detail: dict = field(default_factory=dict)
 
 
 def synth_one(cfg_dict, W, H, strat, seed):
@@ -1829,9 +2614,18 @@ def synth_one(cfg_dict, W, H, strat, seed):
     fp_of = _fp_of(nl)
     anchors_roles, ics, shunts, passives = _classify(nl)
     # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
-    #    mechanical asks (mounts + fiducials)
-    anchors = seed_anchors(nl, W, H, fp_of, cfg.pins,
-                           overhang=cfg.params.get("connector_overhang", "none"))
+    #    mechanical asks (mounts + fiducials). A per-cable INTERPOSER must OVERHANG its cable ports
+    #    (plug overmold off-board, pads on-board) -- otherwise the connector bodies sit in-board and
+    #    crush the J_IN->shunt->J_OUT corridor into the mid-board strip (the as-built boards all
+    #    overhang). So default overhang to "edge" when the board has cable corridors, unless the
+    #    config overrides. (Owner: "it needs to know how to overhang the ports.")
+    _overhang = cfg.params.get("connector_overhang")
+    if _overhang is None:
+        _overhang = "power_able" if _cable_topology(nl) else "none"
+    # MV2: a per-board edge map (oracle-derived or a spec line) overrides the generic role->edge
+    # default so a multi-edge board (Hub: RJ-45 top, power-in right, USB bottom) frames correctly.
+    anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
+                           edge_override=cfg.params.get("edge_override"))
     mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
     anchors.update(mech_pos)
     comps = dict(fp_of)
@@ -1846,6 +2640,20 @@ def synth_one(cfg_dict, W, H, strat, seed):
     anchor_cy = {r: _courtyard_info(comps[r], anchors[r][2], drop_antenna=drop_antenna)
                  for r in anchors if r in comps}
     legalize_pack(anchors, [r for r in mech_pos if r in anchors], anchor_cy, W, H, clr=0.5)
+    # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
+    #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
+    #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
+    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps, W=W)
+    free_shunts = [r for r in shunts if r not in seated]
+    # 1c. Seat the PCB-antenna IC at its antenna edge as a FIXED anchor (route-unblock + MV5 antenna
+    #     term): otherwise the large ESP courtyard lands center-board on the ganged ports -> overlaps
+    #     -> Freerouting routes nothing. Keep it in `ics` so its decoupling cluster still builds; drop
+    #     it from the ANNEALED set so it stays put at the edge.
+    _esp, _esp_pos = _seat_antenna_ic(ics, comps, W, H, cfg.params.get("antenna_edge"),
+                                      drop_antenna=drop_antenna)
+    if _esp:
+        anchors[_esp] = _esp_pos
+    anneal_units = [r for r in (ics + free_shunts) if r != _esp]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
@@ -1858,7 +2666,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
     drop_kc = tuple(r for r in comps if "esp32" in comps[r].lower()) if drop_antenna else ()
     macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
     cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
-    for unit in ics + shunts:
+    for unit in ics + free_shunts:
         members = by_owner.get(unit, [])
         if unit not in comps:
             continue
@@ -1879,7 +2687,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
             cluster_offsets[unit] = {}
     # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
     P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
-                          strat=strat, seed=seed, only=ics + shunts, cyinfo_override=macro)
+                          strat=strat, seed=seed, only=ics + free_shunts, cyinfo_override=macro)
     # 3b. ANNEAL the macros to escape the greedy minimum (compaction + the diversity engine), then
     #     a final greedy snap from the annealed start. Full cyinfo = macro bbox for ICs/shunts,
     #     real courtyard for the fixed anchors.
@@ -1889,8 +2697,19 @@ def synth_one(cfg_dict, W, H, strat, seed):
             cyinfo_all[r] = macro[r]
         elif r in comps:
             cyinfo_all[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
-    anneal_macros(P, cyinfo_all, ics + shunts, W, H, nbrs=_adjacency(nl), seed=seed)
-    legalize_pack(P, [r for r in (ics + shunts) if r in P], cyinfo_all, W, H, clr=0.4)
+    # PHASE 2 hard veto: build the corridor model on the SEEDED spine (J_IN/J_OUT/shunt now placed) and
+    # forbid any HOT/SENSITIVE body from entering a FOREIGN cable's formed band (paired INA exempt for
+    # its own band -- Kelvin). Keeps the detection ICs + ESP out of the corridors.
+    _spine = build_corridor_model(nl, P, comps, board_w=W)
+    _bands = {c.base: {"band": c.band, "formed": c.formed} for c in _spine.cables}
+    _paired = {c.base: set(c.sense_ics) for c in _spine.cables}
+    _sensitive = _spine.sensitive
+
+    def _veto(ref, xy):
+        return _corridor_veto(ref, xy, _bands, _sensitive, _paired)
+
+    anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
+    legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4)
     # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
     for unit, offs in cluster_offsets.items():
         if unit not in P:
@@ -1900,15 +2719,38 @@ def synth_one(cfg_dict, W, H, strat, seed):
             P[pref] = (ux + dx, uy + dy, pr)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
+    # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
+    # through a FORMED high-current band. The rank key + a pre-route reject (proxy_reject). The
+    # board_w degeneracy guard means a placement that has NOT yet formed its corridors (shunt not
+    # inline / J_IN/J_OUT not aligned -- the pre-Phase-2 state) scores 0 honestly (inert), rather
+    # than a FALSE clean from a near-board-wide band. So the rank key only discriminates once
+    # corridors are formed (Phase 2) or on a well-formed board.
+    model = build_corridor_model(nl, P, comps, board_w=W)
+    cc = corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets, board_w=W)
     proxy = placement_proxy(obj)
-    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy)
+    proxy["corridor_cross"] = cc
+    # MV5: Hub-domain structural quality (inert/0 on non-Hub boards via build_hub_model's gate).
+    hs = hub_score(build_hub_model(nl, P, comps, antenna_edge=cfg.params.get("antenna_edge", ""),
+                                   power_input_nets=cfg.params.get("power_input_nets")), P, W, H)
+    proxy["hub_penalty"] = hs["hub_penalty"]
+    proxy["hub_terms"] = {k: v for k, v in hs.items() if k not in ("active", "hub_penalty")}
+    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy, corridor_cross=cc)
+
+
+def _candidate_sort_key(c):
+    """The production candidate rank key (best-first): legality, then corridor-cleanliness, then the
+    MV4 composite proxy_score. similarity (MV3) is intentionally NOT here -- ranking toward the
+    reference is the over-fit the charter forbids; it stays a reported diagnostic only."""
+    return (c.residual, c.corridor_cross, c.proxy.get("proxy_score", c.proxy.get("hpwl", 0.0)))
 
 
 def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_workers=None):
     """Generate the placement candidates (strategy x seed), in PARALLEL on a spawn pool.
     Mirrors cec_fr.generate_batch's runner-capable design: a large candidate count offloads
     onto the self-hosted runner's cores (max_workers=0/None -> min(#candidates, CPUs)).
-    Returns the candidates sorted best-first by (residual, proxy HPWL)."""
+    Returns the candidates sorted best-first by (residual, corridor_cross, proxy_score)."""
+    cfg = apply_oracle_stage1(cfg)                   # MV2: fill edge_override/mount/antenna inputs
+    ref_pl, ref_proxy = _oracle_reference(cfg)       # MV3/MV4: reference placement + normalizer
     work = [(s, seed) for s in strategies for seed in seeds]
     cfg_dict = {k: getattr(cfg, k) for k in ("board", "profile", "pins", "params",
                                              "dir", "sch", "net", "pcb", "bom_csv")}
@@ -1924,7 +2766,24 @@ def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_worker
             futs = {pool.submit(synth_one, cfg_dict, W, H, s, seed): (s, seed) for s, seed in work}
             for f in as_completed(futs):
                 cands.append(f.result())
-    cands.sort(key=lambda c: (c.residual, c.proxy["hpwl"]))
+    # MV4: composite rank score (== HPWL exactly when there is no oracle -> zero behaviour change on
+    # boards without a reference). MV3: similarity is a DIAGNOSTIC stored on the candidate, NEVER a
+    # sort key (the charter forbids ranking toward the reference).
+    weights = cfg.params.get("proxy_weights")
+    for c in cands:
+        c.proxy["proxy_score"] = round(proxy_score(c.proxy, weights=weights, ref_proxy=ref_proxy), 3)
+    if ref_pl is not None:
+        try:
+            nl = View(cfg).nl
+            for c in cands:
+                c.similarity, c.similarity_detail = oracle_similarity(c, ref_pl, nl)
+        except Exception as e:
+            _tc.warn_once("oracle_similarity", "similarity diagnostic failed (%s); candidates "
+                          "ranked normally, similarity left unset" % e)
+    # Phase 1: corridor_cross is the PRIMARY rank key after legality -- a corridor-clean candidate
+    # ALWAYS beats a sandwich, regardless of proxy_score (which used to tie them at residual==0).
+    # NOTE similarity (MV3) is DELIBERATELY ABSENT from the key (charter: a diagnostic, never a rank).
+    cands.sort(key=_candidate_sort_key)
     return cands
 
 
@@ -1940,10 +2799,12 @@ def place_with_consent(cfg, W, H, *, pins=None, ask=None, strategies=STRATEGIES,
                         "pins": {**cfg.pins, **pins}})
     cands = place_candidates(cfg, W, H, strategies=strategies, seeds=seeds, max_workers=max_workers)
     best = cands[0]
-    if verbose:
-        for c in cands:
+    if verbose:                                        # MV3: surface the top-3 with the diagnostics
+        for c in cands[:3]:
+            sim = f" sim={c.similarity}" if c.similarity >= 0 else ""
             print(f"    cand {c.strat:16s} seed{c.seed} residual={c.residual} "
-                  f"HPWL={c.proxy['hpwl']} RUDYpk={c.proxy['rudy_peak']}")
+                  f"cc={c.corridor_cross} HPWL={c.proxy['hpwl']} "
+                  f"score={c.proxy.get('proxy_score')} RUDYpk={c.proxy['rudy_peak']}{sim}")
     # consent: a user-pinned part that is the binding cause of a bad (overlapping) placement
     if best.residual > 0 and cfg.pins and ask is not None:
         binding = [r for r in cfg.pins if r in best.P]
@@ -2055,6 +2916,23 @@ EPS_ANSWERS = {"antenna_keepout": False, "placement_handoff": "handoff",
 
 
 # ============================================================ materialize + placement handoff
+def _ensure_netlist_path(cfg):
+    """Return a usable .net path for cfg (MV1): its committed netlist if present, else export it ONCE
+    from the schematic to a temp file. Boards like the Hub ship no committed *.net, so Config.load sets
+    cfg.net='' and a direct build_board would parse_netlist(open('')) -> FileNotFoundError. Generation
+    already tolerates this (View.nl sch-exports); only the materialize WRITE step needed it."""
+    if cfg.net and os.path.isfile(cfg.net):
+        return cfg.net
+    if not (cfg.sch and os.path.isfile(cfg.sch)):
+        raise FileNotFoundError(f"cannot materialize {cfg.board!r}: no netlist and no schematic")
+    safe = re.sub(r"[^A-Za-z0-9]+", "_", str(cfg.board)).strip("_") or "board"
+    out = os.path.join(tempfile.gettempdir(), f"cec_synth_mat_{safe}_{os.getpid()}.net")
+    subprocess.run([_tc.kicad_cli(), "sch", "export", "netlist", "-o", out, cfg.sch], capture_output=True)
+    if not os.path.isfile(out):
+        raise FileNotFoundError(f"netlist export failed for {cfg.sch!r} (kicad-cli)")
+    return out
+
+
 def materialize(cand, cfg, out, *, logo=None):
     """Write a placement candidate to a REAL .kicad_pcb (cec_pcb.build_board): every netlist
     footprint at its synth position + edge cuts at the candidate size + the GND zone. Mount
@@ -2068,7 +2946,7 @@ def materialize(cand, cfg, out, *, logo=None):
     P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
           if not _is_mount(r) and not r.startswith(("LOGO", "FID"))}
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    cec_pcb.build_board(out, cfg.net, P3, mounts, logo, cand.W, cand.H, force_argv=False)
+    cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False)
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):
@@ -2734,8 +3612,10 @@ def run_sweep(cfg, sizes, *, strategies=STRATEGIES, seeds=(0, 1), max_workers=No
         best = cands[0]
         board = materialize(best, cfg, os.path.join(out_dir, f"{cfg.board}-{int(W)}x{int(H)}.kicad_pcb"))
         entry = {"W": W, "H": H, "best_strat": best.strat, "best_seed": best.seed,
-                 "residual": best.residual, "proxy": best.proxy, "n_candidates": len(cands),
-                 "board": os.path.relpath(board, ROOT)}
+                 "residual": best.residual, "corridor_cross": best.corridor_cross,
+                 "proxy": best.proxy, "proxy_score": best.proxy.get("proxy_score"),
+                 "similarity": best.similarity, "similarity_detail": best.similarity_detail,
+                 "n_candidates": len(cands), "board": os.path.relpath(board, ROOT)}
         if render and _tc.have_kicad_cli():     # DEGRADE: render is optional (R-05)
             png = board[:-len(".kicad_pcb")] + "-top.png"
             subprocess.run([_tc.kicad_cli(), "pcb", "render", "-o", png, board], capture_output=True)

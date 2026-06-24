@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Structural DRC=13 (require zero) indicates clearance violations; FEM flags show conductor over-temp on /SENSEC1_HI, +5VSB, /SENSEC2_HI, GND (max_T=120.5\u00b0C); pour integrity clipped nets /SENSEC1_LO and /SENSEC2_HI with islands and foreign crosses (17 and 8 respectively) fragment sense copper. These point to routing congestion and thermal hotspots that can be addressed by increased router effort, waypoint intents to route foreign signals around sense pours, and bake_hints keepouts for sense corridors.",
+ "reasoning": "Placement is acceptable (kelvin_ok=true, diffpair_ok=true); the issues are routing quality and thermal management. Routing class allows deterministic corridor-avoid lever from pour_clipped_nets and panel effort bump.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "router_effort_and_waypoints",
+  "detail": "Increase router passes, apply bake_hints keepouts for /SENSEC1_HI, /SENSEC2_HI, and their LO counterparts; use waypoint intents to steer foreign signals (e.g., +5VSB, GND) around sense pours to reduce foreign crosses and improve pour integrity."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

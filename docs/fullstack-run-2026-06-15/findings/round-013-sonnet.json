@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of sense components (likely INA181 or REF) in a high-current band causes fragmented copper pours on /SENSEC2_HI and /SENSEC2_LO, with 3 and 2 islands respectively and foreign cross counts of 14 and 8. This fragmentation leads to 23 DRC violations and 2 unconnected nets. The FEM flags indicate conductor over-temp on these sense nets and GND/+5VSB, consistent with poor thermal/current distribution due to pour fragmentation. Placement is the upstream gate; more routing effort cannot fix this.",
+ "reasoning": "Pour integrity shows clipped sense nets with multiple islands and high foreign cross counts, indicating that foreign signals are crossing the sense copper. This is a placement issue where the sense components are boxed in by other traces/pours. The DRC count of 23 and unconnected nets are symptoms. Since kelvin_ok=true, the T0 placement actuator does not fire, but the corridor-avoid lever and panel effort should address this by evicting the sense components from the congested band.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "placement eviction",
+  "details": "Evict the sense components (INA181/REF) and their owned passive cluster from the high-current band that fragments /SENSEC2_HI and /SENSEC2_LO. Reposition them to a region with fewer foreign signal crossings to restore pour integrity. This is a placement-class fix; the corridor-avoid lever and panel effort will carry it forward."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

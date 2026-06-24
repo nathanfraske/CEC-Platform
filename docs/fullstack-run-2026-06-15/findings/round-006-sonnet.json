@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense nets /SENSEC1_HI, /SENSEC2_HI, /SENSEC2_LO show pour fragmentation (islands, foreign cross) causing DRC violations and conductor over-temp flags. The placement of sense components likely forces foreign signals through sense corridors, degrading pour integrity and thermal performance.",
+ "reasoning": "Pour-integrity reports clipped nets with multiple islands and high foreign_cross counts on sense nets. FEM flags confirm over-temp on these nets. Structural DRC=17 indicates widespread violations. Placement of sensitive bodies (INA/REF/ESP) in high-current bands is the root cause, as it forces routing through sense pours. The corridor-avoid lever will fire from pour_clipped_nets, but a placement eviction is needed to permanently resolve fragmentation.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict_sense_components",
+  "detail": "Reposition INA/REF/ESP bodies and their passive clusters out of high-current bands (e.g., GND, +5VSB) to reduce foreign cross on sense pours. This will improve pour integrity, reduce DRC violations, and mitigate thermal flags."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

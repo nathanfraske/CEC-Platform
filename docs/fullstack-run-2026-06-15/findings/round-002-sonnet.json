@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "/SENSEC2_LO pour is fragmented into two islands with high foreign cross count (9), causing conductor over-temp flags and structural DRCs. Component placement likely blocks continuous copper for this sense net. Kelvin sense traces are routed (kelvin_ok=true) so T0 placement actuator would not fire, but a placement adjustment (e.g., shifting a sensitive body out of the sense corridor) is needed to restore pour integrity.",
+ "reasoning": "The pour-integrity report shows /SENSEC2_LO has 2 islands and 9 foreign crossings, indicating severe fragmentation. FEM flags show conductor over-temp on this net and others, consistent with high resistance from broken copper. Structural DRC count is 25, likely from stubs and pour violations. Since kelvin_ok is true, the T0 actuator (for stranded Kelvin nets) does not apply, but the root cause is placement-related: a component or foreign signal corridor is blocking the sense net pour. A placement eviction of a blocking sensitive body (e.g., INA/REF) could allow the pour to merge into a single island, reducing resistance and DRCs.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "target": "blocking component near /SENSEC2_LO sense corridor (likely an INA or REF)",
+  "action": "reposition the component and its owned passive cluster to clear the pour path, allowing continuous copper for /SENSEC2_LO"
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

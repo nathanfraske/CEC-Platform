@@ -1,0 +1,11 @@
+{
+ "verdict": "repair",
+ "root_cause": "SENSEC2_HI and SENSEC2_LO copper pours are fragmented into multiple islands (2 and 4 respectively) with high foreign cross counts (6 and 17), causing structural DRC errors (21) and conductor over-temp flags. The fragmentation is due to component placement or signal routing that bisects the sense copper, preventing a continuous low-impedance path. This is a placement-class issue because the pour integrity cannot be recovered by routing alone; the parts that break the copper need to be repositioned. Note: T0 placement actuator will not fire because kelvin_ok=true (no stranded sense net), so the corridor-avoid lever and panel effort must carry this.",
+ "reasoning": "The pour-integrity report shows multiple islands for both SENSEC2 nets, indicating that the copper pour is being cut by component bodies or foreign signal tracks. The high foreign cross count confirms many signals crossing the pour region. This placement fragmentation leads to DRC violations (unconnected copper islands) and thermal hot spots (FEM over-temp). Routing effort alone cannot merge these islands if the obstacles are fixed components. Therefore, failure_class=placement is appropriate, even though the T0 actuator is gated by kelvin_ok=false. The diagnosis will steer the loop toward placement adjustments.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "reposition components that fragment SENSEC2 copper (e.g., decoupling caps or sense resistors) to create a clear pour corridor, or add bake_hints keepouts to route foreign signals around the sense region. Consider layer-stagger for crossing signals to keep outer pours unbroken."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

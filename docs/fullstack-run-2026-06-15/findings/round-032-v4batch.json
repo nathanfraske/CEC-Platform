@@ -1,0 +1,6 @@
+{
+ "local_minimum_risk": "high",
+ "assessment": "The batch metrics show persistent DRC errors (fluctuating between 12 and 37) and a single thermal spike (max_T 138.9 in round 31), but no new failure class emerges. The board is not gate-passing, yet the loop appears to be minimizing the plane_signal_mm penalty (always 0) rather than achieving routability. The DRC variation suggests instability without convergence, and the panel consistently escalates, indicating no progress. No injection rules are present, and no distinct, actionable pattern is evident that an owned lever could address. Restraint is warranted.",
+ "findings": [],
+ "declined": true
+}

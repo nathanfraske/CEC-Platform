@@ -304,6 +304,26 @@ class AuditorRedesign(unittest.TestCase):
         self.assertIn("ACTUATION BOUNDARY", prompt)
         self.assertIn("kelvin_ok=false", prompt)                          # T0 fires only on an unrouted sense net
 
+    def test_body_in_corridor_fact_steers_to_a_body_eviction(self):
+        # the deterministic corridor_violations fact, when present, must tell the finder to set
+        # failure_class=placement and put the BODY'S REFDES in target -- NOT mis-diagnose as routing and
+        # target the fenced sense net (the live eps-injected baseline showed exactly that failure mode).
+        lr = {"scorer_penalties": {}, "manager_rules": [], "refuted_metrics": [], "rejections": [], "diagnoses": []}
+        rec = {"gates_pass": False, "kelvin_ok": True, "drc": 27, "plane_signal_mm": 0,
+               "objective": 1000.0, "reasons": [], "stub_summary": {}}
+        pc = {"det_clipped_nets": ["/SENSEC2_LO"], "facts": {},
+              "corridor_bodies": [{"ref": "U10", "base": "/SENSEC2", "band": [32.5, 48.1, 9.5, 27.5]}]}
+        prompt, _ = fs._audit_prompt(rec, lr, 1, pourcheck=pc)
+        self.assertIn("BODY-IN-CORRIDOR", prompt)
+        self.assertIn("U10", prompt)
+        self.assertIn("failure_class=placement", prompt)
+        self.assertIn("proposed_lever.target", prompt)
+        self.assertIn("Do NOT target the sense net", prompt)
+        # absent when there is no body-in-corridor fault (the common case / shared-bus boards)
+        clean, _ = fs._audit_prompt(rec, lr, 1, pourcheck={"det_clipped_nets": [], "facts": {},
+                                                           "corridor_bodies": []})
+        self.assertNotIn("BODY-IN-CORRIDOR", clean)
+
 
 class NewImplPolishFixes(unittest.TestCase):
     """Opus-4.8 panel audit of the prompt-audit branch (docs/.../new-impl-review/opus48-panel-report.md):
@@ -475,6 +495,32 @@ class AuditPR56Fixes(unittest.TestCase):
         self.assertLess(ex.index("TAILMARKER"), 12000)           # but within the new 12000 cap
         out = cec_verifier._slice_spec({"issue": "t"}, {"rules_excerpt": ex})
         self.assertIn("TAILMARKER", out)
+
+
+class TestPlacementLeverAdvertised(unittest.TestCase):
+    """PL-02: the placement lever is model-proposable (in OWNED_LEVERS) and its proposal verbs
+    classify to 'replace', NOT 'avoid' (the _lever_kind 'corridor'/'pour' keyword trap)."""
+
+    def test_owned_levers_has_placement(self):
+        self.assertIsInstance(fs.OWNED_LEVERS, str)
+        self.assertTrue(fs.OWNED_LEVERS)
+        self.assertIn("PLACEMENT EVICTION", fs.OWNED_LEVERS)
+
+    def test_placement_clause_classifies_replace(self):
+        import cec_fs_actuator as act
+        for verb in ("re-place", "move", "reposition"):           # every advertised verb -> 'replace'
+            self.assertEqual(act._lever_kind(verb), "replace", verb)
+        clause = ("re-place / move / reposition a SENSITIVE body OUT of a foreign high-current "
+                  "band that fragments its sense copper")          # the whole clause must not trip 'avoid'
+        self.assertEqual(act._lever_kind(clause), "replace")
+
+    def test_advertised_lever_actuates_to_live_intent(self):
+        import cec_fs_actuator as act
+        fence = act.resolve_fence(pinned_refs=["RS1", "U2"])
+        f = {"proposed_lever": {"lever": "re-place / move the body out of the band", "target": "U30"}}
+        d = act.finding_to_delta(f, {"routed": ""}, {}, 7, fence, sense_nets=[])
+        self.assertEqual(d.kind, "replace")                        # advertised lever -> a LIVE replace Delta
+        self.assertEqual(d.intent["ref"], "U30")
 
 
 if __name__ == "__main__":

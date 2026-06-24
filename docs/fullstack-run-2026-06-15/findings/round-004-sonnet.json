@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of a sensitive body (likely the sense IC for /SENSEC2_LO) within a high-current band fragments the sense copper pour, creating 2 islands and 24 foreign crossings. This causes DRC violations (43) and conductor over-temp flags on sense nets due to current crowding and poor plane integrity.",
+ "reasoning": "Pour integrity shows /SENSEC2_LO has 2 islands and high foreign cross (24), indicating the pour is cut by component placement or routing. Since kelvin_ok=true, the sense net is connected but the plane is fragmented, leading to DRC errors and thermal issues. Placement eviction of the sense IC and its passive cluster out of the offending band can restore pour continuity.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "target": "SENSEC2_LO sense IC (INA/REF) and its owned passives",
+  "action": "Reposition the sensitive body away from the high-current band that fragments the /SENSEC2_LO pour, carrying its passive cluster to avoid stranding decoupling caps. This should reduce foreign cross and islands, lowering DRC and thermal flags."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

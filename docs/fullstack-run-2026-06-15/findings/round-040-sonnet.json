@@ -1,0 +1,15 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of sense components and their associated copper pours is causing fragmentation: pour integrity shows islands and foreign cross on /SENSEC1_HI and /SENSEC2_LO, leading to conductor over-temp flags on those nets. The high DRC count (19) likely includes clearance violations from these fragmented pours. Unconnected nets (2) and stubs on other signals further indicate routing congestion that stems from poor placement of sense bodies relative to foreign high-current bands. Since kelvin_ok is true, the T0 placement actuator will not fire; the corridor-avoid lever and panel effort must address this by either shifting the sense ICs away from the interfering bands or adding keepouts to prevent foreign signals from cutting through sense copper.",
+ "reasoning": "The FEM flags on sense nets and the pour integrity data confirm that the sense copper is being split by foreign signals, causing thermal hotspots and DRC violations. This is a placement-class failure because the router cannot fix fragmented pours; only repositioning or keepouts can resolve it. The high DRC count and unconnected nets are downstream symptoms.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict and reposition sense ICs (INA/REF/ESP) away from the foreign high-current bands that fragment their sense copper, carrying their passive clusters to avoid stranding decoupling caps. Alternatively, add bake_hints keepouts to prevent foreign signals from crossing the sense pour regions.",
+  "target_nets": [
+   "/SENSEC1_HI",
+   "/SENSEC2_LO"
+  ]
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

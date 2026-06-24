@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of components is fragmenting sense pours, especially /SENSEC2_LO (2 islands, foreign_cross=16) and /SENSEC1_LO (foreign_cross=10), causing DRC violations (11 structural DRC) and thermal FEM flags on sense nets. The high foreign signal crossings indicate that sensitive sense corridors are being cut by other signals, a placement-level issue. Since kelvin_ok=true, the T0 placement actuator will not fire, but the corridor-avoid lever and increased router effort may mitigate; however, the underlying placement should be revised to consolidate sense pours.",
+ "reasoning": "The pour-integrity facts show severe fragmentation of sense nets, which is a placement problem. The DRC count and thermal flags are symptoms. The corridor-avoid lever can route foreign signals around sense corridors, but the root cause is placement; thus failure_class=placement is appropriate even though the actuator won't fire for non-Kelvin cases.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "detail": "Reposition sense ICs (INA/REF) and their passive clusters to reduce foreign signal crossings on /SENSEC1_LO and /SENSEC2_LO pours; consider adding keepouts or layer-staggering foreign signals away from sense corridors."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

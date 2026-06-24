@@ -1,0 +1,138 @@
+[
+ {
+  "net": "GND",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "between": [
+     "J_IN1",
+     "C1"
+    ]
+   },
+   {
+    "ref": "C1",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "between": [
+     "C1",
+     "C2"
+    ]
+   },
+   {
+    "ref": "C2",
+    "offset_mm": [
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ {
+  "net": "+3V3",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "between": [
+     "J_IN2",
+     "C30"
+    ]
+   },
+   {
+    "ref": "C30",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "between": [
+     "C30",
+     "C31"
+    ]
+   },
+   {
+    "ref": "C31",
+    "offset_mm": [
+     0,
+     0
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/I2C_SDA",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U11",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "between": [
+     "U11",
+     "C11"
+    ]
+   },
+   {
+    "ref": "C11",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "between": [
+     "C11",
+     "C10"
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/I2C_SCL",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U11",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "between": [
+     "U11",
+     "C20"
+    ]
+   },
+   {
+    "ref": "C20",
+    "offset_mm": [
+     0,
+     0
+    ]
+   },
+   {
+    "between": [
+     "C20",
+     "C30"
+    ]
+   }
+  ]
+ }
+]

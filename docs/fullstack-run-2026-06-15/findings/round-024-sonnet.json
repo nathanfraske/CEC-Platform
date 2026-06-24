@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "13 structural DRCs due to fragmented sense pours (SENSEC1_LO and SENSEC2_LO have islands=2, foreign_cross=19) causing clearance violations and over-temp on sense HI nets; placement of components likely blocking continuous copper.",
+ "reasoning": "The board fails because of 13 DRCs and pour fragmentation on the sense LO nets. The high foreign_cross count and islanding indicate that component placement is interrupting the copper pour, which cannot be fixed by routing alone. Since kelvin_ok=true, the T0 placement actuator does not fire, but the diagnosis is recorded and the corridor-avoid lever will act on the clipped nets.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "target": "components blocking SENSEC1_LO and SENSEC2_LO pours (e.g., INA or REF bodies)",
+  "action": "move out of high-current band to restore continuous pour and reduce DRCs"
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

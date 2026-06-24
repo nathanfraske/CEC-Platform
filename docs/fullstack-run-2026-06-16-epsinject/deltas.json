@@ -1,0 +1,38 @@
+[
+ {
+  "id": "D-r1-0",
+  "round": 1,
+  "source": "auditor",
+  "kind": "refused",
+  "intent": null,
+  "note": "FENCED target '/SENSEC2_LO, /SENSEC2_HI' (locked Kelvin template / pinned) -- refused",
+  "status": "refused"
+ },
+ {
+  "id": "D-r2-0",
+  "round": 2,
+  "source": "auditor",
+  "kind": "refused",
+  "intent": null,
+  "note": "FENCED target '/SENSEC2_LO' (locked Kelvin template / pinned) -- refused",
+  "status": "refused"
+ },
+ {
+  "id": "D-r3-0",
+  "round": 3,
+  "source": "auditor",
+  "kind": "noop",
+  "intent": null,
+  "note": "no clipped-corridor geometry for avoid lever on '/SENSEC1_HI, /SENSEC2_HI, /SENSEC2_LO corridors; offending nets /CAN_RX, /CAN_TX, /I2C_SCL, /I2C_SDA'",
+  "status": "pending"
+ },
+ {
+  "id": "D-r5-0",
+  "round": 5,
+  "source": "auditor",
+  "kind": "refused",
+  "intent": null,
+  "note": "FENCED target '/SENSEC2_LO' (locked Kelvin template / pinned) -- refused",
+  "status": "refused"
+ }
+]

@@ -1,0 +1,9 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense nets /SENSEC1_LO and /SENSEC2_LO have multiple islands (2 and 3) and high foreign cross counts (16 and 12), indicating that foreign signal routing is fragmenting the sense copper pours. This causes structural DRC errors (22) and conductor over-temp FEM flags on sense nets and GND. The placement of components (likely sense ICs or nearby parts) forces foreign signals to cut through the sense corridors, degrading pour integrity and thermal performance. Since kelvin_ok is true, the T0 placement actuator does not fire; the corridor-avoid lever and panel effort must address this.",
+ "reasoning": "The board passes Kelvin and diffpair checks but fails DRC (22 errors) and has FEM over-temp flags. Pour integrity shows clipped sense nets with islands and foreign crosses, which are classic signs of placement-induced routing congestion in sense regions. The high objective (978688) reflects these issues. Placement eviction of sensitive bodies (e.g., INA, REF, ESP) out of foreign high-current bands could reduce fragmentation, but the deterministic T0 actuator only acts on unrouted Kelvin nets. Thus, this is a placement failure that requires manual or panel-driven intervention.",
+ "failure_class": "placement",
+ "proposed_lever": null,
+ "scorer_penalty": null,
+ "manager_rule": null
+}

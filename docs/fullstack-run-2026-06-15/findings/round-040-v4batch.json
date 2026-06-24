@@ -1,0 +1,6 @@
+{
+ "local_minimum_risk": "high",
+ "assessment": "Batch metrics show drc oscillating (9-19) with no new failure class, gates_pass persistently false, and no injection history. This indicates the loop is stuck in a local minimum, minimizing penalties without achieving routability. Restraint is warranted.",
+ "findings": [],
+ "declined": true
+}

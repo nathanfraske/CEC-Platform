@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Pour fragmentation on /SENSEC2_LO (2 islands, 99.6 mm\u00b2) and over-temp flags on sense nets indicate a placement issue: a component (likely a sense IC or its passive cluster) is blocking the sense pour, causing high current density and DRC violations. kelvin_ok=true so T0 placement actuator does not fire; corridor-avoid lever and panel effort will carry the diagnosis.",
+ "reasoning": "The candidate fails gates due to 22 structural DRC errors and FEM over-temp flags on sense nets and GND. Pour integrity shows /SENSEC2_LO has two islands with significant foreign cross, suggesting a component placement fragments the pour. This is a placement-class failure because more routing effort cannot fix a blocked pour; only repositioning the offending body can restore copper continuity. Since kelvin_ok=true, the deterministic T0 actuator is not triggered, but the diagnosis is recorded for corridor-avoid and panel effort.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "description": "Evict the component that fragments the /SENSEC2_LO pour (likely a sense IC or its decoupling cluster) out of the high-current band, carrying its owned passives to avoid stranding caps. Alternatively, layer-stagger foreign signals crossing the sense corridor to reduce bottlenecks."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -176,5 +176,118 @@ class TestOutcomeSerialization(unittest.TestCase):
         self.assertEqual(out["control"]["objective"], 960000)
 
 
+class TestPlacementAnchor(unittest.TestCase):
+    """PL-09: an APPLIED placement move is a DETERMINISTIC anchor (det+1), never a model anchor; a
+    non-placement round is byte-identical to the no-kwarg call (default no-op)."""
+    REC = TestRealAnchorRatio.REC
+    POUR = TestRealAnchorRatio.POUR
+
+    def test_placement_is_one_more_deterministic(self):
+        a0 = fs.real_anchor_ratio(self.REC, self.POUR, placement_moved=False)
+        a1 = fs.real_anchor_ratio(self.REC, self.POUR, placement_moved=True)
+        self.assertEqual(a1["n_deterministic"], a0["n_deterministic"] + 1)
+        self.assertEqual(a1["n_model"], a0["n_model"])   # never a model anchor (no double-count)
+
+    def test_default_is_noop_pins_existing_count(self):
+        self.assertEqual(fs.real_anchor_ratio(self.REC, self.POUR)["n_deterministic"], 13)
+        self.assertEqual(fs.real_anchor_ratio(self.REC, self.POUR, placement_moved=False)["n_deterministic"], 13)
+
+
+class TestPlacementSource(unittest.TestCase):
+    """PL-05: the lane-gated route-source selector -- a CONTROL round NEVER sees the placement override."""
+    def test_augmented_uses_override(self):
+        self.assertEqual(fs._placement_source_for("augmented", "/x/placed-r5.kicad_pcb", "/c"),
+                         "/x/placed-r5.kicad_pcb")
+        self.assertEqual(fs._placement_source_for("augmented", None, "/c"), "/c")
+
+    def test_control_never_sees_override(self):
+        self.assertEqual(fs._placement_source_for("control", "/x/placed-r5.kicad_pcb", "/c"), "/c")
+        self.assertEqual(fs._placement_source_for("control", None, "/c"), "/c")
+
+    def test_exec_route_one_threads_override_arg(self):
+        # the host route shim must append --board-pcb-override (container-translated) only when given one.
+        import cec_overnight_directed as ovd
+        captured = {}
+
+        class _R:
+            returncode = 0
+            stdout = "RECORD_JSON={}"
+            stderr = ""
+        orig = ovd.subprocess.run if hasattr(ovd, "subprocess") else None
+        import subprocess as _sp
+        real = _sp.run
+
+        def fake_run(cmd, *a, **k):
+            captured["cmd"] = cmd
+            return _R()
+        _sp.run = fake_run
+        try:
+            ovd._exec_route_one("eps-8pin", 5, board_pcb_override="build/fullstack/placed-r5.kicad_pcb")
+            with_ov = list(captured["cmd"])
+            ovd._exec_route_one("eps-8pin", 5)
+            without = list(captured["cmd"])
+        finally:
+            _sp.run = real
+        self.assertIn("--board-pcb-override", with_ov)
+        self.assertTrue(any(c.endswith("placed-r5.kicad_pcb") for c in with_ov))
+        self.assertNotIn("--board-pcb-override", without)
+
+
+class TestPlacementRow(unittest.TestCase):
+    """PL-08: the placement fields ride the SAME lane+corpus_state-tagged measurement row + A/B table."""
+    def test_augmented_row_fields(self):
+        r = fs._placement_row_fields({"moved": True, "verdict": "placed", "ref": "U10",
+                                      "refs": ["U10", "C40"], "moved_mm": 3.0}, "augmented")
+        self.assertTrue(r["placement_moved"])
+        self.assertEqual(r["placement_refs"], ["U10", "C40"])
+        self.assertEqual(r["placement_verdict"], "placed")
+        self.assertEqual(r["placement_ref"], "U10")
+
+    def test_control_row_suppressed(self):
+        r = fs._placement_row_fields({"moved": False, "verdict": "suppressed"}, "control", "refuted")
+        self.assertFalse(r["placement_moved"])
+        self.assertEqual(r["placement_verdict"], "suppressed")
+        self.assertEqual(r["placement_settled"], "refuted")
+
+    def test_row_field_keyset(self):
+        r = fs._placement_row_fields({"moved": True}, "augmented")
+        self.assertEqual(set(r), {"placement_moved", "placement_verdict", "placement_ref",
+                                  "placement_refs", "placement_moved_mm", "placement_settled"})
+
+    def test_ab_placement_moved_rate(self):
+        rows = [{"lane": "augmented", "placement_moved": True, "placement_settled": "vindicated"},
+                {"lane": "augmented", "placement_moved": True, "placement_settled": "refuted"},
+                {"lane": "control", "placement_moved": False}]
+        ab = fs.ab_aggregate(rows)
+        self.assertEqual(ab["augmented"]["placement_moved_rate"], 1.0)
+        self.assertEqual(ab["control"]["placement_moved_rate"], 0.0)      # control NEVER moves
+        self.assertEqual(ab["augmented"]["placement_vindicated"], 1)
+        self.assertEqual(ab["augmented"]["placement_refuted"], 1)
+        self.assertIn("placement_moved_rate", fs.render_ab_table(ab))
+
+    def test_ab_empty_axis_is_none_not_crash(self):
+        ab = fs.ab_aggregate([{"lane": "augmented", "gates_pass": False}])    # no placement field
+        self.assertIsNone(ab["augmented"]["placement_moved_rate"])
+
+
+class TestPlacementKeepGuard(unittest.TestCase):
+    """BLOCKER-01: the kind-aware launder guard. A placement move is kept/compounded ONLY if it settled
+    vindicated AND held pour integrity -- a pour-FRAGMENTING move that reads 'vindicated' on the pour-blind
+    objective_base (the both-gates-fail launder) is NEVER promoted."""
+    def test_vindicated_pour_ok_keeps(self):
+        self.assertTrue(fs._placement_keep("vindicated", True))
+
+    def test_vindicated_but_fragmented_is_rejected(self):
+        # THE LAUNDER: settle_outcome can return 'vindicated' on objective_base while the pour fragmented.
+        self.assertFalse(fs._placement_keep("vindicated", False))
+
+    def test_unknown_pour_integrity_allowed(self):
+        self.assertTrue(fs._placement_keep("vindicated", None))   # not-False -> not the launder signal
+
+    def test_refuted_never_keeps(self):
+        self.assertFalse(fs._placement_keep("refuted", True))
+        self.assertFalse(fs._placement_keep("overturned", True))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

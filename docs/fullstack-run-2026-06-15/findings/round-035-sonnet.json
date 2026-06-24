@@ -1,0 +1,11 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement of U1 and surrounding components creates a congested corridor that prevents the /I2C_SDA waypoint from finding a clear spot within 2.0 mm (stub compile failure). Additionally, the sense net /SENSEC2_LO is fragmented into 3 islands with high foreign cross (20), indicating that the placement of the sense IC or shunt is breaking the pour continuity. The structural DRC count of 12 and conductor over-temp FEM flags further confirm that the current placement blocks clean routing and thermal paths.",
+ "reasoning": "The stub failure for /I2C_SDA directly points to a placement obstruction (U1). The pour-integrity data shows /SENSEC2_LO is clipped and fragmented, which is a classic symptom of a sense net being forced around a placed component. Since kelvin_ok=true, the T0 placement actuator (GR-02) will not fire automatically, but the diagnosis remains placement-class: the router cannot close because of where parts sit. A placement adjustment (e.g., shifting U1 or relocating the sense IC) is needed to free routing channels and restore pour continuity.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict U1 or its associated passive cluster away from the /I2C_SDA waypoint zone, and reposition the sense IC for /SENSEC2_LO to reduce foreign crossings and merge islands. This is a placement eviction (allowed per constraints) that should resolve the stub failure and improve sense net integrity."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

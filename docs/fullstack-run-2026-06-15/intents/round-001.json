@@ -1,0 +1,118 @@
+[
+ {
+  "net": "GND",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "H1",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "H2",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "H3",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   },
+   {
+    "ref": "C1",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "net": "+3V3",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "C10",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   },
+   {
+    "ref": "C11",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   },
+   {
+    "ref": "C20",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   },
+   {
+    "ref": "C21",
+    "offset_mm": [
+     0,
+     -2
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/THRESH",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "C30",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "C31",
+    "offset_mm": [
+     2,
+     2
+    ]
+   },
+   {
+    "ref": "U30",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/DETAMPC1",
+  "layers": [
+   "F.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U30",
+    "offset_mm": [
+     -2,
+     2
+    ]
+   }
+  ]
+ }
+]

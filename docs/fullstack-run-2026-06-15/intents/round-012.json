@@ -1,0 +1,83 @@
+[
+ {
+  "net": "/I2C_SDA",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     0,
+     15
+    ]
+   },
+   {
+    "ref": "U10",
+    "offset_mm": [
+     0,
+     15
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/I2C_SCL",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U1",
+    "offset_mm": [
+     0,
+     17
+    ]
+   },
+   {
+    "ref": "U11",
+    "offset_mm": [
+     0,
+     17
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/THRESH",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U30",
+    "offset_mm": [
+     0,
+     15
+    ]
+   },
+   {
+    "ref": "U31",
+    "offset_mm": [
+     0,
+     15
+    ]
+   }
+  ]
+ },
+ {
+  "net": "/DETAMPC1",
+  "layers": [
+   "B.Cu"
+  ],
+  "waypoints": [
+   {
+    "ref": "U30",
+    "offset_mm": [
+     0,
+     15
+    ]
+   }
+  ]
+ }
+]

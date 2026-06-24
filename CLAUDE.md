@@ -842,15 +842,24 @@ Open items (surface before acting):
    crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
    U1 courtyard overlaps (antenna keepout, neighbors clear).
 
-4. 12VHPWR Standard PCB finish (status 2026-06-05): high-current lanes routed
-   (J3->shunt F.Cu, shunt->J4 B.Cu, all 6); lane 3 sense done (reference). 47
-   ratlines remain — 6x INA OUT->ESP ADC (ISENSEP1-6) + Kelvin taps/RC-filter->INA
-   on lanes 1,2,4,5,6. Before re-DRC: Fill All Zones (the 252 "actual 0.000mm"
-   clearance/hole hits are STALE GND-pour, NOT real shorts), delete 18 dangling
-   vias + 3 track stubs, Update-PCB-from-Schematic (syncs U2 value TJA1462A->
-   TJA1051T/3, same SOIC-8 footprint; ALSO pulls the v3.7 NTC temp dividers
-   TH1/TH2 + R20/R21 + C20/C21 — TH1 at the J3 +12V pins, TH2 ambient, into spare
-   ADC2 IO13/IO14 — to place + route). Spec bumped to v3.7: OQ-8 RESOLVED (no local
+4. 12VHPWR Standard PCB finish — **DONE / ROUTED (verified 2026-06-24; supersedes the
+   2026-06-05 snapshot).** The board is FULLY ROUTED and fab-direction: kicad-cli DRC = 0
+   unconnected / 0 schematic-parity / 15 cosmetic-silk-only violations (no copper / clearance /
+   courtyard hits), the board is NOT DRAFT, and a fab snapshot exists at fab/12vhpwr-standard-proto-v1.
+   The 2026-06-05 "remaining work" is STALE: the 47 ratlines ARE routed, zones ARE filled, the
+   dangling vias/stubs are gone, U2 IS TJA1051T/3, and the NTC dividers TH1/TH2 + R20/R21 + C20/C21
+   ARE placed + routed (NCP15XH103F03RC / C77131, /TEMP1->IO13, /TEMP2->IO14). THERMAL re-validated
+   2026-06-24 with the 2.5D min-cut solver + production case-cooling (metal case: TIM on the RS1-6
+   shunts + the M3 mounts) = maxT 72.95C / dT 22.95C = PASS at balanced 600W/50A (the dashboard now
+   shows this with the cooling model labeled; the still-air no-case bound is maxT 151 / dT 101, the
+   conservative number). RESIDUAL (production rev, owner sign-off — NOT proto blockers): (a) the
+   high-current lanes are single-layer-per-segment (HI F.Cu / LO B.Cu), NOT the paralleled F.Cu+B.Cu
+   MIRROR the FEM note below recommends — thermal passes as-built, so the mirror is a margin
+   improvement, not a fix; (b) the 12V F->B transition vias are 0.6/0.3mm, below the Power12V netclass
+   0.9/0.5mm spec — fine for the proto, enlarge for a production rev; (c) OQ-11 shunt part still open;
+   (d) J3/J4 12V-2x6 consigned; (e) silk cleanup (15 cosmetic hits) is a GUI finishing pass.
+   Historical 2026-06-05 build detail + the FEM probe + model-debt provenance are retained below.
+   Spec bumped to v3.7: OQ-8 RESOLVED (no local
    REF3033 on Standard — transient-capture tier, not precision); 12V input TVS and
    status LED considered and DECLINED (§6.1). The NTC dividers were hand-spliced
    into the routed schematic (ERC clean, netlist-verified TEMP1->IO13/TEMP2->IO14,
@@ -1490,7 +1499,9 @@ Done (kept for context):
   ties the 2 tabs into the GND pour on Update-Footprints-from-Library. SW1/2 -> TS-1088-
   AR02016 (C720477, XKB, Basic) like the Hub -- land CHANGES (EVQ 4-pad -> TS-1088 2-pad),
   NOT a drop-in, so the committer re-places + re-routes the 2 buttons. Both done in the
-  schematic (ERC clean, netlist unchanged 85 nets); PCB Update-from-Library pending in GUI.
+  schematic (ERC clean, netlist unchanged 85 nets); PCB Update-from-Library DONE (verified
+  2026-06-24: the routed PCB carries J1 = cec:RJ45_FTP_Shielded_Horizontal with SH1/SH2 on GND
+  and the TS-1088 buttons placed + routed).
   THEN (2026-06-06, diff-pair prep) renamed the 6 INA-input pairs /INPP{n}->/IN{n}_P and
   /INNP{n}->/IN{n}_N so KiCad's differential-pair router auto-recognizes them (suffix _P/_N);
   pure label rename (UUIDs/positions preserved, ERC clean, netlist node-set identical, only
@@ -1601,11 +1612,10 @@ Done (kept for context):
   R25 10k (C25744) to GND, C16 100nF (C1525) node filter -> TEMP_HUB -> ADC1 IO3
   (the last free ADC1 channel); same topology as the 12VHPWR TH1/TH2. ERC clean
   (benign mismatch + the 2 pre-existing off-grid only), netlist + audit verified, all
-  sourced; PCB place/route pending GUI. FOLLOW-UP: the 12VHPWR TH1/TH2 are still the
-  R_Small placeholder on a generic R_0402 land with NO LCSC/MPN — repoint them to
-  cec-vendor:Thermistor_NTC + cec-Resistor_SMD:NTC_0402_1005Metric + C77131 on that
-  board's next pass (identical pins, not yet placed on the PCB = clean swap; left to
-  that board's session to avoid a concurrent-edit conflict).
+  sourced; PCB place/route pending GUI. FOLLOW-UP RESOLVED (verified 2026-06-24): the 12VHPWR
+  TH1/TH2 now carry MPN NCP15XH103F03RC / LCSC C77131 on the cec-Resistor_SMD:NTC_0402_1005Metric
+  land and ARE placed + routed on the PCB (nets /TEMP1->U1.IO13, /TEMP2->U1.IO14). No longer a
+  placeholder; nothing pending on that board for the NTCs.
 - Vendored symbol pinout audit (2026-06-05): every IC/connector symbol's
   pin#->name verified against the manufacturer datasheet (WebSearch + KiCad stock
   library cross-check; TI/NXP/ST PDF hosts 403 in-session) — INA240 D/SOIC-8
@@ -1735,9 +1745,18 @@ Done (kept for context):
   sense off the INNER shunt edges, RC filter at the INA. NOTE the plan calls for
   BOTH inner pours = GND on this board (the shared stackup's In2 net hint is 12V, a
   cable-board leftover; the pour net is per-zone in the GUI). The copper itself is
-  routed in the GUI (CLAUDE routing boundary). All:
-  4-layer, 2oz outer / 1oz inner (hpwr: 12V on both outers, GND both inners; cable
-  boards In1=GND, In2=12V).
+  routed in the GUI (CLAUDE routing boundary). All: 4-layer, 2oz outer / 1oz inner.
+  STACKUP BY BOARD CLASS (owner, 2026-06-14 — corrects the stale "In2=12V" cable-board
+  hint): the CABLE boards (eps / PCIe / 12VHPWR) carry 12V on BOTH outers and GND on
+  BOTH inners (the shared-generator In2=12V net hint is a stale leftover — see the
+  per-board NOTE above; the actual eps/PCIe/12VHPWR boards pour both inners = GND). The
+  24-pin and the Hub are the EXCEPTIONS: each has ONE solid inner GND plane plus a SECOND
+  inner layer used for routing — the Hub's second inner is a SIGNAL layer; the 24-pin's
+  is a POWER-routing layer (it carries several rails — 12V / 5V / 3V3 / 5VSB — that must
+  route around each other). So the corridor layer-assignment lever (route a band-crossing
+  foreign signal off the pour) is a CABLE-BOARD concept: on those boards the 12V is the
+  two outer pours only, so the lever staggers each crossing across F.Cu vs B.Cu so the
+  un-cut mirror always carries; the Hub/24-pin have a real inner routing layer instead.
   N cables inline (PSU-side IN on the top edge, load-side OUT on the bottom — 12V
   flows top->bottom through each cable's 2-pad R_2512 shunt + INA238), the cables
   INSET so the four corner M3 mounts (MountingHole_3.2mm_M3_Pad_Via) stay clear of

@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Placement fragmentation of sense net /SENSEC2_LO into 3 islands (area 85.02 mm\u00b2, foreign_cross=12) due to a component or via cluster cutting the pour, causing high DRC count (22) and conductor over-temp flags on multiple nets including /SENSEC1_HI, /SENSEC2_HI, GND, +5VSB. The fallback intents generation exacerbated routing quality, but the fundamental copper discontinuity is a placement issue. Kelvin sense nets are routed (kelvin_ok=true), so the T0 placement actuator does not fire; diagnosis recorded for corridor-avoid lever and panel effort.",
+ "reasoning": "The board fails due to structural DRC=22 and thermal FEM flags. Pour-integrity shows /SENSEC2_LO is clipped with 3 islands, indicating copper fragmentation from a placed component or dense via field. This is a placement-class failure because the router cannot heal fragmented pours. The fallback generation degraded routing but did not cause the fragmentation. Since kelvin_ok=true, T0 actuator is not triggered; the corridor-avoid lever and panel effort will address foreign signal crossings, but the placement issue requires manual or eviction-based repair.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "action": "Identify the component or via cluster causing the /SENSEC2_LO pour to split into 3 islands. Move that sensitive body (e.g., an INA or REF) out of the sense copper corridor, carrying its owned passive cluster to avoid stranding decoupling caps. Alternatively, use bake_hints keepouts to protect the sense pour from foreign vias.",
+  "note": "T0 actuator does not fire because kelvin_ok=true; this lever is advisory for the panel."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

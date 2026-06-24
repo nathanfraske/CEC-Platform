@@ -13,7 +13,7 @@
 set -uo pipefail
 ROOT="${CLAUDE_PROJECT_DIR:-/home/nathan/CEC-Platform}"
 cd "$ROOT" || exit 0
-RUN_DIR="$ROOT/docs/fullstack-run-2026-06-13"
+RUN_DIR="$ROOT/docs/fullstack-run-${CEC_FS_DATE:-$(date +%F)}"   # today's run dir (was hardcoded stale)
 WLOG="$RUN_DIR/watchdog.log"
 GW="$(ip route 2>/dev/null | awk '/default/{print $3}')"
 RUN_PAT='cec_fullstack[.]py --board'
@@ -34,7 +34,7 @@ relaunch_run() {
   fi
   log "RELAUNCH run (absent 2 checks) ..."
   CEC_STREAM_DIR="$RUN_DIR/streams" CEC_VLLM_REVIEWER_MODEL=cec-worker-vision \
-    setsid nohup python3 scripts/cec_fullstack.py --board eps-8pin --hours 7 \
+    setsid nohup python3 -u scripts/cec_fullstack.py --board eps-8pin --hours 7 \
     >> "$RUN_DIR/run.log" 2>&1 </dev/null &
 }
 relaunch_dash() {

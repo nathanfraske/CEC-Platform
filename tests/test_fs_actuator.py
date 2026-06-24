@@ -5,6 +5,7 @@
 # Tests for cec_fs_actuator: the bounded/fenced/logged finding->actuator harness + the v4 local-min escape.
 # Host-runnable -- cec_fr02 is stubbed (no pcbnew).
 
+import json
 import os
 import sys
 import types
@@ -60,11 +61,53 @@ class TestFindingToDelta(unittest.TestCase):
     def test_replace_on_pinned_REFUSED(self):
         d = act.finding_to_delta(_f("re-place the part", "U2"), REC, GRID, 5, FENCE, sense_nets=SENSE)
         self.assertEqual(d.status, "refused")
+        self.assertIsNone(d.intent)             # PL-01: fence runs BEFORE intent build -> no live intent
 
     def test_effort_and_noop(self):
         self.assertEqual(act.finding_to_delta(_f("bump router passes"), REC, GRID, 5, FENCE).kind, "effort")
         self.assertEqual(act.finding_to_delta(_f("reweight the scorer", "drc"), REC, GRID, 5, FENCE).kind, "noop")
         self.assertEqual(act.finding_to_delta({"proposed_lever": None}, REC, GRID, 5, FENCE).kind, "noop")
+
+
+class TestPlacementDeltaLive(unittest.TestCase):
+    """PL-01: the 'replace' Delta now carries a LIVE placement intent (was intent=None / inert)."""
+    def test_replace_has_live_intent(self):
+        d = act.finding_to_delta(_f("re-place the part", "U30"), REC, GRID, 5, FENCE, sense_nets=SENSE)
+        self.assertEqual(d.kind, "replace")
+        self.assertIsInstance(d.intent, dict)
+        self.assertEqual(d.intent["kind"], "placement")
+        self.assertEqual(d.intent["ref"], "U30")
+        self.assertEqual(d.intent["op"], "evict")
+        self.assertIsNone(d.intent["band"])         # band resolved on-board at apply time
+        self.assertTrue(d.intent["cluster"])
+
+    def test_net_target_ref_is_none(self):
+        d = act.finding_to_delta(_f("reposition", "/SOMENET"), REC, GRID, 5, FENCE, sense_nets=SENSE)
+        self.assertEqual(d.kind, "replace")
+        self.assertIsNone(d.intent["ref"])          # a NET target -> consumer resolves the owning body
+        self.assertEqual(d.intent["net"], "/SOMENET")
+
+    def test_replace_on_sense_net_REFUSED(self):
+        d = act.finding_to_delta(_f("move", "/SENSEC2_LO"), REC, GRID, 5, FENCE, sense_nets=SENSE)
+        self.assertEqual(d.status, "refused")
+        self.assertIsNone(d.intent)
+
+    def test_v4_escape_has_intent(self):
+        flat = [{"objective": 1000.0, "max_T": 100.0}] * 3      # flat physics -> escape arms
+        esc = act.v4_structural_escape("high", flat, REC, {"contested": ["/SENSEC2_LO"]}, 5, FENCE,
+                                       sense_nets=SENSE)         # only fenced contested -> REPLACE escape
+        self.assertIsNotNone(esc)
+        self.assertEqual(esc.kind, "replace")
+        self.assertIsInstance(esc.intent, dict)
+        self.assertEqual(esc.intent["kind"], "placement")
+        self.assertIsNone(esc.intent["ref"])
+
+    def test_as_record_compact(self):
+        d = act.finding_to_delta(_f("re-place", "U30"), REC, GRID, 5, FENCE, sense_nets=SENSE)
+        rec = d.as_record()
+        self.assertEqual(rec["intent"]["kind"], "placement")
+        self.assertFalse(rec["intent"]["band_present"])
+        self.assertLess(len(json.dumps(rec)), 400)             # stays small (no fabricated rects)
 
 
 class TestBound(unittest.TestCase):
@@ -175,6 +218,59 @@ class TestSymmetricOutcomes(unittest.TestCase):
         d2 = log.add(self._delta(self.FB, 9))
         oc = log.record_outcome(d2, self.FB, {"objective": 965000}, {"objective": 960000})  # FB loses
         self.assertEqual(oc.verdict, "refuted")             # different target = different hypothesis
+
+
+class TestPlacementOutcome(unittest.TestCase):
+    """PL-06: a placement ('replace') delta settles through the SAME kind-opaque DeltaLog/control-gate
+    as a routing delta -- no new comparison code; gate-pass dominates so a launder cannot vindicate."""
+    PF = {"root_cause": "U30 sits in the /SENSEC2 corridor", "failure_class": "placement",
+          "proposed_lever": {"lever": "re-place the body out of the band", "target": "U30"}}
+
+    def _delta(self, rnd):
+        return act.finding_to_delta(self.PF, REC, GRID, rnd, FENCE, sense_nets=SENSE)
+
+    def test_vindicated(self):
+        log = act.DeltaLog()
+        d = log.add(self._delta(5))
+        self.assertEqual(d.kind, "replace")
+        oc = log.record_outcome(d, self.PF, {"objective_base": 950000, "gates_pass": False},
+                                {"objective_base": 960000, "gates_pass": False},
+                                gate_metric="objective_base")
+        self.assertEqual(oc.verdict, "vindicated")
+        self.assertEqual(d.status, "vindicated")
+        self.assertEqual(oc.finding["proposed_lever"]["target"], "U30")   # full detail, like a victory
+
+    def test_refuted_rolls_back_full_detail(self):
+        log = act.DeltaLog()
+        d = log.add(self._delta(5))
+        oc = log.record_outcome(d, self.PF, {"objective_base": 965000, "gates_pass": False},
+                                {"objective_base": 960000, "gates_pass": False},
+                                gate_metric="objective_base", corpus_state={"sha": "z"})
+        self.assertEqual(oc.verdict, "refuted")
+        self.assertEqual(d.status, "rolled_back")
+        self.assertLess(oc.margin, 0)
+        self.assertEqual(oc.corpus_state["sha"], "z")
+
+    def test_fragmented_pour_cannot_vindicate(self):
+        # gate-launder closed: a move whose routed board FAILS gates (pour fragmented) can never win,
+        # even with a better objective_base than the control.
+        log = act.DeltaLog()
+        d = log.add(self._delta(5))
+        oc = log.record_outcome(d, self.PF, {"objective_base": 900000, "gates_pass": False},  # better obj
+                                {"objective_base": 960000, "gates_pass": True},                # control PASSES
+                                gate_metric="objective_base")
+        self.assertEqual(oc.verdict, "refuted")             # control gate-passes -> treatment cannot win
+
+    def test_overturn_on_same_hypothesis(self):
+        log = act.DeltaLog()
+        d1 = log.add(self._delta(5))
+        log.record_outcome(d1, self.PF, {"objective_base": 950000}, {"objective_base": 960000},
+                           gate_metric="objective_base")
+        d2 = log.add(self._delta(9))
+        oc = log.record_outcome(d2, self.PF, {"objective_base": 965000}, {"objective_base": 960000},
+                                gate_metric="objective_base")
+        self.assertEqual(oc.verdict, "overturned")
+        self.assertEqual(oc.supersedes, d1.id)
 
 
 if __name__ == "__main__":

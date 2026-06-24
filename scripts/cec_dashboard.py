@@ -44,12 +44,84 @@ COMPOSE = ["docker", "compose", "-f", os.path.join(ROOT, "docker", "compose.yaml
 CFG = {
     "run_dir": os.path.join(ROOT, "docs", "inloop-audit-2026-06-11"),
     "board_glob": os.path.join(ROOT, "build", "overnight-directed", "*.kicad_pcb"),
-    "proc_pattern": "cec_inloop_audit.py|cec_overnight_directed.py",
+    "proc_pattern": "cec_inloop_audit.py|cec_overnight_directed.py|cec_place_planner.py",
     "plot_layers": "F.Cu,B.Cu,In1.Cu,In2.Cu,Edge.Cuts",
+    "auto": True,           # auto-discover the live run (off when --run-dir is given explicitly)
+    "kind": None,           # which run kind is being tracked (set by discovery)
+    "max_boards": 8,        # cap rendered candidates (a long run has 100s) -> newest N; small so the
+                            # per-board electro-thermal solve (now full max-realism physics) stays snappy
 }
+
+# Known CEC run kinds, newest-PID-first preference. Each: (kind, process regex, --flag whose value is the
+# run/out dir [None -> a fixed dir]). The dashboard auto-points run_dir + board_glob at whichever is live,
+# so it tracks the place-planner / overnight / audit run with no manual --run-dir.
+RUN_KINDS = [
+    # (kind, re.search pattern [discovery], pgrep pattern [_proc_info, no \b], --dir flag, default dir)
+    ("place-planner",      r"cec_place_planner\.py .*--run", "cec_place_planner.py.*--run", "--out-dir",
+     os.path.join(ROOT, "build", "place-planner")),
+    ("overnight-directed", r"cec_overnight_directed\.py",   "cec_overnight_directed.py",   "--out-dir",
+     os.path.join(ROOT, "build", "overnight-directed")),
+    ("inloop-audit",       r"cec_inloop_audit\.py",         "cec_inloop_audit.py",         None,
+     os.path.join(ROOT, "docs", "inloop-audit-2026-06-11")),
+]
+
+
+def _flag_val(cmd, flag):
+    """Value of `flag` in a command line (supports '--flag v' and '--flag=v')."""
+    toks = cmd.split()
+    for i, t in enumerate(toks):
+        if t == flag and i + 1 < len(toks):
+            return toks[i + 1]
+        if t.startswith(flag + "="):
+            return t.split("=", 1)[1]
+    return None
+
+
+def _discover_run():
+    """Find a LIVE CEC run and derive its run_dir + board_glob so the dashboard auto-tracks it. The run's
+    boards land in its --out-dir; cec_place_planner also writes run.log + measurement.jsonl there. Returns
+    a dict to merge into CFG, or None when nothing is running (keep the last config so the final board stays
+    visible after a run ends)."""
+    try:
+        out = subprocess.run(["pgrep", "-af", "cec_place_planner.py|cec_overnight_directed.py|cec_inloop_audit.py"],
+                             capture_output=True, text=True, timeout=5).stdout
+    except Exception:                                            # noqa: BLE001
+        return None
+    for ln in out.splitlines():
+        if "cec_dashboard" in ln or "pgrep" in ln:
+            continue
+        _pid, _, cmd = ln.partition(" ")
+        for kind, rx, pgrep_pat, dirflag, default_dir in RUN_KINDS:
+            if re.search(rx, cmd):
+                d = _flag_val(cmd, dirflag) if dirflag else None
+                run_dir = (d if (d and os.path.isabs(d)) else os.path.join(ROOT, d)) if d else default_dir
+                return {"kind": kind, "run_dir": os.path.abspath(run_dir),
+                        "board_glob": os.path.join(os.path.abspath(run_dir), "*.kicad_pcb"),
+                        "proc_pattern": pgrep_pat}
+    return None
+
+
+def _discover_loop():
+    """Re-discover the live run every few seconds so the dashboard FOLLOWS runs: it re-points at a newly
+    started run, and when one ends it keeps the last run's dir (so the result stays on screen)."""
+    while True:
+        try:
+            if CFG.get("auto"):
+                disc = _discover_run()
+                if disc and disc["run_dir"] != CFG.get("run_dir"):
+                    CFG.update(disc)
+                    with _cands_lock:
+                        _cands.clear()                          # drop the old run's renders
+                elif disc:
+                    CFG["kind"] = disc["kind"]; CFG["proc_pattern"] = disc["proc_pattern"]
+        except Exception:                                       # noqa: BLE001
+            pass
+        time.sleep(5)
 NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|_XSERV|xvfb-entry|wxWidgets")
 
-_render = {"png": None, "board": None, "mtime": 0, "status": "idle", "ts": 0}
+_render = {"status": "idle", "board": None, "ts": 0}     # newest-render status (header)
+_cands = []                                             # ordered candidate renders (the timeline)
+_cands_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------- helpers
@@ -200,6 +272,30 @@ def _seats():
     return out
 
 
+def _agentic():
+    """The Hub run's agentic-decisions summary from report.json: the resolved seat backend +
+    per-tier model (so a silently-deterministic / degraded run is VISIBLE -- the anti-ossification
+    countermeasure), per-candidate gate + conformance verdicts, the advisory corpus-fit, and the
+    policy/intake-gate state. Read-only; empty {} when no report yet."""
+    rf = _runfile("report.json")
+    if not os.path.exists(rf):
+        return {}
+    try:
+        r = json.load(open(rf))
+    except Exception:                                             # noqa: BLE001
+        return {}
+    routes = [{"rank": x.get("rank"), "strat": x.get("strat"), "gates_pass": x.get("gates_pass"),
+               "kelvin_ok": x.get("kelvin_ok"), "diffpair_ok": x.get("diffpair_ok"),
+               "conformance_fail": x.get("conformance_fail"), "drc": x.get("drc"),
+               "unconnected": x.get("unconnected")} for x in (r.get("routes") or [])]
+    cf = r.get("corpus_fit") or {}
+    cf_s = (cf.get("verdict") or cf.get("status") or cf.get("fit")
+            or ("error: " + str(cf.get("error"))[:80] if cf.get("error") else None)) if isinstance(cf, dict) else cf
+    return {"seats": r.get("seats"), "policy_ok": r.get("policy_ok"),
+            "ref_intake": r.get("ref_intake"), "routes": routes, "corpus_fit": cf_s,
+            "best_rank": (r.get("best_route") or {}).get("rank")}
+
+
 def _seat_events(key, off):
     """Incremental events for one seat since byte-offset `off`. The auditor seat reuses the claude -p
     stream parser (returned as one content delta); a local seat returns its NDJSON events (start /
@@ -232,56 +328,156 @@ def _seat_events(key, off):
 
 
 # ---------------------------------------------------------------- board render thread
+def _board_files():
+    """Every board matching the (comma-separated) board_glob, de-duped + ordered by mtime -- the
+    candidate TIMELINE the scroller steps through. Each glob may use ** (recursive)."""
+    out = {}
+    for g in CFG["board_glob"].split(","):
+        g = g.strip()
+        if not g:
+            continue
+        for b in glob.glob(g, recursive=True):
+            try:
+                out[os.path.abspath(b)] = os.path.getmtime(b)
+            except OSError:
+                pass
+    ordered = [b for b, _ in sorted(out.items(), key=lambda kv: kv[1])]
+    cap = CFG.get("max_boards") or 0
+    return ordered[-cap:] if cap and len(ordered) > cap else ordered   # newest N (a long run has 100s)
+
+
+def _render_thermal(board, rdir, stem):
+    """OPTIONAL, NON-BLOCKING electro-thermal heatmap overlay for ONE board. Runs
+    cec_thermal_overlay.py in the routing container (it needs pcbnew + scipy +
+    shapely), which solves the 2D field at the balanced EPS currents + the current
+    stackup and composites the temperature heatmap OVER the board's copper layout,
+    georeferenced. Returns (overlay_png|None, summary_dict). A solver error MUST NOT
+    break the dashboard -- any failure degrades to (None, {error}); the plain render
+    still shows."""
+    tdir = os.path.join(rdir, stem + "-thermal")              # PER-LAYER mode: a dir of <layer>.png + _cbar.png
+    rel_out = os.path.relpath(tdir, ROOT)
+    try:
+        grid = os.environ.get("CEC_DASH_THERMAL_GRID", "0.8")   # 0.8 = ~2s/board for the live loop. For a small
+        #   curated showcase, set CEC_DASH_THERMAL_GRID=0.4 so a 0.6mm GND berth (the void around the 12V pins)
+        #   is resolved -- at 0.8mm a sub-grid void averages away and reads as "no hole" (the owner-caught issue).
+        tmo = 45 if grid == "0.8" else 420                      # finer grid is slower (AMG 0.15mm ~3min) -> longer window
+        r = subprocess.run(
+            COMPOSE + ["exec", "-T", "routing", "python3",
+                       "/workspace/scripts/cec_thermal_overlay.py",
+                       "--board", f"/workspace/{os.path.relpath(board, ROOT)}",
+                       "--out-dir", f"/workspace/{rel_out}",
+                       "--grid-mm", grid],
+            capture_output=True, text=True, timeout=tmo)
+        summary = {}
+        for ln in reversed((r.stdout or "").splitlines()):
+            ln = ln.strip()
+            if ln.startswith("{") and ln.endswith("}"):
+                try:
+                    summary = json.loads(ln)
+                except Exception:                                 # noqa: BLE001
+                    summary = {}
+                break
+        if summary.get("ok"):
+            layers = {name: os.path.join(tdir, fn)
+                      for name, fn in (summary.get("layers") or {}).items()
+                      if os.path.exists(os.path.join(tdir, fn))}
+            cbar = os.path.join(tdir, summary.get("cbar", "")) if summary.get("cbar") else None
+            if cbar and not os.path.exists(cbar):
+                cbar = None
+            return layers, cbar, summary
+        return {}, None, (summary or {"ok": False, "error": "no overlay produced"})
+    except subprocess.TimeoutExpired:
+        # the host `docker exec` is killed by the timeout, but the CONTAINER python ORPHANS and keeps thrashing
+        # the CPU -> reap it (match the unique per-board out-dir) so slow boards don't pile up concurrent solves.
+        try:
+            subprocess.run(COMPOSE + ["exec", "-T", "routing", "pkill", "-9", "-f", rel_out],
+                           capture_output=True, timeout=20)
+        except Exception:                                         # noqa: BLE001
+            pass
+        return {}, None, {"ok": False, "error": "thermal solve >45s (routed board) -- layout shown, no heatmap"}
+    except Exception as e:                                        # noqa: BLE001
+        return {}, None, {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def _render_board(board):
+    """Render ONE board to per-candidate artifacts under run_dir/renders/<stem>.{png,svg} +
+    <stem>-layers/ (the raytraced top render + the per-layer plot SVGs). Returns a candidate dict or
+    None. Paths are passed to the routing container as /workspace/<repo-relative> (the repo is mounted
+    there); the build/hub-LIVE symlink is relative so it resolves identically in-container."""
+    rel = os.path.relpath(board, ROOT)
+    rdir = _runfile("renders")
+    os.makedirs(rdir, exist_ok=True)
+    stem = os.path.splitext(os.path.basename(board))[0]
+    png, svg = os.path.join(rdir, stem + ".png"), os.path.join(rdir, stem + ".svg")
+    ldir = os.path.join(rdir, stem + "-layers")
+    os.makedirs(ldir, exist_ok=True)
+    r = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render", "--side",
+                                  "top", "-o", f"/workspace/{os.path.relpath(png, ROOT)}",
+                                  f"/workspace/{rel}"], capture_output=True, timeout=180)
+    p = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
+                                  "--layers", CFG["plot_layers"], "--page-size-mode", "2",
+                                  "--exclude-drawing-sheet",
+                                  "-o", f"/workspace/{os.path.relpath(svg, ROOT)}",
+                                  f"/workspace/{rel}"], capture_output=True, timeout=120)
+    subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
+                              "--mode-multi", "--layers", CFG["plot_layers"], "--page-size-mode", "2",
+                              "--exclude-drawing-sheet",
+                              "-o", f"/workspace/{os.path.relpath(ldir, ROOT)}",
+                              f"/workspace/{rel}"], capture_output=True, timeout=120)
+    layers = {}
+    for lf in glob.glob(os.path.join(ldir, f"{stem}-*.svg")):
+        layers[os.path.basename(lf)[len(stem) + 1:-4]] = lf       # e.g. "F_Cu"
+    ok_png = r.returncode == 0 and os.path.exists(png)
+    ok_svg = p.returncode == 0 and os.path.exists(svg)
+    if not (ok_png or ok_svg):
+        return None
+    # OPTIONAL per-layer electro-thermal overlay (never blocks; degrades to {} on error)
+    thermal_layers, thermal_cbar, thermal_sum = _render_thermal(board, rdir, stem)
+    return {"stem": stem, "board": board, "png": png if ok_png else None,
+            "svg": svg if ok_svg else None, "layers": layers,
+            "thermal_layers": thermal_layers, "thermal_cbar": thermal_cbar, "thermal_sum": thermal_sum,
+            "mtime": os.path.getmtime(board), "ts": time.time()}
+
+
 def _render_loop():
-    """Produce BOTH views of the newest candidate: the raytraced PNG (render) AND the
-    layer PLOT SVG (kicad-cli pcb export svg, copper layers + edge -- the owner's
-    'plotted board' ask: actual track geometry, inspectable, zoomable)."""
-    png_host = _runfile("dashboard-board.png")
-    svg_host = _runfile("dashboard-board.svg")
+    """Render every candidate board (timeline scroller) -- but render NEWEST-FIRST and publish _cands
+    INCREMENTALLY after each one, so the live board shows within seconds instead of after a whole pass
+    (a long run has dozens of boards). Cache by mtime -- a board is re-rendered only when it changes."""
     while True:
         try:
-            newest = _latest(CFG["board_glob"])
-            if newest and os.path.getmtime(newest) > _render["mtime"]:
-                _render.update(status="rendering", board=os.path.basename(newest))
-                rel = os.path.relpath(newest, ROOT)
-                r = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render",
-                                              "--side", "top",
-                                              "-o", f"/workspace/{os.path.relpath(png_host, ROOT)}",
-                                              f"/workspace/{rel}"],
-                                   capture_output=True, timeout=180)
-                p = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export",
-                                              "svg", "--layers", CFG["plot_layers"],
-                                              "--page-size-mode", "2", "--exclude-drawing-sheet",
-                                              "-o", f"/workspace/{os.path.relpath(svg_host, ROOT)}",
-                                              f"/workspace/{rel}"],
-                                   capture_output=True, timeout=120)
-                # PER-LAYER plots (mode-multi: one SVG per layer, same board-area viewBox)
-                # -> the dashboard stacks them with checkboxes so the inner-plane fill
-                # doesn't occlude the track layers when zooming.
-                ldir = _runfile("layers")
-                os.makedirs(ldir, exist_ok=True)
-                stem = os.path.splitext(os.path.basename(newest))[0]
-                subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export",
-                                          "svg", "--mode-multi", "--layers", CFG["plot_layers"],
-                                          "--page-size-mode", "2", "--exclude-drawing-sheet",
-                                          "-o", f"/workspace/{os.path.relpath(ldir, ROOT)}",
-                                          f"/workspace/{rel}"],
-                               capture_output=True, timeout=120)
-                layers = {}
-                for lf in glob.glob(os.path.join(ldir, f"{stem}-*.svg")):
-                    layers[os.path.basename(lf)[len(stem) + 1:-4]] = lf   # e.g. "F_Cu"
-                ok_png = r.returncode == 0 and os.path.exists(png_host)
-                ok_svg = p.returncode == 0 and os.path.exists(svg_host)
-                if ok_png or ok_svg:
-                    _render.update(png=png_host if ok_png else _render["png"],
-                                   svg=svg_host if ok_svg else _render.get("svg"),
-                                   layers=layers,
-                                   mtime=os.path.getmtime(newest), status="ok", ts=time.time())
-                else:
-                    _render.update(status=f"render-failed png_rc={r.returncode} svg_rc={p.returncode}")
+            with _cands_lock:
+                have = {c["stem"]: c for c in _cands}
+            boards = _board_files()                              # oldest -> newest
+            stems = [os.path.splitext(os.path.basename(b))[0] for b in boards]
+            live = set(stems)
+            have = {s: c for s, c in have.items() if s in live}  # drop boards no longer present
+            for b in reversed(boards):                           # newest first -> live board appears fast
+                stem = os.path.splitext(os.path.basename(b))[0]
+                ex = have.get(stem)
+                if ex and ex.get("mtime", -1) >= os.path.getmtime(b) and (ex["png"] or ex["svg"]):
+                    continue                                     # cached + current
+                _render.update(status="rendering", board=stem)
+                c = _render_board(b) or ex or {"stem": stem, "board": b, "png": None, "svg": None,
+                                               "layers": {}, "mtime": os.path.getmtime(b), "ts": time.time()}
+                have[stem] = c
+                with _cands_lock:                                # publish after EACH render (board order)
+                    _cands[:] = [have[s] for s in stems if s in have]
+                _render.update(status="ok", board=stem, ts=c.get("ts", 0))
+            if not boards:
+                _render.update(status="idle", board=None)
         except Exception as e:                                    # noqa: BLE001
             _render.update(status=f"err:{type(e).__name__}")
-        time.sleep(10)
+        time.sleep(8)
+
+
+def _cand_at(idx):
+    """The candidate dict at scroller index *idx* (default = newest), or None."""
+    with _cands_lock:
+        if not _cands:
+            return None
+        if idx is None or idx < 0 or idx >= len(_cands):
+            return _cands[-1]
+        return _cands[idx]
 
 
 # ---------------------------------------------------------------- http
@@ -316,28 +512,49 @@ class H(BaseHTTPRequestHandler):
                               "n_usable_ratification_candidates", "n_manager_rules", "pareto_finalists")}
                 except Exception:                                 # noqa: BLE001
                     pass
+            with _cands_lock:
+                cands = [{"stem": c["stem"], "ts": c["ts"], "has_png": bool(c["png"]),
+                          "has_svg": bool(c["svg"]), "layers": sorted(c["layers"]),
+                          "has_thermal": bool(c.get("thermal_layers")),
+                          "thermal_layers": sorted((c.get("thermal_layers") or {}).keys()),
+                          "has_thermal_cbar": bool(c.get("thermal_cbar")),
+                          "thermal": (c.get("thermal_sum") or {})} for c in _cands]
             self._json({"ts": time.time(), "run": _proc_info(),
                         "measurement": _measurement(), "rules": _live_rules(),
                         "log": _log_tail(), "finding": _latest_finding(),
                         "board": {"name": _render["board"], "status": _render["status"],
-                                  "rendered_ts": _render["ts"],
-                                  "layers": sorted(_render.get("layers", {}))},
-                        "bundle": bundle, "run_dir": CFG["run_dir"]})
+                                  "rendered_ts": _render["ts"]},
+                        "candidates": cands,                      # the timeline scroller's data
+                        "bundle": bundle, "run_dir": CFG["run_dir"],
+                        "kind": CFG.get("kind"), "auto": CFG.get("auto")})
         elif path == "/api/stream":
             self._json(_stream_text(int(params.get("off", 0))))
         elif path == "/api/seats":
             self._json({"seats": _seats()})
+        elif path == "/api/agentic":
+            self._json(_agentic())
         elif path == "/api/seat":
             self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
                                     int(params.get("off", 0))))
-        elif path in ("/board.png", "/board.svg") or path.startswith("/layer/"):
-            if path.startswith("/layer/"):
+        elif (path in ("/board.png", "/board.svg", "/thermal-cbar.png")
+              or path.startswith("/layer/") or path.startswith("/thermal-layer/")):
+            try:
+                idx = int(params["cand"]) if "cand" in params else None
+            except ValueError:
+                idx = None
+            cand = _cand_at(idx)                                   # the scroller-selected candidate
+            if path == "/thermal-cbar.png":
+                p, ctype = (cand or {}).get("thermal_cbar"), "image/png"
+            elif path.startswith("/thermal-layer/"):
+                name = os.path.basename(path[len("/thermal-layer/"):])   # traversal-safe
+                p, ctype = ((cand or {}).get("thermal_layers", {}).get(name)), "image/png"
+            elif path.startswith("/layer/"):
                 name = os.path.basename(path[len("/layer/"):])      # traversal-safe
-                p, ctype = _render.get("layers", {}).get(name), "image/svg+xml"
+                p, ctype = ((cand or {}).get("layers", {}).get(name)), "image/svg+xml"
             else:
                 key, ctype = (("png", "image/png") if path.endswith("png")
                               else ("svg", "image/svg+xml"))
-                p = _render.get(key)
+                p = (cand or {}).get(key)
             if p and os.path.exists(p):
                 body = open(p, "rb").read()
                 self.send_response(200)
@@ -347,13 +564,30 @@ class H(BaseHTTPRequestHandler):
                 self.wfile.write(body)
             else:
                 self._json({"error": "not available yet"}, 404)
+        elif path == "/thermal-grid":                              # the T(x,y) field for the hover-readout
+            try:
+                idx = int(params["cand"]) if "cand" in params else None
+            except ValueError:
+                idx = None
+            cand = _cand_at(idx)
+            tl = (cand or {}).get("thermal_layers") or {}
+            gp = os.path.join(os.path.dirname(next(iter(tl.values()))), "thermal-grid.json") if tl else None
+            if gp and os.path.exists(gp):
+                body = open(gp, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self._json({"error": "no grid"}, 404)
         else:
             self._json({"error": "not found"}, 404)
 
 
 PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>CEC live run</title><style>
 body{background:#101418;color:#cfd8dc;font:13px/1.45 ui-monospace,Menlo,monospace;margin:0}
-.grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:auto 1fr 1fr;gap:8px;padding:8px;height:97vh;box-sizing:border-box}
+.grid{display:grid;grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:auto 1fr 1fr auto;gap:8px;padding:8px;min-height:97vh;box-sizing:border-box}
 .card{background:#161c22;border:1px solid #263238;border-radius:8px;padding:8px;overflow:auto;min-height:0}
 h2{font-size:12px;color:#80cbc4;margin:0 0 6px;text-transform:uppercase;letter-spacing:1px}
 #hdr{grid-column:1/4;display:flex;gap:24px;align-items:center}
@@ -376,36 +610,102 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <div class="card" id="board" style="display:flex;flex-direction:column"><h2 style="flex:none">latest board <span id="bstat" class="dim"></span>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='png';bswap()">render</button>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='svg';bswap()">plot</button>
+<button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='thermal';bswap()" title="2D electro-thermal heatmap over the layout">thermal</button>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="pfit()">fit</button>
+<span id="thermhdr"></span>
 <span id="lyrboxes"></span></h2>
+<div id="cscrub" style="flex:none;display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px">
+ <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="cstep(-1)" title="previous candidate">◀</button>
+ <input type="range" id="crange" min="0" max="0" value="0" step="1" style="flex:1;accent-color:#80cbc4" oninput="cpick(+this.value)">
+ <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="cstep(1)" title="next candidate">▶</button>
+ <button class="pill" id="cfollow" style="cursor:pointer;border:0" onclick="followNewest=true;cpick(cands.length-1)" title="jump to newest + auto-follow">live</button>
+ <span id="clabel" class="dim">no candidates yet</span></div>
 <img id="bimg" src="/board.png" style="display:none;max-width:100%;border-radius:4px">
-<div id="pwrap" style="flex:1;overflow:auto;cursor:grab;border-radius:4px;background:#0d1117;min-height:0">
-<div id="pstack" style="position:relative;width:860px"></div></div></div>
+<div id="pwrap" style="flex:1;overflow:auto;cursor:grab;border-radius:4px;background:#000;min-height:0">
+<div id="pstack" style="position:relative;width:860px;background:#000;isolation:isolate"></div></div>
+<img id="cbar" src="/thermal-cbar.png" style="display:none;width:100%;margin-top:5px;border-radius:3px">
+<div id="thtip" style="position:fixed;display:none;z-index:60;pointer-events:none;background:#101418ee;color:#e0f2f1;border:1px solid #37474f;border-radius:3px;padding:3px 7px;font:12px/1.3 monospace;white-space:nowrap"></div></div>
 <div class="card" id="seatcard" style="display:flex;flex-direction:column"><h2 style="flex:none">seat streams (live) — per manager · panel lens · worker · reviewer · auditor</h2><div id="seats" style="flex:1;overflow:auto;min-height:0"><span class="dim">waiting for seats…</span></div></div>
 <div class="card" style="grid-column:1/3"><h2>convergence — pen_total (orange) vs drc (blue), kelvin band (red=fail)</h2>
 <canvas id="spark" width="900" height="90"></canvas><div style="max-height:230px;overflow:auto"><table id="mt"></table></div></div>
 <div class="card"><h2>injected ruleset</h2><div id="rules"></div></div>
+<div class="card" id="agentic" style="grid-column:1/4"><h2>agentic decisions — active tier · per-candidate verdicts · corpus-gate</h2><div id="agbody"><span class="dim">no agentic (Hub) run yet…</span></div></div>
 </div><script>
 let soff=0, thoughtsBuf="", bmode='svg', plotW=860, knownLayers=[], lyrOn={};
+let thermGrid=null;                                           // T(x,y) field for the hover readout
+let cands=[], selCand=-1, followNewest=true;                  // candidate timeline scroller state
 const DEFAULT_ON={F_Cu:1,B_Cu:1,Edge_Cuts:1};                 // inner planes OFF by default
+function cq(){ // image query: scope to the selected candidate + cache-bust on its render ts
+ const c=cands[selCand]; return '?cand='+(selCand<0?0:selCand)+'&v='+((c&&c.ts)||0);}
+function cstep(d){ if(!cands.length)return; cpick(Math.max(0,Math.min(cands.length-1,(selCand<0?cands.length-1:selCand)+d))); }
+function cpick(i){ if(!cands.length)return; selCand=Math.max(0,Math.min(cands.length-1,i));
+ followNewest=(selCand===cands.length-1);
+ const c=cands[selCand], nl=(c&&c.layers)||[];               // adopt THIS candidate's layer set
+ if(nl.join()!==knownLayers.join()){knownLayers=nl; for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L]; lyrBoxes();}
+ clabel(); thermLabel(); bswap(); }
+function clabel(){
+ const r=document.getElementById('crange'), lab=document.getElementById('clabel'), fb=document.getElementById('cfollow');
+ r.max=Math.max(0,cands.length-1); r.value=Math.max(0,selCand);
+ const c=cands[selCand];
+ lab.textContent = cands.length? ((selCand+1)+'/'+cands.length+'  '+(c?c.stem:'')) : 'no candidates yet';
+ fb.style.background=followNewest?'#33691e':'#263238'; fb.style.color=followNewest?'#dcedc8':'#90a4ae';}
 function bswap(){
- const im=document.getElementById('bimg'), pw=document.getElementById('pwrap');
- if(bmode==='png'){im.style.display='block';pw.style.display='none';im.src='/board.png?t='+(window._bts||0);}
- else{im.style.display='none';pw.style.display='block';buildStack();}}
+ const im=document.getElementById('bimg'), pw=document.getElementById('pwrap'), cb=document.getElementById('cbar');
+ im.style.display='none'; pw.style.display='none'; if(cb)cb.style.display='none';
+ lyrBoxes();                                                  // checkboxes reflect the current mode
+ if(bmode==='png'){im.style.display='block';im.src='/board.png'+cq();}
+ else{ pw.style.display='block'; buildStack();
+  if(bmode==='thermal'){ fetchThermGrid();                   // load the T field for the hover readout
+   if(cb){const c=cands[selCand]; if(c&&c.has_thermal_cbar){cb.style.display='block';cb.src='/thermal-cbar.png'+cq();}} }
+  else { thermGrid=null; document.getElementById('thtip').style.display='none'; } }}
+function fetchThermGrid(){
+ thermGrid=null; const c=cands[selCand]; if(!c||!c.has_thermal) return;
+ fetch('/thermal-grid'+cq()).then(r=>r.ok?r.json():null).then(g=>{thermGrid=g;}).catch(()=>{thermGrid=null;}); }
+function thermHover(e){
+ const tip=document.getElementById('thtip');
+ if(bmode!=='thermal'||!thermGrid){ tip.style.display='none'; return; }
+ const r=document.getElementById('pstack').getBoundingClientRect();
+ const fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+ if(fx<0||fx>1||fy<0||fy>1){ tip.style.display='none'; return; }
+ const rows=thermGrid.shape[0], cols=thermGrid.shape[1];
+ const col=Math.max(0,Math.min(cols-1,Math.floor(fx*cols))), row=Math.max(0,Math.min(rows-1,Math.floor(fy*rows)));
+ const T=thermGrid.T[row*cols+col], ex=thermGrid.extent;      // [xmin,ymin,xmax,ymax]
+ const mx=(ex[0]+fx*(ex[2]-ex[0])).toFixed(1), my=(ex[1]+fy*(ex[3]-ex[1])).toFixed(1);
+ tip.innerHTML=`<b style="color:#ffcc80">${T.toFixed(1)}°C</b> <span style="opacity:.55">@ ${mx},${my}mm</span>`;
+ tip.style.display='block'; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+12)+'px'; }
+function thermLabel(){
+ // show max_T / dT / verdict for the selected candidate's thermal solve in the board header
+ const el=document.getElementById('thermhdr'); const c=cands[selCand];
+ const t=(c&&c.thermal)||{};
+ if(c&&c.has_thermal&&t.ok){
+  const cl=t.verdict==='PASS'?'ok':'bad';
+  const cool=t.cooling?`  ·  ${esc(t.cooling)}`:'';
+  el.innerHTML=`<span class="pill ${cl}" title="2D electro-thermal: max copper temperature; gate dT<=30C over ambient ${t.ambient}C (balanced 350W; solid pins). Cooling model: ${esc(t.cooling||'still-air')}">`+
+   `θ max ${t.max_T}°C  dT ${t.dT}°C  ${t.verdict}${cool}</span>`;
+ } else if(c&&t&&t.error){
+  el.innerHTML=`<span class="pill dim" title="${esc(t.error)}">θ n/a</span>`;
+ } else { el.innerHTML=''; }}
+function modeLayers(){ // the layer set + image source for the current board mode
+ const c=cands[selCand], therm=(bmode==='thermal');
+ return {ls: therm?((c&&c.thermal_layers)||[]):knownLayers, base: therm?'/thermal-layer/':'/layer/', therm};}
 function buildStack(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
- let first=true;
+ const {ls,base,therm}=modeLayers();
  // draw order: bottom copper first, F.Cu then Edge on top
- const order=[...knownLayers].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
- for(const L of order){ if(!lyrOn[L])continue;
-  const im=document.createElement('img'); im.src='/layer/'+L+'?t='+(window._bts||0);
-  im.style.cssText='width:100%;display:block;pointer-events:none;'+(first?'position:relative':'position:absolute;left:0;top:0');
-  first=false; st.appendChild(im);}
- if(first){ // nothing on -> fall back to the combined plot
-  const im=document.createElement('img'); im.src='/board.svg?t='+(window._bts||0);
-  im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im);}}
+ const order=[...ls].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
+ const ons=order.filter(L=>lyrOn[L]);                        // show ONLY the selected layer(s); none -> blank
+ let first=true;
+ for(const L of ons){
+  const im=document.createElement('img'); im.src=base+L+cq();
+  // mix-blend-mode:lighten lets the layers STACK -- each SVG's black background (and the thermal PNGs'
+  // cool/transparent areas) contributes nothing, so toggling a layer on no longer hides the others.
+  im.style.cssText='width:100%;display:block;pointer-events:none;mix-blend-mode:lighten;'+(first?'position:relative':'position:absolute;left:0;top:0');
+  first=false; st.appendChild(im);}}
+ // NO never-blank fallback in either mode: nothing selected -> blank (the owner-caught bug was svg mode
+ // falling back to the combined /board.svg, which read as "something is still selected").
 function lyrBoxes(){
- document.getElementById('lyrboxes').innerHTML=knownLayers.map(L=>
+ const {ls}=modeLayers();
+ document.getElementById('lyrboxes').innerHTML=ls.map(L=>
   `<label class="pill" style="cursor:pointer"><input type="checkbox" ${lyrOn[L]?'checked':''} onchange="lyrOn['${L}']=this.checked;buildStack()"> ${L.replace('_','.')}</label>`).join('');}
 function pfit(){plotW=document.getElementById('pwrap').clientWidth-4;buildStack();}
 // wheel-zoom anchored at the cursor + drag-pan
@@ -420,6 +720,9 @@ window.addEventListener('DOMContentLoaded',()=>{
  pw.addEventListener('mousedown',e=>{pan={x:e.clientX,y:e.clientY,l:pw.scrollLeft,t:pw.scrollTop};pw.style.cursor='grabbing';e.preventDefault();});
  window.addEventListener('mousemove',e=>{if(pan){pw.scrollLeft=pan.l-(e.clientX-pan.x);pw.scrollTop=pan.t-(e.clientY-pan.y);}});
  window.addEventListener('mouseup',()=>{pan=null;pw.style.cursor='grab';});
+ const st=document.getElementById('pstack');                  // hover readout: T(x,y) in thermal mode
+ st.addEventListener('mousemove',thermHover);
+ st.addEventListener('mouseleave',()=>{document.getElementById('thtip').style.display='none';});
 });
 async function tick(){
  try{
@@ -427,18 +730,27 @@ async function tick(){
   const r=s.run||{};
   document.getElementById('status').innerHTML=
    `<span class="pill ${r.alive?'ok':'bad'}">${r.alive?'RUNNING pid '+r.pid+' ('+(r.elapsed||'')+')':'NOT RUNNING'}</span>`+
-   `<span class="pill">rounds: ${s.measurement.length}</span><span class="pill dim">${s.run_dir.split('/').pop()}</span>`;
+   (s.kind?`<span class="pill ${s.auto?'ok':'dim'}">${s.auto?'AUTO ':''}${s.kind}</span>`:'')+
+   `<span class="pill">rounds: ${s.measurement.length}</span>`+
+   `<span class="pill">boards: ${(s.candidates||[]).length}</span>`+
+   `<span class="pill dim">${(s.run_dir||'').split('/').pop()}</span>`;
   document.getElementById('bundle').innerHTML = s.bundle?
    `<span class="pill warn">FINAL: ${s.bundle.convergence_verdict} | usable ${s.bundle.n_usable_ratification_candidates} | rules ${s.bundle.n_manager_rules} | finalists ${s.bundle.pareto_finalists}</span>`:'';
   document.getElementById('log').textContent=(s.log||[]).slice(-40).join('\n');
   const el=document.getElementById('log'); el.scrollTop=el.scrollHeight;
-  // board
+  // board + candidate timeline scroller
   document.getElementById('bstat').textContent=`${s.board.name||''} ${s.board.status||''}`;
-  const nl=(s.board.layers||[]);
+  const oldKey = (selCand>=0 && cands[selCand]) ? (selCand+'@'+cands[selCand].ts) : '';
+  cands = s.candidates||[];
+  if(followNewest || selCand<0 || selCand>=cands.length) selCand = cands.length-1;
+  const c = cands[selCand];
+  const nl = (c&&c.layers)||[];
   if(nl.join()!==knownLayers.join()){knownLayers=nl;
    for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L];
    lyrBoxes();}
-  if(s.board.rendered_ts && s.board.rendered_ts>(window._bts||0)){window._bts=s.board.rendered_ts; bswap();}
+  clabel(); thermLabel();
+  const newKey = c ? (selCand+'@'+c.ts) : '';   // re-fetch the image when the selected cand/render changes
+  if(newKey && newKey!==oldKey) bswap();
   // (per-seat thoughts are handled by seatTick below — one live section per seat)
   // rules
   const ru=s.rules||{};
@@ -497,21 +809,67 @@ async function seatTick(){
   }
  }catch(e){}
 }
+// ---- agentic decisions: resolved seat backend + per-candidate verdicts + corpus-gate (Hub report.json) ----
+function vpill(v){const ok=v===true,bad=v===false;return `<span class="pill ${ok?'ok':bad?'bad':'dim'}">${v}</span>`;}
+async function agenticTick(){
+ try{
+  const a=await (await fetch('/api/agentic')).json();
+  const el=document.getElementById('agbody');
+  if(!a||!a.seats){return;}                                   // leave the placeholder until a Hub run exists
+  const s=a.seats||{}, be=s.backend||'?';
+  const becl=be==='cloud'?'warn':(be==='local'?'ok':'dim');   // cloud=amber, local=green, off=dim
+  let h=`<div style="margin-bottom:6px"><span class="pill ${becl}">TIER: ${be.toUpperCase()}</span>`+
+        `<span class="pill">manager: ${esc(s.manager_model||'—')}</span>`+
+        `<span class="pill">worker: ${esc(s.worker_model||'—')}</span>`+
+        (s.effort?`<span class="pill">effort: ${esc(s.effort)}</span>`:'')+
+        `<span class="pill dim">${esc(s.reason||'')}</span></div>`;
+  h+=`<div style="margin-bottom:6px">`+
+     `<span class="pill ${a.policy_ok===true?'ok':'bad'}">policy ${a.policy_ok===true?'ok':'FAIL'}</span>`+
+     (a.ref_intake?`<span class="pill ${a.ref_intake.ok?'ok':'warn'}">ref intake ${a.ref_intake.ok?'ok':a.ref_intake.error?'n/a':'fail'}</span>`:'')+
+     (a.corpus_fit?`<span class="pill dim">corpus-fit: ${esc(String(a.corpus_fit))}</span>`:'')+`</div>`;
+  const rt=a.routes||[];
+  if(rt.length){
+   const cols=['rank','strat','gates_pass','kelvin_ok','diffpair_ok','conformance_fail','drc','unconnected'];
+   h+='<table><tr>'+cols.map(c=>'<th>'+c.replace(/_/g,' ')+'</th>').join('')+'</tr>'+
+     rt.map(r=>'<tr>'+cols.map(c=>{let v=r[c];let cl='';
+       if(c==='gates_pass'||c==='kelvin_ok'||c==='diffpair_ok')cl=v===true?'ok':(v===false?'bad':'');
+       if(c==='conformance_fail')cl=(v>0)?'bad':(v===0?'ok':'');
+       if(c==='rank'&&v===a.best_rank)cl='ok';
+       return `<td class="${cl}">${v}</td>`}).join('')+'</tr>').join('')+'</table>';
+  }
+  el.innerHTML=h;
+ }catch(e){}
+}
 tick(); setInterval(tick,2000);
 seatTick(); setInterval(seatTick,1500);
+agenticTick(); setInterval(agenticTick,3000);
 </script></body></html>"""
 
 
 def main():
-    ap = argparse.ArgumentParser(description="CEC live run dashboard (read-only)")
+    ap = argparse.ArgumentParser(description="CEC live run dashboard (read-only; auto-tracks the live run)")
     ap.add_argument("--port", type=int, default=8090)
-    ap.add_argument("--run-dir", default=CFG["run_dir"])
-    ap.add_argument("--board-glob", default=CFG["board_glob"])
+    ap.add_argument("--run-dir", default=None, help="pin a run dir (default: AUTO-discover the live run)")
+    ap.add_argument("--board-glob", default=None, help="pin the board glob (default: auto from the run dir)")
+    ap.add_argument("--no-auto", action="store_true", help="disable auto-discovery even with no --run-dir")
     a = ap.parse_args()
-    CFG["run_dir"] = os.path.abspath(a.run_dir)
-    CFG["board_glob"] = a.board_glob
+    if a.run_dir or a.board_glob or a.no_auto:
+        CFG["auto"] = False                                     # explicit config -> don't auto-follow
+        if a.run_dir:
+            CFG["run_dir"] = os.path.abspath(a.run_dir)
+            CFG["board_glob"] = a.board_glob or os.path.join(CFG["run_dir"], "*.kicad_pcb")
+        elif a.board_glob:
+            CFG["board_glob"] = a.board_glob
+    else:
+        disc = _discover_run()                                  # seed from whatever is live right now
+        if disc:
+            CFG.update(disc)
+            print(f"dashboard: auto-tracking {disc['kind']} -> {disc['run_dir']}", flush=True)
+        else:
+            print("dashboard: no live run found yet -- will auto-attach when one starts", flush=True)
     threading.Thread(target=_render_loop, daemon=True).start()
-    print(f"dashboard: http://localhost:{a.port}  (run_dir={CFG['run_dir']})", flush=True)
+    threading.Thread(target=_discover_loop, daemon=True).start()
+    print(f"dashboard: http://localhost:{a.port}  (auto={CFG['auto']}, run_dir={CFG['run_dir']})", flush=True)
     ThreadingHTTPServer(("0.0.0.0", a.port), H).serve_forever()
 
 

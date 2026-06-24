@@ -268,6 +268,22 @@ def apply_edit(state, edit):
             raise KeyError(f"apply_edit place_rotate: footprint {edit['ref']} not found")
         fp.SetOrientationDegrees(fp.GetOrientationDegrees() + float(edit["by"]))
         pcbnew.SaveBoard(state.board, b)
+    elif t == "place_cluster":
+        # PLACEMENT EVICTION (cluster-aware, PL-03): move a sensitive body + its OWNED passive cluster
+        # OUT of a foreign high-current band via cec_place.apply_corridor_evict (the ONE canonical
+        # eviction: nearest_evict_delta + containment guard + RS*/J* cluster-exclude). Replaces the
+        # cap-blind place_nudge so the IC's decoupling caps are not stranded in the band.
+        import pcbnew
+        import cec_place
+        b = pcbnew.LoadBoard(state.board)
+        # FENCE-01: honor the lever fence wall -- the edit carries the fenced refs corridor_evict_repair
+        # resolved, so a pinned/Kelvin/sense part is refused at apply_corridor_evict too (defense-in-depth).
+        res = cec_place.apply_corridor_evict(b, edit["ref"], tuple(edit["band"]),
+                                             fence=edit.get("fence"))
+        if res and res.get("out"):
+            pcbnew.SaveBoard(state.board, b)
+            edit["moved_refs"] = res.get("moved_refs")
+        del b                                            # SWIG-01: never reuse a board object after Save
     else:
         raise ValueError(f"apply_edit: unknown edit type {t!r}")
     state.edits.append(edit)
@@ -533,8 +549,56 @@ def logo_finishing_repair(board_path, rules=None, metrics=None):
             "why": f"finishing: reserve decorative {logo.GetReference()} so FR keeps copper/vias out of it"}
 
 
+def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
+    """MANAGER-tier PLACEMENT corridor lever: a SENSITIVE part body inside a FOREIGN high-current corridor
+    band cuts the pour. Emit a 'place_cluster' that evicts it (+ its owned passive cluster) past the
+    nearest band edge (apply_edit -> cec_place.apply_corridor_evict; then FR re-routes). FENCED parts are
+    NEVER moved (FENCE-01): structural shunts/connectors (RS*/J*), the LOCKED Kelvin/§6.13 sense ICs (any
+    cable's sense_ics -- the §6.8 geometry is a placement-tier/human decision, not a router repair), and
+    any caller-supplied fence['refs']. The lever moves only non-sense sensitive bodies (e.g. the ESP/
+    peripherals). Returns the first MOVABLE violation's edit, or None if clean / shared-bus / all fenced."""
+    try:
+        import cec_synth_pipeline as sp
+        viols = sp.corridor_violations(board_path)
+    except Exception:
+        return None
+    if not viols:
+        return None
+    # FENCE-01: the LOCKED sense ICs (Kelvin INA238 + §6.13 INA181) the manager must never move.
+    fenced = set((fence or {}).get("refs", ()))
+    try:
+        import pcbnew as _pn
+        model, _P = sp._board_corridor_model(_pn.LoadBoard(board_path))
+        for c in model.cables:
+            fenced |= set(c.sense_ics)
+    except Exception:                                       # noqa: BLE001
+        pass
+
+    def _is_fenced(ref):
+        return str(ref).upper().startswith(("RS", "J")) or ref in fenced
+
+    v = next((x for x in viols if not _is_fenced(x["ref"])), None)
+    if v is None:
+        return None                                         # every violation is a locked/fenced part
+    import pcbnew
+    b = pcbnew.LoadBoard(board_path)
+    fp = b.FindFootprintByReference(v["ref"])
+    if not fp:
+        return None
+    cx, cy = pcbnew.ToMM(fp.GetPosition().x), pcbnew.ToMM(fp.GetPosition().y)
+    del b                                                   # SWIG: don't keep the board past the read
+    # emit place_cluster (carries the band + the resolved fence) -- apply_edit delegates to
+    # cec_place.apply_corridor_evict (the ONE eviction: nearest_evict_delta + containment + cluster +
+    # the fence wall), so the IC's decoupling caps are not stranded and a fenced part is doubly refused.
+    return {"type": "place_cluster", "ref": v["ref"], "band": [round(z, 2) for z in v["band"]],
+            "cluster": True, "tier": "manager", "locus": (round(cx, 2), round(cy, 2)),
+            "fence": {"refs": sorted(fenced)},
+            "why": (f"corridor: SENSITIVE {v['ref']} sits inside foreign band {v['base']} (cuts the "
+                    f"pour) -> evict the cluster out the nearest edge")}
+
+
 # Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
-# generic part nudge. The loop stops at the first hit.
+# corridor body-in-band eviction, which outranks a generic part nudge. The loop stops at the first hit.
 # NOTE: logo_finishing_repair is implemented but NOT wired in yet -- a full-copper keepout over the logo
 # cuts the GND plane stitching (observed: unconnected 2 -> 24 on a demo route). The correct fix per the
 # corpus ('logo-not-in-high-current-corridor' / the documented 'GND-assign') is to ASSIGN the decorative
@@ -542,6 +606,7 @@ def logo_finishing_repair(board_path, rules=None, metrics=None):
 # tracks+vias copper keepout. Re-enable once that edit type exists.
 MANAGER_REPAIRS = [
     ("kelvin_inversion", kelvin_inversion_repair),
+    ("corridor_evict", corridor_evict_repair),
     ("part_nudge", lambda bp, rules, metrics: targeted_repair(bp, tier="manager")),
 ]
 
@@ -578,45 +643,16 @@ def _vital_keepouts_from_rules(board, rules):
     corridor is the connector THT pads' span extended to the 2-pad shunt pad, but CLIPPED at the shunt
     on its inner side so the tap window (shunt-inner-edge -> INA, which the pour deliberately excludes)
     stays open. allow_vias=True so a boxed-in sensor pin can still escape down. Vertical interposer
-    geometry (J_IN top / J_OUT bottom); self-gating -> [] on boards with no THT cable net or no shunt."""
-    try:
-        import pcbnew
-    except Exception:
-        return []
-    b = pcbnew.LoadBoard(board)
-    pads_by_net = {}
-    npads = {}
-    for fp in b.GetFootprints():
-        npads[fp.GetReference()] = fp.GetPadCount()
-        for p in fp.Pads():
-            nn = p.GetNetname()
-            if nn:
-                pads_by_net.setdefault(nn, []).append(p)
-    force_nets = set(rules.nets_12v)
-    for hi, lo in rules.kelvin_pairs:
-        force_nets.add(hi); force_nets.add(lo)
-    hints = []
-    for net in sorted(force_nets):
-        entries = pads_by_net.get(net, [])
-        tht = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6) for p in entries
-               if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        shunt = [(p.GetPosition().x / 1e6, p.GetPosition().y / 1e6)
-                 for fp in b.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
-                 for p in fp.Pads() if p.GetNetname() == net]
-        if not tht or not shunt:
-            continue                                    # not a cable-connector high-current net
-        sx, sy = shunt[0]
-        txs = [x for x, _ in tht]; tys = [y for _, y in tht]
-        tcy = sum(tys) / len(tys)
-        x0 = min(txs + [sx]) - 1.0; x1 = max(txs + [sx]) + 1.0
-        if sy >= tcy:                                   # shunt BELOW the connector (cable-in): clip bottom AT shunt
-            y0, y1 = min(tys) - 1.0, sy
-        else:                                           # shunt ABOVE the connector (cable-out): clip top AT shunt
-            y0, y1 = sy, max(tys) + 1.0
-        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
-                      "x1": round(x1, 2), "y1": round(y1, 2),
-                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True})
-    return hints
+    geometry (J_IN top / J_OUT bottom); self-gating -> [] on boards with no THT cable net or no shunt.
+
+    The geometry now lives in cec_fr.corridor_keepouts (shared so route_directed -- the agentic loop --
+    bakes the SAME deterministic reservation it always lacked); this thin wrapper passes the rules-derived
+    force nets. Geometry (the rects FR avoids) is byte-identical to before; the shared helper additionally
+    tags each keepout block_fills=False so the post-route SAME-NET power pour FILLS the reserved corridor
+    instead of being blocked by the keepout's own DoNotAllowZoneFills (a latent pour-clip the route_directed
+    validation exposed -- ~89% of the pour was blocked; this also benefits cec_router.route())."""
+    import cec_fr
+    return cec_fr.corridor_keepouts(board, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
 
 
 def _candidate_pool(cands, rules, weights):
@@ -875,16 +911,20 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
 
 # ============================================================ board lookup + spec factory
 def find_board(board):
-    """Resolve a module name (dir under modules/) OR a path to its .kicad_pcb floorplan.
+    """Resolve a board name (dir under modules/ OR hubs/) OR a path to its .kicad_pcb floorplan.
     Skips the system's own outputs (*-routed*, *.merged.*)."""
     if board.endswith(".kicad_pcb") and os.path.isfile(board):
         return os.path.abspath(board)
     import glob as _glob
-    cands = [p for p in _glob.glob(f"{ROOT}/modules/{board}/*.kicad_pcb")
+    # Path-B generalization: search modules/ AND hubs/ so the Hub flows through the same router.
+    cands = [p for roots in ("modules", "hubs")
+             for p in _glob.glob(f"{ROOT}/{roots}/{board}/*.kicad_pcb")
              if "-routed" not in p and ".merged." not in p]
     if not cands:
-        raise FileNotFoundError(f"no floorplan .kicad_pcb under modules/{board}/ (have: "
-                                f"{sorted(os.path.basename(os.path.dirname(p)) for p in _glob.glob(ROOT+'/modules/*/'))})")
+        have = sorted(os.path.basename(os.path.dirname(p))
+                      for p in _glob.glob(ROOT + "/modules/*/") + _glob.glob(ROOT + "/hubs/*/"))
+        raise FileNotFoundError(f"no floorplan .kicad_pcb under modules/{board}/ or hubs/{board}/ "
+                                f"(have: {have})")
     return os.path.abspath(sorted(cands)[0])
 
 

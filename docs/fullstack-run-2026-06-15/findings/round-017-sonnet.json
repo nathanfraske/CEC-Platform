@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Pour integrity failure on /SENSEC2_LO (two islands, foreign_cross=10) fragments the sense copper, causing structural DRC violations and likely contributing to conductor over-temp on sense nets. The FEM flags indicate thermal stress on /SENSEC1_HI, /SENSEC1_LO, GND, and +5VSB, with max_T=120.5\u00b0C. The root cause is routing of foreign signals through the sense corridor, which the corridor-avoid lever should address.",
+ "reasoning": "The primary gate failure is structural DRC=30, driven by the clipped pour on /SENSEC2_LO. kelvin_ok=true means no stranded sense net, so placement actuator T0 will not fire. The deterministic corridor-avoid lever fires from pour_clipped_nets and can route offending foreign signals around the sense corridor. Routing class is appropriate because more/better routing (via corridor-avoid and increased router effort) can close the DRC and improve thermal performance.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "type": "corridor_avoid",
+  "target": "/SENSEC2_LO",
+  "action": "Route foreign signals crossing /SENSEC2_LO around the sense corridor to restore pour integrity and reduce DRC violations."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense net /SENSEC2_LO is fragmented into 2 islands with 16 foreign crossings, indicating a component placed in the sense copper corridor. This causes 18 structural DRC violations and FEM over-temp flags on sense nets. Placement-class failure: the route cannot close without repositioning the offending body. Since kelvin_ok is true, T0 will not fire; corridor-avoid lever and panel effort carry the diagnosis.",
+ "reasoning": "The pour-integrity report shows /SENSEC2_LO has islands=2 and foreign_cross=16, which strongly suggests a placement obstruction. The high DRC count (18) and over-temp FEM flags on sense nets confirm that the fragmented pour is causing clearance/width violations and thermal stress. This is not a routing issue because more routing cannot heal a broken copper island; the component must be moved. Placement class is appropriate even though T0 does not act for non-Kelvin stranded nets.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "action": "evict offending component from sense corridor",
+  "detail": "Identify the component (likely a sense IC or passive) that fragments /SENSEC2_LO and reposition it away from the high-current band, carrying its owned passive cluster to avoid stranding decoupling caps. Alternatively, apply a bake_hints keepout to protect the sense corridor."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

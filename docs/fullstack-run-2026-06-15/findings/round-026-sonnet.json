@@ -1,0 +1,12 @@
+{
+ "verdict": "repair",
+ "root_cause": "37 DRC errors and 2 unconnected nets remain; FEM flags show conductor over-temp on sense nets (SENSEC1_HI, SENSEC2_HI) and power nets (GND, +5VSB). Pour integrity reveals clipped sense nets with foreign crossings, indicating insufficient copper area and routing congestion. The router failed to complete all connections, leaving stubs and thermal risk.",
+ "reasoning": "Kelvin sense nets are routed (kelvin_ok=true), so placement actuator T0 would not fire. The primary issue is incomplete routing and poor pour continuity causing high resistance and thermal flags. More router passes and better intent guidance (e.g., waypoints to avoid foreign crossings) can close DRC and unconnected nets.",
+ "failure_class": "routing",
+ "proposed_lever": {
+  "action": "increase router effort",
+  "detail": "Run additional routing passes with higher opt_time; consider adding keepouts around sense net pours to reduce foreign crossings and improve copper area."
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}

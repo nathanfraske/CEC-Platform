@@ -1,0 +1,13 @@
+{
+ "verdict": "repair",
+ "root_cause": "Sense pour /SENSEC2_LO is fragmented into 3 islands with 35 foreign crossings, causing DRC=11 and conductor over-temp flags on multiple sense nets. The fragmentation likely stems from component placement (e.g., sense IC or passives) obstructing the pour, not from unrouted Kelvin nets (kelvin_ok=true). The corridor-avoid lever will fire from pour_clipped_nets to route foreign signals around the sense corridor, but the island count suggests a placement-level obstruction that may require eviction of a sensitive body.",
+ "reasoning": "Pour integrity shows /SENSEC2_LO has 3 islands and high foreign crossings; FEM flags show over-temp on sense nets and GND. DRC count is 11. Since kelvin_ok=true, the T0 placement actuator does not fire, but the diagnosis is recorded for panel effort. Placement eviction of the sense IC or its passives could consolidate the pour and reduce DRC/temperature.",
+ "failure_class": "placement",
+ "proposed_lever": {
+  "type": "placement_eviction",
+  "target": "sense IC (INA/REF) in the /SENSEC2_LO region",
+  "action": "reposition the body and its owned passive cluster out of the high-current band that fragments the sense copper, ensuring decoupling caps are not stranded"
+ },
+ "scorer_penalty": null,
+ "manager_rule": null
+}
