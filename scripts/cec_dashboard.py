@@ -48,7 +48,8 @@ CFG = {
     "plot_layers": "F.Cu,B.Cu,In1.Cu,In2.Cu,Edge.Cuts",
     "auto": True,           # auto-discover the live run (off when --run-dir is given explicitly)
     "kind": None,           # which run kind is being tracked (set by discovery)
-    "max_boards": 48,       # cap rendered candidates (a long run has 100s) -> newest N
+    "max_boards": 8,        # cap rendered candidates (a long run has 100s) -> newest N; small so the
+                            # per-board electro-thermal solve (now full max-realism physics) stays snappy
 }
 
 # Known CEC run kinds, newest-PID-first preference. Each: (kind, process regex, --flag whose value is the
@@ -345,6 +346,59 @@ def _board_files():
     return ordered[-cap:] if cap and len(ordered) > cap else ordered   # newest N (a long run has 100s)
 
 
+def _render_thermal(board, rdir, stem):
+    """OPTIONAL, NON-BLOCKING electro-thermal heatmap overlay for ONE board. Runs
+    cec_thermal_overlay.py in the routing container (it needs pcbnew + scipy +
+    shapely), which solves the 2D field at the balanced EPS currents + the current
+    stackup and composites the temperature heatmap OVER the board's copper layout,
+    georeferenced. Returns (overlay_png|None, summary_dict). A solver error MUST NOT
+    break the dashboard -- any failure degrades to (None, {error}); the plain render
+    still shows."""
+    tdir = os.path.join(rdir, stem + "-thermal")              # PER-LAYER mode: a dir of <layer>.png + _cbar.png
+    rel_out = os.path.relpath(tdir, ROOT)
+    try:
+        grid = os.environ.get("CEC_DASH_THERMAL_GRID", "0.8")   # 0.8 = ~2s/board for the live loop. For a small
+        #   curated showcase, set CEC_DASH_THERMAL_GRID=0.4 so a 0.6mm GND berth (the void around the 12V pins)
+        #   is resolved -- at 0.8mm a sub-grid void averages away and reads as "no hole" (the owner-caught issue).
+        tmo = 45 if grid == "0.8" else 420                      # finer grid is slower (AMG 0.15mm ~3min) -> longer window
+        r = subprocess.run(
+            COMPOSE + ["exec", "-T", "routing", "python3",
+                       "/workspace/scripts/cec_thermal_overlay.py",
+                       "--board", f"/workspace/{os.path.relpath(board, ROOT)}",
+                       "--out-dir", f"/workspace/{rel_out}",
+                       "--grid-mm", grid],
+            capture_output=True, text=True, timeout=tmo)
+        summary = {}
+        for ln in reversed((r.stdout or "").splitlines()):
+            ln = ln.strip()
+            if ln.startswith("{") and ln.endswith("}"):
+                try:
+                    summary = json.loads(ln)
+                except Exception:                                 # noqa: BLE001
+                    summary = {}
+                break
+        if summary.get("ok"):
+            layers = {name: os.path.join(tdir, fn)
+                      for name, fn in (summary.get("layers") or {}).items()
+                      if os.path.exists(os.path.join(tdir, fn))}
+            cbar = os.path.join(tdir, summary.get("cbar", "")) if summary.get("cbar") else None
+            if cbar and not os.path.exists(cbar):
+                cbar = None
+            return layers, cbar, summary
+        return {}, None, (summary or {"ok": False, "error": "no overlay produced"})
+    except subprocess.TimeoutExpired:
+        # the host `docker exec` is killed by the timeout, but the CONTAINER python ORPHANS and keeps thrashing
+        # the CPU -> reap it (match the unique per-board out-dir) so slow boards don't pile up concurrent solves.
+        try:
+            subprocess.run(COMPOSE + ["exec", "-T", "routing", "pkill", "-9", "-f", rel_out],
+                           capture_output=True, timeout=20)
+        except Exception:                                         # noqa: BLE001
+            pass
+        return {}, None, {"ok": False, "error": "thermal solve >45s (routed board) -- layout shown, no heatmap"}
+    except Exception as e:                                        # noqa: BLE001
+        return {}, None, {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
 def _render_board(board):
     """Render ONE board to per-candidate artifacts under run_dir/renders/<stem>.{png,svg} +
     <stem>-layers/ (the raytraced top render + the per-layer plot SVGs). Returns a candidate dict or
@@ -377,8 +431,11 @@ def _render_board(board):
     ok_svg = p.returncode == 0 and os.path.exists(svg)
     if not (ok_png or ok_svg):
         return None
+    # OPTIONAL per-layer electro-thermal overlay (never blocks; degrades to {} on error)
+    thermal_layers, thermal_cbar, thermal_sum = _render_thermal(board, rdir, stem)
     return {"stem": stem, "board": board, "png": png if ok_png else None,
             "svg": svg if ok_svg else None, "layers": layers,
+            "thermal_layers": thermal_layers, "thermal_cbar": thermal_cbar, "thermal_sum": thermal_sum,
             "mtime": os.path.getmtime(board), "ts": time.time()}
 
 
@@ -457,7 +514,11 @@ class H(BaseHTTPRequestHandler):
                     pass
             with _cands_lock:
                 cands = [{"stem": c["stem"], "ts": c["ts"], "has_png": bool(c["png"]),
-                          "has_svg": bool(c["svg"]), "layers": sorted(c["layers"])} for c in _cands]
+                          "has_svg": bool(c["svg"]), "layers": sorted(c["layers"]),
+                          "has_thermal": bool(c.get("thermal_layers")),
+                          "thermal_layers": sorted((c.get("thermal_layers") or {}).keys()),
+                          "has_thermal_cbar": bool(c.get("thermal_cbar")),
+                          "thermal": (c.get("thermal_sum") or {})} for c in _cands]
             self._json({"ts": time.time(), "run": _proc_info(),
                         "measurement": _measurement(), "rules": _live_rules(),
                         "log": _log_tail(), "finding": _latest_finding(),
@@ -475,13 +536,19 @@ class H(BaseHTTPRequestHandler):
         elif path == "/api/seat":
             self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
                                     int(params.get("off", 0))))
-        elif path in ("/board.png", "/board.svg") or path.startswith("/layer/"):
+        elif (path in ("/board.png", "/board.svg", "/thermal-cbar.png")
+              or path.startswith("/layer/") or path.startswith("/thermal-layer/")):
             try:
                 idx = int(params["cand"]) if "cand" in params else None
             except ValueError:
                 idx = None
             cand = _cand_at(idx)                                   # the scroller-selected candidate
-            if path.startswith("/layer/"):
+            if path == "/thermal-cbar.png":
+                p, ctype = (cand or {}).get("thermal_cbar"), "image/png"
+            elif path.startswith("/thermal-layer/"):
+                name = os.path.basename(path[len("/thermal-layer/"):])   # traversal-safe
+                p, ctype = ((cand or {}).get("thermal_layers", {}).get(name)), "image/png"
+            elif path.startswith("/layer/"):
                 name = os.path.basename(path[len("/layer/"):])      # traversal-safe
                 p, ctype = ((cand or {}).get("layers", {}).get(name)), "image/svg+xml"
             else:
@@ -497,6 +564,23 @@ class H(BaseHTTPRequestHandler):
                 self.wfile.write(body)
             else:
                 self._json({"error": "not available yet"}, 404)
+        elif path == "/thermal-grid":                              # the T(x,y) field for the hover-readout
+            try:
+                idx = int(params["cand"]) if "cand" in params else None
+            except ValueError:
+                idx = None
+            cand = _cand_at(idx)
+            tl = (cand or {}).get("thermal_layers") or {}
+            gp = os.path.join(os.path.dirname(next(iter(tl.values()))), "thermal-grid.json") if tl else None
+            if gp and os.path.exists(gp):
+                body = open(gp, "rb").read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self._json({"error": "no grid"}, 404)
         else:
             self._json({"error": "not found"}, 404)
 
@@ -526,7 +610,9 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <div class="card" id="board" style="display:flex;flex-direction:column"><h2 style="flex:none">latest board <span id="bstat" class="dim"></span>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='png';bswap()">render</button>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='svg';bswap()">plot</button>
+<button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="bmode='thermal';bswap()" title="2D electro-thermal heatmap over the layout">thermal</button>
 <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="pfit()">fit</button>
+<span id="thermhdr"></span>
 <span id="lyrboxes"></span></h2>
 <div id="cscrub" style="flex:none;display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:11px">
  <button class="pill" style="cursor:pointer;border:0;color:#cfd8dc" onclick="cstep(-1)" title="previous candidate">◀</button>
@@ -535,8 +621,10 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
  <button class="pill" id="cfollow" style="cursor:pointer;border:0" onclick="followNewest=true;cpick(cands.length-1)" title="jump to newest + auto-follow">live</button>
  <span id="clabel" class="dim">no candidates yet</span></div>
 <img id="bimg" src="/board.png" style="display:none;max-width:100%;border-radius:4px">
-<div id="pwrap" style="flex:1;overflow:auto;cursor:grab;border-radius:4px;background:#0d1117;min-height:0">
-<div id="pstack" style="position:relative;width:860px"></div></div></div>
+<div id="pwrap" style="flex:1;overflow:auto;cursor:grab;border-radius:4px;background:#000;min-height:0">
+<div id="pstack" style="position:relative;width:860px;background:#000;isolation:isolate"></div></div>
+<img id="cbar" src="/thermal-cbar.png" style="display:none;width:100%;margin-top:5px;border-radius:3px">
+<div id="thtip" style="position:fixed;display:none;z-index:60;pointer-events:none;background:#101418ee;color:#e0f2f1;border:1px solid #37474f;border-radius:3px;padding:3px 7px;font:12px/1.3 monospace;white-space:nowrap"></div></div>
 <div class="card" id="seatcard" style="display:flex;flex-direction:column"><h2 style="flex:none">seat streams (live) — per manager · panel lens · worker · reviewer · auditor</h2><div id="seats" style="flex:1;overflow:auto;min-height:0"><span class="dim">waiting for seats…</span></div></div>
 <div class="card" style="grid-column:1/3"><h2>convergence — pen_total (orange) vs drc (blue), kelvin band (red=fail)</h2>
 <canvas id="spark" width="900" height="90"></canvas><div style="max-height:230px;overflow:auto"><table id="mt"></table></div></div>
@@ -544,6 +632,7 @@ canvas{width:100%;height:90px;background:#0d1117;border-radius:4px}
 <div class="card" id="agentic" style="grid-column:1/4"><h2>agentic decisions — active tier · per-candidate verdicts · corpus-gate</h2><div id="agbody"><span class="dim">no agentic (Hub) run yet…</span></div></div>
 </div><script>
 let soff=0, thoughtsBuf="", bmode='svg', plotW=860, knownLayers=[], lyrOn={};
+let thermGrid=null;                                           // T(x,y) field for the hover readout
 let cands=[], selCand=-1, followNewest=true;                  // candidate timeline scroller state
 const DEFAULT_ON={F_Cu:1,B_Cu:1,Edge_Cuts:1};                 // inner planes OFF by default
 function cq(){ // image query: scope to the selected candidate + cache-bust on its render ts
@@ -553,7 +642,7 @@ function cpick(i){ if(!cands.length)return; selCand=Math.max(0,Math.min(cands.le
  followNewest=(selCand===cands.length-1);
  const c=cands[selCand], nl=(c&&c.layers)||[];               // adopt THIS candidate's layer set
  if(nl.join()!==knownLayers.join()){knownLayers=nl; for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L]; lyrBoxes();}
- clabel(); bswap(); }
+ clabel(); thermLabel(); bswap(); }
 function clabel(){
  const r=document.getElementById('crange'), lab=document.getElementById('clabel'), fb=document.getElementById('cfollow');
  r.max=Math.max(0,cands.length-1); r.value=Math.max(0,selCand);
@@ -561,23 +650,62 @@ function clabel(){
  lab.textContent = cands.length? ((selCand+1)+'/'+cands.length+'  '+(c?c.stem:'')) : 'no candidates yet';
  fb.style.background=followNewest?'#33691e':'#263238'; fb.style.color=followNewest?'#dcedc8':'#90a4ae';}
 function bswap(){
- const im=document.getElementById('bimg'), pw=document.getElementById('pwrap');
- if(bmode==='png'){im.style.display='block';pw.style.display='none';im.src='/board.png'+cq();}
- else{im.style.display='none';pw.style.display='block';buildStack();}}
+ const im=document.getElementById('bimg'), pw=document.getElementById('pwrap'), cb=document.getElementById('cbar');
+ im.style.display='none'; pw.style.display='none'; if(cb)cb.style.display='none';
+ lyrBoxes();                                                  // checkboxes reflect the current mode
+ if(bmode==='png'){im.style.display='block';im.src='/board.png'+cq();}
+ else{ pw.style.display='block'; buildStack();
+  if(bmode==='thermal'){ fetchThermGrid();                   // load the T field for the hover readout
+   if(cb){const c=cands[selCand]; if(c&&c.has_thermal_cbar){cb.style.display='block';cb.src='/thermal-cbar.png'+cq();}} }
+  else { thermGrid=null; document.getElementById('thtip').style.display='none'; } }}
+function fetchThermGrid(){
+ thermGrid=null; const c=cands[selCand]; if(!c||!c.has_thermal) return;
+ fetch('/thermal-grid'+cq()).then(r=>r.ok?r.json():null).then(g=>{thermGrid=g;}).catch(()=>{thermGrid=null;}); }
+function thermHover(e){
+ const tip=document.getElementById('thtip');
+ if(bmode!=='thermal'||!thermGrid){ tip.style.display='none'; return; }
+ const r=document.getElementById('pstack').getBoundingClientRect();
+ const fx=(e.clientX-r.left)/r.width, fy=(e.clientY-r.top)/r.height;
+ if(fx<0||fx>1||fy<0||fy>1){ tip.style.display='none'; return; }
+ const rows=thermGrid.shape[0], cols=thermGrid.shape[1];
+ const col=Math.max(0,Math.min(cols-1,Math.floor(fx*cols))), row=Math.max(0,Math.min(rows-1,Math.floor(fy*rows)));
+ const T=thermGrid.T[row*cols+col], ex=thermGrid.extent;      // [xmin,ymin,xmax,ymax]
+ const mx=(ex[0]+fx*(ex[2]-ex[0])).toFixed(1), my=(ex[1]+fy*(ex[3]-ex[1])).toFixed(1);
+ tip.innerHTML=`<b style="color:#ffcc80">${T.toFixed(1)}°C</b> <span style="opacity:.55">@ ${mx},${my}mm</span>`;
+ tip.style.display='block'; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+12)+'px'; }
+function thermLabel(){
+ // show max_T / dT / verdict for the selected candidate's thermal solve in the board header
+ const el=document.getElementById('thermhdr'); const c=cands[selCand];
+ const t=(c&&c.thermal)||{};
+ if(c&&c.has_thermal&&t.ok){
+  const cl=t.verdict==='PASS'?'ok':'bad';
+  const cool=t.cooling?`  ·  ${esc(t.cooling)}`:'';
+  el.innerHTML=`<span class="pill ${cl}" title="2D electro-thermal: max copper temperature; gate dT<=30C over ambient ${t.ambient}C (balanced 350W; solid pins). Cooling model: ${esc(t.cooling||'still-air')}">`+
+   `θ max ${t.max_T}°C  dT ${t.dT}°C  ${t.verdict}${cool}</span>`;
+ } else if(c&&t&&t.error){
+  el.innerHTML=`<span class="pill dim" title="${esc(t.error)}">θ n/a</span>`;
+ } else { el.innerHTML=''; }}
+function modeLayers(){ // the layer set + image source for the current board mode
+ const c=cands[selCand], therm=(bmode==='thermal');
+ return {ls: therm?((c&&c.thermal_layers)||[]):knownLayers, base: therm?'/thermal-layer/':'/layer/', therm};}
 function buildStack(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
- let first=true;
+ const {ls,base,therm}=modeLayers();
  // draw order: bottom copper first, F.Cu then Edge on top
- const order=[...knownLayers].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
- for(const L of order){ if(!lyrOn[L])continue;
-  const im=document.createElement('img'); im.src='/layer/'+L+cq();
-  im.style.cssText='width:100%;display:block;pointer-events:none;'+(first?'position:relative':'position:absolute;left:0;top:0');
-  first=false; st.appendChild(im);}
- if(first){ // nothing on -> fall back to the combined plot
-  const im=document.createElement('img'); im.src='/board.svg'+cq();
-  im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im);}}
+ const order=[...ls].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
+ const ons=order.filter(L=>lyrOn[L]);                        // show ONLY the selected layer(s); none -> blank
+ let first=true;
+ for(const L of ons){
+  const im=document.createElement('img'); im.src=base+L+cq();
+  // mix-blend-mode:lighten lets the layers STACK -- each SVG's black background (and the thermal PNGs'
+  // cool/transparent areas) contributes nothing, so toggling a layer on no longer hides the others.
+  im.style.cssText='width:100%;display:block;pointer-events:none;mix-blend-mode:lighten;'+(first?'position:relative':'position:absolute;left:0;top:0');
+  first=false; st.appendChild(im);}}
+ // NO never-blank fallback in either mode: nothing selected -> blank (the owner-caught bug was svg mode
+ // falling back to the combined /board.svg, which read as "something is still selected").
 function lyrBoxes(){
- document.getElementById('lyrboxes').innerHTML=knownLayers.map(L=>
+ const {ls}=modeLayers();
+ document.getElementById('lyrboxes').innerHTML=ls.map(L=>
   `<label class="pill" style="cursor:pointer"><input type="checkbox" ${lyrOn[L]?'checked':''} onchange="lyrOn['${L}']=this.checked;buildStack()"> ${L.replace('_','.')}</label>`).join('');}
 function pfit(){plotW=document.getElementById('pwrap').clientWidth-4;buildStack();}
 // wheel-zoom anchored at the cursor + drag-pan
@@ -592,6 +720,9 @@ window.addEventListener('DOMContentLoaded',()=>{
  pw.addEventListener('mousedown',e=>{pan={x:e.clientX,y:e.clientY,l:pw.scrollLeft,t:pw.scrollTop};pw.style.cursor='grabbing';e.preventDefault();});
  window.addEventListener('mousemove',e=>{if(pan){pw.scrollLeft=pan.l-(e.clientX-pan.x);pw.scrollTop=pan.t-(e.clientY-pan.y);}});
  window.addEventListener('mouseup',()=>{pan=null;pw.style.cursor='grab';});
+ const st=document.getElementById('pstack');                  // hover readout: T(x,y) in thermal mode
+ st.addEventListener('mousemove',thermHover);
+ st.addEventListener('mouseleave',()=>{document.getElementById('thtip').style.display='none';});
 });
 async function tick(){
  try{
@@ -617,7 +748,7 @@ async function tick(){
   if(nl.join()!==knownLayers.join()){knownLayers=nl;
    for(const L of nl) if(!(L in lyrOn)) lyrOn[L]=!!DEFAULT_ON[L];
    lyrBoxes();}
-  clabel();
+  clabel(); thermLabel();
   const newKey = c ? (selCand+'@'+c.ts) : '';   // re-fetch the image when the selected cand/render changes
   if(newKey && newKey!==oldKey) bswap();
   // (per-seat thoughts are handled by seatTick below — one live section per seat)
