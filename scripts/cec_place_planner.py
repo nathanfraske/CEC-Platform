@@ -43,7 +43,13 @@ except Exception:                                            # host without the 
 
 def _exec_worker(args, timeout=1200):
     """HOST: run THIS script's worker mode inside the routing container; return parsed JSON marker."""
-    cmd = COMPOSE + ["exec", "-T", "routing", "python3",
+    # forward the measure-shaping CEC_* flags into the container exec (host env -> -e), so a run launched
+    # with e.g. CEC_ROUTE_UNDER=1 actually reaches w_measure inside the container.
+    env_flags = []
+    for _k in ("CEC_ROUTE_UNDER", "CEC_NO_EDGE_KEEPOUT", "CEC_FR_PLANE_POLICY"):
+        if _k in os.environ:
+            env_flags += ["-e", f"{_k}={os.environ[_k]}"]
+    cmd = COMPOSE + ["exec", "-T"] + env_flags + ["routing", "python3",
                      f"{CONTAINER_ROOT}/scripts/cec_place_planner.py"] + args
     r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
     out = (r.stdout or "") + ("\n" + r.stderr if r.returncode else "")
@@ -575,6 +581,238 @@ def w_kelvin_seat(board_pcb, out_rel, board_dir, *, offset=4.0, step=3.5):
     return {"out": out_rel, "seated": seated}
 
 
+def finish_gnd_plane(board, *, berth_mm=0.6, edge_margin_mm=0.3, refill=True):
+    """Finish the GND plane(s) correctly (owner-caught, 2026-06-19):
+      (1) EXTEND each GND zone to the board edge (inset edge_margin_mm) -- so a GROWN board's plane fills the
+          new outline instead of staying the old size and leaving a bare strip at the grown edge (the grow
+          lever moved footprints + Edge.Cuts but left the inner planes behind).
+      (2) BERTH: give the high-current 12V pins a wider clearance (berth_mm) so the GND plane keeps a spacer
+          around them instead of pouring up to the default ~0.3mm gap. Only THT pins actually penetrate the
+          inner GND plane, so the berth bites on the connector/shunt 12V pins (SMD INA pads are surface-only).
+      (3) SOLID-connect the 12V-return GND connector pins (ZONE_CONNECTION_FULL, no thermal relief) for the
+          lowest-impedance, best-cooled return path (the owner's earlier 'solid fills not thermal reliefs').
+    Assumes a full-board GND plane (true for the cable interposers -- antenna keepout dropped). Mutates the
+    board in place; returns (n_zones_extended, n_berth_pins, n_solid_gnd_pins)."""
+    import pcbnew
+    bb = board.GetBoardEdgesBoundingBox(); m = int(edge_margin_mm * 1e6)
+    rect = [(bb.GetLeft() + m, bb.GetTop() + m), (bb.GetRight() - m, bb.GetTop() + m),
+            (bb.GetRight() - m, bb.GetBottom() - m), (bb.GetLeft() + m, bb.GetBottom() - m)]
+    berth = int(berth_mm * 1e6)
+    nz = 0
+    for z in board.Zones():
+        if z.GetNetname() == "GND":
+            ol = z.Outline()
+            try:
+                ol.RemoveAllContours()
+            except Exception:                                  # noqa: BLE001 -- older SHAPE_POLY_SET API
+                while ol.OutlineCount() > 0:
+                    ol.DeletePolygon(0)
+            ol.NewOutline()
+            for (x, y) in rect:
+                ol.Append(int(x), int(y))
+            if berth_mm > 0:
+                # the BERTH: the GND POUR keeps this gap from every other-net pad/trace, incl. the 12V pins.
+                # Applied as the ZONE clearance (the fill respects it) -- NOT pad-local-clearance, which
+                # Freerouting IGNORES while routing and then DRC flags every nearby 0.25mm trace (the bug that
+                # spiked drc_placement 0->50 on a clean board and confounded the whole shrink sweep).
+                z.SetLocalClearance(berth)
+            nz += 1
+    nb = ns = 0
+    for fp in board.GetFootprints():
+        conn = fp.GetReference().startswith("J_")
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            is12v = ("SENSEC" in nn) or nn in ("+12V", "12V") or nn.endswith("_HI") or nn.endswith("_LO")
+            if is12v:
+                nb += 1                                        # counted for the report; the berth is the zone clr
+            elif conn and nn.endswith("GND"):
+                p.SetLocalZoneConnection(pcbnew.ZONE_CONNECTION_FULL); ns += 1
+    if refill:
+        for z in board.Zones():
+            z.UnFill()
+        try:
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        except Exception:                                      # noqa: BLE001 -- geometry is already set; fill is a bonus
+            pass
+    return nz, nb, ns
+
+
+def _smart_repack(newP, anchors, movers, nl, comps, nW, nH):
+    """Connectivity-aware re-pack of the foreign MOVERS into (nW,nH) with the ANCHORS fixed and rotations
+    PRESERVED (the orient pass set them for pin-facing). Seeds at the movers' CURRENT positions (gentler than a
+    grid seed -> stays near the already-routable structure), barycentric-relaxes each toward its net neighbours
+    (short nets), then legalizes against the true courtyards. Mutates newP in place. Beats the greedy
+    nearest-free-slot pack for routability: short nets -> Freerouting leaves far fewer clearance violations on
+    the tighter board, which is what lets the shrink keep going instead of stalling at drc_p~50."""
+    import cec_synth_pipeline as sp
+    nbrs = sp._adjacency(nl)
+    P = {r: tuple(newP[r]) for r in newP}                       # anchors + movers at their current (shrunk) pos
+    for _ in range(50):
+        for r in movers:
+            ns = [P[n] for n in sorted(nbrs.get(r, ())) if n in P]   # neighbours incl. the FIXED anchors
+            if not ns:
+                continue
+            tx = sum(p[0] for p in ns) / len(ns)
+            ty = sum(p[1] for p in ns) / len(ns)
+            P[r] = (0.6 * tx + 0.4 * P[r][0], 0.6 * ty + 0.4 * P[r][1], P[r][2])   # pull to neighbours, keep rot
+    cyinfo = {}
+    for r in P:
+        try:
+            cyinfo[r] = sp._courtyard_info(comps[r], P[r][2]) if r in comps else (0.0, 0.0, 1.0, 1.0)
+        except Exception:                                       # noqa: BLE001
+            cyinfo[r] = (0.0, 0.0, 1.0, 1.0)
+    sp.legalize_pack(P, movers, cyinfo, nW, nH, clr=0.35)
+    for r in movers:
+        if r in P:
+            newP[r] = list(P[r])
+
+
+def _scale_at_split(board_pcb, out_rel, board_dir, *, delta, direction, repack=None):
+    """Core of the GROW (delta>0) / SHRINK (delta<0) levers. Pick a SPLIT line and RIGIDLY translate everything
+    beyond it -- AND the far board edge -- by delta. The near half stays fixed; the far half slides, so the
+    channel AT the split changes width by exactly |delta| while every other relative position (corridor pours,
+    kelvin seats, the routable structure) is preserved -- a rigid translation. Sense ICs follow THEIR SHUNT's
+    side of the split so a sense IC never detaches from its shunt (kelvin invariant). finish_gnd_plane re-fits
+    the GND plane(s) to the new edge. GROW never overlaps; SHRINK can, so we return the courtyard-overlap count
+    (>0 = the shrink crushed parts together) for the caller to gate on.
+      direction W: split at the widest inter-corridor SPINE -> the gap the signals route THROUGH to reach the
+                 inner-edge sense ICs (corridor-left fixed, right slides).
+      direction H: split just below the pours -> the bottom channel + its logic."""
+    import pcbnew
+    import cec_synth_pipeline as sp
+    import cec_pcb
+    board = pcbnew.LoadBoard(board_pcb)
+    bb = board.GetBoardEdgesBoundingBox()
+    W, H = bb.GetWidth() / 1e6, bb.GetHeight() / 1e6
+    P, comps = _board_P_comps(board)
+    nl = sp.View(sp.Config.load(board_dir)).nl
+    model = sp.build_corridor_model(nl, {r: P[r] for r in P}, comps, board_w=W)
+    shunt_of = _sense_shunt_map(model, P)                       # sense IC -> its cable's shunt (x,y)
+    bands = sorted((c.band for c in model.cables if c.formed), key=lambda b: b[0])   # (x0,x1,y0,y1)
+    axis = 0 if str(direction).upper() == "W" else 1
+    if axis == 0:                                              # W: split at the WIDEST inter-corridor spine
+        if len(bands) >= 2:
+            gaps = [((bands[i][1] + bands[i + 1][0]) / 2.0, bands[i + 1][0] - bands[i][1])
+                    for i in range(len(bands) - 1)]
+            split = max(gaps, key=lambda g: g[1])[0]
+        else:
+            split = W * 0.5
+    else:                                                     # H: split just below the pours
+        split = (max(b[3] for b in bands) + 1.5) if bands else H * 0.5
+
+    def shift_of(ref):
+        c = (shunt_of[ref][axis] if ref in shunt_of else P[ref][axis])   # sense IC follows its shunt's side
+        return delta if c > split else 0.0
+
+    shifted = []
+    newP = {r: list(v) for r, v in P.items()}                 # track shifted positions for the overlap check
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        sh = shift_of(ref)
+        if sh:
+            pos = fp.GetPosition()
+            fp.SetPosition(pcbnew.VECTOR2I(int(pos.x + sh * 1e6), pos.y) if axis == 0
+                           else pcbnew.VECTOR2I(pos.x, int(pos.y + sh * 1e6)))
+            shifted.append(ref)
+            if ref in newP:
+                newP[ref][axis] += sh
+    for d in board.GetDrawings():                             # move the far board edge by delta
+        if board.GetLayerName(d.GetLayer()) != "Edge.Cuts":
+            continue
+        for getter, setter in (("GetStart", "SetStart"), ("GetEnd", "SetEnd")):
+            try:
+                pt = getattr(d, getter)()
+            except Exception:                                 # noqa: BLE001 -- non-segment Edge.Cuts shape
+                continue
+            if (pt.x if axis == 0 else pt.y) / 1e6 > split:
+                getattr(d, setter)(pcbnew.VECTOR2I(int(pt.x + delta * 1e6), pt.y) if axis == 0
+                                   else pcbnew.VECTOR2I(pt.x, int(pt.y + delta * 1e6)))
+    nW, nH = (W + delta, H) if axis == 0 else (W, H + delta)
+
+    def _count_over():
+        try:
+            return len(cec_pcb._overlaps({r: tuple(v) for r, v in newP.items()}, comps, set(newP)))
+        except Exception:                                     # noqa: BLE001
+            return -1
+
+    n_over = _count_over()                                    # courtyard-overlap count = the SHRINK feasibility wall
+    relegalized = False
+    # anchors = anything that must NOT be re-packed off its spot: EVERY connector (J* -- cable J_IN/J_OUT, the
+    # 12VHPWR J3/J4, the Hub's edge connectors J2..J_USB; they mate externally / carry the corridors), the shunts
+    # (RS*), and the sense ICs (kelvin). Connectors MAY overhang the edge (the cable plugs in from outside) --
+    # everything else (the MOVERS: logic, passives, the copper logo) must stay ON the board. Generalised from the
+    # eps/PCIe-only "J_" so the lever runs on the 12VHPWR + the Hub too.
+    anchors = {r for r in newP if r and r[0] == "J" or r.startswith("RS") or r in shunt_of}
+    movers = [r for r in newP if r not in anchors and r in comps]
+    if delta < 0 and repack and n_over and n_over > 0:
+        # a rigid shrink crushed parts together. RE-PACK only the foreign movers (anchors stay so the corridors +
+        # kelvin survive) so the logic flows into the smaller outline. The board is re-routed afterwards, so a
+        # re-pack is fine.  smart = connectivity-aware (short nets); greedy = nearest-free-slot nudge (default).
+        try:
+            if repack == "smart":
+                _smart_repack(newP, anchors, movers, nl, comps, nW, nH)
+            else:
+                cyinfo = {r: (sp._courtyard_info(comps.get(r, ""), newP[r][2] if len(newP[r]) > 2 else 0.0)
+                              if r in comps else (0.0, 0.0, 1.0, 1.0)) for r in newP}
+                sp.legalize_pack(newP, movers, cyinfo, nW, nH, clr=0.4)
+            for fp in board.GetFootprints():
+                r = fp.GetReference()
+                if r in movers and r in newP:
+                    fp.SetPosition(pcbnew.VECTOR2I(int(newP[r][0] * 1e6), int(newP[r][1] * 1e6)))
+            n_over = _count_over(); relegalized = True
+        except Exception:                                     # noqa: BLE001 -- re-pack is best-effort; keep the rigid result
+            pass
+    # ON-BOARD check (shrink only): a MOVER whose courtyard pokes past the board edge means the shrink went too
+    # far -- the floor-hunt MUST stop here, else logic + the logo clip off the edge (the owner-caught PCIe-2
+    # failure). Connectors (anchors) are excluded -- they're allowed to overhang. Uses the same courtyard the
+    # overlap check uses, with a footprint-bbox fallback for parts without a courtyard (e.g. the copper logo).
+    n_off = 0
+    if delta < 0:
+        ebb = board.GetBoardEdgesBoundingBox()
+        EL, ER, ET, EB = ebb.GetLeft() / 1e6, ebb.GetRight() / 1e6, ebb.GetTop() / 1e6, ebb.GetBottom() / 1e6
+        fp_by_ref = {fp.GetReference(): fp for fp in board.GetFootprints()}
+        for r in movers:
+            try:
+                x0, x1, y0, y1 = cec_pcb.courtyard_bbox(comps[r], *newP[r])
+            except Exception:                                 # noqa: BLE001 -- no courtyard (logo) -> use the fp bbox
+                fp = fp_by_ref.get(r)
+                if fp is None:
+                    continue
+                bx = fp.GetBoundingBox()
+                x0, x1, y0, y1 = bx.GetLeft() / 1e6, bx.GetRight() / 1e6, bx.GetTop() / 1e6, bx.GetBottom() / 1e6
+            if x0 < EL - 0.4 or x1 > ER + 0.4 or y0 < ET - 0.4 or y1 > EB + 0.4:
+                n_off += 1
+    fz = finish_gnd_plane(board)                              # re-fit the GND plane(s) to the new edge (+ 12V berth +
+    #                                                          solid GND returns) -- on a shrink it tightens, on a grow
+    #                                                          it extends; either way the inner planes track the edge.
+    outp = os.path.join(ROOT, out_rel) if not os.path.isabs(out_rel) else out_rel
+    os.makedirs(os.path.dirname(outp) or ".", exist_ok=True)
+    pcbnew.SaveBoard(outp, board)
+    del board
+    return {"out": os.path.relpath(outp, ROOT), "delta": delta, "direction": str(direction).upper(),
+            "split": round(split, 1), "new_W": round(nW, 1), "new_H": round(nH, 1), "shifted": sorted(shifted),
+            "overlap": n_over, "offboard": n_off, "relegalized": relegalized,
+            "gnd_plane": {"zones_extended": fz[0], "berth_pins": fz[1], "solid_gnd_pins": fz[2]}}
+
+
+def w_grow(board_pcb, out_rel, board_dir, *, delta=5.0, direction="W"):
+    """THE LAST LEVER of the loop: scale the board UP ~delta mm so the (now-fast) hill-climb can re-converge with
+    more channel room. A rigid translation -> NO new courtyard overlap, so no legalize (which would scramble the
+    routable placement, the 2026-06-17 finding). Thin wrapper over _scale_at_split with a positive delta."""
+    return _scale_at_split(board_pcb, out_rel, board_dir, delta=abs(delta), direction=direction)
+
+
+def w_shrink(board_pcb, out_rel, board_dir, *, delta=5.0, direction="W", repack=None):
+    """REVERSE-GROW: scale the board DOWN ~delta mm (narrow the widest channel / bottom gap) to find how small the
+    board can get. Unlike grow, a shrink CAN collide -> the returned 'overlap' (courtyard-pair count) is the
+    feasibility signal: 0 = the shrink fit, >0 = it crushed parts together so the caller reverts. With
+    repack='smart' (or 'greedy'), overlaps from the rigid shrink are resolved by RE-PLACING the foreign parts
+    (anchors stay -> kelvin survives) so the sweep can push PAST the rigid wall: 'smart' is connectivity-aware
+    (short nets -> still routes at the tighter size -> HUNTS the true floor), 'greedy' is a fast nearest-free-slot
+    nudge. shrink_sweep() walks this down. Thin wrapper over _scale_at_split with a negative delta."""
+    return _scale_at_split(board_pcb, out_rel, board_dir, delta=-abs(delta), direction=direction, repack=repack)
+
+
 def _score_routed(routed_board):
     """Score an ALREADY-routed board: kelvin/diffpair/drc/unconnected + the ACTUAL foreign F.Cu clips into
     the high-current pours. Runs in its OWN process (see w_measure) -- loading a board after a route+pour+
@@ -641,8 +879,22 @@ def w_measure(board_pcb, passes, opt_time, keepout=False):
     c = cec_fr.route_once(board_pcb, routed, hints=hints, power_pours=pours, passes=passes, opt_time=opt_time)
     if not (c.ok and c.board):
         return {"error": f"route failed: {getattr(c, 'err', None)}"}
+    score_target = c.board
+    # ROUTE-UNDER finishing pass (CEC_ROUTE_UNDER=1): the deterministic, completeness-preserving layer-swap
+    # (scripts/cec_layer_swap.py) moves the foreign F.Cu segments that clip a SENSEC pour DOWN to B.Cu under
+    # the F.Cu-only pour (board-legal vias, collision-guarded, reverts unsafe). It runs in its OWN process
+    # (SWIG hygiene), and the loop then scores the UNDER board -> the placement is optimised for how much
+    # route-under it ENABLES (less B.Cu congestion under the pours = more swaps = fewer clips). A swap failure
+    # or empty result falls back to the plain routed board, so it can only help, never break the measure.
+    if os.environ.get("CEC_ROUTE_UNDER", "0") == "1":
+        under = os.path.join(os.path.dirname(c.board), "routed-under.kicad_pcb")
+        su = subprocess.run([sys.executable, os.path.join(ROOT, "scripts", "cec_layer_swap.py"),
+                             c.board, under, "0.2", "0.25"],
+                            env={**os.environ, "GROW_MM": "0"}, capture_output=True, text=True, timeout=300)
+        if su.returncode == 0 and os.path.exists(under):
+            score_target = under
     # score in a FRESH interpreter (SWIG state hygiene)
-    r = subprocess.run([sys.executable, os.path.abspath(__file__), "--score-board", c.board],
+    r = subprocess.run([sys.executable, os.path.abspath(__file__), "--score-board", score_target],
                        capture_output=True, text=True, timeout=300)
     for ln in (r.stdout or "").splitlines():
         if ln.startswith("RESULT_JSON="):
@@ -893,7 +1145,8 @@ def plan_partition(context, best_measure, model=None, timeout=300, temperature=0
 
 # ====================================================================== HOST: the iterate driver
 def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_dir=None, passes=16,
-        opt_time=32, from_board=None, deadline=None, keepout=False, orient=False):
+        opt_time=32, from_board=None, deadline=None, keepout=False, orient=False,
+        max_grows=3, grow_delta=5.0):
     import time
     import cec_synth_pipeline as sp                          # noqa: F401  (ensure path)
     out_dir = out_dir or os.path.join("build", "place-planner")
@@ -1008,6 +1261,11 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
     seed_meas = _exec_worker(["--measure", "--board-pcb", seed_out, "--passes", str(passes),
                               "--opt-time", str(opt_time)] + ko_flag)
     best = {"board": seed_out, "measure": seed_meas, "score": score(seed_meas)}
+    # best_overall = best ACROSS ALL board sizes (the grow lever resets `best` to a fresh larger board so the
+    # hill-climb re-anchors there even if it momentarily scores worse; best_overall keeps the global winner so a
+    # grow that doesn't pan out never costs us the pre-grow result). grows = grow-lever firings so far.
+    best_overall = dict(best)
+    grows = 0
     log(f"r0 (seed): kelvin={seed_meas.get('kelvin_ok')} clips={seed_meas.get('clips')} "
         f"drc_p={seed_meas.get('drc_placement')}(raw={seed_meas.get('drc')},edge={seed_meas.get('drc_edge')}) "
         f"unconn={seed_meas.get('unconnected')}")
@@ -1028,6 +1286,37 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         # auditor reasons the partition right but can't execute coords). The refine tier keeps absolute moves
         # for small nudges. A seat parse failure / empty plan RETRIES the next round (never ends the run).
         streak = feedback.get("streak", 0) if feedback else 0
+        # THE LAST LEVER (deepest tier): a plateau so deep even the auditor (streak>=6) can't break it -> the
+        # placement is wedged at THIS board size. Scale the board up by grow_delta and re-anchor the hill-climb
+        # on the larger board (alternating W=widen-spine / H=taller-channels), letting the now-fast loop
+        # re-converge with more channel room. best_overall preserves the pre-grow result, so a grow is pure
+        # upside. Fires at most max_grows times (compounding +grow_delta each), then the loop rides on the auditor.
+        if max_grows and grows < max_grows and streak >= 8:
+            gdir = ("W", "H")[grows % 2]
+            gcand = f"{out_dir}/{board_name}-grow{grows + 1}.kicad_pcb"
+            gr = _exec_worker(["--grow", "--board-pcb", best["board"], "--out", gcand, "--board", _rel(board_dir),
+                               "--grow-delta", str(grow_delta), "--grow-dir", gdir])
+            if gr.get("error"):
+                log(f"r{rnd}: grow #{grows + 1} failed: {gr['error'][:80]} -> fall through to plan")
+            else:
+                gm = _exec_worker(["--measure", "--board-pcb", gcand, "--passes", str(passes),
+                                   "--opt-time", str(opt_time)] + ko_flag)
+                gsc = score(gm)
+                grows += 1
+                log(f"r{rnd}: GROW #{grows} {gdir}+{grow_delta}mm -> {gr.get('new_W')}x{gr.get('new_H')}mm "
+                    f"(split={gr.get('split')}, shifted {len(gr.get('shifted', []))} parts) -> "
+                    f"kelvin={gm.get('kelvin_ok')} clips={gm.get('clips')} "
+                    f"drc_p={gm.get('drc_placement')} unconn={gm.get('unconnected')}")
+                measure_row(rnd, gm, f"grow-{gdir}")
+                better = gsc < best_overall["score"]
+                history.append({"round": rnd, "board": gcand, "measure": gm, "kind": f"grow-{gdir}",
+                                "accepted": better})
+                best = {"board": gcand, "measure": gm, "score": gsc}     # re-anchor on the larger board
+                if better:
+                    best_overall = dict(best)
+                    log(f"r{rnd}:   grow improved the GLOBAL best (clips {gm.get('clips')})")
+                feedback = None                                          # reset plateau; let the larger board work
+                continue
         mode = "apply"
         try:
             if streak >= 6:
@@ -1085,6 +1374,8 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         measure_row(rnd, cmeas, "accept" if improved else "reject")
         if improved:
             best = {"board": cand, "measure": cmeas, "score": csc}
+            if csc < best_overall["score"]:                  # the global winner across all board sizes
+                best_overall = dict(best)
             feedback = None
         else:
             streak = (feedback.get("streak", 1) + 1) if feedback else 1
@@ -1094,17 +1385,145 @@ def run(board_dir, rounds, *, model=None, auditor=None, seeds=(0, 1, 2, 3), out_
         # DRC near the finishing floor (<=8). Edge-clearance is excluded (route-time, lever B). NB: explicit
         # None checks, not `x or 99` -- 0 is the IDEAL value (a converged board is clips=0/unconn=0/drc_p=0)
         # and `0 or 99`==99 would make a PERFECT board never register as converged.
-        bm = best["measure"]
+        bm = best_overall["measure"]                         # converge on the GLOBAL best (any board size)
         _bdp = bm.get("drc_placement"); _bdp = bm.get("drc") if _bdp is None else _bdp
         if (bm.get("kelvin_ok") and (bm.get("unconnected") if bm.get("unconnected") is not None else 99) <= 2
                 and (bm.get("clips") if bm.get("clips") is not None else 99) <= 6
                 and (_bdp if _bdp is not None else 99) <= 8):
             log(f"r{rnd}: kelvin + unconn<=2 + clips<=6 + drc_placement<=8 -> CONVERGED (fab-ready)"); break
-    log(f"DONE: best kelvin={best['measure'].get('kelvin_ok')} clips={best['measure'].get('clips')} "
-        f"drc={best['measure'].get('drc')} -> {best['board']}")
-    json.dump({"best": best, "history": history},
+    log(f"DONE: best kelvin={best_overall['measure'].get('kelvin_ok')} clips={best_overall['measure'].get('clips')} "
+        f"drc={best_overall['measure'].get('drc')} ({grows} grow(s)) -> {best_overall['board']}")
+    json.dump({"best": best_overall, "history": history},
               open(os.path.join(ROOT, out_dir, f"{board_name}-result.json"), "w"), indent=1, default=str)
-    return {"best": best, "history": history}
+    return {"best": best_overall, "history": history}
+
+
+# ====================================================================== HOST: the SHRINK sweep (reverse-grow)
+def shrink_sweep(board_dir, start_board, *, out_dir=None, passes=16, opt_time=32,
+                 start_delta=5.0, min_delta=1.0, clip_tol=25, drc_tol=4, max_steps=40, deadline=None, repack="greedy"):
+    """REVERSE-GROW SWEEP -- 'how small can the board get?'. From a converged, ROUTABLE board, rigidly SHRINK the
+    slack (narrow the widest channel / bottom gap), route+score each step, and keep shrinking until it 'starts
+    causing issues': a courtyard overlap (parts collide), kelvin breaks, a net goes unrouted, or DRC/clips degrade
+    past tol. Greedy: shrink each direction at the current step size while it stays valid, then drop to a finer
+    step (5->3->2->1mm) to squeeze the last mm; stop when even min_delta makes no progress. Records the
+    size-vs-quality CURVE and the smallest still-valid board. Writes run.log + measurement.jsonl into out_dir so
+    the live dashboard auto-tracks the shrink. Heavy steps run in the routing container via _exec_worker."""
+    import time
+    out_dir = out_dir or os.path.join("build", "place-planner-shrink")
+    out_abs = os.path.join(ROOT, out_dir); os.makedirs(out_abs, exist_ok=True)
+    out_rel = _rel(out_abs)                                      # repo-relative: the container worker resolves
+    #                                                             --out/--board-pcb against ROOT (= /workspace there)
+    board_name = os.path.basename(board_dir.rstrip("/"))
+    start_abs = start_board if os.path.isabs(start_board) else os.path.join(ROOT, start_board)
+    start_rel = _rel(start_abs)
+    _runlog = open(os.path.join(out_abs, "run.log"), "a", buffering=1)
+    _meas = open(os.path.join(out_abs, "measurement.jsonl"), "a", buffering=1)
+
+    def log(m):
+        line = f"[shrink] {m}"; print(line, flush=True)
+        try:
+            _runlog.write(line + "\n")
+        except Exception:                                       # noqa: BLE001
+            pass
+
+    def meas_row(step, m, verdict):
+        try:
+            dp = m.get("drc_placement"); dp = m.get("drc") if dp is None else dp
+            _meas.write(json.dumps({"round": step, "verdict": verdict, "kelvin_ok": m.get("kelvin_ok"),
+                "drc": dp, "drc_raw": m.get("drc"), "unconnected": m.get("unconnected"),
+                "penalty_total": m.get("clips"), "W": m.get("_W"), "H": m.get("_H"),
+                "live_objective": (m.get("clips") or 0) + (dp or 0) + 5 * (m.get("unconnected") or 0)}) + "\n")
+        except Exception:                                       # noqa: BLE001
+            pass
+
+    def measure(b):
+        return _exec_worker(["--measure", "--board-pcb", b, "--passes", str(passes),
+                             "--opt-time", str(opt_time), "--board", _rel(board_dir)]) or {}
+
+    def shrink(src, out, delta, dirn):
+        args = ["--shrink", "--board-pcb", src, "--out", out, "--board", _rel(board_dir),
+                "--shrink-delta", str(delta), "--shrink-dir", dirn]
+        if repack:
+            args += ["--repack", repack]                        # re-place foreign parts past the rigid wall
+        return _exec_worker(args, timeout=1800) or {}
+
+    # ---- baseline: route the start board + probe its size (delta=0 shrink to a temp returns new_W/new_H) ----
+    base = measure(start_rel)
+    base_kelvin = base.get("kelvin_ok")                         # None/True for a no-kelvin board (the Hub); the
+    #                                                            sweep only REQUIRES kelvin if the start board has it.
+    routed = base.get("unconnected") is not None and not base.get("error")
+    if not routed or base_kelvin is False:
+        log(f"baseline {start_rel} NOT routable (kelvin={base_kelvin} unconn={base.get('unconnected')} "
+            f"err={str(base.get('error'))[:80]}) -- shrink needs a valid routed start")
+        return {"error": "baseline not routable", "baseline": base}
+    probe = shrink(start_rel, os.path.join(out_rel, f"{board_name}-size-probe.kicad_pcb"), 0, "W")
+    W0, H0 = probe.get("new_W"), probe.get("new_H")
+    base["_W"], base["_H"] = W0, H0
+    base_clips = base.get("clips") or 0; base_drc = base.get("drc_placement") or 0
+    base_unconn = base.get("unconnected") or 0                  # gate relative to the start, not absolute 0 (a
+    log(f"baseline: {W0}x{H0}mm (area {(W0 or 0) * (H0 or 0):.0f} mm^2)  clips={base_clips} "
+        f"kelvin={base.get('kelvin_ok')} drc_p={base_drc} unconn={base.get('unconnected')}")
+    meas_row(0, base, "baseline")
+    curve = [{"step": 0, "dir": "-", "delta": 0, "W": W0, "H": H0, "clips": base_clips,
+              "kelvin": base.get("kelvin_ok"), "drc_p": base_drc, "unconn": base.get("unconnected"), "valid": True}]
+
+    def valid(m):                                               # "no worse than the start": kelvin holds (if the
+        if base_kelvin and not m.get("kelvin_ok"):              # start had it), no NEW unrouted nets, DRC + clips
+            return False                                        # within tolerance.
+        return ((m.get("unconnected") or 0) <= base_unconn
+                and (m.get("drc_placement") or 0) <= base_drc + drc_tol
+                and (m.get("clips") or 0) <= base_clips + clip_tol)
+
+    cur, curW, curH = start_rel, W0, H0
+    deltas = [d for d in (float(start_delta), 3.0, 2.0, 1.0) if d >= min_delta] or [float(min_delta)]
+    step = 0; stop = False; passno = 0
+    while not stop and step < max_steps:                         # MULTI-PASS: re-sweep until a full pass finds nothing --
+        passno += 1; progressed = False                         # shrinking one axis frees room on the other.
+        for delta in deltas:
+            if stop:
+                break
+            for dirn in ("W", "H"):                              # shrink each axis at this step while it stays valid
+                while step < max_steps:
+                    if deadline and time.time() > deadline:
+                        log("deadline reached -- stopping"); stop = True; break
+                    step += 1
+                    cand = os.path.join(out_rel, f"{board_name}-shrink{step}.kicad_pcb")
+                    sh = shrink(cur, cand, delta, dirn)
+                    nW, nH, ov = sh.get("new_W"), sh.get("new_H"), sh.get("overlap")
+                    off = sh.get("offboard") or 0
+                    if sh.get("error"):
+                        log(f"step {step} {dirn}-{delta}mm: shrink failed: {str(sh.get('error'))[:70]}"); break
+                    rep = " (re-packed)" if sh.get("relegalized") else ""
+                    if ov is None or ov > 0 or off > 0:           # parts collide OR a mover clips the edge -> wall here
+                        why = (f"OVERLAP={ov} (parts collide)" if (ov is None or ov > 0)
+                               else f"OFFBOARD={off} (logic/logo clips the edge)")
+                        log(f"step {step} {dirn}-{delta}mm -> {nW}x{nH}mm  {why}{rep} -> stop {dirn}@{delta}mm")
+                        curve.append({"step": step, "dir": dirn, "delta": delta, "W": nW, "H": nH, "valid": False,
+                                      "repacked": bool(sh.get("relegalized")), "reason": why}); break
+                    m = measure(cand); m["_W"], m["_H"] = nW, nH
+                    ok = valid(m)
+                    curve.append({"step": step, "dir": dirn, "delta": delta, "W": nW, "H": nH, "clips": m.get("clips"),
+                                  "kelvin": m.get("kelvin_ok"), "drc_p": m.get("drc_placement"),
+                                  "unconn": m.get("unconnected"), "repacked": bool(sh.get("relegalized")), "valid": ok})
+                    meas_row(step, m, f"{dirn}-{delta}{'ok' if ok else 'bad'}")
+                    if ok:
+                        cur, curW, curH = cand, nW, nH; progressed = True
+                        log(f"step {step} {dirn}-{delta}mm -> {nW}x{nH}mm (area {nW * nH:.0f}){rep}  clips={m.get('clips')} "
+                            f"kelvin={m.get('kelvin_ok')} drc_p={m.get('drc_placement')} unconn={m.get('unconnected')}  ACCEPT")
+                    else:                                        # routing degraded -> revert, this axis is done at this step
+                        log(f"step {step} {dirn}-{delta}mm -> {nW}x{nH}mm  clips={m.get('clips')} kelvin={m.get('kelvin_ok')} "
+                            f"drc_p={m.get('drc_placement')} unconn={m.get('unconnected')}  ISSUE -> revert, stop {dirn}@{delta}mm")
+                        break
+        if not progressed:                                       # a whole pass with no accepted shrink -> at the floor
+            break
+        log(f"pass {passno}: now {curW}x{curH}mm -> re-sweeping (an axis may have freed the other)")
+    a0 = (W0 or 0) * (H0 or 0); a1 = (curW or 0) * (curH or 0)
+    red = round(100 * (1 - a1 / a0), 1) if a0 else 0
+    log(f"DONE. MIN ROUTABLE {curW}x{curH}mm (area {a1:.0f} mm^2) vs start {W0}x{H0} ({a0:.0f}) -> {red}% smaller "
+        f"in {step} steps. board: {cur}")
+    return {"start_board": start_rel, "start_W": W0, "start_H": H0, "area_start": round(a0),
+            "min_board": cur, "min_W": curW, "min_H": curH, "area_min": round(a1),
+            "area_reduction_pct": red, "steps": step, "curve": curve}
 
 
 def main(argv=None):
@@ -1117,6 +1536,22 @@ def main(argv=None):
     ap.add_argument("--partition", action="store_true", help="region-aware partition: --assign [{ref,region}]")
     ap.add_argument("--orient", action="store_true", help="pin-level orientation pass (rotate ICs for pin-facing)")
     ap.add_argument("--kelvin-seat", action="store_true", help="snap each sense IC to its shunt (short tap)")
+    ap.add_argument("--grow", action="store_true", help="scale the board up by --grow-delta in --grow-dir (W|H)")
+    ap.add_argument("--grow-delta", type=float, default=5.0, help="mm to grow per step (default 5)")
+    ap.add_argument("--grow-dir", default="W", help="grow direction: W (widen spine) | H (taller channels)")
+    ap.add_argument("--max-grows", type=int, default=3, help="run loop: cap on board-grow lever firings")
+    ap.add_argument("--shrink", action="store_true", help="worker: scale the board DOWN by --shrink-delta in --shrink-dir")
+    ap.add_argument("--shrink-sweep", action="store_true", help="HOST: walk a routable board DOWN to its minimum size")
+    ap.add_argument("--shrink-delta", type=float, default=5.0, help="mm per shrink step (sweep starts here, drops to 1)")
+    ap.add_argument("--shrink-dir", default="W", help="shrink direction: W (narrow spine) | H (shorter channels)")
+    ap.add_argument("--min-delta", type=float, default=1.0, help="sweep: smallest shrink step before stopping")
+    ap.add_argument("--clip-tol", type=int, default=25, help="sweep: max clip increase over baseline still 'valid'")
+    ap.add_argument("--drc-tol", type=int, default=4, help="sweep: max drc_placement increase over baseline still 'valid'")
+    ap.add_argument("--max-steps", type=int, default=40, help="sweep: cap on shrink steps")
+    ap.add_argument("--repack", choices=["none", "greedy", "smart"], default=None,
+                    help="shrink: how to clear the overlaps a rigid shrink creates -- 'smart' (connectivity-aware "
+                    "re-place, HUNTS the true floor), 'greedy' (fast nearest-free-slot nudge), or 'none'/omit "
+                    "(rigid-only = the no-rework minimum). --shrink-sweep defaults to smart.")
     ap.add_argument("--with-orient", action="store_true", help="apply/partition: co-design rotation jointly")
     ap.add_argument("--assign", default=None, help="JSON [{ref,region}] region assignments for --partition")
     ap.add_argument("--region", default="right", help="pack region: right|left|spine|top|bottom|x0,y0,x1,y1")
@@ -1142,7 +1577,7 @@ def main(argv=None):
         deadline = (time.time() + a.hours * 3600) if a.hours else None
         run(a.board, a.rounds, model=a.model, auditor=a.auditor, passes=a.passes, opt_time=a.opt_time,
             from_board=a.from_board, out_dir=a.out_dir, deadline=deadline, keepout=a.keepout,
-            orient=a.loop_orient)
+            orient=a.loop_orient, max_grows=a.max_grows, grow_delta=a.grow_delta)
     elif a.seed:
         _emit(w_seed(os.path.join(ROOT, a.board), a.out, [int(s) for s in a.seeds.split(",")], a.strategies.split(",")))
     elif a.analyze:
@@ -1165,6 +1600,22 @@ def main(argv=None):
     elif a.kelvin_seat:
         _emit(w_kelvin_seat(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                             a.out, os.path.join(ROOT, a.board)))
+    elif a.grow:
+        _emit(w_grow(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                     a.out, os.path.join(ROOT, a.board), delta=a.grow_delta, direction=a.grow_dir))
+    elif a.shrink:
+        _rp = None if a.repack in (None, "none") else a.repack
+        _emit(w_shrink(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                       a.out, os.path.join(ROOT, a.board), delta=a.shrink_delta, direction=a.shrink_dir,
+                       repack=_rp))
+    elif a.shrink_sweep:
+        import time
+        deadline = (time.time() + a.hours * 3600) if a.hours else None
+        _rp = "greedy" if a.repack is None else (None if a.repack == "none" else a.repack)
+        _emit(shrink_sweep(a.board, a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+                           out_dir=a.out_dir, passes=a.passes, opt_time=a.opt_time, start_delta=a.shrink_delta,
+                           min_delta=a.min_delta, clip_tol=a.clip_tol, drc_tol=a.drc_tol, max_steps=a.max_steps,
+                           deadline=deadline, repack=_rp))
     elif a.measure:
         _emit(w_measure(a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
                         a.passes, a.opt_time, keepout=a.keepout))
