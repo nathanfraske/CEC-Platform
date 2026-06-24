@@ -10,6 +10,22 @@ Conventions:
 - Owner-action items (decisions / GitHub rituals / bench tasks) go to `docs/owner-queue.md`, not here.
 - Remove an item when it's done, or when it graduates into a real task / PR / owner-queue entry.
 
+## 24-pin ATX shrink — next size levers (2026-06-24, owner overnight ask)
+- [2026-06-24] **Reclaim the rev2 U1 dead space (~1270 mm², ~19% of the board) → target ~36% vs straight.** rev2
+  (`modules/atx-24pin-rev2/`) is 21% smaller than straight-through (6576 vs 8342 mm²) but at its rigid-shrink floor
+  (connector-bound). Its ESP U1 carries a STALE embedded courtyard 45.5×35.3 while the library footprint
+  cec-RF_Module:ESP32-S2-MINI-1_NoAntKeepout is already trimmed to 16×21.2 (wired-only). "Update U1 from Library"
+  reclaims the pocket; a from-scratch re-place packing the logic into it could reach ~5300 mm². The shrink-sweep
+  CANNOT do this (connectors are the wall + its overlap model already used 16×21). Needs a GUIDED re-place WITH
+  RENDER REVIEW — blind re-place strands the 4 rail shunts off the J3→J4 path and breaks kelvin (verified 3×). Same
+  stale-courtyard fix likely applies to the 12vhpwr + atx-24pin (rev1) U1 (all use that footprint) — Update-from-Library.
+- [2026-06-24] **Pour/via reduction under a thermal gate (owner-authorized 2026-06-24).** Wire the 2.5D thermal
+  solver (cec_thermal2d.solve_board_thermal) into the shrink/place loop's validity gate so worker agents can narrow
+  the rail pours / drop redundant stitching vias and KEEP only states that still pass dT≤30 over the 24-pin stackup.
+  NOTE: on the 24-pin this trims COPPER mass / current-margin, NOT board OUTLINE (the size is part-courtyard-bound,
+  not pour-bound — parts collide before the pours do). Valuable as a cost/current lever; not a size lever here. The
+  thermal solve is slow (esp. high-dT) so a per-step thermal gate needs the Picard-tol/AMG-staleness speedups first.
+
 ## 12VHPWR passover — production-rev + loop-fit items (2026-06-24, review wf_b3e2a860-3a6)
 - [2026-06-24] **12VHPWR loop naming-generalization (preventive; reviewer-verified, all edits confirmed).** The
   board is hand-routed CLEAN (kelvin/diffpair/drc=0/unconn=0) so it is NOT a loop convergence target (DEFER), but
