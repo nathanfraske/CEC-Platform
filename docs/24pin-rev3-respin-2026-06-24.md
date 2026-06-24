@@ -77,3 +77,21 @@ auto-cached this session. The TPS2121 is properly REFERENCED (TI URL in the symb
 connector's exact stocked MPN is a live-stock decision = a BOM-pass task. The LCSC datasheet CDN
 (datasheet.lcsc.com / wmsc.lcsc.com) does NOT bot-block, so the lcsc skill's fetch_datasheet_lcsc.py will
 cache them once jlcsearch resolves the C-numbers. This table is the checklist so nothing ships un-referenced.
+
+## Build progress (2026-06-24)
+- DONE + committed: rev3 scaffold; mezzanine + power-mux design + amperage analysis; datasheet contract;
+  **vendored the connector footprints** — `lib/vendor/Connector_PinHeader_2.00mm.pretty/PinHeader_2x08_P2.00mm_Vertical.kicad_mod`
+  (24-pin header, MALE) + `lib/vendor/Connector_PinSocket_2.00mm.pretty/PinSocket_2x08_P2.00mm_Vertical.kicad_mod`
+  (Hub socket, FEMALE; place on B.Cu = the mirror). TPS2121 (mux) symbol + RUX0012A footprint already vendored.
+- REMAINING (the meticulous splice pass — staged, NOT rushed): KEY FINDING — `cec_sch.py` is a from-scratch
+  schematic GENERATOR, and the rev3/Hub schematics are HAND-MAINTAINED (the generators are stale/guarded), so
+  there is NO incremental splice tool. The splice = careful hand-edit of the .kicad_sch s-expr (or a GUI pass),
+  which per CLAUDE.md MUST be ERC + netlist verified (wire-to-pin + junctions are where edits break). Steps:
+  1. Symbol: create cec:CEC_MEZZANINE_16P (16 named pins per the pinout table) -> register in the lib + fp-lib-table
+     (nickname cec-Connector_PinHeader_2.00mm / cec-Connector_PinSocket_2.00mm).
+  2. rev3 24-pin sch: add U_MUX (TPS2121) + C_SS/C_IN/C_OUT/R_ILIM/R_PR; net edits IN1=/RAIL5V_LO, IN2=+5VSB,
+     OUT=+5V_SYS; rename the Hub-power output +5VSB->+5V_SYS on J2 + the mezzanine power pins. Add J_MEZZ (header)
+     wired per the pinout to the J1-link nets + +5V_SYS. Add 4x M3 GND mounts. ERC + netlist.
+  3. Hub sch: add the mirrored socket on a port-0 + power-in (+5V_SYS); adapt §2.9 to 2-source; shared-rect mounts. ERC.
+  4. BOM/datasheet pass (lcsc skill): the mezzanine MPNs + cache the TPS2121 + connector PDFs (per the datasheet table).
+  This is a clean, fully-specified next pass -- best done as a focused GUI/edit session with ERC at each step.
