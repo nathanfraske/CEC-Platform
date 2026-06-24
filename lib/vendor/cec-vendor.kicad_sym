@@ -1313,7 +1313,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
+			(property "Datasheet" "https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf"
 				(at 0 0 0)
 				(effects
 					(font
@@ -1603,7 +1603,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/symlink/lp5907.pdf"
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/lp5907.pdf"
 				(at 0 12.7 0)
 				(effects
 					(font
@@ -3295,7 +3295,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/symlink/ina226.pdf"
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina228.pdf"
 				(at 8.89 -2.54 0)
 				(effects
 					(font
@@ -6173,7 +6173,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.ti.com/lit/gpn/tps2121"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf"
 			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -7243,7 +7243,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C5736265.pdf"
+		(property "Datasheet" "https://www.espressif.com/sites/default/files/documentation/esp32-c6-mini-1_mini-1u_datasheet_en.pdf"
 			(at 0 -43.18 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8326,7 +8326,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C2058784.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
 			(at 0 -12.7 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -8563,7 +8563,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C702117.pdf"
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
 			(at 0 -12.7 0)
 			(show_name no)
 			(do_not_autoplace no)

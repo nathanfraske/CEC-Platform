@@ -176,3 +176,22 @@ other modules already carry. rev3 should fold these in alongside the mezzanine +
 8. (Plus this respin's mezzanine + TPS2121 power mux + the shrink levers — sections above.)
 
 Items 1-5 are mechanical/small + bring parity with the other modules; #6 is the judgment call; #7 is a BOM item.
+
+## Datasheets — CACHED (2026-06-24)
+Pulled direct from the manufacturers (jlcsearch was down) into lib/datasheets/, and each symbol's
+`Datasheet` URL property is set (referenced). All rev3 ICs covered:
+
+| Part | LCSC | PDF | Source |
+|---|---|---|---|
+| TPS2121RUXR (power mux) | C485916 | TPS2121RUXR.pdf | ti.com/lit/ds/symlink/tps2121 |
+| ESP32-C6-MINI-1-N4 (MCU) | C5736265 | ESP32-C6-MINI-1.pdf | espressif.com |
+| INA228 (rail sense) | — | INA228.pdf | ti.com/lit/ds/symlink/ina228 |
+| INA181A2IDBVR (§6.13 CSA) | C2058784 | INA181A2IDBVR.pdf | ti.com/lit/ds/symlink/ina181 |
+| TLV7011DBVR (§6.13 comparator) | C702117 | TLV7011DBVR.pdf | ti.com/lit/ds/symlink/tlv7011 |
+| LP5907MFX-3.3 (3V3 LDO) | C80670 | LP5907.pdf | ti.com/lit/ds/symlink/lp5907 |
+| TJA1051T/3 (CAN) | C38695 | TJA1051.pdf | nxp.com (via archive mirror) |
+
+CONNECTOR datasheets remain BOM-pass items (jlcsearch down for the LCSC-CDN pull): the mezzanine
+header+socket (generic 2.0mm 2x8, exact MPN TBD at BOM), the ATX Mini-Fit Jr (Molex 5569 — family
+spec Molex-PS-5556.pdf already cached), the FTP RJ-45 (Kinghelm C2683360) and USB-C (XKB). NOTE the
+TPS2121 OV/PR/CP control-pin config still needs verifying against TPS2121RUXR.pdf before fab.
