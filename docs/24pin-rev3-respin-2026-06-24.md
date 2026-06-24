@@ -4,6 +4,16 @@ rev3 scaffold created at `modules/atx-24pin-rev3/` (copy of rev2). This rev fold
 mezzanine stack (Hub-on-24-pin, see docs/mezzanine-stack-design-2026-06-24.md), and (B) the 5V/5VSB power-mux
 consolidation. Plus the shrink levers already proven (90deg + header overhang + the J4->pigtail option).
 
+> **UPDATE 2026-06-24 (supersedes the "staged/NEXT-build/PENDING" notes below):** the rev3 24-pin schematic
+> is **BUILT** — generated in 10 LABELLED SECTIONS by `scripts/gen-24pin-rev3.py` (reuses `build('atx-24pin')`
+> for the C6 base + layers the mux, ATX power path, §6.13, mezzanine, J1.1-open). ERC = 1 benign error (the
+> C6→CAN-TXD GPIO typing all modules carry, DRAFT). New symbols `CEC_MEZZANINE_16P` + `+5V_SYS`/`+5V_MAIN`
+> created; `cec_sch` gained a reusable `sections=` capability. **All 7 IC datasheets are CACHED** in
+> `lib/datasheets/` (TPS2121, C6, INA228, INA181, TLV7011, LP5907, TJA1051) and each symbol's `Datasheet`
+> URL is set — see the "Datasheets — CACHED" table at the bottom. The GUI hand-off is now **PCB layout** +
+> the **TPS2121 control-pin datasheet check** (OV/PR/CP placeholders) + the connector MPN/BOM pass — NOT the
+> schematic build, which is done.
+
 ## B. Power mux — consolidate MAIN_5V + 5VSB on the 24-pin
 
 ### Why
