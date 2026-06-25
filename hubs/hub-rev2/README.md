@@ -11,3 +11,14 @@ STATUS: schematic DRAFT — ERC clean (0 errors; benign lib_symbol_mismatch/pin_
 truth; this is a fresh Rev2 board. NEXT: PCB layout (shared alignment frame w/ the 24-pin), and the
 mezzanine socket on B.Cu (the mirror). Pinout verification + the 2 new-vs-24pin IC datasheets: see the
 respin docs.
+
+## Pinout verification vs datasheets (2026-06-24)
+All Hub ICs cross-checked against their cached datasheets — every pinout MATCHES (no wiring errors):
+| IC | verdict | note |
+|---|---|---|
+| ESP32-S3-WROOM-1 | ✅ match (41 pins) | CAN_TX=10/IO17, CAN_RX=11/IO18, DETECT1-4=4-7 (ADC1), EN=3, +3V3=2 all confirmed; pads 13/14 USB + pad41 EPAD=GND are cosmetic names |
+| TPS3839DBZ | ✅ match (3) | 1=GND/2=RESET/3=VDD. NOTE: RESET is PUSH-PULL (not open-drain) — no external pull-up needed on the RESET line (drop one if the layout carries it). |
+| SN74AHCT1G08 | ✅ match (5) | 1=A/2=B/3=GND/4=Y/5=VCC; the LED-data buffer use (A,B tied) is correct |
+| TJA1051 / LP5907 / TPS2121 | ✅ | same symbols already datasheet-verified with the 24-pin rev3 |
+
+The Hub Rev2 is electrically verified — connectivity, BOM, and all IC pinouts checked. NEXT: PCB layout.
