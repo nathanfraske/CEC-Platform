@@ -209,9 +209,15 @@ def fmt_value(name, val):
         return fmt_res(val)
     return val
 
-def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp=""):
+def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp="", props=None):
     val = fmt_value(name, val)
+    props = props or {}
     pinblk = "\n".join(f'\t\t(pin "{n}" (uuid "{u()}"))' for n in pins)
+    ds = props.get("Datasheet", "")
+    # extra BOM properties (LCSC / MPN / Manufacturer / Description ...) preserved through regeneration
+    extra = "".join(
+        f'\t\t(property "{k}" "{v}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        for k, v in props.items() if k not in ("Datasheet", "Reference", "Value", "Footprint") and v)
     return (
         "\t(symbol\n"
         f'\t\t(lib_id "{lib}:{name}")\n'
@@ -222,7 +228,8 @@ def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp=""):
         f'\t\t(property "Reference" "{ref}" (at {f(x)} {f(y-15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Value" "{val}" (at {f(x)} {f(y+15.24)} 0) (effects (font (size 1.27 1.27))))\n'
         f'\t\t(property "Footprint" "{fp}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
-        f'\t\t(property "Datasheet" "" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f'\t\t(property "Datasheet" "{ds}" (at {f(x)} {f(y)} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+        f"{extra}"
         f"{pinblk}\n"
         f'\t\t(instances\n\t\t\t(project "{project}"\n\t\t\t\t(path "/{root}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n'
         "\t)")
@@ -273,7 +280,7 @@ def emit_section(label, x0, y0, x1, y1):
 
 def build_schematic(out_path, project, parts, nets, used, libs,
                     paper="A3", powerflag_nets=(), nc_skip=(), placement=None,
-                    power_ports=None, wire_nets=None, footprints=None, sections=None):
+                    power_ports=None, wire_nets=None, footprints=None, sections=None, props=None):
     """Write a .kicad_sch.
 
     power_ports: {net: power-symbol} (e.g. {"GND":"GND","+3V3":"+3V3"}). Pins on
@@ -314,9 +321,10 @@ def build_schematic(out_path, project, parts, nets, used, libs,
     for sym in sorted(need_syms):
         extra.append(_power_block(libs, sym))
 
+    props = props or {}
     body = [emit_symbol(r, *parts[r][:2], parts[r][2], *placement[r],
                         used[(parts[r][0], parts[r][1])]["pins"], project, root,
-                        footprints.get(r, ""))
+                        footprints.get(r, ""), props.get(r))
             for r in parts]
 
     # keep-out body boxes (absolute) and the set of all pin connection points,
@@ -392,8 +400,11 @@ def build_schematic(out_path, project, parts, nets, used, libs,
             if port == "GND":          # flag up top, GND port (points down) at bottom
                 flags.append(emit_global_power("PWR_FLAG", sx, ty, project, root, pwr_ref("#FLG"), 180))
                 flags.append(emit_global_power(port, sx, by_, project, root, pwr_ref("#PWR"), 0))
-            else:                      # positive-rail port up top, flag at bottom
+            elif net in power_ports:   # a defined power-rail SYMBOL: port up top, flag at bottom
                 flags.append(emit_global_power(port, sx, ty, project, root, pwr_ref("#PWR"), 180))
+                flags.append(emit_global_power("PWR_FLAG", sx, by_, project, root, pwr_ref("#FLG"), 0))
+            else:                      # arbitrary labeled rail (no power symbol): text label + PWR_FLAG
+                labels.append(emit_label(net, sx, ty, 90))
                 flags.append(emit_global_power("PWR_FLAG", sx, by_, project, root, pwr_ref("#FLG"), 0))
 
     # no-connect flags on every pin not in a net and not skipped
