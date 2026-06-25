@@ -79,8 +79,9 @@ def board_thermal_config(board_path):
     `cooling` (or None) is the PRODUCTION case-cooling model the owner validated 2026-06-20: the dashboard's
     default still-air + adiabatic-edge boundary gave a misleadingly hot dT99/maxT149 for 12VHPWR; with the
     real production enclosure -- a full metal case, TIM from the RS1-6 shunts to the case, and the M3 mounts
-    coupled to the case -- the solver lands at dT~24 / maxT~74 = PASS (matches the owner's ~14C/64C hand
-    calc). cooling = {shunt_prefix, g_chassis_W_per_K (per-shunt TIM), g_mount_W_per_K (per M3 mount), label}.
+    coupled to the case -- the solver lands at dT~24 / maxT~74 = PASS (same PASS regime as the owner's
+    ~14C/64C hand calc, both well under the 30C gate; the 2.5D solver runs ~9C hotter on dT than that
+    lumped estimate -- not an exact match). cooling = {shunt_prefix, g_chassis_W_per_K (per-shunt TIM), g_mount_W_per_K (per M3 mount), label}.
     Conservative-TIM / mount-only / still-air bounds are reachable via the CEC_THERMAL_* env knobs in
     render_per_layer. Scoped to 12VHPWR only -- the EPS/PCIe cable boards keep still-air pending owner
     sign-off on whether they share the same enclosure model (FOLLOWUPS)."""
@@ -341,7 +342,8 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     # PRODUCTION case-cooling (owner-validated 2026-06-20): the dashboard default (still-air + adiabatic
     # edges + no enclosure) gives a misleadingly hot dT99/maxT149 for 12VHPWR. The real production design --
     # full metal case, TIM from the RS1-6 shunts to the case, M3 mounts coupled to the case -- lands at
-    # dT~24/maxT~74 = PASS (matches the owner's ~14/64 hand calc). Couple the TIM'd shunts (chassis_refs) +
+    # dT~24/maxT~74 = PASS (same PASS regime as the owner's ~14/64 hand calc, ~9C hotter on dT -- not exact).
+    # Couple the TIM'd shunts (chassis_refs) +
     # mounts (g_mount auto-finds the M3 holes) to the case temp. Env knobs walk the envelope without a code
     # edit: CEC_THERMAL_NO_COOLING=1 -> still-air conservative bound; CEC_THERMAL_TIM_WK / CEC_THERMAL_MOUNT_WK
     # -> override the per-shunt TIM / per-mount conductance (e.g. CONSERVATIVE TIM 0.1). Scoped by cfg_cool to

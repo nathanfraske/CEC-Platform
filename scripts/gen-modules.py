@@ -444,7 +444,7 @@ def layout(dirn, parts):
             P[f"R{10+k}"] = (140 + k * 20, 270)
     return {r: P[r] for r in parts if r in P}
 
-for dirn, base in MODS:
+for dirn, base in (MODS if __name__ == "__main__" else []):   # importable w/o side effects (rev3 reuses build/layout)
     assert SENSE[dirn][0] != "analog-pin", \
         f"{dirn}: analog-pin (12VHPWR) is hand-maintained on the S3 and must NOT be regenerated (v3.10)"
     parts, nets = build(dirn)
