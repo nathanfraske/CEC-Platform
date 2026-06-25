@@ -1779,7 +1779,7 @@
 					(hide yes)
 				)
 			)
-			(property "Datasheet" "http://www.ti.com/lit/ds/sbvs193d/sbvs193d.pdf"
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps3839.pdf"
 				(at 0 0 0)
 				(effects
 					(font
