@@ -8,3 +8,4 @@
 - [V4 as a panel seat](v4-seat.md) — hand V4 tasks sync (cec_v4_task.py) or async via the idle queue (cec_v4_queue.py + Stop hook); a tier above a Sonnet sub-agent.
 - [AllMyStuff + MyOwnMesh apps](allmystuff-myownmesh-apps.md) — owner's coworker (mrjeeves) Windows apps; per-user Tauri installs; how to update + that AllMyStuff bundles the myownmesh daemon.
 - [Convergence blocker: mechanism not corpus](convergence-blocker-mechanism-not-corpus.md) — deterministic route converges the committed board now; fresh/agentic stall is pour-clip enforcement, not a corpus gap.
+- [KiCad integration landscape](kicad-integration-landscape.md) — what exists (IPC kipy refill_zones, kicad-sch-api/kicad-skip, circuit-synth, MCP servers, KiBot) and which close our bottlenecks; KiCad-10 compat caveats.
