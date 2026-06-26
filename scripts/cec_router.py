@@ -314,7 +314,20 @@ def default_planner(board, spec):
         return Plan(regions=spec.regions,
                     contracts=[c for r in spec.regions for c in r.contracts])
     rules = spec.rules or cec_score.Rules.from_board(board)
-    hints = _vital_keepouts_from_rules(board, rules)
+    import os
+    import cec_fr
+    hints = []
+    # CORRIDOR keepout: DEFAULT OFF (close-the-loop 2026-06-26, matching route_directed). It forces foreign
+    # signals around the high-current corridors so the pours fill solid, but on a placement that isn't
+    # corridor-clean it STRANDS the sense taps (kelvin true->false) -- so it must not be on by default
+    # (CEC_OVD_CORRIDOR_KEEPOUT=1 enables it, for use only with the corridor-packing placer).
+    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+        hints += _vital_keepouts_from_rules(board, rules)
+    # EDGE keepout: SAFE + always-on. FR has no edge-clearance awareness (~100% of fresh DRC is
+    # copper_edge_clearance); reserve a thin strip just inside each edge (excludes edge-resident
+    # connectors/mounts). CEC_NO_EDGE_KEEPOUT=1 disables.
+    if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
+        hints += cec_fr.edge_keepout(board)
     return Plan(regions=[Region(name="all", nets=[], hints=hints)], contracts=[])
 
 

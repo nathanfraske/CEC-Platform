@@ -61,3 +61,27 @@ the sense taps, so it ships default-off, the pours fragment, and there is nothin
 - **Make the learning chain fire AT ALL** — one CL-13 label per run costs almost nothing; the loop currently
   emits zero feedback over 160 runs. Defer the min-cut placer + CL-08 until there's a real reason to want
   hands-off fresh-board synthesis. Don't rewrite the placer; fix the doc.
+
+## Build log — step 1 done + a SHARPER finding (2026-06-26, same day)
+Built step 1 (edge_keepout) + an A/B on the committed eps EXPOSED a more precise blocker than the research framed:
+
+- **Step 1 (edge_keepout) is wired** into `cec_router.route()` (default_planner) + `route_directed` (kos),
+  SAFE/always-on, `CEC_NO_EDGE_KEEPOUT=1` off. Also gated route()'s CORRIDOR keepout default-OFF (was
+  unconditional; it strands sense) — matching route_directed. **But on the COMMITTED eps it self-gates to []**
+  (the connectors fill the edges → no clear strip; eps's drc=5 is LOGO/shield, NOT edge-clearance). The edge
+  wall is a FRESH-placement problem, so step 1's value is on `route_directed` fresh runs, not the committed board.
+- **THE REAL SNAG (empirical):** the same committed eps board converges via **cec_golden** (`kelvin_ok=true,
+  diffpair_ok=true, drc=0`) but NOT via **cec_router.route()** (`kelvin_ok=false, drc=5, unconn=16`). route()'s
+  route is **byte-identical (803.57mm/462 tracks) regardless of passes/opt_time/seeds/edge-keepout** → it is NOT
+  an FR-effort issue.
+- **Root cause located:** cec_golden runs `cec_fr.synthesize_power_copper` (F.Cu+B.Cu MIRROR pour + via field)
+  after the route, which connects the SENSEC kelvin nets; `route_directed` also lays the mirror; **`route()` lays
+  only the plain F.Cu `add_power_pours` and NEVER mirrors → the SENSEC_HI kelvin taps stay unconnected ("0 routed
+  track segments")**. So the orchestrator strands exactly what the golden routes clean.
+- **PRECISE step-2 fix (sharper than "post-route re-pour/defrag"):** give `cec_router.route()` the SAME B.Cu
+  mirror (`synthesize_power_copper`) that cec_golden + route_directed already use — apply it per-candidate before
+  scoring so the kelvin gate sees the connected net. That reconciles route() ↔ cec_golden and should converge the
+  committed board through the orchestrator. This is a contained route()-pipeline change, NOT the L-effort placer.
+- NET: the "cheap existence proof" is real but lives in cec_golden today; closing it through the ORCHESTRATOR is
+  one precise change (the missing mirror), now located. Step 1 (edge) helps fresh routes; step 2 (mirror in route())
+  is the committed-board unblock.
