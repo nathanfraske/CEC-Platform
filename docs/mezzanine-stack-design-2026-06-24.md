@@ -7,14 +7,22 @@ RJ-45 cable + the 2-pin 5VSB cable; yields a compact integrated "Hub+24-pin" uni
 
 ## 1. Configuration
 - 24-pin module = BASE (anchored by the ATX Mini-Fit headers + cable). Hub stacks ON TOP, component-side up.
-- Inter-board gap = the connector stack height = the standoff length (LOCKED TOGETHER). Target **8mm**.
-- The 24-pin's TALL parts (Mini-Fit Jr headers, RJ-45, USB-C, ~13mm) must sit at the EDGE/overhang region,
-  clear of the Hub footprint, so the 8mm gap only clears the low interior (INA/passives ~2mm) + the connector.
-  (Tonight's edge-overhang work already pushes those connectors to the edges -- this reuses it.)
+- Inter-board gap = the connector stack height = the standoff length (LOCKED TOGETHER). **Target 14mm
+  (OWNER DIRECTIVE 2026-06-25: minimum 14mm).** Raised from 8mm so the gap clears the 24-pin's TALL edge
+  connectors (J1 RJ-45 ~14mm, J3/J4 ATX Mini-Fit ~10.7mm) EVEN WHERE the Hub footprint overlaps them — the
+  gap no longer depends on those connectors sitting purely in the overhang region.
+- The 24-pin's TALL parts (Mini-Fit Jr headers, RJ-45, USB-C, ~13-14mm) still want the EDGE/overhang region
+  where possible; the 14mm gap then comfortably clears the low interior (INA/passives ~2mm) + the connector.
 
 ## 2. The connector
-- **2x8 (16-pin) dual-row 2.00mm board-to-board pair, 8mm mated stack height, >=3A/pin, keyed.**
+- **2x8 (16-pin) dual-row 2.00mm board-to-board pair, 14mm mated stack height, >=3A/pin, keyed.**
   24-pin carries the MALE header (pins up); Hub carries the FEMALE socket (on its bottom side).
+- **14mm STACK-HEIGHT IMPLICATION (owner's 14mm minimum):** a 14mm mated height is TALLER than a generic
+  2.0mm pin-header+socket (those top out ~8-11mm). Options at BOM: (a) a board-to-board family that ships a
+  14-15mm stack height (Würth WR-BHD / Samtec / Amphenol — defined stack heights, keyed+retained), OR (b) a
+  tall-pin 2.0mm header (e.g. 15-16mm pin length) mated into a socket so the boards seat at 14mm. The 2x8
+  2.0mm LAND is unchanged; only the part height + the matching standoff length (14mm M3) change. Confirm the
+  chosen part's current rating (>=3A on the 3 paralleled +5V_SYS pins) and keying.
 - Candidate families: generic 2.0mm dual-row header+socket (cheap, LCSC-stocked) or a proper board-to-board
   (Wurth WR-BHD 2.0mm / Amphenol / Molex SlimStack) for keying+retention. Source the exact LCSC C-number at BOM.
 - **MIRROR GOTCHA (the #1 mezzanine error):** the Hub is FLIPPED to stack, so its socket footprint pinout is
@@ -40,7 +48,7 @@ STREAM_P/N, DETECT, RSVD. +5VSB ~2.5A over 3 paralleled pins (~9A capacity) = co
 ## 4. Shared-ground-via-mounts + the alignment CONTRACT
 - The Hub already has 4 corner M3 mounts ALL ON GND (rect 86 x 61.7mm). The 24-pin rev2 has NO mounts -> ADD
   4 (>=3) M3 mounts with GND rings, aligned to the Hub's.
-- **8mm metal M3 standoffs** bond GND plane-to-plane at the 4 corners (+ the connector's 7 GND pins) = a
+- **14mm metal M3 standoffs** bond GND plane-to-plane at the 4 corners (+ the connector's 7 GND pins) = a
   low-impedance bond for CAN/RS-485 SI + the 5VSB return, AND the mechanical stack height.
 - **Alignment contract (both rev layouts MUST honor):** a shared frame = {the mezzanine connector reference
   (x,y,rot) + the 4-mount rectangle}. Constraint: the rectangle must fit within BOTH outlines (24-pin 83x79,
@@ -60,8 +68,8 @@ STREAM_P/N, DETECT, RSVD. +5VSB ~2.5A over 3 paralleled pins (~9A capacity) = co
 2. 24-pin rev3 schematic: add the header, wire pins 1-16 per the pinout to the link+power nets; add 4 M3 GND mounts.
 3. Hub rev schematic: add the (mirrored) socket on B.Cu, wire to a dedicated port-0 + power-in nets.
 4. PCB both: place connector + mounts on the shared alignment frame; keep the Hub footprint clear of the
-   24-pin's edge connectors; verify the 8mm gap clears all facing components (the gating mechanical check).
-5. BOM: 8mm M3 metal standoffs + screws; source the exact 2.0mm 2x8 board-to-board pair.
+   24-pin's edge connectors; verify the 14mm gap clears all facing components (the gating mechanical check).
+5. BOM: 14mm M3 metal standoffs + screws; source the exact 2.0mm 2x8 board-to-board pair.
 6. Population variants: mezzanine XOR (RJ-45 + JST).
 
 ## 7. Spec-revision proposal (new OQ)
@@ -70,7 +78,7 @@ stacked Hub+24-pin assembly, carrying the IDENTICAL logical interface. Propose a
 "OQ-xx: integrated mezzanine stack option (Hub-on-24-pin); RJ-45 remains the default/cabled PHY."
 
 ## 8. Gating checks before committing
-- Component-height vs 8mm gap (confirm the Hub footprint clears the 24-pin's edge connectors).
+- Component-height vs 14mm gap (confirm the Hub footprint clears the 24-pin's edge connectors).
 - The mirrored-socket mated-pair net check (do NOT skip).
 - +5VSB current + GND return across the connector (pin sizing) -- 3+7 looks comfortable.
 - EMC: stacked-board loop area -- the 4-corner GND bond + 7 connector GNDs is the mitigation; do an EMC pass.

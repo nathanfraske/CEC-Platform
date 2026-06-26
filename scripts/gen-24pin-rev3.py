@@ -175,10 +175,25 @@ P = {
     "J6": (310, 278),
 }
 
-stats = cec_sch.build_schematic(
-    OUT, BASE, parts, nets, used, gm.LIBS, paper="A3",
-    power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3", "+5V_SYS": "+5V_SYS", "+5V_MAIN": "+5V_MAIN"},
-    powerflag_nets=["+5VSB", "+5V_SYS", "+5V_MAIN", "GND"],
-    nc_skip=nc_skip, placement=P, wire_nets=wire_nets, footprints=fps, sections=SECTIONS)
-print(f"{OUT}\n  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))
-print(f"  parts={len(parts)} nets={len(nets)} sections={len(SECTIONS)}")
+# power_ports / powerflag for the flat AND the hierarchical generators
+POWER_PORTS = {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3", "+5V_SYS": "+5V_SYS", "+5V_MAIN": "+5V_MAIN"}
+POWERFLAG = ["+5VSB", "+5V_SYS", "+5V_MAIN", "GND"]
+
+if __name__ == "__main__":   # importing this module yields parts/nets/used WITHOUT writing anything
+    import sys
+    if "--flat" in sys.argv:                                  # legacy single-sheet sectioned form
+        stats = cec_sch.build_schematic(
+            OUT, BASE, parts, nets, used, gm.LIBS, paper="A3",
+            power_ports=POWER_PORTS, powerflag_nets=POWERFLAG,
+            nc_skip=nc_skip, placement=P, wire_nets=wire_nets, footprints=fps, sections=SECTIONS)
+        print(f"FLAT {OUT}\n  " + "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))
+    else:                                                     # DEFAULT: the adopted HIERARCHICAL schematic
+        import importlib
+        H = importlib.import_module("cec_sch_hier")
+        root, _, _ = H.build_hier_from(parts, nets, used, gm.LIBS, BASE,
+                                       power_ports=POWER_PORTS, outdir=os.path.dirname(OUT),
+                                       root_name=f"{BASE}.kicad_sch")
+        rep = H.verify(root, parts, nets)
+        print(f"HIERARCHICAL {root}")
+        print(f"  verify: matched={rep['matched']}/{rep['flat_nets']} missing_nets={rep['n_missing_nets']}"
+              f"  {'PASS' if rep['n_missing_nets'] == 0 else 'FAIL'}")

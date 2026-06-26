@@ -119,20 +119,29 @@ def lib_symbols_section(used, extra_blocks=()):
     parts.append("\t)")
     return "\n".join(parts)
 
-def pin_abs(placement, used, parts, ref, num):
+def pin_abs(placement, used, parts, ref, num, rotations=None):
     """Absolute (x,y) of a pin's CONNECTION point, and the outward unit vector.
 
     In KiCad a pin's connection point is its (at) coordinate; `length` extends
     from there toward the body along `ang`. So the attach point is just (at)
     placed (schematic Y is inverted vs symbol Y), and "outward" — where a stub
     extends, away from the body — is the opposite of `ang`.
+
+    rotations: optional {ref: deg} instance rotation (0/90/180/270, CCW in the
+    symbol's +Y-up frame, matching KiCad's `(at x y deg)`). The pin's local
+    position AND its outward direction rotate with the symbol.
     """
     lib, name, _ = parts[ref]
     lx, ly, ang, _length = used[(lib, name)]["pins"][num]
     ox, oy = placement[ref]
+    rot = (rotations or {}).get(ref, 0) % 360
+    if rot:
+        r = math.radians(rot)
+        lx, ly = lx * math.cos(r) - ly * math.sin(r), lx * math.sin(r) + ly * math.cos(r)
     ax, ay = ox + lx, oy - ly
-    dx = -math.cos(math.radians(ang))      # outward = opposite the pin's body dir
-    dy = math.sin(math.radians(ang))       # (+ because schematic Y is inverted)
+    pang = math.radians(ang + rot)
+    dx = -math.cos(pang)                   # outward = opposite the pin's body dir
+    dy = math.sin(pang)                    # (+ because schematic Y is inverted)
     return ax, ay, dx, dy
 
 def sym_body_box(block):
@@ -209,7 +218,7 @@ def fmt_value(name, val):
         return fmt_res(val)
     return val
 
-def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp="", props=None):
+def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp="", props=None, rot=0):
     val = fmt_value(name, val)
     props = props or {}
     pinblk = "\n".join(f'\t\t(pin "{n}" (uuid "{u()}"))' for n in pins)
@@ -221,7 +230,7 @@ def emit_symbol(ref, lib, name, val, x, y, pins, project, root, fp="", props=Non
     return (
         "\t(symbol\n"
         f'\t\t(lib_id "{lib}:{name}")\n'
-        f"\t\t(at {f(x)} {f(y)} 0)\n\t\t(unit 1)\n"
+        f"\t\t(at {f(x)} {f(y)} {rot % 360})\n\t\t(unit 1)\n"
         "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
         "\t\t(fields_autoplaced yes)\n"
         f'\t\t(uuid "{u()}")\n'
@@ -263,6 +272,23 @@ def emit_global_power(symname, x, y, project, root, ref, rot=0):
         f'\t\t(pin "1" (uuid "{u()}"))\n'
         f'\t\t(instances\n\t\t\t(project "{project}"\n\t\t\t\t(path "/{root}" (reference "{ref}") (unit 1))\n\t\t\t)\n\t\t)\n'
         "\t)")
+
+def emit_title_block(title="", rev="A", date="", company="", comments=()):
+    """KiCad (title_block): the sheet's title / revision / date / company + comment lines
+    (used here for the author). Goes immediately after (paper ...)."""
+    out = ["\t(title_block"]
+    if title:
+        out.append(f'\t\t(title "{title}")')
+    if date:
+        out.append(f'\t\t(date "{date}")')
+    if rev:
+        out.append(f'\t\t(rev "{rev}")')
+    if company:
+        out.append(f'\t\t(company "{company}")')
+    for i, c in enumerate(comments, 1):
+        out.append(f'\t\t(comment {i} "{c}")')
+    out.append("\t)")
+    return "\n".join(out)
 
 def gridsnap(x, y):
     return (round(x / GRID) * GRID, round(y / GRID) * GRID)
