@@ -919,6 +919,31 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
         print(f"[route] FINAL {os.path.relpath(spec.out, ROOT) if spec.out.startswith(ROOT) else spec.out}: "
               f"gates_pass={verdict['gates_pass']} drc={verdict['drc']} unconn={verdict['unconnected']} "
               f"tracks={verdict['tracks']} vias={verdict['vias']}")
+    # CL-13 outcome label (2026-06-26): emit ONE settleable, settled outcome per route run so the learning
+    # chain finally FIRES (it was coded but never fired -- 160 runs -> 0 grade-1 settles). The verdict is the
+    # independent cec_score gate -> a check_id-hooked claim settled grade-1 (claim+hook => PC-01 capture=full).
+    # Never breaks a route: the ledger degrades to a warning when the cec-runs repo is absent.
+    try:
+        import cec_ledger
+        gp = bool(verdict.get("gates_pass"))
+        did = cec_ledger.decision(
+            decision_class="accept" if gp else "reject",
+            artifact=os.path.basename(spec.out),
+            decider={"kind": "model", "id": "cec_router.route"},
+            verdict=(f"gates {'pass' if gp else 'fail'}: kelvin={verdict.get('kelvin_ok')} "
+                     f"diffpair={verdict.get('diffpair_ok')} drc={verdict.get('drc')} unconn={verdict.get('unconnected')}"),
+            cited_reasons=verdict.get("reasons", []),
+            claim={"asserts": (f"routed board {'meets' if gp else 'misses'} the hard gates "
+                               f"(kelvin+diffpair) at finishing-only DRC"),
+                   "kelvin_ok": verdict.get("kelvin_ok"), "diffpair_ok": verdict.get("diffpair_ok"),
+                   "drc": verdict.get("drc"), "unconnected": verdict.get("unconnected")},
+            hook={"kind": "check_id", "ref": "cec_score:kelvin_ok+diffpair_ok+drc"},
+            settlement={"state": "settled", "grade": 1})
+        if verbose and did:
+            print(f"[route] CL-13 outcome label emitted ({'accept' if gp else 'reject'}, settled g1): {did}")
+    except Exception as _e:                              # noqa: BLE001 -- a route must never break on the ledger
+        if verbose:
+            print(f"[route] CL-13 label skipped ({type(_e).__name__}: {_e})")
     return spec.out, log
 
 
