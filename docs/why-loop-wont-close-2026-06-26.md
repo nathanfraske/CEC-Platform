@@ -85,3 +85,19 @@ Built step 1 (edge_keepout) + an A/B on the committed eps EXPOSED a more precise
 - NET: the "cheap existence proof" is real but lives in cec_golden today; closing it through the ORCHESTRATOR is
   one precise change (the missing mirror), now located. Step 1 (edge) helps fresh routes; step 2 (mirror in route())
   is the committed-board unblock.
+
+### CORRECTION (same session) — two hypotheses tested and DISPROVEN
+Tested the step-2 diagnosis directly instead of shipping it; both failed:
+- **The placements are IDENTICAL.** tests/golden/eps-8pin and modules/eps-8pin have the same 46 parts at the
+  same positions (0 differing). So the route()-vs-golden gap is NOT a placement difference.
+- **The mirror does NOT bridge it.** Applying `cec_fr.synthesize_power_copper` to route()'s stranded output left
+  kelvin_ok=False / drc=5 / unconn=16 unchanged. So the "route() lacks the mirror" diagnosis (committed cccb2a2)
+  is WRONG — the mirror is additive same-net copper and can't connect a kelvin tap FR never routed.
+- **What's actually true:** on the SAME board+placement, cec_golden's clean harness (generate_batch single-seed
+  passes10/opt20 + power_pours, NO planner/scoring/repair) routes the SENSEC kelvin; cec_router.route()'s harness
+  (planner hints + _candidate_pool scoring + manager/repair loop) produces a route where SENSEC*_HI has 0 segments,
+  byte-identical regardless of params. So the gap is in the ORCHESTRATOR HARNESS, not placement/mirror — narrower
+  than the research framed but NOT yet pinned. Prime suspects (next diagnostic): the .kicad_dru/.kicad_pro netclass
+  files differ between the two board copies (FR routing rules), or route()'s candidate scoring/repair selects a
+  kelvin-stranding candidate cec_golden's single clean route avoids. Step 1 (edge_keepout) stands; the committed-
+  board-via-orchestrator proof needs that one harness diff pinned first.
