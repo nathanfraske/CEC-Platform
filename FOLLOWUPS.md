@@ -316,3 +316,19 @@ Conventions:
 - [2026-06-24] rev3 24-pin BOM pass: select the mezzanine header+socket MPN (2.0mm 2x8 board-to-board, stock-confirmed) + the FTP RJ-45 (C2683360) / USB-C (XKB) / ATX Mini-Fit (Molex 5569) connector datasheets — pull via the lcsc skill once jlcsearch is back up (was down 2026-06-24; ICs were cached direct from the manufacturers).
 - [2026-06-24] rev3 24-pin BOM pass: assign LCSC parts to ALL passives per the quality/type spec in docs/24pin-rev3-respin-2026-06-24.md (1% on R1/R50/R52/R53/R60; X7R/X5R ≥16V caps) — the generated sch carries value+footprint only. Pull via the lcsc skill once jlcsearch is back (down 2026-06-24).
 - [2026-06-24] Hub Rev2: the TPS3839 (U4) RESET is PUSH-PULL per datasheet (not open-drain) — if the layout carries an external pull-up on the RESET net, it's redundant; verify/remove at the PCB pass. Symbol is correct; this is a board note only.
+
+## Schematic generator tooling (2026-06-25, unified onto main from claude/prompt-tier-audit)
+- [2026-06-25] `.venv` (cairosvg 2.9.0 + kicad-sch-api 0.5.5) is required by the new schematic tools
+  (cec_sch_review render + the kicad-sch-api probe) but is NOT in provisioning — add
+  `python3 -m venv --system-site-packages .venv && .venv/bin/pip install cairosvg kicad-sch-api` to
+  ops/provision.sh (the rebuilt WSL box has no rsvg-convert/imagemagick/poppler + no passwordless sudo).
+- [2026-06-25] Schematic overlap: cec_sch_hier+cec_sch_overlap get eps/pcie hier sheets to 1-2 residual
+  overlaps (sweep: eps/pcie-2port/pcie-3port all verify 28-32/32 PASS, ERC 1 benign pin_not_driven). The
+  residual = a global label on the R7/R10 INLINE poke-resistor body (the label's stub can't extend past a
+  decoupler in its path) — route that label perpendicular or move R7 off the pin's outward ray. Minor.
+- [2026-06-25] Hardened cec_sch_hier.verify(): each hier net kept as its own pin-set (was leaf-name-grouped,
+  which MASKED a split — caught a real VBUS-split connectivity bug). If any other multi-sheet generation is
+  added, audit it the same way (single-sheet flat boards connect local labels by name, so they're fine).
+- [2026-06-25] IPC-API zone-refill gap-closer (kicad-python `board.refill_zones()` on a running KiCad GUI,
+  Windows-side) — closes the "Fill All Zones" handoff kicad-cli can't do. Not yet prototyped. KiCad 9/10 IPC
+  is PCB-editor-only, no export. Where: docs.kicad.org/kicad-python-main/board.html.
