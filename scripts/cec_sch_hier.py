@@ -406,11 +406,32 @@ def layout_block(ic, refs, parts, nets_block, used, power_ports, global_set):
 
 
 def build_hier(board, outdir=None, *, rev=REV, date=DATE):
+    """Hierarchical generation for a gen-modules MODS board (eps-8pin / pcie-8pin-*)."""
     gm = _gm()
     base = dict(gm.MODS)[board]
     parts, nets = gm.build(board)
     used = C.load_symbols(gm.LIBS, parts)
-    libs = gm.LIBS
+    return build_hier_from(parts, nets, used, gm.LIBS, base, outdir=outdir, rev=rev, date=date)
+
+
+def build_hier_rev3(outdir=None, *, rev=REV, date=DATE):
+    """Hierarchical version of the 24-pin rev3 board (TPS2121 mux + 16-pin mezzanine + §6.13)
+    from gen-24pin-rev3's pre-built parts/nets (its write is guarded under __main__, so this
+    import has no side effect). Verify against the flat rev3 netlist (g3.nets)."""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("gen_24pin_rev3",
+                                                  os.path.join(ROOT, "scripts", "gen-24pin-rev3.py"))
+    g3 = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(g3)
+    return build_hier_from(g3.parts, g3.nets, g3.used, g3.gm.LIBS, "24pin-module-rev3",
+                           power_ports=g3.POWER_PORTS, outdir=outdir, rev=rev, date=date)
+
+
+def build_hier_from(parts, nets, used, libs, base, *, power_ports=None, outdir=None,
+                    rev=REV, date=DATE):
+    """Hierarchical generation from pre-built parts/nets — usable by ANY generator (e.g.
+    gen-24pin-rev3, with its mux + mezzanine). power_ports defaults to GND/+5VSB/+3V3; pass
+    the board's full set (rev3 adds +5V_SYS/+5V_MAIN) so those rails use ports, not labels."""
     project = f"{base}-hier"
     sheet_of, blocks = partition(parts, nets, used)
     ic_blocks = sorted(b for b in blocks if b != "ROOT")
@@ -418,7 +439,7 @@ def build_hier(board, outdir=None, *, rev=REV, date=DATE):
     net_sheets = {net: {sheet_of.get(r, "ROOT") for r, _ in conns} for net, conns in nets.items()}
     def crossing(net):
         return len(net_sheets.get(net, set())) > 1
-    power_ports = {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"}
+    power_ports = power_ports or {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"}
     # A net needs a GLOBAL label to cross sheets UNLESS it has a power PORT (which is global by
     # symbol name). Power-ISH nets without a port (e.g. VBUS) MUST still go global, else they
     # split into per-sheet local nets that share a name but aren't connected.
@@ -484,7 +505,7 @@ def build_hier(board, outdir=None, *, rev=REV, date=DATE):
     build_sheet_file(root_path, project, {r: parts[r] for r in rparts}, nR, used_of(rparts), libs,
                      instance_path=root_uuid, file_uuid=root_uuid, placement=rplace, paper="A3",
                      power_ports=power_ports, powerflag_nets=["+5VSB", "GND"], global_nets=gR,
-                     extra_blocks=sheet_blocks, title=f"{board} — root (interconnect)",
+                     extra_blocks=sheet_blocks, title=f"{base} — root (interconnect)",
                      rev=rev, date=date, pre_wires=r_wires, handled_pins=r_handled,
                      junctions=r_juncs, extra_terms=r_terms)
 
@@ -543,7 +564,10 @@ def main(argv=None):
     ap.add_argument("--rev", default=REV)
     ap.add_argument("--date", default=DATE)
     a = ap.parse_args(argv)
-    root_path, parts, nets = build_hier(a.board, rev=a.rev, date=a.date)
+    if a.board in ("atx-24pin-rev3", "rev3", "24pin-rev3"):
+        root_path, parts, nets = build_hier_rev3(rev=a.rev, date=a.date)
+    else:
+        root_path, parts, nets = build_hier(a.board, rev=a.rev, date=a.date)
     rep = verify(root_path, parts, nets)
     ok = rep["n_missing_nets"] == 0
     print(f"root: {os.path.relpath(root_path, ROOT)}")
