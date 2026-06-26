@@ -101,3 +101,31 @@ Tested the step-2 diagnosis directly instead of shipping it; both failed:
   files differ between the two board copies (FR routing rules), or route()'s candidate scoring/repair selects a
   kelvin-stranding candidate cec_golden's single clean route avoids. Step 1 (edge_keepout) stands; the committed-
   board-via-orchestrator proof needs that one harness diff pinned first.
+
+### RESOLVED — the audit found a dead-code bug; fixing it CLOSED the loop on the committed eps
+The step-1 audit (wf_c8c9b807) caught that my route() edits landed in `default_planner`, which is DEAD CODE:
+every route() caller goes through `board_spec()` (cec_router.py:957-958), which builds the region hints —
+unconditionally baking the CORRIDOR keepout — BEFORE route() runs, so default_planner short-circuits. So my
+edge_keepout + corridor-off never ran via route(); the "byte-identical regardless of params" was the dead code
+not executing, and my "edge_keepout self-gates to []" claim was wrong (it returns 6 strips). The corridor
+keepout was STILL ON for route() (via board_spec) — i.e. route()'s kelvin-stranding WAS the corridor keepout,
+exactly the research's original diagnosis.
+
+**FIX (board_spec, the live hints path):** corridor keepout DEFAULT-OFF (CEC_OVD_CORRIDOR_KEEPOUT=1 to enable),
+edge_keepout always-on (CEC_NO_EDGE_KEEPOUT=1 off). **RESULT on the committed eps via cec_router.route():**
+
+| | before (corridor on, dead-code fix) | after (corridor off + edge_keepout, live) |
+|---|---|---|
+| kelvin_ok | **false** | **true** ✅ |
+| diffpair_ok | true | **true** ✅ |
+| unconnected | 16 | 3 |
+| drc | 5 | 9 — **ALL 9 are LOGO1 B.Cu** (shorting/clearance/mask-bridge vs the decorative copper logo) |
+| route | byte-identical 803mm/462trk (inert) | 1049mm/546trk (genuinely re-routed) |
+
+The 9 DRC are 100% the LOGO1 no-via-keepout/GND-assign finishing item (documented, GUI/placement-level, same
+class cec_golden's golden board has pre-handled) — NOT routing. So **the ORCHESTRATOR now CONVERGES the committed
+eps at the hard-gate + finishing-only bar** (kelvin+diffpair pass, DRC finishing-only) — the self-closing-loop
+existence proof, via cec_router.route(), achieved by step-1's edge_keepout + turning the corridor keepout off by
+default. The earlier "missing mirror" + "self-gates to []" hypotheses were wrong and are retracted; the real
+unblock was the corridor keepout being on in the wrong (live) place. NEXT for full drc=0: the LOGO1 B.Cu no-via
+keepout / GND-assign (a finishing pass, not the loop).

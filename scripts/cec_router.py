@@ -954,8 +954,19 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     spec = Spec(board=board_path, out=out, rules=rules, seeds=tuple(seeds), Kmax=kmax,
                 max_iters=max_iters, max_workers=max_workers, opt_spread=opt_spread,
                 weights=dict(cec_score.DEFAULT_WEIGHTS))
+    # CORRIDOR keepout DEFAULT-OFF (close-the-loop 2026-06-26): it forces foreign signals around the
+    # high-current corridors (pours fill solid) but STRANDS the sense taps on a placement that isn't
+    # corridor-clean (kelvin true->false) -- so it must not be on by default (this is the LIVE hints path
+    # for every route() caller; the default_planner copy is the no-regions fallback). CEC_OVD_CORRIDOR_KEEPOUT=1
+    # enables it (for use only with the corridor-packing placer). EDGE keepout is SAFE + always-on (FR has no
+    # edge-clearance awareness, ~100% of a fresh route's DRC); CEC_NO_EDGE_KEEPOUT=1 disables.
+    _hints = []
+    if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
+        _hints += _vital_keepouts_from_rules(board_path, rules)
+    if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
+        _hints += cec_fr.edge_keepout(board_path)
     spec.regions = [Region(name="all", nets=[],
-                           hints=_vital_keepouts_from_rules(board_path, rules),
+                           hints=_hints,
                            fr_params={"passes": passes, "opt_time": opt_time, "threads": threads})]
     # High-current nets get a real copper POUR laid AFTER each FR route (additive same-net,
     # so it can't strand the Kelvin sense that shares the net). Auto-derived from geometry --
