@@ -414,25 +414,30 @@ def build_hier(board, outdir=None, *, rev=REV, date=DATE):
     return build_hier_from(parts, nets, used, gm.LIBS, base, outdir=outdir, rev=rev, date=date)
 
 
-def build_hier_rev3(outdir=None, *, rev=REV, date=DATE):
+def build_hier_rev3(outdir=None, *, rev=REV, date=DATE, root_name=None):
     """Hierarchical version of the 24-pin rev3 board (TPS2121 mux + 16-pin mezzanine + §6.13)
     from gen-24pin-rev3's pre-built parts/nets (its write is guarded under __main__, so this
-    import has no side effect). Verify against the flat rev3 netlist (g3.nets)."""
+    import has no side effect). Verify against the flat rev3 netlist (g3.nets). Pass
+    outdir=modules/atx-24pin-rev3 + root_name='24pin-module.kicad_sch' to ADOPT it as the
+    board's canonical schematic."""
     import importlib.util
     spec = importlib.util.spec_from_file_location("gen_24pin_rev3",
                                                   os.path.join(ROOT, "scripts", "gen-24pin-rev3.py"))
     g3 = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(g3)
     return build_hier_from(g3.parts, g3.nets, g3.used, g3.gm.LIBS, "24pin-module-rev3",
-                           power_ports=g3.POWER_PORTS, outdir=outdir, rev=rev, date=date)
+                           power_ports=g3.POWER_PORTS, outdir=outdir, rev=rev, date=date,
+                           root_name=root_name)
 
 
 def build_hier_from(parts, nets, used, libs, base, *, power_ports=None, outdir=None,
-                    rev=REV, date=DATE):
+                    rev=REV, date=DATE, root_name=None):
     """Hierarchical generation from pre-built parts/nets — usable by ANY generator (e.g.
     gen-24pin-rev3, with its mux + mezzanine). power_ports defaults to GND/+5VSB/+3V3; pass
-    the board's full set (rev3 adds +5V_SYS/+5V_MAIN) so those rails use ports, not labels."""
-    project = f"{base}-hier"
+    the board's full set (rev3 adds +5V_SYS/+5V_MAIN) so those rails use ports, not labels.
+    root_name names the root .kicad_sch (default <base>-hier.kicad_sch); set it to adopt the
+    output as a board's canonical schematic (e.g. '24pin-module.kicad_sch')."""
+    project = os.path.splitext(root_name)[0] if root_name else f"{base}-hier"
     sheet_of, blocks = partition(parts, nets, used)
     ic_blocks = sorted(b for b in blocks if b != "ROOT")
 
@@ -501,7 +506,7 @@ def build_hier_from(parts, nets, used, libs, base, *, power_ports=None, outdir=N
         pg = {p: C.pin_abs(rplace, used, {r: parts[r]}, r, p) for p in used[(parts[r][0], parts[r][1])]["pins"]}
         cw, ch, cj, ct = _consolidate_pins(r, pg, pnR, set(), power_ports, gR)
         r_wires += cw; r_handled |= ch; r_juncs |= cj; r_terms += ct
-    root_path = os.path.join(outdir, f"{base}-hier.kicad_sch")
+    root_path = os.path.join(outdir, root_name or f"{base}-hier.kicad_sch")
     build_sheet_file(root_path, project, {r: parts[r] for r in rparts}, nR, used_of(rparts), libs,
                      instance_path=root_uuid, file_uuid=root_uuid, placement=rplace, paper="A3",
                      power_ports=power_ports, powerflag_nets=["+5VSB", "GND"], global_nets=gR,

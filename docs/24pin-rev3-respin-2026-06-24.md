@@ -62,7 +62,7 @@ limit (R_ILIM)** + reverse-current blocking + status. That current limit is exac
    J_MEZZ + 4 mounts. ERC + netlist verify (the §6.x checklist).
 3. Hub-rev sch: splice the mirrored socket on a dedicated port-0 + power-in (+5V_SYS); move mounts to the
    shared rect; adapt §2.9 to 2-source. ERC + netlist.
-4. PCB (GUI / placement pass): place per the shared alignment frame; verify the 8mm-gap clearance.
+4. PCB (GUI / placement pass): place per the shared alignment frame; verify the 14mm-gap clearance.
 
 ## STATUS
 - DONE: rev3 scaffold; design + amperage analysis (this doc); mezzanine stack design (sister doc).
@@ -78,7 +78,7 @@ set in the symbol `Datasheet` property AND the PDF cached in `lib/datasheets/`. 
 |---|---|---|---|
 | Power mux | **TPS2121RUXR** (TI) / **C485916** | https://www.ti.com/lit/gpn/tps2121 (TI SLVSDU5) | REFERENCED in symbol cec-vendor:TPS2121. PDF cache PENDING (TI 403s direct; LCSC CDN: datasheet.lcsc.com/...C485916.pdf -- pull via the lcsc skill when jlcsearch is back up). |
 | Mezzanine header | 2.0mm dual-row 2x8, MALE | family TBD-at-BOM | SELECT a JLCPCB-stocked 2.0mm 2x8 header (XKB/Wcon/generic -- the platform already sources XKB for the USB-C + buttons); confirm stock + pull the LCSC-CDN datasheet at the BOM pass. |
-| Mezzanine socket | 2.0mm dual-row 2x8, FEMALE | family TBD-at-BOM | matched socket to the header above (8mm mated stack). Same BOM-pass selection + datasheet pull. |
+| Mezzanine socket | 2.0mm dual-row 2x8, FEMALE | family TBD-at-BOM | matched socket to the header above (14mm mated stack). Same BOM-pass selection + datasheet pull. |
 | Mux passives | C_SS 2.2uF, C_IN/OUT 1uF, R_ILIM, R_PR | generic | generic; datasheet optional (reuse the platform's existing cap/resistor MPNs which already carry datasheets). |
 | M3 mounts (x4) | MountingHole_3.2mm | mechanical | no datasheet (mechanical). |
 
@@ -129,7 +129,7 @@ A multi-agent audit (wf_b42b699c) of this session's work found real issues; corr
    connectors. Solve the mount/standoff positions against the ACTUAL connector keep-outs at layout (the design
    allows >=3 mounts) — the alignment contract is {connector ref + the mount set that fits both boards' keep-outs},
    finalized in the GUI, not a fixed corner rect.
-5. **Connector keying — the vendored 2x8 2.0mm header/socket are UN-keyed/un-shrouded.** Since the 8mm M3 standoffs
+5. **Connector keying — the vendored 2x8 2.0mm header/socket are UN-keyed/un-shrouded.** Since the 14mm M3 standoffs
    set the gap + alignment + carry the load, retention/keying from the connector is NOT required — DROP the "keyed"
    wording; the standoffs handle it. If positive keying is still wanted, source a keyed board-to-board (Wurth WR-BHD /
    Molex SlimStack) and vendor ITS footprint instead. (The vendored footprints' forbidden ${KICAD10_3DMODEL_DIR}
