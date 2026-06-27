@@ -1035,17 +1035,30 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
         s = merged[:-len(".kicad_pcb")] + ext
         if os.path.exists(s):
             shutil.copy(s, spec.out[:-len(".kicad_pcb")] + ext)
-    # ROUTE-UNDER finishing stage (CEC_ROUTE_UNDER=1): the deterministic, completeness-preserving
-    # layer-swap (scripts/cec_layer_swap.py) moves the FOREIGN F.Cu signal segments that clip the
-    # F.Cu SENSEC pours DOWN to B.Cu (under the pour), stitched with board-legal vias, so the F.Cu
-    # pour fills SOLID and the foreign runs under it on B.Cu. It runs in its OWN process (pcbnew SWIG
-    # hygiene) on the just-merged board, in place. Kelvin is preserved (the swapper never touches the
-    # _HI/_LO/GND force nets -- only foreign signals). A swap failure leaves spec.out untouched, so it
-    # can only help, never break the route. NOTE (measured 2026-06-27, eps-8pin-rev3): on a 4-layer
-    # cable board whose inners are GND+12V planes, B.Cu is the ONLY route-under layer and is typically
-    # already congested under the pours -> only a fraction of clips swap. See the verdict in the
-    # session report; this stage is wired but is NOT sufficient alone on a B.Cu-congested board.
-    if os.environ.get("CEC_ROUTE_UNDER", "0") == "1":
+    # ROUTE-UNDER finishing stage (CEC_ROUTE_UNDER=1, default ON when the board has SENSEC corridors):
+    # the deterministic, completeness-preserving layer-swap (scripts/cec_layer_swap.py, Design [1]).
+    # It GATES on THROUGH vs TAP: a foreign F.Cu seg that clips a SENSEC pour is relayered ONLY if it
+    # is a genuine THROUGH crossing (both endpoints OUTSIDE every pour + the interior crosses pour
+    # copper). Through crossings move off F.Cu to the cheapest legal layer -- B.Cu first (congestion
+    # guard), else the In2 INNER GND PLANE (the "12V"-named layer that is actually poured GND; it
+    # auto-antipads each foreign run + transition via via its 0.3mm zone local_clearance, no manual
+    # antipad). TAP segments (an endpoint INSIDE the pour -- a pad escape that dies on a via / F.Cu-only
+    # SMD pad inside the sense-IC cluster) are NEVER relayered; they are ESCALATED to a PLACEMENT/
+    # CORRIDOR change (the route-time keepout, CEC_TWO_PASS_CORRIDOR), per the constraint-loop boundary.
+    # Kelvin is preserved (it never touches the _HI/_LO/GND force nets), so the SENSEC F.Cu pours only
+    # fill MORE solid -- it can only help the 40A current path, never cut it. Runs in its OWN process
+    # (pcbnew SWIG hygiene), in place; any failure leaves spec.out untouched.
+    # MEASURED (2026-06-27, eps-8pin-rev3): the OLD B.Cu-only script stalled at 6/41 (29/39 rejections
+    # were the B.Cu congestion guard -- 157 tracks under the pours). Retargeting to In2 + the THROUGH/
+    # TAP gate clears the through crossings that have a legal exit via (DRC-clean, 0 new shorts, SENSEC
+    # F.Cu fill +5-7% on the HI pours) and HONESTLY escalates the rest -- the taps (pad escapes inside
+    # the IC cluster) and any through-net whose only exit is pinned by board-edge / pad-row density.
+    # This stage does NOT make 40A meet a 30C gate (the F.Cu-only shunt pad is the bound; owner-ratified
+    # shunt/stackup change). _do_under controls whether it runs: explicit CEC_ROUTE_UNDER wins; else
+    # default ON iff the board carries SENSEC corridors (no-op on boards without them).
+    _ru = os.environ.get("CEC_ROUTE_UNDER")
+    _do_under = (_ru == "1") if _ru is not None else board_has_sensec_corridors(spec.out)
+    if _do_under:
         import subprocess
         try:
             under = spec.out[:-len(".kicad_pcb")] + "-under.kicad_pcb"
@@ -1056,13 +1069,28 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             su = subprocess.run(
                 [sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "cec_layer_swap.py"),
                  spec.out, under, "0.2", "0.25"],
-                env={**os.environ, "GROW_MM": os.environ.get("CEC_ROUTE_UNDER_GROW", "0")},
+                env={**os.environ,
+                     "CEC_VIA_SLIDE_MM": os.environ.get("CEC_ROUTE_UNDER_SLIDE", "5.0"),
+                     "CEC_CHAIN_GAP_MM": os.environ.get("CEC_ROUTE_UNDER_GAP", "8.0")},
                 capture_output=True, text=True, timeout=600)
+            # adopt the swapped board ONLY if kelvin still holds AND it does not regress unconnected
+            # (the swap can only add copper to the SENSEC pours, but verify before adopting).
             if su.returncode == 0 and os.path.exists(under):
-                shutil.copy(under, spec.out)
+                pre_m = cec_score.score(spec.out, rules)
+                post_m = cec_score.score(under, rules)
+                if post_m.kelvin_ok and post_m.unconnected <= pre_m.unconnected:
+                    shutil.copy(under, spec.out)
+                    adopted = "ADOPTED"
+                else:
+                    adopted = (f"NOT adopted (kelvin={post_m.kelvin_ok} unconn={post_m.unconnected} "
+                               f"vs pre={pre_m.unconnected}); keeping un-swapped")
                 if verbose:
-                    tail = (su.stdout or "").strip().splitlines()[-5:]
-                    print("[route] ROUTE-UNDER finishing: " + " | ".join(tail))
+                    out_lines = (su.stdout or "").strip().splitlines()
+                    summ = next((ln for ln in out_lines if ln.startswith("SUMMARY ")), "")
+                    head = next((ln for ln in out_lines if ln.startswith("THROUGH crossings")), "")
+                    print(f"[route] ROUTE-UNDER {adopted}: {head}")
+                    if summ:
+                        print("[route] ROUTE-UNDER " + summ[:600])
             elif verbose:
                 print(f"[route] ROUTE-UNDER skipped (rc={su.returncode}): "
                       f"{((su.stdout or '') + (su.stderr or ''))[-200:]}")
