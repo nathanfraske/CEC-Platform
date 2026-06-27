@@ -2462,6 +2462,32 @@ def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
     return False
 
 
+def _evacuate_corridors(P, comps, model, *, margin=0.8):
+    """RE-PLACE fix (owner-caught 2026-06-27): move any body whose CENTER sits inside a FORMED high-current
+    band OUT to the nearest band edge + margin (the corridor is the vertical connector->shunt column, so
+    evacuate in x). A foreign body in a SENSEC pour BLOCKS the fill AND its nets can't be routed (the
+    net-aware keepout then strands them). EXEMPT: the band's own shunt + sense ICs (Kelvin needs them
+    adjacent to the shunt) and edge connectors (J*) / mounts (H*). The anneal veto only covers sensitive
+    ICs and the decoupling/DETECT passives are STAMPED into the band via their owner offset, so evacuate
+    them here. Returns the list of moved refs (re-legalize them after)."""
+    own = {c.shunt for c in model.cables} | {i for c in model.cables for i in c.sense_ics}
+    moved = []
+    for c in model.cables:
+        if not c.formed:
+            continue
+        X0, X1, Y0, Y1 = c.band
+        for ref in list(P):
+            if ref in own or ref[:1] in ("J", "H"):
+                continue
+            pr = P[ref]
+            x, y, rot = pr[0], pr[1], (pr[2] if len(pr) > 2 else 0.0)
+            if X0 <= x <= X1 and Y0 <= y <= Y1:                  # center inside a high-current band
+                nx = (X0 - margin) if (x - X0) < (X1 - x) else (X1 + margin)
+                P[ref] = (nx, y, rot)
+                moved.append(ref)
+    return moved
+
+
 def _board_corridor_model(board):
     """(model, P) from a live pcbnew board -- the loop/tier entry into the corridor domain. Builds the
     netlist + placement off the board (the same shape as read_placement) and the CorridorModel."""
@@ -2792,6 +2818,17 @@ def synth_one(cfg_dict, W, H, strat, seed):
         ux, uy, _ur = P[unit]
         for pref, (dx, dy, pr) in offs.items():
             P[pref] = (ux + dx, uy + dy, pr)
+    # CORRIDOR EVACUATION: pull any non-belonging body (decoupling / DETECT / detection-amp) OUT of a formed
+    # high-current band so the SENSEC pour fills + the nets can route (the anneal veto + passive stamp leave
+    # them inside -- the owner-caught re-place issue). Re-legalize only the moved refs so the Kelvin-seated
+    # shunt + sense ICs stay put.
+    for _ev_round in range(6):                               # iterate: legalize_pack isn't band-aware so it can
+        _evm = build_corridor_model(nl, P, comps, board_w=W)  # push an evacuated body back -> re-evacuate; the
+        _evac = _evacuate_corridors(P, comps, _evm)           # final round leaves centers OUT (no legalize push-
+        if not _evac:                                         # back) -- a center out of the band is enough for
+            break                                             # the pour to fill + the net to route around it.
+        if _ev_round < 5:
+            legalize_pack(P, [r for r in _evac if r in P], cyinfo_all, W, H, clr=0.4)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
