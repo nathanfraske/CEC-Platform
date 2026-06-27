@@ -129,3 +129,27 @@ existence proof, via cec_router.route(), achieved by step-1's edge_keepout + tur
 default. The earlier "missing mirror" + "self-gates to []" hypotheses were wrong and are retracted; the real
 unblock was the corridor keepout being on in the wrong (live) place. NEXT for full drc=0: the LOGO1 B.Cu no-via
 keepout / GND-assign (a finishing pass, not the loop).
+
+## BREAKTHROUGH (2026-06-27) — the loop was chasing an UNREACHABLE metric
+Design panel wf_d53e2eab + verification. The min-cut placer turned out NOT to be a multi-day solver — it
+was a wrong metric. Built + verified the fix:
+
+- **The old corridor_cross_count is UNREACHABLE to 0.** The hub(ESP)->per-cable fan-out (DETC1 on cable1 vs
+  DETC2 on cable2) is a topological x-straddle invariant: for K>=2 cables with the hub on one side, at least
+  one fan-out branch MUST straddle a corridor on a single copper layer. So the 384-round hill-climb chased an
+  impossible target and stalled at 15-24; the HUMAN scores 6 and can't reach 0 either.
+- **The honest metric reaches 0.** The corridor keepout clips each pour to the connector-pad ROWS, not the
+  full board height, so the top/bottom channels are physically clear -> a straddling net routed along a clear
+  channel cuts NO pour. `corridor_cross_channel_aware` counts a straddle only when it can't escape via a
+  body-clear channel. Built: `channels_of`, `_body_clear`, `channels_feasible` (bounded H-grow trigger, NOT a
+  search), `corridor_cross_channel_aware` (== predicted post-route F.Cu clips).
+- **VERIFIED on the REAL committed eps: OLD corridor_cross=6, CHANNEL-AWARE=0.** The human's corridor-clean
+  placement IS cross=0 in the honest metric (the 6 are all channel-escapable). Plus a host unit test
+  (tests/test_channel_aware_cross.py): channel-aware reaches 0 where old=1, has teeth when channels blocked.
+- **So fresh-board cross=0 is achievable by construction** = reserve the channels (keep foreign bodies out) +
+  a bounded H-grow when too short. NOT the multi-day solver the research feared; the residual unavoidable
+  straddles route UNDER on B.Cu (CEC_ROUTE_UNDER, already built).
+- **REMAINING (the actuation, well-scoped now):** wire `corridor_cross_channel_aware` as the placer's
+  rank/gate (replacing the unreachable old metric) + `_channel_veto` into the anneal + the H-grow re-seed in
+  synth_one; then validate a FRESH eps routes to finishing-only DRC end-to-end (route() + route-under). The
+  hard insight is done + proven; this is mechanical wiring + a route-validation pass.
