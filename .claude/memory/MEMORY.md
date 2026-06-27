@@ -10,3 +10,4 @@
 - [Convergence blocker: mechanism not corpus](convergence-blocker-mechanism-not-corpus.md) — deterministic route converges the committed board now; fresh/agentic stall is pour-clip enforcement, not a corpus gap.
 - [KiCad integration landscape](kicad-integration-landscape.md) — what exists (IPC kipy refill_zones, kicad-sch-api/kicad-skip, circuit-synth, MCP servers, KiBot) and which close our bottlenecks; KiCad-10 compat caveats.
 - [dashboard-fixed-port](dashboard-fixed-port.md) — always reuse port 8090 (kill old with the bracket-pkill trick); never increment.
+- [thermal-gate-required](thermal-gate-required.md) — a routed board isn't "clean" until electrothermal_solve passes; the route gate skips thermal.
