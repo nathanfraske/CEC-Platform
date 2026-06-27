@@ -670,13 +670,12 @@ function clabel(){
  fb.style.background=followNewest?'#33691e':'#263238'; fb.style.color=followNewest?'#dcedc8':'#90a4ae';}
 function bswap(){
  const im=document.getElementById('bimg'), pw=document.getElementById('pwrap'), cb=document.getElementById('cbar');
- im.style.display='none'; pw.style.display='none'; if(cb)cb.style.display='none';
+ im.style.display='none'; pw.style.display='block'; if(cb)cb.style.display='none';   // ALL modes use the zoom/pan frame
  lyrBoxes();                                                  // checkboxes reflect the current mode
- if(bmode==='png'){im.style.display='block';im.src='/board.png'+cq();}
- else{ pw.style.display='block'; buildStack();
-  if(bmode==='thermal'){ fetchThermGrid();                   // load the T field for the hover readout
-   if(cb){const c=cands[selCand]; if(c&&c.has_thermal_cbar){cb.style.display='block';cb.src='/thermal-cbar.png'+cq();}} }
-  else { thermGrid=null; document.getElementById('thtip').style.display='none'; } }}
+ buildStack();                                                // png/svg/thermal all render into the zoomable pstack now
+ if(bmode==='thermal'){ fetchThermGrid();                     // load the T field for the hover readout
+  if(cb){const c=cands[selCand]; if(c&&c.has_thermal_cbar){cb.style.display='block';cb.src='/thermal-cbar.png'+cq();}} }
+ else { thermGrid=null; document.getElementById('thtip').style.display='none'; } }
 function fetchThermGrid(){
  thermGrid=null; const c=cands[selCand]; if(!c||!c.has_thermal) return;
  fetch('/thermal-grid'+cq()).then(r=>r.ok?r.json():null).then(g=>{thermGrid=g;}).catch(()=>{thermGrid=null;}); }
@@ -706,9 +705,13 @@ function thermLabel(){
  } else { el.innerHTML=''; }}
 function modeLayers(){ // the layer set + image source for the current board mode
  const c=cands[selCand], therm=(bmode==='thermal');
+ if(bmode==='png') return {ls:[], base:'', therm:false};      // 3D raytrace render: one image, no per-layer toggles
  return {ls: therm?((c&&c.thermal_layers)||[]):knownLayers, base: therm?'/thermal-layer/':'/layer/', therm};}
 function buildStack(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
+ if(bmode==='png'){                                           // 3D raytrace render -> a single image in the zoom/pan frame
+  const im=document.createElement('img'); im.src='/board.png'+cq();
+  im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im); return; }
  const {ls,base,therm}=modeLayers();
  // draw order: bottom copper first, F.Cu then Edge on top
  const order=[...ls].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
