@@ -1613,10 +1613,20 @@ def main(argv=None):
                        a.out, os.path.join(ROOT, a.board), delta=a.shrink_delta, direction=a.shrink_dir,
                        repack=_rp))
     elif a.shrink_sweep:
-        import time
+        import time, glob as _glob
         deadline = (time.time() + a.hours * 3600) if a.hours else None
         _rp = "greedy" if a.repack is None else (None if a.repack == "none" else a.repack)
-        _emit(shrink_sweep(a.board, a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+        # Resolve the START board: --board-pcb if given, else the .kicad_pcb inside the --board dir
+        # (the lever used to crash with TypeError: isabs(None) when --board-pcb was omitted).
+        _start = a.board_pcb
+        if not _start and a.board:
+            _hits = sorted(_glob.glob(os.path.join(ROOT, a.board, "*.kicad_pcb")))
+            _start = _hits[0] if _hits else None
+        if not _start:
+            _emit({"error": "shrink-sweep needs --board-pcb, or --board pointing at a dir with a .kicad_pcb"})
+            return
+        _start = _start if os.path.isabs(_start) else os.path.join(ROOT, _start)
+        _emit(shrink_sweep(a.board, _start,
                            out_dir=a.out_dir, passes=a.passes, opt_time=a.opt_time, start_delta=a.shrink_delta,
                            min_delta=a.min_delta, clip_tol=a.clip_tol, drc_tol=a.drc_tol, max_steps=a.max_steps,
                            deadline=deadline, repack=_rp))
