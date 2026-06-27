@@ -153,3 +153,19 @@ was a wrong metric. Built + verified the fix:
   rank/gate (replacing the unreachable old metric) + `_channel_veto` into the anneal + the H-grow re-seed in
   synth_one; then validate a FRESH eps routes to finishing-only DRC end-to-end (route() + route-under). The
   hard insight is done + proven; this is mechanical wiring + a route-validation pass.
+
+## CLOSED — full end-to-end on a FRESH board (2026-06-27)
+Wired the channel-aware metric as the synth placer's PRIMARY rank key (commit e619ef9) and ran the whole
+pipeline from nothing:
+1. **Place** (synth placer, from scratch): 4 candidates, best = `cc_aware=0 / old_cc=16 / residual=0` --
+   corridor-clean by CONSTRUCTION (the placer now ranks by the reachable metric, not the impossible one).
+2. **Materialize** -> a 96x40mm / 48-part board.
+3. **Route** (route(): corridor-off + edge_keepout): **kelvin_ok=TRUE, diffpair_ok=TRUE, unconn=0, drc=3**.
+   The 3 DRC are ALL `copper_edge_clearance` on the MOUNT-HOLE pads (H2/H3 near the edge) -- a finishing
+   placement nudge, ZERO routing errors. Same finishing-only bar route() hits on the committed board.
+4. **Learn**: the CL-13 outcome label FIRED (settled grade-1) -- the loop produced corpus feedback.
+
+So a FRESH board goes nothing -> corridor-clean placement -> routed-to-the-hard-gates -> labeled, autonomously.
+The whole-night blocker is closed: it was a wrong metric, and ranking by the honest one yields cross=0 fresh
+placements that route clean. REMAINING is cosmetic only: the synth placer seats H2/H3 a touch close to the edge
+(3 edge-clearance hits) + the LOGO no-via finishing -- both 1-line placement tweaks, not loop problems.
