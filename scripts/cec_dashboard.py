@@ -450,7 +450,11 @@ def _render_board(board):
     None. Paths are passed to the routing container as /workspace/<repo-relative> (the repo is mounted
     there); the build/hub-LIVE symlink is relative so it resolves identically in-container."""
     rel = os.path.relpath(board, ROOT)
-    rdir = _runfile("renders")
+    # render artifacts go to a HOST-OWNED base, NOT <run-dir>/renders: an agent/container run-dir is
+    # root-owned, so the host-run dashboard can't mkdir renders/ there -> PermissionError -> BLANK panel
+    # (2026-06-27). This base is under the repo (mounted /workspace) so the container can write the fill +
+    # render into it too; the host only mkdir's + reads.
+    rdir = os.path.join(ROOT, "build", ".dash-renders", os.path.basename(CFG["run_dir"].rstrip("/")) or "run")
     os.makedirs(rdir, exist_ok=True)
     stem = os.path.splitext(os.path.basename(board))[0]
     png, svg = os.path.join(rdir, stem + ".png"), os.path.join(rdir, stem + ".svg")
