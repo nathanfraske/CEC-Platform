@@ -1,0 +1,36 @@
+# OPT-IN GPU overlay for the routing container so the 2D electro-thermal solver runs its CG on the RTX 5090
+# (scripts/cec_thermal2d.py picks the cupy/GPU path automatically once cupy imports + n>=20000). Kept OUT of
+# the base compose so a GPU-less box / CI still starts the plain routing service.
+#
+#   build:  docker build -f docker/Dockerfile.routing-gpu -t cec/routing:gpu .
+#   start:  docker compose -f docker/compose.yaml -f docker/compose.gpu.yaml up -d routing
+#   (the dashboard's `docker compose exec routing ...` then attaches to this GPU container unchanged)
+#
+# Safe under GPU contention with the LLM broker: the solver's GPU path try/except falls back to CPU scipy
+# on any cupy/OOM failure, so a busy 5090 degrades gracefully instead of erroring.
+services:
+  routing:
+    image: cec/routing:gpu
+    environment:
+      # persist cupy's JIT'd kernels: Blackwell (sm_120) has no prebuilt cupy kernels, so the FIRST GPU solve
+      # in a fresh container compiles them (slow, ~minutes). Caching to a named volume makes that a one-time
+      # cost EVER, not per container-recreate.
+      - CUPY_CACHE_DIR=/root/.cupy/kernel_cache
+      # BLAS/OpenMP thread cap: the GPU image's numpy/scipy/pyamg oversubscribe the box's 18 visible CPUs and
+      # the CPU electro-thermal solve HANGS (measured: stalled >150s at default threads vs 25s capped). Cap it
+      # so the CPU path stays fast under contention. (Per-invocation OMP_NUM_THREADS=4 works too.)
+      - OMP_NUM_THREADS=4
+      - OPENBLAS_NUM_THREADS=4
+      - MKL_NUM_THREADS=4
+    volumes:
+      - cec-cupy-cache:/root/.cupy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+volumes:
+  cec-cupy-cache:
