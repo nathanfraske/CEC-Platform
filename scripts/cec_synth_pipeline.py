@@ -2664,7 +2664,8 @@ class Candidate:
     residual: int                 # legalization residual overlaps
     proxy: dict
     feasible: float = -1.0        # filled by the feasibility probe (stage: size oracle)
-    corridor_cross: int = 0       # foreign signals forced through a high-current band (Phase 1 rank key)
+    corridor_cross: int = 0       # OLD (unreachable) predictor -- tiebreak diagnostic only
+    corridor_cross_aware: int = 0  # HONEST channel-aware predictor (== F.Cu clips, reachable to 0) -- PRIMARY rank key
     similarity: float = -1.0      # MV3: reproduce-the-reference diagnostic (-1 = not computed)
     similarity_detail: dict = field(default_factory=dict)
 
@@ -2797,21 +2798,39 @@ def synth_one(cfg_dict, W, H, strat, seed):
     # corridors are formed (Phase 2) or on a well-formed board.
     model = build_corridor_model(nl, P, comps, board_w=W)
     cc = corridor_cross_count(obj.pads_by_net, model.bands, model.corridor_nets, board_w=W)
+    # CHANNEL-AWARE corridor cross (close-the-loop 2026-06-27): the HONEST, REACHABLE metric. The old
+    # corridor_cross_count is unreachable to 0 (the hub->per-cable fan-out is a topological straddle
+    # invariant), so it stalled the hill-climb at 15-24. cc_aware == predicted post-route F.Cu clips: a
+    # straddle that escapes via a body-clear top/bottom channel cuts no pour. It IS reachable to 0 -> the
+    # PRIMARY rank key. Foreign bodies = the foreign IC courtyards (NOT the corridor anchors) -- they are
+    # what can block a channel.
+    _anchors = {c.shunt for c in model.cables} | {i for c in model.cables for i in c.sense_ics}
+    _fbodies = []
+    for _r, _pr in P.items():
+        if _r[:1] == "U" and _r not in _anchors and _r in comps:
+            _bx, _by, _brot = _pr[0], _pr[1], (_pr[2] if len(_pr) > 2 else 0)
+            _cx, _cy, _hw, _hh = _courtyard_info(comps[_r], _brot)
+            _fbodies.append((_bx + _cx - _hw, _bx + _cx + _hw, _by + _cy - _hh, _by + _cy + _hh))
+    cc_aware = corridor_cross_channel_aware(obj.pads_by_net, model.bands, model.corridor_nets,
+                                            _fbodies, W, H, board_w=W)
     proxy = placement_proxy(obj)
     proxy["corridor_cross"] = cc
+    proxy["corridor_cross_aware"] = cc_aware
     # MV5: Hub-domain structural quality (inert/0 on non-Hub boards via build_hub_model's gate).
     hs = hub_score(build_hub_model(nl, P, comps, antenna_edge=cfg.params.get("antenna_edge", ""),
                                    power_input_nets=cfg.params.get("power_input_nets")), P, W, H)
     proxy["hub_penalty"] = hs["hub_penalty"]
     proxy["hub_terms"] = {k: v for k, v in hs.items() if k not in ("active", "hub_penalty")}
-    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy, corridor_cross=cc)
+    return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy,
+                     corridor_cross=cc, corridor_cross_aware=cc_aware)
 
 
 def _candidate_sort_key(c):
     """The production candidate rank key (best-first): legality, then corridor-cleanliness, then the
     MV4 composite proxy_score. similarity (MV3) is intentionally NOT here -- ranking toward the
     reference is the over-fit the charter forbids; it stays a reported diagnostic only."""
-    return (c.residual, c.corridor_cross, c.proxy.get("proxy_score", c.proxy.get("hpwl", 0.0)))
+    return (c.residual, c.corridor_cross_aware, c.corridor_cross,
+            c.proxy.get("proxy_score", c.proxy.get("hpwl", 0.0)))
 
 
 def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_workers=None):
