@@ -497,14 +497,41 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
     a fresh AMG build below, so it's always correct."""
     n = rhs.shape[0]
     if precond is not None and n >= 8000:
+        is_gpu = False
         try:
-            try:
-                x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, rtol=1e-10, atol=0.0)
-            except TypeError:                                # older scipy: tol= kw
-                x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10)
-            if info == 0 and np.all(np.isfinite(x)):
+            import cec_gpu_amg
+            is_gpu = isinstance(precond, cec_gpu_amg.GpuVcyclePrecond)
+        except Exception:                                    # noqa: BLE001
+            is_gpu = False
+        if is_gpu:                                           # REUSED GPU AMG V-cycle (the 5090 path) -> cupy CG
+            x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs, precond=precond)
+            if x is not None and np.all(np.isfinite(x)):
                 return x
-        except Exception:                                    # noqa: BLE001 -- stale precond -> fresh build below
+            # GPU precond stalled (matrix drifted) -> fall through to a fresh AMG/CPU build below
+        else:                                                # scipy aspreconditioner (CPU AMG reuse)
+            try:
+                try:
+                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, rtol=1e-10, atol=0.0)
+                except TypeError:                            # older scipy: tol= kw
+                    x, info = spla.cg(Aspmat, rhs, M=precond, maxiter=400, tol=1e-10)
+                if info == 0 and np.all(np.isfinite(x)):
+                    return x
+            except Exception:                                # noqa: BLE001 -- stale precond -> fresh build below
+                pass
+    # GPU-ACCELERATED AMG (the RTX 5090 path, scripts/cec_gpu_amg.py): pyamg SA setup on CPU + the V-cycle
+    # APPLY on the GPU inside cupy CG. AMG-quality (grid-INDEPENDENT) convergence with the per-iteration
+    # V-cycle on the 5090 -> measured 14-22x faster apply than CPU pyamg, the win GROWING with grid size
+    # (the fine-density 0.05-0.1mm regime). Tried FIRST when CEC_THERMAL_GPU_AMG=1 + cupy + n large; returns
+    # None on any cupy/build/stall failure -> falls through to the guaranteed-correct CPU AMG below. Default
+    # OFF until soaked. Reuse across the Picard loop (build_precond once) is the ~1.8x end-to-end amortization.
+    gpu_amg_min = int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "150000"))
+    if os.environ.get("CEC_THERMAL_GPU_AMG") == "1" and n >= gpu_amg_min:
+        try:
+            import cec_gpu_amg
+            x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs)
+            if x is not None and np.all(np.isfinite(x)):
+                return x
+        except Exception:                                    # noqa: BLE001 -- fall through to CPU AMG
             pass
     # ALGEBRAIC MULTIGRID first for large systems. The thermal matrix is a 2D screened Poisson, for which a
     # Jacobi-preconditioned CG needs THOUSANDS of iterations (measured avg ~4260 @217k cells) -- THE dominant
@@ -751,11 +778,19 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
         # SETUP (not the solve) was the dominant fine-grid cost. _spd_solve falls back to a fresh build if the
         # reused preconditioner ever stalls, so it stays correct.
         if amg_on and amg_precond is None and it >= 1:
-            try:
-                import pyamg
-                amg_precond = pyamg.smoothed_aggregation_solver(Msolve.tocsr()).aspreconditioner(cycle="V")
-            except Exception:                                # noqa: BLE001
-                amg_precond = None
+            if (os.environ.get("CEC_THERMAL_GPU_AMG") == "1"
+                    and N >= int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "150000"))):
+                try:                                         # GPU AMG V-cycle, built ONCE here + reused across the
+                    import cec_gpu_amg                        # Picard loop (the 5090 path; amortizes the CPU SA setup)
+                    amg_precond = cec_gpu_amg.build_precond(Msolve.tocsr())
+                except Exception:                            # noqa: BLE001
+                    amg_precond = None
+            if amg_precond is None:                          # CPU AMG (default, or GPU build unavailable)
+                try:
+                    import pyamg
+                    amg_precond = pyamg.smoothed_aggregation_solver(Msolve.tocsr()).aspreconditioner(cycle="V")
+                except Exception:                            # noqa: BLE001
+                    amg_precond = None
         Tnew = _spd_solve(Msolve, rhs, backend, precond=amg_precond)
         if not np.all(np.isfinite(Tnew)):
             Tnew = np.full(N, Ta)
