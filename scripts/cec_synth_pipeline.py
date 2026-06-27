@@ -1456,7 +1456,7 @@ def oracle_similarity(cand, ref_pl, nl, *, weights=None):
         present["dist"] = sum(ds) / len(ds)
     # (c) IC-cluster tightness ratio
     _a, ics, _s, passives = _classify(nl)
-    spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
+    spec, _series = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
     by_owner = defaultdict(list)
     for pref, (own, _pad) in spec.items():
         by_owner[own].append(pref)
@@ -1650,41 +1650,154 @@ def _owner_pad(nl, owner, shared_nets):
     return cand[0][1]
 
 
-def derive_passive_spec(nl, passives, ic_refs):
-    """Generalize the hand PASSIVE_SPEC: ref -> (owner_ic, owner_pad). A passive's owner is the IC
-    it shares the most SIGNAL nets with (filter caps -> their INA, RC -> their IC); a pure-decoupling
-    cap (only power+GND) is BALANCED across the ICs on that rail (distributed decoupling) so the caps
-    don't pile on one IC. owner_pad = the owner's pad on a shared net (power preferred). This is what
-    feeds cec_pcb.auto_cluster -- the density engine the condensed boards use. The route swarm + the
-    placement handoff refine where connectivity can't disambiguate."""
+def _signal_nets_of(ref, nets_of):
+    """The non-power signal nets a part sits on (the ones that determine its FUNCTION). A net is
+    'signal' here if it is not a global rail/GND AND not a sense FORCE net (*_HI/_LO) -- those last
+    are the high-current Kelvin path, owned by the shunt, never a generic signal that binds a cap."""
+    return {n for n in nets_of.get(ref, set()) if not _is_power_net(n)}
+
+
+def _is_gnd_net(n):
+    base = n.rsplit("/", 1)[-1].upper()
+    return base in ("GND", "AGND", "PGND", "GNDA", "GNDD")
+
+
+def _series_endpoints(nl, pref, owner_cands, nets_of):
+    """If *pref* is a 2-terminal SERIES element bridging two DIFFERENT power/signal nets (NEITHER GND),
+    return ((endpA, padA, netA), (endpB, padB, netB)) -- the owner ref + its pad nearest each end. The
+    canonical case is the SS34 ORing diode between /VBUS (J5) and the +5VSB rail (LDO/Hub feed): both
+    nets are rails so it has no SIGNAL owner and used to scatter, but topologically it sits ON the
+    VBUS->rail path, so we anchor it on the segment between the two endpoints.
+
+    A part is NOT a series element (-> None, caller falls back to cluster ownership) when:
+      * it is not a clean 2-terminal part (one net per pad);
+      * either net is GND -- a GND-referenced 2-pin part is DECOUPLING/bypass, not a series pass element
+        (this is what stops every bypass cap from being mis-read as a VBUS->rail bridge);
+      * both pads share the same net; or
+      * an endpoint owner can't be resolved on one of the nets.
+
+    Endpoint selection per net: the owner-candidate (IC/connector/shunt) on that net with the FEWEST
+    nodes on the net -- a real point-to-point terminus (J5 on /VBUS, U3 the LDO on +5VSB), not a part
+    deep in a fanned plane. The two endpoints must be DISTINCT owners (else it's a stub, not a bridge)."""
+    pad_net = {}
+    for n in nets_of.get(pref, set()):
+        for r, p in nl.nets.get(n, []):
+            if r == pref:
+                pad_net[p] = n
+    if len(pad_net) != 2:
+        return None
+    (pa, na), (pb, nb) = sorted(pad_net.items())
+    if na == nb or _is_gnd_net(na) or _is_gnd_net(nb):
+        return None
+
+    def best_endpoint(net):
+        cands = []
+        for r, p in nl.nets.get(net, []):
+            if r in owner_cands and r != pref:
+                fan = sum(1 for rr, _ in nl.nets.get(net, []) if rr == r)
+                cands.append((fan, r, p))
+        if not cands:
+            return None
+        cands.sort()
+        return cands[0][1], cands[0][2]
+
+    A = best_endpoint(na)
+    B = best_endpoint(nb)
+    if not A or not B or A[0] == B[0]:
+        return None
+    return (A[0], A[1], na), (B[0], B[1], nb)
+
+
+def derive_passive_spec(nl, passives, ic_refs, anchor_refs=None):
+    """Generalize the hand PASSIVE_SPEC to FUNCTIONAL grouping: ref -> (owner, owner_pad). A part's
+    owner is the ANCHOR (IC, connector J*, OR shunt RS*) it shares the most non-power SIGNAL nets with.
+
+    Broadening the owner set beyond ICs (the owner-caught gap 2026-06-27) is what lets a foreign part
+    sit at its TRUE function instead of scattering: the USB CC pull-downs couple only to the USB-C
+    connector (/USB_CC1,2 reach J5 alone), the DETECT ESD diode couples only to the host RJ-45 (J1.8),
+    so each now OWNS onto that connector at the relevant pad -- and a connector-owned cluster naturally
+    sits at the board I/O edge, OUT of the SENSEC high-current corridors (functional grouping is also
+    the root corridor-cleanliness fix, not the symptom-patch evacuator).
+
+    Roles (all derived from netlist topology, no per-board hardcoding):
+      * series-element -- a 2-terminal part whose two nets reach two DIFFERENT anchors (the SS34 between
+        J5.VBUS and the +5VSB rail). It has no signal owner (both nets are rails) but sits ON the path;
+        we hand it back with owner=the lower-fanout endpoint anchor and a SERIES marker via the second
+        return (placed mid-segment by the caller).
+      * connector/pull -- strongest SIGNAL coupling is a connector (CC pull-downs -> J5, DETECT ESD ->
+        J1): cluster ON that connector at its pad on the shared net.
+      * filter/sense -- strongest SIGNAL coupling is an IC (RC/filter caps -> their INA/comparator).
+      * decoupling (unchanged) -- a part on power+GND ONLY is BALANCED across the ICs on that rail
+        (distributed decoupling). NEVER owned by a connector/shunt (they are not decoupling seats).
+      * INA-at-shunt -- the kelvin seat is the existing corridor-spine + anneal connectivity, untouched.
+
+    owner_pad = the owner's pad on a shared net (signal preferred for a connector/IC functional owner;
+    power preferred for a pure-decoupling cap). This feeds cec_pcb.auto_cluster -- the same density
+    engine -- now also seated at a connector/shunt anchor pad.
+
+    Returns (spec, series): spec = {ref:(owner, pad)}; series = {ref:((aRef,aPad),(bRef,bPad))} for
+    series elements (the caller places them on the segment between the two endpoint anchors)."""
+    anchor_refs = set(anchor_refs or [])
     nets_of = defaultdict(set)
     for n, nodes in nl.nets.items():
         for r, _p in nodes:
             nets_of[r].add(n)
-    ic_nets = {ic: nets_of[ic] for ic in ic_refs}
-    load = {ic: 0 for ic in ic_refs}                    # decoupling-balance counter
-    spec = {}
+    ic_set = set(ic_refs)
+    # the FUNCTIONAL owner candidates = ICs + connectors + shunts (anything that anchors a cluster)
+    owner_cands = list(ic_set | anchor_refs)
+    cand_nets = {o: nets_of[o] for o in owner_cands}
+    load = {ic: 0 for ic in ic_refs}                    # decoupling-balance counter (ICs only)
+    spec, series = {}, {}
     for pref in passives:
         pnets = nets_of.get(pref, set())
         if not pnets:
             continue
+        psig = _signal_nets_of(pref, nets_of)
+        # 1. strongest NON-POWER signal coupling, over the broadened owner set (IC | connector | shunt)
         sig = []
-        for ic, icn in ic_nets.items():
-            signals = [n for n in (pnets & icn) if not _is_power_net(n)]
-            if signals:
-                sig.append((len(signals), ic))
-        if sig:
-            owner = max(sig)[1]                         # strongest signal-net coupling
-        else:
-            pwr_ics = [ic for ic, icn in ic_nets.items() if (pnets & icn)]
-            if not pwr_ics:
+        for o, on in cand_nets.items():
+            if o == pref:
                 continue
-            owner = min(pwr_ics, key=lambda ic: load[ic])   # balance decoupling across the rail
-            load[owner] += 1
+            shared_sig = psig & on
+            if shared_sig:
+                # tie-break: more shared signals first, then a connector/shunt over an IC for a part
+                # whose ONLY signal reach is that connector (CC pull-down), then a stable ref order.
+                is_anchor = 1 if o in anchor_refs else 0
+                sig.append((len(shared_sig), is_anchor, o))
+        if sig:
+            owner = _pick_signal_owner(sig)
+            pad = _owner_pad(nl, owner, (psig & nets_of[owner]) or (pnets & nets_of[owner]))
+            if pad:
+                spec[pref] = (owner, pad)
+            continue
+        # 2. no signal owner -> SERIES element? (two distinct anchor endpoints on its two nets)
+        ep = _series_endpoints(nl, pref, owner_cands, nets_of)
+        if ep:
+            (aR, aP, _na), (bR, bP, _nb) = ep
+            # owner = the lower-fanout endpoint anchor (a real terminus), so the cluster bbox tracks it;
+            # the caller overrides its position to the segment midpoint.
+            owner = aR
+            pad = aP
+            spec[pref] = (owner, pad)
+            series[pref] = ((aR, aP), (bR, bP))
+            continue
+        # 3. pure decoupling -> BALANCE across the rail ICs (never a connector/shunt seat)
+        pwr_ics = [ic for ic in ic_refs if (pnets & cand_nets.get(ic, set()))]
+        if not pwr_ics:
+            continue
+        owner = min(pwr_ics, key=lambda ic: load[ic])
+        load[owner] += 1
         pad = _owner_pad(nl, owner, pnets & nets_of[owner])
         if pad:
             spec[pref] = (owner, pad)
-    return spec
+    return spec, series
+
+
+def _pick_signal_owner(sig):
+    """Resolve the strongest-signal-coupling owner from [(n_shared_sig, is_anchor, ref)]. Most shared
+    signal nets wins; a connector/shunt anchor breaks a tie over an IC (a part whose signal reach is a
+    connector belongs ON it -- the CC pull-down case); ref order is the final deterministic tie-break."""
+    return max(sig, key=lambda t: (t[0], t[1], t[2]))[2]
 
 
 def place_mechanical(W, H, params):
@@ -2105,6 +2218,19 @@ def _placement_obj(cfg, P, W, H, halfext, nl):
 # sense pads excluded) -- so the placement-time corridor and the route-time pour keepout track the
 # same J_IN->shunt->J_OUT current path. The band is meaningful only once the corridor is FORMED
 # (shunt inline, J_IN/J_OUT aligned); a degenerate near-board-wide band is guarded out, not trusted.
+def _pad_xy_global(nl, ref, pad, P, comps):
+    """Global (x,y) of *ref*'s *pad* from the placement P, or the part origin / None. Used to put a
+    SERIES element on the segment between its two endpoint anchors (the SS34 between J5.VBUS and the
+    +5VSB-rail feed)."""
+    import cec_pcb
+    if ref not in P or ref not in comps:
+        return None
+    try:
+        return cec_pcb.pad_global(ref, pad, {ref: P[ref]}, comps)
+    except Exception:
+        return (P[ref][0], P[ref][1])
+
+
 def _net_pads_global(nl, net, P, comps):
     """Global (x,y) of every pad on *net*, from the placement P (ref->(x,y,rot)) + footprints.
     pad_global is a pure footprint-text parse (no pcbnew), so this runs host-side."""
@@ -2759,11 +2885,24 @@ def synth_one(cfg_dict, W, H, strat, seed):
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
     #    cluster as one macro and legalize with its full bbox, reserving the room.
-    spec = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")])
+    #    FUNCTIONAL grouping (owner-caught 2026-06-27): the owner set is broadened to ICs + connectors
+    #    + seated shunts, so a part's owner is its true FUNCTIONAL anchor (CC pull-downs -> J5, DETECT
+    #    ESD -> J1, SS34 -> the VBUS->+5VSB segment, decoupling -> its IC). A part owned by a FIXED
+    #    anchor (connector / seated shunt) clusters relative to that anchor's pad and is STAMPED after
+    #    placement (fixed_clusters); only IC/free-shunt owners become annealed macro blocks.
+    _seated_shunts = [r for r in shunts if r not in free_shunts]
+    _fixed_anchor_refs = set(anchors_roles) | set(_seated_shunts)   # connectors (J*/host/usb) + seated shunts
+    spec, series = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")],
+                                       anchor_refs=_fixed_anchor_refs)
     by_owner = defaultdict(list)
+    fixed_owner = defaultdict(list)                     # parts owned by a FIXED anchor (connector/shunt)
     for pref, (own, pad) in spec.items():
-        if own in ics:
+        if pref in series:                              # series elements are placed mid-segment, not clustered
+            continue
+        if own in ics + free_shunts:
             by_owner[own].append((pref, pad))
+        elif own in _fixed_anchor_refs:
+            fixed_owner[own].append((pref, pad))
     drop_kc = tuple(r for r in comps if "esp32" in comps[r].lower()) if drop_antenna else ()
     macro = {}                                          # unit -> (cx,cy,hw,hh) cluster bbox @origin
     cluster_offsets = {}                                # unit -> {pref:(dx,dy,rot)}
@@ -2786,6 +2925,20 @@ def synth_one(cfg_dict, W, H, strat, seed):
         else:
             macro[unit] = _courtyard_info(comps[unit], 0.0, drop_antenna=drop_antenna)
             cluster_offsets[unit] = {}
+    # 2b. FIXED-ANCHOR clusters: a part owned by a connector / seated shunt (CC pull-downs on J5, DETECT
+    #     ESD on J1) clusters at that anchor's pad. The anchor is already at its final (fixed) position,
+    #     so auto_cluster places the parts in absolute coords; we record them for a direct stamp after
+    #     the macro placement (they are NOT annealed -- they ride their anchor). This is the functional
+    #     grouping that pulls the foreign I/O parts to the board edge connectors, OUT of the corridors.
+    fixed_stamp = {}                                    # pref -> (x,y,rot) absolute
+    for unit, members in fixed_owner.items():
+        if unit not in anchors or unit not in comps:
+            continue
+        Pfx = {unit: anchors[unit]}
+        cec_pcb.auto_cluster(Pfx, comps, {p: (unit, pad) for p, pad in members})
+        for p, _pad in members:
+            if p in Pfx:
+                fixed_stamp[p] = Pfx[p]
     # 3. place the MACROS (ICs+shunts) by connectivity, legalized with their full cluster bbox
     P, _ = relative_place(anchors, nl, W, H, fp_of, drop_antenna=drop_antenna,
                           strat=strat, seed=seed, only=ics + free_shunts, cyinfo_override=macro)
@@ -2818,6 +2971,38 @@ def synth_one(cfg_dict, W, H, strat, seed):
         ux, uy, _ur = P[unit]
         for pref, (dx, dy, pr) in offs.items():
             P[pref] = (ux + dx, uy + dy, pr)
+    # 4b. FUNCTIONAL stamps: the fixed-anchor (connector/shunt) clusters in their pre-computed absolute
+    #     coords, and the SERIES elements on the segment between their two endpoint anchors. The fixed
+    #     anchor (J*) does not move during anneal, so its absolute cluster coords are still valid here.
+    _func_stamped = []
+    for pref, xyr in fixed_stamp.items():
+        if pref in comps:
+            P[pref] = xyr
+            _func_stamped.append(pref)
+    for pref, ((aR, aP), (bR, bP)) in series.items():
+        if pref not in comps:
+            continue
+        pa = _pad_xy_global(nl, aR, aP, P, comps)
+        pb = _pad_xy_global(nl, bR, bP, P, comps)
+        if pa is None or pb is None:
+            continue
+        mx, my = (pa[0] + pb[0]) / 2.0, (pa[1] + pb[1]) / 2.0   # midpoint of the VBUS->rail segment
+        rot = 90.0 if abs(pb[1] - pa[1]) > abs(pb[0] - pa[0]) else 0.0   # orient along the segment
+        P[pref] = (mx, my, rot)
+        _func_stamped.append(pref)
+    # the functional target lands a part AT its connector pad / mid-segment -- which is a DENSE I/O
+    # cluster (J1/J5 + the CC pull-downs all share the right edge). Legalize the stamped parts to the
+    # NEAREST FREE spot to that target so they keep the functional adjacency but don't overlap a
+    # connector body (the SS34 was landing on top of J1/J5/R9 -> 3 of the 5 residual overlaps + a
+    # route-time short). Owners (the connectors/shunts) are fixed obstacles, so the parts ride near them.
+    if _func_stamped:
+        _func_cy = {}
+        for r in P:
+            if r in macro:
+                _func_cy[r] = macro[r]
+            elif r in comps:
+                _func_cy[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
+        legalize_pack(P, [r for r in _func_stamped if r in P], _func_cy, W, H, clr=0.4)
     # CORRIDOR EVACUATION: pull any non-belonging body (decoupling / DETECT / detection-amp) OUT of a formed
     # high-current band so the SENSEC pour fills + the nets can route (the anneal veto + passive stamp leave
     # them inside -- the owner-caught re-place issue). Re-legalize only the moved refs so the Kelvin-seated

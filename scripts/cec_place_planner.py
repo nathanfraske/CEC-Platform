@@ -199,7 +199,11 @@ def w_apply(board_pcb, moves, out_rel, board_dir=None, orient=False, faces=None)
             nl = sp.View(sp.Config.load(board_dir)).nl
             ics = [r for r in P if r[:1] == "U" and not r.startswith("SW")]
             pas = [r for r in P if r[:1] in ("R", "C") and r[1:2].isdigit()]
-            owner = {pref: own for pref, (own, _pad) in sp.derive_passive_spec(nl, pas, ics).items()}
+            # FUNCTIONAL ownership: connectors (J*) + shunts (RS*) are valid cluster anchors too, so
+            # the I/O passives (CC pull-downs, DETECT ESD) carry with their connector, not a far IC.
+            anchor_refs = {r for r in P if r[:1] == "J" or r.startswith("RS")}
+            _spec, _ = sp.derive_passive_spec(nl, pas, ics, anchor_refs=anchor_refs)
+            owner = {pref: own for pref, (own, _pad) in _spec.items()}
         except Exception:                                  # noqa: BLE001 -- ownership is best-effort
             owner = {}
     by_owner = {}
