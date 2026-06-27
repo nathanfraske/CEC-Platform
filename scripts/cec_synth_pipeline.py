@@ -1693,7 +1693,11 @@ def place_mechanical(W, H, params):
     are NOT in the netlist. e = edge inset. These become fixed obstacles for the placer (keep parts
     off the screw heads / fiducial windows) and are emitted at materialize time."""
     pos, fp = {}, {}
-    e = 3.5
+    e = 3.5   # edge inset of the mount CENTER. NOTE: bumping this to clear the M3-pad edge-clearance DRC
+    #           (pad radius ~3.2mm vs 0.5mm rule) collides H3 with the left-edge cable corridor and aborts
+    #           the placer worker -- the proper fix is to cohere parts around inset mounts, not just move
+    #           the mount (FOLLOWUPS 2026-06-26). 3.5 keeps the placer stable; mount edge-clearance is a
+    #           cosmetic finishing DRC the GUI clears.
     # MV2: a per-board mount-position INPUT (board-frame-relative coords derived from the reference
     # oracle, or a spec line) overrides the generic pattern -- mounts are board-specific inputs, not
     # a rule. Clamped in-board so a slightly different sweep size can't push a screw off the edge.
