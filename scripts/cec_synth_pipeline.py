@@ -2292,6 +2292,76 @@ def corridor_cross_count(pads_by_net, bands, corridor_nets, *, signal_only=True,
     return total
 
 
+def channels_of(bands, W, H, *, channel_min=2.0, margin=1.0, board_w=None):
+    """The clear top/bottom horizontal CHANNELS above/below ALL formed corridor bands (close-the-loop
+    2026-06-27). The route-time corridor keepout (cec_fr.corridor_keepouts) clips each pour+keepout to
+    the connector-pad rows -- NOT the full board height -- so the strip above the highest band top and
+    below the lowest band bottom is physically clear of pour/keepout on BOTH layers, and a foreign net
+    routed along it crosses NO corridor in-plane. Returns (top, bot) as (y0, y1) strips (or None for a
+    channel shorter than channel_min). No formed bands -> (None, None) (a shared-bus board, no corridor
+    to escape)."""
+    formed = [r for b, r in bands.items() if board_w is None or _band_formed(r, board_w)]
+    if not formed:
+        return None, None
+    top_y1 = min(r[2] for r in formed) - margin            # above the highest band top (Y0)
+    bot_y0 = max(r[3] for r in formed) + margin            # below the lowest band bottom (Y1)
+    top = (margin, top_y1) if (top_y1 - margin) >= channel_min else None
+    bot = (bot_y0, H - margin) if (H - margin - bot_y0) >= channel_min else None
+    return top, bot
+
+
+def _body_clear(chan, x0, x1, foreign_bodies):
+    """True iff the channel y-strip chan=(y0,y1) is clear of every foreign IC courtyard bbox across
+    [x0,x1] -- i.e. a net spanning x0..x1 can run along the channel without hitting a body."""
+    if chan is None:
+        return False
+    cy0, cy1 = chan
+    for (fx0, fx1, fy0, fy1) in foreign_bodies:
+        if fx1 >= x0 and fx0 <= x1 and fy1 >= cy0 and fy0 <= cy1:
+            return False
+    return True
+
+
+def channels_feasible(bands, W, H, *, channel_h=2.5, margin=1.0, board_w=None):
+    """The seed-time GROW trigger: True iff the board is tall enough to hold the corridor band height
+    plus a usable channel above AND below. When False, the driver grows H (w_grow('H')) and re-seeds --
+    a bounded deterministic step, NOT a search (this is what replaces the 384-round hill-climb)."""
+    formed = [r for b, r in bands.items() if board_w is None or _band_formed(r, board_w)]
+    if not formed:
+        return True
+    return (min(r[2] for r in formed) - margin) >= channel_h and (H - max(r[3] for r in formed) - margin) >= channel_h
+
+
+def corridor_cross_channel_aware(pads_by_net, bands, corridor_nets, foreign_bodies, W, H, *,
+                                 channel_min=2.0, margin=1.0, signal_only=True, board_w=None):
+    """HONEST corridor predictor == predicted post-route F.Cu clips. Same straddle test as
+    corridor_cross_count, but a straddle is only COUNTED when it CANNOT escape via a body-clear top/
+    bottom channel. The old metric is layer-agnostic + channel-blind, so it OVER-counts and -- crucially
+    -- is UNREACHABLE to 0 (the hub->per-cable fan-out is a topological x-straddle invariant for K>=2
+    cables). This metric reaches 0 by construction once the channels are reserved (foreign bodies kept
+    out of them): every straddle either routes along a clear channel (cost 0) or is the irreducible set
+    the loop routes UNDER on B.Cu. Reaching 0 here == corridor-clean by construction. Returns the count
+    of straddles genuinely forced through a pour on F.Cu."""
+    top, bot = channels_of(bands, W, H, channel_min=channel_min, margin=margin, board_w=board_w)
+    usable = {b: rect for b, rect in bands.items()
+              if board_w is None or _band_formed(rect, board_w)}
+    total = 0
+    for net, pts in pads_by_net.items():
+        if net in corridor_nets or len(pts) < 2:
+            continue
+        if signal_only and _corridor_net_role(net, corridor_nets) != "signal":
+            continue
+        xs = [p[0] for p in pts]; ys = [p[1] for p in pts]
+        bx0, bx1, by0, by1 = min(xs), max(xs), min(ys), max(ys)
+        if not any(by1 >= Y0 and by0 <= Y1 and bx0 < X0 and bx1 > X1
+                   for (X0, X1, Y0, Y1) in usable.values()):
+            continue                                       # doesn't straddle any formed band
+        if _body_clear(top, bx0, bx1, foreign_bodies) or _body_clear(bot, bx0, bx1, foreign_bodies):
+            continue                                       # escapes along a clear channel -> cuts no pour
+        total += 1                                         # genuinely forced through a pour on F.Cu
+    return total
+
+
 # --------------------------------------------------------- Phase 2: corridor FORMATION
 # corridor_cross only discriminates once the corridor is FORMED: J_IN above the shunt above J_OUT in
 # one tight column. The constructive placer left shunts free (anywhere) and packed J_IN/J_OUT on their
