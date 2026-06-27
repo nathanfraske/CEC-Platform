@@ -98,13 +98,30 @@ def _discover_run():
                 return {"kind": kind, "run_dir": os.path.abspath(run_dir),
                         "board_glob": os.path.join(os.path.abspath(run_dir), "*.kicad_pcb"),
                         "proc_pattern": pgrep_pat}
-    # FALLBACK (auto-point at the LATEST, 2026-06-27): no live tracked script -> follow the NEWEST
-    # board-producing run-dir by mtime, so the dash auto-tracks ANY run -- including cec_router routes /
-    # agent runs that the RUN_KINDS pgrep above misses. Excludes the dashboard's own render copies.
+    # FALLBACK (auto-point at the LATEST, 2026-06-27): no live tracked script -> follow the MOST ACTIVE
+    # build/ run-dir, so the dash auto-tracks ANY run (cec_router routes / agent / workflow runs the
+    # RUN_KINDS pgrep misses). Follow the dir with the MOST boards touched in the last 90s -- NOT raw
+    # newest-mtime: under heavy multi-agent work a single verify agent re-routing a canonical board would
+    # otherwise hijack the view from the busy run. Tie-break + idle-fallback by newest board. Race-safe
+    # (scratch boards vanish mid-scan). Excludes the dashboard's own render copies.
+    def _mt(p):
+        try:
+            return os.path.getmtime(p)
+        except OSError:
+            return 0.0
     boards = [p for p in glob.glob(os.path.join(ROOT, "build", "*", "*.kicad_pcb"))
-              if "renders" not in p and "-filled" not in p]
+              if "renders" not in p and "-filled" not in p and ".dash-renders" not in p]
     if boards:
-        rd = os.path.abspath(os.path.dirname(max(boards, key=os.path.getmtime)))
+        now = time.time()
+        recent, newest = {}, {}                              # per-dir: boards touched in last 90s + newest mtime
+        for p in boards:
+            d, m = os.path.dirname(p), _mt(p)
+            if m >= now - 90:
+                recent[d] = recent.get(d, 0) + 1
+            if m > newest.get(d, 0.0):
+                newest[d] = m
+        pool = recent or newest
+        rd = os.path.abspath(max(pool, key=lambda d: (recent.get(d, 0), newest.get(d, 0.0))))
         return {"kind": "latest", "run_dir": rd, "board_glob": os.path.join(rd, "*.kicad_pcb"),
                 "proc_pattern": None}
     return None
