@@ -411,19 +411,38 @@ def _render_board(board):
     png, svg = os.path.join(rdir, stem + ".png"), os.path.join(rdir, stem + ".svg")
     ldir = os.path.join(rdir, stem + "-layers")
     os.makedirs(ldir, exist_ok=True)
+    # FILL ZONES first (2026-06-26): kicad-cli CANNOT refill zones, so a routed board's copper POURS
+    # (the GND/12V planes) plot EMPTY -- the recurring "dashboard shows no planes/traces" bug. pcbnew's
+    # ZONE_FILLER can, so fill a COPY in-container (UnFill->Fill, the cec_route.py-proven order) and
+    # render/plot THAT. Degrades to the unfilled board if the fill fails -- never blocks a render.
+    filled = os.path.join(rdir, stem + "-filled.kicad_pcb")
+    _fill = ("import pcbnew,sys,os,shutil\n"
+             "s,d=sys.argv[1],sys.argv[2]\n"
+             "for e in ('.kicad_pro','.kicad_dru','.kicad_prl'):\n"
+             "    p=s[:-10]+e\n"
+             "    if os.path.exists(p): shutil.copy(p,d[:-10]+e)\n"
+             "b=pcbnew.LoadBoard(s)\n"
+             "f=pcbnew.ZONE_FILLER(b)\n"
+             "[z.UnFill() for z in b.Zones()]\n"
+             "f.Fill(b.Zones())\n"
+             "b.Save(d)\n")
+    fr = subprocess.run(COMPOSE + ["exec", "-T", "routing", "python3", "-c", _fill,
+                                   f"/workspace/{rel}", f"/workspace/{os.path.relpath(filled, ROOT)}"],
+                        capture_output=True, timeout=150)
+    src_rel = os.path.relpath(filled, ROOT) if (fr.returncode == 0 and os.path.exists(filled)) else rel
     r = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "render", "--side",
                                   "top", "-o", f"/workspace/{os.path.relpath(png, ROOT)}",
-                                  f"/workspace/{rel}"], capture_output=True, timeout=180)
+                                  f"/workspace/{src_rel}"], capture_output=True, timeout=180)
     p = subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
                                   "--layers", CFG["plot_layers"], "--page-size-mode", "2",
                                   "--exclude-drawing-sheet",
                                   "-o", f"/workspace/{os.path.relpath(svg, ROOT)}",
-                                  f"/workspace/{rel}"], capture_output=True, timeout=120)
+                                  f"/workspace/{src_rel}"], capture_output=True, timeout=120)
     subprocess.run(COMPOSE + ["exec", "-T", "routing", "kicad-cli", "pcb", "export", "svg",
                               "--mode-multi", "--layers", CFG["plot_layers"], "--page-size-mode", "2",
                               "--exclude-drawing-sheet",
                               "-o", f"/workspace/{os.path.relpath(ldir, ROOT)}",
-                              f"/workspace/{rel}"], capture_output=True, timeout=120)
+                              f"/workspace/{src_rel}"], capture_output=True, timeout=120)
     layers = {}
     for lf in glob.glob(os.path.join(ldir, f"{stem}-*.svg")):
         layers[os.path.basename(lf)[len(stem) + 1:-4]] = lf       # e.g. "F_Cu"
