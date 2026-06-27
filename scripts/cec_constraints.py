@@ -210,6 +210,17 @@ REGISTRY = [
       rule="The decorative B.Cu LOGO polygon is a routing keepout (or GND-assigned): no functional-net "
            "copper may short to it. (LOGO-vs-GND only is finishing-acceptable.)",
       source="discovered by the route loop 2026-06-07; verified", status="ratified"),
+    C(id="via-on-pad", title="No via copper overlapping a pad (via-in-pad / short)",
+      category="finishing", severity="hard", checkable="yes", directive="none",
+      rule="A via whose copper (drill + annular ring) overlaps a PAD's copper on a shared copper layer "
+           "is a fault KiCad DRC does NOT flag by default. SAME-net overlap = via-in-pad: the open barrel "
+           "wicks solder, so it needs tenting / plugging / POFV fill and is generally not allowed unhandled "
+           "-- the layer-swap / B.Cu-mirror finishing stages drop 1-6 of these (a via punched dead-centre "
+           "into a decoupling-cap or sense pad to reach B.Cu). DIFF-net overlap = a hard short. Reported "
+           "per overlap with ref/pad/net/coords; route()'s independent verdict folds it into gates_pass so "
+           "a via-in-pad board can never pass silently.",
+      source="owner review 2026-06-27 (layer-swap/mirror via-in-pad; KiCad DRC blind spot)",
+      status="ratified"),
     C(id="footprint-matches-datasheet", title="Footprint land matches the MPN datasheet",
       category="finishing", severity="hard", checkable="partial", directive="none",
       rule="Each footprint's pad pitch/drill/size/row matches the part datasheet land. Unverified MPNs "
@@ -546,6 +557,102 @@ def _chk_logo(board, path, ctx):
         return (False, "LOGO shorts functional nets: %s (%d hits)" % (", ".join(nets), len(bad)),
                 [{"type": "keepout", "target": logos[0] if logos else "LOGO1", "layer": "B.Cu", "nets": nets}])
     return True, "LOGO touches only GND/no-net (finishing-acceptable)"
+
+
+# -- via-on-pad (via-in-pad / short) -----------------------------------------
+# KiCad DRC does NOT flag a via whose copper overlaps a pad on the SAME net by
+# default, yet the layer-swap / B.Cu-mirror finishing stages drop 1-6 of these
+# per board (a via punched dead-centre into a decoupling-cap / sense pad to reach
+# B.Cu). SAME-net = via-in-pad (open barrel wicks solder -> needs tent/fill);
+# DIFF-net = a hard short. Geometry: model the via as its outer-copper circle
+# (radius = via diameter / 2) and test copper overlap against each pad's effective
+# shape on every SHARED copper layer. A cheap inflated-bbox prefilter keeps the
+# scan O(vias) on real boards (and never false-rejects: a real overlap puts the via
+# centre within vr of the pad, hence inside the bbox inflated by vr).
+def _via_radius_nm(via):
+    """Via outer-copper radius (nm). On a PCB_VIA the no-arg GetWidth() asserts on
+    debug builds (the documented KiCad-10 runner footgun) -- pass the top layer."""
+    try:
+        return int(via.GetWidth(via.TopLayer()) / 2)
+    except TypeError:
+        return int(via.GetWidth() / 2)
+
+
+def _via_pad_overlaps(board):
+    """Geometry core: (same_net, diff_net), each a list of overlap records
+    {ref,pad,pad_net,via_net,x,y}. A record is emitted when a via's outer-copper
+    circle overlaps a pad's copper on a shared copper layer; the two classes differ
+    only in whether the via and pad nets match (SAME = via-in-pad, DIFF = short)."""
+    vias = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
+    pads = [(fp.GetReference(), pad) for fp in board.GetFootprints() for pad in fp.Pads()]
+    same, diff = [], []
+    for via in vias:
+        vpos = via.GetPosition()
+        vr = _via_radius_nm(via)
+        vnet = via.GetNetname()
+        vlayers = set(via.GetLayerSet().CuStack())
+        for ref, pad in pads:
+            bb = pad.GetBoundingBox()
+            bb.Inflate(vr)
+            if not bb.Contains(vpos):
+                continue                              # cheap reject before the per-layer Collide
+            shared = vlayers & set(pad.GetLayerSet().CuStack())
+            if not shared:
+                continue
+            hit = False
+            for L in shared:
+                try:
+                    if pad.GetEffectiveShape(L).Collide(vpos, vr):
+                        hit = True
+                        break
+                except Exception:                     # noqa: BLE001 -- a weird pad shape never breaks the scan
+                    continue
+            if not hit:
+                continue
+            pnet = pad.GetNetname()
+            rec = {"ref": ref, "pad": pad.GetPadName(), "pad_net": pnet, "via_net": vnet,
+                   "x": round(_mm(vpos.x), 3), "y": round(_mm(vpos.y), 3)}
+            (same if vnet == pnet else diff).append(rec)
+    return same, diff
+
+
+def via_on_pad_summary(board_path):
+    """Load a board and summarise its via-on-pad overlaps: {same, diff, n_vias,
+    same_detail, diff_detail}. The public entry cec_router.route's INDEPENDENT verdict
+    reads so a via-in-pad board can never pass silently. Callers wrap in try/except --
+    a verdict must never break on the checker."""
+    board = pcbnew.LoadBoard(board_path)
+    n_vias = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+    same, diff = _via_pad_overlaps(board)
+    return {"same": len(same), "diff": len(diff), "n_vias": n_vias,
+            "same_detail": same, "diff_detail": diff}
+
+
+def _fmt_vop(r):
+    return "%s.%s[%s]@(%.2f,%.2f)" % (r["ref"], r["pad"], r["pad_net"] or "<no net>", r["x"], r["y"])
+
+
+@checker("via-on-pad")
+def _chk_via_on_pad(board, path, ctx):
+    if not any(t.Type() == pcbnew.PCB_VIA_T for t in board.GetTracks()):
+        return None, "no vias on this board (floorplan or fully-planar route)"
+    same, diff = _via_pad_overlaps(board)
+    nv = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+    if not same and not diff:
+        return True, "no via copper overlaps a pad (%d vias checked)" % nv
+    msgs, payload = [], []
+    if same:
+        msgs.append("%d SAME-net via-in-pad (tent/fill required): %s%s"
+                    % (len(same), ", ".join(_fmt_vop(r) for r in same[:6]),
+                       "" if len(same) <= 6 else " (+%d)" % (len(same) - 6)))
+        payload += [{"type": "via_on_pad", "kind": "via_in_pad_same_net", **r} for r in same]
+    if diff:
+        msgs.append("%d DIFF-net via-on-pad (SHORT): %s%s"
+                    % (len(diff), ", ".join("%s<-via[%s]" % (_fmt_vop(r), r["via_net"] or "<no net>")
+                                            for r in diff[:6]),
+                       "" if len(diff) <= 6 else " (+%d)" % (len(diff) - 6)))
+        payload += [{"type": "via_on_pad", "kind": "short_diff_net", **r} for r in diff]
+    return False, "; ".join(msgs), payload
 
 
 @checker("high-current-pour-present")

@@ -745,10 +745,30 @@ def independent_drc(final, rules, *, weights=None):
     gates + metrics. Independent of the per-region scoring that drove the loop."""
     m = cec_score.score(final, rules)
     passed, reasons = cec_score.gate(m, rules)
-    return {"gates_pass": passed, "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
-            "tracks": m.tracks, "vias": m.vias, "length": round(m.length, 2),
-            "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
-            "objective": round(cec_score.objective(m, weights), 2)}
+    reasons = list(reasons)
+    verdict = {"gates_pass": passed, "reasons": reasons, "drc": m.drc, "unconnected": m.unconnected,
+               "tracks": m.tracks, "vias": m.vias, "length": round(m.length, 2),
+               "kelvin_ok": m.kelvin_ok, "diffpair_ok": m.diffpair_ok,
+               "objective": round(cec_score.objective(m, weights), 2)}
+    # VIA-ON-PAD gate (cec_constraints.via_on_pad_summary): a via whose copper overlaps a pad is a
+    # fault KiCad DRC does NOT flag by default -- SAME-net = via-in-pad (needs tent/fill), DIFF-net =
+    # a short. The layer-swap / B.Cu-mirror finishing stages emit 1-6 of these, so route()'s
+    # INDEPENDENT verdict MUST surface them or a via-in-pad board ships silently (gates_pass=True at
+    # finishing DRC). Lazy import (cec_constraints -> cec_dispatch -> this module) + fallback-safe (a
+    # verdict must never break on the checker).
+    try:
+        import cec_constraints
+        vop = cec_constraints.via_on_pad_summary(final)
+        verdict["via_on_pad"] = {"same_net": vop["same"], "diff_net": vop["diff"], "vias": vop["n_vias"]}
+        if vop["same"] or vop["diff"]:
+            verdict["gates_pass"] = False
+            reasons.append("via-on-pad: %d SAME-net (via-in-pad, needs tent/fill), %d DIFF-net (short) "
+                           "-- KiCad DRC does not flag these" % (vop["same"], vop["diff"]))
+            verdict["via_on_pad"]["same_detail"] = vop["same_detail"][:8]
+            verdict["via_on_pad"]["diff_detail"] = vop["diff_detail"][:8]
+    except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
+        verdict["via_on_pad"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+    return verdict
 
 
 # ============================================================ two-pass corridor protect (TPC)
