@@ -98,6 +98,15 @@ def _discover_run():
                 return {"kind": kind, "run_dir": os.path.abspath(run_dir),
                         "board_glob": os.path.join(os.path.abspath(run_dir), "*.kicad_pcb"),
                         "proc_pattern": pgrep_pat}
+    # FALLBACK (auto-point at the LATEST, 2026-06-27): no live tracked script -> follow the NEWEST
+    # board-producing run-dir by mtime, so the dash auto-tracks ANY run -- including cec_router routes /
+    # agent runs that the RUN_KINDS pgrep above misses. Excludes the dashboard's own render copies.
+    boards = [p for p in glob.glob(os.path.join(ROOT, "build", "*", "*.kicad_pcb"))
+              if "renders" not in p and "-filled" not in p]
+    if boards:
+        rd = os.path.abspath(os.path.dirname(max(boards, key=os.path.getmtime)))
+        return {"kind": "latest", "run_dir": rd, "board_glob": os.path.join(rd, "*.kicad_pcb"),
+                "proc_pattern": None}
     return None
 
 
@@ -272,6 +281,42 @@ def _seats():
     return out
 
 
+def _agentic_from_decision_log():
+    """The agent panel for a plain / two-pass cec_router route: read the run's *-decision-log.json (the
+    DecisionLog -- per-iteration repair/escalate verdicts + the chosen candidate's drc/unconnected) and
+    map it to the agentic-panel shape, so the panel PULLS for routes too, not just Hub agentic runs
+    (2026-06-27). The DecisionLog stores candidates/verdict as repr-strings, so literal_eval them."""
+    import ast
+    dl = _latest(os.path.join(CFG["run_dir"], "*-decision-log.json"))
+    if not dl:
+        return {}
+    try:
+        d = json.load(open(dl))
+    except Exception:                                             # noqa: BLE001
+        return {}
+
+    def _p(s):
+        if isinstance(s, dict):
+            return s
+        try:
+            v = ast.literal_eval(s)
+            return v if isinstance(v, dict) else {}
+        except Exception:                                         # noqa: BLE001
+            return {}
+    routes = []
+    for e in (d.get("entries") or []):
+        ch, v = _p(e.get("chosen")), _p(e.get("verdict"))
+        routes.append({"rank": e.get("iteration"), "strat": str(v.get("action", "")) or e.get("region", ""),
+                       "gates_pass": (v.get("action") == "accept") if v else None,
+                       "kelvin_ok": ch.get("kelvin_ok"), "diffpair_ok": ch.get("diffpair_ok"),
+                       "conformance_fail": None, "drc": ch.get("drc"), "unconnected": ch.get("unconnected")})
+    fin = d.get("final") or {}
+    fv = _p(fin.get("verdict"))
+    cf = ("gates_pass=%s  %s" % (fv.get("gates_pass"), (fv.get("reasons") or [""])[0]))[:140] if fv else None
+    return {"seats": "cec_router DecisionLog (deterministic route)", "policy_ok": None, "ref_intake": None,
+            "routes": routes, "corpus_fit": cf, "best_rank": None}
+
+
 def _agentic():
     """The Hub run's agentic-decisions summary from report.json: the resolved seat backend +
     per-tier model (so a silently-deterministic / degraded run is VISIBLE -- the anti-ossification
@@ -279,7 +324,7 @@ def _agentic():
     policy/intake-gate state. Read-only; empty {} when no report yet."""
     rf = _runfile("report.json")
     if not os.path.exists(rf):
-        return {}
+        return _agentic_from_decision_log()       # a cec_router route writes a DecisionLog, not report.json
     try:
         r = json.load(open(rf))
     except Exception:                                             # noqa: BLE001
