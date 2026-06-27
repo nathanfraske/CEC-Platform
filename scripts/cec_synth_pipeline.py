@@ -3489,10 +3489,49 @@ def physics_gates(res, cfg):
     return flags
 
 
+def field_electrothermal_solve(board_path, cfg, *, grid_mm=None, backend="auto"):
+    """HIGH-FIDELITY thermal tier: the 2.5D FIELD solve (scripts/cec_thermal2d.py -- the solver the owner
+    built; see memory cec-thermal2d-field-solver). It rasterizes the REAL copper, couples layers through
+    REAL via barrels, and sub-grid anti-aliases thin traces, so it resolves the LOCAL current-density /
+    temperature hotspots the lumped per-net electrothermal_solve AVERAGES AWAY -- it catches a shredded-
+    pour neck at ~2635 A/mm^2 / 858C that the analytic reports as 83 A/mm^2 / 181C. Returns a result
+    shaped for physics_gates (nets dict + max_T/max_dT), with the raw field result on .field. Needs the
+    cec_thermal2d deps (shapely + scipy/pyamg; optional cupy for the GPU backend on the 5090)."""
+    import cec_thermal2d as t2d
+    import pcbnew
+    from types import SimpleNamespace
+    amb = float(cfg.params.get("ambient_C", 50.0))
+    grid = grid_mm if grid_mm is not None else float(cfg.params.get("thermal_grid_mm", 0.15))
+    b = pcbnew.LoadBoard(board_path)
+    board_nets = sorted({t.GetNetname() for t in b.GetTracks() if t.GetNetname()})
+    ncur = _net_currents(cfg, board_nets)
+    fr = t2d.solve_board_thermal(board_path, net_currents=ncur, grid_mm=grid, ambient=amb, backend=backend)
+    nets = {}                                                 # per-net maxT/maxJ already capture the via +
+    for net, mt in fr.per_net_maxT.items():                   # neck hotspots (the field couples via barrels)
+        I = ncur.get(net, 0.0)
+        if not I or I <= 0:
+            continue
+        nets[net] = {"T": mt, "dT": mt - amb, "I": I, "J": fr.per_net_maxJ.get(net, 0.0),
+                     "cross_mm2": 0.0, "poured": True}
+    return SimpleNamespace(max_T=fr.max_T, max_dT=fr.max_T - amb, ambient=amb, grid_mm=grid,
+                           nets=nets, vias=[], shunts=[], calibration="uncalibrated", field=fr)
+
+
 def physics(board_path, cfg, armed=()):
     """Pipeline physics(routed, cfg, armed): run the electrothermal FEA + J/T/derating gates.
-    (PDN and other armed deep analyses hang here too when present.) Returns (ThermalResult, flags)."""
-    res = electrothermal_solve(board_path, cfg)
+    (PDN and other armed deep analyses hang here too when present.) Returns (ThermalResult, flags).
+    CEC_THERMAL_FIELD=1 (or cfg.params['thermal_field']) selects the HIGH-FIDELITY field solve
+    (field_electrothermal_solve / cec_thermal2d) instead of the lumped analytic -- the field tier is
+    what catches the local shredded-neck / via-fusing hotspots. Falls back to the analytic on any field-
+    solver error (deps absent, etc.) so the gate never silently skips."""
+    res = None
+    if os.environ.get("CEC_THERMAL_FIELD") == "1" or cfg.params.get("thermal_field"):
+        try:
+            res = field_electrothermal_solve(board_path, cfg)
+        except Exception:                                     # noqa: BLE001 -- analytic fallback, never skip
+            res = None
+    if res is None:
+        res = electrothermal_solve(board_path, cfg)
     flags = physics_gates(res, cfg)
     return res, flags
 

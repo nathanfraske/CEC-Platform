@@ -121,7 +121,13 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
         if workdir:
             base += [f"--user_data_path={os.path.abspath(workdir)}"]
         return base                                   # true headless: no xvfb needed
-    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+    # Linux: ALWAYS prefer xvfb-run when available, even if $DISPLAY is set. The routing container
+    # leaks a forwarded display (WSLg sets DISPLAY=:99 with a mounted X11 socket), and the old
+    # `not $DISPLAY` guard then took the native-window path -> Freerouting popped a real Swing window
+    # on the host desktop. Headless is the correct default for the compute plane; xvfb-run -a starts
+    # its own virtual server and overrides the leaked DISPLAY. CEC_FR_USE_DISPLAY=1 opts a Linux
+    # desktop dev back into the visible window. Windows/macOS are unaffected (native path below).
+    if sys.platform.startswith("linux") and shutil.which("xvfb-run") and os.environ.get("CEC_FR_USE_DISPLAY") != "1":
         return ["xvfb-run", "-a"] + base
     return base
 
