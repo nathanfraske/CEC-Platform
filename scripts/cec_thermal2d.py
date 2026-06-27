@@ -524,8 +524,8 @@ def _spd_solve(Aspmat, rhs, backend="auto", precond=None):
     # (the fine-density 0.05-0.1mm regime). Tried FIRST when CEC_THERMAL_GPU_AMG=1 + cupy + n large; returns
     # None on any cupy/build/stall failure -> falls through to the guaranteed-correct CPU AMG below. Default
     # OFF until soaked. Reuse across the Picard loop (build_precond once) is the ~1.8x end-to-end amortization.
-    gpu_amg_min = int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "150000"))
-    if os.environ.get("CEC_THERMAL_GPU_AMG") == "1" and n >= gpu_amg_min:
+    gpu_amg_min = int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "300000"))   # measured crossover (soak 2026-06-27)
+    if os.environ.get("CEC_THERMAL_GPU_AMG", "1") != "0" and n >= gpu_amg_min:   # ON by default (soak-verified); =0 opts out
         try:
             import cec_gpu_amg
             x = cec_gpu_amg.gpu_amg_cg(Aspmat.tocsr(), rhs)
@@ -778,8 +778,8 @@ def _thermal_solve(klat, Q_areal, grid: Grid, ambient, h_eff=15.0,
         # SETUP (not the solve) was the dominant fine-grid cost. _spd_solve falls back to a fresh build if the
         # reused preconditioner ever stalls, so it stays correct.
         if amg_on and amg_precond is None and it >= 1:
-            if (os.environ.get("CEC_THERMAL_GPU_AMG") == "1"
-                    and N >= int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "150000"))):
+            if (os.environ.get("CEC_THERMAL_GPU_AMG", "1") != "0"     # ON by default (soak-verified 2026-06-27)
+                    and N >= int(os.environ.get("CEC_THERMAL_GPU_AMG_MIN_N", "300000"))):   # measured crossover
                 try:                                         # GPU AMG V-cycle, built ONCE here + reused across the
                     import cec_gpu_amg                        # Picard loop (the 5090 path; amortizes the CPU SA setup)
                     amg_precond = cec_gpu_amg.build_precond(Msolve.tocsr())
