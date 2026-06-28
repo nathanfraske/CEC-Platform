@@ -43,6 +43,17 @@ COSMETIC_DRC_TYPES = (
     "lib_footprint_issues",
 )
 
+# DRC types that make a routed sense / diff pair leg ELECTRICALLY INVALID even though it is
+# connected (>=1 track, 0 ratlines). A /SENSEC*_LO leg fully routed but shorted to GND/+3V3 reads
+# "routed" yet is a broken Kelvin sense -- _check_pairs used to false-green it. The kelvin/diffpair
+# gate now ALSO fails a leg whose net appears in any of these foreign-net-contact violations.
+SENSE_FAULT_DRC_TYPES = (
+    "shorting_items",
+    "clearance",
+    "solder_mask_bridge",
+    "tracks_crossing",
+)
+
 # ---------------------------------------------------------------------------
 #  Net-name conventions
 # ---------------------------------------------------------------------------
@@ -210,6 +221,27 @@ def _unconnected_nets(unconnected_items: list) -> set:
     return nets
 
 
+def _pair_fault_nets(struct: list, watch_nets: set) -> tuple[set, dict]:
+    """Nets in *watch_nets* (Kelvin/diff pair legs) that appear in any SENSE_FAULT_DRC_TYPES
+    violation -- a short/clearance/mask-bridge/crossing against a FOREIGN item. Returns
+    (fault_nets, fault_types: net -> set(violation_type)). This is the term that makes
+    kelvin_ok / diffpair_ok see a routed-but-shorted leg: a /SENSEC*_LO routed into the GND
+    pour reads 0 ratlines but DOES carry a shorting_items locus, so it now FAILs the gate."""
+    fault, types = set(), {}
+    for v in struct:
+        if v.get("type") not in SENSE_FAULT_DRC_TYPES:
+            continue
+        item_nets = set()
+        for it in v.get("items", []):
+            n = _parse_net_from_desc(it.get("description", ""))
+            if n:
+                item_nets.add(n)
+        for n in (item_nets & watch_nets):
+            fault.add(n)
+            types.setdefault(n, set()).add(v["type"])
+    return fault, types
+
+
 def _measure_board(b) -> dict:
     """Measure tracks/vias/lengths per net and by layer from a loaded board."""
     F_CU = pcbnew.F_Cu  # layer id 0
@@ -284,11 +316,18 @@ def _check_pairs(
     net_tracks: dict,
     unconn_nets: set,
     board_nets: set,
+    fault_nets: set | None = None,
+    fault_types: dict | None = None,
 ) -> tuple[bool, list, list]:
-    """Check that every pair in `pairs` is routed (≥1 track, 0 unconnected).
+    """Check that every pair in `pairs` is routed (≥1 track, 0 unconnected) AND electrically
+    CLEAN (no short/clearance/mask/crossing DRC against a foreign net -- *fault_nets*). A pair
+    leg that is fully routed but shorted to GND/+3V3 is NOT a valid Kelvin/diff leg; the routed
+    +0-ratline test alone false-greened it (the documented kelvin_ok hole).
 
     Returns (all_ok, failing_pairs_detail, per_pair_dicts).
     """
+    fault_nets = fault_nets or set()
+    fault_types = fault_types or {}
     all_ok = True
     reasons = []
     per_pair = []
@@ -314,6 +353,15 @@ def _check_pairs(
                 pair_ok = False
                 pair_reasons.append(
                     f"{label} pair {a}/{b}: {net!r} has unconnected ratlines"
+                )
+            if net in fault_nets:
+                # HARDENED: a routed leg shorted/too-close to a foreign net is electrically
+                # invalid even with 0 ratlines -- the gate must reject it (not advisory).
+                tys = ",".join(sorted(fault_types.get(net, {"short/clearance"})))
+                pair_ok = False
+                pair_reasons.append(
+                    f"{label} pair {a}/{b}: {net!r} has a foreign-net DRC fault [{tys}] "
+                    f"-- routed but electrically shorted/too-close, not a valid sense leg"
                 )
 
         per_pair.append({"pair": (a, b), "ok": pair_ok, "reasons": pair_reasons})
@@ -409,12 +457,22 @@ def score(
     # ---- structural-violation breakdown (R-02: from the same run; no second DRC) ----
     drc_types, drc_loci = _types_loci(struct)
 
+    # ---- foreign-net DRC faults on the safety pairs (HARDENED gate term) ----
+    # A routed-but-shorted sense / diff leg carries a short/clearance/mask/crossing locus while
+    # reading 0 ratlines; fold those into the kelvin/diffpair gates so a /SENSEC*_LO->GND short
+    # can no longer pass kelvin_ok. Computed from the SAME structural DRC run (R-02).
+    watch_nets = ({n for pr in kelvin_pairs for n in pr}
+                  | {n for pr in diff_pairs for n in pr})
+    fault_nets, fault_types_map = _pair_fault_nets(struct, watch_nets)
+
     # ---- evaluate hard gates ----
     kelvin_ok, kelvin_reasons, kelvin_detail = _check_pairs(
-        kelvin_pairs, "kelvin", m["net_tracks"], unconn_nets, board_net_names
+        kelvin_pairs, "kelvin", m["net_tracks"], unconn_nets, board_net_names,
+        fault_nets, fault_types_map
     )
     diffpair_ok, diff_reasons, diff_detail = _check_pairs(
-        diff_pairs, "diffpair", m["net_tracks"], unconn_nets, board_net_names
+        diff_pairs, "diffpair", m["net_tracks"], unconn_nets, board_net_names,
+        fault_nets, fault_types_map
     )
 
     drc_gate_ok = (drc_count == 0) if rules.require_drc_zero else True
@@ -436,6 +494,7 @@ def score(
         "diff_detail":     diff_detail,
         "diff_reasons":    diff_reasons,
         "unconn_nets":     sorted(unconn_nets),
+        "sense_fault_nets": {n: sorted(fault_types_map.get(n, [])) for n in sorted(fault_nets)},
         "drc_struct_count": drc_count,
         "drc_gate_ok":     drc_gate_ok,
         "require_drc_zero": rules.require_drc_zero,
