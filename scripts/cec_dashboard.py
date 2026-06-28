@@ -37,6 +37,7 @@ import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import unquote
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 COMPOSE = ["docker", "compose", "-f", os.path.join(ROOT, "docker", "compose.yaml")]
@@ -148,6 +149,12 @@ NOISE = re.compile(r"duplicate image handler|Debug:|Xvfb|_XSERV|xvfb-entry|wxWid
 _render = {"status": "idle", "board": None, "ts": 0}     # newest-render status (header)
 _cands = []                                             # ordered candidate renders (the timeline)
 _cands_lock = threading.Lock()
+
+# Which candidate the dashboard is DISPLAYING -- the frontend reports its focused stem on every /api/state
+# poll (?focus=<stem>); the async fine-thermal worker solves THAT board at fine grid. Stale/absent -> the
+# worker falls back to the newest candidate (the view the dashboard follows by default).
+_focus = {"stem": None, "ts": 0.0}
+_fine = {"status": "idle", "stem": None, "grid": None}  # async fine-thermal worker status (header/debug)
 
 
 # ---------------------------------------------------------------- helpers
@@ -408,57 +415,96 @@ def _board_files():
     return ordered[-cap:] if cap and len(ordered) > cap else ordered   # newest N (a long run has 100s)
 
 
-def _render_thermal(board, rdir, stem):
-    """OPTIONAL, NON-BLOCKING electro-thermal heatmap overlay for ONE board. Runs
-    cec_thermal_overlay.py in the routing container (it needs pcbnew + scipy +
-    shapely), which solves the 2D field at the balanced EPS currents + the current
-    stackup and composites the temperature heatmap OVER the board's copper layout,
-    georeferenced. Returns (overlay_png|None, summary_dict). A solver error MUST NOT
-    break the dashboard -- any failure degrades to (None, {error}); the plain render
-    still shows."""
-    tdir = os.path.join(rdir, stem + "-thermal")              # PER-LAYER mode: a dir of <layer>.png + _cbar.png
-    rel_out = os.path.relpath(tdir, ROOT)
+def _reap_overlay(rel_out, proc=None):
+    """Stop a thermal overlay run: kill the host `docker compose exec` (so we stop waiting) AND the CONTAINER
+    python, which otherwise ORPHANS and keeps thrashing the CPU/GPU after the host side goes away. Matched by
+    the unique per-board out-dir so we never reap a different board's solve."""
+    if proc is not None:
+        for fn in (proc.kill, lambda: proc.wait(timeout=5)):
+            try:
+                fn()
+            except Exception:                                     # noqa: BLE001
+                pass
     try:
-        grid = os.environ.get("CEC_DASH_THERMAL_GRID", "0.8")   # 0.8 = ~2s/board for the live loop. For a small
-        #   curated showcase, set CEC_DASH_THERMAL_GRID=0.4 so a 0.6mm GND berth (the void around the 12V pins)
-        #   is resolved -- at 0.8mm a sub-grid void averages away and reads as "no hole" (the owner-caught issue).
-        tmo = 45 if grid == "0.8" else 420                      # finer grid is slower (AMG 0.15mm ~3min) -> longer window
-        r = subprocess.run(
-            COMPOSE + ["exec", "-T", "routing", "python3",
-                       "/workspace/scripts/cec_thermal_overlay.py",
-                       "--board", f"/workspace/{os.path.relpath(board, ROOT)}",
-                       "--out-dir", f"/workspace/{rel_out}",
-                       "--grid-mm", grid],
-            capture_output=True, text=True, timeout=tmo)
-        summary = {}
-        for ln in reversed((r.stdout or "").splitlines()):
-            ln = ln.strip()
-            if ln.startswith("{") and ln.endswith("}"):
-                try:
-                    summary = json.loads(ln)
-                except Exception:                                 # noqa: BLE001
-                    summary = {}
-                break
-        if summary.get("ok"):
-            layers = {name: os.path.join(tdir, fn)
-                      for name, fn in (summary.get("layers") or {}).items()
-                      if os.path.exists(os.path.join(tdir, fn))}
-            cbar = os.path.join(tdir, summary.get("cbar", "")) if summary.get("cbar") else None
-            if cbar and not os.path.exists(cbar):
-                cbar = None
-            return layers, cbar, summary
-        return {}, None, (summary or {"ok": False, "error": "no overlay produced"})
-    except subprocess.TimeoutExpired:
-        # the host `docker exec` is killed by the timeout, but the CONTAINER python ORPHANS and keeps thrashing
-        # the CPU -> reap it (match the unique per-board out-dir) so slow boards don't pile up concurrent solves.
-        try:
-            subprocess.run(COMPOSE + ["exec", "-T", "routing", "pkill", "-9", "-f", rel_out],
-                           capture_output=True, timeout=20)
-        except Exception:                                         # noqa: BLE001
-            pass
-        return {}, None, {"ok": False, "error": "thermal solve >45s (routed board) -- layout shown, no heatmap"}
+        subprocess.run(COMPOSE + ["exec", "-T", "routing", "pkill", "-9", "-f", rel_out],
+                       capture_output=True, timeout=20)
+    except Exception:                                             # noqa: BLE001
+        pass
+
+
+def _parse_overlay(stdout, tdir):
+    """Map cec_thermal_overlay.py's LAST-line JSON summary -> (layers, cbar, summary)."""
+    summary = {}
+    for ln in reversed((stdout or "").splitlines()):
+        ln = ln.strip()
+        if ln.startswith("{") and ln.endswith("}"):
+            try:
+                summary = json.loads(ln)
+            except Exception:                                     # noqa: BLE001
+                summary = {}
+            break
+    if summary.get("ok"):
+        layers = {name: os.path.join(tdir, fn)
+                  for name, fn in (summary.get("layers") or {}).items()
+                  if os.path.exists(os.path.join(tdir, fn))}
+        cbar = os.path.join(tdir, summary.get("cbar", "")) if summary.get("cbar") else None
+        if cbar and not os.path.exists(cbar):
+            cbar = None
+        return layers, cbar, summary
+    return {}, None, (summary or {"ok": False, "error": "no overlay produced"})
+
+
+def _run_overlay(board, tdir, grid, timeout, extra_env=None, should_cancel=None, timeout_msg=None):
+    """Run cec_thermal_overlay.py (PER-LAYER mode) in the routing container and return (layers, cbar,
+    summary). Non-blocking-safe: a Popen + poll loop so the caller can CANCEL mid-solve (via should_cancel)
+    and so a stuck solve is bounded by `timeout`. Any failure degrades to ({}, None, {error}) -- the thermal
+    overlay must NEVER break the dashboard; the plain render still shows.
+
+    extra_env  -- {k:v} passed as `docker compose exec -e k=v` (the fine pass sets CEC_THERMAL_GPU_AMG=1).
+    should_cancel -- a 0-arg predicate polled ~every 2s; True -> reap the container solve + return cancelled.
+    """
+    rel_out = os.path.relpath(tdir, ROOT)
+    cmd = COMPOSE + ["exec", "-T"]
+    for k, v in (extra_env or {}).items():
+        cmd += ["-e", f"{k}={v}"]
+    cmd += ["routing", "python3", "/workspace/scripts/cec_thermal_overlay.py",
+            "--board", f"/workspace/{os.path.relpath(board, ROOT)}",
+            "--out-dir", f"/workspace/{rel_out}", "--grid-mm", str(grid)]
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     except Exception as e:                                        # noqa: BLE001
         return {}, None, {"ok": False, "error": f"{type(e).__name__}: {e}"}
+    deadline = time.time() + timeout
+    while True:
+        remaining = deadline - time.time()
+        if remaining <= 0:
+            _reap_overlay(rel_out, proc)
+            return {}, None, {"ok": False,
+                              "error": timeout_msg or f"thermal solve >{timeout:.0f}s -- layout shown, no heatmap"}
+        try:
+            out, _err = proc.communicate(timeout=min(2.0, remaining))   # retrying communicate keeps all output
+            return _parse_overlay(out, tdir)
+        except subprocess.TimeoutExpired:
+            if should_cancel and should_cancel():
+                _reap_overlay(rel_out, proc)
+                return {}, None, {"ok": False, "error": "fine thermal cancelled (focus moved)"}
+        except Exception as e:                                    # noqa: BLE001
+            _reap_overlay(rel_out, proc)
+            return {}, None, {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+
+def _render_thermal(board, rdir, stem):
+    """OPTIONAL, NON-BLOCKING COARSE electro-thermal heatmap overlay for ONE board, run SYNCHRONOUSLY in the
+    per-board render so every candidate gets a heatmap fast. CEC_DASH_THERMAL_GRID (default 0.8mm) = ~2s/board
+    so the live multi-board render loop stays snappy. The FOCUSED board is additionally upgraded to a FINE
+    grid asynchronously (see _fine_thermal_loop). Returns (layers, cbar, summary)."""
+    grid = os.environ.get("CEC_DASH_THERMAL_GRID", "0.8")   # 0.8 = ~2s/board for the live loop. For a small
+    #   curated showcase, set CEC_DASH_THERMAL_GRID=0.4 so a 0.6mm GND berth (the void around the 12V pins)
+    #   is resolved -- at 0.8mm a sub-grid void averages away and reads as "no hole" (the owner-caught issue).
+    tmo = 45 if grid == "0.8" else 420                      # finer grid is slower (AMG 0.15mm ~3min) -> longer window
+    tdir = os.path.join(rdir, stem + "-thermal")            # PER-LAYER mode: a dir of <layer>.png + _cbar.png
+    return _run_overlay(board, tdir, grid, tmo,
+                        timeout_msg=f"thermal solve >{tmo}s (routed board) -- layout shown, no heatmap")
 
 
 def _render_board(board):
@@ -516,11 +562,15 @@ def _render_board(board):
     ok_svg = p.returncode == 0 and os.path.exists(svg)
     if not (ok_png or ok_svg):
         return None
-    # OPTIONAL per-layer electro-thermal overlay (never blocks; degrades to {} on error)
+    # OPTIONAL per-layer COARSE electro-thermal overlay (never blocks; degrades to {} on error). The focused
+    # board is then upgraded to a FINE grid asynchronously by _fine_thermal_loop, which swaps thermal_* +
+    # flips thermal_tier coarse->fine in place on this candidate dict.
     thermal_layers, thermal_cbar, thermal_sum = _render_thermal(board, rdir, stem)
     return {"stem": stem, "board": board, "png": png if ok_png else None,
-            "svg": svg if ok_svg else None, "layers": layers,
+            "svg": svg if ok_svg else None, "layers": layers, "rdir": rdir,
             "thermal_layers": thermal_layers, "thermal_cbar": thermal_cbar, "thermal_sum": thermal_sum,
+            "thermal_tier": ("coarse" if thermal_layers else None),
+            "thermal_status": ("coarse" if thermal_layers else None),
             "mtime": os.path.getmtime(board), "ts": time.time()}
 
 
@@ -565,6 +615,99 @@ def _cand_at(idx):
         return _cands[idx]
 
 
+def _focused_cand():
+    """The candidate the dashboard is DISPLAYING: the frontend-reported focused stem if fresh (the viewer
+    can scroll the timeline), else the newest candidate (the default the dashboard follows). This is the
+    board the async fine-thermal worker upgrades to a fine grid."""
+    with _cands_lock:
+        cands = list(_cands)
+    if not cands:
+        return None
+    fs, fts = _focus.get("stem"), _focus.get("ts", 0.0)
+    if fs and (time.time() - fts) < 30:
+        for c in cands:
+            if c["stem"] == fs:
+                return c
+    return cands[-1]
+
+
+# ---------------------------------------------------------------- async fine-thermal worker
+def _fine_thermal_loop():
+    """SECOND thermal tier: while the live render loop gives every board a FAST COARSE heatmap, this daemon
+    upgrades the ONE focused (displayed/newest) board to a FINE grid (CEC_DASH_THERMAL_FINE_GRID, default
+    0.1mm) using the GPU AMG solver in the routing container, then SWAPS the fine heatmap onto that candidate
+    in place (thermal_layers/cbar/sum + thermal_tier coarse->fine). Single-flight by design (one blocking
+    solve at a time -> at most one GPU job, the card is not MIG-capable). De-duped by board mtime so an
+    unchanged board is never re-solved; CANCELLED (container reaped) if the focus moves on mid-solve. A fine
+    error degrades silently -> the coarse heatmap stays. The fine PNGs land in a SEPARATE <stem>-thermal-fine
+    dir so the coarse set survives as the fallback."""
+    grid = os.environ.get("CEC_DASH_THERMAL_FINE_GRID", "0.1")
+    timeout = int(os.environ.get("CEC_DASH_THERMAL_FINE_TIMEOUT", "900"))   # GPU 0.1mm ~3min -> generous margin
+    solved = {}                                                  # stem -> board mtime already upgraded to fine
+    while True:
+        try:
+            cand = _focused_cand()
+            if not cand or not (cand.get("png") or cand.get("svg")):
+                _fine.update(status="idle", stem=None, grid=None)
+                time.sleep(3)
+                continue
+            stem, bmtime = cand["stem"], cand.get("mtime", 0)
+            already = cand.get("thermal_tier") == "fine" and cand.get("_fine_mtime") == bmtime
+            if already or solved.get(stem) == bmtime:
+                # prune the de-dupe set of boards that are gone, then idle
+                with _cands_lock:
+                    live = {c["stem"] for c in _cands}
+                for s in [s for s in solved if s not in live]:
+                    solved.pop(s, None)
+                _fine.update(status="idle", stem=stem, grid=None)
+                time.sleep(3)
+                continue
+            # mark the board "fine solving" so the frontend shows the badge immediately
+            with _cands_lock:
+                cand["thermal_status"] = "solving"
+                if cand.get("thermal_tier") is None and cand.get("thermal_layers"):
+                    cand["thermal_tier"] = "coarse"
+            _fine.update(status="solving", stem=stem, grid=grid)
+
+            def _cancel(_stem=stem, _bm=bmtime):                 # cancel if the focus moves OR the board changes
+                cur = _focused_cand()
+                return cur is None or cur["stem"] != _stem or cur.get("mtime", 0) != _bm
+
+            rdir = cand.get("rdir") or os.path.join(
+                ROOT, "build", ".dash-renders", os.path.basename(CFG["run_dir"].rstrip("/")) or "run")
+            tdir = os.path.join(rdir, stem + "-thermal-fine")
+            layers, cbar, summary = _run_overlay(
+                cand["board"], tdir, grid, timeout,
+                extra_env={"CEC_THERMAL_GPU_AMG": "1"}, should_cancel=_cancel,
+                timeout_msg=f"fine thermal >{timeout}s -- coarse heatmap shown")
+
+            # re-resolve focus: only publish if the SAME board is still focused + unchanged (race-safe)
+            cur = _focused_cand()
+            same = cur is not None and cur["stem"] == stem and cur.get("mtime", 0) == bmtime
+            if summary.get("ok") and layers and same:
+                with _cands_lock:
+                    cur["thermal_layers"] = layers
+                    cur["thermal_cbar"] = cbar
+                    cur["thermal_sum"] = summary
+                    cur["thermal_tier"] = "fine"
+                    cur["thermal_status"] = "fine"
+                    cur["_fine_mtime"] = bmtime
+                    cur["ts"] = time.time()                      # cache-bust -> the frontend re-fetches + swaps
+                solved[stem] = bmtime
+            else:
+                if summary.get("ok"):
+                    solved[stem] = bmtime                        # solved, but focus moved -> don't redo
+                with _cands_lock:                                # clear the badge; keep coarse as fallback
+                    if cur is not None and cur["stem"] == stem and cur.get("thermal_tier") != "fine":
+                        cur["thermal_status"] = "coarse" if cur.get("thermal_layers") else None
+                        if not summary.get("ok"):
+                            cur["thermal_fine_error"] = summary.get("error")
+            _fine.update(status="idle")
+        except Exception as e:                                    # noqa: BLE001
+            _fine.update(status=f"err:{type(e).__name__}")
+        time.sleep(2)
+
+
 # ---------------------------------------------------------------- http
 class H(BaseHTTPRequestHandler):
     def log_message(self, *a):                                    # quiet
@@ -589,6 +732,10 @@ class H(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif path == "/api/state":
+            foc = params.get("focus")                            # the frontend reports the DISPLAYED stem ->
+            if foc:                                              # the async fine-thermal worker upgrades it
+                _focus["stem"] = unquote(foc)
+                _focus["ts"] = time.time()
             bundle = None
             if os.path.exists(_runfile("morning-bundle.json")):
                 try:
@@ -603,6 +750,8 @@ class H(BaseHTTPRequestHandler):
                           "has_thermal": bool(c.get("thermal_layers")),
                           "thermal_layers": sorted((c.get("thermal_layers") or {}).keys()),
                           "has_thermal_cbar": bool(c.get("thermal_cbar")),
+                          "thermal_tier": c.get("thermal_tier"),     # coarse | fine
+                          "thermal_status": c.get("thermal_status"),  # coarse | solving | fine (the badge state)
                           "thermal": (c.get("thermal_sum") or {})} for c in _cands]
             self._json({"ts": time.time(), "run": _proc_info(),
                         "measurement": _measurement(), "rules": _live_rules(),
@@ -757,18 +906,32 @@ function thermHover(e){
  const mx=(ex[0]+fx*(ex[2]-ex[0])).toFixed(1), my=(ex[1]+fy*(ex[3]-ex[1])).toFixed(1);
  tip.innerHTML=`<b style="color:#ffcc80">${T.toFixed(1)}°C</b> <span style="opacity:.55">@ ${mx},${my}mm</span>`;
  tip.style.display='block'; tip.style.left=(e.clientX+14)+'px'; tip.style.top=(e.clientY+12)+'px'; }
+function tierBadge(c,t){
+ // two-tier thermal indicator: coarse (fast live solve) -> "solving…" -> fine (GPU 0.1mm) for the focused board
+ const g=(t&&t.grid_mm!=null)?(t.grid_mm+'mm'):'';
+ if(c&&c.thermal_status==='solving')
+  return `<span class="pill warn" title="upgrading the displayed board to a fine GPU (0.1mm) electro-thermal solve in the background">⟳ fine thermal: solving…</span>`;
+ if(c&&c.thermal_tier==='fine')
+  return `<span class="pill ok" title="fine-grid GPU AMG electro-thermal solve (resolves local hot necks the coarse grid averages away)">fine ${g}</span>`;
+ if(c&&c.has_thermal)
+  return `<span class="pill dim" title="fast coarse solve for the live loop; the displayed board upgrades to fine in the background">coarse ${g}</span>`;
+ return '';
+}
 function thermLabel(){
  // show max_T / dT / verdict for the selected candidate's thermal solve in the board header
  const el=document.getElementById('thermhdr'); const c=cands[selCand];
  const t=(c&&c.thermal)||{};
+ let h='';
  if(c&&c.has_thermal&&t.ok){
   const cl=t.verdict==='PASS'?'ok':'bad';
   const cool=t.cooling?`  ·  ${esc(t.cooling)}`:'';
-  el.innerHTML=`<span class="pill ${cl}" title="2D electro-thermal: max copper temperature; gate dT<=30C over ambient ${t.ambient}C (balanced 350W; solid pins). Cooling model: ${esc(t.cooling||'still-air')}">`+
-   `θ max ${t.max_T}°C  dT ${t.dT}°C  ${t.verdict}${cool}</span>`;
+  h=`<span class="pill ${cl}" title="2D electro-thermal: max copper temperature; gate dT<=30C over ambient ${t.ambient}C (balanced 350W; solid pins). Cooling model: ${esc(t.cooling||'still-air')}">`+
+    `θ max ${t.max_T}°C  dT ${t.dT}°C  ${t.verdict}${cool}</span>`;
  } else if(c&&t&&t.error){
-  el.innerHTML=`<span class="pill dim" title="${esc(t.error)}">θ n/a</span>`;
- } else { el.innerHTML=''; }}
+  h=`<span class="pill dim" title="${esc(t.error)}">θ n/a</span>`;
+ }
+ h+=tierBadge(c,t);                                            // coarse / solving… / fine badge
+ el.innerHTML=h;}
 function modeLayers(){ // the layer set + image source for the current board mode
  const c=cands[selCand], therm=(bmode==='thermal');
  if(bmode==='png') return {ls:[], base:'', therm:false};      // 3D raytrace render: one image, no per-layer toggles
@@ -814,7 +977,9 @@ window.addEventListener('DOMContentLoaded',()=>{
 });
 async function tick(){
  try{
-  const s=await (await fetch('/api/state')).json();
+  // report the DISPLAYED candidate so the server upgrades THAT board's thermal to a fine grid async
+  const fstem=(cands[selCand]&&cands[selCand].stem)||'';
+  const s=await (await fetch('/api/state'+(fstem?('?focus='+encodeURIComponent(fstem)):''))).json();
   const r=s.run||{};
   document.getElementById('status').innerHTML=
    `<span class="pill ${r.alive?'ok':'bad'}">${r.alive?'RUNNING pid '+r.pid+' ('+(r.elapsed||'')+')':'NOT RUNNING'}</span>`+
@@ -957,6 +1122,7 @@ def main():
             print("dashboard: no live run found yet -- will auto-attach when one starts", flush=True)
     threading.Thread(target=_render_loop, daemon=True).start()
     threading.Thread(target=_discover_loop, daemon=True).start()
+    threading.Thread(target=_fine_thermal_loop, daemon=True).start()   # async fine-grid upgrade of the focused board
     print(f"dashboard: http://localhost:{a.port}  (auto={CFG['auto']}, run_dir={CFG['run_dir']})", flush=True)
     ThreadingHTTPServer(("0.0.0.0", a.port), H).serve_forever()
 
