@@ -2571,6 +2571,113 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
     return seated
 
 
+def _perp_half(size, rot, n):
+    """Half-extent of a (locally axis-aligned) pad rectangle, ROTATED by *rot*, projected onto unit
+    direction *n* -- the support of the rotated pad along n. Used to compute the lateral standoff that
+    lands a sense pad hard against the shunt inner edge."""
+    import cec_pcb
+    ex = cec_pcb._rot(size[0] / 2.0, 0.0, rot)
+    ey = cec_pcb._rot(0.0, size[1] / 2.0, rot)
+    return abs(ex[0] * n[0] + ex[1] * n[1]) + abs(ey[0] * n[0] + ey[1] * n[1])
+
+
+def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
+    """REAL geometric KELVIN SEAT (replaces the historical line-1732 anneal-connectivity non-seat).
+
+    For each FORMED per-cable corridor, seat its current-sense IC(s) -- the INA238/228 current sensor
+    AND the §6.13 INA181 detection amp -- HARD against the seated shunt's inner edge as FIXED anchors:
+      * BODY PERPENDICULAR to the J_IN->shunt->J_OUT corridor and CENTERED in the un-poured NOTCH (the
+        y-band the high-current pour deliberately leaves open between the HI and LO boxes), so the body
+        stays OUT of the SENSEC pour;
+      * ROTATED so the IN+/IN- input pads face the shunt's HI/LO inner-edge sense points
+        (HI-inner -> IN+, LO-inner -> IN-, taps don't cross) -- resolved by READ-BACK, since KiCad's
+        y-down transform inverts the naive math-CCW sign;
+      * the two ICs on a shunt take OPPOSITE corridor sides (so each gets a clean inner-edge tap and
+        neither sits in the pour).
+    Writes anchors[ic]=(x,y,rot); returns the seated IC refs so synth_one can drop them from the
+    annealed set (connectivity drift can no longer pull them 6-8mm off the shunt and into the pour --
+    the measured bug). The shunt must already be seated (anchors[shunt] = (col, H/2, 270) from
+    _seed_corridor_spine). SHARED-BUS connectors (24-pin / 12VHPWR) are absent from *topo*, so the seat
+    fires only on the per-cable EPS/PCIe family (correct -- the filtered 12VHPWR INA240 lanes use the
+    column-alignment branch of the checker instead)."""
+    import cec_pcb
+    seated = []
+    for c in topo:
+        sh, hi, lo = c["shunt"], c["hi"], c["lo"]
+        if sh not in anchors or sh not in comps:
+            continue
+        sh_hi = next((p for r, p in nl.nets.get(hi, []) if r == sh), None)   # shunt HI terminal pad
+        sh_lo = next((p for r, p in nl.nets.get(lo, []) if r == sh), None)   # shunt LO terminal pad
+        if not (sh_hi and sh_lo):
+            continue
+        P_HI = cec_pcb.pad_global(sh, sh_hi, {sh: anchors[sh]}, comps)
+        P_LO = cec_pcb.pad_global(sh, sh_lo, {sh: anchors[sh]}, comps)
+        ax, ay = P_LO[0] - P_HI[0], P_LO[1] - P_HI[1]
+        aL = math.hypot(ax, ay) or 1.0
+        ax, ay = ax / aL, ay / aL                       # current axis HI->LO (the corridor direction)
+        nx, ny = -ay, ax                                # lateral (perp to the corridor)
+        mid = ((P_HI[0] + P_LO[0]) / 2.0, (P_HI[1] + P_LO[1]) / 2.0)
+        ssz = cec_pcb.local_pad_sizes(comps[sh])
+        sh_perp = _perp_half(ssz.get(sh_hi, (1.0, 1.0)), anchors[sh][2], (nx, ny))
+        # NOTE: the un-poured notch ALONG a is +/-(aL/2 - pour_margin) about mid (derive_power_pours
+        # ends each pour box at the shunt pad CENTRE +/- margin). The seat centres the body on `a`
+        # (alpha below), so it sits in that notch; pour_margin is the documented calibration knob.
+        refs = {r for r, _ in nl.nets.get(hi, [])} | {r for r, _ in nl.nets.get(lo, [])}
+        sense = sorted(r for r in refs if r.startswith("U") and r in comps)
+        for idx, ic in enumerate(sense):
+            side = 1.0 if idx % 2 == 0 else -1.0        # the two ICs straddle the shunt
+            inp = next((p for r, p in nl.nets.get(hi, []) if r == ic), None)   # IN+ pad (on HI)
+            inn = next((p for r, p in nl.nets.get(lo, []) if r == ic), None)   # IN- pad (on LO)
+            lp = cec_pcb.local_pads(comps[ic]); lsz = cec_pcb.local_pad_sizes(comps[ic])
+            if not inp or not inn or inp not in lp or inn not in lp:
+                continue
+            inp_l, inn_l = lp[inp], lp[inn]
+            chosen = None
+            for rot in (0.0, 90.0, 180.0, 270.0):
+                ig = cec_pcb._rot(*inp_l, rot)          # IN+/IN- pad offsets from origin at this rot
+                ng = cec_pcb._rot(*inn_l, rot)
+                cg = ((ig[0] + ng[0]) / 2.0, (ig[1] + ng[1]) / 2.0)     # IN-pair centroid offset
+                cx, cy, hwc, hhc = _courtyard_info(comps[ic], rot)      # courtyard centre offset + halves
+                inpad_perp = _perp_half(lsz.get(inp, (1.0, 1.0)), rot, (nx, ny))
+                g_lat = sh_perp + seat_gap + inpad_perp
+                # Solve O = mid + alpha*a + beta*n so (i) the IN-pair centroid sits g_lat off the shunt
+                # on side `side` (sense pads hard against the inner edge) and (ii) the body courtyard
+                # centre is on the corridor axis (centred in the notch -> out of the pour).
+                beta = side * g_lat - (cg[0] * nx + cg[1] * ny)
+                alpha = -(cx * ax + cy * ay)
+                O = (mid[0] + alpha * ax + beta * nx, mid[1] + alpha * ay + beta * ny)
+                INp = (O[0] + ig[0], O[1] + ig[1]); INn = (O[0] + ng[0], O[1] + ng[1])
+                order = (INp[0] - INn[0]) * ax + (INp[1] - INn[1]) * ay     # IN+ must be toward HI (-a)
+                face = ((INp[0] + INn[0]) / 2.0 - O[0]) * nx * side + \
+                       ((INp[1] + INn[1]) / 2.0 - O[1]) * ny * side          # IN pads must face the shunt
+                if order < -1e-6 and face < 1e-6:
+                    chosen = (rot, beta)
+                    break
+            if chosen is None:
+                continue
+            rot, beta = chosen
+            cx, cy, hwc, hhc = _courtyard_info(comps[ic], rot)
+            alpha = -(cx * ax + cy * ay)                    # body courtyard centred on the corridor axis
+            sh_cy = cec_pcb.courtyard_bbox(comps[sh], *anchors[sh])
+            # COURTYARD CLEARANCE: the seat lands the SENSE PADS hard against the shunt, but the IC
+            # BODY must not overlap the shunt COURTYARD (DRC) -- so slide the body laterally OUT (along
+            # `side`*n, away from the corridor) until its courtyard clears the shunt courtyard. The
+            # sense pads ride out with it but stay well within the 5mm/2mm Kelvin window (measured: edge
+            # gap ~0.2 -> ~0.8mm). `a` is unchanged, so the body stays centred in the notch.
+            for _ in range(24):
+                Ox = mid[0] + alpha * ax + beta * nx
+                Oy = mid[1] + alpha * ay + beta * ny
+                ic_cy = (Ox + cx - hwc, Ox + cx + hwc, Oy + cy - hhc, Oy + cy + hhc)
+                ovx = min(ic_cy[1], sh_cy[1]) - max(ic_cy[0], sh_cy[0])      # lateral overlap (n is horizontal)
+                ovy = min(ic_cy[3], sh_cy[3]) - max(ic_cy[2], sh_cy[2])
+                if ovx <= 0.2 or ovy <= 0.2:                # courtyards separated (or corner graze) -> done
+                    break
+                beta += side * (ovx + 0.2)                  # push the body out along n by the lateral overlap
+            anchors[ic] = (mid[0] + alpha * ax + beta * nx, mid[1] + alpha * ay + beta * ny, rot)
+            seated.append(ic)
+    return seated
+
+
 def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
     """HARD veto (placement-strategy §2.2 H1): a HOT/SENSITIVE part body may not sit inside a FOREIGN
     cable's FORMED band. *bands* maps base -> {"band":(x0,x1,y0,y1), "formed":bool}; *paired_ina* maps
@@ -2870,8 +2977,17 @@ def synth_one(cfg_dict, W, H, strat, seed):
     # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
     #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
     #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
-    seated = _seed_corridor_spine(_cable_topology(nl), anchors, H, nl, comps, W=W)
+    _topo = _cable_topology(nl)
+    seated = _seed_corridor_spine(_topo, anchors, H, nl, comps, W=W)
     free_shunts = [r for r in shunts if r not in seated]
+    # 1b'. REAL KELVIN SEAT (owner directive 2026-06-27): seat each cable's sense IC(s) HARD against
+    #      the just-seated shunt's inner edge as FIXED anchors -- body perpendicular to the corridor,
+    #      centred in the un-poured notch (OUT of the SENSEC pour), IN+/IN- facing the HI/LO inner
+    #      edges. This OVERRIDES the connectivity drift (the historical non-seat let the anneal leave
+    #      the INA 6-8mm away + inside the pour). Seated INAs drop from the annealed set below.
+    seated_inas = []
+    if os.environ.get("CEC_KELVIN_SEAT", "1") != "0":
+        seated_inas = _seat_sense_ics(_topo, anchors, nl, comps)
     # 1c. Seat the PCB-antenna IC at its antenna edge as a FIXED anchor (route-unblock + MV5 antenna
     #     term): otherwise the large ESP courtyard lands center-board on the ganged ports -> overlaps
     #     -> Freerouting routes nothing. Keep it in `ics` so its decoupling cluster still builds; drop
@@ -2880,7 +2996,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
                                       drop_antenna=drop_antenna)
     if _esp:
         anchors[_esp] = _esp_pos
-    anneal_units = [r for r in (ics + free_shunts) if r != _esp]
+    anneal_units = [r for r in (ics + free_shunts) if r != _esp and r not in seated_inas]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
@@ -3014,6 +3130,19 @@ def synth_one(cfg_dict, W, H, strat, seed):
             break                                             # the pour to fill + the net to route around it.
         if _ev_round < 5:
             legalize_pack(P, [r for r in _evac if r in P], cyinfo_all, W, H, clr=0.4)
+    # FINAL MOP-UP (only when the Kelvin seat fired): fixing the 4 sense ICs as anchors reduces the
+    # anneal's freedom, so a rigidly-stamped decoupling cap can be left grazing its IC (residual). One
+    # legalize over EVERY movable body (all but the fixed anchors -- connectors, mounts, the seated
+    # shunt + sense ICs, the ESP) nudges those few to the nearest free spot, restoring residual 0
+    # without touching the seat. Confined to seated boards so non-cable placements are byte-unchanged.
+    if seated_inas:
+        _fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
+                  | set(seated_inas) | ({_esp} if _esp else set()))
+        _mop = [r for r in P if r in comps and r not in _fixed]
+        _mop_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2],
+                                                                    drop_antenna=drop_antenna))
+                   for r in P if r in comps}
+        legalize_pack(P, _mop, _mop_cy, W, H, clr=0.4)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced

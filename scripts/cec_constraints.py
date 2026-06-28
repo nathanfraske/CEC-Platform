@@ -118,6 +118,21 @@ REGISTRY = [
       rule="The Kelvin sense trace leaves the shunt pad from its INNER edge (the sense point facing the "
            "other terminal), not an arbitrary side -- §6.8 four-wire sense taps the shunt element only.",
       source="user review 2026-06-07; spec §6.8", status="ratified"),
+    C(id="sense-body-clear-of-pour", title="Sense IC body clear of the high-current pour",
+      category="high-current", severity="strong", checkable="yes", directive="none",
+      rule="The current-sense IC (INA228/238/181) is seated HARD against its shunt's inner edge for the "
+           "Kelvin tap, but its BODY (courtyard) must stay OUT of the SENSEC high-current pour region "
+           "(cec_fr.derive_power_pours) so it does not block the fill or neck the current path. The IC "
+           "body sits perpendicular to the J_IN->shunt->J_OUT corridor, in the un-poured NOTCH between "
+           "the HI and LO pour boxes: courtyard CENTROID outside every pour box, and courtyard overlap "
+           "with the pour <= max_overlap_mm2. The tolerance is a board-calibrated graze allowance (a "
+           "SOT-23-6 INA181 body is 4.19mm vs the ~3.925mm notch the ratified 1.0mm pour margin opens, "
+           "so it overshoots ~0.13mm/side = ~0.9mm^2 -- accepted as a footprint-edge graze, NOT a "
+           "body-in-pour; a buried body overlaps several mm^2). The owner-ratification item to fully "
+           "clear the INA181 is a smaller per-shunt pour margin (~0.67mm) or a local pour clip -- a "
+           "constraint/route-time change, surfaced not silently applied.",
+      source="owner directive 2026-06-27; spec §6.8 + as-built notch calibration", status="ratified",
+      params={"max_overlap_mm2": 2.0}),
 
     # ---- thermal -----------------------------------------------------------------------
     C(id="hot-sensitive-separation", title="Hot parts separated from temp-sensitive parts",
@@ -935,6 +950,69 @@ def _chk_kelvin_inner(board, path, ctx):
     if bad:
         return False, "Kelvin sense not tapped from the inner shunt edge: " + "; ".join(bad[:6])
     return True, "Kelvin sense stubs leave from the inner shunt edge (%d checked)" % checked
+
+
+def _fp_courtyard_bbox(fp):
+    """Global courtyard bbox (x0,x1,y0,y1) of a footprint (mm). Falls back to the part bbox."""
+    xs, ys = [], []
+    for layer in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
+        sh = fp.GetCourtyard(layer)
+        if sh and sh.OutlineCount():
+            bb = sh.BBox()
+            xs += [_mm(bb.GetLeft()), _mm(bb.GetRight())]
+            ys += [_mm(bb.GetTop()), _mm(bb.GetBottom())]
+    if not xs:
+        bb = fp.GetBoundingBox()
+        return (_mm(bb.GetLeft()), _mm(bb.GetRight()), _mm(bb.GetTop()), _mm(bb.GetBottom()))
+    return (min(xs), max(xs), min(ys), max(ys))
+
+
+@checker("sense-body-clear-of-pour")
+def _chk_sense_body_clear(board, path, ctx):
+    """The current-sense IC sits hard against its shunt (Kelvin), but its BODY must clear the SENSEC
+    high-current pour. Build the same pour rectangles the router lays (cec_fr.derive_power_pours) and
+    assert each sense IC's courtyard centroid is in the un-poured notch AND its courtyard overlaps the
+    pour by <= max_overlap_mm2. This is the geometric ENFORCE leg of the placer's _seat_sense_ics."""
+    import cec_fr
+    try:
+        pours = cec_fr.derive_power_pours(path, board=board)
+    except Exception as e:                                       # noqa: BLE001
+        return None, "derive_power_pours unavailable (%s)" % type(e).__name__
+    if not pours:
+        return None, "no SENSEC high-current pour region (shared-bus / non-cable board)"
+    box_by_net = collections.defaultdict(list)
+    for pr in pours:
+        xs = [p[0] for p in pr["polygon"]]; ys = [p[1] for p in pr["polygon"]]
+        box_by_net[pr["net"]].append((min(xs), max(xs), min(ys), max(ys)))
+    tol = _param("sense-body-clear-of-pour", "max_overlap_mm2", 2.0)
+    fails, oks, payload = [], [], []
+    for fp in board.GetFootprints():
+        if not _is(fp, "INA2", "INA181"):
+            continue
+        nets = {(p.GetNetname() or "").upper() for p in fp.Pads()}
+        boxes = [b for net, bx in box_by_net.items()
+                 for b in bx if net.upper() in nets]            # pour boxes on THIS IC's force nets
+        if not boxes:
+            continue                                            # filtered-lane INA (no _HI/_LO pour) -> N/A
+        cy = _fp_courtyard_bbox(fp)
+        cx0, cy0 = (cy[0] + cy[1]) / 2.0, (cy[2] + cy[3]) / 2.0
+        ov = sum(max(0.0, min(cy[1], b[1]) - max(cy[0], b[0]))
+                 * max(0.0, min(cy[3], b[3]) - max(cy[2], b[2])) for b in boxes)
+        in_pour = any(b[0] <= cx0 <= b[1] and b[2] <= cy0 <= b[3] for b in boxes)
+        ref = fp.GetReference()
+        if in_pour or ov > tol:
+            why = "centroid in pour" if in_pour else "%.2fmm^2 > %.1f" % (ov, tol)
+            fails.append("%s (%s)" % (ref, why))
+            payload.append({"type": "separate", "a": ref, "from": "SENSEC-pour",
+                            "overlap_mm2": round(ov, 2), "centroid_in_pour": in_pour})
+        else:
+            oks.append("%s %.2fmm^2" % (ref, ov))
+    if not oks and not fails:
+        return None, "no sense IC tapping a SENSEC pour net"
+    if fails:
+        return (False, "sense IC body sits in the SENSEC pour: " + "; ".join(fails[:6]), payload)
+    return True, "all %d sense IC bodies clear of the SENSEC pour (<= %.1fmm^2 graze): %s" % (
+        len(oks), tol, "; ".join(oks))
 
 
 @checker("diffpair-gate")

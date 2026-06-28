@@ -75,6 +75,26 @@ def local_pads(libid):
     _PADS_CACHE[libid] = out
     return out
 
+_PADSZ_CACHE = {}
+
+
+def local_pad_sizes(libid):
+    """{pad-number: (sx, sy)} LOCAL (un-rotated) pad sizes of a footprint. Memoized like local_pads
+    (geometry is fixed). Used by the Kelvin seat to compute a pad's lateral half-extent toward the
+    shunt (the standoff that lands the sense pad hard against the shunt inner edge)."""
+    if libid in _PADSZ_CACHE:
+        return _PADSZ_CACHE[libid]
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read(); out = {}
+    for m in re.finditer(r'\(pad ', t):
+        b = carve(t, m.start())
+        num = re.match(r'\(pad "([^"]*)"', b); sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
+        if num and sz and num.group(1):
+            out[num.group(1)] = (float(sz.group(1)), float(sz.group(2)))
+    _PADSZ_CACHE[libid] = out
+    return out
+
+
 def _rot(lx, ly, A):
     a = math.radians(A)                       # KiCad footprint rotation (y-down)
     return (lx * math.cos(a) + ly * math.sin(a), -lx * math.sin(a) + ly * math.cos(a))
