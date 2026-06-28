@@ -12,3 +12,4 @@
 - [dashboard-fixed-port](dashboard-fixed-port.md) — always reuse port 8090 (kill old with the bracket-pkill trick); never increment.
 - [thermal-gate-required](thermal-gate-required.md) — a routed board isn't "clean" until electrothermal_solve passes; the route gate skips thermal.
 - [cec-thermal2d-field-solver](cec-thermal2d-field-solver.md) — **USE FIRST for any thermal check**: scripts/cec_thermal2d.py is the fine-density field solver (couples layers via real vias, sub-grid thin traces); the analytic electrothermal_solve is only the lumped fallback.
+- [Lesson: ablation before narrative](lesson-ablation-before-narrative.md) — verify a named cause by deletion before designing a fix; physically impossible numbers = model bug; repeated owner pushback = stop and test (from the 2026-06-28 thermal-neck artifact).
