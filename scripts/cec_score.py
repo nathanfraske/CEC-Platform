@@ -419,6 +419,26 @@ def _topo_is_vbus_pad(fp, padname: str) -> bool:
     return padname == "8" and ("INA226" in s or "INA228" in s or "INA238" in s)
 
 
+def ina_highz_pad_names(fp) -> frozenset:
+    """Footprint pad NAMES that are HIGH-IMPEDANCE INA sense terminals carrying ~0
+    current: for the INA226/228/238 VSSOP-10 power monitors the Vin+/Vin-/Vbus pins
+    (pads 10/9/8); for the INA181/240 current-shunt amps the IN+/IN- pins (pads 3/4).
+    Empty for non-INA parts.
+
+    Shared with the electro-thermal solver (cec_thermal2d) so it never injects cable
+    current through Kelvin sense-tap copper, and kept consistent with this module's
+    Kelvin topology gate (uses the same `_topo_is_ina` footprint detection). The Vbus
+    pad (8) is INCLUDED here because, unlike the topology gate -- which excludes it as
+    a benign voltage tap that may legitimately reach the bus -- the SOLVER cares only
+    that it is high-Z (carries ~0 current), so it must not source/sink cable current."""
+    if not _topo_is_ina(fp):
+        return frozenset()
+    s = ((fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
+    if "INA181" in s or "INA240" in s:
+        return frozenset({"3", "4"})
+    return frozenset({"8", "9", "10"})
+
+
 def _topo_role(fp) -> str:
     if _topo_is_ina(fp):
         return "ina"
