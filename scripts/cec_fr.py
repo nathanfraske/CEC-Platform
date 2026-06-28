@@ -872,6 +872,113 @@ def add_via_field(board, fields):
 
 
 # ---------------------------------------------------------------------------
+# synthesize_kelvin_taps -- the GENERATIVE four-wire Kelvin inner-leg tap (§6.8)
+# ---------------------------------------------------------------------------
+def _inner_edge_pt(this_pad, other_pos):
+    """The §6.8 inner-edge sense point of a shunt pad: the centre of the pad EDGE that faces the
+    other terminal. inner_dir = unit(other_terminal - this_pad); the point is pad_centre advanced
+    by the pad half-extent ALONG inner_dir. This is byte-for-byte the inner-ness math the checker
+    uses (cec_constraints._chk_kelvin_inner: tap_pt = centre + inner_dir*(|ix|*sx/2 + |iy|*sy/2)),
+    so a tap STARTED here passes the inner-edge assertion by construction. Returns (x_mm, y_mm,
+    inner_dx, inner_dy)."""
+    pc = this_pad.GetPosition()
+    dx, dy = (other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM
+    dn = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / dn, dy / dn                                   # inner direction (toward other terminal)
+    sz = this_pad.GetSize()
+    reach = abs(ux) * (sz.x / MM) / 2.0 + abs(uy) * (sz.y / MM) / 2.0
+    return pc.x / MM + ux * reach, pc.y / MM + uy * reach, ux, uy
+
+
+def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=6.0):
+    """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
+    2-pad shunt's INNER edge (the sense point facing the other terminal) to each seated current-sense
+    IC's matching input pad on that net -- HI-inner -> IN+ (the *_HI pad), LO-inner -> IN- (the *_LO
+    pad). The kelvin half cec_fr never had: derive_power_pours deliberately EXCLUDES the INA SMD sense
+    pads, so the HI box (cable-in -> shunt) and the LO box (shunt -> cable-out) stop ~3.9mm short of
+    each other at the shunt -- an open tap window. This lays the §6.8 inner-edge sense connection INTO
+    that window.
+
+    ADDITIVE same-net copper, run AFTER the route (like add_power_pours / add_via_field), so it can
+    only ADD a clean direct sense connection -- it never reshapes Freerouting's global solution and so
+    never strands the sense (the kelvin_ok gate holds). The stub starts on the shunt-pad copper at the
+    inner edge and merges with the same-net pour (ZONE_CONNECTION_FULL) -> no DRC short. NO VIA: each
+    tap is a single F.Cu segment (inner edge -> IN pad), so the sense never folds via inductance into
+    the loop (§6.8). The inner-edge geometry MATCHES cec_constraints._chk_kelvin_inner, so the build
+    and the constraint check agree by construction.
+
+    SELF-GATING: a board with no 2-pad straddle shunt, or no INA input pad on a sense net within
+    max_ic_mm of the shunt (shared-bus 24-pin / filtered 12VHPWR lanes), lays nothing and is a no-op.
+    Pass an already-loaded *board* (additive, in place). Returns a report dict
+    {taps, by_net: {net: ["RSn->Uk.pad", ...]}}."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+
+    pads_by_net = defaultdict(list)                            # net -> [(ref, pad, fp)]
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+
+    f_cu = board.GetLayerID(layer)
+    if f_cu < 0:
+        raise KeyError(f"cec_fr.synthesize_kelvin_taps: layer {layer!r} not found")
+    laid, report = [], {}
+    for hi, lo in kelvin_pairs:
+        # the shunt is the footprint straddling BOTH halves with EXACTLY 2 pads (same test as
+        # derive_power_pours -- a differential INA is multi-pad and so excluded).
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pad = {}
+        for net in (hi, lo):
+            for r, p, _fp in pads_by_net.get(net, []):
+                if r == sh:
+                    sh_pad[net] = p
+        if hi not in sh_pad or lo not in sh_pad:
+            continue
+        hi_pos = sh_pad[hi].GetPosition()
+        lo_pos = sh_pad[lo].GetPosition()
+        for net, this_pad, other_pos in ((hi, sh_pad[hi], lo_pos), (lo, sh_pad[lo], hi_pos)):
+            pc = this_pad.GetPosition()
+            tx, ty, _ux, _uy = _inner_edge_pt(this_pad, other_pos)
+            # each seated current-sense IC's NEAREST input pad on THIS net (INA238/228 + the §6.13
+            # INA181 detection amp -- both tap the shunt); skip a stray INA farther than max_ic_mm.
+            ic_pad = {}                                       # ref -> (pad, dist_mm)
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                pp = p.GetPosition()
+                d = math.hypot((pp.x - pc.x) / MM, (pp.y - pc.y) / MM)
+                if d > max_ic_mm:
+                    continue
+                if r not in ic_pad or d < ic_pad[r][1]:
+                    ic_pad[r] = (p, d)
+            nc = board.GetNetcodeFromNetname(net)
+            for r, (p, _d) in sorted(ic_pad.items()):
+                t = pcbnew.PCB_TRACK(board)
+                t.SetStart(pcbnew.VECTOR2I(_nm(tx), _nm(ty)))
+                t.SetEnd(p.GetPosition())
+                t.SetWidth(_nm(width))
+                t.SetLayer(f_cu)
+                t.SetNetCode(nc)
+                board.Add(t)
+                laid.append(t)
+                report.setdefault(net, []).append("%s->%s.%s" % (sh, r, p.GetPadName()))
+    return {"taps": len(laid), "by_net": report}
+
+
+# ---------------------------------------------------------------------------
 # stagger_corridor_crossings -- the LAYER-TIER lever (route-time corridor fix)
 # ---------------------------------------------------------------------------
 # The cc=6 floor (placement-strategy CORE-PREMISE FINDING): on a cable board some foreign signals MUST
@@ -1191,6 +1298,12 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
              for p in base for L in pour_layers if L not in existing[p["net"]]]
     added_zones = add_power_pours(board, pours, fill=False)
     added_vias = add_via_field(board, fields)
+    # NOTE: the GENERATIVE four-wire Kelvin inner-edge tap (synthesize_kelvin_taps) is laid in the
+    # ROUTE path (import_ses) on the SEATED board, NOT here. This force-copper synth runs on arbitrary
+    # boards (incl. non-seated ones, e.g. cec_synth_pipeline.physics / the additive-mirror adoption
+    # guard) where a direct inner-edge->IN+ stub would cross foreign copper -- the tap is only clean
+    # when the IC is seated adjacent, which is exactly the route()/import_ses board. A physics-stage
+    # board that came through route() already carries the tap.
 
     # 3. fill the mirror pours with the real engine (UnFill first -- re-fill segfault guard)
     for z in board.Zones():
@@ -1292,7 +1405,8 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # import_ses
 # ---------------------------------------------------------------------------
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
-               fill_zones: bool = True, fix_annular: bool = True, power_pours=()) -> str:
+               fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
+               kelvin_taps: bool = True) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
     Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then in order:
@@ -1338,6 +1452,16 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
         add_power_pours(board, power_pours, fill=False)
+    if kelvin_taps:
+        # GENERATIVE four-wire Kelvin tap: lay the short inner-edge -> IN+/IN- F.Cu stub into the
+        # window derive_power_pours leaves open. ADDITIVE same-net (after the route) -> never strands
+        # the sense; self-gating no-op on shared-bus / filtered-lane boards. (env kill-switch:
+        # CEC_KELVIN_TAPS=0 reverts to the un-tapped behaviour for an A/B.)
+        if os.environ.get("CEC_KELVIN_TAPS", "1") != "0":
+            kt = synthesize_kelvin_taps(board)
+            if kt["taps"]:
+                print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
+                      f"{kt['by_net']}", file=sys.stderr)
     if fix_annular:
         normalize_via_annular(board)
     if fill_zones:

@@ -114,10 +114,16 @@ REGISTRY = [
       source="docs/local-compute-exploration.md Thrust B; scripts/cec_dcir.py; physics_gates J_max=100",
       status="proposed", params={"j_max_A_mm2": 100.0, "grid_mm": 0.4, "oz_outer": 2.0, "oz_inner": 1.0}),
     C(id="kelvin-sense-from-inner-pad", title="Kelvin sense tapped from the shunt inner edge",
-      category="high-current", severity="strong", checkable="partial", directive="none",
+      category="high-current", severity="strong", checkable="yes", directive="inner_tap",
       rule="The Kelvin sense trace leaves the shunt pad from its INNER edge (the sense point facing the "
-           "other terminal), not an arbitrary side -- §6.8 four-wire sense taps the shunt element only.",
-      source="user review 2026-06-07; spec §6.8", status="ratified"),
+           "other terminal), not an arbitrary side, and runs as a DIRECT F.Cu stub (no via) to the "
+           "current-sense IC input pad on that net (HI-inner -> IN+, LO-inner -> IN-) -- §6.8 four-wire "
+           "sense taps the shunt element only. BUILT generatively at route time by "
+           "cec_fr.synthesize_kelvin_taps (directive=inner_tap) into the open window "
+           "cec_fr.derive_power_pours leaves at the shunt; FULLY checked (checkable=yes) -- the generative "
+           "tap guarantees a resolvable thin stub, so the old checked==0 N/A escape no longer fires.",
+      source="user review 2026-06-07; spec §6.8; generative tap 2026-06-27", status="ratified",
+      params={"inner_min_mm": 0.1, "ina_reach_mm": 0.9}),
     C(id="sense-body-clear-of-pour", title="Sense IC body clear of the high-current pour",
       category="high-current", severity="strong", checkable="yes", directive="none",
       rule="The current-sense IC (INA228/238/181) is seated HARD against its shunt's inner edge for the "
@@ -908,17 +914,38 @@ def _chk_min_cross(board, path, ctx):
 
 @checker("kelvin-sense-from-inner-pad")
 def _chk_kelvin_inner(board, path, ctx):
+    """FULL §6.8 four-wire tap check (the directive=inner_tap ENFORCE leg). For each 2-pad shunt sense
+    pad, a thin F.Cu stub must (a) LEAVE FROM THE INNER EDGE (inner-ness >= inner_min_mm), (b) run as a
+    DIRECT F.Cu segment (no via -- a single track has none) whose far end TERMINATES ON an INA input pad
+    on that net (HI->IN+, LO->IN-). The generative builder cec_fr.synthesize_kelvin_taps lays exactly
+    this, so build and check agree by construction; a centre/outer tap or a stub that never reaches the
+    IN+/IN- pad FAILs. On FAIL we emit an inner_tap payload so the route-time synth can (re)build it."""
     if _track_count(board) == 0:
         return None, "floorplan (route-time)"
     shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
     sense = _sense_nets(board)
     if not shunts or not sense:
         return None, "no shunt / sense nets"
-    thin = collections.defaultdict(list)   # thin (sense, not force-pour) tracks by net
+    inner_min = _param("kelvin-sense-from-inner-pad", "inner_min_mm", 0.1)
+    ina_reach = _param("kelvin-sense-from-inner-pad", "ina_reach_mm", 0.9)
+    # INA input pads on each sense net -- the topology TARGET the tap must terminate on.
+    ina_pads = collections.defaultdict(list)                 # net -> [(x_mm, y_mm)]
+    for fp in board.GetFootprints():
+        if not _is(fp, "INA2", "INA181"):
+            continue
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in sense:
+                pp = p.GetPosition()
+                ina_pads[nn].append((_mm(pp.x), _mm(pp.y)))
+    # the tap stubs: thin tracks on a sense net, restricted to F.Cu (no-via leg of §6.8 -- a via is not
+    # a PCB_TRACE_T, and an off-F.Cu sense trace is the down-and-back the tap must replace).
+    thin = collections.defaultdict(list)
     for t in board.GetTracks():
-        if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense and _mm(t.GetWidth()) <= 0.4:
+        if (t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense
+                and _mm(t.GetWidth()) <= 0.4 and t.GetLayer() == pcbnew.F_Cu):
             thin[t.GetNetname()].append(t)
-    bad, checked = [], 0
+    bad, checked, payload = [], 0, []
     for sh in shunts:
         pads = list(sh.Pads())
         if len(pads) < 2:
@@ -928,28 +955,44 @@ def _chk_kelvin_inner(board, path, ctx):
             net = pad.GetNetname()
             if net not in sense:
                 continue
+            targets = ina_pads.get(net, [])
+            if not targets:
+                continue                                     # no INA input pad on this net -> N/A here
             pc, other = pad.GetPosition(), cen[1 - i] if len(pads) == 2 else cen[(i + 1) % len(pads)]
             ix, iy = _mm(other.x) - _mm(pc.x), _mm(other.y) - _mm(pc.y)   # inner direction (toward other terminal)
             inn = math.hypot(ix, iy) or 1.0
             ix, iy = ix / inn, iy / inn
             sz = pad.GetSize()
             diag = math.hypot(_mm(sz.x), _mm(sz.y)) / 2 + 0.3
-            best = None
+            best_inner, tap_to_ina = None, False
             for t in thin.get(net, []):
-                for end in (t.GetStart(), t.GetEnd()):
+                ends = (t.GetStart(), t.GetEnd())
+                for j, end in enumerate(ends):
                     ex, ey = _mm(end.x) - _mm(pc.x), _mm(end.y) - _mm(pc.y)
-                    if math.hypot(ex, ey) <= diag:           # the stub connects on/near this pad
-                        inner = ex * ix + ey * iy            # the connection point's inner-ness (mm toward the sense edge)
-                        best = inner if best is None else max(best, inner)
-            if best is not None:
-                checked += 1
-                if best < 0.1:            # the sense connects at the centre/outer edge, not the INNER sense edge
-                    bad.append("%s pad %s" % (sh.GetReference(), pad.GetPadName()))
+                    if math.hypot(ex, ey) > diag:            # this end is not on/near the shunt pad
+                        continue
+                    inner = ex * ix + ey * iy                # connection point's inner-ness (mm toward the sense edge)
+                    best_inner = inner if best_inner is None else max(best_inner, inner)
+                    far = ends[1 - j]                        # the stub's OTHER end -> must reach an INA input pad
+                    if (inner >= inner_min
+                            and any(math.hypot(_mm(far.x) - tx, _mm(far.y) - ty) <= ina_reach
+                                    for tx, ty in targets)):
+                        tap_to_ina = True
+            if best_inner is None:
+                continue                                     # no stub resolvable on this pad -> not checked
+            checked += 1
+            if tap_to_ina:
+                continue
+            why = "not inner edge" if best_inner < inner_min else "no direct F.Cu tap to IN+/IN-"
+            bad.append("%s pad %s (%s)" % (sh.GetReference(), pad.GetPadName(), why))
+            payload.append({"type": "inner_tap", "shunt": sh.GetReference(),
+                            "pad": pad.GetPadName(), "net": net, "why": why})
     if checked == 0:
         return None, "no thin Kelvin sense stub resolvable (sense merged with the force pour?)"
     if bad:
-        return False, "Kelvin sense not tapped from the inner shunt edge: " + "; ".join(bad[:6])
-    return True, "Kelvin sense stubs leave from the inner shunt edge (%d checked)" % checked
+        return (False, "Kelvin sense not tapped from the inner shunt edge to IN+/IN-: "
+                + "; ".join(bad[:6]), payload)
+    return True, "Kelvin inner-edge -> IN+/IN- F.Cu taps verified (%d shunt pad(s))" % checked
 
 
 def _fp_courtyard_bbox(fp):
