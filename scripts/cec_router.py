@@ -766,8 +766,11 @@ def independent_drc(final, rules, *, weights=None):
                            "-- KiCad DRC does not flag these" % (vop["same"], vop["diff"]))
             verdict["via_on_pad"]["same_detail"] = vop["same_detail"][:8]
             verdict["via_on_pad"]["diff_detail"] = vop["diff_detail"][:8]
-    except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
+    except Exception as _e:                              # noqa: BLE001
+        # A checker that CRASHES must never leave gates_pass True (fail-closed, not fail-open).
         verdict["via_on_pad"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("via-on-pad gate crashed (fail-closed): %s: %s" % (type(_e).__name__, _e))
 
     # FOREIGN-ON-POUR gate (cec_constraints.foreign_on_pour_summary): THE absolute high-current-pour
     # keepout (owner directive 2026-06-27). A foreign-net track on the pour layer (or a via in the pour)
@@ -780,18 +783,30 @@ def independent_drc(final, rules, *, weights=None):
     try:
         import cec_constraints
         fop = cec_constraints.foreign_on_pour_summary(final)
-        verdict["foreign_on_pour"] = {"applicable": fop["applicable"], "tracks": fop["n_tracks"],
+        verdict["foreign_on_pour"] = {"applicable": fop["applicable"], "status": fop.get("status"),
+                                      "error": fop.get("error"), "tracks": fop["n_tracks"],
                                       "vias": fop["n_vias"], "pours": fop["n_pours"],
                                       "by_pour": fop["by_pour"]}
-        if fop["applicable"] and (fop["n_tracks"] or fop["n_vias"]):
+        if fop.get("status") == "error":
+            # FAIL-CLOSED: the board HAS SENSEC pours but the region-finder raised/returned empty.
+            # The keepout cannot be verified, so the verdict must FAIL -- never pass silently on a
+            # board with unprotectable high-current pour copper (owner-flagged fail-open, 2026-06-28).
+            verdict["gates_pass"] = False
+            reasons.append("foreign-on-pour FAIL-CLOSED: the high-current pour region-finder errored on "
+                           "a board WITH SENSEC pours -- the absolute keepout cannot be verified: %s"
+                           % fop.get("error"))
+        elif fop["applicable"] and (fop["n_tracks"] or fop["n_vias"]):
             verdict["gates_pass"] = False
             reasons.append("foreign-on-pour (ABSOLUTE keepout): %d foreign track(s) + %d via(s) cross a "
                            "high-current pour -- KiCad DRC is blind to the antipad; re-place corridor-clean "
                            "or run the two-pass corridor protect -- %s"
                            % (fop["n_tracks"], fop["n_vias"],
                               "; ".join("%s<-%s" % (p, c) for p, c in sorted(fop["by_pour"].items()))[:200]))
-    except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
+    except Exception as _e:                              # noqa: BLE001
+        # A checker that CRASHES must never leave gates_pass True (fail-closed, not fail-open).
         verdict["foreign_on_pour"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+        verdict["gates_pass"] = False
+        reasons.append("foreign-on-pour gate crashed (fail-closed): %s: %s" % (type(_e).__name__, _e))
 
     # KELVIN-SENSE DRC gate (tapshort hardening 2026-06-27): kelvin_ok (cec_score._check_pairs) is
     # structurally BLIND to shorts -- it passes a pair on routed>=1 track + 0 ratlines only -- so a

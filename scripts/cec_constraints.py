@@ -728,19 +728,61 @@ def _chk_via_on_pad(board, path, ctx):
 # it. A foreign-net track on the pour layer (or a via in the pour) silently antipads/fragments
 # the 40A fill -- KiCad DRC does NOT flag it -- so this gate is GEOMETRIC (sampled against the
 # pour rectangle), never DRC-derived. GND + power rails ARE foreign on the single-layer pour.
+class PourRegionError(RuntimeError):
+    """The high-current pour region-finder (cec_fr.derive_power_pours) failed -- raised or returned
+    empty -- on a board that ACTUALLY HAS high-current SENSEC pour copper laid. This is a fail-CLOSED
+    condition: a safety keepout gate must NEVER report N/A-pass when there is pour copper it cannot
+    locate to protect (owner-flagged fail-open, 2026-06-28). A genuine no-pour board never raises it."""
+
+
+def _has_sensec_pours(board):
+    """True iff the board carries actual high-current SENSEC corridor copper zones -- the additive
+    F.Cu/B.Cu pours add_power_pours / synthesize_power_copper lay on the _HI/_LO (and 12V) force nets.
+    Read straight from board.Zones(), INDEPENDENT of cec_fr.derive_power_pours, so the SAME SWIG /
+    geometry / net-corruption error that breaks the pad-geometry region-finder cannot ALSO hide this
+    signal (derive works off connector+shunt PAD geometry; this reads ZONE copper). Uses the same net
+    predicate derive_power_pours keys off (the _HI/_LO Kelvin pairs, + the 12V convention) so
+    has-pours-but-derive-empty is exactly the placement/geometry inconsistency to fail closed on. Fill
+    state is ignored (kicad-cli leaves zones unfilled)."""
+    for z in board.Zones():
+        if z.GetLayer() not in (pcbnew.F_Cu, pcbnew.B_Cu):
+            continue
+        n = z.GetNetname() or ""
+        if n.endswith(("_HI", "_LO")) or "12V" in n.upper():
+            return True
+    return False
+
+
 def _derive_pour_boxes(board, path):
     """The authoritative per-cable high-current pour rectangles, filtered to genuine cable
-    corridors, with the allowed-net set. Returns (boxes, allowed) or (None, None) when N/A
-    (no derivable pour, or every pour is on a shared-bus per-pin/per-rail connector -- 12VHPWR
-    J3/J4, 24-pin J3/J4 -- whose lane/rail legitimately packs the sense chain).
-    boxes = [(own_net, layer_id, x0, x1, y0, y1)] (mm)."""
+    corridors, with the allowed-net set. Returns (boxes, allowed) or (None, None) when GENUINELY N/A
+    (no SENSEC pour copper at all, or every derived pour is on a shared-bus per-pin/per-rail connector
+    -- 12VHPWR J3/J4, 24-pin J3/J4 -- whose lane/rail legitimately packs the sense chain).
+    boxes = [(own_net, layer_id, x0, x1, y0, y1)] (mm).
+
+    FAIL-CLOSED: raises PourRegionError when the board HAS SENSEC pour copper (``_has_sensec_pours``)
+    but derive_power_pours raises OR returns empty -- the region the keepout gate must protect exists
+    yet is undetectable, so the gate must FAIL, never silently report N/A-pass. A board with no SENSEC
+    pours (Hub, or a pre-route floorplan) keeps the benign (None, None) N/A; the all-shared-bus
+    ``not boxes`` path is reached only AFTER a successful non-empty derive, so 12VHPWR / 24-pin / Hub
+    stay correctly N/A and never false-fire."""
     import cec_fr
+    has_pours = _has_sensec_pours(board)
     try:
         pours = cec_fr.derive_power_pours(path, board=board)
-    except Exception:                                       # noqa: BLE001 -- region derivation never breaks a check
-        return None, None
+    except Exception as e:                                  # noqa: BLE001
+        if has_pours:
+            raise PourRegionError(
+                "derive_power_pours RAISED on a board WITH high-current SENSEC pours: %s: %s"
+                % (type(e).__name__, e)) from e
+        return None, None                                  # genuine N/A: no pour copper to protect
     if not pours:
-        return None, None
+        if has_pours:
+            raise PourRegionError(
+                "board carries high-current SENSEC F.Cu/B.Cu pour zones but derive_power_pours found "
+                "NO corridor (placement/geometry inconsistency -- the region the absolute keepout gate "
+                "must protect is undetectable)")
+        return None, None                                  # genuine N/A: no SENSEC pours at all
     kelvin, _ = cec_score._derive_pairs(_nets(board))
     by_net = _pads_by_net(board)
     shared = _shared_bus_conns(kelvin, by_net)
@@ -817,17 +859,27 @@ def _foreign_by_pour(tracks, vias):
 
 
 def foreign_on_pour_summary(board_path):
-    """Public summary (mirrors via_on_pad_summary): {applicable, n_tracks, n_vias, by_pour,
-    tracks, vias, n_pours}. cec_router.route()'s INDEPENDENT verdict folds n_tracks+n_vias into
-    gates_pass so a foreign-on-pour board can never pass silently; callers wrap in try/except --
-    a verdict must never break on the checker. N/A boards report applicable=False, counts 0."""
+    """Public summary (mirrors via_on_pad_summary): {applicable, status, n_tracks, n_vias, by_pour,
+    tracks, vias, n_pours}. cec_router.route()'s INDEPENDENT verdict folds status=='error' AND
+    n_tracks+n_vias into gates_pass so a foreign-on-pour board can never pass silently.
+
+    status:
+      "ok"    -- the region was derived; n_tracks/n_vias are the real foreign-crossing counts.
+      "na"    -- genuinely not applicable (no SENSEC pour copper / all-shared-bus) -> applicable=False.
+      "error" -- FAIL-CLOSED: the board HAS SENSEC pours but the region-finder raised/returned empty.
+                 applicable=True (NOT a vacuous N/A) so the router fold fails the verdict instead of
+                 passing silently. counts are 0 (the region could not be derived to count against)."""
     board = pcbnew.LoadBoard(board_path)
-    tracks, vias = _foreign_pour_records(board, board_path)
+    try:
+        tracks, vias = _foreign_pour_records(board, board_path)
+    except PourRegionError as e:
+        return {"applicable": True, "status": "error", "error": str(e),
+                "n_tracks": 0, "n_vias": 0, "by_pour": {}, "tracks": [], "vias": [], "n_pours": 0}
     if tracks is None:
-        return {"applicable": False, "n_tracks": 0, "n_vias": 0,
+        return {"applicable": False, "status": "na", "n_tracks": 0, "n_vias": 0,
                 "by_pour": {}, "tracks": [], "vias": [], "n_pours": 0}
     boxes, _ = _derive_pour_boxes(board, board_path)
-    return {"applicable": True, "n_tracks": len(tracks), "n_vias": len(vias),
+    return {"applicable": True, "status": "ok", "n_tracks": len(tracks), "n_vias": len(vias),
             "by_pour": _foreign_by_pour(tracks, vias),
             "tracks": tracks[:60], "vias": vias[:60], "n_pours": len(boxes or [])}
 
@@ -840,8 +892,16 @@ def _chk_foreign_on_pour(board, path, ctx):
     filler carves antipads around a foreign trace with NO clearance error, so ~80% of the
     crossings are invisible to drc==0). The placer keeps foreign BODIES out via
     sense-body-clear-of-pour; this rule is the gate for foreign TRACKS/VIAS. N/A on shared-bus /
-    non-cable boards (12VHPWR per-pin, 24-pin per-rail, Hub)."""
-    tracks, vias = _foreign_pour_records(board, path)
+    non-cable boards (12VHPWR per-pin, 24-pin per-rail, Hub).
+
+    FAIL-CLOSED (owner-flagged fail-open, 2026-06-28): if the board HAS SENSEC pour copper but the
+    region-finder raises/returns empty, FAIL (the keepout cannot be verified) instead of skipping N/A."""
+    try:
+        tracks, vias = _foreign_pour_records(board, path)
+    except PourRegionError as e:
+        return (False, "FAIL-CLOSED: high-current pour region-finder errored on a board WITH SENSEC "
+                "pours -- the absolute keepout cannot be verified (a missed intrusion would necks/"
+                "fragments the 40A fill): %s" % e)
     if tracks is None:
         return None, "no per-cable high-current pour region (shared-bus / non-cable board)"
     if not tracks and not vias:
@@ -1301,13 +1361,25 @@ def _chk_sense_body_clear(board, path, ctx):
     """The current-sense IC sits hard against its shunt (Kelvin), but its BODY must clear the SENSEC
     high-current pour. Build the same pour rectangles the router lays (cec_fr.derive_power_pours) and
     assert each sense IC's courtyard centroid is in the un-poured notch AND its courtyard overlaps the
-    pour by <= max_overlap_mm2. This is the geometric ENFORCE leg of the placer's _seat_sense_ics."""
+    pour by <= max_overlap_mm2. This is the geometric ENFORCE leg of the placer's _seat_sense_ics.
+
+    FAIL-CLOSED on the same region-finder hole as no-foreign-on-high-current-pour: a board WITH SENSEC
+    pour copper whose region-finder raises/returns empty FAILS (the body-clear cannot be verified),
+    never N/A-pass. Genuine no-pour boards keep their N/A skip."""
     import cec_fr
+    has_pours = _has_sensec_pours(board)
     try:
         pours = cec_fr.derive_power_pours(path, board=board)
     except Exception as e:                                       # noqa: BLE001
+        if has_pours:
+            return (False, "FAIL-CLOSED: sense-body-clear region-finder errored on a board WITH SENSEC "
+                    "pours (%s) -- cannot verify the sense IC body clears the high-current pour"
+                    % type(e).__name__)
         return None, "derive_power_pours unavailable (%s)" % type(e).__name__
     if not pours:
+        if has_pours:
+            return (False, "FAIL-CLOSED: board has SENSEC pour zones but derive_power_pours found no "
+                    "corridor -- cannot verify the sense IC body clears the high-current pour")
         return None, "no SENSEC high-current pour region (shared-bus / non-cable board)"
     box_by_net = collections.defaultdict(list)
     for pr in pours:
