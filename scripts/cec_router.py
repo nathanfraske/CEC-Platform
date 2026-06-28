@@ -842,6 +842,11 @@ import sys, json
 sys.path.insert(0, "scripts")
 import pcbnew
 pass1, base, also_gnd = sys.argv[1], sys.argv[2], sys.argv[3] == "1"
+# extra_keep (argv[4], comma-list): nets whose CLEAN pass-1 routing must survive the rip exactly like
+# SENSEC + the diff pair -- the "protect what FR drops" recovery. The first TPC re-route can leave a
+# congested core net (e.g. /GPIO0 on eps-rev3) unconnected even though pass-1 routed it; the caller then
+# retries the rip with that net added here so FR routes the OTHER foreign nets AROUND its locked copper.
+extra_keep = set(p for p in (sys.argv[4].split(",") if len(sys.argv) > 4 and sys.argv[4] else []) if p)
 board = pcbnew.LoadBoard(pass1)
 names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
 protect = set()
@@ -884,7 +889,7 @@ for p in sorted(names):
                    if t.GetClass() == "PCB_TRACK" and t.GetNetname() in (p, nn)]
         if members and not any(_clips_pour(t) for t in members):
             diffpairs.add(p); diffpairs.add(nn)
-keep = set(protect) | set(diffpairs) | ({"GND"} if also_gnd else set())
+keep = set(protect) | set(diffpairs) | (extra_keep & names) | ({"GND"} if also_gnd else set())
 kept = 0; doomed = []
 for t in board.GetTracks():
     if t.GetNetname() in keep:
@@ -903,15 +908,19 @@ for z in list(board.Zones()):
 pcbnew.SaveBoard(base, board)
 print("RIPJSON=" + json.dumps({"protect": sorted(protect), "keep": sorted(keep),
                                "diffpairs": sorted(diffpairs),
+                               "extra_keep": sorted(extra_keep & names),
                                "kept": kept, "ripped": len(doomed)}))
 '''
 
 
-def _tpc_run_rip(pass1, base, also_gnd, *, scripts_dir=None):
-    """Run the rip child in a SUBPROCESS (mandatory SWIG hygiene). Returns the rip-info dict."""
+def _tpc_run_rip(pass1, base, also_gnd, *, extra_keep=(), scripts_dir=None):
+    """Run the rip child in a SUBPROCESS (mandatory SWIG hygiene). Returns the rip-info dict.
+    extra_keep = nets whose clean pass-1 routing must survive the rip (the 'protect what FR drops'
+    recovery, same lock+force_protect path as SENSEC/diff pairs)."""
     import subprocess
     cwd = os.path.dirname(scripts_dir) if scripts_dir else ROOT
-    p = subprocess.run([sys.executable, "-c", _TPC_RIP_CHILD, pass1, base, "1" if also_gnd else "0"],
+    p = subprocess.run([sys.executable, "-c", _TPC_RIP_CHILD, pass1, base, "1" if also_gnd else "0",
+                        ",".join(sorted(extra_keep))],
                        capture_output=True, text=True, cwd=cwd)
     line = [l for l in p.stdout.splitlines() if l.startswith("RIPJSON=")]
     if not line:
@@ -956,12 +965,17 @@ def _should_default_tpc(board_path, *, verbose=False):
 
 
 def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_protect_gnd=False,
-                      work_dir=None, verbose=True):
+                      extra_keep=(), work_dir=None, verbose=True):
     """Run the TPC second pass on a pass-1 routed board. Returns (out_path, info) on success,
     or (None, info_with_error) on any failure -- NEVER raises (the caller keeps pass-1 on failure).
 
     `info` carries: protect (the SENSEC nets), kept/ripped track counts, n_protect_upgraded,
-    n_corridor_keepouts, fr_seconds, and on failure an 'error' string."""
+    n_corridor_keepouts, fr_seconds, and on failure an 'error' string.
+
+    extra_keep = nets whose CLEAN pass-1 routing must survive the rip exactly like SENSEC + the diff
+    pair (lock + force_protect). It is the 'protect what FR drops' recovery: when the first TPC re-route
+    leaves a congested core net (e.g. /GPIO0) unconnected though pass-1 routed it, the caller retries
+    with that net here, so FR threads the OTHER foreign nets AROUND its locked copper."""
     info = {"pass1": pass1_board, "out": out_path}
     try:
         import cec_fr02
@@ -969,11 +983,12 @@ def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_pro
         os.makedirs(wd, exist_ok=True)
         base = os.path.join(wd, "base.kicad_pcb")
 
-        # step A: rip in a subprocess (foreign ripped, SENSEC kept+locked, NO keepout yet)
-        rip = _tpc_run_rip(pass1_board, base, also_protect_gnd,
+        # step A: rip in a subprocess (foreign ripped, SENSEC + diff pair + extra_keep kept+locked)
+        rip = _tpc_run_rip(pass1_board, base, also_protect_gnd, extra_keep=extra_keep,
                            scripts_dir=os.path.dirname(os.path.abspath(__file__)))
         info.update({k: rip[k] for k in ("protect", "keep", "kept", "ripped")})
         info["diffpairs"] = rip.get("diffpairs", [])
+        info["extra_keep"] = rip.get("extra_keep", [])
         for ext in (".kicad_pro", ".kicad_dru"):
             src = os.path.splitext(pass1_board)[0] + ext
             if os.path.isfile(src):
@@ -999,16 +1014,18 @@ def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_pro
 
         dsn = os.path.join(wd, "board.dsn")
         cec_fr.export_dsn(hinted, dsn)
-        # protect SENSEC (the kept force/sense wires) AND the kept pass-1 diff pair(s) -- NEVER GND
-        # (protecting the GND plane wires would over-constrain FR). The diff pair is locked across the
-        # rip exactly like SENSEC so FR keeps its clean pass-1 route (R1).
-        protect_wires = sorted(set(rip["protect"]) | set(rip.get("diffpairs", [])))
+        # protect SENSEC (the kept force/sense wires) AND the kept pass-1 diff pair(s) AND any
+        # extra_keep recovery net -- NEVER GND (protecting the GND plane wires would over-constrain FR).
+        # Each is locked across the rip exactly like SENSEC so FR keeps its clean pass-1 route (R1).
+        protect_wires = sorted(set(rip["protect"]) | set(rip.get("diffpairs", []))
+                               | set(rip.get("extra_keep", [])))
         n_prot = cec_fr02.force_protect_in_dsn(dsn, protect_wires)
         info["n_protect_upgraded"] = n_prot
         if verbose:
+            _tags = "SENSEC" + ("+diffpair" if rip.get("diffpairs") else "") \
+                + ("+keep" + str(rip.get("extra_keep")) if rip.get("extra_keep") else "")
             print(f"[route] TPC: {len(hints)} corridor keepout(s); "
-                  f"force_protect upgraded {n_prot} fix->protect wire(s) for "
-                  f"SENSEC{'+diffpair' if rip.get('diffpairs') else ''}")
+                  f"force_protect upgraded {n_prot} fix->protect wire(s) for {_tags}")
 
         ses = os.path.join(wd, "board.ses")
         t0 = time.time()
@@ -1322,6 +1339,34 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                                 if verbose:
                                     print(f"[route] TPC GR-02 repaired {bn} ({res.get('move')}) "
                                           f"-> unconn={rm.unconnected}")
+                # RECOVERY -- "protect what FR drops" (generalizes the diff-pair protect): if the TPC
+                # re-route + GR-02 still leaves a net unconnected that pass-1 HAD routed (a congested
+                # core net like /GPIO0 that FR could not re-thread around the reserved corridors), retry
+                # the TPC ONCE with those nets force-protected from pass-1, so FR routes the OTHER foreign
+                # nets AROUND their locked copper. Measured on eps-rev3-widegap: this is the exact gap
+                # between TPC's corridor-clean (foreign-on-pour=0) board and full adoption -- it took the
+                # board from unconn=1 (/GPIO0) to a clean pass on ALL hard gates. The strict adoption gate
+                # below still applies, so the retry can only help. CEC_TPC_KEEP_RECOVERY=0 disables.
+                if (os.environ.get("CEC_TPC_KEEP_RECOVERY", "1") == "1"
+                        and best_m.kelvin_ok and best_m.unconnected > pass1_m.unconnected):
+                    dropped = sorted(_unconnected_net_set(best_tpc) - _unconnected_net_set(spec.out))
+                    if dropped:
+                        if verbose:
+                            print(f"[route] TPC recovery: re-running with pass-1 nets {dropped[:8]} "
+                                  f"force-protected (FR dropped them re-routing around the corridors)")
+                        rec_out = spec.out[:-len(".kicad_pcb")] + "-tpc-rec.kicad_pcb"
+                        got2, info2 = two_pass_corridor(spec.out, rec_out, passes=tpc_passes,
+                                                        opt_time=tpc_opt, also_protect_gnd=tpc_gnd,
+                                                        extra_keep=dropped,
+                                                        work_dir=os.path.join(work_dir, "tpc_rec"),
+                                                        verbose=verbose)
+                        if got2 and os.path.exists(got2):
+                            rec_m = cec_score.score(got2, rules)
+                            if verbose:
+                                print(f"[route] TPC recovery re-score: kelvin={rec_m.kelvin_ok} "
+                                      f"diffpair={rec_m.diffpair_ok} drc={rec_m.drc} unconn={rec_m.unconnected}")
+                            if rec_m.kelvin_ok and rec_m.unconnected < best_m.unconnected:
+                                best_tpc, best_m, tpc_info = got2, rec_m, info2
                 # adopt the TPC board over pass-1 ONLY if kelvin holds AND it is not strictly worse on
                 # unconnected (the corridor pours/thermal win is the point; a kelvin loss or new
                 # unconnected vs pass-1 means keep pass-1).
