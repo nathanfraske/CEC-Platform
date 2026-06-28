@@ -705,7 +705,15 @@ def score(
     # reaches a cable-connector pad with the shunt pad removed. N/A boards (no per-cable triple)
     # contribute nothing. This makes kelvin_ok the COMPLETE 4-wire gate, so gates_pass (below) and
     # every reader (cec_router.independent_drc via gate(), the loop ranking, cec_constraints) inherit it.
-    topo_fault_nets, topo_reasons, topo_detail, topo_checked = kelvin_topology_faults(b, kelvin_pairs)
+    # FAIL-CLOSED on error: a hard safety gate must never pass on an exception (the opposite of the
+    # foreign_on_pour fail-open summary). An unexpected board that breaks the trace fails kelvin_ok.
+    try:
+        topo_fault_nets, topo_reasons, topo_detail, topo_checked = kelvin_topology_faults(b, kelvin_pairs)
+    except Exception as _e:                                   # noqa: BLE001
+        topo_fault_nets, topo_checked = {"<error>"}, -1
+        topo_detail = [{"error": "%s: %s" % (type(_e).__name__, _e)}]
+        topo_reasons = ["kelvin topology gate errored (fail-closed, gate FAILS): %s: %s"
+                        % (type(_e).__name__, _e)]
     if topo_fault_nets:
         kelvin_ok = False
         kelvin_reasons = list(kelvin_reasons) + topo_reasons
