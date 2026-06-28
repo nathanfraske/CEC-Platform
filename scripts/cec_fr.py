@@ -405,6 +405,91 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
     return done
 
 
+def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=6.0) -> set:
+    """The DSN pin tokens (``"<ref>-<pad>"``) of the current-sense IC INPUT pads (IN+/IN-) that the
+    GENERATIVE four-wire tap (:func:`synthesize_kelvin_taps`) owns -- i.e. the pads whose ONLY copper
+    connection must be the inner-edge shunt tap, never an FR-routed wire to the cable connector.
+
+    For each Kelvin pair (``*_HI``/``*_LO``) the 2-pad straddle shunt is found, and on each net the
+    IN+/IN- pad (by PIN FUNCTION, _SENSE_INPAD: INA238/228 pad 10/9, INA181 pad 3/4) of every seated
+    current-sense IC (``INA`` in value, not the shunt) within *max_ic_mm* of the shunt is collected.
+    This is the EXACT same selection synthesize_kelvin_taps uses, so the FR exclusion and the post-route
+    tap agree by construction: every pad removed here is re-connected by the tap (or, if the tap is
+    foreign-guard-REFUSED, the pad stays honestly UNCONNECTED -> the gate fails -> re-place; it is NEVER
+    papered over by an FR connector wire, which is the kelvin-from-connector bug this exclusion fixes).
+
+    NOTE: the INA238/228 Vbus pad (8, on the _LO net) is a high-impedance VOLTAGE tap, NOT a Kelvin
+    current-sense input, so it is deliberately left in the net for FR to route normally. Returns the set
+    of pin tokens; empty (no-op) on a board with no 2-pad straddle shunt / no seated INA (Hub, filtered
+    12VHPWR lanes)."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+    out = set()
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pos = None
+        for r, p, _fp in pads_by_net.get(hi, []) + pads_by_net.get(lo, []):
+            if r == sh:
+                sh_pos = p.GetPosition()
+                break
+        for net, role in ((hi, "HI"), (lo, "LO")):
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue                                  # not the IN+/IN- pad of a known part
+                if sh_pos is not None:
+                    d = math.hypot((p.GetPosition().x - sh_pos.x) / MM,
+                                   (p.GetPosition().y - sh_pos.y) / MM)
+                    if d > max_ic_mm:
+                        continue                              # too far to tap -> leave to FR (don't strand)
+                out.add(f"{r}-{p.GetPadName()}")
+    return out
+
+
+def _dsn_exclude_pins(dsn_path: str, pins) -> int:
+    """Remove the given ``"<ref>-<pad>"`` pin tokens from EVERY ``(net ... (pins ...))`` list in the
+    exported DSN so Freerouting does NOT route those pads. A pad belongs to exactly one net, so a token
+    is globally unique -- a global whole-token removal is safe and net-agnostic. The de-netted pad keeps
+    its real net in the .kicad_pcb (only the DSN is edited); FR treats it as a no-net obstacle and leaves
+    it for the post-route generative tap. Returns the number of token occurrences removed."""
+    import re
+    if not pins:
+        return 0
+    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    removed = 0
+    for tok in pins:
+        # whole-token match: not preceded/followed by a word char or '-' (so 'U10-10' != inside 'U10-100')
+        pat = re.compile(r"(?<![\w-])" + re.escape(tok) + r"(?![\w-])")
+        text, n = pat.subn("", text)
+        removed += n
+    if removed:
+        # tidy the gaps the removals leave inside (pins ... ) so the file stays clean s-expr
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        text = re.sub(r"\(pins +", "(pins ", text)
+        text = re.sub(r" +\)", ")", text)
+        open(dsn_path, "w", encoding="utf-8").write(text)
+    return removed
+
+
 def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
 
@@ -432,6 +517,21 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
         if rewritten:
             print(f"[cec_fr] layer policy: plane layer(s) {rewritten} -> (type power) "
                   f"(FR signal routing excluded)", file=sys.stderr)
+    # KELVIN POLICY (owner directive 2026-06-28, the kelvin-from-connector fix): the current-sense IC
+    # IN+/IN- pads sit on the high-current SENSEC net (same net as the cable connector + shunt). If FR
+    # is allowed to route them it satisfies their connectivity by wiring them to the NEAREST net point
+    # -- the connector -- so the sense taps the connector->shunt copper (+ its IR drop / contact R) and
+    # the sense wire carries current: NOT a four-wire Kelvin. Remove those pads from the DSN net so FR
+    # leaves them alone; the post-route synthesize_kelvin_taps is then their ONLY connection (the §6.8
+    # inner-edge tap). Env kill-switch CEC_KELVIN_FR_EXCLUDE=0 reverts (A/B). Self-gating no-op on a
+    # board with no straddle shunt / seated INA.
+    if os.environ.get("CEC_KELVIN_FR_EXCLUDE", "1") != "0":
+        sense_pins = kelvin_sense_pins(board)
+        if sense_pins:
+            n = _dsn_exclude_pins(dsn_path, sense_pins)
+            print(f"[cec_fr] kelvin policy: excluded {len(sense_pins)} current-sense input pad(s) "
+                  f"{sorted(sense_pins)} from FR routing ({n} DSN token(s) removed) -- the inner-edge "
+                  f"tap is their only connection", file=sys.stderr)
     return dsn_path
 
 

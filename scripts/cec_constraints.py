@@ -144,6 +144,26 @@ REGISTRY = [
            "tap guarantees a resolvable thin stub, so the old checked==0 N/A escape no longer fires.",
       source="user review 2026-06-07; spec §6.8; generative tap 2026-06-27", status="ratified",
       params={"inner_min_mm": 0.1, "ina_reach_mm": 0.9}),
+    C(id="kelvin-sense-no-connector-tap",
+      title="Kelvin sense input connects to the heavy net by the shunt tap ALONE (no parallel tap)",
+      category="high-current", severity="strong", checkable="yes", directive="inner_tap",
+      rule="The current-sense IC INPUT pad (IN+/IN-) on a SENSEC _HI/_LO net must have EXACTLY ONE copper "
+           "connection: a single via-less F.Cu inner-edge stub landing on the 2-pad Kelvin shunt's pad. "
+           "Then the sense reaches the heavy net only through the shunt terminal and carries no load "
+           "current (four-wire). FAIL when the input pad carries a SECOND incident copper stub, or a via, "
+           "or its lone stub does not land on the shunt -- the kelvin-from-connector defect: the router "
+           "satisfied the input pad's same-net connectivity by ALSO wiring it to the nearest net point "
+           "(the connector / a second pour point), so the sense pad is tied to two points of the "
+           "current-carrying copper, the stub spans the connector->shunt IR drop + contact R and carries "
+           "current. (A correct tap reaches the connector THROUGH the shunt terminal too -- that is fine; "
+           "the defect is the PARALLEL second connection, detected as stub-count > 1.) The Vbus pad "
+           "(INA238/228 pad 8) is a high-Z VOLTAGE tap, legitimately FR-routed, and is NOT a Kelvin "
+           "input, so it is never flagged. Prevented at route time by cec_fr.export_dsn excluding these "
+           "pads from FR (kelvin_sense_pins); this is the independent post-route gate that complements "
+           "kelvin-sense-from-inner-pad (which verifies the GOOD tap exists but is blind to a parallel "
+           "bad connection).",
+      source="owner directive 2026-06-28 (kelvin-from-connector bug)", status="ratified",
+      params={"pad_reach_extra_mm": 0.15, "stub_far_cluster_mm": 0.5}),
     C(id="sense-body-clear-of-pour", title="Sense IC body clear of the high-current pour",
       category="high-current", severity="strong", checkable="yes", directive="none",
       rule="The current-sense IC (INA228/238/181) is seated HARD against its shunt's inner edge for the "
@@ -1151,6 +1171,114 @@ def _chk_kelvin_inner(board, path, ctx):
         return (False, "Kelvin sense not tapped from the inner shunt edge to IN+/IN-: "
                 + "; ".join(bad[:6]), payload)
     return True, "Kelvin inner-edge -> IN+/IN- F.Cu taps verified (%d shunt pad(s))" % checked
+
+
+# IN+/IN- input pad NAME per current-sense part (Vbus is deliberately absent -- it is a high-Z
+# voltage tap, not a Kelvin current-sense input, so it is allowed to FR-route to the connector).
+_KELVIN_INPAD = {"INA238": {"_HI": "10", "_LO": "9"},
+                 "INA228": {"_HI": "10", "_LO": "9"},
+                 "INA181": {"_HI": "3", "_LO": "4"}}
+
+
+def _kelvin_input_pad_name(fp, net):
+    val = _val(fp).upper()
+    role = "_HI" if net.endswith("_HI") else ("_LO" if net.endswith("_LO") else None)
+    if role is None:
+        return None
+    for key, m in _KELVIN_INPAD.items():
+        if key in val:
+            return m.get(role)
+    return None
+
+
+@checker("kelvin-sense-no-connector-tap")
+def _chk_kelvin_no_connector_tap(board, path, ctx):
+    """The kelvin-from-connector GATE (owner directive 2026-06-28). For each current-sense IC INPUT pad
+    (IN+/IN-, by pin function) on a SENSEC _HI/_LO net, count the DISTINCT copper stubs incident on the
+    pad (tracks clustered by far endpoint, + vias). A true four-wire Kelvin has EXACTLY ONE via-less F.Cu
+    stub landing on the 2-pad shunt's pad; a SECOND stub (FR wiring the same-net pad to the connector / a
+    second pour point), a via, or a lone stub that misses the shunt is the defect -- the sense pad is then
+    tied to >1 point of the current-carrying copper and the stub carries load current.
+
+    A correct tap legitimately reaches the connector THROUGH the shunt terminal (the HI pour ties the
+    shunt terminal to the connector), so 'reaches the connector' is NOT the test -- the parallel SECOND
+    connection is. Geometry-local, no fail-open: a board where the only stub lands on the shunt PASSES.
+    Self-gating N/A on a floorplan (no tracks) or a board with no 2-pad shunt / INA input on a sense net."""
+    if _track_count(board) == 0:
+        return None, "floorplan (route-time)"
+    sense = _sense_nets(board)
+    shunt_pads = collections.defaultdict(list)                  # net -> [(x,y,reach_mm)] of the 2-pad shunt
+    for fp in board.GetFootprints():
+        if not (fp.GetReference().upper().startswith("RS") and fp.GetPadCount() == 2):
+            continue
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in sense:
+                pos = p.GetPosition(); sz = p.GetSize()
+                shunt_pads[nn].append((_mm(pos.x), _mm(pos.y), math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + 0.3))
+    if not sense or not shunt_pads:
+        return None, "no 2-pad shunt / sense nets"
+    extra = _param("kelvin-sense-no-connector-tap", "pad_reach_extra_mm", 0.15)
+    cluster = _param("kelvin-sense-no-connector-tap", "stub_far_cluster_mm", 0.5)
+    # index tracks/vias by net once
+    net_tracks = collections.defaultdict(list)
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if nn in sense:
+            net_tracks[nn].append(t)
+    bad, checked = [], 0
+    for fp in board.GetFootprints():
+        if not _is(fp, "INA2", "INA181"):
+            continue
+        for p in fp.Pads():
+            net = p.GetNetname()
+            if net not in sense or net not in shunt_pads:
+                continue
+            want = _kelvin_input_pad_name(fp, net)
+            if want is not None and p.GetPadName() != want:
+                continue                                       # only the IN+/IN- pad (never Vbus / digital)
+            pos = p.GetPosition(); pc = (_mm(pos.x), _mm(pos.y))
+            sz = p.GetSize(); reach = math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + extra
+            fars, vias = [], 0                                  # far endpoints of incident stubs; incident vias
+            for t in net_tracks.get(net, []):
+                if t.Type() == pcbnew.PCB_VIA_T:
+                    vp = t.GetPosition()
+                    if math.hypot(_mm(vp.x) - pc[0], _mm(vp.y) - pc[1]) <= reach:
+                        vias += 1
+                    continue
+                ends = ((_mm(t.GetStart().x), _mm(t.GetStart().y)),
+                        (_mm(t.GetEnd().x), _mm(t.GetEnd().y)))
+                for k, end in enumerate(ends):
+                    if math.hypot(end[0] - pc[0], end[1] - pc[1]) <= reach:
+                        fars.append(ends[1 - k])               # this stub touches the pad; record its far end
+            if not fars and not vias:
+                continue                                       # unconnected input -> board-routing-complete owns it
+            checked += 1
+            # cluster the far endpoints so a split-but-collinear single tap counts once
+            clusters = []
+            for f in fars:
+                if not any(math.hypot(f[0] - c[0], f[1] - c[1]) <= cluster for c in clusters):
+                    clusters.append(f)
+            n_conn = len(clusters) + vias
+            on_shunt = (len(clusters) == 1 and vias == 0
+                        and any(math.hypot(clusters[0][0] - sx, clusters[0][1] - sy) <= sr
+                                for sx, sy, sr in shunt_pads[net]))
+            if n_conn == 1 and on_shunt:
+                continue                                       # clean single inner-edge tap to the shunt
+            if vias:
+                why = "via on the sense input (tap must be via-less F.Cu)"
+            elif n_conn >= 2:
+                why = "%d parallel stubs (only the single shunt tap is allowed)" % n_conn
+            else:
+                why = "lone stub does not land on the shunt pad"
+            bad.append("%s.%s on %s: %s" % (fp.GetReference(), p.GetPadName(), net, why))
+    if checked == 0:
+        return None, "no resolvable INA input stub on a sense net"
+    if bad:
+        return (False, "Kelvin sense input has a parallel/non-shunt connection (carries load current -- "
+                "not four-wire): " + "; ".join(bad[:6]),
+                [{"type": "inner_tap", "why": "connector_tap", "detail": d} for d in bad])
+    return True, "Kelvin sense inputs connect by the single shunt tap alone (%d input pad(s))" % checked
 
 
 def _fp_courtyard_bbox(fp):
