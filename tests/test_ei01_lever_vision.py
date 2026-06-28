@@ -25,6 +25,17 @@ class TestLeverFix(unittest.TestCase):
     The bug it fixes: the consumer read rect_mm/rect, the producer emits polygon -> {} every round ->
     the item4 corridor-avoid lever fired ZERO times across a 34-round run."""
 
+    def setUp(self):
+        # these tests STUB cec_fr.derive_power_pours; save + restore it so the monkeypatch does not
+        # LEAK into the rest of the suite (a leaked stub poisoned every downstream caller --
+        # test_foreign_on_pour_gate, test_gr_fr02_fixtures, and even this module's own later tests).
+        import cec_fr
+        self._orig_dpp = cec_fr.derive_power_pours
+
+    def tearDown(self):
+        import cec_fr
+        cec_fr.derive_power_pours = self._orig_dpp
+
     def _stub_pours(self):
         # exactly the shape cec_fr.derive_power_pours emits (cec_fr.py:617-618): net/layer/polygon
         return [

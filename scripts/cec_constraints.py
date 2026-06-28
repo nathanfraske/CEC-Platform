@@ -101,6 +101,26 @@ REGISTRY = [
            "fill carves a clearance gap around the trace, splitting the pour and necking the current "
            "path. Route foreign signals on another layer or around the pour region.",
       source="user review 2026-06-07; spec §6.7 (current = copper area)", status="ratified"),
+    C(id="no-foreign-on-high-current-pour",
+      title="High-current pour is an ABSOLUTE keepout (no foreign track/via)",
+      category="high-current", severity="hard", checkable="yes", directive="keepout",
+      rule="THE authoritative high-current-pour keepout (owner directive 2026-06-27). The pour region -- "
+           "cec_fr.derive_power_pours, the SAME rectangles add_power_pours fills and sense-body-clear-of-pour "
+           "checks -- is reserved for its OWN net's copper plus the inner-edge Kelvin sense tap. NO foreign-net "
+           "TRACK (on the pour's layer) or VIA may cross it, EVER. GND and the power rails ARE foreign here: a "
+           "foreign trace on the pour layer forces the zone filler to carve an antipad that necks/fragments the "
+           "40A fill -- and KiCad DRC is BLIND to that (no clearance error), so 'drc==0' can never catch it. The "
+           "check is GEOMETRIC (sampled against the pour RECTANGLE), never DRC-derived. ONE region the placer, "
+           "router AND accept gate all obey -- it SUBSUMES high-current-pour-integrity + high-current-corridor- "
+           "keepout into a single region-keyed FAIL gate (wired into cec_router.independent_drc like via-on-pad, "
+           "and into intake_gate). SCOPE: genuine per-cable interposer corridors (EPS/PCIe -- the measured "
+           "51-foreign-crossing failure mode). Shared-bus per-pin (12VHPWR J3/J4) and per-rail (24-pin J3/J4) "
+           "boards pack their lane/rail with the sense chain by design -> N/A (vacuous PASS), same scope as "
+           "high-current-corridor-keepout. The placer keeps foreign BODIES out (sense-body-clear-of-pour); the "
+           "router keeps foreign TRACKS out (the two-pass corridor protect); this rule is the gate that fails the "
+           "board when either lets foreign copper land on the pour.",
+      source="owner directive 2026-06-27 (absolute pour keepout); measured eps-rev3 68-track/13-via",
+      status="ratified", params={"sample_pts": 11}),
     C(id="min-pour-cross-section", title="High-current pour cross-section adequate (DC field solve)",
       category="high-current", severity="advisory", checkable="yes", directive="keepout",
       rule="Each poured high-current net's BOTTLENECK copper cross-section -- from the cec_dcir 2.5D DC "
@@ -306,9 +326,13 @@ CL25_CLASSES = {
 }
 
 # CL-25 intake gate: the SCHEMATIC-SIDE subset -- a board failing any of these is refused
-# candidate generation (the TPS2121/desync/R1 classes live upstream of layout).
+# candidate generation (the TPS2121/desync/R1 classes live upstream of layout). PLUS the
+# absolute high-current-pour keepout (owner directive 2026-06-27): a floorplan has no tracks/vias
+# so it is a vacuous PASS at intake, but if a ROUTED board is ever fed to intake the foreign-on-pour
+# refusal fires there too -- the SAME region-keyed rule the route accept gate uses.
 INTAKE_CHECKS = (CL25_CLASSES["sch-pcb-sync"] + CL25_CLASSES["bom-lint"]
-                 + CL25_CLASSES["netlist-assertions"])
+                 + CL25_CLASSES["netlist-assertions"]
+                 + ["no-foreign-on-high-current-pour"])
 
 
 # ===========================================================================
@@ -674,6 +698,140 @@ def _chk_via_on_pad(board, path, ctx):
                        "" if len(diff) <= 6 else " (+%d)" % (len(diff) - 6)))
         payload += [{"type": "via_on_pad", "kind": "short_diff_net", **r} for r in diff]
     return False, "; ".join(msgs), payload
+
+
+# ===========================================================================
+#  no-foreign-on-high-current-pour -- THE absolute keepout (owner directive 2026-06-27)
+# ===========================================================================
+# ONE authoritative region = cec_fr.derive_power_pours (the same rectangles add_power_pours
+# fills and sense-body-clear-of-pour checks). The placer, router and accept gate all key off
+# it. A foreign-net track on the pour layer (or a via in the pour) silently antipads/fragments
+# the 40A fill -- KiCad DRC does NOT flag it -- so this gate is GEOMETRIC (sampled against the
+# pour rectangle), never DRC-derived. GND + power rails ARE foreign on the single-layer pour.
+def _derive_pour_boxes(board, path):
+    """The authoritative per-cable high-current pour rectangles, filtered to genuine cable
+    corridors, with the allowed-net set. Returns (boxes, allowed) or (None, None) when N/A
+    (no derivable pour, or every pour is on a shared-bus per-pin/per-rail connector -- 12VHPWR
+    J3/J4, 24-pin J3/J4 -- whose lane/rail legitimately packs the sense chain).
+    boxes = [(own_net, layer_id, x0, x1, y0, y1)] (mm)."""
+    import cec_fr
+    try:
+        pours = cec_fr.derive_power_pours(path, board=board)
+    except Exception:                                       # noqa: BLE001 -- region derivation never breaks a check
+        return None, None
+    if not pours:
+        return None, None
+    kelvin, _ = cec_score._derive_pairs(_nets(board))
+    by_net = _pads_by_net(board)
+    shared = _shared_bus_conns(kelvin, by_net)
+    layer_id = {"F.Cu": pcbnew.F_Cu, "B.Cu": pcbnew.B_Cu}
+    boxes, own = [], set()
+    for pr in pours:
+        net = pr["net"]
+        jrefs = {ref for ref, _, _ in by_net.get(net, []) if ref.upper().startswith("J")}
+        if jrefs & shared:
+            continue                                       # shared-bus per-pin/per-rail -> N/A
+        xs = [p[0] for p in pr["polygon"]]
+        ys = [p[1] for p in pr["polygon"]]
+        boxes.append((net, layer_id.get(pr["layer"], pcbnew.F_Cu),
+                      min(xs), max(xs), min(ys), max(ys)))
+        own.add(net)
+    if not boxes:
+        return None, None
+    return boxes, (own | _sense_nets(board))
+
+
+def _foreign_pour_records(board, path):
+    """(tracks, vias) -- foreign-net copper intruding the authoritative pour boxes, each a
+    record {net, pour[, x, y]}. A track counts when any of `sample_pts` points along it lands
+    in a box ON THE BOX'S LAYER; a via counts when it sits in a box and its barrel reaches the
+    box layer. FOREIGN = not the pour's own net and not an INA sense-input net (the deliberate
+    Kelvin tap); GND/power INCLUDED. N/A -> (None, None)."""
+    boxes, allowed = _derive_pour_boxes(board, path)
+    if boxes is None:
+        return None, None
+    n_samp = int(_param("no-foreign-on-high-current-pour", "sample_pts", 11))
+
+    def _foreign(n):
+        return bool(n) and n not in allowed and "unconnected-" not in n.lower()
+
+    tracks, vias = [], []
+    for t in board.GetTracks():
+        n = t.GetNetname()
+        if not _foreign(n):
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            vstack = set(t.GetLayerSet().CuStack())
+            vp = t.GetPosition()
+            for net, lid, x0, x1, y0, y1 in boxes:
+                if lid in vstack and x0 <= _mm(vp.x) <= x1 and y0 <= _mm(vp.y) <= y1:
+                    vias.append({"net": n, "pour": net,
+                                 "x": round(_mm(vp.x), 2), "y": round(_mm(vp.y), 2)})
+                    break
+        elif t.Type() == pcbnew.PCB_TRACE_T:
+            lid = t.GetLayer()
+            s, e = t.GetStart(), t.GetEnd()
+            for net, blid, x0, x1, y0, y1 in boxes:
+                if lid != blid:
+                    continue
+                hit = False
+                for k in range(n_samp):
+                    px = s.x + (e.x - s.x) * k // (n_samp - 1)
+                    py = s.y + (e.y - s.y) * k // (n_samp - 1)
+                    if x0 <= _mm(px) <= x1 and y0 <= _mm(py) <= y1:
+                        hit = True
+                        break
+                if hit:
+                    tracks.append({"net": n, "pour": net})
+                    break
+    return tracks, vias
+
+
+def _foreign_by_pour(tracks, vias):
+    by = collections.defaultdict(collections.Counter)
+    for r in tracks:
+        by[r["pour"]][r["net"]] += 1
+    for r in vias:
+        by[r["pour"]]["via:" + r["net"]] += 1
+    return {k: dict(v) for k, v in by.items()}
+
+
+def foreign_on_pour_summary(board_path):
+    """Public summary (mirrors via_on_pad_summary): {applicable, n_tracks, n_vias, by_pour,
+    tracks, vias, n_pours}. cec_router.route()'s INDEPENDENT verdict folds n_tracks+n_vias into
+    gates_pass so a foreign-on-pour board can never pass silently; callers wrap in try/except --
+    a verdict must never break on the checker. N/A boards report applicable=False, counts 0."""
+    board = pcbnew.LoadBoard(board_path)
+    tracks, vias = _foreign_pour_records(board, board_path)
+    if tracks is None:
+        return {"applicable": False, "n_tracks": 0, "n_vias": 0,
+                "by_pour": {}, "tracks": [], "vias": [], "n_pours": 0}
+    boxes, _ = _derive_pour_boxes(board, board_path)
+    return {"applicable": True, "n_tracks": len(tracks), "n_vias": len(vias),
+            "by_pour": _foreign_by_pour(tracks, vias),
+            "tracks": tracks[:60], "vias": vias[:60], "n_pours": len(boxes or [])}
+
+
+@checker("no-foreign-on-high-current-pour")
+def _chk_foreign_on_pour(board, path, ctx):
+    """ABSOLUTE high-current-pour keepout (owner directive 2026-06-27). For each authoritative
+    derive_power_pours box (genuine per-cable corridor), assert ZERO foreign-net track (same
+    layer) or via crosses it -- GND/power INCLUDED. Geometric, not DRC-derived (KiCad's zone
+    filler carves antipads around a foreign trace with NO clearance error, so ~80% of the
+    crossings are invisible to drc==0). The placer keeps foreign BODIES out via
+    sense-body-clear-of-pour; this rule is the gate for foreign TRACKS/VIAS. N/A on shared-bus /
+    non-cable boards (12VHPWR per-pin, 24-pin per-rail, Hub)."""
+    tracks, vias = _foreign_pour_records(board, path)
+    if tracks is None:
+        return None, "no per-cable high-current pour region (shared-bus / non-cable board)"
+    if not tracks and not vias:
+        return True, "no foreign track/via crosses any high-current pour region"
+    by_pour = _foreign_by_pour(tracks, vias)
+    msg = "; ".join("%s<-%s" % (p, c) for p, c in sorted(by_pour.items()))
+    payload = [{"type": "keepout", "reserve": "high-current-pour-foreign",
+                "pour": p, "foreign": c} for p, c in sorted(by_pour.items())]
+    return (False, "foreign copper crosses a high-current pour (ABSOLUTE keepout): %d track(s), "
+            "%d via(s) -- %s" % (len(tracks), len(vias), msg[:240]), payload)
 
 
 @checker("high-current-pour-present")

@@ -768,6 +768,54 @@ def independent_drc(final, rules, *, weights=None):
             verdict["via_on_pad"]["diff_detail"] = vop["diff_detail"][:8]
     except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
         verdict["via_on_pad"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+
+    # FOREIGN-ON-POUR gate (cec_constraints.foreign_on_pour_summary): THE absolute high-current-pour
+    # keepout (owner directive 2026-06-27). A foreign-net track on the pour layer (or a via in the pour)
+    # forces the zone filler to carve an antipad that necks/fragments the 40A fill -- and KiCad DRC is
+    # BLIND to it (no clearance error), so 'drc==0' can NEVER catch foreign-through-pour (~80% of the
+    # crossings are silent). The verdict MUST fail or a board with 50+ foreign crossings ships silently
+    # at finishing DRC. ONE region (derive_power_pours) -- the same the placer body-keepout and the
+    # router corridor keepout obey. Per-cable interposer scope (EPS/PCIe); shared-bus boards report
+    # applicable=False (vacuous). Mirrors the via_on_pad fold; fail-safe (a verdict never breaks on it).
+    try:
+        import cec_constraints
+        fop = cec_constraints.foreign_on_pour_summary(final)
+        verdict["foreign_on_pour"] = {"applicable": fop["applicable"], "tracks": fop["n_tracks"],
+                                      "vias": fop["n_vias"], "pours": fop["n_pours"],
+                                      "by_pour": fop["by_pour"]}
+        if fop["applicable"] and (fop["n_tracks"] or fop["n_vias"]):
+            verdict["gates_pass"] = False
+            reasons.append("foreign-on-pour (ABSOLUTE keepout): %d foreign track(s) + %d via(s) cross a "
+                           "high-current pour -- KiCad DRC is blind to the antipad; re-place corridor-clean "
+                           "or run the two-pass corridor protect -- %s"
+                           % (fop["n_tracks"], fop["n_vias"],
+                              "; ".join("%s<-%s" % (p, c) for p, c in sorted(fop["by_pour"].items()))[:200]))
+    except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
+        verdict["foreign_on_pour"] = {"error": "%s: %s" % (type(_e).__name__, _e)}
+
+    # KELVIN-SENSE DRC gate (tapshort hardening 2026-06-27): kelvin_ok (cec_score._check_pairs) is
+    # structurally BLIND to shorts -- it passes a pair on routed>=1 track + 0 ratlines only -- so a
+    # /SENSEC*_HI|_LO leg shorted to GND/+3V3 reads kelvin_ok=True. Fail the gate when any short /
+    # clearance / mask / crossing DRC locus references a sense (_HI/_LO) net. Read from the drc_loci the
+    # score() run already produced (no extra DRC run). Defense-in-depth with foreign-on-pour (which also
+    # catches the GND-on-LO-pour half geometrically).
+    try:
+        sense_nets = {n for pair in (rules.kelvin_pairs or []) for n in pair}
+        for n in m.detail.get("board_nets", []):
+            if n.endswith(("_HI", "_LO")):
+                sense_nets.add(n)
+        _SHORT_TYPES = ("shorting_items", "solder_mask_bridge", "tracks_crossing", "clearance")
+        bad = [l for l in m.drc_loci
+               if l.get("type") in _SHORT_TYPES
+               and any(("[" + sn + "]") in l.get("where", "") for sn in sense_nets)]
+        verdict["kelvin_sense_drc"] = len(bad)
+        if bad:
+            verdict["gates_pass"] = False
+            reasons.append("kelvin-sense DRC: %d short/clearance/mask locus on a sense (_HI/_LO) net "
+                           "(kelvin_ok is blind to shorts) -- %s"
+                           % (len(bad), "; ".join(b.get("where", "")[:70] for b in bad[:3])))
+    except Exception as _e:                              # noqa: BLE001 -- verdict must never break on the checker
+        verdict["kelvin_sense_drc"] = "error: %s: %s" % (type(_e).__name__, _e)
     return verdict
 
 
@@ -835,6 +883,32 @@ def board_has_sensec_corridors(board_path):
         return len(cec_fr.corridor_keepouts(board_path)) > 0
     except Exception:
         return False
+
+
+def _foreign_on_pour_count(board_path):
+    """Foreign track+via crossings of the high-current pours (cec_constraints.foreign_on_pour_summary).
+    0 when the board is corridor-clean or N/A (shared-bus). Fail-safe (a probe never breaks a route)."""
+    try:
+        import cec_constraints
+        s = cec_constraints.foreign_on_pour_summary(board_path)
+        return (s.get("n_tracks", 0) + s.get("n_vias", 0)) if s.get("applicable") else 0
+    except Exception:                                        # noqa: BLE001
+        return 0
+
+
+def _should_default_tpc(board_path, *, verbose=False):
+    """The ROUTER ENFORCEMENT leg of the absolute pour keepout (owner directive 2026-06-27): run the
+    two-pass corridor protect by DEFAULT on a cable board whose pass-1 route left foreign copper on a
+    high-current pour. A corridor-clean pass-1 (foreign-on-pour == 0) skips it -- so the cost is only
+    paid where there is something to clean, and the gate (independent_drc) catches whatever TPC cannot.
+    Overridable via CEC_TWO_PASS_CORRIDOR (explicit 0/1 always wins)."""
+    if not board_has_sensec_corridors(board_path):
+        return False
+    n = _foreign_on_pour_count(board_path)
+    if n > 0 and verbose:
+        print(f"[route] TPC default-ON: pass-1 has {n} foreign track/via on the high-current pours "
+              f"(absolute-keepout enforcement; CEC_TWO_PASS_CORRIDOR=0 to disable)")
+    return n > 0
 
 
 def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_protect_gnd=False,
@@ -1134,7 +1208,13 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
     # end-to-end and lands the corridor win on its artifact (spec.out[-tpc]); converting that into an
     # ADOPTED board needs either a corridor-clean placement (the evacuation regressed eps-rev3-rev3's
     # HI corridor) or a surgical re-route lever FR can satisfy -- see the session report.
-    if os.environ.get("CEC_TWO_PASS_CORRIDOR", "0") == "1":
+    # ENFORCEMENT (owner directive 2026-06-27): TPC is now DEFAULT-ON for a cable board whose pass-1
+    # left foreign copper on a high-current pour -- the router's leg of the absolute keepout. A
+    # corridor-clean pass-1 skips it (no cost), and whatever TPC cannot clear the independent_drc
+    # foreign-on-pour gate fails (never silently shipped). Explicit CEC_TWO_PASS_CORRIDOR=0/1 wins.
+    _tpc = os.environ.get("CEC_TWO_PASS_CORRIDOR")
+    _do_tpc = (_tpc == "1") if _tpc is not None else _should_default_tpc(spec.out, verbose=verbose)
+    if _do_tpc:
         pass1_m = cec_score.score(spec.out, rules)
         if not pass1_m.kelvin_ok:
             if verbose:
@@ -1224,13 +1304,17 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             artifact=os.path.basename(spec.out),
             decider={"kind": "model", "id": "cec_router.route"},
             verdict=(f"gates {'pass' if gp else 'fail'}: kelvin={verdict.get('kelvin_ok')} "
-                     f"diffpair={verdict.get('diffpair_ok')} drc={verdict.get('drc')} unconn={verdict.get('unconnected')}"),
+                     f"diffpair={verdict.get('diffpair_ok')} drc={verdict.get('drc')} unconn={verdict.get('unconnected')} "
+                     f"foreign_on_pour={(verdict.get('foreign_on_pour') or {}).get('tracks', 0)}t"
+                     f"+{(verdict.get('foreign_on_pour') or {}).get('vias', 0)}v"),
             cited_reasons=verdict.get("reasons", []),
             claim={"asserts": (f"routed board {'meets' if gp else 'misses'} the hard gates "
-                               f"(kelvin+diffpair) at finishing-only DRC"),
+                               f"(kelvin+diffpair+absolute-pour-keepout) at finishing-only DRC"),
                    "kelvin_ok": verdict.get("kelvin_ok"), "diffpair_ok": verdict.get("diffpair_ok"),
-                   "drc": verdict.get("drc"), "unconnected": verdict.get("unconnected")},
-            hook={"kind": "check_id", "ref": "cec_score:kelvin_ok+diffpair_ok+drc"},
+                   "drc": verdict.get("drc"), "unconnected": verdict.get("unconnected"),
+                   "foreign_on_pour": verdict.get("foreign_on_pour")},
+            hook={"kind": "check_id", "ref": "cec_score:kelvin_ok+diffpair_ok+drc;"
+                                             "cec_constraints:no-foreign-on-high-current-pour"},
             settlement={"state": "settled", "grade": 1})
         if verbose and did:
             print(f"[route] CL-13 outcome label emitted ({'accept' if gp else 'reject'}, settled g1): {did}")
