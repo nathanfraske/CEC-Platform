@@ -1,21 +1,774 @@
 # Current work handoff
 
-_Updated 2026-06-14 ~23:00 UTC (PLACER-UPGRADE MV2-MV5 done + audited + pushed, PR #60)._
+_Updated 2026-06-16 (CLOSE-THE-LOOP build: keystone route-time corridor keepout + block_fills bug fix committed [91b7d68]; characterization that it needs corridor-clean placement OR inner-layer routing; claude/placement-corridor / PR #60)._
 
-## PLACER-UPGRADE MV2-MV5 COMPLETE + AUDITED + PUSHED 2026-06-14 ~23:00 UTC (branch claude/placement-corridor, PR #60, HEAD eff0136)
-Continued the MV checklist (docs/placer-upgrade-2026-06-14/plan.json) under the anti-overfit charter. Three commits pushed:
-- **e3a21de** — committed the prior session's COMPLETED-but-uncommitted placement EI-parity PL-01..PL-10 (durability; it was sitting in the dirty worktree, a WSL-ephemeral near-miss).
-- **26d9a77** — MV2-MV5 in scripts/cec_synth_pipeline.py: **MV2** net-aware `_role`/`_connector_net_role`/`_is_rail_net` (a power-only J* -> power_in, fixes J_5VSB) + `oracle_stage1_answers`/`apply_oracle_stage1` (derive size/edge_override/mount/antenna FROM the reference Hub) + `seed_anchors(edge_override=)` 4-edge + `place_mechanical(mount_pos_override)`; **MV3** `oracle_similarity` DIAGNOSTIC (never a rank key — `_candidate_sort_key` excludes it); **MV4** `proxy_score` (==hpwl off-oracle = zero regression; ref-normalized HPWL-dominant composite) + sort-key swap; **MV5** `build_hub_model`/`hub_score` (port_even/antenna/power_cluster/usb_prox, gated to >=2 RJ-45 + ESP). tests/test_placer_oracle.py.
-- **eff0136** — consultative-audit remediation: 4 parallel skeptics (geometry/charter/regression/test-rigor) = ALL SHIP-WITH-FIXES, 0 blocker. Fixed H1 (similarity renorm over present terms -> identity 1.0 any board), M2 (sense/ref nets excluded from rails), M3 (edge_override validation), charter MEDIUM (power-loop now TOPOLOGICAL small-fanout, no Hub net-names baked, + cfg override), regression MEDIUM (oracle-failure logging), 2 HIGH test-rigor (MV3/MV4 plan-validation tests) + scramble/sort-key teeth. 41 tests green, checklist exit 0, SB-08 golden NEUTRAL (only the pre-existing owner-gated AM-04 thermal red).
-- Validated on the committed Hub: J2-J5 top / J_5V,J_5VSB right / J_KVM,J_USB bottom; outline 98.1x74.1; reference hub_penalty ~0.27 (scores well) vs synth ~0.60 (the placer's measured gap). Status+audit: docs/placer-upgrade-2026-06-14/STATUS.md.
-- **HUB TEST RUN DONE 2026-06-14** (in kicad10 container, recipe in STATUS.md "HUB PIPELINE TEST RUN"): place→materialize→render→DRC→score ALL ran. Best residual 4, corridor_cross 0, **similarity 0.705**, **HPWL 1.25× the hand board** (down from 1.84× pre-MV — the oracle frame is the win), hub_penalty 0.373 (antenna term 0.0 = the gap). DRC ~506 cosmetic + ~64 real-structural (tracks residual 4) + 211 unconnected (UNROUTED, route leg not wired). **The placement pipeline WORKS on a real fab-class board with the correct oracle frame.**
-- **FULL PIPELINE WIRED + FR NOW ROUTES THE HUB 2026-06-15** (scripts/hub_pipeline_run.py). Three fixes: (1) **on-board OFFSET** — synth cand.P is 0-origin but the committed outline is at (70,90); repositioning to synth coords put parts OFF the board → FR routed nothing (THE unblock); `_reposition_worker` offsets by the board-edge origin. (2) `_seat_antenna_ic` — seats the ESP at its antenna edge as a fixed anchor (off the ganged ports) → residual 4→0; antenna term fixed to use the courtyard near-edge (ref 0.565→1.0, synth 0.0→0.903, hub_penalty 0.373→0.125). (3) two-process GND fill (the pcbnew Remove footgun corrupts the process → fill in a fresh spawn). RESULT: low-effort route_once = **628 tracks / 39 unconnected / kelvin+diffpair pass / len 2240** (was 2/216); committed HAND placement routes 389 wires (baseline). 103 placer tests green.
-- **LIVE PANEL auto-repoints + CANDIDATE TIMELINE SCROLLER (scripts/hub_run.sh + cec_dashboard.py)**: the launcher retargets a stable symlink `build/hub-LIVE` -> the run's OUT + ensures cec_dashboard.py is up on :8095 pointed at the symlink. The dashboard follows symlink retargets LIVE (abspath preserves the symlink, per-poll glob) -> every launch auto-repoints with no manual step (proven). The board panel now renders EVERY candidate (placements `hub-cand*` + routed `route-cand*/*-routed`, comma-separated board-glob, cached by mtime) with a scroller (◀/slider/▶/`live`) to step the timeline; each candidate has its own render+per-layer plots (`/board.png?cand=N`, `/layer/<L>?cand=N`, `/api/state.candidates`). Use `bash scripts/hub_run.sh [OUT] [HOURS] [CANDS]` to launch+repoint in one command. Panel: http://localhost:8095. GOTCHAS: (1) the panel MUST run under `sg docker` — its board render shells `docker compose exec routing`, and this box's default shell lacks docker-group access (verified: plain docker DENIED); the launcher uses `sg docker -c`. (2) `timeout` on a docker CLI orphans the container -> the launcher uses `docker run -d --rm` (daemon-managed) + the script's own --hours budget, no outer timeout.
-- **NEXT: the HOUR RUN is launching now** (higher FR effort + cec_router repair loop → drive 39 unconnected + DRC down toward a clean routed Hub). Then score routed gates/length vs the committed Hub (2359). Remaining (FOLLOWUPS item 4): tune cec_router seeds/iters/opt to fit the budget (FR is genuinely slow now that it routes); promote materialize_onto_reference into cec_synth_pipeline.materialize. NOTE: `timeout` on a docker CLI orphans the container (leaks CPU) — launch the hour run via the script's own --hours budget, run_in_background, NO outer timeout.
-
+## CLOSE-THE-LOOP (owner: "build it all out to fully close the entire loop") — IN PROGRESS 2026-06-16
+Goal: a self-converging place→route→converge loop (hard gates kelvin+diffpair, finishing DRC) on a fresh board.
+It's MECHANISM not corpus (memory: [[convergence-blocker-mechanism-not-corpus]]). State:
+- **DONE + committed (91b7d68, a65a44a):** `cec_fr.corridor_keepouts` (route-time corridor reservation, shared
+  by cec_router + route_directed) + a REAL bug fix — the keepout's DoNotAllowZoneFills blocked ~89% of the
+  same-net pour → `block_fills` flag (fixes cec_router.route() too). 6 tests, golden track-metrics byte-identical.
+- **KEY FINDING (the loop is NOT closed):** the keepout strands foreign signals + kelvin EVEN on the COMMITTED
+  (hand) eps placement (`cec_router`-style WITH keepout → kelvin_ok=False, unconnected=16) — so the CLAUDE.md
+  "cec_router converges EPS with the keepout" claim is STALE (the existence proof, cec_golden, uses NO keepout).
+  The keepout geometry is fine (shunts/INAs sit in the y-gap between HI/LO keepouts); the stranding is FOREIGN
+  signals (+3V3/GND/DETAMP/THRESH) that the placement routes THROUGH the corridor — the keepout blocks them and
+  the placement leaves no alternative, and FR does NOT reroute them onto In2 under the pour. The fresh placer is
+  far from corridor-clean (corridor_cross 15-24 vs the 0 needed). Keepout DEFAULTS OFF (no regression).
+- **TWO PATHS to actually close it (FOLLOWUPS 2026-06-16):** (A) corridor-clean placer (cc→0; hard, placer at
+  15); (B) **inner-layer crossing** — make FR route corridor-crossing foreign signals on In2 UNDER the pour
+  (the "layer-tier lever"); the keepout is already F.Cu+B.Cu+allow_vias so they SHOULD via to In2 but strand —
+  investigate why (DSN layer policy / via cost). **Recommend probing Path B first** (cheaper, may unlock the
+  keepout on ANY placement without solving the placer). NEXT: Path-B In2-routing probe.
 ---
 
-_(prior) Updated 2026-06-13 ~08:00Z (DeepSeek-V4 LIVE in the cec_fullstack auditor seat, run launched for the night)._
+## FULL ACTUATION LEVER — design + build STARTED 2026-06-15 ~15:30 UTC (PR #60)
+Owner ask: "a rule flags a case → passes a CLEAN-evidence gate (rule cannot be scored on runs it
+influenced) → tallied → if it meets the bar it STEERS the run but does NOT gate it." Owner chose:
+write the design doc, document all steps in handoff+todo, and start building.
+- **Plan of record: docs/actuation-lever-design.md** — 4-state rule lifecycle (PROPOSED→CANDIDATE→
+  RATIFIED-STEER, with REFUTED/RETIRED), 4 invariants, the embryo that already exists (lane_for +
+  lr_view clean firewall `:1712`; in-run vindicated/refuted settlement `:1989`; `_placement_keep`
+  `:921` steer-not-launder; ab_aggregate `:400`), and the **transitive-influence-lineage TRAP**:
+  the augmented board COMPOUNDS (placement_base carries forward `:1754`) so the influence cone is
+  transitive — a clean gate that tags single rows leaks credit. Fix: `influenced_by:{rule_ids}` =
+  this round's steers ∪ the cone of the board it was built from; a (baseline,treatment) pair is
+  clean for R only when R∉influenced_by(baseline).
+- **4 staged steps (one PR each), in TODO.md:** (1) per-rule transitive influence lineage [STARTED]
+  — rule_id + influence_signature + per-run cone + `influenced_by` row field + clean_pairs()
+  comparator + host tests, additive/non-behavioural; (2) cross-run persistence+tally via cec_ledger
+  keyed by rule_id; (3) graduation bar (≥k independent clean pairs + sign-test/effect-size,
+  holdout-validated per AM-02, → promoted/** owner-ratified); (4) steer-only chokepoint
+  (assert_steer_only generalizing _placement_keep; ratified rule steers search, NEVER gates).
+- Hard gates (kelvin/diffpair/DRC/conformance) STAY deterministic+human (CLAUDE.md ratification
+  boundary). VALIDATION caveat: eps lever is inert (run proved it) — exercise on a Hub (post step-11)
+  or a synthetic injected fixture.
+- BUILD PROGRESS (this session, PR #60):
+  * Step 1 DONE + AUDITED (commit d6ddfba; audit wf_f24bddf7-9fd ship-with-fixes/22-confirmed -> fixes 0e38d35).
+    Route-time-snapshot rewrite: cone now includes model-intent plan / corridor-avoid / avoid-deltas /
+    panel effort; both timing bugs closed; control-lane contamination (effort reset + intent-briefing
+    lane-gate) closed; clean_pairs absent-key hole closed; tested==shipped.
+  * Steps 2-4 DONE (commit 5ab059a): rule_tally (cross-run clean pooling) + graduation_verdict (bar,
+    holdout-validated tests/holdout/actuation/bar-fixtures.json) + assert_steer_only chokepoint;
+    end-of-run lever block + --tally CLI. Promotion stays owner-gated. Caught+fixed a real glob bug in
+    load_runs_from_dirs (cross-run pooling was silently disabled). Host suite 323 green.
+  * Hub generalization DONE (commit 0b09574) + fresh-route strip VERIFIED on host: _placement_only_copy
+    strips 905 tracks/vias, keeps 91 footprints + GND zone, committed board untouched. Hub routes fresh
+    from placement.
+  * SECOND audit RUNNING (wf_24ad4f0c-092 / task wfv6h8pqs): re-verify the fixes + audit steps 2-4.
+  * 2nd audit DONE + FIXED (wf_24ad4f0c-092, commit 1ab474a): Step 1 CONFIRMED closed; steps 2-4
+    ship-with-fixes (29 conf) all closed -- board isolation, cross-metric safety veto, producible
+    holdout, ratifiable-kinds filter, median-gated effect, fail-closed unknown-metric, etc.
+  * HUB VALIDATION -- THE KEY FINDING (commits 9fe57f7, ff299ff): the Hub flows through the full stack
+    (fresh-route strip fixed: segfault was a GC on dangling SWIG proxies -> subprocess-isolate the strip).
+    The 5-round Hub smoke ran clean but EVERY finding-delta noop'd "unmapped lever: None" -- same as eps.
+    ROOT CAUSE: the finders emit proposed_lever.TYPE/.ACTION, NEVER .lever, but the actuator read only
+    .lever -> 100% noop on EVERY board. Round 3 even proposed 'placement_eviction' and it was dropped.
+    This -- not "failures aren't placement-shaped" -- is why the actuation lever has NEVER engaged.
+    FIXED: _pl_lever (lever|type|action) + _pl_target (target|net|ref); verified on the real Hub findings
+    (router_effort->effort, placement_eviction->replace). +6 tests, host suite 333 green.
+  * RE-SMOKE DONE (docs/fullstack-run-2026-06-15-hubsmoke2): levers engage LIVE — round-5 `effort` lever
+    actuated for the first time (status=applied); DRC mean 57→39 augmented-vs-control; deepseek shadow
+    auditor correctly declined under a stalled loop. Placement still showed moved_rate 0.0 because the
+    eviction findings named target=None.
+  * PROSE-REF FIX + r3 CLOSE + HARDENING DONE 2026-06-16 (commits fad6bdd, f8ddbd9; pushed): the
+    placement target now resolves from prose, and the r3 lever-misclassification is closed.
+    - prose fallback `_prose_ref(finding, known_refs)` matches the LITERAL known board refs
+      case-insensitively + word-bounded (any ref shape incl. underscore J_5VSB/SW_BOOT; look-alikes
+      RS485/INA240/CAN1 blocked by the whitelist), with verb-proximity (prefer the ref after a move
+      verb); `_placement_intent` ref_hint routes a validated ref to the ref branch; `known_refs`
+      threaded into `finding_to_delta` (replace-only), hoisted once per run; finder-prompt nudge.
+    - **r3 closed**: `_lever_kind(lever, failure_class)` — a placement-class finding whose free-form
+      action sentence carries "waypoint"/"corridor" classifies as a MOVE first (ahead of the
+      waypoint/avoid traps), without regressing routing-class "add a waypoint intent". The real r2 AND
+      r3 findings both now resolve `replace ref=C1` (r3 was waypoint→noop).
+    - ADVERSARIALLY REVIEWED: workflow wf_6653dbfc (6 lenses, 25 agents, every finding verified) →
+      16 confirmed; all real ones fixed this session. tests +11 (suite 63 green; 9 fr02/vision
+      discover-order failures are baseline-identical, pre-existing).
+  * **KEY CORRECTION — the placement actuator is CORRIDOR-GATED, so "a longer Hub run" is the WRONG
+    next step.** `apply_placement_move` derives the eviction band ONLY from `corridor_violations(src)`,
+    which returns a body solely when a SENSITIVE part sits inside a FORMED high-current corridor
+    (EPS/PCIe cables) and returns [] for shared-bus boards. EMPIRICALLY confirmed on host pcbnew:
+    `corridor_violations()` == [] for BOTH committed Hub (shared-bus) AND committed eps (clean
+    placement) → `placement_moved_rate` is structurally 0 on both, regardless of ref resolution
+    (hubsmoke2 r2 already noop'd `[placement no_corridor]`). The prose-ref fix is necessary but not
+    sufficient. The FULL chain is now proven end-to-end on an INJECTED-violation EPS fixture (commit
+    96232e0, real pcbnew: U10 named ONLY in prose → finding_to_delta resolves ref=U10 →
+    apply_placement_move → verdict 'placed', U10 evicted). **OWNER
+    DECISION (docs/owner-queue.md §1 + FOLLOWUPS 2026-06-16 "KEY BLOCKER"): (1) keep the lever
+    EPS/PCIe-corridor-scoped + validate the finder→prose-ref→evict chain via an injected-violation
+    EPS loop [recommended to prove the chain]; or (2) generalize to a non-corridor congestion-eviction
+    band for Hub-class failures [larger; new safety design].**
+  * **OPTION (1) DONE + VALIDATED 2026-06-16 — the placement lever FIRES LIVE on EPS (commit 7b10fed).**
+    Owner: "Validate the chain on EPS first." Injected U10/INA238 into the /SENSEC2 corridor and ran a
+    live `cec_fullstack` loop (Sonnet finder, host monkeypatch of BOARD_PCB + forced route override;
+    committed board untouched). A SECOND root cause surfaced: `corridor_violations()` was only called
+    INSIDE apply_placement_move, NEVER surfaced to the finder → it diagnosed `routing` and targeted the
+    FENCED sense net `/SENSEC2_LO` (refused every round; baseline placement_moved_rate 0.0, 0/5). FIX:
+    `corridor_body_facts(routed)` (in-container, like pour_facts) → `pourcheck["corridor_bodies"]` →
+    `_audit_prompt` BODY-IN-CORRIDOR directive (set failure_class=placement, put the body refdes in
+    target, NOT the fenced net; same fact both A/B lanes). Re-run: finder flipped to placement/target=U10
+    → finding_to_delta resolved U10 → apply_placement_move evicted +9mm → `placed-rN.kicad_pcb` →
+    **placement_moved_rate 0.667 (2/3)**. Evidence: docs/fullstack-run-2026-06-16-epsinject{,2}/RESULT.md;
+    test_body_in_corridor_fact_steers_to_a_body_eviction. CAVEATS (FOLLOWUPS): U10 is the cable's OWN
+    sense IC so the evict traded corridor→kelvin (convergence detail; a FOREIGN body injection vindicates);
+    CONTROL_EVERY=9 → the move never settled (re-proposed each round it saw the violation).
+  * **REMAINING (owner): option (2) GENERALIZE the lever** to a non-corridor congestion-eviction band so
+    Hub-class (shared-bus, no-corridor) failures move a body. Only path to Hub placement movement.
+- Step-1/2/3/4 code + corridor-fact: scripts/cec_fullstack.py; actuator: scripts/cec_fs_actuator.py;
+  Hub: scripts/cec_overnight_directed.py + scripts/cec_router.py; tests: tests/test_actuation_lever.py
+  (63) + test_prompt_audit_fixes.py + test_placement_actuation_e2e.py.
+
+## 10h FULL-PIPELINE RUN — COMPLETED, NEGATIVE RESULT 2026-06-15 ~15:15 UTC (committed c787595)
+The run launched ~03:57 UTC finished its full 10h budget cleanly. **Writeup: docs/fullstack-run-2026-06-15/RESULT.md.**
+Both run + watchdog processes have exited. Headline:
+- **Full 10h, 46 rounds, 0 crashes** (run.log traceback/exception grep = 0). Watchdog self-termed at 8h by design;
+  the run owns its own deadline and ran to completion.
+- **0 gate-passing, 0 Pareto finalists, 0 rules, 0 rejections.** eps stalled at `gates=FAIL, kelvin_ok=True, drc≈18`.
+- **EI-02 A/B: no signal** — augmented(n=35) ≈ control(n=11): gates_pass 0/0, drc_mean 18.36 vs 18.2 (noise),
+  **placement_moved_rate 0.0 in BOTH**.
+- **Placement actuators inert on eps (CONFIRMED, as caveated):** all 34 ACTUATOR deltas = `kind=noop, "unmapped
+  lever: None"`. eps's stall is foreign-signal-in-corridor (routing/layer), not placement, so the body-in-band
+  lever has nothing to grip. Real blocker per bundle: `pours clipped by routed traces 40/46 rounds — needs a
+  notched-corridor keepout or re-pour-after-route`.
+- **Shadow auditor (deepseek-v4-flash, EI-02 advisory/noop arm) behaved WELL:** 11 batches; from round 8 on it
+  diagnosed `local_minimum_risk=high` and **`declined`** to propose levers ("DRC fluctuations are noise … restraint
+  warranted to avoid epicycles") instead of hallucinating fixes. Positive evidence the auditor seat is trustworthy
+  under a stalled loop. Sonnet per-round finder DID root-cause (placement_eviction proposals) but every delta hit
+  the noop shadow lever by design.
+- **T7 capstone did NOT validate (benign):** `corpus_fit_review(rec["log"])` → FileNotFoundError because `best`=r3
+  whose transient build/route log was pruned by r46 → fail-safe `no_opinion`. → FOLLOWUPS (persist best log before T7
+  or rebuild facts from measurement.jsonl).
+- **Next for eps:** notched-corridor keepout + re-pour-after-route (routing/keepout, NOT placement); OR run the full
+  pipeline against a Hub once step-11 Path-B generalization lands. 3 deferrals recorded in FOLLOWUPS.md.
+
+## AGENTIC INTEGRATION + 10h FULL-PIPELINE RUN (launch context) 2026-06-15 ~03:05 UTC (PR #60 head 31daa59)
+Owner: "make a panel for how to integrate the agentic stack properly + toggle cloud/local (overnight->local,
+midday->cloud, defaulting to cloud); forensics on why it wasn't wired despite the docs -> doc; then implement
++ fix the stack to use the proper wiring; then start a ~10h overnight run of the FULL pipeline with proper
+placement actuators." ALL DONE.
+- **Forensics + design** (workflows wf_27c511ed-113 [died after phase1, recovered from journal] + wf_cf91431f-a2a
+  [7 agents]): root cause = the Hub place->route->check pipeline (hub_pipeline_run.py) ran a BARE deterministic
+  route -- no LLM tiers, CEC_SKIP_INTAKE=1, corpus review never on -- a smoke-first bring-up ossifying into the
+  de-facto Hub runner before its documented integration was written. Doc: **docs/agentic-integration-forensics-2026-06-14.md**
+  (synopsis + 3-kinds-of-not-wired + design + 11-step checklist).
+- **Implementation (Path A, steps 1-10 + dashboard)**: scripts/cec_seats.py (cloud/local resolver: explicit
+  --seats/--judge wins; else --hours>=2->local; else cloud [default cloud]; cloud=opus/sonnet @ **effort MAX in
+  all cases** [owner], local=cec-manager-fast/cec-worker; optional cec-policy.json judge_residency block,
+  fail-safe; +15 host tests). model=/url=/effort= threaded make_manager_swarm/make_worker_swarm -> _panel ->
+  _chat_json -> _chat_json_cloud (--effort max; cloud routes by model NAME via _is_cloud, NO dup _cloud makers).
+  hub_pipeline_run.py: --seats + tier wiring into cec_router.route (cloud panel=1/local panel=3, fail-safe ->
+  deterministic) + post-route PCB-geometry conformance SELECTION gate (ranking key, abort-level deferred) +
+  REF-schematic intake + cec_policy.assert_loadable + corpus_fit_review advisory sidecar + cec_ledger.
+  hub_run.sh forwards toggle/model/effort + broker --add-host (local seats reach :8080). cec_dashboard.py
+  agentic-decisions card + /api/agentic. **ADVERSARIAL AUDIT wf_28d3ca68-a24 (5 skeptics->verify->synth):
+  ship-with-fixes** -- structure sound (resolver 14/14, all 10 conformance ids exist, signatures match); 2
+  cloud-effort defects + doc overclaims FIXED. Commits 8ef8e07->5f1d7e5->f738df1->31daa59. 240 host tests green.
+- **10h FULL-PIPELINE RUN LIVE** (restarted clean ~03:57 UTC after a date-dir fix): `CEC_FS_DATE=2026-06-15
+  CEC_STREAM_DIR=docs/fullstack-run-2026-06-15/streams setsid nohup python3 -u scripts/cec_fullstack.py --board
+  eps-8pin --hours 10 > docs/fullstack-run-2026-06-15/run.log 2>&1` (via sg docker, host driver). **PID 1233137.**
+  DATE-DIR BUG (fixed): box local date=2026-06-14 (CDT) but I'd named the dir 2026-06-15 (UTC) -> cec_fullstack
+  PERM (strftime %Y-%m-%d) wrote measurement/findings/bundle to docs/fullstack-run-2026-06-14 (co-mingling w/
+  yesterday's run + blind dashboard + empty babysit). FIX = relaunch with CEC_FS_DATE=2026-06-15 so ALL artifacts
+  co-locate; ALWAYS pass CEC_FS_DATE matching the dir name. OWNER CONFIRMED the auditor proposed_lever advisory/
+  noop is BY DESIGN (shadow ruling for the EI-02 self-influence proof) -- do NOT make it actuate. board manifest
+  49 refs/54 nets; auditor=deepseek-v4-flash
+  (warmed); control_every=4 (EI-02 A/B), fence_nets=4/refs=5, corpus brief 35/6; GR-01 20 hotspots. **Placement
+  actuators VERIFIED wired** in the run loop (_t0_should_fire->gr02_repair 1975/1981; finding_to_delta->
+  select_deltas->apply_placement_move 2094/2112/2129; control-gated record_outcome + _placement_keep gate-launder
+  guard + fence + rollback). Round 1 [augmented] routing at handoff. **Watchdog relaunched 03:57** (cec_night_watch.sh,
+  CEC_FS_DATE=2026-06-15 + CLAUDE_PROJECT_DIR=/home/nathan/cec-placement -- pinned to THIS worktree so it relaunches the right branch;
+  crash-relaunch only [run_miss>=2], phantom-guarded, self-terms 8h, relaunch uses --hours 7). **Panel
+  http://localhost:8095** (run-dir=docs/fullstack-run-2026-06-15). MONITOR run.log + measurement.jsonl + :8095.
+  CAVEAT: on eps the body-in-band placement lever is largely INERT (eps's stall is foreign-signal-in-corridor =
+  routing/layer, fixed by the LAYER lever; placement actuators are present+ready but may not fire much). If the
+  run dies and the watchdog is down: relaunch with the line above (--hours <remaining>).
+- DEFERRED (FOLLOWUPS): step-11 Path-B generalization (find_board hubs/ + register Hub in BOARD_PCB + placer<->
+  router feedback loop -> lets the Hub flow through the full T0-T9); cloud-seats-in-container needs the claude CLI
+  in cec/routing:kicad10 (else degrades-visibly to deterministic); promote the conformance gate to abort-level
+  (after confirming the committed Hub passes it).
+
+---
+## (prior) LAYER-LEVER REWORK COMPLETE + 7h RUN LIVE 2026-06-14 ~10:20 UTC (HEAD 78ae674, pushed)
+Owner: "rework the layer lever, audit, fix, launch the 7h run + babysit." DONE.
+- **Rework (audit w23i0d8nq's 5 items)** landed (03c4d0b/1ad2b42/eab3752/837a7f4): (1) route lays the B.Cu
+  MIRROR + via stitching (cec_overnight_directed._route -> synthesize_power_copper strip_redundant=False,
+  additive, both lanes, _route_quality safe-revert, CEC_OVD_MIRROR_POUR=0 to disable); (2) L-bend crossing
+  detection (cec_fr _seg_band_clip Liang-Barsky + net-extent + _relayer_segment_inband); (3) _adopt_staggered_
+  board feeds the staggered board into rec["routed"] + the pour RE-FILL that heals the corridor; (4) temp-staged
+  in-place safety; (5) _route_quality safe-revert metric.
+- **TWO adversarial audit rounds** (4 skeptics + 1 focused re-audit). Round 1 found a BLOCKER + 3 HIGH; round 2
+  confirmed the BLOCKER CLOSED + found 1 MEDIUM + 2 LOW. ALL FIXED (fb182b5 + ec0d1d7):
+  * gate-launder (BLOCKER): a board blocked for a fragmented sense pour could be re-promoted gates_pass=True by
+    adoption (the rescore is pour-BLIND). FIX: layer_stagger fully RE-MEASURES the staggered board
+    (ovd.measure_board = score + Pareto axes + FEM + pour facts); _remeasure_pour_gate re-verifies pour
+    integrity on the SHIPPED board and OWNS gates_pass.
+  * stale Pareto (HIGH): _adopt refreshes ALL axes (vias/max_T/plane/length/tracks) + objective_base; FEM-stale
+    max_T dropped on error.
+  * connectivity (HIGH): connectivity-repair via at band-boundary-coincident vertices; revert on ANY unconnected
+    increase (not just the scalar).
+  * MEDIUM/LOW: objective_base refresh, mkstemp fd close, temp .kicad_pro/.kicad_prl sidecar cleanup, no-flip
+    ships exact bytes, mirror logs (mirror_status) not silent, test-isolation (test_stagger_feedback stubbed
+    pcbnew unconditionally -> shadowed real pcbnew for test_corridor_model when run first).
+  Full host suite green (both test orders). +25 tests across the rework.
+- **7h RUN LAUNCHED** ~05:14 UTC: `sg docker -c "CEC_STREAM_DIR=docs/fullstack-run-2026-06-14/streams setsid
+  nohup python3 -u scripts/cec_fullstack.py --board eps-8pin --hours 7 > docs/fullstack-run-2026-06-14/run.log"`.
+  PID 842244. Auditor=deepseek-v4-flash (reachable). Round 1 [augmented] ran clean through route(4 pours)->T4
+  panel(escalate)->T6 pour(/SENSEC2_LO fragmented 3 islands)->layer-stagger(FULL re-measure WORKED live, flipped
+  then SAFE-REVERTED, gates_pass stayed False -> no launder)->T5 deepseek auditor. The new code is exercising
+  live without crashing. **LIVE PANEL on :8095** (PID 817949, pointed at docs/fullstack-run-2026-06-14) -- NOT
+  8090. Watchdog cec_night_watch.sh fixed (today's date, 78ae674) -- launch with
+  `sg docker -c 'setsid nohup bash scripts/cec_night_watch.sh </dev/null >/dev/null 2>&1 &'` for overnight relaunch.
+- **SECURITY (owner action, FOLLOWUPS)**: the sudo password was inline in .claude/memory/sudo-docker-access.md and
+  the Stop hook (session-end.sh) pushes that to origin/ops/agent-handoff -> the plaintext value is ALREADY on
+  that remote branch. Redacted the canonical live memory file (the Stop hook kept reverting the in-tree mirror
+  from it). Owner: ROTATE the password + optionally purge ops/agent-handoff history.
+- NET: rework merge-ready (PR #60), run live + babysat. Monitor docs/fullstack-run-2026-06-14/{run.log,
+  measurement.jsonl} + :8095. If the run dies and the watchdog isn't up, relaunch with the line above.
+
+---
+## (prior) PLACEMENT AUDIT REMEDIATION 2026-06-14 ~06:05 UTC (commit cbd0047, pushed to PR #60)
+Owner: "go ahead [Phase 1] + audit it." Built **Phase 1a** (corridor_cross rank key: Candidate field +
+synth_one model build + sort key (residual,corridor_cross,hpwl) + opt-in proxy_reject(corridor_max=))
+then ran a 4-skeptic adversarial audit (parallel Sonnet sub-agents: geometry / checkers / Phase-1
+
+## PLACEMENT AUDIT REMEDIATION 2026-06-14 ~06:05 UTC (commit cbd0047, pushed to PR #60)
+Owner: "go ahead [Phase 1] + audit it." Built **Phase 1a** (corridor_cross rank key: Candidate field +
+synth_one model build + sort key (residual,corridor_cross,hpwl) + opt-in proxy_reject(corridor_max=))
+then ran a 4-skeptic adversarial audit (parallel Sonnet sub-agents: geometry / checkers / Phase-1
+integration+claim / test rigor). **The audit was high-signal and I RETRACTED my central claim.**
+- **BLOCKER (confirmed): "ranking alone breaks the ceiling" was a MEASUREMENT ARTIFACT.** The synth
+  placer does NOT form corridors -- shunts land ~24mm off their connectors (RS1 x≈7.5 vs J_IN1 x≈30.8),
+  J_IN/J_OUT not column-aligned -> the band inflates to ~73mm on a 96mm board -> can't be straddled ->
+  cc=0 trivially, NOT corridor-clean. The real ceiling-break needs Phase 2 (form the corridor:
+  current_axis_offset + connector alignment), THEN the rank key discriminates.
+- **2 more BLOCKERs (confirmed): the checkers false-FAIL on every routed 12VHPWR (/IN_P/_N INA inputs)
+  + 24-pin (full-board band) + EPS (/DETAMP).** Fixed: N/A on SHARED-BUS boards (J3/J4 serve every pair
+  -> Phase-5 per-pin variant); band from connector+2-pad-shunt pads only (exclude INA SMD, matches
+  cec_fr.derive_power_pours -- the "same rectangle as the pour" claim was ALSO false); exclude _sense_nets.
+- **HIGH: non-determinism** (corridor_cross varied across processes via hash-randomized set iteration in
+  relative_place/anneal_macros) -> sorted() the iterations (compact s6 now stable 0, was {0,1,2}).
+- **BLOCKER (test): tautology** -- TestCorridorRanking re-implemented the sort instead of calling
+  place_candidates -> added a production-sort test + via teeth + shunt-FAIL teeth + shared-bus-NA +
+  multi-cable + no-kelvin + degenerate-guard. Honest reframe of the placer tests (raw synth cc=0 inert).
+- Degeneracy guard added (build_corridor_model/corridor_cross_count board_w=): unformed corridor scores
+  0 INERTLY, not falsely-clean. 34 corridor / 159 host tests green. Committed-board Phase-0 proof intact
+  (>=5 crossings, /CAN_L=0). Deferred->FOLLOWUPS: seg-AABB exact intersection, CI pcbnew-test wiring,
+  parity-report re-freeze (OWNER -- high-current-corridor-keepout status proposed->ratified).
+- **NET STATE: Phase 0 (model + checkers, now corrected) is sound + proven on the committed board.
+  Phase 1a is HONEST plumbing (rank key inert until corridors are formed). The ceiling is NOT yet
+  broken -- that's Phase 2 (corridor formation), the true next step.** PR #60 head = cbd0047.
+
+---
+## PLACEMENT — CORRIDOR-AWARE RESEED PLACER, PHASE 0 DONE 2026-06-14 ~04:50 UTC (superseded above for status)
+
+## PLACEMENT — CORRIDOR-AWARE RESEED PLACER, PHASE 0 DONE 2026-06-14 ~04:50 UTC
+Branch **claude/placement-corridor** (worktree /home/nathan/cec-placement, off origin/main b81c65a).
+Plan of record = **docs/placement-strategy-2026-06-14.md** (HYBRID: A's anneal engine + C's corridor
+min-cut term as PRIMARY rank key + light-B seed nudge + D route-confirm-once + cec_loop reseed wiring).
+Phase 0 (the falsifiable proof, no placement behaviour change) IMPLEMENTED + verified:
+- `cec_synth_pipeline.py`: `build_corridor_model(nl,P,comps)` (bands = bbox(HI∪LO pads) per Kelvin pair,
+  x-inflated 1.5mm — SAME pads derive_power_pours pours, so placement↔route keepout are one rect) +
+  `corridor_cross_count(pads_by_net,bands,corridor_nets)` (PRIMARY rank key: a foreign SIGNAL net forced
+  THROUGH a band = y-overlap AND a pad strictly left AND strictly right; 0 = corridor-clean). Plus
+  `Cable`/`CorridorModel` dataclasses, `_corridor_net_role`, `_hot_sensitive`, `_net_pads_global`,
+  `_ref_padcount`. Pure (no pcbnew — pad_global is footprint-text).
+- `cec_constraints.py`: the two registry entries that had NO checker now do — `@checker("shunt-inline-in-
+  corridor")` (placement: shunt between its J_IN/J_OUT pads) + `@checker("high-current-corridor-keepout")`
+  (route-time: no foreign signal track/via in a band) + helpers `_corridor_bands`/`_is_corridor_signal`.
+  Both marked checkable="yes" (+ tol_mm param). discover→ratify→ENFORCE closed.
+- `tests/test_corridor_model.py` (19 tests, in checklist host suite). PROVEN on committed eps-8pin
+  floorplan: model resolves 2 cables (RS1/RS2 shunts), band2 covers the x[34,46.9] sandwich, ≥3
+  through-crossers (/DETC1,/THRESH,/I2C_SCL,/I2C_SDA), **/CAN_L=0** (not a false offender), DETC2=0
+  (edge-terminating not through). Keepout checker has TEETH (injected /DETC1 track→FAIL /SENSEC2<-/DETC1).
+  Full checklist host suite 134 green. NOT yet committed/pushed (do next).
+- NEXT = **Phase 1** (breaks the ceiling, TODO line): in synth_one stamp shunt rot270 + build model + score;
+  seed_anchors nudge each sense IC to its own lane channel (out of any band); add `corridor_cross` field to
+  Candidate + the place_candidates sort key `(residual, corridor_cross, hpwl)`; hard-reject corridor_cross>0
+  in proxy_reject. Validate: winning eps candidate corridor_cross==0 + ICs outside y[9.5,27.5]; route ONCE →
+  foreign_cross ~11→~0, /SENSEC2_LO pour = 1 island. Phases 2-5 in the doc. FOLLOWUPS: 12VHPWR per-pin
+  corridor variant (shared J3/J4 breaks per-cable pairing); SB-08 routed golden of the clean board.
+- GIT NOTE: local `claude/prompt-tier-audit` was accidentally reset to origin/main during branch setup
+  (its 425f799 is safe on origin/claude/prompt-tier-audit + already in origin/main — #56 merged; no loss).
+  Inherited dirty WT (190 files: inloop-audit deletions + cec_facts.py mods, unexplained) stashed on the
+  main checkout as stash "inherited-wt-state-pre-placement-2026-06-14" — NOT mine; left for whoever owns it.
+
+---
+## PRIOR: ALL SESSION PRs MERGED + PLACEMENT STRATEGY STARTED 2026-06-13 ~22:40 CDT
+Owner MERGED **#56 (prompt-tier-audit) + #57 (bot-push-guard) + #58 (followups-hook) + #59 (seat-bakeoff)**
+to main. Before merging #56/#59 the owner asked for a FULL ADVERSARIAL AUDIT of both -> ran wf_975a22e6-156
+(34 agents: dimension reviewers -> verify each finding -> per-PR verdict). Both **SHIP-WITH-FIXES, 0 blocker/
+high**. Reports: docs/prompt-audit-2026-06-13/audit-pr56.md + docs/seat-bakeoff-2026-06-13/audit-pr59.md.
+APPLIED + pushed the confirmed fixes:
+- #56 (b19470e): PG-1 (medium -- unconditional /SENSEC fence, was short-circuited on a falsy fence) + PG-2/3/4/5
+  (example excludes fenced refs; panel guard can't reset effort on a gate-fail; corridor-avoid excludes fenced
+  nets; non-in-family header counts shown). AB-1/AB-2 (v4-risk control leak; pre-control delta tally) =
+  PRE-EXISTING -> FOLLOWUPS. +4 tests, 31 host green.
+- #59 (b7bb44a): F1/F2 (medium -- score_t1 false-1.0 on fenced-waypoint / no-op intents), BT-1 (overfit-test
+  tautology), BT-2 (scribe-rescue test) + 8 lows (shim OSError/keep-scanning, family leave-one-out, minItems,
+  fclass, report guard, empty-panel). +10 tests, 28 host green.
+- #56 went CONFLICTING (the #57/#58 merge collided #56's FOLLOWUPS.md/TODO.md add/add) -> merged main into #56
+  in an isolated worktree, unioned (ours was a superset), pushed 6bf82ea -> MERGEABLE. All merged by owner.
+
+## PLACEMENT = THE REAL BLOCKER, NOW IN DESIGN (wf_bc764a00-948 running)
+Proven live in the cloud cec_fullstack run: the loop ONLY ROUTES, never moves parts; foreign nets (/CAN_L,
+/DETC1,/DETC2,/THRESH) are FORCED to cross the /SENSEC sense corridor by the committed floorplan -> pour clips,
+DRC fails, max_T ~300. Owner: "let's get going on the placement strategy." The synth placer (cec_synth_pipeline:
+seed_anchors/relative_place/anneal_macros/place_with_consent + cec_loop place->route->check + cec_pcb +
+cec_constraints checkers) EXISTS but is DOMAIN-BLIND (CLAUDE.md action item -2). Running a design workflow:
+recon (placer internals / eps-8pin failure / domain rules) -> 4 strategy candidates (A domain-scored annealing,
+B structured macro-first template, C zone-partition net-flow, D routability-in-the-loop) -> scored recommendation
++ phased build plan -> docs/placement-strategy-2026-06-14.md. NEXT: review the recommendation w/ owner, then
+build phase 1 (the smallest placement that measurably reduces corridor crossings) on a fresh branch off main.
+
+## SEAT BAKE-OFF (TODO item 3) — HARNESS BUILT + TESTED, SWEEP LAUNCHED 2026-06-13 ~20:05 CDT
+
+## SWEEP RESULT 2026-06-13 ~20:50 CDT — OWNER SCOPE = PRODUCERS-ONLY; DATA-CHOSEN DEFAULTS DELIVERED
+Owner picked "producers only (~1-2h), fastest path to a data-chosen default" (the deep-reasoner 6-judge
+panel is ~1-2 DAYS: deepseek ~4 tok/s × ~140 calls -> deferred). Producer matrix DONE (cloud+worker) +
+deepseek-T5 finishing (~40min, token-fixed, first call valid 223s). **FINDINGS COMMITTED** (bcccf21):
+docs/seat-bakeoff-2026-06-13/findings.md. DATA-CHOSEN per-seat variant: **T1 json-skeleton, T4 terse,
+T5 decision-tree** (HEADLINE: best format is SEAT-DEPENDENT -- json-skeleton best for T1 / WORST for T5;
+terse breaks the local worker on T1 at 0% schema). `--seats cloud` defaults: gen tier (T1/T4) -> sonnet
+(30/30 clean; opus had 2 unparseable replies), reasoning tier (T5) -> opus (data-confirms the FOLLOWUP).
+CAUGHT+FIXED 2 bugs mid-run: (1) thinking-model token starvation (deepseek 0/8 at 1200 tok -> per-model
+budget 8000/3000, commit cccc64b); (2) cloud-shim opus JSON-extraction misses -> retry + raw-snippet-on-
+failure (939ba7d, hardens the production --seats cloud path). 18 host tests green. WHEN deepseek-T5 lands:
+refresh report + fill the findings T5 deepseek row (its best variant = the production auditor's format) +
+final commit. DEFERRED (FOLLOWUPS): the judge panel; deepseek as a T1/T4 producer; the --stream piece.
+
+## SWEEP LAUNCHED 2026-06-13 ~19:50 CDT (overnight). Detached chain produce->judge->report:
+`cd /home/nathan/cec-bakeoff && setsid nohup bash -c 'export CEC_BAKEOFF_TIMEOUT=900 CEC_BAKEOFF_CLOUD_WORKERS=4;
+python3 scripts/cec_seat_bakeoff.py produce; python3 scripts/cec_seat_bakeoff.py judge; python3
+scripts/cec_seat_bakeoff.py report' > build/seat-bakeoff/run.log 2>&1 &` (PID was 584217). Python
+block-buffers run.log -> MONITOR via the per-call **build/seat-bakeoff/transcript.jsonl** (flushes per
+call) + **produced/** / **judged/** JSON counts, NOT run.log. First call verified clean (sonnet t1 13.2s).
+Reachability at launch: deepseek-v4-flash UP (9s); cec-worker / cec-manager-fast cold (>130s, boot on first
+batch call w/ the 900s ceiling); cec-worker-vision proven (192s cold). ETA ~produce 45-60min, judge MANY
+hours (heavy local judges dominate) -> overnight. **WHEN DONE**: read build/seat-bakeoff/report.md (variant
+x model matrix + best-per-model + generalize-vs-overfit) -> pick the data-chosen `--seats cloud` defaults
+(NOT assumption) and wire them; commit on claude/seat-bakeoff. **RELAUNCH** if it died: same line, or run the
+3 subcommands individually (produce is idempotent -- overwrites per-combo files; judge re-reads produced/).
+Per-call ceiling 900s; harness is RESILIENT (a down model -> error record, run continues; judge median over
+available votes). STILL OPEN: DeepSeek --stream FOLLOWUP (FOLLOWUPS.md Observability).
+
+## SEAT BAKE-OFF (TODO item 3) — HARNESS BUILT + TESTED, SWEEP LAUNCHED 2026-06-13 ~20:05 CDT
+Owner chose "BUILD + RUN the full sweep." Branch **claude/seat-bakeoff** (off main, its OWN PR; the
+cloud-seat shim in cec_judge_local is independent of the prompt-audit PRs). Worktree at
+**/home/nathan/cec-bakeoff** (NOT /tmp -- WSL-ephemeral; push frequently). Commits (bot): 3447cc0 harness
++ shim, aae3dd9 variants. BUILT + TESTED (17 host tests green; both transports smoke-verified live):
+- **cloud-seat shim** (cec_judge_local): CLOUD_MODELS/_is_cloud/_extract_json_obj(brace-matched)/
+  _chat_json_cloud -> `claude -p --model <m> [--effort] --output-format json`; dispatched at top of
+  _chat_json. Lets --seats cloud + the bake-off use sonnet/opus with no broker. Smoke: sonnet 13.3s OK.
+- **scripts/cec_seat_bakeoff.py**: 2-D {variant x model} bake-off. SEATS t1(intent)/t4(panel,3 lenses)/
+  t5(auditor); VARIANTS {current,terse,json-skeleton}+t5 decision-tree; FIXED CASES kelvin-fail/
+  drc-residual/gate-pass (vendored manifest+fence+rec). Two signals: OBJECTIVE deterministic (PRIMARY)
+  schema-conformance-WITHOUT-scribe + correctness (t1 real-ref&fence; t5 fclass+priceable-metric; t4
+  safety-lens-never-accepts-gate-fail) + latency; LEAVE-ONE-OUT BLIND rubric judge panel (median+IQR).
+  Local producers/judges sequential-batched per residency (amortize cold boot); cloud concurrent.
+  Subcommands produce/judge/report/show. Smoke: cec-worker-vision 192s cold OK (accept/none correct).
+- PRODUCERS={cec-worker-vision,deepseek-v4-flash,sonnet,opus}; JUDGES={opus,sonnet,cec-worker,
+  cec-manager-fast,deepseek-v4-flash,cec-manager(MiniMax)}. Output build/seat-bakeoff/ (gitignored).
+- REACHABILITY CONCERN: cec-worker TIMED OUT at 128s on a 1-tok probe (volume worker cold/stopped, like
+  worker-volume-vision per the prior handoff). Heavy local models (deepseek Win-native :8007, MiniMax
+  ~10.5min cold) are slow/fragile. The harness is RESILIENT (per-call try/except -> error record, run
+  continues; judge median over AVAILABLE votes), so a down model degrades gracefully, not fatally.
+- **RUN PLAN**: produce (full matrix, ~190 calls; cloud fast, worker-vision ~15s warm, deepseek slow) ->
+  judge (~190 outputs x ~5 leave-one-out judges; the heavy local judges dominate -> MANY hours, overnight)
+  -> report (variant x model matrix + best-per-model + generalize-vs-overfit). Launch detached. RELAUNCH:
+  `cd /home/nathan/cec-bakeoff && python3 scripts/cec_seat_bakeoff.py produce` then `... judge` then
+  `... report`. STILL OPEN FOLLOWUP: DeepSeek --stream live thinking (cec_v4_task.py).
+
+## VERIFICATION FOLLOW-ON LANDED 2026-06-13 ~19:15 CDT (PR #56 + #57)
+
+## VERIFICATION FOLLOW-ON LANDED 2026-06-13 ~19:15 CDT (PR #56 + #57)
+Adversarially verified the polish fixes (workflow wf_789eb5bc-b59: 8 per-fix skeptics reading live source +
+diff, + a synthesis/completeness pass). VERDICT **SHIP-WITH-FIXES**. H1/M2/M3/L1/L4/L6 confirmed correct,
+no regression. TWO latent residuals HARDENED + committed (5f6e9d0):
+- **M1**: fallback only LOGGED when fence["refs"] non-empty -> 12vhpwr (empty fence: no BOARD_PINNED_REFS
+  entry, /SENSEP* not matched by is_sense_net) still vanished SILENTLY. Now logs in BOTH sub-cases (the
+  panel's "never vanish without a log" minimum). FILLING that corridor (is_sense_net /SENSEP* OR a
+  BOARD_PINNED_REFS["12vhpwr-standard"] entry) is a FOLLOWUPS item -- latent, only eps-8pin is live.
+- **L3**: under char-slice truncation the in_family header counted lines FED (n_in) not SHOWN -> re-introduced
+  "claims a rule it can't see". Now counts surviving "- [" lines (eps in_family @700 truncates 6->3, header now 3).
+- +2 tests (M1 empty-fence logs-not-vanishes; L3 truncation count==shown); **161 host tests green**, checklist exit 0.
+- The verifiers' "order-fragile test" report was a FALSE ALARM: the M1 verifier disabled the fallback to prove
+  non-tautology while parallel verifiers ran the suite (cross-AGENT race, NOT cross-test leak). Did NOT reproduce
+  (5 repeat runs OK); source restored + intact. LESSON -> FOLLOWUPS: source-mutating verifiers need worktree isolation.
+- Provenance vendored: docs/prompt-audit-2026-06-13/new-impl-review/{opus48-panel-report,polish-fix-verification}.md (c11ca31).
+
+**PR #56 head = c11ca31** (8d11c13 polish -> 5f6e9d0 verify-follow-on -> c11ca31 provenance), all pushed as bot.
+**PR #57 (claude/bot-push-guard) head = 70e176d**: H2 GIT_TERMINAL_PROMPT=0 fail-closed (no-hang verified) + L14
+drop unused root; deferred pre-push LOWs L12/L13/L15/L16 -> FOLLOWUPS. Both PRs ready for owner CODEOWNERS merge.
+TODO item 2 (both #56+#57 portions) DONE. NEXT = TODO item 3: the claude/seat-bakeoff PR (own branch, large).
+
+## NEW-IMPL POLISH FIXES (Opus-4.8 panel audit) — APPLIED to PR #56 2026-06-13 ~19:05 CDT
+
+## NEW-IMPL POLISH FIXES (Opus-4.8 panel audit) — APPLIED to PR #56 2026-06-13 ~19:05 CDT
+The Opus-4.8 panel audit of the prompt-audit branch (docs/prompt-audit-2026-06-13/new-impl-review/
+opus48-panel-report.md: 0 blockers, 2 HIGH, 6 MED, 13 LOW; DeepSeek's 3 HIGHs were diff-only false
+positives) -> applied the in-scope fixes (TODO item 2). On branch claude/prompt-tier-audit:
+- **H1** (prompt overpromise): `_audit_prompt` placement bullet now states an ACTUATION BOUNDARY -- T0
+  GR-02 fires ONLY when a Kelvin SENSE net is unrouted (kelvin_ok=false); a congested-corridor / no-room
+  placement failure records the diagnosis + rides corridor-avoid+panel effort, NOT a no-op T0. Matches the
+  consumer gate exactly (run() line ~1637 `and not rec["kelvin_ok"]` + blocked=/SENSEC reason).
+- **M1** (corridor vanish): `intent_manager` SENSE CORRIDOR now FALLS BACK to all fenced refs present (and
+  LOGS the degrade) when no ref touches a `/SENSEC*_(HI|LO)` net (non-standard naming e.g. 12VHPWR /SENSEP*).
+  eps-8pin unchanged (narrow filter still excludes U2 the CAN xcvr).
+- **M2** (T0/kelvin_stall not lane-gated): NEW pure helper `_t0_should_fire(lane, placement_attr,
+  kelvin_stall, kelvin_ok)` -> T0 fires AUGMENTED-lane only; `kelvin_stall` now advances on the augmented
+  lane only. A control round never fires GR-02 / resets the counter / stamps t0_fired (A/B integrity).
+- **M3** (test-gap): wired `test_prompt_audit_fixes` + `test_auditor_dispatch` + `test_ei02_control_lane`
+  into BOTH gates (checklist.sh host-suites leg + kicad-checks.yml CI). Were CI-partial/manual-only.
+- **L1** deepseek_audit return wrapped in `_coerce_audit` (enum parity w/ the cloud path); **L3**
+  in_family_only brief headlines `n_in` not `n_total` (don't advertise dropped off-family rules);
+  **L4** worker_panel `history=records[:-1]` (rec already appended -> progress lens gets PRIOR rounds);
+  **L6** deleted the dead `PENALISABLE` tuple from cec_fullstack (live gate is `_PENALTY_METRIC`;
+  cec_inloop_audit's PENALISABLE is LIVE/correct, left alone).
+- Tests: +6 in tests/test_prompt_audit_fixes.py (NewImplPolishFixes) + H1 assertions; 159 host tests green;
+  checklist.sh exit 0. py_compile + bash -n + YAML lint clean.
+- **STILL PENDING (TODO item 2 remainder):** H2 (pre-push GIT_TERMINAL_PROMPT=0) + L14 (drop unused `root`)
+  belong on the **#57 branch (claude/bot-push-guard)** -- ops/hooks/pre-push is ABSENT on this branch. Do
+  that fix on #57, not here. Then TODO item 3 = the claude/seat-bakeoff PR (own branch).
+- NOT yet committed at time of writing (about to): the 4 code/test files + TODO. Leaving the unrelated
+  docs/inloop-audit-2026-06-11 deletions + .claude/memory/settings working-tree changes UNSTAGED.
+
+## P5/P6 DONE + PLACEMENT-TIER FLAGGED AS CONVERGENCE GATE 2026-06-13 ~17:35 CDT
+
+## P5/P6 DONE + PLACEMENT-TIER FLAGGED AS CONVERGENCE GATE 2026-06-13 ~17:35 CDT
+P5 (auditor) + P6 (panel) committed to PR #56 (d0b1566): P5a auditor prompt LEADS with failure_class
+actuation, placement arm FIRST (failure_class=placement -> T0 GR-02 placement actuator); P5b _coerce_audit
+validates ungrammared cloud auditor output; P5c verdict role-defined; P5d inject() REJECTS non-priceable
+metrics (gate_fail/kelvin_unrouted phantom levers) + prompt advertises _PENALTY_METRIC; P6 per-lens panel
+(safety reads gate state / finishing reads drc_loci [now surfaced in rec] / progress reads cross-round
+trajectory), named field, nothink. Tests 20/20; regressions green. **OWNER INSIGHT: the PLACEMENT TIER is
+a gate on convergence** -- P5a routes placement-class failures to T0, but T0 GR-02 only does LOCAL repairs
+(shift/swap/via); the fundamental placement quality (committed floorplan / the DEFERRED synth placer,
+CLAUDE.md action item -2 -- currently DOMAIN-BLIND: no model of high-current/shunt/Kelvin) is the real
+upstream ceiling. eps-8pin likely won't converge on control-plane tuning alone; next lever = a placement
+pass (better floorplan candidate / resume the synth placer w/ domain constraints). mergeval live validation
+still running (slow 2nd round); U5 fix already confirmed live (round 1 intents all real refs).
+
+## BOT-AUTH HARDENED + MERGE-AUDIT FOLLOW-UPS + LIVE VALIDATION 2026-06-13 ~17:15 CDT
+BOT-AUTH (owner "push as bot not me, set in stone"): ROOT CAUSE = git pushes were ALREADY bot (PushEvent
+actors confirm), but the **`gh` CLI is authed as the OWNER** (nathanfraske) -> `gh pr create/comment/api`
+were attributed to the owner. Also this clone's repo-local credential wiring needed a clean re-apply (it
+had duplicate helper values; git credential fill now = nathanfraske-bot). FIXES (branch claude/bot-push-guard,
+**PR #57**): ops/hooks/pre-push (refuses any github.com push that would auth as non-bot; installed to
+.git/hooks + wired into provision.sh) + ops/secrets/gh-bot.sh (run gh as the bot via GH_TOKEN). Memory
+[[bot-git-auth]] updated. **USE ./ops/secrets/gh-bot.sh FOR ALL gh WRITES** (plain gh = owner).
+MERGE-AUDIT FOLLOW-UPS committed to PR #56 (ae0c674): H2 (test wired into kicad-checks CI), M1 (SENSE
+CORRIDOR derives from sense refs only, excludes CAN xcvr U2), M4 (_lane_carry helper + unit test), M5
+(max_chars in corpus-brief cache key + truncation test), M3 (board_manifest parse+failsafe test). Tests
+15/15; regressions green. LIVE VALIDATION running (docs/fullstack-run-mergeval, rounds=2, sonnet auditor):
+already CONFIRMED LIVE -- "35 full (auditor) / 6 in-family (generation)" (P7a) + "board manifest: 49 placed
+refs, 54 nets" (P1a). Intents-hallucination check (U5 fix holds) pending the waiter. Remaining: P5a-d/P6.
+
+## PR #55/#54 MERGED; PR #56 VERIFIED GOOD ON NEW MAIN 2026-06-13 ~16:55 CDT
+Owner merged most: **#55 (EI backbone) + #54 (dashboard) MERGED to main** (main now 0432ba8, contains the EI
+stack). GitHub auto-retargeted PR #56 base back to main -> now shows just the 3 prompt-audit commits / 13
+files vs trunk, mergeable=MERGEABLE, BLOCKED=CODEOWNERS approval pending (NOT a conflict). "Audit is good"
+PROVEN: isolated worktree test-merge of claude/prompt-tier-audit onto origin/main applies 0-conflict; on the
+merged tree py_compile OK + 9/9 host suites green (prompt-audit, ei02, governance, am04-anchors, shadow 8/8,
+auditor, reason, cl25, policy) + corpus lint 0-err + compile validate 0-err. H1/M2 fixed+tested. Verification
+comment posted to PR #56. #56 is READY for owner CODEOWNERS merge. Open follow-ups (non-blocking): H2 wire
+test into checklist/CI, M1 corridor-excludes-U2, M3/M4/M5 coverage; plus P5a-d/P6 from the punchlist.
+(Unrelated: PR #50 firmware is CONFLICTING -- not ours.)
+
+## PR #56 RE-BASED FOR INDEPENDENT REVIEW 2026-06-13 ~16:45 CDT
+Owner: "do the rebase so we can review independently." Re-pointed PR #56 base main -> claude/overnight-
+corpus-preflight (PR #55) via `gh api -X PATCH repos/.../pulls/56 -f base=...` (gh pr edit is broken on the
+projectCards GraphQL deprecation -> exit 1; REST PATCH works). PR #56 now shows ONLY the 3 prompt-audit
+commits / 13 files (was 52), mergeable=MERGEABLE, stacked on #55. A literal rebase onto bare main is NOT
+possible -- the prompt-audit work edits functions the EI stack CREATES (EI-02 lane logic, cec_fs_actuator
+fence, CORPUS_BRIEF, verifier charters). Once #55 merges to main, move #56 base back to main. Reviewer note
+added to the PR. H1+M2 fixed in-PR; H2/M1/M3-M5 still open (non-blocking); H3 scope now RESOLVED by the base
+re-point.
+
+## MERGE AUDIT + REBASE VERIFY 2026-06-13 ~16:10 CDT
+Reviewer flagged PR #56 "behind main / conflicts on corpus tooling (forked cf950cc, lacks 5b47e32
+promotion)". VERIFIED STALE: fa63d22 (EI-stack base) parent IS 5b47e32; merge-base(origin/main,HEAD)=5b47e32;
+HEAD not behind; no conflict markers; `gh pr` mergeable=MERGEABLE (both #56 AND #55); BLOCKED=CODEOWNERS
+approval pending, not a conflict. 35 promoted entries SURVIVE the new governance -- PROVEN: lint 0-err,
+compile validate/compile/parity exit0, governance 22/22 (revocation+expiry+monotone), anchor 8/8, shadow 8/8,
+intake 17/17. Artifact: docs/prompt-audit-2026-06-13/merge-review/rebase-verification.md. NO rebase needed.
+OWNER: CODEOWNERS approval + PR-scope call (#56 base=main carries the whole EI stack; base it on
+overnight-corpus-preflight for prompt-audit-only, or merge the stack as one).
+MERGE AUDIT of PR #56 (Claude panel wf_ccd46f8a-583: 15 confirmed, **0 blockers**; V4 cross-check running):
+REAL BUGS in MY prompt-audit code to fix -- (HIGH) P4 rules_excerpt truncated: _slice_spec[:4000] cuts off
+LOCKED_DECISIONS_BRIEF+fence+unratified label because CORPUS_BRIEF (8364 ch) is ordered FIRST -> P4's
+deliverable never reaches the spec charter; fix = lead with LOCKED_DECISIONS_BRIEF+fence and/or raise the
+4000 cap. **P4 FIXED + committed 3af8bc6** (pushed to PR #56): new _spec_rules_excerpt() helper builds the
+excerpt SPINE-FIRST + _slice_spec cap 4000->12000; proven on real eps corpus (slice out 9265 w/ LOCKED/FENCE/
+pin-alloc present); +2 tests (8/8). (MEDIUM, NOT yet fixed) intent_manager unknown-net guard uses strict
+membership w/o slash-normalization (GND/+3V3 bare vs /CAN_H) -> could drop valid intents; fix = normalize both
+sides. V4 cross-check DONE (overran 11k tok mid-reasoning -> no structured JSON, but 39k-char reasoning
+VALIDATED the hard items: 4-tuple returns, lane-gating, CORPUS_BRIEF/GEN split all traced as correct; its
+2 "blockers" nothink/fence were diff-only FALSE POSITIVES -- both verified present; it missed P4 cross-file).
+CONSOLIDATED VERDICT: docs/prompt-audit-2026-06-13/merge-review/merge-verdict.md = MERGE-READY for the code
+(0 blockers; H1/M2 FIXED). STILL OPEN (recommend, none block code logic): H2 wire test_prompt_audit_fixes
+into checklist.sh/CI; M1 SENSE CORRIDOR includes U2 (CAN xcvr) -> derive from sense refs only; M3/M4/M5
+test-coverage gaps (board_manifest, lane-gating, promoted_corpus_brief); LOW x5 nits. OWNER: H3 PR scope
+(#56 base=main carries whole EI stack) + CODEOWNERS approval.
+
+## PROMPT-TIER AUDIT 2026-06-13 ~15:05 CDT (owner asked: audit the promptings we feed each tier)
+Triggered by the ei02verify run exposing T1 hallucinating a non-existent ref `U5`. Root cause: the T1
+intent_manager prompt demands ref-anchored FR-02 waypoints but interpolates NO board ref inventory / no
+coordinates (only example refs U2/U1), and INTENTS_SCHEMA leaves net/ref/between as free strings (no enum,
+no existence check); `compile_intents` silently DROPS a bad ref into failures -> wasted round. Ran a Claude
+audit PANEL (workflow `wf_62719b67-487`, 6 lenses -> dedup -> batched adversarial verify vs source -> synth)
++ a DeepSeek-V4 independent cross-check (`cec_v4_task.py` bg). Artifacts in docs/prompt-audit-2026-06-13/:
+catalog.md (verbatim per-tier prompts, the audit ground truth), claude-panel-report.md (30 confirmed / 3
+rejected), v4-findings.json (V4 half). HIGH findings: **H1** T1 no ref/net manifest+no validation (the U5
+class; ONE board-manifest fix also retires M1 corridor-geom + M2 hotspot-cell mapping); **H2** T1 never told
+the actuator FENCE (can lock force-protected stubs onto Kelvin nets / RS1/RS2/U20/U21 with no compile_intents
+guard); **H3** CL24 spec-conformance charter labeled "ratified corpus" but fed ephemeral manager_rules (empty
+on control rounds -> empty_corpus); **H4** EI-02 control lane CONTAMINATED — `intents` is one carry-forward var,
+not lane-gated, so augmented-learned waypoints leak into the signed-only control round and bias the A/B lift.
+Mediums: T5 proposed_lever imperative-but-inert; cloud-auditor path ungrammared vs deepseek; PENALISABLE vs
+_PENALTY_METRIC phantom-lever drift; T7 coverage_note not in schema; T4 safety lens judges plane-integrity with
+no backing data + shared accept-rule collapses the decorrelated panel; CORPUS_BRIEF ~83% off-family + sort-order
+truncation; T1 temp 0.2 thinking model no nothink/floor. Verified vs real run logs (U4/U5/U6/U7 across many
+rounds). PUNCHLIST WRITTEN: docs/prompt-audit-2026-06-13/punchlist.md — P1-P12, **35 actionable items**
+(30 Claude-confirmed + 5 V4-new: P5e CONSOLIDATION undefined, P6f finishing-lens no DRC loci, P11b/c T6
+defer-to-facts+advisory-role, P12 T8 decline criteria), 8 dispositioned non-issues (3 Claude-rejected + 5
+V4 catalog-only false-positives — evidence/actuation slices + VERDICT/CORPUS_FIT schemas DO exist). V4
+cross-check folded in (CORROBORATES H1+H3 as HIGH independently). NOT YET IMPLEMENTED — fixes planned only.
+Recommended order: P1 (U5 root cause, retires M1/M2) -> P3 (A/B integrity) -> P2 (fence) -> P4 -> P5/P6 ->
+P7 -> small finishers -> RE-BASELINE the EI-02 A/B (instrument change mid-experiment; PP-06). Owner decisions
+D1 (ref validation: drop+reprompt vs schema enum), D2 (CORPUS_BRIEF in-family-only for gen seats), D3
+(confirm re-baseline wanted).
+
+### IMPLEMENTED 2026-06-13 turn 1 (branch claude/overnight-corpus-preflight, NOT committed)
+DONE+host-tested (tests/test_prompt_audit_fixes.py 4/4; EI-02/EI-01/auditor/reason suites still green;
+py_compile clean): P1a board_manifest() in-container helper; P1b/d/e T1 prompt grounded (ref inventory +
+net->refs + SENSE CORRIDOR + real-ref examples; manifest wired into run()+T1 call); P2 fence stated in T1
+prompt + generation-path drop guard (fenced-net / all-fenced-ref-waypoint intents dropped, logged); P3 EI-02
+lane-gated carry-forward (intents_aug augmented-only, control seeds from ovd.INTENTS[board]); P4 CL24 spec
+charter fed CORPUS_BRIEF+LOCKED_DECISIONS_BRIEF+fence (manager_rules relabeled unratified); P5e CONSOLIDATION
+defined; P9 T1 temp0+nothink; P10 actuation charter effector note; P12 T8 decline criteria.
+WITHDRAWN as false-positives (verified vs source): P8 (coverage_note is an INPUT field, not output), P11b
+(narrate seat deliberately NOT fed facts per CL-21), P11c (narrate already states 'not a judge'). REMAINING
+decision-independent: P5a/b/c/d (auditor reorder + cloud-output validation + verdict role + penalisable),
+P6a-f (T4 panel redesign), P7b/c (truncation order), P11a (region net/ref, latent). BLOCKED on decisions:
+P1c (D1), P7a (D2), re-baseline (D3). DECISIONS RESOLVED: D1=drop+re-prompt (P1c DONE), D2=in-family-only
+(P7a/b DONE), D3=batch+re-baseline (pending after P5/P6). COMMITTED + PUSHED for review: branch
+claude/prompt-tier-audit, commit e735de5, **PR #56 (DRAFT)** -> main (11 files, +1217/-53; 6 host tests).
+REMAINING decision-independent (next): P5a-d (auditor reorder + cloud-output validation + verdict role +
+penalisable->_PENALTY_METRIC), P6a-f (T4 panel redesign), P7c (task-first), P11a (region net/ref latent),
+THEN the EI-02 re-baseline run + PP-06 annotation. Full status: docs/prompt-audit-2026-06-13/punchlist.md. NOTE ei02verify run DONE
+14:49: 0 gate-passing, 0 deltas applied (actuator fully bounded), drc_mean aug 22.0 / ctrl 9.67, real_anchor aug
+0.73 / ctrl 0.84.
+
+## EI BACKBONE PANEL DONE + COMMITTED 2026-06-13 ~14:05 CDT
+Opus-4.8 panel (`wf_4839b54a-e0b`) completed: 0 review blockers; minor concerns folded in (doc 31/34->29/34,
+instrumentation corpus_state-citation caveat, EI-06 revocation latch MOVED into cec_corpus_compile not just
+the lint leg). **COMMITTED 4727d2d** (14 files, ~2970 lines), pushed to PR #55 branch:
+- EI-02 cec_fullstack: control LANE (every CEC_FS_CONTROL_EVERY=4th round signed-only) + lane=control|augmented
+  tag on every measurement row + ledger extra + A/B table in the bundle; EI-07 real_anchor_ratio; actuator
+  wired (finding_to_delta bounded/fenced -> carry; v4_structural_escape; record_outcome control-gated + rollback).
+- EI-03 cec_shadow.py: CL-04 calibration aggregator, untainted-only admission (corpus_state-keyed). 8 tests.
+- EI-05/06/07 cec_source_registry.py + cec_corpus_lint.py + SCHEMA.md: source registry + owner-only revocation
+  (latched in compile + lint) + staging dormancy + monotone-tightening law. 22 tests.
+- Paper track docs/research/: PP-01 claims, PP-04 negative-results, PP-06 control-lane PREREG, PP-07 inventory.
+84 host tests green; lint 0 errors. V4-SEAT committed earlier (1755b2c): cec_v4_task.py + cec_v4_queue.py + Stop
+hook + [[v4-seat]] memory -- hand V4 deep tasks sync or via the idle queue.
+**IN-CONTAINER VERIFY RUNNING** (task bl9qhogoz): cec_fullstack --rounds 4 -> docs/fullstack-run-ei02verify/.
+Confirm round 4 logs [control]/NOT-injected, measurement rows carry lane + real_anchor_ratio + n_deltas_applied,
+ab-table + bundle.ab populate. THEN: the LOGO->GND assign (owner APPROVED; fp-poly-net approach) for the
+gate-passing candidate. NEXT PANEL CAN USE V4 as a deep seat. PP-10 (IP/counsel) = OWNER action pre-preprint.
+Open from panel: prereg must predate first lane-tagged night (commit landed -> ok); cec-policy.json shadow
+thresholds (Decision 9, owner); corroboration-budget WRITER (loop hook); replace-kind deltas not yet effected.
+
+## EI + PAPER-TRACK BACKBONE 2026-06-13 ~13:20 CDT (Opus-4.8 panel ran `wf_4839b54a-e0b`)
+Owner uploaded the EI punchlist (EI-01..08) + the PAPER-TRACK punchlist (PP-01..13); wants the closed-loop
+evidence-integrity backbone built out via a full Opus-4.8 panel, inline with the paper track (eventual paper).
+RECONCILED vs tree: **DONE** EI-01 (corpus_state, PR #55), EI-08 (machine account + branch protection).
+**PARTIAL** EI-02 (per-finding control arm built in cec_fs_actuator; the PERIODIC signed-only control LANE +
+lane tag + A/B table NOT built). **NOT BUILT** EI-03 (cec_shadow aggregator), EI-04 (self-corroboration lint),
+EI-05 (staging expiry), EI-06 (source registry + revocation), EI-07 (monotone law in SCHEMA + real_anchor_ratio).
+PANEL (4 parallel Opus-4.8 build agents on DISJOINT files + a review phase):
+- paper-docs -> docs/research/{claims PP-01, negative-results PP-04, prereg PP-06, inventory PP-07, README}.
+- ei03-shadow -> scripts/cec_shadow.py + tests/test_shadow.py (CL-04 aggregator, UNTAINTED-only admission).
+- ei0567-governance -> corpus/SCHEMA.md + cec_corpus_lint.py + cec_source_registry.py + test (EI-05/06/07).
+- ei02-runloop -> cec_fullstack.py + cec_overnight_directed.py + cec_ledger.py (EI-02 control lane + lane tag
+  + A/B table + EI-07 real_anchor_ratio + actuator wiring [finding_to_delta/select_deltas/v4 escape] +
+  control-gated promotion via record_outcome + rollback).
+Checkpoint committed first as a recovery point: **2e95bc0** (item4 second-half wire + cec_fs_actuator + 17 tests),
+pushed to PR #55 branch. AFTER the panel: integrate, run full suite + a container route, the LOGO->GND assign
+(owner APPROVED; LOGO1 is a footprint copper GRAPHIC), then commit. PP-10 (counsel/IP) is an OWNER action.
+
+## IN PROGRESS 2026-06-13 ~12:45 CDT: route FINDINGS into the actuator + control-gated promotion (owner ask)
+Owner wants: (1) a finding must CHANGE THE NEXT ROUND (today only the deterministic item4 corridor-avoid
+actuates; the auditor's `proposed_lever` is recorded but INERT). (2) Drive eps-8pin to a GATE-PASSING
+candidate to admit a Pareto finalist. (3) **Each promotion outcome must be GATED AGAINST A CONTROL ROUND** so
+a finding is "not corroborated by its own steering."
+- **DIAGNOSIS (scored r1, the clean base route after the lever fix):** kelvin_ok=TRUE, diffpair_ok=TRUE --
+  the ONLY gate blocker is structural DRC=10. Breakdown: 4 REAL = `items_not_allowed` on U11's pads (sensor
+  in a keepout) + 4 LOGO1 B.Cu (clearance/short/2×mask-bridge) + 2 dangling GND track stubs. So gate-passing
+  = DRC→0, NOT a kelvin problem. (NB: this confirms widening the corridor keepout would WORSEN the U11 hits.)
+- **CONTROL-ARM design (ties to EI-01):** a steered round = INFLUENCED (live_rules_sha reflects the finding);
+  a CONTROL round = UNINFLUENCED (steering withheld). Credit/promote a finding ONLY if treatment beats the
+  paired control on the gate metric -- else refute (circular self-corroboration). Settle via the existing
+  `cec_ledger.decision()/settle()` (states open|provisional|settled; the finding's inject() ratification-
+  candidate decision is settled `vindicated` iff treatment>control). Both rounds carry corpus_state (EI-01)
+  so the comparison is auditable. Cost = a paired control route per steered round (~2× on steered rounds).
+- **Effectors to wire (cec_router):** apply_edit primitives (place_rotate/place/fr_params/keepout/seeds),
+  MANAGER_REPAIRS, logo_finishing_repair (WRITTEN BUT UNWIRED), orphan/dangling cleanup, _vital_keepouts.
+  Map: items_not_allowed(U11)→keepout-notch/place-nudge; LOGO short→logo_finishing_repair; dangling→orphan
+  cleanup; foreign-net-in-corridor→FR-02 avoid (item4, already wired). Channel = carry into next round's
+  `intents` (like pending_corridor_avoid) for routing levers, or apply_edit before the route for placement.
+- **DESIGN DELIVERED** (`wf_66c88f2d-f92`): found item4 was STILL DEAD downstream + the U11 DRC is a jitter bug.
+- **FIX 1 DONE+VERIFIED (the SECOND half of item4 — it was still dead):** the full-stack loop routes via
+  `cec_overnight_directed.route_directed`, whose `compile_intents` reads only `waypoints` and whose
+  `bake_hints` got `keepouts=[perturb]` ONLY -- `intent_keepouts()` had ZERO callers, so every avoid-region
+  (item4 + any auditor 'route around corridor') was carried but never applied. WIRED: route_directed now
+  `keepouts=([perturb] if perturb else []) + _avoid_to_bake(cec_fr02.intent_keepouts(intents))`; new
+  `_avoid_to_bake` (rect_mm->x0/y0/x1/y1, allow_vias:True to not strand a sense tap). VERIFIED: an avoid
+  intent now lands as a real rule-area zone `avoid_0` (allow_vias=True) in the baked board.
+- **FIX 2 DONE+VERIFIED (U11 phantom DRC):** `_round_params` divjit micro-keepout walked onto U11's pads
+  (round 1: (33,16)-(35,18) over U11 (31.3,14.2)-(37.7,20.8)) -> 4 phantom items_not_allowed. New
+  `_safe_perturb(board, perturb)` loads pads + scans the jitter to a free band (or drops it). VERIFIED:
+  safe perturb shifts to y~6, no U11 overlap; a full route_directed round-1 now shows ZERO items_not_allowed
+  (was 4). kelvin_ok=True, diffpair_ok=True hold.
+- **GATE-PASSING BLOCKER = LOGO1 (owner-ratification item).** After FIX 1+2 the residual DRC=10 is ALL
+  LOGO1 (decorative B.Cu copper pour at (77,26)): shorting_items 3 (GND vias drop into it) + clearance 1 +
+  solder_mask_bridge 6. A bake_hints keepout CANNOT fix it (always DoNotAllowZoneFills -> strands the GND
+  stitch, the documented unconn 2->24 failure) and a keepout can't fix the mask bridges at all. Per the
+  human-ratification boundary this is a BOARD-SIDE owner call: LOGO->GND net-assign (cleanest) / remove the
+  B.Cu logo / cosmetic-filter it (verify-then-filter, like the silk/shield-tab precedent). The loop must NOT
+  silently fix it. AWAITING owner decision.
+- **FIX 3 ACTUATOR HARNESS BUILT+TESTED** (`scripts/cec_fs_actuator.py`, 12/12 `tests/test_fs_actuator.py`).
+  Owner's 2026-06-13 guards all in: (a) BOUND `select_deltas` cap `CEC_FS_MAX_DELTAS` (default 2)/round;
+  (b) LOG+ROLLBACK `Delta`/`DeltaLog` (rollback = the control round's job); (c) FENCE `resolve_fence`/
+  `is_fenced` -- refuses any finding targeting a sense net / kelvin-pair / pinned ref; (d) `v4_structural_
+  escape` -- HIGH local_minimum_risk + `physics_flat` -> a STRUCTURAL avoid/replace, NEVER a penalty.
+  `finding_to_delta` defensively maps proposed_lever (no grammar) -> avoid|effort|replace|noop|refused.
+  SYMMETRIC OUTCOME RECORDING (owner 2026-06-13): `Outcome`/`settle_outcome`/`DeltaLog.record_outcome` log
+  victory AND failure AND OVERTURN with IDENTICAL detail (full finding + BOTH treatment & control metrics +
+  margin + corpus_state) -- no survivorship bias, no terse loss records. Overturn = a prior vindicated
+  hypothesis later beaten by its control (hypothesis_key + _prior_win tracking). gate-pass dominates the
+  objective. 17/17 tests.
+- **STILL TO BUILD:** wire cec_fs_actuator into cec_fullstack's run loop (call finding_to_delta after the
+  verifier, gate on vfinal=='support', append applied deltas to pending_corridor_avoid [now LIVE via FIX 1])
+  + FIX 4 control arm (paired treatment/control route per steered round; settle vindicated iff treatment>
+  control via cec_ledger.settle, else roll the delta back; both rounds carry corpus_state). Then the
+  LOGO->GND net-assign (owner APPROVED) for the gate-passing candidate -- NOTE LOGO1 is a footprint COPPER
+  GRAPHIC (no pads) at (77,26) B.Cu, so the net-assign is the fp-poly-net approach, not pad.SetNet.
+- Files touched (uncommitted): cec_overnight_directed.py (FIX 1+2), + new cec_fs_actuator.py,
+  tests/test_fs_actuator.py. (FIX 1+2+actuator are a follow-on PR to #55.)
+
+## STATUS CHECK + CLEANUP 2026-06-13 ~10:55 CDT (read this first)
+**The intended overnight `cec_fullstack` run COMPLETED NATURALLY ~10:03** — full 7 h (02:51→10:03), 35 rounds,
+morning bundle (`docs/fullstack-run-2026-06-13/bundle.json`, `end_of_run_review:true`, `DONE:` at run.log:716)
++ REVIEW.md (1.7 MB) + per-seat streams. **Result: did NOT converge** — `gate_passing:0`, `pareto_finalists:0`;
+stuck in a local minimum (pours clipped by routed traces in 32/34 rounds → "notched-corridor keepout / re-pour-
+after-route"; drc not improving; panel escalating; max_T 271–297 °C). V4 auditor worked rounds 1–~22 (injected 4
+governance rules, rounds 8 & 12) then **CRASHED ~08:51 on a CUDA assert** (`GGML_ASSERT(stat==cudaSuccess)`,
+ggml-cuda.cu:3445 — not OOM); rounds 23–34 ran on the deterministic auditor stub.
+
+**ACTIONS TAKEN this session (all done):**
+1. **Killed the redundant watchdog relaunch** (PID 310300) — the watchdog had misread the clean 10:03 exit as a
+   crash and relaunched a fresh daytime run from round 1 with no V4. Gone.
+2. **Killed the watchdog** (`cec_night_watch.sh` PID 139208) — it was still alive (ends ~11:13) and would have
+   re-relaunched within 10 min.
+3. **Patched the watchdog** `scripts/cec_night_watch.sh`: added a phantom-relaunch guard — `relaunch_run()` now
+   refuses to relaunch if a `^[..:..] DONE:` marker is present in run.log, and latches `run_done=1`. A completed
+   run is produced exactly once; a genuine crash (no DONE) still relaunches. Syntax-checked.
+4. **Restarted V4** Windows-native (`E:\toolchain\run-v4-flash.bat`). Freed RAM first: stopped
+   `docker-worker-volume-vision-1` + WSL cache reclaim → Windows free 140→165 GB (bat preflight needs ≥145).
+   V4 `/health`=200 in ~75 s (its pages were still in standby from the morning). Broker→:8007 path smoke-tested OK.
+   (`manager-fast` had already dropped off.) NOTE: worker-volume-vision is STOPPED — restart it before the next
+   `cec_fullstack` run (broker can start it on demand, or `sg docker -c 'docker start docker-worker-volume-vision-1'`).
+5. **V4 CAPSTONE of the completed run — RUNNING** (owner ask "have V4 do the capstone check"). New committed-WIP
+   driver `scripts/cec_fs_capstone.py`: assembles a FACTUAL dossier (bundle + first-run measurement trajectory +
+   per-round auditor findings + final-board metrics), corpus-briefed exactly like the in-loop seat, and calls
+   deepseek-v4-flash via the broker. Output → `docs/fullstack-run-2026-06-13/CAPSTONE-v4.{json,md}` (reasoning to
+   streams/capstone.jsonl). Run it again: `python3 scripts/cec_fs_capstone.py --run-dir docs/fullstack-run-2026-06-13`.
+   An independent Claude multi-agent cross-check is running in parallel to adversarially verify V4's verdict.
+
+**NOT yet committed:** `scripts/cec_fs_capstone.py` + the `cec_night_watch.sh` patch (will offer to the owner).
+
+### VERIFIED BUG found by the capstone cross-check (the night's real finding) — item4 corridor-avoid lever DEAD all 34 rounds
+The loop's primary REACTIVE actuator for the dominant failure class (pour clipping) **fired zero times** due to a
+dict key-name mismatch — VERIFIED at source + in run.log (not just an LLM claim):
+- `cec_fr.derive_power_pours` emits pour dicts keyed `{"net","layer","polygon"}` (cec_fr.py:617-618) — NO `rect_mm`.
+- `cec_fr02.clipped_corridor_rects` reads `p.get("rect_mm") or p.get("rect")` (cec_fr02.py:326) → always `None` →
+  `if net in want and rect:` always False → **returns `{}` unconditionally** (cec_fr02.py:322-329).
+- `cec_fullstack` item4 (957→962→963) gets `{}` → `pending_corridor_avoid=[]` → the `item4:` log (964) + the
+  `T1 + corridor-avoid` log (886) NEVER print. Confirmed: 0 occurrences in run.log across the run + relaunch.
+- CONSEQUENCE: V4 correctly diagnosed "foreign nets crossing `/SENSEC*` sense corridors → pour fragments → DRC+thermal"
+  EVERY round and proposed the right lever, but the deterministic effector was a silent no-op → 34 rounds of correct
+  diagnosis, zero actuation = the local minimum. (max_T 243-712C is an ADVISORY thin-neck artifact, not a gate;
+  plane_signal_mm is a scorer WEIGHT not a gate; gate = kelvin_ok AND diffpair_ok AND drc==0 AND pour_integrity_ok.)
+- RECOMMENDED FIX (routing-class, board-specific, no ratified constraint touched; NOT yet applied — owner PR process):
+  (1) `clipped_corridor_rects` derive `rect_mm` from the `polygon` bbox (one-line correctness fix);
+  (2) widen the force-corridor keepout in `cec_router._vital_keepouts_from_rules` to the FULL connector→shunt pour
+  rectangle minus a Kelvin-tap notch, for `/SENSEC1_HI/LO` + `/SENSEC2_HI/LO`. Do NOT change pour-after-route ordering.
+  Expected: pour-clip 32/34→~0, drc→~4 finishing floor, gate-passing reachable. Also a process gap: after V4 dropped
+  at r~22 the T8 guard returned 503/findings=0 (== "all clear") — silently removed the local-minimum tripwire.
+- Cross-check full result: `/tmp/claude-1000/.../tasks/wrmxgdloc.output`.
+
+### IMPLEMENTED 2026-06-13 (3 owner-directed changes + Opus-auditor test wiring) — verified, UNCOMMITTED
+All verified (host tests 8/8, container proof, EI-01 spec-verify, existing tests green, 3-agent adversarial
+review = 0 blockers; the 1 should-fix + 2 nits folded in). NOT committed yet (kept separate from the
+unrelated pre-existing `cec_facts.py` working-tree change — do NOT sweep that into the commit).
+1. **LEVER FIX (make item4 work)** — `cec_fr02.clipped_corridor_rects` now derives `rect_mm` from the
+   producer's `polygon` bbox (was reading absent `rect_mm`/`rect` → `{}` → item4 dead). CONTAINER-PROVEN on
+   real board eps-8pin-r34: producer keys `['layer','net','polygon']` → 4 corridor rects → 4 FR-02
+   avoid-intents (`LEVER_WORKS=True`). (Did NOT widen the proactive keepout in
+   `cec_router._vital_keepouts_from_rules` — that's the cross-check's other rec; it needs a route-verify for
+   kelvin-stranding, left as a follow-up.)
+2. **VISION GATE** — `cec_fullstack.vision_pour_check(rec,rnd,run_vlm=False)`: per round computes only the
+   DETERMINISTIC pour facts (which feed the blocking gate + item4); the advisory VLM narrate is gated to
+   finalists (existing `vision_judge` path). Knob `CEC_FS_VISION_EVERY_ROUND=1` restores per-round narrate.
+   `vision_required_unmet` now uses `vlm_attempted` so a gated round isn't a false "seat down".
+3. **EI-01 corpus_state** — `cec_ledger.corpus_state(live_rules)` → `{promoted_tree, staging_tree,
+   live_rules_sha, manager_rules_sha, adv_set_sha}` (trees=git `HEAD:corpus/{promoted,staging}`;
+   live_rules_sha=round-time content hash; manager/adv = effective-influence pins). Wired into:
+   `append()` (new `live_rules=` kwarg + on every row), `manifest()` (trees), the fullstack + inloop
+   measurement rows, the two `mode="decision"` injection-boundary appends, and `ledger_round(...,live_rules)`.
+   `query --corpus-state` = compact per-row view. SPEC-VERIFY reproduced: rounds share scripts_sha while
+   live_rules_sha flips across an injection (temp-ledger demo). New test: `tests/test_ei01_lever_vision.py`.
+4. **Opus-auditor test wiring** (owner asked to test Opus4.8 max-effort as auditor): `CLOUD_AUDITORS={sonnet,
+   opus}` route to the claude CLI; `sonnet_audit(model=,effort=)` builds `claude -p --model <m> [--effort
+   <lvl>]`; `CEC_FS_AUDIT_EFFORT` knob; warm() skips cloud models. Run with `CEC_FS_AUDITOR_MODEL=opus
+   CEC_FS_AUDIT_EFFORT=max`.
+- **LIVE TEST RUNNING**: `docs/fullstack-run-2026-06-13-levertest/` — `--rounds 3`, auditor=opus effort=max,
+  vision gated. Watching for the `item4:` lever-fire line (proof the lever now actuates in the real loop).
+- **COMMITTED + PUSHED + PR'd**: commit `bb0f4bd` on `claude/overnight-corpus-preflight` (bot), **PR #55 →
+  main** (owner-merge). 8 files, 588+/31-: cec_fr02, cec_fullstack, cec_ledger, cec_inloop_audit,
+  cec_overnight_directed, cec_night_watch.sh, + new cec_fs_capstone.py, tests/test_ei01_lever_vision.py.
+  DELIBERATELY EXCLUDED from the commit (left in the working tree): `cec_facts.py` (pre-existing unrelated
+  corpus_briefing change — NOT mine) + the docs/inloop-audit-2026-06-11 deletions + the levertest run dir.
+- **END-TO-END PROVEN (all 4)**: (1) item4 fires — container proof on real clipped board r8 (`ITEM4_FIRES=True`,
+  steers /I2C_SDA,/I2C_SCL,/THRESH out of the 4 sense corridors, avoid layers ['B.Cu','F.Cu']); (2) vision
+  gated, (3) corpus_state live-populated, (4) Opus max-effort auditor — all confirmed in the levertest run.
+- **REVIEWS**: 3-agent (`w86las2ps`) + 6-dimension panel w/ adversarial verify (`wsyiyexa3`) = 0 blockers,
+  GO_WITH_FIXES; the should-fix (decision-row corpus_state) + 4 panel should-fixes (T3 layer/RS-1 git-memo/
+  T1-T2 test gaps) all folded in. 10/10 tests. (T3: kept both-layer avoid — correct for the mirrored pour,
+  a substantiated divergence from the panel's single-layer suggestion.)
+- Followups NOT done (owner call): widen the PROACTIVE keepout in cec_router._vital_keepouts_from_rules
+  (needs a route-verify for kelvin-stranding); item4 actuator telemetry; commit the night's
+  docs/fullstack-run-2026-06-13 data packet (currently WSL-only).
+
+### V4 CAPSTONE RESULT + reconciliation (done; `docs/fullstack-run-2026-06-13/CAPSTONE-v4.{json,md}`)
+V4 (deepseek-v4-flash, 588s) verdict: `local_minimum`, bundle_accurate=true, confidence=high. Root cause (CORRECT):
+"pour fragmentation on SENSEC2_HI/LO from foreign signal nets crossing the sense corridors → DRC; not resolved by
+the loop levers in 34 rounds." Fix: "add a keepout preventing foreign nets crossing the sense corridors" — but
+classified **design_escalation** ("requires human design intervention").
+- V4 GOT RIGHT: the failure MECHANISM (foreign-nets-crossing-corridors, sharper than the bundle's generic "pour
+  clipping"); did NOT blame thermal/scoring; verdict + bundle-accuracy match the code cross-check.
+- V4 GOT WRONG (both due to NO code visibility — it got a factual metrics+findings dossier, not source):
+  (1) MISSED the dead-lever bug — said levers "were unable to resolve it" (ran-but-insufficient) when item4 was
+  silently dead (fired 0×). (2) OVER-ESCALATED the fix to design_escalation; the force-corridor keepout capability
+  ALREADY exists in-loop (cec_router._vital_keepouts_from_rules → bake_hints DoNotAllowTracks) — the real fix is a
+  routing-class in-loop change (widen keepout + fix the polygon/rect_mm key), NOT a human constraint change.
+- META-FINDING (actionable): evidence-auditor (V4, behavior) vs code-auditor (Claude agents, source). The auditor
+  has an OBSERVABILITY GAP — it can't tell "lever ran & insufficient" from "lever silently dead." FIX: give item4
+  actuator telemetry (log "corridor-avoid produced N intents for clipped nets {…}" each round) so a dead lever
+  shows up in the auditor's own evidence. Same blind spot: the T8 guard's `findings=0` after V4 crashed at r22 read
+  as "all clear."
 
 ## TONIGHT (2026-06-13): DeepSeek-V4 auditor + cec_fullstack overnight run — LIVE
 Owner ask evolved: "make DeepSeek run in the auditor seat and play nice," then (key correction from owner
