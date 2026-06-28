@@ -2581,6 +2581,120 @@ def _perp_half(size, rot, n):
     return abs(ex[0] * n[0] + ex[1] * n[1]) + abs(ey[0] * n[0] + ey[1] * n[1])
 
 
+def _downstream_comparators(ic, hi, lo, nl, comps):
+    """§6.13 chain resolver: the DOWNSTREAM detection comparator(s) of a sense IC -- a small U-ref
+    (!= *ic*) sharing a NON-power, NON-(hi/lo) signal net with *ic*. The INA181 detection amp drives
+    its TLV7011 over the /DETAMP* output net, so this returns that comparator; an INA238 CURRENT sensor
+    has no such net (its outputs are I2C/digital) -> []. GUARDS: the candidate must NOT itself tap a
+    Kelvin _HI/_LO net (so it can't be another cable's INA) and must be SMALL (<=8 pads, so the MCU/ESP
+    on a shared DET net is never seated). Deterministic order."""
+    out, seen = [], set()
+    for net in sorted(nl.nets):
+        if net in (hi, lo):
+            continue
+        base = net.rsplit("/", 1)[-1].upper()
+        if _POWER_NET.search(net) or base == "GND":
+            continue
+        refs = [r for r, _ in nl.nets[net]]
+        if ic not in refs:
+            continue
+        for r in refs:
+            if r == ic or not r.startswith("U") or r in comps and r in seen or r not in comps:
+                continue
+            if _ref_padcount(nl, r) > 8:                          # MCU/ESP guard -- comparators are small
+                continue
+            r_nets = {n for n in nl.nets if r in {x for x, _ in nl.nets[n]}}
+            if any(n.endswith(("_HI", "_LO")) for n in r_nets):   # another cable's INA -> not downstream
+                continue
+            seen.add(r)
+            out.append(r)
+    return out
+
+
+def _seat_detection_comparator(ic, comp, anchors, nl, comps, hi, lo, ax, ay, nx, ny, side,
+                               *, gap=0.5, pour_margin=1.0):
+    """Seat the §6.13 detection COMPARATOR *comp* (TLV7011) CLUSTERED WITH its driving INA181 *ic*,
+    on the SAME lateral side, OUT of the SENSEC high-current pour. The comparator is DOWNSTREAM of the
+    INA181 (it takes the INA181 OUTPUT, not the shunt), so it does NOT need shunt-adjacency -- it needs
+    INA181-adjacency + pour-clearance. Returns (x,y,rot) or None.
+
+    GEOMETRY: the INA181 is already seated centred in the un-poured NOTCH (the y-band the pour leaves
+    open between the HI and LO boxes), offset laterally onto `side`. Seat the comparator just OUTBOARD
+    of the INA181 courtyard along the SAME side (side*n), at the INA181's notch a-level -- so it rides
+    in the notch too (clear of both pour boxes) AND further from the corridor column than the INA. A
+    safety push then slides it further out until its courtyard clears BOTH this cable's HI/LO pour boxes
+    (derive_power_pours rule, recomputed host-side off the anchors: connector THT + shunt pads, +margin),
+    so a tall rotation can never graze. The rotation faces the comparator INPUT pad (the /DETAMP* net it
+    shares with the INA) toward the INA OUTPUT for a short detection link."""
+    import cec_pcb
+    sn = (side * nx, side * ny)                                   # outboard unit = the side the INA is on
+    icx, icy, icrot = anchors[ic]
+    icx0, icy0, ihw, ihh = _courtyard_info(comps[ic], icrot)
+    ic_cen = (icx + icx0, icy + icy0)                             # INA181 courtyard centre (in the notch)
+    ic_perp = abs(ihw * sn[0]) + abs(ihh * sn[1])                # INA181 courtyard half-extent outboard
+    # this cable's HI/LO pour boxes -- the keepout the comparator BODY must clear (same pad class as
+    # cec_fr.derive_power_pours: connector THT + the 2-pad Kelvin shunt; INA SMD sense pads excluded).
+    boxes = []
+    for net in (hi, lo):
+        pts = []
+        for r, p in nl.nets.get(net, []):
+            if r in (ic, comp) or r not in anchors:
+                continue
+            if r.startswith("J") or (r.startswith("R") and _ref_padcount(nl, r) == 2):
+                try:
+                    pts.append(cec_pcb.pad_global(r, p, {r: anchors[r]}, comps))
+                except Exception:
+                    pass
+        if pts:
+            xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
+            boxes.append((min(xs) - pour_margin, max(xs) + pour_margin,
+                          min(ys) - pour_margin, max(ys) + pour_margin))
+    # the comparator INPUT pad (the /DETAMP* net it shares with the INA) + the INA OUTPUT pad
+    sig = next((net for net in sorted(nl.nets)
+                if net not in (hi, lo) and not _POWER_NET.search(net)
+                and net.rsplit("/", 1)[-1].upper() != "GND"
+                and ic in {r for r, _ in nl.nets[net]} and comp in {r for r, _ in nl.nets[net]}), None)
+    in_pad = next((p for r, p in nl.nets.get(sig, []) if r == comp), None) if sig else None
+    out_pad = next((p for r, p in nl.nets.get(sig, []) if r == ic), None) if sig else None
+    out_xy = None
+    if out_pad:
+        try:
+            out_xy = cec_pcb.pad_global(ic, out_pad, {ic: anchors[ic]}, comps)
+        except Exception:
+            out_xy = ic_cen
+    lp = cec_pcb.local_pads(comps[comp])
+    best = None
+    for rot in (0.0, 90.0, 180.0, 270.0):
+        ccx, ccy, chw, chh = _courtyard_info(comps[comp], rot)
+        comp_perp = abs(chw * sn[0]) + abs(chh * sn[1])
+        reach = ic_perp + gap + comp_perp                        # start just outboard of the INA body
+        for _ in range(40):                                      # push out until the body clears the pours
+            cen = (ic_cen[0] + sn[0] * reach, ic_cen[1] + sn[1] * reach)
+            cyb = (cen[0] - chw, cen[0] + chw, cen[1] - chh, cen[1] + chh)
+            worst = 0.0
+            for b in boxes:
+                ox = min(cyb[1], b[1]) - max(cyb[0], b[0])
+                oy = min(cyb[3], b[3]) - max(cyb[2], b[2])
+                if ox > 0 and oy > 0:
+                    worst = max(worst, min(ox, oy))
+            if worst <= 0.05:
+                break
+            reach += worst + 0.2
+        cen = (ic_cen[0] + sn[0] * reach, ic_cen[1] + sn[1] * reach)
+        Of = (cen[0] - ccx, cen[1] - ccy, rot)
+        d = 0.0
+        if in_pad and out_xy and in_pad in lp:
+            try:
+                ip = cec_pcb.pad_global(comp, in_pad, {comp: Of}, comps)
+                d = math.hypot(ip[0] - out_xy[0], ip[1] - out_xy[1])
+            except Exception:
+                d = 0.0
+        score = (round(reach, 1), round(d, 2))                   # most compact reach first, then short link
+        if best is None or score < best[0]:
+            best = (score, Of)
+    return best[1] if best else None
+
+
 def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
     """REAL geometric KELVIN SEAT (replaces the historical line-1732 anneal-connectivity non-seat).
 
@@ -2594,9 +2708,14 @@ def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
         y-down transform inverts the naive math-CCW sign;
       * the two ICs on a shunt take OPPOSITE corridor sides (so each gets a clean inner-edge tap and
         neither sits in the pour).
-    Writes anchors[ic]=(x,y,rot); returns the seated IC refs so synth_one can drop them from the
-    annealed set (connectivity drift can no longer pull them 6-8mm off the shunt and into the pour --
-    the measured bug). The shunt must already be seated (anchors[shunt] = (col, H/2, 270) from
+    Then, for the INA181, ALSO seat its DOWNSTREAM §6.13 detection comparator (TLV7011) -- which takes
+    the INA181 OUTPUT, not the shunt, so it needs INA181-adjacency + pour-clearance, NOT shunt-adjacency
+    (_seat_detection_comparator): clustered just outboard of the INA181 on the SAME lateral side, in the
+    notch, OUT of the SENSEC pour. The comparator becomes a FIXED anchor too (so connectivity drift can't
+    pull it back into the pour -- the U30-entirely-inside-/SENSEC1_HI bug).
+    Writes anchors[ic]=(x,y,rot); returns the seated IC refs (INAs + comparators) so synth_one can drop
+    them from the annealed set (connectivity drift can no longer pull them 6-8mm off the shunt and into
+    the pour -- the measured bug). The shunt must already be seated (anchors[shunt] = (col, H/2, 270) from
     _seed_corridor_spine). SHARED-BUS connectors (24-pin / 12VHPWR) are absent from *topo*, so the seat
     fires only on the per-cable EPS/PCIe family (correct -- the filtered 12VHPWR INA240 lanes use the
     column-alignment branch of the checker instead)."""
@@ -2675,6 +2794,20 @@ def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
                 beta += side * (ovx + 0.2)                  # push the body out along n by the lateral overlap
             anchors[ic] = (mid[0] + alpha * ax + beta * nx, mid[1] + alpha * ay + beta * ny, rot)
             seated.append(ic)
+            # §6.13 DETECTION COMPARATOR (owner directive 2026-06-28): seat each cable's TLV7011 -- the
+            # detection comparator DOWNSTREAM of THIS sense IC -- CLUSTERED WITH it, on the SAME lateral
+            # side, OUT of the SENSEC pour. Only fires for the INA181 (it drives a comparator over its
+            # /DETAMP* output); the INA238 current sensor has none, so _downstream_comparators -> []. The
+            # comparator becomes a FIXED anchor too, so connectivity drift can't pull it back into the
+            # pour (the U30-entirely-inside-/SENSEC1_HI bug). Its bypass cap clusters onto it downstream.
+            for cmp in _downstream_comparators(ic, hi, lo, nl, comps):
+                if cmp in anchors:                       # already seated (shared by another sense IC)
+                    continue
+                seat = _seat_detection_comparator(ic, cmp, anchors, nl, comps, hi, lo,
+                                                  ax, ay, nx, ny, side)
+                if seat is not None:
+                    anchors[cmp] = seat
+                    seated.append(cmp)
     return seated
 
 
@@ -2719,6 +2852,87 @@ def _evacuate_corridors(P, comps, model, *, margin=0.8):
                 P[ref] = (nx, y, rot)
                 moved.append(ref)
     return moved
+
+
+def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
+    """The derive_power_pours SENSEC boxes recomputed HOST-SIDE off placement *P* (the same pad class:
+    connector THT + the 2-pad Kelvin shunt; the INA SMD sense pads excluded). Returns [(net,x0,x1,y0,y1)].
+    The route-time no-foreign-on-high-current-pour gate derives the very same boxes, so evacuating bodies
+    against these keeps placement and the gate in lockstep. Connectors+shunt are FIXED, so this is stable
+    across the evacuation loop (compute once)."""
+    import cec_pcb
+    out = []
+    for c in topo:
+        for net in (c["hi"], c["lo"]):
+            pts = []
+            for r, p in nl.nets.get(net, []):
+                if r not in P:
+                    continue
+                if r.startswith("J") or (r.startswith("R") and _ref_padcount(nl, r) == 2):
+                    try:
+                        pts.append(cec_pcb.pad_global(r, p, {r: P[r]}, comps))
+                    except Exception:
+                        pass
+            if pts:
+                xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
+                out.append((net, min(xs) - margin, max(xs) + margin, min(ys) - margin, max(ys) + margin))
+    return out
+
+
+def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=False):
+    """Push any FOREIGN MOVABLE body OUT of a derive_power_pours SENSEC box, laterally toward the nearest
+    box x-edge + *clr* (the corridor is the vertical connector->shunt column). FOREIGN = not a FIXED
+    seated anchor (*fixed*: the connectors / shunts / kelvin-seated INAs + comparators / ESP / mounts that
+    legitimately own or graze the pour). The route-time gate counts ANY foreign track/via in a box; a
+    foreign decoupling/threshold cap BODY here forces exactly that copper (its pads + the route to them),
+    so evacuate it at placement -- the placer-side ENFORCE of no-foreign-on-high-current-pour. This is the
+    box-accurate complement to _evacuate_corridors (which uses the tighter band). Returns the moved refs."""
+    moved = []
+    for ref in list(P):
+        if ref in fixed or ref not in comps or ref[:1] in ("J", "H"):
+            continue
+        x, y = P[ref][0], P[ref][1]
+        rot = P[ref][2] if len(P[ref]) > 2 else 0.0
+        cx0, cy0, hw, hh = _courtyard_info(comps[ref], rot, drop_antenna=drop_antenna)
+        ccx, ccy = x + cx0, y + cy0
+        cb = (ccx - hw, ccx + hw, ccy - hh, ccy + hh)
+        worst = None
+        for _net, x0, x1, y0, y1 in boxes:
+            ox = min(cb[1], x1) - max(cb[0], x0)
+            oy = min(cb[3], y1) - max(cb[2], y0)
+            inb = x0 <= ccx <= x1 and y0 <= ccy <= y1
+            ov = max(0.0, ox) * max(0.0, oy)
+            if (inb or ov > tol) and (worst is None or ov > worst[0]):
+                worst = (ov, x0, x1)
+        if worst is None:
+            continue
+        _, x0, x1 = worst
+        tcx = (x0 - clr - hw) if (ccx - x0) <= (x1 - ccx) else (x1 + clr + hw)  # exit the nearer x-edge
+        P[ref] = (tcx - cx0, y, rot)
+        moved.append(ref)
+    return moved
+
+
+def _legalize_avoiding_pours(P, movable, cyinfo, boxes, W, H, *, clr=0.4):
+    """POUR-AWARE legalize: run legalize_pack over the *movable* foreign parts with the derive_power_pours
+    SENSEC *boxes* injected as FIXED pseudo-obstacles, so each part lands in the nearest free spot that is
+    BOTH courtyard-overlap-free AND out of every pour -- pour-clearance and residual settled in ONE pass by
+    construction (legalize_pack already treats every non-movable P entry as a fixed obstacle). The seated
+    anchors (INAs/comparators/shunts/connectors/ESP) are NOT in *movable*, so their intentional pour graze
+    is untouched. Restores P/cyinfo (pseudo refs removed). Returns the residual legalize reports."""
+    pseudo = []
+    for i, b in enumerate(boxes):
+        _net, x0, x1, y0, y1 = b
+        k = "__POUR%d__" % i
+        P[k] = ((x0 + x1) / 2.0, (y0 + y1) / 2.0, 0.0)
+        cyinfo[k] = (0.0, 0.0, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
+        pseudo.append(k)
+    try:
+        return legalize_pack(P, movable, cyinfo, W, H, clr=clr)
+    finally:
+        for k in pseudo:
+            P.pop(k, None)
+            cyinfo.pop(k, None)
 
 
 def _board_corridor_model(board):
@@ -3119,30 +3333,45 @@ def synth_one(cfg_dict, W, H, strat, seed):
             elif r in comps:
                 _func_cy[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
         legalize_pack(P, [r for r in _func_stamped if r in P], _func_cy, W, H, clr=0.4)
-    # CORRIDOR EVACUATION: pull any non-belonging body (decoupling / DETECT / detection-amp) OUT of a formed
-    # high-current band so the SENSEC pour fills + the nets can route (the anneal veto + passive stamp leave
-    # them inside -- the owner-caught re-place issue). Re-legalize only the moved refs so the Kelvin-seated
-    # shunt + sense ICs stay put.
-    for _ev_round in range(6):                               # iterate: legalize_pack isn't band-aware so it can
-        _evm = build_corridor_model(nl, P, comps, board_w=W)  # push an evacuated body back -> re-evacuate; the
-        _evac = _evacuate_corridors(P, comps, _evm)           # final round leaves centers OUT (no legalize push-
-        if not _evac:                                         # back) -- a center out of the band is enough for
-            break                                             # the pour to fill + the net to route around it.
+    # CORRIDOR + POUR EVACUATION: pull any non-belonging body (decoupling / DETECT / threshold / detection-
+    # amp) OUT of a formed high-current band AND out of the actual derive_power_pours SENSEC box so the pour
+    # fills + the nets can route (the anneal veto + passive/cluster stamp leave them inside -- the owner-
+    # caught re-place issue). The band evac uses the tighter §2.2 band; the POUR evac uses the box the
+    # route-time no-foreign-on-high-current-pour gate derives (wider by the pour margin), so a cap grazing
+    # only the box-but-not-the-band (e.g. a comparator's clustered threshold cap, or a balanced decoupling
+    # cap that drifted onto the column) is evacuated too. EXEMPT = the FIXED seated anchors (connectors,
+    # shunts, kelvin-seated INAs + §6.13 comparators, ESP, mounts). Re-legalize only the moved refs so the
+    # seat stays put.
+    _pour_fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
+                   | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
+    _pour_boxes = _pour_boxes_from_P(_topo, P, nl, comps) if seated_inas else []
+    for _ev_round in range(6):                               # iterate: legalize_pack isn't band/box-aware so it
+        _evm = build_corridor_model(nl, P, comps, board_w=W)  # can push an evacuated body back -> re-evacuate;
+        _evac = _evacuate_corridors(P, comps, _evm)           # the final round leaves centers OUT (no legalize
+        _pevac = (_evacuate_pours(P, comps, _pour_boxes, _pour_fixed, drop_antenna=drop_antenna)
+                  if _pour_boxes else [])                     # push-back) -- a center out of the box is enough
+        _moved = list(dict.fromkeys(_evac + _pevac))          # for the pour to fill + the net to route around.
+        if not _moved:
+            break
         if _ev_round < 5:
-            legalize_pack(P, [r for r in _evac if r in P], cyinfo_all, W, H, clr=0.4)
-    # FINAL MOP-UP (only when the Kelvin seat fired): fixing the 4 sense ICs as anchors reduces the
-    # anneal's freedom, so a rigidly-stamped decoupling cap can be left grazing its IC (residual). One
+            legalize_pack(P, [r for r in _moved if r in P], cyinfo_all, W, H, clr=0.4)
+    # FINAL MOP-UP (only when the Kelvin seat fired): fixing the sense ICs + comparators as anchors reduces
+    # the anneal's freedom, so a rigidly-stamped decoupling cap can be left grazing its IC (residual). One
     # legalize over EVERY movable body (all but the fixed anchors -- connectors, mounts, the seated
-    # shunt + sense ICs, the ESP) nudges those few to the nearest free spot, restoring residual 0
-    # without touching the seat. Confined to seated boards so non-cable placements are byte-unchanged.
+    # shunt + sense ICs + comparators, the ESP) nudges those few to the nearest free spot, restoring
+    # residual 0 without touching the seat. Confined to seated boards so non-cable placements are byte-
+    # unchanged. A final POUR evac (no legalize) then guarantees no body the mop-up nudged sits in a box.
     if seated_inas:
-        _fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
-                  | set(seated_inas) | ({_esp} if _esp else set()))
-        _mop = [r for r in P if r in comps and r not in _fixed]
+        _mop = [r for r in P if r in comps and r not in _pour_fixed]
         _mop_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2],
                                                                     drop_antenna=drop_antenna))
                    for r in P if r in comps}
-        legalize_pack(P, _mop, _mop_cy, W, H, clr=0.4)
+        # SETTLE the cascade with a POUR-AWARE legalize: the SENSEC pour boxes are injected as fixed
+        # obstacles, so each movable body lands in the nearest spot that is BOTH overlap-free AND out of
+        # every pour -- clearance + residual in ONE pass, no evac-vs-legalize oscillation (the bare evac
+        # leaves outboard pile-ups; a bare legalize pulls a cap back into a box). The seated INAs/
+        # comparators/shunts/connectors are exempt (not in _mop), so their intentional graze is kept.
+        _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
