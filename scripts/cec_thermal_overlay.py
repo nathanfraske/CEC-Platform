@@ -210,7 +210,11 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
     show = (dT > 0.5) | cu_mask
     Tm = np.ma.array(T, mask=~show)
     vmin = res.ambient
-    vmax = max(res.max_T, res.ambient + 1.0)
+    # clip vmax to a percentile so one hot neck does not crush the pours (see render_per_layer)
+    _vmax_pct = float(os.environ.get("CEC_THERMAL_VMAX_PCT", "96"))
+    _cuT = T[cu_mask] if (cu_mask is not None and cu_mask.any()) else T[show]
+    vmax = (max(float(np.percentile(_cuT, _vmax_pct)), res.ambient + 1.0)
+            if _cuT.size else max(res.max_T, res.ambient + 1.0))
     im = ax.imshow(Tm, origin="upper",
                    extent=[xmin, xmax, ymax, ymin], aspect="equal",
                    cmap="inferno", vmin=vmin, vmax=vmax, alpha=0.78,
@@ -374,12 +378,19 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     segs = _edge_segments(board)
     xmin, ymin, xmax, ymax = res.extent_mm
     W, H = max(xmax - xmin, 1e-6), max(ymax - ymin, 1e-6)
-    # Colour range is recomputed over the copper the SOLVER actually modelled
-    # (zones + routed traces + pads) so a hot thin trace sets the top of the scale,
-    # not a stale plane-only range.
+    # Colour range over the copper the SOLVER actually modelled (zones + routed
+    # traces + pads). CLIP vmax to a high PERCENTILE, not the raw max: a single
+    # blazing-hot neck (a few cells at 1000+ C in the still-air bound) otherwise
+    # owns the whole 50->max scale and crushes every current-carrying POUR into the
+    # black/background end -> the pours read as "absent" even though they carry the
+    # entire load. With the percentile, the necks saturate (bright) and the pour
+    # gradient is visible. The TRUE peak stays in the colorbar label + summary max_T.
+    # CEC_THERMAL_VMAX_PCT tunes it (default 96); with no hot outlier the percentile
+    # ~= the max, so this is a no-op on well-behaved boards.
     cu_any = res.copper_mask
+    _vmax_pct = float(os.environ.get("CEC_THERMAL_VMAX_PCT", "96"))
     if cu_any is not None and cu_any.any():
-        vmax = max(float(res.T[cu_any].max()), res.ambient + 1.0)
+        vmax = max(float(np.percentile(res.T[cu_any], _vmax_pct)), res.ambient + 1.0)
     else:
         vmax = max(res.max_T, res.ambient + 1.0)
     vmin = res.ambient
@@ -432,7 +443,8 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     cax = fig.add_axes([0.04, 0.5, 0.92, 0.32])
     cb = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.inferno,
                                    norm=mpl.colors.Normalize(vmin=vmin, vmax=vmax), orientation="horizontal")
-    cb.set_label(f"copper temperature (°C)    ambient {res.ambient:.0f}°C    max {res.max_T:.1f}°C",
+    _clip = f"  scale→{vmax:.0f}°C (clipped)" if vmax < res.max_T - 0.5 else ""
+    cb.set_label(f"copper temp (°C)   ambient {res.ambient:.0f}°C{_clip}   peak {res.max_T:.1f}°C   [{cool_label}]",
                  color="#cfd8dc", fontsize=9)
     cax.tick_params(colors="#cfd8dc", labelsize=8)
     fig.savefig(cbar, dpi=130, facecolor="#101418"); plt.close(fig)
