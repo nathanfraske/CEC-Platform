@@ -395,6 +395,16 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
         vmax = max(res.max_T, res.ambient + 1.0)
     vmin = res.ambient
     cmap = plt.cm.inferno.copy(); cmap.set_bad(alpha=0.0)   # masked (no copper) -> fully transparent
+    # COPPER-GEOMETRY BASE + alpha-ramped heatmap: the inferno low end is near-black,
+    # so cool POUR copper (away from the hot necks) vanished into the dark dashboard
+    # ("pours not on the dash"). Draw the layer's copper as a dim slate BASE so its
+    # SHAPE is always visible, then ride the heatmap on top with an alpha ramp -- cool
+    # copper shows the slate base, warm->hot copper saturates to inferno.
+    from matplotlib.colors import ListedColormap
+    base_cmap = ListedColormap(["#5d6e7a"])                 # dim slate, visible on the dark panel
+    _heat = plt.cm.inferno(np.linspace(0, 1, 256))
+    _heat[:, 3] = np.clip(np.linspace(-0.15, 1.25, 256), 0.0, 1.0)   # transparent cool -> opaque hot
+    heat_cmap = ListedColormap(_heat); heat_cmap.set_bad(alpha=0.0)
 
     # per-layer copper masks INCLUDING traces (from the solver), keyed by std-layer
     lcm = res.layer_copper_mask or {}
@@ -428,8 +438,26 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
         Tm = np.ma.array(res.T, mask=~mask)
         fig = plt.figure(figsize=(8.0, 8.0 * H / W), dpi=130)
         ax = fig.add_axes([0, 0, 1, 1]); ax.set_axis_off()
+        base = np.ma.array(np.zeros_like(res.T), mask=~mask)   # this layer's copper SHAPE -> dim slate base
+        ax.imshow(base, origin="upper", extent=[xmin, xmax, ymax, ymin], aspect="equal",
+                  cmap=base_cmap, vmin=0, vmax=1, interpolation="nearest")
         ax.imshow(Tm, origin="upper", extent=[xmin, xmax, ymax, ymin], aspect="equal",
-                  cmap=cmap, vmin=vmin, vmax=vmax, interpolation="nearest")
+                  cmap=heat_cmap, vmin=vmin, vmax=vmax, interpolation="nearest")
+        # POUR OUTLINES: trace this layer's filled ZONE boundaries in bright cyan so the
+        # wide pours are UNMISTAKABLE as copper regions on the heatmap, not lost among the
+        # equally-warm traces (the owner's "I can't see the pours on the dash").
+        zsegs = []
+        for z in board.Zones():
+            if not z.IsOnLayer(lid):
+                continue
+            pl = z.GetFilledPolysList(lid)
+            for oi in range(pl.OutlineCount()):
+                ol = pl.Outline(oi)
+                pts = [(ol.CPoint(k).x / 1e6, ol.CPoint(k).y / 1e6) for k in range(ol.PointCount())]
+                for i in range(len(pts)):
+                    zsegs.append((pts[i], pts[(i + 1) % len(pts)]))
+        if zsegs:
+            ax.add_collection(LineCollection(zsegs, colors="#00e5ff", linewidths=0.5, alpha=0.85))
         if segs:
             ax.add_collection(LineCollection(segs, colors="#80cbc4", linewidths=0.8, alpha=0.55))
         ax.set_xlim(xmin, xmax); ax.set_ylim(ymax, ymin)
