@@ -61,6 +61,49 @@ with _cl.redirect_stderr(open(os.devnull, "w")):
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
 
+# ---------------------------------------------------------------------------
+# SHUNT-GAP notch (owner-ratified 2026-06-28) -- the un-poured channel the high-current pours leave
+# AT the Kelvin shunt for the sense cluster (INA238 + §6.13 INA181 + TLV7011) and a B.Cu overflow-
+# routing lane. A 2-pad R_2512 shunt's pads are only ~5.9mm apart, so hugging each pad with the 1.0mm
+# pour margin left a ~3.9mm notch -- TOO NARROW (the 4.19mm SOT-23-6 INA181 body overshot it, and the
+# B.Cu route-under had no lane to dive the overflow nets under the pour edge). SHUNT_GAP_MM opens that
+# notch to ~6.5mm by pulling each pour's shunt-side edge back to shunt_centre +/- SHUNT_GAP_MM/2 (the
+# pour still overlaps the shunt pad's outer half -> high-current continuity, completed by the B.Cu
+# mirror + via field). The placer grows the board ~3mm taller (J_IN<->J_OUT) so the pours stay long.
+# General to the per-cable EPS/PCIe interposer family (any 2-pad straddle shunt).
+SHUNT_GAP_MM = 6.5
+
+
+def _shunt_gap_on():
+    """The SHUNT_GAP_MM widen is OPT-IN (CEC_SHUNT_GAP=1), DEFAULT OFF. It is a board-specific
+    re-place change (owner ratification boundary: a ratified change is board-specific by default,
+    not platform-wide) -- the board must be PLACED with the matching wide notch + grown outline for
+    the pulled-back pour to stay on the shunt pad. Applying it to a legacy board placed for the
+    ~3.9mm notch (e.g. the frozen SB-08 golden eps-8pin) pulls the pour off the shunt and breaks the
+    route, so existing committed boards stay on the historical hug-the-shunt pour unless they opt in."""
+    return os.environ.get("CEC_SHUNT_GAP", "0") == "1"
+
+
+def _open_shunt_notch(box, shunt_xy, gap, *, vertical=True):
+    """Pull a high-current pour box's SHUNT-SIDE edge back so the un-poured notch centred on the shunt
+    is at least *gap* mm (the sense-cluster + B.Cu-overflow channel). *box*=(x0,x1,y0,y1) is one net's
+    pour (cable-in->shunt OR shunt->cable-out); *shunt_xy* is the shunt centre. The shunt-side edge is
+    the box edge nearest the shunt centre along the corridor axis (vertical for the EPS/PCIe top->bottom
+    cables). Only ever PULLS the edge toward the connector (clamped, never extends), so it can only OPEN
+    the notch -- the connector-side extent is untouched."""
+    x0, x1, y0, y1 = box
+    if vertical:
+        if (y0 + y1) / 2.0 < shunt_xy[1]:               # box ABOVE the shunt (cable-in/HI) -> clamp bottom up
+            y1 = min(y1, shunt_xy[1] - gap / 2.0)
+        else:                                           # box BELOW the shunt (cable-out/LO) -> clamp top down
+            y0 = max(y0, shunt_xy[1] + gap / 2.0)
+    else:
+        if (x0 + x1) / 2.0 < shunt_xy[0]:
+            x1 = min(x1, shunt_xy[0] - gap / 2.0)
+        else:
+            x0 = max(x0, shunt_xy[0] + gap / 2.0)
+    return (x0, x1, y0, y1)
+
 # Cross-platform scratch dir: the OS temp dir (/tmp on Linux/mac, %TEMP% on Windows).
 # Never hardcode /tmp -- it doesn't exist on Windows.
 _TMP = tempfile.gettempdir()
@@ -605,6 +648,19 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
         # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
         # bbox and make the HI box (cable->shunt) overlap the LO box (shunt->cable).
         shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        # shunt centre + corridor axis (for the SHUNT_GAP_MM notch): the two pads of the 2-pad shunt
+        # on this pair's HI/LO nets. Vertical corridor (EPS/PCIe top->bottom) if the pads differ more
+        # in y than x. None when there is no qualifying 2-pad shunt -> the notch is a no-op (the box
+        # keeps hugging the shunt pad, the historical behaviour).
+        sh_pads = [p.GetPosition() for ref, p in (pads_by_net.get(hi, []) + pads_by_net.get(lo, []))
+                   if ref in shunt_refs]
+        shunt_xy = vertical = None
+        if _shunt_gap_on() and len(sh_pads) >= 2:
+            scx = sum(q.x for q in sh_pads) / len(sh_pads) / MM
+            scy = sum(q.y for q in sh_pads) / len(sh_pads) / MM
+            shunt_xy = (scx, scy)
+            vertical = (max(q.y for q in sh_pads) - min(q.y for q in sh_pads)) >= \
+                       (max(q.x for q in sh_pads) - min(q.x for q in sh_pads))
         for net in (hi, lo):
             entries = pads_by_net.get(net, [])
             has_tht = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries)
@@ -621,6 +677,9 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             ys = [y for _, y in heavy]
             x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
             y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
+            if shunt_xy is not None:              # open the un-poured notch at the shunt to SHUNT_GAP_MM
+                x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, SHUNT_GAP_MM,
+                                                   vertical=vertical)
             pours.append({"net": net, "layer": layer,
                           "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
     return pours
@@ -671,21 +730,35 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
         entries = pads_by_net.get(net, [])
         tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
-                 for fp in board.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
-                 for p in fp.Pads() if p.GetNetname() == net]
+        # the 2-pad shunt footprint straddling this net: its pad on `net`, plus its CENTRE (footprint
+        # origin = midpoint of the two terminals) so the keepout clips at the SHUNT_GAP_MM notch edge
+        # (matching derive_power_pours), not at the shunt pad -- otherwise the keepout would block the
+        # B.Cu overflow route-under lane the widened notch opens.
+        shunt = []
+        shunt_centre_y = None
+        for fp in board.GetFootprints():
+            if npads.get(fp.GetReference(), 0) != 2:
+                continue
+            if any(p.GetNetname() == net for p in fp.Pads()):
+                shunt += [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                          for p in fp.Pads() if p.GetNetname() == net]
+                shunt_centre_y = fp.GetPosition().y / MM
         if not tht or not shunt:
             continue                                         # not a cable-connector high-current net
         sx, sy = shunt[0]
+        # notch edge = shunt centre +/- SHUNT_GAP_MM/2 when the widen is on (matching derive_power_pours
+        # so the keepout never blocks the B.Cu overflow lane), else the historical clip AT the shunt pad.
+        clip_hi = (shunt_centre_y - SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
+        clip_lo = (shunt_centre_y + SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
         txs = [x for x, _ in tht]
         tys = [y for _, y in tht]
         tcy = sum(tys) / len(tys)
         x0 = min(txs + [sx]) - 1.0
         x1 = max(txs + [sx]) + 1.0
-        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom AT shunt
-            y0, y1 = min(tys) - 1.0, sy
-        else:                                                # shunt ABOVE the connector (cable-out): clip top AT shunt
-            y0, y1 = sy, max(tys) + 1.0
+        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom at the notch top
+            y0, y1 = min(tys) - 1.0, clip_hi
+        else:                                                # shunt ABOVE the connector (cable-out): clip top at the notch bottom
+            y0, y1 = clip_lo, max(tys) + 1.0
         hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
                       "x1": round(x1, 2), "y1": round(y1, 2),
                       "layers": ("F.Cu", "B.Cu"), "allow_vias": True,
@@ -693,6 +766,22 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
                       # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
                       "block_fills": False})
     return hints
+
+
+def _fp_bbox_no_text(fp):
+    """A footprint's bounding box EXCLUDING its silk/fab reference + value TEXT. pcbnew's bare
+    FOOTPRINT.GetBoundingBox() folds in the F.Fab Value string, so a tiny part with a long value
+    reads enormous -- the M3 mounting hole (true courtyard 6.95mm) reports a 25.54mm-wide bbox
+    because its Value is the 28-char 'MountingHole_3.2mm_M3_Pad_Via'. Used by edge_keepout so an
+    edge-resident part's keepout EXCLUSION is its real copper/courtyard extent, not its text (an
+    inflated mount bbox otherwise punched a ~25mm hole in the board-edge keepout strip)."""
+    try:
+        return fp.GetBoundingBox(False, False)              # (aIncludeText=False, aIncludeInvisibleText=False)
+    except TypeError:
+        try:
+            return fp.GetBoundingBox(False)
+        except TypeError:
+            return fp.GetBoundingBox()
 
 
 def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs=("J", "H"),
@@ -724,7 +813,7 @@ def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs
     allow = []                                              # inflated bboxes that may touch the edge
     for fp in own.GetFootprints():
         if _edge_resident(fp):
-            fb = fp.GetBoundingBox()
+            fb = _fp_bbox_no_text(fp)
             allow.append((fb.GetLeft() / MM - clearance, fb.GetTop() / MM - clearance,
                           fb.GetRight() / MM + clearance, fb.GetBottom() / MM + clearance))
 

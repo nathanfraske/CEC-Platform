@@ -1557,9 +1557,9 @@ def _connector_net_role(ref, nl):
 def _half_extent(fp, *, drop_antenna=False):
     """(hw, hh) courtyard half-extent of a footprint. When *drop_antenna* and the part is an
     RF module (ESP32 / RF_Module), trim the PCB-antenna keepout lobe to the pad band -- the
-    Stage-1 'wireless not populated' answer makes the ESP courtyard materially smaller."""
-    if "mountinghole" in fp.lower():
-        return (3.0, 3.0)                            # M3 keepout (the footprint courtyard parses degenerate)
+    Stage-1 'wireless not populated' answer makes the ESP courtyard materially smaller.
+    (Mounting holes now report their true ~6.9mm round courtyard via cec_pcb.courtyard_bbox's
+    circle handling -- the old hardcoded (3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
     is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
     x0, x1, y0, y1 = cec_pcb.courtyard_bbox(fp, drop_keepout=(drop_antenna and is_rf))
@@ -1590,9 +1590,9 @@ def _courtyard_info(fp, rot, *, drop_antenna=False):
     origin is near pin 1, the courtyard extends asymmetrically), so an origin-centred ±half check
     badly mismodels the real courtyard -> phantom 'legal' placements that DRC then flags. This
     uses cec_pcb.courtyard_bbox(fp, 0, 0, rot) = the real courtyard bbox around the origin at this
-    rotation, exactly what KiCad/DRC sees, so the legalizer's overlap test matches the board."""
-    if "mountinghole" in fp.lower():
-        return (0.0, 0.0, 3.0, 3.0)                  # M3 keepout (footprint courtyard parses degenerate)
+    rotation, exactly what KiCad/DRC sees, so the legalizer's overlap test matches the board.
+    (Mounting holes report their true round courtyard via cec_pcb's circle handling now; the old
+    hardcoded (0,0,3.0,3.0) degenerate-courtyard patch is retired.)"""
     import cec_pcb
     is_rf = ("rf_module" in fp.lower()) or ("esp32" in fp.lower())
     try:
@@ -2520,6 +2520,35 @@ def _cable_topology(nl):
     return out
 
 
+def _shunt_gap_board_grow(nl, fp_of, topo, *, margin=1.0, headroom=1.0):
+    """Board-height INCREMENT (mm) for the SHUNT_GAP_MM widen (R2, owner-ratified 2026-06-28).
+
+    cec_fr.derive_power_pours pulls each high-current pour's shunt-side edge back so the un-poured
+    notch at the Kelvin shunt opens from (shunt-pad-separation - 2*margin) ~= 3.9mm to SHUNT_GAP_MM
+    ~= 6.5mm -- enough channel for the sense cluster (INA238 + §6.13 INA181 + TLV7011) AND a B.Cu
+    overflow-routing lane. Opening the notch shortens each pour by that delta; growing the board by
+    the same delta (+ a small cluster/B.Cu-lane *headroom*) moves J_IN/J_OUT apart so the pour
+    corridors keep their length and the shunt (seated at H/2) gets vertical room either side. Reads the
+    shunt pad separation from the first cable's 2-pad shunt FOOTPRINT, so it is general to any per-cable
+    interposer (EPS / PCIe). Returns 0.0 when there is no qualifying 2-pad shunt or cec_fr is absent."""
+    import cec_pcb
+    try:
+        import cec_fr
+        gap = cec_fr.SHUNT_GAP_MM
+    except Exception:
+        return 0.0
+    for c in topo:
+        sh = c.get("shunt")
+        if sh in fp_of:
+            pads = list(cec_pcb.local_pads(fp_of[sh]).values())
+            if len(pads) >= 2:                          # corridor-axis pad spacing = max pairwise separation
+                sep = max(math.hypot(a[0] - b[0], a[1] - b[1])
+                          for i, a in enumerate(pads) for b in pads[i + 1:])
+                base_notch = max(0.0, sep - 2.0 * margin)
+                return round(max(0.0, gap - base_notch) + headroom, 1)
+    return 0.0
+
+
 def _net_pad_xs(nl, comps, ref, net, P):
     """Global x of every pad of *ref* on *net* (the cable's force column)."""
     import cec_pcb
@@ -2861,8 +2890,27 @@ def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
     against these keeps placement and the gate in lockstep. Connectors+shunt are FIXED, so this is stable
     across the evacuation loop (compute once)."""
     import cec_pcb
+    try:                                                 # the SHUNT_GAP_MM notch (single source of truth in cec_fr); opt-in
+        import cec_fr
+        _gap, _notch = (cec_fr.SHUNT_GAP_MM, cec_fr._open_shunt_notch) if cec_fr._shunt_gap_on() else (None, None)
+    except Exception:                                    # pcbnew-less host: fall back to the historical hug-the-shunt box
+        _gap = _notch = None
     out = []
     for c in topo:
+        sh = c.get("shunt")
+        shunt_xy = vertical = None
+        if _gap and sh in P and sh in comps:             # shunt centre + corridor axis from its two terminals
+            shp = []
+            for net in (c["hi"], c["lo"]):
+                pp = next((q for r, q in nl.nets.get(net, []) if r == sh), None)
+                if pp is not None:
+                    try:
+                        shp.append(cec_pcb.pad_global(sh, pp, {sh: P[sh]}, comps))
+                    except Exception:
+                        pass
+            if len(shp) >= 2:
+                shunt_xy = ((shp[0][0] + shp[1][0]) / 2.0, (shp[0][1] + shp[1][1]) / 2.0)
+                vertical = abs(shp[0][1] - shp[1][1]) >= abs(shp[0][0] - shp[1][0])
         for net in (c["hi"], c["lo"]):
             pts = []
             for r, p in nl.nets.get(net, []):
@@ -2875,7 +2923,10 @@ def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
                         pass
             if pts:
                 xs = [q[0] for q in pts]; ys = [q[1] for q in pts]
-                out.append((net, min(xs) - margin, max(xs) + margin, min(ys) - margin, max(ys) + margin))
+                box = (min(xs) - margin, max(xs) + margin, min(ys) - margin, max(ys) + margin)
+                if shunt_xy is not None:                  # open the un-poured notch to match derive_power_pours
+                    box = _notch(box, shunt_xy, _gap, vertical=vertical)
+                out.append((net, box[0], box[1], box[2], box[3]))
     return out
 
 
@@ -3161,6 +3212,16 @@ def synth_one(cfg_dict, W, H, strat, seed):
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
     anchors_roles, ics, shunts, passives = _classify(nl)
+    # R2 SHUNT-GAP widen (owner-ratified 2026-06-28, OPT-IN via CEC_SHUNT_GAP=1 -- board-specific by
+    # the ratification boundary, so legacy boards/the golden stay byte-identical by default): on a
+    # per-cable interposer (EPS/PCIe) GROW the board ~3mm taller so the J_IN<->J_OUT pours stay
+    # full-length after cec_fr.derive_power_pours pulls their shunt-side edges back to open the
+    # SHUNT_GAP_MM (~6.5mm) un-poured notch -- room for the sense cluster + a B.Cu overflow lane the
+    # route-under dives the overflow nets through. Self-gating (0.0 on a board with no 2-pad shunt).
+    if os.environ.get("CEC_SHUNT_GAP", "0") == "1":
+        _grow = _shunt_gap_board_grow(nl, fp_of, _cable_topology(nl))
+        if _grow > 0:
+            H = round(H + _grow, 1)
     # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
     #    mechanical asks (mounts + fiducials). A per-cable INTERPOSER must OVERHANG its cable ports
     #    (plug overmold off-board, pads on-board) -- otherwise the connector bodies sit in-board and
