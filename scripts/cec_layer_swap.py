@@ -140,6 +140,31 @@ def pt_in_pour(x, y, exclude_net):
             return nn
     return None
 
+def pt_in_any_pour(x, y):
+    """The pour box (any net) this point lands in, or None. Used by the R2 gap-overflow guard:
+    a transition via must land OUTSIDE every pour box (in the un-poured shunt gap) or it is itself
+    a foreign-via-on-pour."""
+    for nn, l, tp, r, bm in pours:
+        if l <= x <= r and tp <= y <= bm:
+            return nn
+    return None
+
+# R2 GAP-OVERFLOW (2026-06-28): a foreign net with a PAD inside a pour box is a genuine pad-in-pour
+# tap (a placement problem -- it cannot be relayered, its copper is pinned to that pad) -> ESCALATE.
+# A foreign net that only ROUTES through/grazes a pour edge (no pad in any box) is an overflow CLIP
+# of the narrow shunt gap -> relayer it to B.Cu under the pour edge (the gap is un-poured, B.Cu is
+# free there). pinned_nets distinguishes the two. Computed once from the footprint pads.
+pinned_nets = set()
+for _fp in b.GetFootprints():
+    for _pad in _fp.Pads():
+        _nn = _pad.GetNetname()
+        if not _nn or not is_swappable_net(_nn):
+            continue
+        _pc = _pad.GetCenter()
+        if pt_in_any_pour(_pc.x, _pc.y):
+            pinned_nets.add(_nn)
+print(f"pinned nets (foreign pad inside a pour -> not relayerable): {sorted(pinned_nets)}")
+
 def seg_enters_pour_interior(s, e, tn):
     """True if the segment's INTERIOR (excluding exact endpoints) crosses foreign pour copper.
     Samples the centerline -- this is what distinguishes a genuine THROUGH crossing from a
@@ -151,33 +176,43 @@ def seg_enters_pour_interior(s, e, tn):
             return True
     return False
 
-# ---- THROUGH/TAP classification (THE correctness gate) -------------------------------------------
+# ---- THROUGH/CLIP/TAP classification (THE correctness gate) --------------------------------------
+# THROUGH  : both endpoints outside every pour, interior crosses pour copper          -> relayer
+# CLIP     : an endpoint inside a pour, but the net has NO pad in any pour (R2 overflow) -> relayer
+# TAP      : an endpoint inside a pour AND the net is pinned (a pad sits in a pour)    -> ESCALATE
 tracks = [t for t in b.GetTracks() if t.GetClass() == "PCB_TRACK"]
 through_segs = []     # genuine THROUGH crossings -- relayer candidates
-tap_segs = []         # foreign segs with an endpoint inside a pour -- ESCALATE, never relayer
+clip_segs = []        # R2 gap-overflow edge-clips (no pad in pour) -- relayer candidates
+tap_segs = []         # foreign segs pinned by a pad inside a pour -- ESCALATE, never relayer
 for t in tracks:
     if t.GetLayer() != F or not is_swappable_net(t.GetNetname()):
         continue
     s, e = t.GetStart(), t.GetEnd()
-    si = pt_in_pour(s.x, s.y, t.GetNetname())
-    ei = pt_in_pour(e.x, e.y, t.GetNetname())
+    nm = t.GetNetname()
+    si = pt_in_pour(s.x, s.y, nm)
+    ei = pt_in_pour(e.x, e.y, nm)
     if si is not None or ei is not None:
-        # an endpoint inside a pour -> TAP (only count it if it really touches pour copper, not a
-        # bbox graze at the endpoint -- an endpoint exactly on the pour is still a tap to escalate)
-        if seg_enters_pour_interior(s, e, t.GetNetname()) or si is not None or ei is not None:
-            # require the seg to actually overlap the pour bbox at all (skip far-away false hits)
-            if any((min(s.x, e.x) <= r and max(s.x, e.x) >= l
-                    and min(s.y, e.y) <= bm and max(s.y, e.y) >= tp)
-                   for nn, l, tp, r, bm in pours if nn != t.GetNetname()):
+        # an endpoint inside a pour. Require the seg to actually overlap a foreign pour bbox (skip
+        # far-away false hits), then split: a net pinned by a pad-in-pour ESCALATES (the copper has
+        # nowhere else to live); a net that merely routes through the gap is an R2 overflow CLIP and
+        # is relayered to B.Cu under the pour edge.
+        if any((min(s.x, e.x) <= r and max(s.x, e.x) >= l
+                and min(s.y, e.y) <= bm and max(s.y, e.y) >= tp)
+               for nn, l, tp, r, bm in pours if nn != nm):
+            if nm in pinned_nets:
                 tap_segs.append(t)
+            else:
+                clip_segs.append(t)
         continue
     # both endpoints OUTSIDE every pour -> THROUGH only if the interior actually enters pour copper
-    if seg_enters_pour_interior(s, e, t.GetNetname()):
+    if seg_enters_pour_interior(s, e, nm):
         through_segs.append(t)
 
 print(f"THROUGH crossings (both ep outside + interior in pour): {len(through_segs)} "
       f"{dict(Counter(t.GetNetname() for t in through_segs))}")
-print(f"TAP segments (endpoint inside a pour -- ESCALATE, not relayered): {len(tap_segs)} "
+print(f"CLIP segments (R2 gap-overflow, endpoint in pour but no pad in pour -- relayer): "
+      f"{len(clip_segs)} {dict(Counter(t.GetNetname() for t in clip_segs))}")
+print(f"TAP segments (pad-in-pour pinned -- ESCALATE, not relayered): {len(tap_segs)} "
       f"{dict(Counter(t.GetNetname() for t in tap_segs))}")
 
 # ---- chain-grow: extend each THROUGH seg to its contiguous same-net F.Cu run so the WHOLE crossing
@@ -226,6 +261,11 @@ def _seg_in_band(t):
         return False
     return _near_pour_edge(s.x, s.y) and _near_pour_edge(e.x, e.y)
 
+# The THROUGH-crossing chains grow from through_segs only. R2 CLIP segments are handled by their OWN
+# minimal pass below (small B.Cu hops under the pour edge), so they are EXCLUDED from this grow -- a
+# through-crossing must not absorb the whole connected foreign net (which would force a 20-seg chain
+# onto the inner GND plane and short).
+clip_ids = {id(t) for t in clip_segs}
 relayer = {id(t): t for t in through_segs}
 frontier = list(through_segs)
 while frontier:
@@ -233,7 +273,7 @@ while frontier:
     net = t.GetNetname()
     for ep in (_key(t.GetStart()), _key(t.GetEnd())):
         for nb in fcu_by_node[(net, ep)]:
-            if id(nb) in relayer:
+            if id(nb) in relayer or id(nb) in clip_ids:
                 continue
             if _seg_in_band(nb):
                 relayer[id(nb)] = nb
@@ -355,10 +395,13 @@ def via_hole_ok(cx, cy, drill, scratch_holes):
     return True
 
 def via_copper_ok(cx, cy, net, via_w, layer):
-    """The transition via PAD (on F and on `layer`) clears foreign copper on both. GND is excluded
-    (the inner GND plane auto-antipads the via at refill via the 0.3mm local clearance)."""
+    """The transition via PAD clears foreign copper on every layer it occupies. A through via spans
+    F..B (and every inner), so it must clear F, B AND the logical target `layer` -- the old version
+    checked only F + target, so an In2-targeted +3V3 via silently shorted a /DETECT_SENSE B.Cu track
+    (its B.Cu footprint was never tested). GND is excluded (the inner GND plane auto-antipads the via
+    via its 0.3mm zone local_clearance at refill)."""
     vr = via_w // 2
-    for L in (F, layer):
+    for L in dict.fromkeys((F, B, layer)):
         if L is None:
             continue
         segs, pads = (LCOPPER[L] if L in LCOPPER else _layer_copper(L))
@@ -532,7 +575,13 @@ for cid, segs in chains.items():
     via_w, via_d = via_size_for(net)
     chain_ids = {id(t) for t in segs}
     layer = None
-    for cand in ((B,) + ((IN2,) if IN2 is not None else ())):
+    # A POWER-RAIL net (+3V3 / +5VSB / ...) must NOT be relayered onto the In2 GND plane: the plane
+    # antipad isolates it electrically, but it threads a power rail through a slot in the return plane
+    # and -- as MEASURED on this board -- the parallel through-via/B.Cu congestion produced a real
+    # short + dangling stub. Power rails take B.Cu or escalate; only signal nets may use In2.
+    is_power_rail = net.startswith("+")
+    cand_layers = (B,) if is_power_rail else ((B,) + ((IN2,) if IN2 is not None else ()))
+    for cand in cand_layers:
         if all(not seg_collides_on(((t.GetStart().x, t.GetStart().y), (t.GetEnd().x, t.GetEnd().y)),
                                    hw, net, cand) for t in segs):
             layer = cand
@@ -578,7 +627,13 @@ for cid, (segs, layer, chain_ids, via_w, via_d) in list(chain_plan.items()):
         slide = 0
         while slide <= min(SLIDE_MAX, plen):
             vp, _seg_i = point_along_polyline(poly, slide)
-            if via_ok_at(vp, net, via_w, via_d, layer, sh, sv):
+            # R2 out-of-box guard: a transition via must land OUTSIDE every pour box (in the
+            # un-poured gap), else the via itself is a foreign-via-on-pour. For a THROUGH crossing
+            # the exit node is already outside a pour (both endpoints out), so this is satisfied at
+            # slide=0 and the existing behaviour is unchanged; for an R2 CLIP whose exit node sits
+            # just inside the box edge, the via slides out into the gap before it is accepted.
+            if (pt_in_any_pour(vp.x, vp.y) is None
+                    and via_ok_at(vp, net, via_w, via_d, layer, sh, sv)):
                 chosen = (vp, slide)
                 break
             slide += SLIDE_STEP
@@ -658,6 +713,213 @@ print(f"chains_relayered: {len(moved)} ({crossings_cleared} segs) -> {dict(net_l
 print(f"left_on_fcu (no legal layer/via for the chain): {left_on_fcu}  reverted: {reverted}")
 print(f"vias_added: {vias_added}")
 
+# ==== R2 GAP-OVERFLOW CLIP PASS (2026-06-28, branch claude/placement-corridor) ====================
+# A foreign net that merely ROUTES through the narrow shunt gap (no pad in any pour) and grazes a
+# pour box edge is an OVERFLOW CLIP. Drop it to B.Cu UNDER the pour edge, with its F<->B transition
+# vias landed INSIDE the un-poured gap (out of every pour box -- B.Cu carries no pour copper there,
+# so the SENSEC F.Cu pour fills solid and the gate sees no foreign F.Cu/via in the box). MINIMAL
+# per-run hops (the through-chain machinery above over-absorbs a whole net and the inner GND plane
+# shorts a power net) -- B.Cu ONLY here; a run that does not fit B.Cu is left on F.Cu (honest
+# escalation -> the gate still fails -> widen the shunt gap = owner-ratified board change). GND clip
+# stubs are included: the in-box F.Cu stitch stub relayers to B.Cu and its stitch via is EVACUATED
+# into the gap (the solid inner GND plane keeps GND connected wherever the via lands).
+def _gap_target_y(boxnet, y0, y1):
+    """The gap edge of a pour box: a _HI (top) box borders the gap at its BOTTOM (y1); a _LO (bottom)
+    box borders it at its TOP (y0). Returns (edge_y, +1 to move down / -1 to move up into the gap)."""
+    return (y1, +1) if boxnet.endswith("_HI") else (y0, -1)
+
+def box_of(x, y):
+    for nn, l, tp, r, bm in pours:
+        if l <= x <= r and tp <= y <= bm:
+            return (nn, l, tp, r, bm)
+    return None
+
+OUT_MARGIN = int(0.30 * UM)     # push a transition via this far past the pour edge into the gap
+EVAC_MAX = int(1.6 * UM)        # max distance to evacuate an in-box via toward the gap
+
+# clip candidates = the classified R2 clips (foreign, no pad in pour) + GND F.Cu stubs that intrude a
+# box (GND is excluded from the swap classifier; here we relayer the stub + evacuate its stitch via).
+def _seg_clips_box(t):
+    s, e = t.GetStart(), t.GetEnd()
+    for k in range(11):
+        if pt_in_any_pour(s.x + (e.x - s.x) * k // 10, s.y + (e.y - s.y) * k // 10):
+            return True
+    return False
+gnd_clip_segs = [t for t in tracks
+                 if t.GetLayer() == F and t.GetNetname().endswith("GND") and _seg_clips_box(t)]
+r2_segs = [t for t in clip_segs if t.GetLayer() == F] + gnd_clip_segs
+
+# current F.Cu adjacency (after the through-PHASE relayered some segs off F.Cu, fcu_ep_all is stale)
+cur_fcu_ep = defaultdict(list)
+for t in tracks:
+    if t.GetLayer() == F:
+        cur_fcu_ep[(t.GetNetname(), keyp(t.GetStart()))].append(t)
+        cur_fcu_ep[(t.GetNetname(), keyp(t.GetEnd()))].append(t)
+
+# union-find the clip segs into per-net RUNS (small, no chain-grow)
+r2_parent = {}
+def _rf(x):
+    r2_parent.setdefault(x, x)
+    while r2_parent[x] != x:
+        r2_parent[x] = r2_parent[r2_parent[x]]; x = r2_parent[x]
+    return x
+r2_ep = defaultdict(list)
+for i, t in enumerate(r2_segs):
+    r2_parent.setdefault(i, i)
+    r2_ep[(t.GetNetname(), endpoints(t)[0])].append(i)
+    r2_ep[(t.GetNetname(), endpoints(t)[1])].append(i)
+for (_n, _e), idxs in r2_ep.items():
+    for j in idxs[1:]:
+        r2_parent[_rf(idxs[0])] = _rf(j)
+r2_runs = defaultdict(list)
+for i in range(len(r2_segs)):
+    r2_runs[_rf(i)].append(r2_segs[i])
+print(f"R2 clip runs: {len(r2_runs)} "
+      f"{dict(Counter(segs[0].GetNetname() for segs in r2_runs.values()))}")
+
+r2_cleared = set(); r2_blocked = set()
+r2_segs_relayered = 0; r2_vias_added = 0; r2_vias_evac = 0; r2_runs_reverted = 0
+
+for rid, segs in r2_runs.items():
+    net = segs[0].GetNetname()
+    hw = segs[0].GetWidth() // 2
+    via_w, via_d = via_size_for(net)
+    run_ids = {id(t) for t in segs}
+    # (1) B.Cu must host every run seg (no In2 here). GND is same-net-excluded so it always fits.
+    if any(seg_collides_on(((t.GetStart().x, t.GetStart().y), (t.GetEnd().x, t.GetEnd().y)),
+                           hw, net, B) for t in segs):
+        r2_blocked.add(net); continue
+    node_coord = {}
+    for t in segs:
+        node_coord[endpoints(t)[0]] = t.GetStart()
+        node_coord[endpoints(t)[1]] = t.GetEnd()
+    sh = list(scratch_holes); sv = list(scratch_vias)
+    via_plan = []        # (node_pt, via_pt, polyline)   F<->B exit vias to ADD
+    evac_plan = []       # (via_obj, new_pt)              existing in-box vias to MOVE out
+    ok = True
+    for ep, pt in node_coord.items():
+        # an existing via at this node that sits IN a box must be evacuated to the gap
+        ev = next((vt for vt in b.GetTracks()
+                   if vt.GetClass() == "PCB_VIA" and vt.GetNetname() == net
+                   and keyp(vt.GetPosition()) == ep and box_of(vt.GetPosition().x, vt.GetPosition().y)), None)
+        if ev is not None:
+            vb = box_of(ev.GetPosition().x, ev.GetPosition().y)
+            edge_y, sgn = _gap_target_y(vb[0], vb[2], vb[4])
+            placed = None
+            step = SLIDE_STEP
+            while step <= EVAC_MAX:
+                ny = int(edge_y + sgn * (OUT_MARGIN + step))
+                cand = pcbnew.VECTOR2I(ev.GetPosition().x, ny)
+                if (box_of(cand.x, cand.y) is None
+                        and via_ok_at(cand, net, via_w, via_d, B, sh, sv)):
+                    placed = cand; break
+                step += SLIDE_STEP
+            if placed is None:
+                ok = False; break
+            evac_plan.append((ev, placed))
+            sh.append((net, placed.x, placed.y, via_d // 2))
+            sv.append((net, (placed.x, placed.y), via_w // 2))
+            continue
+        if (net, ep) in bridged_node:
+            continue                                    # already a legal F<->B bridge (pad / out-of-box via)
+        # A run seg that TERMINATES on a same-net F-only SMD pad cannot be relayered: dropping the seg
+        # to B.Cu orphans the pad (it would need a via ON the pad). The sense-cluster power/signal nets
+        # connect to IC + decoupling pads THROUGHOUT the gap, so such a run is ESCALATED whole (this is
+        # the honest R2 limit -- the clip is part of a pad-pinned route, not free gap routing).
+        pa = pad_at.get(ep)
+        if pa and pa[0] == net and pa[1] and not pa[2]:    # same-net, on F, not on B
+            ok = False; break
+        # kept F.Cu (not in this run) continues here -> a transition via is needed.
+        kept = [t for t in cur_fcu_ep[(net, ep)] if id(t) not in run_ids]
+        if not kept:
+            continue                                    # interior node of the run -> stays on B.Cu, no via
+        # PLACE THE VIA AT THE NODE FIRST (no split, all branches keep their F<->B bridge). If the
+        # node is in-box or B.Cu-congested, SLIDE the via into the gap -- but ONLY when there is a
+        # SINGLE kept continuation (a branch node cannot be slid: relayering the node-side stub to B
+        # would strand the OTHER kept branch on F.Cu against B.Cu copper -> dangling/unconnected). The
+        # slide stays WITHIN that one kept segment (verts = [node, its far end]) so no intermediate
+        # node is ever relayered.
+        verts = [pt]
+        if len(kept) == 1:
+            t = kept[0]
+            far = t.GetEnd() if keyp(t.GetStart()) == ep else t.GetStart()
+            verts.append(far)
+        plen = polyline_length(verts)
+        chosen = None; slide = 0
+        while slide <= min(SLIDE_MAX, plen):
+            vp, _si = point_along_polyline(verts, slide)
+            if pt_in_any_pour(vp.x, vp.y) is None and via_ok_at(vp, net, via_w, via_d, B, sh, sv):
+                chosen = (vp, slide); break
+            if plen == 0:
+                break
+            slide += SLIDE_STEP
+        if chosen is None:
+            ok = False; break
+        vp, slide = chosen
+        via_plan.append((ep, pt, vp, verts, slide))
+        sh.append((net, vp.x, vp.y, via_d // 2))
+        sv.append((net, (vp.x, vp.y), via_w // 2))
+    if not ok:
+        r2_blocked.add(net); r2_runs_reverted += 1; continue
+    # COMMIT: relayer run segs to B.Cu; add exit vias (converting any slid kept stub to B.Cu); move
+    # evac vias and drag their coincident track endpoints.
+    netobj = b.FindNet(net)
+    for t in segs:
+        t.SetLayer(B)
+        LCOPPER[B][0].append((net, ((t.GetStart().x, t.GetStart().y),
+                                    (t.GetEnd().x, t.GetEnd().y)), hw))
+    r2_segs_relayered += len(segs)
+    for ep, node_pt, vp, verts, slide in via_plan:
+        if slide > 0:
+            acc = 0
+            for i in range(len(verts) - 1):
+                a, c = verts[i], verts[i + 1]
+                seglen = math.hypot(c.x - a.x, c.y - a.y)
+                if seglen < 1:
+                    continue
+                trk = next((t for t in cur_fcu_ep[(net, keyp(a))]
+                            if t.GetLayer() == F and id(t) not in run_ids
+                            and {keyp(t.GetStart()), keyp(t.GetEnd())} == {keyp(a), keyp(c)}), None)
+                if trk is None:
+                    break
+                if acc + seglen <= slide + 1:
+                    trk.SetLayer(B); acc += seglen
+                else:
+                    if keyp(trk.GetStart()) == keyp(a):
+                        trk.SetEnd(vp); trk.SetLayer(B)
+                    else:
+                        trk.SetStart(vp); trk.SetLayer(B)
+                    fstub = pcbnew.PCB_TRACK(b)
+                    fstub.SetStart(vp); fstub.SetEnd(c); fstub.SetWidth(trk.GetWidth())
+                    fstub.SetLayer(F); fstub.SetNet(netobj); b.Add(fstub)
+                    break
+        v = pcbnew.PCB_VIA(b)
+        v.SetPosition(pcbnew.VECTOR2I(vp.x, vp.y))
+        v.SetDrill(via_d); v.SetWidth(via_w)
+        v.SetLayerPair(F, B); v.SetNet(netobj); b.Add(v)
+        scratch_holes.append((net, vp.x, vp.y, via_d // 2))
+        scratch_vias.append((net, (vp.x, vp.y), via_w // 2))
+        existing_vias.append((net, (vp.x, vp.y), via_w // 2))
+        all_holes.append((net, vp.x, vp.y, via_d // 2))
+        bridged_node.add((net, ep)); r2_vias_added += 1
+    for ev, new_pt in evac_plan:
+        old = ev.GetPosition()
+        for t in b.GetTracks():
+            if t.GetClass() == "PCB_TRACK" and t.GetNetname() == net:
+                if keyp(t.GetStart()) == keyp(old):
+                    t.SetStart(new_pt)
+                if keyp(t.GetEnd()) == keyp(old):
+                    t.SetEnd(new_pt)
+        ev.SetPosition(new_pt)
+        scratch_holes.append((net, new_pt.x, new_pt.y, via_d // 2))
+        scratch_vias.append((net, (new_pt.x, new_pt.y), via_w // 2))
+        r2_vias_evac += 1
+    r2_cleared.add(net)
+
+print(f"R2 clip pass: runs_cleared_nets={sorted(r2_cleared)} blocked_nets={sorted(r2_blocked)} "
+      f"segs_relayered={r2_segs_relayered} vias_added={r2_vias_added} vias_evac={r2_vias_evac} "
+      f"runs_reverted={r2_runs_reverted}")
+
 # ---- refill all zones (antipad the new vias + foreign In2 runs; clear stale fill) -----------------
 b.BuildConnectivity()
 for z in b.Zones():
@@ -688,6 +950,15 @@ if tap_segs:
         "build/eps-rev3-tpc-module/eps-8pin-rev3-routed-tpc.kicad_pcb shows 0 through-crossings + only "
         "4 tap clips with that lever."
         % (len(tap_segs), ",".join(tap_nets)))
+if r2_blocked:
+    esc_parts.append(
+        "ESCALATE %d R2 gap-overflow clip net(s) [%s] that do NOT fit a B.Cu hop under the pour edge: "
+        "the overflow signals/rails are pad-pinned to the sense-IC cluster THROUGHOUT the 3.9mm shunt "
+        "gap (only ~1.9mm clear channel after the 1mm pour margins), so their B.Cu run either collides "
+        "with the dense B.Cu cluster routing already there or would orphan a same-net F-only SMD pad. "
+        "Closing the foreign-on-pour gate on this board needs WIDENING THE SHUNT GAP (a board change = "
+        "owner ratification); the B.Cu route-under mechanism clears these once the gap opens up."
+        % (len(r2_blocked), ",".join(sorted(r2_blocked))))
 esc_parts.append(
     "THERMAL (separate owner ratification, NOT a layer-swap): even fully de-clipped with the SENSEC "
     "pours solid, this board runs ~227C at 40A/4-cable (~123C/1-cable), bound by the F.Cu-ONLY shunt "
@@ -702,12 +973,18 @@ summary = {
     "through_per_layer": dict(net_layer),
     "tap_segments_escalated": len(tap_segs),
     "tap_nets": tap_nets,
+    "r2_clip_nets_cleared": sorted(r2_cleared),
+    "r2_clip_nets_blocked": sorted(r2_blocked),
+    "r2_segs_relayered": r2_segs_relayered,
+    "r2_vias_added": r2_vias_added,
+    "r2_vias_evac": r2_vias_evac,
     "vias_added": vias_added,
     "reverted_segments": reverted,
     "left_on_fcu": left_on_fcu,
     "target_inner_plane": (b.GetLayerName(IN2) if IN2 is not None else None),
-    "escalation": ("none -- all THROUGH crossings cleared and no TAP residual"
-                   if not blocked_nets and not tap_segs else "  ||  ".join(esc_parts)),
+    "escalation": ("none -- all THROUGH crossings + R2 clips cleared and no TAP residual"
+                   if not blocked_nets and not tap_segs and not r2_blocked
+                   else "  ||  ".join(esc_parts)),
 }
 print("SUMMARY " + json.dumps(summary))
 print("SAVED", OUT)
