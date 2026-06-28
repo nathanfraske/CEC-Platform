@@ -450,6 +450,11 @@ def _parse_overlay(stdout, tdir):
         cbar = os.path.join(tdir, summary.get("cbar", "")) if summary.get("cbar") else None
         if cbar and not os.path.exists(cbar):
             cbar = None
+        # full-detail copper map (the primary thermal view); stash its absolute path in the summary so
+        # the candidate dict can serve it. Absent/failed -> just no detail (per-layer raster still shows).
+        dfn = summary.get("detail")
+        dpath = os.path.join(tdir, dfn) if dfn else None
+        summary["detail_path"] = dpath if (dpath and os.path.exists(dpath)) else None
         return layers, cbar, summary
     return {}, None, (summary or {"ok": False, "error": "no overlay produced"})
 
@@ -569,6 +574,7 @@ def _render_board(board):
     return {"stem": stem, "board": board, "png": png if ok_png else None,
             "svg": svg if ok_svg else None, "layers": layers, "rdir": rdir,
             "thermal_layers": thermal_layers, "thermal_cbar": thermal_cbar, "thermal_sum": thermal_sum,
+            "thermal_detail": (thermal_sum or {}).get("detail_path"),   # full-detail copper map (primary thermal view)
             "thermal_tier": ("coarse" if thermal_layers else None),
             "thermal_status": ("coarse" if thermal_layers else None),
             "mtime": os.path.getmtime(board), "ts": time.time()}
@@ -689,6 +695,7 @@ def _fine_thermal_loop():
                     cur["thermal_layers"] = layers
                     cur["thermal_cbar"] = cbar
                     cur["thermal_sum"] = summary
+                    cur["thermal_detail"] = summary.get("detail_path")   # upgrade the detail map to the fine field
                     cur["thermal_tier"] = "fine"
                     cur["thermal_status"] = "fine"
                     cur["_fine_mtime"] = bmtime
@@ -750,6 +757,7 @@ class H(BaseHTTPRequestHandler):
                           "has_thermal": bool(c.get("thermal_layers")),
                           "thermal_layers": sorted((c.get("thermal_layers") or {}).keys()),
                           "has_thermal_cbar": bool(c.get("thermal_cbar")),
+                          "has_thermal_detail": bool(c.get("thermal_detail")),  # full-detail copper map available
                           "thermal_tier": c.get("thermal_tier"),     # coarse | fine
                           "thermal_status": c.get("thermal_status"),  # coarse | solving | fine (the badge state)
                           "thermal": (c.get("thermal_sum") or {})} for c in _cands]
@@ -770,14 +778,16 @@ class H(BaseHTTPRequestHandler):
         elif path == "/api/seat":
             self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
                                     int(params.get("off", 0))))
-        elif (path in ("/board.png", "/board.svg", "/thermal-cbar.png")
+        elif (path in ("/board.png", "/board.svg", "/thermal-cbar.png", "/thermal-detail.png")
               or path.startswith("/layer/") or path.startswith("/thermal-layer/")):
             try:
                 idx = int(params["cand"]) if "cand" in params else None
             except ValueError:
                 idx = None
             cand = _cand_at(idx)                                   # the scroller-selected candidate
-            if path == "/thermal-cbar.png":
+            if path == "/thermal-detail.png":
+                p, ctype = (cand or {}).get("thermal_detail"), "image/png"
+            elif path == "/thermal-cbar.png":
                 p, ctype = (cand or {}).get("thermal_cbar"), "image/png"
             elif path.startswith("/thermal-layer/"):
                 name = os.path.basename(path[len("/thermal-layer/"):])   # traversal-safe
@@ -888,8 +898,11 @@ function bswap(){
  im.style.display='none'; pw.style.display='block'; if(cb)cb.style.display='none';   // ALL modes use the zoom/pan frame
  lyrBoxes();                                                  // checkboxes reflect the current mode
  buildStack();                                                // png/svg/thermal all render into the zoomable pstack now
- if(bmode==='thermal'){ fetchThermGrid();                     // load the T field for the hover readout
-  if(cb){const c=cands[selCand]; if(c&&c.has_thermal_cbar){cb.style.display='block';cb.src='/thermal-cbar.png'+cq();}} }
+ if(bmode==='thermal'){ const c=cands[selCand];
+  if(c&&c.has_thermal_detail){                                // the detail map carries its OWN colorbar+legend -> no strip, no hover
+   thermGrid=null; document.getElementById('thtip').style.display='none'; }
+  else { fetchThermGrid();                                    // per-layer raster fallback: load the T field for the hover readout
+   if(cb){ if(c&&c.has_thermal_cbar){cb.style.display='block';cb.src='/thermal-cbar.png'+cq();} } } }
  else { thermGrid=null; document.getElementById('thtip').style.display='none'; } }
 function fetchThermGrid(){
  thermGrid=null; const c=cands[selCand]; if(!c||!c.has_thermal) return;
@@ -941,6 +954,10 @@ function buildStack(){
  if(bmode==='png'){                                           // 3D raytrace render -> a single image in the zoom/pan frame
   const im=document.createElement('img'); im.src='/board.png'+cq();
   im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im); return; }
+ if(bmode==='thermal'){ const c=cands[selCand];               // full-detail copper map = one self-contained image
+  if(c&&c.has_thermal_detail){                                // (board-accurate pours/traces/pads/vias coloured by T)
+   const im=document.createElement('img'); im.src='/thermal-detail.png'+cq();
+   im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im); return; } }
  const {ls,base,therm}=modeLayers();
  // draw order: bottom copper first, F.Cu then Edge on top
  const order=[...ls].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
@@ -955,6 +972,9 @@ function buildStack(){
  // NO never-blank fallback in either mode: nothing selected -> blank (the owner-caught bug was svg mode
  // falling back to the combined /board.svg, which read as "something is still selected").
 function lyrBoxes(){
+ const c=cands[selCand];
+ if(bmode==='thermal'&&c&&c.has_thermal_detail){              // detail map shows all layers at once -> no per-layer toggles
+  document.getElementById('lyrboxes').innerHTML=''; return; }
  const {ls}=modeLayers();
  document.getElementById('lyrboxes').innerHTML=ls.map(L=>
   `<label class="pill" style="cursor:pointer"><input type="checkbox" ${lyrOn[L]?'checked':''} onchange="lyrOn['${L}']=this.checked;buildStack()"> ${L.replace('_','.')}</label>`).join('');}
