@@ -373,6 +373,230 @@ def _check_pairs(
 
 
 # ---------------------------------------------------------------------------
+#  Kelvin four-wire TOPOLOGY gate (the current-carrying-sense hole)
+# ---------------------------------------------------------------------------
+# _check_pairs above proves each sense leg is ROUTED (>=1 track, 0 ratlines) and electrically
+# clean (no foreign-net short). It is BLIND to the WIRING TOPOLOGY: on a cable interposer the
+# cable connector pad (J_IN/J_OUT), the shunt terminal pad (RS*) and the sense IC input pad
+# (INA*) are ALL the same net (/SENSEC*_HI|_LO), so the router can satisfy the INA-input
+# connectivity by tying it to the NEAREST net point -- the connector -- and 0 ratlines still
+# reads kelvin_ok=True. That is NOT a 4-wire Kelvin tap: the sense then includes the
+# connector->shunt force trace + contact resistance, and the sense wire carries current.
+#
+# The §6.8 four-wire rule is GEOMETRIC: the INA input must tap the shunt element TERMINAL only,
+# so the sense stub carries no current. The deterministic test for that on the copper graph is a
+# CUT-VERTEX test: build the conductor graph for the net from TRACKS + VIAS (zones EXCLUDED --
+# the high-current force pour is the legitimate connector->shunt copper that terminates AT the
+# shunt pad), DELETE the shunt pad node, and assert the INA input pad can no longer reach ANY
+# cable-connector pad. If it can, a sense-carrying copper path bypasses the shunt element
+# (parallel sense-through-connector), so the tap is not 4-wire -> FAIL.
+#
+#   * legitimate tap (sense stub on the shunt inner edge, force = pour/wide copper terminating
+#     at the shunt pad): with the shunt pad removed the INA input dead-ends -> PASS.
+#   * the documented bug (FR routes the sense pad to the connector, or the INA taps the force
+#     trace upstream of the shunt): the INA reaches the connector WITHOUT the shunt -> FAIL.
+#
+# Self-gating: a net is checked only when it carries the per-cable triple (>=1 J connector pad,
+# >=1 RS shunt pad, >=1 INA input pad). Shared-bus per-pin (12VHPWR J3/J4) / per-rail (24-pin)
+# and the Hub have no such triple on a sense net -> N/A (no fault, no false-fail).
+# registry kelvin-sense-no-connector-tap params (kept in sync with cec_constraints REGISTRY so
+# score()'s folded gate and the standalone checker agree by construction).
+_KELVIN_TOPO_SNAP_NM = 60000    # 0.06 mm  terminal-coincidence tolerance (snap_tol_mm)
+_KELVIN_TOPO_REACH_NM = 150000  # 0.15 mm  pad HitTest accuracy beyond the pad edge (pad_reach_extra_mm)
+
+
+def _topo_is_ina(fp) -> bool:
+    s = (fp.GetReference() + " " + (fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
+    return "INA2" in s or "INA181" in s
+
+
+def _topo_is_vbus_pad(fp, padname: str) -> bool:
+    """The INA226/228/238 (VSSOP-10 power-monitor) Vbus pin is footprint pad 8 -- a high-Z VOLTAGE
+    tap, not a current-sense input, so it may be FR-routed to the bus/connector and is NOT a Kelvin
+    fault (registry kelvin-sense-no-connector-tap). INA181/240 current-shunt amps have no Vbus pin,
+    so nothing is excluded for them."""
+    s = ((fp.GetValue() or "") + " " + fp.GetFPIDAsString()).upper()
+    return padname == "8" and ("INA226" in s or "INA228" in s or "INA238" in s)
+
+
+def _topo_role(fp) -> str:
+    if _topo_is_ina(fp):
+        return "ina"
+    r = fp.GetReference().upper()
+    if r.startswith("RS"):
+        return "shunt"
+    if r.startswith("J"):
+        return "conn"
+    return "other"
+
+
+class _UF:
+    """Tiny union-find over hashable node ids."""
+    __slots__ = ("p",)
+
+    def __init__(self):
+        self.p = {}
+
+    def add(self, x):
+        if x not in self.p:
+            self.p[x] = x
+
+    def find(self, x):
+        self.add(x)
+        r = x
+        while self.p[r] != r:
+            r = self.p[r]
+        while self.p[x] != r:
+            self.p[x], x = r, self.p[x]
+        return r
+
+    def union(self, a, b):
+        ra, rb = self.find(a), self.find(b)
+        if ra != rb:
+            self.p[ra] = rb
+
+
+def kelvin_topology_faults(board, kelvin_pairs, *,
+                           snap_tol_nm: int = _KELVIN_TOPO_SNAP_NM,
+                           pad_reach_nm: int = _KELVIN_TOPO_REACH_NM):
+    """CUT-VERTEX 4-wire topology check (see the block comment above).
+
+    Parameters
+    ----------
+    board        a LOADED pcbnew board object.
+    kelvin_pairs [("/SENSEC1_HI","/SENSEC1_LO"), ...] -- the sense pairs to evaluate.
+    snap_tol_nm  terminal-coincidence tolerance (registry snap_tol_mm).
+    pad_reach_nm pad HitTest accuracy beyond the pad edge (registry pad_reach_extra_mm).
+
+    Returns (fault_nets:set, reasons:list[str], detail:list[dict], nets_checked:int).
+    A net contributes to nets_checked only when its per-cable connector/shunt/INA triple is
+    present (otherwise it is N/A and silently skipped). A fault means some INA CURRENT-SENSE
+    input pad (Vin+/Vin- -- the INA226/228/238 Vbus pad is excluded) on the net reaches a
+    cable-connector pad on the net with the shunt pad removed.
+    """
+    nets = set()
+    for hi, lo in kelvin_pairs:
+        nets.add(hi)
+        nets.add(lo)
+    if not nets:
+        return set(), [], [], 0
+
+    # pads on each sense net, tagged by role (one pass over footprints). The INA226/228/238 Vbus
+    # pad (a high-Z voltage tap) is reclassified to "vbus" so it is neither cut nor flagged.
+    padrec = {n: [] for n in nets}                       # net -> [(node_id, role, pad)]
+    for fp in board.GetFootprints():
+        role = _topo_role(fp)
+        ref = fp.GetReference()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in nets:
+                pad_role = role
+                if role == "ina" and _topo_is_vbus_pad(fp, p.GetPadName()):
+                    pad_role = "vbus"
+                padrec[nn].append(((ref, p.GetPadName()), pad_role, p))
+
+    # tracks / vias bucketed by sense net (one pass over tracks)
+    trk = {n: [] for n in nets}
+    via = {n: [] for n in nets}
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if nn not in nets:
+            continue
+        if t.Type() == pcbnew.PCB_TRACE_T:
+            trk[nn].append(t)
+        elif t.Type() == pcbnew.PCB_VIA_T:
+            via[nn].append(t)
+
+    fault_nets, reasons, detail, checked = set(), [], [], 0
+
+    for net in sorted(nets):
+        recs = padrec[net]
+        ina = [r for r in recs if r[1] == "ina"]
+        shunt = [r for r in recs if r[1] == "shunt"]
+        conn = [r for r in recs if r[1] == "conn"]
+        if not ina or not shunt or not conn:
+            continue                                     # N/A: not a per-cable connector/shunt/INA triple
+        checked += 1
+
+        uf = _UF()
+        terms = []                                       # (x_nm, y_nm, frozenset(layers), node_id)
+        for t in trk[net]:
+            s, e = t.GetStart(), t.GetEnd()
+            ly = t.GetLayer()
+            na = ("t", s.x, s.y, ly)
+            nb = ("t", e.x, e.y, ly)
+            uf.add(na); uf.add(nb); uf.union(na, nb)
+            terms.append((s.x, s.y, frozenset((ly,)), na))
+            terms.append((e.x, e.y, frozenset((ly,)), nb))
+        for v in via[net]:
+            vp = v.GetPosition()
+            ls = frozenset(v.GetLayerSet().CuStack())
+            nv = ("v", vp.x, vp.y)
+            uf.add(nv)
+            terms.append((vp.x, vp.y, ls, nv))
+        # coincidence: same point within snap tol AND sharing a copper layer (a via bridges layers)
+        for i in range(len(terms)):
+            xi, yi, li, ni = terms[i]
+            for j in range(i + 1, len(terms)):
+                xj, yj, lj, nj = terms[j]
+                if abs(xi - xj) <= snap_tol_nm and abs(yi - yj) <= snap_tol_nm and (li & lj):
+                    uf.union(ni, nj)
+        # pad <-> terminal: skip the SHUNT pad(s) on this net -- that is the cut vertex
+        for nid, role, p in recs:
+            if role == "shunt":
+                continue
+            for (x, y, ls, tn) in terms:
+                hit = False
+                for ly in ls:
+                    if p.IsOnLayer(ly) and p.HitTest(pcbnew.VECTOR2I(int(x), int(y)), int(pad_reach_nm)):
+                        hit = True
+                        break
+                if hit:
+                    uf.add(nid); uf.union(nid, tn)
+
+        # any INA input pad in the same component as any cable connector pad => bypass fault
+        net_fault = False
+        for nid_a, _r, _pa in ina:
+            if nid_a not in uf.p:
+                continue                                 # INA input has no copper here (ratline -> _check_pairs)
+            ra = uf.find(nid_a)
+            for nid_c, _rc, _pc in conn:
+                if nid_c in uf.p and uf.find(nid_c) == ra:
+                    fault_nets.add(net)
+                    net_fault = True
+                    detail.append({"net": net, "ina": "%s.%s" % nid_a, "conn": "%s.%s" % nid_c})
+                    reasons.append(
+                        "kelvin pair %s: sense input %s.%s reaches connector %s.%s with the shunt "
+                        "removed -- current-carrying sense (not a 4-wire tap)" %
+                        (net, nid_a[0], nid_a[1], nid_c[0], nid_c[1]))
+                    break
+            if net_fault:
+                break                                    # one fault per net is enough to gate it
+
+    return fault_nets, reasons, detail, checked
+
+
+def kelvin_topology_summary(board_path, rules=None):
+    """Public path-based summary (mirrors cec_constraints.foreign_on_pour_summary). Loads the
+    board, derives Kelvin pairs (rules or by net name), runs the cut-vertex topology check and
+    reports {applicable, n_faults, faults, by_net, nets_checked}. applicable is False (vacuous)
+    when no per-cable connector/shunt/INA sense triple exists on the board."""
+    b = pcbnew.LoadBoard(board_path)
+    if rules is not None and rules.kelvin_pairs:
+        pairs = rules.kelvin_pairs
+    else:
+        names = [n.GetNetname() for n in b.GetNetInfo().NetsByNetcode().values() if n.GetNetname()]
+        pairs, _ = _derive_pairs(names)
+    fault_nets, reasons, detail, checked = kelvin_topology_faults(b, pairs)
+    by_net = {}
+    for d in detail:
+        by_net.setdefault(d["net"], []).append("%s<-%s" % (d["ina"], d["conn"]))
+    return {"applicable": checked > 0, "n_faults": len(detail), "faults": detail[:60],
+            "by_net": by_net, "nets_checked": checked, "fault_nets": sorted(fault_nets),
+            "reasons": reasons[:60]}
+
+
+# ---------------------------------------------------------------------------
 #  score()
 # ---------------------------------------------------------------------------
 def score(
@@ -475,6 +699,17 @@ def score(
         fault_nets, fault_types_map
     )
 
+    # ---- Kelvin four-wire TOPOLOGY (cut-vertex) gate, FOLDED INTO kelvin_ok ----
+    # _check_pairs is blind to a current-carrying sense (INA input tied to the connector on the
+    # shared sense net, 0 ratlines). The cut-vertex trace fails kelvin_ok when any INA input
+    # reaches a cable-connector pad with the shunt pad removed. N/A boards (no per-cable triple)
+    # contribute nothing. This makes kelvin_ok the COMPLETE 4-wire gate, so gates_pass (below) and
+    # every reader (cec_router.independent_drc via gate(), the loop ranking, cec_constraints) inherit it.
+    topo_fault_nets, topo_reasons, topo_detail, topo_checked = kelvin_topology_faults(b, kelvin_pairs)
+    if topo_fault_nets:
+        kelvin_ok = False
+        kelvin_reasons = list(kelvin_reasons) + topo_reasons
+
     drc_gate_ok = (drc_count == 0) if rules.require_drc_zero else True
 
     gates_pass = kelvin_ok and diffpair_ok and drc_gate_ok
@@ -495,6 +730,8 @@ def score(
         "diff_reasons":    diff_reasons,
         "unconn_nets":     sorted(unconn_nets),
         "sense_fault_nets": {n: sorted(fault_types_map.get(n, [])) for n in sorted(fault_nets)},
+        "kelvin_topology_faults":  topo_detail,
+        "kelvin_topology_checked": topo_checked,
         "drc_struct_count": drc_count,
         "drc_gate_ok":     drc_gate_ok,
         "require_drc_zero": rules.require_drc_zero,
