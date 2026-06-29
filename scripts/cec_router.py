@@ -323,6 +323,16 @@ def default_planner(board, spec):
     # (CEC_OVD_CORRIDOR_KEEPOUT=1 enables it, for use only with the corridor-packing placer).
     if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
         hints += _vital_keepouts_from_rules(board, rules)
+    # TAP-CHANNEL keepout (2026-06-28): reserve the F.Cu inner-edge Kelvin tap channels so pass-1 FR
+    # routes TRANSITING foreign (a comparator /DETC*, +3V3, I2C) AROUND/UNDER them instead of through the
+    # notch at tap height -- otherwise the post-route tap refuses itself (kelvin_ok=False) on an otherwise
+    # geometrically-clean placement, and TPC (which needs a kelvin-ok pass-1) never runs. F.Cu only, so a
+    # B.Cu crossing (which does not clip the F.Cu tap) is the intended escape. CEC_TAP_CHANNEL_KEEPOUT=1.
+    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+        try:
+            hints += cec_fr.tap_channel_keepouts(board, kelvin_pairs=rules.kelvin_pairs)
+        except Exception as e:                               # noqa: BLE001 -- keepout is best-effort
+            print(f"[route] tap-channel keepout skipped ({type(e).__name__}: {e})")
     # EDGE keepout: SAFE + always-on. FR has no edge-clearance awareness (~100% of fresh DRC is
     # copper_edge_clearance); reserve a thin strip just inside each edge (excludes edge-resident
     # connectors/mounts). CEC_NO_EDGE_KEEPOUT=1 disables.
@@ -665,7 +675,12 @@ def _vital_keepouts_from_rules(board, rules):
     instead of being blocked by the keepout's own DoNotAllowZoneFills (a latent pour-clip the route_directed
     validation exposed -- ~89% of the pour was blocked; this also benefits cec_router.route())."""
     import cec_fr
-    return cec_fr.corridor_keepouts(board, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
+    # CEC_CORRIDOR_FCU_ONLY=1: reserve only F.Cu (the "layer-tier lever") so foreign routes on B.Cu UNDER
+    # the F.Cu pour -- pass-1 lands foreign-on-pour=0 (F.Cu-scoped gate) WITHOUT a TPC re-route. Pair with
+    # the tap-channel keepout. Default keeps the both-outer reservation.
+    layers = ("F.Cu",) if os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1" else ("F.Cu", "B.Cu")
+    return cec_fr.corridor_keepouts(board, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v,
+                                    layers=layers)
 
 
 def _candidate_pool(cands, rules, weights):
@@ -1016,6 +1031,16 @@ def two_pass_corridor(pass1_board, out_path, *, passes=14, opt_time=40, also_pro
         # step B: this process is pristine pcbnew -> keepout + DSN + force_protect + FR + import
         hints = cec_fr.corridor_keepouts(base)
         info["n_corridor_keepouts"] = len(hints)
+        # TAP-CHANNEL keepout in the TPC re-route too: the corridor keepout reserves the HI/LO POUR boxes
+        # but leaves the notch (the tap channels) OPEN, so TPC's re-routed foreign can clip a Kelvin tap
+        # there -> kelvin_ok True->False and the TPC board is rejected (the pour-clearing win is lost). The
+        # SENSEC FORCE wires are locked/protected, but the inner-edge taps are re-synthesized post-route, so
+        # the channel must be reserved against foreign just like in pass-1. CEC_TAP_CHANNEL_KEEPOUT=1.
+        if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+            try:
+                hints = list(hints) + cec_fr.tap_channel_keepouts(base)
+            except Exception:                                    # noqa: BLE001 -- best-effort
+                pass
         # The TPC re-route must keep the SAME board-edge keepout the pass-1 route used
         # (cec_fr has no edge-clearance awareness, so without it the re-routed nets -- notably the
         # USB diff pair near J5 -- hug the board edge -> copper_edge_clearance DRC the pass-1 board
@@ -1495,6 +1520,16 @@ def board_spec(board, out_dir, *, seeds=(0, 1, 2, 3), passes=10, opt_time=20, th
     _hints = []
     if os.environ.get("CEC_OVD_CORRIDOR_KEEPOUT", "0") == "1":
         _hints += _vital_keepouts_from_rules(board_path, rules)
+    # TAP-CHANNEL keepout (2026-06-28): reserve each F.Cu inner-edge Kelvin tap channel so pass-1 FR
+    # routes TRANSITING foreign (a comparator /DETC*, +3V3, I2C) AROUND/UNDER it rather than through the
+    # notch at tap height -- otherwise the post-route tap refuses itself (kelvin_ok=False) on an otherwise
+    # geometrically-clean placement and TPC (which needs a kelvin-ok pass-1) never runs. F.Cu only, so a
+    # B.Cu crossing (which does not clip the F.Cu tap) is the intended escape. CEC_TAP_CHANNEL_KEEPOUT=1.
+    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+        try:
+            _hints += cec_fr.tap_channel_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs)
+        except Exception as e:                               # noqa: BLE001 -- keepout is best-effort
+            print(f"[route] tap-channel keepout skipped ({type(e).__name__}: {e})")
     if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") != "1":
         _hints += cec_fr.edge_keepout(board_path)
     spec.regions = [Region(name="all", nets=[],

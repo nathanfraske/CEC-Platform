@@ -785,9 +785,18 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     return pours
 
 
-def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None):
+def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None,
+                      layers=("F.Cu", "B.Cu")):
     """Route-time NOTCHED corridor keepout (the ENFORCE leg of the high-current-corridor-keepout /
     high-current-pour-integrity / kelvin-tap-inner-shunt-edge corpus rules).
+
+    *layers* selects which copper layers the keepout reserves. The default reserves BOTH outer pour
+    layers (F.Cu + B.Cu) so a foreign trace cannot cut either mirror. Passing ``("F.Cu",)`` reserves
+    ONLY F.Cu -- the "layer-tier lever": foreign then routes on B.Cu UNDER the F.Cu pour (which the
+    no-foreign-on-high-current-pour gate, F.Cu-scoped, treats as clear), so pass-1 itself lands
+    foreign-on-pour=0 with the F.Cu pour solid, WITHOUT a TPC re-route (whose track-based LO re-route
+    trips the cut-vertex kelvin check). Pair with tap_channel_keepouts so the notch tap channels stay
+    clear too.
 
     Reserve each high-current FORCE corridor -- the cable connector THT pads' span extended to the 2-pad
     Kelvin shunt -- as a Freerouting keepout, CLIPPED on the shunt's inner side so the tap window
@@ -861,7 +870,7 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
             y0, y1 = clip_lo, max(tys) + 1.0
         hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
                       "x1": round(x1, 2), "y1": round(y1, 2),
-                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True,
+                      "layers": tuple(layers), "allow_vias": True,
                       # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
                       # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
                       "block_fills": False})
@@ -1286,6 +1295,123 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
         laid.append(t)
         report.setdefault(net, []).append(lbl)
     return {"taps": len(laid), "by_net": report, "refused": refused}
+
+
+def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
+                         pad_clear=0.35, max_ic_mm=6.0):
+    """Route-time F.Cu TAP-CHANNEL keepout -- the ENFORCE leg of "the inner-tap channel is CLEAR".
+
+    The §6.8 four-wire Kelvin tap (:func:`synthesize_kelvin_taps`) is a straight F.Cu stub from each
+    2-pad shunt's INNER edge to each seated current-sense IC input pad. It is laid AFTER the route and
+    REFUSES itself rather than plough through foreign copper -- so when pass-1 Freerouting routes a
+    TRANSITING foreign signal (a comparator output /DETC*, +3V3, I2C ...) across the notch at the tap
+    height, the tap is correctly left UNCONNECTED and kelvin_ok=False (the placement looks congested even
+    when it is geometrically clean). This reserves each tap's own channel as a Freerouting keepout on F.Cu
+    ONLY, so FR routes that transiting foreign AROUND the channel (or vias it DOWN to B.Cu, which does not
+    clip the F.Cu tap) -- pass-1 then lays the taps -> kelvin_ok -> the two-pass corridor / route-under can
+    clean the remaining foreign-on-pour. Distinct from :func:`corridor_keepouts`, which reserves the HI/LO
+    POUR boxes but deliberately leaves the notch (where the taps live) OPEN.
+
+    ONE box PER TAP (shunt inner-edge -> IN pad), the segment bounding box inflated by *margin*, then
+    each box edge is CLIPPED inward to stay *pad_clear* mm clear of any FOREIGN-net pad it would otherwise
+    cover (the INA's own +3V3/GND/I2C pads, ~0.5mm pitch in the column): the smaller inward clip per
+    offending pad. The shunt pad and the IN pad are same-net (never clipped), so the box reaches the IN
+    pad and reserves the full channel a transiting foreign would clip, while the IC's foreign pads stay
+    routable. F.Cu only (a B.Cu crossing does not clip the F.Cu tap and is the desired escape), allow_vias
+    True, block_fills False (the same-net SENSEC pour is not in the notch). SELF-GATING: no 2-pad straddle
+    shunt / no INA input pad within max_ic_mm -> []. Returns bake_hints dicts."""
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    from collections import defaultdict
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    foreign_pads = []                                          # (x, y, halfx, halfy) of every non-sense pad
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+            else:
+                pp = p.GetPosition(); sz = p.GetSize()
+                foreign_pads.append((pp.x / MM, pp.y / MM, sz.x / MM / 2.0, sz.y / MM / 2.0))
+
+    def _clip_foreign(x0, y0, x1, y1):
+        """Shrink the box edges inward so no foreign pad sits within pad_clear of the box interior."""
+        for px, py, hx, hy in foreign_pads:
+            pax0, pax1 = px - hx - pad_clear, px + hx + pad_clear
+            pay0, pay1 = py - hy - pad_clear, py + hy + pad_clear
+            if pax1 <= x0 or pax0 >= x1 or pay1 <= y0 or pay0 >= y1:
+                continue                                        # pad (inflated) doesn't intrude the box
+            # minimal inward clip among the 4 edges that removes the overlap
+            cands = []
+            if pax1 < x1:
+                cands.append(("x0", pax1, pax1 - x0))
+            if pax0 > x0:
+                cands.append(("x1", pax0, x1 - pax0))
+            if pay1 < y1:
+                cands.append(("y0", pay1, pay1 - y0))
+            if pay0 > y0:
+                cands.append(("y1", pay0, y1 - pay0))
+            if not cands:
+                return None                                     # pad spans the whole box -> degenerate
+            edge, val, _cost = min(cands, key=lambda c: c[2])
+            if edge == "x0":
+                x0 = val
+            elif edge == "x1":
+                x1 = val
+            elif edge == "y0":
+                y0 = val
+            else:
+                y1 = val
+            if x1 - x0 < 0.3 or y1 - y0 < 0.3:
+                return None
+        return (x0, y0, x1, y1)
+
+    hints = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pad = {}
+        for net in (hi, lo):
+            for r, p, _fp in pads_by_net.get(net, []):
+                if r == sh:
+                    sh_pad[net] = p
+        if hi not in sh_pad or lo not in sh_pad:
+            continue
+        hi_pos, lo_pos = sh_pad[hi].GetPosition(), sh_pad[lo].GetPosition()
+        for net, this_pad, other_pos, role in ((hi, sh_pad[hi], lo_pos, "HI"),
+                                               (lo, sh_pad[lo], hi_pos, "LO")):
+            pc = this_pad.GetPosition()
+            tx, ty, _ux, _uy = _inner_edge_pt(this_pad, other_pos, inset_mm=0.0)
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue
+                pp = p.GetPosition()
+                if math.hypot((pp.x - pc.x) / MM, (pp.y - pc.y) / MM) > max_ic_mm:
+                    continue
+                ix, iy = pp.x / MM, pp.y / MM
+                box = (min(tx, ix) - margin, min(ty, iy) - margin,
+                       max(tx, ix) + margin, max(ty, iy) + margin)
+                clipped = _clip_foreign(*box)
+                if clipped is None:
+                    continue
+                x0, y0, x1, y1 = clipped
+                hints.append({"name": f"tap_{sh}_{r}", "x0": round(x0, 2), "y0": round(y0, 2),
+                              "x1": round(x1, 2), "y1": round(y1, 2),
+                              "layers": ("F.Cu",), "allow_vias": False, "block_fills": False})
+    return hints
 
 
 # ---------------------------------------------------------------------------
