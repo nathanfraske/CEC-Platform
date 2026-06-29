@@ -455,6 +455,10 @@ def _parse_overlay(stdout, tdir):
         dfn = summary.get("detail")
         dpath = os.path.join(tdir, dfn) if dfn else None
         summary["detail_path"] = dpath if (dpath and os.path.exists(dpath)) else None
+        # current-twin map (the per-net current cross-check); same degrade-safe handling as the detail map.
+        cfn = summary.get("current")
+        cpath = os.path.join(tdir, cfn) if cfn else None
+        summary["current_path"] = cpath if (cpath and os.path.exists(cpath)) else None
         return layers, cbar, summary
     return {}, None, (summary or {"ok": False, "error": "no overlay produced"})
 
@@ -575,6 +579,7 @@ def _render_board(board):
             "svg": svg if ok_svg else None, "layers": layers, "rdir": rdir,
             "thermal_layers": thermal_layers, "thermal_cbar": thermal_cbar, "thermal_sum": thermal_sum,
             "thermal_detail": (thermal_sum or {}).get("detail_path"),   # full-detail copper map (primary thermal view)
+            "thermal_current": (thermal_sum or {}).get("current_path"),  # per-net current cross-check (twin panel)
             "thermal_tier": ("coarse" if thermal_layers else None),
             "thermal_status": ("coarse" if thermal_layers else None),
             "mtime": os.path.getmtime(board), "ts": time.time()}
@@ -696,6 +701,7 @@ def _fine_thermal_loop():
                     cur["thermal_cbar"] = cbar
                     cur["thermal_sum"] = summary
                     cur["thermal_detail"] = summary.get("detail_path")   # upgrade the detail map to the fine field
+                    cur["thermal_current"] = summary.get("current_path")  # upgrade the current twin too
                     cur["thermal_tier"] = "fine"
                     cur["thermal_status"] = "fine"
                     cur["_fine_mtime"] = bmtime
@@ -758,6 +764,7 @@ class H(BaseHTTPRequestHandler):
                           "thermal_layers": sorted((c.get("thermal_layers") or {}).keys()),
                           "has_thermal_cbar": bool(c.get("thermal_cbar")),
                           "has_thermal_detail": bool(c.get("thermal_detail")),  # full-detail copper map available
+                          "has_thermal_current": bool(c.get("thermal_current")),  # per-net current cross-check available
                           "thermal_tier": c.get("thermal_tier"),     # coarse | fine
                           "thermal_status": c.get("thermal_status"),  # coarse | solving | fine (the badge state)
                           "thermal": (c.get("thermal_sum") or {})} for c in _cands]
@@ -778,7 +785,8 @@ class H(BaseHTTPRequestHandler):
         elif path == "/api/seat":
             self._json(_seat_events(os.path.basename(params.get("key", "auditor")),
                                     int(params.get("off", 0))))
-        elif (path in ("/board.png", "/board.svg", "/thermal-cbar.png", "/thermal-detail.png")
+        elif (path in ("/board.png", "/board.svg", "/thermal-cbar.png", "/thermal-detail.png",
+                       "/thermal-current.png")
               or path.startswith("/layer/") or path.startswith("/thermal-layer/")):
             try:
                 idx = int(params["cand"]) if "cand" in params else None
@@ -787,6 +795,8 @@ class H(BaseHTTPRequestHandler):
             cand = _cand_at(idx)                                   # the scroller-selected candidate
             if path == "/thermal-detail.png":
                 p, ctype = (cand or {}).get("thermal_detail"), "image/png"
+            elif path == "/thermal-current.png":
+                p, ctype = (cand or {}).get("thermal_current"), "image/png"
             elif path == "/thermal-cbar.png":
                 p, ctype = (cand or {}).get("thermal_cbar"), "image/png"
             elif path.startswith("/thermal-layer/"):
@@ -954,10 +964,16 @@ function buildStack(){
  if(bmode==='png'){                                           // 3D raytrace render -> a single image in the zoom/pan frame
   const im=document.createElement('img'); im.src='/board.png'+cq();
   im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im); return; }
- if(bmode==='thermal'){ const c=cands[selCand];               // full-detail copper map = one self-contained image
-  if(c&&c.has_thermal_detail){                                // (board-accurate pours/traces/pads/vias coloured by T)
-   const im=document.createElement('img'); im.src='/thermal-detail.png'+cq();
-   im.style.cssText='width:100%;display:block;pointer-events:none'; st.appendChild(im); return; } }
+ if(bmode==='thermal'){ const c=cands[selCand];               // blended detail map + its per-net CURRENT twin, shown together
+  if(c&&c.has_thermal_detail){                                // (board-accurate pours/traces/pads/vias coloured by T / A)
+   const mk=(src,lab)=>{ const w=document.createElement('div'); w.style.cssText='position:relative;width:100%';
+    const cap=document.createElement('div'); cap.textContent=lab;
+    cap.style.cssText='position:absolute;left:6px;top:4px;z-index:2;background:#0d1117cc;color:#80cbc4;font:11px monospace;padding:1px 7px;border-radius:3px;pointer-events:none';
+    const im=document.createElement('img'); im.src=src+cq(); im.style.cssText='width:100%;display:block;pointer-events:none';
+    w.appendChild(im); w.appendChild(cap); return w; };
+   st.appendChild(mk('/thermal-detail.png','TEMPERATURE (°C) — smooth field + detailed copper'));
+   if(c.has_thermal_current) st.appendChild(mk('/thermal-current.png','CURRENT cross-check (A) — heat should track current'));
+   return; } }
  const {ls,base,therm}=modeLayers();
  // draw order: bottom copper first, F.Cu then Edge on top
  const order=[...ls].sort((a,b)=>(a==='Edge_Cuts')-(b==='Edge_Cuts')||(a==='F_Cu')-(b==='F_Cu'));
