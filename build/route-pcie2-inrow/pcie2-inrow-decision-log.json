@@ -1,0 +1,129 @@
+{
+  "final": {
+    "board": "/workspace/build/route-pcie2-inrow/pcie2-inrow-routed.kicad_pcb",
+    "verdict": {
+      "gates_pass": true,
+      "reasons": [],
+      "drc": 0,
+      "unconnected": 0,
+      "tracks": 517,
+      "vias": 76,
+      "length": 1042.56,
+      "kelvin_ok": true,
+      "diffpair_ok": true,
+      "objective": 50.33,
+      "via_on_pad": {
+        "same_net": 0,
+        "diff_net": 0,
+        "vias": 76
+      },
+      "foreign_on_pour": {
+        "applicable": true,
+        "status": "ok",
+        "error": null,
+        "tracks": 0,
+        "vias": 0,
+        "pours": 4,
+        "by_pour": {}
+      },
+      "kelvin_sense_drc": 0
+    },
+    "elapsed_s": 38.51,
+    "decisions": 1
+  },
+  "manifest": {
+    "kicad_series_pin": "10.0",
+    "kicad_cli": "10.0.2",
+    "freerouting": "1.7.0",
+    "scripts_sha": null,
+    "scripts_dirty": false,
+    "python": "3.13.5"
+  },
+  "entries": [
+    {
+      "ts": 35.65,
+      "region": "all",
+      "iteration": 1,
+      "n_candidates": 4,
+      "candidates": [
+        {
+          "drc": 0,
+          "unconnected": 0,
+          "tracks": 517,
+          "vias": 76,
+          "length": 1042.56,
+          "kelvin_ok": true,
+          "diffpair_ok": true,
+          "cu12v": 15.82,
+          "balance": 0.618,
+          "gates_pass": true,
+          "drc_types": {},
+          "plane_signal_mm": 0
+        },
+        {
+          "drc": 0,
+          "unconnected": 0,
+          "tracks": 532,
+          "vias": 78,
+          "length": 1057.08,
+          "kelvin_ok": true,
+          "diffpair_ok": true,
+          "cu12v": 15.82,
+          "balance": 0.698,
+          "gates_pass": true,
+          "drc_types": {},
+          "plane_signal_mm": 0
+        },
+        {
+          "drc": 0,
+          "unconnected": 1,
+          "tracks": 463,
+          "vias": 73,
+          "length": 994.31,
+          "kelvin_ok": true,
+          "diffpair_ok": true,
+          "cu12v": 15.82,
+          "balance": 0.729,
+          "gates_pass": true,
+          "drc_types": {},
+          "plane_signal_mm": 0
+        },
+        {
+          "drc": 0,
+          "unconnected": 1,
+          "tracks": 463,
+          "vias": 73,
+          "length": 994.32,
+          "kelvin_ok": true,
+          "diffpair_ok": true,
+          "cu12v": 15.82,
+          "balance": 0.729,
+          "gates_pass": true,
+          "drc_types": {},
+          "plane_signal_mm": 0
+        }
+      ],
+      "chosen": {
+        "drc": 0,
+        "unconnected": 0,
+        "tracks": 517,
+        "vias": 76,
+        "length": 1042.56,
+        "kelvin_ok": true,
+        "diffpair_ok": true,
+        "cu12v": 15.82,
+        "balance": 0.618,
+        "gates_pass": true,
+        "drc_types": {},
+        "plane_signal_mm": 0
+      },
+      "verdict": {
+        "action": "accept",
+        "reason": "gates pass; drc=0 unconn=0 obj=50.3",
+        "tier": "sonnet:default",
+        "edit": null
+      },
+      "note": "K=0 hints=22 fr={'passes': 16, 'opt_time': 30, 'threads': 1} spread=default(0.5x..1.5x)"
+    }
+  ]
+}
