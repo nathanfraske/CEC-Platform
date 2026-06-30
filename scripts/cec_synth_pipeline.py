@@ -2000,7 +2000,7 @@ def legalize(P, movable, halfext, W, H, *, clr=0.4, iters=400):
     return res
 
 
-def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
+def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
     """Greedy non-overlap legalization (proper detailed placement): place each movable part at
     the NEAREST FREE position to its target by an outward spiral search, so the result has ZERO
     real courtyard overlap by construction. Each part's obstacle is its TRUE courtyard -- centre
@@ -2008,7 +2008,12 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
     test matches what KiCad/DRC sees (an origin-centred check mismodels the asymmetric connector
     courtyards and yields phantom-legal placements). Anchors are fixed obstacles; big parts go
     first; a part that genuinely can't fit overlap-free lands at its least-overlap spot and is
-    counted -- that residual is the honest 'board too tight -> grow' signal. Returns the residual."""
+    counted -- that residual is the honest 'board too tight -> grow' signal. Returns the residual.
+
+    *bounds* (the intent-compiler PARTITION lever, default None -> byte-identical to the
+    un-partitioned legalizer): {ref:(x0,y0,x1,y1)} HARD region containment -- a bounded ref's
+    courtyard is kept inside its box (intersected with the in-board range), so an agent's
+    structure-first assignment cannot be legalized away. Refs not in *bounds* are unconstrained."""
     DEF = (0.0, 0.0, 1.0, 1.0)
     placed = []                                      # (courtyard_centre_x, _y, hw, hh)
     for r in P:
@@ -2036,6 +2041,15 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6):
             lo_x = hi_x = W / 2 - cx
         if hi_y < lo_y:
             lo_y = hi_y = H / 2 - cy
+        if bounds and r in bounds:                       # HARD region containment (partition lever)
+            rx0, ry0, rx1, ry1 = bounds[r]
+            lo_x, hi_x = max(lo_x, rx0 + hw - cx), min(hi_x, rx1 - hw - cx)
+            lo_y, hi_y = max(lo_y, ry0 + hh - cy), min(hi_y, ry1 - hh - cy)
+            if hi_x < lo_x:                              # region narrower than the part -> its centre
+                lo_x = hi_x = (rx0 + rx1) / 2 - cx
+            if hi_y < lo_y:
+                lo_y = hi_y = (ry0 + ry1) / 2 - cy
+            tx, ty = min(hi_x, max(lo_x, tx)), min(hi_y, max(lo_y, ty))   # start the spiral in-region
         best, bestc, R = None, 1e18, 0.0
         while R <= max(W, H):
             n = 1 if R == 0 else max(10, int(2 * math.pi * R / step))
@@ -2965,7 +2979,7 @@ def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=Fa
     return moved
 
 
-def _legalize_avoiding_pours(P, movable, cyinfo, boxes, W, H, *, clr=0.4):
+def _legalize_avoiding_pours(P, movable, cyinfo, boxes, W, H, *, clr=0.4, bounds=None):
     """POUR-AWARE legalize: run legalize_pack over the *movable* foreign parts with the derive_power_pours
     SENSEC *boxes* injected as FIXED pseudo-obstacles, so each part lands in the nearest free spot that is
     BOTH courtyard-overlap-free AND out of every pour -- pour-clearance and residual settled in ONE pass by
@@ -2980,7 +2994,7 @@ def _legalize_avoiding_pours(P, movable, cyinfo, boxes, W, H, *, clr=0.4):
         cyinfo[k] = (0.0, 0.0, (x1 - x0) / 2.0, (y1 - y0) / 2.0)
         pseudo.append(k)
     try:
-        return legalize_pack(P, movable, cyinfo, W, H, clr=clr)
+        return legalize_pack(P, movable, cyinfo, W, H, clr=clr, bounds=bounds)
     finally:
         for k in pseudo:
             P.pop(k, None)
@@ -3201,9 +3215,17 @@ class Candidate:
                                                  # gate); {} = not adjudicated. Set by adjudicate_candidates.
 
 
-def synth_one(cfg_dict, W, H, strat, seed):
+def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
-    in a spawn-pool worker (on the runner's cores). Takes/returns plain types only."""
+    in a spawn-pool worker (on the runner's cores). Takes/returns plain types only.
+
+    *partition* (the intent-compiler lever, default None -> byte-identical to the un-partitioned
+    placer; the SB-08 golden routes a FROZEN board so it is untouched regardless): the agent's
+    GLOBAL structure-first assignment of free parts to named regions, enforced as proactive HARD
+    containment. {"regions": {name:(x0,y0,x1,y1)}, "assignment": {ref:name}}. Assigned free parts
+    are seeded into their region before the anneal and confined to it by every legalize pass -- so
+    the partition biases the placement, it is not a post-hoc evict (the 2026-06-14 anneal's failure
+    mode). PlacementSession (cec_placement_session.py) is the declarative builder over this."""
     import cec_pcb
     cfg = Config(**cfg_dict)
     nl = View(cfg).nl
@@ -3215,6 +3237,12 @@ def synth_one(cfg_dict, W, H, strat, seed):
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
     anchors_roles, ics, shunts, passives = _classify(nl)
+    # PARTITION (intent-compiler): resolve the agent's region assignment to per-ref containment boxes.
+    # _bounds maps an assigned ref -> its region box; empty when partition is None -> all legalize calls
+    # below receive bounds={} which is inert (legalize_pack only constrains refs present in bounds).
+    _regions = (partition or {}).get("regions", {}) or {}
+    _assign = (partition or {}).get("assignment", {}) or {}
+    _bounds = {r: tuple(_regions[_assign[r]]) for r in _assign if _assign.get(r) in _regions}
     # R2 SHUNT-GAP widen (owner-ratified 2026-06-28, OPT-IN via CEC_SHUNT_GAP=1 -- board-specific by
     # the ratification boundary, so legacy boards/the golden stay byte-identical by default): on a
     # per-cable interposer (EPS/PCIe) GROW the board ~3mm taller so the J_IN<->J_OUT pours stay
@@ -3356,8 +3384,21 @@ def synth_one(cfg_dict, W, H, strat, seed):
     def _veto(ref, xy):
         return _corridor_veto(ref, xy, _bands, _sensitive, _paired)
 
+    # PARTITION seed: move each assigned free macro's courtyard INTO its region before the anneal, so
+    # the structure-first containment biases the search from the start (proactive, not a post-evict).
+    if _bounds:
+        for r in anneal_units:
+            if r in _bounds and r in P and r in cyinfo_all:
+                cx, cy, hw, hh = cyinfo_all[r]
+                x0, y0, x1, y1 = _bounds[r]
+                ox, oy, rot = P[r]
+                ccx, ccy = ox + cx, oy + cy                     # current courtyard centre
+                if not (x0 + hw <= ccx <= x1 - hw and y0 + hh <= ccy <= y1 - hh):
+                    nccx = min(x1 - hw, max(x0 + hw, ccx)) if x1 - hw >= x0 + hw else (x0 + x1) / 2
+                    nccy = min(y1 - hh, max(y0 + hh, ccy)) if y1 - hh >= y0 + hh else (y0 + y1) / 2
+                    P[r] = (nccx - cx, nccy - cy, rot)
     anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
-    legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4)
+    legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4, bounds=_bounds)
     # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
     for unit, offs in cluster_offsets.items():
         if unit not in P:
@@ -3396,7 +3437,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
                 _func_cy[r] = macro[r]
             elif r in comps:
                 _func_cy[r] = _courtyard_info(comps[r], P[r][2], drop_antenna=drop_antenna)
-        legalize_pack(P, [r for r in _func_stamped if r in P], _func_cy, W, H, clr=0.4)
+        legalize_pack(P, [r for r in _func_stamped if r in P], _func_cy, W, H, clr=0.4, bounds=_bounds)
     # CORRIDOR + POUR EVACUATION: pull any non-belonging body (decoupling / DETECT / threshold / detection-
     # amp) OUT of a formed high-current band AND out of the actual derive_power_pours SENSEC box so the pour
     # fills + the nets can route (the anneal veto + passive/cluster stamp leave them inside -- the owner-
@@ -3418,7 +3459,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
         if not _moved:
             break
         if _ev_round < 5:
-            legalize_pack(P, [r for r in _moved if r in P], cyinfo_all, W, H, clr=0.4)
+            legalize_pack(P, [r for r in _moved if r in P], cyinfo_all, W, H, clr=0.4, bounds=_bounds)
     # FINAL MOP-UP (only when the Kelvin seat fired): fixing the sense ICs + comparators as anchors reduces
     # the anneal's freedom, so a rigidly-stamped decoupling cap can be left grazing its IC (residual). One
     # legalize over EVERY movable body (all but the fixed anchors -- connectors, mounts, the seated
@@ -3435,7 +3476,7 @@ def synth_one(cfg_dict, W, H, strat, seed):
         # every pour -- clearance + residual in ONE pass, no evac-vs-legalize oscillation (the bare evac
         # leaves outboard pile-ups; a bare legalize pulls a cap back into a box). The seated INAs/
         # comparators/shunts/connectors are exempt (not in _mop), so their intentional graze is kept.
-        _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4)
+        _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4, bounds=_bounds)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
