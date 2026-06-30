@@ -1,0 +1,321 @@
+{
+  "final": {
+    "board": "/workspace/build/route-lowopt-pcie3port/pcie3-rev2-routed.kicad_pcb",
+    "verdict": {
+      "gates_pass": false,
+      "reasons": [
+        "structural DRC = 21 (require 0 because require_drc_zero=True)",
+        "foreign-on-pour (ABSOLUTE keepout): 46 foreign track(s) + 11 via(s) cross a high-current pour -- KiCad DRC is blind to the antipad; re-place corridor-clean or run the two-pass corridor protect -- /SENSEC1_HI<-{'/DETAMPC1': 1, 'GND': 2, '+3V3': 2, 'via:/DETAMPC1': 1, 'via:GND': 1}; /SENSEC1_LO<-{'/DETAMPC1': 2, '/I2C_SDA': 3, '/I2C_SCL': 2, '/THRESH': 2, 'via:/DETAMPC1': 1, 'via:/THRESH': 1}; /"
+      ],
+      "drc": 21,
+      "unconnected": 3,
+      "tracks": 641,
+      "vias": 100,
+      "length": 1418.83,
+      "kelvin_ok": true,
+      "diffpair_ok": true,
+      "objective": 21366.18,
+      "via_on_pad": {
+        "same_net": 0,
+        "diff_net": 0,
+        "vias": 100
+      },
+      "foreign_on_pour": {
+        "applicable": true,
+        "status": "ok",
+        "error": null,
+        "tracks": 46,
+        "vias": 11,
+        "pours": 6,
+        "by_pour": {
+          "/SENSEC1_LO": {
+            "/DETAMPC1": 2,
+            "/I2C_SDA": 3,
+            "/I2C_SCL": 2,
+            "/THRESH": 2,
+            "via:/DETAMPC1": 1,
+            "via:/THRESH": 1
+          },
+          "/SENSEC1_HI": {
+            "/DETAMPC1": 1,
+            "GND": 2,
+            "+3V3": 2,
+            "via:/DETAMPC1": 1,
+            "via:GND": 1
+          },
+          "/SENSEC2_LO": {
+            "GND": 2,
+            "/THRESH": 5,
+            "/DETAMPC2": 2,
+            "via:GND": 1,
+            "via:/DETAMPC2": 1
+          },
+          "/SENSEC3_LO": {
+            "GND": 3,
+            "/THRESH": 7,
+            "/DETAMPC3": 3,
+            "via:GND": 1
+          },
+          "/SENSEC2_HI": {
+            "GND": 2,
+            "+3V3": 3,
+            "via:GND": 1,
+            "via:+3V3": 2
+          },
+          "/SENSEC3_HI": {
+            "GND": 2,
+            "+3V3": 3,
+            "via:GND": 1
+          }
+        }
+      },
+      "kelvin_sense_drc": 0
+    },
+    "elapsed_s": 662.06,
+    "decisions": 5
+  },
+  "manifest": {
+    "kicad_series_pin": "10.0",
+    "kicad_cli": "10.0.2",
+    "freerouting": "1.7.0",
+    "scripts_sha": null,
+    "scripts_dirty": false,
+    "python": "3.13.5"
+  },
+  "entries": [
+    {
+      "ts": 83.75,
+      "region": "all",
+      "iteration": 1,
+      "n_candidates": 1,
+      "candidates": [
+        {
+          "drc": 21,
+          "unconnected": 2,
+          "tracks": 661,
+          "vias": 101,
+          "length": 1478.1,
+          "kelvin_ok": false,
+          "diffpair_ok": true,
+          "cu12v": 98.31,
+          "balance": 0.669,
+          "gates_pass": false,
+          "drc_types": {
+            "shorting_items": 5,
+            "clearance": 5,
+            "copper_edge_clearance": 1,
+            "solder_mask_bridge": 10
+          },
+          "plane_signal_mm": 0
+        }
+      ],
+      "chosen": {
+        "drc": 21,
+        "unconnected": 2,
+        "tracks": 661,
+        "vias": 101,
+        "length": 1478.1,
+        "kelvin_ok": false,
+        "diffpair_ok": true,
+        "cu12v": 98.31,
+        "balance": 0.669,
+        "gates_pass": false,
+        "drc_types": {
+          "shorting_items": 5,
+          "clearance": 5,
+          "copper_edge_clearance": 1,
+          "solder_mask_bridge": 10
+        },
+        "plane_signal_mm": 0
+      },
+      "verdict": {
+        "action": "repair",
+        "reason": "kelvin pair /SENSEC2_LO: sense input U11.9 reaches connector J_OUT2.1 with the shunt removed -- current-carrying sense (not a 4-wire tap); structural DRC = 21 (require 0 because require_drc_zero=True)",
+        "tier": "sonnet:default",
+        "edit": null
+      },
+      "note": "K=0 hints=20 fr={'passes': 18, 'opt_time': 12, 'threads': 1} single-seed"
+    },
+    {
+      "ts": 212.52,
+      "region": "all",
+      "iteration": 2,
+      "n_candidates": 1,
+      "candidates": [
+        {
+          "drc": 31,
+          "unconnected": 2,
+          "tracks": 654,
+          "vias": 102,
+          "length": 1472.82,
+          "kelvin_ok": true,
+          "diffpair_ok": true,
+          "cu12v": 98.55,
+          "balance": 0.642,
+          "gates_pass": false,
+          "drc_types": {
+            "shorting_items": 12,
+            "clearance": 1,
+            "copper_edge_clearance": 1,
+            "solder_mask_bridge": 17
+          },
+          "plane_signal_mm": 0
+        }
+      ],
+      "chosen": {
+        "drc": 31,
+        "unconnected": 2,
+        "tracks": 654,
+        "vias": 102,
+        "length": 1472.82,
+        "kelvin_ok": true,
+        "diffpair_ok": true,
+        "cu12v": 98.55,
+        "balance": 0.642,
+        "gates_pass": false,
+        "drc_types": {
+          "shorting_items": 12,
+          "clearance": 1,
+          "copper_edge_clearance": 1,
+          "solder_mask_bridge": 17
+        },
+        "plane_signal_mm": 0
+      },
+      "verdict": {
+        "action": "repair",
+        "reason": "structural DRC = 31 (require 0 because require_drc_zero=True)",
+        "tier": "sonnet:default",
+        "edit": null
+      },
+      "note": "K=1 hints=20 fr={'passes': 29, 'opt_time': 20, 'threads': 1} single-seed"
+    },
+    {
+      "ts": 395.11,
+      "region": "all",
+      "iteration": 3,
+      "n_candidates": 1,
+      "candidates": [
+        {
+          "drc": 21,
+          "unconnected": 2,
+          "tracks": 661,
+          "vias": 101,
+          "length": 1478.1,
+          "kelvin_ok": false,
+          "diffpair_ok": true,
+          "cu12v": 98.31,
+          "balance": 0.669,
+          "gates_pass": false,
+          "drc_types": {
+            "clearance": 5,
+            "shorting_items": 5,
+            "copper_edge_clearance": 1,
+            "solder_mask_bridge": 10
+          },
+          "plane_signal_mm": 0
+        }
+      ],
+      "chosen": {
+        "drc": 21,
+        "unconnected": 2,
+        "tracks": 661,
+        "vias": 101,
+        "length": 1478.1,
+        "kelvin_ok": false,
+        "diffpair_ok": true,
+        "cu12v": 98.31,
+        "balance": 0.669,
+        "gates_pass": false,
+        "drc_types": {
+          "clearance": 5,
+          "shorting_items": 5,
+          "copper_edge_clearance": 1,
+          "solder_mask_bridge": 10
+        },
+        "plane_signal_mm": 0
+      },
+      "verdict": {
+        "action": "repair",
+        "reason": "kelvin pair /SENSEC2_LO: sense input U11.9 reaches connector J_OUT2.1 with the shunt removed -- current-carrying sense (not a 4-wire tap); structural DRC = 21 (require 0 because require_drc_zero=True)",
+        "tier": "sonnet:default",
+        "edit": null
+      },
+      "note": "K=2 hints=20 fr={'passes': 47, 'opt_time': 33, 'threads': 1} single-seed"
+    },
+    {
+      "ts": 395.11,
+      "region": "all",
+      "iteration": 3,
+      "n_candidates": 0,
+      "candidates": [],
+      "chosen": null,
+      "verdict": {
+        "action": "escalate",
+        "reason": "Kmax repairs stalled -> reset effort + (re-plan hook)",
+        "tier": "opus:default",
+        "edit": {
+          "type": "fr_params",
+          "set": {
+            "passes": 24,
+            "opt_time": 60,
+            "threads": 1
+          }
+        }
+      },
+      "note": "escalation"
+    },
+    {
+      "ts": 500.86,
+      "region": "all",
+      "iteration": 4,
+      "n_candidates": 1,
+      "candidates": [
+        {
+          "drc": 21,
+          "unconnected": 3,
+          "tracks": 641,
+          "vias": 100,
+          "length": 1418.83,
+          "kelvin_ok": true,
+          "diffpair_ok": true,
+          "cu12v": 98.55,
+          "balance": 0.601,
+          "gates_pass": false,
+          "drc_types": {
+            "clearance": 1,
+            "shorting_items": 9,
+            "copper_edge_clearance": 1,
+            "solder_mask_bridge": 10
+          },
+          "plane_signal_mm": 0
+        }
+      ],
+      "chosen": {
+        "drc": 21,
+        "unconnected": 3,
+        "tracks": 641,
+        "vias": 100,
+        "length": 1418.83,
+        "kelvin_ok": true,
+        "diffpair_ok": true,
+        "cu12v": 98.55,
+        "balance": 0.601,
+        "gates_pass": false,
+        "drc_types": {
+          "clearance": 1,
+          "shorting_items": 9,
+          "copper_edge_clearance": 1,
+          "solder_mask_bridge": 10
+        },
+        "plane_signal_mm": 0
+      },
+      "verdict": {
+        "action": "repair",
+        "reason": "structural DRC = 21 (require 0 because require_drc_zero=True)",
+        "tier": "sonnet:default",
+        "edit": null
+      },
+      "note": "K=0 hints=20 fr={'passes': 24, 'opt_time': 60, 'threads': 1} single-seed"
+    }
+  ]
+}
