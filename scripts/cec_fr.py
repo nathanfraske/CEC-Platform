@@ -465,6 +465,63 @@ def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=6.0) -> set:
     return out
 
 
+def sensec_force_connector_pins(board, *, kelvin_pairs=None) -> set:
+    """The DSN pin tokens (``"<ref>-<pad>"``) of the CABLE-CONNECTOR force pins (J_IN / J_OUT THT pads)
+    on each high-current SENSEC net that ALSO gets a post-route FORCE POUR -- i.e. the pads whose
+    connector<->shunt connection is the job of :func:`add_power_pours`, NOT of an FR-routed wire.
+
+    THE INEFFICIENCY THIS FIXES (owner-caught 2026-06-30): the connector force pins sit on the same
+    ``*_HI``/``*_LO`` net as the shunt, so Freerouting must satisfy their connectivity -- and with the
+    NOTCHED corridor keepout active (:func:`corridor_keepouts`, ``DoNotAllowTracks`` over the pour box)
+    FR cannot route connector->shunt THROUGH the reserved corridor, so it DETOURS the force wire AROUND
+    it through the cramped sense row. On the congested 3-port that detour exploded to ~80 redundant force
+    tracks (~253mm) -- copper the F.Cu pour was going to lay anyway -- clogging the channel and pushing
+    foreign signals across the pours. Removing the connector force pins from the DSN makes FR LEAVE the
+    connector->shunt force path entirely to the pour (which fills the reserved corridor solid: the keepout
+    is ``block_fills=False``), freeing the channel. The exact analog of the kelvin exclusion
+    (:func:`kelvin_sense_pins`), but for the FORCE half of the shared shunt pad.
+
+    SURGICAL by design: ONLY the cable-connector THT pads are dropped. The shunt's OWN pads, the §6.13
+    INA181 detection-tap pads, and the §6.8 INA238 Kelvin/Vbus pads all stay on the net, so FR still
+    routes detection (shunt->INA181) and the post-route Kelvin tap is untouched -- the detection and
+    Kelvin paths are NOT broken, only the redundant connector->shunt force copper is.
+
+    SELF-GATING (matches :func:`derive_power_pours` exactly, so a pin is dropped iff a pour will reconnect
+    it): a net qualifies only when its pair has a 2-pad straddle shunt AND the net carries at least one THT
+    pad (the cable connector). A board with no straddle shunt / no THT cable connector (Hub, filtered
+    12VHPWR lanes) yields the empty set -> no-op. Returns the set of pin tokens."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p))
+    out = set()
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _ in pads_by_net.get(lo, [])}
+        # the 2-pad straddle shunt -> a real Kelvin force corridor (same rule derive_power_pours uses)
+        if not {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}:
+            continue
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            # only nets with a THT cable connector get a force pour (derive_power_pours' has_tht gate)
+            tht = [(r, p) for r, p in entries if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+            if not tht:
+                continue
+            for r, p in tht:
+                out.add(f"{r}-{p.GetPadName()}")
+    return out
+
+
 def _dsn_exclude_pins(dsn_path: str, pins) -> int:
     """Remove the given ``"<ref>-<pad>"`` pin tokens from EVERY ``(net ... (pins ...))`` list in the
     exported DSN so Freerouting does NOT route those pads. A pad belongs to exactly one net, so a token
@@ -532,6 +589,21 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
             print(f"[cec_fr] kelvin policy: excluded {len(sense_pins)} current-sense input pad(s) "
                   f"{sorted(sense_pins)} from FR routing ({n} DSN token(s) removed) -- the inner-edge "
                   f"tap is their only connection", file=sys.stderr)
+    # FORCE-POUR-ONLY POLICY (owner directive 2026-06-30, the redundant-force-trace fix): leave the
+    # cable connector<->shunt FORCE path entirely to the post-route pour. Without this, FR detours the
+    # connector force connectivity AROUND the corridor keepout (it cannot route through the reserved
+    # box), laying redundant connector->shunt copper the pour would carry anyway -- ~80 tracks on the
+    # congested 3-port, clogging the sense row and pushing foreign onto the pours. Drop ONLY the
+    # connector THT force pins (detection + Kelvin pads stay -> those taps still route); the post-route
+    # add_power_pours then makes the connector->shunt connection. OPT-IN (default OFF), self-gating to
+    # nets that have a force pour, so it is a safe no-op on a board without SENSEC pours. A/B kill-switch.
+    if os.environ.get("CEC_SENSEC_FORCE_POUR_ONLY", "0") == "1":
+        force_pins = sensec_force_connector_pins(board)
+        if force_pins:
+            n = _dsn_exclude_pins(dsn_path, force_pins)
+            print(f"[cec_fr] force-pour-only policy: excluded {len(force_pins)} cable-connector force "
+                  f"pin(s) {sorted(force_pins)} from FR routing ({n} DSN token(s) removed) -- the "
+                  f"post-route power pour is their only connection to the shunt", file=sys.stderr)
     return dsn_path
 
 
