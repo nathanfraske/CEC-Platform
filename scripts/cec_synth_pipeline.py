@@ -46,6 +46,7 @@ import shutil
 import tempfile
 import subprocess
 from enum import Enum
+from contextlib import contextmanager
 from collections import defaultdict
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field, asdict
@@ -3196,6 +3197,8 @@ class Candidate:
     corridor_cross_aware: int = 0  # HONEST channel-aware predictor (== F.Cu clips, reachable to 0) -- PRIMARY rank key
     similarity: float = -1.0      # MV3: reproduce-the-reference diagnostic (-1 = not computed)
     similarity_detail: dict = field(default_factory=dict)
+    oracle: dict = field(default_factory=dict)   # SLICE-1a: route_oracle_grade verdict (real post-route
+                                                 # gate); {} = not adjudicated. Set by adjudicate_candidates.
 
 
 def synth_one(cfg_dict, W, H, strat, seed):
@@ -3518,6 +3521,15 @@ def place_candidates(cfg, W, H, *, strategies=STRATEGIES, seeds=(0,), max_worker
     # ALWAYS beats a sandwich, regardless of proxy_score (which used to tie them at residual==0).
     # NOTE similarity (MV3) is DELIBERATELY ABSENT from the key (charter: a diagnostic, never a rank).
     cands.sort(key=_candidate_sort_key)
+    # SLICE-1a two-stage selection: the cheap proxy above PRUNED to a best-first order; when the route
+    # ORACLE is opted in (CEC_ROUTE_ORACLE=1 / cfg.params['route_oracle']) ADJUDICATE the top-k survivors
+    # with a real route -- its post-route gate verdict is the FINAL key (proxy-good-but-routes-dirty
+    # candidates get demoted). Default OFF -> the cheap path is byte-for-byte unchanged.
+    if _route_oracle_enabled(cfg):
+        k = int(cfg.params.get("route_oracle_topk", 3))
+        gkw = dict(cfg.params.get("route_oracle_kw", {}))
+        cands = adjudicate_candidates(cfg, cands, k=k, verbose=cfg.params.get("route_oracle_verbose", False),
+                                      **gkw)
     return cands
 
 
@@ -3554,6 +3566,305 @@ def place_with_consent(cfg, W, H, *, pins=None, ask=None, strategies=STRATEGIES,
                 best = place_candidates(cfg2, W, H, strategies=strategies, seeds=seeds,
                                         max_workers=max_workers)[0]
     return best
+
+
+# ============================================================ SLICE-1a: the ROUTE-ORACLE grader
+# docs/placer-feasibility-2026-06-30.md: the placer selects candidates on placement_proxy (HPWL/RUDY/
+# low-res thermal) -- a CHEAP proxy that does NOT predict real routability, so it converges on
+# placements that proxy-look-good but route DIRTY. There is no confirm_winner / route_once in the
+# candidate path: that absent route-oracle IS the documented failure mode.
+#
+# route_oracle_grade closes it: grade a placement by ACTUALLY ROUTING it (the SAME proven gate-clean
+# recipe the committed gate-clean routes use) and reading the REAL post-route FULL ACCEPT CONJUNCTION:
+#
+#     kelvin_ok  AND  diffpair_ok  AND  drc-finishing-only  AND  foreign_on_pour==0  AND  thermal-in-budget
+#     AND  routing-complete (no safety/power ratline left; only the documented finishing residual)
+#
+# NEVER a subset: kelvin_ok+drc alone is a DOCUMENTED FALSE SUMMIT (passes at max_T ~181-300 C). The
+# grader can never pass a board the real route fails -- TRUE BY CONSTRUCTION, because it IS the real route.
+#
+# Wiring (two-stage prune->adjudicate): placement_proxy stays the cheap PRUNE to top-k (routing every
+# candidate is minutes each); route_oracle_grade ADJUDICATES the top-k survivors and its real-gate verdict
+# is the FINAL selection key. Opt-in (CEC_ROUTE_ORACLE=1 / cfg.params['route_oracle']); default-safe so the
+# existing cheap path is byte-for-byte unchanged when off.
+
+# The gate-clean route recipe -- commit 515cae7 (eps-rev3, FIRST gate-clean board), generalizes across the
+# EPS/PCIe cable family: tap-channel keepout + F.Cu-only corridor lever + sense-force-pour-only +
+# kelvin-FR-exclude + shunt-gap, with derive_power_pours laid AFTER the route. Applied via os.environ so the
+# in-process readers (cec_fr.export_dsn / import_ses / derive_power_pours, cec_constraints foreign check)
+# pick them up; setdefault so a caller may override any single flag (e.g. CEC_CORRIDOR_FCU_ONLY=0 for A/B).
+_ORACLE_RECIPE_ENV = {
+    "CEC_KELVIN_FR_EXCLUDE":     "1",   # INA sense pads excluded from FR -> the §6.8 inner-edge tap is their only link
+    "CEC_TAP_CHANNEL_KEEPOUT":   "1",   # reserve each F.Cu Kelvin tap channel so foreign routes AROUND/UNDER it
+    "CEC_CORRIDOR_FCU_ONLY":     "1",   # F.Cu-only corridor lever: foreign routes B.Cu UNDER the solid F.Cu pour
+    "CEC_SENSEC_FORCE_POUR_ONLY":"1",   # leave the connector<->shunt FORCE path to the pour (no redundant trace)
+    "CEC_SHUNT_GAP":             "1",   # widen the shunt notch -- REQUIRED for the foreign==0 check to read clean
+}
+
+
+@contextmanager
+def _oracle_env():
+    """Apply the gate-clean route recipe to os.environ for the duration of a grade (setdefault, so a
+    caller-set flag wins), then restore exactly. The FR worker subprocess (spawn) inherits the env at
+    launch; the in-process pour/foreign readers read it live -- both need it set across the whole grade."""
+    saved = {k: os.environ.get(k) for k in _ORACLE_RECIPE_ENV}
+    try:
+        for k, v in _ORACLE_RECIPE_ENV.items():
+            os.environ.setdefault(k, v)
+        yield
+    finally:
+        for k, old in saved.items():
+            if old is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = old
+
+
+def _oracle_hints_pours(board_path):
+    """Derive the gate-clean recipe's keepout HINTS + power POURS for a placement board, honouring the
+    recipe env flags (CEC_TAP_CHANNEL_KEEPOUT / CEC_CORRIDOR_FCU_ONLY). Returns (hints, pours, rules)."""
+    import cec_fr
+    rules = cec_score.Rules.from_board(board_path)
+    hints = []
+    if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
+        try:
+            hints += cec_fr.tap_channel_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs)
+        except Exception as e:                                   # noqa: BLE001 -- keepout is best-effort
+            _tc.warn_once("oracle_tap_keepout", "tap-channel keepout skipped (%s)" % e)
+    # The corridor keepout is the load-bearing lever (without it the EPS route strands kelvin + 30+ foreign
+    # crossings -- measured); F.Cu-only when CEC_CORRIDOR_FCU_ONLY=1 so foreign escapes B.Cu under the pour.
+    fcu_only = os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1"
+    try:
+        hints += cec_fr.corridor_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs,
+                                          nets_12v=rules.nets_12v,
+                                          layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_corridor_keepout", "corridor keepout skipped (%s)" % e)
+    try:
+        hints += cec_fr.edge_keepout(board_path)
+    except Exception as e:                                       # noqa: BLE001
+        _tc.warn_once("oracle_edge_keepout", "edge keepout skipped (%s)" % e)
+    pours = cec_fr.derive_power_pours(board_path)
+    return hints, pours, rules
+
+
+def _classify_unconnected(unconn_nets, rules):
+    """Split the routed board's unconnected NET names into (critical, signal). A critical ratline -- a
+    Kelvin/diff-pair safety net, a 12V/high-current net, or GND -- is a HARD route failure. A signal-net
+    ratline is the documented finishing residual (commit 515cae7 closed the EPS /GPIO0 hop with the
+    cec_route toolkit AFTER Freerouting squeezed its F.Cu escape shut), tolerated up to unconn_finish_tol."""
+    safety = {n for pr in (rules.kelvin_pairs or []) for n in pr}
+    safety |= {n for pr in (rules.diff_pairs or []) for n in pr}
+    power = set(rules.nets_12v or [])
+    crit = []
+    sig = []
+    for n in unconn_nets:
+        u = (n or "").upper()
+        is_crit = (n in safety or n in power or u == "GND" or u == "/GND"
+                   or u.endswith("_HI") or u.endswith("_LO") or "12V" in u)
+        (crit if is_crit else sig).append(n)
+    return crit, sig
+
+
+def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
+    """The THERMAL gate term: the dashboard solve recipe (cec_thermal_overlay._solve_thermal -> the 2.5D
+    cec_thermal2d field solver, with the per-board currents/stackup/cooling) -> dT <= gate_dt. FAIL-CLOSED:
+    a solver error is NOT a pass (the false-summit hazard is exactly a board that LOOKS routed but cooks)."""
+    import cec_thermal_overlay as _tov
+    res, _filled, label = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
+    dT = float(res.max_T) - float(res.ambient)
+    return {"ok": (dT <= gate_dt), "max_T": round(float(res.max_T), 2),
+            "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
+            "gate_dt": gate_dt, "cooling": label}
+
+
+def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
+                       gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
+                       route=True, work_dir=None, keep=False, verbose=False):
+    """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
+    post-route ACCEPT CONJUNCTION. This REPLACES the cheap placement_proxy as the selection key.
+
+    placement_or_board : a Candidate (materialized via cfg) OR a path to a .kicad_pcb placement.
+    route              : True -> route the (placement) board with the gate-clean recipe, then grade the
+                         routed board; False -> grade the input board AS-IS (it is already routed).
+
+    The verdict is the conjunction -- ALL must hold (never a subset; kelvin_ok+drc is a false summit):
+      * gates_pass        = kelvin_ok AND diffpair_ok AND drc-finishing-only (cec_score, structural drc==0)
+      * foreign_ok        = cec_constraints.foreign_on_pour_summary (status ok, 0 foreign track/via; run
+                            with CEC_SHUNT_GAP=1 -- status 'error' FAILS, 'na' is a clean N/A on shared-bus)
+      * thermal_ok        = the 2.5D field solve dT <= gate_dt (FAIL-CLOSED on solver error)
+      * routing_complete  = no unconnected ratline on a safety/power net, and <= unconn_finish_tol signal
+                            ratlines (the documented cec_route finishing residual). unconn_finish_tol=0 = strict.
+
+    Returns a dict carrying gate (bool), the per-term verdicts, the raw metrics, and `sort_key` -- the
+    sortable selection key (lower = better): gate-clean candidates rank first (tie-break thermal margin /
+    via / length), gate-FAILING below ordered by how CLOSE to clean (safety fails, then foreign, then
+    unconnected, then drc, then thermal) so the placer still yields a best-effort + a clear escalation signal."""
+    import cec_constraints
+    import cec_fr  # noqa: F401  -- ensures pcbnew/FR availability surfaces here, not mid-route
+
+    own_wd = work_dir is None
+    work_dir = work_dir or tempfile.mkdtemp(prefix="cec_oracle_")
+    os.makedirs(work_dir, exist_ok=True)
+    label = None
+    try:
+        with _oracle_env():
+            # ---- 1. resolve the placement board (materialize a Candidate; else use the path) ----
+            if isinstance(placement_or_board, Candidate):
+                if cfg is None:
+                    raise ValueError("route_oracle_grade(Candidate) requires cfg= to materialize")
+                label = f"{placement_or_board.strat}/seed{placement_or_board.seed}"
+                placed = materialize(placement_or_board, cfg,
+                                     os.path.join(work_dir, "placed.kicad_pcb"))
+            else:
+                placed = placement_or_board
+                label = os.path.basename(str(placed))
+                if not os.path.isfile(placed):
+                    raise FileNotFoundError(f"route_oracle_grade: board not found: {placed!r}")
+
+            # ---- 2. route it with the gate-clean recipe (ONE route_once), or grade as-is ----
+            t0 = time.monotonic()
+            if route:
+                hints, pours, rules = _oracle_hints_pours(placed)
+                routed = os.path.join(work_dir, "routed.kicad_pcb")
+                cand = cec_fr.route_once(placed, routed, hints=hints, power_pours=pours,
+                                         passes=passes, opt_time=opt, seed=seed)
+                if not cand.ok:
+                    return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
+                                             error=f"route failed: {cand.err}")
+            else:
+                routed = placed
+                rules = cec_score.Rules.from_board(routed)
+            route_s = round(time.monotonic() - t0, 1)
+
+            # ---- 3. grade: the full conjunction ----
+            m = cec_score.score(routed, rules=rules)
+            gates_pass = bool(m.gates_pass)                  # kelvin_ok AND diffpair_ok AND drc==0
+
+            fsum = cec_constraints.foreign_on_pour_summary(routed)
+            foreign_ok = (fsum.get("status") != "error"
+                          and fsum.get("n_tracks", 0) == 0 and fsum.get("n_vias", 0) == 0)
+
+            unconn_nets = list(m.detail.get("unconn_nets", []))
+            crit, sig = _classify_unconnected(unconn_nets, rules)
+            routing_complete = (len(crit) == 0) and (m.unconnected <= unconn_finish_tol)
+
+            try:
+                therm = _oracle_thermal(routed, ambient=ambient, gate_dt=gate_dt, grid_mm=grid_mm)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                therm = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                         "max_T": None, "dT": None, "gate_dt": gate_dt}
+            thermal_ok = bool(therm.get("ok"))
+
+            gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete)
+
+            ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
+            safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
+            dT_for_key = therm.get("dT")
+            dT_for_key = float(dT_for_key) if dT_for_key is not None else 1e6
+            # sort_key (ascending, best first). tier 0 = gate-clean: tie-break by thermal MARGIN
+            # (smaller dT first), then fewer vias, then shorter length. tier 1 = failing: ordered by
+            # CLOSENESS -- safety fails first, then foreign, then unconnected, then drc, then thermal.
+            if gate:
+                sort_key = (0, round(dT_for_key, 1), m.vias, round(m.length, 1), 0, 0)
+            else:
+                sort_key = (1, safety_fails, ft, m.unconnected, m.drc, round(dT_for_key, 1))
+
+            res = {
+                "gate": gate, "label": label, "route_s": route_s, "routed": routed,
+                "passes": passes, "opt": opt, "seed": seed,
+                "gates_pass": gates_pass, "kelvin_ok": bool(m.kelvin_ok),
+                "diffpair_ok": bool(m.diffpair_ok), "drc": m.drc, "drc_finishing_only": (m.drc == 0),
+                "drc_types": dict(m.drc_types), "unconnected": m.unconnected,
+                "unconn_nets": unconn_nets, "unconn_critical": crit, "unconn_signal": sig,
+                "routing_complete": routing_complete, "unconn_finish_tol": unconn_finish_tol,
+                "foreign_ok": foreign_ok, "foreign": {"status": fsum.get("status"),
+                    "tracks": fsum.get("n_tracks", 0), "vias": fsum.get("n_vias", 0),
+                    "pours": fsum.get("n_pours", 0)},
+                "thermal_ok": thermal_ok, "thermal": therm,
+                "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
+                "sort_key": sort_key,
+                "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
+                                           routing_complete, crit, sig, unconn_finish_tol),
+            }
+            if verbose:
+                print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
+                      f"drc={m.drc} unconn={m.unconnected}({len(crit)}crit) "
+                      f"foreign={res['foreign']['tracks']}t/{res['foreign']['vias']}v "
+                      f"dT={therm.get('dT')} ({route_s}s)")
+            return res
+    finally:
+        if own_wd and not keep:
+            shutil.rmtree(work_dir, ignore_errors=True)
+
+
+def _oracle_fail_dict(label, *, route_s=None, error=""):
+    """A worst-rank failing verdict for a route that could not even produce a board."""
+    return {"gate": False, "label": label, "route_s": route_s, "routed": None,
+            "error": error, "gates_pass": False, "kelvin_ok": False, "diffpair_ok": False,
+            "drc": 9999, "drc_finishing_only": False, "unconnected": 9999, "unconn_critical": [],
+            "unconn_signal": [], "routing_complete": False, "foreign_ok": False,
+            "foreign": {"status": "error", "tracks": 9999, "vias": 9999, "pours": 0},
+            "thermal_ok": False, "thermal": {"ok": False, "dT": None},
+            "sort_key": (1, 9, 9999, 9999, 9999, 1e6), "reasons": [error or "route produced no board"]}
+
+
+def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
+                    routing_complete, crit, sig, tol):
+    """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
+    r = []
+    if not m.kelvin_ok:
+        r.append("kelvin_ok=False (a Kelvin sense pair is not routed / cut-vertex)")
+    if not m.diffpair_ok:
+        r.append("diffpair_ok=False (a diff pair is not routed)")
+    if m.drc != 0:
+        r.append(f"structural DRC={m.drc} (not finishing-only): {dict(m.drc_types)}")
+    if not foreign_ok:
+        r.append(f"foreign_on_pour status={fsum.get('status')} "
+                 f"tracks={fsum.get('n_tracks')} vias={fsum.get('n_vias')} (must be 0/0)")
+    if not thermal_ok:
+        r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
+                 + (f" ({therm['error']})" if therm.get("error") else ""))
+    if not routing_complete:
+        if crit:
+            r.append(f"unconnected on safety/power nets: {crit}")
+        if len(sig) > tol or m.unconnected > tol:
+            r.append(f"{m.unconnected} unconnected ratline(s) > finishing tol {tol}: signal={sig}")
+    return r
+
+
+def adjudicate_candidates(cfg, cands, *, k=3, max_workers=None, verbose=False, **grade_kw):
+    """Two-stage selection (prune -> adjudicate): the cheap placement_proxy already sorted *cands*
+    best-first; route_oracle_grade ADJUDICATES the top-k survivors with a real route, and the oracle
+    sort_key becomes the FINAL order over those k. Routing is minutes each, so k stays small (default 3).
+
+    Mutates each adjudicated candidate's `.oracle`; returns the FULL list re-ordered so the oracle-graded
+    top-k lead (by sort_key), followed by the un-adjudicated tail in their original proxy order. A graded
+    candidate ALWAYS outranks an un-graded one (we only trust a real route)."""
+    if not cands:
+        return cands
+    topk = cands[:max(1, k)]
+    tail = cands[len(topk):]
+    for c in topk:
+        try:
+            c.oracle = route_oracle_grade(c, cfg=cfg, verbose=verbose, **grade_kw)
+        except Exception as e:                                # noqa: BLE001 -- a grade failure ranks worst, never crashes selection
+            _tc.warn_once("route_oracle_grade", "oracle grade failed (%s); candidate ranked worst" % e)
+            c.oracle = _oracle_fail_dict(f"{c.strat}/seed{c.seed}", error="%s: %s" % (type(e).__name__, e))
+    topk.sort(key=lambda c: c.oracle.get("sort_key", (2,)))
+    if verbose:
+        clean = sum(1 for c in topk if c.oracle.get("gate"))
+        print(f"  [oracle] adjudicated top-{len(topk)}: {clean} gate-clean; "
+              f"winner={topk[0].strat}/seed{topk[0].seed} gate={topk[0].oracle.get('gate')}")
+    return topk + tail
+
+
+def _route_oracle_enabled(cfg):
+    """Opt-in switch: CEC_ROUTE_ORACLE=1 (env) or cfg.params['route_oracle'] truthy. Default OFF so the
+    cheap proxy path is byte-for-byte unchanged."""
+    if os.environ.get("CEC_ROUTE_ORACLE", "0") == "1":
+        return True
+    return bool(cfg.params.get("route_oracle")) if cfg is not None else False
 
 
 # ============================================================ Stage 1: requirements (human I/O)
