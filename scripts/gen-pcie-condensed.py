@@ -57,13 +57,21 @@ place, parse_netlist, gnd_planes, stackup = gmp.place, gmp.parse_netlist, gmp.gn
 LAYERS, U, ff, carve, fp_path = gmp.LAYERS, gmp.U, gmp.ff, gmp.carve, gmp.fp_path
 
 # --------------------------------------------------------------- SKU selection
-# (dir, board base, N, cable PITCH).  N=3 PITCH=20 buys the sub-105mm board;
-# N=2 can afford PITCH=23 for routing room (negligible cost). board-name arg picks.
+# (dir, board base, N, cable PITCH, board HEIGHT).  N=3 PITCH=20 buys the sub-105mm
+# width; N=2 can afford PITCH=23 for routing room (negligible cost). board-name arg picks.
+# HEIGHT: the 2-port routes clean at the H=44 floor (the pegged-45586 minimum), but the
+# 3-port packs 50% more cables into the same outline and hits a LAYER bind -- 3 cables'
+# detection/power signals must cross 6 high-current pours with only F.Cu+B.Cu signal layers
+# (both inners are GND), and the IN/OUT 45586 courtyards squeeze the sense row into a
+# ~9.8mm window with no horizontal B.Cu channel. Owner-ratified LEVER-2 (docs/owner-queue.md
+# 2026-06-30): grow the 3-port to H=56 so the connector rows sit ~6mm off the sense row,
+# opening horizontal B.Cu channels above AND below it (BAND_Y re-centers to H/2 -- see
+# _apply_height). This directly clears foreign_on_pour + the unconnected residual.
 SKUS = {
-    "pcie-8pin-2port":      ("pcie-8pin-2port", "pcie8pin-2port-module", 2, 23.0),
-    "pcie8pin-2port-module": ("pcie-8pin-2port", "pcie8pin-2port-module", 2, 23.0),
-    "pcie-8pin-3port":      ("pcie-8pin-3port", "pcie8pin-3port-module", 3, 20.0),
-    "pcie8pin-3port-module": ("pcie-8pin-3port", "pcie8pin-3port-module", 3, 20.0),
+    "pcie-8pin-2port":      ("pcie-8pin-2port", "pcie8pin-2port-module", 2, 23.0, 44.0),
+    "pcie8pin-2port-module": ("pcie-8pin-2port", "pcie8pin-2port-module", 2, 23.0, 44.0),
+    "pcie-8pin-3port":      ("pcie-8pin-3port", "pcie8pin-3port-module", 3, 20.0, 56.0),
+    "pcie8pin-3port-module": ("pcie-8pin-3port", "pcie8pin-3port-module", 3, 20.0, 56.0),
 }
 
 # --------------------------------------------------------------- footprints
@@ -94,10 +102,22 @@ LIB = dict(
 # (row1) / JIN_Y+5.5 (row2) and the pegs at JIN_Y-7.3=2.7 (hole 1.2mm off the top
 # edge); the mouth overhangs the top edge. J_OUT rot0 mirrors it at the bottom.
 # The pegs FORCE H=44 (the EPS pegless 87427 reaches 35).
-CX0, H = 11.0, 44.0                            # 11mm left margin -> the centered left M3 fits
-JIN_Y, BAND_Y = 10.0, 22.0                     # J_IN origin / sense-band center
+CX0, H = 11.0, 44.0                            # 11mm left margin -> the centered left M3 fits; H is per-SKU (set by _apply_height)
+JIN_Y, BAND_Y = 10.0, 22.0                     # J_IN origin / sense-band center (BAND_Y = H/2, re-centered per-SKU)
 CORE_W = 34.0                                  # electronics-core width (tight, DRC-validated)
 CABLE_RIGHT = 15.948                           # rightmost 45586 courtyard reach (J_OUT +3.348 of x+12.6)
+
+def _apply_height(bh):
+    """Set the per-SKU board HEIGHT and re-center the sense band in the IN/OUT connector
+    clear-window. The 45586 courtyards (J_IN rot180 / J_OUT rot0) reach y=16.94 and
+    y=H-16.94 respectively, so the clear window is [16.94, H-16.94] and its center is H/2.
+    BAND_Y=H/2 keeps the 2-port byte-identical (H=44 -> 22, today's value) AND centers the
+    grown 3-port sense row (H=56 -> 28) so horizontal B.Cu routing channels open both above
+    and below it. The 12V pours are pad-derived at route time (derive_power_pours), so they
+    track the band automatically; J_OUT, the sense parts, the bypass caps and the mounts are
+    all H/BAND_Y-relative and follow without further change."""
+    global H, BAND_Y
+    H = float(bh); BAND_Y = H / 2.0
 
 def geometry(N, PITCH):
     cables_right = CX0 + (N - 1) * PITCH + CABLE_RIGHT
@@ -359,7 +379,8 @@ def routing_guides(P, W, H_, ex, comps):
 
 # --------------------------------------------------------------- build the board
 def build(sku):
-    DIR, BASE, N, PITCH = sku
+    DIR, BASE, N, PITCH, BH = sku
+    _apply_height(BH)
     out  = f"{ROOT}/modules/{DIR}/{BASE}.kicad_pcb"
     netf = f"{ROOT}/modules/{DIR}/{BASE}.net"
     if not os.path.exists(netf):
@@ -435,7 +456,8 @@ def routing_plan_png(sku):
     import matplotlib.pyplot as plt
     from matplotlib.patches import Rectangle, Polygon, Circle
     from matplotlib.lines import Line2D
-    DIR, BASE, N, PITCH = sku
+    DIR, BASE, N, PITCH, BH = sku
+    _apply_height(BH)
     netf = f"{ROOT}/modules/{DIR}/{BASE}.net"
     comps, vals, nets = parse_netlist(netf)
     W, H_, ex, P, mounts, logo = frame(N, PITCH)
