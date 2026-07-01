@@ -381,7 +381,7 @@ tamper-response + certification the P4 path can't reach — the assurance FLOOR 
    inherently bidirectional + adds a closed baseband attack surface reachable by a rogue base station; contain
    any modem behind a REAL TX-only diode as an untrusted egress appliance, or use a truly-TX-only sub-GHz
    beacon (no receiver, no baseband). **Excluded from the air-gapped/max-security SKU** (an active transmitter
-   breaks air-gap + emanations security). Full treatment lands as a new section from the scoping run.
+   breaks air-gap + emanations security). **Full treatment + parts/regulatory: §20.**
 
 ## 17. Minimize ingress — the two boundary crossings (owner direction 2026-06-30)
 
@@ -535,3 +535,51 @@ bounded-parser attack surface + a flood of "untrusted-claim" records — and its
 lying to its own operators. Open: the host-agent trust boundary + rate-limits (OQ-52-style), the OS-content
 privacy boundary (OQ-50), the coherence-rule library (which OS event ⟂ which physical signature), and whether
 a discrepancy auto-raises a tamper event or only a flag pending review.
+
+## 20. Independent out-of-band egress — "a TX-only LTE card?" (scoped 2026-06-30)
+
+Owner idea: an independent, attacker-un-suppressible egress so a compromised host/network cannot silently
+black-hole the witness (the red-team's erase-by-availability gap, §18). Verdict + the honest form:
+
+**"TX-only LTE" is a physical contradiction — reject the framing.** Cellular is inherently bidirectional: a
+modem MUST receive (PSS/SSS + MIB/SIB, the RACH response with timing-advance, closed-loop power control,
+HARQ, EPS-AKA auth) before it may transmit one byte, and it is reachable by a **rogue base station /
+IMSI-catcher with a ~$500 SDR**. It also drags in a large, closed, RCE-prone **baseband** (Project Zero 2023:
+zero-click internet-to-baseband Exynos RCE from just a phone number) — exactly the RF ingress surface this
+product exists to avoid. A UE that never receives cannot attach; keying a cellular band uncoordinated is also
+an FCC violation.
+
+**The value is real — but the best fix is mostly NOT a radio.** Most of the anti-erase value needs zero
+emissions: the log is hash-chained + head-anchored, so any gap is provable and the collector/SIEM alarms the
+instant the periodic heartbeat stops — **silence = alarm** (receiver-side detection). Where the alert must
+physically escape a hostile local network, add a **SECOND independent WIRED diode egress** to a separate
+collector (different cable/power) + the sealed local flight-recorder. Radio is the LAST resort.
+
+**If an RF egress is wanted (commercial tier, RF-permissive sites only):**
+- **Best — a truly TX-only ISM beacon.** A dedicated transmitter IC with **NO receiver in silicon**
+  (MAX41460 ~$2.20 / MICRF112 ~$0.87 / Si4012 ~$3.43) → RF injection is a **hardware impossibility even under
+  full compromise**, broadcasting to a **customer-owned gateway** (no carrier/SIM/subscription; the receiver
+  stays in the customer's trust boundary — a *good* dependency). 915 MHz US (FCC 15.247, no duty-cycle) / 868
+  MHz EU. For campus range, a raw-LoRa **SX1262 (~$2.95)** beacon (logical TX-only, firmware-contained; SX1276
+  has physically-separate RX/TX pins to sever antenna→LNA). NEVER LoRaWAN (join needs RX).
+- **Optional global backstop — truly TX-only satellite simplex** (Globalstar STX3 ~$22 / Kineis KIM1 ~$30):
+  genuinely one-way, tiny payload, survives a site-wide RF black-hole. (Swarm is dead; Iridium SBD is
+  bidirectional — rejected.)
+- **Cellular is the WORST option** — only if wide-area reach without a sat subscription is mandatory, and ONLY
+  as a **contained, explicitly-not-TX-only** LPWA modem (NB-IoT/LTE-M, e.g. SIM7080G ~$9) fully OUTSIDE the
+  trust boundary behind a REAL hardware data diode, with its own MCU/SIM/power/RF-shield and no shared
+  bus/clock/reset with the core.
+
+**Containment (mandatory for any radio):** the radio sits on the OUTPUT side of the witness data diode,
+receives only the already-signed, hash-chained opaque blob over a one-way path (TX-only optical / optocoupler,
+RX physically unpopulated), and can therefore only **drop or leak** an already-public stream — never forge a
+record or reach the core. It carries ONLY signed tamper alerts + periodic Merkle log-head anchors (~120-160
+B, minute/hour cadence), never the full stream. Per "count crossings not ports" (§17) it is a second egress
+SINK on the far side of the ONE out-crossing — zero new core ingress.
+
+**SKU gating (a hard discriminant, not a firmware flag):** radio is **DESIGNED OUT of the air-gapped/
+max-security (PolarFire) SKU** — physically absent, RF section unpopulated, absence attested by the tamper
+seal (an active transmitter breaks air-gap by definition and is a TEMPEST/EMSEC anti-pattern; forbidden under
+SCIF/ICD-705, NERC-CIP, nuclear 10 CFR 73.54, no-transmitter OT policy, and MiFID II/MAR trading floors).
+Opt-in only on the commercial (ESP32-P4) SKU. **Rule of thumb: if the site would confiscate a smartphone at
+the door, ship radio-free.**

@@ -236,6 +236,14 @@ sequenceDiagram
   stream is low-rate); USB/Ethernet give only *logical* one-way (PHY still receives) unless a real data
   diode is used. Time: **default NO GNSS** (RF ingress + spoofable) — holdover + receive-time anchoring —
   GNSS opt-in only.
+- **Independent out-of-band egress (§20):** to close the red-team's *erase-by-availability* gap, the primary
+  fix needs no radio — **receiver-side silence-detection** (hash-chained heads make any gap provable; the
+  collector alarms when the heartbeat stops) + optionally a **second independent wired diode**. An RF egress
+  is a **last resort, commercial-tier only**: a **truly TX-only ISM beacon** (dedicated transmitter with no
+  receiver in silicon, MAX41460-class ~$2.20, to a customer-owned gateway). **"TX-only LTE" is a physical
+  contradiction** (cellular is bidirectional + a baseband attack surface); admissible only *contained behind
+  a real diode*. Radio is **DESIGNED OUT of the air-gapped/max-security SKU** (breaks air-gap + TEMPEST);
+  carries only signed alerts + Merkle log-heads.
 
 ```mermaid
 graph LR
