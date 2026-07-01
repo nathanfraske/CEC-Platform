@@ -653,3 +653,42 @@ seal (an active transmitter breaks air-gap by definition and is a TEMPEST/EMSEC 
 SCIF/ICD-705, NERC-CIP, nuclear 10 CFR 73.54, no-transmitter OT policy, and MiFID II/MAR trading floors).
 Opt-in only on the commercial (ESP32-P4) SKU. **Rule of thumb: if the site would confiscate a smartphone at
 the door, ship radio-free.**
+
+## 21. Module hardening — how much, and how (owner Q, 2026-07-01)
+
+**Governing principle: DETECTABILITY + CONTAINMENT, not IMPENETRABILITY.** Zero-trust already assumes any
+module could be bad — continuous attestation catches compromised firmware, cross-modal fusion catches a lying
+module, the DETECT poke-and-ack catches a swap, and the enclosure + sensor fabric catches physical access
+(case-open). So a module is hardened enough that a compromise is DETECTABLE + CONTAINED (cannot pivot to the
+Hub, cannot blind the cross-check) — you do NOT make every ~$40 module individually unbreakable. **The Hub is
+the fortress; modules are cheap, attested, mutually-cross-checked sensors,** and each already sits behind two
+outer layers (the enclosure/sensor fabric + the Hub's zero-trust).
+
+**Baseline — every trust-tier module (cheap, non-negotiable, ~$1-5):**
+1. **Per-module RoT** (rung 0 ATECC608 ~$0.84 min): non-exportable identity + monotonic counter +
+   challenge-response — the zero-trust foundation.
+2. **Locked debug** (JTAG/SWD/USB disabled via eFuse in production): the cheapest, highest-value hardening —
+   closes the trivial key-extraction/reflash pivot. Often skipped; must not be.
+3. **Secure/measured boot** to the RoT's level (rung-0 self-measured → rung-2 independent PCR).
+4. **Birth-cert provisioning** on the Hub allow-list: a counterfeit/interdicted module fails attestation.
+5. (System-side, already designed) the Hub's **hardened bounded parser + DETECT port-binding**: contains a
+   compromised module, catches a swap under a live link.
+
+**Scaled by value / threat / SKU (risk-proportional):**
+- **RoT rung up** — SE050 (tamper-detect) → TPM (independent measured boot) → on-die PolarFire (PUF, DPA,
+  tamper-responsive) for higher-value modules / the max-security SKU.
+- **Physical tamper** — potting/conformal coat (cheap, raises probe/modify effort — most modules) →
+  tamper-responsive SE / mesh with key zeroization (max-security highest-value).
+- **SCA-hardened keys** (DPA-resistant) — max-security only.
+- **Supply-chain attestation** (provenance itself attested) — max-security.
+
+**The one asymmetry — harden the AUDITORS (sensor modules) a notch more.** The sensor fabric is the trust
+root of the cross-check, so compromising it blinds the check. But the defense is DIVERSITY + QUORUM, not a
+fortress: enough independent auditors (diverse RoTs, diverse physics) that compromising a quorum is
+infeasible, and the auditors cross-check EACH OTHER (a lying vibration module disagrees with thermal/airflow/
+camera on the timebase). Harden the auditors a rung higher + ensure modality/RoT diversity.
+
+**How much, in one line:** the baseline (RoT + locked debug + measured boot + birth cert) on EVERY trust
+module — the ~$1-5 floor that makes compromise detectable + contained — then rung up the RoT + add physical
+hardening ONLY for the max-security SKU and the highest-value/auditor modules. Buy DETECTABILITY cheaply
+everywhere; buy IMPENETRABILITY selectively where it matters.
