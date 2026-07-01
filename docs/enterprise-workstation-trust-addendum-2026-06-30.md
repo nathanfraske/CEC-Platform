@@ -555,7 +555,12 @@ path:
   bounded window. Its attack surface is tiny (one signed command type, replay-protected by nonce + monotonic
   counter, rate-limited — the same bounded-parser posture as the NanoKVM link), while the **big management
   data channel stays relay-disconnected** until a valid grant, so the thing you actually want gated never
-  carries its own unlock.
+  carries its own unlock. **This is NOT a second network port** — the authorization path is either a
+  dedicated low-bandwidth PIN on the SAME management connector (routed to the always-on verifier; the gated
+  data pair kept separate), or the management PHY itself with a **hardware gate** that passes only the signed
+  "open" capability to the tiny verifier and blocks the full data plane until a valid open. Either way the
+  only always-exposed surface is the minimal verifier, not the management stack. The goal was never zero
+  ports — it is shrinking the STANDING attack surface to a minimal authenticated trigger.
 
 Either way: the maintenance-authority credential is **provisioned at birth** (RoT allow-list / OTP),
 revocable, under multi-party custody; every open/close is a **signed, tamper-logged** event; the window is
