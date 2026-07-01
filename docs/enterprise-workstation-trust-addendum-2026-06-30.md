@@ -536,6 +536,33 @@ separation is inherently stronger for key confidentiality; the PolarFire adds ba
 Both preserve air-gap; the response still egresses one-way. Off the table: a *standing* remote channel on an
 actual air-gapped unit — that is simply not air-gapped anymore.
 
+### 18.2 Bootstrapping the gated port — authorizing a port that is disconnected until authorized (owner Q, 2026-07-01)
+
+The paradox — you cannot deliver the "open the maintenance window" authorization over the very port that is
+disconnected until it is authorized — dissolves by **separating the AUTHORIZATION from the DATA: you never
+unlock the data port over the data port.** The relay is actuated by a channel that is NOT the management data
+path:
+
+- **Air-gap-pure — a physical credential.** A maintenance **keyswitch** (or a hardware token tapped to a
+  local reader) behind a tamper-evident cover: physical **possession + presence IS the authorization.**
+  Operating it closes the data relay AND asserts a GPIO the witness senses; the witness logs a signed
+  "maintenance window opened via physical credential at T" event, and closes/logs on key-off or timeout.
+  **Two-person rule** = two credentials AND-ed (the relay closes only when both are asserted). No network
+  ingress at all — the purest air-gap answer.
+- **Networked-but-hardened — a separate, minimal, always-on authorization line.** A single-purpose, hardened
+  receiver (NOT the data port) accepts ONLY a **signed, nonce-fresh "open window for duration T" capability
+  token** from a maintenance-authority key on the RoT allow-list; a valid token closes the data relay for the
+  bounded window. Its attack surface is tiny (one signed command type, replay-protected by nonce + monotonic
+  counter, rate-limited — the same bounded-parser posture as the NanoKVM link), while the **big management
+  data channel stays relay-disconnected** until a valid grant, so the thing you actually want gated never
+  carries its own unlock.
+
+Either way: the maintenance-authority credential is **provisioned at birth** (RoT allow-list / OTP),
+revocable, under multi-party custody; every open/close is a **signed, tamper-logged** event; the window is
+**time-bounded and auto-closes**. The gate does not remove the ingress question — it **shrinks** it from "a
+standing management port" to "a minimal signed-capability-or-physical actuation that opens a bounded, logged
+window."
+
 ## 19. Exploration — opt-in OS-event cross-check (the OS-logical modality)
 
 PROPOSED / exploratory. Goal: ingest the monitored host's own software/OS events (Windows Event Log/ETW,
