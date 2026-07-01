@@ -107,6 +107,53 @@ unverified mark. The **Hub can also act as a local RFC 3161 TSA** (its attested 
 standard tokens) — often the cleanest fit for a single air-gapped workstation, with traceability then
 resting on the Hub's disciplined clock + the external anchor.
 
+### 5.1 Clock drift + keeping up with a central time protocol (expert Q, 2026-06-30)
+
+Separate two things people conflate — this resolves the apparent tension with minimize-ingress (§17):
+**drift MONITORING** (an observable — needs no input) vs **clock DISCIPLINE** (steering to a reference — an
+input). We do the first with zero ingress and dial the second per deployment.
+
+**Every record self-describes its time quality.** It carries {box **monotonic-counter**, box wall-clock,
+**drift-uncertainty ± δ**}, where δ is the characterized-oscillator (TCXO/OCXO Allan-deviation) holdover bound
+that GROWS with time-since-last-discipline. A verifier never reads "box says t" — it reads "t ± δ, Class C, N
+holdover-seconds." **Ordering + anti-replay are anchored to the monotonic hardware counter, not the
+wall-clock** — so drift or a spoofed time source can never reorder the record or enable replay; it can only
+(detectably) degrade the *wall-clock class* (red-team must-hold #4, §18).
+
+**Drift is monitored three ways — the first with ZERO ingress:**
+1. **Receive-side, free (the elegant one):** each record carries box-time and the customer stamps arrival on
+   THEIR central protocol, so their side continuously computes drift = (their-time at receipt) − (box-time) −
+   (bounded, characterized transit latency) and maps box-time → central-time for every record. **The box
+   never needs to know its own drift for their systems to correct for it** — synchronized-in-effect to their
+   timeline without the box taking time IN.
+2. **On-box self-monitoring:** the holdover model bounds δ from the oscillator temperature/aging profile; the
+   box stamps its own uncertainty.
+3. **Cross-reference = a TAMPER signal:** where >1 reference exists (holdover model vs a received discipline
+   vs GNSS vs the counter's expected rate), disagreement beyond the Allan bound is a **signed time-anomaly
+   event** — GNSS spoofing / a rogue grandmaster / an oscillator glitch is caught the same way a lying module
+   is (cross-checking independent references).
+
+**Keeping up with their central protocol — the per-deployment ingress dial (§17), speaking their native
+protocol at each rung:**
+- **Zero-ingress (sealed/max-security):** no inward sync — holdover clock + per-record δ + the receive-side
+  mapping (#1). Their systems place every record on their central timeline on receipt. Class C,
+  traceable-by-external-observation. No time port.
+- **Receive-only discipline (opt-in):** the box LISTENS on a one-way feed — GNSS, or **listen-only PTP**
+  (accept/one-time-calibrate the grandmaster Sync/Follow_Up path delay, never send Delay_Req), or one-way
+  NTS — disciplining continuously with NO return path. A spoof can only push the class down (detected + logged
+  via #3), never forge the record.
+- **Full two-way (managed tier only):** full **IEEE 1588 / 802.1AS PTP or NTS** to their grandmaster for
+  tightest sub-µs continuous sync — a genuine ingress, so managed-tier only; the time input disciplines the
+  clock through the RoT's bounded interface: **forward-only, rate-bounded, logged, anti-replay keyed to the
+  counter not the wall-clock.** A discipline discontinuity beyond the rate bound is a time-anomaly event.
+
+Net: the box speaks whatever central protocol the customer runs (PTP / NTS / GNSS-grandmaster / on-prem RFC
+3161 TSA) at the transport level and stays in sync either by their receive-side mapping (zero-ingress) or by
+receive-only / two-way discipline — with the guarantee that **no time-source failure or spoof corrupts the
+record's integrity or ordering, only its (detectable) wall-clock class.** *Worth confirming with the expert:
+which central protocol they run (PTP vs NTS vs a TSA), since that sets the transport + the tightest achievable
+class — the architecture holds for any of them.*
+
 ## 6. External anchoring — defeats even key compromise
 
 Periodically publish the signed log head to a witness the device cannot control: the customer's own

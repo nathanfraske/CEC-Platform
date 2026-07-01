@@ -134,6 +134,26 @@ flowchart TD
   with traceability then resting on the disciplined clock + external anchor + **customer receive-time**
   on the one-way stream (external UTC anchoring with zero ingress, §9).
 
+### 6.1 Clock drift + keeping up with a central time protocol *(reviewer question)*
+
+- Separate **drift MONITORING** (an observable — needs no input) from **clock DISCIPLINE** (steering to a
+  reference — an input): the first is zero-ingress; the second is dialed per deployment.
+- **Every record self-describes its time quality** — {monotonic-counter, wall-clock, **drift-uncertainty ±
+  δ**}, where δ is the characterized-oscillator (Allan-deviation) holdover bound that grows with time since
+  last discipline. **Ordering + anti-replay are on the monotonic counter, not the wall-clock**, so drift or a
+  spoofed source can only (detectably) degrade the *class* — never reorder the record or enable replay.
+- **Drift monitored 3 ways, the first with ZERO ingress:** (1) **receive-side** — the customer stamps arrival
+  on their central protocol and computes drift = their-time − box-time − bounded transit, mapping box-time →
+  central-time for every record (synchronized-in-effect with no time port); (2) **on-box** holdover model
+  bounds δ; (3) **cross-reference disagreement** beyond the Allan bound = a signed **time-anomaly event**
+  (GNSS spoof / rogue grandmaster caught like a lying module).
+- **Keeping up with their central protocol — the ingress dial, in their native protocol:** zero-ingress
+  (holdover + δ + receive-side mapping); **receive-only discipline** (GNSS / **listen-only PTP** / one-way
+  NTS — no return path); or **full two-way PTP / NTS** (managed tier only, sub-µs) with the RoT bounding it
+  **forward-only, rate-bounded, logged, anti-replay on the counter**.
+- **Reviewer confirm-back:** *which* central protocol (PTP vs NTS vs a TSA) — it sets the transport + tightest
+  class; the architecture holds for any. No time-source failure/spoof ever corrupts record integrity/order.
+
 ## 7. Zero-trust per-module RoT + continuous attestation + assume-bad
 
 - **Every module carries its OWN RoT** (distinct from the Hub's), advertised over DETECT reserved codes
