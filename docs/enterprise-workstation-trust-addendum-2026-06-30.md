@@ -692,3 +692,43 @@ camera on the timebase). Harden the auditors a rung higher + ensure modality/RoT
 module — the ~$1-5 floor that makes compromise detectable + contained — then rung up the RoT + add physical
 hardening ONLY for the max-security SKU and the highest-value/auditor modules. Buy DETECTABILITY cheaply
 everywhere; buy IMPENETRABILITY selectively where it matters.
+
+## 22. Mission-Critical variant — the SAFETY / AVAILABILITY axis (owner Q, 2026-07-01)
+
+Mission-Critical adds a **second, ORTHOGONAL axis** to the trust tier: **SAFETY / AVAILABILITY** (keep
+operating correctly + fail predictably under FAULT) on top of the **SECURITY** axis the trust tier already
+gives (believe the data + detect tampering). Different failure model — *fault* (a part dies, a sensor drifts,
+an MCU hangs, an SEU flips a bit) vs *attack*. So **MC = the max-security (PolarFire) trust Hub + a
+fault-tolerance layer**, not a third silicon platform. (Aligns with the spec's MC = redundant power + CAN +
+uplinks + trust + a bare-metal safety coprocessor.)
+
+**The fault-tolerance layer (the owner's watchdog-pair instinct is the core):**
+- **Redundant compute** — a watchdog/lockstep **pair (1oo2)** detects a fault (divergence) and **fails SAFE**
+  (degrade + alarm); a **triple (2oo3 / TMR)** *masks* a fault and **fails OPERATIONAL** (keeps running
+  through one fault). Pair-vs-triple = fail-safe vs fail-operational, a cost/availability call. PolarFire can
+  host lockstep in fabric, or a discrete safety coprocessor (TI Hercules-class) watches the main.
+- **Redundant power / CAN / uplinks** (already MC in the spec) + optionally a **redundant Hub** (failover) for
+  the highest availability.
+- **Continuous BIST/self-test + ECC/SEU protection** (PolarFire is flash-based + SEU-immune — a good fit).
+- **Functional-safety certification** (IEC 61508 SIL / ISO 26262 ASIL) — DISTINCT from the security cert
+  (FIPS/CC); MC needs both paths.
+
+**Synergy — the cross-modal fusion is ALREADY a fault detector.** The same physics-agreement check that
+catches a LYING module catches a FAULTED (drifted/dead) one — so MC inherits much of its diagnostic coverage
+free from the trust architecture. Extend "assume-bad" to **"assume-bad-OR-faulted."**
+
+**Reconciling the axes (they can conflict).** Security says fail-CLOSED (distrust on doubt); safety often says
+fail-OPERATIONAL (keep running). Resolution: **redundant, independently-attested paths — fail OVER to a good
+attested path (availability) and mark the bad one distrusted (security).** Redundancy provides the
+availability; per-path attestation provides the fail-closed on the bad path — **fail-operational-AND-secure.**
+
+**Modules:** MC modules add **redundant sensing on critical rails** (a sensor fault is detected/masked) + a
+**fail-safe** posture + the safety-cert pedigree; the fusion + per-module attestation already give the
+fault-detection. The §21 baseline hardening still applies.
+
+**Cost note:** the redundancy roughly DOUBLES the compute BOM (a 2nd PolarFire or a safety coprocessor) +
+redundant power/uplinks — a real step beyond the ~$206 max-security Hub, expected for the MC tier.
+
+**Naming (owner):** this makes the ladder Enterprise (P4, tamper-evident) → Enterprise Max (PolarFire,
+tamper-responsive, max-security) → **Mission-Critical (PolarFire + fault-tolerance + safety cert)** — the top
+being max-security AND fault-tolerant AND safety-certified.
