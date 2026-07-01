@@ -498,6 +498,44 @@ the physical gaps are funded. The boundary stops software from *editing the trut
 compromised manager from *authoring convenient truth at ingest*, *deleting truth via availability*,
 *redefining "normal" via config*, or *reading truth out through the die's physics*.
 
+### 18.1 Remote management on the max-security (PolarFire) SKU (owner Q, 2026-07-01)
+
+"Max-security" is not monolithic — it forks, and PolarFire is the BEST platform for safe remote management,
+not the worst:
+- **Networked-but-hardened max-security** (a controlled OOB management network, not a SCIF): the §18
+  separated management applies fully, and PolarFire's **formally design-separated fabric partition** is what
+  makes it safe — it can *prove* the management partition cannot reach the witness core (red-team req #5,
+  integrity side).
+- **Truly air-gapped max-security** (SCIF/classified): no standing external connection of any kind — that is
+  the *definition* of air-gap, so a standing remote channel is not available. But it is not "nothing" (below).
+
+**Populate-upon-request — an ATTESTED build-time variant, never a field mod.** Make the management controller
++ port a build-time populate option (designed in, DNP by default, like the radio §20), with the crucial
+refinement that **the populated/unpopulated state is part of the attested, sealed birth-certificate
+configuration.** So the max SKU forks at build:
+- **Sealed variant:** no management, no radio; the tamper seal attests their ABSENCE; a verifier knows
+  cryptographically the unit is sealed.
+- **Managed variant:** the design-separated management partition + port populated; the birth cert + seal
+  attest "managed, design-separated"; a verifier knows this unit has a bounded management channel and factors
+  it into trust.
+Every unit is cryptographically self-describing; populate-on-request never erodes what the seal means.
+
+**Red-team caveat for PolarFire-with-management (must honor):** design-separation proves *digital* isolation
+(integrity) but NOT *physical* side-channel isolation on a shared die — a hostile management partition could
+DPA the signing op (a confidentiality gap, req #5). So the managed PolarFire variant **MUST add a discrete
+SCA-hardened key vault** so the signing key never lives in shared silicon. Design-separation (integrity) +
+discrete vault (confidentiality) together satisfy req #5. (This is the one place the P4's *physical* two-MCU
+separation is inherently stronger for key confidentiality; the PolarFire adds back a discrete vault to match.)
+
+**Even the air-gapped variant is not limited to "someone at the port":**
+- **Gated connection** — a management port physically DISCONNECTED by default (relay open), closed only under
+  **multi-party physical authorization for a maintenance window**, then re-opened; the connect event attested
+  + logged. Networked management during authorized windows without a *standing* connection.
+- **Sneakernet** — a **signed management bundle** on authenticated physical media, applied under
+  authorization, logged; management with no connection at all.
+Both preserve air-gap; the response still egresses one-way. Off the table: a *standing* remote channel on an
+actual air-gapped unit — that is simply not air-gapped anymore.
+
 ## 19. Exploration — opt-in OS-event cross-check (the OS-logical modality)
 
 PROPOSED / exploratory. Goal: ingest the monitored host's own software/OS events (Windows Event Log/ETW,
