@@ -373,6 +373,15 @@ tamper-response + certification the P4 path can't reach — the assurance FLOOR 
    PMS5003 (grey-market, $15); the fan duty-cycle schedule trades detection latency against 5VSB budget.
 7. **Camera privacy boundary (OQ-50)** — default-store hashes/LED-vectors/structural-diffs; OCR-and-discard
    the host screen; full bitmaps only in a signed forensic buffer after a trigger.
+8. **Central time protocol (confirm with customer, §5.1)** — WHICH protocol they run (PTP vs NTS vs on-prem
+   RFC 3161 TSA); sets the transport + the tightest achievable time class. The architecture holds for any.
+9. **Independent out-of-band egress (LTE / radio) — decision pending scoping (2026-06-30).** Whether to add an
+   independent, attacker-un-suppressible egress for signed tamper alerts + Merkle log-heads (closes the
+   red-team's erase-by-availability gap). NOTE: **"TX-only LTE" is a physical contradiction** — cellular is
+   inherently bidirectional + adds a closed baseband attack surface reachable by a rogue base station; contain
+   any modem behind a REAL TX-only diode as an untrusted egress appliance, or use a truly-TX-only sub-GHz
+   beacon (no receiver, no baseband). **Excluded from the air-gapped/max-security SKU** (an active transmitter
+   breaks air-gap + emanations security). Full treatment lands as a new section from the scoping run.
 
 ## 17. Minimize ingress — the two boundary crossings (owner direction 2026-06-30)
 
