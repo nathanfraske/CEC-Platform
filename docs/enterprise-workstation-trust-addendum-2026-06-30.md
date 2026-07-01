@@ -732,3 +732,40 @@ redundant power/uplinks — a real step beyond the ~$206 max-security Hub, expec
 **Naming (owner):** this makes the ladder Enterprise (P4, tamper-evident) → Enterprise Max (PolarFire,
 tamper-responsive, max-security) → **Mission-Critical (PolarFire + fault-tolerance + safety cert)** — the top
 being max-security AND fault-tolerant AND safety-certified.
+
+### 22.1 Redundant-compute topology — how many parts, how many boards (owner Q, 2026-07-01)
+
+Untangle three DISTINCT roles the "how many chips" question conflates — only ONE is about redundancy:
+- **Trust compute** (PolarFire) — the witness / attestation / crypto / record.
+- **Safety watchdog** — a small, INDEPENDENT safety coprocessor (TI Hercules-class, itself internally
+  dual-core lockstep) that monitors the trust compute's liveness/health and drives the fail-safe channel.
+- **Key vault** — a discrete SCA-hardened secure element (the §18.1 key-confidentiality requirement).
+
+So the baseline MC board carries ~3 parts — but as **3 ROLES, not 3 voting copies of one computation.** The
+fault-tolerance comes from the safety watchdog being independent of the trust compute (separate die / power /
+clock, so it catches a trust-compute fault) and itself internally lockstep (so IT is fault-tolerant).
+
+**The topology ladder is chosen by WHICH FAULTS you must survive — it is LAYERED, not either/or:**
+- **On-die lockstep PAIR (the watchdog pair, done right):** one lockstep-capable part IS the pair (dual-core
+  compared in hardware, e.g. Hercules) — the cheap, tight way to catch SEU/bit-flips + a single-core hang.
+  You do NOT put 3 chips on a board for the pair; you use one lockstep part.
+- **TMR (triple, one board):** masks a single COMPUTE fault → fail-operational, one board — but does NOT cover
+  common-mode board / power / clock / physical-tamper faults (all three share the board).
+- **TWO independent boards (redundant Hub):** the only topology that survives a WHOLE-BOARD fault, gives the
+  witness **tamper-independence** (separate enclosure regions), and true fail-operational availability — at 2x
+  cost + failover complexity. The top MC tier.
+
+**Synergy — the security layer covers the gap pure lockstep can't.** Lockstep agrees on a WRONG answer if a
+deterministic firmware bug/compromise hits all cores identically (common-mode firmware) — normally you would
+need expensive design diversity to catch that. Here the **attestation** (bad firmware fails the allow-list) +
+the **cross-modal fusion** (a lying result is caught by physics) catch the common-mode-firmware case for free,
+so MC needs no firmware diversity.
+
+**Recommendation:**
+- **MC baseline (fail-safe):** ONE board — PolarFire (trust, self-lockstep-capable) + an independent
+  Hercules-class safety watchdog (internally lockstep) + a discrete key vault + redundant power.
+- **MC full (fail-operational + tamper-independent):** TWO independent boards (independent power / clock /
+  enclosure) with cross-check + failover.
+
+So: **not three voting copies on a board — either ~3 ROLES on one board (fail-safe MC), or two independent
+boards (fail-operational / tamper-independent MC),** with the choice set by the deployment's fault model.
