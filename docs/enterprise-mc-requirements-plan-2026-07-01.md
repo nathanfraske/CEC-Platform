@@ -1,0 +1,206 @@
+# Enterprise + Mission Critical production-requirements drafting plan
+
+_Drafted 2026-07-01, branch `claude/enterprise-modules-planning-zpjmir`. Status: PROPOSED —
+this is a plan for HOW to draft the requirements, not the requirements themselves. Nothing in
+it resolves an OQ or changes a locked decision; every ratification point is an explicit owner
+gate below._
+
+## 1. Purpose and scope
+
+The owner asked for a plan to fully draft **production requirements for both enterprise-tier
+variants — the Enterprise (tier 3) and Mission Critical (tier 4) Hubs — covering all modules**.
+Today both tiers exist only at platform-summary level (spec §1 tier table; placeholder READMEs
+in `hubs/hub-enterprise/` and `hubs/hub-mission-critical/`), explicitly deferred behind
+**OQ-7**. This plan sequences the work from "summary row in a table" to "ratified,
+verification-tagged requirements set ready to open the two KiCad projects."
+
+## 2. Current state (surveyed 2026-07-01)
+
+### Spec side (canonical spec v1.1.0)
+
+- **§1 tier table** is the ONLY specifying text for either tier:
+  - **Enterprise**: ESP32-P4 + secure element; USB HS host link + optional 1000BASE-T1
+    uplink; RJ-11 trust channel; ~$50 BOM (100q).
+  - **Mission Critical**: ESP32-P4 + crypto; redundant uplinks; redundant power, redundant
+    CAN, trust; ~$80 BOM (100q).
+  - RJ-11, trust channel, secure element, and every "redundant" item are **named but have no
+    specifying section body anywhere** — all pending OQ-7.
+- **OQ-7** (spec §10): fully specify now vs wait for first customer requirements. Current
+  leaning recorded, not locked: MCU/RTOS control plane + FPGA/TSN-switch data plane, **no
+  Linux**, PolarFire SoC as the consolidated candidate (Appendix B.3/B.5).
+- **Adjacent gates**: OQ-14 (uplink over-voltage protection — the enterprise half is deferred
+  to OQ-7); OQ-44 (identity/provenance — hard provenance routes to the Enterprise secure
+  element); OQ-62 (Appendix D support-pipeline plan signing — same secure-element tie);
+  §3.1 (classical CAN 500k LOCKED on every tier; CAN-FD deferral is "scoped to the Enterprise
+  spec (OQ-7)" if fleet node counts saturate 500k); §2.3 (the 1-Wire ID + EEPROM per-module
+  unique-identity upgrade path for Enterprise/MC fleets — explicitly NOT adopted, deferred).
+- **Modules are tier-agnostic (LOCKED, §1/§8)**: there is no such thing as an "Enterprise
+  module" in the spec. The module ladder is Standard/Pro/Max. The §8 compatibility matrix has
+  only Standard and Pro module rows against the Enterprise/MC Hub columns ("Works"/"Native"/
+  "module is the weak link"). This shapes the whole plan — see §3 below.
+
+### Board side (latest work, all on main as of PR #61 merge `ab9748a`)
+
+Every board just went through a Rev2/rev3 schematic wave, all schematic-complete + ERC-clean,
+all pending PCB layout:
+
+- **Hub Standard Rev2** (`hubs/hub-rev2/`): BOM-preserving sectioned regen + the new
+  **mezzanine socket** (`CEC_MEZZANINE_16P`, 2×8 2.0mm, wired as "port 0").
+- **24-pin ATX rev3** (`modules/atx-24pin-rev3/`): ESP32-C6 move + §6.13 transient front-end +
+  TPS2121 power-mux consolidation (+5V_SYS) + mezzanine male header + parity fixes (DETECT
+  ESD, poke-and-ack, FTP jack, J1.1 open).
+- **EPS rev2, PCIe-2/3 rev2**: sectioned BOM-preserving regens (already C6 + §6.13).
+- **12VHPWR Standard**: mature, routed, fab-direction. **12VHPWR Pro**: schematic-capture
+  stage (the only Pro-tier module in flight — the RS-485 streaming exemplar the Enterprise/MC
+  Hubs must service).
+- **Mezzanine stack** (`docs/mezzanine-stack-design-2026-06-24.md`): Hub-on-24-pin integrated
+  unit, identical logical interface, STREAM_P/N populated for Pro forward-compat, spec
+  section + OQ proposal still pending. Directly relevant to Enterprise packaging (integrated
+  appliance form).
+
+### Tooling / MCP inventory
+
+- **GitHub MCP**: live, authenticated (`nathanfraske`), scoped to `nathanfraske/cec-platform`
+  — PRs, issues, actions, file ops. This is the promotion/ritual channel (CODEOWNERS-gated
+  spec + promoted/ paths).
+- **Google Drive MCP**: present but **token expired** — needs owner re-auth (claude.ai
+  connector settings). Wanted for sweeping owner-side/customer requirement docs into Phase 2
+  intake (FOLLOWUPS entry logged 2026-07-01).
+- In-repo machinery usable for this work: the tiered review pipeline (manager/auditor
+  sub-agents, workflow orchestration), `cec_corpus_lint` (validates spec § references
+  resolve), the corpus/ledger discipline, and the GitHub Actions CI.
+
+## 3. Framing: what "enterprise variants for all modules" must mean
+
+The tier-agnostic module principle is LOCKED. So the requirements set is structured as:
+
+1. **Two Hub requirement sets** (REQ-ENT-*, REQ-MC-*) — the real new hardware.
+2. **One per-module conformance matrix** — for each shipped/planned module SKU, what the
+   Enterprise/MC Hubs require OF it and guarantee TO it (DETECT code, CAN 500k, graceful
+   degrade, RS-485 servicing on Pro, identity strength, shield/ESD posture). Mostly already
+   locked platform behavior; the drafting work is capturing + verifying it per module, not
+   redesigning modules.
+3. **A short list of optional module-touching decisions** that Enterprise/MC could pull in —
+   each one an explicit owner adopt/decline, never an assumption: the §2.3 1-Wire ID/EEPROM
+   unique-identity path, CAN-FD (only if fleet counts demand it), module provenance
+   participation in the OQ-44/62 signing chain, and mezzanine-stack participation.
+
+If the owner instead wants literal Enterprise-variant module SKUs (new boards), that is a
+spec change to the LOCKED tier-agnostic principle and must be ratified first — flagged as
+decision **D4** below, default NO.
+
+## 4. Owner decision gates (D1–D5)
+
+These go to `docs/owner-queue.md` §1 in the same change as this plan. Nothing downstream of a
+gate is drafted as anything stronger than PROPOSED until the gate clears.
+
+| # | Decision | What it unblocks | Default/recommendation |
+|---|---|---|---|
+| D-ENT-1 | **Ratify OQ-7 scope**: fully specify Enterprise + MC now (this planning request is the trigger), via a spec revision opening real Enterprise/MC sections | The whole program; Phase 4 promotion | Recommend YES — the request itself signals it; formal close rides the Phase 4 spec PR |
+| D-ENT-2 | **Compute architecture**: the §1 table says "ESP32-P4 + secure element" while Appendix B.5 leans PolarFire SoC (no Linux, PUF, DPA-resistant boot, crypto coprocessor). These conflict, and PolarFire alone likely breaks the $50 Enterprise BOM target. Pick: (a) P4 + discrete secure element (+ optional TSN switch IC), (b) PolarfFire SoC, (c) split — Enterprise on (a), MC on (b) | REQ skeleton for identity/crypto/uplink/firmware; BOM re-baseline | Phase 2 research feeds this; decide after the parts survey lands |
+| D-ENT-3 | **BOM targets re-baseline**: hold $50/$80 (constrains D-ENT-2 hard) or re-target | BOM sections of both REQ sets | Survey first, then re-baseline honestly |
+| D-ENT-4 | **Module stance**: keep modules tier-agnostic (conformance-matrix approach, §3 above) vs introduce Enterprise module SKUs | Shape of the per-module half | Recommend KEEP tier-agnostic (LOCKED today) |
+| D-ENT-5 | **Adopt/decline the optional module-touching items**: 1-Wire ID/EEPROM path, CAN-FD trigger, module role in plan-signing provenance, mezzanine in the Enterprise product form | Conformance matrix finalization | Each is a separate line-item at Phase 3 review |
+
+## 5. Phased plan
+
+### Phase 0 — Gates + intake (owner + agent, days)
+- Owner: D-ENT-1 (scope), and re-auth Google Drive so any customer/owner requirement docs can
+  be swept into intake.
+- Agent: build the **customer-requirements intake template** (OQ-7's original trigger was
+  "first customer requirements land" — even a self-authored proxy customer profile makes the
+  requirements testable: fleet size, air-gap posture, compliance regime, uplink environment).
+
+### Phase 1 — Requirements skeleton + conformance matrix (agent, can start NOW)
+No OQ resolution needed — everything is DRAFT-tagged.
+- `docs/enterprise-requirements/` working tree:
+  - `REQUIREMENTS-FORMAT.md` — register schema: `REQ-ENT-###` / `REQ-MC-###`, each with
+    statement, rationale, spec §/OQ traceability, verification method (inspection / analysis /
+    test / demonstration), status (DRAFT → PROPOSED → RATIFIED), and owner-gate linkage.
+  - `hub-enterprise-requirements.md` and `hub-mission-critical-requirements.md` — sectioned
+    skeletons with every requirement slot enumerated (§6 below), populated with what the spec
+    already binds (LOCKED items carried in verbatim with references) and DRAFT placeholders
+    for the OQ-7-gated holes.
+  - `module-conformance-matrix.md` — the 7 shipped/planned SKUs (24-pin, EPS, PCIe-2, PCIe-3,
+    12VHPWR Std, 12VHPWR Pro, ARGB §7) + PROPOSED (SATA §6.12, Max §6.11) against both tiers:
+    required behavior, guaranteed servicing, degrade mode, verification hook.
+- Lint: extend/reuse the spec-§-resolution check so every traceability reference in the
+  register resolves against v1.1.0 (same discipline as `cec_corpus_lint`).
+
+### Phase 2 — Research to feed the empty slots (agent, parallelizable)
+Research dumps into `docs/enterprise-requirements/research/`, each ending in a comparison
+table + recommendation feeding a D-gate:
+1. **Secure element / crypto survey** — discrete SE parts (ATECC608-class, SE050, OPTIGA) vs
+   PolarFire on-die (PUF, Athena, CAVP/CNSA), against OQ-44/62 needs (key custody, plan
+   signing, attestation). Feeds D-ENT-2.
+2. **1000BASE-T1 uplink** — PHY candidates, magnetics, connector, and the OQ-14 enterprise
+   over-voltage answer (this is where the platform's deferred OV protection finally lands).
+3. **RJ-11 trust channel** — physical/protocol definition + threat model (what it carries,
+   why RJ-11, isolation).
+4. **MC redundant power** — dual-feed prioritizer; the LTC4417 triple-prioritizer is already
+   named in CLAUDE.md as "the textbook part for a non-cost-constrained (Enterprise/MC)
+   board"; validate + alternatives.
+5. **MC redundant CAN + redundant uplinks** — bus A/B topology, failover semantics, whether
+   redundancy is transceiver-level, bus-level, or port-level; interaction with the LOCKED
+   single-bus 500k module interface.
+6. **RTOS/firmware stack** — Zephyr/FreeRTOS + mbedTLS/wolfSSL (FIPS-validated builds),
+   MCUboot signed OTA, secure boot chain (Appendix B.3 already sketches this; harden into
+   requirements).
+7. **Compliance regime scan** — what "production" means per tier (EMC as today + FIPS/CAVP?
+   IEC 62443-style posture for MC?) — sets the verification methods.
+
+### Phase 3 — Draft + adversarial review (agent + pipeline, then owner)
+- Fill both registers to 100% slot coverage (no empty sections; every slot either a concrete
+  requirement or an explicitly-titled owner decision).
+- Run the drafts through the tiered review machinery (manager + deep-auditor passes; the
+  same discipline as route judging — never self-certified): completeness critic ("which §1
+  table phrase has no requirement?"), conflict critic (vs LOCKED decisions + BOM targets),
+  verification critic (every REQ has a executable verification method).
+- Owner review ritual: D-ENT-2/3/4/5 decided on the evidence; register statuses flip
+  DRAFT → PROPOSED.
+
+### Phase 4 — Promote to spec + close the OQs (owner's pen, CODEOWNERS-gated)
+- Spec revision (next controlled version): new Enterprise/MC sections (or Appendix E)
+  distilled from the registers; §1 table updated to match D-ENT-2; OQ-7 closed; OQ-14
+  enterprise half closed; OQ-44/62 updated to bind to the chosen secure-element mechanism;
+  CAN-FD stance recorded; mezzanine OQ folded in if D-ENT-5 adopts it.
+- CLAUDE.md + both hub READMEs updated to the post-OQ-7 state in the same change.
+
+### Phase 5 — Board program start (out of scope here, sequenced for honesty)
+- Only after Phase 4: open `hubs/hub-enterprise/` + `hubs/hub-mission-critical/` KiCad
+  projects (Hub Pro base + deltas), per the normal board pipeline (generator/sectioned
+  schematic → ERC → BOM sourcing → placement/routing pipeline). The Hub Pro build-out
+  (ESP32-P4, 8 ports, RS-485 receivers) is a de-facto prerequisite/sibling since both tiers
+  inherit its base — flagged, not scheduled here.
+
+## 6. Requirement-register section map (the slots Phase 1 creates)
+
+Both tiers: identity & provenance; trust channel; host uplink(s); module interface
+conformance (the LOCKED platform half: RJ-45/FTP, pin table, DETECT, CAN 500k, 5VSB
+distribution, ESD); RS-485 streaming service (ports × receivers, OQ-5 interaction); power
+input & distribution; firmware/boot/OTA security; environmental & compliance; mechanical &
+packaging (incl. mezzanine/appliance form if adopted); diagnostics & support-pipeline hooks
+(Appendix D: signed plans, verified restore, consent rendering); BOM & sourcing; verification
+matrix. MC adds: redundant power; redundant CAN; redundant uplinks; failover semantics +
+degrade ladder; anti-tamper.
+
+## 7. Risks / standing conflicts to keep visible
+
+- **BOM vs architecture**: PolarFire SoC vs $50 Enterprise target is a real collision —
+  surfaced as D-ENT-2/3, not silently resolved.
+- **CAN-FD temptation**: classical 500k is LOCKED platform-wide; any Enterprise fleet-scale
+  argument goes through the spec-revision door, never a quiet default.
+- **Tier-agnostic modules**: the conformance-matrix framing protects the LOCKED principle;
+  any "Enterprise module SKU" idea is D-ENT-4.
+- **No customer yet**: OQ-7's original wait-reason still stands; the proxy-customer-profile
+  intake (Phase 0) is the mitigation, and the owner should decide knowingly (D-ENT-1).
+- **Hub Pro is not built yet**: both tiers inherit its base (ESP32-P4, 8 ports, RS-485);
+  Enterprise/MC requirements can be drafted against the spec'd Pro, but board work (Phase 5)
+  stacks behind Pro build-out.
+
+## 8. What starts immediately on this branch
+
+Phase 1 in full (format doc, both skeletons, conformance matrix, lint hook) and Phase 2
+research items 1–7 — none of it requires an OQ resolution because it is all DRAFT/PROPOSED
+working material outside the CODEOWNERS-gated spec. The first owner touchpoint is D-ENT-1 +
+the Drive re-auth; the first hard fork in the road is D-ENT-2 after the parts survey.

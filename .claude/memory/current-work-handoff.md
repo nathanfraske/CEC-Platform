@@ -175,3 +175,19 @@ See [[env-rebuild-2026-06-12]], [[llm-broker]], [[bot-git-auth]], [[windows-nati
   then finish **B3** (cold-load + decode medians, Win-native vs drvfs) and **B5** (validate the
   broker proxy end-to-end). The broker seat is already wired.
 - The WSL llama.cpp stack is the working production path meanwhile.
+
+## ENTERPRISE/MC REQUIREMENTS PLANNING 2026-07-01 (branch claude/enterprise-modules-planning-zpjmir)
+Owner asked to plan the full prod-requirements draft for BOTH enterprise-tier variants (Enterprise + Mission
+Critical) covering all modules. Grounding done: (a) spec sweep — both tiers exist ONLY in the §1 tier table,
+everything (RJ-11 trust, secure element, redundant power/CAN/uplinks, 1000BASE-T1 OV) is named-but-unspecified
+pending OQ-7; Appendix B.5 leaning = no-Linux MCU/RTOS + FPGA/TSN, PolarFire SoC candidate (CONFLICTS with §1
+"P4 + secure element" and the $50 BOM); modules are TIER-AGNOSTIC (LOCKED §1/§8) — no Enterprise module SKUs
+exist, so the module half is a conformance matrix, not new boards. (b) board sweep — Rev2/rev3 wave all
+schematic-complete pending layout (Hub Rev2 + mezzanine socket, 24-pin rev3 C6+§6.13+mux, EPS/PCIe rev2);
+mezzanine stack doc = enterprise-relevant integrated form. (c) MCP: GitHub live; Google Drive TOKEN EXPIRED
+(owner re-auth needed — FOLLOWUPS + owner-queue). PLAN OF RECORD:
+docs/enterprise-mc-requirements-plan-2026-07-01.md (5 phases; D-ENT-1..5 owner gates added to owner-queue §1;
+Phase 1 skeleton + Phase 2 research can start now, spec promotion Phase 4 is owner's pen).
+NEXT (owner ask, same session): fan-out audit workflow — audit both tiers vs enterprise-customer expectations
++ required integrations (DCIM/Redfish/SNMP/fleet/compliance lenses), synthesize into
+docs/enterprise-requirements/research/.
