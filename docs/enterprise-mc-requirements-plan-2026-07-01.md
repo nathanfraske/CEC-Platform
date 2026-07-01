@@ -5,6 +5,43 @@ this is a plan for HOW to draft the requirements, not the requirements themselve
 it resolves an OQ or changes a locked decision; every ratification point is an explicit owner
 gate below._
 
+_REVISED same day by owner direction (in-session, 2026-07-01) — see §1a. The two "enterprise
+variants" are **air-gapped** and **networked-but-hardened**, both on PolarFire; BOM targets
+are TBD; module requirements are drafted NOW, module boards start only after ratification._
+
+## 1a. Owner direction (2026-07-01, supersedes the original D-gate framing where noted)
+
+Recorded verbatim intent from the owner, this session:
+
+1. **Enterprise-class compute = PolarFire.** "Just do the enterprise with PolarFire." This
+   resolves the D-ENT-2 architecture question BY OWNER DIRECTION toward the Appendix B.5
+   consolidated candidate (PolarFire SoC), superseding the §1 table's "ESP32-P4 + secure
+   element" row. The formal close still rides the Phase-4 spec revision (owner's pen,
+   CODEOWNERS-gated); until then the direction is recorded here and in owner-queue.
+2. **The two enterprise variants are deployment postures, not MCU choices:**
+   - **ENT-AIR — air-gapped**: no network egress by design; local/out-of-band only.
+   - **ENT-NET — networked but hardened**: network-attached with a hardened posture.
+   How these two variants map onto the spec's tier-3/tier-4 (Enterprise / Mission Critical)
+   labels is an open reconciliation question for the Phase-4 spec revision — plausibly
+   ENT-NET ≈ Enterprise and ENT-AIR ≈ Mission Critical, but the redundancy set
+   (power/CAN/uplinks) listed under Mission Critical needs its own home. Tracked as
+   **D-ENT-6** below; drafting proceeds on the two-variant framing regardless.
+3. **BOM targets: TBD** (D-ENT-3 answered — the $50/$80 rows are re-baselined by Phase-2
+   costing, not held).
+4. **Modules: YES, we make them** (D-ENT-4 answered) — enterprise module requirements are
+   drafted NOW alongside the hub requirements; module board work starts only AFTER the owner
+   ratifies the requirement sets ("requirements now, boards after"). The earlier "two module
+   SKUs, one P4 one PolarFire" framing is superseded by this direction; the existing
+   12VHPWR Pro (ESP32-P4) board and the §6.11/§6.13 Pro/Max ladder remain what they are —
+   the enterprise module requirements are drafted per module FAMILY against BOTH deployment
+   variants.
+5. **Immediate requirements consequence to carry into every module register:** every current
+   module MCU (ESP32-S3/C6 family) is radio-capable silicon (Wi-Fi/BLE). Air-gapped and
+   high-security customers commonly prohibit RF-capable parts outright, even unused. Whether
+   ENT-AIR module variants require radio-free MCUs (or fused-off/absent-antenna posture is
+   acceptable) is a load-bearing early question for the ENT-AIR register — flagged, not
+   assumed.
+
 ## 1. Purpose and scope
 
 The owner asked for a plan to fully draft **production requirements for both enterprise-tier
@@ -94,13 +131,14 @@ decision **D4** below, default NO.
 These go to `docs/owner-queue.md` §1 in the same change as this plan. Nothing downstream of a
 gate is drafted as anything stronger than PROPOSED until the gate clears.
 
-| # | Decision | What it unblocks | Default/recommendation |
+| # | Decision | What it unblocks | Status (post owner direction 2026-07-01, §1a) |
 |---|---|---|---|
-| D-ENT-1 | **Ratify OQ-7 scope**: fully specify Enterprise + MC now (this planning request is the trigger), via a spec revision opening real Enterprise/MC sections | The whole program; Phase 4 promotion | Recommend YES — the request itself signals it; formal close rides the Phase 4 spec PR |
-| D-ENT-2 | **Compute architecture**: the §1 table says "ESP32-P4 + secure element" while Appendix B.5 leans PolarFire SoC (no Linux, PUF, DPA-resistant boot, crypto coprocessor). These conflict, and PolarFire alone likely breaks the $50 Enterprise BOM target. Pick: (a) P4 + discrete secure element (+ optional TSN switch IC), (b) PolarfFire SoC, (c) split — Enterprise on (a), MC on (b) | REQ skeleton for identity/crypto/uplink/firmware; BOM re-baseline | Phase 2 research feeds this; decide after the parts survey lands |
-| D-ENT-3 | **BOM targets re-baseline**: hold $50/$80 (constrains D-ENT-2 hard) or re-target | BOM sections of both REQ sets | Survey first, then re-baseline honestly |
-| D-ENT-4 | **Module stance**: keep modules tier-agnostic (conformance-matrix approach, §3 above) vs introduce Enterprise module SKUs | Shape of the per-module half | Recommend KEEP tier-agnostic (LOCKED today) |
-| D-ENT-5 | **Adopt/decline the optional module-touching items**: 1-Wire ID/EEPROM path, CAN-FD trigger, module role in plan-signing provenance, mezzanine in the Enterprise product form | Conformance matrix finalization | Each is a separate line-item at Phase 3 review |
+| D-ENT-1 | **Ratify OQ-7 scope**: fully specify the enterprise-class tiers now, via a spec revision | The whole program; Phase 4 promotion | Effectively YES by direction; formal close rides the Phase 4 spec PR |
+| D-ENT-2 | **Compute architecture** (§1 table "ESP32-P4 + secure element" vs Appendix B.5 PolarFire SoC) | REQ skeleton for identity/crypto/uplink/firmware | **RESOLVED by owner direction: PolarFire** — spec edit pending (Phase 4); Phase-2 survey now sizes the specific PolarFire SoC part + cost instead of arbitrating P4-vs-PolarFire |
+| D-ENT-3 | **BOM targets** | BOM sections of both REQ sets | **TBD per owner** — $50/$80 rows superseded; Phase-2 costing proposes the new baselines for ratification |
+| D-ENT-4 | **Module stance** | Shape of the per-module half | **YES per owner — enterprise modules get made**: requirements now, boards after ratification. Note: variant-specific module hardware amends the LOCKED tier-agnostic principle — the amendment text is drafted in Phase 4 for the owner's pen, not assumed before it |
+| D-ENT-5 | **Adopt/decline the optional module-touching items**: 1-Wire ID/EEPROM path, CAN-FD trigger, module role in plan-signing provenance, mezzanine in the enterprise product form, radio-free MCU mandate for ENT-AIR modules (§1a.5) | Register finalization | Each is a separate line-item at Phase 3 review |
+| D-ENT-6 | **Variant↔tier mapping**: how ENT-AIR / ENT-NET map onto the spec's tier-3/tier-4 (Enterprise / Mission Critical) labels, and where the MC redundancy set (power/CAN/uplinks) lands | Phase 4 spec structure; §1 tier table rewrite | NEW — owner call at Phase 3/4; drafting proceeds on the two-variant framing meanwhile |
 
 ## 5. Phased plan
 
@@ -113,26 +151,34 @@ gate is drafted as anything stronger than PROPOSED until the gate clears.
 
 ### Phase 1 — Requirements skeleton + conformance matrix (agent, can start NOW)
 No OQ resolution needed — everything is DRAFT-tagged.
-- `docs/enterprise-requirements/` working tree:
-  - `REQUIREMENTS-FORMAT.md` — register schema: `REQ-ENT-###` / `REQ-MC-###`, each with
-    statement, rationale, spec §/OQ traceability, verification method (inspection / analysis /
-    test / demonstration), status (DRAFT → PROPOSED → RATIFIED), and owner-gate linkage.
-  - `hub-enterprise-requirements.md` and `hub-mission-critical-requirements.md` — sectioned
-    skeletons with every requirement slot enumerated (§6 below), populated with what the spec
-    already binds (LOCKED items carried in verbatim with references) and DRAFT placeholders
-    for the OQ-7-gated holes.
-  - `module-conformance-matrix.md` — the 7 shipped/planned SKUs (24-pin, EPS, PCIe-2, PCIe-3,
-    12VHPWR Std, 12VHPWR Pro, ARGB §7) + PROPOSED (SATA §6.12, Max §6.11) against both tiers:
-    required behavior, guaranteed servicing, degrade mode, verification hook.
+- `docs/enterprise-requirements/` working tree (register structure per the §1a owner
+  direction — two deployment variants, PolarFire compute, modules included):
+  - `REQUIREMENTS-FORMAT.md` — register schema: `REQ-<UNIT>-<VARIANT>-###` where UNIT ∈
+    {HUB, 24PIN, EPS, PCIE, HPWR, …} and VARIANT ∈ {AIR, NET, COMMON}; each requirement
+    carries statement, rationale, spec §/OQ traceability, verification method (inspection /
+    analysis / test / demonstration), status (DRAFT → PROPOSED → RATIFIED), and owner-gate
+    linkage. COMMON holds what both variants share (expected to be the bulk).
+  - `hub-enterprise-requirements.md` — the PolarFire hub register, sectioned per §6 below,
+    with AIR/NET variant-conditional requirements where the postures diverge (uplink
+    presence, OTA path, trust channel role, redundancy set pending D-ENT-6).
+  - `module-requirements-<family>.md` — one register per module family (24-pin, EPS, PCIe,
+    12VHPWR; ARGB/SATA as PROPOSED annexes): the enterprise-grade requirements for that
+    family against BOTH variants, including the radio-silicon question (§1a.5), sensing tier
+    (Pro/Max ladder inheritance from §6.11/§6.13), identity/provenance participation, and
+    what the hub guarantees to it.
+  - `module-conformance-matrix.md` — retained: the EXISTING shipped/planned SKUs against the
+    enterprise hub (graceful-degrade guarantees) — the backward-compat half.
 - Lint: extend/reuse the spec-§-resolution check so every traceability reference in the
   register resolves against v1.1.0 (same discipline as `cec_corpus_lint`).
 
 ### Phase 2 — Research to feed the empty slots (agent, parallelizable)
 Research dumps into `docs/enterprise-requirements/research/`, each ending in a comparison
 table + recommendation feeding a D-gate:
-1. **Secure element / crypto survey** — discrete SE parts (ATECC608-class, SE050, OPTIGA) vs
-   PolarFire on-die (PUF, Athena, CAVP/CNSA), against OQ-44/62 needs (key custody, plan
-   signing, attestation). Feeds D-ENT-2.
+1. **PolarFire SoC part selection + costing** (D-ENT-2 is resolved to PolarFire by owner
+   direction, so this survey SIZES it rather than arbitrates): MPFS-family part grid (025T/
+   095T/…), pricing at 100q, Libero licensing reality, boot/PUF/Athena capability vs OQ-44/62
+   needs (key custody, plan signing, attestation), power budget, and the minimum-viable
+   companion parts. Output feeds the D-ENT-3 BOM re-baseline directly.
 2. **1000BASE-T1 uplink** — PHY candidates, magnetics, connector, and the OQ-14 enterprise
    over-voltage answer (this is where the platform's deferred OV protection finally lands).
 3. **RJ-11 trust channel** — physical/protocol definition + threat model (what it carries,
@@ -146,8 +192,14 @@ table + recommendation feeding a D-gate:
 6. **RTOS/firmware stack** — Zephyr/FreeRTOS + mbedTLS/wolfSSL (FIPS-validated builds),
    MCUboot signed OTA, secure boot chain (Appendix B.3 already sketches this; harden into
    requirements).
-7. **Compliance regime scan** — what "production" means per tier (EMC as today + FIPS/CAVP?
-   IEC 62443-style posture for MC?) — sets the verification methods.
+7. **Compliance regime scan** — what "production" means per variant (EMC as today + FIPS/
+   CAVP? IEC 62443-style posture? air-gap-specific certification asks?) — sets the
+   verification methods.
+8. **Radio-free module MCU survey** (§1a.5) — whether ENT-AIR module variants need a
+   radio-free MCU (candidates in the ESP32 ecosystem have none without radio; survey
+   RISC-V/ARM alternatives that preserve the CAN + ADC + fast-GPIO envelope, or a
+   PolarFire-adjacent small part), vs whether an antenna-absent/fused-off ESP32 posture is
+   acceptable to air-gapped buyers. Feeds the D-ENT-5 line-item.
 
 ### Phase 3 — Draft + adversarial review (agent + pipeline, then owner)
 - Fill both registers to 100% slot coverage (no empty sections; every slot either a concrete

@@ -191,3 +191,13 @@ Phase 1 skeleton + Phase 2 research can start now, spec promotion Phase 4 is own
 NEXT (owner ask, same session): fan-out audit workflow — audit both tiers vs enterprise-customer expectations
 + required integrations (DCIM/Redfish/SNMP/fleet/compliance lenses), synthesize into
 docs/enterprise-requirements/research/.
+UPDATE 2026-07-01 (same session, owner direction — plan §1a): the "two enterprise variants" are
+**ENT-AIR (air-gapped)** and **ENT-NET (networked-but-hardened)** deployment postures, BOTH on
+**PolarFire** ("just do the enterprise with PolarFire" — D-ENT-2 resolved-by-direction, spec edit
+still owner's pen); BOM targets TBD; modules YES — enterprise module requirements drafted NOW
+(one register per family, AIR/NET variant-conditional, radio-silicon question flagged: all current
+module MCUs are Wi-Fi/BLE-capable ESP32), boards only after ratification. New D-ENT-6 = variant↔tier
+mapping (AIR/NET vs Enterprise/MC labels + where the MC redundancy set lands). Plan doc + owner-queue
+updated. Customer/integration fan-out audit workflow STILL RUNNING (8 lenses + skeptics + synthesis,
+run wf_81e0153f-4e0) — when it lands, map findings onto the AIR/NET framing and write
+docs/enterprise-requirements/research/customer-integration-audit-2026-07-01.md.
