@@ -85,15 +85,19 @@ Hub side (×8 ports, ≈ **+$5.6/hub**, all SKUs): SS110 series Schottky on each
 network + the T1-pair network (CMC $0.376 + ≥100 V coupling caps [the DC-blocking element]
 + PESD2ETH100 low-C TVS). Module side: **TPS26621DRCT 60 V auto-retry eFuse** ahead of the
 LDO ($2.07 — a diode cannot protect a power INPUT; auto-retry satisfies self-recovery) +
-DETECT/pin-7 + T1 network ⇒ ≈ +$2.7/streaming module, +$2.15/24-pin. Confirmed:
+DETECT/pin-7 + T1 network ⇒ ≈ **+$2.7/module, every family** (the 24-pin joined the T1
+fabric per the 6th ruling, so it carries the T1 network too — its earlier +$2.15
+passive-pair figure is superseded). Confirmed:
 TJA1051T/3 = ±58 V CONTINUOUS DC (datasheet; beware the TJA1050's lower rating in
 secondary sources). Compliant PSEs likely never energize our ports (signature reject) —
 corroborating only; passive injectors remain the binding case. Injection-test procedure
 (both polarities, 60-min sustained, 5–10× repeat, unattended-recovery pass criteria) =
 survey 11 §h, run combined with the REQ-MOD-031 fault-injection program.
-**Pin-7 reconciliation (survey predates the 5th ruling):** pin 7 is now the SYNC/FREEZE
-driven line — replace the bleed-R treatment with series R + LOW-CAPACITANCE clamp sized so
-the ≤100 ns sync edge survives the protection network (schematic-capture task).
+**Pin-7 reconciliation (survey predates the 5th/6th rulings):** pin 7 is now the SYNC/FREEZE
+driven line AND the heartbeat challenge/response path (REQ-HUB-COMMON-114, adopted 6th
+ruling) — replace the bleed-R treatment with series R + LOW-CAPACITANCE clamp sized so
+the ≤100 ns sync edge and the timed heartbeat edges survive the protection network, both
+directions (schematic-capture task).
 
 ## 6. Open items consolidated (beyond the subsystem files' own lists)
 

@@ -76,9 +76,9 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 | 1 | TJA1051T/3 (C38695) | CAN transceiver, shared bus | $0.40 | platform lock §3.1 |
 | — | 120 Ω split termination (60.4×2 + 4n7) | CAN term at hub | $0.05 | §3.1 |
 | 8 | PESD5V0S1BA (C5261083) | DETECT pin-8 ESD, per port | $0.03 ea | §2.4 lock |
-| 8 | RS-485 receivers (THVD1450-class; topology per OQ-5) | Pro-module streaming service | ~$1 ea `[unv]` | REQ-043; OQ-5 |
+| 2 | LAN9370 4-port 100BASE-T1 switches + port front-ends (SUPERSEDES the RS-485 receiver bank — survey 10, T1-only REQ-043; detailed rows in bom-b/master §5) | module streaming/sync data plane, every ENT family per the 6th ruling | net +$14–24/hub vs the RS-485 bank | REQ-043; survey 10 |
 | — | DETECT pull-up networks, 5VSB per-port distribution, port LEDs/SK6812 chain (platform base) | — | $2–4 | §2.5 |
-| **Subtotal** | | | **≈ $16–22** | |
+| **Subtotal** | | | **≈ $30–46 incl. the T1 data plane** (was $16–22 with the superseded RS-485 bank; master BOM §5 reconciliation governs) | |
 
 ### D. Power subsystem (ALL SKUs — the eFuse-fronted 3-source path is platform-common per REQ-060, NOT part of the optional MC redundancy pack)
 
@@ -141,7 +141,7 @@ value pricing, not here.
 
 1. Watchdog part-class OWNER GATE (survey 9 rec: S32K3 non-lockstep; alternatives Hercules/AURIX; exact non-lockstep S32K31x sibling MPN+price = RFQ) — OQ-79.
 2. DDR fitted or LIM-only — firmware-team confirmation (survey 1).
-3. RS-485 receiver topology per port vs shared — OQ-5; sizes §C.
+3. ~~RS-485 receiver topology (OQ-5)~~ MOOT for the ENT hub — T1-only per survey 10 (2× LAN9370 switched, every port concurrent by construction); OQ-5 remains a consumer-Pro-hub question.
 4. Port count (8 = Pro-base working baseline) — confirm at board program start.
 5. Voter/arbiter = the watchdog (survey 9: fabric-resident arbiter rejected — shares the SoC die/rails, not independent); MSS PCIe NTB-mode support = firmware confirm.
 6. Supercap escalation for hold-up — gated on the OQ-56 bench measurement.

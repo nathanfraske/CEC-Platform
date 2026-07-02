@@ -15,8 +15,8 @@ from the subsystem BOM passes + survey 9)._
                             [hold-up]         [3V3 buck]│   (Zephyr)       │
                                                         │┌─ fabric: data    │
  8× RJ-45 module ports ── CAN (TJA1051T/3, split term) ─┤│  plane, voter    │
-   │  DETECT ×8 ─ resistor ladders → ADC/GPIO           ││  (MCX), timestmp │
-   │  RS-485 ×8 ─ receivers ─────────────→ fabric/UART ─┘│                  │
+   │  DETECT ×8 → ADC; pin-7 ×8 → fabric sync/heartbeat ││  (MCX), timestmp │
+   │  T1 ×8 ─ 2× LAN9370 ─ RGMII ×2 ─→ fabric MACs ─────┘│                  │
    └─ 5VSB per-port VCC                                  │ eNVM+QSPI: A/B FW│
                                                          │ + tamper log     │
  NET only: MSS-SGMII ─→ GbE PHY ─→ MagJack ─→ [uplink 1]│ PUF/Athena/IDevID│
@@ -32,7 +32,7 @@ from the subsystem BOM passes + survey 9)._
 
 - Sources: MAIN_5V (primary) / 5VSB / EXT — each behind a TPS25940-class eFuse
   (PG/FLT/EN) → TPS2121 cascade → **+5V_SYS**.
-- +5V_SYS → (a) 3V3 buck ≥1A (RJ-45 domain, CAN, RS-485, LEDs, aux); (b) the PolarFire
+- +5V_SYS → (a) 3V3 buck ≥1A (RJ-45 domain, CAN, T1 switch IO, LEDs, aux); (b) the PolarFire
   regulator set (1.0/1.05 core, 1.8/2.5 banks, quiet VDDA LDOs, SGMII rails — BOM-A);
   (c) PHY rails (BOM-B, NET only); (d) watchdog supervised rail (MC+); (e) 2nd-SoC set
   (MCX).
@@ -47,7 +47,8 @@ from the subsystem BOM passes + survey 9)._
 |---|---|---|
 | CAN | TXD/RXD + STB | 3.3 V MSS/fabric GPIO |
 | DETECT ×8 | 8 analog-capable inputs (µPolarFire has no native ADC — **plan row: external ADC or comparator ladder for DETECT**; the platform's ESP32 ADC trick does not carry over. Working baseline: one 8–12 ch SPI ADC, added to BOM-C open items) | 3.3 V |
-| T1 ×8 (survey 10) | 2× LAN9370 4-port T1 switches → 2 RGMII bridge MACs in fabric (~5% LE; on-chip 802.1AS timestamping); RS-485 bank REMOVED (compat dropped) | RGMII/3.3 V |
+| T1 ×8 (survey 10) | 2× LAN9370 4-port T1 switches → 2 RGMII bridge MACs in fabric (~5% LE; on-chip 802.1AS timestamping); RS-485 bank REMOVED (compat dropped); serves EVERY ENT family incl. the 24-pin (6th ruling) | RGMII/3.3 V |
+| pin-7 ×8 (REQ-112/114, 6th ruling) | per-port point-to-point SYNC/FREEZE + heartbeat: 8 fabric GPIO, broadcast drivers off one fabric clock (sub-ns inter-port skew) + per-port timestamp capture + deterministic any-port→all FREEZE relay; wired-OR semantics preserved in fabric | 3.3 V fabric GPIO |
 | SGMII | 1–2 lanes (MSS/fabric) + PHY MDIO/MDC — MC dual-uplink = 2 discrete DP83869HM PHYs, each with its own lane (VSC8662 dual-port option is NRND-dead, BOM-B) | SERDES/3.3 V |
 | USB | MSS USB 2.0 OTG | dedicated |
 | QSPI, JTAG, straps | MSS | 1.8/3.3 V |
@@ -108,7 +109,7 @@ board — new fab class (already flagged in the spec sheet cost notes).
 
 1. DETECT/rail-sense external ADC (new — PolarFire has no ESP32-style ADC) → detailed BOM.
 2. Watchdog part-class = owner gate (S32K3 rec); arbiter = the watchdog (settled, survey 9).
-3. RS-485 receiver topology (×8 point-to-point baseline) → OQ-5.
+3. ~~RS-485 receiver topology (OQ-5)~~ MOOT — T1-only per survey 10 (switched, all ports concurrent); OQ-5 stays a consumer-Pro-hub question.
 4. DDR fitted vs LIM-only → firmware confirm (affects stackup margin).
 5. Port count 8 (Pro-base) → confirm at program start.
 6. Mezzanine (OQ-77) interaction with the ENT board — not planned into rev 1.

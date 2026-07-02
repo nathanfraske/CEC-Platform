@@ -92,14 +92,18 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > operational surface is served locally. Host-down operation is a verified test case in the
 > STANDBY power posture (13.4).
 >
-> **13.2a Module streaming link (3rd ruling, 2026-07-02).** ENT modules replace the
-> Pro-tier RS-485 with **100BASE-T1 single-pair Ethernet on the locked pair 2** —
+> **13.2a Module link (3rd ruling, 2026-07-02; extended by the 6th).** ENT modules replace
+> the Pro-tier RS-485 with **100BASE-T1 single-pair Ethernet on the locked pair 2** —
 > bidirectional, DETECT = the reserved 10 kΩ CAN+100BASE-T1 class — with fleet-wide
 > **sub-microsecond TIME SYNC** (PTP/gPTP-class, hardware timestamps; sub-µs is SYNC, not
-> frame latency — the ns FREEZE path stays the OQ-60 trigger proposal). The Hub serves the
-> pair DUAL-MODE per port (T1 primary + RS-485 RX for consumer-Pro backward compat, DETECT-
-> selected) with the fabric as the multi-port MAC/switch data plane — the Appendix B.5
-> TSN-leaning now earns its silicon. RS-485 remains the consumer Pro tier unchanged.
+> frame latency — the ns FREEZE path is the pin-7 line, OQ-81). 6th ruling: this covers
+> **EVERY ENT family, the 24-pin included** (its T1 carries sync/attestation/fleet
+> logistics, not a fast-ADC stream; ESP32-P4 uniform MCU; DETECT 10 kΩ across the line).
+> Port service (survey-10 update to this draft's original dual-mode text): the hub serves
+> the pair **T1-only via 2× LAN9370 switches** bridged to the fabric; RS-485 backward
+> compat is DROPPED per the survey-10 recommendation — a consumer Pro module's streaming
+> pair goes dark on an ENT port exactly as on a Standard Hub (§8 pattern; owner-review
+> tag still open on the drop). RS-485 remains the consumer Pro tier unchanged.
 > **This resolves OQ-20 for the ENT line** (the Max program inherits the precedent).
 >
 > **13.3 The RJ-11 security-I/O port (renames the "trust channel").** A supervised
@@ -137,9 +141,9 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > 12VHPWR), an enterprise build: fail-passive-in-the-power-path FMEA + fault-injection
 > evidence (the first MC-buyer question), per-unit verifiable identity (mechanism = OQ-76),
 > §6.10 pre-roll retained as a forensic feature, sensing at the Pro tier per §6.13, and on
-> ENT-AIR a **radio-free MCU** — STM32G4-class working baseline (G431 digital families,
-> G474 for 12VHPWR-Std), ESP32-P4 for Pro-tier builds (radio-free, already the platform Pro
-> MCU). The fused-off-ESP32 posture is rejected on evidence: no Wi-Fi-disable eFuse exists
+> ENT-AIR a **radio-free MCU** — ESP32-P4 (radio-free) uniformly across all ENT module
+> families per the T1 rulings (3rd + 6th; STM32G4/H5-class = documented radio-free
+> fallback — the earlier G431/G474 split baseline is superseded). The fused-off-ESP32 posture is rejected on evidence: no Wi-Fi-disable eFuse exists
 > on S3/C6, no radio-absent SKU exists, and it fails inspection-without-powering (survey
 > 8). Radio-free builds are externally verifiable unpowered (part marking + BOM + no
 > antenna keepout).
@@ -263,13 +267,17 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > SEMANTICS preserved by deterministic fabric relay (any-port FREEZE re-broadcast within
 > tens of ns); module-side electrical contract unchanged (open-drain + hub pull-up) — buys
 > per-port challenge discrimination, mis-plug fault containment, and sub-ns inter-port
-> broadcast skew. PROPOSED same-session extension (owner exploration, adopt/decline
-> pending — REQ-HUB-COMMON-114 / REQ-MOD-COMMON-013): pin 7 doubles as a per-module
+> broadcast skew. ADOPTED same-session extension (owner ruling 2026-07-02 6th —
+> REQ-HUB-COMMON-114 / REQ-MOD-COMMON-013): pin 7 ALSO serves as a per-module
 > **HEARTBEAT CHALLENGER** — a port-bound, hardware-timed challenge-response against the
 > module device key (nonce over CAN/T1, timed answer on pin 7; single-digit-µs window =
 > distance-bounding-lite); missed/invalid responses auto-transition the module to
 > UNTRUSTED (quarantine-tagged telemetry, alarm, re-admission only via full
-> re-attestation). If adopted, fold into this same pin-7 table edit.
+> re-attestation). Fold into this same pin-7 table edit. The SAME 6th ruling also extends
+> the T1 module link to the 24-pin family (every ENT module = T1 + ESP32-P4 uniform,
+> DETECT 10 kΩ; bandwidth is not the criterion — validation surfaces, gPTP, and fleet
+> logistics are) — fold that into the §13.2a link section and the §2.3 DETECT-class
+> mapping for ENT builds.
 > **OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part
 > class (hub ×8 + module side), fabric MAC/switch + PTP timestamping architecture, the
 > dual-mode (T1 + RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick

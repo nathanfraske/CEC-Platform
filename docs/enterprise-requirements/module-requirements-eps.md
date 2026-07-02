@@ -8,7 +8,7 @@ rev2 (ESP32-C6 + per-cable INA238 + §6.13 detection front-end, FTP jack)._
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
 | REQ-EPS-COMMON-001 | Base sensing SHALL be per-cable INA238 (2 cables) on 0.5 mΩ shunts with the §6.13 binary transient detection front-end. | [LOCKED §6.1/§6.4]; spec §6.13 | I+T | OQ-11 |
-| REQ-EPS-COMMON-002 | The enterprise sensing tier SHALL be EPS Pro per §6.13 (INA238 + INA240 + simultaneous fast ADC + RS-485 on the Pro MCU), mirroring the 12VHPWR Pro architecture; EPS Max (spectral) stays PROPOSED behind OQ-59. | spec §6.13; OQ-58/59 | I | OQ-58 |
+| REQ-EPS-COMMON-002 | The enterprise sensing tier SHALL be EPS Pro per §6.13 (INA238 + INA240 + simultaneous fast ADC on the Pro MCU), mirroring the 12VHPWR Pro architecture — with the §6.13 RS-485 streaming leg replaced by 100BASE-T1 on the ENT build (REQ-MOD-COMMON-003; RS-485 remains the consumer Pro definition); EPS Max (spectral) stays PROPOSED behind OQ-59. | spec §6.13; REQ-MOD-COMMON-003; OQ-58/59 | I | OQ-58 |
 | REQ-EPS-COMMON-003 | Per-cable transient events SHALL carry pre-roll capture per §6.10 and land in the Hub tamper/event log with cable attribution (CPU-rail forensics for the tamper buyer). | spec §6.10; tamper §2 | T | — |
 
 ## 2. In-path integrity — DRAFT

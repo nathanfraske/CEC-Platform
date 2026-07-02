@@ -401,3 +401,22 @@ mis-plug containment, sub-ns inter-port skew; module electrical contract unchang
 surface list +heartbeat. Owner-queue D-ENT-5 row: adopt/decline pending (like REQ-111). Honest
 residual recorded: proves key+port+real-time, NOT firmware integrity; extracted-key attacker
 must still answer at the port in hardware time. 114 REQs lint OK.
+UPDATE 2026-07-02 (SIXTH OWNER RULING — "review these addendums and implement"): BOTH addendums
+ADOPTED + implemented. (1) Heartbeat: REQ-HUB-COMMON-114 + REQ-MOD-COMMON-013 PROPOSED→ADOPTED
+(gate now Phase-4 spec edit, rides the v1.2.0 pin-7 table edit); REQ-114's "only port-bound
+surface for CAN-only families" rationale REWORDED (no CAN-only ENT family remains) to
+"independent of the T1 stack — does not share fate with a dark/compromised T1 path".
+(2) 24-pin T1: REQ-MOD-COMMON-003 now covers EVERY ENT family (24-pin included; rationale:
+validation surfaces on the fleet's most load-bearing validator + gPTP + fleet logistics, NOT
+bandwidth); ESP32-P4 UNIFORM across all four families (G431 pick superseded; REQ-MOD-AIR-020
+baseline updated; survey-10 P4-vs-H5 sub-choice thereby resolved); DETECT 10k across the line;
+REQ-MOD-COMMON-053 T1 protection now every family (+$2.7/module uniform, master BOM §6a);
+24-pin ENT BOM delta recomputed +$5-7 → ~$40-44 class (hub side $0, ports already T1);
+family registers EPS/PCIE/HPWR-002 got the T1-replaces-RS-485 rider; spec-draft §13.2a
+extended (6th ruling + survey-10 T1-only correction of its stale dual-mode text). ALSO swept
+pre-existing survey-10 drift the review exposed: OQ-5 marked MOOT for the ENT hub (stays a
+consumer-Pro question) in conformance-matrix/hub-spec-sheet/variants-plan; BOM-C §3 RS-485
+bank marked SUPERSEDED (master §5 reconciliation governs); variants-plan block diagram +
+IO-budget gained the T1 and per-port pin-7 fabric rows; hub spec-sheet §C subtotal honest
+($30-46 incl. T1 plane). REMAINING PROPOSED-pending: only REQ-HUB-NET-111 (PD-on-uplink).
+114 REQs lint OK.

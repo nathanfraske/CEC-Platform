@@ -25,7 +25,12 @@ Subtotal (populated): **≈ $5.08**
 
 Subtotal: **≈ $0.46**
 
-### 3. RS-485 streaming receivers (×8, all SKUs — topology per OQ-5)
+### 3. ~~RS-485 streaming receivers~~ — SUPERSEDED by survey 10 (T1-only, REQ-043)
+
+_This section is retained for provenance only: the RS-485 receiver bank was DELETED from
+the design when survey 10 resolved the module link to 100BASE-T1-only (2× LAN9370, priced
+in the master BOM §5, which already subtracts this bank). OQ-5 is moot for the ENT hub.
+Do not sum this subtotal into the SKU totals — the master's reconciliation governs._
 
 | Ref-class | Qty | Value/Function | MPN | Mfr | Package | Unit@100q | Datasheet / LCSC | Notes |
 |---|---|---|---|---|---|---|---|---|
@@ -89,7 +94,7 @@ Subtotal: **≈ $1.74**
 |---|---|
 | 1. Module ports ×8 | ≈ $5.08 |
 | 2. CAN front end | ≈ $0.46 |
-| 3. RS-485 receivers ×8 | ≈ $4.93 |
+| 3. ~~RS-485 receivers ×8~~ (SUPERSEDED — T1-only, survey 10; master §5 subtracts) | ≈ $4.93 |
 | 4. Platform base | ≈ $1.93 |
 | 5. RJ-11 security I/O | ≈ $1.74 |
 | **Subsystem C total** | **≈ $14.14** |
@@ -98,7 +103,7 @@ Reconciliation against `hub-ent-spec-sheet.md` §C+§E placeholders (**$16–22 
 
 ## Open items
 
-1. **OQ-5 topology sensitivity (RS-485).** This BOM prices the "one receiver per port" point-to-point baseline (8× THVD1450DR, one per port, $4.93 populated). If OQ-5 resolves to a **shared multidrop bus** instead, the receiver count could drop to as few as 1–2 (with a multi-node-rated transceiver and real bus termination/stub-length rules replacing the per-port 120Ω+bias scheme here) — a materially different BOM and PCB routing story, not just a part swap. REQ-HUB-COMMON-043 stays DRAFT until OQ-5 closes; treat §3 of this table as provisional.
+1. ~~OQ-5 topology sensitivity (RS-485)~~ **CLOSED for this BOM by survey 10**: the link is 100BASE-T1-only (REQ-HUB-COMMON-043), the §3 receiver bank is deleted, and OQ-5 no longer gates this subsystem (it remains open for the consumer Pro hub only). The T1 data plane (2× LAN9370 + port front-ends) is priced in the master BOM §5.
 2. **Per-port 5VSB polyfuse — option, not populated by default.** Platform §2.7 lock is direct VCC distribution, no per-port limiting. `SMD0805-050/06N` (500mA hold/1A trip/6V, $0.036@100q) is a real, cheap, low-risk candidate if the owner wants port-level short isolation (one module's fault doesn't brown out the shared 5VSB rail / other ports) — adds $0.29/hub across 8 ports if adopted. No requirement currently calls for it; flagging per the task's ask, not recommending unprompted.
 3. **BOOT/RESET button adaptation (MCU is PolarFire, not ESP32) — read carefully, this is a real behavioral change, not a relabeling:**
    - **RESET survives directly.** PolarFire SoC has a genuine hardware reset input (DEVRST_N); `SW_RESET` → DEVRST_N is a faithful analog of the ESP32 Hub's EN button.
