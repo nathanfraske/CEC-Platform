@@ -471,3 +471,21 @@ now: ratification brief review, RFQ send-out, KVM recs sign-off, dev-kit order +
 buy, Libero license. NEXT agent work (wave 0 tail / wave 1 prep): bench specs + FMEA templates
 + process docs (validation scope), heartbeat protocol spec draft, KiCad library intake, FCVG484
 breakout study, wire verify-matrix into checklist after seed-map review.
+UPDATE 2026-07-02 (~19:45 — EIGHTH RULING, owner walked the ratification brief): N3 RFQ
+RATIFIED but send HELD for a CUSTOMER design sign-off (new external gate!) + "stand up a
+prototype for them to review" -> prototype-demo-plan-2026-07-02.md (dev-kit federation rig =
+customer demo, ~$1-1.3k basket now the critical path); N4 KVM kicked off; N5 Phase-5 strict
+gate; R1 REQ-111 DECLINED (tombstoned, verify I, gate —); R2 v1.2.0 SIGNED OFF — application
+STAGED behind the N1 RS-485 confirm (sequencing b-before-a); R3 OQ-11 delegated (Bourns
+default, engineering pick) -> selection agent running -> oq-11-shunt-selection-2026-07-02.md;
+R4 provenance = evidence-source-only (recorded in REQ-007); R5 mezzanine ADOPTED (REQ-24PIN-
+020 rewritten; stacked SKU ENT-AIR-only, beyond-AIR + consumer-side implications = 2 new
+FOLLOWUPS); R7 custody direction ratified (offline M-of-N, procedure doc then final signoff).
+ANSWERED-PENDING-PICK (answers in the reply of record + owner-queue): N1 (rec: confirm drop —
+dual-mode = unauthenticated unprecedented analog bridge, conflicts w/ pins-4/5 DC block, no
+install base; CAN degrade already "allows" the module), N2 (rec: SPDX native via west +
+CycloneDX derived-on-demand when PSIRT wants VEX), R6 (rec REVISED: passive-receive-only RF
+NET-only, DEFER the active emitter — intentional-radiator certs $25-75k class buy only
+dormant-implant detection). NEXT: when N1 confirmed -> APPLY v1.2.0 to the Ground-Truth spec
+(big careful edit, signed off); OQ-11 sheet lands -> record closure; brief status block at top
+of ratification-brief-2026-07-02.md is the live scoreboard.
