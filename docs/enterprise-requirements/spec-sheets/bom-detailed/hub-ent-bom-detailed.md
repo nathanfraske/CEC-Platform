@@ -70,6 +70,7 @@ Athena)** suffix for product builds, which restricts the product ladder to TS pa
 | Non-S escape | MPFS095T-1FCVG484I | DigiKey 0, **52-wk**, $189.49 | NOT an escape: worse lead than the S part AND violates REQ-001 (owner-ratified Athena) |
 | LS variant | MPFS160TLS-FCVG484I | RS preorder, ships 2027-02, ~$590 US-eq | Real but slow/expensive; note only |
 | Package fork (last resort) | MPFS095TS-(1)FCSG536I | DigiKey lists the FCSG536 S-parts | **NOT pin-compatible** (16×16, 0.5 mm pitch) — a different board and a HARDER breakout/fab class; only if FCVG484 supply collapses entirely |
+| **PROTOTYPE rung (owner find)** | **MPFS095TC-FCVG484E** | **DigiKey ~100 pcs, $119 @100, ~1-month lead** (owner-verified) | PolarFire SoC **Core** line: MSS retained, **SerDes/PCIe eliminated, no S/Athena option** — cannot meet REQ-001 for production without an owner relaxation, but near-ideal BRING-UP silicon on the production land (same package/MSS/fabric primitives). E temp grade; **MPFS095TC-FCVG484I (industrial) is PCN'd** — quote at RFQ. Siblings: 095TC-FCSG325E $109, 025TC-FCSG325E $43.70 (fork package) |
 
 **MPF (no S) prefix caution — owner-flagged candidate assessed 2026-07-02:**
 MPF050TC-FCSG325I (PolarFire **Core** FPGA — verified DigiKey 176 pcs / $74.40@1 /
@@ -88,10 +89,20 @@ which supports the factory-direct-RFQ path over panic redesign.
 Actions folded into the trajectory RFQ package: (1) factory-direct/Microchip-rep RFQ for
 095TS-1FCVG484I with an allocation ask — distributor "manufacturer standard" leads
 (30–52 wk) vs Mouser's 12-wk factory estimate say factory-direct is the fastest path;
-(2) price + orderability of MPFS250TS/160TS/(025TS) on the same RFQ so the ladder is
-quoted, not assumed; (3) an owner decision at RFQ return: buy the DigiKey 250TS hedge
-units for prototypes now vs wait for factory 095TS. Dev-kit work is INSULATED from all
+(2) price + orderability of MPFS250TS/160TS/(025TS) + **MPFS095TC-FCVG484I** on the same
+RFQ so the ladder is quoted, not assumed; (3) an owner decision at RFQ return: 250TS
+hedge units vs the TC prototype path (see below). Dev-kit work is INSULATED from all
 of this (Discovery Kit = FCSG325 non-S — fine for toolchain/fabric/boot work, not PUF).
+
+Full alternatives survey (three lanes: Microchip-native incl. the PIC64GX+MPF050TC
+two-chip fallback; cross-vendor SoC-FPGAs — declined; two-chip MCU+FPGA — FPGA side as
+dry as the SoC): `docs/enterprise-requirements/research/sourcing-alternatives-2026-07-02.md`.
+Its synthesis: **prototype on MPFS095TC-FCVG484E** (3–5 pcs ≈ $360–600, 1-month lead,
+production land) while production intent stays 095TS via the RFQ; **design the FCVG484
+land part-agnostic** (no SerDes dependency — uplink on MSS-GEM SGMII if Core retains it
+[FAE-confirm], else RGMII) so T/TS/TC × any density interchange on one board; PIC64GX +
+MPF050TC held as the designed two-chip fallback; cross-vendor documented-and-declined
+(Zynq-7000 = PUF/DPA posture downgrade; ZU+ CG = stackup/power/toolchain cost).
 
 ## 4. Phantom/corrected parts caught by this pass (why the detail level pays)
 
