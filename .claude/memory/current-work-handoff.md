@@ -489,3 +489,21 @@ NET-only, DEFER the active emitter — intentional-radiator certs $25-75k class 
 dormant-implant detection). NEXT: when N1 confirmed -> APPLY v1.2.0 to the Ground-Truth spec
 (big careful edit, signed off); OQ-11 sheet lands -> record closure; brief status block at top
 of ratification-brief-2026-07-02.md is the live scoreboard.
+UPDATE 2026-07-02 (~21:00 — SPEC v1.2.0 APPLIED, PHASE 4 COMPLETE IN SUBSTANCE): the
+Ground-Truth spec is at v1.2.0 (all 10 draft edits applied + verified: req-lint green =
+all 114 register spec-refs resolve, corpus-lint green). OQ-11 FULLY CLOSED same-day
+(delegated: EPS/PCIe 0.5mΩ CSS2H-2512R-L500F, 12VHPWR 1mΩ CSS2H-2512R-1L00F; R/K series
+don't overlap). Phase-4 gates flipped (REQ-030/112/114/MOD-013 satisfied; MOD-051
+satisfied; MOD-031 narrowed to OQ-10/12). CLAUDE.md header now v1.2.0. Wave-0 tail ALL
+landed (8 bench/FMEA + 5 process docs + 3 security drafts; custody ceremony 2-of-3 →
+OWNER FINAL SIGN-OFF pending). KiCad intake manifest landed
+(docs/enterprise-requirements/board-program/kicad-intake-manifest-2026-07-02.md: ~36
+net-new rows, 5 fan-out groups A-E; easyeda2kicad v1.0.1 INSTALLED this session —
+NOTE: pip install on the ephemeral box, re-install after container recycle; OQ-11 shunts
+= zero library work; owner-download list: LTC2358 deferred, JXD1 check-SnapEDA-first;
+eMMC + S32K3x rows blocked on MPN decisions). NEXT: launch intake groups A-D + the
+group-E MPFS-BGA-script-gen/LAN9370 workstream; then project scaffolds + the shared
+P4+T1 reference block schematic; PR to main = the formal Phase-4 CODEOWNERS act (owner
+opens on request). Owner pending: hardware order (demo critical path), KVM decision box,
+Libero license, custody final sign-off, mezzanine beyond-AIR review, RFQ send at
+customer sign-off.
