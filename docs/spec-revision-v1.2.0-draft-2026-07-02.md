@@ -191,6 +191,16 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > deployments use an external in-line SPD accessory, documented, never a board respin).
 > The uplink jack is visually distinct from module ports (bezel color + silkscreen +
 > board-edge grouping); module ports stay locking-boot per §2.1.
+>
+> **Module-port mis-plug fail-safe (ENT re-scope of §2.4, 4th ruling 2026-07-02).** The
+> consumer ratification (no PoE-grade protection on module ports — internal interface,
+> deliberate misuse) STANDS for Standard/Pro. On the ENT line the presence of a real
+> 802.3 jack on the same faceplate reclassifies the mis-plug as FORESEEABLE misuse: every
+> ENT hub module port and every ENT module jack SHALL survive a live network cable and
+> worst-case 57 V PoE (both modes, both polarities, passive injectors included) with no
+> hardware damage, self-recovering, detected + alarmed + logged (REQ-HUB-COMMON-110 /
+> REQ-MOD-COMMON-053; protection network per survey 11). The consumer boards are
+> unchanged; this is an ENT build delta, not a platform re-ratification.
 
 ## EDIT 6 — §3.1 (APPEND one paragraph)
 
