@@ -174,7 +174,7 @@ Standard-tier module MCUs (REVISED v3.9): the three digital-sensor Standard modu
 | 4 | Pair 2 | Blue | STREAM_P (RS-485 data, module to Hub) | Pro+ |
 | 5 | Pair 2 | White-blue | STREAM_N (RS-485 data, module to Hub) | Pro+ |
 | 6 | Pair 3 | Green | CAN1_L | All |
-| 7 | Pair 4 | White-brown | Reserved spare (no distributed reference; see Section 3.3) | All |
+| 7 | Pair 4 | White-brown | Standard/Pro: reserved spare, no-connect (no distributed reference; see Section 3.3). **Enterprise (v1.2.0, OQ-81, RESOLVED-BY-DIRECTION):** shared wired-OR hardware **SYNC/FREEZE** line — platform-wide simultaneous FREEZE trigger plus a PPS-class latch edge (≤100 ns module-to-module), and a per-module **heartbeat challenger** (hardware-timed challenge-response against the module device key). Legacy (non-ENT) modules remain NC-compatible; ENT modules enable sync only after the CAN handshake confirms an ENT Hub. See Section 13.2a and Section 13.8. | All |
 | 8 | Pair 4 | Brown | DETECT (presence + comm-class, analog single-wire sense) | All |
 
 Notes:
@@ -213,6 +213,8 @@ Compatibility: the current prototype modules have no pin-8 sense tap, so they wi
 Pro and up can bind without the poke: a Pro module's per-port RS-485 streaming pair is already point-to-point, so bringing the receiver up on a port and seeing whose stream appears binds that port to its identity. A no-module-change option for hot-plug is per-port 5VSB current, where the port whose draw rises as a new identity announces on CAN is that module's port, though this cannot disambiguate a cold boot where every port powers up at once. Open details are in OQ-28.
 
 Pin 7 candidate uses (exploration, v2.2; none adopted): the spare pin's realistic uses are narrow, because the architecture already covers the obvious ones elsewhere. The one concrete improvement is a dedicated Kelvin return for the DETECT divider: routing pin 7 as the divider's current-free low-side reference removes the IR-drop error from the module's 5VSB draw on the shared ground (on the order of 100 to 150 mV at a few meters and a few hundred milliamps), which scales with cable length (OQ-4). That conflicts with keeping pin 7 as a driven signal, so allowing both the Kelvin return on sensor ports and the deferred Max trigger (Section 6.11) on a Max port would require a per-port pin 7 at the Hub rather than one shared bus. Uses considered and set aside as redundant: 1-Wire identity and EEPROM (per-port identity is already the module MCU MAC over CAN, and per-unit calibration lives in module flash); a hardware power-state line from the 24-pin module (modules run on 5VSB and are on CAN before the main rails come up, so the co-capture FREEZE already covers the power-on transient, Section 6.10); out-of-band firmware recovery (modules have local USB, and a single line cannot sequence the ESP32 boot-mode entry); a second comm channel or a redundant power pin (CAN covers the first, and moving bulk power to the JST-XH feed removed any RJ-45 current pressure for the second). Pin 7 stays reserved pending a decision.
+
+Resolved for the enterprise tier (v1.2.0, OQ-81, RESOLVED-BY-DIRECTION): pin 7 is allocated as the ENT hardware SYNC/FREEZE line plus per-module heartbeat challenger (see the pin-7 row in Section 2.2 and Sections 13.2a and 13.8); this decides against pin 7's other suitors, the 1-Wire identity return (OQ-76 — a device-key challenge-response is adopted instead) and the DETECT Kelvin return (OQ-60 note). Consumer and Pro tiers are unaffected: pin 7 there remains reserved, no-connect, pending a decision.
 
 ### 2.4 Cross-connect and PoE protection (RESOLVED for consumer, v1.9; Enterprise/MC deferred to OQ-7)
 
@@ -819,6 +821,11 @@ The EPS/PCIe Pro and Max SKUs (Section 6.13) follow the generic Pro and Max rows
 
 The support pipeline's service-tier matrix (Appendix D.4) mirrors this principle on the software side: every machine is serviceable, and richer instrumentation activates richer service without changing the pipeline (added 1.1.0).
 
+Enterprise and Mission Critical above now resolve to the Section 13 enterprise line
+(v1.2.0): "Enterprise Hub" is the base ENT SKU in either posture (ENT-NET/ENT-AIR), and
+"Mission Critical Hub" is the MC or MC-Max availability SKU (Section 13.8) within that
+same line; the graceful-degrade principle above is unchanged.
+
 ---
 
 ## 9. BOM summary (production, 100-qty)
@@ -1384,7 +1391,7 @@ claims never say "FIPS validated" (survey 6/7).
 ENT-NET's primary management plane is a standard IEEE 802.3 1000BASE-T uplink (SGMII PHY
 off the hardened MAC; DP83869HM working baseline — the VSC8662 reference pick is NRND per
 Microchip's own schematic; integrated shielded magnetics ≥2× the 802.3 isolation floor;
-protection per Section 2.4-ENT below). 1000BASE-T1 (automotive SPE) is demoted to a
+protection per the enterprise-uplink paragraph of Section 2.4). 1000BASE-T1 (automotive SPE) is demoted to a
 factory option — it is not terminable on enterprise switching (audit finding 2). USB
 remains on both variants: sensing/provisioning on ENT-NET, a primary local path on
 ENT-AIR. Northbound (ENT-NET): Redfish-aligned REST subset + OpenMetrics + syslog-TLS;
@@ -1569,7 +1576,8 @@ their own SBOM/PSIRT coverage.
 
 Section references. Open questions are listed in Section 10; the pre-release log is Section 11.1.
 
-- **1000BASE-T1**: 1, 2.4, 10, 11.1, 12
+- **1000BASE-T (IEEE 802.3, ENT uplink)**: 1, 2.4, 13, 13.2, 10, 11, 12
+- **1000BASE-T1**: 1, 2.4, 13.2, 10, 11.1, 12
 - **100BASE-T1**: 2.3, 3.2, 6.1, 6.11, 10, Appendix A, 11.1, and others
 - **12VHPWR connector**: 1, 2.8, 3.2, 3.3, 4, 6.1, 6.2, and others
 - **5VSB rail**: 2.2, 2.3, 2.4, 2.5, 2.7, 2.8, 2.9, and others
@@ -1582,6 +1590,7 @@ Section references. Open questions are listed in Section 10; the pre-release log
 - **BAT54W**: 7.3, 12
 - **CAN bus**: 1, 2.2, 2.3, 2.4, 2.7, 2.8, 3.1, and others
 - **CEC Access (NanoKVM product)**: C.7, 12
+- **CEC-KVM (proposed hardened KVM)**: 13.7, 10, 11, 12
 - **co-capture FREEZE**: 2.3, 3.1, 6.10, 6.13, 10, Appendix A, Appendix C, and others
 - **Concierge**: 10, Appendix C, C.1, C.2, C.3, C.5, 11.1, and others
 - **config class (support)**: 10, Appendix D, D.2, D.7, D.10, 12
@@ -1590,12 +1599,14 @@ Section references. Open questions are listed in Section 10; the pre-release log
 - **DETECT (presence and comm-class)**: 2.2, 2.3, 2.4, 2.7, 2.8, 3.1, 6.1, and others
 - **diagnostic bundle (profiles L, E, V)**: 10, Appendix D, D.2, D.4, 12
 - **ECP5 (FPGA)**: 6.11, 10, B.2, B.4, 11.1, 12
-- **Enterprise Hub**: 1, 2.3, 2.4, 3.1, 8, 9, 10, and others
+- **Enterprise Hub**: 1, 2.3, 2.4, 3.1, 8, 9, 10, 13, and others
+- **ENT-NET / ENT-AIR (enterprise posture SKUs)**: 1, 13, 13.1, 13.2, 13.3, 13.4, 10, 11, 12
 - **ESP32-C3-MINI-1**: 1, 6.1, 9, 11.1, 12
 - **ESP32-C6-MINI-1**: 1, 4, 6.1, 9, 11.1, 12
-- **ESP32-P4**: 1, 3.1, 5, 6.9, 6.11, 6.13, 10, and others
+- **ESP32-P4**: 1, 3.1, 5, 6.9, 6.11, 6.13, 13.2a, 13.6, 10, and others
 - **ESP32-S3-MINI-1**: 1, 6.1, 6.12, 11.1, 12
 - **ESP32-S3-WROOM-1-N16R8**: 1, 4, 11.1, 12
+- **fail-detected redundancy (ENT)**: 13.5, 10, 11, 12
 - **golden sample / EOL fingerprint**: 10, Appendix C, C.1, C.3, C.4, C.5, C.6, and others
 - **Hub Pro**: 5, 9, 11, 11.1, 12
 - **Hub Standard**: 1, 2.7, 4, 5, 6.1, 9, 10, and others
@@ -1611,27 +1622,31 @@ Section references. Open questions are listed in Section 10; the pre-release log
 - **licensing (Apache 2.0, CERN-OHL-S)**: 7.7, 11.1, 12
 - **LP5907 (LDO)**: 2.7, 4, 12
 - **LTC2358-18 (ADC)**: 3.3, 6.1, 6.9, 6.11, 6.13, 10, 11.1, and others
-- **Mission Critical**: 1, 2.4, 3.1, 7.1, 8, 9, 10, and others
+- **Mission Critical**: 1, 2.4, 3.1, 7.1, 8, 9, 10, 13.8, and others
 - **Molex Mini-Fit Jr**: 2.1, 2.7, 2.8, 4, 11.1, 12
 - **NanoKVM**: 2.9, 4, 10, Appendix C, C.3, C.7, 11.1, and others
 - **open questions (OQ)**: 10, 11, 12
+- **OQ-75 through OQ-81 (enterprise line)**: 10, 13, 12
 - **outcome label (support)**: 10, C.3, Appendix D, D.7, 12
 - **PCIe 8-pin**: 1, 6.1, 6.3, 6.12, 7.1, 7.2, 9, and others
 - **persist-on-fault**: 2.9, 10, 11.1, 12
 - **PESD5V0S1UL (TVS)**: 7.3, 12
 - **poke-and-ack binding**: 2.3, 6.1, 10, 11.1, 12
-- **PolarFire SoC**: 6.11, 10, B.1, B.3, B.5, 11.1, 12
+- **PolarFire SoC**: 1, 6.11, 10, 13, 13.1, B.1, B.3, B.5, 11, 11.1, 12
 - **priority ideal-diode OR**: 2.9, 10, 11.1, 12
 - **processing-placement principle**: 1, Appendix B, Appendix C, C.2, 11.1, 12
+- **radio-free MCU (ENT-AIR module build)**: 1, 13.6, 10, 11, 12
 - **ratiometric reference**: 3.3, 4, 6.1, 6.9, 10, 11.1, 12
 - **REF3030 (reference)**: 6.1, 10, 11.1, 12
 - **REF3033 (reference)**: 3.3, 5, 6.1, 6.9, 6.11, 10, 11.1, and others
 - **restore point (System Restore)**: 10, Appendix D, D.2, D.6, 12
 - **ring buffer / acquisition**: 2.9, 6.1, 6.10, 11.1, 12
-- **RJ-11 (6P6C)**: 1, 10, 11.1, 12
+- **RJ-11 (6P6C)**: 1, 10, 13, 13.3, 11.1, 12
+- **RJ-11 security-I/O port (renamed from "trust channel", v1.2.0)**: 1, 13.3, 10, 11, 12
 - **RJ-45 (8P8C)**: 2.1, 2.3, 2.4, 2.5, 2.7, 2.8, 3.3, and others
 - **RS-485 streaming**: 1, 2.2, 2.3, 2.6, 3.1, 3.2, 3.3, and others
 - **SATA power**: 6.1, 6.12, 7.1, 7.2, 7.6, 10, 11.1, and others
+- **STM32G4 (radio-free ENT fallback)**: 13.6, 12
 - **support pipeline**: 8, 10, Appendix D, 11, 12
 - **TJA1051T/3 (CAN transceiver)**: 2.4, 3.1, 4, 7.5, 11.1, 12
 - **TLV7011 (comparator)**: 6.13, 12
