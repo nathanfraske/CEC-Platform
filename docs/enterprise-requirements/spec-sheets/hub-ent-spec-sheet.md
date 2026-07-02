@@ -17,17 +17,17 @@ externally identifiable). Posture × availability:
 |---|---|---|---|---|---|---|---|
 | ENT-NET-B (base) | 1× 1000BASE-T | Yes | — | — | option | on request | populated |
 | ENT-NET-MC | 2× 1000BASE-T | Yes | Yes | — | standard | on request | populated |
-| ENT-NET-MCX | 2× 1000BASE-T | Yes | Yes | Yes (option) | standard | on request | populated |
+| ENT-NET-MCX | 2× 1000BASE-T | Yes | Yes | Yes | standard | on request | populated |
 | ENT-AIR-B (base) | — | **No PHY populated** | — | — | option | **populated** | header only (no KVM) |
 | ENT-AIR-MC | — | No PHY populated | Yes | — | standard | populated | header only |
-| ENT-AIR-MCX | — | No PHY populated | Yes | Yes (option) | standard | populated | header only |
+| ENT-AIR-MCX | — | No PHY populated | Yes | Yes | standard | populated | header only |
 
 ## 2. Specifications
 
 | Domain | Specification | Trace |
 |---|---|---|
-| Compute | Microchip **PolarFire SoC MPFS095TS**, FCVG484 (19×19, 0.8 mm), industrial temp; 4× RV64GC + 1× RV64IMAC @ 667 MHz, 2 MB L2 (LIM-capable), 93K LE fabric, 128 KB eNVM; pin-compatible 025T/160T ladder on the same land | REQ-001; survey 1 |
-| Security silicon | PUF key store, DPA-resistant secure boot, **Athena TeraFire** coprocessor (S-grade), anti-tamper responses; IDevID (802.1AR-class) provisioned at manufacture | REQ-001/003; survey 1 |
+| Compute | Microchip **PolarFire SoC — production baseline MPFS095TC (Core line)**, FCVG484 (19×19, 0.8 mm), industrial preferred (095TC-FCVG484I PCN'd; E-grade for prototypes); 4× RV64GC + 1× RV64IMAC @ 667 MHz, 2 MB L2 (LIM-capable), 93K LE-class fabric, 128 KB eNVM; **part-agnostic SerDes-free land** — one board accepts 025/095/160/250 × T/TS/TC (7th ruling; conditional on the Core security-block FAE confirms) | REQ-001; owner ruling 2026-07-02 (7th); survey 1 |
+| Security silicon | Baseline (all SKUs): PUF key store, secure boot, anti-tamper responses (Core-line retention = the REQ-001 FAE-confirm condition); IDevID (802.1AR-class) provisioned at manufacture; runtime crypto = wolfCrypt validated module. **HS population option: MPFS095TS fitted (Athena TeraFire, DPA-resistant crypto)** — same land, orderable for high-assurance/defense channels | REQ-001/003/097; owner ruling 2026-07-02 (7th) |
 | Boot/update | System Controller + HSS (high-ceremony) → MCUboot/wolfBoot-class A/B with monotonic anti-rollback (routine OTA / offline signed bundles) | REQ-010..013; survey 6 |
 | Firmware | Zephyr RTOS (in-tree PolarFire), no Linux; wolfCrypt-class crypto (FIPS = embeds-validated-module posture); `west spdx` SBOM per release | REQ-002/014/097; survey 6 |
 | Storage | Two-tier: QSPI NOR 32 MB class (W25Q256JV-class; A/B firmware + rollback-resistant tamper log) + **eMMC 5.1 on one FBGA-153 land, density per SKU — NET: 8 GB (≥72 h store-and-forward, ~5 days at 1.4 GB/day); AIR: 32 GB baseline / 64 GB option (≥30-day local retention + ≥1k event captures)**; bulk store encrypted at rest (PolarFire-rooted keys) + signed segment chain; external DDR **TBD** (LIM may suffice) | REQ-062/070/107..109; survey 1/4 |
@@ -49,7 +49,7 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 
 | Qty | Part (working baseline) | Function | Unit [est] | Trace |
 |---|---|---|---|---|
-| 1 | MPFS095TS-1FCVG484I | SoC (compute+fabric+security) | $125–140 `[RFQ]` | survey 1 |
+| 1 | **MPFS095TC-FCVG484I** (production baseline, 7th ruling; E-grade $119 measured for prototypes) — HS option: MPFS095TS-1FCVG484I fitted instead ($125–140 `[RFQ]`, factory-direct) | SoC (compute+fabric+security) | $110–130 `[RFQ]` | REQ-001; owner ruling 2026-07-02 (7th); master BOM §3a |
 | 1 | QSPI NOR 256 Mb W25Q256JV-class (SOIC-16 FIQ $3.00 or WSON-8 EIQ $3.21, LCSC-verified) | A/B firmware + tamper-log region | $3.0–3.2 | BOM-A child (verified); survey 1/6 |
 | 1 | eMMC 5.1, FBGA-153 one-land: 8 GB (NET) / 32–64 GB (AIR) industrial | bulk telemetry store (encrypted, signed segments) | 8 GB ~$5–9 / 32 GB ~$9–16 `[unv, RFQ]` | REQ-107..109 |
 | 0–1 | LPDDR4/DDR4, modest density | working RAM — **TBD** (LIM may suffice) | $3–8 if fitted | survey 1 |
@@ -87,7 +87,7 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 | 2 | TPS2121RUXR (C485916) | priority cascade | $0.65 ea (LCSC) | survey 4; as-built §2.9 |
 | 3 | TPS25940LRVCR | per-source eFuse front (PG/FLT/EN) | $1.71 ea | survey 4 |
 | 3 sets | eFuse support passives | ILIM/UVLO dividers, pull-ups | $0.35/set | survey 4 |
-| 2 | 4700 µF 16 V (EEVFK1C472M) | hold-up (persist-on-fault) | ~$0.7 ea | survey 4; OQ-56 |
+| 2 | 4700 µF 16 V (VKMI2101C472MV, Samxon, LCSC C487318 — reuses the exact part already shipping on Hub Standard C1; EEVFK1C472M priced alternate, not populated, ~35–70% costlier for no electrical delta, per bom-d §3) | hold-up (persist-on-fault) | ~$0.73 ea | survey 4; OQ-56; bom-d §3 |
 | 3 | Input connectors (JST-XH class: MAIN_5V, 5VSB, rear-bracket ext feed) | 3 sources | $0.3–0.5 ea | REQ-052; OQ-54 |
 | — | Hub logic rails (3V3/1V8 bucks/LDOs, distinct from A's PolarFire set) | — | $2–4 | — |
 | opt | LTC4417IGN (alternative single-chip prioritizer, +3 PFETs) | owner-selectable swap | +$8–9 net | survey 4 |
@@ -113,7 +113,7 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 | 1 | 2nd uplink PHY+MagJack+protection set (NET only) | dual uplink | $6–9 | REQ-057 |
 | **Subtotal** | | | **≈ $8–27** | |
 
-### G. MC-Max additions (option)
+### G. MC-Max additions
 
 | Qty | Part | Function | Unit [est] | Trace |
 |---|---|---|---|---|

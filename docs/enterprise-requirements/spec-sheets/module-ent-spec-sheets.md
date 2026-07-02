@@ -16,7 +16,7 @@ doesn't forbid it; two builds per family would double the SKU matrix for no buye
 |---|---|---|---|
 | MCU (radio-free + RMII MAC) | **ALL FOUR families: ESP32-P4** (radio-free, RMII MAC + HW 1588/PPS) — 6th ruling extends T1 to the 24-pin, so the MCU is uniform (one toolchain, one firmware base, the 12VHPWR Pro reference design); STM32H5-class = documented fallback; the 24-pin's earlier G431 pick is SUPERSEDED | P4 $4.47 vs C6 ~$3-4; T1 front-end ~$3.0-4.2/module (survey 10) | survey 8/10; owner ruling 2026-07-02 (6th); REQ-MOD-COMMON-003 |
 | Per-unit identity | **RESOLVED (5th ruling)**: MCU-resident device key + Hub challenge-response over CAN/T1 + DETECT poke-and-ack liveness — NO identity hardware (1-Wire path OUT); provisioning = key injection at the flashing step. ADOPTED addition (6th ruling): **pin-7 heartbeat responder** (REQ-MOD-COMMON-013) — port-bound hardware-timed challenge-response, independent of the T1 stack; miss → auto-untrust at the Hub | **≈$0 parts** (firmware + provisioning step; heartbeat = GPIO + existing timer) | REQ-MOD-COMMON-010/011/013; OQ-76 resolved |
-| Firmware signing | Same custody/anti-rollback discipline as the Hub (MCUboot on STM32G4 is mature) | $0 parts | REQ-MOD-COMMON-012 |
+| Firmware signing | Same custody/anti-rollback discipline as the Hub, adapted to the ESP32-P4 secure-boot chain | $0 parts | REQ-MOD-COMMON-012 |
 | Link & DETECT | UNCHANGED (locked): RJ-45 FTP, CAN 500k via TJA1051T/3, DETECT code per class, pin-8 ESD | $0 | REQ-MOD-COMMON-001 |
 | Telemetry integrity | Sequence+timestamp metadata (firmware); §6.10 pre-roll retained | $0 parts | REQ-MOD-COMMON-041/042 |
 | Provenance-grade BOM | Locked shunts (OQ-11 must close first), §5949-clean sourcing rule for gov-bound builds, per-family SBOM/PSIRT | process, $0 | REQ-MOD-COMMON-051/052; survey 7 |
@@ -53,8 +53,9 @@ BOM delta vs `modules/atx-24pin-rev3`: −ESP32-C6-MINI-1-N4 (~$3.5) / +ESP32-P4
 external QSPI flash + support (~$1–1.5) / +100BASE-T1 front-end (DP83TC814S-Q1 $2.39 +
 CMC/caps/PESD ≈ $3.0–4.2 total) / identity ≈$0 (5th ruling — MCU-resident key) / DETECT R
 swap ($0) / native-USB flashing retained (P4 has USB, no bridge). **Net delta ≈ +$5–7**
-→ ENT-24-pin parts class ≈ **$40–44** (vs the $35* consumer target). The hub-side cost of
-this flip is $0 — all 8 ENT ports already terminate T1 (REQ-HUB-COMMON-043).
+→ ENT-24-pin parts class ≈ **$40–42** ($35 + $5–7; vs the $35* consumer target). The
+hub-side cost of this flip is $0 — all 8 ENT ports already terminate T1
+(REQ-HUB-COMMON-043).
 
 ## 2. EPS 8-pin — ENT build (= EPS Pro per §6.13)
 
@@ -68,10 +69,11 @@ this flip is $0 — all 8 ENT ports already terminate T1 (REQ-HUB-COMMON-043).
 | Events | §6.10 pre-roll + per-cable attribution into the Hub tamper/event log | REQ-EPS-003 |
 
 BOM delta vs `modules/eps-8pin-rev2` (consumer ≈ $32-class): −C6-MINI (+$3.5 back) /
-+G474 ($3.93) + support (~$0.8) / +ADS131M08 ($5–8) + ref/filters (~$1) / +INA240 ×2
-(~$1.9 ea if per-cable fast path; count per §6.13 detail) / +100BASE-T1 PHY (~$2-4 [survey 10]) / +identity
-(TBD) / DETECT R swap ($0). **Net delta ≈ +$12–19** → ENT-EPS parts class ≈ **$45–55**,
-consistent with the spec's §6.13 Pro indicative $85–110 retail-class positioning.
++ESP32-P4 ($4.47) + external QSPI flash + support (~$1–1.5) / +ADS131M08 ($5–8) + ref/filters
+(~$1) / +INA240 ×2 (~$1.9 ea if per-cable fast path; count per §6.13 detail) / +100BASE-T1 PHY
+(~$2-4 [survey 10]) / +identity (TBD) / DETECT R swap ($0). **Net delta ≈ +$13–20** →
+ENT-EPS parts class ≈ **$45–52**, consistent with the spec's §6.13 Pro indicative $85–110
+retail-class positioning.
 
 ## 3. PCIe 8-pin (2-port / 3-port) — ENT builds (= PCIe Pro)
 
@@ -83,7 +85,7 @@ Identical architecture to §2 with 2 or 3 cables (3 = spec upper bound):
 | MCU / streaming / DETECT | As EPS ENT (RMII MCU per survey 10; 100BASE-T1; 10 kΩ) | survey 8/10; §2.3 |
 | Events | GPU-rail §6.10 pre-roll + per-cable attribution (named differentiator) | REQ-PCIE-003 |
 
-BOM delta vs `modules/pcie-8pin-{2,3}port-rev2`: as EPS **+$12–19**, plus the 3rd-cable
+BOM delta vs `modules/pcie-8pin-{2,3}port-rev2`: as EPS **+$13–20**, plus the 3rd-cable
 INA238/INA240/shunt set on the 3-port (≈ +$4–6). In-path FMEA covers the Molex 45586
 headers + shunt verticals per OQ-10/12 (deliverable).
 

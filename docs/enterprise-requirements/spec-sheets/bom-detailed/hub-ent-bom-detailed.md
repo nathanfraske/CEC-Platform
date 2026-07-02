@@ -45,7 +45,7 @@ compliance labs, Libero ops). Product pricing is value-based per D-ENT-3 — cos
 
 | Part | Risk | Second source / action |
 |---|---|---|
-| MPFS095TS-1FCVG484I | **MEASURED DRY 2026-07-02** (owner flag, verified): Mouser non-stocked (~12-wk factory est), no authorized stock found in any FCVG484 095-density variant; the non-S MPFS095T-1FCVG484I is ALSO dry (DigiKey 0, **52-wk** lead, $189.49) so dropping the S is not a stock escape — and it would violate REQ-001 anyway | See the **MPFS sourcing ladder** below (§3a) — in-stock TODAY: 64× MPFS250TS-FCVG484I at DigiKey; factory-direct RFQ is the real path |
+| MPFS095TS-1FCVG484I | **MEASURED DRY 2026-07-02** (owner flag, verified): Mouser non-stocked (~12-wk factory est), no authorized stock found in any FCVG484 095-density variant; the non-S MPFS095T-1FCVG484I is ALSO dry (DigiKey 0, **52-wk** lead, $189.49). RESOLVED by the 7th ruling: the S part is now the **HS population option**, not the baseline — the drought no longer gates the program | See the **MPFS sourcing ladder** below (§3a) — production baseline = MPFS095TC (Core) per the 7th ruling; the S-ladder RFQ continues for the HS option |
 | TPS25940LRVCR | 55/26 pcs at DigiKey/LCSC; not JLC-native | Lead-time check ahead of D-ENT-3; TPS25940A sibling |
 | VSC8662 | **NRND — designed out** (BOM-B) | DP83869HM promoted primary |
 | JXD1-0001NL MagJack | 400 pcs DigiKey | Halo HFJ11-1G01E-L12RL (deep stock, at the 1500 Vrms floor) |
@@ -72,7 +72,7 @@ Athena)** suffix for product builds, which restricts the product ladder to TS pa
 | Non-S escape | MPFS095T-1FCVG484I | DigiKey 0, **52-wk**, $189.49 | NOT an escape: worse lead than the S part AND violates REQ-001 (owner-ratified Athena) |
 | LS variant | MPFS160TLS-FCVG484I | RS preorder, ships 2027-02, ~$590 US-eq | Real but slow/expensive; note only |
 | Package fork (last resort) | MPFS095TS-(1)FCSG536I | DigiKey lists the FCSG536 S-parts | **NOT pin-compatible** (16×16, 0.5 mm pitch) — a different board and a HARDER breakout/fab class; only if FCVG484 supply collapses entirely |
-| **PROTOTYPE rung (owner find)** | **MPFS095TC-FCVG484E** | **DigiKey ~100 pcs, $119 @100, ~1-month lead** (owner-verified) | PolarFire SoC **Core** line: MSS retained, **SerDes/PCIe eliminated, no S/Athena option** — cannot meet REQ-001 for production without an owner relaxation, but near-ideal BRING-UP silicon on the production land (same package/MSS/fabric primitives). E temp grade; **MPFS095TC-FCVG484I (industrial) is PCN'd** — quote at RFQ. Siblings: 095TC-FCSG325E $109, 025TC-FCSG325E $43.70 (fork package) |
+| **PRODUCTION BASELINE (7th ruling)** | **MPFS095TC-FCVG484(I/E)** | **DigiKey ~100 pcs E-grade, $119 @100, ~1-month lead** (owner-verified); FCVG484I (industrial) PCN'd — quote at RFQ | PolarFire SoC **Core** line: MSS retained, **SerDes/PCIe eliminated, no S/Athena option**. Owner ruling 2026-07-02 (7th): TC = the PRODUCTION baseline, CONDITIONAL on FAE confirming Core retains PUF secure boot + user TRNG + tamper detectors; **MPFS095TS = the HS population option on the same SerDes-free land** (Athena/DPA for high-assurance channels). E-grade = prototypes now; I-grade = production default. Siblings: 095TC-FCSG325E $109, 025TC-FCSG325E $43.70 (fork package) |
 
 **MPF (no S) prefix caution — owner-flagged candidate assessed 2026-07-02:**
 MPF050TC-FCSG325I (PolarFire **Core** FPGA — verified DigiKey 176 pcs / $74.40@1 /

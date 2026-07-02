@@ -420,6 +420,20 @@ bank marked SUPERSEDED (master §5 reconciliation governs); variants-plan block 
 IO-budget gained the T1 and per-port pin-7 fabric rows; hub spec-sheet §C subtotal honest
 ($30-46 incl. T1 plane). REMAINING PROPOSED-pending: only REQ-HUB-NET-111 (PD-on-uplink).
 114 REQs lint OK.
+UPDATE 2026-07-02 (SEVENTH RULING — "I sign off"): MPFS095TC (PolarFire SoC Core) = the ENT hub
+PRODUCTION BASELINE, conditional on FAE confirming Core retains PUF secure boot + user TRNG +
+tamper detectors (failure reverts to the S ladder); MPFS095TS = the HS POPULATION OPTION on the
+same part-agnostic SerDes-free FCVG484 land (Athena/DPA for high-assurance channels). Applied:
+REQ-001 rewritten (gate D-ENT-3), REQ-030 (uplink SHALL NOT depend on fabric SerDes — MSS-GEM
+SGMII if Core retains it, else RGMII; DP83869 serves both), REQ-104 (MCX state-sync = fabric/
+LVDS, PCIe/NTB dead on Core + was unvalidated), hub spec-sheet §2 compute+security rows + §3.A
+part row, master BOM §3a (TC rung = PRODUCTION BASELINE; TS drought row no longer gates),
+v1.2.0 draft (§13.1 + tier-table row + intro), owner-queue f3 RESOLVED (TC prototype buy 3-5
+= proceed w/ dev-kit order; 250TS hedge = optional HS-early-stock only). Sourcing context:
+research/sourcing-alternatives-2026-07-02.md (3-lane survey + the TC finds). ALSO IN FLIGHT:
+the suite-review reconciliation agent applying the 20 verified findings (F01 + math cluster
+F04/F12/F13 + partial batch already committed; remainder commits at agent completion — check
+git status; findings report at scratchpad/suite-review-report.md, workflow wf_fd0ca2c2-929).
 UPDATE 2026-07-02 (NEXT-TRAJECTORY SCOPED + SUITE REVIEW IN FLIGHT): (1) Owner asked for a
 full-suite fan-out review (Standard/Pro/Max/ENT) — Workflow wf_fd0ca2c2-929 RUNNING (10 sonnet
 lenses -> opus triage -> adversarial verify -> opus synthesis); on completion: apply confirmed

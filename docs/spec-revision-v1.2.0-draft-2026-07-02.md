@@ -23,13 +23,14 @@ Set `| Version | 1.2.0 |`, date of application, and append to the §11.1 revisio
 > **v1.2.0 (2026-07-0X, controlled).** THE ENTERPRISE LINE. Resolves OQ-7 (owner direction
 > 2026-07-01/02): the enterprise tiers are specified now, as two deployment-posture variants
 > — **ENT-NET (networked-but-hardened)** and **ENT-AIR (air-gapped)** — on a PolarFire SoC
-> hub (S-suffix, Athena; MPFS095TS/FCVG484 working baseline). New Section 13. §1 tier table
+> hub (FCVG484, part-agnostic SerDes-free land; production baseline MPFS095TC Core per the
+> 7th ruling, S-grade/Athena = the HS population option). New Section 13. §1 tier table
 > rewritten; enterprise uplink revised to standard IEEE 802.3 1000BASE-T (1000BASE-T1
 > demoted to factory option); RJ-11 redefined from "trust channel" to a supervised
 > physical-security I/O port; "redundant CAN" honesty-rewritten to fail-detected monitoring;
 > enterprise module BUILD variants introduced (radio-free MCUs on ENT-AIR) without altering
 > interface tier-agnosticism; enterprise half of OQ-14 closed (uplink protection topology);
-> OQ-53..56 closed for the enterprise tier; OQ-75..79 opened. D-ENT-6 resolved by owner second ruling: ONE enterprise line with orthogonal SKU axes (posture NET/AIR x availability base/MC/MC-Max — independent compute watchdog on MC, optional fail-functional voting pair on MC-Max, Section 13.8). Requirements of record:
+> OQ-53..56 closed for the enterprise tier; OQ-75..81 opened. D-ENT-6 resolved by owner second ruling: ONE enterprise line with orthogonal SKU axes (posture NET/AIR x availability base/MC/MC-Max — independent compute watchdog on MC, optional fail-functional voting pair on MC-Max, Section 13.8). Requirements of record:
 > `docs/enterprise-requirements/` registers.
 
 ## EDIT 2 — §1 tier table (REPLACE the four-row table)
@@ -40,7 +41,7 @@ Replace the current table (rows Standard/Pro/Enterprise/Mission Critical) with:
 > |---|---|---|---|---|
 > | Standard | Mainstream builders | ESP32-S3 | USB Full Speed | CAN only, 4 ports |
 > | Pro | Overclockers, bench users | ESP32-P4 | USB High Speed | plus RS-485 streaming, 8 ports |
-> | Enterprise (ENT) — one line, SKU-differentiated | Regulated / financial / defense-adjacent / tamper-mandated fleets | PolarFire SoC (S-grade, Athena; MPFS095TS baseline) | Per posture SKU: ENT-NET = standard IEEE 802.3 1000BASE-T uplink (primary management plane) + USB (sensing/provisioning); ENT-AIR = local operator paths only, **zero network egress by design** | Hardened no-Linux RTOS control plane, PUF-rooted identity + secure boot, RJ-11 security-I/O port, rollback-resistant tamper log. **Two orthogonal SKU axes** — posture: ENT-NET (northbound Redfish-subset/OpenMetrics/syslog-TLS) / ENT-AIR (no network PHY populated, inspection-verifiable; radio-free module builds); availability ladder: **base** (fail-detected) → **MC** (+ independent compute watchdog + redundancy pack) → **MC-Max** (+ optional FAIL-FUNCTIONAL voting-pair compute) |
+> | Enterprise (ENT) — one line, SKU-differentiated | Regulated / financial / defense-adjacent / tamper-mandated fleets | PolarFire SoC (baseline MPFS095TC Core; HS option = S-grade Athena, 7th ruling) | Per posture SKU: ENT-NET = standard IEEE 802.3 1000BASE-T uplink (primary management plane) + USB (sensing/provisioning); ENT-AIR = local operator paths only, **zero network egress by design** | Hardened no-Linux RTOS control plane, PUF-rooted identity + secure boot, RJ-11 security-I/O port, rollback-resistant tamper log. **Two orthogonal SKU axes** — posture: ENT-NET (northbound Redfish-subset/OpenMetrics/syslog-TLS) / ENT-AIR (no network PHY populated, inspection-verifiable; radio-free module builds); availability ladder: **base** (fail-detected) → **MC** (+ independent compute watchdog + redundancy pack) → **MC-Max** (+ optional FAIL-FUNCTIONAL voting-pair compute) |
 >
 > _D-ENT-6 RESOLVED (owner, 2026-07-02 second ruling): the legacy tier-3/tier-4 rows fold
 > into ONE enterprise line; "Mission Critical" survives as the MC / MC-Max availability
@@ -67,9 +68,16 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > DRAFT→RATIFIED lifecycle). This section states the architecture and the locked direction;
 > the registers carry the testable detail. Owner rulings 2026-07-01/02 are the authority.
 >
-> **13.1 Compute and identity.** One PolarFire SoC base design serves both variants:
-> S-suffix part (Athena coprocessor required), MPFS095TS in FCVG484 as the working baseline
-> with the pin-compatible 025T/160T ladder as cost/headroom options (survey 1). No Linux:
+> **13.1 Compute and identity.** One PolarFire SoC base design serves both variants, on a
+> **part-agnostic, SerDes-free FCVG484 land** (owner ruling 2026-07-02, 7th): production
+> baseline **MPFS095TC (Core line)** — conditional on FAE confirmation that Core retains
+> PUF secure boot, user TRNG, and tamper detectors — with the **S-grade (MPFS095TS,
+> Athena DPA-resistant crypto) as the HS population option** on the same land; the full
+> 025/095/160/250 × T/TS/TC ladder interchanges as cost/headroom/security options
+> (supersedes the earlier S-suffix-required baseline; survey 1 + the 2026-07-02 sourcing
+> survey). The security architecture does not depend on Athena presence — runtime crypto
+> is the embedded wolfCrypt validated module; secure boot + PUF identity + the signed
+> evidence chain are the load-bearing anchors. No Linux:
 > Zephyr-class RTOS control plane on the hard RISC-V complex, fabric reserved for the data
 > plane (Appendix B.3/B.5 leaning, now adopted). Two-tier boot: the PolarFire System
 > Controller + HSS chain for high-ceremony image changes, an A/B verified-update layer
@@ -281,7 +289,9 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > **OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part
 > class (hub ×8 + module side), fabric MAC/switch + PTP timestamping architecture, the
 > dual-mode (T1 + RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick
-> (P4 vs STM32H5), and powered-pair coexistence checks on pins 4/5. Survey 10 grounds.
+> (P4 vs STM32H5) — **RESOLVED — ESP32-P4 uniform** (6th ruling; the earlier P4-vs-STM32H5
+> split framing is superseded, §13.6/13.2a) — and powered-pair coexistence checks on pins
+> 4/5. Survey 10 grounds.
 > **OQ-79: MC availability-ladder architecture.** Detail the Section 13.8 ladder: the
 > independent-watchdog part class (external supervisor vs lockstep safety MCU — the
 > Appendix B.3 Hercules-class leaning is the starting candidate), the MC-Max voting
@@ -299,7 +309,7 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 ## EDIT 10 — Mechanical follow-ups at application time
 
 §12 index rows for: ENT-NET/ENT-AIR, PolarFire SoC (extend), 1000BASE-T, RJ-11
-security-I/O, radio-free MCU, STM32G4, fail-detected redundancy, CEC-KVM, OQ-75..78.
+security-I/O, radio-free MCU, STM32G4, fail-detected redundancy, CEC-KVM, OQ-75..81.
 Tier-applicability lists gain Section 13. After the spec lands: update CLAUDE.md's summary
 + tier table, both hub READMEs (placeholder text → §13 pointer + register links), flip the
 registers' "Phase-4 spec edit" gates, and re-run `cec_req_lint`/`cec_corpus_lint` (spec-ref
