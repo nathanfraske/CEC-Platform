@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085")
+	(paper "A4")
+	(title_block
+		(title "05-module-ports")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+	)
+	(lib_symbols
+	)
+	(text "05-module-ports -- CAPTURE PENDING\n\n8x RJ-45 FTP module ports, DETECT/pin-7, TJA1051T/3, ADS7830\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
+		(at 20 20 0)
+		(effects (font (size 2 2)))
+		(uuid "1e6bb1fc-837e-40fd-94e9-22a85b3a6a62")
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085"
+			(page "6")
+		)
+	)
+	(embedded_fonts no)
+)

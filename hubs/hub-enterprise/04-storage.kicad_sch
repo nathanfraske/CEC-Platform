@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0a1b2c3d-4e5f-4064-8a2b-3c4d5e6f7084")
+	(paper "A4")
+	(title_block
+		(title "04-storage")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+	)
+	(lib_symbols
+	)
+	(text "04-storage -- CAPTURE PENDING\n\nW25Q256JV QSPI NOR + eMMC 5.1 (FW/tamper log/bulk storage)\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
+		(at 20 20 0)
+		(effects (font (size 2 2)))
+		(uuid "63a54f9c-533c-4ca1-93a0-afa7f8bdd0b8")
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4064-8a2b-3c4d5e6f7084"
+			(page "5")
+		)
+	)
+	(embedded_fonts no)
+)

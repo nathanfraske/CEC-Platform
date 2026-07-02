@@ -29,7 +29,7 @@ DEVSLP → GND (disables SATA low-power mode, keeps full monitoring active); PGT
 | C_SS | 2 | Soft-start / input-settling cap | CL10A225KO8NNNC | Samsung | 0603 | $0.007 (LCSC, **currently 0 stock**) | LCSC C23630 | **reuse C23630** — flag stock |
 | R_ILIM(PC) | 2 | Output current-limit set | 0402WGF2702TCE | UNI-ROYAL | 0402, 1% | ~$0.006 [est] | LCSC C25771 | **reuse C25771**, 27kΩ (already-fitted platform value) |
 
-Pin ties (per TPS2121 datasheet's own guidance for fixed-priority, non-auto-compare operation — recommend confirming against the as-built hub-standard netlist before layout, since I could not fully re-derive the exact wired nets from the raw `.kicad_sch`): **PR1 → IN1** on each instance (ties priority to the higher-priority input: 5VSB on stage A, MAIN_5V on stage B); **OV1/OV2 → GND** on both instances (per-input OVP is now handled once, upstream, by each source's own TPS25940 OVP divider — this avoids two independent, potentially-mismatched OVP trip points in series); **CP2 → GND** on both instances (disables the automatic highest-voltage-wins comparator mode — required, since the spec is explicit that priority is by fixed assignment, not by "which source happens to read higher," and MAIN_5V/5VSB/EXT are all nominally ~5V and could be within noise of each other).
+Pin ties (per TPS2121 datasheet's own guidance for fixed-priority, non-auto-compare operation — recommend confirming against the as-built hub-standard netlist before layout, since I could not fully re-derive the exact wired nets from the raw `.kicad_sch`): **PR1 → IN1** on each instance (ties priority to the higher-priority input: 5VSB on stage A, MAIN_5V on stage B); **OV1/OV2 → GND** on both instances (per-input OVP is now handled once, upstream, by each source's own TPS25940 OVP divider — this avoids two independent, potentially-mismatched OVP trip points in series); ~~CP2 → GND~~ **CORRECTED at schematic capture (2026-07-02): CP2 → IN2 on both instances** — the confirmation-against-as-built this paragraph asked for was performed during ENT sheet-01 capture: the SHIPPING hub-standard board ties CP2→IN2 on both U5 and U7 (not GND), and the ENT schematic follows the proven as-built wiring (recorded inline in `hubs/hub-enterprise/gen_hub_enterprise.py`). The fixed-priority intent stands; the datasheet-vs-as-built discrepancy resolved in favor of the board that ships.
 
 ### 3. Hold-up reservoir
 
@@ -109,7 +109,7 @@ MC adds nothing to subsystem D beyond what MC-Max's second PolarFire SoC pulls f
 [R1/R2/R3 divider] ─ TPS25940 ──┤ U_PC1 (stage A) │
    (U_EF2, ILIM 42.2k->2.08A)   │ IN1=5VSB(pri.)  │
                        IN1 ──►  │ IN2=EXT         │──OUT──┐
-EXT (PJ-002AH barrel jack)      │ PR1->IN1 CP2->GND│       │
+EXT (PJ-002AH barrel jack)      │ PR1->IN1 CP2->IN2│       │
    │                            │ OV1/OV2->GND     │       │
 [SMAJ5.0A TVS]                  └─────────────────┘       │
    │                                     ▲                 │
@@ -121,7 +121,7 @@ EXT (PJ-002AH barrel jack)      │ PR1->IN1 CP2->GND│       │
                                               │ U_PC2 (stage B) │
                           MAIN_5V(post-eFuse)─┤ IN1=MAIN(pri.)  │
                                               │ IN2=stage-A OUT │──OUT──► +5V SYSTEM RAIL
-                                              │ PR1->IN1 CP2->GND│         │
+                                              │ PR1->IN1 CP2->IN2│         │
                                               │ OV1/OV2->GND     │         │
                                               └─────────────────┘         │
                                                                           ├──► D_ISO (SS14) ──► C_HOLD (2x4700uF)
