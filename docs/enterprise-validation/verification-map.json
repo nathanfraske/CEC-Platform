@@ -1,0 +1,821 @@
+{
+  "_meta": {
+    "generator": "scripts/cec_req_verify_matrix.py",
+    "seeded": "2026-07-02",
+    "note": "statement_hash is stamped at seed/--freeze time; --check flags rot when a REQ's live statement text no longer matches it.",
+    "last_frozen": "2026-07-02"
+  },
+  "requirements": {
+    "REQ-HUB-COMMON-001": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "cad8c7b81e35"
+    },
+    "REQ-HUB-COMMON-002": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "e0642cb4642b"
+    },
+    "REQ-HUB-COMMON-003": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "f8f77e4c8ff1"
+    },
+    "REQ-HUB-NET-004": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "7acfa797de1e"
+    },
+    "REQ-HUB-AIR-005": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "711eb53b652a"
+    },
+    "REQ-HUB-COMMON-006": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "e2103d80b267"
+    },
+    "REQ-HUB-COMMON-007": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "2c1b86d0562a"
+    },
+    "REQ-HUB-COMMON-010": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "9b5b55fee001"
+    },
+    "REQ-HUB-COMMON-011": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "a722d1d3941e"
+    },
+    "REQ-HUB-NET-012": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "39e5704559ab"
+    },
+    "REQ-HUB-AIR-013": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "4698c0f45355"
+    },
+    "REQ-HUB-COMMON-014": {
+      "artifacts": [
+        "psirt-cvd-process",
+        "sbom-pipeline"
+      ],
+      "status": "planned",
+      "statement_hash": "f8e282c811a1"
+    },
+    "REQ-HUB-NET-020": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "9303be1431bc"
+    },
+    "REQ-HUB-NET-021": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "4a8bbc9d1a32"
+    },
+    "REQ-HUB-NET-022": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "d23fc2988f3b"
+    },
+    "REQ-HUB-NET-023": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "0adef4066109"
+    },
+    "REQ-HUB-AIR-024": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "79d1e3194dec"
+    },
+    "REQ-HUB-COMMON-025": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "e3561f23b93a"
+    },
+    "REQ-HUB-COMMON-026": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "205d55140795"
+    },
+    "REQ-HUB-NET-030": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "a57ea52c480c"
+    },
+    "REQ-HUB-NET-031": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "71d3ec74b03c"
+    },
+    "REQ-HUB-COMMON-032": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "4e85a4fd825f"
+    },
+    "REQ-HUB-COMMON-033": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "22485bca28d4"
+    },
+    "REQ-HUB-COMMON-040": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "880a4db62911"
+    },
+    "REQ-HUB-COMMON-041": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "096c1b5511ff"
+    },
+    "REQ-HUB-COMMON-042": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "67b9ad83cfe6"
+    },
+    "REQ-HUB-COMMON-043": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "82a4311c958d"
+    },
+    "REQ-HUB-COMMON-044": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "9ee8ecfd9052"
+    },
+    "REQ-HUB-COMMON-045": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "59abe848a142"
+    },
+    "REQ-HUB-COMMON-110": {
+      "artifacts": [
+        "bench-misplug-injection"
+      ],
+      "status": "planned",
+      "statement_hash": "0b4f2af85cd6"
+    },
+    "REQ-HUB-COMMON-112": {
+      "artifacts": [
+        "bench-sync-pin7"
+      ],
+      "status": "planned",
+      "statement_hash": "47665ab7bc87"
+    },
+    "REQ-HUB-COMMON-113": {
+      "artifacts": [
+        "bench-heartbeat-adversarial"
+      ],
+      "status": "planned",
+      "statement_hash": "2fcbc66208bb"
+    },
+    "REQ-HUB-COMMON-114": {
+      "artifacts": [
+        "bench-heartbeat-adversarial"
+      ],
+      "status": "planned",
+      "statement_hash": "ab8db41bce20"
+    },
+    "REQ-HUB-NET-111": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "e3f169f9f97d"
+    },
+    "REQ-HUB-COMMON-050": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "49920fb76146"
+    },
+    "REQ-HUB-COMMON-051": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "466ef7fe7a30"
+    },
+    "REQ-HUB-COMMON-052": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "808151a57113"
+    },
+    "REQ-HUB-COMMON-053": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "f5c71258c081"
+    },
+    "REQ-HUB-COMMON-054": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "9625a0e20454"
+    },
+    "REQ-HUB-COMMON-055": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "b26915db5a6a"
+    },
+    "REQ-HUB-COMMON-056": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "bd0d9ac4968d"
+    },
+    "REQ-HUB-COMMON-057": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "4ebaa0b52065"
+    },
+    "REQ-HUB-COMMON-058": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "f60f9a8dec79"
+    },
+    "REQ-HUB-AIR-059": {
+      "artifacts": [
+        "demonstration-note"
+      ],
+      "status": "planned",
+      "statement_hash": "1c9f957edadf"
+    },
+    "REQ-HUB-COMMON-103": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "cf06d00734fd"
+    },
+    "REQ-HUB-COMMON-104": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "8526d49abbc8"
+    },
+    "REQ-HUB-COMMON-106": {
+      "artifacts": [
+        "bench-sync-pin7"
+      ],
+      "status": "planned",
+      "statement_hash": "5a99d0b4c1d0"
+    },
+    "REQ-HUB-COMMON-107": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "a05a2d88206c"
+    },
+    "REQ-HUB-NET-108": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "21121625be25"
+    },
+    "REQ-HUB-AIR-109": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "82ad0e88752a"
+    },
+    "REQ-HUB-COMMON-105": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "f8adbb7bbeed"
+    },
+    "REQ-HUB-COMMON-060": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "3dfddb7dc6fb"
+    },
+    "REQ-HUB-COMMON-061": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "da64ef7fc27a"
+    },
+    "REQ-HUB-COMMON-062": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "773cc8d67b57"
+    },
+    "REQ-HUB-COMMON-070": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "14ed044fd30d"
+    },
+    "REQ-HUB-COMMON-071": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "8818b62bf866"
+    },
+    "REQ-HUB-NET-072": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "d7c835eada43"
+    },
+    "REQ-HUB-COMMON-073": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "15da7e457b52"
+    },
+    "REQ-HUB-COMMON-080": {
+      "artifacts": [
+        "analysis-note"
+      ],
+      "status": "planned",
+      "statement_hash": "1d1a5c7031f4"
+    },
+    "REQ-HUB-COMMON-081": {
+      "artifacts": [
+        "fmea-hub"
+      ],
+      "status": "planned",
+      "statement_hash": "7e2b23456c63"
+    },
+    "REQ-HUB-COMMON-091": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "f42e4692d282"
+    },
+    "REQ-HUB-COMMON-094": {
+      "artifacts": [
+        "psirt-cvd-process",
+        "sbom-pipeline"
+      ],
+      "status": "planned",
+      "statement_hash": "f328f2a5504d"
+    },
+    "REQ-HUB-COMMON-095": {
+      "artifacts": [
+        "emc-prescan-plan"
+      ],
+      "status": "planned",
+      "statement_hash": "d696d1568e5c"
+    },
+    "REQ-HUB-COMMON-096": {
+      "artifacts": [
+        "analysis-note"
+      ],
+      "status": "planned",
+      "statement_hash": "120ac51b9666"
+    },
+    "REQ-HUB-COMMON-097": {
+      "artifacts": [
+        "fips-oe-engagement-brief"
+      ],
+      "status": "planned",
+      "statement_hash": "1713b204b514"
+    },
+    "REQ-HUB-COMMON-098": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "1b656459bdb7"
+    },
+    "REQ-HUB-COMMON-099": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "6f9a46a381fd"
+    },
+    "REQ-HUB-COMMON-102": {
+      "artifacts": [
+        "psirt-cvd-process"
+      ],
+      "status": "planned",
+      "statement_hash": "eb22eef2ff4c"
+    },
+    "REQ-HUB-COMMON-092": {
+      "artifacts": [
+        "analysis-note"
+      ],
+      "status": "planned",
+      "statement_hash": "93ae22519482"
+    },
+    "REQ-HUB-COMMON-093": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "90ae1fb6259f"
+    },
+    "REQ-HUB-COMMON-100": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "628064c2e02f"
+    },
+    "REQ-HUB-AIR-101": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "8901edba75d1"
+    },
+    "REQ-HPWR-COMMON-001": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "b64fdd20c263"
+    },
+    "REQ-HPWR-COMMON-002": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "4920009b3a97"
+    },
+    "REQ-HPWR-COMMON-003": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "1fea23106d64"
+    },
+    "REQ-HPWR-COMMON-004": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "79aefccbdb0b"
+    },
+    "REQ-HPWR-COMMON-010": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "c6cf537f0edd"
+    },
+    "REQ-HPWR-COMMON-011": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "aa0ca1c4a8e4"
+    },
+    "REQ-HPWR-COMMON-012": {
+      "artifacts": [
+        "fmea-12vhpwr"
+      ],
+      "status": "planned",
+      "statement_hash": "a8029d44b1e5"
+    },
+    "REQ-24PIN-COMMON-001": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "e8ffb446acdb"
+    },
+    "REQ-24PIN-COMMON-002": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "39defe601e18"
+    },
+    "REQ-24PIN-COMMON-003": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "d2fe5cd6a30e"
+    },
+    "REQ-24PIN-COMMON-010": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "66fdb2c77810"
+    },
+    "REQ-24PIN-COMMON-011": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "c013dc394106"
+    },
+    "REQ-24PIN-COMMON-012": {
+      "artifacts": [
+        "fmea-24pin"
+      ],
+      "status": "planned",
+      "statement_hash": "073c1b8e6e45"
+    },
+    "REQ-24PIN-COMMON-020": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "87755a4e9224"
+    },
+    "REQ-MOD-COMMON-001": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "205bdb0e8090"
+    },
+    "REQ-MOD-COMMON-002": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "ee4bb3b32c10"
+    },
+    "REQ-MOD-COMMON-003": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "753504dacb86"
+    },
+    "REQ-MOD-COMMON-010": {
+      "artifacts": [
+        "bench-heartbeat-adversarial"
+      ],
+      "status": "planned",
+      "statement_hash": "9a716e2143b4"
+    },
+    "REQ-MOD-COMMON-011": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "b0491dd837b1"
+    },
+    "REQ-MOD-COMMON-012": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "bd1cac433be2"
+    },
+    "REQ-MOD-COMMON-013": {
+      "artifacts": [
+        "bench-sync-pin7",
+        "bench-heartbeat-adversarial"
+      ],
+      "status": "planned",
+      "statement_hash": "b6ad11b17885"
+    },
+    "REQ-MOD-AIR-020": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "4665c480762e"
+    },
+    "REQ-MOD-AIR-021": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "4ff513f47039"
+    },
+    "REQ-MOD-COMMON-030": {
+      "artifacts": [
+        "fmea-24pin",
+        "fmea-eps",
+        "fmea-pcie",
+        "fmea-12vhpwr"
+      ],
+      "status": "planned",
+      "statement_hash": "cf2019b0a516"
+    },
+    "REQ-MOD-COMMON-031": {
+      "artifacts": [
+        "fmea-24pin",
+        "fmea-eps",
+        "fmea-pcie",
+        "fmea-12vhpwr"
+      ],
+      "status": "planned",
+      "statement_hash": "7eb5dc6065b4"
+    },
+    "REQ-MOD-COMMON-032": {
+      "artifacts": [
+        "fmea-24pin",
+        "fmea-eps",
+        "fmea-pcie",
+        "fmea-12vhpwr"
+      ],
+      "status": "planned",
+      "statement_hash": "d150a77d90f6"
+    },
+    "REQ-MOD-COMMON-040": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "06be5028dc24"
+    },
+    "REQ-MOD-COMMON-041": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "196415f10130"
+    },
+    "REQ-MOD-COMMON-042": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "4105be50e619"
+    },
+    "REQ-MOD-COMMON-043": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "7a78edd16339"
+    },
+    "REQ-MOD-COMMON-050": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "5b3710bb74dd"
+    },
+    "REQ-MOD-COMMON-051": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "3edcac292a5c"
+    },
+    "REQ-MOD-COMMON-053": {
+      "artifacts": [
+        "bench-misplug-injection"
+      ],
+      "status": "planned",
+      "statement_hash": "cf33544c7403"
+    },
+    "REQ-MOD-COMMON-052": {
+      "artifacts": [
+        "psirt-cvd-process",
+        "sbom-pipeline"
+      ],
+      "status": "planned",
+      "statement_hash": "2d37de9df4a5"
+    },
+    "REQ-EPS-COMMON-001": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "640e10974faa"
+    },
+    "REQ-EPS-COMMON-002": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "80a532f0fc84"
+    },
+    "REQ-EPS-COMMON-003": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "26a393774903"
+    },
+    "REQ-EPS-COMMON-010": {
+      "artifacts": [
+        "fmea-eps"
+      ],
+      "status": "planned",
+      "statement_hash": "5e71f7f5e121"
+    },
+    "REQ-PCIE-COMMON-001": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "324323185c80"
+    },
+    "REQ-PCIE-COMMON-002": {
+      "artifacts": [
+        "register-inspection"
+      ],
+      "status": "planned",
+      "statement_hash": "25c49b6b4cdf"
+    },
+    "REQ-PCIE-COMMON-003": {
+      "artifacts": [
+        "firmware-test"
+      ],
+      "status": "planned",
+      "statement_hash": "b2ec3b69a290"
+    },
+    "REQ-PCIE-COMMON-010": {
+      "artifacts": [
+        "fmea-pcie"
+      ],
+      "status": "planned",
+      "statement_hash": "d6a8e32a19e1"
+    }
+  }
+}
