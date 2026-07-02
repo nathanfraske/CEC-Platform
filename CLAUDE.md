@@ -35,9 +35,30 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.1.0 (2026-06-09), controlled baseline** (semantic
-versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed log is
-retained for provenance in spec §11.1). The canonical-spec-line question (the old repo
+Spec revision reflected here: **v1.2.0 (2026-07-02), controlled baseline** — THE
+ENTERPRISE LINE, applied under owner sign-off (nine rulings, 2026-07-01/02). What v1.2.0
+adds over v1.1.0: (a) **§1 tier table rewritten** to three tiers — Standard / Pro /
+**ENT (one line, SKU-differentiated: posture NET/AIR × availability base/MC/MC-Max ×
+silicon base/HS)**; OQ-7 RESOLVED. (b) **New Section 13** (13.1–13.9): PolarFire SoC hub
+(production baseline **MPFS095TC Core** on a part-agnostic SerDes-free FCVG484 land,
+S-grade Athena = the HS population option), 13.2a **100BASE-T1 module link on pair 2 for
+every ENT module** (T1-only hub via 2× LAN9370; RS-485 stays consumer-Pro; uniform
+ESP32-P4 module MCU; DETECT 10 kΩ class), 13.8 availability ladder (independent watchdog
+on MC; fail-functional 2oo2 voting pair on MC-Max). (c) **§2.3 pin-7 allocation change**
+(the one LOCKED-table edit): consumer tiers keep reserved-spare/NC; ENT allocates pin 7
+as the SYNC/FREEZE line (≤100 ns) + per-module heartbeat challenger. (d) §2.4 ENT uplink
+protection + module-port mis-plug fail-safe; §2.9/§3.1 enterprise graduation/honesty
+paragraphs. (e) OQ closures: 7, the OQ-14 ENT half, 53–56 (ENT tier), **OQ-11 FULLY
+RESOLVED** (all shunt parts locked incl. EPS/PCIe 0.5 mΩ CSS2H-2512R-L500F + 12VHPWR
+1 mΩ CSS2H-2512R-1L00F); OQ-75..81 opened. Requirements of record:
+`docs/enterprise-requirements/` (114 REQs, 6 registers, lint-enforced + a
+verification-matrix with statement-hash rot detection). ENT board program: library
+intake starting (`docs/enterprise-requirements/board-program/`); consumer boards
+unaffected — no LOCKED electrical decision was altered.
+
+Prior baseline, retained for provenance: **v1.1.0 (2026-06-09), controlled baseline**
+(semantic versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed
+log is retained for provenance in spec §11.1). The canonical-spec-line question (the old repo
 v3.x file vs the controlled release) is now RESOLVED: the v1.1.0 controlled baseline is
 canonical (owner direction, 2026-06-09), installed as `CEC-Platform-Ground-Truth-Spec.md`.
 The pre-release (vX.Y) tags below remain valid as references into spec §11.1.
