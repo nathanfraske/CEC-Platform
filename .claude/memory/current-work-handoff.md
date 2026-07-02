@@ -507,3 +507,24 @@ P4+T1 reference block schematic; PR to main = the formal Phase-4 CODEOWNERS act 
 opens on request). Owner pending: hardware order (demo critical path), KVM decision box,
 Libero license, custody final sign-off, mezzanine beyond-AIR review, RFQ send at
 customer sign-off.
+UPDATE 2026-07-02 (~21:35 — ENT HUB SCHEMATIC STARTED, owner directive): hierarchical
+multi-sheet capture per hubs/hub-enterprise/SCHEMATIC-PLAN.md (10 sheets: 01 power-input,
+02 compute-core [MPFS multi-unit], 03 rails, 04 storage, 05 module-ports, 06 T1-dataplane,
+07 uplink [capture BOTH SGMII+RGMII options pending the Core FAE answer], 08 secio-aux,
+09 watchdog [S32K344 working part, MC-DNP], 10 voting-pair LAST; one schematic serves all
+SKUs via DNP matrix; verification protocol = ERC + scripted netlist assertions
+[scripts/check_hub_ent_sch.py, grows per sheet] + conformance checks + BOM cross-check).
+FOUR library agents running, COLLISION-SAFE (each owns ONE new symbol file:
+lib/cec-ent-{power,net,compute,mcu}.kicad_sym; footprints file-per-part; NO lib-table
+edits — I consolidate registration after they land): power/protection group (TPS25940,
+MIC22705, TPS26621, SS110, SMAJ58A, DSC1123, W25Q256, ADS7830, RJ-11), net group
+(DP83869HM, DP83TC814, JXD1 [skip-if-login-walled], CMC, PESD2ETH100, RClamp, GDT,
+LAN9370 ONLY if public pinout — else flag), MPFS FCVG484 GENERATOR
+(scripts/gen_mpfs_fcvg484_lib.py from the Microchip ball table, multi-unit symbol w/
+SerDes unit annotated NC-on-Core, BGA-484 footprint, 484-ball assertion + 10-ball
+spot-check), MCU group (ESP32-P4 orderable-form finding feeds module BOMs, S32K344
+[may skip], ADS131M08, generic JEDEC FBGA-153 eMMC land [two-source verify]). NEXT on
+their landing: consolidate sym-lib-table/fp-lib-table registration, scaffold the
+hub-enterprise KiCad project (root + sheet files), capture sheet 01 per the plan order,
+verify per protocol, commit per sheet. easyeda2kicad NOTE: pip-installed on the
+EPHEMERAL box — reinstall after container recycle (pip install easyeda2kicad).
