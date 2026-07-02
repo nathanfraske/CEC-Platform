@@ -15,7 +15,7 @@ integrity, and build posture, not a new connector.
 |---|---|---|---|---|
 | REQ-MOD-COMMON-001 | Module-to-Hub link SHALL be RJ-45 8P8C FTP per the locked pin table; classical CAN 500 k; no module-side CAN termination; DETECT resistor per the §2.3 code table; pin-8 ESD diode populated. | [LOCKED §2.1/§2.3/§2.4/§3.1] | I+T | — |
 | REQ-MOD-COMMON-002 | An enterprise module SHALL function in ANY Hub (Standard through enterprise) with graceful degrade; enterprise-only features go dormant, never faulting the link. | [LOCKED §1/§8] | T | — |
-| REQ-MOD-COMMON-003 | RS-485 streaming (pins 4/5) SHALL be populated on enterprise modules at the Pro sensing tier and above; Standard-tier enterprise builds terminate pair 2 module-side per the locked table. | [LOCKED pin table]; spec §3.2 | I+T | — |
+| REQ-MOD-COMMON-003 | Enterprise streaming modules SHALL carry **100BASE-T1 single-pair Ethernet on pair 2 (pins 4/5)** — bidirectional, replacing the Pro-tier RS-485 for the ENT line (owner ruling 2026-07-02 3rd; RS-485 remains the consumer Pro tier) — with DETECT = the locked 10 kΩ CAN+100BASE-T1 class, and SHALL participate in the fleet sub-µs time synchronization (REQ-HUB-COMMON-106). MCU consequence: the module MCU SHALL provide an RMII-class MAC (STM32G4 has none — baseline shifts to ESP32-P4 or STM32H5-class per survey 10). Non-streaming enterprise builds (24-pin) stay CAN-only, pair 2 terminated per the locked table. | owner ruling 2026-07-02 (3rd); spec §2.3/§6.11; OQ-20 (ENT-resolved) | I+T | — |
 
 ## 2. Identity & provenance — DRAFT
 
@@ -53,7 +53,7 @@ paths. This is the first question every mission-critical buyer asks.
 
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
-| REQ-MOD-COMMON-040 | Enterprise module sensing SHALL be offered at the Pro tier (characterization: fast ADC + RS-485 streaming) as baseline, with the Max tier (spectral/FPGA) per family where §6.11/§6.13 defines it; Standard-tier detection front-ends (§6.13 binary transient flag) are the floor. | spec §6.11/§6.13; OQ-57..59 | I | OQ-57..59 |
+| REQ-MOD-COMMON-040 | Enterprise module sensing SHALL be offered at the Pro-class characterization tier (fast ADC, streamed over the 100BASE-T1 link per REQ-MOD-COMMON-003) as baseline, with the Max tier (spectral/FPGA) per family where §6.11/§6.13 defines it; Standard-tier detection front-ends (§6.13 binary transient flag) are the floor. | spec §6.11/§6.13; OQ-57..59 | I | OQ-57..59 |
 | REQ-MOD-COMMON-041 | Telemetry SHALL carry per-sample integrity metadata sufficient for the Hub to detect gaps/tampering in the stream (sequence + timestamps; crypto binding evaluated in Phase 2). | tamper §2; audit §3 | T | — |
 | REQ-MOD-COMMON-042 | The §6.10 acquisition model (continuous conversion, ~2 s pre-roll ring, ALERT freeze) SHALL be preserved on enterprise builds — the forensic pre-roll is a tamper-relevant feature, not just power QA. | spec §6.10 | T | — |
 | REQ-MOD-COMMON-043 | Power-signature fingerprinting features (component-swap/implant screening on the measured rails) MAY be offered but SHALL be positioned as a screening tier only; documentation SHALL state the verified blind spot (dormant implants not exercised during profiling are invisible). | tamper §6 | I | D-ENT-5 |

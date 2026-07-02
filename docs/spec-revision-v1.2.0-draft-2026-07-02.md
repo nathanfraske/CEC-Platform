@@ -91,6 +91,16 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > operational surface is served locally. Host-down operation is a verified test case in the
 > STANDBY power posture (13.4).
 >
+> **13.2a Module streaming link (3rd ruling, 2026-07-02).** ENT modules replace the
+> Pro-tier RS-485 with **100BASE-T1 single-pair Ethernet on the locked pair 2** —
+> bidirectional, DETECT = the reserved 10 kΩ CAN+100BASE-T1 class — with fleet-wide
+> **sub-microsecond TIME SYNC** (PTP/gPTP-class, hardware timestamps; sub-µs is SYNC, not
+> frame latency — the ns FREEZE path stays the OQ-60 trigger proposal). The Hub serves the
+> pair DUAL-MODE per port (T1 primary + RS-485 RX for consumer-Pro backward compat, DETECT-
+> selected) with the fabric as the multi-port MAC/switch data plane — the Appendix B.5
+> TSN-leaning now earns its silicon. RS-485 remains the consumer Pro tier unchanged.
+> **This resolves OQ-20 for the ENT line** (the Max program inherits the precedent).
+>
 > **13.3 The RJ-11 security-I/O port (renames the "trust channel").** A supervised
 > physical-security I/O port: EOL-resistor-supervised tamper-loop input + galvanically
 > isolated dry-contact alarm output to facility security, riding the always-on power domain
@@ -226,6 +236,10 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > **OQ-77: Mezzanine integrated-stack option.** Formalize the Hub-on-24-pin mezzanine
 > (docs/mezzanine-stack-design-2026-06-24.md) as an orderable form, incl. its enterprise
 > fit; RJ-45 remains the default cabled PHY.
+> **OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part
+> class (hub ×8 + module side), fabric MAC/switch + PTP timestamping architecture, the
+> dual-mode (T1 + RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick
+> (P4 vs STM32H5), and powered-pair coexistence checks on pins 4/5. Survey 10 grounds.
 > **OQ-79: MC availability-ladder architecture.** Detail the Section 13.8 ladder: the
 > independent-watchdog part class (external supervisor vs lockstep safety MCU — the
 > Appendix B.3 Hercules-class leaning is the starting candidate), the MC-Max voting

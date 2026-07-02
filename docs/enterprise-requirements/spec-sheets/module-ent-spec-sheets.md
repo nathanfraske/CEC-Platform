@@ -14,7 +14,7 @@ doesn't forbid it; two builds per family would double the SKU matrix for no buye
 
 | Delta | Change vs consumer build | BOM effect [est] | Trace |
 |---|---|---|---|
-| MCU (radio-free) | ESP32-S3/C6-MINI → **STM32G4** (G431 digital families / G474 analog-heavy) or **ESP32-P4** where the family's Pro design already uses it | G431 ~$2.65 / G474 ~$3.93 / G0B1 ~$1.85 vs C6 ~$3–4 → **≈ cost-neutral ±$1**; hardware relayout (no SIP module for G4: LQFP48/64 + crystal + own decoupling) | survey 8; REQ-MOD-AIR-020 |
+| MCU (radio-free + RMII MAC for streaming families) | Streaming families (EPS/PCIe/12VHPWR): MCU SHALL carry an RMII MAC for the 100BASE-T1 link (3rd ruling) → **ESP32-P4** (radio-free, 1 MAC) or **STM32H5-class** — survey 10 grounds the pick; STM32G4 falls back to NON-streaming families only (24-pin: **G431** stands) | P4 $4.47 / H563-class ~$4-6 [unv] vs C6 ~$3-4; T1 PHY adder ~$2-4/module [unv, survey 10] | survey 8/10; REQ-MOD-COMMON-003 |
 | Per-unit identity | ADD identity device or scheme — **mechanism TBD (OQ-76)**: 1-Wire ID/EEPROM (DS28-class, ~$0.5–1.5) vs CAN challenge-response against an MCU-resident key (≈$0 parts, firmware) vs secure-element-lite (ATECC-class ~$0.6–1) | $0–1.5 `[TBD OQ-76]` | REQ-MOD-COMMON-010/011 |
 | Firmware signing | Same custody/anti-rollback discipline as the Hub (MCUboot on STM32G4 is mature) | $0 parts | REQ-MOD-COMMON-012 |
 | Link & DETECT | UNCHANGED (locked): RJ-45 FTP, CAN 500k via TJA1051T/3, DETECT code per class, pin-8 ESD | $0 | REQ-MOD-COMMON-001 |
@@ -23,9 +23,9 @@ doesn't forbid it; two builds per family would double the SKU matrix for no buye
 | Fail-passive evidence | FMEA/FMEDA + fault-injection per family (deliverable, not BOM) | NRE only | REQ-MOD-COMMON-030..032 |
 | Inspection story | Distinct MCU marking + no antenna keepout = unpowered verifiability | $0 | REQ-MOD-AIR-021 |
 
-Enterprise sensing tier = **Pro** per family where §6.13 defines it (REQ-MOD-COMMON-040):
-the fast-ADC + RS-485 characterization path. DETECT code moves 2.2 kΩ → **4.7 kΩ**
-(CAN+RS-485 class) on families gaining RS-485 — a locked-table-conformant change.
+Enterprise sensing tier = **Pro-class characterization** per family where §6.13 defines it
+(REQ-MOD-COMMON-040): the fast-ADC path, streamed over **100BASE-T1** (3rd ruling). DETECT
+moves 2.2 kΩ → **10 kΩ** (the locked CAN+100BASE-T1 class) on streaming families.
 
 ## 1. 24-pin ATX — ENT build
 
@@ -52,14 +52,14 @@ $0). **Net delta ≈ −$0.2 … +$1.6.**
 |---|---|---|
 | Sensing | Per-cable INA238 (2 cables, 0.5 mΩ) + INA240 fast path + **simultaneous fast ADC** + §6.13 detection floor | REQ-EPS-001/002; spec §6.13 |
 | Fast ADC | **ADS131M08-class** working baseline (8-ch simultaneous 24-bit ΔΣ, ~$5–8 `[unv]`); LTC2358-18 is the spec'd alternative (~$18–25 `[unv]`) — choice mirrors OQ-21 | spec §6.13 |
-| Streaming | RS-485 (THVD1450-class, ~$1) module→Hub, pins 4/5 | §3.2; REQ-MOD-003 |
-| MCU | **STM32G474** (5× ADC, 42 ch, on-die comparators — may absorb the TLV7011s) or ESP32-P4 (§6.13's named Pro MCU); G474 = working baseline per the one-build recommendation | survey 8 |
-| DETECT | **4.7 kΩ** (CAN+RS-485) | §2.3 |
+| Streaming | **100BASE-T1** (pins 4/5, bidirectional + sub-µs sync; T1 PHY ~$2-4 [survey 10]) — replaces RS-485 for ENT (3rd ruling) | REQ-MOD-COMMON-003; REQ-HUB-COMMON-106 |
+| MCU | RMII-MAC-bearing radio-free MCU (3rd-ruling consequence): **ESP32-P4** or **STM32H5-class** — survey 10 grounds the pick (G474's ADC/comparator strengths noted; it lacks a MAC, so it only serves if the T1 MAC lives in the PHY/switch part instead — survey 10 checks that option too) | survey 8/10; REQ-MOD-COMMON-003 |
+| DETECT | **10 kΩ** (CAN+100BASE-T1 — the locked reserved class) | §2.3 |
 | Events | §6.10 pre-roll + per-cable attribution into the Hub tamper/event log | REQ-EPS-003 |
 
 BOM delta vs `modules/eps-8pin-rev2` (consumer ≈ $32-class): −C6-MINI (+$3.5 back) /
 +G474 ($3.93) + support (~$0.8) / +ADS131M08 ($5–8) + ref/filters (~$1) / +INA240 ×2
-(~$1.9 ea if per-cable fast path; count per §6.13 detail) / +THVD1450 ($1) / +identity
+(~$1.9 ea if per-cable fast path; count per §6.13 detail) / +100BASE-T1 PHY (~$2-4 [survey 10]) / +identity
 (TBD) / DETECT R swap ($0). **Net delta ≈ +$12–19** → ENT-EPS parts class ≈ **$45–55**,
 consistent with the spec's §6.13 Pro indicative $85–110 retail-class positioning.
 
@@ -70,7 +70,7 @@ Identical architecture to §2 with 2 or 3 cables (3 = spec upper bound):
 | Spec | Value | Trace |
 |---|---|---|
 | Sensing | Per-cable INA238 ×2/×3 + INA240 fast path + ADS131M08-class + §6.13 floor | REQ-PCIE-001/002 |
-| MCU / streaming / DETECT | As EPS ENT (G474 baseline; RS-485; 4.7 kΩ) | survey 8; §2.3 |
+| MCU / streaming / DETECT | As EPS ENT (RMII MCU per survey 10; 100BASE-T1; 10 kΩ) | survey 8/10; §2.3 |
 | Events | GPU-rail §6.10 pre-roll + per-cable attribution (named differentiator) | REQ-PCIE-003 |
 
 BOM delta vs `modules/pcie-8pin-{2,3}port-rev2`: as EPS **+$12–19**, plus the 3rd-cable
@@ -84,9 +84,9 @@ schematic stage) IS the enterprise baseline — already ESP32-P4 (radio-free, su
 
 | Spec | Value | Trace |
 |---|---|---|
-| Sensing | 6× INA240A3 per-pin (1 mΩ) + **LTC2358-18** 8-ch simultaneous 18-bit + 47k/10k rail divider + REF3033; ~900 kB/s RS-485 streaming; CAN control | REQ-HPWR-001/002; spec §6.9 |
+| Sensing | 6× INA240A3 per-pin (1 mΩ) + **LTC2358-18** 8-ch simultaneous 18-bit + 47k/10k rail divider + REF3033; streaming moves RS-485 → **100BASE-T1** for ENT (3rd ruling; the P4 MAC serves it — RS-485 stays on the consumer Pro SKU) | REQ-HPWR-001/002; spec §6.9; REQ-MOD-COMMON-003 |
 | MCU | **ESP32-P4** (unchanged — radio-free; QFN-104, external flash) | survey 8 |
-| DETECT | 4.7 kΩ (locked for this family) | §2.3 |
+| DETECT | ENT build: 10 kΩ (CAN+100BASE-T1); consumer Pro keeps 4.7 kΩ | §2.3 |
 | Pin-hog alarm | Sustained per-pin outlier detection (the 58%-instant-electrical-outlier signature) | REQ-HPWR-003 |
 | Sideband | S1..S4 pass-through + monitored (v3.4 taps) | REQ-HPWR-010 |
 | Deltas to reach ENT | + identity device (OQ-76); + NTC board/ambient pair if carried over from Std (Pro TBD); + provenance BOM pass; graduate the board out of DRAFT (ERC/DRC-clean) before ratification cites it | REQ-HPWR-002; common §0 |
