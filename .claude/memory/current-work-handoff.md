@@ -385,3 +385,19 @@ $210-277 / AIR-MCX $360-470. 112 REQs lint OK. NOTHING left in flight — the ow
 sheet + complete detailed BOM both hub variants + module drafts) are DELIVERED. Next milestones
 are owner-gated: v1.2.0 spec application, D-ENT-5 remaining line items, D-ENT-3 RFQ pass,
 REQ-111 PD-on-uplink adopt/decline.
+UPDATE 2026-07-02 (PIN-7 HEARTBEAT CHALLENGER — owner exploration, drafted PROPOSED): owner
+floated pin 7 ALSO as a heartbeat challenger (hub challenges over pin 7; trusted module answers
+per signed-firmware-prescribed method; no answer → automatically untrusted). Drafted as
+REQ-HUB-COMMON-114 (challenger: nonce over CAN/T1 compute-then-respond, hardware-timed answer on
+pin 7, single-digit-µs window = distance-bounding-lite → PORT-BOUND + TIMING-BOUND, the only
+port-bound crypto surface for CAN-only 24-pin; N=3@1Hz miss → auto-UNTRUSTED: quarantine-tagged
+telemetry, alarm+tamper-log, MC-Max vote exclusion, re-admit only via full re-attestation;
+legacy-claim = demotion not bypass; FREEZE level-dominant never masked; jam = fail-secure) +
+REQ-MOD-COMMON-013 (responder: timer output-compare/ETM hardware edge, dormant on non-challenging
+hubs — locked graceful-degrade preserved; ≈$0 parts). ARCHITECTURE consequence folded into
+REQ-112 + v1.2.0 OQ-81: ENT hub pin 7 becomes PER-PORT point-to-point into PolarFire fabric
+(wired-OR semantics via deterministic fabric relay) — buys challenge discrimination, survey-11
+mis-plug containment, sub-ns inter-port skew; module electrical contract unchanged. REQ-113
+surface list +heartbeat. Owner-queue D-ENT-5 row: adopt/decline pending (like REQ-111). Honest
+residual recorded: proves key+port+real-time, NOT firmware integrity; extracted-key attacker
+must still answer at the port in hardware time. 114 REQs lint OK.
