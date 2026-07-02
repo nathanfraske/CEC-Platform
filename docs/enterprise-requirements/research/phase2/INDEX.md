@@ -39,6 +39,14 @@ queue, and the D-gate feeds for the owner's Phase-3 review._
    China-origin axis open; option (b) fused-off ESP32 is DEAD on evidence (no Wi-Fi-disable
    eFuse exists on S3/C6; DoD guidance wants physical absence; fails inspect-unpowered).
 
+9. **MC availability ladder (survey 9, post-ruling)** — watchdog = small safety-MCU class
+   (S32K3 non-lockstep rec, Zephyr-native; Hercules/AURIX precedented alternatives;
+   TPS3813 backstop option); 2oo2 + watchdog-arbiter VALIDATED over 2oo3 (serviceable
+   appliance, not spacecraft); checkpointed-not-lockstep state sync over free on-die
+   PCIe(NTB?)+CAN1; voted boundary = tamper-log + Appendix-D actuation only; northbound
+   reconnect-tolerated, CAN session-continuous; N/N-1 rollout diversity as the common-mode
+   mitigation; MC adder ~$22-35, MC-Max +$150-195 (+PCB class). No SIL/ASIL claims.
+
 ## Cross-survey load-bearing findings
 
 1. **The 5VSB power-budget collision (survey 1, corroborated by 6).** A PolarFire-class Hub

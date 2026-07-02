@@ -90,19 +90,23 @@ board — new fab class (already flagged in the spec sheet cost notes).
 
 ## 7. MC / MC-Max growth notes
 
-- Watchdog block placement: adjacent to the SoC's reset/strap corner; its own XO + its
-  supervised rail tap AHEAD of the SoC rails so it observes them; part per survey 9/OQ-79.
-- MCX second SoC: mirrored placement across the sync link; voted-output boundary and
-  arbiter realization per OQ-79 (fabric voter vs watchdog-arbitrated) — board reserves
-  the sync lane + duplicate QSPI/strap footprints either way.
-- Common-mode honesty: the pair runs identical firmware — a common-mode firmware fault
-  defeats voting; dissimilar-redundancy is NOT claimed (register/spec language already
-  scopes fail-functional to hardware compute faults).
+- Watchdog block (survey 9): S32K3-class MCU (owner gate) + own XO + own PG-monitored LDO
+  off the arbitrated 5VSB rail + optional TPS3813 backstop; force lines = soft reset first,
+  then the MAIN_5V eFuse EN (hard force-STANDBY); placed at the SoC reset/strap corner.
+- MCX second SoC: mirrored placement across the sync links — PCIe/NTB lane (checkpointed
+  state mirror; NTB support = firmware confirm) + a private 3-node CAN segment (2×
+  TJA1051T/3; SoC-A/SoC-B/watchdog) for heartbeat/arbitration; FULL companion duplication
+  (no shared flash/DDR); voted boundary = tamper-log writes + Appendix-D actuation only,
+  northbound/CAN active-standby (survey 9 §2.3).
+- Common-mode honesty: identical firmware defeats voting for software faults — mitigation
+  = diversity-staged rollout (N / N-1 canary across the pair, survey 9 §5), stated as a
+  mitigation, never a fix; dissimilar-redundancy is NOT claimed. A compromised signing key
+  hitting both members is explicitly out of scope (key-custody item, D-ENT-5).
 
 ## 8. Open plan rows
 
 1. DETECT/rail-sense external ADC (new — PolarFire has no ESP32-style ADC) → detailed BOM.
-2. Watchdog part + arbiter topology → survey 9 / OQ-79.
+2. Watchdog part-class = owner gate (S32K3 rec); arbiter = the watchdog (settled, survey 9).
 3. RS-485 receiver topology (×8 point-to-point baseline) → OQ-5.
 4. DDR fitted vs LIM-only → firmware confirm (affects stackup margin).
 5. Port count 8 (Pro-base) → confirm at program start.

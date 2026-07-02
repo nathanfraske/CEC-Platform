@@ -295,3 +295,17 @@ EPS/PCIe = Pro tier w/ ADS131M08 baseline +\$12-19, DETECT->4.7k; 12VHPWR = exis
 7 cross-family open rows incl. OQ-76 identity + fast-ADC choice + INA240 count). Survey 9 STILL IN
 FLIGHT -> update hub sheet §F + REQ-103/104 on landing. NEXT: survey 9 landing; owner: v1.2.0 apply,
 one-build recommendation, OQ-76/79 calls.
+UPDATE 2026-07-02 (survey 9 landed + applied): research/phase2/survey-9-availability-ladder.md —
+watchdog = small safety-MCU class, S32K3 non-lockstep REC (Zephyr-native; Hercules TMS570LS0432
+$8.24 / AURIX TC222L $9.53 alternatives; TPS3813K33 $1.51 backstop option; part-class = OWNER GATE
+mirroring D-ENT-2); "independent" concretized (own oscillator + own PG-monitored LDO off arbitrated
+5VSB; two-tier escalation: soft reset -> MAIN_5V eFuse EN force-STANDBY); 2oo2+watchdog-arbiter
+VALIDATED (fabric-arbiter rejected: shares die/rails); checkpointed-NOT-lockstep sync (PCIe NTB
+[firmware confirm] + private 3-node CAN w/ 2x TJA1051T/3; NO shared flash/DDR); voted boundary =
+tamper-log writes + Appendix-D actuation ONLY (northbound reconnect-tolerated, CAN session-
+continuous); N/N-1 rollout diversity = common-mode mitigation (not fix); NO SIL/ASIL claims;
+MC adder ~$22-35, MC-Max +$150-195 + unpriced PCB-class step. APPLIED: REQ-103/104/105 refined
+(lint OK), spec sheet §F/G + roll-ups updated, variants plan §7/§8 updated, INDEX verdict 9 added.
+STILL IN FLIGHT: 4 subsystem BOM agents (A compute / B uplink / C module-IF+base / D power) ->
+assemble docs/enterprise-requirements/spec-sheets/hub-ent-bom-detailed.md on landing (+ MC/MCX
+block F/G from survey 9 parts: S32K3xx + TPS3813K33 + 2x TJA1051T/3 + XO + LDO).

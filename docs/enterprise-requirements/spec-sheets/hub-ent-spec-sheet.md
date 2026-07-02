@@ -106,8 +106,9 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 
 | Qty | Part | Function | Unit [est] | Trace |
 |---|---|---|---|---|
-| 1 | **Independent compute watchdog — TBD** (class: windowed supervisor IC vs small safety MCU, Hercules/S32K3-class; survey 9 in flight) | liveness watch, force-STANDBY, log+alarm | $1–15 `[TBD OQ-79]` | REQ-103 |
-| 1 | Watchdog independent clock + supervised rail parts | independence guarantee | $1–3 | REQ-103 |
+| 1 | **Independent compute watchdog — small safety MCU** (survey 9 rec: NXP S32K3-class non-lockstep, Zephyr-native — S32K344 ceiling $12.30; STM32G431 budget option ~$4.2; Hercules TMS570LS0432 $8.24 / AURIX TC222L $9.53 alternatives; part-class = owner gate) | liveness challenge-response, health watch, two-tier force-STANDBY, log+alarm | $4–12.3 `[OQ-79 owner gate]` | REQ-103; survey 9 |
+| 1 | Watchdog independence set: own crystal/XO + own PG-monitored LDO + isolating buffers on force lines | independence guarantee | $2–3 | REQ-103; survey 9 |
+| 1 | TPS3813K33 backstop supervisor (watches the watchdog) — optional | layered defense | $1.51 (+$0.5 support) | survey 9 §1.4 |
 | 1 | 2nd uplink PHY+MagJack+protection set (NET only) | dual uplink | $6–9 | REQ-057 |
 | **Subtotal** | | | **≈ $8–27** | |
 
@@ -115,9 +116,10 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 
 | Qty | Part | Function | Unit [est] | Trace |
 |---|---|---|---|---|
-| 1 | 2nd MPFS095TS + its rails/flash/clocking | voting-pair member | $150–200 `[RFQ]` | REQ-104; survey 1 |
-| — | Voter/arbiter interconnect + glue (fabric-resident voter vs watchdog-arbitrated — OQ-79) | voted outputs, sync link | $2–8 `[TBD]` | REQ-104; OQ-79 |
-| **Subtotal** | | | **≈ $152–208** | |
+| 1 | 2nd MPFS095TS + FULL companion duplication (own flash, own rails, own clocking — no shared boot/working memory between members, by rule) | voting-pair member | $150–190 `[RFQ]` | REQ-104; survey 9 §2.2 |
+| — | Inter-SoC PCIe/NTB sync link (AC caps + routing; NTB support = firmware confirm, fallback raw SERDES P2P) | checkpointed state mirror | $1–3 | survey 9 §2.2 |
+| 2 | TJA1051T/3 (private 3-node arbitration CAN: SoC-A + SoC-B + watchdog; separate from module bus) | heartbeat/arbitration, diverse from PCIe link | $0.40 ea | survey 9 §2.2 |
+| **Subtotal** | | | **≈ $152–195** (+ unpriced PCB-class step-up: 2× BGA + doubled controlled-impedance routing) | |
 
 ### Roll-up (parts only, 100q, working baseline — NOT product pricing)
 
@@ -125,8 +127,8 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 |---|---|
 | ENT-NET-B | ≈ **$180–235** |
 | ENT-AIR-B | ≈ **$172–225** (no uplink) |
-| ENT-NET-MC / ENT-AIR-MC | + $8–27 → ≈ **$188–262** / **$180–252** |
-| ENT-*-MCX (pair fitted) | + $152–208 → ≈ **$340–470** / **$332–460** |
+| ENT-NET-MC / ENT-AIR-MC | + $14–26 (watchdog set + 2nd uplink) → ≈ **$194–261** / **$180–248** |
+| ENT-*-MCX (pair fitted) | + $152–195 → ≈ **$346–456** / **$332–443** (+ PCB-class step-up, unpriced) |
 
 Plus, NOT in the parts rows: **PCB fab + assembly class jump** (6+ layer controlled
 impedance, 0.8 mm BGA reflow/inspection) — order $15–40/unit at 100q `[unv, class
@@ -136,11 +138,11 @@ value pricing, not here.
 
 ## 4. Open rows (TBD register for this sheet)
 
-1. Watchdog part class/MPN — survey 9 / OQ-79 (update §F on landing).
+1. Watchdog part-class OWNER GATE (survey 9 rec: S32K3 non-lockstep; alternatives Hercules/AURIX; exact non-lockstep S32K31x sibling MPN+price = RFQ) — OQ-79.
 2. DDR fitted or LIM-only — firmware-team confirmation (survey 1).
 3. RS-485 receiver topology per port vs shared — OQ-5; sizes §C.
 4. Port count (8 = Pro-base working baseline) — confirm at board program start.
-5. Voter/arbiter realization (fabric vs watchdog-arbitrated) — OQ-79.
+5. Voter/arbiter = the watchdog (survey 9: fabric-resident arbiter rejected — shares the SoC die/rails, not independent); MSS PCIe NTB-mode support = firmware confirm.
 6. Supercap escalation for hold-up — gated on the OQ-56 bench measurement.
 7. RJ-11 isolation/surge sizing (stronger-than-internal-grade question) — survey 3 flag.
 8. All `[RFQ]`/`[unv]` prices — formal distributor RFQ pass before D-ENT-3 lock.
