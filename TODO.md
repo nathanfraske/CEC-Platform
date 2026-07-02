@@ -131,3 +131,4 @@ Times are UTC.
 - [x] [added 2026-07-02 16:17 · done 2026-07-02 16:17] CEC-KVM assessment (plan §3a.6) + spec revision v1.2.0 draft (10 surgical edits, 2 owner decision boxes) — owner asks 2026-07-02
 - [x] [added 2026-07-02 16:25 · done 2026-07-02 16:25] Second owner ruling: fold MC into ENT as SKU ladder (watchdog / fail-functional voting pair) — plan §1a.6, REQ 103-105, spec draft §13.8 + OQ-79, gates flipped; survey 9 launched
 - [x] [added 2026-07-02 16:28] ENT hub full spec sheet + engineering BOM (6 SKUs) + module spec/BOM-delta drafts — owner ask 2026-07-02 · done 2026-07-02 16:31 → docs/enterprise-requirements/spec-sheets/ (hub 6-SKU sheet + engineering BOM; module deltas x4 families)
+- [ ] [added 2026-07-02 16:33] ENT hub variants plan + COMPLETE detailed BOM (passives, real MPNs, datasheets) — 4 subsystem agents now, watchdog subsystem after survey 9, then assembly
