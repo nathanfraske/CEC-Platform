@@ -221,3 +221,16 @@ radio-free posture, owner call]; (3) USB/PCIe device inventory/attestation (SPDM
 (5) environmental/standby sensing = commodity, fold into (1). BOTH research tracks now done +
 committed. NEXT: Phase-1 drafting — REQUIREMENTS-FORMAT.md + hub register + per-family module
 registers + conformance matrix, seeded from the two research reports.
+UPDATE 2026-07-02 (Phase 1 DONE): enterprise requirements registers drafted ->
+docs/enterprise-requirements/: REQUIREMENTS-FORMAT.md (REQ-<UNIT>-<AIR|NET|COMMON>-NNN schema,
+5-column rows, DRAFT->PROPOSED->RATIFIED per section); hub-enterprise-requirements.md (11 sections,
+47 REQs: PolarFire identity/attestation, CRA firmware floor, northbound Redfish/SNMPv3/OpenMetrics/
+syslog, uplink PHY reversal to standard 1000BASE-T [Phase-4 spec edit], locked-interface carry-ins,
+fail-detected redundancy [D-ENT-6], §2.9 graduation, rollback-resistant tamper log, FMEA, lifecycle);
+module-requirements-common.md (17 REQs incl. 1-Wire identity D-ENT-5, ENT-AIR radio posture,
+fail-passive interposer FMEA, screening-tier fingerprinting) + 4 family delta files (24pin/eps/pcie/
+12vhpwr) + module-conformance-matrix.md (legacy SKUs vs enterprise Hub, 3 standing risks).
+scripts/cec_req_lint.py (ID/SHALL/verify-vocab/spec-§-resolution; only 'spec §'/'[LOCKED §' segments
+resolve) wired into checklist.sh — full checklist EXIT 0. 86 REQs total, all DRAFT pending owner
+Phase-3 review. NEXT: Phase-2 research items 1-8 (PolarFire sizing, uplink, RJ-11, redundant power,
+RTOS stack, compliance regime, radio-free MCU survey) or owner review of the registers.
