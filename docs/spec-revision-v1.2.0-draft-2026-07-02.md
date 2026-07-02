@@ -299,9 +299,15 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > pair, voted-output boundary (which outputs are voted: northbound? actuation? logs?),
 > bumpless-takeover semantics, and the self-test procedure. Survey 9 (in flight) grounds
 > the options.
-> **OQ-78: Tamper/physical-security module family.** Adopt/decline the plan §3a candidates
-> (chassis-intrusion + rollback-resistant tamper-log module; ATR whole-chassis RF sensing —
-> note the ATR-vs-ENT-AIR emission tension, an intentional emitter in a radio-free build;
+> **OQ-78: Tamper/physical-security module family.** ATR DIRECTION RULED (owner, 2026-07-02
+> 9th): **passive receive-only RF monitoring** is the adopted candidate (NET-only — a
+> receiver is an unintentional radiator, no Part-15C cert; catches implants at the moment
+> they transmit; receive-only silicon is still RF silicon, so even passive is NET-only);
+> the ACTIVE emitter (dormant-implant detection via in-chassis sounding) is **DEFERRED to
+> customer-funded NRE** — the intentional-radiator cert bar is not speculatively cleared.
+> Remaining adopt/decline for the rest of the family: the plan §3a candidates
+> (chassis-intrusion + rollback-resistant tamper-log module; ATR emission tension now
+> resolved by the passive/deferred split;
 > device inventory/attestation; power-fingerprint screening tier; environmental sensing
 > folded into the intrusion module). The RJ-11 loop input (§13.3) is the Hub-side
 > attachment point for the intrusion module's external half.

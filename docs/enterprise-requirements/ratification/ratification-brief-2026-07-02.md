@@ -13,17 +13,17 @@ open a brief only when you want the full trade-off writeup._
 
 | Item | Owner answer | Status |
 |---|---|---|
-| N1 RS-485-compat drop | Asked back: "any world where a consumer Pro module's RS-485 on ENT allows anything?" | ANSWERED (see the reply of record / owner-queue) — confirm pending |
-| N2 SBOM format | Asked for the options in detail | ANSWERED — pick pending |
+| N1 RS-485-compat drop | Asked back, then **"Adopt these recs" (9th ruling)** | **CONFIRMED** — REQ-043 tag cleared; v1.2.0 application UNBLOCKED |
+| N2 SBOM format | Asked for detail, then **"Adopt these recs" (9th)** | **RESOLVED** — SPDX native (`west spdx`) primary + CycloneDX derived-on-demand (REQ-014) |
 | N3 D-ENT-3 RFQ | **"Ratify now"** — send WHEN the customer signs off on the design; **stand up a PROTOTYPE for customer review now** | RATIFIED, send on hold; prototype plan → `../prototype-demo-plan-2026-07-02.md` |
 | N4 OQ-75 CEC-KVM kickoff | **"Yes, kickoff now"** | KICKED OFF (recs list awaits its own 5-item sign-off) |
 | N5 Phase-5 gate posture | **"I approve"** | STRICT GATE ratified |
 | R1 REQ-HUB-NET-111 PD-on-uplink | **"Decline"** | DECLINED — tombstoned in the register |
-| R2 Apply v1.2.0 | **"I sign off"** | APPROVED — application STAGED behind the N1 confirm (sequencing rule b-before-a) |
+| R2 Apply v1.2.0 | **"I sign off"** | APPROVED — N1 confirmed by the 9th ruling → **APPLICATION IN PROGRESS** (spec edits on this branch; CODEOWNERS enforcement rides the branch's PR to main) |
 | R3 OQ-11 shunts | **"Bourns is the default, pick whichever makes more sense — you have my approval"** | DELEGATED — engineering selection pass running; closure sheet lands at `oq-11-shunt-selection-2026-07-02.md` |
 | R4 Provenance role | **"Evidence source only"** | RULED — recorded in REQ-HUB-COMMON-007 |
 | R5 Mezzanine OQ-77 | **"Yes, adopt"** (also being adopted consumer-side); stacked-product SKU **ENT-AIR only for now**, broader scope flagged | ADOPTED — REQ-24PIN-COMMON-020 updated; scope-extension flag on owner-queue |
-| R6 ATR OQ-78 | Asked back: "does radio buy us anything vs the intentional-transmitter certs bar?" | ANSWERED — revised rec (passive-receive only / defer active emitter) — pick pending |
+| R6 ATR OQ-78 | Asked back, then **"Adopt these recs" (9th)** | **RULED** — passive receive-only adopted (NET-only, no 15C cert); ACTIVE emitter DEFERRED to customer-funded NRE (draft OQ-78 updated) |
 | R7 Signing-key custody | **"I agree with your recs"** | DIRECTION RATIFIED (offline M-of-N; procedure doc drafts next, final sign-off on the doc) |
 
 ## The minimal set that unblocks boards
