@@ -211,3 +211,13 @@ ENT-NET (variant-conditional); "redundancy" must be fail-DETECTED/observable; BO
 vs $1.5-3k comparables; target-fleet statement needed (BMC-less ATX wedge vs CRPS servers). Tamper
 module deep-research resumed on sonnet/opus, STILL RUNNING (wf_1a63a627-2ab) — on completion write
 report + fold ranked module concepts into the plan.
+UPDATE 2026-07-02 (later): tamper module research COMPLETE (106/106 agents) ->
+docs/enterprise-requirements/research/tamper-module-roadmap-2026-07-02.md (7 verified findings,
+7 refuted). Five candidate modules folded into plan §3a (owner adopt/decline at Phase 3):
+(1) chassis-intrusion + rollback-resistant standby tamper-log module [table stakes];
+(2) UWB anti-tamper-radio whole-chassis sensing [differentiator — TENSION: RF emitter vs ENT-AIR
+radio-free posture, owner call]; (3) USB/PCIe device inventory/attestation (SPDM/TCG);
+(4) power-signature fingerprinting as screening tier (PoC-grade, dormant-implant blind spot);
+(5) environmental/standby sensing = commodity, fold into (1). BOTH research tracks now done +
+committed. NEXT: Phase-1 drafting — REQUIREMENTS-FORMAT.md + hub register + per-family module
+registers + conformance matrix, seeded from the two research reports.

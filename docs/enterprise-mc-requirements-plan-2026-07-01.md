@@ -124,7 +124,48 @@ The tier-agnostic module principle is LOCKED. So the requirements set is structu
 
 If the owner instead wants literal Enterprise-variant module SKUs (new boards), that is a
 spec change to the LOCKED tier-agnostic principle and must be ratified first — flagged as
-decision **D4** below, default NO.
+decision **D4** below, default NO. _(Superseded by §1a: the owner said YES to enterprise
+modules — requirements now, boards after ratification.)_
+
+## 3a. Candidate NEW module concepts (tamper research, 2026-07-02)
+
+From `docs/enterprise-requirements/research/tamper-module-roadmap-2026-07-02.md` (deep-research,
+3-vote adversarially verified; persona = ~300-workstation fleet with an explicit
+tamper-protection mandate). These are CANDIDATES feeding the Phase-1 module registers —
+each is an owner adopt/decline at Phase 3, none is adopted here:
+
+1. **Chassis-intrusion + tamper-log module (table stakes).** Case-open sensing that beats
+   the defeatable OEM baseline (single motherboard micro-switch, BIOS-clearable, coin-cell
+   reset wipes the latch). CEC's edge: a standby/battery-backed, **rollback-resistant**
+   tamper log (monotonic counter / ephemeral secret in NVM) that survives power-off and
+   unplugging, persisted at the Hub (16 MB flash + the §2.9 multi-source power paths are
+   already the right substrate) and SIEM-forwardable on ENT-NET. Confidence: high.
+2. **Whole-chassis anti-tamper-radio (ATR) sensing module (differentiator).** A few COTS
+   UWB antennas (<$5) inside the metal case detect needle-scale implant insertion (IEEE
+   S&P 2022, validated in a running server over 10 days); fills the gap between weak
+   switches and HSM-grade mesh, retrofittable. **TENSION FLAG: ATR is an intentional RF
+   emitter — it may collide with the ENT-AIR radio-free posture question (§1a.5 / D-ENT-5).
+   The same buyer who bans radios may also most want ATR; owner call required.**
+   Confidence: high (technique), open (product fit per variant).
+3. **Device inventory / attestation module (USB + PCIe, table-stakes→differentiator).**
+   Rogue-peripheral and evil-maid coverage: device census + SPDM-style cryptographic
+   authentication/allowlisting (feasibility demonstrated pre-OS in UEFI; NIST SP 1800-34 /
+   TCG Platform Certificate frame component-inventory attestation as a continuous field
+   requirement). CEC complements certificate-based attestation with an out-of-band vantage
+   rather than replacing it. Confidence: high (need), medium (CEC's role vs host-side).
+4. **Power-signature fingerprinting as a SCREENING tier (differentiator, PoC-grade).**
+   Side-channel component-swap/implant screening on the rails CEC already measures —
+   position as a non-destructive intermediate screen, never a guarantee (verified blind
+   spot: dormant implants that don't execute during the profiled workload are invisible).
+   Largely firmware/analytics on existing sensing hardware. Confidence: medium.
+5. **Environmental/standby sensing (light, accelerometer/vibration, temperature) —
+   commodity table stakes.** Decades-old prior art (Intel optical case-open patent, 1996);
+   do NOT position as novel — fold the sensors into module/hub boards (concept 1
+   especially) rather than a standalone SKU. Confidence: high.
+
+Standards hooks for the register traceability column: NIST 800-53 PE/SI controls,
+NIST SP 1800-34 (supply-chain/component integrity), TCG Platform Certificates, DMTF SPDM,
+FIPS 140-3 physical-security levels (as analogy/tiering language).
 
 ## 4. Owner decision gates (D1–D5)
 
