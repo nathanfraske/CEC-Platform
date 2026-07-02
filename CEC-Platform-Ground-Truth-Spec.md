@@ -5,13 +5,13 @@
 | Field | Value |
 |---|---|
 | Document | CEC Platform Ground-Truth Specification |
-| Version | 1.1.0 |
+| Version | 1.2.0 |
 | Status | Controlled baseline |
-| Date | 2026-06-09 |
+| Date | 2026-07-02 |
 | Companion files | cec-subsystem-power-management.svg (Section 2.9); cec_closed_loop_support_pipeline.svg (Appendix D) |
 | Source of record | GitHub spec repository (canonical); record the source commit hash on every exported copy (process rule, 1.0.1) |
 
-This document is the single source of truth for the CEC platform and takes precedence over every earlier document. Where an earlier document conflicts, this document governs. Every decision carries a status marker (LOCKED, PROPOSED, RESOLVED, or working basis), and every open item is tracked as a numbered open question (OQ-1 through OQ-74) in Section 10.
+This document is the single source of truth for the CEC platform and takes precedence over every earlier document. Where an earlier document conflicts, this document governs. Every decision carries a status marker (LOCKED, PROPOSED, RESOLVED, or working basis), and every open item is tracked as a numbered open question (OQ-1 through OQ-81) in Section 10.
 
 ### Versioning
 
@@ -112,6 +112,17 @@ The specification leads the as-built boards on the items below. Each is to be ca
   - D.8 Economics model
   - D.9 Worked example
   - D.10 Definitions
+- 13 The enterprise line (ENT-NET / ENT-AIR)
+  - 13.1 Compute and identity
+  - 13.2 Host links and northbound surface
+  - 13.2a Module link
+  - 13.3 The RJ-11 security-I/O port
+  - 13.4 Power
+  - 13.5 Redundancy — fail-detected, stated honestly
+  - 13.6 Enterprise module build variants
+  - 13.7 The NanoKVM boundary and the CEC-KVM direction
+  - 13.8 Availability ladder (MC / MC-Max SKUs)
+  - 13.9 Compliance posture
 - 11 Revision history
   - 11.1 Pre-release working log
 - 12 Index
@@ -120,16 +131,24 @@ The specification leads the as-built boards on the items below. Each is to be ca
 
 ## 1. Platform overview
 
-The CEC platform is a modular PC power-telemetry system. Per-rail sensing modules connect to a central Hub over a single commodity cable. The Hub aggregates telemetry and forwards it to the host PC over USB. Four tiers are built from one fundamental design with progressively populated features:
+The CEC platform is a modular PC power-telemetry system. Per-rail sensing modules connect to a central Hub over a single commodity cable. The Hub aggregates telemetry and forwards it to the host PC over USB. Three tiers, the third SKU-differentiated, are built from one fundamental design with progressively populated features:
 
 | Tier | Role | Hub MCU | Host link | Distinguishing hardware |
 |---|---|---|---|---|
 | Standard | Mainstream builders | ESP32-S3 | USB Full Speed | CAN only, 4 ports |
 | Pro | Overclockers, bench users | ESP32-P4 | USB High Speed | plus RS-485 streaming, 8 ports |
-| Enterprise | Regulated / financial | ESP32-P4 | USB HS (plus optional 1000BASE-T1) | plus RJ-11 trust channel, secure element |
-| Mission Critical | Defense, broadcast, render | ESP32-P4 plus crypto | Redundant uplinks | Redundant power, CAN, trust |
+| Enterprise (ENT) — one line, SKU-differentiated | Regulated / financial / defense-adjacent / tamper-mandated fleets | PolarFire SoC (baseline MPFS095TC Core; HS option = S-grade Athena, 7th ruling) | Per posture SKU: ENT-NET = standard IEEE 802.3 1000BASE-T uplink (primary management plane) + USB (sensing/provisioning); ENT-AIR = local operator paths only, **zero network egress by design** | Hardened no-Linux RTOS control plane, PUF-rooted identity + secure boot, RJ-11 security-I/O port, rollback-resistant tamper log. **Two orthogonal SKU axes** — posture: ENT-NET (northbound Redfish-subset/OpenMetrics/syslog-TLS) / ENT-AIR (no network PHY populated, inspection-verifiable; radio-free module builds); availability ladder: **base** (fail-detected) → **MC** (+ independent compute watchdog + redundancy pack) → **MC-Max** (+ optional FAIL-FUNCTIONAL voting-pair compute) |
 
-Modules are tier-agnostic: any module works in any Hub and degrades gracefully (see Section 8).
+_D-ENT-6 RESOLVED (owner, 2026-07-02 second ruling): the legacy tier-3/tier-4 rows fold
+into ONE enterprise line; "Mission Critical" survives as the MC / MC-Max availability
+SKUs, orderable in either posture. See Section 13 for the full architecture._
+
+Module **interfaces** are tier-agnostic and this is unchanged and LOCKED: any module works
+in any Hub over the universal RJ-45/CAN/DETECT interface and degrades gracefully (Section
+8). v1.2.0 adds enterprise **build variants** of the module families (Section 13.6):
+same family, same interface, same graceful degrade — different build posture (radio-free
+MCU, per-unit identity, provenance-grade BOM). A build variant never changes what the
+Hub-facing interface promises.
 
 Standard-tier module MCUs (REVISED v3.9): the three digital-sensor Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin) run the **ESP32-C6-MINI-1**, on a board footprint that is also **ESP32-C3-MINI-1** compatible so the lighter 24-pin and EPS boards can be cost-reduced to the C3 once their NTC count is fixed (Section 6.1). The **12VHPWR Standard** module keeps the **ESP32-S3-MINI-1**, earned by its nine analog inputs and the option of N4R2 PSRAM for fast logging (Section 6.1), and the **Hub Standard** keeps the **ESP32-S3-WROOM-1-N16R8** (Section 4), deliberately retained for its native-USB host link and the benefit of one standard Hub part. This supersedes the v1.5 lock that ran all Standard modules on the S3-MINI-1; the rationale and per-module fit are in Section 6.1. The 12VHPWR Pro module runs the ESP32-P4 (Section 6.9), as does the proposed 12VHPWR Max (Section 6.11, P4 with PSRAM).
 
@@ -204,6 +223,29 @@ Rationale: the RJ-45 here is an internal module-to-Hub interconnect inside the P
 One carve-out is decided on its own, separate from the PoE clamp: the DETECT pin (pin 8) feeds the ESP32 ADC directly and has no inherent protection, and the platform hot-plugs modules, so insertion ESD lands on a bare analog input. A single low-capacitance ESD diode on pin 8 is locked into every Hub and module (decision, v2.0). It is cheap, does not touch the 5VSB headroom question, and stands even though the PoE-grade network is dropped. The CAN pins lean on the transceiver; the analog DETECT pin is the one exposed node with nothing behind it.
 
 Enterprise and Mission Critical (deferred to OQ-7): the module-to-Hub RJ-45s on those tiers are equally internal and inherit the consumer answer. What can face building infrastructure where PoE sources live is an external uplink, currently specced as the optional 1000BASE-T1 host link, which is a different connector with its own magnetics and protection story. So the over-voltage question for those tiers attaches to the uplink port, not the module interface, and is decided when Enterprise and Mission Critical are specified in full (OQ-7).
+
+**Enterprise uplink protection (v1.2.0, closes the OQ-14 enterprise half).** The
+protection lands on the ENT-NET 1000BASE-T uplink, not the module RJ-45s (which inherit
+the consumer answer unchanged): magnetics galvanic isolation ≥2× the IEEE 802.3 1500 Vrms
+floor as the primary defense (survives compliant PSEs by absent-PD-signature and passive
+PoE injection by construction; Bob-Smith blocking caps rated ≥200 V), a low-capacitance
+TVS array on the PHY side of the magnetics (IEC 61000-4-2 ±8 kV contact class), and a
+3-electrode GDT on the shield-to-chassis path sized to IEC 61000-4-5 Level 2 —
+office/rack grade by declared target fleet, NOT building-entrance grade (outdoor-plant
+deployments use an external in-line SPD accessory, documented, never a board respin).
+The uplink jack is visually distinct from module ports (bezel color plus silkscreen plus
+board-edge grouping); module ports stay locking-boot per Section 2.1.
+
+**Module-port mis-plug fail-safe (ENT re-scope of this section, 4th ruling
+2026-07-02).** The consumer ratification (no PoE-grade protection on module ports —
+internal interface, deliberate misuse) STANDS for Standard/Pro. On the ENT line the
+presence of a real 802.3 jack on the same faceplate reclassifies the mis-plug as
+FORESEEABLE misuse: every ENT hub module port and every ENT module jack SHALL survive a
+live network cable and worst-case 57 V PoE (both modes, both polarities, passive
+injectors included) with no hardware damage, self-recovering, detected plus alarmed plus
+logged (REQ-HUB-COMMON-110 / REQ-MOD-COMMON-053; protection network per survey 11). The
+consumer boards are unchanged; this is an ENT build delta, not a platform
+re-ratification.
 
 ### 2.5 Connector current rating and power budget (corrected; bulk power resolved v1.3)
 
@@ -334,6 +376,12 @@ on power_loss_detected():                    # main 5V AND 5VSB both sagging
 
 Open items: the source-OR part and back-feed isolation verification are OQ-55, the module-rail scope is OQ-53, the external power-in is OQ-54, and the persist-on-fault behavior and hold-up sizing are OQ-56.
 
+**Enterprise graduation (v1.2.0).** On the enterprise line this section is binding, not
+PROPOSED: MAIN_5V is the primary source (PolarFire-class load exceeds the 5VSB budget —
+the FULL/STANDBY posture split of Section 13.4), each raw source carries an eFuse-class
+monitor/protect front-end (per-source PG/FLT, commanded self-test, reverse blocking), and
+the rear-bracket external feed is mandatory. Consumer/Pro hubs are unchanged.
+
 ---
 
 ## 3. Communication architecture
@@ -351,6 +399,11 @@ Open items: the source-OR part and back-feed isolation verification are OQ-55, t
 - 1 Mbps negotiation is firmware, with no hardware and no namespace: Hub-led auto-baud with error-counter fallback. The Hub brings the bus up at the configured rate, modules come up listen-only and lock to it, and if the TWAI error counters climb on a marginal install the Hub drops the whole bus back to 500 kbps. A DETECT-code advertisement of per-module bitrate capability was considered and DECLINED: it would cost a module-side resistor change and grow the locked Section 2.3 DETECT table, and it buys nothing, since every CEC module is already 1 Mbps-capable and the real variable is per-install cable and stub signal integrity, which DETECT cannot sense.
 - Bench item: the star topology with up to 8 stubs must be signal-integrity verified, the risk is star termination plus stub length. Run it at 500 kbps and at 1 Mbps side by side, eye and ringing measured at the furthest module on the longest cable SKU and worst stub count, now with the plain TJA1051T/3 (no SIC ringing suppression), so this passive-topology result is the sole gate on the optional 1 Mbps rate above.
 - Design-review note (v3.8): the single-point 120 ohm termination was challenged as undersized and re-evaluated at realistic intra-case lengths (0.3 to 1 m). With roughly 300 to 350 pF of bus capacitance the recessive recovery is about 40 ns against the 2 us bit at 500k (about 1 us at 1 Mbps), and the bus is electrically short (a few meters against a roughly 400 m bit length at 500k), so it behaves as a lumped circuit where single-point termination is adequate and a 1 m stub's reflections settle in about 10 ns. The conclusion holds at 500k and at 1 Mbps; the bench item above stays the gate on the optional 1 Mbps rate. No change to the termination.
+
+**Enterprise redundancy honesty (v1.2.0).** See Section 13.5: "redundant CAN" at any tier
+means Hub-side fail-detected monitoring of the one shared bus, never a second CAN medium
+— the locked single-pair module link forecloses dual-bus, and this document does not
+imply otherwise.
 
 ### 3.2 RS-485: data streaming only (LOCKED; topology pending)
 
@@ -811,7 +864,7 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-6: DETECT encoding (RESOLVED, v1.7).** The pin-8 resistor encodes comm-class only (presence plus which link the Hub brings up on the port), pulled up through 10k to the Hub's 3.3V rail. Module category, type, tier, and unique serial move to CAN enumeration. Code table in Section 2.3: CAN-only (2.2k), CAN+RS-485 (4.7k), CAN+100BASE-T1 (10k), two reserved link codes, plus open (no module) and short (fault). The table is fixed-size and does not grow with module count.
 
-**OQ-7: Document scope.** Should this document fully specify Enterprise and Mission Critical now, or keep them at platform-summary level until their first customer requirements land? The compute and OS direction for these tiers (the control-plane and data-plane split, an RTOS or FPGA-SoC, and the case for no Linux) is explored in Appendix B. Current leaning: an MCU or RTOS control plane plus an FPGA or TSN-switch data plane with no Linux, PolarFire SoC as the consolidated candidate (Appendix B.5).
+**OQ-7: Document scope (RESOLVED, v1.2.0).** Resolved by owner direction 2026-07-01/02: the enterprise line is specified now as the ENT-NET/ENT-AIR variants on PolarFire (Section 13); requirements of record in `docs/enterprise-requirements/`.
 
 **OQ-8: 12VHPWR Standard rail accuracy (RESOLVED, v3.10, revises the canonical line's v3.7 no-reference call).** The Standard adds a **REF3030** (3.000 V series reference) measured by the ESP32-S3 ADC1 for **ratiometric correction**: firmware ratios every reading against it, cancelling the ESP ADC's gain/reference drift and lifting the rail divider AND all six INA240 current channels from ~+/- 1% to ~+/- 0.3 to 0.5% (INL-limited), with 0.1% divider resistors. This is the deliberate **middle ground** between the bare-divider Standard and the Pro's precision instrument (LTC2358-18 + REF3033): it is the reference, not a separate ADC or a sensing bus, so the Standard stays the fast ESP firehose, just accurate and stable (the stability is what makes a long-term connector-degradation / dV-dI source-impedance trend real rather than ADC drift). The part differs from the Pro's by design: Standard uses **REF3030 (3.0 V)** because the ESP ADC *measures* it (it must sit inside the 3.3 V ADC range), whereas the Pro's **REF3033 (3.3 V)** feeds the LTC2358's reference input. Implemented on the 12vhpwr-standard schematic (U4 + bypass to ADC1 IO8, a sideband tap moved IO8->IO15 to free the channel, R5/R6 0.1%, ERC clean). Precision-grade simultaneous capture stays the Pro's domain.
 
@@ -825,7 +878,7 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-13: Energy reporting scope.** The 24-pin INA228 provides hardware energy and charge on all four rails, including complete 5VSB standby energy, at no added cost. Decide whether energy reporting is scoped to that 24-pin standby and platform figure, or extended to total system energy, which needs energy on the load rails via firmware integration of the INA238 power reading on EPS and PCIe (and the LTC2358 path on 12VHPWR), summed at the host. The 24-pin energy is a partial figure and must not be presented as total. See the energy discussion behind Section 6.1.
 
-**OQ-14: PoE / over-voltage protection scope (consumer RESOLVED v1.9; Enterprise/MC deferred to OQ-7).** Consumer (Standard and Pro): resolved. No per-pin PoE-grade over-voltage protection on the RJ-45 module interface, ratifying the board state, since that interface is internal and the 57V case is deliberate misuse rather than an accident (Section 2.4). A low-capacitance ESD diode on the DETECT pin (pin 8 into the ESP32 ADC) is locked separately for hot-plug (v2.0), distinct from the dropped PoE clamp. Enterprise and Mission Critical: the module RJ-45s inherit the consumer answer; the over-voltage question moves to whatever external uplink those tiers expose (today the optional 1000BASE-T1 host link, a separate connector) and is decided with the Enterprise/MC spec under OQ-7. This closes the divergence against the PCB repo (which had dropped the protection on Standard and Pro) and subsumes the repo's separate OQ-8 numbering.
+**OQ-14: PoE / over-voltage protection scope (consumer RESOLVED v1.9; enterprise RESOLVED v1.2.0).** Consumer (Standard and Pro): resolved. No per-pin PoE-grade over-voltage protection on the RJ-45 module interface, ratifying the board state, since that interface is internal and the 57V case is deliberate misuse rather than an accident (Section 2.4). A low-capacitance ESD diode on the DETECT pin (pin 8 into the ESP32 ADC) is locked separately for hot-plug (v2.0), distinct from the dropped PoE clamp. Enterprise and Mission Critical: resolved per Section 2.4's v1.2.0 protection topology on the ENT-NET 1000BASE-T uplink (magnetics isolation, PHY-side TVS, shield GDT) plus the module-port mis-plug fail-safe re-scope (Section 13); the module RJ-45s otherwise inherit the consumer answer. This closes the divergence against the PCB repo (which had dropped the protection on Standard and Pro) and subsumes the repo's separate OQ-8 numbering.
 
 **OQ-15: Max positioning.** Is the Max a new platform tier or a 12VHPWR module variant, and does it define its own Hub-tier requirements? Confirm the indicative BOM and the $499 to $599 retail target. See Section 6.11. The FPGA-versus-MCU question and the capture-FPGA shortlist are explored in Appendix B. Current leaning: MCU plus FPGA if the Max commits to full-fidelity per-pin capture, MCU-only ESP32-P4 otherwise, gated on OQ-20 (Appendix B.5). Design-review note (v3.8): an SRAM FPGA (ECP5) draws hundreds of mW to about 1 W continuously with the DSP running, which fights the capped 5VSB budget and the always-on principle, so power-gate the FPGA on 12V-present (no arc or transient to detect with the GPU off) or prefer the flash-based PolarFire (instant-on, low static power). See Section 6.11 and Appendix B.
 
@@ -903,13 +956,13 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 
 **OQ-52: NanoKVM link trust boundary and egress arbitration.** Lock the untrusted-input handling (hardened bounded parser, an inbound allow-list of telemetry and rate-limited benign freeze requests, no privileged Hub control reachable from the link), and define how the via-Hub egress path dedups against the NanoKVM's own network path at the service so events are not double-counted. Consistent with the NanoKVM hardening in OQ-50. See Appendix C.7.
 
-**OQ-53: Module-rail scope for the subsystem power feed.** Decide whether the module fleet rides the Section 2.9 shared 5V rail (whole-platform dual-feed, which frees on-board LED brightness on a maxed build by moving the operating draw to main 5V in S0) or stays on 5VSB-only with the discretionary loads (the ARGB strips, the NanoKVM, and capped on-board LEDs) offloaded individually. The lighter per-load path keeps the always-on monitoring core single-source and out of any source transition. The number that decides it is the S0 draw on a maxed build with the LEDs where you want them, against the main-5V headroom and the OQ-2 cap. See Section 2.9.
+**OQ-53: Module-rail scope for the subsystem power feed (RESOLVED for the enterprise tier, v1.2.0, Section 13.4; consumer/Pro unchanged/deferred).** Decide whether the module fleet rides the Section 2.9 shared 5V rail (whole-platform dual-feed, which frees on-board LED brightness on a maxed build by moving the operating draw to main 5V in S0) or stays on 5VSB-only with the discretionary loads (the ARGB strips, the NanoKVM, and capped on-board LEDs) offloaded individually. The lighter per-load path keeps the always-on monitoring core single-source and out of any source transition. The number that decides it is the S0 draw on a maxed build with the LEDs where you want them, against the main-5V headroom and the OQ-2 cap. See Section 2.9.
 
-**OQ-54: External forensic power-in.** Confirm whether the NanoKVM's USB-C is externally accessible on the PCIe card in a closed case and accepts 5V in, since the card carries more than one USB-C and some are internal. If it is, the wall-wart path costs no CEC hardware; if not, or to cover builds with no NanoKVM, specify a CEC power-in port on a rear bracket that feeds the shared rail through the same OR and revives a Hub-only build for extraction. See Section 2.9.
+**OQ-54: External forensic power-in (RESOLVED for the enterprise tier, v1.2.0: mandatory rear-bracket feed, Section 13.4; consumer/Pro unchanged/deferred).** Confirm whether the NanoKVM's USB-C is externally accessible on the PCIe card in a closed case and accepts 5V in, since the card carries more than one USB-C and some are internal. If it is, the wall-wart path costs no CEC hardware; if not, or to cover builds with no NanoKVM, specify a CEC power-in port on a rear bracket that feeds the shared rail through the same OR and revives a Hub-only build for extraction. See Section 2.9.
 
-**OQ-55: Source-OR part and back-feed isolation.** Lock the priority ideal-diode OR or priority mux (for example a TPS2116 or an LTC4412-class PowerPath, sized for the full subsystem current and low enough in drop) and verify the back-feed isolation on every source: that the Hub's 5VSB front-end Schottky is a series element in line (Section 2.7), that the NanoKVM's slot input is isolated, and that the wall-wart can never energize a dead PSU or motherboard. See Section 2.9.
+**OQ-55: Source-OR part and back-feed isolation (RESOLVED for the enterprise tier, v1.2.0: eFuse-fronted priority cascade, Section 13.4; consumer/Pro unchanged/deferred).** Lock the priority ideal-diode OR or priority mux (for example a TPS2116 or an LTC4412-class PowerPath, sized for the full subsystem current and low enough in drop) and verify the back-feed isolation on every source: that the Hub's 5VSB front-end Schottky is a series element in line (Section 2.7), that the NanoKVM's slot input is isolated, and that the wall-wart can never energize a dead PSU or motherboard. See Section 2.9.
 
-**OQ-56: Persist-on-fault and hold-up sizing.** Define the Hub's persist-on-fault behavior (which critical events and frozen windows are written to the 16 MB flash as they occur, and the final flush on total power loss) and size the hold-up cap to cover both the source changeover and at least one flash write, so forensic recovery returns the data that mattered. See Section 2.9.
+**OQ-56: Persist-on-fault and hold-up sizing (RESOLVED for the enterprise tier, v1.2.0, Section 13.4: page-program-only persist-on-fault firmware commitment plus a modest hold-up upsize, with supercap escalation gated on this bench item; consumer/Pro unchanged/deferred).** Define the Hub's persist-on-fault behavior (which critical events and frozen windows are written to the 16 MB flash as they occur, and the final flush on total power loss) and size the hold-up cap to cover both the source changeover and at least one flash write, so forensic recovery returns the data that mattered. See Section 2.9.
 
 **OQ-57: EPS/PCIe transient-detection front-end.** Lock the threshold default and the settable-reference mechanism (shared PWM plus RC versus a small DAC), the comparator part and hysteresis, and the latch approach (firmware GPIO latch versus a hardware one-shot). Bench-validate detection against real GPU and CPU transients and confirm clean separation from noise with a minimum-width qualification so a lone noise spike does not register. Confirm the comparator-as-FREEZE-trigger path. See Section 6.13.
 
@@ -918,6 +971,10 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 **OQ-59: EPS Max / PCIe Max.** Lock the scope (per-cable spectral and HF, no per-pin arc), the BOM, and whether they share the 12VHPWR Max FPGA data plane. See Section 6.13.
 
 **OQ-60: Max power-entry and Hub coupling (PROPOSED direction; open calls).** The Max needs a local power feed and ideally a fast trigger sideband that the shared 5VSB over the RJ-45 VCC pin does not give (Section 6.11). The proposed direction repurposes the per-port companion connector planned for the Enterprise out-of-band trust channel, an RJ-11 6P6C alongside each RJ-45 that cannot mismate an RJ-45 jack, as a per-port carrier for the Max's power and a bidirectional open-drain FREEZE trigger. Settled in the proposal: the connector is per-port; the Hub energizes it only when that port's RJ-45 DETECT reports a Max, so there is no powered empty jack; the trust and attestation role moves off it onto the second CAN-FD on the RJ-45 and the on-board secure element, dropping only its external-dongle and physical-override role; and the bidirectional trigger lets a Max assert FREEZE and the other companion-connected modules freeze in nanoseconds, supplementing the CAN FREEZE (Section 6.10) that still catches the slow modules through their pre-roll. Adopting the trigger here frees pin 7 for the DETECT Kelvin return platform-wide, resolving the pin-7 contention of Section 2.3 and OQ-4. Open calls: (a) market coupling, since the Max also targets enthusiasts and overclockers on Pro Hubs, so binding the companion connector to Enterprise strands them, which forces a choice between putting the connector on Pro Hubs too and having the Max self-tap a SATA lead so it stays Hub-independent with the connector carrying only the trigger; (b) what "power" means, where a 5V feed off the shared rail (on the PSU main 5V during S0 when the Max captures, Section 2.9) into the Max's local LDOs is the low-noise, no-extra-switcher recommendation, against a higher-voltage feed that adds a buck or a true USB-PD path that is off-spec over this connector and adds controllers; and (c) keying and labeling a powered telco-shaped jack against the foot-gun. See Sections 6.11, 6.10, and 2.3.
+
+(v1.2.0) The RJ-11 name and the one-per-Hub security-I/O function are resolved to Section
+13.3; the Max per-port sideband connector, if adopted, is a DISTINCT connector and
+renames — the open calls (a)–(c) above stand.
 
 **OQ-61: Plan language and allowed-operation vocabulary.** Lock the finite, versioned operation set the agent implements (registry edit, service configuration, driver rollback via the driver store, DISM and SFC invocations, package uninstall via the uninstall hives, power-plan changes, and so on), the per-op rollback class, which ops are consent-heavy, and which are advisory-only and never agent-executed (firmware, BIOS settings). The vocabulary is what makes plans signable, sandbox-testable, and auditable. See D.2 and D.3.
 
@@ -946,6 +1003,20 @@ Note (v3.9): the three digital-module figures (24-pin, EPS, PCIe) now use the ES
 **OQ-73: Economics instrumentation.** Lock the escalation-rate metric, per-ticket cost attribution, the precedent-coverage metric, and the review cadence at which graduation (OQ-69) and pricing are revisited. See D.8.
 
 **OQ-74: Remote-execution legal posture.** Flag, as a launch gate external to this spec: consent-record sufficiency, liability framing for consented automated changes to customer machines, and terms-of-service coverage, for review with counsel alongside the existing CEC agreement suite. This document records the dependency and decides nothing legal. See D.6.
+
+**OQ-75: CEC-KVM (hardened out-of-band console module).** Adopt/decline a CEC-built KVM module per Section 13.7 (COTS encoder SoC plus CEC carrier plus CEC-signed minimal image; ENT-AIR no-network variant). Open: SoC/SoM selection (RK3588-class secure-boot capable vs SG2002-class cost floor), carrier form (PCIe bracket vs bracketless), the standing Linux-image PSIRT cost, and whether Step-1 (CEC carrier plus hardened image on COTS core) ships before the full SKU.
+
+**OQ-76: Enterprise module per-unit identity mechanism (RESOLVED-BY-DIRECTION, owner, 2026-07-02 5th ruling).** MCU-resident device key plus Hub challenge-response over CAN and/or T1, with the DETECT poke-and-ack tap as the physical liveness/anti-spoof surface; the Section 2.3 1-Wire ID/EEPROM path is NOT adopted (no new identity hardware). Module validation is treated as inherently untrusted: the Hub cross-validates across independent surfaces (DETECT class, poke-and-ack, CAN challenge, T1 checks, power-signature consistency) and alarms on inconsistency (REQ-HUB-COMMON-113).
+
+**OQ-77: Mezzanine integrated-stack option.** Formalize the Hub-on-24-pin mezzanine (docs/mezzanine-stack-design-2026-06-24.md) as an orderable form, including its enterprise fit; RJ-45 remains the default cabled PHY.
+
+**OQ-78: Tamper/physical-security module family (ATR direction RULED, owner, 2026-07-02 9th).** Passive receive-only RF monitoring is the adopted candidate (NET-only — a receiver is an unintentional radiator, no Part-15C cert; catches implants at the moment they transmit; receive-only silicon is still RF silicon, so even passive is NET-only); the active emitter (dormant-implant detection via in-chassis sounding) is DEFERRED to customer-funded NRE — the intentional-radiator cert bar is not speculatively cleared. Remaining adopt/decline for the rest of the family: the plan's §3a candidates (chassis-intrusion plus rollback-resistant tamper-log module; ATR emission tension now resolved by the passive/deferred split; device inventory/attestation; power-fingerprint screening tier; environmental sensing folded into the intrusion module). The RJ-11 loop input (Section 13.3) is the Hub-side attachment point for the intrusion module's external half.
+
+**OQ-79: MC availability-ladder architecture.** Detail the Section 13.8 ladder: the independent-watchdog part class (external supervisor vs lockstep safety MCU — the Appendix B.3 Hercules-class leaning is the starting candidate), the MC-Max voting topology (2oo2 pair plus watchdog arbiter vs true 2oo3), state synchronization between the pair, voted-output boundary (which outputs are voted: northbound? actuation? logs?), bumpless-takeover semantics, and the self-test procedure. Survey 9 (in flight) grounds the options.
+
+**OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part class (hub ×8 plus module side), fabric MAC/switch plus PTP timestamping architecture, the dual-mode (T1 plus RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick (P4 vs STM32H5), RESOLVED to ESP32-P4 uniform (6th ruling; the earlier P4-vs-STM32H5 split framing is superseded, Sections 13.6 and 13.2a), and powered-pair coexistence checks on pins 4/5. Survey 10 grounds.
+
+**OQ-81: Pin-7 SYNC/FREEZE line, ENT (RESOLVED-BY-DIRECTION, owner, 2026-07-02 5th ruling; this revision formalizes the locked-table change).** Allocate the reserved spare (pin 7) as a shared wired-OR hardware sync/trigger line: platform-wide simultaneous FREEZE plus a PPS-class latch edge at ≤100 ns module-to-module alignment (complementing, and bench-verifying, the REQ-106 gPTP timebase; sub-ns is explicitly not claimed or needed). Decide against pin 7's other suitors (1-Wire identity return, OQ-76 — GND return suffices; DETECT Kelvin return, per the OQ-60 note); re-scope the mis-plug protection for a driven line; preserve legacy-module NC compatibility. Adopting this subsumes the OQ-60 companion-connector FREEZE-trigger role for the general fleet. ENT-hub REALIZATION refinement (2026-07-02, same session): per-port point-to-point pin 7 into the FPGA fabric, with wired-OR semantics preserved by deterministic fabric relay (any-port FREEZE re-broadcast within tens of ns); the module-side electrical contract is unchanged (open-drain plus hub pull-up) — this buys per-port challenge discrimination, mis-plug fault containment, and sub-ns inter-port broadcast skew. ADOPTED same-session extension (owner ruling 2026-07-02 6th; REQ-HUB-COMMON-114 / REQ-MOD-COMMON-013): pin 7 also serves as a per-module HEARTBEAT CHALLENGER, a port-bound, hardware-timed challenge-response against the module device key (nonce over CAN/T1, timed answer on pin 7; single-digit-microsecond window, distance-bounding-lite); missed or invalid responses auto-transition the module to UNTRUSTED (quarantine-tagged telemetry, alarm, re-admission only via full re-attestation). The same 6th ruling also extends the T1 module link to the 24-pin family (every ENT module runs T1 plus a uniform ESP32-P4, DETECT 10 kΩ; bandwidth is not the criterion, validation surfaces, gPTP, and fleet logistics are), folded into Section 13.2a and the Section 2.3 DETECT-class mapping for ENT builds. See Section 2.3's pin-7 row.
 
 ---
 
@@ -1282,8 +1353,175 @@ For every other support vendor, this ticket is a dead end ("something killed the
 
 ---
 
+## 13. The enterprise line (ENT-NET / ENT-AIR) — v1.2.0
+
+Requirements of record: `docs/enterprise-requirements/` (register set, 103 requirements,
+DRAFT→RATIFIED lifecycle). This section states the architecture and the locked direction;
+the registers carry the testable detail. Owner rulings 2026-07-01/02 are the authority.
+
+### 13.1 Compute and identity
+
+One PolarFire SoC base design serves both variants, on a **part-agnostic, SerDes-free
+FCVG484 land** (owner ruling 2026-07-02, 7th): production baseline **MPFS095TC (Core
+line)** — conditional on FAE confirmation that Core retains PUF secure boot, user TRNG,
+and tamper detectors — with the **S-grade (MPFS095TS, Athena DPA-resistant crypto) as the
+HS population option** on the same land; the full 025/095/160/250 × T/TS/TC ladder
+interchanges as cost/headroom/security options (supersedes the earlier S-suffix-required
+baseline; survey 1 + the 2026-07-02 sourcing survey). The security architecture does not
+depend on Athena presence — runtime crypto is the embedded wolfCrypt validated module;
+secure boot + PUF identity + the signed evidence chain are the load-bearing anchors. No
+Linux: Zephyr-class RTOS control plane on the hard RISC-V complex, fabric reserved for the
+data plane (Appendix B.3/B.5 leaning, now adopted). Two-tier boot: the PolarFire System
+Controller + HSS chain for high-ceremony image changes, an A/B verified-update layer
+(MCUboot/wolfBoot-class) for routine firmware with anti-rollback. Per-device
+cryptographic identity (802.1AR-class IDevID) rooted in the PUF key store; the factory
+MAC + database scheme (Section 4) is insufficient at this tier. FIPS posture is
+embeds-a-validated-module (wolfCrypt-class), never an owned CMVP submission, and product
+claims never say "FIPS validated" (survey 6/7).
+
+### 13.2 Host links and northbound surface
+
+ENT-NET's primary management plane is a standard IEEE 802.3 1000BASE-T uplink (SGMII PHY
+off the hardened MAC; DP83869HM working baseline — the VSC8662 reference pick is NRND per
+Microchip's own schematic; integrated shielded magnetics ≥2× the 802.3 isolation floor;
+protection per Section 2.4-ENT below). 1000BASE-T1 (automotive SPE) is demoted to a
+factory option — it is not terminable on enterprise switching (audit finding 2). USB
+remains on both variants: sensing/provisioning on ENT-NET, a primary local path on
+ENT-AIR. Northbound (ENT-NET): Redfish-aligned REST subset + OpenMetrics + syslog-TLS;
+SNMPv3 deferred past GA or commercial-stack licensed (survey 6). ENT-AIR: zero network
+egress by design — no network PHY populated, build state inspection-verifiable without
+powering the unit; the same operational surface is served locally. Host-down operation is
+a verified test case in the STANDBY power posture (13.4).
+
+### 13.2a Module link (3rd ruling, 2026-07-02; extended by the 6th)
+
+ENT modules replace the Pro-tier RS-485 with **100BASE-T1 single-pair Ethernet on the
+locked pair 2** — bidirectional, DETECT = the reserved 10 kΩ CAN+100BASE-T1 class — with
+fleet-wide **sub-microsecond TIME SYNC** (PTP/gPTP-class, hardware timestamps; sub-µs is
+SYNC, not frame latency — the ns FREEZE path is the pin-7 line, OQ-81). 6th ruling: this
+covers **EVERY ENT family, the 24-pin included** (its T1 carries sync/attestation/fleet
+logistics, not a fast-ADC stream; ESP32-P4 uniform MCU; DETECT 10 kΩ across the line).
+Port service (survey-10 update to this draft's original dual-mode text): the hub serves
+the pair **T1-only via 2× LAN9370 switches** bridged to the fabric; RS-485 backward
+compat is DROPPED per the survey-10 recommendation — a consumer Pro module's streaming
+pair goes dark on an ENT port exactly as on a Standard Hub (Section 8 pattern;
+owner-review tag still open on the drop). RS-485 remains the consumer Pro tier unchanged.
+**This resolves OQ-20 for the ENT line** (the Max program inherits the precedent).
+
+### 13.3 The RJ-11 security-I/O port (renames the "trust channel")
+
+A supervised physical-security I/O port: EOL-resistor-supervised tamper-loop input plus
+galvanically isolated dry-contact alarm output to facility security, riding the always-on
+power domain and the rollback-resistant tamper log. Deliberately protocol-free — no
+parser, no path to CAN/DETECT. Populated by default on ENT-AIR, on request on ENT-NET.
+Identity/attestation lives on the PolarFire root, not this jack. The OQ-60 per-port Max
+sideband proposal no longer owns or shares this port's name (owner 2026-07-02); if adopted
+it renames.
+
+### 13.4 Power
+
+The enterprise hub CANNOT run full compute on the shared 5VSB budget (survey 1). Two
+defined postures: **FULL** (MAIN_5V primary — complete compute plus data plane) and
+**STANDBY** (5VSB and/or independent feed — telemetry acquisition, event logging, tamper
+capture, persist-on-fault guaranteed; northbound best-effort). The Section 2.9
+three-source priority-OR graduates from PROPOSED to binding at this tier, with a
+per-source eFuse-class monitor/protect front-end (TPS25940-class working baseline; PG/FLT
+hardware status per raw source, commanded-disable self-test, reverse blocking) feeding
+the priority cascade; a rear-bracket external power-in is mandatory (forensic/independent
+feed — closes OQ-54 for this tier).
+
+### 13.5 Redundancy — fail-detected, stated honestly
+
+The module sensing chain is single-path by LOCKED platform design and is documented as
+such; no text may imply sensing-path fault tolerance. "Redundant CAN" means Hub-side
+fail-DETECTED monitoring: continuous bus-state plus error-counter exposure, debounced
+alarms on error-passive/bus-off, explicit logged recovery, and loopback self-test scoped
+to the Hub's own half (real dual-bus CAN is foreclosed by the single-pair module link; the
+125 kbps fault-tolerant transceiver class is below the LOCKED 500k floor — survey 5).
+"Redundant uplinks" means two independently-PHY'd Ethernet ports on the two hardened MACs,
+link-state active-standby default, LACP opt-in; USB is a heterogeneous local channel and
+never counts toward the loss-of-redundancy alarm. On ENT-AIR, redundancy means redundant
+LOCAL operator paths. The redundancy pack is a discrete option assignable per the Section
+1 tier-table mapping.
+
+### 13.6 Enterprise module build variants
+
+Per module family (24-pin, EPS, PCIe, 12VHPWR), an enterprise build: fail-passive-in-the-
+power-path FMEA plus fault-injection evidence (the first MC-buyer question), per-unit
+verifiable identity (mechanism = OQ-76), Section 6.10 pre-roll retained as a forensic
+feature, sensing at the Pro tier per Section 6.13, and on ENT-AIR a **radio-free MCU** —
+ESP32-P4 (radio-free) uniformly across all ENT module families per the T1 rulings (3rd
+plus 6th; STM32G4/H5-class = documented radio-free fallback — the earlier G431/G474 split
+baseline is superseded). The fused-off-ESP32 posture is rejected on evidence: no Wi-Fi-
+disable eFuse exists on S3/C6, no radio-absent SKU exists, and it fails
+inspection-without-powering (survey 8). Radio-free builds are externally verifiable
+unpowered (part marking plus BOM plus no antenna keepout).
+
+### 13.7 The NanoKVM boundary and the CEC-KVM direction
+
+The NanoKVM is an optional accessory, excluded from ENT-AIR base builds; a customer
+attaching a network-capable KVM steps outside the zero-egress guarantee by their own
+choice (owner 2026-07-02). The Hub treats any KVM, including a future CEC one, as an
+untrusted peripheral (the v3.7 ratiometric stance, kept as defense in depth). A CEC-built,
+network-hardened KVM module following the NanoKVM trajectory (COTS encoder SoC on a CEC
+carrier, CEC-signed minimal image, TLS-only, no third-party cloud, own SBOM/PSIRT; an
+ENT-AIR variant with no network populated restoring the visual vantage without egress) is
+PROPOSED as OQ-75.
+
+### 13.8 Availability ladder (MC / MC-Max SKUs)
+
+Base ENT hubs are fail-detected (13.5). The **MC SKU** adds (a) the redundancy pack (dual
+uplink, eFuse-fronted sources — 13.4/13.5) and (b) an **independent compute watchdog**:
+separate silicon with its own clock and supervised power, monitoring main-SoC
+liveness/health, able to force the safe STANDBY posture, logging to the tamper log and
+raising the loss-of-compute alarm; never in the sensing or northbound data path (this
+concretizes the Appendix B.3 safety-coprocessor leaning). The **MC-Max SKU** adds optional
+**FAIL-FUNCTIONAL compute**: a voting pair of main SoCs executing redundantly with voted
+outputs, arbitration involving the watchdog (a tri-element arrangement: pair plus
+arbiter), bumpless takeover on a single-compute fault, self-testable failover.
+Fail-functional scope is the Hub compute plane ONLY — the module sensing chain remains
+single-path (13.5). Watchdog part selection and voting topology = OQ-79. SKUs are
+externally identifiable (labeling plus population).
+
+### 13.9 Compliance posture
+
+EU market entry is deferred but kept open (owner 2026-07-02): CRA obligations bind at
+first EU placement (reporting machinery per Art. 14 — retroactive to placed units; full
+requirements per Art. 71; the Annex III "network management systems" classification is
+resolved via delegated act or counsel BEFORE first placement, never by assumption).
+Regardless of market: SBOM per release from the first enterprise release, PSIRT/CVD plus
+declared security-support period before enterprise GA, EMC/safety evidence per hardware
+revision, IEC 62443-4-2 SL-2 (EDR) as an internal design target with "designed-to" claim
+wording, US federal-channel representations prepared on demand with the NDAA §5949 BOM
+exclusion adopted as a standing rule. Modules are separately-marketed components carrying
+their own SBOM/PSIRT coverage.
+
+---
+
 ## 11. Revision history
 
+- **1.2.0 (2026-07-02, controlled).** THE ENTERPRISE LINE. Resolves OQ-7 (owner direction
+  2026-07-01/02): the enterprise tiers are specified now, as two deployment-posture variants
+  — **ENT-NET (networked-but-hardened)** and **ENT-AIR (air-gapped)** — on a PolarFire SoC
+  hub (FCVG484, part-agnostic SerDes-free land; production baseline MPFS095TC Core per the
+  7th ruling, S-grade/Athena = the HS population option). New Section 13. Section 1's tier
+  table is rewritten to one ENT line, SKU-differentiated on posture (NET/AIR) and
+  availability (base/MC/MC-Max); enterprise uplink revised to standard IEEE 802.3
+  1000BASE-T (1000BASE-T1 demoted to factory option); RJ-11 redefined from "trust channel"
+  to a supervised physical-security I/O port; "redundant CAN" honesty-rewritten to
+  fail-detected monitoring; enterprise module BUILD variants introduced (radio-free MCUs on
+  ENT-AIR) without altering interface tier-agnosticism; the Section 2.3 pin-7 allocation
+  changes from "reserved spare" to the ENT SYNC/FREEZE hardware line plus heartbeat
+  challenger, with legacy-module NC compatibility preserved and the consumer tiers'
+  reserved-spare, no-connect meaning unchanged; enterprise half of OQ-14 closed (uplink
+  protection topology); OQ-53 through OQ-56 closed for the enterprise tier; OQ-60 updated
+  (the RJ-11 name and one-per-Hub function resolve to Section 13.3); OQ-75 through OQ-81
+  opened. D-ENT-6 resolved by owner second ruling: ONE enterprise line with orthogonal SKU
+  axes (posture NET/AIR by availability base/MC/MC-Max — independent compute watchdog on
+  MC, optional fail-functional voting pair on MC-Max, Section 13.8). No LOCKED electrical
+  decision is altered: the module link, pin table, CAN 500 kbps floor, DETECT, shunt
+  values, and connector locks all stand. Requirements of record:
+  `docs/enterprise-requirements/` registers.
 - **1.1.0 (2026-06-09):** folded in the Support Pipeline Review and Reconciliation Draft 0.1.0 per that document's own reconciliation instructions, following the v3.6 and v3.8 fold-in pattern. Added **Appendix D (support pipeline, PROPOSED)**: the eight-stage pipeline (request, collect, swarm generation with sandbox validation on config replicas holding no user data, judge routing and scoring, signed-plan execution behind verified restore points and rendered consent, verification with a monitored horizon, human-or-verifier sign-off emitting an outcome label, de-identified corpus write); the zone model as the Section 1 placement principle drawn for software; the agent-neutrality and evidence-over-local-intelligence design rules; bundle profiles L/E/V and the service-tier matrix mirroring Section 8; the reversibility stack and the System Restore practitioner note; the sign-off label enumeration; the corpus-golden unification; the economics model; the Kernel-Power 41 worked example (carried whole, with a Max-capability note added) and the definitions (carried whole). Opened **OQ-61 through OQ-74**, internal references re-keyed to Appendix D numbering, with reconciliation sentences added to OQ-63 (consented OS-up screenshots; full dumps are content-bearing and need their own consent class, bounded retention, and a never-enters-corpus rule) and OQ-66 ("local models" fixed as the swarm-internal ladder; on-customer-machine inference excluded by agent neutrality). Applied all six proposed amendments: OQ-40 (sign-off as the first automatic label-ingestion channel), OQ-47 (the pipeline as a timebase consumer), OQ-20 (a live support ticket as a concrete raw-upload driver instance), C.5 (the support corpus realizes the fault-signature library), OQ-46 (the L profile locked to the collector), and the Section 8 cross-reference (the reconciler's-choice item, exercised as one sentence). Reconciliation against the pre-spec support-agent concept recorded in D.3: free-form terminal access superseded by the OQ-61 vocabulary; consented screenshots moved to an OQ-63 decision. The companion pipeline SVG was rebuilt to render all eight stages with a drawn feedback edge (the received rendering carried seven boxes with the sandbox folded into stage 3). The review document is retired to archive at its 1.0.0. Instruction-1 check: no OQ at or below 60 was renumbered, so every reference in the review remained valid. No hardware change; no LOCKED decision altered.
 - **1.0.1 (2026-06-09):** corrections and clarifications, no design change. Outstanding board action 5 opened: confirm whether the fabbed 24-pin rev2 carries the TJA1462A (order-side records) or the TJA1051T/3 (the v3.5 lock and same-day schematic update); pin-compatible SO8, both classical 500 kbps, no functional impact in the interim. Hub Standard regulator row gains the future-Wi-Fi caveat: the LP5907 is a 250 mA part while ESP32-S3 radio TX bursts peak near 350 mA, so the antenna keepout preserves the RF option and the regulator does not. Section 6.11 and Appendix B.2 now cross-reference the companion FPGA-Max backing document, corrected the same day: INA240 bandwidth restated to the datasheet figure of 400 kHz at -3 dB for all gains (the prior 80 kHz gain-scaled claim was wrong; that scaling behavior belongs to the INA180/181 class), an anti-alias RC noted ahead of the ADS131M08, the capture-RAM example moved from the quad-SPI APS6404 to an octal APS6408-class or HyperRAM part against the roughly 480 Mbit/s sustained capture rate, the external sync strobe re-keyed from pin 7 to the OQ-60 companion-connector FREEZE, and a per-pin shunt fault-survival note added. Notes appended to OQ-11 (fault-survival requirement for the per-pin shunt), OQ-17 (sequence after OQ-16's bench arc data), OQ-40 (minimum manual label path as a proposed floor), OQ-45 (resolve before any CEC-hosted field collection), and OQ-50 (OCR-and-discard proposed default for NanoKVM screen captures). Document control gains the source-of-record row and the companion-diagram reference. The standalone Concierge addendum was regenerated as a numbering-consolidated extraction of Appendix C, retiring the pre-v3.6 copy whose OQ numbers sat offset by minus one.
 - **1.0.0 (2026-06-05):** initial controlled release under semantic versioning. Consolidates the pre-release working line v1.0 through v3.11, retained below in Section 11.1. Baseline content: the universal RJ-45 interface and pin map (Section 2); subsystem power management (Section 2.9); CAN control with RS-485 streaming (Section 3); Hub Standard and Hub Pro (Sections 4 and 5); the module sensing and current-handling domain with the 24-pin, EPS, PCIe, and 12VHPWR Standard, Pro, and Max tiers, the EPS/PCIe transient-visibility ladder, and the Pro and Max analog-digital board split (Section 6); the ARGB Controller (Section 7); cross-tier compatibility (Section 8); the production BOM (Section 9); sixty open questions (Section 10); and the architecture explorations in Appendices A through C. No design change from v3.11. This release adds document control, a table of contents, and an index, resets the version scheme to semantic versioning, and removes the prior em-dash usage.
