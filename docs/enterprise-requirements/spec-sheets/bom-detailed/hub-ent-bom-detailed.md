@@ -18,6 +18,8 @@ Survey 10 (100BASE-T1 module link) is RESOLVED into §5._
 | JTAG header | Child recommended TE 103310-1 (0.1" THT, FlashPro-ribbon-native, $1.61@125); BOM-A picked Samtec FTSH-105-01-L-DV-K (1.27 mm, the Icicle's actual J23, $0.97 LCSC, needs the FP adapter kit) | **FTSH-105-01-L-DV-K** (kit precedent + LCSC-native + smaller); note the FlashPro adapter-kit requirement in the bring-up plan; 103310-1 recorded as the ribbon-native alternate |
 | External ADC (cross-cutting) | Three subsystems independently confirmed the PolarFire has **no on-die ADC**; DETECT ×8 + rail-sense ×4 + RJ-11 loop + eFuse IMON all need a read path | **ADD one ADS7830IPWR-class I2C 8-ch ADC (~$1.00, LCSC C161747) + one analog mux or a 2nd unit** (12+ channels total). Assigned to subsystem C ownership (it serves the port/sense domain); BOM-C's LM393 window comparator on the RJ-11 loop stays (independent alarm path even if the ADC-scan firmware is down) |
 | VDDA quiet LDOs | BOM-A extrapolated TPS7A2010/TPS7A2025 decivolt SKUs (existence-unverified at distributors); child confirmed the 1.05 V code exists in TI's list but is thin-stocked | Keep **TPS7A20-family** with exact-SKU confirmation at RFQ; fallback = adjustable TPS7A21 if the fixed codes are unstocked. (LP5907 CANNOT serve VDDA — 1.2 V floor, child-verified) |
+| T1-pair network double-counted (§5 vs §6a) | §5's T1 data-plane row (2× LAN9370 + 8× CMC/PESD2ETH100/coupling) already prices the per-port T1-pair protection network; §6a's mis-plug row separately re-enumerated the same CMC/coupling-cap/PESD2ETH100 set and both were independently summed into §2's per-SKU total | §6a's hub-side adder restated as the net-new **non-T1** portion only (SS110 + SMAJ58A + DETECT series R + pin-7 network, ≈ +$2.5–3/hub); §5 restated GROSS (≈ +$19–29, no RS-485 netting — see next row); the T1-pair network is now priced exactly once |
+| RS-485 removal double-netted (§2 C row vs §5) | bom-c's Subsystem-C total used to include the struck RS-485 receiver bank ($14.14, "verified"); §5 separately netted −$4.93 for the same bank's removal — both landed in §2, subtracting it twice over | bom-c's Subsystem-C total corrected to ≈$9.21 (RS-485 row excluded at its own level, annotated "excluded from total"); §5 restated GROSS (no second −$4.93 netting); §2's C row and T1 row both corrected accordingly |
 
 ## 2. Per-SKU parts roll-up (100q, verified where the subsystem files say so)
 
@@ -27,13 +29,13 @@ Survey 10 (100BASE-T1 module link) is RESOLVED into §5._
 | A-opt — DDR block (firmware confirm) | +$7–11 | | | | | |
 | Storage — eMMC (REQ-108/109) | $5–9 (8 GB) | $5–9 | $5–9 | $9–16 (32 GB) | $9–16 | $9–16 (–64 GB) |
 | B — uplink ×N (verified $16.78 ea) | $16.8 | $33.6 | $33.6 | — | — | — |
-| C — module IF + base + sec-I/O (verified $14.14) + ADC row (~$1.2) | $15.3 | $15.3 | $15.3 | $15.3 | $15.3 | $15.3 |
+| C — module IF + base + sec-I/O (bom-c corrected total ≈$9.21, RS-485 row excluded per its own note) + ADC row (~$1.2); RJ-11 ($1.74 of the $9.21) is populate-on-request on NET (removed from the NET base below, add-back option) vs populated by default on AIR per REQ-HUB-COMMON-033 | $8.7 | $8.7 | $8.7 | $10.4 | $10.4 | $10.4 |
 | D — power (verified ≈$9.0) | $9.0 | $9.0 | $9.0 | $9.0 | $9.0 | $9.0 |
 | F — watchdog block (survey 9: S32K3-class + XO + LDO + optional TPS3813) | — | $8–17 | $8–17 | — | $8–17 | $8–17 |
 | G — voting pair (2nd A-block + sync: PCIe/NTB passives + 2× TJA1051T/3) | — | — | +$155–200 | — | — | +$150–193 |
-| T1 module data plane (§5: 2× LAN9370 + port front-ends − RS-485 bank) | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 |
-| Mis-plug port protection (§6a, survey 11) | +$5.6 | +$5.6 | +$5.6 | +$5.6 | +$5.6 | +$5.6 |
-| **Parts total (no DDR)** | **≈ $219–278** | **≈ $244–313** | **≈ $399–513** | **≈ $201–259** | **≈ $210–277** | **≈ $360–470** |
+| T1 module data plane (§5: 2× LAN9370 + port front-ends, GROSS — the RS-485 bank removal is already reflected once, in the corrected C row above; do not net it out here too) | +$19–29 | +$19–29 | +$19–29 | +$19–29 | +$19–29 | +$19–29 |
+| Mis-plug port protection (§6a, survey 11 — net-new non-T1 hub-side portion only: SS110 + SMAJ58A + DETECT series R + pin-7 network. The T1-pair network [~$3, CMC + coupling caps + PESD2ETH100] is already priced in the T1 row above and is NOT re-added here) | +$2.5–3 | +$2.5–3 | +$2.5–3 | +$2.5–3 | +$2.5–3 | +$2.5–3 |
+| **Parts total (no DDR)** | **≈ $214–274** | **≈ $239–307** | **≈ $394–507** | **≈ $198–256** | **≈ $206–273** | **≈ $356–466** |
 
 _*MCX = with the voting-pair option fitted. NOT included above: PCB fab/assembly class
 (6+ layer, 0.8 mm BGA — order $15–40/unit [unv]) and NRE (FIPS library license,
@@ -119,22 +121,27 @@ PolarFire), VTT-for-LPDDR4 (not required — on-die termination).
 |---|---|---|
 | ADD: 2× **LAN9370-I/KCX** (4-port T1 switch, integrated PHYs + 802.1AS/1588v2 HW timestamping) → 2 fabric RGMII/MII bridge MACs (~5% LE) | hub | $14.42 |
 | ADD: 8× OPEN-Alliance CMC (TDK ACT1210L-201-2P) + 8× PESD2ETH100-T + AC-coupling | hub | $4.6–14.7 |
-| REMOVE: BOM-C §3 RS-485 receiver bank (8× THVD1450 + term/bias) — **RS-485 compat DROPPED** (survey 10 rec, owner-review tag; consumer Pro streaming goes dark on ENT ports per the §8 pattern, CAN unaffected) | hub | −$4.93 |
-| **Net hub delta from the T1 ruling** | | **≈ +$14–24** |
+| ~~REMOVE: BOM-C §3 RS-485 receiver bank (8× THVD1450 + term/bias) — −$4.93~~ **already reflected in §2's corrected C row** (bom-c's own Subsystem-C total now excludes the struck RS-485 row at $9.21 — do NOT subtract it again here; the drop is real, RS-485 compat is DROPPED per survey 10, consumer Pro streaming goes dark on ENT ports per the §8 pattern, CAN unaffected — it is simply counted once, upstream) | hub | not summed here |
+| **Gross hub delta from the T1 ruling** (excl. the RS-485 removal, counted once in §2's C row) | | **≈ +$19–29** |
 | Module side (per streaming module): DP83TC814S-Q1 ($2.39; TJA1103 $1.49+1588 NDA-flagged alt) + CMC + ESD + coupling | module sheets | +$3.0–4.2/module |
 | Module MCU: **ESP32-P4 uniformly** (reuses the 12VHPWR Pro reference design; STM32H563 fallback) | module sheets | tracked there |
 
-Add the net T1 delta to every SKU column in §2 (+$14–24; AIR included — module ports exist
-on both postures). Sync accuracy = design target (802.1AS <1 µs class, HW timestamps at
-every stage), bench-verified before REQ-106 is claimed as met.
+Add the gross T1 delta to every SKU column in §2 (+$19–29; AIR included — module ports exist
+on both postures; this is gross because the RS-485-bank removal it used to net against is
+already reflected once in §2's corrected C row — see §1's reconciliation row on this). Sync
+accuracy = design target (802.1AS <1 µs class, HW timestamps at every stage), bench-verified
+before REQ-106 is claimed as met.
 
 ## 6a. RESOLVED — survey 11 (mis-plug fail-safe, 4th ruling) — port protection rows
 
-Hub side (×8 ports, ≈ **+$5.6/hub**, all SKUs): SS110 series Schottky on each pin-1 VCC
-(100 V — SS16's 60 V is too thin over 57 V) + SMAJ58A tail-risk TVS + DETECT series R
-(~10 k 1206; §2.3 code table recomputes, stays monotonic, firmware-recalibrated) + pin-7
-network + the T1-pair network (CMC $0.376 + ≥100 V coupling caps [the DC-blocking element]
-+ PESD2ETH100 low-C TVS). Module side: **TPS26621DRCT 60 V auto-retry eFuse** ahead of the
+Hub side (×8 ports, ≈ **+$2.5–3/hub net-new**, all SKUs): SS110 series Schottky on each
+pin-1 VCC (100 V — SS16's 60 V is too thin over 57 V) + SMAJ58A tail-risk TVS + DETECT
+series R (~10 k 1206; §2.3 code table recomputes, stays monotonic, firmware-recalibrated) +
+pin-7 network. (The T1-pair network — CMC $0.376 + ≥100 V coupling caps [the DC-blocking
+element] + PESD2ETH100 low-C TVS, ~$3/port-set — is enumerated here for completeness but is
+**already priced in §5's gross +$19–29 T1 row**; it is NOT re-added to this hub-side total —
+correcting the earlier double-count where both rows summed it independently.) Module side:
+**TPS26621DRCT 60 V auto-retry eFuse** ahead of the
 LDO ($2.07 — a diode cannot protect a power INPUT; auto-retry satisfies self-recovery) +
 DETECT/pin-7 + T1 network ⇒ ≈ **+$2.7/module, every family** (the 24-pin joined the T1
 fabric per the 6th ruling, so it carries the T1 network too — its earlier +$2.15

@@ -94,10 +94,10 @@ Subtotal: **≈ $1.74**
 |---|---|
 | 1. Module ports ×8 | ≈ $5.08 |
 | 2. CAN front end | ≈ $0.46 |
-| 3. ~~RS-485 receivers ×8~~ (SUPERSEDED — T1-only, survey 10; master §5 subtracts) | ≈ $4.93 |
+| 3. ~~RS-485 receivers ×8~~ (SUPERSEDED — T1-only, survey 10; master §5 prices the T1 replacement) | ≈ $4.93 — **excluded from total** |
 | 4. Platform base | ≈ $1.93 |
 | 5. RJ-11 security I/O | ≈ $1.74 |
-| **Subsystem C total** | **≈ $14.14** |
+| **Subsystem C total** (5.08 + 0.46 + 1.93 + 1.74; struck RS-485 row excluded) | **≈ $9.21** |
 
 Reconciliation against `hub-ent-spec-sheet.md` §C+§E placeholders (**$16–22 + $2–3.5 = $18–25.5 combined**): real parts land **below** the placeholder range, mainly because the RS-485 receiver came in at $0.60/ea verified vs the doc's "$1 ea `[unv]`" guess (saves ~$3.2 across 8 ports), and the RJ-11 EOL/comparator network priced cheaper than the "$0.8–1.8" opto+EOL placeholder assumed. Recommend folding these verified numbers back into the spec sheet's §C/§E rows at the next revision.
 

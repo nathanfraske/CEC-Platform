@@ -78,7 +78,7 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 | 8 | PESD5V0S1BA (C5261083) | DETECT pin-8 ESD, per port | $0.03 ea | §2.4 lock |
 | 2 | LAN9370 4-port 100BASE-T1 switches + port front-ends (SUPERSEDES the RS-485 receiver bank — survey 10, T1-only REQ-043; detailed rows in bom-b/master §5) | module streaming/sync data plane, every ENT family per the 6th ruling | net +$14–24/hub vs the RS-485 bank | REQ-043; survey 10 |
 | — | DETECT pull-up networks, 5VSB per-port distribution, port LEDs/SK6812 chain (platform base) | — | $2–4 | §2.5 |
-| **Subtotal** | | | **≈ $30–46 incl. the T1 data plane** (was $16–22 with the superseded RS-485 bank; master BOM §5 reconciliation governs) | |
+| **Subtotal** | | | **≈ $9–10 base** (module IF + platform base + sec-I/O, reconciled to bom-c's corrected ≈$9.21 verified total, RS-485 bank excluded) **+ T1 data plane priced separately at +$19–29 gross** (master BOM §5 — kept as its own line, not folded into this subtotal; the earlier "$30–46 incl. T1" framing double-counted against the master's T1 row and against the master's now-corrected C row, and is superseded) | |
 
 ### D. Power subsystem (ALL SKUs — the eFuse-fronted 3-source path is platform-common per REQ-060, NOT part of the optional MC redundancy pack)
 
@@ -124,12 +124,19 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 
 ### Roll-up (parts only, 100q, working baseline — NOT product pricing)
 
+_Re-summed 2026-07-02 against the corrected C/T1/mis-plug accounting (F04/F11/F12/F13):
+subsystem C is now the $9–10 base + the T1 data plane priced separately at +$19–29 gross
+(not folded together), and the mis-plug row is the +$2.5–3 net-new hub-side portion (the
+T1-pair network it used to re-enumerate is captured once, in the T1 row). These figures are
+reconciled to `bom-detailed/hub-ent-bom-detailed.md` §2, which governs if the two ever
+disagree again._
+
 | SKU | Parts subtotal [est] |
 |---|---|
-| ENT-NET-B | ≈ **$180–235** |
-| ENT-AIR-B | ≈ **$172–225** (no uplink) |
-| ENT-NET-MC / ENT-AIR-MC | + $14–26 (watchdog set + 2nd uplink) → ≈ **$194–261** / **$180–248** |
-| ENT-*-MCX (pair fitted) | + $152–195 → ≈ **$346–456** / **$332–443** (+ PCB-class step-up, unpriced) |
+| ENT-NET-B | ≈ **$214–274** |
+| ENT-AIR-B | ≈ **$198–256** (no uplink) |
+| ENT-NET-MC / ENT-AIR-MC | ≈ **$239–307** / **$206–273** |
+| ENT-*-MCX | ≈ **$394–507** / **$356–466** (+ PCB-class step-up, unpriced) |
 
 Plus, NOT in the parts rows: **PCB fab + assembly class jump** (6+ layer controlled
 impedance, 0.8 mm BGA reflow/inspection) — order $15–40/unit at 100q `[unv, class
