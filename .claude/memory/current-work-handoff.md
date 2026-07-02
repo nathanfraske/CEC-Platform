@@ -285,3 +285,13 @@ new §13.8 availability ladder, OQ-79 opened, decision boxes now just OQ-75); ow
 KVM: cited recs list DUE AT OQ-75 KICKOFF (FOLLOWUPS entry). Survey 9 (watchdog part class + voting
 topology, sonnet, background) IN FLIGHT -> commit to research/phase2/ on landing + refine REQ-103/104
 if warranted. NEXT after survey 9: owner applies v1.2.0; EDIT-10 follow-through rides that change.
+UPDATE 2026-07-02 (spec sheets + BOMs): docs/enterprise-requirements/spec-sheets/ —
+hub-ent-spec-sheet.md (6-SKU matrix NET/AIR x base/MC/MCX; full spec table traced to REQs/surveys;
+engineering BOM by subsystem A-G w/ per-SKU roll-up: NET-B ~\$180-235, AIR-B ~\$172-225, MC +\$8-27,
+MCX +\$152-208 parts-only @100q [est/RFQ]; 8-port Pro-base working baseline flagged; watchdog row TBD
+pending survey 9; PCB class jump note) + module-ent-spec-sheets.md (common deltas incl. ONE
+radio-free-build-serves-both-postures recommendation [needs owner ratify]; 24pin=G431 ~cost-neutral;
+EPS/PCIe = Pro tier w/ ADS131M08 baseline +\$12-19, DETECT->4.7k; 12VHPWR = existing Pro design +\$1-3;
+7 cross-family open rows incl. OQ-76 identity + fast-ADC choice + INA240 count). Survey 9 STILL IN
+FLIGHT -> update hub sheet §F + REQ-103/104 on landing. NEXT: survey 9 landing; owner: v1.2.0 apply,
+one-build recommendation, OQ-76/79 calls.
