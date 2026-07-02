@@ -87,6 +87,7 @@ board — new fab class (already flagged in the spec sheet cost notes).
 | RJ-11 loop I/O | opt | opt | opt | ✔ | ✔ | ✔ |
 | NanoKVM aux (header) | ✔ | ✔ | ✔ | header only | header only | header only |
 | eFuse fronts ×3 / hold-up / 3V3 | ✔ all SKUs | | | | | |
+| eMMC density (one FBGA-153 land) | 8 GB | 8 GB | 8 GB | 32 GB | 32 GB | 32–64 GB |
 
 ## 7. MC / MC-Max growth notes
 

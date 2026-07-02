@@ -30,7 +30,7 @@ externally identifiable). Posture × availability:
 | Security silicon | PUF key store, DPA-resistant secure boot, **Athena TeraFire** coprocessor (S-grade), anti-tamper responses; IDevID (802.1AR-class) provisioned at manufacture | REQ-001/003; survey 1 |
 | Boot/update | System Controller + HSS (high-ceremony) → MCUboot/wolfBoot-class A/B with monotonic anti-rollback (routine OTA / offline signed bundles) | REQ-010..013; survey 6 |
 | Firmware | Zephyr RTOS (in-tree PolarFire), no Linux; wolfCrypt-class crypto (FIPS = embeds-validated-module posture); `west spdx` SBOM per release | REQ-002/014/097; survey 6 |
-| Storage | QSPI NOR (A/B app slots + rollback-resistant tamper log region, page-program-only on the persist path); external DDR **TBD** (LIM/fabric-SRAM may suffice — firmware confirm) | REQ-062/070; survey 1/4 |
+| Storage | Two-tier: QSPI NOR 32 MB class (W25Q256JV-class; A/B firmware + rollback-resistant tamper log) + **eMMC 5.1 on one FBGA-153 land, density per SKU — NET: 8 GB (≥72 h store-and-forward, ~5 days at 1.4 GB/day); AIR: 32 GB baseline / 64 GB option (≥30-day local retention + ≥1k event captures)**; bulk store encrypted at rest (PolarFire-rooted keys) + signed segment chain; external DDR **TBD** (LIM may suffice) | REQ-062/070/107..109; survey 1/4 |
 | Module interface | **8× RJ-45 FTP** (Kinghelm KH-RJ45-58 class), locked pin table; classical CAN 500k shared bus, 120 Ω split termination; DETECT per §2.3 + PESD per port; RS-485 streaming serviced per port (topology OQ-5); 5VSB per-port distribution. _Port count = Pro-base working baseline; confirm at board program._ | REQ-040..045 |
 | Uplink (NET) | Standard IEEE 802.3 **1000BASE-T**: MSS-SGMII → **VSC8662-class** PHY (dual-port = 2nd uplink headroom), integrated shielded MagJack ≥2× isolation floor, PHY-side low-C TVS + shield GDT (office grade, survives passive PoE); visually distinct from module ports. SFP studied-deferred. 1000BASE-T1 factory option only. | REQ-030/031; survey 2 |
 | Local interfaces | USB (sensing/provisioning on NET; primary local on AIR); NanoKVM aux header (5-pin JST-PH); RJ-11 **security I/O**: supervised tamper-loop in + isolated dry-contact alarm out, protocol-free | REQ-032/033/059 |
@@ -50,7 +50,8 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 | Qty | Part (working baseline) | Function | Unit [est] | Trace |
 |---|---|---|---|---|
 | 1 | MPFS095TS-1FCVG484I | SoC (compute+fabric+security) | $125–140 `[RFQ]` | survey 1 |
-| 1 | QSPI NOR 128–256 Mb (W25Q-class) | A/B firmware + tamper-log region | $0.5–1 | survey 1/6 |
+| 1 | QSPI NOR 256 Mb W25Q256JV-class (SOIC-16 FIQ $3.00 or WSON-8 EIQ $3.21, LCSC-verified) | A/B firmware + tamper-log region | $3.0–3.2 | BOM-A child (verified); survey 1/6 |
+| 1 | eMMC 5.1, FBGA-153 one-land: 8 GB (NET) / 32–64 GB (AIR) industrial | bulk telemetry store (encrypted, signed segments) | 8 GB ~$5–9 / 32 GB ~$9–16 `[unv, RFQ]` | REQ-107..109 |
 | 0–1 | LPDDR4/DDR4, modest density | working RAM — **TBD** (LIM may suffice) | $3–8 if fitted | survey 1 |
 | 3–5 | Regulators (VDD 1.0/1.05 V, quiet-LDO VDDA, VDDI/AUX banks; Renesas/MPS ref designs) + sequencing | PolarFire rails | $8–20 set | survey 1 |
 | 1–2 | Reference oscillators | PLL/DLL clocking | $1–3 | survey 1 |
