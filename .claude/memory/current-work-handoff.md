@@ -234,3 +234,16 @@ scripts/cec_req_lint.py (ID/SHALL/verify-vocab/spec-§-resolution; only 'spec §
 resolve) wired into checklist.sh — full checklist EXIT 0. 86 REQs total, all DRAFT pending owner
 Phase-3 review. NEXT: Phase-2 research items 1-8 (PolarFire sizing, uplink, RJ-11, redundant power,
 RTOS stack, compliance regime, radio-free MCU survey) or owner review of the registers.
+UPDATE 2026-07-02 (Phase 2 DONE): all 8 surveys complete + committed ->
+docs/enterprise-requirements/research/phase2/ (survey-1..8 + INDEX.md synthesis). Verdicts:
+MPFS095TS/FCVG484 (S-suffix=Athena, owner confirm); VSC8662 on MSS-SGMII + MagJack + office-grade
+OV (OQ-14 closure proposal); RJ-11 = tamper-loop+dry-contact define (merge w/ OQ-60!); TPS25940
+eFuse fronts + kept TPS2121 cascade (as-built granularity gap found: 5VSB_SENSE reads OR'd node);
+CAN redundancy = fail-detected ONLY (dual-bus foreclosed by locked link; 6 REQ candidates 054-059);
+Zephyr + HSS+MCUboot/wolfBoot two-tier boot + wolfCrypt-FIPS boundary + SNMPv3 prune; CRA dates
+confirmed (2026-09-11 reporting RETROACTIVE — platform-wide, Annex III Class I gray zone = new
+owner item); radio-free = option (a) STM32G4/P4, fused-off ESP32 DEAD (no Wi-Fi eFuse exists).
+CROSS-SURVEY: 5VSB budget collision (PolarFire can't run on 5VSB — MAIN_5V primary, REQ-025 split);
+NanoKVM AIR-egress contradiction; ATR-vs-radio-ruling coupling. Owner-queue updated (6 new items);
+INDEX.md carries the Phase-3 register edit queue. NEXT: owner Phase-3 review (D-ENT-3/5/6 on the
+survey evidence) then register edits + Phase-4 spec promotion.
