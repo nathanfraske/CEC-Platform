@@ -258,7 +258,18 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > against pin 7's other suitors (1-Wire identity return [OQ-76 — GND return suffices],
 > DETECT Kelvin return [OQ-60 note]); re-scope the mis-plug protection for a driven line;
 > preserve legacy-module NC compatibility. Adopting this subsumes the OQ-60 companion-
-> connector FREEZE-trigger role for the general fleet.
+> connector FREEZE-trigger role for the general fleet. ENT-hub REALIZATION refinement
+> (2026-07-02, same session): per-port point-to-point pin 7 into the FPGA fabric, wired-OR
+> SEMANTICS preserved by deterministic fabric relay (any-port FREEZE re-broadcast within
+> tens of ns); module-side electrical contract unchanged (open-drain + hub pull-up) — buys
+> per-port challenge discrimination, mis-plug fault containment, and sub-ns inter-port
+> broadcast skew. PROPOSED same-session extension (owner exploration, adopt/decline
+> pending — REQ-HUB-COMMON-114 / REQ-MOD-COMMON-013): pin 7 doubles as a per-module
+> **HEARTBEAT CHALLENGER** — a port-bound, hardware-timed challenge-response against the
+> module device key (nonce over CAN/T1, timed answer on pin 7; single-digit-µs window =
+> distance-bounding-lite); missed/invalid responses auto-transition the module to
+> UNTRUSTED (quarantine-tagged telemetry, alarm, re-admission only via full
+> re-attestation). If adopted, fold into this same pin-7 table edit.
 > **OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part
 > class (hub ×8 + module side), fabric MAC/switch + PTP timestamping architecture, the
 > dual-mode (T1 + RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick
