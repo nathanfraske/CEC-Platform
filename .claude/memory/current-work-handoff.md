@@ -347,3 +347,15 @@ verify continuous), DETECT dies (PESD not continuous-rated -> series element), p
 60V-class blocking (hub sources / module receives into 6.5V-max LDO!), pin7 needs defined
 treatment, T1 pair per PHY fault rating. SURVEY 11 IN FLIGHT (protection network parts + costs +
 compliant-PSE detection analysis + test procedure; feeds survey 10's PHY pick + BOM-C/module BOMs).
+UPDATE 2026-07-02 (SURVEY 10 APPLIED): T1 link resolved -> research/phase2/survey-10-t1-module-link.md.
+Hub 8-port architecture = 2x LAN9370 (4-port T1 switch, integrated PHYs + 802.1AS/1588v2 HW
+timestamps, \$7.21 ea) -> 2 fabric RGMII bridge MACs (~5% LE) — beats soft-switch (17-33% LE vs thin
+vendor docs), SJA1110 (6-port cap+NDA), KSZ9897 (dead end, confirmed). Module PHY DP83TC814S-Q1
+\$2.39 default (TJA1103 \$1.49+1588 NDA-flagged). Module MCU = ESP32-P4 UNIFORM (reuses 12VHPWR Pro
+NRE; H563 fallback). RS-485 COMPAT DROPPED on ENT ports (survey rec, owner-review tag — consumer Pro
+streaming dark on ENT per §8 pattern, CAN unaffected; saves \$9-30/hub; conformance matrix updated).
+Sub-µs = design target (802.1AS <1µs/7-hop vs our 1-2; HW stamps every stage; 6.72µs frame time
+verified) — BENCH VERIFY before claiming REQ-106 met. Net hub delta +\$14-24 all SKUs; module
++\$3.0-4.2. REQ-043/003/106 refined (110 REQs lint OK); master BOM §5 resolved, per-SKU totals now
+NET-B \$213-272 .. AIR-MCX \$354-464. STILL IN FLIGHT: survey 11 (mis-plug protection — its T1-pair
+answer now targets the DP83TC814/LAN9370 MDI fault ratings).
