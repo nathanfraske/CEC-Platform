@@ -359,3 +359,13 @@ verified) — BENCH VERIFY before claiming REQ-106 met. Net hub delta +\$14-24 a
 +\$3.0-4.2. REQ-043/003/106 refined (110 REQs lint OK); master BOM §5 resolved, per-SKU totals now
 NET-B \$213-272 .. AIR-MCX \$354-464. STILL IN FLIGHT: survey 11 (mis-plug protection — its T1-pair
 answer now targets the DP83TC814/LAN9370 MDI fault ratings).
+UPDATE 2026-07-02 (FIFTH OWNER RULING — pin-7 suitors cleared + identity mechanism): (1) 1-Wire
+identity OUT — replaced by the poke-and-ack topology + MCU-resident-key challenge-response over
+CAN/T1 (OQ-76 resolved-by-direction; ≈$0 parts; module sheets identity row updated); (2) DETECT
+Kelvin return OUT (unneeded); (3) pin-7 SYNC/FREEZE ADOPTED (REQ-112 PROPOSED→ADOPTED, gate now
+Phase-4 spec edit — locked-table change formalizes at v1.2.0; OQ-81 marked resolved-by-direction);
+(4) NEW REQ-HUB-COMMON-113: module validation is inherently untrusted → hub cross-validates every
+module across >=2 independent surfaces (DETECT class + poke-and-ack, CAN challenge, T1 checks,
+power-signature consistency) and alarms on inconsistency — the owner's cross-dimensional-analysis
+rationale captured as a requirement. 112 REQs lint OK. STILL IN FLIGHT: survey 11 (mis-plug
+protection; its pin-7 answer = driven-line case now).
