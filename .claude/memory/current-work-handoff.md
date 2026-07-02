@@ -450,3 +450,24 @@ findings patched BEFORE the ratification brief freezes. NEXT concrete agent work
 ratification brief + 6 decision one-pagers, CEC-KVM cited-recs (FOLLOWUPS promise), RFQ
 package, threat model + key hierarchy + heartbeat protocol DRAFT, verification-matrix
 generator, bench specs, KiCad library intake (~30 parts), FCVG484 breakout study.
+UPDATE 2026-07-02 (~19:30 — WAVE 0 COMPLETE + PRODUCT MATRIX): owner approved wave-0 ("go
+ahead") + asked for a product matrix map. DELIVERED, all committed/pushed: (1)
+docs/enterprise-requirements/product-matrix-2026-07-02.md (3 ENT axes: posture x availability
+x silicon; 6 hub SKUs x base/HS = 12 configs one PCB; 5 module SKUs; cross-compat table). (2)
+WAVE 0, five parallel agents ALL LANDED: ratification/ratification-brief-2026-07-02.md (5 nods
++ 7 real reviews, one-pager each in briefs/; minimal unblock-boards chain: REQ-111 + RS-485
+nod -> v1.2.0 -> OQ-11 -> Phase-5; OQ-11 R-vs-K verified = genuinely distinct alloy series);
+ratification/rfq-package-2026-07-02.md (26 quote lines, MPFS quoted as ONE family = allocation
+lever, 6 formal FAE questions gating the 7th-ruling TC condition); research/
+cec-kvm-recommendations-2026-07-02.md (10 cited recs + 5-item decision box; PREMISE CORRECTED:
+NanoKVM Pro = integrated AX630C board, the carrier architecture is the RISC-V NanoKVM-PCIe);
+enterprise-security/threat-model-2026-07-02.md (CANONICAL honest-limits: P4 no-SE residual,
+DETECT = only key-independent surface, TC-baseline no-DPA-claim, two-chip seam, pin-7 timing
+PROVISIONAL) + key-hierarchy-custody-2026-07-02.md (7 custody decisions OWNER-ACTION-marked;
+separate tamper-log key recommended outright); scripts/cec_req_verify_matrix.py +
+docs/enterprise-validation/ (114/114 REQs mapped, hash-rot teeth stress-tested, --check NOT
+yet wired into checklist.sh — deliberate, pending human review of the seed map). OWNER QUEUE
+now: ratification brief review, RFQ send-out, KVM recs sign-off, dev-kit order + TC prototype
+buy, Libero license. NEXT agent work (wave 0 tail / wave 1 prep): bench specs + FMEA templates
++ process docs (validation scope), heartbeat protocol spec draft, KiCad library intake, FCVG484
+breakout study, wire verify-matrix into checklist after seed-map review.
