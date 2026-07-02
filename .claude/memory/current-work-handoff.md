@@ -369,3 +369,19 @@ module across >=2 independent surfaces (DETECT class + poke-and-ack, CAN challen
 power-signature consistency) and alarms on inconsistency — the owner's cross-dimensional-analysis
 rationale captured as a requirement. 112 REQs lint OK. STILL IN FLIGHT: survey 11 (mis-plug
 protection; its pin-7 answer = driven-line case now).
+UPDATE 2026-07-02 (SURVEY 11 APPLIED — detailed-BOM package now COMPLETE end-to-end): last
+in-flight agent landed -> research/phase2/survey-11-misplug-failsafe.md. Key findings applied:
+(a) module pin 1 is a 5VSB INPUT so a series diode CANNOT protect it (fault current flows the
+normal direction) — active 60V auto-retry eFuse required, TPS26621DRCT baseline $2.07
+(REQ-MOD-COMMON-053 rewritten); (b) TJA1051T/3 = ±58V CONTINUOUS DC datasheet-confirmed (CAN pins
+covered as-is); (c) hub-side +$5.6/all-SKUs protection rows in master BOM §6a (SS110 replaces
+SS16 [60V margin], SMAJ58A, DETECT series R, pin-7 network, T1 CMC + ≥100V series coupling caps
+[the actual DC-block] + PESD2ETH100); module +$2.7 streaming / +$2.15 24-pin; (d) REQ-HUB-
+COMMON-110 gains resettable-not-one-time-fuse parenthetical; (e) pin-7 reconciliation note: survey
+predates the 5th ruling, so bleed-R treatment becomes series R + LOW-CAP clamp sized to pass the
+≤100ns SYNC edge (schematic-capture task); (f) per-family injection-test procedure (survey §h).
+Per-SKU totals now NET-B $219-278 / NET-MC $244-313 / NET-MCX $399-513 / AIR-B $201-259 / AIR-MC
+$210-277 / AIR-MCX $360-470. 112 REQs lint OK. NOTHING left in flight — the owner asks (spec
+sheet + complete detailed BOM both hub variants + module drafts) are DELIVERED. Next milestones
+are owner-gated: v1.2.0 spec application, D-ENT-5 remaining line items, D-ENT-3 RFQ pass,
+REQ-111 PD-on-uplink adopt/decline.

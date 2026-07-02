@@ -32,7 +32,8 @@ Survey 10 (100BASE-T1 module link) is RESOLVED into §5._
 | F — watchdog block (survey 9: S32K3-class + XO + LDO + optional TPS3813) | — | $8–17 | $8–17 | — | $8–17 | $8–17 |
 | G — voting pair (2nd A-block + sync: PCIe/NTB passives + 2× TJA1051T/3) | — | — | +$155–200 | — | — | +$150–193 |
 | T1 module data plane (§5: 2× LAN9370 + port front-ends − RS-485 bank) | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 |
-| **Parts total (no DDR)** | **≈ $213–272** | **≈ $238–307** | **≈ $393–507** | **≈ $195–253** | **≈ $204–271** | **≈ $354–464** |
+| Mis-plug port protection (§6a, survey 11) | +$5.6 | +$5.6 | +$5.6 | +$5.6 | +$5.6 | +$5.6 |
+| **Parts total (no DDR)** | **≈ $219–278** | **≈ $244–313** | **≈ $399–513** | **≈ $201–259** | **≈ $210–277** | **≈ $360–470** |
 
 _*MCX = with the voting-pair option fitted. NOT included above: PCB fab/assembly class
 (6+ layer, 0.8 mm BGA — order $15–40/unit [unv]) and NRE (FIPS library license,
@@ -75,6 +76,24 @@ PolarFire), VTT-for-LPDDR4 (not required — on-die termination).
 Add the net T1 delta to every SKU column in §2 (+$14–24; AIR included — module ports exist
 on both postures). Sync accuracy = design target (802.1AS <1 µs class, HW timestamps at
 every stage), bench-verified before REQ-106 is claimed as met.
+
+## 6a. RESOLVED — survey 11 (mis-plug fail-safe, 4th ruling) — port protection rows
+
+Hub side (×8 ports, ≈ **+$5.6/hub**, all SKUs): SS110 series Schottky on each pin-1 VCC
+(100 V — SS16's 60 V is too thin over 57 V) + SMAJ58A tail-risk TVS + DETECT series R
+(~10 k 1206; §2.3 code table recomputes, stays monotonic, firmware-recalibrated) + pin-7
+network + the T1-pair network (CMC $0.376 + ≥100 V coupling caps [the DC-blocking element]
++ PESD2ETH100 low-C TVS). Module side: **TPS26621DRCT 60 V auto-retry eFuse** ahead of the
+LDO ($2.07 — a diode cannot protect a power INPUT; auto-retry satisfies self-recovery) +
+DETECT/pin-7 + T1 network ⇒ ≈ +$2.7/streaming module, +$2.15/24-pin. Confirmed:
+TJA1051T/3 = ±58 V CONTINUOUS DC (datasheet; beware the TJA1050's lower rating in
+secondary sources). Compliant PSEs likely never energize our ports (signature reject) —
+corroborating only; passive injectors remain the binding case. Injection-test procedure
+(both polarities, 60-min sustained, 5–10× repeat, unattended-recovery pass criteria) =
+survey 11 §h, run combined with the REQ-MOD-031 fault-injection program.
+**Pin-7 reconciliation (survey predates the 5th ruling):** pin 7 is now the SYNC/FREEZE
+driven line — replace the bleed-R treatment with series R + LOW-CAPACITANCE clamp sized so
+the ≤100 ns sync edge survives the protection network (schematic-capture task).
 
 ## 6. Open items consolidated (beyond the subsystem files' own lists)
 

@@ -22,6 +22,7 @@ doesn't forbid it; two builds per family would double the SKU matrix for no buye
 | Provenance-grade BOM | Locked shunts (OQ-11 must close first), §5949-clean sourcing rule for gov-bound builds, per-family SBOM/PSIRT | process, $0 | REQ-MOD-COMMON-051/052; survey 7 |
 | Fail-passive evidence | FMEA/FMEDA + fault-injection per family (deliverable, not BOM) | NRE only | REQ-MOD-COMMON-030..032 |
 | Inspection story | Distinct MCU marking + no antenna keepout = unpowered verifiability | $0 | REQ-MOD-AIR-021 |
+| Mis-plug fail-safe (4th ruling) | TPS26621 60 V auto-retry eFuse ahead of the LDO + DETECT series R + pin-7 treatment (+ T1 CMC/caps/TVS on streaming families — counted in the streaming row) | +$2.15 (24-pin) / +$2.7 (streaming, incl. T1 net) | REQ-MOD-COMMON-053; survey 11 |
 
 Enterprise sensing tier = **Pro-class characterization** per family where §6.13 defines it
 (REQ-MOD-COMMON-040): the fast-ADC path, streamed over **100BASE-T1** (3rd ruling). DETECT
