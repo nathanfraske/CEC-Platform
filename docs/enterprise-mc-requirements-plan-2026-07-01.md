@@ -167,6 +167,29 @@ Standards hooks for the register traceability column: NIST 800-53 PE/SI controls
 NIST SP 1800-34 (supply-chain/component integrity), TCG Platform Certificates, DMTF SPDM,
 FIPS 140-3 physical-security levels (as analogy/tiering language).
 
+6. **CEC-KVM — network-hardened out-of-band console module (owner-proposed 2026-07-02).**
+   A CEC-built KVM-over-IP module following the NanoKVM trajectory (HDMI capture + USB HID
+   emulation + hardware H.264/H.265 encode, in-chassis PCIe-bracket or bracketless form) but
+   hardened to the enterprise line's posture. Feasibility is real: the NanoKVM-PCIe is an
+   SG2002-based carrier design (RISC-V+A53+8051, HW encoder, slot-powered) and the NanoKVM
+   Pro an RK3588-based one — both effectively COTS-SoC carrier boards with open-source
+   hardware/software, so a CEC carrier hosting a COTS compute core is the easy half.
+   **The honest boundary: a KVM's video pipeline makes it a Linux-class device** — it can
+   never meet the Hub's no-Linux bar, so hardening means: (a) CEC-built minimal signed image
+   (secure boot to the SoC's ability — RK3588-class preferred over SG2002 for this), zero
+   third-party cloud dependencies, TLS-only northbound, own SBOM/PSIRT coverage
+   (REQ-MOD-COMMON-052 applies); (b) CEC identity binding + the Hub CONTINUES to treat the
+   KVM as an untrusted peripheral (the v3.7 ratiometric stance survives — defense in depth,
+   even against our own product); (c) §2.9 shared-rail power + aux-link integration
+   unchanged; (d) an **ENT-AIR variant with no network populated** — capture-to-local/
+   Hub-forensic-store only — which restores the visual vantage to air-gapped deployments
+   WITHOUT violating the zero-egress guarantee (the base NanoKVM exclusion ruling stands;
+   this variant is the compliant replacement). Two-step trajectory: Step 1 = CEC carrier +
+   locked-down CEC firmware image on the COTS core; Step 2 = full CEC SKU on a
+   secure-boot-capable SoM with the AIR no-NIC variant. Lifecycle cost is the real price:
+   a maintained Linux image is a standing PSIRT surface — budget it as a product, not a
+   board. Adoption = owner decision (spec-revision draft carries it as a new OQ).
+
 ## 4. Owner decision gates (D1–D5)
 
 These go to `docs/owner-queue.md` §1 in the same change as this plan. Nothing downstream of a

@@ -260,3 +260,17 @@ now 100 REQs / lint OK. Owner-queue row rewritten: resolved items recorded; REMA
 mapping, D-ENT-3 RFQs, D-ENT-5 leftovers (1-Wire/provenance/mezzanine/ATR/key-custody/SBOM-format),
 wolfSSL FIPS engagement at firmware kickoff, Phase-4 spec revision (owner pen). NEXT: Phase-4
 spec-revision drafting for the owner, or D-ENT-6 evidence prep.
+UPDATE 2026-07-02 (CEC-KVM + spec revision draft): (1) Owner floated a CEC-built network-hardened
+KVM ("NanoKVM Pro PCIe is just a baseboard carrier") — verified: NanoKVM-PCIe = SG2002 carrier
+(slot-powered, HW H.264/5), NanoKVM Pro = RK3588; both open-source COTS-SoC carrier designs, so a
+CEC carrier + CEC-signed minimal image is feasible. Assessment recorded as plan §3a candidate 6:
+honest boundary = a KVM is a Linux-class device (never meets the hub no-Linux bar) → hardening =
+CEC image + TLS-only + no cloud + own SBOM/PSIRT + hub keeps treating it untrusted (defense in
+depth); killer feature = ENT-AIR no-network variant (visual vantage without egress). Two-step
+trajectory (carrier+image first, full SKU second). Adoption = OQ-75 in the spec draft.
+(2) SPEC REVISION v1.2.0 DRAFTED → docs/spec-revision-v1.2.0-draft-2026-07-02.md (10 surgical
+edits: new §13 enterprise line, §1 table rewrite, tier-agnostic amendment, OQ-7/OQ-14-ent/
+OQ-53..56-ent closures, OQ-60 disentangle, new OQ-75..78; 2 owner decision boxes: D-ENT-6 mapping
+[recommended ENT-NET=3, ENT-AIR=4+redundancy-std] and OQ-75 KVM step order). Queued in owner-queue
+§3. NEXT: owner applies/approves the spec edits; then CLAUDE.md + hub READMEs + register Phase-4
+gate flips ride the same change (EDIT 10 list).

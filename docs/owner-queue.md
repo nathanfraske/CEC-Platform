@@ -49,6 +49,16 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 
 ## 3. Spec edits (drafted, waiting on the owner's pen — the corpus never amends the spec sideways)
 
+- **v1.2.0 — THE ENTERPRISE LINE (drafted 2026-07-02, ready):**
+  `docs/spec-revision-v1.2.0-draft-2026-07-02.md` — complete surgical edit set (10 edits):
+  new §13 (ENT-NET/ENT-AIR on PolarFire S), §1 tier-table rewrite, tier-agnostic phrasing
+  amendment (interface vs build variants), OQ-7 close, OQ-14 enterprise close, OQ-53..56
+  enterprise closures, OQ-60 RJ-11 disentangle, new OQ-75 (CEC-KVM) / OQ-76 (module
+  identity) / OQ-77 (mezzanine) / OQ-78 (tamper family). TWO decision boxes inside:
+  [D-ENT-6] tier-label mapping (recommended: ENT-NET=3/Enterprise, ENT-AIR=4/MC,
+  redundancy pack standard on 4, optional on 3) and OQ-75 CEC-KVM adopt/step order.
+  Apply by direct edit or by approving a PR of exactly these edits.
+
 | Edit | Drafted at | Queued |
 |---|---|---|
 | §6.4 no-cal grade restated **per quantity** (voltage survives no-cal; sub-1% current dies on a ±1% shunt) | `meas.cal.strategy_per_tier` | 2026-06-10 |
