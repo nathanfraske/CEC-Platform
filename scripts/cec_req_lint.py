@@ -24,7 +24,7 @@ SPEC = os.path.join(ROOT, "CEC-Platform-Ground-Truth-Spec.md")
 ID_RE = re.compile(r"REQ-(HUB|MOD|24PIN|EPS|PCIE|HPWR)-(COMMON|AIR|NET)-(\d{3})")
 VERIFY_RE = re.compile(r"^[IATD](\+[IATD])*$")
 GATE_OK_RE = re.compile(
-    r"(^—$|D-ENT-\d|OQ-\d+(\.\.\d+)?(/\d+)*|Phase-\d|Phase 2)"
+    r"(^—$|D-ENT-\d|OQ-\d+(\.\.\d+)?(/\d+)*|Phase-\d|Phase 2|EU-entry)"
 )
 UNIT_BY_FILE = {
     "hub-enterprise-requirements.md": {"HUB"},

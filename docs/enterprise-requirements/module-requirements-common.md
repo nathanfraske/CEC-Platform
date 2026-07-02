@@ -35,8 +35,8 @@ commonly prohibit RF-capable parts outright, even unused (plan §1a.5).
 
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
-| REQ-MOD-AIR-020 | ENT-AIR module builds SHALL satisfy the ratified radio posture: either (a) radio-free MCU (Phase-2 research item 8 survey) or (b) documented fused-off/antenna-absent ESP32 posture IF the target-buyer evidence shows it is acceptable. This row cannot leave DRAFT until D-ENT-5 picks (a)/(b). | plan §1a.5; Phase 2.8 | I | D-ENT-5 |
-| REQ-MOD-AIR-021 | Whatever posture is ratified, the module SHALL make it externally verifiable (marking + BOM + inspection doc), mirroring REQ-HUB-AIR-101. | plan §1a.5 | I | D-ENT-5 |
+| REQ-MOD-AIR-020 | ENT-AIR module builds SHALL use radio-free MCUs — option (a) RESOLVED by owner ruling 2026-07-02. Working baseline: STM32G4 family (G431-class for the digital/I2C families; G474-class for 12VHPWR-Std, evaluating on-die comparator absorption of the §6.13 TLV7011), with ESP32-P4 (radio-free, already the platform Pro MCU) for Pro-tier builds. The fused-off/antenna-absent ESP32 posture is STRUCK: no Wi-Fi-disable eFuse exists on S3/C6, no radio-absent SKU exists, and it fails inspection-without-powering (survey 8). | plan §1a.5; survey 8; owner ruling 2026-07-02 | I | — |
+| REQ-MOD-AIR-021 | The radio-free build SHALL be externally verifiable without powering the unit (distinct MCU part marking + BOM/CPL + no antenna keepout region), mirroring REQ-HUB-AIR-101. | plan §1a.5; survey 8 | I | — |
 
 ## 4. Fail-passive interposer guarantee — DRAFT
 
@@ -64,3 +64,4 @@ paths. This is the first question every mission-critical buyer asks.
 |---|---|---|---|---|
 | REQ-MOD-COMMON-050 | Enterprise module families SHALL match the Hub lifecycle commitments (REQ-HUB-COMMON-091) including spares of in-path connectors and shunts. | audit §2 | I | D-ENT-3 |
 | REQ-MOD-COMMON-051 | Shunt parts SHALL be locked (OQ-11 closes) before any enterprise module board starts — the register cannot carry TBD in-path parts into a tamper-audited product. | OQ-11; spec §6.4 | I | OQ-11 |
+| REQ-MOD-COMMON-052 | Each enterprise module family SHALL ship an SBOM per firmware release and be covered by the platform PSIRT/CVD process from the first enterprise release; on any EU market placement these become CRA-bound per REQ-HUB-COMMON-094 (modules are separately-marketed components with their own obligations). | survey 7; owner ruling 2026-07-02 | I | — |

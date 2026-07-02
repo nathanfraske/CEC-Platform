@@ -41,7 +41,9 @@ Each requirement is one table row: **ID | Requirement | Trace | Verify | Gate**.
 - **Verify** — `I` inspection, `A` analysis, `T` test, `D` demonstration (combinations
   allowed, e.g. `A+T`).
 - **Gate** — the owner decision (D-ENT-#) or OQ that must clear before the requirement can
-  leave DRAFT, or `—` when none.
+  leave DRAFT, `Phase-N` for a scheduled owner act, `EU-entry` for obligations that bind
+  only on a decision to place product on the EU market (owner ruling 2026-07-02: deferred,
+  kept open), or `—` when none.
 
 ## Status lifecycle
 
