@@ -39,7 +39,7 @@
 				)
 			)
 		)
-		(property "Datasheet" "https://www.lcsc.com/datasheet/C22387510.pdf"
+		(property "Datasheet" "https://documentation.espressif.com/esp32-p4_datasheet_en.pdf"
 			(at 0 -76.2 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -50,7 +50,7 @@
 				)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "ESP32-P4 series MCU, QFN-104 (10x10mm, 0.35mm pitch, EP7.5 exposed pad). Bare-die SoC -- Espressif ships NO SIP/module (no WROOM/MINI) for the P4; this is the only orderable form. Default MPN/LCSC below is ESP32-P4NRW32 (32MB in-package PSRAM, C22387510, LCSC-active/in-stock at intake time). Pin-compatible sibling ESP32-P4NRW16X (16MB PSRAM, same QFN-104 pinout) -- swap Value/MPN/LCSC per instance, same pattern as this repo's TPS3839DBZ reuse. NOTE the X-suffix: Espressif's current preliminary datasheet (Pre-release v0.6) documents only the -X chip-revision v3.x parts (ESP32-P4NRW16X/ESP32-P4NRW32X); the plain (no-X) ESP32-P4NRW32 pulled here off LCSC C22387510 is what is actually active/in-stock there today, while the X-suffix sibling C54540373 shows 0 stock at intake time -- verify current chip revision/stock at BOM-lock time, do not assume interchangeable without checking. Pin map datasheet-verified pin-for-pin against the ESP32-P4 Series Datasheet Table 2-1 Pin Overview + Figure 2-1 Pin Layout, cross-checked against this LCSC/EasyEDA pull -- one real discrepancy found and corrected: pin 54 pulled as NC, datasheet says VDD_HP_1 (power pin); all other renames were vendor generic-naming differences (VDDPST_n etc), not disagreements."
 			(at 0 0 0)
 			(show_name no)
 			(do_not_autoplace no)
