@@ -247,3 +247,16 @@ CROSS-SURVEY: 5VSB budget collision (PolarFire can't run on 5VSB — MAIN_5V pri
 NanoKVM AIR-egress contradiction; ATR-vs-radio-ruling coupling. Owner-queue updated (6 new items);
 INDEX.md carries the Phase-3 register edit queue. NEXT: owner Phase-3 review (D-ENT-3/5/6 on the
 survey evidence) then register edits + Phase-4 spec promotion.
+UPDATE 2026-07-02 (owner rulings applied — resolve-all pass): owner ruled in-session: (a) NOT
+selling to EU yet, keep open → CRA = EU-entry-conditional gate (new lint token 'EU-entry';
+REQ-HUB-COMMON-094; Annex III question deferred to the EU-entry trigger); (b) NanoKVM = optional
+module, excluded from ENT-AIR base builds, customer-attached KVM outside the zero-egress guarantee
+(REQ-HUB-AIR-059); (c) "resolve all of these" → adopted: S-suffix MPFS095TS baseline (001),
+RJ-11 security-I/O define wins the shell over OQ-60 (033), SNMPv3 pruned (020), radio-free option
+(a) STM32G4/P4 + fused-off STRUCK (MOD-AIR-020/021), eFuse-fronted §2.9 + MAIN_5V-primary (060),
+power-posture split (new 026), survey-5 REQ 054-058 adopted, compliance split 090→094-099+102 /
+091 narrowed (090 tombstoned, IDs never reused), per-module SBOM row (MOD-COMMON-052). Registers
+now 100 REQs / lint OK. Owner-queue row rewritten: resolved items recorded; REMAINING: D-ENT-6
+mapping, D-ENT-3 RFQs, D-ENT-5 leftovers (1-Wire/provenance/mezzanine/ATR/key-custody/SBOM-format),
+wolfSSL FIPS engagement at firmware kickoff, Phase-4 spec revision (owner pen). NEXT: Phase-4
+spec-revision drafting for the owner, or D-ENT-6 evidence prep.
