@@ -6,7 +6,7 @@ plus the survey-9 MC/MC-Max block and the REQ-107..109 storage rows into per-SKU
 and RECONCILES the cross-subsystem findings. Line-item detail (every passive, computed
 values, datasheet links) lives in the four subsystem files — this master carries only
 what changes when they meet. Prices 100q, dated 2026-07-02; `[RFQ]`/`[est]` as marked.
-**PENDING: survey 10 (100BASE-T1 module link)** — §5 below restructures on its landing._
+Survey 10 (100BASE-T1 module link) is RESOLVED into §5._
 
 ## 1. Reconciliations (parent/child + cross-subsystem divergences, resolved here)
 
@@ -34,10 +34,9 @@ what changes when they meet. Prices 100q, dated 2026-07-02; `[RFQ]`/`[est]` as m
 | T1 module data plane (§5: 2× LAN9370 + port front-ends − RS-485 bank) | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 |
 | **Parts total (no DDR)** | **≈ $213–272** | **≈ $238–307** | **≈ $393–507** | **≈ $195–253** | **≈ $204–271** | **≈ $354–464** |
 
-_*MCX = with the voting-pair option fitted. NOT included anywhere above: the §5 T1 rows
-(pending survey 10), PCB fab/assembly class (6+ layer, 0.8 mm BGA — order $15–40/unit
-[unv]), and NRE (FIPS library license, compliance labs, Libero ops). Product pricing is
-value-based per D-ENT-3 — these are cost floors._
+_*MCX = with the voting-pair option fitted. NOT included above: PCB fab/assembly class
+(6+ layer, 0.8 mm BGA — order $15–40/unit [unv]) and NRE (FIPS library license,
+compliance labs, Libero ops). Product pricing is value-based per D-ENT-3 — cost floors._
 
 ## 3. Stock-risk register (re-check at RFQ; all flagged by the subsystem passes)
 
