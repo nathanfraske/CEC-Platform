@@ -324,3 +324,16 @@ HUB BOM IMPACT PENDING: BOM-C's RS-485 §3 becomes the dual-mode/compat question
 fabric data plane land with survey 10. BOM agents A/B/D still in flight (A's children: MIC22705 =
 Icicle/Discovery VDD-core design-in; W25Q128JVSIQ verified [SSIQ/SNIQ phantom]; LP5907 can't do
 1.05V VDDA → TPS7A20 line; TPS62131/32 for 1.8/3.3 fixed).
+UPDATE 2026-07-02 (DETAILED BOM ASSEMBLED): all four subsystem BOMs landed + committed ->
+spec-sheets/bom-detailed/{bom-a-compute,bom-b-uplink,bom-c-module-if-base-secio,bom-d-power}.md
++ MASTER hub-ent-bom-detailed.md (rev 0.1). Key reconciliations (parent BOM-A missed its own
+children's findings — they reported to me directly): VDD core = MIC22705YML-TR (7A, BOTH kits'
+actual part — kills the 3A headroom risk; MPM3833C keeps the light rails); ONE DSC1123BL5 125MHz
+LVDS osc ALL SKUs (kit-verified shared MSS/SGMII refclk; BOM-A's 50MHz Y1 deleted, NET-only
+population corrected); flash upgraded W25Q256JV per REQ-107; JTAG = FTSH-105 (kit J23) + adapter
+note; cross-cutting external ADC resolved = ADS7830-class assigned to subsystem C. Per-SKU parts
+totals (pre-T1, no DDR): NET-B ~\$199-248 / NET-MC ~\$224-283 / NET-MCX ~\$379-483 / AIR-B
+~\$181-229 / AIR-MC ~\$190-247 / AIR-MCX ~\$340-440. Stock-risk register (9 rows) + 14
+phantom/corrected parts logged. PENDING: survey 10 (T1) -> master §5 restructure (8x hub T1 PHYs,
+dual-mode vs compat-drop, module RMII MCU) + BOM-C §3 conditional. Open: Power Estimator run,
+SPI-strap polarity, SGMII AC-coupling seam, DDR decision, eMMC MPN, S32K31x sibling RFQ.
