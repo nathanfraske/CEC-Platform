@@ -43,7 +43,7 @@ polarity selection or accept the PSE's own convention and record which.
 | 1x 24-pin module (non-streaming, CAN-only pair-2 termination) | Simpler exposure — confirms the non-streaming family isn't over/under-protected (§h REQ-text-refinement note 2). |
 
 Every other family inherits this procedure at GA per REQ-MOD-COMMON-050
-lifecycle parity; this minimum DUT set matches survey-11 §h's own floor.
+lifecycle parity; this DUT set matches survey-11 §h's own floor.
 
 ## 4. Protocol
 
@@ -68,10 +68,9 @@ Per source, per DUT, per polarity:
   protection element, §b/§c).
 - Thermal imaging on every protection component (SS110, SMAJ58A, DETECT
   series-R, pin-7 bleed-R, T1 CMC/caps/TVS, TPS26621 eFuse).
-- Scope capture of the DETECT ADC node and the CAN bus, for alarm-detection
-  response time.
-- eFuse status pin (module side) logged continuously to confirm trip/
-  auto-retry directly, not just inferred from current.
+- Scope capture of the DETECT ADC node and CAN bus, for alarm response time.
+- eFuse status pin (module side) logged continuously, not just inferred from
+  current.
 
 ## 6. Pass criteria (must all hold — survey-11 §h)
 

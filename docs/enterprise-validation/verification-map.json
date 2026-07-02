@@ -53,7 +53,7 @@
         "firmware-test"
       ],
       "status": "planned",
-      "statement_hash": "2c1b86d0562a"
+      "statement_hash": "670d1091b6ee"
     },
     "REQ-HUB-COMMON-010": {
       "artifacts": [
@@ -89,7 +89,7 @@
         "sbom-pipeline"
       ],
       "status": "planned",
-      "statement_hash": "f8e282c811a1"
+      "statement_hash": "3b8d803d5838"
     },
     "REQ-HUB-NET-020": {
       "artifacts": [
@@ -194,7 +194,7 @@
         "firmware-test"
       ],
       "status": "planned",
-      "statement_hash": "82a4311c958d"
+      "statement_hash": "e8259cee38c9"
     },
     "REQ-HUB-COMMON-044": {
       "artifacts": [
@@ -240,10 +240,10 @@
     },
     "REQ-HUB-NET-111": {
       "artifacts": [
-        "firmware-test"
+        "register-inspection"
       ],
       "status": "planned",
-      "statement_hash": "e3f169f9f97d"
+      "statement_hash": "1c1e0eab017b"
     },
     "REQ-HUB-COMMON-050": {
       "artifacts": [
@@ -437,7 +437,8 @@
     "REQ-HUB-COMMON-094": {
       "artifacts": [
         "psirt-cvd-process",
-        "sbom-pipeline"
+        "sbom-pipeline",
+        "compliance-claims-lint"
       ],
       "status": "planned",
       "statement_hash": "f328f2a5504d"
@@ -451,21 +452,24 @@
     },
     "REQ-HUB-COMMON-096": {
       "artifacts": [
-        "analysis-note"
+        "analysis-note",
+        "compliance-claims-lint"
       ],
       "status": "planned",
       "statement_hash": "120ac51b9666"
     },
     "REQ-HUB-COMMON-097": {
       "artifacts": [
-        "fips-oe-engagement-brief"
+        "fips-oe-engagement-brief",
+        "compliance-claims-lint"
       ],
       "status": "planned",
       "statement_hash": "1713b204b514"
     },
     "REQ-HUB-COMMON-098": {
       "artifacts": [
-        "register-inspection"
+        "register-inspection",
+        "compliance-claims-lint"
       ],
       "status": "planned",
       "statement_hash": "1b656459bdb7"
@@ -608,7 +612,7 @@
         "firmware-test"
       ],
       "status": "planned",
-      "statement_hash": "87755a4e9224"
+      "statement_hash": "fe9f4ee6014c"
     },
     "REQ-MOD-COMMON-001": {
       "artifacts": [

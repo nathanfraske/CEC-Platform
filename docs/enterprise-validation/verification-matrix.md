@@ -14,12 +14,12 @@ Generated: 2026-07-02 UTC -- 114 requirements parsed.
 | REQ-HUB-NET-004 | T | firmware-test | planned | `7acfa797de1e` |
 | REQ-HUB-AIR-005 | D | demonstration-note | planned | `711eb53b652a` |
 | REQ-HUB-COMMON-006 | T | firmware-test | planned | `e2103d80b267` |
-| REQ-HUB-COMMON-007 | T | firmware-test | planned | `2c1b86d0562a` |
+| REQ-HUB-COMMON-007 | T | firmware-test | planned | `670d1091b6ee` |
 | REQ-HUB-COMMON-010 | T | firmware-test | planned | `9b5b55fee001` |
 | REQ-HUB-COMMON-011 | I | register-inspection | planned | `a722d1d3941e` |
 | REQ-HUB-NET-012 | T | firmware-test | planned | `39e5704559ab` |
 | REQ-HUB-AIR-013 | T+D | firmware-test | planned | `4698c0f45355` |
-| REQ-HUB-COMMON-014 | I | psirt-cvd-process, sbom-pipeline | planned | `f8e282c811a1` |
+| REQ-HUB-COMMON-014 | I | psirt-cvd-process, sbom-pipeline | planned | `3b8d803d5838` |
 | REQ-HUB-NET-020 | T | firmware-test | planned | `9303be1431bc` |
 | REQ-HUB-NET-021 | T | firmware-test | planned | `4a8bbc9d1a32` |
 | REQ-HUB-NET-022 | I+D | demonstration-note | planned | `d23fc2988f3b` |
@@ -34,14 +34,14 @@ Generated: 2026-07-02 UTC -- 114 requirements parsed.
 | REQ-HUB-COMMON-040 | I+T | firmware-test | planned | `880a4db62911` |
 | REQ-HUB-COMMON-041 | I+T | firmware-test | planned | `096c1b5511ff` |
 | REQ-HUB-COMMON-042 | I+T | firmware-test | planned | `67b9ad83cfe6` |
-| REQ-HUB-COMMON-043 | T | firmware-test | planned | `82a4311c958d` |
+| REQ-HUB-COMMON-043 | T | firmware-test | planned | `e8259cee38c9` |
 | REQ-HUB-COMMON-044 | I+T | firmware-test | planned | `9ee8ecfd9052` |
 | REQ-HUB-COMMON-045 | T | firmware-test | planned | `59abe848a142` |
 | REQ-HUB-COMMON-110 | T | bench-misplug-injection | planned | `0b4f2af85cd6` |
 | REQ-HUB-COMMON-112 | A+T | bench-sync-pin7 | planned | `47665ab7bc87` |
 | REQ-HUB-COMMON-113 | T | bench-heartbeat-adversarial | planned | `2fcbc66208bb` |
 | REQ-HUB-COMMON-114 | T | bench-heartbeat-adversarial | planned | `ab8db41bce20` |
-| REQ-HUB-NET-111 | A+T | firmware-test | planned | `e3f169f9f97d` |
+| REQ-HUB-NET-111 | I | firmware-test | planned | `1c1e0eab017b` |
 | REQ-HUB-COMMON-050 | T | firmware-test | planned | `49920fb76146` |
 | REQ-HUB-COMMON-051 | D | demonstration-note | planned | `466ef7fe7a30` |
 | REQ-HUB-COMMON-052 | T | firmware-test | planned | `808151a57113` |
@@ -69,11 +69,11 @@ Generated: 2026-07-02 UTC -- 114 requirements parsed.
 | REQ-HUB-COMMON-080 | A | analysis-note | planned | `1d1a5c7031f4` |
 | REQ-HUB-COMMON-081 | A+T | fmea-hub | planned | `7e2b23456c63` |
 | REQ-HUB-COMMON-091 | I | register-inspection | planned | `f42e4692d282` |
-| REQ-HUB-COMMON-094 | I | psirt-cvd-process, sbom-pipeline | planned | `f328f2a5504d` |
+| REQ-HUB-COMMON-094 | I | psirt-cvd-process, sbom-pipeline, compliance-claims-lint | planned | `f328f2a5504d` |
 | REQ-HUB-COMMON-095 | T | emc-prescan-plan | planned | `d696d1568e5c` |
-| REQ-HUB-COMMON-096 | A | analysis-note | planned | `120ac51b9666` |
-| REQ-HUB-COMMON-097 | I | fips-oe-engagement-brief | planned | `1713b204b514` |
-| REQ-HUB-COMMON-098 | I | register-inspection | planned | `1b656459bdb7` |
+| REQ-HUB-COMMON-096 | A | analysis-note, compliance-claims-lint | planned | `120ac51b9666` |
+| REQ-HUB-COMMON-097 | I | fips-oe-engagement-brief, compliance-claims-lint | planned | `1713b204b514` |
+| REQ-HUB-COMMON-098 | I | register-inspection, compliance-claims-lint | planned | `1b656459bdb7` |
 | REQ-HUB-COMMON-099 | I | register-inspection | planned | `6f9a46a381fd` |
 | REQ-HUB-COMMON-102 | I | psirt-cvd-process | planned | `eb22eef2ff4c` |
 | REQ-HUB-COMMON-092 | A | analysis-note | planned | `93ae22519482` |
@@ -103,7 +103,7 @@ Generated: 2026-07-02 UTC -- 114 requirements parsed.
 | REQ-24PIN-COMMON-010 | I+T | firmware-test | planned | `66fdb2c77810` |
 | REQ-24PIN-COMMON-011 | I+T | firmware-test | planned | `c013dc394106` |
 | REQ-24PIN-COMMON-012 | A+T | fmea-24pin | planned | `073c1b8e6e45` |
-| REQ-24PIN-COMMON-020 | I+T | firmware-test | planned | `87755a4e9224` |
+| REQ-24PIN-COMMON-020 | I+T | firmware-test | planned | `fe9f4ee6014c` |
 
 ## module-requirements-common.md
 
@@ -167,6 +167,7 @@ Generated: 2026-07-02 UTC -- 114 requirements parsed.
 - bench-heartbeat-adversarial: 4
 - bench-misplug-injection: 2
 - bench-sync-pin7: 3
+- compliance-claims-lint: 4
 - demonstration-note: 7
 - emc-prescan-plan: 1
 - fips-oe-engagement-brief: 1
