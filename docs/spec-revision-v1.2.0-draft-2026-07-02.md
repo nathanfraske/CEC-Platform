@@ -247,6 +247,14 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > **OQ-77: Mezzanine integrated-stack option.** Formalize the Hub-on-24-pin mezzanine
 > (docs/mezzanine-stack-design-2026-06-24.md) as an orderable form, incl. its enterprise
 > fit; RJ-45 remains the default cabled PHY.
+> **OQ-81: Pin-7 SYNC/FREEZE line (ENT).** Allocate the reserved spare (pin 7) as a
+> shared wired-OR hardware sync/trigger line: platform-wide simultaneous FREEZE +
+> PPS-class latch edge at ≤100 ns module-to-module alignment (complementing, and bench-
+> verifying, the REQ-106 gPTP timebase; sub-ns explicitly not claimed or needed). Decide
+> against pin 7's other suitors (1-Wire identity return [OQ-76 — GND return suffices],
+> DETECT Kelvin return [OQ-60 note]); re-scope the mis-plug protection for a driven line;
+> preserve legacy-module NC compatibility. Adopting this subsumes the OQ-60 companion-
+> connector FREEZE-trigger role for the general fleet.
 > **OQ-80: ENT module-link realization (T1).** Detail the 3rd-ruling link: T1 PHY part
 > class (hub ×8 + module side), fabric MAC/switch + PTP timestamping architecture, the
 > dual-mode (T1 + RS-485 RX) port cost vs an explicit compat drop, module RMII-MCU pick
