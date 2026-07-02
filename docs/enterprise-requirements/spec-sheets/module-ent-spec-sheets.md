@@ -15,7 +15,7 @@ doesn't forbid it; two builds per family would double the SKU matrix for no buye
 | Delta | Change vs consumer build | BOM effect [est] | Trace |
 |---|---|---|---|
 | MCU (radio-free + RMII MAC for streaming families) | Streaming families (EPS/PCIe/12VHPWR): MCU SHALL carry an RMII MAC for the 100BASE-T1 link (3rd ruling) → **ESP32-P4** (radio-free, 1 MAC) or **STM32H5-class** — survey 10 grounds the pick; STM32G4 falls back to NON-streaming families only (24-pin: **G431** stands) | P4 $4.47 / H563-class ~$4-6 [unv] vs C6 ~$3-4; T1 PHY adder ~$2-4/module [unv, survey 10] | survey 8/10; REQ-MOD-COMMON-003 |
-| Per-unit identity | ADD identity device or scheme — **mechanism TBD (OQ-76)**: 1-Wire ID/EEPROM (DS28-class, ~$0.5–1.5) vs CAN challenge-response against an MCU-resident key (≈$0 parts, firmware) vs secure-element-lite (ATECC-class ~$0.6–1) | $0–1.5 `[TBD OQ-76]` | REQ-MOD-COMMON-010/011 |
+| Per-unit identity | **RESOLVED (5th ruling)**: MCU-resident device key + Hub challenge-response over CAN/T1 + DETECT poke-and-ack liveness — NO identity hardware (1-Wire path OUT); provisioning = key injection at the flashing step | **≈$0 parts** (firmware + provisioning step) | REQ-MOD-COMMON-010/011; OQ-76 resolved |
 | Firmware signing | Same custody/anti-rollback discipline as the Hub (MCUboot on STM32G4 is mature) | $0 parts | REQ-MOD-COMMON-012 |
 | Link & DETECT | UNCHANGED (locked): RJ-45 FTP, CAN 500k via TJA1051T/3, DETECT code per class, pin-8 ESD | $0 | REQ-MOD-COMMON-001 |
 | Telemetry integrity | Sequence+timestamp metadata (firmware); §6.10 pre-roll retained | $0 parts | REQ-MOD-COMMON-041/042 |

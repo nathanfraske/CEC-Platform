@@ -241,13 +241,17 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > SG2002-class cost floor), carrier form (PCIe bracket vs bracketless), the standing
 > Linux-image PSIRT cost, and whether Step-1 (CEC carrier + hardened image on COTS core)
 > ships before the full SKU.
-> **OQ-76: Enterprise module per-unit identity mechanism.** The §2.3 1-Wire ID/EEPROM
-> upgrade path vs a CAN-based challenge/response against a module-resident secret vs
-> DETECT-class-only + Hub census. Feeds REQ-MOD-COMMON-010/011.
+> **OQ-76: Enterprise module per-unit identity mechanism — RESOLVED-BY-DIRECTION (owner,
+> 2026-07-02 5th ruling).** MCU-resident device key + Hub challenge-response over CAN
+> and/or T1, with the DETECT poke-and-ack tap as the physical liveness/anti-spoof surface;
+> the §2.3 1-Wire ID/EEPROM path is NOT adopted (no new identity hardware). Module
+> validation is treated as inherently untrusted: the Hub cross-validates across
+> independent surfaces (DETECT class, poke-and-ack, CAN challenge, T1 checks,
+> power-signature consistency) and alarms on inconsistency (REQ-HUB-COMMON-113).
 > **OQ-77: Mezzanine integrated-stack option.** Formalize the Hub-on-24-pin mezzanine
 > (docs/mezzanine-stack-design-2026-06-24.md) as an orderable form, incl. its enterprise
 > fit; RJ-45 remains the default cabled PHY.
-> **OQ-81: Pin-7 SYNC/FREEZE line (ENT).** Allocate the reserved spare (pin 7) as a
+> **OQ-81: Pin-7 SYNC/FREEZE line (ENT) — RESOLVED-BY-DIRECTION (owner, 2026-07-02 5th ruling; this revision formalizes the locked-table change).** Allocate the reserved spare (pin 7) as a
 > shared wired-OR hardware sync/trigger line: platform-wide simultaneous FREEZE +
 > PPS-class latch edge at ≤100 ns module-to-module alignment (complementing, and bench-
 > verifying, the REQ-106 gPTP timebase; sub-ns explicitly not claimed or needed). Decide

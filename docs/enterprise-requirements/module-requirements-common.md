@@ -24,8 +24,8 @@ The platform's module identity (DETECT class code + MAC) is a weak integrity anc
 
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
-| REQ-MOD-COMMON-010 | Each enterprise module SHALL carry a per-unit unique, cryptographically verifiable identity readable by the Hub over the existing link (candidate mechanism: the §2.3 1-Wire ID/EEPROM upgrade path on pin 8 with pin 7 return — explicitly NOT adopted platform-wide; adopted HERE only if D-ENT-5 ratifies). | spec §2.3 upgrade path; OQ-44; audit §3 | I+T | D-ENT-5 |
-| REQ-MOD-COMMON-011 | Module identity SHALL bind into the Hub's attestation evidence so a module swap is a detectable, loggable event (component-swap detection at the platform's own granularity — complements TCG Platform-Certificate-style host attestation, does not replace it). | tamper §5; OQ-44 | T | D-ENT-5 |
+| REQ-MOD-COMMON-010 | Each enterprise module SHALL carry a per-unit cryptographically verifiable identity via an MCU-resident device key exercised by Hub challenge-response over CAN and/or the T1 link — NO new identity hardware (owner ruling 2026-07-02 5th: the 1-Wire ID/EEPROM path is OUT, replaced by the poke-and-ack topology + link-layer challenge; ≈$0 parts). The DETECT poke-and-ack tap SHALL serve as the physical-layer liveness/anti-spoof surface accompanying the cryptographic challenge. | owner ruling 2026-07-02 (5th); OQ-44/76 resolved-by-direction | I+T | — |
+| REQ-MOD-COMMON-011 | Module identity SHALL bind into the Hub's attestation evidence so a module swap is a detectable, loggable event (component-swap detection at the platform's own granularity — complements TCG Platform-Certificate-style host attestation, does not replace it). | tamper §5; OQ-44 | T | — |
 | REQ-MOD-COMMON-012 | Enterprise module firmware SHALL be signed with the same custody/anti-rollback discipline as the Hub (REQ-HUB-COMMON-010/011). | audit §2 | T | — |
 
 ## 3. Radio posture (ENT-AIR load-bearing question) — DRAFT
