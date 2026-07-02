@@ -31,7 +31,8 @@ what changes when they meet. Prices 100q, dated 2026-07-02; `[RFQ]`/`[est]` as m
 | D — power (verified ≈$9.0) | $9.0 | $9.0 | $9.0 | $9.0 | $9.0 | $9.0 |
 | F — watchdog block (survey 9: S32K3-class + XO + LDO + optional TPS3813) | — | $8–17 | $8–17 | — | $8–17 | $8–17 |
 | G — voting pair (2nd A-block + sync: PCIe/NTB passives + 2× TJA1051T/3) | — | — | +$155–200 | — | — | +$150–193 |
-| **Parts total (pre-T1, no DDR)** | **≈ $199–248** | **≈ $224–283** | **≈ $379–483** | **≈ $181–229** | **≈ $190–247** | **≈ $340–440** |
+| T1 module data plane (§5: 2× LAN9370 + port front-ends − RS-485 bank) | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 | +$14–24 |
+| **Parts total (no DDR)** | **≈ $213–272** | **≈ $238–307** | **≈ $393–507** | **≈ $195–253** | **≈ $204–271** | **≈ $354–464** |
 
 _*MCX = with the voting-pair option fitted. NOT included anywhere above: the §5 T1 rows
 (pending survey 10), PCB fab/assembly class (6+ layer, 0.8 mm BGA — order $15–40/unit
@@ -61,12 +62,20 @@ VSC8662 (NRND per Microchip's own schematic), MP2315GJ-Z (NRND → -P/S-P),
 (1.2 V floor — physically impossible), ESP32 BOOT-strap pattern (doesn't exist on
 PolarFire), VTT-for-LPDDR4 (not required — on-die termination).
 
-## 5. PENDING — survey 10 (100BASE-T1 module link, third owner ruling)
+## 5. RESOLVED — survey 10 (100BASE-T1 module link) — subsystem C restructure
 
-On landing, this master gains: 8× hub-side T1 PHY rows + the fabric MAC/switch/PTP
-data-plane note (subsystem C restructure), the dual-mode (T1 + RS-485 RX) vs compat-drop
-costing, per-module T1 PHY rows for the module sheets, and the module RMII-MCU pick.
-BOM-C's §3 (8× THVD1450, $4.93) is the piece that becomes conditional.
+| Change | Rows | Cost |
+|---|---|---|
+| ADD: 2× **LAN9370-I/KCX** (4-port T1 switch, integrated PHYs + 802.1AS/1588v2 HW timestamping) → 2 fabric RGMII/MII bridge MACs (~5% LE) | hub | $14.42 |
+| ADD: 8× OPEN-Alliance CMC (TDK ACT1210L-201-2P) + 8× PESD2ETH100-T + AC-coupling | hub | $4.6–14.7 |
+| REMOVE: BOM-C §3 RS-485 receiver bank (8× THVD1450 + term/bias) — **RS-485 compat DROPPED** (survey 10 rec, owner-review tag; consumer Pro streaming goes dark on ENT ports per the §8 pattern, CAN unaffected) | hub | −$4.93 |
+| **Net hub delta from the T1 ruling** | | **≈ +$14–24** |
+| Module side (per streaming module): DP83TC814S-Q1 ($2.39; TJA1103 $1.49+1588 NDA-flagged alt) + CMC + ESD + coupling | module sheets | +$3.0–4.2/module |
+| Module MCU: **ESP32-P4 uniformly** (reuses the 12VHPWR Pro reference design; STM32H563 fallback) | module sheets | tracked there |
+
+Add the net T1 delta to every SKU column in §2 (+$14–24; AIR included — module ports exist
+on both postures). Sync accuracy = design target (802.1AS <1 µs class, HW timestamps at
+every stage), bench-verified before REQ-106 is claimed as met.
 
 ## 6. Open items consolidated (beyond the subsystem files' own lists)
 

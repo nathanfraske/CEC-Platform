@@ -52,8 +52,8 @@ $0). **Net delta ≈ −$0.2 … +$1.6.**
 |---|---|---|
 | Sensing | Per-cable INA238 (2 cables, 0.5 mΩ) + INA240 fast path + **simultaneous fast ADC** + §6.13 detection floor | REQ-EPS-001/002; spec §6.13 |
 | Fast ADC | **ADS131M08-class** working baseline (8-ch simultaneous 24-bit ΔΣ, ~$5–8 `[unv]`); LTC2358-18 is the spec'd alternative (~$18–25 `[unv]`) — choice mirrors OQ-21 | spec §6.13 |
-| Streaming | **100BASE-T1** (pins 4/5, bidirectional + sub-µs sync; T1 PHY ~$2-4 [survey 10]) — replaces RS-485 for ENT (3rd ruling) | REQ-MOD-COMMON-003; REQ-HUB-COMMON-106 |
-| MCU | RMII-MAC-bearing radio-free MCU (3rd-ruling consequence): **ESP32-P4** or **STM32H5-class** — survey 10 grounds the pick (G474's ADC/comparator strengths noted; it lacks a MAC, so it only serves if the T1 MAC lives in the PHY/switch part instead — survey 10 checks that option too) | survey 8/10; REQ-MOD-COMMON-003 |
+| Streaming | **100BASE-T1** (pins 4/5, bidirectional + sub-µs sync): DP83TC814S-Q1 ($2.39) + OPEN-Alliance CMC + PESD2ETH100 ≈ $3.0–4.2/module (survey 10; TJA1103 $1.49+1588 = NDA-flagged alt) | survey 10; REQ-MOD-COMMON-003/HUB-106 |
+| MCU | **ESP32-P4** (survey 10 resolved: uniform across streaming families — RMII + HW 1588/PPS confirmed, reuses the 12VHPWR Pro reference design; STM32H563 documented fallback; no MAC-integrated T1 part exists to rescue G474) | survey 10; REQ-MOD-COMMON-003 |
 | DETECT | **10 kΩ** (CAN+100BASE-T1 — the locked reserved class) | §2.3 |
 | Events | §6.10 pre-roll + per-cable attribution into the Hub tamper/event log | REQ-EPS-003 |
 

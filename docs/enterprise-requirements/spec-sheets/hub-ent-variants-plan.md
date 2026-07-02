@@ -47,7 +47,7 @@ from the subsystem BOM passes + survey 9)._
 |---|---|---|
 | CAN | TXD/RXD + STB | 3.3 V MSS/fabric GPIO |
 | DETECT ×8 | 8 analog-capable inputs (µPolarFire has no native ADC — **plan row: external ADC or comparator ladder for DETECT**; the platform's ESP32 ADC trick does not carry over. Working baseline: one 8–12 ch SPI ADC, added to BOM-C open items) | 3.3 V |
-| RS-485 ×8 | 8 RX (+DE if ever TX) → fabric UARTs | 3.3 V |
+| T1 ×8 (survey 10) | 2× LAN9370 4-port T1 switches → 2 RGMII bridge MACs in fabric (~5% LE; on-chip 802.1AS timestamping); RS-485 bank REMOVED (compat dropped) | RGMII/3.3 V |
 | SGMII | 1–2 lanes (MSS/fabric) + PHY MDIO/MDC — MC dual-uplink = 2 discrete DP83869HM PHYs, each with its own lane (VSC8662 dual-port option is NRND-dead, BOM-B) | SERDES/3.3 V |
 | USB | MSS USB 2.0 OTG | dedicated |
 | QSPI, JTAG, straps | MSS | 1.8/3.3 V |

@@ -15,7 +15,7 @@ deployment. Enterprise notes: identity/tamper posture of the legacy SKU on the n
 | EPS 8-pin (rev2) | 2.2 kΩ CAN-only | CAN 500k; §6.13 FREEZE events over CAN | None | Same weak-identity note |
 | PCIe 2-port / 3-port (rev2) | 2.2 kΩ CAN-only | CAN 500k; §6.13 FREEZE events over CAN | None | Same weak-identity note |
 | 12VHPWR Standard | 2.2 kΩ CAN-only | CAN 500k; per-pin stats + NTC temps over CAN | None | Per-pin forensics summary available even from the legacy SKU |
-| 12VHPWR Pro | 4.7 kΩ CAN+RS-485 | CAN + RS-485 streaming SERVICED (REQ-HUB-COMMON-043) | None on enterprise Hub (streaming native); on Standard Hub the pair stays dark per §8 | The streaming exemplar the enterprise Hub must service at ~900 kB/s |
+| 12VHPWR Pro (consumer, RS-485) | 4.7 kΩ CAN+RS-485 | CAN fully serviced; **streaming pair DARK on ENT ports** (T1-only hub, survey 10 / REQ-043) — same §8 pattern as on a Standard Hub | Streaming dark; CAN control+telemetry live | The ENT-build 12VHPWR (T1, DETECT 10 kΩ) streams natively; the consumer Pro SKU streams only on Pro hubs |
 | ARGB controller (§7, PROPOSED) | CAN-only | CAN 500k | None | Cosmetic; no enterprise posture |
 | SATA module (§6.12, PROPOSED) | per spec when built | CAN (+RS-485 at Pro tier) | Per ladder | Requirements land with its family register if adopted |
 | EPS/PCIe Pro, Max SKUs (§6.13, PROPOSED) | 4.7 kΩ / per OQ-20 class | CAN + RS-485 (Pro); Max interconnect pending OQ-20 | Streaming dark on sub-Pro Hubs | These become the enterprise-tier builds per the family registers |
