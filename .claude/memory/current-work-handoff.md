@@ -201,3 +201,13 @@ mapping (AIR/NET vs Enterprise/MC labels + where the MC redundancy set lands). P
 updated. Customer/integration fan-out audit workflow STILL RUNNING (8 lenses + skeptics + synthesis,
 run wf_81e0153f-4e0) — when it lands, map findings onto the AIR/NET framing and write
 docs/enterprise-requirements/research/customer-integration-audit-2026-07-01.md.
+UPDATE 2026-07-02: customer/integration audit COMPLETE ->
+docs/enterprise-requirements/research/customer-integration-audit-2026-07-01.md (8 lenses + skeptics +
+critic + Opus synthesis; raw journals banked in research/raw/). Headline blockers: no northbound
+management surface (Redfish/SNMP/OpenMetrics/syslog absent); 1000BASE-T1 is the wrong PHY (standard
+1000BASE-T/SFP expected); security = platform-wide legal floor (EU CRA) not a tier differentiator;
+fail-passive FMEA for in-power-path interposers unanswered; USB-primary contradicts OOB value on
+ENT-NET (variant-conditional); "redundancy" must be fail-DETECTED/observable; BOM must be value-priced
+vs $1.5-3k comparables; target-fleet statement needed (BMC-less ATX wedge vs CRPS servers). Tamper
+module deep-research resumed on sonnet/opus, STILL RUNNING (wf_1a63a627-2ab) — on completion write
+report + fold ranked module concepts into the plan.
