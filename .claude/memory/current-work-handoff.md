@@ -337,3 +337,13 @@ totals (pre-T1, no DDR): NET-B ~\$199-248 / NET-MC ~\$224-283 / NET-MCX ~\$379-4
 phantom/corrected parts logged. PENDING: survey 10 (T1) -> master §5 restructure (8x hub T1 PHYs,
 dual-mode vs compat-drop, module RMII MCU) + BOM-C §3 conditional. Open: Power Estimator run,
 SPI-strap polarity, SGMII AC-coupling seam, DDR decision, eMMC MPN, S32K31x sibling RFQ.
+UPDATE 2026-07-02 (FOURTH OWNER RULING — mis-plug fail-safe): with a real 1000BASE-T jack on
+ENT-NET, a live-network/PoE cable into a MODULE port is now foreseeable misuse. NEW
+REQ-HUB-COMMON-110 + REQ-MOD-COMMON-053 (109 REQs lint OK): withstand 802.3 signaling AND 57V PoE
+(all modes/polarities incl. passive injectors), NO damage, self-recovering, detected+alarmed+logged,
+verified by injection TEST both ends. Spec draft: §2.4 ENT re-scope block added (consumer
+ratification STANDS; ENT build delta only). Baseline per-pin analysis: CAN ok (TJA1051 ±58V —
+verify continuous), DETECT dies (PESD not continuous-rated -> series element), pin1 5VSB needs
+60V-class blocking (hub sources / module receives into 6.5V-max LDO!), pin7 needs defined
+treatment, T1 pair per PHY fault rating. SURVEY 11 IN FLIGHT (protection network parts + costs +
+compliant-PSE detection analysis + test procedure; feeds survey 10's PHY pick + BOM-C/module BOMs).
