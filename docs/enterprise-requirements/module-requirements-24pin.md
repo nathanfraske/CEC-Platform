@@ -29,4 +29,4 @@ accumulators) and the bulk-power source for the Hub — both are enterprise-load
 
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
-| REQ-24PIN-COMMON-020 | If D-ENT-5 adopts the mezzanine form, the 24-pin SHALL carry the male stack header (16-pin 2.00 mm) with the pair-2 pins carrying 100BASE-T1 per REQ-MOD-COMMON-003, and the stacked unit SHALL pass the standoff/GND-bond + 8 mm gap mechanical checks. | mezzanine design doc; plan §3a context | I+T | D-ENT-5 |
+| REQ-24PIN-COMMON-020 | Mezzanine ADOPTED (owner ruling 2026-07-02, 8th — also being adopted across the consumer tiers, per the same ruling): the 24-pin ENT build SHALL carry the male stack header (16-pin 2.00 mm) with the pair-2 pins carrying 100BASE-T1 per REQ-MOD-COMMON-003, and the stacked unit SHALL pass the standoff/GND-bond + 8 mm gap mechanical checks. The integrated stacked-PRODUCT SKU is scoped to **ENT-AIR only for now** — adoption for any other ENT posture is FLAGGED FOR OWNER REVIEW (owner-queue). | owner ruling 2026-07-02 (8th); mezzanine design doc; plan §3a context | I+T | — |

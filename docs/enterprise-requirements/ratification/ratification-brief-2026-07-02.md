@@ -9,6 +9,23 @@ to an existing register row, spec-draft edit, or survey. Six of the seven "real 
 rows below have a matching one-page brief in `briefs/`; work this table top to bottom and
 open a brief only when you want the full trade-off writeup._
 
+## ⚑ RULINGS RECEIVED — owner walked the queue 2026-07-02 (8th ruling, batch)
+
+| Item | Owner answer | Status |
+|---|---|---|
+| N1 RS-485-compat drop | Asked back: "any world where a consumer Pro module's RS-485 on ENT allows anything?" | ANSWERED (see the reply of record / owner-queue) — confirm pending |
+| N2 SBOM format | Asked for the options in detail | ANSWERED — pick pending |
+| N3 D-ENT-3 RFQ | **"Ratify now"** — send WHEN the customer signs off on the design; **stand up a PROTOTYPE for customer review now** | RATIFIED, send on hold; prototype plan → `../prototype-demo-plan-2026-07-02.md` |
+| N4 OQ-75 CEC-KVM kickoff | **"Yes, kickoff now"** | KICKED OFF (recs list awaits its own 5-item sign-off) |
+| N5 Phase-5 gate posture | **"I approve"** | STRICT GATE ratified |
+| R1 REQ-HUB-NET-111 PD-on-uplink | **"Decline"** | DECLINED — tombstoned in the register |
+| R2 Apply v1.2.0 | **"I sign off"** | APPROVED — application STAGED behind the N1 confirm (sequencing rule b-before-a) |
+| R3 OQ-11 shunts | **"Bourns is the default, pick whichever makes more sense — you have my approval"** | DELEGATED — engineering selection pass running; closure sheet lands at `oq-11-shunt-selection-2026-07-02.md` |
+| R4 Provenance role | **"Evidence source only"** | RULED — recorded in REQ-HUB-COMMON-007 |
+| R5 Mezzanine OQ-77 | **"Yes, adopt"** (also being adopted consumer-side); stacked-product SKU **ENT-AIR only for now**, broader scope flagged | ADOPTED — REQ-24PIN-COMMON-020 updated; scope-extension flag on owner-queue |
+| R6 ATR OQ-78 | Asked back: "does radio buy us anything vs the intentional-transmitter certs bar?" | ANSWERED — revised rec (passive-receive only / defer active emitter) — pick pending |
+| R7 Signing-key custody | **"I agree with your recs"** | DIRECTION RATIFIED (offline M-of-N; procedure doc drafts next, final sign-off on the doc) |
+
 ## The minimal set that unblocks boards
 
 Per the scope doc's sequencing (§"Sequencing") and `next-trajectory-2026-07-02.md` §4:
