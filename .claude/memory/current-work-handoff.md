@@ -420,3 +420,19 @@ bank marked SUPERSEDED (master §5 reconciliation governs); variants-plan block 
 IO-budget gained the T1 and per-port pin-7 fabric rows; hub spec-sheet §C subtotal honest
 ($30-46 incl. T1 plane). REMAINING PROPOSED-pending: only REQ-HUB-NET-111 (PD-on-uplink).
 114 REQs lint OK.
+UPDATE 2026-07-02 (NEXT-TRAJECTORY SCOPED + SUITE REVIEW IN FLIGHT): (1) Owner asked for a
+full-suite fan-out review (Standard/Pro/Max/ENT) — Workflow wf_fd0ca2c2-929 RUNNING (10 sonnet
+lenses -> opus triage -> adversarial verify -> opus synthesis); on completion: apply confirmed
+fixes + report. Resume via scriptPath+resumeFromRunId if killed; journal at the workflow
+transcript dir. (2) Owner asked to "parallelize and scope the next trajectory" — DONE: 5
+parallel sonnet scopes banked at docs/enterprise-requirements/research/next-trajectory/
+scope-{firmware-fabric,security-protocols,board-program,validation-compliance,
+ratification-package}.md + synthesis docs/enterprise-requirements/next-trajectory-2026-07-02.md
+(5 workstreams A-E; dependency graph; start-now list of 11 items; owner decision queue §4 w/
+minimal-unblock-boards set = REQ-111 + RS-485 nod -> v1.2.0 -> OQ-11 -> Phase-5; NEW owner
+spend asks mirrored to owner-queue: dev-kit/EVB order ~$600-900 + Libero license; engineering
+defaults agents proceed on listed in §4; waves 0-3). Wave-0 exit criterion: suite-review
+findings patched BEFORE the ratification brief freezes. NEXT concrete agent work (wave 0):
+ratification brief + 6 decision one-pagers, CEC-KVM cited-recs (FOLLOWUPS promise), RFQ
+package, threat model + key hierarchy + heartbeat protocol DRAFT, verification-matrix
+generator, bench specs, KiCad library intake (~30 parts), FCVG484 breakout study.
