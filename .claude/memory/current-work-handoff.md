@@ -309,3 +309,18 @@ MC adder ~$22-35, MC-Max +$150-195 + unpriced PCB-class step. APPLIED: REQ-103/1
 STILL IN FLIGHT: 4 subsystem BOM agents (A compute / B uplink / C module-IF+base / D power) ->
 assemble docs/enterprise-requirements/spec-sheets/hub-ent-bom-detailed.md on landing (+ MC/MCX
 block F/G from survey 9 parts: S32K3xx + TPS3813K33 + 2x TJA1051T/3 + XO + LDO).
+UPDATE 2026-07-02 (THIRD OWNER RULING — T1 module link): "replacing the RS-485 with 100BASE-T
+for bidirectional + sub microsecond" → ENT module streaming = 100BASE-T1 single-pair on locked
+pair 2 (pins 4/5), bidirectional, sub-µs fleet TIME SYNC (PTP/gPTP; sub-µs = SYNC not latency —
+frame ~7µs; ns FREEZE stays OQ-60 trigger). DETECT = locked 10k CAN+T1 class. OQ-20 ENT-resolved;
+RS-485 stays consumer Pro. PROPAGATED: plan §1a.7 (3rd ruling); REQ-HUB-COMMON-043 rewritten
+(DUAL-MODE ports: T1 primary + RS-485 RX compat, DETECT-selected — compat-drop = owner sub-choice)
++ NEW REQ-HUB-COMMON-106 (sub-µs sync, fabric PTP timestamps) → 104 REQs lint OK;
+REQ-MOD-COMMON-003 rewritten (T1 + RMII-MAC MCU consequence: G4 has no MAC → P4/STM32H5, survey 10);
+REQ-MOD-COMMON-040 tier reworded; module spec sheets updated (streaming rows, DETECT 10k, MCU rows,
+EPS delta swaps THVD1450→T1 PHY); spec draft: new §13.2a + OQ-80. SURVEY 10 IN FLIGHT (T1 PHY parts,
+hub 8-port fabric MAC/switch architecture + LE budget, PTP accuracy, P4-vs-H5, dual-mode cost).
+HUB BOM IMPACT PENDING: BOM-C's RS-485 §3 becomes the dual-mode/compat question; 8× T1 PHY rows +
+fabric data plane land with survey 10. BOM agents A/B/D still in flight (A's children: MIC22705 =
+Icicle/Discovery VDD-core design-in; W25Q128JVSIQ verified [SSIQ/SNIQ phantom]; LP5907 can't do
+1.05V VDDA → TPS7A20 line; TPS62131/32 for 1.8/3.3 fixed).
