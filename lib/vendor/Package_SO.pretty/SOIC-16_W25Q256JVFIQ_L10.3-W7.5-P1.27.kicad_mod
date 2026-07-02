@@ -1,0 +1,307 @@
+(footprint "SOIC-16_W25Q256JVFIQ_L10.3-W7.5-P1.27"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(descr "Winbond W25Q256JVFIQ SOIC-16 300-mil (Package Code F) land, pulled via easyeda2kicad from LCSC C115993. Pinout verified vs the Winbond datasheet Fig 1b (dedicated /RESET on pin 3).")
+  (layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -8.75 0)
+		(layer "F.SilkS")
+		(uuid "212af99c-5343-4e44-a0b3-30750d359d7c")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "SOIC-16_L10.3-W7.5-P1.27-LS10.3-BL"
+		(at 0 8.75 0)
+		(layer "F.Fab")
+		(uuid "149db2bf-0bb9-4229-80d9-31599502317e")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "e27755c2-96ad-4d60-b65c-b64b5bf1f499")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "6fca960e-2077-430c-921a-dfd9ebc10b2b")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C115993"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "b459ea96-f8c8-4326-9a88-161aa60ba777")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -5.23 -3.32)
+		(end 5.23 -3.32)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "a8fb5507-e473-47e6-b143-b44ddbda8874")
+	)
+	(fp_line
+		(start -5.23 3.32)
+		(end -5.23 -3.32)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "09c65da3-f926-413e-88e1-a7de3cbc9394")
+	)
+	(fp_line
+		(start 5.23 -3.32)
+		(end 5.23 3.32)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "8c660779-d1c8-492e-924c-11f9db670ad0")
+	)
+	(fp_line
+		(start 5.23 3.32)
+		(end -5.23 3.32)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "f7668c4c-567e-4c43-870e-5908d8bbc2bd")
+	)
+	(fp_circle
+		(center -5.18 4.75)
+		(end -5.03 4.75)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "b33b68a7-4ce3-4dbe-adcd-1258968c1e22")
+	)
+	(fp_circle
+		(center -5.15 5.16)
+		(end -5.12 5.16)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "d08c7bca-9f22-4d1d-aee6-58500c36689e")
+	)
+	(fp_circle
+		(center -4.45 2.57)
+		(end -4.29 2.57)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "6af2fd65-0bbe-4529-a35a-6369e71851c5")
+	)
+	(fp_circle
+		(center -4.45 5.56)
+		(end -4.29 5.56)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill no)
+		(layer "Cmts.User")
+		(uuid "2d91a920-cd8a-4ffd-be24-f577ad531346")
+	)
+	(fp_line
+		(start -5.15 -3.75)
+		(end 5.15 -3.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "9e9d24eb-7c29-42b6-a739-505ac5488548")
+	)
+	(fp_line
+		(start -5.15 3.75)
+		(end -5.15 -3.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "847ac419-15ce-468f-9d44-6da6e48de698")
+	)
+	(fp_line
+		(start 5.15 -3.75)
+		(end 5.15 3.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "1eb830cd-e8d5-4e2a-9499-96f333cb1a1d")
+	)
+	(fp_line
+		(start 5.15 3.75)
+		(end -5.15 3.75)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "88493629-121d-41cf-b8ad-a713c027388f")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "8475afd5-039c-437c-ada4-13bd1ee7f8d7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd oval
+		(at -4.45 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "2157e2b0-4d98-4ec4-b57a-235acde781be")
+	)
+	(pad "2" smd oval
+		(at -3.17 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "b5d61483-2416-426f-8cb9-0f16a6b61433")
+	)
+	(pad "3" smd oval
+		(at -1.9 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "657ac199-8d0b-4738-b909-7d0ebd3cb03d")
+	)
+	(pad "4" smd oval
+		(at -0.63 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "0188ff4f-b486-44ae-ba71-3fe39e7ab68d")
+	)
+	(pad "5" smd oval
+		(at 0.63 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "7dbedb11-076f-45fb-b867-43f4ef77f2de")
+	)
+	(pad "6" smd oval
+		(at 1.9 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "63f90c2d-f2a6-4b21-9d00-f795f59cbbc9")
+	)
+	(pad "7" smd oval
+		(at 3.17 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "85563392-8805-458e-a4c6-352e5cd4bb10")
+	)
+	(pad "8" smd oval
+		(at 4.45 4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "32011c07-8cd7-4ccf-9bd1-25af1ab3d7a2")
+	)
+	(pad "9" smd oval
+		(at 4.45 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "0a0cdaf2-e9dd-40ff-87db-a6c32f3814e9")
+	)
+	(pad "10" smd oval
+		(at 3.17 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "a75521ac-8407-491f-a3a5-178c8c8a1e48")
+	)
+	(pad "11" smd oval
+		(at 1.9 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "8c253b8c-f65c-44c7-a8b9-7a23dcdde7b7")
+	)
+	(pad "12" smd oval
+		(at 0.63 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "48a927f0-be77-4851-9330-12bce0fc807d")
+	)
+	(pad "13" smd oval
+		(at -0.63 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "a28b6b09-c8fd-4457-96e8-79a05dff8ffb")
+	)
+	(pad "14" smd oval
+		(at -1.9 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "56c2d777-10b4-4d0b-90f8-1675089130e6")
+	)
+	(pad "15" smd oval
+		(at -3.17 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "3a81c772-e9fa-4817-b975-54f6120ee062")
+	)
+	(pad "16" smd oval
+		(at -4.45 -4.75)
+		(size 0.574 2.401)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "706a016e-d927-44a9-b63c-dd6c2800c9f3")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Package_SO.3dshapes/SOIC-16_W25Q256JVFIQ_L10.3-W7.5-P1.27.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 0)
+		)
+	)
+)

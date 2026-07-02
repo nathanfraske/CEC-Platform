@@ -1,0 +1,307 @@
+(footprint "TSSOP-16_ADS7830IPWR_L5.0-W4.4-P0.65"
+	(version 20260206)
+	(generator "pcbnew")
+	(generator_version "10.0")
+	(descr "TI ADS7830IPWR TSSOP-16 (PW) land, pulled via easyeda2kicad from LCSC C161747. Pinout verified vs the TI SBAS302C datasheet Pin Configuration table.")
+  (layer "F.Cu")
+	(property "Reference" "REF**"
+		(at 0 -6.866 0)
+		(layer "F.SilkS")
+		(uuid "be64c2a7-90b3-4b8a-941a-af90f0813093")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Value" "TSSOP-16_L5.0-W4.4-P0.65-LS6.4-BL"
+		(at 0 6.866 0)
+		(layer "F.Fab")
+		(uuid "a8517e1f-90dd-45f1-aa4d-84963a1f3033")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(property "Datasheet" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "97841509-524b-48da-bd9f-963fce9351fd")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "Description" ""
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "dc57bf70-9cb4-4a5b-9b37-0e2e6d26d4bf")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(property "LCSC Part" "C161747"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(hide yes)
+		(uuid "02616622-992f-4650-b2b1-fec6fec02b87")
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+		)
+	)
+	(attr smd)
+	(duplicate_pad_numbers_are_jumpers no)
+	(fp_line
+		(start -2.58 -1.77)
+		(end 2.58 -1.77)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "6af532fe-d25d-4d95-a571-daf2a333083b")
+	)
+	(fp_line
+		(start -2.58 1.77)
+		(end -2.58 -1.77)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "55867714-70f6-4bff-8c05-70d29cf69080")
+	)
+	(fp_line
+		(start 2.58 -1.77)
+		(end 2.58 1.77)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "87aa0a64-395a-42ac-b930-d5a1b2ba42c2")
+	)
+	(fp_line
+		(start 2.58 1.77)
+		(end -2.58 1.77)
+		(stroke
+			(width 0.15)
+			(type solid)
+		)
+		(layer "F.SilkS")
+		(uuid "55cfdc56-8ee6-48e4-b425-10d3af78449f")
+	)
+	(fp_circle
+		(center -2.9 2.87)
+		(end -2.75 2.87)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "b69b3850-d1c4-4ec7-8152-db955b61ee07")
+	)
+	(fp_circle
+		(center -2.5 3.2)
+		(end -2.47 3.2)
+		(stroke
+			(width 0.06)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "61f94d88-f83e-46a8-bdc8-97402c398053")
+	)
+	(fp_circle
+		(center -2.03 1.27)
+		(end -1.88 1.27)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.SilkS")
+		(uuid "7b2b1f31-cd04-4cfc-bddb-26fccf1ed62b")
+	)
+	(fp_circle
+		(center -2.28 3.6)
+		(end -2.12 3.6)
+		(stroke
+			(width 0.3)
+			(type solid)
+		)
+		(fill no)
+		(layer "Cmts.User")
+		(uuid "b598cf76-0204-4656-8cda-ddd43648cb4e")
+	)
+	(fp_line
+		(start -2.5 -2.2)
+		(end 2.5 -2.2)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "a7c26f0a-b960-4677-927c-a5e98c931794")
+	)
+	(fp_line
+		(start -2.5 2.2)
+		(end -2.5 -2.2)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "355fbf74-ab1d-4dd0-84ea-39e3b9ef9f17")
+	)
+	(fp_line
+		(start 2.5 -2.2)
+		(end 2.5 2.2)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "55859d23-7b50-4871-bceb-9c7218ffb2c1")
+	)
+	(fp_line
+		(start 2.5 2.2)
+		(end -2.5 2.2)
+		(stroke
+			(width 0.05)
+			(type solid)
+		)
+		(layer "F.CrtYd")
+		(uuid "e6c1db0f-20b2-411d-abeb-e334f7828a52")
+	)
+	(fp_text user "${REFERENCE}"
+		(at 0 0 0)
+		(layer "F.Fab")
+		(uuid "a41a4ac9-d755-4df2-b307-3907d19d51c7")
+		(effects
+			(font
+				(size 1 1)
+				(thickness 0.15)
+			)
+		)
+	)
+	(pad "1" smd oval
+		(at -2.28 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "04acf78e-4f73-4640-a736-457f48393c85")
+	)
+	(pad "2" smd oval
+		(at -1.63 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "f973dc2c-0f5f-43e9-a956-4edbcea35f1b")
+	)
+	(pad "3" smd oval
+		(at -0.98 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "7da90e4a-9596-4d4d-9275-2730834f772e")
+	)
+	(pad "4" smd oval
+		(at -0.32 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "dd999ded-bd9a-40a0-8ccc-bd8887c1fbb9")
+	)
+	(pad "5" smd oval
+		(at 0.33 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "1cef57e6-9d17-4daf-a85b-de4953d4ce1c")
+	)
+	(pad "6" smd oval
+		(at 0.98 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "0ced8618-9f8b-45d3-a683-b2b3772d0231")
+	)
+	(pad "7" smd oval
+		(at 1.63 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "150cb4d0-5726-486b-891d-736ac845339f")
+	)
+	(pad "8" smd oval
+		(at 2.28 2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "cef52b0c-b821-4427-ad28-08d6a842dd4d")
+	)
+	(pad "9" smd oval
+		(at 2.28 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "f8b0416b-f5e4-45ba-be38-c21eac7c8cc6")
+	)
+	(pad "10" smd oval
+		(at 1.63 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "51e69b17-2486-40a5-acfb-620ca795c4d7")
+	)
+	(pad "11" smd oval
+		(at 0.98 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "ebd297fd-8fae-4a29-a1ca-1489b5a429a5")
+	)
+	(pad "12" smd oval
+		(at 0.33 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "ae711ce9-1c97-474f-9aa0-47f8829adcb3")
+	)
+	(pad "13" smd oval
+		(at -0.32 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "1534044f-540a-4f04-9931-f24fa6133e77")
+	)
+	(pad "14" smd oval
+		(at -0.98 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "ee68b50d-8cfa-4044-b90e-145a5ded7250")
+	)
+	(pad "15" smd oval
+		(at -1.63 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "bb5de319-797b-44d5-8720-680721bbee54")
+	)
+	(pad "16" smd oval
+		(at -2.28 -2.87)
+		(size 0.343 1.731)
+		(layers "F.Cu" "F.Mask" "F.Paste")
+		(uuid "0f6e269b-7a23-4811-9a1c-8cfeb38acf9d")
+	)
+	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Package_SO.3dshapes/TSSOP-16_ADS7830IPWR_L5.0-W4.4-P0.65.step"
+		(offset
+			(xyz 0 0 0)
+		)
+		(scale
+			(xyz 1 1 1)
+		)
+		(rotate
+			(xyz 0 0 270)
+		)
+	)
+)
