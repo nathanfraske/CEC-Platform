@@ -43,7 +43,7 @@ compliance labs, Libero ops). Product pricing is value-based per D-ENT-3 — cos
 
 | Part | Risk | Second source / action |
 |---|---|---|
-| MPFS095TS-1FCVG484I | Quote-gated, 18-wk lead | RFQ early; pin-compatible 025T/160T ladder is the schedule hedge |
+| MPFS095TS-1FCVG484I | **MEASURED DRY 2026-07-02** (owner flag, verified): Mouser non-stocked (~12-wk factory est), no authorized stock found in any FCVG484 095-density variant; the non-S MPFS095T-1FCVG484I is ALSO dry (DigiKey 0, **52-wk** lead, $189.49) so dropping the S is not a stock escape — and it would violate REQ-001 anyway | See the **MPFS sourcing ladder** below (§3a) — in-stock TODAY: 64× MPFS250TS-FCVG484I at DigiKey; factory-direct RFQ is the real path |
 | TPS25940LRVCR | 55/26 pcs at DigiKey/LCSC; not JLC-native | Lead-time check ahead of D-ENT-3; TPS25940A sibling |
 | VSC8662 | **NRND — designed out** (BOM-B) | DP83869HM promoted primary |
 | JXD1-0001NL MagJack | 400 pcs DigiKey | Halo HFJ11-1G01E-L12RL (deep stock, at the 1500 Vrms floor) |
@@ -52,6 +52,46 @@ compliance labs, Libero ops). Product pricing is value-based per D-ENT-3 — cos
 | AX3DAF1-125.0000T3 | Out of stock | **Resolved by reconciliation** — DSC1123BL5 primary |
 | TPS7A20 1.0/1.05/2.5 V codes | Existence real, stock unconfirmed | Confirm at RFQ; TPS7A21 adjustable fallback |
 | MT53E LPDDR4 | Thin-to-zero everywhere (DRAM market) | Only matters if DDR fitted; re-verify at firmware decision |
+
+### 3a. MPFS sourcing ladder (measured 2026-07-02, owner stock flag)
+
+FCVG484 is pin-migratable across the 025/095/160/250 densities (Microchip packaging UG —
+the substrate ties the migration power pins), and the ENT fabric use is MODEST (~5% LE of
+the 095 ≈ 4.6 K LE + pin-7 blocks + MCX voter), so ANY density in the package fits
+functionally — one footprint, four escapes. REQ-001 requires the **S (Data Security /
+Athena)** suffix for product builds, which restricts the product ladder to TS parts:
+
+| Rung | Part | Measured state (2026-07-02) | Note |
+|---|---|---|---|
+| Baseline | MPFS095TS-1FCVG484I | Mouser non-stocked, ~12-wk factory est; no authorized stock found | The RFQ/factory-direct order IS the plan of record — place it early |
+| **In stock NOW** | **MPFS250TS-FCVG484I** | **DigiKey 64 pcs, $399.74 @1, 30-wk restock** | Pin-compatible, S-suffix. STD speed (not -1) — fabric timing is modest, verify at timing closure. ~2× the budgeted 095TS price: right for PROTOTYPES + hedge stock (buy 5–10 now ≈ $2–4k insurance), wrong for production economics |
+| Mid rung | MPFS160TS-(1)FCVG484I | Mouser lists (stock unverified); an INDEPENDENT broker claims 101 pcs | Broker stock is provenance-UNACCEPTABLE for the trust anchor of a tamper-audited product (counterfeit surface) — authorized-trace only |
+| Low rung | MPFS025T-FCVG484I | DigiKey 2 pcs, $64.98, 30-wk (non-S shown; TS orderability at 025 = confirm at RFQ) | 23 K LE still ≈ 5× our fabric estimate; the cost-DOWN rung if a 025TS line exists |
+| Non-S escape | MPFS095T-1FCVG484I | DigiKey 0, **52-wk**, $189.49 | NOT an escape: worse lead than the S part AND violates REQ-001 (owner-ratified Athena) |
+| LS variant | MPFS160TLS-FCVG484I | RS preorder, ships 2027-02, ~$590 US-eq | Real but slow/expensive; note only |
+| Package fork (last resort) | MPFS095TS-(1)FCSG536I | DigiKey lists the FCSG536 S-parts | **NOT pin-compatible** (16×16, 0.5 mm pitch) — a different board and a HARDER breakout/fab class; only if FCVG484 supply collapses entirely |
+
+**MPF (no S) prefix caution — owner-flagged candidate assessed 2026-07-02:**
+MPF050TC-FCSG325I (PolarFire **Core** FPGA — verified DigiKey 176 pcs / $74.40@1 /
+$60.45@25 / 4-wk lead; owner reports ~200 pcs at Mouser) is **fabric-only silicon: the
+MPF line has NO RISC-V MSS**. It cannot substitute for the MPFS SoC in the ENT hub —
+REQ-001's compute plane (5× RISC-V MSS, Zephyr, HSS boot, MSS USB/eMMC/QSPI) has nowhere
+to run; a swap means adding an external processor and re-architecting, not a variant
+change (and FCSG325 isn't pin-compatible with FCVG484 anyway). Where it IS worth noting:
+(a) **Max-tier module data-plane candidate** — §6.11/§6.13 Max SKUs call for an FPGA
+capture plane; a 48 K LE PolarFire at ~$60–74 with healthy stock keeps the vendor +
+Libero toolchain aligned with the hub (note for the OQ-20/Max program, not a current
+BOM); (b) **supply intelligence** — the fabric line's health (4-wk lead) vs the SoC
+line's drought says the shortage is MPFS-SPECIFIC, not PolarFire silicon generally,
+which supports the factory-direct-RFQ path over panic redesign.
+
+Actions folded into the trajectory RFQ package: (1) factory-direct/Microchip-rep RFQ for
+095TS-1FCVG484I with an allocation ask — distributor "manufacturer standard" leads
+(30–52 wk) vs Mouser's 12-wk factory estimate say factory-direct is the fastest path;
+(2) price + orderability of MPFS250TS/160TS/(025TS) on the same RFQ so the ladder is
+quoted, not assumed; (3) an owner decision at RFQ return: buy the DigiKey 250TS hedge
+units for prototypes now vs wait for factory 095TS. Dev-kit work is INSULATED from all
+of this (Discovery Kit = FCSG325 non-S — fine for toolchain/fabric/boot work, not PUF).
 
 ## 4. Phantom/corrected parts caught by this pass (why the detail level pays)
 
