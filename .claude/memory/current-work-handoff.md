@@ -528,3 +528,17 @@ their landing: consolidate sym-lib-table/fp-lib-table registration, scaffold the
 hub-enterprise KiCad project (root + sheet files), capture sheet 01 per the plan order,
 verify per protocol, commit per sheet. easyeda2kicad NOTE: pip-installed on the
 EPHEMERAL box — reinstall after container recycle (pip install easyeda2kicad).
+UPDATE 2026-07-02 (~23:30 — SCHEMATIC-QUALITY CHARTER + HOOK, owner directive): the owner wants
+generated schematics at hand-authored quality with all tooling scoped/implemented + a start hook
+at the charter. DONE: docs/schematic-quality-charter.md (T1 layout engine [rotations/wires/
+decouplers/text — BUILDING], T2 pin-type auditor [BUILDING — its cec-ent findings = the sheet-02
+gate], T3 style linter [BUILDING — hand-vs-generated comparison table is its evidence], T4
+composition engine [SCOPED, after T1 integrates], T5 golden sheets [SCOPED], T6 VLM render seat
+[SCOPED, workstation-only]; principles: netlist-identity invariance, teeth-first, calibrate-
+don't-guess, GUI top rung). Hook: .claude/hooks/schematic-quality-context.sh registered in
+settings.json SessionStart (injects the charter head; smoke-tested). ALSO IN FLIGHT: the
+one-block-per-sheet RESTRUCTURE agent (owner format correction: sheet 01 → thin parent + 01a-g
+leaves, no dashed frames, netlist-identity required, plan §1 amended w/ leaf breakdowns incl.
+05a-port ×8 instanced). FOUR agents running total. Integration order on landing: restructure
+commits first → T1 integrates → regenerate 01a-g → gates 5/6 adopted → sheet-02 gates on T2
+audit → capture continues 05→04→03→02.

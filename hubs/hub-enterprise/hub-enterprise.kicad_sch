@@ -37,77 +37,77 @@
 		(pin "+5V_MAIN" output
 			(at 90.17 27.94 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "0f6341fe-81d9-43d2-b9cd-f1fe34147e40")
+			(uuid "a71342bd-9587-42ce-85dc-89608d80adab")
 		)
 		(pin "+5VSB" output
 			(at 90.17 33.02 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "736c2d9b-4415-4d2f-bcd2-530111ed4f75")
+			(uuid "3c87f475-0901-4c40-9ff3-2b0409dcc658")
 		)
 		(pin "EXT_5V" output
 			(at 90.17 39.37 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "a7f4e5a5-1699-43c8-bb95-77d44b0293ae")
+			(uuid "5fbb6c61-392a-44ae-8705-e55ce3fcd336")
 		)
 		(pin "+5V_SYS" output
 			(at 90.17 44.45 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "e9314e11-9545-4b9d-a238-7efc85766e70")
+			(uuid "08f6ba92-c120-4aae-a9c9-c6b132464485")
 		)
 		(pin "+3V3" output
 			(at 90.17 50.8 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "4876178b-99d3-47dd-9b89-131181984557")
+			(uuid "78fe407f-8db0-4782-856e-398b6d0b1dfa")
 		)
 		(pin "PG_MAIN" output
 			(at 90.17 55.88 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "b73972c4-70f3-485e-9483-644df3ac6cee")
+			(uuid "be62ba1a-35f7-485d-9986-5fb773f20920")
 		)
 		(pin "FLT_MAIN" output
 			(at 90.17 60.96 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "5a3b0fd9-e8bd-4e47-8559-a9a9b2626d2f")
+			(uuid "8710e1d3-b8e0-486a-884e-46d76365aef3")
 		)
 		(pin "PG_SVB" output
 			(at 90.17 67.31 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "fb07fdee-c29b-44b4-9a55-fc3e587f7ac5")
+			(uuid "d0f24cf6-a466-4786-ae4c-0600c9b1749d")
 		)
 		(pin "FLT_SVB" output
 			(at 90.17 72.39 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "28ea5f84-1e1a-4480-a468-b99bdebb2736")
+			(uuid "1b42eca6-a3bf-440d-982e-e26f1a986643")
 		)
 		(pin "PG_EXT" output
 			(at 90.17 78.74 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "f703d1c9-033e-44e4-9240-a27fcf3cc8e6")
+			(uuid "30c709b1-b65a-4356-8dfc-856c0ad417e8")
 		)
 		(pin "FLT_EXT" output
 			(at 90.17 83.82 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "aa078198-bd96-476c-8416-0edf366c872a")
+			(uuid "6ec964d0-abe5-44f3-ab4f-32b359bb00f2")
 		)
 		(pin "SENSE_MAIN" output
 			(at 90.17 88.9 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "746ca1eb-fefd-40f7-b291-ebcaf5efe746")
+			(uuid "753e1c85-ad73-40c2-ad45-a7e688f3d30c")
 		)
 		(pin "SENSE_SVB" output
 			(at 90.17 95.25 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "0456937c-dd33-425d-bf8f-1c9ad3888e34")
+			(uuid "602c81b6-c91b-4828-93ca-7dae8c606fb1")
 		)
 		(pin "SENSE_EXT" output
 			(at 90.17 100.33 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "e13a7d88-d415-4e4c-9ddb-377c18a7a273")
+			(uuid "39e5b1fd-961f-4a06-ac1a-246b441a980b")
 		)
 		(pin "SENSE_SYS" output
 			(at 90.17 106.68 0)
 			(effects (font (size 1.27 1.27)) (justify left))
-			(uuid "c846f9de-68b4-42be-8fec-65201ef63b8f")
+			(uuid "453df2ba-b134-4551-8cf6-bdfdb4af232e")
 		)
 		(instances
 			(project "hub-enterprise"
@@ -333,10 +333,10 @@
 			)
 		)
 	)
-	(text "Sheet map: 00=root 01=power-input(CAPTURED) 02=compute-core 03=compute-rails 04=storage 05=module-ports 06=t1-dataplane 07=uplink 08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair (MCX only, captured LAST per plan, not yet stubbed).\nPopulation/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."
+	(text "Sheet map: 00=root 01=power-input(CAPTURED -- thin parent + 7 leaf sheets 01a..01g, per functional block) 02=compute-core 03=compute-rails 04=storage 05=module-ports 06=t1-dataplane 07=uplink 08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair (MCX only, captured LAST per plan, not yet stubbed).\nPopulation/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."
 		(at 20 185 0)
 		(effects (font (size 1.27 1.27)) (justify left top))
-		(uuid "126600d8-fc4d-46b9-a931-ccac5b325aff")
+		(uuid "96076f97-32a7-459e-8008-65301f751094")
 	)
 	(sheet_instances
 		(path "/"

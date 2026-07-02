@@ -16,7 +16,7 @@
 	(text "07-uplink -- CAPTURE PENDING\n\nDP83869HM GbE uplink PHY + magnetics/protection\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "e90218e3-c2f3-45bf-bcbc-10399611fefc")
+		(uuid "545e1690-1960-47fe-b0f3-3858d9abc574")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087"
