@@ -32,7 +32,7 @@ externally identifiable). Posture × availability:
 | Firmware | Zephyr RTOS (in-tree PolarFire), no Linux; wolfCrypt-class crypto (FIPS = embeds-validated-module posture); `west spdx` SBOM per release | REQ-002/014/097; survey 6 |
 | Storage | Two-tier: QSPI NOR 32 MB class (W25Q256JV-class; A/B firmware + rollback-resistant tamper log) + **eMMC 5.1 on one FBGA-153 land, density per SKU — NET: 8 GB (≥72 h store-and-forward, ~5 days at 1.4 GB/day); AIR: 32 GB baseline / 64 GB option (≥30-day local retention + ≥1k event captures)**; bulk store encrypted at rest (PolarFire-rooted keys) + signed segment chain; external DDR **TBD** (LIM may suffice) | REQ-062/070/107..109; survey 1/4 |
 | Module interface | **8× RJ-45 FTP** (Kinghelm KH-RJ45-58 class), locked pin table; classical CAN 500k shared bus, 120 Ω split termination; DETECT per §2.3 + PESD per port; RS-485 streaming serviced per port (topology OQ-5); 5VSB per-port distribution. _Port count = Pro-base working baseline; confirm at board program._ | REQ-040..045 |
-| Uplink (NET) | Standard IEEE 802.3 **1000BASE-T**: MSS-SGMII → **VSC8662-class** PHY (dual-port = 2nd uplink headroom), integrated shielded MagJack ≥2× isolation floor, PHY-side low-C TVS + shield GDT (office grade, survives passive PoE); visually distinct from module ports. SFP studied-deferred. 1000BASE-T1 factory option only. | REQ-030/031; survey 2 |
+| Uplink (NET) | Standard IEEE 802.3 **1000BASE-T**: MSS-SGMII → **DP83869HM** PHY (PRIMARY — BOM-B verified: VSC8662 is NRND per Microchip's own Icicle schematic, ~50 pcs stock; MC dual-uplink = full per-uplink duplication, 2 discrete PHYs/SGMII lanes), Pulse JXD1-0001NL MagJack (2250 VDC isolation, integrated Bob-Smith + LEDs), RClamp0524PA TVS + Bourns 2038-class GDT (office grade); visually distinct from module ports. SFP studied-deferred. 1000BASE-T1 factory option only. | REQ-030/031; survey 2; BOM-B |
 | Local interfaces | USB (sensing/provisioning on NET; primary local on AIR); NanoKVM aux header (5-pin JST-PH); RJ-11 **security I/O**: supervised tamper-loop in + isolated dry-contact alarm out, protocol-free | REQ-032/033/059 |
 | Northbound (NET) | Redfish-aligned REST subset + OpenMetrics + syslog-TLS; RBAC (viewer/operator/admin) + config audit log; SNMPv3 deferred/commercial | REQ-020..023 |
 | Power | 3-source priority-OR: **MAIN_5V (primary) > 5VSB > external rear-bracket feed (mandatory)**; per-source TPS25940-class eFuse fronts (PG/FLT, EN self-test, reverse block) → TPS2121 cascade; postures: **FULL** (MAIN_5V; est. 5–15 W all-in `[unv — Power Estimator run needed]`) / **STANDBY** (5VSB budget; telemetry+log+tamper guaranteed); persist-on-fault flush from ≥2× 4700 µF hold-up (supercap escalation gated on OQ-56 bench) | REQ-026/052/060..062; surveys 1/4 |
@@ -62,10 +62,10 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 
 | Qty | Part | Function | Unit [est] | Trace |
 |---|---|---|---|---|
-| 1 | VSC8662-class PHY (fallback DP83869HM; value RGMII KSZ9131) | SGMII GbE PHY | $4–9 `[unv]` (DP83869 ~$10–13) | survey 2 |
-| 1–2 | Integrated shielded MagJack w/ LEDs (HX1188-class isolation) | magnetics + jack | $1.5–3 | survey 2 |
-| — | Low-C TVS array (RClamp/CDSOD323-class) + 3-electrode GDT | ESD/surge, office grade | $0.6–1.4 | survey 2 |
-| **Subtotal** | | | **≈ $6–14 per uplink** (2nd uplink on MC+: +$6–9) | |
+| 1 | **DP83869HMRGZR** (PRIMARY; VSC8662 NRND — BOM-B verified) | SGMII GbE PHY | $7.98 (verified 100q) | BOM-B |
+| 1–2 | Pulse JXD1-0001NL MagJack (2250 VDC; Halo HFJ11-1G01E 2nd source) | magnetics + jack | $5.95 (verified 100q) | BOM-B |
+| — | 2× RClamp0524PA + Bourns 2038-15-SM GDT + LDOs/crystal/passives | ESD/surge + PHY support | $2.9 (verified) | BOM-B |
+| **Subtotal** | | | **≈ $16.8 per uplink VERIFIED** (2nd uplink on MC+: +$16.8 — full duplication, no dual-port sharing) | |
 | — | _ENT-AIR: subsystem NOT populated (inspection-verifiable absence)_ | | −$6–14 | REQ-024 |
 
 ### C. Module interface (all SKUs; 8-port baseline)

@@ -80,8 +80,9 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > claims never say "FIPS validated" (survey 6/7).
 >
 > **13.2 Host links and northbound surface.** ENT-NET's primary management plane is a
-> standard IEEE 802.3 1000BASE-T uplink (SGMII PHY off the hardened MAC; VSC8662-class
-> working baseline; integrated shielded magnetics ≥2× the 802.3 isolation floor; protection
+> standard IEEE 802.3 1000BASE-T uplink (SGMII PHY off the hardened MAC; DP83869HM working
+> baseline — the VSC8662 reference pick is NRND per Microchip's own schematic; integrated
+> shielded magnetics ≥2× the 802.3 isolation floor; protection
 > per §2.4-ENT below). 1000BASE-T1 (automotive SPE) is demoted to a factory option — it is
 > not terminable on enterprise switching (audit finding 2). USB remains on both variants:
 > sensing/provisioning on ENT-NET, a primary local path on ENT-AIR. Northbound (ENT-NET):
