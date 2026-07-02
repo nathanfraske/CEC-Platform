@@ -80,7 +80,7 @@ Population key: **all** / NET / MC+ (MC and MC-Max) / MCX (MC-Max only) / opt.
 | — | DETECT pull-up networks, 5VSB per-port distribution, port LEDs/SK6812 chain (platform base) | — | $2–4 | §2.5 |
 | **Subtotal** | | | **≈ $16–22** | |
 
-### D. Power subsystem (all; pack items on MC+/opt)
+### D. Power subsystem (ALL SKUs — the eFuse-fronted 3-source path is platform-common per REQ-060, NOT part of the optional MC redundancy pack)
 
 | Qty | Part | Function | Unit [est] | Trace |
 |---|---|---|---|---|
