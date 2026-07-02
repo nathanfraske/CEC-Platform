@@ -274,3 +274,14 @@ OQ-53..56-ent closures, OQ-60 disentangle, new OQ-75..78; 2 owner decision boxes
 [recommended ENT-NET=3, ENT-AIR=4+redundancy-std] and OQ-75 KVM step order). Queued in owner-queue
 §3. NEXT: owner applies/approves the spec edits; then CLAUDE.md + hub READMEs + register Phase-4
 gate flips ride the same change (EDIT 10 list).
+UPDATE 2026-07-02 (second owner ruling — D-ENT-6 RESOLVED): "both of these guys being in ENT ...
+with a SKU differentiator" + MC gets an INDEPENDENT COMPUTE WATCHDOG and an optional FAIL-FUNCTIONAL
+tri-tier design with a VOTING PAIR as the maximum variant. Recorded: ONE enterprise line, orthogonal
+SKU axes — posture (ENT-NET/ENT-AIR) x availability (base fail-detected / MC = watchdog + redundancy
+pack / MC-Max = voting pair, hub-compute-plane-scoped fail-functional; sensing stays single-path).
+Landed: plan §1a.6; REQ-HUB-COMMON-103 (watchdog) /104 (voting pair) /105 (SKU ladder+identifiability);
+all D-ENT-6 gates flipped (103 REQs lint OK); spec draft v1.2.0 updated (EDIT 2 one-line ENT table,
+new §13.8 availability ladder, OQ-79 opened, decision boxes now just OQ-75); owner-queue updated.
+KVM: cited recs list DUE AT OQ-75 KICKOFF (FOLLOWUPS entry). Survey 9 (watchdog part class + voting
+topology, sonnet, background) IN FLIGHT -> commit to research/phase2/ on landing + refine REQ-103/104
+if warranted. NEXT after survey 9: owner applies v1.2.0; EDIT-10 follow-through rides that change.

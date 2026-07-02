@@ -40,7 +40,16 @@ Recorded verbatim intent from the owner, this session:
    high-security customers commonly prohibit RF-capable parts outright, even unused. Whether
    ENT-AIR module variants require radio-free MCUs (or fused-off/absent-antenna posture is
    acceptable) is a load-bearing early question for the ENT-AIR register — flagged, not
-   assumed.
+   assumed. _(Resolved 2026-07-02: radio-free, option (a) — see the D-gate table.)_
+
+6. **(Second ruling, 2026-07-02) D-ENT-6 RESOLVED — one enterprise line, SKU-differentiated.**
+   "Mission Critical" is not a separate tier: both postures live in ENT with SKU
+   differentiators. Orthogonal axes: **posture** (ENT-NET / ENT-AIR) × **availability
+   ladder** — base (fail-detected), **MC SKU** (+ independent compute watchdog + redundancy
+   pack), **MC-Max SKU** (+ optional FAIL-FUNCTIONAL tri-tier compute: a voting pair of
+   main SoCs arbitrated with the independent watchdog). Fail-functional scope is the Hub
+   compute plane only — the module sensing chain stays single-path (the honesty stance is
+   unchanged). Architecture detail (watchdog part, voting topology) = new OQ-79.
 
 ## 1. Purpose and scope
 

@@ -4,7 +4,7 @@ _Status: DRAFT FOR THE OWNER'S PEN (2026-07-02). Per the repo rule the spec is g
 and agents never amend it sideways — this document contains the complete, surgical edit set
 for the owner to apply (or approve as a PR). Sources: the owner directions of 2026-07-01/02
 (plan §1a + the resolve-all rulings), the requirement registers
-(`docs/enterprise-requirements/`, 100 REQs, lint-green), the customer/integration audit, the
+(`docs/enterprise-requirements/`, 103 REQs, lint-green), the customer/integration audit, the
 tamper-module research, and Phase-2 surveys 1–8. Decision boxes marked **[OWNER]** are the
 only unresolved choices; everything else is a recording of rulings already made._
 
@@ -29,7 +29,7 @@ Set `| Version | 1.2.0 |`, date of application, and append to the §11.1 revisio
 > physical-security I/O port; "redundant CAN" honesty-rewritten to fail-detected monitoring;
 > enterprise module BUILD variants introduced (radio-free MCUs on ENT-AIR) without altering
 > interface tier-agnosticism; enterprise half of OQ-14 closed (uplink protection topology);
-> OQ-53..56 closed for the enterprise tier; OQ-75..78 opened. Requirements of record:
+> OQ-53..56 closed for the enterprise tier; OQ-75..79 opened. D-ENT-6 resolved by owner second ruling: ONE enterprise line with orthogonal SKU axes (posture NET/AIR x availability base/MC/MC-Max — independent compute watchdog on MC, optional fail-functional voting pair on MC-Max, Section 13.8). Requirements of record:
 > `docs/enterprise-requirements/` registers.
 
 ## EDIT 2 — §1 tier table (REPLACE the four-row table)
@@ -40,15 +40,12 @@ Replace the current table (rows Standard/Pro/Enterprise/Mission Critical) with:
 > |---|---|---|---|---|
 > | Standard | Mainstream builders | ESP32-S3 | USB Full Speed | CAN only, 4 ports |
 > | Pro | Overclockers, bench users | ESP32-P4 | USB High Speed | plus RS-485 streaming, 8 ports |
-> | Enterprise — ENT-NET (networked, hardened) | Regulated / financial / monitored fleets | PolarFire SoC (S-grade, Athena; MPFS095TS baseline) | Standard IEEE 802.3 1000BASE-T uplink (primary management plane) + USB (sensing/provisioning) | Hardened RTOS control plane (no Linux), PUF-rooted identity + secure boot, northbound Redfish-subset/OpenMetrics/syslog-TLS, RJ-11 security-I/O port, fail-detected redundancy pack (option) |
-> | Enterprise — ENT-AIR (air-gapped) | Defense-adjacent, tamper-mandated, zero-egress sites | PolarFire SoC (S-grade, same base design) | Local operator paths only (USB + console/removable export); **zero network egress by design** | No network PHY populated (inspection-verifiable), radio-free module builds, RJ-11 security-I/O port (populated), tamper log custody, fail-detected redundancy pack (standard fit) |
+> | Enterprise (ENT) — one line, SKU-differentiated | Regulated / financial / defense-adjacent / tamper-mandated fleets | PolarFire SoC (S-grade, Athena; MPFS095TS baseline) | Per posture SKU: ENT-NET = standard IEEE 802.3 1000BASE-T uplink (primary management plane) + USB (sensing/provisioning); ENT-AIR = local operator paths only, **zero network egress by design** | Hardened no-Linux RTOS control plane, PUF-rooted identity + secure boot, RJ-11 security-I/O port, rollback-resistant tamper log. **Two orthogonal SKU axes** — posture: ENT-NET (northbound Redfish-subset/OpenMetrics/syslog-TLS) / ENT-AIR (no network PHY populated, inspection-verifiable; radio-free module builds); availability ladder: **base** (fail-detected) → **MC** (+ independent compute watchdog + redundancy pack) → **MC-Max** (+ optional FAIL-FUNCTIONAL voting-pair compute) |
 >
-> **[OWNER — D-ENT-6]** Label mapping onto the legacy tier-3/tier-4 names: RECOMMENDED —
-> tier 3 "Enterprise" = ENT-NET; tier 4 "Mission Critical" = ENT-AIR **with the redundancy
-> pack standard-fit** (and orderable as an option on ENT-NET, per the Phase-2 finding that
-> the pack is a discrete scope knob). Alternative: keep "Mission Critical" as a separate
-> future super-tier and rename rows 3/4 to the variant names outright. Pick one; the table
-> above is written for the RECOMMENDED mapping.
+> _D-ENT-6 RESOLVED (owner, 2026-07-02 second ruling): the legacy tier-3/tier-4 rows fold
+> into ONE enterprise line; "Mission Critical" survives as the MC / MC-Max availability
+> SKUs, orderable in either posture. Tier count in prose ("four tiers") becomes "three
+> tiers, the third SKU-differentiated" — adjust the §1 lead sentence accordingly._
 
 ## EDIT 3 — §1 tier-agnostic sentence (REPLACE)
 
@@ -66,7 +63,7 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 
 > ## 13. The enterprise line (ENT-NET / ENT-AIR) — v1.2.0
 >
-> Requirements of record: `docs/enterprise-requirements/` (register set, 100 requirements,
+> Requirements of record: `docs/enterprise-requirements/` (register set, 103 requirements,
 > DRAFT→RATIFIED lifecycle). This section states the architecture and the locked direction;
 > the registers carry the testable detail. Owner rulings 2026-07-01/02 are the authority.
 >
@@ -145,7 +142,20 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > image, TLS-only, no third-party cloud, own SBOM/PSIRT; an ENT-AIR variant with no network
 > populated restoring the visual vantage without egress) is PROPOSED as OQ-75.
 >
-> **13.8 Compliance posture.** EU market entry is deferred but kept open (owner
+> **13.8 Availability ladder (MC / MC-Max SKUs).** Base ENT hubs are fail-detected (13.5).
+> The **MC SKU** adds (a) the redundancy pack (dual uplink, eFuse-fronted sources — 13.4/
+> 13.5) and (b) an **independent compute watchdog**: separate silicon with its own clock
+> and supervised power, monitoring main-SoC liveness/health, able to force the safe STANDBY
+> posture, logging to the tamper log and raising the loss-of-compute alarm; never in the
+> sensing or northbound data path (this concretizes the Appendix B.3 safety-coprocessor
+> leaning). The **MC-Max SKU** adds optional **FAIL-FUNCTIONAL compute**: a voting pair of
+> main SoCs executing redundantly with voted outputs, arbitration involving the watchdog
+> (a tri-element arrangement: pair + arbiter), bumpless takeover on a single-compute fault,
+> self-testable failover. Fail-functional scope is the Hub compute plane ONLY — the module
+> sensing chain remains single-path (13.5). Watchdog part selection and voting topology =
+> OQ-79. SKUs are externally identifiable (labeling + population).
+>
+> **13.9 Compliance posture.** EU market entry is deferred but kept open (owner
 > 2026-07-02): CRA obligations bind at first EU placement (reporting machinery per Art. 14
 > — retroactive to placed units; full requirements per Art. 71; the Annex III
 > "network management systems" classification is resolved via delegated act or counsel
@@ -216,6 +226,13 @@ Replace: "Modules are tier-agnostic: any module works in any Hub and degrades gr
 > **OQ-77: Mezzanine integrated-stack option.** Formalize the Hub-on-24-pin mezzanine
 > (docs/mezzanine-stack-design-2026-06-24.md) as an orderable form, incl. its enterprise
 > fit; RJ-45 remains the default cabled PHY.
+> **OQ-79: MC availability-ladder architecture.** Detail the Section 13.8 ladder: the
+> independent-watchdog part class (external supervisor vs lockstep safety MCU — the
+> Appendix B.3 Hercules-class leaning is the starting candidate), the MC-Max voting
+> topology (2oo2 pair + watchdog arbiter vs true 2oo3), state synchronization between the
+> pair, voted-output boundary (which outputs are voted: northbound? actuation? logs?),
+> bumpless-takeover semantics, and the self-test procedure. Survey 9 (in flight) grounds
+> the options.
 > **OQ-78: Tamper/physical-security module family.** Adopt/decline the plan §3a candidates
 > (chassis-intrusion + rollback-resistant tamper-log module; ATR whole-chassis RF sensing —
 > note the ATR-vs-ENT-AIR emission tension, an intentional emitter in a radio-free build;
@@ -234,8 +251,9 @@ resolution) in the same change.
 
 ---
 
-**Decision boxes for the owner, consolidated:** (1) EDIT 2 [D-ENT-6] tier-label mapping —
-recommended: ENT-NET=tier 3 Enterprise, ENT-AIR=tier 4 Mission Critical with the redundancy
-pack standard-fit on 4 / optional on 3. (2) OQ-75 CEC-KVM adopt + which step first.
-(3) Apply as: owner edits the spec directly, or approves a PR containing exactly these
-edits (either is "the owner's pen" under CODEOWNERS).
+**Decision boxes for the owner, consolidated:** (1) OQ-75 CEC-KVM adopt + which step first
+— per owner direction 2026-07-02, a CITED RECOMMENDATIONS LIST for sign-off will be
+produced when the KVM work starts (standing FOLLOWUPS item). (2) Apply as: owner edits the
+spec directly, or approves a PR containing exactly these edits (either is "the owner's pen"
+under CODEOWNERS). D-ENT-6 is no longer a decision box — resolved by the owner's second
+ruling 2026-07-02 (one ENT line, SKU differentiators; EDIT 2 + §13.8 record it).

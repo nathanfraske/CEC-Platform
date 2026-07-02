@@ -1,8 +1,10 @@
 # Enterprise Hub requirements register (PolarFire, ENT-AIR / ENT-NET)
 
 _All sections DRAFT. Schema: `REQUIREMENTS-FORMAT.md`. Compute = PolarFire per owner
-direction (plan §1a); the §1 tier-table rewrite and OQ-7 close are Phase-4 owner acts.
-Variant↔tier mapping (and the home of the redundancy pack) is open — D-ENT-6._
+direction (plan §1a); the §1 tier-table rewrite and OQ-7 close are Phase-4 owner acts
+(drafted: `docs/spec-revision-v1.2.0-draft-2026-07-02.md`). D-ENT-6 RESOLVED 2026-07-02:
+one ENT line, SKU differentiators — posture (NET/AIR) × availability (base / MC = watchdog
++ redundancy pack / MC-Max = fail-functional voting pair); see REQ-HUB-COMMON-103..105._
 
 ## 1. Compute, identity & provenance — DRAFT
 
@@ -44,7 +46,7 @@ protocol set is drafted maximal here and pruned at Phase-3 review.
 | REQ-HUB-NET-021 | Security/tamper events SHALL be forwardable as syslog (TLS) and SHALL be SIEM-ingestable without a host agent. | audit §3; tamper §2 | T | — |
 | REQ-HUB-NET-022 | The network management plane SHALL be the primary operational interface; USB SHALL be demoted to sensing/provisioning roles on ENT-NET. | audit §1.5 | I+D | — |
 | REQ-HUB-NET-023 | Management-plane access SHALL enforce authenticated, role-separated access (at minimum: viewer / operator / administrator) with an audit log of configuration changes. | audit §2 | T | — |
-| REQ-HUB-AIR-024 | ENT-AIR SHALL provide the equivalent operational surface locally (operator port / console / removable export) with **zero network egress by design**, verifiable by inspection of the build (no PHY populated or PHY fused off — form decided with D-ENT-6). | plan §1a.2 | I+D | D-ENT-6 |
+| REQ-HUB-AIR-024 | ENT-AIR SHALL provide the equivalent operational surface locally (operator port / console / removable export) with **zero network egress by design**, verifiable by inspection of the build (no network PHY populated — the inspection-verifiable form, per the SKU identifiability rule REQ-HUB-COMMON-105). | plan §1a.2; owner ruling 2026-07-02 | I+D | — |
 | REQ-HUB-COMMON-025 | Host-down operation SHALL be a verified test case: telemetry acquisition, event logging, tamper capture, and (NET) northbound reporting with the host OS absent/crashed/powered down, exercised in the STANDBY power posture defined by REQ-HUB-COMMON-026. | audit §1.5/§1.6; spec §2.9; survey 1 | T | — |
 | REQ-HUB-COMMON-026 | The Hub SHALL define two power postures and its guarantees per posture: FULL (MAIN_5V primary — complete compute + data plane) and STANDBY (5VSB and/or independent feed — telemetry acquisition, event logging, tamper capture, and persist-on-fault guaranteed; northbound service best-effort within the 5VSB budget). PolarFire-class full compute SHALL NOT be assumed on the 5VSB budget. | survey 1 (5VSB collision); spec §2.9; OQ-2 | A+T | — |
 
@@ -74,7 +76,7 @@ unchanged so every existing module works (§8 principle).
 | REQ-HUB-COMMON-044 | Bulk power SHALL enter on the dedicated 2-pin +5VSB connector with per-port 5VSB distribution over RJ-45 VCC, per the locked §2.7 scheme, extended by the §2.9 multi-source priority-OR (see §7 below). | [LOCKED §2.7]; spec §2.9 | I+T | — |
 | REQ-HUB-COMMON-045 | A module SHALL never fail to function when attached to the enterprise Hub; higher-tier module features degrade gracefully per §8 (see `module-conformance-matrix.md`). | [LOCKED §1/§8] | T | — |
 
-## 6. Redundancy & fail-detected operation — DRAFT (placement pending D-ENT-6)
+## 6. Redundancy, availability ladder & fail-detected operation — DRAFT (D-ENT-6 RESOLVED 2026-07-02: one ENT line, SKU differentiators — redundancy pack standard on MC/MC-Max SKUs, orderable on base)
 
 Audit finding 6: sellable redundancy is **fail-detected** redundancy — observable, alarmed,
 self-testable — not implied end-to-end fault tolerance (the module chain stays single-path
@@ -82,16 +84,19 @@ by LOCKED design and is honestly declared as such).
 
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
-| REQ-HUB-COMMON-050 | Every redundant element (power feed, uplink, CAN transceiver where fitted) SHALL be individually monitored; loss of redundancy SHALL raise an alarm within a bounded time even though service continues. | audit §1.6 | T | D-ENT-6 |
-| REQ-HUB-COMMON-051 | Failover paths SHALL be self-testable on operator command without taking the monitored machine down. | audit §1.6 | D | D-ENT-6 |
-| REQ-HUB-COMMON-052 | The Hub SHALL accept a power feed independent of the monitored PSU (the §2.9 third source, graduated from PROPOSED to binding at this tier) and SHALL ride through monitored-PSU loss while logging the event. | audit §1.6; spec §2.9; OQ-53..56 | T | D-ENT-6 |
+| REQ-HUB-COMMON-050 | Every redundant element (power feed, uplink, CAN transceiver where fitted, watchdog, voting-pair member) SHALL be individually monitored; loss of redundancy SHALL raise an alarm within a bounded, debounced time even though service continues. | audit §1.6; survey 5 §3 | T | — |
+| REQ-HUB-COMMON-051 | Failover paths SHALL be self-testable on operator command without taking the monitored machine down. | audit §1.6 | D | — |
+| REQ-HUB-COMMON-052 | The Hub SHALL accept a power feed independent of the monitored PSU (the §2.9 third source, graduated from PROPOSED to binding at this tier) and SHALL ride through monitored-PSU loss while logging the event. | audit §1.6; spec §2.9; OQ-53..56 | T | — |
 | REQ-HUB-COMMON-053 | Documentation SHALL state explicitly that the module sensing chain (RJ-45/CAN/DETECT) is single-path by platform design; no marketing/spec text may imply sensing-path fault tolerance. | audit §1.6 honesty framing | I | — |
-| REQ-HUB-COMMON-054 | The Hub's CAN interface SHALL continuously expose bus state (error-active/error-passive/bus-off) and TEC/REC error counters as monitored, thresholdable objects; a transition to error-passive or bus-off SHALL raise a debounced alarm (northbound on NET, local surface on AIR) within a bounded, alerting-pipeline-dominated time. | survey 5 §1.3; spec §3.1 TWAI precedent | T | D-ENT-6 |
-| REQ-HUB-COMMON-055 | The Hub SHALL support an operator-invocable CAN self-test via controller internal loopback that never injects traffic onto the live shared module bus; documentation SHALL state it validates only the Hub-side half of the chain. | survey 5 §1.3 | D | D-ENT-6 |
+| REQ-HUB-COMMON-054 | The Hub's CAN interface SHALL continuously expose bus state (error-active/error-passive/bus-off) and TEC/REC error counters as monitored, thresholdable objects; a transition to error-passive or bus-off SHALL raise a debounced alarm (northbound on NET, local surface on AIR) within a bounded, alerting-pipeline-dominated time. | survey 5 §1.3; spec §3.1 TWAI precedent | T | — |
+| REQ-HUB-COMMON-055 | The Hub SHALL support an operator-invocable CAN self-test via controller internal loopback that never injects traffic onto the live shared module bus; documentation SHALL state it validates only the Hub-side half of the chain. | survey 5 §1.3 | D | — |
 | REQ-HUB-COMMON-056 | The Phase-4 spec revision SHALL rewrite the tier-table phrase "redundant CAN" to name the actual mechanism (fail-detected monitoring + alarm + scoped self-test per REQ-HUB-COMMON-054/055) — real dual-bus CAN is foreclosed by the locked single-pair module link and SHALL NOT be implied. | survey 5 §1.1/§1.4; audit §1.6 | I | Phase-4 spec edit |
-| REQ-HUB-COMMON-057 | Where the redundancy pack applies (D-ENT-6), the Hub SHALL provide two independently-PHY'd Ethernet uplinks, each on one of the PolarFire's two hardened MSS MACs; default failover SHALL be switch-agnostic link-state active-standby, with 802.3ad/LACP active-active operator-selectable. | survey 5 §2.1; survey 2 (dual-port PHY headroom) | A+T | D-ENT-6 |
+| REQ-HUB-COMMON-057 | On MC/MC-Max SKUs (and orderable on base ENT-NET), the Hub SHALL provide two independently-PHY'd Ethernet uplinks, each on one of the PolarFire's two hardened MSS MACs; default failover SHALL be switch-agnostic link-state active-standby, with 802.3ad/LACP active-active operator-selectable. | survey 5 §2.1; survey 2 (dual-port PHY headroom) | A+T | — |
 | REQ-HUB-COMMON-058 | USB SHALL be documented as a heterogeneous local/enrichment channel and SHALL NOT count as a redundant peer toward the uplink loss-of-redundancy alarm (its functional path requires a live host OS/agent, contributing nothing to the host-down guarantee). | survey 5 §2.2; audit finding 5 | I | — |
 | REQ-HUB-AIR-059 | ENT-AIR base builds SHALL exclude the NanoKVM module (the aux header MAY remain populated); documentation SHALL state that attaching a network-capable KVM or other egress-capable accessory is a customer decision outside the ENT-AIR zero-egress guarantee (owner ruling 2026-07-02). "Redundant uplink" on ENT-AIR SHALL be read as redundant LOCAL operator paths consistent with REQ-HUB-AIR-024. | survey 5 §2.3; owner ruling 2026-07-02 | I+D | — |
+| REQ-HUB-COMMON-103 | MC-SKU Hubs SHALL carry an independent compute watchdog: separate silicon with its own clock and supervised power, monitoring main-SoC liveness/health, able to force the Hub to the safe STANDBY posture (REQ-HUB-COMMON-026), log the event to the tamper/event log, and raise the loss-of-compute alarm; the watchdog SHALL NOT sit in the sensing or northbound data path. | owner ruling 2026-07-02 (2nd); spec App B.3 safety-coprocessor leaning | A+T | OQ-79 |
+| REQ-HUB-COMMON-104 | The MC-Max SKU SHALL offer FAIL-FUNCTIONAL compute as an option: a voting pair of main SoCs executing redundantly with voted outputs, arbitration involving the independent watchdog, bumpless takeover on a single-compute fault, and failover self-testable per the REQ-HUB-COMMON-051 discipline. Documentation SHALL scope fail-functional to the Hub compute plane only — the module sensing chain remains single-path per REQ-HUB-COMMON-053. | owner ruling 2026-07-02 (2nd) | A+T | OQ-79 |
+| REQ-HUB-COMMON-105 | The enterprise line SHALL be ONE product line with orthogonal SKU differentiators — posture (ENT-NET / ENT-AIR) × availability (base = fail-detected; MC = + independent watchdog + redundancy pack; MC-Max = + fail-functional voting pair) — and the fitted SKU SHALL be externally identifiable (labeling + BOM/population differences). | owner ruling 2026-07-02 (2nd, resolves D-ENT-6) | I | — |
 
 ## 7. Power input & distribution — DRAFT
 
@@ -147,4 +152,4 @@ security-support period moved to REQ-HUB-COMMON-102 (IDs never reused)._
 | ID | Requirement | Trace | Verify | Gate |
 |---|---|---|---|---|
 | REQ-HUB-COMMON-100 | The Hub SHALL retain the platform mounting scheme (M3 chassis-grounded) and SHALL offer the mezzanine integrated-stack option (Hub-on-24-pin) if D-ENT-5 adopts it for the enterprise form. | docs/mezzanine-stack-design-2026-06-24.md | I | D-ENT-5 |
-| REQ-HUB-AIR-101 | ENT-AIR build state (no network PHY / fused-off posture, radio policy) SHALL be visually verifiable at inspection without powering the unit (labeling + population differences documented). | plan §1a.2/§1a.5 | I | D-ENT-5/6 |
+| REQ-HUB-AIR-101 | ENT-AIR build state (no network PHY / fused-off posture, radio policy) SHALL be visually verifiable at inspection without powering the unit (labeling + population differences documented). | plan §1a.2/§1a.5 | I | D-ENT-5 |
