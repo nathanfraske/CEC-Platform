@@ -601,8 +601,8 @@
 		)
 		(symbol "PJ-002AH_0_1"
 			(rectangle
-				(start -5.08 5.08)
-				(end 5.08 -5.08)
+				(start -8.89 5.08)
+				(end 8.89 -5.08)
 				(stroke
 					(width 0.254)
 					(type default)
@@ -614,7 +614,7 @@
 		)
 		(symbol "PJ-002AH_1_1"
 			(pin passive line
-				(at -7.62 2.54 0)
+				(at -11.43 2.54 0)
 				(length 2.54)
 				(name "TIP"
 					(effects
@@ -632,7 +632,7 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 2.54 180)
+				(at 11.43 2.54 180)
 				(length 2.54)
 				(name "SLEEVE"
 					(effects
