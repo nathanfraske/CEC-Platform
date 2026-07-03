@@ -574,7 +574,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                power_ports, powerflag_nets, hier_exports, sections,
                libs, project, path_prefix, sheet_instances_path, own_uuid,
                page, out_path, paper="A2", title=None, comment1="",
-               pwr_base=0, layout=None):
+               pwr_base=0, layout=None, global_nets=None):
     """Write one leaf schematic (a functional block with real components).
 
     `path_prefix` is the FULL chain of sheet-symbol uuids (starting with the
@@ -600,9 +600,22 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                   everything else is derived by _auto_junctions
     Placement values may be (x,y) or (x,y,rot); rotations use the empirically
     validated cec_sch_layout convention (round-trip-verified pin math).
+
+    `global_nets` (optional): net names that connect PROJECT-WIDE via a real
+    KiCad `global_label` at every stub occurrence -- NO sheet-pin/hier-label
+    plumbing at all (bypasses `hier_exports`/`power_ports` for that net
+    entirely). Use this for a genuine multi-leaf BUS (e.g. a CAN bus tapped
+    by several sibling leaves plus a shared transceiver leaf) that
+    `build_thin_parent`'s 1:1/2-endpoint sheet-pin fan-out cannot express.
     """
     placement = _norm_placement(placement)
     used = cec_sch.load_symbols(libs, parts)
+    global_nets = set(global_nets or ())
+    if global_nets:
+        bad = global_nets & set(power_ports)
+        assert not bad, f"global_nets overlaps power_ports: {bad}"
+        bad = global_nets & set(hier_exports)
+        assert not bad, f"global_nets overlaps hier_exports: {bad}"
     layout = layout or {}
     consumed = set(layout.get("consumed", ()))
     hier_at = dict(layout.get("hier_at", {}))
@@ -743,10 +756,12 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         junction_strs += rj
         flags += rp
 
+    glabels = []
     io_attach = {n: tuple(p) for n, p in io_from.items()}
     for net_name, conns in nets.items():
-        port = power_ports.get(net_name)
-        hx = hier_exports.get(net_name)
+        is_global = net_name in global_nets
+        port = None if is_global else power_ports.get(net_name)
+        hx = None if is_global else hier_exports.get(net_name)
         hier_anchor = hx[1] if hx and net_name not in hier_at else None
         for ref, pin in conns:
             if (ref, pin) in consumed:
@@ -755,7 +770,9 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
             bx, by = ax + dx_ * cec_sch.STUB, ay + dy_ * cec_sch.STUB
             wires.append(cec_sch.emit_wire(ax, ay, bx, by))
             lang = 0 if dx_ > 0 else (180 if dx_ < 0 else (270 if dy_ < 0 else 90))
-            if hier_anchor is not None and (ref, pin) == hier_anchor:
+            if is_global:
+                glabels.append(cec_sch.emit_global_label(net_name, bx, by, lang))
+            elif hier_anchor is not None and (ref, pin) == hier_anchor:
                 if net_name in io_sides and net_name not in io_attach:
                     # standard S1: the hier label moves to the edge column;
                     # the io router below wires it from this stub end.
@@ -858,13 +875,14 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         + ("\n".join(junctions) + "\n" if junctions else "")
         + "\n".join(labels) + "\n"
         + ("\n".join(hlabels) + "\n" if hlabels else "")
+        + ("\n".join(glabels) + "\n" if glabels else "")
         + ("\n".join(flags) + "\n" if flags else "")
         + ("\n".join(ncs) + "\n" if ncs else "")
         + f'\t(sheet_instances\n\t\t(path "/{sheet_instances_path}"\n\t\t\t(page "{page}")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n')
     open(out_path, "w").write(content)
     return {"parts": len(parts), "nets": len(nets), "labels": len(labels),
-            "hlabels": len(hlabels), "wires": len(wires), "flags": len(flags),
-            "junctions": len(junctions), "nc": len(ncs)}
+            "hlabels": len(hlabels), "glabels": len(glabels), "wires": len(wires),
+            "flags": len(flags), "junctions": len(junctions), "nc": len(ncs)}
 
 
 def _sheet_pin_block(name, shape, x, y, angle):
@@ -914,26 +932,18 @@ def _sheet_block(uuid_, x, y, w, h, sheetname, sheetfile, project, root_uuid, pa
     )
 
 
-def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
-               placeholder_uuids, placeholder_titles, out_path,
-               title_block_str, legend_str, main_sheetname, main_sheetfile,
-               paper="A3", main_geom=(20, 20, 70, 92), pin_pitch=5.588,
-               placeholder_grid=((140, 220), (20, 65, 110, 155)),
-               placeholder_size=(70, 35), first_placeholder_page=3):
-    """Write the project root: a sheet instance for the main captured subtree
-    (with hierarchical-label pins matching its exports) + placeholder sheet
-    symbols (no pins -- nothing captured there yet). Board-specific text
-    (title block, legend) is supplied by the caller.
-
-    UNCHANGED by any leaf restructure below it: the root only ever sees ONE
-    box exposing the export pins, regardless of whether that file is a flat
-    capture sheet or a thin parent fanning out to leaf files of its own."""
-    s01_x, s01_y, s01_w, s01_h = main_geom
+def _root_captured_sheet_block(hier_exports, sym_uuid, sheetname, sheetfile,
+                                geom, page, project, root_uuid, pin_pitch=5.588):
+    """One CAPTURED (real, pinned) sheet box for the root -- shared by the
+    main sheet and any `extra_sheets` (2026-07-03, sheet-05 generalization:
+    the root used to see exactly ONE captured subtree; it may now carry
+    several, each with its own export list/geometry/page)."""
+    x, y, w, h = geom
     names = list(hier_exports.keys())
     pin_blocks = []
     for i, name in enumerate(names):
         shape = hier_exports[name][0]
-        # X must land EXACTLY on the box's right edge (s01_x + s01_w) -- do not
+        # X must land EXACTLY on the box's right edge (x + w) -- do not
         # gridsnap it (verified empirically: a sheet pin whose X is off the
         # box edge by even a fraction of a mm, e.g. via naive gridsnapping,
         # silently fails to bind to the box's boundary in kicad-cli's
@@ -941,11 +951,42 @@ def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
         # but the pin never joins its net; see build_thin_parent below, where
         # this bug was actually exercised and root-caused, since these root
         # pins currently have nothing wired to them so it stays dormant here).
-        px, py = s01_x + s01_w, cec_sch.gridsnap(0, s01_y + 8 + i * pin_pitch)[1]
+        px, py = x + w, cec_sch.gridsnap(0, y + 8 + i * pin_pitch)[1]
         pin_blocks.append(_sheet_pin_block(name, shape, px, py, 0))
-    sheets = [_sheet_block(sheet01_sym_uuid, s01_x, s01_y, s01_w, s01_h,
-                            main_sheetname, main_sheetfile,
-                            project, root_uuid, "2", pin_blocks)]
+    return _sheet_block(sym_uuid, x, y, w, h, sheetname, sheetfile,
+                         project, root_uuid, page, pin_blocks)
+
+
+def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
+               placeholder_uuids, placeholder_titles, out_path,
+               title_block_str, legend_str, main_sheetname, main_sheetfile,
+               paper="A3", main_geom=(20, 20, 70, 92), pin_pitch=5.588,
+               placeholder_grid=((140, 220), (20, 65, 110, 155)),
+               placeholder_size=(70, 35), first_placeholder_page=3,
+               extra_sheets=None):
+    """Write the project root: a sheet instance for the main captured subtree
+    (with hierarchical-label pins matching its exports) + placeholder sheet
+    symbols (no pins -- nothing captured there yet). Board-specific text
+    (title block, legend) is supplied by the caller.
+
+    `extra_sheets` (2026-07-03, sheet-05 generalization): an optional list of
+    further CAPTURED (pinned, non-placeholder) sheets, each a dict
+    {hier_exports, sym_uuid, sheetname, sheetfile, geom=(x,y,w,h), page}.
+    The root previously assumed exactly one captured subtree ("01") plus a
+    grid of placeholders; a second capture (e.g. "05") needs its own box and
+    export-pin list without disturbing sheet 01's pins/geometry, so this
+    generalizes the single-main-sheet path into a list while leaving the
+    default (no extra_sheets) byte-identical to the prior behavior."""
+    s01_x, s01_y, s01_w, s01_h = main_geom
+    sheets = [_root_captured_sheet_block(hier_exports, sheet01_sym_uuid,
+                                          main_sheetname, main_sheetfile,
+                                          main_geom, "2", project, root_uuid,
+                                          pin_pitch)]
+    for extra in (extra_sheets or ()):
+        sheets.append(_root_captured_sheet_block(
+            extra["hier_exports"], extra["sym_uuid"], extra["sheetname"],
+            extra["sheetfile"], extra["geom"], extra["page"], project,
+            root_uuid, extra.get("pin_pitch", pin_pitch)))
 
     # placeholder sheets: grid, no pins
     grid_x, grid_y = placeholder_grid

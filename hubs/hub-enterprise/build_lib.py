@@ -27,14 +27,19 @@ build_thin_parent = _compose.build_thin_parent
 
 
 def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
-               placeholder_uuids, placeholder_titles, out_path, paper="A3"):
+               placeholder_uuids, placeholder_titles, out_path, paper="A3",
+               extra_sheets=None):
     """Hub-specific wrapper: the ENT hub root's title block + sheet-map legend
     around the generic cec_sch_compose.build_root.
 
     UNCHANGED by the 01a-01g leaf restructure: the root only ever sees ONE
     box named "01-power-input" exposing these 15 pins, regardless of whether
     that file is (as before) a flat capture sheet or (now) a thin parent that
-    fans the same 15 signals out to seven leaf files of its own."""
+    fans the same 15 signals out to seven leaf files of its own.
+
+    `extra_sheets` (2026-07-03, sheet-05 capture): pass-through to
+    cec_sch_compose.build_root for further captured (pinned) subtrees beyond
+    "01" -- see that function's docstring."""
     title_block_str = (
         '\t(title_block\n'
         '\t\t(title "CEC Hub -- Enterprise (ENT)")\n'
@@ -49,7 +54,8 @@ def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
     legend_str = (
         '\t(text "Sheet map: 00=root 01=power-input(CAPTURED -- thin parent + 7 leaf sheets '
         '01a..01g, per functional block) 02=compute-core '
-        '03=compute-rails 04=storage 05=module-ports 06=t1-dataplane 07=uplink '
+        '03=compute-rails 04=storage 05=module-ports(CAPTURED -- thin parent + 8x 05a-port '
+        '+ 05b-can-frontend + 05c-detect-adc) 06=t1-dataplane 07=uplink '
         '08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair '
         '(MCX only, captured LAST per plan, not yet stubbed).\\n'
         'Population/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."\n'
@@ -62,7 +68,7 @@ def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
         placeholder_uuids, placeholder_titles, out_path,
         title_block_str, legend_str,
         main_sheetname="01-power-input", main_sheetfile="01-power-input.kicad_sch",
-        paper=paper)
+        paper=paper, extra_sheets=extra_sheets)
 
 
 def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path, paper="A4"):
