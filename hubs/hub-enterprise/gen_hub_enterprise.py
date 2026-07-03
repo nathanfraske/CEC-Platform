@@ -618,143 +618,125 @@ class _Compose(cec_sch_compose.Compose):
 
 
 def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
-                  rail, sfx, out_net, tvs=None):
+                  rail, sfx, out_net, pg_net, flt_net, tvs=None,
+                  ilim_desc=""):
     """Shared composition for the three structurally identical eFuse leaves
-    (01a/01b/01c): connector + entry rail with the input cap WIRED onto it,
-    UVLO/OVLO divider drawn as a real vertical chain, TPS25940 center, OUT
-    pin bus feeding a drawn output-cap rail + the hierarchical export, ILIM/
-    dVdT parts wired to their pins, PG/FLT pull-ups wired with hier taps.
-    `rail` = global power-port name (+5V_MAIN/+5VSB) or None for 01c's
-    EXT_5V (a named local rail: label + the jack's hierarchical export)."""
+    (01a/01b/01c), REBUILT 2026-07-03 to the composition standard (S1/S2/S3;
+    the owner's Nuand TPS2115A reference shape): the raw rail is ONE
+    horizontal band across the top (connector -> stamp -> [TVS] -> input cap
+    -> UVLO/OVLO divider -> IN riser), the widened TPS25940 sits BELOW the
+    band, strap parts (ILIM/dVdT) hang down-right, PG/FLT pull-ups exit right
+    at pin-row height, and all three exports gather in the S1 right-edge io
+    column. `rail` = global power-port name or None for 01c's EXT_5V."""
     c = _Compose(lf)
-    c.place(Uef, 80, 80)
-    c.place(Rt, 54, 68); c.place(Rm, 54, 76); c.place(Rb, 54, 84)
-    c.text_side[Rt] = c.text_side[Rm] = c.text_side[Rb] = "left"
-    # 01a/01b: JST feed at mid-left; 01c: the barrel jack sits lower-left,
-    # clear of the divider column's left-side field text + GND stamp (its
-    # first position at (46,89) interleaved with R115's stub -- render-checked)
-    if tvs is None:
-        c.place(J, 46, 96)
-    else:
-        c.place(J, 42, 90)
-    c.place(Cin, 66, 97)
-    c.place(Ril, 97, 89); c.place(Cdv, 93, 91)
-    c.text_side[Cdv] = "left"
-    c.place(Rpg, 103, 64, 180); c.place(Rflt, 109, 66, 180)
-    c.text_side[Rpg] = "left"
-    c.place(Cout, 99, 80)
+    c.place(Uef, 80, 84)
+    # ---- top band, y=64: J.1 -> stamp/label -> [tvs] -> Cin tap -> divider
+    # tap -> SHDN-less: IN riser at x65
+    c.place_pin(J, "1", 24, 64)
+    splits = [(24, 64), (28, 64)]
     if tvs:
-        c.place(tvs, 58, 98, 90)
-
-    # UVLO/OVLO divider chain: real vertical wires, node labels at the taps
-    # (the IC-side pins keep short label stubs -- the pin column at x=71u is
-    # too dense for clean tap routing, standard schematic practice).
-    c.wire(c.pin(Rt, "2"), (54, 72), c.pin(Rm, "1"))
-    c.label(f"UVLO_{sfx}", 54, 72, 180)
-    c.wire(c.pin(Rm, "2"), (54, 80), c.pin(Rb, "1"))
-    c.label(f"OVP_{sfx}", 54, 80, 180)
-    c.use((Rt, "2"), (Rm, "1"), (Rm, "2"), (Rb, "1"))
-
-    # DEVSLP (pin 1) tied to GND: routed up-left so its stamp clears the
-    # pin-3/14/15 label texts below it
-    c.wire(c.pin(Uef, "1"), (69, 74), (69, 70), (66, 70))
-    c.stamp("GND", 66, 70, 0)
-    c.use((Uef, "1"))
-
-    # entry rail: input cap WIRED onto the rail feeding the five IN pins
-    in_top = c.pin(Uef, "9")            # (71, 82)
-    in_bot = c.pin(Uef, "13")           # (71, 90)
-    cin_top = c.pin(Cin, "1")           # (66, 95)
+        c.place(tvs, 36, 67, 90)          # rail pin (2) lands at (36,64)
+        splits.append((36, 64))
+        c.use((tvs, "2"))
+    splits += [(44, 64), (52, 64), (65, 64)]
+    for a, b in zip(splits, splits[1:]):
+        c.wire(a, b)
     if rail:
-        c.wire((58, 92), (58, 95), cin_top, (71, 95), in_bot)
-        c.stamp(rail, 58, 92, 0)
+        c.stamp(rail, 28, 64, 0)
     else:
-        # segment split at (58,95): the TVS's rail pin sits exactly there and
-        # a pin binds only at a wire ENDPOINT, never mid-segment. Rail starts
-        # at x=56, clear of the divider-bottom GND stamp graphic at x=54.
-        c.wire((56, 95), (58, 95), cin_top, (71, 95), in_bot)
-        c.label("EXT_5V", 56, 95, 0)
-    for yy in range(in_top[1], in_bot[1], 2):     # IN pin bus segments
-        c.wire((71, yy), (71, yy + 2))
-    c.use((Cin, "1"), *[(Uef, str(p)) for p in (9, 10, 11, 12, 13)])
-    if tvs:
-        c.use((tvs, "2"))               # its pin 2 sits directly on the rail
-
+        # EXT_5V: named local rail (label) + its hierarchical export routed
+        # to the top-left, columnar with nothing else on that edge
+        c.label("EXT_5V", 28, 64, 0)
+        c.wire((28, 64), (28, 60), (24, 60))
+        c.hier("EXT_5V", 24, 60, 180)
+    c.use((J, "1"))
+    # input cap on the band
+    c.place(Cin, 44, 68)
+    c.wire((44, 64), (44, 66))
+    c.use((Cin, "1"))
+    # UVLO/OVLO divider chain hanging from the band (3 resistors, 2 taps)
+    c.place(Rt, 52, 68); c.place(Rm, 52, 76); c.place(Rb, 52, 84)
+    c.text_side[Rt] = c.text_side[Rm] = c.text_side[Rb] = "left"
+    c.wire((52, 64), (52, 66))
+    c.wire(c.pin(Rt, "2"), (52, 72), c.pin(Rm, "1"))
+    c.label(f"UVLO_{sfx}", 52, 72, 180)
+    c.wire(c.pin(Rm, "2"), (52, 80), c.pin(Rb, "1"))
+    c.label(f"OVP_{sfx}", 52, 80, 180)
+    c.use((Rt, "1"), (Rt, "2"), (Rm, "1"), (Rm, "2"), (Rb, "1"))
+    # IN riser + IN pin bus (5 pins, x=69, y=86..94)
+    c.wire((65, 64), (65, 86), (69, 86))
+    for yy in range(86, 94, 2):
+        c.wire((69, yy), (69, yy + 2))
+    c.use(*[(Uef, str(p)) for p in (9, 10, 11, 12, 13)])
+    # DEVSLP (pin 1, y=78) tied to GND, stamped clear above-left
+    c.wire((69, 78), (67, 78), (67, 74))
+    c.stamp("GND", 67, 74, 180)
+    c.use((Uef, "1"))
+    # ---- bottom: GND (16) + EP (21) tied, one stamp
+    c.wire((77, 104), (77, 106), (80, 106))
+    c.wire((83, 104), (83, 106), (80, 106))
+    c.wire((80, 106), (80, 108))
+    c.stamp("GND", 80, 108, 0)
+    c.use((Uef, "16"), (Uef, "21"))
+    # ---- right side: OUT bus -> out rail (+cap) -> io; PG/FLT pull-ups; ILIM/
+    # dVdT strap hangs
+    for yy in range(80, 88, 2):
+        c.wire((91, yy), (91, yy + 2))
+    c.place(Cout, 95, 84)
+    c.wire((91, 80), (95, 80), (99, 80))
+    c.wire((95, 80), (95, 82))
+    c.use((Cout, "1"), *[(Uef, str(p)) for p in (4, 5, 6, 7, 8)])
+    c.io(out_net, "right", from_pt=(99, 80))
+    # PGOOD pull-up (pin 2, y=76)
+    c.use((Uef, "2"))
+    arch.pullup_hang(c, (91, 76), 107, Rpg, rx=105, rail_pin="1", above=True)
+    c.io(pg_net, "right", from_pt=(107, 76))
+    # ILIM (pin 17, y=90): keeps its NAME via the label (the checker asserts
+    # ILIM_MAIN/ILIM_SVB/ILIM_EXT by name)
+    c.place(Ril, 97, 100)
+    c.wire((91, 90), (93, 90))
+    c.label(f"ILIM_{sfx}", 93, 90, 0)
+    c.wire((93, 90), (97, 90), (97, 98))
+    c.use((Uef, "17"), (Ril, "1"))
+    # dVdT (pin 18, y=92); crossings over the ILIM riser are mid-segment
+    c.place(Cdv, 101, 100)
+    c.text_side[Cdv] = "left"
+    c.wire((91, 92), (101, 92), (101, 98))
+    c.use((Uef, "18"), (Cdv, "1"))
+    # FLT pull-up (pin 20, y=96) exits right at pin-row height
+    c.use((Uef, "20"))
+    arch.pullup_hang(c, (91, 96), 107, Rflt, rx=105, rail_pin="1", above=True)
+    c.io(flt_net, "right", from_pt=(107, 96))
+    # ---- captions + notes (S3/S10: strings from the existing desc/BOM-D)
+    c.caption(lf.desc, 22, 52)
+    c.note("UVLO/OVLO divider 45.3k/2.80k/10k -> 4.49V UV / 5.75V OV; "
+           + (ilim_desc or "ILIM per BOM-D") + " (bom-d-power.md)", 22, 112)
     return c
 
 
-def _efuse_out_side(c, Uef, Cout, out_net):
-    for yy in range(76, 86, 2):                    # OUT pin stubs 4..8
-        c.wire((89, yy), (93, yy))
-    for yy in range(76, 84, 2):                    # the bus joining them
-        c.wire((93, yy), (93, yy + 2))
-    c.wire((93, 76), (99, 76), (101, 76))          # out rail
-    c.wire((99, 76), c.pin(Cout, "1"))             # output cap drop
-    c.hier(out_net, 101, 76, 0)
-    c.use((Cout, "1"), *[(Uef, str(p)) for p in (4, 5, 6, 7, 8)])
-
-
-def _efuse_right_side(c, Uef, Ril, Cdv, Rpg, Rflt, pg_net, flt_net, sfx):
-    # ILIM + dVdT: parts hung from their pins with drawn wires. The ILIM net
-    # keeps its NAME via a label on the wire (scripts/check_hub_ent_sch.py
-    # asserts ILIM_MAIN/ILIM_SVB/ILIM_EXT by name; a fully wired net would
-    # otherwise auto-name itself Net-(Uxxx-ILIM)).
-    c.wire(c.pin(Uef, "17"), (97, 86), c.pin(Ril, "1"))
-    c.label(f"ILIM_{sfx}", 97, 86, 0)
-    c.wire(c.pin(Uef, "18"), (93, 88), c.pin(Cdv, "1"))
-    c.use((Uef, "17"), (Ril, "1"), (Uef, "18"), (Cdv, "1"))
-    # PG pull-up wired + hier tap on the run
-    c.wire(c.pin(Uef, "2"), (103, 72), c.pin(Rpg, "1"))
-    c.wire((103, 72), (105, 72))
-    c.hier(pg_net, 105, 72, 0)
-    c.use((Uef, "2"), (Rpg, "1"))
-    # FLT pull-up: routed around the sense parts, hier tap on the riser
-    c.wire(c.pin(Uef, "20"), (91, 92), (91, 101), (115, 101), (115, 92))
-    c.wire((115, 92), (115, 68), c.pin(Rflt, "1"))
-    c.wire((115, 92), (117, 92))
-    c.hier(flt_net, 117, 92, 0)
-    c.use((Uef, "20"), (Rflt, "1"))
-
-
 def compose_01a():
-    lf = L01A
-    c = compose_efuse(lf, "J101", "R101", "R102", "R103", "U101", "R104",
+    c = compose_efuse(L01A, "J101", "R101", "R102", "R103", "U101", "R104",
                       "C101", "R105", "R106", "C102", "C103",
-                      "+5V_MAIN", "MAIN", "MAIN_EF_OUT")
-    _efuse_out_side(c, "U101", "C103", "MAIN_EF_OUT")
-    _efuse_right_side(c, "U101", "R104", "C101", "R105", "R106",
-                      "PG_MAIN", "FLT_MAIN", "MAIN")
-    # connector: +5V feed wired to its own rail stamp clear of the GND stamp
-    c.wire(c.pin("J101", "1"), (35, 95))
-    c.stamp("+5V_MAIN", 35, 95, 0)
-    c.use(("J101", "1"))
+                      "+5V_MAIN", "MAIN", "MAIN_EF_OUT", "PG_MAIN", "FLT_MAIN",
+                      ilim_desc="ILIM 24.9k -> 3.53A typ")
     c.done()
 
 
 def compose_01b():
-    lf = L01B
-    c = compose_efuse(lf, "J102", "R107", "R108", "R109", "U102", "R110",
+    c = compose_efuse(L01B, "J102", "R107", "R108", "R109", "U102", "R110",
                       "C104", "R111", "R112", "C105", "C106",
-                      "+5VSB", "SVB", "SVB_EF_OUT")
-    _efuse_out_side(c, "U102", "C106", "SVB_EF_OUT")
-    _efuse_right_side(c, "U102", "R110", "C104", "R111", "R112",
-                      "PG_SVB", "FLT_SVB", "SVB")
-    c.wire(c.pin("J102", "1"), (35, 95))
-    c.stamp("+5VSB", 35, 95, 0)
-    c.use(("J102", "1"))
+                      "+5VSB", "SVB", "SVB_EF_OUT", "PG_SVB", "FLT_SVB",
+                      ilim_desc="ILIM 42.2k -> 2.08A typ")
     c.done()
 
 
 def compose_01c():
-    lf = L01C
-    c = compose_efuse(lf, "J103", "R113", "R114", "R115", "U103", "R116",
+    c = compose_efuse(L01C, "J103", "R113", "R114", "R115", "U103", "R116",
                       "C107", "R117", "R118", "C108", "C109",
-                      None, "EXT", "EXT_EF_OUT", tvs="D102")
-    _efuse_out_side(c, "U103", "C109", "EXT_EF_OUT")
-    _efuse_right_side(c, "U103", "R116", "C107", "R117", "R118",
-                      "PG_EXT", "FLT_EXT", "EXT")
-    # J103's own EXT_5V hierarchical export stays the generic anchor-pin stub
-    # (barrel jack at the left edge, export points off-sheet -- natural).
+                      None, "EXT", "EXT_EF_OUT", "PG_EXT", "FLT_EXT",
+                      tvs="D102", ilim_desc="ILIM 42.2k -> 2.08A typ")
+    c.note("SMAJ5.0A input TVS populated on EXT only (mirrors the DETECT-pin "
+           "philosophy); PJ-002AH barrel jack per BOM-D", 22, 116)
     c.done()
 
 
@@ -786,13 +768,18 @@ def compose_01d():
     c.label("STAGE_A_OUT", 76, 64, 0)
     c.use(("U104", "1"), ("U104", "8"), ("U105", "2"), ("U105", "3"))
 
-    # stage B priority input bus + hier
+    # stage B priority input bus; its hier label joins the LEFT column at
+    # x=34 (S1: one scannable edge column -- MAIN 58 / SVB 64 / EXT 86),
+    # routed above both ICs (their bodies start at y~64)
     c.wire(c.pin("U105", "7"), (82, 64))
     c.wire(c.pin("U105", "6"), (82, 74))
     c.wire((82, 64), (82, 74))
-    c.wire((82, 64), (82, 60))
-    c.hier("MAIN_EF_OUT", 82, 60, 0)
+    c.wire((82, 64), (82, 58), (34, 58))
+    c.hier("MAIN_EF_OUT", 34, 58, 180)
     c.use(("U105", "6"), ("U105", "7"))
+    c.caption(lf.desc, 20, 48)
+    c.note("PR1->IN1 + CP2->IN2 per the AS-BUILT hub-standard netlist "
+           "(BOM-D's CP2->GND was flagged unverified by its own author)", 20, 108)
 
     # merged system rail out
     c.wire(c.pin("U105", "1"), (118, 64))
@@ -834,6 +821,7 @@ def compose_01e():
     c.rail("D101", "1", ["C112", "C113", "C114"], pitch=15.24)
     c.wire((95, 73), (99, 73))       # rail extension carrying the net name
     c.label("+5V_HOLD", 99, 73, 0)
+    c.caption(lf.desc, 40, 60)
     c.done()
 
 
@@ -866,8 +854,11 @@ def compose_01f():
     c.wire((95, 78), c.pin("R121", "1"))
     c.wire((98, 78), (98, 74))
     c.stamp("+3V3", 98, 74, 0)
-    c.hier("+3V3", 110, 78, 0)
+    c.io("+3V3", "right", from_pt=(110, 78))
     c.use(("L101", "2"), ("C116", "1"), ("R121", "1"), ("U107", "3"))
+    c.caption(lf.desc, 48, 62)
+    c.note("FB divider 453k/100k -> VOUT ~3.32V; TPS3839K33 supervises the "
+           "hub-logic +3V3 only (not the SoC rails)", 48, 104)
 
     # FB divider: drawn chain + FB sense run back to the buck
     c.wire(c.pin("R121", "2"), c.pin("R122", "1"))
@@ -894,6 +885,11 @@ def compose_01g():
         c.wire((x, 72), (x + 4, 72))
         c.hier(sense, x + 4, 72, 0)
         c.use((rt, "1"), (rt, "2"), (rb, "1"))
+    # S4 note: the four cells stamp on one fixed pitch with the tap at the
+    # SAME relative position -- a uniform repeated-cell grid; the SENSE taps
+    # deliberately stay per-cell (each cell scans identically) rather than
+    # fanning into one edge column across the row.
+    c.caption(lf.desc, 44, 58)
     c.done()
 
 
