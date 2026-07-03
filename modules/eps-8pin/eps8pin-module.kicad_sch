@@ -4445,7 +4445,7 @@
 		(property "Value" "TO-HUB" (at 49.53 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 49.53 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2683360" (at 0 0 0)
+		(property "Manufacturer" "Kinghelm" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4461,7 +4461,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Kinghelm" (at 0 0 0)
+		(property "LCSC" "C2683360" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4499,7 +4499,7 @@
 		(property "Value" "ESP32-C6-MINI-1-N4" (at 340.36 105.41 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-RF_Module:ESP32-C6-MINI-1" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C5736265" (at 0 0 0)
+		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4515,7 +4515,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Espressif Systems" (at 0 0 0)
+		(property "LCSC" "C5736265" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4596,7 +4596,7 @@
 		(property "Value" "TJA1051T/3" (at 240.03 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" (at 240.03 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 240.03 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C38695" (at 0 0 0)
+		(property "Manufacturer" "NXP" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4612,7 +4612,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "NXP" (at 0 0 0)
+		(property "LCSC" "C38695" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4648,7 +4648,7 @@
 		(property "Value" "LP5907MFX-3.3" (at 149.86 69.85 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C80670" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4664,7 +4664,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C80670" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4697,7 +4697,7 @@
 		(property "Value" "2.2kΩ" (at 119.38 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 119.38 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25879" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4713,7 +4713,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25879" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4743,7 +4743,7 @@
 		(property "Value" "10kΩ" (at 180.34 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 180.34 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25744" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4759,7 +4759,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25744" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4789,7 +4789,7 @@
 		(property "Value" "1uF" (at 119.38 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 119.38 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C15849" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4805,7 +4805,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C15849" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4835,7 +4835,7 @@
 		(property "Value" "1uF" (at 180.34 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 180.34 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C15849" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4851,7 +4851,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C15849" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4881,7 +4881,7 @@
 		(property "Value" "100nF" (at 340.36 170.18 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 340.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4897,7 +4897,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4927,7 +4927,7 @@
 		(property "Value" "100nF" (at 240.03 50.8 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 240.03 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 240.03 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4943,7 +4943,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4973,7 +4973,7 @@
 		(property "Value" "100nF" (at 209.55 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 209.55 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 209.55 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -4989,7 +4989,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5019,7 +5019,7 @@
 		(property "Value" "10uF" (at 95.25 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 95.25 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C15850" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5035,7 +5035,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C15850" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5065,7 +5065,7 @@
 		(property "Value" "10uF" (at 388.62 170.18 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 388.62 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C15850" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5081,7 +5081,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C15850" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5111,7 +5111,7 @@
 		(property "Value" "100nF" (at 278.13 115.57 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 278.13 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 278.13 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5127,7 +5127,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5157,7 +5157,7 @@
 		(property "Value" "PESD5V0S1BA" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C5261083" (at 0 0 0)
+		(property "Manufacturer" "Nexperia" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5173,7 +5173,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Nexperia" (at 0 0 0)
+		(property "LCSC" "C5261083" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5203,7 +5203,7 @@
 		(property "Value" "100kΩ" (at 85.09 115.57 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25741" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5219,7 +5219,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25741" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5249,7 +5249,7 @@
 		(property "Value" "USB-C 2.0" (at 139.7 416.56 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2765186" (at 0 0 0)
+		(property "Manufacturer" "XKB" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5265,7 +5265,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "XKB" (at 0 0 0)
+		(property "LCSC" "C2765186" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5310,7 +5310,7 @@
 		(property "Value" "SS34" (at 215.9 416.56 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 215.9 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 215.9 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C8678" (at 0 0 0)
+		(property "Manufacturer" "MDD" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5326,7 +5326,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "MDD" (at 0 0 0)
+		(property "LCSC" "C8678" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5356,7 +5356,7 @@
 		(property "Value" "10uF" (at 292.1 416.56 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 292.1 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 292.1 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C15850" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5372,7 +5372,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C15850" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5402,7 +5402,7 @@
 		(property "Value" "5.1kΩ" (at 368.3 416.56 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 368.3 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 368.3 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25905" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5418,7 +5418,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25905" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5448,7 +5448,7 @@
 		(property "Value" "5.1kΩ" (at 63.5 533.4 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 63.5 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25905" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5464,7 +5464,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25905" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5494,7 +5494,7 @@
 		(property "Value" "BOOT" (at 139.7 533.4 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 139.7 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C720477" (at 0 0 0)
+		(property "Manufacturer" "XKB" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5510,7 +5510,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "XKB" (at 0 0 0)
+		(property "LCSC" "C720477" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5540,7 +5540,7 @@
 		(property "Value" "RESET" (at 215.9 533.4 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 215.9 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 215.9 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C720477" (at 0 0 0)
+		(property "Manufacturer" "XKB" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5556,7 +5556,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "XKB" (at 0 0 0)
+		(property "LCSC" "C720477" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5586,7 +5586,7 @@
 		(property "Value" "2.2kΩ" (at 299.72 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 299.72 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 299.72 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25879" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5602,7 +5602,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25879" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5632,7 +5632,7 @@
 		(property "Value" "2.2kΩ" (at 320.04 54.61 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 320.04 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 320.04 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25879" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5648,7 +5648,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25879" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5678,7 +5678,7 @@
 		(property "Value" "INA238" (at 69.85 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 69.85 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2868250" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5694,7 +5694,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C2868250" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5778,7 +5778,7 @@
 		(property "Value" "100nF" (at 92.71 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 92.71 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 92.71 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5794,7 +5794,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5824,7 +5824,7 @@
 		(property "Value" "INA238" (at 170.18 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 170.18 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 170.18 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2868250" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5840,7 +5840,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C2868250" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5924,7 +5924,7 @@
 		(property "Value" "100nF" (at 193.04 224.79 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 193.04 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 193.04 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5940,7 +5940,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6082,7 +6082,7 @@
 		(property "Value" "10kΩ" (at 63.5 883.92 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 63.5 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C25744" (at 0 0 0)
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6098,7 +6098,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "UNI-ROYAL" (at 0 0 0)
+		(property "LCSC" "C25744" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6128,7 +6128,7 @@
 		(property "Value" "100nF" (at 139.7 883.92 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 139.7 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6144,7 +6144,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6174,7 +6174,7 @@
 		(property "Value" "INA181A2IDBVR" (at 215.9 883.92 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 215.9 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 215.9 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2058784" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6190,7 +6190,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C2058784" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6224,7 +6224,7 @@
 		(property "Value" "TLV7011DBVR" (at 292.1 883.92 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 292.1 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 292.1 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C702117" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6240,7 +6240,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C702117" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6273,7 +6273,7 @@
 		(property "Value" "100nF" (at 368.3 883.92 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 368.3 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 368.3 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6289,7 +6289,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6319,7 +6319,7 @@
 		(property "Value" "100nF" (at 63.5 1000.76 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 63.5 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6335,7 +6335,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6365,7 +6365,7 @@
 		(property "Value" "INA181A2IDBVR" (at 139.7 1000.76 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 139.7 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C2058784" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6381,7 +6381,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C2058784" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6415,7 +6415,7 @@
 		(property "Value" "TLV7011DBVR" (at 215.9 1000.76 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 215.9 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 215.9 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C702117" (at 0 0 0)
+		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6431,7 +6431,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Texas Instruments" (at 0 0 0)
+		(property "LCSC" "C702117" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6464,7 +6464,7 @@
 		(property "Value" "100nF" (at 292.1 1000.76 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 292.1 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 292.1 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6480,7 +6480,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6510,7 +6510,7 @@
 		(property "Value" "100nF" (at 368.3 1000.76 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 368.3 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 368.3 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "C1525" (at 0 0 0)
+		(property "Manufacturer" "Samsung" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6526,7 +6526,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "Samsung" (at 0 0 0)
+		(property "LCSC" "C1525" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)

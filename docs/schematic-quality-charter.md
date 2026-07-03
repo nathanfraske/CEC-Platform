@@ -59,3 +59,18 @@ compact/wired-decouplers correction; 59-component/46-group node-set identity pro
 ERC census strictly shrank: `endpoint_off_grid` 19→0, no new class) → ~~adopt gates
 5/6~~ **DONE 2026-07-03** → T4 on the next-captured sheets → T5 once the owner approves
 a sheet set → T6 on the workstation.
+
+**T4 engine growth, sheet 05 (2026-07-03):** capturing hub-enterprise sheet 05
+(8x module port + CAN frontend + DETECT ADC) needed two small, additive extensions to
+the shared engine, both exercised for the first time here: (1) `cec_sch_compose.build_leaf`
+gained a `global_nets` parameter — a real KiCad `global_label` at every occurrence (project-
+wide connectivity by name, no sheet-pin plumbing), for a genuine N-way bus (CAN_H/CAN_L,
+9 endpoints: 8 ports + the shared transceiver) that `build_thin_parent`'s 1:1/2-endpoint
+sheet-pin fan-out cannot express; (2) `cec_sch_compose.build_root` gained an `extra_sheets`
+parameter so the root can carry a SECOND captured (pinned) subtree alongside the first
+(previously the root assumed exactly one captured sheet plus a grid of placeholders).
+Both are backward-compatible (default off; sheet 01/ent-common unaffected). Also landed:
+the repeated-sheet gap (8 identical port leaves) — neither `build_leaf` nor
+`build_thin_parent` supports one file instantiated N times with independent per-instance
+annotation today; sheet 05 uses the documented fallback (8 generated files from one
+template function) rather than extending that machinery, per the task's own escape hatch.

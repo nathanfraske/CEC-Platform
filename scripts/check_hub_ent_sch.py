@@ -4,9 +4,12 @@
 #
 # Verification harness for hubs/hub-enterprise/, per the protocol in
 # hubs/hub-enterprise/SCHEMATIC-PLAN.md section 2. Grows one assertion block
-# per sheet as sheets are captured; today it covers sheet 01 (power-input)
-# plus whole-project hygiene (ERC regression guard, library registration,
-# placeholder-sheet sanity). Run:
+# per sheet as sheets are captured; today it covers sheet 01 (power-input) and
+# sheet 05 (module-ports: 8x port + CAN frontend + DETECT ADC), plus
+# whole-project hygiene (ERC regression guard, library registration,
+# placeholder-sheet sanity, and a component/connectivity equivalence guard
+# that proves each newly-captured sheet is ADDITIVE -- every prior sheet's own
+# component count and connectivity are unchanged). Run:
 #
 #   python3 scripts/check_hub_ent_sch.py
 #

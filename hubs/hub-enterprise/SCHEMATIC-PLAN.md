@@ -39,7 +39,7 @@ form (no interim flat/dashed-frame draft).
 | 02 | `02-compute-core` | `02a-mpfs-core` (MPFS095Tx FCVG484 multi-unit symbol: MSS/fabric banks/SerDes-NC/power) · `02b-boot-straps` (SPI-boot polarity per DS60001681H, DEVRST_N) · `02c-jtag` (FTSH-105 header) · `02d-clock` (DSC1123BL5 + decoupling) | BOM-A | all (TC base / TS = HS fit) |
 | 03 | `03-compute-rails` | `03a-core-buck` (MIC22705YML-TR, 1.0/1.05 V) · `03b-bank-rails` (1.8/2.5/3.3 V regs) · `03c-vdda-ldo` (quiet analog LDOs) · `03d-sequencing` (PG chain) | BOM-A | all |
 | 04 | `04-storage` | `04a-qspi-nor` (W25Q256JV, A/B FW + tamper log) · `04b-emmc` (eMMC 5.1 FBGA-153, JEDEC-standard ballout, density per SKU) · `04c-straps` (shared pull-ups/straps) | BOM-A; REQ-107..109 | all |
-| 05 | `05-module-ports` | `05a-port` **×8** (one RJ-45 FTP port: jack SH→GND, DETECT ladder + PESD5V0S1BA + series R, pin-7 network, 5VSB distribution, SS110 + SMAJ58A protection — identical per instance, the repeated-sheet case) · `05b-can-frontend` (TJA1051T/3 + 120 Ω split term, shared bus) · `05c-detect-adc` (ADS7830 I2C DETECT/rail-sense ADC, shared) | BOM-C + §6a | all |
+| 05 | `05-module-ports` (thin parent, **CAPTURED** 2026-07-03) | `05a-port1`..`05a-port8` (8 GENERATED FILES from one template function, not one file instantiated 8× — see the format note below; RJ-45 FTP port: jack SH→GND, DETECT ladder R_DSER→[PESD5V0S1BA+10k pull-up], pin-7 R_SYNC→SMAJ58A, SS110+SMAJ58A pin-1 mis-plug protection — identical per instance) · `05b-can-frontend` (TJA1051T/3 + 120 Ω split term, shared 8-port bus via a real `global_label`) · `05c-detect-adc` (ADS7830 I2C DETECT/rail-sense ADC, shared; widened local symbol copy) | BOM-C + §6a | all |
 | 06 | `06-t1-dataplane` | `06a-lan9370-core` **×2** (switch core, RGMII → fabric bank pins, MDIO/MDC, straps/clocks/rails — one per LAN9370) · `06b-mdi-frontend` **×8** (CMC + ≥100 V coupling caps + PESD2ETH100 — one per T1 port, 4 per switch) | master §5; survey 10 | all |
 | 07 | `07-uplink` | `07a-dp83869-phy` **×1 (×2 MC+)** (MSS-SGMII or RGMII per the Core FAE answer — capture both pin options, strap-selected) · `07b-magnetics-protection` (JXD1 MagJack + RClamp0524PA + GDT) | BOM-B | NET (2nd PHY = MC+) |
 | 08 | `08-secio-aux` | `08a-rj11-secio` (EOL loop sense comparator + isolated dry-contact out) · `08b-nanokvm-aux` (5-pin JST-PH, ratiometric 3V3 ref per the platform pattern) · `08c-argb-service` (SK6812 chain + AHCT buffer + service button + board NTC) | BOM-C §5; platform reuse | RJ-11: AIR default/NET on-request; KVM: NET |
@@ -82,10 +82,27 @@ fields (the fab DNP matrix), never schematic variants.
 
 ## 3. Capture order (dependency-driven)
 
-01 power-input (all-reuse parts, unblocks bench thinking) → 05 module-ports (platform
-reuse-heavy) → 04 storage → 03 rails → 02 compute-core (needs the generated MPFS
-symbol — the long pole) → 06 T1 (needs LAN9370) → 07 uplink → 08 sec-I/O → 09 watchdog
-→ 10 voting pair. Sheets are independent files; capture parallelizes once symbols exist.
+01 power-input (all-reuse parts, unblocks bench thinking) **CAPTURED** → 05 module-ports
+(platform reuse-heavy) **CAPTURED 2026-07-03** → 04 storage → 03 rails → 02 compute-core
+(needs the generated MPFS symbol — the long pole) → 06 T1 (needs LAN9370) → 07 uplink →
+08 sec-I/O → 09 watchdog → 10 voting pair. Sheets are independent files; capture
+parallelizes once symbols exist.
+
+**Sheet 05 format note (2026-07-03):** the plan's "×8 = one leaf file, 8 instances" ideal
+could not be realized with today's shared engine — `cec_sch_compose.build_leaf` bakes
+exactly ONE `instances.path` per component and exactly one `sheet_instances` entry per
+file, and `build_thin_parent` places one `(sheet ...)` box per `leaves[]` entry but does
+not support several boxes pointing at the *same* file with independent per-instance
+annotation. Extending that shared, multi-board machinery for this one repeated-sheet case
+was out of scope for an additive capture pass, so this sheet instead uses the documented
+fallback: **8 GENERATED FILES from one template function** (`compose_port(n)` in
+`gen_hub_enterprise.py`), each with its own per-instance refs (`J_PORT1..8`,
+`D_TVS1..8`, etc. — matching the platform's existing ref-class convention). Also new:
+CAN_H/CAN_L are a genuine 9-endpoint bus (8 ports + 05b) that the thin parent's
+1:1/2-endpoint sheet-pin fan-out cannot express, so `cec_sch_compose.build_leaf` grew a
+`global_nets` parameter (a real KiCad `global_label` at every occurrence, project-wide by
+name, no sheet-pin plumbing) — a small, additive, backward-compatible engine extension,
+exercised here for the first time.
 
 ## 4. Library prerequisites (the actual gate — fan-out running)
 

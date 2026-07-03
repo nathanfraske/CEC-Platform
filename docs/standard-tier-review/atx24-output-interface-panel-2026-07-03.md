@@ -102,3 +102,22 @@ LEFT OPEN. His recorded lean (not a ruling):
   the plug mating force (slot-tab-into-main-board + foot). Candidate to beat BOTH the pigtail
   assembly (labor at volume) and the stub forms — evaluate at the D-5 respin alongside the
   owner's lean.
+
+## Option F provenance update (owner, 2026-07-03, later)
+
+The vertical PCB-mount female the owner's hunt found is an **unofficial Chinese DIY part**
+(AliExpress-class channels): no MPN, no footprint, no spec sheet, no lot control. Under the
+quality-first principle this is disqualifying for a sellable consumer power product (unknown
+contact alloy/plating/temp-rise/housing flammability — on the melt-anxiety product line).
+Decisive provenance contrast: the owner's crimp PIGTAIL assembly is built entirely from
+genuine specified components (Molex 5557 housing + 5556 HCS 9A terminals + spec'd wire) —
+the only custom element is labor. Realistic female-out hardware menu now:
+1. **Crimp assembly** (interim/possibly permanent): full provenance today; weaknesses =
+   hand labor at volume + no-AOI solder row (mitigated by the written strain-relief spec).
+2. **COMMISSION the part** (production endgame if D-5 confirms female-out): tool a proper
+   PCB-mount female (vertical for the daughtercard, or the right-angle Molex never made —
+   the owner's original ideal, custom-made) at a connector house with real spec + lot
+   control; plausibly low-$k tooling amortized over the MANDATORY module's volume.
+3. **Batch-qualify the DIY part**: bench-derive a spec + incoming inspection; permanent
+   supply fragility + silent-change re-qual risk — shop prototypes only, not the BOM.
+Recommendation on record: 1 now, 2 as endgame; 3 never for the sellable BOM.

@@ -16,7 +16,7 @@
 	(text "02-compute-core -- CAPTURE PENDING\n\nMPFS095Tx FCVG484 compute core (boot straps, JTAG, clock, decoupling)\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "403221f9-8a8b-4fb3-87a2-12b0f533d816")
+		(uuid "9edd4d2d-8f5e-4996-be40-55b3a70961fc")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4062-8a2b-3c4d5e6f7082"
