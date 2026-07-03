@@ -167,3 +167,21 @@ same board? ASSESSMENT (recommendation, owner to ratify):
   REQUIREMENT. Other module housings: no equivalent concern at their dissipation (EPS/PCIe
   cable boards run cool; verify at their W6 electrothermal gates with the enclosed boundary
   condition, not open-air).
+
+
+## K. Mezzanine sign-off + beta schematic wave (owner, 2026-07-03)
+
+- **K1 (RULED — D-3 RESOLVED): the mezzanine 24-pin + Hub stacked pair is APPROVED as an
+  ALTERNATIVE Standard SKU** ("if a person needs it") — alongside the cabled versions, not
+  replacing them. GATE before any socket design: the **J6 pin-map contradiction** (rev3 netlist
+  vs the published design-doc table) must be reconciled — assigned to the 24-pin beta agent as
+  its first task (evidence-based: whichever artifact the counterpart-side design assumed wins;
+  if genuinely ambiguous → owner).
+- **K2 (RULED): BETA SCHEMATIC WAVE STARTS NOW, all five consumer boards.** Per-board scope =
+  the ruled register items: W11+H3a standalone/ferrite suite (all modules), W12 comparator +
+  A4 3-pin power-in + H2 rung-3 DNP provisions (hub), fan header off the 12V input bus (12VHPWR,
+  J2), J6 fix + mezzanine contract (24-pin). WORKING-BASIS DEFAULTS, owner may veto: 24-pin
+  sensing = INA228×4 (the quality-first tilt); 24-pin output form = the owner's short-stub lean
+  (D-5a), captured as a clearly-marked swappable section pending the formal form call. Splice
+  discipline: edit existing schematics (cec_sch splice + ERC/netlist gates), never regenerate
+  hand-maintained boards; Rev → BETA-1 per W8; alpha preserved in git history + fab/ snapshots.
