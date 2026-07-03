@@ -42,7 +42,9 @@ U6,1,SN74AHCT1G08,SOT-23-5,SN74AHCT1G08DBVR,Texas Instruments,C113521,,LCSC,,,,
 U8,1,TLV7011DBVR,SOT-23-5,TLV7011DBVR,Texas Instruments,C702117,,LCSC,,,,
 R29,1,100kOhm,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,LCSC,,,Yes,"H2 rung-3 DNP: U9 EN pulldown, position-only"
 R30,1,100kOhm,R_0402_1005Metric,0402WGF1003TCE,UNI-ROYAL,C25741,,LCSC,,,Yes,"H2 rung-3 DNP: U10 EN pullup, position-only"
-U9,1,TPS61023DRLR,SOT-563,TPS61023DRLR,Texas Instruments,C919459,,LCSC,,,Yes,"H2 rung-3 DNP boost, position-only -- OQ-56 bench decides population"
-U10,1,TPS563201DDCR,SOT-23-6,TPS563201DDCR,Texas Instruments,C116592,,LCSC,,,Yes,"H2 rung-3 DNP wide-Vin buck, position-only -- OQ-56 bench decides population"
+R31,1,1MOhm,R_0402_1005Metric,0402WGF1004TCE,UNI-ROYAL,C26083,,LCSC,,,Yes,H2 rung-3 DNP: boost FB divider top (VOUT=11.51V with R32)
+R32,1,120kOhm,R_0402_1005Metric,0402WGF1203TCE,UNI-ROYAL,C25750,,LCSC,,,Yes,H2 rung-3 DNP: boost FB divider bottom
+U9,1,TPS61040DBVR,SOT-23-5,TPS61040DBVR,Texas Instruments,C7722,,LCSC,,,Yes,"H2 rung-3 DNP 28V boost (~11.5V reservoir), position-only -- OQ-56 bench decides population"
+U10,1,TPS563201DDCR,SOT-23-6,TPS563201DDCR,Texas Instruments,C116592,,LCSC,,,Yes,"H2 rung-3 DNP wide-Vin buck (VIN 4.5-17V covers the 11.5V reservoir), position-only"
 L2,1,TBD (rung-3 bench),L_0603_1608Metric,,,,,,,,Yes,"H2 rung-3 DNP buck output inductor, value TBD at OQ-56 bench"
 RJ_BUCK,1,0R (jumper),R_0402_1005Metric,0402WGF0000TCE,UNI-ROYAL,C17168,,LCSC,,,Yes,"H2 rung-3 alternate jumper, DNP by default (populate + depopulate RJ_HOLD to switch rungs)"

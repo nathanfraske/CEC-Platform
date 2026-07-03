@@ -43,14 +43,10 @@ part's physical pinout (pad 2 is the geometric center pad). Net names unchanged
   the shared `MAIN_5V_SENSE` node -- keeps the ADC path on that shared node undisturbed).
 - **C17 = 100nF** VCC decoupling (Samsung CL05B104KO5NNNC, C1525 -- the platform's
   standard 100nF line).
-- **OUT -> `/PWR_FAIL_INT`.** GPIO candidate: **not yet assigned to a specific ESP32 pin**
-  -- I did not find a free/unused GPIO by direct inspection of every U1 net in this pass
-  (the ESP32-S3-WROOM-1 has ~140 other nets on this board). Candidates worth checking at
-  the PCB/firmware pass: any ADC2 channel not already claimed by IO1/IO2 (KVM ratio),
-  IO3 (TEMP_HUB), IO9/IO10 (MAIN_5V/5VSB sense), IO11/IO12 (KVM UART), IO13/IO14 (if
-  free) -- **flagged, not assumed**; firmware/PCB pass must confirm and bind the pin.
+- **OUT -> `/PWR_FAIL_INT` -> U1 pin 22 = IO14** (bound; see the coordinator-closure
+  update at the end of this file for the full free-pin audit).
 
-**Connectivity assertion:** `/PWR_FAIL_INT = {R28.1, U8.1}`, `/COMP_THRESH =
+**Connectivity assertion:** `/PWR_FAIL_INT = {R28.1, U1.22, U8.1}`, `/COMP_THRESH =
 {R26.2, R27.1, R28.2, U8.4}`, `/MAIN_5V_SENSE = {R15.2, R16.1, U1.17, U8.3}` -- U8 added
 to the existing sense net without displacing U1's own connection.
 
@@ -72,35 +68,37 @@ the schematic necessarily *shows* them net-bridged at RJ_BUCK's position (that i
 jumper position is), but no current can cross an empty footprint. To move to rung 3:
 desolder RJ_HOLD, populate RJ_BUCK + the rest of this ladder.
 
-**U9 = TPS61023DRLR** (boost, SOT-563, LCSC C919459, DNP): VIN=`+5V_HOLD`, GND=`GND`,
-EN -> **R29** (100k pulldown, DNP, default-disabled) -> `GND`, VOUT=`+HOLD_BOOST`.
-FB and SW are genuine **`no_connect`** flags (not stray labels -- ERC's
-`isolated_pin_label` check caught my first draft using bare labels here; a real
-no-connect is the correct idiom for "reserved, not wired this pass").
-**Flagged, not silently resolved:** TPS61023's own datasheet caps adjustable VOUT at
-**5.5V** -- it cannot reach the register's literal "~12V" reservoir target. Either the
-rung-3 target is revised to ~5.5V with this exact part, or a higher-Vout boost
-(TPS61088-class) replaces it at the OQ-56 bench pass. FB divider, inductor, and bulk
-caps are intentionally not populated in this position-only pass.
+**U9 = TPS61040DBVR** (28V boost, SOT-23-5, LCSC C7722 verified live ~560 in stock, DNP;
+**corrected from the register's TPS61023 per coordinator ruling** -- see the closure
+update at the end of this file): VIN=`+5V_HOLD` (1.8-6V range fits), GND=`GND`,
+EN -> **R29** (100k pulldown, DNP, default-disabled; the datasheet requires EN
+terminated, never floating) -> `GND`, FB -> the **R31/R32 divider** (`BOOST_FB`).
+SW is a genuine **`no_connect`** flag (not a stray label -- ERC's `isolated_pin_label`
+check caught my first draft using bare labels for reserved pins; a real no-connect is
+the correct idiom): the SW-side inductor + rectifier to `+HOLD_BOOST` are OQ-56 bench
+work, unpopulated at this position-only pass -- consequently `+HOLD_BOOST` has no
+U9 member in the netlist until the rectifier lands.
 
-**U10 = TPS563201DDCR** (wide-Vin 4.5-17V buck, SOT-23-6, LCSC C116592, DNP):
+**U10 = TPS563201DDCR** (wide-Vin **4.5-17V** buck, SOT-23-6, LCSC C116592, DNP --
+its input range **covers the ~11.5V boosted reservoir with margin**):
 VIN=`+HOLD_BOOST`, GND=`GND`, SW=`BUCK_SW`, EN -> **R30** (100k pullup, DNP) ->
 `+HOLD_BOOST` (active-high enable per datasheet), VFB and VBST are real `no_connect`
-flags for the same reason as U9's FB/SW. **L2** (inductor, DNP, value marked "TBD --
+flags for the same reason as U9's SW. **L2** (inductor, DNP, value marked "TBD --
 OQ-56 bench") bridges `BUCK_SW -> HOLD_BUCK_OUT` -- the one supporting passive kept in
 this pass, because without it RJ_BUCK's alternate source would have no real node to
 name.
 
-**Connectivity assertions:** `/+HOLD_BOOST = {R30.2, U10.3, U9.6}` (boost output feeds
-buck input + the EN pullup), `/BOOST_EN = {R29.1, U9.2}`, `/BUCK_EN = {R30.1, U10.5}` --
-none isolated, all real 2-member nets.
+**Connectivity assertions:** `/+HOLD_BOOST = {R30.2, R31.1, U10.3}`, `/BOOST_FB =
+{R31.2, R32.1, U9.3}`, `/BOOST_EN = {R29.1, U9.4}`, `/BUCK_EN = {R30.1, U10.5}` --
+none isolated, all real nets.
 
 **Residual analog caveat (surfaced, not fixed here):** U3's own **EN pin (pin 3)** is
 tied directly to raw `+5V_HOLD` (a pre-existing board decision, unrelated to this
 splice), while IN (pin 1) now rides the safely-regulated `LDO_IN`. In a populated
-rung-3 future, EN would see the boosted (up to ~5.5V, or more with a swapped part)
-`+5V_HOLD` while IN sees the bucked-down `LDO_IN` -- worth a bench check of the LDO's
-EN abs-max at rung-3 populate time.
+rung-3 future, EN would see the boosted (~11.5V) `+5V_HOLD` while IN sees the
+bucked-down `LDO_IN` -- **the LP5907's abs-max on EN is 6.5V, so the rung-3
+population MUST re-strap U3.EN off raw +5V_HOLD** (e.g. to LDO_IN); a bench/board
+item for the rung-3 pass, non-blocking while the ladder stays DNP.
 
 ## 4. Rev / title block
 
@@ -146,14 +144,58 @@ near the new parts (x=438, y=321) with the same summary + a pointer to this file
 
 ## 6. Open items for the next pass (not resolved here)
 
-- W12's OUT GPIO pin is not yet bound to a specific ESP32 IO -- needs a full free-pin
-  audit + firmware coordination.
-- U9's VOUT-vs-register-target mismatch (5.5V part ceiling vs "~12V" ask) needs an
-  owner/bench call before rung-3 ever gets bench-populated.
-- No PCB placement/footprint pass yet for any of the 14 new parts -- schematic-only,
+- No PCB placement/footprint pass yet for any of the 17 new parts -- schematic-only,
   per this task's scope.
 - The pre-existing `no_connect_connected` near J5 (RJ-45 port 4) surfaced by this splice
   is a latent board issue, not introduced by it -- worth a separate ticket.
 - `lib/vendor/cec-vendor.kicad_sym` and `lib/cec.kicad_sym` were appended to (additive,
   end-of-file) while at least one other concurrent beta-splice branch was also touching
   `cec-vendor.kicad_sym` this session -- worth a diff-check at merge time.
+- Rung-3 population must re-strap U3.EN off raw +5V_HOLD (LP5907 EN abs-max 6.5V vs the
+  ~11.5V boosted reservoir) -- see the section-3 caveat.
+
+## 7. Coordinator-closure update (2026-07-03, same session)
+
+**7a. Boost part corrected (my 5.5V-ceiling flag ruled valid; register part replaced).**
+U9 swapped TPS61023DRLR -> **TPS61040DBVR** (LCSC **C7722**, verified live: in stock
+~560, ~$0.17, SOT-23-5). Fit: VIN 1.8-6V (runs from +5V_HOLD), VOUT adjustable to 28V,
+**400mA internal switch current limit + internal soft start** -- the part is
+peak-current-controlled, so trickle-charging the 4700uF can is inherently limited and
+**no series charge-limit R is required by the datasheet** (none added). DBV pinout
+wired per SLVS413K Fig 5-1 (1=SW, 2=GND, 3=FB, 4=EN, 5=VIN); EN's no-float requirement
+is met by the existing R29 100k pulldown. **FB divider added (DNP): R31 = 1M (C26083) /
+R32 = 120k (C25750, verified live, JLC-basic class)** -> `VOUT = 1.233V x (1 + 1000/120)
+= 11.51V` -- inside the "~12V" intent, and a deliberately conservative 72% of the 16V
+can's rating. Energy win at 11.51V vs the ~5V diode-held baseline: (11.51/5)^2 ~= 5.3x.
+**U10 confirmed standing:** TPS563201's 4.5-17V VIN range covers the 11.51V reservoir
+with margin (stated in its Description property + section 3). The unused TPS61023
+symbol was removed from `lib/vendor/cec-vendor.kicad_sym` (TPS61040DBVR added); the
+SOT-563 footprint/3D stay vendored (harmless, per the TJA1462AT precedent).
+
+**7b. /PWR_FAIL_INT GPIO bound = U1 pin 22 -> IO14.** Free-pin audit from the exported
+netlist (all 41 U1 pins mapped to nets): FREE = IO13, IO14, IO15, IO16, IO21, IO35-IO42,
+IO45-IO47, RXD0/TXD0. Excluded: IO45/IO46 + IO0 (strapping, per the ask), **IO35/36/37
+(NOT usable on this exact module -- WROOM-1-N16R8 is octal-PSRAM, which claims them
+internally)**, IO40-42 (JTAG default), RXD0/TXD0 (console). Wake-capable RTC-domain
+(GPIO0-21) candidates remaining: **IO13, IO14, IO15, IO16, IO21**. Chose **IO14**:
+RTC-domain (RTC_GPIO14 -> true wake-capable interrupt), non-strapping, and its ADC2
+channel is the cheapest analog spare to burn (ADC2 is entirely unused for sensing on
+this board; every populated sense sits on ADC1). Runner-ups in order: IO21 (no ADC at
+all -- but sits on the symbol's right/crowded side), IO15/IO16 (kept clear as the
+XTAL_32K option pair), IO13 (peer of IO14). Wired with the board's stub+label idiom at
+pin 22 (284.48,119.38 -> 280.67,119.38), matching the adjacent sense pins. IO21's
+no_connect is untouched/still flagged.
+
+**7c. Gates re-run after both closures:** ERC = 87 total: 71 `lib_symbol_mismatch`
+(+2 for the two new cached symbol types), 13 `pin_to_pin` (same benign class + count),
+2 `endpoint_off_grid` (the pre-existing FLG pair), 1 `no_connect_connected`
+(pre-existing latent, unchanged) -- zero new classes. Netlist assertions:
+`/PWR_FAIL_INT = {R28.1, U1.22, U8.1}` (GPIO node live); `/BOOST_FB = {R31.2, R32.1,
+U9.3}`; `/BOOST_EN = {R29.1, U9.4}`; `/+5V_HOLD` gains `U9.5` (VIN); `/+HOLD_BOOST =
+{R30.2, R31.1, U10.3}` (no U9 member by design -- the SW-side rectifier is bench-work,
+SW carries a real no_connect); `unconnected-(U1-IO14-Pad22)` gone, IO21's unconnected
+net still present. Overlap gate: **121 pairs vs 122 pristine -- zero net-new** (R31/R32
+placed collision-free on first try). BOM regenerated: tracking CSV now 49 rows (R31/R32
+added as DNP lines, U9 line updated to TPS61040DBVR/C7722); JLC CSV still 41 rows with
+zero TPS61040/boost-ladder lines (DNP exclusion verified). Title block + on-sheet note
+updated ("TPS61040 ~11.5V boost", "OUT -> IO14").
