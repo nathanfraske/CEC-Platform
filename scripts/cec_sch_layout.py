@@ -817,6 +817,24 @@ def nudge_texts(sch_path, out_path=None, *, step=1.27, max_push=16, margin=0.2):
     # rule S6): a Reference/Value pushed off one collision must not land on a
     # pin glyph. They are never in to_fix (kind != property).
     elems += _extract_pin_glyphs(text)
+    # wires + power glyphs as obstacles (2026-07-03 --check-wires classes):
+    # a field pushed off a text collision must not land ON a wire or a flag
+    # glyph, and a field currently ON one must be pushed off it.
+    wires = _extract_wires(text)
+    glyphs = [(gx, gy) for gx, gy, _r in _extract_power_origins(text)]
+
+    def _hits_wire_or_glyph(e):
+        x0, x1, y0, y1 = e["bbox"]
+        box = (min(x0, x1) - 0.15, min(y0, y1) - 0.15,
+               max(x0, x1) + 0.15, max(y0, y1) + 0.15)
+        for seg in wires:
+            if _seg_clip_len(box, seg) > 0.15:
+                return True
+        for gx, gy in glyphs:
+            if _bbox_overlap(e["bbox"], (gx - 1.4, gx + 1.4,
+                                         gy - 1.4, gy + 1.4)):
+                return True
+        return False
 
     def collides(e):
         for o in elems:
@@ -826,7 +844,7 @@ def nudge_texts(sch_path, out_path=None, *, step=1.27, max_push=16, margin=0.2):
                 continue
             if _bbox_overlap(e["bbox"], o["bbox"], margin):
                 return True
-        return False
+        return e["kind"] == "property" and _hits_wire_or_glyph(e)
 
     to_fix = sorted((e for e in elems if e["kind"] == "property" and collides(e)),
                     key=lambda e: (e.get("ref") or "", e["name"]))
@@ -1128,9 +1146,15 @@ def check_wire_collisions(path, *, touch_len=0.5, wire_halfwidth=0.15,
                 break
         for gx, gy, gref in pwr:
             half = 0.6 if el.get("ref") == gref else glyph_half
-            # _bbox_overlap takes the module's (x0, x1, y0, y1) convention
+            # _bbox_overlap takes the module's (x0, x1, y0, y1) convention.
+            # Calibration (2026-07-03, live): the conservative glyph box
+            # grazes labels 2.54mm off a flag by ~0.1mm -- visually clean.
+            # Require real PENETRATION (>0.3mm on both axes) to flag.
             gb = (gx - half, gx + half, gy - half, gy + half)
-            if _bbox_overlap(el["bbox"], gb):
+            ex0, ex1, ey0, ey1 = el["bbox"]
+            px = min(max(ex0, ex1), gb[1]) - max(min(ex0, ex1), gb[0])
+            py = min(max(ey0, ey1), gb[3]) - max(min(ey0, ey1), gb[2])
+            if px > 0.3 and py > 0.3:
                 findings.append(
                     f'{el["label"]} at ({el["at"][0]:.2f},{el["at"][1]:.2f}) '
                     f'on power glyph {gref} ({gx:.2f},{gy:.2f})')
@@ -1175,6 +1199,386 @@ def check_power_glyphs(path, *, glyph_half=1.4, through_len=2.0,
                     f'({bx:.2f},{by:.2f}): arrows/triangles closer than '
                     f'{min_sep}mm — spread apart')
     return findings
+
+
+# ---------------------------------------------------------------------------
+# GEOMETRY MUTATORS (2026-07-03, owner toolkit-completeness pass): until this
+# pass the module could only MOVE FIELD TEXT (nudge_texts); the wire/glyph
+# defect classes need two more operations, built on the same targeted-splice
+# discipline (never re-serialize; netlist identity is the caller's gate).
+
+def snap_orphan_values(sch_path, out_path=None, *, max_dist=10.0, gap=2.2):
+    """The adjacency op: every non-# symbol whose Value field sits further
+    than max_dist from the symbol origin is snapped to directly under its
+    Reference (owner-designated convention). Position + angle only; a
+    follow-up nudge pass resolves any collision this creates. Returns count."""
+    text = open(sch_path).read()
+    work = _strip_lib_symbols(text)
+    edits = []
+    for s, e, (ox, oy), ref, rot, lib, mir in _symbol_spans(work):
+        if ref.startswith("#"):
+            continue
+        blk = work[s:e]
+        rm = re.search(r'\(property\s+"Reference"\s+"(?:[^"\\]|\\.)*"\s*\n?\s*'
+                       r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk)
+        vm = re.search(r'\(property\s+"Value"\s+"(?:[^"\\]|\\.)*"\s*\n?\s*'
+                       r'(\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\))', blk)
+        if not (rm and vm):
+            continue
+        vx, vy = float(vm.group(2)), float(vm.group(3))
+        if math.hypot(vx - ox, vy - oy) <= max_dist:
+            continue
+        rx, ry, rang = (float(rm.group(1)), float(rm.group(2)),
+                        float(rm.group(3)))
+        at_start = s + vm.start(1)
+        edits.append((at_start, at_start + len(vm.group(1)),
+                      f'(at {cec_sch.f(rx)} {cec_sch.f(ry + gap)} '
+                      f'{cec_sch.f(rang)})'))
+    edits.sort(key=lambda t: -t[0])
+    out = text   # spans are valid in `text` too: _strip_lib_symbols blanks
+    for s, en, rep in edits:   # in place (same length), offsets preserved
+        out = out[:s] + rep + out[en:]
+    open(out_path or sch_path, "w").write(out)
+    return len(edits)
+
+
+def _move_symbol_and_wire(text, ref, dx, dy, rewire=True):
+    """Move symbol `ref` (instance + all its property (at)s) by (dx,dy) and
+    stretch any wire endpoint coincident with its old origin to the new one.
+    Returns modified text, or None if the ref isn't found."""
+    work = _strip_lib_symbols(text)
+    target = None
+    for s, e, (ox, oy), r, rot, lib, mir in _symbol_spans(work):
+        if r == ref:
+            target = (s, e, ox, oy)
+            break
+    if not target:
+        return None
+    s, e, ox, oy = target
+    blk = text[s:e]
+    def shift_at(m):
+        return (f'(at {cec_sch.f(float(m.group(1)) + dx)} '
+                f'{cec_sch.f(float(m.group(2)) + dy)}'
+                + (f' {m.group(3)}' if m.group(3) else '') + ')')
+    new_blk = re.sub(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)(?:\s+(-?[\d.]+))?\)',
+                     shift_at, blk)
+    text = text[:s] + new_blk + text[e:]
+    if not rewire:
+        return text
+    # stretch coincident wire endpoints (wires are top-level constructs,
+    # so lib_symbols false positives are impossible)
+    return _rewire(text, ox, oy, dx, dy)
+
+
+def _rewire(text, ox, oy, dx, dy):
+    out = []
+    idx = 0
+    while True:
+        j = text.find('(wire', idx)
+        if j < 0:
+            out.append(text[idx:])
+            break
+        blk = cec_sch.carve(text, j)
+        def fix_xy(mm):
+            x, y = float(mm.group(1)), float(mm.group(2))
+            if math.hypot(x - ox, y - oy) < 0.05:
+                return f'(xy {cec_sch.f(x + dx)} {cec_sch.f(y + dy)})'
+            return mm.group(0)
+        out.append(text[idx:j])
+        out.append(re.sub(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', fix_xy, blk))
+        idx = j + len(blk)
+    return ''.join(out)
+
+
+def spread_power_flags(sch_path, out_path=None, *, min_sep=2.6, step=1.27,
+                       max_steps=3):
+    """The GLYPH-CLIP fix: for each pair of power-flag glyphs closer than
+    min_sep, move the second flag AWAY along its own wire axis (extending
+    its stub), one step at a time up to max_steps, re-measuring after each
+    board-wide pass. Returns (n_moved, n_remaining_pairs)."""
+    n_moved = 0
+    for _ in range(max_steps):
+        text = open(sch_path).read()
+        pwr = _extract_power_origins(text)
+        wires = _extract_wires(text)
+        pos = {r: (x, y) for x, y, r in pwr}
+        clip_pairs = []
+        refs = sorted(pos)
+        for i in range(len(refs)):
+            for j in range(i + 1, len(refs)):
+                ax, ay = pos[refs[i]]; bx, by = pos[refs[j]]
+                if math.hypot(ax - bx, ay - by) < min_sep:
+                    clip_pairs.append((refs[i], refs[j]))
+        # flags penetrating LABEL text (the SENSE12V_HI class, found by eye
+        # 2026-07-03): seed them as pseudo-pairs -- partner = the label
+        # anchor, so the move direction is away from the text.
+        elems = _extract_text_elements(text)
+        for el in elems:
+            if el["kind"] == "property":
+                continue
+            ex0, ex1, ey0, ey1 = el["bbox"]
+            for r in refs:
+                gx, gy = pos[r]
+                px = min(max(ex0, ex1), gx + 1.4) - max(min(ex0, ex1), gx - 1.4)
+                py = min(max(ey0, ey1), gy + 1.4) - max(min(ey0, ey1), gy - 1.4)
+                if px > 0.3 and py > 0.3:
+                    anchor = "@" + r
+                    pos[anchor] = (el["at"][0], el["at"][1])
+                    clip_pairs.append((anchor, r))
+        if not clip_pairs:
+            break
+        moved_this_pass = set()
+
+        def _pt_seg_dist(px, py, s):
+            ax, ay, bx, by = s
+            vx, vy = bx - ax, by - ay
+            L2 = vx * vx + vy * vy
+            if L2 < 1e-12:
+                return math.hypot(px - ax, py - ay)
+            t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / L2))
+            return math.hypot(px - (ax + t * vx), py - (ay + t * vy))
+
+        for a, b in clip_pairs:
+            mv = b if b not in moved_this_pass else a
+            if mv.startswith("@") or mv in moved_this_pass:
+                continue
+            gx, gy = pos[mv]
+            attached = [s for s in wires
+                        if math.hypot(s[0] - gx, s[1] - gy) < 0.05
+                        or math.hypot(s[2] - gx, s[3] - gy) < 0.05]
+            # Shared node (junction / multiple wires): the flag may still
+            # move if we ADD a stub wire from the old node to the new
+            # origin -- connectivity-preserving by construction. Direction:
+            # away from the nearest clipping partner.
+            add_stub = len(attached) != 1
+            if add_stub:
+                other = a if mv == b else b
+                px, py = pos[other]
+                L = math.hypot(gx - px, gy - py) or 1.0
+                dx, dy = (gx - px) / L * step, (gy - py) / L * step
+            else:
+                seg = attached[0]
+                fx, fy = ((seg[2], seg[3])
+                          if math.hypot(seg[0] - gx, seg[1] - gy) < 0.05
+                          else (seg[0], seg[1]))
+                L = math.hypot(gx - fx, gy - fy) or 1.0
+                dx, dy = (gx - fx) / L * step, (gy - fy) / L * step
+            nx, ny = gx + dx, gy + dy
+            # CONNECTIVITY GUARD 2: the new origin must not touch any
+            # FOREIGN wire (KiCad connects a pin on a wire interior) nor
+            # another flag origin.
+            if any(_pt_seg_dist(nx, ny, s) < 0.6 for s in wires
+                   if add_stub or s is not seg):
+                continue
+            if any(math.hypot(nx - px, ny - py) < 0.6
+                   for r2, (px, py) in pos.items() if r2 != mv):
+                continue
+            text = open(sch_path).read()
+            if add_stub:
+                # symbol moves alone (rewire=False -- the shared node's other
+                # wires must NOT be dragged); a new stub wire re-anchors the
+                # flag to the old node, connectivity-preserving by
+                # construction.
+                new = _move_symbol_and_wire(text, mv, dx, dy, rewire=False)
+                if new:
+                    stub = ("\t(wire\n\t\t(pts\n"
+                            f"\t\t\t(xy {cec_sch.f(gx)} {cec_sch.f(gy)}) "
+                            f"(xy {cec_sch.f(nx)} {cec_sch.f(ny)})\n"
+                            "\t\t)\n\t\t(stroke (width 0) (type default))\n"
+                            f"\t)\n")
+                    k = new.rfind(')')
+                    new = new[:k] + stub + new[k:]
+            else:
+                new = _move_symbol_and_wire(text, mv, dx, dy)
+            if new:
+                open(sch_path, "w").write(new)
+                n_moved += 1
+                moved_this_pass.add(mv)
+    text = open(sch_path).read()
+    pwr = _extract_power_origins(text)
+    rem = 0
+    for i in range(len(pwr)):
+        for j in range(i + 1, len(pwr)):
+            if math.hypot(pwr[i][0] - pwr[j][0],
+                          pwr[i][1] - pwr[j][1]) < min_sep:
+                rem += 1
+    if out_path and out_path != sch_path:
+        open(out_path, "w").write(open(sch_path).read())
+    return n_moved, rem
+
+
+def dedupe_power_flags(sch_path, out_path=None, *, min_sep=2.6):
+    """Same-VALUE power flags closer than min_sep are redundant stamps of
+    one node (the fleet carries literal coincident duplicates): delete the
+    higher-numbered flag of each pair, plus its stub wire when that wire's
+    far end touches nothing else. The caller MUST verify netlist identity
+    including net NAMES (deleting the sole namer of a subnet would rename
+    it). Returns number deleted."""
+    text = open(sch_path).read()
+    work = _strip_lib_symbols(text)
+    flags = []
+    for s, e, (ox, oy), ref, rot, lib, mir in _symbol_spans(work):
+        if not ref.startswith("#"):
+            continue
+        m = re.search(r'\(property\s+"Value"\s+"((?:[^"\\]|\\.)*)"', text[s:e])
+        flags.append({"ref": ref, "val": m.group(1) if m else "?",
+                      "at": (ox, oy), "span": (s, e)})
+    # WIRE-ISLAND UNION-FIND (the guard the first cut of this function
+    # lacked, found live: two same-value flags 2.54mm apart can sit on
+    # DIFFERENT wire islands that connect only THROUGH the shared net name
+    # -- deleting one strands its island as an anonymous net. Only a pair
+    # on one island (or literally coincident) is a true duplicate.)
+    wires_uf = _extract_wires(text)
+    parent = {}
+    def find(p):
+        while parent.get(p, p) != p:
+            parent[p] = parent.get(parent[p], parent[p])
+            p = parent[p]
+        return p
+    def union(p, q):
+        parent.setdefault(p, p); parent.setdefault(q, q)
+        rp, rq = find(p), find(q)
+        if rp != rq:
+            parent[rp] = rq
+    def key(x, y):
+        return (round(x * 20), round(y * 20))   # 0.05mm grid
+    for s in wires_uf:
+        union(key(s[0], s[1]), key(s[2], s[3]))
+    # endpoint-on-interior connections (KiCad connects those too)
+    eps = [(s[0], s[1]) for s in wires_uf] + [(s[2], s[3]) for s in wires_uf]
+    def pt_seg_d(px, py, s):
+        ax, ay, bx, by = s
+        vx, vy = bx - ax, by - ay
+        L2 = vx * vx + vy * vy
+        if L2 < 1e-12:
+            return math.hypot(px - ax, py - ay)
+        t = max(0.0, min(1.0, ((px - ax) * vx + (py - ay) * vy) / L2))
+        return math.hypot(px - (ax + t * vx), py - (ay + t * vy))
+    for px, py in eps:
+        for s in wires_uf:
+            if pt_seg_d(px, py, s) < 0.05:
+                union(key(px, py), key(s[0], s[1]))
+    def island(f):
+        return find(key(f["at"][0], f["at"][1]))
+    doomed = {}
+    for i in range(len(flags)):
+        for j in range(i + 1, len(flags)):
+            a, b = flags[i], flags[j]
+            if a["val"] != b["val"]:
+                continue
+            d = math.hypot(a["at"][0] - b["at"][0],
+                           a["at"][1] - b["at"][1])
+            if d >= min_sep:
+                continue
+            if d > 0.05 and island(a) != island(b):
+                continue   # different islands: the name IS the connection
+            keep, kill = sorted((a, b), key=lambda f: f["ref"])
+            if keep["ref"] in doomed:
+                continue
+            doomed[kill["ref"]] = kill
+    if not doomed:
+        return 0
+    wires = _extract_wires(text)
+    def endpoint_count(px, py):
+        n = 0
+        for s in wires:
+            if math.hypot(s[0] - px, s[1] - py) < 0.05:
+                n += 1
+            if math.hypot(s[2] - px, s[3] - py) < 0.05:
+                n += 1
+        return n
+    kept_origins = [f["at"] for f in flags if f["ref"] not in doomed]
+    cuts = set()
+    for f in doomed.values():
+        cuts.add(f["span"])
+        gx, gy = f["at"]
+        # exclusive stub deletion, guarded twice: the origin must carry
+        # exactly one wire endpoint, AND no KEPT flag may share the origin
+        # (coincident duplicates share one stub -- deleting it would orphan
+        # the survivor). cuts is a SET: coincident doomed pairs otherwise
+        # select the same wire span twice and the second identical cut
+        # removes the FOLLOWING text (the corruption class found live).
+        if endpoint_count(gx, gy) != 1:
+            continue
+        if any(math.hypot(gx - kx, gy - ky) < 0.05 for kx, ky in kept_origins):
+            continue
+        idx = 0
+        while True:
+            j = text.find('(wire', idx)
+            if j < 0:
+                break
+            blk = cec_sch.carve(text, j)
+            pts = re.findall(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk)
+            if any(math.hypot(float(x) - gx, float(y) - gy) < 0.05
+                   for x, y in pts):
+                cuts.add((j, j + len(blk)))
+                break
+            idx = j + len(blk)
+    for s, e in sorted(cuts, key=lambda t: -t[0]):
+        text = text[:s] + text[e:]
+    open(out_path or sch_path, "w").write(text)
+    return len(doomed)
+
+
+def flip_label_collisions(sch_path, out_path=None):
+    """Labels whose text lies across a FOREIGN wire: flip the horizontal
+    justify (text reads out the other side of its anchor) when that clears
+    every wire; count fixed. Anchors never move (electrical)."""
+    text = open(sch_path).read()
+    wires = _extract_wires(text)
+    elems = _extract_text_elements(text, with_spans=True)
+    fixed = 0
+    for el in elems:
+        if el["kind"] not in ("label", "global_label", "hierarchical_label"):
+            continue
+        ax, ay = el["at"][0], el["at"][1]
+        def hits(bb):
+            box = (min(bb[0], bb[1]) - 0.15, min(bb[2], bb[3]) - 0.15,
+                   max(bb[0], bb[1]) + 0.15, max(bb[2], bb[3]) + 0.15)
+            for seg in wires:
+                if (math.hypot(seg[0] - ax, seg[1] - ay) < 0.3 or
+                        math.hypot(seg[2] - ax, seg[3] - ay) < 0.3):
+                    continue
+                if _seg_clip_len(box, seg) > 0.5:
+                    return True
+            return False
+        if not hits(el["bbox"]):
+            continue
+        jh, jv = el["justify"]
+        nh = "right" if (jh or "left") == "left" else "left"
+        nb = label_bbox(el["text"], el["size"], ax, ay, el["at"][2],
+                        nh, jv, el["size"] * 1.15
+                        if el["kind"] != "label" else 0.0)
+        if hits(nb):
+            continue
+        # splice the justify token inside this element's effects
+        s = text.find(f'"{el["text"]}"', 0)
+        # find THIS element by anchor: search all matches
+        for m in re.finditer(re.escape(f'(at {cec_sch.f(ax)} {cec_sch.f(ay)}'), text):
+            blk_start = text.rfind('(' + el["kind"], 0, m.start())
+            if blk_start < 0:
+                continue
+            blk = cec_sch.carve(text, blk_start)
+            if f'"{el["text"]}"' not in blk:
+                continue
+            jm = re.search(r'\(justify([^)]*)\)', blk)
+            if jm:
+                toks = jm.group(1).split()
+                toks = [nh if t in ("left", "right") else t for t in toks]
+                if nh not in toks:
+                    toks.insert(0, nh)
+                newj = '(justify ' + ' '.join(toks) + ')'
+                text = (text[:blk_start + jm.start()] + newj
+                        + text[blk_start + jm.end():])
+            else:
+                em = re.search(r'\(effects\s*\(font[^)]*\)*', blk)
+                ins = blk.find('(effects') + len('(effects')
+                text = (text[:blk_start + ins] + f' (justify {nh})'
+                        + text[blk_start + ins:])
+            fixed += 1
+            break
+    open(out_path or sch_path, "w").write(text)
+    return fixed
 
 
 def _cli_check_wires(path, threshold):
