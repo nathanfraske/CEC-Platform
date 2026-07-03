@@ -1025,10 +1025,133 @@ def _cli_check_overlaps(path, threshold):
     return 1 if len(pairs) > threshold else 0
 
 
+# ---------------------------------------------------------------------------
+# WIRE / POWER-GLYPH OBSTACLE ENGINE (2026-07-03, owner escalation): text
+# crossing a drawn WIRE segment or a power-symbol ARROW/TRIANGLE graphic is a
+# real readability defect the text-vs-text detector is structurally blind to
+# (separated text cannot "overlap"; a wire is not text). Found live on the
+# 24-pin CAN block: "+5V_SYS" printed into C4's stub wire, "+3V3" struck
+# through by its own arrow's wire, U2's ref crossed by the VCC stem.
+# ADDITIVE check -- detect_overlaps()/--check-overlaps behavior is unchanged
+# so in-flight gates keep their meaning; this is a SECOND gate.
+#
+# Geometry model (deliberately conservative, calibrated on the three live
+# teeth cases): a wire is a zero-width segment given a 0.15mm half-width; a
+# power symbol's glyph (arrow/triangle + stub) is modeled as a 2.8mm square
+# centered on the instance origin. A LABEL legitimately anchors AT a wire
+# endpoint, so endpoint touches are ignored: a hit requires the bbox-clipped
+# segment length to exceed 0.5mm (text lying ALONG or ACROSS the wire), or
+# any non-touch crossing for Reference/Value fields.
+
+def _extract_wires(text):
+    """Top-level wire segments [(x1,y1,x2,y2)] (lib_symbols stripped)."""
+    work = _strip_lib_symbols(text)
+    segs = []
+    for m in re.finditer(r'\(wire\b', work):
+        blk = cec_sch.carve(work, m.start())
+        pts = re.findall(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk)
+        for a, b in zip(pts, pts[1:]):
+            segs.append((float(a[0]), float(a[1]), float(b[0]), float(b[1])))
+    return segs
+
+
+def _extract_power_origins(text):
+    """[(x, y, ref)] for every power/flag symbol instance (#PWR/#FLG refs or
+    power: lib_ids) -- the glyph graphic lives around the instance origin."""
+    work = _strip_lib_symbols(text)
+    out = []
+    for s, e, (ox, oy), ref, rot, lib, mir in _symbol_spans(work):
+        if ref.startswith("#") or lib.startswith("power:"):
+            out.append((ox, oy, ref))
+    return out
+
+
+def _seg_clip_len(bbox, seg):
+    """Length of `seg` inside axis-aligned bbox=(x0,y0,x1,y1) (Liang-Barsky)."""
+    x0, y0, x1, y1 = bbox
+    ax, ay, bx, by = seg
+    dx, dy = bx - ax, by - ay
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, ax - x0), (dx, x1 - ax), (-dy, ay - y0), (dy, y1 - ay)):
+        if abs(p) < 1e-12:
+            if q < 0:
+                return 0.0
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return 0.0
+            if r > t0:
+                t0 = r
+        else:
+            if r < t0:
+                return 0.0
+            if r < t1:
+                t1 = r
+    if t1 <= t0:
+        return 0.0
+    return (t1 - t0) * math.hypot(dx, dy)
+
+
+def check_wire_collisions(path, *, touch_len=0.5, wire_halfwidth=0.15,
+                          glyph_half=1.4):
+    """Text-vs-wire and text-vs-power-glyph collisions. Returns a list of
+    human-readable finding strings. Labels get the endpoint-touch exemption
+    (touch_len); Reference/Value fields flag on any clipped length > 0.15mm
+    (a field has no business touching a wire at all)."""
+    text = open(path).read()
+    elems = _extract_text_elements(text, with_spans=True)
+    wires = _extract_wires(text)
+    pwr = _extract_power_origins(text)
+    findings = []
+    for el in elems:
+        if el.get("ref", "") and str(el.get("ref")).startswith("#") \
+           and el["name"] == "Reference":
+            continue  # hidden-by-convention flag refs
+        x0, x1, y0, y1 = el["bbox"]   # module convention: (x0, x1, y0, y1)
+        pad = wire_halfwidth
+        box = (min(x0, x1) - pad, min(y0, y1) - pad,
+               max(x0, x1) + pad, max(y0, y1) + pad)
+        limit = touch_len if el["kind"] != "property" else 0.15
+        ax, ay = el["at"][0], el["at"][1]
+        for seg in wires:
+            if el["kind"] != "property" and (
+                    math.hypot(seg[0] - ax, seg[1] - ay) < 0.3 or
+                    math.hypot(seg[2] - ax, seg[3] - ay) < 0.3):
+                continue  # the label's own terminating wire: anchored by design
+            clip = _seg_clip_len(box, seg)
+            if clip > limit:
+                findings.append(
+                    f'{el["label"]} at ({el["at"][0]:.2f},{el["at"][1]:.2f}) '
+                    f'crosses wire ({seg[0]:.2f},{seg[1]:.2f})-'
+                    f'({seg[2]:.2f},{seg[3]:.2f}) for {clip:.2f}mm')
+                break
+        for gx, gy, gref in pwr:
+            half = 0.6 if el.get("ref") == gref else glyph_half
+            # _bbox_overlap takes the module's (x0, x1, y0, y1) convention
+            gb = (gx - half, gx + half, gy - half, gy + half)
+            if _bbox_overlap(el["bbox"], gb):
+                findings.append(
+                    f'{el["label"]} at ({el["at"][0]:.2f},{el["at"][1]:.2f}) '
+                    f'on power glyph {gref} ({gx:.2f},{gy:.2f})')
+                break
+    return findings
+
+
+def _cli_check_wires(path, threshold):
+    f = check_wire_collisions(path)
+    for line in f:
+        print("  " + line)
+    print(f"{len(f)} text-on-wire/glyph collision(s) in {path}")
+    return 0 if len(f) <= threshold else 1
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description="cec_sch_layout -- schematic layout-quality engine")
     ap.add_argument("--check-overlaps", metavar="SCH",
                      help="report colliding text pairs; exits nonzero above --threshold")
+    ap.add_argument("--check-wires", metavar="SCH",
+                     help="report text-on-wire / text-on-power-glyph collisions")
     ap.add_argument("--threshold", type=int, default=0,
                      help="max allowed overlap count before nonzero exit (default 0)")
     ap.add_argument("--nudge", metavar="SCH", help="apply nudge_texts() to SCH")
@@ -1037,6 +1160,8 @@ def main(argv=None):
     args = ap.parse_args(argv)
     if args.check_overlaps:
         return _cli_check_overlaps(args.check_overlaps, args.threshold)
+    if args.check_wires:
+        return _cli_check_wires(args.check_wires, args.threshold)
     if args.nudge:
         n_moved, still = nudge_texts(args.nudge, args.out)
         print(f"nudged {n_moved} field(s); {still} still colliding")

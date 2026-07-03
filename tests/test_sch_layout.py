@@ -306,20 +306,43 @@ class TextCollisionEngineTest(unittest.TestCase):
             self.assertEqual(pairs_after, [])
 
     def test_eps8pin_overlaps_detected(self):
-        """The checker sees the REAL, pre-existing problem in a generated
-        board (evidence for the module's whole thesis) -- report the count,
-        do not fix that board."""
+        """HISTORY: this test originally asserted the live eps-8pin board
+        carried >0 collisions (the module's founding evidence). The
+        2026-07-03 readability passes cleaned the fleet to ZERO, so the
+        live-board assertion inverted: the board must now STAY clean, and
+        the detector's teeth moved to a synthetic fixture (below)."""
         path = os.path.join(ROOT, "modules/eps-8pin/eps8pin-module.kicad_sch")
         pairs = L.detect_overlaps(path)
-        self.assertGreater(len(pairs), 0,
-                            "eps-8pin is known to carry GND/label collisions (SENSEC*/VBUS)")
+        self.assertEqual(len(pairs), 0,
+                          "eps-8pin regressed: the readability-pass zero-overlap state is a gate now")
+
+    def test_detector_teeth_on_synthetic_collision(self):
+        """The detector demonstrably FAILS a bad sheet (teeth preserved
+        after the live boards went clean): two labels stamped at the same
+        point must collide."""
+        sch = ('(kicad_sch (version 20250114) (generator "test")\n'
+               '  (lib_symbols)\n'
+               '(label "AAAA" (at 100 100 0)\n'
+               '  (effects (font (size 1.27 1.27)) (justify left bottom)))\n'
+               '(label "BBBB" (at 101 100 0)\n'
+               '  (effects (font (size 1.27 1.27)) (justify left bottom)))\n)\n')
+        with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
+                                         delete=False) as f:
+            f.write(sch); p = f.name
+        try:
+            self.assertGreater(len(L.detect_overlaps(p)), 0)
+        finally:
+            os.unlink(p)
 
 
 class CLITest(unittest.TestCase):
     def test_check_overlaps_exit_code(self):
+        """Clean fleet: eps must exit 0 now (was the known-bad exit-1 board
+        pre-readability-pass); nonzero exit teeth ride the synthetic fixture
+        in TextCollisionEngineTest."""
         eps = os.path.join(ROOT, "modules/eps-8pin/eps8pin-module.kicad_sch")
         rc = L.main(["--check-overlaps", eps])
-        self.assertEqual(rc, 1)
+        self.assertEqual(rc, 0)
 
 
 class DemoTest(unittest.TestCase):
@@ -486,6 +509,47 @@ class PinGlyphOverlapTest(unittest.TestCase):
         # the pre-S6 detector (pin_glyphs=False) sees NOTHING here -- the
         # exact blindness the 01-power garble shipped through
         self.assertEqual(len(self._pairs(pin_glyphs=False)), 0)
+
+
+
+
+class WireCollisionTest(unittest.TestCase):
+    """Teeth for check_wire_collisions (2026-07-03 owner escalation): text
+    lying across a wire fires; a label anchored at its own wire's endpoint
+    does not (the anchored-by-design exemption)."""
+    def _sheet(self, extra):
+        return ('(kicad_sch (version 20250114) (generator "test")\n'
+                '  (lib_symbols)\n' + extra + ')\n')
+
+    def test_text_across_wire_fires(self):
+        import tempfile, os
+        sch = self._sheet(
+            '(wire (pts (xy 100 100) (xy 140 100)))\n'
+            '(text "COLLIDING" (at 110 100 0)\n'
+            '  (effects (font (size 1.27 1.27)) (justify left)))\n')
+        with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
+                                         delete=False) as f:
+            f.write(sch); p = f.name
+        try:
+            hits = L.check_wire_collisions(p)
+            self.assertTrue(any("COLLIDING" in h for h in hits), hits)
+        finally:
+            os.unlink(p)
+
+    def test_anchored_label_exempt(self):
+        import tempfile, os
+        sch = self._sheet(
+            '(wire (pts (xy 100 100) (xy 120 100)))\n'
+            '(label "NETNAME" (at 120 100 0)\n'
+            '  (effects (font (size 1.27 1.27)) (justify left bottom)))\n')
+        with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
+                                         delete=False) as f:
+            f.write(sch); p = f.name
+        try:
+            hits = L.check_wire_collisions(p)
+            self.assertFalse([h for h in hits if "NETNAME" in h], hits)
+        finally:
+            os.unlink(p)
 
 
 if __name__ == "__main__":
