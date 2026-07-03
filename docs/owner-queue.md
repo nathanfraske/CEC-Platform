@@ -155,3 +155,5 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 - Windows-side VHDX compact (~110 GB back to C:) — owner todo from the 235B retirement.
 - Companion diagrams (§2.9 / Appendix D SVGs) — docs follow-up, non-blocking.
 - OQ-2 5VSB cap, OQ-4 cable policy, OQ-7 Enterprise/MC scoping — platform OQs, unchanged.
+
+- [2026-07-03] OWNER SOURCING (self-assigned): slim/flexible braided RJ-45 patch cables (lock-register G2) — feeds OQ-4 lengths + D-1 kit lines. Also: internal-USB-header→USB-C kit cable is a commodity line to pick at the same pass (G1).

@@ -66,3 +66,28 @@ below marked VERIFIED was re-checked live by an independent second agent this se
 | F6 | One-plug power (3-pin GND-center consolidation) — locked as A4; listed for the story | done | B6 |
 | F7 | Single-point firmware updates: Hub USB updates all modules over CAN; module USB-C = service fallback only. Commit the architecture BEFORE module firmware ossifies | Firmware architecture commitment | Firmware lane, now |
 | F8 | Kit ergonomics: pre-cut patch lengths per case class (answers OQ-4 as product), labeled per-module bags, D-8 insert | Packaging | Kit definition (D-1) |
+
+
+## G. Owner confirmations (2026-07-03, follow-on to section F)
+
+- **G1 (F7 CONFIRMED): single-point firmware updates via Hub USB is the intended architecture,
+  already in progress in owner firmware.** NEW SYSTEM FACT: the Hub's USB is the whole system's
+  main point of contact and connects to the **motherboard's INTERNAL USB header** (not a rear
+  port) — the kit therefore carries an internal-USB-2.0-header → USB-C cable (commodity part,
+  same class as front-panel USB-C adapter cables). Add as a D-1 kit line. QoL consequence: no
+  cable exits the case.
+- **G2 (F8/OQ-4): patch-cable direction set** — slim, very flexible, nicely braided RJ-45 patch
+  cables; OWNER is tracking down the part himself (owner-queue item). Length catalog still rides
+  the kit definition.
+- **G3 (F4/OQ-56): hold-up architecture confirmed by owner** — firmware monitors the 5V input;
+  on drop it interrupts the ESP and flushes; the hold-up cap feeds ONLY the LDO path (the D1
+  Schottky isolation already on the board) so every mJ goes to the MCU, maximizing time.
+  Rough budget: 4700µF × ~1.3V usable ΔV / ~100mA LDO load ≈ 60ms — comfortably above a
+  ring-buffer flash flush IF the bench (OQ-56) confirms.
+  **BETA CONSIDERATION (one circuit note, surfaced not assumed):** the existing sense dividers
+  (47k/10k) put 5V-in at ~0.88V on IO9/IO10 — that is ADC territory, NOT a GPIO logic threshold,
+  so a literal hardware INTERRUPT on 5V-drop cannot fire from the divider as built. Two honest
+  paths: (a) firmware fast-poll/ULP on the ADC (~1kHz costs ~1ms detection vs the ~60ms budget —
+  likely fine, zero BOM); (b) a TLV7011 comparator (already a platform part, ~$0.10) from the
+  divider to a GPIO for a true sub-µs interrupt + crisp threshold. Owner picks at the hub beta
+  pass; the bench (OQ-56) should measure BOTH detection latency and flush time either way.
