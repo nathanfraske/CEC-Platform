@@ -170,7 +170,11 @@ def ap(lf, ref, lib, name, val):
 # ===========================================================================
 L01 = leaf("01", "01-power.kicad_sch", "01-power",
            "RJ-45 VCC -> TPS26621 eFuse -> LP5907 3V3 LDO (REQ-MOD-COMMON-053); jack pin fan-out")
-ap(L01, "J1", "cec", "CEC_RJ45_8P8C_FTP", "TO-HUB")
+# J1 uses the ent-common-local WIDENED copy of cec:CEC_RJ45_8P8C_FTP (same
+# pin numbers/names/footprint; body 25.4mm wide so the STREAM_P/STREAM_N and
+# SHIELD pin-name glyphs no longer interleave -- standard S6; the shared
+# lib/cec.kicad_sym original is untouched, a dozen boards embed it)
+ap(L01, "J1", "ent-common-local", "CEC_RJ45_8P8C_FTP", "TO-HUB")
 ap(L01, "U2", "cec-ent-power", "TPS26621DRCT", "TPS26621DRCT")
 ap(L01, "R1", "cec-vendor", "R_Small", "100k")   # UVLO divider top [placeholder]
 ap(L01, "R2", "cec-vendor", "R_Small", "20k")    # UVLO divider bottom
@@ -578,39 +582,46 @@ def compose_04():
     arch.crystal_block(c, "U1", P4["XTAL_P"], P4["XTAL_N"], "Y1", "C9", "C10",
                        side="right", far=12, near=8, drop=8)
     arch.decoupler_bank(c, [f"C{i}" for i in range(11, 19)], 40, 124)
-    c.place("U5", 104, 68)
+    c.place("U5", 108, 68)   # 4u right: its stub labels must clear U1's pin numbers
     c.place("C8", 98, 84)
     c.place("R11", 92, 124)
     c.place("R12", 104, 124)  # 12u apart: CHIP_PU/GPIO0 stub labels are ~10mm long
     c.place("SW1", 110, 124)
     c.place("SW2", 110, 130)
+    # S1: all 18 off-sheet signals gather in edge columns, side chosen by the
+    # anchor pin's stub direction (they all exit the P4's left pin column)
+    for net, (_shape, (ref, pin)) in L04.hier_exports.items():
+        _pt, (dx, _dy) = c.pin_out(ref, pin)
+        c.io(net, "left" if dx < 0 else "right")
+    c.caption("ESP32-P4 -- the uniform ENT module MCU (radio-free); GPIO map "
+              "ALL PLACEHOLDER (README flag #1)", 24, -4)
+    c.note("W25Q256JVFIQ = oversized package placeholder (README flag #4); "
+           "40 MHz XTAL freq UNVERIFIED (flag #5)", 88, 56)
     c.done()
 
 
 def compose_05():
     c = _Compose(L05)
     c.place("U6", 50, 60)
-    # MDI chain: hier inputs -> CMC -> AC-coupling caps -> PHY TRD pins (drawn).
-    # Rows sit BELOW the crystal block's cap/GND column (render-checked: the
-    # first cut at y48/58 tangled with the crystal-cap GND stamps), and both
-    # jog lanes stay strictly LEFT of x25, the U6 left-pin stub-end column --
-    # a lane through x25 merges with the RX_ER/RX_DV/GND stub endpoints
-    # (measured: it shorted TRD_M into GND on an earlier try of this layout)
+    # MDI chain: S1 left-column inputs -> CMC -> AC-coupling caps -> PHY TRD
+    # pins (drawn). Both jog lanes stay strictly LEFT of x25, the U6 left-pin
+    # stub-end column -- a lane through x25 merges with the RX_ER/RX_DV/GND
+    # stub endpoints (measured: it shorted TRD_M into GND on an earlier try)
     c.place("L1", 6, 56)
     c.place("C20", 21, 52, 90)
     c.place("C21", 19, 62, 90)
-    c.hier("T1_A_RAW", -3, 52, 180)
     c.wire((-3, 52), (-1, 52))
-    c.hier("T1_B_RAW", -3, 62, 180)
+    c.io("T1_A_RAW", "left", from_pt=(-3, 52))
     c.wire((-3, 62), (-1, 62))
+    c.io("T1_B_RAW", "left", from_pt=(-3, 62))
     c.wire((13, 52), (16, 52), (19, 52))
     c.label("T1_A_CMC", 16, 52, 0)
     c.wire((23, 52), (23, 44), (28, 44))
-    c.label("TRD_P", 23, 44, 0)     # names the chain net; D4's stub label merges
+    c.label("TRD_P", 23, 44, 180)   # names the chain net; D4's stub label merges
     c.wire((13, 62), (16, 62), (17, 62))
     c.label("T1_B_CMC", 16, 62, 0)
     c.wire((21, 62), (24, 62), (24, 46), (28, 46))
-    c.label("TRD_M", 24, 46, 0)
+    c.label("TRD_M", 24, 46, 180)
     c.use(("L1", "1"), ("L1", "2"), ("L1", "3"), ("L1", "4"),
           ("C20", "1"), ("C20", "2"), ("C21", "1"), ("C21", "2"),
           ("U6", "12"), ("U6", "13"))
@@ -628,19 +639,31 @@ def compose_05():
     c.use(("U6", "17"), ("U6", "18"), ("U6", "37"))
     # PHY-side ESD across TRD_P/TRD_M -- label-tied, placed clear below the chain
     c.place("D4", 8, 68, 90)
-    # PHY crystal + load caps
+    # PHY crystal + load caps -- far/near pushed out so the load-cap GND
+    # stamps clear the ang-180 TRD_P/TRD_M chain labels (S6 gate)
     arch.crystal_block(c, "U6", "4", "5", "Y2", "C22", "C23",
-                       side="left", far=11, near=7, drop=2, cap_gap=4)
-    # MDIO pull-up: drawn run with the hier export at its end (archetype)
+                       side="left", far=17, near=13, drop=2, cap_gap=4)
+    # MDIO pull-up: drawn run, export via the S1 right column
     mp = c.pin("U6", "36")
     c.use(("U6", "36"))
-    arch.pullup_hang(c, mp, 84, "R15", rx=80, rail_pin="1", above=True,
-                     out="PHY_MDIO", out_kind="hier", out_ang=0)
-    # INT_N / RESET_N pull-ups detached (label-tied): the PHY's upper-left pin
-    # rows are hier-label territory, a drawn run would collide
+    arch.pullup_hang(c, mp, 84, "R15", rx=80, rail_pin="1", above=True)
+    c.io("PHY_MDIO", "right", from_pt=(84, mp[1]))
+    # INT_N / RESET_N pull-ups detached (label-tied to the io column labels)
     c.place("R16", 40, 8)
     c.place("R17", 54, 8)   # 14u apart: their stub labels are horizontal and ~10mm long
     arch.decoupler_bank(c, ["C24", "C25", "C26", "C27"], 40, 104)
+    # remaining exports: side by anchor-pin stub direction (MDC/INT_N/RESET_N/
+    # RX group exit the PHY's left column; TX group + REFCLK the right)
+    for net in ("PHY_MDC", "PHY_INT_N", "PHY_RESET_N", "RMII_REFCLK",
+                "RMII_RXD0", "RMII_RXD1", "RMII_CRS_DV", "RMII_TXD0",
+                "RMII_TXD1", "RMII_TXEN", "RMII_RXER"):
+        ref, pin = L05.hier_exports[net][1]
+        _pt, (dx, _dy) = c.pin_out(ref, pin)
+        c.io(net, "left" if dx < 0 else "right")
+    c.caption("100BASE-T1 module link -- ACT1210L CMC + AC-couple + "
+              "DP83TC814S-Q1 (REQ-MOD-COMMON-003)", 0, -6)
+    c.note("AC-coupling 10nF [flag #7]; 25 MHz XTAL freq UNVERIFIED [flag #5]; "
+           "TX_CLK-as-REF_CLK UNCONFIRMED [flag #2]", 30, 116)
     c.done()
 
 
@@ -651,6 +674,11 @@ def compose_06():
     c.place("C19", 44, 18)
     c.place("R13", 38, 52, 90)   # horizontal: CC labels read left, GND stamps right
     c.place("R14", 38, 58, 90)
+    c.io("USB_D_P", "right")
+    c.io("USB_D_N", "right")
+    c.caption("USB-C 2.0 flash/debug front end (platform pattern)", 4, 6)
+    c.note("VBUS ORs into pre-eFuse +5VSB through D3 (SS34); CC1/CC2 5.1k "
+           "pulldowns = UFP sink", 4, 68)
     # J2's duplicated VBUS (A4/A9/B4/B9) and GND (A1/A12/B1/B12) pins share ONE
     # symbol connection point each -- one generic stub serves the stack; the
     # duplicates are marked consumed so the generic pass doesn't emit four

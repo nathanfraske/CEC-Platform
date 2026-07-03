@@ -5732,6 +5732,30 @@
 		(property "Value" "0.5mΩ" (at 44.45 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512R-L500F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "96497fe7-aaf8-4758-9fb9-105c3f0732a8"))
 		(pin "2" (uuid "ea737b8a-83cb-416a-af6c-519de2d67295"))
 		(instances
@@ -5854,6 +5878,30 @@
 		(property "Value" "0.5mΩ" (at 144.78 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512R-L500F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "dd8f236b-70a1-4eb6-a686-d9af8dd09f90"))
 		(pin "2" (uuid "1fa62bbc-c974-4a03-874a-d1fbb1dfa9ea"))
 		(instances

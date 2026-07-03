@@ -5732,6 +5732,30 @@
 		(property "Value" "0.5mΩ" (at 44.45 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512R-L500F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "b756324e-87f6-4804-9bec-1316420ab59c"))
 		(pin "2" (uuid "cd59737e-d082-4799-acbb-0afeacd82a1b"))
 		(instances
@@ -5854,6 +5878,30 @@
 		(property "Value" "0.5mΩ" (at 144.78 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512R-L500F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "956f7511-99b3-4391-9b75-e78492092435"))
 		(pin "2" (uuid "6f3786c5-25f8-4d4e-ad10-6b9a74025295"))
 		(instances
@@ -5976,6 +6024,30 @@
 		(property "Value" "0.5mΩ" (at 245.11 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 245.11 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 245.11 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512R-L500F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Bourns CSS2H-2512R-L500F, 0.5mOhm. DigiKey standard reel is the healthy order channel (5,894 pcs @ fetch); JLCPCB mini-reel mirror C1848841 read 0 stock -- order DigiKey or recheck LCSC at BOM-freeze time." (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "e7703926-708d-4df8-88d2-6d5a1f50f88c"))
 		(pin "2" (uuid "54beea0c-0298-40eb-b554-f2b74ff37edd"))
 		(instances

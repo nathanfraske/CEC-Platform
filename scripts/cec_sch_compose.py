@@ -60,7 +60,8 @@ def _color_sexpr(color):
 
 def emit_caption(text, x, y, size=2.0, color=CAPTION_COLOR, bold=True):
     """Bold section caption (standard S3): one per functional block."""
-    esc = text.replace("\\", "\\\\").replace('"', '\\"')
+    esc = (text.replace("\\", "\\\\").replace('"', '\\"')
+           .replace("\n", "\\n"))     # KiCad stores multi-line text as literal \n
     boldpart = " (thickness 0.35) (bold yes)" if bold else ""
     return (f'\t(text "{esc}"\n\t\t(exclude_from_sim no)\n'
             f'\t\t(at {cec_sch.f(x)} {cec_sch.f(y)} 0)\n'

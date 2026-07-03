@@ -400,5 +400,93 @@ class RotatedFieldBBoxTest(unittest.TestCase):
                                 "bbox must be tall, not wide")
 
 
+class PinGlyphOverlapTest(unittest.TestCase):
+    """Standard S6 teeth (2026-07-03): symbol pin NAME/NUMBER glyphs are
+    first-class text for the overlap gate. Fixture reproduces the two REAL
+    defect classes found on modules/ent-common/01-power (pre-fix): (a) a
+    too-narrow symbol body whose OPPOSING pin names interleave (the TPS26621
+    "UVLO"/"ILIM" garble), and (b) a net label printed over a pin name.
+    A pin's own name/number pair must NOT be reported."""
+
+    _SHEET = """(kicad_sch
+\t(version 20260306)
+\t(generator "eeschema")
+\t(generator_version "10.0")
+\t(uuid "aaaa1111-2222-3333-4444-555566667777")
+\t(paper "A4")
+\t(lib_symbols
+\t\t(symbol "t:NARROW"
+\t\t\t(pin_names (offset 0.254))
+\t\t\t(exclude_from_sim no) (in_bom yes) (on_board yes)
+\t\t\t(symbol "NARROW_0_1"
+\t\t\t\t(rectangle (start -2.54 5.08) (end 2.54 -5.08)
+\t\t\t\t\t(stroke (width 0.254) (type default)) (fill (type background))
+\t\t\t\t)
+\t\t\t)
+\t\t\t(symbol "NARROW_1_1"
+\t\t\t\t(pin passive line (at -7.62 0 0) (length 5.08)
+\t\t\t\t\t(name "UVLO" (effects (font (size 1.27 1.27))))
+\t\t\t\t\t(number "1" (effects (font (size 1.27 1.27))))
+\t\t\t\t)
+\t\t\t\t(pin passive line (at 7.62 0 180) (length 5.08)
+\t\t\t\t\t(name "ILIM" (effects (font (size 1.27 1.27))))
+\t\t\t\t\t(number "2" (effects (font (size 1.27 1.27))))
+\t\t\t\t)
+\t\t\t)
+\t\t)
+\t)
+\t(symbol
+\t\t(lib_id "t:NARROW")
+\t\t(at 100 100 0)
+\t\t(unit 1)
+\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)
+\t\t(uuid "bbbb1111-2222-3333-4444-555566667777")
+\t\t(property "Reference" "U9" (at 100 80 0) (effects (font (size 1.27 1.27))))
+\t\t(property "Value" "NARROW" (at 100 120 0) (effects (font (size 1.27 1.27))))
+\t\t(pin "1" (uuid "cccc1111-2222-3333-4444-555566667771"))
+\t\t(pin "2" (uuid "cccc1111-2222-3333-4444-555566667772"))
+\t\t(instances (project "t" (path "/aaaa1111-2222-3333-4444-555566667777"
+\t\t\t(reference "U9") (unit 1))))
+\t)
+\t(label "OVERPIN" (at 96 100.5 0)
+\t\t(effects (font (size 1.27 1.27)) (justify left bottom))
+\t\t(uuid "dddd1111-2222-3333-4444-555566667777"))
+\t(sheet_instances (path "/" (page "1")))
+\t(embedded_fonts no)
+)
+"""
+
+    def _pairs(self, **kw):
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "narrow.kicad_sch")
+            open(p, "w").write(self._SHEET)
+            return L.detect_overlaps(p, **kw)
+
+    def test_pin_name_collisions_detected(self):
+        pairs = self._pairs()
+        kinds = [tuple(sorted((a["kind"], b["kind"]))) for a, b in pairs]
+        # (a) the opposing-pin-name interleave (the J1/U2 garble class)
+        self.assertIn(("pin_name", "pin_name"), kinds)
+        namepair = next((a, b) for a, b in pairs
+                        if a["kind"] == b["kind"] == "pin_name")
+        self.assertEqual({namepair[0]["text"], namepair[1]["text"]},
+                         {"UVLO", "ILIM"})
+        # (b) the label-over-pin-name class
+        self.assertTrue(any({a["kind"], b["kind"]} == {"label", "pin_name"}
+                            for a, b in pairs),
+                        f"label-on-pin-name not detected: {kinds}")
+        # a pin's own name/number pair is exempt
+        for a, b in pairs:
+            if a["kind"].startswith("pin_") and b["kind"].startswith("pin_"):
+                self.assertFalse(a.get("pin") == b.get("pin")
+                                 and a.get("ref") == b.get("ref"),
+                                 "same-pin name/number pair must be exempt")
+
+    def test_old_detector_was_blind(self):
+        # the pre-S6 detector (pin_glyphs=False) sees NOTHING here -- the
+        # exact blindness the 01-power garble shipped through
+        self.assertEqual(len(self._pairs(pin_glyphs=False)), 0)
+
+
 if __name__ == "__main__":
     unittest.main()
