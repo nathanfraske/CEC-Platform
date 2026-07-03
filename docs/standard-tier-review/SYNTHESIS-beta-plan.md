@@ -44,6 +44,12 @@ W7. **12VHPWR U4↔U3 reposition** (the unfixed constraint-swarm P1; placement n
     agent pass on a beta copy, owner's call on venue (D-7).
 W8. **Beta denotation mechanics**: Rev field "BETA-1" on every changed board, README revision
     tables, `fab/<board>-beta-*` snapshot naming, BOM output regeneration. Alpha artifacts frozen.
+W11. **Module standalone-mode protection suite (owner ruling, lock-register H3)**: USBLC6 on
+    every module's USB pair + VBUS clamp + no-hub ESD review; firmware USB-CDC mode. Rides each
+    module's beta pass (generator + hand-maintained boards).
+W12. **Hub 5V-drop comparator (owner ruling, lock-register H1)**: TLV7011 from the 5V sense
+    divider to a GPIO interrupt for persist-on-fault; plus firmware pre-erase + load-shed (H2
+    rung 1). OQ-56 bench then decides whether the buck-boost / boosted-reservoir rungs populate.
 W9. **Hub beta layout: drop the WROOM antenna keepout** (owner ruling 2026-07-03, D-6a) — trim the
     U1 keepout courtyard, let GND pour/parts reclaim the ~450mm² on-board strip, re-DRC. Rides the
     same hub beta layout pass as the W1 outcome + final pours.

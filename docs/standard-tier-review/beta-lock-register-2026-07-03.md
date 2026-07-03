@@ -91,3 +91,26 @@ below marked VERIFIED was re-checked live by an independent second agent this se
   likely fine, zero BOM); (b) a TLV7011 comparator (already a platform part, ~$0.10) from the
   divider to a GPIO for a true sub-µs interrupt + crisp threshold. Owner picks at the hub beta
   pass; the bench (OQ-56) should measure BOTH detection latency and flush time either way.
+
+
+## H. Owner rulings (2026-07-03, hold-up + standalone-module scope)
+
+- **H1 (RULED): TLV7011 comparator on the hub's 5V-drop detect** — true hardware interrupt for
+  the persist-on-fault trigger (replaces ADC-poll as the primary; divider threshold set at the
+  beta splice). Rides the hub beta layout pass. → W12.
+- **H2 (hold-up maximization menu, recorded with owner's supercap rejection —
+  derating/inrush/aging all valid):** ladder is (1) FREE: pre-erased ring region (flush =
+  program-only, tens of ms) + comparator-edge load-shed (low clock, peripherals off) — the
+  existing ~68ms LDO window is likely sufficient with these; (2) ~$1: buck-boost (TPS63020-class)
+  replaces the hold-up LDO path → drains the can to ~2.5V at ~90% eff ≈ 2× time; (3) ~$1.50:
+  boost-charge the EXISTING 16V 4700µF can to ~12V (TPS61023-class, soft-start) + wide-Vin buck
+  → V² ≈ 5× usable energy ≈ 600-900ms — the SSD power-loss-protection architecture, zero added
+  bulk. DECISION POSTURE: (1)+H1 now, OQ-56 bench decides whether (2)/(3) populate; (3) stays
+  the pre-designed fallback. Supercap REJECTED (owner).
+- **H3 (RULED, new beta scope): MODULE STANDALONE MODE — every module usable independently of
+  the hub via its USB-C.** Hardware delta per module: USBLC6-2SC6 on the USB data pair (hub
+  parity — modules currently lack it), VBUS-side clamp, and a defensive ESD review of every
+  externally-touchable line under the no-hub assumption ("ESD on everything, not just the hub").
+  Firmware delta: USB CDC telemetry mode when no CAN master present. → W11; touches
+  gen-modules BASE_PARTS + the hand-maintained EPS/12VHPWR schematics at their beta pass;
+  aligns with the quality-first principle; ~$0.15/module.
