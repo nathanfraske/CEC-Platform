@@ -699,32 +699,37 @@ def build_demo(out_path):
     bx, by = r1_top[0], r1_top[1] - cec_sch.STUB
     wires.append(cec_sch.emit_wire(r1_top[0], r1_top[1], bx, by))
     power_syms.append(cec_sch.emit_global_power("+3V3", bx, by, project, root, pwr_ref(), 180))
+    flag_points = [(bx, by, -1)]                 # (x, y, outward sign) needing its own PWR_FLAG
     for (px, py) in (r2_bot, c5_bot):
         bx, by = px, py + cec_sch.STUB
         wires.append(cec_sch.emit_wire(px, py, bx, by))
         power_syms.append(cec_sch.emit_global_power("GND", bx, by, project, root, pwr_ref(), 0))
+        flag_points.append((bx, by, 1))
 
-    # tie U1's decoupler rail onto the SAME +3V3 global net (a bare power port
-    # is pin type power_in -- it does not by itself satisfy ERC's "driven by
-    # an Output Power pin" rule; a genuine regulator output would normally do
-    # that job, but this toy demo has none, so +3V3/GND both get an explicit
-    # PWR_FLAG below, same convention as cec_sch.build_schematic's
-    # powerflag_nets stamp).
+    # tie U1's decoupler rail onto the +3V3 rail too (a bare power PORT is pin
+    # type power_in -- by itself it does not satisfy ERC's "driven by an
+    # Output Power pin" rule; a real regulator output would normally do that
+    # job, but this toy demo has none). Rather than lean on cross-island
+    # global-name merging (which this module's own probing found to be
+    # unreliable in practice across many same-named islands on one sheet --
+    # see the module's test notes), every distinct GND/+3V3 port below gets
+    # its OWN directly-wired PWR_FLAG: simple, and correct by construction.
     rx, ry = ic_ax, rail_y - cec_sch.STUB
     wires.append(cec_sch.emit_wire(ic_ax, rail_y, rx, ry))
     power_syms.append(cec_sch.emit_global_power("+3V3", rx, ry, project, root, pwr_ref(), 180))
     junctions.append(emit_junction(ic_ax, rail_y))   # now a true 3-way: rail + IC drop + +3V3 tap
+    flag_points.append((rx, ry, -1))
 
-    flag_x, flag_y = placement["U1"][0] - 25.4, placement["U1"][1] + 40.64
-    wires.append(cec_sch.emit_wire(flag_x, flag_y, flag_x, flag_y - cec_sch.STUB))
-    power_syms.append(cec_sch.emit_global_power("PWR_FLAG", flag_x, flag_y - cec_sch.STUB,
-                                                project, root, pwr_ref("#FLG"), 180))
-    power_syms.append(cec_sch.emit_global_power("GND", flag_x, flag_y, project, root, pwr_ref(), 0))
-    wires.append(cec_sch.emit_wire(flag_x + 12.7, flag_y, flag_x + 12.7, flag_y - cec_sch.STUB))
-    power_syms.append(cec_sch.emit_global_power("PWR_FLAG", flag_x + 12.7, flag_y - cec_sch.STUB,
-                                                project, root, pwr_ref("#FLG"), 180))
-    power_syms.append(cec_sch.emit_global_power("+3V3", flag_x + 12.7, flag_y,
-                                                project, root, pwr_ref(), 0))
+    for cap in plan["caps"]:
+        gx, gy, gdx, gdy = pin_abs_rot(placement, used, parts, cap, "2")
+        bx, by = gx + gdx * cec_sch.STUB, gy + gdy * cec_sch.STUB
+        flag_points.append((bx, by, 1))
+
+    for i, (px, py, sign) in enumerate(flag_points):
+        fx, fy = px, py + sign * cec_sch.STUB
+        wires.append(cec_sch.emit_wire(px, py, fx, fy))
+        power_syms.append(cec_sch.emit_global_power("PWR_FLAG", fx, fy, project, root,
+                                                    pwr_ref("#FLG"), 180 if sign < 0 else 0))
 
     used_pins = {("U1", "6")}
     fully_used_refs = {"C1", "C2", "C3", "C4", "R1", "R2", "C5"}
