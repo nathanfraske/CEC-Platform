@@ -427,8 +427,12 @@ Communication:
   Pro+ Hubs only. Standard does not populate it.
 
 Per-tier hardware:
-- Hub Standard: ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM, PCB-antenna
-  keepout honored for future Wi-Fi; the MINI-1 has no 16 MB SKU, so the
+- Hub Standard: ESP32-S3-WROOM-1-N16R8 (16 MB flash + 8 MB PSRAM; PCB-antenna
+  keepout honored on the ALPHA layout for future Wi-Fi — OVERTURNED for BETA by owner
+  ruling 2026-07-03: NO Wi-Fi at this tier ever (intentional-radiator FCC certification
+  ~$100k avoided; product positions as a subassembly / unintentional radiator), so the
+  beta layout DROPS the keepout and reclaims ~450mm² — see
+  docs/standard-tier-review/SYNTHESIS-beta-plan.md W9; the MINI-1 has no 16 MB SKU, so the
   aggregation Hub uses WROOM while modules stay on MINI-1), 4 ports, classical
   CAN, USB Full Speed. v1.1 decisions
   carry forward (LP5907 LDO, 4700 uF aluminum electrolytic hold-up — Panasonic
@@ -776,10 +780,20 @@ Open items (surface before acting):
      hand-maintained 12VHPWR-Standard; a guard refuses analog-pin boards). New vendored
      parts: cec-vendor ESP32-C6-MINI-1-N4 (C5736265), INA181A2IDBVR (C2058784),
      TLV7011DBVR (C702117); footprint cec-RF_Module:ESP32-C6-MINI-1 (+3D); D1 PESD UL->BA.
-   - REMAINING (these three): PCBs need Update-PCB-from-Schematic to pull the C6 land +
-     the §6.13 parts (U20-22 INA181, U30-32 TLV7011, R10/C40, per-cable bypass), then
-     re-place/route/pour. Still unsourced on each: the per-cable 0.5mOhm shunts (OQ-11)
-     and the Mini-Fit Jr THT power headers.
+   - REMAINING (these three) — CORRECTED 2026-07-03 (standard-tier review pass,
+     docs/standard-tier-review/eps-8pin.md + pcie-8pin.md, measured against live
+     kicad-cli/pcbnew state): the "PCBs need Update-PCB-from-Schematic to pull the C6
+     land" framing above is STALE — all three PCBs (EPS, PCIe-2port, PCIe-3port)
+     ALREADY CARRY the C6 land + the full §6.13 front-end (INA181A2/TLV7011) AND the
+     platform FTP RJ-45 jack; all schematic parts are placed. The REAL remaining state
+     is: **placement-complete, ZERO copper routed** (0 tracks/0 vias/0 filled zones on
+     all three boards; EPS also has no netclasses/.kicad_dru yet, PCIe likewise) — this
+     needs a full routing pass through the two-plane router (CLAUDE.md's tiered
+     sub-agent pipeline), tracked as beta wave item W6 in
+     docs/standard-tier-review/SYNTHESIS-beta-plan.md. OQ-11 shunt MPN (CSS2H-2512R-
+     L500F) is now spec-locked (2026-07-02) but still needs writing into the EPS/PCIe
+     BOM files (W2); the Mini-Fit Jr THT power headers remain consigned/unsourced by
+     design (no LCSC line, hand-solder).
    - 24-pin ATX still on ESP32-S3-MINI-1 with no §6.13 front-end — carry the same C6 +
      §6.13 pass onto it next. 12VHPWR Standard (S3) + Hub (S3-WROOM) are unchanged by design.
 
@@ -810,23 +824,29 @@ Open items (surface before acting):
    pin. Same pass cleared the STALE §2.9 IO9/IO10 no_connects (they were wired to
    MAIN_5V_SENSE/5VSB_SENSE but still flagged no_connect -> no_connect_connected ERC,
    DRAFT-hidden). (The earlier IO13-as-presence idea was dropped for the IO1/IO2 ADC1
-   ratiometric pair.) STILL OPEN: PCB (GUI) Update-from-Schematic to pull J7/D7/
-   R19-R24, place + route, re-pour; and refresh the bom/ CSVs to add the 8 new lines.
-   PRE-EXISTING (not from this work, left as-is): two off-grid endpoint_off_grid ERC
-   on #FLG200/#FLG201 — the off-grid PWR_FLAG STAMPS that drive 5VSB_RAW / USB_VBUS
-   (functional, just placed off-grid; gridsnap the flag+its coincident label together
-   to clear), and the RJ-45 SHIELD-TAB no_connects (incl. the J5.SH2
-   no_connect_connected) which are the pending GUI shield-grounding pass (action item
-   2). (b) 24-pin module MAIN_5V tap (after its 5V INA228 shunt, so
-   the draw counts in system 5V per OQ-13) -> feed the Hub's J8 ("24-pin next").
-   (c) PRODUCTION: consolidate J1 (5VSB) + J8 (MAIN_5V) into one 3-pin feed (kept
-   separate now so the existing 5VSB cable + Hub bench-test still work — "fix
-   later"). (d) PCB (GUI): place U7/J8 near the front end, route the cut net
-   U5.OUT->U7.IN2 and U7.OUT->the +5VSB/D1 node, route the IO9/IO10 taps, re-DRC.
-   (e) OQ-56: bench-verify the 4700uF hold-up rides a flash write. The chosen part
-   (cascade TPS2121, not the $7.77 LTC4417 triple-prioritizer) is the cost-right
-   call for the $36 Hub; LTC4417 is the textbook part for a non-cost-constrained
-   (Enterprise/MC) board.
+   ratiometric pair.) VERIFIED DONE 2026-07-03 (standard-tier review,
+   docs/standard-tier-review/hub-standard.md, measured against the live PCB): the PCB
+   (GUI) pass is COMPLETE, superseding the "STILL OPEN" framing below — J7 (now
+   silkscreened `J_KVM`) + D7 + R19-R24 are PLACED AND ROUTED, and U7/J8 (now `J_5V`)
+   + the MAIN_5V/5VSB sense dividers (R15-R18) are likewise PLACED AND ROUTED; the
+   bom/ CSVs carry the added lines. RJ-45 shield-tab grounding (SH1/SH2 -> GND on
+   J2-J5) is also confirmed done. PRE-EXISTING (not from this work, left as-is): two
+   off-grid endpoint_off_grid ERC on #FLG200/#FLG201 — the off-grid PWR_FLAG STAMPS
+   that drive 5VSB_RAW / USB_VBUS (functional, just placed off-grid; gridsnap the flag
+   + its coincident label together to clear). (b) 24-pin module MAIN_5V tap (after its
+   5V INA228 shunt, so the draw counts in system 5V per OQ-13) -> feed the Hub's J_5V
+   ("24-pin next") — still open, unchanged. (c) PRODUCTION: consolidate J1 (5VSB) +
+   J_5V (MAIN_5V) into one 3-pin feed (kept separate now so the existing 5VSB cable +
+   Hub bench-test still work — "fix later") — still open, unchanged. (e) OQ-56:
+   bench-verify the 4700uF hold-up rides a flash write — still open, unchanged. The
+   chosen part (cascade TPS2121, not the $7.77 LTC4417 triple-prioritizer) is the
+   cost-right call for the $36 Hub; LTC4417 is the textbook part for a non-cost-
+   constrained (Enterprise/MC) board. THE ONE REAL OPEN HUB ITEM (per the same review,
+   D-11 in docs/standard-tier-review/SYNTHESIS-beta-plan.md): 4x `hole_clearance`
+   errors on `J_USB` (the USB-C receptacle's own pad-vs-mounting-NPTH spacing,
+   0.165-0.20mm vs the 0.25mm rule) fail the CI `--severity-error` gate today — a
+   repo-wide shared-footprint defect (also seen on EPS/PCIe/12VHPWR, same USB-C land),
+   owner decision pending on footprint fix vs. documented DRU exception.
 
 1. DETECT pin-8 ESD diode (§2.4, LOCKED v2.0): platform-wide requirement.
    Hub Standard DONE (2026-06-04): D2-D5 = PESD5V0S1UL (SOD-323), one per port,
@@ -859,22 +879,28 @@ Open items (surface before acting):
    courtyard glance. EPS + 12VHPWR Standard now ALSO carry the FTP jack (SH1/SH2->GND);
    gen-modules.py emits it, so the 24-pin + the two PCIe SKUs pick it up on their next
    regen (still on the unshielded 54602 until then — compatible, single-end shield at the Hub).
-3. Hub Standard PCB pre-fab layout pass (2026-06-04 review): the board is PLACED
-   and FULLY ROUTED (DRC 0 unconnected), but a GUI pour/route pass remains before
-   dropping DRAFT. (a) GROUND: only In1 is poured and it reads as fragmented
-   (42 islands — almost certainly STALE FILL, since kicad-cli can't refill);
-   first action is "Fill All Zones" (B) in the GUI and confirm In1 is ONE island.
-   CAN_H/L and USB_D+/- are 100% on F.Cu over In1 with 0 vias (good); the slow
-   lines (DETECT/LED/GPIO/EN) ride In2 directly under In1 (fine). (b) POWER:
-   +5VSB/+3V3/USB_VBUS are routed as long thin traces on B.Cu — move to a F.Cu
-   pour per LAYOUT-GUIDE; the 5VSB trunk (/5VSB_RAW 0.4mm) needs pour or >=1.5mm.
-   DRC now reports 38 track_width errors on the power nets (surfaced only after
-   the netclass-pattern fix below) — that IS the punch-list. (c) Pull CAN_RX/CAN_L
-   in from the board edge (~0.03-0.13mm now → slot-antenna). (d) Tent the C1
-   (4700uF) via-in-pad; add a 2nd GND via at D6 (USBLC6); silk cleanup on the
-   RJ-45 shield pads + board-edge silk. NOT-a-bug (triaged): CAN 5V/3.3V "domain
-   crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R" (split 60+60+4n7 present);
-   U1 courtyard overlaps (antenna keepout, neighbors clear).
+3. Hub Standard PCB pre-fab layout pass (2026-06-04 review; **VERIFIED COMPLETE
+   2026-07-03**, standard-tier review docs/standard-tier-review/hub-standard.md —
+   supersedes the 2026-06-04 punch-list below, which described an intermediate/stale
+   fill state). The board is PLACED and FULLY ROUTED: GND is confirmed as a single
+   filled zone (the "42 fragmented islands" note below was stale fill, since resolved
+   by a real "Fill All Zones" pass — measured 0 unconnected / 0 copper clearance-or-
+   short / 0 courtyard overlap / 0 `track_width` errors); the +5VSB/MAIN_5V/hold-up
+   power trunks (`+5VSB`, `/5VSB_RAW`, `/MAIN_5V_RAW`, `/+5V_HOLD`) all measure at or
+   above the netclass floor (1.0/0.5mm). RJ-45 shield tabs SH1/SH2 -> GND confirmed on
+   J2-J5. Remaining non-blocking cosmetic silk (29 hits: TH1, C8/SW_RESET, J_KVM x2,
+   C1/TP_VBUS — label-over-pad/edge, no copper impact) is already documented as such in
+   the board's own fab README. Fab outputs (CPL/BOM/gerbers) are already generated and
+   committed at `fab/hub-standard-proto-v1/`. THE ONE REAL REMAINING ITEM is the 4x
+   `J_USB` `hole_clearance` CI-error-gate failure — see action item 0's closing note
+   and D-11 in `docs/standard-tier-review/SYNTHESIS-beta-plan.md` (owner decision:
+   footprint fix in `lib/` vs. documented DRU exception). Historical detail retained:
+   the original 2026-06-04 pass found GND fragmented (stale fill), power nets on thin
+   B.Cu traces flagged by `track_width` DRC (surfaced only after a netclass-pattern
+   fix), CAN_RX/CAN_L close to the board edge, and C1/D6 via/silk cleanup items — all
+   of these are now measured resolved on the committed board. NOT-a-bug (triaged, still
+   true): CAN 5V/3.3V "domain crossing" (TJA1051T/3 VIO=+3V3, correct); "no 120R"
+   (split 60+60+4n7 present); U1 courtyard overlaps (antenna keepout, neighbors clear).
 
 4. 12VHPWR Standard PCB finish — **DONE / ROUTED (verified 2026-06-24; supersedes the
    2026-06-05 snapshot).** The board is FULLY ROUTED and fab-direction: kicad-cli DRC = 0

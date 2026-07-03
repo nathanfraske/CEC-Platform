@@ -43,6 +43,9 @@ W7. **12VHPWR U4↔U3 reposition** (the unfixed constraint-swarm P1; placement n
     agent pass on a beta copy, owner's call on venue (D-7).
 W8. **Beta denotation mechanics**: Rev field "BETA-1" on every changed board, README revision
     tables, `fab/<board>-beta-*` snapshot naming, BOM output regeneration. Alpha artifacts frozen.
+W9. **Hub beta layout: drop the WROOM antenna keepout** (owner ruling 2026-07-03, D-6a) — trim the
+    U1 keepout courtyard, let GND pour/parts reclaim the ~450mm² on-board strip, re-DRC. Rides the
+    same hub beta layout pass as the W1 outcome + final pours.
 
 ## 3. OWNER DECISION LIST (deduped from all six reports; framed, never resolved)
 
@@ -84,8 +87,13 @@ W8. **Beta denotation mechanics**: Rev field "BETA-1" on every changed board, RE
   mezzanine header), ~$40–44, slower, waits on D-3/D-4. Sub-choice: INA228×4 (full energy story,
   +$4–5) vs INA228×2+INA238×2 (+$2–2.5, loses standby-Wh precision on 3V3/5VSB). And: does the
   $35 target itself move (the spec footnote already concedes it)?
-- **D-6. Hub beta items.** (a) Antenna keepout: drop for ~450mm²/6% reclaim (Wi-Fi can't run on
-  the LP5907 anyway; radio certs already declined once) vs keep board-only optionality. (b) NanoKVM
+- **D-6. Hub beta items.** (a) ~~Antenna keepout~~ **RESOLVED (owner ruling, 2026-07-03): the
+  keepout is NOT respected — DROP it in the beta layout (~450mm²/6% reclaim).** Rationale on the
+  record: no intention of using Wi-Fi, ever, at this tier — an intentional radiator puts the
+  product under FCC intentional-emitter certification (~$100k class cost) for a capability it
+  doesn't need; instead the product positions as a SUBASSEMBLY (unintentional-radiator posture).
+  Same logic as the modules' earlier keepout drops and the ENT ATR passive-only ruling. Beta
+  work item → W9. (b) NanoKVM
   aux header: populate every unit (~$0.14 + THT step) vs DNP-by-default at Standard. (c) C1
   identity: schematic/BOM ship Samxon C487318, CLAUDE.md/README document Panasonic C401967 — pick
   one, fix the other record. (d) OQ-2 finally: LED/5VSB budget (7×SK6812 ≈0.4A vs the ~2.5A rail)
