@@ -594,6 +594,19 @@ work). Agents update it in the SAME change that creates or retires an owner item
 discipline as this section. The corpus-side intake contract is
 docs/corpus-experiential-intake-2026-06-10.md.
 
+**CONSUMER REVISION LINE — ALPHA/BETA convention (owner directive, 2026-07-03).** There is
+REAL purchase demand for the Standard tier NOW. The existing consumer boards (Hub Standard +
+all Standard modules) are the **ALPHA** line: working prototypes exist for every one, the
+concept is 100% validated — do not re-litigate the idea, refine it. Any owner-approved
+refinement revision (the standard-tier-review pass output and beyond) is the **BETA** line
+and must be CLEANLY denoted as such everywhere a revision surfaces: title-block Rev field,
+board README, fab/ snapshot naming (e.g. `fab/<board>-beta-*`), BOM outputs. Never overwrite
+or rename alpha artifacts — beta is a new revision lineage beside them. Priority framing:
+Standard = consumers ("know what the PC is doing, consolidated"); Pro = enthusiasts
+(nitty-gritty); both consumer lines outrank ENT polish in scheduling, but **ENT is NOT
+dropped** — the owner presents it to a prospective customer ~2026-08 (one month out), so ENT
+capture/prototype work continues on its own clock (see docs/owner-queue.md).
+
 Open items (surface before acting):
 
 -4. ASSISTED ROUTING (2026-06-10/11, branch claude/corpus-experiential-intake): the FR-02/

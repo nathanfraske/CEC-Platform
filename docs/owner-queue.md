@@ -14,6 +14,7 @@ _Last reconciled: 2026-06-10 (the corpus-intake + cluster-5/6 + ratification-bat
 
 | # | Decision | Blocks | Recorded |
 |---|---|---|---|
+| — | **STANDARD-TIER DEMAND + ALPHA/BETA LINE (owner, 2026-07-03)**: real purchase demand for the Standard tier NOW; ENT presents to the prospective customer **~2026-08 (one month)** — this puts a REAL CLOCK on the f1 dev-kit + TC-silicon order (demo rig lead times must fit inside the month; order soon or the demo slips). Consumer revision convention RATIFIED: existing validated prototypes = ALPHA line (all Standard modules + Hub have working prototypes, concept 100% validated); owner-approved refinements = BETA line, cleanly denoted (Rev field / README / fab naming) — recorded in CLAUDE.md. Standard-tier refinement fan-out running (docs/standard-tier-review/); its OWNER DECISION LIST lands here on synthesis. | beta-line kickoff (awaits owner approval of the refinement plan); demo-rig order clock | CLAUDE.md alpha/beta paragraph; docs/standard-tier-review/ |
 | 8 | Panel cadence/seats (API spend) | wave-4 CL-22 frontier seats | parity plan §1 |
 | 9 | Swarm charters / budget / precision floor | wave-4 CL-24 verifier tier | parity plan §1 |
 | 11 | Frontier data egress | wave-4 CL-22 frontier seat binding | parity plan §1 |
