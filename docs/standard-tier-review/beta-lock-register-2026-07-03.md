@@ -114,3 +114,12 @@ below marked VERIFIED was re-checked live by an independent second agent this se
   Firmware delta: USB CDC telemetry mode when no CAN master present. → W11; touches
   gen-modules BASE_PARTS + the hand-maintained EPS/12VHPWR schematics at their beta pass;
   aligns with the quality-first principle; ~$0.15/module.
+  **H3a (owner addendum: "and ferrites, if needed")** — ferrite posture for the suite, judicious
+  not blanket: (a) VBUS entry bead POPULATED (MPZ2012S601A-class, 600Ω@100MHz — the standard USB
+  power-entry filter, same part family the Nuand reference sheets carry); (b) port-VCC (5VSB)
+  entry on each module: bead position PROVISIONED, 0Ω by default, populate on EMC evidence;
+  (c) CAN pair: common-mode-choke POSITION provisioned DNP as EMC insurance (never series beads
+  on individual CAN lines); (d) USB D+/D- get NO series ferrites (SI killer) — CMC only if a
+  pre-scan ever demands it. Rationale: standalone-USB use makes each module its own FCC 15B
+  unintentional-radiator story, so provisioned filter positions are cheap insurance; empty
+  positions cost pad area only.
