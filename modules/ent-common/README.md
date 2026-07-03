@@ -4,11 +4,28 @@ Board-program scope: **designed once, instantiated ×4** by the enterprise (ENT)
 builds of the four module families (`atx-24pin`, `eps-8pin`, `pcie-8pin-2port` /
 `pcie-8pin-3port`, `12vhpwr-standard`/`12vhpwr-pro`). This directory does NOT
 define a board of its own — it defines the sub-circuit BLOCK every ENT module
-family's own schematic instantiates (today, by copying/adapting the block —
-KiCad hierarchical sheets are the natural home for this once the T4 schematic-
-composition engine lands, see `docs/schematic-quality-charter.md`; this pass
-captures the block's netlist truth with today's primitives, per that doc's own
-guidance: "capture with today's primitives, it regenerates later").
+family's own schematic instantiates. Since 2026-07-03 the block is captured as
+a **genuine KiCad hierarchy** through the shared T4 composition engine
+(`scripts/cec_sch_compose.py` + `scripts/cec_sch_archetypes.py`, the same
+machinery as `hubs/hub-enterprise`), superseding the original flat single-sheet
+capture (same parts, same nets, same values — proven by flattened-netlist
+node-set equivalence; only the sheet boundaries moved, per the owner's
+2026-07-02 "each functional block literally on its own sheet" correction):
+
+```
+p4-t1-block.kicad_sch                 root = thin parent (sheet symbols only)
+  01-power.kicad_sch                  RJ-45 jack + TPS26621 eFuse + LP5907 3V3 LDO
+  02-misplug-protection.kicad_sch     DETECT chain + pin-7 SYNC/FREEZE chain
+  03-can.kicad_sch                    TJA1051T/3 CAN transceiver
+  04-mcu.kicad_sch                    ESP32-P4 + W25Q flash + XTAL + decoupling
+  05-t1-phy.kicad_sch                 DP83TC814S-Q1 + CMC + AC-couple + ESD
+  06-usb-debug.kicad_sch              USB-C flash/debug front end
+```
+
+The RJ-45 jack lives on the power leaf (its VCC pin is that leaf's whole
+subject); jack pins 3–8 export via hierarchical pins and cross the root as
+drawn sheet-pin wires. GND / +5VSB / +3V3 are global power nets (per-leaf
+power symbols, no sheet-pin plumbing).
 
 ## What the block is
 
@@ -56,8 +73,9 @@ The tier-agnostic ENT common backbone required by
 
 ## Per-family instantiation contract
 
-Each ENT module family's own schematic is expected to bring in this block
-(today: adapt/copy the netlist pattern; later: a real hierarchical sheet) and
+Each ENT module family's own schematic is expected to bring in this block —
+now practical as real hierarchical sheets: a family project can instantiate
+the six leaf files (or the whole subtree) directly — and
 wire ONLY the family-specific sensing bus on the MCU side. The block's
 boundary is:
 
@@ -88,12 +106,17 @@ copy of the RJ-45/CAN/DETECT/pin-7/T1/eFuse/flash/USB front end.
 
 ## Files
 
-- `gen_p4_t1_block.py` — the generator (uses `scripts/cec_sch.py`'s shared
-  emit helpers, same idiom as `scripts/gen-modules.py`; does not modify that
-  shared script). Run: `python3 modules/ent-common/gen_p4_t1_block.py`.
-- `p4-t1-block.kicad_sch` — the block, captured flat (wire-stub + net-label
-  primitives; the T4 composition/layout engine is not yet integrated — see
-  `docs/schematic-quality-charter.md`).
+- `gen_p4_t1_block.py` — the generator: builds the six leaf sheets through
+  `scripts/cec_sch_compose.py` (`Leaf`/`Compose`/`build_leaf`) + the T4
+  archetypes (`protection_chain`, `divider_chain`, `protected_rail`,
+  `crystal_block`, `decoupler_bank`, `pullup_hang`), then writes the root as
+  a thin parent (`build_thin_parent` with `own_sheet_sym_uuid=None` — the
+  root-as-thin-parent shape). `cec_sch_layout.nudge_texts` runs as the
+  finishing pass per leaf. Run: `python3 modules/ent-common/gen_p4_t1_block.py`.
+- `p4-t1-block.kicad_sch` — the ROOT (thin parent: six sheet symbols, drawn
+  inter-sheet wires, no components).
+- `01-power.kicad_sch` … `06-usb-debug.kicad_sch` — the six functional-block
+  leaf sheets (see the hierarchy map above).
 - `p4-t1-block.kicad_pro`, `sym-lib-table`, `fp-lib-table` — minimal project
   scaffolding (no netclasses/DRU yet; this block is schematic-only, no PCB).
 - `ent-common-local.kicad_sym` — ONE project-local stopgap symbol
@@ -102,27 +125,40 @@ copy of the RJ-45/CAN/DETECT/pin-7/T1/eFuse/flash/USB front end.
   yet promoted to a shared `cec-ent-*` library.
 - `check_p4_t1_block.py` — netlist assertion harness (eFuse-in-series, DETECT
   chain, pin-7 chain, T1 MDI chain, CAN H/L, RMII pin-map sanity vs the
-  vendored DP83TC814S-Q1 symbol's TI-datasheet-derived pin names). Run:
+  vendored DP83TC814S-Q1 symbol's TI-datasheet-derived pin names, plus the
+  2026-07-03 hierarchy-equivalence guard: 61 components / 130 flattened
+  connectivity groups / 53 multi-node groups, frozen against the
+  pre-restructure flat baseline). Run:
   `python3 modules/ent-common/check_p4_t1_block.py`.
 
-## Verification status (2026-07-03)
+## Verification status (2026-07-03, hierarchical restructure)
 
-- `kicad-cli sch erc`: 117 violations, but EVERY ONE falls into an
-  already-documented-benign class (see `check_p4_t1_block.py`'s
-  `KNOWN_BENIGN` table): 51 `lib_symbol_mismatch` (generator re-serialization
-  cosmetic noise, repo-wide known class), 59 `pin_to_pin` + 7 `pin_not_driven`
-  (all traced to the vendored ESP32-P4 / DP83TC814S-Q1 / ACT1210L /
-  PESD2ETH100-T symbols typing every pin `Unspecified` — the exact class the
-  schematic-quality-charter's T2 `cec_sym_audit.py` pass already found and
-  flagged across the `cec-ent-*` libraries; this is a symbol-library gap, not
-  a wiring defect in this block, and fixing it is T2's `--fix` mode, out of
-  this task's scope). **Zero unexplained/untriaged ERC classes.**
-- `check_p4_t1_block.py`: all netlist assertions pass (eFuse in series,
-  DETECT chain, pin-7 chain, T1 MDI chain, CAN H/L, 12/12 RMII pin-name
-  cross-checks against the vendored PHY symbol).
-- `scripts/cec_sch_render.py p4-t1-block.kicad_sch --out build/ent-common-render
-  --tiles 2x3`: renders (see the render substrate note in the charter); tile
-  count reported by the render run.
+- **Flattened-netlist node-set equivalence vs the committed flat baseline
+  (bf0d0f6)**: 61 components / 130 connectivity groups (53 multi-node) in
+  BOTH; 0 multi-node groups missing, 0 extra, unconnected-pin set identical
+  (compared as node-sets, ignoring net names/sheet paths).
+- `kicad-cli sch erc` on the root: 91 violations, all in the three
+  documented-benign classes (`check_p4_t1_block.py` `KNOWN_BENIGN`):
+  51 `lib_symbol_mismatch`, 34 `pin_to_pin` (was 59), 6 `pin_not_driven`
+  (was 7). The drops are expected: regeneration embeds the CURRENT
+  `cec-ent-*` symbols, which received the T2 pin-type fix pass (a9e06d5)
+  after the flat sheet's lib_symbols cache was frozen — fewer `Unspecified`
+  pins, fewer false pin-conflict warnings. **Zero unexplained/untriaged ERC
+  classes; netlist export stderr clean (no annotation errors — disjoint
+  `#PWR` blocks per sheet).**
+- `check_p4_t1_block.py`: all assertions pass unchanged (no assertion was
+  weakened; the harness gained the equivalence guard + the six leaf files in
+  its scaffolding check).
+- `scripts/cec_sch_layout.py --check-overlaps`: 0 on all 7 sheets.
+  `scripts/cec_sch_lint.py`: 0 ERROR-class findings (WARN = the accepted
+  SL-04 label-angle cosmetics class, METRIC = SL-08 stub-length spread).
+- `tests/test_sch_compose.py` (engine smoke + archetype teeth) and
+  `tests/test_sch_layout.py`: green.
+- `scripts/cec_sch_render.py p4-t1-block.kicad_sch --out
+  build/ent-common-render-v2 --tiles 1x1 --dsf 1.5`: all 7 sheets rendered
+  and reviewed; render-driven fixes landed (05-t1-phy MDI-chain/crystal
+  detangle + shared PHY GND tie, 01-power shield-tie and eFuse GND-stamp
+  reroutes, USB-C coincident-pin stub dedupe).
 
 ## FLAGS — open items, not silently resolved
 

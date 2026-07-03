@@ -280,9 +280,15 @@ def protected_rail(c, *, ic, origin, in_pin, out_pin, entry_rail,
         px, py = c.pin(ic, pin)
         hx = px + 10 + 4 * depth
         c.place(part, hx, py + 4)
-        c.wire((px, py), (hx, py), (hx, py + 2))
         if netlbl:
+            # split the run AT the label point: a label binds only at a wire
+            # endpoint (same measured rule divider_chain documents), so the
+            # named node must be a segment boundary, never a segment interior
+            c.wire((px, py), (px + 2, py))
+            c.wire((px + 2, py), (hx, py), (hx, py + 2))
             c.label(netlbl, px + 2, py, 0)
+        else:
+            c.wire((px, py), (hx, py), (hx, py + 2))
         c.use((ic, pin), (part, "1"))
 
     # FLT-class pull-up with export at the run end

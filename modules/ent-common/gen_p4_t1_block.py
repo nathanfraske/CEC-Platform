@@ -2,53 +2,69 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Nathan M. Fraske
 #
-# Generates modules/ent-common/p4-t1-block.kicad_sch -- the SHARED ESP32-P4 + T1
-# module reference block (board-program scope: "designed once, instantiated x4"
-# by atx-24pin-ENT / eps-8pin-ENT / pcie-8pin-{2,3}port-ENT / 12vhpwr-ENT).
+# Generates the modules/ent-common ESP32-P4 + T1 shared module reference block
+# as a GENUINE HIERARCHY (restructured 2026-07-03 from the original flat
+# single-sheet capture, per the owner's 2026-07-02 format correction --
+# "each functional block literally on its own sheet"):
 #
-# Implements REQ-MOD-COMMON-001/003/010-013/053 (docs/enterprise-requirements/
-# module-requirements-common.md) + the §0 delta rows of
-# docs/enterprise-requirements/spec-sheets/module-ent-spec-sheets.md:
-#   - ESP32-P4 (radio-free, uniform ENT MCU) + external QSPI flash
-#   - USB-C flash/debug front end (platform pattern: ORing Schottky + CC
-#     pulldowns + BOOT/RESET), reused verbatim from modules/eps-8pin
-#   - TPS26621 60V auto-retry eFuse ahead of the 3V3 LDO -- pin-1 5VSB enters
-#     THERE (REQ-MOD-COMMON-053)
-#   - TJA1051T/3 CAN transceiver (pins 3/6, classical 500k)
-#   - DETECT (pin 8): 10 kOhm ENT class + NEW series R (survey 11) + low-cap
-#     ESD clamp + the platform poke-and-ack tap
-#   - pin 7: NEW SYNC/FREEZE + heartbeat-responder line -- series R + low-cap
-#     clamp -> P4 GPIO (REQ-MOD-COMMON-013 / REQ-HUB-COMMON-112/114)
-#   - DP83TC814S-Q1 100BASE-T1 PHY on pins 4/5: CMC -> AC-coupling caps ->
-#     PHY MDI, PESD2ETH100-T PHY-side ESD, RMII to the P4
-#   - RJ-45 FTP jack, SH1/SH2 -> GND
+#   p4-t1-block.kicad_sch          root = thin parent (sheet symbols only)
+#     01-power.kicad_sch           RJ-45 jack + TPS26621 eFuse + LP5907 3V3 LDO
+#     02-misplug-protection.kicad_sch  DETECT chain + pin-7 SYNC/FREEZE chain
+#     03-can.kicad_sch             TJA1051T/3 CAN transceiver
+#     04-mcu.kicad_sch             ESP32-P4 + W25Q flash + XTAL + decoupling
+#     05-t1-phy.kicad_sch          DP83TC814S-Q1 + CMC + AC-couple + ESD
+#     06-usb-debug.kicad_sch       USB-C flash/debug front end
 #
-# This block is NOT yet run through the T1 schematic-composition/layout engine
-# (docs/schematic-quality-charter.md T4, not integrated) -- captured with
-# TODAY's primitives (scripts/cec_sch.py: wire stub + net label, exactly the
-# generator idiom already used by scripts/gen-modules.py). It regenerates
-# cleanly later once T4 lands.
+# Built through the SHARED composition engine (scripts/cec_sch_compose.py:
+# Leaf/Compose/build_leaf/build_thin_parent -- the root here IS the thin
+# parent, own_sheet_sym_uuid=None) + the T4 archetypes
+# (scripts/cec_sch_archetypes.py: protection_chain, divider_chain,
+# protected_rail, crystal_block, decoupler_bank, pullup_hang), mirroring
+# hubs/hub-enterprise/gen_hub_enterprise.py. ELECTRICAL CONTENT IS UNCHANGED
+# from the flat capture: same parts, same values, same footprints, same
+# connectivity (verified by flattened-netlist node-set equivalence against
+# the committed single-sheet baseline + check_p4_t1_block.py).
+#
+# All the original engineering flags (RMII pin placeholders, crystal
+# frequencies, TPS26621 app values, etc.) still apply -- see README.md's
+# 11 numbered FLAGS.
 #
 #   python3 modules/ent-common/gen_p4_t1_block.py
 #
-# Validate: kicad-cli sch erc ; kicad-cli sch export netlist ;
-#           python3 modules/ent-common/check_p4_t1_block.py
+# Validate: python3 modules/ent-common/check_p4_t1_block.py
 import os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOTDIR = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOTDIR, "scripts"))
-import cec_sch
+import cec_sch            # noqa: E402
+import cec_sch_layout     # noqa: E402
+import cec_sch_compose    # noqa: E402
+import cec_sch_archetypes as arch  # noqa: E402
 
-# ---------------------------------------------------------------------------
-# A minimal project-local 2-pin crystal placeholder (mirrors cec-vendor's
-# R_Small/C_Small geometry exactly so cec_sch's pin-geometry math needs no
-# special-casing). NOT a real vendored part -- no MPN chosen; both crystal
-# instances below (P4 main XTAL, PHY XTAL) carry a value flagging the
-# frequency as UNVERIFIED against the real datasheets in this session (see
-# ent-common-local.kicad_sym's Description + the flags list in the README /
-# final report). Real file on disk (mirrors hub-enterprise/lib-local.kicad_sym)
-# so the project's own sym-lib-table can resolve it in the GUI too.
+PROJECT = "p4-t1-block"
+
+# Fixed identity uuids (stable across regenerations). ROOT_UUID is the
+# PRE-RESTRUCTURE flat file's own uuid, preserved so the project root keeps
+# its identity through the re-sheeting.
+ROOT_UUID = "592327a8-97c7-4f5c-98e4-af7919494f5a"
+LEAF_SYM_UUIDS = {
+    "01": "3c4d5e6f-7081-42b1-9c3b-4e5f60718201",
+    "02": "3c4d5e6f-7081-42b2-9c3b-4e5f60718202",
+    "03": "3c4d5e6f-7081-42b3-9c3b-4e5f60718203",
+    "04": "3c4d5e6f-7081-42b4-9c3b-4e5f60718204",
+    "05": "3c4d5e6f-7081-42b5-9c3b-4e5f60718205",
+    "06": "3c4d5e6f-7081-42b6-9c3b-4e5f60718206",
+}
+LEAF_OWN_UUIDS = {
+    "01": "4d5e6f70-8192-43c1-8d4c-5f60718293a1",
+    "02": "4d5e6f70-8192-43c2-8d4c-5f60718293a2",
+    "03": "4d5e6f70-8192-43c3-8d4c-5f60718293a3",
+    "04": "4d5e6f70-8192-43c4-8d4c-5f60718293a4",
+    "05": "4d5e6f70-8192-43c5-8d4c-5f60718293a5",
+    "06": "4d5e6f70-8192-43c6-8d4c-5f60718293a6",
+}
+
 LIBS = {
     "cec":            open(f"{ROOTDIR}/lib/cec.kicad_sym").read(),
     "cec-vendor":     open(f"{ROOTDIR}/lib/vendor/cec-vendor.kicad_sym").read(),
@@ -59,10 +75,11 @@ LIBS = {
     "ent-common-local": open(f"{HERE}/ent-common-local.kicad_sym").read(),
 }
 
+POWER_PORTS = {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"}
+
+
 # ---------------------------------------------------------------------------
-# ESP32-P4 name -> pin-number lookup (the vendored symbol names every pin
-# "GPIO24" etc, but cec_sch nets reference pins by NUMBER; this makes the net
-# table below readable/robust instead of hand-copying pin numbers).
+# ESP32-P4 name -> pin-number lookup (unchanged from the flat generator).
 def name_to_number(block):
     m = {}
     for mm in re.finditer(r'\(pin\s+\S+\s+\S+\s*\(at[^)]*\)\s*\(length[^)]*\)', block):
@@ -76,20 +93,15 @@ def name_to_number(block):
 P4_BLOCK = cec_sch.symbol_block(LIBS["cec-ent-mcu"], "ESP32-P4")
 P4 = name_to_number(P4_BLOCK)
 
-# GPIO assignment -- ALL PLACEHOLDER / TENTATIVE (flag #1, see README + report):
-# the vendored ESP32-P4 symbol carries no alternate-function/IO_MUX annotation,
-# so which physical pins actually serve the EMAC/RMII peripheral (and whether
-# the 50 MHz REF_CLK needs one specific pin) is NOT confirmed in this session
-# against Espressif's ESP32-P4 TRM. These are placeholder assignments to
-# produce a wireable, ERC-clean reference block; re-pin at schematic capture.
+# GPIO assignment -- ALL PLACEHOLDER / TENTATIVE (README flag #1), unchanged.
 GP = {
     "CAN_TX":        P4["GPIO1"],
     "CAN_RX":        P4["GPIO2"],
-    "DETECT_SENSE":  P4["GPIO3"],   # poke-and-ack ADC tap (REQ-MOD-COMMON-010)
-    "PIN7_SYNC":     P4["GPIO4"],   # SYNC/FREEZE + heartbeat responder (REQ-MOD-COMMON-013)
+    "DETECT_SENSE":  P4["GPIO3"],
+    "PIN7_SYNC":     P4["GPIO4"],
     "MDC":           P4["GPIO5"],
     "MDIO":          P4["GPIO6"],
-    "RMII_REFCLK":   P4["GPIO7"],   # ** flagged: exact REF_CLK pin/sourcing unconfirmed **
+    "RMII_REFCLK":   P4["GPIO7"],   # ** flagged: REF_CLK pin/sourcing unconfirmed **
     "RMII_RXD0":     P4["GPIO8"],
     "RMII_RXD1":     P4["GPIO9"],
     "RMII_CRS_DV":   P4["GPIO10"],
@@ -101,220 +113,12 @@ GP = {
     "PHY_INT_N":     P4["GPIO16"],
 }
 
-# +3V3 MCU power-pin bundle -- ties every VDD_* rail on the bare-die P4 to one
-# board +3V3 supply (flag #3: the real ESP32-P4 power tree very likely needs
-# more than one rail -- VDD_DCDCC/EN_DCDC/FB_DCDC imply an internal buck the
-# datasheet's own power-architecture section must be consulted for; captured
-# here as a first-pass simplification, EN_DCDC strapped to GND = assume
-# internal-LDO mode, NOT verified this session).
+# +3V3 MCU power-pin bundle (README flag #3), unchanged.
 P4_VDD_3V3 = ["VDD_HP_0", "VDD_HP_1", "VDD_HP_2", "VDD_HP_3",
               "VDD_IO_0", "VDD_IO_4", "VDD_IO_5", "VDD_IO_6",
               "VDD_LP", "VDD_ANA", "VDD_BAT", "VDD_LDO", "VDD_DCDCC",
               "VDD_USBPHY", "VDD_MIPI_DPHY", "VDD_PSRAM_0", "VDD_PSRAM_1",
               "VDDO_FLASH", "VDDO_PSRAM", "VDDO_3", "VDDO_4", "VDD_FLASHIO"]
-
-PARTS = {
-    # ---- RJ-45 module-to-Hub link (platform universal interface) ----------
-    "J1": ("cec", "CEC_RJ45_8P8C_FTP", "TO-HUB"),
-
-    # ---- Mis-plug fail-safe network (survey 11 / REQ-MOD-COMMON-053) ------
-    "U2": ("cec-ent-power", "TPS26621DRCT", "TPS26621DRCT"),   # 60V auto-retry eFuse, pin1 ahead of the LDO
-    "R1": ("cec-vendor", "R_Small", "100k"),   # UVLO divider top   [placeholder, TI eq TBD]
-    "R2": ("cec-vendor", "R_Small", "20k"),    # UVLO divider bottom
-    "R3": ("cec-vendor", "R_Small", "100k"),   # OVP divider top    [placeholder, targets ~6.0-6.2V per survey 11]
-    "R4": ("cec-vendor", "R_Small", "10k"),    # OVP divider bottom
-    "R5": ("cec-vendor", "R_Small", "10k"),    # ILIM set resistor  [placeholder]
-    "C1": ("cec-vendor", "C_Small", "1n"),     # dVdT slew cap      [placeholder]
-    "R6": ("cec-vendor", "R_Small", "10k"),    # FLT pull-up -> +3V3
-    "C2": ("cec-vendor", "C_Small", "1u"),     # eFuse IN bulk
-    "C3": ("cec-vendor", "C_Small", "1u"),     # eFuse OUT bulk
-
-    "R7": ("cec-vendor", "R_Small", "10k"),    # DETECT series R_s (survey 11 (c), illustrative 10k)
-    "D1": ("cec-vendor", "D_Schottky", "PESD5V0S1BA"),  # DETECT low-cap ESD clamp (same part family/value as consumer)
-    "R8": ("cec-vendor", "R_Small", "10k"),    # DETECT ENT code resistor (10k CAN+100BASE-T1 class, §2.3)
-    "R9": ("cec-vendor", "R_Small", "100k"),   # DETECT poke-and-ack tap (platform pattern)
-
-    "R10": ("cec-vendor", "R_Small", "100"),   # pin-7 series R [placeholder -- bench-tune per §6a, preserve <=100ns edge]
-    "D2":  ("cec-vendor", "D_Schottky", "PESD5V0S1BA"),  # pin-7 low-cap clamp (supersedes the old 1M bleed-R+SMAJ58A, per hub-ent-bom-detailed.md §6a)
-
-    # ---- Power: eFuse -> 3V3 LDO ------------------------------------------
-    "U3": ("cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3"),
-    "C4": ("cec-vendor", "C_Small", "1u"),   # LDO VIN bulk
-    "C5": ("cec-vendor", "C_Small", "1u"),   # LDO VOUT bulk
-
-    # ---- CAN (pins 3/6, classical 500k, TJA1051T/3) -----------------------
-    "U4": ("cec-vendor", "TJA1051T-3", "TJA1051T/3"),
-    "C6": ("cec-vendor", "C_Small", "100n"),  # CAN VCC bypass
-    "C7": ("cec-vendor", "C_Small", "100n"),  # CAN VIO bypass
-
-    # ---- MCU: ESP32-P4 + external QSPI flash + main XTAL ------------------
-    "U1": ("cec-ent-mcu", "ESP32-P4", "ESP32-P4NRW32"),
-    "U5": ("cec-ent-power", "W25Q256JVFIQ", "W25Q256JVFIQ"),  # flag: oversized/placeholder density, see README
-    "C8": ("cec-vendor", "C_Small", "100n"),   # flash VCC bypass
-    "Y1": ("ent-common-local", "Crystal_Small", "40MHz"),      # flag: freq UNVERIFIED vs ESP32-P4 datasheet
-    "C9": ("cec-vendor", "C_Small", "20p"),
-    "C10": ("cec-vendor", "C_Small", "20p"),
-
-    # decoupling field (bulk + spread bypass) -- see README note on scope
-    "C11": ("cec-vendor", "C_Small", "10u"),
-    "C12": ("cec-vendor", "C_Small", "10u"),
-    "C13": ("cec-vendor", "C_Small", "100n"),
-    "C14": ("cec-vendor", "C_Small", "100n"),
-    "C15": ("cec-vendor", "C_Small", "100n"),
-    "C16": ("cec-vendor", "C_Small", "100n"),
-    "C17": ("cec-vendor", "C_Small", "100n"),
-    "C18": ("cec-vendor", "C_Small", "100n"),
-
-    "R11": ("cec-vendor", "R_Small", "10k"),   # CHIP_PU pull-up -> +3V3
-    "R12": ("cec-vendor", "R_Small", "10k"),   # GPIO0 pull-up -> +3V3
-    "SW1": ("cec-vendor", "SW_Push", "BOOT"),
-    "SW2": ("cec-vendor", "SW_Push", "RESET"),
-
-    # ---- USB-C flash/debug front end (platform pattern, verbatim) --------
-    "J2": ("cec-vendor", "USB_C_Receptacle_USB2.0_16P", "USB-C 2.0"),
-    "D3": ("cec-vendor", "D_Schottky", "SS34"),
-    "C19": ("cec-vendor", "C_Small", "10u"),
-    "R13": ("cec-vendor", "R_Small", "5k1"),   # CC1 pulldown
-    "R14": ("cec-vendor", "R_Small", "5k1"),   # CC2 pulldown
-
-    # ---- 100BASE-T1 module link (pins 4/5): CMC -> AC-couple -> PHY -------
-    "L1": ("cec-ent-net", "ACT1210L-201-2P-TL00", "ACT1210L-201-2P-TL00"),
-    "C20": ("cec-vendor", "C_Small", "10n"),   # AC-coupling cap, line A [>=100V rated, exact value/rating pending PHY app note SNLA389A]
-    "C21": ("cec-vendor", "C_Small", "10n"),   # AC-coupling cap, line B
-    "U6": ("cec-ent-net", "DP83TC814S-Q1", "DP83TC814S-Q1"),
-    "D4": ("cec-ent-net", "PESD2ETH100-T", "PESD2ETH100-T"),  # PHY-side ESD (>=100V trigger, inert through the 57V fault)
-    "Y2": ("ent-common-local", "Crystal_Small", "25MHz"),      # flag: freq UNVERIFIED vs DP83TC814S-Q1 datasheet
-    "C22": ("cec-vendor", "C_Small", "20p"),
-    "C23": ("cec-vendor", "C_Small", "20p"),
-    "C24": ("cec-vendor", "C_Small", "1u"),    # PHY supply bulk
-    "C25": ("cec-vendor", "C_Small", "100n"),  # VDDA bypass
-    "C26": ("cec-vendor", "C_Small", "100n"),  # VDDMAC bypass
-    "C27": ("cec-vendor", "C_Small", "100n"),  # VDDIO bypass
-    "R15": ("cec-vendor", "R_Small", "2k2"),   # MDIO pull-up -> +3V3
-    "R16": ("cec-vendor", "R_Small", "10k"),   # PHY INT_N pull-up -> +3V3
-    "R17": ("cec-vendor", "R_Small", "10k"),   # PHY RESET_N pull-up -> +3V3
-}
-
-NETS = {
-    "+5VSB": [("J1", "1"), ("U2", "1"), ("D3", "1"), ("C2", "1"),
-              ("R1", "1"), ("R3", "1")],
-    "+5VSB_FUSED": [("U2", "10"), ("C3", "1"), ("U3", "1"), ("U3", "3"), ("C4", "1"),
-                    ("U4", "3"), ("C6", "1")],
-    "+3V3": [("U3", "5"), ("C5", "1"),
-             ("U4", "5"), ("C7", "1"),
-             ("U5", "2"), ("C8", "1"),
-             ("R11", "1"), ("R12", "1"),
-             ("R15", "1"), ("R16", "1"), ("R17", "1"),
-             ("R6", "1"),
-             ("C11", "1"), ("C12", "1"), ("C13", "1"), ("C14", "1"),
-             ("C15", "1"), ("C16", "1"), ("C17", "1"), ("C18", "1"),
-             ("C24", "1"), ("C25", "1"), ("C26", "1"), ("C27", "1"),
-             ("U6", "7"), ("U6", "11"), ("U6", "22"), ("U6", "34"),
-             ] + [("U1", P4[n]) for n in P4_VDD_3V3],
-
-    "GND": ([("J1", "2"), ("J1", "SH1"), ("J1", "SH2"),
-              ("U2", "5"), ("U2", "6"), ("U2", "11"),
-              ("R2", "2"), ("R4", "2"), ("R5", "2"), ("C1", "2"),
-              ("D1", "2"), ("D2", "2"), ("R8", "2"),
-              ("U3", "2"), ("C2", "2"), ("C3", "2"), ("C4", "2"), ("C5", "2"),
-              ("U4", "2"), ("U4", "8"), ("C6", "2"), ("C7", "2"),
-              ("U5", "10"), ("C8", "2"),
-              ("C9", "2"), ("C10", "2"),
-              ("C11", "2"), ("C12", "2"), ("C13", "2"), ("C14", "2"),
-              ("C15", "2"), ("C16", "2"), ("C17", "2"), ("C18", "2"),
-              ("SW1", "1"), ("SW2", "1"),
-              ("J2", "A1"), ("J2", "A12"), ("J2", "B1"), ("J2", "B12"), ("J2", "S1"),
-              ("C19", "2"), ("R13", "2"), ("R14", "2"),
-              ("D4", "3"),
-              ("C22", "2"), ("C23", "2"), ("C24", "2"), ("C25", "2"),
-              ("C26", "2"), ("C27", "2"), ("U6", "37"), ("U6", "17"), ("U6", "18"),
-              ] + [("U1", P4["GND"]), ("U1", P4["EN_DCDC"])]),
-
-    # ---- mis-plug protection: eFuse app pins ------------------------------
-    "EF_UVLO": [("U2", "2"), ("R1", "2"), ("R2", "1")],
-    "EF_OVP":  [("U2", "3"), ("R3", "2"), ("R4", "1")],
-    "EF_SHDN": [("U2", "4")],           # tied via GND net below (always-armed)
-    "EF_ILIM": [("U2", "7"), ("R5", "1")],
-    "EF_DVDT": [("U2", "8"), ("C1", "1")],
-    "EF_FLT":  [("U2", "9"), ("R6", "2")],   # pull-up half in +3V3; GPIO tap below
-    "EF_FLT_SENSE": [("U2", "9")],  # placeholder net alias kept for clarity; real fan-out below
-
-    # ---- DETECT (pin 8): series R -> [ESD clamp + 10k code R + poke tap] --
-    "DETECT_RAW": [("J1", "8"), ("R7", "1")],
-    "DETECT_A":   [("R7", "2"), ("D1", "1"), ("R8", "1"), ("R9", "1")],
-    "DETECT_SENSE": [("R9", "2"), ("U1", GP["DETECT_SENSE"])],
-
-    # ---- pin 7: SYNC/FREEZE + heartbeat responder -------------------------
-    "SYNC7_RAW": [("J1", "7"), ("R10", "1")],
-    "SYNC7":     [("R10", "2"), ("D2", "1"), ("U1", GP["PIN7_SYNC"])],
-
-    # ---- CAN -------------------------------------------------------------
-    "CAN_TX": [("U1", GP["CAN_TX"]), ("U4", "1")],
-    "CAN_RX": [("U1", GP["CAN_RX"]), ("U4", "4")],
-    "CAN_H":  [("U4", "7"), ("J1", "3")],
-    "CAN_L":  [("U4", "6"), ("J1", "6")],
-
-    # ---- MCU flash + XTAL --------------------------------------------------
-    "FLASH_CS":   [("U1", P4["FLASH_CS"]), ("U5", "7")],
-    "FLASH_CK":   [("U1", P4["FLASH_CK"]), ("U5", "16")],
-    "FLASH_D":    [("U1", P4["FLASH_D"]), ("U5", "15")],
-    "FLASH_Q":    [("U1", P4["FLASH_Q"]), ("U5", "8")],
-    "FLASH_HOLD": [("U1", P4["FLASH_HOLD"]), ("U5", "1")],
-    "FLASH_WP":   [("U1", P4["FLASH_WP"]), ("U5", "9")],
-    "FLASH_RESET_TIEHIGH": [("U5", "3")],   # tied to +3V3 below (flagged: not sync'd to CHIP_PU)
-
-    "XTAL_P": [("U1", P4["XTAL_P"]), ("Y1", "1"), ("C9", "1")],
-    "XTAL_N": [("U1", P4["XTAL_N"]), ("Y1", "2"), ("C10", "1")],
-
-    "CHIP_PU": [("U1", P4["CHIP_PU"]), ("R11", "2"), ("SW2", "2")],
-    "GPIO0":   [("U1", P4["GPIO0"]), ("R12", "2"), ("SW1", "2")],
-
-    # ---- USB-C flash/debug (platform pattern) -----------------------------
-    "VBUS":    [("J2", "A4"), ("J2", "A9"), ("J2", "B4"), ("J2", "B9"), ("D3", "2"), ("C19", "1")],
-    "USB_D_P": [("J2", "A6"), ("J2", "B6"), ("U1", P4["USB_DP"])],
-    "USB_D_N": [("J2", "A7"), ("J2", "B7"), ("U1", P4["USB_DM"])],
-    "USB_CC1": [("J2", "A5"), ("R13", "1")],
-    "USB_CC2": [("J2", "B5"), ("R14", "1")],
-
-    # ---- 100BASE-T1: RJ-45 pins 4/5 -> CMC -> AC-couple -> PHY MDI --------
-    "T1_A_RAW": [("J1", "4"), ("L1", "1")],
-    "T1_B_RAW": [("J1", "5"), ("L1", "2")],
-    "T1_A_CMC": [("L1", "4"), ("C20", "1")],
-    "T1_B_CMC": [("L1", "3"), ("C21", "1")],
-    "TRD_P":    [("C20", "2"), ("U6", "12"), ("D4", "1")],
-    "TRD_M":    [("C21", "2"), ("U6", "13"), ("D4", "2")],
-
-    "PHY_MDC":  [("U1", GP["MDC"]), ("U6", "1")],
-    "PHY_MDIO": [("U1", GP["MDIO"]), ("U6", "36"), ("R15", "2")],
-    "PHY_INT_N": [("U1", GP["PHY_INT_N"]), ("U6", "2"), ("R16", "2")],
-    "PHY_RESET_N": [("U1", GP["PHY_RESET_N"]), ("U6", "3"), ("R17", "2")],
-    "PHY_XI": [("U6", "5"), ("Y2", "2"), ("C23", "1")],
-    "PHY_XO": [("U6", "4"), ("Y2", "1"), ("C22", "1")],
-
-    "RMII_REFCLK": [("U1", GP["RMII_REFCLK"]), ("U6", "28")],   # TX_CLK doubles as REF_CLK -- ** flagged, unconfirmed **
-    "RMII_RXD0":   [("U1", GP["RMII_RXD0"]), ("U6", "26")],
-    "RMII_RXD1":   [("U1", GP["RMII_RXD1"]), ("U6", "25")],
-    "RMII_CRS_DV": [("U1", GP["RMII_CRS_DV"]), ("U6", "15")],
-    "RMII_TXD0":   [("U1", GP["RMII_TXD0"]), ("U6", "33")],
-    "RMII_TXD1":   [("U1", GP["RMII_TXD1"]), ("U6", "32")],
-    "RMII_TXEN":   [("U1", GP["RMII_TXEN"]), ("U6", "29")],
-    "RMII_RXER":   [("U1", GP["RMII_RXER"]), ("U6", "14")],
-}
-
-# fold the small "tie to a rail" nets into +3V3 / GND so they don't become
-# their own single-purpose stub (matches how gen-modules.py folds EN/DETECT
-# taps into shared rails where the intent is simply "tied to this rail").
-NETS["+5VSB"] += NETS.pop("EF_SHDN")            # SHDN tied to +5VSB... see note below
-NETS["+3V3"] += NETS.pop("FLASH_RESET_TIEHIGH")
-NETS["+3V3"] += [("U6", "34")] if False else []  # (no-op; VDDIO already wired above)
-del NETS["EF_FLT_SENSE"]
-
-# NOTE on EF_SHDN: TPS26621's SHDN is described active-low-shutdown by most
-# TI eFuse families; tying it HIGH (to the raw incoming +5VSB, its own input
-# rail) keeps the eFuse always-armed with no separate MCU shutdown control in
-# this reference block -- flagged as a placeholder policy (an MCU-controlled
-# shutdown GPIO is a reasonable per-family enhancement, not added here since
-# ent-common has no MCU-side "kill" signal defined by any REQ yet).
 
 FOOTPRINTS = {
     "J1": "cec:RJ45_FTP_Shielded_Horizontal",
@@ -332,7 +136,7 @@ FOOTPRINTS = {
     "D1": "cec-Diode_SMD:D_SOD-323",
     "D2": "cec-Diode_SMD:D_SOD-323",
     "D3": "cec-Diode_SMD:D_SMA",
-    "Y1": "",   # no real footprint yet -- see flags (frequency/part unverified)
+    "Y1": "",   # no real footprint yet -- README flag #5
     "Y2": "",
 }
 def fp_for(ref, lib, name, val):
@@ -346,71 +150,531 @@ def fp_for(ref, lib, name, val):
                     val, "cec-Capacitor_SMD:C_0402_1005Metric")
     return ""
 
-# ---------------------------------------------------------------------------
-# Placement (mm), left-to-right signal flow, A1 paper (the P4 body alone is
-# ~46 x 137mm -- this block needs real room). Grouped into charter-style
-# annotation boxes even though the T4 composition engine isn't wired in yet.
-PLACEMENT = {
-    "J1": (60, 380),
 
-    # mis-plug protection cluster, hugs J1
-    "R7": (110, 340), "D1": (110, 365), "R8": (140, 365), "R9": (140, 340),
-    "R10": (110, 410), "D2": (140, 410),
+Leaf = cec_sch_compose.Leaf
+LEAVES = {}
 
-    # eFuse + LDO power chain
-    "U2": (210, 380), "R1": (180, 420), "R2": (180, 440), "R3": (210, 420),
-    "R4": (210, 440), "R5": (240, 420), "C1": (240, 440), "R6": (270, 420),
-    "C2": (180, 360), "C3": (240, 360),
-    "U3": (300, 380), "C4": (280, 400), "C5": (320, 400),
+def leaf(id_, filename, sheetname, desc):
+    lf = Leaf(id_, filename, sheetname, desc)
+    LEAVES[id_] = lf
+    return lf
 
-    # CAN
-    "U4": (300, 300), "C6": (280, 270), "C7": (320, 270),
+def ap(lf, ref, lib, name, val):
+    """add_part with a dummy position (the compose pass places everything)."""
+    lf.add_part(ref, lib, name, val, 0, 0, fp_for(ref, lib, name, val))
 
-    # MCU + flash + XTAL
-    "U1": (450, 250),
-    "U5": (560, 130), "C8": (560, 100),
-    "Y1": (560, 250), "C9": (545, 270), "C10": (575, 270),
-    "C11": (560, 300), "C12": (560, 320), "C13": (390, 60), "C14": (390, 80),
-    "C15": (390, 100), "C16": (390, 120), "C17": (390, 140), "C18": (390, 160),
-    "R11": (390, 400), "R12": (390, 420), "SW1": (420, 420), "SW2": (420, 400),
 
-    # USB-C flash/debug
-    "J2": (450, 480), "D3": (410, 480), "C19": (410, 500),
-    "R13": (500, 500), "R14": (500, 520),
+# ===========================================================================
+# 01 -- power: RJ-45 jack + TPS26621 eFuse (survey 11 / REQ-MOD-COMMON-053)
+#       + LP5907 3V3 LDO. Jack pins 3-8 export to the other leaves.
+# ===========================================================================
+L01 = leaf("01", "01-power.kicad_sch", "01-power",
+           "RJ-45 VCC -> TPS26621 eFuse -> LP5907 3V3 LDO (REQ-MOD-COMMON-053); jack pin fan-out")
+ap(L01, "J1", "cec", "CEC_RJ45_8P8C_FTP", "TO-HUB")
+ap(L01, "U2", "cec-ent-power", "TPS26621DRCT", "TPS26621DRCT")
+ap(L01, "R1", "cec-vendor", "R_Small", "100k")   # UVLO divider top [placeholder]
+ap(L01, "R2", "cec-vendor", "R_Small", "20k")    # UVLO divider bottom
+ap(L01, "R3", "cec-vendor", "R_Small", "100k")   # OVP divider top [placeholder]
+ap(L01, "R4", "cec-vendor", "R_Small", "10k")    # OVP divider bottom
+ap(L01, "R5", "cec-vendor", "R_Small", "10k")    # ILIM set [placeholder]
+ap(L01, "C1", "cec-vendor", "C_Small", "1n")     # dVdT slew cap [placeholder]
+ap(L01, "R6", "cec-vendor", "R_Small", "10k")    # FLT pull-up -> +3V3
+ap(L01, "C2", "cec-vendor", "C_Small", "1u")     # eFuse IN bulk
+ap(L01, "C3", "cec-vendor", "C_Small", "1u")     # eFuse OUT bulk
+ap(L01, "U3", "cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3")
+ap(L01, "C4", "cec-vendor", "C_Small", "1u")     # LDO VIN bulk
+ap(L01, "C5", "cec-vendor", "C_Small", "1u")     # LDO VOUT bulk
 
-    # 100BASE-T1: CMC -> coupling -> PHY, right side
-    "L1": (620, 380), "C20": (650, 360), "C21": (650, 400),
-    "U6": (700, 380), "D4": (740, 380),
-    "Y2": (700, 300), "C22": (685, 280), "C23": (715, 280),
-    "C24": (700, 440), "C25": (720, 440), "C26": (740, 440), "C27": (760, 440),
-    "R15": (700, 260), "R16": (740, 260), "R17": (700, 240),
+L01.net("+5VSB", ("J1", "1"), ("U2", "1"), ("C2", "1"), ("R1", "1"), ("R3", "1"),
+        ("U2", "4"))                              # SHDN strapped to its own input rail
+L01.net("+5VSB_FUSED", ("U2", "10"), ("C3", "1"), ("U3", "1"), ("U3", "3"), ("C4", "1"))
+L01.net("+3V3", ("U3", "5"), ("C5", "1"), ("R6", "1"))
+L01.net("GND", ("J1", "2"), ("J1", "SH1"), ("J1", "SH2"),
+        ("U2", "5"), ("U2", "6"), ("U2", "11"),
+        ("R2", "2"), ("R4", "2"), ("R5", "2"), ("C1", "2"),
+        ("U3", "2"), ("C2", "2"), ("C3", "2"), ("C4", "2"), ("C5", "2"))
+L01.net("EF_UVLO", ("U2", "2"), ("R1", "2"), ("R2", "1"))
+L01.net("EF_OVP",  ("U2", "3"), ("R3", "2"), ("R4", "1"))
+L01.net("EF_ILIM", ("U2", "7"), ("R5", "1"))
+L01.net("EF_DVDT", ("U2", "8"), ("C1", "1"))
+L01.net("EF_FLT",  ("U2", "9"), ("R6", "2"))
+L01.net("CAN_H",      ("J1", "3"))
+L01.net("T1_A_RAW",   ("J1", "4"))
+L01.net("T1_B_RAW",   ("J1", "5"))
+L01.net("CAN_L",      ("J1", "6"))
+L01.net("SYNC7_RAW",  ("J1", "7"))
+L01.net("DETECT_RAW", ("J1", "8"))
+L01.hier_exports = {
+    "T1_A_RAW":     ("output", ("J1", "4")),
+    "T1_B_RAW":     ("output", ("J1", "5")),
+    "DETECT_RAW":   ("output", ("J1", "8")),
+    "SYNC7_RAW":    ("output", ("J1", "7")),
+    "CAN_H":        ("output", ("J1", "3")),
+    "CAN_L":        ("output", ("J1", "6")),
+    "+5VSB_FUSED":  ("output", ("U3", "1")),
+}
+L01.powerflag_nets = ["+5VSB", "GND"]
+
+
+# ===========================================================================
+# 02 -- misplug-protection: DETECT (pin 8) + pin-7 SYNC/FREEZE chains
+# ===========================================================================
+L02 = leaf("02", "02-misplug-protection.kicad_sch", "02-misplug-protection",
+           "DETECT series-R + 10k ENT code + ESD + poke tap; pin-7 series-R + clamp (REQ-MOD-COMMON-010/013/053)")
+ap(L02, "R7", "cec-vendor", "R_Small", "10k")     # DETECT series R_s (survey 11 (c))
+ap(L02, "D1", "cec-vendor", "D_Schottky", "PESD5V0S1BA")
+ap(L02, "R8", "cec-vendor", "R_Small", "10k")     # DETECT ENT code resistor (10k class)
+ap(L02, "R9", "cec-vendor", "R_Small", "100k")    # DETECT poke-and-ack tap
+ap(L02, "R10", "cec-vendor", "R_Small", "100")    # pin-7 series R [placeholder]
+ap(L02, "D2", "cec-vendor", "D_Schottky", "PESD5V0S1BA")
+
+L02.net("DETECT_RAW", ("R7", "1"))
+L02.net("DETECT_A", ("R7", "2"), ("D1", "1"), ("R8", "1"), ("R9", "1"))
+L02.net("DETECT_SENSE", ("R9", "2"))
+L02.net("SYNC7_RAW", ("R10", "1"))
+L02.net("SYNC7", ("R10", "2"), ("D2", "1"))
+L02.net("GND", ("D1", "2"), ("R8", "2"), ("D2", "2"))
+L02.hier_exports = {
+    "DETECT_RAW":   ("output", ("R7", "1")),
+    "SYNC7_RAW":    ("output", ("R10", "1")),
+    "DETECT_SENSE": ("output", ("R9", "2")),
+    "SYNC7":        ("output", ("R10", "2")),
 }
 
-SECTIONS = {
-    "MIS-PLUG PROTECTION (survey 11 / REQ-MOD-COMMON-053)": (95, 325, 300, 460),
-    "POWER: eFUSE -> 3V3 LDO": (170, 340, 340, 460),
-    "CAN (TJA1051T/3)": (270, 250, 340, 300),
-    "MCU + FLASH + XTAL": (380, 30, 600, 440),
-    "USB-C FLASH/DEBUG": (395, 460, 560, 540),
-    "100BASE-T1 (DP83TC814S-Q1 + protection)": (610, 220, 790, 460),
+
+# ===========================================================================
+# 03 -- can: TJA1051T/3 (pins 3/6, classical 500k)
+# ===========================================================================
+L03 = leaf("03", "03-can.kicad_sch", "03-can",
+           "TJA1051T/3 CAN transceiver, classical 500k, no module-side termination")
+ap(L03, "U4", "cec-vendor", "TJA1051T-3", "TJA1051T/3")
+ap(L03, "C6", "cec-vendor", "C_Small", "100n")    # CAN VCC bypass
+ap(L03, "C7", "cec-vendor", "C_Small", "100n")    # CAN VIO bypass
+
+L03.net("+5VSB_FUSED", ("U4", "3"), ("C6", "1"))
+L03.net("+3V3", ("U4", "5"), ("C7", "1"))
+L03.net("GND", ("U4", "2"), ("U4", "8"), ("C6", "2"), ("C7", "2"))
+L03.net("CAN_TX", ("U4", "1"))
+L03.net("CAN_RX", ("U4", "4"))
+L03.net("CAN_H", ("U4", "7"))
+L03.net("CAN_L", ("U4", "6"))
+L03.hier_exports = {
+    "CAN_H":       ("output", ("U4", "7")),
+    "CAN_L":       ("output", ("U4", "6")),
+    "+5VSB_FUSED": ("output", ("U4", "3")),
+    "CAN_TX":      ("output", ("U4", "1")),
+    "CAN_RX":      ("output", ("U4", "4")),
 }
+
+# ===========================================================================
+# 04 -- mcu: ESP32-P4 + external QSPI flash + main XTAL + decoupling field
+# ===========================================================================
+L04 = leaf("04", "04-mcu.kicad_sch", "04-mcu",
+           "ESP32-P4 (radio-free uniform ENT MCU) + W25Q QSPI flash + XTAL + BOOT/RESET + decoupling")
+ap(L04, "U1", "cec-ent-mcu", "ESP32-P4", "ESP32-P4NRW32")
+ap(L04, "U5", "cec-ent-power", "W25Q256JVFIQ", "W25Q256JVFIQ")  # flag #4: oversized placeholder
+ap(L04, "C8", "cec-vendor", "C_Small", "100n")   # flash VCC bypass
+ap(L04, "Y1", "ent-common-local", "Crystal_Small", "40MHz")     # flag #5: freq UNVERIFIED
+ap(L04, "C9", "cec-vendor", "C_Small", "20p")
+ap(L04, "C10", "cec-vendor", "C_Small", "20p")
+for _i in (11, 12):
+    ap(L04, f"C{_i}", "cec-vendor", "C_Small", "10u")
+for _i in range(13, 19):
+    ap(L04, f"C{_i}", "cec-vendor", "C_Small", "100n")
+ap(L04, "R11", "cec-vendor", "R_Small", "10k")   # CHIP_PU pull-up
+ap(L04, "R12", "cec-vendor", "R_Small", "10k")   # GPIO0 pull-up
+ap(L04, "SW1", "cec-vendor", "SW_Push", "BOOT")
+ap(L04, "SW2", "cec-vendor", "SW_Push", "RESET")
+
+L04.net("+3V3", *([("U5", "2"), ("U5", "3"), ("C8", "1"), ("R11", "1"), ("R12", "1")]
+                 + [(f"C{i}", "1") for i in range(11, 19)]
+                 + [("U1", P4[n]) for n in P4_VDD_3V3]))   # U5.3 = /RESET tie-high (flat fold)
+L04.net("GND", *([("U1", P4["GND"]), ("U1", P4["EN_DCDC"]),
+                  ("C9", "2"), ("C10", "2"),
+                  ("SW1", "1"), ("SW2", "1"), ("U5", "10"), ("C8", "2")]
+                 + [(f"C{i}", "2") for i in range(11, 19)]))
+L04.net("FLASH_CS",   ("U1", P4["FLASH_CS"]), ("U5", "7"))
+L04.net("FLASH_CK",   ("U1", P4["FLASH_CK"]), ("U5", "16"))
+L04.net("FLASH_D",    ("U1", P4["FLASH_D"]), ("U5", "15"))
+L04.net("FLASH_Q",    ("U1", P4["FLASH_Q"]), ("U5", "8"))
+L04.net("FLASH_HOLD", ("U1", P4["FLASH_HOLD"]), ("U5", "1"))
+L04.net("FLASH_WP",   ("U1", P4["FLASH_WP"]), ("U5", "9"))
+L04.net("XTAL_P", ("U1", P4["XTAL_P"]), ("Y1", "1"), ("C9", "1"))
+L04.net("XTAL_N", ("U1", P4["XTAL_N"]), ("Y1", "2"), ("C10", "1"))
+L04.net("CHIP_PU", ("U1", P4["CHIP_PU"]), ("R11", "2"), ("SW2", "2"))
+L04.net("GPIO0",   ("U1", P4["GPIO0"]), ("R12", "2"), ("SW1", "2"))
+for _net, _gp in [("CAN_TX", "CAN_TX"), ("CAN_RX", "CAN_RX"),
+                  ("DETECT_SENSE", "DETECT_SENSE"), ("SYNC7", "PIN7_SYNC"),
+                  ("PHY_MDC", "MDC"), ("PHY_MDIO", "MDIO"),
+                  ("RMII_REFCLK", "RMII_REFCLK"), ("RMII_RXD0", "RMII_RXD0"),
+                  ("RMII_RXD1", "RMII_RXD1"), ("RMII_CRS_DV", "RMII_CRS_DV"),
+                  ("RMII_TXD0", "RMII_TXD0"), ("RMII_TXD1", "RMII_TXD1"),
+                  ("RMII_TXEN", "RMII_TXEN"), ("RMII_RXER", "RMII_RXER"),
+                  ("PHY_RESET_N", "PHY_RESET_N"), ("PHY_INT_N", "PHY_INT_N")]:
+    L04.net(_net, ("U1", GP[_gp]))
+L04.net("USB_D_P", ("U1", P4["USB_DP"]))
+L04.net("USB_D_N", ("U1", P4["USB_DM"]))
+L04.hier_exports = {n: ("output", ("U1", p)) for n, p in [
+    ("DETECT_SENSE", GP["DETECT_SENSE"]), ("SYNC7", GP["PIN7_SYNC"]),
+    ("CAN_TX", GP["CAN_TX"]), ("CAN_RX", GP["CAN_RX"]),
+    ("USB_D_P", P4["USB_DP"]), ("USB_D_N", P4["USB_DM"]),
+    ("PHY_MDC", GP["MDC"]), ("PHY_MDIO", GP["MDIO"]),
+    ("PHY_INT_N", GP["PHY_INT_N"]), ("PHY_RESET_N", GP["PHY_RESET_N"]),
+    ("RMII_REFCLK", GP["RMII_REFCLK"]), ("RMII_RXD0", GP["RMII_RXD0"]),
+    ("RMII_RXD1", GP["RMII_RXD1"]), ("RMII_CRS_DV", GP["RMII_CRS_DV"]),
+    ("RMII_TXD0", GP["RMII_TXD0"]), ("RMII_TXD1", GP["RMII_TXD1"]),
+    ("RMII_TXEN", GP["RMII_TXEN"]), ("RMII_RXER", GP["RMII_RXER"]),
+]}
+
+
+# ===========================================================================
+# 05 -- t1-phy: 100BASE-T1 module link (pins 4/5): CMC -> AC-couple -> PHY
+# ===========================================================================
+L05 = leaf("05", "05-t1-phy.kicad_sch", "05-t1-phy",
+           "DP83TC814S-Q1 100BASE-T1 PHY + ACT1210L CMC + AC-coupling + PESD2ETH100-T ESD (REQ-MOD-COMMON-003)")
+ap(L05, "L1", "cec-ent-net", "ACT1210L-201-2P-TL00", "ACT1210L-201-2P-TL00")
+ap(L05, "C20", "cec-vendor", "C_Small", "10n")   # AC-coupling A [flag #7]
+ap(L05, "C21", "cec-vendor", "C_Small", "10n")   # AC-coupling B
+ap(L05, "U6", "cec-ent-net", "DP83TC814S-Q1", "DP83TC814S-Q1")
+ap(L05, "D4", "cec-ent-net", "PESD2ETH100-T", "PESD2ETH100-T")
+ap(L05, "Y2", "ent-common-local", "Crystal_Small", "25MHz")     # flag #5
+ap(L05, "C22", "cec-vendor", "C_Small", "20p")
+ap(L05, "C23", "cec-vendor", "C_Small", "20p")
+ap(L05, "C24", "cec-vendor", "C_Small", "1u")    # PHY supply bulk
+ap(L05, "C25", "cec-vendor", "C_Small", "100n")  # VDDA bypass
+ap(L05, "C26", "cec-vendor", "C_Small", "100n")  # VDDMAC bypass
+ap(L05, "C27", "cec-vendor", "C_Small", "100n")  # VDDIO bypass
+ap(L05, "R15", "cec-vendor", "R_Small", "2k2")   # MDIO pull-up
+ap(L05, "R16", "cec-vendor", "R_Small", "10k")   # PHY INT_N pull-up
+ap(L05, "R17", "cec-vendor", "R_Small", "10k")   # PHY RESET_N pull-up
+
+L05.net("T1_A_RAW", ("L1", "1"))
+L05.net("T1_B_RAW", ("L1", "2"))
+L05.net("T1_A_CMC", ("L1", "4"), ("C20", "1"))
+L05.net("T1_B_CMC", ("L1", "3"), ("C21", "1"))
+L05.net("TRD_P", ("C20", "2"), ("U6", "12"), ("D4", "1"))
+L05.net("TRD_M", ("C21", "2"), ("U6", "13"), ("D4", "2"))
+L05.net("PHY_XI", ("U6", "5"), ("Y2", "2"), ("C23", "1"))
+L05.net("PHY_XO", ("U6", "4"), ("Y2", "1"), ("C22", "1"))
+L05.net("+3V3", ("U6", "7"), ("U6", "11"), ("U6", "22"), ("U6", "34"),
+        ("C24", "1"), ("C25", "1"), ("C26", "1"), ("C27", "1"),
+        ("R15", "1"), ("R16", "1"), ("R17", "1"))
+L05.net("GND", ("D4", "3"), ("C22", "2"), ("C23", "2"),
+        ("C24", "2"), ("C25", "2"), ("C26", "2"), ("C27", "2"),
+        ("U6", "37"), ("U6", "17"), ("U6", "18"))
+L05.net("PHY_MDC", ("U6", "1"))
+L05.net("PHY_MDIO", ("U6", "36"), ("R15", "2"))
+L05.net("PHY_INT_N", ("U6", "2"), ("R16", "2"))
+L05.net("PHY_RESET_N", ("U6", "3"), ("R17", "2"))
+L05.net("RMII_REFCLK", ("U6", "28"))   # TX_CLK doubles as REF_CLK -- ** flagged **
+L05.net("RMII_RXD0", ("U6", "26"))
+L05.net("RMII_RXD1", ("U6", "25"))
+L05.net("RMII_CRS_DV", ("U6", "15"))
+L05.net("RMII_TXD0", ("U6", "33"))
+L05.net("RMII_TXD1", ("U6", "32"))
+L05.net("RMII_TXEN", ("U6", "29"))
+L05.net("RMII_RXER", ("U6", "14"))
+L05.hier_exports = {n: ("output", a) for n, a in [
+    ("T1_A_RAW", ("L1", "1")), ("T1_B_RAW", ("L1", "2")),
+    ("PHY_MDC", ("U6", "1")), ("PHY_MDIO", ("U6", "36")),
+    ("PHY_INT_N", ("U6", "2")), ("PHY_RESET_N", ("U6", "3")),
+    ("RMII_REFCLK", ("U6", "28")), ("RMII_RXD0", ("U6", "26")),
+    ("RMII_RXD1", ("U6", "25")), ("RMII_CRS_DV", ("U6", "15")),
+    ("RMII_TXD0", ("U6", "33")), ("RMII_TXD1", ("U6", "32")),
+    ("RMII_TXEN", ("U6", "29")), ("RMII_RXER", ("U6", "14")),
+]}
+
+
+# ===========================================================================
+# 06 -- usb-debug: USB-C flash/debug front end (platform pattern, verbatim)
+# ===========================================================================
+L06 = leaf("06", "06-usb-debug.kicad_sch", "06-usb-debug",
+           "USB-C 2.0 flash/debug: ORing Schottky into pre-eFuse +5VSB, CC pulldowns (platform pattern)")
+ap(L06, "J2", "cec-vendor", "USB_C_Receptacle_USB2.0_16P", "USB-C 2.0")
+ap(L06, "D3", "cec-vendor", "D_Schottky", "SS34")
+ap(L06, "C19", "cec-vendor", "C_Small", "10u")
+ap(L06, "R13", "cec-vendor", "R_Small", "5k1")   # CC1 pulldown
+ap(L06, "R14", "cec-vendor", "R_Small", "5k1")   # CC2 pulldown
+
+L06.net("+5VSB", ("D3", "1"))
+L06.net("VBUS", ("J2", "A4"), ("J2", "A9"), ("J2", "B4"), ("J2", "B9"),
+        ("D3", "2"), ("C19", "1"))
+L06.net("USB_D_P", ("J2", "A6"), ("J2", "B6"))
+L06.net("USB_D_N", ("J2", "A7"), ("J2", "B7"))
+L06.net("USB_CC1", ("J2", "A5"), ("R13", "1"))
+L06.net("USB_CC2", ("J2", "B5"), ("R14", "1"))
+L06.net("GND", ("J2", "A1"), ("J2", "A12"), ("J2", "B1"), ("J2", "B12"),
+        ("J2", "S1"), ("C19", "2"), ("R13", "2"), ("R14", "2"))
+L06.hier_exports = {
+    "USB_D_P": ("output", ("J2", "A6")),
+    "USB_D_N": ("output", ("J2", "A7")),
+}
+
+# ===========================================================================
+# COMPOSED LAYOUTS -- 1.27mm grid units, cec_sch_compose.Compose convention.
+# ===========================================================================
+class _Compose(cec_sch_compose.Compose):
+    def __init__(self, lf):
+        super().__init__(lf, LIBS)
+
+
+def compose_01():
+    c = _Compose(L01)
+    # jack: composed +5VSB/GND ties; pins 3-8 stay generic hier-anchor stubs
+    c.place("J1", 8, 44)
+    c.wire((0, 37), (-2, 37), (-2, 34))
+    c.stamp("+5VSB", -2, 34, 0)
+    c.use(("J1", "1"))
+    c.wire((0, 39), (-10, 39))
+    c.stamp("GND", -10, 39, 180)
+    c.use(("J1", "2"))
+    # shield tie: both tabs onto one riser, GND stamp ABOVE (the space below
+    # is the divider columns' tap-label territory -- render-checked)
+    sh1, sh2 = c.pin("J1", "SH1"), c.pin("J1", "SH2")
+    tx = sh1[0] + 4
+    c.wire(sh1, (tx, sh1[1]))
+    c.wire(sh2, (tx, sh2[1]))
+    c.wire((tx, sh2[1]), (tx, sh1[1]))
+    c.wire((tx, sh1[1]), (tx, sh1[1] - 3))
+    c.stamp("GND", tx, sh1[1] - 3, 180)
+    c.use(("J1", "SH1"), ("J1", "SH2"))
+
+    # eFuse: the protected-rail archetype (entry rail + cap, SHDN strap,
+    # ILIM/dVdT hangs, OUT rail + cap + hier export). Dividers are drawn as
+    # separate archetype columns left of the IC (tap labels merge by name
+    # with the IC-pin stub labels the generic pass emits).
+    arch.protected_rail(
+        c, ic="U2", origin=(60, 56), in_pin="1", out_pin="10",
+        entry_rail="+5VSB", entry_is_port=True, in_cap="C2", out_cap="C3",
+        dividers=[], hangs=[("7", "R5", "EF_ILIM"), ("8", "C1", "EF_DVDT")],
+        pullup=None, out_net="+5VSB_FUSED", out_kind="hier",
+        extra_in_pins=("4",))
+    arch.divider_chain(c, "R1", "R2", 24, 44, "EF_UVLO", tap_ang=180)
+    arch.divider_chain(c, "R3", "R4", 32, 48, "EF_OVP", tap_ang=0)
+    # RTN (U2.5) routed down-left so its GND stamp cannot crowd the entry rail
+    c.wire((54, 60), (54, 64), (58, 64))
+    c.stamp("GND", 58, 64, 0)
+    c.use(("U2", "5"))
+    # GND pin (U2.6, right side) routed up so its stamp art stays clear of the
+    # ILIM/dVdT hang labels below it (render-checked)
+    c.wire((66, 52), (69, 52), (69, 49))
+    c.stamp("GND", 69, 49, 180)
+    c.use(("U2", "6"))
+    # FLT pull-up detached (label-tied): the TPS26621 right column is too
+    # dense at 2u pitch for a drawn run past the ILIM/dVdT hangs
+    c.place("R6", 86, 50)
+    # LDO below the OUT rail; label-tied to +5VSB_FUSED (name-merge)
+    c.place("U3", 98, 76)
+    c.place("C4", 88, 86, 90)
+    c.place("C5", 108, 86, 90)
+    c.done()
+
+
+def compose_02():
+    c = _Compose(L02)
+    c.hier("DETECT_RAW", 10, 20, 180)
+    arch.protection_chain(c, (10, 20),
+                          [("series", "R7"), ("shunt", "D1"),
+                           ("shunt", "R8"), ("series", "R9")],
+                          "DETECT_SENSE", out_kind="hier", node_label="DETECT_A")
+    c.hier("SYNC7_RAW", 10, 36, 180)
+    arch.protection_chain(c, (10, 36),
+                          [("series", "R10"), ("shunt", "D2")],
+                          "SYNC7", out_kind="hier")
+    c.done()
+
+
+def compose_03():
+    c = _Compose(L03)
+    c.place("U4", 30, 30)
+    c.place("C6", 26, 48, 90)   # VCC bypass, label-tied to +5VSB_FUSED
+    c.place("C7", 26, 54, 90)   # VIO bypass (+3V3 stamp / GND stamp, generic)
+    c.done()
+
+
+def compose_04():
+    c = _Compose(L04)
+    c.place("U1", 56, 62)
+    arch.crystal_block(c, "U1", P4["XTAL_P"], P4["XTAL_N"], "Y1", "C9", "C10",
+                       side="right", far=12, near=8, drop=8)
+    arch.decoupler_bank(c, [f"C{i}" for i in range(11, 19)], 40, 124)
+    c.place("U5", 104, 68)
+    c.place("C8", 98, 84)
+    c.place("R11", 92, 124)
+    c.place("R12", 104, 124)  # 12u apart: CHIP_PU/GPIO0 stub labels are ~10mm long
+    c.place("SW1", 110, 124)
+    c.place("SW2", 110, 130)
+    c.done()
+
+
+def compose_05():
+    c = _Compose(L05)
+    c.place("U6", 50, 60)
+    # MDI chain: hier inputs -> CMC -> AC-coupling caps -> PHY TRD pins (drawn).
+    # Rows sit BELOW the crystal block's cap/GND column (render-checked: the
+    # first cut at y48/58 tangled with the crystal-cap GND stamps), and both
+    # jog lanes stay strictly LEFT of x25, the U6 left-pin stub-end column --
+    # a lane through x25 merges with the RX_ER/RX_DV/GND stub endpoints
+    # (measured: it shorted TRD_M into GND on an earlier try of this layout)
+    c.place("L1", 6, 56)
+    c.place("C20", 21, 52, 90)
+    c.place("C21", 19, 62, 90)
+    c.hier("T1_A_RAW", -3, 52, 180)
+    c.wire((-3, 52), (-1, 52))
+    c.hier("T1_B_RAW", -3, 62, 180)
+    c.wire((-3, 62), (-1, 62))
+    c.wire((13, 52), (16, 52), (19, 52))
+    c.label("T1_A_CMC", 16, 52, 0)
+    c.wire((23, 52), (23, 44), (28, 44))
+    c.label("TRD_P", 23, 44, 0)     # names the chain net; D4's stub label merges
+    c.wire((13, 62), (16, 62), (17, 62))
+    c.label("T1_B_CMC", 16, 62, 0)
+    c.wire((21, 62), (24, 62), (24, 46), (28, 46))
+    c.label("TRD_M", 24, 46, 0)
+    c.use(("L1", "1"), ("L1", "2"), ("L1", "3"), ("L1", "4"),
+          ("C20", "1"), ("C20", "2"), ("C21", "1"), ("C21", "2"),
+          ("U6", "12"), ("U6", "13"))
+    # one shared GND tie for the PHY's stacked GND_ESC/GND pins (17/18/37):
+    # three per-pin stamps at 2u pitch overlap each other's graphics
+    g17, g18, g37 = c.pin("U6", "17"), c.pin("U6", "18"), c.pin("U6", "37")
+    gx = g17[0] - 2
+    c.wire(g17, (gx, g17[1]))
+    c.wire(g18, (gx, g18[1]))
+    c.wire(g37, (gx, g37[1]))
+    c.wire((gx, g17[1]), (gx, g18[1]))
+    c.wire((gx, g18[1]), (gx, g37[1]))
+    c.wire((gx, g37[1]), (gx, g37[1] + 3))
+    c.stamp("GND", gx, g37[1] + 3, 0)
+    c.use(("U6", "17"), ("U6", "18"), ("U6", "37"))
+    # PHY-side ESD across TRD_P/TRD_M -- label-tied, placed clear below the chain
+    c.place("D4", 8, 68, 90)
+    # PHY crystal + load caps
+    arch.crystal_block(c, "U6", "4", "5", "Y2", "C22", "C23",
+                       side="left", far=11, near=7, drop=2, cap_gap=4)
+    # MDIO pull-up: drawn run with the hier export at its end (archetype)
+    mp = c.pin("U6", "36")
+    c.use(("U6", "36"))
+    arch.pullup_hang(c, mp, 84, "R15", rx=80, rail_pin="1", above=True,
+                     out="PHY_MDIO", out_kind="hier", out_ang=0)
+    # INT_N / RESET_N pull-ups detached (label-tied): the PHY's upper-left pin
+    # rows are hier-label territory, a drawn run would collide
+    c.place("R16", 40, 8)
+    c.place("R17", 54, 8)   # 14u apart: their stub labels are horizontal and ~10mm long
+    arch.decoupler_bank(c, ["C24", "C25", "C26", "C27"], 40, 104)
+    c.done()
+
+
+def compose_06():
+    c = _Compose(L06)
+    c.place("J2", 16, 36)
+    c.place("D3", 36, 16)
+    c.place("C19", 44, 18)
+    c.place("R13", 38, 52, 90)   # horizontal: CC labels read left, GND stamps right
+    c.place("R14", 38, 58, 90)
+    # J2's duplicated VBUS (A4/A9/B4/B9) and GND (A1/A12/B1/B12) pins share ONE
+    # symbol connection point each -- one generic stub serves the stack; the
+    # duplicates are marked consumed so the generic pass doesn't emit four
+    # coincident wires + four coincident labels (the flat sheet's dup-stub
+    # artifact). Connectivity is preserved: coincident pins join the single
+    # stub's endpoint (verified by the flattened-netlist equivalence check).
+    c.use(("J2", "A9"), ("J2", "B4"), ("J2", "B9"),
+          ("J2", "B1"), ("J2", "A12"), ("J2", "B12"))
+    c.done()
+
+# ===========================================================================
+# ROOT (thin parent) geometry -- left-to-right flow: jack/power feeds the
+# protection/CAN/USB column, which feeds the MCU, which drives the T1 PHY.
+# Every cross-leaf net is a REAL drawn wire between exactly two sheet pins
+# (build_thin_parent's 1:1 lane router); GND/+5VSB/+3V3 are global power
+# nets (per-leaf symbols, no sheet-pin plumbing).
+# ===========================================================================
+PARENT_PINS = {
+    "01": [("T1_A_RAW", "right"), ("T1_B_RAW", "right"), ("DETECT_RAW", "right"),
+           ("SYNC7_RAW", "right"), ("CAN_H", "right"), ("CAN_L", "right"),
+           ("+5VSB_FUSED", "right")],
+    "02": [("DETECT_RAW", "left"), ("SYNC7_RAW", "left"),
+           ("DETECT_SENSE", "right"), ("SYNC7", "right")],
+    "03": [("CAN_H", "left"), ("CAN_L", "left"), ("+5VSB_FUSED", "left"),
+           ("CAN_TX", "right"), ("CAN_RX", "right")],
+    "04": [("DETECT_SENSE", "left"), ("SYNC7", "left"), ("CAN_TX", "left"),
+           ("CAN_RX", "left"), ("USB_D_P", "left"), ("USB_D_N", "left"),
+           ("PHY_MDC", "right"), ("PHY_MDIO", "right"), ("PHY_INT_N", "right"),
+           ("PHY_RESET_N", "right"), ("RMII_REFCLK", "right"),
+           ("RMII_RXD0", "right"), ("RMII_RXD1", "right"),
+           ("RMII_CRS_DV", "right"), ("RMII_TXD0", "right"),
+           ("RMII_TXD1", "right"), ("RMII_TXEN", "right"), ("RMII_RXER", "right")],
+    "05": [("T1_A_RAW", "left"), ("T1_B_RAW", "left"), ("PHY_MDC", "left"),
+           ("PHY_MDIO", "left"), ("PHY_INT_N", "left"), ("PHY_RESET_N", "left"),
+           ("RMII_REFCLK", "left"), ("RMII_RXD0", "left"), ("RMII_RXD1", "left"),
+           ("RMII_CRS_DV", "left"), ("RMII_TXD0", "left"), ("RMII_TXD1", "left"),
+           ("RMII_TXEN", "left"), ("RMII_RXER", "left")],
+    "06": [("USB_D_P", "right"), ("USB_D_N", "right")],
+}
+BOX = {  # (x, y, w, h) in grid units
+    "01": (4, 8, 44, 36),
+    "02": (60, 24, 40, 16),
+    "03": (60, 56, 40, 22),
+    "04": (112, 24, 48, 56),
+    "05": (196, 8, 44, 68),
+    "06": (60, 88, 40, 14),
+}
+LEAF_PAPER = {"01": "A4", "02": "A4", "03": "A4", "04": "A3",
+              "05": "A4", "06": "A4"}
+
 
 if __name__ == "__main__":
-    used = cec_sch.load_symbols(LIBS, PARTS)
-    fps = {r: fp_for(r, *PARTS[r]) for r in PARTS}
-    out = f"{HERE}/p4-t1-block.kicad_sch"
-    if not os.path.exists(out):
-        # bootstrap stub: build_schematic reads the existing file's root uuid
-        # then overwrites it wholesale (same pattern as gen-module-rev2.py).
-        import uuid as _uuid
-        with open(out, "w") as f:
-            f.write(f'(kicad_sch (version 20260306) (generator "eeschema") '
-                    f'(generator_version "10.0") (uuid "{_uuid.uuid4()}") (paper "A1"))\n')
-    stats = cec_sch.build_schematic(
-        out, "p4-t1-block", PARTS, NETS, used, LIBS, paper="A1",
-        power_ports={"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"},
-        powerflag_nets=["+5VSB", "GND"],
-        placement=PLACEMENT, footprints=fps, sections=SECTIONS,
-    )
-    print(f"modules/ent-common/p4-t1-block.kicad_sch  " +
-          "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"))
+    for _fn in (compose_01, compose_02, compose_03, compose_04, compose_05,
+                compose_06):
+        _fn()
+
+    LEAF_ORDER = ["01", "02", "03", "04", "05", "06"]
+    total_parts = 0
+    for li, lid in enumerate(LEAF_ORDER):
+        lf = LEAVES[lid]
+        assert {n for n, _s in PARENT_PINS[lid]} == set(lf.hier_exports), lid
+        stats = cec_sch_compose.build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS, PROJECT,
+            path_prefix=f"{ROOT_UUID}/{LEAF_SYM_UUIDS[lid]}",
+            sheet_instances_path=LEAF_SYM_UUIDS[lid],
+            own_uuid=LEAF_OWN_UUIDS[lid],
+            page=str(li + 2), out_path=f"{HERE}/{lf.filename}",
+            paper=LEAF_PAPER[lid],
+            title=f"CEC ENT module common block: {lf.sheetname}",
+            comment1=lf.desc,
+            pwr_base=100 * (li + 1), layout=lf.layout)
+        total_parts += stats["parts"]
+        n_moved, still = cec_sch_layout.nudge_texts(f"{HERE}/{lf.filename}")
+        stats["nudged"], stats["text_overlaps_left"] = n_moved, still
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
+
+    u = cec_sch.GRID
+    leaves_for_parent = []
+    for li, lid in enumerate(LEAF_ORDER):
+        lf = LEAVES[lid]
+        bx, by, bw, bh = BOX[lid]
+        leaves_for_parent.append({
+            "id": lid, "sym_uuid": LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": str(li + 2),
+            "x": bx * u, "y": by * u, "w": bw * u, "h": bh * u,
+            "pins": [(name, lf.hier_exports[name][0], side)
+                     for name, side in PARENT_PINS[lid]],
+        })
+
+    parent_stats = cec_sch_compose.build_thin_parent(
+        leaves_for_parent, set(), PROJECT, ROOT_UUID,
+        None,                     # own_sheet_sym_uuid=None: this parent IS the root
+        ROOT_UUID, out_path=f"{HERE}/p4-t1-block.kicad_sch",
+        title="CEC ENT module common block -- p4-t1-block (root)", paper="A3",
+        global_power_exports=None, libs=LIBS, pwr_base=700,
+        title_comments=(
+            "Root = thin parent: sheet-symbol fan-out/fan-in only, no components "
+            "(owner 2026-07-02 format correction)",
+            "Shared ESP32-P4 + 100BASE-T1 ENT module block -- designed once, "
+            "instantiated x4 by the ENT module families",
+            "GND/+5VSB/+3V3 are global power nets (per-leaf symbols); every other "
+            "crossing is a drawn sheet-pin wire"))
+    print("p4-t1-block.kicad_sch (root thin parent)  "
+          + "  ".join(f"{k}={v}" for k, v in parent_stats.items())
+          + f"  total_leaf_parts={total_parts}")

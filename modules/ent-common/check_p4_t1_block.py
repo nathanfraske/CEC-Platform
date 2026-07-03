@@ -117,7 +117,12 @@ def main():
     # -----------------------------------------------------------------
     for f in ("p4-t1-block.kicad_sch", "p4-t1-block.kicad_pro",
               "sym-lib-table", "fp-lib-table", "ent-common-local.kicad_sym",
-              "gen_p4_t1_block.py", "README.md"):
+              "gen_p4_t1_block.py", "README.md",
+              # hierarchy leaf sheets (2026-07-03 restructure: root = thin
+              # parent, one functional block per leaf file)
+              "01-power.kicad_sch", "02-misplug-protection.kicad_sch",
+              "03-can.kicad_sch", "04-mcu.kicad_sch", "05-t1-phy.kicad_sch",
+              "06-usb-debug.kicad_sch"):
         check(os.path.isfile(os.path.join(HERE, f)), f"project file present: {f}")
 
     # -----------------------------------------------------------------
@@ -255,6 +260,25 @@ def main():
     for pin, prefix in EXPECT_PREFIX.items():
         got = pinfuncs.get(("U6", pin), "")
         check(got.startswith(prefix), f"U6 pin {pin} is named {prefix}* in the vendored DP83TC814S-Q1 symbol (got {got!r})")
+
+    # -----------------------------------------------------------------
+    # 9. hierarchy equivalence guard (2026-07-03 restructure) -- same
+    #    discipline scripts/check_hub_ent_sch.py grew for the hub's
+    #    re-sheeting: component count + flattened connectivity-group
+    #    count frozen against the pre-restructure single-sheet baseline
+    #    (verified node-set-for-node-set at restructure time: 61 comps,
+    #    130 groups of which 53 multi-node, 0 missing / 0 extra).
+    # -----------------------------------------------------------------
+    real_comps = [r for r in comps if not r.startswith("#")]
+    check(len(real_comps) == 61,
+          f"component count unchanged by the re-sheeting (expected 61, got {len(real_comps)})")
+    groups = sorted(frozenset(v) for v in nets.values())
+    check(len(groups) == 130,
+          f"flattened connectivity group count unchanged by the re-sheeting "
+          f"(expected 130, matching the pre-restructure flat baseline; got {len(groups)})")
+    multi = sum(1 for g in groups if len(g) >= 2)
+    check(multi == 53,
+          f"multi-node connectivity group count unchanged (expected 53, got {multi})")
 
     if FAILURES:
         print(f"\n{len(FAILURES)} FAILURE(S):", file=sys.stderr)
