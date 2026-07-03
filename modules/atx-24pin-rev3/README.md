@@ -1,11 +1,31 @@
-# atx-24pin-rev3 — respin (SCAFFOLD; not yet implemented)
+# atx-24pin-rev3 — BETA-1 (schematic-complete; PCB layout not started)
 
-> **STATUS (2026-06-24):** this dir is a **scaffold = a verbatim copy of `../atx-24pin-rev2`'s
-> fully-placed, fully-routed layout** (NOT a blank slate). The rev3 respin changes — the optional
-> mezzanine stack, the 5V/5VSB power mux (TPS2121), the J1.1-open fix, and the shrink levers — are
-> **NOT applied yet**. They are fully specified in **`../../docs/24pin-rev3-respin-2026-06-24.md`** +
-> `../../docs/mezzanine-stack-design-2026-06-24.md` and are the GUI/edit hand-off. Everything below is
-> the **inherited rev2 layout/erratum** and remains true until the respin splice lands.
+> **STATUS (2026-07-03, beta schematic wave, K2 ruling):** the schematic is now **BETA-1**
+> (see the title block and `docs/standard-tier-review/beta-splices/atx-24pin.md` for the full
+> record). This pass: (1) closed the K1 gate — the J6 mezzanine pin-map contradiction between
+> this board's netlist and `docs/mezzanine-stack-design-2026-06-24.md` — in the SCHEMATIC's
+> favor (the design doc was corrected; rev3's J6 and `hubs/hub-rev2`'s J_MEZZ already agreed
+> with each other, so no re-pin was needed or done); (2) fixed RS4 (the 25 mOhm 5VSB shunt) onto
+> a true 4-terminal Kelvin land (`CEC_SHUNT_4T` + the Vishay WSK2512 footprint, matching the
+> alpha board's RS6 treatment — was a 2-pad land conflating current path and INA228 sense taps);
+> (3) added the H3/H3a standalone-mode suite (USBLC6-2SC6 USB ESD, a VBUS clamp, a populated
+> VBUS ferrite bead, a 0R-default port-entry bead on +5V_SYS, and a DNP CAN common-mode-choke
+> position with a parallel 0R bypass so CAN stays continuous unpopulated); (4) marked the J4
+> ATX output connector's form as **WORKING BASIS** pending the D-5a owner ruling (still the
+> placeholder male Mini-Fit Jr header); (5) discovered and fixed a real pre-existing defect: J2
+> (the Hub-power JST) was still wired to the stale `+5VSB` input net instead of the mux's
+> `+5V_SYS` output, contradicting the respin doc's own stated intent.
+>
+> **PCB is UNTOUCHED** — still byte-identical to `../atx-24pin-rev2`'s fully-placed/routed
+> layout, which predates all of the above (no mux, no mezzanine header, no C6, no H3 suite, no
+> Kelvin RS4). Layout starts FRESH from this schematic; the `DRAFT` marker stays in place (CI
+> correctly skips PCB-side checks) until that pass happens. Do not run "Update PCB from
+> Schematic" expecting a small diff — treat the PCB as needing a full new placement/route pass.
+>
+> Earlier scaffold history (2026-06-24, respin design + build) is preserved below for
+> provenance; the "synced copy, do not edit directly" convention it describes is now STALE —
+> this schematic has been hand-spliced far beyond a sync copy and IS the source of truth for
+> this board going forward (rev2 stays frozen/ordered, unrelated to this file).
 
 Same circuit as [`../atx-24pin`](../atx-24pin) (the canonical 24-pin ATX
 interposer); **different PCB layout only** — 24-pin input (J3) with the 24-pin

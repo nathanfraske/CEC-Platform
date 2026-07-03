@@ -4,6 +4,13 @@
 	(generator_version "10.0")
 	(uuid "a4774022-41d4-4be7-85b6-fed5477a3f9f")
 	(paper "A2")
+	(title_block
+		(title "CEC 24-pin ATX Module")
+		(date "2026-07-03")
+		(rev "BETA-1")
+		(company "CEC")
+		(comment 1 "BETA-1 (beta schematic wave, K2 ruling): J6 mezzanine pin-map reconciliation (design doc corrected to match the as-built rev3/hub-rev2 pair, no schematic re-pin -- K1 gate CLOSED); RS4 5VSB shunt -> true 4-terminal Kelvin land (CEC_SHUNT_4T + Vishay WSK2512 footprint, B4); H3/H3a standalone-mode suite (USBLC6-2SC6 ESD, VBUS clamp, VBUS bead populated, +5V_SYS port-entry bead 0R-default, CAN CMC position DNP + parallel 0R bypass); output-form (J4) marked WORKING BASIS pending the D-5a ruling; discovered+fixed a pre-existing J2 net defect (Hub-power JST was still on the stale +5VSB input, not the mux's +5V_SYS output). See docs/standard-tier-review/beta-splices/atx-24pin.md.")
+	)
 	(lib_symbols
 		(symbol "cec:CEC_RJ45_8P8C_FTP"
 			(pin_names
