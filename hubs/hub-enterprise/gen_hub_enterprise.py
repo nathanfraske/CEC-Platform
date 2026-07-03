@@ -1165,13 +1165,20 @@ def compose_can_frontend():
     c.place("U_CAN", 40, 50)
     c.io("CAN_TX", "left")
     c.io("CAN_RX", "left")
+    # NOTE: TXD/RXD/VIO/S are ALL on U_CAN's left edge (native pin geometry),
+    # and TXD/RXD's S1 column routes further left of the whole leaf's content
+    # -- VIO/S must jog RIGHT first (toward the body) before doing anything
+    # else, or their wires land in the io column's own routing corridor and
+    # the router refuses (a real crash caught empirically while building this).
     s_pin = c.pin("U_CAN", "8")
-    c.wire(s_pin, (s_pin[0] - 4, s_pin[1]))
-    c.stamp("GND", s_pin[0] - 4, s_pin[1], 180)
+    c.wire(s_pin, (s_pin[0] + 4, s_pin[1]))
+    c.wire((s_pin[0] + 4, s_pin[1]), (s_pin[0] + 4, s_pin[1] + 4))
+    c.stamp("GND", s_pin[0] + 4, s_pin[1] + 4, 0)
     c.use(("U_CAN", "8"))
     vio = c.pin("U_CAN", "5")
-    cvio = c.place_pin("C_CANVIO", "2", vio[0] - 4, vio[1], 0)
-    c.wire(vio, cvio)
+    c.wire(vio, (vio[0] + 4, vio[1]))
+    cvio = c.place_pin("C_CANVIO", "2", vio[0] + 4, vio[1] + 4, 0)
+    c.wire((vio[0] + 4, vio[1]), cvio)
     c.use(("U_CAN", "5"), ("C_CANVIO", "2"))
     cvio1 = c.pin("C_CANVIO", "1")
     c.wire(cvio1, (cvio1[0], cvio1[1] - 4))
