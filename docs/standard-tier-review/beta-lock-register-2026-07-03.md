@@ -125,7 +125,7 @@ below marked VERIFIED was re-checked live by an independent second agent this se
   positions cost pad area only.
 
 
-## I. Tier board-sharing doctrine (owner question, 2026-07-03 — assessment recorded)
+## I. Tier board-sharing doctrine (RATIFIED by owner, 2026-07-03: "they're tuned for very different things... they deserve their own boards")
 
 Owner asked: build the Pro variants by default and make Standard a no-pop population of the
 same board? ASSESSMENT (recommendation, owner to ratify):
@@ -143,3 +143,27 @@ same board? ASSESSMENT (recommendation, owner to ratify):
 - **MAX is its own board, always** — FPGA acquisition + Rogowski-coil high-MHz di/dt is a
   different physics package; the coil's analog front end dictates its own layout. Nothing
   shareable below the connector.
+
+
+## J. Housing directive + the 12VHPWR thermal interaction (owner, 2026-07-03)
+
+- **J1 (DIRECTIVE): Standard tier ships ENCLOSED** — 3D-printed housings for initial runs, with
+  built-in strain relief and RGB transparency; the Hub's RGB ring surrounds the CEC logo and
+  shines through directly. Mechanical workstream opens: per-board shells, service cutouts
+  (USB-C + BOOT/RESET per the H3 standalone ruling), M3 mounts become housing bosses, light
+  pipes/windows. Strain relief moves INTO the shell (supersedes part of F1's board-edge-anchor
+  proposal — anchors stay only where the shell doesn't cover).
+- **J2 (CRITICAL INTERACTION, flagged): the 12VHPWR thermal PASS assumed a METAL case** —
+  the validated 72.95°C/ΔT22.95 solve is conduction via TIM-on-shunts + M3 mounts into metal;
+  still-air no-case = 151°C; a printed shell is WORSE than open air (insulator + blocks
+  convection). Owner's own electrothermal solves agree (2.5mm/pin 2oz + mirror + vias still too
+  hot in still air) → owner floated a small fan. MENU (quality-first order): (1) hybrid housing
+  = printed shell + TIM-coupled ALUMINUM BASEPLATE under the shunt row — keeps the validated
+  cooling model, silent, no wear item; (2) DNP fan provision regardless (2-pin header, powered
+  from the 12V INPUT BUS upstream of the shunt row so fan draw never pollutes per-pin GPU-side
+  measurement; NEVER from 5VSB/OQ-2 budget); (3) fan-primary (25-30mm) — works but adds a wear
+  item; mitigation: TH1 shunt-row NTC + firmware overtemp alarm = the module alarms on its own
+  cooling failure. RECOMMENDED: (1)+(2)+alarm. The housing task inherits the thermal spec as a
+  REQUIREMENT. Other module housings: no equivalent concern at their dissipation (EPS/PCIe
+  cable boards run cool; verify at their W6 electrothermal gates with the enclosed boundary
+  condition, not open-air).
