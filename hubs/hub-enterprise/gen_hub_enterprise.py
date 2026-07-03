@@ -632,14 +632,22 @@ def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
     c = _Compose(lf)
     c.place(Uef, 80, 84)
     # ---- top band, y=64: J.1 -> stamp/label -> [tvs] -> Cin tap -> divider
-    # tap -> SHDN-less: IN riser at x65
-    c.place_pin(J, "1", 24, 64)
-    splits = [(24, 64), (28, 64)]
+    # tap -> IN riser at x65
     if tvs:
+        # PJ-002AH's SLEEVE (GND) pin exits its RIGHT side at the same local
+        # row as TIP -- placing TIP directly on the band put SLEEVE ON the
+        # band's copper (measured 2026-07-03: KiCad CONNECTS a pin sitting
+        # under a wire INTERIOR; ERC multiple_net_names GND<->EXT_5V). Seat
+        # the jack one row lower and jog up into the band instead.
+        c.place_pin(J, "1", 24, 66)
+        c.wire((24, 66), (26, 66), (26, 64))
+        splits = [(26, 64), (28, 64), (36, 64), (40, 64)]
         c.place(tvs, 36, 67, 90)          # rail pin (2) lands at (36,64)
-        splits.append((36, 64))
         c.use((tvs, "2"))
-    splits += ([(40, 64)] if tvs else []) + [(44, 64), (52, 64), (65, 64)]
+    else:
+        c.place_pin(J, "1", 24, 64)
+        splits = [(24, 64), (28, 64)]
+    splits += [(48, 64), (56, 64), (65, 64)]
     for a, b in zip(splits, splits[1:]):
         c.wire(a, b)
     if rail:
@@ -653,17 +661,17 @@ def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
         c.hier("EXT_5V", 24, 60, 180)
     c.use((J, "1"))
     # input cap on the band
-    c.place(Cin, 44, 68)
-    c.wire((44, 64), (44, 66))
+    c.place(Cin, 48, 68)
+    c.wire((48, 64), (48, 66))
     c.use((Cin, "1"))
     # UVLO/OVLO divider chain hanging from the band (3 resistors, 2 taps)
-    c.place(Rt, 52, 68); c.place(Rm, 52, 76); c.place(Rb, 52, 84)
+    c.place(Rt, 56, 68); c.place(Rm, 56, 76); c.place(Rb, 56, 84)
     c.text_side[Rt] = c.text_side[Rm] = c.text_side[Rb] = "left"
-    c.wire((52, 64), (52, 66))
-    c.wire(c.pin(Rt, "2"), (52, 72), c.pin(Rm, "1"))
-    c.label(f"UVLO_{sfx}", 52, 72, 180)
-    c.wire(c.pin(Rm, "2"), (52, 80), c.pin(Rb, "1"))
-    c.label(f"OVP_{sfx}", 52, 80, 180)
+    c.wire((56, 64), (56, 66))
+    c.wire(c.pin(Rt, "2"), (56, 72), c.pin(Rm, "1"))
+    c.label(f"UVLO_{sfx}", 56, 72, 180)
+    c.wire(c.pin(Rm, "2"), (56, 80), c.pin(Rb, "1"))
+    c.label(f"OVP_{sfx}", 56, 80, 180)
     c.use((Rt, "1"), (Rt, "2"), (Rm, "1"), (Rm, "2"), (Rb, "1"))
     # IN riser + IN pin bus (5 pins, x=69, y=86..94)
     c.wire((65, 64), (65, 86), (69, 86))
