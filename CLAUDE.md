@@ -35,26 +35,54 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.2.0 (2026-07-02), controlled baseline** — THE
-ENTERPRISE LINE, applied under owner sign-off (nine rulings, 2026-07-01/02). What v1.2.0
-adds over v1.1.0: (a) **§1 tier table rewritten** to three tiers — Standard / Pro /
-**ENT (one line, SKU-differentiated: posture NET/AIR × availability base/MC/MC-Max ×
-silicon base/HS)**; OQ-7 RESOLVED. (b) **New Section 13** (13.1–13.9): PolarFire SoC hub
-(production baseline **MPFS095TC Core** on a part-agnostic SerDes-free FCVG484 land,
-S-grade Athena = the HS population option), 13.2a **100BASE-T1 module link on pair 2 for
-every ENT module** (T1-only hub via 2× LAN9370; RS-485 stays consumer-Pro; uniform
-ESP32-P4 module MCU; DETECT 10 kΩ class), 13.8 availability ladder (independent watchdog
-on MC; fail-functional 2oo2 voting pair on MC-Max). (c) **§2.3 pin-7 allocation change**
-(the one LOCKED-table edit): consumer tiers keep reserved-spare/NC; ENT allocates pin 7
-as the SYNC/FREEZE line (≤100 ns) + per-module heartbeat challenger. (d) §2.4 ENT uplink
-protection + module-port mis-plug fail-safe; §2.9/§3.1 enterprise graduation/honesty
-paragraphs. (e) OQ closures: 7, the OQ-14 ENT half, 53–56 (ENT tier), **OQ-11 FULLY
-RESOLVED** (all shunt parts locked incl. EPS/PCIe 0.5 mΩ CSS2H-2512R-L500F + 12VHPWR
-1 mΩ CSS2H-2512R-1L00F); OQ-75..81 opened. Requirements of record:
-`docs/enterprise-requirements/` (114 REQs, 6 registers, lint-enforced + a
-verification-matrix with statement-hash rot detection). ENT board program: library
-intake starting (`docs/enterprise-requirements/board-program/`); consumer boards
-unaffected — no LOCKED electrical decision was altered.
+Spec revision reflected here: **v1.3.0 (2026-07-03), controlled baseline** — THE
+CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions
+(`docs/standard-tier-review/beta-lock-register-2026-07-03.md` §A–L). No LOCKED electrical
+decision is altered and no spec section is renumbered — every change is an in-place note,
+a new subsection (**§6.14**), or a new OQ. What v1.3.0 adds over v1.2.0: (a) **alpha/beta
+revision-line convention + quality-first guiding principle** into Document control (alpha =
+the validated existing consumer boards, beta = owner-approved refinements as a lineage
+beside alpha). (b) **§6.14 module standalone mode + common protection suite** (H3/H3a):
+USB-CDC when no CAN master; USBLC6-2SC6 + VBUS clamp on every module; ferrite posture
+(VBUS bead MPZ2012S601AT000/C21519 populated, 5VSB bead 0Ω-provisioned, CAN CMC
+DNP-provisioned, no series ferrites on USB D±); the **H3a-PATTERN** (series-DNP on a
+required path ⇒ two populated 0Ω bypasses, because KiCad netlists a DNP series part as
+connected); FCC-15B unintentional-radiator rationale. (c) **enclosed product** (J1/J2):
+§6.6 makes the ENCLOSED boundary the electrothermal-gate standard + F1/F3 dress-anchor /
+self-describing-silk requirements; §6.1 adds the 12VHPWR printed-housing thermal conflict
++ TIM-baseplate/DNP-fan-J2-off-pre-shunt-lane-6/TH1-alarm menu; §4 records the enclosed
+Hub (RGB shine-through). (d) **Hub beta §2.9 persist-on-fault realization** (H1/H2/G3, §L):
+TLV7011 5V-drop comparator → IO14 RTC-wake trigger; DNP hold-up ladder (TPS61040 ~11.5V
+boosted reservoir + TPS563201 buck, LP5907-EN re-strap caveat); §L budget + persist
+firmware contract; persist-on-fault shipped as a feature. (e) **Hub power-in
+consolidation** (A4): single 3-pin JST S3B-XH-A / C157928 (MAIN_5V / GND-center / 5VSB)
+supersedes the two 2-pin feeds (§2.7/§2.9/§4). (f) **antenna keepout DROPPED at Standard**
+(D-6a): no Wi-Fi ever, subassembly/unintentional-radiator, ~$100k cert avoided, ~450mm²
+reclaimed (§4 MCU/regulator rows). (g) **C1 doc-truth fix** (A1): Hub hold-up cap =
+Samxon/Ymin VKMI2101C472MV / C487318 (the shipping part; Panasonic EEVFK1C472M was
+documentation-only, out of stock). (h) **board-sharing doctrine** (§6 preamble) + **D-2
+SKU shape** (§6.2: PCIe permanently two boards, EPS-1 declined). (i) **mezzanine
+formalized** (K1/D-3): OQ-77 = approved alternative Standard SKU beside the LOCKED cabled
+default, with the reconciled as-built J6 pin map. (j) kit/host facts (D-1 §2.8 PROPOSED
+custom-female-pigtail without unlocking §2.8; G1 §4 host-USB-to-motherboard-internal-header;
+G2 §2.6 braided patch cables). (k) QoL (F2 LED semantics forcing OQ-2, F7 single-point CAN
+firmware update §3.1). (l) **new OQ-82** (24-pin output form / D-5a), **OQ-83** (platform
+CMC part+footprint), **OQ-84** (consumer FCC-15B + inline-power product-safety docs),
+**OQ-85** (firmware contracts / SB-07); range now OQ-1..OQ-85.
+
+Prior baseline, retained for provenance: **v1.2.0 (2026-07-02), controlled baseline** —
+THE ENTERPRISE LINE (owner sign-off, nine rulings 2026-07-01/02): §1 tier table to three
+tiers (Standard / Pro / **ENT**, one line, SKU-differentiated posture NET/AIR × availability
+base/MC/MC-Max × silicon base/HS; OQ-7 RESOLVED); new **Section 13** (PolarFire SoC hub,
+production baseline **MPFS095TC Core** on the part-agnostic SerDes-free FCVG484 land, S-grade
+Athena = HS option; §13.2a 100BASE-T1 module link on pair 2 for every ENT module, uniform
+ESP32-P4, DETECT 10 kΩ; §13.8 availability ladder); the one LOCKED-table edit = **§2.3 pin-7**
+(consumer keeps reserved-spare/NC, ENT = SYNC/FREEZE ≤100 ns + heartbeat challenger); §2.4
+ENT uplink protection + mis-plug fail-safe; §2.9/§3.1 ENT graduation/honesty; OQ closures 7,
+OQ-14 ENT half, 53–56 (ENT), **OQ-11 FULLY RESOLVED** (EPS/PCIe 0.5 mΩ CSS2H-2512R-L500F +
+12VHPWR 1 mΩ CSS2H-2512R-1L00F); OQ-75..81 opened. Requirements of record:
+`docs/enterprise-requirements/` (114 REQs, 6 registers, lint-enforced + verification-matrix
+with statement-hash rot detection). No LOCKED electrical decision altered.
 
 Prior baseline, retained for provenance: **v1.1.0 (2026-06-09), controlled baseline**
 (semantic versioning; supersedes the pre-release v1.0–v3.11 working line, whose detailed
