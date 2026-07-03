@@ -1,9 +1,11 @@
 # Standard-tier BETA refinement plan — synthesis of the 6-report review pass
 
 _2026-07-03. Owner context: real purchase demand for Standard NOW; the existing boards are
-the validated **ALPHA** line (working prototypes, concept 100% proven); everything proposed
-here is the **BETA** line (owner approval required; cleanly denoted per the CLAUDE.md
-alpha/beta convention; alpha artifacts never overwritten). Inputs: the six reports in this
+the validated **ALPHA** line — owner clarification (same day): every module's prototype is a
+**one-to-one replica of the board**, so each design is validated in principle as-is; beta =
+"do the exact same thing," refined. **The beta line is CONFIRMED/green-lit by the owner** —
+proposals below execute under the beta flag on their individual approvals; alpha artifacts
+never overwritten. Shunt locks (OQ-11) re-confirmed verbally same day._ Inputs: the six reports in this
 directory (hub-standard, atx-24pin, eps-8pin, pcie-8pin, 12vhpwr-standard, product-crosscut),
 each verified against live kicad-cli/pcbnew state, not documentation claims._
 
@@ -45,7 +47,14 @@ W8. **Beta denotation mechanics**: Rev field "BETA-1" on every changed board, RE
 ## 3. OWNER DECISION LIST (deduped from all six reports; framed, never resolved)
 
 **Product / kit shape:**
-- **D-1. Kit definition + honest install cost.** Minimum kit = Hub($36) + 24-pin($35→see D-5) +
+- **D-1. Kit definition + honest install cost.** _PARTIALLY ANSWERED (owner, 2026-07-03):
+  connectors for the cable SKUs = standard off-the-shelf panel connectors, ~$0.20 each across the
+  board; and the owner is fashioning a CUSTOM female pigtail assembly that "effectively creates a
+  board-mount female header" — this attacks §2.8's core premise (no stock board-mount female
+  exists) and plausibly retires the F-F bridging-cable SKU question and/or the 12VHPWR captive
+  pigtail form. REMAINING for the record: which module(s) the custom female header applies to
+  (24-pin output? 12VHPWR output? both), its drawing/spec so it can enter the BOM + spec text,
+  and the cable length catalog (OQ-4)._ Original framing: Minimum kit = Hub($36) + 24-pin($35→see D-5) +
   chosen module(s) ⇒ $103–155 component-BOM before cables. Two REQUIRED cable SKUs do not exist
   anywhere (no part, no price): the F-F 24-pin bridging cable (§2.8 promises it; the module is
   uninstallable without it) and the JST 5VSB Hub-feed cable. Decide: bundle-in-box vs accessory
