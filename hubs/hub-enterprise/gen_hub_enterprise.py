@@ -597,10 +597,16 @@ L01G.net("SENSE_SYS", ("R129", "2"), ("R130", "1"))
 L01G.net("GND", ("R130", "2"))
 
 L01G.hier_exports = {
-    "+5V_MAIN":   ("output", ("R123", "1")),
-    "+5VSB":      ("output", ("R125", "1")),
+    # +5V_MAIN / +5VSB / +5V_SYS are NOT anchored here (see GLOBAL_POWER_EXPORTS
+    # below): they are real KiCad global power nets (POWER_PORTS), so R123/
+    # R125/R129 just use the ordinary global power symbol like every other
+    # leaf's own copy of that rail -- no sheet-pin/hierarchical-label plumbing
+    # needed or wanted for them. Forcing one, as the pre-restructure flat
+    # sheet's single-file "anchor" convention did, does NOT merge with the
+    # OTHER leaves' global-symbol copies once split across files: global power
+    # symbols and hierarchical labels are different, non-interoperating KiCad
+    # mechanisms (verified empirically against a real reference project).
     "EXT_5V":     ("output", ("R127", "1")),
-    "+5V_SYS":    ("output", ("R129", "1")),
     "SENSE_MAIN": ("output", ("R124", "1")),
     "SENSE_SVB":  ("output", ("R126", "1")),
     "SENSE_EXT":  ("output", ("R128", "1")),
@@ -631,6 +637,13 @@ HIER_EXPORTS = {
     "SENSE_SYS":  ("output", ("R130", "1")),
 }
 ROOT_EXPORT_NETS = set(HIER_EXPORTS)
+
+# root-exports that reach root via a REAL KiCad global power symbol placed
+# directly in the thin parent (no leaf sheet-pin at all -- see the note on
+# L01G.hier_exports above). net_name -> power-symbol name (same for all three,
+# but kept as a mapping for generality / a future net whose symbol name
+# differs from its net name).
+GLOBAL_POWER_EXPORTS = {n: n for n in ("+5V_MAIN", "+5VSB", "+5V_SYS")}
 
 
 if __name__ == "__main__":
@@ -680,7 +693,8 @@ if __name__ == "__main__":
     parent_stats = build_thin_parent(
         leaves_for_parent, ROOT_EXPORT_NETS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
         SHEET01_OWN_UUID, out_path=f"{HERE}/01-power-input.kicad_sch",
-        title="CEC Hub -- Enterprise (ENT): 01-power-input (thin parent)", paper="A3")
+        title="CEC Hub -- Enterprise (ENT): 01-power-input (thin parent)", paper="A3",
+        global_power_exports=GLOBAL_POWER_EXPORTS, libs=LIBS)
     print("01-power-input.kicad_sch (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()) +
           f"  total_leaf_parts={total_parts}")

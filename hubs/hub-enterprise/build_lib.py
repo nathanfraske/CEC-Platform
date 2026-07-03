@@ -228,7 +228,15 @@ def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
     pin_blocks = []
     for i, name in enumerate(names):
         shape = hier_exports[name][0]
-        px, py = cec_sch.gridsnap(s01_x + s01_w, s01_y + 8 + i * 5.588)
+        # X must land EXACTLY on the box's right edge (s01_x + s01_w) -- do not
+        # gridsnap it (verified empirically: a sheet pin whose X is off the
+        # box edge by even a fraction of a mm, e.g. via naive gridsnapping,
+        # silently fails to bind to the box's boundary in kicad-cli's
+        # connectivity resolution -- it still LOOKS fine and ERC still runs,
+        # but the pin never joins its net; see build_thin_parent below, where
+        # this bug was actually exercised and root-caused, since these root
+        # pins currently have nothing wired to them so it stays dormant here).
+        px, py = s01_x + s01_w, cec_sch.gridsnap(0, s01_y + 8 + i * 5.588)[1]
         pin_blocks.append(_sheet_pin_block(name, shape, px, py, 0))
     sheets = [_sheet_block(sheet01_sym_uuid, s01_x, s01_y, s01_w, s01_h,
                             "01-power-input", "01-power-input.kicad_sch",
@@ -318,7 +326,8 @@ def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path, 
 # sheet", so this file's only job is fan-out/fan-in of sheet pins.
 # ---------------------------------------------------------------------------
 def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uuid,
-                       own_uuid, out_path, title, paper="A3"):
+                       own_uuid, out_path, title, paper="A3",
+                       global_power_exports=None, libs=None):
     """
     leaves: ordered list of dicts, each:
         {id, sym_uuid, filename, sheetname, page, x, y, w, h,
@@ -328,7 +337,20 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
         as it appears in the grandparent/root file). Shape is always
         "output", matching every pin already declared there (root's own
         HIER_EXPORTS convention, unchanged by this restructure).
+    global_power_exports: {net_name: power_symbol_name} for root-exports that
+        are REAL KiCad global power nets (GND/+3V3/+5VSB/+5V_MAIN/+5V_SYS --
+        `(power global)` symbols, which connect project-wide by name alone,
+        with NO hierarchical-label plumbing needed at all). Every leaf that
+        uses one of these nets places its OWN ordinary global power symbol
+        (unchanged, same as any other net in POWER_PORTS) -- so unlike the
+        other root_exports, THESE have no leaf sheet-pin to anchor to here.
+        The root-facing hierarchical_label instead gets its OWN local global
+        power symbol stamped right next to it: that symbol is the SAME
+        already-project-wide net (electrically identical to every leaf's
+        copy), and its presence is what keeps the hierarchical_label from
+        reading as label_dangling. Needs `libs` (for the "power" library).
     """
+    global_power_exports = global_power_exports or {}
     sheets = []
     # net_name -> list of (x, y, angle) absolute pin-stub anchor points to
     # connect together via same-name labels within this file.
@@ -346,7 +368,15 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
         pins_blocks = []
         n = len(leaf["pins"])
         for i, (net_name, shape) in enumerate(leaf["pins"]):
-            px, py = cec_sch.gridsnap(leaf["x"] + leaf["w"], leaf["y"] + 8 + i * 5.588)
+            # X = the box's exact right edge, NOT gridsnapped (see the note in
+            # build_root above -- this is where that bug actually bit: with a
+            # gridsnapped X, kicad-cli silently never bound the pin to the
+            # sheet's boundary, so nothing wired to it ever reached the child
+            # file's hierarchical_label. Verified with a minimal reproduction
+            # against a real KiCad-authored hierarchical reference project
+            # before landing this fix.)
+            px = leaf["x"] + leaf["w"]
+            py = cec_sch.gridsnap(0, leaf["y"] + 8 + i * 5.588)[1]
             pins_blocks.append(_sheet_pin_block(net_name, shape, px, py, 0))
             net_points.setdefault(net_name, []).append((px, py, 0))
         sheets.append(_sheet_block(leaf["sym_uuid"], leaf["x"], leaf["y"], leaf["w"], leaf["h"],
@@ -369,15 +399,42 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     hx = round(max_x / cec_sch.GRID) * cec_sch.GRID
     hy0 = round(20 / cec_sch.GRID) * cec_sch.GRID
     hstep = round(7.62 / cec_sch.GRID) * cec_sch.GRID
-    for i, net_name in enumerate(sorted(n for n in net_points if n in root_exports)):
+    flags = []
+    pwr_seq = [0]
+
+    def pwr_ref(prefix):
+        pwr_seq[0] += 1
+        return f"{prefix}{pwr_seq[0]:02d}"
+
+    leaf_fed = sorted(n for n in net_points if n in root_exports)
+    global_fed = sorted(n for n in root_exports if n not in net_points)
+    for i, net_name in enumerate(leaf_fed + global_fed):
         hy = hy0 + i * hstep
         wires.append(cec_sch.emit_wire(hx - cec_sch.STUB, hy, hx, hy))
-        labels.append(cec_sch.emit_label(net_name, hx - cec_sch.STUB, hy, 0))
+        if net_name in global_power_exports:
+            # component-style instances path (full chain from the true root),
+            # matching how every regular part inside a leaf sheet is addressed
+            # -- NOT the single-hop convention that sheet_instances/sheet-pins
+            # need (see the notes above/in build_thin_parent's docstring).
+            flags.append(cec_sch.emit_global_power(global_power_exports[net_name],
+                                                     hx - cec_sch.STUB, hy, project,
+                                                     f"{root_uuid}/{own_sheet_sym_uuid}",
+                                                     pwr_ref("#PWR"), 180))
+        else:
+            labels.append(cec_sch.emit_label(net_name, hx - cec_sch.STUB, hy, 0))
         hlabels.append(_hier_label(net_name, "output", hx, hy, 0))
 
-    missing = sorted(root_exports - set(net_points))
+    missing = sorted(root_exports - set(net_points) - set(global_power_exports))
     if missing:
-        raise SystemExit(f"build_thin_parent: root_exports not produced by any leaf pin: {missing}")
+        raise SystemExit(f"build_thin_parent: root_exports not produced by any leaf pin "
+                          f"or global_power_exports: {missing}")
+
+    extra_syms = []
+    if global_power_exports:
+        for sym in sorted(set(global_power_exports.values())):
+            extra_syms.append(cec_sch._power_block(libs, sym))
+    lib_symbols_section = ("\t(lib_symbols\n" + "\n".join(cec_sch.reindent(s, 2) for s in extra_syms) + "\n\t)\n") \
+        if extra_syms else "\t(lib_symbols\n\t)\n"
 
     title_blk = _title_block(title,
                               "Thin parent sheet -- sheet-symbol fan-out/fan-in ONLY, no "
@@ -388,11 +445,13 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
         "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
         f"\t(uuid \"{own_uuid}\")\n\t(paper \"{paper}\")\n"
         f"{title_blk}\n"
-        "\t(lib_symbols\n\t)\n"
+        f"{lib_symbols_section}"
         + "\n".join(sheets) + "\n"
         + "\n".join(wires) + "\n"
         + "\n".join(labels) + "\n"
         + ("\n".join(hlabels) + "\n" if hlabels else "")
+        + ("\n".join(flags) + "\n" if flags else "")
         + f'\t(sheet_instances\n\t\t(path "/{own_sheet_sym_uuid}"\n\t\t\t(page "2")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n')
     open(out_path, "w").write(content)
-    return {"leaves": len(leaves), "nets": len(net_points), "root_exports": len(root_exports)}
+    return {"leaves": len(leaves), "nets": len(net_points), "root_exports": len(root_exports),
+            "global_power": len(global_power_exports)}

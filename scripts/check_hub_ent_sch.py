@@ -96,6 +96,35 @@ def main():
     for f in ("hub-enterprise.kicad_pro", "hub-enterprise.kicad_sch",
               "01-power-input.kicad_sch", "sym-lib-table", "fp-lib-table", "DRAFT"):
         check(os.path.isfile(os.path.join(BOARD_DIR, f)), f"project file present: {f}")
+
+    # -----------------------------------------------------------------
+    # 0a. sheet-01 format correction (owner, 2026-07-02): 01-power-input is now
+    # a THIN PARENT (sheet symbols only, no components, no dashed-frame section
+    # graphics) fanning out to seven leaf sheets, one per functional block.
+    # -----------------------------------------------------------------
+    LEAF_SHEETS = ("01a-efuse-main", "01b-efuse-5vsb", "01c-efuse-ext",
+                   "01d-cascade", "01e-holdup", "01f-buck-3v3", "01g-rail-sense")
+    parent_path = os.path.join(BOARD_DIR, "01-power-input.kicad_sch")
+    if os.path.isfile(parent_path):
+        parent_txt = open(parent_path).read()
+        check("(symbol\n" not in parent_txt and "(symbol \"" not in parent_txt,
+              "01-power-input.kicad_sch (thin parent) carries no components")
+        check("(type dash)" not in parent_txt,
+              "01-power-input.kicad_sch (thin parent) carries no dashed-frame section graphics")
+        check(parent_txt.count("(sheet\n") == len(LEAF_SHEETS),
+              f"01-power-input.kicad_sch instantiates exactly {len(LEAF_SHEETS)} leaf sheets "
+              f"(found {parent_txt.count('(sheet' + chr(10))})")
+    for name in LEAF_SHEETS:
+        p = os.path.join(BOARD_DIR, f"{name}.kicad_sch")
+        check(os.path.isfile(p), f"leaf sheet present: {name}.kicad_sch")
+        if os.path.isfile(p):
+            txt = open(p).read()
+            check("(type dash)" not in txt,
+                  f"{name}.kicad_sch carries no dashed-frame section graphics "
+                  "(one functional block, one sheet, one title -- not a dashed sub-section)")
+            check(f'(title "CEC Hub -- Enterprise (ENT): {name}"' in txt,
+                  f"{name}.kicad_sch carries a proper per-sheet title")
+
     for num, name in (("02", "02-compute-core"), ("03", "03-compute-rails"),
                        ("04", "04-storage"), ("05", "05-module-ports"),
                        ("06", "06-t1-dataplane"), ("07", "07-uplink"),
@@ -128,6 +157,11 @@ def main():
         "pin_not_connected":    "sheet-01's 15 hierarchical exports have no consumer yet (sheets 02-09 are placeholders)",
         "pin_to_pin":           "TPS25940LRVCR's 5 parallel power_out OUT pins tied together (required multi-pin eFuse design)",
         "isolated_pin_label":   "RESET_3V3: a single forward-looking label, no consumer captured yet",
+        "endpoint_off_grid":    "warning-only: a leaf sheet-pin's X MUST sit exactly on its box's real edge (not "
+                                "gridsnapped) for kicad-cli to bind it into the flattened net at all -- verified "
+                                "empirically during the 2026-07-02 re-sheeting (a gridsnapped X parses fine but "
+                                "silently drops the connection); the resulting stub wire is then off the 1.27mm "
+                                "cosmetic grid by construction. All 19 occurrences are severity=warning.",
     }
     with tempfile.TemporaryDirectory() as td:
         erc_json = os.path.join(td, "erc.json")
@@ -156,6 +190,23 @@ def main():
             capture_output=True, text=True)
         check(r.returncode == 0, f"kicad-cli sch export netlist succeeded ({r.stderr.strip()})")
         nets, comps = parse_netlist(net_path)
+
+    # -----------------------------------------------------------------
+    # 1a. re-sheeting must be electrically inert: same 59 components, and the
+    # SAME flattened connectivity -- compared by NODE SET (ignoring net names/
+    # sheet-path prefixes, which necessarily changed since nets now live one
+    # level deeper) against the pre-restructure (flat sheet-01) baseline
+    # captured in this same session. 46 connectivity groups, verified via
+    # `python3 conn_snapshot.py` bit-for-bit equal (0 missing / 0 extra) run
+    # against the committed pre-2026-07-02 01-power-input.kicad_sch.
+    # -----------------------------------------------------------------
+    real_comps = [r for r in comps if not r.startswith("#")]
+    check(len(real_comps) == 59, f"component count unchanged by the re-sheeting (expected 59, got {len(real_comps)})")
+    groups = sorted(frozenset(v) for v in nets.values())
+    n_groups = len(groups)
+    check(n_groups == 46,
+          f"flattened connectivity group count unchanged by the re-sheeting "
+          f"(expected 46, matching the pre-restructure flat sheet-01 baseline; got {n_groups})")
 
     # -----------------------------------------------------------------
     # 2. sheet-01 assertion block (BOM-D power-input)
