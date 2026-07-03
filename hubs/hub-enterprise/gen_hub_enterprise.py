@@ -31,6 +31,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ROOTDIR = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, os.path.join(ROOTDIR, "scripts"))
 import cec_sch  # noqa: E402
+import cec_sch_layout  # noqa: E402  -- the T1 engine (nudge_texts finishing pass)
+import cec_sch_compose  # noqa: E402  -- the shared composition engine (T4)
 
 PROJECT = "hub-enterprise"
 
@@ -105,30 +107,9 @@ POWER_PORTS = {"GND": "GND", "+3V3": "+3V3", "+5VSB": "+5VSB",
 
 # ===========================================================================
 # a "Leaf" is one functional-block sheet (01a..01g): its own parts/nets.
+# (data holder promoted to cec_sch_compose 2026-07-03; identical class)
 # ===========================================================================
-class Leaf:
-    def __init__(self, id_, filename, sheetname, desc):
-        self.id = id_
-        self.filename = filename
-        self.sheetname = sheetname
-        self.desc = desc
-        self.parts, self.nets, self.footprints, self.props = {}, {}, {}, {}
-        self.placement, self.nc_skip = {}, set()
-        self.hier_exports = {}       # net -> ("output", (ref, pin))
-        self.powerflag_nets = []
-        self.layout = None           # composed drawn structure (see build_leaf)
-
-    def add_part(self, ref, lib, name, value, x, y, fp, props=None):
-        self.parts[ref] = (lib, name, value)
-        self.placement[ref] = (x, y)
-        self.footprints[ref] = fp
-        if props:
-            self.props[ref] = props
-
-    def net(self, name, *conns):
-        self.nets.setdefault(name, [])
-        for c in conns:
-            self.nets[name].append(c)
+Leaf = cec_sch_compose.Leaf
 
 
 LEAVES = {}
@@ -625,64 +606,15 @@ L01G.hier_exports = {
 # guard plus a flattened-netlist node-set diff (see the charter, principle 1).
 # Pin math is cec_sch_layout.pin_abs_rot (rotation round-trip verified).
 # ===========================================================================
-import cec_sch_layout  # noqa: E402  (scripts/ already on sys.path)
-
 U = cec_sch.GRID  # 1.27mm
 
 
-def _pin_u(lf, used, ref, num):
-    """Pin connection point of a placed (possibly rotated) part, in u."""
-    pl = {r: (v if len(v) == 3 else (*v, 0)) for r, v in lf.placement.items()}
-    pl = {r: (x, y, rot) for r, (x, y, rot) in pl.items()}
-    ax, ay, _dx, _dy = cec_sch_layout.pin_abs_rot(pl, used, lf.parts, ref, num)
-    return round(ax / U), round(ay / U)
-
-
-class _Compose:
-    """Tiny helper collecting a leaf's composed structure in grid units and
-    emitting the mm-space `layout` dict build_leaf consumes."""
+class _Compose(cec_sch_compose.Compose):
+    """The shared grid-unit composition collector (promoted to
+    cec_sch_compose 2026-07-03), bound to this generator's LIBS."""
 
     def __init__(self, lf):
-        self.lf = lf
-        self.used = cec_sch.load_symbols(LIBS, lf.parts)
-        self.wires, self.labels, self.power = [], [], []
-        self.hier_at, self.consumed, self.text_side = {}, set(), {}
-        self.rails = []
-
-    def place(self, ref, xu, yu, rot=0):
-        assert ref in self.lf.parts, ref
-        self.lf.placement[ref] = (xu * U, yu * U, rot)
-
-    def pin(self, ref, num):
-        return _pin_u(self.lf, self.used, ref, num)
-
-    def wire(self, *pts_u):
-        for (x1, y1), (x2, y2) in zip(pts_u, pts_u[1:]):
-            assert x1 == x2 or y1 == y2, f"non-Manhattan wire {pts_u}"
-            self.wires.append((x1 * U, y1 * U, x2 * U, y2 * U))
-
-    def label(self, net, xu, yu, ang):
-        self.labels.append((net, xu * U, yu * U, ang))
-
-    def stamp(self, sym, xu, yu, rot):
-        self.power.append((sym, xu * U, yu * U, rot))
-
-    def hier(self, net, xu, yu, ang=0):
-        assert net in self.lf.hier_exports, net
-        self.hier_at[net] = (xu * U, yu * U, ang)
-
-    def use(self, *pins):
-        self.consumed.update(pins)
-
-    def done(self):
-        self.lf.layout = {
-            "wires": self.wires, "labels": self.labels, "power": self.power,
-            "hier_at": self.hier_at, "consumed": self.consumed,
-            "text_side": self.text_side, "decoupler_rails": self.rails,
-        }
-        # every ref must have been explicitly (re)placed by the compose pass
-        for r in self.lf.parts:
-            assert len(self.lf.placement[r]) == 3, f"{self.lf.id}: {r} not composed"
+        super().__init__(lf, LIBS)
 
 
 def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
@@ -897,12 +829,11 @@ def compose_01e():
     # runs through the T1 engine's place_decouplers/wire_decouplers pair, so
     # the caps are ATTACHED: one drawn rail off D101's cathode, GND stubs)
     c.place("C112", 71, 78); c.place("C113", 83, 78); c.place("C114", 95, 78)
-    c.rails.append({"ic": "D101", "pin": "1", "caps": ["C112", "C113", "C114"],
-                    "side": "above", "pitch": 15.24, "rise": 7.62})
+    # decoupler-cluster archetype (shared Compose.rail wrapping the T1
+    # place_decouplers/wire_decouplers pair) -- consumes D101.1 + cap pins
+    c.rail("D101", "1", ["C112", "C113", "C114"], pitch=15.24)
     c.wire((95, 73), (99, 73))       # rail extension carrying the net name
     c.label("+5V_HOLD", 99, 73, 0)
-    c.use(("D101", "1"), ("C112", "1"), ("C113", "1"), ("C114", "1"),
-          ("C112", "2"), ("C113", "2"), ("C114", "2"))
     c.done()
 
 

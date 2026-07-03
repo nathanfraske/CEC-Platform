@@ -16,7 +16,7 @@
 	(text "06-t1-dataplane -- CAPTURE PENDING\n\n2x LAN9370 100BASE-T1 fabric switch\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "cd0da5bf-14e7-4044-9069-8a80670f568a")
+		(uuid "0ef02ab1-ebd4-48c8-a63a-6583640b370a")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086"
