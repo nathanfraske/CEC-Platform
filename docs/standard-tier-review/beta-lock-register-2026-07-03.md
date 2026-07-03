@@ -115,7 +115,7 @@ below marked VERIFIED was re-checked live by an independent second agent this se
   gen-modules BASE_PARTS + the hand-maintained EPS/12VHPWR schematics at their beta pass;
   aligns with the quality-first principle; ~$0.15/module.
   **H3a (owner addendum: "and ferrites, if needed")** — ferrite posture for the suite, judicious
-  not blanket: (a) VBUS entry bead POPULATED (MPZ2012S601A-class, 600Ω@100MHz — the standard USB
+  not blanket: (a) VBUS entry bead POPULATED (MPZ2012S601AT000 (LCSC C21519; register previously cited a nonexistent 'ATD01' suffix — corrected at the EPS splice), 600Ω@100MHz — the standard USB
   power-entry filter, same part family the Nuand reference sheets carry); (b) port-VCC (5VSB)
   entry on each module: bead position PROVISIONED, 0Ω by default, populate on EMC evidence;
   (c) CAN pair: common-mode-choke POSITION provisioned DNP as EMC insurance (never series beads
@@ -185,3 +185,10 @@ same board? ASSESSMENT (recommendation, owner to ratify):
   (D-5a), captured as a clearly-marked swappable section pending the formal form call. Splice
   discipline: edit existing schematics (cec_sch splice + ERC/netlist gates), never regenerate
   hand-maintained boards; Rev → BETA-1 per W8; alpha preserved in git history + fab/ snapshots.
+
+- **H3a-PATTERN (engineering correction, 2026-07-03, from the EPS splice landing):** a DNP
+  series CMC physically OPENS the CAN pair when unpopulated (KiCad netlists the symbol as
+  connected — ERC/netlist blind). The provision pattern is therefore: CMC position DNP **+ two
+  0Ω bypass resistors populated by default across its pads**; EMC variant = remove 0Ωs, fit
+  CMC. Broadcast to all module splice agents; the same rule applies to ANY series-DNP provision
+  on a required path.
