@@ -459,12 +459,9 @@ def compose_01():
         c.place(rt, x, 46)                        # pin 1 on the band split
         c.place(rb, x, 52)
         c.text_side[rt] = c.text_side[rb] = "left"
-        c.wire((x, 48), (x, 50))                  # rt.2 -> mid tap
-        c.wire((x, 50), (x, 50 + 0) if False else (x, 50))  # placeholder
+        c.wire((x, 48), (x, 50))                  # rt.2 -> mid tap = rb.1
+        c.label(tap, x, 50, 180)
         c.use((rt, "1"), (rt, "2"), (rb, "1"))
-        c.wire((x, 50), (x, 50))
-    c.label("EF_UVLO", 56, 50, 180)
-    c.label("EF_OVP", 64, 50, 180)
     # SHDN strapped to its own input rail (always-armed); IN riser
     c.wire((70, 44), (70, 54), (76, 54))
     c.use(("U2", "4"))
@@ -505,9 +502,8 @@ def compose_01():
     c.wire((114, 66), (116, 66))                  # into LP5907 IN
     c.wire((114, 66), (114, 68), (116, 68))       # EN strapped to IN
     c.use(("U2", "10"), ("C3", "1"), ("C4", "1"), ("U3", "1"), ("U3", "3"))
-    # ---- LDO on the same baseline
+    # ---- LDO on the same baseline (S2: placed BY its IN pin row)
     c.place_pin("U3", "1", 116, 66)
-    gnd = c.place_pin("U3", "1", 116, 66)         # origin fixed; read pins
     gnd = c.pin("U3", "2")
     c.wire(gnd, (gnd[0], gnd[1] + 2))
     c.stamp("GND", gnd[0], gnd[1] + 2, 0)
@@ -559,10 +555,11 @@ def compose_03():
     c = _Compose(L03)
     c.place("U4", 30, 30)
     # VCC (3, top): bypass C6 wired at the pin, io tap above
-    c.place("C6", 34, 22)
-    c.wire((30, 22), (30, 20), (30, 17))
-    c.wire((30, 20), (34, 20), (34, 20))
-    c.wire((34, 20), (34, 20))
+    c.place("C6", 34, 24)
+    c.wire((30, 22), (30, 20))
+    c.wire((30, 20), (30, 17))
+    c.wire((30, 20), (34, 20))
+    c.wire((34, 20), (34, 22))
     c.use(("U4", "3"), ("C6", "1"))
     c.io("+5VSB_FUSED", "left", from_pt=(30, 17))
     c.place("C7", 16, 40)       # VIO bypass; +3V3/GND stamps via generic pass
