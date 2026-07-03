@@ -74,7 +74,9 @@ def protection_chain(c, src, items, out, out_kind="hier", node_label=None,
     items: sequence of ("series", ref) | ("shunt", ref).
     A shunt ref starting with "D" is a clamp diode (rot 270, K up); anything
     else is a vertical resistor (rot 0, pin 1 up).
-    out: net name for the chain end; out_kind: "hier" | "label".
+    out: net name for the chain end; out_kind: "hier" | "label" | "none"
+    ("none" leaves the end bare for the caller -- e.g. an S1 edge-column
+    export via c.io(out, side, from_pt=end)).
     node_label: optional net name labeled at the first post-series node.
     Returns the end point (u)."""
     x, y = src
@@ -107,7 +109,7 @@ def protection_chain(c, src, items, out, out_kind="hier", node_label=None,
     c.wire(pts[-1], end)
     if out_kind == "hier":
         c.hier(out, *end, 0)
-    else:
+    elif out_kind == "label":
         c.label(out, *end, 0)
     return end
 
