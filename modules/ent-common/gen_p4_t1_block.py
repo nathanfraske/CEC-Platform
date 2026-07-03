@@ -432,10 +432,10 @@ def compose_01():
     c = _Compose(L01)
     # ---- jack (widened ent-common-local RJ45; pins x=16, rows y=47..61)
     c.place("J1", 30, 54)
-    c.wire((16, 47), (14, 47), (14, 44))          # VCC exits top-left to band
+    c.wire((16, 47), (14, 47), (14, 40))          # VCC exits top-left to band
     c.use(("J1", "1"))
-    c.wire((16, 49), (12, 49), (12, 42))          # GND exits above VCC lane
-    c.stamp("GND", 12, 42, 180)
+    c.wire((16, 49), (12, 49), (12, 38))          # GND exits above VCC lane
+    c.stamp("GND", 12, 38, 180)
     c.use(("J1", "2"))
     # shield tabs: one riser, one stamp (S8)
     c.wire((44, 53), (46, 53))
@@ -447,29 +447,27 @@ def compose_01():
     for net in ("CAN_H", "T1_A_RAW", "T1_B_RAW", "CAN_L",
                 "SYNC7_RAW", "DETECT_RAW"):
         c.io(net, "left")
-    # ---- +5VSB band, y=44
-    for a, b in zip([(14, 44), (28, 44), (48, 44), (56, 44), (64, 44),
-                     (70, 44), (72, 44)][:-1],
-                    [(28, 44), (48, 44), (56, 44), (64, 44), (70, 44),
-                     (72, 44)]):
+    # ---- +5VSB band, y=40 (clear of J1's ref/value field stack at y42/44)
+    pts = [(14, 40), (28, 40), (48, 40), (56, 40), (64, 40), (70, 40), (72, 40)]
+    for a, b in zip(pts, pts[1:]):
         c.wire(a, b)
-    c.stamp("+5VSB", 28, 44, 0)
-    c.place("C2", 48, 46)                          # pin 1 on the band split
+    c.stamp("+5VSB", 28, 40, 0)
+    c.place("C2", 48, 42)                          # pin 1 on the band split
     c.use(("C2", "1"))
     # UVLO + OVP dividers hanging from the band; tap labels name-merge with
     # the TPS26621 pin-stub labels
     for rt, rb, x, tap in (("R1", "R2", 56, "EF_UVLO"),
                            ("R3", "R4", 64, "EF_OVP")):
-        c.place(rt, x, 46)                        # pin 1 on the band split
-        c.place(rb, x, 52)
+        c.place(rt, x, 42)                        # pin 1 on the band split
+        c.place(rb, x, 48)
         c.text_side[rt] = c.text_side[rb] = "left"
-        c.wire((x, 48), (x, 50))                  # rt.2 -> mid tap = rb.1
-        c.label(tap, x, 50, 180)
+        c.wire((x, 44), (x, 46))                  # rt.2 -> mid tap = rb.1
+        c.label(tap, x, 46, 180)
         c.use((rt, "1"), (rt, "2"), (rb, "1"))
     # SHDN strapped to its own input rail (always-armed); IN riser
-    c.wire((70, 44), (70, 54), (76, 54))
+    c.wire((70, 40), (70, 54), (76, 54))
     c.use(("U2", "4"))
-    c.wire((72, 44), (72, 48), (76, 48))
+    c.wire((72, 40), (72, 48), (76, 48))
     c.use(("U2", "1"))
     # ---- eFuse (widened TPS26621: side pins at x 76/96, EP at (86,62))
     c.place("U2", 86, 52)
@@ -521,10 +519,10 @@ def compose_01():
     c.use(("U3", "5"), ("C5", "1"))
     # ---- captions + notes (S3/S10, from the leaf desc / spec knowledge)
     c.caption("Power entry: RJ-45 VCC -> TPS26621 eFuse -> LP5907 3V3 LDO "
-              "(REQ-MOD-COMMON-053)", 10, 34)
+              "(REQ-MOD-COMMON-053)", 10, 32)
     c.note("UVLO 100k/20k, OVP 100k/10k, ILIM 10k, dVdT 1n -- all "
            "[placeholder] app values;\nFLT pull-up 10k -> +3V3; SHDN strapped "
-           "to its own input rail (always-armed)", 48, 76)
+           "to its own input rail (always-armed)", 48, 82)
     c.done()
 
 
@@ -662,8 +660,8 @@ def compose_05():
         c.io(net, "left" if dx < 0 else "right")
     c.caption("100BASE-T1 module link -- ACT1210L CMC + AC-couple + "
               "DP83TC814S-Q1 (REQ-MOD-COMMON-003)", 0, -6)
-    c.note("AC-coupling 10nF [flag #7]; 25 MHz XTAL freq UNVERIFIED [flag #5]; "
-           "TX_CLK-as-REF_CLK UNCONFIRMED [flag #2]", 30, 116)
+    c.note("AC-coupling 10nF [flag #7]; 25 MHz XTAL freq UNVERIFIED [flag #5];\n"
+           "TX_CLK-as-REF_CLK UNCONFIRMED [flag #2]", 0, 112)
     c.done()
 
 

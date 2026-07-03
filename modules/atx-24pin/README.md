@@ -3,6 +3,30 @@
 Standard-tier per-rail sensing module for the 24-pin ATX connector. BOM target
 **$35** (100-qty). See spec [§8](../../CEC-Platform-Ground-Truth-Spec.md).
 
+## Directory-naming reality — read this before touching any of the three `atx-24pin*` dirs
+
+Measured 2026-07-03 (`docs/standard-tier-review/atx-24pin.md`) against the live
+`.kicad_sch`/`.kicad_pcb` files, not the directory names — the naming is misleading:
+
+- **`modules/atx-24pin/` (this directory, no suffix)** is the **SHIPPED, ORDERED,
+  ALPHA-line board** — straight-through layout, 110.2 × 75.7 mm, `J3`/`J4` both
+  vertical. This is what physical units were fabbed from.
+- **`modules/atx-24pin-rev2/`** is **NOT a copy of the shipped board.** It is the
+  90°-rotated ("L") shrink STUDY, 83.1 × 79.2 mm — a design exploration, never
+  fabbed.
+- **`modules/atx-24pin-rev3/`** is the respin scaffold. Its **SCHEMATIC** is a
+  fresh, verified rebuild (DETECT 2.2 kΩ, D1 ESD diode, FTP RJ-45 jack, `CAN_H`/
+  `CAN_L` rename, J1 pin-1 no-connect — all confirmed live in the netlist). Its
+  **PCB**, however, is byte-identical to `atx-24pin-rev2/`'s — i.e. rev3's layout
+  has **not been started**; it still carries the old ESP32-S3 footprint/placement,
+  no mux, no mezzanine header, no C6. Treat rev3 as **schematic-complete,
+  layout-not-started**.
+
+Per CLAUDE.md's 2026-07-03 alpha/beta convention: `atx-24pin/` is the **ALPHA**
+line (validated prototype, as shipped); any refinement (rev3 or a future
+"rev3a") lands as a **BETA** revision under that flag — alpha artifacts are never
+overwritten.
+
 | Item | Decision |
 |---|---|
 | Tier | Standard |

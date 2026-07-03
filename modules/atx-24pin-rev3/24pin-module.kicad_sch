@@ -6797,6 +6797,30 @@
 		(property "Value" "2mΩ" (at 95.25 85.09 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 95.25 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1729157" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "f80e3679-cd20-4ad9-be90-248b164d8a54"))
 		(pin "2" (uuid "739a1aba-a6f6-4a3d-b077-d1ad36972d1c"))
 		(instances
@@ -6871,6 +6895,30 @@
 		(property "Value" "2mΩ" (at 95.25 102.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 95.25 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1729157" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "be935349-2ef7-4df2-878e-2adae9c33999"))
 		(pin "2" (uuid "4d8302b7-96d5-4126-83ff-e8b2f6801b79"))
 		(instances
@@ -6945,6 +6993,30 @@
 		(property "Value" "2mΩ" (at 95.25 120.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 95.25 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Bourns" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "MPN" "CSS2H-2512K-2L00F" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "LCSC" "C1729157" (at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
 		(pin "1" (uuid "1ab63c9d-4167-4965-bea1-c2fd174a0781"))
 		(pin "2" (uuid "5353de45-9f32-474a-9964-a07777eaf2e6"))
 		(instances

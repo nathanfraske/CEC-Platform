@@ -193,11 +193,15 @@ those, *Fill All Zones*, route (incl. the §6.8 four-wire Kelvin shunt taps and 
 high-current 12 V transitions), and re-DRC. The two PCIe SKUs use the same generator
 path and can be condensed the same way when their turn comes.
 
-## PCB floorplan (2026-06-06) — RE-CONDENSED on the pegless 87427 connector (96 × 35 mm)
+## PCB floorplan (2026-06-06, widened to 96 × 37 mm in commit 14906cc) — RE-CONDENSED on the pegless 87427 connector
 
 Once the power connector moved to the **pegless Molex 87427-0802** (no snap-peg NPTH
 holes — see the pinout-fix note above), the floorplan was re-condensed: **99 × 44 → 96 × 35 mm
-(−24 % area, ~−20 % height)**. The win is entirely the pegs — the old 5569 footprint reserved
+(−24 % area, ~−20 % height)** at the time of that pass. The board was later widened
+**35 → 37 mm** (commit `14906cc`, the "loop iteration 2" placement revision, to open a
+wider control→sense spine channel) — the committed board today measures **96 × 37 mm**
+(−18.5 % area, −15.9 % height vs the original 99 × 44 mm), not 96 × 35. The win is
+entirely the pegs — the old 5569 footprint reserved
 ~7–11 mm of board on each connector's *mouth* side for the snap-peg holes (which can't overhang);
 the 87427 keeps only its **pad rows on-board and overhangs the whole body/mouth**, so each cable's
 J_IN/J_OUT pull to ~4 mm from the top/bottom edges and the cable column collapses ~22 → ~14 mm.
@@ -303,7 +307,8 @@ python3 scripts/gen-eps-condensed.py --no-plan # board only
 What it does (reuses `gen-module-pcb.py`'s emit helpers without touching the shared generator):
 
 - **FRAME** — the pegless-87427 condensed layout (J_IN rot180 / J_OUT rot0 so the +12V
-  columns align; per-cable sense band; ESP/CAN/LDO/RJ-45 core). 96 × 35 mm, 3 M3 mounts.
+  columns align; per-cable sense band; ESP/CAN/LDO/RJ-45 core). 96 × 37 mm (widened
+  from the generator's original 96 × 35 mm in commit `14906cc` for spine routing), 3 M3 mounts.
 - **PASSIVE ENGINE** — every decoupling / RC / pull-up / ESD passive is placed in its
   **owner IC's cluster on the power-pin side**, from a netlist-verified ownership spec
   (`PASSIVE_SPEC`: each part → the IC it serves + the exact net it must share). At build

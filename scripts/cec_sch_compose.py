@@ -835,8 +835,8 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     for kind, ttxt, tx, ty, tsz in lay_texts:
         annot.append(emit_caption(ttxt, tx, ty, size=tsz) if kind == "caption"
                      else emit_note(ttxt, tx, ty, size=tsz))
-    for title, rx0, ry0, rx1, ry1 in lay_regions:
-        annot.append(emit_region(title, rx0, ry0, rx1, ry1))
+    for rtitle, rx0, ry0, rx1, ry1 in lay_regions:   # NB: never shadow `title`
+        annot.append(emit_region(rtitle, rx0, ry0, rx1, ry1))
 
     # NOTE: per the owner's 2026-07-02 format correction, leaf sheets carry NO
     # dashed-frame section graphics -- the sheet itself (one file, one proper

@@ -1,5 +1,5 @@
 {
- "_doc": "Board manifest (owner ruling #11, 2026-06-10). rev2 is ORDERED and fixed in stone, so the CAN-pair rename is off the table this rev. These aliases declare the ROLE mapping so the shared resolver matches platform-convention names against the as-built nets; provenance: the 12VHPWR diff-pair rename session deliberately KEPT CAN as asymmetric _H/_L names -- rev2's /CAN1_P,/CAN1_N predates that ruling. Rename queued as a REV3 ERRATUM beside the R1 (DETECT 2.2k code) migration.",
+ "_doc": "Board manifest (owner ruling #11, 2026-06-10). rev2 is ORDERED and fixed in stone, so the CAN-pair rename is off the table on that board. These aliases originally declared the ROLE mapping so the shared resolver matched platform-convention names against rev2's as-built nets; provenance: the 12VHPWR diff-pair rename session deliberately KEPT CAN as asymmetric _H/_L names -- rev2's /CAN1_P,/CAN1_N predates that ruling. CORRECTED 2026-07-03 (standard-tier review, docs/standard-tier-review/atx-24pin.md, measured against the live rev3 .kicad_sch/netlist): this manifest was a byte-identical copy of rev2's and still described rev2's UNFIXED state after the rev3 SCHEMATIC had already fixed it -- all three errata_rev3 items below are VERIFIED DONE in the rev3 schematic (net-level: CAN_H/CAN_L labels present, no /CAN1_P//CAN1_N anywhere; R1 Value=2.2kΩ; D1=PESD5V0S1BA present and wired). The net_aliases block below is therefore STALE for rev3 (rev3 has no /CAN1_P//CAN1_N nets to alias) -- left in place for any tooling that may still resolve against the rev2 board, not deleted, but do not read it as describing rev3. rev3's OWN PCB has not been laid out yet (still byte-identical to rev2's .kicad_pcb) -- this manifest describes SCHEMATIC state only.",
  "_fab_target_doc": "Owner ruling D2 (2026-06-10): vendor-scoped corpus entries resolve against this block. rev2 was ordered at JLCPCB (owner-stated). service_tier: null = AS-BUILT TIER NOT YET RECORDED -- owner fills from the order confirmation; until then tier-conditional vendor entries resolve to zero coverage on this board (honest per RB-01).",
  "fab_target": {
   "vendor": "jlcpcb",
@@ -12,8 +12,9 @@
   "CAN_L": "/CAN1_N"
  },
  "errata_rev3": [
-  "rename /CAN1_P,/CAN1_N -> CAN1_H,CAN1_L (platform _H/_L convention)",
-  "R1 DETECT code migration (2.2k CAN-only, section 2.3)",
-  "DETECT pin-8 ESD diode D1 (rev2 shipped without it)"
+  "rename /CAN1_P,/CAN1_N -> CAN1_H,CAN1_L (platform _H/_L convention) -- DONE, verified live in the rev3 schematic (CAN_H/CAN_L labels, no /CAN1_P//CAN1_N remaining)",
+  "R1 DETECT code migration (2.2k CAN-only, section 2.3) -- DONE, verified live (R1 Value=2.2kΩ in the rev3 schematic; the poke-ack tap R7 100kΩ -> DETECT_SENSE is also present)",
+  "DETECT pin-8 ESD diode D1 (rev2 shipped without it) -- DONE, verified live (D1=PESD5V0S1BA wired to /DETECT->GND in the rev3 schematic); the platform FTP RJ-45 jack (cec:RJ45_FTP_Shielded_Horizontal) and the J1 pin-1 (RJ-45 VCC) no-connect are also confirmed present in rev3, though those were not originally listed in this errata array",
+  "OPEN, NOT a fix (flagged, not resolved -- standard-tier review 2026-07-03): the rev3 mezzanine header J6's ACTUAL netlist pin map does not match the published pinout table in docs/mezzanine-stack-design-2026-06-24.md. Doc table: DETECT=pin13, +5VSB=1/2/15, STREAM_P/N=9/10. Live rev3 netlist: DETECT=pin11, +5V_SYS=1/2/3, STREAM_P/N=8/9, pin13 unconnected (RSVD). Same signal set, different pin assignment -- whoever designs the Hub-side mezzanine socket must pull the pin map from this board's own netlist, not the design-doc table. No side picked here."
  ]
 }
