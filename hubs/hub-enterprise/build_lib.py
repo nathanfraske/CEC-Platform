@@ -60,7 +60,8 @@ def _title_block(title, comment1="", comment2="", comment3="", rev="DRAFT"):
 def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                power_ports, powerflag_nets, hier_exports, sections,
                libs, project, path_prefix, sheet_instances_path, own_uuid,
-               page, out_path, paper="A2", title=None, comment1=""):
+               page, out_path, paper="A2", title=None, comment1="",
+               pwr_base=0):
     """Write one leaf schematic (a functional block with real components).
 
     `path_prefix` is the FULL chain of sheet-symbol uuids (starting with the
@@ -95,7 +96,10 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         extra.append(cec_sch._power_block(libs, sym))
 
     wires, labels, flags, hlabels = [], [], [], []
-    pwr_seq = [0]
+    # pwr_base gives each sheet a disjoint #PWR/#FLG numbering block so refs
+    # stay unique across the flattened hierarchy (duplicate refs across leaves
+    # trip kicad-cli's "schematic has annotation errors" warning).
+    pwr_seq = [pwr_base]
 
     def pwr_ref(prefix):
         pwr_seq[0] += 1
@@ -327,7 +331,7 @@ def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path, 
 # ---------------------------------------------------------------------------
 def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uuid,
                        own_uuid, out_path, title, paper="A3",
-                       global_power_exports=None, libs=None):
+                       global_power_exports=None, libs=None, pwr_base=0):
     """
     leaves: ordered list of dicts, each:
         {id, sym_uuid, filename, sheetname, page, x, y, w, h,
@@ -400,7 +404,7 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     hy0 = round(20 / cec_sch.GRID) * cec_sch.GRID
     hstep = round(7.62 / cec_sch.GRID) * cec_sch.GRID
     flags = []
-    pwr_seq = [0]
+    pwr_seq = [pwr_base]
 
     def pwr_ref(prefix):
         pwr_seq[0] += 1

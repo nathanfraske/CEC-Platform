@@ -653,7 +653,7 @@ if __name__ == "__main__":
     leaf_page = {lid: f"2.{i+1}" for i, lid in enumerate(LEAF_ORDER)}
 
     total_parts = 0
-    for lid in LEAF_ORDER:
+    for li, lid in enumerate(LEAF_ORDER):
         lf = LEAVES[lid]
         path_prefix = f"{ROOT_UUID}/{SHEET_UUIDS['01']}/{LEAF_SYM_UUIDS[lid]}"
         sheet_instances_path = f"{SHEET_UUIDS['01']}/{LEAF_SYM_UUIDS[lid]}"
@@ -662,7 +662,10 @@ if __name__ == "__main__":
             POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
             LIBS, PROJECT, path_prefix, sheet_instances_path, LEAF_OWN_UUIDS[lid],
             page=leaf_page[lid], out_path=f"{HERE}/{lf.filename}", paper="A3",
-            title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc)
+            title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc,
+            # disjoint 100-block per leaf: #PWR/#FLG refs must be unique across
+            # the FLATTENED design or kicad-cli reports annotation errors
+            pwr_base=100 * (li + 1))
         total_parts += stats["parts"]
         print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
 
@@ -694,7 +697,8 @@ if __name__ == "__main__":
         leaves_for_parent, ROOT_EXPORT_NETS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
         SHEET01_OWN_UUID, out_path=f"{HERE}/01-power-input.kicad_sch",
         title="CEC Hub -- Enterprise (ENT): 01-power-input (thin parent)", paper="A3",
-        global_power_exports=GLOBAL_POWER_EXPORTS, libs=LIBS)
+        global_power_exports=GLOBAL_POWER_EXPORTS, libs=LIBS,
+        pwr_base=100 * (len(LEAF_ORDER) + 1))
     print("01-power-input.kicad_sch (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()) +
           f"  total_leaf_parts={total_parts}")

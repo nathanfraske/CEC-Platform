@@ -107,8 +107,18 @@ def main():
     parent_path = os.path.join(BOARD_DIR, "01-power-input.kicad_sch")
     if os.path.isfile(parent_path):
         parent_txt = open(parent_path).read()
-        check("(symbol\n" not in parent_txt and "(symbol \"" not in parent_txt,
-              "01-power-input.kicad_sch (thin parent) carries no components")
+        # a REAL component instance is a `(symbol (lib_id "...") ...)` placement
+        # referencing a non-power library; the thin parent's ONLY placed
+        # `(symbol ...)` instances are the 3 GND/rail-style global power stamps
+        # (cec-power:+5V_MAIN etc, needed so the +5V_MAIN/+5VSB/+5V_SYS
+        # hierarchical labels aren't label_dangling -- see build_thin_parent's
+        # global_power_exports) -- those are connectivity markers, not BOM
+        # parts, exactly like every leaf's own PWR_FLAG/power-port stamps.
+        real_lib_ids = re.findall(r'\(lib_id "([^"]+)"\)', parent_txt)
+        non_power = [l for l in real_lib_ids if not l.startswith("cec-power:")]
+        check(not non_power,
+              f"01-power-input.kicad_sch (thin parent) carries no components "
+              f"(found non-power lib_ids: {non_power})")
         check("(type dash)" not in parent_txt,
               "01-power-input.kicad_sch (thin parent) carries no dashed-frame section graphics")
         check(parent_txt.count("(sheet\n") == len(LEAF_SHEETS),
