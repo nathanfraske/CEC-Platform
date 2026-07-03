@@ -9327,7 +9327,7 @@
 		(dnp no)
 		(uuid "1c722721-c633-47aa-b83a-c5b6d3e714f3")
 		(property "Reference" "U1"
-			(at 302.006 66.548 0)
+			(at 305.72 70.1345 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9338,7 +9338,7 @@
 			)
 		)
 		(property "Value" "ESP32-S3-WROOM-1"
-			(at 301.8633 72.39 0)
+			(at 305.72 72.3345 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -9707,7 +9707,7 @@
 			)
 		)
 		(property "Value" "PESD5V0S1BA"
-			(at 76.2 129.54 0)
+			(at 76.2 116.5 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -10613,8 +10613,8 @@
 		(unit 1)
 		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
 		(uuid "d6a00000-0000-4000-8000-0000000000d6")
-		(property "Reference" "D6" (at 268.0 240.5 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "USBLC6-2SC6" (at 276.0 238.2 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D6" (at 267.9747 245.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USBLC6-2SC6" (at 267.9747 247.29 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 255.27 250.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UMW" (at 0 0 0)
@@ -11302,7 +11302,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 368.554 50.292 0)
+			(at 370.078 62.144 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -11731,7 +11731,7 @@
 			)
 		)
 		(property "Value" "PESD5V0S1BA"
-			(at 76.2 190.5 0)
+			(at 76.2 177.46 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12222,7 +12222,7 @@
 		(dnp no)
 		(uuid "634411c5-5fc4-4303-9603-33101c2fa321")
 		(property "Reference" "C4"
-			(at 290.322 72.39 90)
+			(at 291.64 66.0705 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12232,7 +12232,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 271.272 69.596 90)
+			(at 291.64 68.2705 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12546,7 +12546,7 @@
 		(dnp no)
 		(uuid "6b8050d2-9a9d-4c2c-ba3c-3146e1dfcc86")
 		(property "Reference" "DL1"
-			(at 317.246 175.514 0)
+			(at 297.7976 184.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12556,7 +12556,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 322.58 187.96 0)
+			(at 297.7976 186.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13052,7 +13052,7 @@
 		(dnp no)
 		(uuid "715c925f-8cd5-43a4-a74b-45c76b07e0d3")
 		(property "Reference" "DL2"
-			(at 345.186 175.514 0)
+			(at 325.7376 188.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13062,7 +13062,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 350.52 188.214 0)
+			(at 325.7376 190.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13234,7 +13234,7 @@
 		(dnp no)
 		(uuid "773f6dd0-e7b9-4ecd-a317-9ce1e2c8371a")
 		(property "Reference" "J_USB"
-			(at 299.72 20.32 0)
+			(at 299.72 14.2545 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13244,7 +13244,7 @@
 			)
 		)
 		(property "Value" "USB-C"
-			(at 299.466 45.72 0)
+			(at 299.72 16.4545 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13927,7 +13927,7 @@
 		(dnp no)
 		(uuid "7ffb6169-0fc1-4f06-b557-db6845380fba")
 		(property "Reference" "DL7"
-			(at 484.632 175.514 0)
+			(at 497.2224 180.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13937,7 +13937,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 490.22 188.214 0)
+			(at 497.2224 182.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15075,7 +15075,7 @@
 		(fields_autoplaced yes)
 		(uuid "96653399-3138-47c4-b516-435094197504")
 		(property "Reference" "J2"
-			(at 560.07 29.21 0)
+			(at 560.07 30.7645 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15085,7 +15085,7 @@
 			)
 		)
 		(property "Value" "PORT1"
-			(at 560.07 59.69 0)
+			(at 560.07 32.9645 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15889,7 +15889,7 @@
 			)
 		)
 		(property "Value" "TJA1051T/3"
-			(at 430.53 73.152 0)
+			(at 430.784 60.42 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16333,7 +16333,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 255.27 75.946 0)
+			(at 273.304 75.606 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16721,7 +16721,7 @@
 		(dnp no)
 		(uuid "c1a0611b-e884-4186-9809-976b57bf1115")
 		(property "Reference" "DL6"
-			(at 456.946 175.514 0)
+			(at 437.4976 188.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16731,7 +16731,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 462.28 188.214 0)
+			(at 437.4976 190.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -16839,7 +16839,7 @@
 			)
 		)
 		(property "Value" "PESD5V0S1BA"
-			(at 76.2 149.86 0)
+			(at 76.2 136.82 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17108,7 +17108,7 @@
 		(dnp no)
 		(uuid "cb7c0811-227e-4b01-96d5-5c5550c2bc55")
 		(property "Reference" "DL5"
-			(at 429.006 175.514 0)
+			(at 409.5576 188.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17118,7 +17118,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 434.34 188.214 0)
+			(at 409.5576 190.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17216,7 +17216,7 @@
 		(dnp no)
 		(uuid "cc8ed4e2-0e1e-43a1-8d3d-c9c886bae288")
 		(property "Reference" "DL4"
-			(at 401.32 175.514 0)
+			(at 381.6176 188.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17226,7 +17226,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 405.384 188.214 0)
+			(at 381.6176 190.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17325,7 +17325,7 @@
 		(fields_autoplaced yes)
 		(uuid "cdd44587-fa6f-43ba-b849-bb40ee22419a")
 		(property "Reference" "J3"
-			(at 560.07 80.01 0)
+			(at 560.07 81.5645 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -17335,7 +17335,7 @@
 			)
 		)
 		(property "Value" "PORT2"
-			(at 560.07 110.49 0)
+			(at 560.07 83.7645 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18072,7 +18072,7 @@
 		(fields_autoplaced yes)
 		(uuid "dbb453b3-e90e-4e44-b158-80509a8c8c0a")
 		(property "Reference" "J4"
-			(at 560.07 134.62 0)
+			(at 560.07 136.1745 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18082,7 +18082,7 @@
 			)
 		)
 		(property "Value" "PORT3"
-			(at 560.07 165.1 0)
+			(at 560.07 138.3745 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19155,7 +19155,7 @@
 		(dnp no)
 		(uuid "ea03c07f-e9c1-4ffe-a4c8-97692440e47a")
 		(property "Reference" "DL3"
-			(at 373.126 175.514 0)
+			(at 353.6776 188.51 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19165,7 +19165,7 @@
 			)
 		)
 		(property "Value" "SK6812MINI-E"
-			(at 378.46 188.214 0)
+			(at 353.6776 190.71 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19652,7 +19652,7 @@
 		(dnp no)
 		(uuid "f245b6f3-790f-47d3-831b-972094207923")
 		(property "Reference" "J5"
-			(at 560.07 193.04 0)
+			(at 560.07 190.7845 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19662,7 +19662,7 @@
 			)
 		)
 		(property "Value" "PORT4"
-			(at 560.07 216.154 0)
+			(at 560.07 192.9845 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -19788,7 +19788,7 @@
 			)
 		)
 		(property "Value" "PESD5V0S1BA"
-			(at 76.2 170.18 0)
+			(at 76.2 157.14 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -20175,8 +20175,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "660add12-584e-4734-8764-725789c43855")
-		(property "Reference" "U6" (at 134.62 321.31 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "SN74AHCT1G08" (at 134.62 369.57 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U6" (at 118.7276 331.45 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "SN74AHCT1G08" (at 118.7276 333.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 134.62 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 134.62 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
@@ -20224,8 +20224,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "279fd41e-19e9-4cf9-ade6-9195f29c4c5d")
-		(property "Reference" "R14" (at 190.5 321.31 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "330Ω" (at 190.5 351.79 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R14" (at 186.6472 335.45 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "330Ω" (at 186.6472 337.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 190.5 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 190.5 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -20270,8 +20270,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "36b4d82f-2612-4542-bf17-345b664bb2bb")
-		(property "Reference" "C14" (at 80.01 321.31 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 80.01 351.79 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C14" (at 74.1475 335.45 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100nF" (at 74.1475 337.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 80.01 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 80.01 336.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -20413,8 +20413,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "73ffc2fa-016f-4954-b765-e371edd61fba")
-		(property "Reference" "U7" (at 119.38 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TPS2121RUXR" (at 119.38 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U7" (at 119.38 340.6445 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TPS2121RUXR" (at 119.38 342.8445 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A" (at 119.38 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
@@ -20469,8 +20469,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "dcf71e9d-a7c3-47fb-82f1-6ac99533d15e")
-		(property "Reference" "R_ILIM2" (at 149.86 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "27kΩ" (at 149.86 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R_ILIM2" (at 144.0641 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "27kΩ" (at 144.0641 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 149.86 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 149.86 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -20515,8 +20515,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "bee037a2-920c-4b56-9a06-ecf783f6f046")
-		(property "Reference" "C_SS2" (at 165.1 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2uF" (at 165.1 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C_SS2" (at 159.8375 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "2.2uF" (at 159.8375 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 165.1 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 165.1 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -20561,8 +20561,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "dce1844f-6b46-43ef-a266-a27af4af3113")
-		(property "Reference" "C15" (at 180.34 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 180.34 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C15" (at 174.4775 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100nF" (at 174.4775 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 180.34 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -20607,8 +20607,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "fafb03c3-ebd7-4708-9318-8f5b4589b3b7")
-		(property "Reference" "R15" (at 199.39 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "47kΩ" (at 199.39 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R15" (at 195.5372 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "47kΩ" (at 195.5372 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 199.39 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 199.39 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -20653,8 +20653,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "825f0ee3-0d4c-4c28-9e6c-00ddec4f8102")
-		(property "Reference" "R16" (at 214.63 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 214.63 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R16" (at 210.7772 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10kΩ" (at 210.7772 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 214.63 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 214.63 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -20699,8 +20699,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "71fc6d5f-c817-408f-9ff5-e55c2c01d09e")
-		(property "Reference" "R17" (at 234.95 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "47kΩ" (at 234.95 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R17" (at 231.0972 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "47kΩ" (at 231.0972 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 234.95 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 234.95 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -20745,8 +20745,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d72b3651-8c11-4faa-991b-e353b369e27d")
-		(property "Reference" "R18" (at 250.19 354.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 250.19 384.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R18" (at 246.3372 368.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "10kΩ" (at 246.3372 370.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 250.19 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 250.19 369.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -21086,8 +21086,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b5c52b2b-4a5b-4fec-8dfa-d44eeb7cabc3")
-		(property "Reference" "J_KVM" (at 359.41 344.17 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "CEC_NANOKVM_AUX_5P" (at 359.41 374.65 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J_KVM" (at 374.1086 354.31 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "CEC_NANOKVM_AUX_5P" (at 374.1086 356.51 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_JST:JST_PH_S5B-PH-K-S_1x05_P2.00mm_Horizontal" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 359.41 359.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "JST" (at 0 0 0)
@@ -21135,8 +21135,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ad540d8a-5968-4c9d-9ce6-d733f5fe2ed6")
-		(property "Reference" "R19" (at 340.36 330.2 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "33Ω" (at 340.36 365.76 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R19" (at 337.1549 344.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "33Ω" (at 337.1549 346.54 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 340.36 345.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 345.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -21181,8 +21181,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ea6b1d79-b1d4-44ca-9b6f-b2652cb0245f")
-		(property "Reference" "R20" (at 355.6 330.2 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "33Ω" (at 355.6 365.76 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R20" (at 352.3949 344.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "33Ω" (at 352.3949 346.54 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 355.6 345.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 355.6 345.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -21411,8 +21411,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ffa8dafa-a4ba-488d-9985-faaeffbfd6c6")
-		(property "Reference" "D7" (at 331.47 356.87 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1BA" (at 331.47 387.35 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D7" (at 331.47 367.3145 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 331.47 369.5145 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Nexperia" (at 0 0 0)
@@ -21720,8 +21720,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3d82e08f-ebff-4ee8-b6ec-96e605ab79b7")
-		(property "Reference" "C16" (at 323.85 335.28 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 323.85 365.76 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C16" (at 318.5875 349.42 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100nF" (at 318.5875 351.62 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 323.85 350.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 323.85 350.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -22056,8 +22056,8 @@
 		(on_board yes)
 		(dnp no)
 		(uuid "4dc3622f-8821-4435-ac39-1b5dd1081183")
-		(property "Reference" "RJ_HOLD" (at 438.15 323.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "0R (jumper)" (at 438.15 342.44 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RJ_HOLD" (at 429.7633 328.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "0R (jumper)" (at 429.7633 330.57 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 438.15 331.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 438.15 331.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "H2 rung-1/default jumper (POPULATED): ties the LDO input straight to +5V_HOLD, identical to the pre-beta wiring. Desolder + populate RJ_BUCK to move to the rung-3 path." (at 438.15 331.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -22237,8 +22237,8 @@
 		(on_board yes)
 		(dnp yes)
 		(uuid "757dd47f-7ce4-4816-9a13-aae00f19c613")
-		(property "Reference" "R29" (at 544.83 345.9 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100kOhm" (at 544.83 369.11 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R29" (at 539.0341 355.77 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "100kOhm" (at 539.0341 357.97 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 544.83 356.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 544.83 356.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "H2 default-disabled EN pulldown for U9 (DNP with U9; guarantees the boost stays off even if only U9 is populated without the rest of the rung-3 bench-tuned circuit)." (at 544.83 356.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
