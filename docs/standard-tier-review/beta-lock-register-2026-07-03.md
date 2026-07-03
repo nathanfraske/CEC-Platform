@@ -123,3 +123,23 @@ below marked VERIFIED was re-checked live by an independent second agent this se
   pre-scan ever demands it. Rationale: standalone-USB use makes each module its own FCC 15B
   unintentional-radiator story, so provisioned filter positions are cheap insurance; empty
   positions cost pad area only.
+
+
+## I. Tier board-sharing doctrine (owner question, 2026-07-03 — assessment recorded)
+
+Owner asked: build the Pro variants by default and make Standard a no-pop population of the
+same board? ASSESSMENT (recommendation, owner to ratify):
+
+- **NO wherever the acquisition core diverges** — 12VHPWR Pro (P4 + LTC2358-18 + RS-485
+  streaming vs S3 + ESP-ADC) and every P4-based Pro: MCUs can't be DNP'd across different
+  lands, so a shared board = a dead second control-core region (+15-25% area, ~700-1000mm² on
+  the 12VHPWR) on every Standard unit — contradicts the D-2 space doctrine ("an unstuffed
+  option still occupies the footprint"). The classic shared-layout payoff (halved layout/qual)
+  is weak here because layout is pipeline-automated; the dead area is a permanent per-unit cost.
+- **YES for population-shaped deltas on the same core** — RS-485 transceiver + pair-2, DETECT
+  code resistor swap, §6.13 fronts, the H3 standalone suite: all already DNP-friendly. If EPS
+  Pro / PCIe Pro firm up as "Standard + fast path on the same MCU," a shared board with a Pro
+  population is legitimate — keep that door open until their acquisition spec lands.
+- **MAX is its own board, always** — FPGA acquisition + Rogowski-coil high-MHz di/dt is a
+  different physics package; the coil's analog front end dictates its own layout. Nothing
+  shareable below the connector.
