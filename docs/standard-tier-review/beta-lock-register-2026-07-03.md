@@ -103,7 +103,7 @@ below marked VERIFIED was re-checked live by an independent second agent this se
   program-only, tens of ms) + comparator-edge load-shed (low clock, peripherals off) — the
   existing ~68ms LDO window is likely sufficient with these; (2) ~$1: buck-boost (TPS63020-class)
   replaces the hold-up LDO path → drains the can to ~2.5V at ~90% eff ≈ 2× time; (3) ~$1.50:
-  boost-charge the EXISTING 16V 4700µF can to ~12V (TPS61023-class, soft-start) + wide-Vin buck
+  boost-charge the EXISTING 16V 4700µF can to ~12V (CORRECTED at the hub splice: TPS61023 tops out at 5.5V — a TPS61040-class 28V small boost with FB set ~12V is the right shape; trickle-charge current is fine for a reservoir) + wide-Vin buck
   → V² ≈ 5× usable energy ≈ 600-900ms — the SSD power-loss-protection architecture, zero added
   bulk. DECISION POSTURE: (1)+H1 now, OQ-56 bench decides whether (2)/(3) populate; (3) stays
   the pre-designed fallback. Supercap REJECTED (owner).
@@ -160,7 +160,7 @@ same board? ASSESSMENT (recommendation, owner to ratify):
   hot in still air) → owner floated a small fan. MENU (quality-first order): (1) hybrid housing
   = printed shell + TIM-coupled ALUMINUM BASEPLATE under the shunt row — keeps the validated
   cooling model, silent, no wear item; (2) DNP fan provision regardless (2-pin header, powered
-  from the 12V INPUT BUS upstream of the shunt row so fan draw never pollutes per-pin GPU-side
+  from the pre-shunt lane-6 node (the rail-divider precedent; a common input bus does not exist on the per-pin board) so fan draw never pollutes per-pin GPU-side
   measurement; NEVER from 5VSB/OQ-2 budget); (3) fan-primary (25-30mm) — works but adds a wear
   item; mitigation: TH1 shunt-row NTC + firmware overtemp alarm = the module alarms on its own
   cooling failure. RECOMMENDED: (1)+(2)+alarm. The housing task inherits the thermal spec as a
