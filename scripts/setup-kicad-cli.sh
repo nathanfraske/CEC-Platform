@@ -20,7 +20,15 @@ log() { printf '[setup-kicad-cli] %s\n' "$*" >&2; }
 # 1. Already have it? (warm-started container snapshot, or a local dev box.)
 if command -v kicad-cli >/dev/null 2>&1; then
   log "present: $(kicad-cli version 2>/dev/null || echo kicad-cli) -- nothing to do"
-  exit 0
+  
+# --- render-loop provisioning (schematic-quality charter: cec_sch_render.py) ---------
+# pip playwright drives the PREINSTALLED chromium (/opt/pw-browsers) -- never run
+# "playwright install" here (env rule); the library alone suffices.
+if ! python3 -c "import playwright" 2>/dev/null; then
+  log "installing python playwright (render loop)"
+  pip install -q playwright 2>>"$aptlog" || log "playwright install failed -- render loop unavailable"
+fi
+exit 0
 fi
 
 # 2. Need root to apt-install. Soft-skip otherwise.
