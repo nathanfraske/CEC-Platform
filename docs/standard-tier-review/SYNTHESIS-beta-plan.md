@@ -49,6 +49,16 @@ W9. **Hub beta layout: drop the WROOM antenna keepout** (owner ruling 2026-07-03
 
 ## 3. OWNER DECISION LIST (deduped from all six reports; framed, never resolved)
 
+_RE-WEIGHTING NOTE (owner guiding principle, 2026-07-03): "openness, extensibility, make it
+better even if it costs a bit more — do it right the first time." The reviews were briefed
+cost-down-first; read the framings below through the quality-first lens instead. Concretely
+this TILTS (owner still decides): D-5's INA228×4 full-energy option over the mixed-sensor
+cost-down; D-4 toward funding the OQ-57 bench + app path so §6.13 ships as a FEATURE, not
+dormant silicon; D-2 toward the one-board-3-port PCIe (extensibility by population) while
+making EPS-1 a population option rather than a capability cut; D-7 toward requiring the
+mirror-lane + via-upsize production bar; keeps USB-C service ports populated. Cost-down
+findings remain recorded for when a trade is genuinely quality-neutral._
+
 **Product / kit shape:**
 - **D-1. Kit definition + honest install cost.** _PARTIALLY ANSWERED (owner, 2026-07-03):
   connectors for the cable SKUs = standard off-the-shelf panel connectors, ~$0.20 each across the

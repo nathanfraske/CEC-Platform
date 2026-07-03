@@ -610,6 +610,11 @@ Standard = consumers ("know what the PC is doing, consolidated"); Pro = enthusia
 (nitty-gritty); both consumer lines outrank ENT polish in scheduling, but **ENT is NOT
 dropped** — the owner presents it to a prospective customer ~2026-08 (one month out), so ENT
 capture/prototype work continues on its own clock (see docs/owner-queue.md).
+**REVISION GUIDING PRINCIPLE (owner, 2026-07-03, applies to EVERY revision):** openness,
+extensibility, and make it BETTER even if it costs a bit more — do it right the first time,
+better than everyone else does. When a trade pits cost-down against quality/capability/
+extensibility, default to the quality side and surface the cost delta; cheapest-possible is
+the rule for COMPUTE SPEND (agent models), never for the boards.
 
 Open items (surface before acting):
 
