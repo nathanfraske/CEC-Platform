@@ -173,10 +173,20 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
 
 
 def _sheet_pin_block(name, shape, x, y, angle):
+    # Field order matters here: verified empirically against a real,
+    # KiCad-authored hierarchical reference project that (at) (uuid) (effects)
+    # is what a working sheet pin looks like. (at) (effects) (uuid) -- this
+    # function's order until this fix -- parses without a syntax error but
+    # the pin silently fails to participate in net connectivity (kicad-cli
+    # ERC reports label_dangling/unconnected_wire_endpoint on everything
+    # wired to it, and the netlist shows it as its own isolated single-node
+    # net). Root's own sheet-01 pins (build_root, unchanged elsewhere in this
+    # file) never wire anything to their pins, so that latent bug never
+    # surfaced there.
     return (f'\t\t(pin "{name}" {shape}\n'
             f'\t\t\t(at {cec_sch.f(x)} {cec_sch.f(y)} {angle})\n'
-            f'\t\t\t(effects (font (size 1.27 1.27)) (justify left))\n'
-            f'\t\t\t(uuid "{cec_sch.u()}")\n\t\t)')
+            f'\t\t\t(uuid "{cec_sch.u()}")\n'
+            f'\t\t\t(effects (font (size 1.27 1.27)) (justify left))\n\t\t)')
 
 
 def _sheet_block(uuid_, x, y, w, h, sheetname, sheetfile, project, root_uuid, page, pins=()):

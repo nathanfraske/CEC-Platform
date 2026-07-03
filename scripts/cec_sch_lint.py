@@ -760,6 +760,14 @@ def lint_project(root_path):
     for path, sf in files.items():
         findings, metrics = lint_file(sf)
         results[path] = {"findings": findings, "metrics": metrics}
+    # SL-06's "missing PWR_FLAG" half is project-wide (see check_sl06_missing_flags
+    # docstring: power nets are global across a hierarchy, unlike per-file
+    # islands); attribute it to a synthetic key so it is reported once per
+    # project rather than duplicated/mis-scoped per leaf file.
+    missing = check_sl06_missing_flags(files)
+    if missing:
+        proj_key = f"{root_path} [project-wide]"
+        results[proj_key] = {"findings": missing, "metrics": {}}
     return results
 
 

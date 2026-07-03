@@ -16,7 +16,7 @@
 	(text "05-module-ports -- CAPTURE PENDING\n\n8x RJ-45 FTP module ports, DETECT/pin-7, TJA1051T/3, ADS7830\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "9d459665-40ce-4d3d-8d1b-bfb5b274efa4")
+		(uuid "ec89845d-8652-487d-ae0f-bb49ec70377a")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085"

@@ -753,7 +753,7 @@ def build_demo(out_path):
             ax, ay, _dx, _dy = pin_abs_rot(placement, used, parts, r, pnum)
             ncs.append(cec_sch.emit_noconnect(ax, ay))
 
-    need_syms = {"GND", "+3V3"}
+    need_syms = {"GND", "+3V3", "PWR_FLAG"}
     extra_blocks = [cec_sch._power_block(libs, s) for s in sorted(need_syms)]
     content = (
         "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
