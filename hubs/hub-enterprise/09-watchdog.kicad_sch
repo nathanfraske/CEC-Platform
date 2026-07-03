@@ -16,7 +16,7 @@
 	(text "09-watchdog -- CAPTURE PENDING\n\nS32K3xx supervisory watchdog (MC/MC-Max only)\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "0e617155-5520-4e6d-93ec-9e4e5f06ed68")
+		(uuid "8b1860a4-b021-46d9-be4f-3ac7c45f74b1")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4069-8a2b-3c4d5e6f7089"

@@ -33,6 +33,7 @@ sys.path.insert(0, os.path.join(ROOTDIR, "scripts"))
 import cec_sch  # noqa: E402
 import cec_sch_layout  # noqa: E402  -- the T1 engine (nudge_texts finishing pass)
 import cec_sch_compose  # noqa: E402  -- the shared composition engine (T4)
+import cec_sch_archetypes as arch  # noqa: E402  -- T4 block templates
 
 PROJECT = "hub-enterprise"
 
