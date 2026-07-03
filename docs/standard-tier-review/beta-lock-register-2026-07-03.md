@@ -192,3 +192,21 @@ same board? ASSESSMENT (recommendation, owner to ratify):
   0Ω bypass resistors populated by default across its pads**; EMC variant = remove 0Ωs, fit
   CMC. Broadcast to all module splice agents; the same rule applies to ANY series-DNP provision
   on a required path.
+
+
+## L. Hold-up budget analysis (owner question, 2026-07-03 — numbers of record for OQ-56)
+
+Private-cap budget (5VSB instant-collapse worst case; discharge = cap->LDO direct, no diode
+drop; window 4.8V->3.55V LDO dropout, ΔV≈1.15V nominal / 1.0V at 5VSB spec-floor; C1 -20% tol):
+**~25ms full-tilt worst (150mA: dual-core 240MHz + flash program + PSRAM), ~36ms nominal,
+~65-75ms after the load-shed ISR (70-85mA)**. Sequencing gift: PWR_OK drops ≥1ms before rails
+leave spec and the comparator watches MAIN_5V (first rail to die) while the cap sits on 5VSB
+(last to die) — the real event usually adds tens-hundreds of ms of 5VSB tail on top.
+FIRMWARE CONTRACT this implies (binding for the persist design): (1) shed on ISR entry;
+(2) persist region pre-erased ahead of the ring (program-only gasp); (3) the gasp writes ONLY
+the RAM tail + index (few KB — 25ms buys ~5-12KB at 200-500KB/s pre-erased program; a bulk
+flush never fits rung 1) — the ring lives mostly ON FLASH via continuous background commits.
+Ladder multipliers: rung 2 ≈ 2×; rung 3 (11.5V reservoir) ≈ 280mJ usable ⇒ ~500ms full-tilt,
+>1s shed. OQ-56 BENCH MEASURES: ISR-to-first-write latency, real WROOM flash program
+throughput, and a representative PSU's actual 5VSB decay curve (the one number no datasheet
+gives).
