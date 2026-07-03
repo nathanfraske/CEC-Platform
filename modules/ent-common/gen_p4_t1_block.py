@@ -419,76 +419,159 @@ class _Compose(cec_sch_compose.Compose):
 
 
 def compose_01():
+    """01-power, rebuilt to the composition standard (S1/S2/S3/S8): the raw
+    +5VSB flows as ONE horizontal band across the top (jack VCC -> stamp ->
+    input cap -> UVLO/OVLO dividers -> IN riser), the widened TPS26621 sits
+    below the band, straps hang down-right, the fused rail continues right
+    into the LP5907 on a second baseline, and every off-sheet signal gathers
+    in an S1 edge column (jack fan-out LEFT, +5VSB_FUSED RIGHT)."""
     c = _Compose(L01)
-    # jack: composed +5VSB/GND ties; pins 3-8 stay generic hier-anchor stubs
-    c.place("J1", 8, 44)
-    c.wire((0, 37), (-2, 37), (-2, 34))
-    c.stamp("+5VSB", -2, 34, 0)
+    # ---- jack (widened ent-common-local RJ45; pins x=16, rows y=47..61)
+    c.place("J1", 30, 54)
+    c.wire((16, 47), (14, 47), (14, 44))          # VCC exits top-left to band
     c.use(("J1", "1"))
-    c.wire((0, 39), (-10, 39))
-    c.stamp("GND", -10, 39, 180)
+    c.wire((16, 49), (12, 49), (12, 42))          # GND exits above VCC lane
+    c.stamp("GND", 12, 42, 180)
     c.use(("J1", "2"))
-    # shield tie: both tabs onto one riser, GND stamp ABOVE (the space below
-    # is the divider columns' tap-label territory -- render-checked)
-    sh1, sh2 = c.pin("J1", "SH1"), c.pin("J1", "SH2")
-    tx = sh1[0] + 4
-    c.wire(sh1, (tx, sh1[1]))
-    c.wire(sh2, (tx, sh2[1]))
-    c.wire((tx, sh2[1]), (tx, sh1[1]))
-    c.wire((tx, sh1[1]), (tx, sh1[1] - 3))
-    c.stamp("GND", tx, sh1[1] - 3, 180)
+    # shield tabs: one riser, one stamp (S8)
+    c.wire((44, 53), (46, 53))
+    c.wire((44, 55), (46, 55))
+    c.wire((46, 53), (46, 55), (46, 60))
+    c.stamp("GND", 46, 60, 0)
     c.use(("J1", "SH1"), ("J1", "SH2"))
-
-    # eFuse: the protected-rail archetype (entry rail + cap, SHDN strap,
-    # ILIM/dVdT hangs, OUT rail + cap + hier export). Dividers are drawn as
-    # separate archetype columns left of the IC (tap labels merge by name
-    # with the IC-pin stub labels the generic pass emits).
-    arch.protected_rail(
-        c, ic="U2", origin=(60, 56), in_pin="1", out_pin="10",
-        entry_rail="+5VSB", entry_is_port=True, in_cap="C2", out_cap="C3",
-        dividers=[], hangs=[("7", "R5", "EF_ILIM"), ("8", "C1", "EF_DVDT")],
-        pullup=None, out_net="+5VSB_FUSED", out_kind="hier",
-        extra_in_pins=("4",))
-    arch.divider_chain(c, "R1", "R2", 24, 44, "EF_UVLO", tap_ang=180)
-    arch.divider_chain(c, "R3", "R4", 32, 48, "EF_OVP", tap_ang=0)
-    # RTN (U2.5) routed down-left so its GND stamp cannot crowd the entry rail
-    c.wire((54, 60), (54, 64), (58, 64))
-    c.stamp("GND", 58, 64, 0)
-    c.use(("U2", "5"))
-    # GND pin (U2.6, right side) routed up so its stamp art stays clear of the
-    # ILIM/dVdT hang labels below it (render-checked)
-    c.wire((66, 52), (69, 52), (69, 49))
-    c.stamp("GND", 69, 49, 180)
+    # jack fan-out: pins 3-8 -> S1 LEFT column (attach = generic stubs)
+    for net in ("CAN_H", "T1_A_RAW", "T1_B_RAW", "CAN_L",
+                "SYNC7_RAW", "DETECT_RAW"):
+        c.io(net, "left")
+    # ---- +5VSB band, y=44
+    for a, b in zip([(14, 44), (28, 44), (48, 44), (56, 44), (64, 44),
+                     (70, 44), (72, 44)][:-1],
+                    [(28, 44), (48, 44), (56, 44), (64, 44), (70, 44),
+                     (72, 44)]):
+        c.wire(a, b)
+    c.stamp("+5VSB", 28, 44, 0)
+    c.place("C2", 48, 46)                          # pin 1 on the band split
+    c.use(("C2", "1"))
+    # UVLO + OVP dividers hanging from the band; tap labels name-merge with
+    # the TPS26621 pin-stub labels
+    for rt, rb, x, tap in (("R1", "R2", 56, "EF_UVLO"),
+                           ("R3", "R4", 64, "EF_OVP")):
+        c.place(rt, x, 46)                        # pin 1 on the band split
+        c.place(rb, x, 52)
+        c.text_side[rt] = c.text_side[rb] = "left"
+        c.wire((x, 48), (x, 50))                  # rt.2 -> mid tap
+        c.wire((x, 50), (x, 50 + 0) if False else (x, 50))  # placeholder
+        c.use((rt, "1"), (rt, "2"), (rb, "1"))
+        c.wire((x, 50), (x, 50))
+    c.label("EF_UVLO", 56, 50, 180)
+    c.label("EF_OVP", 64, 50, 180)
+    # SHDN strapped to its own input rail (always-armed); IN riser
+    c.wire((70, 44), (70, 54), (76, 54))
+    c.use(("U2", "4"))
+    c.wire((72, 44), (72, 48), (76, 48))
+    c.use(("U2", "1"))
+    # ---- eFuse (widened TPS26621: side pins at x 76/96, EP at (86,62))
+    c.place("U2", 86, 52)
+    # RTN (5) + EP (11) tied under the body, one stamp
+    c.wire((76, 56), (74, 56), (74, 62), (86, 62))
+    c.wire((86, 62), (86, 64))
+    c.stamp("GND", 86, 64, 0)
+    c.use(("U2", "5"), ("U2", "11"))
+    # GND (6) stamped clear above-right
+    c.wire((96, 48), (98, 48), (98, 45))
+    c.stamp("GND", 98, 45, 180)
     c.use(("U2", "6"))
-    # FLT pull-up detached (label-tied): the TPS26621 right column is too
-    # dense at 2u pitch for a drawn run past the ILIM/dVdT hangs
-    c.place("R6", 86, 50)
-    # LDO below the OUT rail; label-tied to +5VSB_FUSED (name-merge)
-    c.place("U3", 98, 76)
-    c.place("C4", 88, 86, 90)
-    c.place("C5", 108, 86, 90)
+    # ILIM (7) / dVdT (8) strap hangs (drawn; crossings are mid-segment)
+    c.place("R5", 102, 54)
+    c.wire((96, 50), (102, 50), (102, 52))
+    c.use(("U2", "7"), ("R5", "1"))
+    c.place("C1", 99, 58)
+    c.wire((96, 52), (99, 52), (99, 56))
+    c.use(("U2", "8"), ("C1", "1"))
+    # FLT pull-up exits right at pin-row height, keeps its net name
+    c.use(("U2", "9"))
+    arch.pullup_hang(c, (96, 54), 108, "R6", rx=106, rail_pin="1", above=True,
+                     out="EF_FLT", out_kind="label")
+    # ---- fused rail: OUT (10) drops to the y=66 baseline and feeds the LDO
+    c.wire((96, 56), (98, 56), (98, 66))
+    c.wire((98, 66), (104, 66))
+    c.place("C3", 104, 68)                        # pin 1 on the rail split
+    c.wire((104, 66), (106, 66))
+    c.wire((106, 66), (106, 62))                  # io tap for the export
+    c.io("+5VSB_FUSED", "right", from_pt=(106, 62))
+    c.wire((106, 66), (110, 66))
+    c.place("C4", 110, 68)
+    c.wire((110, 66), (114, 66))
+    c.wire((114, 66), (116, 66))                  # into LP5907 IN
+    c.wire((114, 66), (114, 68), (116, 68))       # EN strapped to IN
+    c.use(("U2", "10"), ("C3", "1"), ("C4", "1"), ("U3", "1"), ("U3", "3"))
+    # ---- LDO on the same baseline
+    c.place_pin("U3", "1", 116, 66)
+    gnd = c.place_pin("U3", "1", 116, 66)         # origin fixed; read pins
+    gnd = c.pin("U3", "2")
+    c.wire(gnd, (gnd[0], gnd[1] + 2))
+    c.stamp("GND", gnd[0], gnd[1] + 2, 0)
+    c.use(("U3", "2"))
+    out5 = c.pin("U3", "5")
+    c.wire(out5, (130, 66))
+    c.place("C5", 130, 68)
+    c.wire((130, 66), (134, 66))
+    c.wire((134, 66), (134, 60))
+    c.stamp("+3V3", 134, 60, 0)
+    c.use(("U3", "5"), ("C5", "1"))
+    # ---- captions + notes (S3/S10, from the leaf desc / spec knowledge)
+    c.caption("Power entry: RJ-45 VCC -> TPS26621 eFuse -> LP5907 3V3 LDO "
+              "(REQ-MOD-COMMON-053)", 10, 34)
+    c.note("UVLO 100k/20k, OVP 100k/10k, ILIM 10k, dVdT 1n -- all "
+           "[placeholder] app values;\nFLT pull-up 10k -> +3V3; SHDN strapped "
+           "to its own input rail (always-armed)", 48, 76)
     c.done()
 
 
 def compose_02():
+    """02-misplug, rebuilt: the two protection chains read as two horizontal
+    bands inside S11 accent regions; content spaced so the small sheet
+    breathes on A4 (S9); all four off-sheet signals in S1 edge columns."""
     c = _Compose(L02)
-    c.hier("DETECT_RAW", 10, 20, 180)
-    arch.protection_chain(c, (10, 20),
-                          [("series", "R7"), ("shunt", "D1"),
-                           ("shunt", "R8"), ("series", "R9")],
-                          "DETECT_SENSE", out_kind="hier", node_label="DETECT_A")
-    c.hier("SYNC7_RAW", 10, 36, 180)
-    arch.protection_chain(c, (10, 36),
-                          [("series", "R10"), ("shunt", "D2")],
-                          "SYNC7", out_kind="hier")
+    end1 = arch.protection_chain(c, (12, 20),
+                                 [("series", "R7"), ("shunt", "D1"),
+                                  ("shunt", "R8"), ("series", "R9")],
+                                 "DETECT_SENSE", out_kind="none",
+                                 node_label="DETECT_A", pitch=8)
+    c.io("DETECT_RAW", "left", from_pt=(12, 20))
+    c.io("DETECT_SENSE", "right", from_pt=end1)
+    end2 = arch.protection_chain(c, (12, 44),
+                                 [("series", "R10"), ("shunt", "D2")],
+                                 "SYNC7", out_kind="none", pitch=8)
+    c.io("SYNC7_RAW", "left", from_pt=(12, 44))
+    c.io("SYNC7", "right", from_pt=end2)
+    c.region("DETECT (pin 8): series R + ENT 10k code + ESD + poke tap",
+             8, 12, 62, 34)
+    c.region("SYNC/FREEZE (pin 7): series R + ESD clamp", 8, 38, 62, 56)
+    c.note("ENT DETECT code class = 10k (CAN+100BASE-T1, spec 2.3); "
+           "REQ-MOD-COMMON-010/013/053", 8, 60)
     c.done()
 
 
 def compose_03():
+    """03-can: transceiver with WIRED VCC bypass, MCU-side signals in the S1
+    left column, bus pair in the right column."""
     c = _Compose(L03)
     c.place("U4", 30, 30)
-    c.place("C6", 26, 48, 90)   # VCC bypass, label-tied to +5VSB_FUSED
-    c.place("C7", 26, 54, 90)   # VIO bypass (+3V3 stamp / GND stamp, generic)
+    # VCC (3, top): bypass C6 wired at the pin, io tap above
+    c.place("C6", 34, 22)
+    c.wire((30, 22), (30, 20), (30, 17))
+    c.wire((30, 20), (34, 20), (34, 20))
+    c.wire((34, 20), (34, 20))
+    c.use(("U4", "3"), ("C6", "1"))
+    c.io("+5VSB_FUSED", "left", from_pt=(30, 17))
+    c.place("C7", 16, 40)       # VIO bypass; +3V3/GND stamps via generic pass
+    c.io("CAN_TX", "left")
+    c.io("CAN_RX", "left")
+    c.io("CAN_H", "right")
+    c.io("CAN_L", "right")
+    c.caption("CAN -- TJA1051T/3, classical 500 kbps; no module-side "
+              "termination (Hub-only split term)", 6, 8)
     c.done()
 
 
