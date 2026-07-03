@@ -157,7 +157,7 @@
 					(name "STREAM_P"
 						(effects
 							(font
-								(size 1.27 1.27)
+								(size 1.1 1.1)
 							)
 						)
 					)
@@ -175,7 +175,7 @@
 					(name "STREAM_N"
 						(effects
 							(font
-								(size 1.27 1.27)
+								(size 1.1 1.1)
 							)
 						)
 					)
@@ -244,7 +244,7 @@
 				(pin passive line
 					(at 10.16 1.27 180)
 					(length 5.08)
-					(name "SHIELD"
+					(name "~"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -262,7 +262,7 @@
 				(pin passive line
 					(at 10.16 -1.27 180)
 					(length 5.08)
-					(name "SHIELD"
+					(name "~"
 						(effects
 							(font
 								(size 1.27 1.27)
@@ -4155,7 +4155,7 @@
 					(name "~{Alert}"
 						(effects
 							(font
-								(size 1.27 1.27)
+								(size 0.7 0.7)
 							)
 						)
 					)
@@ -7577,7 +7577,7 @@
 		(fields_autoplaced yes)
 		(uuid "fbe5c315-5140-4258-8e99-84be59059bc1")
 		(property "Reference" "C10" (at 186.69 53.34 0) (effects (font (size 1.27 1.27)) (justify left)))
-		(property "Value" "100nF" (at 186.69 55.88 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 191.77 53.34 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 185.42 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 185.42 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "465bdfe7-88b7-4cc0-b1bf-178ca830db6b"))
@@ -8716,8 +8716,6 @@
 		(stroke (width 0) (type default)) (uuid "108360ee-8a74-43f9-9766-a1ba799d8968"))
 	(wire (pts (xy 180.34 35.56) (xy 180.34 31.75))
 		(stroke (width 0) (type default)) (uuid "15004dfb-2cd3-46e4-9ba1-5647615ec1f9"))
-	(wire (pts (xy 170.18 57.15) (xy 173.99 57.15))
-		(stroke (width 0) (type default)) (uuid "5f874906-5353-45ae-8eb9-0772649a5248"))
 	(wire (pts (xy 170.18 87.63) (xy 173.99 87.63))
 		(stroke (width 0) (type default)) (uuid "9fe13264-b0ec-4fcc-903b-78c4548e4b26"))
 	(wire (pts (xy 170.18 118.11) (xy 173.99 118.11))
@@ -8943,7 +8941,7 @@
 	(label "I2C_SDA" (at 223.52 54.61 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "2aa89f5a-4a70-4dca-92ac-5b8146cdf1d2"))
 	(label "I2C_SCL" (at 234.95 232.41 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "02d410cf-d4bb-45fc-b791-cea62eaf4191"))
 	(label "I2C_SCL" (at 180.34 31.75 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "837de13c-6564-43d2-8e5a-b1af1d0e5fd9"))
-	(label "I2C_SCL" (at 173.99 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f3c515cf-8ec7-4a13-ad3d-36c42b553b8f"))
+	(label "I2C_SCL" (at 170.18 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f3c515cf-8ec7-4a13-ad3d-36c42b553b8f"))
 	(label "I2C_SCL" (at 173.99 87.63 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "2ce12b99-ea5a-47dc-96d8-827c87807169"))
 	(label "I2C_SCL" (at 173.99 118.11 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4757cd9e-bb28-4199-a516-7aaf9e9cf53f"))
 	(label "I2C_SCL" (at 223.52 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3b6f18e4-82a7-4a5b-b144-de937a6cb4e2"))
@@ -12129,9 +12127,7 @@
 	(wire (pts (xy 39.37 335.28) (xy 35.56 335.28))
 		(stroke (width 0) (type default)) (uuid "81d3a26b-4f98-44a2-8f50-488a9b5a7ae9"))
 	(label "USB_DP" (at 35.56 335.28 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "adfeeb75-40d7-4e82-a2f6-3979cf642906"))
-	(wire (pts (xy 49.53 335.28) (xy 53.34 335.28))
-		(stroke (width 0) (type default)) (uuid "2fde84ab-0b97-47df-b84c-eed5e8e03950"))
-	(label "USB_DP" (at 53.34 335.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d3161595-5507-480e-9a0c-914d1b8bc0a7"))
+	(label "USB_DP" (at 49.53 335.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d3161595-5507-480e-9a0c-914d1b8bc0a7"))
 	(wire (pts (xy 39.37 337.82) (xy 35.56 337.82))
 		(stroke (width 0) (type default)) (uuid "0c62fcbe-ab00-45fd-bd43-c15ff85f26d1"))
 	(label "USB_DM" (at 35.56 337.82 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "42ba0192-4354-4e65-88ec-a3dec7acab72"))
@@ -12161,9 +12157,7 @@
 			)
 		)
 	)
-	(wire (pts (xy 66.04 335.28) (xy 62.23 335.28))
-		(stroke (width 0) (type default)) (uuid "2aefc4f6-1939-4c5b-988f-dd3293a3e23d"))
-	(label "VBUS_RAW" (at 62.23 335.28 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "a8e3f894-f541-4eb6-a727-8c36ebc4aee3"))
+	(label "VBUS_RAW" (at 66.04 335.28 180) (effects (font (size 1.0 1.0)) (justify right bottom)) (uuid "a8e3f894-f541-4eb6-a727-8c36ebc4aee3"))
 	(wire (pts (xy 73.66 335.28) (xy 77.47 335.28))
 		(stroke (width 0) (type default)) (uuid "7c062d6c-581f-49fc-b52a-f13e7fed56a7"))
 	(symbol

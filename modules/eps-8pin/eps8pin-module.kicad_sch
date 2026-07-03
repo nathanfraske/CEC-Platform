@@ -75,13 +75,13 @@
 				(pin passive line
 					(at -10.16 1.27 0)
 					(length 5.08)
-					(name "STREAM_P" (effects (font (size 1.27 1.27))))
+					(name "STREAM_P" (effects (font (size 1.1 1.1))))
 					(number "4" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line
 					(at -10.16 -1.27 0)
 					(length 5.08)
-					(name "STREAM_N" (effects (font (size 1.27 1.27))))
+					(name "STREAM_N" (effects (font (size 1.1 1.1))))
 					(number "5" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line
@@ -105,13 +105,13 @@
 				(pin passive line
 					(at 10.16 1.27 180)
 					(length 5.08)
-					(name "SHIELD" (effects (font (size 1.27 1.27))))
+					(name "~" (effects (font (size 1.27 1.27))))
 					(number "SH1" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line
 					(at 10.16 -1.27 180)
 					(length 5.08)
-					(name "SHIELD" (effects (font (size 1.27 1.27))))
+					(name "~" (effects (font (size 1.27 1.27))))
 					(number "SH2" (effects (font (size 1.27 1.27))))
 				)
 			)
@@ -3143,7 +3143,7 @@
 					(name "~{Alert}"
 						(effects
 							(font
-								(size 1.27 1.27)
+								(size 0.7 0.7)
 							)
 						)
 					)
@@ -6978,12 +6978,17 @@
 		(stroke (width 0) (type default)) (uuid "0299df13-5085-44e2-a9f7-1c40729013b6"))
 	(wire (pts (xy 139.7 424.18) (xy 139.7 427.99))
 		(stroke (width 0) (type default)) (uuid "a34c2e66-b3e5-4ff6-996d-ecc0a8da2c0e"))
-	(wire (pts (xy 139.7 424.18) (xy 139.7 427.99))
+	(wire (pts (xy 139.7 424.18) (xy 154.94 424.18))
 		(stroke (width 0) (type default)) (uuid "5cfde61a-4101-473e-b86f-98f698e4c4a8"))
-	(wire (pts (xy 139.7 424.18) (xy 139.7 427.99))
+	(wire (pts (xy 144.78 424.18) (xy 144.78 427.99))
 		(stroke (width 0) (type default)) (uuid "4d0c4715-f780-497c-aad2-f483b17e2c3f"))
-	(wire (pts (xy 139.7 424.18) (xy 139.7 427.99))
+	(wire (pts (xy 149.86 424.18) (xy 149.86 427.99))
 		(stroke (width 0) (type default)) (uuid "344bd566-9c9e-402f-92b9-b171da3fb0b7"))
+	(wire (pts (xy 154.94 424.18) (xy 154.94 427.99))
+		(stroke (width 0) (type default)) (uuid "d34e23d6-9231-4fa2-b981-abc40430efe2"))
+	(junction (at 139.7 424.18) (diameter 0) (color 0 0 0 0) (uuid "3d29051d-dbed-43d5-9b60-8beb486ad13c"))
+	(junction (at 144.78 424.18) (diameter 0) (color 0 0 0 0) (uuid "7a520cc2-2c52-43b8-a4ee-152856218c50"))
+	(junction (at 149.86 424.18) (diameter 0) (color 0 0 0 0) (uuid "09a67842-47e0-4cc1-a049-94984021398e"))
 	(wire (pts (xy 132.08 424.18) (xy 132.08 427.99))
 		(stroke (width 0) (type default)) (uuid "9de2030d-54df-4d3d-bf3c-1b1ac699cc63"))
 	(wire (pts (xy 328.93 57.15) (xy 325.12 57.15))
@@ -8256,7 +8261,7 @@
 		(dnp no)
 		(uuid "58e6ada1-809f-4095-99d4-df227c7ee6c9")
 		(property "Reference" "#PWR51" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 434.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f6f5c8ec-cbcf-4539-a5f2-6ddb7cfb77b4"))
 		(instances
 			(project "eps8pin-module"
@@ -8266,15 +8271,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 139.7 427.99 0)
+		(at 144.78 427.99 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "6b7b0a09-db38-44cf-a2de-6f50ff40333f")
-		(property "Reference" "#PWR52" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 429.26 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR52" (at 144.78 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 144.78 431.8 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "0be35b5c-6f9b-43f9-b370-e4266fbd6817"))
 		(instances
 			(project "eps8pin-module"
@@ -8284,15 +8289,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 139.7 427.99 0)
+		(at 149.86 427.99 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "016c5df6-ed54-4659-8d39-631048fa0c49")
-		(property "Reference" "#PWR53" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 144.78 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR53" (at 149.86 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 149.86 431.8 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8136abe4-dc44-423f-aa61-a2658bfed289"))
 		(instances
 			(project "eps8pin-module"
@@ -8302,15 +8307,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 139.7 427.99 0)
+		(at 154.94 427.99 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "620cae88-a4e9-4d39-b05d-a53dfc5b6b56")
-		(property "Reference" "#PWR54" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR54" (at 154.94 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 154.94 431.8 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "32fd3b27-26b5-44e5-b664-6f8c081272c7"))
 		(instances
 			(project "eps8pin-module"

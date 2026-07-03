@@ -2069,7 +2069,7 @@
 				(name "STREAM_P"
 					(effects
 						(font
-							(size 1.27 1.27)
+							(size 1.1 1.1)
 						)
 					)
 				)
@@ -2087,7 +2087,7 @@
 				(name "STREAM_N"
 					(effects
 						(font
-							(size 1.27 1.27)
+							(size 1.1 1.1)
 						)
 					)
 				)
@@ -2156,7 +2156,7 @@
 			(pin passive line
 				(at 10.16 1.27 180)
 				(length 5.08)
-				(name "SHIELD"
+				(name "~"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -2174,7 +2174,7 @@
 			(pin passive line
 				(at 10.16 -1.27 180)
 				(length 5.08)
-				(name "SHIELD"
+				(name "~"
 					(effects
 						(font
 							(size 1.27 1.27)

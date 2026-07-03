@@ -73,13 +73,13 @@
 				(pin passive line
 					(at -10.16 1.27 0)
 					(length 5.08)
-					(name "STREAM_P" (effects (font (size 1.27 1.27))))
+					(name "STREAM_P" (effects (font (size 1.1 1.1))))
 					(number "4" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line
 					(at -10.16 -1.27 0)
 					(length 5.08)
-					(name "STREAM_N" (effects (font (size 1.27 1.27))))
+					(name "STREAM_N" (effects (font (size 1.1 1.1))))
 					(number "5" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line
@@ -103,13 +103,13 @@
 				(pin passive line
 					(at 10.16 1.27 180)
 					(length 5.08)
-					(name "SHIELD" (effects (font (size 1.27 1.27))))
+					(name "~" (effects (font (size 1.27 1.27))))
 					(number "SH1" (effects (font (size 1.27 1.27))))
 				)
 				(pin passive line
 					(at 10.16 -1.27 180)
 					(length 5.08)
-					(name "SHIELD" (effects (font (size 1.27 1.27))))
+					(name "~" (effects (font (size 1.27 1.27))))
 					(number "SH2" (effects (font (size 1.27 1.27))))
 				)
 			)
@@ -3141,7 +3141,7 @@
 					(name "~{Alert}"
 						(effects
 							(font
-								(size 1.27 1.27)
+								(size 0.7 0.7)
 							)
 						)
 					)
@@ -9200,7 +9200,7 @@
 		(dnp no)
 		(uuid "d6330bea-e6ab-4558-a1c7-c268a981c8c6")
 		(property "Reference" "#PWR85" (at 55.88 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 55.88 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 66.04 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "d55b1651-b796-4687-8132-f8ebaa0ca5e1"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9218,7 +9218,7 @@
 		(dnp no)
 		(uuid "c1f83722-4b27-432f-ae8c-97256ecf90d1")
 		(property "Reference" "#PWR86" (at 106.68 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 106.68 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 116.84 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9d90c0d4-8a02-4800-a4d6-b251efb07ea9"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9272,7 +9272,7 @@
 		(dnp no)
 		(uuid "367c9009-671a-4871-8af3-596d8544384a")
 		(property "Reference" "#PWR89" (at 55.88 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 55.88 166.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 60.96 166.37 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "b318315a-5fdc-4fe1-8bf2-91a812e83d8f"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9290,7 +9290,7 @@
 		(dnp no)
 		(uuid "74c3a76a-b84e-4d4e-be37-55d585923c7c")
 		(property "Reference" "#PWR90" (at 106.68 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 106.68 166.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 111.76 166.37 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "fe2cdcfe-de81-4e4f-8430-a5cbfec0d50e"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9380,7 +9380,7 @@
 		(dnp no)
 		(uuid "8239b1ae-5241-4421-977a-8169edb87ddb")
 		(property "Reference" "#PWR95" (at 156.21 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 156.21 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 166.37 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "30e8f99f-e299-480b-8ec8-a899974343d4"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9398,7 +9398,7 @@
 		(dnp no)
 		(uuid "f88c4369-3cee-4141-be9a-b44153d928fb")
 		(property "Reference" "#PWR96" (at 207.01 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 207.01 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 217.17 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "d292816e-b277-4c20-9da7-b46cd1c71bf8"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9452,7 +9452,7 @@
 		(dnp no)
 		(uuid "374b9578-5f23-4f85-89c8-b39deb4c0daf")
 		(property "Reference" "#PWR99" (at 156.21 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 156.21 166.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 161.29 166.37 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "673aa4f6-1333-4986-b6eb-3620124eb805"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9470,7 +9470,7 @@
 		(dnp no)
 		(uuid "b4e7236f-61e6-4d4d-835a-787d9e3f9450")
 		(property "Reference" "#PWR100" (at 207.01 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 207.01 166.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 212.09 166.37 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "95ac4649-59d3-4a1e-bf39-682dc1685865"))
 		(instances
 			(project "pcie8pin-2port-module"
