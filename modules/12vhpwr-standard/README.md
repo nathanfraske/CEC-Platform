@@ -4,6 +4,11 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 5.x, 600 W GPU) connector. BOM target **$49** (100-qty). See spec
 [§6.1](../../CEC-Platform-Ground-Truth-Spec.md).
 
+Per CLAUDE.md's 2026-07-03 alpha/beta convention: this board is the **ALPHA**
+line (validated, fab-snapshotted prototype); refinements land as **BETA**
+revisions per the standard-tier beta plan
+(`docs/standard-tier-review/SYNTHESIS-beta-plan.md`).
+
 | Item | Decision |
 |---|---|
 | Tier | Standard |

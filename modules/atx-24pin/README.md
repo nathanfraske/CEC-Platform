@@ -36,7 +36,7 @@ overwritten.
 | Control | CAN on pair 3 (classical at 500 kbps in a Standard Hub) |
 | Sensing | INA238 per rail (12V / 5V / 3.3V / 5VSB) — 16-bit I²C current/voltage, ≥1 kHz |
 | Streaming | RS-485 **not populated** (Standard); pair 2 terminated at the module side |
-| DETECT | Precision resistor pin 8 → GND; code per **OQ-6** |
+| DETECT | Precision resistor pin 8 → GND; **OQ-6 LOCKED v1.7** — 24-pin is CAN-only, code = 2.2 kΩ (R1, backported to this schematic 2026-07-03; was a literal `"R_ID (OQ-6)"` placeholder before) |
 | Protection | No per-pin PoE clamp (Standard/Pro, §2.4 RESOLVED v2.0); low-cap ESD diode on DETECT pin 8 (D3, LOCKED v2.0) — added to canonical, lands on rev3; Enterprise/MC over-voltage on the external uplink (OQ-7) |
 | Reset | ESP32-S3 internal BOD + EN RC; no external supervisor (Hub-only part, §4) |
 | BOM target | $35 (100-qty) |
@@ -48,11 +48,18 @@ overwritten.
   (separate from RJ-45); the Hub then distributes 5VSB to all ports over RJ-45
   VCC (spec §2.7). Size this module's 2-pin power-out path for the full Hub trunk
   with margin.
-- **OQ-6:** module-ID resistor value for this module type/tier.
+- **OQ-6 (RESOLVED v1.7):** module-ID resistor value for this module type/tier —
+  24-pin is CAN-only, 2.2 kΩ. R1 backported to this schematic 2026-07-03 (was a
+  literal placeholder value, never carrying the locked code).
 
 ## Next revision (rev3) — TODO
 
-The ordered **rev2 is as-built and frozen**. Carry these to the next fab:
+The ordered **rev2 is as-built and frozen**. Carry these to the next fab. **Status
+update, 2026-07-03:** all four items below are now confirmed **DONE in the rev3
+SCHEMATIC** (verified live in the netlist) — the rev3 PCB layout has simply not
+been started yet (see the directory-naming section above), so nothing here is a
+live TODO against rev3's schematic; it remains a real TODO against rev3's PCB and
+against `atx-24pin/` (this shipped board), which was not itself changed:
 
 - **DETECT pin-8 ESD diode (D3):** now in the canonical schematic (spec §2.4 v2.0
   — low-capacitance ESD on pin 8 → GND for hot-plug insertion ESD). rev2 shipped

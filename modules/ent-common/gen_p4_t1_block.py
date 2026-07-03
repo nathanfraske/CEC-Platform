@@ -585,7 +585,7 @@ def compose_04():
     c.place("R11", 92, 124)
     c.place("R12", 104, 124)  # 12u apart: CHIP_PU/GPIO0 stub labels are ~10mm long
     c.place("SW1", 110, 124)
-    c.place("SW2", 110, 130)
+    c.place("SW2", 110, 130)  # stacked below SW1 (side-by-side at 8u shorted the stubs: GND/GPIO0 collinear-merge, measured)
     # S1: all 18 off-sheet signals gather in edge columns, side chosen by the
     # anchor pin's stub direction (they all exit the P4's left pin column)
     for net, (_shape, (ref, pin)) in L04.hier_exports.items():
@@ -594,7 +594,7 @@ def compose_04():
     c.caption("ESP32-P4 -- the uniform ENT module MCU (radio-free); GPIO map "
               "ALL PLACEHOLDER (README flag #1)", 24, -4)
     c.note("W25Q256JVFIQ = oversized package placeholder (README flag #4); "
-           "40 MHz XTAL freq UNVERIFIED (flag #5)", 88, 56)
+           "40 MHz XTAL freq UNVERIFIED (flag #5)", 88, 50)
     c.done()
 
 

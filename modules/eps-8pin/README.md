@@ -4,6 +4,11 @@ Standard-tier **per-cable** sensing module for the EPS (CPU) 8-pin power
 connector. BOM target **$32** (100-qty). See spec
 [§6.2](../../CEC-Platform-Ground-Truth-Spec.md) (sensing) and §8 (BOM).
 
+Per CLAUDE.md's 2026-07-03 alpha/beta convention: this board is the **ALPHA**
+line (validated prototype, as designed); refinements (the routing pass, etc.)
+land as **BETA** revisions per the standard-tier beta plan
+(`docs/standard-tier-review/SYNTHESIS-beta-plan.md`).
+
 | Item | Decision |
 |---|---|
 | Tier | Standard |
