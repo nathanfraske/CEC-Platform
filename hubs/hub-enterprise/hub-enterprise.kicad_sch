@@ -3,7 +3,7 @@
 	(generator "eeschema")
 	(generator_version "10.0")
 	(uuid "8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f")
-	(paper "A3")
+	(paper "A2")
 	(title_block
 		(title "CEC Hub -- Enterprise (ENT)")
 		(date "2026-07-02")
@@ -36,83 +36,250 @@
 		)
 		(pin "+5V_MAIN" output
 			(at 90 27.94 0)
-			(uuid "b0733ac7-823c-4d0f-bb42-363679d560e7")
+			(uuid "e7dd70e9-50c6-4a7f-99ad-b49f729e019b")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+5VSB" output
 			(at 90 33.02 0)
-			(uuid "e89c69d7-e436-46d2-9ad2-37194afa8df4")
+			(uuid "9448591b-ee09-4955-ab46-46f420c5aa5b")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "EXT_5V" output
 			(at 90 39.37 0)
-			(uuid "14b92b8a-02f4-4b08-99bb-bddce93f0d08")
+			(uuid "2a3f13aa-408e-45e3-b906-dcd3626bf3f7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+5V_SYS" output
 			(at 90 44.45 0)
-			(uuid "290bef0d-b214-41ec-ba51-f313bcf78eaa")
+			(uuid "4b4cbe9f-2a98-42ab-8f6c-d3ea63318339")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+3V3" output
 			(at 90 50.8 0)
-			(uuid "b0e9f91f-1492-41c8-84f6-47f57816c36f")
+			(uuid "a39a5d68-6e40-48e9-bb91-21d188faa439")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_MAIN" output
 			(at 90 55.88 0)
-			(uuid "ab154f4a-7385-41b1-afa3-5bbe0b3beba2")
+			(uuid "0cb1860f-c3cb-438c-9df9-c4821c31ab71")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_MAIN" output
 			(at 90 60.96 0)
-			(uuid "96bc6565-5c6d-4ec3-a6dc-d7c6ee741c91")
+			(uuid "f532b937-9928-4618-8e01-eec47dfe2b26")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_SVB" output
 			(at 90 67.31 0)
-			(uuid "276c8b09-f6e8-4b70-a3c6-d6d7399c1383")
+			(uuid "f1d1d218-ffee-4afe-96f9-5cfe2d7b81c4")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_SVB" output
 			(at 90 72.39 0)
-			(uuid "d7401dfb-7095-4ecc-bc71-5ed2cb8c8730")
+			(uuid "4e7976e6-9fd4-4a1e-abc4-090ba1fc18d2")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_EXT" output
 			(at 90 78.74 0)
-			(uuid "9ca8bda7-0cb0-4dfa-a192-c9ef843662b7")
+			(uuid "53786d45-3ff8-49c9-89e6-cfe2b37c001f")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_EXT" output
 			(at 90 83.82 0)
-			(uuid "483c5cdb-8fe2-4876-acbb-03ef7f51da71")
+			(uuid "73e26271-2663-483c-a813-f7420a8aef5d")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_MAIN" output
 			(at 90 88.9 0)
-			(uuid "c7e9c269-2007-493e-941f-01d424af84f0")
+			(uuid "f8c0ae38-3f4d-4a72-abc2-9f02b167df3e")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_SVB" output
 			(at 90 95.25 0)
-			(uuid "dc17c011-5318-44d9-a1b2-ecfc84f689d1")
+			(uuid "bb064ad3-2284-4899-b04f-e45fa2cdcd9b")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_EXT" output
 			(at 90 100.33 0)
-			(uuid "134b23ae-f0ce-4f0f-abd2-5c656ad2c991")
+			(uuid "ae9eb5ee-d0a5-4558-911d-cd9a3e54893b")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_SYS" output
 			(at 90 106.68 0)
-			(uuid "dcfc63d9-3715-44ee-acca-7a48d5fce5ac")
+			(uuid "1e12dc4b-1bef-4142-80a9-861c6de442ac")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
 					(page "2")
+				)
+			)
+		)
+	)
+	(sheet
+		(at 20 120)
+		(size 70 180)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(stroke (width 0.1524) (type solid))
+		(fill (color 0 0 0 0.0000))
+		(uuid "0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085")
+		(property "Sheetname" "05-module-ports"
+			(at 20 118.5 0)
+			(effects (font (size 1.27 1.27)) (justify left bottom))
+		)
+		(property "Sheetfile" "05-module-ports.kicad_sch"
+			(at 20 301.5 0)
+			(effects (font (size 1.27 1.27)) (justify left top))
+		)
+		(pin "P1_T1_A" output
+			(at 90 128.27 0)
+			(uuid "420635de-0ac3-41db-afad-2df68c105532")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P1_T1_B" output
+			(at 90 133.35 0)
+			(uuid "c2c6f58f-0162-49e6-94b3-d1c052dcd911")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P1_SYNC7" output
+			(at 90 139.7 0)
+			(uuid "d6e228e3-d602-4db2-9bb3-1f883434fb86")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P2_T1_A" output
+			(at 90 144.78 0)
+			(uuid "c75a52e9-6467-4d96-aa25-2bf342b58790")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P2_T1_B" output
+			(at 90 149.86 0)
+			(uuid "100de2f3-1e07-4bc9-9007-680d7bb92515")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P2_SYNC7" output
+			(at 90 156.21 0)
+			(uuid "753cc1ca-504a-4a59-9466-bca3c01add6e")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P3_T1_A" output
+			(at 90 161.29 0)
+			(uuid "2388d196-8d2f-4c93-8ae1-224def0f0ac5")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P3_T1_B" output
+			(at 90 167.64 0)
+			(uuid "3dbf90fd-41d3-4c30-8f34-f35555610488")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P3_SYNC7" output
+			(at 90 172.72 0)
+			(uuid "8c27f022-ac23-426e-a9dd-f29c2648e09e")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P4_T1_A" output
+			(at 90 177.8 0)
+			(uuid "f53b74bc-e35d-46d5-9d79-851bc236c6ce")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P4_T1_B" output
+			(at 90 184.15 0)
+			(uuid "369cbf15-8b7d-456c-8a7b-04a5589818a7")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P4_SYNC7" output
+			(at 90 189.23 0)
+			(uuid "9ca17229-e413-4f42-aee1-35422ba5e657")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P5_T1_A" output
+			(at 90 195.58 0)
+			(uuid "2b5a9ef3-95da-4681-8cf1-8b2fe076e2c2")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P5_T1_B" output
+			(at 90 200.66 0)
+			(uuid "ba387ed8-e983-4815-964c-47363bfb5165")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P5_SYNC7" output
+			(at 90 205.74 0)
+			(uuid "63b42cbf-33dd-4c11-bcfa-9d0339852962")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P6_T1_A" output
+			(at 90 212.09 0)
+			(uuid "cc3a523e-fa29-4d1a-9fb8-77d86a596f14")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P6_T1_B" output
+			(at 90 217.17 0)
+			(uuid "96714801-c440-475b-9071-10a2fe7c2dce")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P6_SYNC7" output
+			(at 90 223.52 0)
+			(uuid "b238413a-c21e-45f6-93bf-0f57a702e23e")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P7_T1_A" output
+			(at 90 228.6 0)
+			(uuid "6b2fa3b1-d689-4814-b7d8-f75bc7fde935")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P7_T1_B" output
+			(at 90 233.68 0)
+			(uuid "d7592424-f1ae-45c7-8b41-3867d81f9de0")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P7_SYNC7" output
+			(at 90 240.03 0)
+			(uuid "f50482d7-2fda-4fea-a6fd-d559c440ea98")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P8_T1_A" output
+			(at 90 245.11 0)
+			(uuid "9bcf7c19-8fc3-4fb7-b011-599c46b5c47a")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P8_T1_B" output
+			(at 90 251.46 0)
+			(uuid "6fb8cb9d-1b51-4027-aeb1-70fe844bb3ae")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "P8_SYNC7" output
+			(at 90 256.54 0)
+			(uuid "4e88d521-209d-4073-9e5f-9fe2fd5723a5")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "CAN_TX" output
+			(at 90 261.62 0)
+			(uuid "af99b854-8975-4632-8a68-17fed5aa05ab")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "CAN_RX" output
+			(at 90 267.97 0)
+			(uuid "30d36fe5-aeff-43e9-8cdf-e08bb2c6a1f4")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "DETECT_SDA" output
+			(at 90 273.05 0)
+			(uuid "a48c23da-e869-4157-968a-a907434e0150")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(pin "DETECT_SCL" output
+			(at 90 279.4 0)
+			(uuid "eb583017-74ff-4e99-b72e-a4a78c885f64")
+			(effects (font (size 1.27 1.27)) (justify right))
+		)
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
+					(page "3")
 				)
 			)
 		)
@@ -139,7 +306,7 @@
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "3")
+					(page "4")
 				)
 			)
 		)
@@ -166,7 +333,7 @@
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "4")
+					(page "5")
 				)
 			)
 		)
@@ -193,7 +360,7 @@
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "5")
+					(page "6")
 				)
 			)
 		)
@@ -208,19 +375,19 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085")
-		(property "Sheetname" "05-module-ports"
+		(uuid "0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086")
+		(property "Sheetname" "06-t1-dataplane"
 			(at 220 63.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "05-module-ports.kicad_sch"
+		(property "Sheetfile" "06-t1-dataplane.kicad_sch"
 			(at 220 101.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "6")
+					(page "7")
 				)
 			)
 		)
@@ -235,19 +402,19 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086")
-		(property "Sheetname" "06-t1-dataplane"
+		(uuid "0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087")
+		(property "Sheetname" "07-uplink"
 			(at 140 108.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "06-t1-dataplane.kicad_sch"
+		(property "Sheetfile" "07-uplink.kicad_sch"
 			(at 140 146.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "7")
+					(page "8")
 				)
 			)
 		)
@@ -262,19 +429,19 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087")
-		(property "Sheetname" "07-uplink"
+		(uuid "0a1b2c3d-4e5f-4068-8a2b-3c4d5e6f7088")
+		(property "Sheetname" "08-secio-aux"
 			(at 220 108.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "07-uplink.kicad_sch"
+		(property "Sheetfile" "08-secio-aux.kicad_sch"
 			(at 220 146.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
 			(project "hub-enterprise"
 				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "8")
+					(page "9")
 				)
 			)
 		)
@@ -289,40 +456,13 @@
 		(fields_autoplaced yes)
 		(stroke (width 0.1524) (type solid))
 		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4068-8a2b-3c4d5e6f7088")
-		(property "Sheetname" "08-secio-aux"
+		(uuid "0a1b2c3d-4e5f-4069-8a2b-3c4d5e6f7089")
+		(property "Sheetname" "09-watchdog"
 			(at 140 153.5 0)
 			(effects (font (size 1.27 1.27)) (justify left bottom))
 		)
-		(property "Sheetfile" "08-secio-aux.kicad_sch"
-			(at 140 191.5 0)
-			(effects (font (size 1.27 1.27)) (justify left top))
-		)
-		(instances
-			(project "hub-enterprise"
-				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f"
-					(page "9")
-				)
-			)
-		)
-	)
-	(sheet
-		(at 220 155)
-		(size 70 35)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(stroke (width 0.1524) (type solid))
-		(fill (color 0 0 0 0.0000))
-		(uuid "0a1b2c3d-4e5f-4069-8a2b-3c4d5e6f7089")
-		(property "Sheetname" "09-watchdog"
-			(at 220 153.5 0)
-			(effects (font (size 1.27 1.27)) (justify left bottom))
-		)
 		(property "Sheetfile" "09-watchdog.kicad_sch"
-			(at 220 191.5 0)
+			(at 140 191.5 0)
 			(effects (font (size 1.27 1.27)) (justify left top))
 		)
 		(instances
@@ -333,10 +473,10 @@
 			)
 		)
 	)
-	(text "Sheet map: 00=root 01=power-input(CAPTURED -- thin parent + 7 leaf sheets 01a..01g, per functional block) 02=compute-core 03=compute-rails 04=storage 05=module-ports 06=t1-dataplane 07=uplink 08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair (MCX only, captured LAST per plan, not yet stubbed).\nPopulation/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."
+	(text "Sheet map: 00=root 01=power-input(CAPTURED -- thin parent + 7 leaf sheets 01a..01g, per functional block) 02=compute-core 03=compute-rails 04=storage 05=module-ports(CAPTURED -- thin parent + 8x 05a-port + 05b-can-frontend + 05c-detect-adc) 06=t1-dataplane 07=uplink 08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair (MCX only, captured LAST per plan, not yet stubbed).\nPopulation/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."
 		(at 20 185 0)
 		(effects (font (size 1.27 1.27)) (justify left top))
-		(uuid "a09e707c-b019-49ee-9106-b2a8d3f117c3")
+		(uuid "b6ce9c30-e241-431b-82dd-15df1261b5f1")
 	)
 	(sheet_instances
 		(path "/"

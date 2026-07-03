@@ -66,3 +66,23 @@ publish the F-F spec to seed third-party supply, drop the false telemetry claim.
 4. Customer-mix call (the B↔C flip): behind-tray/sleeved share vs black-and-done — the shop's
    sales data answers this.
 5. Authorize the §2.8 spec revision if B is chosen.
+
+---
+
+## STATUS: OPEN — owner review (2026-07-03, post-panel)
+
+The owner reviewed the matrix and is **not satisfied with any option as-is**; the decision is
+LEFT OPEN. His recorded lean (not a ruling):
+- **24-pin: VERY SHORT stub pigtail + extension bundled OPTIONALLY in the ORDER SYSTEM** (an
+  order-time add-on, not a retail-shelf dependency — this materially weakens the panel's
+  product-support objection to short-stub forms, since the extension ships in the same box when
+  chosen). What the lean leaves live: the panel's case-geometry finding that a very short stub
+  forces the module body to the header in direct mode and cannot make a behind-tray run — the
+  bench case-fit survey (question 3) and the strain-relief gate (question 1) are what resolve
+  whether "very short" works or the length creeps toward the 10–15 band.
+- **12VHPWR: direct soldered pigtail CONFIRMED** (this is already the locked §2.8 form — the
+  owner independently re-derived it from CONTACT-DEGRADATION concern on the melt-prone
+  connector: no detachable junction in that power path, period). **NEW: white AND black pigtail
+  VARIANTS as SKUs** — color must live in the captive assembly since no detachable aesthetic
+  layer is possible there. Feeds D-7's pigtail spec (length/gauge/strain relief + now
+  color/sleeving) and the SKU list.

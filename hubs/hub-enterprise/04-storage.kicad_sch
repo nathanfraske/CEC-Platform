@@ -16,11 +16,11 @@
 	(text "04-storage -- CAPTURE PENDING\n\nW25Q256JV QSPI NOR + eMMC 5.1 (FW/tamper log/bulk storage)\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "c101592d-1a87-4890-8b18-1d0f252014a5")
+		(uuid "0ebbcd40-c744-491e-b1f1-e4857f36b3e3")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4064-8a2b-3c4d5e6f7084"
-			(page "5")
+			(page "6")
 		)
 	)
 	(embedded_fonts no)

@@ -1160,6 +1160,14 @@ def compose_can_frontend():
         "CAN_TX": ("output", ("U_CAN", "1")),
         "CAN_RX": ("output", ("U_CAN", "4")),
     }
+    # +5VSB already carries a project-wide PWR_FLAG (01b) and +5VSB IS a real
+    # `(power global)` net, but kicad-cli's ERC "power_pin_not_driven" check
+    # (measured empirically) does not treat that as satisfying a power_in pin
+    # in A DIFFERENT leaf file -- every existing leaf with the same shape
+    # (an externally-sourced power net landing on a power_in pin with no
+    # local power_out) declares its own powerflag_nets entry (01a/01c/01d/01f
+    # above); U_CAN's VCC pin (power_in) needs the same local flag here.
+    lf.powerflag_nets = ["+5VSB"]
 
     c = _Compose(lf)
     c.place("U_CAN", 40, 50)
@@ -1260,28 +1268,28 @@ def compose_detect_adc():
                {"Manufacturer": UR, "MPN": "0402WGF4701TCE",
                 "Description": "I2C SCL pull-up [value illustrative]"})
 
-    lf.net("+3V3", ("U_ADC", "16"), ("C_ADCVDD", "1"), ("R_I2CSDA", "1"), ("R_I2CSCL", "1"))
+    lf.net("+3V3", ("U_ADC", "16"), ("C_ADCVDD", "1"), ("R_I2CSDA", "2"), ("R_I2CSCL", "2"))
     lf.net("GND", ("U_ADC", "9"), ("U_ADC", "11"), ("U_ADC", "12"), ("U_ADC", "13"),
            ("C_ADCVDD", "2"), ("C_ADCREF", "2"))
     lf.net("ADC_REF", ("U_ADC", "10"), ("C_ADCREF", "1"))
-    lf.net("DETECT_SDA", ("U_ADC", "15"), ("R_I2CSDA", "2"))
-    lf.net("DETECT_SCL", ("U_ADC", "14"), ("R_I2CSCL", "2"))
+    lf.net("DETECT_SDA", ("U_ADC", "15"), ("R_I2CSDA", "1"))
+    lf.net("DETECT_SCL", ("U_ADC", "14"), ("R_I2CSCL", "1"))
     for n in range(1, 9):
         lf.net(f"P{n}_DETECT_A", ("U_ADC", str(n)))
 
     lf.hier_exports = {f"P{n}_DETECT_A": ("output", ("U_ADC", str(n))) for n in range(1, 9)}
     lf.hier_exports["DETECT_SDA"] = ("output", ("U_ADC", "15"))
     lf.hier_exports["DETECT_SCL"] = ("output", ("U_ADC", "14"))
+    # +3V3 already carries a project-wide PWR_FLAG (01f) but kicad-cli's ERC
+    # does not treat that as satisfying a power_in pin in a DIFFERENT leaf
+    # file (measured empirically) -- U_ADC's +VDD pin (power_in) needs its
+    # own local flag here, same pattern as every other leaf with this shape.
+    lf.powerflag_nets = ["+3V3"]
 
     c = _Compose(lf)
     c.place("U_ADC", 60, 60)
     for n in range(1, 9):
         c.io(f"P{n}_DETECT_A", "left")
-    # both conns (U_ADC pin + the I2C pull-up) get consumed below, so the
-    # default anchor-stub mechanism has no unconsumed pin to attach from --
-    # give the io router an explicit from_pt (the SDA/SCL pin itself).
-    c.io("DETECT_SDA", "right", from_pt=c.pin("U_ADC", "15"))
-    c.io("DETECT_SCL", "right", from_pt=c.pin("U_ADC", "14"))
     gnd9 = c.pin("U_ADC", "9")
     c.wire(gnd9, (gnd9[0] + 4, gnd9[1]))
     c.stamp("GND", gnd9[0] + 4, gnd9[1], 0)
@@ -1307,20 +1315,33 @@ def compose_detect_adc():
     c.wire(cv1, (cv1[0], cv1[1] - 4))
     c.stamp("GND", cv1[0], cv1[1] - 4, 180)
     c.use(("C_ADCVDD", "1"))
+    # SCL/SDA: the pull-up hangs as a SHUNT off a tap point mid-run (not
+    # placed directly in the run's own path), and the io "from_pt" is given
+    # PAST the tap -- giving from_pt AT the raw pin (as first tried) routes
+    # the S1 column wire straight through the pull-up's own body (a real
+    # crash caught empirically: "crosses a symbol body").
     scl = c.pin("U_ADC", "14")
-    c.place("R_I2CSCL", scl[0] + 8, scl[1] - 2, 0)
-    r_scl1, r_scl2 = c.pin("R_I2CSCL", "1"), c.pin("R_I2CSCL", "2")
-    c.wire(scl, r_scl2)
-    c.wire(r_scl1, (r_scl1[0], r_scl1[1] - 4))
-    c.stamp("+3V3", r_scl1[0], r_scl1[1] - 4, 0)
+    scl_tap = (scl[0] + 6, scl[1])
+    c.wire(scl, scl_tap)
+    c.place("R_I2CSCL", scl_tap[0], scl[1] + 2, 0)
+    r_scl2 = c.pin("R_I2CSCL", "2")
+    c.wire(r_scl2, (r_scl2[0], r_scl2[1] + 4))
+    c.stamp("+3V3", r_scl2[0], r_scl2[1] + 4, 0)
     c.use(("U_ADC", "14"), ("R_I2CSCL", "1"), ("R_I2CSCL", "2"))
+    scl_end = (scl_tap[0] + 6, scl[1])
+    c.wire(scl_tap, scl_end)
+    c.io("DETECT_SCL", "right", from_pt=scl_end)
     sda = c.pin("U_ADC", "15")
-    c.place("R_I2CSDA", sda[0] + 8, sda[1] - 2, 0)
-    r_sda1, r_sda2 = c.pin("R_I2CSDA", "1"), c.pin("R_I2CSDA", "2")
-    c.wire(sda, r_sda2)
-    c.wire(r_sda1, (r_sda1[0], r_sda1[1] - 4))
-    c.stamp("+3V3", r_sda1[0], r_sda1[1] - 4, 0)
+    sda_tap = (sda[0] + 6, sda[1])
+    c.wire(sda, sda_tap)
+    c.place("R_I2CSDA", sda_tap[0], sda[1] + 2, 0)
+    r_sda2 = c.pin("R_I2CSDA", "2")
+    c.wire(r_sda2, (r_sda2[0], r_sda2[1] + 4))
+    c.stamp("+3V3", r_sda2[0], r_sda2[1] + 4, 0)
     c.use(("U_ADC", "15"), ("R_I2CSDA", "1"), ("R_I2CSDA", "2"))
+    sda_end = (sda_tap[0] + 6, sda[1])
+    c.wire(sda_tap, sda_end)
+    c.io("DETECT_SDA", "right", from_pt=sda_end)
     c.caption(lf.desc, 10, 22)
     c.note("NOT YET RATIFIED -- bom-c-module-if-base-secio.md Sec5 names ADS7830 an "
            "'alternative not chosen' vs a per-channel comparator bank; SCHEMATIC-PLAN.md "
