@@ -77,6 +77,17 @@ L5 GND, L6 sig. Controlled impedance for SGMII (100 Ω diff) + USB (90 Ω). 0.8 
 via-in-pad/filled as needed under FCVG484. ENIG. A step above every existing platform
 board — new fab class (already flagged in the spec sheet cost notes).
 
+**Feasibility VERIFIED with conditions** (breakout study, 2026-07-03 —
+`../board-program/fcvg484-breakout-study-2026-07-03.md`): ~87/484 balls of real demand,
+package center 100% power, so 6-layer holds IF (a) via-in-pad (IPC-4761 Type VII) on the
+bounded ~35–50-ball deep set (JTAG_SYSCTRL + SGMII are silicon-fixed at ring 4–7 + any
+MSSIO spill), (b) L4 reserves real controlled-impedance area reachable from the NW
+quadrant (SGMII pairs + JTAG), and (c) a NEW finer BGA-fanout netclass is authored
+(existing 0.22 mm Signal does not fit the 0.4 mm escape channel; ≈0.10–0.13 mm track).
+8-layer triggers: DDR populated (row 4 below), MSS USB landing outside the shallow pool
+(its ball is MISSING from the cached map — FAE Q7), no-via-in-pad fab constraint, MCX
+growth.
+
 ## 6. Population plan per SKU (delta from full-fit)
 
 | Subsystem | NET-B | NET-MC | NET-MCX | AIR-B | AIR-MC | AIR-MCX |

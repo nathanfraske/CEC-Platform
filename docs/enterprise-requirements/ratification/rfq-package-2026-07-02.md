@@ -139,6 +139,15 @@ these by assumption — they gate a real architecture decision (§1a above).**
    open number gating our VDD-core buck final pick (headroom risk flagged in BOM-A) and
    the MAIN_5V eFuse ILIM value (BOM-D's resistor-swap dependency chain). We'd like this
    answered quickly since it's blocking two other engineering decisions.
+7. **MSS USB 2.0 OTG ball location on FCVG484.** (Added 2026-07-03 from our breakout
+   study, `docs/enterprise-requirements/board-program/fcvg484-breakout-study-2026-07-03.md`.)
+   Which FCVG484 balls carry the MSS USB 2.0 OTG interface (ULPI or on-chip PHY pins) on
+   MPFS095TC/TS? Our cached ball map (derived from a taped-out FCVG484 design) names no
+   USB ball at all, and MSSIO — the likeliest home — is our tightest bank (28 of 38 balls
+   already committed at baseline). The answer determines whether USB stays inside our
+   6-layer escape budget or becomes an 8-layer trigger; we need it before the sheet-02
+   pin-assignment freeze. A pointer to the 095T-specific PPAT (package pin assignment
+   table) would close this and question 3 together.
 
 ---
 
