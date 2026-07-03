@@ -472,10 +472,14 @@ def _is_hidden(block):
 
 
 def _symbol_spans(work):
-    """[(start, end, (ox,oy), ref)] for every schematic SYMBOL INSTANCE in
-    `work` (lib_symbols already blanked). Used to find a property's parent
-    symbol (its origin, for the nudge push-direction, and its ref, for
-    reporting/ordering)."""
+    """[(start, end, (ox,oy), ref, rot)] for every schematic SYMBOL INSTANCE
+    in `work` (lib_symbols already blanked). Used to find a property's parent
+    symbol (its origin, for the nudge push-direction; its ref, for reporting/
+    ordering; its ROTATION, because KiCad renders a property at symbol
+    rotation + stored field angle -- measured 2026-07-03 via SVG export: a
+    rot-90 R_Small's field at stored angle 0 renders rotate(-90), at stored
+    angle 90 renders horizontal -- so a bbox computed from the stored angle
+    alone is wrong on every rotated instance)."""
     spans = []
     for m in re.finditer(r'\(symbol\n', work):
         s = m.start()
@@ -484,15 +488,16 @@ def _symbol_spans(work):
         if not at:
             continue
         refm = re.search(r'\(property\s+"Reference"\s+"((?:[^"\\]|\\.)*)"', block)
-        spans.append((s, s + len(block), (at[0], at[1]), refm.group(1) if refm else "?"))
+        spans.append((s, s + len(block), (at[0], at[1]),
+                      refm.group(1) if refm else "?", at[2]))
     return spans
 
 
 def _origin_containing(spans, offset):
-    for s, e, origin, ref in spans:
+    for s, e, origin, ref, rot in spans:
         if s <= offset < e:
-            return origin, ref
-    return None, None
+            return origin, ref, rot
+    return None, None, 0
 
 
 def _extract_text_elements(text, *, with_spans=False):
@@ -505,7 +510,7 @@ def _extract_text_elements(text, *, with_spans=False):
     clause, for nudge_texts to text-splice) and origin (owning symbol's
     placement, for the push direction)."""
     work = _strip_lib_symbols(text)
-    spans = _symbol_spans(work) if with_spans else None
+    spans = _symbol_spans(work)   # always: property bboxes need the parent rot
     elems = []
     for kind, pat in _TEXT_KINDS:
         for m in pat.finditer(work):
@@ -519,28 +524,34 @@ def _extract_text_elements(text, *, with_spans=False):
             size = _extract_font(block)
             jh, jv = _extract_justify(block)
             ref = None
+            render_ang = ang
             if kind == "property":
                 pname, pval = m.group(1), _unescape(m.group(2))
                 if pname not in ("Reference", "Value"):
                     continue
                 content = pval
                 label = f'{pname}="{pval}"'
+                origin, ref, srot = _origin_containing(spans, m.start())
+                # KiCad draws a field at (symbol rotation + stored angle);
+                # see _symbol_spans. Use the RENDERED angle for the bbox.
+                render_ang = (ang + srot) % 360
             else:
                 content = _unescape(m.group(1))
                 label = f'{kind}:"{content}"'
                 pname = kind
+                origin = None
             if not content:
                 continue
-            bbox = text_bbox(content, size, x, y, ang, jh, jv)
+            bbox = text_bbox(content, size, x, y, render_ang, jh, jv)
             el = {"kind": kind, "name": pname, "text": content, "label": label,
-                  "at": (x, y, ang), "size": size, "justify": (jh, jv), "bbox": bbox}
+                  "at": (x, y, ang), "render_ang": render_ang, "size": size,
+                  "justify": (jh, jv), "bbox": bbox}
             if with_spans:
                 at_m = re.search(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)(?:\s+(-?[\d.]+))?\)', block)
                 el["at_span"] = (m.start() + at_m.start(), m.start() + at_m.end())
                 if kind == "property":
-                    origin, oref = _origin_containing(spans, m.start())
                     el["origin"] = origin or (x, y)
-                    el["ref"] = oref
+                    el["ref"] = ref
                 label = f'{label} [{el.get("ref")}]' if kind == "property" else label
                 el["label"] = label
             elems.append(el)
@@ -602,7 +613,8 @@ def nudge_texts(sch_path, out_path=None, *, step=1.27, max_push=16, margin=0.2):
             saved_bbox, saved_at = e["bbox"], e["at"]
             for k in range(1, max_push + 1):
                 nx, ny = x + fx * step * k, y + fy * step * k
-                e["bbox"] = text_bbox(e["text"], e["size"], nx, ny, ang, *e["justify"])
+                e["bbox"] = text_bbox(e["text"], e["size"], nx, ny,
+                                      e.get("render_ang", ang), *e["justify"])
                 if not collides(e):
                     e["at"] = (nx, ny, ang)
                     moved = True

@@ -337,5 +337,68 @@ class DemoTest(unittest.TestCase):
             self.assertEqual(rc, 0)
 
 
+class RotatedFieldBBoxTest(unittest.TestCase):
+    """KiCad renders a symbol field at (symbol rotation + stored field angle)
+    -- measured via `kicad-cli sch export svg` (a rot-90 R_Small's field at
+    stored angle 0 carries rotate(-90) in the SVG; at stored angle 90 it has
+    no rotate, i.e. horizontal). detect_overlaps/nudge_texts must therefore
+    compute property bboxes at the RENDERED angle, not the stored one --
+    found live on hub-enterprise 01f (2026-07-03): the rot-90 inductor's
+    horizontal 21-char Value was bboxed as a tall vertical strip, which
+    false-collided with its neighbors and got nudged 40mm off the part."""
+
+    def _sheet(self, td, field_ang):
+        parts = {"R1": ("cec-vendor", "R_Small", "WIDE_VALUE_TEXT")}
+        used = cec_sch.load_symbols(LIBS, parts)
+        root = cec_sch.u()
+        x, y = 101.6, 101.6
+        sym = (
+            "\t(symbol\n"
+            '\t\t(lib_id "cec-vendor:R_Small")\n'
+            f"\t\t(at {x} {y} 90)\n\t\t(unit 1)\n"
+            "\t\t(exclude_from_sim no)\n\t\t(in_bom yes)\n\t\t(on_board yes)\n\t\t(dnp no)\n"
+            f'\t\t(uuid "{cec_sch.u()}")\n'
+            f'\t\t(property "Reference" "R1" (at {x} {y - 8} {field_ang}) '
+            f'(effects (font (size 1.27 1.27))))\n'
+            f'\t\t(property "Value" "WIDE_VALUE_TEXT" (at {x} {y + 8} {field_ang}) '
+            f'(effects (font (size 1.27 1.27))))\n'
+            f'\t\t(property "Footprint" "" (at {x} {y} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+            f'\t\t(property "Datasheet" "" (at {x} {y} 0) (effects (font (size 1.27 1.27)) (hide yes)))\n'
+            f'\t\t(pin "1" (uuid "{cec_sch.u()}"))\n\t\t(pin "2" (uuid "{cec_sch.u()}"))\n'
+            f'\t\t(instances\n\t\t\t(project "rotfield"\n\t\t\t\t(path "/{root}" '
+            f'(reference "R1") (unit 1))\n\t\t\t)\n\t\t)\n'
+            "\t)")
+        content = (
+            "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n"
+            "\t(generator_version \"10.0\")\n"
+            f"\t(uuid \"{root}\")\n\t(paper \"A4\")\n"
+            + cec_sch.lib_symbols_section(used) + "\n" + sym + "\n"
+            + "\t(sheet_instances\n\t\t(path \"/\"\n\t\t\t(page \"1\")\n\t\t)\n\t)\n"
+            "\t(embedded_fonts no)\n)\n")
+        path = os.path.join(td, f"rotfield_{field_ang}.kicad_sch")
+        open(path, "w").write(content)
+        return path
+
+    def test_property_bbox_uses_rendered_angle(self):
+        with tempfile.TemporaryDirectory() as td:
+            # stored angle 90 on a rot-90 symbol renders HORIZONTAL: the bbox
+            # must be wide (x extent >> y extent)
+            els = L._extract_text_elements(open(self._sheet(td, 90)).read())
+            val = next(e for e in els if e["text"] == "WIDE_VALUE_TEXT")
+            self.assertEqual(val["render_ang"], 180)   # 90 stored + 90 symbol
+            x0, x1, y0, y1 = val["bbox"]
+            self.assertGreater(x1 - x0, (y1 - y0) * 3,
+                                "rot-90 symbol + angle-90 field renders horizontal; "
+                                "bbox must be wide, not tall")
+            # stored angle 0 on the same rot-90 symbol renders VERTICAL
+            els = L._extract_text_elements(open(self._sheet(td, 0)).read())
+            val = next(e for e in els if e["text"] == "WIDE_VALUE_TEXT")
+            self.assertEqual(val["render_ang"], 90)
+            x0, x1, y0, y1 = val["bbox"]
+            self.assertGreater(y1 - y0, (x1 - x0) * 3,
+                                "rot-90 symbol + angle-0 field renders vertical; "
+                                "bbox must be tall, not wide")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -116,6 +116,7 @@ class Leaf:
         self.placement, self.nc_skip = {}, set()
         self.hier_exports = {}       # net -> ("output", (ref, pin))
         self.powerflag_nets = []
+        self.layout = None           # composed drawn structure (see build_leaf)
 
     def add_part(self, ref, lib, name, value, x, y, fp, props=None):
         self.parts[ref] = (lib, name, value)
@@ -613,6 +614,363 @@ L01G.hier_exports = {
     "SENSE_SYS":  ("output", ("R130", "1")),
 }
 
+# ===========================================================================
+# COMPOSED LAYOUTS (T1 integration, 2026-07-03 -- the owner's "center them,
+# make them not ugly spread out, attach the decouplers with real wires"
+# correction). Coordinates are designed in 1.27mm GRID UNITS (u) so every
+# wire endpoint, pin, and junction lands exactly on the schematic grid; the
+# leaf builder then centers the whole composition on the page. Connectivity
+# for every wire below is the SAME net the label-aliased version carried --
+# proven by scripts/check_hub_ent_sch.py's 59-component/46-group equivalence
+# guard plus a flattened-netlist node-set diff (see the charter, principle 1).
+# Pin math is cec_sch_layout.pin_abs_rot (rotation round-trip verified).
+# ===========================================================================
+import cec_sch_layout  # noqa: E402  (scripts/ already on sys.path)
+
+U = cec_sch.GRID  # 1.27mm
+
+
+def _pin_u(lf, used, ref, num):
+    """Pin connection point of a placed (possibly rotated) part, in u."""
+    pl = {r: (v if len(v) == 3 else (*v, 0)) for r, v in lf.placement.items()}
+    pl = {r: (x, y, rot) for r, (x, y, rot) in pl.items()}
+    ax, ay, _dx, _dy = cec_sch_layout.pin_abs_rot(pl, used, lf.parts, ref, num)
+    return round(ax / U), round(ay / U)
+
+
+class _Compose:
+    """Tiny helper collecting a leaf's composed structure in grid units and
+    emitting the mm-space `layout` dict build_leaf consumes."""
+
+    def __init__(self, lf):
+        self.lf = lf
+        self.used = cec_sch.load_symbols(LIBS, lf.parts)
+        self.wires, self.labels, self.power = [], [], []
+        self.hier_at, self.consumed, self.text_side = {}, set(), {}
+        self.rails = []
+
+    def place(self, ref, xu, yu, rot=0):
+        assert ref in self.lf.parts, ref
+        self.lf.placement[ref] = (xu * U, yu * U, rot)
+
+    def pin(self, ref, num):
+        return _pin_u(self.lf, self.used, ref, num)
+
+    def wire(self, *pts_u):
+        for (x1, y1), (x2, y2) in zip(pts_u, pts_u[1:]):
+            assert x1 == x2 or y1 == y2, f"non-Manhattan wire {pts_u}"
+            self.wires.append((x1 * U, y1 * U, x2 * U, y2 * U))
+
+    def label(self, net, xu, yu, ang):
+        self.labels.append((net, xu * U, yu * U, ang))
+
+    def stamp(self, sym, xu, yu, rot):
+        self.power.append((sym, xu * U, yu * U, rot))
+
+    def hier(self, net, xu, yu, ang=0):
+        assert net in self.lf.hier_exports, net
+        self.hier_at[net] = (xu * U, yu * U, ang)
+
+    def use(self, *pins):
+        self.consumed.update(pins)
+
+    def done(self):
+        self.lf.layout = {
+            "wires": self.wires, "labels": self.labels, "power": self.power,
+            "hier_at": self.hier_at, "consumed": self.consumed,
+            "text_side": self.text_side, "decoupler_rails": self.rails,
+        }
+        # every ref must have been explicitly (re)placed by the compose pass
+        for r in self.lf.parts:
+            assert len(self.lf.placement[r]) == 3, f"{self.lf.id}: {r} not composed"
+
+
+def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
+                  rail, sfx, out_net, tvs=None):
+    """Shared composition for the three structurally identical eFuse leaves
+    (01a/01b/01c): connector + entry rail with the input cap WIRED onto it,
+    UVLO/OVLO divider drawn as a real vertical chain, TPS25940 center, OUT
+    pin bus feeding a drawn output-cap rail + the hierarchical export, ILIM/
+    dVdT parts wired to their pins, PG/FLT pull-ups wired with hier taps.
+    `rail` = global power-port name (+5V_MAIN/+5VSB) or None for 01c's
+    EXT_5V (a named local rail: label + the jack's hierarchical export)."""
+    c = _Compose(lf)
+    c.place(Uef, 80, 80)
+    c.place(Rt, 54, 68); c.place(Rm, 54, 76); c.place(Rb, 54, 84)
+    c.text_side[Rt] = c.text_side[Rm] = c.text_side[Rb] = "left"
+    # 01a/01b: JST feed at mid-left; 01c: the barrel jack sits lower-left,
+    # clear of the divider column's left-side field text + GND stamp (its
+    # first position at (46,89) interleaved with R115's stub -- render-checked)
+    if tvs is None:
+        c.place(J, 46, 96)
+    else:
+        c.place(J, 42, 90)
+    c.place(Cin, 66, 97)
+    c.place(Ril, 97, 89); c.place(Cdv, 93, 91)
+    c.text_side[Cdv] = "left"
+    c.place(Rpg, 103, 64, 180); c.place(Rflt, 109, 66, 180)
+    c.text_side[Rpg] = "left"
+    c.place(Cout, 99, 80)
+    if tvs:
+        c.place(tvs, 58, 98, 90)
+
+    # UVLO/OVLO divider chain: real vertical wires, node labels at the taps
+    # (the IC-side pins keep short label stubs -- the pin column at x=71u is
+    # too dense for clean tap routing, standard schematic practice).
+    c.wire(c.pin(Rt, "2"), (54, 72), c.pin(Rm, "1"))
+    c.label(f"UVLO_{sfx}", 54, 72, 180)
+    c.wire(c.pin(Rm, "2"), (54, 80), c.pin(Rb, "1"))
+    c.label(f"OVP_{sfx}", 54, 80, 180)
+    c.use((Rt, "2"), (Rm, "1"), (Rm, "2"), (Rb, "1"))
+
+    # DEVSLP (pin 1) tied to GND: routed up-left so its stamp clears the
+    # pin-3/14/15 label texts below it
+    c.wire(c.pin(Uef, "1"), (69, 74), (69, 70), (66, 70))
+    c.stamp("GND", 66, 70, 0)
+    c.use((Uef, "1"))
+
+    # entry rail: input cap WIRED onto the rail feeding the five IN pins
+    in_top = c.pin(Uef, "9")            # (71, 82)
+    in_bot = c.pin(Uef, "13")           # (71, 90)
+    cin_top = c.pin(Cin, "1")           # (66, 95)
+    if rail:
+        c.wire((58, 92), (58, 95), cin_top, (71, 95), in_bot)
+        c.stamp(rail, 58, 92, 0)
+    else:
+        # segment split at (58,95): the TVS's rail pin sits exactly there and
+        # a pin binds only at a wire ENDPOINT, never mid-segment. Rail starts
+        # at x=56, clear of the divider-bottom GND stamp graphic at x=54.
+        c.wire((56, 95), (58, 95), cin_top, (71, 95), in_bot)
+        c.label("EXT_5V", 56, 95, 0)
+    for yy in range(in_top[1], in_bot[1], 2):     # IN pin bus segments
+        c.wire((71, yy), (71, yy + 2))
+    c.use((Cin, "1"), *[(Uef, str(p)) for p in (9, 10, 11, 12, 13)])
+    if tvs:
+        c.use((tvs, "2"))               # its pin 2 sits directly on the rail
+
+    return c
+
+
+def _efuse_out_side(c, Uef, Cout, out_net):
+    for yy in range(76, 86, 2):                    # OUT pin stubs 4..8
+        c.wire((89, yy), (93, yy))
+    for yy in range(76, 84, 2):                    # the bus joining them
+        c.wire((93, yy), (93, yy + 2))
+    c.wire((93, 76), (99, 76), (101, 76))          # out rail
+    c.wire((99, 76), c.pin(Cout, "1"))             # output cap drop
+    c.hier(out_net, 101, 76, 0)
+    c.use((Cout, "1"), *[(Uef, str(p)) for p in (4, 5, 6, 7, 8)])
+
+
+def _efuse_right_side(c, Uef, Ril, Cdv, Rpg, Rflt, pg_net, flt_net, sfx):
+    # ILIM + dVdT: parts hung from their pins with drawn wires. The ILIM net
+    # keeps its NAME via a label on the wire (scripts/check_hub_ent_sch.py
+    # asserts ILIM_MAIN/ILIM_SVB/ILIM_EXT by name; a fully wired net would
+    # otherwise auto-name itself Net-(Uxxx-ILIM)).
+    c.wire(c.pin(Uef, "17"), (97, 86), c.pin(Ril, "1"))
+    c.label(f"ILIM_{sfx}", 97, 86, 0)
+    c.wire(c.pin(Uef, "18"), (93, 88), c.pin(Cdv, "1"))
+    c.use((Uef, "17"), (Ril, "1"), (Uef, "18"), (Cdv, "1"))
+    # PG pull-up wired + hier tap on the run
+    c.wire(c.pin(Uef, "2"), (103, 72), c.pin(Rpg, "1"))
+    c.wire((103, 72), (105, 72))
+    c.hier(pg_net, 105, 72, 0)
+    c.use((Uef, "2"), (Rpg, "1"))
+    # FLT pull-up: routed around the sense parts, hier tap on the riser
+    c.wire(c.pin(Uef, "20"), (91, 92), (91, 101), (115, 101), (115, 92))
+    c.wire((115, 92), (115, 68), c.pin(Rflt, "1"))
+    c.wire((115, 92), (117, 92))
+    c.hier(flt_net, 117, 92, 0)
+    c.use((Uef, "20"), (Rflt, "1"))
+
+
+def compose_01a():
+    lf = L01A
+    c = compose_efuse(lf, "J101", "R101", "R102", "R103", "U101", "R104",
+                      "C101", "R105", "R106", "C102", "C103",
+                      "+5V_MAIN", "MAIN", "MAIN_EF_OUT")
+    _efuse_out_side(c, "U101", "C103", "MAIN_EF_OUT")
+    _efuse_right_side(c, "U101", "R104", "C101", "R105", "R106",
+                      "PG_MAIN", "FLT_MAIN", "MAIN")
+    # connector: +5V feed wired to its own rail stamp clear of the GND stamp
+    c.wire(c.pin("J101", "1"), (35, 95))
+    c.stamp("+5V_MAIN", 35, 95, 0)
+    c.use(("J101", "1"))
+    c.done()
+
+
+def compose_01b():
+    lf = L01B
+    c = compose_efuse(lf, "J102", "R107", "R108", "R109", "U102", "R110",
+                      "C104", "R111", "R112", "C105", "C106",
+                      "+5VSB", "SVB", "SVB_EF_OUT")
+    _efuse_out_side(c, "U102", "C106", "SVB_EF_OUT")
+    _efuse_right_side(c, "U102", "R110", "C104", "R111", "R112",
+                      "PG_SVB", "FLT_SVB", "SVB")
+    c.wire(c.pin("J102", "1"), (35, 95))
+    c.stamp("+5VSB", 35, 95, 0)
+    c.use(("J102", "1"))
+    c.done()
+
+
+def compose_01c():
+    lf = L01C
+    c = compose_efuse(lf, "J103", "R113", "R114", "R115", "U103", "R116",
+                      "C107", "R117", "R118", "C108", "C109",
+                      None, "EXT", "EXT_EF_OUT", tvs="D102")
+    _efuse_out_side(c, "U103", "C109", "EXT_EF_OUT")
+    _efuse_right_side(c, "U103", "R116", "C107", "R117", "R118",
+                      "PG_EXT", "FLT_EXT", "EXT")
+    # J103's own EXT_5V hierarchical export stays the generic anchor-pin stub
+    # (barrel jack at the left edge, export points off-sheet -- natural).
+    c.done()
+
+
+def compose_01d():
+    lf = L01D
+    c = _Compose(lf)
+    c.place("U104", 52, 80); c.place("U105", 100, 80)
+    c.place("R119", 68, 92); c.place("C110", 72, 88)
+    c.place("R120", 116, 92); c.place("C111", 120, 88)
+    c.text_side["R119"] = c.text_side["R120"] = "left"
+
+    # stage A inputs: drawn pin buses + hier labels at the bus ends
+    c.wire(c.pin("U104", "7"), (34, 64))
+    c.wire(c.pin("U104", "6"), (34, 74))
+    c.wire((34, 64), (34, 74))
+    c.hier("SVB_EF_OUT", 34, 64, 180)
+    c.wire(c.pin("U104", "3"), (34, 82))
+    c.wire(c.pin("U104", "2"), (34, 86))
+    c.wire((34, 82), (34, 86))
+    c.hier("EXT_EF_OUT", 34, 86, 180)
+    c.use(("U104", "6"), ("U104", "7"), ("U104", "2"), ("U104", "3"))
+
+    # stage A OUT -> stage B IN2/CP2: the cascade chain, drawn
+    c.wire(c.pin("U104", "1"), (76, 64))
+    c.wire(c.pin("U104", "8"), (76, 66))
+    c.wire((76, 64), (76, 66), (76, 90), (82, 90), (82, 86), (82, 82))
+    c.wire(c.pin("U105", "3"), (82, 82))
+    c.wire(c.pin("U105", "2"), (82, 86))
+    c.label("STAGE_A_OUT", 76, 64, 0)
+    c.use(("U104", "1"), ("U104", "8"), ("U105", "2"), ("U105", "3"))
+
+    # stage B priority input bus + hier
+    c.wire(c.pin("U105", "7"), (82, 64))
+    c.wire(c.pin("U105", "6"), (82, 74))
+    c.wire((82, 64), (82, 74))
+    c.wire((82, 64), (82, 60))
+    c.hier("MAIN_EF_OUT", 82, 60, 0)
+    c.use(("U105", "6"), ("U105", "7"))
+
+    # merged system rail out
+    c.wire(c.pin("U105", "1"), (118, 64))
+    c.wire(c.pin("U105", "8"), (118, 66))
+    c.wire((118, 64), (118, 66))
+    c.wire((118, 64), (118, 60))
+    c.stamp("+5V_SYS", 118, 60, 0)
+    c.use(("U105", "1"), ("U105", "8"))
+
+    # per-stage ILM resistor + soft-start cap wired to their pins, with a
+    # shared drawn GND return per stage (ILM bottom + SS bottom + the GND
+    # pin 12 join one short rail with a single stamp -- keeps the parts clear
+    # of pin 12's own graphic, which the first cut of this layout sat on)
+    for Ua, Rilm, Css, x0 in (("U104", "R119", "C110", 66),
+                               ("U105", "R120", "C111", 114)):
+        rl, cl = x0 + 2, x0 + 6          # R lane, C lane
+        c.wire(c.pin(Ua, "11"), (cl, 84), c.pin(Css, "1"))
+        c.wire(c.pin(Ua, "10"), (rl, 88), c.pin(Rilm, "1"))
+        c.wire(c.pin(Rilm, "2"), (rl, 96), (rl, 98))       # split at pin-12 tap
+        c.wire(c.pin(Ua, "12"), (rl, 96))
+        c.wire(c.pin(Css, "2"), (cl, 98))
+        c.wire((rl, 98), (cl, 98), (cl + 4, 98))
+        c.stamp("GND", cl + 4, 98, 0)
+        c.use((Ua, "11"), (Css, "1"), (Ua, "10"), (Rilm, "1"),
+              (Ua, "12"), (Rilm, "2"), (Css, "2"))
+    c.done()
+
+
+def compose_01e():
+    lf = L01E
+    c = _Compose(lf)
+    c.place("D101", 56, 84, 180)     # input left (pin 2 = +5V_SYS), out right
+    # initial cap positions = where place_decouplers will put them (the rail
+    # runs through the T1 engine's place_decouplers/wire_decouplers pair, so
+    # the caps are ATTACHED: one drawn rail off D101's cathode, GND stubs)
+    c.place("C112", 71, 78); c.place("C113", 83, 78); c.place("C114", 95, 78)
+    c.rails.append({"ic": "D101", "pin": "1", "caps": ["C112", "C113", "C114"],
+                    "side": "above", "pitch": 15.24, "rise": 7.62})
+    c.wire((95, 73), (99, 73))       # rail extension carrying the net name
+    c.label("+5V_HOLD", 99, 73, 0)
+    c.use(("D101", "1"), ("C112", "1"), ("C113", "1"), ("C114", "1"),
+          ("C112", "2"), ("C113", "2"), ("C114", "2"))
+    c.done()
+
+
+def compose_01f():
+    lf = L01F
+    c = _Compose(lf)
+    c.place("U106", 72, 80)
+    c.place("C115", 56, 84)
+    c.place("L101", 86, 78, 90)
+    c.place("C116", 89, 82)
+    c.text_side["C116"] = "left"
+    c.place("R121", 95, 84); c.place("R122", 95, 94)
+    c.place("U107", 106, 84)
+
+    # VIN entry: EN strapped to VIN, input cap wired onto the entry node
+    c.wire(c.pin("U106", "1"), (60, 78), (60, 82), c.pin("U106", "4"))
+    c.wire((60, 82), c.pin("C115", "1"))
+    c.wire((60, 78), (60, 74))
+    c.stamp("+5V_SYS", 60, 74, 0)
+    c.use(("U106", "1"), ("U106", "4"), ("C115", "1"))
+
+    # SW node: buck -> inductor, direct
+    c.wire(c.pin("U106", "3"), c.pin("L101", "1"))
+    c.use(("U106", "3"), ("L101", "1"))
+
+    # +3V3 output rail: inductor -> caps/divider/supervisor, one drawn rail
+    c.wire(c.pin("L101", "2"), (89, 78), (95, 78), (98, 78),
+           c.pin("U107", "3"), (110, 78))
+    c.wire((89, 78), c.pin("C116", "1"))
+    c.wire((95, 78), c.pin("R121", "1"))
+    c.wire((98, 78), (98, 74))
+    c.stamp("+3V3", 98, 74, 0)
+    c.hier("+3V3", 110, 78, 0)
+    c.use(("L101", "2"), ("C116", "1"), ("R121", "1"), ("U107", "3"))
+
+    # FB divider: drawn chain + FB sense run back to the buck
+    c.wire(c.pin("R121", "2"), c.pin("R122", "1"))
+    c.wire(c.pin("U106", "5"), (82, 82), (82, 92), c.pin("R122", "1"))
+    c.use(("R121", "2"), ("R122", "1"), ("U106", "5"))
+    c.done()
+
+
+def compose_01g():
+    lf = L01G
+    cols = [("R123", "R124", "+5V_MAIN", "SENSE_MAIN", 48),
+            ("R125", "R126", "+5VSB", "SENSE_SVB", 68),
+            ("R127", "R128", None, "SENSE_EXT", 88),
+            ("R129", "R130", "+5V_SYS", "SENSE_SYS", 108)]
+    c = _Compose(lf)
+    for rt, rb, rail, sense, x in cols:
+        c.place(rt, x, 68); c.place(rb, x, 76)
+        c.wire((x, 64), c.pin(rt, "1"))
+        if rail:
+            c.stamp(rail, x, 64, 0)
+        else:
+            c.hier("EXT_5V", x, 64, 0)     # EXT_5V: hier export at the top
+        c.wire(c.pin(rt, "2"), (x, 72), c.pin(rb, "1"))
+        c.wire((x, 72), (x + 4, 72))
+        c.hier(sense, x + 4, 72, 0)
+        c.use((rt, "1"), (rt, "2"), (rb, "1"))
+    c.done()
+
+
+for _fn in (compose_01a, compose_01b, compose_01c, compose_01d,
+            compose_01e, compose_01f, compose_01g):
+    _fn()
+
+
 # ---------------------------------------------------------------------------
 # the 15 exports at the ROOT boundary -- UNCHANGED from the pre-restructure
 # generator (same names, same shapes; build_root() and the root sheet's own
@@ -661,44 +1019,65 @@ if __name__ == "__main__":
             lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
             POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
             LIBS, PROJECT, path_prefix, sheet_instances_path, LEAF_OWN_UUIDS[lid],
-            page=leaf_page[lid], out_path=f"{HERE}/{lf.filename}", paper="A3",
+            # A4 per leaf (was A3): each functional block is a compact
+            # composition now, and a centered A4 page reads far better than a
+            # mostly empty A3 (the owner's "middle of the sheets" ask).
+            page=leaf_page[lid], out_path=f"{HERE}/{lf.filename}", paper="A4",
             title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc,
             # disjoint 100-block per leaf: #PWR/#FLG refs must be unique across
             # the FLATTENED design or kicad-cli reports annotation errors
-            pwr_base=100 * (li + 1))
+            pwr_base=100 * (li + 1), layout=lf.layout)
         total_parts += stats["parts"]
+        # T1 finishing pass: deterministic field-text collision resolution
+        n_moved, still = cec_sch_layout.nudge_texts(f"{HERE}/{lf.filename}")
+        stats["nudged"], stats["text_overlaps_left"] = n_moved, still
         print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
 
-    # thin-parent sheet-box layout: 3 columns, each leaf's box height scales
-    # with its own pin count so pins never overrun the box.
-    def box_h(n_pins):
-        return max(35.0, 8 + n_pins * 5.588 + 8)
-
-    cols_x = [20, 140, 260]
-    col_next_y = {0: 20, 1: 20, 2: 20}
-    col_of = {"01a": 0, "01b": 0, "01c": 0, "01d": 1, "01e": 1, "01f": 1, "01g": 2}
+    # thin-parent sheet-box arrangement (flow, left -> right): the three eFuse
+    # fronts feed the cascade with REAL drawn wires; cascade output cascades
+    # to hold-up + buck below it; rail-sense on the right; EXT_5V runs under
+    # the middle column to rail-sense. Sides are part of the pin spec; box
+    # geometry is grid-aligned so sheet-pin stubs land on-grid (kills the old
+    # endpoint_off_grid ERC/lint class without violating the pin-on-box-edge
+    # exactness rule).
+    PARENT_PINS = {
+        "01a": [("PG_MAIN", "right"), ("FLT_MAIN", "right"), ("MAIN_EF_OUT", "right")],
+        "01b": [("PG_SVB", "right"), ("FLT_SVB", "right"), ("SVB_EF_OUT", "right")],
+        "01c": [("PG_EXT", "right"), ("FLT_EXT", "right"), ("EXT_EF_OUT", "right"),
+                 ("EXT_5V", "right")],
+        "01d": [("MAIN_EF_OUT", "left"), ("SVB_EF_OUT", "left"), ("EXT_EF_OUT", "left")],
+        "01e": [],
+        "01f": [("+3V3", "right")],
+        "01g": [("EXT_5V", "left"), ("SENSE_MAIN", "right"), ("SENSE_SVB", "right"),
+                 ("SENSE_EXT", "right"), ("SENSE_SYS", "right")],
+    }
+    for lid in LEAF_ORDER:
+        assert {n for n, _s in PARENT_PINS[lid]} == set(LEAVES[lid].hier_exports), lid
+    u = cec_sch.GRID
+    BOX = {  # (x, y, h) in grid units; w uniform
+        "01a": (16, 16, 24), "01b": (16, 48, 24), "01c": (16, 80, 28),
+        "01d": (112, 16, 24), "01e": (112, 48, 16), "01f": (112, 72, 16),
+        "01g": (208, 16, 28),
+    }
     leaves_for_parent = []
     for lid in LEAF_ORDER:
         lf = LEAVES[lid]
-        pins = [(name, lf.hier_exports[name][0]) for name in lf.hier_exports]
-        col = col_of[lid]
-        x = cols_x[col]
-        y = col_next_y[col]
-        h = round(box_h(len(pins)) / cec_sch.GRID) * cec_sch.GRID
-        w = 90.0
+        bx, by, bh = BOX[lid]
         leaves_for_parent.append({
             "id": lid, "sym_uuid": LEAF_SYM_UUIDS[lid], "filename": lf.filename,
             "sheetname": lf.sheetname, "page": leaf_page[lid],
-            "x": x, "y": y, "w": w, "h": h, "pins": pins,
+            "x": bx * u, "y": by * u, "w": 70 * u, "h": bh * u,
+            "pins": [(name, lf.hier_exports[name][0], side)
+                      for name, side in PARENT_PINS[lid]],
         })
-        col_next_y[col] = y + h + 20
 
     parent_stats = build_thin_parent(
         leaves_for_parent, ROOT_EXPORT_NETS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
         SHEET01_OWN_UUID, out_path=f"{HERE}/01-power-input.kicad_sch",
         title="CEC Hub -- Enterprise (ENT): 01-power-input (thin parent)", paper="A3",
         global_power_exports=GLOBAL_POWER_EXPORTS, libs=LIBS,
-        pwr_base=100 * (len(LEAF_ORDER) + 1))
+        pwr_base=100 * (len(LEAF_ORDER) + 1),
+        gp_block_xy=(194 * u, 112 * u))
     print("01-power-input.kicad_sch (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()) +
           f"  total_leaf_parts={total_parts}")

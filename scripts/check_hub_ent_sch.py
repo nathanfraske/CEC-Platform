@@ -170,8 +170,10 @@ def main():
         "endpoint_off_grid":    "warning-only: a leaf sheet-pin's X MUST sit exactly on its box's real edge (not "
                                 "gridsnapped) for kicad-cli to bind it into the flattened net at all -- verified "
                                 "empirically during the 2026-07-02 re-sheeting (a gridsnapped X parses fine but "
-                                "silently drops the connection); the resulting stub wire is then off the 1.27mm "
-                                "cosmetic grid by construction. All 19 occurrences are severity=warning.",
+                                "silently drops the connection). RESOLVED 2026-07-03 (T1 composition pass): "
+                                "build_thin_parent now grid-aligns the box geometry itself so the pin sits both "
+                                "on-edge AND on-grid -- expected count is 0; the class stays listed so a "
+                                "regression reads benign-warning, not unexplained.",
     }
     with tempfile.TemporaryDirectory() as td:
         erc_json = os.path.join(td, "erc.json")

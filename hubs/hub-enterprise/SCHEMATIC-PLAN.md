@@ -53,11 +53,11 @@ fields (the fab DNP matrix), never schematic variants.
 ## 2. Verification protocol (every sheet, before it counts as done)
 
 1. `kicad-cli sch erc --exit-code-violations` — clean apart from documented-benign classes.
-   A thin parent + its leaves adds one class to that documented-benign set:
-   `endpoint_off_grid` (warning-only) — a leaf sheet-pin's X must sit exactly on its
-   box's real edge, not gridsnapped, for kicad-cli to bind it into the flattened net at
-   all (see `build_lib.py`'s notes); the resulting stub wire is then off the cosmetic
-   1.27 mm grid by construction.
+   (The `endpoint_off_grid` class this list used to document is GONE as of the 2026-07-03
+   T1 layout integration: a sheet pin's X must still sit exactly on its box's real edge —
+   never independently gridsnapped, see `build_lib.py`'s notes — but the box origins and
+   widths are now themselves 1.27 mm multiples, so the edge, the pin, and its stub all
+   land on-grid simultaneously. Count went 19 → 0 with no new class.)
 2. Netlist export + scripted connectivity assertions (the repo's netlist-verified
    pattern): a `scripts/check_hub_ent_sch.py` grows one assertion block per sheet
    (e.g. every RJ-45 pin 8 → its DETECT ladder + ESD; pin-7 → series R → fabric GPIO;
@@ -70,7 +70,15 @@ fields (the fab DNP matrix), never schematic variants.
    checks where applicable (pin table, DETECT codes, no-Mini-Fit rule).
 4. BOM cross-check against the master BOM lines (the bom skill) — every sheet's refs
    reconcile to their subsystem BOM section.
-5. DRAFT marker stays until all sheets pass 1–4 + the intake gate.
+5. **ACTIVE (adopted 2026-07-03, charter gate 5):** `python3 scripts/cec_sch_layout.py
+   --check-overlaps <sheet>` — 0 overlapping text pairs on every generated sheet (the
+   generator runs `nudge_texts` as its finishing pass; currently 0/0 across 01a–01g +
+   the thin parent).
+6. **ACTIVE (adopted 2026-07-03, charter gate 6):** `python3 scripts/cec_sch_lint.py
+   <project root sch>` — style findings triaged like ERC (real vs documented-benign):
+   no ERROR-class findings (baseline 38 SL-01 off-grid errors → 0); remaining WARNs are
+   SL-04 label-angle-vs-wire cosmetics at L-wire corners, tracked not gating.
+7. DRAFT marker stays until all sheets pass 1–6 + the intake gate.
 
 ## 3. Capture order (dependency-driven)
 
