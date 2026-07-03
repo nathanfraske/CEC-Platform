@@ -187,6 +187,34 @@ class TestFixtureTeeth(unittest.TestCase):
         findings = self._findings_for(GPIO_SYMBOL)
         self.assertEqual(findings, [], findings)
 
+    def test_master_side_cs_output_is_accepted(self):
+        # Orientation-dependent classes (CS/RST): a deliberate input OR output
+        # is a valid directional call (a bus MASTER's CS is an output -- the
+        # MPFS MSS_DDR_CS0/1 + ESP32-P4 FLASH_CS hand overrides, 2026-07-03).
+        # Only unspecified/bidirectional stay suspect for those rules.
+        sym = _wrap(f'''
+(symbol "TEST_MASTER_CS"
+  (property "Reference" "U" (at 0 0 0))
+  (symbol "TEST_MASTER_CS_0_1"
+    (rectangle (start -5 5) (end 5 -5) (stroke (width 0.254) (type default)) (fill (type background)))
+  )
+  (symbol "TEST_MASTER_CS_1_1"
+    {_pin("output", "FLASH_CS", "1")}
+    {_pin("input", "CS2", "2")}
+    {_pin("output", "RESET_DRV", "3")}
+    {_pin("bidirectional", "CS3", "4")}
+  )
+)
+''')
+        findings = self._findings_for(sym)
+        # pins 1-3 (deliberate input/output on CS/RST names): no finding at all
+        for f in findings:
+            self.assertNotIn(f.pin_number, ("1", "2", "3"), findings)
+        # pin 4 (bidirectional CS) STAYS suspect -- the accept must not widen
+        cs3 = [f for f in findings if f.pin_number == "4"]
+        self.assertEqual(len(cs3), 1, findings)
+        self.assertEqual(cs3[0].proposed_type, "input")
+
 
 class TestCLI(unittest.TestCase):
     def test_audit_exit_code_high_confidence_gates(self):

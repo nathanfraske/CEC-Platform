@@ -506,6 +506,14 @@ def audit_symbol(sym: SymbolDef) -> List[Finding]:
         elif proposed_type is not None and proposed_type != current:
             if current in _COMPATIBLE_ALIASES.get(proposed_type, set()):
                 continue  # e.g. proposed 'output', current already 'power_out'
+            if rule_id in ("CS", "RST") and current in ("input", "output"):
+                # orientation-dependent classes: the heuristic can only guess
+                # the slave-side default; a pin already typed input OR output
+                # is a deliberate directional call (e.g. a bus MASTER's CS is
+                # an output -- the MPFS MSS_DDR_CS0/1 and ESP32-P4 FLASH_CS
+                # hand overrides, 2026-07-03). Only unspecified/bidirectional
+                # stay suspect for these rules.
+                continue
             findings.append(Finding(sym.name, pin.number, pin.name, current,
                                      proposed_type, confidence, rule_id,
                                      f"{note} (currently '{current}')"))

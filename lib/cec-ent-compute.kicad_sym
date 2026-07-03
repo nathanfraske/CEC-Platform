@@ -3819,7 +3819,7 @@
 					)
 				)
 			)
-			(pin bidirectional line
+			(pin input line
 				(at 0 -4.445 0)
 				(length 5.08)
 
@@ -3838,7 +3838,7 @@
 					)
 				)
 			)
-			(pin bidirectional line
+			(pin input line
 				(at 0 -5.715 0)
 				(length 5.08)
 
@@ -4490,7 +4490,7 @@
 					)
 				)
 			)
-			(pin bidirectional line
+			(pin output line
 				(at 0 30.48 0)
 				(length 5.08)
 
@@ -4528,7 +4528,7 @@
 					)
 				)
 			)
-			(pin bidirectional line
+			(pin output line
 				(at 0 27.94 0)
 				(length 5.08)
 

@@ -1,0 +1,16 @@
+# cec_sym_audit --fix review for lib/cec-ent-compute.kicad_sym
+# 4 high-confidence change(s)
+
+MPFS095T_FCVG484: pin H11 'SPI_EN': bidirectional -> input  (EN: enable/control pin (EN/ENABLE) (currently 'bidirectional'))
+MPFS095T_FCVG484: pin H7 'DEVRST_N': bidirectional -> input  (RST: reset pin (RST/nRST/DEVRST) -- verify if this part can itself drive a reset OUTPUT to other devices (currently 'bidirectional'))
+MPFS095T_FCVG484: pin L3 'MSS_DDR_CS0': bidirectional -> input  (CS: chip-select pin (CS/nCS) -- orientation-dependent, verify against the datasheet if this part is the bus MASTER (a master-side CS is normally an output) (currently 'bidirectional'))
+MPFS095T_FCVG484: pin M3 'MSS_DDR_CS1': bidirectional -> input  (CS: chip-select pin (CS/nCS) -- orientation-dependent, verify against the datasheet if this part is the bus MASTER (a master-side CS is normally an output) (currently 'bidirectional'))
+
+# HAND REVIEW (2026-07-03, orchestrator): the two CS proposals above were
+# OVERRIDDEN input -> output after review. The MPFS MSS is the DDR bus MASTER
+# (its DDR controller drives chip-select toward the DRAM), so a master-side CS
+# is an output -- exactly the orientation caveat the auditor itself attached.
+# SPI_EN and DEVRST_N stand as input (system-controller boot-config input and
+# device reset input per DS60001692E).
+MPFS095T_FCVG484: pin L3 'MSS_DDR_CS0': input -> output  (hand override, DDR master)
+MPFS095T_FCVG484: pin M3 'MSS_DDR_CS1': input -> output  (hand override, DDR master)

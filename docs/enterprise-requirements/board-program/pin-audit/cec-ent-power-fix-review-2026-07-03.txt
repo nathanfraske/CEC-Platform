@@ -1,0 +1,2 @@
+# cec_sym_audit --fix review for lib/cec-ent-power.kicad_sym
+# no high-confidence fixes to apply
