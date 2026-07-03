@@ -87,6 +87,21 @@ def net_named(nets, suffix):
     return None, set()
 
 
+def group_of(nets, ref, pin):
+    """Return the full node-set of whichever net contains (ref, pin), by
+    PIN MEMBERSHIP rather than net NAME. A purely-internal 2-pin connection
+    with no hier label / local label / power stamp anywhere on it (e.g. a
+    jack pin wired straight into a series resistor, nothing else) gets NO
+    visible name at all -- kicad-cli auto-derives one from a component pin
+    (`Net-(J_PORT1-DETECT)`), ignoring whatever bookkeeping name the
+    generator used internally. `net_named` (name-based) cannot find such a
+    net; this pin-based lookup is the general form."""
+    for conns in nets.values():
+        if (ref, pin) in conns:
+            return set(conns)
+    return set()
+
+
 def main():
     print(f"=== hub-enterprise verification ({BOARD_DIR}) ===")
 
@@ -136,7 +151,7 @@ def main():
                   f"{name}.kicad_sch carries a proper per-sheet title")
 
     for num, name in (("02", "02-compute-core"), ("03", "03-compute-rails"),
-                       ("04", "04-storage"), ("05", "05-module-ports"),
+                       ("04", "04-storage"),
                        ("06", "06-t1-dataplane"), ("07", "07-uplink"),
                        ("08", "08-secio-aux"), ("09", "09-watchdog")):
         p = os.path.join(BOARD_DIR, f"{name}.kicad_sch")
@@ -146,6 +161,39 @@ def main():
             check("CAPTURE PENDING" in txt, f"{name}.kicad_sch marked capture-pending")
             check("(symbol\n" not in txt and "(symbol \"" not in txt,
                   f"{name}.kicad_sch carries no components yet")
+
+    # -----------------------------------------------------------------
+    # 0b. sheet 05 (module ports) format: same thin-parent-plus-leaves rule
+    # as sheet 01, but with the 8x 05a-port{n} REPEATED-BLOCK case (one
+    # template function, 8 generated leaf files -- see gen_hub_enterprise.py's
+    # module docstring on why this generator does not use a single leaf file
+    # instantiated 8x: build_leaf/build_thin_parent each bake exactly ONE
+    # instances.path/sheet_instances entry per component/file today).
+    # -----------------------------------------------------------------
+    SHEET05_LEAVES = tuple(f"05a-port{n}" for n in range(1, 9)) + (
+        "05b-can-frontend", "05c-detect-adc")
+    parent05_path = os.path.join(BOARD_DIR, "05-module-ports.kicad_sch")
+    if os.path.isfile(parent05_path):
+        parent05_txt = open(parent05_path).read()
+        real_lib_ids = re.findall(r'\(lib_id "([^"]+)"\)', parent05_txt)
+        non_power = [l for l in real_lib_ids if not l.startswith("cec-power:")]
+        check(not non_power,
+              f"05-module-ports.kicad_sch (thin parent) carries no components "
+              f"(found non-power lib_ids: {non_power})")
+        check("(type dash)" not in parent05_txt,
+              "05-module-ports.kicad_sch (thin parent) carries no dashed-frame section graphics")
+        check(parent05_txt.count("(sheet\n") == len(SHEET05_LEAVES),
+              f"05-module-ports.kicad_sch instantiates exactly {len(SHEET05_LEAVES)} leaf sheets "
+              f"(found {parent05_txt.count('(sheet' + chr(10))})")
+    for name in SHEET05_LEAVES:
+        p = os.path.join(BOARD_DIR, f"{name}.kicad_sch")
+        check(os.path.isfile(p), f"leaf sheet present: {name}.kicad_sch")
+        if os.path.isfile(p):
+            txt = open(p).read()
+            check("(type dash)" not in txt,
+                  f"{name}.kicad_sch carries no dashed-frame section graphics")
+            check(f'(title "CEC Hub -- Enterprise (ENT): {name}"' in txt,
+                  f"{name}.kicad_sch carries a proper per-sheet title")
 
     symtab = open(os.path.join(BOARD_DIR, "sym-lib-table")).read()
     for nick in ("cec", "cec-vendor", "cec-power", "cec-ent-power", "cec-ent-net",
@@ -164,9 +212,15 @@ def main():
     # -----------------------------------------------------------------
     KNOWN_BENIGN = {
         "lib_symbol_mismatch":  "generator lib_symbols-cache cosmetic mismatch (repo-wide known class)",
-        "pin_not_connected":    "sheet-01's 15 hierarchical exports have no consumer yet (sheets 02-09 are placeholders)",
+        "pin_not_connected":    "43 = sheet-01's 15 + sheet-05's 28 (16x P{n}_T1_A/B, 8x P{n}_SYNC7, "
+                                "CAN_TX/RX, DETECT_SDA/SCL) hierarchical exports with no consumer yet "
+                                "(sheets 02/06/09 are still placeholders)",
         "pin_to_pin":           "TPS25940LRVCR's 5 parallel power_out OUT pins tied together (required multi-pin eFuse design)",
-        "isolated_pin_label":   "RESET_3V3: a single forward-looking label, no consumer captured yet",
+        "isolated_pin_label":   "RESET_3V3 (1) + sheet-05's 18 root-level T1/CAN_TX/RX exports (each counted "
+                                "twice by kicad-cli's scan, 36) -- all forward-looking labels/hier pins with "
+                                "no consumer captured yet, same root cause as pin_not_connected above.",
+        "pin_not_driven":       "sheet-05b's U_CAN.TXD (an Input pin) has no driver yet -- the fabric CAN "
+                                "controller that drives it lives on sheet 02/09, still a placeholder.",
         "endpoint_off_grid":    "warning-only: a leaf sheet-pin's X MUST sit exactly on its box's real edge (not "
                                 "gridsnapped) for kicad-cli to bind it into the flattened net at all -- verified "
                                 "empirically during the 2026-07-02 re-sheeting (a gridsnapped X parses fine but "
@@ -211,14 +265,48 @@ def main():
     # captured in this same session. 46 connectivity groups, verified via
     # `python3 conn_snapshot.py` bit-for-bit equal (0 missing / 0 extra) run
     # against the committed pre-2026-07-02 01-power-input.kicad_sch.
+    #
+    # 2026-07-03 (sheet-05 ADDITIVE capture): every 01-subtree ref uses the
+    # platform's plain NNN-in-100s numbering (U101..U107/R101..R130/
+    # C101..C116/J101..J103/D102 -- 59 refs); every 05-subtree ref uses
+    # DESCRIPTIVE names (J_PORT1..8, D_TVS/D_VCC/R_DSER/D_DET/R_DET/R_SYNC/
+    # D_SYNC 1..8, U_CAN, R_CANT1/2, C_CANT/CANVCC/CANVIO, U_ADC, C_ADCREF/
+    # ADCVDD, R_I2CSDA/SCL -- 75 refs), so the two subtrees are separable by
+    # ref shape alone (`_IS_01_REF`). This is the GUARD-GROWS half of the
+    # additive-capture discipline: total components/groups now include
+    # sheet 05, but the 01-subtree's OWN portion is separately re-proven
+    # unchanged by PROJECTING every flattened group onto its 01-subtree-only
+    # members (dropping any 05-subtree ref that joined a shared GLOBAL power
+    # net like GND/+3V3/+5VSB) -- that projection must still be exactly the
+    # historical 46/59, proving sheet 05 only ADDED members to those shared
+    # nets and touched nothing else in the 01 subtree.
     # -----------------------------------------------------------------
+    _IS_01_REF = re.compile(r'^[A-Z]+1[0-3]\d$')  # U101-U139 / R101-R139 / etc.
     real_comps = [r for r in comps if not r.startswith("#")]
-    check(len(real_comps) == 59, f"component count unchanged by the re-sheeting (expected 59, got {len(real_comps)})")
+    comps_01 = [r for r in real_comps if _IS_01_REF.match(r)]
+    comps_05 = [r for r in real_comps if not _IS_01_REF.match(r)]
+    check(len(comps_01) == 59,
+          f"01-subtree component count unchanged by sheet-05's addition (expected 59, got {len(comps_01)})")
+    check(len(comps_05) == 75,
+          f"05-subtree adds exactly 75 components (8x8 port parts + 6 05b + 5 05c "
+          f"= 64+6+5; got {len(comps_05)})")
+    check(len(real_comps) == 134,
+          f"total component count = 59 (sheet 01, unchanged) + 75 (sheet 05, new) = 134 "
+          f"(got {len(real_comps)})")
+
     groups = sorted(frozenset(v) for v in nets.values())
     n_groups = len(groups)
-    check(n_groups == 46,
-          f"flattened connectivity group count unchanged by the re-sheeting "
-          f"(expected 46, matching the pre-restructure flat sheet-01 baseline; got {n_groups})")
+    proj_01 = {frozenset((r, p) for r, p in g if _IS_01_REF.match(r) or r.startswith("#"))
+               for g in groups}
+    proj_01 = {g for g in proj_01 if g}      # drop groups with no 01-subtree member at all
+    check(len(proj_01) == 46,
+          f"01-subtree connectivity (PROJECTED: each flattened group reduced to its "
+          f"01-subtree-only members) is unchanged by sheet-05's addition -- still exactly "
+          f"the historical 46 groups (got {len(proj_01)}); sheet 05 only ADDS members to "
+          f"shared global power nets (GND/+3V3/+5VSB/+5V_MAIN/+5V_SYS), never alters an "
+          f"existing 01-subtree connection")
+    print(f"  ..  flattened hierarchy: {len(real_comps)} components / {n_groups} connectivity "
+          f"groups total (01-subtree 59/46 unchanged + 05-subtree 75 new)")
 
     # -----------------------------------------------------------------
     # 2. sheet-01 assertion block (BOM-D power-input)
@@ -332,14 +420,144 @@ def main():
     check(not mini_fit, f"no Mini-Fit Jr connector on sheet 01 (found: {mini_fit})")
 
     # -----------------------------------------------------------------
-    # 3. root sheet-01 instance exposes exactly the planned 15 hierarchical pins
+    # 2b. sheet-05 assertion block (module ports: 8x port + CAN frontend +
+    # DETECT ADC). Mirrors the sheet-01 block's net-set style.
+    # -----------------------------------------------------------------
+    print("--- sheet 05 (module-ports) assertions ---")
+
+    # a) port count: exactly 8 J_PORT{n}, each the platform FTP jack, each
+    #    carrying its own DETECT/pin-7/mis-plug part set (8x each ref class)
+    port_jacks = [r for r in comps if re.match(r'^J_PORT\d$', r)]
+    check(len(port_jacks) == 8, f"exactly 8 module ports (J_PORT1..8); found {sorted(port_jacks)}")
+    for cls in ("D_TVS", "D_VCC", "R_DSER", "D_DET", "R_DET", "R_SYNC", "D_SYNC"):
+        found_n = sorted(r for r in comps if re.match(rf'^{cls}\d$', r))
+        check(len(found_n) == 8, f"{cls}1..8 present (one per port); found {found_n}")
+
+    for n in range(1, 9):
+        J, DTVS, DVCC = f"J_PORT{n}", f"D_TVS{n}", f"D_VCC{n}"
+        RDSER, DDET, RDET = f"R_DSER{n}", f"D_DET{n}", f"R_DET{n}"
+        RSYNC, DSYNC = f"R_SYNC{n}", f"D_SYNC{n}"
+
+        # b) locked pin-8 (DETECT) chain: jack.8 -> series R -> [ESD to GND,
+        #    pull-up to +3V3] -> exported to 05c's ADC channel n (channel
+        #    number == port number, by the generator's own CH{n-1}=pin{n}
+        #    convention on ADS7830).
+        raw = group_of(nets, J, "8")   # a purely-internal 2-pin hop carries no
+        check((J, "8") in raw and (RDSER, "1") in raw,   # visible net name (group_of: by-pin, not by-name)
+              f"port {n}: DETECT pin-8 -> R_DSER{n} series (REQ-HUB-COMMON-110)")
+        _, det_a = net_named(nets, f"P{n}_DETECT_A")
+        check({(RDSER, "2"), (DDET, "1"), (RDET, "1"), ("U_ADC1", str(n))} <= det_a,
+              f"port {n}: DETECT_A node = R_DSER{n}.2 + D_DET{n}(ESD) + R_DET{n}(pull-up) "
+              f"+ U_ADC channel {n} (cross-leaf, port <-> 05c)")
+        _, gnd = net_named(nets, "GND")
+        check((DDET, "2") in gnd, f"port {n}: D_DET{n} (PESD5V0S1BA, LOCKED Sec2.4) clamps to GND")
+        _, v33 = net_named(nets, "+3V3")
+        check((RDET, "2") in v33, f"port {n}: R_DET{n} pulls DETECT_A to +3V3 (Sec2.3 code read)")
+
+        # c) locked pin-7 (SYNC/FREEZE) chain: jack.7 -> series R -> tail-risk
+        #    TVS to GND, raw net reaches root as P{n}_SYNC7 (fabric GPIO,
+        #    REQ-HUB-COMMON-112/114 -- not yet consumed, sheet 02 pending)
+        sync_raw = group_of(nets, J, "7")
+        check((J, "7") in sync_raw and (RSYNC, "1") in sync_raw,
+              f"port {n}: pin-7 -> R_SYNC{n} series (REQ-HUB-COMMON-112/114)")
+        _, sync = net_named(nets, f"P{n}_SYNC7")
+        check({(RSYNC, "2"), (DSYNC, "2")} <= sync,
+              f"port {n}: SYNC7 node = R_SYNC{n}.2 + D_SYNC{n}(TVS)")
+        check((DSYNC, "1") in gnd, f"port {n}: D_SYNC{n} (SMAJ58A tail-risk TVS) clamps to GND")
+
+        # d) T1 pair (pins 4/5): raw pass-through, single-member nets (no
+        #    per-port protection here -- that's sheet 06's per-port MDI
+        #    frontend, REQ-HUB-COMMON-110's own per-pin analysis)
+        _, t1a = net_named(nets, f"P{n}_T1_A")
+        check(t1a == {(J, "4")}, f"port {n}: T1_A is a raw, unprocessed pass-through of jack pin 4")
+        _, t1b = net_named(nets, f"P{n}_T1_B")
+        check(t1b == {(J, "5")}, f"port {n}: T1_B is a raw, unprocessed pass-through of jack pin 5")
+
+        # e) locked pin allocation table (Sec2.3) cross-check, pin-by-pin,
+        #    against the ACTUAL flattened netlist (not just the symbol
+        #    definition): 1=VCC(mis-plug-protected), 2=GND, 3/6=CAN, 4/5=T1,
+        #    7=SYNC(ENT), 8=DETECT(ENT)
+        vcc_raw = group_of(nets, J, "1")
+        check((J, "1") in vcc_raw and (DTVS, "2") in vcc_raw and (DVCC, "1") in vcc_raw,
+              f"port {n}: pin 1 (VCC) -> D_TVS{n}(shunt)/D_VCC{n}(series) on the mis-plug-protected node")
+        check({(J, "2"), (J, "SH1"), (J, "SH2")} <= gnd,
+              f"port {n}: pin 2 (GND) + shield SH1/SH2 all -> GND")
+        _, can_h = net_named(nets, "CAN_H")
+        _, can_l = net_named(nets, "CAN_L")
+        check((J, "3") in can_h, f"port {n}: pin 3 (CAN1_H) on the shared CAN_H bus")
+        check((J, "6") in can_l, f"port {n}: pin 6 (CAN1_L) on the shared CAN_L bus")
+
+        # f) mis-plug fail-safe parts + values (REQ-HUB-COMMON-110)
+        check(comps.get(DVCC, {}).get("value") == "SS110",
+              f"port {n}: D_VCC{n} is SS110 (100V series blocking Schottky)")
+        check(comps.get(DTVS, {}).get("value") == "SMAJ58A",
+              f"port {n}: D_TVS{n} is SMAJ58A (pin-1 tail-risk TVS)")
+        check(comps.get(DSYNC, {}).get("value") == "SMAJ58A",
+              f"port {n}: D_SYNC{n} is SMAJ58A (pin-7 tail-risk TVS)")
+        check(comps.get(DDET, {}).get("value") == "PESD5V0S1BA",
+              f"port {n}: D_DET{n} is PESD5V0S1BA (LOCKED Sec2.4 DETECT clamp)")
+
+    # g) CAN bus continuity: ALL 8 ports' pins 3/6 + the transceiver + its
+    #    termination legs are one single flattened net each (a real shared
+    #    bus, REQ-HUB-COMMON-041/043) -- exercises the global_nets primitive
+    #    (cec_sch_compose.build_leaf) since build_thin_parent's sheet-pin
+    #    fan-out cannot express a 9-endpoint net.
+    expect_can_h = {(f"J_PORT{n}", "3") for n in range(1, 9)} | {("U_CAN1", "7"), ("R_CANT1", "1")}
+    check(expect_can_h <= can_h, f"CAN_H is one shared bus across all 8 ports + U_CAN + termination "
+          f"(missing: {expect_can_h - can_h})")
+    expect_can_l = {(f"J_PORT{n}", "6") for n in range(1, 9)} | {("U_CAN1", "6"), ("R_CANT2", "2")}
+    check(expect_can_l <= can_l, f"CAN_L is one shared bus across all 8 ports + U_CAN + termination "
+          f"(missing: {expect_can_l - can_l})")
+    check(val("R_CANT1") == "60.4" and val("R_CANT2") == "60.4",
+          f"120 ohm split termination (60.4 x2); got {val('R_CANT1')!r}/{val('R_CANT2')!r}")
+
+    # h) DETECT ADC (05c): all 8 channels + I2C bus reach root as exports
+    for n in range(1, 9):
+        _, da = net_named(nets, f"P{n}_DETECT_A")
+        check(("U_ADC1", str(n)) in da, f"ADS7830 channel {n} (CH{n-1}) reads port {n}'s DETECT_A")
+    _, sda = net_named(nets, "DETECT_SDA")
+    check(("U_ADC1", "15") in sda, "DETECT_SDA on U_ADC pin 15 (SDA)")
+    _, scl = net_named(nets, "DETECT_SCL")
+    check(("U_ADC1", "14") in scl, "DETECT_SCL on U_ADC pin 14 (SCL)")
+
+    # i) platform conformance: no Mini-Fit Jr on sheet 05 (every port is the
+    #    locked RJ-45 FTP jack, not a Mini-Fit Jr)
+    mini_fit_05 = [ref for ref in comps_05
+                   if "Mini-Fit" in comps[ref]["fields"].get("Footprint", "")
+                   or "5569" in comps[ref]["fields"].get("Footprint", "")]
+    check(not mini_fit_05, f"no Mini-Fit Jr connector on sheet 05 (found: {mini_fit_05})")
+
+    # -----------------------------------------------------------------
+    # 3. root sheet instances expose exactly their planned hierarchical pins.
+    #    NOTE: a naive `\(sheet\n.*?"Sheetname" "X".*?(?=...)` regex is NOT
+    #    anchored to the (sheet block belonging to X -- non-greedy `.*?`
+    #    happily starts from an EARLIER, unrelated `(sheet\n` (e.g. 01's own
+    #    block) and matches straight through to X's Sheetname line, folding
+    #    the wrong sheet's pins in (caught empirically: the first version of
+    #    this extraction returned 01-power-input's 15 pins when asked for
+    #    05-module-ports). Anchor on the Sheetname text's OWN position
+    #    instead: find it, then walk backward to ITS block's `(sheet\n` and
+    #    forward to the next sheet/text/footer boundary.
     # -----------------------------------------------------------------
     root_txt = open(ROOT_SCH).read()
-    m = re.search(r'\(sheet\n.*?"Sheetname" "01-power-input".*?(?=\n\t\(sheet\n|\n\t\(text|\n\t\(sheet_instances)',
-                   root_txt, re.S)
+
+    def _sheet_block(sheetname):
+        idx = root_txt.find(f'"Sheetname" "{sheetname}"')
+        if idx == -1:
+            return None
+        start = root_txt.rfind("\t(sheet\n", 0, idx)
+        if start == -1:
+            return None
+        ends = [root_txt.find(pat, idx) for pat in
+                ("\n\t(sheet\n", "\n\t(text", "\n\t(sheet_instances")]
+        ends = [e for e in ends if e != -1]
+        end = min(ends) if ends else len(root_txt)
+        return root_txt[start:end]
+
+    m = _sheet_block("01-power-input")
     check(m is not None, "root sheet carries a 01-power-input sheet instance")
     if m:
-        pins = re.findall(r'\(pin "([^"]+)"', m.group(0))
+        pins = re.findall(r'\(pin "([^"]+)"', m)
         expected = {"+5V_MAIN", "+5VSB", "EXT_5V", "+5V_SYS", "+3V3",
                     "PG_MAIN", "FLT_MAIN", "PG_SVB", "FLT_SVB", "PG_EXT", "FLT_EXT",
                     "SENSE_MAIN", "SENSE_SVB", "SENSE_EXT", "SENSE_SYS"}
@@ -348,14 +566,29 @@ def main():
               f"(got {sorted(set(pins) ^ expected)} diff)")
 
     # -----------------------------------------------------------------
+    # 3b. root sheet-05 instance exposes exactly the planned 28 hierarchical
+    # pins (16x T1_A/B + 8x SYNC7 + CAN_TX/RX + DETECT_SDA/SCL)
+    # -----------------------------------------------------------------
+    m5 = _sheet_block("05-module-ports")
+    check(m5 is not None, "root sheet carries a 05-module-ports sheet instance")
+    if m5:
+        pins5 = re.findall(r'\(pin "([^"]+)"', m5)
+        expected5 = {f"P{n}_T1_A" for n in range(1, 9)} | {f"P{n}_T1_B" for n in range(1, 9)} \
+            | {f"P{n}_SYNC7" for n in range(1, 9)} \
+            | {"CAN_TX", "CAN_RX", "DETECT_SDA", "DETECT_SCL"}
+        check(set(pins5) == expected5,
+              f"root's 05-module-ports sheet symbol exposes exactly the 28 planned exports "
+              f"(got {sorted(set(pins5) ^ expected5)} diff)")
+
+    # -----------------------------------------------------------------
     print()
     if FAILURES:
         print(f"FAILED ({len(FAILURES)}):", file=sys.stderr)
         for f in FAILURES:
             print(f"  - {f}", file=sys.stderr)
         return 1
-    print(f"All checks passed ({len(comps)} components on sheet 01, "
-          f"{len(nets)} nets in the flattened hierarchy).")
+    print(f"All checks passed ({len(comps)} components in the flattened hierarchy: "
+          f"59 sheet-01 + 75 sheet-05; {len(nets)} nets).")
     return 0
 
 

@@ -1099,13 +1099,12 @@ def compose_port(n):
                           [("series", RDSER), ("shunt", DDET), ("shunt", RDET)],
                           f"P{n}_DETECT_A", out_kind="hier", pitch=8)
     c.caption(lf.desc, 8, 22)
-    c.note("VCC: SS110 100V series block + SMAJ58A tail-risk TVS (REQ-HUB-COMMON-110); "
-           "DETECT: 10k series R [BOM names 1206 pkg, captured as 0402 here -- flagged] "
-           "-> PESD5V0S1BA (LOCKED Sec2.4) + 10k pull-up to +3V3 (Sec2.3 code read); "
-           "pin-7: 100R series R [illustrative] + SMAJ58A tail-risk clamp "
-           "(REQ-HUB-COMMON-112/114). All pin-7/DETECT-series values are a "
-           "schematic-capture/bench-calibration task per hub-ent-bom-detailed Sec6a, "
-           "not bench-verified here.", 8, 128)
+    c.note("VCC: SS110 100V series block + SMAJ58A tail-risk TVS (REQ-HUB-COMMON-110).\n"
+           "DETECT: 10k series R [BOM names 1206 pkg, captured as 0402 -- flagged] -> "
+           "PESD5V0S1BA (LOCKED Sec2.4) + 10k pull-up to +3V3 (Sec2.3 code read).\n"
+           "pin-7: 100R series R [illustrative] + SMAJ58A tail-risk clamp (REQ-HUB-COMMON-112/114).\n"
+           "All pin-7/DETECT-series values are a schematic-capture/bench-calibration task per "
+           "hub-ent-bom-detailed Sec6a, not bench-verified here.", 8, 128)
     c.done()
     return lf
 
@@ -1120,7 +1119,7 @@ def compose_can_frontend():
     lf = leaf05("05b", "05b-can-frontend.kicad_sch", "05b-can-frontend",
                "TJA1051T/3 CAN transceiver + 120ohm split termination, shared 8-port bus "
                "(REQ-HUB-COMMON-041/043)")
-    lf.add_part("U_CAN", "cec-vendor", "TJA1051T-3", "TJA1051T/3", 0, 0,
+    lf.add_part("U_CAN1", "cec-vendor", "TJA1051T-3", "TJA1051T/3", 0, 0,
                "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
                {"Manufacturer": "NXP", "MPN": "TJA1051T/3", "LCSC": "C38695",
                 "Description": "Platform-locked classical CAN transceiver (Sec3.1 v3.5), "
@@ -1133,32 +1132,32 @@ def compose_can_frontend():
                "cec-Resistor_SMD:R_0402_1005Metric",
                {"Manufacturer": "Viking Tech", "MPN": "GR0402F60R4TAG00", "LCSC": "C49654185",
                 "Description": "split termination, CAN_L leg"})
-    lf.add_part("C_CANT", "cec-vendor", "C_Small", "4n7", 0, 0,
+    lf.add_part("C_CANT1", "cec-vendor", "C_Small", "4n7", 0, 0,
                "cec-Capacitor_SMD:C_0402_1005Metric",
                {"Manufacturer": "Fenghua", "MPN": "0402B472K500NT", "LCSC": "C1538",
                 "Description": "split-termination center cap"})
-    lf.add_part("C_CANVCC", "cec-vendor", "C_Small", "100n", 0, 0,
+    lf.add_part("C_CANVCC1", "cec-vendor", "C_Small", "100n", 0, 0,
                "cec-Capacitor_SMD:C_0402_1005Metric",
                {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
                 "Description": "U_CAN VCC decoupling"})
-    lf.add_part("C_CANVIO", "cec-vendor", "C_Small", "100n", 0, 0,
+    lf.add_part("C_CANVIO1", "cec-vendor", "C_Small", "100n", 0, 0,
                "cec-Capacitor_SMD:C_0402_1005Metric",
                {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
                 "Description": "U_CAN VIO decoupling"})
 
-    lf.net("+5VSB", ("U_CAN", "3"), ("C_CANVCC", "1"))
-    lf.net("+3V3", ("U_CAN", "5"), ("C_CANVIO", "1"))
-    lf.net("GND", ("U_CAN", "2"), ("U_CAN", "8"), ("C_CANVCC", "2"), ("C_CANVIO", "2"),
-           ("C_CANT", "2"))
-    lf.net("CAN_TX", ("U_CAN", "1"))
-    lf.net("CAN_RX", ("U_CAN", "4"))
-    lf.net("CAN_H", ("U_CAN", "7"), ("R_CANT1", "1"))
-    lf.net("CAN_L", ("U_CAN", "6"), ("R_CANT2", "2"))
-    lf.net("CANT_CTR", ("R_CANT1", "2"), ("R_CANT2", "1"), ("C_CANT", "1"))
+    lf.net("+5VSB", ("U_CAN1", "3"), ("C_CANVCC1", "1"))
+    lf.net("+3V3", ("U_CAN1", "5"), ("C_CANVIO1", "1"))
+    lf.net("GND", ("U_CAN1", "2"), ("U_CAN1", "8"), ("C_CANVCC1", "2"), ("C_CANVIO1", "2"),
+           ("C_CANT1", "2"))
+    lf.net("CAN_TX", ("U_CAN1", "1"))
+    lf.net("CAN_RX", ("U_CAN1", "4"))
+    lf.net("CAN_H", ("U_CAN1", "7"), ("R_CANT1", "1"))
+    lf.net("CAN_L", ("U_CAN1", "6"), ("R_CANT2", "2"))
+    lf.net("CANT_CTR", ("R_CANT1", "2"), ("R_CANT2", "1"), ("C_CANT1", "1"))
 
     lf.hier_exports = {
-        "CAN_TX": ("output", ("U_CAN", "1")),
-        "CAN_RX": ("output", ("U_CAN", "4")),
+        "CAN_TX": ("output", ("U_CAN1", "1")),
+        "CAN_RX": ("output", ("U_CAN1", "4")),
     }
     # +5VSB already carries a project-wide PWR_FLAG (01b) and +5VSB IS a real
     # `(power global)` net, but kicad-cli's ERC "power_pin_not_driven" check
@@ -1170,7 +1169,7 @@ def compose_can_frontend():
     lf.powerflag_nets = ["+5VSB"]
 
     c = _Compose(lf)
-    c.place("U_CAN", 40, 50)
+    c.place("U_CAN1", 40, 50)
     c.io("CAN_TX", "left")
     c.io("CAN_RX", "left")
     # NOTE: TXD/RXD/VIO/S are ALL on U_CAN's left edge (native pin geometry),
@@ -1178,55 +1177,91 @@ def compose_can_frontend():
     # -- VIO/S must jog RIGHT first (toward the body) before doing anything
     # else, or their wires land in the io column's own routing corridor and
     # the router refuses (a real crash caught empirically while building this).
-    s_pin = c.pin("U_CAN", "8")
+    s_pin = c.pin("U_CAN1", "8")
     c.wire(s_pin, (s_pin[0] + 4, s_pin[1]))
     c.wire((s_pin[0] + 4, s_pin[1]), (s_pin[0] + 4, s_pin[1] + 4))
     c.stamp("GND", s_pin[0] + 4, s_pin[1] + 4, 0)
-    c.use(("U_CAN", "8"))
-    vio = c.pin("U_CAN", "5")
+    c.use(("U_CAN1", "8"))
+    # DECOUPLING CAP TOPOLOGY BUG, caught empirically via the netlist (not
+    # just ERC) in THREE successive layers while building this leaf:
+    #  (1) the first attempt jogged to a corner, place_pin'd the FAR pin
+    #      (the GND-declared one) there, then drew a SECOND wire from that
+    #      SAME corner to the far pin's own (different) location -- the
+    #      corner coincided with the NEAR pin's coordinate, so that second
+    #      wire directly shorted the cap's two legs onto one node.
+    #  (2) fixed by place_pin'ing the NEAR pin (the one the net table shares
+    #      with the IC pin) exactly at the jog corner and routing the far
+    #      pin's own GND stamp CONTINUING AWAY from it (never back across).
+    #  (3) that alone still left the near-pin node UNNAMED: both (IC pin)
+    #      and (cap near-pin) are marked consumed (the generic per-pin pass
+    #      that would otherwise add a +5VSB/+3V3 power-port stamp never
+    #      runs for a consumed pin), so the net had no power symbol on it at
+    #      all and kicad-cli auto-named it `Net-(U_CAN-VCC)` -- a real,
+    #      unnamed, un-global net, NOT actually joined to the platform
+    #      +5VSB/+3V3 rail despite the identical `lf.net()` bookkeeping name.
+    #      Fix: stamp the rail EXPLICITLY at the near-pin's own coincident
+    #      point (a 3-way meet: IC pin + cap pin + stamp, exactly like every
+    #      other stamp in this codebase).
+    vio = c.pin("U_CAN1", "5")
     c.wire(vio, (vio[0] + 4, vio[1]))
-    cvio = c.place_pin("C_CANVIO", "2", vio[0] + 4, vio[1] + 4, 0)
-    c.wire((vio[0] + 4, vio[1]), cvio)
-    c.use(("U_CAN", "5"), ("C_CANVIO", "2"))
-    cvio1 = c.pin("C_CANVIO", "1")
-    c.wire(cvio1, (cvio1[0], cvio1[1] - 4))
-    c.stamp("+3V3", cvio1[0], cvio1[1] - 4, 0)
-    c.use(("C_CANVIO", "1"))
-    vcc = c.pin("U_CAN", "3")
+    c.place_pin("C_CANVIO1", "1", vio[0] + 4, vio[1], 0)
+    c.stamp("+3V3", vio[0] + 4, vio[1], 180)
+    c.use(("U_CAN1", "5"), ("C_CANVIO1", "1"))
+    cvio2 = c.pin("C_CANVIO1", "2")
+    c.wire(cvio2, (cvio2[0], cvio2[1] + 4))
+    c.stamp("GND", cvio2[0], cvio2[1] + 4, 0)
+    c.use(("C_CANVIO1", "2"))
+    # VCC's own pin exits STRAIGHT UP (baked rot 270, unlike VIO's leftward
+    # exit) -- the SAME axis a rot-0 cap's two pins sit on, so a vertical
+    # approach can't avoid the far pin the way VIO's horizontal-then-
+    # vertical jog does. Place the cap rot90 (perpendicular) instead: pin1
+    # lands exactly on the approach wire's end, pin2 sits at a DIFFERENT x
+    # entirely (rot90 = pin1 left/pin2 right), so no coordinate collision
+    # is possible regardless of offsets.
+    vcc = c.pin("U_CAN1", "3")
     c.wire(vcc, (vcc[0], vcc[1] - 6))
-    cvcc = c.place_pin("C_CANVCC", "2", vcc[0], vcc[1] - 6, 0)
-    c.use(("U_CAN", "3"), ("C_CANVCC", "2"))
-    cvcc1 = c.pin("C_CANVCC", "1")
-    c.wire(cvcc1, (cvcc1[0], cvcc1[1] - 4))
-    c.stamp("+5VSB", cvcc1[0], cvcc1[1] - 4, 0)
-    c.use(("C_CANVCC", "1"))
-    canh = c.pin("U_CAN", "7")
-    canl = c.pin("U_CAN", "6")
+    c.place_pin("C_CANVCC1", "1", vcc[0], vcc[1] - 6, 90)
+    c.stamp("+5VSB", vcc[0], vcc[1] - 6, 90)
+    c.use(("U_CAN1", "3"), ("C_CANVCC1", "1"))
+    cvcc2 = c.pin("C_CANVCC1", "2")
+    c.wire(cvcc2, (cvcc2[0], cvcc2[1] - 4))
+    c.stamp("GND", cvcc2[0], cvcc2[1] - 4, 180)
+    c.use(("C_CANVCC1", "2"))
+    # CANH/CANL stay UNCONSUMED here -- they are `global_nets` (bound
+    # project-wide by a real KiCad global_label, emitted automatically by
+    # the generic per-pin pass); consuming them (as a first attempt did, to
+    # "finish" the wire to the termination resistor) skips that pass
+    # entirely and the global label never appears (measured: glabels=0 on
+    # this leaf, and the flattened netlist showed CANH/CANL as isolated
+    # single-pin nets). The termination-resistor wire below is an ADDITIONAL
+    # local connection on the same (global) net, not a replacement for it.
+    canh = c.pin("U_CAN1", "7")
+    canl = c.pin("U_CAN1", "6")
     c.place("R_CANT1", canh[0] + 8, canh[1], 90)
     r1a, r1b = c.pin("R_CANT1", "1"), c.pin("R_CANT1", "2")
     c.wire(canh, r1a)
-    c.use(("U_CAN", "7"), ("R_CANT1", "1"), ("R_CANT1", "2"))
+    c.use(("R_CANT1", "1"), ("R_CANT1", "2"))
     c.place("R_CANT2", canl[0] + 8, canl[1], 90)
     r2a, r2b = c.pin("R_CANT2", "1"), c.pin("R_CANT2", "2")
     c.wire(canl, r2b)
-    c.use(("U_CAN", "6"), ("R_CANT2", "1"), ("R_CANT2", "2"))
+    c.use(("R_CANT2", "1"), ("R_CANT2", "2"))
     ctr_x = max(r1b[0], r2a[0]) + 4
     c.wire(r1b, (ctr_x, r1b[1]))
     c.wire(r2a, (ctr_x, r2a[1]))
     c.wire((ctr_x, r1b[1]), (ctr_x, r2a[1]))
-    c.place("C_CANT", ctr_x + 6, r1b[1], 90)
-    cct1 = c.pin("C_CANT", "1")
+    c.place("C_CANT1", ctr_x + 6, r1b[1], 90)
+    cct1 = c.pin("C_CANT1", "1")
     c.wire((ctr_x, r1b[1]), cct1)
-    c.use(("C_CANT", "1"))
-    cct2 = c.pin("C_CANT", "2")
+    c.use(("C_CANT1", "1"))
+    cct2 = c.pin("C_CANT1", "2")
     c.wire(cct2, (cct2[0], cct2[1] + 4))
     c.stamp("GND", cct2[0], cct2[1] + 4, 0)
-    c.use(("C_CANT", "2"))
+    c.use(("C_CANT1", "2"))
     c.caption(lf.desc, 10, 20)
-    c.note("120ohm split term (60.4x2 + 4n7 center cap); S(STB) tied GND -- normal/"
-           "active mode. CAN_H/CAN_L are GLOBAL LABELS binding to all 8 port leaves "
-           "(build_thin_parent's sheet-pin fan-out is 1:1/2-endpoint only -- see "
-           "cec_sch_compose.build_leaf's global_nets parameter).", 10, 92)
+    c.note("120ohm split term (60.4x2 + 4n7 center cap); S(STB) tied GND -- normal/active mode.\n"
+           "CAN_H/CAN_L are GLOBAL LABELS binding to all 8 port leaves (build_thin_parent's "
+           "sheet-pin fan-out\nis 1:1/2-endpoint only -- see cec_sch_compose.build_leaf's "
+           "global_nets parameter).", 10, 92)
     c.done()
     return lf
 
@@ -1246,40 +1281,45 @@ def compose_detect_adc():
     lf = leaf05("05c", "05c-detect-adc.kicad_sch", "05c-detect-adc",
                "ADS7830 8-ch I2C ADC: 8x DETECT_A -> DETECT_SDA/SCL (REQ-HUB-COMMON-042; "
                "NOT YET RATIFIED -- bom-c-module-if-base-secio.md Sec5)")
-    lf.add_part("U_ADC", "cec-ent-power", "ADS7830IPWR", "ADS7830IPWR", 0, 0,
+    # widened LOCAL copy (cec-ent-hub-local): the shared cec-ent-power symbol's
+    # REFIN_REFOUT pin name overlapped the opposing CH6 name at this leaf's
+    # 8-channel density (S6 gate, measured via --check-overlaps) -- same
+    # precedent as the widened RJ-45 jack; the shared library symbol is
+    # untouched for any other future user.
+    lf.add_part("U_ADC1", "cec-ent-hub-local", "ADS7830IPWR", "ADS7830IPWR", 0, 0,
                "cec-Package_SO:TSSOP-16_ADS7830IPWR_L5.0-W4.4-P0.65",
                {"Manufacturer": TI, "MPN": "ADS7830IPWR", "LCSC": "C161747",
                 "Description": "candidate DETECT/rail-sense ADC -- NOT YET RATIFIED "
                                 "(owner/firmware call, bom-c-module-if-base-secio.md Sec5)"})
-    lf.add_part("C_ADCVDD", "cec-vendor", "C_Small", "100n", 0, 0,
+    lf.add_part("C_ADCVDD1", "cec-vendor", "C_Small", "100n", 0, 0,
                "cec-Capacitor_SMD:C_0402_1005Metric",
                {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
                 "Description": "+VDD bypass"})
-    lf.add_part("C_ADCREF", "cec-vendor", "C_Small", "1u", 0, 0,
+    lf.add_part("C_ADCREF1", "cec-vendor", "C_Small", "1u", 0, 0,
                "cec-Capacitor_SMD:C_0603_1608Metric",
                {"Manufacturer": SAM, "MPN": "CL10A105KB8NNNC", "LCSC": "C15849",
                 "Description": "internal-reference bypass, REFIN_REFOUT [value illustrative]"})
-    lf.add_part("R_I2CSDA", "cec-vendor", "R_Small", "4.7k", 0, 0,
+    lf.add_part("R_I2CSDA1", "cec-vendor", "R_Small", "4.7k", 0, 0,
                "cec-Resistor_SMD:R_0402_1005Metric",
                {"Manufacturer": UR, "MPN": "0402WGF4701TCE",
                 "Description": "I2C SDA pull-up [value illustrative]"})
-    lf.add_part("R_I2CSCL", "cec-vendor", "R_Small", "4.7k", 0, 0,
+    lf.add_part("R_I2CSCL1", "cec-vendor", "R_Small", "4.7k", 0, 0,
                "cec-Resistor_SMD:R_0402_1005Metric",
                {"Manufacturer": UR, "MPN": "0402WGF4701TCE",
                 "Description": "I2C SCL pull-up [value illustrative]"})
 
-    lf.net("+3V3", ("U_ADC", "16"), ("C_ADCVDD", "1"), ("R_I2CSDA", "2"), ("R_I2CSCL", "2"))
-    lf.net("GND", ("U_ADC", "9"), ("U_ADC", "11"), ("U_ADC", "12"), ("U_ADC", "13"),
-           ("C_ADCVDD", "2"), ("C_ADCREF", "2"))
-    lf.net("ADC_REF", ("U_ADC", "10"), ("C_ADCREF", "1"))
-    lf.net("DETECT_SDA", ("U_ADC", "15"), ("R_I2CSDA", "1"))
-    lf.net("DETECT_SCL", ("U_ADC", "14"), ("R_I2CSCL", "1"))
+    lf.net("+3V3", ("U_ADC1", "16"), ("C_ADCVDD1", "1"), ("R_I2CSDA1", "2"), ("R_I2CSCL1", "2"))
+    lf.net("GND", ("U_ADC1", "9"), ("U_ADC1", "11"), ("U_ADC1", "12"), ("U_ADC1", "13"),
+           ("C_ADCVDD1", "2"), ("C_ADCREF1", "2"))
+    lf.net("ADC_REF", ("U_ADC1", "10"), ("C_ADCREF1", "1"))
+    lf.net("DETECT_SDA", ("U_ADC1", "15"), ("R_I2CSDA1", "1"))
+    lf.net("DETECT_SCL", ("U_ADC1", "14"), ("R_I2CSCL1", "1"))
     for n in range(1, 9):
-        lf.net(f"P{n}_DETECT_A", ("U_ADC", str(n)))
+        lf.net(f"P{n}_DETECT_A", ("U_ADC1", str(n)))
 
-    lf.hier_exports = {f"P{n}_DETECT_A": ("output", ("U_ADC", str(n))) for n in range(1, 9)}
-    lf.hier_exports["DETECT_SDA"] = ("output", ("U_ADC", "15"))
-    lf.hier_exports["DETECT_SCL"] = ("output", ("U_ADC", "14"))
+    lf.hier_exports = {f"P{n}_DETECT_A": ("output", ("U_ADC1", str(n))) for n in range(1, 9)}
+    lf.hier_exports["DETECT_SDA"] = ("output", ("U_ADC1", "15"))
+    lf.hier_exports["DETECT_SCL"] = ("output", ("U_ADC1", "14"))
     # +3V3 already carries a project-wide PWR_FLAG (01f) but kicad-cli's ERC
     # does not treat that as satisfying a power_in pin in a DIFFERENT leaf
     # file (measured empirically) -- U_ADC's +VDD pin (power_in) needs its
@@ -1287,18 +1327,18 @@ def compose_detect_adc():
     lf.powerflag_nets = ["+3V3"]
 
     c = _Compose(lf)
-    c.place("U_ADC", 60, 60)
+    c.place("U_ADC1", 60, 60)
     for n in range(1, 9):
         c.io(f"P{n}_DETECT_A", "left")
-    gnd9 = c.pin("U_ADC", "9")
+    gnd9 = c.pin("U_ADC1", "9")
     c.wire(gnd9, (gnd9[0] + 4, gnd9[1]))
     c.stamp("GND", gnd9[0] + 4, gnd9[1], 0)
-    c.use(("U_ADC", "9"))
+    c.use(("U_ADC1", "9"))
     for pin in ("11", "12", "13"):
-        p = c.pin("U_ADC", pin)
+        p = c.pin("U_ADC1", pin)
         c.wire(p, (p[0] + 4, p[1]))
         c.stamp("GND", p[0] + 4, p[1], 0)
-        c.use(("U_ADC", pin))
+        c.use(("U_ADC1", pin))
     # NOTE (measured empirically, twice, while building this leaf): several
     # features below tap the SAME native x-column (U_ADC's whole right edge
     # shares one x) and route a JOG/vertical some distance out along it --
@@ -1307,59 +1347,70 @@ def compose_detect_adc():
     # MERGES the two nets (ERC's multiple_net_names, and a "not driven" pin
     # on whichever net got orphaned). Every offset below is therefore a
     # DISTINCT value (4/10/16/24/32) -- no two features ever share a column.
-    ref = c.pin("U_ADC", "10")
-    cr2 = c.place_pin("C_ADCREF", "2", ref[0] + 10, ref[1], 0)
-    c.wire(ref, cr2)
-    c.use(("U_ADC", "10"), ("C_ADCREF", "2"))
-    cr1 = c.pin("C_ADCREF", "1")
-    c.wire(cr1, (cr1[0], cr1[1] - 4))
-    c.stamp("GND", cr1[0], cr1[1] - 4, 180)
-    c.use(("C_ADCREF", "1"))
-    vdd = c.pin("U_ADC", "16")
-    cv2 = c.place_pin("C_ADCVDD", "2", vdd[0] + 16, vdd[1], 0)
-    c.wire(vdd, cv2)
-    c.use(("U_ADC", "16"), ("C_ADCVDD", "2"))
-    cv1 = c.pin("C_ADCVDD", "1")
-    c.wire(cv1, (cv1[0], cv1[1] - 4))
-    c.stamp("GND", cv1[0], cv1[1] - 4, 180)
-    c.use(("C_ADCVDD", "1"))
+    # (same decoupling-cap topology bug as 05b-can-frontend, same fix: the
+    # NEAR pin -- the one the net table shares with the IC pin -- is
+    # place_pin'd exactly at the end of a horizontal-only approach wire
+    # (never touches the FAR pin's row), and the far pin's own stamp
+    # continues AWAY from the near pin, never back across it.)
+    ref = c.pin("U_ADC1", "10")
+    c.wire(ref, (ref[0] + 10, ref[1]))
+    c.place_pin("C_ADCREF1", "1", ref[0] + 10, ref[1], 0)
+    c.use(("U_ADC1", "10"), ("C_ADCREF1", "1"))
+    cr2 = c.pin("C_ADCREF1", "2")
+    c.wire(cr2, (cr2[0], cr2[1] + 4))
+    c.stamp("GND", cr2[0], cr2[1] + 4, 0)
+    c.use(("C_ADCREF1", "2"))
+    vdd = c.pin("U_ADC1", "16")
+    c.wire(vdd, (vdd[0] + 16, vdd[1]))
+    c.place_pin("C_ADCVDD1", "1", vdd[0] + 16, vdd[1], 0)
+    # explicit rail stamp AT the near-pin coincidence point -- a consumed
+    # pin gets no automatic power-port stamp from the generic pass, so
+    # without this the node is a real, correctly-wired, but UNNAMED net
+    # (kicad-cli auto-names it and ERC reads it as an undriven power_in,
+    # both measured empirically on this exact leaf).
+    c.stamp("+3V3", vdd[0] + 16, vdd[1], 180)
+    c.use(("U_ADC1", "16"), ("C_ADCVDD1", "1"))
+    cv2 = c.pin("C_ADCVDD1", "2")
+    c.wire(cv2, (cv2[0], cv2[1] + 4))
+    c.stamp("GND", cv2[0], cv2[1] + 4, 0)
+    c.use(("C_ADCVDD1", "2"))
     # SCL/SDA: the pull-up hangs off a dedicated LANE well clear of the ADC's
     # native 2u pin pitch (SDA sits only 2u above SCL, so a 4u-tall resistor
     # body hanging the SAME direction off each row would land squarely on
     # the neighbor's own tap point -- route each down its OWN column to a
     # lane below the whole native pin cluster first).
-    scl = c.pin("U_ADC", "14")
+    scl = c.pin("U_ADC1", "14")
     scl_col = scl[0] + 24
     c.wire(scl, (scl_col, scl[1]))
     scl_lane = scl[1] + 20
     c.wire((scl_col, scl[1]), (scl_col, scl_lane))
-    c.place("R_I2CSCL", scl_col, scl_lane + 2, 0)
-    r_scl2 = c.pin("R_I2CSCL", "2")
+    c.place("R_I2CSCL1", scl_col, scl_lane + 2, 0)
+    r_scl2 = c.pin("R_I2CSCL1", "2")
     c.wire(r_scl2, (r_scl2[0], r_scl2[1] + 4))
     c.stamp("+3V3", r_scl2[0], r_scl2[1] + 4, 0)
-    c.use(("U_ADC", "14"), ("R_I2CSCL", "1"), ("R_I2CSCL", "2"))
+    c.use(("U_ADC1", "14"), ("R_I2CSCL1", "1"), ("R_I2CSCL1", "2"))
     scl_end = (scl_col + 6, scl_lane)
     c.wire((scl_col, scl_lane), scl_end)
     c.io("DETECT_SCL", "right", from_pt=scl_end)
-    sda = c.pin("U_ADC", "15")
+    sda = c.pin("U_ADC1", "15")
     sda_col = sda[0] + 32
     c.wire(sda, (sda_col, sda[1]))
     sda_lane = sda[1] + 30
     c.wire((sda_col, sda[1]), (sda_col, sda_lane))
-    c.place("R_I2CSDA", sda_col, sda_lane + 2, 0)
-    r_sda2 = c.pin("R_I2CSDA", "2")
+    c.place("R_I2CSDA1", sda_col, sda_lane + 2, 0)
+    r_sda2 = c.pin("R_I2CSDA1", "2")
     c.wire(r_sda2, (r_sda2[0], r_sda2[1] + 4))
     c.stamp("+3V3", r_sda2[0], r_sda2[1] + 4, 0)
-    c.use(("U_ADC", "15"), ("R_I2CSDA", "1"), ("R_I2CSDA", "2"))
+    c.use(("U_ADC1", "15"), ("R_I2CSDA1", "1"), ("R_I2CSDA1", "2"))
     sda_end = (sda_col + 6, sda_lane)
     c.wire((sda_col, sda_lane), sda_end)
     c.io("DETECT_SDA", "right", from_pt=sda_end)
     c.caption(lf.desc, 10, 22)
     c.note("NOT YET RATIFIED -- bom-c-module-if-base-secio.md Sec5 names ADS7830 an "
-           "'alternative not chosen' vs a per-channel comparator bank; SCHEMATIC-PLAN.md "
+           "'alternative not chosen' vs a per-channel comparator bank.\nSCHEMATIC-PLAN.md "
            "Sec1 plans this leaf anyway and the part is T2-audited/vendored for exactly "
-           "this role, so it is captured here with the ratification gap flagged, not "
-           "silently resolved. A0/A1/COM tied GND (fixed I2C address, single-ended mode).",
+           "this role, so it is\ncaptured here with the ratification gap flagged, not "
+           "silently resolved. A0/A1/COM tied GND (fixed I2C address).",
            10, 100)
     c.done()
     return lf
@@ -1411,10 +1462,10 @@ for _n in range(1, 9):
     HIER_EXPORTS_05[f"P{_n}_T1_A"] = ("output", (f"J_PORT{_n}", "4"))
     HIER_EXPORTS_05[f"P{_n}_T1_B"] = ("output", (f"J_PORT{_n}", "5"))
     HIER_EXPORTS_05[f"P{_n}_SYNC7"] = ("output", (f"R_SYNC{_n}", "2"))
-HIER_EXPORTS_05["CAN_TX"] = ("output", ("U_CAN", "1"))
-HIER_EXPORTS_05["CAN_RX"] = ("output", ("U_CAN", "4"))
-HIER_EXPORTS_05["DETECT_SDA"] = ("output", ("U_ADC", "15"))
-HIER_EXPORTS_05["DETECT_SCL"] = ("output", ("U_ADC", "14"))
+HIER_EXPORTS_05["CAN_TX"] = ("output", ("U_CAN1", "1"))
+HIER_EXPORTS_05["CAN_RX"] = ("output", ("U_CAN1", "4"))
+HIER_EXPORTS_05["DETECT_SDA"] = ("output", ("U_ADC1", "15"))
+HIER_EXPORTS_05["DETECT_SCL"] = ("output", ("U_ADC1", "14"))
 ROOT_EXPORT_NETS_05 = set(HIER_EXPORTS_05)
 
 

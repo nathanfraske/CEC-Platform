@@ -16,7 +16,7 @@
 	(text "03-compute-rails -- CAPTURE PENDING\n\nMIC22705YML-TR core buck + bank rails + sequencing/PG chain\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "8824c3c6-42c1-4c6c-a360-f4e56800ece3")
+		(uuid "cba0fce9-c93c-41a7-847a-12ac48b366ef")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083"
