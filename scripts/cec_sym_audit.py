@@ -294,16 +294,19 @@ def _rule_output(alt_pad: str) -> Optional[Proposal]:
 
 
 def _has_databus_hint(alt_pad: str) -> bool:
-    """True if a '_'-delimited subtoken of alt_pad is a bare data-bus lane
-    name (IOn / DATn / Dn). Names like 'RESET_IO3' or 'DO_IO1' bundle a
-    directional control/output hint together with a quad-mode data-bus
-    alternate IN THE SAME '/'-alt segment (no further slash to split on) --
-    this is exactly the W25Q256JVFIQ pin-1 shape ('/HOLD_/RESET_IO3', truly
+    """True if a '_'-delimited subtoken of alt_pad is a bare quad-mode
+    data-bus lane name (IOn / DATn -- deliberately NOT the bare 'Dn' form,
+    which is indistinguishable from an ordinary directional parallel-bus
+    lane index like RX_D0/TX_D3 on an RGMII PHY and would false-positive
+    there). Names like 'RESET_IO3' or 'DO_IO1' bundle a directional
+    control/output hint together with a quad-SPI-style data-bus alternate
+    IN THE SAME '/'-alt segment (no further slash to split on) -- this is
+    exactly the W25Q256JVFIQ pin-1 shape ('/HOLD_/RESET_IO3', truly
     bidirectional in QPI mode). Used to force a conflict rather than assert
     a single confident direction over a data-capable ball."""
     inner = alt_pad.strip("_")
     for tok in inner.split("_"):
-        if re.fullmatch(r"IO\d+", tok) or re.fullmatch(r"DAT\d+", tok) or re.fullmatch(r"D\d+", tok):
+        if re.fullmatch(r"IO\d+", tok) or re.fullmatch(r"DAT\d+", tok):
             return True
     return False
 

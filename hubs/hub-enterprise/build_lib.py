@@ -324,23 +324,21 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     # connect together via same-name labels within this file.
     net_points = {}
 
-    # NOTE on sheet-pin angle: per this project's pin-geometry convention
-    # (cec_sch.pin_abs: outward = -cos(angle) i.e. OPPOSITE the pin's declared
-    # angle, since `angle` points FROM the connection point TOWARD the body),
-    # a pin on a box's RIGHT edge has the body to its LEFT, so the angle must
-    # be 180 (pointing left, into the box) for "outward" (where a wire
-    # attaches) to correctly resolve to +x. root's own sheet-01 pins (in
-    # build_root, unchanged) use angle 0 and are NEVER wired to anything at
-    # that level (by design, sheets 02-09 are still placeholders) -- so that
-    # latent mismatch has never been exercised. This file DOES wire real
-    # copper to every leaf pin, so it must get the angle right.
+    # Sheet-pin angle convention (verified empirically against a real,
+    # KiCad-authored hierarchical reference project -- see the session notes):
+    # a pin on a box's RIGHT edge is angle 0 (pointing right/outward), LEFT
+    # edge is angle 180, TOP is 90, BOTTOM is 270 -- i.e. the angle points
+    # OUTWARD from the box, not into it (this is the OPPOSITE convention from
+    # a library symbol's own pin angle, where `angle` points from the
+    # connection point TOWARD the body -- do not conflate the two). All of
+    # this project's leaf-sheet pins sit on the RIGHT edge, so angle 0.
     for leaf in leaves:
         pins_blocks = []
         n = len(leaf["pins"])
         for i, (net_name, shape) in enumerate(leaf["pins"]):
             px, py = cec_sch.gridsnap(leaf["x"] + leaf["w"], leaf["y"] + 8 + i * 5.588)
-            pins_blocks.append(_sheet_pin_block(net_name, shape, px, py, 180))
-            net_points.setdefault(net_name, []).append((px, py, 180))
+            pins_blocks.append(_sheet_pin_block(net_name, shape, px, py, 0))
+            net_points.setdefault(net_name, []).append((px, py, 0))
         sheets.append(_sheet_block(leaf["sym_uuid"], leaf["x"], leaf["y"], leaf["w"], leaf["h"],
                                     leaf["sheetname"], leaf["filename"],
                                     project, root_uuid, leaf["page"], pins_blocks))

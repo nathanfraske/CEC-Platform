@@ -696,40 +696,50 @@ def build_demo(out_path):
     wires += [cec_sch.emit_wire(*s) for s in seg2]
     junctions.append(emit_junction(*r1_bot))     # 3 wire-ends meet at the divider node
 
+    # Tie every +3V3 point and every GND point into ONE real, physically wired
+    # bus per rail (rather than leaning on cross-sheet power-symbol NAME
+    # merging for the "driven" ERC check -- this module's own probing found
+    # that mechanism unreliable in practice with kicad-cli's ERC on a sheet
+    # carrying several same-named power-port islands; a genuinely wired bus,
+    # the same pattern this repo's generated boards already use for their
+    # single global PWR_FLAG stamp, is unambiguous). Each bus gets exactly one
+    # port + one PWR_FLAG. (A plain manual L-route is used here, not
+    # wire_adjacent/wire_chain -- those enforce a CLOSE-pair distance
+    # threshold on purpose, per this module's item 2; a bus deliberately runs
+    # long, so it is not a "wire_adjacent case".)
+    def _manual_L(p, q):
+        (x1, y1), (x2, y2) = p, q
+        if abs(x1 - x2) < 1e-6 or abs(y1 - y2) < 1e-6:
+            return [cec_sch.emit_wire(x1, y1, x2, y2)]
+        return [cec_sch.emit_wire(x1, y1, x2, y1), cec_sch.emit_wire(x2, y1, x2, y2)]
+
     bx, by = r1_top[0], r1_top[1] - cec_sch.STUB
     wires.append(cec_sch.emit_wire(r1_top[0], r1_top[1], bx, by))
+    rx, ry = ic_ax, rail_y - cec_sch.STUB
+    wires.append(cec_sch.emit_wire(ic_ax, rail_y, rx, ry))
+    junctions.append(emit_junction(ic_ax, rail_y))   # true 3-way: rail + IC drop + +3V3 tap
+    wires += _manual_L((bx, by), (rx, ry))
     power_syms.append(cec_sch.emit_global_power("+3V3", bx, by, project, root, pwr_ref(), 180))
-    flag_points = [(bx, by, -1)]                 # (x, y, outward sign) needing its own PWR_FLAG
+    fx, fy = bx, by - cec_sch.STUB
+    wires.append(cec_sch.emit_wire(bx, by, fx, fy))
+    power_syms.append(cec_sch.emit_global_power("PWR_FLAG", fx, fy, project, root, pwr_ref("#FLG"), 180))
+
+    gnd_pts = sorted((gx + gdx * cec_sch.STUB, gy + gdy * cec_sch.STUB)
+                     for cap in plan["caps"]
+                     for gx, gy, gdx, gdy in [pin_abs_rot(placement, used, parts, cap, "2")])
+    hub = gnd_pts[0]                              # the first cap's tap already carries a GND
+    for a, b in zip(gnd_pts, gnd_pts[1:]):         # port (from wire_decouplers) -- chain them along the row
+        wires += _manual_L(a, b)
+    for pt in gnd_pts[1:-1]:                       # interior chain points are now 3-way T's
+        junctions.append(emit_junction(*pt))
     for (px, py) in (r2_bot, c5_bot):
         bx, by = px, py + cec_sch.STUB
         wires.append(cec_sch.emit_wire(px, py, bx, by))
-        power_syms.append(cec_sch.emit_global_power("GND", bx, by, project, root, pwr_ref(), 0))
-        flag_points.append((bx, by, 1))
-
-    # tie U1's decoupler rail onto the +3V3 rail too (a bare power PORT is pin
-    # type power_in -- by itself it does not satisfy ERC's "driven by an
-    # Output Power pin" rule; a real regulator output would normally do that
-    # job, but this toy demo has none). Rather than lean on cross-island
-    # global-name merging (which this module's own probing found to be
-    # unreliable in practice across many same-named islands on one sheet --
-    # see the module's test notes), every distinct GND/+3V3 port below gets
-    # its OWN directly-wired PWR_FLAG: simple, and correct by construction.
-    rx, ry = ic_ax, rail_y - cec_sch.STUB
-    wires.append(cec_sch.emit_wire(ic_ax, rail_y, rx, ry))
-    power_syms.append(cec_sch.emit_global_power("+3V3", rx, ry, project, root, pwr_ref(), 180))
-    junctions.append(emit_junction(ic_ax, rail_y))   # now a true 3-way: rail + IC drop + +3V3 tap
-    flag_points.append((rx, ry, -1))
-
-    for cap in plan["caps"]:
-        gx, gy, gdx, gdy = pin_abs_rot(placement, used, parts, cap, "2")
-        bx, by = gx + gdx * cec_sch.STUB, gy + gdy * cec_sch.STUB
-        flag_points.append((bx, by, 1))
-
-    for i, (px, py, sign) in enumerate(flag_points):
-        fx, fy = px, py + sign * cec_sch.STUB
-        wires.append(cec_sch.emit_wire(px, py, fx, fy))
-        power_syms.append(cec_sch.emit_global_power("PWR_FLAG", fx, fy, project, root,
-                                                    pwr_ref("#FLG"), 180 if sign < 0 else 0))
+        wires += _manual_L(hub, (bx, by))
+    junctions.append(emit_junction(*hub))
+    fx, fy = hub[0], hub[1] + cec_sch.STUB
+    wires.append(cec_sch.emit_wire(hub[0], hub[1], fx, fy))
+    power_syms.append(cec_sch.emit_global_power("PWR_FLAG", fx, fy, project, root, pwr_ref("#FLG"), 180))
 
     used_pins = {("U1", "6")}
     fully_used_refs = {"C1", "C2", "C3", "C4", "R1", "R2", "C5"}
