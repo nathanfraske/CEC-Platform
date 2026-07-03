@@ -38,6 +38,7 @@ W5. **Netclass/.kicad_dru + USB `_P`/`_N` rename pass onto both PCIe boards** (E
     any routing starts.
 W6. **EPS + PCIe routing passes** through the two-plane router (cec_router + manager judge per
     the CLAUDE.md tiered-pipeline rule) once W5 lands — this is the bulk of the beta engineering.
+    (D-2 ruling: PCIe stays two separate boards → the pass is EPS + PCIe-2port + PCIe-3port, ×3.)
 W7. **12VHPWR U4↔U3 reposition** (the unfixed constraint-swarm P1; placement nudge + re-verify) —
     flagged to the owner because the board is GUI-owned/routed: either an owner GUI move or an
     agent pass on a beta copy, owner's call on venue (D-7).
@@ -73,11 +74,15 @@ findings remain recorded for when a trade is genuinely quality-neutral._
   uninstallable without it) and the JST 5VSB Hub-feed cable. Decide: bundle-in-box vs accessory
   SKUs, and the patch-cable length catalog (OQ-4). The 12VHPWR captive pigtail also has NO
   length/gauge/strain spec (D-7 ties in).
-- **D-2. SKU collapse via population variants.** (a) PCIe: one 3-port-capable board, 3rd cable
-  unstuffed at $38 / stuffed at $42 (~$5.5 marginal) — halves layout/qual work. (b) EPS: a 1-cable
-  "EPS-1" population (spec-legal per §6.1/6.2; most consumer builds use one EPS cable; deletes a
-  full sense chain from the $32 target; generator change is trivial). Approve either/both as the
-  beta SKU set?
+- **D-2. SKU collapse via population variants — RESOLVED: BOTH DECLINED (owner ruling,
+  2026-07-03).** (a) PCIe 2-port and 3-port stay SEPARATE BOARDS — the driver is SPACE, not BOM:
+  PC interiors are packed, and a 2-cable customer must not carry a 3-port-sized board for an
+  unstuffed option ("if all you ever need is two, use two; if you expect three, buy the three").
+  An unstuffed 3-port still occupies the 3-port footprint — the population idea fails the space
+  test. (b) EPS-1 DECLINED — the reviewer's "most consumer builds use one EPS cable" premise is
+  WRONG per the owner's market read: single-EPS-connector boards are exceptionally rare now; even
+  B650-class boards ship 8+4 ("one and a half"), only the cheapest ship one. EPS stays 2-cable
+  default. CONSEQUENCE for W6: the PCIe routing pass is definitively ×2 boards.
 - **D-3. Mezzanine consumer scope + sequence.** Adopted in principle (8th ruling) but stacked SKU
   is ENT-AIR-only pending your review. Facts from the reports: it does NOT shrink the 24-pin (adds
   parts, trades cables for 8mm Z); it IS the biggest Hub space/BOM lever (mount rectangle
