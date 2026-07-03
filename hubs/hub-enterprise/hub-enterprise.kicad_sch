@@ -36,77 +36,77 @@
 		)
 		(pin "+5V_MAIN" output
 			(at 90 27.94 0)
-			(uuid "c907c440-2ebb-4d82-8294-f7d159612ac2")
+			(uuid "b0733ac7-823c-4d0f-bb42-363679d560e7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+5VSB" output
 			(at 90 33.02 0)
-			(uuid "39e6a117-24e0-41ee-947a-bff504be0d69")
+			(uuid "e89c69d7-e436-46d2-9ad2-37194afa8df4")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "EXT_5V" output
 			(at 90 39.37 0)
-			(uuid "121d03b9-9eb1-4ee3-866a-2df86f805e45")
+			(uuid "14b92b8a-02f4-4b08-99bb-bddce93f0d08")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+5V_SYS" output
 			(at 90 44.45 0)
-			(uuid "aa52f91a-572c-4578-8d7a-fb06b9ad1460")
+			(uuid "290bef0d-b214-41ec-ba51-f313bcf78eaa")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "+3V3" output
 			(at 90 50.8 0)
-			(uuid "9ef8975a-12e0-4c32-884e-10701ae29f9f")
+			(uuid "b0e9f91f-1492-41c8-84f6-47f57816c36f")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_MAIN" output
 			(at 90 55.88 0)
-			(uuid "e9ee9870-2f19-46a9-84d3-ce30863d8b01")
+			(uuid "ab154f4a-7385-41b1-afa3-5bbe0b3beba2")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_MAIN" output
 			(at 90 60.96 0)
-			(uuid "9844f82c-abd1-4943-afdb-503dd633f3e3")
+			(uuid "96bc6565-5c6d-4ec3-a6dc-d7c6ee741c91")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_SVB" output
 			(at 90 67.31 0)
-			(uuid "965ee369-0dc8-43cf-8bc2-2737f95cbd04")
+			(uuid "276c8b09-f6e8-4b70-a3c6-d6d7399c1383")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_SVB" output
 			(at 90 72.39 0)
-			(uuid "7fbd387b-d786-4c35-bd41-f5cf6114ca10")
+			(uuid "d7401dfb-7095-4ecc-bc71-5ed2cb8c8730")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "PG_EXT" output
 			(at 90 78.74 0)
-			(uuid "a85651b5-bc83-4242-a038-78abad42e147")
+			(uuid "9ca8bda7-0cb0-4dfa-a192-c9ef843662b7")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "FLT_EXT" output
 			(at 90 83.82 0)
-			(uuid "eb1891bc-f814-40bf-85e5-6108bc81e217")
+			(uuid "483c5cdb-8fe2-4876-acbb-03ef7f51da71")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_MAIN" output
 			(at 90 88.9 0)
-			(uuid "2e4bf89b-dbf2-4052-92e0-3fc65f9c8949")
+			(uuid "c7e9c269-2007-493e-941f-01d424af84f0")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_SVB" output
 			(at 90 95.25 0)
-			(uuid "ad97009a-ee77-4690-acea-73cc598cf159")
+			(uuid "dc17c011-5318-44d9-a1b2-ecfc84f689d1")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_EXT" output
 			(at 90 100.33 0)
-			(uuid "e28cfa45-fa1b-454a-ba82-8299cfd125f5")
+			(uuid "134b23ae-f0ce-4f0f-abd2-5c656ad2c991")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(pin "SENSE_SYS" output
 			(at 90 106.68 0)
-			(uuid "a7408ca1-63a8-4e69-aa03-c2fd9bf84a2c")
+			(uuid "dcfc63d9-3715-44ee-acca-7a48d5fce5ac")
 			(effects (font (size 1.27 1.27)) (justify right))
 		)
 		(instances
@@ -336,7 +336,7 @@
 	(text "Sheet map: 00=root 01=power-input(CAPTURED -- thin parent + 7 leaf sheets 01a..01g, per functional block) 02=compute-core 03=compute-rails 04=storage 05=module-ports 06=t1-dataplane 07=uplink 08=secio-aux 09=watchdog(placeholders, capture pending) -- 10=voting-pair (MCX only, captured LAST per plan, not yet stubbed).\nPopulation/DNP: per-SKU via BOM fields (fab DNP matrix), never schematic variants."
 		(at 20 185 0)
 		(effects (font (size 1.27 1.27)) (justify left top))
-		(uuid "9b9ecaa7-6697-44e6-8bf6-687c4bd7528c")
+		(uuid "a09e707c-b019-49ee-9106-b2a8d3f117c3")
 	)
 	(sheet_instances
 		(path "/"

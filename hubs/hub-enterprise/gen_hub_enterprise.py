@@ -664,14 +664,15 @@ def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
     c.place(Cin, 48, 68)
     c.wire((48, 64), (48, 66))
     c.use((Cin, "1"))
-    # UVLO/OVLO divider chain hanging from the band (3 resistors, 2 taps)
-    c.place(Rt, 56, 68); c.place(Rm, 56, 76); c.place(Rb, 56, 84)
+    # UVLO/OVLO divider chain hanging from the band (3 resistors, 2 taps;
+    # Rt's pin 1 sits DIRECTLY on the band split point). Tap rows 70/76 keep
+    # the ang-180 tap labels clear of the PGTH/EN/OVP stub-label rows 80-84.
+    c.place(Rt, 56, 66); c.place(Rm, 56, 72); c.place(Rb, 56, 78)
     c.text_side[Rt] = c.text_side[Rm] = c.text_side[Rb] = "left"
-    c.wire((56, 64), (56, 66))
-    c.wire(c.pin(Rt, "2"), (56, 72), c.pin(Rm, "1"))
-    c.label(f"UVLO_{sfx}", 56, 72, 180)
-    c.wire(c.pin(Rm, "2"), (56, 80), c.pin(Rb, "1"))
-    c.label(f"OVP_{sfx}", 56, 80, 180)
+    c.wire(c.pin(Rt, "2"), (56, 70), c.pin(Rm, "1"))
+    c.label(f"UVLO_{sfx}", 56, 70, 180)
+    c.wire(c.pin(Rm, "2"), (56, 76), c.pin(Rb, "1"))
+    c.label(f"OVP_{sfx}", 56, 76, 180)
     c.use((Rt, "1"), (Rt, "2"), (Rm, "1"), (Rm, "2"), (Rb, "1"))
     # IN riser + IN pin bus (5 pins, x=69, y=86..94)
     c.wire((65, 64), (65, 86), (69, 86))
