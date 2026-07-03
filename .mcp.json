@@ -9,6 +9,12 @@
         "/opt/pw-browsers/chromium-1194/chrome-linux/chrome",
         "--headless"
       ]
+    },
+    "cec-schematic": {
+      "command": "python3",
+      "args": [
+        "scripts/cec_sch_mcp.py"
+      ]
     }
   }
 }

@@ -81,4 +81,11 @@ else
   log "install failed (see $aptlog) -- skipping; ERC/DRC unavailable this session"
   tail -n 6 "$aptlog" >&2 2>/dev/null || true
 fi
+
+# cec-schematic MCP server dependency (ephemeral env; --ignore-installed
+# works around the debian PyJWT RECORD conflict)
+if ! python3 -c "import mcp" >/dev/null 2>&1; then
+  pip install --quiet --ignore-installed PyJWT mcp || true
+fi
+
 exit 0
