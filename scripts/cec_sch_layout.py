@@ -696,49 +696,40 @@ def build_demo(out_path):
     wires += [cec_sch.emit_wire(*s) for s in seg2]
     junctions.append(emit_junction(*r1_bot))     # 3 wire-ends meet at the divider node
 
-    # Tie every +3V3 point and every GND point into ONE real, physically wired
-    # bus per rail (rather than leaning on cross-sheet power-symbol NAME
-    # merging for the "driven" ERC check -- this module's own probing found
-    # that mechanism unreliable in practice with kicad-cli's ERC on a sheet
-    # carrying several same-named power-port islands; a genuinely wired bus,
-    # the same pattern this repo's generated boards already use for their
-    # single global PWR_FLAG stamp, is unambiguous). Each bus gets exactly one
-    # port + one PWR_FLAG. (A plain manual L-route is used here, not
-    # wire_adjacent/wire_chain -- those enforce a CLOSE-pair distance
-    # threshold on purpose, per this module's item 2; a bus deliberately runs
-    # long, so it is not a "wire_adjacent case".)
-    def _manual_L(p, q):
-        (x1, y1), (x2, y2) = p, q
-        if abs(x1 - x2) < 1e-6 or abs(y1 - y2) < 1e-6:
-            return [cec_sch.emit_wire(x1, y1, x2, y2)]
-        return [cec_sch.emit_wire(x1, y1, x2, y1), cec_sch.emit_wire(x2, y1, x2, y2)]
-
+    # +3V3/GND power PORTS are pin type power_in -- by themselves they do not
+    # satisfy ERC's "driven by an Output Power pin" rule; a real regulator
+    # output would normally do that job, but this toy demo has none, so both
+    # rails get one explicit PWR_FLAG each (cec_sch.build_schematic's own
+    # powerflag_nets convention). Global power symbols of the SAME name merge
+    # into ONE net across physically separate placements (no wire needed
+    # between them) -- verified via kicad-cli sch erc round-tripping while
+    # building this demo (tests/test_sch_layout.py::test_demo_erc_clean) --
+    # so a single flag anywhere on "+3V3"/"GND" drives every port sharing that
+    # name. GOTCHA hit and fixed along the way: emitting a PWR_FLAG INSTANCE
+    # is not enough -- its `(symbol "cec-power:PWR_FLAG" ...)` LIBRARY
+    # definition must also be embedded in lib_symbols (need_syms above), or
+    # KiCad can't resolve the instance's pin type at all and reports it as
+    # "Unspecified", silently defeating the flag.
     bx, by = r1_top[0], r1_top[1] - cec_sch.STUB
     wires.append(cec_sch.emit_wire(r1_top[0], r1_top[1], bx, by))
-    rx, ry = ic_ax, rail_y - cec_sch.STUB
-    wires.append(cec_sch.emit_wire(ic_ax, rail_y, rx, ry))
-    junctions.append(emit_junction(ic_ax, rail_y))   # true 3-way: rail + IC drop + +3V3 tap
-    wires += _manual_L((bx, by), (rx, ry))
     power_syms.append(cec_sch.emit_global_power("+3V3", bx, by, project, root, pwr_ref(), 180))
     fx, fy = bx, by - cec_sch.STUB
     wires.append(cec_sch.emit_wire(bx, by, fx, fy))
     power_syms.append(cec_sch.emit_global_power("PWR_FLAG", fx, fy, project, root, pwr_ref("#FLG"), 180))
 
-    gnd_pts = sorted((gx + gdx * cec_sch.STUB, gy + gdy * cec_sch.STUB)
-                     for cap in plan["caps"]
-                     for gx, gy, gdx, gdy in [pin_abs_rot(placement, used, parts, cap, "2")])
-    hub = gnd_pts[0]                              # the first cap's tap already carries a GND
-    for a, b in zip(gnd_pts, gnd_pts[1:]):         # port (from wire_decouplers) -- chain them along the row
-        wires += _manual_L(a, b)
-    for pt in gnd_pts[1:-1]:                       # interior chain points are now 3-way T's
-        junctions.append(emit_junction(*pt))
+    rx, ry = ic_ax, rail_y - cec_sch.STUB
+    wires.append(cec_sch.emit_wire(ic_ax, rail_y, rx, ry))
+    power_syms.append(cec_sch.emit_global_power("+3V3", rx, ry, project, root, pwr_ref(), 180))
+    junctions.append(emit_junction(ic_ax, rail_y))   # true 3-way: rail + IC drop + +3V3 tap
+
     for (px, py) in (r2_bot, c5_bot):
         bx, by = px, py + cec_sch.STUB
         wires.append(cec_sch.emit_wire(px, py, bx, by))
-        wires += _manual_L(hub, (bx, by))
-    junctions.append(emit_junction(*hub))
-    fx, fy = hub[0], hub[1] + cec_sch.STUB
-    wires.append(cec_sch.emit_wire(hub[0], hub[1], fx, fy))
+        power_syms.append(cec_sch.emit_global_power("GND", bx, by, project, root, pwr_ref(), 0))
+    gx, gy, gdx, gdy = pin_abs_rot(placement, used, parts, plan["caps"][0], "2")
+    bx, by = gx + gdx * cec_sch.STUB, gy + gdy * cec_sch.STUB
+    fx, fy = bx, by + cec_sch.STUB
+    wires.append(cec_sch.emit_wire(bx, by, fx, fy))
     power_syms.append(cec_sch.emit_global_power("PWR_FLAG", fx, fy, project, root, pwr_ref("#FLG"), 180))
 
     used_pins = {("U1", "6")}
@@ -767,8 +758,16 @@ def build_demo(out_path):
         + "\t(sheet_instances\n\t\t(path \"/\"\n\t\t\t(page \"1\")\n\t\t)\n\t)\n\t(embedded_fonts no)\n)\n")
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     open(out_path, "w").write(content)
+    # Finishing pass: the 4 decouplers are pitched tightly (5.08mm) -- close
+    # enough that adjacent "100nF" Value texts collide at the repo's uniform
+    # font size (a real demonstration of the exact problem this module's
+    # collision engine targets). Resolve it with the engine's own
+    # nudge_texts() rather than hand-tuning the layout -- a legitimate
+    # end-to-end use of item 4 as a placement-finishing step.
+    n_moved, still = nudge_texts(out_path, out_path)
     return {"parts": len(parts), "wires": len(wires), "junctions": len(junctions),
-            "power_symbols": len(power_syms), "nc": len(ncs)}
+            "power_symbols": len(power_syms), "nc": len(ncs),
+            "nudged": n_moved, "still_colliding": still}
 
 
 # ============================================================================
