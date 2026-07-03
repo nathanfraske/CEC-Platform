@@ -6714,7 +6714,7 @@
 	)
 	(text "OUTPUT FORM (J4) = WORKING BASIS, not final.\nD-5a owner lean: very short captive stub +\norder-time optional extension (bundled SKU).\nSwappable section pending the formal form\nruling -- see docs/standard-tier-review/\natx24-output-interface-panel-2026-07-03.md.\nJ4 below stays the placeholder male Mini-Fit Jr\nheader (locked spec Section 2.8) until that call."
 		(exclude_from_sim no)
-		(at 22 138 0)
+		(at 20 385 0)
 		(effects (font (size 1.27 1.27) (thickness 0.2)) (justify left top))
 		(uuid "b6c7d8e9-3041-4a4b-9c5d-7e8f9a0b1c2d")
 	)
@@ -12275,8 +12275,9 @@
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "H3a(c) CAN CMC bypass: 0R bridge across FL1's H channel (CAN_H_BUS<->CAN_H), populated BY DEFAULT so CAN stays continuous with FL1 DNP. Remove this jumper only if FL1 is populated for real EMC insurance." (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "generic" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "0R 0402 jumper" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF0000TCE" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C17168" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "ab7218bb-6724-47f7-87f1-f65b968c3ea3"))
 		(pin "2" (uuid "bf4b09a4-be04-4dab-9ba9-b9542ab76c64"))
 		(instances
