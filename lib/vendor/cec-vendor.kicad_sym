@@ -4059,6 +4059,147 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "FerriteBead_Small"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0.254)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "FB"
+			(at 0 1.778 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "FerriteBead_Small"
+			(at 0 -1.778 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Ferrite bead / 0-ohm bridge, small symbol (H3a: VBUS entry populated, port-VCC entry provisioned 0R-default). Footprint borrows the generic 0805 2-pad SMD land (cec-Capacitor_SMD:C_0805_2012Metric) -- same envelope as the Murata MPZ2012 ('2012' = 0805 metric) family; not a purpose-drawn bead footprint."
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "ferrite bead emi filter"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "C_0805* L_0805*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "FerriteBead_Small_0_1"
+			(rectangle
+				(start -1.905 1.27)
+				(end 1.905 -1.27)
+				(stroke
+					(width 0.2032)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "FerriteBead_Small_1_1"
+			(pin passive line
+				(at -3.81 0 0)
+				(length 1.905)
+				(name "~"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 3.81 0 180)
+				(length 1.905)
+				(name "~"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
 	(symbol "74LVC1G17"
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8742,6 +8883,74 @@
 					)
 				)
 			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "CEC_CMC_4T"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.508) (hide no))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "FL"
+			(at 0 3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "CMC"
+			(at 0 -3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Common-mode choke, 2 coupled pairs (H3a §c EMC insurance position): pins 1/2 = differential-pair IN (H/L), pins 3/4 = differential-pair OUT (H/L) -- one part couples both lines through a shared core; NEVER substitute two independent series beads on the individual lines (defeats the common-mode rejection). Provisioned DNP by default; populate only on EMC evidence. MPN/footprint TBD (H3a is judicious-not-blanket; not yet part-searched)."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "*CommonMode* *CMC*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "CEC_CMC_4T_0_1"
+			(rectangle
+				(start -3.81 2.54)
+				(end 3.81 -2.54)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "CEC_CMC_4T_1_1"
+			(pin passive line
+				(at -6.35 1.27 0)
+				(length 2.54)
+				(name "H_IN"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at -6.35 -1.27 0)
+				(length 2.54)
+				(name "L_IN"
+					(effects (font (size 1.016 1.016))))
+				(number "2"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 1.27 180)
+				(length 2.54)
+				(name "H_OUT"
+					(effects (font (size 1.016 1.016))))
+				(number "3"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 -1.27 180)
+				(length 2.54)
+				(name "L_OUT"
+					(effects (font (size 1.016 1.016))))
+				(number "4"
+					(effects (font (size 1.016 1.016)))))
 		)
 		(embedded_fonts no)
 	)
