@@ -639,15 +639,16 @@ def compose_efuse(lf, J, Rt, Rm, Rb, Uef, Ril, Cdv, Rpg, Rflt, Cin, Cout,
         c.place(tvs, 36, 67, 90)          # rail pin (2) lands at (36,64)
         splits.append((36, 64))
         c.use((tvs, "2"))
-    splits += [(44, 64), (52, 64), (65, 64)]
+    splits += ([(40, 64)] if tvs else []) + [(44, 64), (52, 64), (65, 64)]
     for a, b in zip(splits, splits[1:]):
         c.wire(a, b)
     if rail:
         c.stamp(rail, 28, 64, 0)
     else:
-        # EXT_5V: named local rail (label) + its hierarchical export routed
-        # to the top-left, columnar with nothing else on that edge
-        c.label("EXT_5V", 28, 64, 0)
+        # EXT_5V: named local rail (label placed CLEAR of the widened jack
+        # body) + its hierarchical export routed to the top-left, columnar
+        # with nothing else on that edge
+        c.label("EXT_5V", 40, 64, 0)
         c.wire((28, 64), (28, 60), (24, 60))
         c.hier("EXT_5V", 24, 60, 180)
     c.use((J, "1"))
@@ -780,7 +781,7 @@ def compose_01d():
     c.use(("U105", "6"), ("U105", "7"))
     c.caption(lf.desc, 20, 48)
     c.note("PR1->IN1 + CP2->IN2 per the AS-BUILT hub-standard netlist "
-           "(BOM-D's CP2->GND was flagged unverified by its own author)", 20, 108)
+           "(BOM-D's CP2->GND was flagged unverified by its own author)", 20, 114)
 
     # merged system rail out
     c.wire(c.pin("U105", "1"), (118, 64))
