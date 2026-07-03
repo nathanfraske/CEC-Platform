@@ -1299,8 +1299,16 @@ def compose_detect_adc():
         c.wire(p, (p[0] + 4, p[1]))
         c.stamp("GND", p[0] + 4, p[1], 0)
         c.use(("U_ADC", pin))
+    # NOTE (measured empirically, twice, while building this leaf): several
+    # features below tap the SAME native x-column (U_ADC's whole right edge
+    # shares one x) and route a JOG/vertical some distance out along it --
+    # if two features reuse the SAME offset, one's vertical run passes
+    # exactly through the other's pin/stamp coordinate and KiCad silently
+    # MERGES the two nets (ERC's multiple_net_names, and a "not driven" pin
+    # on whichever net got orphaned). Every offset below is therefore a
+    # DISTINCT value (4/10/16/24/32) -- no two features ever share a column.
     ref = c.pin("U_ADC", "10")
-    cr2 = c.place_pin("C_ADCREF", "2", ref[0] + 6, ref[1], 0)
+    cr2 = c.place_pin("C_ADCREF", "2", ref[0] + 10, ref[1], 0)
     c.wire(ref, cr2)
     c.use(("U_ADC", "10"), ("C_ADCREF", "2"))
     cr1 = c.pin("C_ADCREF", "1")
@@ -1308,39 +1316,43 @@ def compose_detect_adc():
     c.stamp("GND", cr1[0], cr1[1] - 4, 180)
     c.use(("C_ADCREF", "1"))
     vdd = c.pin("U_ADC", "16")
-    cv2 = c.place_pin("C_ADCVDD", "2", vdd[0] + 6, vdd[1], 0)
+    cv2 = c.place_pin("C_ADCVDD", "2", vdd[0] + 16, vdd[1], 0)
     c.wire(vdd, cv2)
     c.use(("U_ADC", "16"), ("C_ADCVDD", "2"))
     cv1 = c.pin("C_ADCVDD", "1")
     c.wire(cv1, (cv1[0], cv1[1] - 4))
     c.stamp("GND", cv1[0], cv1[1] - 4, 180)
     c.use(("C_ADCVDD", "1"))
-    # SCL/SDA: the pull-up hangs as a SHUNT off a tap point mid-run (not
-    # placed directly in the run's own path), and the io "from_pt" is given
-    # PAST the tap -- giving from_pt AT the raw pin (as first tried) routes
-    # the S1 column wire straight through the pull-up's own body (a real
-    # crash caught empirically: "crosses a symbol body").
+    # SCL/SDA: the pull-up hangs off a dedicated LANE well clear of the ADC's
+    # native 2u pin pitch (SDA sits only 2u above SCL, so a 4u-tall resistor
+    # body hanging the SAME direction off each row would land squarely on
+    # the neighbor's own tap point -- route each down its OWN column to a
+    # lane below the whole native pin cluster first).
     scl = c.pin("U_ADC", "14")
-    scl_tap = (scl[0] + 6, scl[1])
-    c.wire(scl, scl_tap)
-    c.place("R_I2CSCL", scl_tap[0], scl[1] + 2, 0)
+    scl_col = scl[0] + 24
+    c.wire(scl, (scl_col, scl[1]))
+    scl_lane = scl[1] + 20
+    c.wire((scl_col, scl[1]), (scl_col, scl_lane))
+    c.place("R_I2CSCL", scl_col, scl_lane + 2, 0)
     r_scl2 = c.pin("R_I2CSCL", "2")
     c.wire(r_scl2, (r_scl2[0], r_scl2[1] + 4))
     c.stamp("+3V3", r_scl2[0], r_scl2[1] + 4, 0)
     c.use(("U_ADC", "14"), ("R_I2CSCL", "1"), ("R_I2CSCL", "2"))
-    scl_end = (scl_tap[0] + 6, scl[1])
-    c.wire(scl_tap, scl_end)
+    scl_end = (scl_col + 6, scl_lane)
+    c.wire((scl_col, scl_lane), scl_end)
     c.io("DETECT_SCL", "right", from_pt=scl_end)
     sda = c.pin("U_ADC", "15")
-    sda_tap = (sda[0] + 6, sda[1])
-    c.wire(sda, sda_tap)
-    c.place("R_I2CSDA", sda_tap[0], sda[1] + 2, 0)
+    sda_col = sda[0] + 32
+    c.wire(sda, (sda_col, sda[1]))
+    sda_lane = sda[1] + 30
+    c.wire((sda_col, sda[1]), (sda_col, sda_lane))
+    c.place("R_I2CSDA", sda_col, sda_lane + 2, 0)
     r_sda2 = c.pin("R_I2CSDA", "2")
     c.wire(r_sda2, (r_sda2[0], r_sda2[1] + 4))
     c.stamp("+3V3", r_sda2[0], r_sda2[1] + 4, 0)
     c.use(("U_ADC", "15"), ("R_I2CSDA", "1"), ("R_I2CSDA", "2"))
-    sda_end = (sda_tap[0] + 6, sda[1])
-    c.wire(sda_tap, sda_end)
+    sda_end = (sda_col + 6, sda_lane)
+    c.wire((sda_col, sda_lane), sda_end)
     c.io("DETECT_SDA", "right", from_pt=sda_end)
     c.caption(lf.desc, 10, 22)
     c.note("NOT YET RATIFIED -- bom-c-module-if-base-secio.md Sec5 names ADS7830 an "

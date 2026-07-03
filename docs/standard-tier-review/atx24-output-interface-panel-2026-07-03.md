@@ -86,3 +86,19 @@ LEFT OPEN. His recorded lean (not a ruling):
   VARIANTS as SKUs** — color must live in the captive assembly since no detachable aesthetic
   layer is possible there. Feeds D-7's pigtail spec (length/gauge/strain relief + now
   color/sleeving) and the SKU list.
+
+## OWNER GROUND TRUTH + new option (2026-07-03, later same day)
+
+- **Right-angle PCB-mount female 24-pin: DOES NOT EXIST** — owner has exhaustively hunted;
+  only VERTICAL PCB-mount females exist. (Overrides any investigator claim to the contrary;
+  the parts workflow's RA hunt is moot, its vertical-part catalog stays useful.)
+- A vertical female directly on the main board is Z-prohibited (~35mm header+plug stack vs the
+  20–25mm channel).
+- **NEW OPTION (F): perpendicular daughtercard** — vertical female on a small PCB standing
+  edge-on (the modular-PSU output-board pattern) = a manufactured 90° female. Interboard joint =
+  edge-soldered through-slot tabs/castellations sized for rail currents (solder, not 24 hand
+  crimps → machine-assemblable, AOI-able). Adds: tiny PCB + vertical female part. Deletes:
+  24 crimped wires + housing loading + potted strain bar. Open engineering question: anchoring
+  the plug mating force (slot-tab-into-main-board + foot). Candidate to beat BOTH the pigtail
+  assembly (labor at volume) and the stub forms — evaluate at the D-5 respin alongside the
+  owner's lean.
