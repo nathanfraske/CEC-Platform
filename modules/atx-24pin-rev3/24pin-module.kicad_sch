@@ -6845,8 +6845,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "da41cb9c-751a-4e4b-af6f-b40fc27dc1e1")
-		(property "Reference" "J1" (at 180.34 260.35 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TO-HUB" (at 180.34 290.83 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J1" (at 180.34 255.27 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TO-HUB" (at 180.34 262.89 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal" (at 180.34 275.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 275.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "92dc3a71-46b8-4a17-b58c-c109b744bdd6"))
@@ -6875,8 +6875,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ed5efbfe-53f2-429d-8337-4f7769ecb0bc")
-		(property "Reference" "U1" (at 250.19 189.23 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "ESP32-C6-MINI-1-N4" (at 250.19 219.71 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U1" (at 250.19 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ESP32-C6-MINI-1-N4" (at 250.19 166.37 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-RF_Module:ESP32-C6-MINI-1" (at 250.19 204.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 250.19 204.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7d1367f9-e40c-4cf8-9aff-204f4d677f3e"))
@@ -6948,8 +6948,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1c9db44a-6c79-449d-a544-c552b17222f8")
-		(property "Reference" "U2" (at 335.28 180.34 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TJA1051T/3" (at 335.28 210.82 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U2" (at 335.28 182.88 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TJA1051T/3" (at 335.28 180.34 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm" (at 335.28 195.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 335.28 195.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "75cbbeaf-faa9-47fb-bb55-dc2d72f7fd09"))
@@ -6976,8 +6976,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "bec13d94-67ad-4832-a6e3-e1d7ba5254cb")
-		(property "Reference" "U3" (at 165.1 180.34 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "LP5907MFX-3.3" (at 165.1 210.82 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U3" (at 165.1 185.42 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "LP5907MFX-3.3" (at 165.1 187.96 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 165.1 195.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 165.1 195.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "c68fe106-5012-485e-b38a-e4e1a7a66ed0"))
@@ -7001,8 +7001,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1c3087a7-2c12-4a3e-ab7b-37c1e0d0840e")
-		(property "Reference" "R1" (at 214.63 269.24 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2kΩ" (at 214.63 299.72 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R1" (at 216.662 283.21 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 216.662 285.75 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 214.63 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 214.63 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "c00381b8-3ea6-4f06-9086-22e1f5a6a26e"))
@@ -7023,8 +7023,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a3cd4ac5-4524-4fa5-a8de-e5562284cefb")
-		(property "Reference" "R2" (at 245.11 269.24 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 245.11 299.72 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R2" (at 247.142 283.21 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 247.142 285.75 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 245.11 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 245.11 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "e33ccbf0-8bc0-4c8b-b37b-6c46fcd16ca2"))
@@ -7045,8 +7045,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "eaa965d1-fe08-4d4c-8c23-365b7f0ca46f")
-		(property "Reference" "C1" (at 118.11 160.02 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "1uF" (at 118.11 190.5 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C1" (at 119.38 173.99 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "1uF" (at 119.38 176.53 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 118.11 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 118.11 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "ed05125d-1902-43bc-8d81-abe746dc1f8c"))
@@ -7067,8 +7067,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "664bec1b-ab12-493b-81c3-dbeecf3c1ca7")
-		(property "Reference" "C2" (at 190.5 160.02 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "1uF" (at 190.5 190.5 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C2" (at 191.77 173.99 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "1uF" (at 191.77 176.53 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 190.5 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 190.5 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "d30fc988-d3df-4035-a98f-d7366384f58f"))
@@ -7089,8 +7089,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3e878d51-1d3b-4770-b18b-8eabfbedf3f3")
-		(property "Reference" "C3" (at 214.63 229.87 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 214.63 260.35 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C3" (at 215.9 243.84 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 215.9 246.38 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 214.63 245.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 214.63 245.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "40571ff2-65c8-4e92-96fe-2c25d40f2cce"))
@@ -7111,8 +7111,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "c80d51e0-b232-4fa7-809e-fcd8560e065d")
-		(property "Reference" "C4" (at 309.88 154.94 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 309.88 185.42 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C4" (at 311.15 168.91 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 311.15 171.45 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 309.88 170.18 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 309.88 170.18 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "dde3a37d-48cb-4f71-84b3-e8b9bc2542ec"))
@@ -7133,8 +7133,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "57808bc2-af95-41ae-bbb6-33d78632f297")
-		(property "Reference" "C5" (at 255.27 252.73 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 255.27 283.21 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C5" (at 256.54 266.7 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 256.54 269.24 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 255.27 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 255.27 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "4cfa16e9-74d6-4a39-b560-1ff4f9b0bfe6"))
@@ -7155,8 +7155,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b1a9fb8d-574a-4ab4-867c-96ce0cd043dc")
-		(property "Reference" "C6" (at 30.48 160.02 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10uF" (at 30.48 190.5 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C6" (at 31.75 173.99 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 31.75 176.53 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 30.48 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 30.48 175.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "b0b99eae-d1b5-4477-bf7c-b02fa493cfb3"))
@@ -7177,8 +7177,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d191825b-c11e-439a-a6c9-e7358ae0787e")
-		(property "Reference" "C7" (at 289.56 229.87 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10uF" (at 289.56 260.35 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C7" (at 290.83 243.84 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 290.83 246.38 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 289.56 245.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 289.56 245.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "a5461140-ba41-4536-bd08-ebde932466ec"))
@@ -7199,8 +7199,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ed4ed58b-8d09-4713-a514-6ff6b236c965")
-		(property "Reference" "C8" (at 364.49 224.79 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 364.49 255.27 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C8" (at 365.76 238.76 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 365.76 241.3 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 364.49 240.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 364.49 240.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "cf14730a-9abc-4a11-9e01-a8d32ebbb92b"))
@@ -7221,8 +7221,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "2f7e18bb-f35d-4376-97ca-aecd97ae2182")
-		(property "Reference" "D1" (at 234.95 269.24 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1BA" (at 234.95 299.72 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D1" (at 234.95 278.13 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 234.95 280.67 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 234.95 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 234.95 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "72e6f69b-45cd-48e6-a6a4-453f6a5c63cc"))
@@ -7243,8 +7243,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "67a113bf-c44f-41ef-8e2d-729cc2dac8e0")
-		(property "Reference" "R7" (at 214.63 252.73 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100kΩ" (at 214.63 283.21 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R7" (at 216.662 266.7 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100kΩ" (at 216.662 269.24 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 214.63 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 214.63 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "c6a043f3-0b51-46af-bf14-b242aa1f922a"))
@@ -7265,8 +7265,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "0e9158ed-e7a1-480c-850f-f59e3bc884af")
-		(property "Reference" "J5" (at 44.45 260.35 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "USB-C 2.0" (at 44.45 290.83 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J5" (at 44.45 252.73 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USB-C 2.0" (at 44.45 255.27 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11" (at 44.45 275.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 275.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "S1" (uuid "f64da09c-bfb0-48c0-87bb-92e62af6b832"))
@@ -7302,8 +7302,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b1312982-050b-431b-87ad-1316fac99cc0")
-		(property "Reference" "D2" (at 90.17 252.73 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "SS34" (at 90.17 283.21 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D2" (at 90.17 261.62 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "SS34" (at 90.17 264.16 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 90.17 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 90.17 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "e74fda5d-0226-4444-8bea-38e0de08a615"))
@@ -7324,8 +7324,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "0b5f60ed-e8e5-4d90-998f-85e6950c4113")
-		(property "Reference" "C9" (at 110.49 252.73 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10uF" (at 110.49 283.21 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C9" (at 111.76 266.7 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 111.76 269.24 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 110.49 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 110.49 267.97 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "36ccdef3-ae91-4a0c-be73-edb277bee4e1"))
@@ -7346,8 +7346,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b28d9ab6-3de8-4574-b462-7fae969d3474")
-		(property "Reference" "R8" (at 124.46 269.24 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "5.1kΩ" (at 124.46 299.72 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R8" (at 126.492 283.21 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "5.1kΩ" (at 125.222 285.75 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 124.46 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 124.46 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "bbe247e7-ae1a-430b-a3da-5247a55dbcf6"))
@@ -7368,8 +7368,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8c526dcf-078e-44c1-b83e-9be933bdfc22")
-		(property "Reference" "R9" (at 139.7 269.24 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "5.1kΩ" (at 139.7 299.72 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R9" (at 141.732 283.21 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "5.1kΩ" (at 156.972 285.75 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 139.7 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "650ba231-203e-4ed2-ad10-c1884e913009"))
@@ -7390,8 +7390,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "477799fe-d662-48ee-86eb-60627f85ffbe")
-		(property "Reference" "SW1" (at 69.85 274.32 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "BOOT" (at 69.85 304.8 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "SW1" (at 69.85 283.21 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "BOOT" (at 69.85 285.75 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 69.85 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "896a9731-2a40-4eb6-bb5f-ce2a69ffabce"))
@@ -7412,8 +7412,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "35492c36-75e0-47b0-b4eb-d4b7d3af3a40")
-		(property "Reference" "SW2" (at 95.25 274.32 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "RESET" (at 95.25 304.8 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "SW2" (at 95.25 283.21 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "RESET" (at 95.25 285.75 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Button_Switch_SMD:TS-1088-AR02016" (at 95.25 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "9a9db75c-32a4-4418-b50f-1f2ccd74a8ea"))
@@ -7434,8 +7434,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3bb1d672-e68d-40b8-8f6f-e6ec6ab34208")
-		(property "Reference" "J2" (at 160.02 274.32 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TO-HUB-PWR" (at 160.02 304.8 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J2" (at 163.83 288.29 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TO-HUB-PWR" (at 163.83 290.83 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal" (at 160.02 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 160.02 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "91f7f034-a965-4dd2-a810-22136153dfd6"))
@@ -7456,8 +7456,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1cbc146b-e40a-4624-bf84-28977c585faf")
-		(property "Reference" "R3" (at 160.02 22.86 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2kΩ" (at 160.02 53.34 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R3" (at 162.052 36.83 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 163.322 39.37 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 160.02 38.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 160.02 38.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "952e80fb-21c0-4224-808d-cd962e416b65"))
@@ -7478,8 +7478,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "64a3cc69-4785-485d-9666-de8a2d40701c")
-		(property "Reference" "R4" (at 180.34 22.86 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2kΩ" (at 180.34 53.34 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R4" (at 182.372 36.83 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 182.372 39.37 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 180.34 38.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 38.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "c04d49df-a6c0-452c-a469-a15a314db4a6"))
@@ -7500,8 +7500,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "5a15e582-cace-4506-85ad-ea3514d8795f")
-		(property "Reference" "U10" (at 160.02 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "INA228" (at 160.02 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U10" (at 160.02 34.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA228" (at 160.02 24.13 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 160.02 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 160.02 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "8" (uuid "1b146143-47b7-4435-a0ea-7fd8ec3d7192"))
@@ -7530,8 +7530,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1c88e879-382d-475f-a67a-05fa2025a6dc")
-		(property "Reference" "RS1" (at 95.25 54.61 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2mΩ" (at 95.25 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS1" (at 97.282 68.58 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2mΩ" (at 97.282 71.12 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 95.25 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Bourns" (at 0 0 0)
@@ -7576,8 +7576,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "fbe5c315-5140-4258-8e99-84be59059bc1")
-		(property "Reference" "C10" (at 185.42 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 185.42 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C10" (at 186.69 53.34 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 186.69 55.88 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 185.42 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 185.42 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "465bdfe7-88b7-4cc0-b1bf-178ca830db6b"))
@@ -7598,8 +7598,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b93d5349-6b3b-44e5-86f7-47add8c20d53")
-		(property "Reference" "U11" (at 160.02 69.85 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "INA228" (at 160.02 100.33 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U11" (at 168.91 73.66 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "INA228" (at 170.18 77.47 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 160.02 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 160.02 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "8" (uuid "8986e9b1-ec7b-4c20-9dd2-2f34a70ac05c"))
@@ -7628,8 +7628,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "fc571909-f01a-4531-9ad5-8223bd274e31")
-		(property "Reference" "RS2" (at 95.25 72.39 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2mΩ" (at 95.25 102.87 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS2" (at 97.282 86.36 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2mΩ" (at 97.282 88.9 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 95.25 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Bourns" (at 0 0 0)
@@ -7674,8 +7674,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ce43671b-a4ca-4906-af11-aa62f5c2262d")
-		(property "Reference" "C11" (at 185.42 69.85 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 185.42 100.33 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C11" (at 186.69 83.82 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 186.69 86.36 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 185.42 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 185.42 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "9d7268f5-1fe2-45b6-a870-41396a60c7db"))
@@ -7696,8 +7696,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8e7612f3-323d-40e2-aa90-167f7fa6deab")
-		(property "Reference" "U12" (at 160.02 100.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "INA228" (at 160.02 130.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U12" (at 168.91 104.14 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "INA228" (at 170.18 107.95 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 160.02 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 160.02 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "8" (uuid "3ec9d9ed-d3e2-428a-a536-45833ea10679"))
@@ -7726,8 +7726,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "25619144-d0ce-4a47-883c-b208d29fb3cb")
-		(property "Reference" "RS3" (at 95.25 90.17 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2mΩ" (at 95.25 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS3" (at 97.282 104.14 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2mΩ" (at 97.282 106.68 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 95.25 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Bourns" (at 0 0 0)
@@ -7772,8 +7772,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "21a611d4-2c57-417e-8d54-ee6700aaee32")
-		(property "Reference" "C12" (at 185.42 100.33 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 185.42 130.81 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C12" (at 186.69 114.3 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 186.69 116.84 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 185.42 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 185.42 115.57 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "cf4e7671-3731-4cf7-a72e-17769ea3c924"))
@@ -7795,7 +7795,7 @@
 		(fields_autoplaced yes)
 		(uuid "fb53041b-d005-4d92-a162-08436efc284d")
 		(property "Reference" "U13" (at 209.55 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "INA228" (at 209.55 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA228" (at 209.55 36.83 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 209.55 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 209.55 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "8" (uuid "9cb6f95d-72e9-472d-8c89-877189ba5b08"))
@@ -7824,8 +7824,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "56268892-5689-46c3-ba63-0cfa83266d64")
-		(property "Reference" "RS4" (at 110.49 109.22 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "25mΩ" (at 110.49 139.7 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS4" (at 110.49 118.11 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "25mΩ" (at 110.49 120.65 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm" (at 110.49 124.46 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 110.49 124.46 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -7854,8 +7854,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "759ac924-88ce-41e3-89d1-ab6d22ced0bb")
-		(property "Reference" "C13" (at 234.95 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 234.95 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C13" (at 236.22 53.34 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 236.22 55.88 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 234.95 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 234.95 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "ce690844-484a-4661-bd79-ebe683638c91"))
@@ -7876,8 +7876,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3f11b26e-47e3-4481-a921-0152b0ab4221")
-		(property "Reference" "J3" (at 44.45 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "ATX-24 PSU" (at 44.45 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J3" (at 44.45 36.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ATX-24 PSU" (at 44.45 39.37 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A2_2x12_P4.20mm_Horizontal" (at 44.45 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "676d2506-abab-4548-9e12-60bb22fd6a65"))
@@ -7920,8 +7920,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "03c80cf2-6fab-4ad9-b73b-cc02f7dd9a60")
-		(property "Reference" "J4" (at 44.45 104.14 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "ATX-24 MB" (at 44.45 134.62 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "J4" (at 44.45 101.6 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ATX-24 MB" (at 44.45 104.14 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A2_2x12_P4.20mm_Horizontal" (at 44.45 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "06e47c55-fe43-4db1-8329-d4c9503c5803"))
@@ -7964,8 +7964,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d938455c-bfc4-4aed-8223-75f347d71176")
-		(property "Reference" "U5" (at 59.69 184.15 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TPS2121RUXR" (at 59.69 214.63 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U5" (at 59.69 173.99 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TPS2121RUXR" (at 59.69 176.53 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-vendor:RUX0012A" (at 59.69 199.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 59.69 199.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "722982c2-5fb0-4505-a38b-721f77dd51fe"))
@@ -7996,8 +7996,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1fb8f023-bd6c-4bbb-9baf-0e2987e07da7")
-		(property "Reference" "C50" (at 30.48 219.71 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2u2" (at 30.48 250.19 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C50" (at 31.75 233.68 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2u2" (at 31.75 236.22 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 30.48 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 30.48 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "f6cc519d-57da-48cf-88ba-3caa3cc17cca"))
@@ -8018,8 +8018,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d257d98b-21ea-47dc-9f44-60f804b9a5a4")
-		(property "Reference" "R50" (at 49.53 219.71 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "20kΩ" (at 49.53 250.19 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R50" (at 51.562 233.68 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "20kΩ" (at 51.562 236.22 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 49.53 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 49.53 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "a4004c29-276f-40fe-8987-941c95161cb9"))
@@ -8040,8 +8040,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "6cc374b2-9191-43de-b6b0-7098a66f054f")
-		(property "Reference" "R51" (at 95.25 219.71 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 95.25 250.19 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R51" (at 97.282 233.68 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 97.282 236.22 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 95.25 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "122be0f8-bd0f-468d-b0ab-b100a101d394"))
@@ -8062,8 +8062,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "492e1bf7-f772-4a81-9856-3e737423aa64")
-		(property "Reference" "R52" (at 111.76 199.39 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100kΩ" (at 111.76 229.87 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R52" (at 113.792 213.36 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100kΩ" (at 113.792 215.9 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 111.76 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 111.76 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "7891baba-e11c-45e3-a4a7-f8682e84f9ba"))
@@ -8084,8 +8084,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "bdaf9cfe-8642-432f-8d25-16f91c2977a3")
-		(property "Reference" "R53" (at 111.76 217.17 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "33kΩ" (at 111.76 247.65 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R53" (at 113.792 231.14 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "33kΩ" (at 113.792 233.68 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 111.76 232.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 111.76 232.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "ba0c8990-1760-4bc5-a0f0-68ae476ab548"))
@@ -8106,8 +8106,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a158494f-6645-4eb0-9d1d-e2a0d8975d44")
-		(property "Reference" "R60" (at 359.41 44.45 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 359.41 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R60" (at 361.442 58.42 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 361.442 60.96 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 359.41 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 359.41 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "b7104865-aee5-40d1-b60c-69fddeaff1f8"))
@@ -8128,8 +8128,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "dd036072-5670-4604-9028-d2c748a2e166")
-		(property "Reference" "C60" (at 379.73 44.45 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 379.73 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C60" (at 381 58.42 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 381 60.96 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 379.73 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 379.73 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "704bdc5d-0bff-4538-b65d-77ef83d5ecc8"))
@@ -8150,8 +8150,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a960c72f-8e45-43fc-a646-92dd8cd82739")
-		(property "Reference" "U612V" (at 275.59 34.29 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "INA181A2IDBVR" (at 275.59 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U612V" (at 275.59 39.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA181A2IDBVR" (at 275.59 41.91 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 275.59 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 275.59 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "aaaef752-a6ce-4ce6-b0ce-662eeea9f1c3"))
@@ -8176,8 +8176,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "227121bf-1285-41b6-8da9-f508b7165aca")
-		(property "Reference" "U712V" (at 309.88 34.29 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TLV7011DBVR" (at 309.88 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U712V" (at 309.88 39.37 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TLV7011DBVR" (at 309.88 41.91 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 309.88 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 309.88 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "20622ab9-9602-4297-a0e4-13f31cdaa4c3"))
@@ -8201,8 +8201,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "476ca169-f189-4bfb-a072-277af6c3a893")
-		(property "Reference" "C612V" (at 293.37 34.29 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 293.37 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C612V" (at 294.64 48.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 294.64 64.77 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 293.37 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 293.37 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "270a7b67-5bcb-472f-af2f-bb7cdccd5e96"))
@@ -8223,8 +8223,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "06011e74-5909-4bc5-be08-44dd11a69286")
-		(property "Reference" "C712V" (at 327.66 34.29 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 327.66 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C712V" (at 328.93 48.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 328.93 53.34 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 327.66 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 327.66 49.53 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "bebd13ef-7321-40df-89e9-c582db572da0"))
@@ -8245,8 +8245,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "556dc6f1-88f1-41ee-833e-d257a7a07553")
-		(property "Reference" "U65V" (at 275.59 80.01 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "INA181A2IDBVR" (at 275.59 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U65V" (at 275.59 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA181A2IDBVR" (at 275.59 87.63 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 275.59 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 275.59 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "6c619c40-b35a-4315-afff-84cf70992733"))
@@ -8271,8 +8271,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a5d50081-f798-41fd-bbb9-2b29920fa16e")
-		(property "Reference" "U75V" (at 309.88 80.01 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TLV7011DBVR" (at 309.88 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U75V" (at 309.88 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TLV7011DBVR" (at 309.88 87.63 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 309.88 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 309.88 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "45a27ab6-f5e9-4c07-853a-b965fc1e2d8e"))
@@ -8296,8 +8296,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d0058146-447b-47f1-b1f1-10ae3baa4a7c")
-		(property "Reference" "C65V" (at 293.37 80.01 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 293.37 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C65V" (at 294.64 93.98 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 294.64 101.6 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 293.37 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 293.37 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "1068a710-6cf6-4a78-9e8f-4860e42d0e97"))
@@ -8318,8 +8318,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f1de3e9c-4bc5-43c0-b07b-99d549fb9631")
-		(property "Reference" "C75V" (at 327.66 80.01 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 327.66 110.49 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C75V" (at 328.93 93.98 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 328.93 99.06 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 327.66 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 327.66 95.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "3bfd5aa8-b736-4d20-8371-9a77494db3ab"))
@@ -8332,7 +8332,7 @@
 	)
 	(symbol
 		(lib_id "cec:CEC_MEZZANINE_16P")
-		(at 309.88 278.13 0)
+		(at 309.88 284.48 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8340,10 +8340,10 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "3d74ac89-695b-4ff6-a364-d488d2b0846d")
-		(property "Reference" "J6" (at 309.88 262.89 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TO-HUB-STACK" (at 309.88 293.37 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_PinHeader_2.00mm:PinHeader_2x08_P2.00mm_Vertical" (at 309.88 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 309.88 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Reference" "J6" (at 316.23 262.89 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "TO-HUB-STACK" (at 316.23 265.43 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_PinHeader_2.00mm:PinHeader_2x08_P2.00mm_Vertical" (at 309.88 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 309.88 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(pin "1" (uuid "15e71b53-ed3a-4945-aa26-22f6aae89efd"))
 		(pin "2" (uuid "fb23d2a5-e625-4569-9749-85b629a7ddaa"))
 		(pin "3" (uuid "778d896e-210b-4e65-9df2-7a25136129e9"))
@@ -8482,12 +8482,9 @@
 		(stroke (width 0) (type default)) (uuid "5988aa31-8d67-4863-b1f4-8aef4b0f2b8d"))
 	(wire (pts (xy 44.45 298.45) (xy 44.45 302.26))
 		(stroke (width 0) (type default)) (uuid "e77076ec-c506-4cac-9616-1743d2246c07"))
-	(wire (pts (xy 44.45 298.45) (xy 44.45 302.26))
-		(stroke (width 0) (type default)) (uuid "22eb458c-2da4-47ac-8996-2dfacd37882c"))
-	(wire (pts (xy 44.45 298.45) (xy 44.45 302.26))
-		(stroke (width 0) (type default)) (uuid "a1261a27-aac8-4c0a-bb91-f1c14e5733f2"))
-	(wire (pts (xy 44.45 298.45) (xy 44.45 302.26))
-		(stroke (width 0) (type default)) (uuid "7d86abdf-7eea-4c46-a4ee-b4e7f8366fc1"))
+	
+	
+	
 	(wire (pts (xy 36.83 298.45) (xy 36.83 302.26))
 		(stroke (width 0) (type default)) (uuid "9490f229-bba3-48ed-966f-54ee54c698c0"))
 	(wire (pts (xy 238.76 171.45) (xy 234.95 171.45))
@@ -8564,34 +8561,20 @@
 		(stroke (width 0) (type default)) (uuid "5dc6abfc-4900-4e24-8cfc-f2b6daff28fd"))
 	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
 		(stroke (width 0) (type default)) (uuid "af859237-f5dd-4b23-a294-00799c3ad29b"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "d69f217e-1b03-42ad-b3cc-12b17a6fc75a"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "1d93fa4e-c619-4bee-9b3c-46178ea0c276"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "3df68e38-10e9-45ed-a6bf-e4d7461d5961"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "55d3bd25-039d-4da8-8f99-10f8c90e5616"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "b742184d-153c-4c55-8265-2ff682b9b4d5"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "c962f256-6b57-41a0-988b-9124227bd48c"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "9e7d01c1-e558-4b7b-990d-e14bc289d6ac"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "40ed4c18-76b4-45f7-8466-226d465275ca"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "e897e4a0-975d-4ac8-af72-be545aac6761"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "e7d15e7a-5b5c-4703-a7b9-1d5bd1e33c00"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "0742060f-ae70-4cd0-8c27-42c0947ed9ed"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "046953fb-ddcf-4756-b2e0-6f11173ac86f"))
-	(wire (pts (xy 44.45 69.85) (xy 44.45 73.66))
-		(stroke (width 0) (type default)) (uuid "30ac0dd6-e8ed-4652-a592-4ccd2c4fe9dd"))
-	(wire (pts (xy 44.45 134.62) (xy 44.45 138.43))
-		(stroke (width 0) (type default)) (uuid "a4f9e11a-8f52-4f79-b1ee-9f170aca2f63"))
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
+	
 	(wire (pts (xy 77.47 219.71) (xy 81.28 219.71))
 		(stroke (width 0) (type default)) (uuid "253dfaa1-c1df-4fb2-95b4-2cfcd9f48a97"))
 	(wire (pts (xy 30.48 237.49) (xy 30.48 241.3))
@@ -8628,19 +8611,19 @@
 		(stroke (width 0) (type default)) (uuid "cb7b45f5-14d7-459a-bb86-343d9976668a"))
 	(wire (pts (xy 327.66 97.79) (xy 327.66 101.6))
 		(stroke (width 0) (type default)) (uuid "794763fb-e8ed-45d6-9794-f1d892049a50"))
-	(wire (pts (xy 299.72 265.43) (xy 295.91 265.43))
+	(wire (pts (xy 299.72 271.78) (xy 295.91 271.78))
 		(stroke (width 0) (type default)) (uuid "32c171f5-84a2-41c7-bf42-727c9a0d28b4"))
-	(wire (pts (xy 299.72 273.05) (xy 295.91 273.05))
+	(wire (pts (xy 299.72 279.4) (xy 295.91 279.4))
 		(stroke (width 0) (type default)) (uuid "a25c4e2b-816e-4b9d-879e-b83fac14d0df"))
-	(wire (pts (xy 299.72 280.67) (xy 295.91 280.67))
+	(wire (pts (xy 299.72 287.02) (xy 295.91 287.02))
 		(stroke (width 0) (type default)) (uuid "0e75e596-102f-4d77-99fc-09e2414c600a"))
-	(wire (pts (xy 299.72 285.75) (xy 295.91 285.75))
+	(wire (pts (xy 299.72 292.1) (xy 295.91 292.1))
 		(stroke (width 0) (type default)) (uuid "5b7d6793-f7cc-4f1e-b1a6-beef592622c2"))
-	(wire (pts (xy 299.72 290.83) (xy 295.91 290.83))
+	(wire (pts (xy 299.72 297.18) (xy 295.91 297.18))
 		(stroke (width 0) (type default)) (uuid "b9cc72d2-d76c-4dde-a7bd-9c1ce6d7114f"))
-	(wire (pts (xy 299.72 293.37) (xy 295.91 293.37))
+	(wire (pts (xy 299.72 299.72) (xy 295.91 299.72))
 		(stroke (width 0) (type default)) (uuid "08cd1c19-aac6-4229-8d41-aa4b3c725a69"))
-	(wire (pts (xy 299.72 295.91) (xy 295.91 295.91))
+	(wire (pts (xy 299.72 302.26) (xy 295.91 302.26))
 		(stroke (width 0) (type default)) (uuid "73166190-5a4c-425a-9b87-4e5ba8bdc90f"))
 	(wire (pts (xy 238.76 189.23) (xy 234.95 189.23))
 		(stroke (width 0) (type default)) (uuid "6ad6dd07-70e4-428a-bd23-396af43ce47d"))
@@ -8662,13 +8645,13 @@
 		(stroke (width 0) (type default)) (uuid "7d713bca-b1fb-4560-a6cb-6bf85a6828e1"))
 	(wire (pts (xy 170.18 271.78) (xy 166.37 271.78))
 		(stroke (width 0) (type default)) (uuid "b15b0ca6-96c0-4180-b11d-fd4a797a5740"))
-	(wire (pts (xy 299.72 267.97) (xy 295.91 267.97))
+	(wire (pts (xy 299.72 274.32) (xy 295.91 274.32))
 		(stroke (width 0) (type default)) (uuid "7d3c1d90-ea3f-4888-8f8b-c76f2e3da68a"))
 	(wire (pts (xy 347.98 198.12) (xy 351.79 198.12))
 		(stroke (width 0) (type default)) (uuid "668a7708-4a4c-4f02-a7c1-525e3811074b"))
 	(wire (pts (xy 170.18 279.4) (xy 166.37 279.4))
 		(stroke (width 0) (type default)) (uuid "31813f13-2970-4b3b-ae8e-4724a9de1912"))
-	(wire (pts (xy 299.72 270.51) (xy 295.91 270.51))
+	(wire (pts (xy 299.72 276.86) (xy 295.91 276.86))
 		(stroke (width 0) (type default)) (uuid "0accafc6-0b4d-4082-b910-d21117627c47"))
 	(wire (pts (xy 170.18 284.48) (xy 166.37 284.48))
 		(stroke (width 0) (type default)) (uuid "1b648b48-2969-4827-9d85-be025a47f2e3"))
@@ -8678,7 +8661,7 @@
 		(stroke (width 0) (type default)) (uuid "022b254b-eac6-4550-8b92-7a88daa1e8f3"))
 	(wire (pts (xy 214.63 265.43) (xy 214.63 261.62))
 		(stroke (width 0) (type default)) (uuid "99cc6650-ba06-4fcb-9ee5-98300151a9a1"))
-	(wire (pts (xy 299.72 283.21) (xy 295.91 283.21))
+	(wire (pts (xy 299.72 289.56) (xy 295.91 289.56))
 		(stroke (width 0) (type default)) (uuid "361322a9-ed0d-4616-9a65-0cec519cb94d"))
 	(wire (pts (xy 214.63 270.51) (xy 214.63 274.32))
 		(stroke (width 0) (type default)) (uuid "43a76aba-a491-41bd-9e30-301496439726"))
@@ -8690,12 +8673,9 @@
 		(stroke (width 0) (type default)) (uuid "b070d42e-f8db-4936-84e1-a17dadd03aee"))
 	(wire (pts (xy 59.69 260.35) (xy 63.5 260.35))
 		(stroke (width 0) (type default)) (uuid "5dbff5c9-1291-4eb5-b3f0-024ec4f7ae5f"))
-	(wire (pts (xy 59.69 260.35) (xy 63.5 260.35))
-		(stroke (width 0) (type default)) (uuid "29852c5b-6b13-4f38-af41-47f96dd63cf7"))
-	(wire (pts (xy 59.69 260.35) (xy 63.5 260.35))
-		(stroke (width 0) (type default)) (uuid "37c1091a-327e-4fae-a9d7-fce725fe2bc2"))
-	(wire (pts (xy 59.69 260.35) (xy 63.5 260.35))
-		(stroke (width 0) (type default)) (uuid "2a3bb8a5-646a-458d-936d-bb5802d1713c"))
+	
+	
+	
 	(wire (pts (xy 93.98 267.97) (xy 97.79 267.97))
 		(stroke (width 0) (type default)) (uuid "23990887-6a07-485a-90fa-e164661ad0a3"))
 	(wire (pts (xy 110.49 265.43) (xy 110.49 261.62))
@@ -8750,8 +8730,7 @@
 		(stroke (width 0) (type default)) (uuid "e91248d3-b90c-4aa9-8d7f-3105f991c5d7"))
 	(wire (pts (xy 57.15 49.53) (xy 60.96 49.53))
 		(stroke (width 0) (type default)) (uuid "a411ff87-89f6-4029-a4e7-3e111c6817d6"))
-	(wire (pts (xy 57.15 49.53) (xy 60.96 49.53))
-		(stroke (width 0) (type default)) (uuid "b2283247-3944-4c0a-bd91-89e0494d4fc3"))
+	
 	(wire (pts (xy 266.7 52.07) (xy 262.89 52.07))
 		(stroke (width 0) (type default)) (uuid "cc778b54-c063-4a79-a945-e3e76c06dc9d"))
 	(wire (pts (xy 95.25 72.39) (xy 95.25 76.2))
@@ -8762,8 +8741,7 @@
 		(stroke (width 0) (type default)) (uuid "92d98c9f-a41a-4cf9-99df-aecd1204b5f6"))
 	(wire (pts (xy 57.15 114.3) (xy 60.96 114.3))
 		(stroke (width 0) (type default)) (uuid "c21c6252-0c18-413a-9720-ab43744d68be"))
-	(wire (pts (xy 57.15 114.3) (xy 60.96 114.3))
-		(stroke (width 0) (type default)) (uuid "cf8ea631-8382-4bf1-b3ad-3e28b558765b"))
+	
 	(wire (pts (xy 284.48 52.07) (xy 288.29 52.07))
 		(stroke (width 0) (type default)) (uuid "0c5ffaeb-724f-4b47-85a8-f9e683dc1992"))
 	(wire (pts (xy 95.25 85.09) (xy 95.25 81.28))
@@ -8772,14 +8750,10 @@
 		(stroke (width 0) (type default)) (uuid "5a287fde-0695-4b81-8fee-edbf3159f372"))
 	(wire (pts (xy 57.15 52.07) (xy 60.96 52.07))
 		(stroke (width 0) (type default)) (uuid "c56676e1-a7c4-4907-aa8a-2f0f65f5d54c"))
-	(wire (pts (xy 57.15 52.07) (xy 60.96 52.07))
-		(stroke (width 0) (type default)) (uuid "54deee23-11f0-4c46-93c5-0384e05e179a"))
-	(wire (pts (xy 57.15 52.07) (xy 60.96 52.07))
-		(stroke (width 0) (type default)) (uuid "d62e5908-5bba-43c0-923d-893112898aeb"))
-	(wire (pts (xy 57.15 52.07) (xy 60.96 52.07))
-		(stroke (width 0) (type default)) (uuid "ca277ef7-d812-4791-a0e7-8dfeed9631c3"))
-	(wire (pts (xy 57.15 52.07) (xy 60.96 52.07))
-		(stroke (width 0) (type default)) (uuid "d48c16c7-08d6-4cd9-8997-af93a9754fbb"))
+	
+	
+	
+	
 	(wire (pts (xy 266.7 97.79) (xy 262.89 97.79))
 		(stroke (width 0) (type default)) (uuid "6b22adfe-db76-4b72-a047-1ce02fd8a3ca"))
 	(wire (pts (xy 95.25 102.87) (xy 95.25 99.06))
@@ -8788,12 +8762,9 @@
 		(stroke (width 0) (type default)) (uuid "cb3b5f37-7adc-4a27-b4bf-f34692a786f2"))
 	(wire (pts (xy 57.15 57.15) (xy 60.96 57.15))
 		(stroke (width 0) (type default)) (uuid "b87dc4c0-1d28-4bdd-8ed3-3589e9e5d5c0"))
-	(wire (pts (xy 57.15 57.15) (xy 60.96 57.15))
-		(stroke (width 0) (type default)) (uuid "9677f6d5-200c-40bf-9e15-a025be31c532"))
-	(wire (pts (xy 57.15 57.15) (xy 60.96 57.15))
-		(stroke (width 0) (type default)) (uuid "48ea4bf3-7f7a-4e67-a300-19d57dc67d96"))
-	(wire (pts (xy 57.15 57.15) (xy 60.96 57.15))
-		(stroke (width 0) (type default)) (uuid "66d909c0-97e6-414d-8ce0-dccffddb53b7"))
+	
+	
+	
 	(wire (pts (xy 95.25 107.95) (xy 95.25 111.76))
 		(stroke (width 0) (type default)) (uuid "b18af778-12ad-4aa8-b6fc-f3d599e69ca1"))
 	(wire (pts (xy 149.86 120.65) (xy 146.05 120.65))
@@ -8802,12 +8773,9 @@
 		(stroke (width 0) (type default)) (uuid "a69ad959-c07e-41ac-8ff9-0954c0f7d83f"))
 	(wire (pts (xy 57.15 121.92) (xy 60.96 121.92))
 		(stroke (width 0) (type default)) (uuid "726d0d60-c8e8-4e8d-ab5b-d2a7ce648d12"))
-	(wire (pts (xy 57.15 121.92) (xy 60.96 121.92))
-		(stroke (width 0) (type default)) (uuid "1b5c0071-ff9e-4ddb-926b-f7d8205e265f"))
-	(wire (pts (xy 57.15 121.92) (xy 60.96 121.92))
-		(stroke (width 0) (type default)) (uuid "4bc8f7d3-c199-4552-a8f2-abdb0bfbde85"))
-	(wire (pts (xy 57.15 121.92) (xy 60.96 121.92))
-		(stroke (width 0) (type default)) (uuid "1861784d-fe81-43bf-ab8d-f8399fcd19a1"))
+	
+	
+	
 	(wire (pts (xy 116.84 124.46) (xy 120.65 124.46))
 		(stroke (width 0) (type default)) (uuid "a4b43f9b-4596-4d49-a7c5-0f75f6fac4c9"))
 	(wire (pts (xy 107.95 128.27) (xy 107.95 132.08))
@@ -8850,11 +8818,11 @@
 		(stroke (width 0) (type default)) (uuid "e33d48a8-7d3a-4591-bedd-bdfbc5d8b2af"))
 	(wire (pts (xy 77.47 181.61) (xy 81.28 181.61))
 		(stroke (width 0) (type default)) (uuid "e3cf37c4-1d17-4ea2-b446-5525e2f23dc7"))
-	(wire (pts (xy 299.72 257.81) (xy 295.91 257.81))
+	(wire (pts (xy 299.72 264.16) (xy 295.91 264.16))
 		(stroke (width 0) (type default)) (uuid "c87ca310-f2e8-429e-9d56-30636ee3d976"))
-	(wire (pts (xy 299.72 260.35) (xy 295.91 260.35))
+	(wire (pts (xy 299.72 266.7) (xy 295.91 266.7))
 		(stroke (width 0) (type default)) (uuid "931cc6b4-30bf-4211-9c03-55eca72f48e8"))
-	(wire (pts (xy 299.72 262.89) (xy 295.91 262.89))
+	(wire (pts (xy 299.72 269.24) (xy 295.91 269.24))
 		(stroke (width 0) (type default)) (uuid "64a53616-a241-456d-b1ad-6ca1cd3d6517"))
 	(wire (pts (xy 77.47 204.47) (xy 81.28 204.47))
 		(stroke (width 0) (type default)) (uuid "514f05d7-6eef-4d46-a93a-8edfa700cd84"))
@@ -8910,14 +8878,10 @@
 		(stroke (width 0) (type default)) (uuid "2eb6d4ea-f702-433b-8af3-66fe4ac498f4"))
 	(wire (pts (xy 57.15 116.84) (xy 60.96 116.84))
 		(stroke (width 0) (type default)) (uuid "b1a6aa2d-939c-4b10-acba-09b7c20efdbd"))
-	(wire (pts (xy 57.15 116.84) (xy 60.96 116.84))
-		(stroke (width 0) (type default)) (uuid "f20a78e0-c079-456b-9a6b-84c4e39fcefa"))
-	(wire (pts (xy 57.15 116.84) (xy 60.96 116.84))
-		(stroke (width 0) (type default)) (uuid "24b9cbe8-a9ab-4b3d-a0be-8baf8fc5ffee"))
-	(wire (pts (xy 57.15 116.84) (xy 60.96 116.84))
-		(stroke (width 0) (type default)) (uuid "bb050466-1129-4924-a72c-020786150f28"))
-	(wire (pts (xy 57.15 116.84) (xy 60.96 116.84))
-		(stroke (width 0) (type default)) (uuid "1c2ba139-4449-4eb2-9f11-8ecb37059f0b"))
+	
+	
+	
+	
 	(wire (pts (xy 41.91 179.07) (xy 38.1 179.07))
 		(stroke (width 0) (type default)) (uuid "1ecde066-310d-4e75-a715-a82f00b7f26a"))
 	(wire (pts (xy 111.76 212.09) (xy 111.76 208.28))
@@ -8942,23 +8906,23 @@
 	(label "CAN_RX" (at 318.77 193.04 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "262c13e9-a501-48cd-ac88-00904c5349a1"))
 	(label "CAN_H" (at 351.79 193.04 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f73dd7d0-1c85-45c3-8b81-3d40486c2e83"))
 	(label "CAN_H_BUS" (at 166.37 271.78 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "e8405745-9abb-4571-8d5b-b99b4d0b4a09"))
-	(label "CAN_H_BUS" (at 295.91 267.97 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "af756a91-3ec3-4823-b158-53f22da6d528"))
+	(label "CAN_H_BUS" (at 295.91 274.32 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "af756a91-3ec3-4823-b158-53f22da6d528"))
 	(label "CAN_L" (at 351.79 198.12 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e7711858-3532-4842-a8b4-b204239662d2"))
 	(label "CAN_L_BUS" (at 166.37 279.4 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8245e663-5ea4-41b2-88f0-cc45ccb59d00"))
-	(label "CAN_L_BUS" (at 295.91 270.51 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "c9a4581b-5ef5-4526-a3d0-aee2635cfa24"))
+	(label "CAN_L_BUS" (at 295.91 276.86 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "c9a4581b-5ef5-4526-a3d0-aee2635cfa24"))
 	(label "DETECT" (at 166.37 284.48 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4b03e811-6f9a-4435-b7a4-32246aad4168"))
 	(label "DETECT" (at 214.63 278.13 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6e9be738-b745-4839-80a7-b3e474c69781"))
 	(label "DETECT" (at 227.33 284.48 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "f2afc692-ab52-4db0-9fe3-6b19f86f9ff5"))
 	(label "DETECT" (at 214.63 261.62 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "09c03753-a894-444b-83c5-f61bb5a724c3"))
-	(label "DETECT" (at 295.91 283.21 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "f8d3f5fd-b93d-4023-9538-9f1477b47d14"))
+	(label "DETECT" (at 295.91 289.56 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "f8d3f5fd-b93d-4023-9538-9f1477b47d14"))
 	(label "DETECT_SENSE" (at 214.63 274.32 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "224d49b0-3597-43ae-b1ff-030833fc9a64"))
 	(label "DETECT_SENSE" (at 234.95 199.39 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "a5ec5492-1435-4781-814c-ef0a64ae1a69"))
 	(label "GPIO0" (at 234.95 227.33 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "9291b96a-9d75-4d6e-89bc-937775dc6d11"))
 	(label "GPIO0" (at 78.74 289.56 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "1f1870fa-f792-4330-8802-5c007a51cc05"))
 	(label "VBUS_RAW" (at 63.5 260.35 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7fc207b8-a865-4313-a97c-e9cda2125960"))
-	(label "VBUS_RAW" (at 63.5 260.35 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "ce74a968-c453-49fa-83e1-ea15e83f7250"))
-	(label "VBUS_RAW" (at 63.5 260.35 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6d6c9dea-49f9-41ad-b615-75469e621b3f"))
-	(label "VBUS_RAW" (at 63.5 260.35 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a6cc63b7-6586-495b-ba94-1790d3616f55"))
+	
+	
+	
 	(label "VBUS" (at 97.79 267.97 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e1203eb0-b718-4fb5-a6cc-57eb9fcdf094"))
 	(label "VBUS" (at 110.49 261.62 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b5b7f943-b4e7-4dc0-bef4-155640e8e9b3"))
 	(label "USB_DP" (at 63.5 278.13 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "facd0052-5320-41cc-b83b-21adcb9588f6"))
@@ -8986,35 +8950,35 @@
 	(label "SENSE12V_HI" (at 95.25 63.5 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "de05e9cb-f62e-4c48-8daa-28899d65ee70"))
 	(label "SENSE12V_HI" (at 146.05 57.15 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "81e4170d-da60-4459-8506-3b7506559694"))
 	(label "SENSE12V_HI" (at 60.96 49.53 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6254c0b9-3148-4823-8c8f-c177c11bc493"))
-	(label "SENSE12V_HI" (at 60.96 49.53 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4a783884-8844-4358-8d4a-a346098e0d70"))
+	
 	(label "SENSE12V_HI" (at 262.89 52.07 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "33f57142-02eb-430f-ba96-1ef8ae71c087"))
 	(label "SENSE12V_LO" (at 95.25 76.2 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "9b6c0880-1b0c-4f27-906b-56db65cc1d5e"))
 	(label "SENSE12V_LO" (at 146.05 59.69 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "181ec1f3-e752-480f-8ef2-bfd82a022d60"))
 	(label "SENSE12V_LO" (at 146.05 46.99 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "922448c3-7569-4363-ad14-fdbbb907f9f6"))
 	(label "SENSE12V_LO" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c1d71be2-c629-46f7-8fee-17175d0bbcf8"))
-	(label "SENSE12V_LO" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "45e67c32-f0c7-4a6c-a621-f547e24fc40c"))
-	(label "SENSE12V_LO" (at 288.29 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "05a667b9-80f2-431a-af56-0c857b5dbcbb"))
+	
+	(label "SENSE12V_LO" (at 288.29 52.07 0) (effects (font (size 1.27 1.27)) (justify left top)) (uuid "05a667b9-80f2-431a-af56-0c857b5dbcbb"))
 	(label "SENSE5V_HI" (at 95.25 81.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "797a280f-f6c7-48b4-bd58-25d60beb354a"))
 	(label "SENSE5V_HI" (at 146.05 87.63 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "1a267a74-be37-4b03-a432-391a679972f9"))
 	(label "SENSE5V_HI" (at 60.96 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "1febf3d1-c1e4-4c7c-9b98-91736e971c4f"))
-	(label "SENSE5V_HI" (at 60.96 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "41690bcf-b2f4-4bcb-a289-03e5cfdc92dd"))
-	(label "SENSE5V_HI" (at 60.96 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c9482b1a-a07e-43c5-aa78-3666e20e83b9"))
-	(label "SENSE5V_HI" (at 60.96 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "561c91d2-e8a2-4bbd-987b-6d6d0a9c2eaf"))
-	(label "SENSE5V_HI" (at 60.96 52.07 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "8129df3b-16d7-4897-9995-7690cb6215ac"))
+	
+	
+	
+	
 	(label "SENSE5V_HI" (at 262.89 97.79 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "ee7f4260-b2cf-4275-b6a2-9801dc3b29bc"))
 	(label "SENSE3V3_HI" (at 95.25 99.06 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "066f8285-dd12-4271-9826-2eab6fccf1e1"))
 	(label "SENSE3V3_HI" (at 146.05 118.11 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "2e4a3f44-6ee9-4503-9361-e831a3098680"))
 	(label "SENSE3V3_HI" (at 60.96 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7a4fdd15-cf28-41b7-8308-7f02f5226f30"))
-	(label "SENSE3V3_HI" (at 60.96 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3b21ee2c-7a3d-4b5a-99a1-f629a7706985"))
-	(label "SENSE3V3_HI" (at 60.96 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "8c8f130d-4991-4c45-81cf-7f650c3f8c93"))
-	(label "SENSE3V3_HI" (at 60.96 57.15 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "0b25dbdc-d82f-43ff-b30b-1821c0ec0682"))
+	
+	
+	
 	(label "SENSE3V3_LO" (at 95.25 111.76 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "ebc45294-490e-4b9c-97ba-056c6a38c54b"))
 	(label "SENSE3V3_LO" (at 146.05 120.65 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "152ea9c2-1857-4a8e-8a78-a8805db03880"))
 	(label "SENSE3V3_LO" (at 146.05 107.95 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d06514f4-4751-4f65-b414-10eccffa6214"))
 	(label "SENSE3V3_LO" (at 60.96 121.92 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "c4d38ec0-8c40-4fe4-8500-ba6c15c849f9"))
-	(label "SENSE3V3_LO" (at 60.96 121.92 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "05ef80de-132c-445c-9e82-d024d7e56945"))
-	(label "SENSE3V3_LO" (at 60.96 121.92 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "29cf236f-27d7-4860-81b7-6654ec95d95e"))
-	(label "SENSE3V3_LO" (at 60.96 121.92 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7e69a808-f605-4421-8cea-099d2f83ed96"))
+	
+	
+	
 	(label "SENSE5VSB_LO" (at 120.65 124.46 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3f9804a9-a20a-4904-97d8-cccb7a4a745b"))
 	(label "SENSE5VSB_HI" (at 107.95 132.08 90) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "0a1b2c3d-4e5f-4061-8283-a4b5c6d7e8f9"))
 	(label "SENSE5VSB_LO_KELVIN" (at 113.03 132.08 90) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "1b2c3d4e-5f60-4172-9384-b5c6d7e8f9a0"))
@@ -9134,7 +9098,7 @@
 		(dnp no)
 		(uuid "903fe3e8-0b13-4402-8883-5c86c1d84455")
 		(property "Reference" "#PWR07" (at 190.5 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 190.5 172.72 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 190.5 179.07 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "909259fb-d25b-46b0-967b-3b1aa782afff"))
 		(instances
 			(project "24pin-module"
@@ -9152,7 +9116,7 @@
 		(dnp no)
 		(uuid "4399e21c-fb47-49d8-b20d-9f42735235c2")
 		(property "Reference" "#PWR08" (at 214.63 236.22 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 214.63 242.57 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 214.63 248.92 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "bff7ad22-2046-4065-b214-132bfc7e0344"))
 		(instances
 			(project "24pin-module"
@@ -9170,7 +9134,7 @@
 		(dnp no)
 		(uuid "8ee2fcb3-806a-40c4-bb23-60b267b1a639")
 		(property "Reference" "#PWR09" (at 289.56 236.22 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 289.56 242.57 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 289.56 248.92 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f9243507-d5bb-4d8f-a103-8ac60b1b7a1d"))
 		(instances
 			(project "24pin-module"
@@ -9188,7 +9152,7 @@
 		(dnp no)
 		(uuid "47f1e7e9-678a-4ed1-b737-dabc26a07fa9")
 		(property "Reference" "#PWR10" (at 364.49 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 364.49 237.49 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 364.49 243.84 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "55e4dcd9-98f5-4016-83ac-01e4cea4d55b"))
 		(instances
 			(project "24pin-module"
@@ -9242,7 +9206,7 @@
 		(dnp no)
 		(uuid "4b4870e8-60e6-4389-a449-cae59b4eace5")
 		(property "Reference" "#PWR13" (at 245.11 275.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 245.11 281.94 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 245.11 292.1 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "4bf84b60-e4b4-4d37-8b2c-b89bf83f4590"))
 		(instances
 			(project "24pin-module"
@@ -9260,7 +9224,7 @@
 		(dnp no)
 		(uuid "e4edcdad-2132-48b6-b699-3c823c8e4513")
 		(property "Reference" "#PWR14" (at 160.02 41.91 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 160.02 48.26 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 160.02 49.53 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "e7df6241-4f68-464c-ba0d-0b7d0615898b"))
 		(instances
 			(project "24pin-module"
@@ -9296,7 +9260,7 @@
 		(dnp no)
 		(uuid "b09b9f3e-6831-4b80-a3ed-7beb5b7696f6")
 		(property "Reference" "#PWR16" (at 160.02 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 160.02 41.91 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 160.02 52.07 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "80d666ad-d374-4aa6-909f-e96fed67140a"))
 		(instances
 			(project "24pin-module"
@@ -9314,7 +9278,7 @@
 		(dnp no)
 		(uuid "965df10b-66bd-4cac-932a-aa9bec16e915")
 		(property "Reference" "#PWR17" (at 185.42 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 185.42 52.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 185.42 60.96 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6d33c304-8339-496b-996e-f10ae07de95d"))
 		(instances
 			(project "24pin-module"
@@ -9332,7 +9296,7 @@
 		(dnp no)
 		(uuid "25ded6a9-50ed-48f3-9136-c275ae2f8e7c")
 		(property "Reference" "#PWR18" (at 160.02 66.04 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 160.02 72.39 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 160.02 80.01 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8450c4a9-2b5a-4195-a272-c0ee7af43913"))
 		(instances
 			(project "24pin-module"
@@ -9350,7 +9314,7 @@
 		(dnp no)
 		(uuid "f51d35a6-b010-4e86-80c6-ebd67e756097")
 		(property "Reference" "#PWR19" (at 185.42 76.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 185.42 82.55 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 185.42 88.9 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "bdaade9f-ffa5-4bd9-a1a4-f322333947a9"))
 		(instances
 			(project "24pin-module"
@@ -9368,7 +9332,7 @@
 		(dnp no)
 		(uuid "53708bfb-27cd-4694-bd20-e91e63ed7950")
 		(property "Reference" "#PWR20" (at 173.99 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 173.99 83.82 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 173.99 88.9 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7128e289-71b1-4c6e-8380-c49a45d4ea85"))
 		(instances
 			(project "24pin-module"
@@ -9386,7 +9350,7 @@
 		(dnp no)
 		(uuid "1d7cabb6-2997-45af-9f5a-a9b6c8d5a0e2")
 		(property "Reference" "#PWR21" (at 160.02 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 160.02 102.87 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 160.02 110.49 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6eca6232-0ee9-4f8b-b6ab-e320c8325a72"))
 		(instances
 			(project "24pin-module"
@@ -9404,7 +9368,7 @@
 		(dnp no)
 		(uuid "e801cb45-637e-4adf-b7d9-02f240511279")
 		(property "Reference" "#PWR22" (at 185.42 106.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 185.42 113.03 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 185.42 119.38 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "92789204-0c51-4c35-8342-70645e5c5db6"))
 		(instances
 			(project "24pin-module"
@@ -9440,7 +9404,7 @@
 		(dnp no)
 		(uuid "5dd8b32c-9190-441e-b330-ba0f3ce1d7d6")
 		(property "Reference" "#PWR24" (at 209.55 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 209.55 41.91 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 209.55 49.53 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8d8e3689-9bb3-4502-8702-09607162c658"))
 		(instances
 			(project "24pin-module"
@@ -9458,7 +9422,7 @@
 		(dnp no)
 		(uuid "7f8d1347-d498-4d12-b107-590d46c997f2")
 		(property "Reference" "#PWR25" (at 234.95 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 234.95 52.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 234.95 58.42 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "169e77db-5050-4aaf-b000-265fe6e5900b"))
 		(instances
 			(project "24pin-module"
@@ -9476,7 +9440,7 @@
 		(dnp no)
 		(uuid "96d030c1-8161-4e66-9f1e-5952728a7d99")
 		(property "Reference" "#PWR26" (at 223.52 46.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 223.52 53.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 223.52 58.42 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "db14db07-b119-4565-8b11-790bc0754f8f"))
 		(instances
 			(project "24pin-module"
@@ -9530,7 +9494,7 @@
 		(dnp no)
 		(uuid "4faf6613-6943-4a4c-a36f-7072f9e952b6")
 		(property "Reference" "#PWR29" (at 288.29 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 288.29 50.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 288.29 55.88 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "096487f7-7946-4d18-8423-09c4d506b461"))
 		(instances
 			(project "24pin-module"
@@ -9548,7 +9512,7 @@
 		(dnp no)
 		(uuid "30df1171-c290-408a-8791-ba8ccdef4bfa")
 		(property "Reference" "#PWR30" (at 293.37 40.64 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 293.37 46.99 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 293.37 62.23 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "bbe253fa-2f20-41f0-b22f-589dcec7138b"))
 		(instances
 			(project "24pin-module"
@@ -9566,7 +9530,7 @@
 		(dnp no)
 		(uuid "96be9e12-dc74-478e-994e-63dbe5694902")
 		(property "Reference" "#PWR31" (at 322.58 44.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 322.58 50.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 322.58 53.34 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "2c422f78-d397-4c11-8722-9c48823bd6c4"))
 		(instances
 			(project "24pin-module"
@@ -9584,7 +9548,7 @@
 		(dnp no)
 		(uuid "e8f399db-e7b9-4a97-939f-1525d61218eb")
 		(property "Reference" "#PWR32" (at 327.66 40.64 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 327.66 46.99 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 327.66 55.88 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "0ebdba99-b1d8-4e9d-88e1-d3e21cff6dce"))
 		(instances
 			(project "24pin-module"
@@ -9602,7 +9566,7 @@
 		(dnp no)
 		(uuid "214e1293-4cd8-4434-94a2-bc4e3be83c79")
 		(property "Reference" "#PWR33" (at 288.29 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 288.29 96.52 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 288.29 104.14 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f742f522-191e-4470-95b5-05bbb8a820dc"))
 		(instances
 			(project "24pin-module"
@@ -9620,7 +9584,7 @@
 		(dnp no)
 		(uuid "5ef3c406-7279-4557-9a16-546758d8ccc1")
 		(property "Reference" "#PWR34" (at 293.37 86.36 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 293.37 92.71 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 293.37 107.95 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "11c552da-4cd0-4ba4-b229-bd66a852714d"))
 		(instances
 			(project "24pin-module"
@@ -9638,7 +9602,7 @@
 		(dnp no)
 		(uuid "8ab33ca1-985c-4562-9286-f4eab2f3ffed")
 		(property "Reference" "#PWR35" (at 322.58 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 322.58 96.52 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 322.58 99.06 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "1199a535-881a-4c84-82e3-ad2cb3fa23c2"))
 		(instances
 			(project "24pin-module"
@@ -9656,7 +9620,7 @@
 		(dnp no)
 		(uuid "d4b0f2cf-35a4-42fa-8b68-fb1ccc8025ce")
 		(property "Reference" "#PWR36" (at 327.66 86.36 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 327.66 92.71 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 327.66 101.6 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "852cfe64-1d62-4068-ab6b-2213e281ddd3"))
 		(instances
 			(project "24pin-module"
@@ -9800,7 +9764,7 @@
 		(dnp no)
 		(uuid "af4a7cef-835b-49ee-866d-834dbd1be231")
 		(property "Reference" "#PWR44" (at 242.57 281.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 242.57 288.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 242.57 294.64 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "d9326fa4-9be1-47bf-a962-7f9b9a049ab2"))
 		(instances
 			(project "24pin-module"
@@ -9926,7 +9890,7 @@
 		(dnp no)
 		(uuid "287ee32b-2375-4b41-b4d0-9bfa7dbc465a")
 		(property "Reference" "#PWR51" (at 289.56 248.92 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 289.56 255.27 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 289.56 254.73 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "193e26b4-2e3c-4c86-8dff-abf8e428c1b9"))
 		(instances
 			(project "24pin-module"
@@ -10052,7 +10016,7 @@
 		(dnp no)
 		(uuid "9cba65e4-748c-4abb-ace5-62c478afa080")
 		(property "Reference" "#PWR58" (at 44.45 299.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 306.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 311.15 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "58ace0e2-353d-40c1-85bf-7d05606e2327"))
 		(instances
 			(project "24pin-module"
@@ -10070,7 +10034,7 @@
 		(dnp no)
 		(uuid "d07cb320-8427-49f4-bf1e-0542212b61e8")
 		(property "Reference" "#PWR59" (at 44.45 299.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 306.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 313.69 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "67f4d678-76f4-485f-8dcd-5699f7aaa6c3"))
 		(instances
 			(project "24pin-module"
@@ -10088,7 +10052,7 @@
 		(dnp no)
 		(uuid "63014b43-7d02-4e2b-9cdf-2ff48e445f02")
 		(property "Reference" "#PWR60" (at 44.45 299.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 306.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 316.23 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "709a6f0f-8eb0-4ec6-bb5f-d05312809b32"))
 		(instances
 			(project "24pin-module"
@@ -10106,7 +10070,7 @@
 		(dnp no)
 		(uuid "69d83da3-72c2-464c-aaa1-a619a7afeea6")
 		(property "Reference" "#PWR61" (at 44.45 299.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 306.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 318.77 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "1401f836-4a88-4f3b-8394-4231f083cfb8"))
 		(instances
 			(project "24pin-module"
@@ -10124,7 +10088,7 @@
 		(dnp no)
 		(uuid "5e19c49e-98f5-4042-b5f4-fdcf3a078b87")
 		(property "Reference" "#PWR62" (at 36.83 299.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 36.83 306.07 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 36.83 311.15 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "67778b76-f337-44da-8017-1cd0dda2073f"))
 		(instances
 			(project "24pin-module"
@@ -10538,7 +10502,7 @@
 		(dnp no)
 		(uuid "04d81480-773c-4e7d-b3ec-55b62df60b86")
 		(property "Reference" "#PWR85" (at 160.02 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 160.02 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 160.02 82.55 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7a65e7ff-4b57-4b08-9525-107136d949fd"))
 		(instances
 			(project "24pin-module"
@@ -10574,7 +10538,7 @@
 		(dnp no)
 		(uuid "a69072d7-ebc7-46c4-968d-05eccecebcd1")
 		(property "Reference" "#PWR87" (at 173.99 46.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 173.99 53.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 173.99 60.96 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "1b2ed4dc-22d6-4b46-b61a-a25700e8d173"))
 		(instances
 			(project "24pin-module"
@@ -10610,7 +10574,7 @@
 		(dnp no)
 		(uuid "9f4b31fd-9e19-4836-aef4-fc7cd33c7e87")
 		(property "Reference" "#PWR89" (at 160.02 99.06 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 160.02 105.41 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 160.02 113.03 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f2d721b1-a7fc-4561-9cc7-a3691f46e7da"))
 		(instances
 			(project "24pin-module"
@@ -10700,7 +10664,7 @@
 		(dnp no)
 		(uuid "10adf720-5166-4c8e-80ab-fab2428cc139")
 		(property "Reference" "#PWR94" (at 173.99 107.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 173.99 114.3 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 173.99 119.38 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "93fe3ad8-ad1a-485a-bb4c-869ba1e7f90d"))
 		(instances
 			(project "24pin-module"
@@ -10772,7 +10736,7 @@
 		(dnp no)
 		(uuid "803672fc-7607-496b-b0d6-36ceef07d283")
 		(property "Reference" "#PWR98" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 97.79 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "fa57f132-926b-4080-a734-b6b4e42d5119"))
 		(instances
 			(project "24pin-module"
@@ -10790,7 +10754,7 @@
 		(dnp no)
 		(uuid "356896d6-efa0-42c2-bc74-926a2234e736")
 		(property "Reference" "#PWR99" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 137.16 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5846688c-d24d-45b9-a90a-0d67581fc212"))
 		(instances
 			(project "24pin-module"
@@ -10808,7 +10772,7 @@
 		(dnp no)
 		(uuid "bb859f03-6430-4cd8-9af9-527ace3d7aae")
 		(property "Reference" "#PWR100" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 80.01 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "a76f37fb-fdc4-4dd7-8f23-5cfdf2a6d975"))
 		(instances
 			(project "24pin-module"
@@ -10826,7 +10790,7 @@
 		(dnp no)
 		(uuid "793c92e0-127b-4462-8c88-aac61b532872")
 		(property "Reference" "#PWR101" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 144.78 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9dad39a9-9acc-4a43-8247-3b70c1529cf4"))
 		(instances
 			(project "24pin-module"
@@ -10844,7 +10808,7 @@
 		(dnp no)
 		(uuid "57d83e4a-9bb9-4f8b-9169-05ead44f917d")
 		(property "Reference" "#PWR102" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 82.55 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8849943c-a399-426b-a145-c017c5820631"))
 		(instances
 			(project "24pin-module"
@@ -10862,7 +10826,7 @@
 		(dnp no)
 		(uuid "9191a888-a796-42cb-95e3-817b58c39f74")
 		(property "Reference" "#PWR103" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 147.32 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "a9bb925d-df2a-4d2a-8452-073571abdfbc"))
 		(instances
 			(project "24pin-module"
@@ -10880,7 +10844,7 @@
 		(dnp no)
 		(uuid "e0d533d7-4011-4dc7-b399-892d4618c49e")
 		(property "Reference" "#PWR104" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 85.09 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "23ffde1f-8b77-433f-ae1c-ef4492dc3154"))
 		(instances
 			(project "24pin-module"
@@ -10898,7 +10862,7 @@
 		(dnp no)
 		(uuid "e6b28d8d-e15f-4f46-bdbc-1ed389b0669e")
 		(property "Reference" "#PWR105" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 149.86 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5fe3aeff-0616-4ea0-b034-200d542894e8"))
 		(instances
 			(project "24pin-module"
@@ -10916,7 +10880,7 @@
 		(dnp no)
 		(uuid "841818c6-21eb-4da9-b68a-3c85baff5ae1")
 		(property "Reference" "#PWR106" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 87.63 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "d32a2c4c-d635-4dd9-8ab2-9068d9fcd1d9"))
 		(instances
 			(project "24pin-module"
@@ -10934,7 +10898,7 @@
 		(dnp no)
 		(uuid "ecf76c71-97a8-4304-b9f4-01be190a1a35")
 		(property "Reference" "#PWR107" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 152.4 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7a1d2ac5-0bd2-4563-a7d4-5a141bf1ec0b"))
 		(instances
 			(project "24pin-module"
@@ -10952,7 +10916,7 @@
 		(dnp no)
 		(uuid "b9541291-526b-4eab-823b-c141d34c1cb1")
 		(property "Reference" "#PWR108" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 90.17 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "4b154b0b-ba9d-4e16-afb1-387e688dd2c9"))
 		(instances
 			(project "24pin-module"
@@ -10970,7 +10934,7 @@
 		(dnp no)
 		(uuid "2e4065b1-a5cd-44fc-a65d-6566c7b1d5dc")
 		(property "Reference" "#PWR109" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 154.94 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8084194a-004e-416c-babc-cdb716bb375b"))
 		(instances
 			(project "24pin-module"
@@ -10988,7 +10952,7 @@
 		(dnp no)
 		(uuid "c16f844d-56ef-4f74-b6ad-50184c95bb7b")
 		(property "Reference" "#PWR110" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 92.71 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "a6bf1ac6-1601-4082-a25e-9a7f416f99de"))
 		(instances
 			(project "24pin-module"
@@ -11006,7 +10970,7 @@
 		(dnp no)
 		(uuid "2b76c026-77f7-4f45-b839-303ccc421539")
 		(property "Reference" "#PWR111" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "359dea73-2fb2-48c2-8e6b-babe63dd66e4"))
 		(instances
 			(project "24pin-module"
@@ -11024,7 +10988,7 @@
 		(dnp no)
 		(uuid "3884ce3b-4ab3-4079-bfbc-1279fa99599b")
 		(property "Reference" "#PWR112" (at 44.45 71.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 77.47 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 95.25 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "6779dad8-1716-45c0-98f1-929e8c1e150f"))
 		(instances
 			(project "24pin-module"
@@ -11042,7 +11006,7 @@
 		(dnp no)
 		(uuid "91f4e196-8918-4285-a5dd-be76c209ea1a")
 		(property "Reference" "#PWR113" (at 44.45 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 44.45 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 44.45 139.7 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "0d071b8d-e7b7-4356-9ee5-8d70fb64910c"))
 		(instances
 			(project "24pin-module"
@@ -11132,7 +11096,7 @@
 		(dnp no)
 		(uuid "0028fcc1-1f04-49a2-a144-17cda99d015e")
 		(property "Reference" "#PWR118" (at 81.28 189.23 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 81.28 195.58 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 81.28 198.12 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f923ad04-0a57-471b-b6f1-8a5c3b0ab723"))
 		(instances
 			(project "24pin-module"
@@ -11222,7 +11186,7 @@
 		(dnp no)
 		(uuid "40135fcf-9739-4154-8ad3-f8ec8ea57d59")
 		(property "Reference" "#PWR123" (at 288.29 46.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 288.29 53.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 288.29 58.42 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "53dc40aa-7a46-4ae9-9ff6-524e9f5d26b9"))
 		(instances
 			(project "24pin-module"
@@ -11258,7 +11222,7 @@
 		(dnp no)
 		(uuid "c81f2bd5-7794-4747-880b-9ce4a84373a4")
 		(property "Reference" "#PWR125" (at 297.18 46.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 297.18 53.34 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 297.18 55.88 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f6c9cb5f-c259-4dc6-847b-4a81654fdaa5"))
 		(instances
 			(project "24pin-module"
@@ -11376,15 +11340,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 265.43 0)
+		(at 295.91 271.78 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "4041fd63-38e1-4dd9-832c-bc2043d89a21")
-		(property "Reference" "#PWR132" (at 295.91 262.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 269.24 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR132" (at 295.91 269.24 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 278.13 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "b08de9f1-5b28-48ca-9ad3-99114ff06cdc"))
 		(instances
 			(project "24pin-module"
@@ -11394,15 +11358,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 273.05 0)
+		(at 295.91 279.4 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "8e7fe9e4-3604-4fd6-905e-fa566d846ad4")
-		(property "Reference" "#PWR133" (at 295.91 270.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 276.86 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR133" (at 295.91 276.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 283.21 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9be2fe06-cd8a-41ba-a7db-6fb9b0ece994"))
 		(instances
 			(project "24pin-module"
@@ -11412,15 +11376,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 280.67 0)
+		(at 295.91 287.02 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "1234dbce-d4a5-4340-8711-c47602452c83")
-		(property "Reference" "#PWR134" (at 295.91 278.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 284.48 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR134" (at 295.91 284.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 290.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "ebd0b91c-b041-4ad0-af86-dfae0806b6b8"))
 		(instances
 			(project "24pin-module"
@@ -11430,15 +11394,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 285.75 0)
+		(at 295.91 292.1 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "b02f4a9f-0135-4b97-8207-6223be021066")
-		(property "Reference" "#PWR135" (at 295.91 283.21 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 289.56 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR135" (at 295.91 289.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 295.91 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "429991b3-a777-4538-b1b1-3bae534867fe"))
 		(instances
 			(project "24pin-module"
@@ -11448,15 +11412,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 290.83 0)
+		(at 295.91 297.18 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "4ad5cf57-8215-4d9d-88b1-693c55b8b05f")
-		(property "Reference" "#PWR136" (at 295.91 288.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 294.64 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR136" (at 295.91 294.64 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 300.99 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f903f08e-f7f4-419f-a8b5-4ceb4dda8192"))
 		(instances
 			(project "24pin-module"
@@ -11466,15 +11430,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 293.37 0)
+		(at 295.91 299.72 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "3ddf768f-8ad2-405b-9a96-6e7db4093cd9")
-		(property "Reference" "#PWR137" (at 295.91 290.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 297.18 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR137" (at 295.91 297.18 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 303.53 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "929bd910-03a8-47b5-a3f8-f3bf3119d303"))
 		(instances
 			(project "24pin-module"
@@ -11484,15 +11448,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 295.91 295.91 0)
+		(at 295.91 302.26 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "425ad389-ffc7-41b1-9d6b-31858901c58d")
-		(property "Reference" "#PWR138" (at 295.91 293.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 295.91 299.72 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR138" (at 295.91 299.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 295.91 306.07 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "95a1bc8c-94dd-4a48-9f63-2a4537419c0d"))
 		(instances
 			(project "24pin-module"
@@ -11546,7 +11510,7 @@
 		(dnp no)
 		(uuid "1570af8b-3546-4408-b127-eb73eed3721c")
 		(property "Reference" "#PWR141" (at 118.11 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_SYS" (at 118.11 172.72 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_SYS" (at 118.11 179.07 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "41ca332a-9699-4c81-a21d-8b767e67b83b"))
 		(instances
 			(project "24pin-module"
@@ -11564,7 +11528,7 @@
 		(dnp no)
 		(uuid "b2bb2e8a-0ff6-40cd-a5bc-04c3c6838218")
 		(property "Reference" "#PWR142" (at 309.88 161.29 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_SYS" (at 309.88 167.64 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_SYS" (at 309.88 173.99 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "a938cb27-2685-40ad-b6d5-5ad8099e69e0"))
 		(instances
 			(project "24pin-module"
@@ -11582,7 +11546,7 @@
 		(dnp no)
 		(uuid "8c663d6e-a7d2-44ac-9ebb-2eba6df60eeb")
 		(property "Reference" "#PWR143" (at 30.48 166.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_SYS" (at 30.48 172.72 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_SYS" (at 30.48 179.07 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "31f7e5c0-29a2-4c39-a4f1-997f2fa72d24"))
 		(instances
 			(project "24pin-module"
@@ -11600,7 +11564,7 @@
 		(dnp no)
 		(uuid "10c80a10-d578-41d7-90dd-76cc6e190355")
 		(property "Reference" "#PWR144" (at 335.28 179.07 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_SYS" (at 335.28 185.42 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_SYS" (at 335.28 195.58 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "95cfe455-8718-463e-ab9c-ba0a5688f895"))
 		(instances
 			(project "24pin-module"
@@ -11662,9 +11626,9 @@
 			)
 		)
 	)
-	(label "+5V_SYS_PORT" (at 295.91 257.81 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8814aa05-3462-42fa-89ca-c661ffda89f8"))
-	(label "+5V_SYS_PORT" (at 295.91 260.35 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "725ed7ed-7ae3-4213-b425-c80dd70dddcf"))
-	(label "+5V_SYS_PORT" (at 295.91 262.89 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "3c5a0d80-f885-4b91-acf0-497ffa9aa47b"))
+	(label "+5V_SYS_PORT" (at 295.91 264.16 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8814aa05-3462-42fa-89ca-c661ffda89f8"))
+	(label "+5V_SYS_PORT" (at 295.91 266.7 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "725ed7ed-7ae3-4213-b425-c80dd70dddcf"))
+	(label "+5V_SYS_PORT" (at 295.91 269.24 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "3c5a0d80-f885-4b91-acf0-497ffa9aa47b"))
 	(symbol
 		(lib_id "cec-power:+5V_MAIN")
 		(at 95.25 93.98 180)
@@ -11675,7 +11639,7 @@
 		(dnp no)
 		(uuid "16d3926d-2c56-4f64-a70c-b3126d3e67a2")
 		(property "Reference" "#PWR151" (at 95.25 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 95.25 97.79 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 95.25 100.33 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "933b67a9-850d-4494-aaff-ce3446b33309"))
 		(instances
 			(project "24pin-module"
@@ -11729,7 +11693,7 @@
 		(dnp no)
 		(uuid "a36a6163-6f0a-48ce-bd62-f184920fc50d")
 		(property "Reference" "#PWR154" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 60.96 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 60.96 123.19 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "4352de08-1815-4fbd-adc7-8a1923ed2c3a"))
 		(instances
 			(project "24pin-module"
@@ -11747,7 +11711,7 @@
 		(dnp no)
 		(uuid "0f43a020-6acf-4714-99e2-c11b99f7baa3")
 		(property "Reference" "#PWR155" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 60.96 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 60.96 125.73 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "379601ef-217c-4db0-a033-5d67546f9cba"))
 		(instances
 			(project "24pin-module"
@@ -11765,7 +11729,7 @@
 		(dnp no)
 		(uuid "59ab6f5a-75bc-40fe-840a-c954d19afb1d")
 		(property "Reference" "#PWR156" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 60.96 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 60.96 130.81 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "e05bd3e4-7c0c-4733-adb1-30811208c1f4"))
 		(instances
 			(project "24pin-module"
@@ -11783,7 +11747,7 @@
 		(dnp no)
 		(uuid "a33d0860-703a-4f65-af5e-ad4f6c8154ce")
 		(property "Reference" "#PWR157" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 60.96 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 60.96 133.35 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "a45930c2-da17-47c5-a7be-cf9bf87f3c0f"))
 		(instances
 			(project "24pin-module"
@@ -11801,7 +11765,7 @@
 		(dnp no)
 		(uuid "d4e51476-d7eb-48d7-819e-ef1c132b5046")
 		(property "Reference" "#PWR158" (at 60.96 114.3 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 60.96 120.65 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 60.96 135.89 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "dd83f452-b22d-40db-a3f5-292a35fffacd"))
 		(instances
 			(project "24pin-module"
@@ -11837,7 +11801,7 @@
 		(dnp no)
 		(uuid "3615c81c-ca6d-4e8c-a02b-cb50cd530b55")
 		(property "Reference" "#PWR160" (at 111.76 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5V_MAIN" (at 111.76 212.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5V_MAIN" (at 111.76 222.25 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "fd95f1fc-69b2-4a44-b0e5-2556e3ff55ea"))
 		(instances
 			(project "24pin-module"
@@ -11927,7 +11891,7 @@
 		(dnp no)
 		(uuid "28ce6aa3-2094-4a02-aa39-24ed798d1281")
 		(property "Reference" "#FLG165" (at 55.88 322.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 55.88 328.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 55.88 339.09 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "442804f6-991c-4cc9-b2f4-f6f808a00e23"))
 		(instances
 			(project "24pin-module"
@@ -11963,7 +11927,7 @@
 		(dnp no)
 		(uuid "6ba60348-3a39-41bd-8b08-b2dc3b34a762")
 		(property "Reference" "#FLG167" (at 81.28 322.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 81.28 328.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PWR_FLAG" (at 81.28 336.55 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "c62fe0cb-9694-44ad-a34a-04b35b5f1287"))
 		(instances
 			(project "24pin-module"
@@ -11999,7 +11963,7 @@
 		(dnp no)
 		(uuid "4194bd77-b48f-4f78-8717-d6b9deced63b")
 		(property "Reference" "#PWR169" (at 106.68 322.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 106.68 328.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 106.68 332.74 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "cb5032ea-9847-4f84-8672-122ebeea89cd"))
 		(instances
 			(project "24pin-module"
@@ -12038,9 +12002,9 @@
 	(no_connect (at 219.71 62.23) (uuid "f55c76f0-e6c4-46de-8673-686e75ce3020"))
 	(no_connect (at 34.29 54.61) (uuid "d7a9ffcf-9ab3-401b-bb3a-840fdd6045cf"))
 	(no_connect (at 34.29 119.38) (uuid "a3d0cf5c-9df5-4ac0-9ad4-4b4378bc77ae"))
-	(no_connect (at 299.72 275.59) (uuid "d9cfe45a-093a-48f4-bc9c-ebf8e02aded8"))
-	(no_connect (at 299.72 278.13) (uuid "3d4adf6c-8ecc-499c-98ae-821c99d69272"))
-	(no_connect (at 299.72 288.29) (uuid "a798259a-95ec-4f24-9838-650896c4bbc3"))
+	(no_connect (at 299.72 281.94) (uuid "d9cfe45a-093a-48f4-bc9c-ebf8e02aded8"))
+	(no_connect (at 299.72 284.48) (uuid "3d4adf6c-8ecc-499c-98ae-821c99d69272"))
+	(no_connect (at 299.72 294.64) (uuid "a798259a-95ec-4f24-9838-650896c4bbc3"))
 	(text "H3 STANDALONE-MODE SUITE (USB ESD/EMC + CAN CMC, beta 2026-07-03)"
 		(exclude_from_sim no)
 		(at 21.5 306.5 0)
@@ -12064,8 +12028,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7158afc8-2733-41e2-bb26-e0aeafb1e713")
-		(property "Reference" "D_USB" (at 44.45 320.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "USBLC6-2SC6" (at 44.45 350.52 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D_USB" (at 44.45 323.596 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USBLC6-2SC6" (at 44.45 328.676 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 44.45 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "STMicroelectronics" (at 44.45 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -12094,8 +12058,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "6358b1b9-44dd-44ac-bcad-a652a9b57dc3")
-		(property "Reference" "D7" (at 69.85 320.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1BA" (at 69.85 350.52 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D7" (at 69.85 327.66 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 69.85 325.12 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 69.85 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 69.85 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Diodes Inc / PANJIT (platform part)" (at 69.85 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -12120,8 +12084,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d10db1f5-2959-457e-9977-5bf99be7d6b7")
-		(property "Reference" "FB1" (at 90.17 320.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "600R@100MHz FB (MPZ2012S601AT000)" (at 90.17 350.52 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "FB1" (at 90.17 327.66 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "600R@100MHz FB (MPZ2012S601AT000)" (at 90.17 322.58 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 90.17 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 90.17 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "TDK" (at 90.17 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -12146,8 +12110,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d0ae0cef-b238-45d0-aa29-74b176c82cd4")
-		(property "Reference" "FB2" (at 154.94 320.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "0R (FB position, populate on EMC evidence)" (at 154.94 350.52 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "FB2" (at 154.94 327.66 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "0R (FB position, populate on EMC evidence)" (at 154.94 330.2 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 154.94 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 154.94 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 154.94 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -12242,8 +12206,8 @@
 		(dnp yes)
 		(fields_autoplaced yes)
 		(uuid "488e1100-8374-4359-b603-a8b884c9b58b")
-		(property "Reference" "FL1" (at 284.48 320.04 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "CAN CMC position (ACT45B-510-2P-TL003), DNP" (at 284.48 350.52 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "FL1" (at 284.48 321.31 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "CAN CMC position (ACT45B-510-2P-TL003), DNP" (at 284.48 314.96 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "" (at 284.48 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "https://www.tdk-electronics.tdk.com/inf/30/ds/act45b.pdf" (at 284.48 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "TDK" (at 284.48 335.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -12270,8 +12234,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ef0c537b-c6f9-46d2-b1db-19690687e38e")
-		(property "Reference" "R_BYP_H" (at 284.48 309.88 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "0Ω" (at 284.48 340.36 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R_BYP_H" (at 286.512 323.85 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "0Ω" (at 287.782 326.39 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "H3a(c) CAN CMC bypass: 0R bridge across FL1's H channel (CAN_H_BUS<->CAN_H), populated BY DEFAULT so CAN stays continuous with FL1 DNP. Remove this jumper only if FL1 is populated for real EMC insurance." (at 284.48 325.12 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -12296,8 +12260,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f7a59a33-428e-45b4-aeb0-6a80f9550896")
-		(property "Reference" "R_BYP_L" (at 284.48 331.47 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "0Ω" (at 284.48 361.95 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R_BYP_L" (at 286.512 345.44 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "0Ω" (at 286.512 347.98 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 284.48 346.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 284.48 346.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "H3a(c) CAN CMC bypass: 0R bridge across FL1's L channel (CAN_L_BUS<->CAN_L), populated BY DEFAULT so CAN stays continuous with FL1 DNP. Remove this jumper only if FL1 is populated for real EMC insurance." (at 284.48 346.71 0) (effects (font (size 1.27 1.27)) (hide yes)))

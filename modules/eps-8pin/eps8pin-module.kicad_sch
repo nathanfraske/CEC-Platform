@@ -4829,8 +4829,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "36e276aa-8c4d-4f0f-b87d-29fb6849e446")
-		(property "Reference" "U1" (at 340.36 74.93 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "ESP32-C6-MINI-1-N4" (at 340.36 105.41 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "U1" (at 340.36 50.67 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ESP32-C6-MINI-1-N4" (at 340.36 53.97 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-RF_Module:ESP32-C6-MINI-1" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
@@ -4979,7 +4979,7 @@
 		(fields_autoplaced yes)
 		(uuid "818981f6-c5ab-4d40-b75e-7671928fa22e")
 		(property "Reference" "U3" (at 149.86 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "LP5907MFX-3.3" (at 149.86 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "LP5907MFX-3.3" (at 149.86 72.39 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
@@ -5027,8 +5027,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8f4ff04e-ec78-41b6-be50-7d1d89acdf83")
-		(property "Reference" "R1" (at 119.38 95.25 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2kΩ" (at 119.38 125.73 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R1" (at 125.73 108.712 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 125.73 112.522 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 119.38 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -5073,8 +5073,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "fe2935d6-06f5-43c2-8032-c29ec01636f0")
-		(property "Reference" "R2" (at 180.34 95.25 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 180.34 125.73 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R2" (at 186.69 108.712 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 186.69 112.522 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 180.34 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -5119,8 +5119,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "cee12f1e-6b29-4699-addf-903cd333bdde")
-		(property "Reference" "C1" (at 119.38 44.45 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "1uF" (at 119.38 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C1" (at 125.73 57.912 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "1uF" (at 125.73 61.722 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 119.38 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 119.38 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5165,8 +5165,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "7d97f28c-c1fd-4d2c-b6ae-897789be4e16")
-		(property "Reference" "C2" (at 180.34 44.45 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "1uF" (at 180.34 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C2" (at 186.69 57.912 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "1uF" (at 186.69 61.722 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 180.34 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 180.34 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5211,8 +5211,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f97665b9-a2ac-4587-88da-299cbb7cc423")
-		(property "Reference" "C3" (at 340.36 139.7 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 340.36 170.18 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C3" (at 346.71 153.162 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 346.71 156.972 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 340.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5257,8 +5257,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "cdd51796-2118-4369-a0a0-c992935065ac")
-		(property "Reference" "C4" (at 240.03 20.32 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 240.03 50.8 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C4" (at 246.38 33.782 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 246.38 37.592 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 240.03 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 240.03 35.56 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5303,8 +5303,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "c64bc091-988d-4d4a-b13d-30f162a36d49")
-		(property "Reference" "C5" (at 209.55 95.25 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 209.55 125.73 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C5" (at 215.9 108.712 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 215.9 112.522 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 209.55 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 209.55 110.49 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5349,8 +5349,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8dab3a2f-82d6-4c6c-99b9-5748f90f95ac")
-		(property "Reference" "C6" (at 95.25 24.13 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10uF" (at 95.25 54.61 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C6" (at 101.6 37.592 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 101.6 41.402 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 95.25 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 95.25 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5395,8 +5395,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "b59e19bd-be4c-4d34-a58f-d35babf6066f")
-		(property "Reference" "C7" (at 388.62 139.7 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10uF" (at 388.62 170.18 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C7" (at 394.97 153.162 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 394.97 156.972 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 388.62 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 388.62 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5441,8 +5441,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d96c0103-7d92-47bb-b31e-b5afca2b006d")
-		(property "Reference" "C8" (at 278.13 85.09 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 278.13 115.57 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C8" (at 284.48 98.552 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 284.48 102.362 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 278.13 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 278.13 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5487,8 +5487,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "36651cae-2404-4bac-a34b-37da57268c31")
-		(property "Reference" "D1" (at 85.09 54.61 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1BA" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D1" (at 85.09 65.659 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 85.09 68.326 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Nexperia" (at 0 0 0)
@@ -5533,8 +5533,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "18f1ae1a-ee34-4eef-98ce-5edcbc7d7726")
-		(property "Reference" "R7" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100kΩ" (at 85.09 115.57 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R7" (at 91.44 98.552 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100kΩ" (at 91.44 102.362 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -5580,7 +5580,7 @@
 		(fields_autoplaced yes)
 		(uuid "303561a2-26ed-486d-a00b-326b57290663")
 		(property "Reference" "J5" (at 139.7 386.08 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "USB-C 2.0" (at 139.7 416.56 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USB-C 2.0" (at 139.7 419.1 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "XKB Connection" (at 0 0 0)
@@ -5640,8 +5640,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e63786a9-658e-4dfb-bdd8-8aa78021f471")
-		(property "Reference" "D2" (at 215.9 386.08 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "SS34" (at 215.9 416.56 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D2" (at 215.9 397.129 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "SS34" (at 215.9 399.796 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SMA" (at 215.9 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 215.9 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "MDD" (at 0 0 0)
@@ -5686,8 +5686,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "739dcf3f-9a64-4f19-80f5-14c5a3a1e339")
-		(property "Reference" "C9" (at 292.1 386.08 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10uF" (at 292.1 416.56 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C9" (at 298.45 399.542 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10uF" (at 298.45 403.352 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 292.1 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 292.1 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -5732,8 +5732,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "afc119d2-c63b-4b0f-a55d-84e3cbeffdde")
-		(property "Reference" "R8" (at 368.3 386.08 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "5.1kΩ" (at 368.3 416.56 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R8" (at 374.65 399.542 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "5.1kΩ" (at 374.65 403.352 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 368.3 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 368.3 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -5778,8 +5778,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "f9be11ef-4c1b-44cc-84e1-278ac923c368")
-		(property "Reference" "R9" (at 63.5 502.92 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "5.1kΩ" (at 63.5 533.4 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R9" (at 69.85 516.382 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "5.1kΩ" (at 69.85 520.192 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 63.5 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 518.16 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -5916,8 +5916,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "be05ec73-6c52-447c-908b-bb2f61aab419")
-		(property "Reference" "R3" (at 299.72 24.13 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2kΩ" (at 299.72 54.61 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R3" (at 306.07 37.592 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 306.07 41.402 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 299.72 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 299.72 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -5962,8 +5962,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "a879459b-c144-4c2e-943f-efb4b6c46a80")
-		(property "Reference" "R4" (at 320.04 24.13 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "2.2kΩ" (at 320.04 54.61 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R4" (at 326.39 37.592 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 326.39 41.402 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 320.04 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 320.04 39.37 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -6062,8 +6062,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "5db342ea-f242-43a8-a419-7fd9f7ba24ae")
-		(property "Reference" "RS1" (at 44.45 199.39 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "0.5mΩ" (at 44.45 229.87 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS1" (at 50.8 219.202 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "0.5mΩ" (at 50.8 216.662 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Bourns" (at 0 0 0)
@@ -6108,8 +6108,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1b8ff206-0a73-4613-ae6e-02eb38c1f8d6")
-		(property "Reference" "C10" (at 92.71 194.31 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 92.71 224.79 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C10" (at 99.06 207.772 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 99.06 211.582 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 92.71 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 92.71 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -6208,8 +6208,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "e6fd766a-767b-4352-af7d-9ee52c72be13")
-		(property "Reference" "RS2" (at 144.78 199.39 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "0.5mΩ" (at 144.78 229.87 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS2" (at 151.13 219.202 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "0.5mΩ" (at 151.13 216.662 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Bourns" (at 0 0 0)
@@ -6254,8 +6254,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1a4ac6e2-b9ea-4d85-bf64-893923c90bb5")
-		(property "Reference" "C11" (at 193.04 194.31 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 193.04 224.79 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C11" (at 199.39 207.772 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 199.39 211.582 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 193.04 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 193.04 209.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -6412,8 +6412,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "abb8b59f-5c2d-4908-b6d9-388ae9768299")
-		(property "Reference" "R10" (at 63.5 853.44 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "10kΩ" (at 63.5 883.92 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R10" (at 69.85 866.902 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 69.85 870.712 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 63.5 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0)
@@ -6458,8 +6458,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "43fa1827-ad52-4706-aa11-b65b984a79d6")
-		(property "Reference" "C40" (at 139.7 853.44 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 139.7 883.92 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C40" (at 146.05 866.902 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 146.05 870.712 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 139.7 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -6603,8 +6603,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8ac2ec3d-c0ec-45bb-84d4-4666862019c1")
-		(property "Reference" "C20" (at 368.3 853.44 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 368.3 883.92 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C20" (at 374.65 866.902 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 374.65 870.712 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 368.3 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 368.3 868.68 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -6649,8 +6649,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "0b9f74cf-d875-4dfa-8ecd-da9a274ad5c3")
-		(property "Reference" "C30" (at 63.5 970.28 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 63.5 1000.76 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C30" (at 69.85 983.742 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 69.85 987.552 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 63.5 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 63.5 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -6794,8 +6794,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "4d6369db-b9c0-455b-a2a4-316f1e9104ac")
-		(property "Reference" "C21" (at 292.1 970.28 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 292.1 1000.76 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C21" (at 298.45 983.742 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 298.45 987.552 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 292.1 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 292.1 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -6840,8 +6840,8 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "1a938bc0-41f4-44ab-816f-73c847b26e6f")
-		(property "Reference" "C31" (at 368.3 970.28 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "100nF" (at 368.3 1000.76 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "C31" (at 374.65 983.742 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 374.65 987.552 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 368.3 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 368.3 985.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Samsung" (at 0 0 0)
@@ -7299,9 +7299,6 @@
 	(label "GPIO0" (at 325.12 113.03 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "984a6ae2-db9a-4781-bde4-c69b141da67e"))
 	(label "GPIO0" (at 148.59 518.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "20c91d86-1931-427b-9637-e47908e68845"))
 	(label "VBUS_RAW" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "11d1b314-3796-4864-a5bf-6a7265352769"))
-	(label "VBUS_RAW" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "40e6484e-6b40-4cbd-930d-ac1b099436ae"))
-	(label "VBUS_RAW" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "e53e7d04-fe2e-4aa6-9695-7fc81f78018d"))
-	(label "VBUS_RAW" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6737b715-42cb-4e85-8d74-1f800175d3a2"))
 	(label "VBUS" (at 223.52 401.32 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "9a98de25-c41a-4f6a-b00f-08f0bc9e8f57"))
 	(label "VBUS" (at 292.1 394.97 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "cdb6f43e-edc3-41f2-a72c-179309aaddd6"))
 	(label "USB_D_P" (at 158.75 403.86 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "21cb32cf-40e6-4d92-996b-111040ab8f90"))
@@ -7467,7 +7464,7 @@
 		(dnp no)
 		(uuid "970d634a-c2eb-4edf-8740-3fbf0dfe2a2c")
 		(property "Reference" "#PWR07" (at 240.03 53.34 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 240.03 59.69 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5VSB" (at 240.03 58.42 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9cc3af5b-0c60-4ef0-9ba2-e7f9807100b8"))
 		(instances
 			(project "eps8pin-module"
@@ -7593,7 +7590,7 @@
 		(dnp no)
 		(uuid "950ed524-408f-4e58-8ebd-49b137d7b827")
 		(property "Reference" "#PWR14" (at 325.12 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 325.12 66.04 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 316.12 58.674 0) (effects (font (size 1.27 1.27)) (justify right)))
 		(pin "1" (uuid "fe3540da-39db-4fbd-9305-31e16ceaccd8"))
 		(instances
 			(project "eps8pin-module"
@@ -7683,7 +7680,7 @@
 		(dnp no)
 		(uuid "9f41e3fc-d2ab-4982-8863-e7686b613ddd")
 		(property "Reference" "#PWR19" (at 69.85 190.5 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 69.85 196.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 72.39 196.85 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7d3949b6-1e6b-4325-97b5-8fbb896d6611"))
 		(instances
 			(project "eps8pin-module"
@@ -7719,7 +7716,7 @@
 		(dnp no)
 		(uuid "90c97bde-4ac4-4cf5-a412-7d941f2367e0")
 		(property "Reference" "#PWR21" (at 170.18 190.5 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 170.18 196.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 172.72 196.85 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7bcc9c8b-cbea-4b24-8cbf-6e4a0cd0100d"))
 		(instances
 			(project "eps8pin-module"
@@ -7755,7 +7752,7 @@
 		(dnp no)
 		(uuid "3f9d8148-a12a-4bd7-89bd-e554cb5bb13b")
 		(property "Reference" "#PWR23" (at 184.15 201.93 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 184.15 208.28 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 184.15 213.36 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "07bca4dc-56cb-4f63-bd97-6617302dd584"))
 		(instances
 			(project "eps8pin-module"
@@ -7773,7 +7770,7 @@
 		(dnp no)
 		(uuid "9045a540-bc8a-4dd9-859d-867924655b86")
 		(property "Reference" "#PWR24" (at 228.6 863.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 228.6 869.95 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 228.6 867.41 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "cb377c5e-5c40-4e3c-8584-5b2135ee9e8f"))
 		(instances
 			(project "eps8pin-module"
@@ -7809,7 +7806,7 @@
 		(dnp no)
 		(uuid "c41e32cb-80e5-4892-bb43-1390697039e6")
 		(property "Reference" "#PWR26" (at 304.8 863.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 304.8 869.95 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 308.3 872.49 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "c668f51b-d6d7-4d58-aa30-694fcaab41cc"))
 		(instances
 			(project "eps8pin-module"
@@ -7845,7 +7842,7 @@
 		(dnp no)
 		(uuid "991523f8-adaa-479a-bb97-9184b27c4f24")
 		(property "Reference" "#PWR28" (at 152.4 980.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 152.4 986.79 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 152.4 984.25 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "04c3525a-624f-4428-a0d2-052683195629"))
 		(instances
 			(project "eps8pin-module"
@@ -7881,7 +7878,7 @@
 		(dnp no)
 		(uuid "c7a62295-bfc0-46de-99ef-5150c59232b4")
 		(property "Reference" "#PWR30" (at 228.6 980.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 228.6 986.79 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 228.6 989.33 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "473319d1-7aa2-47c5-92cb-672487827f41"))
 		(instances
 			(project "eps8pin-module"
@@ -8259,7 +8256,7 @@
 		(dnp no)
 		(uuid "58e6ada1-809f-4095-99d4-df227c7ee6c9")
 		(property "Reference" "#PWR51" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 434.34 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "f6f5c8ec-cbcf-4539-a5f2-6ddb7cfb77b4"))
 		(instances
 			(project "eps8pin-module"
@@ -8277,7 +8274,7 @@
 		(dnp no)
 		(uuid "6b7b0a09-db38-44cf-a2de-6f50ff40333f")
 		(property "Reference" "#PWR52" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 429.26 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "0be35b5c-6f9b-43f9-b370-e4266fbd6817"))
 		(instances
 			(project "eps8pin-module"
@@ -8295,7 +8292,7 @@
 		(dnp no)
 		(uuid "016c5df6-ed54-4659-8d39-631048fa0c49")
 		(property "Reference" "#PWR53" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 144.78 431.8 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8136abe4-dc44-423f-aa61-a2658bfed289"))
 		(instances
 			(project "eps8pin-module"
@@ -8349,7 +8346,7 @@
 		(dnp no)
 		(uuid "eaf435ba-f5d7-4ea2-b84c-05b651041dc8")
 		(property "Reference" "#PWR56" (at 325.12 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 325.12 60.96 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 316.12 57.15 0) (effects (font (size 1.27 1.27)) (justify right)))
 		(pin "1" (uuid "b83bea6f-58ba-4ccb-8065-aade6013b738"))
 		(instances
 			(project "eps8pin-module"
@@ -8367,7 +8364,7 @@
 		(dnp no)
 		(uuid "8595f1a9-d70b-4837-9462-d948cc98e0ba")
 		(property "Reference" "#PWR57" (at 325.12 57.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 325.12 63.5 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 316.12 63.5 0) (effects (font (size 1.27 1.27)) (justify right)))
 		(pin "1" (uuid "31f4678e-05f2-490a-b771-148ce4de45ed"))
 		(instances
 			(project "eps8pin-module"
@@ -8421,7 +8418,7 @@
 		(dnp no)
 		(uuid "5e857316-1169-4076-9731-44fcc8e6d3ab")
 		(property "Reference" "#PWR60" (at 355.6 99.06 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 105.41 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 105.41 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "b88fbd27-fb33-4525-a3e1-b1321d38bff7"))
 		(instances
 			(project "eps8pin-module"
@@ -8457,7 +8454,7 @@
 		(dnp no)
 		(uuid "5f92fc30-b3cb-4b97-b1d3-3cbe35ef4eb6")
 		(property "Reference" "#PWR62" (at 355.6 93.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 100.33 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 100.33 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "1767b42c-ebf0-4fc5-b67f-fe069022e3ca"))
 		(instances
 			(project "eps8pin-module"
@@ -8493,7 +8490,7 @@
 		(dnp no)
 		(uuid "607855cc-35d3-4613-aa96-35800f439ad8")
 		(property "Reference" "#PWR64" (at 355.6 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 95.25 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 95.25 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "f70d7c4e-dc03-4685-bbf8-e3e2782a5342"))
 		(instances
 			(project "eps8pin-module"
@@ -8529,7 +8526,7 @@
 		(dnp no)
 		(uuid "af455556-f541-48c0-8c29-8fe479842801")
 		(property "Reference" "#PWR66" (at 355.6 83.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 90.17 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 90.17 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "a5adb5b7-b35d-45c6-a153-2827a38b5cbd"))
 		(instances
 			(project "eps8pin-module"
@@ -8565,7 +8562,7 @@
 		(dnp no)
 		(uuid "d94b6f90-a433-47b8-bb34-337e6ca77d47")
 		(property "Reference" "#PWR68" (at 355.6 78.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 85.09 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "664780a1-ce37-4a96-b4fb-2ea103781382"))
 		(instances
 			(project "eps8pin-module"
@@ -8601,7 +8598,7 @@
 		(dnp no)
 		(uuid "a47e8428-e3af-4211-9df4-db69065b1184")
 		(property "Reference" "#PWR70" (at 355.6 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 80.01 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 80.01 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "5a1472a2-8c3e-41e5-830d-6d4563a470c9"))
 		(instances
 			(project "eps8pin-module"
@@ -8637,7 +8634,7 @@
 		(dnp no)
 		(uuid "3ecc5a43-e6fc-42ea-b1b3-d8f9a6986e37")
 		(property "Reference" "#PWR72" (at 355.6 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 74.93 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 74.93 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "2bf74532-fcd0-4f79-8a7d-721973c1cbfa"))
 		(instances
 			(project "eps8pin-module"
@@ -8673,7 +8670,7 @@
 		(dnp no)
 		(uuid "d6faa682-19d9-4745-9f4a-16a688fdfd32")
 		(property "Reference" "#PWR74" (at 355.6 63.5 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 69.85 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "854224ef-5a1c-47fa-a3f9-3744549d610d"))
 		(instances
 			(project "eps8pin-module"
@@ -8709,7 +8706,7 @@
 		(dnp no)
 		(uuid "24b0153d-d85e-4935-a5a6-2d5fca12d407")
 		(property "Reference" "#PWR76" (at 355.6 58.42 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 355.6 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 364.49 64.77 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(pin "1" (uuid "e838e44f-fb59-4269-bd55-cb2d7a2fcfee"))
 		(instances
 			(project "eps8pin-module"
@@ -8781,7 +8778,7 @@
 		(dnp no)
 		(uuid "14bf29f5-dbe7-4b0b-b8b8-c7614e613bcd")
 		(property "Reference" "#PWR80" (at 83.82 201.93 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 83.82 208.28 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 83.82 213.36 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "37b1e9b2-0556-4314-ad93-71354a060be7"))
 		(instances
 			(project "eps8pin-module"
@@ -8871,7 +8868,7 @@
 		(dnp no)
 		(uuid "45b91106-9092-433e-bb9e-dd6c53eb0e44")
 		(property "Reference" "#PWR85" (at 35.56 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 35.56 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 38.1 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "cb233c4b-7cd9-4b12-927b-b0c3d960940d"))
 		(instances
 			(project "eps8pin-module"
@@ -8889,7 +8886,7 @@
 		(dnp no)
 		(uuid "fc092722-0257-40c7-95a2-ac3075025116")
 		(property "Reference" "#PWR86" (at 86.36 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 86.36 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 88.9 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "8712406f-9a25-44d7-8824-047efe008d18"))
 		(instances
 			(project "eps8pin-module"
@@ -8907,7 +8904,7 @@
 		(dnp no)
 		(uuid "8429811b-a440-49a3-89c5-c8907a6be0c8")
 		(property "Reference" "#PWR87" (at 55.88 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 55.88 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 53.34 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "af76b4a5-8414-4d5f-95f2-1334313efd43"))
 		(instances
 			(project "eps8pin-module"
@@ -8925,7 +8922,7 @@
 		(dnp no)
 		(uuid "05ca1a46-c17c-4ef7-ae41-e356e6e23b6a")
 		(property "Reference" "#PWR88" (at 106.68 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 106.68 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 104.14 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "e780d8c8-0178-4298-b89d-74839a493291"))
 		(instances
 			(project "eps8pin-module"
@@ -8943,7 +8940,7 @@
 		(dnp no)
 		(uuid "c2f093c4-0e6b-497c-ad3e-1c68ab303648")
 		(property "Reference" "#PWR89" (at 35.56 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 35.56 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 38.1 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5f67b057-0d0e-4949-ad84-d824e659a2bb"))
 		(instances
 			(project "eps8pin-module"
@@ -8961,7 +8958,7 @@
 		(dnp no)
 		(uuid "971a2df6-7158-46e6-90c9-90b6d7219be0")
 		(property "Reference" "#PWR90" (at 86.36 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 86.36 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 88.9 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "99593df3-cebd-450f-856b-e09df0fd4d6d"))
 		(instances
 			(project "eps8pin-module"
@@ -8979,7 +8976,7 @@
 		(dnp no)
 		(uuid "58e82b0c-9fb1-4cb3-ba8d-607e59686692")
 		(property "Reference" "#PWR91" (at 55.88 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 55.88 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 53.34 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "55db816b-b654-4e76-be52-5cf604e00c10"))
 		(instances
 			(project "eps8pin-module"
@@ -8997,7 +8994,7 @@
 		(dnp no)
 		(uuid "34fb4c7a-f6b6-4b63-a8f6-8a75825dc749")
 		(property "Reference" "#PWR92" (at 106.68 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 106.68 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 104.14 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "b244db7d-d3a9-4a0c-84c2-a6d3a7c53dd4"))
 		(instances
 			(project "eps8pin-module"
@@ -9015,7 +9012,7 @@
 		(dnp no)
 		(uuid "b76f5f55-5b02-41fb-9a1d-f540ab1e6eb7")
 		(property "Reference" "#PWR93" (at 135.89 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 135.89 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 138.43 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "4f227f47-685d-41a2-9990-7c440fcd6d5c"))
 		(instances
 			(project "eps8pin-module"
@@ -9033,7 +9030,7 @@
 		(dnp no)
 		(uuid "bb262731-3caf-4b3f-92ca-39bdf221428a")
 		(property "Reference" "#PWR94" (at 186.69 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 186.69 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 189.23 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "0443a79c-0192-47c6-ac6e-823f0c56ed20"))
 		(instances
 			(project "eps8pin-module"
@@ -9051,7 +9048,7 @@
 		(dnp no)
 		(uuid "8ec452d5-49ca-4563-ba4c-a6ffa98f8c8e")
 		(property "Reference" "#PWR95" (at 156.21 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 156.21 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 153.67 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "91417892-8b35-44da-8e79-44aaa4c65c7d"))
 		(instances
 			(project "eps8pin-module"
@@ -9069,7 +9066,7 @@
 		(dnp no)
 		(uuid "5fee6962-d4c8-470c-aa7f-41eaabc89d00")
 		(property "Reference" "#PWR96" (at 207.01 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 207.01 161.29 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 204.47 161.29 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "06ce2670-f77e-4955-9af2-74930fdcd206"))
 		(instances
 			(project "eps8pin-module"
@@ -9087,7 +9084,7 @@
 		(dnp no)
 		(uuid "588ec665-964f-4964-a528-9b86fe0e4f95")
 		(property "Reference" "#PWR97" (at 135.89 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 135.89 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 138.43 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "9e5bb32a-adb1-42af-92a3-30396de9d6d6"))
 		(instances
 			(project "eps8pin-module"
@@ -9105,7 +9102,7 @@
 		(dnp no)
 		(uuid "8aad8b78-6fb5-4286-8847-2064ef7394f0")
 		(property "Reference" "#PWR98" (at 186.69 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 186.69 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 189.23 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5e0980d7-0818-4043-bfe3-cf1b5e1e01de"))
 		(instances
 			(project "eps8pin-module"
@@ -9123,7 +9120,7 @@
 		(dnp no)
 		(uuid "13dc05f9-1f5d-4e53-8eb7-42c7eb6c1b35")
 		(property "Reference" "#PWR99" (at 156.21 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 156.21 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 153.67 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "98bd8ad8-bf5b-47fe-aa4d-c99062cb8084"))
 		(instances
 			(project "eps8pin-module"
@@ -9141,7 +9138,7 @@
 		(dnp no)
 		(uuid "43612586-b92a-40fb-9853-c122e3ca6114")
 		(property "Reference" "#PWR100" (at 207.01 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 207.01 163.83 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 204.47 163.83 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "59ab4465-3dd2-4241-8137-21260c58498f"))
 		(instances
 			(project "eps8pin-module"
@@ -9477,18 +9474,18 @@
 		)
 	)
 
-	(label "USB_D_P" (at 401.32 400.05 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000001"))
-	(label "USB_D_P" (at 411.48 400.05 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000002"))
-	(label "USB_D_N" (at 401.32 402.59 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000003"))
-	(label "USB_D_N" (at 411.48 402.59 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000004"))
+	(label "USB_D_P" (at 401.32 400.05 0) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000001"))
+	(label "USB_D_P" (at 411.48 400.05 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000002"))
+	(label "USB_D_N" (at 401.32 402.59 0) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000003"))
+	(label "USB_D_N" (at 411.48 402.59 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000004"))
 	(label "VBUS_RAW" (at 406.4 394.97 90) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000005"))
-	(label "VBUS_RAW" (at 453.39 400.05 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000006"))
-	(label "VBUS" (at 461.01 400.05 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000007"))
+	(label "VBUS_RAW" (at 453.39 400.05 0) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000006"))
+	(label "VBUS" (at 461.01 400.05 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000007"))
 	(label "VCC_RJ45_RAW" (at 453.39 342.9 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000008"))
-	(label "CAN_H_RJ" (at 400.05 455.93 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000009"))
-	(label "CAN_H" (at 412.75 455.93 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-00000000000a"))
-	(label "CAN_L_RJ" (at 400.05 458.47 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-00000000000b"))
-	(label "CAN_L" (at 412.75 458.47 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-00000000000c"))
+	(label "CAN_H_RJ" (at 400.05 455.93 0) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000009"))
+	(label "CAN_H" (at 412.75 455.93 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-00000000000a"))
+	(label "CAN_L_RJ" (at 400.05 458.47 0) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-00000000000b"))
+	(label "CAN_L" (at 412.75 458.47 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-00000000000c"))
 
 	(symbol
 		(lib_id "cec-vendor:USBLC6-2SC6")
@@ -9496,7 +9493,7 @@
 		(unit 1)
 		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
 		(uuid "8c277959-5e98-4ae1-9067-c69745b4a6e5")
-		(property "Reference" "D3" (at 407.035 405.765 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "D3" (at 409.575 405.765 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "USBLC6-2SC6" (at 407.035 403.86 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 406.4 400.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "https://www.st.com/resource/en/datasheet/usblc6-2.pdf" (at 406.4 400.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -9545,7 +9542,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "fd0910f1-0a38-44f1-82b3-ca0c9c852050")
-		(property "Reference" "FB1" (at 457.2 398.272 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "FB1" (at 457.2 397.002 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "600R@100MHz FB (MPZ2012S601AT000)" (at 457.2 401.828 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 457.2 400.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 457.2 400.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -9572,7 +9569,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "8d707683-c5da-4d87-b578-dcaa320f50a5")
-		(property "Reference" "FB2" (at 457.2 341.122 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "FB2" (at 457.2 339.852 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "0R (FB position, populate on EMC evidence)" (at 457.2 344.678 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 457.2 342.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 457.2 342.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -9617,7 +9614,7 @@
 		(dnp yes)
 		(uuid "e016947f-ecea-4cdf-bd93-6acd9fbfeba1")
 		(property "Reference" "FL1" (at 406.4 453.39 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "CAN CMC position (ACT45B-510-2P-TL003), DNP" (at 406.4 461.01 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "CAN CMC position (ACT45B-510-2P-TL003), DNP" (at 406.4 467.36 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "" (at 406.4 457.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "https://www.tdk-electronics.tdk.com/inf/30/ds/act45b.pdf" (at 406.4 457.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
         (property "Manufacturer" "TDK" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -9636,9 +9633,9 @@
 	)
 
 	(label "CAN_H_RJ" (at 424.18 454.66 90) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-00000000000d"))
-	(label "CAN_H" (at 424.18 459.74 270) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-00000000000e"))
+	(label "CAN_H" (at 424.18 459.74 270) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-00000000000e"))
 	(label "CAN_L_RJ" (at 434.34 454.66 90) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-00000000000f"))
-	(label "CAN_L" (at 434.34 459.74 270) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b1a10001-0000-4000-8000-000000000010"))
+	(label "CAN_L" (at 434.34 459.74 270) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b1a10001-0000-4000-8000-000000000010"))
 
 	(symbol
 		(lib_id "cec-vendor:R_Small")

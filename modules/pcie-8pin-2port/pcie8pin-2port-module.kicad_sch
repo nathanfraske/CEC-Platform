@@ -3,7 +3,7 @@
 	(generator "eeschema")
 	(generator_version "10.0")
 	(uuid "a0c79a2e-4073-4d8d-b0bf-2c2ed1691f64")
-	(paper "A3")
+	(paper "User" 600 1120)
 	(title_block
 		(title "CEC PCIe 8-pin 2-Port Module")
 		(date "2026-07-03")
@@ -5158,7 +5158,7 @@
 		(fields_autoplaced yes)
 		(uuid "f395fb45-7d31-40c5-bc0b-b9c3ebb5b1ab")
 		(property "Reference" "U1" (at 340.36 74.93 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "ESP32-C6-MINI-1-N4" (at 340.36 105.41 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ESP32-C6-MINI-1-N4" (at 340.36 125.73 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-RF_Module:ESP32-C6-MINI-1" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 340.36 90.17 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Espressif Systems" (at 0 0 0)
@@ -5307,7 +5307,7 @@
 		(fields_autoplaced yes)
 		(uuid "ddbdb731-ad71-4031-bb33-bd31d143e5d8")
 		(property "Reference" "U3" (at 149.86 39.37 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "LP5907MFX-3.3" (at 149.86 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "LP5907MFX-3.3" (at 149.86 74.93 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 149.86 54.61 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Texas Instruments" (at 0 0 0)
@@ -5816,7 +5816,7 @@
 		(fields_autoplaced yes)
 		(uuid "780f2105-04ae-4e3e-9b37-fa6aa4699a79")
 		(property "Reference" "D1" (at 85.09 54.61 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1BA" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 85.09 87.63 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Nexperia" (at 0 0 0)
@@ -5861,7 +5861,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "d3bba5c7-86b6-4d36-92c1-91e9617965e8")
-		(property "Reference" "R7" (at 85.09 85.09 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "R7" (at 85.09 83.82 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "100kΩ" (at 85.09 115.57 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 85.09 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -5908,7 +5908,7 @@
 		(fields_autoplaced yes)
 		(uuid "5fad8ad0-a9d8-407e-a95f-0eeb0fb9ec85")
 		(property "Reference" "J5" (at 139.7 386.08 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "USB-C 2.0" (at 139.7 416.56 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USB-C 2.0" (at 139.7 424.18 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "XKB Connection" (at 0 0 0)
@@ -6390,7 +6390,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "ddd8be0d-4272-4321-96e7-abd1c336fbb3")
-		(property "Reference" "RS1" (at 44.45 199.39 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS1" (at 44.45 198.12 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "0.5mΩ" (at 44.45 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 44.45 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -6536,7 +6536,7 @@
 		(dnp no)
 		(fields_autoplaced yes)
 		(uuid "9fa2d5bf-5ad3-4dae-8077-e067d52468c0")
-		(property "Reference" "RS2" (at 144.78 199.39 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "RS2" (at 144.78 198.12 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "0.5mΩ" (at 144.78 229.87 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 144.78 214.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -7635,9 +7635,6 @@
 	(label "GPIO0" (at 325.12 113.03 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "06cd2b80-4659-4fdc-a019-105a9e19a62e"))
 	(label "GPIO0" (at 148.59 518.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6776ceb3-72df-4461-b662-a0a83ad6e805"))
 	(label "VBUS_J5" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b45bdb5a-a1e6-4a76-8586-0accb28e1f44"))
-	(label "VBUS_J5" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "381d0015-eb94-4ba6-b1bf-1b593d76c209"))
-	(label "VBUS_J5" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a8b626b2-1afd-4458-8c07-ea7de6402758"))
-	(label "VBUS_J5" (at 158.75 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f7a6f12b-33aa-4532-8c30-067371fdf939"))
 	(label "VBUS" (at 223.52 401.32 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f87e2097-7d31-4274-b5ac-fa67946cb575"))
 	(label "VBUS" (at 292.1 394.97 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "30d15fd6-e2d1-402d-8cdf-fbf4b9eee529"))
 	(label "USB_D_P" (at 158.75 403.86 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "2c05e2b9-117e-41d3-9ccc-a3174b332276"))
@@ -7799,7 +7796,7 @@
 		(dnp no)
 		(uuid "64bffa9b-c9ce-4809-bd12-352de63cf9a7")
 		(property "Reference" "#PWR07" (at 240.03 53.34 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 240.03 59.69 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+5VSB" (at 240.03 68.58 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "4328e9c2-dab5-4664-ae68-88c6fa085438"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8015,7 +8012,7 @@
 		(dnp no)
 		(uuid "52101839-681c-4f1c-8738-c56139c13600")
 		(property "Reference" "#PWR19" (at 69.85 190.5 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 69.85 196.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 69.85 204.47 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "b86d045a-5227-4954-bb47-97a04d9b7c0d"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8033,7 +8030,7 @@
 		(dnp no)
 		(uuid "09d4d47a-eb3a-4d6b-9e93-77d070f2e1ff")
 		(property "Reference" "#PWR20" (at 92.71 200.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 92.71 207.01 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 92.71 213.36 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "c7b6d59b-2ce5-4ad1-b018-b54fb09d578c"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8051,7 +8048,7 @@
 		(dnp no)
 		(uuid "0d3ef456-1fd3-4d45-bf5c-725c6afdfcc0")
 		(property "Reference" "#PWR21" (at 170.18 190.5 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 170.18 196.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 170.18 204.47 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "73ddc8f3-702c-44a3-852d-aff70933543e"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8069,7 +8066,7 @@
 		(dnp no)
 		(uuid "2a5ee3bb-0490-4e2a-8566-8d068916e086")
 		(property "Reference" "#PWR22" (at 193.04 200.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 193.04 207.01 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 193.04 213.36 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5c5d5f87-1b32-4632-acb2-f3c5fcb2b4c7"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8087,7 +8084,7 @@
 		(dnp no)
 		(uuid "6789436f-c377-4508-acbc-83d222c3d79e")
 		(property "Reference" "#PWR23" (at 184.15 201.93 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 184.15 208.28 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 184.15 213.36 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5b20aecb-e78b-4eec-82b1-4e7007a63295"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8105,7 +8102,7 @@
 		(dnp no)
 		(uuid "e1d6c732-f029-4665-821b-b79016860a5e")
 		(property "Reference" "#PWR24" (at 228.6 863.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 228.6 869.95 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 228.6 875.03 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "90644020-aa29-43c8-9d43-73064f6ef2cd"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8141,7 +8138,7 @@
 		(dnp no)
 		(uuid "1ff4233e-fecf-4398-815d-9b225581e28e")
 		(property "Reference" "#PWR26" (at 304.8 863.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 304.8 869.95 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 304.8 872.49 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "7a4a0f57-5509-42a8-8874-19a14719b589"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8177,7 +8174,7 @@
 		(dnp no)
 		(uuid "69755971-5c3e-492a-8804-a4721adea904")
 		(property "Reference" "#PWR28" (at 152.4 980.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 152.4 986.79 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 152.4 991.87 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "5589894f-df36-4bc0-ad03-dae8e3f4e0e7"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8213,7 +8210,7 @@
 		(dnp no)
 		(uuid "36e5bda9-d567-4633-a310-71f654ab1ebf")
 		(property "Reference" "#PWR30" (at 228.6 980.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+3V3" (at 228.6 986.79 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "+3V3" (at 228.6 989.33 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "06292287-9fc7-4b4d-ab4a-9c51a9736eb0"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8267,7 +8264,7 @@
 		(dnp no)
 		(uuid "96a9f579-3802-423a-8e9d-2155f0ab5dba")
 		(property "Reference" "#PWR33" (at 149.86 63.5 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 149.86 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 149.86 72.39 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "2bc7116f-20f4-42ea-8e6b-8ffc5de0595f"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8591,7 +8588,7 @@
 		(dnp no)
 		(uuid "64c9f586-ef5d-43ca-b1b5-6463eaf81743")
 		(property "Reference" "#PWR51" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 434.34 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "1b1a3bb3-1b4c-427c-bfc3-73bec2b93694"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8609,7 +8606,7 @@
 		(dnp no)
 		(uuid "6a62724f-69e3-4a39-a628-bcd9f10183c8")
 		(property "Reference" "#PWR52" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 436.88 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "3eb7bf92-857d-4448-979f-b9b0916cab41"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8627,7 +8624,7 @@
 		(dnp no)
 		(uuid "5bf9beb7-d8cc-4863-a6ab-3f63261a955f")
 		(property "Reference" "#PWR53" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 439.42 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "d0ea85cb-e337-49dd-a3e6-99b07d260ad7"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -8645,7 +8642,7 @@
 		(dnp no)
 		(uuid "045c8871-7ffc-4c93-ad01-63171402058c")
 		(property "Reference" "#PWR54" (at 139.7 425.45 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 139.7 431.8 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 139.7 441.96 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "e96743e4-1459-4d9c-8eef-aab9f12f45fd"))
 		(instances
 			(project "pcie8pin-2port-module"
@@ -9113,7 +9110,7 @@
 		(dnp no)
 		(uuid "8fec3294-457c-44f4-8956-5b260405c54e")
 		(property "Reference" "#PWR80" (at 83.82 201.93 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 83.82 208.28 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "GND" (at 83.82 213.36 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "572ba817-2379-4acb-849f-7149c8d72761"))
 		(instances
 			(project "pcie8pin-2port-module"
