@@ -72,3 +72,13 @@ Per-sheet verification legs (both ENT generators): ERC benign-classes-only; netl
 node-set identity; `--check-overlaps` **0** (pin-glyph-aware — the S6 raised bar);
 `cec_sch_lint.py` no new ERROR class. The renders (T0 tiles) are read against S1–S11
 before a sheet set is called done.
+
+## S-spread addendum (owner directive, 2026-07-03: "use more space for readability")
+- Power-symbol glyphs (arrows/triangles) keep >=2.6mm separation from each other
+  (`cec_sch_layout --check-wires` GLYPH-CLIP class); when a flag's zone is crowded, FLIP the
+  flag to the wire's other side (the 180-degree remedy) or lengthen the stub — never let two
+  glyphs interleave.
+- No text (label, field, free text) lies along or across a wire or a power glyph
+  (`--check-wires` classes); labels anchor at wire ends pointing AWAY.
+- Space is free on a schematic sheet: when a region cannot satisfy these with nudges, SPREAD
+  the parts. Readability outranks compactness (the owner's designation).

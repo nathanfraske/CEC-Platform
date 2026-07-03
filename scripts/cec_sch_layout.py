@@ -1138,8 +1138,47 @@ def check_wire_collisions(path, *, touch_len=0.5, wire_halfwidth=0.15,
     return findings
 
 
+def check_power_glyphs(path, *, glyph_half=1.4, through_len=2.0,
+                       min_sep=2.6):
+    """Two owner-escalated power-symbol defect classes (2026-07-03):
+    (a) MIS-ROTATED flag: the attached wire passes THROUGH the glyph box
+        (clip length > through_len) instead of terminating at its edge —
+        the arrow/triangle renders inside the wire (a 180-degree rotation
+        error; the glyph must extend AWAY from its wire);
+    (b) CLIPPING PAIR: two power glyphs closer than min_sep so their
+        arrow/triangle graphics visually collide — spread them out."""
+    text = open(path).read()
+    wires = _extract_wires(text)
+    pwr = _extract_power_origins(text)
+    findings = []
+    for gx, gy, gref in pwr:
+        gb = (gx - glyph_half, gy - glyph_half,
+              gx + glyph_half, gy + glyph_half)
+        for seg in wires:
+            attached = (math.hypot(seg[0] - gx, seg[1] - gy) < 0.3 or
+                        math.hypot(seg[2] - gx, seg[3] - gy) < 0.3)
+            if not attached:
+                continue
+            if _seg_clip_len(gb, seg) > through_len:
+                findings.append(
+                    f'MISROT {gref} at ({gx:.2f},{gy:.2f}): its wire runs '
+                    f'THROUGH the glyph (rotate the flag so the arrow points '
+                    f'away from the wire)')
+                break
+    for i in range(len(pwr)):
+        for j in range(i + 1, len(pwr)):
+            ax, ay, ar = pwr[i]
+            bx, by, br = pwr[j]
+            if math.hypot(ax - bx, ay - by) < min_sep:
+                findings.append(
+                    f'GLYPH-CLIP {ar} ({ax:.2f},{ay:.2f}) vs {br} '
+                    f'({bx:.2f},{by:.2f}): arrows/triangles closer than '
+                    f'{min_sep}mm — spread apart')
+    return findings
+
+
 def _cli_check_wires(path, threshold):
-    f = check_wire_collisions(path)
+    f = check_wire_collisions(path) + check_power_glyphs(path)
     for line in f:
         print("  " + line)
     print(f"{len(f)} text-on-wire/glyph collision(s) in {path}")
