@@ -97,6 +97,19 @@ findings remain recorded for when a trade is genuinely quality-neutral._
   silicon at launch (24-pin rev3 rail-count sub-choice rides this: 12V+5V ~+$1–1.5 vs zero rails).
 
 **Per-board:**
+- **D-5a. 24-pin FORM exploration (owner thinking-out-loud, 2026-07-03 — assessment recorded,
+  no decision yet).** The owner's 90° form (PSU in → 90° turn → out; routes up the back channel,
+  fits most cases) is bounded by a header×header rectangle ONLY under two breakable assumptions:
+  (1) rectangular outline — an L-SHAPED board (two arms, each just header+shunt-row wide) keeps
+  the 90° routing and returns the inner corner to the case; (2) both headers board-mounted — the
+  owner's custom female pigtail header enables the 12VHPWR-precedented §2.8 form on the 24-pin:
+  male J3 in + CAPTIVE FEMALE PIGTAIL out (deletes J4 → board bounded by ONE header; retires the
+  F-F bridging-cable SKU — the pigtail IS the bridge; shortens the shunt path). Touches LOCKED
+  §2.8 → requires a spec-revision proposal, but precedented. Fallbacks if still too big: power-
+  interposer + stacked logic daughter (XY→Z, mezzanine-coherent); vertical headers (ranked last —
+  cable bend radius). Recommended combo: 90° L + captive-female-out ≈ 2,800–3,500mm² vs 8,342
+  shipped / 6,576 rev2 study. INTERACTS WITH D-5: a form change this size argues for being THE
+  full respin, not an after-rev.
 - **D-5. 24-pin beta scope (the critical path).** Narrow "rev3a" = parity fixes 1–5 + locked
   shunts, ~$39–41, fastest to a sellable mandatory module; vs full respin (C6 + §6.13 + mux +
   mezzanine header), ~$40–44, slower, waits on D-3/D-4. Sub-choice: INA228×4 (full energy story,
