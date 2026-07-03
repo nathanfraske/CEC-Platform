@@ -4,6 +4,12 @@
 	(generator_version "10.0")
 	(uuid "436b24cb-7227-4a56-93c7-4c5d9a5d0058")
 	(paper "A3")
+	(title_block
+		(title "CEC 12VHPWR Standard Module")
+		(date "2026-07-03")
+		(rev "BETA-1")
+		(comment 1 "Beta rev: W11/H3 standalone-mode suite (USBLC6-2SC6 D3 + VBUS clamp D4), H3a ferrite provisions (FB1 VBUS entry bead populated / FB2 5VSB port-VCC bead 0R-default / FL1 CAN CMC DNP + R22/R23 required bypass), J2 fan header DNP fed from the pre-shunt 12V input node (/FAN_12V = /SENSEP6_HI, beta-lock-register J-menu item 2). Alpha preserved in git history + fab/ snapshots.")
+	)
 	(lib_symbols
 		(symbol "cec:CEC_RJ45_8P8C_FTP"
 			(pin_names (offset 1.016))
@@ -4078,6 +4084,786 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-vendor:USBLC6-2SC6"
+		(pin_names
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "U"
+			(at 0.635 5.715 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "USBLC6-2SC6"
+			(at 0.635 3.81 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6"
+			(at 1.016 -6.731 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+					(italic yes)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" "https://www.st.com/resource/en/datasheet/usblc6-2.pdf"
+			(at 1.016 -8.636 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+				(hide yes)
+			)
+		)
+		(property "Description" "Very low capacitance ESD protection diode, 2 data-line, SOT-666"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "ki_keywords" "usb ethernet video"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "ki_fp_filters" "SOT?666*"
+			(at 0 0 0)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(symbol "USBLC6-2SC6_0_0"
+			(circle
+				(center -1.524 0)
+				(radius 0.0001)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center -0.508 2.032)
+				(radius 0.0001)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center -0.508 -4.572)
+				(radius 0.0001)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0.508 2.032)
+				(radius 0.0001)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 0.508 -4.572)
+				(radius 0.0001)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(circle
+				(center 1.524 -2.54)
+				(radius 0.0001)
+				(stroke
+					(width 0.508)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "USBLC6-2SC6_0_1"
+			(polyline
+				(pts
+					(xy -2.54 0) (xy 2.54 0)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.54 -2.54) (xy 2.54 -2.54)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.032 0.508) (xy -1.016 0.508) (xy -1.524 1.524) (xy -2.032 0.508)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -2.032 -3.048) (xy -1.016 -3.048)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.016 1.524) (xy -2.032 1.524)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -1.016 -4.064) (xy -2.032 -4.064) (xy -1.524 -3.048) (xy -1.016 -4.064)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.508 -1.143) (xy -0.508 -0.762) (xy 0.508 -0.762)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0 2.54) (xy -0.508 2.032) (xy 0.508 2.032) (xy 0 1.524) (xy 0 -4.064) (xy -0.508 -4.572) (xy 0.508 -4.572)
+					(xy 0 -5.08)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.508 -1.778) (xy -0.508 -1.778) (xy 0 -0.762) (xy 0.508 -1.778)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 1.016 1.524) (xy 2.032 1.524)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 1.016 -3.048) (xy 2.032 -3.048)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 2.032 0.508) (xy 1.016 0.508) (xy 1.524 1.524) (xy 2.032 0.508)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 2.032 -4.064) (xy 1.016 -4.064) (xy 1.524 -3.048) (xy 2.032 -4.064)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "USBLC6-2SC6_1_1"
+			(rectangle
+				(start -2.54 2.794)
+				(end 2.54 -5.334)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+			(polyline
+				(pts
+					(xy -0.508 2.032) (xy -1.524 2.032) (xy -1.524 -4.572) (xy -0.508 -4.572)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(polyline
+				(pts
+					(xy 0.508 -4.572) (xy 1.524 -4.572) (xy 1.524 2.032) (xy 0.508 2.032)
+				)
+				(stroke
+					(width 0)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+			(pin passive line
+				(at -5.08 0 0)
+				(length 2.54)
+				(name "I/O1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -5.08 -2.54 0)
+				(length 2.54)
+				(name "I/O2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "3"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 5.08 270)
+				(length 2.54)
+				(name "VBUS"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "5"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 0 -7.62 90)
+				(length 2.54)
+				(name "GND"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 5.08 0 180)
+				(length 2.54)
+				(name "I/O1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "6"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 5.08 -2.54 180)
+				(length 2.54)
+				(name "I/O2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "4"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "cec:CEC_PWR_IN_2P"
+		(pin_names
+			(offset 1.016)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J"
+			(at 0 5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "CEC_PWR_IN_2P"
+			(at 0 -5.08 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "CEC dedicated 2-pin +5VSB bulk power-in connector for the Hub (resolves OQ-1). Pin 1 VCC (+5VSB), pin 2 GND. Sized for the full Hub trunk with margin; not RJ-45."
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "CEC power input 5VSB 2-pin connector hub OQ-1"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "CEC_PWR_IN_2P_1_1"
+			(rectangle
+				(start -2.54 2.54)
+				(end 2.54 -2.54)
+				(stroke
+					(width 0.254)
+					(type default)
+				)
+				(fill
+					(type background)
+				)
+			)
+			(pin passive line
+				(at -7.62 1.27 0)
+				(length 5.08)
+				(name "VCC"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at -7.62 -1.27 0)
+				(length 5.08)
+				(name "GND"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.27 1.27)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "cec-vendor:FerriteBead_Small"
+		(pin_numbers
+			(hide yes)
+		)
+		(pin_names
+			(offset 0.254)
+			(hide yes)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "FB"
+			(at 0 1.778 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "FerriteBead_Small"
+			(at 0 -1.778 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Ferrite bead / 0-ohm bridge, small symbol (H3a: VBUS entry populated, port-VCC entry provisioned 0R-default). Footprint borrows the generic 0805 2-pad SMD land (cec-Capacitor_SMD:C_0805_2012Metric) -- same envelope as the Murata MPZ2012 ('2012' = 0805 metric) family; not a purpose-drawn bead footprint."
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_keywords" "ferrite bead emi filter"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "ki_fp_filters" "C_0805* L_0805*"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(symbol "FerriteBead_Small_0_1"
+			(rectangle
+				(start -1.905 1.27)
+				(end 1.905 -1.27)
+				(stroke
+					(width 0.2032)
+					(type default)
+				)
+				(fill
+					(type none)
+				)
+			)
+		)
+		(symbol "FerriteBead_Small_1_1"
+			(pin passive line
+				(at -3.81 0 0)
+				(length 1.905)
+				(name "~"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+				(number "1"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+			)
+			(pin passive line
+				(at 3.81 0 180)
+				(length 1.905)
+				(name "~"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+				(number "2"
+					(effects
+						(font
+							(size 1.016 1.016)
+						)
+					)
+				)
+			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "cec-vendor:CEC_CMC_4T"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.508) (hide no))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "FL"
+			(at 0 3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "CMC"
+			(at 0 -3.81 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "~"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Common-mode choke, 2 coupled pairs (H3a §c EMC insurance position): pins 1/2 = differential-pair IN (H/L), pins 3/4 = differential-pair OUT (H/L) -- one part couples both lines through a shared core; NEVER substitute two independent series beads on the individual lines (defeats the common-mode rejection). Provisioned DNP by default; populate only on EMC evidence. MPN/footprint TBD (H3a is judicious-not-blanket; not yet part-searched)."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "*CommonMode* *CMC*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "CEC_CMC_4T_0_1"
+			(rectangle
+				(start -3.81 2.54)
+				(end 3.81 -2.54)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "CEC_CMC_4T_1_1"
+			(pin passive line
+				(at -6.35 1.27 0)
+				(length 2.54)
+				(name "H_IN"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at -6.35 -1.27 0)
+				(length 2.54)
+				(name "L_IN"
+					(effects (font (size 1.016 1.016))))
+				(number "2"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 1.27 180)
+				(length 2.54)
+				(name "H_OUT"
+					(effects (font (size 1.016 1.016))))
+				(number "3"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 6.35 -1.27 180)
+				(length 2.54)
+				(name "L_OUT"
+					(effects (font (size 1.016 1.016))))
+				(number "4"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
 	)
 	(symbol
 		(lib_id "cec:CEC_RJ45_8P8C_FTP")
@@ -7482,9 +8268,7 @@
 			)
 		)
 	)
-	(wire (pts (xy 39.37 60.96) (xy 35.56 60.96))
-		(stroke (width 0) (type default)) (uuid "997b708a-a026-47a1-bf7c-cf7da532d72e"))
-	(wire (pts (xy 142.24 52.07) (xy 138.43 52.07))
+		(wire (pts (xy 142.24 52.07) (xy 138.43 52.07))
 		(stroke (width 0) (type default)) (uuid "b23189d2-ae3b-458d-8fd4-3ac01c563441"))
 	(wire (pts (xy 142.24 54.61) (xy 138.43 54.61))
 		(stroke (width 0) (type default)) (uuid "795d7b90-6981-4447-94d0-58a006dd9117"))
@@ -8020,9 +8804,9 @@
 	(label "CAN_TX" (at 223.52 64.77 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "6d2ebbc9-a76c-4016-b3ad-b89894341347"))
 	(label "CAN_RX" (at 321.31 115.57 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "6fdacc88-0788-4415-acf9-43bc70bfb81d"))
 	(label "CAN_RX" (at 223.52 67.31 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "7b6122ec-07de-452e-bc2a-8b042edf7f8a"))
-	(label "CAN_H" (at 256.54 67.31 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a59ff833-492f-4b28-b88c-82fc49a00820"))
+	(label "CAN_H_INT" (at 256.54 67.31 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "a59ff833-492f-4b28-b88c-82fc49a00820"))
 	(label "CAN_H" (at 35.56 66.04 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "baa9ed1a-fcf8-4be2-9e40-a4eb42b45545"))
-	(label "CAN_L" (at 256.54 72.39 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "af8ac592-69cb-48f2-901b-2af8655c806a"))
+	(label "CAN_L_INT" (at 256.54 72.39 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "af8ac592-69cb-48f2-901b-2af8655c806a"))
 	(label "CAN_L" (at 35.56 73.66 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b33fdbc1-7f0b-4dac-915e-07b459a02be0"))
 	(label "DETECT" (at 35.56 78.74 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "890ffb63-93bd-472a-a308-f41d05b16152"))
 	(label "DETECT" (at 119.38 104.14 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "619e2b81-0dec-4a5b-a3bd-2c50a154d73b"))
@@ -8032,10 +8816,10 @@
 	(label "DETECT_SENSE" (at 321.31 95.25 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8cd76a2d-a19f-419b-9fae-f61ed5592652"))
 	(label "GPIO0" (at 321.31 69.85 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "863cecbe-42d8-46b9-9072-4457f6c3649c"))
 	(label "GPIO0" (at 153.67 497.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "0ad13cc1-be99-456b-b11e-ab04488c5ade"))
-	(label "VBUS" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f203ada1-9f8a-413d-8820-e6a6500e127b"))
-	(label "VBUS" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7d2cf35a-6936-4d59-b009-b9ba021fc9c5"))
-	(label "VBUS" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3d56c78b-4688-4103-a487-79cddb03e35b"))
-	(label "VBUS" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "67ab44f1-39e5-4c7a-b959-6a26b5b209cf"))
+	(label "VBUS_RAW" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "f203ada1-9f8a-413d-8820-e6a6500e127b"))
+	(label "VBUS_RAW" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7d2cf35a-6936-4d59-b009-b9ba021fc9c5"))
+	(label "VBUS_RAW" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "3d56c78b-4688-4103-a487-79cddb03e35b"))
+	(label "VBUS_RAW" (at 163.83 370.84 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "67ab44f1-39e5-4c7a-b959-6a26b5b209cf"))
 	(label "VBUS" (at 233.68 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "13ce12fd-235a-414b-8a1a-3bc3d0efd0b1"))
 	(label "VBUS" (at 307.34 379.73 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "0f9e0034-d88d-456f-a5d7-031d86e4bf61"))
 	(label "USB_DP" (at 163.83 388.62 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d07ca84a-b3af-4979-a483-7eb3e9ffb99f"))
@@ -8158,15 +8942,15 @@
 	(label "SB_CBL_PRES_GPIO" (at 321.31 100.33 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "86c6706d-2ae9-415e-a150-6bcace2f9217"))
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 35.56 60.96 180)
+		(at 5.08 60.96 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "6dd4e7c6-03f8-442b-99a8-9c557e8d8f6b")
-		(property "Reference" "#PWR01" (at 35.56 58.42 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+5VSB" (at 35.56 64.77 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR01" (at 5.08 58.42 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 5.08 64.77 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "d7b0f665-f246-437d-94c0-2236d0df6a34"))
 		(instances
 			(project "12vhpwr-standard-module"
@@ -11081,6 +11865,226 @@
 	(wire (pts (xy 107.95 273.05) (xy 107.95 276.86))
 		(stroke (width 0) (type default)) (uuid "445f73bd-2414-466a-be74-a662e1bd377e"))
 	(label "VRAIL_DIV" (at 107.95 264.16 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "fa41295b-2c8e-421a-b5a7-71643c296b74"))
+	(symbol
+		(lib_id "cec-vendor:USBLC6-2SC6")
+		(at 560.07 386.08 0)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
+		(uuid "434f99fa-7436-450c-92f0-c1746341d635")
+		(property "Reference" "D3" (at 567.07 370.08 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "USBLC6-2SC6" (at 567.07 372.58 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 560.07 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.st.com/resource/en/datasheet/usblc6-2.pdf" (at 560.07 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UMW" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "USBLC6-2SC6" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2687116" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3/W11 standalone-mode USB ESD suite. Hub-parity part (identical to hub-standard D6). I/O1(1,6)=USB_DP, I/O2(3,4)=USB_DM, VBUS(5)=VBUS_RAW (pre-FB1 entry bead, closest to J5 connector), GND(2)=GND." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "545e3c74-2431-4d22-bf86-eaa73cabbe13"))
+		(pin "2" (uuid "8d286ed9-eabd-4007-9756-e723a2c59925"))
+		(pin "3" (uuid "3511c68f-09fc-428a-881a-54a930071c17"))
+		(pin "4" (uuid "2983d245-a8c6-48e9-b101-010506373b2b"))
+		(pin "5" (uuid "1af26d3f-c3c2-4957-87fb-9d0c0599ae8e"))
+		(pin "6" (uuid "d79dd3c6-1519-4de1-a295-0667d177ff24"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "D3") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec-vendor:D_Schottky")
+		(at 619.76 386.08 0)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(dnp no)
+		(uuid "fea1d18b-8874-43ee-b4f7-3f8e78c432c4")
+		(property "Reference" "D4" (at 619.76 370.84 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 619.76 401.32 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 619.76 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 619.76 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C5261083" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Nexperia" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "PESD5V0S1BA" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3 VBUS-side ESD clamp for standalone mode (chosen over SMF5.0A: reuses the already-qualified platform low-cap 5V clamp -- same part as D1 on this board -- IEC61000-4-2 rated, smaller SOD-323; see beta report for the SMF5.0A rejection rationale). Cathode(1)=VBUS_RAW, anode(2)=GND -- same convention as D1." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "c05423a3-97d5-41b6-a8bb-0b2e66fbc8eb"))
+		(pin "2" (uuid "bca1c782-09c2-40e6-ad30-7dac7c2beefe"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "D4") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec-vendor:FerriteBead_Small")
+		(at 660.4 386.08 0)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
+		(uuid "d95ed1b2-098c-4110-b351-2a9766cf61fa")
+		(property "Reference" "FB1" (at 660.4 382.08 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "MPZ2012S601AT000" (at 660.4 390.08 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 660.4 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 660.4 386.08 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TDK" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "MPZ2012S601AT000" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C21519" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3a(a) VBUS entry ferrite bead, POPULATED. 600ohm@100MHz / 2A / 0805. Owner ruling named MPZ2012S601A-class/-TD01; the verified in-stock LCSC part is the -T000 tape-and-reel suffix (C21519) -- -TD01 does not exist at LCSC, see beta report. Pin1=VBUS_RAW (J5-side, pre-bead), pin2=VBUS (existing board net, unchanged)." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f13efba9-5b1b-4b26-bb5c-547a9c0dd557"))
+		(pin "2" (uuid "f6c3d40d-8687-4a51-9365-8e75f2f114e0"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "FB1") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec-vendor:FerriteBead_Small")
+		(at 15.24 60.96 0)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
+		(uuid "f419e506-8d84-41b2-9e90-3de44b224e0e")
+		(property "Reference" "FB2" (at 15.24 56.96 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "0R (bead pos.)" (at 15.24 64.96 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric" (at 15.24 60.96 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 15.24 60.96 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0805W8F0000T5E" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C17477" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3a(b) 5VSB port-VCC entry bead POSITION. 0R jumper populated by default (0805 land also accepts an MPZ2012-family ferrite bead pad-for-pad -- populate a real bead only on EMC evidence). Pin1=VCC_RAW (J1 RJ-45 pin1 side), pin2=+5VSB (existing board rail, unchanged, relocated power-flag symbol #PWR01)." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "b9b27c4f-4107-451f-91d6-571c891720ff"))
+		(pin "2" (uuid "ffd8ce8a-a434-4b23-875d-bcf9bb170b4b"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "FB2") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec-vendor:CEC_CMC_4T")
+		(at 560.07 459.74 0)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp yes)
+		(uuid "ab052f06-b6ca-473d-b6d6-1dd7bda05e79")
+		(property "Reference" "FL1" (at 560.07 452.12 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ACT1210L-101-2P-TL00 (DNP)" (at 560.07 467.36 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 560.07 459.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 560.07 459.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "TDK" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "ACT1210L-101-2P-TL00" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C307643" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3a(c) CAN common-mode-choke, DNP by default (EMC insurance only; never series beads on individual CAN lines -- one part couples both lines through a shared core). Footprint NOT yet vendored (1210, 4-pin, TDK CAN/FlexRay CMC) -- flagged for the beta layout pass. R22/R23 (0R, populated) bridge H_IN/H_OUT and L_IN/L_OUT respectively so CAN works out of the box while FL1 is DNP; populate FL1 + DNP both bridges together if EMC evidence demands the choke." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "b9b87591-408d-4f7f-8ed2-2f06dc821197"))
+		(pin "2" (uuid "eea8fbc1-e042-4d7b-987a-a7b55c4064a0"))
+		(pin "3" (uuid "b5f11eb1-0024-4ca3-bb6d-85454e26cffa"))
+		(pin "4" (uuid "07616cb0-94fe-43c7-8afc-4da99e356621"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "FL1") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 679.45 474.98 90)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
+		(uuid "067a799f-5b1f-42f3-9d28-ccee1092f1e0")
+		(property "Reference" "R22" (at 679.45 468.63 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "0R (CAN_H bridge)" (at 679.45 481.33 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 679.45 474.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 679.45 474.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF0000TCE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C17168" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3a(c) CAN_H bypass -- REQUIRED alongside FL1: a DNP series CMC opens the CAN_H line in the netlist (DNP only affects BOM/assembly, not connectivity), so this 0R bridges FL1 pins 1(H_IN)/3(H_OUT) directly, populated by default so CAN works out of the box while FL1 is DNP. DNP this resistor (and R23) if FL1 is ever populated." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f344e5bb-63cc-4d3b-ab94-42c0eaec89e8"))
+		(pin "2" (uuid "f7d3f719-b835-4956-a867-0a3c685dc6f9"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "R22") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 679.45 485.14 90)
+		(unit 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp no)
+		(uuid "bd5e1487-05e2-496f-a397-326d54b88f65")
+		(property "Reference" "R23" (at 679.45 478.79 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "0R (CAN_L bridge)" (at 679.45 491.49 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 679.45 485.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 679.45 485.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF0000TCE" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C17168" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "H3a(c) CAN_L bypass -- REQUIRED alongside FL1: bridges FL1 pins 2(L_IN)/4(L_OUT) directly, populated by default so CAN works out of the box while FL1 is DNP. DNP this resistor (and R22) if FL1 is ever populated." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "ea3de4ff-9f56-4aca-9103-81ec94f18a73"))
+		(pin "2" (uuid "28182551-b1f9-4c92-adb5-363550c6cbcb"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "R23") (unit 1))))
+	)
+	(symbol
+		(lib_id "cec:CEC_PWR_IN_2P")
+		(at 679.45 459.74 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)(in_bom yes)(on_board yes)(in_pos_files yes)(dnp yes)
+		(uuid "c288b63b-bfa6-4952-8ad9-c00782ef4a9b")
+		(property "Reference" "J2" (at 679.45 454.66 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "CEC_FAN_2P (DNP)" (at 679.45 464.82 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal" (at 679.45 459.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 679.45 459.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "JST" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "S2B-XH-A(LF)(SN)" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C157931" (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Note" "J2 fan provision (beta-lock-register J-menu item 2). Reuses the platform's shared 2-pin JST-XH symbol cec:CEC_PWR_IN_2P (same part family as hub-standard's J_5VSB/J_5V; that symbol's baked Description is Hub-specific boilerplate -- ignore it here). DNP, position only. Pin1(VCC pin name)=+12V fed from /FAN_12V, wired directly to the existing pre-shunt /SENSEP6_HI node (J3 pin6 / RS6 HI terminal / R5.1 rail-divider tap) so fan draw branches off BEFORE RS6 and never adds to any per-pin GPU-side current measurement. Pin2(GND pin name)=GND. NEVER fed from +5VSB/OQ-2 budget." (at 0 0 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f02af8de-37f3-4e78-a56d-b7bacae64ba4"))
+		(pin "2" (uuid "14f04858-0609-416b-8401-1148cf515eca"))
+		(instances (project "12vhpwr-standard-module" (path "/436b24cb-7227-4a56-93c7-4c5d9a5d0058" (reference "J2") (unit 1))))
+	)
+	(wire (pts (xy 554.99 386.08) (xy 551.18 386.08))
+		(stroke (width 0) (type default)) (uuid "e0925d2f-a5d3-45cb-b024-15c33c2c6e27"))
+	(label "USB_DP" (at 551.18 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "efb495dc-c7ec-4a15-b041-2036326281c8"))
+	(wire (pts (xy 565.15 386.08) (xy 568.96 386.08))
+		(stroke (width 0) (type default)) (uuid "ea27ac1c-f27c-436a-b7f1-5477e413850f"))
+	(label "USB_DP" (at 568.96 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "5cf389f9-aadb-4023-bc97-20cf75315d9d"))
+	(wire (pts (xy 554.99 388.62) (xy 551.18 388.62))
+		(stroke (width 0) (type default)) (uuid "9a2f42c9-26ca-4341-9d23-2ae568b2386a"))
+	(label "USB_DM" (at 551.18 388.62 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "20d93f56-0782-436a-9c4b-df35b7e91fe1"))
+	(wire (pts (xy 565.15 388.62) (xy 568.96 388.62))
+		(stroke (width 0) (type default)) (uuid "da3c8559-20dd-4255-9482-51d7279363a5"))
+	(label "USB_DM" (at 568.96 388.62 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6fbd87ed-1ae5-42f1-82c6-a500606fd6c7"))
+	(wire (pts (xy 560.07 381) (xy 560.07 377.19))
+		(stroke (width 0) (type default)) (uuid "1a526036-544d-440b-85fc-4f25075a15e6"))
+	(label "VBUS_RAW" (at 560.07 377.19 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d5f8ca98-73f4-46c5-9c83-2091f1fa86da"))
+	(wire (pts (xy 560.07 393.7) (xy 560.07 397.51))
+		(stroke (width 0) (type default)) (uuid "942de845-0464-4765-9621-e43409b9429d"))
+	(label "GND" (at 560.07 397.51 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "40443220-144d-4520-9f79-92abdc80f850"))
+	(wire (pts (xy 615.95 386.08) (xy 612.14 386.08))
+		(stroke (width 0) (type default)) (uuid "12e90c5c-1cc0-4739-8ed7-0fe42598f6a3"))
+	(label "VBUS_RAW" (at 612.14 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "55d1cec8-1553-4a16-afa9-c4443ae729c2"))
+	(wire (pts (xy 623.57 386.08) (xy 627.38 386.08))
+		(stroke (width 0) (type default)) (uuid "566978f1-2166-4204-92f6-2a70384b49a1"))
+	(label "GND" (at 627.38 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "39051d67-ded1-4ed3-8218-6076ca079273"))
+	(wire (pts (xy 656.59 386.08) (xy 652.78 386.08))
+		(stroke (width 0) (type default)) (uuid "131fd492-1182-4984-837d-bc96611aa56b"))
+	(label "VBUS_RAW" (at 652.78 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4722befa-e17c-487d-87f3-bc6d39c2fce7"))
+	(wire (pts (xy 664.21 386.08) (xy 668.02 386.08))
+		(stroke (width 0) (type default)) (uuid "c7cdb55e-c1a1-4c43-beed-6029e4be269e"))
+	(label "VBUS" (at 668.02 386.08 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "1fd47ea2-5c38-4522-be86-b64ebd212f3f"))
+	(wire (pts (xy 39.37 60.96) (xy 30.48 60.96))
+		(stroke (width 0) (type default)) (uuid "c05e368a-047d-421d-a9a8-5c61a199b825"))
+	(label "VCC_RAW" (at 30.48 60.96 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7c5dfe24-3199-4194-9f50-20a4d38f9eff"))
+	(wire (pts (xy 30.48 60.96) (xy 19.05 60.96))
+		(stroke (width 0) (type default)) (uuid "7dbdfe95-3127-4695-9cbd-10d25726a67f"))
+	(wire (pts (xy 11.43 60.96) (xy 5.08 60.96))
+		(stroke (width 0) (type default)) (uuid "d04b0f61-0dbe-4d1e-81a3-ddfd0a6e00ae"))
+	(wire (pts (xy 553.72 458.47) (xy 549.91 458.47))
+		(stroke (width 0) (type default)) (uuid "c1ec5ca2-acf3-430f-809f-de09cf8a8033"))
+	(label "CAN_H" (at 549.91 458.47 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "2c6485c6-b7d2-427d-a1d4-db5662f9acc2"))
+	(wire (pts (xy 553.72 461.01) (xy 549.91 461.01))
+		(stroke (width 0) (type default)) (uuid "c69e2478-2af1-4576-bca6-8e51d974acbe"))
+	(label "CAN_L" (at 549.91 461.01 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "ad68dd4a-c21d-4e26-b890-97a2023fcec5"))
+	(wire (pts (xy 566.42 458.47) (xy 570.23 458.47))
+		(stroke (width 0) (type default)) (uuid "aeb158db-30e5-472a-ba42-49d542f9c585"))
+	(label "CAN_H_INT" (at 570.23 458.47 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d3bf6fc2-f3ad-49f4-916a-5fb06a6e483b"))
+	(wire (pts (xy 566.42 461.01) (xy 570.23 461.01))
+		(stroke (width 0) (type default)) (uuid "6568746b-8975-4d57-ac83-304d61e409a8"))
+	(label "CAN_L_INT" (at 570.23 461.01 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "33ff6efc-39c8-4406-9d95-6cef8238676a"))
+	(wire (pts (xy 676.91 474.98) (xy 673.1 474.98))
+		(stroke (width 0) (type default)) (uuid "881c3b6a-41d8-4e39-9b4a-fa73183cd42b"))
+	(label "CAN_H" (at 673.1 474.98 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "aecc8103-c6be-4272-8d79-40fca8ee1cce"))
+	(wire (pts (xy 681.99 474.98) (xy 685.8 474.98))
+		(stroke (width 0) (type default)) (uuid "3c7ae542-5239-41c8-8939-e449f7901f90"))
+	(label "CAN_H_INT" (at 685.8 474.98 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4257f5c0-4cee-4318-a5bf-b281f84acb9b"))
+	(wire (pts (xy 676.91 485.14) (xy 673.1 485.14))
+		(stroke (width 0) (type default)) (uuid "3d144832-dbe6-4f8c-ad37-d209f77bd79b"))
+	(label "CAN_L" (at 673.1 485.14 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "ebe3d598-0c8e-44ef-8728-0190d4d4c3d8"))
+	(wire (pts (xy 681.99 485.14) (xy 685.8 485.14))
+		(stroke (width 0) (type default)) (uuid "3bd5eef8-3f4f-44eb-80b2-1deef486781c"))
+	(label "CAN_L_INT" (at 685.8 485.14 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "91e12b25-df31-44c8-9ba2-94c9319f02cc"))
+	(wire (pts (xy 671.83 458.47) (xy 668.02 458.47))
+		(stroke (width 0) (type default)) (uuid "564a6b53-e09a-44dd-be44-fd0da5c1d89e"))
+	(label "FAN_12V" (at 668.02 458.47 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4dd2939c-a2e0-441c-94a3-32eee796c7e0"))
+	(wire (pts (xy 668.02 458.47) (xy 394.97 208.28))
+		(stroke (width 0) (type default)) (uuid "50e821b4-7a79-427b-8f5f-4a88968d5080"))
+	(wire (pts (xy 671.83 461.01) (xy 668.02 461.01))
+		(stroke (width 0) (type default)) (uuid "c29aab16-d11c-41a1-8fcf-7655716c0dc6"))
+	(label "GND" (at 668.02 461.01 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4bc1d45b-ad6b-480b-8192-5be97a5b6526"))
 	(sheet_instances
 		(path "/"
 			(page "1")
