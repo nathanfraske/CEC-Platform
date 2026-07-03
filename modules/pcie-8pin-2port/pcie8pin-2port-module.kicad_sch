@@ -5249,7 +5249,7 @@
 		(property "Value" "USB-C 2.0" (at 139.7 416.56 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Connector_USB:USB_C_Receptacle_XKB_U262-16XN-4BVC11" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 139.7 401.32 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "XKB" (at 0 0 0)
+		(property "Manufacturer" "XKB Connection" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5257,7 +5257,7 @@
 				(hide yes)
 			)
 		)
-		(property "MPN" "U262-16XN-4BVC11" (at 0 0 0)
+		(property "MPN" "U262-161N-4BVC11" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -5265,7 +5265,7 @@
 				(hide yes)
 			)
 		)
-		(property "LCSC" "C2765186" (at 0 0 0)
+		(property "LCSC" "C319148" (at 0 0 0)
 			(effects
 				(font
 					(size 1.27 1.27)
