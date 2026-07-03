@@ -44,6 +44,46 @@ import cec_sch_layout  # noqa: E402  -- the T1 layout engine (charter integratio
 # Paper sizes (mm, landscape) for the content-centering pass.
 PAPER = {"A4": (297.0, 210.0), "A3": (420.0, 297.0), "A2": (594.0, 420.0)}
 
+# Accent colors (docs/schematic-composition-standard.md S13; verified rendered
+# by the pinned kicad-cli 10 SVG export -- stroke:#1A5FB4 confirmed): muted
+# blue captions, dark-green notes/region titles, per the Nuand reference.
+CAPTION_COLOR = (26, 95, 180, 1)
+NOTE_COLOR = (21, 96, 61, 1)
+
+
+def _color_sexpr(color):
+    if not color:
+        return ""
+    r, g, b, a = color
+    return f" (color {r} {g} {b} {a})"
+
+
+def emit_caption(text, x, y, size=2.0, color=CAPTION_COLOR, bold=True):
+    """Bold section caption (standard S3): one per functional block."""
+    esc = text.replace("\\", "\\\\").replace('"', '\\"')
+    boldpart = " (thickness 0.35) (bold yes)" if bold else ""
+    return (f'\t(text "{esc}"\n\t\t(exclude_from_sim no)\n'
+            f'\t\t(at {cec_sch.f(x)} {cec_sch.f(y)} 0)\n'
+            f'\t\t(effects (font (size {cec_sch.f(size)} {cec_sch.f(size)})'
+            f'{boldpart}{_color_sexpr(color)}) (justify left top))\n'
+            f'\t\t(uuid "{cec_sch.u()}")\n\t)')
+
+
+def emit_note(text, x, y, size=1.27, color=NOTE_COLOR):
+    """Free-text design note / computed-value annotation (standard S10)."""
+    return emit_caption(text, x, y, size=size, color=color, bold=False)
+
+
+def emit_region(title, x0, y0, x1, y1, color=NOTE_COLOR):
+    """Dashed accent frame + colored title grouping a sub-function WITHIN a
+    sheet (standard S11 -- an accent, never a substitute for a real sheet)."""
+    return (
+        f'\t(rectangle\n\t\t(start {cec_sch.f(x0)} {cec_sch.f(y0)})\n'
+        f'\t\t(end {cec_sch.f(x1)} {cec_sch.f(y1)})\n'
+        f'\t\t(stroke (width 0.1524) (type dash){_color_sexpr(color)})\n'
+        f'\t\t(fill (type none))\n\t\t(uuid "{cec_sch.u()}")\n\t)\n'
+        + emit_caption(title, x0 + 1.27, y0 + 1.27, size=1.6, color=color))
+
 
 # ===========================================================================
 # Leaf -- one functional-block sheet: its own parts/nets/composed layout.
@@ -89,11 +129,53 @@ class Compose:
         self.wires, self.labels, self.power = [], [], []
         self.hier_at, self.consumed, self.text_side = {}, set(), {}
         self.rails = []
+        self.texts, self.regions = [], []
+        self.io_sides, self.io_from = {}, {}
 
     def place(self, ref, xu, yu, rot=0):
         assert ref in self.lf.parts, ref
         U = cec_sch.GRID
         self.lf.placement[ref] = (xu * U, yu * U, rot)
+
+    def place_pin(self, ref, num, xu, yu, rot=0):
+        """Place `ref` so that PIN `num` lands exactly at (xu, yu) -- the
+        flow-baseline primitive (standard S2: chains align by PIN ROW, not by
+        symbol origin). Rotation uses the validated cec_sch_layout convention."""
+        assert ref in self.lf.parts, ref
+        U = cec_sch.GRID
+        lib, name, _v = self.lf.parts[ref]
+        lx, ly, _a, _l = self.used[(lib, name)]["pins"][num]
+        rlx, rly = cec_sch_layout.rotate_local(lx, ly, rot)
+        self.lf.placement[ref] = (xu * U - rlx, yu * U + rly, rot)
+        return self.pin(ref, num)
+
+    def caption(self, text, xu, yu, size=2.0):
+        """Bold section caption (standard S3), top-left anchored."""
+        U = cec_sch.GRID
+        self.texts.append(("caption", text, xu * U, yu * U, size))
+
+    def note(self, text, xu, yu, size=1.27):
+        """Design note / computed-value annotation (standard S10). Text must
+        come from EXISTING desc/BOM knowledge -- never a new claim."""
+        U = cec_sch.GRID
+        self.texts.append(("note", text, xu * U, yu * U, size))
+
+    def region(self, title, x0u, y0u, x1u, y1u):
+        """Dashed accent frame + title around a sub-function (standard S11)."""
+        U = cec_sch.GRID
+        self.regions.append((title, x0u * U, y0u * U, x1u * U, y1u * U))
+
+    def io(self, net, side, from_pt=None):
+        """Declare an off-sheet net for the EDGE-ANCHORED I/O column pass
+        (standard S1): its hierarchical label is gathered into the sheet's
+        left/right column, wired from the anchor-pin stub (default) or from
+        `from_pt` (grid units -- a composed wire endpoint, e.g. a chain end)."""
+        assert net in self.lf.hier_exports, net
+        assert side in ("left", "right"), side
+        U = cec_sch.GRID
+        self.io_sides[net] = side
+        if from_pt is not None:
+            self.io_from[net] = (from_pt[0] * U, from_pt[1] * U)
 
     def pin(self, ref, num):
         """Pin connection point of a placed (possibly rotated) part, in u."""
@@ -148,6 +230,8 @@ class Compose:
             "wires": self.wires, "labels": self.labels, "power": self.power,
             "hier_at": self.hier_at, "consumed": self.consumed,
             "text_side": self.text_side, "decoupler_rails": self.rails,
+            "texts": self.texts, "regions": self.regions,
+            "io_sides": self.io_sides, "io_from": self.io_from,
         }
         # every ref must have been explicitly (re)placed by the compose pass
         for r in self.lf.parts:
@@ -245,12 +329,13 @@ def _emit_symbol2(ref, lib, name, val, x, y, rot, pins, project, root, used_entr
             xmin += 5.08; xmax -= 5.08
     G = cec_sch.GRID
     if len(pins) <= 2 and abs(pin_pts[0][0] - pin_pts[-1][0]) < 0.01:
-        # vertical 2-pin passive: fields beside the body
+        # vertical 2-pin passive: fields beside the body, Value DIRECTLY
+        # under Reference on the same side (standard S5 -- one convention)
         side = 1 if text_side == "right" else -1
         fx = (xmax + G) if side > 0 else (xmin - G)
         just = "left" if side > 0 else "right"
-        fields = [("Reference", ref, fx, y - 2 * G, just),
-                  ("Value", val, fx, y + 2 * G, just)]
+        fields = [("Reference", ref, fx, y - G, just),
+                  ("Value", val, fx, y + G, just)]
     elif len(pins) <= 2:
         fields = [("Reference", ref, x, ymin - 5 * G, None),
                   ("Value", val, x, ymin - 3 * G, None)]
@@ -351,6 +436,89 @@ def _auto_junctions(wire_strs, pin_pts, explicit=()):
     return out
 
 
+def _snap(v):
+    return round(v / cec_sch.GRID) * cec_sch.GRID
+
+
+def _route_io_columns(io_sides, attach, bbox, body_boxes, pin_pts,
+                      hier_exports, existing_ends):
+    """Standard S1: gather off-sheet hier labels into aligned edge columns.
+
+    For each side, nets sort by attach-point Y; each gets a row in the column
+    (>= 2.54mm pitch) and a nested lane in the gutter between the content edge
+    and the column, so no two I/O wires ever cross each other (monotonic rows
+    x nested lanes -- same argument as build_thin_parent's lane router). The
+    wire is real drawn copper from the attach point (a stub/chain endpoint on
+    the net), so netlist identity is preserved by construction. Every segment
+    is checked against symbol body boxes and interior pin hits, and every NEW
+    endpoint against foreign pins/wire-ends (an endpoint coincidence would
+    MERGE nets); a violation raises -- the composition must adjust, the router
+    never silently mis-wires.
+
+    Returns (wire_tuples, hier_tuples): [(x1,y1,x2,y2)], [(net,x,y,ang)]."""
+    G = cec_sch.GRID
+    x0, x1, _y0, _y1 = bbox
+    wires, hier = [], []
+    new_ends = set(existing_ends)
+    for side in ("left", "right"):
+        nets = sorted((n for n, s in io_sides.items()
+                       if s == side and n in attach),
+                      key=lambda n: (attach[n][1], n))
+        if not nets:
+            continue
+        sgn = -1 if side == "left" else 1
+        edge = x0 if side == "left" else x1
+        col = _snap(edge + sgn * (len(nets) + 2) * 2 * G)
+        rows, prev = [], None
+        for n in nets:
+            ry = _snap(attach[n][1])
+            if prev is not None and ry - prev < 2 * G:
+                ry = prev + 2 * G
+            rows.append(ry)
+            prev = ry
+        for i, n in enumerate(nets):
+            bx, by = attach[n]
+            ry = rows[i]
+            lane = col - sgn * (i + 1) * 2 * G
+            if abs(by - ry) < 1e-6:
+                segs = [(min(col, bx), by, max(col, bx), by)]
+                pts = [(col, ry)]
+            else:
+                segs = [(min(lane, bx), by, max(lane, bx), by),
+                        (lane, min(by, ry), lane, max(by, ry)),
+                        (min(col, lane), ry, max(col, lane), ry)]
+                pts = [(lane, by), (lane, ry), (col, ry)]
+            for (sx1, sy1, sx2, sy2) in segs:
+                for bb in body_boxes:
+                    if cec_sch._seg_hits_box(sx1, sy1, sx2, sy2, bb):
+                        raise SystemExit(
+                            f"io column: net {n} wire ({sx1},{sy1})-({sx2},{sy2})"
+                            f" crosses a symbol body -- adjust the composition")
+                for (px, py) in pin_pts:
+                    on_h = abs(py - sy1) < 1e-6 and sx1 + 1e-6 < px < sx2 - 1e-6
+                    on_v = abs(px - sx1) < 1e-6 and sy1 + 1e-6 < py < sy2 - 1e-6
+                    if (on_h and abs(sy1 - sy2) < 1e-6) or (on_v and abs(sx1 - sx2) < 1e-6):
+                        raise SystemExit(
+                            f"io column: net {n} wire passes through pin at "
+                            f"({px},{py}) -- adjust the composition")
+            for pt in pts:
+                key = (round(pt[0], 2), round(pt[1], 2))
+                if key in pin_pts or key in new_ends:
+                    raise SystemExit(
+                        f"io column: net {n} endpoint {pt} coincides with a "
+                        f"foreign pin/wire end -- adjust the composition")
+            if abs(by - ry) < 1e-6:
+                wires.append((bx, by, col, ry))
+            else:
+                wires.append((bx, by, lane, by))
+                wires.append((lane, by, lane, ry))
+                wires.append((lane, ry, col, ry))
+            for pt in pts:
+                new_ends.add((round(pt[0], 2), round(pt[1], 2)))
+            hier.append((n, col, ry, 180 if side == "left" else 0))
+    return wires, hier
+
+
 def _center_shift(bbox, paper, margin=15.0, bias_y=-3.81):
     """Grid-snapped (dx,dy) translating content bbox to the paper center
     (slightly high, clear of the title block), clamped to the frame margin."""
@@ -365,18 +533,23 @@ def _center_shift(bbox, paper, margin=15.0, bias_y=-3.81):
 
 
 def _powerflag_anchors(powerflag_nets, placement, power_ports, project,
-                       path_prefix, pwr_ref, wires, labels, flags):
-    """The power-flag anchor block archetype: a tidy row of PWR_FLAG + power-
-    port (or label) stamp pairs on short vertical wires, placed in free space
-    below the content. A net that enters only on passive/power-input pins
-    (e.g. +5VSB and GND off a connector) has no driving source, so ERC raises
-    power_pin_not_driven; the PWR_FLAG marks it externally driven. Extracted
-    from build_leaf (one implementation, every leaf on every board is a
-    caller via powerflag_nets)."""
-    base_y = round((max(p[1] for p in placement.values()) + 19.05) / cec_sch.GRID) * cec_sch.GRID
-    base_x = round((min(p[0] for p in placement.values())) / cec_sch.GRID) * cec_sch.GRID
+                       path_prefix, pwr_ref, wires, labels, flags, bbox=None):
+    """The power-flag anchor block archetype: ONE tidy block of PWR_FLAG +
+    power-port (or label) stamp pairs on short vertical wires at the
+    content's BOTTOM-LEFT on a fixed pitch (standard S7 -- never orphan
+    islands floating in dead space). A net that enters only on passive/
+    power-input pins (e.g. +5VSB and GND off a connector) has no driving
+    source, so ERC raises power_pin_not_driven; the PWR_FLAG marks it
+    externally driven. One implementation; every leaf on every board is a
+    caller via powerflag_nets."""
+    if bbox is not None:
+        base_x = _snap(bbox[0])
+        base_y = _snap(bbox[3] + 7.62)
+    else:
+        base_y = round((max(p[1] for p in placement.values()) + 19.05) / cec_sch.GRID) * cec_sch.GRID
+        base_x = round((min(p[0] for p in placement.values())) / cec_sch.GRID) * cec_sch.GRID
     for i, net_name in enumerate(sorted(powerflag_nets)):
-        sx = base_x + i * 25.4
+        sx = base_x + i * 15.24
         ty, by_ = base_y, base_y + 10.16
         wires.append(cec_sch.emit_wire(sx, ty, sx, by_))
         port = power_ports.get(net_name, net_name)
@@ -428,10 +601,14 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     consumed = set(layout.get("consumed", ()))
     hier_at = dict(layout.get("hier_at", {}))
     text_side = dict(layout.get("text_side", {}))
+    io_sides = dict(layout.get("io_sides", {}))
+    io_from = {n: list(p) for n, p in layout.get("io_from", {}).items()}
 
     lay_wires = [list(w) for w in layout.get("wires", ())]
     lay_labels = [list(l) for l in layout.get("labels", ())]
     lay_power = [list(p) for p in layout.get("power", ())]
+    lay_texts = [list(t) for t in layout.get("texts", ())]
+    lay_regions = [list(r) for r in layout.get("regions", ())]
 
     # guard: a pin must not be in two nets
     seen = {}
@@ -460,10 +637,28 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     for net_name, (hx_, hy_, hang_) in hier_at.items():
         xs += [hx_, hx_ + (len(net_name) * 1.4 if hang_ == 0 else 0)]
         ys.append(hy_)
+    for t in lay_texts:
+        _kind, ttxt, tx, ty, tsz = t
+        longest = max((len(ln) for ln in ttxt.split("\n")), default=1)
+        xs += [tx, tx + longest * tsz * 1.02]
+        ys += [ty, ty + (ttxt.count("\n") + 1) * tsz * 1.6]
+    for r in lay_regions:
+        xs += [r[1], r[3]]; ys += [r[2], r[4]]
+    # content bbox BEFORE reserving io-column gutters (columns hang off it)
+    cx0, cx1 = min(xs), max(xs)
+    for side in ("left", "right"):
+        k = sum(1 for s in io_sides.values() if s == side)
+        if k:
+            gut = (k + 3) * 2 * cec_sch.GRID
+            lbl = max((len(n) for n, s in io_sides.items() if s == side)) * 1.4 + 4
+            if side == "left":
+                xs.append(cx0 - gut - lbl)
+            else:
+                xs.append(cx1 + gut + lbl)
     if powerflag_nets:
         pf_y = max(p[1] for p in placement.values()) + 19.05
         pf_x = min(p[0] for p in placement.values())
-        xs += [pf_x, pf_x + (len(powerflag_nets) - 1) * 25.4 + 5]
+        xs += [pf_x, pf_x + (len(powerflag_nets) - 1) * 15.24 + 5]
         ys += [pf_y, pf_y + 17]
     dx, dy = _center_shift((min(xs), max(xs), min(ys), max(ys)), paper)
 
@@ -474,6 +669,12 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         l[1] += dx; l[2] += dy
     for p in lay_power:
         p[1] += dx; p[2] += dy
+    for t in lay_texts:
+        t[2] += dx; t[3] += dy
+    for r in lay_regions:
+        r[1] += dx; r[3] += dx; r[2] += dy; r[4] += dy
+    for p in io_from.values():
+        p[0] += dx; p[1] += dy
     hier_at = {n: (x + dx, y + dy, a) for n, (x, y, a) in hier_at.items()}
     junction_strs = []  # wire_decouplers-style pre-emitted junctions are NOT
     # translatable strings; leaves compose those rails via layout["decoupler_
@@ -536,6 +737,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         junction_strs += rj
         flags += rp
 
+    io_attach = {n: tuple(p) for n, p in io_from.items()}
     for net_name, conns in nets.items():
         port = power_ports.get(net_name)
         hx = hier_exports.get(net_name)
@@ -548,28 +750,80 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
             wires.append(cec_sch.emit_wire(ax, ay, bx, by))
             lang = 0 if dx_ > 0 else (180 if dx_ < 0 else (270 if dy_ < 0 else 90))
             if hier_anchor is not None and (ref, pin) == hier_anchor:
-                hlabels.append(hier_label(net_name, hx[0], bx, by, lang))
+                if net_name in io_sides and net_name not in io_attach:
+                    # standard S1: the hier label moves to the edge column;
+                    # the io router below wires it from this stub end.
+                    io_attach[net_name] = (bx, by)
+                else:
+                    hlabels.append(hier_label(net_name, hx[0], bx, by, lang))
             elif port:
                 flags.append(_emit_power2(port, bx, by, _port_rot(port, dx_, dy_),
                                           project, path_prefix, pwr_ref("#PWR")))
             else:
                 labels.append(cec_sch.emit_label(net_name, bx, by, lang))
 
-    if powerflag_nets:
-        _powerflag_anchors(powerflag_nets, placement, power_ports, project,
-                           path_prefix, pwr_ref, wires, labels, flags)
-
-    ncs = []
+    # ---- content bbox + pin/body geometry (post-shift), for the io column
+    # router, the powerflag block and the caption/note emission
     pin_pts = []
+    body_boxes = []
     for ref, (lib, name, _v) in parts.items():
+        x, y, rot = placement[ref]
+        bb = cec_sch_layout.body_box_abs(used[(lib, name)]["block"], x, y, rot)
+        if bb:
+            body_boxes.append(bb)
         for pin in used[(lib, name)]["pins"]:
             ax, ay, _dx, _dy = cec_sch_layout.pin_abs_rot(placement, used, parts, ref, pin)
             pin_pts.append((ax, ay))
+    cxs, cys = [], []
+    for ref in parts:
+        e = _part_extent(used, parts, placement, ref)
+        cxs += [e[0], e[1]]; cys += [e[2], e[3]]
+    for w in lay_wires:
+        cxs += [w[0], w[2]]; cys += [w[1], w[3]]
+    content_bbox = (min(cxs), max(cxs), min(cys), max(cys))
+
+    if io_sides:
+        missing = sorted(n for n in io_sides if n not in io_attach)
+        if missing:
+            raise SystemExit(f"io column: nets with no attach point (anchor "
+                             f"consumed and no io_from): {missing}")
+        pin_set = {(round(px, 2), round(py, 2)) for px, py in pin_pts}
+        wire_ends = set()
+        for w in wires:
+            for sx, sy in _WIRE_XY.findall(w):
+                wire_ends.add((round(float(sx), 2), round(float(sy), 2)))
+        io_wires, io_hier = _route_io_columns(io_sides, io_attach, content_bbox,
+                                              body_boxes, pin_set, hier_exports,
+                                              wire_ends)
+        for (x1, y1, x2, y2) in io_wires:
+            wires.append(cec_sch.emit_wire(x1, y1, x2, y2))
+        for (net_name, hxx, hyy, hang) in io_hier:
+            hlabels.append(hier_label(net_name, hier_exports[net_name][0],
+                                      hxx, hyy, hang))
+
+    if powerflag_nets:
+        _powerflag_anchors(powerflag_nets, placement, power_ports, project,
+                           path_prefix, pwr_ref, wires, labels, flags,
+                           bbox=content_bbox)
+
+    ncs = []
+    for ref, (lib, name, _v) in parts.items():
+        for pin in used[(lib, name)]["pins"]:
             if (ref, pin) in seen or (ref, pin) in nc_skip:
                 continue
+            ax, ay, _dx, _dy = cec_sch_layout.pin_abs_rot(placement, used, parts, ref, pin)
             ncs.append(cec_sch.emit_noconnect(ax, ay))
 
     junctions = _auto_junctions(wires, pin_pts, junction_strs)
+
+    # captions / notes / region accent frames (standard S3/S10/S11) -- pure
+    # annotation, no electrical effect
+    annot = []
+    for kind, ttxt, tx, ty, tsz in lay_texts:
+        annot.append(emit_caption(ttxt, tx, ty, size=tsz) if kind == "caption"
+                     else emit_note(ttxt, tx, ty, size=tsz))
+    for title, rx0, ry0, rx1, ry1 in lay_regions:
+        annot.append(emit_region(title, rx0, ry0, rx1, ry1))
 
     # NOTE: per the owner's 2026-07-02 format correction, leaf sheets carry NO
     # dashed-frame section graphics -- the sheet itself (one file, one proper
@@ -585,6 +839,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         + (title_blk + "\n" if title_blk else "")
         + f"{cec_sch.lib_symbols_section(used, extra)}\n"
         + (section_gfx + "\n" if section_gfx else "")
+        + ("\n".join(annot) + "\n" if annot else "")
         + "\n".join(body) + "\n"
         + "\n".join(wires) + "\n"
         + ("\n".join(junctions) + "\n" if junctions else "")

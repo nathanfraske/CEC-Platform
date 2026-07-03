@@ -1928,8 +1928,8 @@
 		)
 		(symbol "TPS25940LRVCR_0_1"
 			(rectangle
-				(start -6.35 17.78)
-				(end 6.35 -17.78)
+				(start -8.89 17.78)
+				(end 8.89 -20.32)
 				(stroke
 					(width 0.254)
 					(type default)
@@ -1941,7 +1941,7 @@
 		)
 		(symbol "TPS25940LRVCR_1_1"
 			(pin input line
-				(at -11.43 7.62 0)
+				(at -13.97 7.62 0)
 				(length 5.08)
 				(name "DEVSLP"
 					(effects
@@ -1959,7 +1959,7 @@
 				)
 			)
 			(pin open_collector line
-				(at 11.43 10.16 180)
+				(at 13.97 10.16 180)
 				(length 5.08)
 				(name "PGOOD"
 					(effects
@@ -1977,7 +1977,7 @@
 				)
 			)
 			(pin input line
-				(at -11.43 5.08 0)
+				(at -13.97 5.08 0)
 				(length 5.08)
 				(name "PGTH"
 					(effects
@@ -1995,7 +1995,7 @@
 				)
 			)
 			(pin power_out line
-				(at 11.43 5.08 180)
+				(at 13.97 5.08 180)
 				(length 5.08)
 				(name "OUT"
 					(effects
@@ -2013,7 +2013,7 @@
 				)
 			)
 			(pin power_out line
-				(at 11.43 2.54 180)
+				(at 13.97 2.54 180)
 				(length 5.08)
 				(name "OUT"
 					(effects
@@ -2031,7 +2031,7 @@
 				)
 			)
 			(pin power_out line
-				(at 11.43 0 180)
+				(at 13.97 0 180)
 				(length 5.08)
 				(name "OUT"
 					(effects
@@ -2049,7 +2049,7 @@
 				)
 			)
 			(pin power_out line
-				(at 11.43 -2.54 180)
+				(at 13.97 -2.54 180)
 				(length 5.08)
 				(name "OUT"
 					(effects
@@ -2067,7 +2067,7 @@
 				)
 			)
 			(pin power_out line
-				(at 11.43 -5.08 180)
+				(at 13.97 -5.08 180)
 				(length 5.08)
 				(name "OUT"
 					(effects
@@ -2085,7 +2085,7 @@
 				)
 			)
 			(pin power_in line
-				(at -11.43 -2.54 0)
+				(at -13.97 -2.54 0)
 				(length 5.08)
 				(name "IN"
 					(effects
@@ -2103,7 +2103,7 @@
 				)
 			)
 			(pin power_in line
-				(at -11.43 -5.08 0)
+				(at -13.97 -5.08 0)
 				(length 5.08)
 				(name "IN"
 					(effects
@@ -2121,7 +2121,7 @@
 				)
 			)
 			(pin power_in line
-				(at -11.43 -7.62 0)
+				(at -13.97 -7.62 0)
 				(length 5.08)
 				(name "IN"
 					(effects
@@ -2139,7 +2139,7 @@
 				)
 			)
 			(pin power_in line
-				(at -11.43 -10.16 0)
+				(at -13.97 -10.16 0)
 				(length 5.08)
 				(name "IN"
 					(effects
@@ -2157,7 +2157,7 @@
 				)
 			)
 			(pin power_in line
-				(at -11.43 -12.7 0)
+				(at -13.97 -12.7 0)
 				(length 5.08)
 				(name "IN"
 					(effects
@@ -2175,7 +2175,7 @@
 				)
 			)
 			(pin input line
-				(at -11.43 2.54 0)
+				(at -13.97 2.54 0)
 				(length 5.08)
 				(name "EN/UVLO"
 					(effects
@@ -2193,7 +2193,7 @@
 				)
 			)
 			(pin input line
-				(at -11.43 0 0)
+				(at -13.97 0 0)
 				(length 5.08)
 				(name "OVP"
 					(effects
@@ -2211,7 +2211,7 @@
 				)
 			)
 			(pin power_in line
-				(at -3.81 -22.86 90)
+				(at -3.81 -25.4 90)
 				(length 5.08)
 				(name "GND"
 					(effects
@@ -2229,7 +2229,7 @@
 				)
 			)
 			(pin passive line
-				(at 11.43 -7.62 180)
+				(at 13.97 -7.62 180)
 				(length 5.08)
 				(name "ILIM"
 					(effects
@@ -2247,7 +2247,7 @@
 				)
 			)
 			(pin passive line
-				(at 11.43 -10.16 180)
+				(at 13.97 -10.16 180)
 				(length 5.08)
 				(name "dVdT"
 					(effects
@@ -2265,7 +2265,7 @@
 				)
 			)
 			(pin output line
-				(at 11.43 -12.7 180)
+				(at 13.97 -12.7 180)
 				(length 5.08)
 				(name "IMON"
 					(effects
@@ -2283,7 +2283,7 @@
 				)
 			)
 			(pin open_collector line
-				(at 11.43 -15.24 180)
+				(at 13.97 -15.24 180)
 				(length 5.08)
 				(name "FLT"
 					(effects
@@ -2301,7 +2301,7 @@
 				)
 			)
 			(pin power_in line
-				(at 3.81 -22.86 90)
+				(at 3.81 -25.4 90)
 				(length 5.08)
 				(name "EP"
 					(effects
@@ -2418,8 +2418,8 @@
 		)
 		(symbol "TPS26621DRCT_0_1"
 			(rectangle
-				(start -2.54 7.62)
-				(end 2.54 -7.62)
+				(start -7.62 7.62)
+				(end 7.62 -7.62)
 				(stroke
 					(width 0.254)
 					(type default)
@@ -2431,7 +2431,7 @@
 		)
 		(symbol "TPS26621DRCT_1_1"
 			(pin power_in line
-				(at -7.62 5.08 0)
+				(at -12.7 5.08 0)
 				(length 5.08)
 				(name "IN"
 					(effects
@@ -2449,7 +2449,7 @@
 				)
 			)
 			(pin input line
-				(at -7.62 2.54 0)
+				(at -12.7 2.54 0)
 				(length 5.08)
 				(name "UVLO"
 					(effects
@@ -2467,7 +2467,7 @@
 				)
 			)
 			(pin input line
-				(at -7.62 0 0)
+				(at -12.7 0 0)
 				(length 5.08)
 				(name "OVP"
 					(effects
@@ -2485,7 +2485,7 @@
 				)
 			)
 			(pin input line
-				(at -7.62 -2.54 0)
+				(at -12.7 -2.54 0)
 				(length 5.08)
 				(name "SHDN"
 					(effects
@@ -2503,7 +2503,7 @@
 				)
 			)
 			(pin power_in line
-				(at -7.62 -5.08 0)
+				(at -12.7 -5.08 0)
 				(length 5.08)
 				(name "RTN"
 					(effects
@@ -2521,7 +2521,7 @@
 				)
 			)
 			(pin power_in line
-				(at 7.62 5.08 180)
+				(at 12.7 5.08 180)
 				(length 5.08)
 				(name "GND"
 					(effects
@@ -2539,7 +2539,7 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 2.54 180)
+				(at 12.7 2.54 180)
 				(length 5.08)
 				(name "ILIM"
 					(effects
@@ -2557,7 +2557,7 @@
 				)
 			)
 			(pin passive line
-				(at 7.62 0 180)
+				(at 12.7 0 180)
 				(length 5.08)
 				(name "dVdT"
 					(effects
@@ -2575,7 +2575,7 @@
 				)
 			)
 			(pin open_collector line
-				(at 7.62 -2.54 180)
+				(at 12.7 -2.54 180)
 				(length 5.08)
 				(name "FLT"
 					(effects
@@ -2593,7 +2593,7 @@
 				)
 			)
 			(pin power_out line
-				(at 7.62 -5.08 180)
+				(at 12.7 -5.08 180)
 				(length 5.08)
 				(name "OUT"
 					(effects
@@ -2739,8 +2739,8 @@
 		)
 		(symbol "W25Q256JVFIQ_0_1"
 			(rectangle
-				(start -5.08 11.43)
-				(end 5.08 -11.43)
+				(start -15.24 11.43)
+				(end 15.24 -11.43)
 				(stroke
 					(width 0.254)
 					(type default)
@@ -2752,7 +2752,7 @@
 		)
 		(symbol "W25Q256JVFIQ_1_1"
 			(pin bidirectional line
-				(at -10.16 8.89 0)
+				(at -20.32 8.89 0)
 				(length 5.08)
 				(name "/HOLD_/RESET_IO3"
 					(effects
@@ -2770,7 +2770,7 @@
 				)
 			)
 			(pin power_in line
-				(at -10.16 6.35 0)
+				(at -20.32 6.35 0)
 				(length 5.08)
 				(name "VCC"
 					(effects
@@ -2788,7 +2788,7 @@
 				)
 			)
 			(pin input line
-				(at -10.16 3.81 0)
+				(at -20.32 3.81 0)
 				(length 5.08)
 				(name "/RESET"
 					(effects
@@ -2806,7 +2806,7 @@
 				)
 			)
 			(pin no_connect line
-				(at -10.16 1.27 0)
+				(at -20.32 1.27 0)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -2824,7 +2824,7 @@
 				)
 			)
 			(pin no_connect line
-				(at -10.16 -1.27 0)
+				(at -20.32 -1.27 0)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -2842,7 +2842,7 @@
 				)
 			)
 			(pin no_connect line
-				(at -10.16 -3.81 0)
+				(at -20.32 -3.81 0)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -2860,7 +2860,7 @@
 				)
 			)
 			(pin input line
-				(at -10.16 -6.35 0)
+				(at -20.32 -6.35 0)
 				(length 5.08)
 				(name "/CS"
 					(effects
@@ -2878,7 +2878,7 @@
 				)
 			)
 			(pin bidirectional line
-				(at -10.16 -8.89 0)
+				(at -20.32 -8.89 0)
 				(length 5.08)
 				(name "DO_IO1"
 					(effects
@@ -2896,7 +2896,7 @@
 				)
 			)
 			(pin bidirectional line
-				(at 10.16 -8.89 180)
+				(at 20.32 -8.89 180)
 				(length 5.08)
 				(name "/WP_IO2"
 					(effects
@@ -2914,7 +2914,7 @@
 				)
 			)
 			(pin power_in line
-				(at 10.16 -6.35 180)
+				(at 20.32 -6.35 180)
 				(length 5.08)
 				(name "GND"
 					(effects
@@ -2932,7 +2932,7 @@
 				)
 			)
 			(pin no_connect line
-				(at 10.16 -3.81 180)
+				(at 20.32 -3.81 180)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -2950,7 +2950,7 @@
 				)
 			)
 			(pin no_connect line
-				(at 10.16 -1.27 180)
+				(at 20.32 -1.27 180)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -2968,7 +2968,7 @@
 				)
 			)
 			(pin no_connect line
-				(at 10.16 1.27 180)
+				(at 20.32 1.27 180)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -2986,7 +2986,7 @@
 				)
 			)
 			(pin no_connect line
-				(at 10.16 3.81 180)
+				(at 20.32 3.81 180)
 				(length 5.08)
 				(name "NC"
 					(effects
@@ -3004,7 +3004,7 @@
 				)
 			)
 			(pin bidirectional line
-				(at 10.16 6.35 180)
+				(at 20.32 6.35 180)
 				(length 5.08)
 				(name "DI_IO0"
 					(effects
@@ -3022,7 +3022,7 @@
 				)
 			)
 			(pin input line
-				(at 10.16 8.89 180)
+				(at 20.32 8.89 180)
 				(length 5.08)
 				(name "CLK"
 					(effects

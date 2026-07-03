@@ -406,6 +406,49 @@ def text_bbox(text, size, x, y, angle=0, justify_h=None, justify_v=None):
     return (min(rxs), max(rxs), min(rys), max(rys))
 
 
+def label_bbox(content, size, x, y, ang, jh, jv, gap=0.0):
+    """Bbox for LABEL-class text (label / global_label / hierarchical_label /
+    free text). Measured against a real kicad-cli SVG export (2026-07-03,
+    scratchpad cal.kicad_sch): KiCad renders label text at the STORED justify
+    with NO 180-degree flip -- a label at angle 180 / justify right anchors
+    text-anchor="end" at (x,y) and extends LEFT; angle 90 / justify left reads
+    bottom-to-top extending UP; angle 270 / justify right extends DOWN. (The
+    old model rotated the justified box about the anchor, putting a 180
+    label's box on the WRONG side.) `gap` inserts the anchor-to-text clearance
+    a hierarchical/global label's arrow glyph occupies (measured 1.46mm at
+    size 1.27 -> 1.15x size)."""
+    lines = content.split("\n") or [""]
+    w = max((len(ln) for ln in lines), default=1) * size * CHAR_WIDTH_FACTOR
+    h = len(lines) * size * CHAR_HEIGHT_FACTOR
+    if ang % 180 != 90:                     # horizontal (0 and 180)
+        if jh == "left":
+            x0, x1 = x + gap, x + gap + w
+        elif jh == "right":
+            x0, x1 = x - gap - w, x - gap
+        else:
+            x0, x1 = x - w / 2, x + w / 2
+        if jv == "top":
+            y0, y1 = y, y + h
+        elif jv == "bottom":
+            y0, y1 = y - h, y
+        else:
+            y0, y1 = y - h / 2, y + h / 2
+    else:                                   # vertical (90 and 270), reads bottom-up
+        if jh == "left":
+            y0, y1 = y - gap - w, y - gap
+        elif jh == "right":
+            y0, y1 = y + gap, y + gap + w
+        else:
+            y0, y1 = y - w / 2, y + w / 2
+        if jv == "top":
+            x0, x1 = x, x + h
+        elif jv == "bottom":
+            x0, x1 = x - h, x
+        else:
+            x0, x1 = x - h / 2, x + h / 2
+    return (x0, x1, y0, y1)
+
+
 def _bbox_overlap(a, b, margin=0.0):
     ax0, ax1, ay0, ay1 = a; bx0, bx1, by0, by1 = b
     return not (ax1 <= bx0 - margin or bx1 <= ax0 - margin
@@ -472,14 +515,16 @@ def _is_hidden(block):
 
 
 def _symbol_spans(work):
-    """[(start, end, (ox,oy), ref, rot)] for every schematic SYMBOL INSTANCE
-    in `work` (lib_symbols already blanked). Used to find a property's parent
-    symbol (its origin, for the nudge push-direction; its ref, for reporting/
-    ordering; its ROTATION, because KiCad renders a property at symbol
-    rotation + stored field angle -- measured 2026-07-03 via SVG export: a
-    rot-90 R_Small's field at stored angle 0 renders rotate(-90), at stored
-    angle 90 renders horizontal -- so a bbox computed from the stored angle
-    alone is wrong on every rotated instance)."""
+    """[(start, end, (ox,oy), ref, rot, lib_id, mirrored)] for every schematic
+    SYMBOL INSTANCE in `work` (lib_symbols already blanked). Used to find a
+    property's parent symbol (its origin, for the nudge push-direction; its
+    ref, for reporting/ordering; its ROTATION, because KiCad renders a
+    property at symbol rotation + stored field angle -- measured 2026-07-03
+    via SVG export: a rot-90 R_Small's field at stored angle 0 renders
+    rotate(-90), at stored angle 90 renders horizontal -- so a bbox computed
+    from the stored angle alone is wrong on every rotated instance) -- and,
+    since the pin-glyph engine (2026-07-03), the instance's lib_id + mirror
+    flag so its pins' NAME/NUMBER glyph boxes can be computed."""
     spans = []
     for m in re.finditer(r'\(symbol\n', work):
         s = m.start()
@@ -488,15 +533,18 @@ def _symbol_spans(work):
         if not at:
             continue
         refm = re.search(r'\(property\s+"Reference"\s+"((?:[^"\\]|\\.)*)"', block)
+        libm = re.search(r'\(lib_id\s+"((?:[^"\\]|\\.)*)"', block)
         spans.append((s, s + len(block), (at[0], at[1]),
-                      refm.group(1) if refm else "?", at[2]))
+                      refm.group(1) if refm else "?", at[2],
+                      libm.group(1) if libm else "",
+                      bool(re.search(r'\(mirror\s+\w+\)', block))))
     return spans
 
 
 def _origin_containing(spans, offset):
-    for s, e, origin, ref, rot in spans:
-        if s <= offset < e:
-            return origin, ref, rot
+    for sp in spans:
+        if sp[0] <= offset < sp[1]:
+            return sp[2], sp[3], sp[4]
     return None, None, 0
 
 
@@ -542,7 +590,15 @@ def _extract_text_elements(text, *, with_spans=False):
                 origin = None
             if not content:
                 continue
-            bbox = text_bbox(content, size, x, y, render_ang, jh, jv)
+            if kind == "property":
+                # fields: rendered-angle rotate model (measured separately --
+                # KiCad rotates/flips FIELD text with the symbol; see
+                # _symbol_spans note + test_property_bbox_uses_rendered_angle)
+                bbox = text_bbox(content, size, x, y, render_ang, jh, jv)
+            else:
+                gap = size * 1.15 if kind in ("hierarchical_label",
+                                              "global_label") else 0.0
+                bbox = label_bbox(content, size, x, y, ang, jh, jv, gap)
             el = {"kind": kind, "name": pname, "text": content, "label": label,
                   "at": (x, y, ang), "render_ang": render_ang, "size": size,
                   "justify": (jh, jv), "bbox": bbox}
@@ -558,16 +614,184 @@ def _extract_text_elements(text, *, with_spans=False):
     return elems
 
 
-def detect_overlaps(sch_path, margin=0.0):
+# ---------------------------------------------------------------------------
+# PIN-GLYPH ENGINE (2026-07-03, composition-standard rule S6): symbol pin
+# NAME and pin NUMBER glyphs as first-class text for collision purposes.
+# The 01-power garble class (TPS26621's opposing "UVLO"/"ILIM" names printed
+# over each other; the RJ45-FTP "STREAM_P"/"SHIELD" interleave) was invisible
+# to the property/label-only detector. Geometry per the KiCad renderer:
+#   - a pin's connection point is its (at); the stem extends `length` toward
+#     the body along `ang` (Y-up local frame, CCW);
+#   - the NAME (when pin_names offset > 0) starts at body-end + offset and
+#     runs INWARD, reading along the pin axis;
+#   - the NUMBER sits centered over the stem midpoint, just clear of the line
+#     (perpendicular offset; calibrated against a kicad-cli SVG export of
+#     01-power: J1 pin numbers render with their baseline ~0.25mm off the
+#     stem, matching KiCad's default pin-text clearance).
+# Instance transform = the same empirically validated rotate_local + Y-flip
+# used everywhere in this module. Mirrored instances are SKIPPED (none of the
+# CEC generators emit mirrors; skipping beats silently-wrong boxes).
+# ---------------------------------------------------------------------------
+_NUM_GAP = 0.25   # stem-to-number-text clearance, mm (see calibration note)
+
+
+def _hide_in(clause):
+    return bool(re.search(r'\(hide\s+yes\)|\bhide\b', clause))
+
+
+def _parse_pin_glyph_lib(text):
+    """lib_symbols -> {lib_id: {"names_offset", "names_hide", "numbers_hide",
+    "pins": [ {x,y,ang,length,name,number,name_size,num_size,name_hide,
+    num_hide,pin_hide} ]}} in symbol-LOCAL Y-up coordinates."""
+    out = {}
+    m = re.search(r'\(lib_symbols\b', text)
+    if not m:
+        return out
+    lib_block = cec_sch.carve(text, m.start())
+    pos = 0
+    while True:
+        sm = re.compile(r'\(symbol\s+"((?:[^"\\]|\\.)*)"').search(lib_block, pos)
+        if not sm:
+            break
+        blk = cec_sch.carve(lib_block, sm.start())
+        pos = sm.start() + len(blk)          # only TOP-LEVEL symbol defs
+        lib_id = sm.group(1)
+        pnm = re.search(r'\(pin_names\b', blk)
+        names_offset, names_hide = 0.508, False
+        if pnm:
+            clause = cec_sch.carve(blk, pnm.start())
+            om = re.search(r'\(offset\s+(-?[\d.]+)\)', clause)
+            if om:
+                names_offset = float(om.group(1))
+            names_hide = _hide_in(re.sub(r'\(offset[^)]*\)', '', clause))
+        pnu = re.search(r'\(pin_numbers\b', blk)
+        numbers_hide = bool(pnu) and _hide_in(cec_sch.carve(blk, pnu.start()))
+        pins = []
+        for pm in re.finditer(r'\(pin\s+[A-Za-z_]+\s+[A-Za-z_]+\s*\n?\s*\(at\s+'
+                              r'(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk):
+            pblk = cec_sch.carve(blk, pm.start())
+            lm = re.search(r'\(length\s+(-?[\d.]+)\)', pblk)
+            nm_ = re.search(r'\(name\s+"((?:[^"\\]|\\.)*)"', pblk)
+            nu_ = re.search(r'\(number\s+"((?:[^"\\]|\\.)*)"', pblk)
+            head = pblk[:nm_.start()] if nm_ else pblk
+            pin_hide = _hide_in(re.sub(r'\(at[^)]*\)|\(length[^)]*\)', '', head))
+
+            def _sub(mm):
+                if not mm:
+                    return "", 1.27, False
+                clause = cec_sch.carve(pblk, mm.start())
+                sz = re.search(r'\(size\s+([\d.]+)\s+[\d.]+\)', clause)
+                return (_unescape(mm.group(1)),
+                        float(sz.group(1)) if sz else 1.27,
+                        bool(re.search(r'\(hide\s+yes\)', clause)))
+            name, name_size, name_hide = _sub(nm_)
+            number, num_size, num_hide = _sub(nu_)
+            pins.append({"x": float(pm.group(1)), "y": float(pm.group(2)),
+                         "ang": float(pm.group(3)) % 360,
+                         "length": float(lm.group(1)) if lm else 2.54,
+                         "name": name, "number": number,
+                         "name_size": name_size, "num_size": num_size,
+                         "name_hide": name_hide, "num_hide": num_hide,
+                         "pin_hide": pin_hide})
+        out[lib_id] = {"names_offset": names_offset, "names_hide": names_hide,
+                       "numbers_hide": numbers_hide, "pins": pins}
+    return out
+
+
+def _pin_glyph_boxes_local(sym):
+    """[(kind, text, pin_number, (x0,x1,y0,y1))] in symbol-local Y-UP coords."""
+    boxes = []
+    for p in sym["pins"]:
+        if p["pin_hide"]:
+            continue
+        a = math.radians(p["ang"])
+        ca, sa = math.cos(a), math.sin(a)
+        horiz = p["ang"] % 180 == 0
+        if (not sym["names_hide"] and not p["name_hide"]
+                and p["name"] and p["name"] != "~" and sym["names_offset"] > 0):
+            w = len(p["name"]) * p["name_size"] * CHAR_WIDTH_FACTOR
+            h = p["name_size"] * CHAR_HEIGHT_FACTOR
+            ex = p["x"] + (p["length"] + sym["names_offset"]) * ca
+            ey = p["y"] + (p["length"] + sym["names_offset"]) * sa
+            if horiz:
+                x0, x1 = (ex, ex + w) if ca > 0 else (ex - w, ex)
+                y0, y1 = ey - h / 2, ey + h / 2
+            else:
+                y0, y1 = (ey, ey + w) if sa > 0 else (ey - w, ey)
+                x0, x1 = ex - h / 2, ex + h / 2
+            boxes.append(("pin_name", p["name"], p["number"], (x0, x1, y0, y1)))
+        if not sym["numbers_hide"] and not p["num_hide"] and p["number"]:
+            w = len(p["number"]) * p["num_size"] * CHAR_WIDTH_FACTOR
+            # cap-height box, NOT the 1.30x descender-padded text box: measured
+            # on the 04-mcu SVG export (pin "100" glyphs span exactly
+            # [baseline-1.27, baseline] with the baseline 0.25mm off the stem)
+            # -- the padded box false-fired against the NEXT pin's name at the
+            # standard 2.54mm pin pitch.
+            h = p["num_size"] * 1.05
+            mx = p["x"] + (p["length"] / 2) * ca
+            my = p["y"] + (p["length"] / 2) * sa
+            if horiz:
+                box = (mx - w / 2, mx + w / 2, my + _NUM_GAP, my + _NUM_GAP + h)
+            else:
+                box = (mx - _NUM_GAP - h, mx - _NUM_GAP, my - w / 2, my + w / 2)
+            boxes.append(("pin_number", p["number"], p["number"], box))
+    return boxes
+
+
+def _extract_pin_glyphs(text):
+    """Every visible pin NAME/NUMBER glyph of every placed symbol instance, as
+    collision elements: kind ('pin_name'|'pin_number'), text, label, bbox
+    (absolute), ref, pin (pin number string). Mirrored instances skipped."""
+    lib = _parse_pin_glyph_lib(text)
+    work = _strip_lib_symbols(text)
+    elems = []
+    for _s, _e, (ox, oy), ref, rot, lib_id, mirrored in _symbol_spans(work):
+        sym = lib.get(lib_id)
+        if not sym or mirrored:
+            continue
+        for kind, txt, pnum, (x0, x1, y0, y1) in _pin_glyph_boxes_local(sym):
+            xs, ys = [], []
+            for (lx, ly) in ((x0, y0), (x0, y1), (x1, y0), (x1, y1)):
+                rlx, rly = rotate_local(lx, ly, rot)
+                xs.append(ox + rlx)
+                ys.append(oy - rly)
+            elems.append({"kind": kind, "name": kind, "text": txt,
+                          "label": f'{kind}:"{txt}" [{ref}.{pnum}]',
+                          "at": (ox + (x0 + x1) / 2, oy - (y0 + y1) / 2, rot),
+                          "size": 1.27, "justify": (None, None),
+                          "bbox": (min(xs), max(xs), min(ys), max(ys)),
+                          "ref": ref, "pin": pnum})
+    return elems
+
+
+def _pin_pair_ok(a, b):
+    """True if this element pair is EXEMPT from collision reporting: a pin's
+    own name and number may sit close (same pin), and we never report a pin
+    glyph against its own symbol's Reference/Value handled by nudge."""
+    ka, kb = a["kind"].startswith("pin_"), b["kind"].startswith("pin_")
+    if ka and kb:
+        return a.get("ref") == b.get("ref") and a.get("pin") == b.get("pin")
+    return False
+
+
+def detect_overlaps(sch_path, margin=0.0, pin_glyphs=True):
     """Text-vs-text collision CHECK on ANY .kicad_sch: symbol Reference/Value
     properties, net labels, and free text (e.g. cec_sch.emit_section titles).
-    Hidden elements are skipped. Returns a list of (elemA, elemB) dict pairs
-    whose bboxes overlap, each dict carrying kind/text/label/at/bbox."""
+    Hidden elements are skipped. Since 2026-07-03 (standard rule S6) the scan
+    also covers symbol pin NAME/NUMBER glyphs (pin_glyphs=True): a pin glyph
+    colliding with any text element OR with another pin's glyph is reported;
+    a pin's own name/number pair is exempt. Returns a list of (elemA, elemB)
+    dict pairs whose bboxes overlap, each dict carrying kind/text/label/at/
+    bbox."""
     text = open(sch_path).read()
     elems = _extract_text_elements(text)
+    if pin_glyphs:
+        elems += _extract_pin_glyphs(text)
     pairs = []
     for i, a in enumerate(elems):
         for b in elems[i + 1:]:
+            if _pin_pair_ok(a, b):
+                continue
             if _bbox_overlap(a["bbox"], b["bbox"], margin):
                 pairs.append((a, b))
     return pairs
@@ -589,10 +813,16 @@ def nudge_texts(sch_path, out_path=None, *, step=1.27, max_push=16, margin=0.2):
     n_still_colliding)."""
     text = open(sch_path).read()
     elems = _extract_text_elements(text, with_spans=True)
+    # pin NAME/NUMBER glyphs are immovable OBSTACLES for the nudge (standard
+    # rule S6): a Reference/Value pushed off one collision must not land on a
+    # pin glyph. They are never in to_fix (kind != property).
+    elems += _extract_pin_glyphs(text)
 
     def collides(e):
         for o in elems:
             if o is e:
+                continue
+            if _pin_pair_ok(e, o):
                 continue
             if _bbox_overlap(e["bbox"], o["bbox"], margin):
                 return True
