@@ -123,6 +123,13 @@ findings remain recorded for when a trade is genuinely quality-neutral._
   layer; CEC-branded extensions become an ACCESSORY revenue line, nothing required in-box).
   OWNER BENCH ITEM: stub LENGTH (decides whether the module sits at the header or behind the
   tray through the grommet).
+  **PANEL VERDICT (2026-07-03, 5-champion judge panel + 3 adversarial lenses — full record in
+  atx24-output-interface-panel-2026-07-03.md): Form B corrected = 12 cm (10–15) soldered female
+  stub, HCS terminals, qualified strain-relief bar — score 100/120 vs runner-up C (the locked
+  §2.8 incumbent) 83/120. The cram objection is answered by hiding the stub↔extension junction
+  BEHIND THE TRAY (only the pretty run enters the chamber). Compact-proprietary (D) is DEAD on
+  current ratings. AWAITING OWNER: the B↔C call (question 4: customer-mix), the blocking
+  strain-relief bench gate, and the §2.8 revision authorization if B.
 - **D-5. 24-pin beta scope (the critical path).** Narrow "rev3a" = parity fixes 1–5 + locked
   shunts, ~$39–41, fastest to a sellable mandatory module; vs full respin (C6 + §6.13 + mux +
   mezzanine header), ~$40–44, slower, waits on D-3/D-4. Sub-choice: INA228×4 (full energy story,

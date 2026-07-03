@@ -1,0 +1,2095 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "2bf7f1dc-3897-5a2e-a733-3cc570c85326")
+	(paper "A4")
+	(title_block
+		(title "CEC Hub -- Enterprise (ENT): 05a-port3")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "Port 3: RJ-45 FTP + mis-plug protection + DETECT/pin-7 chains (REQ-HUB-COMMON-042/110/112/114)")
+	)
+	(lib_symbols
+		(symbol "cec-ent-hub-local:CEC_RJ45_8P8C_FTP"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "CEC_RJ45_8P8C_FTP"
+				(at 0 -12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "CEC universal module-to-Hub RJ-45 8P8C shielded (FTP) jack -- WIDENED local copy (body 25.4mm, per the ent-common precedent) so the STREAM_P/STREAM_N/SHIELD pin-name glyphs clear at 8-instance port density (standard S6). Locked CEC pinout: 1 VCC (+5VSB), 2 GND, 3 CAN1_H, 4 STREAM_P, 5 STREAM_N, 6 CAN1_L, 7 RSVD (ENT: SYNC/FREEZE), 8 DETECT."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "CEC RJ45 8P8C connector universal interface module hub FTP"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_RJ45_8P8C_FTP_1_1"
+				(rectangle
+					(start -12.7 10.16)
+					(end 12.7 -10.16)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin passive line
+					(at -17.78 8.89 0)
+					(length 5.08)
+					(name "VCC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 6.35 0)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 3.81 0)
+					(length 5.08)
+					(name "CAN1_H"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 1.27 0)
+					(length 5.08)
+					(name "STREAM_P"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 -1.27 0)
+					(length 5.08)
+					(name "STREAM_N"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 -3.81 0)
+					(length 5.08)
+					(name "CAN1_L"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 -6.35 0)
+					(length 5.08)
+					(name "RSVD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -17.78 -8.89 0)
+					(length 5.08)
+					(name "DETECT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 17.78 1.27 180)
+					(length 5.08)
+					(name "SHIELD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "SH1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 17.78 -1.27 180)
+					(length 5.08)
+					(name "SHIELD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "SH2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-ent-power:SMAJ58A"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SMAJ58A"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Diode_SMD:D_SMA_SMAJ58A_L4.4-W2.6-LS5.0"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_Littelfuse-SMAJ58A_C499822.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Littelfuse SMAJ58A: 58V (Vrwm) unidirectional TVS, 400W peak pulse, SMA (DO-214AC). Mis-plug fail-safe supplementary tail-risk TVS on hub/module pin-1 VCC and pin-7 SYNC/FREEZE (survey 11 4th ruling). NOTE: SMBJ58A (LCSC C157526) is a DIFFERENT body (DO-214AA) — do not conflate."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "Littelfuse"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "SMAJ58A"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C499822"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "TVS 58V SMA unidirectional"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SMAJ58A_0_1"
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -1.27 -1.27) (xy 1.27 0) (xy -1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.905 1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 -1.27) (xy 0.635 -1.905)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SMAJ58A_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-ent-power:SS110"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "SS110"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Diode_SMD:D_SMA_SS110_L4.3-W2.6-LS5.2"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/lcsc_datasheet_2304140030_MDD-Nanjing-Silicon-Chuang-Tech-SS110_C2482.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "100V/1A Schottky barrier diode, SMA (DO-214AC). Mis-plug fail-safe: hub + module RJ-45 pin-1 VCC series blocking diode (survey 11 4th ruling — 100V rating clears the 57V PoE-injection tail case, SS16 60V is too thin)."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "MDD (Nanjing Silicon Chuang Tech)"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "SS110"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C2482"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "diode Schottky 100V SMA"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "SS110_0_1"
+				(polyline
+					(pts
+						(xy -1.905 0.635) (xy -1.905 1.27) (xy -1.27 1.27) (xy -1.27 -1.27) (xy -0.635 -1.27) (xy -0.635 -0.635)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "SS110_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:R_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "R"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.016 1.016)
+					)
+				)
+			)
+			(property "Value" "R_Small"
+				(at 1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resistor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "R resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "R_Small_0_1"
+				(rectangle
+					(start -0.762 1.778)
+					(end 0.762 -1.778)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:PESD5V0S1UL"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "D"
+				(at 0 2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PESD5V0S1UL"
+				(at 0 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Diode_SMD:D_SOD-323"
+				(at 0 -4.445 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://assets.nexperia.com/documents/data_sheet/PESD5V0S1UL.pdf"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "Unidirectional ESD protection diode, 5V working voltage, low capacitance (~0.4 pF), SOD-323"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "ESD TVS protection diode low-capacitance"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "D*SOD?323*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "PESD5V0S1UL_0_1"
+				(polyline
+					(pts
+						(xy -1.27 1.27) (xy -1.27 -1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 1.27) (xy 1.27 -1.27) (xy -1.27 0) (xy 1.27 1.27)
+					)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 1.27 0) (xy -1.27 0)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "PESD5V0S1UL_1_1"
+				(pin passive line
+					(at -3.81 0 0)
+					(length 2.54)
+					(name "K"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 3.81 0 180)
+					(length 2.54)
+					(name "A"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+3V3"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+3V3"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+3V3\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+3V3_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+3V3_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5VSB"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5VSB"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5VSB_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5VSB_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5V_MAIN"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5V_MAIN"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5V_MAIN_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5V_MAIN_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5V_SYS"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5V_SYS"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5V_SYS_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5V_SYS_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:GND"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GND"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "GND_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "GND_1_1"
+				(pin power_in line
+					(at 0 0 270)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(text "Port 3: RJ-45 FTP + mis-plug protection + DETECT/pin-7 chains (REQ-HUB-COMMON-042/110/112/114)"
+		(exclude_from_sim no)
+		(at 44.45 33.02 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "ff277b2b-a1bf-44e9-81cc-657181930f89")
+	)
+	(text "VCC: SS110 100V series block + SMAJ58A tail-risk TVS (REQ-HUB-COMMON-110); DETECT: 10k series R [BOM names 1206 pkg, captured as 0402 here -- flagged] -> PESD5V0S1BA (LOCKED Sec2.4) + 10k pull-up to +3V3 (Sec2.3 code read); pin-7: 100R series R [illustrative] + SMAJ58A tail-risk clamp (REQ-HUB-COMMON-112/114). All pin-7/DETECT-series values are a schematic-capture/bench-calibration task per hub-ent-bom-detailed Sec6a, not bench-verified here."
+		(exclude_from_sim no)
+		(at 44.45 167.64 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "6cae7768-7105-4165-b02f-d1bc82010db8")
+	)
+	(symbol
+		(lib_id "cec-ent-hub-local:CEC_RJ45_8P8C_FTP")
+		(at 72.39 73.66 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "79efbc7f-f908-42e9-a88a-8f2fa600a356")
+		(property "Reference" "J_PORT3" (at 72.39 58.42 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PORT3" (at 72.39 60.96 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec:RJ45_FTP_Shielded_Horizontal" (at 72.39 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 72.39 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Kinghelm" (at 72.39 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "KH-RJ45-58-8P8C" (at 72.39 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2683360" (at 72.39 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "Module port 3, FTP RJ-45 8P8C, SH1/SH2->GND (Sec2.1 lock); widened local symbol copy for pin-glyph clearance at 8-port density" (at 72.39 73.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "5c8915ea-ad5c-4ebd-aaa9-b56ab0431465"))
+		(pin "2" (uuid "51cb7f96-078e-4044-a2e1-8d63b9523abd"))
+		(pin "3" (uuid "701db88c-8d4f-4362-a247-a180480dd0c1"))
+		(pin "4" (uuid "358f41d3-e5ea-4326-ab28-5fbde27494c8"))
+		(pin "5" (uuid "d920d1b7-b16b-43bf-98d2-262346127eda"))
+		(pin "6" (uuid "64c74310-f961-4471-aafc-24ad38832edd"))
+		(pin "7" (uuid "f125e90a-159c-4bdf-b04f-f61189b576ec"))
+		(pin "8" (uuid "0cc2ab29-a00a-4d4a-8e6a-04bd84920c59"))
+		(pin "SH1" (uuid "ca6265a4-3c62-4761-8660-356514d805b8"))
+		(pin "SH2" (uuid "671566f6-e367-4af2-b6a1-440a683cb793"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "J_PORT3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-ent-power:SMAJ58A")
+		(at 52.07 59.69 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "41fc69cf-5734-42a1-9cbc-1ef832a7b675")
+		(property "Reference" "D_TVS3" (at 53.34 58.42 90) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "SMAJ58A" (at 53.34 60.96 90) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Diode_SMD:D_SMA_SMAJ58A_L4.4-W2.6-LS5.0" (at 52.07 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 52.07 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Littelfuse" (at 52.07 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SMAJ58A" (at 52.07 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C499822" (at 52.07 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "pin-1 VCC tail-risk TVS (REQ-HUB-COMMON-110; hub-ent-bom-detailed Sec6a)" (at 52.07 59.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "5ca7a388-1d7b-40f1-be66-793bfc8fda1e"))
+		(pin "2" (uuid "b948b0b0-40e8-4ad5-b9b8-bb308ee9d32f"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "D_TVS3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-ent-power:SS110")
+		(at 63.5 55.88 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a6742cc5-e481-4022-9c21-93b6af7d7fd4")
+		(property "Reference" "D_VCC3" (at 63.5 49.53 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "SS110" (at 63.5 52.07 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Diode_SMD:D_SMA_SS110_L4.3-W2.6-LS5.2" (at 63.5 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 63.5 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "MDD (Nanjing Silicon Chuang Tech)" (at 63.5 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SS110" (at 63.5 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2482" (at 63.5 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "pin-1 VCC 100V series blocking Schottky, K toward the port (REQ-HUB-COMMON-110 per-pin analysis)" (at 63.5 55.88 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "e954f802-11c1-4c74-8dfc-f98eed172c08"))
+		(pin "2" (uuid "44a679fb-e2d8-49a9-bf24-15dea6a00fc5"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "D_VCC3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 57.15 151.13 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "de492aee-1c2c-4074-ac16-f173e5136d1c")
+		(property "Reference" "R_DSER3" (at 57.15 144.018 90) (effects (font (size 1.27 1.27))))
+		(property "Value" "10kΩ" (at 57.15 146.558 90) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 57.15 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 57.15 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 57.15 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 57.15 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 57.15 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "DETECT series R ahead of the ESD clamp (REQ-HUB-COMMON-110; hub-ent-bom-detailed Sec6a names ~10k/1206 -- captured here as 0402 [package flagged, not the BOM's 1206] pending bench calibration" (at 57.15 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "6af01592-d6f9-4462-8fdf-7bfda780568b"))
+		(pin "2" (uuid "cf6eb598-f43b-4007-ac84-8795c304ec70"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "R_DSER3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:PESD5V0S1UL")
+		(at 69.85 154.94 270)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "eb1194d2-11fa-4a30-961c-40a7aa2d137b")
+		(property "Reference" "D_DET3" (at 71.12 153.67 90) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "PESD5V0S1BA" (at 71.12 157.48 90) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 69.85 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 69.85 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Nexperia" (at 69.85 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "PESD5V0S1BA" (at 69.85 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C5261083" (at 69.85 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "DETECT pin-8 ESD clamp (LOCKED Sec2.4)" (at 69.85 154.94 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "e8191dec-b00c-4c9f-b092-bcb23618518a"))
+		(pin "2" (uuid "9a2bc08c-7a70-4676-b95e-32724a3ad8af"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "D_DET3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 80.01 153.67 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "14330857-3741-48ce-aedf-17c589756506")
+		(property "Reference" "R_DET3" (at 82.042 152.4 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 83.312 154.94 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 80.01 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 80.01 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 80.01 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 80.01 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 80.01 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "DETECT pull-up to +3V3, Sec2.3 code table (10k/3.3V divider read)" (at 80.01 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "97eaec8e-0e6f-4e84-9623-790651154e89"))
+		(pin "2" (uuid "424633a2-4bc9-4db2-a492-687f28ca38f5"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "R_DET3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 52.07 119.38 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "9d1e8374-c55e-4351-806b-cf53b0d9e843")
+		(property "Reference" "R_SYNC3" (at 52.07 112.268 90) (effects (font (size 1.27 1.27))))
+		(property "Value" "100Ω" (at 52.07 114.808 90) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 52.07 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 52.07 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 52.07 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1000TCE" (at 52.07 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "pin-7 SYNC/FREEZE series R [illustrative value -- schematic-capture/bench-calibration task per hub-ent-bom-detailed Sec6a] (REQ-HUB-COMMON-112/114)" (at 52.07 119.38 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "9bb8f8fb-88f8-4d68-b4fa-79a27ed715c0"))
+		(pin "2" (uuid "320b7597-5dad-47e3-ab2d-ea0473feba14"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "R_SYNC3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-ent-power:SMAJ58A")
+		(at 64.77 123.19 90)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "efde807c-f408-4022-8db4-f0ee4c9be2af")
+		(property "Reference" "D_SYNC3" (at 66.04 121.92 90) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "SMAJ58A" (at 66.04 124.46 90) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Diode_SMD:D_SMA_SMAJ58A_L4.4-W2.6-LS5.0" (at 64.77 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 64.77 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Littelfuse" (at 64.77 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "SMAJ58A" (at 64.77 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C499822" (at 64.77 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "pin-7 SYNC/FREEZE tail-risk TVS, >=60V-tolerant per the REQ-HUB-COMMON-110 per-pin analysis (the part's own vendored Description names both 'hub/module pin-1 VCC AND pin-7 SYNC/FREEZE' -- NOTE ent-common's module-side D2 instead used a plain low-cap PESD5V0S1BA clamp there; flagged, not reconciled here)" (at 64.77 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "da21e38e-15b7-41c4-8d95-6c7c1692323c"))
+		(pin "2" (uuid "d817916b-fa5d-493c-ab26-837fa2284222"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "D_SYNC3") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 54.61 64.77) (xy 52.07 64.77))
+		(stroke (width 0) (type default)) (uuid "6dbe134a-ff07-480b-a38a-396c2522e9eb"))
+	(wire (pts (xy 52.07 64.77) (xy 52.07 55.88))
+		(stroke (width 0) (type default)) (uuid "0b50ced7-6697-4b19-8665-9edbefec2bbf"))
+	(wire (pts (xy 52.07 55.88) (xy 59.69 55.88))
+		(stroke (width 0) (type default)) (uuid "ea7ee8a9-9bc5-4126-bf07-9527eae3dd2c"))
+	(wire (pts (xy 67.31 55.88) (xy 74.93 55.88))
+		(stroke (width 0) (type default)) (uuid "899755a8-a5d6-4d10-93f1-9cfb1f23f517"))
+	(wire (pts (xy 54.61 67.31) (xy 49.53 67.31))
+		(stroke (width 0) (type default)) (uuid "fe559ee5-fdb0-446c-b2f2-7a0daaf6f1dc"))
+	(wire (pts (xy 49.53 67.31) (xy 49.53 53.34))
+		(stroke (width 0) (type default)) (uuid "c5818188-0151-4ef8-bd3f-d7c970d33155"))
+	(wire (pts (xy 90.17 72.39) (xy 92.71 72.39))
+		(stroke (width 0) (type default)) (uuid "d4e70844-44fd-47a6-abef-30a3080a14e3"))
+	(wire (pts (xy 90.17 74.93) (xy 92.71 74.93))
+		(stroke (width 0) (type default)) (uuid "71048e6c-3473-473b-bb03-bf2d950fda73"))
+	(wire (pts (xy 92.71 72.39) (xy 92.71 74.93))
+		(stroke (width 0) (type default)) (uuid "51d22bff-01b3-4544-81f9-94949493e851"))
+	(wire (pts (xy 92.71 74.93) (xy 92.71 81.28))
+		(stroke (width 0) (type default)) (uuid "0ac1d4cd-4956-4459-9f7a-3a84e4951947"))
+	(wire (pts (xy 54.61 80.01) (xy 45.72 80.01))
+		(stroke (width 0) (type default)) (uuid "89333832-4b27-4ccd-8eb8-889293ebcdd9"))
+	(wire (pts (xy 45.72 80.01) (xy 45.72 119.38))
+		(stroke (width 0) (type default)) (uuid "ac102ac6-6bb5-48ff-8c17-c1cabd5c9389"))
+	(wire (pts (xy 45.72 119.38) (xy 49.53 119.38))
+		(stroke (width 0) (type default)) (uuid "b34f93b1-60d1-4793-88c7-3986cedf75d8"))
+	(wire (pts (xy 54.61 119.38) (xy 64.77 119.38))
+		(stroke (width 0) (type default)) (uuid "0a2a6e41-f0db-4afe-80a4-d268bc55e59a"))
+	(wire (pts (xy 64.77 119.38) (xy 74.93 119.38))
+		(stroke (width 0) (type default)) (uuid "eb035abb-4601-4524-98d3-d1717ec10359"))
+	(wire (pts (xy 54.61 82.55) (xy 50.8 82.55))
+		(stroke (width 0) (type default)) (uuid "96ec4568-c9f4-40be-bb32-07479d3fe1e7"))
+	(wire (pts (xy 50.8 82.55) (xy 50.8 151.13))
+		(stroke (width 0) (type default)) (uuid "c83cb878-3d8e-48d2-84fc-8762add82df3"))
+	(wire (pts (xy 50.8 151.13) (xy 54.61 151.13))
+		(stroke (width 0) (type default)) (uuid "00f75635-e2a5-4422-a26e-c227c2e1d403"))
+	(wire (pts (xy 59.69 151.13) (xy 69.85 151.13))
+		(stroke (width 0) (type default)) (uuid "09bfe6e5-8d66-4ae4-9ef3-e3fbf78e82e0"))
+	(wire (pts (xy 69.85 151.13) (xy 80.01 151.13))
+		(stroke (width 0) (type default)) (uuid "728bec17-1715-42ab-bd27-77872446395f"))
+	(wire (pts (xy 80.01 151.13) (xy 90.17 151.13))
+		(stroke (width 0) (type default)) (uuid "6752678a-00b7-438b-861e-d0ba04b44003"))
+	(wire (pts (xy 52.07 63.5) (xy 52.07 67.31))
+		(stroke (width 0) (type default)) (uuid "d3e775b2-228a-4e35-8b09-13ed9ca3bb8d"))
+	(wire (pts (xy 69.85 158.75) (xy 69.85 162.56))
+		(stroke (width 0) (type default)) (uuid "1b27b4ab-93cf-476e-83db-df66fd81b8c3"))
+	(wire (pts (xy 64.77 127) (xy 64.77 130.81))
+		(stroke (width 0) (type default)) (uuid "d7afbc0d-8036-4066-ac02-b693b577a3a1"))
+	(wire (pts (xy 80.01 156.21) (xy 80.01 160.02))
+		(stroke (width 0) (type default)) (uuid "b2cc7fe9-6f72-4eb1-bd07-50ba59232e6d"))
+	(wire (pts (xy 54.61 69.85) (xy 50.8 69.85))
+		(stroke (width 0) (type default)) (uuid "b0f983ed-4740-41e4-b5f6-438d58240a0e"))
+	(wire (pts (xy 54.61 77.47) (xy 50.8 77.47))
+		(stroke (width 0) (type default)) (uuid "47d03de9-d5fe-44d6-a948-bb9db2d01dac"))
+	(wire (pts (xy 54.61 72.39) (xy 50.8 72.39))
+		(stroke (width 0) (type default)) (uuid "dd615737-f57f-4006-8a6c-1fc1bdbf2a31"))
+	(wire (pts (xy 54.61 74.93) (xy 50.8 74.93))
+		(stroke (width 0) (type default)) (uuid "e7222a07-2312-4c91-85c8-e1ceb9597b95"))
+	(wire (pts (xy 50.8 72.39) (xy 31.75 72.39))
+		(stroke (width 0) (type default)) (uuid "b86911b5-5a22-43fb-8e5c-bcea291b4a4e"))
+	(wire (pts (xy 50.8 74.93) (xy 31.75 74.93))
+		(stroke (width 0) (type default)) (uuid "2b83b7d2-8c9d-4656-9ea1-e2bc7a4b8be2"))
+	(junction (at 52.07 55.88) (diameter 0) (color 0 0 0 0) (uuid "ef3c4957-720d-4a94-903a-765d70634cd1"))
+	(junction (at 64.77 119.38) (diameter 0) (color 0 0 0 0) (uuid "850173d5-a9e8-40d9-b855-4e1c722b2608"))
+	(junction (at 69.85 151.13) (diameter 0) (color 0 0 0 0) (uuid "cf591240-65af-4ff7-9711-c21277289768"))
+	(junction (at 80.01 151.13) (diameter 0) (color 0 0 0 0) (uuid "68f72541-c13e-428f-8f9e-62b23f06ea49"))
+	(junction (at 92.71 74.93) (diameter 0) (color 0 0 0 0) (uuid "8037d0ff-8544-4912-8554-f8471b82701f"))
+
+	(hierarchical_label "P3_SYNC7"
+		(shape output)
+		(at 74.93 119.38 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "a8fa9504-5db4-485f-b8e6-3a4a5fceaac0")
+	)
+	(hierarchical_label "P3_DETECT_A"
+		(shape output)
+		(at 90.17 151.13 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "c712b15a-3d8d-49d2-bb80-0bcb2699b2d7")
+	)
+	(hierarchical_label "P3_T1_A"
+		(shape output)
+		(at 31.75 72.39 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "84a81ba8-80f8-4177-a931-9ad5656b214f")
+	)
+	(hierarchical_label "P3_T1_B"
+		(shape output)
+		(at 31.75 74.93 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "820d430b-8012-442a-b648-9125a81694a9")
+	)
+	(global_label "CAN_H"
+		(shape passive)
+		(at 50.8 69.85 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "85b009eb-c003-46b7-8e16-5e63fcbba141")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 50.8 69.85 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(global_label "CAN_L"
+		(shape passive)
+		(at 50.8 77.47 180)
+		(fields_autoplaced yes)
+		(effects (font (size 1.27 1.27)) (justify right bottom))
+		(uuid "d6273e80-edf8-4f6b-a050-cbbd13a37d9d")
+		(property "Intersheetrefs" "${INTERSHEET_REFS}"
+			(at 50.8 77.47 0)
+			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 74.93 55.88 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5159b1b1-c671-4b9f-b644-c43ec2a7d633")
+		(property "Reference" "#PWR1201" (at 74.93 53.34 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 74.93 50.8 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ded2b3ca-c849-48b6-85cd-7d05ec737001"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1201") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 49.53 53.34 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "d051d787-d684-44c8-8b55-c70b01103f4b")
+		(property "Reference" "#PWR1202" (at 49.53 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 49.53 48.26 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "71f8691d-8030-487b-83a4-22c645b63c76"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1202") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 92.71 81.28 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1bd00220-473b-4831-b378-b424488e52a7")
+		(property "Reference" "#PWR1203" (at 92.71 78.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 92.71 86.36 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f1324139-b98d-4106-b14f-82a6ca80f0d9"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1203") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 52.07 67.31 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "b715b031-84df-49c5-8a6a-af7742ab7245")
+		(property "Reference" "#PWR1204" (at 52.07 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 52.07 72.39 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "bcb31de2-b758-4d18-9927-129266a0ed3c"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1204") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 69.85 162.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f743b2f8-f4a5-42ec-ba33-b056eb2aa3a7")
+		(property "Reference" "#PWR1205" (at 69.85 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 69.85 171.45 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "78a92aca-b402-4175-aef8-b03602d48789"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1205") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 64.77 130.81 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "aa91d76e-49f2-41c9-a242-a0f6773f077c")
+		(property "Reference" "#PWR1206" (at 64.77 128.27 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 64.77 135.89 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "30b9fa95-5e62-44fd-b2e8-f6f6ad8fce49"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1206") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 80.01 160.02 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8d5d0315-3e29-4401-a01f-faee43708daf")
+		(property "Reference" "#PWR1207" (at 80.01 157.48 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 80.01 165.1 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "25bab908-35bf-4e3a-be83-66d7768fc5d6"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0" (reference "#PWR1207") (unit 1))
+			)
+		)
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4065-8a2b-3c4d5e6f7085/8823284e-dc00-56ed-8495-fcfa27cfaea0"
+			(page "3.3")
+		)
+	)
+	(embedded_fonts no)
+)

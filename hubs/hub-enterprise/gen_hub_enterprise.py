@@ -25,7 +25,7 @@
 #
 # Run: python3 hubs/hub-enterprise/gen_hub_enterprise.py
 # Validate: kicad-cli sch erc ... (see scripts/check_hub_ent_sch.py)
-import os, sys
+import os, sys, uuid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOTDIR = os.path.dirname(os.path.dirname(HERE))
@@ -909,6 +909,425 @@ for _fn in (compose_01a, compose_01b, compose_01c, compose_01d,
     _fn()
 
 
+# ===========================================================================
+# 05 -- module ports: thin parent -> 8x 05a-port{n} + 05b-can-frontend +
+# 05c-detect-adc, per SCHEMATIC-PLAN.md sheet 05.
+#
+# INSTANCE MECHANISM (flagged per the task brief): the SCHEMATIC-PLAN.md
+# "repeated-sheet" ideal is ONE 05a-port.kicad_sch file instantiated 8x (a
+# single leaf FILE, eight distinct sheet-symbol placements). That needs, per
+# instance: its own `sheet_instances` (path,page) entry in the shared file's
+# footer AND its own `instances.path` entry on every component inside it
+# (KiCad's real repeated-sheet annotation model). Neither `build_leaf` (one
+# `sheet_instances_path`/`page` per call, one `instances.path` per component)
+# nor `build_thin_parent` (one `(sheet ...)` box per `leaves` entry, but every
+# box may point at a DIFFERENT file) support multi-instance-of-one-file
+# today -- extending that shared, multi-board machinery for this one
+# repeated-sheet case is out of scope here. This generator therefore takes
+# the documented fallback: 8 GENERATED LEAF FILES from one template function
+# (`compose_port`), each with its own refs -- exactly the platform's existing
+# per-instance ref-class convention (J_PORT1..8, R_DET1..8, D_DET1..8 etc.,
+# per bom-c-module-if-base-secio.md Sec1 and hub-ent-bom-detailed.md Sec6a).
+#
+# CAN BUS FAN-OUT (also flagged): CAN_H/CAN_L are a genuine N-way bus shared
+# by all 8 port leaves PLUS 05b-can-frontend's transceiver -- 9 sheet-pin
+# occurrences of the SAME net, which `build_thin_parent`'s 1:1/2-endpoint
+# sheet-pin fan-out cannot express (it raises on >2 occurrences by design;
+# see its own docstring). Resolved with a new shared-engine primitive: a real
+# KiCad `global_label` at every occurrence (`cec_sch.emit_global_label` +
+# `cec_sch_compose.build_leaf`'s new `global_nets` param) -- project-wide
+# connectivity by name, exactly like a power symbol, with NO sheet-pin
+# plumbing at all. T1 pairs / pin-7 SYNC / CAN_TX/RX / DETECT_SDA/SCL are
+# each single-occurrence-per-leaf at this thin parent (a port's own T1 pair
+# only appears once here; the far end is sheet 06, not yet captured) or a
+# clean 2-endpoint pair (DETECT_A: one port leaf + 05c), so those DO fit the
+# existing sheet-pin mechanism unchanged and climb to the ROOT as exports
+# (mirroring sheet 01's own pattern of exporting to a not-yet-consuming box).
+# ===========================================================================
+SHEET05_LEAF_IDS = [f"05a{n}" for n in range(1, 9)] + ["05b", "05c"]
+
+
+def _stable_uuid(name):
+    return str(uuid.uuid5(uuid.NAMESPACE_DNS, f"cec-hub-enterprise-{name}"))
+
+
+SHEET05_LEAF_SYM_UUIDS = {lid: _stable_uuid(f"05-leaf-sym-{lid}") for lid in SHEET05_LEAF_IDS}
+SHEET05_LEAF_OWN_UUIDS = {lid: _stable_uuid(f"05-leaf-own-{lid}") for lid in SHEET05_LEAF_IDS}
+SHEET05_OWN_UUID = _stable_uuid("05-module-ports-thin-parent")
+
+SHEET05_LEAVES = {}
+
+
+def leaf05(id_, filename, sheetname, desc):
+    lf = Leaf(id_, filename, sheetname, desc)
+    SHEET05_LEAVES[id_] = lf
+    return lf
+
+
+def compose_port(n):
+    """05a-port{n}: RJ-45 FTP jack + mis-plug protection (REQ-HUB-COMMON-110)
+    + DETECT/pin-7 chains (REQ-HUB-COMMON-042/112/114). One of 8 IDENTICAL
+    leaves (the repeated-sheet case, see the module note above) built from
+    this ONE template function, per-port refs J_PORT{n}/D_TVS{n}/D_VCC{n}/
+    R_DSER{n}/D_DET{n}/R_DET{n}/R_SYNC{n}/D_SYNC{n}."""
+    lf = leaf05(f"05a{n}", f"05a-port{n}.kicad_sch", f"05a-port{n}",
+               f"Port {n}: RJ-45 FTP + mis-plug protection + DETECT/pin-7 chains "
+               "(REQ-HUB-COMMON-042/110/112/114)")
+    J = f"J_PORT{n}"
+    DTVS, DVCC = f"D_TVS{n}", f"D_VCC{n}"
+    RDSER, DDET, RDET = f"R_DSER{n}", f"D_DET{n}", f"R_DET{n}"
+    RSYNC, DSYNC = f"R_SYNC{n}", f"D_SYNC{n}"
+
+    lf.add_part(J, "cec-ent-hub-local", "CEC_RJ45_8P8C_FTP", f"PORT{n}", 0, 0,
+                "cec:RJ45_FTP_Shielded_Horizontal",
+                {"Manufacturer": "Kinghelm", "MPN": "KH-RJ45-58-8P8C", "LCSC": "C2683360",
+                 "Description": f"Module port {n}, FTP RJ-45 8P8C, SH1/SH2->GND (Sec2.1 lock); "
+                                 "widened local symbol copy for pin-glyph clearance at 8-port density"})
+    lf.add_part(DTVS, "cec-ent-power", "SMAJ58A", "SMAJ58A", 0, 0,
+                "cec-Diode_SMD:D_SMA_SMAJ58A_L4.4-W2.6-LS5.0",
+                {"Manufacturer": "Littelfuse", "MPN": "SMAJ58A", "LCSC": "C499822",
+                 "Description": "pin-1 VCC tail-risk TVS (REQ-HUB-COMMON-110; hub-ent-bom-detailed Sec6a)"})
+    lf.add_part(DVCC, "cec-ent-power", "SS110", "SS110", 0, 0,
+                "cec-Diode_SMD:D_SMA_SS110_L4.3-W2.6-LS5.2",
+                {"Manufacturer": "MDD (Nanjing Silicon Chuang Tech)", "MPN": "SS110", "LCSC": "C2482",
+                 "Description": "pin-1 VCC 100V series blocking Schottky, K toward the port "
+                                 "(REQ-HUB-COMMON-110 per-pin analysis)"})
+    lf.add_part(RDSER, "cec-vendor", "R_Small", "10k", 0, 0,
+                "cec-Resistor_SMD:R_0402_1005Metric",
+                {"Manufacturer": UR, "MPN": "0402WGF1002TCE", "LCSC": "C25744",
+                 "Description": "DETECT series R ahead of the ESD clamp (REQ-HUB-COMMON-110; "
+                                 "hub-ent-bom-detailed Sec6a names ~10k/1206 -- captured here as "
+                                 "0402 [package flagged, not the BOM's 1206] pending bench calibration"})
+    lf.add_part(DDET, "cec-vendor", "PESD5V0S1UL", "PESD5V0S1BA", 0, 0,
+                "cec-Diode_SMD:D_SOD-323",
+                {"Manufacturer": "Nexperia", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
+                 "Description": "DETECT pin-8 ESD clamp (LOCKED Sec2.4)"})
+    lf.add_part(RDET, "cec-vendor", "R_Small", "10k", 0, 0,
+                "cec-Resistor_SMD:R_0402_1005Metric",
+                {"Manufacturer": UR, "MPN": "0402WGF1002TCE", "LCSC": "C25744",
+                 "Description": "DETECT pull-up to +3V3, Sec2.3 code table (10k/3.3V divider read)"})
+    lf.add_part(RSYNC, "cec-vendor", "R_Small", "100", 0, 0,
+                "cec-Resistor_SMD:R_0402_1005Metric",
+                {"Manufacturer": UR, "MPN": "0402WGF1000TCE",
+                 "Description": "pin-7 SYNC/FREEZE series R [illustrative value -- schematic-capture/"
+                                 "bench-calibration task per hub-ent-bom-detailed Sec6a] (REQ-HUB-COMMON-112/114)"})
+    lf.add_part(DSYNC, "cec-ent-power", "SMAJ58A", "SMAJ58A", 0, 0,
+                "cec-Diode_SMD:D_SMA_SMAJ58A_L4.4-W2.6-LS5.0",
+                {"Manufacturer": "Littelfuse", "MPN": "SMAJ58A", "LCSC": "C499822",
+                 "Description": "pin-7 SYNC/FREEZE tail-risk TVS, >=60V-tolerant per the "
+                                 "REQ-HUB-COMMON-110 per-pin analysis (the part's own vendored "
+                                 "Description names both 'hub/module pin-1 VCC AND pin-7 "
+                                 "SYNC/FREEZE' -- NOTE ent-common's module-side D2 instead used a "
+                                 "plain low-cap PESD5V0S1BA clamp there; flagged, not reconciled here)"})
+
+    lf.net(f"P{n}_VCC_RAW", (J, "1"), (DTVS, "2"), (DVCC, "1"))
+    lf.net("+5VSB", (DVCC, "2"))
+    lf.net("GND", (J, "2"), (J, "SH1"), (J, "SH2"), (DTVS, "1"), (DDET, "2"), (DSYNC, "1"))
+    lf.net("+3V3", (RDET, "2"))
+    lf.net("CAN_H", (J, "3"))
+    lf.net("CAN_L", (J, "6"))
+    lf.net(f"P{n}_T1_A", (J, "4"))
+    lf.net(f"P{n}_T1_B", (J, "5"))
+    lf.net(f"P{n}_SYNC7_RAW", (J, "7"), (RSYNC, "1"))
+    lf.net(f"P{n}_SYNC7", (RSYNC, "2"), (DSYNC, "2"))
+    lf.net(f"P{n}_DETECT_RAW", (J, "8"), (RDSER, "1"))
+    lf.net(f"P{n}_DETECT_A", (RDSER, "2"), (DDET, "1"), (RDET, "1"))
+
+    lf.hier_exports = {
+        f"P{n}_T1_A":      ("output", (J, "4")),
+        f"P{n}_T1_B":      ("output", (J, "5")),
+        f"P{n}_SYNC7":     ("output", (RSYNC, "2")),
+        f"P{n}_DETECT_A":  ("output", (RDSER, "2")),
+    }
+
+    c = _Compose(lf)
+    c.place(J, 30, 54)
+    # ---- pin 1 (VCC): jack -> SMAJ58A tail-risk shunt -> SS110 series block
+    # -> +5VSB. (Drawn source-to-sink left-to-right for readability; the hub
+    # actually SOURCES +5VSB onto this node, so the real current direction is
+    # the mirror of the drawing -- noted in the caption below.)
+    c.wire((16, 47), (14, 47), (14, 40))
+    c.use((J, "1"))
+    c.place_pin(DTVS, "2", 14, 40, 90)     # K (pin2) exactly on the VCC_RAW node
+    c.use((DTVS, "2"))
+    c.wire((14, 40), (20, 40))
+    c.place(DVCC, 23, 40, 0)               # native horizontal: K(1)@(20,40) A(2)@(26,40)
+    c.use((DVCC, "1"), (DVCC, "2"))
+    c.wire((26, 40), (32, 40))
+    c.stamp("+5VSB", 32, 40, 0)
+    # ---- pin 2 (GND) + shield (SH1/SH2) -- same idiom as ent-common's 01-power
+    c.wire((16, 49), (12, 49), (12, 38))
+    c.stamp("GND", 12, 38, 180)
+    c.use((J, "2"))
+    c.wire((44, 53), (46, 53))
+    c.wire((44, 55), (46, 55))
+    c.wire((46, 53), (46, 55), (46, 60))
+    c.stamp("GND", 46, 60, 0)
+    c.use((J, "SH1"), (J, "SH2"))
+    # ---- CAN_H/CAN_L (pins 3/6): left UNCONSUMED -- build_leaf's global_nets
+    # path fires automatically (default stub + a global_label, no plumbing).
+    # ---- T1 pair (pins 4/5): raw pass-through, S1 left column (protection
+    # lives on sheet 06's per-port MDI frontend -- REQ-HUB-COMMON-110)
+    c.io(f"P{n}_T1_A", "left")
+    c.io(f"P{n}_T1_B", "left")
+    # ---- pin 7: SYNC/FREEZE series R + tail-risk TVS (hand-wired: SMAJ58A's
+    # pin1=A/pin2=K is the OPPOSITE of protection_chain's shunt-branch
+    # assumption, which is shaped for D_Schottky-style pin1=K parts)
+    p7 = c.pin(J, "7")
+    c.wire(p7, (9, 59))
+    c.wire((9, 59), (9, 90))
+    c.use((J, "7"))
+    c.place(RSYNC, 14, 90, 90)
+    a7, b7 = c.pin(RSYNC, "1"), c.pin(RSYNC, "2")
+    c.wire((9, 90), a7)
+    c.use((RSYNC, "1"), (RSYNC, "2"))
+    node_x = b7[0] + 8
+    c.wire(b7, (node_x, 90))
+    c.place_pin(DSYNC, "2", node_x, 90, 90)
+    c.use((DSYNC, "2"))
+    end7 = (node_x + 8, 90)
+    c.wire((node_x, 90), end7)
+    c.hier(f"P{n}_SYNC7", *end7, 0)
+    # ---- pin 8: DETECT series R + ESD clamp + pull-up (Sec2.3 code read) --
+    # PESD5V0S1BA is pin1=K, matching protection_chain's shunt assumption, so
+    # this chain uses the shared archetype unchanged.
+    p8 = c.pin(J, "8")
+    c.wire(p8, (13, 61))
+    c.wire((13, 61), (13, 115))
+    c.use((J, "8"))
+    arch.protection_chain(c, (13, 115),
+                          [("series", RDSER), ("shunt", DDET), ("shunt", RDET)],
+                          f"P{n}_DETECT_A", out_kind="hier", pitch=8)
+    c.caption(lf.desc, 8, 22)
+    c.note("VCC: SS110 100V series block + SMAJ58A tail-risk TVS (REQ-HUB-COMMON-110); "
+           "DETECT: 10k series R [BOM names 1206 pkg, captured as 0402 here -- flagged] "
+           "-> PESD5V0S1BA (LOCKED Sec2.4) + 10k pull-up to +3V3 (Sec2.3 code read); "
+           "pin-7: 100R series R [illustrative] + SMAJ58A tail-risk clamp "
+           "(REQ-HUB-COMMON-112/114). All pin-7/DETECT-series values are a "
+           "schematic-capture/bench-calibration task per hub-ent-bom-detailed Sec6a, "
+           "not bench-verified here.", 8, 128)
+    c.done()
+    return lf
+
+
+for _n in range(1, 9):
+    compose_port(_n)
+
+
+def compose_can_frontend():
+    """05b-can-frontend: TJA1051T/3 + 120ohm split termination, the SHARED
+    front end for all 8 ports' CAN_H/CAN_L bus (REQ-HUB-COMMON-041/043)."""
+    lf = leaf05("05b", "05b-can-frontend.kicad_sch", "05b-can-frontend",
+               "TJA1051T/3 CAN transceiver + 120ohm split termination, shared 8-port bus "
+               "(REQ-HUB-COMMON-041/043)")
+    lf.add_part("U_CAN", "cec-vendor", "TJA1051T-3", "TJA1051T/3", 0, 0,
+               "cec-Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+               {"Manufacturer": "NXP", "MPN": "TJA1051T/3", "LCSC": "C38695",
+                "Description": "Platform-locked classical CAN transceiver (Sec3.1 v3.5), "
+                                "shared bus front end for all 8 module ports"})
+    lf.add_part("R_CANT1", "cec-vendor", "R_Small", "60.4", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": "Viking Tech", "MPN": "GR0402F60R4TAG00", "LCSC": "C49654185",
+                "Description": "split termination, CAN_H leg"})
+    lf.add_part("R_CANT2", "cec-vendor", "R_Small", "60.4", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": "Viking Tech", "MPN": "GR0402F60R4TAG00", "LCSC": "C49654185",
+                "Description": "split termination, CAN_L leg"})
+    lf.add_part("C_CANT", "cec-vendor", "C_Small", "4n7", 0, 0,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": "Fenghua", "MPN": "0402B472K500NT", "LCSC": "C1538",
+                "Description": "split-termination center cap"})
+    lf.add_part("C_CANVCC", "cec-vendor", "C_Small", "100n", 0, 0,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
+                "Description": "U_CAN VCC decoupling"})
+    lf.add_part("C_CANVIO", "cec-vendor", "C_Small", "100n", 0, 0,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
+                "Description": "U_CAN VIO decoupling"})
+
+    lf.net("+5VSB", ("U_CAN", "3"), ("C_CANVCC", "1"))
+    lf.net("+3V3", ("U_CAN", "5"), ("C_CANVIO", "1"))
+    lf.net("GND", ("U_CAN", "2"), ("U_CAN", "8"), ("C_CANVCC", "2"), ("C_CANVIO", "2"),
+           ("C_CANT", "2"))
+    lf.net("CAN_TX", ("U_CAN", "1"))
+    lf.net("CAN_RX", ("U_CAN", "4"))
+    lf.net("CAN_H", ("U_CAN", "7"), ("R_CANT1", "1"))
+    lf.net("CAN_L", ("U_CAN", "6"), ("R_CANT2", "2"))
+    lf.net("CANT_CTR", ("R_CANT1", "2"), ("R_CANT2", "1"), ("C_CANT", "1"))
+
+    lf.hier_exports = {
+        "CAN_TX": ("output", ("U_CAN", "1")),
+        "CAN_RX": ("output", ("U_CAN", "4")),
+    }
+
+    c = _Compose(lf)
+    c.place("U_CAN", 40, 50)
+    c.io("CAN_TX", "left")
+    c.io("CAN_RX", "left")
+    s_pin = c.pin("U_CAN", "8")
+    c.wire(s_pin, (s_pin[0] - 4, s_pin[1]))
+    c.stamp("GND", s_pin[0] - 4, s_pin[1], 180)
+    c.use(("U_CAN", "8"))
+    vio = c.pin("U_CAN", "5")
+    cvio = c.place_pin("C_CANVIO", "2", vio[0] - 4, vio[1], 0)
+    c.wire(vio, cvio)
+    c.use(("U_CAN", "5"), ("C_CANVIO", "2"))
+    cvio1 = c.pin("C_CANVIO", "1")
+    c.wire(cvio1, (cvio1[0], cvio1[1] - 4))
+    c.stamp("+3V3", cvio1[0], cvio1[1] - 4, 0)
+    c.use(("C_CANVIO", "1"))
+    vcc = c.pin("U_CAN", "3")
+    c.wire(vcc, (vcc[0], vcc[1] - 6))
+    cvcc = c.place_pin("C_CANVCC", "2", vcc[0], vcc[1] - 6, 0)
+    c.use(("U_CAN", "3"), ("C_CANVCC", "2"))
+    cvcc1 = c.pin("C_CANVCC", "1")
+    c.wire(cvcc1, (cvcc1[0], cvcc1[1] - 4))
+    c.stamp("+5VSB", cvcc1[0], cvcc1[1] - 4, 0)
+    c.use(("C_CANVCC", "1"))
+    canh = c.pin("U_CAN", "7")
+    canl = c.pin("U_CAN", "6")
+    c.place("R_CANT1", canh[0] + 8, canh[1], 90)
+    r1a, r1b = c.pin("R_CANT1", "1"), c.pin("R_CANT1", "2")
+    c.wire(canh, r1a)
+    c.use(("U_CAN", "7"), ("R_CANT1", "1"), ("R_CANT1", "2"))
+    c.place("R_CANT2", canl[0] + 8, canl[1], 90)
+    r2a, r2b = c.pin("R_CANT2", "1"), c.pin("R_CANT2", "2")
+    c.wire(canl, r2b)
+    c.use(("U_CAN", "6"), ("R_CANT2", "1"), ("R_CANT2", "2"))
+    ctr_x = max(r1b[0], r2a[0]) + 4
+    c.wire(r1b, (ctr_x, r1b[1]))
+    c.wire(r2a, (ctr_x, r2a[1]))
+    c.wire((ctr_x, r1b[1]), (ctr_x, r2a[1]))
+    c.place("C_CANT", ctr_x + 6, r1b[1], 90)
+    cct1 = c.pin("C_CANT", "1")
+    c.wire((ctr_x, r1b[1]), cct1)
+    c.use(("C_CANT", "1"))
+    cct2 = c.pin("C_CANT", "2")
+    c.wire(cct2, (cct2[0], cct2[1] + 4))
+    c.stamp("GND", cct2[0], cct2[1] + 4, 0)
+    c.use(("C_CANT", "2"))
+    c.caption(lf.desc, 10, 20)
+    c.note("120ohm split term (60.4x2 + 4n7 center cap); S(STB) tied GND -- normal/"
+           "active mode. CAN_H/CAN_L are GLOBAL LABELS binding to all 8 port leaves "
+           "(build_thin_parent's sheet-pin fan-out is 1:1/2-endpoint only -- see "
+           "cec_sch_compose.build_leaf's global_nets parameter).", 10, 92)
+    c.done()
+    return lf
+
+
+compose_can_frontend()
+
+
+def compose_detect_adc():
+    """05c-detect-adc: ADS7830 8-ch I2C ADC digitizing each port's DETECT_A
+    analog node (REQ-HUB-COMMON-042). FLAG: bom-c-module-if-base-secio.md
+    Sec5 names ADS7830 an 'alternative not chosen' vs a per-channel
+    comparator bank and marks the whole DETECT read-path question open;
+    SCHEMATIC-PLAN.md Sec1 nonetheless plans this exact leaf/part, and the
+    symbol is already T2-audited/vendored for precisely this role (its own
+    Description says 'NOT YET RATIFIED, owner/firmware call'). Captured here
+    per the plan with the ratification gap flagged, not silently resolved."""
+    lf = leaf05("05c", "05c-detect-adc.kicad_sch", "05c-detect-adc",
+               "ADS7830 8-ch I2C ADC: 8x DETECT_A -> DETECT_SDA/SCL (REQ-HUB-COMMON-042; "
+               "NOT YET RATIFIED -- bom-c-module-if-base-secio.md Sec5)")
+    lf.add_part("U_ADC", "cec-ent-power", "ADS7830IPWR", "ADS7830IPWR", 0, 0,
+               "cec-Package_SO:TSSOP-16_ADS7830IPWR_L5.0-W4.4-P0.65",
+               {"Manufacturer": TI, "MPN": "ADS7830IPWR", "LCSC": "C161747",
+                "Description": "candidate DETECT/rail-sense ADC -- NOT YET RATIFIED "
+                                "(owner/firmware call, bom-c-module-if-base-secio.md Sec5)"})
+    lf.add_part("C_ADCVDD", "cec-vendor", "C_Small", "100n", 0, 0,
+               "cec-Capacitor_SMD:C_0402_1005Metric",
+               {"Manufacturer": SAM, "MPN": "CL05B104KO5NNNC", "LCSC": "C1525",
+                "Description": "+VDD bypass"})
+    lf.add_part("C_ADCREF", "cec-vendor", "C_Small", "1u", 0, 0,
+               "cec-Capacitor_SMD:C_0603_1608Metric",
+               {"Manufacturer": SAM, "MPN": "CL10A105KB8NNNC", "LCSC": "C15849",
+                "Description": "internal-reference bypass, REFIN_REFOUT [value illustrative]"})
+    lf.add_part("R_I2CSDA", "cec-vendor", "R_Small", "4.7k", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF4701TCE",
+                "Description": "I2C SDA pull-up [value illustrative]"})
+    lf.add_part("R_I2CSCL", "cec-vendor", "R_Small", "4.7k", 0, 0,
+               "cec-Resistor_SMD:R_0402_1005Metric",
+               {"Manufacturer": UR, "MPN": "0402WGF4701TCE",
+                "Description": "I2C SCL pull-up [value illustrative]"})
+
+    lf.net("+3V3", ("U_ADC", "16"), ("C_ADCVDD", "1"), ("R_I2CSDA", "1"), ("R_I2CSCL", "1"))
+    lf.net("GND", ("U_ADC", "9"), ("U_ADC", "11"), ("U_ADC", "12"), ("U_ADC", "13"),
+           ("C_ADCVDD", "2"), ("C_ADCREF", "2"))
+    lf.net("ADC_REF", ("U_ADC", "10"), ("C_ADCREF", "1"))
+    lf.net("DETECT_SDA", ("U_ADC", "15"), ("R_I2CSDA", "2"))
+    lf.net("DETECT_SCL", ("U_ADC", "14"), ("R_I2CSCL", "2"))
+    for n in range(1, 9):
+        lf.net(f"P{n}_DETECT_A", ("U_ADC", str(n)))
+
+    lf.hier_exports = {f"P{n}_DETECT_A": ("output", ("U_ADC", str(n))) for n in range(1, 9)}
+    lf.hier_exports["DETECT_SDA"] = ("output", ("U_ADC", "15"))
+    lf.hier_exports["DETECT_SCL"] = ("output", ("U_ADC", "14"))
+
+    c = _Compose(lf)
+    c.place("U_ADC", 60, 60)
+    for n in range(1, 9):
+        c.io(f"P{n}_DETECT_A", "left")
+    # both conns (U_ADC pin + the I2C pull-up) get consumed below, so the
+    # default anchor-stub mechanism has no unconsumed pin to attach from --
+    # give the io router an explicit from_pt (the SDA/SCL pin itself).
+    c.io("DETECT_SDA", "right", from_pt=c.pin("U_ADC", "15"))
+    c.io("DETECT_SCL", "right", from_pt=c.pin("U_ADC", "14"))
+    gnd9 = c.pin("U_ADC", "9")
+    c.wire(gnd9, (gnd9[0] + 4, gnd9[1]))
+    c.stamp("GND", gnd9[0] + 4, gnd9[1], 0)
+    c.use(("U_ADC", "9"))
+    for pin in ("11", "12", "13"):
+        p = c.pin("U_ADC", pin)
+        c.wire(p, (p[0] + 4, p[1]))
+        c.stamp("GND", p[0] + 4, p[1], 0)
+        c.use(("U_ADC", pin))
+    ref = c.pin("U_ADC", "10")
+    cr2 = c.place_pin("C_ADCREF", "2", ref[0] + 6, ref[1], 0)
+    c.wire(ref, cr2)
+    c.use(("U_ADC", "10"), ("C_ADCREF", "2"))
+    cr1 = c.pin("C_ADCREF", "1")
+    c.wire(cr1, (cr1[0], cr1[1] - 4))
+    c.stamp("GND", cr1[0], cr1[1] - 4, 180)
+    c.use(("C_ADCREF", "1"))
+    vdd = c.pin("U_ADC", "16")
+    cv2 = c.place_pin("C_ADCVDD", "2", vdd[0] + 6, vdd[1], 0)
+    c.wire(vdd, cv2)
+    c.use(("U_ADC", "16"), ("C_ADCVDD", "2"))
+    cv1 = c.pin("C_ADCVDD", "1")
+    c.wire(cv1, (cv1[0], cv1[1] - 4))
+    c.stamp("GND", cv1[0], cv1[1] - 4, 180)
+    c.use(("C_ADCVDD", "1"))
+    scl = c.pin("U_ADC", "14")
+    c.place("R_I2CSCL", scl[0] + 8, scl[1] - 2, 0)
+    r_scl1, r_scl2 = c.pin("R_I2CSCL", "1"), c.pin("R_I2CSCL", "2")
+    c.wire(scl, r_scl2)
+    c.wire(r_scl1, (r_scl1[0], r_scl1[1] - 4))
+    c.stamp("+3V3", r_scl1[0], r_scl1[1] - 4, 0)
+    c.use(("U_ADC", "14"), ("R_I2CSCL", "1"), ("R_I2CSCL", "2"))
+    sda = c.pin("U_ADC", "15")
+    c.place("R_I2CSDA", sda[0] + 8, sda[1] - 2, 0)
+    r_sda1, r_sda2 = c.pin("R_I2CSDA", "1"), c.pin("R_I2CSDA", "2")
+    c.wire(sda, r_sda2)
+    c.wire(r_sda1, (r_sda1[0], r_sda1[1] - 4))
+    c.stamp("+3V3", r_sda1[0], r_sda1[1] - 4, 0)
+    c.use(("U_ADC", "15"), ("R_I2CSDA", "1"), ("R_I2CSDA", "2"))
+    c.caption(lf.desc, 10, 22)
+    c.note("NOT YET RATIFIED -- bom-c-module-if-base-secio.md Sec5 names ADS7830 an "
+           "'alternative not chosen' vs a per-channel comparator bank; SCHEMATIC-PLAN.md "
+           "Sec1 plans this leaf anyway and the part is T2-audited/vendored for exactly "
+           "this role, so it is captured here with the ratification gap flagged, not "
+           "silently resolved. A0/A1/COM tied GND (fixed I2C address, single-ended mode).",
+           10, 100)
+    c.done()
+    return lf
+
+
+compose_detect_adc()
+
+
 # ---------------------------------------------------------------------------
 # the 15 exports at the ROOT boundary -- UNCHANGED from the pre-restructure
 # generator (same names, same shapes; build_root() and the root sheet's own
@@ -940,6 +1359,23 @@ ROOT_EXPORT_NETS = set(HIER_EXPORTS)
 # but kept as a mapping for generality / a future net whose symbol name
 # differs from its net name).
 GLOBAL_POWER_EXPORTS = {n: n for n in ("+5V_MAIN", "+5VSB", "+5V_SYS")}
+
+# ---------------------------------------------------------------------------
+# 05's own root-level exports: each port's raw T1 pair + pin-7 SYNC (awaiting
+# sheet 06/02/09 capture), the CAN transceiver's digital TX/RX, and the
+# DETECT ADC's I2C bus. Mirrors sheet 01's own pattern of exporting to a box
+# that has nothing wired to its pins yet (02/06/09 remain placeholders).
+# ---------------------------------------------------------------------------
+HIER_EXPORTS_05 = {}
+for _n in range(1, 9):
+    HIER_EXPORTS_05[f"P{_n}_T1_A"] = ("output", (f"J_PORT{_n}", "4"))
+    HIER_EXPORTS_05[f"P{_n}_T1_B"] = ("output", (f"J_PORT{_n}", "5"))
+    HIER_EXPORTS_05[f"P{_n}_SYNC7"] = ("output", (f"R_SYNC{_n}", "2"))
+HIER_EXPORTS_05["CAN_TX"] = ("output", ("U_CAN", "1"))
+HIER_EXPORTS_05["CAN_RX"] = ("output", ("U_CAN", "4"))
+HIER_EXPORTS_05["DETECT_SDA"] = ("output", ("U_ADC", "15"))
+HIER_EXPORTS_05["DETECT_SCL"] = ("output", ("U_ADC", "14"))
+ROOT_EXPORT_NETS_05 = set(HIER_EXPORTS_05)
 
 
 if __name__ == "__main__":
@@ -1020,14 +1456,85 @@ if __name__ == "__main__":
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()) +
           f"  total_leaf_parts={total_parts}")
 
-    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES}
+    # ---- sheet 05: module ports (8x 05a-port{n} + 05b-can-frontend + 05c-detect-adc)
+    LEAF_ORDER_05 = SHEET05_LEAF_IDS
+    leaf_page_05 = {lid: f"3.{i+1}" for i, lid in enumerate(LEAF_ORDER_05)}
+    total_parts_05 = 0
+    for li, lid in enumerate(LEAF_ORDER_05):
+        lf = SHEET05_LEAVES[lid]
+        path_prefix = f"{ROOT_UUID}/{SHEET_UUIDS['05']}/{SHEET05_LEAF_SYM_UUIDS[lid]}"
+        sheet_instances_path = f"{SHEET_UUIDS['05']}/{SHEET05_LEAF_SYM_UUIDS[lid]}"
+        global_nets = {"CAN_H", "CAN_L"} if lid.startswith("05a") or lid == "05b" else set()
+        stats = build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS, PROJECT, path_prefix, sheet_instances_path, SHEET05_LEAF_OWN_UUIDS[lid],
+            page=leaf_page_05[lid], out_path=f"{HERE}/{lf.filename}", paper="A4",
+            title=f"CEC Hub -- Enterprise (ENT): {lf.sheetname}", comment1=lf.desc,
+            # 1000-block, disjoint from sheet 01's leaves (100-800) + its
+            # thin parent (800): #PWR/#FLG refs must stay unique across the
+            # flattened design.
+            pwr_base=1000 + 100 * li, layout=lf.layout, global_nets=global_nets)
+        total_parts_05 += stats["parts"]
+        n_moved, still = cec_sch_layout.nudge_texts(f"{HERE}/{lf.filename}")
+        stats["nudged"], stats["text_overlaps_left"] = n_moved, still
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in stats.items()))
+
+    PARENT_PINS_05 = {}
+    for _n in range(1, 9):
+        PARENT_PINS_05[f"05a{_n}"] = [
+            (f"P{_n}_T1_A", "right"), (f"P{_n}_T1_B", "right"),
+            (f"P{_n}_SYNC7", "right"), (f"P{_n}_DETECT_A", "right"),
+        ]
+    PARENT_PINS_05["05b"] = [("CAN_TX", "right"), ("CAN_RX", "right")]
+    PARENT_PINS_05["05c"] = ([(f"P{_n}_DETECT_A", "left") for _n in range(1, 9)]
+                             + [("DETECT_SDA", "right"), ("DETECT_SCL", "right")])
+    for lid in LEAF_ORDER_05:
+        assert {n for n, _s in PARENT_PINS_05[lid]} == set(SHEET05_LEAVES[lid].hier_exports), lid
+
+    BOX_05 = {f"05a{_n}": (16, 16 + i * 36, 24) for i, _n in enumerate(range(1, 9))}
+    BOX_05["05b"] = (140, 16, 16)
+    BOX_05["05c"] = (140, 50, 44)
+
+    leaves_for_parent_05 = []
+    for lid in LEAF_ORDER_05:
+        lf = SHEET05_LEAVES[lid]
+        bx, by, bh = BOX_05[lid]
+        leaves_for_parent_05.append({
+            "id": lid, "sym_uuid": SHEET05_LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": leaf_page_05[lid],
+            "x": bx * u, "y": by * u, "w": 70 * u, "h": bh * u,
+            "pins": [(name, lf.hier_exports[name][0], side)
+                      for name, side in PARENT_PINS_05[lid]],
+        })
+
+    parent_stats_05 = build_thin_parent(
+        leaves_for_parent_05, ROOT_EXPORT_NETS_05, PROJECT, ROOT_UUID, SHEET_UUIDS["05"],
+        SHEET05_OWN_UUID, out_path=f"{HERE}/05-module-ports.kicad_sch",
+        title="CEC Hub -- Enterprise (ENT): 05-module-ports (thin parent)", paper="A2",
+        libs=LIBS, pwr_base=2000, page="3")
+    print("05-module-ports.kicad_sch (thin parent)  " +
+          "  ".join(f"{k}={v}" for k, v in parent_stats_05.items()) +
+          f"  total_leaf_parts={total_parts_05}")
+
+    # ---- root: 01-power-input (page 2) + 05-module-ports (page 3, NEW) +
+    # 7 remaining placeholders (page 4+; "05" is no longer a placeholder)
+    root_extra_sheets = [{
+        "hier_exports": HIER_EXPORTS_05, "sym_uuid": SHEET_UUIDS["05"],
+        "sheetname": "05-module-ports", "sheetfile": "05-module-ports.kicad_sch",
+        "geom": (20, 120, 70, 180), "page": "3",
+    }]
+    placeholder_uuids = {n: SHEET_UUIDS[n] for n in SHEET_TITLES if n != "05"}
     build_root(HIER_EXPORTS, PROJECT, ROOT_UUID, SHEET_UUIDS["01"],
                placeholder_uuids, SHEET_TITLES,
-               out_path=f"{HERE}/hub-enterprise.kicad_sch", paper="A3")
-    print("hub-enterprise.kicad_sch  sheets=1(power-input parent)+8(placeholder)")
+               out_path=f"{HERE}/hub-enterprise.kicad_sch", paper="A2",
+               extra_sheets=root_extra_sheets, first_placeholder_page=4)
+    print("hub-enterprise.kicad_sch  sheets=2(power-input+module-ports parents)+7(placeholder)")
 
-    for num, (name, desc) in SHEET_TITLES.items():
-        page = 3 + list(sorted(SHEET_TITLES)).index(num)
+    remaining = sorted(k for k in SHEET_TITLES if k != "05")
+    for i, num in enumerate(remaining):
+        name, desc = SHEET_TITLES[num]
+        page = 4 + i
         build_placeholder(num, SHEET_UUIDS[num], name, desc, PROJECT, page,
                            out_path=f"{HERE}/{name}.kicad_sch", paper="A4")
-    print("Generated 8 placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in sorted(SHEET_TITLES)))
+    print("Generated 7 placeholder sheets: " + ", ".join(SHEET_TITLES[n][0] for n in remaining))

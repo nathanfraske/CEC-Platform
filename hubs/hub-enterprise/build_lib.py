@@ -28,7 +28,7 @@ build_thin_parent = _compose.build_thin_parent
 
 def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
                placeholder_uuids, placeholder_titles, out_path, paper="A3",
-               extra_sheets=None):
+               extra_sheets=None, first_placeholder_page=3):
     """Hub-specific wrapper: the ENT hub root's title block + sheet-map legend
     around the generic cec_sch_compose.build_root.
 
@@ -68,7 +68,8 @@ def build_root(hier_exports, project, root_uuid, sheet01_sym_uuid,
         placeholder_uuids, placeholder_titles, out_path,
         title_block_str, legend_str,
         main_sheetname="01-power-input", main_sheetfile="01-power-input.kicad_sch",
-        paper=paper, extra_sheets=extra_sheets)
+        paper=paper, extra_sheets=extra_sheets,
+        first_placeholder_page=first_placeholder_page)
 
 
 def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path, paper="A4"):
