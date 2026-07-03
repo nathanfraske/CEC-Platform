@@ -12,7 +12,7 @@ below marked VERIFIED was re-checked live by an independent second agent this se
 | # | Lock | Evidence |
 |---|---|---|
 | A1 | **Hub C1 = Samxon/Ymin VKMI2101C472MV, LCSC C487318** (the part already shipping in schematic/BOM/PCB). The Panasonic EEVFK1C472M in CLAUDE.md/README was documentation-only — and Panasonic is OUT OF STOCK ($1.09@100 when available) vs C487318 in stock (275 LCSC / 516 JLC, $0.73@100). Fix the DOCS to match the boards, not vice versa. | VERIFIED live both channels |
-| A2 | **PCIe 45586-0005 stays; no pegless variant exists anywhere.** All 7 SKUs in the family (-0005…-1206) differ only in plating/resin/packaging; "PCB Retention: Yes" is fixed parametric. The EPS-style 44→35mm height win is NOT available by part swap. Optional mechanical deviation (delete the 2 peg NPTHs from the land, retention via 16 THT tails) is a board-specific owner call, not a part change. **Fab flag: 45586-0005 is 0-stock / 9-week lead at DigiKey today ($3.03@680)** — order timing matters for any PCIe run. | VERIFIED live (Molex series chart + DigiKey) |
+| A2 | **PCIe 45586-0005 stays; no pegless variant exists anywhere.** All 7 SKUs in the family (-0005…-1206) differ only in plating/resin/packaging; "PCB Retention: Yes" is fixed parametric. The EPS-style 44→35mm height win is NOT available by part swap. Optional mechanical deviation (delete the 2 peg NPTHs from the land, retention via 16 THT tails) is a board-specific owner call, not a part change. ~~Fab flag: 45586-0005 is 0-stock / 9-week lead at DigiKey today ($3.03@680)~~ **RETIRED (owner, 2026-07-03): male headers sourced from ModDIY, plentiful stock — lead time is a non-issue.** | VERIFIED live (Molex series chart + DigiKey) |
 | A3 | **Sensor lines stay as specified** — no cross-vendor drop-in exists for any of INA240A3DR / INA228 / INA238 / INA181A2 / TLV7011. Stock today: INA240A3DR 13k+ (DigiKey, $1.93@500), INA228 healthy, INA181/TLV7011 healthy. | VERIFIED live |
 | A4 | **Hub power-in consolidation part = JST S3B-XH-A, LCSC C157928** (3-pin XH RA THT, 3A/pin; curved-needle sibling C163036 40k stock as alternate). Pin order **MAIN_5V / GND(center) / 5VSB** — GND-center makes any misinsertion benign; XH shrouding already blocks reversal/offset. Same family as the existing 2-pin parts: no new assembly process. | VERIFIED live |
 
@@ -52,3 +52,17 @@ below marked VERIFIED was re-checked live by an independent second agent this se
 - INA240A3DR / INA228 supply for a 100–1k run.
 - The 45586 connector choice (keying is safety-load-bearing; A2).
 - Alternatives investigated and REJECTED with reasons on record: Amphenol Minitek HCC (male-on-board convention, same as Molex), Würth WR-MPC3 (3.0mm pitch, incompatible), 3PEAK/Microchip sensor crosses (not drop-in), JST VH for power-in (declined on merits), AliExpress-class "female ATX" parts (no credible listing; unqualified provenance).
+
+
+## F. Base-level QoL shortlist (owner ask, 2026-07-03 — ranked, cheapest-per-delight first)
+
+| # | Item | Cost | Vehicle |
+|---|---|---|---|
+| F1 | Cable-dress anchors (zip-tie slots) + a mounting story on EVERY module — fixes the "dangles in the channel" finding | Board-outline features, ~$0 | W6 routing/finishing passes + hub beta layout |
+| F2 | Hub port-LED semantics (breathing=healthy / amber=event / red=fault) on the existing 7× SK6812 | Firmware only; FORCES the OQ-2 number | Firmware lane |
+| F3 | Self-describing silk: port numbers, which-cable arrows, install-page QR + serial QR per module | ~$0 | W6/W8 silk passes |
+| F4 | **Persist-on-fault as a shipped feature** (last ~2s pre-roll survives PC death; §2.9 hardware already built) — the highest-leverage consumer story on the list | OQ-56 bench + firmware surfacing | OQ-56 bench (owner) + firmware lane |
+| F5 | Status LED per module (~$0.10 SK6812 + GPIO) so "amber=event" is visible at the module — NOTE: a status LED was DECLINED once on 12VHPWR (v3.7); this is a revisit-or-keep call, flagged not assumed | ~$0.10/module + owner call | Decision list (new D-12) |
+| F6 | One-plug power (3-pin GND-center consolidation) — locked as A4; listed for the story | done | B6 |
+| F7 | Single-point firmware updates: Hub USB updates all modules over CAN; module USB-C = service fallback only. Commit the architecture BEFORE module firmware ossifies | Firmware architecture commitment | Firmware lane, now |
+| F8 | Kit ergonomics: pre-cut patch lengths per case class (answers OQ-4 as product), labeled per-module bags, D-8 insert | Packaging | Kit definition (D-1) |
