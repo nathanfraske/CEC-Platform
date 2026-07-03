@@ -548,8 +548,13 @@ def _powerflag_anchors(powerflag_nets, placement, power_ports, project,
     else:
         base_y = round((max(p[1] for p in placement.values()) + 19.05) / cec_sch.GRID) * cec_sch.GRID
         base_x = round((min(p[0] for p in placement.values())) / cec_sch.GRID) * cec_sch.GRID
+    # pitch: wide enough for the longest horizontal label among non-port
+    # nets (a labeled rail gets a HORIZONTAL label at the wire top -- the old
+    # vertical-90 label ran down over its own wire and whatever sat below)
+    lbl_nets = [n for n in powerflag_nets if n not in power_ports]
+    pitch = max(15.24, _snap(max((len(n) for n in lbl_nets), default=0) * 1.35 + 5.08))
     for i, net_name in enumerate(sorted(powerflag_nets)):
-        sx = base_x + i * 15.24
+        sx = base_x + i * pitch
         ty, by_ = base_y, base_y + 10.16
         wires.append(cec_sch.emit_wire(sx, ty, sx, by_))
         port = power_ports.get(net_name, net_name)
@@ -560,7 +565,7 @@ def _powerflag_anchors(powerflag_nets, placement, power_ports, project,
             flags.append(_emit_power2(port, sx, ty, 180, project, path_prefix, pwr_ref("#PWR")))
             flags.append(_emit_power2("PWR_FLAG", sx, by_, 0, project, path_prefix, pwr_ref("#FLG")))
         else:
-            labels.append(cec_sch.emit_label(net_name, sx, ty, 90))
+            labels.append(cec_sch.emit_label(net_name, sx, ty, 0))
             flags.append(_emit_power2("PWR_FLAG", sx, by_, 0, project, path_prefix, pwr_ref("#FLG")))
 
 
@@ -780,7 +785,14 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
         cxs += [e[0], e[1]]; cys += [e[2], e[3]]
     for w in lay_wires:
         cxs += [w[0], w[2]]; cys += [w[1], w[3]]
-    content_bbox = (min(cxs), max(cxs), min(cys), max(cys))
+    content_bbox = (min(cxs), max(cxs), min(cys), max(cys))  # ELECTRICAL bbox (io router)
+    for _k, ttxt, tx, ty, tsz in lay_texts:      # captions/notes are content too
+        longest = max((len(ln) for ln in ttxt.split("\n")), default=1)
+        cxs += [tx, tx + longest * tsz * 1.02]
+        cys += [ty, ty + (ttxt.count("\n") + 1) * tsz * 1.6]
+    for r in lay_regions:
+        cxs += [r[1], r[3]]; cys += [r[2], r[4]]
+    full_bbox = (min(cxs), max(cxs), min(cys), max(cys))     # + annotation (pf block)
 
     if io_sides:
         missing = sorted(n for n in io_sides if n not in io_attach)
@@ -804,7 +816,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     if powerflag_nets:
         _powerflag_anchors(powerflag_nets, placement, power_ports, project,
                            path_prefix, pwr_ref, wires, labels, flags,
-                           bbox=content_bbox)
+                           bbox=full_bbox)
 
     ncs = []
     for ref, (lib, name, _v) in parts.items():

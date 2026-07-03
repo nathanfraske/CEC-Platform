@@ -16,7 +16,7 @@
 	(text "08-secio-aux -- CAPTURE PENDING\n\nRJ-11 security I/O, NanoKVM aux, SK6812 chain, service button\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
 		(at 20 20 0)
 		(effects (font (size 2 2)))
-		(uuid "237f6dc0-7c8b-402b-81ff-dd46b3fbabd8")
+		(uuid "7598a1e9-49fc-444e-a6b5-a8bbaa85ce44")
 	)
 	(sheet_instances
 		(path "/0a1b2c3d-4e5f-4068-8a2b-3c4d5e6f7088"
