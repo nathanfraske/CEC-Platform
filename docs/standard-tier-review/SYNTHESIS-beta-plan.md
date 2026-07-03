@@ -110,6 +110,19 @@ findings remain recorded for when a trade is genuinely quality-neutral._
   cable bend radius). Recommended combo: 90° L + captive-female-out ≈ 2,800–3,500mm² vs 8,342
   shipped / 6,576 rev2 study. INTERACTS WITH D-5: a form change this size argues for being THE
   full respin, not an after-rev.
+  **HARDWARE-VALIDATED (owner photo, 2026-07-03):** the alpha PROTOTYPE already uses this
+  construction — wire-row solder entries (no header footprints bounding the outline), 90° male
+  header IN (board-mount part now in hand) + captive female pigtail OUT — and is visibly a
+  fraction of the committed CAD's size. GENDER-LOGIC FINDING (recorded): standard aftermarket
+  24-pin extensions (male-header ↔ female) mate with a FEMALE-out module exactly like a PSU
+  cable, so the whole extension ecosystem works inline — while a MALE-out module can mate with
+  NOTHING standard (male-male), which is why §2.8 needed the custom F-F bridge. Female-out is
+  therefore both the zero-extra-parts direct install AND the only extension-compatible form.
+  RECOMMENDATION (assessment, owner deciding): soldered short NEUTRAL-BLACK captive stub (one
+  fewer mated pair, no color SKUs — aesthetics/switching live in the detachable extension
+  layer; CEC-branded extensions become an ACCESSORY revenue line, nothing required in-box).
+  OWNER BENCH ITEM: stub LENGTH (decides whether the module sits at the header or behind the
+  tray through the grommet).
 - **D-5. 24-pin beta scope (the critical path).** Narrow "rev3a" = parity fixes 1–5 + locked
   shunts, ~$39–41, fastest to a sellable mandatory module; vs full respin (C6 + §6.13 + mux +
   mezzanine header), ~$40–44, slower, waits on D-3/D-4. Sub-choice: INA228×4 (full energy story,
