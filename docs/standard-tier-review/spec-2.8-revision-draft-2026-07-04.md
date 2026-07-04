@@ -214,11 +214,28 @@ premium blades stay demoted at $13–26/module, MCN51 OBSOLETE):
   confirm-soak (not the full derivation bench). Blade adapters are OUT for power rails:
   the genuine PCB-mount FASTON pair (TE 62751-1 + 62409-1) is receptacle-bound at 7 A
   continuous → 27–42 tabs/module, dead.
-  **RECOMMENDED TWO-STAGE PATH (re-slotted):** [ ] prototypes ship NOW on REDCUBE 85 A
-  (zero debt); [ ] production default = **stacked Keystone 8197 (rated, $3–5/module)**
-  from the D-5 respin / BOM-lock point, gated only on the light confirm-soak; the full
-  generic-hardware bench is DEMOTED to an optional deep cost-down (buys only a further
-  ~$1–3/module). 24-pin HPCE sample pursuit unchanged (tool-less alternative).
+  **§8.9+§8.10 FINAL LADDER (owner-led catalog work, 2026-07-04):**
+  [ ] **HEADLINE — the all-Keystone/TE TOOL-LESS BLADE config**: main board carries
+  Keystone UNIVERSAL-ENTRY 30 A blade clips (SMT 3586 = **LCSC C238113** $0.345@100, or
+  THT 3557-2 = C352820; top/side/bottom-entry menu = mezzanine-stack vs slide-in
+  mechanics), daughterboard carries **TE FASTON .250″ PCB tabs (63849-1 = LCSC C86469,
+  $0.04)** — the sellable assembly gets the four-cent part. Joint counts 24-pin 9 / EPS 12
+  / PCIe-2 8 / PCIe-3 12; **$2.7–4.6/module all-in, RATED (30 A/500 V), TOOL-LESS, and the
+  ONLY end-to-end JLC-native path** (everything on C-numbers → SMT/THT assembly at board
+  fab, zero consignment). Chassis screws provide captivation (the ruling's own
+  strain-relief assumption).
+  [ ] Committed SCREWED alternative: stacked Keystone 8197 ($3–5/module rated) — note
+  8197 is LCSC OUT-OF-STOCK today (C238177) → consignment-bound until restock.
+  [ ] Protos: REDCUBE 85 A (NOT on LCSC — DigiKey import, fine at proto quantities).
+  [ ] 24-pin HPCE premium conditional unchanged.
+  **GATES before ratifying the headline** (all cheap sample work): (1) gang MATING-FORCE
+  measurement (Keystone publishes none; bounding 5–15 N/blade → firm-press at 8–12
+  joints, but FASTON-class friction can run much higher — ten minutes with samples);
+  (2) cluster confirm-soak + thermal-cycle contact-R trend (fretting is the friction
+  joint's honest weakness — box (e)'s sense-return contact is hereby PROMOTED TO
+  RECOMMENDED as its designed-in monitor); (3) procurement: clip stock depth (LCSC has
+  533 today, <1 production run of 900–1,200) or JLC-library admission before a run.
+  The full generic-hardware bench stays DEMOTED to optional deep cost-down.
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|

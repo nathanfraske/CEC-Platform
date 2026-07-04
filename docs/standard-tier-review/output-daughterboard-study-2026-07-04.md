@@ -981,11 +981,11 @@ unless (d)'s uniformity argument wins.
 
 **(f) REVISED CONFIG MATRIX per family:**
 
-| Config | $/module @1k (all-in) | Rated provenance | Footprint gate | Mating force | Retention | SMT-line friendly |
-|---|---|---|---|---|---|---|
-| **(i) All-Keystone TOOL-LESS blade** (universal 30 A clips + 1287 tabs + header block) | **$2.7–3.9** | 30 A field (conditions unstated → confirm-soak) | clears (effective; raw same class as posts) | **UNVERIFIED — sample-measure; 60–300 N band at 8–12 joints** | friction + chassis screws; fretting caveat, sense-return monitors | Yes — 3586KTR kapton reels (SMT) or THT wave |
-| (ii) 8197 screw config (§8.8(6)) | $4.4–6.5 | 30 A field (same caveat) | clears (effective) | n/a (screws) | **strongest — threaded** | THT; screws at final assembly |
-| (iii) Mixed (blades on EPS/PCIe, 8197 on 24-pin) | ~$3–5.5 | same | clears | blade sites only | screwed where the biggest board hangs | mixed |
+| Config | $/module @1k (all-in) | Rated provenance | Footprint gate | Mating force | Retention | SMT-line friendly | JLC-native? (§8.10) |
+|---|---|---|---|---|---|---|---|
+| **(i) All-Keystone TOOL-LESS blade** (universal 30 A clips + 1287-class tabs + header block) | **$2.7–3.9** | 30 A field (conditions unstated → confirm-soak) | clears (effective; raw same class as posts) | **UNVERIFIED — sample-measure; 60–300 N band at 8–12 joints** | friction + chassis screws; fretting caveat, sense-return monitors | Yes — 3586KTR kapton reels (SMT) or THT wave | **YES w/ caveats** — 3586 = LCSC C238113 (stock thin), tab side = TE C86469 ($0.04); §8.10 |
+| (ii) 8197 screw config (§8.8(6)) | $4.4–6.5 | 30 A field (same caveat) | clears (effective) | n/a (screws) | **strongest — threaded** | THT; screws at final assembly | **NO** — 8197 OOS at LCSC (C238177); REDCUBE not carried → consignment |
+| (iii) Mixed (blades on EPS/PCIe, 8197 on 24-pin) | ~$3–5.5 | same | clears | blade sites only | screwed where the biggest board hangs | mixed | partial — inherits (ii)'s consignment on the 24-pin |
 
 **RECOMMENDATION:** config **(i) becomes the headline pick** — it hits $2.7–4.6/module RATED
 and tool-less, makes the sellable daughterboard+extension the six-cent-tab side, and gives the
@@ -997,3 +997,57 @@ REDCUBE (§8.7) remains the zero-qualification proto rung; HPCE (§8.6) remains 
 tool-less premium conditional. The §5 sense-return option should be considered PROMOTED from
 optional to recommended in config (i) — it is the designed-in monitor for the friction joint's
 one honest weakness.
+
+### 8.10 JLC/LCSC CARRIAGE for the §8.9 winners (2026-07-04, owner JLC addendum — same day)
+
+_The platform BOM is LCSC-sourced for JLCPCB assembly; carriage decides whether the blade config
+rides the assembly line or becomes consigned hand-solder. All fetched/searched 2026-07-04.
+Note the standing distinction: LCSC carriage ≠ automatic JLCPCB assembly-library membership —
+Basic/Extended class was NOT displayed on the pages fetched (**UNVERIFIED**); the C-numbers below
+make parts orderable-with-the-boards either way._
+
+**(1) Exact carriage verdicts:**
+
+| Part | LCSC verdict | Detail |
+|---|---|---|
+| **Keystone 3586** (SMT universal clip, 30 A) | **CARRIED — C238113** | $0.6178/1, $0.4812/10, $0.413/30, **$0.3447/100**; **stock 533** ([lcsc.com C238113](https://www.lcsc.com/product-detail/Fuse-Holders_Keystone-3586_C238113.html)). CAVEAT: 533 pcs < ONE 100-module run (9–12 clips/module ⇒ 900–1,200 needed) — order-ahead/restock required |
+| Keystone 3557/3557-2 (THT top-entry clip) | **CARRIED — C352820** (3557-2; 3557-10 = C3205403, ~$1.34 multi-pack class) | price tiers not fetched (**UNVERIFIED**) |
+| 3586TR/3586KTR (reels) | not found as distinct LCSC SKUs this pass — **UNVERIFIED** (C238113 is the loose-part listing) |
+| **Keystone 1287** (.250 THT tab) | CARRIED — **C238078, from $0.0802, OUT OF STOCK**; 1287-ST = **C5296740, 860 in stock** | thin |
+| **Keystone 8197** (30 A power tap) | CARRIED — **C238177, OUT OF STOCK** (listed under "Plugin PCB Welding Terminal") | screw config loses its LCSC path today |
+| **Würth REDCUBE 74650094** | **NOT CARRIED on LCSC** (DigiKey/Mouser channels only) | proto rung = import/consign — fine for protos, wrong for the JLC line |
+
+**(2) Rated LCSC-native equivalents per class:**
+- **(a) Blade receptacle/clip class:** the strongest LCSC-native answer is Keystone itself
+  (above). A Chinese-brand rated universal-clip equivalent was NOT pinned to a C-number this
+  pass (**UNVERIFIED — thin**; LCSC's Fuse-Holders category has ATO-clip classes, per-SKU
+  ratings unconfirmed — MODDIY provenance rule applies to any unrated pick).
+- **(b) .250″/6.3 mm PCB solder tabs — LCSC-NATIVE AND CHEAP, the clean win:** TE FASTON PCB
+  tabs are carried with LCSC-hosted TE datasheets: **63849-1 = C86469, from $0.0405**; also
+  1217167-1 (C5167016), 63900-1 (C590218), 62261-1 (C5168339). The daughterboard tab side is
+  fully JLC-native at ~4–8¢/joint.
+- **(c)/(d) M3/M4 screw terminals / welding lugs / power taps-studs:** the category exists
+  (Screw-terminal / welding-terminal classes; Phoenix/WECO blocks are wire-side, not BTB);
+  no datasheet-RATED BTB screw part pinned this pass (**UNVERIFIED — thin**). Chinese studs =
+  unrated tier, prototype only.
+
+**(3) Assembly economics per config:**
+- **Blade (i): the most JLC-native.** Main board: 3586 (SMT body) via C238113 — SMT-line
+  placeable if admitted to the JLC library (else THT 3557-2/C352820 wave/hand THT adder);
+  daughterboard: TE tabs C86469 at $0.04 THT. Everything ships on LCSC C-numbers; the only
+  friction is Keystone stock depth (533/860) → order-ahead. Effective $/module: unchanged from
+  §8.9 (~$2.7–4.6) + JLC's per-joint THT adder (small; exact fee **UNVERIFIED**).
+- **8197-screw (ii): consignment-bound today.** 8197 = C238177 OOS; REDCUBE not carried. Both
+  screw rungs become import/consign + hand or domestic assembly — a real per-module fee adder
+  and logistics step (**fee UNVERIFIED**), on top of already 1.5–2× the blade price.
+- **Mixed (iii):** inherits (ii)'s consignment exactly where the volume is (the mandatory
+  24-pin). Weakest of the three under the JLC lens.
+
+**(4) Matrix updated (§8.9(f) now carries the JLC-native column). PICK UNCHANGED, REINFORCED:**
+the all-Keystone/TE blade config (i) is both the cheapest rated config AND the only one that is
+JLC-native end-to-end today. No rated LCSC-native equivalent materially beats consigned
+Keystone — because Keystone itself is carried; the receptacle side needs no substitute, only
+stock management. The two §8.9 sample-gates (gang mating force; cluster confirm-soak +
+thermal-cycle contact-R) remain the only things between config (i) and the §2.8 revision draft;
+add a third procurement note: **secure clip stock depth (or JLC-library admission for C238113)
+before committing a production run.**

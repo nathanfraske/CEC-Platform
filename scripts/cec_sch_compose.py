@@ -1223,6 +1223,10 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
             # prior geometry (byte-identical output; the collision cannot
             # occur there since k+3 is out of range).
             tapx = lane - (6.35 if len(group) >= 4 else 7.62)
+            import sys as _sys
+            print(f"DEBUG tli={tli}({leaves[tli]['id']}) k={k} net={net_name} "
+                  f"sx={sx:.2f} sy={sy:.2f} txx={txx:.2f} tyy={tyy:.2f} "
+                  f"lane={lane:.2f} tapx={tapx:.2f} tap={tap}", file=_sys.stderr)
             if sy == tyy and not tap:
                 wires.append((sx, sy, txx, tyy))
             else:
