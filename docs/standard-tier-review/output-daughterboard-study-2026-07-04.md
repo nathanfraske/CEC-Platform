@@ -84,15 +84,18 @@ re-validation and the fusing-via discussion in `CLAUDE.md`'s action items — th
 culture here targets a 30 °C rise ceiling), so a connector rated at exactly that condition maps
 directly onto the repo's existing pass/fail language.
 
-| Candidate | Per-contact derated rating | Contacts for 20 A (24-pin rail) | Contacts for 40 A (PCIe cable) | Contacts for 55 A (EPS cable) | Stack height | Keying/captivation | Indicative cost (100 qty) | Survives 30 °C-rise culture? |
+| Candidate | Per-contact derated rating | Contacts for 24-pin 12V rail (20 A target) | Contacts for PCIe cable (49 A margin target) | Contacts for EPS cable (65 A margin target) | Stack height | Keying/captivation | Indicative cost (100 qty) | Survives 30 °C-rise culture? |
 |---|---|---|---|---|---|---|---|---|
-| **Samtec mPOWER UMPT/UMPS** (2 mm pitch blade) | 18 A single-contact max; **derates with adjacent loading** — ~12.9–13.2 A at 4 populated contacts, ~8.9–9.8 A at 10, all figures already **20% derated for 30 °C rise to max allowable temp** ([samtec.com/products/umps](https://www.samtec.com/products/umps), [umpt](https://www.samtec.com/products/umpt), datasheet F-224) | 2 (≈26 A) | 4 (≈52 A) | 5 (≈65 A) | Vertical or right-angle, multiple stack heights | UMPT offers **metal side-latching** or plastic-top variants — genuine positive latch available | Single-unit DigiKey ~$4–7/part (UMPS-04/UMPT-04 class); no 100-qty break found — **UNVERIFIED at volume** | Yes — rating is *already stated at* 30 °C rise |
-| **Molex EXTreme Ten60Power / Ten60** | 50 A per blade headline; **split-blade terminal rated 30 A at 30 °C T-rise** (search-derived from Molex product-highlight copy; full PS-46436 PDF is image-encoded and did not extract textually — **rating cross-check UNVERIFIED against the primary PDF table**, only the marketing/product-page mirror) | 1 (marginal, no redundancy) / 2 recommended (60 A) | 2 (60 A) | 2 (60 A) | Vertical and right-angle, "hybrid power-and-signal" mixed housings | PCB polarizing pegs, guide modules (1.8–2.4 mm misalignment gatherability), **200 mate/unmate cycle rating** — no explicit screw-lock found, alignment-guide based | Not found in this pass — **UNVERIFIED** | Likely yes (30 A figure explicitly at 30 °C rise) but primary datasheet not confirmed |
-| **TE MULTI-BEAM XLE / XL** | Up to 100 A/contact with 4 adjacent contacts; standard configs **80 A high-power contact / 20 A low-power contact**; 6-beam variant to 75 A ([te.com MULTI-BEAM HD/XLE/XL](https://www.te.com/en/products/connectors/power-connectors/intersection/multi-beam-xl-xle.html)) | 1 (80 A contact comfortably covers 20 A; oversized for this use) | 1 (oversized) | 1 (oversized, no redundancy — use 2) | Vertical and right-angle; VITA 62 lineage (rugged, backplane-class) | Guide-pin/jackscrew alignment typical of VITA 62 card-cage hardware — **not obviously a simple daughterboard latch; likely over-engineered/oversized for a consumer product** | Not found — VITA 62 parts are typically quote-only, **UNVERIFIED**, expect higher unit cost than the other three | Yes on rating, but likely the wrong tool (rugged/backplane-class, not consumer-cost-appropriate) |
-| **Amphenol PwrBlade** | Individual contact 48 A; **multi-contact configurations rated 30 A per power contact at 30 °C rise, still air** ([amphenol-cs.com PwrBlade datasheet](https://cdn.amphenol-cs.com/media/wysiwyg/files/documentation/datasheet/power/pwr_powerblade_system.pdf)) | 1 (marginal) / 2 recommended (60 A) | 2 (60 A) | 2 (60 A) | Vertical or right-angle header/receptacle, coplanar/backplane/mezzanine mounting | 1–20 power contacts + 0–148 signal contacts in one housing (genuinely hybrid) — mezzanine-mount variants exist matching this exact "stood-up daughterboard" geometry | Not found — **UNVERIFIED**, but Amphenol/FCI power connectors of this class are typically in the low-$ per-position range at volume based on comparable families | Yes — rating explicitly at 30 °C rise, matches repo convention directly |
-| **Hirose MCN51** (press-fit) | **27 A per contact, UL-recognized/CSA-certified**, press-fit compliant-pin termination, 8/16/30-position bodies, vertical and right-angle ([hirose.com MCN51](https://www.hirose.com/product/en/products/MCN51)) | 1 (marginal) / 2 recommended (54 A) | 2 (54 A) | 2–3 (54–81 A) | Vertical/RA, 8/16/30 positions | Press-fit (compliant pin) mechanical retention into the PCB itself gives strong captivation on the daughterboard side; mating-side retention mechanism not confirmed — **UNVERIFIED** | Not found — **UNVERIFIED** | Rating basis (30°C rise) not explicitly stated in the material found — **flag for datasheet confirmation** |
-| **Cheap alternative — 2.54 mm dual-row header** | ~3 A/pin commonly cited (search consensus, e.g. Harwin/Amphenol BergStik-class parts; no single authoritative 30 °C-rise table found across manufacturers — **UNVERIFIED as a hard number**, treated per the study brief's own stated assumption) | 7 (24 A) | 14 (48 A) | 19 (57 A) | Standard 0.1″ pin field, many stack-height options | **Friction/housing-lock only on generic parts — no positive latch or screw** — this is the disqualifying weakness for "must not unseat/mis-seat" at these pin counts and currents | Very low, cents/position | Marginal — high pin count raises assembly/mis-seat risk faster than it saves cost, and no vendor 30 °C-rise table was found to hang a real margin number on |
-| **Cheap alternative — 3.96 mm (0.156″) KK-396-class header** | **~7 A/pin** (search consensus across multiple 3.96 mm KK-396 listings; Molex's own `PS-08-50-001.pdf` datasheet exists but detailed per-pin derating table not extracted in this pass — **UNVERIFIED against the primary PDF**) | 3 (21 A) | 6 (42 A) | 8 (56 A) | Standard 0.156″ pin field | Same weakness as above — commodity single-row/dual-row housings are **friction-lock only**; no screw/latch variant found for this specific family | Very low, tens of cents/position | Same caveat — cheap and workable current-wise, but captivation is the open problem, not current |
+| **Samtec mPOWER UMPT/UMPS** (2 mm pitch blade) | 18 A single-contact max; **derates with adjacent loading** — ~12.9–13.2 A at 4 populated contacts, ~8.9–9.8 A at 10, all figures already **20% derated for 30 °C rise to max allowable temp** ([samtec.com/products/umps](https://www.samtec.com/products/umps), [umpt](https://www.samtec.com/products/umpt), datasheet F-224) | 2 (≈26 A) | 4 (≈52 A) | 5–6 (≈65–75 A) | Vertical or right-angle, multiple stack heights | UMPT offers **metal side-latching** or plastic-top variants — genuine positive latch available | Single-unit DigiKey ~$4–7/part (UMPS-04/UMPT-04 class); no 100-qty break found — **UNVERIFIED at volume** | Yes — rating is *already stated at* 30 °C rise |
+| **Molex EXTreme Ten60Power / Ten60** | 50 A per blade headline; **split-blade terminal rated 30 A at 30 °C T-rise** (search-derived from Molex product-highlight copy; full PS-46436 PDF is image-encoded and did not extract textually — **rating cross-check UNVERIFIED against the primary PDF table**, only the marketing/product-page mirror) | 1 (marginal, no redundancy) / 2 recommended (60 A) | 2 (60 A) | 3 (90 A) | Vertical and right-angle, "hybrid power-and-signal" mixed housings | PCB polarizing pegs, guide modules (1.8–2.4 mm misalignment gatherability), **200 mate/unmate cycle rating** — no explicit screw-lock found, alignment-guide based | Not found in this pass — **UNVERIFIED** | Likely yes (30 A figure explicitly at 30 °C rise) but primary datasheet not confirmed |
+| **TE MULTI-BEAM XLE / XL** | Up to 100 A/contact with 4 adjacent contacts; standard configs **80 A high-power contact / 20 A low-power contact**; 6-beam variant to 75 A ([te.com MULTI-BEAM HD/XLE/XL](https://www.te.com/en/products/connectors/power-connectors/intersection/multi-beam-xl-xle.html)) | 1 (80 A contact comfortably covers 20 A; oversized for this use) | 1 (oversized) | 1 (oversized; 80 A covers 65 A alone) / 2 recommended for redundancy | Vertical and right-angle; VITA 62 lineage (rugged, backplane-class) | Guide-pin/jackscrew alignment typical of VITA 62 card-cage hardware — **not obviously a simple daughterboard latch; likely over-engineered/oversized for a consumer product** | Not found — VITA 62 parts are typically quote-only, **UNVERIFIED**, expect higher unit cost than the other three | Yes on rating, but likely the wrong tool (rugged/backplane-class, not consumer-cost-appropriate) |
+| **Amphenol PwrBlade** | Individual contact 48 A; **multi-contact configurations rated 30 A per power contact at 30 °C rise, still air** ([amphenol-cs.com PwrBlade datasheet](https://cdn.amphenol-cs.com/media/wysiwyg/files/documentation/datasheet/power/pwr_powerblade_system.pdf)) | 1 (marginal) / 2 recommended (60 A) | 2 (60 A) | 3 (90 A) | Vertical or right-angle header/receptacle, coplanar/backplane/mezzanine mounting | 1–20 power contacts + 0–148 signal contacts in one housing (genuinely hybrid) — mezzanine-mount variants exist matching this exact "stood-up daughterboard" geometry | Not found — **UNVERIFIED**, but Amphenol/FCI power connectors of this class are typically in the low-$ per-position range at volume based on comparable families | Yes — rating explicitly at 30 °C rise, matches repo convention directly |
+| **Hirose MCN51** (press-fit) | **27 A per contact, UL-recognized/CSA-certified**, press-fit compliant-pin termination, 8/16/30-position bodies, vertical and right-angle ([hirose.com MCN51](https://www.hirose.com/product/en/products/MCN51)) | 1 (marginal) / 2 recommended (54 A) | 2 (54 A) | 3 (81 A) | Vertical/RA, 8/16/30 positions | Press-fit (compliant pin) mechanical retention into the PCB itself gives strong captivation on the daughterboard side; mating-side retention mechanism not confirmed — **UNVERIFIED** | Not found — **UNVERIFIED** | Rating basis (30°C rise) not explicitly stated in the material found — **flag for datasheet confirmation** |
+| **Cheap alternative — 2.54 mm dual-row header** | ~3 A/pin commonly cited (search consensus, e.g. Harwin/Amphenol BergStik-class parts; no single authoritative 30 °C-rise table found across manufacturers — **UNVERIFIED as a hard number**, treated per the study brief's own stated assumption) | 7 (21 A) | 17 (51 A) | 22 (66 A) | Standard 0.1″ pin field, many stack-height options | **Friction/housing-lock only on generic parts — no positive latch or screw** — this is the disqualifying weakness for "must not unseat/mis-seat" at these pin counts and currents | Very low, cents/position | Marginal — high pin count raises assembly/mis-seat risk faster than it saves cost, and no vendor 30 °C-rise table was found to hang a real margin number on |
+| **Cheap alternative — 3.96 mm (0.156″) KK-396-class header** | **~7 A/pin** (search consensus across multiple 3.96 mm KK-396 listings; Molex's own `PS-08-50-001.pdf` datasheet exists but detailed per-pin derating table not extracted in this pass — **UNVERIFIED against the primary PDF**) | 3 (21 A) | 7 (49 A) | 10 (70 A) | Standard 0.156″ pin field | Same weakness as above — commodity single-row/dual-row housings are **friction-lock only**; no screw/latch variant found for this specific family | Very low, tens of cents/position | Same caveat — cheap and workable current-wise, but captivation is the open problem, not current |
+
+The 12V-rail column is the representative (lowest-current) 24-pin case; scale contact counts by
+~1.5× for 3.3V (30 A target) and ~1.9× for 5V (37.5 A target) at the same per-contact rating.
 
 **Honest flag on the mated-pair count:** every candidate above **adds one full mated contact set
 downstream of the shunts**, on every rail, that did not exist when the output was a single
@@ -103,13 +106,13 @@ daughterboard → header/pigtail joint → cable = at minimum 2 joints downstrea
 as Form C, not Form B's 1). §5 below is the mitigation this study was asked to assess for exactly
 that reason.
 
-**Overall §1/§2 kill-check verdict: a real connector exists at the repo's design bar for every
-family.** Samtec mPOWER, Molex Ten60Power, Amphenol PwrBlade, and Hirose MCN51 all clear 20 A
-(24-pin), 40 A (PCIe), and 55 A (EPS) with 2–5 contacts and genuine 30 °C-rise-class derating —
-this is not the Form-D failure mode (Micro-Fit 3.0 derating to 3–3.5 A/ckt, below even the lower
-6 A ATX floor). The open risk is not "does a connector exist" — it is captivation/qualification
-detail (latch type, primary-datasheet confirmation, 100-qty pricing) that needs a real quote
-request before any part is locked in.
+**Overall §1/§2 kill-check verdict: a real connector exists at the owner's margin-adjusted design
+bar for every family.** Samtec mPOWER, Molex Ten60Power, Amphenol PwrBlade, and Hirose MCN51 all
+clear 20–37.5 A (24-pin, per rail), 49 A (PCIe), and 65 A (EPS) with 2–6 contacts and genuine
+30 °C-rise-class derating — this is not the Form-D failure mode (Micro-Fit 3.0 derating to
+3–3.5 A/ckt, below even the *un*-margined 6 A ATX floor). The open risk is not "does a connector
+exist" — it is captivation/qualification detail (latch type, primary-datasheet confirmation,
+100-qty pricing) that needs a real quote request before any part is locked in.
 
 ## 3. MODDIY verification
 
@@ -241,33 +244,79 @@ A true Kelvin-quality read would need a downstream GND-side tap too, which doubl
 contact count; whether that is worth it is an open cost/value call for the owner, not resolved
 here.
 
-## 6. Recommendation matrix
+## 6. Daughterboard shape: per-cable vs. one wide board
+
+A shape question specific to the multi-cable families: is there ONE inter-board connector/
+daughterboard per cable, or ONE wide daughterboard spanning every cable on the module? (24-pin is
+moot here — it is already architecturally "one wide" connector by ATX convention, all rails
+through a single housing; this question only bites on EPS and both PCIe SKUs, where each cable is
+today an independently shunted, independently Kelvin-sensed chain.)
+
+- **Shape A — per-cable:** a separate small connector/daughterboard site per cable, each sized only
+  to its own cable's margin target (EPS 65 A, PCIe 49 A, §1).
+- **Shape B — one wide board:** a single connector/housing carrying the SUM of every cable's
+  current on the module.
+
+| | EPS (2 cables) | PCIe-2port (2 cables) | PCIe-3port (3 cables) |
+|---|---|---|---|
+| Shape A: contacts/site (PwrBlade/Ten60-class, 30 A/contact) | 3/polarity/site × 2 sites = **12 power contacts total** | 2/polarity/site × 2 sites = **8** | 2/polarity/site × 3 sites = **12** |
+| Shape B: aggregate current in one housing | ~130 A (65×2) | ~98 A (49×2) | ~147 A (49×3) |
+| Shape B: contacts (same nominal 30 A/contact figure) | 5/polarity = **10** | 4/polarity = **8** | 5/polarity = **10** |
+
+Shape B's raw contact count looks similar to, or even slightly lower than, Shape A's — but that
+comparison is **misleading**. Every family in §2 publishes per-contact ratings that **derate
+further as more contacts are populated in the same housing** (mutual heating — Samtec's own table
+is explicit: 18 A single-contact drops to ~13 A at 4 populated, ~9 A at 10). Shape B concentrates
+every cable's contacts into one housing, so the real per-contact figure to use comes from a
+higher-population row of that derating curve than Shape A's smaller per-cable housings ever reach
+— Shape B's true contact count is higher than the naive same-per-contact-value math above
+suggests, and its housing runs measurably hotter for the same total current than two or three
+separate housings dissipating into separate board regions.
+
+Shape B also **breaks fault isolation** (a single connector-body defect risks every cable on the
+module at once) and cuts against the ruling's own sellable-assembly addendum — a customer or
+service tech cannot replace one cable's daughterboard+extension independently if every cable's
+copper is fused onto one shared board. Its one genuine advantage is fewer discrete parts: one
+connector, one PCB, one chassis cutout/strain-relief interface instead of two or three.
+
+**Recommendation: Shape A (per-cable), for EPS and both PCIe SKUs.** It avoids the hidden
+mutual-heating margin loss Shape B introduces, preserves the per-cable independent Kelvin-sense
+architecture already built into these modules, and is a direct match for the ruling's
+"daughterboard+extension can itself be sold" addendum without re-litigating how to split a shared
+board later. Shape B's one real edge (fewer chassis cutouts) is a mechanical/BOM-count trade for
+the owner and chassis designer to weigh, not a current-capacity argument — flagged as an open item,
+not resolved here.
+
+## 7. Recommendation matrix
 
 | Family | Recommended connector class | Power contacts (source + return) | Extra signal (sense-return + presence) | Projected daughterboard size | Open items for the owner |
 |---|---|---|---|---|---|
-| 24-pin ATX | Amphenol PwrBlade or Molex Ten60Power (30 A/contact @ 30 °C rise class) | ~2/rail × 4 rails (12V, 5V, 3.3V, 5VSB) + matching GND = **~16–18 contacts** | 1–4 (per sensed rail) | Small — connector body + fan-out to the chosen output footprint; comparable to the existing mezzanine/J6 precedent footprint, well under the current 24-pin board area | Real 100-qty quote (none of the four "real" families had confirmed volume pricing in this pass); confirm per-rail vs. shared-GND contact allocation against the actual 8-GND-pin ATX asymmetry noted in §1 |
-| PCIe 2-port | Same family, **2 separate per-cable connector sites** (or 2 isolated contact groups in one housing) | 2/cable × 2 cables = **~8 contacts** | 1–2/cable | Two small connector zones, one per cable — mirrors the existing per-cable independent Kelvin-sense architecture | Confirm per-cable vs. one-shared-housing architecture (this study recommends per-cable separation to avoid compounding mutual-heating derates in one housing; not yet ratified) |
-| PCIe 3-port | Same, ×3 cables | ~12 contacts | 1–3 | Three zones, same reasoning | Same as above, ×3 |
-| EPS 8-pin | Higher-current member of the list (TE Multi-Beam 80 A high-power contact, or 2× Amphenol PwrBlade/Molex Ten60 per polarity) — EPS carries the highest repo design bar of the three (55 A/cable) | 2/cable × 2 cables = **~8 contacts**, sized to the highest per-contact rating available | 1–2/cable | Two small zones, same per-cable logic as PCIe | Confirm the 55 A design bar is the right target vs. accepting more margin loss at the connector; TE Multi-Beam is likely over-specified/costly for a consumer part — Amphenol/Ten60/Hirose are the more cost-appropriate picks pending real quotes |
+| 24-pin ATX | Amphenol PwrBlade or Molex Ten60Power (30 A/contact @ 30 °C rise class) | ~2/rail (12V) to ~4/rail (5V) + matching GND, across 12V/5V/3.3V/5VSB = **~16–20 contacts** (§1 per-rail targets: 20/37.5/30/7.5 A) | 1–4 (per sensed rail) | Small — connector body + fan-out to the chosen output footprint; comparable to the existing mezzanine/J6 precedent footprint, well under the current 24-pin board area | Real 100-qty quote (none of the four "real" families had confirmed volume pricing in this pass); confirm per-rail vs. shared-GND contact allocation against the actual 8-GND-pin ATX asymmetry noted in §1 |
+| PCIe 2-port | Same family, **Shape A — 2 separate per-cable connector sites** (§6) | 2/cable × 2 cables = **~8 contacts**, each site rated ≥49 A continuous | 1–2/cable | Two small connector zones, one per cable — mirrors the existing per-cable independent Kelvin-sense architecture | Ratify the Shape A/B call (§6, this study's recommendation, not yet ratified) |
+| PCIe 3-port | Same, ×3 cables, Shape A | 2/cable × 3 cables = **~12 contacts** | 1–3 | Three zones, same reasoning | Same as above, ×3 |
+| EPS 8-pin | Higher-current member of the list (2–3× Amphenol PwrBlade/Molex Ten60 per polarity; TE Multi-Beam is likely over-specified/costly) — EPS carries the highest margin-adjusted target of the three (65 A/cable, §1) | 3/cable × 2 cables = **~12 contacts**, Shape A (§6), each site rated ≥65 A continuous | 1–2/cable | Two small zones, same per-cable logic as PCIe | Confirm the 65 A margin target vs. accepting a lower connector margin; Amphenol/Ten60/Hirose are the more cost-appropriate picks pending real quotes |
 
 **Data that is thin and should not be treated as settled:** 100-qty pricing for every "real"
 board-to-board power family (§2); the primary Molex Ten60 PDF current-derating table (the search
 summary is corroborated only by product-page marketing copy, not the extracted PDF); Hirose
 MCN51's mating-side captivation mechanism and its 30 °C-rise basis; whether the MODDIY "for PCB
 Board" part's actual terminal alloy/plating clears any real current at all without a physical
-sample (§3); the per-cable-vs-shared-housing architecture call for EPS/PCIe (this study's
-recommendation, not ratified); and the transient-absorption assumption (§1) that a
-non-continuously-rated connector contact can safely ride out the 60–75 A EPS/PCIe transient
-figures the way the shunt's thermal mass already does — nothing here bench-verifies that.
+sample (§3); the Shape A/B call for EPS/PCIe (§6, this study's recommendation, not ratified); the
+125 %-margin policy itself (§1, proposed here, not yet an owner-ratified number); and the
+transient-absorption assumption (§1) that a non-continuously-rated connector contact can safely
+ride out the 60–75 A EPS/PCIe transient figures the way the shunt's thermal mass already does —
+nothing here bench-verifies that.
 
 **Owner-facing follow-ups this study surfaces (not resolved here):**
-1. Request real 100-qty quotes on Amphenol PwrBlade, Molex Ten60Power, and Hirose MCN51 in the
+1. Ratify or revise the 125 %-margin policy (§1) — it is this study's proposal, not an existing
+   owner number.
+2. Request real 100-qty quotes on Amphenol PwrBlade, Molex Ten60Power, and Hirose MCN51 in the
    contact counts above, before any part gets written into a BOM.
-2. Pull physical MODDIY "MIATX-PCB" samples and run the same bench battery already prescribed for
+3. Pull physical MODDIY "MIATX-PCB" samples and run the same bench battery already prescribed for
    the DIY vertical-female part in the atx24 panel record (pull force, mating cycles, current-rise,
    plating/contact-resistance trend) — do not treat MODDIY-sourced as pre-qualified.
-3. Decide the EPS/PCIe per-cable-vs-shared-housing architecture (§6) explicitly.
-4. Decide whether the sense-return option (§5) ships now, later, or not at all, and at what
+4. Decide the Shape A/B call for EPS/PCIe (§6) explicitly.
+5. Decide whether the sense-return option (§5) ships now, later, or not at all, and at what
    granularity (per-rail vs. single shared tap).
-5. Get the chassis strain-relief geometry/force numbers so the daughterboard's through-hole joint
+6. Get the chassis strain-relief geometry/force numbers so the daughterboard's through-hole joint
    spec (§4) can be finalized rather than defaulting to the panel's daughterboard-local figures.
