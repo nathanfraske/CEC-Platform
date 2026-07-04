@@ -23,3 +23,26 @@ consent-integrity).
   configured in repo-local git config. PR #51 carries all of this (recovery hardening).
 - The token was shared in chat once — rotating it eventually is prudent; a fine-grained
   Contents:write PAT would shrink scope (swap into the same file, no code change).
+
+**FAILURE MODE SEEN + GUARDED (2026-06-13, owner directive "push as the bot, not me — set it in stone"):**
+a fresh clone that has NOT had `ops/provision.sh`'s git-auth step applied inherits the GLOBAL helper
+`credential.https://github.com.helper = !/usr/bin/gh auth git-credential`, which is logged in as the
+**owner (`nathanfraske`)** — so `git push` is attributed to the owner even though commits are bot-authored.
+The fix is the repo-LOCAL wiring (reset `credential.https://github.com.helper ""` then `--add` the bot
+helper); `git credential fill` for github.com must return `username=nathanfraske-bot`.
+- **In-stone guard:** `ops/hooks/pre-push` (committed) → installed to `.git/hooks/pre-push` by
+  `ops/provision.sh` (unconditional). It runs `git credential fill` and **ABORTS any github.com push that
+  would authenticate as anyone but `nathanfraske-bot`** (allows the session-end `x-access-token:<PAT>@`
+  URL). Verified: allows the bot-wired repo, aborts the owner-gh fallback.
+- **Before any push from a new clone:** confirm `git credential fill <<<'protocol=https\nhost=github.com\n\n'`
+  → `username=nathanfraske-bot`, or run `bash ops/provision.sh`. The pre-push hook now enforces this.
+
+**THE `gh` CLI IS A SEPARATE IDENTITY (2026-06-13).** Git *pushes* go through the bot credential helper,
+but the `gh` CLI authenticates as whoever `gh auth` is logged in as — on this box the **OWNER
+(`nathanfraske`)**. So `gh pr create/comment/edit` and `gh api` (e.g. changing a PR base) are attributed
+to the OWNER unless you override the token. This was the real attribution leak the owner noticed (the git
+pushes were already the bot, verified by PushEvent actors).
+- **Use `ops/secrets/gh-bot.sh` for ALL agent gh operations** — it execs `gh` with `GH_TOKEN=<bot PAT>`
+  so the action is the bot (refuses to fall back to the owner if the PAT is absent). e.g.
+  `./ops/secrets/gh-bot.sh pr comment 56 --body ...`. Plain `gh ...` = the owner; do not use it for writes.
+- Both guards (pre-push hook + gh-bot wrapper) shipped on branch `claude/bot-push-guard` (PR #57).
