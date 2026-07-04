@@ -139,7 +139,13 @@ LEAF_OWN_UUIDS = {
 # parts with no (or few) cross-sheet pins clear of every lane corridor.
 BOX = {
     "01-hub-link":    (4, 8, 55, 40),
-    "02-can":         (75, 8, 55, 30),
+    # y=30 (not 8, row-aligned with the rest): DETECT_SENSE's hub-link->mcu
+    # lane SKIPS OVER this box (can sits between them in x) and its tap
+    # routes at hub-link's own pin height (~28mm, the round-4 lane_labels
+    # tap mechanics) -- measured live, an y=8 can box of the same height
+    # sat exactly in that lane's path. y=30 clears it while can's own two
+    # pin pairs (still only 2 rows tall) fit easily.
+    "02-can":         (75, 30, 55, 30),
     "04-mcu":         (150, 8, 60, 60),
     "05-sensing":     (240, 8, 55, 44),
     "06-cable-power": (315, 8, 50, 40),
@@ -170,6 +176,20 @@ def is_hierarchical(sch_path):
 # EXTRACTION -- direct from the live committed schematic (never a stale
 # snapshot / never the *-rev2 extract.json experiment dirs).
 # ============================================================================
+def _bare_name(name):
+    """kicad-cli's netlist export reports a flat (root-sheet) signal net as
+    "/BARE_NAME" -- a NETLIST-reporting convention (the root-sheet path
+    prefix), not something the schematic's own `(label ...)` text carries.
+    Leaf.net()/hier_exports use the bare form throughout this repo (see
+    gen-modules.py/gen_p4_t1_block.py), so it is stripped here, once, at
+    extraction. Power nets (GND/+3V3/+5VSB) already have no prefix."""
+    if name.count("/") > 1:
+        raise SystemExit(f"gen-module-beta: net {name!r} has more than one "
+                          f"path segment -- the flat-board assumption "
+                          f"(root-sheet only) does not hold")
+    return name[1:] if name.startswith("/") else name
+
+
 def extract(flat_sch):
     inv = G.inventory(flat_sch)
     groups = R.netlist_groups(flat_sch)
@@ -177,7 +197,7 @@ def extract(flat_sch):
     for members, name in groups.items():
         if name.startswith("unconnected-"):
             continue
-        by_name[name] = sorted(members)
+        by_name[_bare_name(name)] = sorted(members)
 
     parts, footprints, props, dnp_refs = {}, {}, {}, set()
     for ref, d in inv.items():
@@ -422,44 +442,66 @@ def compose_mcu(c, lf):
 
 
 def compose_sensing(c, lf, cable_labels):
-    n = len(cable_labels)
-    _grid_place(c, ["R10", "C40", "R3", "R4"], 20, 8, 4, dx=16, dy=16)
+    # LEFT column exits toward the MCU leaf (THRESH_PWM/I2C/DETC*); RIGHT
+    # column exits toward the cable-power leaf (SENSEC*_HI/_LO). Placement
+    # follows that flow directly (cmp_/R10/C40/R3/R4 left, ina right) so the
+    # io-column router's wire stays short. INA226 (ina) is placed rot=180:
+    # its Vin+/Vin- pins (8/9/10, the SENSEC anchors) are symbol-authored on
+    # the LEFT (angle 0) -- measured live, a naive rot=0 placement sent the
+    # SENSEC wire straight through the SAME part's own body trying to reach
+    # the right-side column. rot=180 flips them to the right (its I2C/addr/
+    # alert pins move left in exchange, harmless: their own hier anchors are
+    # R3/R4, not U1x, so U1x's copies just carry a plain same-name label).
+    _grid_place(c, ["R10", "C40", "R3", "R4"], 15, 8, 4, dx=16, dy=16)
     y = 40
     for i, label in enumerate(cable_labels):
         ina, amp, cmp_ = f"U1{i}", f"U2{i}", f"U3{i}"
         dec, ca, cb = f"C1{i}", f"C2{i}", f"C3{i}"
-        c.place(ina, 30, y)
-        c.place(dec, 30, y + 20)
-        c.place(amp, 70, y)
-        c.place(cmp_, 100, y)
-        c.place(ca, 70, y + 20)
-        c.place(cb, 100, y + 20)
+        c.place(cmp_, 15, y)
+        c.place(cb, 15, y + 20)
+        c.place(amp, 55, y)
+        c.place(ca, 55, y + 20)
+        c.place(ina, 100, y, 180)
+        c.place(dec, 100, y + 20)
         y += 45
-    _auto_io(c, lf.hier_exports)
+    for net in lf.hier_exports:
+        c.io(net, "right" if re.match(r"^SENSEC", net) else "left")
     for i, txt in enumerate(FLAT_CAPTIONS["05-sensing"]):
         c.caption(txt, 10 + i * 2, 8 - (2 if i == 0 else 0))
     c.done()
 
 
 def compose_cable_power(c, lf, cable_labels):
+    # Both J_IN and J_OUT's SENSE pins are symbol-authored on the LEFT
+    # (angle 0) -- the SAME direction the io side ("left", toward sensing)
+    # needs -- so both connectors share ONE x column (stacked vertically);
+    # the shunt (no cross-sheet net of its own beyond what the connectors
+    # already carry) sits clear to the RIGHT, out of the left-bound path
+    # (placing it directly between the connectors and the left edge, as an
+    # earlier attempt did, sent the io-column wire straight through its
+    # body -- measured live).
     y = 20
     for i in range(len(cable_labels)):
-        c.place(f"J_IN{i + 1}", 30, y)
-        c.place(f"J_OUT{i + 1}", 70, y)
-        c.place(f"RS{i + 1}", 50, y)
-        y += 30
+        c.place(f"J_IN{i + 1}", 15, y)
+        c.place(f"J_OUT{i + 1}", 15, y + 20)
+        c.place(f"RS{i + 1}", 45, y + 10)
+        y += 45
     _auto_io(c, lf.hier_exports)
     c.done()
 
 
 def compose_usb_flash(c, lf):
-    c.place("J5", 40, 45)
-    c.place("D2", 75, 20)
-    c.place("D3", 95, 20)
-    c.place("FB1", 75, 50)
-    c.place("C9", 95, 50)
-    c.place("R8", 75, 70)
-    c.place("R9", 95, 70)
+    # D3 (USBLC6-2SC6) carries the USB_D_P/USB_D_N hier anchors on ITS OWN
+    # LEFT pins (1/3) -- placed leftmost so the io-column wire has nothing
+    # else to cross (measured live: with J2/D2 to its left, the wire clipped
+    # a foreign pin along the way).
+    c.place("D3", 15, 45)
+    c.place("J5", 70, 45)
+    c.place("D2", 100, 20)
+    c.place("FB1", 100, 45)
+    c.place("C9", 100, 70)
+    c.place("R8", 120, 20)
+    c.place("R9", 120, 70)
     _auto_io(c, lf.hier_exports)
     c.caption(FLAT_CAPTIONS["07-usb-flash"][0], 20, 8)
     c.done()
