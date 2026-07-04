@@ -308,6 +308,49 @@ def _patch_dnp(path, dnp_refs):
     return n
 
 
+_LABEL_LINE_RE = re.compile(
+    r'\t\(label "([^"]+)" \(at ([\d.\-]+) ([\d.\-]+) (\d+)\) '
+    r'\(effects[^\n]*\n')
+
+
+def _dedupe_labels(path):
+    """Post-write patch: when a >2-member leaf-internal net (e.g. a shared
+    VBUS/bus node with several same-net pins landing at the identical
+    physical point via a junction) gets build_leaf's default one-label-
+    per-connected-pin treatment, two or more IDENTICAL (name, x, y) label
+    lines can land stacked exactly on top of each other -- measured live on
+    07-usb-flash's VBUS_RAW (D3/FB1/J5's four VBUS pins all wired through
+    one junction at (186.69, 88.9): FOUR literal duplicate `label
+    "VBUS_RAW"` lines at that exact point, which G5's detect_overlaps
+    correctly flags as C(4,2)=6 self-collisions). A label only NAMES the
+    net its wire is attached to -- removing redundant same-name labels at
+    an IDENTICAL point changes nothing electrically (the net keeps its
+    name from the one label that remains, and the physical wire/junction
+    topology is untouched), so this is a safe cosmetic dedupe, not a
+    connectivity edit (re-verified by the driver's own G1/G3 gate after
+    every patch). Keeps the FIRST occurrence of each (name, x, y) triple,
+    drops the rest."""
+    text = open(path).read()
+    seen = set()
+    out = []
+    n = 0
+    pos = 0
+    for m in _LABEL_LINE_RE.finditer(text):
+        key = (m.group(1), m.group(2), m.group(3))
+        out.append(text[pos:m.start()])
+        if key in seen:
+            n += 1
+            pos = m.end()
+            continue
+        seen.add(key)
+        out.append(m.group(0))
+        pos = m.end()
+    out.append(text[pos:])
+    if n:
+        open(path, "w").write("".join(out))
+    return n
+
+
 # ---------------------------------------------------------------------------
 # PAIR_SIDES: for every 2-leaf net, which side ("right"=source/leftward box,
 # "left"=dest/rightward box) each leaf declares, matching the BOX x-ordering
@@ -476,7 +519,14 @@ def compose_sensing(c, lf, cable_labels):
     # everything else on their nets) into one net -- caught by the G1/G3
     # connectivity-group gate, not any overlap/crossing assertion.
     _grid_place(c, ["R10", "C40", "R3", "R4"], 15, 8, 1, dx=16, dy=16)
-    y = 40
+    # y=80 (NOT 40): the R10/C40/R3/R4 column above occupies grid rows
+    # 8/24/40/56 (dx=16 apart) at this SAME x=15 -- starting the per-cable
+    # column at y=40 put cable-0's cmp_ EXACTLY on top of R3 (both grid
+    # (15,40)), a real double-occupancy (measured live: G5 detect_overlaps
+    # flagged R3's Value text crossing U30's pin glyphs -- they were the
+    # same point, not just close). y=80 clears the stack's last row (56)
+    # with a full dy of headroom.
+    y = 80
     for i, label in enumerate(cable_labels):
         ina, amp, cmp_ = f"U1{i}", f"U2{i}", f"U3{i}"
         dec, ca, cb = f"C1{i}", f"C2{i}", f"C3{i}"
@@ -486,11 +536,15 @@ def compose_sensing(c, lf, cable_labels):
         c.place(ca, 55, y + 20)
         c.place(ina, 100, y, 180)
         c.place(dec, 100, y + 20)
+        # per-cable caption near ITS OWN row (not bunched at the top with
+        # the main title -- measured live: all 3 captions crammed at
+        # (10..14, 6..8) overlapped each other's long text).
+        if 1 + i < len(FLAT_CAPTIONS["05-sensing"]):
+            c.caption(FLAT_CAPTIONS["05-sensing"][1 + i], 40, y - 8)
         y += 45
     for net in lf.hier_exports:
         c.io(net, "right" if re.match(r"^SENSEC", net) else "left")
-    for i, txt in enumerate(FLAT_CAPTIONS["05-sensing"]):
-        c.caption(txt, 10 + i * 2, 8 - (2 if i == 0 else 0))
+    c.caption(FLAT_CAPTIONS["05-sensing"][0], 10, 2)
     c.done()
 
 
@@ -615,6 +669,7 @@ def build(board, force=False):
         st["nudged"], st["text_overlaps_left"] = n_moved, still
         dnp_here = extracted["dnp_refs"] & set(lf.parts)
         st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
+        st["labels_deduped"] = _dedupe_labels(out_path)
         stats[lid] = st
         print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
 

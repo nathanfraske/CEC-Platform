@@ -1223,10 +1223,27 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
             # prior geometry (byte-identical output; the collision cannot
             # occur there since k+3 is out of range).
             tapx = lane - (6.35 if len(group) >= 4 else 7.62)
-            import sys as _sys
-            print(f"DEBUG tli={tli}({leaves[tli]['id']}) k={k} net={net_name} "
-                  f"sx={sx:.2f} sy={sy:.2f} txx={txx:.2f} tyy={tyy:.2f} "
-                  f"lane={lane:.2f} tapx={tapx:.2f} tap={tap}", file=_sys.stderr)
+            # BUG #4 (round-4, measured): the tap's vertical drop was a fixed
+            # `sy + 5.08` -- exactly ONE row-pitch down. Every pin stacked on
+            # the SAME source-box edge sits at a `sy` spaced by that identical
+            # 5.08 pitch, so a k-th net's tap-stub bottom endpoint lands
+            # EXACTLY on the next-row net's own `sy` -- and that next-row
+            # net's first leg (sx,sy)-(tapx,sy) runs horizontally through the
+            # tap-stub's x, so the stub's endpoint sits ON that wire's
+            # interior => short. Unreachable while only a single net per
+            # source-box edge was ever tapped (every prior root_exports
+            # caller); lane_labels (round-4 A1) taps EVERY lane, so two
+            # adjacent-row lanes sharing one source box are now routinely
+            # both tapped (measured: eps-8pin's CAN_H_RJ/CAN_L_RJ/
+            # DETECT_SENSE, CAN_TX/CAN_RX, THRESH_PWM..DETC2, all 4 SENSEC*,
+            # USB_D_P/USB_D_N all merged this way). Fix: drop by HALF the row
+            # pitch (2.54) instead of a full pitch -- the stub then lands at
+            # the midpoint between two rows, which no other net's horizontal
+            # leg ever passes through (those only run exactly ON a row's sy).
+            # Gated on lane_labels so byte-identical output is preserved for
+            # every existing caller (root_exports-only taps never have two
+            # simultaneous adjacent-row taps sharing one source box).
+            tap_drop = 2.54 if lane_labels else 5.08
             if sy == tyy and not tap:
                 wires.append((sx, sy, txx, tyy))
             else:
@@ -1237,12 +1254,12 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
                 if tap:
                     wires.append((sx, sy, tapx, sy))
                     wires.append((tapx, sy, lane, sy))
-                    wires.append((tapx, sy, tapx, sy + 5.08))
+                    wires.append((tapx, sy, tapx, sy + tap_drop))
                     if is_root_export:
-                        hier.append((net_name, tapx, sy + 5.08, 0))
+                        hier.append((net_name, tapx, sy + tap_drop, 0))
                         hier_tapped.add(net_name)
                     else:
-                        labels.append((net_name, tapx, sy + 5.08, 0))
+                        labels.append((net_name, tapx, sy + tap_drop, 0))
                 else:
                     wires.append((sx, sy, lane, sy))
                 wires.append((lane, sy, lane, tyy))
