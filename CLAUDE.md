@@ -35,7 +35,50 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.3.0 (2026-07-03), controlled baseline** — THE
+Spec revision reflected here: **v1.4.0 (2026-07-04), controlled baseline** — OUTPUT-SIDE
+CONNECTOR-DAUGHTERBOARD ARCHITECTURE (owner ruling `SYNTHESIS-beta-plan.md` §D-5a,
+2026-07-04; study `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md`;
+sign-off record `docs/owner-queue.md` D-5a row). Supersedes the LOCKED v1.6 §2.8 output form
+(24-pin's second board-mount male header J4 + the CEC-supplied female-to-female bridging
+cable) for the **24-pin, EPS, and PCIe** modules: output rails now cross an inter-board
+connector to a **passive daughterboard** (no components, thick copper, all output pin-mapping
+inside it) stood off the main board, chassis-strain-relieved, populated with a PCB-mount
+vertical female header or a soldered pigtail, optionally sold as a productized
+daughterboard-plus-extension-cable assembly. Also **closes a pre-existing documentation gap**:
+§2.8 never locked an EPS/PCIe output form (only 24-pin + 12VHPWR) even though the as-built
+boards generalized the 24-pin's paired-header pattern per cable — EPS/PCIe now carry the
+identical rule, per cable. **12VHPWR is unchanged** (captive soldered pigtail,
+contact-degradation rationale re-confirmed 2026-07-03); every module's input side is
+unchanged. **RATIFIED at the architecture + connector-class level** (owner sign-off,
+2026-07-04): the **all-Keystone/TE tool-less blade config** is the platform default —
+Keystone universal 30A blade clips main-board side (SMT 3586 / LCSC C238113, or THT 3557-2 /
+LCSC C352820) mate TE FASTON .250″ PCB tabs daughterboard side (63849-1 / LCSC C86469,
+$0.04 — the sellable assembly carries this cheap side); **per-cable** daughterboard shape
+(not one wide daughterboard per board — mutual-heating derating + fault isolation +
+independent sellable-assembly swap); the margin policy (connector continuous rating ≥125% of
+sustained worst case at ≤30°C rise) and its ratified joint counts (**24-pin 9 / EPS 12 /
+PCIe-2 8 / PCIe-3 12**); and the sellable daughterboard+extension assembly. Owner
+design-basis currents: EPS ~13A/pin continuous → ~52A/cable sustained worst case; PCIe same
+~13A/pin theoretical, 3×12V pins → ~39A/cable; 24-pin anchors on the 6A/circuit ATX bar;
+transients-as-transients / sustained-as-sustained design rule. **Ratification condition**:
+ONE physical gate before first fab — a sample fit check ("as long as the tabs and whatnot
+fit together," owner). **Mating-force concern DISMISSED by owner ruling**: high insertion
+force is a FEATURE (the joint is not meant for constant swapping; mis-seat/pull-out is
+absolutely unwanted), not a bench gate. New **OQ-86** (connector fit-check + procurement +
+bench follow-ups, downgraded from gate to recommended), **OQ-87** (daughterboard mechanical/
+chassis interface, incl. the still-owed strain-relief pull-force/flex-cycle numbers),
+**OQ-88** (bench-qualification protocol: MODDIY vertical-header sellable-BOM qualification,
+connector confirm-soak/thermal-cycle trend, sense-return contact — still undecided), **OQ-89**
+(sellable daughterboard+extension SKU definition, incl. retirement of the LOCKED-today F-F
+24-pin bridging-cable SKU). OQ-82 resolved at the architecture level (its own text left
+unedited per the no-silent-rewrite rule; the spec's §11 v1.4.0 entry is the record). Range now
+OQ-1..OQ-89. No other LOCKED electrical decision altered, no section renumbered.
+**BOARD STATE: QUEUED, not yet started** — the 24-pin's J4 removal, the EPS/PCIe per-cable
+output-header removal, the Keystone clip placement on each main board, and the new
+daughterboard projects (schematics + PCBs + the mating TE-tab side) are spec-locked but do
+not yet exist on any schematic or PCB (see the action item below).
+
+Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
 CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions
 (`docs/standard-tier-review/beta-lock-register-2026-07-03.md` §A–L). No LOCKED electrical
 decision is altered and no spec section is renumbered — every change is an in-place note,
@@ -355,19 +398,52 @@ Connector and physical interface:
   5VSB source). Fixed on 24-pin rev3; the ordered rev2 carries the parallel path
   (prototype mitigation + Hub-side workarounds in the board docs).
 
-Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6 — distinct from the
+Module PSU-side power-path connectors (spec §2.8, LOCKED v1.6, folded v3.2; output side
+superseded for 24-pin/EPS/PCIe and EPS/PCIe locked, v1.4.0, 2026-07-04 — distinct from the
 RJ-45 module-to-Hub interface above):
-- 24-pin ATX module is a power-path interposer with TWO Molex Mini-Fit Jr (5569)
-  24-circuit MALE headers: input J3 (PSU side) and output J4 (motherboard side).
-  No board-mount FEMALE 24-pin ATX receptacle exists as a standard part, so both
-  module connectors are male, the same gender as the motherboard header. The
-  PSU's own (female) cable plugs onto J3 directly; the run from J4 to the
-  motherboard needs a dedicated FEMALE-TO-FEMALE 24-pin ATX bridging cable (a
-  female receptacle on each end, since J4 and the motherboard are both male
-  headers), supplied by CEC as a platform SKU. Convention: board headers are
-  male, the inserting cable end is female. Both J3 and J4 are the Molex 5569
-  right-angle male footprint — do not "fix" one to female.
-- 12VHPWR modules (Standard and Pro) solder their 12VHPWR (12V-2x6) connector(s)
+- **24-pin ATX, EPS 8-pin, and PCIe 8-pin (2-port, 3-port) — output side is now the
+  connector-daughterboard architecture (LOCKED v1.4.0; owner ruling
+  `SYNTHESIS-beta-plan.md` §D-5a, 2026-07-04; supersedes the old two-male-header /
+  F-F-bridging-cable form on the 24-pin, and is the first LOCK on an EPS/PCIe output
+  form at all — §2.8 previously locked only 24-pin + 12VHPWR).** Input side is
+  UNCHANGED on every module: a board-mount MALE Mini-Fit Jr header per rail/cable
+  (24-pin J3; one per cable on EPS/PCIe); the PSU's female cable plugs on directly, no
+  new cable needed. Output side: the second board-mount male header (24-pin's J4; the
+  EPS/PCIe per-cable output headers) and the CEC-supplied F-F 24-pin bridging cable are
+  RETIRED. Output rails instead cross an INTER-BOARD CONNECTOR to a PASSIVE
+  DAUGHTERBOARD (no components, thick fan-out copper, sized to the §6.4 current class)
+  stood off the main board, chassis-strain-relieved (numbers owed, OQ-87), populated
+  EITHER with a PCB-mount vertical female header OR a soldered pigtail, optionally sold
+  as a productized daughterboard-plus-extension-cable assembly (SKU definition OQ-89).
+  **Connector class RATIFIED (owner sign-off 2026-07-04): all-Keystone/TE tool-less
+  blade config** — Keystone universal 30A blade clips main-board side (SMT 3586 / LCSC
+  C238113, or THT 3557-2 / LCSC C352820) mate TE FASTON .250″ PCB tabs daughterboard
+  side (63849-1 / LCSC C86469, $0.04 — the sellable assembly carries this side), applied
+  PER CABLE (not one wide daughterboard per board — mutual-heating derating + fault
+  isolation + independent sellable-assembly swap). Ratified joint counts at the ratified
+  margin policy (continuous rating ≥125% sustained worst case @ ≤30°C rise): **24-pin 9**
+  (12V×1/5V×2/3.3V×1/5VSB×1/GND×4), **EPS 12** (3/polarity/cable ×2), **PCIe-2 8**
+  (2/polarity/cable ×2), **PCIe-3 12** (2/polarity/cable ×3). Owner design-basis currents:
+  EPS ~13A/pin cont. → ~52A/cable sustained worst case; PCIe same ~13A/pin, 3×12V →
+  ~39A/cable; 24-pin anchors on the 6A/circuit ATX bar; transients-as-transients /
+  sustained-as-sustained rule. Ratification's ONE condition: a physical sample fit
+  check before first fab ("as long as the tabs and whatnot fit together," owner).
+  MATING-FORCE concern DISMISSED by owner ruling — high insertion force is a FEATURE
+  (not meant for constant swapping; mis-seat/pull-out is the failure this rejects), not
+  a bench gate. Recommended-but-not-gating follow-ups (OQ-86/88): connector confirm-soak
+  + thermal-cycle contact-R trend, clip stock-depth/JLC-library procurement (LCSC
+  C238113 = 533 pcs vs a 900–1,200-clip production run), MODDIY vertical-header
+  sellable-BOM qualification, sense-return contact (still undecided). Committed
+  fallbacks: stacked Keystone 8197 screw config (LCSC OOS today) and Würth REDCUBE 85A
+  as a zero-qualification proto rung (not LCSC-carried); 24-pin HPCE vertical/mezzanine
+  premium remains an optional alternative. **BOARD STATE: QUEUED, not started** — no
+  schematic or PCB yet carries the J4/output-header removal, the Keystone clip
+  placement, or a daughterboard project on any of the 24-pin, EPS, PCIe-2port, or
+  PCIe-3port boards. Full text: spec §2.8; study
+  `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md`; sign-off
+  `docs/owner-queue.md` D-5a row.
+- 12VHPWR modules (Standard and Pro) — UNCHANGED by the v1.4.0 ruling (explicitly out of
+  scope). They solder their 12VHPWR (12V-2x6) connector(s)
   directly to the board (board-mounted); no detachable pass-through header and no
   bridging cable. On the melt-prone high-current connector this removes a
   mated-contact pair from the power path. REALIZED FORM (2026-06-04, connector

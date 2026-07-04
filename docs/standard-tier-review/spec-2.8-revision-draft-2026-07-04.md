@@ -1,13 +1,44 @@
 # Section 2.8 revision — draft for owner sign-off (2026-07-04)
 
-**STATUS: DRAFT ONLY. Nothing in this file is ratified.** No edit has been made to
-`CEC-Platform-Ground-Truth-Spec.md`, any schematic, any board, `CLAUDE.md`, or
-`docs/owner-queue.md`. This document proposes text that WOULD replace the affected paragraphs
-of the spec's LOCKED Section 2.8, plus the owner decisions gating it. Sources:
-`CEC-Platform-Ground-Truth-Spec.md` §2.8 (quoted verbatim below) and Document control;
-`SYNTHESIS-beta-plan.md` §D-5a (owner ruling, 2026-07-04); `output-daughterboard-study-
-2026-07-04.md` (engineering study); `atx24-output-interface-panel-2026-07-03.md` (prior panel)
-— all three in `docs/standard-tier-review/`.
+**STATUS: APPLIED (v1.4.0, 2026-07-04).** This document is now the DECISION RECORD for the
+Section 2.8 revision it drafted, not a pending proposal. `CEC-Platform-Ground-Truth-Spec.md`
+§2.8, Document control, and §§10–11 have been edited to LOCK the connector-daughterboard
+architecture (24-pin/EPS/PCIe output side; 12VHPWR and every input side unchanged), the
+version is bumped 1.3.0 → 1.4.0, and OQ-86 through OQ-89 are added (superseding the §5
+proposals below, adjusted for the owner's ratification — see the summary below).
+`CLAUDE.md` and `docs/owner-queue.md` are updated to match. The text below (the "as PROPOSED"
+draft, the decision boxes, and the §5 OQ proposals) is PRESERVED UNEDITED as the record of
+how the sign-off was reached; read the spec itself for the ratified, current text.
+
+**RATIFICATION SUMMARY (owner, 2026-07-04 — see `docs/owner-queue.md` D-5a row for the
+verbatim sign-off):** RATIFIED — the connector-daughterboard architecture for the 24-pin/
+PCIe/EPS output side (12VHPWR and all input sides unchanged); the all-Keystone/TE tool-less
+BLADE configuration as the platform default (§4 decision box (c) headline, §8.9–§8.10 of the
+study); the per-cable daughterboard shape (box (b)); the margin policy (box (a)) as embodied
+in the ratified joint counts (24-pin 9 / EPS 12 / PCIe-2 8 / PCIe-3 12); the sellable
+daughterboard-plus-extension assembly; and the owner design-basis current numbers (§3).
+CONDITIONAL on one gate before first fab: a physical sample fit check ("as long as the tabs
+and whatnot fit together"). DISMISSED by the owner: the gang mating-force concern — high
+insertion force is a FEATURE (the joint is not meant for constant swapping; mis-seat/pull-out
+is absolutely unwanted), not a bench gate. STILL OPEN (carried as OQ-86 through OQ-89, not
+silently resolved): chassis strain-relief numbers; the sense-return contact (recommended,
+final call open); the confirm-soak/thermal-cycle contact-R trend (recommended engineering,
+no longer a sign-off gate); clip stock-depth/JLC-library procurement; the HPCE 24-pin premium
+alternative (optional); the MODDIY vertical-header population option (prototype-approved,
+sellable-BOM pending bench qualification); the 8197-screw committed alternative (LCSC
+out-of-stock today); the REDCUBE proto rung (not LCSC-carried).
+
+---
+
+**Original draft status line, preserved for provenance:** STATUS: DRAFT ONLY. Nothing in this
+file is ratified. No edit has been made to `CEC-Platform-Ground-Truth-Spec.md`, any schematic,
+any board, `CLAUDE.md`, or `docs/owner-queue.md`. This document proposes text that WOULD
+replace the affected paragraphs of the spec's LOCKED Section 2.8, plus the owner decisions
+gating it. Sources: `CEC-Platform-Ground-Truth-Spec.md` §2.8 (quoted verbatim below) and
+Document control; `SYNTHESIS-beta-plan.md` §D-5a (owner ruling, 2026-07-04);
+`output-daughterboard-study-2026-07-04.md` (engineering study);
+`atx24-output-interface-panel-2026-07-03.md` (prior panel) — all three in
+`docs/standard-tier-review/`.
 
 ---
 
