@@ -1084,6 +1084,109 @@ def _extract_power_origins(text):
     return out
 
 
+def _extract_power_origins_full(text):
+    """Like _extract_power_origins, but also carries the instance ROTATION
+    and LIB_ID -- the two facts the DIRECTIONAL glyph model needs (2026-07-04
+    round-3 fix). [(x, y, ref, rot, lib_id)]."""
+    work = _strip_lib_symbols(text)
+    out = []
+    for s, e, (ox, oy), ref, rot, lib, mir in _symbol_spans(work):
+        if ref.startswith("#") or lib.startswith("power:"):
+            out.append((ox, oy, ref, rot, lib))
+    return out
+
+
+def _power_pin_dir(pin_lib, lib_id, rot):
+    """The OUTWARD pin direction (dx,dy unit vector, absolute Y-down frame)
+    for a power/flag symbol instance at rotation `rot` -- i.e. the direction
+    its connecting wire is SUPPOSED to leave the glyph, so the glyph body
+    itself occupies the OPPOSITE side (-dx,-dy). Same convention/formula as
+    pin_abs_rot's outward vector (module docstring), specialized to a
+    single-pin power symbol whose pin sits at local (0,0). Returns None if
+    `lib_id` isn't a parsed single-pin symbol (unknown geometry -- callers
+    fall back to the legacy symmetric heuristic)."""
+    sym = pin_lib.get(lib_id)
+    if not sym or len(sym["pins"]) != 1:
+        return None
+    p = sym["pins"][0]
+    total_ang = (p["ang"] + rot) % 360
+    dx = -math.cos(math.radians(total_ang))
+    dy = math.sin(math.radians(total_ang))
+    # snap near-zero components to exactly 0 (numeric noise at 90/270)
+    dx = 0.0 if abs(dx) < 1e-9 else dx
+    dy = 0.0 if abs(dy) < 1e-9 else dy
+    return dx, dy
+
+
+def _directional_glyph_bbox(gx, gy, dirv, reach=2.6, half_width=0.7,
+                            pin_margin=0.3):
+    """A directional axis-aligned bbox: extends `reach` mm from the origin
+    in the GLYPH direction (-dx,-dy, i.e. opposite the pin's outward
+    direction) and only `pin_margin` mm on the pin side. Used as a FALLBACK
+    when a symbol's real drawn geometry isn't available (see
+    _glyph_real_bbox_abs, which is preferred and does not need a guessed
+    `reach`)."""
+    dx, dy = dirv
+    ex, ey = gx - dx * reach, gy - dy * reach
+    px, py = gx + dx * pin_margin, gy + dy * pin_margin
+    xs, ys = (ex, px, gx), (ey, py, gy)
+    return (min(xs) - half_width, max(xs) + half_width,
+            min(ys) - half_width, max(ys) + half_width)
+
+
+def _parse_glyph_shapes_lib(text):
+    """{lib_id: (xmin,xmax,ymin,ymax)} -- the REAL drawn graphic extent (from
+    polyline/circle points, symbol-LOCAL Y-up coords) of every top-level lib
+    symbol, gathered across ALL its non-pin sub-units (KiCad convention: the
+    shared "_0_1" unit plus any per-unit "_N_1" graphics). Used for the
+    own-flag carve-out's TRUE glyph footprint instead of a guessed `reach`
+    magnitude (2026-07-04, owner round-3 tightening) -- a power-flag glyph is
+    a handful of straight polyline segments (the +3V3 arrow, the GND tines),
+    so this is exact, not approximate."""
+    out = {}
+    m = re.search(r'\(lib_symbols\b', text)
+    if not m:
+        return out
+    lib_block = cec_sch.carve(text, m.start())
+    pos = 0
+    while True:
+        sm = re.compile(r'\(symbol\s+"((?:[^"\\]|\\.)*)"').search(lib_block, pos)
+        if not sm:
+            break
+        blk = cec_sch.carve(lib_block, sm.start())
+        pos = sm.start() + len(blk)
+        lib_id = sm.group(1)
+        xs, ys = [], []
+        for pm in re.finditer(r'\(pts\s+((?:\(xy\s+-?[\d.]+\s+-?[\d.]+\)\s*)+)\)', blk):
+            for xy in re.finditer(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', pm.group(1)):
+                xs.append(float(xy.group(1)))
+                ys.append(float(xy.group(2)))
+        for cm in re.finditer(r'\(circle\s*\(center\s+(-?[\d.]+)\s+(-?[\d.]+)\)'
+                              r'\s*\(radius\s+(-?[\d.]+)\)', blk):
+            cx, cy, r = float(cm.group(1)), float(cm.group(2)), float(cm.group(3))
+            xs += [cx - r, cx + r]
+            ys += [cy - r, cy + r]
+        if xs:
+            out[lib_id] = (min(xs), max(xs), min(ys), max(ys))
+    return out
+
+
+def _glyph_real_bbox_abs(shapes_lib, lib_id, ox, oy, rot, pad=0.15):
+    """Absolute bbox of a placed instance's REAL drawn graphic (from
+    _parse_glyph_shapes_lib), rotated the same validated way as
+    body_box_abs/pin_abs_rot. None if the lib_id's geometry wasn't parsed."""
+    local = shapes_lib.get(lib_id)
+    if not local:
+        return None
+    minx, maxx, miny, maxy = local
+    xs, ys = [], []
+    for (lx, ly) in ((minx, miny), (minx, maxy), (maxx, miny), (maxx, maxy)):
+        rlx, rly = rotate_local(lx, ly, rot)
+        xs.append(ox + rlx)
+        ys.append(oy - rly)
+    return (min(xs) - pad, max(xs) + pad, min(ys) - pad, max(ys) + pad)
+
+
 def _seg_clip_len(bbox, seg):
     """Length of `seg` inside axis-aligned bbox=(x0,y0,x1,y1) (Liang-Barsky)."""
     x0, y0, x1, y1 = bbox
@@ -1116,11 +1219,27 @@ def check_wire_collisions(path, *, touch_len=0.5, wire_halfwidth=0.15,
     """Text-vs-wire and text-vs-power-glyph collisions. Returns a list of
     human-readable finding strings. Labels get the endpoint-touch exemption
     (touch_len); Reference/Value fields flag on any clipped length > 0.15mm
-    (a field has no business touching a wire at all)."""
+    (a field has no business touching a wire at all).
+
+    Own-flag carve-out (TIGHTENED 2026-07-04, owner round-3): a flag's own
+    Value text ("+3V3" etc.) sitting close to its OWN glyph used to be
+    exempted with a small +/-0.6mm box centered on the origin -- so small it
+    never actually reached the glyph's real extent (a +3V3-style glyph draws
+    out to ~2.54mm from the origin), which meant the exemption silently
+    covered EVERY case instead of just the harmless ones: a Value text truly
+    painted over the arrow/triangle graphic (the owner's C2/+3V3 crop) went
+    undetected. Now the own-flag box is the glyph's REAL drawn extent
+    (_glyph_real_bbox_abs, from the actual polyline/circle points, not a
+    guessed reach) rotated to the instance's placement, with only a 0.15mm
+    visual-clearance pad -- so a normally-placed Value sitting just past the
+    glyph tip (the documented convention, ~1.27mm clear) stays silent, but a
+    misrotated/too-close Value that truly overlaps the drawn graphic fires."""
     text = open(path).read()
     elems = _extract_text_elements(text, with_spans=True)
     wires = _extract_wires(text)
-    pwr = _extract_power_origins(text)
+    pwr_full = _extract_power_origins_full(text)
+    pwr = [(x, y, r) for x, y, r, _rot, _lib in pwr_full]
+    shapes_lib = _parse_glyph_shapes_lib(text)
     findings = []
     for el in elems:
         if el.get("ref", "") and str(el.get("ref")).startswith("#") \
@@ -1144,13 +1263,17 @@ def check_wire_collisions(path, *, touch_len=0.5, wire_halfwidth=0.15,
                     f'crosses wire ({seg[0]:.2f},{seg[1]:.2f})-'
                     f'({seg[2]:.2f},{seg[3]:.2f}) for {clip:.2f}mm')
                 break
-        for gx, gy, gref in pwr:
-            half = 0.6 if el.get("ref") == gref else glyph_half
+        for gx, gy, gref, grot, glib in pwr_full:
+            is_own = el.get("ref") == gref
+            gb = (_glyph_real_bbox_abs(shapes_lib, glib, gx, gy, grot)
+                  if is_own else None)
+            if gb is None:
+                half = 0.6 if is_own else glyph_half
+                gb = (gx - half, gx + half, gy - half, gy + half)
             # _bbox_overlap takes the module's (x0, x1, y0, y1) convention.
             # Calibration (2026-07-03, live): the conservative glyph box
             # grazes labels 2.54mm off a flag by ~0.1mm -- visually clean.
             # Require real PENETRATION (>0.3mm on both axes) to flag.
-            gb = (gx - half, gx + half, gy - half, gy + half)
             ex0, ex1, ey0, ey1 = el["bbox"]
             px = min(max(ex0, ex1), gb[1]) - max(min(ex0, ex1), gb[0])
             py = min(max(ey0, ey1), gb[3]) - max(min(ey0, ey1), gb[2])
@@ -1162,37 +1285,67 @@ def check_wire_collisions(path, *, touch_len=0.5, wire_halfwidth=0.15,
     return findings
 
 
-def check_power_glyphs(path, *, glyph_half=1.4, through_len=2.0,
-                       min_sep=2.6):
-    """Two owner-escalated power-symbol defect classes (2026-07-03):
-    (a) MIS-ROTATED flag: the attached wire passes THROUGH the glyph box
-        (clip length > through_len) instead of terminating at its edge —
-        the arrow/triangle renders inside the wire (a 180-degree rotation
-        error; the glyph must extend AWAY from its wire);
+def check_power_glyphs(path, *, glyph_half=1.4, min_sep=2.6,
+                       glyph_reach=2.6, dot_thresh=0.15):
+    """Two owner-escalated power-symbol defect classes:
+    (a) MIS-ROTATED flag (model REPLACED 2026-07-04, owner round-3): the OLD
+        test measured how much of the attached wire's length fell inside a
+        symmetric +/-glyph_half box centered on the origin -- i.e. it assumed
+        the glyph draws EQUALLY in every direction, so a flag whose glyph
+        happens to be small/short relative to the box, or whose wire runs a
+        SHORT distance on the wrong side (the owner's crop: a supply flag
+        directly above a cap, one short vertical stub) never accumulated
+        enough in-box length to cross through_len, and the class went
+        undetected -- exactly the escaped case. The NEW test is DIRECTIONAL:
+        every power-flag/global-power lib symbol carries a real embedded pin
+        (at)/angle, so _power_pin_dir(rot) gives the exact outward direction
+        the wire is SUPPOSED to leave the glyph (the glyph body occupies the
+        opposite side, by the module's rotation convention). MISROT = the
+        wire actually attached at the origin heads the WRONG way (its unit
+        vector's dot product with the pin's outward direction is negative
+        past dot_thresh) -- i.e. the wire runs into the glyph side instead of
+        away from it, independent of wire length or glyph box size. Symbols
+        whose lib geometry isn't a parsed single pin fall back to the legacy
+        symmetric-box heuristic (unknown-geometry safety net).
     (b) CLIPPING PAIR: two power glyphs closer than min_sep so their
         arrow/triangle graphics visually collide — spread them out."""
     text = open(path).read()
     wires = _extract_wires(text)
-    pwr = _extract_power_origins(text)
+    origins = _extract_power_origins_full(text)
+    pin_lib = _parse_pin_glyph_lib(text)
     findings = []
-    for gx, gy, gref in pwr:
-        gb = (gx - glyph_half, gy - glyph_half,
-              gx + glyph_half, gy + glyph_half)
+    for gx, gy, gref, rot, lib in origins:
+        dirv = _power_pin_dir(pin_lib, lib, rot)
         for seg in wires:
-            attached = (math.hypot(seg[0] - gx, seg[1] - gy) < 0.3 or
-                        math.hypot(seg[2] - gx, seg[3] - gy) < 0.3)
-            if not attached:
+            if math.hypot(seg[0] - gx, seg[1] - gy) < 0.3:
+                fx, fy = seg[2], seg[3]
+            elif math.hypot(seg[2] - gx, seg[3] - gy) < 0.3:
+                fx, fy = seg[0], seg[1]
+            else:
                 continue
-            if _seg_clip_len(gb, seg) > through_len:
+            wlen = math.hypot(fx - gx, fy - gy)
+            if wlen < 0.3:
+                continue
+            if dirv is not None:
+                dx, dy = dirv
+                dot = (fx - gx) / wlen * dx + (fy - gy) / wlen * dy
+                misrot = dot < -dot_thresh
+                reason = f'dot={dot:.2f} vs its wire'
+            else:
+                gb = (gx - glyph_half, gy - glyph_half,
+                      gx + glyph_half, gy + glyph_half)
+                misrot = _seg_clip_len(gb, seg) > 2.0
+                reason = "legacy symmetric-box (unknown pin geometry)"
+            if misrot:
                 findings.append(
                     f'MISROT {gref} at ({gx:.2f},{gy:.2f}): its wire runs '
-                    f'THROUGH the glyph (rotate the flag so the arrow points '
-                    f'away from the wire)')
+                    f'toward the glyph side ({reason}) -- rotate the flag '
+                    f'180deg so the arrow points away from the wire')
                 break
-    for i in range(len(pwr)):
-        for j in range(i + 1, len(pwr)):
-            ax, ay, ar = pwr[i]
-            bx, by, br = pwr[j]
+    for i in range(len(origins)):
+        for j in range(i + 1, len(origins)):
+            ax, ay, ar = origins[i][0], origins[i][1], origins[i][2]
+            bx, by, br = origins[j][0], origins[j][1], origins[j][2]
             if math.hypot(ax - bx, ay - by) < min_sep:
                 findings.append(
                     f'GLYPH-CLIP {ar} ({ax:.2f},{ay:.2f}) vs {br} '
@@ -1518,6 +1671,41 @@ def dedupe_power_flags(sch_path, out_path=None, *, min_sep=2.6):
         text = text[:s] + text[e:]
     open(out_path or sch_path, "w").write(text)
     return len(doomed)
+
+
+def rotate_flag_180(sch_path, ref, out_path=None):
+    """MISROT fix (2026-07-04, owner round-3): rotate power-flag/global-power
+    symbol instance `ref` by 180 degrees IN PLACE -- rotation only, origin
+    (x,y) untouched. This is the mutator that pairs with check_power_glyphs'
+    directional MISROT finding: the glyph's pin sits at the instance origin
+    regardless of rotation (see the module's ROTATION CONVENTION docstring),
+    so a pure rotation edit can never move the electrical connection point --
+    identity-safe by construction -- but callers still run it through the
+    standard netlist identity gate as normal practice (cec_sch_mcp._gated).
+    Only the FIRST `(at X Y ROT)` clause in the symbol's own span is touched
+    (the instance's own placement line, which _symbol_spans/_extract_at also
+    read first) -- never a property's `(at ...)` clause. Returns True if
+    `ref` was found and rotated, False otherwise (e.g. unknown ref)."""
+    text = open(sch_path).read()
+    work = _strip_lib_symbols(text)
+    target = None
+    for s, e, (ox, oy), r, rot, lib, mir in _symbol_spans(work):
+        if r == ref:
+            target = (s, e, ox, oy, rot)
+            break
+    if not target:
+        return False
+    s, e, ox, oy, rot = target
+    blk = text[s:e]
+    m = re.search(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk)
+    if not m:
+        return False
+    new_rot = (rot + 180) % 360
+    new_at = f'(at {cec_sch.f(ox)} {cec_sch.f(oy)} {cec_sch.f(new_rot)})'
+    new_blk = blk[:m.start()] + new_at + blk[m.end():]
+    out = text[:s] + new_blk + text[e:]
+    open(out_path or sch_path, "w").write(out)
+    return True
 
 
 def flip_label_collisions(sch_path, out_path=None):

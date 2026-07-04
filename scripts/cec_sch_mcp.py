@@ -152,6 +152,14 @@ def dedupe_flags(sch_path: str) -> dict:
 
 
 @mcp.tool()
+def rotate_flag(sch_path: str, ref: str) -> dict:
+    """MUTATES (identity-gated, auto-rollback): rotate power-flag/global-
+    power symbol `ref` 180 degrees in place (rotation only, origin fixed) --
+    the MISROT fix paired with the directional finding in check_wires."""
+    return _gated(sch_path, lambda: L.rotate_flag_180(sch_path, ref))
+
+
+@mcp.tool()
 def flip_labels(sch_path: str) -> dict:
     """MUTATES (identity-gated, auto-rollback): flip label justify off
     foreign wires (anchors never move)."""

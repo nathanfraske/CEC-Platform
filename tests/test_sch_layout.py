@@ -552,5 +552,133 @@ class WireCollisionTest(unittest.TestCase):
             os.unlink(p)
 
 
+class DirectionalMisrotTest(unittest.TestCase):
+    """Teeth for the 2026-07-04 owner round-3 fix: check_power_glyphs' old
+    MISROT model measured wire-length-inside-a-symmetric-box-around-the-
+    ORIGIN -- but the wire STARTS at the origin (the box's own center), so a
+    normal singly-attached stub can only ever clip up to half the box
+    (glyph_half), never the through_len=2.0 threshold, REGARDLESS of whether
+    the flag is actually rotated correctly. The owner's crop reproduced here:
+    a +3V3 supply flag directly above a cap with only a short (3.81mm STUB)
+    wire dropping to it -- misrotated 180 degrees so the arrow points DOWN
+    INTO the wire instead of up away from it. The fixture uses the REAL
+    cec-power:+3V3 lib symbol geometry (pin at local (0,0), angle 90 --
+    verified against the as-built hub-standard/eps-8pin schematics)."""
+
+    _FLAG_LIB = """\t\t(symbol "cec-power:+3V3"
+\t\t\t(power global)
+\t\t\t(pin_numbers (hide yes))
+\t\t\t(pin_names (offset 0) (hide yes))
+\t\t\t(exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes)
+\t\t\t(property "Reference" "#PWR" (at 0 -3.81 0) (hide yes)
+\t\t\t\t(effects (font (size 1.27 1.27))))
+\t\t\t(property "Value" "+3V3" (at 0 3.556 0)
+\t\t\t\t(effects (font (size 1.27 1.27))))
+\t\t\t(symbol "+3V3_0_1"
+\t\t\t\t(polyline (pts (xy -0.762 1.27) (xy 0 2.54))
+\t\t\t\t\t(stroke (width 0) (type default)) (fill (type none)))
+\t\t\t\t(polyline (pts (xy 0 2.54) (xy 0.762 1.27))
+\t\t\t\t\t(stroke (width 0) (type default)) (fill (type none)))
+\t\t\t\t(polyline (pts (xy 0 0) (xy 0 2.54))
+\t\t\t\t\t(stroke (width 0) (type default)) (fill (type none)))
+\t\t\t)
+\t\t\t(symbol "+3V3_1_1"
+\t\t\t\t(pin power_in line (at 0 0 90) (length 0)
+\t\t\t\t\t(name "~" (effects (font (size 1.27 1.27))))
+\t\t\t\t\t(number "1" (effects (font (size 1.27 1.27)))))
+\t\t\t)
+\t\t)
+"""
+
+    def _sheet(self, rot):
+        # flag at (100,100); a 3.81mm (cec_sch.STUB) wire drops straight DOWN
+        # to where a cap's top pin would be -- the owner's short-stub crop.
+        return (
+            '(kicad_sch (version 20260306) (generator "test")\n'
+            '  (lib_symbols\n' + self._FLAG_LIB + '  )\n'
+            '  (symbol\n'
+            f'    (lib_id "cec-power:+3V3")\n'
+            f'    (at 100 100 {rot})\n'
+            '    (unit 1)\n'
+            '    (exclude_from_sim no) (in_bom yes) (on_board yes) (dnp no)\n'
+            '    (uuid "aaaa0000-0000-0000-0000-000000000001")\n'
+            '    (property "Reference" "#PWR1" (at 100 96.19 0) (hide yes)\n'
+            '      (effects (font (size 1.27 1.27))))\n'
+            '    (property "Value" "+3V3" (at 100 103.556 0)\n'
+            '      (effects (font (size 1.27 1.27))))\n'
+            '    (pin "1" (uuid "aaaa0000-0000-0000-0000-000000000002"))\n'
+            '    (instances (project "t" (path "/x" (reference "#PWR1") (unit 1))))\n'
+            '  )\n'
+            '  (wire (pts (xy 100 100) (xy 100 103.81)))\n'
+            '  (sheet_instances (path "/" (page "1")))\n'
+            '  (embedded_fonts no)\n)\n')
+
+    def _write(self, rot):
+        import tempfile
+        f = tempfile.NamedTemporaryFile("w", suffix=".kicad_sch", delete=False)
+        f.write(self._sheet(rot))
+        f.close()
+        return f.name
+
+    def test_misrotated_flag_fires(self):
+        """rot=180: the glyph draws DOWNWARD (toward the wire) -- MISROT."""
+        p = self._write(180)
+        try:
+            findings = L.check_power_glyphs(p)
+            self.assertTrue(any("MISROT" in f and "#PWR1" in f
+                                for f in findings), findings)
+        finally:
+            os.unlink(p)
+
+    def test_correctly_rotated_flag_is_silent(self):
+        """rot=0: the glyph draws UPWARD (away from the wire) -- clean."""
+        p = self._write(0)
+        try:
+            findings = L.check_power_glyphs(p)
+            self.assertFalse([f for f in findings if "MISROT" in f], findings)
+        finally:
+            os.unlink(p)
+
+    def test_old_symmetric_model_was_blind_to_this_case(self):
+        """The pre-fix formula (clip-length inside a +/-1.4mm box centered on
+        the ORIGIN) tops out at glyph_half (1.4mm) for any wire that starts
+        at the origin and runs one direction only -- below the 2.0mm
+        through_len threshold regardless of rotation, which is exactly why
+        the owner's short-stub crop escaped it."""
+        gx, gy = 100.0, 100.0
+        gb = (gx - 1.4, gy - 1.4, gx + 1.4, gy + 1.4)
+        seg = (100.0, 100.0, 100.0, 103.81)
+        self.assertLessEqual(L._seg_clip_len(gb, seg), 2.0)
+
+    def test_rotate_flag_180_fixes_the_misrot(self):
+        p = self._write(180)
+        try:
+            self.assertTrue(any("MISROT" in f
+                                for f in L.check_power_glyphs(p)))
+            ok = L.rotate_flag_180(p, "#PWR1")
+            self.assertTrue(ok)
+            findings = L.check_power_glyphs(p)
+            self.assertFalse([f for f in findings if "MISROT" in f], findings)
+            # rotation-only: the pin's (x,y) origin -- the electrical
+            # connection point -- must be untouched.
+            text = open(p).read()
+            self.assertIn("(at 100 100 0)", text)
+        finally:
+            os.unlink(p)
+
+    def test_own_flag_carveout_tightened(self):
+        """The Value text ("+3V3") sitting at its documented offset (3.556mm
+        below the origin, i.e. ON the glyph side when misrotated 180) must
+        now be caught by check_wire_collisions' own-flag directional bbox --
+        the old +/-0.6mm-around-origin carve-out never reached that far."""
+        p = self._write(180)
+        try:
+            findings = L.check_wire_collisions(p)
+            self.assertTrue(any("+3V3" in f and "glyph" in f
+                                for f in findings), findings)
+        finally:
+            os.unlink(p)
+
+
 if __name__ == "__main__":
     unittest.main()
