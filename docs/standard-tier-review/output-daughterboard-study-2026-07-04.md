@@ -11,73 +11,69 @@ relief. Where a claim could not be confirmed against a primary source it is mark
 
 ## 1. Per-family current budget (the kill-check)
 
-Two bars per family: the **standards-level bar** (nameplate/spec-convention current, the
-absolute floor a generic PC power path is expected to survive) and the **repo design bar** (this
-project's own shunt-sizing figures, from `CLAUDE.md` §6.4/§6.7 and the OQ-11 selection sheet
-`docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md`, which sizes
-every shunt to a specific worst-case dissipation figure — these are the numbers the repo has
-*already* engineering-committed to). The inter-board connector sits **downstream of the shunt, in
-the same current path as the final output pin**, so it must clear whichever bar is chosen, on
-both the source rail and the GND return (same current, both directions).
+**Owner design basis (2026-07-04, authoritative — this section is anchored on these numbers, not
+on this study's own earlier derivation).** Design around worst case with margin, but keep
+**transients as transients and sustained as sustained** — do not fold transient peaks into the
+continuous rating; rate the connector continuous for the sustained worst case (with margin), and
+treat transients as separately validated thermal excursions.
 
-### 24-pin ATX
+- **EPS 8-pin:** 4×12V + 4×GND. Max **~13 A continuous per pin** (only brief transients run
+  higher). Sustained worst case = 13 A × 4 pins = **~52 A/cable**. Official Intel EPS12V spec is
+  336 W (~28 A) per connector; modern boards run **two** EPS connectors specifically because
+  next-gen CPUs approach ~600 W and that load must split across two connectors. AWG-dependent —
+  CEC's own extensions use 16 AWG.
+- **PCIe 8-pin:** same ~13 A/pin theoretical, but only 3×12V pins → **~39 A/cable sustained worst
+  case**. Official spec is 150 W (~12.5 A).
+- **24-pin ATX:** unchanged from the panel's own convention — anchor on the **6 A/circuit ATX
+  bar**, not the OQ-11 shunt figures (used below only as a cross-check).
 
-| Rail | Pins (ATX pinout) | Standards bar (6 A/ckt) | Repo design bar (OQ-11 sheet) |
+**Margin policy proposed here (not yet ratified):** size the connector's **continuous** rating to
+**≥125 % of the sustained worst case, at ≤30 °C rise** — the 30 °C figure aligns with this repo's
+own existing electrothermal-gate convention (see the 12VHPWR thermal re-validation and the
+fusing-via discussion elsewhere in `CLAUDE.md`), so a connector qualified at that condition maps
+directly onto the same pass/fail language the rest of the platform already uses.
+
+| Family / rail | Sustained worst case (owner basis) | ×1.25 margin target (continuous) | Transient (separate, non-continuous, thermal-mass-absorbed) |
 |---|---|---|---|
-| +12V | 2 | 12 A | **20 A** (2 mΩ shunt, 20 A → 0.8 W, CSS2H-2512K-2L00F) |
-| +5V | 5 | 30 A | **20 A** (same shunt class, same rail treatment) |
-| +3.3V | 4 | 24 A | **20 A** (same) |
-| +5VSB | 1 | 6 A | **3 A** (25 mΩ shunt, 3 A → 0.225 W, WSK2512R0250FEA) |
-| −12V | 1 | 6 A | not shunted/sensed by the 4×INA228 design — passthrough only, negligible real draw |
-| **Combined source rails** | | **78 A** (theoretical, all rails simultaneously maxed) | **63 A** (20+20+20+3) |
-| GND return (8 pins) | 8 | same 78 A returns | same 63 A returns (~7.9 A/pin avg at the repo bar, ~9.75 A/pin avg at the ATX bar) |
+| EPS, per cable | 52 A | **~65 A** | 75 A (OQ-11 sheet) |
+| PCIe, per cable | 39 A | **~49 A** | 60–75 A (OQ-11 sheet) |
+| 24-pin +12V (2 pins) | 12 A | 15 A | — |
+| 24-pin +5V (5 pins) | 30 A | 37.5 A | — |
+| 24-pin +3.3V (4 pins) | 24 A | 30 A | — |
+| 24-pin +5VSB (1 pin) | 6 A | 7.5 A | — |
+| 24-pin −12V (1 pin) | 6 A | 7.5 A (real draw negligible; not sensed by the 4×INA228 design) | — |
 
-The ATX 6 A/circuit convention is itself a derate off the Molex Mini-Fit Jr.'s own published
-rating — DigiKey/Molex datasheet material states **9.0 A per circuit at 16 AWG** for Mini-Fit
-Jr. (Molex Mini-Fit Jr. product spec; corroborated by TTI/RS-Online mirrors of
-`PS-5556-004-001.pdf`) — so 6 A/ckt already carries margin. **Recommendation: design the
-inter-board connector to the repo's 20 A/20 A/20 A/3 A per-rail figures, with headroom to ~25–30 A
-per rail**, not the 78 A theoretical ATX ceiling. Rationale: (a) the repo's own shunts, BOM, and
-electrothermal gates are already committed to these numbers — building the connector to a bar the
-rest of the module was never engineered to buys nothing; (b) the 78 A figure requires all five
-rails to be independently maxed at the same instant, which does not occur on a real ATX 24-pin
-(most 12V/5V/3.3V heavy draw on a modern board already routes through EPS/PCIe/12VHPWR, not the
-24-pin); (c) 20–30 A per rail is comfortably inside every board-to-board power-connector family
-surveyed in §2 at 2–3 contacts, so there is no cost pressure pushing toward the lower bar.
+**Cross-check against this repo's own already-committed shunt design current** (OQ-11 sheet,
+`docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md`): EPS 55 A (0.5 mΩ,
+`CSS2H-2512R-L500F`), PCIe 40 A (same MPN), 24-pin 12V/5V/3.3V 20 A/rail (2 mΩ,
+`CSS2H-2512K-2L00F`), 5VSB 3 A (25 mΩ, `WSK2512R0250FEA`). These land within a few amps of the
+owner's per-pin-derived sustained figures for EPS/PCIe (55 A vs. the 65 A margin target, 40 A vs.
+49 A) — two independently derived numbers converging, a good sign. For 24-pin the two bases
+diverge by rail: the shunt's flat 20 A/rail exceeds the margin-adjusted 12V target (15 A) but
+falls short of the margin-adjusted 5V (37.5 A) and 3.3V (30 A) targets. **Recommendation: take
+the higher of the two, per rail** — the connector must never be sized below what the shunt is
+already engineered to pass. Effective per-rail connector target used in §2/§7: **12V 20 A, 5V
+37.5 A, 3.3V 30 A, 5VSB 7.5 A**.
 
-### EPS 8-pin (2 cables populated)
+**GND return, all families:** the same current returns via GND — budget matching contact count
+for the return path, not a thinner "shared" GND (splitting return current across fewer/thinner
+contacts than the source concentrates heat asymmetrically). 24-pin's 8 physical GND pins already
+carry a real asymmetry worth flagging: aggregate source current across all rails at the effective
+targets above (20+37.5+30+7.5 ≈ 95 A) returning through only 8 GND pins averages ~11.9 A/pin — the
+daughterboard's own GND contact allocation should not inherit that asymmetry; size GND contacts to
+the same per-contact rating as the source contacts, independent of the legacy 8-pin ATX GND count.
 
-| | Standards bar | Repo design bar |
-|---|---|---|
-| Per cable (4×12V + 4×GND) | **28 A nominal** (given; ~7 A/pin, consistent with Mini-Fit-class 8.5–9 A/pin parts derated for margin) | **55 A** (0.5 mΩ shunt, 55 A → 1.5 W, `CSS2H-2512R-L500F`; **75 A transient, non-continuous**, thermal-mass-absorbed per the OQ-11 sheet) |
-| Module total (2 cables) | 56 A | **110 A** (150 A momentary if both cables transient simultaneously) |
+**Transient treatment (kept separate, per the owner's rule):** EPS 75 A and PCIe 60–75 A
+transients are non-continuous, thermal-mass-absorbed events at the shunt (OQ-11 sheet). A
+connector contact also has real thermal mass, so a contact continuous-rated below the transient
+peak can plausibly still ride it out for the sub-second class of excursion this platform is built
+to observe — but that is an assumption, not a bench-verified one, and is listed as an open item
+in §7.
 
-The repo bar (55 A/cable) is roughly **2× the standards nominal** — this is a large, deliberate
-margin already baked into the shunt selection, not a new ask from the daughterboard.
-
-### PCIe 8-pin (2-port and 3-port)
-
-| | Standards bar | Repo design bar |
-|---|---|---|
-| Per cable | **150 W nominal ÷ 12 V ≈ 12.5 A** (PCI-SIG convention; the connector's own pins are rated far higher — 8 A × 3 power pins × 12 V ≈ 288 W theoretical, Tom's Hardware/AllPinouts cross-reference) | **40 A** (0.5 mΩ shunt, 40 A → 0.8 W; **60–75 A transient**, non-continuous) |
-| 2-port module total | 25 A | **80 A** (up to ~150 A momentary, uncorrelated cables) |
-| 3-port module total | 37.5 A | **120 A** (up to ~225 A momentary) |
-
-**Recommendation for both EPS and PCIe: design to the repo's per-cable design bar (55 A / 40 A),
-not the nameplate nominal.** The repo bar already tracks real GPU/CPU transient behavior this
-platform is built to observe (§6.13's whole reason for existing); using the nameplate-nominal bar
-instead would make the inter-board connector the weakest link in a chain the rest of the board
-was deliberately over-built for — precisely the failure mode that killed Form D in the prior
-panel (Micro-Fit 3.0 derated to ~3–3.5 A/ckt, under the *lower* 6 A ATX floor, let alone this
-higher design bar). The transient figures (75 A EPS / 60–75 A PCIe) are **non-continuous** and
-thermal-mass-absorbed at the shunt; a well-chosen connector's own contact thermal mass can absorb
-the same class of millisecond-to-second transient without a continuous-rating connector — but
-this is an assumption, not bench-verified, and belongs on the owner open-items list (§6).
-
-**GND return note, all three families:** the same current returns via GND, so contact count for
-GND is directly coupled to the source-rail contact count chosen in §2 — budget roughly one
-GND-return contact per source contact, not a smaller "shared" GND, since splitting return current
-thinner than source current concentrates heat asymmetrically.
+**Kill-check verdict, restated against these numbers:** every family surveyed in §2 clears the
+margin-adjusted continuous targets (65 A EPS, 49 A PCIe, 20–37.5 A per 24-pin rail) with 2–5
+contacts on a real board-to-board power-connector family — this is not the Form-D failure mode
+(Micro-Fit 3.0 derating to 3–3.5 A/ckt, below even the *un*-margined 6 A ATX floor).
 
 ## 2. Inter-board connector candidates
 
