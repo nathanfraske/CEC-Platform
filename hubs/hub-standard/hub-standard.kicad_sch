@@ -6566,7 +6566,7 @@
 	)
 	(wire
 		(pts
-			(xy 276.86 104.14) (xy 284.48 104.14)
+			(xy 250.0 104.14) (xy 284.48 104.14)
 		)
 		(stroke
 			(width 0)
@@ -7276,7 +7276,7 @@
 	)
 	(wire
 		(pts
-			(xy 276.86 148.59) (xy 276.86 104.14)
+			(xy 250.0 148.59) (xy 250.0 104.14)
 		)
 		(stroke
 			(width 0)
@@ -7726,7 +7726,7 @@
 	)
 	(wire
 		(pts
-			(xy 458.47 148.59) (xy 276.86 148.59)
+			(xy 458.47 148.59) (xy 250.0 148.59)
 		)
 		(stroke
 			(width 0)
@@ -9061,7 +9061,7 @@
 			(font
 				(size 1.27 1.27)
 			)
-			(justify left bottom)
+			(justify right bottom)
 		)
 		(uuid "0e5f0d00-aaaa-4bbb-8ccc-5e4ed01d0001")
 	)
@@ -10405,7 +10405,7 @@
 			)
 		)
 		(property "Value" "1uF"
-			(at 343.154 51.308 0)
+			(at 341.63 62.144 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12149,7 +12149,7 @@
 		(dnp no)
 		(uuid "634411c5-5fc4-4303-9603-33101c2fa321")
 		(property "Reference" "C4"
-			(at 291.64 38.1305 0)
+			(at 291.64 22.8905 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12159,7 +12159,7 @@
 			)
 		)
 		(property "Value" "100nF"
-			(at 273.86 68.2705 0)
+			(at 291.64 17.4705 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13752,7 +13752,7 @@
 		(dnp no)
 		(uuid "7fcdea39-3e92-4be0-bca6-857ac60df3ea")
 		(property "Reference" "R2"
-			(at 268.986 83.566 0)
+			(at 268.986 130.0 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -13762,7 +13762,7 @@
 			)
 		)
 		(property "Value" "10kΩ"
-			(at 271.272 104.394 0)
+			(at 268.986 135.0 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15213,7 +15213,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 265.43 93.98 0)
+			(at 265.43 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15743,7 +15743,7 @@
 			)
 		)
 		(property "Value" "TJA1051T/3"
-			(at 430.784 82.01 0)
+			(at 430.784 82.21 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18769,7 +18769,7 @@
 			)
 		)
 		(property "Value" "27kΩ"
-			(at 462.28 103.886 0)
+			(at 462.026 104.054 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -18861,7 +18861,7 @@
 		(dnp no)
 		(uuid "e8a7b2e0-3f26-4b1a-8cfe-c38c9ba6f0d2")
 		(property "Reference" "#PWR39"
-			(at 292.1 40.64 0)
+			(at 292.1 25.4 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -20886,10 +20886,10 @@
 	(label "PSU_5V" (at 420.37 92.71 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "b5a1508f-0b5d-4906-8d35-b3228bfa972d"))
 	(wire (pts (xy 284.48 106.68) (xy 280.67 106.68))
 		(stroke (width 0) (type default)) (uuid "1c72e534-242a-426b-8568-589b66c67d90"))
-	(label "MAIN_5V_SENSE" (at 280.67 106.68 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "06112abc-5d8c-4f15-8e78-116cc57df5f4"))
+	(label "MAIN_5V_SENSE" (at 280.67 106.68 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "06112abc-5d8c-4f15-8e78-116cc57df5f4"))
 	(wire (pts (xy 284.48 109.22) (xy 280.67 109.22))
 		(stroke (width 0) (type default)) (uuid "c232e9f9-0401-4f02-b91f-c23d0213319d"))
-	(label "5VSB_SENSE" (at 280.67 109.22 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "8dc78909-80c9-4205-8eba-086cc7fd77cb"))
+	(label "5VSB_SENSE" (at 280.67 109.22 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8dc78909-80c9-4205-8eba-086cc7fd77cb"))
 
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
@@ -21266,7 +21266,7 @@
 		(fields_autoplaced yes)
 		(uuid "ffa8dafa-a4ba-488d-9985-faaeffbfd6c6")
 		(property "Reference" "D7" (at 331.47 367.3145 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PESD5V0S1BA" (at 331.47 354.2745 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "PESD5V0S1BA" (at 331.47 369.5145 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Diode_SMD:D_SOD-323" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Datasheet" "" (at 331.47 372.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Manufacturer" "Nexperia" (at 0 0 0)
@@ -21339,7 +21339,7 @@
 		(stroke (width 0) (type default)) (uuid "c1a8c0fc-19ea-41fe-9d7d-2897fbb25199"))
 	(wire (pts (xy 407.67 363.22) (xy 407.67 359.41))
 		(stroke (width 0) (type default)) (uuid "ace24c47-0323-4724-8328-fb8efe2446b9"))
-	(wire (pts (xy 351.79 356.87) (xy 339.09 356.87))
+	(wire (pts (xy 351.79 356.87) (xy 336.55 356.87))
 		(stroke (width 0) (type default)) (uuid "a5883d43-cc0b-4ac3-9bf4-9f440d51a20f"))
 	(wire (pts (xy 383.54 378.46) (xy 383.54 382.27))
 		(stroke (width 0) (type default)) (uuid "92a579a5-3067-43e4-8888-85c73a3dc7eb"))
@@ -21347,11 +21347,11 @@
 		(stroke (width 0) (type default)) (uuid "9d650a92-2b9f-4e74-85f1-bea1cd377a06"))
 	(wire (pts (xy 335.28 372.11) (xy 339.09 372.11))
 		(stroke (width 0) (type default)) (uuid "93188a6c-0604-426d-b903-aefb99ad00ba"))
-	(label "AUX_UART_TX" (at 280.67 111.76 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "523cb19c-c735-4023-a63e-88b89502d3e0"))
+	(label "AUX_UART_TX" (at 280.67 111.76 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "523cb19c-c735-4023-a63e-88b89502d3e0"))
 	(label "AUX_UART_TX" (at 340.36 339.09 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "7ebfc33b-6480-47b2-8cd5-77ed07fd77dc"))
 	(label "AUX_TXC" (at 340.36 351.79 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "54ffb899-5376-4e44-9f5c-f7077e743622"))
 	(label "AUX_TXC" (at 347.98 359.41 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "9202e710-dbfb-4e48-ba0d-8132d39648d1"))
-	(label "AUX_UART_RX" (at 280.67 114.3 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "69c30ad5-a8e0-42c5-929c-e8a29ca71b93"))
+	(label "AUX_UART_RX" (at 280.67 114.3 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "69c30ad5-a8e0-42c5-929c-e8a29ca71b93"))
 	(label "AUX_UART_RX" (at 355.6 339.09 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "d364cebb-f4d4-420d-bb0b-37abb4f2c225"))
 	(label "AUX_RXC" (at 355.6 351.79 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "e8ed97a2-b5f7-42b6-a397-da3f5a8ce08c"))
 	(label "AUX_RXC" (at 347.98 361.95 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "51d78250-b792-4e79-a884-323634d45736"))
@@ -21359,10 +21359,8 @@
 	(label "KVM_3V3_REF" (at 383.54 359.41 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "9614d4c0-b79a-4367-a13e-dd42d8cf1af5"))
 	(label "KVM_3V3_REF" (at 323.85 372.11 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "162823fe-0d28-4cbc-9476-b007a658633e"))
 	(label "KVM_3V3_SENSE" (at 383.54 372.11 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "58381a1c-e4d1-4d51-b7f5-7edfe00fde18"))
-	(label "KVM_3V3_SENSE" (at 383.54 369.57 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "361534d0-2307-4a31-b257-70d97aa10b44"))
-	(label "KVM_3V3_SENSE" (at 280.67 86.36 180) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "addfc48a-0be5-4b9d-afa4-7a5b7fd9b76c"))
+	(label "KVM_3V3_SENSE" (at 280.67 86.36 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "addfc48a-0be5-4b9d-afa4-7a5b7fd9b76c"))
 	(label "HUB_3V3_SENSE" (at 407.67 372.11 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "55124e68-fda8-482a-89e3-d1ef14bc5709"))
-	(label "HUB_3V3_SENSE" (at 407.67 369.57 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4b3342bb-448c-4e25-b050-148cdb6707cb"))
 	(label "HUB_3V3_SENSE" (at 280.67 88.9 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "a7fd1c4f-9eb4-4678-821b-0b2a210c08c5"))
 	(symbol
 		(lib_id "cec-power:+5VSB")
@@ -21402,15 +21400,15 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 339.09 356.87 0)
+		(at 336.55 356.87 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
 		(uuid "b9f455dc-d8a5-420d-af92-be55c925fdc8")
-		(property "Reference" "#PWR9003" (at 339.09 354.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 339.09 378.46 0) (effects (font (size 1.27 1.27))))
+		(property "Reference" "#PWR9003" (at 336.55 354.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 336.55 378.46 0) (effects (font (size 1.27 1.27))))
 		(pin "1" (uuid "98e21ef4-e36c-41de-9e9a-0fa998392133"))
 		(instances
 			(project "hub-standard"
@@ -22257,7 +22255,7 @@
 	(wire (pts (xy 284.48 119.38) (xy 280.67 119.38))
 		(stroke (width 0) (type default)) (uuid "b78c7e02-bb91-4f2b-ae66-fc32fbabeb33"))
 	(label "PWR_FAIL_INT" (at 280.67 119.38 180)
-		(effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4e602ffc-a675-4906-8b26-b7fe0bf0a38b"))
+		(effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4e602ffc-a675-4906-8b26-b7fe0bf0a38b"))
 	(text "BETA-1 (2026-07-03): A4 power-in consolidation, W12 5V-drop comparator (persist-on-fault), H2 rung-3 hold-up DNP provisions (boost+buck, position-only -- see beta-lock-register.md H1/H2 and docs/standard-tier-review/beta-splices/hub-standard.md)"
 		(at 438.15 321.31 0)
 		(effects (font (size 1.27 1.27)) (justify left bottom))
