@@ -98,7 +98,57 @@ def sym_extent(block):
         return (0, 0, 0, 0)
     return (min(xs), max(xs), min(ys), max(ys))
 
-def audit(path):
+def sheet_refs(text):
+    """(sheet ...) blocks of a schematic -> [(sheet_symbol_uuid, sheetfile)].
+    The round-4 hierarchical projects reference leaves this way; a flat
+    schematic returns []."""
+    out = []
+    for m in re.finditer(r'\(sheet\s*\(at [^)]*\)', text):
+        # bounded scan of this sheet block for its uuid + Sheetfile
+        seg = text[m.start():m.start() + 4000]
+        u = re.search(r'\(uuid\s+"?([0-9a-fA-F-]{36})"?\)', seg)
+        f = re.search(r'\(property "Sheetfile" "([^"]+)"', seg)
+        if u and f:
+            out.append((u.group(1), f.group(1)))
+    return out
+
+
+def expected_paths_for_dir(paths):
+    """Hierarchy-aware instance-path expectations for one board directory.
+
+    KiCad symbol instances carry the SHEET-INSTANCE chain: '/<root sch uuid>'
+    for symbols in the root file, '/<root uuid>/<sheet symbol uuid>' one
+    level down, and so on (calibrated against the committed hub-standard
+    sch/pcb pair and the generated hub-enterprise 2-level tree). Returns
+    {abspath: set(valid instance paths)}; a file outside any hierarchy maps
+    to its legacy flat expectation '/<own uuid>'."""
+    info = {}
+    for p in paths:
+        t = open(p).read()
+        top = re.search(r'\(uuid\s+"?([0-9a-fA-F-]{36})"?\)', t)
+        info[p] = (top.group(1) if top else "", sheet_refs(t))
+    referenced = {os.path.join(os.path.dirname(p), f)
+                  for p, (_u, refs) in info.items() for _su, f in refs}
+    expected = {}
+    frontier = []
+    for p, (u, _refs) in info.items():
+        if p not in referenced:                    # a root (flat or hier)
+            expected.setdefault(p, set()).add("/" + u)
+            frontier.append((p, "/" + u))
+    while frontier:
+        parent, ppath = frontier.pop()
+        for su, f in info[parent][1]:
+            child = os.path.join(os.path.dirname(parent), f)
+            if child not in info:
+                continue
+            cpath = ppath + "/" + su
+            if cpath not in expected.get(child, set()):
+                expected.setdefault(child, set()).add(cpath)
+                frontier.append((child, cpath))
+    return expected
+
+
+def audit(path, want_paths=None):
     s = open(path).read()
     # --- KiCad structural invariants (a violation here is what crashes the GUI
     #     on save, even though ERC/connectivity look fine) ---
@@ -106,9 +156,9 @@ def audit(path):
     top_uuid = top.group(1) if top else None
     bare_uuid = re.findall(r'\(uuid\s+[0-9a-fA-F][0-9a-fA-F-]{35}\s*\)', s)  # unquoted
     inst = re.findall(r'\(project "([^"]*)"\s*\(path "([^"]+)"\s*\(reference "([^"]+)"', s)
-    want_path = "/" + (top_uuid or "")
+    ok_paths = want_paths if want_paths else {"/" + (top_uuid or "")}
     inst_bad = [(proj, p, ref) for (proj, p, ref) in inst
-                if p != want_path or proj == ""]
+                if p not in ok_paths or proj == ""]
     # Every instantiated symbol must have its definition cached in the sheet's
     # (lib_symbols ...) block. A missing one renders as a "??" placeholder box in
     # eeschema (pins/graphics absent), even though connectivity/instances look ok.
@@ -169,10 +219,23 @@ def audit(path):
         segs.append((x1, y1, x2, y2))
     labels = [(R(float(x)), R(float(y))) for x, y in
               re.findall(r'\(label "[^"]+" \(at (-?[\d.]+) (-?[\d.]+)', s)]
+    # Hierarchy-aware wire anchors (round-4): a hierarchical/global label or a
+    # sheet-symbol pin is a legitimate wire terminus, exactly like a local
+    # label -- the composed thin parents/leaves end lanes and stubs on them.
+    hier_pts = []
+    for m in re.finditer(r'\((?:hierarchical|global)_label "(?:[^"\\]|\\.)*"', s):
+        am = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', s[m.end():m.end() + 300])
+        if am:
+            hier_pts.append((R(float(am.group(1))), R(float(am.group(2)))))
+    sheet_pin_pts = []
+    for m in re.finditer(r'\(pin "(?:[^"\\]|\\.)*" (?:input|output|bidirectional|tri_state|passive)\b', s):
+        am = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', s[m.end():m.end() + 300])
+        if am:
+            sheet_pin_pts.append((R(float(am.group(1))), R(float(am.group(2)))))
     ncs = [(R(float(x)), R(float(y))) for x, y in
            re.findall(r'\(no_connect \(at (-?[\d.]+) (-?[\d.]+)', s)]
     from collections import Counter
-    wc = Counter(wends); lset = set(labels)
+    wc = Counter(wends); lset = set(labels) | set(hier_pts) | set(sheet_pin_pts)
     overlaps = []
     for i in range(len(boxes)):
         for j in range(i+1, len(boxes)):
@@ -199,9 +262,20 @@ def audit(path):
 def main(argv):
     targets = argv[1:] or (sorted(glob.glob(f"{ROOT}/hubs/*/*.kicad_sch")) +
                            sorted(glob.glob(f"{ROOT}/modules/*/*.kicad_sch")))
+    # hierarchy-aware instance-path expectations, resolved per board directory
+    by_dir = {}
+    for p in targets:
+        by_dir.setdefault(os.path.dirname(os.path.abspath(p)), []).append(
+            os.path.abspath(p))
+    expected = {}
+    for d, ps in by_dir.items():
+        # include non-target siblings so roots are identified correctly even
+        # when a single file is audited in isolation
+        allps = sorted(set(ps) | set(glob.glob(os.path.join(d, "*.kicad_sch"))))
+        expected.update(expected_paths_for_dir(allps))
     status = 0
     for path in targets:
-        res, errs = audit(path)
+        res, errs = audit(path, want_paths=expected.get(os.path.abspath(path)))
         name = os.path.relpath(path, ROOT)
         if errs:
             print(f"FAIL {name}: {errs}"); status = 1; continue

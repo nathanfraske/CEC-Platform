@@ -626,6 +626,11 @@ def _cable_labels(extracted):
 
 def build(board, force=False):
     board_dir = os.path.join(ROOT, "modules", board)
+    # KiCad instance blocks carry the PROJECT name = the .kicad_pro basename
+    # ("eps8pin-module"), NOT the directory name ("eps-8pin") -- a mismatch
+    # makes the GUI rewrite every instance on save (audit-sch flags it).
+    _pros = [f for f in os.listdir(board_dir) if f.endswith(".kicad_pro")]
+    project_name = _pros[0][:-len(".kicad_pro")] if len(_pros) == 1 else board
     flat_sch = find_flat_sch(board_dir)
     if is_hierarchical(flat_sch) and not force:
         raise SystemExit(f"{flat_sch} is already hierarchical -- refusing to "
@@ -684,7 +689,7 @@ def build(board, force=False):
         st = C.build_leaf(
             lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
             POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
-            LIBS, board, path_prefix=f"{root_uuid}/{LEAF_SYM_UUIDS[lid]}",
+            LIBS, project_name, path_prefix=f"{root_uuid}/{LEAF_SYM_UUIDS[lid]}",
             sheet_instances_path=LEAF_SYM_UUIDS[lid],
             own_uuid=LEAF_OWN_UUIDS[lid], page=str(LEAF_ORDER.index(lid) + 2),
             out_path=out_path, paper=LEAF_PAPER[lid],
@@ -696,6 +701,23 @@ def build(board, force=False):
         dnp_here = extracted["dnp_refs"] & set(lf.parts)
         st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
         st["labels_deduped"] = _dedupe_labels(out_path)
+        # round-3 mutator battery (identity-gated by the driver's own G1 run
+        # afterwards; each mutator is the connectivity-guarded round-3 tool):
+        # spread/dedupe power-flag stacks, flip colliding labels, then one
+        # more nudge pass over whatever the mutators moved.
+        try:
+            st["flags_spread"] = len(L.spread_power_flags(out_path) or ())
+        except Exception:
+            st["flags_spread"] = "n/a"
+        try:
+            st["flags_deduped"] = len(L.dedupe_power_flags(out_path) or ())
+        except Exception:
+            st["flags_deduped"] = "n/a"
+        try:
+            st["labels_flipped"] = len(L.flip_label_collisions(out_path) or ())
+        except Exception:
+            st["labels_flipped"] = "n/a"
+        L.nudge_texts(out_path)
         stats[lid] = st
         print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
 
@@ -716,7 +738,7 @@ def build(board, force=False):
 
     root_path = flat_sch
     parent_stats = C.build_thin_parent(
-        leaves_for_parent, set(), board, root_uuid, None, root_uuid,
+        leaves_for_parent, set(), project_name, root_uuid, None, root_uuid,
         out_path=root_path, title=title, paper="A2", libs=LIBS,
         pwr_base=900, lane_labels=True, name_pin_nets=name_pin_nets, rev=rev,
         title_comments=(
@@ -728,6 +750,32 @@ def build(board, force=False):
             "exact flat-schematic net name (lane_labels)"))
     print(f"{os.path.basename(root_path)} (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()))
+
+    # ---- ERC posture for the name-pin stubs (measured, KiCad 10.0.4): a
+    # LOCAL label on a root stub whose subgraph is only {wire, sheet pin}
+    # false-fires label_dangling; a root HIERARCHICAL label is rejected
+    # outright ("cannot be connected to non-existent parent sheet"); and
+    # kicad-cli erc_exclusions match CLASS-LOOSE (one wrong-uuid AND
+    # wrong-position entry suppressed all 13 -- measured), so per-instance
+    # exclusion is an illusion. Remedy: downgrade the class to warning in
+    # THIS board's .kicad_pro only. Real dangling labels stay policed
+    # deterministically by scripts/audit-sch.py (teeth verified: a floating
+    # label FAILs it), whose coincidence model correctly accepts the stubs.
+    if name_pin_nets:
+        import json as _json
+        pros = [f for f in os.listdir(board_dir) if f.endswith(".kicad_pro")]
+        if len(pros) == 1:
+            pro_path = os.path.join(board_dir, pros[0])
+            with open(pro_path) as fh:
+                pro = _json.load(fh)
+            sev = pro.setdefault("erc", {}).setdefault("rule_severities", {})
+            if sev.get("label_dangling") != "warning":
+                sev["label_dangling"] = "warning"
+                with open(pro_path, "w") as fh:
+                    _json.dump(pro, fh, indent=2)
+                    fh.write("\n")
+                print(f"{pros[0]}: erc.rule_severities.label_dangling -> "
+                      f"warning (name-pin stub class; see comment above)")
     return stats, parent_stats
 
 

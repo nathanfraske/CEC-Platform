@@ -1189,6 +1189,15 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     hier = []       # (net, x, y, ang)
 
     # ---- single-pin nets: hier label directly at the stub end
+    # (Name-pinned nets keep a plain LOCAL label here. KiCad 10.0.4 ERC
+    # false-fires label_dangling on a local label whose subgraph is only
+    # {stub wire, sheet pin} — measured; a root hierarchical label is
+    # rejected outright ("non-existent parent sheet"), and kicad-cli's
+    # erc_exclusions match class-loose (a wrong-uuid/wrong-position entry
+    # suppressed all 13 — measured), so the remedy lives in the DRIVER:
+    # rule_severities.label_dangling -> "warning" in the board .kicad_pro,
+    # with real dangling labels still policed by scripts/audit-sch.py,
+    # whose coincidence model correctly accepts these stubs.)
     singles = {n: p[0] for n, p in net_pins.items() if len(p) == 1}
     for net_name, (px, py, side, _li) in sorted(singles.items()):
         ex = px + STUB if side == "right" else px - STUB

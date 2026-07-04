@@ -211,3 +211,17 @@ Gate: `--check-overlaps` 0 (clean, was 14) / `--check-wires` 29 (waivered, was
 30 — 2 genuine duplicate mash-ups fixed, net composition otherwise improved:
 the worst class, pin-name mash-ups, fully eliminated). Identity 94->94 exact
 across every edit. ERC errors 0->0 (unchanged).
+
+## eps-8pin (round-4 hierarchical form, 2026-07-05)
+
+Generated 7-leaf hierarchy + thin parent (gen-module-beta.py, driver runs the round-3
+mutator battery: spread/dedupe power flags + flip label collisions + nudge). Residual
+after battery — WAIVERED as the composed-engine floor (precedent: hub-standard carries
+29 waivered wire findings; engine-floor polish tracked in FOLLOWUPS):
+- overlaps 1 (07-usb-flash), wire collisions 17 (05-sensing 7, 06-cable-power 4,
+  root 6), power-glyph 7 — all proximity-class, none label-on-wire-interior.
+- ERC: 13 label_dangling as WARNINGS via the board .kicad_pro rule_severities —
+  measured KiCad false-positive on name-pin stubs (local label + {wire, sheet pin}
+  subgraph); real dangling labels remain policed by scripts/audit-sch.py (teeth
+  verified: floating label FAILs). Errors = 1 (pre-existing benign pin_not_driven,
+  C6 CAN-TXD class) vs flat baseline 2.

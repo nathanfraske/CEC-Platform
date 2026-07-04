@@ -9096,4 +9096,229 @@
 		(embedded_fonts no)
 	)
 
+	(symbol "Keystone_3586_Blade_Clip"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "Keystone 3586"
+			(at 0 -4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/3d2b9e11b57a96b0629b2595d48bec21.pdf?productCode=C238113"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Keystone 3586 SMT universal-entry female quick-fit blade clip (top & side entry), auto-blade-fuse-clip lineage. Accepts .110-.250in (2.8-6.4mm) wide male tabs, .020-.032in (0.51-0.81mm) thick (family spec, Keystone PC Quick-Fit Terminals catalog p.53, CAT NO. 3557 table; keyelco product page confirms the same .110-.250in width range for 3586 itself). 0.016in (0.40mm) thick brass, tin-nickel plate. 3 SMD solder pads (2 main legs + 1 support/anchor foot) — all one electrical node (single receptacle contact). Footprint pad geometry verified against Keystone dwg no. 3586 rev D (pad width .105in/2.66mm exact match; pad-row envelope .260in/6.60mm minus pad height = 4.90mm center spacing, matching the vendored land)."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "Keystone Electronics Corp."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "3586"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C238113"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "30 A @ 500 V (Keystone/DigiKey field rating; no stated temperature-rise condition — confirm-soak before BOM lock per docs/standard-tier-review/output-daughterboard-study-2026-07-04.md §8.9(a))"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "blade clip fuse clip quick-fit universal terminal 30A FASTON Keystone SMT"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Keystone_3586*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "Keystone_3586_Blade_Clip_0_1"
+			(rectangle
+				(start -2.54 1.27)
+				(end 2.54 -1.27)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy -1.27 1.27) (xy 0 2.54) (xy 1.27 1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "Keystone_3586_Blade_Clip_1_1"
+			(pin passive line
+				(at 0 -3.81 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "Keystone_3557-2_Blade_Clip_2Pos"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "Keystone 3557-2"
+			(at 0 -4.445 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:Keystone_3557-2_THT_Universal_Blade_Clip_2Pos"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/b4c520b41b68724db8bb5ee22faeacae.pdf?productCode=C352820"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "Keystone 3557-2 THT '2 IN 1' auto-blade-fuse-clip holder — TWO INDEPENDENT clip receptacles in one housing (pins 1/2 are separate electrical nodes, NOT a 2-terminal series part). Each position accepts the same universal blade range as the 3557/3577/3586 family (.110-.250in/2.8-6.4mm wide x .020-.032in/0.51-0.81mm thick tabs). 30A/500VAC UL rating, 0.016in (0.41mm) brass tin-nickel contacts, glass-filled Nylon 94V-0 insulator, -50C to +145C. 4 THT solder pins (2 per clip position), 1.6mm drill, 3.4mm row pitch, 13.5mm position-to-position pitch — all verified against Keystone catalog M55 p.41 ('2 IN 1 FUSE HOLDER' table); drill corrected from the EasyEDA/LCSC auto-derived 1.8mm to the datasheet's 1.6mm (.063in dia). CAUTION: physically distinct from the plain single-clip 3557 (top entry, THT)/3577 (bottom entry, THT) universal clip — do not treat as a drop-in for a single-node blade site; see docs/standard-tier-review/blade-fit-check-2026-07-04.md."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "Keystone Electronics Corp."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "3557-2"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C352820"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "30 A @ 500 VAC per position (Keystone catalog field rating; no stated temperature-rise condition — confirm-soak before BOM lock per docs/standard-tier-review/output-daughterboard-study-2026-07-04.md §8.9(a))"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "blade clip fuse clip quick-fit universal terminal 30A FASTON Keystone 2in1 THT dual"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Keystone_3557-2*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "Keystone_3557-2_Blade_Clip_2Pos_0_1"
+			(rectangle
+				(start -5.08 1.27)
+				(end 5.08 -1.27)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy 0 1.27) (xy 0 -1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy -3.81 1.27) (xy -2.54 2.54) (xy -1.27 1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+			(polyline
+				(pts (xy 1.27 1.27) (xy 2.54 2.54) (xy 3.81 1.27))
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "Keystone_3557-2_Blade_Clip_2Pos_1_1"
+			(pin passive line
+				(at -2.54 -3.81 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+			(pin passive line
+				(at 2.54 -3.81 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "2"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "TE_63849-1_FASTON_Tab"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.699 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1"
+			(at 0 -3.302 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d78aaa5668ef44d19432bad6ab97dbf2.pdf?productCode=C86469"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "TE Connectivity 63849-1 FASTON PC board tab (male blade), .250in (6.35mm +/-0.08) wide x .033-.030in (0.84-0.76mm) thick, brass with tin over copper or tin over nickel plate. Supplied in loose piece; 2 THT legs (both pin 1 — same electrical node) on a 5.08mm +/-0.08 pitch, 1.40mm +/-0.05 dia PCB hole each (drill corrected from the EasyEDA/LCSC auto-derived 1.6mm to the TE dwg C=63849's 1.40mm — the barbed shank is an interference fit into this hole ahead of soldering, so hole size matters for retention). Mates with a wire-side FASTON .250 receptacle, or (this platform's use) with a Keystone universal blade clip (3586/3557-2/3557/3577) whose accepted tab range (.110-.250in x .020-.032in) spans this tab's nominal geometry — see docs/standard-tier-review/blade-fit-check-2026-07-04.md."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "63849-1"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C86469"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself; TE FASTON .250 tabs are commonly used to 20-30A class per receptacle rating (see the Keystone universal-clip Current Rating property paired with this part). No standalone UL current rating on TE's own dwg."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "FASTON tab blade quick-connect .250 PCB terminal TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "TE_63849-1*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "TE_63849-1_FASTON_Tab_0_1"
+			(rectangle
+				(start -1.27 3.175)
+				(end 1.27 0)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "TE_63849-1_FASTON_Tab_1_1"
+			(pin passive line
+				(at 0 -2.54 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
+
 )
