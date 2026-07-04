@@ -459,15 +459,18 @@ def route_atx24():
     # tabs: straight stub up to their own net's band (nothing else occupies
     # F.Cu between the tab row and the bands -- the bands live on In2.Cu).
     # The TE_63849-1 footprint has TWO physical pads, both numbered "1" (one
-    # electrical node, per its own vendored description) at local x=+-2.54;
-    # connect at the real +2.54 pad centre, not the placement origin (which
-    # sits in the gap BETWEEN the two pads -- no copper there at all).
+    # electrical node per its own vendored description), but "same pad
+    # number" is a netlist LABEL, not copper -- the footprint has no internal
+    # bridge between them, so both need real copper: a short bridge track
+    # between the two pads (tx-2.54 to tx+2.54), then the up-stub off the
+    # +2.54 one (the placement origin between them has no copper at all).
     for ref, net in cfg["tabs"]:
         if net == "GND":
             continue
         pn = _PCB_NET.get(net, net)
         tx, ty, _ = P[ref]
         by = band_y[net]
+        r.track(pn, [(tx - 2.54, ty), (tx + 2.54, ty)], "F.Cu", 0.5)
         r.track(pn, [(tx + 2.54, ty), (tx + 2.54, by)], "F.Cu", 0.5)
         r.via(pn, (tx + 2.54, by), drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
 
