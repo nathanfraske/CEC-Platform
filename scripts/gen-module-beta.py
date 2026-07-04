@@ -273,3 +273,327 @@ def _patch_dnp(path, dnp_refs):
     if n:
         open(path, "w").write("".join(out))
     return n
+
+
+# ---------------------------------------------------------------------------
+# PAIR_SIDES: for every 2-leaf net, which side ("right"=source/leftward box,
+# "left"=dest/rightward box) each leaf declares, matching the BOX x-ordering
+# below (hub-link < can < mcu < sensing < cable-power; usb-flash sits right
+# of mcu). Derived once from the box layout -- see the module docstring.
+# ---------------------------------------------------------------------------
+PAIR_SIDES = {
+    "CAN_H_RJ":     {"01-hub-link": "right", "02-can": "left"},
+    "CAN_L_RJ":     {"01-hub-link": "right", "02-can": "left"},
+    "DETECT_SENSE": {"01-hub-link": "right", "04-mcu": "left"},
+    "CAN_TX":       {"02-can": "right", "04-mcu": "left"},
+    "CAN_RX":       {"02-can": "right", "04-mcu": "left"},
+    "SENSEC1_HI":   {"05-sensing": "right", "06-cable-power": "left"},
+    "SENSEC1_LO":   {"05-sensing": "right", "06-cable-power": "left"},
+    "SENSEC2_HI":   {"05-sensing": "right", "06-cable-power": "left"},
+    "SENSEC2_LO":   {"05-sensing": "right", "06-cable-power": "left"},
+    "THRESH_PWM":   {"04-mcu": "right", "05-sensing": "left"},
+    "I2C_SDA":      {"04-mcu": "right", "05-sensing": "left"},
+    "I2C_SCL":      {"04-mcu": "right", "05-sensing": "left"},
+    "DETC1":        {"04-mcu": "right", "05-sensing": "left"},
+    "DETC2":        {"04-mcu": "right", "05-sensing": "left"},
+    "USB_D_P":      {"04-mcu": "right", "07-usb-flash": "left"},
+    "USB_D_N":      {"04-mcu": "right", "07-usb-flash": "left"},
+}
+
+# G8 prose preservation: the flat BETA-1 sheet's section captions, carried
+# verbatim onto the corresponding new leaf(s) (a string need only appear
+# SOMEWHERE across the new sheet set, not on a specific one).
+FLAT_CAPTIONS = {
+    "01-hub-link": ["HUB LINK  RJ-45 + DETECT"],
+    "02-can": ["CAN  TJA1051",
+               "H3 STANDALONE-MODE SUITE (USB ESD/EMC + CAN CMC)"],
+    "03-ldo": ["3V3 LDO"],
+    "04-mcu": ["MCU  ESP32-C6-MINI-1"],
+    "05-sensing": ["PER-CABLE SENSING  INA238",
+                   "6.13 TRANSIENT DETECTION  cable 1",
+                   "6.13 TRANSIENT DETECTION  cable 2"],
+    "06-cable-power": [],
+    "07-usb-flash": ["FLASH / USB-C"],
+}
+
+
+def _auto_io(c, hier_exports):
+    """Standard S1: gather every hier-exported net to the leaf's own left/
+    right edge column by the anchor pin's NATURAL stub direction (mirrors
+    ent-common compose_04/compose_05's pattern). This is a LEAF-internal
+    layout choice, independent of the ROOT box side in PAIR_SIDES."""
+    for net, (_shape, (ref, pin)) in hier_exports.items():
+        _pt, (dx, _dy) = c.pin_out(ref, pin)
+        c.io(net, "left" if dx < 0 else "right")
+
+
+def _grid_place(c, refs, x0, y0, cols, dx=16, dy=16):
+    for i, ref in enumerate(refs):
+        c.place(ref, x0 + (i % cols) * dx, y0 + (i // cols) * dy)
+
+
+def _ladder_column(c, pins, offset_dx):
+    """Jog each (ref,pin) in `pins` (already ordered along ONE physical
+    column) out to a shared offset column `offset_dx` grid units from its
+    own connection point, then chain the jog points with real wire segments
+    -- the round-4 owner item 2 GND-bus-to-one-link treatment, generalizing
+    ent-common's 3-pin g17/g18/g37 precedent to a full N-pin ladder. Marks
+    every pin `consumed` (the generic per-pin stub+port pass skips them).
+    Returns the ordered jog points [(x,y), ...] (first/last are the chain's
+    free ends, for the caller to extend/stamp)."""
+    pts = []
+    for ref, pin in pins:
+        (px, py), _dv = c.pin_out(ref, pin)
+        gx = px + offset_dx
+        c.wire((px, py), (gx, py))
+        c.use((ref, pin))
+        pts.append((gx, py))
+    for a, b in zip(pts, pts[1:]):
+        c.wire(a, b)
+    return pts
+
+
+# ============================================================================
+# LEAF COMPOSERS
+# ============================================================================
+def compose_hub_link(c, lf):
+    c.place("J1", 40, 45)
+    c.place("D1", 75, 20)
+    c.place("R1", 90, 20)
+    c.place("R7", 105, 20)
+    c.place("FB2", 75, 55)
+    c.place("C6", 95, 55)
+    # J1 pins 4/5/7 (STREAM_P/N, RSVD) are unused at Standard tier -- left
+    # untouched (no net membership) so build_leaf's generic pass emits their
+    # no_connect flags automatically, matching the flat baseline exactly.
+    _auto_io(c, lf.hier_exports)
+    c.caption(FLAT_CAPTIONS["01-hub-link"][0], 20, 8)
+    c.done()
+
+
+def compose_can(c, lf):
+    c.place("U2", 45, 30)
+    c.place("C4", 80, 15)
+    c.place("C8", 80, 45)
+    c.place("FL1", 45, 65)
+    c.place("R11", 65, 65)
+    c.place("R12", 85, 65)
+    _auto_io(c, lf.hier_exports)
+    for txt in FLAT_CAPTIONS["02-can"]:
+        c.caption(txt, 10, 8 + FLAT_CAPTIONS["02-can"].index(txt) * 5)
+    c.done()
+
+
+def compose_ldo(c, lf):
+    c.place("U3", 40, 30)
+    c.place("C1", 65, 18)
+    c.place("C2", 65, 42)
+    c.caption(FLAT_CAPTIONS["03-ldo"][0], 10, 8)
+    c.done()
+
+
+def compose_mcu(c, lf):
+    U1X, U1Y = 80, 45
+    c.place("U1", U1X, U1Y)
+    used_entry = c.used[("cec-vendor", "ESP32-C6-MINI-1-N4")]
+    body = L.body_box_abs(used_entry["block"], U1X * cec_sch.GRID, U1Y * cec_sch.GRID, 0)
+    body_bottom = round(body[3] / cec_sch.GRID)
+
+    left_pins = [("U1", "1"), ("U1", "2"), ("U1", "11"), ("U1", "14")]
+    right_pins = [("U1", str(p)) for p in range(36, 54)]
+    left_pts = _ladder_column(c, left_pins, -2)
+    right_pts = _ladder_column(c, right_pins, 2)
+    wrap_y = body_bottom + 3
+    lx, ly = left_pts[-1]
+    rx, ry = right_pts[0]
+    c.wire((lx, ly), (lx, wrap_y))
+    c.wire((lx, wrap_y), (rx, wrap_y))
+    c.wire((rx, wrap_y), (rx, ry))
+    ex, ey = right_pts[-1]
+    c.wire((ex, ey), (ex, ey + 3))
+    c.stamp("GND", ex, ey + 3, 0)
+
+    _grid_place(c, ["C3", "C5", "C7", "R2", "SW1", "SW2"], 30, wrap_y + 12, 6, dx=16)
+    _auto_io(c, lf.hier_exports)
+    c.caption(FLAT_CAPTIONS["04-mcu"][0], 20, 8)
+    c.note("EN/GPIO0 are BOOT/RESET straps (SW1/SW2) -- leaf-internal, "
+           "name-pinned to keep their bare net names", 30, wrap_y + 30)
+    c.done()
+
+
+def compose_sensing(c, lf, cable_labels):
+    n = len(cable_labels)
+    _grid_place(c, ["R10", "C40", "R3", "R4"], 20, 8, 4, dx=16, dy=16)
+    y = 40
+    for i, label in enumerate(cable_labels):
+        ina, amp, cmp_ = f"U1{i}", f"U2{i}", f"U3{i}"
+        dec, ca, cb = f"C1{i}", f"C2{i}", f"C3{i}"
+        c.place(ina, 30, y)
+        c.place(dec, 30, y + 20)
+        c.place(amp, 70, y)
+        c.place(cmp_, 100, y)
+        c.place(ca, 70, y + 20)
+        c.place(cb, 100, y + 20)
+        y += 45
+    _auto_io(c, lf.hier_exports)
+    for i, txt in enumerate(FLAT_CAPTIONS["05-sensing"]):
+        c.caption(txt, 10 + i * 2, 8 - (2 if i == 0 else 0))
+    c.done()
+
+
+def compose_cable_power(c, lf, cable_labels):
+    y = 20
+    for i in range(len(cable_labels)):
+        c.place(f"J_IN{i + 1}", 30, y)
+        c.place(f"J_OUT{i + 1}", 70, y)
+        c.place(f"RS{i + 1}", 50, y)
+        y += 30
+    _auto_io(c, lf.hier_exports)
+    c.done()
+
+
+def compose_usb_flash(c, lf):
+    c.place("J5", 40, 45)
+    c.place("D2", 75, 20)
+    c.place("D3", 95, 20)
+    c.place("FB1", 75, 50)
+    c.place("C9", 95, 50)
+    c.place("R8", 75, 70)
+    c.place("R9", 95, 70)
+    _auto_io(c, lf.hier_exports)
+    c.caption(FLAT_CAPTIONS["07-usb-flash"][0], 20, 8)
+    c.done()
+
+
+# ============================================================================
+# DRIVER
+# ============================================================================
+def _cable_labels(extracted):
+    """Cable node labels (e.g. ["C1","C2"]) from the SENSEC*_HI net names
+    touching the sensing leaf -- board-agnostic (works for 2 or 3 cables)."""
+    labels = set()
+    for name in extracted["pairs"]:
+        m = re.match(r"^SENSEC(\w+)_HI$", name)
+        if m:
+            labels.add(m.group(1))
+    return sorted(labels, key=lambda s: (len(s), s))
+
+
+def build(board, force=False):
+    board_dir = os.path.join(ROOT, "modules", board)
+    flat_sch = find_flat_sch(board_dir)
+    if is_hierarchical(flat_sch) and not force:
+        raise SystemExit(f"{flat_sch} is already hierarchical -- refusing to "
+                          f"run (pass --force to regenerate anyway)")
+
+    root_uuid = re.search(r'\(uuid\s+"([0-9a-fA-F-]+)"\)', open(flat_sch).read()).group(1)
+    title_m = re.search(r'\(title\s+"([^"]*)"\)', open(flat_sch).read())
+    rev_m = re.search(r'\(rev\s+"([^"]*)"\)', open(flat_sch).read())
+    title = title_m.group(1) if title_m else board
+    rev = rev_m.group(1) if rev_m else "DRAFT"
+
+    extracted = extract(flat_sch)
+    cable_labels = _cable_labels(extracted)
+
+    LEAVES = {}
+    for lid in LEAF_ORDER:
+        fname, sheetname, desc = LEAF_META[lid]
+        lf = C.Leaf(lid, fname, sheetname, desc)
+        lf.parts = leaf_parts(extracted, lid)
+        lf.nets = leaf_nets(extracted, lid)
+        lf.footprints = {r: extracted["footprints"][r] for r in lf.parts}
+        lf.props = {r: extracted["props"][r] for r in lf.parts if extracted["props"][r]}
+        lf.placement = {}
+        hx = {}
+        for net, sides in PAIR_SIDES.items():
+            if lid in sides and net in lf.nets:
+                hx[net] = ("output", lf.nets[net][0])
+        lf.hier_exports = hx
+        lf.powerflag_nets = ["+5VSB", "GND"] if lid == "01-hub-link" else []
+        LEAVES[lid] = lf
+
+    name_pin_nets = {}
+    for name, (owner_lid, _conns) in extracted["internals"].items():
+        name_pin_nets.setdefault(owner_lid, []).append(name)
+
+    stats = {}
+    for lid in LEAF_ORDER:
+        lf = LEAVES[lid]
+        c = C.Compose(lf, LIBS)
+        if lid == "01-hub-link":
+            compose_hub_link(c, lf)
+        elif lid == "02-can":
+            compose_can(c, lf)
+        elif lid == "03-ldo":
+            compose_ldo(c, lf)
+        elif lid == "04-mcu":
+            compose_mcu(c, lf)
+        elif lid == "05-sensing":
+            compose_sensing(c, lf, cable_labels)
+        elif lid == "06-cable-power":
+            compose_cable_power(c, lf, cable_labels)
+        elif lid == "07-usb-flash":
+            compose_usb_flash(c, lf)
+
+        out_path = os.path.join(board_dir, lf.filename)
+        st = C.build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            POWER_PORTS, lf.powerflag_nets, lf.hier_exports, None,
+            LIBS, board, path_prefix=f"{root_uuid}/{LEAF_SYM_UUIDS[lid]}",
+            sheet_instances_path=LEAF_SYM_UUIDS[lid],
+            own_uuid=LEAF_OWN_UUIDS[lid], page=str(LEAF_ORDER.index(lid) + 2),
+            out_path=out_path, paper=LEAF_PAPER[lid],
+            title=f"{title}: {lf.sheetname}", comment1=lf.desc,
+            pwr_base=100 * (LEAF_ORDER.index(lid) + 1), layout=lf.layout,
+            name_pin_nets=name_pin_nets.get(lid))
+        n_moved, still = L.nudge_texts(out_path)
+        st["nudged"], st["text_overlaps_left"] = n_moved, still
+        dnp_here = extracted["dnp_refs"] & set(lf.parts)
+        st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
+        stats[lid] = st
+        print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
+
+    u = cec_sch.GRID
+    leaves_for_parent = []
+    for lid in LEAF_ORDER:
+        lf = LEAVES[lid]
+        bx, by, bw, bh = BOX[lid]
+        pins = []
+        for net, sides in PAIR_SIDES.items():
+            if lid in sides:
+                pins.append((net, lf.hier_exports[net][0], sides[lid]))
+        leaves_for_parent.append({
+            "id": lid, "sym_uuid": LEAF_SYM_UUIDS[lid], "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": str(LEAF_ORDER.index(lid) + 2),
+            "x": bx * u, "y": by * u, "w": bw * u, "h": bh * u, "pins": pins,
+        })
+
+    root_path = flat_sch
+    parent_stats = C.build_thin_parent(
+        leaves_for_parent, set(), board, root_uuid, None, root_uuid,
+        out_path=root_path, title=title, paper="A2", libs=LIBS,
+        pwr_base=900, lane_labels=True,
+        title_comments=(
+            f"Thin parent (round-4 hierarchical conversion, Rev {rev}) -- "
+            "sheet-symbol fan-out/fan-in only, no components",
+            "Leaf sheets: " + ", ".join(lf.sheetname for lf in LEAVES.values()),
+            "GND/+3V3/+5VSB are global power nets (per-leaf symbols); every "
+            "other crossing is a real drawn sheet-pin lane carrying its "
+            "exact flat-schematic net name (lane_labels)"))
+    print(f"{os.path.basename(root_path)} (thin parent)  " +
+          "  ".join(f"{k}={v}" for k, v in parent_stats.items()))
+    return stats, parent_stats
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("board", nargs="?", default="eps-8pin")
+    ap.add_argument("--force", action="store_true",
+                     help="regenerate even if the root is already hierarchical")
+    args = ap.parse_args(argv)
+    build(args.board, force=args.force)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

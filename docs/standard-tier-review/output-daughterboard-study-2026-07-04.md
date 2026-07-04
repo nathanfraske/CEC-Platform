@@ -289,16 +289,18 @@ not resolved here.
 
 ## 7. Recommendation matrix
 
-_**REVISED same day by the §8 cost pass (owner: "~$5 per connector is a bit high").** The
-premium board-to-board families remain in the table as the qualified fallback; the recommended
-class per family is now the §8 cost-optimized pick. Hirose MCN51 is withdrawn (obsolete, §8.1)._
+_**REVISED same day, twice: first by the §8 cost pass (owner: "~$5 per connector is a bit
+high"), then by the §8.5 geometry revision (owner: "40 mm and 80 mm long cards are MASSIVE"),
+which added the main-board FOOTPRINT GATE and killed the interim card-edge picks.** The premium
+board-to-board families remain as the qualified fallback; Hirose MCN51 is withdrawn (obsolete,
+§8.1). Current picks below = §8.5._
 
-| Family | Recommended connector class (post-§8) | Power contacts/points (source + return) | Extra signal (sense-return + presence) | Projected daughterboard size | Open items for the owner |
+| Family | Recommended connector class (post-§8.5) | Power contacts/points (source + return) | Extra signal (sense-return + presence) | Projected daughterboard size | Open items for the owner |
 |---|---|---|---|---|---|
-| 24-pin ATX | **Card-edge, one slot** (EDAC 307-class dual-readout 0.156″, 5 A/contact verified) — premium fallback: Amphenol PwrBlade / Molex Ten60Power pair | ~20 source fingers + ~20 GND fingers = 2×20 positions ≈ **~80 mm slot** (§8.2a; fits the current ~87 mm board edge, barely — verify against the beta outline) | Fingers are free — sense-return costs one extra finger per rail | Gold-finger card, connector body only on the MAIN board — daughterboard purchase cost ≈ $0 connector-side | EDAC 307 100-qty quote; finger plating call (ENIG vs hard gold, §8.2a); current-sharing bench across paralleled fingers |
-| PCIe 2-port | **Card-edge, Shape A — one slot per cable** (§6/§8.2a) | 2×10 positions/cable ≈ 40 mm slot ×2 (fits the 99 mm board edge) | 1–2 fingers/cable | Two gold-finger cards | Same qualification set as 24-pin |
-| PCIe 3-port | Same, ×3 cables | 2×10 ×3 ≈ 40 mm ×3 (fits the 126 mm edge) | 1–3 | Three cards | Same, ×3 |
-| EPS 8-pin | **Screwed power posts, Shape A** (§8.2b — card-edge at verified 5 A/contact needs ~58 mm of edge per cable ×2 = ~116 mm, which does NOT fit the current 96 mm board) — premium fallback: 3× PwrBlade/Ten60 contacts per polarity | ~3 M3 posts per polarity per cable (generic-joint est. 20–30 A/post, **UNVERIFIED — bench-derive**) = **12 posts** | Sense-return = 1 small signal pin/contact per cable (posts don't provide one natively — needs one cheap 2-pin header or test-pin pair per cable) | Two small post-field cards; posts double as the chassis retention the ruling assumes | Bench-derive A/joint + torque spec for the generic post stack (§8.2b); or re-evaluate card-edge if the beta EPS outline grows |
+| 24-pin ATX | **Posts+signal-header hybrid** (§8.5: screwed M3 power posts + one 2×5 2.54 mm header for PS_ON#/PWR_OK/−12 V/remote-sense/sense-returns). Conditional alternate: Amphenol HPCE card-edge (9 A/beam verified; pitch+price UNVERIFIED) if tool-less swap is worth premium. Commodity card-edge FAILS the footprint gate (§8.5(2)) | **10–12 posts** at the 25–30 A/joint generic estimate (**UNVERIFIED — bench**; REDCUBE-class bench upside → 6–8) | Rides the signal header (~free pins) | Small post-field card ≈ incumbent 24-pin header area; posts pour-native, zero edge, no mouth keepout | Post A/joint bench (now load-bearing for ALL families); HPCE pitch/price verify; −12 V rail-current check at pin-map time |
+| PCIe 2-port | **Posts+header hybrid, Shape A** (2+2 posts/cable + 1×2–3 signal stub) — card-edge cannot reach the 5.4 A/mm gate at any price (§8.5(2)) | **8 posts** | 1–2 pins/cable | Two small post-field cards | Same post bench |
+| PCIe 3-port | Same, ×3 cables | **12 posts** | ×3 | Three cards | Same |
+| EPS 8-pin | **Posts+header hybrid, Shape A** (3+3/cable — unchanged pick, now with the whole-family rationale; the 7.2 A/mm gate is unreachable by any card-edge surveyed) | **12 posts** (bench upside → 2+2/cable) | 1 stub/cable | Two small post-field cards; posts double as chassis retention | Same post bench |
 
 **Data that is thin and should not be treated as settled:** 100-qty pricing for every "real"
 board-to-board power family (§2); the primary Molex Ten60 PDF current-derating table (the search
@@ -444,6 +446,11 @@ Every cheap-class cell lands **$2.5–7.5/module** vs the premium class's **$13�
 
 ### 8.4 Cost-optimized recommendation (electrical bar held)
 
+_**CHANGELOG (2026-07-04, later same day): the card-edge picks below are SUPERSEDED by §8.5** —
+owner pushback: "40 mm and 80 mm long cards are MASSIVE — 40 mm is roughly the width of the
+entire 24-pin connector." §8.5 adds the main-board FOOTPRINT GATE this cost pass lacked and
+revises the picks. §8.4 is retained unedited for provenance._
+
 - **24-pin ATX: card-edge, one slot** (EDAC 307-class, 5 A/contact verified), ~2×20 positions /
   ~80 mm. ≈$2.5–3/module. Fallback: posts (same cost) if the beta outline can't give the edge.
 - **PCIe 2-port & 3-port: card-edge, Shape A (one slot per cable)**, 2×10 positions / ~40 mm per
@@ -462,3 +469,97 @@ Every cheap-class cell lands **$2.5–7.5/module** vs the premium class's **$13�
   gets it for a free finger, posts need one cheap signal pin per site.
 - MCN51 is withdrawn everywhere (obsolete). Premium blade families (mPOWER/PwrBlade/Ten60)
   remain the documented fallback if any cheap-class bench fails.
+
+### 8.5 GEOMETRY REVISION (2026-07-04, owner pushback — same day)
+
+_Owner: "40 mm and 80 mm long cards are MASSIVE — 40 mm is roughly the width of the entire
+24-pin connector." Correct — and it defeats the ruling's win #1 (pours no longer forced around
+the output pin field). This subsection adds the footprint gate, corrects the card-edge geometry
+record, generalizes the §8.4 EPS posts pick into a posts+signal-header hybrid for all families,
+and revises the recommendation. It supersedes §8.4's picks._
+
+**(1) NEW FIRST-CLASS GATE — main-board footprint.** The inter-board interface's main-board
+footprint (slot/post field + mating and routing keepouts) must not exceed the output connector
+it replaces: **24-pin Mini-Fit Jr 24-ckt ≈ 51.6 × 9.8 mm (~506 mm²)**; **EPS/PCIe 2×4 ≈
+18 × 9.8 mm (~176 mm²) per cable** (owner-supplied incumbents, consistent with the Molex
+5569/45586-class drawings; each ALSO carries a cable-mouth clearance zone in front and a
+pour-blocking THT pin field — counted below where it changes a verdict).
+
+**(2) Card-edge geometry corrected — and it FAILS the gate.** For the record: **the §8.2a math
+was ALREADY dual-readout** — "2×N positions" meant N positions of physical length with contacts
+on BOTH card faces (2 contacts/position), per the verified EDAC 307 dual-readout construction
+("dual row contacts that read both sides of daughter board," e.g. 307-044-520-202, 3.96 mm
+spacing — [edac.net/series/307](https://edac.net/series/307), Newark listings). **No further
+halving is available in this class.** The governing figure is linear ampacity: dual-readout
+3.96 mm at the verified 5 A/contact = 2×5 A per 3.96 mm ≈ **2.5 A/mm of slot**; denser pitch
+does NOT help (2.54 mm edgecards are rated lower — Sullins 0.100″ class ≈ 3 A/contact → 2×3/2.54
+≈ **2.4 A/mm**, i.e. the pitch gain is cancelled by the rating drop). The gate demands: 24-pin
+190 A / 51.6 mm = **3.7 A/mm**; PCIe 98 A / 18 mm = **5.4 A/mm**; EPS 130 A / 18 mm =
+**7.2 A/mm**. Commodity card-edge (~2.4–2.5 A/mm) is **physically unable to clear the gate for
+any family** — the §8.4 slot lengths (80/40/58 mm vs 51.6/18/18 mm incumbents) were the visible
+symptom. Adjacent-finger loading at 30 °C rise would only push the real figure DOWN from the
+nameplate (no adjacent-loading derate is published for EDAC/Sullins — the §8.4 bench item stands,
+now moot for the commodity class). The ONE card-edge class that could clear the 24-pin gate:
+**Amphenol HPCE (High Power Card Edge), verified 9 A per power beam with multiple contacts fully
+energized at 30 °C rise still air** ([Amphenol HPCE datasheet via
+Mouser](https://www.mouser.com/datasheet/2/18/1/pwr_hpce-2578367.pdf)) — beam pitch and 100-qty
+price NOT captured this pass (**UNVERIFIED**), and the family is a premium server-power part, so
+it survives only as a conditional for the 24-pin if tool-less daughterboard swap is worth paying
+for. (The earlier "Samtec HPCE" attribution in §8.4 was wrong — HPCE is Amphenol ICC/FCI;
+Samtec's power edgecard is the HSEC8-PV/Generate class, also premium.)
+
+**(3) Posts + signal-header HYBRID, generalized to all families.** Screwed power posts carry the
+rails; ONE small 2.54 mm signal header per module (or a 2–3-pin stub per cable) carries what
+posts can't: the 24-pin's low-current standards circuits (**PS_ON#, PWR_OK, +3.3 V remote sense,
+−12 V** — the −12 V rail is sub-ampere on modern PSUs, header-safe; **UNVERIFIED** exact rail
+spec, flag at pin-map time) plus the §5 sense-returns. Arrangements at the 25–30 A/joint generic
+M3 estimate (**UNVERIFIED — bench item**; Würth REDCUBE THR M3 at a verified 85 A proves the
+topology's headroom, so a good bench plausibly HALVES these counts):
+
+| Family | Posts (source + GND) | Signal header | Contiguous worst-case block (posts @ ~8 mm grid, Ø7 mm pads) | vs. gate |
+|---|---|---|---|---|
+| 24-pin | 12 V×1, 5 V×2, 3.3 V×1–2, 5VSB×1 + GND×5–6 = **10–12** | 2×5 (12.7×5 mm) | 2 rows × 5–6 = **~44×16 mm (~700 mm²)** raw | Raw block ≈ 1.2–1.4× the 506 mm² incumbent — **parity-to-over on raw area**; **CLEARS on effective footprint** (below) |
+| EPS ×2 | 3+3 per cable = **12** | 1×3 per cable | per cable 2×3 = ~24×16 mm (~384 mm²) raw | Raw ≈ 2.2× the 176 mm²/cable incumbent; effective: clears |
+| PCIe-2 | 2+2 per cable = **8** | 1×2–3 per cable | per cable 2×2 = ~16×16 mm (~256 mm²) raw | Raw ≈ 1.45×; effective: clears |
+| PCIe-3 | 2+2 ×3 = **12** | ×3 | same per cable | same |
+
+**The effective-footprint argument (why the hybrid clears the gate where raw mm² says parity):**
+(a) post pads are **pour-native** — a post lands IN the rail pour it feeds, consuming zero area
+the pour didn't already occupy, whereas the incumbent's 24-THT pin field is exactly the
+pour-blocking obstacle the ruling's win #1 wants deleted; (b) posts consume **zero board edge**
+and have **no cable-mouth keepout** (the mate is vertical, into the daughterboard standing above
+— area under a stood-up daughterboard remains routable); (c) the posts ARE the captivation and
+the chassis strain-relief interface (ruling assumption) — no separate screw boss needed, which
+every other candidate adds on top of its raw footprint. On the gate as stated (footprint +
+mating/routing keepouts), the hybrid is the only candidate that beats the incumbent for every
+family; on raw contiguous mm² alone it is parity (24-pin @10 posts) to ~2× (EPS per-cable) — both
+numbers stated so the owner is not sold an accounting trick. Bench upside is real: at a
+REDCUBE-class-validated 40–50 A/joint, counts drop to ~6–8 (24-pin) / 2+2 (EPS) / 1+1–2+2
+(PCIe), putting even the raw block under every gate.
+
+**Hybrid pricing (100-qty, est. basis of §8.3):** 24-pin ≈ 10–12 post-sets ($1.2–1.4) + header
+pair (~$0.25) + board ($1–1.5) ≈ **$2.5–3.2/module**. PCIe-2 ≈ **$2.9–3.5**; PCIe-3 ≈ **$4.3–5**;
+EPS ≈ **$3.6–4.6**. (Post-set ~$0.12 **UNVERIFIED**, LCSC-class hardware.) Cheapest or
+tied-cheapest column in the §8.3 table for every family.
+
+**(4) Revised recommendation — both criteria explicit (cost AND footprint gate):**
+
+| Family | Pick | Cost (est.) | Footprint vs. gate | Card-edge status |
+|---|---|---|---|---|
+| 24-pin ATX | **Posts+header hybrid** (10–12 posts + 2×5 header) | $2.5–3.2 | Effective: clears; raw block ~1.2–1.4× (bench-elastic downward) | Commodity: FAILS gate (needs 3.7 A/mm, has 2.5). **Conditional alternate: Amphenol HPCE** (9 A/beam verified) IF pitch/price verify AND owner values tool-less swap + free sense fingers — premium |
+| EPS 8-pin | **Posts+header hybrid, Shape A** (3+3/cable) — unchanged from §8.4 | $3.6–4.6 | Effective: clears (7.2 A/mm gate is unreachable by any card-edge surveyed) | FAILS gate outright |
+| PCIe 2-port | **Posts+header hybrid, Shape A** (2+2/cable) | $2.9–3.5 | Effective: clears | FAILS gate (needs 5.4 A/mm) |
+| PCIe 3-port | Same, ×3 | $4.3–5 | Same | Same |
+
+There is no genuine two-way trade to present for EPS/PCIe — commodity card-edge cannot reach
+their A/mm gates at any price, so the hybrid wins on all three axes (cost, footprint, ampacity).
+The only live trade is on the **24-pin**: hybrid (smallest effective footprint, best ampacity,
+cheapest, tool-required service) vs. HPCE card-edge (tool-less daughterboard swap, free
+sense-return fingers, keyed slot — at premium cost and two UNVERIFIEDs). Stated as a trade, not
+forced, per the owner's brief.
+
+**New/changed bench items from this revision:** (i) the generic-post A/joint bench is now
+**the load-bearing qualification for every family** (it was EPS-only in §8.4) — joint R, torque
++ thread-lock, thermal-cycle/vibration retention, at ≤30 °C rise; (ii) verify HPCE beam pitch +
+100-qty price before treating the 24-pin alternate as real; (iii) the −12 V/PS_ON/PWR_OK/remote
+sense pin-map onto the signal header needs the ATX rail-current check at spec time.

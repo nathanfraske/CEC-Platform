@@ -168,29 +168,32 @@ chassis cutouts — is a mechanical/BOM trade, not a current-capacity argument.
 
 **(c) Inter-board connector default class — COST PASS LANDED (study §8, 2026-07-04); ratify
 the per-family picks below.**
-[ ] Ratify the electrical bar: **~30 A per power contact at ≤30 °C rise** at the contact
-counts below (unchanged by the cost question), AND the study §8.4 cost-optimized per-family
-recommendation (3–6× cheaper than the premium class, bar held):
-- **24-pin: CARD-EDGE** — daughterboard as a gold-finger card into one ~80 mm slot (EDAC
-  307-class, verified 5 A/contact, fingers paralleled per rail); fingers are fab-free, ONE
-  purchased part/module (~$2.5–3), key slot free, screw-boss captivation. **$2.5–3/module.**
-- **PCIe (per cable, Shape A): CARD-EDGE**, one ~40 mm slot per cable. **$3.5–5/module
-  (2-port), $5–7.5 (3-port).**
-- **EPS: SCREWED POWER POSTS (3+3 M3 per cable)** — card-edge at the verified 5 A/contact
-  needs ~116 mm of edge the 96 mm board lacks; posts double as the chassis
-  retention/strain-relief the ruling already assumes. **$3.5–4.5/module.** Per-joint ampacity
-  is an UNVERIFIED 20–30 A engineering estimate (Würth REDCUBE proves the topology at
-  50–85 A/point) — **bench derivation required before BOM lock.**
-- Premium blade families DEMOTED to qualified fallback: verified pricing = Samtec mPOWER
-  pair ~$6.5–7/cable, Amphenol PwrBlade $6.40–6.99/side ($10–13/pair), Molex Ten60
-  UNVERIFIED (vendor unreachable), **Hirose MCN51 OBSOLETE** (no longer manufactured) →
-  $13–26/module — the owner's ~$5 ceiling objection confirmed.
-- Qualification debt carried by the cheap picks (owner should ratify knowingly): slot-rating
-  provenance (EDAC verified; 805-clones NOT — MODDIY discipline applies), paralleled-finger
-  current-sharing bench at 30 °C rise, ENIG-vs-hard-gold finger finish call, post
-  torque/thermal-cycle bench. Note box (e)'s sense-return contact becomes MORE valuable
-  under these picks — it monitors exactly the joint class being cost-reduced (a free finger
-  on card-edge).
+[ ] Ratify the electrical bar: **~30 A per power contact at ≤30 °C rise** at the study's
+contact counts (unchanged by the cost/geometry questions), AND the study §8.5 revised
+per-family recommendation (cost AND footprint gates both held):
+- **ALL FOUR FAMILIES: SCREWED-POWER-POSTS + SIGNAL-HEADER HYBRID** — M3 posts for the rails
+  (24-pin: 10–12 posts; EPS: 3+3 per cable; PCIe: 2+2 per cable) + ONE 2×5 2.54 mm header
+  for the low-current circuits (24-pin PS_ON#/PWR_OK/−12V/remote-sense; the box-(e)
+  sense-returns ride this header FOR FREE). **$2.5–5/module est.** — cheapest column,
+  smallest effective footprint (pour-native pads, zero board-edge consumption, no mating-
+  mouth keepout — the 24-pin raw block ~44×16 mm reads parity–1.4× vs the incumbent but
+  clears on effective footprint), best ampacity, and the screws ARE the chassis
+  retention/strain-relief the ruling assumes. Trade-off: tool-required service, not
+  tool-less.
+- **COMMODITY CARD-EDGE ELIMINATED by the footprint gate (§8.5 correction on the record):**
+  the earlier §8.4 card-edge math was already dual-readout — commodity slots deliver only
+  ~2.4–2.5 A/mm of slot length at ANY pitch (denser pitch self-cancels), vs the gate's
+  demanded 3.7 (24-pin) / 5.4 (PCIe) / 7.2 (EPS) A/mm → fails every family at any price.
+  Sole surviving card-edge: Amphenol HPCE (verified 9 A/beam @30 °C rise), premium,
+  pitch/price UNVERIFIED — kept ONLY as the one live 24-pin alternative (tool-less swap +
+  free sense fingers) presented as a trade, not a pick.
+- Premium blade families remain demoted (verified: mPOWER pair ~$6.5–7/cable, PwrBlade
+  $6.40–6.99/side, Ten60 UNVERIFIED, **MCN51 OBSOLETE**) → $13–26/module.
+- **LOAD-BEARING BENCH ITEM (now all-family): the generic M3 screwed-joint ampacity
+  rating.** The 20–30 A/joint figure is an UNVERIFIED engineering estimate; Würth REDCUBE's
+  verified 85 A/point proves the topology's headroom. A good bench number HALVES post
+  counts (raw blocks then clear every gate outright). Plus: post torque/thermal-cycle
+  bench; ENIG-vs-hard-gold applies only if the HPCE trade is taken.
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|
