@@ -614,7 +614,7 @@ def build(board, force=False):
     parent_stats = C.build_thin_parent(
         leaves_for_parent, set(), board, root_uuid, None, root_uuid,
         out_path=root_path, title=title, paper="A2", libs=LIBS,
-        pwr_base=900, lane_labels=True,
+        pwr_base=900, lane_labels=True, name_pin_nets=name_pin_nets,
         title_comments=(
             f"Thin parent (round-4 hierarchical conversion, Rev {rev}) -- "
             "sheet-symbol fan-out/fan-in only, no components",
