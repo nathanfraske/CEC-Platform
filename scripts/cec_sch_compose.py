@@ -574,7 +574,8 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                power_ports, powerflag_nets, hier_exports, sections,
                libs, project, path_prefix, sheet_instances_path, own_uuid,
                page, out_path, paper="A2", title=None, comment1="",
-               pwr_base=0, layout=None, global_nets=None, name_pin_nets=None):
+               pwr_base=0, layout=None, global_nets=None, name_pin_nets=None,
+               rev="DRAFT"):
     """Write one leaf schematic (a functional block with real components).
 
     `path_prefix` is the FULL chain of sheet-symbol uuids (starting with the
@@ -623,6 +624,13 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     automates this half). A name already present in `hier_exports` is left
     untouched (no duplicate export). Probe-verified naming: this mechanism
     took /04-mcu/FLASH_CS -> /FLASH_CS in the ent-common scratch probe.
+
+    `rev` (round-4, opt-in, default "DRAFT" -- byte-identical for every
+    existing caller): threaded into this leaf's own `title_block` `(rev
+    "...")` field, mirroring `build_thin_parent`'s `rev` parameter (see its
+    docstring for the gap this closes -- a converted board's leaves should
+    carry the same real Rev as its root per the owner's alpha/beta
+    revision-line convention).
     """
     placement = _norm_placement(placement)
     used = cec_sch.load_symbols(libs, parts)
@@ -886,7 +894,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     # with the pre-restructure generators but is expected empty/None here.
     section_gfx = "\n".join(cec_sch.emit_section(lbl, *box) for lbl, box in (sections or {}).items())
 
-    title_blk = title_block(title or out_path, comment1) if title else ""
+    title_blk = title_block(title or out_path, comment1, rev=rev) if title else ""
 
     content = (
         "(kicad_sch\n\t(version 20260306)\n\t(generator \"eeschema\")\n\t(generator_version \"10.0\")\n"
@@ -1138,6 +1146,18 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     inside the leaf; once the pin exists here, the ordinary `singles` case
     below already produces the root stub + LOCAL label with the original
     bare name (probe-verified: no further special-casing needed).
+
+    `rev` (round-4, opt-in, default "DRAFT" -- byte-identical for every
+    existing caller): threaded into `title_block`'s own `(rev "...")` field.
+    Measured gap this closes: `title_block`'s `rev` param defaulted to
+    "DRAFT" unconditionally and NO prior caller (including this function's
+    own title_comments text, which can independently embed a human-readable
+    "Rev X" string) ever passed it through -- so a converted root's REAL
+    title-block Rev field silently stayed "DRAFT" even when the source flat
+    board was a named revision (e.g. "BETA-1"), which the owner's alpha/beta
+    revision-line convention (CLAUDE.md, 2026-07-03) requires to surface
+    correctly. Callers that care should read the source's own `(rev "...")`
+    and pass it here explicitly; the default preserves prior behavior.
     """
     global_power_exports = global_power_exports or {}
     is_root = own_sheet_sym_uuid is None
@@ -1363,7 +1383,7 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
             "Thin parent sheet -- sheet-symbol fan-out/fan-in ONLY, no "
             "components, per the owner's 2026-07-02 format correction",
             "Leaf sheets: " + ", ".join(l["sheetname"] for l in leaves))
-    title_blk = title_block(title, *title_comments)
+    title_blk = title_block(title, *title_comments, rev=rev)
 
     footer_path = "/" if is_root else f"/{own_sheet_sym_uuid}"
     footer_page = "1" if is_root else page

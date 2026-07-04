@@ -266,7 +266,7 @@ def extract(flat_sch):
                               f"global_nets bus")
 
     power_members = {}
-    for name in POWER_NETS:
+    for name in POWER_PORTS:   # dict, insertion-ordered -- see leaf_nets note
         power_members[name] = by_name.get(name, [])
 
     return {
@@ -286,7 +286,15 @@ def leaf_nets(extracted, lid):
     for name, by_leaf in extracted["pairs"].items():
         if lid in by_leaf:
             nets[name] = list(by_leaf[lid])
-    for name in POWER_NETS:
+    for name in POWER_PORTS:   # dict, insertion-ordered -- NOT the POWER_NETS
+        # set: measured live (round-4 idempotency check), iterating a `set`
+        # of net-name strings has HASH-RANDOMIZED order across separate
+        # Python processes (PYTHONHASHSEED), so two back-to-back fresh runs
+        # from the identical flat baseline non-deterministically swapped
+        # WHICH physical stub position got the GND vs +5VSB power symbol --
+        # a real reproducibility bug, not just cosmetic (same net-name-to-
+        # connectivity result, but a different-looking schematic every run).
+        # POWER_PORTS is a plain dict (insertion order, stable every run).
         conns = [(ref, pin) for ref, pin in extracted["power_members"][name]
                  if extracted["leaf_of"][ref] == lid]
         if conns:
@@ -682,7 +690,7 @@ def build(board, force=False):
             out_path=out_path, paper=LEAF_PAPER[lid],
             title=f"{title}: {lf.sheetname}", comment1=lf.desc,
             pwr_base=100 * (LEAF_ORDER.index(lid) + 1), layout=lf.layout,
-            name_pin_nets=name_pin_nets.get(lid))
+            name_pin_nets=name_pin_nets.get(lid), rev=rev)
         n_moved, still = L.nudge_texts(out_path)
         st["nudged"], st["text_overlaps_left"] = n_moved, still
         dnp_here = extracted["dnp_refs"] & set(lf.parts)
@@ -710,7 +718,7 @@ def build(board, force=False):
     parent_stats = C.build_thin_parent(
         leaves_for_parent, set(), board, root_uuid, None, root_uuid,
         out_path=root_path, title=title, paper="A2", libs=LIBS,
-        pwr_base=900, lane_labels=True, name_pin_nets=name_pin_nets,
+        pwr_base=900, lane_labels=True, name_pin_nets=name_pin_nets, rev=rev,
         title_comments=(
             f"Thin parent (round-4 hierarchical conversion, Rev {rev}) -- "
             "sheet-symbol fan-out/fan-in only, no components",
