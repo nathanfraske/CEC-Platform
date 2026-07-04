@@ -5,9 +5,9 @@
 `docs/owner-queue.md`. This document proposes text that WOULD replace the affected paragraphs
 of the spec's LOCKED Section 2.8, plus the owner decisions gating it. Sources:
 `CEC-Platform-Ground-Truth-Spec.md` §2.8 (quoted verbatim below) and Document control;
-`docs/standard-tier-review/SYNTHESIS-beta-plan.md` §D-5a (owner ruling, 2026-07-04);
-`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` (engineering study);
-`docs/standard-tier-review/atx24-output-interface-panel-2026-07-03.md` (prior Form A–E panel).
+`SYNTHESIS-beta-plan.md` §D-5a (owner ruling, 2026-07-04); `output-daughterboard-study-
+2026-07-04.md` (engineering study); `atx24-output-interface-panel-2026-07-03.md` (prior panel)
+— all three in `docs/standard-tier-review/`.
 
 ---
 
@@ -48,11 +48,11 @@ untouched, and the spec's gender convention (board headers male, cable ends fema
 for the 24-pin and 12VHPWR — it does **not** lock one for EPS or PCIe. The as-built EPS/PCIe
 boards carry a generalized version of the 24-pin's two-male-header pattern per cable
 (`gen-module-pcb.py`'s shared template, per `CLAUDE.md`'s "Interposer-module PCB floorplans"
-item), but that was never written into §2.8 as a locked EPS/PCIe decision. The 2026-07-04
-ruling scopes EPS/PCIe into the daughterboard change as though an existing lock already
-covered them — it did not. This draft closes that pre-existing gap in the same pass (§2 adds
-explicit EPS/PCIe paragraphs) rather than silently inheriting the unlocked assumption. Flagged
-for owner awareness, not a blocker to sign-off.
+item), but that was never written into §2.8 itself. The 2026-07-04 ruling scopes EPS/PCIe into
+the daughterboard change as though an existing lock already covered them — it did not. This
+draft closes that pre-existing gap in the same pass (§2 adds explicit EPS/PCIe paragraphs)
+rather than silently inheriting the unlocked assumption. Flagged for owner awareness, not a
+blocker to sign-off.
 
 ---
 
@@ -166,10 +166,18 @@ connector-body defect risks every cable at once) and cuts against the sellable-a
 addendum (no independent per-cable swap on a shared board). Shape B's one real edge — fewer
 chassis cutouts — is a mechanical/BOM trade, not a current-capacity argument.
 
-**(c) Inter-board connector default class.**
-[ ] Ratify default: **Amphenol PwrBlade or Molex Ten60Power** (both manufacturer-published at
-**30 A per power contact at 30 °C rise**, matching this repo's convention directly; study §2).
-Indicative contact counts, **not yet quoted at volume** (study §7):
+**(c) Inter-board connector default class — CLASS CHOICE PENDING A COST PASS (updated
+2026-07-04, mid-draft; do not read PwrBlade/Ten60Power below as the settled default).**
+[ ] Ratify the electrical bar only for now: **~30 A per power contact at ≤30 °C rise**, at the
+contact counts below (unchanged by the cost question). Study §2's original candidates
+(Amphenol PwrBlade, Molex Ten60Power, Samtec mPOWER, TE MULTI-BEAM, Hirose MCN51) all clear
+this bar, but the owner flagged their per-connector cost (**~$5 each**) as too high stacked on
+the daughterboard sub-assembly's own BOM. A cost-pass addendum to
+`output-daughterboard-study-2026-07-04.md` is in progress, evaluating cheaper same-bar classes
+— single-part card-edge gold-finger + socket, screwed power posts doubling as strain relief,
+Faston tab pairs, LCSC power board-to-board clones — and whether any solves the old cheap
+headers' disqualifying **no positive latch** problem. **Connector part/family is PENDING that
+addendum, not this draft.**
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|
@@ -177,11 +185,7 @@ Indicative contact counts, **not yet quoted at volume** (study §7):
 | PCIe (per cable, Shape A) | **2** | 49 A target ÷ 30 A/contact, rounded up |
 | 24-pin, per rail (+ matching GND) | 12V 2 / 3.3V 3 / 5V 4 / 5VSB 2 | scaled from the study's §2 footnote (12V baseline ×1.5 for 3.3V, ×1.9 for 5V); **derived, approximate**, ~16–20 contacts total across power+GND |
 
-Other candidates surveyed, not recommended as default: Samtec mPOWER (viable, no 100-qty
-pricing found), TE MULTI-BEAM XLE/XL (over-specified/VITA-62-class), Hirose MCN51 (30 °C-rise
-basis unconfirmed), both cheap 2.54 mm/3.96 mm header classes (current is fine, **no positive
-latch on either** — disqualifying). GND sized to match source-contact count per rail, not a
-thinner shared return (study §1).
+GND sized to match source-contact count per rail, not a thinner shared return (study §1).
 
 **(d) MODDIY vertical female header status.**
 [ ] Ratify: **prototype-approved; sellable-BOM pending bench qualification.** MODDIY's
@@ -189,9 +193,9 @@ thinner shared return (study §1).
 24-pin/EPS/PCIe (study §3) — but carries **no manufacturer name, no MPN, no datasheet, no
 published current rating**, the same provenance-UNVERIFIED DIY category the 2026-07-03 panel
 already disqualified for the sellable BOM ("Option F provenance update"). Flipping §2.8's old
-"no board-mount female ATX part exists" premise here needs the same battery the panel already
-prescribed — pull force, mating-cycle life, current-rise, plating/contact-resistance trend —
-none run yet. Usable today for bring-up samples only.
+"no board-mount female part exists" premise here needs the panel's own prescribed battery —
+pull force, mating-cycle life, current-rise, plating trend — none run yet; usable today for
+bring-up samples only.
 
 **(e) Sense-return contact option.**
 [ ] Decide: ship now / later / not at all, at what granularity (study §5, not resolved there).
@@ -207,32 +211,31 @@ full Kelvin needs a downstream GND-side tap too, doubling contacts, an open cost
 
 **(f) Chassis strain-relief numbers.**
 [ ] Owner to supply: pull force (N) and flex-cycle count for the chassis-provided strain relief
-the ruling assigns ("we'll design that in"). Placeholder: the 2026-07-03 panel's qualified
-target for this joint class, **≥90 N pull, ≥500-cycle flex** (bench question 1) — derived for a
-*daughterboard-local* potted bar (study §4); the 2026-07-04 ruling moves relief to the chassis
-instead, which may lower the load the daughterboard's own joints see, but default to the same
-floor conservatively until the chassis spec exists.
+the ruling assigns ("we'll design that in"). Placeholder: the panel's qualified target for this
+joint class, **≥90 N pull, ≥500-cycle flex** (bench question 1) — derived for a
+*daughterboard-local* potted bar (study §4); the ruling moves relief to the chassis instead,
+which may lower the daughterboard's own joint load, but default to the same floor until the
+chassis spec exists.
 
 ---
 
 ## 5. New OQ proposals (continuing from OQ-85; PROPOSED)
 
 **OQ-86: Inter-board connector MPN lock (24-pin / EPS / PCIe output daughterboard).** Lock the
-platform inter-board power connector family/MPN from the §4(c) candidates, gated on real
-100-qty quotes (none confirmed as of this study) and on ratifying the margin policy (4(a)) and
-daughterboard shape (4(b)) that set the required contact count. See
-`output-daughterboard-study-2026-07-04.md` §2, §7.
+platform connector family/MPN, gated on the in-progress cost-pass addendum (box (c):
+owner-flagged ~$5/connector ceiling against the daughterboard's own BOM), real 100-qty quotes,
+and ratifying the margin policy (4(a)) and daughterboard shape (4(b)) that set contact count.
+See `output-daughterboard-study-2026-07-04.md` §2, §7 and its forthcoming cost-pass addendum.
 
 **OQ-87: Daughterboard mechanical and chassis interface.** Define stand-off/mounting geometry,
 keying/captivation against mis-seat, stack height under the enclosed-product boundary (couples
-to the J1/J2 enclosure directive, `beta-lock-register-2026-07-03.md` §J), and the box-(f)
-strain-relief numbers. Interacts with OQ-86 (connector stack height).
+to J1/J2, `beta-lock-register-2026-07-03.md` §J), and the box-(f) strain-relief numbers.
+Interacts with OQ-86 (connector stack height).
 
 **OQ-88: Bench-qualification protocol for the daughterboard build.** Define the qualification
 battery for (1) the inter-board connector once OQ-86 narrows candidates (pull force,
 mating-cycle life, thermal rise at rated current) and (2) the MODDIY-class vertical female
-header if box (d) moves toward sellable-BOM use (same battery plus plating trend and
-incoming-lot inspection). Neither battery has been run.
+header if box (d) moves toward sellable-BOM use. Neither battery has been run.
 
 **OQ-89: Sellable daughterboard-plus-extension assembly SKU definition.** Define the SKU(s):
 per-family count (24-pin ×1, EPS ×2, PCIe ×2 or ×3, per Shape A), length/gauge/strain-relief
@@ -255,16 +258,12 @@ draft.** Below is what happens only after sign-off, so the downstream scope is v
 | Area | Directory / file | What changes, if ratified |
 |---|---|---|
 | 24-pin ATX module | `modules/atx-24pin/` | Remove J4; add inter-board connector + daughterboard project; rev3 scope grows (D-5/D-5a critical path) |
-| EPS 8-pin module | `modules/eps-8pin/` | Remove per-cable output headers (J_OUT1/J_OUT2); add per-cable inter-board connector + daughterboard sites (Shape A, pending 4(b)) |
-| PCIe 8-pin (2-, 3-port) | `modules/pcie-8pin-2port/`, `modules/pcie-8pin-3port/` | Same as EPS, ×2 / ×3 sites; rides the W6 routing wave already queued |
+| EPS / PCIe modules | `modules/eps-8pin/`, `modules/pcie-8pin-2port/`, `modules/pcie-8pin-3port/` | Remove per-cable output headers (J_OUT*); add per-cable inter-board connector + daughterboard sites (Shape A, pending 4(b)); rides the W6 routing wave already queued |
 | 12VHPWR (Standard, Pro) | `modules/12vhpwr-standard/`, `modules/12vhpwr-pro/` | **No change** — out of scope |
-| Daughterboard artifacts | new — location TBD | Repo-layout decision not made here; owner/agent call needed before any KiCad project is created |
-| Fab snapshots / enclosure design | `fab/<board>-*`; J1/J2 work, `beta-lock-register-2026-07-03.md` §J | Daughterboard fab output follows the existing beta-naming convention (nothing until a board exists); enclosure gains the stand-off/keying/strain-relief interface (OQ-87) |
+| Daughterboard artifacts, fab, enclosure | new dir TBD; `fab/<board>-*`; J1/J2 work (`beta-lock-register-2026-07-03.md` §J) | Repo-layout decision not made here; fab output follows the existing beta-naming convention once a board exists; enclosure gains the stand-off/keying/strain-relief interface (OQ-87) |
 | D-1 kit SKUs | `SYNTHESIS-beta-plan.md` §D-1 | LOCKED-today F-F 24-pin bridging cable retired/replaced by the daughterboard+extension assembly (OQ-89); JST 5VSB Hub-feed cable unaffected |
 | Ground-truth spec | `CEC-Platform-Ground-Truth-Spec.md` §2.8, §10, §11 | The actual edit this draft proposes — not made until sign-off |
 | `CLAUDE.md`, `docs/owner-queue.md` | — | Both need their own follow-up updates once ratified (not touched here) |
-
----
 
 ## Version-bump proposal
 
@@ -274,30 +273,27 @@ The spec's versioning rule (Document control) reserves MAJOR for a change that "
 connector pinout, a wire protocol, an interface, or cross-tier compatibility." A literal reading
 could call this MAJOR — it does redefine a LOCKED connector interface. Case for MINOR:
 
-1. **Direct precedent, and alpha/beta lineage preserves compatibility.** v1.3.0 itself changed a
-   physical connector arrangement (Hub Standard's two 2-pin power feeds consolidated into one
-   3-pin JST S3B-XH-A, §2.7/§2.9) as a MINOR bump — a beta-lineage change beside a preserved
-   alpha, not a break to cross-tier compatibility. This revision lands the same way, beside
-   unmodified alpha boards — nothing existing "breaks" since the F-F-bridging-cable form was
-   never fielded at the daughterboard's expense.
+1. **Direct precedent, alpha/beta lineage preserves compatibility.** v1.3.0 changed a physical
+   connector arrangement (Hub Standard's two 2-pin feeds consolidated into one 3-pin JST
+   S3B-XH-A, §2.7/§2.9) as a MINOR bump — beta-lineage beside a preserved alpha, not a break to
+   cross-tier compatibility. This revision lands the same way: nothing existing "breaks," since
+   the F-F-bridging-cable form was never fielded at the daughterboard's expense.
 2. **Cross-tier interface untouched; stays PROPOSED.** Scoped entirely to the PSU-side
-   power-path interposer connectors (§2.8) — separate, in the spec's own words, "from the
-   universal RJ-45 module-to-Hub interface"; no pin allocation, DETECT code, or CAN behavior
-   changes. Section 4's boxes and Section 5's OQs are unresolved, so MINOR also matches how this
-   document has always folded a PROPOSED architecture into a controlled baseline (v1.1.0
-   Appendix D, v1.2.0 Section 13, v1.3.0 itself).
+   power-path interposer connectors — separate, in the spec's own words, "from the universal
+   RJ-45 module-to-Hub interface"; no pin, DETECT, or CAN change. Section 4's boxes and Section
+   5's OQs are unresolved, so MINOR also matches how this document has always folded a PROPOSED
+   architecture into a controlled baseline (v1.1.0 Appendix D, v1.2.0 §13, v1.3.0 itself).
 
 Proposed Section 11 entry text (for insertion upon sign-off, not inserted here):
 
 > **1.4.0 (TBD, controlled).** OUTPUT-SIDE CONNECTOR-DAUGHTERBOARD ARCHITECTURE. Supersedes the
 > v1.6 §2.8 output form (two board-mount male headers plus a CEC-supplied female-to-female
 > bridging cable) for the 24-pin ATX, EPS 8-pin, and PCIe 8-pin (2-port, 3-port) modules: output
-> rails now cross an inter-board connector to a passive daughterboard (no components, thick
-> copper), chassis-strain-relieved, populated with a vertical female header or soldered
-> pigtail, optionally sold as a daughterboard-plus-extension assembly (owner ruling
-> `SYNTHESIS-beta-plan.md` §D-5a, 2026-07-04; study `output-daughterboard-study-2026-07-04.md`).
-> Also closes a gap: EPS/PCIe output connectors, previously unlocked by §2.8, are now specified
-> under the same rule, per cable. 12VHPWR unchanged (captive soldered pigtail). Input-side
-> connectors on every module unchanged. New OQ-86 through OQ-89 (connector MPN, mechanical/
-> chassis interface, bench-qualification protocol, sellable-assembly SKU); OQ-82 resolved at
-> the architecture level. Range extended to OQ-1 through OQ-89.
+> rails now cross an inter-board connector (class pending a cost pass) to a passive
+> daughterboard (no components, thick copper), chassis-strain-relieved, populated with a
+> vertical female header or soldered pigtail, optionally sold as a daughterboard-plus-extension
+> assembly (owner ruling `SYNTHESIS-beta-plan.md` §D-5a, 2026-07-04; study
+> `output-daughterboard-study-2026-07-04.md`). Also closes a gap: EPS/PCIe output connectors,
+> previously unlocked by §2.8, are now specified under the same rule, per cable. 12VHPWR
+> unchanged (captive soldered pigtail); input-side connectors on every module unchanged. New
+> OQ-86 through OQ-89; OQ-82 resolved at the architecture level. Range extended to OQ-1–89.
