@@ -1708,6 +1708,175 @@ def rotate_flag_180(sch_path, ref, out_path=None):
     return True
 
 
+# ---------------------------------------------------------------------------
+# GND-LADDER BUS GEOMETRY (2026-07-04, round-4): the owner's "GND arrays bused
+# to one link" ruling. A generated/hand-authored symbol instance often carries
+# a whole ROW of same-net pins (a many-ground-pin IC, a wide connector) each
+# individually stubbed out to its OWN private power-flag stamp (see the
+# "17 per-pin stamps" ent-common precedent noted in the round-4 plan) -- an
+# "un-bused ladder". power_ladder_runs() FINDS that shape (read-only geometry);
+# bus_power_ladder() (scripts/cec_sch_gates.py) is the mutator that collapses
+# it to one kept stamp + a real chain wire. Reuses the same rotate_local +
+# Y-flip convention _power_pin_dir/pin_abs_rot already validate -- no new pin
+# math, just applied to a SYMBOL's own pins instead of a power-flag's.
+# ---------------------------------------------------------------------------
+def _extract_wire_spans(text):
+    """[(x1,y1,x2,y2,(span_start,span_end))] -- like _extract_wires, but
+    keeps each segment's own byte span so a caller (power_ladder_runs /
+    bus_power_ladder) can splice it out. Every `(wire ...)` this repo emits
+    (cec_sch.emit_wire) wraps exactly one 2-point segment, so segment span ==
+    the whole wire block's span; a native multi-point wire (not emitted by
+    this toolkit) would have >1 segment share one block span, which is fine
+    for read-only geometry but would double-delete if two of its segments
+    were both marked for a cut -- not a shape this codebase's generators
+    produce."""
+    work = _strip_lib_symbols(text)
+    out = []
+    for m in re.finditer(r'\(wire\b', work):
+        s = m.start()
+        blk = cec_sch.carve(work, s)
+        e = s + len(blk)
+        pts = re.findall(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk)
+        for a, b in zip(pts, pts[1:]):
+            out.append((float(a[0]), float(a[1]), float(b[0]), float(b[1]), (s, e)))
+    return out
+
+
+def _power_flags_with_value(text):
+    """[{"ref","val","at":(x,y),"span":(s,e)}] for every #PWR/#FLG instance --
+    the same shape dedupe_power_flags builds inline, factored out so
+    power_ladder_runs can reuse it without re-deriving the parse."""
+    work = _strip_lib_symbols(text)
+    out = []
+    for s, e, (ox, oy), ref, rot, lib, mir in _symbol_spans(work):
+        if not ref.startswith("#"):
+            continue
+        m = re.search(r'\(property\s+"Value"\s+"((?:[^"\\]|\\.)*)"', text[s:e])
+        out.append({"ref": ref, "val": _unescape(m.group(1)) if m else "?",
+                    "at": (ox, oy), "span": (s, e)})
+    return out
+
+
+def power_ladder_runs(sch_text_or_parsed, ref, net="GND", *,
+                      pitch_tol=0.02, min_run=3):
+    """Find collinear ADJACENT runs (>=min_run pins, uniform pitch, all named
+    `net`) on symbol instance `ref`, where EVERY pin in the run is currently
+    terminated by its own private #PWR/#FLG stamp of that net (a single wire
+    from the pin to a same-net flag, nothing else touching either end) --
+    i.e. the un-bused ladder shape bus_power_ladder collapses. `sch_text_or_
+    parsed` may be a file path or the raw .kicad_sch text already read.
+
+    Returns a list of dicts (one per maximal qualifying run):
+      {"ref", "net", "pins": [pin_number, ...] in physical order,
+       "points": [(x,y), ...] sheet coords, same order, "pitch": float,
+       "flags": [(flag_ref, flag_span, wire_span, flag_at), ...] same order}
+    Mirrored instances are skipped (consistent with _extract_pin_glyphs)."""
+    text = sch_text_or_parsed
+    if "\n" not in text and os.path.isfile(text):
+        text = open(text).read()
+    work = _strip_lib_symbols(text)
+    target = None
+    for s, e, (ox, oy), r, rot, lib_id, mir in _symbol_spans(work):
+        if r == ref:
+            target = (ox, oy, rot, lib_id, mir)
+            break
+    if not target or target[4]:
+        return []
+    ox, oy, rot, lib_id, _mir = target
+    pin_lib = _parse_pin_glyph_lib(text)
+    sym = pin_lib.get(lib_id)
+    if not sym:
+        return []
+    pts = []
+    for p in sym["pins"]:
+        if p["name"] != net:
+            continue
+        rlx, rly = rotate_local(p["x"], p["y"], rot)
+        pts.append({"num": p["number"],
+                    "x": round(ox + rlx, 4), "y": round(oy - rly, 4)})
+    if len(pts) < min_run:
+        return []
+
+    wires = _extract_wire_spans(text)
+    net_flags = [f for f in _power_flags_with_value(text) if f["val"] == net]
+
+    def _own_flag(px, py):
+        """The (flag, wire_span) pair if (px,py) is touched by EXACTLY one
+        wire whose far end lands on a private `net` flag with nothing else
+        touching either end -- None otherwise (shared/coincident/foreign)."""
+        touch = [w for w in wires
+                 if (abs(w[0] - px) < 0.05 and abs(w[1] - py) < 0.05) or
+                    (abs(w[2] - px) < 0.05 and abs(w[3] - py) < 0.05)]
+        if len(touch) != 1:
+            return None
+        w = touch[0]
+        near_a = abs(w[0] - px) < 0.05 and abs(w[1] - py) < 0.05
+        far = (w[2], w[3]) if near_a else (w[0], w[1])
+        for fl in net_flags:
+            if abs(fl["at"][0] - far[0]) < 0.1 and abs(fl["at"][1] - far[1]) < 0.1:
+                # the flag's own point must ALSO carry only this one wire,
+                # or deleting it could strand something else touching it.
+                flag_touch = [ww for ww in wires
+                             if (abs(ww[0] - far[0]) < 0.05 and abs(ww[1] - far[1]) < 0.05) or
+                                (abs(ww[2] - far[0]) < 0.05 and abs(ww[3] - far[1]) < 0.05)]
+                if len(flag_touch) != 1:
+                    return None
+                return fl, w[4]
+        return None
+
+    by_x, by_y = defaultdict(list), defaultdict(list)
+    for p in pts:
+        by_x[round(p["x"], 2)].append(p)
+        by_y[round(p["y"], 2)].append(p)
+
+    runs = []
+    for groups, vary_key in ((by_x, "y"), (by_y, "x")):
+        for members in groups.values():
+            if len(members) < min_run:
+                continue
+            members = sorted(members, key=lambda m: m[vary_key])
+            i = 0
+            while i < len(members):
+                j, pitch = i, None
+                while j + 1 < len(members):
+                    step = members[j + 1][vary_key] - members[j][vary_key]
+                    if pitch is None:
+                        pitch = step
+                    if abs(step) < 1e-6 or abs(step - pitch) > pitch_tol:
+                        break
+                    j += 1
+                    pitch = step
+                run_members = members[i:j + 1]
+                if len(run_members) >= min_run:
+                    # a position-uniform run may still have a pin partway
+                    # through that ISN'T privately flagged (shared/foreign/
+                    # already-bused) -- find maximal CONTIGUOUS sub-runs of
+                    # own-flagged pins rather than truncating the whole run
+                    # at the first failure.
+                    flagged = [(m, _own_flag(m["x"], m["y"])) for m in run_members]
+                    k = 0
+                    while k < len(flagged):
+                        if flagged[k][1] is None:
+                            k += 1
+                            continue
+                        l = k
+                        while l + 1 < len(flagged) and flagged[l + 1][1] is not None:
+                            l += 1
+                        entries = [(m, got) for m, got in flagged[k:l + 1]]
+                        if len(entries) >= min_run:
+                            runs.append({
+                                "ref": ref, "net": net,
+                                "pins": [m["num"] for m, _ in entries],
+                                "points": [(m["x"], m["y"]) for m, _ in entries],
+                                "pitch": pitch,
+                                "flags": [(fl["ref"], fl["span"], w, fl["at"])
+                                         for _, (fl, w) in entries],
+                            })
+                        k = l + 1
+                i = j + 1 if j > i else i + 1
+    return runs
+
+
 def _file_symbol_context(text):
     """Build (parts, placement, used) from an EXISTING flat .kicad_sch's own
     instances + its embedded lib_symbols cache -- the shapes pin_abs_rot
