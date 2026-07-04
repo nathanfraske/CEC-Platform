@@ -7,7 +7,7 @@
 	(title_block
 		(title "CEC-EPS-8PIN-MODULE: 03-ldo")
 		(date "2026-07-02")
-		(rev "BETA-1")
+		(rev "BETA-2")
 		(company "CEC")
 		(comment 1 "LP5907 3V3 LDO")
 	)
@@ -737,7 +737,7 @@
 		(exclude_from_sim no)
 		(at 109.22 74.93 0)
 		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
-		(uuid "3a543259-bcf9-40d1-8131-cbb344ab7963")
+		(uuid "677c4671-f987-454e-bf10-7eadd2d7c17f")
 	)
 	(symbol
 		(lib_id "cec-vendor:LP5907MFX-1.2")
@@ -748,7 +748,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "3c6c319a-6372-45cd-a7f9-c23b76504635")
+		(uuid "d6859683-a259-4dd1-bd7f-fdf5e459b56f")
 		(property "Reference" "U3" (at 147.32 92.71 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "LP5907MFX-3.3" (at 147.32 95.25 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 147.32 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -756,11 +756,11 @@
 		(property "Manufacturer" "Texas Instruments" (at 147.32 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "LP5907MFX-3.3" (at 147.32 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C80670" (at 147.32 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "6a8f9fc2-f0c1-4568-b264-ebb8f85176d9"))
-		(pin "3" (uuid "26ea0d73-1a8d-49d3-96f7-2db584995229"))
-		(pin "2" (uuid "9df89461-0e16-4279-9df0-d2737a13bcae"))
-		(pin "4" (uuid "f382a5a8-6e72-4a71-89c1-dd90243b39b2"))
-		(pin "5" (uuid "a90efaab-9a39-4190-b22e-169aed4d7e68"))
+		(pin "1" (uuid "483108c8-0cae-4716-8395-b13ea7558cbd"))
+		(pin "3" (uuid "cf817b23-1b27-4d68-9935-64a51cf504a6"))
+		(pin "2" (uuid "7ca81a37-e694-49ee-b0af-b37c5c4fb333"))
+		(pin "4" (uuid "3e0f9795-aad3-4330-b620-9fcddf71106b"))
+		(pin "5" (uuid "af3d74c0-16d2-4316-babd-a2b246141c39"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "U3") (unit 1))
@@ -776,7 +776,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "99bf0fd1-bdcd-4ab8-a67c-eaec1475da1e")
+		(uuid "2c52bacb-df10-4c2b-9f0b-df44b22ecdd3")
 		(property "Reference" "C1" (at 180.34 86.36 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "1uF" (at 180.34 88.9 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 179.07 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -784,8 +784,8 @@
 		(property "Manufacturer" "Samsung" (at 179.07 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL10B105KO8NNNC" (at 179.07 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C15849" (at 179.07 87.63 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "a54d5f00-19f9-4852-8c5d-87ca2144b88a"))
-		(pin "2" (uuid "5ec4a8e4-8406-4afb-b4c0-8cdb3e2cb4d2"))
+		(pin "1" (uuid "4461c8e0-fbc3-4771-a5c1-2c467edb4fc5"))
+		(pin "2" (uuid "8a9eadfe-2b4f-4e09-9148-7b81303b30ca"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "C1") (unit 1))
@@ -801,7 +801,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "197abc6a-2626-42e1-8299-fd3c31f5c725")
+		(uuid "b40695de-d913-4953-be07-695720e7ede8")
 		(property "Reference" "C2" (at 180.34 116.84 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "1uF" (at 180.34 119.38 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 179.07 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -809,8 +809,8 @@
 		(property "Manufacturer" "Samsung" (at 179.07 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL10B105KO8NNNC" (at 179.07 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C15849" (at 179.07 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "8a66b3fe-de08-494b-8a52-9956be8249fe"))
-		(pin "2" (uuid "03774311-6bce-4aae-8b8a-0619e05ee821"))
+		(pin "1" (uuid "92193e55-b90e-4fb2-87fb-d248010809b5"))
+		(pin "2" (uuid "499bcdbe-6a27-4cc4-8607-5eeeaa5ca6ba"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "C2") (unit 1))
@@ -818,21 +818,21 @@
 		)
 	)
 	(wire (pts (xy 179.07 90.17) (xy 179.07 93.98))
-		(stroke (width 0) (type default)) (uuid "44c9b436-ae3a-4503-a570-81b471ccdd0f"))
+		(stroke (width 0) (type default)) (uuid "2511ffb5-6e7c-4537-9f4f-6fc5764bf738"))
 	(wire (pts (xy 179.07 120.65) (xy 179.07 124.46))
-		(stroke (width 0) (type default)) (uuid "86663e41-bf17-4931-9354-09a75bb535ba"))
+		(stroke (width 0) (type default)) (uuid "b0c8ebe7-b11e-4a04-8aae-c8fd641e5cdf"))
 	(wire (pts (xy 147.32 110.49) (xy 147.32 114.3))
-		(stroke (width 0) (type default)) (uuid "76d206cd-2e22-4bfa-80a9-34e86ea48cc0"))
+		(stroke (width 0) (type default)) (uuid "620f9b2c-4243-45fd-ac41-c72f58ce6e1d"))
 	(wire (pts (xy 179.07 85.09) (xy 179.07 81.28))
-		(stroke (width 0) (type default)) (uuid "624ce796-2dc5-438d-a8da-10520636d641"))
+		(stroke (width 0) (type default)) (uuid "ecf8ecb6-7bb0-46ca-819e-b5bb4b25f495"))
 	(wire (pts (xy 139.7 100.33) (xy 135.89 100.33))
-		(stroke (width 0) (type default)) (uuid "ebd88ca5-ab94-4561-b7df-65bce1825552"))
+		(stroke (width 0) (type default)) (uuid "9c387871-9f7c-4937-b822-70b4a4319eb9"))
 	(wire (pts (xy 139.7 102.87) (xy 134.62 102.87))
-		(stroke (width 0) (type default)) (uuid "cb8a8843-dcf2-4055-92f0-e4ee66c27992"))
+		(stroke (width 0) (type default)) (uuid "6ec1419d-47be-4de6-9fb3-71a8d5830b74"))
 	(wire (pts (xy 179.07 115.57) (xy 179.07 111.76))
-		(stroke (width 0) (type default)) (uuid "10552624-1bb4-4559-9da7-17c709023d7e"))
+		(stroke (width 0) (type default)) (uuid "ed4e27b4-19f5-4d18-9c53-37965205db67"))
 	(wire (pts (xy 154.94 100.33) (xy 158.75 100.33))
-		(stroke (width 0) (type default)) (uuid "08414859-1afa-4172-84a1-f8051f03a077"))
+		(stroke (width 0) (type default)) (uuid "0ca4a74a-862a-44f4-a2e3-6529e34e1cdc"))
 
 	(symbol
 		(lib_id "cec-power:GND")
@@ -842,10 +842,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "2a2c1d02-e713-4e1c-a382-d9228e4ddcc9")
+		(uuid "fefef7f7-370e-4f6b-b1ed-267709ab840e")
 		(property "Reference" "#PWR301" (at 179.07 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 179.07 99.06 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "a1b04e11-2bcf-4223-addb-6c22f033518e"))
+		(pin "1" (uuid "d059aa51-ec88-480f-9319-915ba82c2a2c"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR301") (unit 1))
@@ -860,10 +860,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "5e6a0d7c-925e-437f-9563-35d2016e8e94")
+		(uuid "a9bc5909-4c3f-478a-9d70-e707eab3b60d")
 		(property "Reference" "#PWR302" (at 179.07 121.92 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 179.07 129.54 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "be24f9a6-929d-4d4c-a88d-4f27a7a9ec05"))
+		(pin "1" (uuid "c4468f48-22fa-4091-8214-5bf28a2d879d"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR302") (unit 1))
@@ -878,10 +878,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "bdc9ad98-fb6a-480b-824e-95b06918515f")
+		(uuid "275d4184-ead2-4290-b4ab-77596fcfce5e")
 		(property "Reference" "#PWR303" (at 147.32 111.76 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 147.32 119.38 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "8a9a29ec-7f80-49e1-8acf-6e5d5ab3507d"))
+		(pin "1" (uuid "989e3485-75c8-44ab-ae14-da3cba31c240"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR303") (unit 1))
@@ -896,10 +896,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "74adde04-6999-4be5-bc8a-961e2e2afc6a")
+		(uuid "18b06661-7c6e-4bf2-9863-a4ad51f418ff")
 		(property "Reference" "#PWR304" (at 179.07 78.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "+5VSB" (at 179.07 76.2 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "89a04a33-dc6f-45f5-8024-76c883b904c9"))
+		(pin "1" (uuid "a5029f3a-cce5-4ac5-9978-25db76650445"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR304") (unit 1))
@@ -914,10 +914,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "3f7fcda9-7fb6-45ad-b319-994665a9d2a7")
+		(uuid "7689fcb5-79e6-4546-874a-fec0f7aeb23a")
 		(property "Reference" "#PWR305" (at 135.89 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "+5VSB" (at 135.89 105.41 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "46cc8af7-1dba-4177-bbc1-12dbb2c32955"))
+		(pin "1" (uuid "9ecf80d6-4d2c-4375-814d-5155f4dbb483"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR305") (unit 1))
@@ -932,10 +932,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "e53b0d12-f7da-41da-baf1-230f5bf39474")
+		(uuid "04fcd2f7-af6b-4bdc-9f51-0f5bcf55f9df")
 		(property "Reference" "#PWR306" (at 134.62 100.33 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "+5VSB" (at 134.62 107.95 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "97882d62-b19c-4b37-9f1a-c270f0b00863"))
+		(pin "1" (uuid "af7166fd-0a92-4674-bfbe-12959969a08e"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR306") (unit 1))
@@ -950,10 +950,10 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "89f8eed6-76ae-426f-a15a-ea79097687a2")
+		(uuid "cea09e58-5aef-4d9b-bcd3-8c7838492c02")
 		(property "Reference" "#PWR307" (at 179.07 109.22 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "+3V3" (at 179.07 106.68 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "722938c8-de3a-4fde-b028-2d965af16685"))
+		(pin "1" (uuid "28350fb4-739f-4e41-8cd1-d8f2cfff1c4c"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR307") (unit 1))
@@ -968,17 +968,17 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "4a8cd824-551a-4e03-8e77-38ef6fb3ca2a")
+		(uuid "3dc01410-2ccc-402d-8523-437253ef6852")
 		(property "Reference" "#PWR308" (at 158.75 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "+3V3" (at 158.75 105.41 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "5e89f822-a3de-4028-ba7b-d5097106d887"))
+		(pin "1" (uuid "bae8eafb-d8a3-415e-bc2d-1c1e06c42cd9"))
 		(instances
 			(project "eps8pin-module"
 				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/99f6d174-d4e7-4999-a233-27fadf4a4e91" (reference "#PWR308") (unit 1))
 			)
 		)
 	)
-	(no_connect (at 152.4 102.87) (uuid "da8c3af0-c23c-456b-9fbc-a2fd24bf2c71"))
+	(no_connect (at 152.4 102.87) (uuid "61c3f33d-be77-4a38-9549-a4a068e90772"))
 	(sheet_instances
 		(path "/99f6d174-d4e7-4999-a233-27fadf4a4e91"
 			(page "4")

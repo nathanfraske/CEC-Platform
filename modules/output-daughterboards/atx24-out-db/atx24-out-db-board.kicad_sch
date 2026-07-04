@@ -1,0 +1,2528 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "837753b3-97f4-4745-ac91-301109ed6eaa")
+	(paper "A4")
+	(lib_symbols
+		(symbol "cec:CEC_ATX_24"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at -8.89 13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "CEC_ATX_24"
+				(at 6.35 13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.intel.com/content/dam/www/public/us/en/documents/guides/power-supply-design-guide-june.pdf#page=33"
+				(at 60.96 -13.97 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "ATX Power supply 24pins"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "ATX PSU"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "*Mini?Fit*2x12*Vertical* *Mini?Fit*2x12*Horizontal*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_ATX_24_0_1"
+				(rectangle
+					(start -10.16 12.7)
+					(end 10.16 -12.7)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "CEC_ATX_24_1_1"
+				(pin passive line
+					(at 12.7 -2.54 180)
+					(length 2.54)
+					(name "+3.3V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+3.3V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 2.54 180)
+					(length 2.54)
+					(name "+5V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+5V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 10.16 180)
+					(length 2.54)
+					(name "PWR_OK"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 0 180)
+					(length 2.54)
+					(name "+5VSB"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 5.08 180)
+					(length 2.54)
+					(name "+12V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 5.08 180)
+					(length 2.54)
+					(hide yes)
+					(name "+12V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+3.3V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+3.3V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 -10.16 180)
+					(length 2.54)
+					(name "-12V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "15"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at -12.7 10.16 0)
+					(length 2.54)
+					(name "PS_ON#"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "16"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "17"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "18"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "19"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin no_connect line
+					(at -10.16 0 0)
+					(length 2.54)
+					(hide yes)
+					(name "NC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "20"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+5V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "21"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+5V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "22"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 12.7 2.54 180)
+					(length 2.54)
+					(hide yes)
+					(name "+5V"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "23"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -15.24 90)
+					(length 2.54)
+					(hide yes)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "24"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:TE_63849-1_FASTON_Tab"
+			(pin_numbers (hide no))
+			(pin_names (offset 0.762) (hide yes))
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "J"
+				(at 0 4.699 0)
+				(effects (font (size 1.27 1.27))))
+			(property "Value" "TE 63849-1"
+				(at 0 -3.302 0)
+				(effects (font (size 1.27 1.27))))
+			(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT"
+				(at 0 0 0)
+				(show_name no)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Datasheet" "https://datasheet.lcsc.com/datasheet/pdf/d78aaa5668ef44d19432bad6ab97dbf2.pdf?productCode=C86469"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Description" "TE Connectivity 63849-1 FASTON PC board tab (male blade), .250in (6.35mm +/-0.08) wide x .033-.030in (0.84-0.76mm) thick, brass with tin over copper or tin over nickel plate. Supplied in loose piece; 2 THT legs (both pin 1 — same electrical node) on a 5.08mm +/-0.08 pitch, 1.40mm +/-0.05 dia PCB hole each (drill corrected from the EasyEDA/LCSC auto-derived 1.6mm to the TE dwg C=63849's 1.40mm — the barbed shank is an interference fit into this hole ahead of soldering, so hole size matters for retention). Mates with a wire-side FASTON .250 receptacle, or (this platform's use) with a Keystone universal blade clip (3586/3557-2/3557/3577) whose accepted tab range (.110-.250in x .020-.032in) spans this tab's nominal geometry — see docs/standard-tier-review/blade-fit-check-2026-07-04.md."
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Manufacturer" "TE Connectivity"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "MPN" "63849-1"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "LCSC" "C86469"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself; TE FASTON .250 tabs are commonly used to 20-30A class per receptacle rating (see the Keystone universal-clip Current Rating property paired with this part). No standalone UL current rating on TE's own dwg."
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "ki_keywords" "FASTON tab blade quick-connect .250 PCB terminal TE Connectivity"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(property "ki_fp_filters" "TE_63849-1*"
+				(at 0 0 0)
+				(hide yes)
+				(effects (font (size 1.27 1.27))))
+			(symbol "TE_63849-1_FASTON_Tab_0_1"
+				(rectangle
+					(start -1.27 3.175)
+					(end 1.27 0)
+					(stroke (width 0.2032) (type default))
+					(fill (type none)))
+			)
+			(symbol "TE_63849-1_FASTON_Tab_1_1"
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.54)
+					(name "~"
+						(effects (font (size 1.016 1.016))))
+					(number "1"
+						(effects (font (size 1.016 1.016)))))
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec:CEC_CONN_2x5"
+			(pin_names (offset 1.016) (hide yes))
+			(exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J" (at 1.27 5.08 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+			(property "Value" "CEC_CONN_2x5" (at 1.27 -10.16 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+			(property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+			(property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+			(property "Description" "Generic connector, double row, 02x05, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers) -- extends the vendored CEC_CONN_2x4 by one row for the 24-pin ATX daughterboard signal stub (§2.8 v1.4.0)." (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+			(property "ki_keywords" "connector" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+			(property "ki_fp_filters" "Connector*:*_2x??_*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+			(symbol "CEC_CONN_2x5_1_1"
+				(rectangle (start -1.27 3.81) (end 3.81 -8.89) (stroke (width 0.254) (type default)) (fill (type background)))
+				(rectangle (start -1.27 2.667) (end 0 2.413) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start 3.81 2.667) (end 2.54 2.413) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start -1.27 0.127) (end 0 -0.127) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start 3.81 0.127) (end 2.54 -0.127) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start -1.27 -2.413) (end 0 -2.667) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start 3.81 -2.413) (end 2.54 -2.667) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start -1.27 -4.953) (end 0 -5.207) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start 3.81 -4.953) (end 2.54 -5.207) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start -1.27 -7.493) (end 0 -7.747) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(rectangle (start 3.81 -7.493) (end 2.54 -7.747) (stroke (width 0.1524) (type default)) (fill (type none)))
+				(pin passive line (at -5.08 2.54 0) (length 3.81) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at 7.62 2.54 180) (length 3.81) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at -5.08 0 0) (length 3.81) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at 7.62 0 180) (length 3.81) (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at -5.08 -2.54 0) (length 3.81) (name "Pin_5" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at 7.62 -2.54 180) (length 3.81) (name "Pin_6" (effects (font (size 1.27 1.27)))) (number "6" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at -5.08 -5.08 0) (length 3.81) (name "Pin_7" (effects (font (size 1.27 1.27)))) (number "7" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at 7.62 -5.08 180) (length 3.81) (name "Pin_8" (effects (font (size 1.27 1.27)))) (number "8" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at -5.08 -7.62 0) (length 3.81) (name "Pin_9" (effects (font (size 1.27 1.27)))) (number "9" (effects (font (size 1.27 1.27)))))
+				(pin passive line (at 7.62 -7.62 180) (length 3.81) (name "Pin_10" (effects (font (size 1.27 1.27)))) (number "10" (effects (font (size 1.27 1.27)))))
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+12V"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+12V"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+12V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+12V_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+12V_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+3V3"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+3V3"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+3V3\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+3V3_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+3V3_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5V"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5V"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5V_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5V_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5VSB"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5VSB"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5VSB_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5VSB_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:GND"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GND"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "GND_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "GND_1_1"
+				(pin power_in line
+					(at 0 0 270)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(symbol
+		(lib_id "cec:CEC_ATX_24")
+		(at 76.2 50.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "e18fc662-0b87-4a87-8b6f-1fc043cd8986")
+		(property "Reference" "J1" (at 76.2 35.56 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "ATX24 OUT FIELD" (at 76.2 66.04 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Generic:ATX24_Daughterboard_Field_P4.20mm" (at 76.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 76.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "1079e124-6ef6-4a07-bc52-23d298930c0a"))
+		(pin "2" (uuid "48fc5eb2-86a7-4510-aaa6-b7c86a4e24c4"))
+		(pin "3" (uuid "2eddc3b0-da66-41f6-a088-048e345ff49f"))
+		(pin "4" (uuid "4ef1a235-4e87-46bb-9283-9b3168f6bde4"))
+		(pin "5" (uuid "85fd9002-7327-4333-aae4-e2d2e54a3208"))
+		(pin "6" (uuid "8810b967-c194-42e5-8d68-51e4dc608644"))
+		(pin "7" (uuid "b7cc1e8d-7e46-4541-b77c-530029529550"))
+		(pin "8" (uuid "73bf633a-45e1-45c6-8edf-cdf55d55cd65"))
+		(pin "9" (uuid "81351440-5caa-424f-8eb1-436fe4420ff9"))
+		(pin "10" (uuid "e9d835ee-9b62-4b63-b077-7c951eb27fbf"))
+		(pin "11" (uuid "de9887e5-53f0-4c89-9ca9-31ebe7f85e7f"))
+		(pin "12" (uuid "274d496e-217b-4a51-8b45-828f7cd78f11"))
+		(pin "13" (uuid "04d84390-40a2-428f-b09e-fcb341b25d32"))
+		(pin "14" (uuid "4392d1ec-d8c4-4f32-bbb5-da8f8d1bb783"))
+		(pin "15" (uuid "77d73cd9-9ff0-4d4e-ab9a-f9d8930fe4ac"))
+		(pin "16" (uuid "3ce42d41-241e-4f26-bc0a-48e49e0de710"))
+		(pin "17" (uuid "e23487a8-324d-46ee-82cc-6d0fa5f0e3fe"))
+		(pin "18" (uuid "cdb5d513-6b1a-401b-8a04-f53ad273254e"))
+		(pin "19" (uuid "625bc10d-251b-430a-9487-d47a35ea9144"))
+		(pin "20" (uuid "e2f861d0-5355-49e5-b0e9-7f312b41cd98"))
+		(pin "21" (uuid "999533ad-2592-4aac-ad37-1ce030fad047"))
+		(pin "22" (uuid "7811fac4-e624-44d5-9688-c9b762d037d4"))
+		(pin "23" (uuid "a775dd51-f592-4363-b892-7d5990177d02"))
+		(pin "24" (uuid "49ad8ff7-b925-4666-b7d6-a40b296c9260"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J1") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 25.4 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "8aea23d4-4027-4d4e-ab15-087c0480f919")
+		(property "Reference" "J10" (at 25.4 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 25.4 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "16d2b9c8-1088-4dc3-95c3-a4d9e39c6503"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J10") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 53.34 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "13c2bd9a-cc02-4512-a125-f1afa2aaad3b")
+		(property "Reference" "J11" (at 53.34 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 53.34 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 53.34 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "875fd0f5-b724-4057-acdd-77de9c2e2f0b"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J11") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 68.58 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2f99671b-62b6-40d3-806b-e0812e63bec1")
+		(property "Reference" "J12" (at 68.58 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 68.58 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 68.58 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "6e564115-36ec-4e56-8529-cef494a30df6"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J12") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 96.52 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "38ca05a9-9e02-4ace-851a-e26ee9ab49f1")
+		(property "Reference" "J13" (at 96.52 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 96.52 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 96.52 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "148c6f15-cdf5-4a62-abc7-4934895efeb0"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J13") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 124.46 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "4d352d1e-b4c6-4a13-b048-e167747b717e")
+		(property "Reference" "J14" (at 124.46 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 124.46 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 124.46 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 124.46 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "50a19152-ae01-4ba7-a4c3-df5241f6784e"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J14") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 152.4 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "630acf7a-6207-4fe9-9b2b-77986892c97b")
+		(property "Reference" "J15" (at 152.4 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 152.4 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 152.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 152.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "54618789-47b3-4510-a927-f7ed0d6974b0"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J15") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 167.64 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "710be4b7-86ff-4894-b26e-912cedb87e9f")
+		(property "Reference" "J16" (at 167.64 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 167.64 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 167.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "61306723-5a8f-49f7-b34d-109f8f872ee0"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J16") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 182.88 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7883a54c-ca7e-42e8-87f1-f15116e891f4")
+		(property "Reference" "J17" (at 182.88 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 182.88 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 182.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "5e130ab6-4634-4e7a-a8bb-3cdbb878d3c7"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J17") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63849-1_FASTON_Tab")
+		(at 198.12 127 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "74163633-af2f-4b97-825d-1751d0a8e88e")
+		(property "Reference" "J18" (at 198.12 111.76 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63849-1" (at 198.12 142.24 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 198.12 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "9023ed9b-43e2-4536-9f92-b46824647429"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J18") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec:CEC_CONN_2x5")
+		(at 203.2 50.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a6c4cf86-657d-46af-913b-80899207ff94")
+		(property "Reference" "J20" (at 203.2 35.56 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "SIGNAL STUB (2x5)" (at 203.2 66.04 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 203.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "3df8205f-5856-42b8-b9b8-2eb8046f71cb"))
+		(pin "2" (uuid "6edb8014-6622-40b2-9950-6a8ba7486fc5"))
+		(pin "3" (uuid "0b634a99-3937-44a7-beeb-3c18c6d13d3d"))
+		(pin "4" (uuid "f56c854c-9698-48f0-a395-786e4bf208e3"))
+		(pin "5" (uuid "5d5127cd-3848-414c-aed2-eed7facd1ffb"))
+		(pin "6" (uuid "b9871080-5def-4288-b9d9-553bc5dc7a90"))
+		(pin "7" (uuid "35f6499f-0d97-4a56-a3ac-9afdfc96badc"))
+		(pin "8" (uuid "b1903b8c-e556-475b-89b1-21fc7c6913cd"))
+		(pin "9" (uuid "e95e39ba-6f15-4a35-9e3a-8c502d53e850"))
+		(pin "10" (uuid "b0207774-62c2-4599-b54c-5a42cf95f913"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "J20") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 88.9 53.34) (xy 92.71 53.34))
+		(stroke (width 0) (type default)) (uuid "e8eb13eb-32ed-42eb-aac6-1a43d2319f20"))
+	(wire (pts (xy 88.9 53.34) (xy 92.71 53.34))
+		(stroke (width 0) (type default)) (uuid "833f6452-6844-42a6-a666-f44f3cb1812a"))
+	(wire (pts (xy 88.9 53.34) (xy 92.71 53.34))
+		(stroke (width 0) (type default)) (uuid "5fbeddd0-af5f-40ae-8301-82921a78142b"))
+	(wire (pts (xy 88.9 53.34) (xy 92.71 53.34))
+		(stroke (width 0) (type default)) (uuid "dfdfe64f-d4bb-41e1-93b3-4ee61058a5d9"))
+	(wire (pts (xy 96.52 129.54) (xy 96.52 133.35))
+		(stroke (width 0) (type default)) (uuid "7b776d86-27af-4839-b398-e7974da18f01"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "c2addfe6-3e44-47bb-9a64-e67f37f1cb56"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "659cd3f5-e338-4122-94ae-9c588db61f95"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "64a48eb1-8eb1-4666-bdd8-92c320d366a7"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "732cdfc6-3370-4174-9dd8-70950c583e77"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "10adf4fa-e723-487e-9286-9b02d9b32f3e"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "224845c6-b9c4-4234-a180-12d99ed36ad5"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "cabcef04-f190-48f1-9be3-768f72126cd9"))
+	(wire (pts (xy 76.2 66.04) (xy 76.2 69.85))
+		(stroke (width 0) (type default)) (uuid "ac115659-9b7c-4258-9bc6-fa9ea5ccf1b3"))
+	(wire (pts (xy 152.4 129.54) (xy 152.4 133.35))
+		(stroke (width 0) (type default)) (uuid "2c28c553-6aea-49ed-a308-59f9f2dd28a2"))
+	(wire (pts (xy 167.64 129.54) (xy 167.64 133.35))
+		(stroke (width 0) (type default)) (uuid "3a25829b-bc22-4fe1-90a1-359568aaa61e"))
+	(wire (pts (xy 182.88 129.54) (xy 182.88 133.35))
+		(stroke (width 0) (type default)) (uuid "e2220c50-3943-489f-9e36-12f053906a20"))
+	(wire (pts (xy 198.12 129.54) (xy 198.12 133.35))
+		(stroke (width 0) (type default)) (uuid "e6d6b38b-868e-4e34-8c95-c39b7e998bb3"))
+	(wire (pts (xy 210.82 50.8) (xy 214.63 50.8))
+		(stroke (width 0) (type default)) (uuid "ef70c58d-0d29-48c9-b1de-b549a10fb29a"))
+	(wire (pts (xy 88.9 48.26) (xy 92.71 48.26))
+		(stroke (width 0) (type default)) (uuid "042b105d-c6e8-43e4-b33f-15532c2cd038"))
+	(wire (pts (xy 88.9 48.26) (xy 92.71 48.26))
+		(stroke (width 0) (type default)) (uuid "82ef96d0-504e-411f-b761-782f816ead2b"))
+	(wire (pts (xy 88.9 48.26) (xy 92.71 48.26))
+		(stroke (width 0) (type default)) (uuid "afd91a63-faf4-4c2e-a7a5-36c94a3beff2"))
+	(wire (pts (xy 88.9 48.26) (xy 92.71 48.26))
+		(stroke (width 0) (type default)) (uuid "f0798258-09e2-4eae-9925-a37049cf8bfb"))
+	(wire (pts (xy 88.9 48.26) (xy 92.71 48.26))
+		(stroke (width 0) (type default)) (uuid "6f298d21-442f-4dec-848a-daaa6d101281"))
+	(wire (pts (xy 53.34 129.54) (xy 53.34 133.35))
+		(stroke (width 0) (type default)) (uuid "4736375c-7ec9-4a8e-a16c-03fa55a3b7c4"))
+	(wire (pts (xy 68.58 129.54) (xy 68.58 133.35))
+		(stroke (width 0) (type default)) (uuid "6c03283b-0ab0-4751-a471-bca6c9110f6a"))
+	(wire (pts (xy 88.9 40.64) (xy 92.71 40.64))
+		(stroke (width 0) (type default)) (uuid "6a9ef663-72ef-4913-892f-66a6899060f5"))
+	(wire (pts (xy 198.12 48.26) (xy 194.31 48.26))
+		(stroke (width 0) (type default)) (uuid "389f447c-f8ac-4490-8333-4923fe94850a"))
+	(wire (pts (xy 88.9 50.8) (xy 92.71 50.8))
+		(stroke (width 0) (type default)) (uuid "ff42141e-b8bf-4861-9474-0c7b18313791"))
+	(wire (pts (xy 124.46 129.54) (xy 124.46 133.35))
+		(stroke (width 0) (type default)) (uuid "9fbbe5ac-7c1c-47d9-8047-531a70245ab8"))
+	(wire (pts (xy 88.9 45.72) (xy 92.71 45.72))
+		(stroke (width 0) (type default)) (uuid "b65b057b-e4d6-4db5-8b9c-57e385e78812"))
+	(wire (pts (xy 88.9 45.72) (xy 92.71 45.72))
+		(stroke (width 0) (type default)) (uuid "e6258346-d7d5-4316-b63d-0ac715d1b2e3"))
+	(wire (pts (xy 25.4 129.54) (xy 25.4 133.35))
+		(stroke (width 0) (type default)) (uuid "31a9e6a6-9403-46b9-ba40-39d71a956cc1"))
+	(wire (pts (xy 88.9 60.96) (xy 92.71 60.96))
+		(stroke (width 0) (type default)) (uuid "9eab798f-9977-4099-9c10-4f06e8965efc"))
+	(wire (pts (xy 198.12 50.8) (xy 194.31 50.8))
+		(stroke (width 0) (type default)) (uuid "263f81df-c40a-4869-b84d-ea9aea45697c"))
+	(wire (pts (xy 63.5 40.64) (xy 59.69 40.64))
+		(stroke (width 0) (type default)) (uuid "f4fd973e-8c9a-437a-8c26-8906f65daa30"))
+	(wire (pts (xy 210.82 48.26) (xy 214.63 48.26))
+		(stroke (width 0) (type default)) (uuid "36551429-b3dc-45b7-a5d8-bde6e1d144fb"))
+	(wire (pts (xy 25.4 152.4) (xy 25.4 162.56))
+		(stroke (width 0) (type default)) (uuid "03547264-bc7f-4bc8-bc01-c8a0bec8b040"))
+	(wire (pts (xy 50.8 152.4) (xy 50.8 162.56))
+		(stroke (width 0) (type default)) (uuid "5b6e2efd-651b-4e9c-ba0a-ea7ea578f1bf"))
+	(wire (pts (xy 76.2 152.4) (xy 76.2 162.56))
+		(stroke (width 0) (type default)) (uuid "b8e2a72d-8f26-4951-84ad-a60036d58fda"))
+	(wire (pts (xy 101.6 152.4) (xy 101.6 162.56))
+		(stroke (width 0) (type default)) (uuid "57bf4c7f-6714-458f-85e6-f94146ed23d3"))
+	(wire (pts (xy 127 152.4) (xy 127 162.56))
+		(stroke (width 0) (type default)) (uuid "5f80509d-eab0-4cbe-b2a3-438c68fd8736"))
+	(label "PWR_OK" (at 92.71 40.64 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "6e0830f9-17f3-419f-ab02-3b2a4adbf906"))
+	(label "PWR_OK" (at 194.31 48.26 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "6b9e763d-8aef-492c-b7c7-4c2cdf945ab0"))
+	(label "-12V" (at 92.71 60.96 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "00d30e9b-8d92-4fca-a2ec-9e3c0967cac4"))
+	(label "-12V" (at 194.31 50.8 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "af941680-95a8-4155-9603-1089c62e6d5d"))
+	(label "PS_ON#" (at 59.69 40.64 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "3e1275b9-8d6f-4a0b-9ac3-fe67687bd27d"))
+	(label "PS_ON#" (at 214.63 48.26 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4e2975d1-9e00-4551-9980-45d5aaa61d33"))
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 92.71 53.34 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8ce830f2-5225-44c6-a441-dd2f1c890982")
+		(property "Reference" "#PWR01" (at 92.71 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 92.71 57.15 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7c756d5a-01e4-45a7-ad1d-434d0e8588ef"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR01") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 92.71 53.34 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "da6e9cdb-ca62-49da-94b2-22545e9d6d92")
+		(property "Reference" "#PWR02" (at 92.71 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 92.71 57.15 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "baaf5615-c05c-49d2-b72d-57b74c9f6b5a"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR02") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 92.71 53.34 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2123534c-129c-4a61-8cdd-2e69be1c4b42")
+		(property "Reference" "#PWR03" (at 92.71 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 92.71 57.15 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f6b780c4-f190-417a-b3e8-9e2485219dde"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR03") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 92.71 53.34 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "94314834-e338-4d01-847e-feba9444f4f3")
+		(property "Reference" "#PWR04" (at 92.71 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 92.71 57.15 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "5083156b-64c1-4e8a-ab07-9c5f54db81ca"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR04") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 96.52 133.35 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "813f78b4-3d20-4286-890b-ed4d70b5efcb")
+		(property "Reference" "#PWR05" (at 96.52 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 96.52 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "80056065-3be4-473f-beeb-6ab1d6c6c189"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR05") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "58c0c60a-9111-44c4-a134-4001be00ba2f")
+		(property "Reference" "#PWR06" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "b7a655d9-87d9-4f90-b83d-fa79cc589aa6"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR06") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8ab0751c-acf2-466e-b634-3ab4e36c8e2d")
+		(property "Reference" "#PWR07" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "b187462b-33ef-4633-aafd-1a61e86ff5ce"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR07") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "03acc137-4f18-4d67-90ba-4d3cdd08e6d2")
+		(property "Reference" "#PWR08" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "d627dea0-9b1f-4a7b-8971-6fcc83bf82ee"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR08") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "17622c0d-4f3f-4e22-98fd-5c518485e7de")
+		(property "Reference" "#PWR09" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "0140d59b-fde9-41d3-85a7-9892216cbd26"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR09") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "260084bf-37a1-4c9a-824a-affea5e5ad92")
+		(property "Reference" "#PWR10" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "0256cb8b-1c58-483b-a854-bfb43aa17457"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR10") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "21160a50-4f52-49c4-b4d8-71e648ef9146")
+		(property "Reference" "#PWR11" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "aaaa381e-0b1c-4a87-8c96-a47c384897a8"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR11") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "875f6623-bb18-4f01-b3a0-68a0c7ff5fa1")
+		(property "Reference" "#PWR12" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "c1b66647-093d-4699-9ee8-75b46be6f90b"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR12") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 76.2 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5abf5e99-5a83-4052-9e3f-e1d777024ebd")
+		(property "Reference" "#PWR13" (at 76.2 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 76.2 73.66 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f279010a-ee69-4d5c-9631-ca4fca4d71e0"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR13") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 152.4 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "27ab9105-fcc4-40f4-b1a2-e3fd8b3ef522")
+		(property "Reference" "#PWR14" (at 152.4 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 152.4 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4ba41762-ed5e-4186-9e26-7dd136d385d3"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR14") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 167.64 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7cb5d09f-f99f-4d01-acf9-33c6bd86afc3")
+		(property "Reference" "#PWR15" (at 167.64 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 167.64 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6168ce70-763f-427b-a8eb-4157090386c1"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR15") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 182.88 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "6f63ae5d-0f16-4a86-badd-5fa8db3a07c2")
+		(property "Reference" "#PWR16" (at 182.88 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 182.88 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "cb35f321-309a-4a5a-99cf-9ec91444efe6"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR16") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 198.12 133.35 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2b25b858-67c7-4468-8b22-4683957c8dc7")
+		(property "Reference" "#PWR17" (at 198.12 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 198.12 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6009a70a-de35-4a37-a25c-9104ca0c89ec"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR17") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 214.63 50.8 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "4c8cb629-6414-452d-bbe1-3f1609430f6c")
+		(property "Reference" "#PWR18" (at 214.63 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 214.63 54.61 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "8ec5b86a-d49b-47bb-9683-a6db4a9bfd9b"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR18") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 92.71 48.26 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ae05e32a-eb55-437a-93dd-50619bfbd163")
+		(property "Reference" "#PWR19" (at 92.71 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 92.71 52.07 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "df00da90-4a41-4321-b2a8-a659850cbe6d"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR19") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 92.71 48.26 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "373c4c35-137f-48ef-b77f-795616608c22")
+		(property "Reference" "#PWR20" (at 92.71 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 92.71 52.07 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "dd07e914-4a5e-4be7-951b-5df531abd312"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR20") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 92.71 48.26 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8499055a-954e-4cab-ac3e-e50558321bed")
+		(property "Reference" "#PWR21" (at 92.71 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 92.71 52.07 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "17cc2c1a-2e10-4855-80e9-aabd39be2a2c"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR21") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 92.71 48.26 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5bb46e4a-475e-4ed5-b3b0-653e3dd0657c")
+		(property "Reference" "#PWR22" (at 92.71 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 92.71 52.07 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "b6d69618-cbd6-458e-91af-878db1fb0c22"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR22") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 92.71 48.26 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1a039be6-7a62-4155-955e-3b96fc5c0fcb")
+		(property "Reference" "#PWR23" (at 92.71 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 92.71 52.07 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "22aeb45e-d4b8-4006-b983-a7e1543529ea"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR23") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 53.34 133.35 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "46863db9-d689-4c8e-9a7c-51e05746de1c")
+		(property "Reference" "#PWR24" (at 53.34 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 53.34 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "bc2f4d84-a90f-4d55-af7f-0ebf8e5a8b28"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR24") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 68.58 133.35 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e923d087-5f95-49fc-a222-e029ca0951fd")
+		(property "Reference" "#PWR25" (at 68.58 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 68.58 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ff4ec788-c1ed-48ae-973e-2e31023bd42f"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR25") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 92.71 50.8 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "df9ae9e3-939c-4287-98fa-51561fc9610f")
+		(property "Reference" "#PWR26" (at 92.71 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 92.71 54.61 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "a29254c2-3b67-4d46-8131-719ded05e7ce"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR26") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 124.46 133.35 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e0b04d83-e225-499e-b549-2e9121ef8f59")
+		(property "Reference" "#PWR27" (at 124.46 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 124.46 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "79421bc6-e992-441e-a961-1557ac2361ac"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR27") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 92.71 45.72 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "eea4c2ca-b526-4ad7-ac78-e5f6d85f1fb6")
+		(property "Reference" "#PWR28" (at 92.71 43.18 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+12V" (at 92.71 49.53 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "2cb4150d-8326-4cc9-9012-a4ac6c3fc413"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR28") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 92.71 45.72 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "dabf31c3-0882-4524-8a2b-cd630699090f")
+		(property "Reference" "#PWR29" (at 92.71 43.18 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+12V" (at 92.71 49.53 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "705ea563-0fc8-466a-8336-f7d2e20f4e62"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR29") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 25.4 133.35 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "70abd62b-32c2-4597-a9c6-259b05fd447d")
+		(property "Reference" "#PWR30" (at 25.4 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+12V" (at 25.4 137.16 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "b680411d-1167-4253-bbb2-4162eb666de7"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR30") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 25.4 152.4 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "034a1733-8c90-468f-927e-5eb8a7de2a8e")
+		(property "Reference" "#PWR31" (at 25.4 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+12V" (at 25.4 156.21 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "14f8d1b9-225b-4e90-ae47-3b99c1621705"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR31") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 25.4 162.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "630c4fe9-d4fb-44b8-9083-ba31722a5df1")
+		(property "Reference" "#FLG32" (at 25.4 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 25.4 166.37 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4b9e1256-95f7-4e4f-8538-437a5072a732"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#FLG32") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 50.8 152.4 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "23ad89f2-2171-43b3-94fd-e62e99f80431")
+		(property "Reference" "#PWR33" (at 50.8 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 50.8 156.21 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "5be31205-f0a5-4c4a-a5bd-e3395fa128cf"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR33") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 50.8 162.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "66ec0cfc-7c8b-444a-ba3d-cf47f6c45b39")
+		(property "Reference" "#FLG34" (at 50.8 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 50.8 166.37 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "e49642f9-51a0-4150-ac8c-aa80130aec08"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#FLG34") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5V")
+		(at 76.2 152.4 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e1659027-67b7-4ae9-8de1-bfe5d056a7a3")
+		(property "Reference" "#PWR35" (at 76.2 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5V" (at 76.2 156.21 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "91967649-95e0-4eb1-bab6-55076be0241f"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR35") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 76.2 162.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5049d5f9-1419-4683-a128-5869ee11a43c")
+		(property "Reference" "#FLG36" (at 76.2 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 76.2 166.37 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "732b6c87-6601-4b80-84ac-4fcf4cbe492e"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#FLG36") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 101.6 152.4 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "64fca478-88bf-4756-a58f-8cc5626625b5")
+		(property "Reference" "#PWR37" (at 101.6 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 101.6 156.21 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "83353f33-d030-4e4c-ab0b-9e32ba57fdf9"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR37") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 101.6 162.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "a674817f-ed14-43f0-a8dc-dc4587ab5b72")
+		(property "Reference" "#FLG38" (at 101.6 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 101.6 166.37 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "013de705-9fb7-49c3-9f3c-a406fd41abf9"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#FLG38") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 127 152.4 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "3f043f1a-9623-4b63-8d51-4a4fb81ae8fb")
+		(property "Reference" "#FLG39" (at 127 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 127 156.21 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "2a538bd6-8a94-4cb8-a8cc-7ab2aafc24c6"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#FLG39") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 127 162.56 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ea519621-57b3-4fd5-9e8a-a6368cb6e78b")
+		(property "Reference" "#PWR40" (at 127 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 127 166.37 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "2f872501-da78-4a00-ac46-c70ddfc25549"))
+		(instances
+			(project "atx24-out-db-board"
+				(path "/837753b3-97f4-4745-ac91-301109ed6eaa" (reference "#PWR40") (unit 1))
+			)
+		)
+	)
+	(no_connect (at 66.04 50.8) (uuid "f3c32e3d-c6e1-4adf-aeb8-91114d74cab1"))
+	(no_connect (at 198.12 53.34) (uuid "6e67e8d4-68a7-45d6-b824-da595c9d1d05"))
+	(no_connect (at 210.82 53.34) (uuid "ae1195b4-5157-4cc2-a06c-2734e72c4bae"))
+	(no_connect (at 198.12 55.88) (uuid "baa0b5f5-b19f-4d24-82dc-e401f30eb58a"))
+	(no_connect (at 210.82 55.88) (uuid "066d20ab-b7ec-48ae-b6e8-1fd3ce729b06"))
+	(no_connect (at 198.12 58.42) (uuid "6283d512-1e9c-4469-92f3-ee915fc35821"))
+	(no_connect (at 210.82 58.42) (uuid "b406fcad-9197-4a0c-9e59-7f08a9650c51"))
+	(sheet_instances
+		(path "/"
+			(page "1")
+		)
+	)
+	(embedded_fonts no)
+)

@@ -252,14 +252,14 @@ def hier_label(name, shape, x, y, angle):
             f'\t\t(uuid "{cec_sch.u()}")\n\t)')
 
 
-def title_block(title, comment1="", comment2="", comment3="", rev="DRAFT",
-                date="2026-07-02"):
+def title_block(title, comment1="", comment2="", comment3="", comment4="",
+                rev="DRAFT", date="2026-07-02"):
     lines = ['\t(title_block\n',
              f'\t\t(title "{title}")\n',
              f'\t\t(date "{date}")\n',
              f'\t\t(rev "{rev}")\n',
              '\t\t(company "CEC")\n']
-    for i, c in enumerate((comment1, comment2, comment3), 1):
+    for i, c in enumerate((comment1, comment2, comment3, comment4), 1):
         if c:
             lines.append(f'\t\t(comment {i} "{c}")\n')
     lines.append('\t)')

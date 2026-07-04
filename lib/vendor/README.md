@@ -80,11 +80,16 @@ pads were already both `1` as exported (correct). Datasheets cached as
 drawing (Keystone dwg no. 3586 rev D / Keystone catalog M55 p.41 / TE dwg
 C=63849), not marketing copy. Fit-check memo (tab-vs-clip compatibility,
 retention practice at 30 A):
-`docs/standard-tier-review/blade-fit-check-2026-07-04.md`. **Not yet consumed
-by any board** — no board `fp-lib-table`/`sym-lib-table` references
-`cec-Connector_Blade` yet; add the two table lines (see
-[`../templates/README.md`](../templates/README.md)) when a board first places
-one of these parts.
+`docs/standard-tier-review/blade-fit-check-2026-07-04.md`. **First consumer
+(2026-07-04): `modules/atx-24pin-rev3`** — `TB1`–`TB9` (Keystone 3586, one per
+ratified joint) replace the retired J4 output header; `fp-lib-table` there now
+carries the `cec-Connector_Blade` line. `modules/eps-8pin`,
+`pcie-8pin-2port`, and `pcie-8pin-3port` follow the same pattern via
+`scripts/gen-module-beta.py`'s `06-cable-power` leaf. The TE 63849-1 tab stays
+unconsumed by any board in this repo (it belongs on the daughterboard, a
+separate, not-yet-created deliverable). Add the two `fp-lib-table` lines (see
+[`../templates/README.md`](../templates/README.md)) on any further board that
+places one of these parts.
 
 ## Rule
 

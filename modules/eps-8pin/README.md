@@ -1,5 +1,30 @@
 # EPS 8-pin module
 
+> **STATUS (2026-07-04, spec §2.8 v1.4.0 output-architecture revision, owner-ratified,
+> BETA-2):** the per-cable board-mount **J_OUT1/J_OUT2** output headers (Molex Mini-Fit Jr
+> 87427-0802, described extensively below as historical PCB context) are **RETIRED**. Each
+> cable's output now crosses the ratified all-Keystone/TE connector-daughterboard interface
+> (`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9–§8.10,
+> `blade-fit-check-2026-07-04.md`): **3 rail clips + 3 GND clips per cable** (6 Keystone 3586
+> SMT universal-entry blade clips, LCSC C238113, refs `TB{cable}1`–`TB{cable}6` — e.g. cable 1
+> = `TB11`–`TB16`), each single-pin clip landing on the exact post-shunt net (`/SENSEC{n}_LO`)
+> or `GND` its share of J_OUT used to carry. Applied via `scripts/gen-module-beta.py`'s
+> `06-cable-power` leaf (generator edit + `--force` regen, not a hand edit); J_IN (the PSU-side
+> input header) is unchanged. Netlist-verified: only `/SENSEC1_LO`, `/SENSEC2_LO`, and `GND`
+> changed, with every other net byte-for-byte identical; ERC/audit-sch introduce zero new
+> findings once `fp-lib-table` carries the `cec-Connector_Blade` line (added). `bom/
+> eps8pin-module-BOM-jlcpcb.csv` updated (J_OUT rows removed, one `Keystone 3586` row added).
+> Sense-return contacts are explicitly NOT added — the study's §5 decision box (e) is still
+> open with the owner. **PCB follow-up (not done here):** the routed `.kicad_pcb` still shows
+> the retired J_OUT connectors; it needs Update-PCB-from-Schematic + a footprint swap to the
+> Keystone 3586 SMT land + a re-route of the cable-power corner before fab. The mating
+> daughterboard (TE 63849-1 tabs) is a separate deliverable, tracked outside this board.
+>
+> Everything below this point describes the **PSU-side input header** (unchanged) and the
+> alpha-era PCB layout built around the now-retired J_OUT connectors — read it as historical
+> design rationale for J_IN/the sensing chain/the stackup, not as a description of the current
+> output connector.
+
 Standard-tier **per-cable** sensing module for the EPS (CPU) 8-pin power
 connector. BOM target **$32** (100-qty). See spec
 [§6.2](../../CEC-Platform-Ground-Truth-Spec.md) (sensing) and §8 (BOM).

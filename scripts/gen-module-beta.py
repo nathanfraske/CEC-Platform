@@ -101,11 +101,14 @@ FIXED_LEAF = {
     "PWR203": "01-hub-link",
 }
 # per-cable families: U1x=INA238, U2x=INA181, U3x=TLV7011, C1x/C2x/C3x their
-# decoupling; RS*=shunt; J_IN*/J_OUT*=interposer connectors. Scales to any
+# decoupling; RS*=shunt; J_IN*/J_OUT*=interposer connectors; TB<cable><n>=the
+# spec Sec 2.8 v1.4.0 output-daughterboard blade clips that REPLACE J_OUT* on
+# the 06-cable-power leaf (see _replace_j_out_with_clips below). Scales to any
 # cable count (eps=2, pcie-2port=2, pcie-3port=3) with no per-board table.
 _CABLE_SENSE_RE = re.compile(r"^(U1\d+|U2\d+|U3\d+|C1\d+|C2\d+|C3\d+)$")
 _CABLE_SHUNT_RE = re.compile(r"^RS\d+$")
 _CABLE_CONN_RE = re.compile(r"^J_(IN|OUT)\d+$")
+_CABLE_CLIP_RE = re.compile(r"^TB\d+$")
 
 
 def classify_ref(ref):
@@ -113,9 +116,104 @@ def classify_ref(ref):
         return FIXED_LEAF[ref]
     if _CABLE_SENSE_RE.match(ref):
         return "05-sensing"
-    if _CABLE_SHUNT_RE.match(ref) or _CABLE_CONN_RE.match(ref):
+    if _CABLE_SHUNT_RE.match(ref) or _CABLE_CONN_RE.match(ref) or _CABLE_CLIP_RE.match(ref):
         return "06-cable-power"
     return None
+
+
+# ---------------------------------------------------------------------------
+# Sec 2.8 v1.4.0 output-daughterboard blade-clip migration (2026-07-04, owner
+# ratification): J_OUT* (the board-mount male Mini-Fit Jr output header, one
+# per cable) is RETIRED per the ratified all-Keystone/TE connector class
+# (docs/standard-tier-review/output-daughterboard-study-2026-07-04.md
+# Sec 8.9-8.10, blade-fit-check-2026-07-04.md). Each cable's output rail and
+# GND return instead land on their OWN single-pin Keystone 3586 SMT
+# universal-entry blade clip -- the main-board half of the interface; the
+# mating TE 63849-1 tabs live on a passive daughterboard, a separate,
+# not-yet-created deliverable (out of scope here). Ratified per-cable counts
+# (spec Sec 2.8 v1.4.0, "3 contacts per polarity per cable" for EPS / "2 per
+# polarity per cable" for both PCIe SKUs): (rail_clips, gnd_clips).
+CLIP_COUNTS = {
+    "eps-8pin": (3, 3),
+    "pcie-8pin-2port": (2, 2),
+    "pcie-8pin-3port": (2, 2),
+}
+BLADE_CLIP_FOOTPRINT = "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+BLADE_CLIP_PROPS = {
+    "Manufacturer": "Keystone Electronics Corp.",
+    "MPN": "3586",
+    "LCSC": "C238113",
+}
+_JOUT_RE = re.compile(r"^J_OUT(\w+)$")
+
+# NOTE (owner decision box (e), output-daughterboard-study-2026-07-04.md Sec 5,
+# still OPEN 2026-07-04): sense-return contacts are NOT added by this
+# migration. Do not add one here without an explicit owner ruling -- this is
+# a one-line provision comment, not an implementation.
+
+
+def _replace_j_out_with_clips(extracted, board):
+    """Mutates `extracted` in place: removes every J_OUT<cable> ref (the
+    retired Mini-Fit Jr output header) and adds CLIP_COUNTS[board] Keystone
+    3586 blade clips per cable in its place, each single clip pin landing on
+    the EXACT SAME post-shunt rail net (SENSEC<cable>_LO) or GND net the
+    corresponding J_OUT pin group used to carry. Idempotent: a re-run over an
+    already-migrated board (no J_OUT* refs left) is a no-op, so this driver
+    stays safely re-runnable for a future non-electrical regen pass."""
+    jout_refs = sorted(
+        (r for r in extracted["parts"] if _JOUT_RE.match(r)),
+        key=lambda r: _JOUT_RE.match(r).group(1))
+    if not jout_refs:
+        already = [r for r in extracted["parts"] if _CABLE_CLIP_RE.match(r)]
+        if not already:
+            raise SystemExit(
+                "gen-module-beta: no J_OUT* refs found and no TB* clips "
+                "either -- unexpected board state, refusing to guess")
+        return []  # already migrated; nothing to do
+    if board not in CLIP_COUNTS:
+        raise SystemExit(f"gen-module-beta: no CLIP_COUNTS entry for board "
+                          f"{board!r} -- extend the table before migrating it")
+    rail_n, gnd_n = CLIP_COUNTS[board]
+    for ref in jout_refs:
+        cable = _JOUT_RE.match(ref).group(1)
+        lid = extracted["leaf_of"].pop(ref)
+        extracted["parts"].pop(ref)
+        extracted["footprints"].pop(ref)
+        extracted["props"].pop(ref, None)
+
+        rail_net = f"SENSEC{cable}_LO"
+        if rail_net not in extracted["pairs"] or lid not in extracted["pairs"][rail_net]:
+            raise SystemExit(
+                f"gen-module-beta: expected net {rail_net!r} on leaf {lid!r} "
+                f"for {ref} -- rail-net naming assumption broken, do not guess")
+        extracted["pairs"][rail_net][lid] = [
+            (r, p) for (r, p) in extracted["pairs"][rail_net][lid] if r != ref]
+        extracted["power_members"]["GND"] = [
+            (r, p) for (r, p) in extracted["power_members"]["GND"] if r != ref]
+
+        for k in range(1, rail_n + 1):
+            tb = f"TB{cable}{k}"
+            extracted["parts"][tb] = ("cec-vendor", "Keystone_3586_Blade_Clip", "Keystone 3586")
+            extracted["footprints"][tb] = BLADE_CLIP_FOOTPRINT
+            extracted["props"][tb] = dict(BLADE_CLIP_PROPS, Note=(
+                f"Output daughterboard blade clip, cable {cable} rail "
+                f"(+12V, post-shunt SENSEC{cable}_LO) -- ratified spec Sec "
+                f"2.8 v1.4.0; mates with the TE 63849-1 tab on the "
+                f"daughterboard (not yet a repo deliverable)."))
+            extracted["leaf_of"][tb] = lid
+            extracted["pairs"][rail_net][lid].append((tb, "1"))
+        for k in range(1, gnd_n + 1):
+            tb = f"TB{cable}{rail_n + k}"
+            extracted["parts"][tb] = ("cec-vendor", "Keystone_3586_Blade_Clip", "Keystone 3586")
+            extracted["footprints"][tb] = BLADE_CLIP_FOOTPRINT
+            extracted["props"][tb] = dict(BLADE_CLIP_PROPS, Note=(
+                f"Output daughterboard blade clip, cable {cable} return "
+                f"(GND) -- ratified spec Sec 2.8 v1.4.0; mates with the TE "
+                f"63849-1 tab on the daughterboard (not yet a repo "
+                f"deliverable)."))
+            extracted["leaf_of"][tb] = lid
+            extracted["power_members"]["GND"].append((tb, "1"))
+    return jout_refs
 
 
 LEAF_META = {
@@ -667,22 +765,54 @@ def compose_sensing(c, lf, cable_labels):
     c.done()
 
 
-def compose_cable_power(c, lf, cable_labels):
-    # Both J_IN and J_OUT's SENSE pins are symbol-authored on the LEFT
-    # (angle 0) -- the SAME direction the io side ("left", toward sensing)
-    # needs -- so both connectors share ONE x column (stacked vertically);
-    # the shunt (no cross-sheet net of its own beyond what the connectors
-    # already carry) sits clear to the RIGHT, out of the left-bound path
-    # (placing it directly between the connectors and the left edge, as an
-    # earlier attempt did, sent the io-column wire straight through its
-    # body -- measured live).
+def compose_cable_power(c, lf, cable_labels, clip_counts):
+    # J_IN's SENSE pins are symbol-authored on the LEFT (angle 0); the shunt
+    # sits clear to the RIGHT, out of the left-bound io path (placing it
+    # directly between the connectors and the left edge, as an earlier
+    # attempt did, sent the io-column wire straight through its body --
+    # measured live).
+    #
+    # J_OUT (spec Sec 2.8 v1.4.0, 2026-07-04 owner ratification) is RETIRED:
+    # the daughterboard blade-clip migration (_replace_j_out_with_clips)
+    # already swapped it for `rail_n` rail clips (TB<cable>1..) + `gnd_n` GND
+    # clips (TB<cable><rail_n+1>..), same leaf, same nets.
+    rail_n, gnd_n = clip_counts
     y = 20
     for i in range(len(cable_labels)):
         c.place(f"J_IN{i + 1}", 15, y)
-        c.place(f"J_OUT{i + 1}", 15, y + 20)
         c.place(f"RS{i + 1}", 45, y + 10)
         y += 45
-    _auto_io(c, lf.hier_exports)
+    # The blade clips are placed in a SEPARATE block below every J_IN/RS row,
+    # not interleaved with them: measured live, a per-cable grid placed
+    # alongside J_IN/RS put a clip's body directly in another cable's
+    # io-column routing path (_route_io_columns draws each exported net's
+    # wire at ITS OWN row Y, a function of every hier_exports net's attach
+    # point on this leaf -- with J_OUT gone, that attach point is now RS's
+    # own pin, and the round-robin row spacing can land a segment at a Y a
+    # same-leaf clip occupies elsewhere on the sheet). A clean block well
+    # below the last J_IN/RS row has no such Y overlap.
+    clip_y0 = y + 20
+    for i, label in enumerate(cable_labels):
+        row_y = clip_y0 + i * 24
+        for k in range(1, rail_n + 1):
+            c.place(f"TB{label}{k}", 15 + (k - 1) * 10, row_y)
+        for k in range(1, gnd_n + 1):
+            c.place(f"TB{label}{rail_n + k}", 15 + (k - 1) * 10, row_y + 10)
+    # NOT _auto_io here (round-4's generic anchor-direction heuristic --
+    # "left" if dx<0 else "right" -- only works when the hier_exports ANCHOR
+    # pin happens to be horizontal/left-facing, true of J_OUT's own pins but
+    # NOT of RS's or a blade clip's, both vertical (angle 90, dx=0) pins per
+    # their symbols. After the Sec 2.8 v1.4.0 migration the SENSEC*_LO anchor
+    # is whichever member sorts first once J_OUT is gone (typically RS*),
+    # so the heuristic silently defaults every such net to "right" --
+    # measured live: it then routes the io column through the RIGHT side of
+    # the leaf where nothing was ever laid out for it, crossing a foreign
+    # symbol body. 06-cable-power ALWAYS talks to 05-sensing, and ALWAYS on
+    # its own LEFT edge (see BOX in the driver: 06-cable-power sits to
+    # 05-sensing's right, so its only hier_exports lane runs left) --
+    # hardcode it instead of trusting pin geometry that no longer holds.
+    for net in lf.hier_exports:
+        c.io(net, "left")
     c.done()
 
 
@@ -746,8 +876,14 @@ def build(board, force=False):
     rev = rev_m.group(1) if rev_m else "DRAFT"
 
     extracted = extract(flat_sch)
+    migrated_jout = _replace_j_out_with_clips(extracted, board)
+    if migrated_jout:
+        print(f"Sec 2.8 v1.4.0 blade-clip migration: replaced "
+              f"{', '.join(migrated_jout)} with TB<cable><n> clips "
+              f"(CLIP_COUNTS[{board!r}]={CLIP_COUNTS.get(board)})")
     cable_labels = _cable_labels(extracted)
     pair_sides = _pair_sides(extracted)
+    clip_counts = CLIP_COUNTS.get(board)
 
     LEAVES = {}
     for lid in LEAF_ORDER:
@@ -785,7 +921,7 @@ def build(board, force=False):
         elif lid == "05-sensing":
             compose_sensing(c, lf, cable_labels)
         elif lid == "06-cable-power":
-            compose_cable_power(c, lf, cable_labels)
+            compose_cable_power(c, lf, cable_labels, clip_counts)
         elif lid == "07-usb-flash":
             compose_usb_flash(c, lf)
 
@@ -842,17 +978,30 @@ def build(board, force=False):
         })
 
     root_path = flat_sch
+    title_comments = [
+        f"Thin parent (round-4 hierarchical conversion, Rev {rev}) -- "
+        "sheet-symbol fan-out/fan-in only, no components",
+        "Leaf sheets: " + ", ".join(lf.sheetname for lf in LEAVES.values()),
+        "GND/+3V3/+5VSB are global power nets (per-leaf symbols); every "
+        "other crossing is a real drawn sheet-pin lane carrying its "
+        "exact flat-schematic net name (lane_labels)",
+    ]
+    if migrated_jout:
+        title_comments.append(
+            f"Rev {rev} (spec Sec 2.8 v1.4.0 output-architecture revision, "
+            f"owner-ratified 2026-07-04): {', '.join(migrated_jout)} DELETED "
+            f"from 06-cable-power -- replaced by Keystone 3586 blade clips "
+            f"(TB<cable><n>, LCSC C238113), CLIP_COUNTS[{board!r}]="
+            f"{CLIP_COUNTS.get(board)} per cable, each landing on the SAME "
+            f"post-shunt rail/GND net its share of J_OUT used to carry. "
+            f"Sense-return contacts NOT added (owner decision box (e) still "
+            f"open). See docs/standard-tier-review/output-daughterboard-"
+            f"study-2026-07-04.md and blade-fit-check-2026-07-04.md.")
     parent_stats = C.build_thin_parent(
         leaves_for_parent, set(), project_name, root_uuid, None, root_uuid,
         out_path=root_path, title=title, paper="A2", libs=LIBS,
         pwr_base=900, lane_labels=True, name_pin_nets=name_pin_nets, rev=rev,
-        title_comments=(
-            f"Thin parent (round-4 hierarchical conversion, Rev {rev}) -- "
-            "sheet-symbol fan-out/fan-in only, no components",
-            "Leaf sheets: " + ", ".join(lf.sheetname for lf in LEAVES.values()),
-            "GND/+3V3/+5VSB are global power nets (per-leaf symbols); every "
-            "other crossing is a real drawn sheet-pin lane carrying its "
-            "exact flat-schematic net name (lane_labels)"))
+        title_comments=tuple(title_comments))
     print(f"{os.path.basename(root_path)} (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()))
 
