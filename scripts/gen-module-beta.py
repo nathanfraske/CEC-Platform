@@ -56,6 +56,14 @@ LIBS = {
     "cec-vendor": open(f"{ROOT}/lib/vendor/cec-vendor.kicad_sym").read(),
     "power":      open(f"{ROOT}/lib/vendor/cec-power.kicad_sym").read(),
 }
+# "cec-power" alias (round-4 Wave 3a): the PCIe boards carry a handful of
+# power symbols (PWR201/202/203) as literal, non-"#"-prefixed PARTS (see the
+# FIXED_LEAF note below) rather than the usual auto-excluded "#PWR*" flags,
+# so Compose.__init__ -> cec_sch.load_symbols() must resolve their lib_id's
+# nickname "cec-power" (parsed straight off "cec-power:GND" etc.) the same
+# way the driver already resolves "power" -- same file, same bare-name
+# symbol defs (GND/+5VSB/+3V3), just registered under both keys.
+LIBS["cec-power"] = LIBS["power"]
 POWER_PORTS = {"GND": "GND", "+5VSB": "+5VSB", "+3V3": "+3V3"}
 POWER_NETS = set(POWER_PORTS)
 
@@ -73,6 +81,24 @@ FIXED_LEAF = {
     "R10": "05-sensing", "C40": "05-sensing", "R3": "05-sensing", "R4": "05-sensing",
     "J5": "07-usb-flash", "D2": "07-usb-flash", "D3": "07-usb-flash",
     "FB1": "07-usb-flash", "C9": "07-usb-flash", "R8": "07-usb-flash", "R9": "07-usb-flash",
+    # PCIe-only (round-4 Wave 3a): the beta-splice H3 standalone-mode suite
+    # (commit 99c2b41) added a VBUS clamp diode + explicit power-flag symbols
+    # that EPS's own splice (7acb42f) did not carry. Verified via
+    # cec_pcb_reconcile.netlist_groups on the live flat boards (both PCIe
+    # SKUs, identical): D4 (cec-vendor:D_Schottky, Value PESD5V0S1BA) sits on
+    # the /VBUS net alongside C9/D2/D3/FB1 (all 07-usb-flash already) -- a
+    # single-leaf net, so D4 joins that leaf. PWR201 (cec-power:GND) is D3's
+    # own ground stamp (D3 pin2 -- both on the GND global net, same leaf).
+    # PWR202 (cec-power:GND) is D4's own ground stamp, same leaf. PWR203
+    # (cec-power:+5VSB) sits after FB2 (already 01-hub-link, the +5VSB entry
+    # bead) on /VCC_J1 -> FB2 -> +5VSB -- so PWR203 follows FB2's leaf. None
+    # of these carry the "#" reference prefix KiCad normally auto-assigns to
+    # power symbols (a pre-existing authoring quirk in the committed splice,
+    # left as-is per the zero-rename/non-invasive policy -- not this pass's
+    # place to silently "fix" an unrelated annotation convention), so
+    # cec_sch_gates.inventory() does NOT skip them and classify_ref() must.
+    "D4": "07-usb-flash", "PWR201": "07-usb-flash", "PWR202": "07-usb-flash",
+    "PWR203": "01-hub-link",
 }
 # per-cable families: U1x=INA238, U2x=INA181, U3x=TLV7011, C1x/C2x/C3x their
 # decoupling; RS*=shunt; J_IN*/J_OUT*=interposer connectors. Scales to any
@@ -334,6 +360,52 @@ def _patch_dnp(path, dnp_refs):
     return n
 
 
+_STRIPPABLE_PROPS = ("Footprint", "Datasheet")
+
+
+def _strip_absent_props(path, extracted, refs_here):
+    """Post-write patch: `cec_sch_compose._emit_symbol2` unconditionally
+    writes an EMPTY `Footprint` and `Datasheet` property on every part it
+    emits -- correct for every ordinary component in this repo (all of them
+    already carry both, even if Datasheet is itself blank, e.g. D4 above).
+    The PCIe H3 suite's raw power-flag REFS (PWR201/202/203; see the
+    FIXED_LEAF note) are the one exception: their ORIGINAL flat-baseline
+    symbol carries ONLY Reference+Value (KiCad does not give a plain GND/
+    +5VSB power symbol a Footprint/Datasheet field at all), so emitting
+    those two empty properties is a spurious G2 inventory diff (ADDED, not
+    CHANGED -- the key didn't exist before). Strips exactly the empty
+    property line for a ref+prop pair whose ORIGINAL extracted `props`
+    lacked that key entirely; leaves every other property (including a
+    genuinely-empty-but-PRESENT one like D4's Datasheet) untouched. Kept as
+    a targeted board-driver patch, mirroring `_patch_dnp` above, rather than
+    touching the shared engine (which is correct for every other part)."""
+    n = 0
+    text = open(path).read()
+    out, pos = [], 0
+    for m in re.finditer(r'\t\(symbol\n', text):
+        if m.start() < pos:
+            continue
+        blk = cec_sch.carve(text, m.start())
+        rm = re.search(r'\(property\s+"Reference"\s+"([^"]+)"', blk)
+        ref = rm.group(1) if rm else None
+        if ref in refs_here:
+            orig_props = extracted["props"].get(ref, {})
+            new_blk = blk
+            for prop in _STRIPPABLE_PROPS:
+                if prop not in orig_props:
+                    new_blk, k = re.subn(
+                        rf'\t\t\(property "{prop}" "" \(at [^\n]*\n', '',
+                        new_blk, count=1)
+                    n += k
+            out.append(text[pos:m.start()])
+            out.append(new_blk)
+            pos = m.start() + len(blk)
+    out.append(text[pos:])
+    if n:
+        open(path, "w").write("".join(out))
+    return n
+
+
 _LABEL_LINE_RE = re.compile(
     r'\t\(label "([^"]+)" \(at ([\d.\-]+) ([\d.\-]+) (\d+)\) '
     r'\(effects[^\n]*\n')
@@ -378,29 +450,34 @@ def _dedupe_labels(path):
 
 
 # ---------------------------------------------------------------------------
-# PAIR_SIDES: for every 2-leaf net, which side ("right"=source/leftward box,
-# "left"=dest/rightward box) each leaf declares, matching the BOX x-ordering
-# below (hub-link < can < mcu < sensing < cable-power; usb-flash sits right
-# of mcu). Derived once from the box layout -- see the module docstring.
+# _pair_sides: for every 2-leaf net (extracted["pairs"], computed generically
+# per-board in extract()), which side ("right"=source/leftward box,
+# "left"=dest/rightward box) each leaf declares, DERIVED from the BOX
+# x-ordering (hub-link < can < mcu < sensing < cable-power; usb-flash sits
+# right of mcu) rather than hardcoded by net NAME.
+#
+# Round-4 Wave 3a (PCIe validation): a hardcoded {net_name: sides} table (the
+# original EPS-only form) is fragile across boards for two independently
+# measured reasons -- (1) the hub-link<->can crossing is named CAN_H_RJ/
+# CAN_L_RJ on EPS but CAN_H_J1/CAN_L_J1 on both PCIe SKUs (their beta-splice
+# commits, 7acb42f vs 99c2b41, used different label conventions for the same
+# electrical crossing); (2) a fixed table sized for EPS's 2 cables silently
+# DROPS a 3rd cable's SENSEC3_HI/_LO on pcie-8pin-3port -- since those nets
+# would then have NO hier_exports entry on EITHER leaf, each side would draw
+# an isolated same-name LOCAL label with no cross-sheet connection at all
+# (KiCad does not merge same-named plain labels across sheet boundaries),
+# silently stranding the net -- caught by G1/G3 groups compare, not any
+# assertion in this driver, so it must never be reached in the first place.
+# This function is name-AGNOSTIC and cable-count-agnostic: it reads whatever
+# 2-leaf pairs this board's OWN netlist actually contains. Verified to
+# reproduce the original hand-authored EPS table exactly (same BOX x-order).
 # ---------------------------------------------------------------------------
-PAIR_SIDES = {
-    "CAN_H_RJ":     {"01-hub-link": "right", "02-can": "left"},
-    "CAN_L_RJ":     {"01-hub-link": "right", "02-can": "left"},
-    "DETECT_SENSE": {"01-hub-link": "right", "04-mcu": "left"},
-    "CAN_TX":       {"02-can": "right", "04-mcu": "left"},
-    "CAN_RX":       {"02-can": "right", "04-mcu": "left"},
-    "SENSEC1_HI":   {"05-sensing": "right", "06-cable-power": "left"},
-    "SENSEC1_LO":   {"05-sensing": "right", "06-cable-power": "left"},
-    "SENSEC2_HI":   {"05-sensing": "right", "06-cable-power": "left"},
-    "SENSEC2_LO":   {"05-sensing": "right", "06-cable-power": "left"},
-    "THRESH_PWM":   {"04-mcu": "right", "05-sensing": "left"},
-    "I2C_SDA":      {"04-mcu": "right", "05-sensing": "left"},
-    "I2C_SCL":      {"04-mcu": "right", "05-sensing": "left"},
-    "DETC1":        {"04-mcu": "right", "05-sensing": "left"},
-    "DETC2":        {"04-mcu": "right", "05-sensing": "left"},
-    "USB_D_P":      {"04-mcu": "right", "07-usb-flash": "left"},
-    "USB_D_N":      {"04-mcu": "right", "07-usb-flash": "left"},
-}
+def _pair_sides(extracted):
+    out = {}
+    for net, by_leaf in extracted["pairs"].items():
+        l1, l2 = sorted(by_leaf, key=lambda lid: BOX[lid][0])
+        out[net] = {l1: "right", l2: "left"}
+    return out
 
 # G8 prose preservation: the flat BETA-1 sheet's section captions, carried
 # verbatim onto the corresponding new leaf(s) (a string need only appear
@@ -411,9 +488,14 @@ FLAT_CAPTIONS = {
                "H3 STANDALONE-MODE SUITE (USB ESD/EMC + CAN CMC)"],
     "03-ldo": ["3V3 LDO"],
     "04-mcu": ["MCU  ESP32-C6-MINI-1"],
-    "05-sensing": ["PER-CABLE SENSING  INA238",
-                   "6.13 TRANSIENT DETECTION  cable 1",
-                   "6.13 TRANSIENT DETECTION  cable 2"],
+    # per-cable "6.13 TRANSIENT DETECTION  cable N" captions are NOT listed
+    # here -- round-4 Wave 3a found this fixed-at-2 list silently dropped
+    # pcie-8pin-3port's 3rd caption (a real G8 prose-preservation FAIL, not
+    # cosmetic: cable 3's own transient-detection section lost its title).
+    # compose_sensing() derives one per actual `cable_labels` entry instead
+    # (verified verbatim against the flat baseline for 2 AND 3 cables: exactly
+    # "6.13 TRANSIENT DETECTION  cable {label}", two spaces before "cable").
+    "05-sensing": ["PER-CABLE SENSING  INA238"],
     "06-cable-power": [],
     "07-usb-flash": ["FLASH / USB-C"],
 }
@@ -423,7 +505,7 @@ def _auto_io(c, hier_exports):
     """Standard S1: gather every hier-exported net to the leaf's own left/
     right edge column by the anchor pin's NATURAL stub direction (mirrors
     ent-common compose_04/compose_05's pattern). This is a LEAF-internal
-    layout choice, independent of the ROOT box side in PAIR_SIDES."""
+    layout choice, independent of the ROOT box side from _pair_sides()."""
     for net, (_shape, (ref, pin)) in hier_exports.items():
         _pt, (dx, _dy) = c.pin_out(ref, pin)
         c.io(net, "left" if dx < 0 else "right")
@@ -465,6 +547,13 @@ def compose_hub_link(c, lf):
     c.place("R7", 105, 20)
     c.place("FB2", 75, 55)
     c.place("C6", 95, 55)
+    if "PWR203" in lf.parts:
+        # PCIe-only (see FIXED_LEAF note): +5VSB stamp downstream of FB2's
+        # 5VSB-entry bead. No explicit wiring needed -- it is a plain member
+        # of the leaf's global "+5VSB" net, so build_leaf's generic per-pin
+        # power-port pass stubs it automatically once placed. Clear of every
+        # other placement on this leaf (nothing else at x=95, y=70).
+        c.place("PWR203", 95, 70)
     # J1 pins 4/5/7 (STREAM_P/N, RSVD) are unused at Standard tier -- left
     # untouched (no net membership) so build_leaf's generic pass emits their
     # no_connect flags automatically, matching the flat baseline exactly.
@@ -564,9 +653,13 @@ def compose_sensing(c, lf, cable_labels):
         c.place(dec, 100, y + 20)
         # per-cable caption near ITS OWN row (not bunched at the top with
         # the main title -- measured live: all 3 captions crammed at
-        # (10..14, 6..8) overlapped each other's long text).
-        if 1 + i < len(FLAT_CAPTIONS["05-sensing"]):
-            c.caption(FLAT_CAPTIONS["05-sensing"][1 + i], 40, y - 8)
+        # (10..14, 6..8) overlapped each other's long text). Derived from
+        # `label` (the net's own cable id), not the loop index -- verbatim
+        # match to the flat baseline's "6.13 TRANSIENT DETECTION  cable N"
+        # caption for however many cables THIS board actually has (2 or 3;
+        # a fixed-length list here previously dropped the 3rd cable's
+        # caption on pcie-8pin-3port -- a real G8 prose-preservation FAIL).
+        c.caption(f"6.13 TRANSIENT DETECTION  cable {label}", 40, y - 8)
         y += 45
     for net in lf.hier_exports:
         c.io(net, "right" if re.match(r"^SENSEC", net) else "left")
@@ -605,6 +698,16 @@ def compose_usb_flash(c, lf):
     c.place("C9", 100, 70)
     c.place("R8", 120, 20)
     c.place("R9", 120, 70)
+    if "D4" in lf.parts:
+        # PCIe-only H3 VBUS clamp (see FIXED_LEAF note) -- a plain member of
+        # the leaf-internal /VBUS net alongside C9/D2/D3/FB1 (name-pinned,
+        # single-leaf), and its own GND stamp PWR201/PWR202. No explicit
+        # wire/label calls needed: build_leaf's generic per-pin pass stubs
+        # every net member automatically once placed. Clear of the existing
+        # row (D3/J5 at y=45, D2/FB1/C9/R8/R9 at y=20/45/70).
+        c.place("D4", 40, 70)
+        c.place("PWR201", 15, 70)
+        c.place("PWR202", 40, 85)
     _auto_io(c, lf.hier_exports)
     c.caption(FLAT_CAPTIONS["07-usb-flash"][0], 20, 8)
     c.done()
@@ -644,6 +747,7 @@ def build(board, force=False):
 
     extracted = extract(flat_sch)
     cable_labels = _cable_labels(extracted)
+    pair_sides = _pair_sides(extracted)
 
     LEAVES = {}
     for lid in LEAF_ORDER:
@@ -655,7 +759,7 @@ def build(board, force=False):
         lf.props = {r: extracted["props"][r] for r in lf.parts if extracted["props"][r]}
         lf.placement = {}
         hx = {}
-        for net, sides in PAIR_SIDES.items():
+        for net, sides in pair_sides.items():
             if lid in sides and net in lf.nets:
                 hx[net] = ("output", lf.nets[net][0])
         lf.hier_exports = hx
@@ -700,6 +804,7 @@ def build(board, force=False):
         st["nudged"], st["text_overlaps_left"] = n_moved, still
         dnp_here = extracted["dnp_refs"] & set(lf.parts)
         st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
+        st["props_stripped"] = _strip_absent_props(out_path, extracted, set(lf.parts))
         st["labels_deduped"] = _dedupe_labels(out_path)
         # round-3 mutator battery (identity-gated by the driver's own G1 run
         # afterwards; each mutator is the connectivity-guarded round-3 tool):
@@ -727,7 +832,7 @@ def build(board, force=False):
         lf = LEAVES[lid]
         bx, by, bw, bh = BOX[lid]
         pins = []
-        for net, sides in PAIR_SIDES.items():
+        for net, sides in pair_sides.items():
             if lid in sides:
                 pins.append((net, lf.hier_exports[net][0], sides[lid]))
         leaves_for_parent.append({

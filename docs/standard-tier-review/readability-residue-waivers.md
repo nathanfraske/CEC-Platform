@@ -225,3 +225,100 @@ after battery — WAIVERED as the composed-engine floor (precedent: hub-standard
   subgraph); real dangling labels remain policed by scripts/audit-sch.py (teeth
   verified: floating label FAILs). Errors = 1 (pre-existing benign pin_not_driven,
   C6 CAN-TXD class) vs flat baseline 2.
+
+## pcie-8pin-2port and pcie-8pin-3port (round-4 Wave 3a hierarchical form, 2026-07-04)
+
+Both converted with the SAME driver proven on eps-8pin (gen-module-beta.py), extended
+generically (not board-hardcoded) to cover two real divergences found by validating the
+partition against each board's actual refs/nets before running, per the task's own
+discipline:
+
+1. **PCIe-only H3 parts.** The beta-splice commit (99c2b41, "PCIe beta splices landed")
+   added a VBUS clamp diode + explicit power-flag symbols that EPS's own splice
+   (7acb42f) did not carry: `D4` (cec-vendor:D_Schottky, Value PESD5V0S1BA) on
+   `/VBUS` alongside C9/D2/D3/FB1 (single-leaf, 07-usb-flash); `PWR201`/`PWR202`
+   (cec-power:GND, D3's and D4's own ground stamps) and `PWR203` (cec-power:+5VSB,
+   downstream of FB2) — none carrying KiCad's usual `#` power-symbol reference
+   prefix (a pre-existing authoring quirk in the splice, left as-is, not this pass's
+   place to fix), so `cec_sch_gates.inventory()` sees them as ordinary parts and
+   `classify_ref()` had to place them. Verified via `cec_pcb_reconcile.netlist_groups`
+   on the live flat boards (identical on both SKUs) before extending `FIXED_LEAF`;
+   `D4`/`PWR201`/`PWR202` -> 07-usb-flash, `PWR203` -> 01-hub-link (FB2's leaf).
+   `gen-module-beta.py`'s `LIBS` dict gained a `"cec-power"` alias (same file as the
+   existing `"power"` key) since these refs' `lib_id` resolves to that nickname.
+   `_emit_symbol2` unconditionally writes an empty `Footprint`/`Datasheet` property
+   on every part (correct for every ordinary component, which all already carry
+   both) — but the ORIGINAL flat symbol for these three power-flag refs carries
+   ONLY Reference+Value, so the driver gained a targeted post-write patch
+   (`_strip_absent_props`) removing exactly the spurious empty properties,
+   restoring exact G2 inventory equality rather than waiving a real (if inert) diff.
+2. **Net-name divergence, not a partition bug.** The hub-link<->can crossing is
+   named `CAN_H_RJ`/`CAN_L_RJ` on EPS but `CAN_H_J1`/`CAN_L_J1` on both PCIe SKUs
+   (different beta-splice authoring sessions, same electrical crossing) — the
+   original `PAIR_SIDES` table hardcoded EPS's literal net names and crashed with
+   `KeyError` on PCIe. Replaced with `_pair_sides(extracted)`, which derives each
+   2-leaf net's per-leaf "side" from the root BOX x-ordering (verified to reproduce
+   EPS's original hand-authored table exactly) instead of a net-name literal — this
+   ALSO fixes a latent defect the fixed-2-cable table would otherwise have hit on
+   pcie-8pin-3port (a 3rd `SENSEC3_HI`/`SENSEC3_LO` pair with no table entry would
+   have gotten NO hier_exports on either leaf — two isolated same-name local labels
+   on different sheets, silently stranding the net; caught only by G1/G3, not any
+   assertion, so it must never be reached). Re-verified byte-for-byte no-regression
+   on eps-8pin (`--force` self-regen in a scratch copy: G1 58/58, G2 0 diffs, G3
+   empty map, audit-sch 8/8 ok) after these engine-adjacent changes.
+3. **pcie-8pin-3port only:** the per-cable "6.13 TRANSIENT DETECTION cable N"
+   caption list was hardcoded to 2 entries (EPS/2-port cable count) — a real G8
+   prose-preservation FAIL on the 3rd cable's caption (missing=1), not cosmetic.
+   Fixed by deriving the caption per actual `cable_labels` entry instead of a fixed
+   list; re-verified verbatim against the flat baseline for both cable counts.
+
+Gates (both boards, vs their own pre-conversion flat baseline at commit 1f132dd): G1
+group-identity exact (2-port 58/58, 3-port 62/62, 0 missing/extra each), G2 inventory
+0 diffs (2-port 55/55, 3-port 64/64, incl. DNP — FL1 dnp yes carried), G3 rename map
+EMPTY on both, G6 region-containment/sheet-bounds 0/0 both, G8 prose preservation 0
+missing both (after the 3-port caption fix), G11 BOM identical sorted-by-ref both,
+audit-sch.py 8/8 `ok` both. G4 ERC errors: 2-port 1 vs baseline 2, 3-port 1 vs baseline
+2 (same benign pre-existing `pin_not_driven` persists both; label_dangling on the
+name-pinned stubs downgraded to warning via the SAME per-board `.kicad_pro`
+`erc.rule_severities` mechanism as eps-8pin — 13 entries on 2-port, 14 on 3-port).
+Netclasses/`.kicad_dru` confirmed byte-identical pre/post on both (only
+`.kicad_pro` change is the scoped `erc.rule_severities.label_dangling` write).
+
+G5 residual — WAIVERED as the SAME composed-engine floor already accepted for
+eps-8pin/hub-standard (proximity-class only, no label-on-wire-interior mash-up; the
+one true "worst class" defect this family is known for, the SENSEC*_HI justify bug,
+was already fixed pre-conversion on all three boards per this doc's earlier entries
+and carries forward clean):
+- **pcie-8pin-2port**: overlaps 1 (07-usb-flash: `USB_D_N` label vs `VBUS_J5`
+  hierarchical_label, byte-for-byte the same class/positions as eps-8pin's own
+  07-usb-flash overlap, just a differently-named net — EPS calls the same physical
+  net `VBUS_RAW`); wire/glyph findings 19 (01-hub-link 3 glyph-MISROT — identical
+  coordinates to eps-8pin's own 3, confirming a `compose_hub_link`-level engine
+  characteristic independent of cable count; 05-sensing 11 [7 wire + 4 glyph];
+  root 5 wire). 06-cable-power is CLEAN on this board (0, vs eps-8pin's 4 — better,
+  not worse).
+- **pcie-8pin-3port**: overlaps 2 (07-usb-flash: same USB_D_N/VBUS_J5 class as
+  2-port; 05-sensing: ONE NEW instance from the added 3rd-cable density — U12's
+  `Value="INA238"` property text grazes U11's own pin-7 glyph one row up, the same
+  proximity class as the already-accepted SENSEC/DETAMPC-on-power-glyph findings,
+  just between two neighboring cable rows instead of a label and its own glyph);
+  wire/glyph findings 25 (01-hub-link 3 — same coordinates as 2-port/eps-8pin;
+  05-sensing 17 [11 wire incl. the 3-cable density finding's wire-crossing
+  counterpart, 6 glyph-clip] — proportionally consistent with 2-port's 11 scaled to
+  3 cables; root 5 wire, same class as 2-port).
+Not chased further per the round-4 cost directive (deterministic checkers judge,
+sonnet/haiku subagents only, no render-read loops); every instance verified by
+category match against the already-accepted eps-8pin/hub-standard precedent, none is
+a label-on-its-own-pin-name mash-up (the one class this family fixes, never waives).
+
+PCB reconcile (both, `cec_pcb_reconcile.py --baseline-rev 1f132dd`): 0 net renames,
+0 real path updates (both PCBs carry zero `(path ...)` fields pre-conversion, same
+documented no-op as eps-8pin/12vhpwr's EPS/PCIe precedent — `path_absent_known_ref`
+lists every footprint-bearing ref, confirming the absence is pre-existing, not
+caused by this pass), `changed: false`, DRC parity EQUAL (2-port 456/456, 3-port
+550/550, 0 only-before/only-after). `path_map_misses` lists D3/D4/FB1/FB2/FL1/
+PWR201-203/R11/R12 as schematic-side refs with no matching PCB footprint at all —
+confirmed PRE-EXISTING (the beta-splice commit's PCB diff was 6 lines, i.e. it never
+placed these parts on the board) and unrelated to this conversion; tracked as the
+existing PCB-catch-up gap, not a reconcile defect (`net_settings`/DRU confirmed
+byte-identical, `netclass_changes: []`, `dru.changed: 0`).
