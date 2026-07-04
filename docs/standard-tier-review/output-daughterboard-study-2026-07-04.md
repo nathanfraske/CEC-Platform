@@ -624,7 +624,10 @@ purchased parts with datasheet ratings, replacing §8.5's UNVERIFIED 25–30 A/j
   footprint time). Not found on LCSC this pass.
 - **Competitors:** Keystone 8191/7690 (6-32 screw power taps, THT/R-A) are real and cheaper-class
   but publish **no ampere rating** (temperature limits only — DigiKey/Keystone listings) — they
-  fail the "datasheet-rated" test that is this thread's whole point. Harwin/PEM/Fischer: no rated
+  fail the "datasheet-rated" test that is this thread's whole point. **[CORRECTED same day,
+  owner-supplied lead verified — see §8.8: the Keystone screw-terminal line IS rated (15 A
+  standard, and a 30 A Sturdi-Mount line exists, e.g. 8197). This paragraph's conclusion was
+  wrong; retained unedited above per the no-silent-rewrite rule.]** Harwin/PEM/Fischer: no rated
   BTB power-terminal equivalent identified this pass (**UNVERIFIED — thin**). LCSC Chinese
   copper-pillar/binding-post parts: unrated; MODDIY provenance discipline — prototype only.
 - **Counts at the RATED 85 A/terminal:** EPS **2/cable** (65 A ≤ 85 A, 1 source + 1 GND);
@@ -753,3 +756,150 @@ no half-price M3 exists). Posture on record: REDCUBE now so nothing waits; sched
 joint-recipe bench as the one-time engineering that unlocks hardware-store pricing at
 production volume; make the D-5 respin/BOM-lock the switch point. Sense-return (§5) and signal
 header (§8.5) ride unchanged on every rung.
+
+### 8.8 STACKED-TERMINAL CONFIG + BLADE-ADAPTER FOLD-IN (2026-07-04, owner follow-ups — same day)
+
+_Owner: "Could I just use some of Keystone's terminals and stack two of them up to mount them
+together?" and (addendum) "Or those super cheap blade adapters you had mentioned before?" —
+bounded verification of both as board-to-board configs._
+
+**CORRECTION to §8.6/§8.7 first (honesty item):** those sections said Keystone publishes no
+ampere rating. **Wrong at the distributor level** — DigiKey's spec fields carry **15 A** for the
+Keystone screw-terminal line (8191, 7690, 8195, verified on the product pages below). Keystone's
+own catalog pages emphasize wire-size/temperature; the 15 A field is the rating of record here.
+That makes stacked-Keystone a **rated-at-15 A** tier, not an unrated one — but 15 A is the
+label of a wire-tap use; the bolted stack's real capacity is set by the machined brass body
+(far larger section) and is what the bench would certify.
+
+**(1) Real Keystone parts that stack (all DigiKey, fetched 2026-07-04; tin-plated brass, 6-32
+thread, THT solder, screw included where noted):**
+
+| PN | Form | @1 / @100-class / @1k | Stock |
+|---|---|---|---|
+| **8195** | **Low-profile threaded-stud-hole terminal**, 0.331″ (8.4 mm) tall, 0.310″ (7.9 mm) square, 4 solder pins, **15 A field** | $0.48 / ~$0.44 @10 / **$0.26 @1k** ($0.176 @5k) | 41,646 + 65k factory |
+| **8191** | Vertical screw terminal w/ captive 6-32 screw, 4 pins, **15 A** | $0.61 / $0.45 @25 / **$0.266 @1k** | 25,249 + 168k factory |
+| 7690 | Same, right-angle, **15 A** | $0.57 / — / $0.31 @1k | 16,806 + 123k factory |
+| 8174-class | 10-32 threaded-stud-hole (bigger section), matte tin | not priced — **UNVERIFIED** | — |
+
+**Workable stack configs** (2–6 joints per module, §8.7 counts):
+- **(a) Single-terminal + clamped pad (recommended):** 8195 soldered on the MAIN board;
+  daughterboard has a plated clearance hole + washer; one 6-32 screw clamps daughter-pad →
+  8195 face → body → 4 solder pins → pour. **1 terminal + 1 screw/joint ≈ $0.50 @100 /
+  $0.30 @1k.** Stack height = 8.4 mm (defined by the machined body). Topologically this IS the
+  REDCUBE-bushing joint (1 solder interface + 1 clamped face) at ~1/10 the part price.
+- **(b) True two-terminal stack (the owner's literal ask):** 8195 soldered on BOTH boards,
+  face-to-face; one longer 6-32 screw threads through the daughter's terminal into the main's
+  (stacked-nut fashion). **2 terminals + 1 screw ≈ $0.95 @100 / $0.56 @1k**; stack height
+  ~16.8 mm; both boards get a reflowable terminal (no bare clamped pad). Adds ONE extra bolted
+  face vs (a) — one more measurement point in the bench, same matrix.
+- **(c) Terminal + brass-spacer hybrid:** blurs into the §8.7 generic tier; no advantage over
+  (a)/(b) — dropped.
+
+**(2) Other cheap solderable-terminal brands:** Ettinger already covered (§8.7: ~$0.32/pc,
+mostly unrated). Harwin/Vogt solder-terminal lines and LCSC solder-terminal classes: not pinned
+to rated SKUs this pass (**UNVERIFIED — thin**; LCSC class is cents, unrated, prototype tier).
+
+**(3) BLADE ADAPTERS (FASTON BTB) — verified both sides, then killed by the rating.** The
+push-together config is REAL: TE **62409-1** (FASTON 250 PCB solder tab, main board) mates with
+TE **62751-1** ("FASTON 250 Female PCB Tab Receptacle" — a genuine PCB-mount THT receptacle,
+brass/tin, 2.54 mm holes; te.com PCB quick-connect category confirms the class). Cheap
+(tabs/receptacles ~$0.10–0.30-class; 100/1k tiers not captured — **UNVERIFIED**). **But the
+published rating is 7 A continuous / 14 A intermittent per .250×.032 receptacle** (TE 250-series
+datasheet/e-card + the ".250x.032in receptacle supports up to 7A continuous" spec line). At the
+rated 7 A: EPS needs ~10 tabs/polarity = 20/cable; PCIe 7/polarity = 14/cable; 24-pin ~27 total
+— counts explode past every footprint gate, and mating force compounds it (tens of N per FASTON
+tab, ×14–20 tabs ≈ several hundred N to mate a daughterboard — physically unusable;
+**per-tab force UNVERIFIED**, order-of-magnitude from FASTON-class engagement specs). Chassis
+captivation can neutralize the no-latch concern, but it cannot fix counts or mating force.
+**Blades are rated-and-cheap but the RATING kills them for the rails** — they drop out of the
+power ladder entirely (and the signal side is already served by a cents pin-header).
+
+**(4) $/module beside the existing tiers (2 joints/cable EPS/PCIe, 6 on 24-pin — the benched
+counts; + ~$1.3–1.8 board/header on every row):**
+
+| Family | Stacked-Keystone (a) @100/@1k | Stacked-Keystone (b) @100/@1k | Generic (§8.7) | REDCUBE (§8.7) | Blades @ rated 7 A |
+|---|---|---|---|---|---|
+| 24-pin (6 joints) | $3.0 / $1.8 | $5.7 / $3.4 | $1.2–1.8 | $17.2 / $15.4 | ~27 tabs — gate FAIL, dead |
+| EPS ×2 (4) | $2.0 / $1.2 | $3.8 / $2.2 | $1.4–1.8 | $11.4 / $10.3 | 40 tabs — dead |
+| PCIe-2 (4) | $2.0 / $1.2 | $3.8 / $2.2 | $1.0–1.2 | $11.4 / $10.3 | 28 tabs — dead |
+| PCIe-3 (6) | $3.0 / $1.8 | $5.7 / $3.4 | $1.4–1.8 | $17.2 / $15.4 | 42 tabs — dead |
+
+**(5) Honest assessment + revised ladder position.**
+- **(a) Rating/bench:** the stack at 2 joints/cable runs ~65 A through a 15 A-labeled part —
+  the SAME one-time bench as generic hardware is required. BUT the bench is materially MORE
+  transferable: machined, catalog-controlled geometry (flat 7.9 mm-square faces, fixed heights,
+  known tin plating, 4-pin current injection into the pour vs a standoff's single barrel),
+  reflow-defined solder interfaces — the certified recipe binds to a PART NUMBER, not to
+  whichever hex standoff the assembler bought that month. This is the strongest version of the
+  §8.7(4) bench story.
+- **(b) Assembly:** 8195/8191 wave/reflow with the board; final assembly = screws only. Generic
+  standoffs are loose hardware at assembly. Real manufacturing win.
+- **(c) Coplanarity:** machined single-PN heights across 2–6 joints beat mixed generic hardware;
+  screw preload takes up residual tolerance. Config (b) doubles height stack-up tolerance but
+  stays single-PN.
+- **(d) Interfaces:** config (a) = same interface count as the REDCUBE bushing (1 solder + 1
+  clamped face + thread); config (b) adds one bolted face — bench matrix unchanged, one more
+  µΩ measurement point.
+- **LADDER REVISION: stacked-Keystone config (a) REPLACES benched-generic as the production
+  rung** — same bench, better repeatability/assembly, ~$1.2–3.0/module hardware (vs $1.0–1.8
+  generic: the delta is noise; the recipe-binds-to-a-PN property is worth it). The two-stage
+  path stands: **REDCUBE 85 A now (protos, zero bench) → benched stacked-Keystone-8195 at
+  production**, switch at D-5 respin/BOM-lock. Pre-bench protos on the stack are possible only
+  if the owner accepts running 15 A-labeled parts at ~65 A on the machined-body argument —
+  NOT recommended on the melt-anxiety product line; REDCUBE's proto delta (~$150 per 10 units)
+  is the cheaper insurance. Blades: out for power, everywhere.
+
+**(6) OWNER CORRECTION VERIFIED — Keystone's RATED 15 A standard + 30 A line (same day,
+supersedes the ladder line in (5) above and the §8.6 "unrated Keystone" finding).** The owner,
+reading Keystone's own site: "their standard mount ones on their page are rated for 15A, and
+they have a 30A line as well." **VERIFIED** — keyelco.com itself 403s through the proxy, but its
+own category pages surfaced in search ("30 Amp — Vertical Type PCB Screw Terminals",
+"30 Amp Screw Terminals" under Sturdi-Mount, keyelco.com category ids 918/1258), a
+DigiKey-hosted Keystone datasheet "30 Amp PCB Metric Thread Screw Terminals Vertical Type — M4
+Thread" exists (PDF image-encoded, PNs not extracted — **metric-line PNs UNVERIFIED**), and the
+imperial flagship is priced and stocked:
+
+| PN | Rating (distributor spec field) | Form | Price @1 / @10 / @1k | Stock (DigiKey) |
+|---|---|---|---|---|
+| **Keystone 8197** | **30 A** | 6-pin power tap, 6-32, snap-in vertical THT, matte-tin brass, nickel screw | **$0.75 / $0.62 / $0.36** | 19,868 (+99k factory) |
+| 8197-SEMS / 8197-5 | 30 A class variants | same family | not captured | listed |
+| Metric Sturdi-Mount 30 A line | 30 A, M4 thread, vertical, snap/press-in | per the Keystone datasheet title | **UNVERIFIED** PNs/prices | — |
+
+**Rating-conditions caveat (whose 30 A is it):** Keystone's field rating states no
+temperature-rise or adjacent-loading condition — a 30 A wire-tap rating is NOT automatically a
+30 A-at-30 °C-rise-in-a-cluster rating (Samtec/Amphenol publish theirs at 30 °C rise; that is
+why their numbers cost more). Honest treatment: use 30 A at face value for count math, flag
+that the §1 policy conservatively wants either a light **confirm-soak** (hours, not the full
+§8.7(4) derivation — the part is rated, the CLUSTER condition is what's unconfirmed) or a
+one-step derate to ~25 A (which changes no count below except EPS at the margin).
+
+**Stacked-8197 count math (config (a), 1 terminal + screw/joint ≈ $0.65 @100 / $0.39 @1k):**
+
+| Family | Joints @30 A rated (margin targets §1) | @~25 A derated | $/module @100 / @1k (30 A counts) |
+|---|---|---|---|
+| 24-pin | 12V 1, 5V 2, 3.3V 1, 5VSB 1, GND 4 = **9** | 10 | **$5.9 / $3.5** |
+| EPS ×2 | 3/polarity → **12** | 12 (65/25=2.6→3, same) | **$7.8 / $4.7** |
+| PCIe-2 | 2/polarity → **8** | 8 | **$5.2 / $3.1** |
+| PCIe-3 | ×3 → **12** | 12 | **$7.8 / $4.7** |
+
+**This is the missing MIDDLE RUNG: rated + cheap + screwed** — $3–8/module lands between
+benched-stacked-8195 ($1.2–3, bench required) and REDCUBE ($10–17, premium-rated), exactly the
+$4–8 band. Cost: more joints than REDCUBE (3/polarity vs 1 on EPS) so more screws/footprint —
+the count-vs-$/point trade inverted. **Blade interpretation also covered:** if the owner was
+reading Keystone's quick-fit TAB line, note the mated PAIR is bound by the RECEPTACLE side
+(TE-class .250 receptacle = 7 A continuous, §8.8(3)) regardless of tab rating — the blade
+verdict stands; the 30 A finding lives in the SCREW line only.
+
+**FINAL LADDER (supersedes (5)):**
+1. **Protos / first batch — REDCUBE 85 A** (~$10–17/module): zero qualification, in stock,
+   fewest joints. Unchanged.
+2. **Production default — stacked Keystone 8197 @30 A** (~$3.1–4.7/module @1k): RATED part,
+   $0.36/joint, 6 solder pins/joint into the pour, machined single-PN coplanarity, reflow +
+   screws-only assembly. Qualification debt: a light cluster confirm-soak (not the full
+   derivation) + torque process. **This replaces both the benched-8195 rung and benched-generic
+   as the recommended production rung** — the full §8.7(4) bench now buys only ~$1–3/module
+   over a rated part and is no longer worth its week unless volumes get very large.
+3. **Deep cost-down (optional, large volume only) — benched 8195/generic** (~$1.2–3): runs
+   15 A-labeled or unlabeled hardware at benched-certified currents; keep on file, don't
+   schedule.
+4. Blades: out for power. 24-pin HPCE sample pursuit (§8.6) unchanged.

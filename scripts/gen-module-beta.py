@@ -150,7 +150,20 @@ BOX = {
     "05-sensing":     (240, 8, 55, 44),
     "06-cable-power": (315, 8, 50, 40),
     "03-ldo":         (4, 80, 45, 24),
-    "07-usb-flash":   (240, 90, 55, 26),
+    # x MUST differ from every other destination leaf's x (build_thin_parent's
+    # per-destination lane/tap math is a pure function of the destination
+    # box's edge x + a per-net index -- it does not consider y at all) --
+    # measured live: an earlier x=240 (matching 05-sensing) put usb-flash's
+    # USB_D_P/USB_D_N lanes/taps at the EXACT SAME x as several of sensing's
+    # own lanes despite the two boxes sitting in different rows, silently
+    # shorting THRESH/THRESH_PWM/I2C_SDA/I2C_SCL/DETC1/DETC2/USB_D_P/USB_D_N
+    # into one net (caught by the G1/G3 netlist-group-identity gate, not by
+    # any placement/box-crossing assertion). x=210 sits directly below mcu's
+    # OWN right edge (150+60) -- the tap's problematic first leg (drawn at
+    # SOURCE height, i.e. mcu's own row) then stays inside mcu's own x-span
+    # instead of skipping over 05-sensing/06-cable-power's boxes at that same
+    # y (measured live: x=400 sent it straight through 05-sensing's box).
+    "07-usb-flash":   (230, 90, 55, 26),
 }
 LEAF_PAPER = {
     "01-hub-link": "A4", "02-can": "A4", "03-ldo": "A4", "04-mcu": "A3",

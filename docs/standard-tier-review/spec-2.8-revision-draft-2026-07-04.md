@@ -201,13 +201,24 @@ premium blades stay demoted at $13–26/module, MCN51 OBSOLETE):
   Floor ≈ $2.3–2.6/point at volume → **$12–17/module all-in is the rated-parts floor**.
   No other brand publishes a rated screw-in BTB PCB terminal (Ettinger cheap ~$0.32 but
   unrated; Phoenix/Wago/PEM/Harwin none found; LCSC studs unrated).
-  **RECOMMENDED TWO-STAGE PATH:** [ ] prototypes ship NOW on REDCUBE 85A (zero bench
-  debt); [ ] production switches to the BENCHED-GENERIC recipe (~$0.5–1.8/module) at the
-  D-5 respin / BOM-lock point — the one-time bench (4-wire µΩ + 30 °C-rise soak, ~3
-  torque × 3 current matrix, ≥80 A source + µV meter + thermal camera + torque driver,
-  ~2–5 bench-days, Würth's REDCUBE application guide as the method template) saves
-  ~$9–15/module forever (~$9–15k at 1k modules vs ~$150 of REDCUBEs across 10 protos).
-  24-pin HPCE sample pursuit unchanged.
+  **§8.8 RESULT (owner-led, 2026-07-04) — the missing middle rung EXISTS and re-slots the
+  ladder.** The owner's Keystone-rating correction VERIFIED (the §8.7 unrated finding
+  carries a dated correction): Keystone's screw-terminal lines are rated 15 A standard +
+  a **30 A line** — flagship **Keystone 8197** (6-pin power tap, 6-32, snap-in vertical,
+  30 A): $0.75@1 / **$0.36@1k**, ~20k in stock. Best joint config: one 8197 soldered on
+  the MAIN board + the daughterboard's clearance pad clamped by one 6-32 screw —
+  **~$0.65/joint @100, $0.39 @1k = the REDCUBE-bushing topology at ~1/7 the price,
+  RATED.** $/module (hardware): 24-pin $5.9→$3.5, EPS $7.8→$4.7, PCIe-2 $5.2→$3.1,
+  PCIe-3 $7.8→$4.7 (@100→@1k) — at/under the owner's original ~$5 ceiling at volume.
+  Residual debt: the 30 A field states no temperature-rise/cluster condition → a LIGHT
+  confirm-soak (not the full derivation bench). Blade adapters are OUT for power rails:
+  the genuine PCB-mount FASTON pair (TE 62751-1 + 62409-1) is receptacle-bound at 7 A
+  continuous → 27–42 tabs/module, dead.
+  **RECOMMENDED TWO-STAGE PATH (re-slotted):** [ ] prototypes ship NOW on REDCUBE 85 A
+  (zero debt); [ ] production default = **stacked Keystone 8197 (rated, $3–5/module)**
+  from the D-5 respin / BOM-lock point, gated only on the light confirm-soak; the full
+  generic-hardware bench is DEMOTED to an optional deep cost-down (buys only a further
+  ~$1–3/module). 24-pin HPCE sample pursuit unchanged (tool-less alternative).
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|
