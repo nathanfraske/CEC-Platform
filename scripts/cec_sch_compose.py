@@ -1207,7 +1207,22 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
             # the prior `net_name in root_exports` for every existing caller.
             want_label = lane_labels and not is_root_export
             tap = is_root_export or want_label
-            tapx = lane - 7.62
+            # BUG (round-4, measured): the default offset 7.62 is EXACTLY 3x
+            # the per-net lane pitch (2.54), so tapx(k) == lane(k+3) exactly
+            # -- a k-th net's tap stub sits precisely on the (k+3)-th net's
+            # own lane line. Harmless while every prior caller (ent-common,
+            # hub-enterprise) only ever taps <=3 members of one destination
+            # group at once; lane_labels (round-4 A1) can tap MANY members of
+            # one group simultaneously (measured: eps-8pin's 5-member
+            # 05-sensing destination group shorted THRESH_PWM/I2C_SDA/
+            # I2C_SCL/DETC1/DETC2 together via this exact collision). Once a
+            # group reaches 4+ members the 3x coincidence becomes reachable,
+            # so switch to a HALF-STEP offset (2.5x the pitch) that can never
+            # equal an integer multiple -- tapx(k) == lane(k') would need
+            # (k'-k) == 2.5, never an integer. Groups of <4 keep the exact
+            # prior geometry (byte-identical output; the collision cannot
+            # occur there since k+3 is out of range).
+            tapx = lane - (6.35 if len(group) >= 4 else 7.62)
             if sy == tyy and not tap:
                 wires.append((sx, sy, txx, tyy))
             else:
