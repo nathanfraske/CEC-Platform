@@ -28,7 +28,13 @@ their flat form and get the GND-ladder bus mutation only.
    is new work; `build_leaf(layout=...)`'s `wires` + `consumed` + `power` fields are the
    supported mechanism (one shared helper, used by both the flat-board mutator and the
    composed leaves).
-5. kicad-cli 10.0.4 + pcbnew are live in this container.
+5. kicad-cli 10.0.4 + pcbnew are live in this container; `pcb drc --schematic-parity` exists.
+6. **Footprint `(path …)` calibration (reconcile tool, landed)**: the stored path is the
+   sheet-INSTANCE uuid chain + symbol uuid, WITHOUT the root document's own uuid (root =
+   `/`) — measured from `sheetpath.tstamps`, exact-matched 73/73 against the committed
+   hub-standard pair. eps/pcie PCBs carry ZERO path fields today (generator-built, never
+   pcbnew-saved) so relinking is a documented no-op there; 12vhpwr has 77/84 real paths
+   and is where relinking matters.
 
 ## Net-name policy (per converted board) — ZERO-RENAME (tightened 2026-07-04 19:45)
 

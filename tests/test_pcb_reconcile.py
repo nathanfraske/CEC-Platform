@@ -16,6 +16,7 @@
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -463,6 +464,33 @@ class DrcParityTest(unittest.TestCase):
         # advertise --schematic-parity. Pinned so a kicad-cli upgrade/
         # downgrade that drops it is noticed rather than silently degrading.
         self.assertTrue(R.schematic_parity_supported())
+
+
+# ------------------------------------------------- reconcile_board (the CLI)
+@unittest.skipUnless(HAVE_CLI, "kicad-cli not available")
+class ReconcileBoardDriverTest(unittest.TestCase):
+    """End-to-end plumbing check for the function main() wires up, run
+    directly (not through argv) with dry_run=True and baseline_rev="HEAD"
+    against the LIVE committed eps-8pin directory -- SAFE: dry_run=True means
+    reconcile_pcb/reconcile_project never write, and with baseline==HEAD==the
+    current committed tree the rename map must come out empty (netlist_groups
+    of the same file against itself), so there is nothing to write even if
+    dry_run were off. This is the one test that exercises git_show_tree +
+    the full reconcile_board() driver without needing an actual
+    flat->hierarchical conversion to exist yet."""
+
+    def test_identity_baseline_yields_empty_rename_map(self):
+        report = R.reconcile_board(EPS8PIN, "HEAD", dry_run=True)
+        self.assertEqual(report["rename_map"], {})
+        self.assertFalse(report["pcb"]["changed"])
+        self.assertEqual(report["project"]["netclass_changes"], [])
+        self.assertIsNone(report["drc_parity"])  # skipped under dry_run
+
+        # confirm the committed files are untouched
+        pcb = _find(EPS8PIN, ".kicad_pcb")
+        diff = subprocess.run(["git", "diff", "--", pcb], capture_output=True,
+                               text=True, cwd=ROOT).stdout
+        self.assertEqual(diff, "", "dry_run must never modify the committed board")
 
 
 if __name__ == "__main__":
