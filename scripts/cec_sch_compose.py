@@ -42,7 +42,11 @@ import cec_sch  # noqa: E402
 import cec_sch_layout  # noqa: E402  -- the T1 layout engine (charter integration)
 
 # Paper sizes (mm, landscape) for the content-centering pass.
-PAPER = {"A4": (297.0, 210.0), "A3": (420.0, 297.0), "A2": (594.0, 420.0)}
+# A1/A0 added (round-4 Wave 3b, 12vhpwr-standard): purely ADDITIVE -- every
+# existing caller passes "A2"/"A3"/"A4" and is byte-identical; a thin parent
+# with a wide hub-and-spoke fan-out (11 leaves) needs more page than A2 offers.
+PAPER = {"A4": (297.0, 210.0), "A3": (420.0, 297.0), "A2": (594.0, 420.0),
+         "A1": (841.0, 594.0), "A0": (1189.0, 841.0)}
 
 # Accent colors (docs/schematic-composition-standard.md S13; verified rendered
 # by the pinned kicad-cli 10 SVG export -- stroke:#1A5FB4 confirmed): muted

@@ -322,3 +322,140 @@ confirmed PRE-EXISTING (the beta-splice commit's PCB diff was 6 lines, i.e. it n
 placed these parts on the board) and unrelated to this conversion; tracked as the
 existing PCB-catch-up gap, not a reconcile defect (`net_settings`/DRU confirmed
 byte-identical, `netclass_changes: []`, `dru.changed: 0`).
+
+## 12vhpwr-standard (round-4 Wave 3b hierarchical form, 2026-07-05)
+
+Highest-stakes board of the four (fully routed PCB, CI-gated/not-DRAFT, hand-maintained
+schematic with hand splices, 85 refs / 87 netlist groups). Converted with a NEW SIBLING
+driver, `scripts/gen-12vhpwr-beta.py` (self-contained rather than importing
+`gen-module-beta.py`, which is not import-able by a plain `import` statement due to its
+dashed filename, and per the task's instruction not to restructure the proven eps driver;
+the two share the same underlying engine calls, not code). Partition: 11 literal leaves
+(01-input, 02-lanes, 03-output, 04-ina, 05-mcu, 06-can, 07-ldo, 08-usb, 09-hub-link,
+10-temp, 11-rail-ref) — verified computationally against the live netlist BEFORE composing
+that every one of the 49 cross-leaf + 10 leaf-internal named nets touches <=2 leaves; this
+forced two adjustments off the task's own first-draft bin sketch: the rail-voltage divider
+(R5/R6/C24) moved into 02-lanes (not a separate rail-ref bin) and the sideband series taps
+(R10-R13) moved into 01-input (not 05-mcu) — both required so `/FAN_12V` and the four
+`/SB_*` base nets stay 2-leaf, confirmed by a standalone Python check building the same
+partition dict against `cec_pcb_reconcile.netlist_groups()` before writing any compose code.
+
+**Engine change (additive, back-compat verified):** `cec_sch_compose.PAPER` gained `"A1"`
+(841x594mm) and `"A0"` (1189x841mm) entries — this board's hub-and-spoke fan-out (05-mcu
+connects to 8 of the other 10 leaves) needs more page than A2 offers for the thin parent.
+Verified byte-identical (masked-uuid) regeneration with vs without the addition across
+ent-common (7 files), hub-enterprise (27 files), and eps-8pin (8 files) — every existing
+caller passes "A2"/"A3"/"A4" only, so the new dict keys are unreachable dead code for them.
+
+**Two REAL bugs found+fixed via measured connectivity, not assumed** (both a repeat of the
+same root cause, first seen on `04-ina`'s INA240 sensing channels and then on `02-lanes`'s
+shunt/filter channels):
+1. **Tied-Y merge.** `compose_lanes`'s first draft placed all 6 channels SIDE BY SIDE (same
+   Y, only X differing per channel). `_route_io_columns`' per-side sort keys on
+   `(attach_y, name)`; with 6+ channels sharing an identical attach Y, several channels'
+   "already on this row" direct-connect horizontal legs ended up COLLINEAR with
+   OVERLAPPING X ranges, and KiCad treats overlapping collinear segments as one conductor
+   -- confirmed via `kicad-cli sch export netlist` on the generated leaf: all six
+   `CF{n}.1`/`RFH{n}.2` pins had merged onto a single `/IN1_P` node (76 groups instead of
+   87, with `IN2_P`..`IN6_P` gone entirely). Fixed by stacking all 6 channels VERTICALLY
+   (distinct Y per channel) instead — mirrors `compose_ina`'s own layout, same fix, same
+   root cause. `10-temp`'s two NTC channels (`compose_temp`) carried the identical latent
+   risk (C20/C21 both at the same Y) and were fixed pre-emptively the same way, without
+   waiting to observe an actual merge there.
+2. **Root-level box-order violations.** `build_thin_parent` sorts each 2-endpoint net's
+   pins by X and requires the smaller-X pin to be `side="right"`; three early `BOX` layout
+   drafts placed a destination leaf's box at a smaller X than a source leaf that fed it
+   (`03-output` needing to clear BOTH `01-input` and `02-lanes`; several of 05-mcu's five
+   spoke leaves sharing 05-mcu's own row-8 Y band, which caused a SEPARATE class of
+   failure below) — each caught immediately as a hard `SystemExit` from
+   `build_thin_parent` itself ("pin sides must be right(source)->left(dest)"), not a
+   silent defect.
+3. **Hop-over wire-crosses-box.** Even after fixing (2), `01-input`'s SB_* nets (bound for
+   `03-output`, ranked after `02-lanes`) crossed `02-lanes`' own box because both sat in
+   the same Y band — `build_thin_parent`'s lane wire runs the FULL X-span between source
+   and dest at the source's own row height, and any intermediate leaf's box in that Y
+   band is hit regardless of X overlap (measured: "wire ... crosses sheet box 02-lanes").
+   Fixed with a Y-STAIRCASE for the 5-leaf main flow chain (01-input -> 02-lanes ->
+   03-output/04-ina -> 05-mcu, each a distinct non-overlapping Y band) plus a separate
+   observation that 05-mcu's five "spoke" destinations (06-can/08-usb/09-hub-link/
+   10-temp/11-rail-ref, each connecting ONLY to mcu) can safely REUSE the y=8 band the
+   staircase vacated, since mcu's own outgoing wires run at mcu's row height, a
+   completely different Y range that never intersects y=8 regardless of X — this keeps
+   the whole layout inside a single `A0` page (see the engine change above) rather than
+   needing an unboundedly wide/tall canvas.
+
+Gates (vs the pre-run flat baseline at commit e65b9f8): **G1** group-identity exact, 87/87,
+0 missing/0 extra. **G2** inventory: 6 findings, all a known engine-consistent residual, not
+a data loss — `J3`/`J4` each dropped an EMPTY `LCSC=""` property (`_emit_symbol2` skips
+empty-valued custom properties by design, verified: every OTHER prop on both refs, incl.
+Manufacturer/MPN/Datasheet, is unchanged) and `R22`/`R23`'s Value normalized `'0R'`->`'0Ω'`
+(the SAME `cec_sch.fmt_value`/`fmt_res` transform every other R_Small value on this board
+already used, e.g. `2.2kΩ`/`10kΩ` — `'0R'` was the one value on the flat baseline that
+hadn't been through this normalization yet; footprint/DNP/Note/LCSC/MPN/Manufacturer all
+confirmed unchanged). **G3** rename map EMPTY (0 entries) — every one of the 49 cross-leaf
++ 10 name-pinned internal nets keeps its exact flat-schematic name. **G4** ERC errors 0 vs
+baseline 0 (not increased); warnings 79 (10 label_dangling on the name-pin stubs, downgraded
+to warning via the SAME per-board `.kicad_pro erc.rule_severities` mechanism as
+eps/pcie-8pin; 69 lib_symbol_mismatch, pre-existing generator-cache noise) vs the baseline's
+277 (dominated by stale `lib_symbol_issues`/`footprint_link_issues` noise specific to that
+flat file's library cache state — not a like-for-like comparison, but errors are the gating
+metric and those are 0 both ways). **G6** region-containment 0, sheet-bounds 0 (after moving
+`02-lanes`/`04-ina` from A3 to A2 paper — their per-channel content, once laid out vertically
+per the tied-Y fix above, exceeded A3's 297mm height). **G8** prose preservation: all 8
+measured flat-sheet captions present verbatim in the new leaf set (0 missing) — "RAIL REF +
+SIDEBAND REF3030" lands on `11-rail-ref` even though the sideband taps physically moved to
+`01-input` for the <=2-leaf constraint (G8 checks the STRING appears somewhere in the new
+file set, not co-location, per the eps precedent). **G11** BOM: 85/85 rows, sorted-by-ref
+diff is the SAME 2 rows as the G2 `0R`->`0Ω` normalization, nothing else. **audit-sch.py**:
+12/12 files `ok` (all 11 leaves + the thin parent).
+
+G5 residual — WAIVERED as the SAME composed-engine floor already accepted for
+eps-8pin/pcie-8pin/hub-standard (proximity-class only, no label-on-wire-interior mash-up),
+after fixing what was fixable (04-ina's INA240 vertical pitch widened 30->42 units, clearing
+5 Value-text-vs-own-power-glyph crossings entirely; 02-lanes' channel stack start shifted
+15->30 to clear a caption/wire graze):
+- overlaps 1 (`08-usb`: `VBUS_RAW`/`USB_DM` label pair, same 1-count bar as every sibling
+  board's own usb-flash-equivalent leaf).
+- wire collisions 40 (`02-lanes` 1 caption-vs-wire graze pre-fix, 0 post-fix; the thin
+  parent's own 39 are ALL the identical mechanical artifact: a `lane_labels` tap's LOCAL
+  LABEL sitting ~1.95mm from the adjacent vertical lane wire it is tapped off of — a
+  structural byproduct of the (unmodified) `lane_labels` tap geometry, scaling linearly
+  with this board's 49 cross-leaf nets vs eps's 16; every instance individually confirmed
+  label-on-its-own-tap-wire, never a foreign-net mash-up).
+- power-glyph 3 (`09-hub-link`, three `MISROT` findings) — confirmed BYTE-IDENTICAL
+  coordinates to eps-8pin's own `01-hub-link.kicad_sch` (same `powerflag_nets=
+  ["+5VSB","GND"]` call into the shared, unmodified `_powerflag_anchors` helper): a
+  pre-existing engine characteristic of that helper, not something this board introduced.
+
+**GND-bus item (owner directive 2, partial):** `05-mcu`'s ESP32-S3-MINI-1 carries 24 GND
+pins; the driver's mutator battery (`spread_power_flags`/`dedupe_power_flags`, already part
+of the same pass eps-8pin runs) collapsed them to 6 distinct stamps automatically (down from
+a raw 24). `cec_sch_gates.bus_power_ladder` (the dedicated Wave-1 tool for a single explicit
+link, used on the flat-form 24pin-rev3/hub-standard) found zero qualifying runs on `U1` here
+and on each INA240 (`U10`-`U15`, 4 GND pins apiece) — `power_ladder_runs` wants an already-
+collinear pin run and this MCU symbol's GND pins are not laid out that way. NOT chased
+further into a hand-built compose-time ladder (eps's own `_ladder_column` precedent is
+X-oriented; these ICs' GND pins face downward) given the round-4 cost directive and that
+this is a quality item, not one of the graded gates. Tracked as a FOLLOWUP, not a regression
+(the flat baseline had no single-link GND bus either).
+
+**PCB reconcile** (`cec_pcb_reconcile.py --board modules/12vhpwr-standard --baseline-rev
+e65b9f8`): 0 net renames, 77 `(path ...)` relinks (the real case the round-4 plan doc flagged
+this board for — 77/85 refs carry a footprint on the committed, routed PCB), 7 mechanical
+(mounts/fiducials, no schematic symbol), `net_count` 84->84 unchanged, `netclass_changes: []`
+/ `dru.changed: 0` (byte-identical, confirming the zero-rename policy held all the way
+through). `path_map_misses` lists 8 refs (D3/D4/FB1/FB2/FL1/J2/R22/R23) — confirmed via a
+git-worktree DRC run against the UNCONVERTED baseline PCB+schematic that these have ZERO
+footprint on the PCB and produce the IDENTICAL 28 schematic-parity findings pre- and
+post-conversion (missing-footprint + stale net-name/Note-text mismatches from the H3a
+standalone-mode-suite splice that added them to the schematic after the PCB was last
+"Update PCB from Schematic"-synced) — pre-existing, unrelated to this conversion, not a
+reconcile defect. **DRC parity CONFIRMED EQUAL**: 19 violations both before and after (4
+hole_clearance / 8 silk_edge_clearance / 5 silk_over_copper / 2 silk_overlap, the same known
+repo-wide USB-C-footprint + cosmetic-silk residue), 0 unconnected both, 28 schematic-parity
+both (verified via a clean `git worktree` checkout of the pre-conversion commit, since a
+same-directory scratch copy without the full `lib/` tree produces spurious
+`lib_footprint_issues` noise that is a test-harness artifact, not a real board difference).
+**Copper byte-identity**: stripping ONLY `(net "...")` and `(path "...")` field values from
+both the pre- and post-reconcile `.kicad_pcb` leaves them byte-for-byte identical — every
+track, via, zone fill, and pad position is untouched.
