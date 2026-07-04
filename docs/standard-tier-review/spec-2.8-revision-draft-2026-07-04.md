@@ -169,31 +169,31 @@ chassis cutouts — is a mechanical/BOM trade, not a current-capacity argument.
 **(c) Inter-board connector default class — COST PASS LANDED (study §8, 2026-07-04); ratify
 the per-family picks below.**
 [ ] Ratify the electrical bar: **~30 A per power contact at ≤30 °C rise** at the study's
-contact counts (unchanged by the cost/geometry questions), AND the study §8.5 revised
-per-family recommendation (cost AND footprint gates both held):
-- **ALL FOUR FAMILIES: SCREWED-POWER-POSTS + SIGNAL-HEADER HYBRID** — M3 posts for the rails
-  (24-pin: 10–12 posts; EPS: 3+3 per cable; PCIe: 2+2 per cable) + ONE 2×5 2.54 mm header
-  for the low-current circuits (24-pin PS_ON#/PWR_OK/−12V/remote-sense; the box-(e)
-  sense-returns ride this header FOR FREE). **$2.5–5/module est.** — cheapest column,
-  smallest effective footprint (pour-native pads, zero board-edge consumption, no mating-
-  mouth keepout — the 24-pin raw block ~44×16 mm reads parity–1.4× vs the incumbent but
-  clears on effective footprint), best ampacity, and the screws ARE the chassis
-  retention/strain-relief the ruling assumes. Trade-off: tool-required service, not
-  tool-less.
-- **COMMODITY CARD-EDGE ELIMINATED by the footprint gate (§8.5 correction on the record):**
-  the earlier §8.4 card-edge math was already dual-readout — commodity slots deliver only
-  ~2.4–2.5 A/mm of slot length at ANY pitch (denser pitch self-cancels), vs the gate's
-  demanded 3.7 (24-pin) / 5.4 (PCIe) / 7.2 (EPS) A/mm → fails every family at any price.
-  Sole surviving card-edge: Amphenol HPCE (verified 9 A/beam @30 °C rise), premium,
-  pitch/price UNVERIFIED — kept ONLY as the one live 24-pin alternative (tool-less swap +
-  free sense fingers) presented as a trade, not a pick.
-- Premium blade families remain demoted (verified: mPOWER pair ~$6.5–7/cable, PwrBlade
-  $6.40–6.99/side, Ten60 UNVERIFIED, **MCN51 OBSOLETE**) → $13–26/module.
-- **LOAD-BEARING BENCH ITEM (now all-family): the generic M3 screwed-joint ampacity
-  rating.** The 20–30 A/joint figure is an UNVERIFIED engineering estimate; Würth REDCUBE's
-  verified 85 A/point proves the topology's headroom. A good bench number HALVES post
-  counts (raw blocks then clear every gate outright). Plus: post torque/thermal-cycle
-  bench; ENIG-vs-hard-gold applies only if the HPCE trade is taken.
+contact counts (unchanged), AND pick from the study §8.6 three-way (commodity card-edge is
+ELIMINATED by the footprint gate — §8.5: ~2.4–2.5 A/mm at any pitch vs 3.7–7.2 demanded;
+premium blades stay demoted at $13–26/module, MCN51 OBSOLETE):
+
+**§8.6 REVISED PICKS (owner sourcing pass, 2026-07-04):**
+- **EPS + PCIe: RATED screw-in board-to-board terminals** — Würth REDCUBE WP-THRBU
+  74650094 (M4 through-hole bushing: conductor + standoff + threaded retention in ONE
+  part), **85 A VERIFIED at datasheet conditions, $2.86 @100, in stock** — 2 per cable +
+  a small signal stub. ~$12–19/module. **This DELETES the load-bearing M3-joint bench
+  item** (reduces to incoming QC + torque process control). Smallest footprint, screws =
+  chassis retention, quality-first delta over generic M3 stated in the study.
+- **24-pin: pursue HPCE vertical/mezzanine** (~$7–10; ONE part carries power AND the
+  PS_ON/PWR_OK/−12V/sense circuits — deletes the signal header; tool-less). Gate
+  re-derivation at real pitch (dual-edge 2.54 mm ≈ 7.1 A/mm): 24-pin CLEARS (~35–40 mm vs
+  51.6 gate); PCIe MARGINAL; EPS FAILS ~1.4×. Two UNVERIFIEDs stand: beams-per-position
+  mapping (image-encoded datasheet) and right-size SKU supply (the one orderable-now
+  vertical SKU, 10114587-003LF $9.15/230-stock, reads ~144 A vs the 190 A need; R/A SKUs
+  are tray-MOQ-1080/zero-stock/12-wk). Card fingers need 30 µin hard gold.
+  **Committed fallback: REDCUBE 6-point** ($18–19/module).
+- **Generic M3 hardware demoted** to an optional cost-down AFTER a bench derivation
+  ($2.5–5/module; 20–30 A/joint UNVERIFIED estimate) — no longer the pick.
+- HONEST COST PICTURE vs the original ~$5 ceiling: verified-ampacity terminals land at
+  $12–19/module. The cheap number ($2.5–5) exists only bench-gated. The owner chooses
+  which side of that trade each family sits on (quality-first principle: surface the
+  delta, default to quality).
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|

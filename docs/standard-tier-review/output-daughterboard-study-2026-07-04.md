@@ -289,11 +289,15 @@ not resolved here.
 
 ## 7. Recommendation matrix
 
-_**REVISED same day, twice: first by the §8 cost pass (owner: "~$5 per connector is a bit
-high"), then by the §8.5 geometry revision (owner: "40 mm and 80 mm long cards are MASSIVE"),
-which added the main-board FOOTPRINT GATE and killed the interim card-edge picks.** The premium
-board-to-board families remain as the qualified fallback; Hirose MCN51 is withdrawn (obsolete,
-§8.1). Current picks below = §8.5._
+_**REVISED same day, three times: the §8 cost pass (owner: "~$5 per connector is a bit high"),
+the §8.5 geometry revision (owner: "40 mm and 80 mm long cards are MASSIVE" — added the
+main-board FOOTPRINT GATE, killed the interim card-edge picks), and the §8.6 sourcing pass
+(owner: HPCE + rated screw-in BTB terminals).** CURRENT PICKS = **§8.6**: EPS/PCIe → REDCUBE
+WP-THRBU-class rated terminals (85 A verified, no ampacity bench) 2/cable + signal stub; 24-pin
+→ HPCE vertical/mezzanine (pursue, 2 UNVERIFIEDs) with REDCUBE 6-point as committed fallback;
+the generic-M3 hybrid below is demoted to cost-down-after-bench. Hirose MCN51 withdrawn
+(obsolete, §8.1). The §8.5-era rows below are retained for the contact-count/footprint work
+they carry._
 
 | Family | Recommended connector class (post-§8.5) | Power contacts/points (source + return) | Extra signal (sense-return + presence) | Projected daughterboard size | Open items for the owner |
 |---|---|---|---|---|---|
@@ -563,3 +567,102 @@ forced, per the owner's brief.
 + thread-lock, thermal-cycle/vibration retention, at ≤30 °C rise; (ii) verify HPCE beam pitch +
 100-qty price before treating the 24-pin alternate as real; (iii) the −12 V/PS_ON/PWR_OK/remote
 sense pin-map onto the signal header needs the ATX rail-current check at spec time.
+
+### 8.6 SOURCING PASS: HPCE deep-dive + RATED screw-in BTB terminals (2026-07-04, owner follow-up — same day)
+
+_Owner: "Go look into those HPCE actually, I saw some that may be pretty affordable as well. But
+the screw-in would also work, especially because they have board-to-board terminal solutions
+that are just screw in." Two threads run; both change §8.5's picture._
+
+**THREAD 1 — Amphenol HPCE, real parts and geometry.** The primary datasheet PDF
+([mouser.com pwr_hpce](https://www.mouser.com/datasheet/2/18/1/pwr_hpce-2578367.pdf)) is
+image-encoded and did not extract; geometry below comes from distributor spec fields on real
+SKUs (solid provenance) — the **beams-per-power-position mapping remains UNVERIFIED** and is the
+one number that could move this analysis (upward only).
+
+| Real SKU | What it is (distributor spec fields) | Price / stock (fetched 2026-07-04) |
+|---|---|---|
+| 10035388-900LF | **28 power positions, dual-edge, 2.54 mm pitch**, R/A THT, gold 30 µin contacts, 1.57 mm card ([DigiKey](https://www.digikey.com/en/products/detail/amphenol-cs-fci/10035388-900LF/5190221)) | **$6.87 @ 1,080 (tray-only MOQ)**; zero DigiKey stock, 12-wk lead |
+| 10035388-300LF | 64 power positions, same construction ([DigiKey](https://www.digikey.com/en/products/detail/amphenol-icc-fci/10035388-300LF/4239013)) | **$13.02 @ 1,080 tray**; zero stock, 13-wk |
+| 10035388-102LF | 50 contacts, dual-side, 2.54 mm, R/A ([Newark CA](https://canada.newark.com/amphenol-icc-fci/10035388-102lf/card-edge-conn-dual-side-50pos/dp/01T1535)) | $16.96 @ 50+, **MOQ 1,008**, 9-wk lead, no stock |
+| **10114587-003LF, HPCE-VR "8HP2LP24S"** | **VERTICAL**, 8 high-power + 2 low-power + 24 signal contacts ([Newark](https://www.newark.com/amphenol-communications-solutions/10114587-003lf/edge-connectors-hpce-vr-8hp2lp24s/dp/24AM3137)) | **$9.15 @ 1 (min 25), 230 IN STOCK** — the one genuinely orderable-now part found |
+| HPCE MEZZANINE variant line | Exists as its own Amphenol overview doc ([mouser.com pwr_hpce_mezzanine](https://www.mouser.com/datasheet/2/18/1/pwr_hpce_mezzanine-1298558.pdf)) — directly the stood-up-daughterboard geometry | Not priced this pass — **UNVERIFIED** |
+
+**Footprint-gate re-derivation at real pitch.** Rating basis: **9 A per power beam, multiple
+contacts fully energized, 30 °C rise still air** (HPCE datasheet, §8.5); construction: dual-edge
+(both card faces) at **2.54 mm** — conservatively 2 beams per position ⇒ **18 A per 2.54 mm ≈
+7.1 A/mm**, nearly 3× the commodity class's 2.5 A/mm (if a "position" carries more than one beam
+per face, these numbers only improve):
+- **24-pin (needs 3.7 A/mm):** 190 A ⇒ ~11 power positions ≈ 27 mm power zone; + signal zone +
+  housing ends ≈ **35–40 mm total — CLEARS the 51.6 mm gate**, with the unique bonus that the
+  same connector natively carries the PS_ON#/PWR_OK/−12 V/remote-sense/sense-return circuits
+  (the 8HP2LP24S pattern: HP + LP + 24 signal in one housing) — no separate signal header needed.
+- **PCIe (needs 5.4 A/mm):** 98 A ⇒ ~6 positions ≈ 14 mm power zone + ends ≈ **~20–24 mm —
+  MARGINAL vs the 18 mm gate** (housing ends push it just over; a beams-per-position >1 reading
+  or a compact housing flips it to pass).
+- **EPS (needs 7.2 A/mm):** 130 A ⇒ ~8 positions ≈ 18.5 mm + ends ≈ **~25–28 mm — FAILS the
+  18 mm gate but only ~1.4–1.5×** (vs the commodity class's 3.3×). Not a clean pass; no longer
+  absurd.
+Card-side: distributor fields confirm **gold 30 µin** mating contacts (i.e. the card wants
+hard-gold-class fingers, not bare ENIG — JLCPCB hard-gold option, order-level adder,
+**UNVERIFIED** price); insertion-cycle rating not captured (**UNVERIFIED**); retention is
+housing-only — the §8.2a screw-boss-to-chassis captivation still applies.
+**Affordability verdict: partially confirmed.** Single-digit-dollar unit pricing is real
+($6.87–9.15) and one vertical variant is in stock at low MOQ today — but sub-$5 @100 was NOT
+demonstrated, and two of the three R/A SKUs checked are tray-MOQ (~1,000 pcs ≈ $7–17k
+commitment) with 9–13-week leads. HPCE is a plausible 24-pin pick, not a cheap one.
+
+**THREAD 2 — RATED screw-in board-to-board terminals.** The owner's point lands: these are
+purchased parts with datasheet ratings, replacing §8.5's UNVERIFIED 25–30 A/joint estimate.
+- **Würth REDCUBE WP-THRBU 74650094** (through-hole bushing, M4, 8 solder pins, tin-plated
+  brass): **85 A rated (VERIFIED distributor spec field), $2.86 @100, 1,495 in stock**
+  ([DigiKey](https://www.digikey.com/en/products/detail/w%C3%BCrth-elektronik/74650094/16608523)).
+  The THRBU bushing is exactly the board-to-board form: bushing soldered into the main board =
+  conductor + standoff + threaded retention in one part; the daughterboard screws down onto it.
+  Family span (THR/SMD/SMRA/PLUG, M3–M5, 50–85 A, published torque specs; REDCUBE listings
+  ~$2.50–4.89 across DigiKey; per-variant stack heights **UNVERIFIED** — datasheet read-off at
+  footprint time). Not found on LCSC this pass.
+- **Competitors:** Keystone 8191/7690 (6-32 screw power taps, THT/R-A) are real and cheaper-class
+  but publish **no ampere rating** (temperature limits only — DigiKey/Keystone listings) — they
+  fail the "datasheet-rated" test that is this thread's whole point. Harwin/PEM/Fischer: no rated
+  BTB power-terminal equivalent identified this pass (**UNVERIFIED — thin**). LCSC Chinese
+  copper-pillar/binding-post parts: unrated; MODDIY provenance discipline — prototype only.
+- **Counts at the RATED 85 A/terminal:** EPS **2/cable** (65 A ≤ 85 A, 1 source + 1 GND);
+  PCIe **2/cable**; 24-pin **6** (12V/5V/3.3V/5VSB ×1 + GND ×2 for the 95 A return). Footprint:
+  a handful of ~Ø10 mm-class points (exact body dims **UNVERIFIED**) — trivially under every
+  gate, smallest of any candidate surveyed. $/module @100 (terminals + screws + board + the §8.5
+  signal header, which every screw solution still needs): **24-pin ≈ $18–19; EPS ≈ $13–14;
+  PCIe-2 ≈ $12–13; PCIe-3 ≈ $18–19**.
+- **KEY QUESTION answered: YES — a rated terminal KILLS the load-bearing generic-M3 ampacity
+  bench.** The 85 A figure is a manufacturer datasheet rating with published conditions and
+  torque specs; qualification reduces to incoming-QC confirmation + assembly torque/thread-lock
+  process control + ordinary thermal-cycle retention checks. What it does NOT delete: the cost
+  delta — ~$2.86/point rated vs ~$0.12/point generic (≈20×), i.e. **+$9–16/module**.
+
+**Three-way comparison per family (100-qty est.; gate = §8.5(1)):**
+
+| Family | (i) Generic M3 hybrid | (ii) REDCUBE-rated hybrid | (iii) HPCE card-edge |
+|---|---|---|---|
+| 24-pin | $2.5–3.2; gate: clears (effective); ampacity UNVERIFIED — **bench-gated** | $18–19; clears easily; **85 A VERIFIED, no ampacity bench** | $8–10 (ONE part, signal circuits + sense fingers included); **CLEARS gate (~35–40 mm)**; 9 A/beam verified, beams/position + right-size SKU supply **UNVERIFIED** |
+| EPS ×2 | $3.6–4.6; clears; bench-gated | $13–14 (2/cable); clears; no bench | ~$18+ (2 parts); **FAILS gate ~1.4×**; supply UNVERIFIED at this size |
+| PCIe-2 | $2.9–3.5; clears; bench-gated | $12–13; clears; no bench | ~$18+; **MARGINAL on gate**; supply UNVERIFIED |
+| PCIe-3 | $4.3–5; clears; bench-gated | $18–19; clears; no bench | ~$27+; same |
+
+**Revised recommendation (supersedes §8.5's picks where stated):**
+- **EPS + PCIe (both SKUs): REDCUBE WP-THRBU-class rated terminals, 2 per cable, + the §8.5
+  signal stub.** Verified 85 A, in stock today, smallest footprint of anything surveyed, zero
+  ampacity-bench debt. The +$9–14/module over generic M3 is exactly the "pay a small delta to
+  delete qualification risk" trade the owner's quality-first principle instructs; generic M3
+  remains the documented cost-down IF its bench is ever run and passed. HPCE cannot serve EPS
+  (gate) and is supply-unproven at PCIe size.
+- **24-pin: two live options, owner's call.** (a) **HPCE vertical/mezzanine** — clean gate pass,
+  one purchased part carrying rails AND all low-current circuits AND free sense-return fingers,
+  tool-less daughterboard swap, ~$7–10/module — IF the two UNVERIFIEDs clear (beams/position;
+  MOQ/lead on a right-sized SKU — the in-stock $9.15 8HP2LP24S reads ~144 A capacity on the
+  conservative math, one size short of the 190 A need). (b) **REDCUBE 6-point + signal header**
+  — $18–19, everything verified today, no supply risk, tool-required service. On record: pursue
+  (a) with a sample order + the two verifications; hold (b) as the committed fallback. Both beat
+  every §8.4/§8.5 commodity option on the footprint gate.
+- **Generic M3 hybrid: demoted to cost-down-after-bench on every family** (it was the §8.5
+  default). The bench that gates it is no longer load-bearing for shipping — it is an optional
+  cost-reduction study.
