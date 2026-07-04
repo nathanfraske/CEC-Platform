@@ -813,6 +813,10 @@ tab, ×14–20 tabs ≈ several hundred N to mate a daughterboard — physically
 captivation can neutralize the no-latch concern, but it cannot fix counts or mating force.
 **Blades are rated-and-cheap but the RATING kills them for the rails** — they drop out of the
 power ladder entirely (and the signal side is already served by a cents pin-header).
+**[CORRECTED same day — see §8.9: this verdict was TE-RECEPTACLE-BOUND. Keystone's
+universal-entry quick-fit/blade-clip line (3557/3577/3586) is RATED 30 A — 4× the TE 62751-1
+figure this kill was computed on. The blade path REOPENS at 30 A/joint; paragraph retained
+unedited per the no-silent-rewrite rule.]**
 
 **(4) $/module beside the existing tiers (2 joints/cable EPS/PCIe, 6 on 24-pin — the benched
 counts; + ~$1.3–1.8 board/header on every row):**
@@ -903,3 +907,93 @@ verdict stands; the 30 A finding lives in the SCREW line only.
    15 A-labeled or unlabeled hardware at benched-certified currents; keep on file, don't
    schedule.
 4. Blades: out for power. 24-pin HPCE sample pursuit (§8.6) unchanged.
+
+### 8.9 KEYSTONE UNIVERSAL-ENTRY 30 A BLADE LINE — the blade path REOPENS (2026-07-04, owner catalog detail — same day)
+
+_Owner, deep in Keystone's catalog, supplied: quick-fit terminals in .110/.187/.205/.250 tab
+sizes, horizontal and vertical; a UNIVERSAL-ENTRY receptacle accepting all tab sizes, SMT or
+THM, top/side/bottom entry, RATED 30 A (PNs 3557, 3577, 3586, 3586TR, 3586KTR); SMT .110 edge
+parts ~10 A (3579/3599/1242, 6100/6102); and 2–6-position male header blocks rated 15 A. This
+overturns §8.8(3)'s blade kill, which was computed on the TE 62751-1's 7 A — dated correction
+placed there._
+
+**(a) Verification (fetched/searched 2026-07-04):**
+
+| Part | Verified as | Rating | Price | Stock |
+|---|---|---|---|---|
+| **3577** (bottom/universal entry, THT) | "Universal Clip Bottom Entry," blade, THT, brass tin-nickel ([DigiKey](https://www.digikey.com/en/products/detail/keystone-electronics/3577/2745813)) | **30 A / 500 V (DigiKey field)** | **$0.155 @100 / $0.119 @1k** (full table fetched) | **38,591** |
+| **3557** (top entry, THT vertical) | "Universal Female Blade Clip — Top Tab Entry" (keyelco p/1131); RS: "Universal Blade, Vertical, THM, 30Amp, Brass/Tin" | **30 A** | same class as 3577 — tier table not fetched (**est.**) | listed |
+| **3586 / 3586TR / 3586KTR** (SMT, top & side entry) | "SMT-Top & Side Entry Female Quick-Fit" — keyelco: accepts **.110″(2.8) to .250″(6.4) male tabs**; KTR = kapton-tape pick-and-place | **30 A** | Mouser 3586TR **$0.35 @750-reel**; DigiKey $0.75 CT | stocked both |
+| **1287** (.250 THT vertical male tab, sturdi/rivet mount) | brass/tin, .250×.032 tab (keyelco, RS, Future) | tab side; blade section ~5.1 mm² (not the limiter) | **~$0.064 @300** (Future) — dimes confirmed | multiple channels |
+| 4928 (SMT .250 male tab) | Mouser new-product page | **15 A field** — SMT-pad-limited; prefer THT tabs on power | not captured | — |
+| 3579/3599/1242, 6100/6102 (SMT .110 edge, ~10 A) | owner-supplied; class-consistent with keyelco catalog | **~10 A (owner/catalog; per-PN UNVERIFIED)** | UNVERIFIED | — |
+| Header blocks (2–6 pos male, low profile, 15 A) | keyelco "Quick-Fit Male Terminal Headers, PCB" category confirmed | **15 A (owner/catalog; per-PN UNVERIFIED)** | UNVERIFIED | — |
+
+Rating-conditions caveat (same as 8197, §8.8(6)): the 30 A is a distributor/catalog field with
+no stated temperature-rise or cluster condition — fine for count math, wants the same light
+cluster confirm-soak before BOM lock. Provenance note: these clips are Keystone's auto-blade
+FUSE-CLIP lineage — a part family designed precisely for repeated blade insertion at power
+current, which is a better pedigree for this job than a wire-tap screw rating.
+
+**(b) Blade config REDONE at 30 A/joint.** Sides: **universal-entry receptacles (clips) on the
+MAIN board** (taller/heavier part on the chassis-mounted board; 2 THT legs per clip inject into
+the pour; SMT 3586KTR option keeps the main board single-pass reflow) and **.250 THT tabs (1287)
+on the DAUGHTERBOARD** (lightest, lowest, and — decisive — the SELLABLE daughterboard+extension
+assembly carries the $0.06 part, not the $0.15–0.35 one). Entry direction is real design
+freedom: **top entry (3557/3586)** = daughterboard stands parallel-over-the-main-board, mates
+straight down — the ruling's stood-up mezzanine geometry, chassis screw-bosses land naturally;
+**side entry (3586)** = daughterboard slides in edgewise — lower stack height, chassis rail/slot
+captivation. Counts at the §1 margin targets:
+
+| Family | Joints (source+GND) | Hardware $/module @100 / @1k (clip $0.155/$0.119 + tab ~$0.08/$0.06) | Raw footprint note |
+|---|---|---|---|
+| 24-pin | 12V 1, 5V 2, 3.3V 1, 5VSB 1, GND 4 = **9** | **$2.1 / $1.6** | 9 clip zones (~10×8 mm each) — same raw class as §8.5 posts; pour-native legs, no mouth keepout (top entry) |
+| EPS ×2 | 3/polarity → **12** (6/cable — exactly the coordinator's math) | **$2.8 / $2.1** | 6 zones/cable — over raw per-cable gate, clears on the §8.5 effective argument |
+| PCIe-2 | 2/polarity → **8** (4/cable) | **$1.9 / $1.4** | 4 zones/cable — best fit of any family |
+| PCIe-3 | ×3 → **12** | **$2.8 / $2.1** | same |
+
+All-in (+ ~$1.3–1.8 board + signal header): **≈ $3.2–4.6 @100 / $2.7–3.9 @1k per module —
+rated, tool-less.** That is 8197-screw money WITHOUT the screws.
+
+**(c) Insertion/extraction force — the honest open item.** Keystone publishes no per-joint
+mating force in the material found (**UNVERIFIED**). Two bounding readings: auto blade fuses
+(this clip's native mate) insert by finger — order ~5–15 N/blade — giving 8–12 joints ≈
+**60–180 N: firm-press hand-matable, borderline at the top**; FASTON-class engagement specs
+read higher (tens of N/joint → 12 joints could exceed 300 N: lever or press needed). A
+ten-minute sample measurement settles it — REQUIRED before this config is picked (gang
+alignment/lead-in chamfer design matters at 8–12 simultaneous blades). Retention = friction +
+the chassis screws the ruling already assumes; stated caveat: tin-tin friction joints under
+thermal cycling are the classic **fretting-corrosion** wear-out — PC environment is
+low-vibration but thermally cycled, so the confirm bench must include thermal-cycle + contact-R
+trend, and the §5 sense-return is the in-service monitor for exactly this failure mode (it
+earns its contacts most in THIS config).
+
+**(d) Header blocks (15 A, 2–6 pos male):** verified as a category; per-PN price UNVERIFIED.
+Use: the 24-pin's 5VSB rail (7.5 A target) fits a 15 A blade position — folding 5VSB + PS_ON# +
+PWR_OK + remote-sense into ONE small header block makes the 24-pin daughterboard interface
+ALL-Keystone-blade (rails on clips, everything else on the block). It does not beat the 2×5
+2.54 mm header on price (cents) — it beats it on part-count/uniformity and tool-less symmetry.
+Owner's aesthetic call; electrically either works.
+
+**(e) 10 A SMT .110 edge parts (3579/3599/1242, 6100/6102):** right size for sense-return/signal
+if an all-blade look is wanted, but the 2.54 mm header is cheaper and denser — **note-and-skip**
+unless (d)'s uniformity argument wins.
+
+**(f) REVISED CONFIG MATRIX per family:**
+
+| Config | $/module @1k (all-in) | Rated provenance | Footprint gate | Mating force | Retention | SMT-line friendly |
+|---|---|---|---|---|---|---|
+| **(i) All-Keystone TOOL-LESS blade** (universal 30 A clips + 1287 tabs + header block) | **$2.7–3.9** | 30 A field (conditions unstated → confirm-soak) | clears (effective; raw same class as posts) | **UNVERIFIED — sample-measure; 60–300 N band at 8–12 joints** | friction + chassis screws; fretting caveat, sense-return monitors | Yes — 3586KTR kapton reels (SMT) or THT wave |
+| (ii) 8197 screw config (§8.8(6)) | $4.4–6.5 | 30 A field (same caveat) | clears (effective) | n/a (screws) | **strongest — threaded** | THT; screws at final assembly |
+| (iii) Mixed (blades on EPS/PCIe, 8197 on 24-pin) | ~$3–5.5 | same | clears | blade sites only | screwed where the biggest board hangs | mixed |
+
+**RECOMMENDATION:** config **(i) becomes the headline pick** — it hits $2.7–4.6/module RATED
+and tool-less, makes the sellable daughterboard+extension the six-cent-tab side, and gives the
+enclosure real design freedom (top vs side entry). It carries exactly two sample-gates before
+lock: the **gang mating-force measurement** (c) and the **clip-cluster confirm-soak +
+thermal-cycle contact-R trend** (a/c). Config **(ii) 8197-screw stands as the committed
+alternative** if either gate fails (same money, screwdriver service, strongest retention).
+REDCUBE (§8.7) remains the zero-qualification proto rung; HPCE (§8.6) remains the 24-pin
+tool-less premium conditional. The §5 sense-return option should be considered PROMOTED from
+optional to recommended in config (i) — it is the designed-in monitor for the friction joint's
+one honest weakness.

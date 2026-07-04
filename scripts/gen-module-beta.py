@@ -465,7 +465,17 @@ def compose_sensing(c, lf, cable_labels):
     # the right-side column. rot=180 flips them to the right (its I2C/addr/
     # alert pins move left in exchange, harmless: their own hier anchors are
     # R3/R4, not U1x, so U1x's copies just carry a plain same-name label).
-    _grid_place(c, ["R10", "C40", "R3", "R4"], 15, 8, 4, dx=16, dy=16)
+    # cols=1 (a single vertical column, not a 4-wide row): R10/C40/R3/R4 are
+    # each the anchor of a DIFFERENT "left"-side io-exported net (THRESH_PWM/
+    # THRESH/I2C_SDA/I2C_SCL). Placed in one row they'd share the SAME
+    # natural attach Y, and _route_io_columns's row-bump only separates the
+    # FINAL column row -- it does not stop the FIRST-LEG jog segments (drawn
+    # at the ORIGINAL, un-bumped Y) from overlapping each other. Measured
+    # live: a 4-wide row put THRESH_PWM/I2C_SDA/I2C_SCL's jogs on three
+    # overlapping collinear segments, shorting all three (and, transitively,
+    # everything else on their nets) into one net -- caught by the G1/G3
+    # connectivity-group gate, not any overlap/crossing assertion.
+    _grid_place(c, ["R10", "C40", "R3", "R4"], 15, 8, 1, dx=16, dy=16)
     y = 40
     for i, label in enumerate(cable_labels):
         ina, amp, cmp_ = f"U1{i}", f"U2{i}", f"U3{i}"
