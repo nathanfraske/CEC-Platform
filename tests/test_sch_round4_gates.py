@@ -28,8 +28,26 @@ try:
 except Exception:
     HAVE_KICAD_CLI = False
 
-REAL_12VHPWR = os.path.join(
-    ROOT, "modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch")
+# The teeth demos anchor to the LAST FLAT revision of the 12vhpwr sheet (the
+# board the owner's round-4 complaint described: regions clipping each other
+# + overrunning the page). The live board is hierarchical since Wave 3b and
+# containment/bounds-CLEAN, so the real-bad-example is materialized from git
+# history (self-contained flat file, embedded lib_symbols).
+_FLAT_12VHPWR_REV = "e65b9f8"  # last commit before the 12vhpwr conversion
+def _frozen_flat_12vhpwr():
+    import subprocess, tempfile
+    out = subprocess.run(
+        ["git", "show", _FLAT_12VHPWR_REV +
+         ":modules/12vhpwr-standard/12vhpwr-standard-module.kicad_sch"],
+        capture_output=True, text=True, cwd=ROOT)
+    if out.returncode != 0:
+        raise unittest.SkipTest("flat 12vhpwr baseline rev unavailable")
+    d = tempfile.mkdtemp(prefix="cec_gates_flat12v_")
+    p = os.path.join(d, "12vhpwr-standard-module.kicad_sch")
+    with open(p, "w") as fh:
+        fh.write(out.stdout)
+    return p
+REAL_12VHPWR = None  # resolved lazily per-test via _frozen_flat_12vhpwr()
 
 
 def _envelope(body, *, paper='"A4"', extra_footer=""):
@@ -197,13 +215,11 @@ class RegionContainmentTest(unittest.TestCase):
         finally:
             os.unlink(p)
 
-    @unittest.skipUnless(os.path.isfile(REAL_12VHPWR),
-                         "12vhpwr-standard schematic not present")
     def test_real_12vhpwr_has_measured_findings(self):
         """TEETH: the owner's report that 12vhpwr-standard's regions clip
         each other and overrun the sheet edge must show up as real findings
         -- not a hypothetical, the live board as of round 4."""
-        findings = G.check_region_containment(REAL_12VHPWR)
+        findings = G.check_region_containment(_frozen_flat_12vhpwr())
         classes = {f.split()[0] for f in findings}
         self.assertIn("REGION-OVERLAP", classes, findings)
         self.assertIn("REGION-OVERRUN", classes, findings)
@@ -257,13 +273,11 @@ class SheetBoundsTest(unittest.TestCase):
         self.assertEqual(G._paper_rect('(paper "A4" portrait)')[:4],
                          (0.0, 210.0, 0.0, 297.0))
 
-    @unittest.skipUnless(os.path.isfile(REAL_12VHPWR),
-                         "12vhpwr-standard schematic not present")
     def test_real_12vhpwr_has_measured_findings(self):
         """TEETH: measured 2026-07-04 -- 423 findings (66 symbol extents,
         158 text/label glyphs, 199 wire endpoints) fall outside the A3
         sheet on the live board (e.g. J3/J4 sit at y=1391.92mm)."""
-        findings = G.check_sheet_bounds(REAL_12VHPWR)
+        findings = G.check_sheet_bounds(_frozen_flat_12vhpwr())
         self.assertGreaterEqual(len(findings), 300, findings[:5])
         self.assertTrue(any("J3" in f or "J4" in f for f in findings))
 

@@ -176,7 +176,9 @@ class EpsRoundTripTest(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="cec_pcb_reconcile_test_eps_")
         self.board = _copy_board(EPS8PIN, self.tmp)
         self.pcb = _find(self.board, ".kicad_pcb")
-        self.sch = _find(self.board, ".kicad_sch")
+        # post round-4 the boards are hierarchical (root + leaves in one
+        # dir); resolve the ROOT the same way the tool does
+        self.sch = R._find_root_sch(self.board)
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
@@ -267,7 +269,9 @@ class Hpwr12vPathRelinkRoundTripTest(unittest.TestCase):
         self.tmp = tempfile.mkdtemp(prefix="cec_pcb_reconcile_test_12v_")
         self.board = _copy_board(HPWR12V, self.tmp)
         self.pcb = _find(self.board, ".kicad_pcb")
-        self.sch = _find(self.board, ".kicad_sch")
+        # post round-4 the boards are hierarchical (root + leaves in one
+        # dir); resolve the ROOT the same way the tool does
+        self.sch = R._find_root_sch(self.board)
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)

@@ -726,7 +726,9 @@ def reconcile_board(board_dir, baseline_rev, dry_run=False, workdir=None):
     workdir = workdir or tempfile.mkdtemp(prefix="cec_pcb_reconcile_")
     try:
         baseline_root = git_show_tree(baseline_rev, rel_board, workdir)
-        baseline_sch = _find_one(baseline_root, ".kicad_sch")
+        # the baseline itself may already be hierarchical (post round-4):
+        # resolve its ROOT the same way as the working tree, not "exactly one"
+        baseline_sch = _find_root_sch(baseline_root)
 
         old_groups = netlist_groups(baseline_sch)
         new_groups = netlist_groups(new_sch)
