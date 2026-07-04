@@ -159,8 +159,18 @@ findings remain recorded for when a trade is genuinely quality-neutral._
   inverted into a passive CONNECTOR mezzanine (logic stays on the main board; J6/OQ-77
   mezzanine precedent). Touches LOCKED §2.8 → spec-revision draft owed to the owner (agent),
   gated on the KILL-CHECK: per-circuit current through the inter-board pair per family
-  (the panel killed Form D exactly here — ~3–3.5A/ckt derated < the 6A ATX bar; EPS/PCIe
-  per-cable design current is 40–55A class). Engineering flags recorded at ruling time:
+  (the panel killed Form D exactly here — ~3–3.5A/ckt derated < the 6A ATX bar).
+  **OWNER DESIGN-BASIS NUMBERS (2026-07-04, same-day follow-up):** EPS 8-pin = 4×12V +
+  4×GND, max ~13A CONTINUOUS per pin (brief transients a bit higher) → sustained
+  theoretical worst case ~52A/cable; official Intel EPS12V spec 336W (~28A)/connector —
+  motherboards carry TWO EPS connectors because next-gen CPUs approach ~600W and the load
+  must split. PCIe 8-pin = same per-pin theoretical but only 3×12V → ~39A/cable worst
+  case (official 150W). All AWG-dependent — CEC extensions use 16AWG. DESIGN RULE (owner):
+  design around worst case WITH margin, but keep transients as transients and sustained
+  as sustained — never fold transient peaks into the continuous rating. These supersede
+  the generic "40–55A class" framing above. OPEN SHAPE CHOICE (study quantifying both):
+  one daughterboard/inter-board connector PER CABLE vs one wide daughterboard per board
+  (EPS ×2 cables ≈ 104A aggregate; PCIe-3 ×3 ≈ 117A). Engineering flags recorded at ruling time:
   inter-board pair adds a mated contact set DOWNSTREAM of the shunts (drop invisible to
   telemetry — optional zero-component sense-return pin on the inter-board connector worth
   assessing); keying/captivation so a daughterboard can't mis-seat; enclosed-product stack
