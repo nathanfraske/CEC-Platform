@@ -194,6 +194,20 @@ premium blades stay demoted at $13–26/module, MCN51 OBSOLETE):
   $12–19/module. The cheap number ($2.5–5) exists only bench-gated. The owner chooses
   which side of that trade each family sits on (quality-first principle: surface the
   delta, default to quality).
+- **§8.7 PRICE-LADDER RESULT (owner-directed, 2026-07-04): the rated screw-in class has NO
+  cheaper rung.** Verified REDCUBE ladder: 74650094 M4/85A $2.86@100→$2.57@500;
+  74650074R M4/50A $2.73→$2.33; 74650173R M3/50A $3.01→$2.57 (the M3 is PRICIER than the
+  M4/85A, and 50A parts backfire — EPS count doubles, PCIe passes 49A with zero margin).
+  Floor ≈ $2.3–2.6/point at volume → **$12–17/module all-in is the rated-parts floor**.
+  No other brand publishes a rated screw-in BTB PCB terminal (Ettinger cheap ~$0.32 but
+  unrated; Phoenix/Wago/PEM/Harwin none found; LCSC studs unrated).
+  **RECOMMENDED TWO-STAGE PATH:** [ ] prototypes ship NOW on REDCUBE 85A (zero bench
+  debt); [ ] production switches to the BENCHED-GENERIC recipe (~$0.5–1.8/module) at the
+  D-5 respin / BOM-lock point — the one-time bench (4-wire µΩ + 30 °C-rise soak, ~3
+  torque × 3 current matrix, ≥80 A source + µV meter + thermal camera + torque driver,
+  ~2–5 bench-days, Würth's REDCUBE application guide as the method template) saves
+  ~$9–15/module forever (~$9–15k at 1k modules vs ~$150 of REDCUBEs across 10 protos).
+  24-pin HPCE sample pursuit unchanged.
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|

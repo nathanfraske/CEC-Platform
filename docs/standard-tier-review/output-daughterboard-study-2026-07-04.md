@@ -666,3 +666,90 @@ purchased parts with datasheet ratings, replacing §8.5's UNVERIFIED 25–30 A/j
 - **Generic M3 hybrid: demoted to cost-down-after-bench on every family** (it was the §8.5
   default). The bench that gates it is no longer load-bearing for shipping — it is an optional
   cost-reduction study.
+
+### 8.7 SCREW-IN PRICE LADDER (2026-07-04, owner follow-up — same day)
+
+_Owner on §8.6: "$12–19/module is quite a bit of extra BOM… Is there no screw-in, board-to-board
+terminal way to do it?" — same topology, cheaper. This section is the price ladder inside the
+screw-in BTB class, now quoting BOTH ~100-qty and the best volume tier found (volume is the real
+number for a consumer product)._
+
+**(1) REDCUBE full variant ladder (all DigiKey, fetched 2026-07-04).** The direct answer to "is
+there a half-price M3": **NO** — the M3 variant is actually PRICIER than the M4/85 A part, and
+the family floor is ~$2.3–2.9/point, not ~$1–1.5:
+
+| Part | Type / thread / rating (VERIFIED spec fields) | @100 | Best volume tier fetched | Stock |
+|---|---|---|---|---|
+| **74650094** | WP-THRBU M4, 8 solder pins, **85 A** | **$2.86** | **$2.57 @500** | 1,495 (24-wk restock lead) |
+| 74650074R | WP-THRBU M4, 4 pins, **50 A** | $2.73 | **$2.33 @750 (T&R)** | listed; qty not captured |
+| 74650173R | WP-THRBU **M3**, 4 pins, **50 A** | $3.01 | $2.57 @900 (T&R) | 10,114 |
+| 74650073R | M3 4-pin PCB terminal | ~$3.90 single-unit (search-level) | — | **UNVERIFIED tiers** |
+
+Family span (catalog): WP-THR / WP-THRBU (through-hole + blind-hole thread) / WP-THRSH (external
+thread) / WP-SMS-SMRT-SMRA (SMD) / WP-PLCF-PLBU plug ([we-online REDCUBE
+catalog](https://www.we-online.com/en/components/products/em/redcube_terminals)); per-variant
+stack heights still a datasheet read-off (**UNVERIFIED**). Two ladder facts kill the cheaper
+rungs: the **50 A parts don't reduce counts** — EPS (65 A target) needs 2/polarity at 50 A =
+8/module vs 4 at 85 A (WORSE: $21.8 vs $11.4 @100), and PCIe at 50 A passes its 49 A target with
+literally zero margin; so the M4/85 A 74650094 is the family's best $/A everywhere.
+
+**(2) Other rated brands in the class — the search came back thin.**
+- **Ettinger screw terminals** ([ettinger.de screw-terminals](https://www.ettinger.de/en/products/electromechanical-components/power-terminals/screw-terminals/)):
+  genuinely cheap — M3 brass-tinned PCB screw terminals from **€29.70/100 (~$0.32/pc)** — but
+  **almost the whole line publishes NO ampere rating** (fails this thread's test; provenance
+  tier = brand-name generic hardware). One rated SKU found: 013.20.105 binding post, M2.5,
+  **15 A** — too low to help (EPS would need ~10/cable) and a single-SKU basis.
+- **Phoenix Contact / Wago bolt-on PCB power terminals, PEM, Harwin, Fischer:** no
+  datasheet-ampere-rated screw-in BTB PCB terminal identified this pass (**UNVERIFIED — thin**;
+  PEM publishes torque/mechanical only). Not pursued further on this budget.
+- **LCSC power-stud / battery-stud class:** cents-to-dimes, unrated (**UNVERIFIED** — MODDIY
+  provenance discipline; prototype tier only).
+
+**(3) Count × price matrix (hardware only; add ~$1.3–1.8/module board + signal header to every
+row):**
+
+| Family | R85 pts → @100 / @vol | R50 pts → @100 / @vol | Generic pts → hardware |
+|---|---|---|---|
+| 24-pin | 6 → **$17.2 / $15.4** | 6 (counts don't drop) → $16.4 / $14.0 | 10–12 → $1.2–1.8 |
+| EPS ×2 | 4 → **$11.4 / $10.3** | 8 → $21.8 / $18.6 (worse) | 12 → $1.4–1.8 |
+| PCIe-2 | 4 → **$11.4 / $10.3** | 4 → $10.9 / $9.3 (zero margin at 49 A) | 8 → $1.0–1.2 |
+| PCIe-3 | 6 → **$17.2 / $15.4** | 6 → $16.4 / $14.0 | 12 → $1.4–1.8 |
+
+EPS/PCIe are already at the 2-points/cable physical floor (1 per polarity), so within the rated
+class **$/point IS the price** — and its floor is ~$2.3–2.6 at volume; the 24-pin's 6 points
+could only drop to ~5 with a single >95 A GND point (no such REDCUBE). Cheapest VERIFIED-rated
+screw-in, all-in: **24-pin ≈ $18.7 @100 / ~$17 @vol; EPS ≈ $13 / ~$12; PCIe-2 ≈ $13 / ~$12;
+PCIe-3 ≈ $19 / ~$17**. The §8.6 sticker does not materially improve inside the rated class.
+
+**(4) Generic-hardware economics, framed honestly (the owner's cost lens).** Generic hardware
+(~$0.5–1.8/module) carries **no per-unit penalty — it carries a ONE-TIME bench derivation**:
+- **The bench:** derive + certify a CEC joint recipe (pad diameter, via-stitch pattern, plating,
+  screw grade/washer, torque, thread-locker) by measurement — 4-wire µΩ joint resistance (known
+  ~10 A test current + µV meter, or a micro-ohmmeter), thermal soak at the §1 currents to steady
+  state confirming ≤30 °C rise, a ~3 torque × 3 current matrix, and a re-torque/thermal-cycle
+  retention check. **Instruments:** ≥80 A DC source (or paralleled supplies / battery+shunt),
+  µV-resolution meter, thermocouples or the thermal camera this repo's electrothermal work
+  already uses, calibrated torque driver — belongs on the owner-queue
+  deferred-pending-instrument list. **Time: ~2–5 bench-days, once, ever** — the recipe covers
+  all four families and every future module. **Template:** Würth's own REDCUBE application guide
+  ([mouser.com Wurth-REDCUBE-Application_Guide](https://www.mouser.com/pdfdocs/Wurth-REDCUBE-Application_Guide.pdf))
+  publishes the test method to replicate onto generic hardware.
+- **The trade in one line:** REDCUBE costs ~+$9–15/module vs benched-generic, forever; the bench
+  costs ~a week of one-time engineering. At 1,000 modules the bench saves ~$9–15k; at 10
+  prototypes it saves ~$150 and delays them — wrong place to spend it.
+
+**(5) Revised ladder recommendation (prototype-now / production-later), $/module at volume:**
+
+| Family | NOW (protos + first small batch) | PRODUCTION (≥ hundreds, after the one-time bench) |
+|---|---|---|
+| 24-pin | §8.6 stands: pursue the HPCE sample; REDCUBE 85 A 6-pt fallback (~$18.7) | Benched-generic ~$3–3.5 all-in; or HPCE (~$7–10) if its two UNVERIFIEDs cleared |
+| EPS ×2 | REDCUBE 85 A, 2/cable (~$13) — in stock, zero bench, protos ship immediately | Benched-generic ~$3–3.5 all-in (identical topology, CEC-certified recipe) |
+| PCIe-2 | REDCUBE 85 A (~$13) | Benched-generic ~$2.5–3 |
+| PCIe-3 | REDCUBE 85 A (~$19) | Benched-generic ~$3.5–4 |
+
+The screw-in BTB topology the owner wants IS the cheap path — but the cheapness lives in
+**benched generic hardware, not in a cheaper rated part** (the rated-part floor is ~$2.3/point;
+no half-price M3 exists). Posture on record: REDCUBE now so nothing waits; schedule the
+joint-recipe bench as the one-time engineering that unlocks hardware-store pricing at
+production volume; make the D-5 respin/BOM-lock the switch point. Sense-return (§5) and signal
+header (§8.5) ride unchanged on every rung.
