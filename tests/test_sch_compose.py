@@ -86,6 +86,45 @@ def _build_mini_hierarchy(td, lf, compose_fn, power_ports, powerflag_nets=()):
     return root_path
 
 
+def _build_pair_hierarchy(td, leaves, *, lane_labels=False, name_pin_nets=None,
+                          root_exports=None):
+    """N independent leaves under a root-as-thin-parent (round-4 A1/A2 fixture
+    harness). `leaves`: [(Leaf, compose_fn, pins, (x,y,w,h)), ...] -- boxes
+    must be given left-to-right in the same order a shared 2-endpoint net's
+    "right"-side (source) and "left"-side (dest) pins expect (build_thin_
+    parent's lane-routing contract). `name_pin_nets` (if given) is forwarded
+    to BOTH build_leaf (per leaf id) and build_thin_parent (the whole dict),
+    exactly as a real driver would. Returns the root .kicad_sch path."""
+    root_uuid = cec_sch.u()
+    leaves_for_parent = []
+    for lf, compose_fn, pins, (bx, by, bw, bh) in leaves:
+        sym_uuid, own_uuid = cec_sch.u(), cec_sch.u()
+        c = C.Compose(lf, LIBS)
+        compose_fn(c)
+        c.done()
+        C.build_leaf(
+            lf.parts, lf.nets, lf.footprints, lf.props, lf.placement, lf.nc_skip,
+            {}, [], lf.hier_exports, None,
+            LIBS, "pairmini",
+            path_prefix=f"{root_uuid}/{sym_uuid}",
+            sheet_instances_path=sym_uuid,
+            own_uuid=own_uuid, page="2",
+            out_path=os.path.join(td, lf.filename), paper="A4",
+            title=f"pairmini: {lf.sheetname}", comment1="pair fixture", pwr_base=100,
+            layout=lf.layout, name_pin_nets=(name_pin_nets or {}).get(lf.id))
+        leaves_for_parent.append({
+            "id": lf.id, "sym_uuid": sym_uuid, "filename": lf.filename,
+            "sheetname": lf.sheetname, "page": "2", "x": bx, "y": by, "w": bw, "h": bh,
+            "pins": list(pins),
+        })
+    root_path = os.path.join(td, "pairmini.kicad_sch")
+    C.build_thin_parent(
+        leaves_for_parent, root_exports or set(), "pairmini", root_uuid, None,
+        root_uuid, out_path=root_path, title="pairmini root", paper="A4",
+        libs=LIBS, lane_labels=lane_labels, name_pin_nets=name_pin_nets)
+    return root_path
+
+
 class ImportSmokeTest(unittest.TestCase):
     def test_engine_surface(self):
         self.assertIn("A4", C.PAPER)
@@ -175,6 +214,119 @@ class ProtectionChainTeethTest(unittest.TestCase):
             gname, gnd = _group_of(nets, ("D1", "2"))
             self.assertEqual(gname, "GND")
             self.assertEqual(gnd, {("D1", "2"), ("R8", "2")})
+
+
+class LaneLabelTest(unittest.TestCase):
+    """Round-4 A1 (build_thin_parent's `lane_labels`): a 2-endpoint root lane
+    between two leaves must keep its ORIGINAL bare net name (probe-verified
+    round-4 fact #1 -- "a root local label wins the net name outright") once
+    `lane_labels=True`, netlist-measured against kicad-cli, not assumed."""
+
+    def _two_leaves(self):
+        lf_a = C.Leaf("ta", "ta-leaf.kicad_sch", "ta-leaf", "pair fixture A")
+        lf_a.add_part("R1", "cec-vendor", "R_Small", "10k", 0, 0, "")
+        lf_a.net("XNET", ("R1", "1"))
+        lf_a.nc_skip = {("R1", "2")}
+        lf_a.hier_exports = {"XNET": ("output", ("R1", "1"))}
+
+        lf_b = C.Leaf("tb", "tb-leaf.kicad_sch", "tb-leaf", "pair fixture B")
+        lf_b.add_part("R2", "cec-vendor", "R_Small", "10k", 0, 0, "")
+        lf_b.net("XNET", ("R2", "1"))
+        lf_b.nc_skip = {("R2", "2")}
+        lf_b.hier_exports = {"XNET": ("output", ("R2", "1"))}
+
+        def compose_a(c):
+            c.place("R1", 80, 80)
+
+        def compose_b(c):
+            c.place("R2", 80, 80)
+
+        leaves = [
+            (lf_a, compose_a, [("XNET", "output", "right")], (12.7, 12.7, 50.8, 38.1)),
+            (lf_b, compose_b, [("XNET", "output", "left")], (127.0, 12.7, 50.8, 38.1)),
+        ]
+        return leaves
+
+    @unittest.skipUnless(HAVE_KICAD_CLI, "kicad-cli not on PATH")
+    def test_lane_label_keeps_bare_name(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = _build_pair_hierarchy(td, self._two_leaves(), lane_labels=True)
+            nets, stderr = _netlist_groups(root)
+            self.assertNotIn("error", stderr.lower(), f"netlist stderr: {stderr}")
+            name, group = _group_of(nets, ("R1", "1"))
+            self.assertEqual(group, {("R1", "1"), ("R2", "1")},
+                             "the lane must still join both leaves' pins")
+            self.assertEqual(name, "/XNET",
+                             "lane_labels=True must give the exact bare net name")
+
+    @unittest.skipUnless(HAVE_KICAD_CLI, "kicad-cli not on PATH")
+    def test_default_lane_does_not_keep_bare_name(self):
+        """Contrast case: WITHOUT lane_labels, the same 2-leaf lane still
+        joins the two pins (connectivity is unaffected either way) but does
+        NOT regenerate as the bare "/XNET" name -- demonstrating the opt-in
+        actually changes something, not merely a no-op flag."""
+        with tempfile.TemporaryDirectory() as td:
+            root = _build_pair_hierarchy(td, self._two_leaves(), lane_labels=False)
+            nets, stderr = _netlist_groups(root)
+            self.assertNotIn("error", stderr.lower(), f"netlist stderr: {stderr}")
+            name, group = _group_of(nets, ("R1", "1"))
+            self.assertEqual(group, {("R1", "1"), ("R2", "1")})
+            self.assertNotEqual(name, "/XNET")
+
+
+class NamePinNetsTest(unittest.TestCase):
+    """Round-4 A2 (build_leaf's + build_thin_parent's `name_pin_nets`): a net
+    otherwise INTERNAL to one leaf must, once force-exported this way, land
+    at the exact bare "/NAME" globally -- the same mechanism the round-4 plan
+    doc probed by hand (/04-mcu/FLASH_CS -> /FLASH_CS), verified here via
+    kicad-cli's netlist rather than assumed from the probe alone."""
+
+    @unittest.skipUnless(HAVE_KICAD_CLI, "kicad-cli not on PATH")
+    def test_internal_net_force_exported_keeps_bare_name(self):
+        lf = C.Leaf("t3", "t3-leaf.kicad_sch", "t3-leaf", "name-pin fixture")
+        lf.add_part("R3", "cec-vendor", "R_Small", "10k", 0, 0, "")
+        lf.add_part("R4", "cec-vendor", "R_Small", "10k", 0, 0, "")
+        lf.net("FLASH_CS", ("R3", "1"), ("R4", "1"))
+        lf.nc_skip = {("R3", "2"), ("R4", "2")}
+        lf.hier_exports = {}   # FLASH_CS is NOT declared -- purely internal
+
+        def compose(c):
+            c.place("R3", 60, 60)
+            c.place("R4", 90, 60)
+
+        leaves = [(lf, compose, [], (25.4, 25.4, 63.5, 38.1))]
+        with tempfile.TemporaryDirectory() as td:
+            root = _build_pair_hierarchy(
+                td, leaves, name_pin_nets={"t3": ["FLASH_CS"]})
+            nets, stderr = _netlist_groups(root)
+            self.assertNotIn("error", stderr.lower(), f"netlist stderr: {stderr}")
+            name, group = _group_of(nets, ("R3", "1"))
+            self.assertEqual(group, {("R3", "1"), ("R4", "1")})
+            self.assertEqual(name, "/FLASH_CS")
+
+    @unittest.skipUnless(HAVE_KICAD_CLI, "kicad-cli not on PATH")
+    def test_already_exported_net_is_left_alone(self):
+        """A net already in hier_exports must NOT be touched by name_pin_nets
+        (no duplicate export, no anchor overridden)."""
+        lf = C.Leaf("t4", "t4-leaf.kicad_sch", "t4-leaf", "name-pin no-op fixture")
+        lf.add_part("R5", "cec-vendor", "R_Small", "10k", 0, 0, "")
+        lf.net("ALREADY", ("R5", "1"))
+        lf.nc_skip = {("R5", "2")}
+        lf.hier_exports = {"ALREADY": ("output", ("R5", "1"))}
+
+        def compose(c):
+            c.place("R5", 60, 60)
+
+        leaves = [(lf, compose, [("ALREADY", "output", "right")],
+                  (25.4, 25.4, 63.5, 38.1))]
+        with tempfile.TemporaryDirectory() as td:
+            root = _build_pair_hierarchy(
+                td, leaves, name_pin_nets={"t4": ["ALREADY"]})
+            nets, stderr = _netlist_groups(root)
+            self.assertNotIn("error", stderr.lower(), f"netlist stderr: {stderr}")
+            name, group = _group_of(nets, ("R5", "1"))
+            self.assertEqual(group, {("R5", "1")})
+            self.assertEqual(name, "/ALREADY")
 
 
 if __name__ == "__main__":

@@ -574,7 +574,7 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
                power_ports, powerflag_nets, hier_exports, sections,
                libs, project, path_prefix, sheet_instances_path, own_uuid,
                page, out_path, paper="A2", title=None, comment1="",
-               pwr_base=0, layout=None, global_nets=None):
+               pwr_base=0, layout=None, global_nets=None, name_pin_nets=None):
     """Write one leaf schematic (a functional block with real components).
 
     `path_prefix` is the FULL chain of sheet-symbol uuids (starting with the
@@ -607,9 +607,34 @@ def build_leaf(parts, nets, footprints, props, placement, nc_skip,
     entirely). Use this for a genuine multi-leaf BUS (e.g. a CAN bus tapped
     by several sibling leaves plus a shared transceiver leaf) that
     `build_thin_parent`'s 1:1/2-endpoint sheet-pin fan-out cannot express.
+
+    `name_pin_nets` (optional, round-4 A2 -- docs/standard-tier-review/
+    round4-hier-conversion-2026-07-04.md): an iterable of net names that are
+    otherwise INTERNAL to this leaf (not already in `hier_exports`) but must
+    be force-exported anyway, so the zero-rename policy can give them a root
+    stub + local label carrying their exact original bare name (see
+    `build_thin_parent`'s "singles" case, which already does this for any
+    net with exactly one leaf pin that is not a `root_exports` climber).
+    For each such name a hierarchical_label is added at that net's FIRST
+    connection point (`nets[net_name][0]`, deterministic -- insertion order),
+    shape "output", exactly like a hand-authored `hier_exports` entry -- the
+    caller must also declare a matching sheet pin on this leaf's box in the
+    `build_thin_parent` call (that function's own `name_pin_nets` parameter
+    automates this half). A name already present in `hier_exports` is left
+    untouched (no duplicate export). Probe-verified naming: this mechanism
+    took /04-mcu/FLASH_CS -> /FLASH_CS in the ent-common scratch probe.
     """
     placement = _norm_placement(placement)
     used = cec_sch.load_symbols(libs, parts)
+    hier_exports = dict(hier_exports or {})
+    for _net_name in (name_pin_nets or ()):
+        if _net_name in hier_exports:
+            continue
+        _conns = nets.get(_net_name)
+        if not _conns:
+            raise SystemExit(f"{path_prefix}: name_pin_nets net {_net_name!r} "
+                              f"not found in this leaf's nets")
+        hier_exports[_net_name] = ("output", _conns[0])
     global_nets = set(global_nets or ())
     if global_nets:
         bad = global_nets & set(power_ports)
@@ -1054,7 +1079,8 @@ def build_placeholder(num, sheet_sym_uuid, name, desc, project, page, out_path,
 def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uuid,
                        own_uuid, out_path, title, paper="A3",
                        global_power_exports=None, libs=None, pwr_base=0,
-                       gp_block_xy=None, page="2", title_comments=None):
+                       gp_block_xy=None, page="2", title_comments=None,
+                       lane_labels=False, name_pin_nets=None):
     """
     leaves: ordered list of dicts, each:
         {id, sym_uuid, filename, sheetname, page, x, y, w, h,
@@ -1092,11 +1118,39 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     sheet-pin-must-sit-exactly-on-the-box-edge rule and the 1.27mm grid are
     satisfied SIMULTANEOUSLY -- the old off-grid-edge ERC/lint noise is gone
     by construction), then the whole composition is centered on the page.
+
+    `lane_labels` (round-4 A1, opt-in, default False -- unused leaves prior
+    output byte-identical): when True, every 2-endpoint lane (a net wired
+    source-box -> dest-box, i.e. the `pairs` case below) that is NOT also a
+    `root_exports` climber additionally carries a LOCAL label with the net's
+    ORIGINAL bare name, tapped off the lane exactly like a `root_exports`
+    hierarchical-label tap (same geometry: a short perpendicular stub clear
+    of the lane corridor) -- probe-verified (round-4 plan doc, "Measured
+    facts" #1): a root local label wins the net name outright ("/NAME"),
+    so a lane that would otherwise regenerate as a hierarchy-scoped name
+    keeps its exact flat-schematic name instead.
+
+    `name_pin_nets` (round-4 A2, opt-in): {leaf_id: [net_name_or_(net_name,
+    side), ...]} -- for each entry, if that leaf's `pins` list does not
+    already declare the net, a pin (net_name, "output", side) is appended
+    automatically (side defaults to "right"). Pairs with `build_leaf`'s own
+    `name_pin_nets` parameter, which forces the matching hierarchical_label
+    inside the leaf; once the pin exists here, the ordinary `singles` case
+    below already produces the root stub + LOCAL label with the original
+    bare name (probe-verified: no further special-casing needed).
     """
     global_power_exports = global_power_exports or {}
     is_root = own_sheet_sym_uuid is None
     G = cec_sch.GRID
     STUB = cec_sch.STUB
+
+    if name_pin_nets:
+        for leaf in leaves:
+            for entry in name_pin_nets.get(leaf["id"], ()):
+                net_name, side = entry if isinstance(entry, tuple) else (entry, "right")
+                if any(n == net_name for n, _s, _sd in leaf["pins"]):
+                    continue
+                leaf["pins"] = list(leaf["pins"]) + [(net_name, "output", side)]
 
     # ---- pin coordinates (local frame; per-side stacking, 5.08 pitch)
     net_pins = {}   # net -> [(px, py, side, leaf_index)]
@@ -1145,7 +1199,14 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
         group.sort(key=lambda g: -g[2])            # lower source first
         for k, (net_name, sx, sy, txx, tyy) in enumerate(group):
             lane = txx - 5.08 - k * 2.54
-            tap = net_name in root_exports
+            is_root_export = net_name in root_exports
+            # A1: a lane not climbing further still gets tapped for its LOCAL
+            # label when lane_labels is on -- same tap geometry, so the
+            # existing corridor-clearance shape is reused rather than
+            # re-derived. lane_labels default False keeps `tap` identical to
+            # the prior `net_name in root_exports` for every existing caller.
+            want_label = lane_labels and not is_root_export
+            tap = is_root_export or want_label
             tapx = lane - 7.62
             if sy == tyy and not tap:
                 wires.append((sx, sy, txx, tyy))
@@ -1158,8 +1219,11 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
                     wires.append((sx, sy, tapx, sy))
                     wires.append((tapx, sy, lane, sy))
                     wires.append((tapx, sy, tapx, sy + 5.08))
-                    hier.append((net_name, tapx, sy + 5.08, 0))
-                    hier_tapped.add(net_name)
+                    if is_root_export:
+                        hier.append((net_name, tapx, sy + 5.08, 0))
+                        hier_tapped.add(net_name)
+                    else:
+                        labels.append((net_name, tapx, sy + 5.08, 0))
                 else:
                     wires.append((sx, sy, lane, sy))
                 wires.append((lane, sy, lane, tyy))
@@ -1204,6 +1268,9 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
     for (net_name, hx_, hy_, hang_) in hier:
         xs += [hx_, hx_ + (len(net_name) * 1.4 + 4) * (1 if hang_ == 0 else -1)]
         ys.append(hy_)
+    for (net_name, lx_, ly_, lang_) in labels:
+        xs += [lx_, lx_ + (len(net_name) * 1.4 + 4) * (1 if lang_ == 0 else -1)]
+        ys.append(ly_)
     dx, dy = _center_shift((min(xs), max(xs), min(ys), max(ys)), paper)
 
     def sx_(v): return v + dx
