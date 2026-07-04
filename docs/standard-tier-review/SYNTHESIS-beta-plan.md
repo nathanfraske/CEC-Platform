@@ -140,6 +140,33 @@ findings remain recorded for when a trade is genuinely quality-neutral._
   case-fit survey must resolve before "very short" locks). 12VHPWR: captive soldered pigtail
   CONFIRMED from contact-degradation first principles + NEW white/black pigtail SKU variants
   (→ D-7 spec: length/gauge/strain relief + color/sleeving).
+  **OWNER RULING (2026-07-04) — CONNECTOR DAUGHTERBOARD, scope 24-pin + PCIe + EPS output
+  side:** instead of the board-mount male 90° output header, the main board carries an
+  INTER-BOARD connector to a stood-up PASSIVE daughterboard (no components; minimal size,
+  thick copper; all output pin-mapping/routing happens inside it), strain relief provided by
+  the chassis ("we'll design that in"). The daughterboard is populated EITHER with a sourced
+  PCB-mount VERTICAL header (owner sources from MODDIY — reputable) OR as a simple soldered
+  pigtail at the through-holes. Owner's stated wins: (1) rails land on whatever pins/routes
+  suit the MAIN board — pours no longer forced around the standardized connector pin field
+  (big area win on 24-pin + PCIe); (2) daughterboard is passive and cheap, one main board
+  serves multiple output forms. **OWNER ADDENDUM (same day): the daughterboard assembly can
+  itself be SOLD with an extension cable soldered at the through-hole points with strain
+  relief — a productized daughterboard+extension assembly. This closes out essentially all
+  remaining female-out-header issues: it IS the 2026-07-03 "extension as an order-system
+  bundle" lean in hardware form (the stub↔extension junction disappears into the assembly;
+  retail-shelf objection neutralized; accessory/aesthetics revenue line intact).** This SUPERSEDES the Form-B lean and elevates the entry's own
+  "power-interposer + stacked daughter (XY→Z, mezzanine-coherent)" fallback to the decision —
+  inverted into a passive CONNECTOR mezzanine (logic stays on the main board; J6/OQ-77
+  mezzanine precedent). Touches LOCKED §2.8 → spec-revision draft owed to the owner (agent),
+  gated on the KILL-CHECK: per-circuit current through the inter-board pair per family
+  (the panel killed Form D exactly here — ~3–3.5A/ckt derated < the 6A ATX bar; EPS/PCIe
+  per-cable design current is 40–55A class). Engineering flags recorded at ruling time:
+  inter-board pair adds a mated contact set DOWNSTREAM of the shunts (drop invisible to
+  telemetry — optional zero-component sense-return pin on the inter-board connector worth
+  assessing); keying/captivation so a daughterboard can't mis-seat; enclosed-product stack
+  height + chassis strain-relief interface (couples to J1/J2 enclosure design). 12VHPWR
+  UNCHANGED (captive pigtail, melt-prone rationale). Study doc:
+  docs/standard-tier-review/output-daughterboard-study-2026-07-04.md (launched same day).
 - **D-5. 24-pin beta scope (the critical path).** Narrow "rev3a" = parity fixes 1–5 + locked
   shunts, ~$39–41, fastest to a sellable mandatory module; vs full respin (C6 + §6.13 + mux +
   mezzanine header), ~$40–44, slower, waits on D-3/D-4. Sub-choice: INA228×4 (full energy story,
