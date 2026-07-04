@@ -314,8 +314,9 @@ nothing here bench-verifies that.
 **Owner-facing follow-ups this study surfaces (not resolved here):**
 1. Ratify or revise the 125 %-margin policy (§1) — it is this study's proposal, not an existing
    owner number.
-2. Request real 100-qty quotes on Amphenol PwrBlade, Molex Ten60Power, and Hirose MCN51 in the
-   contact counts above, before any part gets written into a BOM.
+2. ~~Request real 100-qty quotes on Amphenol PwrBlade, Molex Ten60Power, and Hirose MCN51~~
+   **superseded by §8**: MCN51 obsolete; PwrBlade/mPOWER priced and found too expensive as the
+   default; quotes now only needed if the premium fallback is ever invoked.
 3. Pull physical MODDIY "MIATX-PCB" samples and run the same bench battery already prescribed for
    the DIY vertical-female part in the atx24 panel record (pull force, mating cycles, current-rise,
    plating/contact-resistance trend) — do not treat MODDIY-sourced as pre-qualified.
@@ -324,3 +325,140 @@ nothing here bench-verifies that.
    granularity (per-rail vs. single shared tap).
 6. Get the chassis strain-relief geometry/force numbers so the daughterboard's through-hole joint
    spec (§4) can be finalized rather than defaulting to the panel's daughterboard-local figures.
+7. §8 additions: card-edge current-sharing + plating bench; generic-post A/joint bench; the EPS
+   edge-length vs. board-outline decision (§8.2a/§8.4).
+
+---
+
+## 8. COST PASS (2026-07-04, owner follow-up — same day)
+
+_Owner: "~$5 per connector is a bit high if we're also adding the daughterboard sub-assembly to
+the BOM." This section re-prices the §7 recommendations honestly (mated pairs, both sides) and
+evaluates cheaper classes at the SAME electrical bar (§1: EPS ~65 A / PCIe ~49 A / 24-pin
+per-rail continuous, ≤30 °C rise, keyed/key-able, captive-able)._
+
+### 8.1 Verified pricing on the §7 premium recommendations
+
+A mated board-to-board family needs a purchased part on **BOTH** boards — price the PAIR per
+cable, not the side.
+
+| Family | Verified price point | Pair per cable | Verdict |
+|---|---|---|---|
+| Samtec mPOWER | UMPT-04-01.5-G-V-S-W-TR (4-blade vertical header): **$3.44 @100** (DigiKey, 533 in stock; $4.76@1). Mating UMPS receptacle: $4.22–4.64 single-unit (DigiKey), 100-qty break not captured — same class assumed | **≈ $6.5–7/cable @100** | **$3.4+/side confirmed — over the owner's bar** as a per-cable default |
+| Amphenol PwrBlade | 51915-051LF (31-pos R/A receptacle, 7 power + 24 signal): **$6.99 @33 / $6.40 @132** (DigiKey, 338 in stock; $8.95@1). Mating header not priced (the 2-pos 51939-198LF page is dead at DigiKey); smaller configs exist but were not captured at 100-qty | **≈ $10–13/cable @100 (est., UNVERIFIED header half)** | **$5+/side confirmed for the receptacle alone — over the bar** |
+| Molex Ten60Power | Mouser product pages 403'd through the proxy; DigiKey pricing not surfaced | UNVERIFIED — family class comparable to PwrBlade or higher | Cannot be defended as the cost pick |
+| Hirose MCN51 | DigiKey MCN51-30S3-PFA: **"Obsolete — this product is no longer manufactured"**; Mouser MCN51-8S2-PFA: non-stocked, scheduled for obsolescence | n/a | **WITHDRAWN** — dead family, removed from the recommendation regardless of price |
+
+The owner's instinct is confirmed: the premium blade families are **$6.5–13 per cable-pair at
+100-qty**, i.e. $13–26/module on EPS/PCIe-2 — on modules with $32–42 BOM targets, before the
+daughterboard fab itself. They stay in §2 as the qualified fallback only.
+
+### 8.2 Cheap alternative classes at the same electrical bar
+
+**(a) CARD-EDGE — daughterboard as a gold-finger card (the standout).** Only ONE purchased part
+per cable (the slot, on the main board); the daughterboard's half of the connector is bare
+copper/plating = fab cost, ~pennies. Ratings, verified: **EDAC 307 series (0.156″/3.96 mm,
+dual-readout): 5 A continuous per contact** ([edac.net/series/307](https://edac.net/series/307));
+Sullins 0.156″ edgecards: **3 A per contact** (sullinscorp.com). Generic "805-series" 3.96 mm
+solder-tail slots are ~$0.6–0.9/pc at small retail qty (AliExpress 10/$8.99; eBay/Amazon
+equivalents) — LCSC carries a card-edge category with parts from ~$0.38 but the specific 3.96 mm
+power-suitable SKU/rating was not pinned down this pass (**UNVERIFIED**; the one LCSC part
+checked, TE 2041119-1 at $0.54@100, turned out to be an 0.8 mm mSATA socket — not applicable).
+Contact math at the verified 5 A/contact, dual-readout (contacts both card faces, paralleled):
+- **PCIe 49 A/cable:** 10 source + 10 GND = 2×10 positions ≈ **40 mm slot/cable** — fits both
+  PCIe boards' edges (99/126 mm) in Shape A.
+- **24-pin (95 A aggregate + returns):** ~2×20 positions ≈ **80 mm slot** — fits the ~87 mm
+  board edge, barely.
+- **EPS 65 A/cable:** 13+13 = 2×13 ≈ **58 mm slot/cable**; ×2 cables = ~116 mm — **does NOT fit
+  the current 96 mm EPS outline** in Shape A (and Shape B's single 103 mm slot doesn't either).
+  Card-edge on EPS requires a wider beta outline, a higher-rated (costlier) power-edge family, or
+  falling to option (b).
+Keying: polarizing key slot punched in the finger field (standard card-edge practice) — mis-seat
+and reversal both blocked, free. Captivation: screw boss through the daughterboard into the
+chassis/main-board standoff — matches the ruling's chassis-strain-relief assumption; the slot
+never carries mechanical load. Plating: mated ONCE at factory then screwed down → low-cycle, so
+ENIG fingers (JLCPCB standard option) are arguably sufficient; hard gold (30–50 µin, the
+proper repeated-insertion finish per JLCPCB's own guidance,
+[jlcpcb.com gold fingers](https://jlcpcb.com/help/article/jlcpcb-gold-fingers)) only if the
+assembly is field-swappable. Hard-gold/bevel adder is quote-time (**UNVERIFIED**, order-level not
+per-board). Qualification needed: per-contact rating of the actual purchased slot (EDAC's 5 A is
+verified; an 805-clone's is NOT — same provenance discipline as the MODDIY finding), and a
+30 °C-rise current-sharing bench across paralleled fingers (contact-resistance spread governs
+sharing; the §5 sense-return finger is the free monitor for exactly this).
+
+**(b) SOLDERED/SCREWED POWER POSTS — cheapest hardware, strongest captivation.** Brass standoffs
+/ screw posts through plated holes on both boards; the fastener IS the retention and doubles as
+the chassis strain-relief interface the ruling already assumes. Generic M3 brass standoff + 2
+screws ≈ **$0.10–0.15/point at 100-qty** (LCSC-class hardware; **UNVERIFIED** exact SKU). No
+manufacturer rating exists for generic standoffs-as-conductors — the qualified benchmark is
+Würth REDCUBE (same topology, engineered): **THR M3–M5 rated 85 A, SMD to 70 A, M3 R/A 50 A**
+([we-online.com REDCUBE](https://www.we-online.com/en/components/products/em/redcube_terminals),
+Enrgtech 7466313R listing) — proving the screwed-PCB-joint topology carries this study's whole
+bar per point when done right. REDCUBE pricing not captured (**UNVERIFIED**, believed $1.5–3/pc —
+mid-tier, not the cheap play). The cheap play is the generic post at a conservative
+**20–30 A/joint engineering estimate (UNVERIFIED — must be bench-derived: joint R, torque spec,
+thermal cycling, vibration loosening/thread-locker)**. Counts at 25 A/joint est.: EPS 3+3
+posts/cable; PCIe 2+2/cable; 24-pin ~6+6. Keying: asymmetric post pattern (free). Downside:
+tool-required service (not tool-less), hand/machine screw assembly labor, and no native signal
+contact (sense-return needs a separate cheap 1–2-pin header per site).
+
+**(c) FASTON / 6.3 mm PCB tab pairs — WEAK, effectively killed by the verified rating.** The
+verified figure found this pass is the TE **mini** 250 FASTON receptacle: **7 A continuous /
+14 A intermittent** (TE 250-series mini FASTON datasheet/e-card via te.com). The 15–20 A/tab
+folk figure for standard 250-series was NOT verified this pass (**UNVERIFIED**). At the verified
+7 A, EPS needs 10+10 tabs/cable — absurd. Geometry is also wrong for board-to-board: FASTON
+receptacles are wire-crimp parts; PCB-mount receptacles exist but multi-tab blind-mate alignment
+is unmanaged. Tab hardware is genuinely cheap (TE 63824-1 class, reels of 10k; pennies-to-dimes)
+but the class fails the bar. Dropped.
+
+**(d) LCSC power-BTB clones (CJT/XFCN etc.).** CJT's catalog spans 0.5–50 A families and LCSC
+distributes them, but this pass did not pin a specific board-to-board power-blade clone SKU with
+a published derating at our bar (**UNVERIFIED — thin**). Same provenance discipline as the
+MODDIY finding applies: existence of a cheap clone is not qualification. Worth one follow-up
+LCSC catalog sweep only if card-edge and posts both fail their benches.
+
+**(e) Many-parallel-pin headers.** 2.54 mm (~3 A/pin assumed): EPS needs 22+22 pins,
+friction-only retention — fails captivation, no better than card-edge on any axis. 3.96 mm
+KK-class (~7 A/pin, UNVERIFIED): wire-to-board family; no standard PCB-mount mating female for
+BTB use. Neither undercuts (a)/(b). Dropped.
+
+### 8.3 $/module at 100-qty (connector purchase + daughterboard fab delta; estimates marked)
+
+Assumptions: small 2-layer 2 oz daughterboard ≈ **$1–1.5/board bare fab @100 (est., UNVERIFIED
+— JLCPCB-class)**; card-edge slot ≈ $0.6–1.5 (verified retail band, 100-qty **UNVERIFIED**);
+generic post-point ≈ $0.12 (**UNVERIFIED**); mPOWER pair $6.5–7/cable (verified basis, §8.1).
+Sense-return contacts are ~free on card-edge (a finger), ~$0.10 on posts (pin header).
+
+| Family | Shape | Card-edge (a) | Generic posts (b) | Premium pair (mPOWER, §8.1) |
+|---|---|---|---|---|
+| 24-pin ATX | one-wide (§6: 24-pin is inherently one-wide) | 1 slot + 1 board ≈ **$2.5–3** | 12 posts + 1 board ≈ **$2.5–3** | ~2× UMPT/UMPS-10-class pair + board ≈ **$13–16 (est.)** |
+| EPS ×2 cables | A (per-cable) | 2 slots + 2 boards ≈ $3.5–5 — **but does not fit the 96 mm outline (§8.2a)** | 12 posts + 2 boards ≈ **$3.5–4.5** | 2 pairs + 2 boards ≈ **$16–17** |
+| EPS ×2 | B (one-wide) | 1×103 mm slot — nonstandard length AND doesn't fit; dead | 12 posts + 1 board ≈ **$2.5–3.5** | n/a clean config |
+| PCIe 2-port | A | 2 slots + 2 boards ≈ **$3.5–5** | 8 posts + 2 boards ≈ **$3.5–4** | 2 pairs + 2 boards ≈ **$16–17** |
+| PCIe 2-port | B | 1×~76 mm slot + 1 board ≈ $2.5–3.5 (§6 derating/fault-isolation objections stand) | 8 posts + 1 board ≈ **$2.5–3** | n/a |
+| PCIe 3-port | A | 3 slots + 3 boards ≈ **$5–7.5** | 12 posts + 3 boards ≈ **$5–6** | 3 pairs + 3 boards ≈ **$24–26** |
+| PCIe 3-port | B | 1×~114 mm slot — near/over the practical slot-length ceiling; weak | 12 posts + 1 board ≈ **$3–4** | n/a |
+
+Every cheap-class cell lands **$2.5–7.5/module** vs the premium class's **$13–26/module** — a
+3–6× reduction, at the same §1 electrical bar, pending the named benches.
+
+### 8.4 Cost-optimized recommendation (electrical bar held)
+
+- **24-pin ATX: card-edge, one slot** (EDAC 307-class, 5 A/contact verified), ~2×20 positions /
+  ~80 mm. ≈$2.5–3/module. Fallback: posts (same cost) if the beta outline can't give the edge.
+- **PCIe 2-port & 3-port: card-edge, Shape A (one slot per cable)**, 2×10 positions / ~40 mm per
+  cable. ≈$3.5–7.5/module. The §6 per-cable arguments (derating, fault isolation, sellable
+  per-cable assembly) all carry over.
+- **EPS: screwed power posts, Shape A** (3+3 M3 per cable) — card-edge at the verified
+  5 A/contact needs ~116 mm of edge the 96 mm board doesn't have. ≈$3.5–4.5/module. If the owner
+  prefers one connector class across all four families: either grow the EPS beta outline to fit
+  2×58 mm of slot, or qualify a higher-per-contact power-edge family (exists, e.g. Samtec
+  HPCE-class — pricing likely back in the premium band, **UNVERIFIED**).
+- **Qualification debt the cheap picks carry (must run before BOM lock):** (i) card-edge:
+  purchased-slot rating provenance (EDAC verified / 805-clone NOT), paralleled-finger
+  current-sharing at 30 °C rise, ENIG-vs-hard-gold call; (ii) posts: bench-derived A/joint,
+  torque + thread-lock spec, thermal-cycle/vibration retention; (iii) both: the §5 sense-return
+  becomes MORE valuable here (it monitors exactly the joint class being cost-reduced) — card-edge
+  gets it for a free finger, posts need one cheap signal pin per site.
+- MCN51 is withdrawn everywhere (obsolete). Premium blade families (mPOWER/PwrBlade/Ten60)
+  remain the documented fallback if any cheap-class bench fails.

@@ -166,18 +166,31 @@ connector-body defect risks every cable at once) and cuts against the sellable-a
 addendum (no independent per-cable swap on a shared board). Shape B's one real edge — fewer
 chassis cutouts — is a mechanical/BOM trade, not a current-capacity argument.
 
-**(c) Inter-board connector default class — CLASS CHOICE PENDING A COST PASS (updated
-2026-07-04, mid-draft; do not read PwrBlade/Ten60Power below as the settled default).**
-[ ] Ratify the electrical bar only for now: **~30 A per power contact at ≤30 °C rise**, at the
-contact counts below (unchanged by the cost question). Study §2's original candidates
-(Amphenol PwrBlade, Molex Ten60Power, Samtec mPOWER, TE MULTI-BEAM, Hirose MCN51) all clear
-this bar, but the owner flagged their per-connector cost (**~$5 each**) as too high stacked on
-the daughterboard sub-assembly's own BOM. A cost-pass addendum to
-`output-daughterboard-study-2026-07-04.md` is in progress, evaluating cheaper same-bar classes
-— single-part card-edge gold-finger + socket, screwed power posts doubling as strain relief,
-Faston tab pairs, LCSC power board-to-board clones — and whether any solves the old cheap
-headers' disqualifying **no positive latch** problem. **Connector part/family is PENDING that
-addendum, not this draft.**
+**(c) Inter-board connector default class — COST PASS LANDED (study §8, 2026-07-04); ratify
+the per-family picks below.**
+[ ] Ratify the electrical bar: **~30 A per power contact at ≤30 °C rise** at the contact
+counts below (unchanged by the cost question), AND the study §8.4 cost-optimized per-family
+recommendation (3–6× cheaper than the premium class, bar held):
+- **24-pin: CARD-EDGE** — daughterboard as a gold-finger card into one ~80 mm slot (EDAC
+  307-class, verified 5 A/contact, fingers paralleled per rail); fingers are fab-free, ONE
+  purchased part/module (~$2.5–3), key slot free, screw-boss captivation. **$2.5–3/module.**
+- **PCIe (per cable, Shape A): CARD-EDGE**, one ~40 mm slot per cable. **$3.5–5/module
+  (2-port), $5–7.5 (3-port).**
+- **EPS: SCREWED POWER POSTS (3+3 M3 per cable)** — card-edge at the verified 5 A/contact
+  needs ~116 mm of edge the 96 mm board lacks; posts double as the chassis
+  retention/strain-relief the ruling already assumes. **$3.5–4.5/module.** Per-joint ampacity
+  is an UNVERIFIED 20–30 A engineering estimate (Würth REDCUBE proves the topology at
+  50–85 A/point) — **bench derivation required before BOM lock.**
+- Premium blade families DEMOTED to qualified fallback: verified pricing = Samtec mPOWER
+  pair ~$6.5–7/cable, Amphenol PwrBlade $6.40–6.99/side ($10–13/pair), Molex Ten60
+  UNVERIFIED (vendor unreachable), **Hirose MCN51 OBSOLETE** (no longer manufactured) →
+  $13–26/module — the owner's ~$5 ceiling objection confirmed.
+- Qualification debt carried by the cheap picks (owner should ratify knowingly): slot-rating
+  provenance (EDAC verified; 805-clones NOT — MODDIY discipline applies), paralleled-finger
+  current-sharing bench at 30 °C rise, ENIG-vs-hard-gold finger finish call, post
+  torque/thermal-cycle bench. Note box (e)'s sense-return contact becomes MORE valuable
+  under these picks — it monitors exactly the joint class being cost-reduced (a free finger
+  on card-edge).
 
 | Family | Power contacts per polarity | Basis |
 |---|---|---|
@@ -222,10 +235,12 @@ chassis spec exists.
 ## 5. New OQ proposals (continuing from OQ-85; PROPOSED)
 
 **OQ-86: Inter-board connector MPN lock (24-pin / EPS / PCIe output daughterboard).** Lock the
-platform connector family/MPN, gated on the in-progress cost-pass addendum (box (c):
-owner-flagged ~$5/connector ceiling against the daughterboard's own BOM), real 100-qty quotes,
-and ratifying the margin policy (4(a)) and daughterboard shape (4(b)) that set contact count.
-See `output-daughterboard-study-2026-07-04.md` §2, §7 and its forthcoming cost-pass addendum.
+platform connector family/MPN per the LANDED cost pass (study §8.4: card-edge for 24-pin/PCIe,
+screwed power posts for EPS; premium blades demoted to qualified fallback), gated on the box-(c)
+qualification debt (slot-rating provenance, paralleled-finger current-sharing bench at 30 °C
+rise, ENIG-vs-hard-gold, post torque/thermal-cycle bench) and ratifying the margin policy (4(a))
+and daughterboard shape (4(b)) that set contact count.
+See `output-daughterboard-study-2026-07-04.md` §2, §7, §8.
 
 **OQ-87: Daughterboard mechanical and chassis interface.** Define stand-off/mounting geometry,
 keying/captivation against mis-seat, stack height under the enclosed-product boundary (couples
