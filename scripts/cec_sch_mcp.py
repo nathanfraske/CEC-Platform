@@ -25,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 import cec_sch_layout as L          # noqa: E402
+import cec_sch_gates as GATES       # noqa: E402  round-4 checker/mutator toolkit
 from mcp.server.fastmcp import FastMCP   # noqa: E402
 
 mcp = FastMCP("cec-schematic")
@@ -252,6 +253,65 @@ def verify_identity(sch_path: str, baseline_git_rev: str = "HEAD") -> dict:
                 "renamed": renamed[:10]}
     finally:
         os.unlink(base)
+
+
+@mcp.tool()
+def check_region_containment(sch_path: str) -> dict:
+    """Round-4 G6 checker: dashed 'region' accent frames (round-3 convention)
+    vs. every non-power symbol's full extent (body + pin reach). Findings:
+    CONTAINMENT (extent not fully inside any region -- sheets with zero
+    regions are exempt entirely), STRADDLE (extent crosses a region's own
+    boundary), REGION-OVERLAP (two regions overlap each other), REGION-
+    OVERRUN (a region extends past the sheet's own paper rectangle)."""
+    findings = GATES.check_region_containment(sch_path)
+    return {"count": len(findings), "findings": findings[:40]}
+
+
+@mcp.tool()
+def check_sheet_bounds(sch_path: str) -> dict:
+    """Round-4 G6 checker: any symbol extent, text/label glyph, or wire
+    endpoint that falls outside the sheet's own `(paper ...)` rectangle."""
+    findings = GATES.check_sheet_bounds(sch_path)
+    return {"count": len(findings), "findings": findings[:40]}
+
+
+@mcp.tool()
+def inventory_diff(baseline_sch: str, new_sch: str) -> dict:
+    """Round-4 G2 gate: full symbol-inventory equality (ref -> lib_id/value/
+    footprint/dnp/in_bom/on_board/all BOM properties) between two project
+    roots, walked recursively through every referenced sheet -- catches a
+    dropped DNP part or a silently-changed property that a netlist diff
+    alone cannot see (DNP'd parts and non-electrical properties carry no net
+    membership)."""
+    findings = GATES.check_inventory_equal(baseline_sch, new_sch)
+    return {"count": len(findings), "findings": findings[:60]}
+
+
+@mcp.tool()
+def prose_preserved(baseline_sch_paths: list, new_sch_paths: list,
+                    waivers: list = None) -> dict:
+    """Round-4 G8 gate: every engineering-content free `(text ...)` string
+    in `baseline_sch_paths` must survive (whitespace-normalized) into
+    `new_sch_paths` or be covered by an explicit `waivers` entry."""
+    missing = GATES.check_prose_preserved(baseline_sch_paths, new_sch_paths,
+                                         waivers or ())
+    return {"count": len(missing), "missing": missing[:60]}
+
+
+@mcp.tool()
+def bus_power_ladder(sch_path: str, ref: str, net: str = "GND") -> dict:
+    """MUTATES (identity-gated, auto-rollback): collapse every qualifying
+    un-bused GND (or other net) ladder on symbol `ref` -- >=3 collinear
+    same-net pins, uniform pitch, each currently terminated by its own
+    private #PWR/#FLG stamp (cec_sch_layout.power_ladder_runs) -- down to
+    ONE kept stamp + a single real chain wire (cec_sch_layout.wire_chain).
+    Refuses (file untouched) if the chain's corridor is blocked by a
+    foreign body/pin, or if the post-mutation detect_overlaps/
+    check_wire_collisions/check_power_glyphs counts would increase; the
+    identity gate below additionally requires exact name-aware netlist
+    connectivity before/after."""
+    return _gated(sch_path,
+                  lambda: GATES.bus_power_ladder(sch_path, ref, net))
 
 
 if __name__ == "__main__":

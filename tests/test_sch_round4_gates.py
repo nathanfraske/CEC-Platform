@@ -54,9 +54,12 @@ def _write(text):
 
 # A tiny 1-pin "passive" symbol (rectangle body + one pin) reused by several
 # fixtures below, in the same hand-authored style as
-# test_sch_layout.DirectionalMisrotTest's _FLAG_LIB.
-_MINI_PART_LIB = """\
-  (lib_symbols
+# test_sch_layout.DirectionalMisrotTest's _FLAG_LIB. Kept as bare inner
+# `(symbol ...)` blocks (no `(lib_symbols ...)` wrapper) so callers that need
+# BOTH this part AND another symbol set (e.g. the ladder fixtures, which also
+# want a foreign-obstacle part) can concatenate them into ONE lib_symbols
+# block -- a real .kicad_sch may have only one such top-level clause.
+_MINI_SYMBOL_DEF = """\
     (symbol "test:MINI"
       (pin_numbers (hide yes))
       (pin_names (offset 0) (hide yes))
@@ -70,6 +73,9 @@ _MINI_PART_LIB = """\
           (name "P1" (effects (font (size 1.27 1.27))))
           (number "1" (effects (font (size 1.27 1.27))))))
     )
+"""
+
+_GND_SYMBOL_DEF = """\
     (symbol "cec-power:GND"
       (power)
       (pin_numbers (hide yes))
@@ -85,8 +91,9 @@ _MINI_PART_LIB = """\
           (name "~" (effects (font (size 1.27 1.27))))
           (number "1" (effects (font (size 1.27 1.27))))))
     )
-  )
 """
+
+_MINI_PART_LIB = "  (lib_symbols\n" + _MINI_SYMBOL_DEF + _GND_SYMBOL_DEF + "  )\n"
 
 
 def _part(ref, x, y, rot=0):
@@ -391,18 +398,20 @@ class ProsePreservedTest(unittest.TestCase):
 # ============================================================================
 # Deliverable 5: cec_sch_layout.power_ladder_runs + cec_sch_gates.bus_power_ladder
 # ============================================================================
-def _ladder_lib(ic_name, n, pitch=2.54):
+def _ladder_lib(ic_name, n, pitch=2.54, *, with_mini=False):
     """A symbol with `n` GND-named pins in a vertical run (local x=10, y =
     -i*pitch, ang=180 so they read outward to +x at rot=0) -- the un-bused
     ladder shape, plus the same minimal cec-power:GND symbol used elsewhere
-    in this file."""
+    in this file. `with_mini=True` also embeds test:MINI's definition in the
+    SAME lib_symbols block (needed whenever a fixture also places a MINI
+    part, e.g. the corridor-obstacle test -- a .kicad_sch has only one
+    top-level lib_symbols clause)."""
     pins = "\n".join(
         f'        (pin passive line (at 10 {-i * pitch} 180) (length 2)\n'
         f'          (name "GND" (effects (font (size 1.27 1.27))))\n'
         f'          (number "{i + 1}" (effects (font (size 1.27 1.27)))))'
         for i in range(n))
-    return f'''  (lib_symbols
-    (symbol "test:{ic_name}"
+    ic_def = f'''    (symbol "test:{ic_name}"
       (pin_numbers (hide yes))
       (pin_names (offset 0) (hide yes))
       (property "Reference" "U" (at 0 0 0) (effects (font (size 1.27 1.27))))
@@ -414,23 +423,9 @@ def _ladder_lib(ic_name, n, pitch=2.54):
 {pins}
       )
     )
-    (symbol "cec-power:GND"
-      (power)
-      (pin_numbers (hide yes))
-      (pin_names (offset 0) (hide yes))
-      (property "Reference" "#PWR" (at 0 0 0) (hide yes)
-        (effects (font (size 1.27 1.27))))
-      (property "Value" "GND" (at 0 3.81 0) (effects (font (size 1.27 1.27))))
-      (symbol "GND_0_1"
-        (polyline (pts (xy 0 0) (xy 0 1.27) (xy 1.27 1.27) (xy -1.27 1.27) (xy 0 1.27))
-          (stroke (width 0) (type default)) (fill (type none))))
-      (symbol "GND_1_1"
-        (pin power_in line (at 0 0 90) (length 0)
-          (name "~" (effects (font (size 1.27 1.27))))
-          (number "1" (effects (font (size 1.27 1.27))))))
-    )
-  )
 '''
+    mini_def = _MINI_SYMBOL_DEF if with_mini else ""
+    return "  (lib_symbols\n" + ic_def + mini_def + _GND_SYMBOL_DEF + "  )\n"
 
 
 def _build_ladder_sch(n, *, pitch=2.54, stub_len=3.81, ox=100.0, oy=100.0,
@@ -439,7 +434,7 @@ def _build_ladder_sch(n, *, pitch=2.54, stub_len=3.81, ox=100.0, oy=100.0,
     the shape power_ladder_runs()/bus_power_ladder() consume. `obstacle=True`
     drops a foreign MINI part's body directly across the chain's corridor
     (between pins 2 and 3), for the corridor-blocked refusal test."""
-    body = _ladder_lib("LADDER", n, pitch)
+    body = _ladder_lib("LADDER", n, pitch, with_mini=obstacle)
     body += (
         '  (symbol\n'
         '    (lib_id "test:LADDER")\n'
@@ -545,9 +540,9 @@ class BusPowerLadderTest(unittest.TestCase):
             self.assertTrue(report["applied"], report)
             self.assertEqual(report["flags_removed"], 4)
             text = open(p).read()
-            self.assertEqual(text.count('(lib_id "cec-power:GND")')
-                             - text.count('(symbol "cec-power:GND"'), 1)
-            # exactly one kept flag instance remains
+            # exactly one kept flag INSTANCE remains (its lib_id reference)
+            self.assertEqual(text.count('(lib_id "cec-power:GND")'), 1)
+            # ...and its ref appears twice (Reference property + instances path)
             self.assertEqual(len(re.findall(r'#PWR\d+', text)), 2)
             self.assertEqual(L.power_ladder_runs(p, "U1", "GND"), [],
                              "the ladder must no longer be un-bused")
@@ -560,7 +555,7 @@ class BusPowerLadderTest(unittest.TestCase):
         (name-aware) must be byte-for-byte the same group set before/after,
         and the ERC error count must not increase."""
         p = _build_ladder_sch(4)
-        before_path = p + ".before"
+        before_path = p[:-len(".kicad_sch")] + "-before.kicad_sch"
         import shutil
         shutil.copy(p, before_path)
         try:
