@@ -1080,7 +1080,7 @@ def build_thin_parent(leaves, root_exports, project, root_uuid, own_sheet_sym_uu
                        own_uuid, out_path, title, paper="A3",
                        global_power_exports=None, libs=None, pwr_base=0,
                        gp_block_xy=None, page="2", title_comments=None,
-                       lane_labels=False, name_pin_nets=None):
+                       lane_labels=False, name_pin_nets=None, rev="DRAFT"):
     """
     leaves: ordered list of dicts, each:
         {id, sym_uuid, filename, sheetname, page, x, y, w, h,

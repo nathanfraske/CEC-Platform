@@ -678,6 +678,34 @@ def _find_one(board_dir, ext):
     return os.path.join(board_dir, matches[0])
 
 
+def _find_root_sch(board_dir):
+    """Locate the board's ROOT .kicad_sch -- the file kicad-cli should be
+    pointed at so it resolves the WHOLE hierarchy (netlist_groups' own
+    docstring: a root .kicad_sch with sibling leaf .kicad_sch files in the
+    same directory resolves the full tree). A FLAT (pre-conversion) board
+    dir has exactly one .kicad_sch, so `_find_one` alone still works and is
+    tried first (byte-for-byte prior behavior, no change for every
+    currently-flat board). Once a board is hierarchical (round-4 conversion:
+    a thin-parent root plus several `NN-<block>.kicad_sch` leaves in the SAME
+    directory -- e.g. modules/eps-8pin/{eps8pin-module,01-hub-link,...}.kicad_sch
+    -- there are many candidates), fall back to KiCad's own project
+    convention: the root schematic shares its basename with the project's
+    `.kicad_pro` (verified against every real hierarchical project in this
+    repo, e.g. hubs/hub-enterprise/hub-enterprise.{kicad_pro,kicad_sch})."""
+    try:
+        return _find_one(board_dir, ".kicad_sch")
+    except RuntimeError:
+        pass
+    pros = [p for p in os.listdir(board_dir) if p.endswith(".kicad_pro")]
+    if len(pros) == 1:
+        cand = os.path.join(board_dir, pros[0][:-len(".kicad_pro")] + ".kicad_sch")
+        if os.path.isfile(cand):
+            return cand
+    raise RuntimeError(
+        f"could not identify a unique root .kicad_sch in {board_dir} "
+        f"(tried the sole-file rule and the .kicad_pro-basename rule)")
+
+
 def reconcile_board(board_dir, baseline_rev, dry_run=False, workdir=None):
     """End-to-end driver: locate the board's live files, extract the
     baseline flat schematic at baseline_rev via git, build the rename map,
@@ -688,7 +716,7 @@ def reconcile_board(board_dir, baseline_rev, dry_run=False, workdir=None):
     root = repo_root(board_dir)
     rel_board = os.path.relpath(board_dir, root)
 
-    new_sch = _find_one(board_dir, ".kicad_sch")
+    new_sch = _find_root_sch(board_dir)
     pcb_path = _find_one(board_dir, ".kicad_pcb")
     pro_path = _find_one(board_dir, ".kicad_pro")
     dru_candidates = [p for p in os.listdir(board_dir) if p.endswith(".kicad_dru")]

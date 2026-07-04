@@ -172,10 +172,28 @@ LEAF_PAPER = {
 
 
 def find_flat_sch(board_dir):
+    """Locate the board's MAIN .kicad_sch -- the flat pre-conversion file on
+    a fresh board (exactly one candidate, the common case), or the ROOT of
+    an already-converted hierarchical board (many candidates: the thin
+    parent plus its `NN-<block>.kicad_sch` leaves, all siblings in this same
+    directory). Once hierarchical, the sole-file rule can no longer find
+    anything (measured live: re-running the driver over its own prior output
+    crashed here with a confusing "found 8 files" error BEFORE ever reaching
+    the is_hierarchical()+force gate below -- that gate was unreachable).
+    Falls back to KiCad's own project convention -- the root schematic
+    shares its basename with the project's `.kicad_pro` (same rule
+    cec_pcb_reconcile._find_root_sch uses, verified against every real
+    hierarchical project in this repo)."""
     cands = [f for f in os.listdir(board_dir) if f.endswith(".kicad_sch")]
-    if len(cands) != 1:
-        raise SystemExit(f"expected exactly one .kicad_sch in {board_dir}, found {cands}")
-    return os.path.join(board_dir, cands[0])
+    if len(cands) == 1:
+        return os.path.join(board_dir, cands[0])
+    pros = [f for f in os.listdir(board_dir) if f.endswith(".kicad_pro")]
+    if len(pros) == 1:
+        cand = pros[0][:-len(".kicad_pro")] + ".kicad_sch"
+        if cand in cands:
+            return os.path.join(board_dir, cand)
+    raise SystemExit(f"expected exactly one .kicad_sch (or a .kicad_pro-matching "
+                      f"root) in {board_dir}, found {cands}")
 
 
 def is_hierarchical(sch_path):
