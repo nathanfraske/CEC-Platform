@@ -160,6 +160,21 @@ def rotate_flag(sch_path: str, ref: str) -> dict:
 
 
 @mcp.tool()
+def retrofit_decoupler(sch_path: str, ic_ref: str, ic_pin: str,
+                       cap_ref: str) -> dict:
+    """MUTATES (identity-gated, auto-rollback): relocate an existing
+    decoupler `cap_ref` next to owner IC `ic_ref`'s `ic_pin`, keeping its
+    private +3V3/GND flags wired (rigid translation), and draw one new real
+    wire from the IC pin to the cap -- the wired-adjacency ownership
+    convention. Sweeps outward for a collision-free spot using the real
+    overlap/wire checkers as ground truth; returns op_result=False (no
+    rollback needed -- file untouched) if no safe spot is found within
+    range, which the caller should treat as "needs a hand/GUI pass"."""
+    return _gated(sch_path, lambda: L.retrofit_decoupler_adjacency(
+        sch_path, ic_ref, ic_pin, cap_ref))
+
+
+@mcp.tool()
 def flip_labels(sch_path: str) -> dict:
     """MUTATES (identity-gated, auto-rollback): flip label justify off
     foreign wires (anchors never move)."""

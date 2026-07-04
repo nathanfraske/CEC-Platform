@@ -10856,7 +10856,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 39.37 295.91 180)
+		(at 39.37 295.91 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12645,7 +12645,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
-		(at 64.77 295.91 180)
+		(at 64.77 295.91 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14547,7 +14547,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
-		(at 39.37 306.07 0)
+		(at 39.37 306.07 180)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -20182,7 +20182,7 @@
 	(label "LED_DATA_DIN" (at 190.5 342.9 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "51a63466-b5d3-48c1-be39-d48706e3a854"))
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 134.62 325.12 180)
+		(at 134.62 325.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -20200,7 +20200,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 80.01 330.2 180)
+		(at 80.01 330.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -20703,7 +20703,7 @@
 	(label "5VSB_SENSE" (at 250.19 363.22 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "363e1333-6327-4522-88ef-f070035db096"))
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 140.97 349.25 180)
+		(at 140.97 349.25 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -20721,7 +20721,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 180.34 363.22 180)
+		(at 180.34 363.22 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -21382,7 +21382,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 407.67 359.41 180)
+		(at 407.67 359.41 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -21628,7 +21628,7 @@
 	(label "TEMP_HUB" (at 280.67 91.44 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b96e80b2-db14-4df5-963e-c16586f44be0"))
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 309.88 337.82 180)
+		(at 309.88 337.82 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)

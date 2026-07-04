@@ -149,9 +149,13 @@ silently downplayed, per the task's own honesty requirement.
 | wire: +5V_SYS_PORT x wire | (148.59,288.29) | J2/R9 corner: the port label needs ~11mm of room and is boxed in by J2's VCC pin on one side and two independent GND flags (R9's own return, and J2 pin2's GND) on the other, both within the label's reach regardless of justify direction. |
 | GLYPH-CLIP #PWR18 vs #PWR85 | (160.02,68.58) / (160.02,71.12) | Verified by render (crop at 140-180mm x, 60-90mm y): renders as a single clean GND triangle at this zoom — the two flags sit on the short daisy-chained GND link between two stacked INA228 packages and visually coincide rather than producing a visible double-triangle artifact (unlike the eps-8pin case this pass fixed). The <2.6mm threshold is a conservative check, not an observed defect. |
 | GLYPH-CLIP #PWR21 vs #PWR89 | (160.02,99.06) / (160.02,101.60) | Same structural pattern as #PWR18/#PWR85 above (the next INA228 pair down), same render verification. |
+| own-glyph: Value=+3V3 [#PWR09] | (289.56,236.22) / (289.56,238.76) | Round-3 addendum (2026-07-04): surfaced by the newly-TIGHTENED own-flag carve-out (`_glyph_real_bbox_abs`, replacing the old undersized +/-0.6mm box), which now measures the flag's real drawn triangle instead of a box too small to ever reach it. Verified by render (tile r4c2 of an 8x6 A2 grid, dsf4): the "+3V3" text sits cleanly above the arrowhead with a visible gap — the C_HEIGHT_FACTOR=1.30 vertical-extent estimate the checker uses is conservative enough to graze this particular geometry (glyph tip lands almost exactly at the Value anchor's default offset) without a real rendered collision. Not a rotation defect (rot=0 is correct here, unlike the fleet-wide MISROT class this same pass fixed). |
 
-Gate: `--check-overlaps` 4 (waivered) / `--check-wires` 13 (waivered). Identity
-79->79 exact. ERC errors 1->1 (unchanged, pre-existing).
+Gate: `--check-overlaps` 4 (waivered) / `--check-wires` 14 (waivered, was 13 --
++1 new own-glyph finding from the round-3 carve-out tightening, verified
+benign above). Identity 79->79 exact across the round-3 MISROT fix (29 power
+flags rotated 180 deg back to correct -- see the fleet-wide note in the
+directional-MISROT commit). ERC errors 1->1 (unchanged, pre-existing).
 
 ## hubs/hub-standard/hub-standard.kicad_sch
 

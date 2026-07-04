@@ -4865,6 +4865,111 @@
 		(embedded_fonts no)
 	)
 	)
+	(rectangle
+		(start 3.4 26.96)
+		(end 137.38 136.49)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "3854e892-fc34-432b-a2aa-82245a09294d")
+	)
+	(text "HUB LINK  RJ-45 + DETECT"
+		(exclude_from_sim no)
+		(at 4.9 28.46 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "7756020b-9c19-4ab7-8b4e-f3ea28e90d46")
+	)
+	(rectangle
+		(start 97.38 20.61)
+		(end 198.34 85.69)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "0992ccd6-417b-413e-92ad-c60d6780a418")
+	)
+	(text "3V3 LDO"
+		(exclude_from_sim no)
+		(at 98.88 22.11 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "98b48412-abde-480d-80af-b805368c5075")
+	)
+	(rectangle
+		(start 158.34 1.56)
+		(end 296.13 136.49)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "5cdebdce-a333-46f0-b9ec-39019d0a9e28")
+	)
+	(text "CAN  TJA1051"
+		(exclude_from_sim no)
+		(at 159.84 3.06 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "1dcfc976-bfaf-4ea6-9481-6044cafe3a9d")
+	)
+	(rectangle
+		(start 318.36 42.17)
+		(end 406.62 180.94)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "3731b0f3-1daf-4517-89c0-185f36d459a5")
+	)
+	(text "MCU  ESP32-S3-MINI-1"
+		(exclude_from_sim no)
+		(at 319.86 43.67 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "12dc6829-a9be-48c3-a7c1-c130d4835f10")
+	)
+	(rectangle
+		(start 22.45 156.5)
+		(end 512.03 260.95)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "6453fe9a-0374-4f6d-98be-4540ac443dfe")
+	)
+	(text "6-CHANNEL PER-PIN SENSING  6x INA240"
+		(exclude_from_sim no)
+		(at 23.95 158 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "f717d80b-7ef3-4026-a87b-db777a5751e4")
+	)
+	(rectangle
+		(start 47.85 249.62)
+		(end 476.47 284.51)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "400cea45-6b9a-4873-986f-9e180e32cbd9")
+	)
+	(text "RAIL REF + SIDEBAND  REF3030"
+		(exclude_from_sim no)
+		(at 49.35 251.12 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "289da0a9-165d-4516-bdb9-d48b06af3037")
+	)
+	(rectangle
+		(start 41.5 352.08)
+		(end 406.62 523.84)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "5b23360b-b947-4b80-b80d-c4a2581b2b6b")
+	)
+	(text "FLASH / USB-C"
+		(exclude_from_sim no)
+		(at 43 353.58 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "68c6be1b-2790-4351-8137-274128751b56")
+	)
+	(rectangle
+		(start 538.07 352.08)
+		(end 697.45 526.38)
+		(stroke (width 0.254) (type dash))
+		(fill (type none))
+		(uuid "f918b255-91e4-4463-a4cf-3c7dbd1d34b3")
+	)
+	(text "H3 STANDALONE-MODE SUITE (USB ESD/EMC)"
+		(exclude_from_sim no)
+		(at 539.57 353.58 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "9f6f9267-9b46-4f82-a887-4bb60a630d3c")
+	)
+
 	(symbol
 		(lib_id "cec:CEC_RJ45_8P8C_FTP")
 		(at 49.53 69.85 0)
@@ -8925,7 +9030,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 119.38 53.34 180)
+		(at 119.38 53.34 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8943,7 +9048,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 240.03 29.21 180)
+		(at 240.03 29.21 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8961,7 +9066,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 95.25 33.02 180)
+		(at 95.25 33.02 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -8979,7 +9084,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 240.03 55.88 180)
+		(at 240.03 55.88 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9033,7 +9138,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 180.34 53.34 180)
+		(at 180.34 53.34 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9051,7 +9156,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 340.36 148.59 180)
+		(at 340.36 148.59 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9069,7 +9174,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 388.62 148.59 180)
+		(at 388.62 148.59 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9087,7 +9192,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 278.13 93.98 180)
+		(at 278.13 93.98 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9105,7 +9210,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 340.36 55.88 180)
+		(at 340.36 55.88 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9141,7 +9246,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 180.34 104.14 180)
+		(at 180.34 104.14 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9159,7 +9264,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 67.31 198.12 180)
+		(at 67.31 198.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9177,7 +9282,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 92.71 203.2 180)
+		(at 92.71 203.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9195,7 +9300,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 137.16 198.12 180)
+		(at 137.16 198.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9213,7 +9318,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 162.56 203.2 180)
+		(at 162.56 203.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9231,7 +9336,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 207.01 198.12 180)
+		(at 207.01 198.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9249,7 +9354,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 232.41 203.2 180)
+		(at 232.41 203.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9267,7 +9372,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 276.86 198.12 180)
+		(at 276.86 198.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9285,7 +9390,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 302.26 203.2 180)
+		(at 302.26 203.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9303,7 +9408,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 347.98 198.12 180)
+		(at 347.98 198.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9321,7 +9426,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 373.38 203.2 180)
+		(at 373.38 203.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9339,7 +9444,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 417.83 198.12 180)
+		(at 417.83 198.12 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -9357,7 +9462,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 443.23 203.2 180)
+		(at 443.23 203.2 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10438,7 +10543,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+5VSB")
-		(at 44.45 1417.32 180)
+		(at 44.45 1417.32 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10456,7 +10561,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
-		(at 44.45 1427.48 0)
+		(at 44.45 1427.48 180)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10474,7 +10579,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:PWR_FLAG")
-		(at 69.85 1417.32 180)
+		(at 69.85 1417.32 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10807,7 +10912,7 @@
 	(label "TEMP2" (at 321.31 105.41 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "37ad411f-badf-401d-9c00-c78426af5de5"))
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 430.53 184.15 180)
+		(at 430.53 184.15 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -10861,7 +10966,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 477.52 184.15 180)
+		(at 477.52 184.15 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)
@@ -11103,7 +11208,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 421.64 255.27 180)
+		(at 421.64 255.27 0)
 		(unit 1)
 		(exclude_from_sim no)
 		(in_bom yes)

@@ -10,6 +10,7 @@
 #   python3 -m unittest tests.test_sch_layout -v
 import math
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -563,7 +564,16 @@ class DirectionalMisrotTest(unittest.TestCase):
     wire dropping to it -- misrotated 180 degrees so the arrow points DOWN
     INTO the wire instead of up away from it. The fixture uses the REAL
     cec-power:+3V3 lib symbol geometry (pin at local (0,0), angle 90 --
-    verified against the as-built hub-standard/eps-8pin schematics)."""
+    verified against the as-built hub-standard/eps-8pin schematics).
+
+    Root cause of the companion Value-on-glyph bug (traced to
+    cec_sch.emit_global_power, 2026-07-04): it places the Value property at a
+    FIXED absolute offset (y+3.81) that does not rotate with the instance --
+    correct for a symbol whose own glyph draws toward +y (GND), but for a
+    rail-type glyph (draws toward -y at rot=0) a rot=180 instance flips the
+    glyph onto the +y side too, landing Value inside/against it. The fixture
+    below places Value inside the ROTATED glyph's real footprint to exercise
+    exactly that collision (see test_own_flag_carveout_tightened)."""
 
     _FLAG_LIB = """\t\t(symbol "cec-power:+3V3"
 \t\t\t(power global)
@@ -604,7 +614,7 @@ class DirectionalMisrotTest(unittest.TestCase):
             '    (uuid "aaaa0000-0000-0000-0000-000000000001")\n'
             '    (property "Reference" "#PWR1" (at 100 96.19 0) (hide yes)\n'
             '      (effects (font (size 1.27 1.27))))\n'
-            '    (property "Value" "+3V3" (at 100 103.556 0)\n'
+            '    (property "Value" "+3V3" (at 100 101.5 0)\n'
             '      (effects (font (size 1.27 1.27))))\n'
             '    (pin "1" (uuid "aaaa0000-0000-0000-0000-000000000002"))\n'
             '    (instances (project "t" (path "/x" (reference "#PWR1") (unit 1))))\n'
@@ -678,6 +688,123 @@ class DirectionalMisrotTest(unittest.TestCase):
                                 for f in findings), findings)
         finally:
             os.unlink(p)
+
+
+class RetrofitDecouplerAdjacencyTest(unittest.TestCase):
+    """Teeth for retrofit_decoupler_adjacency (2026-07-04 owner round-3 item
+    4): relocating an EXISTING decoupler next to its owner IC on an
+    already-serialized flat sheet, identity-safe by construction (moves
+    existing refs + adds one wire between two nodes already sharing a net;
+    never adds/deletes a #PWR/#FLG ref -- verified live against a real
+    kicad-cli netlist diff that this class of edit never changes a net's
+    (ref,pin) membership set)."""
+
+    @unittest.skipUnless(HAVE_KICAD_CLI, "kicad-cli not on PATH")
+    def test_relocates_and_wires_in_open_space(self):
+        parts = {"U1": ("cec-vendor", "R_Small", "10k"),
+                  "C1": ("cec-vendor", "C_Small", "100n")}
+        used = cec_sch.load_symbols(LIBS, parts)
+        placement = {"U1": (101.6, 101.6, 0), "C1": (200.0, 300.0, 0)}
+        root = cec_sch.u()
+        body = [cec_sch.emit_symbol(r, parts[r][0], parts[r][1], parts[r][2],
+                                    *placement[r][:2],
+                                    used[(parts[r][0], parts[r][1])]["pins"],
+                                    "t", root)
+                for r in parts]
+        c1p1 = L.pin_abs_rot(placement, used, parts, "C1", "1")[:2]
+        c1p2 = L.pin_abs_rot(placement, used, parts, "C1", "2")[:2]
+        flag1 = (c1p1[0], c1p1[1] - 3.81)
+        flag2 = (c1p2[0], c1p2[1] + 3.81)
+        body.append(cec_sch.emit_global_power("+3V3", *flag1, "t", root, "#PWR1", 0))
+        body.append(cec_sch.emit_global_power("GND", *flag2, "t", root, "#PWR2", 0))
+        # the IC's OWN power pin must ALREADY be on the same net before the
+        # retrofit (true of every real IC power pin, which always has its
+        # own decoupling/supply network) -- give U1 pin 2 its own +3V3 flag
+        # too, so the precondition for the identity-safety argument holds.
+        u1p2 = L.pin_abs_rot(placement, used, parts, "U1", "2")[:2]
+        icflag = (u1p2[0] - 3.81, u1p2[1])
+        body.append(cec_sch.emit_global_power("+3V3", *icflag, "t", root, "#PWR3", 0))
+        wires = [cec_sch.emit_wire(c1p1[0], c1p1[1], *flag1),
+                cec_sch.emit_wire(c1p2[0], c1p2[1], *flag2),
+                cec_sch.emit_wire(u1p2[0], u1p2[1], *icflag)]
+        content = (
+            "(kicad_sch (version 20260306) (generator \"eeschema\")\n"
+            "(generator_version \"10.0\")\n"
+            f"(uuid \"{root}\")\n(paper \"A4\")\n"
+            + cec_sch.lib_symbols_section(used, ()) + "\n"
+            + "\n".join(body) + "\n" + "\n".join(wires) + "\n"
+            "(sheet_instances (path \"/\" (page \"1\")))\n(embedded_fonts no)\n)\n")
+        with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
+                                         delete=False) as f:
+            f.write(content)
+            path = f.name
+        try:
+            before_ref_pins = set(re.findall(r'\(reference "([^"]+)"\)', content))
+            ok = L.retrofit_decoupler_adjacency(path, "U1", "2", "C1")
+            self.assertTrue(ok)
+            after = open(path).read()
+            # no ref added or removed
+            after_ref_pins = set(re.findall(r'\(reference "([^"]+)"\)', after))
+            self.assertEqual(before_ref_pins, after_ref_pins)
+            # a NEW wire directly links the IC pin to the cap's rail pin
+            ic_ax, ic_ay = L.pin_abs_rot(
+                {"U1": (101.6, 101.6, 0)}, used, parts, "U1", "2")[:2]
+            self.assertIn(f'(xy {cec_sch.f(ic_ax)} {cec_sch.f(ic_ay)})', after)
+            # ERC must not gain a new error class (the one pre-existing
+            # "pin_not_connected" is U1 pin 1, never wired in this fixture
+            # and unrelated to the retrofit)
+            viol = _erc(path)
+            errs = [v for v in viol if v["severity"] == "error"]
+            self.assertLessEqual(len(errs), 1, errs)
+        finally:
+            os.unlink(path)
+
+    def test_returns_false_without_touching_file_when_no_safe_spot(self):
+        """Congested-board honesty: if no gap step clears the real
+        overlap/wire checkers, the mutator must return False and leave the
+        file byte-identical (never a degraded/partially-collided commit)."""
+        parts = {"U1": ("cec-vendor", "R_Small", "10k"),
+                  "C1": ("cec-vendor", "C_Small", "100n")}
+        used = cec_sch.load_symbols(LIBS, parts)
+        placement = {"U1": (101.6, 101.6, 0), "C1": (150.0, 150.0, 0)}
+        root = cec_sch.u()
+        body = [cec_sch.emit_symbol(r, parts[r][0], parts[r][1], parts[r][2],
+                                    *placement[r][:2],
+                                    used[(parts[r][0], parts[r][1])]["pins"],
+                                    "t", root)
+                for r in parts]
+        c1p1 = L.pin_abs_rot(placement, used, parts, "C1", "1")[:2]
+        c1p2 = L.pin_abs_rot(placement, used, parts, "C1", "2")[:2]
+        flag1 = (c1p1[0], c1p1[1] - 3.81)
+        flag2 = (c1p2[0], c1p2[1] + 3.81)
+        body.append(cec_sch.emit_global_power("+3V3", *flag1, "t", root, "#PWR1", 0))
+        body.append(cec_sch.emit_global_power("GND", *flag2, "t", root, "#PWR2", 0))
+        wires = [cec_sch.emit_wire(c1p1[0], c1p1[1], *flag1),
+                cec_sch.emit_wire(c1p2[0], c1p2[1], *flag2)]
+        # blanket a wall of decoy flags all along the IC's outward search
+        # line so every candidate gap step is blocked -- forces exhaustion.
+        for i in range(1, 20):
+            body.append(cec_sch.emit_global_power(
+                "GND", 101.6, 101.6 - i * 2.0, "t", root, f"#PWR{100+i}", 0))
+        content = (
+            "(kicad_sch (version 20260306) (generator \"eeschema\")\n"
+            "(generator_version \"10.0\")\n"
+            f"(uuid \"{root}\")\n(paper \"A4\")\n"
+            + cec_sch.lib_symbols_section(used, ()) + "\n"
+            + "\n".join(body) + "\n" + "\n".join(wires) + "\n"
+            "(sheet_instances (path \"/\" (page \"1\")))\n(embedded_fonts no)\n)\n")
+        with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
+                                         delete=False) as f:
+            f.write(content)
+            path = f.name
+        try:
+            before_bytes = open(path, "rb").read()
+            ok = L.retrofit_decoupler_adjacency(path, "U1", "2", "C1",
+                                                max_gap=12.0)
+            self.assertFalse(ok)
+            self.assertEqual(open(path, "rb").read(), before_bytes)
+        finally:
+            os.unlink(path)
 
 
 if __name__ == "__main__":

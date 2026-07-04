@@ -64,7 +64,7 @@
 #
 # This generalizes cec_sch.pin_abs exactly (its rot=0 case is rlx=lx, rly=ly).
 # ---------------------------------------------------------------------------
-import os, re, sys, math, argparse
+import os, re, sys, math, argparse, tempfile
 from collections import defaultdict
 
 _ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -1705,6 +1705,194 @@ def rotate_flag_180(sch_path, ref, out_path=None):
     new_blk = blk[:m.start()] + new_at + blk[m.end():]
     out = text[:s] + new_blk + text[e:]
     open(out_path or sch_path, "w").write(out)
+    return True
+
+
+def _file_symbol_context(text):
+    """Build (parts, placement, used) from an EXISTING flat .kicad_sch's own
+    instances + its embedded lib_symbols cache -- the shapes pin_abs_rot
+    expects, derived from a FILE rather than generator-time state, so the T1
+    decoupler-adjacency primitives can be retrofitted onto an
+    already-serialized board (2026-07-04, owner round-3 item 4).
+    parts[ref]=(lib,name,val); placement[ref]=(x,y,rot);
+    used[(lib,name)]={"pins": {num:(x,y,ang,len)}}."""
+    work = _strip_lib_symbols(text)
+    pin_lib = _parse_pin_glyph_lib(text)
+    parts, placement = {}, {}
+    for s, e, (ox, oy), ref, rot, lib_id, mir in _symbol_spans(work):
+        if ref.startswith("#"):
+            continue
+        vm = re.search(r'\(property\s+"Value"\s+"((?:[^"\\]|\\.)*)"', text[s:e])
+        val = _unescape(vm.group(1)) if vm else ""
+        libname, name = lib_id.split(":", 1) if ":" in lib_id else ("", lib_id)
+        parts[ref] = (libname, name, val)
+        placement[ref] = (ox, oy, rot)
+    used = {}
+    for ref, (libname, name, _val) in parts.items():
+        lib_id = f"{libname}:{name}" if libname else name
+        sym = pin_lib.get(lib_id)
+        if sym is None:
+            continue
+        used[(libname, name)] = {
+            "pins": {p["number"]: (p["x"], p["y"], p["ang"], p["length"])
+                     for p in sym["pins"]}}
+    return parts, placement, used
+
+
+def _shift_points_in_span(text, s, e, dx, dy):
+    """Shift every `(at X Y [ROT])` and `(xy X Y)` coordinate found strictly
+    inside text[s:e] by (dx, dy) -- a rigid-body translation of one spliced
+    block. Angle/rotation fields (if present) are left untouched."""
+    blk = text[s:e]
+
+    def _at(m):
+        rest = f" {m.group(3)}" if m.group(3) else ""
+        return (f'(at {cec_sch.f(float(m.group(1)) + dx)} '
+                f'{cec_sch.f(float(m.group(2)) + dy)}{rest})')
+
+    def _xy(m):
+        return (f'(xy {cec_sch.f(float(m.group(1)) + dx)} '
+                f'{cec_sch.f(float(m.group(2)) + dy)})')
+
+    blk = re.sub(r'\(at\s+(-?[\d.]+)\s+(-?[\d.]+)(?:\s+(-?[\d.]+))?\)', _at, blk)
+    blk = re.sub(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', _xy, blk)
+    return text[:s] + blk + text[e:]
+
+
+def retrofit_decoupler_adjacency(sch_path, ic_ref, ic_pin, cap_ref, *,
+                                 gap=5.08, out_path=None, max_gap=38.1,
+                                 gap_step=2.54):
+    """The owner's decoupler-ownership convention (2026-07-04 round-3 item
+    4): relocate an EXISTING decoupler `cap_ref` (already label/flag-
+    connected to its rail via its own private +3V3-ish + GND power flags) so
+    it sits immediately beside its owner IC's `ic_pin`, rigidly translating
+    the cap + its two private flags + their two short stub wires together
+    (so their existing wiring survives byte-identical, just moved), then
+    drawing ONE NEW real wire directly from the IC pin to the cap's rail
+    pin -- the "wired adjacent, not label-aliased" convention, made visible.
+
+    IDENTITY SAFETY (verified empirically 2026-07-04, see the round-3
+    session notes): this adds/deletes NO `#PWR`/`#FLG` ref and no component
+    ref -- only repositions existing instances and adds one wire. A new wire
+    that merely joins two nodes ALREADY on the same global net (the cap's
+    rail pin and the IC's power pin both already carry the same net name via
+    their own flags) does not change any net's (ref,pin) membership set --
+    confirmed by a live kicad-cli netlist diff before/after adding such a
+    wire (0 missing / 0 extra). This is why the retrofit never touches an
+    existing flag's ref: deleting one WOULD change that (ref,pin) out of the
+    net's membership set and trip the identity gate; moving it does not.
+
+    Assumes the fleet convention: `cap_ref` is a 2-pin passive (pin "1" =
+    rail, pin "2" = GND), each with its OWN short vertical stub wire to a
+    private power-flag symbol (not shared with any other component) -- true
+    for every per-IC bypass cap in this repo's generated/hand-maintained
+    modules. Returns True on success, False if the assumed shape isn't
+    found (caller should treat that as "this cap needs a hand pass, not
+    this mutator").
+    """
+    text = open(sch_path).read()
+    parts, placement, used = _file_symbol_context(text)
+    if ic_ref not in parts or cap_ref not in parts:
+        return False
+    try:
+        iax, iay, idx_, idy_ = pin_abs_rot(placement, used, parts, ic_ref, ic_pin)
+        c1x, c1y, _cdx, _cdy = pin_abs_rot(placement, used, parts, cap_ref, "1")
+        c2x, c2y, _gdx, _gdy = pin_abs_rot(placement, used, parts, cap_ref, "2")
+    except KeyError:
+        return False
+
+    # locate the two stub wires + the private flags at their far ends
+    wires = []
+    work = _strip_lib_symbols(text)
+    idx = 0
+    while True:
+        j = work.find('(wire', idx)
+        if j < 0:
+            break
+        blk = cec_sch.carve(work, j)
+        pts = re.findall(r'\(xy\s+(-?[\d.]+)\s+(-?[\d.]+)\)', blk)
+        if len(pts) == 2:
+            (ax, ay), (bx, by) = (float(pts[0][0]), float(pts[0][1])), \
+                                  (float(pts[1][0]), float(pts[1][1]))
+            wires.append((j, j + len(blk), ax, ay, bx, by))
+        idx = j + len(blk)
+
+    def _find_stub(px, py):
+        for s, e, ax, ay, bx, by in wires:
+            near_a = math.hypot(ax - px, ay - py) < 0.3
+            near_b = math.hypot(bx - px, by - py) < 0.3
+            if near_a or near_b:
+                fx, fy = (bx, by) if near_a else (ax, ay)
+                return (s, e), (fx, fy)
+        return None
+
+    rail_stub = _find_stub(c1x, c1y)
+    gnd_stub = _find_stub(c2x, c2y)
+    if not rail_stub or not gnd_stub:
+        return False
+    rail_wire_span, (railfx, railfy) = rail_stub
+    gnd_wire_span, (gndfx, gndfy) = gnd_stub
+
+    def _find_flag_span(fx, fy):
+        for s, e, (ox, oy), ref, rot, lib, mir in _symbol_spans(work):
+            if ref.startswith("#") and math.hypot(ox - fx, oy - fy) < 0.3:
+                return (s, e), ref
+        return None, None
+
+    rail_flag_span, rail_flag_ref = _find_flag_span(railfx, railfy)
+    gnd_flag_span, gnd_flag_ref = _find_flag_span(gndfx, gndfy)
+    if not rail_flag_span or not gnd_flag_span:
+        return False
+
+    # target: park the cap so pin 1 lands `gap` mm from the IC pin, straight
+    # out along the IC pin's own outward direction (a clean single-segment
+    # wire, no bend needed). SWEEP gap upward, using the REAL detectors as
+    # ground truth on a SCRATCH candidate each step, rather than a hand-
+    # modeled clearance radius -- a point-distance heuristic missed real
+    # collisions twice in a row while building this (a relocated flag
+    # landing on a pre-existing unrelated flag; the IC's OWN Reference/Value
+    # text, which commonly sits directly above the IC on the very same
+    # vertical line this search walks). The real check_overlaps/
+    # check_wire_collisions/check_power_glyphs functions already know how to
+    # measure every one of those cases, so use them directly instead of
+    # re-deriving their geometry.
+    baseline_overlap = len(detect_overlaps(sch_path))
+    baseline_wire = len(check_wire_collisions(sch_path) + check_power_glyphs(sch_path))
+    cap_span = next((s, e) for s, e, (ox, oy), ref, rot, lib, mir in
+                    _symbol_spans(work) if ref == cap_ref)
+    spans = sorted([cap_span, rail_flag_span, gnd_flag_span,
+                    rail_wire_span, gnd_wire_span], key=lambda t: -t[0])
+
+    g = gap
+    chosen = None
+    while g <= max_gap:
+        tx, ty = iax + idx_ * g, iay + idy_ * g
+        dx, dy = tx - c1x, ty - c1y
+        cand = text
+        for s, e in spans:
+            cand = _shift_points_in_span(cand, s, e, dx, dy)
+        new_wire = cec_sch.emit_wire(iax, iay, tx, ty)
+        insert_at = cand.find("(sheet_instances")
+        if insert_at < 0:
+            insert_at = len(cand)
+        cand = cand[:insert_at] + new_wire + "\n" + cand[insert_at:]
+        with tempfile.NamedTemporaryFile("w", suffix=".kicad_sch",
+                                        delete=False) as f:
+            f.write(cand)
+            scratch = f.name
+        try:
+            ov = len(detect_overlaps(scratch))
+            wr = len(check_wire_collisions(scratch) + check_power_glyphs(scratch))
+        finally:
+            os.unlink(scratch)
+        if ov <= baseline_overlap and wr <= baseline_wire:
+            chosen = cand
+            break
+        g += gap_step
+    if chosen is None:
+        return False
+
+    open(out_path or sch_path, "w").write(chosen)
     return True
 
 
