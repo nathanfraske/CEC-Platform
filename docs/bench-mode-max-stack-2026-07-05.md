@@ -1,5 +1,17 @@
 # Max-tier bench-mode data stack: FPGA ingest, link budget, Hub consolidation
 
+**RULED (owner, 2026-07-05): "I agree with everything here and it can be ruled as such."**
+Scope of the ruling: the tier-paired hub model, hub-consolidated bench mode
+(continuous decimated streams + on-demand raw windows), 100BASE-T1 on pair 2 as the
+Max link, the GOWIN GW5A-class + ESP32-P4 Max-hub shape with GbE egress, fast-path
+VOLTAGE ruled IN, the across-connector differential-V microarc channel ruled IN
+(fast ADC channel demand: shunt + coil + rail-V + connector-dV = 4 differential
+inputs), and the ~80-100 kHz production slow-path design target (prototype 50/10 kHz
+figures recorded as artifacts). REMAINING PICKS (owner-requested study in flight):
+slow ADC, fast ADC, module FPGA, hub FPGA + BOM/retail estimate. Spec application
+(SS6.11 refresh + Max-hub row + bench-mode text) rides the next controlled rev after
+the picks land.
+
 **ANALYSIS ONLY — PROPOSED framing. No spec, schematic, board, CLAUDE.md, or owner-queue file is touched.** Builds on, without restating: the **design basis of record**, `docs/research/max-instrument-channel-decision-2026-06-11.md` (owner-ratified channel architecture) plus companions `connector-microarcing-and-sampling-value-2026-06-11.md`, `dc-series-arc-signatures-2026-06-11.md`, `low-voltage-arc-spectra-r1-2026-06-11.md`, `gpu-12vhpwr-fault-phenomenology-2026-06-10.md` (all `docs/research/`); and the **foundation**, `docs/bench-mode-exploration-2026-07-05.md` (Pro-tier math, LTC2358-18 figures, RS-485/USB-HS/UART findings), extended here to Max and a new "Max Hub" concept.
 
 Spec anchor: §6.11, §6.13, §13.2a, OQ-15/16/17/18/19/20/21/58/59/60, Appendix B. §6.11's wording predates the 2026-06-11 research ruling (freshness gap, §1/§5) — `docs/owner-queue.md` (read only, not edited) already tracks this: *"Max instrument-channel ruling → spec ... spec edit rides the owner pen."* This is analysis toward that pen edit, not a substitute for it.
