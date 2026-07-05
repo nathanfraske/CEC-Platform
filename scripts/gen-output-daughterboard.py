@@ -638,14 +638,34 @@ def route_atx24():
     # ROTATED 90 (see the placement-section docstring) so it fits the
     # field's own Y-band instead of costing extra board height. Its 3 live
     # signals are the P2P nets, each a single track straight to its field
-    # pin -- entirely on F.Cu, entirely within the field's row-gap Y-range
-    # (never touching the BUS corridor, so no lane/via-severing concern
-    # applies to them at all). Post-rotation pin1 PS_ON# and pin2 PWR_OK
-    # share an X (pin2 sits directly ABOVE pin1), so pin2's run dodges
-    # sideways before passing pin1's Y; pin3 -12V is on its own column (pin4
-    # GND sits above it but needs no route).
+    # pin -- entirely on B.Cu (deliberately NOT F.Cu: the BUS field pins'
+    # dodge-then-descend stubs are ALSO on F.Cu and physically transit this
+    # same row-gap Y band on their way down to the corridor, at up to 12
+    # different X's -- putting the P2P runs on the otherwise-empty B.Cu
+    # instead avoids that whole family of crossings in one move rather than
+    # threading between every dodge column by hand; no via is needed at
+    # either end since both the field pins and the header pins are
+    # through-hole, so a track can start/end directly on B.Cu at their pad
+    # centres, same as any other thru-hole net on this board).
+    #
+    # The three runs still share ONE layer with each other, so they still
+    # need to not cross EACH OTHER.
+    # PWR_OK approaches from row0 (above the gap, descending); PS_ON# and
+    # -12V both approach from row1 (below the gap, ascending). Assign each a
+    # dedicated Y level within the gap, ordered by how far it has to travel
+    # rather than by pitch: PWR_OK gets the level nearest row0 (its vertical
+    # never reaches the other two levels at all); of the two row1 signals,
+    # PS_ON# (field column x=16.7) gets the level nearest row1 (shortest
+    # run); -12V (field column x=8.3, the LEFTMOST of all three, ahead of
+    # both other signals' own columns) gets the middle level -- its vertical
+    # run passes THROUGH PS_ON#'s level en route, but PS_ON#'s horizontal
+    # run only exists for x >= 16.7 (it starts at its own field column), and
+    # -12V's crossing happens at x=8.3, to the left of that -- so the two
+    # never actually occupy the same point. Verified by construction, not
+    # assumed; each pairing's (Y-range, X-range) overlap was checked by hand
+    # for exactly this reason when the corridor was reworked 2026-07-05.
     h = cfg["header"]; hx, hy, _ = P[h["ref"]]
-    p1, p2, p3 = (hx, hy), (hx, hy - 2.54), (hx + 2.54, hy)
+    p1, p2, p3 = (hx, hy), (hx, hy - 2.54), (hx + 2.54, hy)          # PS_ON#, PWR_OK, -12V
     field_row_gap_y = fy + 2.75    # midpoint between row0 (fy) and row1 (fy+5.5)
 
     def _p2p_field_xy(net):
@@ -657,17 +677,30 @@ def route_atx24():
     x_ps, y_ps = _p2p_field_xy("PS_ON#")
     x_pwr, y_pwr = _p2p_field_xy("PWR_OK")
     x_m12, y_m12 = _p2p_field_xy("-12V")
-    # three parallel runs through the row-gap, stacked 0.6mm apart (plain
-    # track-to-track clearance -- no zone/via-severing concern for a P2P
-    # track) so they don't cross each other en route to the header.
+    # Row-gap Y-window math (why 0.42mm steps, why a 0.2mm track): the
+    # horizontal run has to clear BOTH row0's pad (bottom edge at
+    # fy+1.85 = 4.6, using the 3.7mm POWER-pad half-height -- the worst
+    # case, since every column has a POWER pad in at least one row) and
+    # row1's pad (top edge at fy+5.5-1.85 = 6.4) by the 0.25mm GND-class
+    # clearance (the GREATER of the two nets' netclasses always governs,
+    # and GND -- Power class -- is 0.25 while these P2P nets are Signal-
+    # class 0.2). A P2P_W-wide track's centre must then sit within
+    # [4.6+0.25+P2P_W/2, 6.4-0.25-P2P_W/2] -- only 1.10mm wide at
+    # P2P_W=0.2mm, so the platform-default 0.4mm track (used everywhere
+    # else on this board) does not fit three-abreast here at all; these
+    # three low-current point-to-point signal runs use a thinner 0.2mm
+    # track instead, at 0.42mm steps (own reserved) so both the row-edge
+    # clearance and the inter-track Signal-class 0.2mm clearance clear
+    # with a small positive margin, not sit exactly on the boundary.
+    P2P_TRACK_W = 0.2
     header_paths = {
-        "PS_ON#": [(x_ps, y_ps), (x_ps, field_row_gap_y - 0.6), (p1[0], field_row_gap_y - 0.6), p1],
-        "PWR_OK": [(x_pwr, y_pwr), (x_pwr, field_row_gap_y), (p2[0], field_row_gap_y), p2],
-        "-12V": [(x_m12, y_m12), (x_m12, field_row_gap_y + 0.6), (p3[0], field_row_gap_y + 0.6), p3],
+        "PWR_OK": [(x_pwr, y_pwr), (x_pwr, field_row_gap_y - 0.42), (p2[0], field_row_gap_y - 0.42), p2],
+        "-12V": [(x_m12, y_m12), (x_m12, field_row_gap_y), (p3[0], field_row_gap_y), p3],
+        "PS_ON#": [(x_ps, y_ps), (x_ps, field_row_gap_y + 0.42), (p1[0], field_row_gap_y + 0.42), p1],
     }
     for net, pts in header_paths.items():
         pn = _PCB_NET.get(net, net)
-        r.track(pn, pts, "F.Cu", 0.4)
+        r.track(pn, pts, "B.Cu", P2P_TRACK_W)
 
     r.fill()
     res = r.verify()
