@@ -8,16 +8,19 @@
 # Builds the three passive-daughterboard projects under
 # modules/output-daughterboards/ (24-pin ATX / EPS 8-pin per-cable / PCIe
 # 8-pin per-cable, the last shared unmodified by the 2-port and 3-port SKUs).
-# Per family: TE 63849-1 FASTON tabs (input side, mate the MAIN board's
-# Keystone universal blade clips -- NOT built here, see CLAUDE.md "Outstanding
-# board actions" item 6, a separate task) fan out in copper to a bare THT
-# solder field (output side, spec §2.8's "one field, two/three uses": bare
-# pigtail, or a MODDIY-class vertical header where the field is dimensionally
-# compatible -- see gen-daughterboard-libassets.py's field footprints). NO
-# active or passive components (ratified: "no components beyond the connector
-# body and its fan-out copper"). Read CEC-Platform-Ground-Truth-Spec.md §2.8
-# v1.4.0 + OQ-87/88/89 and docs/standard-tier-review/output-daughterboard-
-# study-2026-07-04.md before changing any net map or joint count below.
+# Per family: TE 63951-1 right-angle FASTON tabs (input side; blades point
+# straight DOWN past the board's bottom edge and drop into the MAIN board's
+# Keystone universal blade clips top-entry, per the owner's 2026-07-05
+# sketch -- clips NOT built here, no main-board PCB placement exists yet)
+# fan out in copper to a bare THT solder field (output side, spec §2.8's
+# "one field, two/three uses": bare pigtail, or a MODDIY-class vertical
+# header where the field is dimensionally compatible -- see
+# gen-daughterboard-libassets.py's field footprints). NO active or passive
+# components (ratified: "no components beyond the connector body and its
+# fan-out copper"). Read CEC-Platform-Ground-Truth-Spec.md §2.8 v1.4.0 +
+# OQ-87/88/89, docs/standard-tier-review/output-daughterboard-study-
+# 2026-07-04.md, and blade-fit-check-2026-07-04.md (addenda) before
+# changing any net map, joint count, or tab geometry below.
 #
 #   python3 scripts/gen-output-daughterboard.py <family> [--force]
 #   family: atx24-out-db | eps-out-db | pcie-out-db | all
@@ -37,18 +40,21 @@ LIBS = {
     "power":      open(f"{ROOT}/lib/vendor/cec-power.kicad_sym").read(),
 }
 
-# TE 63951-1 -- RIGHT-ANGLE (flat, in-plane) FASTON .250 PC board tab, per the
-# owner's 2026-07-05 connector-form ruling (superseding the same-day-earlier
-# perpendicular/side-entry TE 63849-1 choice this generator originally
-# shipped with). Same .250 width class, same App Spec 114-2115, same 5.08mm
-# leg pitch / 1.40mm hole pattern as 63849-1 (confirmed against TE's own
-# customer drawing C=63951 rev L2, lib/datasheets/TE_63951-1.pdf) -- the
-# blade lies FLAT/coplanar and extends past the leg row instead of standing
-# perpendicular to it, matching the owner-uploaded TE 1217061-1 (.187-series
-# right-angle) reference geometry, scaled to .250. See
-# docs/standard-tier-review/blade-fit-check-2026-07-04.md's dated addendum
-# for the full hunt/verification record. TE_63849-1 remains vendored
-# (harmless; unreferenced by this generator as of this pass).
+# TE 63951-1 -- RIGHT-ANGLE FASTON .250 PC board tab, per the owner's
+# 2026-07-05 rulings (the SKETCH ruling, later the same day, fixed the part
+# MODEL/orientation; the part itself was picked by the same day's earlier
+# connector-form hunt, superseding the morning's TE 63849-1 straight tab).
+# Same .250 width class, App Spec 114-2115, and 5.08mm leg pitch / 1.40mm
+# hole pattern as 63849-1, but a flat IN-PLANE L stamping: the blade runs
+# along the leg-pitch axis past the blade-side leg, standing 2.54-8.89mm off
+# the seating face (TE dwg C=63951 rev L2, lib/datasheets/TE_63951-1.pdf --
+# full geometry derivation in the footprint's descr). Mounted legs-
+# horizontal / pitch-vertical / blade-down per the owner's sketch: the
+# assembly drops vertically, blades entering the main-board Keystone clips
+# top-entry, the board's own bottom edge floating clear. See
+# docs/standard-tier-review/blade-fit-check-2026-07-04.md addenda (hunt +
+# the addendum-3 geometry record). TE_63849-1 remains vendored (harmless;
+# unreferenced by this generator).
 TE_TAB = ("cec-vendor", "TE_63951-1_FASTON_Tab", "TE 63951-1")
 TE_TAB_FP = "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
 
