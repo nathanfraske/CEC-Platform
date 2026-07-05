@@ -669,25 +669,28 @@ def compose_power_input(c, lf):
 
 
 def compose_sense(c, lf):
-    c.place("RS1", 30, 40, 90)
-    rs1, rs2 = c.pin("RS1", "1"), c.pin("RS1", "2")
+    # RS1 (shunt) and U4 (INA180A2) are placed close together (short Kelvin
+    # taps); +5V_LED_IN's anchor pin (RS1.1) still gets the S1 edge-column
+    # treatment, but the REST of this leaf's nets (+5V_LED_IN's other member
+    # U4.3, and every member of the +5V_LED GLOBAL bus: RS1.2/U4.4/U4.5/C3.1)
+    # are left to the generic per-pin pass -- a plain same-name local label
+    # (for the hier_export's non-anchor member) or an independent global_label
+    # stub (for each +5V_LED pin) is the correct, simplest realization; a
+    # global net has NO custom-placement hook (see 05-mcu/06-led-outputs for
+    # the same pattern) so hand-wiring it would only fight the mechanism.
+    c.place("RS1", 30, 30, 90)
+    rs1 = c.pin("RS1", "1")
     c.io("+5V_LED_IN", "left", from_pt=(rs1[0] / cec_sch.GRID, rs1[1] / cec_sch.GRID))
     c.use(("RS1", "1"))
 
-    c.place("U4", 60, 40)
-    u4_3, u4_4 = c.pin("U4", "3"), c.pin("U4", "4")
-    c.wire(rs1, (rs1[0], u4_3[1] - 6), (u4_3[0], u4_3[1] - 6), u4_3)
-    c.wire(rs2, (rs2[0], u4_4[1] + 6), (u4_4[0], u4_4[1] + 6), u4_4)
-    c.use(("RS1", "2"), ("U4", "3"), ("U4", "4"))
-    c.io("+5V_LED", "right", from_pt=(rs2[0] / cec_sch.GRID, rs2[1] / cec_sch.GRID))
-
-    c.place("C3", 60, 15)
-    u4_5 = c.pin("U4", "5")
-    c.wire(u4_5, (u4_5[0], 15))
-    c.use(("U4", "5"), ("C3", "1"))
-
+    c.place("U4", 60, 30)
+    c.place("C3", 60, 55)
     c.io("ISENSE_TOTAL", "right")
     c.caption("Total-rail shunt + INA180A2 (50V/V) -> +5V_LED (spec Sec 7.4)", 10, 4)
+    c.note("+5V_LED_IN's non-anchor member (U4 IN+) and every +5V_LED member "
+           "(RS1/U4 VS+IN-/C3) are plain same-name labels/global labels -- "
+           "the shunt's own terminal copper IS the Kelvin tap (layout, Sec 6.8)",
+           10, 70)
     c.done()
 
 
