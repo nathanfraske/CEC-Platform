@@ -9387,5 +9387,696 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "2920L700_12MR"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"F"
+			(id 0)
+			(at 0 5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"2920L700/12MR"
+			(id 1)
+			(at 0 -5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Fuse_SMD:F2920"
+			(id 2)
+			(at 0 -7.62 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://lcsc.com/product-detail/Surface-Mount-Fuses_Littelfuse_2920L700-12MR_Littelfuse-2920L700-12MR_C207092.html"
+			(id 3)
+			(at 0 -10.16 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "2920L700_12MR_0_1"
+			(rectangle
+				(start -2.54 1.02)
+				(end 2.54 -1.02)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -0.00) (xy 2.54 -0.00)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at 5.08 -0.00 180)
+				(length 2.54)
+				(name "2" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -5.08 -0.00 0)
+				(length 2.54)
+				(name "1" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "AO4407A"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"Q"
+			(id 0)
+			(at 0 12.70 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"AO4407A"
+			(id 1)
+			(at 0 -12.70 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_SO:SOIC-8_L4.9-W3.9-P1.27-LS6.0-BL"
+			(id 2)
+			(at 0 -15.24 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://lcsc.com/product-detail/MOSFET_AOS_AO4407A_AO4407A_C16072.html"
+			(id 3)
+			(at 0 -17.78 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(property
+			"ki_description"
+			"AO4407A"
+			(id 9)
+			(at 0 -30.48 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(symbol "AO4407A_0_1"
+			(rectangle
+				(start -5.08 5.08)
+				(end 7.62 -5.08)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy -5.08 -0.00) (xy -3.05 -0.00)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 2.54 2.54) (xy 2.54 5.08)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 5.08 5.08) (xy -2.54 5.08)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 2.54 -5.08) (xy -2.54 -5.08)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 2.54 -5.08) (xy 2.54 -2.54)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 -2.54) (xy 2.54 -2.54) (xy 2.54 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 1.78) (xy 0.00 2.54) (xy 2.54 2.54) (xy 2.54 0.76)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 1.78) (xy -2.54 1.78)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -0.00) (xy 0.00 -0.00) (xy 0.00 -2.54)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 -1.78) (xy -2.54 -1.78)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -3.05 2.29) (xy -3.05 -2.29)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 1.27) (xy -2.54 2.29)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -0.51) (xy -2.54 0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -2.29) (xy -2.54 -1.27)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 3.30 -0.51) (xy 3.05 -0.51) (xy 2.03 -0.51) (xy 1.78 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 0.00 -0.00) (xy -1.52 0.51) (xy -1.52 -0.51) (xy 0.00 -0.00)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy 2.54 -0.51) (xy 3.30 0.76) (xy 1.78 0.76) (xy 2.54 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(pin unspecified line
+				(at 0.00 -7.62 90)
+				(length 2.54)
+				(name "S" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 0.00 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 -7.62 90)
+				(length 2.54)
+				(name "S" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 5.08 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 7.62 270)
+				(length 2.54)
+				(name "D" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -7.62 -0.00 0)
+				(length 2.54)
+				(name "G" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 -7.62 90)
+				(length 2.54)
+				(name "S" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "MF72-5D-20"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"R"
+			(id 0)
+			(at 0 5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"5Ω ±20%_MF72"
+			(id 1)
+			(at 0 -5.08 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Thermistor_THT:RES-TH_L22.0-W7.0-P10.00-D1.0-S2.00"
+			(id 2)
+			(at 0 -7.62 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://lcsc.com/product-detail/NTC-Thermistors_5R-20_C122780.html"
+			(id 3)
+			(at 0 -10.16 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "5Ω±20%_MF72_0_1"
+			(rectangle
+				(start -2.54 1.02)
+				(end 2.54 -1.02)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy 1.27 1.78) (xy 1.27 1.78) (xy -1.27 -1.78) (xy -2.54 -1.78)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at 5.08 -0.00 180)
+				(length 2.54)
+				(name "2" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -5.08 -0.00 0)
+				(length 2.54)
+				(name "1" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "74AHCT244"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"U"
+			(id 0)
+			(at 0 16.51 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"74AHCT244PW,118"
+			(id 1)
+			(at 0 -16.51 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_SO:TSSOP-20_L6.5-W4.4-P0.65-LS6.4-BL"
+			(id 2)
+			(at 0 -19.05 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://lcsc.com/product-detail/74-Series_NXP_74AHCT244PW-118_74AHCT244PW-118_C135583.html"
+			(id 3)
+			(at 0 -21.59 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "74AHCT244PW,118_0_1"
+			(rectangle
+				(start -7.62 14.48)
+				(end 7.62 -14.48)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(circle
+				(center -6.35 13.21)
+				(radius 0.38)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(circle
+				(center -6.35 13.21)
+				(radius 0.38)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at -10.16 11.43 0)
+				(length 2.54)
+				(name "~{1OE}" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 8.89 0)
+				(length 2.54)
+				(name "1A0" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 6.35 0)
+				(length 2.54)
+				(name "2Y0" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 3.81 0)
+				(length 2.54)
+				(name "1A1" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 1.27 0)
+				(length 2.54)
+				(name "2Y1" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -1.27 0)
+				(length 2.54)
+				(name "1A2" (effects (font (size 1.27 1.27))))
+				(number "6" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -3.81 0)
+				(length 2.54)
+				(name "2Y2" (effects (font (size 1.27 1.27))))
+				(number "7" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -6.35 0)
+				(length 2.54)
+				(name "1A3" (effects (font (size 1.27 1.27))))
+				(number "8" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -8.89 0)
+				(length 2.54)
+				(name "2Y3" (effects (font (size 1.27 1.27))))
+				(number "9" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -10.16 -11.43 0)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "10" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -11.43 180)
+				(length 2.54)
+				(name "2A3" (effects (font (size 1.27 1.27))))
+				(number "11" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -8.89 180)
+				(length 2.54)
+				(name "1Y3" (effects (font (size 1.27 1.27))))
+				(number "12" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -6.35 180)
+				(length 2.54)
+				(name "2A2" (effects (font (size 1.27 1.27))))
+				(number "13" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -3.81 180)
+				(length 2.54)
+				(name "1Y2" (effects (font (size 1.27 1.27))))
+				(number "14" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 -1.27 180)
+				(length 2.54)
+				(name "2A1" (effects (font (size 1.27 1.27))))
+				(number "15" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 1.27 180)
+				(length 2.54)
+				(name "1Y1" (effects (font (size 1.27 1.27))))
+				(number "16" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 3.81 180)
+				(length 2.54)
+				(name "2A0" (effects (font (size 1.27 1.27))))
+				(number "17" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 6.35 180)
+				(length 2.54)
+				(name "1Y0" (effects (font (size 1.27 1.27))))
+				(number "18" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 8.89 180)
+				(length 2.54)
+				(name "~{2OE}" (effects (font (size 1.27 1.27))))
+				(number "19" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 10.16 11.43 180)
+				(length 2.54)
+				(name "VCC" (effects (font (size 1.27 1.27))))
+				(number "20" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "BAT54S"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"D"
+			(id 0)
+			(at 0 10.16 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"BAT54S_C545549"
+			(id 1)
+			(at 0 -10.16 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL"
+			(id 2)
+			(at 0 -12.70 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://lcsc.com/product-detail/Schottky-Barrier-Diodes-SBD_UMW-Youtai-Semiconductor-Co-Ltd-BAT54S_C545549.html"
+			(id 3)
+			(at 0 -15.24 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "BAT54S_C545549_0_1"
+			(polyline
+				(pts
+					(xy -1.27 -2.54) (xy -2.54 -0.25) (xy -3.81 -2.54) (xy -1.27 -2.54)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy 3.81 0.51) (xy 2.54 -1.78) (xy 1.27 0.51) (xy 3.81 0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(polyline
+				(pts
+					(xy -1.02 0.51) (xy -0.76 0.51) (xy -0.76 -0.00) (xy -4.57 -0.00) (xy -4.57 -0.51) (xy -4.32 -0.51)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy 4.06 -2.54) (xy 4.32 -2.54) (xy 4.32 -2.03) (xy 0.51 -2.03) (xy 0.51 -1.52) (xy 0.76 -1.52)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(polyline
+				(pts
+					(xy -2.54 -1.02) (xy -2.54 1.27) (xy 2.54 1.27) (xy 2.54 -1.02)
+				)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at 2.54 -5.08 90)
+				(length 3.81)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 -5.08 90)
+				(length 3.81)
+				(name "A" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 0.00 5.08 270)
+				(length 3.81)
+				(name "2" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
+	(symbol "INA180A2IDBVR"
+		(in_bom yes)
+		(on_board yes)
+		(property
+			"Reference"
+			"U"
+			(id 0)
+			(at 0 15.24 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Value"
+			"INA180A2IDBVR"
+			(id 1)
+			(at 0 -15.24 0)
+			(effects (font (size 1.27 1.27) ) )
+		)
+		(property
+			"Footprint"
+			"cec-Package_TO_SOT_SMD:SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL"
+			(id 2)
+			(at 0 -17.78 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+		(property
+			"Datasheet"
+			"https://lcsc.com/product-detail/Others_Texas-Instruments_INA180A2IDBVR_Texas-Instruments-TI-INA180A2IDBVR_C192764.html"
+			(id 3)
+			(at 0 -20.32 0)
+			(effects (font (size 1.27 1.27) ) hide)
+		)
+
+
+
+
+		(symbol "INA180A2IDBVR_0_1"
+			(rectangle
+				(start -5.08 7.62)
+				(end 5.08 -7.62)
+				(stroke (width 0) (type default))
+				(fill (type background))
+			)
+			(circle
+				(center -3.81 -6.35)
+				(radius 0.38)
+				(stroke (width 0) (type default))
+				(fill (type none))
+			)
+			(pin unspecified line
+				(at -2.54 -10.16 90)
+				(length 2.54)
+				(name "OUT" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 0.00 -10.16 90)
+				(length 2.54)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 -10.16 90)
+				(length 2.54)
+				(name "IN+" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at 2.54 10.16 270)
+				(length 2.54)
+				(name "IN-" (effects (font (size 1.27 1.27))))
+				(number "4" (effects (font (size 1.27 1.27))))
+			)
+			(pin unspecified line
+				(at -2.54 10.16 270)
+				(length 2.54)
+				(name "VS" (effects (font (size 1.27 1.27))))
+				(number "5" (effects (font (size 1.27 1.27))))
+			)
+		)
+	)
 
 )
