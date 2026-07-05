@@ -1,0 +1,7 @@
+(version 1)
+
+# eps-out-db: 2-net board (GND + +12V), both flooded full-board on their own layer pair (GND: In1.Cu+In2.Cu; +12V: F.Cu+B.Cu) -- the Power netclass documents the floor width/via for any hand-touch-up, not the pours themselves (drawn directly by route_simple()).
+
+(rule "Power min width"
+	(constraint track_width (min 0.4mm))
+	(condition "A.NetClass == 'Power'"))

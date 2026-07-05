@@ -64,7 +64,13 @@ ATX24_TABS = [  # (ref, net) -- 9 tabs, asymmetric group sizes 1/2/1/1/4 (keying
     ("J10", "+12V"), ("J11", "+5V"), ("J12", "+5V"), ("J13", "+3V3"),
     ("J14", "+5VSB"), ("J15", "GND"), ("J16", "GND"), ("J17", "GND"), ("J18", "GND"),
 ]
-ATX24_HEADER_NET = {1: "PWR_OK", 2: "PS_ON#", 3: "-12V", 4: "GND",
+# Pin order matches the ALREADY-BUILT main-board half of this interface
+# (modules/atx-24pin-rev3, commit b76a62a, J_SIG on the identical
+# cec:CEC_CONN_2x5 / PinHeader_2x05_P2.54mm symbol+footprint): "pin 1 =
+# PS_ON#, pin 2 = PWR_OK, pin 3 = -12V, pin 4 = GND (local reference), pins
+# 5-10 reserved/no-connect" -- pin1/2 order matters for real interoperability
+# (a mating cable/header is not itself keyed against a 1<->2 swap).
+ATX24_HEADER_NET = {1: "PS_ON#", 2: "PWR_OK", 3: "-12V", 4: "GND",
                     5: None, 6: None, 7: None, 8: None, 9: None, 10: None}
 
 FAMILIES["atx24-out-db"] = dict(
@@ -168,6 +174,42 @@ def build_footprints(fam):
     return fps
 
 
+TE_TAB_PROPS = {
+    "LCSC": "C86469", "MPN": "63849-1", "Manufacturer": "TE Connectivity",
+    "Description": "FASTON .250 PCB tab (male blade), mates the main board's "
+                   "Keystone universal blade clip -- spec Sec. 2.8 v1.4.0 / "
+                   "docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10",
+}
+FIELD_PROPS = {
+    "Manufacturer": "CEC (in-house)", "LCSC": "",
+    "Description": "Bare THT solder field, no housing/shroud -- CEC-authored "
+                   "footprint (lib/vendor/Connector_Generic.pretty), NOT a "
+                   "stocked/purchased part. Populate with a hand-soldered "
+                   "pigtail (default), OR (bring-up samples only, provenance-"
+                   "UNVERIFIED, OQ-88) a MODDIY-class vertical female header "
+                   "if the pitch/hole pattern proves compatible on the sample "
+                   "fit check -- no MODDIY footprint exists in this library "
+                   "and none is placed here.",
+}
+HEADER_PROPS = {
+    "Manufacturer": "generic", "LCSC": "",
+    "Description": "Generic 2.54mm THT 2x5 pin header -- consigned/any "
+                   "compatible stock part (no specific MPN pinned this pass); "
+                   "carries PWR_OK/PS_ON#/-12V + a GND reference + 6 reserved "
+                   "positions (sense-return provision, OQ-88, unpopulated).",
+}
+
+
+def build_bom_props(fam):
+    cfg = FAMILIES[fam]
+    props = {cfg["field_ref"]: dict(FIELD_PROPS)}
+    for ref, _net in cfg["tabs"]:
+        props[ref] = dict(TE_TAB_PROPS)
+    if cfg["header"]:
+        props[cfg["header"]["ref"]] = dict(HEADER_PROPS)
+    return props
+
+
 def build_placement(fam):
     """Schematic-only layout (readability, S1/S2 composition standard) --
     independent of the PCB's physical placement. Field top-left, tabs in a
@@ -204,10 +246,11 @@ def gen_schematic(fam, out=sys.stdout):
     # active driver anywhere on a passive board) -- PWR_FLAG each rail that
     # rides a power-port symbol, same convention as gen-modules.py.
     powerflag_nets = [n for n in POWER_PORTS if n in nets]
+    props = build_bom_props(fam)
     stats = cs.build_schematic(
         sch_path, cfg["base"], parts, nets, used, LIBS, paper="A4",
         power_ports=POWER_PORTS, powerflag_nets=powerflag_nets,
-        placement=placement, footprints=fps)
+        placement=placement, footprints=fps, props=props)
     print(f"{cfg['dirn']}/{cfg['base']}.kicad_sch  " +
           "  ".join(f"{k}={v}" for k, v in stats.items() if k != "root"), file=out)
     return sch_path
@@ -304,8 +347,15 @@ def build_pcb_base(fam, out_override=None):
     cfg = FAMILIES[fam]
     bdir = _board_dir(fam)
     netf = f"{bdir}/{cfg['base']}.net"
-    if not os.path.exists(netf):
-        cp.export_netlist(f"output-daughterboards/{fam}", cfg["base"])
+    # ALWAYS re-export (never trust a stale .net) -- a schematic edit (e.g. a
+    # pin/net remap) that isn't followed by a fresh export silently leaves
+    # footprints net-tagged from the OLD netlist while any routing code reads
+    # the CURRENT config, so the routed copper and the pad disagree; KiCad's
+    # own connectivity then "corrects" the mismatch by silently reassigning
+    # the track's displayed net to whatever it's actually touching on
+    # save/reload (documented elsewhere in this repo as exactly this
+    # footgun). Cheap to always regenerate; never worth the staleness risk.
+    cp.export_netlist(f"output-daughterboards/{fam}", cfg["base"])
     comps, vals, nets = cp.parse_netlist(netf)
     names = [x for x in sorted(nets) if x]
     code_of = {x: i + 1 for i, x in enumerate(names)}
@@ -438,7 +488,13 @@ def route_atx24():
                    (band_x1, by + band_half), (band_x0, by + band_half)],
                layers=("In2.Cu",), clearance=0.2, min_width=0.25)
 
-    # field pins (1-24): row1 = pins 1-12 @ local y=0, row2 = pins 13-24 @ y=5.5
+    # field pins (1-24): row1 = pins 1-12 @ local y=0, row2 = pins 13-24 @ y=5.5.
+    # A "same net, no conflict" column (e.g. +3V3 at col0: pin1 row1 and pin13
+    # row2 share the net) drives two pins straight to the IDENTICAL via spot
+    # -- harmless electrically but a co-located-drill DFM warning, so track
+    # via spots already used and skip the duplicate (the track alone, ending
+    # inside the other pin's own pad on the way through, still ties them).
+    via_seen = set()
     for pin, net in cfg["field_net"].items():
         if net in (None, "GND"):
             continue
@@ -454,7 +510,10 @@ def route_atx24():
         else:
             pts = [(x, y), (x, by)]
         r.track(pn, pts, "F.Cu", 0.5)
-        r.via(pn, pts[-1], drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
+        via_pt = (round(pts[-1][0], 3), round(pts[-1][1], 3))
+        if via_pt not in via_seen:
+            r.via(pn, pts[-1], drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
+            via_seen.add(via_pt)
 
     # tabs: straight stub up to their own net's band (nothing else occupies
     # F.Cu between the tab row and the bands -- the bands live on In2.Cu).
@@ -474,18 +533,20 @@ def route_atx24():
         r.track(pn, [(tx + 2.54, ty), (tx + 2.54, by)], "F.Cu", 0.5)
         r.via(pn, (tx + 2.54, by), drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
 
-    # 2x5 signal header (PWR_OK/PS_ON#/-12V/GND-ref/6 reserved), placed BELOW
-    # the bands: pin1 PWR_OK (row0,col0), pin2 PS_ON# (row0,col1), pin3 -12V
-    # (row1,col0 -- SAME column as pin1), pin4 GND (row1,col1, no route). Only
-    # pin3 needs a dodge (it shares pin1's column and must pass its Y on the
-    # way up to a band); pin1/pin2 have clear runs since nothing else sits
-    # above the header at their own X. Explicit per-net paths (only 3 nets,
-    # tightly packed at 2.54mm pitch -- the generic per-pin loop used for the
-    # much coarser 4.20mm field/tab pitch is too tight here).
+    # 2x5 signal header (PS_ON#/PWR_OK/-12V/GND-ref/6 reserved -- pin order
+    # matches the already-built main-board J_SIG, see ATX24_HEADER_NET),
+    # placed BELOW the bands: pin1 PS_ON# (row0,col0), pin2 PWR_OK
+    # (row0,col1), pin3 -12V (row1,col0 -- SAME column as pin1), pin4 GND
+    # (row1,col1, no route). Only pin3 needs a dodge (it shares pin1's column
+    # and must pass its Y on the way up to a band); pin1/pin2 have clear runs
+    # since nothing else sits above the header at their own X. Explicit
+    # per-net paths (only 3 nets, tightly packed at 2.54mm pitch -- the
+    # generic per-pin loop used for the much coarser 4.20mm field/tab pitch
+    # is too tight here).
     h = cfg["header"]; hx, hy, _ = P[h["ref"]]
     header_paths = {
-        "PWR_OK": [(hx, hy), (hx, band_y["PWR_OK"])],
-        "PS_ON#": [(hx + 2.54, hy), (hx + 2.54, band_y["PS_ON#"])],
+        "PS_ON#": [(hx, hy), (hx, band_y["PS_ON#"])],
+        "PWR_OK": [(hx + 2.54, hy), (hx + 2.54, band_y["PWR_OK"])],
         "-12V": [(hx, hy + 2.54), (hx, hy + 1.3), (hx + 1.27, hy + 1.3), (hx + 1.27, band_y["-12V"])],
     }
     for net, pts in header_paths.items():
@@ -505,6 +566,45 @@ def route_atx24():
     return res
 
 
+# ============================================================================
+# Netclasses / DRU -- sized to what was actually routed above (§1's per-family
+# current targets; the ratified 125% margin, no reservation on the pigtail/
+# MODDIY THT field itself, which is a hand-solder/press-fit destination, not
+# a routed net).
+# ============================================================================
+def write_rules(fam):
+    cfg = FAMILIES[fam]
+    bdir = _board_dir(fam)
+    pro = f"{bdir}/{cfg['base']}.kicad_pro"
+    dru = f"{bdir}/{cfg['base']}.kicad_dru"
+    if fam == "atx24-out-db":
+        classes = [cp.netclass("Default", 0.25, 0.6, 0.3, 2147483647),
+                   cp.netclass("Power", 0.5, 0.9, 0.5, 1, clr=0.25),
+                   cp.netclass("Signal", 0.4, 0.9, 0.5, 2, clr=0.2)]
+        patterns = [("Power", "+12V"), ("Power", "+5V"), ("Power", "+3V3"),
+                    ("Power", "+5VSB"), ("Power", "GND"),
+                    ("Signal", "/-12V"), ("Signal", "/PWR_OK"), ("Signal", "/PS_ON#")]
+        header = ("24-pin ATX daughterboard -- 9 blade-tab joints "
+                  "(12V x1 / 5V x2 / 3.3V x1 / 5VSB x1 / GND x4) + a 2x5 "
+                  "signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved). "
+                  "Power netclass 0.5mm/0.9-0.5mm via matches the 0.5mm stub "
+                  "tracks laid by route_atx24(); each rail also gets its own "
+                  "In2.Cu band zone (not netclass-controlled, drawn directly).")
+    else:
+        rail = "+12V"
+        classes = [cp.netclass("Default", 0.25, 0.6, 0.3, 2147483647),
+                   cp.netclass("Power", 1.0, 0.9, 0.5, 1, clr=0.3)]
+        patterns = [("Power", rail), ("Power", "GND")]
+        header = (f"{fam}: 2-net board (GND + {rail}), both flooded full-"
+                  f"board on their own layer pair (GND: In1.Cu+In2.Cu; "
+                  f"{rail}: F.Cu+B.Cu) -- the Power netclass documents the "
+                  f"floor width/via for any hand-touch-up, not the pours "
+                  f"themselves (drawn directly by route_simple()).")
+    cp.write_netclasses(pro, classes, patterns)
+    cp.write_dru(dru, [("Power min width", "track_width (min 0.4mm)",
+                        "A.NetClass == 'Power'")], header=header)
+
+
 if __name__ == "__main__":
     fams = sys.argv[1:2]
     fams = list(FAMILIES) if (not fams or fams[0] in ("all", "--force")) else fams
@@ -517,3 +617,4 @@ if __name__ == "__main__":
             route_atx24()
         else:
             route_simple(fam)
+        write_rules(fam)

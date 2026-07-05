@@ -1,0 +1,104 @@
+# EPS 8-pin output daughterboard (per-cable) — BETA-1
+
+Passive connector-daughterboard for **one** EPS 8-pin cable's OUTPUT side,
+per spec **§2.8 v1.4.0** and `docs/standard-tier-review/SYNTHESIS-beta-plan.md`
+§D-5a. **One design, instantiated per cable** — the EPS module populates 2
+cables, so 2 of these boards are built per module (identical PCB, no
+per-cable variant). Mates with the main board's per-cable `TB{n}1`–`TB{n}6`
+Keystone 3586 clips (already built, `modules/eps-8pin`, commit `b76a62a`).
+No active or passive components.
+
+DRAFT (no fab yet — OQ-86 fit-check sample gate open).
+
+## Tab map (6 joints/cable, TE 63849-1 / LCSC C86469)
+
+| Ref | Net | EPS8 pins bundled |
+|---|---|---|
+| J10, J11, J12 | GND | 1, 2, 3, 4 |
+| J13, J14, J15 | +12V | 5, 6, 7, 8 |
+
+3 contacts/polarity — matches spec §2.8 v1.4.0's ratified EPS joint count
+(12 total across the module's 2 cables). Design-basis current: ~13 A/pin
+continuous → ~52 A/cable sustained worst case → ~65 A margin target (§1 of
+the output-daughterboard study), well inside 3× the Keystone 3586's 30 A
+field rating (confirm-soak/thermal-cycle contact-R trend recommended before
+BOM lock, OQ-86/88 — not gating).
+
+## Output field (J1, `cec-Connector_Generic:EPS8_Daughterboard_Field_P4.20mm`)
+
+Bare THT solder field, 8 positions, 2×4 @ 4.20 mm pitch / 5.5 mm row — the
+real Molex Mini-Fit Jr 5569-08A2 land (measured off
+`lib/vendor/Connector_Molex.pretty`). Pin map **1–4 = GND, 5–8 = +12V**,
+matching the platform's own corrected EPS pinout convention (see
+`CLAUDE.md` "EPS 8-pin power-connector pinout fix"). All 8 positions are
+power-class (1.8 mm drill / 2.7×3.7 mm oval, 16 AWG-class) — no signal
+circuits on this cable. Reuses the generic `cec:CEC_CONN_2x4` symbol
+(unnamed pins; the net map lives in the wiring, not the symbol).
+
+**Population options** — identical menu to the 24-pin board (see that
+README for the full text): (1) bare 16 AWG pigtail (default); (2)
+MODDIY-class vertical header, dimensionally compatible, **not placed** (no
+footprint vendored, OQ-88 provenance gap); (3) sellable
+daughterboard-plus-extension assembly (OQ-89).
+
+## Keying
+
+6 tabs in two groups of 3 (GND, then +12V), pitch 9 mm within a group /
+13 mm between groups — a **distinct pitch/gap signature** from both the
+24-pin board (9 mm / 15 mm, 9 tabs) and the PCIe board (9 mm / 10 mm,
+4 tabs), plus a different **joint count** (6) from both. As with the 24-pin
+board, full mis-seat keying against a wrong-family main board is a joint
+property of both boards' hole patterns — this daughterboard's own pattern
+is recorded here for the (separate) main-board layout to mirror.
+
+## Layer stack / current
+
+**4-layer** (F.Cu / In1.Cu / In2.Cu / B.Cu, 2 oz outer / 1 oz inner) — this
+is a **2-net board** (GND, +12V), so unlike the 24-pin board there is no
+inter-rail banding problem: **GND floods both inner layers** (In1.Cu +
+In2.Cu, matching this platform's own already-built EPS/PCIe cable-power
+convention — "two GND inners... 12V lives on the OUTERS",
+`scripts/gen-module-pcb.py` `gnd_planes()` docstring) and **+12V floods both
+outer layers** (F.Cu + B.Cu). Every field pin and blade tab here is a
+through-hole pad by construction (no SMD parts on this board at all), so
+each already carries copper on every layer; the real `ZONE_FILLER`
+auto-clears around every foreign-net pad within a flood's outline and
+auto-connects to every same-net pad — **no explicit tracks/vias are needed
+at all** for a genuine 2-net board, which is why 2-layer was NOT chosen
+instead: doubling the copper thickness on both rails via full F+B and
+In1+In2 pairing (four total flooded layers across two nets) directly buys
+current margin on the ~65 A/cable target the 2-layer alternative would have
+to fight for with much thinner single-layer copper.
+
+## Electrothermal sanity — not needed as a solver run
+
+Both nets are full-board floods on doubled layer pairs with no thin
+fan-out geometry to check (no per-pin stub traces exist on this board —
+see above); the governing current-capacity question is the **blade-clip
+joint** itself (OQ-86's recommended confirm-soak/thermal-cycle bench), not
+this board's own copper. Noted, not treated as a gap.
+
+## Sense-return provision
+
+Not provisioned on this board (no signal header exists here, unlike the
+24-pin board — EPS carries only GND/+12V). If OQ-88's sense-return decision
+lands "yes" for EPS, it needs a small signal-tab addition in a future
+revision; not a silent gap, just genuinely absent today.
+
+## Verification (this pass)
+
+- ERC: 0 errors (2 benign `lib_symbol_mismatch` warnings).
+- Static connectivity audit: clean.
+- DRC: 0 errors at any severity (7 cosmetic `silk_overlap`/`silk_over_copper`
+  warnings — silkscreen text vs. the dense THT field, no copper impact).
+- Netlist-verified: all 6 tabs land on their mapped rail; the field's 8
+  positions reproduce the platform's corrected EPS8 pinout exactly.
+
+## Library assets used
+
+- `cec-vendor:TE_63849-1_FASTON_Tab` / `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT` (pre-existing, LCSC C86469).
+- `cec:CEC_CONN_2x4` (pre-existing generic connector symbol).
+- `cec-Connector_Generic:EPS8_Daughterboard_Field_P4.20mm` (new this pass).
+- `cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` (pre-existing) — 4 corners, GND-tied.
+
+Generator: `scripts/gen-output-daughterboard.py eps-out-db`.

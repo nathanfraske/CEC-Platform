@@ -73,10 +73,19 @@ connector confirm-soak/thermal-cycle trend, sense-return contact — still undec
 24-pin bridging-cable SKU). OQ-82 resolved at the architecture level (its own text left
 unedited per the no-silent-rewrite rule; the spec's §11 v1.4.0 entry is the record). Range now
 OQ-1..OQ-89. No other LOCKED electrical decision altered, no section renumbered.
-**BOARD STATE: QUEUED, not yet started** — the 24-pin's J4 removal, the EPS/PCIe per-cable
-output-header removal, the Keystone clip placement on each main board, and the new
-daughterboard projects (schematics + PCBs + the mating TE-tab side) are spec-locked but do
-not yet exist on any schematic or PCB (see the action item below).
+**BOARD STATE (updated 2026-07-05): main-board half + daughterboard projects both DONE.**
+The 24-pin's J4 removal, the EPS/PCIe per-cable output-header removal, and the Keystone clip
+placement (`TB1..TBn`) on each main board landed (commit `b76a62a`, "Task 9: blade interface
+on main boards"). The three passive daughterboard projects (the mating TE-63849-1-tab side)
+now exist at `modules/output-daughterboards/{atx24,eps,pcie}-out-db/` — schematics + routed,
+DRC/ERC-clean 4-layer PCBs (`scripts/gen-output-daughterboard.py`), per-family asymmetric
+keying documented in each board's README, BETA-1 title blocks, DRAFT markers (fit-check gate
+still open, OQ-86). New library assets: `cec-Connector_Generic:{ATX24,EPS8,PCIe8}_Daughterboard_
+Field_P4.20mm` (bare THT solder fields, `scripts/gen-daughterboard-libassets.py`) +
+`cec:CEC_CONN_2x5` / `cec-Connector_PinHeader_2.54mm` (24-pin signal stub). See
+`scripts/check_output_daughterboards.py` (netlist-verified tab-to-net mapping + keying-
+signature-differs assertions) and the action item below for the still-open follow-ups (fit
+gate, sense-return decision, fab).
 
 Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
 CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions
