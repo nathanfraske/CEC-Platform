@@ -64,11 +64,29 @@ def U():
 def solder_field(name, descr, pads, *, rows=2, cols=12, pitch_x=4.2, pitch_y=5.5):
     """pads: list of (num, x, y, drill, pad_w, pad_h, shape) -- shape 'oval'|'circle'.
     Bare pad field: silk reference box + F.Fab outline + F.CrtYd, no connector
-    body/shroud (this is not a housing part)."""
+    body/shroud (this is not a housing part).
+
+    Y-margin is PAD-HEIGHT-based (actual half-height of the widest pad in each
+    extreme row + a small fixed process margin), not half-of-row-pitch. This is
+    a CEC-authored keepout box with no housing to measure (there is no vendor
+    body overhanging the pads on this asset, unlike the real Molex land it
+    borrows pitch/pad geometry from) -- so the old half-pitch margin (2.75mm
+    each side on a 5.5mm row pitch, +1mm outer = 3.75mm total per side) was
+    pure headroom, not a physical requirement, and it was the single largest
+    contributor to blowing the owner's 2026-07-05 daughterboard HEIGHT cap
+    (the board now stands vertically; this field's row-stack axis IS the
+    capped axis). Tightened to pad half-height + 0.5mm: field height on this
+    2-row/5.5mm-pitch layout drops from 13.0mm to ~10.2mm. X (the column
+    axis) is untouched -- it is the free "length" dimension on the standing
+    board, no reason to tighten it and every reason not to touch a dimension
+    that isn't the problem."""
     xs = [p[1] for p in pads]; ys = [p[2] for p in pads]
+    y_lo, y_hi = min(ys), max(ys)
+    h_lo = max(p[5] for p in pads if p[2] == y_lo)
+    h_hi = max(p[5] for p in pads if p[2] == y_hi)
     x0, x1 = min(xs) - pitch_x / 2, max(xs) + pitch_x / 2
-    y0, y1 = min(ys) - pitch_y / 2, max(ys) + pitch_y / 2
-    cx0, cx1, cy0, cy1 = x0 - 1.0, x1 + 1.0, y0 - 1.0, y1 + 1.0
+    y0, y1 = y_lo - h_lo / 2, y_hi + h_hi / 2
+    cx0, cx1, cy0, cy1 = x0 - 1.0, x1 + 1.0, y0 - 0.5, y1 + 0.5
     body = [
         f'(footprint "{name}"',
         '\t(version 20260206)',

@@ -1,5 +1,11 @@
 # Current work handoff
 
+## OWNER DESIGN-BASIS FACTS (2026-07-05, bench-mode thread — record before any Max-tier work)
+- **Max module architecture (owner, verbatim-class)**: 12VHPWR Max = Rogowski coil + fast and slow ADC dual input → FPGA + MCU on-module. **Owner has a WORKING rough prototype on a Sipeed Tang Primer 25K (GOWIN GW5A-25 class)** — anchors the consumer Max line to GOWIN-class fabric, NOT PolarFire. Fast-path rates/coil part/what-the-prototype-streams = UNVERIFIED pending owner numbers.
+- **Tier-paired hubs (owner ruling)**: Max hub ingests Max modules; Pro hub ingests its own tier only (design-point ~900kB/s×8 → USB HS; full-rate requirement dropped from Pro). Bench mode = hub-consolidated (module-direct-USB demoted to fallback).
+- Exploration doc in flight: docs/bench-mode-exploration-2026-07-05.md (agent; T1-on-pair-2 as the Max link candidate per §13.2a technique, GOWIN vs PolarFire-reuse vs FPGA+P4 combo Max-hub shapes, PROPOSED §6.11 enrichment draft).
+- Daughterboard shrink rework in flight (90° standing posture, ≤15mm vertical, no mounts, dual-face tab option, blades-on-daughterboard/clips-on-main confirmed).
+
 _Updated 2026-07-04 ~19:20 UTC (ROUND 4 hierarchical conversion IN FLIGHT; branch claude/schematic-work-continue-59pw41)._
 
 ## ROUND 4 — hierarchical conversion of the module boards (2026-07-04, branch claude/schematic-work-continue-59pw41)
