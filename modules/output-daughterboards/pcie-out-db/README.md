@@ -27,34 +27,38 @@ board's bottom edge at a 2.54–8.89 mm Z-standoff from the face. The whole
 board drops vertically; the blades enter the main-board Keystone 3586
 clips' **top-entry** jaws broadside, and the board's own bottom edge
 **floats clear** of the main board — the tab does the reaching, not the
-board. Board axes (unchanged): X = length (FREE); Y = height (**ruled cap
-≤15 mm "or so"**).
+board. Board axes: X = length (FREE); Y = height — **the ≤15 mm cap is
+EXPLICITLY RELAXED by the owner for the iteration-4 compact two-band form**
+(see the 24-pin README's "Board axes" for the verbatim follow-up).
 
-**Measured final size**: **49.4 × 11.0 mm**. Height dropped 14.6 → 11.0 mm
-(field-driven — the tab row sits BESIDE the field, its descenders leaving
-through the bottom edge at no height cost); length grew 34.5 → 49.4 mm as
-the direct trade, the sanctioned direction under the standing "never at
-the expense of Y" axis rule.
+**Measured final size**: **26.3 × 20.0 mm**. Iteration 4 stacks the packed
+tab row BELOW the field band (owner: "stack the blades right next to each
+other and put them below the pinout"), cutting length 49.4 → 26.3 mm at an
+honest height cost of 11.0 → 20.0 mm. Height decomposition: 0.4 top margin
++ 10.2 field + 0.25 band gap + 4.82 tab top-extent (carrier stub) +
+3.79 pad lower half + 0.55 edge margin. Length is tab-row-driven
+(4 × 7.1 mm pitch + margins).
 
-## Mating geometry / seating model
+## Mating geometry / seating model (iteration-4 numbers)
 
 Same uniform model as the other two boards (one seating spec platform-wide,
 asserted by `check_output_daughterboards.py`; derivation in the 24-pin
 README):
 
-- **Leg row**: 5.22 mm below the top edge = **5.78 mm above this board's
-  bottom edge** (H 11.0); lower leg pad keeps 1.99 mm copper-to-edge margin.
+- **Leg row**: **4.34 mm above the bottom edge** (uniform across families —
+  the tab band is the lowest thing on every board; lower pad clears the
+  0.5 mm copper-to-edge constraint by 0.05 mm, checker-asserted).
 - **Blade standoff**: 2.54–8.89 mm off the front face; main-board clip slot
   centreline at **5.72 mm** from the wall plane, slot axis perpendicular
   to the wall line.
-- **Descender reach**: blade tip 15.75 mm below the leg row → **9.97 mm
+- **Descender reach**: blade tip 15.75 mm below the leg row → **11.41 mm
   below this board's bottom-edge level** (off-board at the standoff).
 - **Seating**: the board **floats** (cannot edge-rest) — at the recommended
   1.0 mm tip clearance above the main-board surface (hard stop ≈0.4–0.5 mm,
-  tip on the clip's own base metal), the bottom edge floats **11.0 mm**
-  above the main board; top edge at **21.97 mm** (identical total across
-  all three families by construction). Blade engagement spans the clip's
-  full 7.16 mm interior. Legs protrude 2.21 mm out the back face.
+  tip on the clip's own base metal), the bottom edge floats **12.41 mm**
+  above the main board (now UNIFORM across families); top edge at
+  **32.4 mm** (24-pin: 33.8). Blade engagement spans the clip's full
+  7.16 mm interior. Legs protrude 2.21 mm out the back face.
 
 ## Mounting / retention — no mounting holes (owner directive, 2026-07-05)
 
@@ -97,16 +101,17 @@ symbol.
 
 ## Keying
 
-**Single row of 4 tabs at 8.2 mm pitch**, net order +12V×2 then GND×2 —
-the smallest joint count of the three families. Under the sketch model the
-pitch floor is the **main-board clip row**, not the tab (each tab is
-~0.84 mm thin along the row; its 2.5 mm pads → tab pad gap 5.7 mm,
-trivially clear): the Keystone 3586 rotated slot-perpendicular-to-wall
-presents 3.81 mm body / 3.82 mm courtyard / 6.60 mm SMD pad span along the
-row. At 8.2 mm pitch (the tightest of the three families): **4.38 mm clip
-body gap, 1.60 mm pad gap** — asserted with printed numbers by
-`check_output_daughterboards.py` §3b. Pitch kept at the ratified value
-(see the 24-pin README's "Keying" for why no re-pitch).
+**Single row of 4 tabs at 7.1 mm pitch — AT the packed floor**
+(iteration 4), net order +12V×2 then GND×2 — the smallest joint count of
+the three families. The pitch floor is the **main-board clip row**, not
+the tab (each tab is ~0.84 mm thin along the row; its 2.5 mm pads →
+4.6 mm tab pad gap, trivially clear): the Keystone 3586 rotated
+slot-perpendicular-to-wall presents 3.81 mm body / 3.82 mm courtyard and a
+**6.60 mm SMD pad span** along the row — **floor = 6.60 + 0.50 stated
+adjacent-clip solder/paste clearance = 7.10 mm**, and this board sits
+exactly on it. At 7.1 mm: **3.28 mm clip body gap, 0.50 mm pad gap** (the
+pad gap IS the stated solder clearance) — asserted with printed numbers by
+`check_output_daughterboards.py` §3b.
 
 **The real safety property is proved geometrically, not by pitch alone.**
 `scripts/check_output_daughterboards.py` takes every family's tab-centre
@@ -114,15 +119,17 @@ list from `pcb_placement()` (the committed board's own coordinates) and,
 for every ORDERED pair, searches all 4 rotations (0/90/180/270°) × every
 candidate translation for a rigid whole-set mapping onto a subset of
 another family's grid, within 0.5 mm (exact bipartite match). All 6 ordered
-pairs come back "cannot seat." An earlier pitch choice here (8.2 mm,
-unchanged) paired with EPS's original 8.3 mm MEASURABLY FAILED this exact
-proof — this family's 4 tabs (only 3 gaps) seated within tolerance as a
-subset of EPS's 6-tab grid, since a 0.1 mm/step difference over 3 gaps
-accumulates to only 0.15 mm at the worst point. EPS's pitch was moved to
-8.6 mm (0.4 mm delta from this family, clearing the (G/2)×Δpitch > 0.5 mm
-bound at this family's own G=3) to fix it; this family's own pitch did not
-need to move. **This daughterboard's tab grid is the authoritative
-main-board mating drawing** for the PCIe per-cable clip pattern (TB clip
+pairs come back "cannot seat" — **re-proved at the iteration-4 packed
+pitches (8.4/7.6/7.1)**. This family (only 3 gaps) is the keying-critical
+one: its (G/2)×Δpitch end error vs. EPS's 7.6 mm is 0.75 mm and vs. the
+24-pin's 8.4 mm is 1.95 mm — both clear the 0.5 mm tolerance (1.5×+), so
+pitch differentiation survives at the packed floor and no pattern keying
+was needed. The historic failure mode (a 0.1 mm delta seating this
+family's 4 tabs inside EPS's grid at 0.15 mm end error) stays live in the
+checker's teeth: a sabotaged 7.2 mm EPS pitch was re-verified this pass to
+make the proof correctly FAIL. **This daughterboard's tab grid is the
+authoritative main-board mating drawing** for the PCIe per-cable clip
+pattern (TB clip
 symbols exist in the main boards' schematics only; the future
 clip-placement pass mirrors these X positions, the rotated-clip
 orientation, and the 5.72 mm slot-centreline standoff).
@@ -154,20 +161,21 @@ Not provisioned (no signal header on this board). The SENSE0/SENSE1 straps
 above are a presence indicator, not a monitoring tap — they carry no
 information back to the main board's sensing chain.
 
-## Verification (this pass — 2026-07-05 sketch-geometry rework)
+## Verification (this pass — 2026-07-05 iteration-4 compact two-band layout)
 
 - ERC: 0 errors (2 benign `lib_symbol_mismatch` warnings).
 - Static connectivity audit: clean.
 - DRC: **0 errors, 0 unconnected** (`kicad-cli pcb drc --severity-error`).
-  At full verbosity: 6 hits, ALL `silk_over_copper` (the documented-benign
-  class; the prior revisions' `silk_edge_clearance` category is GONE — the
-  sketch-model footprint keeps its silk between the leg pads, so nothing
-  printable crosses the edge).
+  At full verbosity: 15 hits, ALL cosmetic silk (4 `silk_overlap` +
+  11 `silk_over_copper` — the documented-benign class; counts rose with
+  the denser two-band stack, no copper impact).
 - `scripts/check_output_daughterboards.py`: all checks pass, including the
-  NEW sketch-model checks (tab rot 0 / legs vertical / uniform 5.22 mm
-  leg-row height / clip-row gaps) and the geometric no-subset-seating proof
-  re-run on the new coordinates (teeth re-verified via a sabotaged-pitch
-  run — see the 24-pin README).
+  updated sketch-model checks (tab rot 0 / legs vertical / the NEW uniform
+  4.34 mm leg-row-above-edge seating invariant / clip-row gaps recomputed
+  at the packed pitches, this board sitting exactly at the 0.5 mm pad-gap
+  floor) and the geometric no-subset-seating proof re-run at 8.4/7.6/7.1
+  (teeth re-verified at the floor via a sabotaged 7.2 mm EPS pitch — see
+  the 24-pin README).
 - Netlist-verified: all 4 tabs land on their mapped rail; the field's 8
   positions reproduce the standard PCIe CEM motherboard-side map, with
   pins 7/8 confirmed tied to the GND net. Net-group identity vs. the

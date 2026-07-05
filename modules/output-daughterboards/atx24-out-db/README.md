@@ -41,49 +41,57 @@ the reaching down, not the board"* — no board material or copper crosses
 Edge.Cuts; only the tab's off-board descender passes below the edge level,
 offset from the board plane with no conflict.
 
-**Board axes** (unchanged): X = length (FREE dimension, minimized
-opportunistically); Y = height (**ruled cap ≤15 mm "or so"**, owner).
+**Board axes**: X = length (FREE dimension, minimized opportunistically);
+Y = height. **The ≤15 mm height cap is EXPLICITLY RELAXED by the owner for
+the iteration-4 compact form** (owner follow-up on the 145 mm iteration-3
+board: *"Good lord those are long, can the agent stack the blades right
+next to each other and put them below the pinout? That should tell us how
+tall these are really going to be"*) — the deliverable is the honest
+minimum height of the two-band stack.
 
-**Measured final size**: **145.1 × 13.6 mm** (length × height). Height
-DROPPED 16.6 → 13.6 mm (now inside the ≤15 cap proper) because the tab row
-no longer stacks below the field — it sits BESIDE the field/header sharing
-the same Y band, its descenders leaving through the bottom edge at no height
-cost. Length roughly doubled (81 → 145 mm) as the direct trade: the 9-tab
-row at the ratified 8.9 mm pitch now adds ~74 mm of X beside the ~50 mm
-field instead of underneath it — the sanctioned direction under the standing
-"never at the expense of Y" axis rule.
+**Measured final size**: **72.8 × 21.4 mm** (length × height). The tab row
+returned BELOW the field (two-band stack: field + corridor on top, packed
+tab row underneath), halving the length (145.1 → 72.8 mm) at a true height
+cost of 13.6 → 21.4 mm. Height decomposition (all measured constants):
+0.4 top margin + 10.2 field + 0.1 gap + 2.25 corridor (4 In2 lanes) +
+0.3 lane-to-pad clearance + 7.58 tab pad band (2 × 3.79) + 0.55 edge
+margin. Length is now tab-row-driven (9 × 8.4 mm + margins ≈ 73, just over
+the field+header band's ~68).
 
-## Mating geometry / seating model (replaces both prior seating analyses)
+## Mating geometry / seating model (iteration-4 numbers)
 
 All numbers from `scripts/gen-output-daughterboard.py seating_report()` and
-the two vendored drawings; the leg-row height is **uniform across all three
-families** (one seating spec platform-wide, asserted by the check script):
+the two vendored drawings; the seating invariant is now the leg-row height
+ABOVE THE BOTTOM EDGE, **uniform across all three families** (the tab band
+is the lowest thing on every board; asserted by the check script):
 
-- **Leg row** (leg-pair midpoint): 5.22 mm below the board's top edge =
-  **8.38 mm above this board's bottom edge** (H 13.6). Lower leg pad keeps
-  a measured 4.19 mm of copper-to-edge margin.
-- **Blade standoff**: the descender hangs 2.54–8.89 mm off this board's
-  front face; the main-board **clip slot centreline sits 5.72 mm** from the
-  daughterboard's front face plane, slot axis PERPENDICULAR to the wall
-  line. Blade width 6.35 mm (along the wall normal) vs. the clip's rated
-  .110–.250 in (up to 6.4 mm) accepted-tab range — fits; slot opening
-  1.57 mm vs. blade thickness 0.77–0.83 mm — ~2× clearance.
+- **Leg row** (leg-pair midpoint): **4.34 mm above the bottom edge**
+  (= 3.79 pad extent + 0.55 edge margin; the lower pad's copper clears the
+  board's 0.5 mm copper-to-edge constraint by 0.05 mm — sized off the
+  iteration-3 `copper_edge_clearance` lesson, asserted by the checker).
+- **Blade standoff** (unchanged): descender hangs 2.54–8.89 mm off the
+  front face; main-board **clip slot centreline at 5.72 mm** from the wall
+  plane, slot axis PERPENDICULAR to the wall line; blade width 6.35 mm vs.
+  the clip's rated ≤6.4 mm accepted-tab range; slot opening 1.57 mm vs.
+  0.77–0.83 mm blade thickness — ~2× clearance.
 - **Descender reach**: blade tip 15.75 mm below the leg row (drawing-derived
-  chain dim, flagged in the footprint descr) → the tip descends **7.37 mm
-  below this board's bottom-edge level**, off-board at the Z-standoff.
+  chain dim, flagged in the footprint descr) → the tip descends **11.41 mm
+  below the bottom-edge level** — uniform across families now, off-board at
+  the Z-standoff.
 - **Seating**: the board **cannot and does not edge-rest** — it floats,
-  hanging on the clip grip (+ chassis strain relief, OQ-87). Seated with
-  the recommended **1.0 mm tip clearance** above the main-board surface
-  (hard stop ≈0.4–0.5 mm when the tip meets the clip's own SMT base metal),
-  this board's bottom edge floats **8.4 mm** above the main board and its
-  top edge sits **21.97 mm** above it (that total is identical for all three
-  families by construction — it is pure tab geometry plus the shared
-  top-margin band). **Engagement**: the blade spans the clip's full 7.16 mm
-  interior from the tip clearance up (and protrudes above the clip top,
-  fuse-like) — the jaw contact is covered wherever it sits in the body,
-  the deepest engagement this part can give. Legs protrude 2.21 mm out the
-  board's back face (3.81 mm legs − 1.6 mm board); keep that clear behind
-  the wall.
+  hanging on the clip grip (+ chassis strain relief, OQ-87). At the
+  recommended **1.0 mm tip clearance** above the main-board surface (hard
+  stop ≈0.4–0.5 mm when the tip meets the clip's own SMT base metal), the
+  bottom edge floats **12.41 mm** above the main board — now UNIFORM across
+  all three families (the invariant moved from iteration-3's "uniform
+  top-edge height" to "uniform float" when the tab band became
+  bottom-pinned); this board's top edge sits **33.8 mm** above the main
+  board (eps/pcie: 32.4 mm). The compact form trades assembly stack height
+  for board length — reported, not hidden. **Engagement** unchanged: the
+  blade spans the clip's full 7.16 mm interior from the tip clearance up
+  and protrudes fuse-like above the clip top. Legs protrude 2.21 mm out
+  the back face (3.81 mm legs − 1.6 mm board); keep that clear behind the
+  wall.
 
 ## Mounting / retention — no mounting holes (owner directive, 2026-07-05)
 
@@ -175,16 +183,23 @@ unchanged from the original design (12V, 5V, 5V, 3.3V, 5VSB, GND×4) — see
 the tab map above. Under the sketch model the pitch floor is no longer the
 tab body at all (each tab is only ~0.84 mm thin along the row, stamping
 plane perpendicular to the face; its 2.5 mm pads are its widest row-axis
-feature → tab-to-tab pad gap 6.4 mm — trivially clear). The binding floor
+feature → tab-to-tab pad gap 5.9 mm — trivially clear). The binding floor
 is the **main-board clip row**: the Keystone 3586 rotated per the sketch
 (slot axis perpendicular to the wall) presents its narrow dimension along
 the row — 3.81 mm body / 3.82 mm courtyard (measured off the vendored
-footprint; Keystone dwg 3586 `.150 in`) and a 6.60 mm SMD pad span. At
-8.9 mm pitch: **5.08 mm clip-to-clip body gap, 2.30 mm pad-to-pad gap** —
-asserted with printed numbers by `check_output_daughterboards.py` §3b.
-Pitches were deliberately KEPT at the ratified 8.9/8.6/8.2 values (they
-could shrink under the new floor, but that would re-open the keying-delta
-derivation for no asked-for gain).
+footprint; Keystone dwg 3586 `.150 in`) and — the real driver — a
+**6.60 mm SMD pad span**. **Pitch floor = 6.60 + 0.50 stated adjacent-clip
+solder/paste clearance = 7.10 mm** (iteration-4 packed row, owner: "stack
+the blades right next to each other"). This board sits at **8.4 mm** —
+above the floor for a ROUTING reason, not slack: 8.4 = 4 × 2.1 mm, the
+field-stub lattice period (4.2 mm ATX columns + the +2.1 mm dodge), and
+`pcb_placement()` grid-aligns the row's x0 to lattice + 1.05 mm, so every
+tab stub/via in the shared corridor X-range clears every field stub/via by
+≥1.05 mm against a ~0.7 mm conflict radius (at any non-multiple pitch the
+9 tabs' lattice offsets provably sweep the full 2.1 mm cycle and some tab
+always lands in conflict). At 8.4 mm: **4.58 mm clip body gap, 1.80 mm pad
+gap** — asserted with printed numbers by `check_output_daughterboards.py`
+§3b.
 
 **The real safety property is proved, not assumed.**
 `scripts/check_output_daughterboards.py` computes every family's tab-centre
@@ -193,14 +208,17 @@ board) and, for every ORDERED pair of families, searches all 4 rotations
 (0/90/180/270°) × every candidate translation for a rigid mapping that seats
 one family's whole tab set onto a subset of another's, within 0.5 mm
 (bipartite exact-match, not a coincidence heuristic) — see that script for
-the algorithm. All 6 ordered pairs come back "cannot seat" — re-proved on
-the sketch-model coordinates, not carried over. An earlier pitch set
-(8.6/8.3/8.2) PASSED the count/pitch checks but MEASURABLY FAILED this proof
-(PCIe's 4 tabs seated within the 0.5 mm tolerance as a subset of EPS's
-6-tab grid — a 0.1 mm/step difference over only 3 gaps accumulates to just
-0.15 mm) — corrected by widening the per-family deltas until every pair
-clears (G/2)×Δpitch > 0.5 mm at G = the smaller family's gap count; see
-`scripts/gen-output-daughterboard.py`'s `TAB_PITCH` comment. **This
+the algorithm. All 6 ordered pairs come back "cannot seat" — **re-proved at
+the iteration-4 packed pitches (8.4/7.6/7.1)**, whose keying margins are
+(G/2)×Δpitch: pcie-in-eps 0.75 mm, pcie-in-atx24 1.95 mm, eps-in-atx24
+2.00 mm — all ≥1.5× the 0.5 mm tolerance, so **pitch differentiation
+survives at the packed floor and no pattern keying (offset tab /
+asymmetric skip) was needed**. The historic failure mode stays live in the
+checker's teeth: an earlier set (8.6/8.3/8.2) MEASURABLY seated PCIe's 4
+tabs inside EPS's grid at only 0.15 mm end error, and a sabotaged 7.2 mm
+EPS pitch (Δ0.1 from pcie's 7.1) was re-verified this pass to make the
+proof correctly FAIL. See `scripts/gen-output-daughterboard.py`'s
+`TAB_PITCH` comment for the full floor + delta math. **This
 daughterboard's tab grid is the authoritative main-board mating drawing** —
 the four main boards carry TB clip SYMBOLS in their schematics only (no PCB
 placement exists on this branch), so the future main-board clip-placement
@@ -233,18 +251,22 @@ on **In2.Cu only** — 4 thin zones (0.3 mm wide, 0.65 mm pitch) spanning the
 full board width. Each bus field-pin runs a 0.5 mm F.Cu stub down to its
 own lane + a 0.3/0.5 mm via (smaller than this platform's usual 0.5/0.9 mm
 power via — the 0.65 mm slot pitch cannot safely hold a 0.9 mm via without
-adjacent slots' vias overlapping). Each rail TAB — sitting BESIDE the field
-in the shared top band, legs stacked vertically per the sketch model —
+adjacent slots' vias overlapping). Each rail TAB — now in the packed row
+BELOW the corridor (iteration-4 two-band stack), legs stacked vertically —
 bridges its two leg pads (both numbered "1" but with no internal copper
-between them in the footprint) with a vertical 0.5 mm F.Cu track, then
-continues that track DOWN from the lower leg into its own lane + the same
-0.3/0.5 mm via. The stub crosses the corridor's foreign lanes on F.Cu only
-(different layer); its via sits at its own lane's centreline, clearing the
-0.65 mm-pitch neighbours by the same measured 0.25 mm the field vias rely
-on. The board's bottom margin below the corridor is sized off the DEEPEST
-COPPER (via/track edges 0.25 mm past the last lane centreline + the 0.5 mm
-board-setup copper-to-edge constraint), which is what the 13.6 mm height
-lands on.
+between them in the footprint) with a vertical 0.5 mm F.Cu track, plus an
+up-stub from the UPPER leg into its own lane + the same 0.3/0.5 mm via.
+The tab row shares the corridor's X-range with the field's own stubs/vias,
+which is exactly what the 8.4 mm grid-aligned pitch solves (see "Keying"):
+every tab stub/via sits 1.05 mm off the field-stub lattice. The tab pads'
+own In2 anti-pads stay 0.3 mm clear of the deepest lane band by placement
+(`_LANE_PAD_CLR` — deliberately above the 0.2 mm zone clearance so the
+fill never sits at exact tangency with a pad anti-pad); the via sits at
+its own lane's centreline, clearing the 0.65 mm-pitch neighbours by the
+same measured 0.25 mm the field vias rely on. The board's bottom margin
+below the tab pads is 0.55 mm (0.5 mm board copper-to-edge constraint +
+0.05 slack — the iteration-3 `copper_edge_clearance` lesson applied up
+front), which is what the 21.4 mm height lands on.
 
 **DESIGN NOTE — a two-layer lane split does NOT help here, though it looks
 like it should** (a first pass built one, then reverted it once DRC caught
@@ -324,7 +346,7 @@ granularity — this board **provisions** for it only: 6 of the J20 header's
 10 positions are reserved/no-connect, physically available for a future
 sense-return tap without a board respin. No components are added here.
 
-## Verification (this pass — 2026-07-05 sketch-geometry rework)
+## Verification (this pass — 2026-07-05 iteration-4 compact two-band layout)
 
 - ERC: 0 errors (5 benign `lib_symbol_mismatch` warnings, the same
   documented-benign class every generated schematic in this repo produces).
@@ -332,24 +354,24 @@ sense-return tap without a board respin. No components are added here.
 - DRC: **0 violations at error severity, 0 unconnected** (`kicad-cli pcb drc
   --severity-error`, and every `unconnected_items` slot is empty — the real
   gate `check_output_daughterboards.py` enforces). At full (all-severity)
-  verbosity: 23 hits, ALL cosmetic silk (2 `silk_overlap` +
-  21 `silk_over_copper` — the documented-benign class every generated board
-  here carries; the earlier revisions' `silk_edge_clearance` category is
-  GONE, since the sketch-model footprint keeps its silk between the leg pads
-  and nothing overhangs the edge but the off-board descender's fab art).
-  A first regeneration of this geometry DID fail with 4 real
-  `copper_edge_clearance` errors (deepest lane's stubs/vias 0.30 mm from the
-  new, tighter bottom edge vs the 0.5 mm board constraint) — fixed by
-  deriving the bottom margin from the deepest copper, not the corridor
-  outline; recorded here because it is exactly the class of thing a
-  height-minimizing pass can silently break.
+  verbosity: 25 hits — 4 `silk_overlap` + 20 `silk_over_copper` (the
+  documented-benign class) + 1 `silk_edge_clearance` (a single Value text
+  near the bottom edge on the packed board — warning severity, no copper
+  impact, same benign class as the platform's other boards carry). The
+  iteration-3 `copper_edge_clearance` lesson (deepest copper vs the
+  board's 0.5 mm edge constraint) is designed in up front this pass
+  (`_TAB_EDGE_MARGIN` 0.55) — zero copper-edge hits on first regeneration.
 - `scripts/check_output_daughterboards.py`: **all checks pass**, including
-  the NEW sketch-model checks (every tab rot 0 with legs stacked vertically
-  at (0, ±2.54) re-parsed from the footprint file; uniform 5.22 mm leg-row
-  height across families; clip-row body/pad gaps at each pitch) and the
-  geometric no-subset-seating proof re-run on the new coordinates. Teeth
-  re-verified: a deliberately sabotaged EPS pitch (8.3 mm) makes the proof
-  correctly FAIL (PCIe seats as a subset), same as the historic failure.
+  the updated sketch-model checks (every tab rot 0 with legs stacked
+  vertically at (0, ±2.54) re-parsed from the footprint file; the NEW
+  uniform seating invariant — leg row 4.34 mm above the bottom edge on all
+  three boards, lower pad clearing the 0.5 mm copper-to-edge constraint)
+  and the §3b clip-fit assertions recomputed at the packed pitches (floors:
+  0.5 mm pad gap = the stated solder clearance; 3.0 mm body gap). The
+  geometric no-subset-seating proof re-ran at 8.4/7.6/7.1. Teeth
+  re-verified at the packed floor: a sabotaged 7.2 mm EPS pitch (Δ0.1 from
+  pcie's 7.1) makes the proof correctly FAIL (PCIe seats as a subset) —
+  the same failure mode as the historic 8.3/8.2 incident.
 - Netlist-verified: every one of the 9 tabs lands on its mapped ATX rail;
   every header pin lands on its mapped signal/GND/reserved net; the field's
   24 positions reproduce the standard ATX-24 map exactly (pin 20 = NC).

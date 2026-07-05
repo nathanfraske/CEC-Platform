@@ -9413,7 +9413,7 @@
 		)
 		(property
 			"Datasheet"
-			"https://lcsc.com/product-detail/Surface-Mount-Fuses_Littelfuse_2920L700-12MR_Littelfuse-2920L700-12MR_C207092.html"
+			"https://m.littelfuse.com/~/media/electronics/datasheets/resettable_ptcs/littelfuse_ptc_2920l_datasheet.pdf.pdf"
 			(id 3)
 			(at 0 -10.16 0)
 			(effects (font (size 1.27 1.27) ) hide)
@@ -9476,7 +9476,7 @@
 		)
 		(property
 			"Datasheet"
-			"https://lcsc.com/product-detail/MOSFET_AOS_AO4407A_AO4407A_C16072.html"
+			"https://www.aosmd.com/pdfs/datasheet/AO4407A.pdf"
 			(id 3)
 			(at 0 -17.78 0)
 			(effects (font (size 1.27 1.27) ) hide)
@@ -9694,7 +9694,7 @@
 		)
 		(property
 			"Datasheet"
-			"https://lcsc.com/product-detail/NTC-Thermistors_5R-20_C122780.html"
+			"https://www.ntcshiheng.com/storage/uploads/pdf/202601/04/1767515830_ivV67PAqme.pdf"
 			(id 3)
 			(at 0 -10.16 0)
 			(effects (font (size 1.27 1.27) ) hide)
@@ -9757,7 +9757,7 @@
 		)
 		(property
 			"Datasheet"
-			"https://lcsc.com/product-detail/74-Series_NXP_74AHCT244PW-118_74AHCT244PW-118_C135583.html"
+			"https://www.ti.com/lit/ds/symlink/sn74ahct244.pdf"
 			(id 3)
 			(at 0 -21.59 0)
 			(effects (font (size 1.27 1.27) ) hide)
@@ -9933,7 +9933,7 @@
 		)
 		(property
 			"Datasheet"
-			"https://lcsc.com/product-detail/Schottky-Barrier-Diodes-SBD_UMW-Youtai-Semiconductor-Co-Ltd-BAT54S_C545549.html"
+			"https://www.vishay.com/docs/86410/bat54_bat54a_bat54c_bat54s.pdf"
 			(id 3)
 			(at 0 -15.24 0)
 			(effects (font (size 1.27 1.27) ) hide)
@@ -10024,7 +10024,7 @@
 		)
 		(property
 			"Datasheet"
-			"https://lcsc.com/product-detail/Others_Texas-Instruments_INA180A2IDBVR_Texas-Instruments-TI-INA180A2IDBVR_C192764.html"
+			"https://www.ti.com/lit/ds/symlink/ina180.pdf"
 			(id 3)
 			(at 0 -20.32 0)
 			(effects (font (size 1.27 1.27) ) hide)

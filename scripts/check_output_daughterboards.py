@@ -217,21 +217,27 @@ _pads = sorted(
 check(_pads == [(0.0, -2.54), (0.0, 2.54)],
       f"tab footprint: 2 THT legs stacked VERTICALLY at (0, +/-2.54) (found {_pads})")
 
-_expected_tab_y = godb._TOP_MARGIN + godb._TAB_TOP_EXT
+# Iteration-4 two-band stack: the tab band is the LOWEST thing on every
+# board, so the seating invariant is the leg-row height ABOVE THE BOTTOM
+# EDGE (H - tab_y), uniform platform-wide -- one seating spec, one float
+# model. (tab_y itself legitimately differs per family: atx24's row sits
+# below its corridor, eps/pcie's directly below their field band.)
+_expected_leg_height = godb._TAB_PAD_EXT + godb._TAB_EDGE_MARGIN
 for fam in EXPECTED_JOINTS:
     _w, _h, P = godb.pcb_placement(fam)
     rots = {P[ref][2] for ref, _n in godb.FAMILIES[fam]["tabs"]}
     ys = {round(P[ref][1], 3) for ref, _n in godb.FAMILIES[fam]["tabs"]}
     check(rots == {0}, f"{fam}: every tab at rot 0 (blade-down; found rots {rots})")
-    check(ys == {round(_expected_tab_y, 3)},
-          f"{fam}: uniform leg-row height tab_y={_expected_tab_y:.2f} (found {ys})")
-    # blade tip must clear the board's own bottom edge LEVEL (it descends
-    # past it -- that is the point), but the LEG PADS must stay on-board
-    # with real margin:
-    pad_bottom = _expected_tab_y + 2.54 + 1.25
-    check(pad_bottom <= _h - 0.4 + 1e-9,
-          f"{fam}: lower leg pad on-board with margin "
-          f"(pad bottom {pad_bottom:.2f} vs H-0.4 = {_h - 0.4:.2f})")
+    check(len(ys) == 1 and abs(_h - next(iter(ys)) - _expected_leg_height) < 1e-6,
+          f"{fam}: uniform leg-row height above the bottom edge "
+          f"H-tab_y={_expected_leg_height:.2f} (found H={_h:.2f}, tab_y={sorted(ys)})")
+    # blade tip descends past the bottom edge (that is the point), but the
+    # LEG PADS' copper must clear the board-setup 0.5mm copper-to-edge
+    # constraint:
+    pad_bottom = next(iter(ys)) + 2.54 + 1.25
+    check(pad_bottom <= _h - 0.5 + 1e-9,
+          f"{fam}: lower leg pad clears the 0.5mm copper-to-edge constraint "
+          f"(pad bottom {pad_bottom:.2f} vs H-0.5 = {_h - 0.5:.2f})")
 
 # --- 3b. Main-board clip row fits the pitches (Keystone 3586, rotated) -----
 # Sketch model: clip slot axis PERPENDICULAR to the daughterboard wall line,
@@ -249,15 +255,20 @@ _clip_pads = [(float(m.group(1)), float(m.group(2)), float(m.group(3)), float(m.
                                     "Keystone_3586_SMD_Universal_Blade_Clip.kicad_mod")).read())]
 pad_span_along_row = (max(y + h / 2 for _x, y, _w2, h in _clip_pads)
                       - min(y - h / 2 for _x, y, _w2, h in _clip_pads))
+# Iteration-4 packed floors (see TAB_PITCH's derivation in the generator):
+# the pitch floor is clip-PAD-driven -- 6.60mm measured pad span + 0.5mm
+# stated adjacent-clip solder/paste clearance = 7.10mm; pcie sits AT it.
+# Clip body gap floor 3.0mm (generous; the packed minimum is 7.1-3.82=3.28).
 for fam, pitch in godb.TAB_PITCH.items():
     body_gap = pitch - clip_along_row
     pad_gap = pitch - pad_span_along_row
-    check(body_gap >= 4.0,
+    check(body_gap >= 3.0,
           f"{fam}: clip-to-clip body gap at {pitch}mm pitch = {body_gap:.2f}mm "
-          f"(clip {clip_along_row:.2f}mm along-row; floor 4.0)")
-    check(pad_gap >= 1.5,
+          f"(clip {clip_along_row:.2f}mm along-row; floor 3.0)")
+    check(pad_gap >= 0.5 - 1e-9,
           f"{fam}: clip SMD-pad gap at {pitch}mm pitch = {pad_gap:.2f}mm "
-          f"(pad span {pad_span_along_row:.2f}mm along-row; floor 1.5)")
+          f"(pad span {pad_span_along_row:.2f}mm along-row; floor 0.5 = the "
+          f"stated solder clearance that defines the 7.1mm pitch floor)")
 
 
 def tab_centres(fam):

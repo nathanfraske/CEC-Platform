@@ -24,7 +24,7 @@
 #
 #   python3 scripts/gen-output-daughterboard.py <family> [--force]
 #   family: atx24-out-db | eps-out-db | pcie-out-db | all
-import os, re, sys
+import math, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
@@ -324,12 +324,17 @@ def gen_schematic(fam, out=sys.stdout):
 # exist in their schematics only, no PCB footprints as of this branch), so
 # this generator's pcb_placement() remains the authoritative mating drawing.
 #
-# The output THT field sits BESIDE the tab row (the tab row starts right of
-# the field/header) -- both share the same Y band, which is what keeps the
-# board INSIDE the height cap; stacking them vertically would not fit. The
-# 24-pin's 2x5 signal header sits between field and tab row, ROTATED 90 deg
-# (unrotated it is 14.5mm tall -- alone it would bust the cap; rotated it is
-# 6.9mm tall and shares the field's Y-band).
+# TWO-BAND LAYOUT (iteration 4, owner follow-up 2026-07-05: "can the agent
+# stack the blades right next to each other and put them below the pinout?
+# That should tell us how tall these are really going to be"). The solder
+# FIELD band sits on top and the TAB ROW sits BELOW it, tabs packed near
+# the pitch floor -- superseding iteration 3's side-by-side band (11-13.6mm
+# tall but 145mm long on the 24-pin). The <=15mm height cap is EXPLICITLY
+# RELAXED by the owner for this form; the deliverable is the honest minimum
+# height of the compact layout with length minimized (see pcb_placement's
+# derivation -- 20.0mm eps/pcie, 21.4mm atx24). The 24-pin's 2x5 signal
+# header still sits beside the field, ROTATED 90 deg, inside the field's
+# own Y-band (it costs nothing there).
 #
 # NO MOUNTING HOLES (owner directive, 2026-07-05). Retention is the Keystone
 # clip's own high insertion force (a FEATURE per the owner's 2026-07-04
@@ -347,31 +352,38 @@ def gen_schematic(fam, out=sys.stdout):
 # ============================================================================
 TAB_PITCH = {   # mm, centre-to-centre, single row -- the per-family KEYING
     # lever (together with tab COUNT and the whole-board no-subset-seating
-    # proof in check_output_daughterboards.py). FLOOR (sketch model,
-    # 2026-07-05): no longer the tab body -- the 63951-1 mounted per the
-    # owner sketch is only ~0.84mm thin along the row (its 2.5mm pads and
-    # 3.0mm pad envelope are the widest row-axis features). The binding
-    # floor is the MAIN-BOARD CLIP row: the Keystone 3586's body is 3.81mm
-    # (.150) across the slot / 3.82mm courtyard (measured off the vendored
-    # footprint), and after the sketch-implied 90-deg clip rotation (slot
-    # axis perpendicular to the wall) that 3.82mm runs ALONG the row --
-    # worst-case clip-to-clip gap 8.2 - 3.82 = 4.38mm, and the clip's SMD
-    # pad span along the row (6.6mm, pads bbox) still clears by 1.6mm at
-    # the tightest pitch. All three pitches KEPT as ratified this pass
-    # (coordinator/owner: verify fit at 8.9/8.6/8.2, do not re-pitch) --
-    # shrinking them is possible under the new floor but would re-open the
-    # keying-delta derivation for no asked-for gain.
+    # proof in check_output_daughterboards.py).
+    # PITCH FLOOR (iteration 4, packed row): the tab itself is non-binding
+    # (~0.84mm thin along the row; its 2.5mm pads are its widest row
+    # feature -> 4.6mm pad gaps even at the floor). The binding element is
+    # the MAIN-BOARD CLIP row: the Keystone 3586 rotated per the sketch
+    # (slot axis perpendicular to the wall) presents, ALONG the row, a
+    # 3.81mm body / 3.82mm courtyard and -- the real driver -- a 6.60mm SMD
+    # PAD SPAN (both measured off the vendored footprint, dwg 3586).
+    #   floor = 6.60 (clip pad span) + 0.50 (stated adjacent-clip
+    #           solder/paste clearance) = 7.10mm
+    # pcie sits AT the floor; eps sits 0.5 above it purely for KEYING; the
+    # 24-pin sits at 8.4 = 4 x 2.1mm for a ROUTING reason: its field
+    # stubs/vias live on a 2.1mm lattice (4.2mm ATX columns + the +2.1mm
+    # dodge), and 8.4 with mid-window anchoring (pcb_placement grid-aligns
+    # x0 to lattice+1.05) puts every tab stub/via exactly 1.05mm off that
+    # lattice -- the corridor interface stays clean with zero extra jogs
+    # (at a non-multiple pitch the 9 tabs' lattice offsets provably sweep
+    # the full 2.1mm cycle, so some stub/via always lands within the 0.7mm
+    # conflict radius of a field stub).
     # KEYING DELTA rule (unchanged): for a family with G gaps (tab count
     # -1) tested as a subset of a DIFFERENT uniform pitch, the best-case
-    # (centred) alignment error at the end tabs is (G/2)*|pitch_delta|, so
-    # pitch_delta must exceed 1.0/G for every pair -- tightest is pcie
-    # (G=3, needs >0.33mm from BOTH other families). A first pass used
-    # 8.6/8.3/8.2 (deltas 0.3/0.1) and MEASURABLY FAILED the geometric
-    # proof (pcie's 4 tabs seated within tolerance as a subset of eps's
-    # 6-tab grid) -- corrected below; the proof re-runs on every change.
-    "atx24-out-db": 8.9,   # 9 tabs; delta to eps 0.3 (need >0.2, G=5)
-    "eps-out-db": 8.6,     # 6 tabs; delta to pcie 0.4 (need >0.33, G=3)
-    "pcie-out-db": 8.2,    # 4 tabs; clip-row gap 4.38mm (tightest)
+    # (centred) alignment error at the end tabs is (G/2)*|pitch_delta| and
+    # must exceed the checker's 0.5mm tolerance. Margins at these pitches:
+    # pcie-in-eps (G=3, d=0.5) = 0.75; pcie-in-atx24 (d=1.3) = 1.95;
+    # eps-in-atx24 (G=5, d=0.8) = 2.00 -- all >= 1.5x tolerance, so pitch
+    # differentiation SURVIVES at the packed floor and no pattern keying
+    # (offset tab / asymmetric skip) is needed. The historic failure mode
+    # (8.6/8.3/8.2: pcie seated in eps at 0.15mm end error) stays encoded
+    # in the checker's re-verified teeth.
+    "atx24-out-db": 8.4,   # 9 tabs; 4x2.1 lattice-aligned (routing-driven)
+    "eps-out-db": 7.6,     # 6 tabs; floor + 0.5 keying delta to pcie
+    "pcie-out-db": 7.1,    # 4 tabs; AT the packed floor
 }
 
 _TAB_CY = cp.courtyard_bbox(TE_TAB_FP)
@@ -409,23 +421,46 @@ def _field_geom(fam):
     return fx, fy, fx + bb[1], fy + bb[3]
 
 
-def pcb_placement(fam):
-    """Field top-left; (24-pin only) header beside it rotated 90; then the
-    single tab row BESIDE both, at the per-family X pitch, every tab at
-    rot 0 (the footprint is authored in its mounted orientation: legs
-    stacked vertically at (0,+/-2.54), blade descending +Y). Returns
-    (W, H, P) -- P maps every ref to (x, y, rot). No mounts.
+# Two-band vertical stack constants (iteration 4):
+_TAB_PAD_EXT = 2.54 + 1.25   # leg-pair midpoint -> lower pad's copper edge
+_TAB_EDGE_MARGIN = 0.55      # lower pad edge -> Edge.Cuts (board-setup
+                             # copper-to-edge constraint is 0.5; +0.05 slack
+                             # -- the iteration-3 copper_edge lesson applied
+                             # up front instead of re-learned)
+_BAND_GAP = 0.25             # field courtyard bottom -> tab courtyard top
+                             # (courtyard_overlap is a real DRC error class,
+                             # so the courtyards may not touch)
+_LANE_PAD_CLR = 0.3          # deepest lane band -> tab upper pad edge
+                             # (>0.2 zone clearance so the fill never sits at
+                             # exact tangency with the pad anti-pad)
+_STUB_GRID = 2.1             # the atx24 field-stub X lattice: 4.2mm columns
+                             # + the +2.1mm dodge => every field stub/via X
+                             # is fx + k*2.1. Tab row anchors mid-window
+                             # (lattice + 1.05) so tab stubs/vias clear every
+                             # field stub by >= 1.05mm (conflict radius is
+                             # ~0.7mm: 0.25 half-width each side + 0.2 clr).
 
-    tab_y (the leg-pair midpoint) is UNIFORM across all three families:
-    _TOP_MARGIN + _TAB_TOP_EXT -- i.e. the tab band is pinned to the TOP
-    margin. That maximizes the leg height above the board's own bottom
-    edge, which MINIMIZES how high the assembly floats above the main
-    board once the blade seats (float = tip-below-edge + tip clearance;
-    see seating_report()). H is field-driven (eps/pcie) or corridor-driven
-    (atx24) -- the tab band costs nothing in the capped axis because its
-    descender leaves the board through the bottom edge (off-board at the
-    blade's Z-standoff, no material or copper conflict; the 2 leg pads
-    stay well on-board with margin)."""
+
+def pcb_placement(fam):
+    """TWO-BAND stack (iteration 4): field band on top; the single packed
+    tab row BELOW it, every tab at rot 0 (footprint authored in mounted
+    orientation: legs stacked vertically at (0,+/-2.54), blade descending
+    +Y past the bottom edge). Returns (W, H, P). No mounts.
+
+    tab_y (leg-pair midpoint): eps/pcie = field courtyard bottom +
+    _BAND_GAP + the tab's own top extent (carrier stub); atx24 = below the
+    corridor instead, with _LANE_PAD_CLR between the deepest lane band and
+    the tab's upper pad edge (the pad's In2 anti-pad must never bite a
+    lane). H = tab_y + _TAB_PAD_EXT + _TAB_EDGE_MARGIN -- the tab band is
+    the lowest thing on every board, so the leg height above the bottom
+    edge is a UNIFORM _TAB_PAD_EXT + _TAB_EDGE_MARGIN = 4.34mm platform-
+    wide (the seating invariant the checker asserts; float heights in
+    seating_report() follow from it). W = the wider of the field(+header)
+    band and the packed tab row.
+
+    atx24 x0 is GRID-ALIGNED: smallest x >= _LEFT_MARGIN + _TAB_HALF_X with
+    (x - fx) mod _STUB_GRID = 1.05, so with the 8.4 = 4*2.1 pitch EVERY
+    tab X sits mid-window between field-stub lattice lines (see TAB_PITCH)."""
     cfg = FAMILIES[fam]
     pitch = TAB_PITCH[fam]
     fx, fy, field_right, field_bottom = _field_geom(fam)
@@ -442,23 +477,23 @@ def pcb_placement(fam):
         right_ref = hx + hbb[1]
 
     n = len(cfg["tabs"])
-    tab_y = _TOP_MARGIN + _TAB_TOP_EXT
-    tab0_x = right_ref + 1.0 + _TAB_HALF_X
+    if fam == "atx24-out-db":
+        lanes_bottom = field_bottom + _FIELD_GAP + ATX24_CORRIDOR_H
+        # upper pad top edge sits _LANE_PAD_CLR below the deepest lane band;
+        # _TAB_PAD_EXT is symmetric (2.54 + 1.25 above AND below the midpoint)
+        tab_y = lanes_bottom + _LANE_PAD_CLR + _TAB_PAD_EXT
+        base = _LEFT_MARGIN + _TAB_HALF_X
+        k = math.ceil((base - fx - 1.05) / _STUB_GRID - 1e-9)
+        tab0_x = fx + 1.05 + _STUB_GRID * k
+    else:
+        tab_y = field_bottom + _BAND_GAP + _TAB_TOP_EXT
+        tab0_x = _LEFT_MARGIN + _TAB_HALF_X
     tab_last_x = tab0_x + (n - 1) * pitch
     for i, (ref, _net) in enumerate(cfg["tabs"]):
         P[ref] = (tab0_x + i * pitch, tab_y, 0)
 
-    if fam == "atx24-out-db":
-        # Bottom margin derived from the DEEPEST COPPER, not the corridor
-        # zone outline: the slot-3 lane's stub tracks/vias extend 0.25mm
-        # (track half-width / via radius) past the lane CENTRELINE, i.e.
-        # 0.1mm past the corridor's zone bottom -- and the board-setup
-        # copper-to-edge constraint is 0.5mm. 0.25 + 0.5 + 0.05 slack below
-        # the last lane centreline = corridor bottom (+_LANE_HALF) + 0.65.
-        H = field_bottom + _FIELD_GAP + ATX24_CORRIDOR_H + 0.65
-    else:
-        H = field_bottom + _BOTTOM_MARGIN
-    W = tab_last_x + _TAB_HALF_X + 1.0
+    H = tab_y + _TAB_PAD_EXT + _TAB_EDGE_MARGIN
+    W = max(right_ref, tab_last_x + _TAB_HALF_X) + 1.0
     return W, H, P
 
 
@@ -730,19 +765,22 @@ def route_atx24():
             via_seen.add(via_pt)
 
     # tabs (all 4 BUS nets have >=1): legs stacked VERTICALLY at
-    # (tx, tab_y +/- 2.54) per the sketch-model footprint, sitting ABOVE the
-    # corridor (tab_y ~5.2, lanes ~10.9-12.8) and X-clear of the field/header
-    # (the row starts right of both), so each tab's stub simply runs DOWN
-    # from its LOWER leg pad into its net's lane. The TE_63951-1 footprint
-    # has TWO physical pads, both numbered "1" (one electrical node), but
-    # "same pad number" is a netlist LABEL, not copper -- the footprint has
-    # no internal bridge, so both need real copper: a vertical bridge track
-    # between the two legs, continued down to the lane + a via. The stub
-    # crosses the P2P signals' row-gap Y band only in the X range right of
-    # the header, where those B.Cu runs do not exist (and the stub is F.Cu
-    # anyway); the via sits at its own lane's centreline, clearing the
-    # neighbouring 0.65mm-pitch lanes by the same measured 0.25mm the field
-    # vias already rely on.
+    # (tx, tab_y +/- 2.54) per the sketch-model footprint, sitting BELOW the
+    # corridor in the iteration-4 two-band stack (tab_y ~17.0, lanes
+    # ~10.9-12.8), sharing the corridor's X range with the FIELD's own
+    # dodge-stubs/vias -- which is exactly why the row is GRID-ALIGNED (see
+    # TAB_PITCH/_STUB_GRID): every tab X sits 1.05mm off the field-stub
+    # lattice, so these F.Cu stubs/vias clear every field stub/via by
+    # >=1.05mm against a ~0.7-0.75mm conflict radius. Each tab's stub runs
+    # UP from its UPPER leg pad into its net's lane. The TE_63951-1
+    # footprint has TWO physical pads, both numbered "1" (one electrical
+    # node), but "same pad number" is a netlist LABEL, not copper -- the
+    # footprint has no internal bridge, so both need real copper: a vertical
+    # bridge track between the two legs, plus the up-stub off the upper one
+    # + a via at its own lane's centreline (clearing the 0.65mm-pitch
+    # neighbours by the same measured 0.25mm the field vias rely on). The
+    # tab pads' own In2 anti-pads stay _LANE_PAD_CLR clear of the deepest
+    # lane band by placement, so no lane is ever bitten.
     for ref, net in cfg["tabs"]:
         if net == "GND":
             continue
@@ -750,7 +788,7 @@ def route_atx24():
         tx, ty, _ = P[ref]
         by = _atx24_lane_y(field_bottom, net)
         r.track(pn, [(tx, ty - 2.54), (tx, ty + 2.54)], "F.Cu", 0.5)
-        r.track(pn, [(tx, ty + 2.54), (tx, by)], "F.Cu", 0.5)
+        r.track(pn, [(tx, ty - 2.54), (tx, by)], "F.Cu", 0.5)
         r.via(pn, (tx, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
     # 2x5 signal header (PS_ON#/PWR_OK/-12V/GND-ref/6 reserved -- pin order

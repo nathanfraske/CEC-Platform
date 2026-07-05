@@ -490,3 +490,90 @@ the deepest copper, not the corridor outline.
 3. OQ-87 chassis strain relief now also owns the FLOAT retention question:
    the board hangs on the clips at 8.4–11.0 mm float; the strain relief,
    not the board edge, sets the assembly's vertical datum tolerance.
+
+---
+
+## Addendum 4, 2026-07-05 (iteration 4): compact two-band layout — packed pitches
+
+**Dated addendum; addendum 3 above is left unedited.** Owner follow-up on
+the addendum-3 boards (verbatim): *"Good lord those are long, can the agent
+stack the blades right next to each other and put them below the pinout?
+That should tell us how tall these are really going to be."* Addendum 3's
+SIDE-BY-SIDE band placement (tab row beside the field; 145.1/67.8/49.4 mm
+long at 13.6/11.0/11.0 mm tall) is SUPERSEDED; its part model, orientation,
+clip rotation, standoff numbers (B.1–B.2), and main-board disposition (B.4)
+all STAND — only the band arrangement, pitches, and derived seating heights
+change. **The ≤15 mm height cap is explicitly relaxed by the owner for this
+form** — the deliverable is the honest minimum height.
+
+### C.1 Layout and the honest heights
+
+Two-band stack: solder field on top, packed tab row below it. Measured:
+
+| Family | Iter-3 (side-by-side) | **Iter-4 (two-band)** | Height decomposition |
+|---|---|---|---|
+| atx24 | 145.1 × 13.6 | **72.8 × 21.4** | 0.4 + 10.2 field + 0.1 + 2.25 corridor + 0.3 lane-pad clr + 7.58 pad band + 0.55 edge |
+| eps | 67.8 × 11.0 | **43.0 × 20.0** | 0.4 + 10.2 field + 0.25 gap + 4.82 tab top-ext + 3.79 pad half + 0.55 edge |
+| pcie | 49.4 × 11.0 | **26.3 × 20.0** | same as eps |
+
+The ~9 mm height cost over iter-3 is the tab band's own vertical extent
+(carrier stub + 5.08 mm leg pitch + pad radii) stacked under the field
+instead of beside it; the blade descender still exits through the bottom
+edge at no height cost. Lengths are tab-row-driven.
+
+### C.2 Pitch floor and the chosen pitches
+
+Row-axis floor, re-derived per element off the vendored 3586 footprint:
+clip courtyard along-row 3.82 mm (non-binding), clip SMD pad span
+**6.60 mm** (binding), tab pad envelope 2.5/3.0 mm (non-binding).
+**Floor = 6.60 + 0.50 stated adjacent-clip solder/paste clearance =
+7.10 mm.** Chosen: **pcie 7.1 (at the floor), eps 7.6, atx24 8.4.**
+- eps's +0.5 is pure KEYING (the delta to pcie that keeps the proof green).
+- atx24's 8.4 is ROUTING-driven, not slack: 8.4 = 4 × 2.1 mm, the period of
+  its field-stub X lattice (4.2 mm ATX columns + the +2.1 mm dodge), and
+  the row's x0 is grid-aligned to lattice + 1.05 mm — every tab stub/via in
+  the corridor's shared X-range then clears every field stub/via by
+  ≥1.05 mm against a ~0.7 mm conflict radius. At any non-multiple pitch the
+  9 tabs' lattice offsets sweep the full 2.1 mm cycle, so some tab always
+  lands in conflict; grid alignment buys the packed row with zero extra
+  jogs or vias.
+Clip-row gaps at these pitches (checker-asserted): body 4.58/3.78/3.28 mm;
+SMD pad 1.80/1.00/**0.50** mm (pcie sits exactly on the stated solder
+clearance — that IS the floor definition).
+
+### C.3 Keying at the floor — pitch differentiation SURVIVES
+
+(G/2)×Δpitch end errors vs. the checker's 0.5 mm tolerance: pcie-in-eps
+**0.75**, pcie-in-atx24 **1.95**, eps-in-atx24 **2.00** — all ≥1.5×
+tolerance, so no pattern keying (offset tab / asymmetric skip) was needed.
+The full no-subset-seating proof re-ran green on the packed coordinates,
+and its TEETH were re-verified at the floor: a sabotaged 7.2 mm eps pitch
+(Δ0.1 from pcie — the same failure mode as the historic 8.3/8.2 incident)
+makes the proof correctly FAIL.
+
+### C.4 Seating model update
+
+The tab band is now the LOWEST thing on every board, so the uniform seating
+invariant moves from addendum 3's "leg row 5.22 mm below the top edge" to
+**leg row 4.34 mm above the BOTTOM edge** (3.79 pad extent + 0.55 edge
+margin; the 0.55 bakes in iteration 3's `copper_edge_clearance` lesson —
+0.5 mm board constraint + slack — and this pass regenerated with zero
+copper-edge hits first try). Blade tip: 15.75 − 4.34 = **11.41 mm below the
+bottom-edge level**, uniform. At the recommended 1.0 mm tip clearance (hard
+stop ≈0.4–0.5 mm on the clip base): **float = 12.41 mm, uniform across all
+three families** (the invariant flipped from iter-3's uniform top-height to
+uniform float); top edges sit 33.8 (atx24) / 32.4 (eps, pcie) mm above the
+main board. Engagement unchanged (blade spans the clip's full interior).
+
+### C.5 Gates after this addendum
+
+ERC 0 ×3; DRC 0 violations / 0 unconnected at `--severity-error` ×3
+(full-severity: 25/17/15 hits, all cosmetic silk except one warning-class
+`silk_edge_clearance` Value text on atx24); checker fully green with the
+§3a seating invariant and §3b clip-fit floors updated to the packed model
+(floors: pad gap ≥ 0.5 = the stated solder clearance, body gap ≥ 3.0);
+net maps + joint counts 9/6/4 unchanged (netlist-verified; net-group
+identity vs. the pre-rework baseline 15→15 / 2→2 / 2→2). Main-board
+disposition unchanged from B.4 (clips still schematic-only; the packed
+grids + rotated-clip orientation + 5.72 mm standoff bind the future
+clip-placement pass).
