@@ -37,8 +37,20 @@ LIBS = {
     "power":      open(f"{ROOT}/lib/vendor/cec-power.kicad_sym").read(),
 }
 
-TE_TAB = ("cec-vendor", "TE_63849-1_FASTON_Tab", "TE 63849-1")
-TE_TAB_FP = "cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT"
+# TE 63951-1 -- RIGHT-ANGLE (flat, in-plane) FASTON .250 PC board tab, per the
+# owner's 2026-07-05 connector-form ruling (superseding the same-day-earlier
+# perpendicular/side-entry TE 63849-1 choice this generator originally
+# shipped with). Same .250 width class, same App Spec 114-2115, same 5.08mm
+# leg pitch / 1.40mm hole pattern as 63849-1 (confirmed against TE's own
+# customer drawing C=63951 rev L2, lib/datasheets/TE_63951-1.pdf) -- the
+# blade lies FLAT/coplanar and extends past the leg row instead of standing
+# perpendicular to it, matching the owner-uploaded TE 1217061-1 (.187-series
+# right-angle) reference geometry, scaled to .250. See
+# docs/standard-tier-review/blade-fit-check-2026-07-04.md's dated addendum
+# for the full hunt/verification record. TE_63849-1 remains vendored
+# (harmless; unreferenced by this generator as of this pass).
+TE_TAB = ("cec-vendor", "TE_63951-1_FASTON_Tab", "TE 63951-1")
+TE_TAB_FP = "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
 
 POWER_PORTS = {"GND": "GND", "+3V3": "+3V3", "+5V": "+5V", "+5VSB": "+5VSB", "+12V": "+12V"}
 
@@ -175,10 +187,13 @@ def build_footprints(fam):
 
 
 TE_TAB_PROPS = {
-    "LCSC": "C86469", "MPN": "63849-1", "Manufacturer": "TE Connectivity",
-    "Description": "FASTON .250 PCB tab (male blade), mates the main board's "
-                   "Keystone universal blade clip -- spec Sec. 2.8 v1.4.0 / "
-                   "docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10",
+    "LCSC": "C591344", "MPN": "63951-1", "Manufacturer": "TE Connectivity",
+    "Description": "FASTON .250 RIGHT-ANGLE (flat, in-plane) PCB tab (male "
+                   "blade), mates the main board's Keystone universal blade "
+                   "clip via a VERTICAL TOP-ENTRY drop -- spec Sec. 2.8 "
+                   "v1.4.0 / docs/standard-tier-review/output-daughterboard-"
+                   "study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-"
+                   "07-04.md 2026-07-05 addendum (connector-form change).",
 }
 FIELD_PROPS = {
     "Manufacturer": "CEC (in-house)", "LCSC": "",

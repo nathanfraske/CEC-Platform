@@ -9320,5 +9320,72 @@
 		)
 		(embedded_fonts no)
 	)
+	(symbol "TE_63951-1_FASTON_Tab"
+		(pin_numbers (hide no))
+		(pin_names (offset 0.762) (hide yes))
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(property "Reference" "J"
+			(at 0 4.699 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Value" "TE 63951-1"
+			(at 0 -3.302 0)
+			(effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 0 0 0)
+			(show_name no)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Datasheet" "https://www.lcsc.com/datasheet/C591344.pdf"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Description" "TE Connectivity 63951-1 FASTON PC board tab (male blade), RIGHT-ANGLE / FLAT style -- .250in (6.35mm +/-0.08) wide x .033-.030in (0.83-0.77mm) thick, brass with tin over nickel plate, App Spec 114-2115 (same governing spec as the platform's straight TE_63849-1 tab and the owner-uploaded .187-series right-angle reference TE 1217061-1). Confirmed via TE's own customer drawing C=63951 rev L2 (lib/datasheets/TE_63951-1.pdf) -- NOT the perpendicular/'straight' style: the blade lies FLAT/coplanar with the leg-insertion plane and extends past the mounting-hole row, matching the 1217061-1 reference geometry the owner named as the direction-setter (2026-07-05), scaled up to the .250 width class. 2 THT legs (both pin 1 -- same electrical node) on the SAME 5.08mm +/-0.08 pitch / 1.40mm +/-0.05 dia PCB hole pattern as TE_63849-1 (confirmed identical on the C=63951 drawing). Supplied reeled (continuous strip on reels), unlike 63849-1's loose-piece packaging -- a packaging difference only. Mates a Keystone universal blade clip (3586/3557-2/3557/3577) via a VERTICAL TOP-ENTRY drop (the clip's native automotive-blade-fuse heritage is itself a top-entry design, per Keystone dwg 3586 -- see docs/standard-tier-review/blade-fit-check-2026-07-04.md addendum, 2026-07-05) rather than 63849-1's horizontal side-entry slide."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Manufacturer" "TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "MPN" "63951-1"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "LCSC" "C591344"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself (same convention as 63849-1); same .250/6.35mm blade class, so the same Keystone universal-clip Current Rating property (30A) applies. No standalone UL current rating on TE's own dwg C=63951."
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "FASTON tab blade quick-connect .250 right angle flat PCB terminal TE Connectivity"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "TE_63951-1*"
+			(at 0 0 0)
+			(hide yes)
+			(effects (font (size 1.27 1.27))))
+		(symbol "TE_63951-1_FASTON_Tab_0_1"
+			(rectangle
+				(start -1.27 3.175)
+				(end 1.27 0)
+				(stroke (width 0.2032) (type default))
+				(fill (type none)))
+		)
+		(symbol "TE_63951-1_FASTON_Tab_1_1"
+			(pin passive line
+				(at 0 -2.54 90)
+				(length 2.54)
+				(name "~"
+					(effects (font (size 1.016 1.016))))
+				(number "1"
+					(effects (font (size 1.016 1.016)))))
+		)
+		(embedded_fonts no)
+	)
 
 )
