@@ -10,26 +10,40 @@ No active or passive components.
 
 DRAFT (no fab yet — OQ-86 fit-check sample gate open).
 
-## Posture — STANDS PERPENDICULAR to the main board (owner ruling, 2026-07-05)
+## Posture — STANDS PERPENDICULAR to the main board (owner ruling, 2026-07-04/05)
 
 This board is a small vertical card, not a parallel mezzanine (an earlier
 framing this pass corrected — see `atx24-out-db/README.md` "Posture" for
-the full reasoning, identical here). The 6 TE 63849-1 tabs mount near the
-board's **bottom (near) edge** with blades pointing straight out of the
-board face — horizontal once the board stands up — engaging the main-board
-Keystone 3586 clips via **side entry**. The output field sits above the tab
-row. Board axes: X = length (parallel to the main board, FREE dimension);
-Y = height (the board's own vertical extent standing up, **ruled cap
-≤15 mm "or so"**, owner 2026-07-05).
+the full reasoning, identical here). The board's own standing posture is
+unchanged; **what changed (owner ruling, 2026-07-05, same day, later): the
+TAB CONNECTOR FORM.** The 6 tabs are now **TE 63951-1**, a RIGHT-ANGLE
+(flat, in-plane) FASTON .250 PCB tab — the blade lies flat/coplanar with
+this board's own standing plane and hangs **below the board's bottom edge**,
+rather than pointing perpendicular out of the board's face (the earlier
+same-day TE 63849-1 straight-tab / side-entry choice). This lets the whole
+daughterboard drop straight down so the hanging blade enters the main-board
+Keystone 3586 clip's top-entry slot. Full reasoning + the Keystone
+top-entry-compatibility check: `atx24-out-db/README.md` "Posture" and
+"Mating geometry" (identical analysis, this board's own numbers below), and
+`docs/standard-tier-review/blade-fit-check-2026-07-04.md`'s 2026-07-05
+addendum. **No main-board change needed** — see the 24-pin README for why.
+Board axes (unchanged): X = length (parallel to the main board, FREE
+dimension); Y = height (the board's own vertical extent standing up,
+**ruled cap ≤15 mm "or so"**, owner 2026-07-05).
 
-**Measured final size**: **53.0 × 14.6 mm** (length × height,
-`pcbnew.GetBoardEdgesBoundingBox`) — well inside both the height cap and the
-owner's own rough single-face length estimate (27–53 mm).
+**Measured final size**: **52.9 × 14.6 mm** (length × height,
+`pcbnew.GetBoardEdgesBoundingBox`) — essentially unchanged from the
+perpendicular-tab revision (53.0 × 14.6 mm), well inside both the height cap
+and the owner's own rough single-face length estimate (27–53 mm).
 
-**Mating height**: tab-row centreline sits **1.94 mm** above this board's
-own near/bottom edge (identical figure to the 24-pin board — same field
-height + same edge margins govern it; see that README's "Posture" section
-for the caveats on reading this as a main-board mating height).
+**Mating geometry (recomputed for TE 63951-1)**: tab-row centreline (the 2
+through-hole legs) sits **2.00 mm** above this board's own near/bottom edge
+(identical figure to the 24-pin board — same `_TAB_NEAR_Y`/`_BOTTOM_MARGIN`
+constants govern every family). Blade hang-length past this board's own
+edge: **6.89 mm** (same tab, same figure platform-wide) vs. the Keystone
+3586 clip's own 7.16 mm body height — see the 24-pin README's "Mating
+geometry" for the full numeric comparison and the open OQ-86/87 items this
+surfaces (unresolved from paper on either datasheet, same caveat here).
 
 ## Mounting / retention — no mounting holes (owner directive, 2026-07-05)
 
@@ -39,7 +53,7 @@ shortfall) plus chassis strain relief on the cable/assembly side (OQ-87
 owns the numeric spec). No BOM/schematic impact — mounts were a PCB-only
 mechanical footprint on this generator, never a schematic part.
 
-## Tab map (6 joints/cable, TE 63849-1 / LCSC C86469)
+## Tab map (6 joints/cable, TE 63951-1 / LCSC C591344)
 
 | Ref | Net | EPS8 pins bundled |
 |---|---|---|
@@ -73,10 +87,15 @@ daughterboard-plus-extension assembly (OQ-89).
 ## Keying
 
 **Single row of 6 tabs at 8.6 mm pitch**, net order GND×3 then +12V×3
-(matching the tab map above). Floor: the TE 63849-1's own courtyard is
-exactly 7.92 mm wide (measured off
-`cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT`, matching the TE
-datasheet to the micron) — 8.6 mm leaves 0.68 mm of clearance.
+(matching the tab map above). Floor: the new TE 63951-1's own near-leg
+shoulder band is exactly 7.92 mm wide (measured off
+`cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT`), the SAME width
+the prior TE 63849-1 footprint used — this recurring figure is verified
+(not assumed) to track the shared 5.08 mm leg/hole geometry rather than
+blade width, since it is identical across the .187-series owner-uploaded
+reference (1217061-1) and both .250-series tabs (63849-1, 63951-1) — see
+the blade-fit-check addendum. So 8.6 mm still leaves 0.68 mm of clearance,
+unchanged by the 2026-07-05 tab-form swap.
 
 **The real safety property is proved geometrically, not by pitch alone.**
 `scripts/check_output_daughterboards.py` takes every family's tab-centre
@@ -99,11 +118,12 @@ mating drawing** for the EPS per-cable clip pattern (the main board carries
 no clips yet).
 
 **Dual-face tabs**: evaluated and rejected for this whole family of boards
-on the same grounds as the 24-pin board (see that README) — the TE
-63849-1's own copper pads already span 7.58 mm inside its 7.92 mm
-courtyard, so cross-face interleaving only relieves pad-to-pad clearance,
-not full courtyard clearance, buying ~11% pitch relief rather than the
-~50% a naive "halve it" framing assumes. Single-face, single-row is built.
+on the same grounds as the 24-pin board (see that README) — UNCHANGED by
+the tab-form swap, since TE 63951-1 shares 63849-1's own 5.08 mm/1.40 mm
+leg pattern: its copper pads still span 7.58 mm inside its 7.92 mm shoulder
+band, so cross-face interleaving only relieves pad-to-pad clearance, not
+full clearance, buying ~11% pitch relief rather than the ~50% a naive
+"halve it" framing assumes. Single-face, single-row is built.
 
 ## Layer stack / current
 
