@@ -152,3 +152,171 @@ FASTON tab is one node with two mechanical feet).
    this pass — confirm on the physical sample alongside (1).
 
 None of the above are resolved by this memo; they are the paper half only.
+
+---
+
+## Addendum, 2026-07-05: connector-form change — TE 63849-1 → TE 63951-1 (right-angle/flat)
+
+**Per-CLAUDE.md-convention dated addendum — the text above (Sec.1–7) is left
+unedited (no-silent-rewrite); this section is the new record.** Same-day
+context: the owner ruled earlier on 2026-07-05 that the daughterboards
+should stand perpendicular to the main board with the (then-vendored)
+TE 63849-1 tab pointing its blade OUT of the board's face, side-entering the
+Keystone clip — that state is what Sec.1–7 above and the boards' first
+2026-07-05 revision describe. **Later the same day the owner refined this
+further**: the blade should instead be an **IN-PLANE FLAT tab** — "so the
+blade can come out at a 90" — hanging below the board's own bottom edge, in
+the standing board's own plane, so the whole daughterboard **drops
+vertically** into the clip's **top-entry** slot, rather than sliding in
+horizontally from the side. The owner uploaded **TE 1217061-1** (a
+.187-series FASTON flat PCB tab; TE dwg C=1217061, App Spec 114-2115) as the
+worked example of the target geometry, cached at
+`lib/datasheets/TE_1217061-1_FASTON_187_flat_PCB_tab.pdf`.
+
+### A.1 Why a NEW part, not just a re-orientation of 63849-1
+
+63849-1 is confirmed (independently, both from its own TE drawing C=63849
+and from three separate distributor listings — Future Electronics,
+RS Components, Amazon/TE catalog copy) to be a **"straight" mount-style**
+tab: its blade is co-axial with the leg-insertion axis (a one-piece straight
+stamping, per TE dwg C=63849's own profile view), so it stands perpendicular
+to the PCB once soldered — it cannot simply be rotated in the footprint to
+become a flat, in-plane tab; the mechanical part itself is the wrong shape.
+1217061-1's own drawing (dwg C=1217061, "TAB, FASTON, 4.75 [.187] SERIES")
+shows the opposite: its blade continues FLAT off the same plane the two
+mounting legs bend down from, at a genuine .187 (4.75 mm) width — the
+"right-angle"/flat family Keystone-and-TE terminology distinguishes from
+"straight." A NEW part search was required to find the SAME flat geometry
+at the .250 (6.35 mm) width class the ratified joint-count math (spec
+§2.8 v1.4.0) was sized on — swapping to 1217061-1's own .187 width directly
+would under-size every joint and force a recompute (and regrowth) of all
+three boards, which this addendum's hunt was explicitly tasked to avoid if
+a .250 alternative exists.
+
+### A.2 Hunt record — every .250-class candidate checked, and its style
+
+All confirmed against either TE's own product page/customer drawing or an
+authorized distributor's own parametric "Orientation"/"Mount Style" field —
+not inferred from marketing copy alone:
+
+| Part | Style (confirmed) | Source |
+|---|---|---|
+| 63849-1 | Straight | TE dwg C=63849 rev F1; Future Electronics ("straight mount angle") |
+| 1217125-1 | Straight | TE product page (te.com/en/product-1217125-1.html) |
+| 1217126-1 | Straight | TE product page |
+| 1217169-1 | Straight | TE product page (te.com/en/product-1217169-1.html), dwg ENG_CD_1217169_B1 |
+| 62409-1 | Straight | Amazon/TE catalog copy ("Straight Non-Insulated PCB Tab Terminal") |
+| 2376579-2 / 2376582-2 / 2376591-2 / 2376595-2 | Straight | TE's own 2025 "250 FASTON PCB Tab Terminals" flyer (`te.com/.../250-faston-pcb-tab-terminals-flyer.pdf`) + individual TE product pages — TE's newest (Ni-underplated) .250 tab line is straight-only |
+| 63969-1 | N/A — a **receptacle** (female), not a tab | RS Components — wrong gender, disregarded |
+| **63951-1** | **Right angle (flat)** | **TE dwg C=63951 rev L2** ("TAB, FASTON, 6.35 [.250] SERIES", App Spec 114-2115) + TE product page ("Terminal Orientation: Right Angle") + RS Components ("Orientation: Angled"; the RS-hosted datasheet file is literally named `Terminal TAB 6.35mm pcb r/a Faston` — "r/a" = right angle) |
+
+**TE 63951-1 is the pick.** Confirmed via its own primary manufacturer
+drawing (`lib/datasheets/TE_63951-1.pdf`, TE dwg C=63951 rev L2, cage code
+00779, same drafting lineage — JR RUTH / MS FEHER / G PORTA — as both
+63849-1 and 1217061-1), not just a distributor's paraphrase:
+
+| Dimension | 1217061-1 (.187, owner's example) | 63849-1 (.250, superseded) | **63951-1 (.250, PICKED)** |
+|---|---|---|---|
+| Style | Right angle (flat) | Straight | **Right angle (flat)** |
+| Blade width | 4.75 mm (.190/.184) | 6.35 mm ± 0.08 | **6.35 mm ± 0.08** |
+| Blade thickness | 0.83/0.77 mm | 0.84/0.76 mm | **0.83/0.77 mm** |
+| Leg pitch | 5.08 mm ± 0.08 | 5.08 mm ± 0.08 | **5.08 mm ± 0.08 (identical)** |
+| PCB hole dia | 1.40 mm ± 0.05 | 1.40 mm ± 0.05 | **1.40 mm ± 0.05 (identical)** |
+| Recurring "7.92 mm" figure | present | present | **present** |
+| Material/finish | Brass, tin/nickel | Brass, tin/copper or nickel | **Brass, tin over nickel** |
+| App Spec | 114-2115 | 114-2115 | **114-2115 (same as both)** |
+| Packaging | Reeled | Loose piece | **Reeled** |
+| LCSC | not checked (not needed — .250 already found) | C86469 | **C591344, in stock (4,345 units at time of check), $0.099–$0.164/unit by quantity break — within the $0.04–0.30/part class** |
+
+The recurring **7.92 mm** figure (present on all three drawings regardless
+of blade width — 4.75/6.35/6.35 mm) is read, as in the original Sec.1–7
+memo, as a family-wide dimension tied to the shared 5.08 mm leg/hole
+geometry rather than to blade width — now cross-confirmed across a THIRD
+independent drawing (63951-1's own), not just the original two. This is why
+the boards' existing `TAB_PITCH` values (8.9/8.6/8.2 mm) and the whole
+no-subset-seating keying proof carry over **unchanged and re-verified**
+(not just assumed) — see `scripts/check_output_daughterboards.py`'s clean
+run after the swap.
+
+**Current rating**: no standalone per-tab UL rating exists on TE's own dwg
+C=63951 either (same situation as 63849-1) — rating is set by the mating
+clip/receptacle, unchanged reasoning from Sec.1 of the original memo above.
+
+### A.3 Keystone 3586 clip — does a VERTICAL TOP-ENTRY drop still fit?
+
+Re-examined Keystone dwg 3586 (already cached, `lib/datasheets/Keystone_3586.pdf`)
+specifically for the entry-direction question this addendum adds (Sec.1–7
+above already covers width/thickness/plating compatibility, unchanged by
+the tab swap since 63951-1 shares 63849-1's blade class):
+
+- The part is named **"SM UNIVERSAL AUTO FUSE CLIP"** — its mechanical
+  ancestry is a standard automotive blade-fuse holder, whose native,
+  defining use case IS a straight vertical drop (a fuse's flat blade legs
+  press straight down into a split spring contact). The drawing's own front
+  view shows the slot opening squarely at the **top** (0.062″/1.57 mm wide)
+  with the internal fork/spring contact directly beneath it. Top-entry is
+  therefore not a secondary or marginal mode for this clip — it is the
+  mode its whole design is descended from.
+- This reaffirms (does not newly discover) what the original Sec.1 already
+  recorded: the family (3557/3577/3586/3557-2) is documented as accepting
+  entry "from the top or the side." A vertical drop uses the SAME internal
+  spring geometry the side-entry mode already relies on — no new spring
+  contact behavior is introduced.
+- **Slot width vs. blade thickness**: the 1.57 mm top-slot opening
+  comfortably clears the blade's 0.77–0.83 mm thickness (roughly 2×
+  clearance) — not a binding constraint either way.
+- **Blade travel depth — the one number that changed with this addendum**:
+  the clip's own body height is **7.16 mm** (0.282″, Keystone dwg 3586,
+  unchanged from Sec.4 above). This daughterboard's own new tab geometry
+  gives a blade hang-length of **6.89 mm** past the board's own edge (see
+  each board's README "Mating geometry", computed from
+  `scripts/gen-output-daughterboard.py`'s `_TAB_FAR_Y`/`_TAB_NEAR_Y`
+  constants) — a computed **~0.27 mm shortfall** versus the clip's full
+  body height, assuming ZERO standoff between the daughterboard's own edge
+  and the main-board clip row. **This is not asserted as a pass or a
+  fail** — full engagement/seating depth was already UNVERIFIED from paper
+  in Sec.4/Sec.7 above (no manufacturer figure for how far a tab must
+  travel into the clip for reliable contact, as opposed to the clip's
+  total body height), and that remains true here; this addendum only adds
+  the other half of the comparison (the tab's own reach) so the owner's
+  physical fit-check has a complete numeric picture. If OQ-87's
+  daughterboard standoff spec ends up wanting the two boards' edges further
+  apart, that directly subtracts from the 6.89 mm figure — a real
+  interaction worth resolving in the SAME physical pass as seating depth,
+  not two separate checks.
+
+### A.4 Board state after this addendum
+
+All three families (`atx24-out-db`, `eps-out-db`, `pcie-out-db`) regenerated
+on TE 63951-1 via `scripts/gen-output-daughterboard.py <family> --force`:
+board sizes essentially unchanged (81.1×16.6 / 52.9×14.6 / 34.5×14.6 mm —
+within 0.1 mm of the perpendicular-tab revision, since the new footprint's
+near-leg shoulder band was deliberately measured at the same 7.92 mm family
+width and a comparable ~2 mm near-side offset). ERC 0 errors, DRC 0 errors/0
+unconnected on all three, `check_output_daughterboards.py` fully green
+(including the geometric no-subset-seating proof, re-verified against the
+new tab's actual coordinates). New library assets:
+`cec-vendor:TE_63951-1_FASTON_Tab` /
+`cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT` (LCSC C591344),
+vendored from `lib/datasheets/TE_63951-1.pdf`. TE_63849-1 remains vendored
+(unreferenced, harmless). Full per-board detail in each family's own
+README "Posture"/"Mating geometry"/"Verification"/"Library assets" sections.
+
+### A.5 Open items carried forward (unchanged in kind, restated for this geometry)
+
+1. Physical sample: gang mating-force + full-seating-depth measurement —
+   NOW including the vertical-drop direction specifically (Sec.A.3), not
+   just the side-entry direction Sec.7 above was scoped to.
+2. Physical sample: clip-cluster confirm-soak + thermal-cycle contact-R
+   trend (fretting-corrosion check) — unchanged, still open.
+3. The 6.89 mm vs. 7.16 mm blade-reach-vs-clip-depth comparison (Sec.A.3) —
+   resolve together with OQ-87's standoff spec on the same physical sample.
+4. The "8.89 mm" TE attribute this addendum reads as "blade reach from the
+   leg row" is a single-datum interpretation (TE's own structured product
+   page, cross-checked against the raw drawing's position for that figure
+   but not re-derived from an independent third source) — worth a
+   confirming glance at TE's raw drawing coordinates before treating 6.89 mm
+   as load-bearing beyond a planning-level estimate.
+
+None of the above are resolved by this addendum; they remain the owner's
+physical gate, same as Sec.7.
