@@ -492,27 +492,36 @@ def route_simple(fam):
 
 
 # ---- 24-pin ATX: 8 nets share the board (GND + 7 rails). GND floods In1.Cu
-# alone. The 7 rails are thin BANDS ("lanes") confined to a short CORRIDOR
-# between the field's bottom row and the tab row -- split across TWO layers
-# (In2.Cu + B.Cu, 4 nets / 3 nets) so the corridor only has to stack 4 deep,
-# not 7. That 2-layer split is what makes a <=15mm-class board height
-# possible at all with this many interleaved rails: on the ORIGINAL 77mm-tall
-# board the 7 bands could spread out over ~28mm of spare height; standing the
-# board up leaves only a few mm between the (height-dominant) field and the
-# tab row for them.
+# alone. Of the 7 rails, only FOUR are real multi-point BUSSES (+12V/+5V/
+# +3V3/+5VSB: several field pins, one or two tabs each) -- the other THREE
+# (-12V/PWR_OK/PS_ON#) are a plain 2-terminal net apiece (exactly one field
+# pin to the one matching J_SIG header pin, no tab at all, verified against
+# the netlist), so they route as direct point-to-point tracks and need no
+# lane/zone at all. That split matters a lot here: it is what makes a
+# <=15mm-class board height achievable, and a two-LAYER lane split (tried
+# first, reverted) does NOT help the way it looks like it should -- see below.
 #
-# A lane on B.Cu is SAFE even though a foreign-net through-via also crosses
-# it on the way from F.Cu: KiCad's ZONE_FILLER auto-clears (anti-pads) any
-# via of a DIFFERENT net wherever it crosses a zone, on every layer it
-# passes through -- the exact mechanism an ordinary GND plane already relies
-# on for every unrelated signal via that crosses it, platform-wide (this repo
-# already depends on it: every non-GND via on this board's ORIGINAL design
-# already crossed the In1.Cu GND flood on its way from F.Cu to B.Cu). The one
-# thing that is NOT auto-cleared is a TRACK run directly into a foreign PAD
-# on the SAME layer -- that is a real short, and it is the one thing the
-# field-pin dodge below still guards against (unchanged mechanism from the
-# original design, just re-aimed at a lane in the corridor instead of a band
-# in the old design's much taller open area).
+# THE BUG A FIRST PASS SHIPPED (recorded so it is not repeated): parking
+# +12V's lane on In2.Cu and +5V's on B.Cu at the SAME nominal corridor Y
+# (thinking two layers halve the stack depth) is UNSAFE for a THIN zone. A
+# via is a THROUGH feature -- it exists on every copper layer it spans, so a
+# +5V via (F.Cu-B.Cu) also crosses In2.Cu at that (x,y), and KiCad's
+# ZONE_FILLER auto-clears (anti-pads) it there. That auto-clearance is
+# normally harmless (it is exactly how a signal via safely crosses a GND
+# plane, platform-wide) BUT only because a plane is wide in BOTH directions:
+# copper can route around the clearance hole. A 0.3mm-tall LANE has no
+# "around" -- a via whose keepout diameter (dia + 2*clearance, ~0.9mm here)
+# exceeds the lane's own height clears the lane's FULL height at that one X,
+# severing it into a left island and a right island. Measured DRC symptom:
+# real "unconnected_items" between two ends of the SAME zone/net that should
+# obviously be one piece. Putting the two layers' slots at DIFFERENT Y (half
+# a pitch apart) does not fix it either: the safe stand-off a via needs from
+# a FOREIGN-layer lane it merely passes near is via_keepout_radius +
+# lane_half_height + min_width (~0.45+0.15+0.2 = 0.8mm here) -- i.e. the same
+# separation the four real lanes already need from EACH OTHER on one layer.
+# Two layers buy nothing once every "slot" carries a via; the fix is fewer
+# lanes (drop the 3 point-to-point signals out of the lane scheme entirely),
+# not more layers.
 #
 # The real ATX-24 pinout INTERLEAVES rails column-by-column (row0 y=0 / row1
 # y=5.5 share the same 12 X-positions), so a field pin's straight-down stub
@@ -524,23 +533,18 @@ def route_simple(fam):
 # edges -- taken PERMANENTLY, which keeps every column's own stub on a
 # unique X for its whole length (0.5mm steps can never coincide with another
 # column's integer-pitch X, so dodged and undodged stubs never collide).
-ATX24_NONGND_NETS = ["+12V", "+5V", "+3V3", "+5VSB", "-12V", "PWR_OK", "PS_ON#"]
-ATX24_LANE = {          # net -> (layer, slot); slot 0 = nearest the field.
-    "+12V": ("In2.Cu", 0), "+5V": ("B.Cu", 0),
-    "+3V3": ("In2.Cu", 1), "+5VSB": ("B.Cu", 1),
-    "-12V": ("In2.Cu", 2), "PWR_OK": ("B.Cu", 2),
-    "PS_ON#": ("In2.Cu", 3),
-}
-_LANE_PITCH, _LANE_HALF = 0.8, 0.15     # 0.3mm-wide lane zone
-_N_LANE_SLOTS = 4                       # the deeper of the two lane layers (In2.Cu)
-ATX24_CORRIDOR_H = (_N_LANE_SLOTS - 1) * _LANE_PITCH + 2 * _LANE_HALF
+ATX24_BUS_NETS = ["+12V", "+5V", "+3V3", "+5VSB"]              # get a corridor lane
+ATX24_P2P_NETS = ["-12V", "PWR_OK", "PS_ON#"]                  # field pin <-> header pin direct
+ATX24_LANE_SLOT = {net: i for i, net in enumerate(ATX24_BUS_NETS)}   # slot 0 = nearest the field
+_LANE_PITCH, _LANE_HALF = 0.65, 0.15    # 0.3mm-wide lane zone, single layer (In2.Cu)
+ATX24_CORRIDOR_H = (len(ATX24_BUS_NETS) - 1) * _LANE_PITCH + 2 * _LANE_HALF
 # Lane-entry via: SMALLER than the platform-default 0.5/0.9mm power via on
-# purpose -- 0.8mm slot pitch cannot safely hold 0.9mm-diameter vias (adjacent
-# slots' vias would physically overlap). 0.3/0.5mm is this repo's own existing
-# "Sense"/small-signal via convention (see modules/12vhpwr-standard's Sense
-# netclass, 0.6/0.3) sized down slightly further for this corridor; currents
-# here are the modest per-pin fan-out figures documented in the board README,
-# never the rail's own aggregate (that rides the 9 blade-clip joints).
+# purpose -- adjacent slots at 0.65mm pitch cannot safely hold 0.9mm-diameter
+# vias. 0.3/0.5mm is close to this repo's own existing "Sense"/small-signal
+# via convention (modules/12vhpwr-standard's Sense netclass, 0.6/0.3) sized
+# down slightly further; currents here are the modest per-pin fan-out
+# figures documented in the board README, never the rail's own aggregate
+# (that rides the 9 blade-clip joints, sized separately).
 _LANE_VIA_DRILL, _LANE_VIA_DIA = 0.3, 0.5
 
 
@@ -549,10 +553,9 @@ def atx24_tab_y(field_bottom):
     return corridor_top + ATX24_CORRIDOR_H + _FIELD_GAP + _TAB_HALF_Y
 
 
-def _atx24_lane(field_bottom, net):
-    """(y, layer) of a rail's lane centreline in the corridor."""
-    layer, slot = ATX24_LANE[net]
-    return field_bottom + _FIELD_GAP + _LANE_HALF + slot * _LANE_PITCH, layer
+def _atx24_lane_y(field_bottom, net):
+    """Y of a bus rail's lane centreline in the corridor (single layer, In2.Cu)."""
+    return field_bottom + _FIELD_GAP + _LANE_HALF + ATX24_LANE_SLOT[net] * _LANE_PITCH
 
 
 # kicad-cli's netlist export prefixes a ROOT-SHEET plain text label (no power-
@@ -562,16 +565,8 @@ def _atx24_lane(field_bottom, net):
 # power symbol exists in this platform's library) and so come back
 # "/-12V"/"/PS_ON#"/"/PWR_OK" on the actual board. Map at the routing layer
 # only -- the schematic/config data above stays on the readable bare names.
-_PCB_NET = {n: (f"/{n}" if n in ("-12V", "PS_ON#", "PWR_OK") else n) for n in ATX24_NONGND_NETS}
-
-# Two of the nine tabs need a small sideways nudge (see the tabs-loop comment
-# in route_atx24): J10's natural bridge-point X (7.5mm) sits 0.8mm from the
-# -12V field pin's own transit column, and J11's (16.1mm) sits 0.6mm from the
-# PS_ON# field pin's -- both under the >=1.0mm separation a 0.5mm track /
-# 0.5mm via combination needs. Solved by a small geometric search (every
-# field-pin/tab/header transit column vs every other, pairwise, over the
-# whole corridor Y-span) -- not hand-guessed. J12/J13/J14 needed no nudge.
-TAB_X_NUDGE = {"J10": -0.2, "J11": -0.4}
+_PCB_NET = {n: (f"/{n}" if n in ("-12V", "PS_ON#", "PWR_OK") else n)
+            for n in ATX24_BUS_NETS + ATX24_P2P_NETS}
 
 
 def route_atx24():
@@ -586,26 +581,25 @@ def route_atx24():
     fx, fy, _field_right, field_bottom = _field_geom(fam)
 
     lane_x0, lane_x1 = 2.0, W - 2.0
-    for net in ATX24_NONGND_NETS:
-        ly, layer = _atx24_lane(field_bottom, net)
+    for net in ATX24_BUS_NETS:
+        ly = _atx24_lane_y(field_bottom, net)
         pn = _PCB_NET.get(net, net)
         r.zone(pn, [(lane_x0, ly - _LANE_HALF), (lane_x1, ly - _LANE_HALF),
                    (lane_x1, ly + _LANE_HALF), (lane_x0, ly + _LANE_HALF)],
-               layers=(layer,), clearance=0.2, min_width=0.2)
+               layers=("In2.Cu",), clearance=0.2, min_width=0.2)
 
     # field pins (1-24): row0 = pins 1-12 @ local y=0, row1 = pins 13-24 @
     # y=5.5 -- see the module-level comment above for the dodge rationale.
-    # A "same net, no conflict" column drives two pins to the IDENTICAL via
-    # spot; track via spots already used (per NET, so two DIFFERENT rails
-    # that happen to share a lane Y on DIFFERENT layers never get confused
-    # for one another) and skip the duplicate -- the track alone, ending on
-    # top of the other pin's own via, still ties them.
+    # BUS nets (+12V/+5V/+3V3/+5VSB) run down into their In2.Cu lane. P2P
+    # nets (-12V/PWR_OK/PS_ON#) stay entirely within the field's own row-gap
+    # (y in [row0, row1], never entering the corridor at all) and connect
+    # straight across to their header pin -- see the header block below.
     via_seen = set()
     for pin, net in cfg["field_net"].items():
-        if net in (None, "GND"):
+        if net is None or net == "GND" or net in ATX24_P2P_NETS:
             continue
         pn = _PCB_NET.get(net, net)
-        by, _layer = _atx24_lane(field_bottom, net)
+        by = _atx24_lane_y(field_bottom, net)
         row = 0 if pin <= 12 else 1
         col = (pin - 1) % 12
         x, y = fx + col * 4.2, fy + (0.0 if row == 0 else 5.5)
@@ -621,53 +615,59 @@ def route_atx24():
             r.via(pn, pts[-1], drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
             via_seen.add(via_pt)
 
-    # tabs sit BELOW the corridor (tab_y > every lane y), so each one's stub
-    # runs UP into its net's lane. The TE_63849-1 footprint has TWO physical
-    # pads, both numbered "1" (one electrical node per its own vendored
-    # description), but "same pad number" is a netlist LABEL, not copper --
-    # the footprint has no internal bridge between them, so both need real
-    # copper: a short bridge track between the two pads (tx-2.54 to
-    # tx+2.54), then the up-stub off the +2.54 one, PLUS a small extra
-    # sideways nudge (TAB_X_NUDGE) on the two tabs whose natural bridge-point
-    # X happens to land within a via-diameter of an UNRELATED field pin's or
-    # header pin's own transit through the corridor (a coincidental overlap
-    # between the field's 4.2mm column grid and the tab row's 8.6mm grid --
-    # unrelated to keying, just two independent pitches landing close
-    # together at this one spot each; solved geometrically, see
-    # scripts/gen-output-daughterboard.py dev history / the README).
+    # tabs (all 4 BUS nets have >=1) sit BELOW the corridor (tab_y > every
+    # lane y), so each one's stub runs UP into its net's lane. The
+    # TE_63849-1 footprint has TWO physical pads, both numbered "1" (one
+    # electrical node per its own vendored description), but "same pad
+    # number" is a netlist LABEL, not copper -- the footprint has no
+    # internal bridge between them, so both need real copper: a short bridge
+    # track between the two pads (tx-2.54 to tx+2.54), then the up-stub off
+    # the +2.54 one.
     for ref, net in cfg["tabs"]:
         if net == "GND":
             continue
         pn = _PCB_NET.get(net, net)
         tx, ty, _ = P[ref]
-        by, _layer = _atx24_lane(field_bottom, net)
-        nx = tx + 2.54 + TAB_X_NUDGE.get(ref, 0.0)
+        by = _atx24_lane_y(field_bottom, net)
         r.track(pn, [(tx - 2.54, ty), (tx + 2.54, ty)], "F.Cu", 0.5)
-        r.track(pn, [(tx + 2.54, ty), (nx, ty), (nx, by)], "F.Cu", 0.5)
-        r.via(pn, (nx, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
+        r.track(pn, [(tx + 2.54, ty), (tx + 2.54, by)], "F.Cu", 0.5)
+        r.via(pn, (tx + 2.54, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
     # 2x5 signal header (PS_ON#/PWR_OK/-12V/GND-ref/6 reserved -- pin order
     # matches the already-built main-board J_SIG, see ATX24_HEADER_NET),
     # ROTATED 90 (see the placement-section docstring) so it fits the
-    # field's own Y-band instead of costing extra board height. Post-
-    # rotation: pin1 PS_ON# and pin2 PWR_OK share an X (pin2 sits directly
-    # ABOVE pin1), so pin2's stub dodges sideways before passing pin1's Y on
-    # its way down to a lane; pin3 -12V is on its own column (pin4 GND sits
-    # above it but needs no route) and runs straight down.
+    # field's own Y-band instead of costing extra board height. Its 3 live
+    # signals are the P2P nets, each a single track straight to its field
+    # pin -- entirely on F.Cu, entirely within the field's row-gap Y-range
+    # (never touching the BUS corridor, so no lane/via-severing concern
+    # applies to them at all). Post-rotation pin1 PS_ON# and pin2 PWR_OK
+    # share an X (pin2 sits directly ABOVE pin1), so pin2's run dodges
+    # sideways before passing pin1's Y; pin3 -12V is on its own column (pin4
+    # GND sits above it but needs no route).
     h = cfg["header"]; hx, hy, _ = P[h["ref"]]
     p1, p2, p3 = (hx, hy), (hx, hy - 2.54), (hx + 2.54, hy)
-    by_ps, _l1 = _atx24_lane(field_bottom, "PS_ON#")
-    by_pwr, _l2 = _atx24_lane(field_bottom, "PWR_OK")
-    by_m12, _l3 = _atx24_lane(field_bottom, "-12V")
+    field_row_gap_y = fy + 2.75    # midpoint between row0 (fy) and row1 (fy+5.5)
+
+    def _p2p_field_xy(net):
+        pin = [p for p, n in cfg["field_net"].items() if n == net][0]
+        row = 0 if pin <= 12 else 1
+        col = (pin - 1) % 12
+        return fx + col * 4.2, fy + (0.0 if row == 0 else 5.5)
+
+    x_ps, y_ps = _p2p_field_xy("PS_ON#")
+    x_pwr, y_pwr = _p2p_field_xy("PWR_OK")
+    x_m12, y_m12 = _p2p_field_xy("-12V")
+    # three parallel runs through the row-gap, stacked 0.6mm apart (plain
+    # track-to-track clearance -- no zone/via-severing concern for a P2P
+    # track) so they don't cross each other en route to the header.
     header_paths = {
-        "PS_ON#": [p1, (p1[0], by_ps)],
-        "PWR_OK": [p2, (p2[0], p2[1] + 1.0), (p2[0] + 1.27, p2[1] + 1.0), (p2[0] + 1.27, by_pwr)],
-        "-12V": [p3, (p3[0], by_m12)],
+        "PS_ON#": [(x_ps, y_ps), (x_ps, field_row_gap_y - 0.6), (p1[0], field_row_gap_y - 0.6), p1],
+        "PWR_OK": [(x_pwr, y_pwr), (x_pwr, field_row_gap_y), (p2[0], field_row_gap_y), p2],
+        "-12V": [(x_m12, y_m12), (x_m12, field_row_gap_y + 0.6), (p3[0], field_row_gap_y + 0.6), p3],
     }
     for net, pts in header_paths.items():
         pn = _PCB_NET.get(net, net)
         r.track(pn, pts, "F.Cu", 0.4)
-        r.via(pn, pts[-1], drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
     r.fill()
     res = r.verify()
