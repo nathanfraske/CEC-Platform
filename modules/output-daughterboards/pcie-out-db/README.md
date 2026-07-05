@@ -10,6 +10,31 @@ variant). Mates with the main board's per-cable `TB{n}1`–`TB{n}4` Keystone
 
 DRAFT (no fab yet — OQ-86 fit-check sample gate open).
 
+## Posture — STANDS PERPENDICULAR to the main board (owner ruling, 2026-07-05)
+
+This board is a small vertical card, not a parallel mezzanine (an earlier
+framing this pass corrected — see `atx24-out-db/README.md` "Posture" for
+the full reasoning, identical here). The 4 TE 63849-1 tabs mount near the
+board's **bottom (near) edge**, blades pointing straight out of the board
+face (horizontal once standing), side-entering the main-board Keystone 3586
+clips. The output field sits above the tab row. Board axes: X = length
+(FREE); Y = height (**ruled cap ≤15 mm "or so"**, owner 2026-07-05).
+
+**Measured final size**: **34.6 × 14.6 mm** — well inside the height cap
+and the owner's own rough single-face length estimate (20–36 mm).
+
+**Mating height**: tab-row centreline sits **1.94 mm** above this board's
+own near/bottom edge (identical figure to the other two families — see the
+24-pin board's "Posture" section for the caveats on reading this as a
+main-board mating height).
+
+## Mounting / retention — no mounting holes (owner directive, 2026-07-05)
+
+Same ruling and rationale as the 24-pin board: retention is the Keystone
+clip's own high insertion force (a feature) plus chassis strain relief on
+the cable/assembly side (OQ-87 owns the numeric spec). No BOM/schematic
+impact — mounts were a PCB-only mechanical footprint on this generator.
+
 ## Tab map (4 joints/cable, TE 63849-1 / LCSC C86469)
 
 | Ref | Net | PCIe8 pins bundled |
@@ -44,9 +69,37 @@ symbol.
 
 ## Keying
 
-4 tabs in two groups of 2 (+12V, then GND), pitch 9 mm within a group /
-10 mm between groups — the smallest joint count (4) and its own distinct
-pitch/gap signature vs. EPS (6 tabs, 9/13) and 24-pin (9 tabs, 9/15).
+**Single row of 4 tabs at 8.2 mm pitch**, net order +12V×2 then GND×2 —
+the smallest joint count of the three families. Floor: the TE 63849-1's own
+courtyard is exactly 7.92 mm wide (measured, matches the datasheet to the
+micron) — 8.2 mm leaves 0.28 mm of clearance, the tightest of the three
+families (this family has the fewest gaps, so it needs the least pitch
+delta from its neighbours to clear the no-subset-seating proof below — see
+`scripts/gen-output-daughterboard.py`'s `TAB_PITCH` comment for the exact
+per-family math).
+
+**The real safety property is proved geometrically, not by pitch alone.**
+`scripts/check_output_daughterboards.py` takes every family's tab-centre
+list from `pcb_placement()` (the committed board's own coordinates) and,
+for every ORDERED pair, searches all 4 rotations (0/90/180/270°) × every
+candidate translation for a rigid whole-set mapping onto a subset of
+another family's grid, within 0.5 mm (exact bipartite match). All 6 ordered
+pairs come back "cannot seat." An earlier pitch choice here (8.2 mm,
+unchanged) paired with EPS's original 8.3 mm MEASURABLY FAILED this exact
+proof — this family's 4 tabs (only 3 gaps) seated within tolerance as a
+subset of EPS's 6-tab grid, since a 0.1 mm/step difference over 3 gaps
+accumulates to only 0.15 mm at the worst point. EPS's pitch was moved to
+8.6 mm (0.4 mm delta from this family, clearing the (G/2)×Δpitch > 0.5 mm
+bound at this family's own G=3) to fix it; this family's own pitch did not
+need to move. **This daughterboard's tab grid is the authoritative
+main-board mating drawing** for the PCIe per-cable clip pattern.
+
+**Dual-face tabs**: evaluated and rejected for this whole family of boards
+on the same grounds as the 24-pin board (see that README) — cross-face
+interleaving only relieves pad-to-pad copper clearance (the TE 63849-1's
+pads already span 7.58 mm inside its 7.92 mm courtyard), buying ~11% pitch
+relief, not the ~50% a naive "halve it" framing assumes. Single-face,
+single-row is built.
 
 ## Layer stack / current
 
@@ -70,11 +123,16 @@ Not provisioned (no signal header on this board). The SENSE0/SENSE1 straps
 above are a presence indicator, not a monitoring tap — they carry no
 information back to the main board's sensing chain.
 
-## Verification (this pass)
+## Verification (this pass — 2026-07-05 floorplan rework)
 
 - ERC: 0 errors (2 benign `lib_symbol_mismatch` warnings).
 - Static connectivity audit: clean.
-- DRC: 0 errors at any severity (7 cosmetic silk warnings, no copper impact).
+- DRC: **0 errors, 0 unconnected** (`kicad-cli pcb drc --severity-error`).
+  At full verbosity, 12 hits, ALL cosmetic silk (1 `silk_overlap` +
+  11 `silk_over_copper`, no copper impact) on a board ~2× smaller in area
+  than the original 110×63 mm floorplan.
+- `scripts/check_output_daughterboards.py`: all checks pass, including the
+  geometric no-subset-seating proof against both ATX24 and EPS.
 - Netlist-verified: all 4 tabs land on their mapped rail; the field's 8
   positions reproduce the standard PCIe CEM motherboard-side map, with
   pins 7/8 confirmed tied to the GND net.
@@ -83,7 +141,12 @@ information back to the main board's sensing chain.
 
 - `cec-vendor:TE_63849-1_FASTON_Tab` / `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT` (pre-existing, LCSC C86469).
 - `cec:CEC_CONN_2x4` (pre-existing generic connector symbol).
-- `cec-Connector_Generic:PCIe8_Daughterboard_Field_P4.20mm` (new this pass).
-- `cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` (pre-existing) — 4 corners, GND-tied.
+- `cec-Connector_Generic:PCIe8_Daughterboard_Field_P4.20mm` — this pass
+  tightened its Y-margin (pad half-height instead of half the row pitch,
+  `scripts/gen-daughterboard-libassets.py`), dropping its own courtyard
+  height 13.0→10.2 mm.
+- No mounting-hole footprint — removed this pass (owner directive; see
+  "Mounting / retention" above). Never a schematic/BOM part on this
+  generator, so the BOM is unaffected.
 
 Generator: `scripts/gen-output-daughterboard.py pcie-out-db`.

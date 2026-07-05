@@ -86,6 +86,40 @@ Field_P4.20mm` (bare THT solder fields, `scripts/gen-daughterboard-libassets.py`
 `scripts/check_output_daughterboards.py` (netlist-verified tab-to-net mapping + keying-
 signature-differs assertions) and the action item below for the still-open follow-ups (fit
 gate, sense-return decision, fab).
+**FLOORPLAN REWORK (2026-07-05, owner directive "as absolutely small as possible" +
+posture correction "mounted at a 90, is vertical space"):** the daughterboards above are
+NOT a parallel mezzanine — they stand PERPENDICULAR to the main board (a card on edge); the
+TE 63849-1 tabs sit in a single row on the near/bottom edge, blades pointing horizontally out
+of the board face into the Keystone 3586 clips via SIDE ENTRY, output field above the tab
+row. Board Y = height, RULED CAP <=15mm "or so"; board X = length, free/no ceiling. Result:
+atx24-out-db **81.2x16.6mm** (was 238x77), eps-out-db **53.0x14.6mm** (was 110x67),
+pcie-out-db **34.6x14.6mm** (was 110x63) — `pcbnew.GetBoardEdgesBoundingBox`. NO mounting
+holes (owner: "they don't need a ton of mounting holes either" -- retention is the Keystone
+clip's own high insertion force, a feature per the 2026-07-04 mating-force ruling, plus
+chassis strain relief on the cable/assembly side, OQ-87). Dual-face tabs (front+back,
+blades opposite directions) were evaluated and REJECTED with the math recorded in each
+README: the TE 63849-1's copper pads already span 7.58mm inside its 7.92mm courtyard, so
+cross-face interleaving only relieves pad clearance (~11% pitch saving), not the ~50% a
+naive halving assumes. Keying method CHANGED: the old (count, pitch, gap) 1-D signature
+check is gone (it could not express a 2-D grid and a first re-pass at tighter, too-similar
+per-family pitches MEASURABLY FAILED the real property -- pcie's 4 tabs seated within
+tolerance as a subset of eps's 6-tab grid); `scripts/check_output_daughterboards.py` now
+proves, per ordered family pair, that NO rigid transform (translation x 0/90/180/270
+rotation) seats one family's whole tab set as a subset of another's, within 0.5mm (exact
+bipartite match on `pcb_placement()`'s own coordinates -- the authoritative main-board
+mating drawing per family). atx24's routing is now a short lane corridor for the 4 real
+multi-point bus rails (+12V/+5V/+3V3/+5VSB, single layer In2.Cu, 0.3/0.5mm vias) plus 3
+direct point-to-point tracks on B.Cu for the signal-only nets (-12V/PWR_OK/PS_ON#, which
+have exactly one field pin + one header pin each, no tab -- verified against the netlist, no
+lane needed). A same-Y two-layer lane split was tried first and reverted: a through-via's
+anti-pad on a foreign-layer lane THAT THIN severs it (measured as a real `unconnected_items`
+DRC hit), because the via's keepout diameter exceeds the lane's own height and a lane has no
+"around" the way a wide plane does -- recorded in `route_atx24()`'s comments as a fix future
+edits should not re-break. `gen-daughterboard-libassets.py`'s field-footprint Y-margin was
+tightened (pad half-height instead of half the row pitch) 13.0->10.2mm, the single biggest
+height lever. ERC 0 errors / DRC 0 errors+0 unconnected on all three (cosmetic silk-only
+warnings remain, documented per-board). Done on branch claude/schematic-work-continue-59pw41,
+not yet merged/committed as of this note.
 
 Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
 CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions

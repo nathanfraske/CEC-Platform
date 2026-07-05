@@ -72,13 +72,38 @@ daughterboard-plus-extension assembly (OQ-89).
 
 ## Keying
 
-6 tabs in two groups of 3 (GND, then +12V), pitch 9 mm within a group /
-13 mm between groups — a **distinct pitch/gap signature** from both the
-24-pin board (9 mm / 15 mm, 9 tabs) and the PCIe board (9 mm / 10 mm,
-4 tabs), plus a different **joint count** (6) from both. As with the 24-pin
-board, full mis-seat keying against a wrong-family main board is a joint
-property of both boards' hole patterns — this daughterboard's own pattern
-is recorded here for the (separate) main-board layout to mirror.
+**Single row of 6 tabs at 8.6 mm pitch**, net order GND×3 then +12V×3
+(matching the tab map above). Floor: the TE 63849-1's own courtyard is
+exactly 7.92 mm wide (measured off
+`cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT`, matching the TE
+datasheet to the micron) — 8.6 mm leaves 0.68 mm of clearance.
+
+**The real safety property is proved geometrically, not by pitch alone.**
+`scripts/check_output_daughterboards.py` takes every family's tab-centre
+list straight from `pcb_placement()` (the committed board's own
+coordinates) and, for every ORDERED pair, searches all 4 rotations
+(0/90/180/270°) × every candidate translation for a rigid whole-set mapping
+onto a subset of another family's grid, within 0.5 mm (exact bipartite
+match). All 6 ordered pairs (this family vs. both others, both directions)
+come back "cannot seat." This replaced an earlier (count, pitch, gap)
+signature check that could not express a 2-D grid at all — and which, at
+an earlier pitch choice (8.3 mm here, 8.2 mm on PCIe), MEASURABLY FAILED
+this exact geometric proof: a 0.1 mm/step pitch difference over PCIe's 3
+gaps accumulates to only 0.15 mm at the worst point, well inside the 0.5 mm
+tolerance, so PCIe's 4 tabs seated as a subset of this board's 6-tab grid.
+The pitch here (8.6 mm) and PCIe's (8.2 mm) now differ by 0.4 mm, clearing
+the (G/2)×Δpitch > 0.5 mm bound at G=3 (PCIe's own gap count) — see
+`scripts/gen-output-daughterboard.py`'s `TAB_PITCH` comment for the general
+rule. **This daughterboard's tab grid is the authoritative main-board
+mating drawing** for the EPS per-cable clip pattern (the main board carries
+no clips yet).
+
+**Dual-face tabs**: evaluated and rejected for this whole family of boards
+on the same grounds as the 24-pin board (see that README) — the TE
+63849-1's own copper pads already span 7.58 mm inside its 7.92 mm
+courtyard, so cross-face interleaving only relieves pad-to-pad clearance,
+not full courtyard clearance, buying ~11% pitch relief rather than the
+~50% a naive "halve it" framing assumes. Single-face, single-row is built.
 
 ## Layer stack / current
 
@@ -114,12 +139,17 @@ Not provisioned on this board (no signal header exists here, unlike the
 lands "yes" for EPS, it needs a small signal-tab addition in a future
 revision; not a silent gap, just genuinely absent today.
 
-## Verification (this pass)
+## Verification (this pass — 2026-07-05 floorplan rework)
 
 - ERC: 0 errors (2 benign `lib_symbol_mismatch` warnings).
 - Static connectivity audit: clean.
-- DRC: 0 errors at any severity (7 cosmetic `silk_overlap`/`silk_over_copper`
-  warnings — silkscreen text vs. the dense THT field, no copper impact).
+- DRC: **0 errors, 0 unconnected** (`kicad-cli pcb drc --severity-error`).
+  At full verbosity, 15 hits, ALL cosmetic silk (2 `silk_overlap` +
+  13 `silk_over_copper` — silk text vs. the dense THT field on a board
+  ~2.1× smaller in area than the original 110×67 mm floorplan; no copper
+  impact).
+- `scripts/check_output_daughterboards.py`: all checks pass, including the
+  geometric no-subset-seating proof against both ATX24 and PCIe.
 - Netlist-verified: all 6 tabs land on their mapped rail; the field's 8
   positions reproduce the platform's corrected EPS8 pinout exactly.
 
@@ -127,7 +157,12 @@ revision; not a silent gap, just genuinely absent today.
 
 - `cec-vendor:TE_63849-1_FASTON_Tab` / `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT` (pre-existing, LCSC C86469).
 - `cec:CEC_CONN_2x4` (pre-existing generic connector symbol).
-- `cec-Connector_Generic:EPS8_Daughterboard_Field_P4.20mm` (new this pass).
-- `cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` (pre-existing) — 4 corners, GND-tied.
+- `cec-Connector_Generic:EPS8_Daughterboard_Field_P4.20mm` — this pass
+  tightened its Y-margin (pad half-height instead of half the row pitch,
+  `scripts/gen-daughterboard-libassets.py`), dropping its own courtyard
+  height 13.0→10.2 mm; the single biggest lever in clearing the height cap.
+- No mounting-hole footprint — removed this pass (owner directive; see
+  "Mounting / retention" above). Never a schematic/BOM part on this
+  generator, so the BOM is unaffected.
 
 Generator: `scripts/gen-output-daughterboard.py eps-out-db`.
