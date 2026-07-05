@@ -308,9 +308,18 @@ TAB_PITCH = {   # mm, centre-to-centre, single row -- the per-family KEYING
     # (cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT courtyard is
     # exactly [-3.96,3.96], matching the TE datasheet's 7.92mm shoulder-flange
     # dimension to the micron). Every value below clears that floor with
-    # margin (last column = clearance beyond the floor).
-    "atx24-out-db": 8.6,   # 9 tabs, +0.68mm
-    "eps-out-db": 8.3,     # 6 tabs, +0.38mm
+    # margin (last column = clearance beyond the floor) -- AND the per-family
+    # DELTA is sized so a uniform-pitch subset can never align within the
+    # check script's 0.5mm tolerance: for a family with G gaps (tab count -1)
+    # tested as a possible subset of a DIFFERENT uniform pitch, the best-case
+    # (centred) alignment error at the end tabs is (G/2)*|pitch_delta|, so
+    # pitch_delta must exceed 1.0/G for every pair -- the tightest case is
+    # pcie (G=3, needs >0.33mm from BOTH other families). A first pass used
+    # 8.6/8.3/8.2 (deltas 0.3/0.1) and MEASURABLY FAILED this exact check
+    # (pcie's 4 tabs seated within tolerance as a subset of eps's 6-tab grid,
+    # 0.1mm/step accumulating to only 0.15mm at the ends) -- corrected below.
+    "atx24-out-db": 8.9,   # 9 tabs, +0.98mm; delta to eps 0.3 (need >0.2, G=5)
+    "eps-out-db": 8.6,     # 6 tabs, +0.68mm; delta to pcie 0.4 (need >0.33, G=3)
     "pcie-out-db": 8.2,    # 4 tabs, +0.28mm
 }
 

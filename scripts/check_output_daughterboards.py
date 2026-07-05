@@ -133,7 +133,7 @@ for fam, cfg in godb.FAMILIES.items():
     bdir = board_dir(fam)
     netf = os.path.join(bdir, f"{cfg['base']}.net")
     if not os.path.exists(netf):
-        fail(f"{fam}: no exported netlist ({netf}) -- run the generator first")
+        check(False, f"{fam}: no exported netlist ({netf}) -- run the generator first")
         continue
     membership = netlist_membership(netf)
     for ref, expected_net in cfg["tabs"]:
@@ -171,20 +171,91 @@ for fam, cfg in godb.FAMILIES.items():
 
 
 # ---------------------------------------------------------------------------
-# 3. Joint counts match the spec §2.8 v1.4.0 ratified table, and the keying
-#    pattern (pitch/gap/count) differs across every family pair.
+# 3. Joint counts match the spec §2.8 v1.4.0 ratified table, and -- the real
+#    keying safety property -- NO family's tab grid can seat, as a rigid
+#    subset, onto any OTHER family's grid under any translation combined
+#    with a 0/90/180/270 rotation. This replaces the old (count, pitch, gap)
+#    1-D signature comparison, which could not express a 2-D grid at all (a
+#    3x3 and a 2x2 grid can share a "pitch" while still being mechanically
+#    incompatible, or share nothing and still nest as corner subsets -- pitch
+#    alone proves nothing). The daughterboard's own tab-centre positions
+#    (from pcb_placement(), the exact coordinates written to the committed
+#    .kicad_pcb) ARE the authoritative main-board mating drawing per family
+#    -- see each README's "Keying" section for the rendered grid.
 # ---------------------------------------------------------------------------
 EXPECTED_JOINTS = {"atx24-out-db": 9, "eps-out-db": 6, "pcie-out-db": 4}
 for fam, n in EXPECTED_JOINTS.items():
     got = len(godb.FAMILIES[fam]["tabs"])
     check(got == n, f"{fam}: {n} ratified blade-tab joints (found {got})")
 
-sigs = {fam: (n, *godb.TAB_PITCH_GAP[fam]) for fam, n in EXPECTED_JOINTS.items()}
-fams = list(sigs)
-for i, a in enumerate(fams):
-    for b in fams[i + 1:]:
-        check(sigs[a] != sigs[b],
-              f"keying signature (count, pitch, gap) differs: {a}={sigs[a]} vs {b}={sigs[b]}")
+
+def tab_centres(fam):
+    _w, _h, P = godb.pcb_placement(fam)
+    return [(P[ref][0], P[ref][1]) for ref, _net in godb.FAMILIES[fam]["tabs"]]
+
+
+def _rot90(pts, k):
+    """Rotate every point by k*90 degrees about the origin (k=0..3)."""
+    out = []
+    for (x, y) in pts:
+        for _ in range(k):
+            x, y = -y, x
+        out.append((x, y))
+    return out
+
+
+def _bipartite_full_match(edges, n_left, n_right):
+    """Kuhn/Hopcroft-style augmenting-path matching: True iff every LEFT
+    node (0..n_left-1) can be matched to a DISTINCT right node along the
+    given adjacency lists (`edges[i]` = right-node indices reachable from
+    left node i)."""
+    match_right = [-1] * n_right
+
+    def try_left(u, seen):
+        for v in edges[u]:
+            if seen[v]:
+                continue
+            seen[v] = True
+            if match_right[v] == -1 or try_left(match_right[v], seen):
+                match_right[v] = u
+                return True
+        return False
+
+    return all(try_left(u, [False] * n_right) for u in range(n_left))
+
+
+def subset_seats(sup, sub, tol=0.5):
+    """True if EVERY point of `sub` maps -- under SOME translation combined
+    with a 0/90/180/270 rotation -- onto a DISTINCT point of `sup`, each
+    within `tol` mm. Tries every (sup-point, rotated-sub-point) pair as the
+    anchor that fixes the translation (a valid whole-set mapping, if one
+    exists, must be attainable this way for at least one such pair), then
+    verifies the FULL point set with a real bipartite match -- not just
+    that counts/pitches happen to coincide."""
+    for k in range(4):
+        rk = _rot90(sub, k)
+        for (ax, ay) in sup:
+            for (bx, by) in rk:
+                tx, ty = ax - bx, ay - by
+                moved = [(x + tx, y + ty) for (x, y) in rk]
+                edges = [[j for j, (sx, sy) in enumerate(sup)
+                          if (sx - mx) ** 2 + (sy - my) ** 2 <= tol ** 2]
+                         for (mx, my) in moved]
+                if _bipartite_full_match(edges, len(moved), len(sup)):
+                    return True
+    return False
+
+
+CENTRES = {fam: tab_centres(fam) for fam in EXPECTED_JOINTS}
+fams = list(CENTRES)
+for a in fams:
+    for b in fams:
+        if a == b:
+            continue
+        check(not subset_seats(CENTRES[a], CENTRES[b]),
+              f"no-subset-seating: {b}'s {len(CENTRES[b])} tabs cannot seat "
+              f"as a subset of {a}'s {len(CENTRES[a])} clip positions under "
+              f"any translation + 90-deg rotation (checked within 0.5mm)")
 
 if FAILURES:
     print(f"\n{len(FAILURES)} FAILURE(S):", file=sys.stderr)
