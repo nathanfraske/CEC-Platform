@@ -274,145 +274,118 @@ def gen_schematic(fam, out=sys.stdout):
 # ============================================================================
 # PCB: physical placement -- board STANDS PERPENDICULAR (90 deg) to the main
 # board (owner ruling, 2026-07-04/05 -- the board's own standing posture is
-# UNCHANGED by this pass). Axes, as authored in this 2D file:
+# unchanged). Axes, as authored in this 2D file:
 #   X = "length", parallel to the main board once installed. FREE dimension,
 #       no ceiling -- minimize opportunistically, never at the expense of Y.
 #   Y = "height", the board's own vertical extent standing up off the main
 #       board. RULED CAP: <=15mm "or so" (owner, 2026-07-05). Y=0 (top of this
 #       drawing) is the board's FAR edge (top when installed); Y=H (bottom of
-#       this drawing) is the NEAR edge -- this is the board's own Edge.Cuts,
-#       at/near the main-board clip row.
+#       this drawing) is the NEAR edge (the board's own Edge.Cuts).
 #
-# TAB CONNECTOR FORM -- CHANGED 2026-07-05 (this pass; supersedes the
-# same-day-earlier TE 63849-1 perpendicular/side-entry choice this generator
-# briefly shipped with, itself superseding the ORIGINAL two-male-header
-# design). Owner direction: the tabs must be IN-PLANE FLAT tabs -- "so the
-# blade can come out at a 90" -- i.e. the blade lies FLAT/coplanar with the
-# board's own standing plane and hangs BELOW Y=H (past the board's own
-# Edge.Cuts, into open space), rather than pointing OUT OF the board's face
-# (perpendicular to it). This lets the WHOLE DAUGHTERBOARD drop straight DOWN
-# (a single vertical motion) so the hanging blade enters the main-board
-# Keystone 3586 clip's TOP-entry slot, replacing the previous horizontal
-# side-entry slide. The owner uploaded TE 1217061-1 (a .187-series flat PCB
-# tab) as the worked example of the target geometry; this generator uses its
-# .250-series sibling, TE 63951-1 (same App Spec 114-2115, same 5.08mm leg
-# pitch / 1.40mm hole pattern as the platform's existing 63849-1 -- confirmed
-# against TE's own customer drawing, not assumed -- see
-# docs/standard-tier-review/blade-fit-check-2026-07-04.md's dated addendum
-# for the full hunt). The Keystone 3586 clip needs NO main-board change for
-# this: it is a "SM Universal Auto Fuse Clip" derivative (Keystone dwg 3586)
-# -- its native automotive-blade-fuse heritage IS a top-entry design (a fuse
-# drops straight down into the split spring contact), and the existing
-# fit-check memo already records this clip as accepting entry "from the top
-# or the side" -- so top-entry was already one of its two supported modes,
-# not a new one this pass invents.
+# TAB CONNECTOR FORM -- OWNER SKETCH, 2026-07-05 (third and final same-day
+# form; supersedes BOTH the morning's TE 63849-1 perpendicular/side-entry
+# build AND this generator's brief interim "blade hangs past the bottom
+# edge, in-plane" mis-model of the 63951-1 -- see the fit memo's addendum 3
+# for the full retirement record). The part STAYS TE 63951-1; what the
+# sketch corrected is the PART MODEL and ORIENTATION. The 63951-1 is a flat
+# IN-PLANE L stamping: its blade runs ALONG the leg-pitch axis past the
+# blade-side leg, standing 2.54-8.89mm OFF the seating face (never lying on
+# it) -- dims from TE dwg C=63951 rev L2, lib/datasheets/TE_63951-1.pdf,
+# full derivation in the footprint's own descr. Mounted per the sketch:
+#   - legs HORIZONTAL through this board's face, leg pitch VERTICAL
+#     (the two legs stacked one above the other along Y);
+#   - the blade therefore points STRAIGHT DOWN (+Y), descending past the
+#     board's bottom edge at a 2.54-8.89mm Z-standoff from the face --
+#     "It needs to align vertically so it can actually point down and slot
+#     into the clip" (owner);
+#   - the whole assembly drops VERTICALLY; each blade enters its main-board
+#     Keystone 3586 clip's TOP-entry jaws broadside (the clip's native
+#     auto-blade-fuse mode -- a fuse blade dropping straight down is
+#     exactly what this clip family was designed around, Keystone dwg 3586);
+#   - the daughterboard's own bottom edge FLOATS clear of the main board --
+#     "the TAB does the reaching down, not the board" (owner sketch). No
+#     part of the board or its copper crosses Edge.Cuts; only the tab's
+#     off-board descender (at the Z-standoff) passes below the edge LEVEL,
+#     with no material conflict.
+# Main-board clip orientation implied: slot axis PERPENDICULAR to this
+# board's wall line (the blade's 6.35mm width runs along the wall normal),
+# clip's narrow 3.81mm body dimension along the row, clip slot centreline
+# offset ~5.72mm from this board's front face (the blade band's centre,
+# (2.54+8.89)/2). The main boards carry NO clip placements yet (TB symbols
+# exist in their schematics only, no PCB footprints as of this branch), so
+# this generator's pcb_placement() remains the authoritative mating drawing.
 #
-# Per-tab local geometry (TE_63951-1_FASTON_Tab_250x032_RA_THT footprint,
-# origin at the 2-leg midpoint, +Y = the blade's reach direction): a
-# near-leg "shoulder" band (+/-1.6mm, at the family's recurring 7.92mm
-# flange width -- see TAB_PITCH below) sits ON the board around the two
-# through-hole legs (Y=0), then the blade continues FLAT out to its tip at
-# Y=+8.89mm (TE's own "Profile Height from PCB" figure for this part, read
-# here as the blade's reach from the leg row). The board's own Edge.Cuts
-# (Y=H) is placed just past the shoulder band (_TAB_NEAR_Y + _BOTTOM_MARGIN
-# past the tab's own Y origin) so BOTH legs stay on-board with real
-# copper-to-edge clearance, while the blade portion overhangs PAST Edge.Cuts
-# -- copper (the 2 leg pads) stays on-board; only the footprint BODY
-# (silk/courtyard) overhangs, the same established pattern this platform
-# already uses for plug connectors whose mouth/body hangs off a board edge
-# (gen-module-pcb.py's J_IN/J_OUT/J1/J5 overhang comments). Blade hang-length
-# past the board's own edge: 8.89 - (_TAB_NEAR_Y + _BOTTOM_MARGIN) = 8.89 -
-# 2.0 = 6.89mm -- compare to the Keystone 3586's own 7.16mm body height
-# (Keystone dwg 3586): the two are CLOSE (a ~0.3mm shortfall assuming zero
-# standoff between this board's edge and the main-board clip row), which is
-# exactly the kind of number the owner's still-open physical fit-check
-# (OQ-86, seating depth never published on either datasheet) needs to
-# resolve, together with OQ-87's standoff spec -- flagged, not asserted, in
-# the per-board READMEs.
+# The output THT field sits BESIDE the tab row (the tab row starts right of
+# the field/header) -- both share the same Y band, which is what keeps the
+# board INSIDE the height cap; stacking them vertically would not fit. The
+# 24-pin's 2x5 signal header sits between field and tab row, ROTATED 90 deg
+# (unrotated it is 14.5mm tall -- alone it would bust the cap; rotated it is
+# 6.9mm tall and shares the field's Y-band).
 #
-# The output THT field sits ABOVE the tab row (smaller Y); the 24-pin's 2x5
-# signal header sits BESIDE the field, ROTATED 90 deg (its native,
-# un-rotated footprint is 14.5mm tall -- alone it would bust the cap
-# outright; rotated, it is 6.9mm tall and shares the field's own Y-band,
-# costing nothing extra in the capped axis).
+# NO MOUNTING HOLES (owner directive, 2026-07-05). Retention is the Keystone
+# clip's own high insertion force (a FEATURE per the owner's 2026-07-04
+# ruling -- these joints are not meant for casual swapping) plus chassis
+# strain relief on the cable/assembly side, spec Sec.2.8 v1.4.0 (OQ-87 owns
+# the numeric pull-force/flex-cycle spec). See each README.
 #
-# NO MOUNTING HOLES (owner directive, 2026-07-05 -- supersedes the 2x-M3-
-# minimum in the original task brief). Retention is the Keystone 3586 clip's
-# own high insertion force (a FEATURE per the owner's 2026-07-04 ruling on
-# this connector family -- these joints are not meant for casual swapping;
-# mis-seat/pull-out is the failure mode that force is rejecting) plus chassis
-# strain relief on the cable/assembly side, spec Sec.2.8 v1.4.0 (OQ-87 still
-# owns the numeric pull-force/flex-cycle spec for that strain relief). See
-# each README's "Mounting / retention" section.
-#
-# DUAL-FACE TABS (front+back, blades opposite directions, halving the row's
-# apparent length) were evaluated per the owner's request and REJECTED --
-# math below, repeated in each README. This conclusion is UNCHANGED by the
-# 2026-07-05 tab-form swap: the new TE 63951-1 shares the SAME leg/hole
-# pattern (5.08mm pitch, 1.40mm holes) as 63849-1, so the same pad-to-pad
-# copper-clearance floor governs. The TE tab's own copper PADS already span
-# nearly its full COURTYARD width on the row axis (7.58mm pad extent inside a
-# 7.92mm courtyard -- see the measurement note on TAB_PITCH below), so
-# interleaving a second row of tabs on the opposite face only relieves the
-# PAD-to-PAD copper clearance, not the courtyard clearance -- and pad
-# clearance does not care which face a through-hole tab's body sits against,
-# because the DRILLED HOLES exist through the whole board either way.
-# Minimum safe pitch cross-face (pad edge to pad edge, ~0.3mm clearance)
-# works out to ~7.88mm vs ~8.1-8.6mm same-face -- a ~5-10% saving, not the
-# ~50% the "halve it" framing assumed. Single-face, single-row is what is
-# built here.
+# DUAL-FACE TABS: evaluated and REJECTED under the earlier flat-tab model
+# (the row-axis shoulder width made cross-face interleaving worth only
+# ~5-10%, not the assumed ~50% -- record kept in the READMEs). Under the
+# sketch model the question is MOOT a fortiori: each tab is now only
+# ~0.84mm thin along the row (stamping plane perpendicular to the face), so
+# the row pitch is not body-limited at all -- it is CLIP-limited and
+# KEYING-limited (see TAB_PITCH below). Single-face, single-row stands.
 # ============================================================================
 TAB_PITCH = {   # mm, centre-to-centre, single row -- the per-family KEYING
     # lever (together with tab COUNT and the whole-board no-subset-seating
-    # proof in check_output_daughterboards.py). Real floor = the tab
-    # footprint's own courtyard WIDTH, 7.92mm -- UNCHANGED across the
-    # 2026-07-05 63849-1 -> 63951-1 tab-form swap: 63951-1's shoulder
-    # (near-leg) band is measured at the SAME recurring 7.92mm figure that
-    # appears on 63849-1's own drawing AND on the owner-uploaded 1217061-1
-    # (.187 series) drawing -- verified (not assumed) to be tied to the
-    # shared 5.08mm leg/hole geometry, not to blade width, since it recurs
-    # identically across all three width classes (.187/.250/.250). See
-    # cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT's courtyard
-    # (exactly [-3.96,3.96] on the near-leg band, matching 63849-1's old
-    # courtyard width to the micron) and the dated addendum in
-    # docs/standard-tier-review/blade-fit-check-2026-07-04.md. Because the
-    # width floor is unchanged, every pitch value below (and the whole
-    # no-subset-seating proof) carries over VERIFIED, not just assumed --
-    # re-run at the bottom of this pass via check_output_daughterboards.py.
-    # Every value below clears that floor with margin (last column =
-    # clearance beyond the floor) -- AND the per-family DELTA is sized so a
-    # uniform-pitch subset can never align within the check script's 0.5mm
-    # tolerance: for a family with G gaps (tab count -1) tested as a possible
-    # subset of a DIFFERENT uniform pitch, the best-case (centred) alignment
-    # error at the end tabs is (G/2)*|pitch_delta|, so pitch_delta must
-    # exceed 1.0/G for every pair -- the tightest case is pcie (G=3, needs
-    # >0.33mm from BOTH other families). A first pass used 8.6/8.3/8.2
-    # (deltas 0.3/0.1) and MEASURABLY FAILED this exact check (pcie's 4 tabs
-    # seated within tolerance as a subset of eps's 6-tab grid, 0.1mm/step
-    # accumulating to only 0.15mm at the ends) -- corrected below.
-    "atx24-out-db": 8.9,   # 9 tabs, +0.98mm; delta to eps 0.3 (need >0.2, G=5)
-    "eps-out-db": 8.6,     # 6 tabs, +0.68mm; delta to pcie 0.4 (need >0.33, G=3)
-    "pcie-out-db": 8.2,    # 4 tabs, +0.28mm
+    # proof in check_output_daughterboards.py). FLOOR (sketch model,
+    # 2026-07-05): no longer the tab body -- the 63951-1 mounted per the
+    # owner sketch is only ~0.84mm thin along the row (its 2.5mm pads and
+    # 3.0mm pad envelope are the widest row-axis features). The binding
+    # floor is the MAIN-BOARD CLIP row: the Keystone 3586's body is 3.81mm
+    # (.150) across the slot / 3.82mm courtyard (measured off the vendored
+    # footprint), and after the sketch-implied 90-deg clip rotation (slot
+    # axis perpendicular to the wall) that 3.82mm runs ALONG the row --
+    # worst-case clip-to-clip gap 8.2 - 3.82 = 4.38mm, and the clip's SMD
+    # pad span along the row (6.6mm, pads bbox) still clears by 1.6mm at
+    # the tightest pitch. All three pitches KEPT as ratified this pass
+    # (coordinator/owner: verify fit at 8.9/8.6/8.2, do not re-pitch) --
+    # shrinking them is possible under the new floor but would re-open the
+    # keying-delta derivation for no asked-for gain.
+    # KEYING DELTA rule (unchanged): for a family with G gaps (tab count
+    # -1) tested as a subset of a DIFFERENT uniform pitch, the best-case
+    # (centred) alignment error at the end tabs is (G/2)*|pitch_delta|, so
+    # pitch_delta must exceed 1.0/G for every pair -- tightest is pcie
+    # (G=3, needs >0.33mm from BOTH other families). A first pass used
+    # 8.6/8.3/8.2 (deltas 0.3/0.1) and MEASURABLY FAILED the geometric
+    # proof (pcie's 4 tabs seated within tolerance as a subset of eps's
+    # 6-tab grid) -- corrected below; the proof re-runs on every change.
+    "atx24-out-db": 8.9,   # 9 tabs; delta to eps 0.3 (need >0.2, G=5)
+    "eps-out-db": 8.6,     # 6 tabs; delta to pcie 0.4 (need >0.33, G=3)
+    "pcie-out-db": 8.2,    # 4 tabs; clip-row gap 4.38mm (tightest)
 }
 
 _TAB_CY = cp.courtyard_bbox(TE_TAB_FP)
-# The new footprint's courtyard is ASYMMETRIC in Y (near-leg shoulder band
-# vs. the far blade tip), unlike the old perpendicular tab's roughly-
-# symmetric small landing footprint -- so unlike X (still symmetric; a
-# single half-width serves both direction), Y needs two separate figures,
-# read straight off the footprint rather than hand-derived, so a future
-# footprint edit can't silently desync this math:
-#   _TAB_NEAR_Y -- how far the courtyard extends toward the FIELD/corridor
-#                  side (the near-leg shoulder band); used to seat the tab
-#                  row under the field/corridor and to place Edge.Cuts just
-#                  past the legs (both legs stay on-board with clearance).
-#   _TAB_FAR_Y  -- how far the courtyard extends toward the blade TIP; used
-#                  only for reporting the blade's hang-length past the
-#                  board's own edge (it does NOT drive board size -- the
-#                  blade is meant to hang off-board).
-_TAB_HALF_X = (_TAB_CY[1] - _TAB_CY[0]) / 2
-_TAB_NEAR_Y = -_TAB_CY[2]
-_TAB_FAR_Y = _TAB_CY[3]
+# Footprint local frame (see the .kicad_mod descr): origin = leg-pair
+# midpoint, pads at (0, +/-2.54), +Y = blade/descend direction. The
+# courtyard is a thin vertical band (pad envelope +/-1.5mm at the legs,
+# +/-0.67mm elsewhere) running from the carrier stub (-4.82) down to the
+# blade tip (+16.0) -- deliberately including the descender, which will
+# cross the board's bottom edge in 2D (off-board at the Z-standoff; the
+# courtyard is kept honest rather than clipped so any future co-planar
+# part placed under the descender is flagged). Constants read from the
+# footprint, never hand-copied, so a footprint edit cannot desync this:
+#   _TAB_HALF_X   row-axis half-extent (pad envelope, 1.5)
+#   _TAB_TOP_EXT  extent ABOVE the leg midpoint (carrier stub + margin,
+#                 4.82) -- pins the row's Y: tab_y = _TOP_MARGIN + this
+#   _TAB_TIP_EXT  extent BELOW the leg midpoint to the blade tip (+16.0
+#                 incl. courtyard margin; bare tip +15.75) -- reporting
+#                 only (float/seating math), never a board-size driver
+_TAB_HALF_X = _TAB_CY[1]
+_TAB_TOP_EXT = -_TAB_CY[2]
+_TAB_TIP_EXT = _TAB_CY[3]
+_TAB_TIP_BARE = 15.75      # dwg-derived blade tip below the leg midpoint
+_TAB_BLADE_STANDOFF = (2.54, 8.89)   # blade band off the front face (dwg)
 
 _LEFT_MARGIN, _TOP_MARGIN, _BOTTOM_MARGIN = 1.0, 0.4, 0.4
 _FIELD_GAP = 0.1           # field courtyard bottom -> corridor (atx24) / tab row (eps/pcie)
@@ -429,25 +402,28 @@ def _field_geom(fam):
 
 
 def pcb_placement(fam):
-    """Single tab row near the near/bottom edge (Y=H), field above it, (24-pin
-    only) header beside the field rotated 90. Returns (W, H, P) -- P maps
-    every ref to (x, y, rot). No mounts (see module docstring above).
+    """Field top-left; (24-pin only) header beside it rotated 90; then the
+    single tab row BESIDE both, at the per-family X pitch, every tab at
+    rot 0 (the footprint is authored in its mounted orientation: legs
+    stacked vertically at (0,+/-2.54), blade descending +Y). Returns
+    (W, H, P) -- P maps every ref to (x, y, rot). No mounts.
 
-    Y=H (Edge.Cuts) sits just past each tab's own near-leg shoulder band
-    (_TAB_NEAR_Y + _BOTTOM_MARGIN past the tab's Y placement) -- both legs
-    stay on-board with real copper-to-edge clearance, while the blade itself
-    (out to _TAB_FAR_Y) hangs PAST Edge.Cuts in the open space below the
-    board, per the 2026-07-05 in-plane-tab/vertical-drop ruling (see the
-    module docstring above). Only the footprint BODY (silk/courtyard)
-    overhangs; no copper crosses Edge.Cuts, so DRC sees an ordinary
-    on-board 2-pad THT part plus board-edge artwork, the same as any other
-    overhanging connector on this platform."""
+    tab_y (the leg-pair midpoint) is UNIFORM across all three families:
+    _TOP_MARGIN + _TAB_TOP_EXT -- i.e. the tab band is pinned to the TOP
+    margin. That maximizes the leg height above the board's own bottom
+    edge, which MINIMIZES how high the assembly floats above the main
+    board once the blade seats (float = tip-below-edge + tip clearance;
+    see seating_report()). H is field-driven (eps/pcie) or corridor-driven
+    (atx24) -- the tab band costs nothing in the capped axis because its
+    descender leaves the board through the bottom edge (off-board at the
+    blade's Z-standoff, no material or copper conflict; the 2 leg pads
+    stay well on-board with margin)."""
     cfg = FAMILIES[fam]
     pitch = TAB_PITCH[fam]
     fx, fy, field_right, field_bottom = _field_geom(fam)
     P = {cfg["field_ref"]: (fx, fy, 0)}
 
-    header_right = 0.0
+    right_ref = field_right
     if cfg["header"]:
         h = cfg["header"]
         hbb = cp.courtyard_bbox(h["fp"], rot=90)
@@ -455,26 +431,40 @@ def pcb_placement(fam):
         field_cy = fy + (cp.courtyard_bbox(cfg["field_fp"])[2] + cp.courtyard_bbox(cfg["field_fp"])[3]) / 2
         hy = field_cy - (hbb[2] + hbb[3]) / 2
         P[h["ref"]] = (hx, hy, 90)
-        header_right = hx + hbb[1]
+        right_ref = hx + hbb[1]
 
     n = len(cfg["tabs"])
-    tab0_x = _LEFT_MARGIN + _TAB_HALF_X
+    tab_y = _TOP_MARGIN + _TAB_TOP_EXT
+    tab0_x = right_ref + 1.0 + _TAB_HALF_X
     tab_last_x = tab0_x + (n - 1) * pitch
-    tab_y = atx24_tab_y(field_bottom) if fam == "atx24-out-db" else field_bottom + _SIMPLE_GAP + _TAB_NEAR_Y
     for i, (ref, _net) in enumerate(cfg["tabs"]):
         P[ref] = (tab0_x + i * pitch, tab_y, 0)
 
-    H = tab_y + _TAB_NEAR_Y + _BOTTOM_MARGIN
-    W = max(field_right, header_right, tab_last_x + _TAB_HALF_X) + 1.0
+    if fam == "atx24-out-db":
+        H = field_bottom + _FIELD_GAP + ATX24_CORRIDOR_H + _BOTTOM_MARGIN
+    else:
+        H = field_bottom + _BOTTOM_MARGIN
+    W = tab_last_x + _TAB_HALF_X + 1.0
     return W, H, P
 
 
-def tab_blade_hang_mm():
-    """Blade hang-length past the board's own Edge.Cuts (mm) -- the same for
-    every family (one tab footprint, one Edge.Cuts offset convention). Used
-    by the README/addendum posture write-up; not consumed by placement
-    itself (which only needs _TAB_NEAR_Y for on-board seating)."""
-    return _TAB_FAR_Y - (_TAB_NEAR_Y + _BOTTOM_MARGIN)
+def seating_report(tip_clearance=1.0):
+    """Per-family seating/float numbers for the README/addendum write-up
+    (reporting only -- placement does not consume this). tip_clearance =
+    the recommended gap between the seated blade tip and the main-board
+    surface (hard stop ~0.4-0.5mm when the tip meets the clip's own SMT
+    base metal). Returns {fam: dict}."""
+    out = {}
+    for fam in FAMILIES:
+        W, H, P = pcb_placement(fam)
+        tab_y = P[FAMILIES[fam]["tabs"][0][0]][1]
+        leg_height = H - tab_y                      # leg midpoint above the bottom edge
+        tip_below_edge = _TAB_TIP_BARE - leg_height  # descender past the edge level
+        flt = tip_clearance + tip_below_edge         # bottom-edge float above main board
+        out[fam] = dict(W=W, H=H, tab_y=tab_y, leg_height=leg_height,
+                        tip_below_edge=tip_below_edge, float_=flt,
+                        top_above_main=flt + H)
+    return out
 
 
 # A plain 4-layer stack, no net-name hints on the inner layers (unlike
@@ -663,11 +653,6 @@ ATX24_CORRIDOR_H = (len(ATX24_BUS_NETS) - 1) * _LANE_PITCH + 2 * _LANE_HALF
 _LANE_VIA_DRILL, _LANE_VIA_DIA = 0.3, 0.5
 
 
-def atx24_tab_y(field_bottom):
-    corridor_top = field_bottom + _FIELD_GAP
-    return corridor_top + ATX24_CORRIDOR_H + _FIELD_GAP + _TAB_NEAR_Y
-
-
 def _atx24_lane_y(field_bottom, net):
     """Y of a bus rail's lane centreline in the corridor (single layer, In2.Cu)."""
     return field_bottom + _FIELD_GAP + _LANE_HALF + ATX24_LANE_SLOT[net] * _LANE_PITCH
@@ -730,23 +715,29 @@ def route_atx24():
             r.via(pn, pts[-1], drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
             via_seen.add(via_pt)
 
-    # tabs (all 4 BUS nets have >=1) sit BELOW the corridor (tab_y > every
-    # lane y), so each one's stub runs UP into its net's lane. The
-    # TE_63849-1 footprint has TWO physical pads, both numbered "1" (one
-    # electrical node per its own vendored description), but "same pad
-    # number" is a netlist LABEL, not copper -- the footprint has no
-    # internal bridge between them, so both need real copper: a short bridge
-    # track between the two pads (tx-2.54 to tx+2.54), then the up-stub off
-    # the +2.54 one.
+    # tabs (all 4 BUS nets have >=1): legs stacked VERTICALLY at
+    # (tx, tab_y +/- 2.54) per the sketch-model footprint, sitting ABOVE the
+    # corridor (tab_y ~5.2, lanes ~10.9-12.8) and X-clear of the field/header
+    # (the row starts right of both), so each tab's stub simply runs DOWN
+    # from its LOWER leg pad into its net's lane. The TE_63951-1 footprint
+    # has TWO physical pads, both numbered "1" (one electrical node), but
+    # "same pad number" is a netlist LABEL, not copper -- the footprint has
+    # no internal bridge, so both need real copper: a vertical bridge track
+    # between the two legs, continued down to the lane + a via. The stub
+    # crosses the P2P signals' row-gap Y band only in the X range right of
+    # the header, where those B.Cu runs do not exist (and the stub is F.Cu
+    # anyway); the via sits at its own lane's centreline, clearing the
+    # neighbouring 0.65mm-pitch lanes by the same measured 0.25mm the field
+    # vias already rely on.
     for ref, net in cfg["tabs"]:
         if net == "GND":
             continue
         pn = _PCB_NET.get(net, net)
         tx, ty, _ = P[ref]
         by = _atx24_lane_y(field_bottom, net)
-        r.track(pn, [(tx - 2.54, ty), (tx + 2.54, ty)], "F.Cu", 0.5)
-        r.track(pn, [(tx + 2.54, ty), (tx + 2.54, by)], "F.Cu", 0.5)
-        r.via(pn, (tx + 2.54, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
+        r.track(pn, [(tx, ty - 2.54), (tx, ty + 2.54)], "F.Cu", 0.5)
+        r.track(pn, [(tx, ty + 2.54), (tx, by)], "F.Cu", 0.5)
+        r.via(pn, (tx, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
     # 2x5 signal header (PS_ON#/PWR_OK/-12V/GND-ref/6 reserved -- pin order
     # matches the already-built main-board J_SIG, see ATX24_HEADER_NET),

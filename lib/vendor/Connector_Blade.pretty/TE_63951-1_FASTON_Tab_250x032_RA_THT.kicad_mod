@@ -3,9 +3,9 @@
 	(generator "cec-hand")
 	(generator_version "10.0")
 	(layer "F.Cu")
-	(descr "TE Connectivity 63951-1 FASTON .250 right-angle (flat, in-plane) PC board tab -- TE dwg C=63951 rev L2, App Spec 114-2115. Blade 6.35mm+/-0.08 wide x 0.83/0.77mm thick lies FLAT/coplanar, extending +Y from the 2 THT legs (5.08mm+/-0.08 pitch, 1.40mm+/-0.05 dia holes -- same leg/hole pattern as the platform's existing TE_63849-1 straight tab). Local frame: origin at the leg-pair midpoint; +Y = the blade's reach direction (toward the board edge the blade hangs past once placed). Shoulder (near-leg) region measured +/-1.6mm off the datasheet's recurring 7.92mm shoulder/flange width (same value appears on the .187-series 1217061-1 and the straight 63849-1 -- tied to the shared leg geometry, not blade width, so it is reused here rather than re-derived); blade region tapers to the confirmed 6.35mm (+0.08 max = 6.43, rounded to 6.44 half-width margin) blade width from Y=+1.6 to the blade tip at Y=+8.89 (TE's own 'Profile Height from PCB' attribute for this part, read here as the blade's reach from the leg row -- flagged UNVERIFIED at the single-datum level pending a re-check against the raw vector drawing, per docs/standard-tier-review/blade-fit-check-2026-07-04.md addendum).")
+	(descr "TE Connectivity 63951-1 FASTON .250 RIGHT-ANGLE PC board tab -- TE dwg C=63951 rev L2, App Spec 114-2115. The part is a FLAT IN-PLANE L stamping (0.83/0.77mm thick throughout, no out-of-plane bend): two barbed legs (5.08mm+/-0.08 pitch, 1.40mm+/-0.05 PCB holes, 3.81mm below the seating face) hang off one end of the strip, and the 6.35mm+/-0.08 blade runs ALONG the strip/leg-pitch axis past the blade-side leg to the tip. Blade width band sits 2.54..8.89mm off the seating face (8.89 = TE 'Profile Height from PCB'; 2.54 = 8.89 - 6.35), so the blade STANDS OFF the mounting face -- it never lies against it. MOUNTING ORIENTATION ON THIS PLATFORM (owner sketch, 2026-07-05, docs/standard-tier-review/blade-fit-check-2026-07-04.md addendum 3): legs horizontal through a VERTICAL daughterboard face, leg pitch VERTICAL (stacked one above the other), blade pointing STRAIGHT DOWN past the board's bottom edge at the 2.54-8.89mm Z-standoff, dropping broadside into a main-board Keystone 3586 clip's top-entry jaws. Local frame: origin = leg-pair midpoint; +Y = the blade/descend direction (board-down); the stamping plane is PERPENDICULAR to the board, so the 2D artwork is the part's thin projection band. Dims read off the dwg: tip at +15.75 from origin (= 20.32 cut-off - 7.11 cut-end-to-blade-side-leg + 2.54; chain-dim reading cross-checked against the drawn leg position at ~22% of part length and the 1217061-1 sibling's identical pattern -- flagged for the OQ-86 sample check, a small error here shifts assembly FLOAT, not clip engagement); carrier-side stub to -4.57 (7.11 - 5.08 + 2.54); shoulder (full-height, face-contacting) region ends 3.33-3.48 past the blade-side leg (+5.87..+6.02, tick at +5.95); detent hole 1.78mm dia at 7.92 from the tip (+7.83, drawn on the blade width-centre per the dwg view -- the dwg's 7.11 [.280] vertical dim may place it 1.78 below the blade top edge instead; cosmetic-only here, Fab ghost art).")
 	(property "Reference" "REF**"
-		(at 0 -2.0 0)
+		(at 0 -5.8 0)
 		(layer "F.SilkS")
 		(uuid "843fc298-9e99-4661-b4ec-ef8463ec0cc2")
 		(effects
@@ -16,7 +16,7 @@
 		)
 	)
 	(property "Value" "CONN-TH_63951-1"
-		(at 0 4.5 0)
+		(at 0 17.2 0)
 		(layer "F.Fab")
 		(uuid "aaef039b-6880-4f54-9dbf-93910d247afb")
 		(effects
@@ -61,46 +61,40 @@
 	)
 	(attr through_hole)
 	(duplicate_pad_numbers_are_jumpers no)
-	(fp_poly
-		(pts
-			(xy -3.96 -1.6)
-			(xy 3.96 -1.6)
-			(xy 3.96 1.6)
-			(xy 3.22 1.6)
-			(xy 3.22 8.89)
-			(xy -3.22 8.89)
-			(xy -3.22 1.6)
-			(xy -3.96 1.6)
-		)
+	(fp_line
+		(start -0.62 -1.0)
+		(end -0.62 1.0)
 		(stroke
 			(width 0.15)
 			(type solid)
 		)
-		(fill no)
 		(layer "F.SilkS")
 		(uuid "e70f048f-199e-4eeb-90a5-3bc17556a177")
 	)
-	(fp_circle
-		(center -3.7 -1.4)
-		(end -3.67 -1.4)
+	(fp_line
+		(start 0.62 -1.0)
+		(end 0.62 1.0)
 		(stroke
-			(width 0.06)
+			(width 0.15)
 			(type solid)
 		)
-		(fill no)
 		(layer "F.SilkS")
 		(uuid "9e94f0e5-99e9-45eb-a872-ef162930206a")
 	)
 	(fp_poly
 		(pts
-			(xy -3.96 -1.6)
-			(xy 3.96 -1.6)
-			(xy 3.96 1.6)
-			(xy 3.22 1.6)
-			(xy 3.22 8.89)
-			(xy -3.22 8.89)
-			(xy -3.22 1.6)
-			(xy -3.96 1.6)
+			(xy -0.67 -4.82)
+			(xy 0.67 -4.82)
+			(xy 0.67 -4.04)
+			(xy 1.5 -4.04)
+			(xy 1.5 4.04)
+			(xy 0.67 4.04)
+			(xy 0.67 16.0)
+			(xy -0.67 16.0)
+			(xy -0.67 4.04)
+			(xy -1.5 4.04)
+			(xy -1.5 -4.04)
+			(xy -0.67 -4.04)
 		)
 		(stroke
 			(width 0.05)
@@ -110,32 +104,42 @@
 		(layer "F.CrtYd")
 		(uuid "285866a6-4ae4-4842-980c-12d7c0ae86fc")
 	)
-	(fp_circle
-		(center -2.54 0)
-		(end -2.24 0)
+	(fp_rect
+		(start -0.42 -4.57)
+		(end 0.42 15.75)
 		(stroke
-			(width 0.6)
+			(width 0.1)
+			(type solid)
+		)
+		(fill no)
+		(layer "F.Fab")
+		(uuid "015ec0f7-a08c-4904-9607-4e4a21e5ef15")
+	)
+	(fp_line
+		(start -0.42 5.95)
+		(end 0.42 5.95)
+		(stroke
+			(width 0.1)
+			(type solid)
+		)
+		(layer "F.Fab")
+		(uuid "5349b893-2ac0-46a4-8ab4-0b7d7071765f")
+	)
+	(fp_circle
+		(center 0 7.83)
+		(end 0.89 7.83)
+		(stroke
+			(width 0.1)
 			(type solid)
 		)
 		(fill no)
 		(layer "F.Fab")
 		(uuid "884917ed-7b4b-4fb3-9323-a99a0068201d")
 	)
-	(fp_circle
-		(center 2.54 0)
-		(end 2.84 0)
-		(stroke
-			(width 0.6)
-			(type solid)
-		)
-		(fill no)
-		(layer "F.Fab")
-		(uuid "5349b893-2ac0-46a4-8ab4-0b7d7071765f")
-	)
 	(fp_text user "${REFERENCE}"
-		(at 0 0 0)
+		(at -2.6 0 90)
 		(layer "F.Fab")
-		(uuid "015ec0f7-a08c-4904-9607-4e4a21e5ef15")
+		(uuid "811b345d-3551-4a3c-b157-697c58222b1d")
 		(effects
 			(font
 				(size 1 1)
@@ -144,7 +148,7 @@
 		)
 	)
 	(pad "1" thru_hole circle
-		(at -2.54 0)
+		(at 0 -2.54)
 		(size 2.5 2.5)
 		(drill 1.4)
 		(layers "*.Cu" "*.Mask")
@@ -152,7 +156,7 @@
 		(uuid "2ef5c142-237f-42f1-8ceb-3ff9cc50fea5")
 	)
 	(pad "1" thru_hole circle
-		(at 2.54 0)
+		(at 0 2.54)
 		(size 2.5 2.5)
 		(drill 1.4)
 		(layers "*.Cu" "*.Mask")
