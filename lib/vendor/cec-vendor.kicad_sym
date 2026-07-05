@@ -9703,7 +9703,7 @@
 
 
 
-		(symbol "5Ω±20%_MF72_0_1"
+		(symbol "MF72-5D-20_0_1"
 			(rectangle
 				(start -2.54 1.02)
 				(end 2.54 -1.02)
@@ -9766,7 +9766,7 @@
 
 
 
-		(symbol "74AHCT244PW,118_0_1"
+		(symbol "74AHCT244_0_1"
 			(rectangle
 				(start -7.62 14.48)
 				(end 7.62 -14.48)
@@ -9942,7 +9942,7 @@
 
 
 
-		(symbol "BAT54S_C545549_0_1"
+		(symbol "BAT54S_0_1"
 			(polyline
 				(pts
 					(xy -1.27 -2.54) (xy -2.54 -0.25) (xy -3.81 -2.54) (xy -1.27 -2.54)

@@ -209,7 +209,7 @@ L02.net("+5V_LED", ("RS1", "2"), ("U4", "4"), ("U4", "5"), ("C3", "1"))
 L02.net("ISENSE_TOTAL", ("U4", "1"))
 L02.net("GND", ("U4", "2"), ("C3", "2"))
 L02.hier_exports = {
-    "+5V_LED_IN":    ("output", ("RS1", "1")),
+    "+5V_LED_IN":    ("input", ("RS1", "1")),
     "ISENSE_TOTAL":  ("output", ("U4", "1")),
 }
 L02.powerflag_nets = []
@@ -258,8 +258,10 @@ L03.hier_exports = {
     "CAN_H_RJ":      ("output", ("J2", "3")),
     "CAN_L_RJ":      ("output", ("J2", "6")),
     "DETECT_SENSE":  ("output", ("R5", "2")),
-    "+5VSB_RJ":      ("output", ("FB1", "2")),
 }
+# +5VSB_RJ is a GLOBAL bus (produced here, consumed in BOTH 04-can and
+# 05-mcu -- a genuine 3-leaf net, not a 2-leaf pair), so it carries no
+# sheet-pin/hier_exports entry at all; see build()'s global_nets wiring.
 L03.powerflag_nets = ["GND"]
 
 
@@ -305,8 +307,8 @@ L04.hier_exports = {
     "CAN_L_RJ":  ("output", ("FL1", "2")),
     "CAN_TX":    ("output", ("U2", "1")),
     "CAN_RX":    ("output", ("U2", "4")),
-    "+5VSB_RJ":  ("output", ("U2", "3")),
 }
+# +5VSB_RJ is the GLOBAL bus (see 03-hub-link's identical note).
 
 
 # ===========================================================================
@@ -367,9 +369,16 @@ ap(L05, "U1", "cec-vendor", "ESP32-S3-MINI-1", "ESP32-S3-MINI-1-N4R2",
                    "low jitter; same exact part already used on 12VHPWR-Standard. "
                    "OOS at LCSC as of 2026-07-05 (docs/pricing-study-2026-07-05.md), "
                    "owner ratifies. See README.md Sec 1."})
-ap(L05, "U3", "cec-vendor", "LP5907MFX-3.3", "LP5907MFX-3.3",
+ap(L05, "U3", "cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3",
    "cec-Package_TO_SOT_SMD:SOT-23-5",
    {"Manufacturer": "Texas Instruments", "MPN": "LP5907MFX-3.3", "LCSC": "C80670"})
+# NOTE: lib symbol name is the BASE "LP5907MFX-1.2" -- the "LP5907MFX-3.3"
+# library entry is a KiCad (extends "LP5907MFX-1.2") variant stub with no
+# pins/graphics of its own, which this repo's cec_sch pin-table tooling does
+# not resolve. Same precedent as modules/ent-common/gen_p4_t1_block.py:188
+# (name=base symbol, value=the real 3.3V part) -- BOM/props below carry the
+# correct MPN/LCSC for the actual 3.3V part, only the lib_id points at the
+# pin-bearing base symbol (identical pinout across the LP5907MFX-x.x family).
 ap(L05, "C6", "cec-vendor", "C_Small", "10u", "cec-Capacitor_SMD:C_0805_2012Metric",
    {"Manufacturer": "Samsung", "MPN": "CL21A106KAYNNNE", "LCSC": "C15850"})
 ap(L05, "C7", "cec-vendor", "C_Small", "1u", "cec-Capacitor_SMD:C_0603_1608Metric",
@@ -405,7 +414,8 @@ ap(L05, "D4", "cec-vendor", "D_Schottky", "SS34", "cec-Diode_SMD:D_SMA",
 L05.net("+5V_LED", ("D2", "2"))
 L05.net("+5VSB_RJ", ("D3", "2"))
 L05.net("VBUS", ("D4", "2"))
-L05.net("+5V_LOGIC_OR", ("D2", "1"), ("D3", "1"), ("D4", "1"), ("U3", "1"), ("C8", "1"))
+L05.net("+5V_LOGIC_OR", ("D2", "1"), ("D3", "1"), ("D4", "1"), ("U3", "1"), ("U3", "3"),
+        ("C8", "1"))   # U3.3 = LP5907 EN, strapped to IN (always-on; ent-common precedent)
 L05.net("+3V3", ("U3", "5"), ("C9", "1"), ("C6", "1"), ("C7", "1"), ("C39", "1"),
         ("R8", "1"), ("R9", "1"), ("U1", "3"))
 L05.net("GND", ("U3", "2"), ("C6", "2"), ("C7", "2"), ("C39", "2"), ("C8", "2"), ("C9", "2"),
@@ -439,8 +449,6 @@ L05.net("STATUS_LED_DATA", ("U1", "25"))
 # 12VHPWR-Standard convention for CAN_TX/RX (IO17/IO18) and EN/GPIO0/USB
 # (native fixed pins).
 L05.hier_exports = {
-    "+5V_LED":        ("output", ("D2", "2")),
-    "+5VSB_RJ":        ("output", ("D3", "2")),
     "VBUS":            ("output", ("D4", "2")),
     "CAN_TX":          ("output", ("U1", "21")),
     "CAN_RX":          ("output", ("U1", "22")),
@@ -506,14 +514,14 @@ for _ch in range(1, 9):
         "Description": f"LED channel {_ch} DATA-first hot-plug clamp (dual-series "
                        "Schottky, pin1=anode/pin3=tap/pin2=cathode -- VERIFIED by "
                        "rendering the vendored symbol, see README.md Sec 4. Spec "
-                       "names \"BAT54W\", which is not a real dual-diode part under "
+                       "names BAT54W, which is not a real dual-diode part under "
                        "that name; BAT54S is the verified series-diode part that "
                        "implements the described clamp)"})
     ap(L06, _dtvs, "cec-vendor", "D_Schottky", "PESD5V0S1BA",
        "cec-Diode_SMD:D_SOD-323",
        {"Manufacturer": "Nexperia", "MPN": "PESD5V0S1BA", "LCSC": "C5261083",
         "Description": f"LED channel {_ch} per-line ESD TVS"})
-    ap(L06, _j, "cec-vendor", "Header-Male-2.54_1x4", "ARGB_5V_3PIN",
+    ap(L06, _j, "cec-Connector_Generic", "Conn_01x04", "ARGB_5V_HDR",
        "cec-Connector_PinHeader_2.54mm:HDR-TH_4P-P2.54-V-M",
        {"Manufacturer": "Ckmtw", "MPN": "B-2100S04P-A110", "LCSC": "C124378",
         "Description": f"LED channel {_ch} ARGB strip header -- plain 1x4 2.54mm, "
@@ -521,9 +529,10 @@ for _ch in range(1, 9):
                        "exist on LCSC; OQ-36, see README.md)"})
 
     # buffer input (from 05-mcu, hier_export, SAME name as that leaf's own
-    # export so build_thin_parent pairs the two as one 2-leaf lane)
+    # export so build_thin_parent pairs the two as one 2-leaf lane). 06
+    # RECEIVES this signal (05-mcu drives it) -- role is "input" here.
     L06.net(f"LED{_ch}_DATA", ("U5", _in_pin))
-    _hier_exports_06[f"LED{_ch}_DATA"] = ("output", ("U5", _in_pin))
+    _hier_exports_06[f"LED{_ch}_DATA"] = ("input", ("U5", _in_pin))
     # buffer output (5V level), leaf-internal only
     L06.net(f"LED{_ch}_BUF", ("U5", _out_pin), (_r, "1"))
     # post-series-resistor node: BAT54S tap (pin3) + PESD anode-side (pin1,
@@ -600,24 +609,41 @@ def compose_power_input(c, lf):
     c.wire((busx, p7[1]), (busx, p9[1]))
     c.use(("J1", "7"), ("J1", "8"), ("J1", "9"))
 
-    c.place("Q1", 50, 50, 90)
+    # Q1 rot=270 (CHANGED from 90 -- measured bug, fixed): at rot90 the
+    # source pins (1,2,3) sit on Q1's RIGHT (u_x=56) and drain (5,6,7,8) on
+    # its LEFT (u_x=44) -- backwards from the SATA(left)->source->drain->
+    # F1(right) flow, forcing the drain bus back across the source bus's
+    # own X-range (u_x 50-56). A drain-bus wire's own endpoint (from pin7,
+    # the max-Y drain pin) landed exactly inside the source bus's Y=52
+    # horizontal run's interior -- an unintended T-junction SHORTING THE
+    # FET'S SOURCE TO ITS OWN DRAIN, defeating the whole reverse-polarity
+    # protection (measured via the exported netlist: Q1 pins 1-3 AND 5-8
+    # all merged into one node with F1/J1 -- not merely an ERC nuisance).
+    # At rot=270, source(1,2,3) is on the LEFT (u_x=44, facing J1) and
+    # drain(5,6,7,8) on the RIGHT (u_x=56, facing F1) -- a clean monotonic
+    # left-to-right flow with no bus crossing possible.
+    c.place("Q1", 50, 50, 270)
     q1, q2, q3 = c.pin("Q1", "1"), c.pin("Q1", "2"), c.pin("Q1", "3")
-    c.wire((busx, p8[1]), (busx, q2[1]), (q1[0] - 6, q2[1]))
-    c.wire((q1[0] - 6, q2[1]), (q1[0] - 6, q1[1]), q1)
-    c.wire((q1[0] - 6, q2[1]), q2)
-    c.wire((q1[0] - 6, q2[1]), (q1[0] - 6, q3[1]), q3)
+    srcbusx = busx + 30
+    c.wire((busx, p8[1]), (srcbusx, p8[1]))
+    c.wire((srcbusx, p8[1]), (srcbusx, q1[1]), q1)
+    c.wire((srcbusx, p8[1]), (srcbusx, q2[1]), q2)
+    c.wire((srcbusx, p8[1]), (srcbusx, q3[1]), q3)
     c.use(("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
     q5, q6, q7, q8 = (c.pin("Q1", "5"), c.pin("Q1", "6"),
                       c.pin("Q1", "7"), c.pin("Q1", "8"))
     dbusx = q5[0] + 8
     for p in (q5, q6, q7, q8):
         c.wire(p, (dbusx, p[1]))
-    c.wire((dbusx, q7[1]), (dbusx, q6[1]))
-    c.wire((dbusx, q6[1]), (dbusx, q5[1]))
+    # measured Y order q6(48) < q5(50) < q7(52) < q8(54) -- one vertical run
+    # spanning the full min-to-max (q6 to q8) passes through q5/q7's stub
+    # endpoints too (a stub landing on the spine's interior is still
+    # electrically joined).
+    c.wire((dbusx, q6[1]), (dbusx, q8[1]))
     c.use(("Q1", "5"), ("Q1", "6"), ("Q1", "7"), ("Q1", "8"))
     qg = c.pin("Q1", "4")
-    c.place("R1", qg[0], qg[1] + 12)
-    c.wire(qg, (qg[0], qg[1] + 10))
+    c.place("R1", qg[0], qg[1] - 12)
+    c.wire(qg, (qg[0], qg[1] - 10))
     c.use(("Q1", "4"), ("R1", "1"))
 
     c.place("F1", 75, 50)
@@ -641,9 +667,9 @@ def compose_power_input(c, lf):
     exit_y = spine_y - 20
     c.wire(rt2, (tx, spine_y))
     c.wire((tx, spine_y), (tx, exit_y))
-    c.io("+5V_LED_IN", "right", from_pt=(tx / G_, exit_y / G_))
+    c.io("+5V_LED_IN", "right", from_pt=(tx, exit_y))
 
-    c.place("C1", tx / G_, 70)
+    c.place("C1", tx, 70)
     c1p1 = c.pin("C1", "1")
     c.wire((tx, spine_y), (tx, c1p1[1]), c1p1)
     c.use(("RT1", "2"), ("C1", "1"))
@@ -670,27 +696,51 @@ def compose_power_input(c, lf):
 
 def compose_sense(c, lf):
     # RS1 (shunt) and U4 (INA180A2) are placed close together (short Kelvin
-    # taps); +5V_LED_IN's anchor pin (RS1.1) still gets the S1 edge-column
-    # treatment, but the REST of this leaf's nets (+5V_LED_IN's other member
-    # U4.3, and every member of the +5V_LED GLOBAL bus: RS1.2/U4.4/U4.5/C3.1)
-    # are left to the generic per-pin pass -- a plain same-name local label
-    # (for the hier_export's non-anchor member) or an independent global_label
-    # stub (for each +5V_LED pin) is the correct, simplest realization; a
-    # global net has NO custom-placement hook (see 05-mcu/06-led-outputs for
-    # the same pattern) so hand-wiring it would only fight the mechanism.
+    # taps). +5V_LED_IN's TWO members (RS1.1, the shunt HI/upstream terminal,
+    # AND U4.3/IN+, the INA180's non-inverting input tapping that same
+    # terminal) are the SAME physical node -- draw the short local jog
+    # explicitly between them (measured bug, fixed: leaving U4.3 unconsumed
+    # let the generic per-pin pass auto-place its "+5V_LED_IN" label
+    # independently, and it landed on the SAME Y-row as ISENSE_TOTAL's own
+    # default-anchor routing from U4.1 -- the two unrelated nets shared a
+    # wire and ERC correctly flagged "multiple_net_names", merging
+    # +5V_LED_IN and ISENSE_TOTAL into one net). Every member of the
+    # +5V_LED GLOBAL bus (RS1.2/U4.4/U4.5/C3.1) is still left to the generic
+    # per-pin pass -- an independent global_label stub at each is correct by
+    # design (global labels of the same name merge project-wide with no
+    # local wire needed); only the two LANE-ROUTED hier_exports (+5V_LED_IN,
+    # ISENSE_TOTAL) needed an explicit anchor each.
     c.place("RS1", 30, 30, 90)
-    rs1 = c.pin("RS1", "1")
-    c.io("+5V_LED_IN", "left", from_pt=(rs1[0] / cec_sch.GRID, rs1[1] / cec_sch.GRID))
-    c.use(("RS1", "1"))
-
     c.place("U4", 60, 30)
     c.place("C3", 60, 55)
-    c.io("ISENSE_TOTAL", "right")
+
+    # RS1 (rot90) spans u=(29,31)x(27,33); U4 spans u=(56,64)x(24,36); U4's
+    # pins 1/2/3 (OUT/GND/IN+) all sit on the SAME row u_y=38, at u_x=58/60/62
+    # respectively -- routing RS1.1 (u=30,35) straight across to U4.3 (u=62,38)
+    # at a naive Y would either cut through U4's body or through pins 1/2 on
+    # that shared row. Measured-clear jog: drop to Y=39 (below BOTH bodies --
+    # RS1 bottom 33, U4 bottom 36 -- and off the 38-row so it approaches U4.3
+    # from below, not through pins 1/2).
+    rs1_1 = c.pin("RS1", "1")
+    u4_3 = c.pin("U4", "3")
+    c.wire(rs1_1, (rs1_1[0], 39), (u4_3[0], 39), u4_3)
+    c.io("+5V_LED_IN", "left", from_pt=(rs1_1[0], rs1_1[1]))
+    c.use(("RS1", "1"), ("U4", "3"))
+
+    # U4.1 (OUT/ISENSE_TOTAL) is the LEFTMOST of that same shared 38-row
+    # (pins 2/3 sit further right on the identical Y) -- routing it "right"
+    # directly would cut straight through pins 2 and 3. Drop clear of the
+    # row first (Y=45, comfortably below U4's body too), then export right
+    # from there.
+    u4_1 = c.pin("U4", "1")
+    c.wire(u4_1, (u4_1[0], 45))
+    c.io("ISENSE_TOTAL", "right", from_pt=(u4_1[0], 45))
+    c.use(("U4", "1"))
+
     c.caption("Total-rail shunt + INA180A2 (50V/V) -> +5V_LED (spec Sec 7.4)", 10, 4)
-    c.note("+5V_LED_IN's non-anchor member (U4 IN+) and every +5V_LED member "
-           "(RS1/U4 VS+IN-/C3) are plain same-name labels/global labels -- "
-           "the shunt's own terminal copper IS the Kelvin tap (layout, Sec 6.8)",
-           10, 70)
+    c.note("+5V_LED members (RS1.2/U4 VS+IN-/C3) are plain same-name global "
+           "labels -- the shunt's own terminal copper IS the Kelvin tap "
+           "(layout, Sec 6.8)", 10, 70)
     c.done()
 
 
@@ -698,20 +748,34 @@ def compose_hub_link(c, lf):
     c.place("J2", 20, 50)
     j1, j2, j3, j6, j8 = (c.pin("J2", "1"), c.pin("J2", "2"), c.pin("J2", "3"),
                           c.pin("J2", "6"), c.pin("J2", "8"))
-    c.io("CAN_H_RJ", "right", from_pt=(j3[0] / cec_sch.GRID, j3[1] / cec_sch.GRID))
-    c.io("CAN_L_RJ", "right", from_pt=(j6[0] / cec_sch.GRID, j6[1] / cec_sch.GRID))
+    # J2's body spans Y=42-58 (measured from the symbol) -- pins 3/6 sit just
+    # left of it (X=12 vs body X=16-24), so routing straight right from
+    # either pin would cut through J2's OWN body. Jog up to Y<42 first (clear
+    # above), matching J1's own wire to FB1 below.
+    c.wire(j3, (j3[0], 30))
+    c.io("CAN_H_RJ", "right", from_pt=(j3[0], 30))
+    c.use(("J2", "3"))
+    c.wire(j6, (j6[0], 34))
+    c.io("CAN_L_RJ", "right", from_pt=(j6[0], 34))
+    c.use(("J2", "6"))
 
-    # VCC_RJ45_RAW -> FB1 (5VSB entry bead) -> +5VSB_RJ (exit right)
+    # VCC_RJ45_RAW -> FB1 (5VSB entry bead) -> +5VSB_RJ. FB1.2 is left
+    # UNCONSUMED: +5VSB_RJ is a GLOBAL bus (03/04/05, a genuine 3-leaf net),
+    # so it gets its own global_label stub from the generic per-pin pass,
+    # same as +5V_LED elsewhere (see 02-sense's note).
     c.place("FB1", 45, 20)
-    fb1a, fb1b = c.pin("FB1", "1"), c.pin("FB1", "2")
+    fb1a = c.pin("FB1", "1")
     c.wire(j1, (j1[0], fb1a[1]), fb1a)
     c.use(("J2", "1"), ("FB1", "1"))
-    c.io("+5VSB_RJ", "right", from_pt=(fb1b[0] / cec_sch.GRID, fb1b[1] / cec_sch.GRID))
 
-    # DETECT chain: J2.8 -- D1 (ESD, shunt to GND) -- R4 (2.2k code, shunt to
-    # GND) -- R5 (100k poke tap, series) -- DETECT_SENSE (exit right)
+    # DETECT chain: J2.8 drops well clear of pins 3/6 (whose CAN_H_RJ/CAN_L_RJ
+    # io lanes travel the full sheet width at THEIR row) before running the
+    # chain -- D1 (ESD, shunt to GND) -- R4 (2.2k code, shunt to GND) -- R5
+    # (100k poke tap, series) -- DETECT_SENSE (exit right).
+    chain_y = j8[1] + 40
+    c.wire(j8, (j8[0], chain_y))
     end = arch.protection_chain(
-        c, (j8[0] / cec_sch.GRID, j8[1] / cec_sch.GRID),
+        c, (j8[0], chain_y),
         [("shunt", "D1"), ("shunt", "R4"), ("series", "R5")],
         "DETECT_SENSE", out_kind="none", node_label="DETECT", pitch=8)
     c.use(("J2", "8"))
@@ -724,14 +788,21 @@ def compose_hub_link(c, lf):
 
 def compose_can(c, lf):
     c.place("U2", 45, 40)
-    u2_3, u2_5 = c.pin("U2", "3"), c.pin("U2", "5")
+    # U2.3 (VCC) and C4.1 (its bypass) are left UNCONSUMED and un-wired --
+    # +5VSB_RJ is the GLOBAL bus (see 03-hub-link's note), each pin gets its
+    # own global_label stub rather than a custom-routed local connection.
+    # U2.5 (VIO) and C5.1 (its bypass) are BOTH members of the +3V3
+    # POWER_PORTS net -- SAME treatment (measured bug, fixed: an earlier
+    # version drew an explicit wire between them and consumed both ends,
+    # which suppresses the automatic per-pin +3V3 power-flag stamp on
+    # BOTH sides at once, leaving the pair joined to each other but not to
+    # the actual +3.3V rail -- ERC correctly reported U2 pin 5 as
+    # unconnected/not-driven). Leaving both fully alone lets the generic
+    # pass stamp its own "+3V3" flag at each independently; they still land
+    # on the same net by name, no local wire needed (identical to how
+    # every other bare power-net pin in this file is handled).
     c.place("C4", 70, 20)
-    c.wire(u2_3, (u2_3[0], 20))
-    c.use(("U2", "3"), ("C4", "1"))
-    c.io("+5VSB_RJ", "left", from_pt=(u2_3[0] / cec_sch.GRID, u2_3[1] / cec_sch.GRID))
     c.place("C5", 70, 60)
-    c.wire(u2_5, (u2_5[0], 60))
-    c.use(("U2", "5"), ("C5", "1"))
 
     c.place("FL1", 15, 70)
     c.place("R6", 15, 90)
@@ -746,16 +817,27 @@ def compose_can(c, lf):
     c.wire(fl3, (fl3[0], r6b[1]), r6b)
     c.wire(fl3, (fl3[0] + 10, fl3[1]), (fl3[0] + 10, u2_7[1]), u2_7)
     c.use(("FL1", "1"), ("FL1", "3"), ("R6", "1"), ("R6", "2"), ("U2", "7"))
-    c.io("CAN_H_RJ", "left", from_pt=(fl1[0] / cec_sch.GRID, fl1[1] / cec_sch.GRID))
+    c.io("CAN_H_RJ", "left", from_pt=(fl1[0], fl1[1]))
     # CAN_L: FL1.2 (RJ side) -bypass R7- FL1.4 (xcvr side) -> U2.6
     c.wire(fl2, (fl2[0], r7a[1]), r7a)
     c.wire(fl4, (fl4[0], r7b[1]), r7b)
     c.wire(fl4, (fl4[0] + 14, fl4[1]), (fl4[0] + 14, u2_6[1]), u2_6)
     c.use(("FL1", "2"), ("FL1", "4"), ("R7", "1"), ("R7", "2"), ("U2", "6"))
-    c.io("CAN_L_RJ", "left", from_pt=(fl2[0] / cec_sch.GRID, fl2[1] / cec_sch.GRID))
+    c.io("CAN_L_RJ", "left", from_pt=(fl2[0], fl2[1]))
 
-    c.io("CAN_TX", "right")
-    c.io("CAN_RX", "right")
+    # U2 pins 1 (TXD/CAN_TX) and 4 (RXD/CAN_RX) exit on U2's LEFT side (local
+    # x=-12.7mm) but both sit at a Y inside U2's own body Y-range (absolute
+    # [34,46]), so routing straight "right" from them cuts through U2's body.
+    # Jog straight up first (X stays at the pin's own X, which is left of the
+    # body's left edge, so the vertical leg never crosses the body), THEN
+    # head right from a Y clear of the body.
+    u2_1, u2_4 = c.pin("U2", "1"), c.pin("U2", "4")
+    tx_y, rx_y = 10, 14
+    c.wire(u2_1, (u2_1[0], tx_y))
+    c.wire(u2_4, (u2_4[0], rx_y))
+    c.use(("U2", "1"), ("U2", "4"))
+    c.io("CAN_TX", "right", from_pt=(u2_1[0], tx_y))
+    c.io("CAN_RX", "right", from_pt=(u2_4[0], rx_y))
     c.caption("TJA1051T/3, classical 500k, no module termination; FL1 CAN CMC "
               "position DNP with the H3a-PATTERN 0R bypasses R6/R7 "
               "(spec Sec 3.1/7.5)", 10, 4)
@@ -777,16 +859,48 @@ def compose_usb_flash(c, lf):
     c.wire(j_vbus, (j_vbus[0], d5_1[1] - 6), (d5_1[0], d5_1[1] - 6), d5_1)
     c.wire(j_vbus, (j_vbus[0], fb2_1[1]), fb2_1)
     c.use(("J3", "A4"), ("D5", "1"), ("FB2", "1"))
+    # A9/B4/B9 are DRAWN at the exact same symbol-local point as A4 (measured:
+    # all four = local (15.24,15.24,180)) -- real coincident-pin points are
+    # electrically joined by KiCad connectivity with no wire needed, so
+    # marking them consumed (no separate label) is correct, not a bug.
     c.use(("J3", "A9"), ("J3", "B4"), ("J3", "B9"))   # coincident VBUS pins
 
+    # D6 (USBLC6-2SC6) pin 5 = VBUS_RAW -- NOT coincident with J3.A4 (a
+    # different local point on a different part), so it needs an explicit
+    # tie into the same VBUS_RAW node (measured bug, fixed: leaving it
+    # unconsumed let the generic pass auto-label it independently at D6's
+    # own position, which is exactly the kind of coincidental-row collision
+    # that merged unrelated nets in 02-sense -- see that leaf's note).
+    d6_5 = c.pin("D6", "5")
+    c.wire(d6_5, (d6_5[0], j_vbus[1]), j_vbus)
+    c.use(("D6", "5"))
+
     fb2_2, c10_1 = c.pin("FB2", "2"), c.pin("C10", "1")
-    c.wire(fb2_2, c10_1)
+    c.wire(fb2_2, (c10_1[0], fb2_2[1]), c10_1)
     c.use(("FB2", "2"), ("C10", "1"))
-    c.io("VBUS", "right", from_pt=(fb2_2[0] / cec_sch.GRID, fb2_2[1] / cec_sch.GRID))
+    c.io("VBUS", "right", from_pt=(fb2_2[0], fb2_2[1]))
 
     d6_1, d6_3 = c.pin("D6", "1"), c.pin("D6", "3")
-    c.io("USB_D_P", "left", from_pt=(d6_1[0] / cec_sch.GRID, d6_1[1] / cec_sch.GRID))
-    c.io("USB_D_N", "left", from_pt=(d6_3[0] / cec_sch.GRID, d6_3[1] / cec_sch.GRID))
+    c.io("USB_D_P", "left", from_pt=(d6_1[0], d6_1[1]))
+    c.io("USB_D_N", "left", from_pt=(d6_3[0], d6_3[1]))
+    c.use(("D6", "1"), ("D6", "3"))
+
+    # D6 pins 6/4 are the SAME USB_D_P/USB_D_N nets' OTHER leg (the
+    # USBLC6-2SC6 clamps between the two), and J3's A6/B6 (D+) and A7/B7
+    # (D-) are the USB-C connector's flip-orientation-redundant pairs --
+    # NONE of these six points are naturally coincident with each other or
+    # with D6's pin1/pin3 anchors (each is its own distinct symbol-local
+    # point), so every one needs an explicit tie; this was the other half
+    # of the same measured merge bug (all six left to the generic pass).
+    d6_6, d6_4 = c.pin("D6", "6"), c.pin("D6", "4")
+    j3_a6, j3_b6 = c.pin("J3", "A6"), c.pin("J3", "B6")
+    j3_a7, j3_b7 = c.pin("J3", "A7"), c.pin("J3", "B7")
+    c.wire(j3_a6, (j3_a6[0] + 10, j3_a6[1]), (j3_a6[0] + 10, j3_b6[1]), j3_b6)
+    c.wire(j3_a6, (d6_6[0], j3_a6[1]), d6_6)
+    c.use(("D6", "6"), ("J3", "A6"), ("J3", "B6"))
+    c.wire(j3_a7, (j3_a7[0] + 14, j3_a7[1]), (j3_a7[0] + 14, j3_b7[1]), j3_b7)
+    c.wire(j3_a7, (d6_4[0], j3_a7[1]), d6_4)
+    c.use(("D6", "4"), ("J3", "A7"), ("J3", "B7"))
 
     cc1, cc2 = c.pin("J3", "A5"), c.pin("J3", "B5")
     r18_1, r19_1 = c.pin("R18", "1"), c.pin("R19", "1")
@@ -794,6 +908,9 @@ def compose_usb_flash(c, lf):
     c.wire(cc2, (cc2[0], r19_1[1]), r19_1)
     c.use(("J3", "A5"), ("J3", "B5"), ("R18", "1"), ("R19", "1"))
 
+    # B1/A12/B12 are likewise drawn coincident with A1 (measured: all four =
+    # local (0.0,-22.86,90)) -- same coincident-point reasoning as the VBUS
+    # quad above; A1 itself is left to the GND powerflag/POWER_PORTS pass.
     c.use(("J3", "B1"), ("J3", "A12"), ("J3", "B12"))  # coincident GND pins
 
     c.caption("USB-C 2.0 flash/debug + H3 standalone-mode USB ESD/EMC suite "
@@ -833,25 +950,38 @@ def compose_mcu(c, lf):
     d4k, d4a = c.pin("D4", "1"), c.pin("D4", "2")
     u3in = c.pin("U3", "1")
     orx = u3in[0] - 10
-    for (dk, _da) in ((d2k, d2a), (d3k, d3a), (d4k, d4a)):
-        pass
     c.wire(d2k, (orx, d2k[1]))
     c.wire(d3k, (orx, d3k[1]))
     c.wire(d4k, (orx, d4k[1]))
     c.wire((orx, d2k[1]), (orx, d4k[1]))
-    c.wire((orx, d3k[1]), u3in)
-    c.use(("D2", "1"), ("D3", "1"), ("D4", "1"), ("U3", "1"))
-    c.io("+5V_LED", "left", from_pt=(d2a[0] / cec_sch.GRID, d2a[1] / cec_sch.GRID))
-    c.io("+5VSB_RJ", "left", from_pt=(d3a[0] / cec_sch.GRID, d3a[1] / cec_sch.GRID))
-    c.io("VBUS", "left", from_pt=(d4a[0] / cec_sch.GRID, d4a[1] / cec_sch.GRID))
+    c.wire((orx, d3k[1]), (orx, u3in[1]), u3in)
+    u3en = c.pin("U3", "3")
+    c.wire(u3in, (u3in[0], u3en[1]))   # EN strapped to IN -- always-on LDO
+    c.use(("D2", "1"), ("D3", "1"), ("D4", "1"), ("U3", "1"), ("U3", "3"))
+    # D2's anode (+5V_LED) and D3's anode (+5VSB_RJ) are left UNCONSUMED and
+    # un-wired: both are GLOBAL buses now (+5V_LED touches 02/05/06/08;
+    # +5VSB_RJ touches 03/04/05 -- see 02-sense's identical note), so each
+    # gets its own independent global_label stub from the generic pass.
+    # D4's anode (VBUS) IS this leaf's own hier_exports anchor for that
+    # ordinary 2-leaf pair (07-usb-flash <-> 05-mcu), so it still routes
+    # through the S1 edge column.
+    c.io("VBUS", "left", from_pt=(d4a[0], d4a[1]))
+    c.use(("D4", "2"))
 
     c.place("C8", 66, 50)
-    c.wire(u3in, (u3in[0], 50))
+    c8_1 = c.pin("C8", "1")
+    c.wire(u3in, (u3in[0], 50), (c8_1[0], 50), c8_1)
     c.use(("C8", "1"))
-    u3out = c.pin("U3", "5")
+    # U3.5 (OUT) and C9.1 (its bulk cap) are BOTH members of the +3V3
+    # POWER_PORTS net -- leave them UNCONSUMED and un-wired (measured bug,
+    # fixed: consuming both ends of a manual wire suppresses the automatic
+    # per-pin power-flag stamp on BOTH sides -- build_leaf's generic pass
+    # skips any pin in `consumed` outright, so neither end ever got a real
+    # "+3V3" power symbol; the LDO output was electrically joined to its own
+    # bypass cap but disconnected from the actual 3.3V rail -- ERC correctly
+    # reported U3 pin 5 as unconnected). Each gets its own independent +3V3
+    # flag from the generic pass and they still land on the same net by name.
     c.place("C9", 66, 70)
-    c.wire(u3out, (u3out[0], 70))
-    c.use(("U3", "5"), ("C9", "1"))
 
     for net in ("CAN_TX", "CAN_RX", "DETECT_SENSE", "ISENSE_TOTAL",
                 "VRAIL_5V_DIV", "USB_D_P", "USB_D_N",
@@ -886,7 +1016,7 @@ def compose_led_outputs(c, lf):
         _o_pt, (odx, _ody) = c.pin_out("U5", out_pin)
         sgn = 1 if odx > 0 else -1
         r, dclamp, dtvs, j = f"R{9+ch}", f"D{6+ch}", f"D{14+ch}", f"J{3+ch}"
-        rx = _o_pt[0] / G_ + sgn * 16
+        rx = _o_pt[0] + sgn * 16
 
         c.place(r, rx, y, 90)
         opin = c.pin("U5", out_pin)
@@ -906,22 +1036,26 @@ def compose_led_outputs(c, lf):
         c.wire(d1, (jp3[0], d1[1]), jp3)
         c.use((r, "2"), (dclamp, "3"), (dtvs, "1"), (j, "3"))
 
-        d2 = c.pin(dclamp, "2")
-        jp1 = c.pin(j, "1")
-        c.wire(d2, (d2[0], jp1[1] - 4), (jp1[0], jp1[1] - 4), jp1)
-        c.use((dclamp, "2"), (j, "1"))
-        d1g = c.pin(dtvs, "2")
-        jp4 = c.pin(j, "4")
-        c.wire(d1g, (d1g[0], jp4[1] + 4), (jp4[0], jp4[1] + 4), jp4)
-        c.use((dtvs, "2"), (j, "4"))
-        dclamp1 = c.pin(dclamp, "1")
-        c.wire(dclamp1, (dclamp1[0] - sgn * 6, dclamp1[1]))
-        c.use((dclamp, "1"))
+        # dclamp.2 (BAT54S cathode) + j.1 are BOTH +5V_LED GLOBAL members;
+        # dtvs.2 (PESD cathode-side) + j.4 are BOTH GND POWER_PORTS members;
+        # dclamp.1 (BAT54S anode) is ALSO a bare GND member. ALL FIVE are
+        # left UNCONSUMED and un-wired (measured bug, fixed: an earlier
+        # version manually wired dclamp.2<->j.1 and dtvs.2<->j.4 and consumed
+        # every pin, which suppresses the automatic per-pin stamp on BOTH
+        # ends of EACH pair -- neither pair ever reached the real +5V_LED/
+        # GND net, each showing up as its own tiny isolated "Net-(...)"
+        # island per channel instead of merging into the 9-member +5V_LED
+        # bus / 74-member GND net; dclamp.1's own stray stub-to-nowhere was
+        # a separate instance of the identical mistake). Leaving all five to
+        # the generic pass gives each its own independent global_label/GND
+        # flag -- no local copper needed, they merge by name exactly like
+        # every other bare power/global pin in this file.
 
         _i_pt, (idx, _idy) = c.pin_out("U5", in_pin)
         ipin = c.pin("U5", in_pin)
         c.io(f"LED{ch}_DATA", "left" if idx < 0 else "right",
-             from_pt=(ipin[0] / G_, ipin[1] / G_))
+             from_pt=(ipin[0], ipin[1]))
+        c.use(("U5", in_pin))
         y += 30
 
     c.caption("74AHCT244 octal level-shift + 8x (series R, BAT54S clamp, "
@@ -942,7 +1076,7 @@ def compose_status(c, lf):
     c.wire(u6a, (u6a[0] - 6, u6a[1]))
     c.wire(u6b, (u6a[0] - 6, u6b[1]), (u6a[0] - 6, u6a[1]))
     c.use(("U6", "1"), ("U6", "2"))
-    c.io("STATUS_LED_DATA", "left", from_pt=((u6a[0] - 6) / cec_sch.GRID, u6a[1] / cec_sch.GRID))
+    c.io("STATUS_LED_DATA", "left", from_pt=((u6a[0] - 6), u6a[1]))
 
     u6y, r20a = c.pin("U6", "4"), c.pin("R20", "1")
     c.wire(u6y, (r20a[0], u6y[1]), r20a)
@@ -951,9 +1085,15 @@ def compose_status(c, lf):
     c.wire(r20b, (r20b[0], dl3[1]), dl3)
     c.use(("R20", "2"), ("DL1", "3"))
 
-    u6vcc = c.pin("U6", "5")
-    c.wire(u6vcc, (u6vcc[0], 10))
-    c.use(("U6", "5"), ("C11", "1"))
+    # U6.5 (VCC) and C11.1 (its bypass) are BOTH members of the +5V_LED
+    # GLOBAL bus -- leave them UNCONSUMED and un-wired (same class of bug as
+    # 04-can/05-mcu's power-pin fix: consuming both ends of a manual wire
+    # suppresses the automatic per-pin stamp -- for a global net that stamp
+    # IS the independent global_label each occurrence needs, so wiring +
+    # consuming both left this node joined to itself but disconnected from
+    # the actual +5V_LED bus). Each gets its own global_label from the
+    # generic pass; DL1.4 (the third +5V_LED member) is already handled the
+    # same hands-off way.
 
     c.caption("SK6812MINI status pixel, level-shifted (Hub Standard's own "
               "U6 precedent, verbatim)", 10, -4)
@@ -982,15 +1122,44 @@ COMPOSERS = {
 # skips over (see that generator's BOX dict comment for the fully-worked
 # rationale -- the same hazard applies here, this board just has MORE
 # distinct source leaves feeding into 05-mcu than 12vhpwr-standard did).
+#
+# X-ORDERING NOTE: build_thin_parent's 2-pin-net check sorts a net's two leaf
+# occurrences by ABSOLUTE PAGE X and requires the smaller-X one to be the
+# "right"-side stub and the larger-X one the "left"-side stub (i.e. any two
+# leaves joined by a direct 2-pin net need non-overlapping X ranges, smaller
+# rank strictly left of larger rank -- NOT just distinct Y bands). 02-sense
+# (rank 2) has a direct pair with 01-power-input (rank 1, +5V_LED_IN) as well
+# as with 05-mcu (rank 6, ISENSE_TOTAL), so its X must clear 01's right edge
+# AND stay left of 05's left edge; 04-can (rank 4) similarly must clear
+# 03-hub-link's (rank 3) right edge for CAN_H_RJ/CAN_L_RJ while staying left
+# of 05. 05-mcu's own X must in turn clear the RIGHTMOST right-edge among
+# every leaf that connects directly to it (01/02/03/04/07), and 06/08 must
+# clear 05's right edge.
+#
+# TAP MARGIN NOTE (measured live): with lane_labels=True and no root_exports,
+# EVERY net gets the lane_labels "tap" treatment, which backs a local-label
+# stub OFF the lane by a further 7.62mm (single-member destination group) or
+# 6.35mm (group of 4+, e.g. 05-mcu's 8-member LED_DATA convergence) BEHIND
+# the naive source->dest lane column -- i.e. clearance between two directly-
+# paired leaves must exceed not just their own edge-to-edge gap but that
+# extra backward inset too, or the tap stub backs INTO the source leaf's own
+# box (measured: a 6-unit/7.62mm gap between 01-power-input and 02-sense
+# put the +5V_LED_IN tap stub's far end AT X=215.9mm, inside 01's own box
+# whose right edge is X=220.98mm -- "wire ... crosses sheet box
+# 01-power-input"). Fix: every directly-paired leaf gets >=30 GRID UNITS
+# (>=38mm) of clearance from its partner's edge, comfortably past the
+# largest tap inset (~30mm, worst case: 05-mcu's 8-member LED group at
+# k=7); 05-mcu's own left edge clears the rightmost of {01,02,03,04,07} by
+# the same margin, and 06/08 clear 05's right edge likewise.
 BOX = {
     "01-power-input": (4,   8,   170, 100),
-    "02-sense":        (4,   130, 110, 50),
+    "02-sense":        (210, 130, 110, 50),
     "03-hub-link":     (4,   200, 110, 60),
-    "04-can":          (4,   280, 130, 100),
+    "04-can":          (150, 280, 130, 100),
     "07-usb-flash":    (4,   400, 170, 100),
-    "05-mcu":          (220, 8,   190, 260),
-    "06-led-outputs":  (450, 8,   260, 300),
-    "08-status":       (450, 330, 130, 60),
+    "05-mcu":          (360, 8,   190, 260),
+    "06-led-outputs":  (600, 8,   260, 300),
+    "08-status":       (600, 330, 130, 60),
 }
 LEAF_PAPER = {
     "01-power-input": "A3", "02-sense": "A4", "03-hub-link": "A4",
@@ -1002,6 +1171,27 @@ ROOT_PAPER = "A0"
 # GND arrays bused to one link (owner directive, round-4 plan doc item 2 --
 # applied here too for consistency): U1 (ESP32-S3-MINI-1) carries 21 GND pads.
 GND_BUS_TARGETS = {"05-mcu": ["U1"]}
+
+# The two genuine N-way buses on this board (every other named net is a
+# clean 2-leaf pair -- verified by the owners-count guard in build() below).
+# +5V_LED: produced in 02-sense, consumed in 05-mcu (logic-power OR),
+#   06-led-outputs (buffer VCC + all 8 header 5V pins), AND 08-status
+#   (status pixel power) -- 4 leaves.
+# +5VSB_RJ: produced in 03-hub-link (the RJ-45 5VSB entry bead), consumed in
+#   04-can (TJA1051T/3 VCC) AND 05-mcu (the logic-power OR's 3rd leg) --
+#   3 leaves.
+_5V_LED_LEAVES = {"02-sense", "05-mcu", "06-led-outputs", "08-status"}
+_5VSB_RJ_LEAVES = {"03-hub-link", "04-can", "05-mcu"}
+GLOBAL_NET_NAMES = {"+5V_LED", "+5VSB_RJ"}
+GLOBAL_NETS_PER_LEAF = {}
+for _lid in LEAF_ORDER:
+    _s = set()
+    if _lid in _5V_LED_LEAVES:
+        _s.add("+5V_LED")
+    if _lid in _5VSB_RJ_LEAVES:
+        _s.add("+5VSB_RJ")
+    if _s:
+        GLOBAL_NETS_PER_LEAF[_lid] = _s
 
 
 def build(force=False):
@@ -1029,7 +1219,7 @@ def build(force=False):
             out_path=out_path, paper=LEAF_PAPER[lid],
             title=f"CEC ARGB Controller Standard: {lf.sheetname}", comment1=lf.desc,
             pwr_base=100 * (LEAF_ORDER.index(lid) + 1), layout=lf.layout,
-            global_nets={"+5V_LED"} if lid in ("02-sense", "05-mcu", "06-led-outputs") else None,
+            global_nets=GLOBAL_NETS_PER_LEAF.get(lid),
             name_pin_nets=name_pin_nets.get(lid), rev=REV)
         n_moved, still = L.nudge_texts(out_path)
         st["nudged"], st["text_overlaps_left"] = n_moved, still
@@ -1053,10 +1243,10 @@ def build(force=False):
         print(f"{lf.filename}  " + "  ".join(f"{k}={v}" for k, v in st.items()))
 
     # ---- root: for every leaf, gather its 2-leaf PAIRED nets (nets that
-    # appear in exactly one OTHER leaf's hier_exports too); the one true
-    # N-way bus (+5V_LED) is handled via global_nets above and carries NO
-    # sheet pin at all (a real KiCad global_label connects it project-wide).
-    GLOBAL_NET_NAMES = {"+5V_LED"}
+    # appear in exactly one OTHER leaf's hier_exports too); the two true
+    # N-way buses (+5V_LED, +5VSB_RJ) are handled via global_nets above and
+    # carry NO sheet pin at all (a real KiCad global_label connects each
+    # project-wide).
     net_owners = {}
     for lid in LEAF_ORDER:
         for net in LEAVES[lid].hier_exports:
@@ -1098,9 +1288,10 @@ def build(force=False):
             f"components. Rev {REV} -- NEW board, no alpha lineage (owner "
             f"directive 2026-07-05, spec Sec 7).",
             "Leaf sheets: " + ", ".join(LEAVES[lid].sheetname for lid in LEAF_ORDER),
-            "GND/+3V3 are global power nets (per-leaf symbols); +5V_LED is a "
-            "genuine 3-leaf bus (global_label, project-wide); every other "
-            "crossing is a real drawn sheet-pin lane carrying its exact net name."))
+            "GND/+3V3 are global power nets (per-leaf symbols); +5V_LED "
+            "(4 leaves) and +5VSB_RJ (3 leaves) are genuine N-way buses "
+            "(global_label, project-wide); every other crossing is a real "
+            "drawn sheet-pin lane carrying its exact net name."))
     print(f"{os.path.basename(ROOT_SCH)} (thin parent)  " +
           "  ".join(f"{k}={v}" for k, v in parent_stats.items()))
 
