@@ -58,7 +58,7 @@ PCIe-2 ×2, PCIe-3 ×3) — main-board Keystone 3586 clips are already in the co
 | EPS 8-pin (+2 db) | $13.00 | $10.90 | $1.80 | $1.11 | $2.80 | $0.95 | $2.00 | $1.55 | **$19.60** | **$14.51** |
 | PCIe 2-port (+2 db) | $11.80 | $9.82 | $1.85 | $1.14 | $2.80 | $0.95 | $2.00 | $1.55 | **$18.45** | **$13.46** |
 | PCIe 3-port (+3 db) | $15.90 | $13.24 | $2.40 | $1.47 | $3.00 | $1.00 | $2.00 | $1.55 | **$23.30** | **$17.26** |
-| 12VHPWR Standard | $20.70 | $17.12 | $1.10 | $0.65 | $3.50 | $1.20 | $2.75 | $2.05 | **$28.05** | **$21.02** |
+| 12VHPWR Standard | $17.58 | $14.56 | $1.10 | $0.65 | $3.50 | $1.20 | $2.75 | $2.05 | **$24.93** | **$18.46** |
 
 **1.2 Daughterboard unit reference** (feeds §1.1 above and the accessory SKUs in §3e): board fab
 (4L 2oz, tiny — 500-1341mm², est. $0.55@100/$0.35@1k) + TE FASTON tabs + THT hand/wave-solder
@@ -75,9 +75,13 @@ active/passive components on any daughterboard (BOM-confirmed).
 
 **1.3 Biggest cost drivers, by board:** Hub — ESP32-S3-WROOM-1-N16R8 (~45% of parts) + 4×RJ45 FTP
 jack + 7×SK6812. 24-pin — 4×INA228 + 9×Keystone clip (~$3.10@100) + the Mini-Fit Jr J3 input header
-(consigned, est. $1.20@100). EPS/PCIe — Keystone clips (12/8/12 × $0.345@100) rival the sense ICs.
-12VHPWR-Std — 6×INA240A3DR + 2×Molex 12V-2x6 (consigned, est. $3.00@100 **each**, the single
-largest line item on the board) + 6×CSS2H shunt.
+(consigned, est. $1.20@100 — UNVERIFIED, no live quote reached). EPS/PCIe — Keystone clips
+(12/8/12 × $0.345@100) rival the sense ICs. 12VHPWR-Std — 6×INA240A3DR ($8.10@100, the single
+largest BOM-line cost on the board) + 2×Molex 12V-2x6 J3/J4 (**real Digi-Key quote found this
+pass**, part 2191160161, the tray-pack sibling of the schematic's 2191161161 T&R: $1.44@100 /
+~$1.22@1k each — well below this study's earlier $3.00@100 estimate; **flag: Digi-Key shows 0
+stock, 15-week lead time** on that exact listing, a real supply risk, not just a price question)
++ 6×CSS2H shunt.
 
 **1.4 Reconciliation against CLAUDE.md board-table "BOM target"s.** Those targets (Hub $36, 24-pin
 $35*, EPS $32, PCIe-2 $38, PCIe-3 ~$42, 12VHPWR-Std $49) predate both this repo's own real
@@ -86,9 +90,11 @@ measured stale by the platform's own review docs, independent of this study: Hub
 sourcing-pass total was **~$12.11 parts-only** (`CLAUDE.md`, 2026-06-05 pass — at what reads as
 ~1pc-equivalent LCSC pricing, consistent with our $8.60@100 after typical qty breaks), and
 12VHPWR-Standard's was explicitly flagged **"$21 parts EXCLUDES consigned J3/J4 + pigtail assembly
-+ 4-layer/2oz fab — re-price the $49"** (`SYNTHESIS-beta-plan.md` D-7). This study's $28.05@100
-landed figure for 12VHPWR-Std is the first pass at that re-price, and it still lands under the old
-$49 — i.e. **"BOM target" in this repo has always meant a rough parts-only planning number, not a
++ 4-layer/2oz fab — re-price the $49"** (`SYNTHESIS-beta-plan.md` D-7). This study's $24.93@100
+landed figure for 12VHPWR-Std is the first pass at that re-price (parts alone, excl. J3/J4,
+recompute to ~$14.70@100 — still below the documented $21, consistent with $21 also being closer to
+1pc-equivalent pricing), and it still lands under the old $49 — i.e. **"BOM target" in this repo has
+always meant a rough parts-only planning number, not a
 landed cost**, and the gap was real even before daughterboards existed. 24-pin and EPS/PCIe never
 had a computed BOM at all (targets were round-number placeholders) — their new landed figures
 (24-pin $24.45, EPS $19.60, PCIe $18.45-23.30 @100q) are the first grounded numbers for these boards.
@@ -98,7 +104,7 @@ had a computed BOM at all (targets were round-number placeholders) — their new
 | Board | Parts @100q | Parts @1k | Fab @100q | @1k | Assy+consigned @100q | @1k | Test+pkg @100q | @1k | **LANDED @100q** | **LANDED @1k** |
 |---|---|---|---|---|---|---|---|---|---|---|
 | Hub Pro (**estimate**) | $14.86 | $12.30 | $1.60 | $0.95 | $3.00 | $1.00 | $2.00 | $1.55 | **$21.46** | **$15.80** |
-| 12VHPWR Pro | $82.66 | $70.00 | $1.30 | $0.75 | $3.50 | $1.20 | $2.75 | $2.05 | **$90.21** | **$74.00** |
+| 12VHPWR Pro | $79.54 | $67.44 | $1.30 | $0.75 | $3.50 | $1.20 | $2.75 | $2.05 | **$87.09** | **$71.44** |
 | EPS-Pro (**bounded**) | — | — | — | — | — | — | — | — | **~$75-92** | **~$60-72** |
 | PCIe-Pro (**bounded**) | — | — | — | — | — | — | — | — | **~$78-98** | **~$62-77** |
 
@@ -117,16 +123,19 @@ estimate.
 though its schematic is likewise a 99-line skeleton — so this is a real bottom-up build, not a pure
 delta: ESP32-P4 (~$5.50), 6×INA240A3DR (~$8.10, same as Standard), **LTC2358-18 ($58.51@100,
 Digi-Key — `max-part-selection-2026-07-05.md` §1 — no LCSC listing at all)**, REF3033 (~$0.32,
-same class as Standard's REF3030), RS-485 transceiver (~$0.40 allowance), 2×12V-2x6 consigned
-(~$6.00), 6×shunt (~$2.07), CAN/USB/RJ45/misc (~$2.30). **The LTC2358-18 alone is 71% of this
-board's parts cost** — the defining economics fact of the Pro tier. This study's $90.21@100 landed
-figure reconciles closely with the platform's own $98-99 BOM target (a rare case where the old
-target appears to have been set with real knowledge of the ADC's cost), unlike Hub Pro's target.
+same class as Standard's REF3030), RS-485 transceiver (~$0.40 allowance), 2×12V-2x6 (real Digi-Key
+quote, $1.44@100 each — §1.3), 6×shunt (~$2.07), CAN/USB/RJ45/misc (~$2.30). **The LTC2358-18 alone
+is ~74% of this board's parts cost** — the defining economics fact of the Pro tier. This study's
+$87.09@100 landed figure reconciles closely with the platform's own $98-99 BOM target (a rare case
+where the old target appears to have been set with real knowledge of the ADC's cost), unlike Hub
+Pro's target.
 
 **2.3 EPS-Pro/PCIe-Pro bound** (no project exists — confirmed, no `eps-8pin-pro`/`pcie-*-pro`
 directory in the repo): method is Standard-tier landed cost (§1.1) **plus** the 12VHPWR-Pro-over-
-Standard "Pro electronics core" delta (P4 MCU + LTC2358-18 + REF3033 + RS-485, ≈$63@100/$53@1k,
-i.e. 12VHPWR Pro $90.21 minus 12VHPWR Std $28.05 landed), less a modest discount for needing fewer
+Standard "Pro electronics core" delta (P4 MCU + LTC2358-18 + REF3033 + RS-485, ≈$62@100/$53@1k,
+i.e. 12VHPWR Pro $87.09 minus 12VHPWR Std $24.93 landed — this delta is unchanged by the connector
+price correction in §1.3, since it subtracts out of both figures equally), less a modest discount
+for needing fewer
 sense channels per cable than 12VHPWR's 6-pin array. This is a bound, not a design — these SKUs are
 proposed only, per the brief.
 
