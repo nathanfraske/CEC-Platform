@@ -234,3 +234,29 @@ over landed is where the full-system sell pays.
   CSS2H-2512R-L500F DK reel pricing at tier; (6) LTC2358-18 volume quote (65% of 12VHPWR-Pro
   parts); (7) USB-C part convergence (C2765186 vs C319148); (8) pigtail assembly real quote
   (ALLOWANCE $4 today); (9) JLC Standard-class feeder-fee ambiguity.
+
+---
+
+## Addendum (2026-07-05, post-study DigiKey re-verify — closes open item #3)
+
+Live DigiKey pricing (fetched 2026-07-05, DIRECT) supersedes the LCSC OOS-reference INA228
+ladder used above: **INA228AIDGSR $4.68@1 / $2.96@100 / $2.82@250 / $2.58@2,500 (T&R), stock
+5,240** — the part is freely available, just not at LCSC. **INA238AIDGSR $3.26@1 / $2.02@100 /
+$1.88@500 / $1.74@2,500, stock 1,753.** Consequences:
+
+- The 24-pin's INA228 line is 4×$2.96 = **$11.84@100** (not $16.40): landed ≈ **$31.75**,
+  retail at 3.5× ≈ $111 → **$109-119** band (not $129).
+- The true INA228-over-INA238 premium is **$3.76/board @100q** ($0.84/part × 4 = $3.36 @2.5k),
+  not ~$9.80 — the accumulator/20-bit premium is small at real sourcing.
+- Complete System Bundle re-anchored: **keep-INA228 = $279 / $299 / $319** (3.0-3.1× landed);
+  **INA238-swap = $259 / $279 / $299** (2.99-3.0×; $249 on config A = 2.87×, below the 3×
+  convention but available as a marketing call).
+- Accuracy/rate equivalence of the INA238 swap (why it stays on the table): same ±0.1%
+  gain-error class, same conversion engine and rates, same VSSOP-10 land (drop-in). 16-bit vs
+  20-bit changes current LSB 2.5mA vs 0.16mA on the 2mΩ shunts — both orders finer than the
+  gain-error floor on 10-25A rails, so reported accuracy is gain-bound and equivalent. Energy
+  reporting survives as firmware integration of the §6.10 1kHz stream (error likewise
+  gain-bound); what is genuinely lost is only the hardware energy/charge accumulators
+  (host-independent accumulation). Assembly note: JLC assembles from LCSC stock — a DigiKey-
+  sourced INA228 becomes a consigned/pre-shipped line at JLC or moves the sensing ICs to the
+  owner-population path; factor per the §2 consignment rules.
