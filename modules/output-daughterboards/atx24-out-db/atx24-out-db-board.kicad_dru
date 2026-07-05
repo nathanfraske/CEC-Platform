@@ -1,6 +1,6 @@
 (version 1)
 
-# 24-pin ATX daughterboard -- 9 blade-tab joints (12V x1 / 5V x2 / 3.3V x1 / 5VSB x1 / GND x4) + a 2x5 signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved). Power netclass 0.5mm/0.9-0.5mm via matches the 0.5mm stub tracks laid by route_atx24(); each rail also gets its own In2.Cu band zone (not netclass-controlled, drawn directly).
+# 24-pin ATX daughterboard -- 9 blade-tab joints (12V x1 / 5V x2 / 3.3V x1 / 5VSB x1 / GND x4) + a 2x5 signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved), standing perpendicular to the main board (owner ruling 2026-07-05). Power netclass 0.5mm/0.9-0.5mm via matches the 0.5mm stub tracks laid by route_atx24(); each rail also gets its own thin lane zone in the corridor between the field and the tab row, split across In2.Cu (4 rails) and B.Cu (3 rails) to fit the <=15mm height cap -- not netclass-controlled, drawn directly (see ATX24_LANE).
 
 (rule "Power min width"
 	(constraint track_width (min 0.4mm))

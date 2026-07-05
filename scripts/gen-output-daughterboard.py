@@ -257,56 +257,109 @@ def gen_schematic(fam, out=sys.stdout):
 
 
 # ============================================================================
-# PCB: physical placement (field + tabs [+ 24-pin signal header] + M3 mounts).
+# PCB: physical placement -- board STANDS PERPENDICULAR (90 deg) to the main
+# board (owner ruling, 2026-07-05; supersedes the parallel-mezzanine framing
+# this generator originally shipped with). Axes, as authored in this 2D file:
+#   X = "length", parallel to the main board once installed. FREE dimension,
+#       no ceiling -- minimize opportunistically, never at the expense of Y.
+#   Y = "height", the board's own vertical extent standing up off the main
+#       board. RULED CAP: <=15mm "or so" (owner, 2026-07-05). Y=0 (top of this
+#       drawing) is the board's FAR edge (top when installed); Y=H (bottom of
+#       this drawing) is the NEAR edge, resting at/near the main-board surface
+#       -- this is where the tab row lives.
+# The TE 63849-1 tabs sit in a SINGLE ROW near Y=H. Their blades point OUT OF
+# THE BOARD FACE (perpendicular to it, i.e. HORIZONTAL in real space once the
+# board stands up) and engage the main-board Keystone 3586 clips via SIDE
+# ENTRY (the clip's spring jaw takes the blade from the top or the side --
+# owner ruling; the side-entry slot height is therefore the tab row's Y
+# position, still owed to OQ-87). The output THT field sits ABOVE the tab row
+# (smaller Y); the 24-pin's 2x5 signal header sits BESIDE the field, ROTATED
+# 90 deg (its native, un-rotated footprint is 14.5mm tall -- alone it would
+# bust the cap outright; rotated, it is 6.9mm tall and shares the field's own
+# Y-band, costing nothing extra in the capped axis).
+#
+# NO MOUNTING HOLES (owner directive, 2026-07-05 -- supersedes the 2x-M3-
+# minimum in the original task brief). Retention is the Keystone 3586 clip's
+# own high insertion force (a FEATURE per the owner's 2026-07-04 ruling on
+# this connector family -- these joints are not meant for casual swapping;
+# mis-seat/pull-out is the failure mode that force is rejecting) plus chassis
+# strain relief on the cable/assembly side, spec Sec.2.8 v1.4.0 (OQ-87 still
+# owns the numeric pull-force/flex-cycle spec for that strain relief). See
+# each README's "Mounting / retention" section.
+#
+# DUAL-FACE TABS (front+back, blades opposite directions, halving the row's
+# apparent length) were evaluated per the owner's request and REJECTED --
+# math below, repeated in each README. The TE 63849-1's own copper PADS
+# already span nearly its full COURTYARD width on the row axis (7.58mm pad
+# extent inside a 7.92mm courtyard -- see the measurement note on TAB_PITCH
+# below), so interleaving a second row of tabs on the opposite face only
+# relieves the PAD-to-PAD copper clearance, not the courtyard clearance --
+# and pad clearance does not care which face a through-hole tab's body sits
+# against, because the DRILLED HOLES exist through the whole board either
+# way. Minimum safe pitch cross-face (pad edge to pad edge, ~0.3mm clearance)
+# works out to ~7.88mm vs ~8.1-8.6mm same-face -- a ~5-10% saving, not the
+# ~50% the "halve it" framing assumed. Single-face, single-row is what is
+# built here.
 # ============================================================================
-TAB_PITCH_GAP = {  # (within-group pitch mm, extra gap between rail groups mm)
-    # distinct per family -- part of the §2.8 v1.4.0 KEYING pattern (asymmetric
-    # tab spacing so a wrong-family daughterboard cannot seat on another
-    # family's main-board clip pattern; joint COUNT differs too: 9/6/4).
-    "atx24-out-db": (9.0, 15.0),
-    "eps-out-db": (9.0, 13.0),
-    "pcie-out-db": (9.0, 10.0),
+TAB_PITCH = {   # mm, centre-to-centre, single row -- the per-family KEYING
+    # lever (together with tab COUNT and the whole-board no-subset-seating
+    # proof in check_output_daughterboards.py). Real floor = the TE 63849-1's
+    # own courtyard WIDTH, 7.92mm -- measured
+    # (cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT courtyard is
+    # exactly [-3.96,3.96], matching the TE datasheet's 7.92mm shoulder-flange
+    # dimension to the micron). Every value below clears that floor with
+    # margin (last column = clearance beyond the floor).
+    "atx24-out-db": 8.6,   # 9 tabs, +0.68mm
+    "eps-out-db": 8.3,     # 6 tabs, +0.38mm
+    "pcie-out-db": 8.2,    # 4 tabs, +0.28mm
 }
+
+_TAB_CY = cp.courtyard_bbox(TE_TAB_FP)
+_TAB_HALF_X, _TAB_HALF_Y = (_TAB_CY[1] - _TAB_CY[0]) / 2, (_TAB_CY[3] - _TAB_CY[2]) / 2
+
+_LEFT_MARGIN, _TOP_MARGIN, _BOTTOM_MARGIN = 1.0, 0.4, 0.4
+_FIELD_GAP = 0.1           # field courtyard bottom -> corridor (atx24) / tab row (eps/pcie)
+_SIMPLE_GAP = 0.4          # eps/pcie: field bottom -> tab row, no corridor needed (2-net flood)
+
+
+def _field_geom(fam):
+    """(fx, fy, field_right, field_bottom) for a family's field connector,
+    top-left-anchored at (_LEFT_MARGIN, _TOP_MARGIN)."""
+    cfg = FAMILIES[fam]
+    bb = cp.courtyard_bbox(cfg["field_fp"])
+    fx, fy = _LEFT_MARGIN - bb[0], _TOP_MARGIN - bb[2]
+    return fx, fy, fx + bb[1], fy + bb[3]
 
 
 def pcb_placement(fam):
+    """Single tab row near the near/bottom edge (Y=H), field above it, (24-pin
+    only) header beside the field rotated 90. Returns (W, H, P) -- P maps
+    every ref to (x, y, rot). No mounts (see module docstring above)."""
     cfg = FAMILIES[fam]
-    pitch, gap = TAB_PITCH_GAP[fam]
-    P = {}
-    # field connector: local pin1 at the footprint origin -> global (fx, fy)
-    fx, fy = 45.0, 15.0
-    P[cfg["field_ref"]] = (fx, fy, 0)
-    # tabs: one row, grouped by net with a wider gap between groups (keying).
-    # atx24 reserves the left margin for the signal header (below), so its
-    # tab row starts further right than the other two families'.
-    tab_x0 = 45.0 if fam == "atx24-out-db" else 12.0
-    x = tab_x0
-    prev_net = None
-    tab_row_y = {"atx24-out-db": 62.0, "eps-out-db": 52.0, "pcie-out-db": 48.0}[fam]
-    for i, (ref, net) in enumerate(cfg["tabs"]):
-        if prev_net is not None and net != prev_net:
-            x += gap
-        if fam == "atx24-out-db" and i == 1:
-            # after the first tab (+12V), jump clear of the field connector's
-            # own X-span (its 24 columns + the +-2.1mm dodge offsets occupy
-            # roughly fx .. fx+48.3mm) so no tab's stub column can land near
-            # a field-pin descent column -- verified against the full
-            # occupied-column list in the generator's own dev notes.
-            x = max(x, fx + 58.0)
-        P[ref] = (x, tab_row_y, 0)
-        x += pitch
-        prev_net = net
-    tabs_right = x - pitch
+    pitch = TAB_PITCH[fam]
+    fx, fy, field_right, field_bottom = _field_geom(fam)
+    P = {cfg["field_ref"]: (fx, fy, 0)}
+
+    header_right = 0.0
     if cfg["header"]:
-        # Placed BELOW the In2 rail bands (like the tabs), not beside/within
-        # them -- its own stubs then only ever run "up" toward a band, same
-        # topology as a tab's stub, clear of the corner M3 mounts.
-        P[cfg["header"]["ref"]] = (20.0, 58.0, 0)
-    W = max(fx + 52.45, tabs_right + 15.0) + 12.0
-    H = tab_row_y + 15.0
-    inset = 9.0
-    mounts = [(inset, inset), (W - inset, inset), (inset, H - inset), (W - inset, H - inset)]
-    return W, H, P, mounts, tab_row_y
+        h = cfg["header"]
+        hbb = cp.courtyard_bbox(h["fp"], rot=90)
+        hx = field_right + 1.0 - hbb[0]
+        field_cy = fy + (cp.courtyard_bbox(cfg["field_fp"])[2] + cp.courtyard_bbox(cfg["field_fp"])[3]) / 2
+        hy = field_cy - (hbb[2] + hbb[3]) / 2
+        P[h["ref"]] = (hx, hy, 90)
+        header_right = hx + hbb[1]
+
+    n = len(cfg["tabs"])
+    tab0_x = _LEFT_MARGIN + _TAB_HALF_X
+    tab_last_x = tab0_x + (n - 1) * pitch
+    tab_y = atx24_tab_y(field_bottom) if fam == "atx24-out-db" else field_bottom + _SIMPLE_GAP + _TAB_HALF_Y
+    for i, (ref, _net) in enumerate(cfg["tabs"]):
+        P[ref] = (tab0_x + i * pitch, tab_y, 0)
+
+    H = tab_y + _TAB_HALF_Y + _BOTTOM_MARGIN
+    W = max(field_right, header_right, tab_last_x + _TAB_HALF_X) + 1.0
+    return W, H, P
 
 
 # A plain 4-layer stack, no net-name hints on the inner layers (unlike
@@ -360,16 +413,17 @@ def build_pcb_base(fam, out_override=None):
     names = [x for x in sorted(nets) if x]
     code_of = {x: i + 1 for i, x in enumerate(names)}
     padnet = {(r, p): (code_of[x], x) for x, nodes in nets.items() if x for (r, p) in nodes}
-    W, H, P, mounts, _tab_y = pcb_placement(fam)
+    W, H, P = pcb_placement(fam)
     fps = []
     for ref, (x, y, rot) in P.items():
         lib = comps.get(ref)
         if not lib:
             print(f"  WARN no footprint for {ref}", file=sys.stderr); continue
         fps.append(cp.place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref)))
-    for i, (x, y) in enumerate(mounts, 1):
-        fps.append(cp.place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via", f"H{i}", x, y, 0,
-                            padnet, code_of, gnd_all=True))
+    # NO mounting holes -- owner directive 2026-07-05 (see the placement-
+    # section docstring above): retention is the Keystone clip's own high
+    # insertion force + chassis strain relief on the cable/assembly side, not
+    # M3 hardware on this small a board.
     e = []
     pts = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
     for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
@@ -414,7 +468,7 @@ cr = _ilu.module_from_spec(_s); _s.loader.exec_module(cr)
 
 
 def _board_rect(fam, margin=0.5):
-    _W, _H, _P, _m, _ty = pcb_placement(fam)
+    _W, _H, _P = pcb_placement(fam)
     return [(margin, margin), (_W - margin, margin), (_W - margin, _H - margin), (margin, _H - margin)]
 
 
@@ -437,26 +491,70 @@ def route_simple(fam):
     return res
 
 
-# ---- 24-pin ATX: 8 nets share the board (GND + 7 rails), so the simple
-# full-board-flood trick (2-net-only) doesn't apply -- GND floods In1.Cu
-# ALONE (leaving In2.Cu free), and each of the 7 remaining rails gets its own
-# horizontal BAND (a zone confined to its own Y-slice of In2.Cu, stacked
-# non-overlapping) fed by individual F.Cu stub tracks + a via per pin.
+# ---- 24-pin ATX: 8 nets share the board (GND + 7 rails). GND floods In1.Cu
+# alone. The 7 rails are thin BANDS ("lanes") confined to a short CORRIDOR
+# between the field's bottom row and the tab row -- split across TWO layers
+# (In2.Cu + B.Cu, 4 nets / 3 nets) so the corridor only has to stack 4 deep,
+# not 7. That 2-layer split is what makes a <=15mm-class board height
+# possible at all with this many interleaved rails: on the ORIGINAL 77mm-tall
+# board the 7 bands could spread out over ~28mm of spare height; standing the
+# board up leaves only a few mm between the (height-dominant) field and the
+# tab row for them.
 #
-# The real ATX-24 pinout INTERLEAVES rails column-by-column (row1 y=0 /
-# row2 y=5.5 share the same 12 X-positions), so a field pin's straight-down
-# stub can run directly into the OPPOSITE row's pad if that pad is a
-# DIFFERENT net -- verified against every column (12 of them; see the
-# generator's own dev notes / the board's README "keying/fan-out" section):
-# only ROW1 pins ever need to dodge (row2 has nothing below it at its own
-# column except the clear inter-row gap), and only when its own net differs
-# from the row2 pin sharing that column. The dodge is a single +2.1mm (half
+# A lane on B.Cu is SAFE even though a foreign-net through-via also crosses
+# it on the way from F.Cu: KiCad's ZONE_FILLER auto-clears (anti-pads) any
+# via of a DIFFERENT net wherever it crosses a zone, on every layer it
+# passes through -- the exact mechanism an ordinary GND plane already relies
+# on for every unrelated signal via that crosses it, platform-wide (this repo
+# already depends on it: every non-GND via on this board's ORIGINAL design
+# already crossed the In1.Cu GND flood on its way from F.Cu to B.Cu). The one
+# thing that is NOT auto-cleared is a TRACK run directly into a foreign PAD
+# on the SAME layer -- that is a real short, and it is the one thing the
+# field-pin dodge below still guards against (unchanged mechanism from the
+# original design, just re-aimed at a lane in the corridor instead of a band
+# in the old design's much taller open area).
+#
+# The real ATX-24 pinout INTERLEAVES rails column-by-column (row0 y=0 / row1
+# y=5.5 share the same 12 X-positions), so a field pin's straight-down stub
+# can run directly into the OPPOSITE row's pad if that pad is a DIFFERENT
+# net. Only ROW0 pins ever need to dodge (row1 has nothing below it at its
+# own column except the clear corridor). The dodge is a single +2.1mm (half
 # the 4.20mm pitch) sideways jog -- landing dead-centre in the gap between
 # two adjacent pad columns, symmetric ~0.75mm clear of both neighbours' pad
-# edges -- taken PERMANENTLY (not jogged back), which keeps every column's
-# own stub on its own unique X for its whole length and so never collides
-# with a NEIGHBOURING column's stub either.
+# edges -- taken PERMANENTLY, which keeps every column's own stub on a
+# unique X for its whole length (0.5mm steps can never coincide with another
+# column's integer-pitch X, so dodged and undodged stubs never collide).
 ATX24_NONGND_NETS = ["+12V", "+5V", "+3V3", "+5VSB", "-12V", "PWR_OK", "PS_ON#"]
+ATX24_LANE = {          # net -> (layer, slot); slot 0 = nearest the field.
+    "+12V": ("In2.Cu", 0), "+5V": ("B.Cu", 0),
+    "+3V3": ("In2.Cu", 1), "+5VSB": ("B.Cu", 1),
+    "-12V": ("In2.Cu", 2), "PWR_OK": ("B.Cu", 2),
+    "PS_ON#": ("In2.Cu", 3),
+}
+_LANE_PITCH, _LANE_HALF = 0.8, 0.15     # 0.3mm-wide lane zone
+_N_LANE_SLOTS = 4                       # the deeper of the two lane layers (In2.Cu)
+ATX24_CORRIDOR_H = (_N_LANE_SLOTS - 1) * _LANE_PITCH + 2 * _LANE_HALF
+# Lane-entry via: SMALLER than the platform-default 0.5/0.9mm power via on
+# purpose -- 0.8mm slot pitch cannot safely hold 0.9mm-diameter vias (adjacent
+# slots' vias would physically overlap). 0.3/0.5mm is this repo's own existing
+# "Sense"/small-signal via convention (see modules/12vhpwr-standard's Sense
+# netclass, 0.6/0.3) sized down slightly further for this corridor; currents
+# here are the modest per-pin fan-out figures documented in the board README,
+# never the rail's own aggregate (that rides the 9 blade-clip joints).
+_LANE_VIA_DRILL, _LANE_VIA_DIA = 0.3, 0.5
+
+
+def atx24_tab_y(field_bottom):
+    corridor_top = field_bottom + _FIELD_GAP
+    return corridor_top + ATX24_CORRIDOR_H + _FIELD_GAP + _TAB_HALF_Y
+
+
+def _atx24_lane(field_bottom, net):
+    """(y, layer) of a rail's lane centreline in the corridor."""
+    layer, slot = ATX24_LANE[net]
+    return field_bottom + _FIELD_GAP + _LANE_HALF + slot * _LANE_PITCH, layer
+
+
 # kicad-cli's netlist export prefixes a ROOT-SHEET plain text label (no power-
 # port symbol behind it) with "/" (the root sheet's own path) -- the power-
 # port-backed rails (+12V/+5V/+3V3/+5VSB/GND) are GLOBAL nets and keep their
@@ -465,6 +563,15 @@ ATX24_NONGND_NETS = ["+12V", "+5V", "+3V3", "+5VSB", "-12V", "PWR_OK", "PS_ON#"]
 # "/-12V"/"/PS_ON#"/"/PWR_OK" on the actual board. Map at the routing layer
 # only -- the schematic/config data above stays on the readable bare names.
 _PCB_NET = {n: (f"/{n}" if n in ("-12V", "PS_ON#", "PWR_OK") else n) for n in ATX24_NONGND_NETS}
+
+# Two of the nine tabs need a small sideways nudge (see the tabs-loop comment
+# in route_atx24): J10's natural bridge-point X (7.5mm) sits 0.8mm from the
+# -12V field pin's own transit column, and J11's (16.1mm) sits 0.6mm from the
+# PS_ON# field pin's -- both under the >=1.0mm separation a 0.5mm track /
+# 0.5mm via combination needs. Solved by a small geometric search (every
+# field-pin/tab/header transit column vs every other, pairwise, over the
+# whole corridor Y-span) -- not hand-guessed. J12/J13/J14 needed no nudge.
+TAB_X_NUDGE = {"J10": -0.2, "J11": -0.4}
 
 
 def route_atx24():
@@ -475,84 +582,92 @@ def route_atx24():
     rect = _board_rect(fam)
     r.zone("GND", rect, layers=("In1.Cu",), clearance=0.3, min_width=0.3)
 
-    W, H, P, mounts, tab_row_y = pcb_placement(fam)
-    fx, fy, _ = P[cfg["field_ref"]]
+    W, H, P = pcb_placement(fam)
+    fx, fy, _field_right, field_bottom = _field_geom(fam)
 
-    band_top, band_pitch, band_half = 30.0, 4.0, 1.4
-    band_y = {net: band_top + i * band_pitch for i, net in enumerate(ATX24_NONGND_NETS)}
-    hx0 = P[cfg["header"]["ref"]][0]
-    band_x0, band_x1 = min(fx - 4.0, hx0 - 4.0), W - 6.0
-    for net, by in band_y.items():
+    lane_x0, lane_x1 = 2.0, W - 2.0
+    for net in ATX24_NONGND_NETS:
+        ly, layer = _atx24_lane(field_bottom, net)
         pn = _PCB_NET.get(net, net)
-        r.zone(pn, [(band_x0, by - band_half), (band_x1, by - band_half),
-                   (band_x1, by + band_half), (band_x0, by + band_half)],
-               layers=("In2.Cu",), clearance=0.2, min_width=0.25)
+        r.zone(pn, [(lane_x0, ly - _LANE_HALF), (lane_x1, ly - _LANE_HALF),
+                   (lane_x1, ly + _LANE_HALF), (lane_x0, ly + _LANE_HALF)],
+               layers=(layer,), clearance=0.2, min_width=0.2)
 
-    # field pins (1-24): row1 = pins 1-12 @ local y=0, row2 = pins 13-24 @ y=5.5.
-    # A "same net, no conflict" column (e.g. +3V3 at col0: pin1 row1 and pin13
-    # row2 share the net) drives two pins straight to the IDENTICAL via spot
-    # -- harmless electrically but a co-located-drill DFM warning, so track
-    # via spots already used and skip the duplicate (the track alone, ending
-    # inside the other pin's own pad on the way through, still ties them).
+    # field pins (1-24): row0 = pins 1-12 @ local y=0, row1 = pins 13-24 @
+    # y=5.5 -- see the module-level comment above for the dodge rationale.
+    # A "same net, no conflict" column drives two pins to the IDENTICAL via
+    # spot; track via spots already used (per NET, so two DIFFERENT rails
+    # that happen to share a lane Y on DIFFERENT layers never get confused
+    # for one another) and skip the duplicate -- the track alone, ending on
+    # top of the other pin's own via, still ties them.
     via_seen = set()
     for pin, net in cfg["field_net"].items():
         if net in (None, "GND"):
             continue
         pn = _PCB_NET.get(net, net)
+        by, _layer = _atx24_lane(field_bottom, net)
         row = 0 if pin <= 12 else 1
         col = (pin - 1) % 12
         x, y = fx + col * 4.2, fy + (0.0 if row == 0 else 5.5)
         opp_net = cfg["field_net"][pin + 12 if row == 0 else pin - 12]
         conflict = (row == 0) and (opp_net != net)
-        by = band_y[net]
         if conflict:
             pts = [(x, y), (x, y + 2.2), (x + 2.1, y + 2.2), (x + 2.1, by)]
         else:
             pts = [(x, y), (x, by)]
         r.track(pn, pts, "F.Cu", 0.5)
-        via_pt = (round(pts[-1][0], 3), round(pts[-1][1], 3))
+        via_pt = (round(pts[-1][0], 3), round(pts[-1][1], 3), net)
         if via_pt not in via_seen:
-            r.via(pn, pts[-1], drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
+            r.via(pn, pts[-1], drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
             via_seen.add(via_pt)
 
-    # tabs: straight stub up to their own net's band (nothing else occupies
-    # F.Cu between the tab row and the bands -- the bands live on In2.Cu).
-    # The TE_63849-1 footprint has TWO physical pads, both numbered "1" (one
-    # electrical node per its own vendored description), but "same pad
-    # number" is a netlist LABEL, not copper -- the footprint has no internal
-    # bridge between them, so both need real copper: a short bridge track
-    # between the two pads (tx-2.54 to tx+2.54), then the up-stub off the
-    # +2.54 one (the placement origin between them has no copper at all).
+    # tabs sit BELOW the corridor (tab_y > every lane y), so each one's stub
+    # runs UP into its net's lane. The TE_63849-1 footprint has TWO physical
+    # pads, both numbered "1" (one electrical node per its own vendored
+    # description), but "same pad number" is a netlist LABEL, not copper --
+    # the footprint has no internal bridge between them, so both need real
+    # copper: a short bridge track between the two pads (tx-2.54 to
+    # tx+2.54), then the up-stub off the +2.54 one, PLUS a small extra
+    # sideways nudge (TAB_X_NUDGE) on the two tabs whose natural bridge-point
+    # X happens to land within a via-diameter of an UNRELATED field pin's or
+    # header pin's own transit through the corridor (a coincidental overlap
+    # between the field's 4.2mm column grid and the tab row's 8.6mm grid --
+    # unrelated to keying, just two independent pitches landing close
+    # together at this one spot each; solved geometrically, see
+    # scripts/gen-output-daughterboard.py dev history / the README).
     for ref, net in cfg["tabs"]:
         if net == "GND":
             continue
         pn = _PCB_NET.get(net, net)
         tx, ty, _ = P[ref]
-        by = band_y[net]
+        by, _layer = _atx24_lane(field_bottom, net)
+        nx = tx + 2.54 + TAB_X_NUDGE.get(ref, 0.0)
         r.track(pn, [(tx - 2.54, ty), (tx + 2.54, ty)], "F.Cu", 0.5)
-        r.track(pn, [(tx + 2.54, ty), (tx + 2.54, by)], "F.Cu", 0.5)
-        r.via(pn, (tx + 2.54, by), drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
+        r.track(pn, [(tx + 2.54, ty), (nx, ty), (nx, by)], "F.Cu", 0.5)
+        r.via(pn, (nx, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
     # 2x5 signal header (PS_ON#/PWR_OK/-12V/GND-ref/6 reserved -- pin order
     # matches the already-built main-board J_SIG, see ATX24_HEADER_NET),
-    # placed BELOW the bands: pin1 PS_ON# (row0,col0), pin2 PWR_OK
-    # (row0,col1), pin3 -12V (row1,col0 -- SAME column as pin1), pin4 GND
-    # (row1,col1, no route). Only pin3 needs a dodge (it shares pin1's column
-    # and must pass its Y on the way up to a band); pin1/pin2 have clear runs
-    # since nothing else sits above the header at their own X. Explicit
-    # per-net paths (only 3 nets, tightly packed at 2.54mm pitch -- the
-    # generic per-pin loop used for the much coarser 4.20mm field/tab pitch
-    # is too tight here).
+    # ROTATED 90 (see the placement-section docstring) so it fits the
+    # field's own Y-band instead of costing extra board height. Post-
+    # rotation: pin1 PS_ON# and pin2 PWR_OK share an X (pin2 sits directly
+    # ABOVE pin1), so pin2's stub dodges sideways before passing pin1's Y on
+    # its way down to a lane; pin3 -12V is on its own column (pin4 GND sits
+    # above it but needs no route) and runs straight down.
     h = cfg["header"]; hx, hy, _ = P[h["ref"]]
+    p1, p2, p3 = (hx, hy), (hx, hy - 2.54), (hx + 2.54, hy)
+    by_ps, _l1 = _atx24_lane(field_bottom, "PS_ON#")
+    by_pwr, _l2 = _atx24_lane(field_bottom, "PWR_OK")
+    by_m12, _l3 = _atx24_lane(field_bottom, "-12V")
     header_paths = {
-        "PS_ON#": [(hx, hy), (hx, band_y["PS_ON#"])],
-        "PWR_OK": [(hx + 2.54, hy), (hx + 2.54, band_y["PWR_OK"])],
-        "-12V": [(hx, hy + 2.54), (hx, hy + 1.3), (hx + 1.27, hy + 1.3), (hx + 1.27, band_y["-12V"])],
+        "PS_ON#": [p1, (p1[0], by_ps)],
+        "PWR_OK": [p2, (p2[0], p2[1] + 1.0), (p2[0] + 1.27, p2[1] + 1.0), (p2[0] + 1.27, by_pwr)],
+        "-12V": [p3, (p3[0], by_m12)],
     }
     for net, pts in header_paths.items():
         pn = _PCB_NET.get(net, net)
         r.track(pn, pts, "F.Cu", 0.4)
-        r.via(pn, pts[-1], drill=0.5, dia=0.9, layers=("F.Cu", "B.Cu"))
+        r.via(pn, pts[-1], drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
     r.fill()
     res = r.verify()
@@ -586,10 +701,14 @@ def write_rules(fam):
                     ("Signal", "/-12V"), ("Signal", "/PWR_OK"), ("Signal", "/PS_ON#")]
         header = ("24-pin ATX daughterboard -- 9 blade-tab joints "
                   "(12V x1 / 5V x2 / 3.3V x1 / 5VSB x1 / GND x4) + a 2x5 "
-                  "signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved). "
-                  "Power netclass 0.5mm/0.9-0.5mm via matches the 0.5mm stub "
-                  "tracks laid by route_atx24(); each rail also gets its own "
-                  "In2.Cu band zone (not netclass-controlled, drawn directly).")
+                  "signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved), "
+                  "standing perpendicular to the main board (owner ruling "
+                  "2026-07-05). Power netclass 0.5mm/0.9-0.5mm via matches "
+                  "the 0.5mm stub tracks laid by route_atx24(); each rail "
+                  "also gets its own thin lane zone in the corridor between "
+                  "the field and the tab row, split across In2.Cu (4 rails) "
+                  "and B.Cu (3 rails) to fit the <=15mm height cap -- not "
+                  "netclass-controlled, drawn directly (see ATX24_LANE).")
     else:
         rail = "+12V"
         classes = [cp.netclass("Default", 0.25, 0.6, 0.3, 2147483647),
