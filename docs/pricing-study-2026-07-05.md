@@ -1,260 +1,236 @@
 # Consumer-tier pricing study — Standard + Pro, landed vs. retail, bundles (2026-07-05)
 
 **STUDY ONLY.** No spec, board, schematic, `CLAUDE.md`, or `docs/owner-queue.md` file is touched.
-Answers the owner's 2026-07-05 ask: Standard/Pro Hub+Module pricing, landed vs. retail, and bundle
-structure. All parts figures trace to the committed BOM CSVs or a named repo doc; everything else
-is a stated estimate. Web prices pulled 2026-07-05; **UNVERIFIED** marks anything a source couldn't
-confirm.
+Answers the owner's 2026-07-05 ask: Standard/Pro Hub+Module pricing, landed vs. retail, bundles.
+**Provenance key, used per figure:** **DIRECT** = fetched from the primary source this pass
+(2026-07-05); **SOURCED** = relayed research, not independently re-checked (7/7 spot-checks of the
+relay matched — high confidence); **OWNER** = owner-supplied ruling; **ALLOWANCE** = stated
+assumption; **UNVERIFIED** = no reachable data, banded estimate.
 
-## 0. Method (read before the tables)
+## 0. Method
 
-- **Quantities:** 100 units (first production run) and 1,000 units (steady-state), the platform's
-  own break points (`docs/max-part-selection-2026-07-05.md` §6-7 uses the same pair).
-- **Landed cost** = parts + PCB fab + assembly (incl. consigned-part handling) + test/flash + packaging.
-  This is a materially larger scope than the CLAUDE.md board-table "BOM target" column — see §1.4.
-- **Parts pricing method:** every line traces to the board's committed BOM CSV (reference,
-  qty, LCSC#). Where this repo already records a real LCSC/Digi-Key quote (Keystone 3586 blade
-  clip C238113, TE 63849-1 tab C86469, CSS2H-2512R-1L00F shunt C4175647, INA240A3DR, LTC2358-18,
-  REF3030/3033, RJ45 FTP jack, ESP32-P4NRW32 — all cited in `docs/max-part-selection-2026-07-05.md`
-  and `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9-8.10), that figure
-  is used directly. For the ~40 generic small passives/protection parts per board with no cached
-  $ figure, unit price is **banded by package/class** (0402 R/C ≈$0.002-0.004@100q; SOT-23 small
-  IC ≈$0.10-0.15@100q; connectors per class) and cross-checked against this repo's own real
-  1pc→100pc break ratios where both are known: Keystone 3586 $0.6178→$0.3447 (-44%), AD7606B
-  $18.91→$14.66 (-22%), ESP32-P4NRW32 $5.72→$4.47 (-22%), RTL8211F $1.52→$1.04 (-32%). Banded
-  low-value passives use the steeper end of that range at 100q, ICs/modules the shallower end.
-  Consigned parts (no LCSC line — Mini-Fit Jr headers, the 12V-2x6) are priced from general
-  Digi-Key/Mouser bands. **One got a real quote this pass:** the 12V-2x6 (Molex 2191161161/
-  2191160161) is a live Digi-Key break — $1.99@1 / $1.44@100 / ~$1.22@1k tray — used directly below,
-  well under this study's own earlier band estimate; **that same listing shows 0 stock, 15-week
-  lead time**, a real supply flag (§5). The Mini-Fit Jr headers (24-pin J3, EPS/PCIe J_IN*)
-  couldn't be priced live this pass (Mouser blocked the fetch, Digi-Key search missed the exact
-  part) and stay **UNVERIFIED band estimates — reverify at BOM lock**.
-- **PCB fab:** 4-layer FR4 at the measured board sizes (`docs/standard-tier-review/routing-foundation-2026-07-04.md`
-  §1 stackup + this pass's own `pcbnew`-free bounding-box read of each committed `.kicad_pcb`), 2oz
-  outer per the cable-board convention (24-pin is 1oz outer, a flagged deviation). Fab $ are
-  estimated from typical JLCPCB 4-layer small-board bands. **One live reference found:** a JLCPCB
-  pricing page reports $70.60 for a 100×100mm 4-layer board at 100pc (ENIG/2oz spec-match
-  unconfirmed, likely a base HASL/1oz figure), i.e. ~$0.71/board per 10,000mm² before any
-  ENIG/2oz/complexity premium — suggests the estimates below may run conservative (high) for the
-  mostly-sub-10,000mm² Standard boards; treated as a ceiling check, not re-derived from one point.
-  **Still UNVERIFIED against this project's exact specs** — a live gerber quote is the real next step.
-- **Assembly** = SMT setup/joint fees + a THT/consigned-connector handling adder, banded from
-  JLCPCB's published SMT fee structure (setup fee amortized per unique part, near-zero per-joint
-  for Basic-library parts, an added fee per Extended-library or off-catalog part) — UNVERIFIED,
-  not a live quote.
-- **Test/flash:** stated assumption, $1.25@100 / $1.00@1k (functional test + firmware flash).
-- **Packaging:** stated assumption, $0.75@100 / $0.55@1k — antistatic bag + small box/label +
-  mounting hardware. **No enclosure/chassis is costed**: every board here is a bare PCBA that
-  mounts inside the PC case (M3 chassis-ground standoffs), not a boxed standalone product — this
-  repo has no enclosure design or cost anywhere (confirmed by search).
-- FCC-15B: no intentional-radiator certification is amortized (Standard/Pro carry no Wi-Fi;
-  §6.14 posture is subassembly/unintentional-radiator). NRE/tooling/stencil costs are excluded
-  throughout — see §5.
+- **Quantities:** 100 (first run) and 1,000 (steady state) — the platform's own break points.
+- **Landed** = parts + PCB fab + assembly + test/flash + packaging. Larger scope than the
+  CLAUDE.md "BOM target" column — see §1.4.
+- **Parts:** every line traces to the committed BOM CSVs. Real LCSC ladders (DIRECT/SOURCED,
+  2026-07-05) now cover essentially every named part: ESP32-S3-WROOM $3.87@100/$3.72@650;
+  ESP32-C6-MINI $2.85/$2.64; ESP32-S3-MINI $3.75/$3.50 (**OOS at LCSC**); INA228 $5.01@1→$3.58@1k
+  (**OOS, reference-only ladder** — @100 interpolated $4.10); INA238 $1.65/$1.26 (stock 680);
+  INA181A2 $0.26/$0.16; INA240A3 $2.73@1→$1.61@1k (@100 ~$2.20, stock 4,733); TJA1051 $0.40;
+  TPS2121 $0.71 (stock 238, THIN); LP5907 $0.15; TLV7011 $0.35/$0.27; RJ45 C2683360 $0.27/$0.19;
+  Keystone 3586 $0.3447@100, **no 1000-pc tier exists** (flat at 1k), stock 533; TE tab C86469
+  $0.0795@100/$0.0644@2k (**the repo's "$0.04" figure is stale — actual ~2×**); 1mΩ shunt
+  $0.3457/$0.2954; 4700µF $0.65@1k (stock 275); SK6812 ~$0.06; USB-C C319148 $0.25. Four jellybean
+  passives (100nF/10k/1µF/10µF C-numbers) are **OOS reference-high** — in-stock alternates
+  assumed at normal 0402/0603/0805 bands (cents). 0.5mΩ EPS/PCIe shunt: **LCSC line C1848841
+  confirmed OOS** (DIRECT) — DigiKey-only, ~$0.45 band UNVERIFIED at tier.
+- **Mini-Fit Jr connectors — OWNER RULING (2026-07-05, supersedes distributor pricing as the
+  planning number):** owner acquires via MODDIY at **~$1/unit at volume** (24-pin J3, EPS
+  87427-0802, PCIe 45586-0005). Verified-distributor reference band: 87427-0802 DIRECT DK
+  $1.6709@100/$1.42@960 (stock 5,008); 45586-0005 SOURCED $3.47@100 (DK stock 0, 9wk — a supply
+  footnote only, not a cost blocker, MODDIY path); 5569-24A1/A2 UNVERIFIED as literal PNs (fuzzy
+  DK substitutes $2.24-4.79@100, unconfirmed crosswalks). Tables use **$1.00 OWNER/MODDIY**.
+- **12V-2x6 (12VHPWR J3/J4):** whether it rides the MODDIY path is **UNCONFIRMED — priced both
+  ways**. Tables use the verified figure: 2191161161 Cut-Tape DIRECT DK **$1.7637@100 /
+  $1.5743@500**, stock 1,715, 15wk mfr lead (corrects this study's earlier "0 stock" flag — that
+  was the tray sibling 2191160161). If MODDIY ~$1 confirms, shave ~$1.55/board.
+- **PCB fab: UNVERIFIED for all boards** — JLC's quote calculator is JS-driven (static fetch
+  shows $0.00); two web-synthesized reference figures were inconsistent and rejected. Fab columns
+  are banded estimates (area-scaled, 4L; 2oz cable-board premium assumed). **Verified surcharges**
+  (DIRECT, jlcpcb.com extra-charges page, updated 2026-01-27): small-board fee $0.02/pc (smallest
+  side 1.5-3cm — hits the 81×17mm daughterboard; the 53×15 and 35×15 sit ON the 1.5cm boundary,
+  ambiguous $0.02-0.05 band); ENIG >30%-area surcharge $0.8992/m² per 1% over (Hub is ENIG); V-cut
+  surcharge <15mm/side in panel; large-board fee only >650cm² (largest board 72.5cm² — exempt).
+- **Assembly — VERIFIED fee schedule** (DIRECT, JLC price page updated 2025-09-01, consignment
+  page 2025-04-24), Economic class assumed: setup $8/order; stencil $1.50; SMT $0.0016/joint;
+  Extended-part feeder $3/unique (Preferred-Extended exempt; Standard class $25/$50 setup +
+  "$1.5" feeder line with a basic-vs-extended ambiguity — confirm at live quote); THT hand-solder
+  $0.0157/joint (1-50k) → $0.0141 (50k-100k) + $3.50/order. **Consignment is supported incl.
+  non-catalog parts** (engineer approval case-by-case, pre-ship to warehouse, no separate fee
+  stated) — per the OWNER ruling it is **no longer gating**. Owner-acquired parts ≠ populated:
+  tables carry JLC hand-solder THT fees; owner/local assembly is the zero-fee alternative (time,
+  not dollars). Joint/Extended-part counts per board are this study's estimates (±20%).
+- **Test/flash:** ALLOWANCE $1.25@100/$1.00@1k. **Packaging:** ALLOWANCE $0.75/$0.55. No
+  enclosure/chassis costed (bare internally-mounted PCBAs; the repo has no enclosure design). No
+  intentional-radiator cert (§6.14 subassembly posture); NRE/tooling excluded (§5).
 
 ## 1. Standard tier — landed unit cost
 
-**1.1 Main boards + their mandatory output daughterboard(s).** Per spec §2.8 v1.4.0, 24-pin/EPS/
-PCIe now ship output rails through a passive daughterboard per cable (24-pin ×1, EPS ×2,
-PCIe-2 ×2, PCIe-3 ×3) — main-board Keystone 3586 clips are already in the committed BOMs
-(9/12/8/12 joints, matching `output-daughterboard-study-2026-07-04.md` §8.9 exactly).
+**1.1** Per spec §2.8 v1.4.0 the 24-pin/EPS/PCIe output rails cross to a passive daughterboard
+per cable (24-pin ×1, EPS ×2, PCIe-2 ×2, PCIe-3 ×3); main-board Keystone clips (9/12/8/12) are in
+the committed BOMs. **Parts column includes the daughterboard(s) all-in** (bare fab + tabs + THT
+solder, per §1.2). Fab = main board only (UNVERIFIED band); Assembly = the verified JLC fee
+schedule applied to estimated joint counts.
 
-| Board | Parts @100q | Parts @1k | PCB fab @100q | @1k | Assembly+consigned @100q | @1k | Test+pkg @100q | @1k | **LANDED @100q** | **LANDED @1k** |
+| Board | Parts+db @100 | @1k | Fab @100 | @1k | Assy @100 | @1k | Test+pkg @100 | @1k | **LANDED @100** | **@1k** |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Hub Standard | $8.60 | $7.05 | $1.20 | $0.70 | $2.20 | $0.75 | $2.00 | $1.55 | **$14.00** | **$10.05** |
-| 24-pin ATX (+1 db) | $17.70 | $15.00 | $1.55 | $0.93 | $3.20 | $1.10 | $2.00 | $1.55 | **$24.45** | **$18.58** |
-| EPS 8-pin (+2 db) | $13.00 | $10.90 | $1.80 | $1.11 | $2.80 | $0.95 | $2.00 | $1.55 | **$19.60** | **$14.51** |
-| PCIe 2-port (+2 db) | $11.80 | $9.82 | $1.85 | $1.14 | $2.80 | $0.95 | $2.00 | $1.55 | **$18.45** | **$13.46** |
-| PCIe 3-port (+3 db) | $15.90 | $13.24 | $2.40 | $1.47 | $3.00 | $1.00 | $2.00 | $1.55 | **$23.30** | **$17.26** |
-| 12VHPWR Standard | $17.58 | $14.56 | $1.10 | $0.65 | $3.50 | $1.20 | $2.75 | $2.05 | **$24.93** | **$18.46** |
+| Hub Standard | $9.86 | $8.60 | $1.40 | $0.85 | $1.77 | $1.19 | $2.00 | $1.55 | **$15.05** | **$12.20** |
+| 24-pin ATX (+1 db) | $30.98 | $27.18 | $1.30 | $0.80 | $2.03 | $1.41 | $2.00 | $1.55 | **$36.30** | **$30.95** |
+| EPS 8-pin (+2 db) | $18.30 | $15.91 | $1.00 | $0.60 | $1.31 | $0.84 | $2.00 | $1.55 | **$22.60** | **$18.90** |
+| PCIe 2-port (+2 db) | $16.66 | $14.33 | $1.05 | $0.65 | $1.33 | $0.86 | $2.00 | $1.55 | **$21.05** | **$17.40** |
+| PCIe 3-port (+3 db) | $22.76 | $19.53 | $1.25 | $0.75 | $1.55 | $1.05 | $2.00 | $1.55 | **$27.55** | **$22.90** |
+| 12VHPWR Standard | $28.95 | $23.00 | $1.25 | $0.75 | $1.78 | $1.23 | $2.75 | $2.05 | **$34.75** | **$27.05** |
 
-**1.2 Daughterboard unit reference** (feeds §1.1 above and the accessory SKUs in §3e): board fab
-(4L 2oz, tiny — 500-1341mm², est. $0.55@100/$0.35@1k) + TE FASTON tabs + THT hand/wave-solder
-allowance. **Part note:** the three daughterboard BOMs changed underneath this pass, mid-task, from
-the straight TE 63849-1 (C86469, priced at "from $0.0405" in `output-daughterboard-study-2026-07-04.md`
-§8.10) to the **right-angle TE 63951-1 (C591344)** — matches the boards' own "stands perpendicular,
-tabs exit the board face" posture ruling; joint counts unchanged (9/6-per-board/4-per-board).
-C591344 has no cached price here; same TE FASTON class is assumed (~$0.045@100/$0.035@1k each) but
-**UNVERIFIED — reverify C591344 specifically** (a right-angle stamped tab can price a few cents
-above the straight part this repo priced). ATX24-db (81×17mm, 9 tabs) ≈$1.05@100/$0.72@1k; EPS-db
-(53×15mm, 6 tabs, ×2/module) ≈$0.72@100/$0.51@1k each; PCIe-db (35×15mm, 4 tabs, ×2-3/module)
-≈$0.63@100/$0.44@1k each. No active/passive components on any daughterboard (BOM-confirmed).
+**1.2 Daughterboards** (also feeds §4f accessories): bare fab est. $0.55@100/$0.35@1k (UNVERIFIED;
+plus the DIRECT $0.02-0.05/pc small-board fee) + tabs + THT solder at the verified $0.0157/joint.
+**Part note:** the db BOMs changed mid-task from the straight TE 63849-1 (C86469) to the
+right-angle **TE 63951-1 (C591344)** — matches the perpendicular-card posture ruling; joint counts
+unchanged. C591344 is unpriced anywhere (**UNVERIFIED — open item 2**); the C86469 ladder
+($0.0795@100/$0.0644@2k DIRECT, stock ~43k) is the class anchor. All-in per db: ATX24 (9 tabs)
+**$1.55@100/$1.18@1k**; EPS (6 tabs) **$1.22/$0.90** each; PCIe (4 tabs) **$1.00/$0.72** each. No
+components on any db (BOM-confirmed).
 
-**1.3 Biggest cost drivers, by board:** Hub — ESP32-S3-WROOM-1-N16R8 (~45% of parts) + 4×RJ45 FTP
-jack + 7×SK6812. 24-pin — 4×INA228 + 9×Keystone clip (~$3.10@100) + the Mini-Fit Jr J3 input header
-(consigned, est. $1.20@100 — UNVERIFIED, no live quote reached). EPS/PCIe — Keystone clips
-(12/8/12 × $0.345@100) rival the sense ICs. 12VHPWR-Std — 6×INA240A3DR ($8.10@100, the single
-largest BOM-line cost on the board) + 2×Molex 12V-2x6 J3/J4 (**real Digi-Key quote found this
-pass**, part 2191160161, the tray-pack sibling of the schematic's 2191161161 T&R: $1.44@100 /
-~$1.22@1k each — well below this study's earlier $3.00@100 estimate; **flag: Digi-Key shows 0
-stock, 15-week lead time** on that exact listing, a real supply risk, not just a price question)
-+ 6×CSS2H shunt.
+**1.3 Cost drivers.** Hub — ESP32-WROOM $3.87 + 2×TPS2121 $1.42 + 4×RJ45 $1.08 + 4700µF ~$0.80.
+**24-pin — 4×INA228 = $16.40@100, 53% of parts (OOS-reference ladder)** + 9 clips $3.10 + WSK2512
+25mΩ $1.20 (DK band UNVERIFIED) + MODDIY header $1. EPS/PCIe — clips ($4.14/$2.76/$4.14 — **flat
+at 1k, no tier exists**) + INA238 + 2-3 MODDIY headers + 0.5mΩ shunts (DK-only band). 12VHPWR-Std
+— 6×INA240 $13.20@100 + 2×12V-2x6 $3.53 DIRECT + **pigtail assembly ALLOWANCE $4.00/$3.00** (wire
++ crimp female + labor — the D-7 "excluded" item, now carried) + 6×shunts $2.07. BOM-consistency
+flag for the owner: EPS's USB-C is **C2765186 = a different part (SHOU HAN, $0.07)** while
+PCIe/Hub/12VHPWR carry XKB C319148 $0.25 — a physical-part divergence, not a price break;
+converge or bless.
 
-**1.4 Reconciliation against CLAUDE.md board-table "BOM target"s.** Those targets (Hub $36, 24-pin
-$35*, EPS $32, PCIe-2 $38, PCIe-3 ~$42, 12VHPWR-Std $49) predate this repo's own real sourcing
-passes and the v1.4.0 daughterboard architecture. Two are already measured stale, independent of
-this study: Hub's recorded sourcing-pass total was **~$12.11 parts-only** (`CLAUDE.md`, 2026-06-05
-— reads as ~1pc-equivalent pricing, consistent with our $8.60@100 after typical qty breaks), and
-12VHPWR-Standard's was flagged **"$21 parts EXCLUDES consigned J3/J4 + pigtail assembly + 4L/2oz
-fab — re-price the $49"** (`SYNTHESIS-beta-plan.md` D-7). This study's $24.93@100 landed figure is
-the first pass at that re-price (parts alone excl. J3/J4 recompute to ~$14.70@100, still below the
-documented $21, again consistent with $21 being ~1pc pricing), and it still lands under the old
-$49 — **"BOM target" here has always meant a rough parts-only number, not a landed cost**, and the
-gap predates daughterboards. 24-pin and EPS/PCIe never had a computed BOM at all (targets were
-placeholders) — their landed figures here (24-pin $24.45, EPS $19.60, PCIe $18.45-23.30 @100q) are
-the first grounded numbers for these boards.
+**1.4 Reconciliation vs. CLAUDE.md "BOM targets"** (Hub $36, 24-pin $35*, EPS $32, PCIe-2 $38,
+PCIe-3 ~$42, 12VHPWR-Std $49): the targets read as rough parts-only planning numbers; real
+sourcing shows Hub parts $9.86@100 (the recorded ~$12.11 was ~1pc pricing), and 12VHPWR-Std lands
+$34.75 vs. the $49 target even after adding the D-7 excluded items (consigned connectors,
+pigtail, fab). **The 24-pin is the big correction:** the $35* footnote's own caveat ("expect a
+modest increase over the INA238 baseline... revisit once the INA228 line is quoted") is now
+quoted, and the increase is **not modest** — INA228 runs ~2.8× the INA238 per unit ($3.58 vs
+$1.26 @1k), pushing 24-pin parts to ~$31 and landed to $36.30@100, coincidentally right at the
+old $35 target *as a landed figure*. Sensitivity worth surfacing (owner's pen — INA228 is a
+LOCKED spec §8 decision, not this study's call): the pin-compatible INA238 would cut ~$9.80/board
+parts (~$34 at 3.5× retail) at the cost of the hardware energy/charge accumulators; the softer
+lever is re-verifying INA228 at DigiKey before lock — the LCSC ladder is OOS-reference, and every
+$1/unit there is $4/board ≈ $14 retail.
 
-## 2. Pro tier — landed unit cost (no built board for Hub Pro; EPS/PCIe Pro are proposed, unpriced SKUs)
+## 2. Pro tier — landed (Hub Pro/12VHPWR Pro schematics are 99-line skeletons; EPS/PCIe Pro don't exist)
 
-| Board | Parts @100q | Parts @1k | Fab @100q | @1k | Assy+consigned @100q | @1k | Test+pkg @100q | @1k | **LANDED @100q** | **LANDED @1k** |
+| Board | Parts @100 | @1k | Fab @100 | @1k | Assy @100 | @1k | Test+pkg @100 | @1k | **LANDED @100** | **@1k** |
 |---|---|---|---|---|---|---|---|---|---|---|
-| Hub Pro (**estimate**) | $14.86 | $12.30 | $1.60 | $0.95 | $3.00 | $1.00 | $2.00 | $1.55 | **$21.46** | **$15.80** |
-| 12VHPWR Pro | $79.54 | $67.44 | $1.30 | $0.75 | $3.50 | $1.20 | $2.75 | $2.05 | **$87.09** | **$71.44** |
-| EPS-Pro (**bounded**) | — | — | — | — | — | — | — | — | **~$75-92** | **~$60-72** |
-| PCIe-Pro (**bounded**) | — | — | — | — | — | — | — | — | **~$78-98** | **~$62-77** |
+| Hub Pro (**estimate/floor**) | $15.89 | $13.34 | $1.70 | $1.00 | $2.00 | $1.45 | $2.00 | $1.55 | **$21.60** | **$17.35** |
+| 12VHPWR Pro | $89.75 | $79.81 | $1.45 | $0.85 | $1.90 | $1.35 | $2.75 | $2.05 | **$95.85** | **$84.05** |
+| EPS-Pro / PCIe-Pro (**bounded**) | — | — | — | — | — | — | — | — | **~$78-90** | **~$63-76** |
 
-**2.1 Hub Pro** has no schematic content (`hubs/hub-pro/hub-pro.kicad_sch` is a 99-line skeleton,
-one placeholder connector — confirmed by reading the file). Constructed as a delta over Hub
-Standard: ESP32-P4 module-class MCU (est. $5.50@100 vs. WROOM's $3.90, using the Max study's bare
-ESP32-P4NRW32 $4.47@100 + support-part allowance), doubled RJ45/DETECT-ESD for 8 ports, and 8×
-RS-485 streaming receivers (new subsystem, allowance ~$0.40/receiver — no part chosen anywhere in
-the repo). **This $21.46 sits well under the platform's own $45 Hub Pro target** — likely because
-this delta model doesn't capture P4-specific board complexity (USB-HS signal integrity, a possibly
-higher layer count, larger connector footprint) that a real Hub Pro layout would add. Treat $45 as
-the more trustworthy planning number until a board exists; this $21.46 is a floor, not a point
-estimate.
+**2.1 Hub Pro** — delta over Hub Standard: ESP32-P4 core (bare P4NRW32 $4.47@100 SOURCED +
+support ALLOWANCE → $5.50), +4 RJ45/ESD, 8× RS-485 receivers ($0.40 ea ALLOWANCE — no part chosen
+anywhere in the repo). Sits well under the platform's $45 target — this delta model misses P4
+board complexity (USB-HS SI, possible layer-count step). **Treat $45 as planning truth; $21.60 is
+a floor.**
 
-**2.2 12VHPWR Pro** has a full named parts list (`modules/12vhpwr-pro/README.md`, CLAUDE.md) even
-though its schematic is likewise a 99-line skeleton — so this is a real bottom-up build, not a pure
-delta: ESP32-P4 (~$5.50), 6×INA240A3DR (~$8.10, same as Standard), **LTC2358-18 ($58.51@100,
-Digi-Key — `max-part-selection-2026-07-05.md` §1 — no LCSC listing at all)**, REF3033 (~$0.32,
-same class as Standard's REF3030), RS-485 transceiver (~$0.40 allowance), 2×12V-2x6 (real Digi-Key
-quote, $1.44@100 each — §1.3), 6×shunt (~$2.07), CAN/USB/RJ45/misc (~$2.30). **The LTC2358-18 alone
-is ~74% of this board's parts cost** — the defining economics fact of the Pro tier. This study's
-$87.09@100 landed figure reconciles closely with the platform's own $98-99 BOM target (a rare case
-where the old target appears to have been set with real knowledge of the ADC's cost), unlike Hub
-Pro's target.
+**2.2 12VHPWR Pro** — real bottom-up from the named parts list: P4 $5.50, 6×INA240 $13.20,
+**LTC2358-18 $58.51@100 (DK, SOURCED via the max study; no LCSC listing at all; 1k tier unquoted,
+~$55 ALLOWANCE) = 65% of parts — the defining Pro-tier economics fact**, REF3033 $0.34, RS-485
+$0.40, 2×12V-2x6 $3.53 DIRECT, pigtail $4.00 ALLOWANCE, 6×shunt $2.07. Landed $95.85@100
+reconciles with the platform's own $98-99 BOM target (that target evidently knew the ADC's cost —
+unlike Hub Pro's).
 
-**2.3 EPS-Pro/PCIe-Pro bound** (no project exists — confirmed, no `eps-8pin-pro`/`pcie-*-pro`
-directory in the repo): method is Standard-tier landed cost (§1.1) **plus** the 12VHPWR-Pro-over-
-Standard "Pro electronics core" delta (P4 MCU + LTC2358-18 + REF3033 + RS-485, ≈$62@100/$53@1k —
-$87.09 minus $24.93, a delta the connector-price correction leaves unchanged since it subtracts out
-of both), less a modest discount for fewer sense channels per cable than 12VHPWR's 6-pin array.
-This is a bound, not a design — these SKUs are proposed only, per the brief.
+**2.3 EPS/PCIe-Pro bound:** Standard landed (§1.1) + the Pro core delta ($95.85−$34.75 ≈ $61@100,
+$57@1k), less a small allowance for fewer channels → **~$78-90@100**. A bound, not a design.
 
-## 3. Retail pricing
+## 3. Retail
 
-**3.1 Multiplier convention.** The only in-repo retail precedent is the Max tier: $140-170 BOM →
-$499-599 retail, i.e. **≈3.5× on a landed-cost basis** (the Max study's own "$150-190 BOM" already
-folds in PCB-fab and connector allowances — the same scope as this study's "landed," not a
-parts-only figure). Applying **3.5× to the @100q landed cost**, rounded to a retail-natural point:
+**3.1 Convention:** the only in-repo retail precedent is Max ($150-190 landed-scope BOM →
+$499-599, ≈3.5×). Applying **3.5× on landed@100**, rounded to retail-natural points:
 
-| Item | Landed @100q | ×3.5 | Retail |
+| Item | Landed @100 | ×3.5 | Retail (multiple) |
 |---|---|---|---|
-| Hub Standard | $14.00 | $49.0 | **$49** |
-| 24-pin ATX | $24.45 | $85.6 | **$89** |
-| EPS 8-pin | $19.60 | $68.6 | **$69** |
-| PCIe 2-port | $18.45 | $64.6 | **$69** |
-| PCIe 3-port | $23.30 | $81.6 | **$79** |
-| 12VHPWR Standard | $24.93 | $87.3 | **$89** (cost-plus) — or **$99** at deliberate PMD2-parity (§3.2), a 4.0× multiple |
-| Hub Pro (est.) | $21.46 | $75.1 | **$79** |
-| 12VHPWR Pro | $87.09 | $304.8 | **$299** (3.4×, leaves headroom under Max's $499-599) |
-| EPS-Pro / PCIe-Pro (bounded) | ~$75-98 | ~$263-343 | **$269-349 band, unpriced/proposed** |
+| Hub Standard | $15.05 | $52.7 | **$49** (3.3×) |
+| 24-pin ATX | $36.30 | $127.1 | **$129** (3.6×) |
+| EPS 8-pin | $22.60 | $79.1 | **$79** (3.5×) |
+| PCIe 2-port | $21.05 | $73.7 | **$69** (3.3×) |
+| PCIe 3-port | $27.55 | $96.4 | **$99** (3.6×) |
+| 12VHPWR Standard | $34.75 | $121.6 | **$119** (3.4×) — or **$99** PMD2-match (2.8×), owner's call §3.2 |
+| Hub Pro (est.) | $21.60 | $75.6 | **$79** (3.7×) |
+| 12VHPWR Pro | $95.85 | $335.5 | **$329** (3.4×; clear of Max $499-599) |
+| EPS/PCIe-Pro (bounded) | ~$78-90 | ~$273-315 | **$279-329 band, proposed/unpriced** |
 
-**3.2 PMD2 sanity anchor.** The only per-connector power-logging competitor found, ElmorLabs PMD2,
-sells at **$99** as a self-contained single-connector logger with a slow-logger "scope" mode
-(`docs/research/max-instrument-channel-decision-2026-06-11.md` §1, [I-6]). Cost-plus arithmetic
-puts 12VHPWR-Std at $89 (§3.1) — genuinely cheaper than PMD2 for a rail-level current+voltage+
-temperature instrument. Real choice, not one number: sell at $89 (honest cost-plus), or hold **$99
-flat parity with PMD2** (4.0×, still defensible — the $10 is easy extra margin an anchor buyer
-already expects). Either way, position it honestly: **12VHPWR-Std is one rail of a networked,
-always-on, CAN-bus system**, not a standalone dongle. The fairer comparison is Hub+24-pin ($49+$89=
-$138 à la carte, or the $119 base bundle, §4a) vs. PMD2: for about the same money plus a modest
-premium, the customer gets four continuously-monitored rails instead of PMD2's one, plus a
-CAN-networked platform where further modules cost far less than $99 each (the MCU/USB/host cost is
-already sunk in the Hub) — that marginal-module economy is the core bundle argument in §4.
+**3.2 PMD2 anchor.** The only per-connector power-logging competitor, ElmorLabs PMD2, is **$99**
+(single-connector logger, kHz-class "scope";
+`docs/research/max-instrument-channel-decision-2026-06-11.md` §1 [I-6]). With real parts data,
+12VHPWR-Std cost-plus lands **above** PMD2 at $119 — the honest choice: hold $119 and argue the
+difference (one rail of a networked, always-on CAN system with per-pin current + NTC temperature,
+not a standalone dongle), or match $99 as a deliberate 2.8×-margin beachhead SKU (defensible
+*because* modules are attach revenue on an installed Hub). The whole-system comparison: base
+bundle $149 (§4a) vs. PMD2 $99 buys four continuously-monitored rails plus a platform where the
+next module is $69-119, not another instrument. If the MODDIY 12V-2x6 path confirms and INA240
+re-verifies lower, $99 at ~3× becomes arithmetic, not a stretch.
 
-## 4. Bundle structure
+## 4. Bundles
 
-**Structural correction (owner, 2026-07-05):** the Hub is **not** hard-dependent on the 24-pin.
-The Hub's TPS2121 front-end ORs 5VSB / USB VBUS / MAIN_5V (§2.9), so a bare Hub runs on host USB
-power alone. What the 24-pin actually buys is **guaranteed, motherboard-independent standby
-telemetry** (S5/soft-off persistence, RTC-wake) plus the four-rail INA228 system-power story —
-USB-only standby power is BIOS/ErP-dependent and not universal, and not knowable before purchase.
-One nice built-in fact: the Hub already senses which source is powering it (§2.9 rail-sense
-dividers into IO9/IO10) — firmware can literally tell the customer *"USB-powered: standby telemetry
-unavailable — add the 24-pin module for always-on"* at runtime. The upsell is self-demonstrating,
-not a sales pitch. Bundle structure below reflects this: the base bundle is the **recommended**
-entry point on value grounds, not a forced minimum.
+**Structural framing (owner correction, 2026-07-05):** the Hub is **not** hard-dependent on the
+24-pin — the TPS2121 front-end ORs 5VSB/USB/MAIN_5V (§2.9), so a bare Hub runs on host USB. What
+the 24-pin buys is **guaranteed, motherboard-independent standby telemetry** (USB soft-off power
+is BIOS/ErP-dependent and unknowable pre-purchase) plus the four-rail INA228 story. The Hub
+already senses its own power source (§2.9 dividers, IO9/IO10) — firmware can display
+"USB-powered: add the 24-pin for always-on," a self-demonstrating upsell. The base bundle is the
+**recommended** entry, not a forced minimum. Cable allowances (ALLOWANCE): RJ45 patch $5 retail
+(~$1.50 landed) per module; JST 5VSB feed $4 (~$1.50 landed), only with a 24-pin.
 
-Cable retail allowances (stated assumption, not sourced — see note**): one RJ45 patch cable
-(module-to-Hub link, every module needs exactly one regardless of cable count) ≈$5 retail; the one
-JST 5VSB feed cable (24-pin-to-Hub bulk power, needed only when a 24-pin is present) ≈$4 retail.
-
-| Item | Landed @100q | Landed @1k | À la carte retail | In-bundle effective |
+| Item | Landed @100 | @1k | À la carte | In-bundle effective |
 |---|---|---|---|---|
-| Hub Standard (standalone)* | $14.00 | $10.05 | $49 | — (à la carte only) |
-| 24-pin ATX | $24.45 | $18.58 | $89 | $73 (base bundle) |
-| **(a) BASE bundle — Hub + 24-pin + 1 patch + 1 feed cable ($9)** | $41.45 | $30.63 | $49+89+9=**$147** sum | **$119 (-19%)** |
-| EPS 8-pin | $19.60 | $14.51 | $69 | $59 (loaded) |
-| PCIe 2-port | $18.45 | $13.46 | $69 | $59 (loaded) |
-| 12VHPWR Standard | $24.93 | $18.46 | $99† | $84 (loaded) |
-| **(c) LOADED bundle — base bundle + EPS + PCIe-2 + 12VHPWR-Std + 3 more patch cables ($15)** | ~$109 | ~$80 | $147+69+69+99+15=**$399** sum | **$339 (-15%)** |
-| Hub Pro (est.) | $21.46 | $15.80 | $79 | $71 (Pro bundle) |
-| 12VHPWR Pro | $87.09 | $71.44 | $299 | $265 (Pro bundle) |
-| **(d) PRO BENCH bundle — Hub Pro + 12VHPWR Pro + 1 patch cable ($5, no feed cable: no 24-pin in this bundle, Hub runs on host USB)** | ~$111 | ~$88 | $79+299+5=**$383** sum | **$349 (-9%)** |
+| Hub Standard (standalone) | $15.05 | $12.20 | $49 | $39 (base, −20%) |
+| 24-pin ATX | $36.30 | $30.95 | $129 | $103 (base) |
+| **(a) BASE — Hub + 24-pin + patch + feed ($9)** | $54.35 | $46.15 | 49+129+9 = **$187** | **$149 (−20%)** = 2.7× landed |
+| EPS 8-pin | $22.60 | $18.90 | $79 | $67 (loaded, −15%) |
+| PCIe 2-port | $21.05 | $17.40 | $69 | $59 (loaded) |
+| 12VHPWR Standard | $34.75 | $27.05 | $119† | $101 (loaded) |
+| **(c) COMPLETE SYSTEM, PCIe-2 config — Hub + 24-pin + EPS + PCIe-2 + 3 patch + feed ($19)** | $101.00 | $85.45 | 49+129+79+69+19 = **$345** | **$309 (−10%)** = 3.06× landed |
+| **(c) COMPLETE SYSTEM, PCIe-3 config** (PCIe-3 swaps in) | $107.50 | $90.95 | **$375** | **$329 (−12%)** = 3.06× |
+| **(c) COMPLETE SYSTEM, 12VHPWR config** (12VHPWR-Std swaps in) | $114.70 | $95.10 | **$395** | **$349 (−12%)** = 3.04× |
+| **(d) LOADED — base + EPS + PCIe-2 + 12VHPWR + 3 patch ($15)** | $137.25 | $114.00 | 187+79+69+119+15 = **$469** | **$399 (−15%)** = 2.9× landed |
+| Hub Pro (est.) | $21.60 | $17.35 | $79 | $71 (Pro, −11%) |
+| 12VHPWR Pro | $95.85 | $84.05 | $329 | $294 (Pro) |
+| **(e) PRO BENCH — Hub Pro + 12VHPWR Pro + patch ($5; no feed — no 24-pin, Hub runs on host USB)** | $118.95 | $102.90 | 79+329+5 = **$413** | **$369 (−11%)** = 3.1× landed |
 
-† bundle/à-la-carte tables use the $99 PMD2-parity price (§3.2) as the chosen retail figure for
-12VHPWR-Std, not the $89 cost-plus alternative — pick one before publishing a price list.
+† bundle tables use the $119 cost-plus figure; at the $99 PMD2-match option the loaded sum is
+$449 → $379 (−16%) and the 12VHPWR complete-system config is $375 → $339, same shape throughout.
 
-\* Hub-only ships functional on host USB power; it loses standby-state telemetry unless the
-motherboard keeps USB powered at soft-off (not universal, not discoverable pre-purchase) — one-line
-disclosure the product page/firmware should carry.
-\*\* cable landed cost is folded into the "Landed" column above via the per-cable retail allowance
-at roughly a 3× markdown to landed (consistent with the rest of this study's multiplier); the
-allowance itself is a stated assumption, not a sourced figure — panel-connector cost is noted at
-~$0.20/connector in this repo's own D-1 kit review (`SYNTHESIS-beta-plan.md`), plus wire and
-crimp/mold labor on top.
+**(c) Complete System Bundle — source: OWNER follow-up, 2026-07-05 (verbatim): "What would a
+complete system bundle standard retail for? Hub + 24 Pin + EPS + PCIe2 OR 3 OR 12VHPWR depending
+on configuration of the user's system, configuration helper will probably be added later but
+yeah."** Realized as ONE SKU, three GPU-path configurations, retailing **"from $309"** with +$20
+config steps ($309 PCIe-2 / $329 PCIe-3 / $349 12VHPWR) — the flat steps map directly onto the
+owner's config-helper concept (checkout picks the GPU path). Discounts sit inside the established
+ladder (−10 to −12%) and every config holds >3× landed@100. A both-GPU-paths system (PCIe **and**
+12VHPWR) is the LOADED bundle's territory at $399.
 
-**(b) À la carte, all modules:** Hub $49 · 24-pin $89 · EPS $69 · PCIe-2 $69 · PCIe-3 $79 ·
-12VHPWR-Std $99 · Hub Pro $79(est.) · 12VHPWR Pro $299.
+**(b) À la carte:** Hub $49 · 24-pin $129 · EPS $79 · PCIe-2 $69 · PCIe-3 $99 · 12VHPWR-Std $119
+(or $99) · Hub Pro $79 est · 12VHPWR Pro $329.
 
-**(e) Daughterboard+extension accessory SKUs (OQ-89, accessory revenue, no repo pricing precedent —
-fresh estimate).** Landed (§1.2) + longer pigtail wire + a standard female output housing +
-retail packaging: 24-pin extension ≈$3-4 landed → **$19.99**; EPS extension (2-cable set) ≈$5-6
-landed → **$24.99**; PCIe extension (per-cable, 2- or 3-packs) ≈$2-3 landed each → **$14.99 each /
-$27.99 pair**. These retire the LOCKED-today F-F 24-pin bridging-cable SKU per the v1.4.0 ruling.
+**(f) Daughterboard+extension accessory SKUs (OQ-89):** db (§1.2) + wire + standard female
+housing + retail pack (ALLOWANCE): 24-pin extension ~$4.10 landed → **$19.99**; EPS 2-set ~$6.00
+→ **$24.99**; PCIe per-cable ~$2.75 → **$14.99** (pair $27.99). Retires the F-F 24-pin
+bridging-cable SKU per v1.4.0.
 
-**Margin retained at each tier** (bundle price minus landed cost): base bundle retains ~$78 gross
-over ~$41 landed (real margin even at an aggressive 19% discount); loaded bundle retains ~$230 over
-~$109 landed; Pro bench retains ~$238 over ~$111 landed. Bundling costs the platform discount
-dollars, not margin ratio — every bundle here still clears >2.8× landed cost.
+**Margins:** base 2.74× / complete-system 3.04-3.06× / loaded 2.91× / Pro 3.10× landed@100 —
+bundling costs discount dollars, not margin ratio. The base bundle is priced most aggressively on
+purpose (platform beachhead); the complete-system SKU is the volume play; loaded's ~$262 gross
+over landed is where the full-system sell pays.
 
-## 5. Honest caveats
+## 5. Caveats, stock register, open items
 
-- **Quantities:** 100-unit and 1,000-unit tiers assumed throughout, matching the platform's own
-  convention; no per-part MOQ/reel-quantity friction is modeled (several parts, e.g. the Keystone
-  clip at 533 pcs LCSC stock, do not comfortably clear a single 100-module production run without
-  order-ahead — `output-daughterboard-study-2026-07-04.md` §8.10).
-- **JLCPCB PCB-fab and SMT-assembly fee figures in this study are banded estimates, not live
-  quotes** (date-stamped 2026-07-05; a real quote needs uploaded gerbers/BOM per board). Re-price
-  before any BOM lock — this is the single largest source of numeric uncertainty in §1-2.
-- **Consigned-part handling is a real, unresolved cost and schedule risk**, not just a price gap:
-  Mini-Fit Jr headers (24-pin J3, EPS/PCIe J_IN*) and the 12V-2x6 (12VHPWR J3/J4) carry **no LCSC
-  line at all**, so JLCPCB's LCSC-sourced SMT flow doesn't cover them — customer consignment (fee +
-  lead time) or a separate manual step is required; this study's flat "assembly+consigned" line is
-  an allowance, not a quote. **Concrete, not hypothetical:** Digi-Key shows the 12V-2x6 (2191160161)
-  at **0 stock, 15-week lead time** right now — every 12VHPWR-Standard/Pro unit needs two; secure
-  supply (or a second source) before quoting delivery on either board.
-- **No NRE, tooling, or certification cost is amortized** — stencils, fixtures, and any voluntary
-  EMC/safety testing (even for an unintentional-radiator posture, §6.14) are excluded from unit cost.
-- **No enclosure/chassis is costed** (see §0) — these are internally-mounted PCBAs, not boxed
-  standalone products; if the product strategy changes to a boxed/external form, add a real
-  enclosure BOM line.
-- **Channel model: direct-to-consumer assumed.** The 3.5× multiplier is sized for DTC margin. A
-  retail channel (distributor + retailer, each typically 30-50%) would need a higher MSRP at the
-  same DTC margin, or a compressed margin at the same shelf price — not modeled here.
-- **Pro-tier figures for Hub Pro and EPS/PCIe-Pro are estimates against boards that do not exist**
-  (confirmed empty 99-line schematic skeletons for Hub Pro and 12VHPWR Pro; no EPS-Pro/PCIe-Pro
-  directory exists at all) — treat §2 as directional, not quotable.
-- **Bundle cable allowances (§4) are stated assumptions**, not sourced cable-assembly quotes.
+- **Fab is the largest remaining uncertainty** — all base fab figures UNVERIFIED (JS-only quote
+  calculator); only the surcharge schedule is DIRECT. Assembly uses the DIRECT fee schedule but
+  this study's own joint/Extended-part counts (±20%), Economic class assumed.
+- **Stock register (LCSC 2026-07-05, DIRECT/SOURCED):** TPS2121 **238** (Hub uses 2/board — 100
+  Hubs = 200, MARGINAL); INA238 **680** (100 sets of EPS+both-PCIe need 700, MARGINAL); Keystone
+  3586 **533** (<1 run of any family, known §8.10); 4700µF **275**; ESP32-S3-MINI **OOS**
+  (12VHPWR-Std's MCU — beta 24-pin/EPS/PCIe are on C6, stock 2,220, unaffected); INA228 **OOS**
+  (24-pin — priced off the reference ladder); 0.5mΩ shunt **OOS at LCSC** (EPS/PCIe → DigiKey);
+  12V-2x6 CT **1,715** (covers a 100-run needing 200; 15wk mfr lead, single-source); 45586-0005
+  DK **0** (MODDIY path covers it); jellybean R/C OOS (in-stock alternates, trivial).
+- **Owner-acquired ≠ populated:** MODDIY connectors still need THT population — costed here via
+  JLC's verified hand-solder fees (consignment supported, engineer approval case-by-case, no
+  stated fee); owner/local soldering is the zero-fee alternative (time cost, unmodeled).
+- **No NRE/tooling/cert amortized**; no enclosure costed; channel = direct-to-consumer (a
+  distribution channel at 30-50%/tier would force higher MSRPs or compressed margin — unmodeled).
+- **Pro tier:** Hub Pro and EPS/PCIe-Pro are estimates against boards that don't exist; 12VHPWR
+  Pro is parts-list-real but unrouted. Directional, not quotable.
+- **Open items before any BOM lock:** (1) live JLC gerber+BOM quote per board — the single
+  biggest numeric uncertainty; (2) TE 63951-1 / C591344 price (db tab, currently class-anchored);
+  (3) INA228 DigiKey re-verify + stock plan (biggest single-part sensitivity, $4/board per $1);
+  (4) MODDIY 12V-2x6 confirm (~$1.55/board swing on both 12VHPWR boards); (5) 0.5mΩ
+  CSS2H-2512R-L500F DK reel pricing at tier; (6) LTC2358-18 volume quote (65% of 12VHPWR-Pro
+  parts); (7) USB-C part convergence (C2765186 vs C319148); (8) pigtail assembly real quote
+  (ALLOWANCE $4 today); (9) JLC Standard-class feeder-fee ambiguity.
