@@ -159,30 +159,45 @@ Not provisioned on this board (no signal header exists here, unlike the
 lands "yes" for EPS, it needs a small signal-tab addition in a future
 revision; not a silent gap, just genuinely absent today.
 
-## Verification (this pass — 2026-07-05 floorplan rework)
+## Verification (this pass — 2026-07-05 connector-form rework, TE 63849-1 → 63951-1)
 
 - ERC: 0 errors (2 benign `lib_symbol_mismatch` warnings).
 - Static connectivity audit: clean.
 - DRC: **0 errors, 0 unconnected** (`kicad-cli pcb drc --severity-error`).
-  At full verbosity, 15 hits, ALL cosmetic silk (2 `silk_overlap` +
-  13 `silk_over_copper` — silk text vs. the dense THT field on a board
-  ~2.1× smaller in area than the original 110×67 mm floorplan; no copper
-  impact).
+  At full verbosity, 35 hits: 16 `silk_overlap` + 13 `silk_over_copper`
+  (same documented-benign class as before) + **6 `silk_edge_clearance`**
+  ("silkscreen clipped by board edge") — a NEW category this pass, from the
+  tab's blade silk now intentionally crossing Edge.Cuts (the overhang). Not
+  a novel risk: the platform's own already-shipped `modules/eps-8pin` board
+  carries 11 hits of the identical category at the identical cosmetic
+  severity (measured this pass) from its own overhanging connectors. No
+  copper crosses the edge (0 errors, 0 unconnected) — only the body/silk
+  overhangs, the established platform pattern.
 - `scripts/check_output_daughterboards.py`: all checks pass, including the
-  geometric no-subset-seating proof against both ATX24 and PCIe.
+  geometric no-subset-seating proof against both ATX24 and PCIe — re-verified
+  against the new tab's actual placed coordinates.
 - Netlist-verified: all 6 tabs land on their mapped rail; the field's 8
   positions reproduce the platform's corrected EPS8 pinout exactly.
 
 ## Library assets used
 
-- `cec-vendor:TE_63849-1_FASTON_Tab` / `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT` (pre-existing, LCSC C86469).
+- **`cec-vendor:TE_63951-1_FASTON_Tab` / `cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT`
+  (NEW this pass, LCSC C591344)** — right-angle/flat .250 FASTON tab,
+  vendored from TE's own customer drawing C=63951 rev L2
+  (`lib/datasheets/TE_63951-1.pdf`), replacing TE 63849-1 per the owner's
+  2026-07-05 connector-form ruling. See
+  `docs/standard-tier-review/blade-fit-check-2026-07-04.md`'s dated addendum.
+- `cec-vendor:TE_63849-1_FASTON_Tab` / `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT`
+  — pre-existing, LCSC C86469, now unreferenced by this generator (left
+  vendored; harmless).
 - `cec:CEC_CONN_2x4` (pre-existing generic connector symbol).
-- `cec-Connector_Generic:EPS8_Daughterboard_Field_P4.20mm` — this pass
-  tightened its Y-margin (pad half-height instead of half the row pitch,
-  `scripts/gen-daughterboard-libassets.py`), dropping its own courtyard
-  height 13.0→10.2 mm; the single biggest lever in clearing the height cap.
-- No mounting-hole footprint — removed this pass (owner directive; see
-  "Mounting / retention" above). Never a schematic/BOM part on this
+- `cec-Connector_Generic:EPS8_Daughterboard_Field_P4.20mm` — tightened its
+  Y-margin in an earlier pass (pad half-height instead of half the row
+  pitch, `scripts/gen-daughterboard-libassets.py`), dropping its own
+  courtyard height 13.0→10.2 mm; the single biggest lever in clearing the
+  height cap. Unchanged this pass.
+- No mounting-hole footprint — removed in an earlier pass (owner directive;
+  see "Mounting / retention" above). Never a schematic/BOM part on this
   generator, so the BOM is unaffected.
 
 Generator: `scripts/gen-output-daughterboard.py eps-out-db`.
