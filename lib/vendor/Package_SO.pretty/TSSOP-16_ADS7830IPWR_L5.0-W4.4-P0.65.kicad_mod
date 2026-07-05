@@ -2,8 +2,8 @@
 	(version 20260206)
 	(generator "pcbnew")
 	(generator_version "10.0")
+	(layer "F.Cu")
 	(descr "TI ADS7830IPWR TSSOP-16 (PW) land, pulled via easyeda2kicad from LCSC C161747. Pinout verified vs the TI SBAS302C datasheet Pin Configuration table.")
-  (layer "F.Cu")
 	(property "Reference" "REF**"
 		(at 0 -6.866 0)
 		(layer "F.SilkS")

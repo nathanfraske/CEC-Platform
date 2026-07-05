@@ -35,7 +35,18 @@ spec disagree, the spec wins, and this file should be updated to match. Treat
 this file as a working summary plus operating instructions, and read the spec
 before making any design decision.
 
-Spec revision reflected here: **v1.4.0 (2026-07-04), controlled baseline** — OUTPUT-SIDE
+Spec revision reflected here: **v1.5.0 (2026-07-05), controlled baseline** — 24-PIN
+SENSING-IC REVERSION: the 24-pin ATX module's four rail-sensing ICs revert from the INA228
+back to the **INA238** (LCSC C2868250, JLC-assembly-native and stocked; the INA228 is
+LCSC-unavailable, reference-only) on an explicit owner ruling (2026-07-05, supply-chain and
+assembly-flow grounds, not accuracy), pin- and footprint-compatible (VSSOP-10) with no other
+LOCKED decision altered — see spec §6.1, §6.4, §6.5, §9, §11, and OQ-13's implementation-basis
+update (energy reporting moves to firmware integration, as EPS/PCIe already do); applies to the
+beta line (`atx-24pin-rev3` and forward) only, per the alpha/beta convention below — alpha and
+the ordered rev2 remain frozen on the INA228 as shipped. Full basis:
+`docs/pricing-study-2026-07-05.md` and its addenda.
+
+Prior baseline, retained for provenance: **v1.4.0 (2026-07-04), controlled baseline** — OUTPUT-SIDE
 CONNECTOR-DAUGHTERBOARD ARCHITECTURE (owner ruling `SYNTHESIS-beta-plan.md` §D-5a,
 2026-07-04; study `docs/standard-tier-review/output-daughterboard-study-2026-07-04.md`;
 sign-off record `docs/owner-queue.md` D-5a row). Supersedes the LOCKED v1.6 §2.8 output form
@@ -383,9 +394,11 @@ requirements land (OQ-7); the Enterprise tier additionally carries an RJ-11 trus
 channel and a secure element, and Mission Critical adds redundant power, CAN, and
 trust.
 
-*The 24-pin $35 target predates the v1.4 move to four INA228 parts (spec §8);
-expect a modest increase over the INA238 baseline. Revisit once shunt parts
-(OQ-11) and the INA228 line cost are quoted.
+*The 24-pin $35 target once again reflects the INA238 baseline it always targeted: the
+v1.4 move to four INA228 parts (spec §8) flagged a possible modest increase, but the
+v1.5.0 owner ruling (2026-07-05) reverted the 24-pin's four sensing ICs from INA228 back
+to INA238 on LCSC-supply grounds (see spec §6.1/§9/§11 and
+`docs/pricing-study-2026-07-05.md`). Revisit once shunt parts (OQ-11) are quoted.
 
 ## Locked decisions (do not change without explicit instruction)
 
@@ -635,10 +648,17 @@ Per-tier hardware:
 - Standard modules (24-pin ATX, EPS 8-pin, PCIe 8-pin, 12VHPWR Standard):
   ESP32-S3-MINI-1; no CAN termination (Hub-only). Per-module sensing differs by
   connector (spec §6.1, §6.2):
-  - 24-pin ATX: 4x INA228 (20-bit, 195 uV bus LSB, internal energy/charge
-    accumulators), one per rail — 12V, 5V, 3V3, 5VSB. The INA228 is a pin- and
-    footprint-compatible (VSSOP-10) drop-in for the INA238. IMPLEMENTED in the
-    24-pin schematic.
+  - 24-pin ATX: 4x INA238 (16-bit, 3.125 mV bus LSB, no hardware energy/charge
+    accumulators — energy reporting is firmware-integrated, per OQ-13), one per
+    rail — 12V, 5V, 3V3, 5VSB. REVERSED v1.5.0 (2026-07-05 owner ruling, spec
+    §6.1): the 24-pin had moved to the INA228 (20-bit, 195 uV bus LSB, hardware
+    energy/charge accumulators) under the pre-release v1.4 line, then reverted
+    back to the INA238 on LCSC-supply/assembly-flow grounds (INA228 is
+    LCSC-unavailable; INA238AIDGSR/C2868250 is stocked and JLC-native — see
+    `docs/pricing-study-2026-07-05.md`). The two parts are pin- and
+    footprint-compatible (VSSOP-10), so this is a BOM-line change, not a respin.
+    IMPLEMENTED on the beta line (atx-24pin-rev3); alpha and the ordered rev2
+    remain frozen on the INA228 as shipped, per the alpha/beta convention.
   - EPS 8-pin: INA238 per cable (per-cable granularity), 2 cables populated.
     IMPLEMENTED.
   - PCIe 8-pin: INA238 per cable, 3 cables populated (spec upper bound).
@@ -1906,7 +1926,9 @@ Done (kept for context):
   table). EXCEPTION: the 24-pin ATX module's PSU-side power path (J3/J4) is
   Mini-Fit Jr by design (ATX standard, §2.8) — that is correct, not a leftover.
 - 24-pin INA238 -> INA228 swap IMPLEMENTED; KiCad-10 library modernization and
-  the cec-power nickname are in.
+  the cec-power nickname are in. (REVERSED v1.5.0, 2026-07-05 owner ruling —
+  see §6.1. Applies to the beta line, atx-24pin-rev3; alpha/rev2 are frozen on
+  the INA228 as shipped.)
 - EPS/PCIe per-cable sensing (EPS x2, PCIe x3) and the 12VHPWR Standard 6x INA240
   per-pin redesign IMPLEMENTED in gen-modules.py (INA240 symbol vendored).
   Regenerated + completed 2026-06-04: decoupling brought up to the 24-pin gold
@@ -2267,7 +2289,9 @@ Use this as a recurring review pass:
 - DETECT (pin 8) resistor matches the §2.3 code table: CAN-only modules = 2.2 kΩ
   (24-pin/EPS/PCIe/12VHPWR-Std), 12VHPWR Pro = 4.7 kΩ; read on the Hub's
   10 kΩ / 3.3 V divider.
-- Module sensing matches §6.1: 24-pin = 4x INA228; EPS = per-cable INA238 (1-2);
+- Module sensing matches §6.1: 24-pin = 4x INA238 (REVERSED from INA228 v1.5.0,
+  2026-07-05 owner ruling — beta line/atx-24pin-rev3 only; alpha/rev2 remain on
+  INA228 as shipped); EPS = per-cable INA238 (1-2);
   PCIe = per-cable INA238 (up to 3); 12VHPWR Standard = 6x INA240 per-pin +
   divider; 12VHPWR Pro = INA240 + LTC2358-18. (EPS/PCIe/12VHPWR-Std schematics
   reconciled + regenerated 2026-06-04; PCB layout still pending.)

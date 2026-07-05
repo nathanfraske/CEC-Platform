@@ -260,3 +260,56 @@ $1.88@500 / $1.74@2,500, stock 1,753.** Consequences:
   (host-independent accumulation). Assembly note: JLC assembles from LCSC stock — a DigiKey-
   sourced INA228 becomes a consigned/pre-shipped line at JLC or moves the sensing ICs to the
   owner-population path; factor per the §2 consignment rules.
+
+---
+
+## Second addendum (2026-07-05, owner ruling applied — 24-pin reverts INA228 to INA238)
+
+The owner ruled (2026-07-05; see `CEC-Platform-Ground-Truth-Spec.md` §11 v1.5.0 and `CLAUDE.md`):
+the 24-pin's four sensing ICs revert from the INA228 back to the **INA238AIDGSR** (LCSC
+C2868250) on supply-chain/assembly-flow grounds, in the owner's own words, "it's more work to
+order on Digikey honestly and then consign it or solder it on myself, whereas they have tons of
+stock for the INA238AIDGSR at $2.0991 per 1 and 1.7855 for 10, even lower going up." Live LCSC
+ladder re-verified 2026-07-05: **$2.0991@1 / $1.7855@10 / $1.5889@30 / $1.3891@100 / $1.2981@500 /
+$1.2591@1000, stock 680**. This closes the §1.4 sensitivity note (the "INA238 would cut
+~$9.80/board" call) and supersedes the first addendum's INA228 DigiKey re-verify as the board's
+*actual* direction: the INA228 figures above are now a moot data point — the part is no longer
+specified anywhere on the platform (§6.1's index shows nothing else ever used it).
+
+- **24-pin landed, recomputed.** 4×INA238AIDGSR@$1.3891 (100q) = **$5.56** — not $16.40
+  (study-original, OOS-reference INA228 ladder) and not $11.84 (first addendum's DigiKey-228
+  re-verify). Substituting into §1.1's cost stack (Parts+db $30.98 → $30.98−$16.40+$5.56=$20.14;
+  Fab/Assy/Test+pkg unchanged at $1.30/$2.03/$2.00): **new 24-pin landed ≈ $25.45-25.46@100**
+  (the cent-level spread is the study's own pre-existing rounding — its published $36.30 landed
+  figure is itself $0.01 off its own displayed $30.98+$1.30+$2.03+$2.00=$36.31 component sum;
+  not something this addendum introduces). Retail at the study's 3.5× convention is $25.46×3.5 ≈
+  $89.1 → **$89-99 retail-natural band** (the $99 end matches this same document's own
+  PMD2/$99 shelf-price precedent already used for 12VHPWR-Std §3.2 and for PCIe 3-port §3.1).
+- **Complete System Bundle re-anchored.** Every complete-system and loaded config in §4 carries
+  exactly one 24-pin, so the same −$10.84 delta ($16.40−$5.56) applies to each config's landed
+  total: BASE $54.35→**$43.51**; PCIe-2 config $101.00→**$90.16**; PCIe-3 config
+  $107.50→**$96.66**; 12VHPWR config $114.70→**$103.86**; LOADED $137.25→**$126.41** (PRO BENCH
+  is unaffected — no 24-pin in that config). Holding retail at the already-published
+  **$259 / $279 / $299** (the first addendum's own INA238-swap anchor — a few dollars of
+  landed-cost improvement from switching the *sourcing* of an already-modeled swap from DigiKey
+  to LCSC doesn't warrant moving an already-set shelf price), the recomputed multiples are
+  **$259/$90.16 = 2.87×, $279/$96.66 = 2.89×, $299/$103.86 = 2.88×** landed@100 — inside this
+  study's own established margin band (§4 "Margins:" 2.74-3.10× across base/complete/loaded/Pro),
+  and in the same neighborhood as, though not identical to, the first addendum's own rougher
+  "2.99-3.0×" figure for its hypothetical INA238-swap scenario (that estimate was built on
+  DigiKey INA238 pricing, $2.02@100, before the LCSC ladder — $1.3891@100 — was the ruled-on
+  source; the gap is a sourcing-basis and rounding-level difference between two estimate passes,
+  not a modeling disagreement, and both land comfortably above the base bundle's 2.7× floor).
+- **Supply note.** LCSC stock is **680** units. A concurrent 100-unit run across the whole
+  digital-sensor family draws roughly **850-900** INA238 total: 24-pin 4×100=400 (fixed, the
+  single biggest draw of the four); EPS up to 2×100=200; PCIe 2-3×100=200-300 depending on which
+  PCIe SKU(s) ship and the cable-population mix (e.g. 400+200+250≈850, or 400+200+300=900). The
+  24-pin's own draw (400) plus roughly 280 of the EPS/PCIe pool's ~450-500 need already exhausts
+  the 680 on hand — a shortfall on the order of 170-220 units against a full simultaneous run
+  across all three families. This is exactly what the beta-lock register already flagged and
+  ratified: the **C2 hedge/bonded-stock buy on INA238AIDGSR**
+  (`docs/standard-tier-review/beta-lock-register-2026-07-03.md`, row C2) **stands, and is now
+  more load-bearing, not less** — the 24-pin ruling adds a fourth, larger consumer onto the same
+  stock pool EPS and PCIe were already drawing against. Restock-watch before placing any
+  production order; the register's own recommendation to price-lock via a distributor quote
+  ahead of TI's next repricing round (row C2) is unchanged and, if anything, more urgent.
