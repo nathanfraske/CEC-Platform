@@ -273,12 +273,24 @@ granularity — this board **provisions** for it only: 6 of the J20 header's
 10 positions are reserved/no-connect, physically available for a future
 sense-return tap without a board respin. No components are added here.
 
-## Verification (this pass)
+## Verification (this pass — 2026-07-05 floorplan rework)
 
 - ERC: 0 errors (5 benign `lib_symbol_mismatch` warnings, the same
   documented-benign class every generated schematic in this repo produces).
 - Static connectivity audit (`scripts/audit-sch.py`): clean.
-- DRC: **0 violations at any severity** (fully clean, not just error-gated).
+- DRC: **0 violations at error severity, 0 unconnected** (`kicad-cli pcb drc
+  --severity-error`, and every `unconnected_items` slot is empty — the real
+  gate this project's `check_output_daughterboards.py` enforces). At full
+  (all-severity) verbosity there are 31 hits, ALL cosmetic silkscreen
+  (8 `silk_overlap` + 23 `silk_over_copper` — silk text crowded by the dense
+  THT field/tab row on a much smaller board, no copper impact); this is the
+  same documented-benign category the platform's other generated boards
+  already carry, just a higher count here because the board itself shrank
+  ~4.6× in area (from 238×77 mm) while the same 24+9+10-position component
+  count stayed on it — a GUI silk-refinement pass, not a routing defect.
+- `scripts/check_output_daughterboards.py`: **all checks pass**, including
+  the geometric no-subset-seating proof against both EPS and PCIe (see
+  "Keying" above).
 - Netlist-verified: every one of the 9 tabs lands on its mapped ATX rail;
   every header pin lands on its mapped signal/GND/reserved net; the field's
   24 positions reproduce the standard ATX-24 map exactly (pin 20 = NC).
@@ -288,7 +300,14 @@ sense-return tap without a board respin. No components are added here.
 - `cec-vendor:TE_63849-1_FASTON_Tab` / `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT` (pre-existing, LCSC C86469).
 - `cec:CEC_ATX_24` (pre-existing, reused verbatim for the field connector's electrical identity).
 - `cec:CEC_CONN_2x5` + `cec-Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical` (pre-existing from the main-board task; this project's own library-asset pass independently reproduced byte-identical geometry).
-- `cec-Connector_Generic:ATX24_Daughterboard_Field_P4.20mm` (new this pass, `scripts/gen-daughterboard-libassets.py`).
-- `cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via` (pre-existing) — 4 corners, GND-tied.
+- `cec-Connector_Generic:ATX24_Daughterboard_Field_P4.20mm` (this family's
+  own field footprint; its Y-margin was tightened this pass —
+  `scripts/gen-daughterboard-libassets.py`'s `solder_field()` now uses actual
+  pad half-height instead of half the row pitch, dropping the field's own
+  courtyard height 13.0→10.2 mm, the single biggest lever in fitting this
+  board under the height cap — see that script for the reasoning).
+- No mounting-hole footprint — removed this pass (owner directive; see
+  "Mounting / retention" above). Never a schematic/BOM part on this
+  generator, so the BOM is unaffected.
 
 Generator: `scripts/gen-output-daughterboard.py atx24-out-db`.

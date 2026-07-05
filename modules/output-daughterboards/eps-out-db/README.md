@@ -10,6 +10,35 @@ No active or passive components.
 
 DRAFT (no fab yet — OQ-86 fit-check sample gate open).
 
+## Posture — STANDS PERPENDICULAR to the main board (owner ruling, 2026-07-05)
+
+This board is a small vertical card, not a parallel mezzanine (an earlier
+framing this pass corrected — see `atx24-out-db/README.md` "Posture" for
+the full reasoning, identical here). The 6 TE 63849-1 tabs mount near the
+board's **bottom (near) edge** with blades pointing straight out of the
+board face — horizontal once the board stands up — engaging the main-board
+Keystone 3586 clips via **side entry**. The output field sits above the tab
+row. Board axes: X = length (parallel to the main board, FREE dimension);
+Y = height (the board's own vertical extent standing up, **ruled cap
+≤15 mm "or so"**, owner 2026-07-05).
+
+**Measured final size**: **53.0 × 14.6 mm** (length × height,
+`pcbnew.GetBoardEdgesBoundingBox`) — well inside both the height cap and the
+owner's own rough single-face length estimate (27–53 mm).
+
+**Mating height**: tab-row centreline sits **1.94 mm** above this board's
+own near/bottom edge (identical figure to the 24-pin board — same field
+height + same edge margins govern it; see that README's "Posture" section
+for the caveats on reading this as a main-board mating height).
+
+## Mounting / retention — no mounting holes (owner directive, 2026-07-05)
+
+Same ruling and rationale as the 24-pin board (see that README): retention
+is the Keystone clip's own high insertion force (a feature, not a
+shortfall) plus chassis strain relief on the cable/assembly side (OQ-87
+owns the numeric spec). No BOM/schematic impact — mounts were a PCB-only
+mechanical footprint on this generator, never a schematic part.
+
 ## Tab map (6 joints/cable, TE 63849-1 / LCSC C86469)
 
 | Ref | Net | EPS8 pins bundled |
