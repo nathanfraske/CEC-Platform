@@ -7,12 +7,19 @@
 #   - ERC clean (error severity)
 #   - DRC clean (error severity)
 #   - static connectivity audit (audit-sch.py) clean
-#   - every TE 63849-1 blade tab lands on its spec-mapped output-field net
+#   - every TE 63951-1 blade tab lands on its spec-mapped output-field net
 #     (via the exported netlist -- ground truth, not a hand assertion)
 #   - the field connector's own pin map matches the family's real-world
 #     standard (ATX-24 / EPS8 / PCIe8 CEM), pin-by-pin
-#   - the keying pattern (tab pitch/gap/count) differs across all three
-#     families, per CLAUDE.md's asymmetric-keying convention
+#   - the tab ORIENTATION matches the owner's 2026-07-05 sketch model
+#     (legs stacked vertically, blade descending: rot 0 on the natively-
+#     vertical footprint, pads at (0,+/-2.54), uniform leg-row height
+#     across all three families -- one seating spec, one mating drawing)
+#   - the main-board CLIP row fits the per-family pitches with margin
+#     (Keystone 3586, rotated slot-axis-perpendicular-to-wall per the
+#     sketch; extents measured off the vendored footprint, not hand-copied)
+#   - the keying pattern differs across all three families: NO family's tab
+#     set can seat as a rigid subset of another's clip row (geometric proof)
 #
 #   python3 scripts/check_output_daughterboards.py
 # Exits 0 on pass, non-zero on any failed assertion (printed to stderr).
@@ -171,7 +178,9 @@ for fam, cfg in godb.FAMILIES.items():
 
 
 # ---------------------------------------------------------------------------
-# 3. Joint counts match the spec §2.8 v1.4.0 ratified table, and -- the real
+# 3. Joint counts match the spec §2.8 v1.4.0 ratified table; the tab
+#    ORIENTATION and uniform leg-row height match the owner's 2026-07-05
+#    sketch model; the main-board clip row fits the pitches; and -- the real
 #    keying safety property -- NO family's tab grid can seat, as a rigid
 #    subset, onto any OTHER family's grid under any translation combined
 #    with a 0/90/180/270 rotation. This replaces the old (count, pitch, gap)
@@ -181,12 +190,74 @@ for fam, cfg in godb.FAMILIES.items():
 #    alone proves nothing). The daughterboard's own tab-centre positions
 #    (from pcb_placement(), the exact coordinates written to the committed
 #    .kicad_pcb) ARE the authoritative main-board mating drawing per family
-#    -- see each README's "Keying" section for the rendered grid.
+#    (the four main boards carry TB clip SYMBOLS in their schematics only;
+#    no clip placement exists on any main-board PCB as of this branch) --
+#    see each README's "Keying" section for the rendered grid.
 # ---------------------------------------------------------------------------
 EXPECTED_JOINTS = {"atx24-out-db": 9, "eps-out-db": 6, "pcie-out-db": 4}
 for fam, n in EXPECTED_JOINTS.items():
     got = len(godb.FAMILIES[fam]["tabs"])
     check(got == n, f"{fam}: {n} ratified blade-tab joints (found {got})")
+
+# --- 3a. Sketch-model orientation contract (owner, 2026-07-05) -------------
+# The footprint is authored in its MOUNTED orientation: origin = leg-pair
+# midpoint, pads at (0, +/-2.54) so the legs stack VERTICALLY (pitch along
+# board height) and the blade descends +Y past the bottom edge. Every tab
+# must therefore be placed at rot 0, and every family's leg-row height must
+# be the SAME (tab_y = _TOP_MARGIN + _TAB_TOP_EXT) -- one seating spec for
+# the whole platform. Verified against the footprint file itself (pad
+# coordinates re-parsed here, not trusted from a constant) so a footprint
+# or generator edit cannot silently rotate the row back.
+_fp_nick, _fp_name = godb.TE_TAB_FP.split(":")
+_fp_text = open(os.path.join(ROOT, "lib", "vendor", f"Connector_Blade.pretty",
+                             f"{_fp_name}.kicad_mod")).read()
+_pads = sorted(
+    (round(float(m.group(1)), 3), round(float(m.group(2)), 3))
+    for m in re.finditer(r'\(pad "1" thru_hole circle\s*\(at (-?[\d.]+) (-?[\d.]+)\)', _fp_text))
+check(_pads == [(0.0, -2.54), (0.0, 2.54)],
+      f"tab footprint: 2 THT legs stacked VERTICALLY at (0, +/-2.54) (found {_pads})")
+
+_expected_tab_y = godb._TOP_MARGIN + godb._TAB_TOP_EXT
+for fam in EXPECTED_JOINTS:
+    _w, _h, P = godb.pcb_placement(fam)
+    rots = {P[ref][2] for ref, _n in godb.FAMILIES[fam]["tabs"]}
+    ys = {round(P[ref][1], 3) for ref, _n in godb.FAMILIES[fam]["tabs"]}
+    check(rots == {0}, f"{fam}: every tab at rot 0 (blade-down; found rots {rots})")
+    check(ys == {round(_expected_tab_y, 3)},
+          f"{fam}: uniform leg-row height tab_y={_expected_tab_y:.2f} (found {ys})")
+    # blade tip must clear the board's own bottom edge LEVEL (it descends
+    # past it -- that is the point), but the LEG PADS must stay on-board
+    # with real margin:
+    pad_bottom = _expected_tab_y + 2.54 + 1.25
+    check(pad_bottom <= _h - 0.4 + 1e-9,
+          f"{fam}: lower leg pad on-board with margin "
+          f"(pad bottom {pad_bottom:.2f} vs H-0.4 = {_h - 0.4:.2f})")
+
+# --- 3b. Main-board clip row fits the pitches (Keystone 3586, rotated) -----
+# Sketch model: clip slot axis PERPENDICULAR to the daughterboard wall line,
+# so the clip's extent ALONG the row is its courtyard's SHORT dimension and
+# its SMD pad span along the row is the pads' former-Y extent. Both measured
+# off the vendored footprint (Keystone dwg 3586: body .150in/3.81mm across
+# the slot; .185in/4.70mm along it).
+_clip_fp = "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+_ccy = godb.cp.courtyard_bbox(_clip_fp)
+clip_along_row = _ccy[3] - _ccy[2]          # courtyard Y extent -> row axis after rot
+_clip_pads = [(float(m.group(1)), float(m.group(2)), float(m.group(3)), float(m.group(4)))
+              for m in re.finditer(
+                  r'\(pad "1" smd rect\s*\(at (-?[\d.]+) (-?[\d.]+)\)\s*\(size (-?[\d.]+) (-?[\d.]+)\)',
+                  open(os.path.join(ROOT, "lib", "vendor", "Connector_Blade.pretty",
+                                    "Keystone_3586_SMD_Universal_Blade_Clip.kicad_mod")).read())]
+pad_span_along_row = (max(y + h / 2 for _x, y, _w2, h in _clip_pads)
+                      - min(y - h / 2 for _x, y, _w2, h in _clip_pads))
+for fam, pitch in godb.TAB_PITCH.items():
+    body_gap = pitch - clip_along_row
+    pad_gap = pitch - pad_span_along_row
+    check(body_gap >= 4.0,
+          f"{fam}: clip-to-clip body gap at {pitch}mm pitch = {body_gap:.2f}mm "
+          f"(clip {clip_along_row:.2f}mm along-row; floor 4.0)")
+    check(pad_gap >= 1.5,
+          f"{fam}: clip SMD-pad gap at {pitch}mm pitch = {pad_gap:.2f}mm "
+          f"(pad span {pad_span_along_row:.2f}mm along-row; floor 1.5)")
 
 
 def tab_centres(fam):

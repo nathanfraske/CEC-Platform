@@ -320,3 +320,173 @@ README "Posture"/"Mating geometry"/"Verification"/"Library assets" sections.
 
 None of the above are resolved by this addendum; they remain the owner's
 physical gate, same as Sec.7.
+
+---
+
+## Addendum 2, 2026-07-05 (later): interim "vertical fin" direction — RETIRED UNBUILT
+
+A coordinator-relayed instruction (same day, between Addendum 1 and the
+owner's sketch below) directed reverting to the straight TE 63849-1 rotated
+90° in-plane as a vertical fin with side-exit blades. That instruction was
+the **coordinator's own misinterpretation of the owner's words** (its
+sender's correction, verbatim: "That geometry was MY misinterpretation of
+the owner's words, not his intent") and was **overridden by the owner's
+sketch before any of it landed in the repo** — no footprint, board, or
+script ever carried the fin geometry. Recorded here only so the day's full
+decision chain is auditable; its seating analysis is retired with it.
+
+---
+
+## Addendum 3, 2026-07-05 (final same-day form): OWNER SKETCH — TE 63951-1 true L geometry, blade-down vertical drop
+
+**Per-convention dated addendum — Addendum 1 (A.1–A.5) above is left
+unedited; this section supersedes its §A.3/A.4/A.5 geometry and seating
+analysis.** The owner provided a side-view SKETCH (verbatim: "No here's
+what I mean, spelled out with a sketch. The top one is the blade that has
+the 90 degree rotation in it. It needs to align vertically so it can
+actually *point down* and slot into the clip.") settling the connector
+form. **The PART is unchanged — TE 63951-1 stays** (Addendum 1's hunt
+result stands, LCSC C591344, in stock, $0.099–$0.164/unit by qty at the
+2026-07-05 check). What the sketch corrected is the **part model and
+mounting orientation**.
+
+### B.1 Part-model correction (what Addendum 1's footprint got wrong)
+
+TE 63951-1 is a flat **in-plane L stamping** (0.83/0.77 mm thick
+throughout, no out-of-plane bend — its own drawing's side profile is a flat
+strip): two barbed legs hang off ONE END of the strip, and the 6.35 mm
+blade runs **along the strip/leg-pitch axis** past the blade-side leg to
+the tip, its width band sitting **2.54–8.89 mm off the seating face**
+(8.89 = TE's "Profile Height from PCB"; 2.54 = 8.89 − 6.35). Addendum 1's
+first footprint mis-modeled the blade as extending perpendicular to the
+leg row, lying against the mounting plane — that produced the
+hang-past-the-edge form the owner rejected ("the tabs would just mount
+directly and collide with each other without hanging off the board
+bottom": at 7.92 mm shoulders on 8.2–8.9 mm pitches the bodies nearly
+touched, and the 6.89 mm hang under-reached the clip). The footprint
+(`cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT`) is REWRITTEN
+to the true geometry; Addendum 1's §A.3 hang-vs-clip-height comparison
+(the "~0.27 mm shortfall" item) and §A.5 items 3–4 are **retired with it**.
+
+Drawing-derived dimensions now carried in the footprint (TE dwg C=63951
+rev L2, `lib/datasheets/TE_63951-1.pdf`):
+
+| Dim | Value | Source/derivation |
+|---|---|---|
+| Blade width | 6.35 ± 0.08 | dwg, direct |
+| Blade thickness | 0.83/0.77 | dwg, direct |
+| Leg pitch / PCB holes | 5.08 ± 0.08 / ⌀1.40 ± 0.05 | dwg, direct (same as 63849-1) |
+| Legs below seating face | 3.81 | dwg, direct |
+| Blade band off seating face | 2.54 → 8.89 | 8.89 = TE profile height; 2.54 = 8.89 − 6.35 |
+| Blade tip from leg-pair midpoint | **15.75** | chain: 20.32 cut-off − 7.11 (cut-end→blade-side leg) + 2.54; cross-checked (a) drawn leg position ≈22 % of part length matches 4.57/20.32 = 22.5 % (the alternative reading, 47 %, is visibly contradicted), (b) the same chain pattern on the owner-referenced 1217061-1 places its detent hole just past the near leg exactly as drawn. FLAGGED: confirm on the OQ-86 physical sample — a ±1 mm error shifts assembly FLOAT, not clip engagement |
+| Carrier-side stub above the far leg | 2.03 (band to −4.57 from midpoint) | 7.11 − 5.08 |
+| Shoulder (face-contacting) region end | 3.33–3.48 past the blade-side leg | dwg .137/.131 |
+| Detent hole | ⌀1.78 at 7.92 from tip | dwg; height-in-blade ambiguous (7.11 [.280] vertical dim may place it 1.78 below the blade top rather than on-centre) — cosmetic only |
+
+### B.2 Mounting orientation (the sketch) and what it implies
+
+Legs HORIZONTAL through the vertical daughterboard face; leg pitch
+VERTICAL (legs stacked one above the other); blade therefore points
+STRAIGHT DOWN, descending past the board's bottom edge at the 2.54–8.89 mm
+Z-standoff. The assembly drops vertically; each blade enters its clip's
+top-entry jaws broadside. The daughterboard's bottom edge stays up and
+clear — the tab reaches down, not the board. Along the row each tab is
+only ~0.84 mm thin (stamping planes parallel, perpendicular to the face);
+its 2.5 mm leg pads are its widest row feature → adjacent-tab pad gaps
+5.7/6.1/6.4 mm at the 8.2/8.6/8.9 mm pitches — the Addendum-1 collision
+concern is gone by construction.
+
+**Clip side (Keystone 3586, re-derived for the rotated orientation)**: the
+clip turns 90° versus Addendum 1's implicit drawing — slot axis
+PERPENDICULAR to the daughterboard wall line (the descending blade's
+6.35 mm width runs along the wall normal, inside the clip family's rated
+.110–.250 in accepted-tab width), clip narrow dimension along the row.
+Row-fit numbers, measured off the vendored footprint (dwg: body
+.150 in/3.81 mm across the slot, .185 in/4.70 mm along it):
+
+| Pitch | Clip body gap (3.81/3.82 courtyard along-row) | Clip SMD-pad gap (6.60 span) |
+|---|---|---|
+| 8.9 (atx24) | 5.08 mm | 2.30 mm |
+| 8.6 (eps) | 4.78 mm | 2.00 mm |
+| 8.2 (pcie) | 4.38 mm | 1.60 mm |
+
+All asserted with printed numbers by `check_output_daughterboards.py` §3b.
+Clip slot centreline sits **5.72 mm from the daughterboard's front face**
+(the blade band's centre). Slot opening 1.57 mm vs blade 0.77–0.83 mm
+thickness — ~2× clearance. Top entry is the clip's native
+auto-blade-fuse mode (Keystone dwg 3586 front view: slot opening squarely
+at the top, spring fork beneath), so no new entry mode is being invented.
+
+### B.3 Seating model — the board FLOATS (replaces all prior seating analyses)
+
+The leg row sits **5.22 mm below each board's top edge** (uniform across
+all three families — pinned to the shared top margin band; asserted by the
+check script). With the blade tip 15.75 mm below the leg row, the tip
+descends **below each board's own bottom-edge level** (7.37 mm on atx24,
+9.97 mm on eps/pcie — off-board at the Z-standoff, no material conflict).
+**Edge-resting is impossible and not intended**: the board hangs on the
+clip grip (+ chassis strain relief, OQ-87), exactly the sketch's "bottom
+edge stays up and clear." Numbers at the recommended 1.0 mm tip clearance
+above the main-board surface (hard stop ≈0.4–0.5 mm when the tip meets the
+clip's own SMT base metal):
+
+| Family | H (board) | Leg row above bottom edge | Tip below edge | Bottom-edge float | Top edge above main board |
+|---|---|---|---|---|---|
+| atx24 | 13.6 | 8.38 | 7.37 | 8.4 | **21.97** |
+| eps | 11.0 | 5.78 | 9.97 | 11.0 | **21.97** |
+| pcie | 11.0 | 5.78 | 9.97 | 11.0 | **21.97** |
+
+(The identical 21.97 mm total is by construction: tip clearance + tip
+depth + board height = clearance + 15.75 + 5.22 regardless of H.)
+**Engagement**: the blade spans the clip's full 7.16 mm interior from the
+tip clearance up and protrudes fuse-like above the clip top — the jaw
+contact is covered wherever it sits in the body, the deepest engagement
+this part can give; the precise jaw height remains unpublished (Sec.4's
+UNVERIFIED carries) but no longer gates anything, since the blade covers
+the whole interior. Legs protrude 2.21 mm behind the daughterboard's back
+face (3.81 legs − 1.6 board) — keep clear.
+
+### B.4 Main-board clip disposition (measured, this branch)
+
+The four main boards (`atx-24pin-rev3`, `eps-8pin`, `pcie-8pin-2port`,
+`pcie-8pin-3port`) carry their TB clip symbols in **schematics only**
+(commit `b76a62a`); a repo-wide search finds **zero `Keystone_3586`
+footprints and zero TB references in any main-board `.kicad_pcb`** on this
+branch. **No clip orientation is encoded board-side anywhere** — the
+rotated-clip mating drawing exists only in the daughterboard model
+(`gen-output-daughterboard.py pcb_placement()` + this addendum), which is
+therefore authoritative and binds the future main-board clip-placement
+pass: mirror the per-family tab X grids, orient every clip slot-axis-
+perpendicular-to-the-wall, and set the clip row 5.72 mm off the planned
+wall plane.
+
+### B.5 Board state after this addendum
+
+All three families regenerated (`--force`): **atx24 145.1 × 13.6 mm, eps
+67.8 × 11.0 mm, pcie 49.4 × 11.0 mm** — heights all inside the ≤15 mm cap
+(the tab rows moved BESIDE the fields, descenders exiting through the
+bottom edge at zero height cost; lengths grew as the sanctioned trade).
+ERC 0 errors / DRC 0 errors + 0 unconnected (severity-error) on all three;
+full-severity DRC is silk-cosmetic only (23/8/6 hits, and the prior
+`silk_edge_clearance` category is gone — the new footprint keeps silk
+between the leg pads). `check_output_daughterboards.py` fully green,
+including new §3a orientation/uniform-height assertions and §3b clip-fit
+assertions; the no-subset-seating keying proof re-ran on the new
+coordinates and its teeth were re-verified (a sabotaged 8.3 mm EPS pitch
+correctly fails). Net maps and joint counts (9/6/4) unchanged —
+netlist-verified per tab, and net-group identity vs. the pre-rework
+baseline confirmed (15→15 / 2→2 / 2→2). One real regression was caught and
+fixed during regeneration: the first height-minimized atx24 put the
+corridor's deepest stub/via copper 0.30 mm from the new bottom edge (4
+`copper_edge_clearance` errors) — the bottom margin is now derived from
+the deepest copper, not the corridor outline.
+
+### B.6 Open items after this addendum
+
+1. Physical sample (OQ-86): gang mating-force + seating in the VERTICAL
+   drop direction; confirm the 15.75 mm tip-reach chain-dim reading (B.1);
+   thickness-tolerance high-end check carries from Sec.7.
+2. Clip-cluster confirm-soak + thermal-cycle contact-R trend — unchanged.
+3. OQ-87 chassis strain relief now also owns the FLOAT retention question:
+   the board hangs on the clips at 8.4–11.0 mm float; the strain relief,
+   not the board edge, sets the assembly's vertical datum tolerance.

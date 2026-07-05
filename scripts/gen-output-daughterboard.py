@@ -194,12 +194,15 @@ def build_footprints(fam):
 
 TE_TAB_PROPS = {
     "LCSC": "C591344", "MPN": "63951-1", "Manufacturer": "TE Connectivity",
-    "Description": "FASTON .250 RIGHT-ANGLE (flat, in-plane) PCB tab (male "
-                   "blade), mates the main board's Keystone universal blade "
-                   "clip via a VERTICAL TOP-ENTRY drop -- spec Sec. 2.8 "
-                   "v1.4.0 / docs/standard-tier-review/output-daughterboard-"
-                   "study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-"
-                   "07-04.md 2026-07-05 addendum (connector-form change).",
+    "Description": "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, "
+                   "male blade). Mounted legs-horizontal / pitch-vertical / "
+                   "blade-down (owner sketch 2026-07-05): the blade descends "
+                   "past the board's bottom edge at a 2.54-8.89mm standoff "
+                   "and drops top-entry into the main board's Keystone "
+                   "universal blade clip -- spec Sec. 2.8 v1.4.0 / docs/"
+                   "standard-tier-review/output-daughterboard-study-2026-07-"
+                   "04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md "
+                   "addenda (addendum 3 = this geometry).",
 }
 FIELD_PROPS = {
     "Manufacturer": "CEC (in-house)", "LCSC": "",
@@ -394,8 +397,7 @@ _TAB_TIP_BARE = 15.75      # dwg-derived blade tip below the leg midpoint
 _TAB_BLADE_STANDOFF = (2.54, 8.89)   # blade band off the front face (dwg)
 
 _LEFT_MARGIN, _TOP_MARGIN, _BOTTOM_MARGIN = 1.0, 0.4, 0.4
-_FIELD_GAP = 0.1           # field courtyard bottom -> corridor (atx24) / tab row (eps/pcie)
-_SIMPLE_GAP = 0.4          # eps/pcie: field bottom -> tab row, no corridor needed (2-net flood)
+_FIELD_GAP = 0.1           # field courtyard bottom -> corridor top (atx24 only)
 
 
 def _field_geom(fam):
@@ -447,7 +449,13 @@ def pcb_placement(fam):
         P[ref] = (tab0_x + i * pitch, tab_y, 0)
 
     if fam == "atx24-out-db":
-        H = field_bottom + _FIELD_GAP + ATX24_CORRIDOR_H + _BOTTOM_MARGIN
+        # Bottom margin derived from the DEEPEST COPPER, not the corridor
+        # zone outline: the slot-3 lane's stub tracks/vias extend 0.25mm
+        # (track half-width / via radius) past the lane CENTRELINE, i.e.
+        # 0.1mm past the corridor's zone bottom -- and the board-setup
+        # copper-to-edge constraint is 0.5mm. 0.25 + 0.5 + 0.05 slack below
+        # the last lane centreline = corridor bottom (+_LANE_HALF) + 0.65.
+        H = field_bottom + _FIELD_GAP + ATX24_CORRIDOR_H + 0.65
     else:
         H = field_bottom + _BOTTOM_MARGIN
     W = tab_last_x + _TAB_HALF_X + 1.0
@@ -847,13 +855,15 @@ def write_rules(fam):
         header = ("24-pin ATX daughterboard -- 9 blade-tab joints "
                   "(12V x1 / 5V x2 / 3.3V x1 / 5VSB x1 / GND x4) + a 2x5 "
                   "signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved), "
-                  "standing perpendicular to the main board (owner ruling "
-                  "2026-07-05). Power netclass 0.5mm/0.9-0.5mm via matches "
-                  "the 0.5mm stub tracks laid by route_atx24(); each rail "
-                  "also gets its own thin lane zone in the corridor between "
-                  "the field and the tab row, split across In2.Cu (4 rails) "
-                  "and B.Cu (3 rails) to fit the <=15mm height cap -- not "
-                  "netclass-controlled, drawn directly (see ATX24_LANE).")
+                  "standing perpendicular to the main board, tabs blade-"
+                  "down per the owner's 2026-07-05 sketch. Power netclass "
+                  "0.5mm/0.9-0.5mm via matches the 0.5mm stub tracks laid "
+                  "by route_atx24(); each of the 4 bus rails also gets its "
+                  "own thin In2.Cu lane zone in the corridor below the "
+                  "field (0.3mm wide, 0.65mm pitch -- not netclass-"
+                  "controlled, drawn directly; see ATX24_LANE_SLOT), which "
+                  "the tab row's down-stubs and the field's dodge-stubs "
+                  "meet through 0.3/0.5mm vias.")
     else:
         rail = "+12V"
         classes = [cp.netclass("Default", 0.25, 0.6, 0.3, 2147483647),

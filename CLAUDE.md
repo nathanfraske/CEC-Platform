@@ -120,6 +120,23 @@ tightened (pad half-height instead of half the row pitch) 13.0->10.2mm, the sing
 height lever. ERC 0 errors / DRC 0 errors+0 unconnected on all three (cosmetic silk-only
 warnings remain, documented per-board). Done on branch claude/schematic-work-continue-59pw41,
 not yet merged/committed as of this note.
+**TAB-FORM SUPERSEDED SAME-DAY (2026-07-05, owner sketch — third and final form; the
+side-entry TE 63849-1 build above and an interim flat-blade 63951-1 mis-model are both
+RETIRED, full chain in `docs/standard-tier-review/blade-fit-check-2026-07-04.md` addenda
+2-3):** tabs are now **TE 63951-1** (RIGHT-ANGLE FASTON .250, LCSC C591344, in-plane L
+stamping per TE dwg C=63951) mounted legs-horizontal / 5.08mm-pitch-VERTICAL, blade
+pointing STRAIGHT DOWN past the board's bottom edge at a 2.54-8.89mm face standoff — the
+assembly drops vertically into the main-board Keystone 3586 clips' TOP-entry jaws (clip
+rotated: slot axis perpendicular to the wall line, 5.72mm off the front face; row-fit at
+the kept 8.9/8.6/8.2 pitches = 5.08/4.78/4.38mm clip gaps) and the board FLOATS 8.4-11mm
+clear (tab reaches down, not the board; top edge 21.97mm above the main board, uniform).
+Boards regenerated: atx24 145.1x13.6, eps 67.8x11.0, pcie 49.4x11.0 (heights now inside
+the <=15mm cap; lengths grew — tab row beside the field, the sanctioned Y-first trade).
+Gates re-green (ERC 0, DRC 0/0 severity-error, check script incl. new orientation/
+uniform-height/clip-fit assertions + re-proved keying, net maps/joint counts unchanged).
+NOTE the four MAIN boards carry TB clips in schematics only — no PCB placement exists on
+this branch, so `pcb_placement()` + memo addendum 3 remain the authoritative mating
+drawing binding the future main-board clip-placement pass.
 
 Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
 CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions
