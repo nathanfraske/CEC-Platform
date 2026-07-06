@@ -1269,3 +1269,201 @@ stack and −22 parts) that is NOT actionable under quality-first until a
 funded bench program clears its thickness-band and contact-metallurgy
 gates — and until the owner consciously rules on reversing "the tab does
 the reaching, not the board." No board regenerates from this addendum.
+
+## Addendum 10, 2026-07-06 (iteration 10): PCB-edge-finger DEEP-DIVE + the 4 oz question — every addendum-9 kill-condition attacked
+
+**Dated addendum; addendum 9 above is left unedited. STUDY ONLY — no
+board/library change.** Owner (verbatim): *"Can we explore that PCB edge
+finger idea further as well? And how much 4oz copper on both sides would
+actually cost?"* Treated as a serious candidate. Web facts below were
+verified 2026-07-06; anything not verifiable first-party is marked EST or
+UNVERIFIED. One NEW geometric finding (I.4) that addendum 9 missed is
+reported first-class: it re-prices the whole option.
+
+### I.1 Thickness — attacked from all three sides
+
+**(a) Fab side (verified 2026-07-06).** JLCPCB published capability:
+board-thickness tolerance **±0.1 mm for <1.0 mm** (a 0.8 board is
+guaranteed only 0.70–0.90) [jlcpcb.com/capabilities/pcb-capabilities].
+Their impedance-control service controls **impedance ±10%**, not physical
+thickness — no tighter thickness class is published at all. PCBWay:
+same **±0.1 for t<1.0** on both standard and Advanced tables (only t≥3.2
+gets a better ratio, ±8%) [pcbway.com/capabilities.html]. **No catalog fab
+class comes within 4× of the receptacle's ±0.025 band.** Delivered-typical
+(vs guarantee) is unpublished — measurable only by coupon (I.7).
+**(b) Receptacle side — the full Style-A/B/C thickness-SKU table (from the
+vendored 82004 p.46 + rev-E CD + 108-1706):**
+
+| SKU(s) | Tab thk | Acceptance band | Nearest PCB class | Verdict |
+|---|---|---|---|---|
+| 63969-1 / 1217080-1 (std), 63968-1 (LIF) | .032 / 0.81 | 0.785–0.835 (rev-E ±0.025) | 0.8 ±0.1 → 0.70–0.90 | FAILS both tails; even a hypothetical ±0.05 class fails both tails |
+| 63994-1 (LIF), 1217137-1, 1217180-1 (OBSOLETE at te.com) | .025 / 0.64 | 0.615–0.665 (family analogy, UNVERIFIED) | no 0.64 class exists; 0.6 ±0.1 | FAILS |
+| Style B 1217107-1 | .020 / 0.51 | n/a | (0.5 class exists) | DEAD anyway: catalog footnote = HORIZONTAL mount |
+| Style C 62751-1/62806-1 | .016 / 0.41 spade | ~0.385–0.435 (analogy) | 0.4 ±0.1 | FAILS; and 0.4 mm sliver = 1/64 the bending stiffness of 1.6 — absurd for a power board |
+
+**No SKU in the line swallows any standard PCB class.** The spring is
+thickness-TUNED by SKU; the acceptance half-band (±0.025) is strictly
+tighter than the best published fab class (±0.1). Structural insight: real
+card-edge ecosystems put the tolerance in the CONNECTOR (JEDEC DIMM
+sockets accept ~±0.1 boards); the FASTON PCB receptacle was tuned for
+stamped metal, so fingers-into-63969 fights the tolerance on the wrong
+side — and the connector class that IS board-tolerant (true card-edge) was
+already eliminated by the D-5a §8.5 footprint gate (~2.4–2.5 A/mm vs the
+3.7–7.2 needed; the 63969 row runs 22.9 A/4.2 mm ≈ 5.5 A/mm).
+**(c) Design side.** (i) Plating compensation: copper/plating choice
+shifts the MEAN finger thickness but the spread is the laminate's — a
+±0.1-class stack stays ±0.1-class; not a fix. (ii) Depth-controlled
+routing of the finger zone: removes the very copper the finger needs;
+specialty-fab-only for dielectric-side skimming — feasibility class
+"custom process development", not catalog. (iii) **Sort-to-band — the one
+catalog-fab unlock**: order standard 0.8, 100% incoming-QC micrometer the
+finger zone, use only 0.785–0.835 boards. Yield unknown a priori (uniform
+over the ±0.1 guarantee → 25%; if delivered-typical is ±0.05 → ~50%) and
+within-panel variation is unmeasured — the coupon (I.7) answers both. At
+$2-class boards, a 25–50% sort yield is economically survivable; it is
+still a process the beta line would have to own forever.
+
+### I.2 Ampacity — the repo's own solver replaces the hunch (PASS)
+
+`dt_ipc` (scripts/cec_synth_pipeline.py, IPC-2221 external k=0.048) at the
+**18.32 A policy-max joint** (22.9 A ÷ 125%), 6.35 mm finger:
+
+| Copper | Cross (mm²) | dT at 18.32 A | vs blade |
+|---|---|---|---|
+| 2 oz both faces | 0.881 | **5.0 °C** | blade Cu-equiv 1.441 mm² → 2.2 °C |
+| 4 oz both faces | 1.763 | **1.6 °C** | beats the brass blade |
+| operating points | — | eps 17.3 A: 4.4/1.4 °C; pcie 13 A: 2.3/0.7; atx24 12 V 12 A: 1.9/0.6 | — |
+
+Even 2 oz passes the 30 °C-rise policy with 6× margin (5.21 mm-wide
+fingers: 0.72 mm², 6.9 °C — still fine); dt_ipc models a long free-air
+trace, so a short neck between pour and contact does better. **Conduction
+is definitively not the gate.** The gate is the INTERFACE: at the spec
+≤1 mΩ termination the joint dissipates 0.34 W; a worn interface at 10 mΩ
+dissipates 3.4 W concentrated on FR4 (k≈0.3 W/mK) — i.e. the wear/fretting
+failure mode is a thermal one. Which is metallurgy:
+
+### I.3 Metallurgy + the gold-finger services (verified 2026-07-06)
+
+- **JLCPCB gold fingers**: 30° bevel default, bevel supported for
+  **0.4–1.6 mm boards → 0.8 qualifies**; board/panel edge with fingers
+  must be **≥50 mm** (atx24 61 ✓; eps/pcie boards are under — panelize
+  2-up along the finger edge); **plating = ENIG flash only** ("only when
+  ENIG is chosen, the fingers... will be with gold") — no orderable
+  hard-gold thickness menu (their blog's "3–50u\"" is marketing, not an
+  order option — UNVERIFIED as a service); fee UNVERIFIED first-party
+  (third-party claims ~$10–20/proto order)
+  [jlcpcb.com/help/article/jlcpcb-gold-fingers].
+- **PCBWay**: gold fingers + beveling "without extra cost"; gold
+  **1–30 µin standard / 30–50 µin advanced** — real hard gold; BUT bevel
+  requires board **≥1.2 mm → 0.8 CANNOT be beveled at PCBWay**
+  [pcbway.com helpcenter, capabilities].
+- **Wear (citable)**: AMP TR *Golden Rules*: hard gold over 50 µin Ni —
+  **15 µin → 200 cycles, 30 µin → 1000, 50 µin → 2000**; ENIG flash
+  (2–5 µin) — **<10 insertions** (industry corroboration, weaker grade).
+- Mitigating fact: the 63951-1 tab we mate today is itself a SQUARE-SHEARED
+  0.81 stamping — the receptacle does not require a bevel the way a
+  card-edge socket does (the rolls + triangular cutouts provide lead-in),
+  so PCBWay's no-bevel-at-0.8 is a soft loss, and JLC's bevel is a
+  nice-to-have on an ENIG finger that wears out in <10 cycles anyway.
+  Net: **the only real hard-gold path at 0.8 mm is PCBWay, un-beveled.**
+  Design-side extra: a Ø1.8 NPTH hole in each finger at the roll-dimple
+  height would give REAL detent retention (the metal tabs today get none at
+  nominal float) — stress concentration vs retention = coupon item.
+
+### I.4 NEW FINDING — the forced 90° rotation re-prices the option
+
+Addendum 9 killed the Zierick SMT tab because a blade IN the board plane
+puts the blade width ALONG the row — and then did not apply the same
+geometry to the fingers. It applies: a finger's 5.21–6.35 mm width lies in
+the daughterboard plane = along the row; its through-board 0.8 mm is the
+"thickness" the rolls grip. So the main-board receptacle must rotate 90°
+from the iteration-7 ratified orientation (hole pair ∥ row), and the
+along-row footprint per position becomes the receptacle's **7.42–7.49 mm
+WIDTH** (+0.5 web) → **row pitch floor ≈ 8.0 mm vs 4.2 today** (receptacles
+all sit on the one board plane — no stagger escape). Rows at the ratified
+counts: atx24 9×8 = 72 (board ~91 mm long, was 61), eps 5×8 = 40 (~46, was
+28.5), pcie 5×8 = 40 (~46, was 31). **The fingers buy ~−11.5 mm of stack
+and pay ~+50% of board length.** (Stack re-derived at fz≈8.5 mm finger
+zone, board edge 1.0 above main board: atx24 22.4 vs 33.8; eps/pcie 20.9
+vs 32.4. H is ~unchanged — the finger zone is as tall as the tab band it
+replaces; the win is the float dying, exactly as addendum 9 said.)
+
+### I.5 The 4 oz question answered (as far as published data goes)
+
+- **JLCPCB has no 4 oz tier.** Published outer-copper menu: 2-layer =
+  1/2/2.5/**3.5/4.5 oz**; **4-layer is capped at 2 oz**
+  [jlcpcb.com/capabilities/pcb-capabilities]. "4 oz both sides" at JLC
+  means ordering the 2-layer 4.5 oz class (eps/pcie daughterboards are
+  2-layer-able; atx24's In2 bus corridor is NOT trivially 2-layer — the
+  iteration-5 two-layer lane split measurably failed on via anti-pads).
+- **PCBWay heavy-copper service**: outer finished copper 1–8 oz on
+  2-layer — 4 oz both sides IS orderable; small-board pricing is
+  quote-calculator-only (UNVERIFIED; this sandbox cannot reach the JS
+  quote tools — connection-reset at the proxy).
+- **$/board deltas (EST, marked)**: baseline today (4-layer 1.6, 2 oz
+  outer, our sizes, 100 q) ≈ $1.5–4/board. Finger build at JLC (2-layer
+  0.8, 4.5 oz, ENIG + gold-finger fee) ≈ **$5–15/board EST** — the 2-layer
+  saving partially funds the heavy-copper adder; at 2 oz instead (I.2
+  shows 2 oz passes thermally) ≈ **$2–6/board EST**. PCBWay 4 oz + hard
+  gold: heavy-copper lot minimums dominate at 100 q (EST $3–10/board).
+  1000 q compresses all of these 2–4×. **OWNER QUOTE RECIPE (2 minutes,
+  real numbers)**: JLC quote tool → 2 layers, 61×21.4 (and 2-up panels for
+  eps/pcie to clear the 50 mm finger-edge floor), 0.8 mm, outer copper
+  4.5 oz then 2 oz, ENIG, "Gold Fingers" + 30° bevel on, qty 100/1000;
+  PCBWay Advanced → same at 4 oz, gold 30 µin, no bevel.
+- **Net cost truth (task-5 arithmetic, 100 q, EST)**: deleting the tabs
+  saves $0.10–0.16 × 10/12/12–18 per board = $1.0–2.9 + THT assembly
+  $0.2–0.9 ⇒ **−$1.3–3.8/board saved parts+assembly** vs **+$1–11/board
+  EST fab adder** (copper class + finger service + panel rails + possible
+  sort-yield multiplier from I.1c). Verdict: roughly cost-neutral at best
+  under optimistic assumptions, net-positive cost under realistic ones —
+  the parts saving does NOT clearly pay for the exotic fab.
+
+### I.6 Seating/mechanical (worked)
+
+Engagement: board edge descends to ~1.0 above the main board; plated
+finger height ≥ 8.38−1.0 = 7.4 → spec 8.0 + 0.5 mask pullback; via
+stitching parallels the two faces ABOVE the finger zone (no vias inside a
+gold-finger area per fab rules). Gang insertion (atx24 worst, 10 × 44 N
+spec-max = 440 N): edge compression 9.0 MPa vs plate-buckling critical
+~479 MPa (E=22 GPa, 10 mm unsupported to the THT field band) — **53×
+margin, a non-issue**. Rigidity (transformed section, Cu 115 GPa): EI/w =
+16.9 kN·mm (today 1.6/2 oz) → 3.1 (0.8/2 oz, 18%) → 4.4 (0.8/4 oz,
+**26%**) — the sliver is ~4× floppier even with 4 oz; service flex is
+bounded by the chassis strain relief in the architecture, whose pull/flex
+numbers are STILL OWED (OQ-87) — fingers make those numbers load-bearing.
+Fretting mitigation = hard gold (PCBWay-only at 0.8) + the NPTH detent
+idea (I.3), both coupon items.
+
+### I.7 Verdict + the coupon that answers everything cheaply
+
+| Option | Stack | Board lengths | Thickness gate | Contact | $/board net (EST) | Status |
+|---|---|---|---|---|---|---|
+| Stand pat (63951-1 tabs) | 33.8/32.4 | 61/28.5/31 | none (metal tab at design centre) | designed pairing | — | **ratified, no new gates** |
+| Fingers on 0.8 catalog fab | **22.4/20.9** | **~91/46/46 (+50%)** | UNPASSABLE as-shipped (±0.1 vs ±0.025); sort-to-band yield 25–50% EST | JLC: ENIG <10 cycles (bevel OK); PCBWay: hard gold 30–50 µin (no bevel) | ~+$0–9 | blocked by I.1 + I.4; coupon-cheap to keep alive |
+| Fingers at an alternate thickness SKU | — | — | NO SKU swallows any PCB class (I.1b table) | — | — | **dead as a class** |
+| Fingers w/ custom-tolerance fab | 22.4/20.9 | ~91/46/46 | needs a fab quoting ±0.03 or better on 0.8 — none PUBLISHES one; custom process inquiry | PCBWay gold | unknown + NRE | inquiry-gated |
+
+**COUPON SPEC (the cheap definitive test, ~$30–60 total):** one 55×25 mm
+2-layer 0.8 mm ENIG coupon at JLC with the gold-finger option (edge ≥50 mm
+✓): an 8 mm finger band carrying fingers at 6.35 and 5.21 widths ×
+{copper both faces / one face / bare laminate} × {with / without Ø1.8 NPTH
+detent hole}, plus ENIG-only finger-shaped pads on the opposite
+(un-beveled) edge; a second identical coupon from PCBWay heavy-copper
+(4 oz, hard gold 30 µin, no bevel). Bench: micrometer every finger (the
+DELIVERED-thickness distribution = the I.1c sort-yield datum, the number
+no fab publishes), then insertion/extraction force, seating depth,
+contact-R, and 20-cycle wear against the 63969-1 samples already in the
+OQ-86 order. The coupon invoices are also the REAL price quotes of I.5.
+
+**RECOMMENDATION: do not adopt for the beta line.** The stack win is real
+(−11.5 mm) but iteration 10's new row-length finding (+50%, I.4) spends
+most of the compaction elsewhere, the thickness band remains unpassable at
+every published fab class with sort-to-band as the only catalog unlock,
+and the only hard-gold path at 0.8 mm cannot bevel. Order the two coupons
+with the OQ-86 sample batch IF the owner wants the endgame kept alive —
+they cost pocket change, return the real thickness distribution + real
+fab invoices, and de-risk any future card-edge thinking. The posture
+reversal ("the board does the reaching") therefore needs NO ruling today;
+it goes to the owner queue as a conditional item that only activates if
+the coupons clear I.1c and the contact bench.
