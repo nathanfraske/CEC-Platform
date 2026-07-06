@@ -494,8 +494,13 @@ def pcb_placement(fam):
         # _TAB_PAD_EXT is symmetric (2.54 + 1.25 above AND below the midpoint)
         tab_y = lanes_bottom + _LANE_PAD_CLR + _TAB_PAD_EXT
         base = _LEFT_MARGIN + _TAB_HALF_X
-        k = math.ceil((base - fx - 1.05) / _STUB_GRID - 1e-9)
-        tab0_x = fx + 1.05 + _STUB_GRID * k
+        # anchor step = the full 6.3mm pitch (= 3 lattice periods), NOT the
+        # bare 2.1 lattice: route_atx24's three signal descents rely on the
+        # (column - x0) mod 6.3 phase being exactly 3.15 (mid tab-gap), and
+        # a 2.1-step anchor can rotate that phase to 1.05/5.25 -- measured
+        # as real shorting_items against tab pads before this fix.
+        k = math.ceil((base - fx - 1.05) / (3 * _STUB_GRID) - 1e-9)
+        tab0_x = fx + 1.05 + 3 * _STUB_GRID * k
     else:
         tab_y = field_bottom + _BAND_GAP + _TAB_TOP_EXT
         tab0_x = _LEFT_MARGIN + _TAB_HALF_X
