@@ -76,12 +76,7 @@
           "width": 0.0
         }
       ],
-      "drc_exclusions": [
-        [
-          "courtyards_overlap|128812500|141675779|0a210d49-b6c1-4117-8625-461e210be444|aa683a72-9b88-4349-91a4-33afcab8443c",
-          ""
-        ]
-      ],
+      "drc_exclusions": [],
       "meta": {
         "version": 2
       },
@@ -772,7 +767,7 @@
         "uuid": "a4774022-41d4-4be7-85b6-fed5477a3f9f"
       }
     ],
-    "used_designators": "",
+    "used_designators": "C612V1,J_SIG1,C65V1,U75V1,R_BYP_H1,C712V1,C75V1,R_BYP_L1,D_USB1,U612V1,U65V1,U712V1",
     "variants": []
   },
   "sheets": [
