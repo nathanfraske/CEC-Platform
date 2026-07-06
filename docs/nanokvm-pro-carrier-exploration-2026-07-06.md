@@ -4,6 +4,16 @@ Study only, 2026-07-06. Owner ask (verbatim): "explore whether or not we really
 need to make a carrier board for the NanoKVM Pro ATX / PCIe, and why." No
 board, spec, or CLAUDE.md edits made. This document is the deliverable.
 
+> **Structure note (same day):** the owner reframed the question mid-study —
+> the real ask is **enterprise-bundle-scoped** ("do they have secure elements?
+> proper networking out? ... just the enterprise ones"), with the central
+> follow-up **"can the compute element already do all of that without a new
+> carrier swap?"** Part I below is the original consumer-lane exploration
+> (its findings stand and several carry into Part II); **Part II is the ENT
+> analysis and the operative recommendation.**
+
+# PART I — consumer lane (original scope)
+
 **Bottom line up front:** a *full* carrier board (power mux, level shifting,
 front-panel pass-through) is not justified — the Hub already carries all of
 that architecture (§2.9, J_KVM as-built), and Sipeed's own kit already ships a
@@ -431,7 +441,394 @@ against the OQ-51 assumption before committing a connector footprint to it.
 
 ---
 
-## Sources
+---
+---
+
+# PART II — ENT bundles (owner reframe, 2026-07-06)
+
+Owner reframe (verbatim): "That's not what I was asking about, I was asking
+about on the *enterprise* networked bundles specifically, do they have secure
+elements? Proper networking out? Etc? On all the other variants there is no
+point, just the enterprise ones." Follow-up, made the central question here:
+**"And can the compute element already do all of that without a new carrier
+swap?"** Second follow-up (same day): the ~2026-08 customer session is an
+architecture/security/attestation **walkthrough, not a functional-hardware
+deadline** — so options below are scored on the defensibility of the
+security/attestation *story* presentable by August, not on build schedule.
+
+**BLUF: yes — the existing ENT compute element (PolarFire MPFS095TC + the
+LAN9370 fabric) already covers everything a carrier's secure element would
+nominally add, and the carrier-with-SE option is architecturally hollow
+anyway (an SE bolted next to a black-box SoC cannot attest that SoC's
+internals — proximity is not trust).** The stock NanoKVM Pro is **not
+trust-grade** (no evidence its silicon-capable secure boot is used by the
+product; a live 2026 CVE on the Pro line; consumer-grade networking; unsigned
+vendor-infra updates), so in an ENT bundle it belongs **outside the trust
+boundary, ingested as untrusted claims exactly like the OS vantage** — a
+pattern the trust addendum already defines. The one thing no carrier can fix
+(attesting the KVM's own firmware) is fixable only by the already-pending
+CEC-KVM path (OQ-75 decision box) — and the witness-grade *endgame* is
+cheaper and cleaner than a full CEC-KVM: **capture-only absorption into the
+PolarFire** (an HDMI-RX bridge into fabric, keyframes signed into the
+existing Merkle log; no Linux, no network, no USB, ENT-AIR-compatible).
+Nothing here needs a new carrier board.
+
+## E1. Is the stock product trust-grade? ("secure elements? proper networking out?")
+
+**Hardware root of trust: silicon-capable, product-unused (no evidence of use).**
+The AX630C SoC in the NanoKVM Pro *does* ship a documented security subsystem —
+TrustZone, firewall access control, crypto accelerator, secure OTP, Secure
+Boot — per Axera's product brief, PSA-Certified at the family level (already
+verified with citations in
+`docs/enterprise-requirements/research/cec-kvm-recommendations-2026-07-02.md`
+rec 1). But **no evidence was found that Sipeed's product enables any of
+it**: the March 2026 Eclypsium disclosure round that hit the NanoKVM named
+"missing firmware signature validation" as a common root cause across the
+four affected vendors ([The Hacker News,
+2026-03](https://thehackernews.com/2026/03/9-critical-ip-kvm-flaws-enable.html));
+and Sipeed's own official response to the earlier security review ([GitHub
+sipeed/NanoKVM #301](https://github.com/sipeed/NanoKVM/issues/301)) addressed
+*app-level* update verification only — **firmware signing and secure boot are
+absent from their remediation list.** No TPM or discrete secure element is
+documented on any NanoKVM board. Firmware updates come from Sipeed's own
+infrastructure via a web-UI "check for updates" (or GitHub releases / SD-card
+reflash) with no documented signature chain ([Sipeed wiki:
+updating](https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/system/updating.html)).
+The code is open source (Sipeed's stated answer to backdoor concerns) — good
+for auditability, not a root of trust.
+
+**Security track record (dated):**
+- **Feb 2025**, independent research on the original NanoKVM: hardcoded
+  encryption key identical across all devices, SSH open by default, DNS
+  routed through Chinese servers by default, routine fetch of a
+  closed-source binary from Sipeed infrastructure, and an undocumented
+  microphone activatable over SSH ([Tom's
+  Hardware](https://www.tomshardware.com/tech-industry/cyber-security/researcher-finds-undocumented-microphone-and-major-security-flaws-in-sipeed-nanokvm);
+  [CGI Coffee deep
+  dive](https://cgicoffee.com/blog/2025/02/nanokvm-security-issues-consider-pikvm-instead)).
+  Sipeed acknowledged and fixed much of it over subsequent months
+  (open-sourcing, forced-DNS removed, keys moved out of code,
+  regular-user-mode default) — but per their own #301 response, at the
+  app-verification level, not the firmware-signing level. Whether the *Pro*
+  board carries a microphone was not determined in this pass (flag).
+- **March 2026, CVE-2026-32296** — an *unauthenticated* WiFi-config
+  endpoint, CVSS 5.4: a network-adjacent attacker can repoint the device to
+  a rogue AP (MitM on all subsequent traffic) or crash the KVM process.
+  **Fixed in NanoKVM 2.3.1 and NanoKVM Pro 1.2.4 — i.e., the Pro line
+  specifically was affected** ([Feedly CVE
+  entry](https://feedly.com/cve/CVE-2026-32296);
+  [Eclypsium](https://eclypsium.com/blog/your-kvm-is-the-weak-link-how-30-dollar-devices-can-own-your-entire-network/)).
+  The same round noted PiKVM V4 and TinyPilot carried zero new 2026 CVEs —
+  the hardened-minimal-image posture is achievable in this product class;
+  the NanoKVM baseline just isn't it. (Consistent with, and partly already
+  recorded in, the CEC-KVM recs doc's rec 5.)
+
+**"Proper networking out": no.** What the Pro's GbE actually speaks is
+consumer/prosumer-grade: HTTPS web UI with a **self-signed certificate**,
+SSH, mDNS discovery, and **Tailscale preinstalled** ([Sipeed wiki:
+Tailscale](https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/network/tailscale.html);
+Pro Desk guide). No 802.1X supplicant, no VLAN tagging, no mTLS in the
+control/streaming protocols is documented anywhere found in this pass. For
+ENT, preinstalled Tailscale deserves its own line: a **third-party overlay
+VPN with a vendor-hosted coordination plane, resident by default on the
+device that watches the workstation's screen** — an unmanaged, CEC-invisible
+egress path unless explicitly stripped. PoE exists as an optional module
+(genuinely useful for rack OOB power — the one enterprise-ish feature
+present). A 2-channel serial terminal gives IPMI-adjacent console reach.
+Net: a fine prosumer device; not a managed-infrastructure device.
+
+**ENT-AIR / radio absence: yes, verifiably.** WiFi6 is an optional hardware
+*module*, not down-soldered baseline — ETH-only SKUs are sold (e.g., the
+Amazon "(ATX, ETH, no LED)" listing beside the "(ATX, ETH & WiFi & PoE)"
+listing), so a hardware-absent radio variant can be purchased and verified
+unpowered, matching the platform's §13.6 inspection-without-powering bar.
+Largely moot for ENT-AIR *base builds* though: **REQ-HUB-AIR-059 already
+excludes the NanoKVM there entirely** (attaching a network-capable KVM =
+the customer's own step outside the zero-egress guarantee); the compliant
+AIR visual-vantage paths are the no-NIC CEC variant (recs doc rec 6) or the
+capture-only absorption of E4.3.
+
+## E2. The pending CEC-KVM decision box (found and summarized, per the brief)
+
+`docs/enterprise-requirements/research/cec-kvm-recommendations-2026-07-02.md`
+(the OQ-75 kickoff deliverable; owner-queue lists its sign-off as still
+pending). Ten recommendations distilled to a **5-item decision box**:
+1. **Chip pick:** RK3566/68-class SoM (Radxa CM3-class, ~$40, documented
+   eFuse/OTP secure boot) over RK3588-class (~$70, thin public secure-boot
+   docs) and over AX630C (best-documented secure boot, thinnest
+   industrial-SoM ecosystem). That doc already corrected the "NanoKVM Pro is
+   an RK3588 carrier" kickoff premise: the Pro is a **single integrated
+   AX630C board**; the carrier+SoM architecture describes the *NanoKVM-PCIe*
+   (SG2002) — consistent with Part I §2, and it resolves Part I's flagged
+   AX630C-vs-RK3588 memory-note discrepancy (the RK3588 attribution was the
+   kickoff premise, corrected 2026-07-02; AX630C is right).
+2. **Form:** CEC carrier hosting a COTS compute module, in-chassis PCIe
+   bracket.
+3. **PSIRT precondition:** no Linux-image KVM ships without a named, costed
+   CVD/patch-cadence owner — the one non-optional item, citing exactly the
+   CVE history in E1.
+4. **ENT-AIR:** hardware-absent-NIC variant (not software-disabled).
+5. **Sequencing:** Step 1 (carrier + hardened image on a COTS core) before
+   Step 2 (full secure-boot SoM SKU).
+
+Nothing in the present exploration contradicts that list; what this document
+adds is the question the box doesn't yet ask — whether the ENT *witness*
+need is better served by the hub absorbing capture (E4.3) than by any KVM at
+all, which would narrow OQ-75 to "does CEC want an interactive remote-console
+product," a separable question.
+
+## E3. Trust-architecture mapping: what a stock unit in an ENT bundle actually is
+
+In the trust addendum's terms
+(`docs/enterprise-workstation-trust-addendum-2026-06-30.md`, PR #64 branch):
+the ENT hub is a sealed witness — own RoT, own timebase, hash-chained Merkle
+log, **ONE signed egress stream, ingress driven to near zero**. A stock
+NanoKVM Pro inside that bundle is:
+- an **unattested Linux device** (E1), with
+- **the most sensitive vantage** (the screen: pre-crash BSODs, BIOS setup,
+  whatever the user had open), and
+- **its own unmanaged network egress** (plus a preinstalled third-party
+  overlay VPN), and
+- — the part the consumer-lane analysis never had to weigh — **a standing
+  HID-injection path INTO the monitored host.** An IP-KVM is not merely a
+  witness; its defining function is remote *control*: network-reachable
+  keyboard/mouse injection. In addendum language that is a second standing
+  boundary crossing *inward*, on a device CEC cannot attest. The witness
+  story needs only the capture half; the control half is the dangerous half.
+
+So a stock unit *inside* the boundary violates the addendum's principles
+twice over (unattested + own egress + inward control path). But the addendum
+**already defines the correct pattern for exactly this shape**: the OS
+vantage is likewise a Linux-class, unattestable, richer-than-electrical
+evidence source, and it is ingested as **untrusted claims** — the hub
+timestamps arrival on its own clock, signs *receipt*, and cross-checks
+coherence against the electrical record (addendum §19/§14). The KVM slots
+into the same pattern at zero architectural cost, over the already-built
+J_KVM UART with its already-specified bounded-parser posture (the addendum
+itself cites "the NanoKVM model" for benign-request handling).
+
+## E4. The central question: can the existing compute element already do all of it?
+
+### E4.1 Trust duties — YES, and a carrier SE adds nothing real
+
+The PolarFire MPFS095TC **is** the platform RoT by ratified architecture (PUF
+secure boot + user TRNG + tamper detectors, conditional on the standing FAE
+confirm — 7th ruling, 2026-07-02; signing/hash-chaining/timestamping is its
+designed job: REQ-HUB-COMMON-010/070/071, addendum §3–§5). Everything the KVM
+emits that crosses the hub gets Merkle-chained, signed, and timestamped with
+headroom to spare — the addendum's own throughput table clears ~10 MB/s
+aggregate with 30–100x hashing margin; event-rate keyframes are noise against
+that.
+
+What would a KVM-side secure element on a CEC carrier add? Honestly:
+**almost nothing.** An SE attests *itself* — its presence, its keys, at most
+a firmware image it is physically wired to gate. It **cannot** see inside
+the AX630C's boot chain or runtime: a closed COTS board boots from its own
+eMMC against its own (unused, per E1) OTP; nothing chains to a foreign SE
+sitting beside it on a carrier. The carrier-SE would produce a
+cryptographically impeccable attestation of the carrier — while the black
+box it hosts lies at will. Proximity is not trust; this is the decisive
+argument against option (c) below.
+
+**The residual gap, quantified:** with the KVM behind the hub, the hub can
+attest *"I received these frames/claims on this port at these times, and
+here is their unbroken chain"* — it cannot attest *"these frames are what
+the screen showed."* A compromised KVM can feed stale or synthetic frames.
+What the residual actually costs, given the architecture: the ENT witness
+keeps **one attested domain (electrical) + two untrusted-claims domains
+(logical/OS, visual/KVM)**, with cross-modal incoherence checks partially
+compensating (a fabricated "screen normal" claim against an electrical
+record of a rail collapse is itself a signed, logged incoherence event). The
+presentation and marketing language must say "attested *receipt* of the
+visual vantage," never "attested visual record" — honest-limits phrasing per
+the threat-model doc's canonical-language mandate. Closing the gap fully
+requires owning the KVM's boot chain — OQ-75 Step 2 (secure-boot SoM +
+CEC-signed image) or the E4.3 absorption; **no carrier closes it.**
+
+### E4.2 Network gating — the LAN9370 CANNOT do it; the right gate is nearly free anyway
+
+Checked against §13.2a and the LAN9370 product brief ([Microchip
+DS00002819B](https://ww1.microchip.com/downloads/en/DeviceDoc/LAN9370-Product-Brief-00002819.pdf)):
+the LAN9370 is **4x 100BASE-T1 PHY ports + ONE host MAC port
+(RGMII/RMII/MII)**. The ENT hub uses 2x LAN9370 = 8 T1 ports, **all eight
+consumed by the module links**, and each chip's single host MAC port is
+consumed by its PolarFire fabric bridge. So: **zero spare ports — and the T1
+ports are the wrong PHY class regardless** (100BASE-T1 is single-pair
+automotive Ethernet; the KVM's RJ-45 speaks 1000BASE-T; they do not
+interoperate without a media converter). Option (b) as literally posed ("KVM
+through the hub's LAN9370") is **not available**. [The full LAN9370
+datasheet is still a pending owner-queue item; that blocks deeper policy
+questions (TCAM policy depth, cascade modes) but not this port-arithmetic
+conclusion, which the product brief settles.]
+
+What CAN gate the KVM: a dedicated standard-Ethernet port on the hub —
+either the second hardened-MAC/SGMII uplink (conflicts with the MC SKUs'
+redundant-uplink use of both hard MACs) or a third PHY on a fabric soft MAC
+(~$3–5 of PHY + magnetics; the LAN9370 bridges already spend ~5% LE on two
+soft MACs, so a third is in-family). **The ENT hub board does not exist yet**
+(FCVG484 breakout-study stage; boards gated on Phase-5) — a designed-in
+"gated KVM port" is a near-zero-marginal-cost line item *now*, not a respin.
+
+But note what gating actually buys before designing it in: if the KVM's
+console function must stay reachable by operators, the hub becomes a
+**router for a fat, interactive, bidirectional session** through its one
+standing port — which is not the addendum's "bounded RoT-mailbox return,"
+and imports exactly the muddle the one-signed-egress model exists to avoid.
+Gating is clean only if the KVM is reduced to capture-only behind it — at
+which point its network is vestigial and E4.3 is the better shape. The
+honest placement for a *full-function* KVM is the one REQ-HUB-AIR-059's
+philosophy already implies: **on the customer's own OOB management network,
+outside CEC's boundary entirely**, with CEC taking only the J_KVM UART feed
+as untrusted claims.
+
+### E4.3 Full absorption — feasible for the witness need; the USB gap is (mostly) moot
+
+Could the PolarFire ingest HDMI directly? For the **witness-grade** need —
+keyframes and screen-state evidence at event rate, per Appendix C.7 — yes,
+plausibly and cheaply:
+- **Capture path:** an HDMI-RX bridge (ADV7611-class, 1080p60 parallel out,
+  ~$10–20; or an LT6911-class HDMI-to-MIPI-CSI bridge — the same
+  architecture the NanoKVM-PCIe itself uses into its SoC's CSI port) into
+  PolarFire I/O. The FCVG484 land being SerDes-free does **not** block this:
+  parallel RGB and MIPI CSI-2 RX ride regular HSIO/IOG, not transceivers.
+  The real checks to run before believing it: pin cost (~28 balls parallel /
+  ~10 for 2-lane CSI) against the breakout study's 28/38 MSSIO baseline +
+  the HSIO budget, and the IOG lane-rate ceiling vs 1080p60 — flagged for a
+  Libero/datasheet pass, not assumed.
+- **Encoding:** full-motion H.264 in a ~95K-LE fabric already hosting two
+  switch bridges plus the witness core is **not credible** — but the witness
+  does not need motion video. Event-rate JPEG keyframes are trivially
+  software-encoded on the MSS U54 cores, and each keyframe becomes one more
+  record in the existing Merkle log — **signed visual evidence on the hub's
+  own RoT, with no Linux, no network stack, no third-party firmware, no new
+  trust surface — and it works on ENT-AIR** (capture only, zero egress).
+  Screen-state classification/OCR stays on the Concierge/self-host side per
+  C.7's placement rule.
+- **The USB-OTG gap** (breakout study: MSS USB has **no named ball in the
+  cached FCVG484 pin map** — true pin cost unknown until a Libero
+  pin-planner pass): this bites only the **control half** (USB HID emulation
+  toward the host = remote keyboard/mouse). The witness need doesn't include
+  it — and per E3, the control half is the part the trust architecture
+  *wants* excluded. If an interactive remote console is ever ratified as an
+  ENT-NET requirement, the in-architecture workaround is an **ESP32-P4
+  sidecar** (native USB 2.0 OTG HS device mode — the same silicon already
+  chosen as the uniform ENT module MCU, already doing USB-device duty toward
+  hosts elsewhere in the platform), driven by the PolarFire; alternatives
+  are an external USB device-controller chip, or waiting on the Libero
+  ball-map answer. None of it blocks the capture-only scope.
+- **One honest design item:** capture must sit in a video path. The NanoKVM
+  solves this with HDMI loop-through; a CEC capture input can instead take a
+  **spare GPU head** (workstation GPUs ship 3–4 outputs), which needs no
+  loop-out hardware at all — but a spare head shows a different output than
+  the user's monitor unless mirrored. Loop-through vs spare-head is a
+  product decision for whenever this gets scoped; neither blocks
+  feasibility.
+
+### E4.4 Options ladder, ENT-only, scored
+
+Per the owner's clarification, the August column scores **what story is
+presentable at the architecture/security/attestation walkthrough** — not
+build schedule (the session is a walkthrough, not a functional-hardware
+deadline).
+
+| | Trust-architecture fit | REQ conformance | Cost | Engineering scope | August presentation story |
+|---|---|---|---|---|---|
+| **(a) Stock unit OUTSIDE the boundary** (customer's own OOB net or standalone; WiFi-absent SKU; J_KVM UART feed ingested as untrusted claims) | **Clean** — the OS-vantage pattern, already specified (addendum §19; bounded parser = the existing J_KVM posture). Cost to the witness story: visual stays an untrusted-claims domain (E4.1 residual) — the same class the architecture already accepts for the OS vantage | ENT-NET: fine. ENT-AIR: excluded (REQ-HUB-AIR-059) — visual vantage simply absent on AIR | $0 CEC hardware | ~0 (UART claim ingestion, an already-planned firmware class) | **Presentable as-is and honest**: "three vantages, one attested, two ingested as signed-receipt untrusted claims, cross-modal incoherence checks" — defensible, but concedes the visual domain is unattested when the customer pushes |
+| **(b) Stock unit gated through hub switching** | LAN9370: **impossible** (E4.2 — wrong PHY class, zero spare ports). Via a new dedicated gate port: clean only if capture-only; routing an interactive console muddies the one-egress model | Needs new REQ rows (gate-port policy); AIR still excluded | ~$3–5 BOM on a board not yet designed | Fabric firewall/policy + one PHY — modest, plus new REQ/verification surface | **Weak story**: "we route an unattested device's traffic" invites the question it can't answer (why route what you can't attest?); the gate-port *provision* can be mentioned, but as plumbing, not security |
+| **(c) CEC carrier + secure element + attestation shim** | **Hollow** (E4.1): the SE attests the carrier, not the black-box SoC. A CEC-branded board *implying* trust it cannot deliver — strictly worse than the honest option (a) | Satisfies no REQ (the attestation REQs want the *device* attested) | New board program + SE BOM | Full board program | **Indefensible in the room**: any competent security reviewer asks "what does the SE actually measure?" and the answer is "itself." Presenting this would damage the platform's honest-limits credibility — the story is the *argument against* it |
+| **(d1) CEC-KVM per OQ-75** (Step 1 carrier + hardened image → Step 2 secure-boot SoM) | The only path to an **attested full-function** KVM (closes E4.1's residual at Step 2). Standing Linux PSIRT surface (recs doc rec 5 = precondition) | Rec 6's no-NIC variant = the only REQ-HUB-AIR-059-compliant AIR KVM | Step 1: carrier + ~$40 SoM + image; PSIRT OpEx | The largest — a product line | **Strong roadmap story**: "today the visual vantage is untrusted claims; our KVM line brings it inside the attestation boundary — secure-boot SoM, CEC-signed image, no vendor cloud" — presentable as architecture + the existing recs doc, no hardware needed by August |
+| **(d2) Capture-only absorption into the PolarFire** (E4.3) | **Best witness fit** — visual evidence lands on the hub's own RoT; no Linux, no network, no HID path; AIR-compatible; also *removes* the KVM's inward control path from the story entirely | Extends the witness REQs naturally; no KVM-exclusion tension (it isn't a KVM) | ~$10–25 BOM (HDMI-RX bridge) on the not-yet-designed hub, or a later mezzanine | Fabric/IOG bring-up + keyframe firmware — real but bounded; Libero pin/IOG-rate checks first | **The most defensible story in the room**: "the witness sees the screen with its own eyes — keyframes hash-chained and signed on the same RoT as the electrical record, zero third-party firmware in the visual path, works air-gapped." Presentable by August as an architecture slide + the attestation-chain diagram; contingent on the (cheap, pre-August-doable) Libero pin check to claim feasibility honestly |
+
+### E4.5 Verdict
+
+**The owner's suspicion is confirmed: the existing compute element already
+does all of it, and no new carrier is needed.**
+- The trust duties a carrier SE would claim are the PolarFire's designed
+  job, and the one duty the hub can't perform (attesting the KVM's internal
+  firmware) **no carrier can perform either** — only owning the KVM's boot
+  chain (OQ-75 Step 2) or taking the KVM out of the loop entirely (d2)
+  closes it.
+- **For the August walkthrough**, the most defensible composite story is
+  **(a) today + (d2) as the designed endgame, with (d1) as the optional
+  interactive-console roadmap**: the electrical record fully attested now;
+  the visual vantage ingested honestly as untrusted claims (the same
+  discipline as the OS vantage — a coherence-checked evidence source, with
+  signed receipt); and the roadmap slide showing capture-only absorption
+  putting the screen on the hub's own RoT. Every claim in that story is
+  either already built (Hub J_KVM, addendum architecture), already ruled
+  (REQ-HUB-AIR-059), or already researched (this doc + the recs doc). The
+  only pre-August engineering worth doing for the story's honesty is the
+  **Libero pin-planner check** (MSS USB ball map + HDMI-RX pin/IOG-rate
+  budget) so the d2 slide is "verified feasible," not "believed feasible" —
+  it needs the Libero license item already sitting in the owner queue.
+- **For the ENT hub board now being designed**: two cheap *provisions*, not
+  products — (i) decide whether to reserve a gated standard-Ethernet port
+  (E4.2, useful only for a capture-only or CEC-KVM future, plumbing-grade);
+  (ii) reserve the HDMI-RX bridge's pin budget/connector (E4.3) — both are
+  line items in a board that doesn't exist yet, i.e. the one moment they
+  cost nearly nothing.
+- The **CEC-KVM decision box stays pending on its own merits**, but this
+  analysis narrows it: with capture-only absorption available for the
+  witness need, OQ-75 is really deciding whether CEC wants to sell an
+  *interactive remote console* product — a separable, more deferrable
+  question than "how does ENT get the visual vantage."
+
+## E5. Owner decisions vs. facts (ENT scope)
+
+**Factual (verified this pass, cited above):**
+- Stock NanoKVM/Pro: no evidence of enabled secure boot / signed firmware
+  (silicon capable, product doesn't use it; Eclypsium common-theme finding +
+  the scope of Sipeed's own #301 remediations); CVE-2026-32296 hit the Pro
+  line (fixed 1.2.4); networking is HTTPS-self-signed + SSH + preinstalled
+  Tailscale, no documented 802.1X/VLAN/mTLS (E1).
+- WiFi-absent hardware SKUs exist and are unpowered-verifiable (E1).
+- LAN9370 = 4x 100BASE-T1 + 1 host MAC port; the ratified 2-chip/8-port
+  design consumes every port; it cannot gate a 1000BASE-T device (E4.2).
+- MSS USB OTG has no named ball in the cached FCVG484 map (breakout study);
+  ESP32-P4 (the uniform ENT module MCU) has native USB OTG device mode —
+  the in-architecture workaround if HID emulation is ever needed (E4.3).
+- The trust addendum already defines untrusted-claims ingestion for
+  Linux-class vantages (the OS precedent), and the Merkle/signing throughput
+  headroom covers keyframe-rate visual evidence (E3, E4.1).
+
+**Needs an owner decision (flagged, not resolved):**
+1. The pending **CEC-KVM 5-item decision box** (E2) — now with the E4.5
+   narrowing: is an *interactive console product* wanted at all, given
+   capture-only absorption covers the witness need?
+2. **ENT hub board provisions** (cheap now, expensive later): reserve a
+   gated KVM Ethernet port? reserve HDMI-RX pins/connector? Both need
+   nothing before Phase-5 board work except the say-so and the Libero pin
+   checks.
+3. Whether the August walkthrough presents the (a)+(d2)+(d1) composite story
+   recommended in E4.5, and whether the Libero pin-planner check gets run
+   pre-August so the d2 slide claims "verified feasible."
+4. The **LAN9370 full-datasheet review** remains pending (owner queue) —
+   deeper gating/policy questions (TCAM depth, cascade) are blocked on it;
+   the port-arithmetic conclusion here is not.
+
+## ENT sources (Part II additions)
+
+- Axera AX630C product brief + PSA-Certified family listing — as cited in
+  `docs/enterprise-requirements/research/cec-kvm-recommendations-2026-07-02.md` rec 1
+- The Hacker News, "9 Critical IP KVM Flaws Enable Unauthenticated Root Access
+  Across Four Vendors" (2026-03): https://thehackernews.com/2026/03/9-critical-ip-kvm-flaws-enable.html
+- Eclypsium, "Your KVM is the Weak Link": https://eclypsium.com/blog/your-kvm-is-the-weak-link-how-30-dollar-devices-can-own-your-entire-network/
+- Feedly CVE entry, CVE-2026-32296 (fixed NanoKVM 2.3.1 / Pro 1.2.4): https://feedly.com/cve/CVE-2026-32296
+- GitHub sipeed/NanoKVM issue #301, "Response to concerns about NanoKVM security": https://github.com/sipeed/NanoKVM/issues/301
+- Tom's Hardware, NanoKVM microphone + security flaws report (Feb 2025, updated): https://www.tomshardware.com/tech-industry/cyber-security/researcher-finds-undocumented-microphone-and-major-security-flaws-in-sipeed-nanokvm
+- CGI Coffee, "Deep Dive Into NanoKVM Security Issues" (2025-02): https://cgicoffee.com/blog/2025/02/nanokvm-security-issues-consider-pikvm-instead
+- Sipeed wiki, NanoKVM system updating: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/system/updating.html
+- Sipeed wiki, Tailscale on NanoKVM: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM/network/tailscale.html
+- Microchip LAN9370 product brief DS00002819B (4x 100BASE-T1 + 1 MAC port): https://ww1.microchip.com/downloads/en/DeviceDoc/LAN9370-Product-Brief-00002819.pdf
+- Repo (in-tree / branch): `CEC-Platform-Ground-Truth-Spec.md` §13.2/§13.2a/§13.6/§13.7, OQ-75;
+  `docs/enterprise-security/threat-model-2026-07-02.md`;
+  `docs/enterprise-workstation-trust-addendum-2026-06-30.md` (origin/claude/enterprise-trust-addendum, PR #64);
+  `docs/enterprise-requirements/hub-enterprise-requirements.md` (REQ-HUB-COMMON-043/106, REQ-HUB-AIR-059);
+  `docs/enterprise-requirements/research/cec-kvm-recommendations-2026-07-02.md`;
+  `docs/enterprise-requirements/board-program/fcvg484-breakout-study-2026-07-03.md`;
+  `docs/enterprise-requirements/prototype-demo-plan-2026-07-02.md`; `docs/owner-queue.md`
+
+## Sources (Part I)
 
 - Sipeed Wiki, NanoKVM Pro Introduction: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM_Pro/introduction.html
 - Sipeed Wiki, NanoKVM Pro ATX Getting Started Guide: https://wiki.sipeed.com/hardware/en/kvm/NanoKVM_Pro/atx_start.html
