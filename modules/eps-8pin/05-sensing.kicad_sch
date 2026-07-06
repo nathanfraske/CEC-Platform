@@ -1,0 +1,2699 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "586db8b0-62b6-4eae-a808-7bc337e3c7cb")
+	(paper "A3")
+	(title_block
+		(title "CEC-EPS-8PIN-MODULE: 05-sensing")
+		(date "2026-07-02")
+		(rev "BETA-2")
+		(company "CEC")
+		(comment 1 "Per-cable INA238 + section 6.13 transient-detection front-end (INA181 + TLV7011)")
+	)
+	(lib_symbols
+		(symbol "cec-vendor:R_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "R"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.016 1.016)
+					)
+				)
+			)
+			(property "Value" "R_Small"
+				(at 1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resistor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "R resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "R_Small_0_1"
+				(rectangle
+					(start -0.762 1.778)
+					(end 0.762 -1.778)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:INA226"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(property "Reference" "U"
+				(at -6.35 11.43 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "INA226"
+				(at 3.81 11.43 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "Package_SO:VSSOP-10_3x3mm_P0.5mm"
+				(at 20.32 -11.43 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina228.pdf"
+				(at 8.89 -2.54 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "Description" "High-Side or Low-Side Measurement, Bi-Directional Current and Power Monitor (0-36V) with I2C Compatible Interface, VSSOP-10"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_keywords" "ADC I2C 16-Bit Oversampling Current Shunt"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(property "ki_fp_filters" "VSSOP*3x3mm*P0.5mm*"
+				(at 0 0 0)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(hide yes)
+				)
+			)
+			(symbol "INA226_0_1"
+				(rectangle
+					(start 7.62 10.16)
+					(end -7.62 -10.16)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "INA226_1_1"
+				(pin input line
+					(at -10.16 7.62 0)
+					(length 2.54)
+					(name "Vbus"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -2.54 0)
+					(length 2.54)
+					(name "Vin+"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -10.16 -5.08 0)
+					(length 2.54)
+					(name "Vin-"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 12.7 270)
+					(length 2.54)
+					(name "VS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 0 -12.7 90)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 10.16 7.62 180)
+					(length 2.54)
+					(name "A1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 10.16 5.08 180)
+					(length 2.54)
+					(name "A0"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin bidirectional line
+					(at 10.16 0 180)
+					(length 2.54)
+					(name "SDA"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at 10.16 -2.54 180)
+					(length 2.54)
+					(name "SCL"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at 10.16 -7.62 180)
+					(length 2.54)
+					(name "~{Alert}"
+						(effects
+							(font
+								(size 0.7 0.7)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:C_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.254 1.778 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C_Small"
+				(at 0.254 -2.032 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Unpolarized capacitor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "capacitor cap"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "C_Small_0_1"
+				(polyline
+					(pts
+						(xy -1.524 0.508) (xy 1.524 0.508)
+					)
+					(stroke
+						(width 0.3048)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.524 -0.508) (xy 1.524 -0.508)
+					)
+					(stroke
+						(width 0.3302)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 2.032)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.032)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:INA181A2IDBVR"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at 0 7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "INA181A2IDBVR"
+				(at 0 -7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "p:SOT-23-6_L2.9-W1.6-P0.95-LS2.8-BL"
+				(at 0 -10.16 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/ina181.pdf"
+				(at 0 -12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "TI(德州仪器)"
+				(at 0 -15.24 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "INA181A2IDBVR"
+				(at 0 -17.78 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC Part" "C2058784"
+				(at 0 -20.32 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "Pre-ordered Chips"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "INA181A2IDBVR_0_1"
+				(rectangle
+					(start -6.35 5.08)
+					(end 6.35 -5.08)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(circle
+					(center -5.08 3.81)
+					(radius 0.38)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin unspecified line
+					(at -8.89 2.54 0)
+					(length 2.54)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -8.89 0 0)
+					(length 2.54)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -8.89 -2.54 0)
+					(length 2.54)
+					(name "IN+"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 8.89 -2.54 180)
+					(length 2.54)
+					(name "IN-"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 8.89 0 180)
+					(length 2.54)
+					(name "REF"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 8.89 2.54 180)
+					(length 2.54)
+					(name "VS"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:TLV7011DBVR"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at 0 7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TLV7011DBVR"
+				(at 0 -7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "p:TSOT-23-5_L2.9-W1.6-P0.95-LS2.8-BL"
+				(at 0 -10.16 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tlv7011.pdf"
+				(at 0 -12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "TI(德州仪器)"
+				(at 0 -15.24 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "TLV7011DBVR"
+				(at 0 -17.78 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC Part" "C702117"
+				(at 0 -20.32 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "Pre-ordered Chips"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "TLV7011DBVR_0_1"
+				(rectangle
+					(start -6.35 5.08)
+					(end 6.35 -5.08)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(circle
+					(center -5.08 3.81)
+					(radius 0.38)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin unspecified line
+					(at -8.89 2.54 0)
+					(length 2.54)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -8.89 0 0)
+					(length 2.54)
+					(name "VEE"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at -8.89 -2.54 0)
+					(length 2.54)
+					(name "IN+"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 8.89 -2.54 180)
+					(length 2.54)
+					(name "IN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin unspecified line
+					(at 8.89 2.54 180)
+					(length 2.54)
+					(name "VCC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+3V3"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+3V3"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+3V3\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+3V3_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+3V3_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5VSB"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5VSB"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5VSB_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5VSB_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:GND"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GND"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "GND_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "GND_1_1"
+				(pin power_in line
+					(at 0 0 270)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(text "6.13 TRANSIENT DETECTION  cable 1"
+		(exclude_from_sim no)
+		(at 187.96 138.43 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "4ed9205b-565e-4638-ab60-3acfd43717bc")
+	)
+	(text "6.13 TRANSIENT DETECTION  cable 2"
+		(exclude_from_sim no)
+		(at 187.96 195.58 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "ffd2fad2-e755-4b9a-b587-10ddac3a02f4")
+	)
+	(text "PER-CABLE SENSING  INA238"
+		(exclude_from_sim no)
+		(at 149.86 49.53 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "057b59e6-0bf2-4aab-955d-24caf2417537")
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 156.21 97.79 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7b37013b-d8ec-4583-b475-54c23d7d9754")
+		(property "Reference" "R3" (at 158.242 96.52 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 158.242 99.06 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 156.21 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 156.21 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF2201TCE" (at 156.21 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25879" (at 156.21 97.79 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "c9495669-b9a8-439b-aab5-e12d03b7efbd"))
+		(pin "2" (uuid "59b3f317-8486-4dbd-b4b0-90468c1d06b9"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "R3") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 156.21 118.11 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "3451d784-e8f6-4629-ab6e-217f28edd766")
+		(property "Reference" "R4" (at 158.242 116.84 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "2.2kΩ" (at 158.242 119.38 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 156.21 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 156.21 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF2201TCE" (at 156.21 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25879" (at 156.21 118.11 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "0c761df5-a7b2-46f1-8b55-141080570b9f"))
+		(pin "2" (uuid "53bae10f-8731-47b8-bdd6-8087dfc79c89"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "R4") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:INA226")
+		(at 264.16 148.59 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2490fdf5-a033-45f3-bfb5-ff0ae0893b10")
+		(property "Reference" "U10" (at 264.16 129.54 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA238" (at 264.16 124.46 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 264.16 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 264.16 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 264.16 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "INA238AIDGSR" (at 264.16 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2868250" (at 264.16 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "8" (uuid "f136daba-d278-4945-b912-d06f72c54991"))
+		(pin "10" (uuid "80375992-c740-4615-9420-19309ef2244b"))
+		(pin "9" (uuid "7c7a874a-b944-41f8-a2df-bd05db5362cf"))
+		(pin "6" (uuid "c5404d3c-b889-45fc-9a8d-b45654d0bd69"))
+		(pin "7" (uuid "9e02c1e0-ba51-4538-85f3-f685f0d1a346"))
+		(pin "1" (uuid "49ac7ce3-0550-4edf-af2e-0949aff1de21"))
+		(pin "2" (uuid "a5b9c1a3-c95d-4516-bc38-a361cb4329fd"))
+		(pin "4" (uuid "083fdcb5-cfed-420d-8256-c23f1ed001dc"))
+		(pin "5" (uuid "d6e0692f-1f7d-4414-ae98-882a9c9d5f30"))
+		(pin "3" (uuid "75f1155c-582d-452a-8914-e4620f7374df"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "U10") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 264.16 173.99 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "09a2c7f2-a55d-47e4-96dd-b2cab6e1bcf8")
+		(property "Reference" "C10" (at 265.43 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 265.43 175.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 264.16 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 264.16 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 264.16 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 264.16 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 264.16 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "244e3a27-d15f-4565-adea-f76f1077df1c"))
+		(pin "2" (uuid "4e4119aa-cc80-4df1-8113-12a1b80ff5dd"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C10") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:INA226")
+		(at 264.16 205.74 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2f4824c8-4822-4d93-b63a-c74c58168775")
+		(property "Reference" "U11" (at 264.16 205.74 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA238" (at 264.16 208.28 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_SO:VSSOP-10_3x3mm_P0.5mm" (at 264.16 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 264.16 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 264.16 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "INA238AIDGSR" (at 264.16 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2868250" (at 264.16 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "8" (uuid "91c90861-621b-4289-b2ec-f28d547a35fa"))
+		(pin "10" (uuid "192bcd23-0d28-4865-b1f3-842d31f69b4b"))
+		(pin "9" (uuid "0c2c09fa-2ab5-46cc-ba8f-3a841605c463"))
+		(pin "6" (uuid "096ac2ef-6173-4df3-94ba-178bf5aa30fc"))
+		(pin "7" (uuid "eb4fc113-bd21-47d8-97e2-70018ed73338"))
+		(pin "1" (uuid "a8bbadec-a65a-4502-b4a5-b33df1ad2a1f"))
+		(pin "2" (uuid "a25373ab-ecc4-40eb-8392-0a176ae8ceb6"))
+		(pin "4" (uuid "15a49a0e-df72-4973-8b83-d735f537a5d3"))
+		(pin "5" (uuid "f183dda7-9d86-499d-b869-eacd794cbfc1"))
+		(pin "3" (uuid "f2463e53-2593-4a27-b589-17f4f8a15c58"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "U11") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 264.16 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a3a44cfa-f28f-45cf-9824-a854fda69391")
+		(property "Reference" "C11" (at 265.43 229.87 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 265.43 232.41 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 264.16 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 264.16 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 264.16 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 264.16 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 264.16 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "f8531dbb-5cc4-40fb-b487-fbe11ffdb947"))
+		(pin "2" (uuid "9d233bd4-c265-4614-819f-24597547761b"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C11") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 156.21 57.15 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "54966410-31da-4a20-8d45-f12578de6c25")
+		(property "Reference" "R10" (at 158.242 55.88 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 158.242 58.42 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 156.21 57.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 57.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 156.21 57.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 156.21 57.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 156.21 57.15 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "e9778898-79a4-43d4-849d-d8bed5efa361"))
+		(pin "2" (uuid "32f6c03e-4871-4801-847f-6274991f9cf5"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "R10") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 156.21 77.47 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2a5c7a35-51a0-487d-ae82-f6d4b32b50e0")
+		(property "Reference" "C40" (at 157.48 76.2 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 157.48 78.74 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 156.21 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 156.21 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 156.21 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 156.21 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "0af3561d-0db6-4f87-ba39-26990f6f9c91"))
+		(pin "2" (uuid "d9a3c743-6d33-430c-a3bf-4a2b854eb43a"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C40") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:INA181A2IDBVR")
+		(at 207.01 148.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "db6c4c0d-f455-4d72-8b5f-5620e2a20393")
+		(property "Reference" "U20" (at 207.01 137.16 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA181A2IDBVR" (at 207.01 134.62 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 207.01 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 207.01 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 207.01 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "INA181A2IDBVR" (at 207.01 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2058784" (at 207.01 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "326626ab-2fd7-4e90-a809-5623a143e79f"))
+		(pin "2" (uuid "93f14bfe-10a5-4b1a-9996-8640dfb4316a"))
+		(pin "3" (uuid "4350770e-dc16-4e65-b23d-cd1cf0b61b7a"))
+		(pin "4" (uuid "dfcc23a2-13e3-436c-98b3-4f7ee6b51606"))
+		(pin "5" (uuid "95537cc8-6983-4f2e-9c2b-dc3b760152ca"))
+		(pin "6" (uuid "47d8de0a-998e-4128-b82a-4ff2ac0c1ef3"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "U20") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TLV7011DBVR")
+		(at 156.21 148.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "79fe1083-1bfa-4550-af1a-f1be11d01285")
+		(property "Reference" "U30" (at 156.21 138.43 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TLV7011DBVR" (at 156.21 140.97 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 156.21 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 156.21 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TLV7011DBVR" (at 156.21 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C702117" (at 156.21 148.59 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "febcbde5-5881-49f3-b9cc-92660b095ff2"))
+		(pin "2" (uuid "4e34d7ed-13a0-43cc-b502-a2edf5064646"))
+		(pin "3" (uuid "1f037791-858c-42d6-bcb5-82caa98273bb"))
+		(pin "4" (uuid "3aa770c0-82e7-45fb-bec0-0100518608e4"))
+		(pin "5" (uuid "2d210ba3-4d0d-4138-95aa-ef897545376a"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "U30") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 207.01 173.99 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "033f88fd-95a6-4ff3-8649-9086afb15f28")
+		(property "Reference" "C20" (at 208.28 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 208.28 175.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 207.01 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 207.01 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 207.01 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 207.01 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 207.01 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "3cb07ab6-3089-4a73-9746-0942eba7a729"))
+		(pin "2" (uuid "2a30e50f-9548-4eeb-8ee6-0e0c1c63dc0c"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C20") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 156.21 173.99 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "5ed41518-8044-403a-a4cd-01762fa02f42")
+		(property "Reference" "C30" (at 157.48 172.72 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 157.48 175.26 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 156.21 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 156.21 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 156.21 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 156.21 173.99 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "47797451-6a00-4c27-ab52-c81065a89297"))
+		(pin "2" (uuid "9cb7e33a-e0d0-4a1d-97fa-1df34ec54226"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C30") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:INA181A2IDBVR")
+		(at 207.01 205.74 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "b0563526-f688-45b3-ad94-160ffcf42393")
+		(property "Reference" "U21" (at 207.01 194.31 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "INA181A2IDBVR" (at 207.01 191.77 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-6" (at 207.01 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 207.01 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 207.01 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "INA181A2IDBVR" (at 207.01 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2058784" (at 207.01 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "c8f1c710-b2ab-4d2f-958b-6b4c528bca93"))
+		(pin "2" (uuid "5121d939-209a-4343-b672-ead000ff90ae"))
+		(pin "3" (uuid "d9964079-ade6-420c-a3a6-a9bab3b6edc5"))
+		(pin "4" (uuid "bd0b00b1-1afd-4d1e-a464-dd4cdcea2bb3"))
+		(pin "5" (uuid "cc4519f2-d768-4c70-93fe-836adf62685f"))
+		(pin "6" (uuid "cc0c896b-1e7e-4de9-a7ff-35addc828283"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "U21") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TLV7011DBVR")
+		(at 156.21 205.74 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "1950b603-f969-4038-a105-59732bfdd854")
+		(property "Reference" "U31" (at 156.21 195.58 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TLV7011DBVR" (at 156.21 198.12 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5" (at 156.21 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 156.21 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TLV7011DBVR" (at 156.21 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C702117" (at 156.21 205.74 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "bb59793f-2fe9-465f-a1da-b78ccbc0f72b"))
+		(pin "2" (uuid "bd1c2c6c-7d89-4a77-b988-6ea80b7036c6"))
+		(pin "3" (uuid "6335779a-7873-421a-9fa6-4d9d46d40d7c"))
+		(pin "4" (uuid "6006e1ea-2faa-443c-9ed1-2a83d2827183"))
+		(pin "5" (uuid "64aef005-eaad-4526-859a-da8166594630"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "U31") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 207.01 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "60b81ae5-d409-42ca-8014-75748b7f0bb9")
+		(property "Reference" "C21" (at 208.28 229.87 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 208.28 232.41 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 207.01 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 207.01 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 207.01 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 207.01 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 207.01 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "2c0637a9-69b4-433d-a283-d092784298c3"))
+		(pin "2" (uuid "779449b9-8080-4a64-9cb0-2b636c14369c"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C21") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 156.21 231.14 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "6923b958-b229-4c33-bf52-2f08f8da6f6a")
+		(property "Reference" "C31" (at 157.48 229.87 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 157.48 232.41 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 156.21 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 156.21 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 156.21 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 156.21 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 156.21 231.14 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "34655e84-b49a-4aaa-a606-2885baf419c5"))
+		(pin "2" (uuid "ee0f3243-b09d-46dd-82d2-7a7fb22db534"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "C31") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 198.12 146.05) (xy 194.31 146.05))
+		(stroke (width 0) (type default)) (uuid "9d2ebbbb-ead6-481b-96ba-4de99af81fe3"))
+	(wire (pts (xy 147.32 151.13) (xy 143.51 151.13))
+		(stroke (width 0) (type default)) (uuid "08a63f35-f290-48d3-96bd-bc7d0fe7610a"))
+	(wire (pts (xy 198.12 203.2) (xy 194.31 203.2))
+		(stroke (width 0) (type default)) (uuid "a2ab017f-4133-40eb-ae3e-879c1b49b897"))
+	(wire (pts (xy 147.32 208.28) (xy 143.51 208.28))
+		(stroke (width 0) (type default)) (uuid "89a1d6b6-963c-4a57-89ed-573cb6851130"))
+	(wire (pts (xy 156.21 74.93) (xy 156.21 71.12))
+		(stroke (width 0) (type default)) (uuid "eb2650f4-268b-464a-a5ab-b71f71970d8b"))
+	(wire (pts (xy 156.21 59.69) (xy 156.21 63.5))
+		(stroke (width 0) (type default)) (uuid "3ba2740b-5f51-46f9-bd3d-35c2370849fa"))
+	(wire (pts (xy 165.1 151.13) (xy 168.91 151.13))
+		(stroke (width 0) (type default)) (uuid "c7b6100b-354d-47b9-9308-58bf8a8f7e55"))
+	(wire (pts (xy 165.1 208.28) (xy 168.91 208.28))
+		(stroke (width 0) (type default)) (uuid "60d30690-e764-470d-9303-513d1418b07e"))
+	(wire (pts (xy 147.32 146.05) (xy 143.51 146.05))
+		(stroke (width 0) (type default)) (uuid "c1a6b667-69a2-440a-86ac-1052cce516ff"))
+	(wire (pts (xy 147.32 203.2) (xy 143.51 203.2))
+		(stroke (width 0) (type default)) (uuid "a91fbbbd-6382-4d4c-a830-0b28f4e4cc75"))
+	(wire (pts (xy 156.21 115.57) (xy 156.21 111.76))
+		(stroke (width 0) (type default)) (uuid "fdc45178-caa9-4957-bca1-6ea4ac4c23a6"))
+	(wire (pts (xy 254 146.05) (xy 250.19 146.05))
+		(stroke (width 0) (type default)) (uuid "cd43f5fe-73e8-48be-8138-f65bd862d458"))
+	(wire (pts (xy 254 203.2) (xy 250.19 203.2))
+		(stroke (width 0) (type default)) (uuid "9cfef3fa-4cdd-414c-bae7-5676b4ce4fb3"))
+	(wire (pts (xy 156.21 95.25) (xy 156.21 91.44))
+		(stroke (width 0) (type default)) (uuid "7885b696-b4f3-4aae-ab84-b1e7a43da883"))
+	(wire (pts (xy 254 148.59) (xy 250.19 148.59))
+		(stroke (width 0) (type default)) (uuid "79d0d69f-d8e8-44f7-8897-c4b982073ff0"))
+	(wire (pts (xy 254 205.74) (xy 250.19 205.74))
+		(stroke (width 0) (type default)) (uuid "1fe7a122-27da-4bcd-bfb6-f4e657ee2cd4"))
+	(wire (pts (xy 274.32 146.05) (xy 278.13 146.05))
+		(stroke (width 0) (type default)) (uuid "07f68c7e-ff6a-4ff7-908c-8c0cc178ae5e"))
+	(wire (pts (xy 198.12 151.13) (xy 194.31 151.13))
+		(stroke (width 0) (type default)) (uuid "7e80b833-b6f6-4c83-a959-926e09998bef"))
+	(wire (pts (xy 274.32 156.21) (xy 278.13 156.21))
+		(stroke (width 0) (type default)) (uuid "60395292-8aca-4bcd-9401-92469cc41c69"))
+	(wire (pts (xy 274.32 143.51) (xy 278.13 143.51))
+		(stroke (width 0) (type default)) (uuid "56a04998-a2a1-413c-a70f-a0b7d231b919"))
+	(wire (pts (xy 215.9 151.13) (xy 219.71 151.13))
+		(stroke (width 0) (type default)) (uuid "7203b63e-bab4-4fd6-9d16-4b039a9ae357"))
+	(wire (pts (xy 274.32 203.2) (xy 278.13 203.2))
+		(stroke (width 0) (type default)) (uuid "51ed20c7-5622-4386-8566-ecf4aa9f8e6c"))
+	(wire (pts (xy 198.12 208.28) (xy 194.31 208.28))
+		(stroke (width 0) (type default)) (uuid "798b5483-1839-4479-a15f-db449e4b4569"))
+	(wire (pts (xy 274.32 213.36) (xy 278.13 213.36))
+		(stroke (width 0) (type default)) (uuid "cd4bbfed-6e10-4445-93dc-f3fef1f78824"))
+	(wire (pts (xy 274.32 200.66) (xy 278.13 200.66))
+		(stroke (width 0) (type default)) (uuid "767695ed-a776-4cfc-9577-5661ef13ba62"))
+	(wire (pts (xy 215.9 208.28) (xy 219.71 208.28))
+		(stroke (width 0) (type default)) (uuid "89a23759-f2a8-4d91-9160-f1b184765582"))
+	(wire (pts (xy 156.21 54.61) (xy 156.21 50.8))
+		(stroke (width 0) (type default)) (uuid "6032fb54-2ca6-487c-a1ec-d9b963d04239"))
+	(wire (pts (xy 264.16 176.53) (xy 264.16 180.34))
+		(stroke (width 0) (type default)) (uuid "a7cf924e-26aa-4fe4-b0eb-d42c7486e2e4"))
+	(wire (pts (xy 264.16 233.68) (xy 264.16 237.49))
+		(stroke (width 0) (type default)) (uuid "9018287e-bd8c-4409-bc7b-c75d31c2bb73"))
+	(wire (pts (xy 207.01 176.53) (xy 207.01 180.34))
+		(stroke (width 0) (type default)) (uuid "b8b87470-92c3-48ba-9edd-3727aa787a90"))
+	(wire (pts (xy 207.01 233.68) (xy 207.01 237.49))
+		(stroke (width 0) (type default)) (uuid "66d57729-13de-4a53-bc53-51823d3aa9b4"))
+	(wire (pts (xy 156.21 176.53) (xy 156.21 180.34))
+		(stroke (width 0) (type default)) (uuid "dc4ee4f9-9c46-4341-83e2-f5d8a4eb3607"))
+	(wire (pts (xy 156.21 233.68) (xy 156.21 237.49))
+		(stroke (width 0) (type default)) (uuid "200a4418-3c8d-4190-a6aa-3a10cdfb1f80"))
+	(wire (pts (xy 156.21 80.01) (xy 156.21 83.82))
+		(stroke (width 0) (type default)) (uuid "176a2557-d5c2-49e7-9c2b-732c109bf674"))
+	(wire (pts (xy 254 156.21) (xy 250.19 156.21))
+		(stroke (width 0) (type default)) (uuid "0e725f08-834a-4029-8350-7e6dd8bfd33b"))
+	(wire (pts (xy 254 153.67) (xy 248.92 153.67))
+		(stroke (width 0) (type default)) (uuid "79cd6485-321e-4f3f-b640-c2c76d59a309"))
+	(wire (pts (xy 264.16 135.89) (xy 264.16 132.08))
+		(stroke (width 0) (type default)) (uuid "70416c6c-fa20-413c-b5bb-d55e7a97e713"))
+	(wire (pts (xy 254 213.36) (xy 250.19 213.36))
+		(stroke (width 0) (type default)) (uuid "ff711a65-09dc-4809-b47f-d53f16ed9d56"))
+	(wire (pts (xy 264.16 193.04) (xy 264.16 189.23))
+		(stroke (width 0) (type default)) (uuid "41eb591b-4a78-4f43-addb-597c7217e1df"))
+	(wire (pts (xy 198.12 148.59) (xy 190.5 148.59))
+		(stroke (width 0) (type default)) (uuid "c0fa377f-e3fc-41cc-9ca8-1baca28ab640"))
+	(wire (pts (xy 215.9 148.59) (xy 223.52 148.59))
+		(stroke (width 0) (type default)) (uuid "290504fe-9510-4acb-bcba-513c7016a4c4"))
+	(wire (pts (xy 198.12 205.74) (xy 190.5 205.74))
+		(stroke (width 0) (type default)) (uuid "5775a60e-d70b-44de-af7c-2c5745f07ed2"))
+	(wire (pts (xy 215.9 205.74) (xy 223.52 205.74))
+		(stroke (width 0) (type default)) (uuid "5eb26f91-24c3-4534-b951-db81fa8f07e2"))
+	(wire (pts (xy 147.32 148.59) (xy 139.7 148.59))
+		(stroke (width 0) (type default)) (uuid "4729d9a0-681f-4eb3-adf6-582c18501c53"))
+	(wire (pts (xy 147.32 205.74) (xy 139.7 205.74))
+		(stroke (width 0) (type default)) (uuid "d8e44acf-64c1-4681-bfc7-a73a5de21d0a"))
+	(wire (pts (xy 264.16 171.45) (xy 264.16 167.64))
+		(stroke (width 0) (type default)) (uuid "38f0fea4-5b0e-445a-8f62-903aeb996420"))
+	(wire (pts (xy 264.16 228.6) (xy 264.16 224.79))
+		(stroke (width 0) (type default)) (uuid "18cbc062-b4a8-4833-99b3-2b7a71e72e01"))
+	(wire (pts (xy 207.01 171.45) (xy 207.01 167.64))
+		(stroke (width 0) (type default)) (uuid "856349f5-8f44-4bc0-af04-050c84b36ee5"))
+	(wire (pts (xy 207.01 228.6) (xy 207.01 224.79))
+		(stroke (width 0) (type default)) (uuid "df91d4d3-53dd-480c-be27-fa3d0735367e"))
+	(wire (pts (xy 156.21 171.45) (xy 156.21 167.64))
+		(stroke (width 0) (type default)) (uuid "a0683a77-872b-4422-8ce8-f08e4d167569"))
+	(wire (pts (xy 156.21 228.6) (xy 156.21 224.79))
+		(stroke (width 0) (type default)) (uuid "c9476528-235c-4a1a-bb3f-9656b0f537cf"))
+	(wire (pts (xy 156.21 100.33) (xy 156.21 104.14))
+		(stroke (width 0) (type default)) (uuid "8b90da5c-0f57-4b81-8203-f497ffe03e1e"))
+	(wire (pts (xy 156.21 120.65) (xy 156.21 124.46))
+		(stroke (width 0) (type default)) (uuid "9081ca35-a169-48a1-b749-12aef8685896"))
+	(wire (pts (xy 264.16 161.29) (xy 264.16 166.37))
+		(stroke (width 0) (type default)) (uuid "ab3a80e0-a65e-4a86-aa1e-ea8d6364265f"))
+	(wire (pts (xy 254 210.82) (xy 248.92 210.82))
+		(stroke (width 0) (type default)) (uuid "615abfc2-79c4-447f-a2c1-75605e6180c1"))
+	(wire (pts (xy 264.16 218.44) (xy 264.16 223.52))
+		(stroke (width 0) (type default)) (uuid "1a82ed39-096f-4595-a597-ef013a26a6a7"))
+	(wire (pts (xy 215.9 146.05) (xy 223.52 146.05))
+		(stroke (width 0) (type default)) (uuid "615a2be2-2ebd-4eba-9b69-2b1b5ae97e4c"))
+	(wire (pts (xy 215.9 203.2) (xy 223.52 203.2))
+		(stroke (width 0) (type default)) (uuid "cc5de47c-dabc-4015-9d7a-aa89df3f07b0"))
+	(wire (pts (xy 165.1 146.05) (xy 168.91 146.05))
+		(stroke (width 0) (type default)) (uuid "601c7022-6945-413a-98ea-3077e8bf1f4b"))
+	(wire (pts (xy 165.1 203.2) (xy 168.91 203.2))
+		(stroke (width 0) (type default)) (uuid "dc104934-d91e-4831-806d-d626a8b9ce7e"))
+	(wire (pts (xy 156.21 50.8) (xy 121.92 50.8))
+		(stroke (width 0) (type default)) (uuid "5c9f81e5-2d2f-4c00-869b-ef2599557cf7"))
+	(wire (pts (xy 156.21 91.44) (xy 121.92 91.44))
+		(stroke (width 0) (type default)) (uuid "f489302c-1202-4e22-a1ea-8f4c7a62a0ff"))
+	(wire (pts (xy 156.21 111.76) (xy 121.92 111.76))
+		(stroke (width 0) (type default)) (uuid "bf125dce-634d-43e6-a441-c56a90cdd797"))
+	(wire (pts (xy 143.51 146.05) (xy 121.92 146.05))
+		(stroke (width 0) (type default)) (uuid "aec47c24-5ed7-4a50-b44f-3b1d658d0ec5"))
+	(wire (pts (xy 143.51 203.2) (xy 121.92 203.2))
+		(stroke (width 0) (type default)) (uuid "3fea5515-c88f-49b1-9866-fd7faa8c5e3b"))
+	(wire (pts (xy 278.13 146.05) (xy 297.18 146.05))
+		(stroke (width 0) (type default)) (uuid "fd058193-4c37-4c44-abbb-77f4f899fafa"))
+	(wire (pts (xy 278.13 156.21) (xy 297.18 156.21))
+		(stroke (width 0) (type default)) (uuid "1a90beac-a07c-4c4d-9594-ebe18e45bf0d"))
+	(wire (pts (xy 278.13 203.2) (xy 297.18 203.2))
+		(stroke (width 0) (type default)) (uuid "cc3caecc-5e97-4ac3-99fa-7ed94ed0d651"))
+	(wire (pts (xy 278.13 213.36) (xy 297.18 213.36))
+		(stroke (width 0) (type default)) (uuid "6a65efb5-5d67-4f44-917d-5493b50c0654"))
+	(label "DETAMPC1" (at 143.51 151.13 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4a63dcab-92ac-4835-bce3-e31ec186efc8"))
+	(label "DETAMPC2" (at 143.51 208.28 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "667128d7-3cb1-4c73-904f-0b0f0447bf05"))
+	(label "THRESH" (at 156.21 63.5 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d5cccbd6-f276-4503-8f33-c7702eb5cba9"))
+	(label "THRESH" (at 168.91 151.13 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "83d122af-7f3e-447f-b9b7-9802cbbf6345"))
+	(label "THRESH" (at 168.91 208.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "21156d23-9e03-4c27-91b5-7cecb292c066"))
+	(label "I2C_SCL" (at 250.19 146.05 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "37eb591d-7e97-4d62-b864-24bc2920fda5"))
+	(label "I2C_SCL" (at 250.19 203.2 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "2b7c8339-fe74-4dcb-8b21-f03d87f5ea03"))
+	(label "I2C_SDA" (at 250.19 148.59 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "4603a506-fb3c-4d53-ba82-c5dfb48c8ef1"))
+	(label "I2C_SDA" (at 250.19 205.74 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "d758e464-b588-48c3-9f59-dba76f5a227c"))
+	(label "SENSEC1_HI" (at 194.31 151.13 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b6b9e117-3e89-453c-8b64-d769f749af2a"))
+	(label "SENSEC1_LO" (at 278.13 143.51 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "4422126a-abcb-41e7-9ab9-4243e7e33896"))
+	(label "SENSEC1_LO" (at 219.71 151.13 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "5c4a563d-157c-443c-b829-88f04fca8852"))
+	(label "SENSEC2_HI" (at 194.31 208.28 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "0814bb1f-c37f-4712-a768-8f490d94a0c5"))
+	(label "SENSEC2_LO" (at 278.13 200.66 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "503e01b1-1711-4860-a04f-e295da43f456"))
+	(label "SENSEC2_LO" (at 219.71 208.28 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "94d220e5-7bd7-41ee-9343-c59bb078dd80"))
+	(hierarchical_label "DETAMPC1"
+		(shape output)
+		(at 194.31 146.05 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "a09a5e9e-4521-4992-9f11-19fd8e9d62f5")
+	)
+	(hierarchical_label "DETAMPC2"
+		(shape output)
+		(at 194.31 203.2 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "fcbb48df-4981-4edb-a369-7decfe3677ea")
+	)
+	(hierarchical_label "THRESH"
+		(shape output)
+		(at 156.21 71.12 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "c264205d-69cd-4f1a-a36f-589d49b9a4c0")
+	)
+	(hierarchical_label "THRESH_PWM"
+		(shape output)
+		(at 121.92 50.8 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "716014ff-9c71-4dc5-bdf6-c5b67464fd28")
+	)
+	(hierarchical_label "I2C_SDA"
+		(shape output)
+		(at 121.92 91.44 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "1a3c20cb-6bf9-47df-b686-0c464bea9815")
+	)
+	(hierarchical_label "I2C_SCL"
+		(shape output)
+		(at 121.92 111.76 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "b0067a58-ffb6-4c5b-b077-a8f684235af1")
+	)
+	(hierarchical_label "DETC1"
+		(shape output)
+		(at 121.92 146.05 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "97d122f5-149d-4562-963d-5a3d00a50d6b")
+	)
+	(hierarchical_label "DETC2"
+		(shape output)
+		(at 121.92 203.2 180)
+		(effects (font (size 1.27 1.27)) (justify right))
+		(uuid "7a98311a-1d92-49aa-93d6-96305b60ac4e")
+	)
+	(hierarchical_label "SENSEC1_HI"
+		(shape output)
+		(at 297.18 146.05 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "8b8e0608-aeb3-4223-ac20-f45aa0a4b1a9")
+	)
+	(hierarchical_label "SENSEC1_LO"
+		(shape output)
+		(at 297.18 156.21 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "eb62b857-7cd1-4ebf-b4f5-761bea81f53a")
+	)
+	(hierarchical_label "SENSEC2_HI"
+		(shape output)
+		(at 297.18 203.2 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "8d6117d5-96de-4113-a3a1-85c45168a399")
+	)
+	(hierarchical_label "SENSEC2_LO"
+		(shape output)
+		(at 297.18 213.36 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "b038aef1-57cb-4f8d-81e0-d78d9bd184b2")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 264.16 180.34 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bfecbeab-c013-4ed2-a789-7bfbe24d8fd5")
+		(property "Reference" "#PWR501" (at 264.16 177.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 264.16 186.69 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "b711eb5f-7f6a-4b39-b454-e134b84e8a07"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR501") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 264.16 237.49 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "106093b7-3007-4349-b653-c6f2f7a8381e")
+		(property "Reference" "#PWR502" (at 264.16 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 264.16 243.84 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4c7ea533-73c6-4cb2-a7a2-1946b6dea758"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR502") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 207.01 180.34 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "a3edd38a-6ad1-4f5e-ab99-87ced132999a")
+		(property "Reference" "#PWR503" (at 207.01 177.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 207.01 185.42 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "8862b8a6-2a71-4115-9807-760cd295b106"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR503") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 207.01 237.49 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "438bbae0-8d12-4876-a9aa-2a64a644c082")
+		(property "Reference" "#PWR504" (at 207.01 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 207.01 242.57 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "76762ea0-9433-45f3-8185-aef3694919f8"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR504") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 156.21 180.34 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "cd6ba87e-f5d9-4fa5-afa1-20a63b8d4b3a")
+		(property "Reference" "#PWR505" (at 156.21 177.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 156.21 185.42 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6e7d3a53-63cc-4667-9325-10bc26728b15"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR505") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 156.21 237.49 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7595be12-337f-4880-9552-d895e49c6fbe")
+		(property "Reference" "#PWR506" (at 156.21 234.95 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 156.21 242.57 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "471f9ca5-5a32-4e2e-b39a-39699170b63b"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR506") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 156.21 83.82 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "33036480-d01e-462b-a03f-d53a35fa35e8")
+		(property "Reference" "#PWR507" (at 156.21 81.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 156.21 88.9 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "c6ee2e6d-8ef2-47a6-a6c1-c8a63fe1fd10"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR507") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 250.19 156.21 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "7aab05d2-fb62-43c7-b590-6bf999f90f7f")
+		(property "Reference" "#PWR508" (at 250.19 153.67 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 250.19 161.29 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "962144f0-5d9e-499e-9a00-b49672b6f35d"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR508") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 248.92 153.67 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2e9cd179-4854-4970-a3be-9a74e558ad75")
+		(property "Reference" "#PWR509" (at 248.92 151.13 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 248.92 158.75 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "0342c946-e133-4d65-b2da-7bf68d0db301"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR509") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 264.16 132.08 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c2f53772-f276-4018-bded-32255c57a968")
+		(property "Reference" "#PWR510" (at 264.16 129.54 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 264.16 127 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "f64e962b-2aba-49be-bf6d-4fd80a990659"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR510") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 250.19 213.36 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1773f4a1-bc0c-4f6d-9eee-4d5a3435ed4a")
+		(property "Reference" "#PWR511" (at 250.19 210.82 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 250.19 218.44 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4acf2a90-8ca4-4ebf-8dfa-8bbca159e3aa"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR511") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 264.16 189.23 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "870c5a40-a400-4a1e-8807-2a336f50fc1f")
+		(property "Reference" "#PWR512" (at 264.16 186.69 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 264.16 182.88 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "1a4c98a0-c872-4d21-9abc-467a2ff32ef3"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR512") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 190.5 148.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "3a4c41c1-bf59-4cef-9713-5cacba94707a")
+		(property "Reference" "#PWR513" (at 190.5 146.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 190.5 153.67 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "e1299a43-a048-4919-a9e0-1e31715ec863"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR513") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 223.52 148.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "038f02c5-f901-47e7-877b-bb4268317d7a")
+		(property "Reference" "#PWR514" (at 223.52 146.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 223.52 153.67 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ad3b7e71-7ed0-439d-ad86-cbedee695cb4"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR514") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 190.5 205.74 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "9634c794-69ee-4d78-84d7-6fd19652b496")
+		(property "Reference" "#PWR515" (at 190.5 203.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 190.5 210.82 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "66157f39-a6f8-4d75-8adc-2d1c6c67814c"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR515") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 223.52 205.74 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5750731a-da27-4ce0-9c5e-285e64b132b8")
+		(property "Reference" "#PWR516" (at 223.52 203.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 223.52 210.82 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "0bd050db-94a2-4dbd-9def-1d0b62c98ef2"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR516") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 139.7 148.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "de82b565-002d-4a48-b73e-6415f5bc181e")
+		(property "Reference" "#PWR517" (at 139.7 146.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 139.7 153.67 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6cecb156-1d53-4be9-a428-c69748d8e251"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR517") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 139.7 205.74 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8777424c-e2cb-41c1-8ef5-76455a256b08")
+		(property "Reference" "#PWR518" (at 139.7 203.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 139.7 210.82 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "cce9ed02-7c5f-44ab-87c9-81ecbb301dc8"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR518") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 264.16 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c4757139-0060-4d98-a4d4-346c6acffc39")
+		(property "Reference" "#PWR519" (at 264.16 165.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 264.16 149.86 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "02e12e47-0f7a-4d46-a179-94a7474c5e22"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR519") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 264.16 224.79 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "340fc725-04b5-4939-a9a9-9843da4e04bc")
+		(property "Reference" "#PWR520" (at 264.16 222.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 264.16 210.82 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "8ddac5b3-a5c8-415d-ba79-a10cc6da7ece"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR520") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 207.01 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "045c0ef2-3cde-483c-adfe-063518817c37")
+		(property "Reference" "#PWR521" (at 207.01 165.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 207.01 162.56 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "d6696833-8433-459c-a5a0-3214af612a42"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR521") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 207.01 224.79 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "be5ad0d1-ef2c-412d-9195-701029a68436")
+		(property "Reference" "#PWR522" (at 207.01 222.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 207.01 219.71 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "9131c938-a009-414d-bbe2-46fd284b2bec"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR522") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 156.21 167.64 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "042e248a-e0e3-4974-b2d0-ccf4b1c17156")
+		(property "Reference" "#PWR523" (at 156.21 165.1 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 156.21 162.56 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "4fdb07d0-9389-489f-aa2b-aac3c526860c"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR523") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 156.21 224.79 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "0fe7ab35-ce8a-4b33-96dc-4d158ffe6225")
+		(property "Reference" "#PWR524" (at 156.21 222.25 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 156.21 219.71 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7c58f4be-37a3-4a9c-accb-6cc835ca1149"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR524") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 156.21 104.14 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "1ce9faa4-7d8b-4015-8f7c-8d07d52bd3fe")
+		(property "Reference" "#PWR525" (at 156.21 101.6 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 156.21 109.22 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "33318ad8-a834-4511-9981-a6d6533eafec"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR525") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 156.21 124.46 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "471eef5a-ec21-4f27-bf11-a292868a0bb5")
+		(property "Reference" "#PWR526" (at 156.21 121.92 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 156.21 129.54 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ec1c5979-0e28-4cfb-80cc-f8705f085877"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR526") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 264.16 166.37 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "bc489c78-c207-430d-91ef-2129dce023d0")
+		(property "Reference" "#PWR527" (at 264.16 163.83 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 264.16 153.67 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "ec87d43e-db2a-4cf9-b161-09e964247de7"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR527") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 248.92 210.82 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "858817c2-0d22-4bef-8e7a-90f58ae0ef48")
+		(property "Reference" "#PWR528" (at 248.92 208.28 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 248.92 215.9 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "039813e2-3d48-463f-b2e2-1f4ebab040d6"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR528") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 264.16 223.52 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "2264a627-7ca7-4004-8069-451db26f30b7")
+		(property "Reference" "#PWR529" (at 264.16 220.98 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 264.16 246.38 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "e2fe252a-8653-4808-897d-4dc6a3e650a6"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR529") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 223.52 146.05 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "ed35d5b6-e478-431b-a696-501a223d4f53")
+		(property "Reference" "#PWR530" (at 223.52 143.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 223.52 156.21 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "14404992-6ee4-48ed-9ce9-e104bb708c0f"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR530") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 223.52 203.2 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e7e59140-8745-4ba1-86c9-25aa1f78fd7e")
+		(property "Reference" "#PWR531" (at 223.52 200.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 223.52 213.36 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "31f1b61d-1721-495b-a3ec-3d35eee9c888"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR531") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 168.91 146.05 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "43cfe101-9c9c-47db-8b3e-7b3b3cc2deb3")
+		(property "Reference" "#PWR532" (at 168.91 143.51 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 168.91 152.4 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "6521356a-e8e5-4a8d-ba02-a94058b31da5"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR532") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 168.91 203.2 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "38705bcf-2784-4cc3-b538-b9ce4d95980f")
+		(property "Reference" "#PWR533" (at 168.91 200.66 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+3V3" (at 168.91 209.55 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "90260239-c4d6-4441-90fa-c2ea162ceed7"))
+		(instances
+			(project "eps8pin-module"
+				(path "/ef7f6c4c-2dd9-4559-b472-96b33604786a/ca9223a8-32f6-4bda-a693-56772d321af3" (reference "#PWR533") (unit 1))
+			)
+		)
+	)
+	(no_connect (at 254 140.97) (uuid "fbe22e89-6126-4a53-a998-0f530a310cab"))
+	(no_connect (at 254 198.12) (uuid "72a172b5-bc54-49c4-b98b-05ef85ce9b6a"))
+	(sheet_instances
+		(path "/ca9223a8-32f6-4bda-a693-56772d321af3"
+			(page "6")
+		)
+	)
+	(embedded_fonts no)
+)

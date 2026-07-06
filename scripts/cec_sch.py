@@ -246,6 +246,29 @@ def emit_label(net, x, y, ang):
 def emit_noconnect(x, y):
     return f'\t(no_connect (at {f(x)} {f(y)}) (uuid "{u()}"))'
 
+def emit_global_label(net, x, y, ang, shape="passive"):
+    """A KiCad `global_label` -- unlike `label` (same-sheet only), this binds
+    PROJECT-WIDE by name with NO hierarchical-label/sheet-pin plumbing at all
+    (the same connectivity model power symbols use). For a genuinely shared
+    BUS net touching many leaf sheets that are not in a direct parent-child
+    relationship (e.g. a CAN bus tapped by N sibling port leaves plus a shared
+    transceiver leaf), this is the correct primitive: build_thin_parent's
+    sheet-pin fan-out only composes 1:1 (or 2-endpoint) nets by design (see
+    its own docstring), so a genuine N-way bus is a global label, not a chain
+    of hierarchical pins."""
+    just = "left" if ang in (0, 270) else "right"
+    return (f'\t(global_label "{net}"\n'
+            f'\t\t(shape {shape})\n'
+            f'\t\t(at {f(x)} {f(y)} {ang})\n'
+            f'\t\t(fields_autoplaced yes)\n'
+            f'\t\t(effects (font (size 1.27 1.27)) (justify {just} bottom))\n'
+            f'\t\t(uuid "{u()}")\n'
+            f'\t\t(property "Intersheetrefs" "${{INTERSHEET_REFS}}"\n'
+            f'\t\t\t(at {f(x)} {f(y)} 0)\n'
+            f'\t\t\t(effects (font (size 1.27 1.27)) (hide yes))\n'
+            f'\t\t)\n'
+            f'\t)')
+
 def emit_global_power(symname, x, y, project, root, ref, rot=0):
     # instance of a power symbol (PWR_FLAG, GND, +3V3, +5VSB ...). Its single pin
     # sits at the symbol origin, so place the origin on the wire endpoint. The

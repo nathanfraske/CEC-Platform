@@ -45,6 +45,9 @@ and referenced from the symbol's `Datasheet` field.
 | Part | Symbol | Footprint | 3D | LCSC / MPN |
 |---|---|---|---|---|
 | Generic 10 kΩ NTC thermistor (board / connector temp sense) | `cec-vendor:Thermistor_NTC` | `cec-Resistor_SMD:NTC_0402_1005Metric` | `3dmodels/Resistor_SMD.3dshapes/NCP15XH103F03RC.step` | **C77131** / Murata **NCP15XH103F03RC** |
+| Keystone 3586 SMT universal-entry blade clip (30 A, top & side entry, 1 electrical node) | `cec-vendor:Keystone_3586_Blade_Clip` | `cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip` | `3dmodels/Connector_Blade.3dshapes/Keystone_3586_SMD_Universal_Blade_Clip.step` | **C238113** / Keystone **3586** |
+| Keystone 3557-2 THT "2 in 1" blade-clip holder (30 A/position, **2 independent electrical nodes**, not a single clip) | `cec-vendor:Keystone_3557-2_Blade_Clip_2Pos` | `cec-Connector_Blade:Keystone_3557-2_THT_Universal_Blade_Clip_2Pos` | `3dmodels/Connector_Blade.3dshapes/Keystone_3557-2_THT_Universal_Blade_Clip_2Pos.step` | **C352820** / Keystone **3557-2** |
+| TE FASTON .250×.032 PCB solder tab (male, mates the Keystone clips above) | `cec-vendor:TE_63849-1_FASTON_Tab` | `cec-Connector_Blade:TE_63849-1_FASTON_Tab_250x032_THT` | `3dmodels/Connector_Blade.3dshapes/TE_63849-1_FASTON_Tab_250x032_THT.step` | **C86469** / TE **63849-1** |
 
 The NTC symbol carries the real part props (Manufacturer / MPN / LCSC /
 Datasheet) and a default footprint, so dropping it on a board is BOM-complete.
@@ -54,6 +57,39 @@ divider against a fixed 10 kΩ into an MCU ADC channel. (The 12VHPWR Standard
 `R_Small` placeholder + generic `R_0402` land — ERC clean, netlist-verified
 TEMP1→IO13 / TEMP2→IO14 with wires preserved; pull onto the PCB via
 Update-PCB-from-Schematic.)
+
+The three blade-interface parts (ratified 2026-07-04, owner sign-off;
+`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9–§8.10)
+are vendored per the same pattern: footprints pulled via `easyeda2kicad` from
+their LCSC C-numbers, upgraded to KiCad-10 with `kicad-cli fp upgrade`, then
+**hand-corrected against the manufacturer's own dimensioned drawing** (cached
+below) — the auto-derived export is not trusted blindly (see the 45586
+row-pitch note elsewhere in this repo). Corrections made: 3557-2's 4 THT drill
+holes were 1.8 mm as exported vs 1.6 mm (.063″) on Keystone's dwg — corrected;
+the 63849-1 tab's 2 THT drill holes were 1.6 mm as exported vs 1.40 mm ±0.05
+(⌀.055″) on TE's dwg C=63849 — corrected (this one matters: the barbed tab
+shank is a press/interference fit into that hole ahead of soldering). Pad
+*numbers* were also rewritten so footprint copper reflects true electrical
+topology: 3586's 3 SMD pads (2 legs + a support foot) all carry pad number `1`
+(one node); 3557-2's 4 THT pads were split `1`/`1`/`2`/`2` (two independent
+clip positions in one housing — **not** a 2-terminal series part, see the
+symbol's `Description` property and the fit-check memo below); 63849-1's 2 THT
+pads were already both `1` as exported (correct). Datasheets cached as
+`Keystone_3586.pdf`, `Keystone_3557-2.pdf`, `TE_63849-1.pdf` in
+[`../datasheets/`](../datasheets) — all are the manufacturer's own dimensioned
+drawing (Keystone dwg no. 3586 rev D / Keystone catalog M55 p.41 / TE dwg
+C=63849), not marketing copy. Fit-check memo (tab-vs-clip compatibility,
+retention practice at 30 A):
+`docs/standard-tier-review/blade-fit-check-2026-07-04.md`. **First consumer
+(2026-07-04): `modules/atx-24pin-rev3`** — `TB1`–`TB9` (Keystone 3586, one per
+ratified joint) replace the retired J4 output header; `fp-lib-table` there now
+carries the `cec-Connector_Blade` line. `modules/eps-8pin`,
+`pcie-8pin-2port`, and `pcie-8pin-3port` follow the same pattern via
+`scripts/gen-module-beta.py`'s `06-cable-power` leaf. The TE 63849-1 tab stays
+unconsumed by any board in this repo (it belongs on the daughterboard, a
+separate, not-yet-created deliverable). Add the two `fp-lib-table` lines (see
+[`../templates/README.md`](../templates/README.md)) on any further board that
+places one of these parts.
 
 ## Rule
 

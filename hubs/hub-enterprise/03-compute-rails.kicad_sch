@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083")
+	(paper "A4")
+	(title_block
+		(title "03-compute-rails")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+	)
+	(lib_symbols
+	)
+	(text "03-compute-rails -- CAPTURE PENDING\n\nMIC22705YML-TR core buck + bank rails + sequencing/PG chain\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
+		(at 20 20 0)
+		(effects (font (size 2 2)))
+		(uuid "db198f82-e073-4cd1-a351-5a12e9c7910f")
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4063-8a2b-3c4d5e6f7083"
+			(page "5")
+		)
+	)
+	(embedded_fonts no)
+)

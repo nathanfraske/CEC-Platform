@@ -1,8 +1,38 @@
 # EPS 8-pin module
 
+> **STATUS (2026-07-04, spec §2.8 v1.4.0 output-architecture revision, owner-ratified,
+> BETA-2):** the per-cable board-mount **J_OUT1/J_OUT2** output headers (Molex Mini-Fit Jr
+> 87427-0802, described extensively below as historical PCB context) are **RETIRED**. Each
+> cable's output now crosses the ratified all-Keystone/TE connector-daughterboard interface
+> (`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9–§8.10,
+> `blade-fit-check-2026-07-04.md`): **3 rail clips + 3 GND clips per cable** (6 Keystone 3586
+> SMT universal-entry blade clips, LCSC C238113, refs `TB{cable}1`–`TB{cable}6` — e.g. cable 1
+> = `TB11`–`TB16`), each single-pin clip landing on the exact post-shunt net (`/SENSEC{n}_LO`)
+> or `GND` its share of J_OUT used to carry. Applied via `scripts/gen-module-beta.py`'s
+> `06-cable-power` leaf (generator edit + `--force` regen, not a hand edit); J_IN (the PSU-side
+> input header) is unchanged. Netlist-verified: only `/SENSEC1_LO`, `/SENSEC2_LO`, and `GND`
+> changed, with every other net byte-for-byte identical; ERC/audit-sch introduce zero new
+> findings once `fp-lib-table` carries the `cec-Connector_Blade` line (added). `bom/
+> eps8pin-module-BOM-jlcpcb.csv` updated (J_OUT rows removed, one `Keystone 3586` row added).
+> Sense-return contacts are explicitly NOT added — the study's §5 decision box (e) is still
+> open with the owner. **PCB follow-up (not done here):** the routed `.kicad_pcb` still shows
+> the retired J_OUT connectors; it needs Update-PCB-from-Schematic + a footprint swap to the
+> Keystone 3586 SMT land + a re-route of the cable-power corner before fab. The mating
+> daughterboard (TE 63849-1 tabs) is a separate deliverable, tracked outside this board.
+>
+> Everything below this point describes the **PSU-side input header** (unchanged) and the
+> alpha-era PCB layout built around the now-retired J_OUT connectors — read it as historical
+> design rationale for J_IN/the sensing chain/the stackup, not as a description of the current
+> output connector.
+
 Standard-tier **per-cable** sensing module for the EPS (CPU) 8-pin power
 connector. BOM target **$32** (100-qty). See spec
 [§6.2](../../CEC-Platform-Ground-Truth-Spec.md) (sensing) and §8 (BOM).
+
+Per CLAUDE.md's 2026-07-03 alpha/beta convention: this board is the **ALPHA**
+line (validated prototype, as designed); refinements (the routing pass, etc.)
+land as **BETA** revisions per the standard-tier beta plan
+(`docs/standard-tier-review/SYNTHESIS-beta-plan.md`).
 
 | Item | Decision |
 |---|---|
@@ -193,11 +223,15 @@ those, *Fill All Zones*, route (incl. the §6.8 four-wire Kelvin shunt taps and 
 high-current 12 V transitions), and re-DRC. The two PCIe SKUs use the same generator
 path and can be condensed the same way when their turn comes.
 
-## PCB floorplan (2026-06-06) — RE-CONDENSED on the pegless 87427 connector (96 × 35 mm)
+## PCB floorplan (2026-06-06, widened to 96 × 37 mm in commit 14906cc) — RE-CONDENSED on the pegless 87427 connector
 
 Once the power connector moved to the **pegless Molex 87427-0802** (no snap-peg NPTH
 holes — see the pinout-fix note above), the floorplan was re-condensed: **99 × 44 → 96 × 35 mm
-(−24 % area, ~−20 % height)**. The win is entirely the pegs — the old 5569 footprint reserved
+(−24 % area, ~−20 % height)** at the time of that pass. The board was later widened
+**35 → 37 mm** (commit `14906cc`, the "loop iteration 2" placement revision, to open a
+wider control→sense spine channel) — the committed board today measures **96 × 37 mm**
+(−18.5 % area, −15.9 % height vs the original 99 × 44 mm), not 96 × 35. The win is
+entirely the pegs — the old 5569 footprint reserved
 ~7–11 mm of board on each connector's *mouth* side for the snap-peg holes (which can't overhang);
 the 87427 keeps only its **pad rows on-board and overhangs the whole body/mouth**, so each cable's
 J_IN/J_OUT pull to ~4 mm from the top/bottom edges and the cable column collapses ~22 → ~14 mm.
@@ -303,7 +337,8 @@ python3 scripts/gen-eps-condensed.py --no-plan # board only
 What it does (reuses `gen-module-pcb.py`'s emit helpers without touching the shared generator):
 
 - **FRAME** — the pegless-87427 condensed layout (J_IN rot180 / J_OUT rot0 so the +12V
-  columns align; per-cable sense band; ESP/CAN/LDO/RJ-45 core). 96 × 35 mm, 3 M3 mounts.
+  columns align; per-cable sense band; ESP/CAN/LDO/RJ-45 core). 96 × 37 mm (widened
+  from the generator's original 96 × 35 mm in commit `14906cc` for spine routing), 3 M3 mounts.
 - **PASSIVE ENGINE** — every decoupling / RC / pull-up / ESD passive is placed in its
   **owner IC's cluster on the power-pin side**, from a netlist-verified ownership spec
   (`PASSIVE_SPEC`: each part → the IC it serves + the exact net it must share). At build

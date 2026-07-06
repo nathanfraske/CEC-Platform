@@ -1,0 +1,32 @@
+# Enterprise module requirements — 24-pin ATX family (deltas)
+
+_All sections DRAFT. Inherits `module-requirements-common.md`. Baseline hardware = the
+rev3 respin (ESP32-C6 + §6.13 front-end + TPS2121 +5V_SYS mux + mezzanine base header).
+ENT build deltas per the 6th ruling (2026-07-02): **100BASE-T1 on pair 2 + ESP32-P4 +
+DETECT 10 kΩ** — the family is no longer CAN-only at the ENT tier (REQ-MOD-COMMON-003);
+the earlier STM32G431 pick is superseded._
+
+## 1. Role & sensing — DRAFT
+
+The 24-pin is the platform's energy accountant (only family with hardware energy/charge
+accumulators) and the bulk-power source for the Hub — both are enterprise-load-bearing.
+
+| ID | Requirement | Trace | Verify | Gate |
+|---|---|---|---|---|
+| REQ-24PIN-COMMON-001 | Sensing SHALL be 4× INA228 (12V/5V/3V3/5VSB) with the §6.4 shunt set (2 mΩ ×3, 25 mΩ 5VSB), Kelvin-sensed. | [LOCKED §6.1/§6.4] | I+T | OQ-11 (parts) |
+| REQ-24PIN-COMMON-002 | Hardware energy/charge accumulation SHALL be exposed as auditable counters; reporting SHALL state the OQ-13 scope honestly (24-pin rails only, never presented as total-system energy). | spec §6.1; OQ-13 | T+I | OQ-13 |
+| REQ-24PIN-COMMON-003 | The §6.13 per-rail transient detection front-end (INA181 + TLV7011 → FREEZE) SHALL be populated; the MCU GPIO budget SHALL be verified to bound the monitored-rail count before layout (moot on the ENT build's ESP32-P4 — the constraint bound the consumer C6 and the superseded G431 candidate). | spec §6.13; rev3 doc; owner ruling 2026-07-02 (6th) | I+T | — |
+
+## 2. Power topology (Hub-coupled) — DRAFT
+
+| ID | Requirement | Trace | Verify | Gate |
+|---|---|---|---|---|
+| REQ-24PIN-COMMON-010 | The module SHALL source Hub bulk 5VSB on the dedicated 2-pin feed with its own RJ-45 VCC (J1.1) left open, per the locked §2.7 topology. | [LOCKED §2.7] | I+T | — |
+| REQ-24PIN-COMMON-011 | The MAIN_5V tap feeding the Hub's §2.9 priority-OR SHALL be taken downstream of the 5V INA228 shunt so Hub draw is accounted in system 5V (OQ-13 consistency). | CLAUDE.md item 0(b); spec §2.9 | I+T | — |
+| REQ-24PIN-COMMON-012 | Fail-passive analysis (REQ-MOD-COMMON-030/031) SHALL additionally cover the dual Mini-Fit Jr headers and the bridging-cable path (§2.8) at full ATX load. | spec §2.8; audit §1.4 | A+T | — |
+
+## 3. Mezzanine (integrated enterprise form) — DRAFT
+
+| ID | Requirement | Trace | Verify | Gate |
+|---|---|---|---|---|
+| REQ-24PIN-COMMON-020 | Mezzanine ADOPTED (owner ruling 2026-07-02, 8th — also being adopted across the consumer tiers, per the same ruling): the 24-pin ENT build SHALL carry the male stack header (16-pin 2.00 mm) with the pair-2 pins carrying 100BASE-T1 per REQ-MOD-COMMON-003, and the stacked unit SHALL pass the standoff/GND-bond + 8 mm gap mechanical checks. The integrated stacked-PRODUCT SKU is scoped to **ENT-AIR only for now** — adoption for any other ENT posture is FLAGGED FOR OWNER REVIEW (owner-queue). | owner ruling 2026-07-02 (8th); mezzanine design doc; plan §3a context | I+T | — |

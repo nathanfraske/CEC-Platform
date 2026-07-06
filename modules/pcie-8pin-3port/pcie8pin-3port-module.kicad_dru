@@ -1,0 +1,26 @@
+(version 1)
+
+# CEC PCIe 8-pin 3-port module -- custom design rules (auto-loaded by KiCad).
+# Back the netclasses in pcie8pin-3port-module.kicad_pro. Identical to the 2-port
+# sibling file (W5, 2026-07-03) -- see modules/eps-8pin/eps8pin-module.kicad_dru
+# for the original EPS pattern this was copied from.
+
+(rule "Power min width"
+	(constraint track_width (min 0.5mm))
+	(condition "A.NetClass == 'Power'"))
+
+# NO width floor on /SENSEC* (Power12V): ~30A/cable comes from the 2oz F.Cu+B.Cu
+# POURS (split at each shunt, verified by area per IPC-2152), and the INA238/INA181
+# four-wire Kelvin taps live ON these same nets as ~0.25mm stubs -- a track floor would
+# false-flag them. Power12V clearance is 0.2 (not 0.25) because those Kelvin inputs enter
+# a 0.5mm-pitch VSSOP-10.
+
+(rule "USB diff pair gap"
+	(constraint diff_pair_gap (min 0.1mm) (max 0.2mm))
+	(condition "A.NetClass == 'USB' && B.NetClass == 'USB'"))
+
+# CAN_H/CAN_L keep the standard (asymmetric) names -> NOT a P/N auto-pair; route them as a
+# tightly-coupled pair by hand. Only termination is the Hub's split 120R, never on the module.
+# /CAN_H_J1 and /CAN_L_J1 (the J1-side stub ahead of the H3a FL1 CMC provision) are the same
+# CAN netclass and route the same way -- they are a single physical run split only by the
+# (normally-bypassed, R11/R12-populated) FL1 position.

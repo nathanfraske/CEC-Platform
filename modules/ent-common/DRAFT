@@ -1,0 +1,6 @@
+Work-in-progress draft. This directory is a shared SCHEMATIC BLOCK, not a
+fabricatable board on its own -- no .kicad_pcb exists here and none is
+planned until a family instantiates it. scripts/check-all.sh (and CI) skip
+ERC/DRC-as-a-gate for this directory while this marker exists; verification
+here is done directly via check_p4_t1_block.py (see README.md). Delete this
+marker only once a real board instantiates the block end-to-end.

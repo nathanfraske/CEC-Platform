@@ -15,4 +15,7 @@
   (lib (name "cec-TestPoint")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/TestPoint.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Diode_SMD")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Diode_SMD.pretty")(options "")(descr "Vendored, pinned"))
   (lib (name "cec-Fiducial")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Fiducial.pretty")(options "")(descr "Vendored, pinned"))
+  (lib (name "cec-Common_Mode_Choke")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Common_Mode_Choke.pretty")(options "")(descr "Vendored, pinned; FL1 CAN CMC candidate land (routing-foundation pass 2026-07-04)"))
+  (lib (name "cec-Connector_Blade")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_Blade.pretty")(options "")(descr "Vendored, pinned; Keystone 3586 blade clip (TB1-TB9), spec Sec 2.8 v1.4.0 output-daughterboard interface"))
+  (lib (name "cec-Connector_PinHeader_2.54mm")(type "KiCad")(uri "${KIPRJMOD}/../../lib/vendor/Connector_PinHeader_2.54mm.pretty")(options "")(descr "Vendored, pinned; J_SIG 2x5 signal stub, spec Sec 2.8 v1.4.0"))
 )

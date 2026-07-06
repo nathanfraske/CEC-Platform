@@ -1,0 +1,3 @@
+Work-in-progress draft. scripts/check-all.sh (and CI) skip ERC/DRC for this
+board while this marker exists. Delete it to enforce ERC/DRC once the design
+is ready (post fit-check sample gate, OQ-86/OQ-88).

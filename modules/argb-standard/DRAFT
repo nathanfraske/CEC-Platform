@@ -1,0 +1,27 @@
+Work-in-progress draft, Rev BETA-1. This is the FIRST design pass on the ARGB
+Controller Standard (8-channel) -- no alpha lineage exists (unlike the
+Standard sensing modules, which had validated prototype boards before their
+own beta pass). Schematic-only so far; no .kicad_pcb exists yet, so
+scripts/check-all.sh (and CI) skip ERC/DRC-as-a-gate for this directory while
+this marker exists, matching the modules/output-daughterboards/ precedent for
+a design that has not reached its ratification/fit-check gate.
+
+This is NOT a "the design is broken" marker: kicad-cli sch erc and the
+audit-sch.py / cec_sch_gates.py checks were run and verified clean as part of
+landing this schematic (see README.md's Gates section) -- the marker instead
+tracks genuinely open items that block calling this board ratified:
+  - OQ-29 (ARGB Controller MCU selection) is OPEN platform-wide; this board's
+    ESP32-S3-MINI-1-N4R2 pick is a working basis, not a locked decision
+    (README.md explains why S3 over C6/RP2040/CH32V307).
+  - OQ-36 (ARGB mechanical: retention/keying/chassis, owner Tyreke) is OPEN;
+    the 8x J_LED strip connectors are a plain unkeyed pin-header stand-in,
+    not the real keyed part (none exists on LCSC -- see README.md).
+  - The SATA 15-pin input connector is CONSIGNED (no LCSC line found after a
+    real search -- see README.md); the schematic uses a generic connector
+    symbol with no footprint pending a real sourcing decision.
+  - The RJ-45 pin-1 (Hub 5VSB) tie-in to the module's own logic-power OR is a
+    PROPOSAL, not a ratified decision (README.md spells out the trade).
+  - No PCB layout, no bench validation, no fit check.
+
+Delete this marker only once the board has a real layout and the open items
+above are resolved or explicitly owner-ratified as working-basis-forever.

@@ -11,13 +11,13 @@ J2,1,TO-HUB-PWR,JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal,,,,,,,,,"2-pin +5VSB pow
 J3,1,ATX-24 (PSU),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,,,ATX-24 PSU-side input: Molex 5569 2x12 right-angle MALE (spec 2.8); PSU female cable plugs on directly.
 J4,1,ATX-24 (MB),Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal,,,,,,,,,ATX-24 MB-side output: Molex 5569 2x12 right-angle MALE (spec 2.8); needs F-to-F bridging cable to motherboard (CEC SKU).
 J5,1,USB_C_Receptacle_USB2.0_16P,USB_C_Receptacle_XKB_U262-16XN-4BVC11,,,,,,https://www.usb.org/sites/default/files/documents/usb_type-c.zip,,,Right-angle (90deg) USB 2.0 Type-C debug port.
-R1,1,R_ID (OQ-6),0402,,,,,,,,,DETECT module-ID precision resistor; value pending OQ-6
+R1,1,2.2kΩ,0402,0402WGF2201TCE,UNI-ROYAL,C25879,,,,,,DETECT module-ID precision resistor; OQ-6 LOCKED v1.7 (spec §2.3) -- 24-pin is CAN-only, code = 2.2kΩ. MPN/LCSC reused from the platform-standard 2.2k 0402 line (EPS/PCIe R1,R3,R4; 12VHPWR-Std R1).
 R2,1,10kΩ,0402,,,,,,,,,
 "R4,R3",2,2.2kΩ,0402,,,,,,,,,
 "R6,R5",2,5.1kΩ,0402,,,,,,,,,
 "R10,R7,R9",3,1kΩ,0402,,,,,,,,,
 "RS5,RS2,RS1",3,R002,2512,CSS2H-2512K-2L00F,Bourns,C1729157,,,,,,"Bourns CSS2H-2512K-2L00F 2mOhm 1%, 2-terminal. Honest 2-pad R_2512 land; draw the Kelvin sense taps off the terminal copper in layout."
-RS6,1,R025,2512,,Vishay,,,,,,,5VSB shunt: Vishay WSK2512 25mOhm 4-terminal.
+RS6,1,R025,2512,WSK2512R0250FEA,Vishay,,,DigiKey,,,,"5VSB shunt: Vishay WSK2512R0250FEA 25mOhm 4-terminal Kelvin. OQ-11 LOCKED 2026-07-02: only true-Kelvin 25mOhm 2512 part found (Bourns CSS2H tops out at 5mOhm). Not on LCSC at ratification-sheet fetch; DigiKey stocked (5,708 pcs)."
 "SW2,SW1",2,SW_Push,Panasonic_EVQPUJ_EVQPUA,,,,,,,,,
 U1,1,ESP32-S3-MINI-1-N4R2,ESP32-S2-MINI-1_NoAntKeepout,ESP32-S3-MINI-1-N4R2,Espressif Systems,C3013941,,,,,,ESP32-S3-MINI-1 uses the S2-MINI-1 footprint (mechanically identical)
 U2,1,TJA1051T/3,SOIC-8_3.9x4.9mm_P1.27mm,TJA1051T/3,NXP,C38695,,,,,,

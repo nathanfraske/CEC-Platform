@@ -23,6 +23,33 @@ RJ-45 cable + the 2-pin 5VSB cable; yields a compact integrated "Hub+24-pin" uni
 - Mechanical load goes through the STANDOFFS, not the connector (connector = signals only).
 
 ## 3. Pinout (2x8, GND-interspersed for SI + current)
+
+> **CORRECTED 2026-07-03 (beta splice, B4/K1 gate).** This table as originally drafted
+> (2026-06-24, below the strikethrough) was never actually implemented — the real build,
+> on BOTH sides of the mated pair, used a different pin assignment from the start (one
+> off-by-one GND pin per flank, absorbed into a 3rd +5V_SYS pin at position 3 instead of
+> 15). See the reconciliation table in `docs/standard-tier-review/beta-splices/
+> atx-24pin.md` §J6 for the full pin-by-pin evidence trail. The table below is now the
+> AS-BUILT, single source of truth — matches `modules/atx-24pin-rev3/24pin-module.kicad_sch`
+> (J6) and `hubs/hub-rev2/hub-rev2.kicad_sch` (J_MEZZ) exactly, verified via both schematics'
+> exported netlists.
+
+```
+ Pin  Signal      Pin  Signal
+  1   +5V_SYS      2   +5V_SYS    <- bulk +5V_SYS (24-pin sources it), 3 pins total
+  3   +5V_SYS      4   GND
+  5   CAN_H        6   CAN_L      <- diff pair, single-GND-flanked (4 / 7)
+  7   GND          8   STREAM_P
+  9   STREAM_N    10   GND        <- RS-485 (Pro); populate now for forward-compat
+ 11   DETECT      12   GND        <- the 2.2k module-ID, read on the Hub pull-up
+ 13   RSVD        14   GND
+ 15   GND         16   GND
+```
+Totals: +5V_SYS x3 (1,2,3), GND x7 (4,7,10,12,14,15,16) for return + the shared-ground + guards,
+CAN_H/L, STREAM_P/N, DETECT, RSVD. +5V_SYS ~2.5A over 3 paralleled pins (~9A capacity) = comfortable.
+
+<details><summary>Superseded draft (2026-06-24, never matched either built schematic — kept for provenance)</summary>
+
 ```
  Pin  Signal      Pin  Signal
   1   +5VSB        2   +5VSB      <- bulk 5VSB (24-pin sources it), 3 pins total
@@ -36,6 +63,8 @@ RJ-45 cable + the 2-pin 5VSB cable; yields a compact integrated "Hub+24-pin" uni
 ```
 Totals: +5VSB x3 (1,2,15), GND x7 (3,4,7,8,11,12,16) for return + the shared-ground + guards, CAN_H/L,
 STREAM_P/N, DETECT, RSVD. +5VSB ~2.5A over 3 paralleled pins (~9A capacity) = comfortable.
+
+</details>
 
 ## 4. Shared-ground-via-mounts + the alignment CONTRACT
 - The Hub already has 4 corner M3 mounts ALL ON GND (rect 86 x 61.7mm). The 24-pin rev2 has NO mounts -> ADD

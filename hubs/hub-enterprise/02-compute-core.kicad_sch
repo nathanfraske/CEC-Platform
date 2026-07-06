@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0a1b2c3d-4e5f-4062-8a2b-3c4d5e6f7082")
+	(paper "A4")
+	(title_block
+		(title "02-compute-core")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+	)
+	(lib_symbols
+	)
+	(text "02-compute-core -- CAPTURE PENDING\n\nMPFS095Tx FCVG484 compute core (boot straps, JTAG, clock, decoupling)\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
+		(at 20 20 0)
+		(effects (font (size 2 2)))
+		(uuid "9edd4d2d-8f5e-4996-be40-55b3a70961fc")
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4062-8a2b-3c4d5e6f7082"
+			(page "4")
+		)
+	)
+	(embedded_fonts no)
+)

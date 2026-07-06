@@ -1,0 +1,8 @@
+{
+  "net_settings": {},
+  "erc": {
+    "rule_severities": {
+      "label_dangling": "warning"
+    }
+  }
+}

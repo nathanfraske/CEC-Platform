@@ -172,5 +172,90 @@ class T8cCompositionAnchor(unittest.TestCase):
         self.assertEqual(res.calibration, "uncalibrated")
 
 
+class T12JointRatingAnchor(unittest.TestCase):
+    """Iteration-11 connector-joint element (blade-interconnect audit,
+    2026-07-06): the joint model's thermal resistance is CALIBRATED from TE's
+    own published rating datum -- 108-1706 Fig 4, 22.9 A base rated current by
+    the 30 degC-rise method (AMP 109-45-1), the SAME method the platform margin
+    policy uses. A real external anchor in the AM-04 sense."""
+
+    def test_rating_datum_reproduced(self):
+        # At the rating point the calibrated model must return the rating rise.
+        r = S.joint_solve("te_63951_63969", 22.9, ambient=25.0)
+        self.assertAlmostEqual(r["dT"], 30.0, delta=0.5)
+
+    def test_policy_point_scaling(self):
+        # 18.32 A = the 125%-policy allowable. dT scales ~(I/22.9)^2 (mild rho(T)
+        # relief downward); must sit inside (0.5x .. 1.0x) of the quadratic value.
+        r = S.joint_solve("te_63951_63969", 18.32, ambient=50.0)
+        quad = 30.0 * (18.32 / 22.9) ** 2
+        self.assertLess(r["dT"], quad * 1.05)
+        self.assertGreater(r["dT"], quad * 0.5)
+        self.assertLess(r["dT"], 30.0)                        # inside the policy budget
+
+    def test_resistance_composition(self):
+        # Total joint R at 20C: contact 1.0 mOhm spec-max + blade + receptacle +
+        # tails (brass) -- the bulk metal must be a minority of the interface R.
+        spec = S.joint_te_63951_63969()
+        R = spec.R_total_ohm(20.0)
+        self.assertAlmostEqual(R * 1e3, 1.0 + 0.149 + 0.169 + 0.111, delta=0.05)
+
+    def test_teeth_worn_contact_fails_gate(self):
+        # SABOTAGE: a worn/degraded contact (10 mOhm) at the policy current must
+        # FAIL the 30C-rise gate loudly -- this is the iteration-10 0.34W-vs-3.4W
+        # split as a modeled case, not an aside.
+        worn = S.joint_solve("te_63951_63969", 18.32, ambient=50.0, worn=True)
+        self.assertGreater(worn["dT"], 100.0)
+        res = S.ThermalResult(ambient=50.0, max_T=50 + worn["dT"], max_dT=worn["dT"],
+                              nets={}, vias=[], shunts=[], joints=[worn])
+        cfg = S.Config(board="x", params={})
+        names = [f.name for f in S.physics_gates(res, cfg)]
+        self.assertIn("joint over-temp", names)
+
+    def test_teeth_sabotaged_cross_raises_dt(self):
+        # SABOTAGE: a blade cross-section cut to 10% must raise R and dT.
+        spec = S.joint_te_63951_63969()
+        bad = S.JointSpec(name="sabotaged", contact_R_ohm=spec.contact_R_ohm,
+                          segments=tuple(
+                              S.JointSegment(s.name, s.cross_mm2 * 0.1, s.length_mm,
+                                             s.rho_ohm_m, s.alpha_per_C)
+                              for s in spec.segments),
+                          rth_CW=spec.calibrated_rth())     # SAME rth: isolate the R effect
+        good = S.joint_solve(spec, 18.32, ambient=50.0)
+        sab = S.joint_solve(bad, 18.32, ambient=50.0)
+        self.assertGreater(sab["dT"], good["dT"] * 2.0)
+
+    def test_additive_contract_no_joints_identical(self):
+        # The element is ADDITIVE: declaring joints must not perturb the board
+        # solve (nets/vias/shunts identical); declaring none yields joints == [].
+        try:
+            import pcbnew                                     # noqa: F401
+        except ImportError:
+            self.skipTest("pcbnew absent (host) -- container leg")
+        base_cfg = S.Config(board="am04-microboard",
+                            params={"net_currents": {"HC": 10.0}, "shunt_rth_CW": 25.0})
+        with_j = S.Config(board="am04-microboard",
+                          params={"net_currents": {"HC": 10.0}, "shunt_rth_CW": 25.0,
+                                  "joints": [{"spec": "te_63951_63969", "I": 18.32}]})
+        r0 = S.electrothermal_solve(MICRO, base_cfg, ambient=25.0)
+        r1 = S.electrothermal_solve(MICRO, with_j, ambient=25.0)
+        self.assertEqual(r0.joints, [])
+        self.assertEqual(r0.nets, r1.nets)
+        self.assertEqual(r0.vias, r1.vias)
+        self.assertEqual(r0.shunts, r1.shunts)
+        self.assertEqual(len(r1.joints), 1)
+
+    def test_neg12_rail_classification_fix(self):
+        # Audit defect: '-12V'/'/-12V' matched the '12V' substring and took the
+        # 40A cable current -> false runaway on a 0.3A ATX signal rail. Fixed:
+        # negative rail classifies first; +12V keeps the cable current.
+        cfg = S.Config(board="x", params={})
+        cur = S._net_currents(cfg, {"-12V", "/-12V", "+12V", "/SENSE1_HI"})
+        self.assertEqual(cur["+12V"], 40.0)
+        self.assertEqual(cur["/SENSE1_HI"], 40.0)
+        self.assertEqual(cur["-12V"], 0.5)
+        self.assertEqual(cur["/-12V"], 0.5)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

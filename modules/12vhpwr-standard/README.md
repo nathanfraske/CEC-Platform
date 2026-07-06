@@ -4,6 +4,11 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
 5.x, 600 W GPU) connector. BOM target **$49** (100-qty). See spec
 [§6.1](../../CEC-Platform-Ground-Truth-Spec.md).
 
+Per CLAUDE.md's 2026-07-03 alpha/beta convention: this board is the **ALPHA**
+line (validated, fab-snapshotted prototype); refinements land as **BETA**
+revisions per the standard-tier beta plan
+(`docs/standard-tier-review/SYNTHESIS-beta-plan.md`).
+
 | Item | Decision |
 |---|---|
 | Tier | Standard |
@@ -50,7 +55,8 @@ Standard-tier **per-pin** sensing module for the **12VHPWR / 12V‑2×6** (PCIe 
   a connector-degradation / dV·dI source-impedance trend real). Full simultaneous
   precision stays the Pro (LTC2358-18 + REF3033). Note: Standard REF3030 = 3.0 V
   (*measured* by the ADC); Pro REF3033 = 3.3 V (feeds the LTC2358 ref).
-- **OQ-11:** per-pin shunt part (1 mΩ, §6.4).
+- *(OQ-11 resolved 2026-07-02 — per-pin shunt part (1 mΩ, §6.4) LOCKED to Bourns
+  CSS2H-2512R-1L00F, already the sourced part on this board.)*
 - *(OQ-6 module-ID encoding resolved — CAN-only = 2.2 kΩ.)*
 
 ## High-current 12V routing — fanned per-pin lanes
@@ -187,9 +193,11 @@ Caveats / flags carried into ordering:
   Wired in the schematic (3 wires + GND #PWR926 + a junction at J1's right edge; ERC clean,
   SH1/SH2 now on the GND net). On the PCB the committer ties the two shield tabs into the
   GND pour during *Update Footprints from Library*.
-- **RS1–6 shunt = CSS2H‑2512R‑1L00F (C4175647): the spec §6.4 candidate, OQ‑11 still
-  OPEN** — sourced as the spec's named part, NOT a locked decision (flagged on each RS in
-  the schematic `Note` prop). Stock ≈ 2.8k (~460 boards).
+- **RS1–6 shunt = CSS2H‑2512R‑1L00F (C4175647): OQ‑11 LOCKED** (spec v1.2.0, 2026-07-02;
+  `docs/enterprise-requirements/ratification/oq-11-shunt-selection-2026-07-02.md` confirms
+  this is the only real 1 mΩ Bourns part — `-K-1L00F` does not exist) — already sourced and
+  correct, no BOM change needed (flagged as locked on each RS in the schematic `Note` prop).
+  Stock ≈ 2.8k (~460 boards).
 - **INA240A3DR (C2060584): SOIC‑8 D part** (the PW/TSSOP pinout differs — never order PW).
   Stock ≈ 1.7k → ~290 boards; re-check for volume.
 - **SW1/SW2 → TS‑1088‑AR02016 (C720477, XKB), shared with the Hub** (2026-06-06, Basic,

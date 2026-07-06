@@ -1,0 +1,2401 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "2b3c4d5e-6f70-41a2-8c2b-3d4e5f6071a2")
+	(paper "A4")
+	(title_block
+		(title "CEC Hub -- Enterprise (ENT): 01b-efuse-5vsb")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "+5VSB eFuse front (TPS25940, ILIM 42.2k -> 2.08A typ)")
+	)
+	(lib_symbols
+		(symbol "cec:CEC_PWR_IN_2P"
+			(pin_names
+				(offset 1.016)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "CEC_PWR_IN_2P"
+				(at 0 -5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "CEC dedicated 2-pin +5VSB bulk power-in connector for the Hub (resolves OQ-1). Pin 1 VCC (+5VSB), pin 2 GND. Sized for the full Hub trunk with margin; not RJ-45."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "CEC power input 5VSB 2-pin connector hub OQ-1"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_PWR_IN_2P_1_1"
+				(rectangle
+					(start -2.54 2.54)
+					(end 2.54 -2.54)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(pin passive line
+					(at -7.62 1.27 0)
+					(length 5.08)
+					(name "VCC"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -7.62 -1.27 0)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:R_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "R"
+				(at 0 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.016 1.016)
+					)
+				)
+			)
+			(property "Value" "R_Small"
+				(at 1.778 0 90)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Resistor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "R resistor"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "R_Small_0_1"
+				(rectangle
+					(start -0.762 1.778)
+					(end 0.762 -1.778)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "R_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 0.762)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-ent-power:TPS25940LRVCR"
+			(pin_names
+				(offset 0.254)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "U"
+				(at 0 15.24 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TPS25940LRVCR"
+				(at 0 12.7 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Package_DFN_QFN:WQFN-20_L4.0-W3.0-P0.50-BL-EP"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps25940.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "2.7-18V eFuse w/ true reverse blocking, DevSleep, adjustable UVLO/OVP/ILIM/dVdT, PGOOD+FLT+IMON. WQFN-20 (RVC), 3x4mm, exposed pad = GND (pin 21). ENT hub eFuse fronts U_EF1/2/3 (MAIN_5V/5VSB/EXT), BOM-D."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "Texas Instruments"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "TPS25940LRVCR"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C2867756"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "eFuse hot-swap TPS25940"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "TPS25940LRVCR_0_1"
+				(rectangle
+					(start -8.89 17.78)
+					(end 8.89 -20.32)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+			)
+			(symbol "TPS25940LRVCR_1_1"
+				(pin input line
+					(at -13.97 7.62 0)
+					(length 5.08)
+					(name "DEVSLP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at 13.97 10.16 180)
+					(length 5.08)
+					(name "PGOOD"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -13.97 5.08 0)
+					(length 5.08)
+					(name "PGTH"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 13.97 5.08 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 13.97 2.54 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 13.97 0 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 13.97 -2.54 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_out line
+					(at 13.97 -5.08 180)
+					(length 5.08)
+					(name "OUT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -13.97 -2.54 0)
+					(length 5.08)
+					(name "IN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "9"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -13.97 -5.08 0)
+					(length 5.08)
+					(name "IN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "10"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -13.97 -7.62 0)
+					(length 5.08)
+					(name "IN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "11"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -13.97 -10.16 0)
+					(length 5.08)
+					(name "IN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "12"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -13.97 -12.7 0)
+					(length 5.08)
+					(name "IN"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "13"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -13.97 2.54 0)
+					(length 5.08)
+					(name "EN/UVLO"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "14"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin input line
+					(at -13.97 0 0)
+					(length 5.08)
+					(name "OVP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "15"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at -3.81 -25.4 90)
+					(length 5.08)
+					(name "GND"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "16"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 13.97 -7.62 180)
+					(length 5.08)
+					(name "ILIM"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "17"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 13.97 -10.16 180)
+					(length 5.08)
+					(name "dVdT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "18"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin output line
+					(at 13.97 -12.7 180)
+					(length 5.08)
+					(name "IMON"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "19"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin open_collector line
+					(at 13.97 -15.24 180)
+					(length 5.08)
+					(name "FLT"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "20"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin power_in line
+					(at 3.81 -25.4 90)
+					(length 5.08)
+					(name "EP"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "21"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-vendor:C_Small"
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0.254)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "C"
+				(at 0.254 1.778 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Value" "C_Small"
+				(at 0.254 -2.032 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+					(justify left)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Unpolarized capacitor, small symbol"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "capacitor cap"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "C_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "C_Small_0_1"
+				(polyline
+					(pts
+						(xy -1.524 0.508) (xy 1.524 0.508)
+					)
+					(stroke
+						(width 0.3048)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy -1.524 -0.508) (xy 1.524 -0.508)
+					)
+					(stroke
+						(width 0.3302)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "C_Small_1_1"
+				(pin passive line
+					(at 0 2.54 270)
+					(length 2.032)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.032)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+3V3"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+3V3"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+3V3\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+3V3_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+3V3_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5VSB"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5VSB"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5VSB_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5VSB_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5V_MAIN"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5V_MAIN"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5V_MAIN_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5V_MAIN_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:+5V_SYS"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "+5V_SYS"
+				(at 0 3.556 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"+5V\""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "+5V_SYS_0_1"
+				(polyline
+					(pts
+						(xy -0.762 1.27) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 2.54) (xy 0.762 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 2.54)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "+5V_SYS_1_1"
+				(pin power_in line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:GND"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#PWR"
+				(at 0 -6.35 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "GND"
+				(at 0 -3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "global power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "GND_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27) (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "GND_1_1"
+				(pin power_in line
+					(at 0 0 270)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec-power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(text "+5VSB eFuse front (TPS25940, ILIM 42.2k -> 2.08A typ)"
+		(exclude_from_sim no)
+		(at 71.12 52.07 0)
+		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
+		(uuid "968b0e40-2daa-44f8-b9c9-81bd4d5df289")
+	)
+	(text "UVLO/OVLO divider 45.3k/2.80k/10k -> 4.49V UV / 5.75V OV; ILIM 42.2k -> 2.08A typ (bom-d-power.md)"
+		(exclude_from_sim no)
+		(at 71.12 128.27 0)
+		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
+		(uuid "dbdcc790-1133-4a11-a017-135f61825179")
+	)
+	(symbol
+		(lib_id "cec:CEC_PWR_IN_2P")
+		(at 81.28 68.58 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "2c464a3c-775a-44c3-a43d-6b8f15211f90")
+		(property "Reference" "J102" (at 85.09 67.31 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "CEC_PWR_IN_2P" (at 85.09 69.85 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Connector_JST:JST_XH_S2B-XH-A_1x02_P2.50mm_Horizontal" (at 81.28 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 81.28 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "JST" (at 81.28 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "S2B-XH-A(LF)(SN)" (at 81.28 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C157931" (at 81.28 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "+5VSB power-in (24-pin module feed), 2-pin JST-XH -- reuse platform J_5VSB" (at 81.28 68.58 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "85535f9d-69f0-4817-a730-b21777a43c21"))
+		(pin "2" (uuid "1dbcb3ff-6eb5-413d-917f-05fbe42eee0d"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "J102") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 114.3 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "23b0e0cc-588b-4b92-91c6-f8ebc0ebc450")
+		(property "Reference" "R107" (at 112.268 68.58 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Value" "45.3k" (at 110.998 71.12 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 114.3 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 114.3 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 114.3 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF4532TCE" (at 114.3 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "UVLO/OVLO divider top, 5VSB eFuse" (at 114.3 69.85 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "6bd57df4-1fcc-47e4-ab71-e899abb7753e"))
+		(pin "2" (uuid "24260521-85c1-4a0b-81c2-96ed9cbd9382"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "R107") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 114.3 77.47 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "25281a4d-c8ca-4f50-bc30-6329a92c1b85")
+		(property "Reference" "R108" (at 112.268 76.2 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Value" "2.80k" (at 112.268 78.74 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 114.3 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 114.3 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 114.3 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF2801TCE" (at 114.3 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "UVLO/OVLO divider mid, 5VSB eFuse" (at 114.3 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "03d34920-a3f1-451b-a519-9c95287d6436"))
+		(pin "2" (uuid "8985a893-65ba-4e5c-8e0c-792815288351"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "R108") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 114.3 85.09 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "67d00748-06db-4e0d-9222-8f3242ef7ef9")
+		(property "Reference" "R109" (at 112.268 83.82 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Value" "10kΩ" (at 112.268 86.36 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 114.3 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 114.3 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 114.3 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 114.3 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 114.3 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "UVLO/OVLO divider bottom, 5VSB eFuse" (at 114.3 85.09 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "77a6531e-75ff-4e1f-8e90-6fc701dc730e"))
+		(pin "2" (uuid "ec3ab5a7-7eff-497d-aa89-8db5a2c002ad"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "R109") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-ent-power:TPS25940LRVCR")
+		(at 144.78 92.71 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "d8053db8-9e77-4f4b-be27-276fed94f081")
+		(property "Reference" "U102" (at 144.78 69.85 0) (effects (font (size 1.27 1.27))))
+		(property "Value" "TPS25940LRVCR" (at 144.78 72.39 0) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "cec-Package_DFN_QFN:WQFN-20_L4.0-W3.0-P0.50-BL-EP" (at 144.78 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps25940.pdf" (at 144.78 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Texas Instruments" (at 144.78 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "TPS25940LRVCR" (at 144.78 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C2867756" (at 144.78 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "eFuse front, +5VSB, ILIM 42.2k->2.08A typ" (at 144.78 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "fce4d5b9-0a55-40a8-b392-34e38305d6df"))
+		(pin "2" (uuid "73e7cd42-6c5f-4657-888a-9fc9126684a5"))
+		(pin "3" (uuid "1d6e2316-719f-424e-a05f-e77678a0dfb2"))
+		(pin "4" (uuid "ee4df6a3-7f60-4673-a130-8a60c394e372"))
+		(pin "5" (uuid "7c4159e7-35fb-47cf-9fbc-449c0bffc9cf"))
+		(pin "6" (uuid "c03bd416-f381-461d-be26-bc0a9d334f11"))
+		(pin "7" (uuid "1dc737d8-f95c-4be9-8b47-94935da9e1ef"))
+		(pin "8" (uuid "0db2ccfa-134b-4854-a0cc-db8269026986"))
+		(pin "9" (uuid "9530c70e-7488-47d5-84ea-d8286976b1a9"))
+		(pin "10" (uuid "162610a5-4e06-487f-9d7b-93998a9dd518"))
+		(pin "11" (uuid "7e954ffb-856a-4a31-8639-3d4f9bb50a4c"))
+		(pin "12" (uuid "ed7af9b0-5041-48be-9bcb-57cf8ff07d53"))
+		(pin "13" (uuid "5e01fa3f-cb2a-42ba-8df9-4833c5912ba3"))
+		(pin "14" (uuid "8f66db0c-b2a7-4bf8-b557-1dd014221a23"))
+		(pin "15" (uuid "cc9990ed-74f5-4a56-9516-15dc37bf4b9c"))
+		(pin "16" (uuid "a615e46b-815a-4b6d-a02d-149e58b1a44b"))
+		(pin "17" (uuid "dfe6d08c-1979-4944-a47b-cbcc1fa173e8"))
+		(pin "18" (uuid "0de2ec59-f642-4742-8255-5c774b77c10e"))
+		(pin "19" (uuid "db157527-dfc9-42cf-b072-766cbcf8b1ab"))
+		(pin "20" (uuid "3d049806-d5f1-4ad9-81b9-980a5d405945"))
+		(pin "21" (uuid "d023e3a7-59f8-461a-afc7-3133731a0e25"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "U102") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 166.37 113.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cd48a768-a522-49ad-ad5d-361edcbde510")
+		(property "Reference" "R110" (at 169.672 111.76 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "42.2k" (at 169.672 114.3 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 166.37 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 166.37 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 166.37 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF4222TCE" (at 166.37 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "R_ILIM 5VSB -> 2.08A typ" (at 166.37 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "a21e4e8d-61de-47b4-99c4-f3d62a3a57ec"))
+		(pin "2" (uuid "3dd32cea-bcba-446c-8ee0-71d854e28c66"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "R110") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 171.45 113.03 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "cfaabff6-3b9e-4054-bccb-2a5847188bf0")
+		(property "Reference" "C104" (at 170.18 109.22 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Value" "10nF" (at 170.18 116.84 0) (effects (font (size 1.27 1.27)) (justify right)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 171.45 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 171.45 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 171.45 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B103KB5NNNC" (at 171.45 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C15195" (at 171.45 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "dVdT soft-start ramp cap, 5VSB eFuse" (at 171.45 113.03 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "6164594a-f894-49a5-8244-4e43dace7672"))
+		(pin "2" (uuid "333e7ca8-3c50-44e9-8f75-7aed32971853"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "C104") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 176.53 80.01 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "21045123-a26d-4690-9762-a922c3ac64f2")
+		(property "Reference" "R111" (at 178.562 78.74 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 178.562 81.28 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 176.53 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 176.53 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 176.53 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 176.53 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 176.53 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "PGOOD pull-up, 5VSB eFuse" (at 176.53 80.01 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "640e3009-a714-4d18-9b94-0c3d8f9a03f7"))
+		(pin "2" (uuid "b1115c9d-db2f-4965-88bf-d85c5ca715ac"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "R111") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:R_Small")
+		(at 176.53 105.41 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "7b3e9564-4a38-4f91-8c41-08632ff69d86")
+		(property "Reference" "R112" (at 178.562 104.14 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "10kΩ" (at 178.562 106.68 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Resistor_SMD:R_0402_1005Metric" (at 176.53 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 176.53 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "UNI-ROYAL" (at 176.53 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "0402WGF1002TCE" (at 176.53 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C25744" (at 176.53 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "FLT pull-up, 5VSB eFuse" (at 176.53 105.41 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "bae5ae37-e0d6-49a0-8694-57a93cc7800f"))
+		(pin "2" (uuid "7b1d8cee-f4e9-43ea-b624-3ccc3a8e0dcf"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "R112") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 104.14 72.39 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "a564bd83-6590-44ea-8b87-2267dded2c1e")
+		(property "Reference" "C105" (at 105.41 66.04 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "100nF" (at 105.41 88.9 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 104.14 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 104.14 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 104.14 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL05B104KO5NNNC" (at 104.14 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C1525" (at 104.14 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "input noise-suppression cap, 5VSB eFuse" (at 104.14 72.39 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "602bf546-3ab4-41b0-b492-b40c1cd72081"))
+		(pin "2" (uuid "2414e633-62a6-4c22-a650-0664e5b0b041"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "C105") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 163.83 92.71 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "0004caf7-e697-4b4e-a9ab-2eb8ee4687f3")
+		(property "Reference" "C106" (at 165.1 91.44 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Value" "1uF" (at 165.1 93.98 0) (effects (font (size 1.27 1.27)) (justify left)))
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric" (at 163.83 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Datasheet" "" (at 163.83 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Manufacturer" "Samsung" (at 163.83 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "MPN" "CL10A105KB8NNNC" (at 163.83 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "LCSC" "C15849" (at 163.83 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Description" "local output bypass, 5VSB eFuse" (at 163.83 92.71 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(pin "1" (uuid "917d99a0-6e59-42a2-9743-6086a9096289"))
+		(pin "2" (uuid "0a6e0c8c-283d-4e67-8bc5-0b440b8f4c05"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "C106") (unit 1))
+			)
+		)
+	)
+	(wire (pts (xy 73.66 67.31) (xy 78.74 67.31))
+		(stroke (width 0) (type default)) (uuid "76050c17-a711-4e6b-9af2-67c19d694be0"))
+	(wire (pts (xy 78.74 67.31) (xy 104.14 67.31))
+		(stroke (width 0) (type default)) (uuid "1860d8f4-5d05-4a76-b1d7-76efadaf75ea"))
+	(wire (pts (xy 104.14 67.31) (xy 114.3 67.31))
+		(stroke (width 0) (type default)) (uuid "285b4890-063b-44b5-9952-28fdd24147d3"))
+	(wire (pts (xy 114.3 67.31) (xy 125.73 67.31))
+		(stroke (width 0) (type default)) (uuid "546153d3-5d64-4a5b-ba2a-397e9b072099"))
+	(wire (pts (xy 104.14 67.31) (xy 104.14 69.85))
+		(stroke (width 0) (type default)) (uuid "72eef57e-a255-4e91-b0b9-b7633d712393"))
+	(wire (pts (xy 114.3 72.39) (xy 114.3 74.93))
+		(stroke (width 0) (type default)) (uuid "ae2d7c46-33fe-40d8-9e90-b463894dd528"))
+	(wire (pts (xy 114.3 74.93) (xy 114.3 74.93))
+		(stroke (width 0) (type default)) (uuid "83216130-4445-46cd-9477-6732de254afc"))
+	(wire (pts (xy 114.3 80.01) (xy 114.3 82.55))
+		(stroke (width 0) (type default)) (uuid "1c9a31d1-eddc-4555-8b01-c1f3f4d7b0e2"))
+	(wire (pts (xy 114.3 82.55) (xy 114.3 82.55))
+		(stroke (width 0) (type default)) (uuid "0f76c178-80a5-4a24-9f94-b4a9377e32ca"))
+	(wire (pts (xy 125.73 67.31) (xy 125.73 95.25))
+		(stroke (width 0) (type default)) (uuid "458634f0-33a4-49f0-88fd-65efa9b7bfe6"))
+	(wire (pts (xy 125.73 95.25) (xy 130.81 95.25))
+		(stroke (width 0) (type default)) (uuid "05cf47e9-4844-4399-a575-d11c15e15c9a"))
+	(wire (pts (xy 130.81 95.25) (xy 130.81 97.79))
+		(stroke (width 0) (type default)) (uuid "e606372f-2d15-4a25-a84d-bf2e59e144d6"))
+	(wire (pts (xy 130.81 97.79) (xy 130.81 100.33))
+		(stroke (width 0) (type default)) (uuid "f3997f3b-3b3e-41c0-90de-28b38f18b367"))
+	(wire (pts (xy 130.81 100.33) (xy 130.81 102.87))
+		(stroke (width 0) (type default)) (uuid "87f0019b-6fda-4e08-b39b-c895a2c88e12"))
+	(wire (pts (xy 130.81 102.87) (xy 130.81 105.41))
+		(stroke (width 0) (type default)) (uuid "9c293759-292d-4c78-82a8-3f67d2678e3c"))
+	(wire (pts (xy 130.81 85.09) (xy 128.27 85.09))
+		(stroke (width 0) (type default)) (uuid "cf3ea5c5-32eb-4177-b4ae-329f07d8ded2"))
+	(wire (pts (xy 128.27 85.09) (xy 128.27 80.01))
+		(stroke (width 0) (type default)) (uuid "a2ca122a-fab4-4cf3-b13f-52f2d5a87fb2"))
+	(wire (pts (xy 140.97 118.11) (xy 140.97 120.65))
+		(stroke (width 0) (type default)) (uuid "7865e897-806b-4fff-ba7e-8a1c211e88bd"))
+	(wire (pts (xy 140.97 120.65) (xy 144.78 120.65))
+		(stroke (width 0) (type default)) (uuid "9deb73e5-7453-41d3-9ca2-33f8849fb754"))
+	(wire (pts (xy 148.59 118.11) (xy 148.59 120.65))
+		(stroke (width 0) (type default)) (uuid "1e9fd9d1-4504-4365-81fa-59e71b610b34"))
+	(wire (pts (xy 148.59 120.65) (xy 144.78 120.65))
+		(stroke (width 0) (type default)) (uuid "19a52204-ae11-4213-9447-69c2b3888e53"))
+	(wire (pts (xy 144.78 120.65) (xy 144.78 123.19))
+		(stroke (width 0) (type default)) (uuid "9b9ce9d6-61ba-4299-957f-4ef57bc00483"))
+	(wire (pts (xy 158.75 87.63) (xy 158.75 90.17))
+		(stroke (width 0) (type default)) (uuid "b3330c3e-903a-4f81-bb41-e156bf1d6c98"))
+	(wire (pts (xy 158.75 90.17) (xy 158.75 92.71))
+		(stroke (width 0) (type default)) (uuid "43a0d2ce-e131-4fe7-bb79-d2d1ba55fd60"))
+	(wire (pts (xy 158.75 92.71) (xy 158.75 95.25))
+		(stroke (width 0) (type default)) (uuid "00d72821-1e1e-4c95-be96-88f70e8cafd5"))
+	(wire (pts (xy 158.75 95.25) (xy 158.75 97.79))
+		(stroke (width 0) (type default)) (uuid "cc69e748-58a0-498c-b777-0c8331d8dba9"))
+	(wire (pts (xy 158.75 87.63) (xy 163.83 87.63))
+		(stroke (width 0) (type default)) (uuid "e97a4001-d62d-4b01-be79-289acf106d43"))
+	(wire (pts (xy 163.83 87.63) (xy 168.91 87.63))
+		(stroke (width 0) (type default)) (uuid "eba58f96-4152-47be-98d9-b1fa9ec4988b"))
+	(wire (pts (xy 163.83 87.63) (xy 163.83 90.17))
+		(stroke (width 0) (type default)) (uuid "b1a9ef67-fdcb-4e8e-b7db-502a16eb1673"))
+	(wire (pts (xy 158.75 82.55) (xy 176.53 82.55))
+		(stroke (width 0) (type default)) (uuid "6d3c32e0-a483-4fd3-bb5d-2ed2f09d1ed3"))
+	(wire (pts (xy 176.53 82.55) (xy 179.07 82.55))
+		(stroke (width 0) (type default)) (uuid "dee5ffe6-e1e1-41df-a61a-c1de5b049411"))
+	(wire (pts (xy 158.75 100.33) (xy 161.29 100.33))
+		(stroke (width 0) (type default)) (uuid "94c7d5ec-0ebd-4745-adc0-cd0c62e9f65b"))
+	(wire (pts (xy 161.29 100.33) (xy 166.37 100.33))
+		(stroke (width 0) (type default)) (uuid "346c4f63-31ed-47d8-b01c-27ee452ce4b4"))
+	(wire (pts (xy 166.37 100.33) (xy 166.37 110.49))
+		(stroke (width 0) (type default)) (uuid "9f48c70b-2dfe-4cc4-8de3-691fbd8591f9"))
+	(wire (pts (xy 158.75 102.87) (xy 171.45 102.87))
+		(stroke (width 0) (type default)) (uuid "755c6f15-f3c9-4e63-847b-b53edc64b5b3"))
+	(wire (pts (xy 171.45 102.87) (xy 171.45 110.49))
+		(stroke (width 0) (type default)) (uuid "0039495d-7d19-4b86-865c-8b7269d21b41"))
+	(wire (pts (xy 158.75 107.95) (xy 176.53 107.95))
+		(stroke (width 0) (type default)) (uuid "42f41665-b032-4d9e-800e-3d7e68443b62"))
+	(wire (pts (xy 176.53 107.95) (xy 179.07 107.95))
+		(stroke (width 0) (type default)) (uuid "76f3dd7b-0dea-43b6-9372-a935172f8ba6"))
+	(wire (pts (xy 73.66 69.85) (xy 69.85 69.85))
+		(stroke (width 0) (type default)) (uuid "26161bab-30e3-4903-a67c-bf3af53fbe02"))
+	(wire (pts (xy 114.3 87.63) (xy 114.3 91.44))
+		(stroke (width 0) (type default)) (uuid "81ec7cf2-8e7e-492e-87b4-68efb870950a"))
+	(wire (pts (xy 166.37 115.57) (xy 166.37 119.38))
+		(stroke (width 0) (type default)) (uuid "49d33602-d567-4aa0-897f-1df2d0c9de37"))
+	(wire (pts (xy 171.45 115.57) (xy 171.45 119.38))
+		(stroke (width 0) (type default)) (uuid "3f34ce6b-33d1-4c77-8fcf-2d7bf0fe70bd"))
+	(wire (pts (xy 104.14 74.93) (xy 104.14 78.74))
+		(stroke (width 0) (type default)) (uuid "dd4498e0-61d9-4c41-825f-8e54f0f50c8d"))
+	(wire (pts (xy 163.83 95.25) (xy 163.83 99.06))
+		(stroke (width 0) (type default)) (uuid "6f0d8172-9cf2-479f-8cb9-ed7fe511b591"))
+	(wire (pts (xy 130.81 90.17) (xy 127 90.17))
+		(stroke (width 0) (type default)) (uuid "fb65cdbc-3cfb-4c09-b4db-ea76b64442e3"))
+	(wire (pts (xy 130.81 92.71) (xy 127 92.71))
+		(stroke (width 0) (type default)) (uuid "09caa5c0-4372-4d50-aba6-b59e6b72ff23"))
+	(wire (pts (xy 176.53 77.47) (xy 176.53 73.66))
+		(stroke (width 0) (type default)) (uuid "9ac51f17-6742-4eb6-9437-a68b61061b09"))
+	(wire (pts (xy 176.53 102.87) (xy 176.53 99.06))
+		(stroke (width 0) (type default)) (uuid "0d209255-ba38-4ac3-8e61-d7a23283e349"))
+	(wire (pts (xy 130.81 87.63) (xy 127 87.63))
+		(stroke (width 0) (type default)) (uuid "21d9cd45-8b63-455f-b57c-40c62213dda4"))
+	(wire (pts (xy 179.07 82.55) (xy 198.12 82.55))
+		(stroke (width 0) (type default)) (uuid "de68b6f2-1db9-4c89-983a-6c129e60e6eb"))
+	(wire (pts (xy 168.91 87.63) (xy 198.12 87.63))
+		(stroke (width 0) (type default)) (uuid "7f0541cf-2b0f-40e8-9246-e30e030f38ca"))
+	(wire (pts (xy 179.07 107.95) (xy 198.12 107.95))
+		(stroke (width 0) (type default)) (uuid "e444a2e1-660b-4d85-8e87-53c65b8c787e"))
+	(wire (pts (xy 66.04 138.43) (xy 66.04 148.59))
+		(stroke (width 0) (type default)) (uuid "060c19e1-46ea-414d-8af8-2ad52c5ecc92"))
+	(junction (at 104.14 67.31) (diameter 0) (color 0 0 0 0) (uuid "01c81278-21ad-4fd5-a688-2322f9f9ebc3"))
+	(junction (at 114.3 67.31) (diameter 0) (color 0 0 0 0) (uuid "65f74b35-e51e-4544-8971-c40df4b59192"))
+	(junction (at 114.3 74.93) (diameter 0) (color 0 0 0 0) (uuid "2a1134d6-ecd1-4688-ad76-e6c160cc115e"))
+	(junction (at 114.3 82.55) (diameter 0) (color 0 0 0 0) (uuid "9b35a7e8-bb94-4242-95b2-48a7af0fcc4e"))
+	(junction (at 130.81 95.25) (diameter 0) (color 0 0 0 0) (uuid "c649e16d-0b91-43ce-8b8f-f749b98dbedc"))
+	(junction (at 130.81 97.79) (diameter 0) (color 0 0 0 0) (uuid "8510ecb5-bced-4a90-b9c3-393ebe759264"))
+	(junction (at 130.81 100.33) (diameter 0) (color 0 0 0 0) (uuid "346c47a9-97a1-4e76-ba27-b273b2a278ba"))
+	(junction (at 130.81 102.87) (diameter 0) (color 0 0 0 0) (uuid "d9f9b130-3e5a-4ee1-b4c1-bc400dc52813"))
+	(junction (at 144.78 120.65) (diameter 0) (color 0 0 0 0) (uuid "f0331b16-cdf7-4683-9147-521a1ce100ad"))
+	(junction (at 158.75 87.63) (diameter 0) (color 0 0 0 0) (uuid "ce7360a0-d8b0-46ac-a5ca-93b668b05b8b"))
+	(junction (at 158.75 90.17) (diameter 0) (color 0 0 0 0) (uuid "714cf1c6-bc6b-4d87-8676-6c56bb651e3a"))
+	(junction (at 158.75 92.71) (diameter 0) (color 0 0 0 0) (uuid "c4fce273-f882-4b2d-a159-3ad53c5d5dd8"))
+	(junction (at 158.75 95.25) (diameter 0) (color 0 0 0 0) (uuid "d45f8805-32e5-4ca1-bb8e-ee64c0a67cf5"))
+	(junction (at 163.83 87.63) (diameter 0) (color 0 0 0 0) (uuid "b4b87ca2-f621-4966-b0e9-02ba6b3cbd35"))
+	(junction (at 176.53 82.55) (diameter 0) (color 0 0 0 0) (uuid "0f3a9c85-5557-4942-84e2-d3ad34d044c0"))
+	(junction (at 176.53 107.95) (diameter 0) (color 0 0 0 0) (uuid "6af4ce54-d0b0-439d-bf55-16928197e258"))
+	(label "UVLO_SVB" (at 114.3 74.93 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "5345fe96-6070-423e-ba84-bf0db2d931a1"))
+	(label "OVP_SVB" (at 114.3 82.55 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "8ffcbc15-6c26-4def-83bc-6ba7153622bd"))
+	(label "ILIM_SVB" (at 161.29 100.33 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "88be6c3e-acdc-4d90-9f52-9cc712a46f97"))
+	(label "UVLO_SVB" (at 127 90.17 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "ce0f7339-bb05-49ae-9c21-32aeacda3b26"))
+	(label "OVP_SVB" (at 127 92.71 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "b33b7954-5cb8-4203-9376-ee614aeb7d24"))
+	(label "SVB_EF_OUT" (at 127 87.63 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "23b8318a-5f33-45ba-a828-c72a8a1e3ff1"))
+	(hierarchical_label "PG_SVB"
+		(shape output)
+		(at 176.53 73.66 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "9258ab1e-094f-4719-a893-fb26dbc9e2b6")
+	)
+	(hierarchical_label "FLT_SVB"
+		(shape output)
+		(at 176.53 99.06 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "349873d5-453c-4876-856d-e80266520904")
+	)
+	(hierarchical_label "PG_SVB"
+		(shape output)
+		(at 198.12 82.55 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "a1185423-d1c7-4c5a-b200-f8f0d35b6494")
+	)
+	(hierarchical_label "SVB_EF_OUT"
+		(shape output)
+		(at 198.12 87.63 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "ff225f3b-0ffb-4bb8-af47-0d58b1bdc3e5")
+	)
+	(hierarchical_label "FLT_SVB"
+		(shape output)
+		(at 198.12 107.95 0)
+		(effects (font (size 1.27 1.27)) (justify left))
+		(uuid "1a1eba64-4e42-4d4b-8894-36019b43c128")
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 78.74 67.31 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "73608b35-794f-4605-a5fd-b7fc5c52d75c")
+		(property "Reference" "#PWR201" (at 78.74 64.77 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 78.74 62.23 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "452316a1-bce2-4106-a0d6-355f83508caf"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR201") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 128.27 80.01 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "e91623f3-60a0-4613-b3ae-50e8c18787dc")
+		(property "Reference" "#PWR202" (at 128.27 77.47 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 128.27 74.93 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "2da7ab02-1f33-4574-aa6c-f1af23125ff1"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR202") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 144.78 123.19 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "62440913-336b-437e-b9cf-4649ebe25686")
+		(property "Reference" "#PWR203" (at 144.78 120.65 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 144.78 132.08 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "026c59e5-9405-4db4-8258-2334205d1f65"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR203") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 69.85 69.85 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "aa5c2687-8eb6-4728-ab05-8ca6f7dc65a7")
+		(property "Reference" "#PWR204" (at 69.85 67.31 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 69.85 74.93 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7c357e0a-b8f5-4d53-be9c-7a80e7cad4d4"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR204") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 114.3 91.44 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "51bd911e-3cf3-42cc-aa47-c0a85c5408e8")
+		(property "Reference" "#PWR205" (at 114.3 88.9 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 114.3 96.52 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "69172680-3ba9-4b7a-9ad4-335279709880"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR205") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 166.37 119.38 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "8433bc21-b22f-452a-9d76-7bcf0e1cb2d1")
+		(property "Reference" "#PWR206" (at 166.37 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 166.37 124.46 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "d2a59dae-1ce7-4745-8e8d-85c4dfaa7a94"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR206") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 171.45 119.38 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "dcebe2b1-5865-47dd-aa8e-fd8cbb6f0865")
+		(property "Reference" "#PWR207" (at 171.45 116.84 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 171.45 124.46 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "d6c633bd-919b-404a-8c6d-373ae697ab63"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR207") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 104.14 78.74 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5b0c3673-1040-410e-b870-0228cd10f71f")
+		(property "Reference" "#PWR208" (at 104.14 76.2 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 104.14 83.82 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7710b9c1-a654-441e-a513-ed44966f7b6b"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR208") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 163.83 99.06 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "98314626-52c8-47df-b343-f384f20f582e")
+		(property "Reference" "#PWR209" (at 163.83 96.52 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "GND" (at 163.83 104.14 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "cbf8d555-8f6e-4403-a8ff-ca080a19ed55"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR209") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 66.04 138.43 180)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "5e86464d-69cb-4837-b178-35d2bca07765")
+		(property "Reference" "#PWR210" (at 66.04 135.89 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "+5VSB" (at 66.04 144.78 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "2d6e1eb8-12ef-43aa-9a10-316ae172f2fc"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#PWR210") (unit 1))
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 66.04 148.59 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "f692e391-fae7-4f1c-9878-3f78bbea58d7")
+		(property "Reference" "#FLG211" (at 66.04 146.05 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 66.04 140.97 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "7f53c4f3-09bc-4128-89a1-9326382376c3"))
+		(instances
+			(project "hub-enterprise"
+				(path "/8f2a1c40-6e11-4b8a-9d3a-1a2b3c4d5e6f/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2" (reference "#FLG211") (unit 1))
+			)
+		)
+	)
+	(no_connect (at 158.75 105.41) (uuid "e9d28a4e-e889-40ea-aedf-c93e7732415b"))
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4061-8a2b-3c4d5e6f7081/1a2b3c4d-5e6f-40a2-9b1a-2c3d4e5f60a2"
+			(page "2.2")
+		)
+	)
+	(embedded_fonts no)
+)

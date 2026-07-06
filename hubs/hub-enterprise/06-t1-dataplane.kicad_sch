@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086")
+	(paper "A4")
+	(title_block
+		(title "06-t1-dataplane")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+	)
+	(lib_symbols
+	)
+	(text "06-t1-dataplane -- CAPTURE PENDING\n\n2x LAN9370 100BASE-T1 fabric switch\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
+		(at 20 20 0)
+		(effects (font (size 2 2)))
+		(uuid "8e6eea94-44fe-411e-9061-4f85f792792c")
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4066-8a2b-3c4d5e6f7086"
+			(page "7")
+		)
+	)
+	(embedded_fonts no)
+)

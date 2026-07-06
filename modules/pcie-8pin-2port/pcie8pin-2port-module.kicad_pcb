@@ -7,6 +7,12 @@
 		(legacy_teardrops no)
 	)
 	(paper "A4")
+	(title_block
+		(title "CEC PCIe 8-pin 2-Port Module")
+		(date "2026-07-03")
+		(rev "BETA-1")
+		(comment 1 "Beta rev: W11/H3 standalone-mode suite (USBLC6-2SC6 D3 + VBUS clamp D4), H3a ferrite provisions (FB1 populated / FB2 0R-default / FL1 CMC DNP + R11/R12 bypass pair), W5 netclass+USB _P/_N rename. Schematic-only splice this pass -- new parts D3/D4/FB1/FB2/FL1/R11/R12 are NOT yet placed on this PCB; see the W6 routing-wave note in the beta-splice report. Alpha preserved in git history + fab/ snapshots.")
+	)
 	(layers
 		(0 "F.Cu" signal)
 		(4 "In1.Cu" signal "GND")

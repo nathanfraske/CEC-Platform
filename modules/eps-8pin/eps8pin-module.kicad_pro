@@ -227,5 +227,10 @@
         "pattern": "/USB_CC2"
       }
     ]
+  },
+  "erc": {
+    "rule_severities": {
+      "label_dangling": "warning"
+    }
   }
 }

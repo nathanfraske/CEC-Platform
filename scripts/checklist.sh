@@ -53,6 +53,16 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> enterprise requirements register lint (IDs / SHALL / verify vocab / spec-section refs)\n'
+if command -v python3 >/dev/null 2>&1; then
+  python3 "$CEC_SCRIPTS_DIR/cec_req_lint.py" || status=1
+  # verification matrix: every REQ maps to a named artifact; statement-hash rot detection
+  # (seed map human-reviewed 2026-07-03 -- spot-checked bench/FMEA/process assignments)
+  python3 "$CEC_SCRIPTS_DIR/cec_req_verify_matrix.py" --check || status=1
+else
+  printf '  skip: python3 not available\n'
+fi
+
 printf '==> host test suites (AM-02 corpus anchors + prompt-tier-audit / EI-02 control-lane; all pcbnew-free)\n'
 if command -v python3 >/dev/null 2>&1; then
   # M3 (new-impl audit): the prompt-audit / auditor-dispatch / EI-02 control-lane suites cover code this

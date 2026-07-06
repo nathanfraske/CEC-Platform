@@ -2069,7 +2069,7 @@
 				(name "STREAM_P"
 					(effects
 						(font
-							(size 1.27 1.27)
+							(size 1.1 1.1)
 						)
 					)
 				)
@@ -2087,7 +2087,7 @@
 				(name "STREAM_N"
 					(effects
 						(font
-							(size 1.27 1.27)
+							(size 1.1 1.1)
 						)
 					)
 				)
@@ -2156,7 +2156,7 @@
 			(pin passive line
 				(at 10.16 1.27 180)
 				(length 5.08)
-				(name "SHIELD"
+				(name "~"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -2174,7 +2174,7 @@
 			(pin passive line
 				(at 10.16 -1.27 180)
 				(length 5.08)
-				(name "SHIELD"
+				(name "~"
 					(effects
 						(font
 							(size 1.27 1.27)
@@ -2189,6 +2189,144 @@
 					)
 				)
 			)
+		)
+		(embedded_fonts no)
+	)
+	(symbol "CEC_PWR_IN_3P"
+		(pin_names
+			(offset 1.016)
+		)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J"
+			(at 0 6.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Value" "CEC_PWR_IN_3P"
+			(at 0 -6.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Footprint" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Datasheet" ""
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "Description" "CEC consolidated 3-pin power-in connector for the Hub (A4, beta-lock-register 2026-07-03). Replaces the separate 2-pin +5VSB / MAIN_5V connectors. Pin 1 MAIN_5V, pin 2 GND (center), pin 3 5VSB."
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(property "ki_keywords" "CEC power input consolidated 3-pin connector hub A4"
+			(at 0 0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(hide yes)
+			(effects (font (size 1.27 1.27)))
+		)
+		(symbol "CEC_PWR_IN_3P_1_1"
+			(rectangle
+				(start -2.54 3.81)
+				(end 2.54 -3.81)
+				(stroke (width 0.254) (type default))
+				(fill (type background))
+			)
+			(pin passive line
+				(at -7.62 2.54 0)
+				(length 5.08)
+				(name "MAIN_5V" (effects (font (size 1.27 1.27))))
+				(number "1" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at -7.62 0 0)
+				(length 5.08)
+				(name "GND" (effects (font (size 1.27 1.27))))
+				(number "2" (effects (font (size 1.27 1.27))))
+			)
+			(pin passive line
+				(at -7.62 -2.54 0)
+				(length 5.08)
+				(name "5VSB" (effects (font (size 1.27 1.27))))
+				(number "3" (effects (font (size 1.27 1.27))))
+			)
+		)
+		(embedded_fonts no)
+	)
+
+	(symbol "CEC_CONN_2x5"
+		(pin_names (offset 1.016) (hide yes))
+		(exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J" (at 1.27 5.08 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Value" "CEC_CONN_2x5" (at 1.27 -10.16 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Description" "Generic connector, double row, 02x05, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers) -- extends the vendored CEC_CONN_2x4 by one row for the 24-pin ATX daughterboard signal stub (§2.8 v1.4.0)." (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "connector" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Connector*:*_2x??_*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(symbol "CEC_CONN_2x5_1_1"
+			(rectangle (start -1.27 3.81) (end 3.81 -8.89) (stroke (width 0.254) (type default)) (fill (type background)))
+			(rectangle (start -1.27 2.667) (end 0 2.413) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start 3.81 2.667) (end 2.54 2.413) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 0.127) (end 0 -0.127) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start 3.81 0.127) (end 2.54 -0.127) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -2.413) (end 0 -2.667) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start 3.81 -2.413) (end 2.54 -2.667) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -4.953) (end 0 -5.207) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start 3.81 -4.953) (end 2.54 -5.207) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -7.493) (end 0 -7.747) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start 3.81 -7.493) (end 2.54 -7.747) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(pin passive line (at -5.08 2.54 0) (length 3.81) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 7.62 2.54 180) (length 3.81) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 0 0) (length 3.81) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 7.62 0 180) (length 3.81) (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -2.54 0) (length 3.81) (name "Pin_5" (effects (font (size 1.27 1.27)))) (number "5" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 7.62 -2.54 180) (length 3.81) (name "Pin_6" (effects (font (size 1.27 1.27)))) (number "6" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -5.08 0) (length 3.81) (name "Pin_7" (effects (font (size 1.27 1.27)))) (number "7" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 7.62 -5.08 180) (length 3.81) (name "Pin_8" (effects (font (size 1.27 1.27)))) (number "8" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -7.62 0) (length 3.81) (name "Pin_9" (effects (font (size 1.27 1.27)))) (number "9" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at 7.62 -7.62 180) (length 3.81) (name "Pin_10" (effects (font (size 1.27 1.27)))) (number "10" (effects (font (size 1.27 1.27)))))
+		)
+		(embedded_fonts no)
+	)
+	(symbol "CEC_CONN_1x4"
+		(pin_names (offset 1.016) (hide yes))
+		(exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J" (at 0 5.08 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Value" "CEC_CONN_1x4" (at 0 -10.16 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Description" "Generic connector, single row, 01x04 -- the iteration-5 24-pin signal stub (blade-fit memo addendum 5): the CEC_CONN_2x5's 4 live circuits (-12V/PS_ON#/PWR_OK/GND) as a 1x4 blind-mate pair (daughterboard: right-angle Dupont-class pin header, pins down past the bottom edge; main board: vertical female socket, entry up); the 2x5's 6 reserved sense-return positions move to DNP solder pads (OQ-88 provision form only, decision unchanged)." (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "connector" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Connector*:*_1x??_*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(symbol "CEC_CONN_1x4_1_1"
+			(rectangle (start -1.27 3.81) (end 1.27 -8.89) (stroke (width 0.254) (type default)) (fill (type background)))
+			(rectangle (start -1.27 2.667) (end 0 2.413) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 0.127) (end 0 -0.127) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -2.413) (end 0 -2.667) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -4.953) (end 0 -5.207) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(pin passive line (at -5.08 2.54 0) (length 3.81) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 0 0) (length 3.81) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -2.54 0) (length 3.81) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -5.08 0) (length 3.81) (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
 		)
 		(embedded_fonts no)
 	)

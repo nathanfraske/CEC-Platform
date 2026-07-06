@@ -1,0 +1,27 @@
+(kicad_sch
+	(version 20260306)
+	(generator "eeschema")
+	(generator_version "10.0")
+	(uuid "0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087")
+	(paper "A4")
+	(title_block
+		(title "07-uplink")
+		(date "2026-07-02")
+		(rev "DRAFT")
+		(company "CEC")
+		(comment 1 "CAPTURE PENDING -- see hubs/hub-enterprise/SCHEMATIC-PLAN.md sheet map")
+	)
+	(lib_symbols
+	)
+	(text "07-uplink -- CAPTURE PENDING\n\nDP83869HM GbE uplink PHY + magnetics/protection\n\nSee SCHEMATIC-PLAN.md sec 1 for BOM src + population."
+		(at 20 20 0)
+		(effects (font (size 2 2)))
+		(uuid "aad24b2e-ed95-40dc-8b7d-351207787d31")
+	)
+	(sheet_instances
+		(path "/0a1b2c3d-4e5f-4067-8a2b-3c4d5e6f7087"
+			(page "8")
+		)
+	)
+	(embedded_fonts no)
+)

@@ -1,0 +1,9 @@
+Work-in-progress draft. scripts/check-all.sh (and CI) skip ERC/DRC for this
+board while this marker exists. Delete it to enforce ERC/DRC once the design is
+ready.
+
+Hierarchical capture in progress per hubs/hub-enterprise/SCHEMATIC-PLAN.md.
+Sheet 01 (power-input) is captured and passes its own verification protocol
+(see scripts/check_hub_ent_sch.py); sheets 02-09 are placeholders with no
+components yet. Do not drop this marker until every sheet in the plan's sheet
+map passes sections 1-4 of the plan's verification protocol.
