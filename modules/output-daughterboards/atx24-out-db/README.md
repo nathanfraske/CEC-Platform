@@ -473,3 +473,15 @@ sense-return tap without a board respin. No components are added here.
   generator, so the BOM is unaffected.
 
 Generator: `scripts/gen-output-daughterboard.py atx24-out-db`.
+
+---
+## 2026-07-06 — F1 fix + solid joints (supersedes the In2-lane floorplan prose above)
+
+The four multi-point bus rails no longer share a 0.3 mm In2 lane corridor (F1
+fusing defect). They are now **per-rail full-board floods on separate layers**
+(GND/In1, +12V/In2, +3V3/B.Cu with an F.Cu east limb for pin 12, +5V/F.Cu,
++5VSB B.Cu zone), all `ZONE_CONNECTION_FULL` (solid), non-GND tabs bridged by a
+hard leg-pair. DC-IR proof: +5 V 30 A drop 384→62.6 mV, J 2874→259; cold joule
+592 W-runaway → 3.82 W. F1 resolved; residual = F2 (board-level no-sink,
+soak-gated). Full record + thermal map: `docs/standard-tier-review/
+thermal-wave1-daughterboard-landing-2026-07-06.md`.

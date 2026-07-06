@@ -759,8 +759,18 @@ def route_simple(fam):
     out = f"{_board_dir(fam)}/{FAMILIES[fam]['base']}.kicad_pcb"
     r = cr.Router(out)
     rect = _board_rect(fam)
-    r.zone("GND", rect, layers=("In1.Cu", "In2.Cu"), clearance=0.3, min_width=0.3)
-    r.zone("+12V", rect, layers=("F.Cu", "B.Cu"), clearance=0.3, min_width=0.3)
+    # ZONE_CONNECTION_FULL on both power floods, matching route_atx24's F1-fix
+    # rationale (owner observation 2026-07-06: eps/pcie were on the KiCad-default
+    # THERMAL RELIEF). A thermal-relief pad necks a high-current joint through
+    # four ~0.5mm spokes -- unwanted on a 52A (eps) / 39A (pcie) tab where the pad
+    # IS the current path: it raises local J and joint resistance for zero benefit
+    # on a hand-assembled THT board (no reflow-soldering thermal-shadow problem to
+    # relieve). Solid = the pad's full copper carries the joint.
+    import pcbnew as _pcbnew
+    zs = [r.zone("GND", rect, layers=("In1.Cu", "In2.Cu"), clearance=0.3, min_width=0.3),
+          r.zone("+12V", rect, layers=("F.Cu", "B.Cu"), clearance=0.3, min_width=0.3)]
+    for _z in zs:
+        _z.SetPadConnection(_pcbnew.ZONE_CONNECTION_FULL)
     r.fill()
     res = r.verify()
     print(f"{fam}: structural={res['n_struct']} unconnected={res['n_unconnected']}")
@@ -924,8 +934,19 @@ def route_atx24():
     assert gap_mid + _VSB_W_BAND / 2 + _CLR <= band3_lo  # A/B stay above it
     assert mid_y - _VSB_W_MID / 2 - _CLR >= band3_hi     # D' stays below it
     vsb = _PCB_NET.get("+5VSB", "+5VSB")
-    r.track(vsb, [(p9x, row0_y), (p9x, gap_mid)], "B.Cu", _VSB_W_BAND)      # A
-    r.track(vsb, [(p9x, gap_mid), (desc_x, gap_mid)], "B.Cu", _VSB_W_BAND)  # B
+    # A+B as a PRIORITY-1 ZONE riding the whole inter-row gap band (plus the
+    # sliver up to pin 9's pad): the 1.0mm track version screened 26C on the
+    # IPC leg (the 1.2mm free band caps any single track) -- the zone fills
+    # the full 2.4mm band height and weaves the pad-gap columns, ~2.4x the
+    # cross-section (screen ~6C). KiCad fills by priority: the +3V3 B.Cu
+    # flood (priority 0) is kept clear of this island automatically -- the
+    # standard zone-in-plane pattern, no outline surgery. +3V3 loses only
+    # band/web area at x in [36..54], where it has nothing to route (pin
+    # 12 rides the F.Cu limb; the west main flow is west of x=36).
+    zvsb = r.zone(vsb, [(p9x - 1.5, _TOP_MARGIN + 0.5), (desc_x + 1.0, _TOP_MARGIN + 0.5),
+                        (desc_x + 1.0, band_hi + 0.4), (p9x - 1.5, band_hi + 0.4)],
+                  layers=("B.Cu",), clearance=0.3, min_width=0.3, priority=1)
+    zvsb.SetPadConnection(_pcbnew.ZONE_CONNECTION_FULL)
     r.track(vsb, [(desc_x, gap_mid), (desc_x, mid_y)], "B.Cu", _VSB_W_DESC)  # C
     r.track(vsb, [(desc_x, mid_y), (j15x, mid_y)], "B.Cu", _VSB_W_MID)       # D'
     r.track(vsb, [(j15x, tab_y - 2.54), (j15x, tab_y + 2.54)], "B.Cu", _VSB_W_TAB)  # E'

@@ -266,3 +266,13 @@ information back to the main board's sensing chain.
   generator, so the BOM is unaffected.
 
 Generator: `scripts/gen-output-daughterboard.py pcie-out-db`.
+
+---
+## 2026-07-06 — solid high-current joints
+
+`route_simple()` now sets `ZONE_CONNECTION_FULL` on both power floods (was the
+KiCad-default THERMAL RELIEF — four 0.5 mm spokes necked the high-current joint,
+owner observation). Result at worst-case no-sink: pcie-out-db dT drops ~40 %
+(eps 235→141 °C, pcie 117→70 °C), tab pads go from hottest feature to cool/solid.
+DRC 0/0, checker 113 OK. Record + map: `docs/standard-tier-review/
+thermal-wave1-daughterboard-landing-2026-07-06.md`.

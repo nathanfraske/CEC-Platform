@@ -36,3 +36,8 @@ completeness roadmap (thermal-solve-completeness-2026-07-06.md).
 
 Integration pass (coordinator-gated) wires the modules into physics()/physics_gates armed
 analyses after all three land + full-suite green.
+
+## Status (2026-07-06 — LANDED)
+- T0/T1a/T1b: landed, 166/166 thermal-family tests green.
+- Integration: THERMAL_SOURCES + THERMAL_CONNECTOR_SCENARIOS added to REGISTRY_OPTIONAL (advisory, fail-safe); electrothermal_solve/physics_gates UNTOUCHED → SB-08 golden + test_am04_anchors byte-identical. Specialized modules (accuracy channel maps, boundary-refined solve) → Wave-2 (FOLLOWUPS).
+- Payoff: atx24-out-db F1 fix verified (DC-IR), eps/pcie solid-joint fix (−40% dT). See thermal-wave1-daughterboard-landing-2026-07-06.md + thermal-maps/.

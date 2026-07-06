@@ -933,6 +933,10 @@ def extract_features(cfg):
         "wireless": bool(cfg.params.get("respect_antenna_keepout", True)),
         "thermal_env": cfg.params.get("thermal_env", "enclosed_passive"),
         "n_nets": len(nl.nets),
+        # board identity for the connector-scenario arm (daughterboard families);
+        # unused by the pre-existing EMC/THERMAL/PDN applies, so purely additive.
+        "board": getattr(cfg, "board", ""),
+        "board_dir": getattr(cfg, "dir", ""),
     }
     return feats
 
@@ -988,6 +992,78 @@ def _pdn_applies(feats, profile):
     return feats["has_switcher"] and profile in ("pro", "enterprise", "mission_critical")
 
 
+# --- Thermal wave-1 module hooks (advisory, fail-safe). Surface the beyond-shunt heat
+#     inventory (cec_thermal_sources) and the connector N-1 scenario verdicts
+#     (cec_thermal_scenarios) in the armed-analysis cascade. Both are ADVISORY
+#     (binding="advisory") -> information only, NEVER blocking; the material-limit and
+#     connector policy GATES stay owner/soak-gated (the ratification boundary). Both are
+#     FAIL-SAFE (-> [] on any error) so a board they don't fit can never break the
+#     cascade. electrothermal_solve() and physics_gates() are UNTOUCHED, so SB-08 golden
+#     (which calls electrothermal_solve directly) and the physics_gates tests stay
+#     byte-identical. No existing test references REGISTRY_OPTIONAL / triage_arm. ---
+_DB_FAMILY = {"atx24-out-db": "atx24", "eps-out-db": "eps", "pcie-out-db": "pcie"}
+
+
+def _sources_applies(feats, profile):
+    return feats.get("n_comps", 0) > 0
+
+
+def _sources_run(view):
+    """Beyond-shunt heat inventory as an advisory flag (total dissipation, hottest
+    source, count of UNVERIFIED-basis sources). Never blocks; fail-safe."""
+    try:
+        import cec_thermal_sources as _ts
+        inv = _ts.inventory(getattr(view.cfg, "dir", "") or "", sch_path=view.sch)
+        srcs = list(inv.sources or [])
+        hottest = max(srcs, key=lambda s: getattr(s, "watts", 0.0)) if srcs else None
+        unv = [getattr(s, "ref", "?") for s in srcs if getattr(s, "unverified", False)]
+        return [Flag("beyond-shunt heat inventory", view.board or getattr(view.cfg, "board", ""),
+                     0.3, Kind.MEASURE,
+                     {"total_W": round(inv.total_W, 3), "n_sources": len(srcs),
+                      "hottest_ref": getattr(hottest, "ref", None),
+                      "hottest_W": round(getattr(hottest, "watts", 0.0), 4) if hottest else None,
+                      "unverified_refs": unv},
+                     binding="advisory")]
+    except Exception:
+        return []
+
+
+def _connscen_family(name):
+    for key, fam in _DB_FAMILY.items():
+        if key in (name or ""):
+            return fam
+    return None
+
+
+def _connscen_applies(feats, profile):
+    return _connscen_family(feats.get("board", "")) is not None
+
+
+def _connscen_run(view):
+    """Connector N-1 (single-joint-loss) verdicts for THIS board's daughterboard family
+    as advisory flags -- the rails whose surviving joints exceed the 30 C-rise policy
+    after one joint is lost. Never blocks (N-1 survival was never a design target; the
+    counts are sized for load, and this surfaces the honest single-failure envelope).
+    Fail-safe."""
+    try:
+        import cec_thermal_scenarios as _sc
+        fam = _connscen_family(getattr(view.cfg, "board", ""))
+        if not fam:
+            return []
+        flags = []
+        for r in _sc.n1_sweep(fam).get("rails", []):
+            if not r.get("n1_survives_within_policy", True):
+                flags.append(Flag("connector N-1 loss over policy",
+                                  "%s:%s" % (fam, r.get("rail")), 0.4, Kind.MEASURE,
+                                  {"rail": r.get("rail"), "n_joints": r.get("n_joints"),
+                                   "open_circuit_on_loss": r.get("open_circuit_on_loss"),
+                                   "worst_survivor_dT_C": r.get("worst_survivor_dT_C")},
+                                  binding="advisory"))
+        return flags
+    except Exception:
+        return []
+
+
 REGISTRY_OPTIONAL = [
     OptionalAnalysis(
         "EMC", False, _emc_applies, _emc_screen,
@@ -1005,6 +1081,13 @@ REGISTRY_OPTIONAL = [
         alarm_fn=lambda f: False, conf_fn=lambda f: 0.4,
         run_fn=lambda view: [Flag("PDN deep-analysis not yet wired", view.board, 0.3, Kind.SCOPE,
                                   {"todo": "PDN impedance analysis"})]),
+    # Thermal wave-1 module hooks -- advisory, fail-safe (see the run_fn block above).
+    OptionalAnalysis(
+        "THERMAL_SOURCES", False, _sources_applies, lambda f: (0.3, 0.2),
+        alarm_fn=lambda f: False, conf_fn=lambda f: 0.3, run_fn=_sources_run),
+    OptionalAnalysis(
+        "THERMAL_CONNECTOR_SCENARIOS", False, _connscen_applies, lambda f: (0.4, 0.2),
+        alarm_fn=lambda f: False, conf_fn=lambda f: 0.4, run_fn=_connscen_run),
 ]
 
 
