@@ -10,7 +10,11 @@ board, spec, or CLAUDE.md edits made. This document is the deliverable.
 > follow-up **"can the compute element already do all of that without a new
 > carrier swap?"** Part I below is the original consumer-lane exploration
 > (its findings stand and several carry into Part II); **Part II is the ENT
-> analysis and the operative recommendation.**
+> analysis and the operative recommendation.** A second follow-up ("what do
+> we need to do to get the KVM into the trusted zone... secure heartbeat it
+> like any other module?") produced **Part III — the trusted-zone
+> requirements plan** (the K1 checklist + re-flash-the-Sipeed Path A vs
+> native-P4-module Path B).
 
 # PART I — consumer lane (original scope)
 
@@ -827,6 +831,234 @@ does all of it, and no new carrier is needed.**
   `docs/enterprise-requirements/research/cec-kvm-recommendations-2026-07-02.md`;
   `docs/enterprise-requirements/board-program/fcvg484-breakout-study-2026-07-03.md`;
   `docs/enterprise-requirements/prototype-demo-plan-2026-07-02.md`; `docs/owner-queue.md`
+
+---
+---
+
+# PART III — KVM as a trusted module: the requirements plan (owner follow-up, 2026-07-06)
+
+Owner ask (verbatim): "What do we need to do to get the KVM into the trusted
+zone so we can take in all of its inputs and secure heartbeat it like any
+other module?" This part is the concrete plan for **first-class trusted-zone
+membership** — not Part II's outside-the-boundary default. Study only; owner
+items flagged, not resolved.
+
+## K1. The bar: what "like any other module" actually means (the checklist)
+
+Compiled from the platform's own registers and security workstream docs —
+each row cites its source of record. This checklist is the spine; Paths A
+and B below are scored row-by-row against it.
+
+| # | Requirement | Source of record | What it concretely demands of a KVM |
+|---|---|---|---|
+| 1 | **Per-unit device key, MCU/SoC-resident, injected at provisioning** (no PUF assumed — the ESP32-P4 module key is injected at flashing into eFuse + flash-encryption) | REQ-MOD-COMMON-010; `key-hierarchy-custody-2026-07-02.md` §3 (module key table row) | A key store the platform controls: eFuse/OTP-class, write-verified at intake, never vendor-resident |
+| 2 | **Signed firmware + anti-rollback, hub-custody discipline** | REQ-MOD-COMMON-012 (← REQ-HUB-COMMON-010/011) | CEC-signed image chain from boot ROM up; monotonic anti-rollback; CEC (not the device vendor) holds the signing keys |
+| 3 | **CAN and/or T1 challenge-response identity** exercised by the hub against the device key | REQ-MOD-COMMON-010 | A challenge-response endpoint on a hub-facing link |
+| 4 | **Physical-layer liveness/anti-spoof surface + provisioning-time baseline** (DETECT poke-and-ack; 10 kΩ CAN+T1 class on every ENT family) | REQ-MOD-COMMON-010; REQ-MOD-COMMON-003; `untrust-state-machine` §5.1 | A DETECT-class analog signature recorded at intake, re-checked at re-admission |
+| 5 | **Pin-7 heartbeat responder — hardware-timed edge**: nonce over CAN (IDs `0x7A0–0x7AF`, two-frame) or T1 (EtherType `0x88B5`, single frame); compute-then-respond; response edge scheduled by hardware timer compare (timer+ETM class), single-digit-µs acceptance window; **N=3 @ 1 Hz misses → auto-UNTRUSTED** | REQ-MOD-COMMON-013 / REQ-HUB-COMMON-112/114; `heartbeat-protocol-spec-2026-07-02.md` §1–§5 (timing figures PROVISIONAL pending bench) | A hardware timer that can fire a deterministic edge on a dedicated line — explicitly NOT a firmware-loop property |
+| 6 | **Untrust state-machine enrollment**: TRUSTED/SUSPECT/UNTRUSTED/RE-ATTESTING; quarantine-tagging, alarming, tamper-log transcript; re-admission = the full 5-step re-attestation replay (DETECT re-check, fresh CAN challenge, fresh T1 attestation pass, pin-7 cold-start, cross-surface fusion vs the intake baseline) — never mere heartbeat resumption | `untrust-state-machine-2026-07-02.md` §1–§5; REQ-HUB-COMMON-114 | The device must survive being distrusted and re-admitted; its telemetry must be quarantine-taggable |
+| 7 | **Cross-surface consistency** (REQ-113): the hub fuses DETECT + CAN + T1 + heartbeat and compares against the intake baseline; any single-surface inconsistency → immediate UNTRUSTED (no 3-strike grace) | REQ-HUB-COMMON-113; `untrust-state-machine` §3b–d | Multiple *independent* surfaces must exist — one Ethernet jack alone gives the fusion little to fuse (see Path A) |
+| 8 | **Physics/liveness cross-check hooks**: the module's own power draw is visible to the platform (the 24-pin is the fleet's power-signature validator of every other module) | REQ-MOD-COMMON-003 rationale text; REQ-HUB-COMMON-113 | The KVM should be powered through a CEC-monitored feed so its electrical signature is checkable against its claimed state |
+| 9 | **Sub-µs fleet time sync participation** (gPTP, hardware timestamps) — what makes its captures co-registrable with electrical FREEZE windows | REQ-HUB-COMMON-106; REQ-MOD-COMMON-003 | A MAC with hardware 1588 timestamping on the hub-facing link |
+| 10 | **Per-module signing of its own data**; the hub core verifies before ingest (the addendum's red-team requirement #1 — "a signature proves the core *recorded* something, not that it is *true*"; per-module signing is what makes the *source* claim checkable) | trust addendum §18 red-team req 1; addendum §13 | Every capture/claim leaves the device already signed by its device key |
+| 11 | **Assume-bad fail-safe / graceful degrade both directions**: dormant responder on a non-challenging hub; fail-secure (jamming → UNTRUSTED, never fail-open); FREEZE dominance never masked | REQ-MOD-COMMON-013; `untrust-state-machine` §6; heartbeat spec §6 | Degraded ≠ trusted; loss of any surface demotes, never silently continues |
+| 12 | **Zero own egress**: all data crosses the hub's ONE signed egress; the device has no network path of its own (ingress-minimization is the governing principle) | trust addendum §17 | The KVM's own Ethernet/WiFi/Tailscale must be hardware-absent or physically dark — a trusted-zone member cannot keep a private exit |
+| 13 | **Intake provisioning ritual**: key injection + baseline record (DETECT signature, attested class, firmware hash) — "the provisioning record IS the baseline that later attestation compares against" | `key-hierarchy-custody-2026-07-02.md` §5 | A CEC manufacturing/intake step per unit — incompatible with drop-shipping retail units |
+| 14 | **Honest-limits language discipline**: whatever the KVM class does/doesn't prove is stated per the canonical threat-model doc, never re-derived in marketing | `threat-model-2026-07-02.md` header mandate | The KVM trust class's residuals (esp. timing, Path A) get their own §-cited honest-limits rows |
+
+One structural note the state machine already provides: the **attested-class
+mechanism** (`untrust-state-machine` §7's legacy floor, generalized) means a
+device's trust class declares *which surfaces it claims*, and the
+auto-untrust policy binds to the claimed set. A "KVM class" with a defined
+surface subset is therefore a **spec extension, not a violation** — but
+every surface it *doesn't* claim is a named, honest gap (row 14).
+
+## K2. PATH A — re-flash + re-key the Sipeed Pro (CEC firmware on the AX630C, our keys in its OTP)
+
+### K2.1 The load-bearing gate: is Axera secure-boot provisioning accessible to third parties?
+
+What this pass could verify (cited):
+- **The system image is rebuildable from source.** Sipeed publishes the
+  AX620E-platform SDK used for "MaixCam2 **and KVM-Pro**" — MIT-licensed,
+  U-Boot 2020.04 source included, kernel as a submodule
+  ([sipeed/maix_ax620e_sdk](https://github.com/sipeed/maix_ax620e_sdk)). A
+  CEC-built image for the Pro's silicon is realistic at the
+  OS/application level.
+- **A signing step exists in the build.** The SDK's build output is a
+  `spl_AX630C..._sd_signed.bin` — the boot chain has a signature format and
+  the tooling signs the SPL with *some* key (vendor/dev default,
+  presumably). What key, whether the boot ROM enforces it, and how a third
+  party burns their **own** root key into the AX630C's secure OTP is **not
+  documented anywhere public found in this pass**: no eFuse/OTP
+  provisioning guide, no key-ceremony documentation, and the MSP layer
+  (`maix_ax620e_sdk_msp`) is a **prebuilt/binary-only submodule**.
+- **The silicon claims the capability.** Axera's AX630C brief lists Secure
+  Boot, secure OTP, TrustZone, crypto acceleration; the family is
+  PSA-Certified (Part II E1). Capability ≠ access.
+
+**Verdict on the gate: UNKNOWN — needs direct Axera (and likely Sipeed)
+engagement.** The honest ecosystem prior: Chinese IPC-SoC vendors typically
+hand secure-boot provisioning docs and eFuse tools only under NDA/FAE
+relationships at volume — the same dependency class as the MPFS095TC
+FAE-confirm item already in the owner queue, except CEC has no existing
+Axera relationship and Sipeed sits in the middle as board vendor. **Until
+this gate is answered, Path A cannot claim checklist rows 1–2 — the
+foundation everything else stands on.**
+
+### K2.2 What Path A would deliver (scored against K1)
+
+| Checklist row | Path A status |
+|---|---|
+| 1–2 (keys, signed boot) | **GATED on K2.1.** If Axera provisioning opens: CEC root key in OTP, CEC-signed SPL→U-Boot→kernel→rootfs (dm-verity class), anti-rollback via OTP counters *if the boot ROM supports them* (unknown). If not: unfixable — the device can run CEC software but cannot *prove* it. |
+| 3 (challenge-response) | YES, over Ethernet — the T1 EtherType `0x88B5` frame adapts to standard Ethernet essentially unchanged (same fields; the framing is transport-agnostic by design). Terminates on the ENT hub's **dedicated gated PHY + fabric soft-MAC port** — the ~$3–5 provision from Part II E4.2, which Path A converts from optional plumbing into a requirement. Hub delta spec: 1 fabric soft MAC (~2–3% LE, in-family with the two LAN9370 bridges), a 10/100/1000 PHY with hardware 1588 timestamps + magnetics + keyed jack; policy = KVM traffic terminates in fabric, NEVER bridged to the module-T1 fabric or the northbound MACs. |
+| 4 (DETECT baseline) | **PARTIAL/ABSENT** — a stock Pro has no DETECT line; the closest analog surface is the J_KVM aux link's KVM_3V3_REF ratiometric read (built consumer-side). An intake-recorded ratiometric signature is *a* baseline but far weaker than the module DETECT class. Honest gap, named in the class definition. |
+| 5 (hardware-timed heartbeat) | **DEGRADED — the biggest honest limitation.** The single-digit-µs pin-7 window assumes an MCU hardware-timer edge. The AX630C is a Linux-class A53 SoC: a GPIO edge from kernel space carries tens-of-µs-to-ms jitter, and whether its PWM/timer peripherals can be armed to fire a deterministic compare-triggered edge is publicly undocumented. Two honest options: (i) **frame-timestamp heartbeat** — the gated port's PHY/MAC hardware-timestamps the response frame (the same gPTP-class mechanism REQ-106 uses), acceptance window widened to the timestamp class (~µs–tens-of-µs): cryptographic liveness parity, **weaker distance-bounding than pin-7** (a fast relay is harder to exclude); or (ii) a dedicated timed line in the KVM cable driven by an AX630C timer peripheral — gated on undocumented silicon behavior. Either way the KVM's attested class claims a *timing-degraded* heartbeat, stated per row 14. |
+| 6–7 (state machine, cross-surface) | YES structurally (the attested-class mechanism) — but the fusion has fewer independent surfaces to fuse: Ethernet crypto + ratiometric 3V3 + power signature (row 8), vs a module's four. |
+| 8 (physics hook) | YES, and genuinely valuable: power the KVM from the CEC shared rail (Part I's topology-enforcement point) — its draw becomes a monitored, checkable signature (a "screen idle" claim while drawing encode-load current is a physics incoherence event). |
+| 9 (time sync) | YES via gPTP on the gated port (PHY pick must include HW 1588 timestamps). |
+| 10 (signs own data) | YES once rows 1–2 land (device key signs captures on-device). |
+| 11 (fail-safe) | YES — firmware behavior, CEC-authored. |
+| 12 (zero own egress) | YES by build: WiFi-absent SKU + CEC image with no WAN stack — the web console/Tailscale/cloud functions move to the hub/management plane or die. **Note what this deletes: the stock product's entire standalone value.** After Path A the device is a captive capture+HID peripheral of the hub. |
+| 13 (intake ritual) | YES but heavier than a module's: per-unit reflash + OTP burn + baseline record, on retail-purchased hardware whose revisions CEC doesn't control. |
+
+### K2.3 Path A risks and effort class
+
+- **Owning a Linux security surface** — the recs doc's rec 5 precondition
+  applies in full: a named, costed PSIRT/CVD owner for a CEC-maintained
+  Linux image (kernel + userspace over a binary-blob MSP layer CEC cannot
+  audit). Standing OpEx, not a board cost.
+- **Supply chain inverts the existing mitigation.** The
+  customer-integration audit's NDAA/§889/COO posture for the NanoKVM was
+  "optional/excludable from gov configs." Path A moves a Chinese-SoC,
+  Chinese-board-vendor, retail-purchased device **inside the enterprise
+  trust boundary** — reversing that mitigation. The Feb-2025
+  undocumented-microphone precedent (Part II E1) makes it concrete:
+  in-boundary means CEC owns full hardware-audit responsibility for a board
+  it doesn't design, on Sipeed's silent-revision schedule, with no supply
+  agreement.
+- **Effort class, honestly:** hub delta small (the gated port); device
+  firmware program **large** (Linux image + boot chain + signing/update
+  pipeline + heartbeat client + capture/HID daemons) and **standing**
+  (PSIRT); the whole path **gated at the front door** by K2.1 vendor access
+  CEC does not currently have.
+
+## K3. PATH B — CEC-KVM as a native module (uniform ESP32-P4 + capture bridge)
+
+The platform has already designed every K1 mechanism **for exactly this
+MCU**: the ESP32-P4 is the uniform ENT module MCU (REQ-MOD-COMMON-003), with
+the eFuse-injected device key (key-hierarchy §3), the signed-firmware
+contract (REQ-MOD-COMMON-012), the pin-7 timer+ETM responder contract
+(REQ-MOD-COMMON-013's own text names the P4's timer class), the T1 front-end
+BOM (DP83TC814S-Q1 + CMC + PESD2ETH100, ~$3–4.2), DETECT 10 kΩ, and gPTP
+participation. A CEC-KVM built as **an ENT module that happens to capture
+video** inherits the checklist by construction:
+
+| Checklist row | Path B status |
+|---|---|
+| 1–7, 9–11, 13 | **Native — identical to any ENT module.** RJ-45 module port; DETECT 10 kΩ; CAN + T1; pin-7 hardware-timed heartbeat at the full single-digit-µs class (timer+ETM, the designed mechanism); the untrust state machine applies verbatim; intake = the same provisioning ritual as every module. Zero new trust engineering — the KVM stops being a special case. |
+| 8 (physics) | Native — powered over the monitored feed like any module. |
+| 12 (zero own egress) | Native — it has no network hardware at all. Captures ride T1 into the hub and exit via the hub's one signed egress. ENT-AIR-compatible by construction (no NIC to depopulate). |
+| 14 (honest limits) | The one honest cap is **capture class** — below. |
+
+**Realistic capture architecture (the P4 is NOT a video SoC — stated
+plainly):** it cannot ingest HDMI directly and cannot do 4K motion. What it
+verifiably CAN do (Espressif P4 documentation): **MIPI-CSI-2 RX, 2-lane ×
+1.5 Gbps**, a **hardware H.264 encoder up to 1080p30**, and a **hardware
+JPEG codec (4K stills; ~1080p34 MJPEG)**. The architecture:
+
+> HDMI in → **LT6911-class HDMI-to-MIPI-CSI bridge** (~$5–15; the same
+> bridge class the NanoKVM-PCIe itself uses into its SoC's CSI port) → P4
+> CSI → hardware H.264 @ 1080p30 (~4–8 Mbps) or JPEG keyframes → signed
+> on-device (row 10) → module T1 link (100 Mbps, ample) → hub Merkle log /
+> signed egress.
+
+- **1080p30 signed motion capture + 4K signed stills** is the honest
+  ceiling. A 4K60 interactive console is NOT this path.
+- **HID as a separately-attested opt-in:** the P4's native USB-OTG device
+  mode presents keyboard/mouse to the host — but only inside an attested
+  session: hub-signed session grants, every injected HID report
+  hash-chained into the tamper log, session start/end as signed events.
+  This is how enterprise KVM/serial-console products handle injection risk
+  (session authorization + audit), and it **inverts the Part II E3
+  calculus**: the inward control path stops being an unattested standing
+  hole and becomes a logged, grant-gated, attributable function. Population
+  is a build option (ENT-AIR: DNP the USB leg entirely).
+- **BOM class:** P4 (~$5–8) + LT6911-class bridge (~$5–15) + T1 front-end
+  (~$3–4) + module common (RJ-45, LDO, DETECT, ESD, board) ≈ **$25–45
+  parts** — module-class, riding the already-paid ENT P4 reference design.
+  Board-program scope = one more ENT module family, not a new platform.
+- **How it collapses the OQ-75 decision box:** rec 1 (chip pick) →
+  answered: no Linux SoM at all, the uniform P4. Rec 5 (the PSIRT
+  precondition, flagged as THE blocker) → **dissolved — there is no Linux
+  image.** Rec 6 (ENT-AIR no-NIC variant) → native. Recs 3/4 (carrier
+  form) → it's a module; bracket/chassis-mount like any module. Rec 7
+  (Step 1 before 2) → Path B *is* a Step 2 that skips the Linux detour.
+  What OQ-75 still owns: whether a 4K-class interactive console (which
+  only Path A / a Linux SoM can be) is wanted as a *separate,
+  outside-the-boundary* product.
+
+## K4. The decision frame — which inputs does the owner want trusted?
+
+| If "all of its inputs" means… | Cheapest in-zone path | What it costs | Notes |
+|---|---|---|---|
+| **The visual vantage only** (keyframes, screen-state evidence, co-registered with FREEZE) | **d2 absorption (Part II E4.3)** — no KVM device exists at all | ~$10–25 hub BOM + fabric/firmware; Libero pin check first | Already fully in-zone: the hub's own RoT captures and signs. Nothing to heartbeat — there is no separate device. |
+| **Visual vantage + trusted interactive console (HID), 1080p class** | **Path B — the native P4 module** | Module-class board program (~$25–45 BOM); zero new trust engineering; no Linux, no PSIRT stream | The KVM literally becomes "any other module" — same silicon, same key ceremony, same heartbeat, same state machine; attested-HID sessions handle the injection risk. |
+| **Full NanoKVM-Pro-class 4K console, in-zone** | **Path A — re-flash + re-key the AX630C** (the only 4K-capable silicon in the candidate set) | Gated on Axera OTP access (K2.1, unknown); Linux image + standing PSIRT; degraded heartbeat timing class; supply-chain posture inverts | Ask first whether the *witness* needs 4K motion: the evidence use cases (BSOD, POST, stop codes) do not. Remote operators might want it — that's a convenience spec, and it can stay outside the boundary (Part II option (a)) while Path B/d2 carry the trusted evidence. |
+
+**August story angle:** Path B presents best by a wide margin — one slide:
+*"the KVM is not a special case; it is another module — same MCU, same
+provisioning ceremony, same signed firmware, same hardware-timed heartbeat,
+same auto-untrust state machine, and its captures are signed at the source
+like every sensor."* That is the uniform-architecture story a
+security-reviewing customer rewards. Path A presents as a retrofit with
+three asterisks (vendor-gated keys, degraded timing class, a Linux surface)
+— each an invitation to the question the room will ask. d2 remains the
+strongest pure-witness slide (Part II E4.4), and the combination **d2 for
+evidence + Path B for trusted interaction** is a coherent two-step roadmap
+that never mentions a third-party firmware stack.
+
+## K5. Recommendation and owner items (Part III)
+
+**Recommendation:** if trusted-zone membership is wanted, **Path B** — build
+the CEC-KVM as a native ENT module (P4 + HDMI-to-CSI bridge + T1 + pin-7),
+with HID as an attested opt-in build option, keeping d2 absorption as the
+deviceless evidence baseline on the hub. **Do not pursue Path A** unless
+NanoKVM-Pro-class 4K interactive capture inside the boundary is specifically
+wanted — and then only after the K2.1 Axera gate is answered in writing,
+because every other Path A row stands on it.
+
+**Owner items (flagged, not resolved):**
+1. **Which input set gets trusted** (K4's three rows) — the actual
+   decision; everything else follows from it.
+2. If any Path A interest survives K4: authorize the **Axera/Sipeed vendor
+   contact** on secure-boot OTP provisioning access (K2.1) before any other
+   Path A spend.
+3. If Path B: fold it into the **OQ-75 decision box** as the recommended
+   resolution shape (it answers recs 1/3/4/5/6/7 per K3) — a spec/register
+   edit through the normal CODEOWNERS path, not this document.
+4. The **ENT hub gated-PHY port** (Part II E4.2): required by Path A,
+   useful for gating an outside-the-boundary unit (option (a)), unneeded by
+   Path B (which uses a standard module port) — decide it with K4's answer,
+   not before.
+5. If Path A is ever pursued, its heartbeat-timing degradation (K2.2 row 5)
+   needs its own honest-limits rows in the threat-model doc (row 14
+   discipline), and the heartbeat spec's §8 bench gate must add the
+   frame-timestamp method to its validation matrix.
+
+## Part III sources
+
+- `docs/enterprise-security/heartbeat-protocol-spec-2026-07-02.md` (CAN IDs 0x7A0–0x7AF two-frame nonce; T1 EtherType 0x88B5 single-frame nonce; compute-then-respond; §8 provisional timing)
+- `docs/enterprise-security/untrust-state-machine-2026-07-02.md` (5 states; §5 five-step re-attestation replay; §7 attested-class floor)
+- `docs/enterprise-security/key-hierarchy-custody-2026-07-02.md` (§3 key table — module key injected at flashing, eFuse + flash-enc, no PUF on P4; §5 provisioning-record-is-baseline)
+- `docs/enterprise-security/threat-model-2026-07-02.md` (canonical honest-limits mandate; distance-bounding-lite property)
+- `docs/enterprise-requirements/module-requirements-common.md` REQ-MOD-COMMON-003/010/012/013
+- `docs/enterprise-requirements/hub-enterprise-requirements.md` REQ-HUB-COMMON-106/112/113/114
+- `docs/enterprise-workstation-trust-addendum-2026-06-30.md` §13/§17/§18 (per-module signing; ingress minimization; red-team requirements) — origin/claude/enterprise-trust-addendum (PR #64)
+- `docs/enterprise-requirements/research/cec-kvm-recommendations-2026-07-02.md` (the OQ-75 recs Part III maps onto)
+- `docs/enterprise-requirements/research/customer-integration-audit-2026-07-01.md` (NDAA/§889/COO posture row for the NanoKVM)
+- GitHub sipeed/maix_ax620e_sdk (AX620E/AX630C platform SDK "for MaixCam2 and KVM-Pro"; MIT; U-Boot source; signed-SPL build artifact; MSP binary-only submodule; no public eFuse/OTP provisioning docs found): https://github.com/sipeed/maix_ax620e_sdk
+- Axera AX630C product brief (Secure Boot / secure OTP / TrustZone claims): https://www.axera-tech.com/sites/default/files/2026-01/AX630C.pdf
+- Espressif ESP32-P4 capture capabilities (MIPI-CSI-2 2-lane × 1.5 Gbps; H.264 HW encoder 1080p30; JPEG codec 4K stills / ~1080p34 MJPEG): https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/camera-application.html + ESP32-P4 datasheet family
 
 ## Sources (Part I)
 
