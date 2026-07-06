@@ -556,18 +556,133 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-power:PWR_FLAG"
+			(power global)
+			(pin_numbers
+				(hide yes)
+			)
+			(pin_names
+				(offset 0)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "#FLG"
+				(at 0 1.905 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "PWR_FLAG"
+				(at 0 3.81 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Special symbol for telling ERC where power comes from"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "flag power"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_0"
+				(pin power_out line
+					(at 0 0 90)
+					(length 0)
+					(name "~"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(symbol "PWR_FLAG_0_1"
+				(polyline
+					(pts
+						(xy 0 0) (xy 0 1.27) (xy -1.016 1.905) (xy 0 2.54) (xy 1.016 1.905) (xy 0 1.27)
+					)
+					(stroke
+						(width 0)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 	)
 	(text "Total-rail shunt + INA180A2 (50V/V) -> +5V_LED (spec Sec 7.4)"
 		(exclude_from_sim no)
 		(at 55.88 58.42 0)
 		(effects (font (size 2 2) (thickness 0.35) (bold yes) (color 26 95 180 1)) (justify left top))
-		(uuid "b18b1c6e-d8d8-4c29-b27f-e576fd1ea6e0")
+		(uuid "f37a8581-9312-467a-940d-c4a151d7cd88")
 	)
 	(text "+5V_LED members (RS1.2/U4 VS+IN-/C3) are plain same-name global labels -- the shunt's own terminal copper IS the Kelvin tap (layout, Sec 6.8)"
 		(exclude_from_sim no)
 		(at 55.88 142.24 0)
 		(effects (font (size 1.27 1.27) (color 21 96 61 1)) (justify left top))
-		(uuid "2efc38f6-f592-4b59-8693-5e330d8e2c6d")
+		(uuid "9849e44e-9036-41e7-9fd1-753cb2a4ef5b")
 	)
 	(symbol
 		(lib_id "cec-vendor:CEC_SHUNT_2T")
@@ -578,7 +693,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "3f6a3687-762e-4f04-9e54-19f900c6f693")
+		(uuid "6c5166a5-adee-44ab-bbf7-87a7efd9ed07")
 		(property "Reference" "RS1" (at 83.82 90.17 90) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "5mOhm" (at 83.82 92.71 90) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric" (at 81.28 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -587,8 +702,8 @@
 		(property "MPN" "HoYLR2512-2W-5mR-1%" (at 81.28 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C5375417" (at 81.28 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "Total-rail current shunt, 5mOhm/2W/1% -- see README.md Sec 2 for the headroom math (working-choice value)" (at 81.28 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "3e25865f-632e-4dc5-8ff6-89bbd65b831a"))
-		(pin "2" (uuid "1ae47235-0d7c-4742-9662-42177a6f293a"))
+		(pin "1" (uuid "830cbd49-0a36-4166-ad9a-8098b6e433a0"))
+		(pin "2" (uuid "cd8c4ef6-cee3-4bd9-bf12-d56b3da7a467"))
 		(instances
 			(project "argb-standard-module"
 				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "RS1") (unit 1))
@@ -604,7 +719,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "42c5ff43-e2f8-4d8a-b9c0-10623b6d487c")
+		(uuid "f1210646-b277-4c84-bf9a-cc5423b1ec27")
 		(property "Reference" "U4" (at 119.38 78.74 0) (effects (font (size 1.27 1.27))))
 		(property "Value" "INA180A2" (at 119.38 76.2 0) (effects (font (size 1.27 1.27))))
 		(property "Footprint" "cec-Package_TO_SOT_SMD:SOT-23-5_L3.0-W1.7-P0.95-LS2.8-BL" (at 119.38 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -613,11 +728,11 @@
 		(property "MPN" "INA180A2IDBVR" (at 119.38 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C192764" (at 119.38 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Description" "Current-sense amplifier, gain=50V/V (A2), spec Sec 7.4 LOCKED part" (at 119.38 91.44 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "14cc2d5f-81c1-4d5a-aec1-b42b5452791b"))
-		(pin "2" (uuid "3af4cc16-efbb-49b2-8503-cc637d4ec8a8"))
-		(pin "3" (uuid "abf41136-eadb-43b4-837b-1c97858944e2"))
-		(pin "4" (uuid "3121b232-d42b-4dc7-9ff7-2202e1b4375c"))
-		(pin "5" (uuid "cbb704e0-cd46-4785-b73f-bcd1fa57d94e"))
+		(pin "1" (uuid "be7f8961-3696-48c0-9fec-059a951bcffa"))
+		(pin "2" (uuid "27f2ed89-9536-42b9-8783-0af7e6978ac6"))
+		(pin "3" (uuid "8c405637-0c83-4250-9db0-a0c0b79bba7b"))
+		(pin "4" (uuid "f5ae93b3-c1f0-440c-b394-31b135525783"))
+		(pin "5" (uuid "349844b8-b023-46cc-b187-9f0b84e4def5"))
 		(instances
 			(project "argb-standard-module"
 				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "U4") (unit 1))
@@ -633,7 +748,7 @@
 		(on_board yes)
 		(dnp no)
 		(fields_autoplaced yes)
-		(uuid "17cf1df9-cfad-4841-be50-3f31fc2c5301")
+		(uuid "9bd0fe98-d13c-4586-963d-2a094a522714")
 		(property "Reference" "C3" (at 120.65 121.92 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Value" "100nF" (at 120.65 124.46 0) (effects (font (size 1.27 1.27)) (justify left)))
 		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric" (at 119.38 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
@@ -641,8 +756,8 @@
 		(property "Manufacturer" "Samsung" (at 119.38 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "MPN" "CL05B104KO5NNNC" (at 119.38 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "LCSC" "C1525" (at 119.38 123.19 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "15ffbce0-11ed-43cc-8c35-efc996075571"))
-		(pin "2" (uuid "a3ca1fd1-7afe-4ccf-9cce-96fe8d56c90a"))
+		(pin "1" (uuid "dfa230c1-264f-411b-a1d9-db2bfe3d948f"))
+		(pin "2" (uuid "ed5d5469-1cc2-47da-85af-b879faddb142"))
 		(instances
 			(project "argb-standard-module"
 				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "C3") (unit 1))
@@ -650,49 +765,49 @@
 		)
 	)
 	(wire (pts (xy 81.28 97.79) (xy 81.28 102.87))
-		(stroke (width 0) (type default)) (uuid "54f3c8b5-a1ba-434c-8baf-d22156ae04f0"))
+		(stroke (width 0) (type default)) (uuid "3687c00b-1b66-4f8c-b7b5-f7940ac64ecd"))
 	(wire (pts (xy 81.28 102.87) (xy 121.92 102.87))
-		(stroke (width 0) (type default)) (uuid "35566654-9057-4181-813f-c2787ddf17f6"))
+		(stroke (width 0) (type default)) (uuid "38fa7586-cc60-49c9-9c9a-44d2d58dcecb"))
 	(wire (pts (xy 121.92 102.87) (xy 121.92 101.6))
-		(stroke (width 0) (type default)) (uuid "586869f9-11d5-439d-82d7-06f920fd4010"))
+		(stroke (width 0) (type default)) (uuid "b8333531-b028-42ef-8a9f-b500e59b0c5a"))
 	(wire (pts (xy 116.84 101.6) (xy 116.84 110.49))
-		(stroke (width 0) (type default)) (uuid "68e236a8-ad4b-494c-8dd3-fe8b6a72d262"))
+		(stroke (width 0) (type default)) (uuid "38b9fdf6-a75a-4ab5-820d-0af093333229"))
 	(wire (pts (xy 81.28 85.09) (xy 81.28 81.28))
-		(stroke (width 0) (type default)) (uuid "4647838d-fc14-4f14-b37e-d3daf9f771cd"))
+		(stroke (width 0) (type default)) (uuid "d3666fa0-5daa-4b08-a526-2ded6e0e6d3a"))
 	(wire (pts (xy 121.92 81.28) (xy 121.92 77.47))
-		(stroke (width 0) (type default)) (uuid "9fcbebf7-f8c8-4f5e-a448-cbf48bd961e2"))
+		(stroke (width 0) (type default)) (uuid "530b7ae4-59e6-48e4-b9c2-dde2b8e3ea62"))
 	(wire (pts (xy 116.84 81.28) (xy 116.84 77.47))
-		(stroke (width 0) (type default)) (uuid "8bf351be-7a31-404f-82aa-bb12df71a57b"))
+		(stroke (width 0) (type default)) (uuid "03145ffb-0851-44b3-b0d7-0588654193ba"))
 	(wire (pts (xy 119.38 120.65) (xy 119.38 116.84))
-		(stroke (width 0) (type default)) (uuid "b170fbf6-dd04-4240-bf49-99b0cf3d09a3"))
+		(stroke (width 0) (type default)) (uuid "9d904151-ff12-47dd-b1c2-cb01b78153ca"))
 	(wire (pts (xy 119.38 101.6) (xy 119.38 105.41))
-		(stroke (width 0) (type default)) (uuid "0d8a1912-1aab-4293-a10e-937861e06b15"))
+		(stroke (width 0) (type default)) (uuid "09a7ed6e-d01b-493c-abbf-d8bb25bfda4e"))
 	(wire (pts (xy 119.38 125.73) (xy 119.38 129.54))
-		(stroke (width 0) (type default)) (uuid "c47e36d9-6f4c-4dba-ad12-9cf174f1b99d"))
+		(stroke (width 0) (type default)) (uuid "9da899e5-a40b-42a7-ab2e-1adb4447259f"))
 	(wire (pts (xy 81.28 97.79) (xy 64.77 97.79))
-		(stroke (width 0) (type default)) (uuid "3f5e559e-1deb-43ea-bd9b-6b934161e21c"))
+		(stroke (width 0) (type default)) (uuid "41033e26-955a-4673-a61d-2a8dab1ee2ac"))
 	(wire (pts (xy 116.84 110.49) (xy 139.7 110.49))
-		(stroke (width 0) (type default)) (uuid "20315ce8-1ace-4fd9-876a-db1b52a3bc6c"))
-	(junction (at 81.28 97.79) (diameter 0) (color 0 0 0 0) (uuid "9c70872c-1af2-4ae2-a9cf-d2ffe1c30fe4"))
+		(stroke (width 0) (type default)) (uuid "8e7710bb-c47e-4ac4-9a67-feb3ddf6ed96"))
+	(junction (at 81.28 97.79) (diameter 0) (color 0 0 0 0) (uuid "5523459a-4905-4125-8aff-8956c35f554d"))
 
 	(hierarchical_label "+5V_LED_IN"
 		(shape input)
 		(at 64.77 97.79 180)
 		(effects (font (size 1.27 1.27)) (justify right))
-		(uuid "db492ae8-ea8a-4773-8077-ef590e068888")
+		(uuid "9a9631b6-24d4-44ee-91fd-32afcd7378bb")
 	)
 	(hierarchical_label "ISENSE_TOTAL"
 		(shape output)
 		(at 139.7 110.49 0)
 		(effects (font (size 1.27 1.27)) (justify left))
-		(uuid "d3ac8d1a-7ba1-427e-ad64-f1aeb7aa558a")
+		(uuid "a873405e-3228-469d-a365-ddaa1ed87d04")
 	)
 	(global_label "+5V_LED"
 		(shape passive)
 		(at 81.28 81.28 0)
 		(fields_autoplaced yes)
 		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "de36c190-e5d9-418e-83d7-e452280ea852")
+		(uuid "bb604b48-8dc4-4105-ba65-e5847e33bfb4")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 81.28 81.28 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
@@ -703,7 +818,7 @@
 		(at 121.92 77.47 0)
 		(fields_autoplaced yes)
 		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "3a5d345e-4e97-444b-a155-f2035a709215")
+		(uuid "ebe6d49c-e1a2-4961-93c9-e5ec20be5daf")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 121.92 77.47 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
@@ -714,7 +829,7 @@
 		(at 116.84 77.47 0)
 		(fields_autoplaced yes)
 		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "3fb99a10-ac6e-4213-82a3-538d54fe64d2")
+		(uuid "2270cc9d-fc71-4aa0-95e9-10ddf2daa171")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 116.84 77.47 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
@@ -725,10 +840,28 @@
 		(at 119.38 116.84 0)
 		(fields_autoplaced yes)
 		(effects (font (size 1.27 1.27)) (justify left bottom))
-		(uuid "ac26a98e-b7db-400c-ab58-ecf7e2323f5b")
+		(uuid "14d32131-3b16-4d11-8448-721262b55708")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
 			(at 119.38 116.84 0)
 			(effects (font (size 1.27 1.27)) (hide yes))
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 81.28 85.09 0)
+		(unit 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(dnp no)
+		(uuid "c7f8e330-9152-4f45-b2a5-720e7ff9a843")
+		(property "Reference" "#PWR201" (at 81.28 82.55 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(property "Value" "PWR_FLAG" (at 81.28 80.01 0) (effects (font (size 1.27 1.27))))
+		(pin "1" (uuid "c9957bfa-344f-43bf-9282-8f85e4246347"))
+		(instances
+			(project "argb-standard-module"
+				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "#PWR201") (unit 1))
+			)
 		)
 	)
 	(symbol
@@ -739,13 +872,13 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "e27cd64f-576d-414a-a773-006643f2e9c1")
-		(property "Reference" "#PWR201" (at 119.38 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(uuid "0856cfe4-bb1d-406c-a9f0-cafcd050b11d")
+		(property "Reference" "#PWR202" (at 119.38 102.87 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 119.38 111.76 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "462e8271-ba66-46ca-83a2-d79bd6ebf560"))
+		(pin "1" (uuid "a8433f21-f59e-480e-b9a5-86a2df37c982"))
 		(instances
 			(project "argb-standard-module"
-				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "#PWR201") (unit 1))
+				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "#PWR202") (unit 1))
 			)
 		)
 	)
@@ -757,13 +890,13 @@
 		(in_bom yes)
 		(on_board yes)
 		(dnp no)
-		(uuid "4b72a069-b866-4f14-803e-d805d2077cd2")
-		(property "Reference" "#PWR202" (at 119.38 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
+		(uuid "cca90d44-7280-4eb4-a159-bedc1eb92e68")
+		(property "Reference" "#PWR203" (at 119.38 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
 		(property "Value" "GND" (at 119.38 134.62 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "c5910e84-165e-40f0-91d3-8e82a9a058da"))
+		(pin "1" (uuid "c53ec0c6-cb27-42ff-a2e8-6adaac2b94cc"))
 		(instances
 			(project "argb-standard-module"
-				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "#PWR202") (unit 1))
+				(path "/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c01/8a1e9c7d-2b4f-4a6e-9d3c-5f7e1b8a9c12" (reference "#PWR203") (unit 1))
 			)
 		)
 	)

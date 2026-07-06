@@ -35,6 +35,7 @@
 #   python3 scripts/gen-argb-standard.py [--force]
 import argparse
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -155,11 +156,21 @@ ap(L01, "RT1", "cec-vendor", "MF72-5D-20", "MF72-5D-20",
 ap(L01, "R1", "cec-vendor", "R_Small", "10k", "cec-Resistor_SMD:R_0402_1005Metric",
    {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1002TCE", "LCSC": "C25744"})
 ap(L01, "R2", "cec-vendor", "R_Small", "47k", "cec-Resistor_SMD:R_0402_1005Metric",
-   {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF4702TCE", "LCSC": "C25900"})
+   # measured bug, fixed: C25900 (an earlier value here) is NOT 0402WGF4702TCE
+   # -- verified against the live LCSC listing it is actually 0402WGF4701TCE
+   # (4.7k, one decade off -- would have corrupted the ISENSE_TOTAL rail-
+   # divider ratio). C25792 is the correct listing for the intended 47k
+   # 0402WGF4702TCE (cross-checked against another board's own sourced BOM).
+   {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF4702TCE", "LCSC": "C25792"})
 ap(L01, "R3", "cec-vendor", "R_Small", "10k", "cec-Resistor_SMD:R_0402_1005Metric",
    {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1002TCE", "LCSC": "C25744"})
 ap(L01, "C1", "cec-vendor", "C_Small", "100u", "cec-Capacitor_SMD:C_1210_3225Metric",
-   {"Manufacturer": "Samsung", "MPN": "CL32A107MQVNNNE", "LCSC": "C96446",
+   # measured bug, fixed: C96446 (an earlier value here) is NOT
+   # CL32A107MQVNNNE -- verified against the live LCSC listing it is
+   # actually CL10A106MA8NRNC (10uF 0603 -- wrong value AND wrong
+   # footprint/package entirely). C49066 is the correct listing (confirmed
+   # against the live LCSC page: "CAP CER 100uF 6.3V X5R 1210").
+   {"Manufacturer": "Samsung", "MPN": "CL32A107MQVNNNE", "LCSC": "C49066",
     "Description": "+5V_LED bulk cap, charged (slew-limited) through RT1"})
 ap(L01, "C2", "cec-vendor", "C_Small", "1n", "cec-Capacitor_SMD:C_0402_1005Metric",
    {"Manufacturer": "Murata", "MPN": "GRM1555C1H102JA01D", "LCSC": "C76947",
@@ -167,11 +178,20 @@ ap(L01, "C2", "cec-vendor", "C_Small", "1n", "cec-Capacitor_SMD:C_0402_1005Metri
 
 L01.net("SATA_5V_RAW", ("J1", "7"), ("J1", "8"), ("J1", "9"), ("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
 L01.net("GND", ("J1", "4"), ("J1", "5"), ("J1", "6"), ("J1", "10"), ("J1", "11"), ("J1", "12"),
-        ("R1", "2"), ("C1", "2"), ("R3", "2"), ("C2", "2"))
+        ("R1", "1"), ("C1", "2"), ("R3", "2"), ("C2", "2"))
 L01.net("5V_POST_FET", ("Q1", "5"), ("Q1", "6"), ("Q1", "7"), ("Q1", "8"), ("F1", "1"))
 L01.net("5V_POST_FUSE", ("F1", "2"), ("RT1", "1"))
 L01.net("+5V_LED_IN", ("RT1", "2"), ("C1", "1"), ("R2", "1"))
-L01.net("GATE_Q1", ("Q1", "4"), ("R1", "1"))
+# R1 pin roles are SWAPPED vs the naive pin1=GATE_Q1/pin2=GND assignment
+# (measured bug, fixed): R1 sits ABOVE the gate at rot0, and R_Small's own
+# geometry puts pin1 FARTHER from the gate (u_y=30) than pin2 (u_y=34,
+# closer to the gate at u_y=44) -- a straight vertical wire from the gate
+# down to pin1 would necessarily pass THROUGH pin2's exact point first
+# (30 < 34 < 44 on the same X), accidentally shorting the gate straight to
+# GND at that pass-through point. Swapping so the NEARER pin (2) is
+# GATE_Q1 and the FARTHER pin (1) is GND means the gate wire simply stops
+# at its own pin, never touching the other.
+L01.net("GATE_Q1", ("Q1", "4"), ("R1", "2"))
 L01.net("VRAIL_5V_DIV", ("R2", "2"), ("R3", "1"), ("C2", "1"))
 L01.hier_exports = {
     "+5V_LED_IN":   ("output", ("RT1", "2")),
@@ -262,7 +282,18 @@ L03.hier_exports = {
 # +5VSB_RJ is a GLOBAL bus (produced here, consumed in BOTH 04-can and
 # 05-mcu -- a genuine 3-leaf net, not a 2-leaf pair), so it carries no
 # sheet-pin/hier_exports entry at all; see build()'s global_nets wiring.
-L03.powerflag_nets = ["GND"]
+# GND itself needs NO powerflag_nets entry here (or on any other leaf
+# besides 01-power-input): GND is a project-wide POWER_PORTS net that
+# merges hierarchy-wide exactly like a global label, so ONE PWR_FLAG
+# anywhere in the whole design satisfies ERC for every GND pin on every
+# sheet (ent-common's own precedent: a single L01 entry covers all six of
+# its leaves). Measured bug, fixed: an earlier version put a SEPARATE GND
+# PWR_FLAG on 01-power-input, 03-hub-link, AND 07-usb-flash -- three
+# independent "power output" assertions all driving the identical merged
+# net, which ERC correctly flagged as a pin-to-pin "Power output and Power
+# output are connected" ERROR between each pair. 01-power-input's single
+# flag is retained as the one canonical anchor.
+L03.powerflag_nets = []
 
 
 # ===========================================================================
@@ -352,7 +383,9 @@ L07.hier_exports = {
     "USB_D_N": ("output", ("D6", "3")),
     "VBUS":    ("output", ("FB2", "2")),
 }
-L07.powerflag_nets = ["GND"]
+# GND needs no powerflag_nets entry here either -- see 03-hub-link's note
+# (01-power-input's single flag covers the whole project-wide GND net).
+L07.powerflag_nets = []
 
 
 # ===========================================================================
@@ -382,14 +415,19 @@ ap(L05, "U3", "cec-vendor", "LP5907MFX-1.2", "LP5907MFX-3.3",
 ap(L05, "C6", "cec-vendor", "C_Small", "10u", "cec-Capacitor_SMD:C_0805_2012Metric",
    {"Manufacturer": "Samsung", "MPN": "CL21A106KAYNNNE", "LCSC": "C15850"})
 ap(L05, "C7", "cec-vendor", "C_Small", "1u", "cec-Capacitor_SMD:C_0603_1608Metric",
-   {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC", "LCSC": "C15849"})
+   # LCSC C29936 (not the earlier C15849, measured bug fixed): C15849 is
+   # actually CL10A105KB8NNNC (a different, though electrically similar,
+   # Samsung 1uF 0603) on the live LCSC listing, not the intended
+   # CL10B105KA8NNNC -- C29936 is the correct listing (cross-checked against
+   # another board's own sourced BOM). Same fix applies to C8/C9 below.
+   {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC", "LCSC": "C29936"})
 ap(L05, "C39", "cec-vendor", "C_Small", "100n", "cec-Capacitor_SMD:C_0402_1005Metric",
    {"Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC", "LCSC": "C1525"})
 ap(L05, "C8", "cec-vendor", "C_Small", "1u", "cec-Capacitor_SMD:C_0603_1608Metric",
-   {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC", "LCSC": "C15849",
+   {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC", "LCSC": "C29936",
     "Description": "LDO IN bulk"})
 ap(L05, "C9", "cec-vendor", "C_Small", "1u", "cec-Capacitor_SMD:C_0603_1608Metric",
-   {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC", "LCSC": "C15849",
+   {"Manufacturer": "Samsung", "MPN": "CL10B105KA8NNNC", "LCSC": "C29936",
     "Description": "LDO OUT bulk"})
 ap(L05, "R8", "cec-vendor", "R_Small", "10k", "cec-Resistor_SMD:R_0402_1005Metric",
    {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF1002TCE", "LCSC": "C25744",
@@ -419,11 +457,20 @@ L05.net("+5V_LOGIC_OR", ("D2", "1"), ("D3", "1"), ("D4", "1"), ("U3", "1"), ("U3
 L05.net("+3V3", ("U3", "5"), ("C9", "1"), ("C6", "1"), ("C7", "1"), ("C39", "1"),
         ("R8", "1"), ("R9", "1"), ("U1", "3"))
 L05.net("GND", ("U3", "2"), ("C6", "2"), ("C7", "2"), ("C39", "2"), ("C8", "2"), ("C9", "2"),
-        ("SW1", "1"), ("SW2", "1"),
+        ("SW1", "2"), ("SW2", "2"),
         ("U1", "1"), ("U1", "2"), ("U1", "42"), ("U1", "43"), ("U1", "46"),
         *[("U1", str(n)) for n in range(47, 66)])
-L05.net("EN", ("U1", "45"), ("R8", "2"), ("SW2", "2"))
-L05.net("GPIO0", ("U1", "4"), ("R9", "2"), ("SW1", "2"))
+# SW_Push is a plain 2-pin momentary switch (pin1/pin2 symmetric, shorted
+# when pressed) -- pin1 of EACH button is wired to its own signal's
+# pullup/MCU node (EN for SW2, GPIO0 for SW1; see compose_mcu), pin2 to
+# GND, so a press pulls the signal low. (Corrected: an earlier version had
+# this backwards -- SW1.1/SW2.1 listed under GND while compose_mcu's real
+# wiring put pin1 on the SIGNAL node, and pin2 was left un-wired entirely
+# under the wrong "signal" listing -- the boot/reset buttons' GND return
+# was completely missing. ERC's isolated_pin_label on GPIO0 was the first
+# visible symptom.)
+L05.net("EN", ("U1", "45"), ("R8", "2"), ("SW2", "1"))
+L05.net("GPIO0", ("U1", "4"), ("R9", "2"), ("SW1", "1"))
 L05.net("USB_D_P", ("U1", "24"))
 L05.net("USB_D_N", ("U1", "23"))
 L05.net("CAN_TX", ("U1", "21"))
@@ -467,11 +514,10 @@ L05.hier_exports = {
     "LED8_DATA":       ("output", ("U1", "15")),
     "STATUS_LED_DATA": ("output", ("U1", "25")),
 }
-L05.powerflag_nets = ["+5V_LOGIC_OR"]
-# +5V_LOGIC_OR has no genuine power_out driver (fed only by 3 diode cathodes,
-# all "passive"-typed pins) -- the PWR_FLAG anchor block satisfies ERC's
-# power_pin_not_driven on U3.IN, exactly like every diode-ORed rail elsewhere
-# in this repo (e.g. ent-common's +5VSB_FUSED after its eFuse).
+L05.powerflag_nets = []
+# +5V_LOGIC_OR's PWR_FLAG is stamped directly in compose_mcu at U3.1's own
+# already-wired point (not via powerflag_nets -- see that stamp's comment
+# for why the anchor-block mechanism doesn't reach this particular net).
 
 
 # ===========================================================================
@@ -504,9 +550,14 @@ for _ch in range(1, 9):
     _in_pin, _out_pin = _AHCT244_CH[_ch]
     _r, _dclamp, _dtvs, _j = f"R{9 + _ch}", f"D{6 + _ch}", f"D{14 + _ch}", f"J{3 + _ch}"
 
+    # LCSC C25104 (not the earlier C25131, measured bug fixed): C25131 is
+    # actually 0402WGF680JTCE (68R) on the live LCSC listing, not the
+    # intended 330R 0402WGF3300TCE -- would have shipped the wrong series-
+    # resistor value on all 9 LED-channel/status-LED positions using this
+    # value (R10-R17 below + R20 in 08-status).
     ap(L06, _r, "cec-vendor", "R_Small", "330",
        "cec-Resistor_SMD:R_0402_1005Metric",
-       {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF3300TCE", "LCSC": "C25131",
+       {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF3300TCE", "LCSC": "C25104",
         "Description": f"LED channel {_ch} series resistor"})
     ap(L06, _dclamp, "cec-vendor", "BAT54S", "BAT54S",
        "cec-Package_TO_SOT_SMD:SOT-23-3_L2.9-W1.3-P1.90-LS2.4-TL",
@@ -533,11 +584,23 @@ for _ch in range(1, 9):
     # RECEIVES this signal (05-mcu drives it) -- role is "input" here.
     L06.net(f"LED{_ch}_DATA", ("U5", _in_pin))
     _hier_exports_06[f"LED{_ch}_DATA"] = ("input", ("U5", _in_pin))
+    # R's upstream (from U5) vs downstream (to dclamp) PIN NUMBER swaps
+    # between the two 74AHCT244 mirror groups (compose_led_outputs picks
+    # this per-channel from the real pin_out() geometry; ch1-4 = group1,
+    # sgn=+1, pin1=upstream/pin2=downstream, ch5-8 = group2 (MIRRORED),
+    # sgn=-1, swapped) -- mirrored here with the same static ch<=4 split so
+    # the net membership matches whichever physical pin compose_led_outputs
+    # actually wires (measured bug, fixed: this net list hardcoded
+    # pin1=upstream/pin2=downstream for EVERY channel, which was wrong for
+    # the mirrored group and produced a downstream wire that had to cross
+    # back through R's own body to reach the correctly-declared pin --
+    # audit-sch.py's wire_through_body caught it on R14-R17).
+    _r_up, _r_dn = ("1", "2") if _ch <= 4 else ("2", "1")
     # buffer output (5V level), leaf-internal only
-    L06.net(f"LED{_ch}_BUF", ("U5", _out_pin), (_r, "1"))
+    L06.net(f"LED{_ch}_BUF", ("U5", _out_pin), (_r, _r_up))
     # post-series-resistor node: BAT54S tap (pin3) + PESD anode-side (pin1,
     # signal) + header DATA pin, leaf-internal only
-    L06.net(f"LED{_ch}_HDR", (_r, "2"), (_dclamp, "3"), (_dtvs, "1"), (_j, "3"))
+    L06.net(f"LED{_ch}_HDR", (_r, _r_dn), (_dclamp, "3"), (_dtvs, "1"), (_j, "3"))
 
     _5v_led_members += [(_dclamp, "2"), (_j, "1")]     # BAT54S pin2 = cathode -> +5V_LED
     _gnd_members += [(_dclamp, "1"), (_dtvs, "2"), (_j, "4")]  # BAT54S pin1 = anode -> GND
@@ -563,16 +626,26 @@ L06.powerflag_nets = []
 L08 = LEAVES["08-status"]
 ap(L08, "U6", "cec-vendor", "SN74AHCT1G08", "SN74AHCT1G08",
    "cec-Package_TO_SOT_SMD:SOT-23-5",
-   {"Manufacturer": "Texas Instruments", "MPN": "SN74AHCT1G08DBVR", "LCSC": "C7526",
+   {"Manufacturer": "Texas Instruments", "MPN": "SN74AHCT1G08DBVR", "LCSC": "C113521",
+    # measured bug, fixed: C7526 (an earlier value here) 404s on the live
+    # LCSC listing -- C113521 is the Hub Standard's own sourced LCSC number
+    # for the identical SN74AHCT1G08DBVR (hub-standard/bom/bom.csv, U6),
+    # verified against the live LCSC listing to be the right part.
     "Description": "2-input AND, both inputs tied = non-inverting 3.3V->5V "
                    "level shift for the SK6812 DIN (Hub Standard's own U6 "
                    "precedent, verbatim)"})
 ap(L08, "DL1", "cec-vendor", "SK6812MINI", "SK6812MINI",
    "cec-LED_SMD:LED_SK6812MINI_PLCC4_3.5x3.5mm_P1.75mm",
-   {"Manufacturer": "Opsco", "MPN": "SK6812MINI-E", "LCSC": "C2841455",
+   {"Manufacturer": "Opsco", "MPN": "SK6812MINI-E", "LCSC": "C5149201",
+    # measured bug, fixed: C2841455 (an earlier value here) is NOT this LED --
+    # verified against the live LCSC listing it is a VIIYONG 4.7pF 0201
+    # ceramic cap, an unrelated part. C5149201 is the Hub Standard's own
+    # sourced LCSC number for the identical SK6812MINI-E (hub-standard/bom/
+    # bom.csv, DL1-DL7), verified against the live LCSC listing to be the
+    # right part.
     "Description": "Status pixel, platform LED language"})
 ap(L08, "R20", "cec-vendor", "R_Small", "330", "cec-Resistor_SMD:R_0402_1005Metric",
-   {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF3300TCE", "LCSC": "C25131"})
+   {"Manufacturer": "UNI-ROYAL", "MPN": "0402WGF3300TCE", "LCSC": "C25104"})
 ap(L08, "C11", "cec-vendor", "C_Small", "100n", "cec-Capacitor_SMD:C_0402_1005Metric",
    {"Manufacturer": "Samsung", "MPN": "CL05B104KO5NNNC", "LCSC": "C1525"})
 
@@ -606,7 +679,18 @@ def compose_power_input(c, lf):
     c.wire(p7, (busx, p7[1]))
     c.wire(p8, (busx, p8[1]))
     c.wire(p9, (busx, p9[1]))
-    c.wire((busx, p7[1]), (busx, p9[1]))
+    # p8 (the Y-middle pin) is a TRUE SHARED ENDPOINT of two bus segments
+    # (p7-p8, p8-p9) rather than an interior tap of one continuous p7-to-p9
+    # run (measured bug, fixed): a later bridge wire ALSO needs to start
+    # exactly at p8's point (see srcbusx below) to reach Q1's source, and
+    # with the single-continuous-run version that made THREE separate wire
+    # objects converge on one WIRE'S INTERIOR point (only p8's own stub
+    # was a true endpoint there) -- the exported netlist showed p7/p9
+    # split off from p8/Q1 into two disconnected nets even though every
+    # coordinate nominally coincided. Splitting the bus so p8's point is a
+    # genuine shared endpoint of every wire touching it resolves it.
+    c.wire((busx, p7[1]), (busx, p8[1]))
+    c.wire((busx, p8[1]), (busx, p9[1]))
     c.use(("J1", "7"), ("J1", "8"), ("J1", "9"))
 
     # Q1 rot=270 (CHANGED from 90 -- measured bug, fixed): at rot90 the
@@ -625,8 +709,27 @@ def compose_power_input(c, lf):
     c.place("Q1", 50, 50, 270)
     q1, q2, q3 = c.pin("Q1", "1"), c.pin("Q1", "2"), c.pin("Q1", "3")
     srcbusx = busx + 30
-    c.wire((busx, p8[1]), (srcbusx, p8[1]))
-    c.wire((srcbusx, p8[1]), (srcbusx, q1[1]), q1)
+    # J1 (a 15-pin SATA connector) draws its own body as a rectangle
+    # spanning the FULL pin1-to-pin15 height -- every one of its pins,
+    # including p8, sits inside that box's own Y-range by construction, so
+    # a naive straight bridge from busx (left of the body) to srcbusx
+    # (right of it) at p8's own Y cuts straight across the body (measured:
+    # audit-sch.py wire_through_body). busx/srcbusx are ALREADY clear of
+    # the body in X (busx left of it, srcbusx right of it) -- only the
+    # horizontal crossing at a body-spanned Y is the problem -- so detour
+    # up to a Y clear of the body's top (pin1) before crossing, then back
+    # down to p8's Y on the far side (also body-clear in X there).
+    bridge_y = 25
+    c.wire((busx, p8[1]), (busx, bridge_y), (srcbusx, bridge_y), (srcbusx, p8[1]))
+    # q1 happens to share p8's own Y (both =50) -- a "jog" via an
+    # intermediate (srcbusx, q1[1]) point would be a ZERO-LENGTH wire
+    # segment (measured bug, fixed: KiCad's connectivity did not propagate
+    # through that degenerate segment, splitting J1.7/J1.9 off from J1.8/
+    # Q1.1-3 into two separate isolated nets even though every coordinate
+    # was nominally "coincident" -- exported-netlist verified). Route q1
+    # directly with no redundant same-point jog; q2/q3 genuinely need theirs
+    # (different Y).
+    c.wire((srcbusx, p8[1]), q1)
     c.wire((srcbusx, p8[1]), (srcbusx, q2[1]), q2)
     c.wire((srcbusx, p8[1]), (srcbusx, q3[1]), q3)
     c.use(("Q1", "1"), ("Q1", "2"), ("Q1", "3"))
@@ -635,16 +738,20 @@ def compose_power_input(c, lf):
     dbusx = q5[0] + 8
     for p in (q5, q6, q7, q8):
         c.wire(p, (dbusx, p[1]))
-    # measured Y order q6(48) < q5(50) < q7(52) < q8(54) -- one vertical run
-    # spanning the full min-to-max (q6 to q8) passes through q5/q7's stub
+    # measured Y order q7(48) < q5(50) < q6(52) < q8(54) -- one vertical run
+    # spanning the full min-to-max (q7 to q8) passes through q5/q6's stub
     # endpoints too (a stub landing on the spine's interior is still
-    # electrically joined).
-    c.wire((dbusx, q6[1]), (dbusx, q8[1]))
+    # electrically joined). (Corrected: an earlier version of this comment
+    # and span mislabeled q6 as the minimum -- it is actually q7 -- and the
+    # resulting q6-to-q8 span [52,54] missed both q7(48) and q5(50),
+    # leaving q7 fully unconnected per the exported netlist.)
+    c.wire((dbusx, q7[1]), (dbusx, q8[1]))
     c.use(("Q1", "5"), ("Q1", "6"), ("Q1", "7"), ("Q1", "8"))
     qg = c.pin("Q1", "4")
     c.place("R1", qg[0], qg[1] - 12)
-    c.wire(qg, (qg[0], qg[1] - 10))
-    c.use(("Q1", "4"), ("R1", "1"))
+    r1_2 = c.pin("R1", "2")
+    c.wire(qg, r1_2)
+    c.use(("Q1", "4"), ("R1", "2"))
 
     c.place("F1", 75, 50)
     f1, f2 = c.pin("F1", "1"), c.pin("F1", "2")
@@ -737,6 +844,17 @@ def compose_sense(c, lf):
     c.io("ISENSE_TOTAL", "right", from_pt=(u4_1[0], 45))
     c.use(("U4", "1"))
 
+    # +5V_LED is entirely diode/shunt/passive-fed (no local "power_out" pin
+    # anywhere the GLOBAL bus touches across 02-sense/05-mcu/06-led-outputs/
+    # 08-status), so ERC's power_pin_not_driven fires on every downstream
+    # Power-input pin (05-mcu's U3.1, 08-status's DL1.4). A PWR_FLAG stamped
+    # exactly at RS1.2's own point (left UNCONSUMED, so it still separately
+    # gets its own global_label stub) marks the bus externally driven
+    # without creating a second, disconnected island -- same pattern as
+    # +5VSB_RJ's anchor in 03-hub-link.
+    rs1_2 = c.pin("RS1", "2")
+    c.stamp("PWR_FLAG", rs1_2[0], rs1_2[1], 0)
+
     c.caption("Total-rail shunt + INA180A2 (50V/V) -> +5V_LED (spec Sec 7.4)", 10, 4)
     c.note("+5V_LED members (RS1.2/U4 VS+IN-/C3) are plain same-name global "
            "labels -- the shunt's own terminal copper IS the Kelvin tap "
@@ -767,6 +885,16 @@ def compose_hub_link(c, lf):
     fb1a = c.pin("FB1", "1")
     c.wire(j1, (j1[0], fb1a[1]), fb1a)
     c.use(("J2", "1"), ("FB1", "1"))
+    # +5VSB_RJ is fed entirely from the RJ-45 cable through a passive bead
+    # (FB1) -- no local pin anywhere on this GLOBAL bus is an actual
+    # "power_out" type, so ERC's power_pin_not_driven fires on every
+    # downstream Power-input pin (04-can's U2.3, matching ent-common's
+    # identical "+5VSB" precedent). A PWR_FLAG stamped exactly at FB1.2's
+    # own point (left UNCONSUMED, so it still separately gets its own
+    # global_label stub) marks the bus externally driven without creating
+    # a second, disconnected island.
+    fb1b = c.pin("FB1", "2")
+    c.stamp("PWR_FLAG", fb1b[0], fb1b[1], 0)
 
     # DETECT chain: J2.8 drops well clear of pins 3/6 (whose CAN_H_RJ/CAN_L_RJ
     # io lanes travel the full sheet width at THEIR row) before running the
@@ -787,7 +915,20 @@ def compose_hub_link(c, lf):
 
 
 def compose_can(c, lf):
-    c.place("U2", 45, 40)
+    # rot=180 (not the datasheet-default 0): U2's CANH/CANL (pins 6/7) are
+    # drawn on the symbol's RIGHT side and TXD/RXD (pins 1/4) on the LEFT at
+    # rot=0 -- backwards for this sheet's actual flow (FL1/the RJ-45 side
+    # sits to U2's LEFT, the CAN_TX/CAN_RX io exports sit to U2's RIGHT).
+    # At rot=0 that forced the CANH/CANL wires to wrap ALL THE WAY AROUND
+    # U2's own body to reach the far-side pins (measured: 2 wire_through_body
+    # hits, the horizontal run from FL1's side punching straight through the
+    # SOIC body to land on the pin drawn on the opposite face). rot=180 swaps
+    # both axes (a symmetric-about-center body has the same bbox either way),
+    # putting CANH/CANL on the LEFT (facing FL1, short direct hop) and
+    # TXD/RXD on the RIGHT (facing the io exports, if anything shorter than
+    # before) -- the existing TXD/RXD block below queries pins dynamically
+    # via c.pin(), so it repositions for free with no code change there.
+    c.place("U2", 45, 40, 180)
     # U2.3 (VCC) and C4.1 (its bypass) are left UNCONSUMED and un-wired --
     # +5VSB_RJ is the GLOBAL bus (see 03-hub-link's note), each pin gets its
     # own global_label stub rather than a custom-routed local connection.
@@ -805,25 +946,62 @@ def compose_can(c, lf):
     c.place("C5", 70, 60)
 
     c.place("FL1", 15, 70)
-    c.place("R6", 15, 90)
-    c.place("R7", 35, 90)
+    # R6/R7 rotated 90 (a HORIZONTAL 2-pin, pitch 4u) and relocated to sit
+    # directly ABOVE / BELOW FL1's own body, spanning between its two same-
+    # side pins -- see the long comment below for why this replaced the
+    # original far-away (X=15/35, Y=90) placement.
+    c.place("R6", 15, 66, 90)
+    c.place("R7", 15, 74, 90)
     fl1, fl2, fl3, fl4 = (c.pin("FL1", "1"), c.pin("FL1", "2"),
                           c.pin("FL1", "3"), c.pin("FL1", "4"))
     r6a, r6b = c.pin("R6", "1"), c.pin("R6", "2")
     r7a, r7b = c.pin("R7", "1"), c.pin("R7", "2")
     u2_7, u2_6 = c.pin("U2", "7"), c.pin("U2", "6")
     # CAN_H: FL1.1 (RJ side) -bypass R6- FL1.3 (xcvr side) -> U2.7
-    c.wire(fl1, (fl1[0], r6a[1]), r6a)
-    c.wire(fl3, (fl3[0], r6b[1]), r6b)
-    c.wire(fl3, (fl3[0] + 10, fl3[1]), (fl3[0] + 10, u2_7[1]), u2_7)
-    c.use(("FL1", "1"), ("FL1", "3"), ("R6", "1"), ("R6", "2"), ("U2", "7"))
-    c.io("CAN_H_RJ", "left", from_pt=(fl1[0], fl1[1]))
     # CAN_L: FL1.2 (RJ side) -bypass R7- FL1.4 (xcvr side) -> U2.6
-    c.wire(fl2, (fl2[0], r7a[1]), r7a)
-    c.wire(fl4, (fl4[0], r7b[1]), r7b)
-    c.wire(fl4, (fl4[0] + 14, fl4[1]), (fl4[0] + 14, u2_6[1]), u2_6)
-    c.use(("FL1", "2"), ("FL1", "4"), ("R7", "1"), ("R7", "2"), ("U2", "6"))
+    #
+    # FL1's own 4 pins are the hazard: 1/2 sit at X=10 only 2u apart in Y
+    # (69/71), and 3/4 the same at X=20 -- so a bypass wire leaving pin 1 and
+    # travelling more than 2u down the SAME X=10 column runs straight
+    # through pin 2's own location (a measured near-miss: KiCad connects a
+    # wire to ANY pin it transits, not just a declared endpoint, so this
+    # would have silently tied CAN_H to CAN_L at FL1.2). Two earlier
+    # attempts (a shared vertical-then-horizontal jog, then a horizontal-
+    # first jog routing R6/R7 far below at Y=90) each cleared one hazard
+    # while re-hitting FL1's body, R6/R7's own bodies, or this pin-transit
+    # case. FIXED by placing R6/R7 where a real choke bypass belongs -- in
+    # the narrow gap directly above (pins 1/3, the Y=69 row) and below
+    # (pins 2/4, the Y=71 row) FL1's own body (Y=[68,72]) -- so the bypass
+    # loop never needs to travel past the OTHER row's pin at all:
+    #   CAN_H (upper row): fl1 up to y=66 (clear of the body, short of fl2's
+    #     y=71) -> right to R6.1(13,66) -> R6 -> R6.2(17,66) -> right to
+    #     x=20 -> down to fl3(20,69) closes the loop; fl3 also fans a
+    #     SEPARATE tap straight up-then-right to U2.7 (35,42 after the
+    #     rot=180 above), never revisiting R6's position.
+    #   CAN_L (lower row): fl2 down to y=74 (clear of the body, past fl1's
+    #     y=69) -> right to R7.1(13,74) -> R7 -> R7.2(17,74) -> right to
+    #     x=20 -> up to fl4(20,71); fl4 fans its own tap, nudged to x=21
+    #     first (FL1's pins 3/4 share x=20, so this keeps CAN_L's long-leg
+    #     column off CAN_H's) -> up to y=38 -> right to U2.6(35,38).
+    # Verified (script, not just by hand): every segment stays outside both
+    # bodies' (shrunk) boxes, and the only CAN_H/CAN_L segment intersection
+    # left is one interior-interior crossing (neither wire has a vertex
+    # there) -- the ordinary, connection-free "wires cross on the page"
+    # case, not the dangerous endpoint-on-interior one.
+    c.wire(fl1, (fl1[0], 66), (r6a[0], 66), r6a)
+    c.use(("FL1", "1"), ("R6", "1"))
+    c.io("CAN_H_RJ", "left", from_pt=(fl1[0], fl1[1]))
+    c.wire(r6b, (fl3[0], r6b[1]), fl3)
+    c.wire(fl3, (fl3[0], u2_7[1]), u2_7)
+    c.use(("FL1", "3"), ("R6", "2"), ("U2", "7"))
+    c.wire(fl2, (fl2[0], 74), (r7a[0], 74), r7a)
+    c.use(("FL1", "2"), ("R7", "1"))
     c.io("CAN_L_RJ", "left", from_pt=(fl2[0], fl2[1]))
+    c.wire(r7b, (fl4[0], r7b[1]), fl4)
+    c.use(("FL1", "4"), ("R7", "2"))
+    nudge4 = (fl4[0] + 1, fl4[1])
+    c.wire(fl4, nudge4, (nudge4[0], u2_6[1]), u2_6)
+    c.use(("U2", "6"))
 
     # U2 pins 1 (TXD/CAN_TX) and 4 (RXD/CAN_RX) exit on U2's LEFT side (local
     # x=-12.7mm) but both sit at a Y inside U2's own body Y-range (absolute
@@ -838,9 +1016,18 @@ def compose_can(c, lf):
     c.use(("U2", "1"), ("U2", "4"))
     c.io("CAN_TX", "right", from_pt=(u2_1[0], tx_y))
     c.io("CAN_RX", "right", from_pt=(u2_4[0], rx_y))
-    c.caption("TJA1051T/3, classical 500k, no module termination; FL1 CAN CMC "
-              "position DNP with the H3a-PATTERN 0R bypasses R6/R7 "
-              "(spec Sec 3.1/7.5)", 10, 4)
+    # single-line was measured OFF-SHEET (cec_sch_gates --sheet-bounds: this
+    # leaf's own text is long enough that, added to its page position, it ran
+    # past the A4 297mm right edge). An embedded "\n" does NOT fix it --
+    # cec_sch_layout._unescape (shared, out of this task's scope to edit)
+    # only unescapes \" and \\, not \n, so the off-sheet checker's width
+    # computation still sees the literal two-char "\n" as part of one long
+    # line (measured: still flagged after adding it). Two SEPARATE caption
+    # calls, stacked, sidesteps that gap entirely (each is its own text
+    # object, no embedded-newline decoding involved).
+    c.caption("TJA1051T/3, classical 500k, no module termination;", 10, 4)
+    c.caption("FL1 CAN CMC position DNP with the H3a-PATTERN 0R bypasses "
+              "R6/R7 (spec Sec 3.1/7.5)", 10, 7)
     c.done()
 
 
@@ -856,8 +1043,27 @@ def compose_usb_flash(c, lf):
 
     j_vbus = c.pin("J3", "A4")
     d5_1, fb2_1 = c.pin("D5", "1"), c.pin("FB2", "1")
-    c.wire(j_vbus, (j_vbus[0], d5_1[1] - 6), (d5_1[0], d5_1[1] - 6), d5_1)
-    c.wire(j_vbus, (j_vbus[0], fb2_1[1]), fb2_1)
+    # J3 (a USB-C receptacle) draws EVERY signal pin (A4-A9,B4-B9) on its
+    # OWN right edge (one column, u_x=82, ~2u pitch) -- so a wire leaving
+    # any one of them that travels vertically along that SAME column
+    # before diverging passes straight through every OTHER pin on it
+    # (measured the hard way: KiCad connects a wire to any pin it
+    # transits, not just a declared endpoint -- the ORIGINAL single-jog
+    # wiring here, e.g. `c.wire(j_vbus, (j_vbus[0], fb2_1[1]), fb2_1)`,
+    # merged VBUS/CC1/CC2/D+/D- into ONE node -- exported netlist showed
+    # `Net-(D5-K)` containing J3.A4/A5/A6/A7/A9/B4/B5/B6/B7/B9, D5.1,
+    # D6.4/5/6, FB2.1, R18.1 and R19.1 all together). Separately, three of
+    # these same wires crossed straight through J3's own drawn body (u
+    # X=[62,78] Y=[31,59]) -- audit-sch.py's wire_through_body. FIXED:
+    # every J3 pin needing a wire gets (a) its OWN escape nudge immediately
+    # off X=82 so its onward vertical leg never shares the shared column,
+    # and (b) where the destination is on the FAR side of the body (D6, at
+    # u_x~15-19), a detour to a Y clear of the body's own Y-span before
+    # crossing back through its X-range.
+    vbus_rx = j_vbus[0] + 2
+    c.wire(j_vbus, (vbus_rx, j_vbus[1]))
+    c.wire((vbus_rx, j_vbus[1]), (vbus_rx, d5_1[1]), d5_1)
+    c.wire((vbus_rx, j_vbus[1]), (vbus_rx, fb2_1[1]), fb2_1)
     c.use(("J3", "A4"), ("D5", "1"), ("FB2", "1"))
     # A9/B4/B9 are DRAWN at the exact same symbol-local point as A4 (measured:
     # all four = local (15.24,15.24,180)) -- real coincident-pin points are
@@ -870,9 +1076,17 @@ def compose_usb_flash(c, lf):
     # tie into the same VBUS_RAW node (measured bug, fixed: leaving it
     # unconsumed let the generic pass auto-label it independently at D6's
     # own position, which is exactly the kind of coincidental-row collision
-    # that merged unrelated nets in 02-sense -- see that leaf's note).
+    # that merged unrelated nets in 02-sense -- see that leaf's note). This
+    # leg crosses to the OPPOSITE (left) side of J3's body from the VBUS
+    # fan above, so it gets its own nudge (distinct X, away from vbus_rx)
+    # and detours ABOVE the body's Y-span (u Y<31) -- a different band
+    # from D+/D-'s below-body detours further down, so none of the three
+    # cross-body legs can run collinear with each other.
     d6_5 = c.pin("D6", "5")
-    c.wire(d6_5, (d6_5[0], j_vbus[1]), j_vbus)
+    vbus_lx, above_y = j_vbus[0] - 1, 26
+    d6_5x = d6_5[0] + 3   # clear of D6's own body (u X=[13,17])
+    c.wire(j_vbus, (vbus_lx, j_vbus[1]), (vbus_lx, above_y),
+           (d6_5x, above_y), (d6_5x, d6_5[1]), d6_5)
     c.use(("D6", "5"))
 
     fb2_2, c10_1 = c.pin("FB2", "2"), c.pin("C10", "1")
@@ -892,20 +1106,36 @@ def compose_usb_flash(c, lf):
     # with D6's pin1/pin3 anchors (each is its own distinct symbol-local
     # point), so every one needs an explicit tie; this was the other half
     # of the same measured merge bug (all six left to the generic pass).
+    # The A6-B6 and A7-B7 internal ties below stay as-is (their own short
+    # jog column, u_x+10/+14, never revisits the shared J3 column or any
+    # body) -- only the onward D6-bound legs needed fixing.
     d6_6, d6_4 = c.pin("D6", "6"), c.pin("D6", "4")
     j3_a6, j3_b6 = c.pin("J3", "A6"), c.pin("J3", "B6")
     j3_a7, j3_b7 = c.pin("J3", "A7"), c.pin("J3", "B7")
     c.wire(j3_a6, (j3_a6[0] + 10, j3_a6[1]), (j3_a6[0] + 10, j3_b6[1]), j3_b6)
-    c.wire(j3_a6, (d6_6[0], j3_a6[1]), d6_6)
-    c.use(("D6", "6"), ("J3", "A6"), ("J3", "B6"))
+    c.use(("J3", "A6"), ("J3", "B6"))
     c.wire(j3_a7, (j3_a7[0] + 14, j3_a7[1]), (j3_a7[0] + 14, j3_b7[1]), j3_b7)
-    c.wire(j3_a7, (d6_4[0], j3_a7[1]), d6_4)
-    c.use(("D6", "4"), ("J3", "A7"), ("J3", "B7"))
+    c.use(("J3", "A7"), ("J3", "B7"))
+    # D+ (a6) and D- (a7) both cross to D6's FAR side, and d6_6/d6_4 sit
+    # only 2u apart at D6's own u_x=19 -- the SAME two-pins-close-together
+    # hazard as FL1 in 04-can (see that leaf's note), so each gets its own
+    # nudge X, its own below-body detour Y (distinct from each other AND
+    # from d6_5's above-body detour), and its own D6-side approach column
+    # (distinct from the OTHER pin's target, 2u away at the same X).
+    dplus_nx, dplus_y, dplus_ax = j3_a6[0] - 3, 67, d6_6[0] + 4
+    c.wire(j3_a6, (dplus_nx, j3_a6[1]), (dplus_nx, dplus_y),
+           (dplus_ax, dplus_y), (dplus_ax, d6_6[1]), d6_6)
+    c.use(("D6", "6"))
+    dminus_nx, dminus_y, dminus_ax = j3_a7[0] - 2, 64, d6_4[0] + 2
+    c.wire(j3_a7, (dminus_nx, j3_a7[1]), (dminus_nx, dminus_y),
+           (dminus_ax, dminus_y), (dminus_ax, d6_4[1]), d6_4)
+    c.use(("D6", "4"))
 
     cc1, cc2 = c.pin("J3", "A5"), c.pin("J3", "B5")
     r18_1, r19_1 = c.pin("R18", "1"), c.pin("R19", "1")
-    c.wire(cc1, (cc1[0], r18_1[1]), r18_1)
-    c.wire(cc2, (cc2[0], r19_1[1]), r19_1)
+    cc1_rx, cc2_rx = cc1[0] + 3, cc2[0] + 4
+    c.wire(cc1, (cc1_rx, cc1[1]), (cc1_rx, r18_1[1]), r18_1)
+    c.wire(cc2, (cc2_rx, cc2[1]), (cc2_rx, r19_1[1]), r19_1)
     c.use(("J3", "A5"), ("J3", "B5"), ("R18", "1"), ("R19", "1"))
 
     # B1/A12/B12 are likewise drawn coincident with A1 (measured: all four =
@@ -929,10 +1159,23 @@ def compose_mcu(c, lf):
     c.place("SW1", 150, 216)
 
     en, gpio0 = c.pin("U1", "45"), c.pin("U1", "4")
-    arch.pullup_hang(c, en, en[0] + 40, "R8", rx=en[0] + 30, rail_pin="1", above=True)
+    # Both EN(45) and GPIO0(4) exit U1 on its LEFT side (pin_out dx<0), so
+    # BOTH pull-up hangs must run LEFTWARD (measured bug, fixed: EN's run
+    # originally went RIGHTWARD toward SW2 -- SW2 happens to sit to the
+    # right, below U1 -- which drove it straight across U1's own body;
+    # audit-sch.py's wire_through_body caught it). Fixed the same way
+    # GPIO0/SW1 already does it correctly below: go left past the body
+    # first, then down and back right at SW2's own row (Y=216, well below
+    # U1, so the return leg never re-crosses it). EN's column (-44/-34) is
+    # offset 4u from GPIO0's (-40/-30) -- EN(Y=80) and GPIO0(Y=84) are only
+    # 4u apart, so sharing one column would run both pull-ups' vertical
+    # descents collinear/overlapping over their whole shared span (the
+    # same class of hazard the 04-can FL1 fix hit) -- separate columns keep
+    # them apart no matter how far down they both travel.
+    arch.pullup_hang(c, en, en[0] - 44, "R8", rx=en[0] - 34, rail_pin="1", above=True)
     c.use(("U1", "45"))
     sw2a = c.pin("SW2", "1")
-    c.wire((en[0] + 40, en[1]), (en[0] + 40, sw2a[1]), sw2a)
+    c.wire((en[0] - 44, en[1]), (en[0] - 44, sw2a[1]), sw2a)
     c.use(("SW2", "1"))
     arch.pullup_hang(c, gpio0, gpio0[0] - 40, "R9", rx=gpio0[0] - 30, rail_pin="1", above=True)
     c.use(("U1", "4"))
@@ -958,6 +1201,22 @@ def compose_mcu(c, lf):
     u3en = c.pin("U3", "3")
     c.wire(u3in, (u3in[0], u3en[1]))   # EN strapped to IN -- always-on LDO
     c.use(("D2", "1"), ("D3", "1"), ("D4", "1"), ("U3", "1"), ("U3", "3"))
+    # +5V_LOGIC_OR has no genuine "power_out" driver anywhere on this
+    # purely-local, single-sheet net (D2/D3/D4 cathodes are diode/passive
+    # pins, C8 is passive) -- ERC's power_pin_not_driven fires on U3.1 (the
+    # LDO's own "Power input"-typed IN pin). A PWR_FLAG stamped exactly at
+    # u3in's OWN already-wired point marks it externally driven directly on
+    # the real node (measured bug, fixed: the previous approach used
+    # L05.powerflag_nets, whose "else" branch draws a PLAIN LOCAL LABEL in
+    # a separate self-contained anchor block -- that label text never
+    # actually touches the real +5V_LOGIC_OR wiring, which carries no label
+    # of its own anywhere, so the anchor's tiny 2-point label+flag circuit
+    # stayed electrically disconnected from the real diode-OR node despite
+    # sharing the same net NAME in this script's own Python model; ERC
+    # still reported U3.1 undriven). Stamping directly on a real, already-
+    # wired coordinate is the same proven technique used for +5V_LED and
+    # +5VSB_RJ's anchors.
+    c.stamp("PWR_FLAG", u3in[0], u3in[1], 0)
     # D2's anode (+5V_LED) and D3's anode (+5VSB_RJ) are left UNCONSUMED and
     # un-wired: both are GLOBAL buses now (+5V_LED touches 02/05/06/08;
     # +5VSB_RJ touches 03/04/05 -- see 02-sense's identical note), so each
@@ -1020,11 +1279,22 @@ def compose_led_outputs(c, lf):
 
         c.place(r, rx, y, 90)
         opin = c.pin("U5", out_pin)
-        r1 = c.pin(r, "1")
+        # R (rot90) has pin1 on its own LEFT, pin2 on its own RIGHT. Group1
+        # (sgn=+1) extends the downstream chain RIGHTWARD, so pin2 (the
+        # right-side pin) is the natural downstream connection; group2
+        # (sgn=-1, mirrored) extends LEFTWARD, so pin1 becomes the natural
+        # downstream side instead -- pick the upstream/downstream PIN NUMBER
+        # per sgn rather than hardcoding 1=upstream/2=downstream (measured
+        # bug, fixed: the hardcoded version put the downstream pin on the
+        # side AWAY from the downstream chain for the whole mirrored group,
+        # so the r2->dclamp wire had to cross back through R's own body to
+        # reach it -- audit-sch.py's wire_through_body caught it on R14-R17).
+        r_up, r_dn = ("1", "2") if sgn > 0 else ("2", "1")
+        r1 = c.pin(r, r_up)
         c.wire(opin, (r1[0], opin[1]), r1)
-        c.use(("U5", out_pin), (r, "1"))
+        c.use(("U5", out_pin), (r, r_up))
 
-        r2 = c.pin(r, "2")
+        r2 = c.pin(r, r_dn)
         c.place(dclamp, rx + sgn * 16, y - 6, 270)
         c.place(dtvs, rx + sgn * 26, y, 270)
         c.place(j, rx + sgn * 44, y)
@@ -1034,7 +1304,7 @@ def compose_led_outputs(c, lf):
         c.wire(r2, (d3[0], r2[1]), d3)
         c.wire(d3, (d1[0], d3[1]), d1)
         c.wire(d1, (jp3[0], d1[1]), jp3)
-        c.use((r, "2"), (dclamp, "3"), (dtvs, "1"), (j, "3"))
+        c.use((r, r_dn), (dclamp, "3"), (dtvs, "1"), (j, "3"))
 
         # dclamp.2 (BAT54S cathode) + j.1 are BOTH +5V_LED GLOBAL members;
         # dtvs.2 (PESD cathode-side) + j.4 are BOTH GND POWER_PORTS members;
@@ -1194,6 +1464,43 @@ for _lid in LEAF_ORDER:
         GLOBAL_NETS_PER_LEAF[_lid] = _s
 
 
+# FL1 (the CAN CMC position) is this board's only DNP part -- the H3a-
+# PATTERN (spec Sec 3.1/7.5): the series CMC itself is left unpopulated in
+# production, with R6/R7 as the always-populated 0R bypasses carrying the
+# real signal path (KiCad would otherwise net a DNP series part as if it
+# were connected, per CLAUDE.md). cec_sch_compose.build_leaf has no per-part
+# DNP parameter and unconditionally emits `(dnp no)`, so this is a post-write
+# patch identical to gen-12vhpwr-beta.py's/gen-module-beta.py's own
+# `_patch_dnp` helper (kept OUT of cec_sch_compose.py deliberately, same as
+# those two generators) -- without it the exported BOM would show FL1 as a
+# normal populated part, contradicting its own Value text ("...DNP") and the
+# spec.
+DNP_REFS = {"FL1"}
+
+
+def _patch_dnp(path, dnp_refs):
+    """Post-write patch: flip (dnp no) -> (dnp yes) for the given refs."""
+    if not dnp_refs:
+        return 0
+    text = open(path).read()
+    n = 0
+    out, pos = [], 0
+    for m in re.finditer(r'\t\(symbol\n', text):
+        if m.start() < pos:
+            continue
+        blk = cec_sch.carve(text, m.start())
+        rm = re.search(r'\(property\s+"Reference"\s+"([^"]+)"', blk)
+        if rm and rm.group(1) in dnp_refs and "(dnp no)" in blk:
+            out.append(text[pos:m.start()])
+            out.append(blk.replace("(dnp no)", "(dnp yes)", 1))
+            pos = m.start() + len(blk)
+            n += 1
+    out.append(text[pos:])
+    if n:
+        open(path, "w").write("".join(out))
+    return n
+
+
 def build(force=False):
     if os.path.isfile(ROOT_SCH) and not force:
         raise SystemExit(f"{ROOT_SCH} already exists -- refusing to run "
@@ -1223,6 +1530,8 @@ def build(force=False):
             name_pin_nets=name_pin_nets.get(lid), rev=REV)
         n_moved, still = L.nudge_texts(out_path)
         st["nudged"], st["text_overlaps_left"] = n_moved, still
+        dnp_here = DNP_REFS & set(lf.parts)
+        st["dnp_patched"] = _patch_dnp(out_path, dnp_here)
         for ref in GND_BUS_TARGETS.get(lid, ()):
             res = G.bus_power_ladder(out_path, ref, "GND")
             st.setdefault("gnd_bus", []).append((ref, res["applied"], res.get("flags_removed", 0)))
