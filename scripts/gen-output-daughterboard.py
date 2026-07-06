@@ -82,14 +82,20 @@ ATX24_TABS = [  # (ref, net) -- 9 tabs, asymmetric group sizes 1/2/1/1/4 (keying
     ("J10", "+12V"), ("J11", "+5V"), ("J12", "+5V"), ("J13", "+3V3"),
     ("J14", "+5VSB"), ("J15", "GND"), ("J16", "GND"), ("J17", "GND"), ("J18", "GND"),
 ]
-# Pin order matches the ALREADY-BUILT main-board half of this interface
-# (modules/atx-24pin-rev3, commit b76a62a, J_SIG on the identical
-# cec:CEC_CONN_2x5 / PinHeader_2x05_P2.54mm symbol+footprint): "pin 1 =
-# PS_ON#, pin 2 = PWR_OK, pin 3 = -12V, pin 4 = GND (local reference), pins
-# 5-10 reserved/no-connect" -- pin1/2 order matters for real interoperability
-# (a mating cable/header is not itself keyed against a 1<->2 swap).
-ATX24_HEADER_NET = {1: "PS_ON#", 2: "PWR_OK", 3: "-12V", 4: "GND",
-                    5: None, 6: None, 7: None, 8: None, 9: None, 10: None}
+# SIGNAL STUB, iteration 5 (owner: 1x4 blind-mate, superseding the 2x5 --
+# blade-fit memo addendum 5): a RIGHT-ANGLE Dupont-class 1x4 pin header,
+# pins pointing straight DOWN past the bottom edge parallel to the blades,
+# mating a vertical female socket on the main board in the same single
+# drop. Only the 4 LIVE circuits ride it (netlist-verified: -12V/PS_ON#/
+# PWR_OK each have exactly one field pin; +GND reference); the 2x5's six
+# reserved positions move to DNP solder pads SR1-6 (OQ-88 provision FORM
+# only -- the sense-return decision itself stays open, owner's). PIN ORDER
+# is NEW and routing-derived (supersedes the 2x5's order, which dies with
+# that part): pads left-to-right = -12V, PS_ON#, PWR_OK, GND -- the three
+# signals' field-column order (c1/c3/c7), which lets the fan-down nest
+# without crossings (see route_atx24). The main-board J_SIG mate MIRRORS
+# this map when it is reworked to the matching 1x4 female socket.
+ATX24_HEADER_NET = {1: "-12V", 2: "PS_ON#", 3: "PWR_OK", 4: "GND"}
 
 FAMILIES["atx24-out-db"] = dict(
     dirn="output-daughterboards/atx24-out-db", base="atx24-out-db-board",
@@ -97,9 +103,9 @@ FAMILIES["atx24-out-db"] = dict(
     field_fp="cec-Connector_Generic:ATX24_Daughterboard_Field_P4.20mm",
     field_net=ATX24_FIELD_NET, field_value="ATX24 OUT FIELD",
     tabs=ATX24_TABS,
-    header=dict(ref="J20", symbol=("cec", "CEC_CONN_2x5"),
-                fp="cec-Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical",
-                net=ATX24_HEADER_NET, value="SIGNAL STUB (2x5)"),
+    header=dict(ref="J20", symbol=("cec", "CEC_CONN_1x4"),
+                fp="cec-Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Horizontal_LongPin",
+                net=ATX24_HEADER_NET, value="SIGNAL STUB (1x4 blind-mate)"),
     W=140.0, H=75.0,
 )
 
@@ -217,10 +223,16 @@ FIELD_PROPS = {
 }
 HEADER_PROPS = {
     "Manufacturer": "generic", "LCSC": "",
-    "Description": "Generic 2.54mm THT 2x5 pin header -- consigned/any "
-                   "compatible stock part (no specific MPN pinned this pass); "
-                   "carries PWR_OK/PS_ON#/-12V + a GND reference + 6 reserved "
-                   "positions (sense-return provision, OQ-88, unpopulated).",
+    "Description": "1x4 2.54mm RIGHT-ANGLE Dupont-class pin header, LONG "
+                   "mating tails (10-15mm class) -- blind-mate signal stub, "
+                   "pins down past the bottom edge parallel to the blades, "
+                   "mating the main board's vertical 1x4 female socket in "
+                   "the same drop (owner, 2026-07-05; memo addendum 5). "
+                   "Commodity class at LCSC (Ckmtw/Cankemeng RA lines); the "
+                   "specific long-pin MPN is pinned at the OQ-89 SKU pass; "
+                   "consigned acceptable. Keyed-JST-PH (S4B/B4B-PH-K-S, the "
+                   "Hub J_KVM family) is the demoted cabled fallback if the "
+                   "blind-mate tolerance fails the fit check.",
 }
 
 
@@ -445,10 +457,10 @@ _STUB_GRID = 2.1             # the atx24 field-stub X lattice: 4.2mm columns
 
 
 def pcb_placement(fam):
-    """TWO-BAND stack (iteration 4): field band on top; the single packed
-    tab row BELOW it, every tab at rot 0 (footprint authored in mounted
-    orientation: legs stacked vertically at (0,+/-2.54), blade descending
-    +Y past the bottom edge). Returns (W, H, P). No mounts.
+    """TWO-BAND stack (iteration 4, carried into 5): field band on top; the
+    single packed tab row BELOW it, every tab at rot 0 (footprint authored
+    in mounted orientation: legs stacked vertically at (0,+/-2.54), blade
+    descending +Y past the bottom edge). Returns (W, H, P). No mounts.
 
     tab_y (leg-pair midpoint): eps/pcie = field courtyard bottom +
     _BAND_GAP + the tab's own top extent (carrier stub); atx24 = below the
@@ -457,27 +469,23 @@ def pcb_placement(fam):
     lane). H = tab_y + _TAB_PAD_EXT + _TAB_EDGE_MARGIN -- the tab band is
     the lowest thing on every board, so the leg height above the bottom
     edge is a UNIFORM _TAB_PAD_EXT + _TAB_EDGE_MARGIN = 4.34mm platform-
-    wide (the seating invariant the checker asserts; float heights in
-    seating_report() follow from it). W = the wider of the field(+header)
-    band and the packed tab row.
+    wide (the seating invariant the checker asserts).
 
     atx24 x0 is GRID-ALIGNED: smallest x >= _LEFT_MARGIN + _TAB_HALF_X with
-    (x - fx) mod _STUB_GRID = 1.05, so with the 8.4 = 4*2.1 pitch EVERY
-    tab X sits mid-window between field-stub lattice lines (see TAB_PITCH)."""
+    (x - fx) mod _STUB_GRID = 1.05 -- with the 6.3 = 3*2.1 pitch EVERY tab
+    sits mid-window between field-stub lattice lines (see TAB_PITCH).
+
+    ITERATION-5 additions (atx24 only): the signal stub J20 (1x4 RA blind-
+    mate header, pins down past the edge) sits in the BOTTOM band to the
+    RIGHT of the tab row, pad row at H-1.4 (pad bottom edge at the same
+    0.55 edge margin as the tabs), pad1 x at tab_last + 3.5 (courtyard-to-
+    courtyard clear of the last GND tab); and six DNP sense-return pads
+    SR1-6 (CEC_SR_Pad_DNP, PCB-only like the old mounting holes) sit in
+    the TOP band's free zone right of the field, 2 rows x 3."""
     cfg = FAMILIES[fam]
     pitch = TAB_PITCH[fam]
     fx, fy, field_right, field_bottom = _field_geom(fam)
     P = {cfg["field_ref"]: (fx, fy, 0)}
-
-    right_ref = field_right
-    if cfg["header"]:
-        h = cfg["header"]
-        hbb = cp.courtyard_bbox(h["fp"], rot=90)
-        hx = field_right + 1.0 - hbb[0]
-        field_cy = fy + (cp.courtyard_bbox(cfg["field_fp"])[2] + cp.courtyard_bbox(cfg["field_fp"])[3]) / 2
-        hy = field_cy - (hbb[2] + hbb[3]) / 2
-        P[h["ref"]] = (hx, hy, 90)
-        right_ref = hx + hbb[1]
 
     n = len(cfg["tabs"])
     if fam == "atx24-out-db":
@@ -496,6 +504,13 @@ def pcb_placement(fam):
         P[ref] = (tab0_x + i * pitch, tab_y, 0)
 
     H = tab_y + _TAB_PAD_EXT + _TAB_EDGE_MARGIN
+    right_ref = field_right
+    if cfg["header"]:
+        h = cfg["header"]
+        hx = tab_last_x + 3.5                # courtyard-clear of the last tab
+        hy = H - 1.4                          # pad bottom edge at H-0.55
+        P[h["ref"]] = (hx, hy, 0)
+        right_ref = max(right_ref, hx + cp.courtyard_bbox(h["fp"])[1])
     W = max(right_ref, tab_last_x + _TAB_HALF_X) + 1.0
     return W, H, P
 
@@ -581,6 +596,18 @@ def build_pcb_base(fam, out_override=None):
     # section docstring above): retention is the Keystone clip's own high
     # insertion force + chassis strain relief on the cable/assembly side, not
     # M3 hardware on this small a board.
+    # ITERATION-5 (atx24 only): 6 DNP sense-return pads SR1-6, PCB-only
+    # mechanical footprints (no netlist entry, no net -- same convention the
+    # mounting holes used). 2 rows x 3 in the top band's free zone right of
+    # the field. This is the OQ-88 provision-FORM change only (the old 2x5
+    # header's 6 reserved pins); the sense-return decision stays open.
+    if fam == "atx24-out-db":
+        _fx, _fy, _fr, _fb = _field_geom(fam)
+        for i in range(6):
+            sx = _fr + 3.0 + (i % 3) * 4.0
+            sy = 2.6 + (i // 3) * 4.6
+            fps.append(cp.place("cec-Connector_Generic:CEC_SR_Pad_DNP",
+                                f"SR{i+1}", sx, sy, 0, padnet, code_of, val=None))
     e = []
     pts = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
     for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
@@ -779,89 +806,78 @@ def route_atx24():
     # footprint has TWO physical pads, both numbered "1" (one electrical
     # node), but "same pad number" is a netlist LABEL, not copper -- the
     # footprint has no internal bridge, so both need real copper: a vertical
-    # bridge track between the two legs, plus the up-stub off the upper one
-    # + a via at its own lane's centreline (clearing the 0.65mm-pitch
-    # neighbours by the same measured 0.25mm the field vias rely on). The
-    # tab pads' own In2 anti-pads stay _LANE_PAD_CLR clear of the deepest
-    # lane band by placement, so no lane is ever bitten.
+    # bridge track between the two legs -- on B.Cu as of iteration 5, so the
+    # signal stub's F.Cu mid-band runs (below) cross the bridges layer-clean
+    # -- plus the F.Cu up-stub off the upper leg + a via at its own lane's
+    # centreline (clearing the 0.65mm-pitch neighbours by the same measured
+    # 0.25mm the field vias rely on). The tab pads' own In2 anti-pads stay
+    # _LANE_PAD_CLR clear of the deepest lane band by placement.
     for ref, net in cfg["tabs"]:
         if net == "GND":
             continue
         pn = _PCB_NET.get(net, net)
         tx, ty, _ = P[ref]
         by = _atx24_lane_y(field_bottom, net)
-        r.track(pn, [(tx, ty - 2.54), (tx, ty + 2.54)], "F.Cu", 0.5)
+        r.track(pn, [(tx, ty - 2.54), (tx, ty + 2.54)], "B.Cu", 0.5)
         r.track(pn, [(tx, ty - 2.54), (tx, by)], "F.Cu", 0.5)
         r.via(pn, (tx, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
 
-    # 2x5 signal header (PS_ON#/PWR_OK/-12V/GND-ref/6 reserved -- pin order
-    # matches the already-built main-board J_SIG, see ATX24_HEADER_NET),
-    # ROTATED 90 (see the placement-section docstring) so it fits the
-    # field's own Y-band instead of costing extra board height. Its 3 live
-    # signals are the P2P nets, each a single track straight to its field
-    # pin -- entirely on B.Cu (deliberately NOT F.Cu: the BUS field pins'
-    # dodge-then-descend stubs are ALSO on F.Cu and physically transit this
-    # same row-gap Y band on their way down to the corridor, at up to 12
-    # different X's -- putting the P2P runs on the otherwise-empty B.Cu
-    # instead avoids that whole family of crossings in one move rather than
-    # threading between every dodge column by hand; no via is needed at
-    # either end since both the field pins and the header pins are
-    # through-hole, so a track can start/end directly on B.Cu at their pad
-    # centres, same as any other thru-hole net on this board).
-    #
-    # The three runs still share ONE layer with each other, so they still
-    # need to not cross EACH OTHER.
-    # PWR_OK approaches from row0 (above the gap, descending); PS_ON# and
-    # -12V both approach from row1 (below the gap, ascending). Assign each a
-    # dedicated Y level within the gap, ordered by how far it has to travel
-    # rather than by pitch: PWR_OK gets the level nearest row0 (its vertical
-    # never reaches the other two levels at all); of the two row1 signals,
-    # PS_ON# (field column x=16.7) gets the level nearest row1 (shortest
-    # run); -12V (field column x=8.3, the LEFTMOST of all three, ahead of
-    # both other signals' own columns) gets the middle level -- its vertical
-    # run passes THROUGH PS_ON#'s level en route, but PS_ON#'s horizontal
-    # run only exists for x >= 16.7 (it starts at its own field column), and
-    # -12V's crossing happens at x=8.3, to the left of that -- so the two
-    # never actually occupy the same point. Verified by construction, not
-    # assumed; each pairing's (Y-range, X-range) overlap was checked by hand
-    # for exactly this reason when the corridor was reworked 2026-07-05.
-    h = cfg["header"]; hx, hy, _ = P[h["ref"]]
-    p1, p2, p3 = (hx, hy), (hx, hy - 2.54), (hx + 2.54, hy)          # PS_ON#, PWR_OK, -12V
-    field_row_gap_y = fy + 2.75    # midpoint between row0 (fy) and row1 (fy+5.5)
+    # 1x4 blind-mate signal stub (iteration 5, memo addendum 5): J20's pads
+    # sit in the BOTTOM band right of the tab row (pins point down past the
+    # edge). The 3 signals fan DOWN from their field pins on F.Cu, through
+    # the corridor band (crossing In2 lanes on a different layer, ZERO
+    # vias -- every endpoint is a THT pad) and through the tab band, then
+    # run RIGHT in the tab band's inter-pad window and drop onto the
+    # header pads. Deterministic collision-freedom, all hand-derived:
+    #   - DESCENT XS: -12V straight down its own column c1; PS_ON# down c3
+    #     then a -2.1 jog at y=10.55 (the 0.6mm band between row1 pads and
+    #     the first lane -- legal because the lanes are In2 and this is
+    #     F.Cu; only F.Cu items constrain, and no bus stub X lands inside
+    #     either jog span); PWR_OK (a row0 pin) takes the standard +2.1
+    #     dodge past pin 20's NC pad, jogs back to c7 at y=10.55. All
+    #     three descents are then ~ (lattice) x's == phase 3.15 of the
+    #     6.3mm tab grid (x0 anchors at lattice+1.05), i.e. dead-centre of
+    #     the tab-pad gaps: 3.15mm to the nearest tab pad (need 1.55),
+    #     3.15 to tab stubs (F.Cu, need 0.7), >=2.1 to every bus stub/via.
+    #   - MID-BAND WINDOW: between the tab pads' inner edges
+    #     [upper 15.75+0.3, lower 18.33-0.3] = [16.05, 18.03]; levels
+    #     16.55/17.05/17.55 (0.5 steps). The tab BRIDGES were moved to
+    #     B.Cu above precisely so these F.Cu runs cross them layer-clean.
+    #   - NESTING: leftmost descent = deepest level AND leftmost header
+    #     pad; descents c1 < c3-2.1 < c7 map to pads 1..3 = -12V, PS_ON#,
+    #     PWR_OK (the ATX24_HEADER_NET order -- chosen FOR this). Each
+    #     horizontal then passes only descents/drops whose spans it clears
+    #     by >=0.3 (checked pairwise when this was derived).
+    #   - DROPS: from each level down to the header pad row (hy). GND
+    #     (pad 4) rides the In1 plane; no track.
+    h = cfg["header"]; hhx, hhy, _ = P[h["ref"]]
+    pad_x = {i + 1: hhx + 2.54 * i for i in range(4)}
+    jog_y = 10.55
+    lvl = {"-12V": 17.55, "PS_ON#": 17.05, "PWR_OK": 16.55}
 
-    def _p2p_field_xy(net):
+    def _col_xy(net):
         pin = [p for p, n in cfg["field_net"].items() if n == net][0]
         row = 0 if pin <= 12 else 1
         col = (pin - 1) % 12
         return fx + col * 4.2, fy + (0.0 if row == 0 else 5.5)
 
-    x_ps, y_ps = _p2p_field_xy("PS_ON#")
-    x_pwr, y_pwr = _p2p_field_xy("PWR_OK")
-    x_m12, y_m12 = _p2p_field_xy("-12V")
-    # Row-gap Y-window math (why 0.42mm steps, why a 0.2mm track): the
-    # horizontal run has to clear BOTH row0's pad (bottom edge at
-    # fy+1.85 = 4.6, using the 3.7mm POWER-pad half-height -- the worst
-    # case, since every column has a POWER pad in at least one row) and
-    # row1's pad (top edge at fy+5.5-1.85 = 6.4) by the 0.25mm GND-class
-    # clearance (the GREATER of the two nets' netclasses always governs,
-    # and GND -- Power class -- is 0.25 while these P2P nets are Signal-
-    # class 0.2). A P2P_W-wide track's centre must then sit within
-    # [4.6+0.25+P2P_W/2, 6.4-0.25-P2P_W/2] -- only 1.10mm wide at
-    # P2P_W=0.2mm, so the platform-default 0.4mm track (used everywhere
-    # else on this board) does not fit three-abreast here at all; these
-    # three low-current point-to-point signal runs use a thinner 0.2mm
-    # track instead, at 0.42mm steps (own reserved) so both the row-edge
-    # clearance and the inter-track Signal-class 0.2mm clearance clear
-    # with a small positive margin, not sit exactly on the boundary.
+    x1, y1 = _col_xy("-12V")     # c1, row1
+    x3, y3 = _col_xy("PS_ON#")   # c3, row1
+    x7, y7 = _col_xy("PWR_OK")   # c7, row0
     P2P_TRACK_W = 0.2
     header_paths = {
-        "PWR_OK": [(x_pwr, y_pwr), (x_pwr, field_row_gap_y - 0.42), (p2[0], field_row_gap_y - 0.42), p2],
-        "-12V": [(x_m12, y_m12), (x_m12, field_row_gap_y), (p3[0], field_row_gap_y), p3],
-        "PS_ON#": [(x_ps, y_ps), (x_ps, field_row_gap_y + 0.42), (p1[0], field_row_gap_y + 0.42), p1],
+        "-12V": [(x1, y1), (x1, lvl["-12V"]), (pad_x[1], lvl["-12V"]),
+                 (pad_x[1], hhy)],
+        "PS_ON#": [(x3, y3), (x3, jog_y), (x3 - 2.1, jog_y),
+                   (x3 - 2.1, lvl["PS_ON#"]), (pad_x[2], lvl["PS_ON#"]),
+                   (pad_x[2], hhy)],
+        "PWR_OK": [(x7, y7), (x7, y7 + 2.2), (x7 + 2.1, y7 + 2.2),
+                   (x7 + 2.1, jog_y), (x7, jog_y), (x7, lvl["PWR_OK"]),
+                   (pad_x[3], lvl["PWR_OK"]), (pad_x[3], hhy)],
     }
     for net, pts in header_paths.items():
         pn = _PCB_NET.get(net, net)
-        r.track(pn, pts, "B.Cu", P2P_TRACK_W)
+        r.track(pn, pts, "F.Cu", P2P_TRACK_W)
 
     r.fill()
     res = r.verify()
