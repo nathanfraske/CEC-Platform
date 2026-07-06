@@ -14,7 +14,10 @@ board, spec, or CLAUDE.md edits made. This document is the deliverable.
 > we need to do to get the KVM into the trusted zone... secure heartbeat it
 > like any other module?") produced **Part III — the trusted-zone
 > requirements plan** (the K1 checklist + re-flash-the-Sipeed Path A vs
-> native-P4-module Path B).
+> native-P4-module Path B). A third clarification ("they sell that compute
+> module separate... can we just do a *carrier board*?") produced **Part IV
+> — Path C: CEC carrier + AX630C core module**, which displaces Path A
+> entirely and re-scores the decision frame (C5).
 
 # PART I — consumer lane (original scope)
 
@@ -1059,6 +1062,243 @@ because every other Path A row stands on it.
 - GitHub sipeed/maix_ax620e_sdk (AX620E/AX630C platform SDK "for MaixCam2 and KVM-Pro"; MIT; U-Boot source; signed-SPL build artifact; MSP binary-only submodule; no public eFuse/OTP provisioning docs found): https://github.com/sipeed/maix_ax620e_sdk
 - Axera AX630C product brief (Secure Boot / secure OTP / TrustZone claims): https://www.axera-tech.com/sites/default/files/2026-01/AX630C.pdf
 - Espressif ESP32-P4 capture capabilities (MIPI-CSI-2 2-lane × 1.5 Gbps; H.264 HW encoder 1080p30; JPEG codec 4K stills / ~1080p34 MJPEG): https://docs.espressif.com/projects/esp-faq/en/latest/application-solution/camera-application.html + ESP32-P4 datasheet family
+
+---
+---
+
+# PART IV — PATH C: CEC carrier board + Sipeed compute module (owner clarification, 2026-07-06)
+
+Owner clarification (verbatim): "I mean they expose their actual firmware
+down to the linux level, so we can easily re-flash it and rebuild the whole
+firmware stack down to that level. So that's why I was asking if we can just
+do a *carrier board* and slot the compute module onto it since they sell
+that compute module separate." This is a genuinely distinct path — neither
+Part III's Path A (re-flash a retail Pro) nor Path B (pure P4): **the AX630C
+compute module on OUR board, running OUR rebuilt firmware stack, surrounded
+by OUR trust hardware.** Study only; owner items flagged, not resolved.
+
+## C1. The module facts (cited; gaps flagged)
+
+- **The module exists and is sold for exactly this purpose.** Sipeed's
+  MaixCAM2 line (AX630C — the same SoC family and the same platform SDK as
+  the NanoKVM Pro: `maix_ax620e_sdk` is "packaged... for MaixCam2 and
+  KVM-Pro") offers a **"Gold-finger core board containing only chip core
+  circuit + DDR, for easy custom hardware design"** ([Sipeed wiki,
+  MaixCAM2](https://wiki.sipeed.com/hardware/en/maixcam/maixcam2.html)) —
+  i.e., a DIMM-class edge-connector module carrying the **AX630C (dual
+  A53 @1.2 GHz + an on-die RISC-V E907 MCU core) + LPDDR4 (1 GB or 4 GB)**
+  and nothing else.
+- **What is NOT on the core module (per the same source's split):** the
+  32 GB eMMC + TF slot, the **WiFi6+BLE module**, USB-C, audio, RTC, IMU,
+  and all connectorization live on the **base board**. Two load-bearing
+  consequences for Path C: **(a) the radio is verifiably absent by
+  construction** on a CEC carrier — no depopulation argument needed, the
+  core module never had it (AIR-clean; the §13.6
+  inspection-without-powering bar is satisfied by design); **(b) the boot
+  storage lives on the carrier** — CEC owns the boot media outright (see
+  C2; the wiki's "only chip core circuit + DDR" wording supports this, but
+  *verify from the schematic download at intake* that no boot NOR/NAND
+  hides on the module — flagged).
+- **HDMI capture front-end location:** the AX630C has **no HDMI RX** — it
+  ingests MIPI CSI (the MaixCAM2 is a camera). The NanoKVM Pro's HDMI
+  capture therefore lives on its base board as an HDMI-to-CSI bridge
+  (LT6911-class — the same architecture the NanoKVM-PCIe documents). On
+  Path C, **our carrier carries the bridge** (~$5–8) — feasible, and it
+  means the entire video *input* path up to the SoC pins is CEC-designed.
+- **Pinout/schematics:** Sipeed publishes hardware resource downloads for
+  the MaixCAM2 at dl.sipeed.com (linked from the wiki); the gold-finger pin
+  count/pitch and full pinout were **not extractable from the wiki pages in
+  this pass** — first intake item, from the published downloads.
+- **Price/availability:** complete MaixCAM2 units run **$69 (1GB/2K) /
+  $99 (4GB/2K) / $119 (4GB/4K)** ([CNX
+  Software](https://www.cnx-software.com/2026/01/27/maixcam2-modular-4k-ai-camera-is-based-on-axera-ax630-soc-with-3-2-tops-npu/));
+  **standalone core-board pricing is not published** — bounded above by the
+  complete-unit prices (realistically $30–60-class), but that is an
+  estimate, not a quote. Sipeed Taobao/AliExpress are the named channels;
+  no volume/supply agreement exists. Flagged.
+- **Precedent that third parties build AX630C carriers:** M5Stack's LLM630
+  Compute Kit is an independent AX630C carrier product — the module
+  ecosystem is thin (Part II E2 rec 1's caveat stands) but not empty.
+
+## C2. The trust model — the carrier hosts the attested endpoint
+
+The key analytical move: **stop asking the AX630C to attest itself.** The
+carrier carries a small CEC trust MCU — the natural pick is the **uniform
+ESP32-P4** (every K1 contract is already designed for it; an SE-only
+carrier was already shown hollow in Part II E4.1, and a non-P4 MCU would
+fork the firmware base; the AX630C's own on-die E907 MCU core is NOT a
+substitute — it shares the die and rails with the Linux side, the same
+reason survey 9 rejected the fabric-arbiter shape) — and THAT is the module
+endpoint the hub trusts:
+
+- The **P4 holds the per-unit device key** (eFuse, injected at intake —
+  checklist row 1), answers **CAN/T1 challenge-response** (row 3), owns
+  **DETECT** (row 4), fires the **pin-7 hardware-timed heartbeat at the
+  full single-digit-µs class** (row 5 — timer+ETM, the designed mechanism;
+  **this solves Path A's fatal timing degradation outright**), enrolls in
+  the untrust state machine (row 6), participates in gPTP (row 9), and
+  fail-safes (row 11).
+- The carrier **physically owns the network**: the only network silicon on
+  the board is the module T1 link (or the gated-PHY variant); the AX630C
+  core module has no radio and no PHY (C1) → **zero-own-egress by
+  construction** (row 12), AIR-compatible by construction.
+- The carrier **owns power, reset, and boot media**: the eMMC/TF sits on
+  the carrier; the P4 gates the AX630C's reset and (optionally) the boot
+  media's write-enable. Boot flow: P4 verifies the boot-critical blocks /
+  signed manifest + dm-verity root hash on the carrier storage → releases
+  reset → the AX630C loads exactly what was measured.
+  ("Verify-then-release-reset" works even before the gold-finger pinout is
+  confirmed; a boot-media mux is the stronger variant if the pinout
+  exposes the boot straps/SDIO cleanly — same intake item as C1's
+  schematic check.)
+- The AX630C becomes a **measured, supervised compute peripheral**: the
+  carrier attests *"I loaded image-hash X on this compute element, and I
+  gate all of its I/O"* — rather than the SoC attesting itself.
+
+**Honest scoring against the K1 checklist:**
+
+| Row(s) | Path C status |
+|---|---|
+| 1, 3, 4, 5, 6, 7, 9, 11, 13 | **Carrier-native, full class** — identical to Path B (it IS a P4 module endpoint). Row 7's fusion gets the full module surface set (DETECT + CAN + T1 + pin-7), which Path A could never offer. |
+| 2 (signed firmware) | **Split, honestly:** the P4's own firmware = fully native (REQ-MOD-COMMON-012 verbatim). The AX630C's Linux stack = **measured-load class**: hash-verified at boot by the carrier, anti-rollback via a P4-held monotonic counter over the image manifest — *weaker than silicon secure boot*. What it does NOT give: re-measurement mid-session. A runtime Linux compromise is **monitorable but not hardware-attested away** (see row 14). |
+| 8 (physics) | **Native-plus:** the carrier powers the compute rail and can carry its own INA238-class sensor on it (platform silicon, ~$1) — the AX630C's draw becomes a *locally measured* signature: "screen idle" claimed while the rail pulls encode-class current is a logged incoherence. |
+| 10 (signs own data) | **Carrier-boundary signing:** the P4 signs the capture stream as "from supervised peripheral running measured image X, session S" — checkable provenance to the carrier boundary, with the measured-load caveat inside it. (Optionally the AX630C additionally signs with a P4-dispensed session key — defense in depth, not a substitute: a compromised kernel holds the session key too.) |
+| 12 (zero egress) | **Native by construction** (C1). |
+| 14 (honest limits) | Required new language: **"measured at load, supervised at runtime"** ≠ per-session hardware attestation. What the runtime supervision toolset actually buys, quantified honestly: local-link challenge-response proves *liveness* and session-secret possession (a compromised kernel also holds the secret — so NOT integrity); the watchdog catches hangs/crashes; behavioral monitoring (power signature row 8 + traffic shape on the hub link) catches gross misbehavior; and **assume-bad actuation** — the P4 can hard power-cycle the module back into a freshly-measured state at any time, with auto-untrust quarantining its data meanwhile. The undetected-compromise window is bounded by the re-measure/reboot policy, not eliminated. The realistic runtime ingress is small by construction — no network; essentially the HDMI-RX path itself (EDID/InfoFrame/frame parsing of hostile host output) — but small ≠ zero, and the honest-limits row must say so. |
+
+**Does the Axera OTP gate still matter?** It **demotes from foundation to
+optional hardening layer.** Path A stood on it (rows 1–2 unclaimable
+without it). Path C stands on the carrier: keys live in CEC silicon, boot
+media is CEC-owned, measurement happens outside the SoC. If Axera
+provisioning access ever opens, burning a CEC root into the SoC's OTP adds
+silicon-anchored boot *inside* the measured image — welcome, layered, not
+load-bearing. Part III's K2.1 vendor-contact item becomes low-priority
+rather than gating.
+
+## C3. NDAA/§889 posture, re-scored for this shape
+
+Stated honestly: **the silicon COO does not change — the *story* and the
+auditable surface do.**
+- Path A was a retail Chinese-designed, Chinese-built board inside the
+  trust boundary — reversing the existing audit's mitigation ("NanoKVM
+  optional/excludable from gov configs").
+- Path C is **a CEC-designed board, CEC boot storage, CEC keys, CEC network
+  gate, hosting a socketed module that carries only a SoC + DRAM** — no
+  radio, no storage, no network silicon of third-party firmware provenance
+  in the trust path; the Linux image is CEC-built from an MIT-licensed
+  tree (with the MSP blob caveat, C4). The substantial-transformation
+  argument is materially stronger, and the §889 named-entity analysis is
+  unchanged (Axera is not a §889-named entity; the platform already
+  accepted Espressif as "not 889-covered, commercial OK" per the audit).
+- Still true and still flagged: an ENT-AIR/gov-posture customer may reject
+  *any* Chinese-fabless SoC in the evidence path regardless of carrier
+  provenance; the per-SKU COO register owns that call (audit row), not
+  this document. Path B remains the zero-asterisk option on this axis.
+
+## C4. Engineering scope and BOM class
+
+**Carrier board** (module-class-plus, one board program): gold-finger
+socket (DIMM-class, ~$1–3) · LT6911-class HDMI-RX bridge (~$5–8) + HDMI-in
+(loop-out optional — the same spare-GPU-head trade as Part II E4.3) ·
+eMMC/TF on-carrier (~$3–5) · **ESP32-P4 trust MCU** (~$5–8) + T1 front-end
+(~$3–4) + DETECT + pin-7 + RJ-45 module port · USB HID toward the host **on
+the P4 under attested sessions** (Path B's model — keeping HID out of the
+Linux stack entirely is both simpler and safer; the AX630C does capture
+only) · power: CEC monitored feed per the §2.9 posture, compute rail
+~3 W-class with a local INA238 (row 8) · the compute module itself
+(unpublished price, est. $30–60). **Parts class ≈ $55–95 + module** vs
+Path B's ~$25–45. The P4 + T1 + RJ-45 corner is literally the ENT module
+reference design — one board program, reusing the paid base.
+
+**Firmware — two programs, honestly separated:**
+1. *P4 module firmware:* the designed ENT module base + supervisor duties
+   (measure/release-reset, watchdog, session keys, HID gating, stream
+   signing). Modest delta over Path B's firmware.
+2. *The Linux stack rebuild:* Sipeed's MIT tree gives U-Boot source +
+   kernel + build system
+   ([maix_ax620e_sdk](https://github.com/sipeed/maix_ax620e_sdk)). CEC
+   strips: the entire network stack/updater/cloud/Tailscale surface (there
+   is no NIC), SSH, everything except capture + encode + the local link
+   daemon to the P4. CEC keeps: the capture/encode pipeline — which sits
+   on the **MSP binary-blob layer (VPU/ISP drivers, a binary-only
+   submodule)**. That blob is the honest asterisk on "rebuild the whole
+   firmware stack down to the Linux level": everything *around* it is
+   ours; the media engine itself is Axera's binary (its hash is pinned
+   inside the measured image, so it cannot change silently — but it cannot
+   be audited either). PSIRT: still a standing Linux image (rec 5 needs a
+   named owner), but with **no network ingress** the exposure class drops
+   from "internet-facing CVE stream" to "local-surface hardening" — a
+   materially smaller commitment than Path A's.
+   **Bonus worth naming:** the AX630C's 3.2-TOPS NPU can run the C.7
+   screen-state classifier *on the supervised device itself* (BSOD/POST/
+   frozen/no-signal classification + stop-code OCR emitted as signed
+   events, not raw frames) — the Concierge vision function, local, no
+   cloud, no host dependency.
+
+## C5. The decision frame, re-scored
+
+**Path C displaces Path A entirely — yes, plainly.** Everything Path A
+offered (AX630C-class 4K capture on rebuildable firmware) Path C offers
+too, while fixing all three of Path A's fatal/gating defects: the heartbeat
+runs at the full single-digit-µs class on the carrier P4 (not degraded);
+the Axera OTP gate demotes to optional hardening (the carrier owns keys +
+boot media + reset); and the retail-board-inside-boundary supply posture
+becomes our-board-socketed-module (C3). Path A retains **zero** unique
+advantages. Part III's K4 row 3 is superseded accordingly: the 4K-in-zone
+path is now C, and K2 stands only as the record of why the retail-reflash
+shape failed.
+
+| If "all of its inputs" means… | Cheapest in-zone path | Cost class | The honest trade |
+|---|---|---|---|
+| Visual evidence only (keyframes, screen state) | **d2 absorption** (Part II E4.3) — no device | ~$10–25 hub BOM | Hub's own RoT end to end; nothing to heartbeat |
+| + trusted interactive console, **1080p30 class** | **Path B** — native P4 module | ~$25–45; no Linux, no blobs | The zero-asterisk option: uniform silicon, no PSIRT stream, cleanest COO story; capture capped at 1080p30 / 4K stills |
+| + **4K-class capture** (and the NPU screen-classifier), in-zone | **Path C** — CEC carrier + AX630C core module, P4-fronted | ~$55–95 + module (est. $30–60, unpublished); network-less Linux image + MSP blob; Sipeed module supply dependency | Full trust-hardware parity with B at the hub interface; the compute element is measured-and-supervised rather than natively trusted — row 2/14 honest-limits language required |
+| ~~4K in-zone via retail re-flash~~ | ~~Path A~~ — **displaced by C** | — | — |
+
+**Where C sits vs B:** identical trust posture at the hub interface (both
+are P4 module endpoints — same keys, same heartbeat class, same state
+machine, same DETECT; the hub cannot tell them apart at the trust layer).
+The difference is entirely inside the box: B = no Linux, no blobs, no
+third-party module supply, 1080p30; C = 4K-class capture + on-device NPU
+classification, bought with a network-less Linux image, one binary blob,
+and a single-vendor module dependency. **August story:** B is still the
+one-slide uniform story; C presents nearly as well — "the compute module is
+a measured, supervised peripheral behind the same CEC trust endpoint every
+module uses" — one extra slide of nuance, and it *demonstrates* the
+architecture's central claim that trust lives in CEC silicon, not in
+whatever compute rides behind it.
+
+## C6. Owner items (Part IV; flagged, not resolved)
+
+1. **The 1080p-vs-4K call is now effectively the whole decision** (C5
+   table): B and C are trust-equivalent at the hub; the owner is choosing
+   capture class vs the Linux-surface/blob/supply asterisks — plus an
+   estimated $30–60/unit of module BOM.
+2. **Intake verification set for Path C** (before any carrier design):
+   pull the MaixCAM2 hardware downloads (dl.sipeed.com) — gold-finger
+   pinout/pitch, confirm **no boot flash on the core module**, boot-strap/
+   SDIO exposure for verify-then-release-reset (or the boot-media mux),
+   and a real core-board price + supply answer from Sipeed (none
+   published).
+3. **MSP blob posture**: accept the Axera VPU/ISP binary inside the
+   measured image (hash pinned by the P4's measurement), or require
+   blob-free — which kills C (no open media stack exists for this
+   silicon). Honest-limits row either way.
+4. **PSIRT owner for the network-less Linux image** (reduced-scope rec 5)
+   if C proceeds.
+5. **COO/§889 register row** for the socketed-AX630C shape (C3) — the
+   audit register owns that call.
+6. Axera OTP engagement (Part III K2.1) — now optional hardening; keep on
+   the low-priority vendor list only if C proceeds.
+
+## Part IV sources
+
+- Sipeed wiki, MaixCAM2 (gold-finger core board "only chip core circuit + DDR"; base-board eMMC/TF/WiFi6+BLE split; hardware downloads at dl.sipeed.com): https://wiki.sipeed.com/hardware/en/maixcam/maixcam2.html
+- sipeed_wiki source, maixcam2.md (spec table: AX630C dual-A53 + RISC-V E907; 1/4 GB LPDDR4; onboard 32GB eMMC + TF; WiFi6+BLE module; no standalone core-board price published): https://github.com/sipeed/sipeed_wiki/blob/main/docs/hardware/en/maixcam/maixcam2.md
+- CNX Software, MaixCAM2 (unit pricing $69/$99/$119; AX630 SoC background): https://www.cnx-software.com/2026/01/27/maixcam2-modular-4k-ai-camera-is-based-on-axera-ax630-soc-with-3-2-tops-npu/
+- GitHub sipeed/maix_ax620e_sdk (one platform SDK "for MaixCam2 and KVM-Pro"; MIT; U-Boot source; MSP binary-only submodule): https://github.com/sipeed/maix_ax620e_sdk
+- M5Stack LLM630 Compute Kit (independent third-party AX630C carrier precedent): https://shop.m5stack.com/products/m5stack-llm630-compute-kit-ax630c
+- Parts II–III of this document (trust bar K1, P4 contracts, HDMI-bridge architecture, NDAA audit row, survey-9 shares-die/rails rejection precedent)
 
 ## Sources (Part I)
 
