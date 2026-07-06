@@ -239,36 +239,35 @@ for fam in EXPECTED_JOINTS:
           f"{fam}: lower leg pad clears the 0.5mm copper-to-edge constraint "
           f"(pad bottom {pad_bottom:.2f} vs H-0.5 = {_h - 0.5:.2f})")
 
-# --- 3b. Main-board clip row fits the pitches (Keystone 3586, rotated) -----
-# Sketch model: clip slot axis PERPENDICULAR to the daughterboard wall line,
-# so the clip's extent ALONG the row is its courtyard's SHORT dimension and
-# its SMD pad span along the row is the pads' former-Y extent. Both measured
-# off the vendored footprint (Keystone dwg 3586: body .150in/3.81mm across
-# the slot; .185in/4.70mm along it).
-_clip_fp = "cec-Connector_Blade:Keystone_3586_SMD_Universal_Blade_Clip"
+# --- 3b. Main-board clip row fits the pitches (Keystone 3557 bare clip,
+# iteration 5 -- the SMD 3586 stays vendored as the documented fallback) ---
+# Mating model: clip slot axis PERPENDICULAR to the daughterboard wall line
+# (it must accept the descending blade broadside), which puts the 3557's
+# LEG PAIR ALONG the row -- verified from the catalog mounting details, see
+# the generator's TAB_PITCH derivation. Extents measured off the vendored
+# THT footprint, whose local X IS the row axis: pad span = 3.4mm leg pitch
+# + 2.4mm pad = 5.8mm (the floor driver: + 0.5 solder web = the 6.3mm
+# pitch floor, atx24 sits AT it); courtyard 5.5mm along the row.
+_clip_fp = "cec-Connector_Blade:Keystone_3557_THT_Universal_Clip_TopEntry"
 _ccy = godb.cp.courtyard_bbox(_clip_fp)
-clip_along_row = _ccy[3] - _ccy[2]          # courtyard Y extent -> row axis after rot
-_clip_pads = [(float(m.group(1)), float(m.group(2)), float(m.group(3)), float(m.group(4)))
+clip_along_row = _ccy[1] - _ccy[0]          # courtyard X extent = row axis
+_clip_pads = [(float(m.group(1)), float(m.group(2)), float(m.group(3)))
               for m in re.finditer(
-                  r'\(pad "1" smd rect\s*\(at (-?[\d.]+) (-?[\d.]+)\)\s*\(size (-?[\d.]+) (-?[\d.]+)\)',
+                  r'\(pad "1" thru_hole circle\s*\(at (-?[\d.]+) (-?[\d.]+)\)\s*\(size (-?[\d.]+)',
                   open(os.path.join(ROOT, "lib", "vendor", "Connector_Blade.pretty",
-                                    "Keystone_3586_SMD_Universal_Blade_Clip.kicad_mod")).read())]
-pad_span_along_row = (max(y + h / 2 for _x, y, _w2, h in _clip_pads)
-                      - min(y - h / 2 for _x, y, _w2, h in _clip_pads))
-# Iteration-4 packed floors (see TAB_PITCH's derivation in the generator):
-# the pitch floor is clip-PAD-driven -- 6.60mm measured pad span + 0.5mm
-# stated adjacent-clip solder/paste clearance = 7.10mm; pcie sits AT it.
-# Clip body gap floor 3.0mm (generous; the packed minimum is 7.1-3.82=3.28).
+                                    "Keystone_3557_THT_Universal_Clip_TopEntry.kicad_mod")).read())]
+pad_span_along_row = (max(x + d / 2 for x, _y, d in _clip_pads)
+                      - min(x - d / 2 for x, _y, d in _clip_pads))
 for fam, pitch in godb.TAB_PITCH.items():
     body_gap = pitch - clip_along_row
     pad_gap = pitch - pad_span_along_row
-    check(body_gap >= 3.0,
-          f"{fam}: clip-to-clip body gap at {pitch}mm pitch = {body_gap:.2f}mm "
-          f"(clip {clip_along_row:.2f}mm along-row; floor 3.0)")
+    check(body_gap >= 0.5,
+          f"{fam}: clip courtyard gap at {pitch}mm pitch = {body_gap:.2f}mm "
+          f"(clip courtyard {clip_along_row:.2f}mm along-row; floor 0.5)")
     check(pad_gap >= 0.5 - 1e-9,
-          f"{fam}: clip SMD-pad gap at {pitch}mm pitch = {pad_gap:.2f}mm "
+          f"{fam}: clip THT-pad web at {pitch}mm pitch = {pad_gap:.2f}mm "
           f"(pad span {pad_span_along_row:.2f}mm along-row; floor 0.5 = the "
-          f"stated solder clearance that defines the 7.1mm pitch floor)")
+          f"stated solder web that defines the 6.3mm pitch floor)")
 
 
 def tab_centres(fam):
