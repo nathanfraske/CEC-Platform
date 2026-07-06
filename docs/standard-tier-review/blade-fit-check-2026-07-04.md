@@ -577,3 +577,139 @@ identity vs. the pre-rework baseline 15→15 / 2→2 / 2→2). Main-board
 disposition unchanged from B.4 (clips still schematic-only; the packed
 grids + rotated-clip orientation + 5.72 mm standoff bind the future
 clip-placement pass).
+
+---
+
+## Addendum 5, 2026-07-05 (iteration 5): Keystone 3557 bare clip + 1×4 blind-mate signal stub
+
+**Dated addendum; addendum 4 above is left unedited.** Owner: *"We could
+just make them rotate 90 to be aligned with the way we're doing the
+daughterboard mounts, and couldn't we lower the pitch that way?"* (supplied
+the Keystone auto-fuse-clip catalog page = p.41 of the vendored
+`lib/datasheets/Keystone_3557-2.pdf`), plus the signal-stub scope additions
+(1×4 blind-mate, sense-return pads).
+
+### D.1 NAMING CORRECTION and the part
+
+What this repo vendored as "3557-2"/LCSC C352820 is the **2-IN-1 HOUSED
+FUSE HOLDER** — a different product on the same catalog page; the earlier
+intake's "dual-position housing" note conflated the two. The clip adopted
+here is **CAT 3557 "UNIVERSAL CLIP", Top Entry**: bare brass, tin-nickel,
+**UL 30 A @ 500 V AC**, THT, "maintains position during wave soldering,"
+**"Low insertion force"** (the catalog's own bullet — note the tension with
+the owner's high-insertion-force-as-feature ruling; the fit check should
+measure actual retention with our over-thickness tab, below). Body
+.150×.185×.400 in (3.8 × 4.7 × **10.2 mm tall**); jaw .062/.027
+(1.57/0.69); 2 legs ⌀.063 (1.60) at .134 (3.4 mm). New footprint
+`cec-Connector_Blade:Keystone_3557_THT_Universal_Clip_TopEntry` (drill 1.6
+= leg dia, friction fit; pads ⌀2.4; no thermal relief per §5). **LCSC**: the
+bare 3557 is not listed under its own number; LCSC carries **3557-10 /
+C3205403** in the same fuse-holder category (variant/pack UNVERIFIED — flag
+at order time); DigiKey/Mouser carry 3557 directly — consigned/owner-
+acquired fallback. **The SMD 3586 stays vendored and documented as the
+fallback** pending the OQ-86 physical sample.
+
+### D.2 Leg-pair axis — VERIFIED, and it contradicts the working assumption
+
+The brief's floor estimate (~4.5–4.8 mm) assumed the 3.4 mm leg pair runs
+along the jaw axis. The catalog's own mounting details say otherwise: the
+housed 3557-2's detail shows each clip's 3.4 mm leg pair PERPENDICULAR to
+the 13.5 mm fuse axis, and an ATO blade's 5.2 mm width runs ALONG the fuse
+axis (13.5 + 5.2 ≈ the fuse's ~18.7 mm width), so the slot is parallel to
+the fuse axis and the **legs are perpendicular to the slot**. In our mating
+orientation the slot MUST parallel the descending blade's 6.35 mm width
+(the wall normal) — forced — so the **leg pair lands ALONG the row**, and
+the along-row footprint is the leg pattern, not the 3.8 mm body:
+
+**Pitch floor = 3.4 (leg pitch) + 2.4 (pad) = 5.8 mm span + 0.5 mm stated
+adjacent-clip solder web = 6.3 mm.** (Electrical clearance at 12 V-class is
+<0.1 mm per IPC-2221 — the 0.5 is mechanical/solder.) The hoped-for ~4.5
+floor would need a clip with legs inline with the slot; this part
+measurably is not that. Net effect vs the 3586 (6.6 mm SMD span): the 3557
+rotation buys only **0.3–0.9 mm of pitch** — reported honestly.
+
+**Chosen pitches: atx24 6.3 (at the floor; = 3×2.1 mm, its field-stub
+lattice period, so the grid alignment carries over — the row anchor now
+steps by the FULL 6.3 to preserve the signal descents' mid-gap phase, a
+real shorting_items failure caught and fixed during regeneration), eps 6.7,
+pcie 7.2.** Keying margins (G/2)×Δ: eps-in-atx24 1.00, pcie-in-eps 0.75,
+pcie-in-atx24 1.35 — all ≥1.5× the 0.5 mm tolerance; pattern keying not
+needed; teeth re-verified (sabotaged eps = 7.1 → the proof correctly
+fails). Clip-row fit checker-asserted: courtyard gaps 0.8/1.2/1.7 mm, THT
+pad webs 0.5/0.9/1.4 mm.
+
+### D.3 #1 fit-check item: 0.81 mm FASTON tab vs 0.64 mm fuse-blade jaw design
+
+The 3557 family is designed around .025 in/0.64 mm standard fuse blades;
+the TE 63951-1 tab is 0.77–0.83 mm — **~27% over the design centre**,
+inside the family's published .020–.032 acceptance band but at its ceiling.
+Expected effect: stiffer grip — consistent with the owner's mating-force
+ruling (high retention is a feature), but this pairing is outside the
+catalog's listed fuse series and is **sample-gated (OQ-86, now the #1
+item)**: measure insertion/extraction and full seating with tabs at the
+thickness high end, in the vertical-drop direction, on the real 3557.
+
+### D.4 Seating numbers (clip 10.2 mm tall vs the 3586's 7.16)
+
+Uniform leg row 4.34 mm above each bottom edge (unchanged); tip 11.41 mm
+below the edge level; **float 12.41 mm** (uniform) at 1.0 mm tip clearance
+(hard stop = tip on the main board itself; the bare clip has no base
+floor → float 11.41 minimum). Board bottom edge clears the **taller clip's
+top by 2.21 mm** nominal (1.21 at the absolute stop); the blade fills the
+clip's full 10.2 mm interior from the tip clearance up — DEEPER engagement
+than the 3586 gave. Top edges: 33.8 (atx24) / 32.4 (eps, pcie) mm above the
+main board. Boards: **atx24 69.5 × 21.4, eps 38.5 × 20.0, pcie 26.6 ×
+20.0 mm**.
+
+### D.5 Signal stub: 1×4 blind-mate (scope items 9–12, owner-revised)
+
+J20 (CEC_CONN_2x5) is RETIRED on the daughterboard: replaced by a **1×4
+right-angle Dupont-class pin header** (new
+`cec:CEC_CONN_1x4` + `PinHeader_1x04_P2.54mm_Horizontal_LongPin`), mounted
+in the bottom band right of the tab row, pins pointing straight down past
+the edge parallel to the blades — **single-motion drop-in** (blades +
+signal pins together). NEW pin map, routing-derived: **1 = −12V, 2 =
+PS_ON#, 3 = PWR_OK, 4 = GND** (the three signals' field-column order, so
+the fan-down nests crossing-free; the 2×5's order dies with the part; the
+main-board mate mirrors this map). Blind-mate mechanics: (a) friction fit
+over a depth range like blade-in-jaw — does NOT over-constrain the float;
+engagement math: at 12.41 mm float and an ~8.5 mm Dupont female, below-edge
+pin length ≥ ~6.4 mm buys 2.5 mm engagement → **long-tail (10–15 mm class)
+header required**, commodity at LCSC (Ckmtw/Cankemeng RA lines), exact MPN
+at the OQ-89 SKU pass, consigned acceptable; (b) mis-insertion excluded by
+the blade keying (the pins can only land where the no-subset proof lets
+the board seat); (c) worst-case pin-to-socket misalignment = blade-keyed
+seating slop (<0.5 mm, the checker tolerance) + fab hole tolerance
+(±0.1 mm) vs a Dupont housing's ~±0.5–0.7 mm chamfered capture — plausible,
+**fit-check-gated**. Keyed JST-PH (S4B/B4B-PH-K-S, the Hub J_KVM family) is
+the demoted cabled fallback. The 2×5's six reserved positions become **six
+DNP solder pads SR1–SR6** (`CEC_SR_Pad_DNP`, PCB-only, silk-labelled, no
+nets) — this changes the OQ-88 sense-return **provision form only**; the
+decision itself stays open and the owner's.
+
+### D.6 Main-board disposition
+
+All 41 TB clip instances across the four main-board schematics
+(atx-24pin-rev3 9, eps-8pin 12, pcie-2port 8, pcie-3port 12) swapped by
+property (Value/MPN/LCSC/Footprint → Keystone 3557 + the new THT footprint;
+lib_id retained per the platform's value-swap precedent), with the swap
+provenance appended to each instance's Note. ERC before = after = 1
+pre-existing `pin_not_driven` per board — not worsened. **DEVIATION,
+flagged:** atx-24pin-rev3's J_SIG (the 2×5 mate) was NOT rewired to the 1×4
+female socket this pass — that is wire-level surgery on a hand-maintained
+schematic currently being edited by a parallel agent (changed pin count,
+changed pin map, new symbol); the full spec for that pass is above (mirror
+map −12V/PS_ON#/PWR_OK/GND, vertical 1×4 female socket, entry up, placed
+per the mating drawing just off the wall line, plus its own SR DNP pads).
+No clip placement exists on any main-board PCB (unchanged from B.4);
+`pcb_placement()` + addenda 3–5 remain the authoritative mating drawing.
+
+### D.7 Gates
+
+ERC 0 ×3 daughterboards; DRC 0/0 at `--severity-error` ×3 (one real
+regression — descents shorting tab pads at a rotated anchor phase — caught
+by DRC during regeneration and fixed by stepping the row anchor at the full
+6.3 mm); checker fully green (104 OKs) incl. the recomputed THT clip-fit
+assertions; tab net maps + joint counts 9/6/4 unchanged; the header net map
+deliberately changed per D.5 (the one intended connectivity delta this
+iteration); main-board ERC not worsened per board.

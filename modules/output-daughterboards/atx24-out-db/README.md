@@ -12,6 +12,30 @@ vertical header. **No active or passive components** — connector bodies and
 fan-out copper only, per the ratified "no components beyond the connector
 body and its fan-out copper" text.
 
+
+> **ITERATION 5 (2026-07-05, owner) — READ FIRST, supersedes the iteration-4
+> numbers below where they differ.** Main-board clip part changed: Keystone
+> **3586 (SMD) → 3557 bare top-entry clip** (THT, UL 30 A @ 500 V AC; the
+> "3557-2" this repo vendored earlier is the 2-in-1 HOUSED holder, a
+> different product — naming corrected; 3586 stays vendored as the SMD
+> fallback). Clip rotated slot-perpendicular-to-wall; its **leg pair runs
+> ALONG the row** (verified from the catalog mounting details — this
+> contradicts the leg-parallel-to-jaw assumption and caps the win): pitch
+> floor = 3.4 leg pitch + 2.4 pad + 0.5 solder web = **6.3 mm**, pitches now
+> **atx24 6.3 / eps 6.7 / pcie 7.2** (keying margins 1.00/0.75/1.35, teeth
+> re-verified). Boards: **atx24 69.5 × 21.4, eps 38.5 × 20.0, pcie 26.6 ×
+> 20.0 mm**. Seating: uniform 4.34 mm leg row, float 12.41 mm at 1.0 mm tip
+> clearance; the taller 10.2 mm clip's top is cleared by 2.21 mm; engagement
+> now spans the clip's full interior. atx24 also swaps its signal stub: the
+> 2×5 header is RETIRED for a **1×4 right-angle blind-mate pin header**
+> (long-tail Dupont class, pins down past the edge parallel to the blades,
+> single-motion drop-in; NEW pin map 1=−12V, 2=PS_ON#, 3=PWR_OK, 4=GND) plus
+> **six DNP sense-return pads SR1–SR6** (OQ-88 provision form only). #1
+> fit-check item: the 0.81 mm FASTON tab is ~27% over the clip's 0.64 mm
+> fuse-blade design centre (inside the published .020–.032 acceptance, at
+> its ceiling — stiffer grip expected, sample-gated). Full record:
+> `docs/standard-tier-review/blade-fit-check-2026-07-04.md` **addendum 5**.
+
 DRAFT (no fab yet — the OQ-86 physical fit-check sample gate is still open).
 
 ## Posture — vertical card, tabs blade-DOWN (owner sketch, 2026-07-05)
@@ -49,7 +73,7 @@ next to each other and put them below the pinout? That should tell us how
 tall these are really going to be"*) — the deliverable is the honest
 minimum height of the two-band stack.
 
-**Measured final size**: **72.8 × 21.4 mm** (length × height). The tab row
+**Measured final size**: **69.5 × 21.4 mm** (length × height). The tab row
 returned BELOW the field (two-band stack: field + corridor on top, packed
 tab row underneath), halving the length (145.1 → 72.8 mm) at a true height
 cost of 13.6 → 21.4 mm. Height decomposition (all measured constants):

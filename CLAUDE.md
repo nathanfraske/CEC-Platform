@@ -142,18 +142,29 @@ axis perpendicular to the wall line, 5.72mm off the front face) and the board FL
 clear (tab reaches down, not the board). **ITERATION 4 (same day, owner: "stack the
 blades right next to each other and put them below the pinout" — the <=15mm height cap
 EXPLICITLY RELAXED for this form):** compact TWO-BAND stack (field band over a packed
-tab row), pitches **8.4/7.6/7.1mm** (floor = 6.60 clip SMD-pad span + 0.5 solder
-clearance = 7.1; pcie AT it; eps +0.5 for keying; atx24 8.4 = 4x2.1 grid-aligned to its
-field-stub lattice for the corridor interface), keying re-proved by pitch deltas alone
-(margins 0.75/1.95/2.00 vs 0.5 tolerance, teeth re-verified at the floor). Boards:
-**atx24 72.8x21.4, eps 43.0x20.0, pcie 26.3x20.0** (the honest minimum heights of the
-compact form); uniform leg row 4.34mm above each bottom edge -> uniform 12.41mm float at
-1mm tip clearance, top edges 33.8/32.4mm above the main board. Gates green (ERC 0, DRC
-0/0 severity-error, checker incl. updated seating-invariant + packed clip-fit
-assertions, net maps/joint counts 9/6/4 unchanged). NOTE the four MAIN boards carry TB
-clips in schematics only — no PCB placement exists on this branch, so `pcb_placement()`
-+ memo addenda 3-4 remain the authoritative mating drawing binding the future main-board
-clip-placement pass.
+tab row). **ITERATION 5 (same day, owner + catalog page):** main-board clip swapped
+Keystone 3586 (SMD) -> **3557 bare top-entry clip** (THT, UL 30A@500VAC; "3557-2" = the
+2-in-1 HOUSED holder, naming corrected; 3586 stays vendored as fallback; LCSC
+3557-10/C3205403 UNVERIFIED variant, DigiKey/Mouser consigned fallback), rotated
+slot-perpendicular-to-wall — its LEG PAIR runs ALONG the row (verified from the
+mounting details, contradicting the legs-parallel-to-jaw guess), so the floor is
+leg-pattern-driven: 3.4+2.4+0.5 = **6.3mm**; pitches **6.3/6.7/7.2** (margins
+1.00/0.75/1.35, teeth re-verified; atx24 AT the floor = 3x2.1 lattice-aligned, row
+anchor stepped at the full 6.3 after a caught shorting regression). atx24 signal stub:
+2x5 RETIRED -> **1x4 RA blind-mate long-tail header** (pins down past the edge, drop-in
+with the blades; NEW map 1=-12V,2=PS_ON#,3=PWR_OK,4=GND) + 6 DNP sense-return pads
+SR1-6 (OQ-88 provision form only). Boards: **atx24 69.5x21.4, eps 38.5x20.0, pcie
+26.6x20.0**; uniform leg row 4.34mm above edge -> 12.41mm float at 1mm tip clearance,
+the taller 10.2mm clip's top cleared by 2.21mm, tops 33.8/32.4mm. #1 fit item: 0.81mm
+tab vs the clip's 0.64mm fuse-blade design centre (27% over, inside the .020-.032
+acceptance — sample-gated). Gates green (ERC 0, DRC 0/0 severity-error x3, checker 104
+OKs incl. THT clip-fit assertions; tab maps/joint counts 9/6/4 unchanged; header map
+deliberately changed). MAIN BOARDS: all 41 TB instances swapped to 3557 by property
+across the 4 schematics (ERC unchanged, 1 pre-existing pin_not_driven each); J_SIG's
+own 2x5 -> 1x4-socket rework DEFERRED (wire surgery on a hand file under parallel
+edit), fully spec'd in `docs/standard-tier-review/blade-fit-check-2026-07-04.md`
+addendum 5 (D.6), which with `pcb_placement()` remains the authoritative mating drawing
+(no main-board PCB clip placement exists on this branch).
 
 Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
 CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions
