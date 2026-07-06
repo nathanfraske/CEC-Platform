@@ -3002,6 +3002,13 @@ def place_finalize_handoff(cand, cfg, *, ask=None, work_dir=None):
 ALPHA_CU = 0.00393                       # copper temp-coefficient of resistance, 1/°C
 CU_OZ_MM = 0.0348                        # mm copper per oz
 _AMBIENT = {"enclosed_passive": 50.0, "airflow": 35.0, "worst_case": 60.0}
+# Connector-joint conductor materials (iteration-11 blade-interconnect element).
+# TE 63951-1 tab and 63969-1 receptacle are both BRASS (tin over copper/nickel);
+# CuZn30 ~6.2e-8, CuZn37 ~7.0e-8 ohm.m -- 6.4e-8 is the working value, alpha
+# ~0.0015/K (brass TCR is ~2.6x lower than copper's).
+RHO_BRASS = 6.4e-8                       # ohm·m at 20°C
+ALPHA_BRASS = 0.0015                     # 1/°C
+RHO_CU_20C = 1.72e-8                     # ohm·m at 20°C (matches cec_dcir)
 
 
 def dt_ipc(I, cross_mm2, *, external=True):
@@ -3047,6 +3054,15 @@ def _net_currents(cfg, board_nets):
     for n in board_nets:
         if n in user:
             out[n] = user[n]
+        elif "-12V" in n:
+            # NEGATIVE rail: the bare substring test below ("12V" in n) used to
+            # capture "-12V"/"/-12V" and assign it the full CABLE current -- a
+            # 0.3A-class ATX signal rail read as a 40A force net and false-fired
+            # the runaway gate (found by the 2026-07-06 blade-interconnect
+            # audit on the atx24 output daughterboard; the atx-24pin main board
+            # carried the same false pessimism). Behaviour change is confined
+            # to nets containing "-12V"; every other classification is untouched.
+            out[n] = cfg.params.get("rail_neg12_A", 0.5)
         elif n.endswith(("_HI", "_LO")) or "12V" in n:
             out[n] = i_cable
         elif "5VSB" in n or n.endswith("+5V"):
@@ -3073,6 +3089,11 @@ class ThermalResult:
     # which encodes AUTHORITY. Uncalibrated thermal gates still BLOCK (the
     # solver's tested property is conservatism; cautious posture stands).
     calibration: str = "uncalibrated"   # "uncalibrated" | "bench:<label-ref>"
+    # Board-to-board CONNECTOR JOINTS (iteration-11 element): populated ONLY
+    # when cfg.params['joints'] declares them -- absent, the solve is
+    # numerically identical to the pre-element solver (additive contract,
+    # asserted by tests.test_am04_anchors.T12JointRatingAnchor).
+    joints: list = field(default_factory=list)
 
 
 # ---- transient current model ---------------------------------------------------------------------
@@ -3174,6 +3195,132 @@ def _via_cluster_sizes(pts, thr=3.0):
     roots = [find(i) for i in range(n)]
     cnt = Counter(roots)
     return [cnt[roots[i]] for i in range(n)]
+
+
+# ---- connector-joint element (board-to-board interconnect) ---------------------------------------
+# First-class thermal element for a MATED CONNECTOR JOINT -- the class the suite
+# never modelled (blade/receptacle interconnects, iterations 1-10). A joint is a
+# CONTACT interface resistance in series with metal CONDUCTOR segments (each with
+# its own resistivity/TCR -- brass, not copper), dissipating into ambient through
+# a lumped joint thermal resistance Rth. ANCHORED IN TRUTH per the AM-04 pattern:
+# Rth is not hand-picked -- it is CALIBRATED so the model reproduces the part's
+# PUBLISHED rating datum (TE 108-1706 Fig 4: 22.9 A base rated current, derived
+# by the same 30°C-rise method [AMP 109-45-1] the platform margin policy uses).
+# That datum is a real external anchor; tests.test_am04_anchors.T12 asserts it
+# and gives the gate teeth (a worn/sabotaged joint must FAIL physics_gates).
+@dataclass
+class JointSegment:
+    """One metal conductor leg of a joint's current path."""
+    name: str
+    cross_mm2: float
+    length_mm: float
+    rho_ohm_m: float = RHO_BRASS
+    alpha_per_C: float = ALPHA_BRASS
+
+    def R_ohm(self, T_C=20.0):
+        if self.cross_mm2 <= 0 or self.length_mm <= 0:
+            return 0.0
+        r20 = self.rho_ohm_m * (self.length_mm * 1e-3) / (self.cross_mm2 * 1e-6)
+        return r20 * (1.0 + self.alpha_per_C * (T_C - 20.0))
+
+
+@dataclass
+class JointSpec:
+    """A mated connector joint class: contact interface + conductor segments +
+    the published rating datum that calibrates its thermal resistance.
+    General on purpose -- future connector classes declare their own spec."""
+    name: str
+    contact_R_ohm: float = 1.0e-3        # spec MAX termination R (conservative; the
+                                         # published figure already includes some bulk,
+                                         # so summing explicit segments double-counts
+                                         # slightly on the safe side)
+    segments: tuple = ()
+    rating_I_A: float = 22.9             # published base rated current
+    rating_dT_C: float = 30.0            # at the 30°C-rise rating method
+    rating_ambient_C: float = 25.0       # rating-test ambient (109-45-1 bench)
+    worn_contact_R_ohm: float = 10.0e-3  # degraded-interface scenario (fretting/wear)
+    rth_CW: float = None                 # joint->ambient; None => calibrate from the rating
+
+    def R_total_ohm(self, T_C, contact_R_ohm=None):
+        c = self.contact_R_ohm if contact_R_ohm is None else contact_R_ohm
+        return c + sum(s.R_ohm(T_C) for s in self.segments)
+
+    def calibrated_rth(self):
+        """Rth such that the model reproduces the rating datum exactly:
+        dT(rating_I) = rating_dT at the rating ambient, with rho(T) feedback."""
+        if self.rth_CW is not None:
+            return self.rth_CW
+        T = self.rating_ambient_C + self.rating_dT_C
+        R = self.R_total_ohm(T)
+        P = self.rating_I_A ** 2 * R
+        return self.rating_dT_C / P if P > 0 else 0.0
+
+
+def joint_te_63951_63969():
+    """TE 63951-1 right-angle FASTON tab (blade) mated into a TE 63969-1 FASTON
+    .250 PCB receptacle -- the platform's daughterboard-to-main-board joint
+    (owner-ratified 2026-07-06, blade-fit-check addendum 7). Real geometry:
+    blade 6.35 x 0.81 brass (dwg C=63951); conduction length leg-row ->
+    mid-engagement ~12 mm; receptacle 0.41 brass, rolls -> solder tails ~8 mm
+    at ~7.4 mm developed width; two 0.41 x ~1.4 stamped tails through the board
+    (~2 mm incl. fillet). Contact = the 108-1706 <=1 mOhm spec max."""
+    return JointSpec(
+        name="te_63951_63969",
+        contact_R_ohm=1.0e-3,
+        segments=(
+            JointSegment("blade_63951", cross_mm2=6.35 * 0.81, length_mm=12.0),
+            JointSegment("receptacle_63969", cross_mm2=7.4 * 0.41, length_mm=8.0),
+            JointSegment("tails_solder", cross_mm2=2 * 1.4 * 0.41, length_mm=2.0),
+        ),
+    )
+
+
+JOINT_SPECS = {"te_63951_63969": joint_te_63951_63969}
+
+
+def joint_solve(spec, I, ambient=None, *, worn=False, contact_R_ohm=None):
+    """Self-consistent joint temperature: dT = P(T)*Rth with per-segment rho(T)
+    feedback (contact R held constant -- its T-dependence is interface physics
+    the spec does not publish). Returns the joint record dict."""
+    if ambient is None:
+        ambient = _AMBIENT["enclosed_passive"]
+    if isinstance(spec, str):
+        spec = JOINT_SPECS[spec]()
+    c = spec.worn_contact_R_ohm if worn else (
+        spec.contact_R_ohm if contact_R_ohm is None else contact_R_ohm)
+    rth = spec.calibrated_rth()
+    dt = 0.0
+    for _ in range(40):                          # Picard; converges in a few steps
+        R = spec.R_total_ohm(ambient + dt, contact_R_ohm=c)
+        dt_new = min(I * I * R * rth, 999.0)
+        if abs(dt_new - dt) < 1e-6:
+            dt = dt_new
+            break
+        dt = dt_new
+    R = spec.R_total_ohm(ambient + dt, contact_R_ohm=c)
+    return {"joint": spec.name, "I": round(I, 2),
+            "R_mOhm": round(R * 1e3, 3), "contact_R_mOhm": round(c * 1e3, 3),
+            "P_W": round(I * I * R, 3), "rth_CW": round(rth, 1),
+            "dT": round(dt, 1), "T": round(ambient + dt, 1), "worn": bool(worn)}
+
+
+def joints_solve(cfg, ambient):
+    """Solve every joint declared in cfg.params['joints']: a list of dicts
+    {spec: <JOINT_SPECS key or JointSpec>, I: amps [, name, count, worn]}.
+    `count` parallel identical joints split I evenly. Returns [] when nothing
+    is declared -- the additive-contract case."""
+    out = []
+    for j in cfg.params.get("joints", ()) or ():
+        spec = j.get("spec", "te_63951_63969")
+        n = max(1, int(j.get("count", 1)))
+        rec = joint_solve(spec, float(j.get("I", 0.0)) / n, ambient,
+                          worn=bool(j.get("worn", False)),
+                          contact_R_ohm=j.get("contact_R_ohm"))
+        if j.get("name"):
+            rec["name"] = j["name"]
+        rec["count"] = n
+        out.append(rec)
+    return out
 
 
 def electrothermal_solve(board_path, cfg, *, ambient=None):
@@ -3324,8 +3471,13 @@ def electrothermal_solve(board_path, cfg, *, ambient=None):
         if ambient + dt > max_T:
             max_T, max_dT = ambient + dt, dt
 
+    joints = joints_solve(cfg, ambient)          # [] unless cfg declares them (additive)
+    for j in joints:
+        if ambient + j["dT"] > max_T:
+            max_T, max_dT = ambient + j["dT"], j["dT"]
+
     return ThermalResult(ambient=ambient, max_T=round(max_T, 1), max_dT=round(max_dT, 1),
-                         nets=net_res, vias=vias[:8], shunts=shunts,
+                         nets=net_res, vias=vias[:8], shunts=shunts, joints=joints,
                          calibration=_calibration_state(cfg, "hotspot"))
 
 
@@ -3387,6 +3539,10 @@ def physics_gates(res, cfg):
     for s in res.shunts:
         if s["T"] > t_max or s["dT"] > dt_max:
             flags.append(Flag("shunt over-temp", s["ref"], 0.8, Kind.MEASURE, dict(s, limit_T=t_max)))
+    for j in getattr(res, "joints", ()) or ():
+        if j["T"] > t_max or j["dT"] > dt_max:
+            flags.append(Flag("joint over-temp", j.get("name", j["joint"]), 0.8, Kind.MEASURE,
+                              dict(j, limit_dT=dt_max, limit_T=t_max)))
     # AM-04 R9: every thermal flag carries the calibration mark. Accuracy label
     # ONLY -- the flags stay binding="gate" (blocking-with-the-mark; demoting
     # uncalibrated thermal to advisory would convert an honesty label into an
