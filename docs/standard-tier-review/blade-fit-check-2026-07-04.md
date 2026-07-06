@@ -1134,3 +1134,138 @@ items if the owner ever re-prices the band. The atx24 GND 127.2% hairline
 stays accepted as ratified (the 30 A parts that would absorb it introduce
 two new 125.0% at-the-line joints of their own). Iteration-7 boards stand;
 the OQ-86 sample list is unchanged.
+
+## Addendum 9, 2026-07-06 (iteration 9): TAB-side study — catalog variants + the PCB-edge-finger option
+
+**Dated addendum; addendum 8 above is left unedited. STUDY ONLY — no board
+or library-geometry change (one datasheet vendored). The receptacle is
+FROZEN (TE 63969-1);** owner: *"Can we use a different tab now that we have
+all of the mount world classified?"* Relaxed requirements applied: the
+detent hole no longer disqualifies (iteration 7 showed the 63951-1's hole
+rides above the engagement zone anyway → retention is friction-only
+today), and carrier/top-extent height is a live board-height lever.
+
+### H.1 Lane 1 — full .250×.032 PCB-tab enumeration (TE 82004 + siblings)
+
+- **Straight tabs** (63839/63986/1217566/1217539/62409/1217056/62650/
+  63650/63900/63755/63862/63824/**63849**/1742188/1217136/1217421/1217126/
+  1217125/1217169/1217127/1217167/63949/63950; also the Ø2.54-hole
+  63066/63067): ALL mount blade-⊥-board — through our vertical face the
+  blade would point along the wall normal (horizontal), never down. Dead
+  as a class for the drop-in architecture (they live in lane 3's flip).
+- **SMT .250 tabs**: TE 82004 carries NONE. Zierick's exist (6284 /
+  1285/6285, 25 A, 0.81 brass) — but an SMT tab lies flat on the face, so
+  its blade is IN the board plane with the wide face parallel to the face:
+  blade width would run ALONG the row (the iteration-2 dead geometry →
+  pitch balloons past 7 mm), the frozen receptacle would have to rotate
+  90° (hole pair ∥ row — violating the owner's ratified orientation), and
+  a Y≈0 blade can't reach a receptacle at any standoff without the
+  receptacle colliding with the descending board edge. **Killed
+  explicitly.**
+- **Right-angle .250 table** (the only in-architecture class) has exactly
+  three members: **63951-1** (baseline; L 20.32, E 7.92, strip C591344
+  $0.10–0.16, loose sibling 1217754-1 = LCSC C305825 $0.156/1900 pcs),
+  **63952-1** (L 25.40, E 16.83 — longer and further off the wall in every
+  dimension; dead on sight), and **928814-1** — the one live variant:
+
+**TE 928814-1 "SOLDER TAB 6.3×0.8 FOR PCB"** (drawing C-928814 rev C now
+vendored: `lib/datasheets/TE_928814_solder_tab_63x08.pdf`): CuZn30, 3–8 µm
+Sn over 0.8–5 µm Ni, blade 6.3 × **0.8 ± 0.05**, Ø1.7 detent hole 4.45
+from the tip, **overall 16.0 vs the 63951-1's 20.32**; two flat stamped
+legs on a 5.0 ± 0.08 pitch, STAGGERED 2.5 mm across (the recommended hole
+pattern is a 2-row lattice — different drilling than the 63951's in-line
+Ø1.4 pair); LOOSE PIECE ONLY (no strip/reel), not LCSC-carried
+(DigiKey/Mouser class). What it buys and costs, honestly:
+- **Stack height −~4.1 mm**: shorter blade ⇒ tip ~11.6 below the leg
+  midpoint (vs 15.75) ⇒ float ~8.3 (vs 12.41) ⇒ eps/pcie tops ~28.3 (vs
+  32.42), atx24 ~29.7 (vs 33.79). Board HEIGHT is essentially unchanged
+  (top extent ≈4.4 vs 4.82 — the carrier saving is ~0.4 mm on eps/pcie
+  only; atx24's band is corridor-driven).
+- **Detent hole lands IN the engagement zone** (~5.5 above the main board,
+  inside the receptacle's 8.38 body) — the only tab in the table that
+  might give real detent retention; the roll-dimple height is
+  un-dimensioned, so still sample-proven.
+- **Caveats**: blade band sits closer to the wall (centre ~4.45 vs 5.72,
+  read from the 2:1 views ±) ⇒ the receptacle's near roll edge comes
+  within ~0.7 mm of the board face while the board edge dips ~0.1 below
+  the receptacle top at nominal float — a tight corner that needs either
+  a re-derived (higher) float or the exact band read off a sample; blade
+  tolerance 0.75–0.85 is WIDER than the mate's published 0.785–0.835
+  acceptance (low-tail preload loss — milder than the finger option's
+  same problem); loose-piece-only feeds hand assembly; sourcing off-LCSC.
+
+### H.2 Lane 2 — the PCB-edge-finger option (the board IS the blade)
+
+**(a) Thickness — the killer gate.** The 63969's published mating spec is
+**0.81 ± 0.025** (rev-E note 3; 108-1706's scope is ".032 thick tab"; no
+wider band is published anywhere, and the Style-A SKU split by tab
+thickness — 63969 for .032, 1217180/63994 for .025 — shows the spring is
+thickness-TUNED, not wide-band). PCB fab: JLC standard thickness tolerance
+±0.1 (0.70–0.90) **FAILS**; even a tight ±0.05 class (0.75–0.85) fails
+both tails of 0.785–0.835. No catalog fab class passes; only a custom
+±0.025-controlled core would — this gate is strictly HARDER than the
+receptacle depth gate it would sit beside. And the thickness is CHAINED:
+a stiffer 1.0 mm board is over-band by construction.
+**(b) Ampacity — passes with heavy copper, but conduction was never the
+issue.** Blade ≈ 5.1 mm² brass ≈ 1.44 mm² Cu-equivalent. Finger at 2 oz
+both faces = 6.35 × 0.07 × 2 = **0.89 mm²** (62% of blade); 4 oz both
+faces = **1.78 mm²** (124%) ✓; edge plating adds ~0.02 (negligible). The
+contact neck is short (~9.2 A/face on a 6.35 mm-wide 2 oz sheet ≈
+1.4 A/mm over <5 mm ⇒ few-°C class), so even 2 oz is thermally plausible —
+the REAL unknowns are the interface: ENIG's flash gold wears through in
+single-digit cycles under the 44 N-class roll force (→ Ni contact,
+rising R); hard gold 30 µ" + bevel is the edge-finger standard (JLC
+offers, cost bump; bevel at 0.8 mm marginal); the rolls' shear-edge
+geometry meeting a routed FR4 edge is unqualified by TE — fully
+off-label, bench-only.
+**(c) Mechanics.** 440 N spec-max gang insertion loads the 0.8 × 21-ish
+edge in compression — buckling resisted by the THT field band + 4-layer
+copper, plausibly OK; the service risk is FLEX (extension-cable pull on a
+0.8 × 61 sliver) → contact fretting. Fab: 0.8 mm 4-layer with 2 oz outers
++ hard-gold fingers is orderable at JLC with real cost adders (finger
+plating + bevel + non-standard stackup).
+**(d) Geometry — the honest, large upside.** Tab band deleted (fingers
+in-plane): H ≈ −2 to −3 mm per board; and the FLOAT DIES — the board's
+own edge descends to ~1.0–1.5 above the main board ⇒ **total stack ~19 mm
+vs 32.4–33.8 today (−13 mm)**, the single biggest compaction lever seen
+in this whole chain. Keying: the no-subset proof applies unchanged to
+finger X-positions. BOM: −22 tabs/system (−$2–3.5) and −22 hand/wave
+solder joints. Signal stub reworks to short pins or 3 signal fingers
+(minor). POSTURE FLAG, stated honestly: this reverses the owner's
+iteration-3 "the TAB does the reaching down, not the board" — the board
+itself would now enter the receptacle zone; the owner is explicitly
+inviting the question, but the reversal should be a conscious ruling.
+
+### H.3 Lane 3 — side-flip kill (one paragraph)
+
+Flipping sides (straight 63849-1 tabs blade-up on the MAIN board,
+receptacle on the daughterboard) requires a receptacle that mounts on a
+VERTICAL face with a vertical mating axis — i.e. an SMT/edge-mount .250
+receptacle. Iteration 8's enumeration found none in existence (TE's PCB
+receptacles are THT verticals whose mating axis is ⊥ their own seating
+plane — through our vertical face the axis goes horizontal; Zierick's SMT
+universals mount face-flat the same way, 25 A, and died on the row math
+regardless), and a THT receptacle through the daughterboard face cannot
+receive a vertically descending... rising blade. **Dead. Closed.**
+
+### H.4 Verdict table
+
+| Option | Board H (atx/eps/pcie) | Total stack | BOM parts/system | Assembly | New gates/risks | Cost/system delta | Sample-order impact |
+|---|---|---|---|---|---|---|---|
+| **Stand pat: 63951-1** | 21.4/20.0/20.0 | 33.8/32.4 | 22 tabs (strip, C591344) | 22 THT, reel-fed | none new (depth gate + friction retention + gang force, as ratified) | — | unchanged |
+| **928814-1** | ~21.4/19.6/19.6 | **~29.7/28.3 (−4.1)** | 22 tabs, LOOSE only, not LCSC | 22 THT, hand-fed | near-wall corner (~0.7 mm) needs float re-derivation; 0.75–0.85 blade band vs 0.785–0.835 mate band; staggered-leg re-drill | ~+$1–3 (loose/DigiKey) | **ADD 20 pcs to the OQ-86 order** — verifies band, corner, and possible REAL detent engagement in one session |
+| **PCB edge fingers** | ~18.4/17.9/17.9 | **~19 (−13)** | **0 tabs** | 0 tab joints; +finger fab steps | thickness band UNPASSABLE at catalog fab classes (harder than the depth gate); off-label contact metallurgy (hard gold, wear, fretting); 0.8 sliver flex | −$2–3.5 parts, +hard-gold/bevel/stackup fab adder | new bench PROGRAM (thickness-sorted samples, insertion/wear/contact-R cycling) |
+
+### H.5 Recommendation
+
+**Stand pat on the 63951-1 for the beta line** — no new gates, reel-fed,
+LCSC-native, all risks already ratified. **Add 928814-1 (≈20 pcs,
+DigiKey) to the existing OQ-86 sample order**: for pocket change it tests
+a −4.1 mm stack, a possibly-real detent engagement, and its two caveats
+(near-wall corner, wide blade band) in the same bench session — a cheap
+drop-in upgrade IF it passes, requiring only a footprint/band re-derive.
+**Record the edge-finger option as the compaction endgame** (−13 mm of
+stack and −22 parts) that is NOT actionable under quality-first until a
+funded bench program clears its thickness-band and contact-metallurgy
+gates — and until the owner consciously rules on reversing "the tab does
+the reaching, not the board." No board regenerates from this addendum.
