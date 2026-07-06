@@ -1013,3 +1013,124 @@ orientation, plan-congruence, and depth-parameterized row-fit assertions;
 keying proof + teeth as in F.3; route verify structural=0/unconnected=0
 per family. Main boards ×4: ERC unchanged (1 pre-existing pin_not_driven
 each, before = after); new-TB netlist checks as in F.5.
+
+## Addendum 8, 2026-07-06 (iteration 8): ampacity/size EXPLORATION — verdict: STAND PAT on TE 63969-1
+
+**Dated addendum; addendum 7 above is left unedited. STUDY ONLY — no board
+or library change.** Owner ratified the iteration-7 density and directed a
+hunt for *"any models that we can use that either increase the ampacity or
+decrease the size."* Score = net row length per family (joints × pitch) +
+margin quality + $/module vs the ratified $2.7–4.6 blade-config band.
+Baseline: TE 63969-1 — 22.9 A @30 °C rise, 4.2 mm floor (depth-est-gated),
+counts 10/6/6, rows 42.0 / 28.2 / 31.2 mm (boards 61.0×21.4 / 28.5×20.0 /
+31.0×20.0), ~$0.30/joint + the fixed $0.10–0.16 blade side.
+
+### G.1 The count-threshold ladder (what a rating is worth, policy math at 125%)
+
+| Rating/joint | atx24 | eps /cable | pcie /cable | Notes |
+|---|---|---|---|---|
+| 22.9 (baseline) | 10 | 6 | 6 | GND 127.2% hairline |
+| ≥24.4 | 10 | 6 | **4** | pcie 2/polarity unlocks |
+| 25 | 10 | 6 | 4 | GND → 139% (hairline absorbed) |
+| 30 | **8** | 6 | 4 | but 3V3×1 AND GND×3 both land AT 125.0% — two new hairlines |
+| ≥32.5 | 8 | **4** | 4 | eps 2/polarity unlocks |
+| ≥37.5 | **7** | 4 | 4 | 5V×1 unlocks |
+| ≥45 | **6** | 4 | 4 | GND×2 at exactly 125.0% |
+
+So the interesting unlock points are 24.4 (pcie), 30 (atx24), 32.5 (eps).
+
+### G.2 Lanes searched, honest results
+
+**Lane 1a — TE catalog 82004 (vendored, re-mined):** Style A
+(63968-1 LIF / 63969-1 / 1217080-1) is the ONLY PCB receptacle for a
+0.81 mm tab; product spec 108-1706 rates the whole PCB-receptacle line at
+22.9 A — no higher-current or narrower sibling exists. The .187 series
+appears as TABS ONLY (no .187 PCB receptacle at all), and the .187 contact
+class is ~17 A: even a hypothetical 3 mm-wide part gives eps 4/polarity ×
+~3.5 = 14.0 vs the baseline 3 × 4.7 = 14.1 — a wash at best, with worse
+margins everywhere else. The RAST 5 tab-header system (6.3×0.8 tabs on
+5 mm centres, p.50–51) mates appliance wire-side housings, not PCB
+receptacles — not board-to-board. **Nothing in FASTON-world beats the
+63969-1; it is the class ceiling for THT stamped verticals.**
+
+**Lane 1b — stamped-receptacle specialists:**
+- **Zierick** (catalogs 43 THT + SMT, read in full): the 25 A ".250" parts
+  that surface in searches (1285/6284/6285) are male TABS, not receptacles
+  (caught — the search summary conflated them). Their real THT .250×.032
+  tab receptacle (**1022/6022**: top entry, 2 holes Ø1.473 at 5.08 —
+  the same land class as the 63969) is **20 A with brass tab**, 10 mΩ,
+  −65..85 °C → BELOW baseline: counts grow (eps 4/polarity, atx24 GND 5).
+  Dead. Their SMT "Universal Tab Receptacles" (**1237** top-entry:
+  width-agnostic, .025–.032 tabs, LIF, **25 A** on the part table — the
+  family blurb's "30 A" is not the 1237's own number) would unlock pcie=4
+  and absorb the GND hairline, BUT: SMT (retention pull-out on pads — the
+  same structural objection that demoted the Keystone 3586), ~a dozen
+  mating cycles, 85 °C class, ~6.5 mm-class along-row universal body →
+  atx24's row balloons (~10×7 = 70 vs 42) — net LOSS platform-wide, wins
+  only pcie. Not LCSC. Dead on the score.
+- **Keystone non-fuse quick-fit (the retired 3586/3557, 30 A)** scored
+  honestly for comparison: at 30 A the ladder gives 8/6/4, but at their
+  6.3–7.2 pitches the rows are 50.4 / 40.2 / 28.8 = 119.4 total vs the
+  baseline's 101.4 — they win ONLY pcie (28.8 vs 31.2) and re-add the
+  0.81-vs-0.64 thickness gate plus two at-the-line 125.0% joints. Dead.
+- ETCO: same US-stamper class as Zierick, nothing surfaced above the
+  Zierick numbers; Vishay/Würth stamped lines carry no PCB FASTON
+  receptacle.
+
+**Lane 2 — bigger blade class:** the FASTON PCB-receptacle line stops at
+.250/.205 (TE's own line description) — no .375 PCB receptacle exists, and
+82004's tabs also top out at .250, so a bigger blade would need BOTH sides
+custom. Keystone MAXI fuse clips (40–80 A class) rate at the MAXI blade's
+full geometry; our 6.35-wide tab is roughly HALF a maxi blade's width, so
+the rating does not transfer (contact area/spring distribution) — an
+off-label, unquantifiable-without-bench posture, the exact thing
+iteration 7 just escaped. **Dead under quality-first.**
+
+**Lane 3 — purpose-built vertical b2b power, re-checked:**
+- **Samtec mPOWER (UMPT/UMPS)**: 18 A/blade — BELOW baseline → counts grow
+  AND $3–8/side. Dead immediately.
+- **Amphenol PwrBlade(+) / TE MULTI-BEAM XLE / Molex Ten60**: 30 A/contact
+  adjacent-loaded @30 °C rise (48 A single) — genuinely count-shrinking
+  (8/4/4-class) and, as housed guided blind-mates, they would ERASE the
+  bare-part sample items (depth gate, detent/friction retention, gang
+  insertion alignment) — their real advantage. But no near-band SKU
+  surfaced: the D-5a study's $13–26/module class pricing stands
+  unrefuted, 3–6× the ratified band, and both sides get replaced
+  (discarding the fixed $0.10 blade side). Documented as the premium rung,
+  not recommended.
+- **Würth REDCUBE PLUG**: up to 120 A, multi-pluggable — the REDCUBE class
+  was already priced at $12–19/module (D-5a §8.6); over band. Proto rung
+  unchanged.
+- **LCSC-native screen**: no vertical .250 receptacle class beyond
+  63969-1/C2961150 itself is findable on LCSC; the Keystone 3586
+  (C238113) remains the only LCSC-stocked 30 A alternative and loses per
+  the Keystone row above.
+
+### G.3 Options table (net row length, mm = joints × pitch)
+
+| Candidate | A/joint | Counts (atx24/eps/pcie per cable) | Rows atx24/eps/pcie | Total | $/module class | Kills baseline sample items? | Verdict |
+|---|---|---|---|---|---|---|---|
+| **TE 63969-1 (baseline)** | 22.9 THT | 10/6/6 | 42.0/28.2/31.2 | **101.4** | $2.7–4.6 ✓ | — (carries depth gate + detent/friction + gang force) | **KEEP** |
+| Keystone 3557/3586 (retired) | 30 | 8/6/4 | 50.4/40.2/28.8 | 119.4 | ✓ band | erases depth gate, re-adds thickness gate + 2× at-line 125.0% joints | dead (net −18) |
+| Zierick 1022 THT | 20 | ~12/8/6 | worse everywhere | >120 | ~band | no | dead |
+| Zierick 1237 SMT universal | 25 | 10/6/4 | ~70/~39/~26 | ~135 | ~band, not LCSC | erases depth gate; adds SMT retention + 12-cycle + 85 °C | dead (atx24 balloons) |
+| Samtec mPOWER | 18 | grows | — | — | $6–16 ✗ | yes (housed) | dead |
+| PwrBlade+/MULTI-BEAM/Ten60 | 30–48 | 8/4/4 | ~needs housings, not rows | — | **$13–26 ✗** | **YES — all of them** | premium rung only |
+| REDCUBE PLUG | 120 | 2–4 total/module | — | — | $12–19 ✗ | yes | proto rung only |
+| .375/MAXI blade class | 40–80 (full blade) | — | — | — | — | rating doesn't transfer to our half-width blade; no PCB receptacle/tab exists | dead |
+
+### G.4 Recommendation
+
+**STAND PAT on TE 63969-1 + 63951-1.** No candidate honestly beats the
+baseline on the combined score: the 63969-1 is the ampacity ceiling of the
+THT stamped-vertical class AND holds the tightest along-row floor; every
+higher-rated part either loses the floor (universal/SMT bodies), loses the
+rating fine print (maxi off-label), or costs 3–6× the band (housed b2b).
+The two genuine what-ifs are precisely bounded for the future: a
+**≥24.4 A THT vertical .250 receptacle** would drop pcie to 4 joints
+(none exists at any vendor searched), and the **housed-b2b premium rung**
+(PwrBlade+-class) remains the documented buy-out of ALL bare-part sample
+items if the owner ever re-prices the band. The atx24 GND 127.2% hairline
+stays accepted as ratified (the 30 A parts that would absorb it introduce
+two new 125.0% at-the-line joints of their own). Iteration-7 boards stand;
+the OQ-86 sample list is unchanged.
