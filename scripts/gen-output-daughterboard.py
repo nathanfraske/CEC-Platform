@@ -353,37 +353,40 @@ def gen_schematic(fam, out=sys.stdout):
 TAB_PITCH = {   # mm, centre-to-centre, single row -- the per-family KEYING
     # lever (together with tab COUNT and the whole-board no-subset-seating
     # proof in check_output_daughterboards.py).
-    # PITCH FLOOR (iteration 4, packed row): the tab itself is non-binding
-    # (~0.84mm thin along the row; its 2.5mm pads are its widest row
-    # feature -> 4.6mm pad gaps even at the floor). The binding element is
-    # the MAIN-BOARD CLIP row: the Keystone 3586 rotated per the sketch
-    # (slot axis perpendicular to the wall) presents, ALONG the row, a
-    # 3.81mm body / 3.82mm courtyard and -- the real driver -- a 6.60mm SMD
-    # PAD SPAN (both measured off the vendored footprint, dwg 3586).
-    #   floor = 6.60 (clip pad span) + 0.50 (stated adjacent-clip
-    #           solder/paste clearance) = 7.10mm
-    # pcie sits AT the floor; eps sits 0.5 above it purely for KEYING; the
-    # 24-pin sits at 8.4 = 4 x 2.1mm for a ROUTING reason: its field
-    # stubs/vias live on a 2.1mm lattice (4.2mm ATX columns + the +2.1mm
-    # dodge), and 8.4 with mid-window anchoring (pcb_placement grid-aligns
-    # x0 to lattice+1.05) puts every tab stub/via exactly 1.05mm off that
-    # lattice -- the corridor interface stays clean with zero extra jogs
-    # (at a non-multiple pitch the 9 tabs' lattice offsets provably sweep
-    # the full 2.1mm cycle, so some stub/via always lands within the 0.7mm
-    # conflict radius of a field stub).
-    # KEYING DELTA rule (unchanged): for a family with G gaps (tab count
-    # -1) tested as a subset of a DIFFERENT uniform pitch, the best-case
-    # (centred) alignment error at the end tabs is (G/2)*|pitch_delta| and
-    # must exceed the checker's 0.5mm tolerance. Margins at these pitches:
-    # pcie-in-eps (G=3, d=0.5) = 0.75; pcie-in-atx24 (d=1.3) = 1.95;
-    # eps-in-atx24 (G=5, d=0.8) = 2.00 -- all >= 1.5x tolerance, so pitch
-    # differentiation SURVIVES at the packed floor and no pattern keying
-    # (offset tab / asymmetric skip) is needed. The historic failure mode
-    # (8.6/8.3/8.2: pcie seated in eps at 0.15mm end error) stays encoded
-    # in the checker's re-verified teeth.
-    "atx24-out-db": 8.4,   # 9 tabs; 4x2.1 lattice-aligned (routing-driven)
-    "eps-out-db": 7.6,     # 6 tabs; floor + 0.5 keying delta to pcie
-    "pcie-out-db": 7.1,    # 4 tabs; AT the packed floor
+    # PITCH FLOOR (iteration 5, Keystone 3557 bare clip main-board side,
+    # catalog M55 p.41 -- NOT '3557-2', which is the 2-in-1 HOUSED holder,
+    # a different line item on the same page): the tab is non-binding
+    # (~0.84mm thin; 2.5mm pads). The clip must be rotated so its slot
+    # accepts the descending blade BROADSIDE (slot axis // the blade's
+    # 6.35mm width = the wall normal -- forced), and in that orientation
+    # its LEG PAIR runs ALONG THE ROW. That leg axis was VERIFIED against
+    # the mounting details, and it CONTRADICTS the initial working
+    # assumption (legs // jaw): the housed 3557-2's detail shows per-clip
+    # 3.4mm leg pairs PERPENDICULAR to the 13.5mm fuse axis, and an ATO
+    # blade's 5.2mm width runs ALONG the fuse axis (13.5+5.2 = the fuse's
+    # ~18.7mm width), so slot // fuse axis, legs PERPENDICULAR to it.
+    # Along-row span = the LEG PATTERN, not the 3.8mm body:
+    #   floor = 3.4 leg pitch + 2.4 pad (Kd 1.6 drill = the leg dia,
+    #           friction fit, +0.4 annulus) = 5.8mm span
+    #         + 0.50 stated adjacent-clip solder web (bare brass at
+    #           12V-class needs <0.1mm electrically per IPC-2221; 0.5 is
+    #           the mechanical/solder number) = 6.3mm
+    # (A ~4.5 floor would need a clip with legs INLINE with the slot --
+    # this part measurably is not that; vs the 3586's 6.6mm SMD span the
+    # 3557 rotation buys only 0.3-0.9mm/pitch. Honest result, reported.)
+    # atx24 sits AT the floor -- and 6.3 = 3 x 2.1mm, the field-stub
+    # lattice period, so iteration-4's grid alignment carries over (x0 at
+    # lattice+1.05; every tab pad/stub/via >=1.05mm off every field
+    # stub/via vs the ~0.7mm conflict radius). eps/pcie sit above the
+    # floor purely for KEYING deltas.
+    # KEYING margins (G/2)*|d| vs the 0.5mm tolerance: eps-in-atx24 (G=5,
+    # d=0.4) = 1.00; pcie-in-eps (G=3, d=0.5) = 0.75; pcie-in-atx24
+    # (d=0.9) = 1.35 -- all >=1.5x; pattern keying not needed. Teeth
+    # re-verified at these pitches (sabotaged eps=7.1, d=0.1 to pcie ->
+    # the proof correctly fails).
+    "atx24-out-db": 6.3,   # 9 tabs; AT the floor; = 3x2.1 lattice-aligned
+    "eps-out-db": 6.7,     # 6 tabs; floor + 0.4 keying delta to atx24
+    "pcie-out-db": 7.2,    # 4 tabs; +0.5 to eps, +0.9 to atx24
 }
 
 _TAB_CY = cp.courtyard_bbox(TE_TAB_FP)
