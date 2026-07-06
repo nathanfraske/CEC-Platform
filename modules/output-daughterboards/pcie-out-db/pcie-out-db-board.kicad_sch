@@ -5,405 +5,6 @@
 	(uuid "0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e")
 	(paper "A4")
 	(lib_symbols
-		(symbol "cec:CEC_CONN_2x4"
-			(pin_names
-				(offset 1.016)
-				(hide yes)
-			)
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(in_pos_files yes)
-			(duplicate_pin_numbers_are_jumpers no)
-			(property "Reference" "J"
-				(at 1.27 5.08 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Value" "CEC_CONN_2x4"
-				(at 1.27 -7.62 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Footprint" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Datasheet" ""
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "Description" "Generic connector, double row, 02x04, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_keywords" "connector"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(property "ki_fp_filters" "Connector*:*_2x??_*"
-				(at 0 0 0)
-				(show_name no)
-				(do_not_autoplace no)
-				(hide yes)
-				(effects
-					(font
-						(size 1.27 1.27)
-					)
-				)
-			)
-			(symbol "CEC_CONN_2x4_1_1"
-				(rectangle
-					(start -1.27 3.81)
-					(end 3.81 -6.35)
-					(stroke
-						(width 0.254)
-						(type default)
-					)
-					(fill
-						(type background)
-					)
-				)
-				(rectangle
-					(start -1.27 2.667)
-					(end 0 2.413)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 0.127)
-					(end 0 -0.127)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -2.413)
-					(end 0 -2.667)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start -1.27 -4.953)
-					(end 0 -5.207)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 2.667)
-					(end 2.54 2.413)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 0.127)
-					(end 2.54 -0.127)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 -2.413)
-					(end 2.54 -2.667)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(rectangle
-					(start 3.81 -4.953)
-					(end 2.54 -5.207)
-					(stroke
-						(width 0.1524)
-						(type default)
-					)
-					(fill
-						(type none)
-					)
-				)
-				(pin passive line
-					(at -5.08 2.54 0)
-					(length 3.81)
-					(name "Pin_1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "1"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 2.54 180)
-					(length 3.81)
-					(name "Pin_2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "2"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 0 0)
-					(length 3.81)
-					(name "Pin_3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "3"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 0 180)
-					(length 3.81)
-					(name "Pin_4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "4"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -2.54 0)
-					(length 3.81)
-					(name "Pin_5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "5"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 -2.54 180)
-					(length 3.81)
-					(name "Pin_6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "6"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at -5.08 -5.08 0)
-					(length 3.81)
-					(name "Pin_7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "7"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-				(pin passive line
-					(at 7.62 -5.08 180)
-					(length 3.81)
-					(name "Pin_8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-					(number "8"
-						(effects
-							(font
-								(size 1.27 1.27)
-							)
-						)
-					)
-				)
-			)
-			(embedded_fonts no)
-		)
-		(symbol "cec-vendor:TE_63951-1_FASTON_Tab"
-			(pin_numbers (hide no))
-			(pin_names (offset 0.762) (hide yes))
-			(exclude_from_sim no)
-			(in_bom yes)
-			(on_board yes)
-			(property "Reference" "J"
-				(at 0 4.699 0)
-				(effects (font (size 1.27 1.27))))
-			(property "Value" "TE 63951-1"
-				(at 0 -3.302 0)
-				(effects (font (size 1.27 1.27))))
-			(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
-				(at 0 0 0)
-				(show_name no)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "Datasheet" "https://www.lcsc.com/datasheet/C591344.pdf"
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "Description" "TE Connectivity 63951-1 FASTON PC board tab (male blade), RIGHT-ANGLE style -- .250in (6.35mm +/-0.08) wide x .033-.030in (0.83-0.77mm) thick, brass with tin over nickel plate, App Spec 114-2115 (same governing spec as the straight TE_63849-1 and the owner-referenced .187-series 1217061-1). Geometry per TE's own customer drawing C=63951 rev L2 (lib/datasheets/TE_63951-1.pdf): a FLAT IN-PLANE L stamping -- 2 barbed THT legs (both pin 1, one node; 5.08mm +/-0.08 pitch, 1.40mm +/-0.05 dia holes, same leg/hole pattern as 63849-1) hang off one end of the strip, and the blade runs ALONG the strip/leg-pitch axis past the blade-side leg, its 6.35mm width spanning 2.54-8.89mm OFF the seating face (8.89 = TE profile height; the blade stands away from the mounting face, it does not lie on it). Reeled (vs 63849-1's loose piece). PLATFORM MOUNTING (owner sketch 2026-07-05, docs/standard-tier-review/blade-fit-check-2026-07-04.md addendum 3): legs horizontal through the vertical daughterboard face, leg pitch vertical, blade pointing STRAIGHT DOWN past the board's bottom edge at the 2.54-8.89mm standoff -- the assembly drops vertically, broadside, into the main-board Keystone 3586 clip's top-entry jaws (the clip's native auto-blade-fuse mode); the daughterboard's own edge floats clear, the tab does the reaching."
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "Manufacturer" "TE Connectivity"
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "MPN" "63951-1"
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "LCSC" "C591344"
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself (same convention as 63849-1); same .250/6.35mm blade class, so the same Keystone universal-clip Current Rating property (30A) applies. No standalone UL current rating on TE's own dwg C=63951."
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "ki_keywords" "FASTON tab blade quick-connect .250 right angle flat PCB terminal TE Connectivity"
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(property "ki_fp_filters" "TE_63951-1*"
-				(at 0 0 0)
-				(hide yes)
-				(effects (font (size 1.27 1.27))))
-			(symbol "TE_63951-1_FASTON_Tab_0_1"
-				(rectangle
-					(start -1.27 3.175)
-					(end 1.27 0)
-					(stroke (width 0.2032) (type default))
-					(fill (type none)))
-			)
-			(symbol "TE_63951-1_FASTON_Tab_1_1"
-				(pin passive line
-					(at 0 -2.54 90)
-					(length 2.54)
-					(name "~"
-						(effects (font (size 1.016 1.016))))
-					(number "1"
-						(effects (font (size 1.016 1.016)))))
-			)
-			(embedded_fonts no)
-		)
 		(symbol "cec-power:+12V"
 			(power global)
 			(pin_numbers
@@ -1190,505 +791,1648 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-vendor:TE_63951-1_FASTON_Tab"
+			(pin_names
+				(offset 0.762)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 0 4.699 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "TE 63951-1"
+				(at 0 -3.302 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "https://www.lcsc.com/datasheet/C591344.pdf"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "TE Connectivity 63951-1 FASTON PC board tab (male blade), RIGHT-ANGLE style -- .250in (6.35mm +/-0.08) wide x .033-.030in (0.83-0.77mm) thick, brass with tin over nickel plate, App Spec 114-2115 (same governing spec as the straight TE_63849-1 and the owner-referenced .187-series 1217061-1). Geometry per TE's own customer drawing C=63951 rev L2 (lib/datasheets/TE_63951-1.pdf): a FLAT IN-PLANE L stamping -- 2 barbed THT legs (both pin 1, one node; 5.08mm +/-0.08 pitch, 1.40mm +/-0.05 dia holes, same leg/hole pattern as 63849-1) hang off one end of the strip, and the blade runs ALONG the strip/leg-pitch axis past the blade-side leg, its 6.35mm width spanning 2.54-8.89mm OFF the seating face (8.89 = TE profile height; the blade stands away from the mounting face, it does not lie on it). Reeled (vs 63849-1's loose piece). PLATFORM MOUNTING (owner sketch 2026-07-05, docs/standard-tier-review/blade-fit-check-2026-07-04.md addendum 3): legs horizontal through the vertical daughterboard face, leg pitch vertical, blade pointing STRAIGHT DOWN past the board's bottom edge at the 2.54-8.89mm standoff -- the assembly drops vertically, broadside, into the main-board Keystone 3586 clip's top-entry jaws (the clip's native auto-blade-fuse mode); the daughterboard's own edge floats clear, the tab does the reaching."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Manufacturer" "TE Connectivity"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "MPN" "63951-1"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "LCSC" "C591344"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Current Rating" "Tab-side rating is set by the mating clip/receptacle, not the tab itself (same convention as 63849-1); same .250/6.35mm blade class, so the same Keystone universal-clip Current Rating property (30A) applies. No standalone UL current rating on TE's own dwg C=63951."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "FASTON tab blade quick-connect .250 right angle flat PCB terminal TE Connectivity"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "TE_63951-1*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "TE_63951-1_FASTON_Tab_0_1"
+				(rectangle
+					(start -1.27 3.175)
+					(end 1.27 0)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "TE_63951-1_FASTON_Tab_1_1"
+				(pin passive line
+					(at 0 -2.54 90)
+					(length 2.54)
+					(name "~"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+		(symbol "cec:CEC_CONN_2x4"
+			(pin_names
+				(offset 1.016)
+				(hide yes)
+			)
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "J"
+				(at 1.27 5.08 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "CEC_CONN_2x4"
+				(at 1.27 -7.62 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "Generic connector, double row, 02x04, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_keywords" "connector"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "Connector*:*_2x??_*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_CONN_2x4_1_1"
+				(rectangle
+					(start -1.27 3.81)
+					(end 3.81 -6.35)
+					(stroke
+						(width 0.254)
+						(type default)
+					)
+					(fill
+						(type background)
+					)
+				)
+				(rectangle
+					(start -1.27 2.667)
+					(end 0 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 0.127)
+					(end 0 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -2.413)
+					(end 0 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start -1.27 -4.953)
+					(end 0 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 2.667)
+					(end 2.54 2.413)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 0.127)
+					(end 2.54 -0.127)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 -2.413)
+					(end 2.54 -2.667)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(rectangle
+					(start 3.81 -4.953)
+					(end 2.54 -5.207)
+					(stroke
+						(width 0.1524)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+				(pin passive line
+					(at -5.08 2.54 0)
+					(length 3.81)
+					(name "Pin_1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 2.54 180)
+					(length 3.81)
+					(name "Pin_2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 0 0)
+					(length 3.81)
+					(name "Pin_3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "3"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 0 180)
+					(length 3.81)
+					(name "Pin_4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "4"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -2.54 0)
+					(length 3.81)
+					(name "Pin_5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "5"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 -2.54 180)
+					(length 3.81)
+					(name "Pin_6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "6"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at -5.08 -5.08 0)
+					(length 3.81)
+					(name "Pin_7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "7"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 7.62 -5.08 180)
+					(length 3.81)
+					(name "Pin_8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+					(number "8"
+						(effects
+							(font
+								(size 1.27 1.27)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
+	)
+	(wire
+		(pts
+			(xy 83.82 53.34) (xy 101.6 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "138a8f37-d919-4e99-8a82-94116a1fcd81")
+	)
+	(wire
+		(pts
+			(xy 92.71 83.82) (xy 92.71 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "3328f33c-16c7-460f-af14-396638065e74")
+	)
+	(wire
+		(pts
+			(xy 50.8 152.4) (xy 50.8 162.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "363cd743-13d1-43ab-8dc9-070651cd5392")
+	)
+	(wire
+		(pts
+			(xy 83.82 50.8) (xy 97.79 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "43752e40-e89c-4a7f-9ca0-60ff5446858e")
+	)
+	(wire
+		(pts
+			(xy 83.82 48.26) (xy 92.71 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "447bfc3f-b831-4b60-a6f8-025ff5748f02")
+	)
+	(wire
+		(pts
+			(xy 25.4 152.4) (xy 25.4 162.56)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "5b3219c5-ac66-4417-b3b0-5c4a27886a63")
+	)
+	(wire
+		(pts
+			(xy 71.12 50.8) (xy 63.5 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6b2b84f3-75b7-44d2-b7fd-cc737d75f6ed")
+	)
+	(wire
+		(pts
+			(xy 49.53 83.82) (xy 49.53 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6c7fd19c-1344-4090-8508-f291de1eb2ec")
+	)
+	(wire
+		(pts
+			(xy 83.82 55.88) (xy 105.41 55.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8492c974-097b-4784-b6d2-e2483d8ca9e6")
+	)
+	(wire
+		(pts
+			(xy 107.95 83.82) (xy 107.95 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "920c0cd8-3f1c-4d17-ba66-72a4e6ed9952")
+	)
+	(wire
+		(pts
+			(xy 71.12 48.26) (xy 67.31 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "a3873ec1-35c1-4300-b3aa-aca2a7907d8d")
+	)
+	(wire
+		(pts
+			(xy 71.12 55.88) (xy 55.88 55.88)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "bc885412-980f-4f17-81e6-c604e4eea990")
+	)
+	(wire
+		(pts
+			(xy 71.12 53.34) (xy 59.69 53.34)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e7de156b-72dd-45c6-b83a-feddea3bf9f4")
+	)
+	(wire
+		(pts
+			(xy 123.19 83.82) (xy 123.19 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "e96d8420-512e-4c67-8b30-d310de67b1ed")
+	)
+	(wire
+		(pts
+			(xy 34.29 83.82) (xy 34.29 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f6bb2869-6171-466f-96d5-bdb7347f87c7")
+	)
+	(wire
+		(pts
+			(xy 64.77 83.82) (xy 64.77 87.63)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "fa195038-c2c2-48d5-bf12-029128043c8f")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 97.79 50.8 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "01777278-d065-49bf-a5d3-075cf4382b88")
+		(property "Reference" "#PWR07"
+			(at 95.25 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 101.6 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 97.79 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 97.79 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 97.79 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5c8c95d2-dd07-4273-bdc5-b88ab03e76a4")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR07")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 34.29 87.63 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "19e5a5b2-08d5-41cf-a000-69a57cbf39c9")
+		(property "Reference" "#PWR04"
+			(at 34.29 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 34.29 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 34.29 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 34.29 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 34.29 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7cdbc868-1dad-402e-8640-ddf9a346140d")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR04")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
+		(at 64.77 81.28 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2271cad6-0b0d-457c-a934-0bc8f8dc4b49")
+		(property "Reference" "J12"
+			(at 64.77 76.454 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TE 63951-1"
+			(at 64.77 96.52 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 64.77 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 64.77 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)."
+			(at 64.77 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C591344"
+			(at 64.77 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "63951-1"
+			(at 64.77 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TE Connectivity"
+			(at 64.77 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f2964388-99a6-451b-bd1c-c4b6ccb3e996")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 55.88 55.88 270)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2dadaec7-6e42-4d98-b2e3-520c105d1e3f")
+		(property "Reference" "#PWR10"
+			(at 58.42 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 52.07 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 55.88 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 55.88 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 55.88 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "04b603a4-548a-4a3c-8250-470eceac2b8f")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR10")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(symbol
 		(lib_id "cec:CEC_CONN_2x4")
 		(at 76.2 50.8 0)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "30679dee-bdc1-4cdf-8bdf-5a6f1bbc1d5f")
-		(property "Reference" "J1" (at 76.2 35.56 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "PCIE8 OUT FIELD" (at 76.2 66.04 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Generic:PCIe8_Daughterboard_Field_P4.20mm" (at 76.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 76.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "CEC (in-house)" (at 76.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "Bare THT solder field, no housing/shroud -- CEC-authored footprint (lib/vendor/Connector_Generic.pretty), NOT a stocked/purchased part. Populate with a hand-soldered pigtail (default), OR (bring-up samples only, provenance-UNVERIFIED, OQ-88) a MODDIY-class vertical female header if the pitch/hole pattern proves compatible on the sample fit check -- no MODDIY footprint exists in this library and none is placed here." (at 76.2 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "543fee69-9dbc-426a-bddc-7444daa8cfd4"))
-		(pin "2" (uuid "48fc92b3-c5ef-43e7-ba8e-d3e831c318de"))
-		(pin "3" (uuid "6caa9c16-8fee-4634-bf02-7b1dc4a2cbeb"))
-		(pin "4" (uuid "a202aebb-b950-4c08-b536-70385ea85a10"))
-		(pin "5" (uuid "b7a08975-6afa-47ab-b8ae-3a5ef28dc5d9"))
-		(pin "6" (uuid "5dc15b62-8005-4c9d-958c-e090cb6c043f"))
-		(pin "7" (uuid "1c2861ba-14ed-4e3d-b994-a7d35f7723bf"))
-		(pin "8" (uuid "2d3991a8-156f-41c6-969f-6c377ba6631a"))
+		(property "Reference" "J1"
+			(at 77.216 44.196 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PCIE8 OUT FIELD"
+			(at 77.216 60.198 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Connector_Generic:PCIe8_Daughterboard_Field_P4.20mm"
+			(at 76.2 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 76.2 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Bare THT solder field, no housing/shroud -- CEC-authored footprint (lib/vendor/Connector_Generic.pretty), NOT a stocked/purchased part. Populate with a hand-soldered pigtail (default), OR (bring-up samples only, provenance-UNVERIFIED, OQ-88) a MODDIY-class vertical female header if the pitch/hole pattern proves compatible on the sample fit check -- no MODDIY footprint exists in this library and none is placed here."
+			(at 76.2 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "CEC (in-house)"
+			(at 76.2 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "543fee69-9dbc-426a-bddc-7444daa8cfd4")
+		)
+		(pin "2"
+			(uuid "48fc92b3-c5ef-43e7-ba8e-d3e831c318de")
+		)
+		(pin "3"
+			(uuid "6caa9c16-8fee-4634-bf02-7b1dc4a2cbeb")
+		)
+		(pin "4"
+			(uuid "a202aebb-b950-4c08-b536-70385ea85a10")
+		)
+		(pin "5"
+			(uuid "b7a08975-6afa-47ab-b8ae-3a5ef28dc5d9")
+		)
+		(pin "6"
+			(uuid "5dc15b62-8005-4c9d-958c-e090cb6c043f")
+		)
+		(pin "7"
+			(uuid "1c2861ba-14ed-4e3d-b994-a7d35f7723bf")
+		)
+		(pin "8"
+			(uuid "2d3991a8-156f-41c6-969f-6c377ba6631a")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J1") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J1")
+					(unit 1)
+				)
 			)
 		)
 	)
 	(symbol
 		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 25.4 127 0)
+		(at 34.29 81.28 0)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
 		(uuid "3ca279c5-d558-47ae-99af-7593bf65cb78")
-		(property "Reference" "J10" (at 25.4 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 25.4 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 25.4 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "0c3f9d56-c2a0-4f2e-99cf-ca5c813f8378"))
+		(property "Reference" "J10"
+			(at 34.29 76.454 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TE 63951-1"
+			(at 34.29 96.52 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 34.29 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 34.29 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)."
+			(at 34.29 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C591344"
+			(at 34.29 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "63951-1"
+			(at 34.29 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TE Connectivity"
+			(at 34.29 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0c3f9d56-c2a0-4f2e-99cf-ca5c813f8378")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J10") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J10")
+					(unit 1)
+				)
 			)
 		)
 	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 40.64 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "44d6fd04-717c-4646-ae38-611c43ee7c90")
-		(property "Reference" "J11" (at 40.64 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 40.64 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 40.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 40.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 40.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 40.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 40.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 40.64 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "0a5bd38b-b40d-4fed-8345-93ae0c43fd6f"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J11") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 55.88 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "2271cad6-0b0d-457c-a934-0bc8f8dc4b49")
-		(property "Reference" "J12" (at 55.88 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 55.88 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 55.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 55.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 55.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 55.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 55.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 55.88 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "f2964388-99a6-451b-bd1c-c4b6ccb3e996"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J12") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 83.82 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "68920992-fa84-49c3-97be-1d32fb11a23c")
-		(property "Reference" "J13" (at 83.82 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 83.82 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 83.82 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 83.82 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 83.82 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 83.82 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 83.82 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 83.82 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "15c1fb41-db25-4d3a-8c5b-ca3657ebb92a"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J13") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 99.06 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "eafeedab-8715-4bd0-86f6-4ea479626ac2")
-		(property "Reference" "J14" (at 99.06 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 99.06 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 99.06 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 99.06 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 99.06 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 99.06 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 99.06 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 99.06 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "977009ea-a3fc-47be-84e8-6967c1bdd8f0"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J14") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
-		(at 114.3 127 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "eaabd2c7-7d33-4f2d-90ae-db120510e251")
-		(property "Reference" "J15" (at 114.3 111.76 0) (effects (font (size 1.27 1.27))))
-		(property "Value" "TE 63951-1" (at 114.3 142.24 0) (effects (font (size 1.27 1.27))))
-		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT" (at 114.3 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Datasheet" "" (at 114.3 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "LCSC" "C591344" (at 114.3 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "MPN" "63951-1" (at 114.3 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Manufacturer" "TE Connectivity" (at 114.3 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)." (at 114.3 127 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(pin "1" (uuid "dd94712d-ae0f-49f7-968b-9c6968da4a82"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "J15") (unit 1))
-			)
-		)
-	)
-	(wire (pts (xy 71.12 48.26) (xy 67.31 48.26))
-		(stroke (width 0) (type default)) (uuid "a3873ec1-35c1-4300-b3aa-aca2a7907d8d"))
-	(wire (pts (xy 83.82 48.26) (xy 87.63 48.26))
-		(stroke (width 0) (type default)) (uuid "447bfc3f-b831-4b60-a6f8-025ff5748f02"))
-	(wire (pts (xy 71.12 50.8) (xy 67.31 50.8))
-		(stroke (width 0) (type default)) (uuid "6b2b84f3-75b7-44d2-b7fd-cc737d75f6ed"))
-	(wire (pts (xy 25.4 129.54) (xy 25.4 133.35))
-		(stroke (width 0) (type default)) (uuid "f6bb2869-6171-466f-96d5-bdb7347f87c7"))
-	(wire (pts (xy 40.64 129.54) (xy 40.64 133.35))
-		(stroke (width 0) (type default)) (uuid "6c7fd19c-1344-4090-8508-f291de1eb2ec"))
-	(wire (pts (xy 55.88 129.54) (xy 55.88 133.35))
-		(stroke (width 0) (type default)) (uuid "fa195038-c2c2-48d5-bf12-029128043c8f"))
-	(wire (pts (xy 83.82 50.8) (xy 87.63 50.8))
-		(stroke (width 0) (type default)) (uuid "43752e40-e89c-4a7f-9ca0-60ff5446858e"))
-	(wire (pts (xy 71.12 53.34) (xy 67.31 53.34))
-		(stroke (width 0) (type default)) (uuid "e7de156b-72dd-45c6-b83a-feddea3bf9f4"))
-	(wire (pts (xy 83.82 53.34) (xy 87.63 53.34))
-		(stroke (width 0) (type default)) (uuid "138a8f37-d919-4e99-8a82-94116a1fcd81"))
-	(wire (pts (xy 71.12 55.88) (xy 67.31 55.88))
-		(stroke (width 0) (type default)) (uuid "bc885412-980f-4f17-81e6-c604e4eea990"))
-	(wire (pts (xy 83.82 55.88) (xy 87.63 55.88))
-		(stroke (width 0) (type default)) (uuid "8492c974-097b-4784-b6d2-e2483d8ca9e6"))
-	(wire (pts (xy 83.82 129.54) (xy 83.82 133.35))
-		(stroke (width 0) (type default)) (uuid "3328f33c-16c7-460f-af14-396638065e74"))
-	(wire (pts (xy 99.06 129.54) (xy 99.06 133.35))
-		(stroke (width 0) (type default)) (uuid "920c0cd8-3f1c-4d17-ba66-72a4e6ed9952"))
-	(wire (pts (xy 114.3 129.54) (xy 114.3 133.35))
-		(stroke (width 0) (type default)) (uuid "e96d8420-512e-4c67-8b30-d310de67b1ed"))
-	(wire (pts (xy 25.4 152.4) (xy 25.4 162.56))
-		(stroke (width 0) (type default)) (uuid "5b3219c5-ac66-4417-b3b0-5c4a27886a63"))
-	(wire (pts (xy 50.8 152.4) (xy 50.8 162.56))
-		(stroke (width 0) (type default)) (uuid "363cd743-13d1-43ab-8dc9-070651cd5392"))
-
 	(symbol
 		(lib_id "cec-power:+12V")
-		(at 67.31 48.26 180)
+		(at 67.31 48.26 90)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
 		(uuid "402a85a4-9cb4-4744-9f22-489611af4acd")
-		(property "Reference" "#PWR01" (at 67.31 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 67.31 52.07 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "becbe52d-d2f0-4566-85e5-4506cc7ec003"))
+		(property "Reference" "#PWR01"
+			(at 69.85 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 63.5 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 67.31 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 67.31 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 67.31 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "becbe52d-d2f0-4566-85e5-4506cc7ec003")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR01") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR01")
+					(unit 1)
+				)
 			)
 		)
 	)
 	(symbol
-		(lib_id "cec-power:+12V")
-		(at 87.63 48.26 180)
+		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
+		(at 49.53 81.28 0)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
-		(uuid "672adf29-3f08-459e-b5d6-17cb744a1a6b")
-		(property "Reference" "#PWR02" (at 87.63 45.72 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 87.63 52.07 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "20f17895-8e19-40e2-9270-70b76404954e"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR02") (unit 1))
+		(uuid "44d6fd04-717c-4646-ae38-611c43ee7c90")
+		(property "Reference" "J11"
+			(at 49.53 76.454 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:+12V")
-		(at 67.31 50.8 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b22da64e-9cb7-4a48-9b5a-57730ce2b9c7")
-		(property "Reference" "#PWR03" (at 67.31 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 67.31 54.61 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "b8d88526-112d-45c4-9548-708c1074d55c"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR03") (unit 1))
+		(property "Value" "TE 63951-1"
+			(at 49.53 96.52 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:+12V")
-		(at 25.4 133.35 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "19e5a5b2-08d5-41cf-a000-69a57cbf39c9")
-		(property "Reference" "#PWR04" (at 25.4 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 25.4 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "7cdbc868-1dad-402e-8640-ddf9a346140d"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR04") (unit 1))
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 49.53 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:+12V")
-		(at 40.64 133.35 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "c703a78b-1d94-44df-aa8f-a93b2c710acd")
-		(property "Reference" "#PWR05" (at 40.64 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 40.64 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "dc2339a3-3a5f-4dcc-88ba-1f0bf0f32a3c"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR05") (unit 1))
+		(property "Datasheet" ""
+			(at 49.53 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:+12V")
-		(at 55.88 133.35 180)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "a64f2d22-2538-4eb0-8c1f-039c97320c16")
-		(property "Reference" "#PWR06" (at 55.88 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 55.88 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "b0c8d405-db86-45db-ad63-e83ef2b62730"))
+		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)."
+			(at 49.53 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C591344"
+			(at 49.53 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "63951-1"
+			(at 49.53 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TE Connectivity"
+			(at 49.53 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0a5bd38b-b40d-4fed-8345-93ae0c43fd6f")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR06") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J11")
+					(unit 1)
+				)
 			)
 		)
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 87.63 50.8 0)
+		(at 59.69 53.34 270)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
-		(dnp no)
-		(uuid "01777278-d065-49bf-a5d3-075cf4382b88")
-		(property "Reference" "#PWR07" (at 87.63 48.26 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 87.63 54.61 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "5c8c95d2-dd07-4273-bdc5-b88ab03e76a4"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR07") (unit 1))
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 67.31 53.34 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
 		(uuid "4798cd2d-3b68-4624-b974-e7723ec8d031")
-		(property "Reference" "#PWR08" (at 67.31 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 67.31 57.15 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "486914a4-6dd5-40f6-9046-978344f3c341"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR08") (unit 1))
+		(property "Reference" "#PWR08"
+			(at 62.23 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 87.63 53.34 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "a444b3b4-cea2-4976-bb3f-585245191ca2")
-		(property "Reference" "#PWR09" (at 87.63 50.8 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 87.63 57.15 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "31bb0e3f-5763-4aa2-a8c8-ea006b14df4d"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR09") (unit 1))
+		(property "Value" "GND"
+			(at 55.88 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 67.31 55.88 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "2dadaec7-6e42-4d98-b2e3-520c105d1e3f")
-		(property "Reference" "#PWR10" (at 67.31 53.34 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 67.31 59.69 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "04b603a4-548a-4a3c-8250-470eceac2b8f"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR10") (unit 1))
+		(property "Footprint" ""
+			(at 59.69 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 87.63 55.88 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "77daaee7-f388-4157-9bb1-eb68aa6a400b")
-		(property "Reference" "#PWR11" (at 87.63 53.34 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 87.63 59.69 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "7b0320c0-f785-435a-a0f7-f6375abc19f9"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR11") (unit 1))
+		(property "Datasheet" ""
+			(at 59.69 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 83.82 133.35 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "aa15e83a-bb15-486d-a029-819ef87c08c9")
-		(property "Reference" "#PWR12" (at 83.82 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 83.82 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "0edc8cb5-df3b-44de-b309-91f9b0203897"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR12") (unit 1))
+		(property "Description" ""
+			(at 59.69 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 99.06 133.35 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "b65c38d6-049e-4e11-9c92-22b2ae3c94d6")
-		(property "Reference" "#PWR13" (at 99.06 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 99.06 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "f900db13-5bba-4068-b1f9-da0a47414ae1"))
-		(instances
-			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR13") (unit 1))
-			)
+		(pin "1"
+			(uuid "486914a4-6dd5-40f6-9046-978344f3c341")
 		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 114.3 133.35 0)
-		(unit 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(dnp no)
-		(uuid "e2e308ee-45ea-470b-9c19-364b2970ec8b")
-		(property "Reference" "#PWR14" (at 114.3 130.81 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 114.3 137.16 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "4fa9f444-9f32-47f1-af26-84f3e55a8b37"))
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR14") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR08")
+					(unit 1)
+				)
 			)
 		)
 	)
 	(symbol
 		(lib_id "cec-power:+12V")
-		(at 25.4 152.4 180)
+		(at 92.71 48.26 270)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
-		(uuid "ea269a3a-784d-4aed-85a3-be251ce5d47e")
-		(property "Reference" "#PWR15" (at 25.4 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "+12V" (at 25.4 156.21 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "93117a22-4bdc-4fcd-b2f6-7ab7d3407ebb"))
+		(uuid "672adf29-3f08-459e-b5d6-17cb744a1a6b")
+		(property "Reference" "#PWR02"
+			(at 90.17 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 96.52 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 92.71 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 92.71 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 92.71 48.26 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "20f17895-8e19-40e2-9270-70b76404954e")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR15") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR02")
+					(unit 1)
+				)
 			)
 		)
 	)
 	(symbol
-		(lib_id "cec-power:PWR_FLAG")
-		(at 25.4 162.56 0)
+		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
+		(at 92.71 81.28 0)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
-		(uuid "f5af52c9-9b18-4d6d-80c6-05b82ddfdcaa")
-		(property "Reference" "#FLG16" (at 25.4 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 25.4 166.37 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "7b1ede3f-02c7-4e9f-9472-e43eeec749f1"))
+		(uuid "68920992-fa84-49c3-97be-1d32fb11a23c")
+		(property "Reference" "J13"
+			(at 92.71 76.454 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TE 63951-1"
+			(at 92.71 96.52 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 92.71 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 92.71 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)."
+			(at 92.71 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C591344"
+			(at 92.71 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "63951-1"
+			(at 92.71 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TE Connectivity"
+			(at 92.71 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "15c1fb41-db25-4d3a-8c5b-ca3657ebb92a")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#FLG16") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J13")
+					(unit 1)
+				)
 			)
 		)
 	)
@@ -1696,17 +2440,517 @@
 		(lib_id "cec-power:PWR_FLAG")
 		(at 50.8 152.4 180)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
 		(uuid "704d76bf-166b-4d27-be5b-2f62eb8a119f")
-		(property "Reference" "#FLG17" (at 50.8 149.86 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "PWR_FLAG" (at 50.8 156.21 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "d7684871-1d62-454c-90c5-b61c067e6732"))
+		(property "Reference" "#FLG17"
+			(at 50.8 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 50.8 156.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 50.8 152.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 50.8 152.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 50.8 152.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d7684871-1d62-454c-90c5-b61c067e6732")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#FLG17") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#FLG17")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 105.41 55.88 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "77daaee7-f388-4157-9bb1-eb68aa6a400b")
+		(property "Reference" "#PWR11"
+			(at 102.87 55.88 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 109.22 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 105.41 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 105.41 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 105.41 55.88 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7b0320c0-f785-435a-a0f7-f6375abc19f9")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR11")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 101.6 53.34 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "a444b3b4-cea2-4976-bb3f-585245191ca2")
+		(property "Reference" "#PWR09"
+			(at 99.06 53.34 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 105.41 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 101.6 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 101.6 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 101.6 53.34 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "31bb0e3f-5763-4aa2-a8c8-ea006b14df4d")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR09")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 64.77 87.63 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "a64f2d22-2538-4eb0-8c1f-039c97320c16")
+		(property "Reference" "#PWR06"
+			(at 64.77 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 64.77 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 64.77 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 64.77 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 64.77 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b0c8d405-db86-45db-ad63-e83ef2b62730")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR06")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 92.71 87.63 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "aa15e83a-bb15-486d-a029-819ef87c08c9")
+		(property "Reference" "#PWR12"
+			(at 92.71 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 92.71 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 92.71 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 92.71 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 92.71 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0edc8cb5-df3b-44de-b309-91f9b0203897")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR12")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 63.5 50.8 90)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b22da64e-9cb7-4a48-9b5a-57730ce2b9c7")
+		(property "Reference" "#PWR03"
+			(at 66.04 50.8 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 59.69 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 63.5 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 63.5 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 63.5 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b8d88526-112d-45c4-9548-708c1074d55c")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR03")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 107.95 87.63 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b65c38d6-049e-4e11-9c92-22b2ae3c94d6")
+		(property "Reference" "#PWR13"
+			(at 107.95 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 107.95 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 107.95 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 107.95 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 107.95 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "f900db13-5bba-4068-b1f9-da0a47414ae1")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR13")
+					(unit 1)
+				)
 			)
 		)
 	)
@@ -1714,17 +2958,587 @@
 		(lib_id "cec-power:GND")
 		(at 50.8 162.56 0)
 		(unit 1)
+		(body_style 1)
 		(exclude_from_sim no)
 		(in_bom yes)
 		(on_board yes)
+		(in_pos_files yes)
 		(dnp no)
 		(uuid "bb50e553-0af7-4aad-badb-0ae7c1da4a0f")
-		(property "Reference" "#PWR18" (at 50.8 160.02 0) (effects (font (size 1.27 1.27)) (hide yes)))
-		(property "Value" "GND" (at 50.8 166.37 0) (effects (font (size 1.27 1.27))))
-		(pin "1" (uuid "0002fac9-20fe-4d06-8fd6-aada123f12bd"))
+		(property "Reference" "#PWR18"
+			(at 50.8 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 50.8 166.37 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 50.8 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 50.8 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 50.8 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "0002fac9-20fe-4d06-8fd6-aada123f12bd")
+		)
 		(instances
 			(project "pcie-out-db-board"
-				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e" (reference "#PWR18") (unit 1))
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR18")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 49.53 87.63 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c703a78b-1d94-44df-aa8f-a93b2c710acd")
+		(property "Reference" "#PWR05"
+			(at 49.53 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 49.53 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 49.53 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 49.53 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 49.53 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "dc2339a3-3a5f-4dcc-88ba-1f0bf0f32a3c")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR05")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 123.19 87.63 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "e2e308ee-45ea-470b-9c19-364b2970ec8b")
+		(property "Reference" "#PWR14"
+			(at 123.19 85.09 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 123.19 91.44 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 123.19 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 123.19 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 123.19 87.63 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "4fa9f444-9f32-47f1-af26-84f3e55a8b37")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:+12V")
+		(at 25.4 152.4 180)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "ea269a3a-784d-4aed-85a3-be251ce5d47e")
+		(property "Reference" "#PWR15"
+			(at 25.4 149.86 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+12V"
+			(at 25.4 156.21 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 25.4 152.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 25.4 152.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 25.4 152.4 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "93117a22-4bdc-4fcd-b2f6-7ab7d3407ebb")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#PWR15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
+		(at 123.19 81.28 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "eaabd2c7-7d33-4f2d-90ae-db120510e251")
+		(property "Reference" "J15"
+			(at 123.19 76.454 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TE 63951-1"
+			(at 123.19 96.52 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 123.19 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 123.19 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)."
+			(at 123.19 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C591344"
+			(at 123.19 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "63951-1"
+			(at 123.19 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TE Connectivity"
+			(at 123.19 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "dd94712d-ae0f-49f7-968b-9c6968da4a82")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:TE_63951-1_FASTON_Tab")
+		(at 107.95 81.28 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "eafeedab-8715-4bd0-86f6-4ea479626ac2")
+		(property "Reference" "J14"
+			(at 107.95 76.454 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "TE 63951-1"
+			(at 107.95 96.52 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Connector_Blade:TE_63951-1_FASTON_Tab_250x032_RA_THT"
+			(at 107.95 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 107.95 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "FASTON .250 RIGHT-ANGLE PCB tab (in-plane L stamping, male blade). Mounted legs-horizontal / pitch-vertical / blade-down (owner sketch 2026-07-05): the blade descends past the board's bottom edge at a 2.54-8.89mm standoff and drops top-entry into the main board's TE 63969-1 FASTON PCB receptacle (iteration 7, owner-ratified 2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts our 0.81mm blade at its thickness design centre; the receptacle's 5.08mm hole pair runs along the blade plane, plan-congruent with this tab's own leg holes) -- spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md addenda (3 = tab geometry, 6-7 = the receptacle study + orientation chain)."
+			(at 107.95 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "LCSC" "C591344"
+			(at 107.95 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "MPN" "63951-1"
+			(at 107.95 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Manufacturer" "TE Connectivity"
+			(at 107.95 81.28 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "977009ea-a3fc-47be-84e8-6967c1bdd8f0")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "J14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:PWR_FLAG")
+		(at 25.4 162.56 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "f5af52c9-9b18-4d6d-80c6-05b82ddfdcaa")
+		(property "Reference" "#FLG16"
+			(at 25.4 160.02 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "PWR_FLAG"
+			(at 25.4 166.37 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 25.4 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 25.4 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 25.4 162.56 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7b1ede3f-02c7-4e9f-9472-e43eeec749f1")
+		)
+		(instances
+			(project "pcie-out-db-board"
+				(path "/0b17fe85-6fc6-41a2-90a8-4a4fa1b1402e"
+					(reference "#FLG16")
+					(unit 1)
+				)
 			)
 		)
 	)
