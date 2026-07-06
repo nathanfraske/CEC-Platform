@@ -773,67 +773,55 @@ def route_simple(fam):
     return res
 
 
-# ---- 24-pin ATX: 8 nets share the board (GND + 7 rails). GND floods In1.Cu
-# alone. Of the 7 rails, only FOUR are real multi-point BUSSES (+12V/+5V/
-# +3V3/+5VSB: several field pins, one or two tabs each) -- the other THREE
-# (-12V/PWR_OK/PS_ON#) are a plain 2-terminal net apiece (exactly one field
-# pin to the one matching J_SIG header pin, no tab at all, verified against
-# the netlist), so they route as direct point-to-point tracks and need no
-# lane/zone at all. That split matters a lot here: it is what makes a
-# <=15mm-class board height achievable, and a two-LAYER lane split (tried
-# first, reverted) does NOT help the way it looks like it should -- see below.
+# ---- 24-pin ATX: 8 nets share the board (GND + 7 rails). ITERATION-11
+# (2026-07-06, the F1 FIX -- docs/standard-tier-review/blade-interconnect-
+# thermal-2026-07-06.md finding F1): the iteration-4/5 corridor of four
+# 0.3mm x 1oz In2.Cu LANES carried the full per-rail AGGREGATES (the owner
+# design basis puts 12V=12A, 5V=30A, 3V3=24A, 5VSB=6A, GND=72A across this
+# board between the tab groups and the output field -- the old comments'
+# "modest per-pin fan-out" premise was wrong), measured catastrophic by the
+# full-stack solve: DC-IR 384mV @30A on +5V (J~2900 A/mm2, ~7x the fusing
+# gate) and a runaway coupled solve. THE FIX IS POURS, the eps/pcie style:
+# every terminal on this board is THT (field pins, tab legs, header pins),
+# so a full-board flood on ANY single layer connects a rail's whole node
+# with ZERO vias -- each of the three big rails gets one WHOLE LAYER:
 #
-# THE BUG A FIRST PASS SHIPPED (recorded so it is not repeated): parking
-# +12V's lane on In2.Cu and +5V's on B.Cu at the SAME nominal corridor Y
-# (thinking two layers halve the stack depth) is UNSAFE for a THIN zone. A
-# via is a THROUGH feature -- it exists on every copper layer it spans, so a
-# +5V via (F.Cu-B.Cu) also crosses In2.Cu at that (x,y), and KiCad's
-# ZONE_FILLER auto-clears (anti-pads) it there. That auto-clearance is
-# normally harmless (it is exactly how a signal via safely crosses a GND
-# plane, platform-wide) BUT only because a plane is wide in BOTH directions:
-# copper can route around the clearance hole. A 0.3mm-tall LANE has no
-# "around" -- a via whose keepout diameter (dia + 2*clearance, ~0.9mm here)
-# exceeds the lane's own height clears the lane's FULL height at that one X,
-# severing it into a left island and a right island. Measured DRC symptom:
-# real "unconnected_items" between two ends of the SAME zone/net that should
-# obviously be one piece. Putting the two layers' slots at DIFFERENT Y (half
-# a pitch apart) does not fix it either: the safe stand-off a via needs from
-# a FOREIGN-layer lane it merely passes near is via_keepout_radius +
-# lane_half_height + min_width (~0.45+0.15+0.2 = 0.8mm here) -- i.e. the same
-# separation the four real lanes already need from EACH OTHER on one layer.
-# Two layers buy nothing once every "slot" carries a via; the fix is fewer
-# lanes (drop the 3 point-to-point signals out of the lane scheme entirely),
-# not more layers.
+#   F.Cu  (2oz) +5V   30A   flood (+ the 3 signal P2P tracks slot through)
+#   In1.Cu(1oz) GND   72A   flood (unchanged from iteration 4)
+#   In2.Cu(1oz) +12V  12A   flood
+#   B.Cu  (2oz) +3V3  24A   flood (+ the +5VSB track chain slots through)
 #
-# The real ATX-24 pinout INTERLEAVES rails column-by-column (row0 y=0 / row1
-# y=5.5 share the same 12 X-positions), so a field pin's straight-down stub
-# can run directly into the OPPOSITE row's pad if that pad is a DIFFERENT
-# net. Only ROW0 pins ever need to dodge (row1 has nothing below it at its
-# own column except the clear corridor). The dodge is a single +2.1mm (half
-# the 4.20mm pitch) sideways jog -- landing dead-centre in the gap between
-# two adjacent pad columns, symmetric ~0.75mm clear of both neighbours' pad
-# edges -- taken PERMANENTLY, which keeps every column's own stub on a
-# unique X for its whole length (0.5mm steps can never coincide with another
-# column's integer-pitch X, so dodged and undodged stubs never collide).
-ATX24_BUS_NETS = ["+12V", "+5V", "+3V3", "+5VSB"]              # get a corridor lane
+# +5VSB (6A, the smallest rail) is the odd one out (4 big rails, 3 free
+# layers): it runs as a DETERMINISTIC B.Cu TRACK CHAIN from its one field
+# pin (pin 9) to its one tab (J15), routed EAST-AND-AROUND the field:
+# through the inter-row gap band, down the pad-free column EAST of the
+# field (past col 11 -- the only place a wide descent clears the 2.7mm-wide
+# oval field pads), then WEST through the TAB MID-BAND (between the tab
+# pads' upper and lower rows -- empty on B.Cu now that the iteration-5 tab
+# bridge tracks are superseded by the floods) into J15's leg pair. Slot
+# geometry is chosen so the B.Cu band under row1 (y in [row1 antipad
+# bottom, tab antipad top], 2.55mm tall) stays UNCUT west of the descent:
+# that band is +3V3's east-pin passage (pin 12, col 11, 6A -- its only
+# path west to its tabs) and is asserted below.
+#
+# HISTORICAL (iterations 4-5, kept so the lesson is not re-learned): a thin
+# LANE zone dies by via anti-pad -- a through-via clears every layer it
+# spans, and a 0.3mm-tall lane has no "around", so a foreign-layer via
+# whose keepout exceeds the lane height severs it (measured as real
+# unconnected_items). Full-layer FLOODS change that calculus completely (a
+# plane is wide in both directions; and this board now has no vias at
+# all), which is why the flood plan is safe where the two-layer lane split
+# measurably was not. The corridor BAND geometry itself (ATX24_CORRIDOR_H
+# below) is retained: it is frozen board GEOMETRY (it sets tab_y, and the
+# F1 fix is a copper change, not a floorplan change) -- the band the lanes
+# used to occupy is simply pour area now.
+ATX24_BUS_NETS = ["+12V", "+5V", "+3V3", "+5VSB"]
 ATX24_P2P_NETS = ["-12V", "PWR_OK", "PS_ON#"]                  # field pin <-> header pin direct
-ATX24_LANE_SLOT = {net: i for i, net in enumerate(ATX24_BUS_NETS)}   # slot 0 = nearest the field
-_LANE_PITCH, _LANE_HALF = 0.65, 0.15    # 0.3mm-wide lane zone, single layer (In2.Cu)
-ATX24_CORRIDOR_H = (len(ATX24_BUS_NETS) - 1) * _LANE_PITCH + 2 * _LANE_HALF
-# Lane-entry via: SMALLER than the platform-default 0.5/0.9mm power via on
-# purpose -- adjacent slots at 0.65mm pitch cannot safely hold 0.9mm-diameter
-# vias. 0.3/0.5mm is close to this repo's own existing "Sense"/small-signal
-# via convention (modules/12vhpwr-standard's Sense netclass, 0.6/0.3) sized
-# down slightly further; currents here are the modest per-pin fan-out
-# figures documented in the board README, never the rail's own aggregate
-# (that rides the 9 blade-clip joints, sized separately).
-_LANE_VIA_DRILL, _LANE_VIA_DIA = 0.3, 0.5
-
-
-def _atx24_lane_y(field_bottom, net):
-    """Y of a bus rail's lane centreline in the corridor (single layer, In2.Cu)."""
-    return field_bottom + _FIELD_GAP + _LANE_HALF + ATX24_LANE_SLOT[net] * _LANE_PITCH
-
+ATX24_FLOOD_LAYER = {"+5V": "F.Cu", "+12V": "In2.Cu", "+3V3": "B.Cu"}  # GND: In1.Cu; +5VSB: tracks
+# Retained placement geometry (iteration 4/5): the old lane corridor's band
+# height still positions the tab row (pcb_placement reads ATX24_CORRIDOR_H).
+_LANE_PITCH, _LANE_HALF = 0.65, 0.15
+ATX24_CORRIDOR_H = 4 * _LANE_PITCH - _LANE_PITCH + 2 * _LANE_HALF  # == 2.25, byte-frozen
 
 # kicad-cli's netlist export prefixes a ROOT-SHEET plain text label (no power-
 # port symbol behind it) with "/" (the root sheet's own path) -- the power-
@@ -845,6 +833,16 @@ def _atx24_lane_y(field_bottom, net):
 _PCB_NET = {n: (f"/{n}" if n in ("-12V", "PS_ON#", "PWR_OK") else n)
             for n in ATX24_BUS_NETS + ATX24_P2P_NETS}
 
+# +5VSB chain widths (mm). The A/B run is capped by the inter-row gap band:
+# field pads are 2.7 x 3.7 ovals, so the free band between row0/row1
+# anti-pads is (5.5 - 3.7 - 0.6) = 1.2mm -- w=1.0 leaves 0.1 each side.
+# 6A on 1.0mm 2oz reads ~26C on the (documented-pessimistic, adiabatic
+# long-trace) IPC screen; the 2.5D coupled solve is the gate of record.
+_VSB_W_BAND, _VSB_W_DESC, _VSB_W_MID, _VSB_W_TAB = 1.0, 2.0, 1.4, 1.6
+_FIELD_PAD_HALF_W, _FIELD_PAD_HALF_H = 1.35, 1.85   # 2.7 x 3.7 oval, field fp
+_TAB_PAD_R = 1.25                                    # tab pads O2.5
+_CLR = 0.3                                           # zone/track clearance used here
+
 
 def route_atx24():
     fam = "atx24-out-db"
@@ -852,73 +850,122 @@ def route_atx24():
     out = f"{_board_dir(fam)}/{cfg['base']}.kicad_pcb"
     r = cr.Router(out)
     rect = _board_rect(fam)
-    r.zone("GND", rect, layers=("In1.Cu",), clearance=0.3, min_width=0.3)
 
     W, H, P = pcb_placement(fam)
     fx, fy, _field_right, field_bottom = _field_geom(fam)
 
-    lane_x0, lane_x1 = 2.0, W - 2.0
-    for net in ATX24_BUS_NETS:
-        ly = _atx24_lane_y(field_bottom, net)
-        pn = _PCB_NET.get(net, net)
-        r.zone(pn, [(lane_x0, ly - _LANE_HALF), (lane_x1, ly - _LANE_HALF),
-                   (lane_x1, ly + _LANE_HALF), (lane_x0, ly + _LANE_HALF)],
-               layers=("In2.Cu",), clearance=0.2, min_width=0.2)
+    # --- the per-rail floods (F1 fix) ---
+    # GND, +12V, +3V3(B.Cu): full-board. +5V: full-board CLIPPED at pin 23's
+    # clearance boundary -- F.Cu east of the last +5V element is dead area
+    # for +5V, and that strip is exactly what +3V3 needs (below).
+    x5e = fx + 10 * 4.2 + _FIELD_PAD_HALF_W + _CLR     # 47.75: pin 23 east edge + clr
+    (rx0, ry0), (rx1, _), (_, ry1), _ = rect
+    # ZONE_CONNECTION_FULL on every power flood -- the platform's own
+    # power-pour convention (cec_fr.add_power_pours). Measured reason, this
+    # board: with THERMAL relief the whole rail necks through 0.5mm spokes
+    # at its 2-3 terminal pads (DC-IR J99.5 ~302 A/mm2 on +5V) and the
+    # spoke generator itself proved flaky on the O2.5 tab pads (one pad
+    # intermittently unconnected per fill run). Solid connection removes
+    # both. Hand-solder cost accepted: this THT board is hand-assembled by
+    # design (consigned Mini-Fit class parts platform-wide).
+    import pcbnew as _pcbnew
+    zs = []
+    zs.append(r.zone("GND", rect, layers=("In1.Cu",), clearance=0.3, min_width=0.3))
+    zs.append(r.zone("+12V", rect, layers=("In2.Cu",), clearance=0.3, min_width=0.3))
+    zs.append(r.zone("+3V3", rect, layers=("B.Cu",), clearance=0.3, min_width=0.3))
+    zs.append(r.zone("+5V", [(rx0, ry0), (x5e, ry0), (x5e, ry1), (rx0, ry1)],
+              layers=("F.Cu",), clearance=0.3, min_width=0.3))
+    # +3V3 F.Cu EAST LIMB + via pair -- pin 12's path. TOPOLOGICAL FACT
+    # (measured: 3 fill islands, pin 12 stranded): the +5VSB B.Cu chain plus
+    # its endpoint anti-pads forms a top-edge-to-bottom-edge wall, so ANY
+    # single-layer pin9->J15 route splits B.Cu into an east and a west
+    # component -- and +3V3 has elements on BOTH sides (pin 12 east, tabs
+    # west). Escape: pin 12 rides an F.Cu limb in the strip +5V vacated,
+    # dropping into the B.Cu main pour through a 2-via cluster placed in
+    # the window between the PS_ON# and PWR_OK header drops, inside the
+    # clean B.Cu band (row1 anti-pad bottom .. tab anti-pad top) WEST of
+    # the +5VSB descent.
+    limb_x0 = x5e + 0.5                                 # 0.5 zone-poly gap
+    zs.append(r.zone("+3V3", [(limb_x0, ry0), (rx1, ry0), (rx1, ry1), (limb_x0, ry1)],
+              layers=("F.Cu",), clearance=0.3, min_width=0.3))
+    for _z in zs:
+        if _z is not None:
+            _z.SetPadConnection(_pcbnew.ZONE_CONNECTION_FULL)
+    row0_y, row1_y = fy, fy + 5.5
+    tab_y = P[cfg["tabs"][0][0]][1]
 
-    # field pins (1-24): row0 = pins 1-12 @ local y=0, row1 = pins 13-24 @
-    # y=5.5 -- see the module-level comment above for the dodge rationale.
-    # BUS nets (+12V/+5V/+3V3/+5VSB) run down into their In2.Cu lane. P2P
-    # nets (-12V/PWR_OK/PS_ON#) stay entirely within the field's own row-gap
-    # (y in [row0, row1], never entering the corridor at all) and connect
-    # straight across to their header pin -- see the header block below.
-    via_seen = set()
-    for pin, net in cfg["field_net"].items():
-        if net is None or net == "GND" or net in ATX24_P2P_NETS:
-            continue
-        pn = _PCB_NET.get(net, net)
-        by = _atx24_lane_y(field_bottom, net)
-        row = 0 if pin <= 12 else 1
-        col = (pin - 1) % 12
-        x, y = fx + col * 4.2, fy + (0.0 if row == 0 else 5.5)
-        opp_net = cfg["field_net"][pin + 12 if row == 0 else pin - 12]
-        conflict = (row == 0) and (opp_net != net)
-        if conflict:
-            pts = [(x, y), (x, y + 2.2), (x + 2.1, y + 2.2), (x + 2.1, by)]
-        else:
-            pts = [(x, y), (x, by)]
-        r.track(pn, pts, "F.Cu", 0.5)
-        via_pt = (round(pts[-1][0], 3), round(pts[-1][1], 3), net)
-        if via_pt not in via_seen:
-            r.via(pn, pts[-1], drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
-            via_seen.add(via_pt)
+    # --- +5VSB: pin 9 -> J15 as a B.Cu track chain (see module comment) ---
+    p9x = fx + 8 * 4.2                            # pin 9, col 8, row 0
+    gap_mid = (row0_y + row1_y) / 2.0             # inter-row gap band centre
+    col11_x = fx + 11 * 4.2
+    desc_x = col11_x + 3.0                        # pad-free column east of the field
+    j15x, j15y, _ = P["J15"]
+    assert abs(j15y - tab_y) < 1e-9
+    mid_y = tab_y                                  # tab mid-band centreline
+    # clearance audit (asserted, not hoped -- real pad sizes):
+    band_lo = row0_y + _FIELD_PAD_HALF_H + _CLR   # gap band upper copper bound
+    band_hi = row1_y - _FIELD_PAD_HALF_H - _CLR   # gap band lower copper bound
+    assert gap_mid - _VSB_W_BAND / 2 >= band_lo - 1e-9 and \
+           gap_mid + _VSB_W_BAND / 2 <= band_hi + 1e-9, "gap band overflow"
+    assert desc_x - _VSB_W_DESC / 2 - _CLR >= col11_x + _FIELD_PAD_HALF_W, \
+        "descent too close to col-11 pads"
+    # tab mid-band: between upper-pad bottom and lower-pad top edges
+    mb_lo = (tab_y - 2.54) + _TAB_PAD_R + _CLR
+    mb_hi = (tab_y + 2.54) - _TAB_PAD_R - _CLR
+    assert mid_y - _VSB_W_MID / 2 >= mb_lo and mid_y + _VSB_W_MID / 2 <= mb_hi, \
+        "tab mid-band overflow"
+    # +3V3's east-pin passage: the B.Cu band below row1 must stay uncut west
+    # of the descent (pin 12's 6A crosses it to reach J13/J14) -- nothing in
+    # the chain may enter y in [row1 antipad bottom, tab antipad top] at
+    # x < desc_x - w/2 - clr:
+    band3_lo = row1_y + _FIELD_PAD_HALF_H + _CLR       # 10.40
+    band3_hi = (tab_y - 2.54) - _TAB_PAD_R - _CLR      # 12.95
+    assert band3_hi - band3_lo >= 2.5, "the +3V3 east passage band shrank"
+    assert gap_mid + _VSB_W_BAND / 2 + _CLR <= band3_lo  # A/B stay above it
+    assert mid_y - _VSB_W_MID / 2 - _CLR >= band3_hi     # D' stays below it
+    vsb = _PCB_NET.get("+5VSB", "+5VSB")
+    r.track(vsb, [(p9x, row0_y), (p9x, gap_mid)], "B.Cu", _VSB_W_BAND)      # A
+    r.track(vsb, [(p9x, gap_mid), (desc_x, gap_mid)], "B.Cu", _VSB_W_BAND)  # B
+    r.track(vsb, [(desc_x, gap_mid), (desc_x, mid_y)], "B.Cu", _VSB_W_DESC)  # C
+    r.track(vsb, [(desc_x, mid_y), (j15x, mid_y)], "B.Cu", _VSB_W_MID)       # D'
+    r.track(vsb, [(j15x, tab_y - 2.54), (j15x, tab_y + 2.54)], "B.Cu", _VSB_W_TAB)  # E'
 
-    # tabs (all 4 BUS nets have >=1): legs stacked VERTICALLY at
-    # (tx, tab_y +/- 2.54) per the sketch-model footprint, sitting BELOW the
-    # corridor in the iteration-4 two-band stack (tab_y ~17.0, lanes
-    # ~10.9-12.8), sharing the corridor's X range with the FIELD's own
-    # dodge-stubs/vias -- which is exactly why the row is GRID-ALIGNED (see
-    # TAB_PITCH/_STUB_GRID): every tab X sits 1.05mm off the field-stub
-    # lattice, so these F.Cu stubs/vias clear every field stub/via by
-    # >=1.05mm against a ~0.7-0.75mm conflict radius. Each tab's stub runs
-    # UP from its UPPER leg pad into its net's lane. The TE_63951-1
-    # footprint has TWO physical pads, both numbered "1" (one electrical
-    # node), but "same pad number" is a netlist LABEL, not copper -- the
-    # footprint has no internal bridge, so both need real copper: a vertical
-    # bridge track between the two legs -- on B.Cu as of iteration 5, so the
-    # signal stub's F.Cu mid-band runs (below) cross the bridges layer-clean
-    # -- plus the F.Cu up-stub off the upper leg + a via at its own lane's
-    # centreline (clearing the 0.65mm-pitch neighbours by the same measured
-    # 0.25mm the field vias rely on). The tab pads' own In2 anti-pads stay
-    # _LANE_PAD_CLR clear of the deepest lane band by placement.
+    # --- tab leg-pair bridges (iteration-5 pattern, resurrected) ---
+    # The floods DO reach every tab pad, but the Ø2.5 circle pads' thermal
+    # spokes proved flaky at regen (KiCad's 45-degree spokes + 0.5 gap: the
+    # connectivity engine intermittently reported ONE tab upper pad
+    # unconnected -- J10 on one fill run, J12 on the next, with identical
+    # geometry). A hard leg-pair bridge on each non-GND tab removes the
+    # spoke dependency outright: each bridge is a same-net track inside (or
+    # slotting) the B.Cu flood, WEST of the +5VSB mid-band run (J10..J14 x
+    # <= 21.95 < 26.15 = D' start), so nothing crosses. GND tabs (J16-J19)
+    # stay spoke-connected on the In1 plane -- 8 pads/4 tabs of the same
+    # net, never flagged across any fill run (the platform's GND-tab
+    # precedent from iteration 4).
     for ref, net in cfg["tabs"]:
-        if net == "GND":
-            continue
-        pn = _PCB_NET.get(net, net)
-        tx, ty, _ = P[ref]
-        by = _atx24_lane_y(field_bottom, net)
-        r.track(pn, [(tx, ty - 2.54), (tx, ty + 2.54)], "B.Cu", 0.5)
-        r.track(pn, [(tx, ty - 2.54), (tx, by)], "F.Cu", 0.5)
-        r.via(pn, (tx, by), drill=_LANE_VIA_DRILL, dia=_LANE_VIA_DIA, layers=("F.Cu", "B.Cu"))
+        if net in ("GND", "+5VSB"):
+            continue                       # GND: In1 plane; J15: E' already spans it
+        tx, ty, _rot = P[ref]
+        assert tx < j15x, "bridge would cross the +5VSB mid-band run"
+        r.track(_PCB_NET.get(net, net), [(tx, ty - 2.54), (tx, ty + 2.54)], "B.Cu", 1.6)
+
+    # +3V3 limb -> B.Cu main-pour via pair (see the limb comment above).
+    # Window between the header drops: PS_ON# drop at pad_x2, PWR_OK at
+    # pad_x3 (both 0.2mm wide); via dia 1.2 needs centre in
+    # [pad_x2 + 0.1 + 0.3 + 0.6, pad_x3 - 0.1 - 0.3 - 0.6].
+    href = cfg["header"]["ref"]
+    hhx0 = P[href][0]
+    px2, px3 = hhx0 + 2.54, hhx0 + 2 * 2.54
+    vx_lo, vx_hi = px2 + 0.1 + 0.3 + 0.6, px3 - 0.1 - 0.3 - 0.6
+    vx = (vx_lo + vx_hi) / 2.0
+    assert vx_hi - vx_lo >= 0.0, "via window between header drops closed"
+    assert vx > fx + 10 * 4.2 + _FIELD_PAD_HALF_W, "via must sit east of pin 23"
+    row1_apad_bot = (fy + 5.5) + _FIELD_PAD_HALF_H + _CLR      # 10.40
+    tab_apad_top = (tab_y - 2.54) - _TAB_PAD_R - _CLR          # 12.95
+    for vy in (row1_apad_bot + 0.6, tab_apad_top - 0.75):      # annuli inside the band
+        assert row1_apad_bot <= vy - 0.6 and vy + 0.6 <= tab_apad_top
+        r.via("+3V3", (vx, vy), drill=0.6, dia=1.2, layers=("F.Cu", "B.Cu"))
+
 
     # 1x4 blind-mate signal stub (iteration 5, memo addendum 5): J20's pads
     # sit in the BOTTOM band right of the tab row (pins point down past the
@@ -963,31 +1010,35 @@ def route_atx24():
     x3, y3 = _col_xy("PS_ON#")   # c3, row1
     x7, y7 = _col_xy("PWR_OK")   # c7, row0
 
-    # ITERATION-7 descent phase (4.2mm pitch): a lattice column can no
-    # longer cross the tab band -- lattice Xs land at phases 1.05/3.15 of
-    # the 4.2 grid, both only 1.05mm from a tab pad centre (radius 1.25 =
-    # collision; at the old 6.3 pitch phase 3.15 was dead-centre mid-gap).
-    # Each signal therefore JOGS at jog_y (the same 0.6mm F.Cu band between
-    # row1 pads and the first lane the iteration-5 jogs used) onto its
-    # nearest COMPUTED mid-gap column m = x0 + 2.1 (mod 4.2), 2.1mm from
-    # both neighbouring tab pads (edge clearance 0.85 vs the 0.2 rule) and
-    # >=1.05mm from every field stub/via (the same lattice guarantee the
-    # tabs ride). Each jog span is <=1.05mm long; measured against the real
-    # bus-stub X set when this was derived (fx-relative stubs {0, 6.3,
-    # 14.7, 23.1, 33.6, 35.7, 37.8, 39.9, 42.0, 44.1, 48.3} vs spans
-    # [3.15,4.2], [11.55,12.6], [31.5,32.55]): no bus stub X falls inside
-    # any span, nearest approach 1.05 (m7's vertical vs the fx+33.6 stub),
-    # and the spans are pairwise >=7mm apart at the one shared y. Nesting
-    # order m1 < m3 < m7 is asserted (leftmost descent = deepest level =
-    # leftmost header pad).
+    # ITERATION-7 descent phase (4.2mm pitch), REVISED at iteration 11 (the
+    # F1 pour fix): with the +5V rail now living on a full F.Cu FLOOD, the
+    # three signal levels' horizontal slots must NOT sever the +5V tabs'
+    # (J11/J12, x 9.35/13.55) inter-pad columns from the flood -- a level
+    # slot across those columns strands the tabs' LOWER pads on an F.Cu
+    # island (measured at regen: starved_thermal + unconnected_items).
+    # So ALL descents now jog EAST to mid-gap columns EAST of J12's
+    # anti-pad (>= 15.10 + slack): -12V jogs from its own column (x1 8.30)
+    # east to the mid-gap at _midgap(x3) (15.65), PS_ON# to that + one
+    # pitch (19.85), PWR_OK keeps its dodge-derived 36.65. Level slots then
+    # start at x >= 15.65 and only cross tab columns whose rails live on
+    # OTHER layers (+3V3 B.Cu, +5VSB B.Cu, GND In1) -- asserted below.
+    # Jogs at jog_y (the band between row1 pads and the old corridor):
+    # -12V [8.30..15.65], PS_ON# [16.70..19.85], PWR_OK [35.60..36.65] --
+    # pairwise disjoint (min gap 1.05 >= 0.5 needed). Mid-gap columns keep
+    # the lattice guarantee (2.1 from every field pad centre; >= 0.15 edge
+    # clearance to the nearest tab anti-pads, checked when derived).
     tab0_x = P[cfg["tabs"][0][0]][0]
     pitch = TAB_PITCH[fam]
 
     def _midgap(x):
         return tab0_x + pitch / 2 + pitch * round((x - tab0_x - pitch / 2) / pitch)
 
-    m1, m3, m7 = _midgap(x1), _midgap(x3), _midgap(x7 + 2.1)
+    m1 = _midgap(x3)              # 15.65 -- east of J12's anti-pad (15.10)
+    m3 = m1 + pitch               # 19.85
+    m7 = _midgap(x7 + 2.1)        # 36.65 (unchanged)
     assert m1 < m3 < m7, f"descent nesting broke: {m1}, {m3}, {m7}"
+    j12x = P["J12"][0]
+    assert m1 - 0.4 >= j12x + 1.55, "-12V level start severs J12's F.Cu column"
     P2P_TRACK_W = 0.2
     header_paths = {
         "-12V": [(x1, y1), (x1, jog_y), (m1, jog_y),
@@ -1042,14 +1093,16 @@ def write_rules(fam):
                   "perpendicular to the main board, tabs blade-down per "
                   "the owner's 2026-07-05 sketch, dropping into TE 63969-1 "
                   "FASTON PCB receptacles (hole pair perpendicular to the "
-                  "row, memo addendum 7). Power netclass 0.5mm/0.9-0.5mm "
-                  "via matches the 0.5mm stub tracks laid by "
-                  "route_atx24(); each of the 4 bus rails also gets its "
-                  "own thin In2.Cu lane zone in the corridor below the "
-                  "field (0.3mm wide, 0.65mm pitch -- not netclass-"
-                  "controlled, drawn directly; see ATX24_LANE_SLOT), which "
-                  "the tab row's down-stubs and the field's dodge-stubs "
-                  "meet through 0.3/0.5mm vias.")
+                  "row, memo addendum 7). COPPER (iteration-11 F1 fix, "
+                  "2026-07-06 -- blade-interconnect-thermal memo F1): the "
+                  "old 0.3mm In2 lane corridor is RETIRED; each big rail "
+                  "floods one whole layer (F.Cu=+5V, In1=GND, In2=+12V, "
+                  "B.Cu=+3V3 -- all terminals are THT, zero vias) and "
+                  "+5VSB (6A) runs a 1.0-2.0mm B.Cu track chain east "
+                  "around the field into J15 through the tab mid-band; "
+                  "the 3 signals stay 0.2mm F.Cu point-to-point tracks. "
+                  "The Power netclass documents the hand-touch-up floor, "
+                  "not the floods (drawn directly by route_atx24()).")
     else:
         rail = "+12V"
         classes = [cp.netclass("Default", 0.25, 0.6, 0.3, 2147483647),
