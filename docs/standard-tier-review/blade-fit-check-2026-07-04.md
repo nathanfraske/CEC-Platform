@@ -879,3 +879,137 @@ lattice pitch; gang-insertion force + detent registration → confirms
 seating/retention). If the owner wants zero re-ratification and zero new
 parts, option 3 (stand pat on 3557) remains sound with its single known
 sample gate. Nothing regenerates until the owner picks.
+
+## Addendum 7, 2026-07-06 (iteration 7): TE 63969-1 REGEN — orientation proof, re-derived counts, 4.2/4.7/5.2 pitches
+
+**Dated addendum; addenda 5-6 above are left unedited. OWNER RATIFIED the
+addendum-6 recommendation** ("Sure, show me the pitch and everything on the
+boards") with an explicit orientation requirement: *"the blade's edge will
+be coming down into the board and slotting as an *edge* into the slot,
+which will make the receptacle be oriented such that the two PCB holes are
+aligned in the same way as the blade's holes."* Authoritative source:
+`lib/datasheets/TE_63969_customer_drawing_revE.pdf` (owner-uploaded;
+byte-identical to the study download — one source of truth). **The
+iteration-5 Keystone 3557 build is RETIRED** (its floor derivation stands
+as a correct record of that part; the 3557/3586 footprints stay vendored,
+unreferenced, as documented fallbacks).
+
+### F.1 Orientation — the reading chain (proven, not assumed)
+
+From rev E (ENG_CD_63969 rev E, 08MAY24):
+1. **Long axis:** the front view and Section B-B share it — 12.19 total =
+   8.38 body + 3.81 solder tails, matching TE's parametrics (profile
+   height 8.38 above board, 3.81 below). That axis is the VERTICAL mating
+   axis when mounted.
+2. **Horizontal cross-section** (end view; Section A-A at 8:1): two
+   vertical MATING ROLLS side by side spanning **7.42 along the tab-width
+   axis**, a 1.40 slit between their crowns, backed by the 0.41-thick
+   CANTILEVERED FLOOR plate. The descending blade is gripped between floor
+   and rolls — its bottom edge leads ("slots as an EDGE into the slot").
+   Note 3: **mating tab thickness 0.81 ± 0.025** — our blade at design
+   centre.
+3. **Third-angle adjacency:** the end view sits beside the front view
+   sharing its vertical sheet axis, so the **5.08 ± 0.08 tail spacing
+   (dimensioned in the front view) lies along the SAME axis as the 7.42
+   tab-width span**.
+4. Therefore, on the main board: **the receptacle's two Ø1.40 ± 0.05 holes
+   run along the tab-width axis = the WALL NORMAL, perpendicular to the
+   row** — and since the 63951-1 tab's own legs are Ø1.6 into Ø1.40 holes
+   at the same 5.08 pitch in the blade's vertical plane, the two parts'
+   hole patterns are **plan-congruent** (the owner's "aligned in the same
+   way as the blade's holes", exactly).
+
+This is now asserted STRUCTURALLY in `check_output_daughterboards.py`
+§3b: the receptacle footprint must carry its hole pair on local Y at
+(0, ±2.54) with Ø1.40 drills (a 90°-wrong footprint fails the checker),
+plan-congruence with the tab's leg holes is asserted, and §3a's rot-0
+check on every mating position closes the per-position half. New footprint:
+`cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT` (full
+reading chain + depth caveat in its descr).
+
+### F.2 Joint counts — re-derived at 22.9 A / 125% (owner-ratified)
+
+Allowable = 22.9 / 1.25 = **18.32 A/joint** (both figures on the same
+30 °C-rise method; TE 108-1706 Fig 4 / the platform margin policy).
+
+**24-pin** (6 A/circuit ATX bar): 12 V 2×6 = 12.0 A → 1 joint (191%);
+5 V 5×6 = 30.0 A → 2 (153%); **3V3 4×6 = 24.0 A → 2 joints** (was 1 =
+95%, FAIL; now 12.0 A each, 191%); 5VSB 6.0 A → 1 (382%); GND return =
+72.0 A → 4 joints = 18.0 A each = **127.2% — legal but hairline** (0.32 A
+headroom; a 5th GND joint = 158% at 11 total was surfaced; the owner
+ratified the policy application at the honest arithmetic total of **10**).
+**PCIe** (~39 A/cable): 2/polarity = 19.5 A = 117% FAIL → **3/polarity =
+13.0 A, 176%** → 6 tabs/cable (pcie-2 main board 12, pcie-3 main board 18).
+**EPS** (~52 A/cable): 3/polarity = 17.33 A = **132% — HOLDS** at 6/cable.
+
+### F.3 Pitches, keying, boards
+
+Along-row floor = receptacle across-thickness depth (UN-DIMENSIONED on
+rev E; 3.7 proportional estimate, band 3.4–3.7, constructive bound ~4.0)
++ 0.5 bare-brass air gap = **4.2 mm**. **DEPTH GATE (the #1 OQ-86 sample
+item for this part): if the sample measures > 4.0 mm, atx24 falls back to
+6.3 (3-lattice)**; the drawn footprint body is the 3.7 estimate and the
+checker's row-fit maths read it from the footprint, not a constant.
+Pitches: **atx24 4.2** (at the floor; = 2×2.1 field-stub lattice periods),
+**eps 4.7**, **pcie 5.2**. Keying at the new counts (eps and pcie now BOTH
+6 tabs — pitch differentiation alone carries that pair): worst
+centred-overlay deviation (G/2)|d| = eps-vs-pcie 1.25 / eps-in-atx24 1.25 /
+pcie-in-atx24 2.50, all ≥ 2.5× the 0.5 mm tolerance; the six-way no-subset
+bipartite proof passes and its teeth were re-verified (sabotaged pcie =
+4.8, d = 0.1 to eps → the proof correctly fails). atx24's descent phasing
+was REWORKED for the 4.2 pitch: lattice columns now land 1.05 from tab pad
+centres (collision), so each signal descent jogs at jog_y onto a COMPUTED
+mid-gap column (x0 + 2.1 mod 4.2, 0.85 mm pad-edge clearance), verified
+against the full bus-stub X set; nesting (m1 < m3 < m7) is asserted in
+code. The SR1-6 pad grid was repacked 2×3 and its extent folded into W
+(the shrunken board had put SR6 on the Edge.Cuts — 2 real
+copper_edge_clearance hits caught by DRC at regen and fixed by making
+`pcb_placement()` own the SR extent).
+
+Boards: **atx24 61.0 × 21.4** (was 69.5 × 21.4), **eps 28.5 × 20.0** (was
+38.5), **pcie 31.0 × 20.0** (was 26.6 — the +2 ratified joints outweigh
+the pitch win on the smallest board; honest number). atx24's W is now
+governed by its 24-pin solder field + SR grid, not the tab row.
+
+### F.4 Seating
+
+Unchanged frame: uniform leg row 4.34 above each bottom edge, tip 11.41
+below edge level, **float 12.41** at 1.0 mm tip clearance (the receptacle
+is open at the bottom between its tails — the tab tip's hard stop is the
+main-board surface; the cantilevered floor is a vertical backing plate,
+not a bottom stop). Board bottom edge clears the receptacle's 8.38 top by
+**4.03 mm** (vs 2.21 over the 10.2-tall 3557 — improved). Tops above main
+board: 33.79 (atx24) / 32.42 (eps, pcie). Retention: the rolls' detent
+engages the tab's Ø1.78 hole, but at the nominal float that hole rides
+~0.5 mm ABOVE the receptacle top → detent engagement NOT established;
+retention may be spring-friction only (spec unmate ≥ 13/18 N per joint is
+measured WITH detent) — **sample item**, alongside gang insertion force
+(9–18 joints × ≤26 N [63968-1 LIF] / ≤44 N [63969-1] spec max per 114-2156
+Fig 8).
+
+### F.5 Main boards
+
+All existing TB instances swapped by property (Value/Footprint/MPN
+63969-1/LCSC C2961150/Manufacturer/Datasheet + Note provenance appended;
+lib_id retained per the value-swap precedent) — 24pin 9, eps 12, pcie-2 8,
+pcie-3 12. NEW instances added at the ratified counts, each netlist-
+verified onto its post-shunt rail node: 24pin **TB10** → /SENSE3V3_LO
+(TB4's node); pcie-2 **TB15/TB25** → /SENSEC1_LO,/SENSEC2_LO + **TB16/
+TB26** → GND; pcie-3 **TB15/TB25/TB35** → /SENSEC{1,2,3}_LO + **TB16/TB26/
+TB36** → GND (numbering follows the existing TB<cable><idx> scheme; the
+12V group is non-contiguous by index — TB11/12/15 — chosen over renaming
+the hand-file's existing refs). Main-board BOM CSVs updated — including
+retiring their STALE "Keystone 3586" TB lines, which iteration 5 had
+missed. rev3's J_SIG 2×5→1×4 rework stays DEFERRED per addendum 5 D.6.
+No main-board PCB placement exists; `pcb_placement()` + addenda 3–7 remain
+the authoritative mating drawing.
+
+### F.6 Gates
+
+Daughterboards ×3: ERC 0 errors; DRC 0 errors / 0 unconnected at
+--severity-error (all-severity residue is cosmetic silk only: atx24 27 /
+eps 20 / pcie 18); checker fully green **113 OKs** incl. the new
+orientation, plan-congruence, and depth-parameterized row-fit assertions;
+keying proof + teeth as in F.3; route verify structural=0/unconnected=0
+per family. Main boards ×4: ERC unchanged (1 pre-existing pin_not_driven
+each, before = after); new-TB netlist checks as in F.5.

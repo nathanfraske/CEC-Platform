@@ -15,9 +15,10 @@
 #     (legs stacked vertically, blade descending: rot 0 on the natively-
 #     vertical footprint, pads at (0,+/-2.54), uniform leg-row height
 #     across all three families -- one seating spec, one mating drawing)
-#   - the main-board CLIP row fits the per-family pitches with margin
-#     (Keystone 3586, rotated slot-axis-perpendicular-to-wall per the
-#     sketch; extents measured off the vendored footprint, not hand-copied)
+#   - the main-board RECEPTACLE row fits the per-family pitches with margin
+#     AND its hole-pair axis is PERPENDICULAR to the row (TE 63969-1,
+#     iteration 7 -- the owner's orientation requirement, asserted against
+#     the vendored footprint, not hand-copied)
 #   - the keying pattern differs across all three families: NO family's tab
 #     set can seat as a rigid subset of another's clip row (geometric proof)
 #
@@ -194,7 +195,13 @@ for fam, cfg in godb.FAMILIES.items():
 #    no clip placement exists on any main-board PCB as of this branch) --
 #    see each README's "Keying" section for the rendered grid.
 # ---------------------------------------------------------------------------
-EXPECTED_JOINTS = {"atx24-out-db": 9, "eps-out-db": 6, "pcie-out-db": 4}
+# Iteration-7 counts (owner-ratified 2026-07-06): re-derived at the TE
+# 63969-1 receptacle's 22.9A base rating (108-1706, 30degC-rise method)
+# under the ratified 125% margin policy -- atx24 9->10 (+3V3 gains a second
+# joint: 24.0A basis > 18.32A allowable), pcie 4->6 per cable (19.5A/joint
+# at 2/polarity = 117% -> 3/polarity), eps HOLDS 6 (17.33A = 132%). Full
+# arithmetic: blade-fit memo addendum 7.
+EXPECTED_JOINTS = {"atx24-out-db": 10, "eps-out-db": 6, "pcie-out-db": 6}
 for fam, n in EXPECTED_JOINTS.items():
     got = len(godb.FAMILIES[fam]["tabs"])
     check(got == n, f"{fam}: {n} ratified blade-tab joints (found {got})")
@@ -239,35 +246,79 @@ for fam in EXPECTED_JOINTS:
           f"{fam}: lower leg pad clears the 0.5mm copper-to-edge constraint "
           f"(pad bottom {pad_bottom:.2f} vs H-0.5 = {_h - 0.5:.2f})")
 
-# --- 3b. Main-board clip row fits the pitches (Keystone 3557 bare clip,
-# iteration 5 -- the SMD 3586 stays vendored as the documented fallback) ---
-# Mating model: clip slot axis PERPENDICULAR to the daughterboard wall line
-# (it must accept the descending blade broadside), which puts the 3557's
-# LEG PAIR ALONG the row -- verified from the catalog mounting details, see
-# the generator's TAB_PITCH derivation. Extents measured off the vendored
-# THT footprint, whose local X IS the row axis: pad span = 3.4mm leg pitch
-# + 2.4mm pad = 5.8mm (the floor driver: + 0.5 solder web = the 6.3mm
-# pitch floor, atx24 sits AT it); courtyard 5.5mm along the row.
-_clip_fp = "cec-Connector_Blade:Keystone_3557_THT_Universal_Clip_TopEntry"
-_ccy = godb.cp.courtyard_bbox(_clip_fp)
-clip_along_row = _ccy[1] - _ccy[0]          # courtyard X extent = row axis
-_clip_pads = [(float(m.group(1)), float(m.group(2)), float(m.group(3)))
+# --- 3b. Main-board RECEPTACLE orientation + row fit (TE 63969-1 FASTON
+# PCB receptacle, iteration 7, owner-ratified 2026-07-06 -- supersedes the
+# iteration-5 Keystone 3557 clip; 63968-1 LIF = same-land fallback; the
+# 3557/3586 stay vendored, unreferenced) ------------------------------------
+# ORIENTATION is the owner's explicit #1 requirement ("the blade's edge will
+# be coming down into the board and slotting as an *edge* into the slot,
+# which will make the receptacle be oriented such that the two PCB holes
+# are aligned in the same way as the blade's holes"): the receptacle's two
+# Ø1.40 holes at 5.08mm pitch run ALONG THE TAB-WIDTH AXIS = the WALL
+# NORMAL, PERPENDICULAR to the row -- reading chain from the rev-E drawing
+# in the footprint descr + memo addendum 7. A 90-degree-wrong receptacle
+# cannot mate, so this is asserted STRUCTURALLY: the footprint must carry
+# its hole pair on LOCAL Y (the mating drawing's wall-normal at rot 0), at
+# the SAME 5.08 pitch and 1.40 drill as the blade tab's own leg holes
+# (plan-congruence), and every mating position (= every tab position in
+# pcb_placement(), the authoritative mating drawing) must be rot 0 -- the
+# rot check itself lives in 3a; together they pin hole-axis-perpendicular-
+# to-row at every position.
+_rcpt_file = os.path.join(ROOT, "lib", "vendor", "Connector_Blade.pretty",
+                          godb.MAIN_RCPT_FP.split(":")[1] + ".kicad_mod")
+_rcpt_text = open(_rcpt_file).read()
+_rcpt_pads = [(round(float(m.group(1)), 3), round(float(m.group(2)), 3),
+               float(m.group(3)), float(m.group(4)))
               for m in re.finditer(
-                  r'\(pad "1" thru_hole circle\s*\(at (-?[\d.]+) (-?[\d.]+)\)\s*\(size (-?[\d.]+)',
-                  open(os.path.join(ROOT, "lib", "vendor", "Connector_Blade.pretty",
-                                    "Keystone_3557_THT_Universal_Clip_TopEntry.kicad_mod")).read())]
-pad_span_along_row = (max(x + d / 2 for x, _y, d in _clip_pads)
-                      - min(x - d / 2 for x, _y, d in _clip_pads))
+                  r'\(pad "1" thru_hole circle\s*\(at (-?[\d.]+) (-?[\d.]+)\)'
+                  r'\s*\(size (-?[\d.]+) [-\d.]+\)\s*\(drill ([\d.]+)\)',
+                  _rcpt_text)]
+check(sorted((x, y) for x, y, _d, _dr in _rcpt_pads) == [(0.0, -2.54), (0.0, 2.54)],
+      "receptacle footprint: hole pair on LOCAL Y at (0,+/-2.54) -- axis "
+      "PERPENDICULAR to the row at rot 0, along the blade plane (owner's "
+      f"orientation requirement; found {[(x, y) for x, y, _d, _dr in _rcpt_pads]})")
+check(all(abs(dr - 1.4) < 1e-9 for _x, _y, _d, dr in _rcpt_pads),
+      "receptacle footprint: Ø1.40 finished holes (rev E 'RECOMMENDED "
+      "P.C.B. HOLES')")
+# plan-congruence with the blade tab's own leg holes (Ø1.40 drill, 5.08
+# pitch, both on the wall-normal axis): the owner's "aligned in the same
+# way as the blade's holes"
+_tab_drills = [float(m.group(1)) for m in re.finditer(
+    r'\(pad "1" thru_hole circle\s*\(at -?[\d.]+ -?[\d.]+\)\s*'
+    r'\(size [-\d.]+ [-\d.]+\)\s*\(drill ([\d.]+)\)', _fp_text)]
+check(len(_rcpt_pads) == 2 and abs(_rcpt_pads[1][1] - _rcpt_pads[0][1]) - 5.08 < 1e-9
+      and _tab_drills and all(abs(d - 1.4) < 1e-9 for d in _tab_drills),
+      "plan-congruence: receptacle hole pair (5.08 pitch, Ø1.40) matches the "
+      "63951-1 tab's own leg-hole pattern on the same wall-normal axis")
+
+# ROW FIT: with the hole pair perpendicular to the row, the receptacle's
+# along-row extent is only its across-thickness DEPTH -- UN-DIMENSIONED on
+# rev E (drawn at the 3.7mm proportional estimate; the #1 OQ-86 sample item
+# for this part: if the sample measures > 4.0mm, atx24 falls back to the
+# 6.3mm pitch). Extents measured off the vendored footprint, never
+# hand-copied. Floors: 0.5mm bare-brass body air gap (different nets);
+# courtyards may touch (gap >= 0) but not overlap; pad web is generous here
+# (pads lie along Y, so along-row web = pitch - pad dia).
+_rcpt_cy = godb.cp.courtyard_bbox(godb.MAIN_RCPT_FP)
+rcpt_cy_along_row = _rcpt_cy[1] - _rcpt_cy[0]       # courtyard X extent
+_body = re.search(r'\(fp_rect\s*\(start (-?[\d.]+) -?[\d.]+\)\s*\(end (-?[\d.]+)',
+                  _rcpt_text)
+rcpt_depth = abs(float(_body.group(2)) - float(_body.group(1)))   # F.Fab body X
+_rcpt_pad_dia = _rcpt_pads[0][2]
 for fam, pitch in godb.TAB_PITCH.items():
-    body_gap = pitch - clip_along_row
-    pad_gap = pitch - pad_span_along_row
-    check(body_gap >= 0.5,
-          f"{fam}: clip courtyard gap at {pitch}mm pitch = {body_gap:.2f}mm "
-          f"(clip courtyard {clip_along_row:.2f}mm along-row; floor 0.5)")
-    check(pad_gap >= 0.5 - 1e-9,
-          f"{fam}: clip THT-pad web at {pitch}mm pitch = {pad_gap:.2f}mm "
-          f"(pad span {pad_span_along_row:.2f}mm along-row; floor 0.5 = the "
-          f"stated solder web that defines the 6.3mm pitch floor)")
+    body_gap = pitch - rcpt_depth
+    cy_gap = pitch - rcpt_cy_along_row
+    pad_web = pitch - _rcpt_pad_dia
+    check(body_gap >= 0.5 - 1e-9,
+          f"{fam}: receptacle body air gap at {pitch}mm pitch = {body_gap:.2f}mm "
+          f"(depth {rcpt_depth:.2f}mm est along-row; floor 0.5, bare brass, "
+          f"different nets -- depth is sample-gated)")
+    check(cy_gap >= -1e-9,
+          f"{fam}: receptacle courtyards non-overlapping at {pitch}mm pitch "
+          f"(gap {cy_gap:.2f}mm; courtyard {rcpt_cy_along_row:.2f}mm along-row)")
+    check(pad_web >= 0.5 - 1e-9,
+          f"{fam}: receptacle THT-pad web at {pitch}mm pitch = {pad_web:.2f}mm "
+          f"(pad Ø{_rcpt_pad_dia}, holes along Y -- not the floor driver)")
 
 
 def tab_centres(fam):

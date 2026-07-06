@@ -165,6 +165,39 @@ own 2x5 -> 1x4-socket rework DEFERRED (wire surgery on a hand file under paralle
 edit), fully spec'd in `docs/standard-tier-review/blade-fit-check-2026-07-04.md`
 addendum 5 (D.6), which with `pcb_placement()` remains the authoritative mating drawing
 (no main-board PCB clip placement exists on this branch).
+**MAIN-BOARD MATE SUPERSEDED (2026-07-06, iteration 7, OWNER-RATIFIED — the iteration-5
+Keystone 3557 build above is RETIRED; chain in blade-fit-check-2026-07-04.md addenda 6-7):**
+the mate is now the **TE 63969-1 FASTON .250 PCB RECEPTACLE** (vertical/top entry, brass/tin,
+22.9A @30C-rise per TE 108-1706, 600VAC, THT 2x Ø1.40 holes at 5.08; 63968-1 = same-land LIF
+fallback; LCSC C2961150 stock ~5 = restock watch, DigiKey depth ~$0.30; new fp
+`cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT`; rev-E CD + app spec
+114-2156 + prod spec 108-1706 vendored in lib/datasheets). It is the DESIGNED mate for the
+63951-1 blade — dwg note 3 puts our 0.81mm thickness at its DESIGN CENTRE, retiring the
+27%-over-centre #1 fit item. ORIENTATION (owner requirement, PROVEN from the rev-E views +
+checker-asserted): the hole pair runs ALONG THE BLADE PLANE = wall normal, PERPENDICULAR to
+the row, plan-congruent with the blade's own Ø1.40/5.08 leg holes — the blade's bottom edge
+enters the slot edge-wise. Along-row footprint = only the receptacle's ~3.7mm across-thickness
+depth (UN-DIMENSIONED on rev E; **depth ≤4.0mm = the #1 OQ-86 sample item — above it atx24
+falls back to 6.3**) → floor 4.2; **pitches 4.2/4.7/5.2**. JOINT COUNTS re-ratified at
+22.9A/125% (18.32A/joint): **atx24 10** (3V3 x2; GND x4 at 18.0A = 127% hairline, surfaced),
+**eps 6/cable unchanged** (132%), **pcie 6/cable = 3/polarity** (2/polarity was 117% FAIL).
+Boards: **atx24 61.0x21.4, eps 28.5x20.0, pcie 31.0x20.0** (pcie GROWS honestly — +2 ratified
+joints outweigh its pitch win). atx24 internals reworked for the 4.2 pitch: signal descents
+jog onto COMPUTED mid-gap columns (x0+2.1 mod 4.2 — the old fixed phase-3.15 trick dies at
+4.2; nesting asserted in code), SR pads repacked 2x3 with their extent now OWNED by W (the
+shrink had put SR6 on the Edge.Cuts — caught by DRC). Seating: float 12.41 unchanged,
+receptacle top (8.38) cleared by 4.03 (better than the 3557's 2.21); detent-hole engagement
+NOT established at nominal float (retention possibly friction-only — sample item, with gang
+insertion force ≤26/44N-spec per joint). MAIN BOARDS: all TB instances swapped to TE 63969-1
+by property AND the ratified adds landed, netlist-verified onto their post-shunt nodes —
+24pin TB10 (/SENSE3V3_LO), pcie-2 TB15/16/25/26, pcie-3 TB15/16/25/26/35/36
+(/SENSEC*_LO + GND; TB<cable><idx> scheme, next-free indices); main-board BOM TB lines
+updated incl. retiring their STALE "Keystone 3586" rows iteration 5 had missed; ERC
+unchanged (1 pre-existing pin_not_driven each); J_SIG 1x4 rework still DEFERRED per D.6.
+Gates: ERC 0 x3, DRC 0/0 severity-error x3 (cosmetic silk only at full severity), checker
+**113 OKs** incl. the new orientation/plan-congruence/depth-parameterized row-fit assertions,
+keying re-proved w/ teeth (sabotaged pcie=4.8 correctly fails; eps and pcie now BOTH 6 tabs —
+pitch deltas alone carry that pair).
 
 Prior baseline, retained for provenance: **v1.3.0 (2026-07-03), controlled baseline** — THE
 CONSUMER BETA LINE, folding in the owner-ruled 2026-07-03 standard-tier decisions

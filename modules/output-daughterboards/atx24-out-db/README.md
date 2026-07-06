@@ -13,6 +13,35 @@ fan-out copper only, per the ratified "no components beyond the connector
 body and its fan-out copper" text.
 
 
+> **ITERATION 7 (2026-07-06, owner-ratified) — READ FIRST, supersedes the
+> iteration-5 numbers below where they differ.** Main-board mate changed:
+> Keystone **3557 clip → TE 63969-1 FASTON .250 PCB RECEPTACLE** (vertical/
+> top entry; the DESIGNED mate for the 63951-1 blade — rev-E dwg note 3
+> puts our 0.81 mm thickness at its design centre, retiring the
+> 27%-over-centre fit item; 22.9 A @ 30 °C rise per TE 108-1706; 63968-1 =
+> same-land low-insertion-force fallback; LCSC C2961150, stock ~5 =
+> restock watch, DigiKey depth). **ORIENTATION (owner requirement, proven
+> from `lib/datasheets/TE_63969_customer_drawing_revE.pdf` and
+> checker-asserted):** the receptacle's two Ø1.40 holes at 5.08 mm pitch
+> run **perpendicular to the row**, along the descending blade's plane —
+> plan-congruent with the blade's own leg holes; the blade's bottom edge
+> enters the slot edge-wise. Along-row footprint is therefore only the
+> receptacle's ~3.7 mm across-thickness depth (UN-DIMENSIONED on rev E —
+> **depth ≤ 4.0 mm is the #1 sample-gate item; above it, atx24 falls back
+> to a 6.3 pitch**): pitch floor 3.7 + 0.5 = **4.2 mm**; pitches now
+> **atx24 4.2 / eps 4.7 / pcie 5.2**. Joint counts re-ratified at
+> 22.9 A/125% (18.32 A allowable per joint): **atx24 10 tabs** (3V3 gains a
+> second joint at 24.0 A basis; GND ×4 = 18.0 A/joint = 127% hairline,
+> surfaced), **eps holds 6/cable** (17.33 A = 132%), **pcie 6/cable**
+> (3/polarity; 2/polarity was 19.5 A = 117% FAIL). Boards: **atx24 61.0 ×
+> 21.4, eps 28.5 × 20.0, pcie 31.0 × 20.0 mm** (pcie GROWS — the +2
+> ratified joints outweigh its pitch win; honest number). Seating: float
+> 12.41 mm unchanged; the 8.38 mm receptacle top is cleared by **4.03 mm**;
+> detent-hole engagement at nominal float is NOT established (retention may
+> be spring-friction only — sample item, with gang insertion force). Full
+> record: `docs/standard-tier-review/blade-fit-check-2026-07-04.md`
+> **addenda 6–7**.
+
 > **ITERATION 5 (2026-07-05, owner) — READ FIRST, supersedes the iteration-4
 > numbers below where they differ.** Main-board clip part changed: Keystone
 > **3586 (SMD) → 3557 bare top-entry clip** (THT, UL 30 A @ 500 V AC; the

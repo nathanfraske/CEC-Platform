@@ -10,8 +10,9 @@
 # 8-pin per-cable, the last shared unmodified by the 2-port and 3-port SKUs).
 # Per family: TE 63951-1 right-angle FASTON tabs (input side; blades point
 # straight DOWN past the board's bottom edge and drop into the MAIN board's
-# Keystone universal blade clips top-entry, per the owner's 2026-07-05
-# sketch -- clips NOT built here, no main-board PCB placement exists yet)
+# TE 63969-1 FASTON PCB receptacles top-entry, per the owner's 2026-07-05
+# sketch + the 2026-07-06 iteration-7 ratification -- receptacles NOT built
+# here, no main-board PCB placement exists yet)
 # fan out in copper to a bare THT solder field (output side, spec §2.8's
 # "one field, two/three uses": bare pigtail, or a MODDIY-class vertical
 # header where the field is dimensionally compatible -- see
@@ -78,9 +79,20 @@ ATX24_FIELD_NET = {  # ATX-24 pin -> net (None = NC/reserved, matches the real
     14: "-12V", 15: "GND", 16: "PS_ON#", 17: "GND", 18: "GND", 19: "GND",
     20: None, 21: "+5V", 22: "+5V", 23: "+5V", 24: "GND",
 }
-ATX24_TABS = [  # (ref, net) -- 9 tabs, asymmetric group sizes 1/2/1/1/4 (keying)
+ATX24_TABS = [  # (ref, net) -- 10 tabs, group sizes 1/2/2/1/4. ITERATION-7
+    # COUNT (owner-ratified 2026-07-06): the TE 63969-1 receptacle's 22.9A
+    # base rating (108-1706, 30degC-rise method) under the ratified 125%
+    # policy allows 18.32A/joint; the 3V3 rail's 4 circuits x the 6A ATX bar
+    # = 24.0A no longer fits ONE joint (95%) -> +3V3 gains a second tab
+    # (12.0A/joint, 191%). Full per-rail re-derivation: 12V 2x6=12.0A/1
+    # joint (191%); 5V 5x6=30.0A/2 (153%); 3V3 24.0A/2 (191%); 5VSB 6.0A/1
+    # (382%); GND return = sum 72.0A/4 = 18.0A/joint = 127.2% -- LEGAL but
+    # HAIRLINE (0.32A headroom; a 5th GND joint would give 158% at 11 tabs
+    # total -- surfaced to the owner, who ratified the policy application at
+    # 10). See blade-fit memo addendum 7.
     ("J10", "+12V"), ("J11", "+5V"), ("J12", "+5V"), ("J13", "+3V3"),
-    ("J14", "+5VSB"), ("J15", "GND"), ("J16", "GND"), ("J17", "GND"), ("J18", "GND"),
+    ("J14", "+3V3"), ("J15", "+5VSB"),
+    ("J16", "GND"), ("J17", "GND"), ("J18", "GND"), ("J19", "GND"),
 ]
 # SIGNAL STUB, iteration 5 (owner: 1x4 blind-mate, superseding the 2x5 --
 # blade-fit memo addendum 5): a RIGHT-ANGLE Dupont-class 1x4 pin header,
@@ -109,13 +121,16 @@ FAMILIES["atx24-out-db"] = dict(
     W=140.0, H=75.0,
 )
 
-# ---- EPS 8-pin (per cable): 6 blade joints (3/polarity), 4x12V+4xGND field,
+# ---- EPS 8-pin (per cable): 6 blade joints (3/polarity -- HOLDS at the
+# iteration-7 TE 63969-1 rating: 52A cable basis / 3 = 17.33A/joint = 132%
+# of 22.9A, above the ratified 125% floor), 4x12V+4xGND field,
 # reuses the generic cec:CEC_CONN_2x4 symbol (unnamed pins; nets assigned by
 # wiring, matching the platform's own corrected EPS pinout: 1-4=GND,5-8=+12V).
 EPS8_FIELD_NET = {1: "GND", 2: "GND", 3: "GND", 4: "GND",
                   5: "+12V", 6: "+12V", 7: "+12V", 8: "+12V"}
-EPS8_TABS = [  # 6 tabs, groups of 3 (GND then 12V) -- keying: different pitch/
-    # gap signature + tab count (6) vs the other two families.
+EPS8_TABS = [  # 6 tabs, groups of 3 (GND then 12V) -- keying: pitch delta vs
+    # pcie (which now ALSO has 6 tabs, iteration 7) + count vs atx24 (10),
+    # carried by the checker's no-subset proof.
     ("J10", "GND"), ("J11", "GND"), ("J12", "GND"),
     ("J13", "+12V"), ("J14", "+12V"), ("J15", "+12V"),
 ]
@@ -128,15 +143,21 @@ FAMILIES["eps-out-db"] = dict(
     W=95.0, H=65.0,
 )
 
-# ---- PCIe 8-pin (per cable, shared by 2-port/3-port): 4 blade joints
-# (2/polarity), 3x12V+3xGND+2 sense field (SENSE0/1 tied to the GND net
-# directly -- "tied per the PCIe CEM convention on the daughterboard copper",
-# spec §2.8 v1.4.0; no dedicated blade tab, negligible current).
+# ---- PCIe 8-pin (per cable, shared by 2-port/3-port): 6 blade joints
+# (3/polarity -- ITERATION-7 COUNT, owner-ratified 2026-07-06: the cable's
+# ~39A sustained basis over 2 joints = 19.5A/joint = 117% of the TE
+# 63969-1's 22.9A rating, under the ratified 125% floor -> 3/polarity =
+# 13.0A/joint, 176%), 3x12V+3xGND+2 sense field (SENSE0/1 tied to the GND
+# net directly -- "tied per the PCIe CEM convention on the daughterboard
+# copper", spec §2.8 v1.4.0; no dedicated blade tab, negligible current).
 PCIE8_FIELD_NET = {1: "+12V", 2: "+12V", 3: "+12V",
                    4: "GND", 5: "GND", 6: "GND", 7: "GND", 8: "GND"}
-PCIE8_TABS = [  # 4 tabs, groups of 2 (12V then GND) -- distinct pitch/gap
-    # signature + tab count (4) vs EPS(6)/24-pin(9).
-    ("J10", "+12V"), ("J11", "+12V"), ("J12", "GND"), ("J13", "GND"),
+PCIE8_TABS = [  # 6 tabs, groups of 3 (12V then GND). NOTE pcie now has the
+    # SAME tab count as EPS (6) -- keying between them rests on the pitch
+    # delta alone, carried by the checker's no-subset proof (margin 1.25 =
+    # 2.5x the 0.5mm tolerance at d=0.5; see TAB_PITCH).
+    ("J10", "+12V"), ("J11", "+12V"), ("J12", "+12V"),
+    ("J13", "GND"), ("J14", "GND"), ("J15", "GND"),
 ]
 FAMILIES["pcie-out-db"] = dict(
     dirn="output-daughterboards/pcie-out-db", base="pcie-out-db-board",
@@ -204,11 +225,17 @@ TE_TAB_PROPS = {
                    "male blade). Mounted legs-horizontal / pitch-vertical / "
                    "blade-down (owner sketch 2026-07-05): the blade descends "
                    "past the board's bottom edge at a 2.54-8.89mm standoff "
-                   "and drops top-entry into the main board's Keystone "
-                   "universal blade clip -- spec Sec. 2.8 v1.4.0 / docs/"
-                   "standard-tier-review/output-daughterboard-study-2026-07-"
-                   "04.md Sec.8.9-8.10 / blade-fit-check-2026-07-04.md "
-                   "addenda (addendum 3 = this geometry).",
+                   "and drops top-entry into the main board's TE 63969-1 "
+                   "FASTON PCB receptacle (iteration 7, owner-ratified "
+                   "2026-07-06 -- the DESIGNED mate: rev-E dwg note 3 puts "
+                   "our 0.81mm blade at its thickness design centre; the "
+                   "receptacle's 5.08mm hole pair runs along the blade "
+                   "plane, plan-congruent with this tab's own leg holes) -- "
+                   "spec Sec. 2.8 v1.4.0 / docs/standard-tier-review/"
+                   "output-daughterboard-study-2026-07-04.md Sec.8.9-8.10 / "
+                   "blade-fit-check-2026-07-04.md addenda (3 = tab "
+                   "geometry, 6-7 = the receptacle study + orientation "
+                   "chain).",
 }
 FIELD_PROPS = {
     "Manufacturer": "CEC (in-house)", "LCSC": "",
@@ -328,13 +355,20 @@ def gen_schematic(fam, out=sys.stdout):
 #     part of the board or its copper crosses Edge.Cuts; only the tab's
 #     off-board descender (at the Z-standoff) passes below the edge LEVEL,
 #     with no material conflict.
-# Main-board clip orientation implied: slot axis PERPENDICULAR to this
-# board's wall line (the blade's 6.35mm width runs along the wall normal),
-# clip's narrow 3.81mm body dimension along the row, clip slot centreline
-# offset ~5.72mm from this board's front face (the blade band's centre,
-# (2.54+8.89)/2). The main boards carry NO clip placements yet (TB symbols
-# exist in their schematics only, no PCB footprints as of this branch), so
-# this generator's pcb_placement() remains the authoritative mating drawing.
+# Main-board mate orientation (ITERATION 7, owner-ratified 2026-07-06 --
+# supersedes the iteration-5 Keystone 3557 clip): TE 63969-1 FASTON PCB
+# receptacle, vertical/top entry. Its slot's WIDE dimension lies in the
+# blade's plane -- the blade's 6.35mm width runs along the wall normal, and
+# the receptacle's two Ø1.40 PCB holes (5.08mm pitch) run along that SAME
+# axis, PERPENDICULAR to the row, plan-congruent with the blade's own leg
+# holes ("aligned in the same way as the blade's holes", owner). Only the
+# receptacle's un-dimensioned ~3.7mm across-thickness depth lies along the
+# row. Slot/hole-pair centreline offset ~5.72mm from this board's front
+# face (the blade band's centre, (2.54+8.89)/2). The main boards carry NO
+# receptacle placements yet (TB symbols exist in their schematics only, no
+# PCB footprints as of this branch), so this generator's pcb_placement()
+# remains the authoritative mating drawing, and the checker asserts the
+# hole-axis orientation against MAIN_RCPT_FP per position.
 #
 # TWO-BAND LAYOUT (iteration 4, owner follow-up 2026-07-05: "can the agent
 # stack the blades right next to each other and put them below the pinout?
@@ -365,41 +399,68 @@ def gen_schematic(fam, out=sys.stdout):
 TAB_PITCH = {   # mm, centre-to-centre, single row -- the per-family KEYING
     # lever (together with tab COUNT and the whole-board no-subset-seating
     # proof in check_output_daughterboards.py).
-    # PITCH FLOOR (iteration 5, Keystone 3557 bare clip main-board side,
-    # catalog M55 p.41 -- NOT '3557-2', which is the 2-in-1 HOUSED holder,
-    # a different line item on the same page): the tab is non-binding
-    # (~0.84mm thin; 2.5mm pads). The clip must be rotated so its slot
-    # accepts the descending blade BROADSIDE (slot axis // the blade's
-    # 6.35mm width = the wall normal -- forced), and in that orientation
-    # its LEG PAIR runs ALONG THE ROW. That leg axis was VERIFIED against
-    # the mounting details, and it CONTRADICTS the initial working
-    # assumption (legs // jaw): the housed 3557-2's detail shows per-clip
-    # 3.4mm leg pairs PERPENDICULAR to the 13.5mm fuse axis, and an ATO
-    # blade's 5.2mm width runs ALONG the fuse axis (13.5+5.2 = the fuse's
-    # ~18.7mm width), so slot // fuse axis, legs PERPENDICULAR to it.
-    # Along-row span = the LEG PATTERN, not the 3.8mm body:
-    #   floor = 3.4 leg pitch + 2.4 pad (Kd 1.6 drill = the leg dia,
-    #           friction fit, +0.4 annulus) = 5.8mm span
-    #         + 0.50 stated adjacent-clip solder web (bare brass at
-    #           12V-class needs <0.1mm electrically per IPC-2221; 0.5 is
-    #           the mechanical/solder number) = 6.3mm
-    # (A ~4.5 floor would need a clip with legs INLINE with the slot --
-    # this part measurably is not that; vs the 3586's 6.6mm SMD span the
-    # 3557 rotation buys only 0.3-0.9mm/pitch. Honest result, reported.)
-    # atx24 sits AT the floor -- and 6.3 = 3 x 2.1mm, the field-stub
-    # lattice period, so iteration-4's grid alignment carries over (x0 at
+    # PITCH FLOOR (iteration 7, TE 63969-1 FASTON PCB receptacle main-board
+    # side -- owner-ratified 2026-07-06, superseding the iteration-5
+    # Keystone 3557 clip; full study = blade-fit memo addendum 6, orientation
+    # chain = addendum 7 + the receptacle footprint's own descr): the tab is
+    # non-binding (~0.84mm thin; 2.5mm pads). The receptacle is the DESIGNED
+    # mate for this exact blade (rev-E dwg note 3: mating tab 0.81+/-0.025 =
+    # our thickness AT design centre). ORIENTATION (owner requirement,
+    # verified from the rev-E views): the receptacle's two Ø1.40 PCB holes at
+    # 5.08mm pitch run ALONG THE TAB-WIDTH AXIS = the WALL NORMAL,
+    # perpendicular to the row -- plan-congruent with the blade's own
+    # Ø1.40/5.08 leg-hole pair in its vertical stamping plane ("aligned in
+    # the same way as the blade's holes"). So NEITHER the leg pattern NOR
+    # the 7.42mm roll span lies along the row; the along-row footprint is
+    # only the receptacle's ACROSS-THICKNESS DEPTH:
+    #   floor = 3.7 depth (UN-DIMENSIONED on rev E -- proportional estimate
+    #           from the 8:1 Section A-A, band 3.4-3.7, constructive upper
+    #           bound ~4.0; THE #1 OQ-86 SAMPLE ITEM for this part)
+    #         + 0.50 bare-brass adjacent-body air gap (different nets;
+    #           IPC-2221 needs <0.1mm electrically at 12V-class, 0.5 is the
+    #           mechanical/assembly number) = 4.2mm
+    # (vs the 3557's 6.3mm leg-pattern floor -- the receptacle's rotation-
+    # free hole axis is what buys the 2.1mm/pitch). Pad web is NOT the
+    # driver here: pads are Ø2.4 at (0,+/-2.54) along Y, so along-row web =
+    # pitch - 2.4 = 1.8mm at the floor. DEPTH GATE: if the sample measures
+    # depth > 4.0mm, atx24 falls back to the 6.3mm (3-lattice) pitch; eps/
+    # pcie re-derive at measured depth + 0.5 + keying deltas.
+    # atx24 sits AT the floor -- and 4.2 = 2 x 2.1mm, the field-stub
+    # lattice period, so the grid alignment carries over (x0 at
     # lattice+1.05; every tab pad/stub/via >=1.05mm off every field
-    # stub/via vs the ~0.7mm conflict radius). eps/pcie sit above the
-    # floor purely for KEYING deltas.
-    # KEYING margins (G/2)*|d| vs the 0.5mm tolerance: eps-in-atx24 (G=5,
-    # d=0.4) = 1.00; pcie-in-eps (G=3, d=0.5) = 0.75; pcie-in-atx24
-    # (d=0.9) = 1.35 -- all >=1.5x; pattern keying not needed. Teeth
-    # re-verified at these pitches (sabotaged eps=7.1, d=0.1 to pcie ->
-    # the proof correctly fails).
-    "atx24-out-db": 6.3,   # 9 tabs; AT the floor; = 3x2.1 lattice-aligned
-    "eps-out-db": 6.7,     # 6 tabs; floor + 0.4 keying delta to atx24
-    "pcie-out-db": 7.2,    # 4 tabs; +0.5 to eps, +0.9 to atx24
+    # stub/via vs the ~0.7mm conflict radius). NOTE the iteration-5 descent
+    # phase trick (lattice columns landing mid-gap at phase 3.15 of 6.3)
+    # does NOT survive a 4.2 pitch -- lattice columns now land at phases
+    # 1.05/3.15, both 1.05 from a tab pad centre (pad radius 1.25 =
+    # collision), so route_atx24 JOGS each signal descent to a COMPUTED
+    # mid-gap column (x0 + 2.1 mod 4.2) at jog_y before it enters the tab
+    # band. eps/pcie sit above the floor purely for KEYING deltas.
+    # KEYING at the iteration-7 counts (atx24 10 / eps 6 / pcie 6 -- eps and
+    # pcie now have EQUAL counts, so pitch differentiation alone carries the
+    # no-subset proof between them): worst centred-overlay deviation
+    # (G/2)*|d| vs the 0.5mm tolerance: eps-vs-pcie (G=5, d=0.5) = 1.25;
+    # eps-in-atx24 (G=5, d=0.5) = 1.25; pcie-in-atx24 (G=5, d=1.0) = 2.50 --
+    # all >=2.5x tolerance; pattern keying not needed. Teeth re-verified at
+    # these pitches (sabotage: pcie=4.8, d=0.1 to eps -> the proof correctly
+    # fails).
+    "atx24-out-db": 4.2,   # 10 tabs; AT the floor; = 2x2.1 lattice-aligned
+    "eps-out-db": 4.7,     # 6 tabs; floor + 0.5 keying delta to atx24
+    "pcie-out-db": 5.2,    # 6 tabs; +0.5 to eps, +1.0 to atx24
 }
+
+# TE 63969-1 -- the MAIN-BOARD mate (owner-ratified 2026-07-06, iteration 7;
+# blade-fit memo addenda 6-7): FASTON .250/.205 PCB receptacle, vertical/top
+# entry, designed for the 63951-1's exact 6.35 x 0.81 blade. Populated
+# default 63969-1 (LCSC C2961150, stock ~5 -- restock watch; DigiKey depth
+# ~$0.30, owner-acquired path fine); 63968-1 = the LOW-INSERTION-FORCE
+# drop-in fallback on the SAME land (catalog 82004 p.46 Style A: identical
+# A/L dims and the same recommended 5.08/Ø1.40 hole pair; mate force <=26N
+# vs <=44N). The main boards carry this part on their TB refs (schematics
+# only -- no main-board PCB placement exists on this branch); this
+# generator's pcb_placement() remains the authoritative mating drawing, and
+# the checker asserts the hole-axis orientation against this footprint.
+MAIN_RCPT_FP = "cec-Connector_Blade:TE_63969_FASTON_Receptacle_250_Vertical_THT"
+MAIN_RCPT_HEIGHT = 8.38    # above-board profile (rev E: 12.19 total - 3.81 tails)
 
 _TAB_CY = cp.courtyard_bbox(TE_TAB_FP)
 # Footprint local frame (see the .kicad_mod descr): origin = leg-pair
@@ -455,6 +516,23 @@ _STUB_GRID = 2.1             # the atx24 field-stub X lattice: 4.2mm columns
                              # field stub by >= 1.05mm (conflict radius is
                              # ~0.7mm: 0.25 half-width each side + 0.2 clr).
 
+# atx24 SR1-6 DNP sense-return pads (OQ-88 provision form): 2 cols x 3 rows
+# right of the field. ITERATION-7 repack (was 3x2 at 4.0mm columns): the
+# board lost ~13mm of length to the 4.2mm pitch, and the old grid's third
+# column pushed SR6 onto the Edge.Cuts (2 real copper_edge_clearance hits at
+# regen -- caught by DRC, fixed by making pcb_placement() OWN the SR extent
+# in W instead of hoping the row length covers it). Pad is 2.0 x 2.5.
+_SR_X_OFF, _SR_Y0 = 2.4, 2.6          # grid anchor from (field_right, top)
+_SR_COL_PITCH, _SR_ROW_PITCH = 3.2, 4.6
+_SR_COLS, _SR_ROWS = 2, 3
+_SR_HALF_W = 1.0                      # pad half-width (2.0mm pad)
+
+
+def _sr_positions(field_right):
+    """SR1-6 pad centres (atx24 only)."""
+    return [(field_right + _SR_X_OFF + (i % _SR_COLS) * _SR_COL_PITCH,
+             _SR_Y0 + (i // _SR_COLS) * _SR_ROW_PITCH) for i in range(6)]
+
 
 def pcb_placement(fam):
     """TWO-BAND stack (iteration 4, carried into 5): field band on top; the
@@ -494,13 +572,19 @@ def pcb_placement(fam):
         # _TAB_PAD_EXT is symmetric (2.54 + 1.25 above AND below the midpoint)
         tab_y = lanes_bottom + _LANE_PAD_CLR + _TAB_PAD_EXT
         base = _LEFT_MARGIN + _TAB_HALF_X
-        # anchor step = the full 6.3mm pitch (= 3 lattice periods), NOT the
-        # bare 2.1 lattice: route_atx24's three signal descents rely on the
-        # (column - x0) mod 6.3 phase being exactly 3.15 (mid tab-gap), and
-        # a 2.1-step anchor can rotate that phase to 1.05/5.25 -- measured
-        # as real shorting_items against tab pads before this fix.
-        k = math.ceil((base - fx - 1.05) / (3 * _STUB_GRID) - 1e-9)
-        tab0_x = fx + 1.05 + 3 * _STUB_GRID * k
+        # anchor step = the full pitch (4.2 = 2 lattice periods at iteration
+        # 7), NOT the bare 2.1 lattice -- the iteration-5 lesson (a 2.1-step
+        # anchor rotated the descent phase onto tab pads, measured as real
+        # shorting_items) is kept structurally even though route_atx24 now
+        # COMPUTES its mid-gap descent columns from x0 (x0 + 2.1 mod pitch)
+        # instead of assuming a fixed lattice phase: full-pitch stepping
+        # keeps the mid-gap set itself lattice-stable (every mid-gap X
+        # >= 1.05mm from every field stub/via, same guarantee the tabs get).
+        step = TAB_PITCH[fam]
+        assert abs(step / _STUB_GRID - round(step / _STUB_GRID)) < 1e-9, \
+            "atx24 pitch must be a whole number of 2.1mm lattice periods"
+        k = math.ceil((base - fx - 1.05) / step - 1e-9)
+        tab0_x = fx + 1.05 + step * k
     else:
         tab_y = field_bottom + _BAND_GAP + _TAB_TOP_EXT
         tab0_x = _LEFT_MARGIN + _TAB_HALF_X
@@ -516,6 +600,12 @@ def pcb_placement(fam):
         hy = H - 1.4                          # pad bottom edge at H-0.55
         P[h["ref"]] = (hx, hy, 0)
         right_ref = max(right_ref, hx + cp.courtyard_bbox(h["fp"])[1])
+    if fam == "atx24-out-db":
+        # the SR pad grid is PCB-only (placed in build_pcb_base) but its
+        # copper is board content all the same -- W must own it (iteration-7
+        # lesson: the shrunken board put SR6 on the edge when W didn't).
+        sr_right = max(x for x, _y in _sr_positions(field_right)) + _SR_HALF_W
+        right_ref = max(right_ref, sr_right)
     W = max(right_ref, tab_last_x + _TAB_HALF_X) + 1.0
     return W, H, P
 
@@ -524,8 +614,12 @@ def seating_report(tip_clearance=1.0):
     """Per-family seating/float numbers for the README/addendum write-up
     (reporting only -- placement does not consume this). tip_clearance =
     the recommended gap between the seated blade tip and the main-board
-    surface (hard stop ~0.4-0.5mm when the tip meets the clip's own SMT
-    base metal). Returns {fam: dict}."""
+    surface (the TE 63969-1 receptacle is open at the bottom between its
+    two solder tails, so the tab tip's hard stop is the main-board surface
+    itself; the cantilevered floor is a vertical backing plate, not a
+    bottom stop -- rev E / 114-2156 Fig 1). rcpt_top_clear = how far the
+    board's own bottom edge floats ABOVE the receptacle's 8.38mm top.
+    Returns {fam: dict}."""
     out = {}
     for fam in FAMILIES:
         W, H, P = pcb_placement(fam)
@@ -535,6 +629,7 @@ def seating_report(tip_clearance=1.0):
         flt = tip_clearance + tip_below_edge         # bottom-edge float above main board
         out[fam] = dict(W=W, H=H, tab_y=tab_y, leg_height=leg_height,
                         tip_below_edge=tip_below_edge, float_=flt,
+                        rcpt_top_clear=flt - MAIN_RCPT_HEIGHT,
                         top_above_main=flt + H)
     return out
 
@@ -608,9 +703,7 @@ def build_pcb_base(fam, out_override=None):
     # header's 6 reserved pins); the sense-return decision stays open.
     if fam == "atx24-out-db":
         _fx, _fy, _fr, _fb = _field_geom(fam)
-        for i in range(6):
-            sx = _fr + 3.0 + (i % 3) * 4.0
-            sy = 2.6 + (i // 3) * 4.6
+        for i, (sx, sy) in enumerate(_sr_positions(_fr)):
             fps.append(cp.place("cec-Connector_Generic:CEC_SR_Pad_DNP",
                                 f"SR{i+1}", sx, sy, 0, padnet, code_of, val=None))
     e = []
@@ -869,15 +962,42 @@ def route_atx24():
     x1, y1 = _col_xy("-12V")     # c1, row1
     x3, y3 = _col_xy("PS_ON#")   # c3, row1
     x7, y7 = _col_xy("PWR_OK")   # c7, row0
+
+    # ITERATION-7 descent phase (4.2mm pitch): a lattice column can no
+    # longer cross the tab band -- lattice Xs land at phases 1.05/3.15 of
+    # the 4.2 grid, both only 1.05mm from a tab pad centre (radius 1.25 =
+    # collision; at the old 6.3 pitch phase 3.15 was dead-centre mid-gap).
+    # Each signal therefore JOGS at jog_y (the same 0.6mm F.Cu band between
+    # row1 pads and the first lane the iteration-5 jogs used) onto its
+    # nearest COMPUTED mid-gap column m = x0 + 2.1 (mod 4.2), 2.1mm from
+    # both neighbouring tab pads (edge clearance 0.85 vs the 0.2 rule) and
+    # >=1.05mm from every field stub/via (the same lattice guarantee the
+    # tabs ride). Each jog span is <=1.05mm long; measured against the real
+    # bus-stub X set when this was derived (fx-relative stubs {0, 6.3,
+    # 14.7, 23.1, 33.6, 35.7, 37.8, 39.9, 42.0, 44.1, 48.3} vs spans
+    # [3.15,4.2], [11.55,12.6], [31.5,32.55]): no bus stub X falls inside
+    # any span, nearest approach 1.05 (m7's vertical vs the fx+33.6 stub),
+    # and the spans are pairwise >=7mm apart at the one shared y. Nesting
+    # order m1 < m3 < m7 is asserted (leftmost descent = deepest level =
+    # leftmost header pad).
+    tab0_x = P[cfg["tabs"][0][0]][0]
+    pitch = TAB_PITCH[fam]
+
+    def _midgap(x):
+        return tab0_x + pitch / 2 + pitch * round((x - tab0_x - pitch / 2) / pitch)
+
+    m1, m3, m7 = _midgap(x1), _midgap(x3), _midgap(x7 + 2.1)
+    assert m1 < m3 < m7, f"descent nesting broke: {m1}, {m3}, {m7}"
     P2P_TRACK_W = 0.2
     header_paths = {
-        "-12V": [(x1, y1), (x1, lvl["-12V"]), (pad_x[1], lvl["-12V"]),
+        "-12V": [(x1, y1), (x1, jog_y), (m1, jog_y),
+                 (m1, lvl["-12V"]), (pad_x[1], lvl["-12V"]),
                  (pad_x[1], hhy)],
-        "PS_ON#": [(x3, y3), (x3, jog_y), (x3 - 2.1, jog_y),
-                   (x3 - 2.1, lvl["PS_ON#"]), (pad_x[2], lvl["PS_ON#"]),
+        "PS_ON#": [(x3, y3), (x3, jog_y), (m3, jog_y),
+                   (m3, lvl["PS_ON#"]), (pad_x[2], lvl["PS_ON#"]),
                    (pad_x[2], hhy)],
         "PWR_OK": [(x7, y7), (x7, y7 + 2.2), (x7 + 2.1, y7 + 2.2),
-                   (x7 + 2.1, jog_y), (x7, jog_y), (x7, lvl["PWR_OK"]),
+                   (x7 + 2.1, jog_y), (m7, jog_y), (m7, lvl["PWR_OK"]),
                    (pad_x[3], lvl["PWR_OK"]), (pad_x[3], hhy)],
     }
     for net, pts in header_paths.items():
@@ -914,13 +1034,17 @@ def write_rules(fam):
         patterns = [("Power", "+12V"), ("Power", "+5V"), ("Power", "+3V3"),
                     ("Power", "+5VSB"), ("Power", "GND"),
                     ("Signal", "/-12V"), ("Signal", "/PWR_OK"), ("Signal", "/PS_ON#")]
-        header = ("24-pin ATX daughterboard -- 9 blade-tab joints "
-                  "(12V x1 / 5V x2 / 3.3V x1 / 5VSB x1 / GND x4) + a 2x5 "
-                  "signal stub (PWR_OK/PS_ON#/-12V + GND-ref + 6 reserved), "
-                  "standing perpendicular to the main board, tabs blade-"
-                  "down per the owner's 2026-07-05 sketch. Power netclass "
-                  "0.5mm/0.9-0.5mm via matches the 0.5mm stub tracks laid "
-                  "by route_atx24(); each of the 4 bus rails also gets its "
+        header = ("24-pin ATX daughterboard -- 10 blade-tab joints "
+                  "(12V x1 / 5V x2 / 3.3V x2 / 5VSB x1 / GND x4; iteration-"
+                  "7 count at the TE 63969-1 receptacle's 22.9A rating "
+                  "under the ratified 125% policy) + a 1x4 blind-mate "
+                  "signal stub (-12V/PS_ON#/PWR_OK/GND), standing "
+                  "perpendicular to the main board, tabs blade-down per "
+                  "the owner's 2026-07-05 sketch, dropping into TE 63969-1 "
+                  "FASTON PCB receptacles (hole pair perpendicular to the "
+                  "row, memo addendum 7). Power netclass 0.5mm/0.9-0.5mm "
+                  "via matches the 0.5mm stub tracks laid by "
+                  "route_atx24(); each of the 4 bus rails also gets its "
                   "own thin In2.Cu lane zone in the corridor below the "
                   "field (0.3mm wide, 0.65mm pitch -- not netclass-"
                   "controlled, drawn directly; see ATX24_LANE_SLOT), which "
