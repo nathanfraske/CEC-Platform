@@ -1,4 +1,4 @@
-<title>CEC Standard Bundle — Sell Sheet & Outlook</title>
+<title>CEC Standard Bundle: Capability & Readiness</title>
 <style>
   :root {
     --bg: #f4f5f7;
@@ -173,68 +173,70 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">CEC Standard Bundle · Sell Sheet &amp; Outlook</div>
-    <h1>The sensing that catches the failure is already in the <span class="hl">copper</span>.</h1>
-    <p class="lede">CEC watches every power rail and — on the connector that actually melts — every
-      individual pin. The hardware to see a joint degrading before it fails is on the board today;
-      the firmware that turns that sensing into a live alert is the remaining, fully-specified work.</p>
+    <div class="eyebrow">CEC Standard Bundle · Capability &amp; Readiness</div>
+    <h1>See the fault, not just the <span class="hl">symptom</span>.</h1>
+    <p class="lede">Power is the one system in a PC that software can't measure and a shop can't
+      reproduce. CEC records the real current at every rail, and every pin of the graphics
+      connector, and keeps the record through a crash. When something goes wrong, the cause is
+      already written down.</p>
     <div class="bundle">
       <span class="chip">Hub</span><span class="plus">+</span>
       <span class="chip">24-pin ATX</span><span class="plus">+</span>
       <span class="chip">EPS</span><span class="plus">+</span>
       <span class="chip">PCIe&nbsp;·&nbsp;or&nbsp;·&nbsp;12VHPWR</span>
-      <span style="color:var(--ink-3)">— one GPU-power module to match the system</span>
+      <span style="color:var(--ink-3)">one GPU-power module to match the system</span>
     </div>
   </header>
 
   <div class="legend">
-    <span class="key"><span class="dot live"></span><b style="color:var(--ink)">Live in hardware</b>&nbsp;— sensing is in the board copper (alpha-validated)</span>
-    <span class="key"><span class="dot pending"></span><b style="color:var(--ink)">Firmware-pending</b>&nbsp;— hardware ready, logic specified, not yet coded</span>
+    <span class="key"><span class="dot live"></span><b style="color:var(--ink)">Live in hardware</b>&nbsp;: sensing is in the board copper (alpha-validated)</span>
+    <span class="key"><span class="dot pending"></span><b style="color:var(--ink)">Firmware-pending</b>&nbsp;: hardware ready, logic specified, not yet coded</span>
   </div>
 
   <section>
-    <div class="sec-head"><span class="sec-num">01</span><h2>Catch the defect before it fails</h2></div>
-    <p class="sec-sub">Each failure mode below is a real, physical way PC power delivery goes wrong.
-      The middle column is what the CEC hardware measures that exposes it early — the fingerprint.</p>
+    <div class="sec-head"><span class="sec-num">01</span><h2>What CEC sees that nothing else can</h2></div>
+    <p class="sec-sub">Each row is a real way PC power goes wrong. The middle column is the
+      signature CEC records that pins the cause: the difference between a known fix and a
+      parts-swap guess.</p>
     <div class="tablewrap">
       <table>
         <thead>
-          <tr><th style="width:26%">Failure mode</th><th style="width:32%">The fingerprint CEC sees</th><th style="width:22%">How (in copper)</th><th style="width:20%">Readiness</th></tr>
+          <tr><th style="width:26%">Failure mode</th><th style="width:32%">The signature CEC records</th><th style="width:22%">How (in copper)</th><th style="width:20%">Readiness</th></tr>
         </thead>
         <tbody>
           <tr class="hero">
             <td><span class="fail">12VHPWR connector melt<br><span style="font-weight:400;color:var(--ink-3);font-size:12px">the RTX-class failure</span></span></td>
-            <td class="senses"><b>Per-pin current imbalance</b> across all six 12&nbsp;V pins — the one pin hogging current <em>is</em> the precursor to the melt.</td>
+            <td class="senses"><b>Per-pin current imbalance</b> across all six 12&nbsp;V pins. The one pin carrying more than the rest is the precursor to the melt.</td>
             <td class="how">6× INA240 per-pin<br>current-sense amps</td>
             <td><span class="stat live"><span class="g"></span>HW LIVE</span> <span class="stat pending"><span class="g"></span>alert FW</span></td>
           </tr>
           <tr>
             <td><span class="fail">PSU rail sag / instability</span></td>
-            <td class="senses">Per-rail <b>voltage + ripple envelope</b> on +12/+5/+3.3/+5VSB, tied to load current.</td>
+            <td class="senses">Per-rail <b>voltage and ripple</b> on +12/+5/+3.3/+5VSB, tied to the load current that caused it.</td>
             <td class="how">24-pin 4× INA238<br>(V·I·P per rail)</td>
             <td><span class="stat live"><span class="g"></span>HW LIVE</span> <span class="stat pending"><span class="g"></span>trend FW</span></td>
           </tr>
           <tr>
             <td><span class="fail">GPU transient spikes</span></td>
-            <td class="senses">A fast current excursion flagged as a <b>binary event + averaged envelope</b>, per cable.</td>
+            <td class="senses">A fast current excursion recorded as an <b>event plus its averaged envelope</b>, per cable.</td>
             <td class="how">§6.13 INA181 CSA +<br>hysteresis comparator</td>
             <td><span class="stat pending"><span class="g"></span>HW designed</span> <span class="stat pending"><span class="g"></span>route+FW</span></td>
           </tr>
           <tr>
             <td><span class="fail">Overheating / thermal fault</span></td>
-            <td class="senses"><b>Temperature + rise-above-ambient</b> at the shunt row, plus INA238 die temperature.</td>
+            <td class="senses"><b>Temperature and rise above ambient</b> at the shunt row, plus INA238 die temperature.</td>
             <td class="how">12VHPWR TH1/TH2 NTCs;<br>Hub NTC; INA238 die</td>
             <td><span class="stat live"><span class="g"></span>HW LIVE</span> <span class="stat pending"><span class="g"></span>alert FW</span></td>
           </tr>
           <tr>
             <td><span class="fail">Contact-resistance drift</span></td>
-            <td class="senses">A joint slowly going high-resistance shows as a <b>V/I signature creeping over time</b>.</td>
+            <td class="senses">A joint going high-resistance shows as a <b>voltage-vs-current signature creeping over weeks</b>.</td>
             <td class="how">INA238 / INA240<br>Kelvin-sensed shunts</td>
             <td><span class="stat live"><span class="g"></span>HW LIVE</span> <span class="stat pending"><span class="g"></span>drift FW</span></td>
           </tr>
           <tr>
             <td><span class="fail">Multi-rail correlated event</span></td>
-            <td class="senses">A <b>synchronized snapshot across every module</b> at the instant something trips — no host in the loop.</td>
+            <td class="senses">A <b>synchronized snapshot across every module</b> at the instant something trips, with no host in the loop.</td>
             <td class="how">§6.10 CAN co-capture<br>FREEZE (ALERT nets wired)</td>
             <td><span class="stat live"><span class="g"></span>HW ready</span> <span class="stat pending"><span class="g"></span>FREEZE FW</span></td>
           </tr>
@@ -245,69 +247,70 @@
 
   <section>
     <div class="sec-head"><span class="sec-num">02</span><h2>What ships in the box vs. what the firmware unlocks</h2></div>
-    <p class="sec-sub">The split the owner asked for: capability that is physically present and measuring today,
-      against capability that is designed-in and spec-locked but waiting on firmware.</p>
+    <p class="sec-sub">Capability that is physically present and measuring today, against capability
+      that is designed-in and spec-locked but waiting on firmware.</p>
     <div class="cols">
       <div class="col live">
         <div class="col-head"><span class="dot live"></span><span class="tag">Live in hardware</span><span class="sub">alpha-validated</span></div>
         <ul class="feat">
-          <li><span class="mk">V·I·P</span><span><b>Per-rail power</b> on +12/+5/+3.3/+5VSB — 24-pin 4× INA238.</span></li>
-          <li><span class="mk">per-cable</span><span><b>12 V current per cable</b> — EPS ×2, PCIe ×3 (INA238).</span></li>
-          <li><span class="mk">per-pin</span><span><b>Per-pin 12 V current</b> — 12VHPWR 6× INA240 (the melt detector).</span></li>
-          <li><span class="mk">±0.3–0.5%</span><span><b>Ratiometric rail voltage</b> — REF3030 on 12VHPWR.</span></li>
-          <li><span class="mk">temp</span><span><b>Temperature + dT-above-ambient</b> — NTC dividers, die temp.</span></li>
-          <li><span class="mk">ID</span><span><b>Module identity &amp; presence</b> — DETECT analog code.</span></li>
-          <li><span class="mk">CAN</span><span><b>Fleet aggregation</b> — 500 kbps now, 1 Mbps-capable.</span></li>
-          <li><span class="mk">persist</span><span><b>16 MB flash + 3-source power</b> (main 5 V / 5VSB / wall-wart) — survives a dead PC.</span></li>
-          <li><span class="mk">USB</span><span><b>Host egress</b> — one Hub USB is the whole system's contact point.</span></li>
+          <li><span class="mk">V·I·P</span><span><b>Per-rail power</b> on +12/+5/+3.3/+5VSB (24-pin 4× INA238).</span></li>
+          <li><span class="mk">per-cable</span><span><b>12 V current per cable</b> (EPS ×2, PCIe ×3, INA238).</span></li>
+          <li><span class="mk">per-pin</span><span><b>Per-pin 12 V current</b> (12VHPWR 6× INA240, the melt detector).</span></li>
+          <li><span class="mk">±0.5%</span><span><b>Ratiometric rail voltage</b> (REF3030 on 12VHPWR).</span></li>
+          <li><span class="mk">temp</span><span><b>Temperature and rise above ambient</b> (NTC dividers, die temp).</span></li>
+          <li><span class="mk">ID</span><span><b>Module identity and presence</b> (DETECT analog code).</span></li>
+          <li><span class="mk">CAN</span><span><b>Fleet aggregation</b>, 500 kbps now, 1 Mbps-capable.</span></li>
+          <li><span class="mk">record</span><span><b>16 MB flash and 3-source power</b> (main 5 V / 5VSB / wall-wart). Survives a dead PC.</span></li>
+          <li><span class="mk">USB</span><span><b>Host egress</b>. One Hub USB is the whole system's contact point.</span></li>
         </ul>
       </div>
       <div class="col pending">
         <div class="col-head"><span class="dot pending"></span><span class="tag">Designed-in · firmware-pending</span><span class="sub">spec-locked</span></div>
         <ul class="feat">
-          <li><span class="mk">§6.10</span><span><b>Acquisition engine</b> — 1 kHz ring buffer + ALERT-threshold freeze (pre-roll capture).</span></li>
-          <li><span class="mk">melt</span><span><b>Per-pin imbalance alert</b> — the 12VHPWR precursor turned into a warning.</span></li>
-          <li><span class="mk">OQ-13</span><span><b>Energy integration</b> — Wh per rail from the 1 kHz stream (all modules).</span></li>
-          <li><span class="mk">§6.13</span><span><b>Transient classification</b> — event flag → magnitude / shape.</span></li>
-          <li><span class="mk">FREEZE</span><span><b>Cross-module co-capture</b> — one event snapshots the whole bus.</span></li>
-          <li><span class="mk">§L</span><span><b>Persist-on-fault flush</b> — critical events written on power loss.</span></li>
-          <li><span class="mk">HID</span><span><b>OS-native sensors</b> — HID power/temp descriptors, driverless.</span></li>
-          <li><span class="mk">§6.14</span><span><b>Standalone USB-CDC mode</b> — a module works with no Hub.</span></li>
-          <li><span class="mk">F7</span><span><b>Single-point FW update</b> — Hub flashes every module over CAN.</span></li>
+          <li><span class="mk">§6.10</span><span><b>Acquisition engine</b>: 1 kHz ring buffer with ALERT-threshold freeze (pre-roll capture).</span></li>
+          <li><span class="mk">melt</span><span><b>Per-pin imbalance alert</b>: the 12VHPWR precursor turned into a warning.</span></li>
+          <li><span class="mk">OQ-13</span><span><b>Energy integration</b>: watt-hours per rail from the 1 kHz stream (all modules).</span></li>
+          <li><span class="mk">§6.13</span><span><b>Transient classification</b>: event flag into magnitude and shape.</span></li>
+          <li><span class="mk">FREEZE</span><span><b>Cross-module co-capture</b>: one event snapshots the whole bus.</span></li>
+          <li><span class="mk">§L</span><span><b>Persist-on-fault flush</b>: critical events written on power loss.</span></li>
+          <li><span class="mk">HID</span><span><b>OS-native sensors</b>: HID power and temperature descriptors, driverless.</span></li>
+          <li><span class="mk">§6.14</span><span><b>Standalone USB-CDC mode</b>: a module works with no Hub.</span></li>
+          <li><span class="mk">F7</span><span><b>Single-point update</b>: the Hub flashes every module over CAN.</span></li>
         </ul>
       </div>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-num">03</span><h2>What each board in the bundle brings</h2></div>
-    <p class="sec-sub">Modules are tier-agnostic and degrade gracefully — any module works in any Hub.</p>
+    <div class="sec-head"><span class="sec-num">03</span><h2>What each board brings, and why one sensor isn't enough</h2></div>
+    <p class="sec-sub">A power fault usually isn't where the symptom is. One brain, lined up across
+      every rail at the same instant, is what turns readings into a diagnosis.</p>
     <div class="mods">
       <div class="mod">
         <h3>24-PIN ATX</h3><span class="role">motherboard main power</span>
-        <p><span class="kicker">4× INA238</span> — full V·I·P on all four system rails (12 / 5 / 3.3 / 5VSB), Kelvin-sensed.</p>
+        <p><span class="kicker">4× INA238</span>. Full V·I·P on all four system rails (12 / 5 / 3.3 / 5VSB), Kelvin-sensed.</p>
       </div>
       <div class="mod">
         <h3>EPS 8-PIN</h3><span class="role">CPU power</span>
-        <p><span class="kicker">INA238 per cable</span> (×2) + §6.13 transient front-end — 12 V current + spike flag.</p>
+        <p><span class="kicker">INA238 per cable</span> (×2) plus the §6.13 transient front-end. 12 V current and spike flag.</p>
       </div>
       <div class="mod">
         <h3>PCIe 8-PIN</h3><span class="role">GPU power (legacy)</span>
-        <p><span class="kicker">INA238 per cable</span> (up to ×3) + §6.13 front-end — per-cable current + transients.</p>
+        <p><span class="kicker">INA238 per cable</span> (up to ×3) plus §6.13. Per-cable current and transients.</p>
       </div>
       <div class="mod">
         <h3>12VHPWR</h3><span class="role">GPU power (600 W)</span>
-        <p><span class="kicker">6× INA240 per pin</span> + rail V (REF3030) + 2× NTC — sees the imbalance that melts.</p>
+        <p><span class="kicker">6× INA240 per pin</span>, rail voltage (REF3030), and 2 NTCs. Sees the imbalance that melts.</p>
       </div>
       <div class="mod">
-        <h3>HUB</h3><span class="role">aggregate &amp; host link</span>
-        <p><span class="kicker">CAN → USB</span>, 16 MB persist flash, 3-source power, board-temp NTC.</p>
+        <h3>HUB</h3><span class="role">the brain and the memory</span>
+        <p><span class="kicker">CAN into USB</span>, 16 MB recording flash, 3-source power, board-temp NTC. Lines up every rail and keeps the record.</p>
       </div>
     </div>
   </section>
 
   <section>
-    <div class="sec-head"><span class="sec-num">04</span><h2>How it reaches the user — no app to build</h2></div>
+    <div class="sec-head"><span class="sec-num">04</span><h2>How it reaches the user, with no app to build</h2></div>
     <div class="path">
       <div class="flow">
         <span class="node">modules</span><span class="arr">→ CAN →</span>
@@ -315,30 +318,32 @@
         <span class="node">OS sensor API</span><span class="arr">→</span>
         <span class="node">AllMyStuff</span>
       </div>
-      <p>The bundle presents itself as a standard composite USB device: a CDC stream for the raw/verbose
-        path and a <b>HID sensor interface</b> (voltage / current / power / temperature usages) that Windows
-        and Linux read natively, driverless. Stable identity is a real VID/PID plus the factory-MAC serial.
-        No first-party dashboard is required — the data lands in the OS and any consolidator picks it up.</p>
+      <p>The bundle presents itself as a standard composite USB device: a CDC stream for the raw
+        path, and a <b>HID sensor interface</b> (voltage, current, power, temperature) that Windows
+        and Linux read on their own, driverless. Stable identity is a real VID/PID plus the
+        factory-MAC serial. No first-party dashboard is required. The data lands in the OS and any
+        consolidator picks it up.</p>
     </div>
   </section>
 
   <div class="maturity">
     <div class="mat a">
-      <h4>Alpha — validated</h4>
-      <p>Every Standard board exists as a working prototype. The sensing architecture above is proven, not aspirational.</p>
+      <h4>Alpha, validated</h4>
+      <p>Every Standard board exists as a working prototype. The sensing above is proven, not aspirational.</p>
     </div>
     <div class="mat b">
-      <h4>Beta — refining</h4>
-      <p>Owner-approved refinements in flight: FTP jacks, INA238 supply reversion, the connector-daughterboard output, thermal-verified copper.</p>
+      <h4>Beta, refining</h4>
+      <p>Owner-approved refinements in flight: FTP jacks, the INA238 supply reversion, the connector-daughterboard output, thermal-verified copper.</p>
     </div>
     <div class="mat c">
-      <h4>Firmware — the remaining work</h4>
-      <p>The right column is specified down to the §-reference and the ALERT nets are wired at the parts. It is coding against a fixed contract, not open design.</p>
+      <h4>Firmware, the remaining work</h4>
+      <p>The right column is specified to the section reference, and the ALERT nets are wired at the parts. It is coding against a fixed contract, not open design.</p>
     </div>
   </div>
 
-  <p class="foot">Honest framing: EPS/PCIe §6.13 front-ends are on the schematics with routing pending; the
-    24-pin/EPS/PCIe carry the S3-MINI-1 today (spec targets the C6). Nothing above claims a firmware
-    feature as shipping. Sources: Ground-Truth Spec v1.5.0 §§2.3, 6.1, 6.10, 6.13, 6.14; standard-tier review.</p>
+  <p class="foot">Honest framing: EPS/PCIe §6.13 front-ends are on the schematics with routing
+    pending, and the 24-pin/EPS/PCIe carry the S3-MINI-1 today (spec targets the C6). Nothing
+    above claims a firmware feature as shipping. Sources: Ground-Truth Spec v1.5.0 §§2.3, 6.1,
+    6.10, 6.13, 6.14; standard-tier review.</p>
 
 </div>

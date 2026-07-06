@@ -1,89 +1,127 @@
-# Explaining CEC to someone who knows nothing — and has no reason to care yet
+# Explaining CEC to someone who knows nothing, and has no reason to care yet
 
-The technical sell sheet (`standard-bundle-sell-technical.html`) sells to someone who
-already knows what a shunt and a 12VHPWR connector are. This doc is the opposite end:
-**how you explain what CEC does to a normal person, and why they should care**, before
-they know any of that. It's the messaging source for consumer copy, box text, a landing
-page, or a 30-second pitch. Companion visual: `standard-bundle-plain.html`.
+The technical sell sheet (`standard-bundle-sell-technical.html`) is for a buyer who already
+knows what a shunt and a 12VHPWR connector are. This doc is the other end: how you explain
+what CEC does to a normal person, and why they should care, before they know any of that.
+It's the source for consumer copy, box text, a landing page, or a short pitch. Companion
+visual: `standard-bundle-plain.html`.
 
-## The core problem to solve
+## The purpose, stated plainly
 
-A normal buyer doesn't want "power telemetry." Nobody wakes up wanting telemetry. They
-want **their expensive PC not to die**, and they don't want to think about it. So we don't
-lead with what CEC *measures* — we lead with what it *protects them from*, using the one
-failure they've probably already seen with their own eyes.
+Power is the one major system in a PC that is invisible and close to impossible to diagnose.
+It's also what quietly kills expensive parts and causes the instability nobody can explain.
+CEC's job is to make power visible, recorded, and diagnosable, so that when your machine
+acts up you know the cause instead of guessing at it.
 
-## The hook: the melting cable they've already seen
+The melting graphics-card cable is the dramatic example everyone has seen. It is not the
+whole pitch. The everyday purpose is bigger and less scary: your PC will stop being a black
+box the moment something goes wrong with its power.
 
-The 16-pin GPU power connector melting on high-end graphics cards (RTX 4090 / 5090) is one
-of the most-covered PC stories of the last few years. People who bought a $1,000–$2,000
-graphics card have seen the photos of a charred, melted connector. That fear already
-exists — we don't have to manufacture it, we just have to name the thing that watches for it.
+## The story that does the selling: the instability nightmare
 
-> **The reason it melts:** one tiny pin quietly ends up carrying more current than the
-> others, gets hot, and there is *nothing inside a normal PC watching for it.* CEC watches
-> every pin, individually, and sees the imbalance building before it melts.
+Every enthusiast has lived this or watched a friend live it. The PC reboots at random. It
+black-screens under load. It crashes in one game but runs fine in benchmarks. Stable on the
+bench, dead in real use. The standard fix is a loop of misery: swap the power supply, reseat
+every cable, RMA a part, and hope. Weeks of downtime and hundreds of dollars in guessed
+hardware, because the fault is electrical, it happens at the connector, and no software can
+see it.
 
-## The one analogy that does the work
+CEC is the recorder that ends the guessing. It watches every power rail and every pin of the
+high-power graphics connector the whole time the machine runs, and it keeps the record even
+through a crash. When the problem happens, the answer is already written down: at this
+moment, under this load, this rail sagged while the GPU pulled this much. You fix the real
+thing instead of buying parts on a hunch.
 
-**A smoke detector for your PC's power.** It's the whole pitch in five words:
+## The analogies that land
 
-- It sits quietly in the background.
-- You never think about it.
-- The one time it speaks up is the one time you needed it to.
+- **A flight recorder for your PC's power.** Always recording. When something happens, you
+  have the footage, not a mystery.
+- **The diagnostic port your PC never had.** Cars have a port that tells the shop exactly
+  what went wrong. PCs have nothing like it for power. CEC is that port.
 
-(Backup analogy if the room is more car-brained: *"a check-engine light — except it tells
-you exactly which cable, not just that something, somewhere, is wrong."* CEC is strictly
-better than a check-engine light, so use it as a contrast, not the lead.)
+Use the flight recorder as the lead. It carries the whole idea: always on, quietly recording,
+and the value shows up the day something breaks.
+
+## Answering the objections head-on
+
+**"Why not just take it to a shop when there's a problem?"** The shop can't see intermittent
+power faults either. They don't have your machine under your load for three days, so they
+swap parts to fix and hand you a bill. Intermittent power problems are the classic "could not
+reproduce, replaced the power supply, still broken." CEC is the recording that makes the
+diagnosis exist at all. You bring the data, or the shop reads it, and the guessing stops.
+Often you fix it yourself once you know: reseat the right cable, RMA the part that's the
+real culprit.
+
+**"Isn't the free software (HWiNFO and the like) the same thing?"** No. Software reads the
+motherboard's and power supply's own sensors, which are inaccurate, can't see the graphics
+connector pins at all, and die the instant the machine crashes. CEC measures the real current
+at the real connector, on its own, and keeps the record through the crash. It's not a nicer
+graph of the same numbers. It's the numbers that otherwise don't exist.
+
+**"Why the hub? Why not just the graphics sensor?"** The sensors are dumb meters. The hub is
+the brain, the memory, and the single connection to your PC. Only the hub can do the thing
+that matters most: line up every rail at the same instant. "The GPU spiked and the 12V sagged
+and the CPU rail dipped, all at once" is the answer you're after, and it's only visible if one
+brain watches every sensor together. The hub also holds the recording (which survives a crash
+that kills software) and runs on standby power, so it watches during boot, sleep, and
+shutdown, which is exactly when a whole class of instability shows up.
+
+**"Why the whole bundle instead of one sensor?"** A power fault usually isn't where the
+symptom is. A graphics crash is often caused by the CPU rail or the power supply sagging under
+total load. One sensor raises an alarm ("this pin is hot"). The full set gives the diagnosis
+("this pin is hot because the power supply is sagging under total load"), which is a different
+and correct fix. The 24-pin sensor also gives the whole-system view: real wattage, real
+efficiency, and whether the power supply is big enough.
+
+## The three things it does, so it's never "does nothing until I break"
+
+1. **Shows health you can see.** Real measured wattage and rail behavior, all the time. People
+   check home-energy monitors and fitness trackers for exactly this kind of ongoing readout.
+2. **Records everything.** The recorder is always on, so a future problem is diagnosable
+   instead of an event you can't reproduce.
+3. **Warns early.** The failure-prevention part, including the melting-cable case. This is the
+   only one that waits for trouble, and it's the cheapest slice of a $2,000 graphics card.
 
 ## The tiers of copy
 
-**One sentence (what it is):**
-> CEC is a small monitor that watches your PC's power around the clock and warns you before
-> a cable, connector, or power supply fails.
+**One sentence:**
+> CEC watches your PC's power and records it, so when something goes wrong you know the cause
+> instead of guessing.
 
-**Elevator (10 seconds):**
-> You've seen the photos of melted graphics-card cables. It happens because one pin quietly
-> carries too much current and nothing is watching. CEC is a little hub plus a few clip-on
-> sensors that watch every power connection in your PC — like a smoke detector for your
-> power — and warn you before a connector melts, a power supply browns out, or a part dies.
+**Elevator (about 10 seconds):**
+> Random crashes and reboots under load are almost always a power problem, and no software can
+> see it, so people swap parts and hope. CEC is a small hub plus a few clip-on sensors that
+> record every power rail in your PC, even through a crash. When it acts up, the answer is
+> already written down. It also catches the melting graphics-card cable before it melts.
 
-**Why you (the plain benefits — pick 3):**
+**Why you (pick three):**
+- **Stop guessing.** When your PC misbehaves, you get the cause, not a parts-swap loop.
 - **Protects the parts that cost the most.** Your graphics card and power supply are the
-  priciest, most failure-prone pieces in the machine. CEC watches exactly the connections
-  that kill them.
-- **Catches the famous melting-cable problem.** It measures each pin of the high-power GPU
-  connector and spots the uneven load that leads to a melt — early, while it's still a warning.
-- **No babysitting.** There's no dashboard to stare at. Green means everything's fine. If
-  something's wrong, it tells you *what* and *where* — not just "something."
-- **Sees trouble coming.** A power supply going bad, a connector heating up, a cable working
-  loose — CEC notices the drift before it becomes a dead part or a crash mid-game or mid-render.
+  priciest and most failure-prone pieces. CEC watches the connections that kill them.
+- **Catches the famous cable problem early.** It checks each pin of the high-power graphics
+  connector and flags the uneven load that leads to a melt while it's still a warning.
+- **No babysitting.** No dashboard to stare at. Green means fine. If something's wrong, it
+  tells you what and where.
 
-**What you actually do:**
-> Plug the little hub into your PC, clip the sensors onto your power cables, and forget about
-> it. It shows up on your computer like any other USB device — no separate app to install and
-> babysit.
+**What you do:**
+> Plug the small hub into your PC, clip the sensors onto your power cables, and leave it. It
+> shows up on your computer like any other device. No separate app to install and babysit.
 
-**What it physically is (if they ask):**
-> A small hub and a few clip-on sensors that sit between your power supply and your
-> components — like putting a meter on each pipe, so you know the moment one starts behaving
-> wrong.
+**The honest line (keep it, it builds trust):**
+> CEC won't stop a failure from starting. It's the difference between knowing the cause in
+> five minutes and losing a weekend and a few guessed parts to find it.
 
-## The honesty line (keep it — it builds trust)
+## Who it's for, and who it isn't
 
-> CEC can't stop a failure from starting. But it's the difference between a heads-up and a
-> dead $2,000 card.
+It's not for a $600 office PC. Nothing in there is worth this. The value scales with how much
+your hardware costs, how hard you push it (gaming, rendering, AI, mining), and how much
+downtime hurts (a streamer, a freelancer on deadline, someone whose rig is the investment).
+For that person, $250 is a small fraction of the graphics card alone, and one guessed part
+swap already costs more.
 
-## What to NOT say to this person
+## What not to say to this person
 
 - No "rails," "shunts," "INA240," "per-pin current sensing," "CAN bus," "telemetry stream."
-- No spec section numbers, no accuracy percentages, no sample rates.
-- Don't ask them to read a chart. The average person bounces off a data table. Lead with
-  the fear and the relief; the numbers are for the person who already leaned in.
-
-## Who this framing is for vs. not
-
-This is the **cold consumer** — someone who doesn't know they want it. The enthusiast who
-already monitors their rig, and the buyer who came in through the melting-cable story
-knowing the details, can be handed the technical sheet. This doc is specifically for turning
-"why would I need that?" into "oh — I actually want that."
+- No spec section numbers, accuracy percentages, or sample rates.
+- Don't ask them to read a chart. Lead with the crash they've had and the guessing they hate.
+  The numbers are for the buyer who already leaned in, and they get the technical sheet.
