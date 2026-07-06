@@ -133,4 +133,9 @@
 		(uuid "1a2b3c4d-000c-4e00-900c-63969e00000c")
 	)
 	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../lib/3dmodels/Connector_Blade.3dshapes/TE_63969_FASTON_Receptacle_250_Vertical_THT.step"
+		(offset (xyz 0 0 0))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 0 0))
+	)
 )
