@@ -582,33 +582,40 @@ def compose_08():
     c.place("U7", 62, 38)
     c.place("RS1", 96, 20)
     c.place("U8", 96, 52)
-    # tie the stacked IN pins (9-13) with drawn wires (one label at the top)
-    pin9 = c.pin("U7", "9")
+    # tie the stacked IN pins (9-13) with drawn wires. The label leaves from
+    # pin 13 (the BOTTOM of the stack) -- pins 14/15 (EN/OVP) sit directly
+    # ABOVE pin 9 in the symbol's left column, so an upward tap would land
+    # exactly on pin 15's connection point (measured: it merged MAIN5V_F into
+    # the OVP/GND strap on the first pass).
+    pin13 = c.pin("U7", "13")
     for a, b in (("9", "10"), ("10", "11"), ("11", "12"), ("12", "13")):
         c.wire(c.pin("U7", a), c.pin("U7", b))
-    c.wire(pin9, (pin9[0], pin9[1] - 2))
-    c.label("MAIN5V_F", pin9[0], pin9[1] - 2, 270)
+    c.wire(pin13, (pin13[0], pin13[1] + 2))
+    c.label("MAIN5V_F", pin13[0], pin13[1] + 2, 90)
     c.use(("U7", "9"), ("U7", "10"), ("U7", "11"), ("U7", "12"), ("U7", "13"))
-    # tie the stacked OUT pins (4-8) likewise
+    # tie the stacked OUT pins (4-8); pin 17 (ILIM) sits directly below pin 8,
+    # so the tap leaves UPWARD from pin 4 (pin 2 is 2 rows above -- clear).
     pin4 = c.pin("U7", "4")
     for a, b in (("4", "5"), ("5", "6"), ("6", "7"), ("7", "8")):
         c.wire(c.pin("U7", a), c.pin("U7", b))
     c.wire(pin4, (pin4[0], pin4[1] - 2))
     c.label("M2_5V_SW", pin4[0], pin4[1] - 2, 270)
     c.use(("U7", "4"), ("U7", "5"), ("U7", "6"), ("U7", "7"), ("U7", "8"))
-    c.place("R21", 30, 58, 90)
+    # rot-90 passives need >=12u pitch: the stub end of one lands on the
+    # neighbor's stub wire at 8u (measured net-merge, first pass)
+    c.place("R21", 26, 58, 90)
     c.place("R22", 38, 58, 90)
-    c.place("R23", 46, 58, 90)
-    c.place("C31", 54, 58)
-    c.place("R25", 84, 30, 90)
-    c.place("R26", 84, 38, 90)
-    c.place("R24", 116, 30, 90)
-    c.place("R27", 116, 44, 90)
-    c.place("R28", 122, 50, 90)
-    c.place("R29", 122, 60, 90)
+    c.place("R23", 50, 58, 90)
+    c.place("C31", 62, 58)
+    c.place("R25", 92, 29, 90)   # odd-u rows: clear of U7's right pin rows
+    c.place("R26", 92, 37, 90)
+    c.place("R24", 116, 31, 90)
+    c.place("R27", 116, 45, 90)
+    c.place("R28", 128, 45, 90)
+    c.place("R29", 140, 45, 90)
     c.place("C32", 108, 66)
-    c.place("C33", 116, 74)
-    c.place("C34", 124, 74)
+    c.place("C33", 118, 74)
+    c.place("C34", 130, 74)
     c.caption("Compute-rail power: monitored MAIN_5V -> fuse+TVS -> TPS25940 eFuse "
               "(P4 EN) -> 25m shunt + INA238 -> M2_5V", 0, -2)
     c.note("K1 row 8: the AX630C's draw is a locally MEASURED signature (INA238 @ 0x40,\n"
@@ -861,7 +868,12 @@ def compose_10():
     c.place("R44", 54, 6, 90)
     c.place("C43", 62, 8)
     c.place("R48", 116, 66, 90)
-    c.place("R49", 124, 66, 90)
+    # R49 (LT_INT pull-up) sits one row up from R48 (GND). Keeping both on the
+    # same compose row put R49's LT_INT horizontal stub and R48's GND stub on the
+    # SAME y-line with a GND power stamp between them; the two auto-routed stubs
+    # overlapped (267.97..270.51 @ y161.29) and merged GND into LT_INT (150-node
+    # collapse). Different row = the LT_INT wiring gets its own y-line, no overlap.
+    c.place("R49", 124, 54, 90)
     c.place("C44", 108, 78)
     c.place("C45", 116, 82)
     c.place("C46", 124, 78)
