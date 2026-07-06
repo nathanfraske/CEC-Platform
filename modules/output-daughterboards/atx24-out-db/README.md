@@ -388,6 +388,18 @@ joints, sized separately per the study). Flagged as a **pending W-item**:
 run the real solver once it is generalized to this topology, before treating
 this board as production-ready.
 
+> **RESULT (2026-07-06, blade-interconnect thermal audit — the W-item above
+> was executed): FAIL.** The four In2 bus lanes (0.3 mm × 1 oz) carry the
+> full per-rail aggregates and are fusing-class at the design basis:
+> DC-IR field solve = +5V 384 mV @ 30 A (11.5 W in the lane, J ≈ 2874 A/mm²),
+> +12V 817 mV @ 12 A, +3V3 299 mV @ 24 A (9 % of the rail); the 2.5D coupled
+> solve runs away (lane fuses). The hand sanity above sized the per-pin
+> STUBS but the per-rail AGGREGATE crosses the lane between the tab group
+> and the field pins (and ATX permits 6 A/pin, not "sub-amp"). Board fix =
+> owner-gated regen (per-rail pour bands à la eps/pcie, or a widened 2 oz
+> outer corridor). Full analysis:
+> `docs/standard-tier-review/blade-interconnect-thermal-2026-07-06.md` (F1).
+
 ## Sense-return provision
 
 Per spec §2.8 v1.4.0 / OQ-88: a zero-component sense-return contact (a

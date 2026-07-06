@@ -1079,6 +1079,12 @@ by OUR trust hardware.** Study only; owner items flagged, not resolved.
 
 ## C1. The module facts (cited; gaps flagged)
 
+> **SUPERSEDED IN PART by Part IV-A (same day):** the owner vendored the
+> actual schematics (`lib/datasheets/Sipeed_M3C_core_module_SCH_378C.pdf` +
+> `Sipeed_MaixCam2_SCH_379C.pdf`), read page-by-page below. Where C1's
+> web-sourced statements conflict with the schematics — **notably the eMMC
+> location (it IS on the module, contra the wiki)** — Part IV-A wins.
+
 - **The module exists and is sold for exactly this purpose.** Sipeed's
   MaixCAM2 line (AX630C — the same SoC family and the same platform SDK as
   the NanoKVM Pro: `maix_ax620e_sdk` is "packaged... for MaixCam2 and

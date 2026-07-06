@@ -219,6 +219,18 @@ see above); the governing current-capacity question is the **blade-clip
 joint** itself (OQ-86's recommended confirm-soak/thermal-cycle bench), not
 this board's own copper. Noted, not treated as a gap.
 
+> **CORRECTION (2026-07-06, blade-interconnect thermal audit): the claim
+> above is falsified — the solver run WAS needed.** The copper has no thin
+> neck (correct), but at the 52 A worst-case basis the board dissipates
+> ~2.75 W on ~11 cm² of still air: the 2.5D coupled solve gives
+> **dT 216.7 °C** in the enclosed/no-sink posture vs the 30 °C-rise policy —
+> a board-LEVEL dissipation red, not a neck. Unmodelled conduction sinks
+> (blades → main board, pigtail copper, chassis strain relief) are large
+> and the basis is worst-case (dT ~ I²: at half current ~54–71 °C class),
+> so this is a gate red pending the OQ-86 thermal-soak datum, not a
+> fusing defect. See
+> `docs/standard-tier-review/blade-interconnect-thermal-2026-07-06.md` (F2).
+
 ## Sense-return provision
 
 Not provisioned on this board (no signal header exists here, unlike the

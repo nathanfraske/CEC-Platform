@@ -208,6 +208,16 @@ Same reasoning as EPS: both nets are full-board floods on doubled layer
 pairs, no thin fan-out geometry on this board to check. The governing
 current question is the blade-clip joint (OQ-86), not this board's copper.
 
+> **CORRECTION (2026-07-06, blade-interconnect thermal audit): the claim
+> above is falsified — the solver run WAS needed.** No thin neck (correct),
+> but at the 39 A worst-case basis the board dissipates ~1.18 W on ~11 cm²
+> of still air: the 2.5D coupled solve gives **dT 116.8 °C** in the
+> enclosed/no-sink posture vs the 30 °C-rise policy — a board-LEVEL
+> dissipation red, not a neck. Unmodelled conduction sinks are large and
+> the basis is worst-case (dT ~ I²), so this is a gate red pending the
+> OQ-86 thermal-soak datum, not a fusing defect. See
+> `docs/standard-tier-review/blade-interconnect-thermal-2026-07-06.md` (F2).
+
 ## Sense-return provision
 
 Not provisioned (no signal header on this board). The SENSE0/SENSE1 straps
