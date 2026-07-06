@@ -17,7 +17,11 @@ board, spec, or CLAUDE.md edits made. This document is the deliverable.
 > native-P4-module Path B). A third clarification ("they sell that compute
 > module separate... can we just do a *carrier board*?") produced **Part IV
 > — Path C: CEC carrier + AX630C core module**, which displaces Path A
-> entirely and re-scores the decision frame (C5).
+> entirely and re-scores the decision frame (C5). The owner then vendored
+> the **primary schematics** (M3C core module + MaixCam2 base board) —
+> **Part IV-A** holds the page-by-page verified facts (M.2 M-key pinout,
+> eMMC-on-module surprise + the SD-boot answer, radio-free module
+> confirmation, single-5V power tree) and flips the intake-gap list.
 
 # PART I — consumer lane (original scope)
 
@@ -1128,6 +1132,12 @@ by OUR trust hardware.** Study only; owner items flagged, not resolved.
 
 ## C2. The trust model — the carrier hosts the attested endpoint
 
+> **Part IV-A update:** the boot-media bullet below is revised by the
+> schematic read — the eMMC turned out to be ON the module, but the boot
+> *straps* and the bootable SD interface are finger-accessible, so
+> carrier-owned boot is a strap-selected design choice (SD-boot, A5
+> option i) rather than the default. Verify-then-release-reset stands.
+
 The key analytical move: **stop asking the AX630C to attest itself.** The
 carrier carries a small CEC trust MCU — the natural pick is the **uniform
 ESP32-P4** (every K1 contract is already designed for it; an SE-only
@@ -1202,6 +1212,12 @@ auditable surface do.**
   this document. Path B remains the zero-asterisk option on this axis.
 
 ## C4. Engineering scope and BOM class
+
+> **Part IV-A update:** socket = commodity **M.2 M-key 75-pos** (~$1–2);
+> power = **single 5V in, all rails + sequencing on-module** (no carrier
+> PMIC — the "power section" is a monitored 5V feed + INA238 + the ≥100 ms
+> reset hold); add carrier boot storage on the SD fingers (~$3–5) + 2–3
+> 1.8V↔3.3V level shifters (~$1). The $55–95 + module class stands.
 
 **Carrier board** (module-class-plus, one board program): gold-finger
 socket (DIMM-class, ~$1–3) · LT6911-class HDMI-RX bridge (~$5–8) + HDMI-in
@@ -1280,12 +1296,14 @@ whatever compute rides behind it.
    table): B and C are trust-equivalent at the hub; the owner is choosing
    capture class vs the Linux-surface/blob/supply asterisks — plus an
    estimated $30–60/unit of module BOM.
-2. **Intake verification set for Path C** (before any carrier design):
-   pull the MaixCAM2 hardware downloads (dl.sipeed.com) — gold-finger
-   pinout/pitch, confirm **no boot flash on the core module**, boot-strap/
-   SDIO exposure for verify-then-release-reset (or the boot-media mux),
-   and a real core-board price + supply answer from Sipeed (none
-   published).
+2. **Intake verification set for Path C** — MOSTLY ANSWERED by Part IV-A
+   (schematics vendored + read same day): pinout = M.2 M-key 75-pos
+   (A1); no hidden SPI-NOR/NAND, but **eMMC IS on-module** — handled by
+   the A5 SD-boot strap policy; radio absent from the module confirmed
+   (A3); power tree friendly, single 5V (A4). **REMAINING:** core-board
+   **price + supply terms** from Sipeed (still the #1 open item), the
+   possible eMMC-less module SKU, the ROM boot-order bench check (A5),
+   and the M.2 keying/length mechanical spec from the full download pack.
 3. **MSP blob posture**: accept the Axera VPU/ISP binary inside the
    measured image (hash pinned by the P4's measurement), or require
    blob-free — which kills C (no open media stack exists for this
@@ -1305,6 +1323,221 @@ whatever compute rides behind it.
 - GitHub sipeed/maix_ax620e_sdk (one platform SDK "for MaixCam2 and KVM-Pro"; MIT; U-Boot source; MSP binary-only submodule): https://github.com/sipeed/maix_ax620e_sdk
 - M5Stack LLM630 Compute Kit (independent third-party AX630C carrier precedent): https://shop.m5stack.com/products/m5stack-llm630-compute-kit-ax630c
 - Parts II–III of this document (trust bar K1, P4 contracts, HDMI-bridge architecture, NDAA audit row, survey-9 shares-die/rails rejection precedent)
+
+---
+---
+
+# PART IV-A — schematic-verified module facts (primary sources vendored, 2026-07-06)
+
+The owner vendored the primary sources Part IV flagged as intake gaps:
+`lib/datasheets/Sipeed_M3C_core_module_SCH_378C.pdf` (the core module —
+"M3C", rev 378C, 2025-09-16, 12 pages) and
+`lib/datasheets/Sipeed_MaixCam2_SCH_379C.pdf` (the MaixCam2 base board, rev
+379C, 13 pages). Both read page-by-page. This section is the verified
+record; it supersedes C1's web-sourced claims where they conflict.
+
+## A1. The gold-finger pinout (intake gap #1 — ANSWERED)
+
+**The connector is a standard M.2/NGFF M-KEY 75-position card edge** (the
+module schematic's J1/J2 blocks are both drawn as `NGFF_M_KEY`; the base
+board mates them 1:1). That is the single best mechanical fact of the read:
+the carrier-side socket is a commodity M.2 M-key connector + standoff
+(~$1–2, screw-down retention). Signal groups crossing the fingers, by
+function (pin numbers = M.2 positions as drawn; voltage domains as annotated
+on the module sheet):
+
+| Group | Pins (as drawn) | Domain | Carrier relevance |
+|---|---|---|---|
+| **5V-VIN (DVDD_MAIN)** | 13/15/17/19/21 (5 pins) + GND field (1–11, interleaved) | 5V | **The ONLY power input** — see A4 |
+| **SYS_RSTN_IN** | 72 (and B-side 29) | **1.8V** | Carrier owns reset (A5); ≥100 ms assertion required at power-on (base-board note, p9 379C) |
+| **SYS_RSTN_OUT** | 10 | 1.8V | Reset/alive status back to the carrier |
+| **BOOT straps GPIO3_A2 / GPIO3_A3** | 74 / 16 | **1.8V** | Boot-source selection IS finger-accessible (A5) |
+| **USB0 DP/DM** | 20/22 | USB | The AXDL flash/recovery path — carrier-gateable |
+| **UART0 (console; muxes RISC TMS/TDI)** | 68/70 | 3.3V | Linux console to the carrier P4 |
+| **SD interface (SD_DAT0–3, CMD, CLK)** | 47–57 odd | 1.8/3.3V | **Bootable SD lines cross the fingers** → carrier-owned boot storage is wireable (A5) |
+| **SDIO (D0–3, CLK, CMD)** | 27–39 odd | 3.3V | On MaixCam2 this feeds the base-board WiFi (A3) — on a CEC carrier: unpopulated |
+| **MIPI CSI RX lanes RX_CD0..CD5 (6 pairs)** | 49–57 / 67–75 (B-side) + 1–9 (A-side) | 1.8V | Enough for a 4-lane CSI + clock from an LT6911-class HDMI bridge (the C4 capture path is pin-confirmed) |
+| **MIPI DSI/TX lanes TX_CD0..CD4 + CLK** | 36–58/68–72 (B-side) | 1.8V | Display out — unused (or bring-up LCD) on a CEC carrier |
+| **EPHY MDI (EPHY_RXP/RXN/TXP/TXN)** | 67–75 (A-side) | analog | **The SoC's internal 100M Ethernet PHY comes out on the fingers** (base board routes it to an optional 6-pin FPC, CN3). On a CEC carrier this MUST stay dark — no magnetics populated = no usable network, verifiable unpowered (A3) |
+| **RGMII bank (GPIO1, incl. MDC/MDIO)** | B-side 2–16, 25–33 | 3.3V | How the Pro's base board gets GbE (external RGMII PHY) — unpopulated GPIO on a CEC carrier |
+| **EMAC_PTP_PPS0–3** | B33 + A50/56/58 area | 3.3V | Hardware PTP pulse-per-second pins — a bonus cross-check hook against the carrier P4's gPTP timebase |
+| UART1/2/3/4/5, I2C0/1/6/7, SPI_M1/M2, PWMs, THM_AIN2/3, WAKE_UP, audio (mic/HP), I2S | various | 1.8/3.3V per pin | Local-link options for the P4↔AX630C channel (UART + I2C + SPI all available) |
+
+Boot-config context from the module sheet (p4): the four-signal boot vector
+is BOND1/BOND0 (bonded **on-module**, not finger-accessible) +
+GPIO3_A3/GPIO3_A2 (finger-accessible): `EMMC UDA = 0/0/0/1`, `SPI SLAVE =
+0/1/0/1`, `NOR = 1/1/1/1`, `NAND = 0/1/1/1 & 1/0/1/1`, **`USB DL or SD Card
+or UART = X/X/X/0`**, `UART DL = X/X/X/X`. Note also: NOR/NAND boot requires
+a base-board pull-up on GPIO3_A3 and the module's R24 changed to NC — i.e.,
+Sipeed themselves design the boot source to be a **carrier-side decision**.
+
+## A2. Hidden-boot-flash check (intake gap #2 — ANSWERED, with a surprise)
+
+Every memory/storage device on the module schematic, enumerated:
+- **U51 — LPDDR4** (expected).
+- **U50.1 — an eMMC device, ON the core module** (full BGA-153-class wiring:
+  D0–D7, DS, CLK, CMD, RSTN, VCCQ strap 1.8/3.3 via R961/R962, pull-up set
+  R115–R124; U50.2 is an alternate all-NC footprint option beside it).
+- **No SPI-NOR, no NAND, no other non-volatile device** anywhere on the 12
+  pages (the NOR/NAND boot rows exist in the SoC's boot table, but no such
+  part is populated; the SFC pins are pin-muxes on the eMMC pads).
+
+**The surprise, stated plainly: the wiki's "only chip core circuit + DDR"
+description is WRONG for the M3C as drawn — the 32 GB eMMC lives on the
+module, not the base board** (the 379C base board carries only a TF-card
+socket on the SD lines — no eMMC). This partially breaks Part IV C2's
+"boot storage is carrier-owned outright" premise — **but the
+verify-then-release-reset model survives, on better evidence than the
+premise it loses** (see A5): the boot *straps* are finger-accessible, and
+the bootable *SD interface* crosses the fingers, so the carrier can force
+boot away from the on-module eMMC entirely. Also flagged, not assumed: the
+all-NC U50.2 alternate footprint plus the wiki's leaner description suggest
+**an eMMC-less module variant may exist or be orderable** — a Sipeed SKU
+question for the same intake contact as the price.
+
+## A3. Radio check (ANSWERED — module is radio-free; the radio is a base-board chip)
+
+- **M3C core module: NO radio.** All 12 pages enumerated — SoC, LPDDR4,
+  eMMC, bucks/LDOs, and passives only. Nothing RF.
+- **379C base board: the WiFi/BT is U13, an AIC8800D-44pin combo module**
+  (Fn-Link N240 footprint note) with its antenna feed (U65) and matching
+  network — hanging off the module's SDIO + UART5 + PPS finger pins, with
+  its power gated by `WF_PWR_EN` (GPIO1_A15). **Confirmed: the radio is a
+  base-board population choice.** On a CEC carrier it never exists, and the
+  module's only other network-capable block — the on-die EPHY, whose bare
+  MDI pins do reach the fingers (A1) — is unusable without carrier
+  magnetics: leave them unpopulated and the no-network state is verifiable
+  unpowered, per the §13.6 bar. (C1/C2's "radio verifiably absent by
+  construction" claim is therefore CONFIRMED, now from primary sources.)
+
+## A4. Power (ANSWERED — the tree is friendly, not hostile)
+
+**The carrier supplies exactly ONE rail: 5V.** Everything else is generated
+on-module (module sheet pp. 10–11):
+- DVDD_3V3 — SY8892E buck, 2A class, 1.5 MHz
+- DVDD_1V8 — SY8892E buck, 2A class (+ a WL2803E18 aux 1.8V LDO)
+- DDRV_1V1 (DDR) — SY8892E buck, 2A class
+- VDDCORE 0.835V — SY8035DBC/JW5255A buck ("USE JW5255 as DEFAULT"),
+  240 kHz DVS trim via a PWM (`VDDCORE_DVS`) from the SoC
+- Audio 1.8V — XTP2021 LDO
+- **Sequencing is on-module** (RC-delayed enables off DVDD_MAIN: ~3.6 ms /
+  ~8 ms / ~6 ms soft-start notes on the sheets). The one carrier-side
+  obligation is the reset-timing rule: **hold SYS_RSTN_IN asserted ≥100 ms
+  at power-on** (379C p9 note).
+
+So the Part IV "PMIC on-module vs carrier-required" open point closes in
+the best direction: **no carrier PMIC, no multi-rail sequencing, one
+monitored 5V feed** — which drops straight onto the CEC module power
+pattern (monitored feed + a local INA238 on the compute rail, K1 row 8).
+Budget basis: the 5 V-VIN fingers feed 2A-class bucks; the measured
+product-level draw is ~0.6 A @ 5 V (~3 W, Part I §4); carrier design point
+≈ 1 A @ 5 V with the INA sized accordingly (also §13.4-friendly: the
+carrier can cut DVDD_MAIN entirely in STANDBY posture while the P4 trust
+endpoint stays alive — heartbeat continuity with the compute peripheral
+off).
+
+One small carrier-design consequence of the domains: **SYS_RSTN_IN and the
+GPIO3_A2/A3 boot straps are 1.8V-domain** — the 3.3V P4 drives them via
+open-drain or a level shifter (the base board itself uses ES3134KZ
+shifters for exactly these crossings). Minor BOM line, flagged so it lands
+in the carrier schematic.
+
+## A5. Verify-then-release-reset hooks (ANSWERED — the model works, with the eMMC caveat handled)
+
+Confirmed from the schematics:
+- **Reset is carrier-owned**: SYS_RSTN_IN on the fingers (1.8V, ≥100 ms
+  rule), SYS_RSTN_OUT back for status.
+- **Boot-source strapping is carrier-owned**: GPIO3_A2/A3 on the fingers.
+  Strapping **GPIO3_A2 = 0 selects the "USB DL or SD Card or UART" ROM
+  path** — i.e., the module boots from the **carrier's own SD-interface
+  storage** (the SD lines cross the fingers; put a carrier eMMC-in-SD-mode
+  or industrial TF device there) or from **USB device-download (AXDL)**,
+  which the carrier P4 can gate/drive as the recovery/flash path.
+- **The on-module eMMC (A2's finding) is handled by policy, two options**:
+  (i) **SD-boot always** (strap A2=0): boot storage physically on the
+  carrier, P4 verifies it at every boot before releasing reset — the
+  strongest form, on-module eMMC demoted to measured scratch or left
+  unused; or (ii) **eMMC-boot** (strap A2=1): the P4 flashes/verifies the
+  on-module eMMC via the USB-DL (AXDL) path at intake and on update,
+  records the hash, and boot-time assurance downgrades to
+  measured-at-flash-time + runtime supervision. Option (i) is the
+  recommended default; **one bench item attaches to it: empirically
+  confirm the ROM's search order within the `X/X/X/0` composite mode**
+  (USB-vs-SD precedence with USB idle/gated — the boot table names the
+  mode but not the order; Axera boot-ROM doc or a bench afternoon answers
+  it).
+- **eFuse/OTP programming pins: none appear on the fingers or the module
+  sheet.** No dedicated OTP programming interface is drawn anywhere — OTP
+  provisioning (if ever pursued for the optional silicon-anchored
+  hardening layer) is presumably in-band via boot-ROM/AXDL tooling, which
+  is exactly the undocumented-vendor-territory Part III K2.1 described.
+  Unchanged verdict: optional hardening, vendor-gated, not load-bearing.
+
+## A6. What the 379C base board does (what our carrier replicates, improves, or drops)
+
+For calibration — the MaixCam2 base board is the CAMERA product's carrier,
+so its CSI feeds a **sensor FPC connector** (RX_CD0..CD4 to a 24-pin camera
+FPC + I2C0 with 1.8/3.3 level shifting), not an HDMI bridge — the KVM-Pro's
+base board is where the LT6911-class HDMI-RX lives (not in either of these
+two PDFs; our carrier carries its own, per C4, and the finger CSI lanes are
+now confirmed sufficient). Base-board inventory vs the CEC carrier:
+
+| 379C base-board block | CEC carrier disposition |
+|---|---|
+| Power path: 3× 5V sources (6-pin 1.25mm, USB-C VBUS, 2x6 header) OR'd through 0Ω beads → 1.5A fuse + SMF5.0CA TVS → mechanical switch → VSYS_5V; plus Li-ion battery leg (TP4056 charger, CW2015 fuel gauge, HT7033S+PFET priority logic) | **Replace** with the CEC monitored feed (§2.9 posture) + INA238 on DVDD_MAIN + P4-controlled enable (STANDBY = compute off). Battery leg: drop entirely. Keep the fuse+TVS idea (cheap, good). |
+| USB-C: CC1/CC2 with 5.1k pulldowns (UFP sink), D± common-mode choke, RCLAMP0524P ESD, **UART0 console carried on the SBU pins** | Drop USB-C as a power source. The CC-5.1k detail also closes Part I §8's open question for the *consumer* adapter path (a dumb 5V feed needs the two pulldowns — confirmed by Sipeed's own design). The SBU-console trick is worth noting for a CEC service connector. |
+| WiFi/BT AIC8800D + antenna (SDIO + UART5) | **Never populated** (A3). |
+| TF card socket on the SD fingers | **Becomes the carrier boot storage** (A5, option i) — eMMC-in-SD-mode or industrial TF. |
+| EPHY 6-pin FPC (CN3) | **Never populated** — no magnetics = dark EPHY (A3). |
+| Camera FPC on CSI + I2C0 shifters | **Replaced by the LT6911-class HDMI-RX bridge** into the same CSI lanes + I2C control. |
+| DSI LCD + touch + backlight driver | Drop (or a bring-up header only). |
+| IMU (LSM6DSO), RTC (BM8563 + backup), mics, speaker PA, flashlight LED | Drop (the hub owns time; no audio/motion function in the KVM role). NOTE the RTC drop means the module has no battery-backed clock — fine: it's a supervised peripheral on the hub's gPTP time. |
+| BOOT/RESET keys, state LEDs | Replaced by P4-driven reset/strap control (A5) + CEC module LED semantics. |
+| ES3134KZ 1.8↔3.3 level shifters (I2C1, UART4, touch lines) | **Replicate the pattern** for the P4's 1.8V-domain crossings (A4). |
+| 3V3 buck (SY8089A) + 1.8V LDO for base peripherals | Mostly unnecessary (fewer peripherals); the P4 side runs on the standard CEC module power chain. |
+
+## A7. Part IV deltas (what the schematic read changes)
+
+1. **C1 corrected:** eMMC is ON the module (wiki wrong); WiFi-on-base-board
+   confirmed from primary source; connector identified (M.2 M-key 75-pos);
+   "DIMM-class" guess → commodity M.2 socket, better than hoped.
+2. **C2's boot-media premise revised, conclusion strengthened:** boot
+   storage isn't carrier-owned *by default*, but boot **strapping** is, and
+   the SD boot path crosses the fingers — so carrier-owned boot is a
+   design choice (A5 option i), not an assumption. Verify-then-
+   release-reset stands. New bench item: ROM search order in the X/X/X/0
+   mode.
+3. **C4 BOM sharpened:** + M.2 socket ~$1–2, + carrier boot storage
+   (TF/eMMC-in-SD) ~$3–5, + 2–3 level shifters ~$1, − any carrier PMIC
+   (single 5V in, on-module regulation, on-module sequencing). Net: the
+   **$55–95 + module** class estimate stands, with less uncertainty and
+   no hostile-power-tree risk.
+4. **Zero-egress hardening note added:** the module's on-die EPHY reaches
+   the fingers — the carrier must leave the MDI unmagnetized (verifiable
+   unpowered), and this becomes an explicit carrier-design rule, not an
+   accident.
+5. **Intake-gap list flipped** (was C6 item 2): pinout — ANSWERED;
+   no-hidden-boot-flash — ANSWERED (with the eMMC-on-module surprise,
+   handled); radio — ANSWERED; power tree — ANSWERED (friendly).
+   **REMAINING:** the module's standalone **price + supply terms** (still
+   the #1 open item), the possible **eMMC-less module SKU** question, the
+   **ROM boot-order bench check** (new, small), and the M.2 socket's exact
+   keying/length spec off the mechanical drawing when Sipeed's full
+   download pack is pulled.
+
+## Part IV-A sources
+
+- `lib/datasheets/Sipeed_M3C_core_module_SCH_378C.pdf` (rev 378C,
+  2025-09-16, 12 pp.): p4 boot-config table + RTC/USB/THM; p5 SDIO/SD/eMMC
+  + U50.1 on-module eMMC; p6 RGMII/EPHY/UARTs; p7 VI/DVP + CSI RX; p8
+  DSI/TX; p9 audio + LDOs; p10 DVDD_3V3/1V8/DDRV_1V1 bucks; p11 VDDCORE +
+  DVS; p12 NGFF_M_KEY finger map (J1/J2).
+- `lib/datasheets/Sipeed_MaixCam2_SCH_379C.pdf` (rev 379C, 13 pp.): p1
+  finger mating + mounting; p2 WiFi/BT AIC8800D; p3 LEDs/keys; p4
+  DSI/touch/backlight; p5 camera FPC + I2C0 shifters; p6 mics/PA; p7
+  IMU/RTC/headers; p8 USB-C (CC 5.1k, SBU console); p9 POWER PATH (3-source
+  OR + battery + ≥100 ms reset note); p10 charger/fuel gauge; p11 EPHY FPC
+  CN3; p12 TF card; p13 base 3V3/1V8 regulators.
 
 ## Sources (Part I)
 
