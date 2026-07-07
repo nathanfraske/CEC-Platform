@@ -62,3 +62,7 @@ actions-runner/
 
 # V4 idle-task queue (runtime tasks/results)
 docs/v4-queue/
+
+# kicad-cli erc/drc report files dropped in a board/repo dir when run without -o
+*-erc.rpt
+*-drc.rpt
