@@ -164,6 +164,812 @@ def _prepare_filled(board_path):
         return board_path
 
 
+def _solve_thermal(board_path, currents=None, stackup=None, ambient=50.0,
+                   grid_mm=0.3, h_eff=15.0, src_sink_override=None):
+    """Shared SOLVE recipe for the dashboard thermal renders (render_per_layer +
+    render_thermal_detail). Reads the per-board config, pours+fills the candidate, applies
+    the owner-validated production case-cooling model (with the CEC_THERMAL_* env-knob
+    overrides), and runs the 2.5D field solver. Returns (res, filled_board_path, cool_label).
+    Factored out so the per-layer raster and the full-detail copper map solve ONCE and share
+    the exact same field (no double solve, no drift between the two views)."""
+    import pcbnew
+    cfg_nc, cfg_stack, cfg_ov, cfg_cool = board_thermal_config(board_path)   # read BEFORE _prepare_filled renames
+    board_path = _prepare_filled(board_path)             # candidates ship unfilled -> pour + fill first
+    if currents is None:
+        currents = cfg_nc if cfg_nc is not None else default_currents(board_path)
+    if stackup is None:
+        stackup = cfg_stack                              # 12VHPWR -> 2oz/1oz; cable boards -> None (solver default)
+    if src_sink_override is None:
+        src_sink_override = cfg_ov                        # 12VHPWR -> J3/J4 lanes; cable boards -> auto J_IN/J_OUT
+
+    cool_kw, cool_label = {}, "still-air (no case)"
+    if cfg_cool and os.environ.get("CEC_THERMAL_NO_COOLING", "") not in ("1", "true", "True"):
+        g_tim = float(os.environ.get("CEC_THERMAL_TIM_WK", cfg_cool["g_chassis_W_per_K"]))
+        g_mnt = float(os.environ.get("CEC_THERMAL_MOUNT_WK", cfg_cool["g_mount_W_per_K"]))
+        pre = cfg_cool.get("shunt_prefix", "RS").upper()
+        _b = pcbnew.LoadBoard(board_path)
+        shunt_refs = sorted(fp.GetReference() for fp in _b.GetFootprints()
+                            if (fp.GetReference() or "").upper().startswith(pre))
+        if shunt_refs and g_tim > 0:
+            cool_kw["chassis_refs"] = shunt_refs
+            cool_kw["g_chassis_W_per_K"] = g_tim
+        if g_mnt > 0:
+            cool_kw["g_mount_W_per_K"] = g_mnt
+        cool_kw["t_chassis"] = ambient
+        cool_label = cfg_cool.get("label", "production case-cooled")
+        if g_tim != cfg_cool["g_chassis_W_per_K"] or g_mnt != cfg_cool["g_mount_W_per_K"]:
+            cool_label += " [TIM=%.2f mount=%.2f W/K]" % (g_tim, g_mnt)
+    res = t2.solve_board_thermal(
+        board_path, stackup_oz=stackup, net_currents=currents,
+        ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
+        src_sink_override=src_sink_override, **cool_kw)
+    return res, board_path, cool_label
+
+
+def _pil_font(sz, bold=True):
+    """A TrueType PIL font that is actually present in the routing container -- matplotlib bundles
+    DejaVu, so resolve it through font_manager rather than guessing system paths (load_default is the
+    last-ditch fallback so the render never hard-fails on a missing font)."""
+    from PIL import ImageFont
+    try:
+        import matplotlib.font_manager as fm
+        fp = fm.findfont(fm.FontProperties(family="DejaVu Sans",
+                                           weight=("bold" if bold else "normal")))
+        return ImageFont.truetype(fp, sz)
+    except Exception:                                        # noqa: BLE001
+        try:
+            return ImageFont.truetype("DejaVuSans.ttf", sz)
+        except Exception:                                    # noqa: BLE001
+            return ImageFont.load_default()
+
+
+def _draw_thermal_detail(board_path, res, out_png, cool_label="still-air (no case)",
+                         gate_dt=30.0, cmap_name="turbo", width=1500, title=None):
+    """Draw a FULL-DETAIL electro-thermal copper map (the cec_plot.copper_plot style, but coloured by
+    the solved temperature field instead of fixed layer colours), given an ALREADY-SOLVED ThermalResult.
+
+    Every copper feature is rendered at REAL geometry -- filled zone pours (with their clearance voids),
+    routed tracks at real width, pads, and vias -- and the copper is coloured by the temperature SAMPLED
+    (bilinear) from the 2.5D solver's T grid through a perceptual `turbo` map (cool copper = blue/green,
+    hot = red; NOT inferno-black-on-dark). F.Cu gets a faint warm wash and B.Cu a faint cool wash so the
+    two outer layers stay distinguishable while the temperature still reads through. A vertical colorbar
+    (ambient->peak) and a per-net hottest-list legend sit on the right. Returns out_png.
+
+    The temperature field is a SINGLE 2.5D in-plane field (layers are coupled through real vias inside the
+    solver), so a given (x,y) has one temperature regardless of layer -- the F/B wash conveys geometry, the
+    fill colour conveys heat."""
+    import pcbnew
+    from PIL import Image, ImageDraw
+
+    b = pcbnew.LoadBoard(board_path)
+    bb = b.GetBoardEdgesBoundingBox()
+    minx, miny = bb.GetLeft() / 1e6 - 2.0, bb.GetTop() / 1e6 - 2.0
+    maxx, maxy = bb.GetRight() / 1e6 + 2.0, bb.GetBottom() / 1e6 + 2.0
+    scale = width / max(maxx - minx, 1e-6)
+    top, legw = 72, 340
+    bw, bh = int((maxx - minx) * scale), int((maxy - miny) * scale)
+    W, H = bw + legw, bh + top
+
+    # ---- colormap LUT + scale. CONTRAST-STRETCH the scale to the copper temperature DISTRIBUTION (low/high
+    #      percentile) rather than ambient->max: a well-coppered board is near-isothermal (e.g. this eps board
+    #      is ~58-62C), so an ambient->peak scale crushes every feature into the same orange and the gradient
+    #      is unreadable. Stretching to the copper p2..p98 spreads the real range across turbo so the
+    #      GND-plane gradient + hot necks separate. vmin is FLOORED at ambient (so "cool/blue" never claims to
+    #      be below ambient) and the absolute ambient + true peak stay in the title/colorbar labels, so the
+    #      stretch is a visualization aid, not a misrepresentation. Knobs: CEC_THERMAL_VMIN_PCT / _VMAX_PCT.
+    cu_any = res.copper_mask
+    _vmin_pct = float(os.environ.get("CEC_THERMAL_VMIN_PCT", "2"))
+    _vmax_pct = float(os.environ.get("CEC_THERMAL_VMAX_PCT", "98"))
+    if cu_any is not None and cu_any.any():
+        cuT = res.T[cu_any]
+        vmin = max(float(res.ambient), float(np.percentile(cuT, _vmin_pct)))
+        vmax = max(float(np.percentile(cuT, _vmax_pct)), vmin + 1.0)
+    else:
+        vmin = float(res.ambient)
+        vmax = max(float(res.max_T), vmin + 1.0)
+    cmap = plt.get_cmap(cmap_name)
+    lut = (np.asarray(cmap(np.linspace(0, 1, 256)))[:, :3] * 255.0).astype(np.uint8)
+
+    def tcolor(T):
+        f = (float(T) - vmin) / max(vmax - vmin, 1e-6)
+        return tuple(int(v) for v in lut[int(np.clip(f, 0.0, 1.0) * 255)])
+
+    # ---- per-pixel temperature field over the board region (bilinear sample of res.T)
+    rxmin, rymin, _rxmax, _rymax = res.extent_mm
+    gm, (ny, nx) = res.grid_mm, res.T.shape
+    px = (np.arange(bw) + 0.5) / scale + minx
+    py = (np.arange(bh) + 0.5) / scale + miny
+    cols = np.broadcast_to((px[None, :] - rxmin) / gm - 0.5, (bh, bw))
+    rows = np.broadcast_to((py[:, None] - rymin) / gm - 0.5, (bh, bw))
+    c0 = np.clip(np.floor(cols).astype(int), 0, nx - 1); c1 = np.clip(c0 + 1, 0, nx - 1)
+    r0 = np.clip(np.floor(rows).astype(int), 0, ny - 1); r1 = np.clip(r0 + 1, 0, ny - 1)
+    fc = np.clip(cols - np.floor(cols), 0.0, 1.0); fr = np.clip(rows - np.floor(rows), 0.0, 1.0)
+    T = res.T
+    Tf = (T[r0, c0] * (1 - fr) * (1 - fc) + T[r0, c1] * (1 - fr) * fc +
+          T[r1, c0] * fr * (1 - fc) + T[r1, c1] * fr * fc)
+    tn = np.clip((Tf - vmin) / max(vmax - vmin, 1e-6), 0.0, 1.0)
+    field_rgb = lut[(tn * 255).astype(np.uint8)]              # (bh, bw, 3)
+
+    # ---- rasterize each copper layer's geometry into a board-sized mask (no top offset)
+    def Xs(x): return (x / 1e6 - minx) * scale
+    def Ys(y): return (y / 1e6 - miny) * scale
+
+    CU = [pcbnew.F_Cu, pcbnew.B_Cu, pcbnew.In1_Cu, pcbnew.In2_Cu]
+    masks = {lid: Image.new("L", (bw, bh), 0) for lid in CU}
+    md = {lid: ImageDraw.Draw(masks[lid]) for lid in CU}
+
+    for z in b.Zones():                                       # filled pours (honour clearance voids)
+        for lid in z.GetLayerSet().Seq():
+            if lid not in md:
+                continue
+            poly = z.GetFilledPolysList(lid)
+            for oi in range(poly.OutlineCount()):
+                ol = poly.Outline(oi)
+                pts = [(Xs(ol.CPoint(k).x), Ys(ol.CPoint(k).y)) for k in range(ol.PointCount())]
+                if len(pts) >= 3:
+                    md[lid].polygon(pts, fill=255)
+                try:
+                    for hi in range(poly.HoleCount(oi)):
+                        hl = poly.Hole(oi, hi)
+                        hp = [(Xs(hl.CPoint(k).x), Ys(hl.CPoint(k).y)) for k in range(hl.PointCount())]
+                        if len(hp) >= 3:
+                            md[lid].polygon(hp, fill=0)
+                except Exception:                            # noqa: BLE001 -- holes are a refinement, never block
+                    pass
+
+    for tk in b.GetTracks():                                  # routed tracks at real width + arcs
+        tp = tk.Type()
+        if tp == pcbnew.PCB_VIA_T:
+            continue
+        lid = tk.GetLayer()
+        if lid not in md:
+            continue
+        w = max(1, int(round(tk.GetWidth() / 1e6 * scale)))
+        if tp == pcbnew.PCB_ARC_T:
+            try:
+                s, mid, e = tk.GetStart(), tk.GetMid(), tk.GetEnd()
+                ch = t2._arc_chords(s.x / 1e6, s.y / 1e6, mid.x / 1e6, mid.y / 1e6, e.x / 1e6, e.y / 1e6)
+            except Exception:                                # noqa: BLE001
+                s, e = tk.GetStart(), tk.GetEnd()
+                ch = [(s.x / 1e6, s.y / 1e6), (e.x / 1e6, e.y / 1e6)]
+            pts = [((x - minx) * scale, (y - miny) * scale) for (x, y) in ch]
+            if len(pts) >= 2:
+                md[lid].line(pts, fill=255, width=w, joint="curve")
+        else:
+            s, e = tk.GetStart(), tk.GetEnd()
+            a, c = (Xs(s.x), Ys(s.y)), (Xs(e.x), Ys(e.y))
+            md[lid].line([a, c], fill=255, width=w)
+            r = w / 2.0                                       # round the trace ends so widths read true
+            for (xx, yy) in (a, c):
+                md[lid].ellipse([xx - r, yy - r, xx + r, yy + r], fill=255)
+
+    for fp in b.GetFootprints():                              # pads
+        for pad in fp.Pads():
+            ls = pad.GetLayerSet()
+            cx, cy = Xs(pad.GetPosition().x), Ys(pad.GetPosition().y)
+            sz = pad.GetSize()
+            hw, hh = sz.x / 1e6 * scale / 2.0, sz.y / 1e6 * scale / 2.0
+            for lid in CU:
+                if ls.Contains(lid):
+                    md[lid].rectangle([cx - hw, cy - hh, cx + hw, cy + hh], fill=255)
+
+    Marr = {lid: (np.asarray(masks[lid]) > 0) for lid in CU}
+    union = np.zeros((bh, bw), dtype=bool)
+    for lid in CU:
+        union |= Marr[lid]
+
+    # ---- composite: dark substrate + a PURE temperature fill on every copper pixel. We deliberately do NOT
+    #      hue-wash the fill per layer: turbo already uses blue=cool / red=hot, so a blue/red layer wash would
+    #      be misread as temperature. Layer identity is carried by the pour EDGE colour instead (drawn below).
+    comp = np.empty((bh, bw, 3), np.uint8)
+    comp[:] = np.array([13, 17, 23], np.uint8)
+    comp[union] = field_rgb[union]
+
+    # ---- canvas + overlay vectors (board outline, pour edges, vias) drawn with the top-offset transform
+    canvas = Image.new("RGB", (W, H), (16, 20, 24))
+    canvas.paste(Image.fromarray(comp), (0, top))
+    g = ImageDraw.Draw(canvas)
+
+    def X(x): return (x / 1e6 - minx) * scale
+    def Y(y): return (y / 1e6 - miny) * scale + top
+    def P(pt): return (X(pt.x), Y(pt.y))
+
+    for s in b.GetDrawings():                                 # board outline
+        if s.GetLayer() != pcbnew.Edge_Cuts:
+            continue
+        try:
+            if s.GetShape() == pcbnew.SHAPE_T_RECT:
+                a, c = P(s.GetStart()), P(s.GetEnd())
+                g.rectangle([min(a[0], c[0]), min(a[1], c[1]), max(a[0], c[0]), max(a[1], c[1])],
+                            outline=(128, 203, 196), width=2)
+            else:
+                g.line([P(s.GetStart()), P(s.GetEnd())], fill=(128, 203, 196), width=2)
+        except Exception:                                    # noqa: BLE001
+            pass
+
+    edge_col = {pcbnew.F_Cu: (255, 120, 120), pcbnew.B_Cu: (120, 160, 255)}  # outer pour edges -> lanes pop
+    for z in b.Zones():
+        for lid in z.GetLayerSet().Seq():
+            if lid not in edge_col:
+                continue
+            poly = z.GetFilledPolysList(lid)
+            for oi in range(poly.OutlineCount()):
+                ol = poly.Outline(oi)
+                pts = [P(ol.CPoint(k)) for k in range(ol.PointCount())]
+                if len(pts) >= 2:
+                    g.line(pts + [pts[0]], fill=edge_col[lid], width=2)
+
+    for tk in b.GetTracks():                                  # vias on top
+        if tk.Type() != pcbnew.PCB_VIA_T:
+            continue
+        try:
+            dia = tk.GetWidth(tk.TopLayer()) / 1e6
+        except Exception:                                    # noqa: BLE001
+            dia = 0.6
+        c = P(tk.GetPosition()); r = dia * scale / 2.0
+        g.ellipse([c[0] - r, c[1] - r, c[0] + r, c[1] + r], fill=(26, 26, 30), outline=(96, 100, 108))
+
+    # ---- title / verdict
+    dt = res.max_T - res.ambient
+    verdict = "PASS" if dt <= gate_dt else "FAIL"
+    vcol = (165, 214, 167) if verdict == "PASS" else (239, 154, 154)
+    g.text((14, 9), title or os.path.basename(out_png), fill=(236, 239, 241), font=_pil_font(22))
+    g.text((14, 42),
+           f"electro-thermal copper map   peak {res.max_T:.1f}°C   dT {dt:.1f}°C "
+           f"(gate {gate_dt:.0f})   [{verdict}]   {cool_label}",
+           fill=vcol, font=_pil_font(15, False))
+
+    # ---- colorbar (vertical, ambient->peak)
+    lx = bw + 18
+    cb_x, cb_y, cb_w, cb_h = lx, top + 34, 26, int(bh * 0.46)
+    for i in range(max(cb_h, 1)):
+        col = tuple(int(v) for v in lut[int((1 - i / max(cb_h - 1, 1)) * 255)])
+        g.line([(cb_x, cb_y + i), (cb_x + cb_w, cb_y + i)], fill=col)
+    g.rectangle([cb_x, cb_y, cb_x + cb_w, cb_y + cb_h], outline=(120, 130, 140))
+    fsmall = _pil_font(13, False)
+    for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
+        tval = vmin + frac * (vmax - vmin)
+        yy = cb_y + int((1 - frac) * cb_h)
+        g.line([(cb_x + cb_w, yy), (cb_x + cb_w + 5, yy)], fill=(150, 160, 170))
+        g.text((cb_x + cb_w + 9, yy - 8), f"{tval:.0f}", fill=(207, 216, 220), font=fsmall)
+    g.text((cb_x, cb_y - 24), "copper T (°C)", fill=(207, 216, 220), font=_pil_font(14))
+    sub = f"ambient {res.ambient:.0f}°C  ·  peak {res.max_T:.1f}°C"
+    if vmin > res.ambient + 0.5 or vmax < res.max_T - 0.5:
+        sub += f"  ·  scale {vmin:.0f}–{vmax:.0f} (contrast)"
+    g.text((cb_x, cb_y + cb_h + 7), sub, fill=(144, 164, 174), font=_pil_font(11, False))
+
+    # ---- per-net hottest legend (filters out unrouted "unconnected-..." pseudo-nets)
+    nets = sorted(((n, v) for n, v in res.per_net_maxT.items() if not n.startswith("unconnected-")),
+                  key=lambda kv: -kv[1])
+    ny0 = cb_y + cb_h + 38
+    g.text((lx, ny0 - 22), "hottest nets (max °C)", fill=(207, 216, 220), font=_pil_font(14))
+    for i, (n, v) in enumerate(nets[:16]):
+        yy = ny0 + i * 19
+        g.rectangle([lx, yy + 2, lx + 15, yy + 15], fill=tcolor(v), outline=(60, 60, 60))
+        nm = n if len(n) <= 27 else n[:25] + "…"
+        g.text((lx + 21, yy), nm, fill=(207, 216, 220), font=fsmall)
+        g.text((W - 56, yy), f"{v:.1f}", fill=(255, 204, 128), font=fsmall)
+
+    ky = ny0 + min(len(nets), 16) * 19 + 16
+    g.text((lx, ky), "pour edge:", fill=(207, 216, 220), font=fsmall)
+    g.rectangle([lx + 86, ky + 1, lx + 100, ky + 14], fill=(235, 70, 70), outline=(60, 60, 60))
+    g.text((lx + 104, ky), "F.Cu", fill=(207, 216, 220), font=fsmall)
+    g.rectangle([lx + 156, ky + 1, lx + 170, ky + 14], fill=(70, 120, 235), outline=(60, 60, 60))
+    g.text((lx + 174, ky), "B.Cu", fill=(207, 216, 220), font=fsmall)
+
+    canvas.save(out_png)
+    return out_png
+
+
+# ---------------------------------------------------------------------------
+#  BLENDED detail render -- the "between" view the owner asked for.
+#
+#  It marries the two good reference renders:
+#    (1) eps-thermal-detail.png  (render_thermal_detail / _draw_thermal_detail):
+#        a SMOOTH continuous field across the whole board -> heat pooling is
+#        instantly readable, but the copper geometry is washed out.
+#    (2) eps-render-thermal.png  (the standalone build/render-thermal.py):
+#        TRANSLUCENT STACKED copper layers (F/In1/In2/B all visible at once,
+#        overlaps show through) with distinct pad/trace/via/pour treatments and
+#        PROMINENT via rings -- crisp copper structure, but heat reads only as a
+#        per-feature tint, not a field.
+#
+#  The blend draws the SMOOTH field as a (slightly dimmed) BASE LAYER over the
+#  whole board, then composites the translucent stacked copper -- given a small
+#  brightness lift so it pops against the same-hue base -- crisply ON TOP, with
+#  prominent vias / pad outlines / per-layer pour edges last. Neither washes the
+#  other out: the field shows through the translucent pours while the structure
+#  (which layers are present, where they overlap, every via) stays legible.
+#
+#  The SAME routine renders the CURRENT TWIN (mode="current"): identical geometry
+#  / layers / features / vias, but every copper region is coloured by the CURRENT
+#  of its NET (default_currents) through a current LUT + legend instead of the
+#  temperature field -- a cross-check (heat should track current).
+# ---------------------------------------------------------------------------
+_BLEND_STACK_BU = ["B.Cu", "In2.Cu", "In1.Cu", "F.Cu"]   # composite order (F.Cu ends on top)
+_BLEND_LEDGE = {"F.Cu": (255, 96, 72), "In1.Cu": (90, 214, 120),     # pour-edge identity colour
+                "In2.Cu": (214, 110, 236), "B.Cu": (84, 150, 255)}
+_BLEND_LTINT = {"F.Cu": (255, 138, 120), "In1.Cu": (150, 238, 175),  # soft per-layer fill tint
+                "In2.Cu": (226, 150, 240), "B.Cu": (130, 182, 255)}
+
+
+def _draw_detail_blend(board_path, res, out_png, mode="thermal", currents=None,
+                       cool_label="still-air (no case)", gate_dt=30.0,
+                       cmap_name="turbo", final_board_w=1180, ss=2, title=None):
+    """Draw the blended smooth-field + translucent-stacked-copper detail map for an ALREADY-SOLVED board.
+
+    mode="thermal"  -> colour = the solved temperature field (smooth spatial base + copper coloured by the
+                       field it sits in); contrast-stretched copper percentile scale + hottest-net (°C) legend.
+    mode="current"  -> colour = per-net CURRENT (from `currents`, default default_currents): the base field is
+                       the dominant (max) net current per pixel, each stacked copper layer is coloured by ITS
+                       OWN net's current, 0..max(A) scale + per-net (A) legend. Same geometry/vias as thermal.
+
+    Drawn at ss x supersample then downsampled LANCZOS for crisp edges. Returns out_png."""
+    import pcbnew
+    from PIL import Image, ImageDraw
+
+    b = pcbnew.LoadBoard(board_path)
+    STD = t2.STD_CU_LAYERS                       # lid -> std name (F.Cu/In1.Cu/In2.Cu/B.Cu)
+    STD_BY_NAME = {v: k for k, v in STD.items()}
+
+    # ---- geometry transform (working == FINAL * ss) ------------------------
+    bb = b.GetBoardEdgesBoundingBox()
+    minx, miny = bb.GetLeft() / 1e6 - 2.0, bb.GetTop() / 1e6 - 2.0
+    maxx, maxy = bb.GetRight() / 1e6 + 2.0, bb.GetBottom() / 1e6 + 2.0
+    bw_mm, bh_mm = maxx - minx, maxy - miny
+    scale = final_board_w * ss / bw_mm                       # working px per mm
+    bw, bh = int(round(bw_mm * scale)), int(round(bh_mm * scale))
+    TITLE_H, LEG_W = 96, 372
+    top, legw = TITLE_H * ss, LEG_W * ss
+
+    def Xb(x_nm): return (x_nm / 1e6 - minx) * scale
+    def Yb(y_nm): return (y_nm / 1e6 - miny) * scale
+
+    # ---- per-net current lookup (current mode) -----------------------------
+    is_cur = (mode == "current")
+    if is_cur and currents is None:
+        cfg_nc, _stk, _ss, _cool = board_thermal_config(board_path)   # 12VHPWR -> per-pin lanes; else None
+        currents = cfg_nc if cfg_nc else default_currents(board_path)
+    currents = currents or {}
+
+    def cur_of(net):
+        if net in currents:
+            return float(currents[net])
+        n2 = (net or "").lstrip("/")
+        for k, v in currents.items():
+            if k.lstrip("/") == n2:
+                return float(v)
+        return 0.0
+
+    cmap = plt.get_cmap(cmap_name)
+    lut = (np.asarray(cmap(np.linspace(0, 1, 256)))[:, :3] * 255.0).astype(np.uint8)
+
+    def colorize(arr, vlo, vhi):
+        f = np.clip((arr - vlo) / max(vhi - vlo, 1e-6), 0.0, 1.0)
+        return lut[(f * 255).astype(np.uint8)].astype(np.float32)
+
+    def vcolor(v, vlo, vhi):
+        f = (float(v) - vlo) / max(vhi - vlo, 1e-6)
+        return tuple(int(x) for x in lut[int(np.clip(f, 0.0, 1.0) * 255)])
+
+    # ---- value scale -------------------------------------------------------
+    if is_cur:
+        vlo, vhi = 0.0, max([max(currents.values()) if currents else 1.0, 1.0])
+    else:
+        cu_any = res.copper_mask
+        _vmin_pct = float(os.environ.get("CEC_THERMAL_VMIN_PCT", "2"))
+        _vmax_pct = float(os.environ.get("CEC_THERMAL_VMAX_PCT", "98"))
+        if cu_any is not None and cu_any.any():
+            cuT = res.T[cu_any]
+            vlo = max(float(res.ambient), float(np.percentile(cuT, _vmin_pct)))
+            vhi = max(float(np.percentile(cuT, _vmax_pct)), vlo + 1.0)
+        else:
+            vlo, vhi = float(res.ambient), max(float(res.max_T), float(res.ambient) + 1.0)
+
+    # ---- the SMOOTH base field (thermal: bilinear T everywhere; current: dominant net current) --
+    if not is_cur:
+        rxmin, rymin, _rxmax, _rymax = res.extent_mm
+        gm, (ny, nx) = res.grid_mm, res.T.shape
+        px = (np.arange(bw) + 0.5) / scale + minx
+        py = (np.arange(bh) + 0.5) / scale + miny
+        cols = np.broadcast_to((px[None, :] - rxmin) / gm - 0.5, (bh, bw))
+        rows = np.broadcast_to((py[:, None] - rymin) / gm - 0.5, (bh, bw))
+        c0 = np.clip(np.floor(cols).astype(int), 0, nx - 1); c1 = np.clip(c0 + 1, 0, nx - 1)
+        r0 = np.clip(np.floor(rows).astype(int), 0, ny - 1); r1 = np.clip(r0 + 1, 0, ny - 1)
+        fc = np.clip(cols - np.floor(cols), 0.0, 1.0); fr = np.clip(rows - np.floor(rows), 0.0, 1.0)
+        T = res.T
+        Tf = (T[r0, c0] * (1 - fr) * (1 - fc) + T[r0, c1] * (1 - fr) * fc +
+              T[r1, c0] * fr * (1 - fc) + T[r1, c1] * fr * fc)
+        field_rgb = colorize(Tf, vlo, vhi)                   # (bh, bw, 3) -- the per-pixel spatial field
+
+    # ---- rasterise per-(layer, feature-type) UNION masks (alpha) + (current) per-layer value masks --
+    masks = {std: {"pour": Image.new("L", (bw, bh), 0),
+                   "trace": Image.new("L", (bw, bh), 0),
+                   "pad": Image.new("L", (bw, bh), 0)} for std in STD.values()}
+    md = {std: {k: ImageDraw.Draw(v) for k, v in masks[std].items()} for std in masks}
+    pour_edges = {std: [] for std in STD.values()}
+    cur_lv = {std: {} for std in STD.values()}               # std -> {current_value: (Image, Draw)}
+
+    def cur_draw(std, net):
+        if not is_cur:
+            return None
+        cv = cur_of(net)
+        d = cur_lv[std]
+        if cv not in d:
+            img = Image.new("L", (bw, bh), 0)
+            d[cv] = (img, ImageDraw.Draw(img))
+        return d[cv][1]
+
+    # filled pours (honour clearance voids = holes)
+    for z in b.Zones():
+        net = z.GetNetname()
+        for lid in z.GetLayerSet().Seq():
+            std = STD.get(lid)
+            if std is None:
+                continue
+            cd = cur_draw(std, net)
+            poly = z.GetFilledPolysList(lid)
+            for oi in range(poly.OutlineCount()):
+                ol = poly.Outline(oi)
+                pts = [(Xb(ol.CPoint(k).x), Yb(ol.CPoint(k).y)) for k in range(ol.PointCount())]
+                if len(pts) >= 3:
+                    md[std]["pour"].polygon(pts, fill=255)
+                    if cd is not None:
+                        cd.polygon(pts, fill=255)
+                    pour_edges[std].append(pts)
+                try:
+                    for hi in range(poly.HoleCount(oi)):
+                        hl = poly.Hole(oi, hi)
+                        hp = [(Xb(hl.CPoint(k).x), Yb(hl.CPoint(k).y)) for k in range(hl.PointCount())]
+                        if len(hp) >= 3:
+                            md[std]["pour"].polygon(hp, fill=0)
+                            if cd is not None:
+                                cd.polygon(hp, fill=0)
+                            pour_edges[std].append(hp)
+                except Exception:                            # noqa: BLE001
+                    pass
+
+    # routed tracks at real width (+ arcs), rounded ends; vias collected for the top overlay
+    vias = []
+    for tk in b.GetTracks():
+        tp = tk.Type()
+        if tp == pcbnew.PCB_VIA_T:
+            try:
+                dia = tk.GetWidth(tk.TopLayer()) / 1e6
+            except Exception:                                # noqa: BLE001
+                dia = 0.6
+            try:
+                drill = tk.GetDrill() / 1e6
+            except Exception:                                # noqa: BLE001
+                drill = dia * 0.5
+            vias.append((Xb(tk.GetPosition().x), Yb(tk.GetPosition().y),
+                         dia * scale / 2.0, max(drill, 0.2) * scale / 2.0))
+            continue
+        std = STD.get(tk.GetLayer())
+        if std is None:
+            continue
+        try:
+            net = tk.GetNetname()
+        except Exception:                                    # noqa: BLE001
+            net = ""
+        cd = cur_draw(std, net)
+        w = max(1, int(round(tk.GetWidth() / 1e6 * scale)))
+        if tp == pcbnew.PCB_ARC_T:
+            try:
+                s, m, e = tk.GetStart(), tk.GetMid(), tk.GetEnd()
+                ch = t2._arc_chords(s.x / 1e6, s.y / 1e6, m.x / 1e6, m.y / 1e6, e.x / 1e6, e.y / 1e6)
+                pts = [((x - minx) * scale, (y - miny) * scale) for (x, y) in ch]
+            except Exception:                                # noqa: BLE001
+                s, e = tk.GetStart(), tk.GetEnd()
+                pts = [(Xb(s.x), Yb(s.y)), (Xb(e.x), Yb(e.y))]
+            if len(pts) >= 2:
+                md[std]["trace"].line(pts, fill=255, width=w, joint="curve")
+                if cd is not None:
+                    cd.line(pts, fill=255, width=w, joint="curve")
+        else:
+            s, e = tk.GetStart(), tk.GetEnd()
+            a, c = (Xb(s.x), Yb(s.y)), (Xb(e.x), Yb(e.y))
+            md[std]["trace"].line([a, c], fill=255, width=w)
+            if cd is not None:
+                cd.line([a, c], fill=255, width=w)
+            r = w / 2.0
+            for (xx, yy) in (a, c):
+                md[std]["trace"].ellipse([xx - r, yy - r, xx + r, yy + r], fill=255)
+                if cd is not None:
+                    cd.ellipse([xx - r, yy - r, xx + r, yy + r], fill=255)
+
+    # pads (real shape: rect / roundrect -> rect, circle / oval -> ellipse)
+    pad_outlines = []
+    for fp in b.GetFootprints():
+        for pad in fp.Pads():
+            ls = pad.GetLayerSet()
+            try:
+                net = pad.GetNetname()
+            except Exception:                                # noqa: BLE001
+                net = ""
+            cx, cy = Xb(pad.GetPosition().x), Yb(pad.GetPosition().y)
+            sz = pad.GetSize()
+            hw, hh = sz.x / 1e6 * scale / 2.0, sz.y / 1e6 * scale / 2.0
+            try:
+                shp = pad.GetShape()
+                is_round = shp in (pcbnew.PAD_SHAPE_CIRCLE, pcbnew.PAD_SHAPE_OVAL)
+            except Exception:                                # noqa: BLE001
+                is_round = False
+            box = [cx - hw, cy - hh, cx + hw, cy + hh]
+            for lid in STD:
+                if ls.Contains(lid):
+                    std = STD[lid]
+                    cd = cur_draw(std, net)
+                    if is_round:
+                        md[std]["pad"].ellipse(box, fill=255)
+                        if cd is not None:
+                            cd.ellipse(box, fill=255)
+                    else:
+                        md[std]["pad"].rectangle(box, fill=255)
+                        if cd is not None:
+                            cd.rectangle(box, fill=255)
+            pad_outlines.append((box, is_round))
+
+    # ---- per-layer VALUE colour arrays -------------------------------------
+    #   thermal: every layer uses the spatial field at each pixel.
+    #   current: each layer is coloured by its OWN net current; the base is the dominant (max) current.
+    layer_color = {}
+    if is_cur:
+        base_cur = np.zeros((bh, bw), np.float32)
+        for std in STD.values():
+            cf = np.zeros((bh, bw), np.float32)
+            for cv in sorted(cur_lv[std]):                   # ascending -> higher current overwrites (== max)
+                m = np.asarray(cur_lv[std][cv][0]) > 127
+                cf[m] = cv
+            layer_color[std] = colorize(cf, vlo, vhi)
+            base_cur = np.maximum(base_cur, cf)
+        base_rgb = colorize(base_cur, vlo, vhi)
+    else:
+        for std in STD.values():
+            layer_color[std] = field_rgb
+        base_rgb = field_rgb
+
+    # ---- COMPOSITE: dimmed smooth base + translucent stacked copper (lifted so it pops) ----
+    # alphas: pours stay see-through so the base field reads through them; traces/pads near-opaque.
+    if is_cur:
+        A_POUR_OUTER, A_POUR_INNER, A_TRACE, A_PAD = 0.60, 0.32, 0.90, 0.97
+        BASE_DIM, COPPER_GAIN, K_TINT = 0.66, 1.05, 0.14
+    else:
+        A_POUR_OUTER, A_POUR_INNER, A_TRACE, A_PAD = 0.40, 0.30, 0.86, 0.97
+        BASE_DIM, COPPER_GAIN, K_TINT = 0.66, 1.12, 0.20
+
+    canvas_f = base_rgb * BASE_DIM                           # the smooth field, dimmed -> copper has headroom to pop
+    for std in _BLEND_STACK_BU:
+        m = masks[std]
+        pour = np.asarray(m["pour"]) > 127
+        trace = np.asarray(m["trace"]) > 127
+        pad = np.asarray(m["pad"]) > 127
+        a_pour = A_POUR_OUTER if std in ("F.Cu", "B.Cu") else A_POUR_INNER
+        alpha = np.zeros((bh, bw), np.float32)
+        alpha[pour] = a_pour
+        alpha = np.maximum(alpha, trace.astype(np.float32) * A_TRACE)
+        alpha = np.maximum(alpha, pad.astype(np.float32) * A_PAD)
+        tint = np.array(_BLEND_LTINT[std], np.float32)
+        lc = np.clip(layer_color[std] * COPPER_GAIN, 0, 255)
+        layer_rgb = lc * (1.0 - K_TINT) + tint[None, None, :] * K_TINT
+        a3 = alpha[..., None]
+        canvas_f = layer_rgb * a3 + canvas_f * (1.0 - a3)
+    board_img = Image.fromarray(np.clip(canvas_f, 0, 255).astype(np.uint8), "RGB")
+
+    # ---- full canvas + vector overlays -------------------------------------
+    BG = (15, 18, 24)
+    W = bw + legw
+    nets_T = sorted(((n, v) for n, v in res.per_net_maxT.items() if not n.startswith("unconnected-")),
+                    key=lambda kv: -kv[1])
+    legend_nets = (sorted(currents.items(), key=lambda kv: -kv[1]) if is_cur else nets_T)
+    NSHOW = min(len(legend_nets), 13)
+    cbh = int(bh * 0.32)
+    legend_h = 14 * ss + cbh + (250 + 20 * NSHOW) * ss
+    H = max(bh, legend_h) + top + 22 * ss
+
+    canvas = Image.new("RGB", (W, H), BG)
+    canvas.paste(board_img, (0, top))
+    g = ImageDraw.Draw(canvas, "RGBA")
+
+    def X(x_nm): return (x_nm / 1e6 - minx) * scale
+    def Y(y_nm): return (y_nm / 1e6 - miny) * scale + top
+    def P(pt): return (X(pt.x), Y(pt.y))
+
+    for s in b.GetDrawings():                                 # board outline
+        if s.GetLayer() != pcbnew.Edge_Cuts:
+            continue
+        try:
+            if s.GetShape() == pcbnew.SHAPE_T_RECT:
+                a, c = P(s.GetStart()), P(s.GetEnd())
+                g.rectangle([min(a[0], c[0]), min(a[1], c[1]), max(a[0], c[0]), max(a[1], c[1])],
+                            outline=(150, 214, 208), width=2 * ss)
+            else:
+                g.line([P(s.GetStart()), P(s.GetEnd())], fill=(150, 214, 208), width=2 * ss)
+        except Exception:                                    # noqa: BLE001
+            pass
+
+    for std in _BLEND_STACK_BU:                               # per-layer pour EDGES (layer identity)
+        outer = std in ("F.Cu", "B.Cu")
+        col = _BLEND_LEDGE[std] + (235 if outer else 150,)
+        ew = (ss + 1) if outer else max(1, ss)
+        for pts in pour_edges[std]:
+            pp = [(x, y + top) for (x, y) in pts]
+            if len(pp) >= 2:
+                g.line(pp + [pp[0]], fill=col, width=ew)
+
+    for box, is_round in pad_outlines:                        # pad terminal outlines (gold ring)
+        bx = [box[0], box[1] + top, box[2], box[3] + top]
+        if is_round:
+            g.ellipse(bx, outline=(255, 218, 130, 255), width=ss + 1)
+        else:
+            g.rectangle(bx, outline=(255, 218, 130, 255), width=ss)
+
+    for (vx, vy, rad, drill) in vias:                         # PROMINENT via rings, drawn LAST
+        cx, cy = vx, vy + top
+        rad = max(rad, 2.0 * ss)
+        g.ellipse([cx - rad - ss, cy - rad - ss, cx + rad + ss, cy + rad + ss], fill=(20, 22, 28, 235))
+        g.ellipse([cx - rad, cy - rad, cx + rad, cy + rad], outline=(245, 248, 252), width=max(2, ss + 1))
+        dr = max(drill, 1.0 * ss)
+        g.ellipse([cx - dr, cy - dr, cx + dr, cy + dr], fill=(40, 44, 52, 255))
+
+    # ---- title -------------------------------------------------------------
+    dt = res.max_T - res.ambient
+    verdict = "PASS" if dt <= gate_dt else "FAIL"
+    base_title = title or os.path.basename(board_path)
+    if is_cur:
+        g.text((14 * ss, 10 * ss),
+               "%s  -  per-net CURRENT cross-check (heat should track current)" % base_title,
+               fill=(238, 241, 244), font=_pil_font(22 * ss))
+        topcur = "  ·  ".join("%s %.1fA" % (k.lstrip("/"), v)
+                              for k, v in legend_nets[:4])
+        g.text((14 * ss, 44 * ss),
+               "colour = current carried by each net's copper   ·   %s" % topcur,
+               fill=(180, 196, 208), font=_pil_font(15 * ss, False))
+        g.text((14 * ss, 68 * ss),
+               "smooth dominant-current base + translucent stacked copper (each layer = its own net's current)   ·   "
+               "twin of the temperature map -- compare the hot regions",
+               fill=(150, 165, 178), font=_pil_font(13 * ss, False))
+    else:
+        vcol = (165, 220, 167) if verdict == "PASS" else (239, 154, 154)
+        g.text((14 * ss, 10 * ss),
+               "%s  -  electro-thermal copper map (smooth field + detailed copper)" % base_title,
+               fill=(238, 241, 244), font=_pil_font(22 * ss))
+        g.text((14 * ss, 44 * ss),
+               "colour = local copper temperature (turbo)   ·   peak %.1f°C   dT %.1f°C (gate %d)   [%s]   %s"
+               % (res.max_T, dt, gate_dt, verdict, cool_label),
+               fill=vcol, font=_pil_font(15 * ss, False))
+        g.text((14 * ss, 68 * ss),
+               "smooth field base + 4 copper layers drawn translucent & stacked (overlaps show through)   ·   "
+               "ambient %.0f°C   ·   grid %.2f mm" % (res.ambient, res.grid_mm),
+               fill=(150, 165, 178), font=_pil_font(13 * ss, False))
+
+    # ---- legend column -----------------------------------------------------
+    lx = bw + 20 * ss
+    fsm = _pil_font(13 * ss, False)
+    fmd = _pil_font(14 * ss)
+    cby = top + 14 * ss
+    cbw = 30 * ss
+    for i in range(cbh):                                      # colorbar (top = high)
+        col = tuple(int(v) for v in lut[int((1 - i / max(cbh - 1, 1)) * 255)])
+        g.line([(lx, cby + i), (lx + cbw, cby + i)], fill=col)
+    g.rectangle([lx, cby, lx + cbw, cby + cbh], outline=(120, 132, 142), width=ss)
+    cb_label = "net current (A)" if is_cur else "copper T (°C)"
+    g.text((lx, cby - 22 * ss), cb_label, fill=(210, 218, 222), font=fmd)
+    for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
+        tval = vlo + frac * (vhi - vlo)
+        yy = cby + int((1 - frac) * cbh)
+        g.line([(lx + cbw, yy), (lx + cbw + 6 * ss, yy)], fill=(150, 162, 172), width=ss)
+        g.text((lx + cbw + 10 * ss, yy - 8 * ss), "%.1f" % tval, fill=(208, 217, 220), font=fsm)
+    if is_cur:
+        g.text((lx, cby + cbh + 8 * ss), "scale 0–%.1f A" % vhi, fill=(146, 166, 176), font=fsm)
+        g.text((lx, cby + cbh + 26 * ss),
+               "balanced EPS currents (default_currents)", fill=(146, 166, 176), font=fsm)
+    else:
+        g.text((lx, cby + cbh + 8 * ss),
+               "scale %.1f–%.1f (contrast-stretched)" % (vlo, vhi), fill=(146, 166, 176), font=fsm)
+        g.text((lx, cby + cbh + 26 * ss),
+               "ambient %.0f°C  ·  TRUE peak %.1f°C" % (res.ambient, res.max_T), fill=(146, 166, 176), font=fsm)
+
+    # feature-type legend
+    fy = cby + cbh + 58 * ss
+    g.text((lx, fy), "FEATURE TYPES", fill=(210, 218, 222), font=fmd)
+    fy += 24 * ss
+    sw = 26 * ss
+    demoV = vlo + 0.62 * (vhi - vlo)
+    fc_demo = vcolor(demoV, vlo, vhi)
+    g.rectangle([lx, fy, lx + sw, fy + 16 * ss], fill=fc_demo + (int(255 * A_POUR_OUTER),))
+    g.text((lx + sw + 10 * ss, fy), "filled pour (translucent field)", fill=(208, 217, 220), font=fsm)
+    fy += 24 * ss
+    g.line([(lx + 2 * ss, fy + 8 * ss), (lx + sw - 2 * ss, fy + 8 * ss)], fill=fc_demo, width=6 * ss)
+    g.text((lx + sw + 10 * ss, fy), "routed trace (real width)", fill=(208, 217, 220), font=fsm)
+    fy += 24 * ss
+    g.rectangle([lx + 3 * ss, fy + 1 * ss, lx + sw - 3 * ss, fy + 15 * ss],
+                fill=fc_demo + (245,), outline=(255, 224, 150), width=max(1, ss))
+    g.text((lx + sw + 10 * ss, fy), "pad / terminal", fill=(208, 217, 220), font=fsm)
+    fy += 24 * ss
+    vcx, vcy = lx + sw // 2, fy + 8 * ss
+    vr = 8 * ss
+    g.ellipse([vcx - vr, vcy - vr, vcx + vr, vcy + vr], outline=(245, 248, 252), width=max(2, ss + 1))
+    g.ellipse([vcx - 3 * ss, vcy - 3 * ss, vcx + 3 * ss, vcy + 3 * ss], fill=(40, 44, 52))
+    g.text((lx + sw + 10 * ss, fy), "via (ringed, layer-spanning)", fill=(208, 217, 220), font=fsm)
+
+    # layer legend (identity edge colours)
+    fy += 38 * ss
+    g.text((lx, fy), "COPPER LAYERS (edge = layer)", fill=(210, 218, 222), font=fmd)
+    fy += 24 * ss
+    for std in ["F.Cu", "In1.Cu", "In2.Cu", "B.Cu"]:
+        col = _BLEND_LEDGE[std]
+        g.rectangle([lx, fy + 2 * ss, lx + sw, fy + 15 * ss],
+                    fill=col + (int(255 * 0.55),), outline=col, width=max(1, ss))
+        lid = STD_BY_NAME.get(std)
+        rn = b.GetLayerName(lid) if lid is not None else std
+        lab = "%s  (%s)" % (std, rn) if rn and rn != std else std
+        g.text((lx + sw + 10 * ss, fy), lab, fill=(208, 217, 220), font=fsm)
+        fy += 22 * ss
+
+    # per-net hottest / highest-current legend
+    fy += 16 * ss
+    g.text((lx, fy), ("HIGHEST-CURRENT NETS (A)" if is_cur else "HOTTEST NETS (max °C)"),
+           fill=(210, 218, 222), font=fmd)
+    fy += 24 * ss
+    for (n, v) in legend_nets[:NSHOW]:
+        g.rectangle([lx, fy + 2 * ss, lx + 16 * ss, fy + 15 * ss],
+                    fill=vcolor(v, vlo, vhi), outline=(70, 70, 70))
+        nm = n if len(n) <= 24 else n[:22] + "…"
+        g.text((lx + 22 * ss, fy), nm, fill=(208, 217, 220), font=fsm)
+        g.text((W - 56 * ss, fy), ("%.1f" % v), fill=(255, 206, 130), font=fsm)
+        fy += 20 * ss
+
+    final = canvas.resize((W // ss, H // ss), Image.LANCZOS)
+    final.save(out_png)
+    return out_png
+
+
+def render_detail_blend(board_path, out_png, mode="thermal", currents=None, stackup=None,
+                        ambient=50.0, grid_mm=0.3, h_eff=15.0, gate_dt=30.0,
+                        src_sink_override=None, cmap_name="turbo", final_board_w=1180):
+    """Solve + draw the blended detail map (mode='thermal') or its current twin (mode='current').
+    Returns a summary dict. The current twin reuses default_currents -- the SAME currents the solve used."""
+    res, fpath, cool_label = _solve_thermal(board_path, currents=currents, stackup=stackup,
+                                            ambient=ambient, grid_mm=grid_mm, h_eff=h_eff,
+                                            src_sink_override=src_sink_override)
+    leg_cur = currents if (mode == "current" and currents is not None) else (
+        default_currents(fpath) if mode == "current" else None)
+    _draw_detail_blend(fpath, res, out_png, mode=mode, currents=leg_cur, cool_label=cool_label,
+                       gate_dt=gate_dt, cmap_name=cmap_name, final_board_w=final_board_w,
+                       title=os.path.basename(board_path))
+    dt_pass = (res.max_T - res.ambient) <= gate_dt
+    out = {
+        "ok": True, "mode": mode, "max_T": round(res.max_T, 2), "ambient": res.ambient,
+        "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
+        "cooling": cool_label, "grid_mm": res.grid_mm, "png": out_png,
+    }
+    if mode == "current":
+        out["currents"] = {k: round(float(v), 2) for k, v in (leg_cur or {}).items()}
+    else:
+        out["per_net_maxT"] = {k: round(v, 1) for k, v in res.per_net_maxT.items()}
+    return out
+
+
+def render_thermal_detail(board_path, out_png, currents=None, stackup=None,
+                          ambient=50.0, grid_mm=0.3, h_eff=15.0, gate_dt=30.0,
+                          src_sink_override=None, cmap_name="turbo", width=1500):
+    """Solve + draw the full-detail electro-thermal copper map for ONE board. Returns a summary dict.
+    Now renders the BLENDED smooth-field + translucent-stacked-copper map (the owner's "between" view)."""
+    res, fpath, cool_label = _solve_thermal(board_path, currents=currents, stackup=stackup,
+                                            ambient=ambient, grid_mm=grid_mm, h_eff=h_eff,
+                                            src_sink_override=src_sink_override)
+    _draw_detail_blend(fpath, res, out_png, mode="thermal", cool_label=cool_label, gate_dt=gate_dt,
+                       cmap_name=cmap_name, title=os.path.basename(board_path))
+    dt_pass = (res.max_T - res.ambient) <= gate_dt
+    return {
+        "ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
+        "dT": round(res.max_T - res.ambient, 2), "verdict": "PASS" if dt_pass else "FAIL",
+        "cooling": cool_label, "grid_mm": res.grid_mm, "png": out_png,
+        "per_net_maxT": {k: round(v, 1) for k, v in res.per_net_maxT.items()},
+    }
+
+
 def render_overlay(board_path, out_png, currents=None, stackup=None,
                    ambient=50.0, grid_mm=0.4, h_eff=15.0, gate_dt=30.0,
                    gate_J=100.0, src_sink_override=None):
@@ -210,7 +1016,11 @@ def render_overlay(board_path, out_png, currents=None, stackup=None,
     show = (dT > 0.5) | cu_mask
     Tm = np.ma.array(T, mask=~show)
     vmin = res.ambient
-    vmax = max(res.max_T, res.ambient + 1.0)
+    # clip vmax to a percentile so one hot neck does not crush the pours (see render_per_layer)
+    _vmax_pct = float(os.environ.get("CEC_THERMAL_VMAX_PCT", "96"))
+    _cuT = T[cu_mask] if (cu_mask is not None and cu_mask.any()) else T[show]
+    vmax = (max(float(np.percentile(_cuT, _vmax_pct)), res.ambient + 1.0)
+            if _cuT.size else max(res.max_T, res.ambient + 1.0))
     im = ax.imshow(Tm, origin="upper",
                    extent=[xmin, xmax, ymax, ymin], aspect="equal",
                    cmap="inferno", vmin=vmin, vmax=vmax, alpha=0.78,
@@ -330,60 +1140,44 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     import pcbnew
     from matplotlib.collections import LineCollection
     os.makedirs(out_dir, exist_ok=True)
-    cfg_nc, cfg_stack, cfg_ov, cfg_cool = board_thermal_config(board_path)   # per-board inputs (read BEFORE _prepare_filled renames)
-    board_path = _prepare_filled(board_path)             # candidates ship unfilled -> pour + fill first
-    if currents is None:
-        currents = cfg_nc if cfg_nc is not None else default_currents(board_path)
-    if stackup is None:
-        stackup = cfg_stack                              # 12VHPWR -> 2oz/1oz; cable boards -> None (solver default)
-    if src_sink_override is None:
-        src_sink_override = cfg_ov                        # 12VHPWR -> J3/J4 lanes; cable boards -> auto J_IN/J_OUT
-
-    # PRODUCTION case-cooling (owner-validated 2026-06-20): the dashboard default (still-air + adiabatic
-    # edges + no enclosure) gives a misleadingly hot dT99/maxT149 for 12VHPWR. The real production design --
-    # full metal case, TIM from the RS1-6 shunts to the case, M3 mounts coupled to the case -- lands at
-    # dT~24/maxT~74 = PASS (same PASS regime as the owner's ~14/64 hand calc, ~9C hotter on dT -- not exact).
-    # Couple the TIM'd shunts (chassis_refs) +
-    # mounts (g_mount auto-finds the M3 holes) to the case temp. Env knobs walk the envelope without a code
-    # edit: CEC_THERMAL_NO_COOLING=1 -> still-air conservative bound; CEC_THERMAL_TIM_WK / CEC_THERMAL_MOUNT_WK
-    # -> override the per-shunt TIM / per-mount conductance (e.g. CONSERVATIVE TIM 0.1). Scoped by cfg_cool to
-    # 12VHPWR; cable boards have cfg_cool=None -> unchanged still-air.
-    cool_kw, cool_label = {}, "still-air (no case)"
-    if cfg_cool and os.environ.get("CEC_THERMAL_NO_COOLING", "") not in ("1", "true", "True"):
-        g_tim = float(os.environ.get("CEC_THERMAL_TIM_WK", cfg_cool["g_chassis_W_per_K"]))
-        g_mnt = float(os.environ.get("CEC_THERMAL_MOUNT_WK", cfg_cool["g_mount_W_per_K"]))
-        pre = cfg_cool.get("shunt_prefix", "RS").upper()
-        _b = pcbnew.LoadBoard(board_path)
-        shunt_refs = sorted(fp.GetReference() for fp in _b.GetFootprints()
-                            if (fp.GetReference() or "").upper().startswith(pre))
-        if shunt_refs and g_tim > 0:
-            cool_kw["chassis_refs"] = shunt_refs
-            cool_kw["g_chassis_W_per_K"] = g_tim
-        if g_mnt > 0:
-            cool_kw["g_mount_W_per_K"] = g_mnt
-        cool_kw["t_chassis"] = ambient
-        cool_label = cfg_cool.get("label", "production case-cooled")
-        if g_tim != cfg_cool["g_chassis_W_per_K"] or g_mnt != cfg_cool["g_mount_W_per_K"]:
-            cool_label += " [TIM=%.2f mount=%.2f W/K]" % (g_tim, g_mnt)
-    res = t2.solve_board_thermal(
-        board_path, stackup_oz=stackup, net_currents=currents,
-        ambient=ambient, h_eff=h_eff, grid_mm=grid_mm, verbose=False,
-        src_sink_override=src_sink_override, **cool_kw)
+    # Solve via the shared recipe (per-board config + pour/fill + production case-cooling env-knobs); the
+    # cooling rationale is documented on _solve_thermal / board_thermal_config. board_path is rebound to the
+    # filled copy the solver used so the per-layer masks below read the SAME copper.
+    res, board_path, cool_label = _solve_thermal(
+        board_path, currents=currents, stackup=stackup, ambient=ambient,
+        grid_mm=grid_mm, h_eff=h_eff, src_sink_override=src_sink_override)
 
     board = pcbnew.LoadBoard(board_path)
     segs = _edge_segments(board)
     xmin, ymin, xmax, ymax = res.extent_mm
     W, H = max(xmax - xmin, 1e-6), max(ymax - ymin, 1e-6)
-    # Colour range is recomputed over the copper the SOLVER actually modelled
-    # (zones + routed traces + pads) so a hot thin trace sets the top of the scale,
-    # not a stale plane-only range.
+    # Colour range over the copper the SOLVER actually modelled (zones + routed
+    # traces + pads). CLIP vmax to a high PERCENTILE, not the raw max: a single
+    # blazing-hot neck (a few cells at 1000+ C in the still-air bound) otherwise
+    # owns the whole 50->max scale and crushes every current-carrying POUR into the
+    # black/background end -> the pours read as "absent" even though they carry the
+    # entire load. With the percentile, the necks saturate (bright) and the pour
+    # gradient is visible. The TRUE peak stays in the colorbar label + summary max_T.
+    # CEC_THERMAL_VMAX_PCT tunes it (default 96); with no hot outlier the percentile
+    # ~= the max, so this is a no-op on well-behaved boards.
     cu_any = res.copper_mask
+    _vmax_pct = float(os.environ.get("CEC_THERMAL_VMAX_PCT", "96"))
     if cu_any is not None and cu_any.any():
-        vmax = max(float(res.T[cu_any].max()), res.ambient + 1.0)
+        vmax = max(float(np.percentile(res.T[cu_any], _vmax_pct)), res.ambient + 1.0)
     else:
         vmax = max(res.max_T, res.ambient + 1.0)
     vmin = res.ambient
     cmap = plt.cm.inferno.copy(); cmap.set_bad(alpha=0.0)   # masked (no copper) -> fully transparent
+    # COPPER-GEOMETRY BASE + alpha-ramped heatmap: the inferno low end is near-black,
+    # so cool POUR copper (away from the hot necks) vanished into the dark dashboard
+    # ("pours not on the dash"). Draw the layer's copper as a dim slate BASE so its
+    # SHAPE is always visible, then ride the heatmap on top with an alpha ramp -- cool
+    # copper shows the slate base, warm->hot copper saturates to inferno.
+    from matplotlib.colors import ListedColormap
+    base_cmap = ListedColormap(["#5d6e7a"])                 # dim slate, visible on the dark panel
+    _heat = plt.cm.inferno(np.linspace(0, 1, 256))
+    _heat[:, 3] = np.clip(np.linspace(-0.15, 1.25, 256), 0.0, 1.0)   # transparent cool -> opaque hot
+    heat_cmap = ListedColormap(_heat); heat_cmap.set_bad(alpha=0.0)
 
     # per-layer copper masks INCLUDING traces (from the solver), keyed by std-layer
     lcm = res.layer_copper_mask or {}
@@ -417,8 +1211,26 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
         Tm = np.ma.array(res.T, mask=~mask)
         fig = plt.figure(figsize=(8.0, 8.0 * H / W), dpi=130)
         ax = fig.add_axes([0, 0, 1, 1]); ax.set_axis_off()
+        base = np.ma.array(np.zeros_like(res.T), mask=~mask)   # this layer's copper SHAPE -> dim slate base
+        ax.imshow(base, origin="upper", extent=[xmin, xmax, ymax, ymin], aspect="equal",
+                  cmap=base_cmap, vmin=0, vmax=1, interpolation="nearest")
         ax.imshow(Tm, origin="upper", extent=[xmin, xmax, ymax, ymin], aspect="equal",
-                  cmap=cmap, vmin=vmin, vmax=vmax, interpolation="nearest")
+                  cmap=heat_cmap, vmin=vmin, vmax=vmax, interpolation="nearest")
+        # POUR OUTLINES: trace this layer's filled ZONE boundaries in bright cyan so the
+        # wide pours are UNMISTAKABLE as copper regions on the heatmap, not lost among the
+        # equally-warm traces (the owner's "I can't see the pours on the dash").
+        zsegs = []
+        for z in board.Zones():
+            if not z.IsOnLayer(lid):
+                continue
+            pl = z.GetFilledPolysList(lid)
+            for oi in range(pl.OutlineCount()):
+                ol = pl.Outline(oi)
+                pts = [(ol.CPoint(k).x / 1e6, ol.CPoint(k).y / 1e6) for k in range(ol.PointCount())]
+                for i in range(len(pts)):
+                    zsegs.append((pts[i], pts[(i + 1) % len(pts)]))
+        if zsegs:
+            ax.add_collection(LineCollection(zsegs, colors="#00e5ff", linewidths=0.5, alpha=0.85))
         if segs:
             ax.add_collection(LineCollection(segs, colors="#80cbc4", linewidths=0.8, alpha=0.55))
         ax.set_xlim(xmin, xmax); ax.set_ylim(ymax, ymin)
@@ -432,7 +1244,8 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     cax = fig.add_axes([0.04, 0.5, 0.92, 0.32])
     cb = mpl.colorbar.ColorbarBase(cax, cmap=plt.cm.inferno,
                                    norm=mpl.colors.Normalize(vmin=vmin, vmax=vmax), orientation="horizontal")
-    cb.set_label(f"copper temperature (°C)    ambient {res.ambient:.0f}°C    max {res.max_T:.1f}°C",
+    _clip = f"  scale→{vmax:.0f}°C (clipped)" if vmax < res.max_T - 0.5 else ""
+    cb.set_label(f"copper temp (°C)   ambient {res.ambient:.0f}°C{_clip}   peak {res.max_T:.1f}°C   [{cool_label}]",
                  color="#cfd8dc", fontsize=9)
     cax.tick_params(colors="#cfd8dc", labelsize=8)
     fig.savefig(cbar, dpi=130, facecolor="#101418"); plt.close(fig)
@@ -450,6 +1263,27 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
     except Exception:                                        # noqa: BLE001 -- hover data is a bonus, never block
         pass
 
+    # FULL-DETAIL composite (the owner's primary thermal view) + its CURRENT TWIN cross-check. BOTH are the
+    # BLENDED smooth-field + translucent-stacked-copper map drawn from the SAME `res` + filled board (no second
+    # solve): _detail.png = temperature, _current.png = per-net current. Each degrades to None on failure so
+    # the per-layer raster (and the rest of the dashboard) never break.
+    detail_name = None
+    try:
+        detail = os.path.join(out_dir, "_detail.png")
+        _draw_detail_blend(board_path, res, detail, mode="thermal", cool_label=cool_label, gate_dt=gate_dt)
+        detail_name = os.path.basename(detail)
+    except Exception:                                        # noqa: BLE001
+        detail_name = None
+
+    current_name = None
+    try:
+        current = os.path.join(out_dir, "_current.png")
+        _draw_detail_blend(board_path, res, current, mode="current", currents=currents,
+                           cool_label=cool_label, gate_dt=gate_dt)
+        current_name = os.path.basename(current)
+    except Exception:                                        # noqa: BLE001
+        current_name = None
+
     dt_pass = (res.max_T - res.ambient) <= gate_dt
     return {
         "ok": True, "max_T": round(res.max_T, 2), "ambient": res.ambient,
@@ -459,6 +1293,8 @@ def render_per_layer(board_path, out_dir, currents=None, stackup=None,
         "per_layer_maxT": per_layer_maxT,
         "per_net_maxT": {k: round(v, 1) for k, v in res.per_net_maxT.items()},
         "layers": {k: os.path.basename(v) for k, v in layers.items()},
+        "detail": detail_name,
+        "current": current_name,
         "cbar": os.path.basename(cbar), "out_dir": out_dir,
     }
 
@@ -469,6 +1305,11 @@ def main():
     ap.add_argument("--out", default=None, help="composite-mode output PNG")
     ap.add_argument("--out-dir", default=None,
                     help="PER-LAYER mode: dir for one transparent <layer>.png each + _cbar.png (the dashboard view)")
+    ap.add_argument("--detail", default=None,
+                    help="DETAIL mode: blended smooth-field + detailed-copper map coloured by temperature -> this PNG")
+    ap.add_argument("--current", default=None,
+                    help="CURRENT-TWIN mode: the same blended map coloured by per-net current -> this PNG")
+    ap.add_argument("--cmap", default="turbo", help="detail-mode colormap (default turbo)")
     ap.add_argument("--grid-mm", type=float, default=0.4)
     ap.add_argument("--ambient", type=float, default=50.0)
     ap.add_argument("--h-eff", type=float, default=15.0)
@@ -478,6 +1319,15 @@ def main():
 
     currents = json.loads(a.currents) if a.currents else None
     stackup = json.loads(a.stackup) if a.stackup else None
+    if a.detail or a.current:                                # DETAIL / CURRENT-TWIN mode (the blended copper map)
+        mode = "current" if a.current else "thermal"
+        out_png = a.current or a.detail
+        try:
+            out = render_detail_blend(a.board, out_png, mode=mode, currents=currents, stackup=stackup,
+                                      ambient=a.ambient, grid_mm=a.grid_mm, h_eff=a.h_eff, cmap_name=a.cmap)
+        except Exception as e:                              # noqa: BLE001
+            print(json.dumps({"ok": False, "error": f"{type(e).__name__}: {e}"})); sys.exit(2)
+        print(json.dumps(out)); return
     if a.out_dir:                                            # PER-LAYER mode (the dashboard's view)
         try:
             out = render_per_layer(a.board, a.out_dir, currents=currents, stackup=stackup,

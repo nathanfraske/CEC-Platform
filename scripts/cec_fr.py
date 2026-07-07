@@ -61,6 +61,49 @@ with _cl.redirect_stderr(open(os.devnull, "w")):
 MM = 1_000_000               # nm per mm
 def _nm(v): return int(round(v * MM))
 
+# ---------------------------------------------------------------------------
+# SHUNT-GAP notch (owner-ratified 2026-06-28) -- the un-poured channel the high-current pours leave
+# AT the Kelvin shunt for the sense cluster (INA238 + §6.13 INA181 + TLV7011) and a B.Cu overflow-
+# routing lane. A 2-pad R_2512 shunt's pads are only ~5.9mm apart, so hugging each pad with the 1.0mm
+# pour margin left a ~3.9mm notch -- TOO NARROW (the 4.19mm SOT-23-6 INA181 body overshot it, and the
+# B.Cu route-under had no lane to dive the overflow nets under the pour edge). SHUNT_GAP_MM opens that
+# notch to ~6.5mm by pulling each pour's shunt-side edge back to shunt_centre +/- SHUNT_GAP_MM/2 (the
+# pour still overlaps the shunt pad's outer half -> high-current continuity, completed by the B.Cu
+# mirror + via field). The placer grows the board ~3mm taller (J_IN<->J_OUT) so the pours stay long.
+# General to the per-cable EPS/PCIe interposer family (any 2-pad straddle shunt).
+SHUNT_GAP_MM = 6.5
+
+
+def _shunt_gap_on():
+    """The SHUNT_GAP_MM widen is OPT-IN (CEC_SHUNT_GAP=1), DEFAULT OFF. It is a board-specific
+    re-place change (owner ratification boundary: a ratified change is board-specific by default,
+    not platform-wide) -- the board must be PLACED with the matching wide notch + grown outline for
+    the pulled-back pour to stay on the shunt pad. Applying it to a legacy board placed for the
+    ~3.9mm notch (e.g. the frozen SB-08 golden eps-8pin) pulls the pour off the shunt and breaks the
+    route, so existing committed boards stay on the historical hug-the-shunt pour unless they opt in."""
+    return os.environ.get("CEC_SHUNT_GAP", "0") == "1"
+
+
+def _open_shunt_notch(box, shunt_xy, gap, *, vertical=True):
+    """Pull a high-current pour box's SHUNT-SIDE edge back so the un-poured notch centred on the shunt
+    is at least *gap* mm (the sense-cluster + B.Cu-overflow channel). *box*=(x0,x1,y0,y1) is one net's
+    pour (cable-in->shunt OR shunt->cable-out); *shunt_xy* is the shunt centre. The shunt-side edge is
+    the box edge nearest the shunt centre along the corridor axis (vertical for the EPS/PCIe top->bottom
+    cables). Only ever PULLS the edge toward the connector (clamped, never extends), so it can only OPEN
+    the notch -- the connector-side extent is untouched."""
+    x0, x1, y0, y1 = box
+    if vertical:
+        if (y0 + y1) / 2.0 < shunt_xy[1]:               # box ABOVE the shunt (cable-in/HI) -> clamp bottom up
+            y1 = min(y1, shunt_xy[1] - gap / 2.0)
+        else:                                           # box BELOW the shunt (cable-out/LO) -> clamp top down
+            y0 = max(y0, shunt_xy[1] + gap / 2.0)
+    else:
+        if (x0 + x1) / 2.0 < shunt_xy[0]:
+            x1 = min(x1, shunt_xy[0] - gap / 2.0)
+        else:
+            x0 = max(x0, shunt_xy[0] + gap / 2.0)
+    return (x0, x1, y0, y1)
+
 # Cross-platform scratch dir: the OS temp dir (/tmp on Linux/mac, %TEMP% on Windows).
 # Never hardcode /tmp -- it doesn't exist on Windows.
 _TMP = tempfile.gettempdir()
@@ -121,7 +164,13 @@ def _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
         if workdir:
             base += [f"--user_data_path={os.path.abspath(workdir)}"]
         return base                                   # true headless: no xvfb needed
-    if sys.platform.startswith("linux") and not os.environ.get("DISPLAY") and shutil.which("xvfb-run"):
+    # Linux: ALWAYS prefer xvfb-run when available, even if $DISPLAY is set. The routing container
+    # leaks a forwarded display (WSLg sets DISPLAY=:99 with a mounted X11 socket), and the old
+    # `not $DISPLAY` guard then took the native-window path -> Freerouting popped a real Swing window
+    # on the host desktop. Headless is the correct default for the compute plane; xvfb-run -a starts
+    # its own virtual server and overrides the leaked DISPLAY. CEC_FR_USE_DISPLAY=1 opts a Linux
+    # desktop dev back into the visible window. Windows/macOS are unaffected (native path below).
+    if sys.platform.startswith("linux") and shutil.which("xvfb-run") and os.environ.get("CEC_FR_USE_DISPLAY") != "1":
         return ["xvfb-run", "-a"] + base
     return base
 
@@ -356,6 +405,148 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
     return done
 
 
+def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=6.0) -> set:
+    """The DSN pin tokens (``"<ref>-<pad>"``) of the current-sense IC INPUT pads (IN+/IN-) that the
+    GENERATIVE four-wire tap (:func:`synthesize_kelvin_taps`) owns -- i.e. the pads whose ONLY copper
+    connection must be the inner-edge shunt tap, never an FR-routed wire to the cable connector.
+
+    For each Kelvin pair (``*_HI``/``*_LO``) the 2-pad straddle shunt is found, and on each net the
+    IN+/IN- pad (by PIN FUNCTION, _SENSE_INPAD: INA238/228 pad 10/9, INA181 pad 3/4) of every seated
+    current-sense IC (``INA`` in value, not the shunt) within *max_ic_mm* of the shunt is collected.
+    This is the EXACT same selection synthesize_kelvin_taps uses, so the FR exclusion and the post-route
+    tap agree by construction: every pad removed here is re-connected by the tap (or, if the tap is
+    foreign-guard-REFUSED, the pad stays honestly UNCONNECTED -> the gate fails -> re-place; it is NEVER
+    papered over by an FR connector wire, which is the kelvin-from-connector bug this exclusion fixes).
+
+    NOTE: the INA238/228 Vbus pad (8, on the _LO net) is a high-impedance VOLTAGE tap, NOT a Kelvin
+    current-sense input, so it is deliberately left in the net for FR to route normally. Returns the set
+    of pin tokens; empty (no-op) on a board with no 2-pad straddle shunt / no seated INA (Hub, filtered
+    12VHPWR lanes)."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+    out = set()
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pos = None
+        for r, p, _fp in pads_by_net.get(hi, []) + pads_by_net.get(lo, []):
+            if r == sh:
+                sh_pos = p.GetPosition()
+                break
+        for net, role in ((hi, "HI"), (lo, "LO")):
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue                                  # not the IN+/IN- pad of a known part
+                if sh_pos is not None:
+                    d = math.hypot((p.GetPosition().x - sh_pos.x) / MM,
+                                   (p.GetPosition().y - sh_pos.y) / MM)
+                    if d > max_ic_mm:
+                        continue                              # too far to tap -> leave to FR (don't strand)
+                out.add(f"{r}-{p.GetPadName()}")
+    return out
+
+
+def sensec_force_connector_pins(board, *, kelvin_pairs=None) -> set:
+    """The DSN pin tokens (``"<ref>-<pad>"``) of the CABLE-CONNECTOR force pins (J_IN / J_OUT THT pads)
+    on each high-current SENSEC net that ALSO gets a post-route FORCE POUR -- i.e. the pads whose
+    connector<->shunt connection is the job of :func:`add_power_pours`, NOT of an FR-routed wire.
+
+    THE INEFFICIENCY THIS FIXES (owner-caught 2026-06-30): the connector force pins sit on the same
+    ``*_HI``/``*_LO`` net as the shunt, so Freerouting must satisfy their connectivity -- and with the
+    NOTCHED corridor keepout active (:func:`corridor_keepouts`, ``DoNotAllowTracks`` over the pour box)
+    FR cannot route connector->shunt THROUGH the reserved corridor, so it DETOURS the force wire AROUND
+    it through the cramped sense row. On the congested 3-port that detour exploded to ~80 redundant force
+    tracks (~253mm) -- copper the F.Cu pour was going to lay anyway -- clogging the channel and pushing
+    foreign signals across the pours. Removing the connector force pins from the DSN makes FR LEAVE the
+    connector->shunt force path entirely to the pour (which fills the reserved corridor solid: the keepout
+    is ``block_fills=False``), freeing the channel. The exact analog of the kelvin exclusion
+    (:func:`kelvin_sense_pins`), but for the FORCE half of the shared shunt pad.
+
+    SURGICAL by design: ONLY the cable-connector THT pads are dropped. The shunt's OWN pads, the §6.13
+    INA181 detection-tap pads, and the §6.8 INA238 Kelvin/Vbus pads all stay on the net, so FR still
+    routes detection (shunt->INA181) and the post-route Kelvin tap is untouched -- the detection and
+    Kelvin paths are NOT broken, only the redundant connector->shunt force copper is.
+
+    SELF-GATING (matches :func:`derive_power_pours` exactly, so a pin is dropped iff a pour will reconnect
+    it): a net qualifies only when its pair has a 2-pad straddle shunt AND the net carries at least one THT
+    pad (the cable connector). A board with no straddle shunt / no THT cable connector (Hub, filtered
+    12VHPWR lanes) yields the empty set -> no-op. Returns the set of pin tokens."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p))
+    out = set()
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _ in pads_by_net.get(lo, [])}
+        # the 2-pad straddle shunt -> a real Kelvin force corridor (same rule derive_power_pours uses)
+        if not {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}:
+            continue
+        for net in (hi, lo):
+            entries = pads_by_net.get(net, [])
+            # only nets with a THT cable connector get a force pour (derive_power_pours' has_tht gate)
+            tht = [(r, p) for r, p in entries if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+            if not tht:
+                continue
+            for r, p in tht:
+                out.add(f"{r}-{p.GetPadName()}")
+    return out
+
+
+def _dsn_exclude_pins(dsn_path: str, pins) -> int:
+    """Remove the given ``"<ref>-<pad>"`` pin tokens from EVERY ``(net ... (pins ...))`` list in the
+    exported DSN so Freerouting does NOT route those pads. A pad belongs to exactly one net, so a token
+    is globally unique -- a global whole-token removal is safe and net-agnostic. The de-netted pad keeps
+    its real net in the .kicad_pcb (only the DSN is edited); FR treats it as a no-net obstacle and leaves
+    it for the post-route generative tap. Returns the number of token occurrences removed."""
+    import re
+    if not pins:
+        return 0
+    text = open(dsn_path, "r", encoding="utf-8", errors="replace").read()
+    removed = 0
+    for tok in pins:
+        # whole-token match: not preceded/followed by a word char or '-' (so 'U10-10' != inside 'U10-100')
+        pat = re.compile(r"(?<![\w-])" + re.escape(tok) + r"(?![\w-])")
+        text, n = pat.subn("", text)
+        removed += n
+    if removed:
+        # tidy the gaps the removals leave inside (pins ... ) so the file stays clean s-expr
+        text = re.sub(r"[ \t]{2,}", " ", text)
+        text = re.sub(r"\(pins +", "(pins ", text)
+        text = re.sub(r" +\)", ")", text)
+        open(dsn_path, "w", encoding="utf-8").write(text)
+    return removed
+
+
 def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = None) -> str:
     """Load *board_path* with pcbnew and call ExportSpecctraDSN(board, dsn_path).
 
@@ -383,6 +574,36 @@ def export_dsn(board_path: str, dsn_path: str, *, plane_to_power: bool | None = 
         if rewritten:
             print(f"[cec_fr] layer policy: plane layer(s) {rewritten} -> (type power) "
                   f"(FR signal routing excluded)", file=sys.stderr)
+    # KELVIN POLICY (owner directive 2026-06-28, the kelvin-from-connector fix): the current-sense IC
+    # IN+/IN- pads sit on the high-current SENSEC net (same net as the cable connector + shunt). If FR
+    # is allowed to route them it satisfies their connectivity by wiring them to the NEAREST net point
+    # -- the connector -- so the sense taps the connector->shunt copper (+ its IR drop / contact R) and
+    # the sense wire carries current: NOT a four-wire Kelvin. Remove those pads from the DSN net so FR
+    # leaves them alone; the post-route synthesize_kelvin_taps is then their ONLY connection (the §6.8
+    # inner-edge tap). Env kill-switch CEC_KELVIN_FR_EXCLUDE=0 reverts (A/B). Self-gating no-op on a
+    # board with no straddle shunt / seated INA.
+    if os.environ.get("CEC_KELVIN_FR_EXCLUDE", "1") != "0":
+        sense_pins = kelvin_sense_pins(board)
+        if sense_pins:
+            n = _dsn_exclude_pins(dsn_path, sense_pins)
+            print(f"[cec_fr] kelvin policy: excluded {len(sense_pins)} current-sense input pad(s) "
+                  f"{sorted(sense_pins)} from FR routing ({n} DSN token(s) removed) -- the inner-edge "
+                  f"tap is their only connection", file=sys.stderr)
+    # FORCE-POUR-ONLY POLICY (owner directive 2026-06-30, the redundant-force-trace fix): leave the
+    # cable connector<->shunt FORCE path entirely to the post-route pour. Without this, FR detours the
+    # connector force connectivity AROUND the corridor keepout (it cannot route through the reserved
+    # box), laying redundant connector->shunt copper the pour would carry anyway -- ~80 tracks on the
+    # congested 3-port, clogging the sense row and pushing foreign onto the pours. Drop ONLY the
+    # connector THT force pins (detection + Kelvin pads stay -> those taps still route); the post-route
+    # add_power_pours then makes the connector->shunt connection. OPT-IN (default OFF), self-gating to
+    # nets that have a force pour, so it is a safe no-op on a board without SENSEC pours. A/B kill-switch.
+    if os.environ.get("CEC_SENSEC_FORCE_POUR_ONLY", "0") == "1":
+        force_pins = sensec_force_connector_pins(board)
+        if force_pins:
+            n = _dsn_exclude_pins(dsn_path, force_pins)
+            print(f"[cec_fr] force-pour-only policy: excluded {len(force_pins)} cable-connector force "
+                  f"pin(s) {sorted(force_pins)} from FR routing ({n} DSN token(s) removed) -- the "
+                  f"post-route power pour is their only connection to the shunt", file=sys.stderr)
     return dsn_path
 
 
@@ -599,6 +820,19 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
         # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
         # bbox and make the HI box (cable->shunt) overlap the LO box (shunt->cable).
         shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        # shunt centre + corridor axis (for the SHUNT_GAP_MM notch): the two pads of the 2-pad shunt
+        # on this pair's HI/LO nets. Vertical corridor (EPS/PCIe top->bottom) if the pads differ more
+        # in y than x. None when there is no qualifying 2-pad shunt -> the notch is a no-op (the box
+        # keeps hugging the shunt pad, the historical behaviour).
+        sh_pads = [p.GetPosition() for ref, p in (pads_by_net.get(hi, []) + pads_by_net.get(lo, []))
+                   if ref in shunt_refs]
+        shunt_xy = vertical = None
+        if _shunt_gap_on() and len(sh_pads) >= 2:
+            scx = sum(q.x for q in sh_pads) / len(sh_pads) / MM
+            scy = sum(q.y for q in sh_pads) / len(sh_pads) / MM
+            shunt_xy = (scx, scy)
+            vertical = (max(q.y for q in sh_pads) - min(q.y for q in sh_pads)) >= \
+                       (max(q.x for q in sh_pads) - min(q.x for q in sh_pads))
         for net in (hi, lo):
             entries = pads_by_net.get(net, [])
             has_tht = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries)
@@ -615,14 +849,26 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             ys = [y for _, y in heavy]
             x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
             y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
+            if shunt_xy is not None:              # open the un-poured notch at the shunt to SHUNT_GAP_MM
+                x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, SHUNT_GAP_MM,
+                                                   vertical=vertical)
             pours.append({"net": net, "layer": layer,
                           "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
     return pours
 
 
-def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None):
+def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None,
+                      layers=("F.Cu", "B.Cu")):
     """Route-time NOTCHED corridor keepout (the ENFORCE leg of the high-current-corridor-keepout /
     high-current-pour-integrity / kelvin-tap-inner-shunt-edge corpus rules).
+
+    *layers* selects which copper layers the keepout reserves. The default reserves BOTH outer pour
+    layers (F.Cu + B.Cu) so a foreign trace cannot cut either mirror. Passing ``("F.Cu",)`` reserves
+    ONLY F.Cu -- the "layer-tier lever": foreign then routes on B.Cu UNDER the F.Cu pour (which the
+    no-foreign-on-high-current-pour gate, F.Cu-scoped, treats as clear), so pass-1 itself lands
+    foreign-on-pour=0 with the F.Cu pour solid, WITHOUT a TPC re-route (whose track-based LO re-route
+    trips the cut-vertex kelvin check). Pair with tap_channel_keepouts so the notch tap channels stay
+    clear too.
 
     Reserve each high-current FORCE corridor -- the cable connector THT pads' span extended to the 2-pad
     Kelvin shunt -- as a Freerouting keepout, CLIPPED on the shunt's inner side so the tap window
@@ -665,28 +911,58 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
         entries = pads_by_net.get(net, [])
         tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
-                 for fp in board.GetFootprints() if npads.get(fp.GetReference(), 0) == 2
-                 for p in fp.Pads() if p.GetNetname() == net]
+        # the 2-pad shunt footprint straddling this net: its pad on `net`, plus its CENTRE (footprint
+        # origin = midpoint of the two terminals) so the keepout clips at the SHUNT_GAP_MM notch edge
+        # (matching derive_power_pours), not at the shunt pad -- otherwise the keepout would block the
+        # B.Cu overflow route-under lane the widened notch opens.
+        shunt = []
+        shunt_centre_y = None
+        for fp in board.GetFootprints():
+            if npads.get(fp.GetReference(), 0) != 2:
+                continue
+            if any(p.GetNetname() == net for p in fp.Pads()):
+                shunt += [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                          for p in fp.Pads() if p.GetNetname() == net]
+                shunt_centre_y = fp.GetPosition().y / MM
         if not tht or not shunt:
             continue                                         # not a cable-connector high-current net
         sx, sy = shunt[0]
+        # notch edge = shunt centre +/- SHUNT_GAP_MM/2 when the widen is on (matching derive_power_pours
+        # so the keepout never blocks the B.Cu overflow lane), else the historical clip AT the shunt pad.
+        clip_hi = (shunt_centre_y - SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
+        clip_lo = (shunt_centre_y + SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
         txs = [x for x, _ in tht]
         tys = [y for _, y in tht]
         tcy = sum(tys) / len(tys)
         x0 = min(txs + [sx]) - 1.0
         x1 = max(txs + [sx]) + 1.0
-        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom AT shunt
-            y0, y1 = min(tys) - 1.0, sy
-        else:                                                # shunt ABOVE the connector (cable-out): clip top AT shunt
-            y0, y1 = sy, max(tys) + 1.0
+        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom at the notch top
+            y0, y1 = min(tys) - 1.0, clip_hi
+        else:                                                # shunt ABOVE the connector (cable-out): clip top at the notch bottom
+            y0, y1 = clip_lo, max(tys) + 1.0
         hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
                       "x1": round(x1, 2), "y1": round(y1, 2),
-                      "layers": ("F.Cu", "B.Cu"), "allow_vias": True,
+                      "layers": tuple(layers), "allow_vias": True,
                       # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
                       # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
                       "block_fills": False})
     return hints
+
+
+def _fp_bbox_no_text(fp):
+    """A footprint's bounding box EXCLUDING its silk/fab reference + value TEXT. pcbnew's bare
+    FOOTPRINT.GetBoundingBox() folds in the F.Fab Value string, so a tiny part with a long value
+    reads enormous -- the M3 mounting hole (true courtyard 6.95mm) reports a 25.54mm-wide bbox
+    because its Value is the 28-char 'MountingHole_3.2mm_M3_Pad_Via'. Used by edge_keepout so an
+    edge-resident part's keepout EXCLUSION is its real copper/courtyard extent, not its text (an
+    inflated mount bbox otherwise punched a ~25mm hole in the board-edge keepout strip)."""
+    try:
+        return fp.GetBoundingBox(False, False)              # (aIncludeText=False, aIncludeInvisibleText=False)
+    except TypeError:
+        try:
+            return fp.GetBoundingBox(False)
+        except TypeError:
+            return fp.GetBoundingBox()
 
 
 def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs=("J", "H"),
@@ -718,7 +994,7 @@ def edge_keepout(board_path, *, margin=0.6, clearance=0.8, board=None, edge_refs
     allow = []                                              # inflated bboxes that may touch the edge
     for fp in own.GetFootprints():
         if _edge_resident(fp):
-            fb = fp.GetBoundingBox()
+            fb = _fp_bbox_no_text(fp)
             allow.append((fb.GetLeft() / MM - clearance, fb.GetTop() / MM - clearance,
                           fb.GetRight() / MM + clearance, fb.GetBottom() / MM + clearance))
 
@@ -863,6 +1139,351 @@ def add_via_field(board, fields):
             board.Add(v)
             added.append(v)
     return added
+
+
+# ---------------------------------------------------------------------------
+# synthesize_kelvin_taps -- the GENERATIVE four-wire Kelvin inner-leg tap (§6.8)
+# ---------------------------------------------------------------------------
+def _inner_edge_pt(this_pad, other_pos, inset_mm=0.0):
+    """The §6.8 inner-edge sense point of a shunt pad: the centre of the pad EDGE that faces the
+    other terminal. inner_dir = unit(other_terminal - this_pad); the point is pad_centre advanced
+    by the pad half-extent ALONG inner_dir. This is byte-for-byte the inner-ness math the checker
+    uses (cec_constraints._chk_kelvin_inner: tap_pt = centre + inner_dir*(|ix|*sx/2 + |iy|*sy/2)),
+    so a tap STARTED here passes the inner-edge assertion by construction. Returns (x_mm, y_mm,
+    inner_dx, inner_dy).
+
+    *inset_mm* pulls the point that far BACK from the exact boundary toward the pad centre. The
+    builder lays the tap start with a small inset so the endpoint sits unambiguously INSIDE the pad
+    copper -- a point exactly on the boundary reads as a track_dangling end in KiCad connectivity
+    once it is a lone arm (when the sibling INA tap on the same pad is guard-refused, it no longer
+    shares the junction). The inset stays a small fraction of the pad reach, so inner-ness remains
+    far above the checker's inner_min."""
+    pc = this_pad.GetPosition()
+    dx, dy = (other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM
+    dn = math.hypot(dx, dy) or 1.0
+    ux, uy = dx / dn, dy / dn                                   # inner direction (board frame, toward other terminal)
+    sz = this_pad.GetSize()
+    # PROJECT inner_dir onto the pad's LOCAL axes so reach is the TRUE edge distance even when the
+    # footprint (hence pad) is rotated: GetSize() is the UNROTATED size, so on a rot +-90 shunt the
+    # board-x/board-y extents are swapped and a naive |ux|*sx/2+|uy|*sy/2 lands the start OFF the pad
+    # (~1mm into the gap on the EPS R_2512 shunt -- it never tapped the shunt edge; the sibling INA tap
+    # meeting at that off-pad junction merely hid it). Support function of the local-axis rectangle:
+    # reach = |d.xhat|*hx + |d.yhat|*hy with d projected into the pad frame.
+    try:
+        ang = math.radians(this_pad.GetOrientationDegrees())
+    except Exception:                                          # older binding: EDA_ANGLE
+        ang = this_pad.GetOrientation().AsRadians()
+    ca, sa = math.cos(ang), math.sin(ang)
+    lux = ux * ca + uy * sa                                    # inner_dir in the pad-local frame
+    luy = -ux * sa + uy * ca
+    reach = abs(lux) * (sz.x / MM) / 2.0 + abs(luy) * (sz.y / MM) / 2.0
+    reach = max(0.0, reach - max(0.0, inset_mm))
+    return pc.x / MM + ux * reach, pc.y / MM + uy * reach, ux, uy
+
+
+# Current-sense IC input-pad map, keyed by part-value substring. The footprint pads carry
+# no GetPinFunction() (measured empty on the EPS INA238/INA181 lands), so the IN+ / IN- pin is
+# resolved by part value + pad NUMBER. IN+ takes the _HI tap, IN- takes the _LO tap. CRITICAL:
+# on the INA238/228 the _LO net carries BOTH IN-(pad 9) AND Vbus(pad 8) -- the old nearest-by-
+# distance picker grabbed Vbus (the GND-adjacent pad), so the straight stub shorted to GND. Pin
+# function is the correct selector.
+_SENSE_INPAD = {
+    "INA238": {"HI": "10", "LO": "9"},   # VSSOP-10: 10=IN+, 9=IN-, 8=Vbus
+    "INA228": {"HI": "10", "LO": "9"},
+    "INA181": {"HI": "3",  "LO": "4"},   # 3=IN+, 4=IN-
+}
+
+
+def _sense_in_pad(fp, role):
+    """The IN+/IN- input pad NAME of a current-sense IC for the given role ('HI'->IN+, 'LO'->IN-).
+    Maps by part value (footprint pads carry no pin function). Returns the pad name, or None when
+    the part is unrecognised (caller falls back to nearest-pad)."""
+    val = (fp.GetValue() or "").upper()
+    for key, m in _SENSE_INPAD.items():
+        if key in val:
+            return m.get(role)
+    return None
+
+
+def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_codes):
+    """True iff a single straight F.Cu segment S->T (width width_nm) has NO FOREIGN-net copper
+    within clearance_nm on layer_id. FOREIGN = any pad/track/via whose net code is NOT in
+    sense_codes (the set of all _HI/_LO Kelvin-pair codes -- so the partner sense leg and the
+    tap's own net never count, only GND/+3V3/signal/power foreign copper does). Uses the SAME
+    GetEffectiveShape().Collide() geometry KiCad DRC uses, so a PASS here is DRC-clean for copper
+    clearance on this segment -- the guard that lets the tap REFUSE rather than lay a shorting stub."""
+    seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() in sense_codes:
+                continue
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if p.GetEffectiveShape(layer_id).Collide(seg, clearance_nm):
+                    return False
+            except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
+                continue
+    for t in board.GetTracks():
+        if t.GetNetCode() in sense_codes:
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            if layer_id not in t.GetLayerSet().CuStack():
+                continue
+        elif t.GetLayer() != layer_id:
+            continue
+        try:
+            if t.GetEffectiveShape(layer_id).Collide(seg, clearance_nm):
+                return False
+        except Exception:                           # noqa: BLE001
+            continue
+    return True
+
+
+def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=6.0,
+                           clearance=0.2):
+    """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
+    2-pad shunt's INNER edge (the sense point facing the other terminal) to each seated current-sense
+    IC's matching input pad on that net -- HI-inner -> IN+ (the *_HI pad), LO-inner -> IN- (the *_LO
+    pad). The kelvin half cec_fr never had: derive_power_pours deliberately EXCLUDES the INA SMD sense
+    pads, so the HI box (cable-in -> shunt) and the LO box (shunt -> cable-out) stop ~3.9mm short of
+    each other at the shunt -- an open tap window. This lays the §6.8 inner-edge sense connection INTO
+    that window.
+
+    ADDITIVE same-net copper, run AFTER the route (like add_power_pours / add_via_field), so it can
+    only ADD a clean direct sense connection -- it never reshapes Freerouting's global solution and so
+    never strands the sense (the kelvin_ok gate holds). The stub starts on the shunt-pad copper at the
+    inner edge and merges with the same-net pour (ZONE_CONNECTION_FULL). NO VIA: each tap is a single
+    F.Cu segment (inner edge -> IN pad), so the sense never folds via inductance into the loop (§6.8).
+    The inner-edge geometry MATCHES cec_constraints._chk_kelvin_inner, so the build and the constraint
+    check agree by construction.
+
+    TWO defences against the stub shorting to foreign copper in the seated channel:
+      (1) PIN-FUNCTION termination -- the tap lands on the IN+/IN- pad by FUNCTION (HI->IN+, LO->IN-),
+          NOT the nearest pad by distance. The INA238/228 carries BOTH IN-(pad 9) and Vbus(pad 8) on
+          the _LO net; the old nearest-pick grabbed Vbus, which sits 0.5mm from the GND pad, so the
+          straight stub clipped GND. IN- is the §6.8 termination and sits clear of the GND cluster.
+      (2) CLEARANCE GUARD -- before laying, the straight stub is tested against all FOREIGN-net copper
+          (GND/+3V3/signal/power; the partner sense leg is never foreign) at the board *clearance*
+          using the same Collide() geometry DRC uses. If it is NOT clear the tap is REFUSED (laid
+          nowhere) and recorded in report['refused'] -- a shorting stub is NEVER laid (owner directive:
+          the tap yields to foreign copper, it never plows through it; a refused tap re-surfaces the
+          inner_tap placement directive so the seat can re-open the channel).
+
+    SELF-GATING: a board with no 2-pad straddle shunt, or no INA input pad on a sense net within
+    max_ic_mm of the shunt (shared-bus 24-pin / filtered 12VHPWR lanes), lays nothing and is a no-op.
+    Pass an already-loaded *board* (additive, in place). Returns a report dict
+    {taps, by_net: {net: ["RSn->Uk.pad", ...]}, refused: {net: [...]}}."""
+    from collections import defaultdict
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    # all _HI/_LO Kelvin codes -- foreign-copper guard treats none of these as foreign (the partner
+    # sense leg is legitimately adjacent; a real HI<->LO short is caught by DRC + the hardened gate).
+    sense_codes = {board.GetNetcodeFromNetname(n) for n in force_nets}
+
+    pads_by_net = defaultdict(list)                            # net -> [(ref, pad, fp)]
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+
+    f_cu = board.GetLayerID(layer)
+    if f_cu < 0:
+        raise KeyError(f"cec_fr.synthesize_kelvin_taps: layer {layer!r} not found")
+    clr_nm = _nm(clearance)
+    laid, report, refused = [], {}, {}
+    pending = []                                              # decide-then-lay: guard sees no in-call taps
+    for hi, lo in kelvin_pairs:
+        # the shunt is the footprint straddling BOTH halves with EXACTLY 2 pads (same test as
+        # derive_power_pours -- a differential INA is multi-pad and so excluded).
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pad = {}
+        for net in (hi, lo):
+            for r, p, _fp in pads_by_net.get(net, []):
+                if r == sh:
+                    sh_pad[net] = p
+        if hi not in sh_pad or lo not in sh_pad:
+            continue
+        hi_pos = sh_pad[hi].GetPosition()
+        lo_pos = sh_pad[lo].GetPosition()
+        for net, this_pad, other_pos, role in ((hi, sh_pad[hi], lo_pos, "HI"),
+                                               (lo, sh_pad[lo], hi_pos, "LO")):
+            pc = this_pad.GetPosition()
+            # inset the start a hair inside the pad so the endpoint connects to the pad copper
+            # even as a lone arm (the sibling INA tap may be guard-refused -> no shared junction).
+            psz = this_pad.GetSize()
+            reach = math.hypot(psz.x / MM, psz.y / MM) / 2.0
+            tx, ty, _ux, _uy = _inner_edge_pt(this_pad, other_pos, inset_mm=min(0.12, reach * 0.25))
+            S = pcbnew.VECTOR2I(_nm(tx), _nm(ty))
+            nc = board.GetNetcodeFromNetname(net)
+            # each seated current-sense IC's input pad on THIS net, chosen by PIN FUNCTION
+            # (HI->IN+, LO->IN-) -- not nearest-by-distance (defence 1). INA238/228 + the §6.13
+            # INA181 detection amp both tap the shunt; skip a stray INA farther than max_ic_mm.
+            ic_pad = {}                                       # ref -> pad (the IN+/IN- pad)
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue                                  # not the IN+/IN- pad of a known part
+                d = math.hypot((p.GetPosition().x - pc.x) / MM, (p.GetPosition().y - pc.y) / MM)
+                if d > max_ic_mm:
+                    continue
+                if r not in ic_pad:
+                    ic_pad[r] = p
+                else:                                         # unknown part: keep the nearest sense pad
+                    d0 = math.hypot((ic_pad[r].GetPosition().x - pc.x) / MM,
+                                    (ic_pad[r].GetPosition().y - pc.y) / MM)
+                    if d < d0:
+                        ic_pad[r] = p
+            for r, p in sorted(ic_pad.items()):
+                T = p.GetPosition()
+                lbl = "%s->%s.%s" % (sh, r, p.GetPadName())
+                # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
+                if not _tap_foreign_clear(board, S, T, _nm(width), f_cu, clr_nm, sense_codes):
+                    refused.setdefault(net, []).append(lbl)
+                    continue
+                pending.append((S, T, nc, net, lbl))
+    # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
+    for S, T, nc, net, lbl in pending:
+        t = pcbnew.PCB_TRACK(board)
+        t.SetStart(S)
+        t.SetEnd(T)
+        t.SetWidth(_nm(width))
+        t.SetLayer(f_cu)
+        t.SetNetCode(nc)
+        board.Add(t)
+        laid.append(t)
+        report.setdefault(net, []).append(lbl)
+    return {"taps": len(laid), "by_net": report, "refused": refused}
+
+
+def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
+                         pad_clear=0.35, max_ic_mm=6.0):
+    """Route-time F.Cu TAP-CHANNEL keepout -- the ENFORCE leg of "the inner-tap channel is CLEAR".
+
+    The §6.8 four-wire Kelvin tap (:func:`synthesize_kelvin_taps`) is a straight F.Cu stub from each
+    2-pad shunt's INNER edge to each seated current-sense IC input pad. It is laid AFTER the route and
+    REFUSES itself rather than plough through foreign copper -- so when pass-1 Freerouting routes a
+    TRANSITING foreign signal (a comparator output /DETC*, +3V3, I2C ...) across the notch at the tap
+    height, the tap is correctly left UNCONNECTED and kelvin_ok=False (the placement looks congested even
+    when it is geometrically clean). This reserves each tap's own channel as a Freerouting keepout on F.Cu
+    ONLY, so FR routes that transiting foreign AROUND the channel (or vias it DOWN to B.Cu, which does not
+    clip the F.Cu tap) -- pass-1 then lays the taps -> kelvin_ok -> the two-pass corridor / route-under can
+    clean the remaining foreign-on-pour. Distinct from :func:`corridor_keepouts`, which reserves the HI/LO
+    POUR boxes but deliberately leaves the notch (where the taps live) OPEN.
+
+    ONE box PER TAP (shunt inner-edge -> IN pad), the segment bounding box inflated by *margin*, then
+    each box edge is CLIPPED inward to stay *pad_clear* mm clear of any FOREIGN-net pad it would otherwise
+    cover (the INA's own +3V3/GND/I2C pads, ~0.5mm pitch in the column): the smaller inward clip per
+    offending pad. The shunt pad and the IN pad are same-net (never clipped), so the box reaches the IN
+    pad and reserves the full channel a transiting foreign would clip, while the IC's foreign pads stay
+    routable. F.Cu only (a B.Cu crossing does not clip the F.Cu tap and is the desired escape), allow_vias
+    True, block_fills False (the same-net SENSEC pour is not in the notch). SELF-GATING: no 2-pad straddle
+    shunt / no INA input pad within max_ic_mm -> []. Returns bake_hints dicts."""
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
+                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+    force_nets = {n for pr in kelvin_pairs for n in pr}
+    from collections import defaultdict
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    foreign_pads = []                                          # (x, y, halfx, halfy) of every non-sense pad
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in force_nets:
+                pads_by_net[nn].append((fp.GetReference(), p, fp))
+            else:
+                pp = p.GetPosition(); sz = p.GetSize()
+                foreign_pads.append((pp.x / MM, pp.y / MM, sz.x / MM / 2.0, sz.y / MM / 2.0))
+
+    def _clip_foreign(x0, y0, x1, y1):
+        """Shrink the box edges inward so no foreign pad sits within pad_clear of the box interior."""
+        for px, py, hx, hy in foreign_pads:
+            pax0, pax1 = px - hx - pad_clear, px + hx + pad_clear
+            pay0, pay1 = py - hy - pad_clear, py + hy + pad_clear
+            if pax1 <= x0 or pax0 >= x1 or pay1 <= y0 or pay0 >= y1:
+                continue                                        # pad (inflated) doesn't intrude the box
+            # minimal inward clip among the 4 edges that removes the overlap
+            cands = []
+            if pax1 < x1:
+                cands.append(("x0", pax1, pax1 - x0))
+            if pax0 > x0:
+                cands.append(("x1", pax0, x1 - pax0))
+            if pay1 < y1:
+                cands.append(("y0", pay1, pay1 - y0))
+            if pay0 > y0:
+                cands.append(("y1", pay0, y1 - pay0))
+            if not cands:
+                return None                                     # pad spans the whole box -> degenerate
+            edge, val, _cost = min(cands, key=lambda c: c[2])
+            if edge == "x0":
+                x0 = val
+            elif edge == "x1":
+                x1 = val
+            elif edge == "y0":
+                y0 = val
+            else:
+                y1 = val
+            if x1 - x0 < 0.3 or y1 - y0 < 0.3:
+                return None
+        return (x0, y0, x1, y1)
+
+    hints = []
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        shunt_refs = {r for r in (refs_hi & refs_lo) if padcount.get(r, 0) == 2}
+        if not shunt_refs:
+            continue
+        sh = sorted(shunt_refs)[0]
+        sh_pad = {}
+        for net in (hi, lo):
+            for r, p, _fp in pads_by_net.get(net, []):
+                if r == sh:
+                    sh_pad[net] = p
+        if hi not in sh_pad or lo not in sh_pad:
+            continue
+        hi_pos, lo_pos = sh_pad[hi].GetPosition(), sh_pad[lo].GetPosition()
+        for net, this_pad, other_pos, role in ((hi, sh_pad[hi], lo_pos, "HI"),
+                                               (lo, sh_pad[lo], hi_pos, "LO")):
+            pc = this_pad.GetPosition()
+            tx, ty, _ux, _uy = _inner_edge_pt(this_pad, other_pos, inset_mm=0.0)
+            for r, p, fp in pads_by_net.get(net, []):
+                if r == sh or "INA" not in (fp.GetValue() or "").upper():
+                    continue
+                want = _sense_in_pad(fp, role)
+                if want is not None and p.GetPadName() != want:
+                    continue
+                pp = p.GetPosition()
+                if math.hypot((pp.x - pc.x) / MM, (pp.y - pc.y) / MM) > max_ic_mm:
+                    continue
+                ix, iy = pp.x / MM, pp.y / MM
+                box = (min(tx, ix) - margin, min(ty, iy) - margin,
+                       max(tx, ix) + margin, max(ty, iy) + margin)
+                clipped = _clip_foreign(*box)
+                if clipped is None:
+                    continue
+                x0, y0, x1, y1 = clipped
+                hints.append({"name": f"tap_{sh}_{r}", "x0": round(x0, 2), "y0": round(y0, 2),
+                              "x1": round(x1, 2), "y1": round(y1, 2),
+                              "layers": ("F.Cu",), "allow_vias": False, "block_fills": False})
+    return hints
 
 
 # ---------------------------------------------------------------------------
@@ -1185,6 +1806,12 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
              for p in base for L in pour_layers if L not in existing[p["net"]]]
     added_zones = add_power_pours(board, pours, fill=False)
     added_vias = add_via_field(board, fields)
+    # NOTE: the GENERATIVE four-wire Kelvin inner-edge tap (synthesize_kelvin_taps) is laid in the
+    # ROUTE path (import_ses) on the SEATED board, NOT here. This force-copper synth runs on arbitrary
+    # boards (incl. non-seated ones, e.g. cec_synth_pipeline.physics / the additive-mirror adoption
+    # guard) where a direct inner-edge->IN+ stub would cross foreign copper -- the tap is only clean
+    # when the IC is seated adjacent, which is exactly the route()/import_ses board. A physics-stage
+    # board that came through route() already carries the tap.
 
     # 3. fill the mirror pours with the real engine (UnFill first -- re-fill segfault guard)
     for z in board.Zones():
@@ -1286,7 +1913,8 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # import_ses
 # ---------------------------------------------------------------------------
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
-               fill_zones: bool = True, fix_annular: bool = True, power_pours=()) -> str:
+               fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
+               kelvin_taps: bool = True) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
     Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then in order:
@@ -1332,6 +1960,16 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
                       f"from plane layer(s) {sorted(_plane_names)}", file=sys.stderr)
     if power_pours:
         add_power_pours(board, power_pours, fill=False)
+    if kelvin_taps:
+        # GENERATIVE four-wire Kelvin tap: lay the short inner-edge -> IN+/IN- F.Cu stub into the
+        # window derive_power_pours leaves open. ADDITIVE same-net (after the route) -> never strands
+        # the sense; self-gating no-op on shared-bus / filtered-lane boards. (env kill-switch:
+        # CEC_KELVIN_TAPS=0 reverts to the un-tapped behaviour for an A/B.)
+        if os.environ.get("CEC_KELVIN_TAPS", "1") != "0":
+            kt = synthesize_kelvin_taps(board)
+            if kt["taps"]:
+                print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
+                      f"{kt['by_net']}", file=sys.stderr)
     if fix_annular:
         normalize_via_annular(board)
     if fill_zones:

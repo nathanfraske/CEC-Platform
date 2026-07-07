@@ -222,7 +222,14 @@ def route_directed(board_pcb, intents, rnd, workdir, *, passes=None, opt_time=No
             log(f"  corridor keepout derivation failed ({type(e).__name__}: {e}); routing without it")
     # WIRE avoid-region intents into FR keepouts -- the SECOND half of the item4 lever (item4 + any auditor
     # 'route around corridor'). intent_keepouts() had zero callers, so avoid intents used to silently no-op.
-    kos = ([perturb] if perturb else []) + corridor_kos + _avoid_to_bake(cec_fr02.intent_keepouts(intents))
+    # EDGE KEEPOUT (close-the-loop step 1, 2026-06-26): FR has no board-edge-clearance awareness ->
+    # ~100% of a fresh route's DRC is copper_edge_clearance (a perimeter-hugging track run). Reserve a
+    # thin strip just inside each edge (excludes the edge-resident connectors/mounts, so their pads stay
+    # routable). SAFE + always-on (unlike the corridor keepout it strands nothing); CEC_NO_EDGE_KEEPOUT=1 off.
+    edge_kos = [] if os.environ.get("CEC_NO_EDGE_KEEPOUT", "0") == "1" else cec_fr.edge_keepout(board_pcb)
+    kos = ([perturb] if perturb else []) + corridor_kos + edge_kos + _avoid_to_bake(cec_fr02.intent_keepouts(intents))
+    if edge_kos:
+        log(f"  edge keepout: reserved {len(edge_kos)} board-edge strip(s)")
     if corridor_kos:
         log(f"  corridor keepout: reserved {len(corridor_kos)} force corridor(s) "
             f"{[k['name'] for k in corridor_kos]}")

@@ -101,6 +101,26 @@ REGISTRY = [
            "fill carves a clearance gap around the trace, splitting the pour and necking the current "
            "path. Route foreign signals on another layer or around the pour region.",
       source="user review 2026-06-07; spec §6.7 (current = copper area)", status="ratified"),
+    C(id="no-foreign-on-high-current-pour",
+      title="High-current pour is an ABSOLUTE keepout (no foreign track/via)",
+      category="high-current", severity="hard", checkable="yes", directive="keepout",
+      rule="THE authoritative high-current-pour keepout (owner directive 2026-06-27). The pour region -- "
+           "cec_fr.derive_power_pours, the SAME rectangles add_power_pours fills and sense-body-clear-of-pour "
+           "checks -- is reserved for its OWN net's copper plus the inner-edge Kelvin sense tap. NO foreign-net "
+           "TRACK (on the pour's layer) or VIA may cross it, EVER. GND and the power rails ARE foreign here: a "
+           "foreign trace on the pour layer forces the zone filler to carve an antipad that necks/fragments the "
+           "40A fill -- and KiCad DRC is BLIND to that (no clearance error), so 'drc==0' can never catch it. The "
+           "check is GEOMETRIC (sampled against the pour RECTANGLE), never DRC-derived. ONE region the placer, "
+           "router AND accept gate all obey -- it SUBSUMES high-current-pour-integrity + high-current-corridor- "
+           "keepout into a single region-keyed FAIL gate (wired into cec_router.independent_drc like via-on-pad, "
+           "and into intake_gate). SCOPE: genuine per-cable interposer corridors (EPS/PCIe -- the measured "
+           "51-foreign-crossing failure mode). Shared-bus per-pin (12VHPWR J3/J4) and per-rail (24-pin J3/J4) "
+           "boards pack their lane/rail with the sense chain by design -> N/A (vacuous PASS), same scope as "
+           "high-current-corridor-keepout. The placer keeps foreign BODIES out (sense-body-clear-of-pour); the "
+           "router keeps foreign TRACKS out (the two-pass corridor protect); this rule is the gate that fails the "
+           "board when either lets foreign copper land on the pour.",
+      source="owner directive 2026-06-27 (absolute pour keepout); measured eps-rev3 68-track/13-via",
+      status="ratified", params={"sample_pts": 11}),
     C(id="min-pour-cross-section", title="High-current pour cross-section adequate (DC field solve)",
       category="high-current", severity="advisory", checkable="yes", directive="keepout",
       rule="Each poured high-current net's BOTTLENECK copper cross-section -- from the cec_dcir 2.5D DC "
@@ -114,10 +134,51 @@ REGISTRY = [
       source="docs/local-compute-exploration.md Thrust B; scripts/cec_dcir.py; physics_gates J_max=100",
       status="proposed", params={"j_max_A_mm2": 100.0, "grid_mm": 0.4, "oz_outer": 2.0, "oz_inner": 1.0}),
     C(id="kelvin-sense-from-inner-pad", title="Kelvin sense tapped from the shunt inner edge",
-      category="high-current", severity="strong", checkable="partial", directive="none",
+      category="high-current", severity="strong", checkable="yes", directive="inner_tap",
       rule="The Kelvin sense trace leaves the shunt pad from its INNER edge (the sense point facing the "
-           "other terminal), not an arbitrary side -- §6.8 four-wire sense taps the shunt element only.",
-      source="user review 2026-06-07; spec §6.8", status="ratified"),
+           "other terminal), not an arbitrary side, and runs as a DIRECT F.Cu stub (no via) to the "
+           "current-sense IC input pad on that net (HI-inner -> IN+, LO-inner -> IN-) -- §6.8 four-wire "
+           "sense taps the shunt element only. BUILT generatively at route time by "
+           "cec_fr.synthesize_kelvin_taps (directive=inner_tap) into the open window "
+           "cec_fr.derive_power_pours leaves at the shunt; FULLY checked (checkable=yes) -- the generative "
+           "tap guarantees a resolvable thin stub, so the old checked==0 N/A escape no longer fires.",
+      source="user review 2026-06-07; spec §6.8; generative tap 2026-06-27", status="ratified",
+      params={"inner_min_mm": 0.1, "ina_reach_mm": 0.9}),
+    C(id="kelvin-sense-no-connector-tap",
+      title="Kelvin sense input connects to the heavy net by the shunt tap ALONE (no parallel tap)",
+      category="high-current", severity="strong", checkable="yes", directive="inner_tap",
+      rule="The current-sense IC INPUT pad (IN+/IN-) on a SENSEC _HI/_LO net must have EXACTLY ONE copper "
+           "connection: a single via-less F.Cu inner-edge stub landing on the 2-pad Kelvin shunt's pad. "
+           "Then the sense reaches the heavy net only through the shunt terminal and carries no load "
+           "current (four-wire). FAIL when the input pad carries a SECOND incident copper stub, or a via, "
+           "or its lone stub does not land on the shunt -- the kelvin-from-connector defect: the router "
+           "satisfied the input pad's same-net connectivity by ALSO wiring it to the nearest net point "
+           "(the connector / a second pour point), so the sense pad is tied to two points of the "
+           "current-carrying copper, the stub spans the connector->shunt IR drop + contact R and carries "
+           "current. (A correct tap reaches the connector THROUGH the shunt terminal too -- that is fine; "
+           "the defect is the PARALLEL second connection, detected as stub-count > 1.) The Vbus pad "
+           "(INA238/228 pad 8) is a high-Z VOLTAGE tap, legitimately FR-routed, and is NOT a Kelvin "
+           "input, so it is never flagged. Prevented at route time by cec_fr.export_dsn excluding these "
+           "pads from FR (kelvin_sense_pins); this is the independent post-route gate that complements "
+           "kelvin-sense-from-inner-pad (which verifies the GOOD tap exists but is blind to a parallel "
+           "bad connection).",
+      source="owner directive 2026-06-28 (kelvin-from-connector bug)", status="ratified",
+      params={"pad_reach_extra_mm": 0.15, "stub_far_cluster_mm": 0.5}),
+    C(id="sense-body-clear-of-pour", title="Sense IC body clear of the high-current pour",
+      category="high-current", severity="strong", checkable="yes", directive="none",
+      rule="The current-sense IC (INA228/238/181) is seated HARD against its shunt's inner edge for the "
+           "Kelvin tap, but its BODY (courtyard) must stay OUT of the SENSEC high-current pour region "
+           "(cec_fr.derive_power_pours) so it does not block the fill or neck the current path. The IC "
+           "body sits perpendicular to the J_IN->shunt->J_OUT corridor, in the un-poured NOTCH between "
+           "the HI and LO pour boxes: courtyard CENTROID outside every pour box, and courtyard overlap "
+           "with the pour <= max_overlap_mm2. The tolerance is a board-calibrated graze allowance (a "
+           "SOT-23-6 INA181 body is 4.19mm vs the ~3.925mm notch the ratified 1.0mm pour margin opens, "
+           "so it overshoots ~0.13mm/side = ~0.9mm^2 -- accepted as a footprint-edge graze, NOT a "
+           "body-in-pour; a buried body overlaps several mm^2). The owner-ratification item to fully "
+           "clear the INA181 is a smaller per-shunt pour margin (~0.67mm) or a local pour clip -- a "
+           "constraint/route-time change, surfaced not silently applied.",
+      source="owner directive 2026-06-27; spec §6.8 + as-built notch calibration", status="ratified",
+      params={"max_overlap_mm2": 2.0}),
 
     # ---- thermal -----------------------------------------------------------------------
     C(id="hot-sensitive-separation", title="Hot parts separated from temp-sensitive parts",
@@ -210,6 +271,17 @@ REGISTRY = [
       rule="The decorative B.Cu LOGO polygon is a routing keepout (or GND-assigned): no functional-net "
            "copper may short to it. (LOGO-vs-GND only is finishing-acceptable.)",
       source="discovered by the route loop 2026-06-07; verified", status="ratified"),
+    C(id="via-on-pad", title="No via copper overlapping a pad (via-in-pad / short)",
+      category="finishing", severity="hard", checkable="yes", directive="none",
+      rule="A via whose copper (drill + annular ring) overlaps a PAD's copper on a shared copper layer "
+           "is a fault KiCad DRC does NOT flag by default. SAME-net overlap = via-in-pad: the open barrel "
+           "wicks solder, so it needs tenting / plugging / POFV fill and is generally not allowed unhandled "
+           "-- the layer-swap / B.Cu-mirror finishing stages drop 1-6 of these (a via punched dead-centre "
+           "into a decoupling-cap or sense pad to reach B.Cu). DIFF-net overlap = a hard short. Reported "
+           "per overlap with ref/pad/net/coords; route()'s independent verdict folds it into gates_pass so "
+           "a via-in-pad board can never pass silently.",
+      source="owner review 2026-06-27 (layer-swap/mirror via-in-pad; KiCad DRC blind spot)",
+      status="ratified"),
     C(id="footprint-matches-datasheet", title="Footprint land matches the MPN datasheet",
       category="finishing", severity="hard", checkable="partial", directive="none",
       rule="Each footprint's pad pitch/drill/size/row matches the part datasheet land. Unverified MPNs "
@@ -274,9 +346,13 @@ CL25_CLASSES = {
 }
 
 # CL-25 intake gate: the SCHEMATIC-SIDE subset -- a board failing any of these is refused
-# candidate generation (the TPS2121/desync/R1 classes live upstream of layout).
+# candidate generation (the TPS2121/desync/R1 classes live upstream of layout). PLUS the
+# absolute high-current-pour keepout (owner directive 2026-06-27): a floorplan has no tracks/vias
+# so it is a vacuous PASS at intake, but if a ROUTED board is ever fed to intake the foreign-on-pour
+# refusal fires there too -- the SAME region-keyed rule the route accept gate uses.
 INTAKE_CHECKS = (CL25_CLASSES["sch-pcb-sync"] + CL25_CLASSES["bom-lint"]
-                 + CL25_CLASSES["netlist-assertions"])
+                 + CL25_CLASSES["netlist-assertions"]
+                 + ["no-foreign-on-high-current-pour"])
 
 
 # ===========================================================================
@@ -548,6 +624,296 @@ def _chk_logo(board, path, ctx):
     return True, "LOGO touches only GND/no-net (finishing-acceptable)"
 
 
+# -- via-on-pad (via-in-pad / short) -----------------------------------------
+# KiCad DRC does NOT flag a via whose copper overlaps a pad on the SAME net by
+# default, yet the layer-swap / B.Cu-mirror finishing stages drop 1-6 of these
+# per board (a via punched dead-centre into a decoupling-cap / sense pad to reach
+# B.Cu). SAME-net = via-in-pad (open barrel wicks solder -> needs tent/fill);
+# DIFF-net = a hard short. Geometry: model the via as its outer-copper circle
+# (radius = via diameter / 2) and test copper overlap against each pad's effective
+# shape on every SHARED copper layer. A cheap inflated-bbox prefilter keeps the
+# scan O(vias) on real boards (and never false-rejects: a real overlap puts the via
+# centre within vr of the pad, hence inside the bbox inflated by vr).
+def _via_radius_nm(via):
+    """Via outer-copper radius (nm). On a PCB_VIA the no-arg GetWidth() asserts on
+    debug builds (the documented KiCad-10 runner footgun) -- pass the top layer."""
+    try:
+        return int(via.GetWidth(via.TopLayer()) / 2)
+    except TypeError:
+        return int(via.GetWidth() / 2)
+
+
+def _via_pad_overlaps(board):
+    """Geometry core: (same_net, diff_net), each a list of overlap records
+    {ref,pad,pad_net,via_net,x,y}. A record is emitted when a via's outer-copper
+    circle overlaps a pad's copper on a shared copper layer; the two classes differ
+    only in whether the via and pad nets match (SAME = via-in-pad, DIFF = short)."""
+    vias = [t for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T]
+    pads = [(fp.GetReference(), pad) for fp in board.GetFootprints() for pad in fp.Pads()]
+    same, diff = [], []
+    for via in vias:
+        vpos = via.GetPosition()
+        vr = _via_radius_nm(via)
+        vnet = via.GetNetname()
+        vlayers = set(via.GetLayerSet().CuStack())
+        for ref, pad in pads:
+            bb = pad.GetBoundingBox()
+            bb.Inflate(vr)
+            if not bb.Contains(vpos):
+                continue                              # cheap reject before the per-layer Collide
+            shared = vlayers & set(pad.GetLayerSet().CuStack())
+            if not shared:
+                continue
+            hit = False
+            for L in shared:
+                try:
+                    if pad.GetEffectiveShape(L).Collide(vpos, vr):
+                        hit = True
+                        break
+                except Exception:                     # noqa: BLE001 -- a weird pad shape never breaks the scan
+                    continue
+            if not hit:
+                continue
+            pnet = pad.GetNetname()
+            rec = {"ref": ref, "pad": pad.GetPadName(), "pad_net": pnet, "via_net": vnet,
+                   "x": round(_mm(vpos.x), 3), "y": round(_mm(vpos.y), 3)}
+            (same if vnet == pnet else diff).append(rec)
+    return same, diff
+
+
+def via_on_pad_summary(board_path):
+    """Load a board and summarise its via-on-pad overlaps: {same, diff, n_vias,
+    same_detail, diff_detail}. The public entry cec_router.route's INDEPENDENT verdict
+    reads so a via-in-pad board can never pass silently. Callers wrap in try/except --
+    a verdict must never break on the checker."""
+    board = pcbnew.LoadBoard(board_path)
+    n_vias = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+    same, diff = _via_pad_overlaps(board)
+    return {"same": len(same), "diff": len(diff), "n_vias": n_vias,
+            "same_detail": same, "diff_detail": diff}
+
+
+def _fmt_vop(r):
+    return "%s.%s[%s]@(%.2f,%.2f)" % (r["ref"], r["pad"], r["pad_net"] or "<no net>", r["x"], r["y"])
+
+
+@checker("via-on-pad")
+def _chk_via_on_pad(board, path, ctx):
+    if not any(t.Type() == pcbnew.PCB_VIA_T for t in board.GetTracks()):
+        return None, "no vias on this board (floorplan or fully-planar route)"
+    same, diff = _via_pad_overlaps(board)
+    nv = sum(1 for t in board.GetTracks() if t.Type() == pcbnew.PCB_VIA_T)
+    if not same and not diff:
+        return True, "no via copper overlaps a pad (%d vias checked)" % nv
+    msgs, payload = [], []
+    if same:
+        msgs.append("%d SAME-net via-in-pad (tent/fill required): %s%s"
+                    % (len(same), ", ".join(_fmt_vop(r) for r in same[:6]),
+                       "" if len(same) <= 6 else " (+%d)" % (len(same) - 6)))
+        payload += [{"type": "via_on_pad", "kind": "via_in_pad_same_net", **r} for r in same]
+    if diff:
+        msgs.append("%d DIFF-net via-on-pad (SHORT): %s%s"
+                    % (len(diff), ", ".join("%s<-via[%s]" % (_fmt_vop(r), r["via_net"] or "<no net>")
+                                            for r in diff[:6]),
+                       "" if len(diff) <= 6 else " (+%d)" % (len(diff) - 6)))
+        payload += [{"type": "via_on_pad", "kind": "short_diff_net", **r} for r in diff]
+    return False, "; ".join(msgs), payload
+
+
+# ===========================================================================
+#  no-foreign-on-high-current-pour -- THE absolute keepout (owner directive 2026-06-27)
+# ===========================================================================
+# ONE authoritative region = cec_fr.derive_power_pours (the same rectangles add_power_pours
+# fills and sense-body-clear-of-pour checks). The placer, router and accept gate all key off
+# it. A foreign-net track on the pour layer (or a via in the pour) silently antipads/fragments
+# the 40A fill -- KiCad DRC does NOT flag it -- so this gate is GEOMETRIC (sampled against the
+# pour rectangle), never DRC-derived. GND + power rails ARE foreign on the single-layer pour.
+class PourRegionError(RuntimeError):
+    """The high-current pour region-finder (cec_fr.derive_power_pours) failed -- raised or returned
+    empty -- on a board that ACTUALLY HAS high-current SENSEC pour copper laid. This is a fail-CLOSED
+    condition: a safety keepout gate must NEVER report N/A-pass when there is pour copper it cannot
+    locate to protect (owner-flagged fail-open, 2026-06-28). A genuine no-pour board never raises it."""
+
+
+def _has_sensec_pours(board):
+    """True iff the board carries actual high-current SENSEC corridor copper zones -- the additive
+    F.Cu/B.Cu pours add_power_pours / synthesize_power_copper lay on the _HI/_LO (and 12V) force nets.
+    Read straight from board.Zones(), INDEPENDENT of cec_fr.derive_power_pours, so the SAME SWIG /
+    geometry / net-corruption error that breaks the pad-geometry region-finder cannot ALSO hide this
+    signal (derive works off connector+shunt PAD geometry; this reads ZONE copper). Uses the same net
+    predicate derive_power_pours keys off (the _HI/_LO Kelvin pairs, + the 12V convention) so
+    has-pours-but-derive-empty is exactly the placement/geometry inconsistency to fail closed on. Fill
+    state is ignored (kicad-cli leaves zones unfilled)."""
+    for z in board.Zones():
+        if z.GetLayer() not in (pcbnew.F_Cu, pcbnew.B_Cu):
+            continue
+        n = z.GetNetname() or ""
+        if n.endswith(("_HI", "_LO")) or "12V" in n.upper():
+            return True
+    return False
+
+
+def _derive_pour_boxes(board, path):
+    """The authoritative per-cable high-current pour rectangles, filtered to genuine cable
+    corridors, with the allowed-net set. Returns (boxes, allowed) or (None, None) when GENUINELY N/A
+    (no SENSEC pour copper at all, or every derived pour is on a shared-bus per-pin/per-rail connector
+    -- 12VHPWR J3/J4, 24-pin J3/J4 -- whose lane/rail legitimately packs the sense chain).
+    boxes = [(own_net, layer_id, x0, x1, y0, y1)] (mm).
+
+    FAIL-CLOSED: raises PourRegionError when the board HAS SENSEC pour copper (``_has_sensec_pours``)
+    but derive_power_pours raises OR returns empty -- the region the keepout gate must protect exists
+    yet is undetectable, so the gate must FAIL, never silently report N/A-pass. A board with no SENSEC
+    pours (Hub, or a pre-route floorplan) keeps the benign (None, None) N/A; the all-shared-bus
+    ``not boxes`` path is reached only AFTER a successful non-empty derive, so 12VHPWR / 24-pin / Hub
+    stay correctly N/A and never false-fire."""
+    import cec_fr
+    has_pours = _has_sensec_pours(board)
+    try:
+        pours = cec_fr.derive_power_pours(path, board=board)
+    except Exception as e:                                  # noqa: BLE001
+        if has_pours:
+            raise PourRegionError(
+                "derive_power_pours RAISED on a board WITH high-current SENSEC pours: %s: %s"
+                % (type(e).__name__, e)) from e
+        return None, None                                  # genuine N/A: no pour copper to protect
+    if not pours:
+        if has_pours:
+            raise PourRegionError(
+                "board carries high-current SENSEC F.Cu/B.Cu pour zones but derive_power_pours found "
+                "NO corridor (placement/geometry inconsistency -- the region the absolute keepout gate "
+                "must protect is undetectable)")
+        return None, None                                  # genuine N/A: no SENSEC pours at all
+    kelvin, _ = cec_score._derive_pairs(_nets(board))
+    by_net = _pads_by_net(board)
+    shared = _shared_bus_conns(kelvin, by_net)
+    layer_id = {"F.Cu": pcbnew.F_Cu, "B.Cu": pcbnew.B_Cu}
+    boxes, own = [], set()
+    for pr in pours:
+        net = pr["net"]
+        jrefs = {ref for ref, _, _ in by_net.get(net, []) if ref.upper().startswith("J")}
+        if jrefs & shared:
+            continue                                       # shared-bus per-pin/per-rail -> N/A
+        xs = [p[0] for p in pr["polygon"]]
+        ys = [p[1] for p in pr["polygon"]]
+        boxes.append((net, layer_id.get(pr["layer"], pcbnew.F_Cu),
+                      min(xs), max(xs), min(ys), max(ys)))
+        own.add(net)
+    if not boxes:
+        return None, None
+    return boxes, (own | _sense_nets(board))
+
+
+def _foreign_pour_records(board, path):
+    """(tracks, vias) -- foreign-net copper intruding the authoritative pour boxes, each a
+    record {net, pour[, x, y]}. A track counts when any of `sample_pts` points along it lands
+    in a box ON THE BOX'S LAYER; a via counts when it sits in a box and its barrel reaches the
+    box layer. FOREIGN = not the pour's own net and not an INA sense-input net (the deliberate
+    Kelvin tap); GND/power INCLUDED. N/A -> (None, None)."""
+    boxes, allowed = _derive_pour_boxes(board, path)
+    if boxes is None:
+        return None, None
+    n_samp = int(_param("no-foreign-on-high-current-pour", "sample_pts", 11))
+
+    def _foreign(n):
+        return bool(n) and n not in allowed and "unconnected-" not in n.lower()
+
+    tracks, vias = [], []
+    for t in board.GetTracks():
+        n = t.GetNetname()
+        if not _foreign(n):
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            vstack = set(t.GetLayerSet().CuStack())
+            vp = t.GetPosition()
+            for net, lid, x0, x1, y0, y1 in boxes:
+                if lid in vstack and x0 <= _mm(vp.x) <= x1 and y0 <= _mm(vp.y) <= y1:
+                    vias.append({"net": n, "pour": net,
+                                 "x": round(_mm(vp.x), 2), "y": round(_mm(vp.y), 2)})
+                    break
+        elif t.Type() == pcbnew.PCB_TRACE_T:
+            lid = t.GetLayer()
+            s, e = t.GetStart(), t.GetEnd()
+            for net, blid, x0, x1, y0, y1 in boxes:
+                if lid != blid:
+                    continue
+                hit = False
+                for k in range(n_samp):
+                    px = s.x + (e.x - s.x) * k // (n_samp - 1)
+                    py = s.y + (e.y - s.y) * k // (n_samp - 1)
+                    if x0 <= _mm(px) <= x1 and y0 <= _mm(py) <= y1:
+                        hit = True
+                        break
+                if hit:
+                    tracks.append({"net": n, "pour": net})
+                    break
+    return tracks, vias
+
+
+def _foreign_by_pour(tracks, vias):
+    by = collections.defaultdict(collections.Counter)
+    for r in tracks:
+        by[r["pour"]][r["net"]] += 1
+    for r in vias:
+        by[r["pour"]]["via:" + r["net"]] += 1
+    return {k: dict(v) for k, v in by.items()}
+
+
+def foreign_on_pour_summary(board_path):
+    """Public summary (mirrors via_on_pad_summary): {applicable, status, n_tracks, n_vias, by_pour,
+    tracks, vias, n_pours}. cec_router.route()'s INDEPENDENT verdict folds status=='error' AND
+    n_tracks+n_vias into gates_pass so a foreign-on-pour board can never pass silently.
+
+    status:
+      "ok"    -- the region was derived; n_tracks/n_vias are the real foreign-crossing counts.
+      "na"    -- genuinely not applicable (no SENSEC pour copper / all-shared-bus) -> applicable=False.
+      "error" -- FAIL-CLOSED: the board HAS SENSEC pours but the region-finder raised/returned empty.
+                 applicable=True (NOT a vacuous N/A) so the router fold fails the verdict instead of
+                 passing silently. counts are 0 (the region could not be derived to count against)."""
+    board = pcbnew.LoadBoard(board_path)
+    try:
+        tracks, vias = _foreign_pour_records(board, board_path)
+    except PourRegionError as e:
+        return {"applicable": True, "status": "error", "error": str(e),
+                "n_tracks": 0, "n_vias": 0, "by_pour": {}, "tracks": [], "vias": [], "n_pours": 0}
+    if tracks is None:
+        return {"applicable": False, "status": "na", "n_tracks": 0, "n_vias": 0,
+                "by_pour": {}, "tracks": [], "vias": [], "n_pours": 0}
+    boxes, _ = _derive_pour_boxes(board, board_path)
+    return {"applicable": True, "status": "ok", "n_tracks": len(tracks), "n_vias": len(vias),
+            "by_pour": _foreign_by_pour(tracks, vias),
+            "tracks": tracks[:60], "vias": vias[:60], "n_pours": len(boxes or [])}
+
+
+@checker("no-foreign-on-high-current-pour")
+def _chk_foreign_on_pour(board, path, ctx):
+    """ABSOLUTE high-current-pour keepout (owner directive 2026-06-27). For each authoritative
+    derive_power_pours box (genuine per-cable corridor), assert ZERO foreign-net track (same
+    layer) or via crosses it -- GND/power INCLUDED. Geometric, not DRC-derived (KiCad's zone
+    filler carves antipads around a foreign trace with NO clearance error, so ~80% of the
+    crossings are invisible to drc==0). The placer keeps foreign BODIES out via
+    sense-body-clear-of-pour; this rule is the gate for foreign TRACKS/VIAS. N/A on shared-bus /
+    non-cable boards (12VHPWR per-pin, 24-pin per-rail, Hub).
+
+    FAIL-CLOSED (owner-flagged fail-open, 2026-06-28): if the board HAS SENSEC pour copper but the
+    region-finder raises/returns empty, FAIL (the keepout cannot be verified) instead of skipping N/A."""
+    try:
+        tracks, vias = _foreign_pour_records(board, path)
+    except PourRegionError as e:
+        return (False, "FAIL-CLOSED: high-current pour region-finder errored on a board WITH SENSEC "
+                "pours -- the absolute keepout cannot be verified (a missed intrusion would necks/"
+                "fragments the 40A fill): %s" % e)
+    if tracks is None:
+        return None, "no per-cable high-current pour region (shared-bus / non-cable board)"
+    if not tracks and not vias:
+        return True, "no foreign track/via crosses any high-current pour region"
+    by_pour = _foreign_by_pour(tracks, vias)
+    msg = "; ".join("%s<-%s" % (p, c) for p, c in sorted(by_pour.items()))
+    payload = [{"type": "keepout", "reserve": "high-current-pour-foreign",
+                "pour": p, "foreign": c} for p, c in sorted(by_pour.items())]
+    return (False, "foreign copper crosses a high-current pour (ABSOLUTE keepout): %d track(s), "
+            "%d via(s) -- %s" % (len(tracks), len(vias), msg[:240]), payload)
+
+
 @checker("high-current-pour-present")
 def _chk_pour(board, path, ctx):
     hc = [n for n in _nets(board) if "12V" in n.upper() or n.endswith("_HI")]
@@ -786,17 +1152,38 @@ def _chk_min_cross(board, path, ctx):
 
 @checker("kelvin-sense-from-inner-pad")
 def _chk_kelvin_inner(board, path, ctx):
+    """FULL §6.8 four-wire tap check (the directive=inner_tap ENFORCE leg). For each 2-pad shunt sense
+    pad, a thin F.Cu stub must (a) LEAVE FROM THE INNER EDGE (inner-ness >= inner_min_mm), (b) run as a
+    DIRECT F.Cu segment (no via -- a single track has none) whose far end TERMINATES ON an INA input pad
+    on that net (HI->IN+, LO->IN-). The generative builder cec_fr.synthesize_kelvin_taps lays exactly
+    this, so build and check agree by construction; a centre/outer tap or a stub that never reaches the
+    IN+/IN- pad FAILs. On FAIL we emit an inner_tap payload so the route-time synth can (re)build it."""
     if _track_count(board) == 0:
         return None, "floorplan (route-time)"
     shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
     sense = _sense_nets(board)
     if not shunts or not sense:
         return None, "no shunt / sense nets"
-    thin = collections.defaultdict(list)   # thin (sense, not force-pour) tracks by net
+    inner_min = _param("kelvin-sense-from-inner-pad", "inner_min_mm", 0.1)
+    ina_reach = _param("kelvin-sense-from-inner-pad", "ina_reach_mm", 0.9)
+    # INA input pads on each sense net -- the topology TARGET the tap must terminate on.
+    ina_pads = collections.defaultdict(list)                 # net -> [(x_mm, y_mm)]
+    for fp in board.GetFootprints():
+        if not _is(fp, "INA2", "INA181"):
+            continue
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in sense:
+                pp = p.GetPosition()
+                ina_pads[nn].append((_mm(pp.x), _mm(pp.y)))
+    # the tap stubs: thin tracks on a sense net, restricted to F.Cu (no-via leg of §6.8 -- a via is not
+    # a PCB_TRACE_T, and an off-F.Cu sense trace is the down-and-back the tap must replace).
+    thin = collections.defaultdict(list)
     for t in board.GetTracks():
-        if t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense and _mm(t.GetWidth()) <= 0.4:
+        if (t.Type() == pcbnew.PCB_TRACE_T and t.GetNetname() in sense
+                and _mm(t.GetWidth()) <= 0.4 and t.GetLayer() == pcbnew.F_Cu):
             thin[t.GetNetname()].append(t)
-    bad, checked = [], 0
+    bad, checked, payload = [], 0, []
     for sh in shunts:
         pads = list(sh.Pads())
         if len(pads) < 2:
@@ -806,28 +1193,227 @@ def _chk_kelvin_inner(board, path, ctx):
             net = pad.GetNetname()
             if net not in sense:
                 continue
+            targets = ina_pads.get(net, [])
+            if not targets:
+                continue                                     # no INA input pad on this net -> N/A here
             pc, other = pad.GetPosition(), cen[1 - i] if len(pads) == 2 else cen[(i + 1) % len(pads)]
             ix, iy = _mm(other.x) - _mm(pc.x), _mm(other.y) - _mm(pc.y)   # inner direction (toward other terminal)
             inn = math.hypot(ix, iy) or 1.0
             ix, iy = ix / inn, iy / inn
             sz = pad.GetSize()
             diag = math.hypot(_mm(sz.x), _mm(sz.y)) / 2 + 0.3
-            best = None
+            best_inner, tap_to_ina = None, False
             for t in thin.get(net, []):
-                for end in (t.GetStart(), t.GetEnd()):
+                ends = (t.GetStart(), t.GetEnd())
+                for j, end in enumerate(ends):
                     ex, ey = _mm(end.x) - _mm(pc.x), _mm(end.y) - _mm(pc.y)
-                    if math.hypot(ex, ey) <= diag:           # the stub connects on/near this pad
-                        inner = ex * ix + ey * iy            # the connection point's inner-ness (mm toward the sense edge)
-                        best = inner if best is None else max(best, inner)
-            if best is not None:
-                checked += 1
-                if best < 0.1:            # the sense connects at the centre/outer edge, not the INNER sense edge
-                    bad.append("%s pad %s" % (sh.GetReference(), pad.GetPadName()))
+                    if math.hypot(ex, ey) > diag:            # this end is not on/near the shunt pad
+                        continue
+                    inner = ex * ix + ey * iy                # connection point's inner-ness (mm toward the sense edge)
+                    best_inner = inner if best_inner is None else max(best_inner, inner)
+                    far = ends[1 - j]                        # the stub's OTHER end -> must reach an INA input pad
+                    if (inner >= inner_min
+                            and any(math.hypot(_mm(far.x) - tx, _mm(far.y) - ty) <= ina_reach
+                                    for tx, ty in targets)):
+                        tap_to_ina = True
+            if best_inner is None:
+                continue                                     # no stub resolvable on this pad -> not checked
+            checked += 1
+            if tap_to_ina:
+                continue
+            why = "not inner edge" if best_inner < inner_min else "no direct F.Cu tap to IN+/IN-"
+            bad.append("%s pad %s (%s)" % (sh.GetReference(), pad.GetPadName(), why))
+            payload.append({"type": "inner_tap", "shunt": sh.GetReference(),
+                            "pad": pad.GetPadName(), "net": net, "why": why})
     if checked == 0:
         return None, "no thin Kelvin sense stub resolvable (sense merged with the force pour?)"
     if bad:
-        return False, "Kelvin sense not tapped from the inner shunt edge: " + "; ".join(bad[:6])
-    return True, "Kelvin sense stubs leave from the inner shunt edge (%d checked)" % checked
+        return (False, "Kelvin sense not tapped from the inner shunt edge to IN+/IN-: "
+                + "; ".join(bad[:6]), payload)
+    return True, "Kelvin inner-edge -> IN+/IN- F.Cu taps verified (%d shunt pad(s))" % checked
+
+
+# IN+/IN- input pad NAME per current-sense part (Vbus is deliberately absent -- it is a high-Z
+# voltage tap, not a Kelvin current-sense input, so it is allowed to FR-route to the connector).
+_KELVIN_INPAD = {"INA238": {"_HI": "10", "_LO": "9"},
+                 "INA228": {"_HI": "10", "_LO": "9"},
+                 "INA181": {"_HI": "3", "_LO": "4"}}
+
+
+def _kelvin_input_pad_name(fp, net):
+    val = _val(fp).upper()
+    role = "_HI" if net.endswith("_HI") else ("_LO" if net.endswith("_LO") else None)
+    if role is None:
+        return None
+    for key, m in _KELVIN_INPAD.items():
+        if key in val:
+            return m.get(role)
+    return None
+
+
+@checker("kelvin-sense-no-connector-tap")
+def _chk_kelvin_no_connector_tap(board, path, ctx):
+    """The kelvin-from-connector GATE (owner directive 2026-06-28). For each current-sense IC INPUT pad
+    (IN+/IN-, by pin function) on a SENSEC _HI/_LO net, count the DISTINCT copper stubs incident on the
+    pad (tracks clustered by far endpoint, + vias). A true four-wire Kelvin has EXACTLY ONE via-less F.Cu
+    stub landing on the 2-pad shunt's pad; a SECOND stub (FR wiring the same-net pad to the connector / a
+    second pour point), a via, or a lone stub that misses the shunt is the defect -- the sense pad is then
+    tied to >1 point of the current-carrying copper and the stub carries load current.
+
+    A correct tap legitimately reaches the connector THROUGH the shunt terminal (the HI pour ties the
+    shunt terminal to the connector), so 'reaches the connector' is NOT the test -- the parallel SECOND
+    connection is. Geometry-local, no fail-open: a board where the only stub lands on the shunt PASSES.
+    Self-gating N/A on a floorplan (no tracks) or a board with no 2-pad shunt / INA input on a sense net."""
+    if _track_count(board) == 0:
+        return None, "floorplan (route-time)"
+    sense = _sense_nets(board)
+    shunt_pads = collections.defaultdict(list)                  # net -> [(x,y,reach_mm)] of the 2-pad shunt
+    for fp in board.GetFootprints():
+        if not (fp.GetReference().upper().startswith("RS") and fp.GetPadCount() == 2):
+            continue
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn in sense:
+                pos = p.GetPosition(); sz = p.GetSize()
+                shunt_pads[nn].append((_mm(pos.x), _mm(pos.y), math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + 0.3))
+    if not sense or not shunt_pads:
+        return None, "no 2-pad shunt / sense nets"
+    extra = _param("kelvin-sense-no-connector-tap", "pad_reach_extra_mm", 0.15)
+    cluster = _param("kelvin-sense-no-connector-tap", "stub_far_cluster_mm", 0.5)
+    # index tracks/vias by net once
+    net_tracks = collections.defaultdict(list)
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if nn in sense:
+            net_tracks[nn].append(t)
+    bad, checked = [], 0
+    for fp in board.GetFootprints():
+        if not _is(fp, "INA2", "INA181"):
+            continue
+        for p in fp.Pads():
+            net = p.GetNetname()
+            if net not in sense or net not in shunt_pads:
+                continue
+            want = _kelvin_input_pad_name(fp, net)
+            if want is not None and p.GetPadName() != want:
+                continue                                       # only the IN+/IN- pad (never Vbus / digital)
+            pos = p.GetPosition(); pc = (_mm(pos.x), _mm(pos.y))
+            sz = p.GetSize(); reach = math.hypot(_mm(sz.x), _mm(sz.y)) / 2.0 + extra
+            fars, vias = [], 0                                  # far endpoints of incident stubs; incident vias
+            for t in net_tracks.get(net, []):
+                if t.Type() == pcbnew.PCB_VIA_T:
+                    vp = t.GetPosition()
+                    if math.hypot(_mm(vp.x) - pc[0], _mm(vp.y) - pc[1]) <= reach:
+                        vias += 1
+                    continue
+                ends = ((_mm(t.GetStart().x), _mm(t.GetStart().y)),
+                        (_mm(t.GetEnd().x), _mm(t.GetEnd().y)))
+                for k, end in enumerate(ends):
+                    if math.hypot(end[0] - pc[0], end[1] - pc[1]) <= reach:
+                        fars.append(ends[1 - k])               # this stub touches the pad; record its far end
+            if not fars and not vias:
+                continue                                       # unconnected input -> board-routing-complete owns it
+            checked += 1
+            # cluster the far endpoints so a split-but-collinear single tap counts once
+            clusters = []
+            for f in fars:
+                if not any(math.hypot(f[0] - c[0], f[1] - c[1]) <= cluster for c in clusters):
+                    clusters.append(f)
+            n_conn = len(clusters) + vias
+            on_shunt = (len(clusters) == 1 and vias == 0
+                        and any(math.hypot(clusters[0][0] - sx, clusters[0][1] - sy) <= sr
+                                for sx, sy, sr in shunt_pads[net]))
+            if n_conn == 1 and on_shunt:
+                continue                                       # clean single inner-edge tap to the shunt
+            if vias:
+                why = "via on the sense input (tap must be via-less F.Cu)"
+            elif n_conn >= 2:
+                why = "%d parallel stubs (only the single shunt tap is allowed)" % n_conn
+            else:
+                why = "lone stub does not land on the shunt pad"
+            bad.append("%s.%s on %s: %s" % (fp.GetReference(), p.GetPadName(), net, why))
+    if checked == 0:
+        return None, "no resolvable INA input stub on a sense net"
+    if bad:
+        return (False, "Kelvin sense input has a parallel/non-shunt connection (carries load current -- "
+                "not four-wire): " + "; ".join(bad[:6]),
+                [{"type": "inner_tap", "why": "connector_tap", "detail": d} for d in bad])
+    return True, "Kelvin sense inputs connect by the single shunt tap alone (%d input pad(s))" % checked
+
+
+def _fp_courtyard_bbox(fp):
+    """Global courtyard bbox (x0,x1,y0,y1) of a footprint (mm). Falls back to the part bbox."""
+    xs, ys = [], []
+    for layer in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
+        sh = fp.GetCourtyard(layer)
+        if sh and sh.OutlineCount():
+            bb = sh.BBox()
+            xs += [_mm(bb.GetLeft()), _mm(bb.GetRight())]
+            ys += [_mm(bb.GetTop()), _mm(bb.GetBottom())]
+    if not xs:
+        bb = fp.GetBoundingBox()
+        return (_mm(bb.GetLeft()), _mm(bb.GetRight()), _mm(bb.GetTop()), _mm(bb.GetBottom()))
+    return (min(xs), max(xs), min(ys), max(ys))
+
+
+@checker("sense-body-clear-of-pour")
+def _chk_sense_body_clear(board, path, ctx):
+    """The current-sense IC sits hard against its shunt (Kelvin), but its BODY must clear the SENSEC
+    high-current pour. Build the same pour rectangles the router lays (cec_fr.derive_power_pours) and
+    assert each sense IC's courtyard centroid is in the un-poured notch AND its courtyard overlaps the
+    pour by <= max_overlap_mm2. This is the geometric ENFORCE leg of the placer's _seat_sense_ics.
+
+    FAIL-CLOSED on the same region-finder hole as no-foreign-on-high-current-pour: a board WITH SENSEC
+    pour copper whose region-finder raises/returns empty FAILS (the body-clear cannot be verified),
+    never N/A-pass. Genuine no-pour boards keep their N/A skip."""
+    import cec_fr
+    has_pours = _has_sensec_pours(board)
+    try:
+        pours = cec_fr.derive_power_pours(path, board=board)
+    except Exception as e:                                       # noqa: BLE001
+        if has_pours:
+            return (False, "FAIL-CLOSED: sense-body-clear region-finder errored on a board WITH SENSEC "
+                    "pours (%s) -- cannot verify the sense IC body clears the high-current pour"
+                    % type(e).__name__)
+        return None, "derive_power_pours unavailable (%s)" % type(e).__name__
+    if not pours:
+        if has_pours:
+            return (False, "FAIL-CLOSED: board has SENSEC pour zones but derive_power_pours found no "
+                    "corridor -- cannot verify the sense IC body clears the high-current pour")
+        return None, "no SENSEC high-current pour region (shared-bus / non-cable board)"
+    box_by_net = collections.defaultdict(list)
+    for pr in pours:
+        xs = [p[0] for p in pr["polygon"]]; ys = [p[1] for p in pr["polygon"]]
+        box_by_net[pr["net"]].append((min(xs), max(xs), min(ys), max(ys)))
+    tol = _param("sense-body-clear-of-pour", "max_overlap_mm2", 2.0)
+    fails, oks, payload = [], [], []
+    for fp in board.GetFootprints():
+        if not _is(fp, "INA2", "INA181"):
+            continue
+        nets = {(p.GetNetname() or "").upper() for p in fp.Pads()}
+        boxes = [b for net, bx in box_by_net.items()
+                 for b in bx if net.upper() in nets]            # pour boxes on THIS IC's force nets
+        if not boxes:
+            continue                                            # filtered-lane INA (no _HI/_LO pour) -> N/A
+        cy = _fp_courtyard_bbox(fp)
+        cx0, cy0 = (cy[0] + cy[1]) / 2.0, (cy[2] + cy[3]) / 2.0
+        ov = sum(max(0.0, min(cy[1], b[1]) - max(cy[0], b[0]))
+                 * max(0.0, min(cy[3], b[3]) - max(cy[2], b[2])) for b in boxes)
+        in_pour = any(b[0] <= cx0 <= b[1] and b[2] <= cy0 <= b[3] for b in boxes)
+        ref = fp.GetReference()
+        if in_pour or ov > tol:
+            why = "centroid in pour" if in_pour else "%.2fmm^2 > %.1f" % (ov, tol)
+            fails.append("%s (%s)" % (ref, why))
+            payload.append({"type": "separate", "a": ref, "from": "SENSEC-pour",
+                            "overlap_mm2": round(ov, 2), "centroid_in_pour": in_pour})
+        else:
+            oks.append("%s %.2fmm^2" % (ref, ov))
+    if not oks and not fails:
+        return None, "no sense IC tapping a SENSEC pour net"
+    if fails:
+        return (False, "sense IC body sits in the SENSEC pour: " + "; ".join(fails[:6]), payload)
+    return True, "all %d sense IC bodies clear of the SENSEC pour (<= %.1fmm^2 graze): %s" % (
+        len(oks), tol, "; ".join(oks))
 
 
 @checker("diffpair-gate")

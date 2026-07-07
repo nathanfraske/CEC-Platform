@@ -1,0 +1,13 @@
+# GPU-enabled routing image: the KiCad/pcbnew routing image + cupy so the 2D electro-thermal solver
+# (scripts/cec_thermal2d.py) runs its CG on the RTX 5090 instead of CPU scipy. The [ctk] extra pulls the
+# CUDA toolkit wheels (nvrtc etc.) because the 5090 (Blackwell, sm_120) is new enough that cupy has to JIT
+# its kernels for it. Build: docker build -f docker/Dockerfile.routing-gpu -t cec/routing:gpu .
+FROM cec/routing:kicad10
+RUN pip install --break-system-packages --no-cache-dir "cupy-cuda12x[ctk]"
+# the thermal OVERLAY (scripts/cec_thermal_overlay.py) needs matplotlib + shapely; the base kicad10 image
+# never had them (they were runtime-installed in the long-lived container, lost on recreate) -> bake them in
+# so a fresh GPU routing container renders heatmaps without a manual pip step. Separate layer = cupy stays cached.
+# matplotlib + shapely for the thermal overlay (the base kicad10 never had them); pyamg = algebraic-multigrid
+# solver for the thermal CG -- it converges in ~15 iterations vs ~4000 for Jacobi-CG at fine grids, the single
+# biggest fine-resolution speedup (bigger than the GPU). Separate layer = cupy stays cached.
+RUN pip install --break-system-packages --no-cache-dir matplotlib shapely pyamg

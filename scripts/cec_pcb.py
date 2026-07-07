@@ -75,6 +75,26 @@ def local_pads(libid):
     _PADS_CACHE[libid] = out
     return out
 
+_PADSZ_CACHE = {}
+
+
+def local_pad_sizes(libid):
+    """{pad-number: (sx, sy)} LOCAL (un-rotated) pad sizes of a footprint. Memoized like local_pads
+    (geometry is fixed). Used by the Kelvin seat to compute a pad's lateral half-extent toward the
+    shunt (the standoff that lands the sense pad hard against the shunt inner edge)."""
+    if libid in _PADSZ_CACHE:
+        return _PADSZ_CACHE[libid]
+    nick, name = libid.split(":")
+    t = open(fp_path(nick, name)).read(); out = {}
+    for m in re.finditer(r'\(pad ', t):
+        b = carve(t, m.start())
+        num = re.match(r'\(pad "([^"]*)"', b); sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)', b)
+        if num and sz and num.group(1):
+            out[num.group(1)] = (float(sz.group(1)), float(sz.group(2)))
+    _PADSZ_CACHE[libid] = out
+    return out
+
+
 def _rot(lx, ly, A):
     a = math.radians(A)                       # KiCad footprint rotation (y-down)
     return (lx * math.cos(a) + ly * math.sin(a), -lx * math.sin(a) + ly * math.cos(a))
@@ -85,8 +105,17 @@ def pad_global(ref, pad, P, comps):
     dx, dy = _rot(lx, ly, A); return (X + dx, Y + dy)
 
 def _crtyd_local(libid):
-    """Cached (pts, pad_lo, pad_hi): the footprint's local CrtYd points + pad band. Read+parsed
-    once per libid (the geometry is fixed); courtyard_bbox then just rotates/translates."""
+    """Cached (pts, circles, pad_lo, pad_hi): the footprint's local CrtYd vertices + CrtYd circles
+    + pad band. Read+parsed once per libid (the geometry is fixed); courtyard_bbox then just
+    rotates/translates.
+
+    A CrtYd drawn as an `fp_circle` (the M3 mounting-hole courtyard, round passives, ...) carries
+    only a `(center)` and an `(end)` point in the s-expr -- a point ON the circumference, NOT a bbox
+    corner. The old parse harvested those two points as if they were polygon vertices, so a mount's
+    round courtyard collapsed to the segment centre->end: bbox (0,3.45,0,0) => half (1.725, 0) -- a
+    DEGENERATE ~zero-height extent (the long-known mounting-hole bbox bug: edge_keepout and placement
+    keepouts then read a 0-height hole at every mount). Circles are now captured as (cx,cy,radius) and
+    expanded to their true full bbox below, so an M3 mount reports its real ~6.9mm (half 3.45) extent."""
     if libid in _CRTYD_CACHE:
         return _CRTYD_CACHE[libid]
     nick, name = libid.split(":")
@@ -94,13 +123,23 @@ def _crtyd_local(libid):
     pys = [ly for (_lx, ly) in local_pads(libid).values()]
     pad_lo, pad_hi = (min(pys), max(pys)) if pys else (-1e9, 1e9)
     pts = []
-    for m in re.finditer(r'\(fp_(?:line|poly|rect|circle)\b', t):
+    circles = []
+    for m in re.finditer(r'\(fp_(line|poly|rect|circle)\b', t):
+        kind = m.group(1)
         b = carve(t, m.start())
         if 'CrtYd' not in b:
             continue
+        if kind == "circle":                            # round courtyard -> (centre, radius), not 2 verts
+            cen = re.search(r'\(center (-?[\d.]+) (-?[\d.]+)\)', b)
+            end = re.search(r'\(end (-?[\d.]+) (-?[\d.]+)\)', b)
+            if cen and end:
+                cx, cy = float(cen.group(1)), float(cen.group(2))
+                ex, ey = float(end.group(1)), float(end.group(2))
+                circles.append((cx, cy, math.hypot(ex - cx, ey - cy)))
+            continue
         for a, c in re.findall(r'\((?:start|end|xy|mid|center) (-?[\d.]+) (-?[\d.]+)\)', b):
             pts.append((float(a), float(c)))
-    _CRTYD_CACHE[libid] = (pts, pad_lo, pad_hi)
+    _CRTYD_CACHE[libid] = (pts, circles, pad_lo, pad_hi)
     return _CRTYD_CACHE[libid]
 
 
@@ -109,7 +148,7 @@ def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
     drop_keepout, trim an RF-module antenna keepout (a courtyard lobe extending far
     past the pad rows) to the pad band -- used when wireless is unpopulated. The footprint
     parse is memoized (see _crtyd_local), so this is cheap even under auto_cluster's relaxation."""
-    pts, pad_lo, pad_hi = _crtyd_local(libid)
+    pts, circles, pad_lo, pad_hi = _crtyd_local(libid)
     xs = []; ys = []
     for (lx, ly) in pts:
         if drop_keepout and ly < pad_lo - 3.0:          # antenna lobe past the pads
@@ -117,6 +156,13 @@ def courtyard_bbox(libid, x=0.0, y=0.0, rot=0.0, *, drop_keepout=False):
         elif drop_keepout and ly > pad_hi + 3.0:
             ly = pad_hi + 1.0
         dx, dy = _rot(lx, ly, rot); xs.append(x + dx); ys.append(y + dy)
+    for (cx, cy, r) in circles:                         # a circle is rotation-invariant: rotate the
+        if drop_keepout and cy < pad_lo - 3.0:          # centre, then expand by +/- the radius
+            cy = pad_lo - 1.0
+        elif drop_keepout and cy > pad_hi + 3.0:
+            cy = pad_hi + 1.0
+        dx, dy = _rot(cx, cy, rot)
+        xs += [x + dx - r, x + dx + r]; ys += [y + dy - r, y + dy + r]
     if not xs:
         return (x - 1, x + 1, y - 1, y + 1)
     return (min(xs), max(xs), min(ys), max(ys))

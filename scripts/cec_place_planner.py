@@ -199,7 +199,11 @@ def w_apply(board_pcb, moves, out_rel, board_dir=None, orient=False, faces=None)
             nl = sp.View(sp.Config.load(board_dir)).nl
             ics = [r for r in P if r[:1] == "U" and not r.startswith("SW")]
             pas = [r for r in P if r[:1] in ("R", "C") and r[1:2].isdigit()]
-            owner = {pref: own for pref, (own, _pad) in sp.derive_passive_spec(nl, pas, ics).items()}
+            # FUNCTIONAL ownership: connectors (J*) + shunts (RS*) are valid cluster anchors too, so
+            # the I/O passives (CC pull-downs, DETECT ESD) carry with their connector, not a far IC.
+            anchor_refs = {r for r in P if r[:1] == "J" or r.startswith("RS")}
+            _spec, _ = sp.derive_passive_spec(nl, pas, ics, anchor_refs=anchor_refs)
+            owner = {pref: own for pref, (own, _pad) in _spec.items()}
         except Exception:                                  # noqa: BLE001 -- ownership is best-effort
             owner = {}
     by_owner = {}
@@ -1613,10 +1617,20 @@ def main(argv=None):
                        a.out, os.path.join(ROOT, a.board), delta=a.shrink_delta, direction=a.shrink_dir,
                        repack=_rp))
     elif a.shrink_sweep:
-        import time
+        import time, glob as _glob
         deadline = (time.time() + a.hours * 3600) if a.hours else None
         _rp = "greedy" if a.repack is None else (None if a.repack == "none" else a.repack)
-        _emit(shrink_sweep(a.board, a.board_pcb if os.path.isabs(a.board_pcb) else os.path.join(ROOT, a.board_pcb),
+        # Resolve the START board: --board-pcb if given, else the .kicad_pcb inside the --board dir
+        # (the lever used to crash with TypeError: isabs(None) when --board-pcb was omitted).
+        _start = a.board_pcb
+        if not _start and a.board:
+            _hits = sorted(_glob.glob(os.path.join(ROOT, a.board, "*.kicad_pcb")))
+            _start = _hits[0] if _hits else None
+        if not _start:
+            _emit({"error": "shrink-sweep needs --board-pcb, or --board pointing at a dir with a .kicad_pcb"})
+            return
+        _start = _start if os.path.isabs(_start) else os.path.join(ROOT, _start)
+        _emit(shrink_sweep(a.board, _start,
                            out_dir=a.out_dir, passes=a.passes, opt_time=a.opt_time, start_delta=a.shrink_delta,
                            min_delta=a.min_delta, clip_tol=a.clip_tol, drc_tol=a.drc_tol, max_steps=a.max_steps,
                            deadline=deadline, repack=_rp))
