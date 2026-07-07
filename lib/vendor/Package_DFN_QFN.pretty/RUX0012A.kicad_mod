@@ -32,4 +32,15 @@
   (pad "10" smd rect (at 0.25 -1.149998 90) (size 0.599999 0.2) (layers "F.Cu" "F.Paste" "F.Mask"))
   (pad "11" smd rect (at -0.25 -1.149998 90) (size 0.599999 0.2) (layers "F.Cu" "F.Paste" "F.Mask"))
   (pad "12" smd rect (at -0.750001 -1.149998 90) (size 0.599999 0.2) (layers "F.Cu" "F.Paste" "F.Mask"))
+  (model "${KIPRJMOD}/../../lib/3dmodels/Package_DFN_QFN.3dshapes/TPS2121RUXR.step"
+    (offset
+      (xyz 0 0 0)
+    )
+    (scale
+      (xyz 1 1 1)
+    )
+    (rotate
+      (xyz -90 0 0)
+    )
+  )
 )

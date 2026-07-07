@@ -25393,7 +25393,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-vendor:RUX0012A"
+		(property "Footprint" "cec-Package_DFN_QFN:RUX0012A"
 			(at 55.88 201.93 0)
 			(hide yes)
 			(show_name no)
