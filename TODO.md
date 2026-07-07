@@ -269,3 +269,4 @@ Times are UTC.
 - [ ] [added 2026-07-07 20:55] Fresh size-optimized PCB runs: eps-8pin → pcie-2port → pcie-3port (then 24-pin/12vhpwr after force-net naming generalization)
 - [x] [added 2026-07-07 22:05] eps-8pin fresh wave (24 variants, one board per owner) · done 2026-07-07 22:40 → WINNER periph-left-dataflow-s2 GATE=TRUE on the full oracle conjunction (kelvin+diffpair+drc0+unconn0+foreign0/0+thermal dT10.2) after the verified artifact waivers + blade thermal-sink fix; published build/fresh/eps-8pin/
 - [ ] [added 2026-07-07 22:05] Dashboard explorer live on :8090 (library + watcher) — watch build/fresh/** as waves publish
+- [x] [added 2026-07-07 22:55] Dashboard: render + copper plot panels in the analyzer (owner ask) · done 2026-07-07 23:00 (kicad-cli render + svg plots per archive entry; all/temperature/current/render/plot modes; restarted on :8090)
