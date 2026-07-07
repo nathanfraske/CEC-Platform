@@ -57,7 +57,17 @@ dual-sided allowed). Cheapest agents for delegation (owner ask). State:
   test_placer_oracle / test_foreign_on_pour_gate that are 0 on the pure branch -- they bind to the
   OLD eps geometry; re-baseline against beta boards (or fixtures) after the blade generalization.
   tests/test_placement_session.py needs pytest (absent in container).
-- NOT pushed yet; PR to main after the eps wave read-out + test re-baseline.
+- **TEST RE-BASELINE DONE (2026-07-08 tick): 883 tests, failures=1 (owner-gated).** The ~20
+  reds were mostly TWO sys.modules polluters, not board drift: test_fs_actuator's bare
+  cec_fr02 stub + test_ei01's pcbnew setdefault (discover imports every module before running
+  any -> a module-level injection poisons the whole run; both now scoped/conditional). Board
+  drift handled via tests/fixtures/eps-8pin-legacy (frozen merge-base eps -- the artifact the
+  corridor/keepout/placer/e2e/reconcile/cl25-sync suites encode) + honest expectation updates
+  (hub power-header rename; owner's new rev3 PCB legitimately became foreign-on-pour
+  APPLICABLE; widegap fixture kelvin genuinely healed by the bent tap). compose.yaml carries
+  GIT_CONFIG_* safe.directory for the bind mount. The ONE red = parity-report re-freeze
+  (registry 34->38), CODEOWNERS-gated, queued in docs/owner-queue.md.
+- NOT pushed yet; PR-ready modulo the owner-gated parity/SB-08 goldens. Push + PR on owner go.
 
 
 ## OWNER DESIGN-BASIS FACTS (2026-07-05, bench-mode thread — record before any Max-tier work)
