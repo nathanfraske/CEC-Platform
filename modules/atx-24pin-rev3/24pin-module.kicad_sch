@@ -28739,2866 +28739,60 @@
 		(color 0 0 0 0)
 		(uuid "09f2b29d-82b0-42a2-8a92-991a5ed56176")
 	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 245.0 45.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "eceb8132-de7d-487e-8730-047d1f4872f9")
-		(property "Reference" "C14"
-			(at 246.9 43.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 246.9 46.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 245.0 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 245.0 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: INA238 U10 VS local bulk (place adjacent, ds Fig 8-1)"
-			(at 245.0 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "68310bc6-ee84-4f69-b06d-a0ff2cfa5da3")
-		)
-		(pin "2"
-			(uuid "4ec540fa-cdb7-471f-814d-da369b520e89")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C14")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 245.0 42.46) (xy 245.0 38.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "c8827ea7-2112-48d9-ac0a-19da0c35de71")
-	)
-	(wire
-		(pts
-			(xy 245.0 47.54) (xy 245.0 51.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "0f879c9e-2f3d-4df8-88b1-ff462f3cb7c5")
-	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 245.0 38.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "ad9f45eb-7602-4fc0-8094-c8002cadf6f5")
-		(property "Reference" "#PWR944"
-			(at 245.0 36.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 245.0 42.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 245.0 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 245.0 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 245.0 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "db8b2367-17ad-4c07-beff-c8a32a76725d")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR944")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 245.0 51.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "a5aef133-7cd4-4301-9ec9-91d7767c1371")
-		(property "Reference" "#PWR945"
-			(at 245.0 53.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 245.0 56.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 245.0 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 245.0 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 245.0 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a2a8304f-8a8e-4273-b83f-fd75476d5a00")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR945")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 252.62 45.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "89a6ae4e-4a2b-4fa3-a9cb-17be2ccaf71d")
-		(property "Reference" "C15"
-			(at 254.52 43.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 254.52 46.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 252.62 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 252.62 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: INA238 U11 VS local bulk (place adjacent)"
-			(at 252.62 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "7a52b450-0c58-4fd5-9b83-92f469c92320")
-		)
-		(pin "2"
-			(uuid "a7a5af93-7d05-4856-824c-238cbc4b5f9e")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C15")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 252.62 42.46) (xy 252.62 38.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4c4b2044-a7e1-474b-8b0d-65c13afda089")
-	)
-	(wire
-		(pts
-			(xy 252.62 47.54) (xy 252.62 51.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "75386043-d23b-4298-8aa7-196fe1526a73")
-	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 252.62 38.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "299b27a2-d3e5-46cb-9cd2-f27a45679ef1")
-		(property "Reference" "#PWR946"
-			(at 252.62 36.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 252.62 42.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 252.62 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 252.62 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 252.62 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "adb22fea-1665-41ff-ac2e-9f4d053a7b48")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR946")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 252.62 51.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "37dd57b7-ba1c-4f17-8974-2df6581b1689")
-		(property "Reference" "#PWR947"
-			(at 252.62 53.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 252.62 56.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 252.62 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 252.62 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 252.62 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a63186c2-013c-42d7-be39-cbf087b7c6a8")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR947")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 260.24 45.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "0dbd0c4e-9dfe-4fd9-a568-5e2779bb8cdb")
-		(property "Reference" "C16"
-			(at 262.14 43.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 262.14 46.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 260.24 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 260.24 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: INA238 U12 VS local bulk (place adjacent)"
-			(at 260.24 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "d42d74db-c617-415e-bfa8-24c9594959be")
-		)
-		(pin "2"
-			(uuid "75df7cf0-25a9-4c92-8f0a-c6208169d209")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C16")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 260.24 42.46) (xy 260.24 38.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fb6123b7-e072-4241-a3b9-81b6618e47a7")
-	)
-	(wire
-		(pts
-			(xy 260.24 47.54) (xy 260.24 51.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a136cb57-703d-4de2-a6c1-e79421224fe7")
-	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 260.24 38.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f85fdb9f-dac8-4ec5-b20a-b1763cd246d9")
-		(property "Reference" "#PWR948"
-			(at 260.24 36.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 260.24 42.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 260.24 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 260.24 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 260.24 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "1372fe18-109c-4712-9276-0183baf00dc6")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR948")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 260.24 51.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "e2ffe04f-5f78-4282-bd01-1db9275338f6")
-		(property "Reference" "#PWR949"
-			(at 260.24 53.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 260.24 56.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 260.24 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 260.24 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 260.24 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "3659e022-a2b5-4f49-8603-7fbec71ba14f")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR949")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 267.86 45.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f105e589-0acf-4f73-a109-7ac1a1018c63")
-		(property "Reference" "C17"
-			(at 269.76 43.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 269.76 46.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 267.86 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 267.86 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: INA238 U13 VS local bulk (place adjacent)"
-			(at 267.86 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "c247a109-e18a-4dda-b17c-74f34faec6b5")
-		)
-		(pin "2"
-			(uuid "1c082876-bb9b-4060-902e-5df27e2eded6")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C17")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 267.86 42.46) (xy 267.86 38.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "99a23bd4-fa6f-44e2-91fe-9de17e6658a3")
-	)
-	(wire
-		(pts
-			(xy 267.86 47.54) (xy 267.86 51.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "6f1f7903-d59b-4082-a6fa-39906534e5ca")
-	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 267.86 38.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "840adf93-d735-4843-a57c-770cacfa1d70")
-		(property "Reference" "#PWR950"
-			(at 267.86 36.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 267.86 42.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 267.86 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 267.86 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 267.86 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "331d01ad-d671-460c-beff-4705d1ccd055")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR950")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 267.86 51.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "9671a340-4abe-4aca-8515-640c99d98e4e")
-		(property "Reference" "#PWR951"
-			(at 267.86 53.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 267.86 56.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 267.86 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 267.86 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 267.86 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "a4a9334a-8e2c-4708-a39a-2cafff8c1b10")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR951")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 275.48 45.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "0e628848-a8ac-4880-9501-4367ea9b862a")
-		(property "Reference" "C24"
-			(at 277.38 43.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "1uF"
-			(at 277.38 46.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
-			(at 275.48 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 275.48 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: ESP32-C6 mid decoupler (Espressif trio 10u/1u/100n; place near U1 pin3)"
-			(at 275.48 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "108a4921-2217-4c74-a92b-164c8783eb67")
-		)
-		(pin "2"
-			(uuid "c14da0ef-2f7f-448a-a09e-e2e042c6c8d0")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C24")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 275.48 42.46) (xy 275.48 38.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a073b276-f6ff-4874-87cc-a05053438650")
-	)
-	(wire
-		(pts
-			(xy 275.48 47.54) (xy 275.48 51.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e83a4161-a904-4be4-9297-ef8293372d1d")
-	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 275.48 38.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "75e89445-9818-412f-a954-6debd560499d")
-		(property "Reference" "#PWR952"
-			(at 275.48 36.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 275.48 42.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 275.48 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 275.48 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 275.48 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "1e690650-b793-441f-af78-4caf01439356")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR952")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 275.48 51.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "6995a067-b9c7-49e3-ab8c-445ed7884d68")
-		(property "Reference" "#PWR953"
-			(at 275.48 53.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 275.48 56.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 275.48 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 275.48 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 275.48 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "becca7b1-b484-465e-886e-9eac3537e919")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR953")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 283.1 45.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b2a196e4-631f-40b4-888a-4db68555f9f4")
-		(property "Reference" "C25"
-			(at 285.0 43.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "22uF"
-			(at 285.0 46.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
-			(at 283.1 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 283.1 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: +5V_SYS bulk (mux output reservoir, next to C6)"
-			(at 283.1 45.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "9d632e25-e143-470a-a2f6-6b018728e9ff")
-		)
-		(pin "2"
-			(uuid "34ba2e30-63c1-409c-87ce-9ce045da4f28")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C25")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 283.1 42.46) (xy 283.1 38.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "cbe03266-a78b-42b2-81ca-1f5bf70bff04")
-	)
-	(wire
-		(pts
-			(xy 283.1 47.54) (xy 283.1 51.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4b5f450d-569b-41a4-a3a1-fb562fcc7809")
-	)
-	(symbol
-		(lib_id "cec-power:+5V_SYS")
-		(at 283.1 38.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "60b17ca1-3ed4-42f1-ad3a-fe78f7428fb1")
-		(property "Reference" "#PWR954"
-			(at 283.1 36.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V_SYS"
-			(at 283.1 42.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 283.1 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 283.1 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 283.1 38.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "43b3b1d5-d173-4beb-bd40-69712969e6a6")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR954")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 283.1 51.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "719a53cf-57f5-4864-afe7-91d47556bc00")
-		(property "Reference" "#PWR955"
-			(at 283.1 53.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 283.1 56.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 283.1 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 283.1 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 283.1 51.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f7843ede-ad6a-4928-b30d-057d5381bc50")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR955")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 245.0 61.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "20753d75-e65d-4721-8efb-3a329aaa41b6")
-		(property "Reference" "C18"
-			(at 246.9 59.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "100nF"
-			(at 246.9 62.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
-			(at 245.0 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 245.0 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: TPS2121 IN1 (+5V_MAIN) input bypass at U5 pin 7 (ds 10.1)"
-			(at 245.0 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "3e6ace43-d5d0-41e2-b74d-b76d49b8b238")
-		)
-		(pin "2"
-			(uuid "9a85bb80-da55-4e90-9db2-47ade15c0d4e")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C18")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 245.0 58.46) (xy 245.0 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "fc987ec6-e77f-4ac8-82e3-57bf6d7c5e14")
-	)
-	(wire
-		(pts
-			(xy 245.0 63.54) (xy 245.0 67.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a4b070ff-85a6-4a54-8044-91253ee68992")
-	)
-	(symbol
-		(lib_id "cec-power:+5V_MAIN")
-		(at 245.0 54.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "18e612c9-e6c8-475a-ae41-56f444f0cb0a")
-		(property "Reference" "#PWR956"
-			(at 245.0 52.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V_MAIN"
-			(at 245.0 58.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 245.0 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 245.0 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 245.0 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "b5d5a066-c7fc-49e5-9e6c-cdcf6e6873d5")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR956")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 245.0 67.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "a7947b33-3ea9-4ff6-a7a5-f2f88f4ff1b9")
-		(property "Reference" "#PWR957"
-			(at 245.0 69.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 245.0 72.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 245.0 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 245.0 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 245.0 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "8aa0207b-409f-4ffb-9867-62717056ffdb")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR957")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 252.62 61.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "782590d8-24fa-44c3-937f-22d2ecf93169")
-		(property "Reference" "C19"
-			(at 254.52 59.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10uF"
-			(at 254.52 62.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
-			(at 252.62 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 252.62 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: TPS2121 IN1 input bulk at U5 pin 7"
-			(at 252.62 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "8eb3fa14-4cbb-42f3-b2c1-43cd3ed3b0da")
-		)
-		(pin "2"
-			(uuid "1cdf98b3-a4da-4993-919d-9df2ae36a3cf")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C19")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 252.62 58.46) (xy 252.62 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f978ff69-d0ce-4cee-a0b5-2ec8c4269bc9")
-	)
-	(wire
-		(pts
-			(xy 252.62 63.54) (xy 252.62 67.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2151283e-767b-453f-8bba-ecd9d2a6824a")
-	)
-	(symbol
-		(lib_id "cec-power:+5V_MAIN")
-		(at 252.62 54.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "ba62b469-8fce-4a3a-bae5-c9898a3061ff")
-		(property "Reference" "#PWR958"
-			(at 252.62 52.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5V_MAIN"
-			(at 252.62 58.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 252.62 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 252.62 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 252.62 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "7ed44272-a153-4035-a664-0df6f653ef48")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR958")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 252.62 67.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "160682b6-300f-4cbd-9275-5d780c003bfa")
-		(property "Reference" "#PWR959"
-			(at 252.62 69.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 252.62 72.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 252.62 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 252.62 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 252.62 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "f4e24593-0211-4329-83ee-6ee2c1143a17")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR959")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 260.24 61.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "8d39cd13-d289-4881-9af3-8b44fbe9cec4")
-		(property "Reference" "C20"
-			(at 262.14 59.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "100nF"
-			(at 262.14 62.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
-			(at 260.24 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 260.24 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: TPS2121 IN2 (+5VSB) input bypass at U5 pin 2"
-			(at 260.24 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "2ea5a423-6f8c-4e0c-8adb-2926ac6bf763")
-		)
-		(pin "2"
-			(uuid "513ec44f-b836-4438-8ae8-66dedb96ca8a")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C20")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 260.24 58.46) (xy 260.24 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "04fc54f8-253a-43b7-8184-5dfcd6b52ff9")
-	)
-	(wire
-		(pts
-			(xy 260.24 63.54) (xy 260.24 67.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "1eecc70b-91c6-4501-b0b9-00875d2b8fc2")
-	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 260.24 54.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "ce127f6c-b4f7-4566-90a8-0ca2cb61d9c2")
-		(property "Reference" "#PWR960"
-			(at 260.24 52.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5VSB"
-			(at 260.24 58.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 260.24 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 260.24 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 260.24 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "2562314f-b6b7-4833-9e6d-3e3746099fe6")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR960")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 260.24 67.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "883efc1d-2043-4200-85dc-6afe61af313b")
-		(property "Reference" "#PWR961"
-			(at 260.24 69.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 260.24 72.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 260.24 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 260.24 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 260.24 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "d3d7d747-5502-4925-ab5f-a34bc1ba3513")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR961")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 267.86 61.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "731aa6ab-2cea-4d69-bff1-94ebc3cf1077")
-		(property "Reference" "C21"
-			(at 269.76 59.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10uF"
-			(at 269.76 62.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
-			(at 267.86 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 267.86 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: TPS2121 IN2 input bulk at U5 pin 2"
-			(at 267.86 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "ced11f45-bf4c-4256-bcaf-b040c85b0db0")
-		)
-		(pin "2"
-			(uuid "7d761dfd-1e59-4129-af11-b4407acb29c2")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C21")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 267.86 58.46) (xy 267.86 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "2eac274c-60ee-414c-a330-5085135383bc")
-	)
-	(wire
-		(pts
-			(xy 267.86 63.54) (xy 267.86 67.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "895249f4-82f4-4fd3-af63-c04f3ec1eca9")
-	)
-	(symbol
-		(lib_id "cec-power:+5VSB")
-		(at 267.86 54.65 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "bdf9468e-c66c-4229-9f71-ed1d061bbf01")
-		(property "Reference" "#PWR962"
-			(at 267.86 52.11 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+5VSB"
-			(at 267.86 58.46 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 267.86 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 267.86 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 267.86 54.65 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "9e265383-559e-44f2-8a84-e499c70e4c8b")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR962")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 267.86 67.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "dfe23688-7fc8-4992-b5e0-d0c4de1e1b8d")
-		(property "Reference" "#PWR963"
-			(at 267.86 69.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 267.86 72.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 267.86 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 267.86 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 267.86 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "c009b072-5b1d-459a-b692-04cf2ab675a5")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR963")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 275.48 61.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "72fa4f98-38a4-4a41-be93-ac6d1a5e3f71")
-		(property "Reference" "C22"
-			(at 277.38 59.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "100nF"
-			(at 277.38 62.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
-			(at 275.48 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 275.48 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: -12V rail reservoir at J3 pin 14 entry (ceramic = non-polar; source >=25V rating)"
-			(at 275.48 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "e00db66f-0f95-4c34-9df0-412a7a87df7e")
-		)
-		(pin "2"
-			(uuid "5d44ec5e-3e42-44ae-9c18-af5df358a2b2")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C22")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 275.48 58.46) (xy 275.48 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "87b35c0e-2184-4f1a-9904-ea55168be812")
-	)
-	(wire
-		(pts
-			(xy 275.48 63.54) (xy 275.48 67.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f81cadb0-3f10-4de3-bd63-68d32675c8b6")
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 275.48 67.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b9c61254-9059-4eaa-8358-5c5bac9cd331")
-		(property "Reference" "#PWR964"
-			(at 275.48 69.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 275.48 72.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 275.48 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 275.48 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 275.48 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "234db5d8-c582-4d45-932a-9d951ee66cdf")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR964")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-vendor:C_Small")
-		(at 283.1 61.0 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "f26dd3db-014a-420d-85d8-45f40916611e")
-		(property "Reference" "C23"
-			(at 285.0 59.73 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Value" "10uF"
-			(at 285.0 62.27 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(justify left)
-			)
-		)
-		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
-			(at 283.1 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Datasheet" ""
-			(at 283.1 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(property "Note" "margin: -12V rail reservoir at J3 pin 14 entry (ceramic = non-polar; source >=25V rating)"
-			(at 283.1 61.0 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-				(hide yes)
-			)
-		)
-		(pin "1"
-			(uuid "a2f1bf81-93ab-4bfb-b43f-b2037ebd7b5e")
-		)
-		(pin "2"
-			(uuid "e18ac4dc-a6f8-4882-8a96-b4dec4266651")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "C23")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 283.1 58.46) (xy 283.1 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "85b27e80-7bb7-43a4-846a-2042fe238c5d")
-	)
-	(wire
-		(pts
-			(xy 283.1 63.54) (xy 283.1 67.35)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f525eca7-b4ca-4bdf-ba2e-2e207cd48bec")
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 283.1 67.35 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "6a038915-79c5-4904-87fc-5197fb81c033")
-		(property "Reference" "#PWR965"
-			(at 283.1 69.89 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 283.1 72.43 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 283.1 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 283.1 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 283.1 67.35 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "15644175-8569-491b-a83f-2ed30263f272")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR965")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(wire
-		(pts
-			(xy 275.48 54.65) (xy 283.1 54.65)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "a08d5c17-fd38-4ca9-bb1f-dc565b1c4481")
-	)
-	(label "ATX_NEG12V"
-		(at 275.48 54.65 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "c65c12cb-72ca-4656-8fce-92d26e7e78b1")
-	)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	(wire
 		(pts
 			(xy 264.16 224.79) (xy 254.0 224.79)
@@ -31783,5 +28977,2890 @@
 			(justify left bottom)
 		)
 		(uuid "d0cedc60-6468-47a6-88e8-67974d5262d0")
+	)
+	(rectangle
+		(start 406 32)
+		(end 436.5 92)
+		(stroke
+			(width 0.254)
+			(type dash)
+		)
+		(fill
+			(type none)
+		)
+		(uuid "9b52766f-4d59-475c-acb4-3edea1eee0a7")
+	)
+	(text "MARGIN RESERVOIRS (pass 2)"
+		(exclude_from_sim no)
+		(at 406.5 33.5 0)
+		(effects
+			(font
+				(size 2 2)
+				(thickness 0.35)
+				(bold yes)
+			)
+			(justify left top)
+		)
+		(uuid "5af8448c-730e-47f1-984b-eab60a7dba5e")
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 408.94 42.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "7e40a410-6073-441b-a0ee-3acc591e9277")
+		(property "Reference" "C14"
+			(at 410.84 40.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 410.84 43.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
+			(at 408.94 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: INA238 U10 VS local bulk (place adjacent)"
+			(at 408.94 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ccd7f9c8-e8d8-44bb-8413-9fdc0ad68d76")
+		)
+		(pin "2"
+			(uuid "a46fd96d-daa0-4aae-aec1-8fe452c23734")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C14")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 408.94 39.46) (xy 408.94 35.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4f0661a7-6a43-4297-9e0a-20c5f79830ca")
+	)
+	(wire
+		(pts
+			(xy 408.94 44.54) (xy 408.94 48.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "6d3bfa1f-4f8f-4e10-9a4a-453e57ae14b9")
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 408.94 35.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "db890058-640b-4a74-87af-5d49a68c486d")
+		(property "Reference" "#PWR967"
+			(at 408.94 33.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 408.94 39.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 408.94 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 408.94 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "800636b7-fa59-4c24-a3b1-5477a2d2b376")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR967")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 408.94 48.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "04f1da52-2792-4de3-9685-1a39e6b90a45")
+		(property "Reference" "#PWR968"
+			(at 408.94 50.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 408.94 53.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 408.94 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 408.94 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "2f615e8d-e2c5-449b-ad2a-ddd1a9ee4c22")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR968")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 416.56 42.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "915d27ce-3156-47f2-9ee6-65ec3c26e978")
+		(property "Reference" "C15"
+			(at 418.46 40.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 418.46 43.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
+			(at 416.56 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: INA238 U11 VS local bulk (place adjacent)"
+			(at 416.56 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3f51b8b5-d5f4-499e-bdd7-fff42342ec4f")
+		)
+		(pin "2"
+			(uuid "d50f056a-a02b-42af-98f8-037002e7e5f2")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C15")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 416.56 39.46) (xy 416.56 35.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "197aa7c2-9a1a-48b6-9532-bfc87fff25f6")
+	)
+	(wire
+		(pts
+			(xy 416.56 44.54) (xy 416.56 48.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "4972a2f7-537b-43d6-9437-7e11ee1904a9")
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 416.56 35.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b1d54170-5026-45a5-b760-11055ce5c73f")
+		(property "Reference" "#PWR969"
+			(at 416.56 33.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 416.56 39.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 416.56 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 416.56 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7d5abdf1-3d1d-419b-8118-57a0928257be")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR969")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 416.56 48.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "8117a781-52d6-4145-bbed-dd47fbec6e5e")
+		(property "Reference" "#PWR970"
+			(at 416.56 50.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 416.56 53.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 416.56 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 416.56 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "8675a361-acf7-4cc6-aebd-a891bfde27c0")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR970")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 424.18 42.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "fba58f05-9ee1-4ded-8073-e69f4b015de8")
+		(property "Reference" "C16"
+			(at 426.08 40.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 426.08 43.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
+			(at 424.18 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: INA238 U12 VS local bulk (place adjacent)"
+			(at 424.18 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ade405d2-e411-4c77-9433-0d53393f96ac")
+		)
+		(pin "2"
+			(uuid "bcecd455-1613-4d49-9f2e-297cca2e0f3b")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C16")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 424.18 39.46) (xy 424.18 35.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "588f108b-b994-4479-a79c-ec26ca1aa18a")
+	)
+	(wire
+		(pts
+			(xy 424.18 44.54) (xy 424.18 48.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c50b753e-d13f-4b76-a9b4-9483cf54cfc6")
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 424.18 35.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "abd576ce-0614-499c-b457-bf66c1ab7044")
+		(property "Reference" "#PWR971"
+			(at 424.18 33.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 424.18 39.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 424.18 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 424.18 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "b8ae5010-d49f-4b70-a7c3-83db0e5c6a20")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR971")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 424.18 48.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "e91a8e00-4e77-4138-a343-a26dbebf7940")
+		(property "Reference" "#PWR972"
+			(at 424.18 50.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 424.18 53.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 424.18 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 424.18 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "81df8d96-3b18-40f8-a907-bc19008af87e")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR972")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 431.8 42.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c8c68558-5cae-427b-ab96-e0b31b966264")
+		(property "Reference" "C17"
+			(at 433.7 40.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 433.7 43.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
+			(at 431.8 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: INA238 U13 VS local bulk (place adjacent)"
+			(at 431.8 42.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "ab8db91b-6d00-4f91-bf63-80bc9cc5f07b")
+		)
+		(pin "2"
+			(uuid "a94f4159-7e8d-4c8c-b482-31b076816b44")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C17")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 431.8 39.46) (xy 431.8 35.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f6da0a5d-0739-4011-b55a-4d7b8c29f7e5")
+	)
+	(wire
+		(pts
+			(xy 431.8 44.54) (xy 431.8 48.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "18173fa4-6db2-4b0f-a10f-d7277f42c28d")
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 431.8 35.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "c283366f-be37-4932-9b09-cf7cbe007fd7")
+		(property "Reference" "#PWR973"
+			(at 431.8 33.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 431.8 39.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 431.8 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 431.8 35.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "ead506dc-a21d-4636-8edc-13461765dcf2")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR973")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 431.8 48.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "76263f30-f6f8-450e-ad57-78b1ca271a45")
+		(property "Reference" "#PWR974"
+			(at 431.8 50.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 431.8 53.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 431.8 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 431.8 48.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "012aae49-899a-44d5-a2e1-f67eac8080f3")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR974")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 408.94 60.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "bc745bc7-7e98-4328-85fd-20b33080a61c")
+		(property "Reference" "C24"
+			(at 410.84 58.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "1uF"
+			(at 410.84 61.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0603_1608Metric"
+			(at 408.94 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: ESP32-C6 mid decoupler (Espressif trio; place near U1 pin3)"
+			(at 408.94 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3c8cf721-245a-4851-bbb3-bebbed981331")
+		)
+		(pin "2"
+			(uuid "a02f0b26-d573-4849-880e-b0bb5be0c4c1")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C24")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 408.94 57.46) (xy 408.94 53.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "25ff38b7-2397-4e4f-8112-2cd5c74620cf")
+	)
+	(wire
+		(pts
+			(xy 408.94 62.54) (xy 408.94 66.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "92321ca4-73d8-456e-a5f3-7c8457a0a033")
+	)
+	(symbol
+		(lib_id "cec-power:+3V3")
+		(at 408.94 53.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "075dc829-6f1e-4b22-ae4b-4eb86f104836")
+		(property "Reference" "#PWR975"
+			(at 408.94 51.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+3V3"
+			(at 408.94 57.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 408.94 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 408.94 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "76637976-e491-4627-9bc0-4aa99aa03330")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR975")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 408.94 66.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "201ce7c3-7f7b-4582-ad51-aaa3a9275fdc")
+		(property "Reference" "#PWR976"
+			(at 408.94 68.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 408.94 71.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 408.94 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 408.94 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "ef2d430e-e846-4ed3-b5c6-dfe19f964f44")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR976")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 416.56 60.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d2809c9a-2aa2-45cd-9cc9-16690790f320")
+		(property "Reference" "C25"
+			(at 418.46 58.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "22uF"
+			(at 418.46 61.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
+			(at 416.56 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: +5V_SYS bulk (mux output reservoir, next to C6)"
+			(at 416.56 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "de29d95c-db8b-4891-bf41-54712579f1b5")
+		)
+		(pin "2"
+			(uuid "cbbb2a63-322a-42ed-b27b-62804f6f51eb")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C25")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 416.56 57.46) (xy 416.56 53.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0b38fb83-740f-47ad-bf6f-e685cce2c4b3")
+	)
+	(wire
+		(pts
+			(xy 416.56 62.54) (xy 416.56 66.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "129664a7-78d2-443d-9872-8a88eda25283")
+	)
+	(symbol
+		(lib_id "cec-power:+5V_SYS")
+		(at 416.56 53.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "fa3b2b1a-42c7-41fe-97c9-8608ae512030")
+		(property "Reference" "#PWR977"
+			(at 416.56 51.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V_SYS"
+			(at 416.56 57.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 416.56 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 416.56 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "5c0b04c6-418f-404a-947b-555aa45da352")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR977")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 416.56 66.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "2bb9dddf-0197-4dd0-ad69-89443df4db14")
+		(property "Reference" "#PWR978"
+			(at 416.56 68.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 416.56 71.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 416.56 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 416.56 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "403b01a2-9603-476b-a7ff-167b5e63cd5e")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR978")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 424.18 60.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "918abb5a-4492-4c1b-b8d9-ffb7d4ad4bc6")
+		(property "Reference" "C18"
+			(at 426.08 58.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 426.08 61.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
+			(at 424.18 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: TPS2121 IN1 (+5V_MAIN) input bypass at U5 pin 7 (ds 10.1)"
+			(at 424.18 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "f9af9b07-af13-48f2-985b-942744b377b7")
+		)
+		(pin "2"
+			(uuid "683cfe34-8ff6-46ba-967a-5501210b75d8")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C18")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 424.18 57.46) (xy 424.18 53.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "76170815-6cf0-4f69-847e-af28cf723fd2")
+	)
+	(wire
+		(pts
+			(xy 424.18 62.54) (xy 424.18 66.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "583155f7-90fc-4c6d-8320-2d33cee88468")
+	)
+	(symbol
+		(lib_id "cec-power:+5V_MAIN")
+		(at 424.18 53.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "5043d7ba-04bd-498d-bd7c-4b137f2f2494")
+		(property "Reference" "#PWR979"
+			(at 424.18 51.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V_MAIN"
+			(at 424.18 57.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 424.18 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 424.18 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "eb8ea792-0bcb-4d73-ae59-36e8a21205fa")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR979")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 424.18 66.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "8b91acae-51df-4d83-9c24-a7fcfcd6c91d")
+		(property "Reference" "#PWR980"
+			(at 424.18 68.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 424.18 71.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 424.18 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 424.18 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "67b84686-9b2a-4a94-9973-68b58989ee97")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR980")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 431.8 60.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "23a9e5d8-1732-41ad-909d-3e6e5b5ea28f")
+		(property "Reference" "C19"
+			(at 433.7 58.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10uF"
+			(at 433.7 61.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
+			(at 431.8 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: TPS2121 IN1 input bulk at U5 pin 7"
+			(at 431.8 60.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "30ee457c-ff5e-423b-9801-caf9bf7bd25f")
+		)
+		(pin "2"
+			(uuid "a7d36096-0015-4c33-969c-33f2d01079b4")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C19")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 431.8 57.46) (xy 431.8 53.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8573b09a-b5dd-4f0a-87f5-fd7262c28ad2")
+	)
+	(wire
+		(pts
+			(xy 431.8 62.54) (xy 431.8 66.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "048155e0-e43a-4908-b697-0f6dd7594312")
+	)
+	(symbol
+		(lib_id "cec-power:+5V_MAIN")
+		(at 431.8 53.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "d775b34b-d8b3-4a97-b935-3bd9a9fd6138")
+		(property "Reference" "#PWR981"
+			(at 431.8 51.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5V_MAIN"
+			(at 431.8 57.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 431.8 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 431.8 53.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "25c75e6d-bbc9-404d-b755-2b410dc6fd97")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR981")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 431.8 66.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "be1e15d8-578e-4fd3-a587-9a84a57f837c")
+		(property "Reference" "#PWR982"
+			(at 431.8 68.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 431.8 71.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 431.8 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 431.8 66.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "bebec41f-b53a-4cde-a30b-a69b9f60bb0b")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR982")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 408.94 78.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "3341aec6-1492-4bbd-b89f-5cb724ca30e0")
+		(property "Reference" "C20"
+			(at 410.84 76.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 410.84 79.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
+			(at 408.94 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: TPS2121 IN2 (+5VSB) input bypass at U5 pin 2"
+			(at 408.94 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "5e12a985-f42b-40f4-aca6-6b0f012fa3c2")
+		)
+		(pin "2"
+			(uuid "5e48870b-0a06-4f60-8b36-d6f40ca30467")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C20")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 408.94 75.46) (xy 408.94 71.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "8e25ea2f-f9c1-46de-bf00-f2bbfdda924b")
+	)
+	(wire
+		(pts
+			(xy 408.94 80.54) (xy 408.94 84.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "63f9953b-9422-4dfa-81ec-d12efaeb0fdb")
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 408.94 71.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "41af7f62-abd1-4f6d-9377-e3b2417cbcd1")
+		(property "Reference" "#PWR983"
+			(at 408.94 69.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5VSB"
+			(at 408.94 75.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 408.94 71.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 71.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 408.94 71.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "9c89ea3b-550b-4b6d-b597-837def270de6")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR983")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 408.94 84.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "fcfb39b8-b876-450d-a78c-54bbdbbe739d")
+		(property "Reference" "#PWR984"
+			(at 408.94 86.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 408.94 89.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 408.94 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 408.94 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 408.94 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "7467e98d-9a32-4d01-a43a-b9e1a6501999")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR984")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 416.56 78.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "b22f0b4f-ab00-42af-b2ae-ec4b58ece4b5")
+		(property "Reference" "C21"
+			(at 418.46 76.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10uF"
+			(at 418.46 79.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
+			(at 416.56 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: TPS2121 IN2 input bulk at U5 pin 2"
+			(at 416.56 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "09239e9d-46c1-43fc-9f65-118353f6b57a")
+		)
+		(pin "2"
+			(uuid "e8293c88-89a3-4b3d-bd89-5931f03374ce")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C21")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 416.56 75.46) (xy 416.56 71.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "854a9137-2f25-4a55-b17d-aa24a8505313")
+	)
+	(wire
+		(pts
+			(xy 416.56 80.54) (xy 416.56 84.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b9915fb8-c3d5-46fa-be91-5f0dc96a5d3e")
+	)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 416.56 71.65 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "740914b0-77b8-46bf-bade-c6fef1f3fd41")
+		(property "Reference" "#PWR985"
+			(at 416.56 69.11 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5VSB"
+			(at 416.56 75.46 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 416.56 71.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 71.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 416.56 71.65 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "e2e6de3f-d2d6-4d35-86da-58ea2ba398d0")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR985")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 416.56 84.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "722b7578-2140-4f4e-8fea-077e533fcf57")
+		(property "Reference" "#PWR986"
+			(at 416.56 86.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 416.56 89.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 416.56 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 416.56 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 416.56 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "81b2ee82-d8ae-40d7-9781-e5c2da886250")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR986")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 424.18 78.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "efc83b2a-ced6-40ca-9fbb-57aa93bd7c27")
+		(property "Reference" "C22"
+			(at 426.08 76.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "100nF"
+			(at 426.08 79.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0402_1005Metric"
+			(at 424.18 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: -12V rail reservoir at J3 pin 14 entry (ceramic non-polar; source >=25V rating)"
+			(at 424.18 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "e47efee2-9233-4902-b067-c6dca409d115")
+		)
+		(pin "2"
+			(uuid "ca370f77-b592-473f-8dbd-57c38739e948")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C22")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 424.18 75.46) (xy 424.18 71.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "92dcf6e6-fd42-48b0-8576-b359ee4f12e9")
+	)
+	(wire
+		(pts
+			(xy 424.18 80.54) (xy 424.18 84.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "b5a8600e-1872-4f6a-a936-fc716abda6de")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 424.18 84.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "3808de0c-a976-4901-9c65-58466d5e33e4")
+		(property "Reference" "#PWR987"
+			(at 424.18 86.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 424.18 89.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 424.18 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 424.18 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 424.18 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "216a4710-9730-494b-8329-9de1c0ccc216")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR987")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "cec-vendor:C_Small")
+		(at 431.8 78.0 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "6b171590-2c9c-4ee6-be8a-2bade82f447d")
+		(property "Reference" "C23"
+			(at 433.7 76.73 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "10uF"
+			(at 433.7 79.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" "cec-Capacitor_SMD:C_0805_2012Metric"
+			(at 431.8 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(property "Note" "margin: -12V rail reservoir at J3 pin 14 entry (ceramic non-polar; source >=25V rating)"
+			(at 431.8 78.0 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(hide yes)
+			)
+		)
+		(pin "1"
+			(uuid "3d7dd638-e227-4e5a-a039-7842f63fb06d")
+		)
+		(pin "2"
+			(uuid "def09a8d-9972-48b1-8e3c-fabb54ed6f27")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "C23")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 431.8 75.46) (xy 431.8 71.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "f1af60c1-ef57-4beb-bb18-e5fc923c01a2")
+	)
+	(wire
+		(pts
+			(xy 431.8 80.54) (xy 431.8 84.35)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "94b98183-e5c9-4057-b151-22678fe60c7b")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 431.8 84.35 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "98e3ec8c-726f-4221-9406-b269106813e5")
+		(property "Reference" "#PWR988"
+			(at 431.8 86.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 431.8 89.43 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 431.8 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 431.8 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 431.8 84.35 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "d39653ec-8758-473d-b418-4d758a08939c")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR988")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(wire
+		(pts
+			(xy 424.18 71.65) (xy 431.8 71.65)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "0bec35d6-88eb-4a64-8e1e-df1b5008bc1d")
+	)
+	(label "ATX_NEG12V"
+		(at 424.18 71.65 0)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left bottom)
+		)
+		(uuid "3a16dc90-78ae-4468-ad1c-0f6da18f2682")
 	)
 )

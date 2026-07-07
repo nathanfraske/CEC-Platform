@@ -6,8 +6,11 @@
 > output form and the female-to-female 24-pin ATX bridging-cable premise that went with it.
 > Output rails now cross the ratified **all-Keystone/TE connector-daughterboard interface**
 > (`docs/standard-tier-review/output-daughterboard-study-2026-07-04.md` §8.9–§8.10,
-> `docs/standard-tier-review/blade-fit-check-2026-07-04.md`): **9 Keystone 3586 SMT
-> universal-entry blade clips** (`TB1`–`TB9`, LCSC C238113, one per ratified joint — 12V×1,
+> `docs/standard-tier-review/blade-fit-check-2026-07-04.md`): **9 blade-joint receptacles**
+> (`TB1`–`TB9` — FINAL PART per iteration 7, 2026-07-06, owner-ratified: **TE 63969-1** FASTON
+> .250 PCB receptacle, LCSC C2961150; the Keystone 3586/3557 mentioned below in this
+> paragraph's original text were interim picks, retired to vendored fallbacks — the full
+> selection chain lives in each TB's Note property + blade-fit-check-2026-07-04.md addendum 7, one per ratified joint — 12V×1,
 > 5V×2, 3.3V×1, 5VSB×1, GND×4), each a single-pin part landing on the SAME post-shunt rail
 > node its share of J4 used to carry (`TB1`→`/SENSE12V_LO`, `TB2`/`TB3`→`+5V_MAIN`,
 > `TB4`→`/SENSE3V3_LO`, `TB5`→`/SENSE5VSB_LO`, `TB6`–`TB9`→`GND`), plus **one 2×5 2.54 mm
