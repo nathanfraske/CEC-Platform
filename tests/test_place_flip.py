@@ -64,3 +64,38 @@ class TestPlaceFlip(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDualSideGuard(unittest.TestCase):
+    """OWNER RULE teeth: connectors and the MCU can never reach the back set, even if an
+    upstream side-assigner proposes them."""
+
+    def test_guard_strips_connectors_and_mcu(self):
+        import cec_synth_pipeline as sp
+        back = {"RS3", "U12", "C15", "J3", "TB4", "U1", "U5"}
+        anchors_roles = {"J3": "power_in", "TB4": "power_out"}
+        comps = {"U1": "cec-RF_Module:ESP32-C6-MINI-1", "U12": "cec-Package_SO:VSSOP-10",
+                 "RS3": "cec-Resistor_SMD:R_2512_6332Metric", "C15": "cec-Capacitor_SMD:C_0603",
+                 "U5": "cec-Package_DFN_QFN:RUX0012A", "J3": "x:y", "TB4": "x:y"}
+        keep, stripped = sp._dual_side_guard(back, anchors_roles, comps)
+        self.assertEqual(stripped, {"J3", "TB4", "U1"})
+        self.assertEqual(keep, {"RS3", "U12", "C15", "U5"})
+
+    def test_real_board_back_set_clean(self):
+        import cec_synth_pipeline as sp
+        # the guard on the REAL 24-pin back set must strip nothing (construction is clean)
+        # -- if this ever strips, the chain-builder regressed.
+        import dataclasses
+        try:
+            cfg = sp.Config.load("atx-24pin-rev3")
+        except FileNotFoundError:
+            self.skipTest("board dir absent")
+        if not HAVE_PCBNEW:
+            self.skipTest("pcbnew required")
+        cfg.params.update({"dual_sided": True, "mount_holes": "none",
+                           "connector_overhang": "edge", "respect_antenna_keepout": False})
+        cand = sp.synth_one(dataclasses.asdict(cfg), 100.0, 80.0, "dataflow", 0)
+        self.assertTrue(cand.back_refs, "dual-sided board produced no back set")
+        for r in cand.back_refs:
+            self.assertFalse(r.startswith(("J", "TB")), r)
+        self.assertNotIn("U1", cand.back_refs)

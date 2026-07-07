@@ -3554,6 +3554,23 @@ class Candidate:
                                                  # gate); {} = not adjudicated. Set by adjudicate_candidates.
 
 
+def _dual_side_guard(back, anchors_roles, comps):
+    """OWNER RULE (2026-07-08): connectors and the MCU NEVER go on the back -- only rail
+    sensing chains (+ their owned passives) may flip. Hard guard, not a convention: strips
+    any connector-role ref, any J*/TB* ref, and any RF/MCU module from a proposed back set
+    and reports what it stripped (a stripped ref means an upstream side-assignment bug)."""
+    stripped = set()
+    keep = set()
+    for r in back:
+        fpid = str(comps.get(r, "")).lower()
+        if (r in anchors_roles or r.startswith(("J", "TB"))
+                or "esp32" in fpid or "rf_module" in fpid):
+            stripped.add(r)
+        else:
+            keep.add(r)
+    return keep, stripped
+
+
 def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
     in a spawn-pool worker (on the runner's cores). Takes/returns plain types only.
@@ -3874,6 +3891,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                 chain.update(_downstream_comparators(ic, c["hi"], c["lo"], nl, comps))
             chain |= {pref for pref, (own, _pad) in spec.items() if own in chain}
             back |= {r for r in chain if r in P}
+        back, _stripped = _dual_side_guard(back, anchors_roles, comps)
+        if _stripped:
+            print(f"  [dual-side guard] kept OFF the back (owner rule): {sorted(_stripped)}",
+                  file=sys.stderr)
         back_refs = tuple(sorted(back))
     return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy,
                      corridor_cross=cc, corridor_cross_aware=cc_aware, back_refs=back_refs)
