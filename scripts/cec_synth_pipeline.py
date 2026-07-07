@@ -1919,7 +1919,9 @@ def place_mechanical(W, H, params):
                for _r, (x, y) in sorted(override.items())]
     else:
         m = params.get("mount_holes", "3_2logic_1conn")
-        if m == "4_corner":
+        if m in ("none", "0"):                          # owner may not use chassis mounts at all
+            pts = []
+        elif m == "4_corner":
             pts = [(e, e), (W - e, e), (e, H - e), (W - e, H - e)]
         elif m == "2_diag":
             pts = [(e, e), (W - e, H - e)]
@@ -4230,7 +4232,8 @@ def materialize(cand, cfg, out, *, logo=None):
     P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
           if not _is_mount(r) and not r.startswith(("LOGO", "FID"))}
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
-    cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False)
+    cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
+                        corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0))
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):

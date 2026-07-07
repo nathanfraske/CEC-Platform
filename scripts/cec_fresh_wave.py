@@ -51,6 +51,17 @@ BOARD_WH = {
     "eps-8pin": (96.0, 37.0),
     "pcie-8pin-2port": (86.5, 44.0),
     "pcie-8pin-3port": (103.5, 56.0),
+    "atx-24pin-rev3": (100.0, 80.0),
+}
+
+# Per-board owner-ratified placement params (2026-07-08, 24-pin ground-up remake):
+# full connector overhang (J3's NPTH stabilizers off-board -- not used), NO mounting
+# holes, rounded corners; dual-sided placement is authorized for this board with the
+# same-side-per-rail sensing constraint (mechanism pending -- the wave is GATED on the
+# shared-bus per-rail corridor package, see TODO).
+BOARD_PARAMS = {
+    "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
+                       "connector_overhang": "edge"},
 }
 
 
@@ -86,7 +97,8 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                 label = f"{iname}-{strat}-s{seed}"
                 t0 = time.monotonic()
                 try:
-                    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed)
+                    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed,
+                                         params=BOARD_PARAMS.get(board))
                     intent(s)
                     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
                     v = s.grade(out=out, keep=True, passes=passes, opt=opt,

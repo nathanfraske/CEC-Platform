@@ -70,6 +70,8 @@ def local_pads(libid):
     for m in re.finditer(r'\(pad ', t):
         b = carve(t, m.start())
         num = re.match(r'\(pad "([^"]*)"', b); at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)', b)
+        if "np_thru_hole" in b.split("\n")[0]:
+            continue          # mechanical peg/stabilizer: no net, never an electrical pad-band member
         if num and at and num.group(1):
             out[num.group(1)] = (float(at.group(1)), float(at.group(2)))
     _PADS_CACHE[libid] = out
@@ -396,7 +398,8 @@ def export_netlist(dir_, base):
     return netf
 
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
-                drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True):
+                drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
+                corner_radius=0.0):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -420,10 +423,27 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
     if logo:
         fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=True))
     e = []
-    pts = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
-    for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
-        e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
-                 f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
+    r = float(corner_radius or 0.0)
+    if r <= 0:
+        pts = [(0, 0), (W, 0), (W, H), (0, H), (0, 0)]
+        for (x1, y1), (x2, y2) in zip(pts, pts[1:]):
+            e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
+                     f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
+    else:
+        # ROUNDED-CORNER outline (owner ask 2026-07-08): 4 shortened edges + 4 quarter arcs.
+        c = r * (1 - 0.7071067811865476)          # arc midpoint inset from the corner
+        lines = [((r, 0), (W - r, 0)), ((W, r), (W, H - r)),
+                 ((W - r, H), (r, H)), ((0, H - r), (0, r))]
+        arcs = [((W - r, 0), (W - c, c), (W, r)),          # TR
+                ((W, H - r), (W - c, H - c), (W - r, H)),  # BR
+                ((r, H), (c, H - c), (0, H - r)),          # BL
+                ((0, r), (c, c), (r, 0))]                  # TL
+        for (x1, y1), (x2, y2) in lines:
+            e.append(f'\t(gr_line (start {ff(x1)} {ff(y1)}) (end {ff(x2)} {ff(y2)}) '
+                     f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
+        for (sx, sy), (mx, my), (ex, ey) in arcs:
+            e.append(f'\t(gr_arc (start {ff(sx)} {ff(sy)}) (mid {ff(mx)} {ff(my)}) (end {ff(ex)} {ff(ey)}) '
+                     f'(stroke (width 0.1) (type solid)) (layer "Edge.Cuts") (uuid "{U()}"))')
     note = note or f'\t(gr_text "CEC {os.path.basename(out)[:-10]}  4L 2oz/1oz" ' \
                    f'(at {ff(logo[0] if logo else W/2)} {ff(H-3)} 0) (layer "B.SilkS") (uuid "{U()}") ' \
                    f'(effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))'
