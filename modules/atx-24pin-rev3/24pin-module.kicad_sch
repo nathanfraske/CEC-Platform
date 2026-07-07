@@ -8947,16 +8947,6 @@
 	)
 	(wire
 		(pts
-			(xy 160.02 97.79) (xy 160.02 102.87)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "3ad13b84-20d3-4410-b049-076a7cb4f841")
-	)
-	(wire
-		(pts
 			(xy 81.28 314.96) (xy 81.28 325.12)
 		)
 		(stroke
@@ -9154,16 +9144,6 @@
 			(type default)
 		)
 		(uuid "4e28df7f-bc11-411a-b17f-05c375c8b1ed")
-	)
-	(wire
-		(pts
-			(xy 160.02 38.1) (xy 160.02 44.45)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "4fa4cba3-e5c5-460d-91dc-2e94303907ba")
 	)
 	(wire
 		(pts
@@ -9694,16 +9674,6 @@
 			(type default)
 		)
 		(uuid "8363ab13-4fb4-4fd3-9e94-63e4aeb57177")
-	)
-	(wire
-		(pts
-			(xy 160.02 67.31) (xy 160.02 72.39)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "84ebb10c-1d2d-48dc-8daf-fa4332166c74")
 	)
 	(wire
 		(pts
@@ -12441,7 +12411,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 160.02 71.12 0)
+		(at 160.02 67.31 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -12451,7 +12421,7 @@
 		(dnp no)
 		(uuid "04d81480-773c-4e7d-b3ec-55b62df60b86")
 		(property "Reference" "#PWR85"
-			(at 160.02 68.58 0)
+			(at 160.02 64.77 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -12462,7 +12432,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 160.02 82.55 0)
+			(at 160.02 78.74 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12472,7 +12442,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 160.02 71.12 0)
+			(at 160.02 67.31 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12482,7 +12452,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 160.02 71.12 0)
+			(at 160.02 67.31 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -12492,7 +12462,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 160.02 71.12 0)
+			(at 160.02 67.31 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14107,7 +14077,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 160.02 99.06 0)
+		(at 160.02 102.87 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14117,7 +14087,7 @@
 		(dnp no)
 		(uuid "1d7cabb6-2997-45af-9f5a-a9b6c8d5a0e2")
 		(property "Reference" "#PWR21"
-			(at 160.02 96.52 0)
+			(at 160.02 100.33 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14128,7 +14098,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 160.02 110.49 0)
+			(at 160.02 114.3 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14138,7 +14108,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 160.02 99.06 0)
+			(at 160.02 102.87 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14148,7 +14118,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 160.02 99.06 0)
+			(at 160.02 102.87 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14158,7 +14128,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 160.02 99.06 0)
+			(at 160.02 102.87 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14961,7 +14931,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:+3V3")
-		(at 160.02 68.58 0)
+		(at 160.02 72.39 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -14971,7 +14941,7 @@
 		(dnp no)
 		(uuid "25ded6a9-50ed-48f3-9136-c275ae2f8e7c")
 		(property "Reference" "#PWR18"
-			(at 160.02 66.04 0)
+			(at 160.02 69.85 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -14982,7 +14952,7 @@
 			)
 		)
 		(property "Value" "+3V3"
-			(at 160.02 80.01 0)
+			(at 160.02 83.82 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -14992,7 +14962,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 160.02 68.58 0)
+			(at 160.02 72.39 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15002,7 +14972,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 160.02 68.58 0)
+			(at 160.02 72.39 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -15012,7 +14982,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 160.02 68.58 0)
+			(at 160.02 72.39 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21844,7 +21814,7 @@
 	)
 	(symbol
 		(lib_id "cec-power:GND")
-		(at 160.02 101.6 0)
+		(at 160.02 97.79 0)
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
@@ -21854,7 +21824,7 @@
 		(dnp no)
 		(uuid "9f4b31fd-9e19-4836-aef4-fc7cd33c7e87")
 		(property "Reference" "#PWR89"
-			(at 160.02 99.06 0)
+			(at 160.02 95.25 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -21865,7 +21835,7 @@
 			)
 		)
 		(property "Value" "GND"
-			(at 160.02 113.03 0)
+			(at 160.02 109.22 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21875,7 +21845,7 @@
 			)
 		)
 		(property "Footprint" ""
-			(at 160.02 101.6 0)
+			(at 160.02 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21885,7 +21855,7 @@
 			)
 		)
 		(property "Datasheet" ""
-			(at 160.02 101.6 0)
+			(at 160.02 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -21895,7 +21865,7 @@
 			)
 		)
 		(property "Description" ""
-			(at 160.02 101.6 0)
+			(at 160.02 97.79 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -23038,80 +23008,6 @@
 			(project "24pin-module"
 				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
 					(reference "#PWR135")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:+3V3")
-		(at 160.02 38.1 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "b09b9f3e-6831-4b80-a3ed-7beb5b7696f6")
-		(property "Reference" "#PWR16"
-			(at 160.02 35.56 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "+3V3"
-			(at 160.02 52.07 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 160.02 38.1 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 160.02 38.1 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 160.02 38.1 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "80d666ad-d374-4aa6-909f-e96fed67140a")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR16")
 					(unit 1)
 				)
 			)
@@ -28821,4 +28717,30 @@
 		)
 	)
 	(embedded_fonts no)
+	(wire
+		(pts
+			(xy 160.02 40.64) (xy 160.02 41.91)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "cc2e6afc-c67c-46d3-a9cf-d9b36cf2b24a")
+	)
+	(wire
+		(pts
+			(xy 160.02 41.91) (xy 160.02 44.45)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "aa141f78-6c57-4f79-90da-d94fe227acf4")
+	)
+	(junction
+		(at 160.02 41.91)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "09f2b29d-82b0-42a2-8a92-991a5ed56176")
+	)
 )
