@@ -250,7 +250,7 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         s = re.sub(rf'\n\s*\({k} [^\n]*\)', "", s, count=1)
     s = re.sub(r'(\(layer "[^"]+"\))\n\t\(uuid "[^"]+"\)', r"\1", s, count=1)
     if flip:
-        s = re.sub(r'"F\.(Cu|Mask|SilkS|Fab|Paste|Adhes)"', r'"B.\1"', s)
+        s = re.sub(r'"F\.(Cu|Mask|SilkS|Fab|Paste|Adhes|CrtYd)"', r'"B.\1"', s)
         s = re.sub(r'\(xy (-?[\d.]+) (-?[\d.]+)\)',
                    lambda m: f"(xy {ff(-float(m.group(1)))} {m.group(2)})", s)
         # REAL-PART flip (2026-07-08, dual-sided placement): the logo-era flip mirrored
@@ -275,6 +275,15 @@ def place(libid, ref, x, y, rot, padnet, code_of, *, gnd_all=False, flip=False, 
         s = out2 + s[pos2:]
         s = re.sub(r'\(property ("[^"]*" "[^"]*"\n\s*)\(at (-?[\d.]+) ',
                    lambda m: f'(property {m.group(1)}(at {ff(-float(m.group(2)))} ', s)
+        # back-side text must carry the mirror justify token or DRC flags
+        # nonmirrored_text_on_back_layer on every field/silk text (60 hits measured).
+        def _mirror_justify(m):
+            toks = m.group(1).strip()
+            return "(justify %s mirror)" % toks if "mirror" not in toks else m.group(0)
+        s = re.sub(r'\(justify ([^)]+)\)', _mirror_justify, s)
+        s = re.sub(r'(\(effects\n(?:[^()]|\([^()]*\))*?\(font(?:[^()]|\([^()]*\))*?\))(\n\s*\))',
+                   lambda m: m.group(1) + ("" if "justify" in m.group(0) else "\n\t\t\t(justify mirror)") + m.group(2),
+                   s)
         # mirror and rotation ANTI-COMMUTE: KiCad computes a B-side pad as mirror(R(rot)*local);
         # we store mirror(local), so the stored rotation must be NEGATED to compose identically
         # (R(-rot)*mirror(local) == mirror(R(rot)*local)). Calibrated: tests/test_place_flip.py

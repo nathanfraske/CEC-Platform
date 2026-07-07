@@ -64,7 +64,14 @@ BOARD_PARAMS = {
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
                        # physical antenna section just rides at an edge like any body extent.
-                       "respect_antenna_keepout": False},
+                       "respect_antenna_keepout": False,
+                       # owner GO 2026-07-08: alternate rail chains F/B (same-side-per-rail)
+                       "dual_sided": True,
+                       # 4.2 (atx24-out-db as-built) predates the iteration-7 TE 63969
+                       # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
+                       # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to
+                       # match (owner-queued 2026-07-08).
+                       "blade_pitch": 4.7, "blade_group_gap": 4.7},
 }
 
 

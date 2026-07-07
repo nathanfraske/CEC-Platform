@@ -399,7 +399,7 @@ def export_netlist(dir_, base):
 
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
-                corner_radius=0.0):
+                corner_radius=0.0, back_refs=()):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -414,7 +414,8 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
     for ref, (x, y, rot) in P.items():
         lib = comps.get(ref)
         if lib:
-            fps.append(place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref)))
+            fps.append(place(lib, ref, x, y, rot, padnet, code_of, val=vals.get(ref),
+                             flip=(ref in back_refs)))
         else:
             print(f"  WARN no footprint for {ref}", file=sys.stderr)
     for i, (x, y) in enumerate(mounts, 1):

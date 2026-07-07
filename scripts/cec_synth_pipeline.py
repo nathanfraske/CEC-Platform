@@ -3549,6 +3549,7 @@ class Candidate:
     corridor_cross_aware: int = 0  # HONEST channel-aware predictor (== F.Cu clips, reachable to 0) -- PRIMARY rank key
     similarity: float = -1.0      # MV3: reproduce-the-reference diagnostic (-1 = not computed)
     similarity_detail: dict = field(default_factory=dict)
+    back_refs: tuple = ()         # DUAL-SIDED (2026-07-08): refs materialized on the BACK face
     oracle: dict = field(default_factory=dict)   # SLICE-1a: route_oracle_grade verdict (real post-route
                                                  # gate); {} = not adjudicated. Set by adjudicate_candidates.
 
@@ -3849,8 +3850,33 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                                    power_input_nets=cfg.params.get("power_input_nets")), P, W, H)
     proxy["hub_penalty"] = hs["hub_penalty"]
     proxy["hub_terms"] = {k: v for k, v in hs.items() if k not in ("active", "hub_penalty")}
+    # DUAL-SIDED (owner GO 2026-07-08, board-scoped via params.dual_sided): on shared-bus
+    # boards, alternate rail chains F/B by column order. INVARIANT (owner): each rail's ENTIRE
+    # sensing chain -- shunt + INA sensors + comparators + their owned passives -- lives on ONE
+    # side; only digital crosses vias. ICs are INA-filtered so a POWER net on a shunt side (the
+    # 5VSB pair's +5VSB) can never drag the mux or rail loads to the back. v1 note: the placer's
+    # internal overlap model is not yet side-aware (residual may overreport across faces); the
+    # materialized board's DRC -- which the oracle grades -- is side-correct via place(flip).
+    back_refs = ()
+    if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in _topo):
+        entries = sorted((c for c in _topo if c.get("shared_bus") and c["shunt"] in P),
+                         key=lambda c: P[c["shunt"]][0])
+        back = set()
+        for i, c in enumerate(entries):
+            if i % 2 == 0:
+                continue                            # even columns stay front
+            chain = {c["shunt"]}
+            refs = {r for net in (c["hi"], c["lo"]) for r, _ in nl.nets.get(net, [])}
+            sense = {r for r in refs if r in comps
+                     and "INA" in (nl.comps[r].value or "").upper()}
+            chain |= sense
+            for ic in sorted(sense):
+                chain.update(_downstream_comparators(ic, c["hi"], c["lo"], nl, comps))
+            chain |= {pref for pref, (own, _pad) in spec.items() if own in chain}
+            back |= {r for r in chain if r in P}
+        back_refs = tuple(sorted(back))
     return Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy,
-                     corridor_cross=cc, corridor_cross_aware=cc_aware)
+                     corridor_cross=cc, corridor_cross_aware=cc_aware, back_refs=back_refs)
 
 
 def _candidate_sort_key(c):
@@ -4376,7 +4402,7 @@ def materialize(cand, cfg, out, *, logo=None):
         _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
     cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
                         corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
-                        drop_keepout=_dropk)
+                        drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()))
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):

@@ -263,6 +263,20 @@ def _drop_impossible_pad_artifacts(struct: list, board) -> list:
         if v.get("type") in ("shorting_items", "solder_mask_bridge"):
             items = v.get("items", [])
             parsed = [_RE_PAD_ITEM.match(it.get("description", "")) for it in items]
+            # CROSS-FACE artifact (2026-07-08, dual-sided boards): two SMD pads whose copper
+            # layer sets are DISJOINT (one F.Cu, one B.Cu) cannot short -- verified by layer
+            # sets, not position. kicad-cli reports these on coincident-xy opposite-face pads.
+            if len(items) == 2 and all(parsed):
+                pa = pads.get((parsed[0].group(2), parsed[0].group(1)))
+                pb = pads.get((parsed[1].group(2), parsed[1].group(1)))
+                if pa is not None and pb is not None:
+                    try:
+                        la = set(pa.GetLayerSet().CuStack())
+                        lb = set(pb.GetLayerSet().CuStack())
+                        if la and lb and not (la & lb):
+                            continue                   # opposite faces: impossible short
+                    except Exception:                  # noqa: BLE001
+                        pass
             if len(items) == 2 and all(parsed) and parsed[0].group(2) == parsed[1].group(2):
                 pa = pads.get((parsed[0].group(2), parsed[0].group(1)))
                 pb = pads.get((parsed[1].group(2), parsed[1].group(1)))

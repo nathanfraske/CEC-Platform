@@ -200,3 +200,11 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   like the other rails). SPEC EDIT IS THE OWNER RITUAL: update §6.4/OQ-11/B4 note to record the
   2T part (or re-ratify the WSK for a future rev — the 2T's ~±100ppm TCR vs WSK ~±35ppm is the
   trade being given up).
+
+## 2026-07-08 — atx24 blade-row pitch contract conflict (module ⇄ daughterboard)
+- The atx24-out-db as-built tab row is 10 @ 4.2mm; the module side now carries TE 63969-1
+  receptacles (iteration 7) whose courtyard is 4.29mm wide — they physically cannot pack at
+  4.2 (measured: courtyard/short DRC on the fresh 24-pin seed). The eps interface uses 4.7mm
+  with the same receptacle and is proven. RECOMMEND: standardize the atx24 interface at 4.7mm
+  contiguous (platform-uniform blade pitch) and re-pitch the DRAFT atx24-out-db tab row to
+  match (it is regenerable; no fab has occurred). The fresh 24-pin synthesis proceeds at 4.7.
