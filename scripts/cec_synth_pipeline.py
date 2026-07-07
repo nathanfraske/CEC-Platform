@@ -1697,11 +1697,21 @@ def _connector_net_role(ref, nl):
     net) is a 'power_in'; a connector carrying any non-rail net -- including an ADC sense/reference
     tap like /KVM_3V3_REF, which is DATA not a rail -- is a host/data port. Returns a role or None
     when it cannot tell (no nets resolved -> caller falls back to 'host')."""
-    nets = [n for n, nodes in nl.nets.items() if any(r == ref for r, _ in nodes)]
-    if not nets:
+    pads = [n for n, nodes in nl.nets.items() for r, _ in nodes if r == ref]
+    if not pads:
         return None
-    nonrail = [n for n in nets if not _is_rail_net(n)]
-    return "power_in" if not nonrail else None
+    # kelvin-pair members are the FORCE path -- power by definition, even though the
+    # _PWR_NOT_INPUT regex excludes SENSE* from the rail-token test (a shunt-side net like
+    # /SENSE12V_HI on an ATX input pin is bulk current, not data). Counted per PAD so a bulk
+    # power connector with a couple of status lines (ATX J3: 20+ rail/force pads vs
+    # PS_ON#/PWR_OK/-12V) still reads as power (2026-07-08, 24-pin mechanism item c).
+    force = {x for pr in _kelvin_pairs(nl) for x in pr}
+    data = [n for n in pads if not (_is_rail_net(n) or n in force)]
+    if not data:
+        return "power_in"
+    if len(pads) - len(data) >= 4 * len(data):
+        return "power_in"
+    return None
 
 
 def _half_extent(fp, *, drop_antenna=False):
@@ -3480,11 +3490,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     import cec_pcb
     cfg = Config(**cfg_dict)
     nl = View(cfg).nl
-    # materialize() embeds the FULL ESP footprint (antenna keepout intact), so for DRC-CONSISTENCY
-    # the placer must respect the keepout too -- otherwise it packs into space the board doesn't have
-    # (the J_IN2<->U1 overlap). Honouring the Stage-1 'drop the keepout' area win needs a trimmed-
-    # courtyard materialize (a follow-up); until then we keep the keepout to stay honest with DRC.
-    drop_antenna = False
+    # ANTENNA KEEPOUT: honoured by default for DRC-consistency with the materialized footprint.
+    # When the board declares wireless-unpopulated (respect_antenna_keepout: False -- the 24-pin
+    # owner directive 2026-07-08: "the keepout should not be on it anyway"), the placer drops the
+    # keepout AND materialize() trims the emitted courtyard lobe to match (build_board
+    # drop_keepout), so placer and DRC agree on the smaller courtyard end-to-end.
+    drop_antenna = (cfg.params.get("respect_antenna_keepout", True) is False)
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
     anchors_roles, ics, shunts, passives = _classify(nl)
@@ -4283,8 +4294,12 @@ def materialize(cand, cfg, out, *, logo=None):
     P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
           if not _is_mount(r) and not r.startswith(("LOGO", "FID"))}
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
+    _dropk = ()
+    if cfg.params.get("respect_antenna_keepout", True) is False:
+        _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
     cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
-                        corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0))
+                        corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
+                        drop_keepout=_dropk)
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):

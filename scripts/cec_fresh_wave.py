@@ -61,7 +61,10 @@ BOARD_WH = {
 # shared-bus per-rail corridor package, see TODO).
 BOARD_PARAMS = {
     "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
-                       "connector_overhang": "edge"},
+                       "connector_overhang": "edge",
+                       # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
+                       # physical antenna section just rides at an edge like any body extent.
+                       "respect_antenna_keepout": False},
 }
 
 
