@@ -1612,6 +1612,13 @@ def _role(ref, value, fp, nl=None):
         if "OUT" in u:
             return "power_out"
         return (_connector_net_role(ref, nl) if nl is not None else None) or "host"
+    # D-5a blade-field terminals (beta line, spec §2.8 revision): the TB* TE 63969 FASTON
+    # receptacles that replaced the J_OUT header -- the module's output is a FIELD of identical
+    # blades the output daughterboard blind-mates. Each blade is a connector anchor (power_out
+    # edge); the field PATTERN is seated by _seat_blade_fields, and the net->slot assignment is
+    # a free routing-time variable (owner 2026-07-07: "you can reorder them however you want").
+    if ref.startswith("TB") or "faston" in f:
+        return "power_out"
     return None
 
 
@@ -2611,19 +2618,35 @@ def _cable_topology(nl):
     variant, not a J_IN->shunt->J_OUT column."""
     pairs = _kelvin_pairs(nl)
     shared = _shared_bus_connectors(nl)
+    fp_of = _fp_of(nl)
     out = []
     for hi, lo in pairs:
         refs_hi = {r for r, _ in nl.nets.get(hi, [])}
         refs_lo = {r for r, _ in nl.nets.get(lo, [])}
         j_in = sorted(r for r in refs_hi if r.startswith("J") and r not in shared)
         j_out = sorted(r for r in refs_lo if r.startswith("J") and r not in shared)
+        # D-5a beta boards: the output header is replaced by a FIELD of TB* FASTON blade
+        # receptacles on the LO net (3 per cable on eps/pcie). They are the corridor's output
+        # end; j_out stays the first blade (a real anchor ref) and j_out_blades carries the
+        # whole per-cable group for the field seat.
+        blades = sorted(r for r in refs_lo
+                        if r not in shared and _is_blade(r, fp_of.get(r, "")))
+        if not j_out and blades:
+            j_out = blades
         straddle = refs_hi & refs_lo
         shunt = next((r for r in sorted(straddle) if r.startswith("RS") and _ref_padcount(nl, r) == 2),
                      next((r for r in sorted(straddle) if r.startswith("R") and _ref_padcount(nl, r) == 2), ""))
         if j_in and j_out and shunt:
             out.append({"base": hi[:-3], "hi": hi, "lo": lo,
-                        "j_in": j_in[0], "j_out": j_out[0], "shunt": shunt})
+                        "j_in": j_in[0], "j_out": j_out[0], "shunt": shunt,
+                        "j_out_blades": blades})
     return out
+
+
+def _is_blade(ref, footprint):
+    """A D-5a blade-field terminal: a TB*-ref or FASTON-footprint connector (TE 63969 receptacle
+    on the module side; the daughterboards' J1x 63951 tabs also match by footprint)."""
+    return ref.startswith("TB") or "faston" in (footprint or "").lower()
 
 
 def _shunt_gap_board_grow(nl, fp_of, topo, *, margin=1.0, headroom=1.0):
@@ -2687,6 +2710,7 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
     *W* is given the column is CLAMPED so the connector/shunt pads stay on-board (no off-board pads on a
     narrow board)."""
     seated = []
+    blade_cables = []
     for c in topo:
         jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
         if jin not in anchors or jout not in anchors:
@@ -2696,14 +2720,75 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
         if W and in_xs:
             hw = (max(in_xs) - min(in_xs)) / 2.0 + 1.0               # keep the column's pads on-board
             col = min(max(col, hw), W - hw)
-        # shift J_OUT in x so its LO force-pad column lands under the J_IN column
-        ox, oy, orot = anchors[jout]
-        out_xs = _net_pad_xs(nl, comps, jout, c["lo"], anchors)
-        out_col = (sum(out_xs) / len(out_xs)) if out_xs else ox
-        anchors[jout] = (ox + (col - out_col), oy, orot)
+        if c.get("j_out_blades"):
+            blade_cables.append((c, col))             # D-5a blade field -- seated as a group below
+        else:
+            # shift J_OUT in x so its LO force-pad column lands under the J_IN column
+            ox, oy, orot = anchors[jout]
+            out_xs = _net_pad_xs(nl, comps, jout, c["lo"], anchors)
+            out_col = (sum(out_xs) / len(out_xs)) if out_xs else ox
+            anchors[jout] = (ox + (col - out_col), oy, orot)
         anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
         seated.append(sh)
+    if blade_cables:
+        _seat_blade_fields(blade_cables, anchors, nl, comps, W)
     return seated
+
+
+# D-5a blade-field geometry (spec §2.8 revision, docs/standard-tier-review/). The slot PITCH is the
+# mating contract with the output daughterboard's 63951 tab field -- 4.7mm as built on
+# modules/output-daughterboards/eps-out-db (J10..J15, x 2.5->26.0). NOTE the committed module-side
+# placeholder row used 4.75mm -- a 0.25mm accumulated blind-mate mismatch across 6 slots; fresh
+# synthesis standardizes on the daughterboard's 4.7. The GROUP gap keeps adjacent daughterboard
+# BODIES (28.6mm wide vs the 23.5mm 6-slot field span) from colliding: >= 5.1mm, as-built 6.5.
+_BLADE_PITCH_MM = 4.7
+_BLADE_GROUP_GAP_MM = 6.5
+
+
+def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None):
+    """Seat each cable's D-5a output blade FIELD as a rigid row group at the power_out edge:
+    the cable's LO blades on the slot grid CENTERED under its corridor column (straight
+    J_IN -> shunt -> blade current path), the cable's share of the GND blades filling the
+    remaining contiguous slots (one 6-slot group == one mating daughterboard). Net->slot order
+    within the field is a free variable (identical blades; the daughterboard routes to match),
+    so centering the LO triple is a routing preference, not a contract. Groups are then 1-D
+    legalized left-to-right at _BLADE_GROUP_GAP_MM so adjacent daughterboard bodies clear.
+    Mutates *anchors* (every blade is already a power_out anchor from seed_anchors; this
+    overrides the generic edge packing with the field pattern)."""
+    all_blades = [r for r in anchors if r in comps and _is_blade(r, str(comps.get(r, "")))]
+    assigned = {b for c, _col in blade_cables for b in c["j_out_blades"]}
+    gnd_pool = sorted(r for r in all_blades if r not in assigned)
+    row_y = None
+    ys = [anchors[b][1] for b in all_blades if b in anchors]
+    if ys:
+        row_y = sum(ys) / len(ys)                     # the edge seed_anchors packed them on
+    groups = []                                       # (desired_x0, [refs in slot order])
+    share = (len(gnd_pool) // len(blade_cables)) if blade_cables else 0
+    for i, (c, col) in enumerate(sorted(blade_cables, key=lambda t: t[1])):
+        lo = sorted(c["j_out_blades"])
+        gnd = gnd_pool[i * share:(i + 1) * share]
+        refs = lo + gnd
+        # LO slots centered on the corridor column; GND slots continue to the right
+        x0 = col - (len(lo) - 1) / 2.0 * _BLADE_PITCH_MM
+        groups.append([x0, refs])
+    # 1-D legalize: sweep left->right, push a group right so bodies/daughterboards clear
+    groups.sort(key=lambda g: g[0])
+    for i in range(1, len(groups)):
+        prev_end = groups[i - 1][0] + (len(groups[i - 1][1]) - 1) * _BLADE_PITCH_MM
+        min_x0 = prev_end + _BLADE_PITCH_MM + _BLADE_GROUP_GAP_MM
+        if groups[i][0] < min_x0:
+            groups[i][0] = min_x0
+    if W and groups:
+        last_end = groups[-1][0] + (len(groups[-1][1]) - 1) * _BLADE_PITCH_MM
+        over = last_end - (W - _BLADE_PITCH_MM / 2.0 - 0.5)
+        if over > 0:                                  # clamp on-board (shift the whole row left)
+            for g in groups:
+                g[0] -= over
+    for x0, refs in groups:
+        for k, r in enumerate(refs):
+            if r in anchors:
+                _x, y, _rot = anchors[r]
+                anchors[r] = (x0 + k * _BLADE_PITCH_MM, row_y if row_y is not None else y, 0.0)
 
 
 def _perp_half(size, rot, n):

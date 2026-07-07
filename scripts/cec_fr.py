@@ -1240,6 +1240,46 @@ def _tap_foreign_clear(board, S, T, width_nm, layer_id, clearance_nm, sense_code
     return True
 
 
+def _tap_pair_overlap_clear(board, S, T, width_nm, layer_id, own_code, sense_codes):
+    """True iff the segment S->T does not PLOW THROUGH a sense pad of a DIFFERENT sense net.
+    The foreign guard (_tap_foreign_clear) deliberately ignores ALL sense-net copper (the partner
+    leg is legitimately ADJACENT at sub-clearance in the seated notch), which is safe for the
+    short straight taps but NOT for a multi-leg dogleg that could route a LO leg straight across
+    the shunt's HI pad -- a real short DRC would catch only after the copper is laid. This guard
+    closes that: different-sense-net pads are tested at a merely-touching clearance (0.02mm), so
+    adjacency stays allowed and overlap is refused."""
+    seg = pcbnew.SHAPE_SEGMENT(S, T, width_nm)
+    near_nm = _nm(0.02)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            nc = p.GetNetCode()
+            if nc == own_code or nc not in sense_codes:
+                continue
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if p.GetEffectiveShape(layer_id).Collide(seg, near_nm):
+                    return False
+            except Exception:                       # noqa: BLE001
+                continue
+    return True
+
+
+def _dogleg_candidates(S, T):
+    """Candidate 2-3 leg orthogonal paths S->..->T for a REFUSED straight tap, nearest-to-straight
+    first: the two L-bends, then channel doglegs that run the long axis at a fraction of the
+    offset (the '1-bend LO tap down the open notch'). Pure geometry -- every leg is still guarded
+    before anything is laid."""
+    out = [[S, pcbnew.VECTOR2I(S.x, T.y), T],
+           [S, pcbnew.VECTOR2I(T.x, S.y), T]]
+    for f in (0.5, 0.3, 0.7):
+        xf = int(S.x + f * (T.x - S.x))
+        yf = int(S.y + f * (T.y - S.y))
+        out.append([S, pcbnew.VECTOR2I(xf, S.y), pcbnew.VECTOR2I(xf, T.y), T])
+        out.append([S, pcbnew.VECTOR2I(S.x, yf), pcbnew.VECTOR2I(T.x, yf), T])
+    return out
+
+
 def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=6.0,
                            clearance=0.2):
     """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
@@ -1351,22 +1391,45 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                 T = p.GetPosition()
                 lbl = "%s->%s.%s" % (sh, r, p.GetPadName())
                 # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
-                if not _tap_foreign_clear(board, S, T, _nm(width), f_cu, clr_nm, sense_codes):
-                    refused.setdefault(net, []).append(lbl)
+                if _tap_foreign_clear(board, S, T, _nm(width), f_cu, clr_nm, sense_codes):
+                    pending.append(([S, T], nc, net, lbl))
                     continue
-                pending.append((S, T, nc, net, lbl))
+                # BENT-TAP FALLBACK (the ina238-lo-tap-refusal fix, 2026-07-07): the INA238's
+                # IN-(pad 9) sits mid-column with GND(7)/SDA(6) below it, so the straight stub
+                # from the LO inner edge clips the IC's OWN foreign pads. Try orthogonal
+                # doglegs down the open notch; EVERY leg must pass BOTH the foreign-clearance
+                # guard AND the different-sense-net overlap guard (a bent LO leg must never
+                # cross the shunt's HI pad, which the foreign guard deliberately ignores).
+                # Still via-free single-layer F.Cu (§6.8) -- only the shape bends.
+                bent = None
+                for path in _dogleg_candidates(S, T):
+                    legs = list(zip(path, path[1:]))
+                    if all(a != b for a, b in legs) and \
+                       all(_tap_foreign_clear(board, a, b, _nm(width), f_cu, clr_nm,
+                                              sense_codes) and
+                           _tap_pair_overlap_clear(board, a, b, _nm(width), f_cu, nc,
+                                                   sense_codes)
+                           for a, b in legs):
+                        bent = path
+                        break
+                if bent is not None:
+                    pending.append((bent, nc, net, lbl + " (bent)"))
+                else:
+                    refused.setdefault(net, []).append(lbl)
     # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
-    for S, T, nc, net, lbl in pending:
-        t = pcbnew.PCB_TRACK(board)
-        t.SetStart(S)
-        t.SetEnd(T)
-        t.SetWidth(_nm(width))
-        t.SetLayer(f_cu)
-        t.SetNetCode(nc)
-        board.Add(t)
-        laid.append(t)
+    for path, nc, net, lbl in pending:
+        for A, B in zip(path, path[1:]):
+            t = pcbnew.PCB_TRACK(board)
+            t.SetStart(A)
+            t.SetEnd(B)
+            t.SetWidth(_nm(width))
+            t.SetLayer(f_cu)
+            t.SetNetCode(nc)
+            board.Add(t)
+            laid.append(t)
         report.setdefault(net, []).append(lbl)
-    return {"taps": len(laid), "by_net": report, "refused": refused}
+    return {"taps": sum(len(v) for v in report.values()),
+            "by_net": report, "refused": refused, "segments": len(laid)}
 
 
 def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
