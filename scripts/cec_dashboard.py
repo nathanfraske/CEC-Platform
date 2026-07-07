@@ -127,6 +127,44 @@ def _fresh_runs(limit=60):
     return hits[:limit]
 
 
+def _worklog(limit=48):
+    """The agent ACTIVITY FEED: build/worklog.jsonl events (renders/waves/studies logged by
+    cec_worklog) MERGED with recent git commits (committed work appears automatically),
+    newest first. This is the owner's visual-verification window -- see cec_worklog.py."""
+    ev = []
+    wl = os.path.join(ROOT, "build", "worklog.jsonl")
+    if os.path.exists(wl):
+        for ln in open(wl).read().splitlines()[-150:]:
+            try:
+                e = json.loads(ln)
+                if isinstance(e, dict) and e.get("ts"):
+                    ev.append(e)
+            except Exception:                              # noqa: BLE001
+                pass
+    try:
+        out = subprocess.run(["git", "log", "-30", "--pretty=%ct%x09%h%x09%s"],
+                             cwd=ROOT, capture_output=True, text=True, timeout=10).stdout
+        for ln in out.splitlines():
+            ts, h, s = ln.split("\t", 2)
+            ev.append({"ts": float(ts), "tag": "commit", "title": s, "detail": h, "image": None})
+    except Exception:                                      # noqa: BLE001
+        pass
+    ev.sort(key=lambda e: -e.get("ts", 0))
+    return ev[:limit]
+
+
+def _artifact_path(rel):
+    """Traversal-safe repo-relative IMAGE path for the activity viewer."""
+    if not rel:
+        return None
+    p = os.path.abspath(os.path.join(ROOT, rel))
+    if not p.startswith(ROOT + os.path.sep) or not os.path.isfile(p):
+        return None
+    if not p.lower().endswith((".png", ".svg", ".jpg", ".jpeg")):
+        return None
+    return p
+
+
 def _safe_src(rel):
     """Resolve a library/fresh relpath to an absolute .kicad_pcb inside the repo, or None."""
     if not rel or not rel.endswith(".kicad_pcb"):
@@ -473,6 +511,15 @@ class H(BaseHTTPRequestHandler):
                 boards = list(_archive)
             self._json({"ts": time.time(), "rev": _page_rev, "boards": boards,
                         "seeding": dict(_seed_status), "archive_root": os.path.relpath(ARCHIVE_ROOT, ROOT)})
+        elif path == "/api/worklog":
+            self._json({"ts": time.time(), "events": _worklog()})
+        elif path == "/artifact":
+            p = _artifact_path(params.get("p"))
+            if p:
+                ctype = "image/svg+xml" if p.endswith(".svg") else "image/png"
+                self._send(open(p, "rb").read(), ctype)
+            else:
+                self._json({"error": "no such artifact"}, 404)
         elif path == "/api/library":
             self._json({"ts": time.time(), "beta": _beta_boards(), "fresh": _fresh_runs(),
                         "watch": dict(_watch_status)})
@@ -521,6 +568,7 @@ button.pill.on{background:#33691e;color:#dcedc8}
 .sec{padding:7px 12px;background:#0d1418;color:#80cbc4;font-size:11px;letter-spacing:1px;
   cursor:pointer;border-bottom:1px solid #263238;position:sticky;top:0;z-index:1}
 button.pill.act{background:#1c313a;color:#80deea;margin-left:6px;float:right}
+.pill.act2{background:#2a1c3a;color:#ce93d8}.pill.dim2{background:#1c242b;color:#78909c}
 button.pill.act:hover{background:#26424e}
 #pwrap{flex:1;overflow:auto;cursor:grab;background:#000;min-height:0}
 #pstack{position:relative;width:1100px;background:#000;isolation:isolate}
@@ -549,9 +597,9 @@ button.pill.act:hover{background:#26424e}
  <div id="pwrap"><div id="pstack"><div id="empty">no board selected</div></div></div>
 </div></div>
 <script>
-let boards=[], lib={beta:[],fresh:[],watch:{}}, cur=null, mode='all', plotW=1100;
+let boards=[], lib={beta:[],fresh:[],watch:{}}, acts=[], cur=null, curAct=null, mode='all', plotW=1100;
 const PAGE_REV='__REV__';
-let secOpen={beta:true,fresh:true,snaps:true};
+let secOpen={act:true,beta:true,fresh:true,snaps:true};
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function vpill(v){const cl=v==='CLEAN'?'ok':'bad';return `<span class="pill ${cl}">${v}</span>`;}
 function ago(mt){if(!mt)return'';const s=Date.now()/1000-mt;
@@ -566,6 +614,15 @@ function sec(k,title,count){
 function renderList(){
  const el=document.getElementById('list');
  let h='';
+ // agent ACTIVITY feed (worklog + commits) -- the owner's visual-verification window
+ h+=sec('act','ACTIVITY — live work feed',acts.length);
+ if(secOpen.act) h+=acts.map((a,i)=>{
+  const tag=`<span class="pill ${a.tag==='commit'?'dim2':'act2'}">${esc(a.tag)}</span>`;
+  const cam=a.image?' 📷':'';
+  return `<div class="row ${curAct===i?'sel':''}" onclick="pickAct(${i})">
+    <div class="nm">${tag} ${esc(a.title)}${cam}</div>
+    <div class="tsx">${ago(a.ts)}${a.detail?(' · '+esc(a.detail.slice(0,70))):''}</div></div>`;
+ }).join('');
  // beta line (committed boards)
  h+=sec('beta','BETA LINE',lib.beta.length);
  if(secOpen.beta) h+=lib.beta.map(b=>{
@@ -650,7 +707,26 @@ function buildPanels(){
 function setMode(m){mode=m;
  for(const x of ['all','detail','current','render','plot']) document.getElementById('m_'+x).classList.toggle('on',x===m);
  buildPanels();}
+function pickAct(i){
+ curAct=i; cur=null;
+ const a=acts[i]||{};
+ document.getElementById('btitle').textContent=`[${a.tag}] ${a.title}`;
+ document.getElementById('badges').innerHTML=`<span class="pill dim">${ago(a.ts)}</span>`;
+ const st=document.getElementById('pstack');
+ st.style.width=plotW+'px';
+ if(a.image){
+  st.innerHTML='';
+  const w=document.createElement('div'); w.className='panel';
+  const im=document.createElement('img'); im.src=`/artifact?p=${encodeURIComponent(a.image)}`;
+  const cap=document.createElement('div'); cap.className='cap'; cap.textContent=a.title;
+  w.appendChild(im); w.appendChild(cap); st.appendChild(w);
+ }else{
+  st.innerHTML=`<div id="empty" style="text-align:left;max-width:900px;white-space:pre-wrap">${esc(a.title)}\n\n${esc(a.detail||'(no artifact attached — this event is a text milestone; commits carry their diff in git)')}</div>`;
+ }
+ renderList();
+}
 function pick(id){
+ curAct=null;
  cur=boards.find(b=>b.id===id)||null;
  document.getElementById('btitle').textContent=cur?(cur.name+'  ·  '+(cur.source||'')):'select a board';
  renderList(); renderBadges(); fit();
@@ -677,6 +753,7 @@ async function tick(){
   if(s.rev && PAGE_REV!=='__'+'REV__' && s.rev!==PAGE_REV){location.reload();return;}
   boards=s.boards||[];
   try{ lib=await (await fetch('/api/library')).json(); }catch(e){}
+  try{ acts=((await (await fetch('/api/worklog')).json()).events)||[]; }catch(e){}
   const sd=s.seeding||{};
   let msg=`${(lib.beta||[]).length} beta · ${(lib.fresh||[]).length} fresh · ${boards.length} analyzed`;
   if(sd.active) msg+=`  ·  <span style="color:#ffcc80">archiving ${esc(sd.active)}…</span>`;

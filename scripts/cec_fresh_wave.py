@@ -32,6 +32,18 @@ ROOT = os.path.dirname(HERE)
 
 import cec_synth_pipeline as csp                       # noqa: E402
 from cec_placement_session import PlacementSession     # noqa: E402
+try:
+    import cec_worklog                                 # dashboard activity feed (best-effort)
+except Exception:                                      # noqa: BLE001
+    cec_worklog = None
+
+
+def _wlog(title, **kw):
+    if cec_worklog is not None:
+        try:
+            cec_worklog.log(title, **kw)
+        except Exception:                              # noqa: BLE001
+            pass
 
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
 # (the shrink pass comes after a gate-clean baseline exists; SHUNT_GAP may grow H).
@@ -64,6 +76,8 @@ def _intents():
 
 def run_board(board, seeds, passes, opt, out_root, work_root):
     W, H = BOARD_WH.get(board, (100.0, 44.0))
+    _wlog(f"wave started: {board}", tag="wave",
+          detail=f"{len(_intents())} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, passes {passes}/opt {opt}")
     os.makedirs(os.path.join(work_root, board), exist_ok=True)
     results = []
     for iname, intent in _intents():
@@ -115,6 +129,9 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     with open(os.path.join(pub_dir, f"{ts}-wave-report.json"), "w") as fh:
         json.dump(report, fh, indent=2, default=str)
     print(f"[wave] {board} BEST={best['label']} gate={best.get('gate')} -> {dst}", flush=True)
+    _wlog(f"wave done: {board} best={best['label']} gate={best.get('gate')}", tag="wave",
+          detail=f"kelvin={best.get('kelvin_ok')} unconn={best.get('unconnected')} "
+                 f"foreign={ (best.get('foreign') or {}).get('tracks') }t; published {os.path.relpath(dst, ROOT)}")
     return report
 
 
