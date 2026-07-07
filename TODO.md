@@ -267,5 +267,5 @@ Times are UTC.
 - [~] [added 2026-07-07 20:55] Fix pcie-8pin-3port U2 CAN TXD cross-sheet ERC break (blocks its pipeline run) · obsolete 2026-07-07 21:10 → netlist-verified NOT a break: /CAN_TX = U1.26+U2.1 on all 3 boards; the ERC hit is the documented-benign TXD pin_not_driven class
 - [ ] [added 2026-07-07 20:55] Re-baseline test_corridor_model/test_placer_oracle failures against beta boards after blade generalization
 - [ ] [added 2026-07-07 20:55] Fresh size-optimized PCB runs: eps-8pin → pcie-2port → pcie-3port (then 24-pin/12vhpwr after force-net naming generalization)
-- [ ] [added 2026-07-07 22:05] eps-8pin fresh wave (24 variants, one board per owner) — running in container; read out best + re-grade winner with the fixed blade thermal sink
+- [x] [added 2026-07-07 22:05] eps-8pin fresh wave (24 variants, one board per owner) · done 2026-07-07 22:40 → WINNER periph-left-dataflow-s2 GATE=TRUE on the full oracle conjunction (kelvin+diffpair+drc0+unconn0+foreign0/0+thermal dT10.2) after the verified artifact waivers + blade thermal-sink fix; published build/fresh/eps-8pin/
 - [ ] [added 2026-07-07 22:05] Dashboard explorer live on :8090 (library + watcher) — watch build/fresh/** as waves publish
