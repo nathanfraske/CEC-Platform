@@ -189,3 +189,14 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   corpus_only 315 vs the frozen report's 20 / 34 / 317 — the checker registry legitimately GREW
   (beta-arc + branch checkers) since the freeze. Re-freezing tests/golden/parity-report.json is
   an owner act (tests/golden/** is CODEOWNERS-gated). Until then this red is expected.
+
+## 2026-07-08 — spec §6.4/OQ-11 text correction needed (5VSB shunt, AS-BUILT divergence)
+- Owner confirmed (physical rev2 board in hand) + verified in the ordered rev2 layout: the 5VSB
+  shunt shipped as a 2-TERMINAL 25mΩ (Resistor Today LCSR2512FR025K9L, LCSC C494568) on the plain
+  R_2512 land — the alpha schematic's Vishay WSK2512 4-terminal was swapped before order and never
+  recorded. Spec §6.4 ("5VSB keeps the WSK2512... four-terminal") + the OQ-11 v1.6 text + the
+  v1.3.0 register-B4 beta note now contradict the as-built. rev3's RS4 has been reverted to the
+  as-built 2T part (2026-07-08, netlist-verified; Kelvin = copper-drawn taps at layout per §6.8
+  like the other rails). SPEC EDIT IS THE OWNER RITUAL: update §6.4/OQ-11/B4 note to record the
+  2T part (or re-ratify the WSK for a future rev — the 2T's ~±100ppm TCR vs WSK ~±35ppm is the
+  trade being given up).

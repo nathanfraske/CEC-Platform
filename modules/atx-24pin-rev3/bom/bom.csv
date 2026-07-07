@@ -64,7 +64,7 @@
 "RS1","2mΩ","cec-Resistor_SMD:R_2512_6332Metric","1",""
 "RS2","2mΩ","cec-Resistor_SMD:R_2512_6332Metric","1",""
 "RS3","2mΩ","cec-Resistor_SMD:R_2512_6332Metric","1",""
-"RS4","25mΩ","cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm","1",""
+"RS4","R025","cec-Resistor_SMD:R_2512_6332Metric","1",""
 "R_BYP_H1","0Ω","cec-Resistor_SMD:R_0402_1005Metric","1",""
 "R_BYP_L1","0Ω","cec-Resistor_SMD:R_0402_1005Metric","1",""
 "SW1","BOOT","cec-Button_Switch_SMD:TS-1088-AR02016","1",""

@@ -958,6 +958,129 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec-vendor:CEC_SHUNT_2T"
+			(exclude_from_sim no)
+			(in_bom yes)
+			(on_board yes)
+			(in_pos_files yes)
+			(duplicate_pin_numbers_are_jumpers no)
+			(property "Reference" "RS"
+				(at 0 2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Value" "R"
+				(at 0 -2.54 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Footprint" ""
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Datasheet" "~"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "Description" "2-terminal current-sense shunt (real part has 2 pads). Used Kelvin: tap each INA sense lead off the terminal copper in LAYOUT; the sense taps are not separate footprint pads. Pins 1/2 = current = rail HI/LO."
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(property "ki_fp_filters" "R_*2512* R_Shunt*"
+				(at 0 0 0)
+				(show_name no)
+				(do_not_autoplace no)
+				(hide yes)
+				(effects
+					(font
+						(size 1.27 1.27)
+					)
+				)
+			)
+			(symbol "CEC_SHUNT_2T_0_1"
+				(rectangle
+					(start -3.81 1.27)
+					(end 3.81 -1.27)
+					(stroke
+						(width 0.2032)
+						(type default)
+					)
+					(fill
+						(type none)
+					)
+				)
+			)
+			(symbol "CEC_SHUNT_2T_1_1"
+				(pin passive line
+					(at -6.35 0 0)
+					(length 2.54)
+					(name "I1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "1"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+				(pin passive line
+					(at 6.35 0 180)
+					(length 2.54)
+					(name "I2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+					(number "2"
+						(effects
+							(font
+								(size 1.016 1.016)
+							)
+						)
+					)
+				)
+			)
+			(embedded_fonts no)
+		)
 		(symbol "cec-vendor:CEC_SHUNT_4T"
 			(exclude_from_sim no)
 			(in_bom yes)
@@ -10893,16 +11016,6 @@
 	)
 	(wire
 		(pts
-			(xy 107.95 128.27) (xy 107.95 132.08)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "e5f6a7b8-1c2d-4e3f-9a0b-5c6d7e8f9a01")
-	)
-	(wire
-		(pts
 			(xy 303.53 78.74) (xy 308.61 78.74)
 		)
 		(stroke
@@ -11133,16 +11246,6 @@
 	)
 	(wire
 		(pts
-			(xy 113.03 128.27) (xy 113.03 132.08)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "f6a7b8c9-2d3e-4f4a-8b1c-6d7e8f9a0b12")
-	)
-	(wire
-		(pts
 			(xy 264.16 212.09) (xy 260.35 212.09)
 		)
 		(stroke
@@ -11251,16 +11354,6 @@
 		)
 		(uuid "09f1c8ba-643f-43a0-903e-50ce03485973")
 	)
-	(label "SENSE5VSB_HI"
-		(at 107.95 132.08 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "0a1b2c3d-4e5f-4061-8283-a4b5c6d7e8f9")
-	)
 	(label "DETAMP5V"
 		(at 353.06 113.03 180)
 		(effects
@@ -11271,7 +11364,7 @@
 		)
 		(uuid "0a49abaf-424c-429d-ad40-be14873ef674")
 	)
-	(label "SENSE5VSB_LO_KELVIN"
+	(label "SENSE5VSB_LO"
 		(at 195.58 59.69 180)
 		(effects
 			(font
@@ -11361,16 +11454,6 @@
 		)
 		(uuid "1a267a74-be37-4b03-a432-391a679972f9")
 	)
-	(label "SENSE5VSB_LO_KELVIN"
-		(at 113.03 132.08 270)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify right bottom)
-		)
-		(uuid "1b2c3d4e-5f60-4172-9384-b5c6d7e8f9a0")
-	)
 	(label "GPIO0"
 		(at 78.74 289.56 0)
 		(effects
@@ -11451,15 +11534,79 @@
 		)
 		(uuid "2aa89f5a-4a70-4dca-92ac-5b8146cdf1d2")
 	)
-	(label "SENSE5VSB_HI"
-		(at 195.58 57.15 180)
-		(effects
-			(font
-				(size 1.27 1.27)
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 195.58 57.15 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "0e2d3d47-9112-4070-82c6-f280609ea0be")
+		(property "Reference" "#PWR989"
+			(at 195.58 54.61 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
 			)
-			(justify right bottom)
 		)
-		(uuid "2c3d4e5f-6071-4283-a495-c6d7e8f9a0b1")
+		(property "Value" "+5VSB"
+			(at 195.58 60.96 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 195.58 57.15 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 195.58 57.15 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 195.58 57.15 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "56d8466d-dd53-4904-93d2-3a134f51723e")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR989")
+					(unit 1)
+				)
+			)
+		)
 	)
 	(label "I2C_SCL"
 		(at 173.99 87.63 0)
@@ -17969,7 +18116,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec-vendor:CEC_SHUNT_4T")
+		(lib_id "cec-vendor:CEC_SHUNT_2T")
 		(at 110.49 124.46 0)
 		(unit 1)
 		(body_style 1)
@@ -17978,19 +18125,8 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "56268892-5689-46c3-ba63-0cfa83266d64")
+		(uuid "7b7aaf9c-4a68-471f-9407-fdc132619499")
 		(property "Reference" "RS4"
-			(at 110.49 118.11 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "25mΩ"
 			(at 110.49 120.65 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18000,7 +18136,17 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Resistor_SMD:R_Shunt_Vishay_WSK2512_6332Metric_T1.19mm"
+		(property "Value" "R025"
+			(at 110.49 128.27 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" "cec-Resistor_SMD:R_2512_6332Metric"
 			(at 110.49 124.46 0)
 			(hide yes)
 			(show_name no)
@@ -18022,8 +18168,8 @@
 				)
 			)
 		)
-		(property "Description" "4-terminal Kelvin current-sense shunt: pins 1/4 = current (rail), 2/3 = sense (to INA Vin+/Vin-)"
-			(at 0 0 0)
+		(property "Manufacturer" "Resistor Today"
+			(at 110.49 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18033,8 +18179,8 @@
 				)
 			)
 		)
-		(property "BOM Comments" "5VSB shunt: Vishay WSK2512 25mOhm 4-terminal (B4: true Kelvin land, matches the alpha board's RS6 treatment)."
-			(at 0 0 0)
+		(property "MPN" "LCSR2512FR025K9L"
+			(at 110.49 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18044,8 +18190,8 @@
 				)
 			)
 		)
-		(property "Tolerance" "1%"
-			(at 0 0 0)
+		(property "LCSC" "C494568"
+			(at 110.49 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18055,30 +18201,8 @@
 				)
 			)
 		)
-		(property "Manufacturer" "Vishay"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "MPN" "WSK2512R0250FEA"
-			(at 0 0 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Note" "OQ-11 LOCKED (spec v1.2.0, 2026-07-02): Vishay WSK2512R0250FEA, 25mOhm, 4-terminal Kelvin -- the only true-Kelvin 25mOhm 2512 part found (Bourns CSS2H tops out at 5mOhm). B4 fix (2026-07-03 beta splice): was on a 2-terminal R_2512 land conflating current path + INA228 sense; now CEC_SHUNT_4T with dedicated Kelvin sense pins 2/3, matching the alpha board's RS6."
-			(at 0 0 0)
+		(property "Note" "AS-BUILT record correction (owner, 2026-07-08): the ORDERED rev2 board ships a 2-terminal 25mOhm (this part) on the plain R_2512 land -- the WSK2512 4-terminal in the alpha schematic/spec text was swapped before order and never recorded. Kelvin sense = copper-drawn taps at layout per section 6.8, like the other rails."
+			(at 110.49 124.46 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -18089,16 +18213,10 @@
 			)
 		)
 		(pin "1"
-			(uuid "a0cd5b68-bd9c-4d96-8b70-8453e6a7dd76")
+			(uuid "de6d10ff-9765-440c-b0e0-423b1665425b")
 		)
 		(pin "2"
-			(uuid "09e70be9-0415-4099-b632-1f3cdd29832e")
-		)
-		(pin "3"
-			(uuid "c3a4a3d1-2f0e-4b1a-9c7e-1a9b6e5d4f21")
-		)
-		(pin "4"
-			(uuid "d4b5b4e2-3a1f-4c2b-8d8f-2b0c7f6e5031")
+			(uuid "b93ebe8b-278b-47e9-b6d0-1d612f8cef6f")
 		)
 		(instances
 			(project "24pin-module"
@@ -28307,7 +28425,80 @@
 	)
 	(wire (pts (xy 285.75 163.83) (xy 283.21 163.83))
 		(stroke (width 0) (type default)) (uuid "e1aa2fb0-0ac6-43d2-9398-567ae600788a"))
-	(label "SENSE5VSB_HI" (at 283.21 163.83 180) (effects (font (size 1.27 1.27)) (justify right bottom)) (uuid "f96564b5-b7c5-49fe-93bd-48fc4fddd9dd"))
+	(symbol
+		(lib_id "cec-power:+5VSB")
+		(at 283.21 163.83 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "6d4ae74e-9df2-4a70-a0d4-98395d639b4b")
+		(property "Reference" "#PWR990"
+			(at 283.21 161.29 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "+5VSB"
+			(at 283.21 167.64 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 283.21 163.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 283.21 163.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 283.21 163.83 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "96a4e97d-4ffe-4f4b-92dd-2963ad66003c")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR990")
+					(unit 1)
+				)
+			)
+		)
+	)
 	(wire (pts (xy 303.53 163.83) (xy 306.07 163.83))
 		(stroke (width 0) (type default)) (uuid "f312762d-af6d-4a21-96ba-0d6c3b79605d"))
 	(label "SENSE5VSB_LO" (at 306.07 163.83 0) (effects (font (size 1.27 1.27)) (justify left bottom)) (uuid "359e08cc-19c8-4966-b2e0-db0e9da90045"))
