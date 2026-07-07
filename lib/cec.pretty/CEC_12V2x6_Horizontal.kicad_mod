@@ -81,4 +81,15 @@
   (pad "10" thru_hole circle (at -4.499999 -4.670001) (size 1.524 1.524) (drill 1.0668) (layers *.Cu *.Mask))
   (pad "11" thru_hole circle (at -7.499998 -4.670001) (size 1.524 1.524) (drill 1.0668) (layers *.Cu *.Mask))
   (pad "12" thru_hole circle (at -10.499997 -4.670001) (size 1.524 1.524) (drill 1.0668) (layers *.Cu *.Mask))
+  (model "${KIPRJMOD}/../../lib/3dmodels/Connector_Molex.3dshapes/CEC_12V2x6_Horizontal.step"
+    (offset
+      (xyz 0 0 0)
+    )
+    (scale
+      (xyz 1 1 1)
+    )
+    (rotate
+      (xyz 0 0 0)
+    )
+  )
 )
