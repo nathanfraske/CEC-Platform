@@ -195,7 +195,63 @@ def drc_types(board_path: str) -> tuple[dict, list]:
         except OSError:
             pass
     struct = [v for v in d.get("violations", []) if v.get("type") not in COSMETIC_DRC_TYPES]
+    try:
+        struct = _drop_impossible_pad_artifacts(struct, pcbnew.LoadBoard(board_path))
+    except Exception:                                      # noqa: BLE001 -- parity filter is best-effort here
+        pass
     return _types_loci(struct)
+
+
+# matches 'Pad 1 [GND] of SW2 on F.Cu' AND 'PTH pad 1 [GND] of H3' (kicad-cli varies the form)
+_RE_PAD_ITEM = re.compile(r"^(?:\w+ )??[Pp]ad (\S+) \[[^\]]*\] of (\S+)")
+
+
+def _drop_impossible_pad_artifacts(struct: list, board) -> list:
+    """Drop the DOCUMENTED headless kicad-cli false positives: a shorting_items /
+    solder_mask_bridge violation whose items are EXACTLY the pads of one footprint that do
+    not even touch (seen on the rotated TS-1088 buttons: 'SW2 pad1<->pad2 short', pads
+    4.36mm apart; recorded in CLAUDE.md as geometrically-impossible-absent-in-GUI). The
+    filter is GEOMETRY-VERIFIED against the live board -- pads are re-tested with the same
+    Collide() the DRC engine uses and the violation is kept whenever they truly touch, so a
+    REAL overlapping-pad short can never be filtered. A real short THROUGH copper lists the
+    track/via in items (>2 items or a non-pad item) and is never touched here."""
+    fcu = board.GetLayerID("F.Cu")
+    pads = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            pads[(fp.GetReference(), str(p.GetPadName()))] = p
+    mounts = {fp.GetReference() for fp in board.GetFootprints()
+              if "mountinghole" in str(fp.GetFPID().GetLibItemName()).lower()}
+    out = []
+    for v in struct:
+        if v.get("type") in ("shorting_items", "solder_mask_bridge"):
+            items = v.get("items", [])
+            parsed = [_RE_PAD_ITEM.match(it.get("description", "")) for it in items]
+            if len(items) == 2 and all(parsed) and parsed[0].group(2) == parsed[1].group(2):
+                pa = pads.get((parsed[0].group(2), parsed[0].group(1)))
+                pb = pads.get((parsed[1].group(2), parsed[1].group(1)))
+                if pa is not None and pb is not None:
+                    try:
+                        lay = fcu if fcu >= 0 else pa.GetLayer()
+                        if not pa.GetEffectiveShape(lay).Collide(pb.GetEffectiveShape(lay), 0):
+                            continue                       # impossible short -> the known artifact
+                    except Exception:                      # noqa: BLE001 -- never widen the filter on error
+                        pass
+        elif v.get("type") == "copper_edge_clearance":
+            # MOUNT-pad annulus near Edge.Cuts: the documented deliberate finishing state
+            # (place_mechanical e=3.5 note -- an M3 screw pad may hug the edge; the GUI
+            # clears it). Waived ONLY for a mounting-hole footprint's pad vs an edge
+            # segment; every other copper-vs-edge hit stays structural.
+            items = v.get("items", [])
+            if len(items) == 2:
+                descs = [it.get("description", "") for it in items]
+                pad_ms = [_RE_PAD_ITEM.match(x) for x in descs]
+                has_edge = any("Edge.Cuts" in x or "edge" in x.lower() for x in descs)
+                pad_refs = [m.group(2) for m in pad_ms if m]
+                if has_edge and pad_refs and all(r in mounts for r in pad_refs):
+                    continue
+        out.append(v)
+    return out
 
 
 def _parse_net_from_desc(desc: str) -> str | None:
@@ -692,6 +748,7 @@ def score(
 
     all_violations = drc_data.get("violations", [])
     struct = [v for v in all_violations if v["type"] not in COSMETIC_DRC_TYPES]
+    struct = _drop_impossible_pad_artifacts(struct, b)
     unconn = drc_data.get("unconnected_items", [])
     unconn_nets = _unconnected_nets(unconn)
 
