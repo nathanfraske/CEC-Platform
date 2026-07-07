@@ -1273,11 +1273,18 @@ def _pad_cells(board, grid: Grid, grid_layer_for_phys, area=True):
 
 
 def _default_src_sink(net, pad_map):
-    """Pass-through interposer heuristic (unchanged)."""
+    """Pass-through interposer heuristic. The OUTPUT side is either the classic J_OUT*
+    header or (D-5a beta boards) the TB* FASTON blade field -- without the TB alternative a
+    blade board's LO net has NO sink, the solve pushes zero current and the thermal gate
+    passes VACUOUSLY at dT=0 (found 2026-07-07 on the fresh beta eps wave)."""
     refs = pad_map.get(net, {})
     src, sink = [], []
     is_hi = net.endswith("_HI")
     is_lo = net.endswith("_LO")
+
+    def _is_out(ref):
+        return ref.startswith("J_OUT") or ref.startswith("TB")
+
     for ref, cells in refs.items():
         if ref == "__pads__":
             continue
@@ -1289,12 +1296,12 @@ def _default_src_sink(net, pad_map):
         elif is_lo:
             if ref.startswith("RS"):
                 src += cells
-            elif ref.startswith("J_OUT"):
+            elif _is_out(ref):
                 sink += cells
         else:
             if ref.startswith("J_IN"):
                 src += cells
-            elif ref.startswith("J_OUT"):
+            elif _is_out(ref):
                 sink += cells
     return src, sink
 
