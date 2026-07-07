@@ -292,7 +292,13 @@ class Config:
 
     @classmethod
     def load(cls, board, **kw):
-        d = board if os.path.isdir(board) else os.path.join(ROOT, "modules", board)
+        if os.path.isdir(board):
+            d = board
+        else:
+            d = next((c for c in (os.path.join(ROOT, "modules", board),
+                                  os.path.join(ROOT, "hubs", board),
+                                  os.path.join(ROOT, "modules", "output-daughterboards", board))
+                      if os.path.isdir(c)), os.path.join(ROOT, "modules", board))
         if not os.path.isdir(d):
             # allow passing a .kicad_pcb / .kicad_sch directly
             if os.path.isfile(board):
@@ -303,7 +309,9 @@ class Config:
         params = dict(cls.DEFAULT_PARAMS)
         params.update(kw.pop("params", {}) or {})
         cfg = cls(board=name, dir=d, params=params, **kw)
-        cfg.sch = _one(glob.glob(os.path.join(d, "*.kicad_sch")))
+        # ROOT sheet, not sorted()[0] -- the hierarchical beta boards' numbered sub-sheets
+        # sort first and a leaf-sheet netlist silently drops most of the board (6/63 comps).
+        cfg.sch = _tc.find_root_sch(d)
         cfg.pcb = _one([p for p in glob.glob(os.path.join(d, "*.kicad_pcb"))
                         if "-routed" not in p and ".merged." not in p])
         cfg.net = _one(glob.glob(os.path.join(d, "*.net")))

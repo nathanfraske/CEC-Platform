@@ -81,3 +81,48 @@ def warn_once(key, msg=None):
         return
     _warned.add(key)
     print(f"[cec] WARNING: {msg or key}", file=sys.stderr)
+
+
+def find_root_sch(board_dir):
+    """The ROOT .kicad_sch of a (possibly HIERARCHICAL) board directory.
+
+    The beta-line boards split into numbered sub-sheets (01-hub-link.kicad_sch, ...), so the
+    historical `sorted(glob('*.kicad_sch'))[0]` grabs a LEAF sheet and a netlist export from it
+    silently drops most of the board (measured: eps-8pin -> 6 of 63 components). Resolution
+    order, all dependency-free:
+      1. the .kicad_sch whose stem matches a .kicad_pro stem (KiCad's own root convention);
+      2. the .kicad_sch that INSTANTIATES sub-sheets (contains a `(sheet ` block) -- a root
+         references children, a leaf does not;
+      3. the .kicad_sch whose name contains the directory's name (repo naming convention);
+      4. alphabetically first (the historical fallback).
+    Returns "" when the directory has no schematic."""
+    import glob as _glob
+    import os as _os
+    cands = sorted(_glob.glob(_os.path.join(board_dir, "*.kicad_sch")))
+    if not cands:
+        return ""
+    if len(cands) == 1:
+        return cands[0]
+    pro_stems = {_os.path.splitext(_os.path.basename(p))[0]
+                 for p in _glob.glob(_os.path.join(board_dir, "*.kicad_pro"))}
+    by_pro = [p for p in cands
+              if _os.path.splitext(_os.path.basename(p))[0] in pro_stems]
+    if by_pro:
+        return by_pro[0]
+    import re as _re
+    roots = []
+    for p in cands:
+        try:
+            with open(p, "r", encoding="utf-8", errors="ignore") as fh:
+                if _re.search(r"^\s*\(sheet\b", fh.read(), _re.M):
+                    roots.append(p)
+        except OSError:
+            continue
+    if len(roots) == 1:
+        return roots[0]
+    base = _os.path.basename(_os.path.normpath(board_dir)).replace("-", "")
+    by_name = [p for p in (roots or cands)
+               if base in _os.path.basename(p).replace("-", "")]
+    if by_name:
+        return by_name[0]
+    return (roots or cands)[0]
