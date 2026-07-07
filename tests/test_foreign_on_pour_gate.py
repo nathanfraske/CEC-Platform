@@ -130,12 +130,16 @@ class TestForeignOnPourGate(unittest.TestCase):
 @unittest.skipUnless(HAVE, "pcbnew required")
 class TestForeignOnPourScope(unittest.TestCase):
     def test_shared_bus_boards_are_na(self):
-        # 12VHPWR (per-pin off shared J3/J4) and 24-pin (per-rail off shared J3/J4) pack their
-        # lane/rail with the sense chain by design -> N/A, identical to high-current-corridor-keepout.
+        # 12VHPWR (per-pin off shared J3/J4) packs its lanes with the sense chain by design
+        # -> N/A, identical to high-current-corridor-keepout. NOTE (re-baselined 2026-07-07):
+        # the 24-pin rev3 used to be the second shared-bus exemplar, but the owner's new rev3
+        # PCB (beta D-5a output-daughterboard architecture, J4 dropped) carries REAL per-rail
+        # pour corridors -- the checker legitimately reads it APPLICABLE now; it is asserted
+        # clean in test_new_24pin_rev3_is_applicable_and_clean below.
         tmp = tempfile.mkdtemp()
         self.addCleanup(shutil.rmtree, tmp)
         checked = 0
-        for src in (HPWR, ATX):
+        for src in (HPWR,):
             if not os.path.isfile(src):
                 continue
             checked += 1
@@ -146,6 +150,18 @@ class TestForeignOnPourScope(unittest.TestCase):
                               % (os.path.basename(p), ok, detail))
             self.assertFalse(K.foreign_on_pour_summary(p)["applicable"])
         self.assertGreaterEqual(checked, 1, "at least one shared-bus board must be exercised")
+
+    @unittest.skipUnless(HAVE and os.path.isfile(ATX), "pcbnew + atx-24pin-rev3 required")
+    def test_new_24pin_rev3_is_applicable_and_clean(self):
+        # The owner's rev3 PCB (2026-07 beta): per-rail J3->shunt->out-field corridors with
+        # actual pours -> the foreign-on-pour gate APPLIES and the committed board is clean.
+        tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp)
+        p = _fresh_copy(ATX, tmp)
+        s = K.foreign_on_pour_summary(p)
+        self.assertTrue(s["applicable"])
+        self.assertGreaterEqual(s["n_pours"], 2)
+        self.assertEqual((s["n_tracks"], s["n_vias"]), (0, 0), s)
 
 
 @unittest.skipUnless(HAVE, "pcbnew required")

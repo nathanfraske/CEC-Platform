@@ -21,7 +21,9 @@ try:
 except Exception:
     HAVE_PCBNEW = False
 
-EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "modules", "eps-8pin", "eps8pin-module.kicad_pcb"))
+# LEGACY fixture: the pre-beta committed board this suite's geometry assertions encode
+# (the live modules/eps-8pin is the beta TB-blade board; see tests/fixtures/.../README.md).
+EPS_PCB = os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy", "eps8pin-module.kicad_pcb"))
 
 
 # --------------------------------------------------------------------------- pure geometry
@@ -364,7 +366,7 @@ class TestPlacerCorridorEps(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.cfg = sp.Config.load("eps-8pin")
+        cls.cfg = sp.Config.load(os.path.normpath(os.path.join(HERE, "..", "tests", "fixtures", "eps-8pin-legacy")))
         cls.cd = {k: getattr(cls.cfg, k) for k in ("board", "profile", "pins", "params",
                                                    "dir", "sch", "net", "pcb", "bom_csv")}
 
