@@ -16,8 +16,14 @@ sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 # cec_fr does an unconditional top-level `import pcbnew`; the lever tests monkeypatch
 # cec_fr.derive_power_pours so the real engine is never exercised -- stub pcbnew so these stay
-# host-runnable (no container needed). A real pcbnew (in-container) shadows the stub harmlessly.
-sys.modules.setdefault("pcbnew", types.ModuleType("pcbnew"))
+# host-runnable (no container needed). ONLY stub when the real module is genuinely absent:
+# the old unconditional setdefault registered an EMPTY module whenever this file imported
+# before any real-pcbnew user (alphabetical discover order), poisoning every later test in
+# the process with 'pcbnew has no attribute LoadBoard' (found 2026-07-07 on the full sweep).
+try:
+    import pcbnew  # noqa: F401 -- real engine present (in-container); no stub
+except Exception:
+    sys.modules.setdefault("pcbnew", types.ModuleType("pcbnew"))
 
 
 class TestLeverFix(unittest.TestCase):

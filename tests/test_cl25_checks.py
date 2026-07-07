@@ -98,12 +98,17 @@ class TestCheckPack(unittest.TestCase):
             self.assertIn(ok, (True, False))
 
     def test_sync_passes_on_eps_and_fires_on_mismatched_sch(self):
-        board = pcbnew.LoadBoard(EPS)
-        ok, detail = K.CHECKERS["sch-pcb-sync"](board, EPS, {})[:2]
+        # The SYNCED exemplar is the pre-beta legacy fixture: the live beta eps is a known
+        # transitional sch<->pcb mismatch (hierarchical C6 schematic vs placeholder PCB)
+        # until its fresh board lands, so it can't serve as the pass case (2026-07-07).
+        eps = os.path.join(ROOT, "tests", "fixtures", "eps-8pin-legacy",
+                           "eps8pin-module.kicad_pcb")
+        board = pcbnew.LoadBoard(eps)
+        ok, detail = K.CHECKERS["sch-pcb-sync"](board, eps, {})[:2]
         self.assertTrue(ok, detail)
         # cross-wire: the EPS board against the Hub schematic must FAIL (desync class)
         hub_sch = os.path.join(ROOT, "hubs", "hub-standard", "hub-standard.kicad_sch")
-        ok2, detail2 = K.CHECKERS["sch-pcb-sync"](board, EPS, {"sch": hub_sch})[:2]
+        ok2, detail2 = K.CHECKERS["sch-pcb-sync"](board, eps, {"sch": hub_sch})[:2]
         self.assertFalse(ok2, detail2)
 
     def test_bom_lint_known_gaps_noted_not_failed(self):

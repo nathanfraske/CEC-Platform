@@ -134,10 +134,13 @@ class TestOracleRoute(unittest.TestCase):
         self.assertEqual(r["sort_key"][0], 0)                 # tier 0 = gate-clean
 
     def test_known_bad_placement_fails(self):
-        # the pre-fix parent: INA seated hard against the shunt -> the Kelvin tap strands -> kelvin_ok=False
+        # the pre-fix parent. HISTORY: this fixture originally stranded the Kelvin tap
+        # (kelvin_ok=False); the 2026-07-07 BENT-TAP fallback (cec_fr dogleg on refusal)
+        # genuinely HEALED that mechanism, so kelvin now lays -- but the placement still
+        # routes DIRTY (GND + signal ratlines), so it remains a discriminating bad fixture.
+        # Asserting kelvin_ok=False again would pin the SUPERSEDED tap behaviour.
         r = self.wg
-        self.assertFalse(r["gate"], "widegap-m should route DIRTY (kelvin strands)")
-        self.assertFalse(r["kelvin_ok"])
+        self.assertFalse(r["gate"], "widegap-m should route DIRTY")
         self.assertTrue(r["unconn_critical"])                 # safety/power nets left unrouted
         self.assertEqual(r["sort_key"][0], 1)                 # tier 1 = failing
 

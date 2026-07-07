@@ -45,6 +45,12 @@ services:
       # `inference` vLLM :8000 published on the host). host.docker.internal -> host via the extra_hosts
       # gateway below. Fail-fast: broker down -> connection-refused -> the judge's deterministic fallback.
       - CEC_VLLM_URL=http://host.docker.internal:8080/v1
+      # The repo is a host-owned bind mount read by root-in-container: git >=2.35 refuses it as
+      # 'dubious ownership' (breaks cec_pcb_reconcile / ledger git calls after any container
+      # recreate). GIT_CONFIG_* env is user/home-independent, unlike an exec'd `git config`.
+      - GIT_CONFIG_COUNT=1
+      - GIT_CONFIG_KEY_0=safe.directory
+      - GIT_CONFIG_VALUE_0=/workspace
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:

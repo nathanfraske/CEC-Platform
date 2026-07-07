@@ -15,6 +15,13 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "scripts"))
 
 # ---- stub cec_fr02 (no pcbnew) ----
+# SCOPED, not global: the old bare `sys.modules["cec_fr02"] = _fr02` poisoned EVERY other
+# module in a discover run (unittest imports all test modules before running any, so the
+# stub shadowed the real scripts/cec_fr02.py for test_ei01_lever_vision / the gr_fr02
+# fixture suite -- found 2026-07-07). The stub is installed around this module's import-time
+# fixtures, RESTORED immediately, and re-installed per test via the _StubFr02 base class
+# (cec_fs_actuator imports cec_fr02 lazily inside each call, so per-test sys.modules
+# swapping is exactly the seam it reads through).
 _fr02 = types.ModuleType("cec_fr02")
 _fr02.is_sense_net = lambda n: "SENSEC" in str(n)
 _fr02.clipped_corridor_rects = lambda board, nets: {
@@ -23,8 +30,29 @@ _fr02.offending_net_intents = lambda corridors, nets: [
     {"net": n, "layers": ["F.Cu"], "waypoints": [],
      "avoid": [{"rect_mm": [10, 19, 30, 51], "layers": ["F.Cu", "B.Cu"]}]}
     for n in nets if "SENSEC" not in str(n)]
-sys.modules["cec_fr02"] = _fr02
 
+
+def _install_stub():
+    saved = sys.modules.get("cec_fr02")
+    sys.modules["cec_fr02"] = _fr02
+    return saved
+
+
+def _restore_stub(saved):
+    if saved is not None:
+        sys.modules["cec_fr02"] = saved
+    else:
+        sys.modules.pop("cec_fr02", None)
+
+
+class _StubFr02(unittest.TestCase):
+    """Base: every test in this module runs with the cec_fr02 stub installed, restored after."""
+    def setUp(self):
+        self._saved_fr02 = _install_stub()
+        self.addCleanup(_restore_stub, self._saved_fr02)
+
+
+_saved_import = _install_stub()
 import cec_fs_actuator as act           # noqa: E402
 
 REC = {"routed": "x.kicad_pcb"}
@@ -32,13 +60,14 @@ GRID = {"contested": ["GND", "+3V3", "/I2C_SDA", "/THRESH", "/SENSEC2_LO"]}
 SENSE = ["/SENSEC1_HI", "/SENSEC1_LO", "/SENSEC2_HI", "/SENSEC2_LO"]
 FENCE = act.resolve_fence(kelvin_pairs=[("/SENSEC1_HI", "/SENSEC1_LO"), ("/SENSEC2_HI", "/SENSEC2_LO")],
                           pinned_refs=["RS1", "U2"])
+_restore_stub(_saved_import)                       # never leak past this module's import
 
 
 def _f(lever, target=None):
     return {"proposed_lever": {"lever": lever, "target": target}}
 
 
-class TestFence(unittest.TestCase):
+class TestFence(_StubFr02):
     def test_sense_and_pinned_fenced(self):
         self.assertTrue(act.is_fenced("/SENSEC2_LO", FENCE))    # sense net
         self.assertTrue(act.is_fenced("/SENSEC1_HI", FENCE))    # kelvin pair
@@ -47,7 +76,7 @@ class TestFence(unittest.TestCase):
         self.assertFalse(act.is_fenced("/I2C_SDA", FENCE))      # a free signal net
 
 
-class TestFindingToDelta(unittest.TestCase):
+class TestFindingToDelta(_StubFr02):
     def test_avoid_on_free_net(self):
         d = act.finding_to_delta(_f("route net around corridor", "/I2C_SDA"), REC, GRID, 5, FENCE, sense_nets=SENSE)
         self.assertEqual(d.kind, "avoid")
@@ -69,7 +98,7 @@ class TestFindingToDelta(unittest.TestCase):
         self.assertEqual(act.finding_to_delta({"proposed_lever": None}, REC, GRID, 5, FENCE).kind, "noop")
 
 
-class TestPlacementDeltaLive(unittest.TestCase):
+class TestPlacementDeltaLive(_StubFr02):
     """PL-01: the 'replace' Delta now carries a LIVE placement intent (was intent=None / inert)."""
     def test_replace_has_live_intent(self):
         d = act.finding_to_delta(_f("re-place the part", "U30"), REC, GRID, 5, FENCE, sense_nets=SENSE)
@@ -110,7 +139,7 @@ class TestPlacementDeltaLive(unittest.TestCase):
         self.assertLess(len(json.dumps(rec)), 400)             # stays small (no fabricated rects)
 
 
-class TestBound(unittest.TestCase):
+class TestBound(_StubFr02):
     def test_cap(self):
         ds = [act.finding_to_delta(_f("avoid corridor", n), REC, GRID, 5, FENCE, sense_nets=SENSE, idx=i)
               for i, n in enumerate(["/I2C_SDA", "/THRESH", "/CAN_H"])]
@@ -120,7 +149,7 @@ class TestBound(unittest.TestCase):
         self.assertTrue(any(d.status == "capped" for d in rejected))
 
 
-class TestPhysicsFlat(unittest.TestCase):
+class TestPhysicsFlat(_StubFr02):
     def test_flat(self):
         rows = [{"objective": 960000, "max_T": 250.0}] * 3
         self.assertTrue(act.physics_flat(rows))
@@ -131,7 +160,7 @@ class TestPhysicsFlat(unittest.TestCase):
         self.assertFalse(act.physics_flat(rows))
 
 
-class TestV4Escape(unittest.TestCase):
+class TestV4Escape(_StubFr02):
     FLAT = [{"objective": 960000, "max_T": 250.0}] * 3
 
     def test_high_risk_flat_forces_structural_not_penalty(self):
@@ -156,7 +185,7 @@ class TestV4Escape(unittest.TestCase):
         self.assertEqual(d.kind, "replace")                   # never a penalty
 
 
-class TestSymmetricOutcomes(unittest.TestCase):
+class TestSymmetricOutcomes(_StubFr02):
     """Failures + overturns enter the corpus with the SAME detail as victories (no survivorship bias)."""
     F = {"root_cause": "foreign nets cross the /SENSEC2 corridor", "failure_class": "routing",
          "reasoning": "I2C_SDA crosses the sense band", "proposed_lever": {"lever": "route around corridor",
@@ -220,7 +249,7 @@ class TestSymmetricOutcomes(unittest.TestCase):
         self.assertEqual(oc.verdict, "refuted")             # different target = different hypothesis
 
 
-class TestPlacementOutcome(unittest.TestCase):
+class TestPlacementOutcome(_StubFr02):
     """PL-06: a placement ('replace') delta settles through the SAME kind-opaque DeltaLog/control-gate
     as a routing delta -- no new comparison code; gate-pass dominates so a launder cannot vindicate."""
     PF = {"root_cause": "U30 sits in the /SENSEC2 corridor", "failure_class": "placement",
