@@ -1,5 +1,32 @@
 # Current work handoff
 
+## (G) 24-PIN GROUND-UP REMAKE (2026-07-08, owner ask, branch claude/pipeline-consolidation)
+Owner: remake the complete 24-pin from scratch, first pass -- netlists configured right, textbook
+datasheet wiring, LIBERAL margin passives, 4x INA181 transient cells (one per rail); PCB strictly
+FROM SCRATCH (never the rev2-inherited layout). Board = modules/atx-24pin-rev3 (BETA-2). State:
+- **PASS 1 (commit ~e0):** the owner-queue CRITICAL INA238 supply mis-wire fully decoded + fixed
+  (daisy-chain wires with power symbols on wire INTERIORS = connect nothing; R3 SDA pull-up cell
+  drawn 2.54mm off its pins). All four sensors netlist-verified powered; ERC errors 11->2.
+- **PASS 2 (4e677e2):** 6-subsystem datasheet audit (haiku fan-out wf_f9abc66c) with EVERY critical
+  adversarially re-verified -- 5 of 7 were agent over-reads (U13 Kelvin CORRECT; 5V cell CORRECT --
+  +5V_MAIN is the 5V post-shunt node; TPS2121 near-textbook: IN1=+5V_MAIN priority, PR1 divider
+  100k/33k = 4.0V switchover, CSS/ILIM/ST present; TB1-9 TE 63969-1 is the ITERATION-7 owner-
+  ratified mate, README header is the stale text). REAL fixes: PR1 label attached (net /PR1);
+  IO8 strap pull-up R10 10k->+3V3 (C6 Table 4-3: GPIO8=1 for download boot, no internal pull) +
+  no_connect removed, net /IO8_STRAP; 12-cap margin bank (C14-C17 INA238 1uF bulk, C24 ESP 1uF,
+  C18-C21 mux input 100n+10u BOTH inputs, C22/C23 -12V 100n+10u, C25 +5V_SYS 22uF) each with
+  place-adjacent Note for the layout pass. PS_ON#/PWR_OK pull-ups DECLINED (pass-through, not ours).
+  ERC = 1 benign (U2 TXD). 96 comps. bom/bom.csv regenerated; LCSC sourcing of the 13 new passives
+  deferred to the BOM pass (FOLLOWUPS; -12V caps need >=25V variants).
+- **4x INA181 cells verified**: all four (12V/5V/3V3/5VSB) correctly wired INA181A2 -> TLV7011 ->
+  distinct DET GPIOs (U1.28/29/15/16), shared /THRESH RC DAC (R60 10k + C60 100n, fc~159Hz).
+  Gain math: A2(50V/V) on 25mOhm 5VSB saturates at ~2.64A ~= the rail max -- full normal range
+  measurable, saturation only in gross overcurrent; deliberately kept A2.
+- **NEXT:** visual render review (cec_sch_review) + any readability nudges; the SENSE*-vs-SENSEC
+  force-net naming generalization in the pipeline; then the FROM-SCRATCH PCB synthesis wave for
+  this board (shared-bus per-rail corridors -- the foreign-on-pour checker already reads the new
+  rev3 pour architecture as applicable).
+
 ## (F) PIPELINE CONSOLIDATION + fresh-board wave (2026-07-07, branch claude/pipeline-consolidation)
 Owner directive: consolidate the agent-pipeline branch (claude/placement-corridor, 58 commits) with
 beta main (PR #68 = ground basis; beta/README.md = authoritative board manifest), test on the GPU
