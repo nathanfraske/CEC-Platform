@@ -164,4 +164,9 @@
 		(uuid "1f4c296a-fa9c-48b9-8eef-a93558edf323")
 	)
 	(embedded_fonts no)
+	(model "${KIPRJMOD}/../../../lib/3dmodels/Connector_Blade.3dshapes/TE_63951-1_FASTON_Tab_250x032_RA_THT.step"
+		(offset (xyz 0 0 0))
+		(scale (xyz 1 1 1))
+		(rotate (xyz 0 0 0))
+	)
 )

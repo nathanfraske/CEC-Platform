@@ -1,0 +1,210 @@
+<title>CEC Standard: Proof State</title>
+<style>
+  :root {
+    --bg: #f3f4f6; --surface: #ffffff; --surface-2: #eef0f3; --ink: #161b22; --ink-2: #454e5a;
+    --ink-3: #6b7482; --line: #dde1e7; --line-2: #c8cdd6;
+    --done: #2f8f5b; --done-bg: #e0f0e7;
+    --cad: #2f6fb0; --cad-bg: #dfeaf6;
+    --owed: #b07d1e; --owed-bg: #f5ecd6;
+    --empty: #c2c8d1;
+    --show: #7a4fb0; --show-bg: #ece2f6;
+    --mono: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0e1217; --surface: #161c23; --surface-2: #1c232c; --ink: #eef2f6; --ink-2: #b2bcc7;
+      --ink-3: #7c8794; --line: #262e38; --line-2: #333c47;
+      --done: #4cc585; --done-bg: #15271e; --cad: #5b9fe0; --cad-bg: #12212f;
+      --owed: #d8ab54; --owed-bg: #29200f; --empty: #3a434e; --show: #b389e0; --show-bg: #221733;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f3f4f6; --surface: #ffffff; --surface-2: #eef0f3; --ink: #161b22; --ink-2: #454e5a;
+    --ink-3: #6b7482; --line: #dde1e7; --line-2: #c8cdd6; --done: #2f8f5b; --done-bg: #e0f0e7;
+    --cad: #2f6fb0; --cad-bg: #dfeaf6; --owed: #b07d1e; --owed-bg: #f5ecd6; --empty: #c2c8d1;
+    --show: #7a4fb0; --show-bg: #ece2f6;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0e1217; --surface: #161c23; --surface-2: #1c232c; --ink: #eef2f6; --ink-2: #b2bcc7;
+    --ink-3: #7c8794; --line: #262e38; --line-2: #333c47; --done: #4cc585; --done-bg: #15271e;
+    --cad: #5b9fe0; --cad-bg: #12212f; --owed: #d8ab54; --owed-bg: #29200f; --empty: #3a434e;
+    --show: #b389e0; --show-bg: #221733;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1000px; margin: 0 auto; padding: clamp(22px,4vw,52px) clamp(16px,4vw,36px) 76px; }
+  .eyebrow { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+  h1 { font-size: clamp(26px,4.4vw,42px); line-height: 1.06; letter-spacing: -0.02em; font-weight: 800; margin: 12px 0 0; text-wrap: balance; }
+  .lede { margin: 16px 0 0; font-size: clamp(15px,1.7vw,17.5px); color: var(--ink-2); max-width: 68ch; line-height: 1.55; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 16px 24px; align-items: center; margin: 28px 0 6px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+  .lk { display: inline-flex; align-items: center; gap: 9px; font-size: 13px; color: var(--ink-2); }
+  .seg { display: inline-flex; gap: 3px; }
+  .pip { width: 12px; height: 8px; border-radius: 2px; background: var(--empty); }
+  .pip.d1 { background: var(--ink-3); } .pip.d2 { background: var(--cad); } .pip.d3 { background: var(--done); }
+  .tagshow { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: 0.05em; color: var(--show); background: var(--show-bg); padding: 3px 7px; border-radius: 5px; }
+
+  section { margin-top: 44px; }
+  h2 { font-size: clamp(18px,2.4vw,23px); letter-spacing: -0.01em; margin: 0 0 4px; font-weight: 750; }
+  .sub { color: var(--ink-3); font-size: 13.5px; margin: 0 0 18px; max-width: 66ch; }
+
+  .now { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 14px; }
+  .card { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 16px 18px; }
+  .card .t { font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 8px 0 0; font-size: 13px; color: var(--ink-2); line-height: 1.5; }
+  .card .b { font-family: var(--mono); font-size: 11px; color: var(--done); background: var(--done-bg); padding: 2px 7px; border-radius: 5px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; min-width: 760px; }
+  thead th { text-align: left; font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; padding: 12px 16px; background: var(--surface-2); border-bottom: 1px solid var(--line-2); }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid var(--line); font-size: 13.5px; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.cap { font-weight: 650; color: var(--ink); }
+  td.owed { color: var(--ink-2); font-size: 13px; }
+  .matcell { display: flex; align-items: center; gap: 8px; }
+  .seg.big .pip { width: 16px; height: 9px; }
+
+  .owedlist { display: grid; gap: 12px; }
+  .oi { border: 1px solid var(--line); border-left: 4px solid var(--owed); border-radius: 12px; background: var(--surface); padding: 16px 18px; }
+  .oi h3 { margin: 0; font-size: 15.5px; font-weight: 700; }
+  .oi h3 .rank { font-family: var(--mono); color: var(--owed); font-size: 12px; margin-right: 8px; }
+  .oi p { margin: 7px 0 0; font-size: 13.5px; color: var(--ink-2); line-height: 1.52; }
+
+  .foot { margin-top: 40px; border-top: 1px solid var(--line); padding-top: 16px; font-size: 13px; color: var(--ink-2); line-height: 1.6; max-width: 74ch; }
+  .foot b { color: var(--ink); }
+</style>
+
+<div class="wrap">
+  <div class="eyebrow">CEC Standard tier · Proof state · 2026-07-06</div>
+  <h1>What exists, what's proven, and what's owed.</h1>
+  <p class="lede">The honest line runs between "proven in the design tools" and "proven on real
+    hardware." Two boards are manufacturing-ready and the concept is validated on prototypes.
+    The sensing, thermal, and connector work is verified in CAD and calibrated to real
+    manufacturer data. The bench measurements and the firmware are the frontier.</p>
+
+  <div class="legend">
+    <span class="lk"><span class="seg"><span class="pip d1"></span><span class="pip"></span><span class="pip"></span></span> Designed</span>
+    <span class="lk"><span class="seg"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span> Verified in CAD / simulation</span>
+    <span class="lk"><span class="seg"><span class="pip d1"></span><span class="pip d2"></span><span class="pip d3"></span></span> Proven on the bench</span>
+    <span class="lk"><span class="tagshow">SHOWABLE</span> a physical or manufacturing artifact exists</span>
+  </div>
+
+  <section>
+    <h2>Showable now</h2>
+    <p class="sub">Concrete things that can go in front of someone today.</p>
+    <div class="now">
+      <div class="card">
+        <div class="t">Two fab-ready boards <span class="b">GERBERS</span></div>
+        <p>Hub Standard and 12VHPWR Standard: fully routed, DRC error-clean, out of DRAFT, with
+          gerbers, BOM, and pick-and-place committed under <span style="font-family:var(--mono);font-size:11px">fab/</span>. Ready for a board house.</p>
+      </div>
+      <div class="card">
+        <div class="t">Physical alpha prototypes</div>
+        <p>Working prototypes of the Standard line exist and validated the concept. The
+          refinements since are the beta line.</p>
+      </div>
+      <div class="card">
+        <div class="t">The full board set in CAD</div>
+        <p>24-pin (3 revs), EPS, both PCIe SKUs, three output daughterboards, the ARGB
+          controller, and the ENT KVM carrier. Schematics, placement, renders.</p>
+      </div>
+      <div class="card">
+        <div class="t">The verification toolchain</div>
+        <p>A deterministic router, an electrothermal solver calibrated to a manufacturer datum,
+          166 thermal tests, a golden regression, a 113-assertion checker. Runnable live.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Proven and tested: theory vs practice</h2>
+    <p class="sub">The maturity bar per capability. The wall of "verified, not yet benched" is
+      the real status, and it's honest.</p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th style="width:30%">Capability</th><th style="width:20%">Maturity</th><th style="width:50%">What's proven, and what's owed on it</th></tr></thead>
+        <tbody>
+          <tr>
+            <td class="cap">Per-pin 12V current, the melt detector</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span><span class="tagshow">SHOWABLE</span></div></td>
+            <td class="owed">Built on the routed, fab-ready 12VHPWR board. Not yet measured under real GPU load.</td>
+          </tr>
+          <tr>
+            <td class="cap">Per-rail V / I / power sensing (24-pin, EPS, PCIe)</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span></div></td>
+            <td class="owed">Schematic and netlist verified, parts datasheet-pin-audited. Bench measurement owed.</td>
+          </tr>
+          <tr>
+            <td class="cap">Sensing accuracy (+/-0.5% target)</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span></div></td>
+            <td class="owed">Calculated at ~0.50% RSS from tolerance and drift models. Not measured against a reference meter.</td>
+          </tr>
+          <tr>
+            <td class="cap">Thermal survival of the copper</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span></div></td>
+            <td class="owed">Analytic + 2.5D FEM, calibrated to TE's 22.9A to 30C rating. Daughterboard fusing fix DC-IR-proven. No hardware soak yet.</td>
+          </tr>
+          <tr>
+            <td class="cap">Connector rating and keying</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span></div></td>
+            <td class="owed">Joint margins computed, keying proven mathematically (teeth-tested). Physical fit and contact-R not yet measured (OQ-86).</td>
+          </tr>
+          <tr>
+            <td class="cap">Two boards manufacturable</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span><span class="tagshow">SHOWABLE</span></div></td>
+            <td class="owed">DRC error-clean, gerbers generated. Not yet fabbed from these exact files.</td>
+          </tr>
+          <tr>
+            <td class="cap">Communication (CAN 500 kbps)</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip"></span></span></div></td>
+            <td class="owed">Transceiver rated and placed, netlist verified. No bus signal-integrity bench (the 1 Mbps option rests on it).</td>
+          </tr>
+          <tr>
+            <td class="cap">The design and test toolchain</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip d2"></span><span class="pip d3"></span></span></div></td>
+            <td class="owed">166 thermal tests, golden regression, and 113 checker assertions all pass on real KiCad 10 in CI. This one is proven end to end.</td>
+          </tr>
+          <tr>
+            <td class="cap">Firmware (acquisition, alerts, energy, freeze, HID)</td>
+            <td><div class="matcell"><span class="seg big"><span class="pip d1"></span><span class="pip"></span><span class="pip"></span></span></div></td>
+            <td class="owed">Spec'd to the section reference, ALERT nets wired at the parts. Not written. An earlier PR covers a serial path and capture CLI only.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Owed, in order of impact</h2>
+    <p class="sub">The gates that move capabilities into the right-hand column.</p>
+    <div class="owedlist">
+      <div class="oi"><h3><span class="rank">01</span>Connector fit-check and thermal soak (OQ-86)</h3>
+        <p>One sample order proves the blade seats in the receptacle and unlocks the whole output
+          architecture. It also gives the decisive thermal datum. Specific unknowns: receptacle
+          across-thickness depth (~3.7 mm drawn; over 4.0 mm forces a wider pitch), gang insertion
+          force, detent engagement, and contact-resistance spread (bench acceptance at spread ratio
+          ~0.21 to 0.28).</p></div>
+      <div class="oi"><h3><span class="rank">02</span>Acquisition and alerting firmware</h3>
+        <p>The 1 kHz ring buffer with threshold freeze, per-pin imbalance alert, energy integration,
+          cross-module synchronized capture, persist-on-fault, HID sensors, standalone mode. Spec'd,
+          unwritten. This is what turns the sensing hardware into the product.</p></div>
+      <div class="oi"><h3><span class="rank">03</span>Bench accuracy measurement</h3>
+        <p>Put a fab board on a bench against a reference meter and confirm the ~0.5% number that is
+          today a calculation.</p></div>
+      <div class="oi"><h3><span class="rank">04</span>Route and fab the rest of the beta line</h3>
+        <p>EPS and both PCIe SKUs are placed with zero copper routed. The three daughterboards are
+          routed and DRC-clean but not fabbed. The 24-pin rev3 and the C6-MCU refresh are in CAD.</p></div>
+      <div class="oi"><h3><span class="rank">05</span>Thermal envelope and EMC posture</h3>
+        <p>The daughterboard board-level worst case (F2) needs the soak plus a conduction-sink model
+          or an owner envelope statement. The no-Wi-Fi, unintentional-radiator posture is a design
+          decision, not a certified result.</p></div>
+    </div>
+  </section>
+
+  <p class="foot"><b>The one-line summary:</b> the concept is validated and two boards are
+    manufacturing-ready; the engineering is proven in the design tools and against real
+    manufacturer data; the bench measurements, the connector fit-check, and the firmware are the
+    owed work. Nothing here is presented as hardware-proven that is only simulated. Full record:
+    <span style="font-family:var(--mono);font-size:11.5px">docs/standard-tier-review/proof-state-2026-07-06.md</span>.</p>
+</div>
