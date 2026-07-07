@@ -609,8 +609,59 @@ ROUTE_GATE = [
 # ============================================================ STAGE: MEASURE
 # Measurement-quality checks: the telemetry is only as good as the sense topology.
 def _kelvin_pairs(nl):
+    """Kelvin (HI, LO) pairs, derived TWO ways and unioned:
+    1. NAME pairs -- <base>_HI with a matching <base>_LO (the platform convention).
+    2. SHUNT-STRADDLE pairs (2026-07-08, the 24-pin mechanism fix): the two nets of a
+       2-pad RS* shunt, regardless of what they are called. Real boards legitimately
+       carry a POWER net on one side of a shunt (the ordered 24-pin: RS2 spans
+       /SENSE5V_HI -> +5V_MAIN, RS4 spans +5VSB -> /SENSE5VSB_LO), and the old
+       name-only derivation silently dropped those rails from every kelvin-derived
+       consumer (chain classifier, gates, corridor former). Orientation: a _HI/_LO
+       name hint wins; else the side a recognised sense IC's IN+ pad taps is HI;
+       else lexical (deterministic).
+    """
+    pairs = {}
     his = [n for n in nl.nets if n.endswith("_HI")]
-    return [(h, h[:-3] + "_LO") for h in his if (h[:-3] + "_LO") in nl.nets]
+    for h in his:
+        lo = h[:-3] + "_LO"
+        if lo in nl.nets:
+            pairs[frozenset((h, lo))] = (h, lo)
+    # straddle pairs off 2-pad RS* shunts
+    ref_pins = {}
+    for net, mem in nl.nets.items():
+        for r, p in mem:
+            ref_pins.setdefault(r, set()).add((net, p))
+    inp_pin = {"INA238": "10", "INA228": "10", "INA226": "10", "INA181": "3"}
+    for r, np_ in ref_pins.items():
+        if not r.startswith("RS") or len(np_) != 2:
+            continue
+        (na, _pa), (nb, _pb) = sorted(np_)
+        if na == nb:
+            continue
+        key = frozenset((na, nb))
+        if key in pairs:
+            continue
+        hi = lo = None
+        for n1, n2 in ((na, nb), (nb, na)):
+            if n1.endswith("_HI") or n2.endswith("_LO"):
+                hi, lo = n1, n2
+                break
+        if hi is None:
+            # orient by a sense IC's IN+ pad
+            for ref, c in nl.comps.items():
+                want = next((v for k, v in inp_pin.items() if k in (c.value or "").upper()), None)
+                if want is None:
+                    continue
+                for net in (na, nb):
+                    if (ref, want) in [tuple(x) for x in nl.nets.get(net, [])]:
+                        hi, lo = net, (nb if net == na else na)
+                        break
+                if hi is not None:
+                    break
+        if hi is None:
+            hi, lo = na, nb
+        pairs[key] = (hi, lo)
+    return sorted(pairs.values())
 
 
 def chk_kelvin_topology(view):

@@ -116,12 +116,48 @@ class Rules:
 
     @classmethod
     def from_board(cls, board_path: str) -> "Rules":
-        """Derive Rules from the board's actual net list."""
+        """Derive Rules from the board's actual net list PLUS shunt-straddle Kelvin pairs
+        (2026-07-08): the two nets of any 2-pad RS* shunt form a pair regardless of naming --
+        real boards carry a POWER net on one shunt side (24-pin RS2 -> +5V_MAIN, RS4 -> +5VSB;
+        12VHPWR lane 6's HI renamed /FAN_12V), and the name-only derivation silently DROPPED
+        those rails from the kelvin HARD GATE. Orientation: name hint, else the side a known
+        sense IC's IN+ pad taps, else lexical."""
         b = pcbnew.LoadBoard(board_path)
         net_names = [n.GetNetname()
                      for n in b.GetNetInfo().NetsByNetcode().values()
                      if n.GetNetname()]
         kelvin, diff = _derive_pairs(net_names)
+        seen = {frozenset(p) for p in kelvin}
+        inp_pin = {"INA238": "10", "INA228": "10", "INA226": "10", "INA181": "3"}
+        ina_inp = {}                                   # net -> True (a known IN+ pad taps it)
+        shunts = []
+        for fp in b.GetFootprints():
+            ref = fp.GetReference() or ""
+            val = (fp.GetValue() or "").upper()
+            want = next((v for k, v in inp_pin.items() if k in val), None)
+            for p in fp.Pads():
+                if want is not None and p.GetPadName() == want and p.GetNetname():
+                    ina_inp[p.GetNetname()] = True
+            if ref.startswith("RS") and fp.GetPadCount() == 2:
+                nets = sorted({p.GetNetname() for p in fp.Pads() if p.GetNetname()})
+                if len(nets) == 2:
+                    shunts.append(tuple(nets))
+        for na, nb in shunts:
+            key = frozenset((na, nb))
+            if key in seen:
+                continue
+            seen.add(key)
+            if na.endswith("_HI") or nb.endswith("_LO"):
+                hi, lo = na, nb
+            elif nb.endswith("_HI") or na.endswith("_LO"):
+                hi, lo = nb, na
+            elif ina_inp.get(na):
+                hi, lo = na, nb
+            elif ina_inp.get(nb):
+                hi, lo = nb, na
+            else:
+                hi, lo = na, nb
+            kelvin.append((hi, lo))
         nets_12v = _derive_nets_12v(net_names)
         return cls(kelvin_pairs=kelvin, diff_pairs=diff, nets_12v=nets_12v)
 
