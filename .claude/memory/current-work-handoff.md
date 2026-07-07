@@ -33,7 +33,18 @@ dual-sided allowed). Cheapest agents for delegation (owner ask). State:
 - **DASHBOARD** (:8090, cec_dashboard.py): now a LIBRARY EXPLORER -- BETA LINE (BETA-marker dirs +
   daughterboards) / FRESH RUNS (build/**) / SNAPSHOTS timeline; one-click analyze (/api/enqueue);
   build/fresh/** WATCHER auto-archives new boards as they are made. Running detached on 8090.
-- **WAVE RUNNING** (owner: ONE board first): scripts/cec_fresh_wave.py --boards eps-8pin, 24
+- **WAVE-1 RESULT (eps-8pin, 24 variants): GATE=TRUE.** Winner periph-left-dataflow-s2
+  (fresh synth placement from the beta netlist, routed by the oracle recipe): kelvin+diffpair
+  TRUE, drc 0, unconn 0, foreign 0/0, thermal dT 10.2<=30 (REAL solve after the blade-sink
+  fix). Needed two geometry-VERIFIED score waivers (cec_score._drop_impossible_pad_artifacts):
+  the documented SW2 rotated-footprint false short/mask-bridge (pads 4.36mm apart,
+  Collide()==False) and the documented mount-pad-vs-edge finishing class. Published
+  build/fresh/eps-8pin/20260707T2018-*.kicad_pcb + wave-report.json; dashboard watcher
+  auto-archived it (end-to-end verified). Seed variance is the fan-out's fuel (same intent
+  s0..s3 ranged unconn 0..145). NEXT: pcie-2port/3port waves (owner said one board first --
+  ASK before launching more), size-shrink pass on the winner, wave-2 with intents on the
+  crowded hub-link right side.
+- **WAVE MECHANISM** (was: RUNNING): (owner: ONE board first): scripts/cec_fresh_wave.py --boards eps-8pin, 24
   variants (3 intents x 2 strats x 4 seeds) at passes 16/opt 20 in docker-routing-1 (detached,
   log build/fresh-wave-1.log); publishes ONLY the best to build/fresh/eps-8pin/ (watched).
   pcie-2port/3port queued next after the eps read-out.
