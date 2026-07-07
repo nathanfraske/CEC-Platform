@@ -1,5 +1,54 @@
 # Current work handoff
 
+## (F) PIPELINE CONSOLIDATION + fresh-board wave (2026-07-07, branch claude/pipeline-consolidation)
+Owner directive: consolidate the agent-pipeline branch (claude/placement-corridor, 58 commits) with
+beta main (PR #68 = ground basis; beta/README.md = authoritative board manifest), test on the GPU
+suite on this box, then run FRESH size-optimized PCBs through the pipeline (never reuse old PCBs;
+dual-sided allowed). Cheapest agents for delegation (owner ask). State:
+- **MERGE DONE** (92540e7): conflicts were 6 meta files (union-merged, attributed) +
+  cec_synth_pipeline.py + pcie-3port PCB (both auto-merged clean, verified: no dup defs, board
+  loads 103.5x56.1 = grow preserved + main title block). GPU verified: cupy 14.1.1 on the RTX 5090
+  in cec/routing:gpu; SB-08 golden = BYTE-IDENTICAL red vs the branch baseline (owner-gated bands,
+  NOT a regression; the bent-tap change later IMPROVED it: unconn 8->6, taps now lay bent).
+- **ROOT-SCH FIX** (7d281a9): Config.load used sorted(glob)[0] -> grabbed a LEAF sheet of the
+  hierarchical beta boards (eps netlist = 6 of 63 comps, everything downstream inert).
+  cec_toolchain.find_root_sch resolves .kicad_pro-stem -> sheet-instantiating -> dir-name;
+  wired into Config.load (+ hubs/ + output-daughterboards/ name resolution) + cec_thermal_sources.
+- **BLADE FIELDS** (aa1d402 + stride fix): beta modules replaced J_OUT with TB* TE 63969 FASTON
+  receptacle FIELDS (D-5a; per-cable 6-slot window = one mating daughterboard; pitch 4.7mm from the
+  as-built eps-out-db tab field -- NOTE committed module placeholder row is 4.75 = a 0.25mm
+  blind-mate mismatch, FOLLOWUPS). _role/-cable_topology/_seat_blade_fields: blades are power_out
+  anchors, the corridor's output end, seated as ONE row with per-window MIRRORED rail-slot choice
+  (net->slot is a FREE routing-time variable -- owner: "reorder however you want in rails");
+  measured rail triples 0.56mm off their corridor columns, foreign-on-pour 0t/0v.
+- **INA238 LO-TAP BLOCKER CLEARED** (aa1d402): the convergent blocker (memory
+  ina238-lo-tap-refusal-blocker) -- straight LO stub clips the IC's OWN GND(7)/SDA(6) pads.
+  synthesize_kelvin_taps now tries orthogonal DOGLEGS on refusal, every leg guarded by the foreign
+  guard AND a new different-sense-net overlap guard (never plow the HI pad); plus a VBUS BRIDGE
+  (pad9->pad8 same-net stub -- pad 8 lives inside the tap channel where FR is kept out). Fresh beta
+  eps: 10/10 taps laid (2 bent + 2 bridges), refused {}.
+- **MEASURED GAP to gate-clean on a first-cut fresh placement**: oracle recipe route leaves ~61
+  unconn vs 5 on a PLAIN route -- the recipe KEEPOUTS over-constrain an untuned placement; that
+  co-optimization is exactly the wave/intent fan-out's job (mechanism unblocked, not a corpus gap).
+- **DASHBOARD** (:8090, cec_dashboard.py): now a LIBRARY EXPLORER -- BETA LINE (BETA-marker dirs +
+  daughterboards) / FRESH RUNS (build/**) / SNAPSHOTS timeline; one-click analyze (/api/enqueue);
+  build/fresh/** WATCHER auto-archives new boards as they are made. Running detached on 8090.
+- **WAVE RUNNING** (owner: ONE board first): scripts/cec_fresh_wave.py --boards eps-8pin, 24
+  variants (3 intents x 2 strats x 4 seeds) at passes 16/opt 20 in docker-routing-1 (detached,
+  log build/fresh-wave-1.log); publishes ONLY the best to build/fresh/eps-8pin/ (watched).
+  pcie-2port/3port queued next after the eps read-out.
+- **SCOPING (workflow wr4a00l46, 10 boards)**: eps + pcie-2 ready; pcie-3 "CAN_TX break" was a
+  haiku over-read (netlist-verified U1.26+U2.1 fine; benign TXD pin_not_driven); atx-24pin-rev3 =
+  SENSE*/rail naming + NO Edge.Cuts; 12vhpwr = SENSEP naming (both need the force-net naming
+  generalization, FOLLOWUPS has the exact edit list); argb = NO PCB + J1 SATA footprint missing;
+  daughterboards tiny (7-12 comps) + trivially routable; hub = 90 comps, no sense machinery.
+- **TEST RE-BASELINE PENDING**: merged tree has ~20 failures in test_corridor_model /
+  test_placer_oracle / test_foreign_on_pour_gate that are 0 on the pure branch -- they bind to the
+  OLD eps geometry; re-baseline against beta boards (or fixtures) after the blade generalization.
+  tests/test_placement_session.py needs pytest (absent in container).
+- NOT pushed yet; PR to main after the eps wave read-out + test re-baseline.
+
+
 ## OWNER DESIGN-BASIS FACTS (2026-07-05, bench-mode thread — record before any Max-tier work)
 - **Max slow path (owner)**: one ADC monitors all 6 INA240s → FPGA reads at max, decimates to ~50kHz, ~10kHz usable — BUT those numbers are PROTOTYPE artifacts (flyover wires + hard filter caps); the REAL ceilings = INA240 usable bandwidth + the shunt's inductive corner ("the hard caps to the slow path's maximum"). Fast path = one fast ADC, two differential pairs (shunt + Rogowski coil) at max rate; FPGA consolidates.
 - **Arc research recap (owner, matches the June-11 family)**: sustained arcing at our voltage/materials = provably no; MICROARCING not ruled out (only automotive testing exists, wrong voltages — "basically all of it is novel").
