@@ -2712,6 +2712,38 @@ def _is_blade(ref, footprint):
     return ref.startswith("TB") or "faston" in (footprint or "").lower()
 
 
+def _shared_bus_topology(nl):
+    """Per-RAIL corridor topology for SHARED-BUS boards (the 24-pin; mechanism item b,
+    2026-07-08): every kelvin pair whose HI net lands on the ONE shared input connector
+    becomes a corridor entry -- input = the shared connector's rail-pin GROUP, output = the
+    TB blade group on the LO net (single contiguous daughterboard row, unlike the per-cable
+    boards' per-db windows). Entries carry shared_bus=True + j_in_pins so the spine can
+    order columns by the natural fan order. Empty on per-cable boards (they have no shared
+    connector), so _cable_topology remains their only source."""
+    shared = _shared_bus_connectors(nl)
+    if not shared:
+        return []
+    fp_of = _fp_of(nl)
+    out = []
+    for hi, lo in _kelvin_pairs(nl):
+        refs_hi = {r for r, _ in nl.nets.get(hi, [])}
+        refs_lo = {r for r, _ in nl.nets.get(lo, [])}
+        j_in = sorted(refs_hi & shared)
+        if not j_in:
+            continue
+        straddle = refs_hi & refs_lo
+        shunt = next((r for r in sorted(straddle) if r.startswith("RS")
+                      and _ref_padcount(nl, r) == 2), "")
+        blades = sorted(r for r in refs_lo if _is_blade(r, fp_of.get(r, "")))
+        if not shunt:
+            continue
+        pins = sorted((p for r, p in nl.nets.get(hi, []) if r == j_in[0]), key=lambda s: int(s) if s.isdigit() else 999)
+        out.append({"base": hi, "hi": hi, "lo": lo, "j_in": j_in[0], "j_in_pins": pins,
+                    "j_out": (blades[0] if blades else ""), "j_out_blades": blades,
+                    "shunt": shunt, "shared_bus": True})
+    return out
+
+
 def _shunt_gap_board_grow(nl, fp_of, topo, *, margin=1.0, headroom=1.0):
     """Board-height INCREMENT (mm) for the SHUNT_GAP_MM widen (R2, owner-ratified 2026-06-28).
 
@@ -2764,7 +2796,7 @@ def _net_pad_centroid_x(nl, comps, ref, net, P):
     return (sum(xs) / len(xs)) if xs else P[ref][0]
 
 
-def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
+def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
     """FORM each per-cable corridor: align J_OUT's LO force-pad column UNDER J_IN's HI force-pad column
     (so the +12V current runs straight J_IN -> shunt -> J_OUT) and seat the shunt on that column axis at
     mid-board, rot 270 (H3 -- HI=upper terminal, Kelvin taps don't cross), all as FIXED anchors. Mutates
@@ -2774,7 +2806,43 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
     narrow board)."""
     seated = []
     blade_cables = []
+    shared = [c for c in topo if c.get("shared_bus")]
+    if shared:
+        # SHARED-BUS RAIL COLUMNS (24-pin): the blade row is ONE contiguous daughterboard
+        # field, so rail columns sit at their blade-group slots. Order rails by the shared
+        # connector's pin-centroid (the natural fan order minimizes crossings), pack the
+        # groups left-to-right at the field pitch centered on the input connector, and seat
+        # each rail's shunt on its group centroid. The sense chains DON'T fit four-abreast
+        # at this pitch on one face -- the dual-sided seat (mechanism item e) assigns
+        # alternating rails to the back; until it lands the seat is front-side.
+        jin = shared[0]["j_in"]
+        if jin in anchors:
+            def _cent(c):
+                xs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
+                return (sum(xs) / len(xs)) if xs else anchors[jin][0]
+            shared.sort(key=_cent)
+            # field pitch: the MATING daughterboard's tab row is the contract (atx24-out-db:
+            # 10 tabs @ 4.2mm contiguous). Overridable per board; shared-bus default 4.2/4.2.
+            pitch = float((params or {}).get("blade_pitch", 4.2))
+            slots = []
+            n_tot = 0
+            for c in shared:
+                n_lo = max(1, len(c["j_out_blades"]))
+                slots.append(n_lo)
+                n_tot += n_lo
+            span = (n_tot - 1) * pitch
+            x0 = max(pitch, min(anchors[jin][0] - span / 2.0, (W or 100) - span - pitch))
+            k = 0
+            for c, n_lo in zip(shared, slots):
+                col = x0 + (k + (n_lo - 1) / 2.0) * pitch
+                k += n_lo
+                anchors[c["shunt"]] = (col, H / 2.0, 270.0)
+                seated.append(c["shunt"])
+                if c["j_out_blades"]:
+                    blade_cables.append((c, col))
     for c in topo:
+        if c.get("shared_bus"):
+            continue
         jin, jout, sh = c["j_in"], c["j_out"], c["shunt"]
         if jin not in anchors or jout not in anchors:
             continue
@@ -2794,7 +2862,15 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None):
         anchors[sh] = (col, H / 2.0, 270.0)           # shunt on the force-column axis, rot270
         seated.append(sh)
     if blade_cables:
-        _seat_blade_fields(blade_cables, anchors, nl, comps, W)
+        _p = (params or {})
+        if any(c.get("shared_bus") for c, _col in blade_cables):
+            _seat_blade_fields(blade_cables, anchors, nl, comps, W,
+                               pitch=float(_p.get("blade_pitch", 4.2)),
+                               gap=float(_p.get("blade_group_gap", 4.2)))
+        else:
+            _seat_blade_fields(blade_cables, anchors, nl, comps, W,
+                               pitch=float(_p.get("blade_pitch", _BLADE_PITCH_MM)),
+                               gap=float(_p.get("blade_group_gap", _BLADE_GROUP_GAP_MM)))
     return seated
 
 
@@ -2808,7 +2884,7 @@ _BLADE_PITCH_MM = 4.7
 _BLADE_GROUP_GAP_MM = 6.5
 
 
-def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None):
+def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, gap=None):
     """Seat the D-5a output blade FIELD as one contiguous row at the power_out edge: a 6-slot
     WINDOW per cable (one window == one mating daughterboard; adjacent windows separated by
     _BLADE_GROUP_GAP_MM so the daughterboard BODIES clear), the cable's LO/rail blades assigned
@@ -2826,7 +2902,8 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None):
     ys = [anchors[b][1] for b in all_blades if b in anchors]
     row_y = (sum(ys) / len(ys)) if ys else None       # the edge seed_anchors packed them on
     cables = sorted(blade_cables, key=lambda t: t[1])  # left-to-right by corridor column
-    p = _BLADE_PITCH_MM
+    p = float(pitch if pitch is not None else _BLADE_PITCH_MM)
+    g = float(gap if gap is not None else _BLADE_GROUP_GAP_MM)
     win_pitch = None                                   # slot index stride between window starts
     # window k slot positions: x0 + (win_start[i] + k)*p ; the inter-window gap is expressed in
     # fractional slot units so all slots live on one arithmetic grid.
@@ -2838,7 +2915,7 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None):
         # next window start: this window's END blade (start + n_win-1) plus the inter-window
         # blade CENTER-to-CENTER gap (as-built 6.5mm vs the 4.7 in-window pitch -- enough for
         # the 28.6mm daughterboard bodies to clear their 23.5mm fields by ~1.4mm).
-        s += (n_win - 1) + _BLADE_GROUP_GAP_MM / p
+        s += (n_win - 1) + g / p
     # two-pass: pick rail triples per window given x0, then least-squares x0, then re-pick
     x0 = (sum(col for _c, col in cables) / len(cables)) - (s - 1) * p / 2.0 if cables else 0.0
     rail_off = [0] * len(cables)
@@ -2854,7 +2931,7 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None):
     if W is not None:
         # after the loop s = last_window_start + (n_win-1) + gap/p, so the last blade sits at
         # slot (s - gap/p); the row must stay on-board with half a pitch + margin each side.
-        span = (s - _BLADE_GROUP_GAP_MM / p) * p if cables else 0.0
+        span = (s - g / p) * p if cables else 0.0
         x0 = min(max(x0, p / 2.0 + 0.5), W - span - p / 2.0 - 0.5)
     for i, (c, _col) in enumerate(cables):
         ws, n_win, n_lo = win_starts[i]
@@ -3512,7 +3589,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     # SHUNT_GAP_MM (~6.5mm) un-poured notch -- room for the sense cluster + a B.Cu overflow lane the
     # route-under dives the overflow nets through. Self-gating (0.0 on a board with no 2-pad shunt).
     if os.environ.get("CEC_SHUNT_GAP", "0") == "1":
-        _grow = _shunt_gap_board_grow(nl, fp_of, _cable_topology(nl))
+        _grow = _shunt_gap_board_grow(nl, fp_of, _cable_topology(nl) or _shared_bus_topology(nl))
         if _grow > 0:
             H = round(H + _grow, 1)
     # 1. anchors: connectors (by role, with edge OVERHANG per the ask) + the generalized
@@ -3523,7 +3600,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     #    config overrides. (Owner: "it needs to know how to overhang the ports.")
     _overhang = cfg.params.get("connector_overhang")
     if _overhang is None:
-        _overhang = "power_able" if _cable_topology(nl) else "none"
+        _overhang = "power_able" if (_cable_topology(nl) or _shared_bus_topology(nl)) else "none"
     # MV2: a per-board edge map (oracle-derived or a spec line) overrides the generic role->edge
     # default so a multi-edge board (Hub: RJ-45 top, power-in right, USB bottom) frames correctly.
     anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
@@ -3545,8 +3622,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     # 1b. PHASE 2 -- FORM the per-cable corridors: align each J_OUT under its J_IN and seat the shunt
     #     on the cable axis (rot 270) as FIXED anchors, so the band is a tight column the anneal only
     #     has to keep foreign bodies OUT of. Seated shunts drop out of the annealed set (free_shunts).
-    _topo = _cable_topology(nl)
-    seated = _seed_corridor_spine(_topo, anchors, H, nl, comps, W=W)
+    _topo = _cable_topology(nl) or _shared_bus_topology(nl)
+    seated = _seed_corridor_spine(_topo, anchors, H, nl, comps, W=W, params=cfg.params)
     free_shunts = [r for r in shunts if r not in seated]
     # 1b'. REAL KELVIN SEAT (owner directive 2026-06-27): seat each cable's sense IC(s) HARD against
     #      the just-seated shunt's inner edge as FIXED anchors -- body perpendicular to the corridor,
