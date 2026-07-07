@@ -531,7 +531,7 @@ button.pill.act:hover{background:#26424e}
 #empty{padding:40px;color:#607d8b;text-align:center}
 </style></head><body><div id="app">
 <div id="side">
- <div id="sidehdr"><h1>CEC BOARD BROWSER</h1><div id="seed"></div></div>
+ <div id="sidehdr"><h1>CEC BOARD LIBRARY <span style="color:#607d8b;font-size:10px">ui __REV__</span></h1><div id="seed"></div></div>
  <div id="list"></div>
 </div>
 <div class="main">
