@@ -1,5 +1,23 @@
 # Current work handoff
 
+## (G+) 24-PIN MECHANISM PACKAGE — state at 2026-07-08 late (branch claude/pipeline-consolidation)
+Items LANDED (each committed + on the dash feed): (a) shunt-straddle kelvin pairs BOTH sites
+(+12vhpwr lane-6 /FAN_12V regression caught, gate strengthened, 127/127); (c) J3 role
+(pad-majority + force-aware); (f) antenna keepout dropped end-to-end (placer+materialize
+consistent, 0 courtyard overlaps); rounded corners/mounts-none/full-overhang params; (b)
+shared-bus per-rail corridor former (_shared_bus_topology + spine branch; columns by fan order
+at the daughterboard field pitch; blade row contiguous); (e) DUAL-SIDED chains (place(flip)
+completed for real parts -- pads mirror + ROT NEGATED (anti-commute), calibrated vs pcbnew
+native Flip 3/3 teeth in tests/test_place_flip.py; F.CrtYd swap; back-text mirror justify;
+Candidate.back_refs -> build_board(back_refs); alternating rails RS3/RS4 to B; courtyard
+overlaps 11->2; cec_score cross-face impossible-short filter). Blade pitch: atx24 interface
+moved 4.2->4.7 (receptacle courtyard 4.29 can't pack at 4.2; daughterboard re-pitch
+OWNER-QUEUED). REMAINING before the 24-pin wave: per-side kelvin taps + per-side pours in
+cec_fr (synthesize_kelvin_taps/tap_channel_keepouts/derive_power_pours are F.Cu-only -- back
+rails' taps/pours must go B.Cu keyed off the shunt footprint's IsFlipped); edge_override (d);
+F-face free-part pileup (D_USB1 onto seated U11 -- wave/legalize iteration). Probes seed..seed5c
+in build/24pin-probe/.
+
 ## (G) 24-PIN GROUND-UP REMAKE (2026-07-08, owner ask, branch claude/pipeline-consolidation)
 Owner: remake the complete 24-pin from scratch, first pass -- netlists configured right, textbook
 datasheet wiring, LIBERAL margin passives, 4x INA181 transient cells (one per rail); PCB strictly
