@@ -75,6 +75,7 @@ _archive_by_id = {}           # id -> summary
 _archive_lock = threading.Lock()
 _jobs = queue.Queue()         # (source_pcb_path, name) archive jobs
 _seed_status = {"active": None, "pending": 0, "done": [], "errors": []}
+_page_rev = str(int(time.time()))   # server-start stamp: stale browser tabs self-reload on mismatch
 
 # ---- board LIBRARY (explorer) ------------------------------------------------
 # The library is what the agent is WORKING ON: the committed beta line (BETA marker
@@ -454,6 +455,8 @@ class H(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
+        if "html" in ctype or "json" in ctype:
+            self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(body)
 
@@ -464,11 +467,11 @@ class H(BaseHTTPRequestHandler):
         path, _, q = self.path.partition("?")
         params = {k: unquote(v) for k, v in (p.split("=", 1) for p in q.split("&") if "=" in p)}
         if path == "/":
-            self._send(PAGE.encode(), "text/html; charset=utf-8")
+            self._send(PAGE.replace("__REV__", _page_rev).encode(), "text/html; charset=utf-8")
         elif path == "/api/archive":
             with _archive_lock:
                 boards = list(_archive)
-            self._json({"ts": time.time(), "boards": boards,
+            self._json({"ts": time.time(), "rev": _page_rev, "boards": boards,
                         "seeding": dict(_seed_status), "archive_root": os.path.relpath(ARCHIVE_ROOT, ROOT)})
         elif path == "/api/library":
             self._json({"ts": time.time(), "beta": _beta_boards(), "fresh": _fresh_runs(),
@@ -547,6 +550,7 @@ button.pill.act:hover{background:#26424e}
 </div></div>
 <script>
 let boards=[], lib={beta:[],fresh:[],watch:{}}, cur=null, mode='all', plotW=1100;
+const PAGE_REV='__REV__';
 let secOpen={beta:true,fresh:true,snaps:true};
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function vpill(v){const cl=v==='CLEAN'?'ok':'bad';return `<span class="pill ${cl}">${v}</span>`;}
@@ -585,9 +589,10 @@ function renderList(){
   h+=boards.map(b=>{
    const fg=(b.failing&&b.failing.length)?(' '+b.failing.join(',')):'';
    const badge=`<span class="pill ${b.verdict==='CLEAN'?'ok':'bad'}">${b.verdict}${b.verdict==='CLEAN'?'':esc(fg)}</span>`;
+   const np=Object.keys(b.panels||{}).length;
    return `<div class="row ${cur&&cur.id===b.id?'sel':''}" onclick="pick('${b.id}')">
      <div class="nm">${esc(b.name)} ${badge}</div>
-     <div class="tsx">${esc(b.ts_human||b.timestamp||'')}</div></div>`;
+     <div class="tsx">${esc(b.ts_human||b.timestamp||'')} · ${np} panel${np===1?'':'s'}</div></div>`;
   }).join('');
  }
  el.innerHTML=h;
@@ -667,6 +672,7 @@ window.addEventListener('DOMContentLoaded',()=>{
 async function tick(){
  try{
   const s=await (await fetch('/api/archive')).json();
+  if(s.rev && PAGE_REV!=='__'+'REV__' && s.rev!==PAGE_REV){location.reload();return;}
   boards=s.boards||[];
   try{ lib=await (await fetch('/api/library')).json(); }catch(e){}
   const sd=s.seeding||{};
