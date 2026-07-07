@@ -1371,6 +1371,7 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             # (HI->IN+, LO->IN-) -- not nearest-by-distance (defence 1). INA238/228 + the §6.13
             # INA181 detection amp both tap the shunt; skip a stray INA farther than max_ic_mm.
             ic_pad = {}                                       # ref -> pad (the IN+/IN- pad)
+            ic_fp = {}                                        # ref -> footprint
             for r, p, fp in pads_by_net.get(net, []):
                 if r == sh or "INA" not in (fp.GetValue() or "").upper():
                     continue
@@ -1380,6 +1381,7 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                 d = math.hypot((p.GetPosition().x - pc.x) / MM, (p.GetPosition().y - pc.y) / MM)
                 if d > max_ic_mm:
                     continue
+                ic_fp[r] = fp
                 if r not in ic_pad:
                     ic_pad[r] = p
                 else:                                         # unknown part: keep the nearest sense pad
@@ -1416,6 +1418,23 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                     pending.append((bent, nc, net, lbl + " (bent)"))
                 else:
                     refused.setdefault(net, []).append(lbl)
+            # VBUS BRIDGE: the INA238/228 ties Vbus (pad 8) to the SAME LO net as IN- (pad 9),
+            # 0.5mm below it INSIDE the reserved tap channel -- FR is kept out of the channel,
+            # so bridge the two same-net pads with a stub here (what a hand layout does). Only
+            # for the LO role of a recognised part, only when both pads are on this net.
+            if role == "LO":
+                for r, p in sorted(ic_pad.items()):
+                    fp9 = ic_fp.get(r)
+                    if fp9 is None or _sense_in_pad(fp9, "LO") != p.GetPadName():
+                        continue                       # unknown part -- no pin-function map
+                    vb = next((q for q in fp9.Pads()
+                               if q.GetPadName() == "8" and q.GetNetname() == net), None)
+                    if vb is None:
+                        continue
+                    A, B = p.GetPosition(), vb.GetPosition()
+                    if _tap_pair_overlap_clear(board, A, B, _nm(width), f_cu, nc, sense_codes):
+                        pending.append(([A, B], nc, net,
+                                        "%s.9->%s.8 (vbus bridge)" % (r, r)))
     # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
     for path, nc, net, lbl in pending:
         for A, B in zip(path, path[1:]):

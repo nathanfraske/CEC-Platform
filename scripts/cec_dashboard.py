@@ -76,6 +76,87 @@ _archive_lock = threading.Lock()
 _jobs = queue.Queue()         # (source_pcb_path, name) archive jobs
 _seed_status = {"active": None, "pending": 0, "done": [], "errors": []}
 
+# ---- board LIBRARY (explorer) ------------------------------------------------
+# The library is what the agent is WORKING ON: the committed beta line (BETA marker
+# dirs per beta/README.md) + the fresh pipeline outputs under build/. The watcher
+# auto-archives anything NEW matching WATCH_GLOBS (the fresh-run output convention:
+# every accepted candidate of the synthesis wave lands in build/fresh/<board>/), so
+# new boards appear in the snapshot timeline as they are made.
+WATCH_GLOBS = ["build/fresh/**/*.kicad_pcb"]
+_watch_seen = {}              # path -> mtime already enqueued
+_watch_status = {"globs": list(WATCH_GLOBS), "enqueued": 0, "last_scan": None}
+
+
+def _beta_boards():
+    """The committed beta line: every dir carrying a BETA marker (beta/README.md convention)
+    plus the output daughterboards. Newest .kicad_pcb (non-routed) + DRAFT state per board."""
+    out = []
+    pats = [os.path.join(ROOT, "modules", "*"), os.path.join(ROOT, "hubs", "*"),
+            os.path.join(ROOT, "modules", "output-daughterboards", "*")]
+    for d in sorted({d for p in pats for d in glob.glob(p) if os.path.isdir(d)}):
+        is_beta = os.path.exists(os.path.join(d, "BETA"))
+        is_db = os.path.sep + "output-daughterboards" + os.path.sep in d + os.path.sep
+        if not (is_beta or is_db):
+            continue
+        pcbs = [p for p in glob.glob(os.path.join(d, "*.kicad_pcb"))
+                if "-routed" not in p and ".merged." not in p]
+        pcb = max(pcbs, key=os.path.getmtime) if pcbs else None
+        if not pcb and not glob.glob(os.path.join(d, "*.kicad_sch")):
+            continue                       # a grouping dir, not a board
+        out.append({"name": os.path.basename(d), "dir": os.path.relpath(d, ROOT),
+                    "pcb": os.path.relpath(pcb, ROOT) if pcb else None,
+                    "mtime": os.path.getmtime(pcb) if pcb else None,
+                    "draft": os.path.exists(os.path.join(d, "DRAFT")),
+                    "sch": bool(glob.glob(os.path.join(d, "*.kicad_sch")))})
+    return out
+
+
+def _fresh_runs(limit=60):
+    """Fresh pipeline outputs: every *.kicad_pcb under build/ (newest first) EXCEPT the
+    archive's own snapshots -- the working set the explorer browses."""
+    skip = os.path.sep + "board-archive" + os.path.sep
+    hits = []
+    for p in glob.glob(os.path.join(ROOT, "build", "**", "*.kicad_pcb"), recursive=True):
+        if skip in p or not os.path.isfile(p):
+            continue
+        hits.append({"path": os.path.relpath(p, ROOT), "mtime": os.path.getmtime(p),
+                     "name": os.path.splitext(os.path.basename(p))[0],
+                     "dir": os.path.relpath(os.path.dirname(p), ROOT)})
+    hits.sort(key=lambda h: -h["mtime"])
+    return hits[:limit]
+
+
+def _safe_src(rel):
+    """Resolve a library/fresh relpath to an absolute .kicad_pcb inside the repo, or None."""
+    if not rel or not rel.endswith(".kicad_pcb"):
+        return None
+    p = os.path.abspath(os.path.join(ROOT, rel))
+    if not p.startswith(ROOT + os.path.sep) or not os.path.isfile(p):
+        return None
+    return p
+
+
+def _watcher(poll_s=15):
+    """Auto-archive NEW boards matching WATCH_GLOBS as they land (mtime-keyed, settle-guarded:
+    a file must be >5s old so a mid-write board is not snapshotted half-saved)."""
+    while True:
+        now = time.time()
+        for pat in WATCH_GLOBS:
+            for p in glob.glob(os.path.join(ROOT, pat), recursive=True):
+                try:
+                    mt = os.path.getmtime(p)
+                except OSError:
+                    continue
+                if now - mt < 5 or _watch_seen.get(p) == mt:
+                    continue
+                _watch_seen[p] = mt
+                name = _slug(os.path.relpath(p, os.path.join(ROOT, "build"))[:-len(".kicad_pcb")])
+                _jobs.put((p, name))
+                _watch_status["enqueued"] += 1
+        _watch_status["last_scan"] = time.strftime("%H:%M:%S")
+        _seed_status["pending"] = _jobs.qsize()
+        time.sleep(poll_s)
+
 
 # ============================================================================
 #  IN-CONTAINER half -- one solve, two panels, gate eval. Imports pcbnew only
@@ -346,6 +427,18 @@ class H(BaseHTTPRequestHandler):
                 boards = list(_archive)
             self._json({"ts": time.time(), "boards": boards,
                         "seeding": dict(_seed_status), "archive_root": os.path.relpath(ARCHIVE_ROOT, ROOT)})
+        elif path == "/api/library":
+            self._json({"ts": time.time(), "beta": _beta_boards(), "fresh": _fresh_runs(),
+                        "watch": dict(_watch_status)})
+        elif path == "/api/enqueue":
+            src = _safe_src(params.get("src"))
+            if not src:
+                self._json({"error": "bad src (must be an existing repo-relative .kicad_pcb)"}, 400)
+            else:
+                name = _slug(params.get("name") or os.path.splitext(os.path.basename(src))[0])
+                _jobs.put((src, name))
+                _seed_status["pending"] = _jobs.qsize()
+                self._json({"ok": True, "queued": name, "pending": _jobs.qsize()})
         elif path == "/img":
             p = _img_path(params.get("id"), params.get("panel", "detail"))
             if p:
@@ -378,6 +471,10 @@ button.pill{cursor:pointer;border:0;color:#cfd8dc}
 button.pill.on{background:#33691e;color:#dcedc8}
 .ok{background:#1b3a1f;color:#a5d6a7}.bad{background:#4a1f1f;color:#ef9a9a}
 .warn{background:#4a3a17;color:#ffcc80}.dim{color:#607d8b}
+.sec{padding:7px 12px;background:#0d1418;color:#80cbc4;font-size:11px;letter-spacing:1px;
+  cursor:pointer;border-bottom:1px solid #263238;position:sticky;top:0;z-index:1}
+button.pill.act{background:#1c313a;color:#80deea;margin-left:6px;float:right}
+button.pill.act:hover{background:#26424e}
 #pwrap{flex:1;overflow:auto;cursor:grab;background:#000;min-height:0}
 #pstack{position:relative;width:1100px;background:#000;isolation:isolate}
 #pstack .panel{position:relative;width:100%}
@@ -403,20 +500,51 @@ button.pill.on{background:#33691e;color:#dcedc8}
  <div id="pwrap"><div id="pstack"><div id="empty">no board selected</div></div></div>
 </div></div>
 <script>
-let boards=[], cur=null, mode='both', plotW=1100;
+let boards=[], lib={beta:[],fresh:[],watch:{}}, cur=null, mode='both', plotW=1100;
+let secOpen={beta:true,fresh:true,snaps:true};
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function vpill(v){const cl=v==='CLEAN'?'ok':'bad';return `<span class="pill ${cl}">${v}</span>`;}
-// ---- sidebar: the newest-first archive timeline -------------------------------
+function ago(mt){if(!mt)return'';const s=Date.now()/1000-mt;
+ if(s<90)return Math.round(s)+'s ago';if(s<5400)return Math.round(s/60)+'m ago';
+ if(s<172800)return Math.round(s/3600)+'h ago';return Math.round(s/86400)+'d ago';}
+function toggleSec(k){secOpen[k]=!secOpen[k];renderList();}
+async function enqueue(src,name,ev){ev.stopPropagation();
+ await fetch(`/api/enqueue?src=${encodeURIComponent(src)}&name=${encodeURIComponent(name)}`);tick();}
+// ---- sidebar: LIBRARY explorer (beta line + fresh runs) + snapshot timeline ---
+function sec(k,title,count){
+ return `<div class="sec" onclick="toggleSec('${k}')">${secOpen[k]?'▾':'▸'} ${title} <span class="dim">${count}</span></div>`;}
 function renderList(){
  const el=document.getElementById('list');
- if(!boards.length){el.innerHTML='<div style="padding:20px;color:#607d8b">archive empty — launch with --seed</div>';return;}
- el.innerHTML=boards.map(b=>{
-  const fg=(b.failing&&b.failing.length)?(' '+b.failing.join(',')):'';
-  const badge=`<span class="pill ${b.verdict==='CLEAN'?'ok':'bad'}">${b.verdict}${b.verdict==='CLEAN'?'':esc(fg)}</span>`;
-  return `<div class="row ${cur&&cur.id===b.id?'sel':''}" onclick="pick('${b.id}')">
-    <div class="nm">${esc(b.name)} ${badge}</div>
-    <div class="tsx">${esc(b.ts_human||b.timestamp||'')}</div></div>`;
+ let h='';
+ // beta line (committed boards)
+ h+=sec('beta','BETA LINE',lib.beta.length);
+ if(secOpen.beta) h+=lib.beta.map(b=>{
+  const badges=(b.draft?'<span class="pill warn">DRAFT</span>':'')
+   +(b.pcb?'':'<span class="pill bad">no pcb</span>');
+  const act=b.pcb?`<button class="pill act" onclick="enqueue('${esc(b.pcb)}','${esc(b.name)}',event)">analyze ▶</button>`:'';
+  return `<div class="row"><div class="nm">${esc(b.name)} ${badges}${act}</div>
+    <div class="tsx">${esc(b.dir)}${b.mtime?(' · pcb '+ago(b.mtime)):''}</div></div>`;
  }).join('');
+ // fresh pipeline outputs under build/
+ h+=sec('fresh','FRESH RUNS (build/)',lib.fresh.length);
+ if(secOpen.fresh) h+=lib.fresh.map(f=>{
+  const act=`<button class="pill act" onclick="enqueue('${esc(f.path)}','${esc(f.dir.replace('build/','')+'-'+f.name)}',event)">analyze ▶</button>`;
+  return `<div class="row"><div class="nm">${esc(f.name)} ${act}</div>
+    <div class="tsx">${esc(f.dir)} · ${ago(f.mtime)}</div></div>`;
+ }).join('');
+ // snapshot timeline (analyzed archive)
+ h+=sec('snaps','SNAPSHOTS (analyzed)',boards.length);
+ if(secOpen.snaps){
+  if(!boards.length) h+='<div style="padding:12px;color:#607d8b">none yet — hit analyze ▶ on a board above</div>';
+  h+=boards.map(b=>{
+   const fg=(b.failing&&b.failing.length)?(' '+b.failing.join(',')):'';
+   const badge=`<span class="pill ${b.verdict==='CLEAN'?'ok':'bad'}">${b.verdict}${b.verdict==='CLEAN'?'':esc(fg)}</span>`;
+   return `<div class="row ${cur&&cur.id===b.id?'sel':''}" onclick="pick('${b.id}')">
+     <div class="nm">${esc(b.name)} ${badge}</div>
+     <div class="tsx">${esc(b.ts_human||b.timestamp||'')}</div></div>`;
+  }).join('');
+ }
+ el.innerHTML=h;
 }
 // ---- analyzer: gate badges + the two high-res panels --------------------------
 function gbadge(label,ok,extra){const cl=ok===true?'ok':(ok===false?'bad':'dim');
@@ -484,10 +612,12 @@ async function tick(){
  try{
   const s=await (await fetch('/api/archive')).json();
   boards=s.boards||[];
+  try{ lib=await (await fetch('/api/library')).json(); }catch(e){}
   const sd=s.seeding||{};
-  let msg=`${boards.length} board(s)`;
+  let msg=`${(lib.beta||[]).length} beta · ${(lib.fresh||[]).length} fresh · ${boards.length} analyzed`;
   if(sd.active) msg+=`  ·  <span style="color:#ffcc80">archiving ${esc(sd.active)}…</span>`;
   if(sd.pending) msg+=`  ·  ${sd.pending} queued`;
+  if((lib.watch||{}).last_scan) msg+=`  ·  watch ${esc(lib.watch.last_scan)}`;
   if((sd.errors||[]).length) msg+=`  ·  <span style="color:#ef9a9a">${sd.errors.length} err</span>`;
   document.getElementById('seed').innerHTML=msg;
   if(cur){ const u=boards.find(b=>b.id===cur.id); if(u){const e0=cur.epoch; cur=u; if(u.epoch!==e0){renderBadges();buildPanels();}} }
@@ -502,6 +632,8 @@ def main():
     ap = argparse.ArgumentParser(description="CEC board browser + high-res analyzer")
     ap.add_argument("--port", type=int, default=8090)
     ap.add_argument("--seed", action="store_true", help="archive the key boards (eps + PCIe-2/3) on start")
+    ap.add_argument("--no-watch", action="store_true",
+                    help="disable the build/fresh/** auto-archive watcher")
     ap.add_argument("--archive", default=None, help="archive ONE board (path) then keep serving")
     ap.add_argument("--name", default=None, help="name for --archive (default: derived from the path)")
     # ---- in-container analysis mode (internal; run INSIDE the routing container) ----
@@ -519,6 +651,16 @@ def main():
     os.makedirs(ARCHIVE_ROOT, exist_ok=True)
     _load_archive()
     threading.Thread(target=_archive_worker, daemon=True).start()
+    if not a.no_watch:
+        # pre-mark existing watch matches as seen so a restart doesn't re-archive history;
+        # only boards that CHANGE (or appear) after launch auto-enqueue.
+        for pat in WATCH_GLOBS:
+            for p in glob.glob(os.path.join(ROOT, pat), recursive=True):
+                try:
+                    _watch_seen[p] = os.path.getmtime(p)
+                except OSError:
+                    pass
+        threading.Thread(target=_watcher, daemon=True).start()
     if a.archive:
         _jobs.put((os.path.abspath(a.archive), a.name or _slug(os.path.splitext(os.path.basename(a.archive))[0])))
     if a.seed:

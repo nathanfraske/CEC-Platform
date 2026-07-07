@@ -2746,49 +2746,71 @@ _BLADE_GROUP_GAP_MM = 6.5
 
 
 def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None):
-    """Seat each cable's D-5a output blade FIELD as a rigid row group at the power_out edge:
-    the cable's LO blades on the slot grid CENTERED under its corridor column (straight
-    J_IN -> shunt -> blade current path), the cable's share of the GND blades filling the
-    remaining contiguous slots (one 6-slot group == one mating daughterboard). Net->slot order
-    within the field is a free variable (identical blades; the daughterboard routes to match),
-    so centering the LO triple is a routing preference, not a contract. Groups are then 1-D
-    legalized left-to-right at _BLADE_GROUP_GAP_MM so adjacent daughterboard bodies clear.
-    Mutates *anchors* (every blade is already a power_out anchor from seed_anchors; this
-    overrides the generic edge packing with the field pattern)."""
+    """Seat the D-5a output blade FIELD as one contiguous row at the power_out edge: a 6-slot
+    WINDOW per cable (one window == one mating daughterboard; adjacent windows separated by
+    _BLADE_GROUP_GAP_MM so the daughterboard BODIES clear), the cable's LO/rail blades assigned
+    to the CONTIGUOUS TRIPLE of slots inside its window NEAREST its corridor column, GND blades
+    filling the rest. Net->slot order is a free variable (the blades are identical; the
+    daughterboard routes to match -- owner 2026-07-07), which is exactly what lets neighbouring
+    windows MIRROR their rail triples toward their columns when the J_IN columns sit closer than
+    a full window pitch (measured: eps columns 21.7mm apart vs 34.7mm window pitch -- a naive
+    per-group centring displaced cable 2's blades ~8mm off-column and broke its pour path).
+    The row origin is then least-squares fitted so the rail triples land as close to their
+    columns as the window grid allows. Mutates *anchors*."""
     all_blades = [r for r in anchors if r in comps and _is_blade(r, str(comps.get(r, "")))]
     assigned = {b for c, _col in blade_cables for b in c["j_out_blades"]}
     gnd_pool = sorted(r for r in all_blades if r not in assigned)
-    row_y = None
     ys = [anchors[b][1] for b in all_blades if b in anchors]
-    if ys:
-        row_y = sum(ys) / len(ys)                     # the edge seed_anchors packed them on
-    groups = []                                       # (desired_x0, [refs in slot order])
-    share = (len(gnd_pool) // len(blade_cables)) if blade_cables else 0
-    for i, (c, col) in enumerate(sorted(blade_cables, key=lambda t: t[1])):
+    row_y = (sum(ys) / len(ys)) if ys else None       # the edge seed_anchors packed them on
+    cables = sorted(blade_cables, key=lambda t: t[1])  # left-to-right by corridor column
+    p = _BLADE_PITCH_MM
+    win_pitch = None                                   # slot index stride between window starts
+    # window k slot positions: x0 + (win_start[i] + k)*p ; the inter-window gap is expressed in
+    # fractional slot units so all slots live on one arithmetic grid.
+    win_starts, s = [], 0.0
+    for i, (c, _col) in enumerate(cables):
+        n_lo = len(c["j_out_blades"])
+        n_win = n_lo + (len(gnd_pool) // len(cables) if cables else 0)
+        win_starts.append((s, n_win, n_lo))
+        # next window start: this window's END blade (start + n_win-1) plus the inter-window
+        # blade CENTER-to-CENTER gap (as-built 6.5mm vs the 4.7 in-window pitch -- enough for
+        # the 28.6mm daughterboard bodies to clear their 23.5mm fields by ~1.4mm).
+        s += (n_win - 1) + _BLADE_GROUP_GAP_MM / p
+    # two-pass: pick rail triples per window given x0, then least-squares x0, then re-pick
+    x0 = (sum(col for _c, col in cables) / len(cables)) - (s - 1) * p / 2.0 if cables else 0.0
+    rail_off = [0] * len(cables)
+    for _ in range(2):
+        offs = []
+        for i, (c, col) in enumerate(cables):
+            ws, n_win, n_lo = win_starts[i]
+            best = min(range(0, n_win - n_lo + 1),
+                       key=lambda k: abs(x0 + (ws + k + (n_lo - 1) / 2.0) * p - col))
+            rail_off[i] = best
+            offs.append(((win_starts[i][0] + best + (n_lo - 1) / 2.0) * p, col))
+        x0 = sum(col - o for o, col in offs) / len(offs)
+    if W is not None:
+        # after the loop s = last_window_start + (n_win-1) + gap/p, so the last blade sits at
+        # slot (s - gap/p); the row must stay on-board with half a pitch + margin each side.
+        span = (s - _BLADE_GROUP_GAP_MM / p) * p if cables else 0.0
+        x0 = min(max(x0, p / 2.0 + 0.5), W - span - p / 2.0 - 0.5)
+    for i, (c, _col) in enumerate(cables):
+        ws, n_win, n_lo = win_starts[i]
         lo = sorted(c["j_out_blades"])
-        gnd = gnd_pool[i * share:(i + 1) * share]
-        refs = lo + gnd
-        # LO slots centered on the corridor column; GND slots continue to the right
-        x0 = col - (len(lo) - 1) / 2.0 * _BLADE_PITCH_MM
-        groups.append([x0, refs])
-    # 1-D legalize: sweep left->right, push a group right so bodies/daughterboards clear
-    groups.sort(key=lambda g: g[0])
-    for i in range(1, len(groups)):
-        prev_end = groups[i - 1][0] + (len(groups[i - 1][1]) - 1) * _BLADE_PITCH_MM
-        min_x0 = prev_end + _BLADE_PITCH_MM + _BLADE_GROUP_GAP_MM
-        if groups[i][0] < min_x0:
-            groups[i][0] = min_x0
-    if W and groups:
-        last_end = groups[-1][0] + (len(groups[-1][1]) - 1) * _BLADE_PITCH_MM
-        over = last_end - (W - _BLADE_PITCH_MM / 2.0 - 0.5)
-        if over > 0:                                  # clamp on-board (shift the whole row left)
-            for g in groups:
-                g[0] -= over
-    for x0, refs in groups:
-        for k, r in enumerate(refs):
-            if r in anchors:
+        gnd = gnd_pool[i * (n_win - n_lo):(i + 1) * (n_win - n_lo)]
+        slots = [x0 + (ws + k) * p for k in range(n_win)]
+        rails = set(range(rail_off[i], rail_off[i] + n_lo))
+        li = gi = 0
+        for k, x in enumerate(slots):
+            r = None
+            if k in rails and li < len(lo):
+                r, li = lo[li], li + 1
+            elif gi < len(gnd):
+                r, gi = gnd[gi], gi + 1
+            elif li < len(lo):
+                r, li = lo[li], li + 1
+            if r and r in anchors:
                 _x, y, _rot = anchors[r]
-                anchors[r] = (x0 + k * _BLADE_PITCH_MM, row_y if row_y is not None else y, 0.0)
+                anchors[r] = (x, row_y if row_y is not None else y, 0.0)
 
 
 def _perp_half(size, rot, n):
