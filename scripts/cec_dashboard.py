@@ -426,14 +426,22 @@ def _enqueue_seed():
 
 # ---------------------------------------------------------------- http
 def _img_path(aid, panel):
-    """Traversal-safe archive image path for (id, panel), or None."""
+    """Traversal-safe archive image path for (id, panel), or None. Besides the five built-in
+    panels, an entry's summary.json may register EXTRA panels (ad-hoc studies, e.g. a
+    worst-case-current thermal solve) as {key: filename}; the filename must be a bare
+    .png/.svg basename inside that entry's own archive dir."""
     aid = os.path.basename(aid or "")
     if not re.match(r"^[A-Za-z0-9T_-]+$", aid):
         return None
     fn = {"detail": "detail.png", "current": "current.png", "render": "render.png",
           "plotf": "plot-f.svg", "plotb": "plot-b.svg"}.get(panel)
     if not fn:
-        return None
+        with _archive_lock:
+            s = _archive_by_id.get(aid) or {}
+        fn = (s.get("panels") or {}).get(panel)
+        if (not fn or os.path.basename(fn) != fn
+                or not fn.endswith((".png", ".svg"))):
+            return None
     p = os.path.join(ARCHIVE_ROOT, aid, fn)
     return p if os.path.exists(p) else None
 
@@ -614,15 +622,20 @@ function buildPanels(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
  if(!cur){st.innerHTML='<div id="empty">no board selected</div>';return;}
  const have=cur.panels||{};
- const want = mode==='all'?['detail','current','render','plotf','plotb']
-            : mode==='plot'?['plotf','plotb']:[mode];
+ const KNOWN=['detail','current','render','plotf','plotb'];
+ const extras=Object.keys(have).filter(k=>!KNOWN.includes(k)).sort();
+ const want = mode==='all'?KNOWN.concat(extras)
+            : mode==='plot'?['plotf','plotb']
+            : mode==='detail'?['detail'].concat(extras)   // studies are thermal panels: ride the temperature view
+            : [mode];
  let any=false;
  for(const pn of want){
   if(!have[pn]) continue;
   any=true;
   const w=document.createElement('div'); w.className='panel'+(pn==='plotf'||pn==='plotb'?' plot':'');
   const im=document.createElement('img'); im.src=`/img?id=${encodeURIComponent(cur.id)}&panel=${pn}&v=${cur.epoch||0}`;
-  const cap=document.createElement('div'); cap.className='cap'; cap.textContent=PANEL_LABEL[pn]||pn;
+  const cap=document.createElement('div'); cap.className='cap';
+  cap.textContent=PANEL_LABEL[pn]||('STUDY — '+pn.replace(/-/g,' '));
   w.appendChild(im); w.appendChild(cap); st.appendChild(w);
  }
  if(!any) st.innerHTML='<div id="empty">no panels of this kind for this board — older snapshots predate render/plot: hit analyze ▶ again from the library to regenerate</div>';
