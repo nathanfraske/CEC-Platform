@@ -836,7 +836,7 @@
 					)
 				)
 			)
-			(property "Datasheet" "~"
+			(property "Datasheet" ""
 				(at 0 0 0)
 				(show_name no)
 				(do_not_autoplace no)
@@ -16764,7 +16764,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A2_2x12_P4.20mm_Horizontal"
+		(property "Footprint" "cec-Connector_Molex:Molex_Mini-Fit_Jr_5569-24A1_2x12_P4.20mm_Horizontal"
 			(at 44.45 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -16775,7 +16775,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.intel.com/content/dam/www/public/us/en/documents/guides/power-supply-design-guide-june.pdf#page=33"
 			(at 44.45 54.61 0)
 			(hide yes)
 			(show_name no)
@@ -16786,7 +16786,7 @@
 				)
 			)
 		)
-		(property "Description" ""
+		(property "Description" "ATX Power supply 24pins"
 			(at 44.45 54.61 0)
 			(show_name no)
 			(do_not_autoplace no)
@@ -17412,9 +17412,9 @@
 		(unit 1)
 		(body_style 1)
 		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
+		(in_bom no)
+		(on_board no)
+		(in_pos_files no)
 		(dnp yes)
 		(uuid "488e1100-8374-4359-b603-a8b884c9b58b")
 		(property "Reference" "FL1"
@@ -17459,8 +17459,8 @@
 				)
 			)
 		)
-		(property "Description" ""
-			(at 284.48 335.28 0)
+		(property "Description" "Common-mode choke, 2 coupled pairs (H3a §c EMC insurance position): pins 1/2 = differential-pair IN (H/L), pins 3/4 = differential-pair OUT (H/L) -- one part couples both lines through a shared core; NEVER substitute two independent series beads on the individual lines (defeats the common-mode rejection). Provisioned DNP by default; populate only on EMC evidence. MPN/footprint TBD (H3a is judicious-not-blanket; not yet part-searched)."
+			(at 284.226 362.458 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25404,7 +25404,7 @@
 				)
 			)
 		)
-		(property "Datasheet" ""
+		(property "Datasheet" "https://www.ti.com/lit/ds/symlink/tps2121.pdf"
 			(at 55.88 201.93 0)
 			(hide yes)
 			(show_name no)
