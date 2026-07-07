@@ -162,15 +162,39 @@ def _watcher(poll_s=15):
 #  IN-CONTAINER half -- one solve, two panels, gate eval. Imports pcbnew only
 #  here (this branch runs inside the routing container).
 # ============================================================================
-def _analyze_in_container(board, detail_png, current_png, width):
+def _analyze_in_container(board, detail_png, current_png, width,
+                          render_png=None, plotf_svg=None, plotb_svg=None):
     """Solve the 2.5D field ONCE (board_thermal_config -> _prepare_filled -> solve at the SOLVE recipe),
-    draw the TEMPERATURE panel + the CURRENT cross-check panel from that one field, then evaluate the
-    gates. Print one JSON line {thermal, gates}; each half is degrade-safe (a thermal failure still
-    yields gates, and vice-versa). Runs in the container only."""
+    draw the TEMPERATURE panel + the CURRENT cross-check panel from that one field, evaluate the
+    gates, and (owner ask 2026-07-07) export the raytraced top RENDER + the front/back copper
+    PLOTS. Print one JSON line {thermal, gates}; every part is degrade-safe (a failed render
+    still yields gates and panels, and vice-versa). Runs in the container only."""
     import sys
     sys.path.insert(0, os.path.join(ROOT, "scripts"))
     out = {"ok": True, "thermal": {"ok": False, "error": "not run"},
            "gates": {"ok": False, "error": "not run"}}
+
+    # ---- render + copper plots (kicad-cli; independent of the solve) ----
+    if render_png:
+        try:
+            subprocess.run(["kicad-cli", "pcb", "render", "-o", render_png,
+                            "--side", "top", board],
+                           capture_output=True, timeout=300)
+        except Exception:                                           # noqa: BLE001
+            pass
+    for svg, layers, mirror in ((plotf_svg, "F.Cu,Edge.Cuts,F.Silkscreen", False),
+                                (plotb_svg, "B.Cu,Edge.Cuts,B.Silkscreen", False)):
+        if not svg:
+            continue
+        try:
+            cmd = ["kicad-cli", "pcb", "export", "svg", "--mode-single", "-o", svg,
+                   "--layers", layers, "--page-size-mode", "2",
+                   "--exclude-drawing-sheet", board]
+            if mirror:
+                cmd.insert(-1, "--mirror")
+            subprocess.run(cmd, capture_output=True, timeout=300)
+        except Exception:                                           # noqa: BLE001
+            pass
 
     # ---- thermal solve + the two blended detail panels (reuse cec_thermal_overlay) ----
     try:
@@ -290,6 +314,9 @@ def archive_board(pcb_path, name):
 
     detail = os.path.join(adir, "detail.png")
     current = os.path.join(adir, "current.png")
+    render = os.path.join(adir, "render.png")
+    plotf = os.path.join(adir, "plot-f.svg")
+    plotb = os.path.join(adir, "plot-b.svg")
     rel = lambda p: "/workspace/" + os.path.relpath(p, ROOT)       # noqa: E731
     summary = {"schema": 1, "id": aid, "name": name, "timestamp": ts,
                "ts_human": time.strftime("%Y-%m-%d %H:%M"), "epoch": time.time(),
@@ -300,6 +327,7 @@ def archive_board(pcb_path, name):
         cp = _container_run(
             ["python3", "scripts/cec_dashboard.py", "--analyze-board",
              "--board", rel(snap), "--detail", rel(detail), "--current", rel(current),
+             "--render", rel(render), "--plotf", rel(plotf), "--plotb", rel(plotb),
              "--width", str(PANEL_W)],
             timeout=900, env={"CEC_SHUNT_GAP": "1", "CEC_THERMAL_GPU_AMG": "1"})
         res = _parse_last_json(cp.stdout)
@@ -317,6 +345,12 @@ def archive_board(pcb_path, name):
         summary["panels"]["detail"] = "detail.png"
     if os.path.exists(current):
         summary["panels"]["current"] = "current.png"
+    if os.path.exists(render):
+        summary["panels"]["render"] = "render.png"
+    if os.path.exists(plotf):
+        summary["panels"]["plotf"] = "plot-f.svg"
+    if os.path.exists(plotb):
+        summary["panels"]["plotb"] = "plot-b.svg"
     summary["verdict"], summary["failing"] = _verdict(summary["gates"], summary["thermal"])
 
     with open(os.path.join(adir, "summary.json"), "w") as fh:
@@ -396,7 +430,8 @@ def _img_path(aid, panel):
     aid = os.path.basename(aid or "")
     if not re.match(r"^[A-Za-z0-9T_-]+$", aid):
         return None
-    fn = {"detail": "detail.png", "current": "current.png"}.get(panel)
+    fn = {"detail": "detail.png", "current": "current.png", "render": "render.png",
+          "plotf": "plot-f.svg", "plotb": "plot-b.svg"}.get(panel)
     if not fn:
         return None
     p = os.path.join(ARCHIVE_ROOT, aid, fn)
@@ -442,7 +477,8 @@ class H(BaseHTTPRequestHandler):
         elif path == "/img":
             p = _img_path(params.get("id"), params.get("panel", "detail"))
             if p:
-                self._send(open(p, "rb").read(), "image/png")
+                ctype = "image/svg+xml" if p.endswith(".svg") else "image/png"
+                self._send(open(p, "rb").read(), ctype)
             else:
                 self._json({"error": "no such panel"}, 404)
         else:
@@ -490,9 +526,11 @@ button.pill.act:hover{background:#26424e}
 <div class="main">
  <div id="bar"><span class="title" id="btitle">select a board</span><span id="badges"></span>
   <span style="flex:1"></span>
-  <button class="pill" id="m_both" onclick="setMode('both')">both</button>
+  <button class="pill" id="m_all" onclick="setMode('all')">all</button>
   <button class="pill" id="m_detail" onclick="setMode('detail')">temperature</button>
   <button class="pill" id="m_current" onclick="setMode('current')">current</button>
+  <button class="pill" id="m_render" onclick="setMode('render')">render</button>
+  <button class="pill" id="m_plot" onclick="setMode('plot')">plot</button>
   <button class="pill" onclick="fit()">fit</button>
   <button class="pill" onclick="zoom(1.25)">+</button>
   <button class="pill" onclick="zoom(0.8)">-</button>
@@ -500,7 +538,7 @@ button.pill.act:hover{background:#26424e}
  <div id="pwrap"><div id="pstack"><div id="empty">no board selected</div></div></div>
 </div></div>
 <script>
-let boards=[], lib={beta:[],fresh:[],watch:{}}, cur=null, mode='both', plotW=1100;
+let boards=[], lib={beta:[],fresh:[],watch:{}}, cur=null, mode='all', plotW=1100;
 let secOpen={beta:true,fresh:true,snaps:true};
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function vpill(v){const cl=v==='CLEAN'?'ok':'bad';return `<span class="pill ${cl}">${v}</span>`;}
@@ -566,26 +604,31 @@ function renderBadges(){
  el.innerHTML=h+verdictPill();
 }
 function verdictPill(){return cur?(' '+vpill(cur.verdict)):'';}
+const PANEL_LABEL={
+ detail:'TEMPERATURE (°C) — smooth field + translucent stacked copper',
+ current:'CURRENT cross-check (A) — heat should track current',
+ render:'RENDER — raytraced top view',
+ plotf:'PLOT — front copper (F.Cu + Edge.Cuts + silkscreen)',
+ plotb:'PLOT — back copper (B.Cu + Edge.Cuts + silkscreen)'};
 function buildPanels(){
  const st=document.getElementById('pstack'); st.style.width=plotW+'px'; st.innerHTML='';
  if(!cur){st.innerHTML='<div id="empty">no board selected</div>';return;}
  const have=cur.panels||{};
- const want = mode==='both'?['detail','current']:[mode];
+ const want = mode==='all'?['detail','current','render','plotf','plotb']
+            : mode==='plot'?['plotf','plotb']:[mode];
  let any=false;
  for(const pn of want){
   if(!have[pn]) continue;
   any=true;
-  const lab = pn==='detail'?'TEMPERATURE (°C) — smooth field + translucent stacked copper'
-                           :'CURRENT cross-check (A) — heat should track current';
-  const w=document.createElement('div'); w.className='panel';
+  const w=document.createElement('div'); w.className='panel'+(pn==='plotf'||pn==='plotb'?' plot':'');
   const im=document.createElement('img'); im.src=`/img?id=${encodeURIComponent(cur.id)}&panel=${pn}&v=${cur.epoch||0}`;
-  const cap=document.createElement('div'); cap.className='cap'; cap.textContent=lab;
+  const cap=document.createElement('div'); cap.className='cap'; cap.textContent=PANEL_LABEL[pn]||pn;
   w.appendChild(im); w.appendChild(cap); st.appendChild(w);
  }
- if(!any) st.innerHTML='<div id="empty">no analysis panels for this board (render failed) — see gate badges</div>';
+ if(!any) st.innerHTML='<div id="empty">no panels of this kind for this board — older snapshots predate render/plot: hit analyze ▶ again from the library to regenerate</div>';
 }
 function setMode(m){mode=m;
- for(const x of ['both','detail','current']) document.getElementById('m_'+x).classList.toggle('on',x===m);
+ for(const x of ['all','detail','current','render','plot']) document.getElementById('m_'+x).classList.toggle('on',x===m);
  buildPanels();}
 function pick(id){
  cur=boards.find(b=>b.id===id)||null;
@@ -606,7 +649,7 @@ window.addEventListener('DOMContentLoaded',()=>{
  pw.addEventListener('mousedown',e=>{pan={x:e.clientX,y:e.clientY,l:pw.scrollLeft,t:pw.scrollTop};pw.style.cursor='grabbing';e.preventDefault();});
  window.addEventListener('mousemove',e=>{if(pan){pw.scrollLeft=pan.l-(e.clientX-pan.x);pw.scrollTop=pan.t-(e.clientY-pan.y);}});
  window.addEventListener('mouseup',()=>{pan=null;pw.style.cursor='grab';});
- setMode('both'); tick(); setInterval(tick,3000);
+ setMode('all'); tick(); setInterval(tick,3000);
 });
 async function tick(){
  try{
@@ -641,11 +684,15 @@ def main():
     ap.add_argument("--board", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--detail", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--current", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--render", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--plotf", default=None, help=argparse.SUPPRESS)
+    ap.add_argument("--plotb", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--width", type=int, default=PANEL_W, help=argparse.SUPPRESS)
     a = ap.parse_args()
 
-    if a.analyze_board:                                            # container half: one solve, two panels, gates
-        _analyze_in_container(a.board, a.detail, a.current, a.width)
+    if a.analyze_board:                                            # container half: solve, panels, render, plots, gates
+        _analyze_in_container(a.board, a.detail, a.current, a.width,
+                              render_png=a.render, plotf_svg=a.plotf, plotb_svg=a.plotb)
         return
 
     os.makedirs(ARCHIVE_ROOT, exist_ok=True)
