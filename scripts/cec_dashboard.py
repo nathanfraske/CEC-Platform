@@ -629,9 +629,11 @@ function buildPanels(){
  const have=cur.panels||{};
  const KNOWN=['detail','current','render','plotf','plotb'];
  const extras=Object.keys(have).filter(k=>!KNOWN.includes(k)).sort();
- const want = mode==='all'?KNOWN.concat(extras)
+ // studies (worst-case solves etc.) are thermal panels: show them RIGHT UNDER the
+ // temperature panel, not buried after the render/plots at the bottom of the stack
+ const want = mode==='all'?['detail',...extras,'current','render','plotf','plotb']
             : mode==='plot'?['plotf','plotb']
-            : mode==='detail'?['detail'].concat(extras)   // studies are thermal panels: ride the temperature view
+            : mode==='detail'?['detail',...extras]
             : [mode];
  let any=false;
  for(const pn of want){
