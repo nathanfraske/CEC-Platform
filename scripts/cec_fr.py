@@ -816,68 +816,20 @@ def _board_kelvin_pairs(board):
     return sorted(pairs.values())
 
 
-def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
-                       layer: str = "F.Cu", kelvin_pairs=None, board=None) -> list:
-    """Auto-derive additive high-current pour rectangles for an interposer board.
-
-    For each Kelvin pair (``*_HI`` / ``*_LO``) the pour is the bounding box of that net's
-    HEAVY pads -- the THT connector pads (the cable in/out) PLUS the shunt's own pad on
-    that net -- inflated by *margin* mm and clamped *edge_clear* mm inside the board edge.
-    The shunt is identified geometrically as the footprint that has a pad on BOTH members
-    of the pair (only a Kelvin shunt straddles HI and LO). The small SMD sense pads of the
-    INA / INA181 are deliberately EXCLUDED, so the HI box (cable-in -> shunt) and the LO box
-    (shunt -> cable-out) stay on their own sides of the shunt and never overlap -- they meet
-    only through the shunt element, exactly as a four-wire Kelvin shunt requires.
-
-    SELF-GATING: a net with no THT pad is not a cable high-current net and is skipped, so on
-    a board with no qualifying nets this returns ``[]`` and is a no-op. Verified on EPS: yields
-    the four 12V pours (/SENSEC1_HI,_LO,/SENSEC2_HI,_LO) matching the hand-tuned regions.
-
-    Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
-    Pass an already-loaded *board* to reuse it (pcbnew shares the cached BOARD per path, so callers
-    that also mutate the board must load it ONCE and pass it here rather than re-load board_path).
-    """
-    from collections import defaultdict
-    board = board if board is not None else pcbnew.LoadBoard(board_path)
-    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
-    if kelvin_pairs is None:
-        kelvin_pairs = _board_kelvin_pairs(board)
-
-    bb = board.GetBoardEdgesBoundingBox()
-    bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
-    bx1, by1 = bb.GetRight() / MM - edge_clear, bb.GetBottom() / MM - edge_clear
-
-    # INNER-POUR MODE (escalated review round 5, 2026-07-08): boards with the 24-pin
-    # doctrine stackup (In2 = 'PWR_RT' rail-routing layer, empty of parts) carry their
-    # rail distribution as IN2 pours -- the interleaved ATX pinout made face pours a
-    # rectangle-clipping war on a dense dual-sided 70x55 (measured plateau at ~78 unconn).
-    # THT pins (J3/TB) pierce to In2 natively; SMD shunt pads bridge via force-stub vias
-    # (synthesize_force_vias). Cable boards (no PWR_RT layer) are untouched.
-    inner_layer = None
-    if os.environ.get("CEC_INNER_POURS", "0") == "1":        # EXPERIMENTAL (round 5): placement
-        for lid in range(pcbnew.PCB_LAYER_ID_COUNT):          # effect proven (unconn 114->74@p8)
-            try:                                              # but FR integration incomplete --
-                if board.GetLayerName(lid) == "PWR_RT" and board.GetLayerType(lid) == pcbnew.LT_SIGNAL:
-                    inner_layer = "In2.Cu"                    # In2 keepouts don't bind in FR (116
-                    break                                     # foreign) + force stubs need the
-            except Exception:                                # noqa: BLE001 -- foreign guard. OFF until done.
-                pass
-    pads_by_net = defaultdict(list)
-    padcount = defaultdict(int)
-    flipped = {}
-    for fp in board.GetFootprints():
-        ref = fp.GetReference()
-        flipped[ref] = fp.IsFlipped()
-        for p in fp.Pads():
-            padcount[ref] += 1
-            nn = p.GetNetname()
-            if nn:
-                pads_by_net[nn].append((ref, p))
-
+def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
+                     inner_layer, *, margin=1.0, layer="F.Cu"):
+    """PURE-GEOMETRY pour-box core (box-model unification, 2026-07-08): both the pcbnew
+    extraction (derive_power_pours) and the PLACEMENT-side extractor feed this, so the
+    settle avoids EXACTLY the boxes the gate checks -- the two-model drift was the
+    cross-board craft blocker (re-stamped caps kept landing in gate boxes the settle
+    never saw). Inputs: pads_by_net = {net: [(ref, x_mm, y_mm, is_tht)]}; padcount =
+    {ref: n}; flipped = {ref: bool}; bbox = (bx0, by0, bx1, by1) already edge-cleared.
+    Returns the pour dict list."""
+    bx0, by0, bx1, by1 = bbox
     pours = []
     for hi, lo in kelvin_pairs:
-        refs_hi = {ref for ref, _ in pads_by_net.get(hi, [])}
-        refs_lo = {ref for ref, _ in pads_by_net.get(lo, [])}
+        refs_hi = {it[0] for it in pads_by_net.get(hi, [])}
+        refs_lo = {it[0] for it in pads_by_net.get(lo, [])}
         # The shunt is the footprint straddling the pair with EXACTLY 2 pads (a Kelvin
         # shunt). A differential INA also has a pad on each of HI/LO but is multi-pad, so
         # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
@@ -895,27 +847,26 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
         # on this pair's HI/LO nets. Vertical corridor (EPS/PCIe top->bottom) if the pads differ more
         # in y than x. None when there is no qualifying 2-pad shunt -> the notch is a no-op (the box
         # keeps hugging the shunt pad, the historical behaviour).
-        sh_pads = [p.GetPosition() for ref, p in (pads_by_net.get(hi, []) + pads_by_net.get(lo, []))
+        sh_pads = [(px, py) for ref, px, py, _t in (pads_by_net.get(hi, []) + pads_by_net.get(lo, []))
                    if ref in shunt_refs]
         shunt_xy = vertical = None
         if _shunt_gap_on() and len(sh_pads) >= 2:
-            scx = sum(q.x for q in sh_pads) / len(sh_pads) / MM
-            scy = sum(q.y for q in sh_pads) / len(sh_pads) / MM
+            scx = sum(q[0] for q in sh_pads) / len(sh_pads)
+            scy = sum(q[1] for q in sh_pads) / len(sh_pads)
             shunt_xy = (scx, scy)
-            vertical = (max(q.y for q in sh_pads) - min(q.y for q in sh_pads)) >= \
-                       (max(q.x for q in sh_pads) - min(q.x for q in sh_pads))
+            vertical = (max(q[1] for q in sh_pads) - min(q[1] for q in sh_pads)) >= \
+                       (max(q[0] for q in sh_pads) - min(q[0] for q in sh_pads))
         for net in (hi, lo):
             entries = pads_by_net.get(net, [])
-            has_tht = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries)
+            has_tht = any(it[3] for it in entries)
             if not has_tht:
                 continue                          # not a cable high-current net -> skip
             tht_pts, shunt_pts = [], []
-            for ref, p in entries:
-                pos = p.GetPosition()
+            for ref, px, py, is_tht in entries:
                 if ref in shunt_refs:
-                    shunt_pts.append((pos.x / MM, pos.y / MM))
-                elif p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH:
-                    tht_pts.append((pos.x / MM, pos.y / MM))
+                    shunt_pts.append((px, py))
+                elif is_tht:
+                    tht_pts.append((px, py))
             if not (tht_pts or shunt_pts):
                 continue
             # PER-CLUSTER FAN-IN (escalated review 2026-07-08): the ATX-24's interleaved
@@ -986,6 +937,75 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             p["polygon"] = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
             kept.append(p)
     return kept
+
+
+
+def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
+                       layer: str = "F.Cu", kelvin_pairs=None, board=None) -> list:
+    """Auto-derive additive high-current pour rectangles for an interposer board.
+
+    For each Kelvin pair (``*_HI`` / ``*_LO``) the pour is the bounding box of that net's
+    HEAVY pads -- the THT connector pads (the cable in/out) PLUS the shunt's own pad on
+    that net -- inflated by *margin* mm and clamped *edge_clear* mm inside the board edge.
+    The shunt is identified geometrically as the footprint that has a pad on BOTH members
+    of the pair (only a Kelvin shunt straddles HI and LO). The small SMD sense pads of the
+    INA / INA181 are deliberately EXCLUDED, so the HI box (cable-in -> shunt) and the LO box
+    (shunt -> cable-out) stay on their own sides of the shunt and never overlap -- they meet
+    only through the shunt element, exactly as a four-wire Kelvin shunt requires.
+
+    SELF-GATING: a net with no THT pad is not a cable high-current net and is skipped, so on
+    a board with no qualifying nets this returns ``[]`` and is a no-op. Verified on EPS: yields
+    the four 12V pours (/SENSEC1_HI,_LO,/SENSEC2_HI,_LO) matching the hand-tuned regions.
+
+    Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
+    Pass an already-loaded *board* to reuse it (pcbnew shares the cached BOARD per path, so callers
+    that also mutate the board must load it ONCE and pass it here rather than re-load board_path).
+    """
+    from collections import defaultdict
+    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+
+    bb = board.GetBoardEdgesBoundingBox()
+    bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
+    bx1, by1 = bb.GetRight() / MM - edge_clear, bb.GetBottom() / MM - edge_clear
+
+    # INNER-POUR MODE (escalated review round 5, 2026-07-08): boards with the 24-pin
+    # doctrine stackup (In2 = 'PWR_RT' rail-routing layer, empty of parts) carry their
+    # rail distribution as IN2 pours -- the interleaved ATX pinout made face pours a
+    # rectangle-clipping war on a dense dual-sided 70x55 (measured plateau at ~78 unconn).
+    # THT pins (J3/TB) pierce to In2 natively; SMD shunt pads bridge via force-stub vias
+    # (synthesize_force_vias). Cable boards (no PWR_RT layer) are untouched.
+    inner_layer = None
+    if os.environ.get("CEC_INNER_POURS", "0") == "1":        # EXPERIMENTAL (round 5): placement
+        for lid in range(pcbnew.PCB_LAYER_ID_COUNT):          # effect proven (unconn 114->74@p8)
+            try:                                              # but FR integration incomplete --
+                if board.GetLayerName(lid) == "PWR_RT" and board.GetLayerType(lid) == pcbnew.LT_SIGNAL:
+                    inner_layer = "In2.Cu"                    # In2 keepouts don't bind in FR (116
+                    break                                     # foreign) + force stubs need the
+            except Exception:                                # noqa: BLE001 -- foreign guard. OFF until done.
+                pass
+    pads_by_net = defaultdict(list)
+    padcount = defaultdict(int)
+    flipped = {}
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        flipped[ref] = fp.IsFlipped()
+        for p in fp.Pads():
+            padcount[ref] += 1
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net[nn].append((ref, p))
+
+    prepared = defaultdict(list)
+    for net, entries in pads_by_net.items():
+        for ref, p in entries:
+            pos = p.GetPosition()
+            prepared[net].append((ref, pos.x / MM, pos.y / MM,
+                                  p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH))
+    return _pour_boxes_core(names, kelvin_pairs, prepared, dict(padcount), dict(flipped),
+                            (bx0, by0, bx1, by1), inner_layer, margin=margin, layer=layer)
 
 
 def _x_clusters(pts, gap_mm=8.0):
