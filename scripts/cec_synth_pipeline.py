@@ -4572,7 +4572,8 @@ def materialize(cand, cfg, out, *, logo=None):
         _dropk = tuple(r for r, fpid in _fp_of(View(cfg).nl).items() if "esp32" in str(fpid).lower())
     cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
                         corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
-                        drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()))
+                        drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()),
+                        inner_power_routing=bool(cfg.params.get('inner_power_routing')))
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):

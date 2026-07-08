@@ -75,12 +75,19 @@ def _derive_pairs(net_names):
         m = _RE_KELVIN_HI.match(n)
         if m:
             lo = m.group(1) + "_LO"
-            kelvin.append((n, lo))
+            # PHANTOM-PAIR guard (escalated review 2026-07-08): only pair when the
+            # fabricated LO name EXISTS -- the 24-pin's 5V pair is (/SENSE5V_HI,
+            # +5V_MAIN), so a fabricated /SENSE5V_LO made the kelvin gate structurally
+            # unpassable. The shunt-straddle derivation carries the real rail-sided
+            # pairs; the name rule must never invent nets.
+            if lo in names:
+                kelvin.append((n, lo))
     for n in sorted(names):
         m = _RE_DIFF_P.match(n)
         if m:
             neg = m.group(1) + "_N"
-            diff.append((n, neg))
+            if neg in names:
+                diff.append((n, neg))
     return kelvin, diff
 
 

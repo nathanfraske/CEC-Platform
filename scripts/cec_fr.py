@@ -886,23 +886,51 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             has_tht = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for _, p in entries)
             if not has_tht:
                 continue                          # not a cable high-current net -> skip
-            heavy = []
+            tht_pts, shunt_pts = [], []
             for ref, p in entries:
-                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH or ref in shunt_refs:
-                    pos = p.GetPosition()
-                    heavy.append((pos.x / MM, pos.y / MM))
-            if not heavy:
+                pos = p.GetPosition()
+                if ref in shunt_refs:
+                    shunt_pts.append((pos.x / MM, pos.y / MM))
+                elif p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH:
+                    tht_pts.append((pos.x / MM, pos.y / MM))
+            if not (tht_pts or shunt_pts):
                 continue
-            xs = [x for x, _ in heavy]
-            ys = [y for _, y in heavy]
-            x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
-            y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
-            if shunt_xy is not None:              # open the un-poured notch at the shunt to SHUNT_GAP_MM
-                x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, SHUNT_GAP_MM,
-                                                   vertical=vertical)
-            pours.append({"net": net, "layer": pair_layer,
-                          "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
+            # PER-CLUSTER FAN-IN (escalated review 2026-07-08): the ATX-24's interleaved
+            # pinout puts one rail's pins in 2-3 groups across the header; one bbox over all
+            # of them spanned the board and overlapped the neighbor rails' pours on the same
+            # layer (mass unconnected + foreign-on-pour). One sub-pour per pin x-cluster,
+            # each converging on the shunt, keeps the copper a fan instead of a blanket.
+            clusters = _x_clusters(tht_pts) or [[]]
+            for cluster in clusters:
+                heavy = list(cluster) + shunt_pts
+                if not heavy:
+                    continue
+                xs = [x for x, _ in heavy]
+                ys = [y for _, y in heavy]
+                x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
+                y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
+                if shunt_xy is not None:          # open the un-poured notch at the shunt to SHUNT_GAP_MM
+                    x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, SHUNT_GAP_MM,
+                                                       vertical=vertical)
+                pours.append({"net": net, "layer": pair_layer,
+                              "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
     return pours
+
+
+def _x_clusters(pts, gap_mm=8.0):
+    """Split (x,y) points into x-clusters (single-linkage, split at > gap_mm). The ATX-24's
+    interleaved pinout puts one rail's pins in 2-3 groups across the header; one bbox over
+    all of them spans the board (escalated review 2026-07-08) -- fan-in per cluster instead."""
+    if not pts:
+        return []
+    pts = sorted(pts)
+    out = [[pts[0]]]
+    for p in pts[1:]:
+        if p[0] - out[-1][-1][0] > gap_mm:
+            out.append([p])
+        else:
+            out[-1].append(p)
+    return out
 
 
 def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=None,
@@ -958,41 +986,70 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
         entries = pads_by_net.get(net, [])
         tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
                if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        # the 2-pad shunt footprint straddling this net: its pad on `net`, plus its CENTRE (footprint
-        # origin = midpoint of the two terminals) so the keepout clips at the SHUNT_GAP_MM notch edge
-        # (matching derive_power_pours), not at the shunt pad -- otherwise the keepout would block the
-        # B.Cu overflow route-under lane the widened notch opens.
-        shunt = []
-        shunt_centre_y = None
+        # the 2-pad shunt footprint straddling this net. STRADDLE-FIRST (escalated review
+        # 2026-07-08): the shunt is the 2-pad footprint whose pads sit on BOTH members of
+        # the net's kelvin pair (prefer RS*) -- the old any-2-pad-on-the-net rule grabbed a
+        # DECOUPLING CAP on rail-sided nets (+5V_MAIN), collapsing the corridor to a sliver.
+        pair_other = None
+        for hi, lo in kelvin_pairs:
+            if net == hi:
+                pair_other = lo
+            elif net == lo:
+                pair_other = hi
+        cands = []
         for fp in board.GetFootprints():
             if npads.get(fp.GetReference(), 0) != 2:
                 continue
-            if any(p.GetNetname() == net for p in fp.Pads()):
-                shunt += [(p.GetPosition().x / MM, p.GetPosition().y / MM)
-                          for p in fp.Pads() if p.GetNetname() == net]
-                shunt_centre_y = fp.GetPosition().y / MM
+            fp_nets = {p.GetNetname() for p in fp.Pads()}
+            if net not in fp_nets:
+                continue
+            if pair_other is not None and pair_other not in fp_nets:
+                continue                                     # not the straddle part (a cap)
+            if pair_other is None and not fp.GetReference().startswith("RS"):
+                continue                                     # non-pair net (name-matched "12V"
+                                                             # like /ATX_NEG12V): only a REAL
+                                                             # shunt makes it a force corridor
+            cands.append(fp)
+        cands.sort(key=lambda f: (not f.GetReference().startswith("RS"), f.GetReference()))
+        shunt = []
+        shunt_centre_y = None
+        shunt_flipped = False
+        if cands:
+            fp = cands[0]
+            shunt = [(p.GetPosition().x / MM, p.GetPosition().y / MM)
+                     for p in fp.Pads() if p.GetNetname() == net]
+            shunt_centre_y = fp.GetPosition().y / MM
+            shunt_flipped = fp.IsFlipped()
         if not tht or not shunt:
             continue                                         # not a cable-connector high-current net
+        # PER-PAIR LAYER (dual-sided): a flipped chain's pour lives on B.Cu -- reserve THAT,
+        # never F.Cu-only (the oracle's F-only lever was inverted for back chains).
+        net_layers = ("B.Cu",) if (shunt_flipped and tuple(layers) == ("F.Cu",)) else tuple(layers)
         sx, sy = shunt[0]
         # notch edge = shunt centre +/- SHUNT_GAP_MM/2 when the widen is on (matching derive_power_pours
         # so the keepout never blocks the B.Cu overflow lane), else the historical clip AT the shunt pad.
         clip_hi = (shunt_centre_y - SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
         clip_lo = (shunt_centre_y + SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
-        txs = [x for x, _ in tht]
-        tys = [y for _, y in tht]
-        tcy = sum(tys) / len(tys)
-        x0 = min(txs + [sx]) - 1.0
-        x1 = max(txs + [sx]) + 1.0
-        if sy >= tcy:                                        # shunt BELOW the connector (cable-in): clip bottom at the notch top
-            y0, y1 = min(tys) - 1.0, clip_hi
-        else:                                                # shunt ABOVE the connector (cable-out): clip top at the notch bottom
-            y0, y1 = clip_lo, max(tys) + 1.0
-        hints.append({"name": f"corr_{net.strip('/')}", "x0": round(x0, 2), "y0": round(y0, 2),
-                      "x1": round(x1, 2), "y1": round(y1, 2),
-                      "layers": tuple(layers), "allow_vias": True,
-                      # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
-                      # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
-                      "block_fills": False})
+        # PER-CLUSTER FAN-IN (escalated review 2026-07-08): one box per connector pin
+        # x-cluster, each converging on the shunt column -- never one bbox over an
+        # interleaved rail's whole pin spread (the 5V box spanned the board).
+        for ci, cluster in enumerate(_x_clusters(tht)):
+            txs = [x for x, _ in cluster]
+            tys = [y for _, y in cluster]
+            tcy = sum(tys) / len(tys)
+            x0 = min(txs + [sx]) - 1.0
+            x1 = max(txs + [sx]) + 1.0
+            if sy >= tcy:                                    # shunt BELOW the connector (cable-in): clip bottom at the notch top
+                y0, y1 = min(tys) - 1.0, clip_hi
+            else:                                            # shunt ABOVE the connector (cable-out): clip top at the notch bottom
+                y0, y1 = clip_lo, max(tys) + 1.0
+            hints.append({"name": f"corr_{net.strip('/')}_{ci}" if ci else f"corr_{net.strip('/')}",
+                          "x0": round(x0, 2), "y0": round(y0, 2),
+                          "x1": round(x1, 2), "y1": round(y1, 2),
+                          "layers": net_layers, "allow_vias": True,
+                          # block FOREIGN tracks (FR routes around) but let the SAME-NET power pour fill the
+                          # reserved corridor SOLID -- the keepout protects the pour, it must not block it.
+                          "block_fills": False})
     return hints
 
 

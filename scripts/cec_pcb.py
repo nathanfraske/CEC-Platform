@@ -399,7 +399,7 @@ def export_netlist(dir_, base):
 
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
-                corner_radius=0.0, back_refs=()):
+                corner_radius=0.0, back_refs=(), inner_power_routing=False):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -449,7 +449,17 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                    f'(at {ff(logo[0] if logo else W/2)} {ff(H-3)} 0) (layer "B.SilkS") (uuid "{U()}") ' \
                    f'(effects (font (size 0.9 0.9) (thickness 0.13)) (justify mirror)))'
     netdecl = '\t(net 0 "")\n' + "\n".join(f'\t(net {code_of[x]} "{x}")' for x in names)
-    zone = (gnd_planes(code_of["GND"], W, H) + "\n") if (zones and "GND" in code_of) else ""
+    # inner_power_routing (the 24-pin/Hub stackup exception, CLAUDE.md): ONE inner GND
+    # plane (In1) + In2 left EMPTY as a rail-routing layer (12V/5V/3V3/5VSB route around
+    # each other) -- cable boards keep both inners GND.
+    _zl = '"In1.Cu"' if inner_power_routing else '"In1.Cu" "In2.Cu"'
+    zone = (gnd_planes(code_of["GND"], W, H, layers=_zl) + "\n") if (zones and "GND" in code_of) else ""
+    if inner_power_routing:
+        # In2's declared KIND drives KiCad's DSN (type ...) export: 'power' makes
+        # Freerouting refuse the layer entirely (measured: 0 tracks on the freed In2
+        # until this flip). Rename the stale '12V' hint too -- it is a rail-ROUTING
+        # layer on this stackup class, not a plane.
+        doc_kind_fix = True
     g = (guides_str + "\n") if guides_str else ""
     doc = (f"(kicad_pcb\n\t(version 20260206)\n\t(generator \"{gen}\")\n\t(generator_version \"10.0\")\n"
            "\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A4\")\n" + LAYERS +
@@ -457,6 +467,8 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
            "\t\t(allow_soldermask_bridges_in_footprints no)\n\t)\n"
            + netdecl + "\n" + "\n".join(fps) + "\n" + "\n".join(e) + "\n" + zone + g + note +
            "\n\t(embedded_fonts no)\n)\n")
+    if inner_power_routing:
+        doc = doc.replace('(6 "In2.Cu" power "12V")', '(6 "In2.Cu" signal "PWR_RT")', 1)
     # drop the RF antenna keepout courtyard lobe (no wireless) where requested
     if drop_keepout:
         doc = doc.replace("-10.98", "-4.95")     # ESP32-C6 MINI antenna lobe -> body
