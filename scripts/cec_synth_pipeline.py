@@ -2324,10 +2324,31 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
         cx, cy, hw, hh = cyinfo[r]
         ox, oy, orot = P[r]
         before = cost(r)
-        if rnd.random() < 0.7:                        # local jitter
+        _mv_roll = rnd.random()
+        if _mv_roll < 0.62:                           # local jitter
             nx, ny = ox + rnd.uniform(-3, 3), oy + rnd.uniform(-3, 3)
-        else:                                         # occasional teleport (escape)
+        elif _mv_roll < 0.80:                         # occasional teleport (escape)
             nx, ny = rnd.uniform(hw - cx, W - hw - cx), rnd.uniform(hh - cy, H - hh - cy)
+        elif len(mv) >= 2:                            # SWAP (owner lever pass 2026-07-08):
+            r2 = rnd.choice(mv)                        # exchange two macros' positions --
+            if r2 == r:                                # the escape the jitter can't make
+                T *= cool
+                continue
+            o2 = P[r2]
+            before2 = cost(r) + cost(r2)
+            if (veto is not None and (veto(r, (o2[0], o2[1])) or veto(r2, (ox, oy)))):
+                T *= cool
+                continue
+            P[r], P[r2] = (o2[0], o2[1], orot), (ox, oy, o2[2])
+            d2 = (cost(r) + cost(r2)) - before2
+            if d2 > 0 and rnd.random() >= math.exp(-d2 / max(T, 1e-3)):
+                P[r], P[r2] = (ox, oy, orot), o2       # reject swap
+            T *= cool
+            continue
+        # NOTE: a rotate-in-place move was tried and REMOVED (2026-07-08) -- rotating a
+        # MACRO unit invalidates its cyinfo extents AND its rot-0 cluster offsets (the
+        # stamp assumes unrotated units); a sound rotation move needs rotated cluster
+        # templates first.
         nx = min(W - hw - cx, max(hw - cx, nx))
         ny = min(H - hh - cy, max(hh - cy, ny))
         if veto is not None and veto(r, (nx, ny)):    # PHASE 2 hard veto -> never enter a foreign band
@@ -2993,11 +3014,21 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 # (+3.81 from origin, +~1.0 court) exceeds the right edge, shift EVERY
                 # blade + the stub left by the overhang as one unit. The blind-mate
                 # geometry (pitch + stub offset) is preserved exactly.
-                _ov = (anchors[stub][0] + 3.81 + 1.0) - ((W or 100) - 0.6)
-                if _ov > 0:
+                # CENTER the whole output ensemble (owner 2026-07-08: the off-center row
+                # gates width reduction) -- blades + stub move as one rigid unit to the
+                # middle of the usable span, still clamped fully on-board.
+                _tb_xs = [anchors[r][0] for r in anchors if r.startswith("TB")]
+                _lo_x = min(_tb_xs) - 2.4
+                _hi_x = anchors[stub][0] + 3.81 + 1.0
+                _span2 = _hi_x - _lo_x
+                _left_lim, _right_lim = 0.6, (W or 100) - 0.6
+                _want_lo = max(_left_lim, min(((W or 100) - _span2) / 2.0,
+                                              _right_lim - _span2))
+                _shift = _want_lo - _lo_x
+                if abs(_shift) > 0.05:
                     for _r3 in list(anchors):
                         if _r3.startswith("TB") or _r3 == stub:
-                            _ax, _ay = anchors[_r3][0] - _ov, anchors[_r3][1]
+                            _ax, _ay = anchors[_r3][0] + _shift, anchors[_r3][1]
                             _rt = anchors[_r3][2] if len(anchors[_r3]) > 2 else 0.0
                             anchors[_r3] = (_ax, _ay, _rt)
     return seated
@@ -3804,6 +3835,22 @@ def _dual_side_guard(back, anchors_roles, comps):
     return keep, stripped
 
 
+# =====================================================================================
+# REPAIR LADDER (owner policy, 2026-07-08): when an invariant conflicts with a
+# placement/route constraint, repairs are tried IN THIS ORDER -- both the automated
+# tiers and the human-escalation tier consult it. Separating a deliberate PAIR (BOOT/
+# RESET, divider pairs, sense cells) is always the LAST rung, and even escalation
+# prefers every earlier rung first. Board-agnostic; boards may append, never reorder.
+REPAIR_LADDER = (
+    "1: regenerate the placement candidate (seed/strategy/intent variation)",
+    "2: move FOREIGN parts out of the contested region (evac/legalize)",
+    "3: slide the invariant's own seat along its allowed axis (lane-aware park)",
+    "4: widen the local resource (notch band, cell pitch, board grow) -- board-specific",
+    "5: relax a SOFT bias (e.g. CAN-at-jack distance) with the delta surfaced",
+    "6: LAST RUNG -- separate a deliberate pair; requires escalation + a recorded reason",
+)
+
+
 def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
     in a spawn-pool worker (on the runner's cores). Takes/returns plain types only.
@@ -4158,6 +4205,26 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
         # every pour -- clearance + residual in ONE pass, no evac-vs-legalize oscillation (the bare evac
         # leaves outboard pile-ups; a bare legalize pulls a cap back into a box). The seated INAs/
         # comparators/shunts/connectors are exempt (not in _mop), so their intentional graze is kept.
+        # RIGID BUTTON PAIR (owner 2026-07-08: BOOT/RESET drift apart -- separating a
+        # deliberate pair is the repair ladder's LAST rung, never eviction's side effect).
+        # Post-evac, both buttons re-pin side by side at the nearest lane-free spot to
+        # their seat target; they were exempted from the anneal but strict eviction had
+        # been moving them individually.
+        _sws2 = sorted(r for r in P if r.startswith("SW") and r in comps)
+        if len(_sws2) >= 2 and _can_seated is not None:
+            _usb2 = next((r for r, role in anchors_roles.items()
+                          if role == "usb" and r in P), None)
+            if _usb2:
+                _u_cy = _courtyard_info(comps[_usb2], P[_usb2][2] if len(P[_usb2]) > 2 else 0,
+                                        drop_antenna=drop_antenna)
+                _s_cy = _courtyard_info(comps[_sws2[0]], 0)
+                _pairspot = _park_near((P[_usb2][0], P[_usb2][1]), _u_cy,
+                                       (_s_cy[0], _s_cy[1], _s_cy[2],
+                                        _s_cy[3] * 2 + 4.5),          # combined pair extent
+                                       _pour_boxes, W, H, gap=1.2)
+                if _pairspot is not None:
+                    for _k6, _sw6 in enumerate(_sws2[:2]):
+                        P[_sw6] = (_pairspot[0], _pairspot[1] + _k6 * 9.0, 0.0)
         # DECOUPLER RE-SEAT (retry under LANES, 2026-07-08): any rail cap whose center is
         # >8mm from every working part on its rail parks at the nearest LANE-FREE slot
         # beside the nearest one (the earlier inert result came from zero/blanket boxes).
@@ -4215,6 +4282,26 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                                      bounds=_bounds)
         else:
             legalize_pack(P, _restamped, _rs_cy, W, H, clr=0.4, bounds=_bounds)
+    # INTENT LEVERS (owner pass 2026-07-08): applied LAST so nothing downstream undoes
+    # them (the lesson every seat learned).
+    for _ref4, _tgt4, _gap4 in (cfg.params.get("near_intents") or ()):
+        if _ref4 in P and _tgt4 in P and _ref4 in comps and _tgt4 in comps:
+            _tc4 = _courtyard_info(comps[_tgt4], P[_tgt4][2] if len(P[_tgt4]) > 2 else 0,
+                                   drop_antenna=drop_antenna)
+            _cc4 = _courtyard_info(comps[_ref4], 0, drop_antenna=drop_antenna)
+            _sp4 = _park_near((P[_tgt4][0], P[_tgt4][1]), _tc4, _cc4, _pour_boxes, W, H,
+                              gap=_gap4)
+            if _sp4 is None:                      # no lane-free slot: park adjacent anyway
+                _sp4 = (P[_tgt4][0] + _tc4[0] + _tc4[2] + _cc4[2] + _gap4 - _cc4[0],
+                        P[_tgt4][1] + _tc4[1] - _cc4[1])
+            P[_ref4] = (_sp4[0], _sp4[1], 0.0)
+    for _refs5, _axis5 in (cfg.params.get("order_intents") or ()):
+        _live5 = [r for r in _refs5 if r in P]
+        if len(_live5) >= 2:
+            _ax5 = 0 if _axis5 == "x" else 1
+            _slots5 = sorted((P[r][_ax5], P[r]) for r in _live5)
+            for r, (_k5, _pos5) in zip(_live5, _slots5):
+                P[r] = _pos5
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
@@ -4585,6 +4672,111 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
     viol.sort(key=lambda v: -v[2])
     return {"ok": not viol, "violations": viol[:12]}
 
+def _oracle_stranded_parts(placed_board_path, *, max_mm=22.0):
+    """STRANDED-PART gate (owner eyesight finding 2026-07-08: diodes jammed in a corner,
+    a slew orphaned by the 1x4 header): every part must sit within *max_mm* of its
+    NEAREST CONNECTED NEIGHBOR (a part sharing any non-GND net). Eviction/legalize
+    orphans have no nearby electrical partner -- that is what the eye catches. Threshold
+    generous (hand boards route across ~15mm legitimately); catches the 25-60mm class.
+    Board-agnostic; connectors/mechanical exempt (endpoints others chase) plus the
+    ACCESS-placed classes (SW/TP/DL -- buttons, test points, LEDs are placed for reach/
+    visibility, not proximity; hand boards run them at 24-33mm). max_mm CALIBRATED: hand
+    worst non-access case 19.7mm -> 22.0 with margin; real strays measure 25-60mm."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    nets_of = {}
+    pos = {}
+    for fp in board.GetFootprints():
+        r = fp.GetReference() or ""
+        pos[r] = fp.GetPosition()
+        nets_of[r] = {p.GetNetname() for p in fp.Pads() if p.GetNetname()} - {"GND"}
+    viol = []
+    for r, nets in nets_of.items():
+        if not nets or r.startswith(("J", "TB", "H", "LOGO", "FID", "SW", "TP", "DL")):
+            continue                             # connectors/mech + ACCESS-placed classes
+                                                 # (buttons/testpoints/LEDs sit far by
+                                                 # design -- hand worst 24-33mm)
+        partners = [q for q, qn in nets_of.items() if q != r and (qn & nets)]
+        if not partners:
+            continue
+        d = min(math.hypot((pos[r].x - pos[q].x) / 1e6, (pos[r].y - pos[q].y) / 1e6)
+                for q in partners)
+        if d > max_mm:
+            viol.append((r, round(d, 1)))
+    viol.sort(key=lambda v: -v[1])
+    return {"ok": not viol, "violations": viol[:10]}
+
+
+def _oracle_circuit_complete(routed_board_path):
+    """CIRCUIT-COMPLETENESS gate (owner ask 2026-07-08: 'does the FEM look for complete
+    circuits?' -- it did NOT: current is injected at sources and extracted at sinks
+    regardless of copper connectivity, so a stranded zone island passed thermal while
+    electrically dead). For every kelvin force net: ALL of its pads must live on ONE
+    connected copper island (pcbnew connectivity, zones filled). Generalizes to any
+    board with force nets; N/A without them."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    pairs = cec_fr._board_kelvin_pairs(board)
+    if not pairs:
+        return {"ok": True, "violations": [], "note": "no force nets -- N/A"}
+    # zones must be FILLED for a copper walk (fixtures store unfilled zones -- the
+    # eps reference false-fired); fill an in-memory copy, never write back.
+    def _has_polys(z):
+        try:
+            return any(z.GetFilledPolysList(l).OutlineCount() > 0
+                       for l in z.GetLayerSet().CuStack())
+        except Exception:                                # noqa: BLE001
+            return False
+    if not any(_has_polys(z) for z in board.Zones()):    # IsFilled() is the FLAG, not polys
+        try:
+            for z in board.Zones():
+                z.UnFill()                        # the recorded double-fill footgun
+            pcbnew.ZONE_FILLER(board).Fill(board.Zones())
+        except Exception:                            # noqa: BLE001
+            pass
+    board.BuildConnectivity()
+    conn = board.GetConnectivity()
+    viol = []
+    for net in sorted({n for pr in pairs for n in pr}):
+        code = board.GetNetcodeFromNetname(net)
+        if code <= 0:
+            continue
+        # pads on the net vs connectivity: unconnected count for this net's items
+        pads = [(fp.GetReference(), p) for fp in board.GetFootprints()
+                for p in fp.Pads() if p.GetNetCode() == code]
+        if len(pads) < 2:
+            continue
+        # ISLAND BFS (the proven gnd-forensics pattern; GetRatsnestForNet is absent in
+        # this SWIG build): flood from the first pad via GetConnectedItems; every other
+        # pad must be reachable through copper.
+        try:
+            # the PROVEN forensics form: no-types GetConnectedItems + UUID identity
+            # (SWIG re-proxies objects; ids are unstable -- the recorded footgun)
+            keyf = lambda it: it.m_Uuid.AsString()
+            seen = {keyf(pads[0][1])}
+            frontier = [pads[0][1]]
+            while frontier:
+                nxt = []
+                for it in frontier:
+                    for c2 in conn.GetConnectedItems(it):
+                        k = keyf(c2)
+                        if k not in seen:
+                            seen.add(k)
+                            nxt.append(c2)
+                frontier = nxt
+            missing = [r for r, p in pads[1:] if keyf(p) not in seen]
+            if missing:
+                viol.append((net, "OPEN circuit -- unreachable pads", missing[:4]))
+        except Exception as e:                           # noqa: BLE001 -- FAIL-CLOSED
+            viol.append((net, "connectivity walk failed: %s" % str(e)[:60], []))
+    return {"ok": not viol, "violations": viol[:8]}
+
+
 def _oracle_kelvin_reach(placed_board_path, *, max_mm=9.0):
     """PRE-ROUTE kelvin-reach gate (owner lever pass, 2026-07-08): every current-sense IC
     input pad must sit within *max_mm* (the tap synthesizer's reach) of its pair's shunt
@@ -4917,6 +5109,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 pq = {"ok": False, "violations": ["checker error: %s" % e]}
             try:
+                sp = _oracle_stranded_parts(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                sp = {"ok": False, "violations": ["checker error: %s" % e]}
+            stranded_ok = bool(sp.get("ok")) or not craft_gates
+            try:
+                cc = _oracle_circuit_complete(routed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                cc = {"ok": False, "violations": ["checker error: %s" % e]}
+            circuit_ok = bool(cc.get("ok")) or not craft_gates
+            try:
                 kr = _oracle_kelvin_reach(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 kr = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -4936,7 +5138,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 
             gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
                         and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
-                        and comparator_ok and kelvin_reach_ok and courtyards_ok)
+                        and comparator_ok and kelvin_reach_ok and courtyards_ok
+                        and circuit_ok and stranded_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -4967,13 +5170,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "bodies_in_pours_ok": bodies_ok, "bodies_in_pours": bq,
                 "comparator_ok": comparator_ok, "comparator": cq,
                 "kelvin_reach_ok": kelvin_reach_ok, "kelvin_reach": kr,
+                "circuit_ok": circuit_ok, "circuit": cc,
+                "stranded_ok": stranded_ok, "stranded": sp,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
-                                           sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy),
+                                           sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
+                                           cc_g=cc, sp_g=sp),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -4999,7 +5205,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
-                    cq=None, kr=None, cy=None):
+                    cq=None, kr=None, cy=None, cc_g=None, sp_g=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -5014,6 +5220,10 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not thermal_ok:
         r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
                  + (f" ({therm['error']})" if therm.get("error") else ""))
+    if sp_g is not None and not sp_g.get("ok"):
+        r.append(f"STRANDED parts (no connected neighbor within reach): {sp_g.get('violations')[:5]}")
+    if cc_g is not None and not cc_g.get("ok"):
+        r.append(f"OPEN force circuits (current cannot traverse): {cc_g.get('violations')[:4]}")
     if kr is not None and not kr.get("ok"):
         r.append(f"kelvin REACH violated pre-route (tap cannot connect): {kr.get('violations')[:4]}")
     if cy is not None and not cy.get("ok"):

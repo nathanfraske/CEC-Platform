@@ -68,7 +68,9 @@ class PlacementSession:
         self.anchors_roles, self.ics, self.shunts, self.passives = csp._classify(self.nl)
         self._regions = {}        # name -> (x0, y0, x1, y1)  (absolute mm)
         self._assign = {}         # ref  -> region name        (the partition)
-        self.log = []             # intent trace (reproducibility / audit)
+        self.log = []
+        self._near = []
+        self._order = []             # intent trace (reproducibility / audit)
 
     # ----------------------------------------------------------------- region geometry
     def region(self, name, box):
@@ -100,6 +102,22 @@ class PlacementSession:
         for r in refs:
             self._assign[r] = region
         self.log.append(("assign", refs, region))
+        return self
+
+    def near(self, ref, target, *, gap=0.8):
+        """ADJACENCY intent (owner lever pass 2026-07-08): place *ref* directly beside
+        *target* (a seated/placed part), at the nearest lane-free slot. Compiles through
+        cfg.params['near_intents']; inert when unused (golden safety)."""
+        self._near.append((str(ref), str(target), float(gap)))
+        self.log.append(("near", ref, target, gap))
+        return self
+
+    def order(self, refs, axis="x"):
+        """ORDERING intent: the refs' final positions along *axis* preserve the given
+        sequence (a permutation fix after placement -- positions are re-assigned among
+        the same slots, so density/overlap character is unchanged)."""
+        self._order.append((list(refs), str(axis)))
+        self.log.append(("order", list(refs), axis))
         return self
 
     def unassign(self, refs):
@@ -200,7 +218,12 @@ class PlacementSession:
 
     # ----------------------------------------------------------------- compile / materialize / grade
     def _cfg_dict(self):
-        return dataclasses.asdict(self.cfg)
+        d = dataclasses.asdict(self.cfg)
+        if self._near:
+            d.setdefault("params", {})["near_intents"] = list(self._near)
+        if self._order:
+            d.setdefault("params", {})["order_intents"] = list(self._order)
+        return d
 
     def compile(self, *, strat=None, seed=None):
         """Run the real placer with the agent's partition -> a cec_synth_pipeline.Candidate.

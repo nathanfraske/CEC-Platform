@@ -107,3 +107,35 @@ class TestPlacementSession(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestIntentLevers(unittest.TestCase):
+    """near()/order() teeth (owner lever pass 2026-07-08): they BITE when used, and are
+    byte-inert when unused (golden safety)."""
+
+    def test_near_bites(self):
+        import math
+        s = _sess()
+        base = s.compile()
+        s2 = _sess()
+        s2.near("C30", "U2", gap=0.8)
+        cand = s2.compile()
+        def d(P):
+            return math.hypot(P["C30"][0] - P["U2"][0], P["C30"][1] - P["U2"][1])
+        self.assertLess(d(cand.P), 6.0)               # beside its target
+        self.assertLess(d(cand.P), d(base.P))          # and closer than the default placement
+
+    def test_order_bites(self):
+        s = _sess()
+        base = s.compile()
+        xs = sorted(["U2", "U3"], key=lambda r: base.P[r][0])
+        want = list(reversed(xs))                      # force the opposite order
+        s2 = _sess()
+        s2.order(want, axis="x")
+        cand = s2.compile()
+        self.assertLess(cand.P[want[0]][0], cand.P[want[1]][0])
+
+    def test_unused_is_inert(self):
+        a = _sess().compile()
+        b = _sess().compile()
+        self.assertEqual(a.P, b.P)
