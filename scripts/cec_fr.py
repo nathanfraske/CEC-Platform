@@ -405,7 +405,7 @@ def _dsn_force_power_layers(dsn_path: str, layer_names) -> list:
     return done
 
 
-def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=6.0) -> set:
+def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=None) -> set:
     """The DSN pin tokens (``"<ref>-<pad>"``) of the current-sense IC INPUT pads (IN+/IN-) that the
     GENERATIVE four-wire tap (:func:`synthesize_kelvin_taps`) owns -- i.e. the pads whose ONLY copper
     connection must be the inner-edge shunt tap, never an FR-routed wire to the cable connector.
@@ -458,7 +458,13 @@ def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=6.0) -> set:
                 if sh_pos is not None:
                     d = math.hypot((p.GetPosition().x - sh_pos.x) / MM,
                                    (p.GetPosition().y - sh_pos.y) / MM)
-                    if d > max_ic_mm:
+                    # UNCONDITIONAL by default (escalated review round 4, 2026-07-08): the
+                    # contract is 'sense inputs are tap-owned, NEVER FR-routed' -- a slid
+                    # seat at 8mm escaped the old 6mm radius and FR wired it to the force
+                    # net CROSS-FACE (caught by the sense-side gate). Distance is the TAP
+                    # synthesizer's quality concern (it refuses far ICs honestly), not the
+                    # exclusion's. A radius applies only when explicitly passed.
+                    if max_ic_mm is not None and d > max_ic_mm:
                         continue                              # too far to tap -> leave to FR (don't strand)
                 out.add(f"{r}-{p.GetPadName()}")
     return out
@@ -1431,7 +1437,7 @@ def _dogleg_candidates(S, T):
     return out
 
 
-def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=6.0,
+def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu", max_ic_mm=9.0,
                            clearance=0.2):
     """SYNTHESIZE the four-wire Kelvin sense TAP as real copper: a short thin F.Cu stub from each
     2-pad shunt's INNER edge (the sense point facing the other terminal) to each seated current-sense
@@ -1606,7 +1612,7 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
 
 
 def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.25,
-                         pad_clear=0.35, max_ic_mm=6.0):
+                         pad_clear=0.35, max_ic_mm=9.0):
     """Route-time F.Cu TAP-CHANNEL keepout -- the ENFORCE leg of "the inner-tap channel is CLEAR".
 
     The §6.8 four-wire Kelvin tap (:func:`synthesize_kelvin_taps`) is a straight F.Cu stub from each
