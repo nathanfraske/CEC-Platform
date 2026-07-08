@@ -1,5 +1,29 @@
 # Current work handoff
 
+## (G4) PLACEMENT CAMPAIGN — state at 2026-07-08 early AM (branch claude/pipeline-consolidation)
+OWNER PIVOT: "routing is absolutely not the issue... the placer pipeline is always the bottleneck."
+LANDED: placement-CRAFT gate terms in the oracle conjunction (calibrated on hand boards, teeth
+both ways): decoupler-adjacency <=7mm functional (old eps winner correctly fails -- C1 stranded
+62mm), USB/CAN pair skew <=4mm from routed copper, bodies-in-pours HARD gate (fresh-board domain;
+hand boards governed by pour-integrity instead). craft_gates=False pins the oracle-mechanics
+tests (fixture predates standard; re-freeze follow-up). cec_render: silk OFF everywhere + 3D
+bodies at any depth (KIPRJMOD rewrite; RELAYER never Remove -- segfault footgun). Wave 6
+(6 intents x 2 strats x 2 seeds): STRUCTURED INTENTS SWEEP TOP 4 -- sense-band-compact-s0 wins
+76 unconn @8 passes vs 78 @20 for generic (structure > effort, quantified), foreign 0 everywhere.
+EXPLORATORY WORKFLOW (4 dims, verified findings): FIX-NOW BUGS: (1) anchor-vs-anchor collision
+UNCHECKED (J1 courtyard swallows sense row + DETECT pin 0.4mm from U11 pads = pre-route short;
+legalizer only checks movable-vs-anchor; oracle path never runs the courtyard check); (2) anneal
+does NOT enforce region containment (pre-seed + post-clip only -- the anneal undoes intents).
+LEVERS TO BUILD: repeated-cell template primitive (hand 12vhpwr: 6 cells at EXACT 17.00mm pitch;
+fresh: 5VSB comparator 40.9mm away cross-face); near(X,Y)/face(dir) first-class intents;
+along-axis slide in kelvin seat (the INA238 LO-tap blocker); explicit F/B side pin; order() wired
+to j_in_pins (computed, never read); swap + rigid-group anneal moves. MAPPINGS UNUSED: corridor
+model not consulted at placement scoring; RUDY + unconnected-ratline heatmaps never fed back;
+thermal proxy excluded from weights. Divider-pair primitive + connector-local protection affinity
+(DETECT D1/R1 41-56mm vs hand 9-14mm). OPUS fundamentals leg running (haiku invented 'overpacking'
+-- owner rejected; tier policy updated in agent-cost-policy.md: threshold-producing legs = sonnet
+min, opus when gating). PROSE-FIRST discipline (owner flagged silent turns).
+
 ## (G+++) 24-PIN ESCALATED REVIEW — state at 2026-07-08 night (branch claude/pipeline-consolidation)
 ROLE (owner): I am the ESCALATOR TIER — pipeline halts get diagnosed + fixed by me. Wave 5 (24
 variants, ALL unconn 123-187) was the halt; a 30-agent diagnosis workflow (adversarially
