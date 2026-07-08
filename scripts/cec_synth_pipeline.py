@@ -4634,6 +4634,37 @@ def _oracle_env(params=None):
                 os.environ[k] = old
 
 
+def _load_pourplan_sidecar(board_path, rules):
+    """POUR LEVER (stage 3): load a <board>.pourplan.json sidecar for *board_path* if present AND
+    still valid for this placement + compile recipe, else None (the caller re-derives from_board).
+
+    A sidecar is trusted only when BOTH its board_sig (the placement pad signature) AND its recipe
+    (the CEC_POUR_LANES/CEC_SHUNT_GAP/... env the geometry was compiled under) match the current
+    board + env -- so a sidecar written under a different placement or a different recipe is ignored
+    (never silently applying stale/mismatched geometry). On a match the sidecar's SPECS are used
+    verbatim (identical to a fresh derive in stages 1-3; the carrier for a stage-4 router reshape),
+    with the live board + resolved rules attached for the non-lane keepout derivation."""
+    import cec_pourplan
+    side = board_path[:-len(".kicad_pcb")] + ".pourplan.json" if board_path.endswith(".kicad_pcb") \
+        else os.path.splitext(board_path)[0] + ".pourplan.json"
+    if not os.path.isfile(side):
+        return None
+    try:
+        with open(side) as f:
+            d = json.load(f)
+        fresh = cec_pourplan.PourPlan.from_board(board_path, kelvin_pairs=rules.kelvin_pairs,
+                                                 nets_12v=rules.nets_12v)
+        if (not d.get("board_sig") or d["board_sig"] != fresh.board_sig
+                or d.get("recipe") != cec_pourplan.PourPlan.recipe_from_env()):
+            return None                                      # stale placement/recipe -> re-derive
+        return cec_pourplan.PourPlan.from_dict(d, board_path=board_path, board=fresh._board,
+                                               kelvin_pairs=rules.kelvin_pairs,
+                                               nets_12v=rules.nets_12v)
+    except Exception as e:                                   # noqa: BLE001 -- any error -> re-derive
+        _tc.warn_once("pourplan_sidecar", "pourplan sidecar ignored (%s)" % e)
+        return None
+
+
 def _oracle_hints_pours(board_path):
     """Derive the gate-clean recipe's keepout HINTS + power POURS for a placement board, honouring the
     recipe env flags (CEC_TAP_CHANNEL_KEEPOUT / CEC_CORRIDOR_FCU_ONLY). Returns (hints, pours, rules).
@@ -4650,7 +4681,7 @@ def _oracle_hints_pours(board_path):
     import cec_fr
     import cec_pourplan
     rules = cec_score.Rules.from_board(board_path)
-    plan = cec_pourplan.PourPlan.from_board(
+    plan = _load_pourplan_sidecar(board_path, rules) or cec_pourplan.PourPlan.from_board(
         board_path, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
     hints = []
     if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
@@ -6190,6 +6221,22 @@ def materialize(cand, cfg, out, *, logo=None):
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):
             shutil.copy(s, out[:-len(".kicad_pcb")] + ext)
+    # POUR LEVER (stage 3, docs/pour-lever-scoping-2026-07-08.md): write the placement's PourPlan
+    # to a <board>.pourplan.json sidecar. Only board_path strings cross the materialize ->
+    # route_oracle_grade -> route_once -> spawn-worker boundary, so the plan (derived pours +
+    # folded pour() asks, and -- stage 4 -- any router reshape) must ride a sidecar to reach the
+    # route. Derived under the ACTIVE recipe env; _oracle_hints_pours re-validates the sidecar's
+    # board_sig + recipe before trusting it and re-derives otherwise, so this is purely additive
+    # (a board routed without a sidecar is byte-identical to today). Best-effort: never blocks the
+    # materialize on a serialization error.
+    try:
+        import cec_pourplan
+        _asks = tuple(cfg.params.get("pour_asks") or ())
+        _plan = cec_pourplan.PourPlan.from_board(out, asks=_asks)
+        with open(out[:-len(".kicad_pcb")] + ".pourplan.json", "w") as _f:
+            json.dump(_plan.to_dict(), _f, indent=1, sort_keys=True)
+    except Exception as _e:                                  # noqa: BLE001 -- sidecar is best-effort
+        _tc.warn_once("pourplan_write", "pourplan sidecar not written (%s)" % _e)
     return out
 
 
