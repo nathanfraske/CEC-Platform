@@ -37,6 +37,11 @@
   "buttons_near": "usb",
   "buttons_note": "owner 2026-07-08: BOOT/RESET together, accessible -- seated as a pair inboard of the USB connector",
   "signal_stub_note": "J_SIG1 = 1x4 (owner ruling closes study item 5, NO sense-return); collinear with the blade row, pad1 one field pitch beyond the last slot; pin order matches db J20: 1=-12V 2=PS_ON# 3=PWR_OK 4=GND",
-  "seed_size_note": "owner 2026-07-08: tone the size down -- seed 70x55 (floors: J3 ~63mm, blade row+stub ~59mm); shrink further once gate-clean"
+  "seed_size_note": "owner 2026-07-08: tone the size down -- seed 70x55 (floors: J3 ~63mm, blade row+stub ~59mm); shrink further once gate-clean",
+  "hub_jacks": [
+   "J1",
+   "J2"
+  ],
+  "hub_jacks_note": "owner 2026-07-08: TO-HUB-PWR (J2) next to the RJ-45 (J1); edge follows the PSU input -- J3 top -> jacks LEFT, J3 bottom -> jacks RIGHT"
  }
 }

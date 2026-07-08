@@ -3672,8 +3672,24 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
         _overhang = "power_able" if (_cable_topology(nl) or _shared_bus_topology(nl)) else "none"
     # MV2: a per-board edge map (oracle-derived or a spec line) overrides the generic role->edge
     # default so a multi-edge board (Hub: RJ-45 top, power-in right, USB bottom) frames correctly.
+    _eov = dict(cfg.params.get("edge_override") or {})
+    _hub_jacks = list(cfg.params.get("hub_jacks") or ())
+    if _hub_jacks:
+        # HUB-JACK EDGE COUPLING (owner 2026-07-08): the hub-facing jacks (RJ-45 + the
+        # TO-HUB-PWR feed) cluster TOGETHER on the edge tied to the PSU input's edge --
+        # input on top -> jacks left, input on bottom -> jacks right (case cable dressing).
+        _in_edge = "top"
+        for _r in fp_of:
+            _c = nl.comps.get(_r, Comp(_r))
+            if _role(_r, _c.value, _c.footprint, nl=nl) == "power_in":
+                _in_edge = str(_eov.get(_r, "top")).lower()
+                break
+        _jack_edge = {"top": "left", "bottom": "right"}.get(_in_edge)
+        if _jack_edge:
+            for _r in _hub_jacks:
+                _eov.setdefault(_r, _jack_edge)
     anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
-                           edge_override=cfg.params.get("edge_override"))
+                           edge_override=_eov or None)
     mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
     anchors.update(mech_pos)
     comps = dict(fp_of)
