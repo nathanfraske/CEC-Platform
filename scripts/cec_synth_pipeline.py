@@ -4585,6 +4585,81 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
     viol.sort(key=lambda v: -v[2])
     return {"ok": not viol, "violations": viol[:12]}
 
+def _oracle_kelvin_reach(placed_board_path, *, max_mm=9.0):
+    """PRE-ROUTE kelvin-reach gate (owner lever pass, 2026-07-08): every current-sense IC
+    input pad must sit within *max_mm* (the tap synthesizer's reach) of its pair's shunt
+    -- a placement that strands an INA past tap reach ALWAYS fails kelvin after routing,
+    so reject it BEFORE burning a 3-5 minute route. Board-only; N/A without pairs."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    pairs = cec_fr._board_kelvin_pairs(board)
+    if not pairs:
+        return {"ok": True, "violations": [], "note": "no kelvin pairs -- N/A"}
+    inp_pin = {"INA238": ("9", "10"), "INA228": ("9", "10"), "INA226": ("9", "10"),
+               "INA181": ("3", "4")}
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append((fp, p))
+    viol = []
+    n_checked = 0
+    for hi, lo in pairs:
+        sh = next((fp for fp, _p in pads_by_net.get(hi, [])
+                   if fp.GetReference().startswith("RS")
+                   and fp.GetReference() in {f.GetReference() for f, _q in pads_by_net.get(lo, [])}
+                   and fp.GetPadCount() == 2), None)
+        if sh is None:
+            continue
+        for net in (hi, lo):
+            for fp, p in pads_by_net.get(net, []):
+                val = (fp.GetValue() or "").upper()
+                want = next((v for k, v in inp_pin.items() if k in val), None)
+                if want is None or p.GetPadName() not in want:
+                    continue
+                n_checked += 1
+                d = min(math.hypot((p.GetPosition().x - q.GetPosition().x) / 1e6,
+                                   (p.GetPosition().y - q.GetPosition().y) / 1e6)
+                        for q in sh.Pads())
+                if d > max_mm:
+                    viol.append((fp.GetReference(), p.GetPadName(), net, round(d, 1)))
+    if n_checked == 0:
+        return {"ok": True, "violations": [], "note": "no sense inputs -- N/A"}
+    viol.sort(key=lambda v: -v[3])
+    return {"ok": not viol, "violations": viol[:10]}
+
+
+def _oracle_courtyard_overlaps(placed_board_path):
+    """HARD courtyard gate (owner lever pass, 2026-07-08): ANY courtyard overlap on the
+    placed board fails -- the class that let J1 crash the sense row was visible to DRC
+    but not gated in the oracle path. Uses the real kicad-cli DRC (never a model)."""
+    import json as _json
+    import subprocess
+    import tempfile
+    out = tempfile.mkstemp(suffix=".json")[1]
+    try:
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "-o", out,
+                        placed_board_path], capture_output=True, timeout=300)
+        d = _json.load(open(out))
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "violations": ["drc error: %s" % e]}
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+    viol = []
+    for v in d.get("violations", []):
+        if v.get("type") == "courtyards_overlap":
+            pair = "|".join(it.get("description", "")[:40] for it in v.get("items", []))
+            viol.append(pair)
+    return {"ok": not viol, "violations": viol[:10]}
+
+
 def _oracle_comparator_adjacency(placed_board_path, *, max_mm=8.0):
     """DETECTION-CELL gate term (opus fundamentals audit 2026-07-08, gate-worthy with a
     BIMODAL clean cut: seated cells measure 3.9-7.3mm, failures 30-48mm): each TLV7011
@@ -4842,6 +4917,16 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 pq = {"ok": False, "violations": ["checker error: %s" % e]}
             try:
+                kr = _oracle_kelvin_reach(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                kr = {"ok": False, "violations": ["checker error: %s" % e]}
+            kelvin_reach_ok = bool(kr.get("ok")) or not craft_gates
+            try:
+                cy = _oracle_courtyard_overlaps(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                cy = {"ok": False, "violations": ["checker error: %s" % e]}
+            courtyards_ok = bool(cy.get("ok")) or not craft_gates
+            try:
                 cq = _oracle_comparator_adjacency(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 cq = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -4851,7 +4936,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 
             gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
                         and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
-                        and comparator_ok)
+                        and comparator_ok and kelvin_reach_ok and courtyards_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -4881,12 +4966,14 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "decouple_ok": decouple_ok, "decouple": dq,
                 "bodies_in_pours_ok": bodies_ok, "bodies_in_pours": bq,
                 "comparator_ok": comparator_ok, "comparator": cq,
+                "kelvin_reach_ok": kelvin_reach_ok, "kelvin_reach": kr,
+                "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
-                                           sside=sside, dq=dq, pq=pq, bq=bq, cq=cq),
+                                           sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -4912,7 +4999,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
-                    cq=None):
+                    cq=None, kr=None, cy=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -4927,6 +5014,10 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not thermal_ok:
         r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
                  + (f" ({therm['error']})" if therm.get("error") else ""))
+    if kr is not None and not kr.get("ok"):
+        r.append(f"kelvin REACH violated pre-route (tap cannot connect): {kr.get('violations')[:4]}")
+    if cy is not None and not cy.get("ok"):
+        r.append(f"courtyard overlaps on the placed board: {cy.get('violations')[:4]}")
     if cq is not None and not cq.get("ok"):
         r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
     if bq is not None and not bq.get("ok"):
