@@ -111,6 +111,10 @@ loci into later candidates' hints (the "mappings feedback" backlog item).
 - **Intent-seat lifecycle formalization** — proposals currently steer the next wave only;
   fold their W/L record into the actuation-lever clean-evidence tally
   (docs/actuation-lever-design.md) so a repeatedly-winning proposal class can graduate.
+- **Pour lever** — make copper pours first-class MUTABLE actuation objects (a `PourPlan` the
+  placer asks for and the router rebuilds/notches on FR feedback), replacing today's one-shot
+  stateless post-route synthesis and killing the box-model duality debt as a side effect. SCOPED
+  (5-stage plan, DRAFT awaiting owner review): docs/pour-lever-scoping-2026-07-08.md.
 
 ## Decision log
 
