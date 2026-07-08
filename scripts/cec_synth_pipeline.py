@@ -3764,8 +3764,27 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                 by = min(max(uy + (k - (len(_sws) - 1) / 2.0) * 9.0, 6.0), H - 6.0)
                 anchors[sw] = (bx, by, 0.0)
                 _sw_seated.append(sw)
+    # LEVER 1 (opus fundamentals; landed ALONE per the ablation discipline): the CAN
+    # transceiver seats inboard of the link jack (hand boards: 15-17mm from the RJ45).
+    # Simple fixed offset toward board center; exempted from anneal AND from the mop-up
+    # eviction (the batch failure's lesson: deliberate seats must not be re-evicted).
+    _can_seated = []
+    _rj = next((r for r, role in anchors_roles.items()
+                if role == "host" and r in anchors and "rj45" in str(fp_of.get(r, "")).lower()),
+               None)
+    _can = next((r for r in ics if "TJA" in (nl.comps[r].value or "").upper()), None)
+    if _rj and _can and _can in comps:
+        rx, ry, _rr = anchors[_rj]
+        _rj_cy = _courtyard_info(comps[_rj], _rr)
+        _can_cy = _courtyard_info(comps[_can], 0.0)
+        _dxs = _rj_cy[2] + _can_cy[2] + 2.0
+        bx = rx + (_dxs if rx < W / 2.0 else -_dxs)
+        anchors[_can] = (min(max(bx, 4.0), W - 4.0) - _can_cy[0],
+                         min(max(ry, 5.0), H - 5.0) - _can_cy[1], 0.0)
+        _can_seated.append(_can)
     anneal_units = [r for r in (ics + free_shunts)
-                    if r != _esp and r not in seated_inas and r not in _sw_seated]
+                    if r != _esp and r not in seated_inas and r not in _sw_seated
+                    and r not in _can_seated]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
@@ -3916,7 +3935,9 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     for _ev_round in range(6):                               # iterate: legalize_pack isn't band/box-aware so it
         _evm = build_corridor_model(nl, P, comps, board_w=W)  # can push an evacuated body back -> re-evacuate;
         _evac = _evacuate_corridors(P, comps, _evm)           # the final round leaves centers OUT (no legalize
-        _pevac = (_evacuate_pours(P, comps, _pour_boxes, _pour_fixed, drop_antenna=drop_antenna)
+        _evac = [r for r in _evac if r not in _can_seated]    # deliberate seats are never evicted (lever 1)
+        _pevac = ([r for r in _evacuate_pours(P, comps, _pour_boxes, _pour_fixed,
+                                              drop_antenna=drop_antenna) if r not in _can_seated]
                   if _pour_boxes else [])                     # push-back) -- a center out of the box is enough
         _moved = list(dict.fromkeys(_evac + _pevac))          # for the pour to fill + the net to route around.
         if not _moved:
@@ -3930,7 +3951,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     # residual 0 without touching the seat. Confined to seated boards so non-cable placements are byte-
     # unchanged. A final POUR evac (no legalize) then guarantees no body the mop-up nudged sits in a box.
     if seated_inas:
-        _mop = [r for r in P if r in comps and r not in _pour_fixed]
+        _mop = [r for r in P if r in comps and r not in _pour_fixed and r not in _can_seated]
         _mop_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2],
                                                                     drop_antenna=drop_antenna))
                    for r in P if r in comps}
