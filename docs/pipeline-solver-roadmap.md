@@ -60,9 +60,11 @@ PROFILED (build/profile_placer.py, cProfile on the 24-pin synth): placement = ~3
 the wall. The hot spot is ONE function: `legalize_pack.cost()` = 92% of placement time
 (629k calls, 94M pure-Python abs() calls of AABB arithmetic; the anneal itself is 0.28s).
 Rungs, cheapest-first:
-1. **numpy-vectorize `legalize_pack.cost()`** (hours): the placed list as arrays, all-box
-   interpenetration per candidate position in one vectorized op — 10-50x on 92% of the
-   stage. Do this first; it also unlocks rung 2 for free.
+1. **numpy-vectorize `legalize_pack.cost()` — MEASURED 2026-07-08** (prototype
+   `scripts/cec_legalize_fast_proto.py`, record/replay bench on 38 REAL calls, 2 boards x
+   2 seeds): **12.3x on the 24-pin (3.27s -> 0.27s), 5.5-5.8x on eps, 100% output-identical**
+   (positions <1e-9, residuals equal — the argmin/first-zero semantics match sequential).
+   Integration queued post-wave-13 (code freeze).
 2. **cupy the same arrays** = GPU batch evaluation (the arrays are identical) — matters
    only at rung-3 scale.
 3. **Rust/CUDA placer = a SEARCH-SCALE lever, not a latency port**: thousands of parallel
@@ -71,6 +73,24 @@ Rungs, cheapest-first:
    finding). Justified only when the pipeline is placement-QUALITY-bound after the FR
    levers (REST reuse, pre-route screen) land. Exploratory; revisit when a wave's best is
    placement-limited rather than routing-limited.
+
+### Co-coordinating router (owner ask 2026-07-08: paths aware of each other; GPU?)
+
+**PROTOTYPED + MEASURED** (`scripts/cec_coord_router_proto.py`): PathFinder-style
+NEGOTIATED-CONGESTION global router — every net's cost includes every other net's
+present-sharing + history (the literal "each path aware of the other attempts" mechanism,
+VPR lineage). All-nets-simultaneous (N,H,W) wavefront relax; same code numpy/cupy.
+On the REAL wave-12 board (180 two-pin connections, 118x141 grid @0.5mm):
+**GPU 15.3s vs CPU 123.9s = 8.1x, identical results** — and the GPU time is still
+dominated by HOST-side per-iteration path recovery (sequential Python + device->host
+copies), so the recoverable ceiling is much higher. The owner's GPU instinct pays again
+(the thermal-solve precedent). NOT converged in 20 iters (residual overuse 1693) — the
+capacity model is naive (cap=1/cell; pad cells counted as overuse). NEXT: capacity ~2
+traces/0.5mm cell + pad-cell exclusion + GPU path recovery (batched greedy descent) +
+more iters; then OUTPUT = per-net corridors + congestion map compiled into FR bake_hints/
+keepouts (FR keeps detailed routing — this COORDINATES it, replacing nothing). Cheap
+sibling rung: wave-level coordination — aggregate completed variants' unrouted/congestion
+loci into later candidates' hints (the "mappings feedback" backlog item).
 
 ## Pipeline improvements — non-solver (same standing list)
 
