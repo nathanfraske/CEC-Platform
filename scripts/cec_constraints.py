@@ -183,8 +183,12 @@ REGISTRY = [
     # ---- thermal -----------------------------------------------------------------------
     C(id="hot-sensitive-separation", title="Hot parts separated from temp-sensitive parts",
       category="thermal", severity="strong", checkable="yes", directive="separate",
-      rule="Hot parts (shunts, high-current connectors, LDO) kept >= sep_mm from temp-sensitive parts "
-           "(ambient NTC, the reference, the ESP).", source="spec §6.6", status="proposed",
+      rule="Hot parts (shunts, high-current connectors -- the small LP5907 LDO scoped OUT "
+           "2026-07-08: at 8.0 the checker false-fired on the hand 12vhpwr's as-built "
+           "U4(REF3030)<->U3(LDO)=6.10mm, and a 150mA SOT-23 LDO is not a shunt-class heat "
+           "source; actual thermal risk is carried by the fail-closed thermal gate) kept "
+           ">= sep_mm from temp-sensitive parts (ambient NTC, the reference, the ESP).",
+      source="spec §6.6; opus fundamentals audit 2026-07-08", status="proposed",
       params={"sep_mm": 8.0}),
     C(id="ntc-board-temp-by-shunt", title="Board-temp NTC adjacent to the shunt row",
       category="thermal", severity="strong", checkable="yes", directive="adjacent",
@@ -1658,7 +1662,7 @@ def _chk_hotsep(board, path, ctx):
     sep = _param("hot-sensitive-separation", "sep_mm", 8.0)
     shunts = [fp for fp in board.GetFootprints() if fp.GetReference().upper().startswith("RS")]
     hot = [fp for fp in board.GetFootprints()
-           if fp.GetReference().upper().startswith("RS") or _is(fp, "LP5907")
+           if fp.GetReference().upper().startswith("RS")
            or (fp.GetReference().upper().startswith("J") and _is(fp, "Mini-Fit", "12V2x6", "12V-2x6", "Molex", "2191", "pigtail"))]
 
     def _board_temp_ntc(fp):

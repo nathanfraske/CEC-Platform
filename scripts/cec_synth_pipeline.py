@@ -4295,6 +4295,42 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
     viol.sort(key=lambda v: -v[2])
     return {"ok": not viol, "violations": viol[:12]}
 
+def _oracle_comparator_adjacency(placed_board_path, *, max_mm=8.0):
+    """DETECTION-CELL gate term (opus fundamentals audit 2026-07-08, gate-worthy with a
+    BIMODAL clean cut: seated cells measure 3.9-7.3mm, failures 30-48mm): each TLV7011
+    comparator must sit within *max_mm* pad-to-pad of the INA181 it shares a /DETAMP* net
+    with -- the sec6.13 transient cell is shunt->INA181->comparator and fragments on ~40%
+    of placer rails with zero DRC/gate visibility. N/A on boards without the cell."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    by_net = {}
+    for fp in board.GetFootprints():
+        val = (fp.GetValue() or "").upper()
+        kind = "cmp" if "TLV70" in val else ("ina" if "INA181" in val else None)
+        if not kind:
+            continue
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn and "DETAMP" in nn.upper():
+                by_net.setdefault(nn, {})[kind] = by_net.get(nn, {}).get(kind) or []
+                by_net[nn][kind].append((fp.GetReference(), p.GetPosition()))
+    viol = []
+    n_cells = 0
+    for net, kinds in by_net.items():
+        if "cmp" not in kinds or "ina" not in kinds:
+            continue
+        n_cells += 1
+        d = min(math.hypot((a.x - b.x) / 1e6, (a.y - b.y) / 1e6)
+                for _r1, a in kinds["cmp"] for _r2, b in kinds["ina"])
+        if d > max_mm:
+            viol.append((kinds["cmp"][0][0], kinds["ina"][0][0], net, round(d, 1)))
+    if n_cells == 0:
+        return {"ok": True, "violations": [], "note": "no detection cells -- N/A"}
+    return {"ok": not viol, "violations": viol[:8]}
+
+
 def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
     """HARD body-in-pour gate (owner 2026-07-08: 'NO TRACES OR PLACEMENTS IN POURS AT ALL
     EVER' -- the traces half is the existing foreign_on_pour 0/0 term; THIS is the
@@ -4512,11 +4548,17 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 pq = _oracle_pair_quality(routed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 pq = {"ok": False, "violations": ["checker error: %s" % e]}
+            try:
+                cq = _oracle_comparator_adjacency(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                cq = {"ok": False, "violations": ["checker error: %s" % e]}
+            comparator_ok = bool(cq.get("ok")) or not craft_gates
             decouple_ok = bool(dq.get("ok")) or not craft_gates
             pairs_ok = bool(pq.get("ok")) or not craft_gates
 
             gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
-                        and sense_side_ok and decouple_ok and pairs_ok and bodies_ok)
+                        and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
+                        and comparator_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -4545,12 +4587,13 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "sense_side_ok": sense_side_ok, "sense_side": sside,
                 "decouple_ok": decouple_ok, "decouple": dq,
                 "bodies_in_pours_ok": bodies_ok, "bodies_in_pours": bq,
+                "comparator_ok": comparator_ok, "comparator": cq,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
-                                           sside=sside, dq=dq, pq=pq, bq=bq),
+                                           sside=sside, dq=dq, pq=pq, bq=bq, cq=cq),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -4575,7 +4618,8 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
-                    routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None):
+                    routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
+                    cq=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -4590,6 +4634,8 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not thermal_ok:
         r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
                  + (f" ({therm['error']})" if therm.get("error") else ""))
+    if cq is not None and not cq.get("ok"):
+        r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
     if bq is not None and not bq.get("ok"):
         r.append(f"bodies IN pours (hard rule): {bq.get('violations')[:6]}")
     if dq is not None and not dq.get("ok"):
