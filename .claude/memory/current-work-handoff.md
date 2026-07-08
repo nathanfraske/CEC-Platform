@@ -1,5 +1,30 @@
 # Current work handoff
 
+## (G7) OWNER LEVER PASSES — 2026-07-08 evening (branch claude/pipeline-consolidation)
+STRICT-ZERO reached earlier (bodies-in-pours 0 x8 seeds, lane pours + fingers, no exemptions).
+WAVE 10 (full lane arch, code freeze): best 38 unconn (179->76->55->38), top-6 packed 38-41,
+foreign 0. OWNER LEVER PASS 1 (all teeth-verified, committed): gates kelvin-reach(9mm pre-route),
+courtyard-overlaps(hard DRC), circuit-completeness(island BFS + fill-on-demand; answers the
+owner's FEM question — the solve never checked connectivity), stranded-parts(22mm calibrated,
+SW/TP/DL access classes exempt); levers near()/order() intents (inert-unused), SWAP anneal move
+(rotate REMOVED — unsound for rot-0 cluster offsets), output-row CENTERING (margins 6.7/6.8),
+rigid BOOT/RESET pair (4.5mm), REPAIR_LADDER (6 rungs, pair-separation last). WAVE-10 KELVIN
+BLOCKER FIXED: seat INA-filter (rail-sided pairs swept in the mux; all 4 INA181s now 3.8mm,
+reach gate green). EXPLORATION ROUND 2 (3 lenses, opus/sonnet) verified findings:
+IMPLEMENTED: pour-family + DFM checkers wired ADVISORY (both mis-fire on controls — pour-present
+name-matches /DET12V; DFM counts 94 on shipped 12vhpwr; calibration owner-queued) + zone-
+connection override assert (gate-ready). TO IMPLEMENT (calibrated, high-value): (1) PIN-ESCAPE
+gate — 8-dir 0.3mm corridor probe, <=10-pad fps, hand boards 0.00% vs fresh 23% boxed (all the
+sense front-end); (2) COURTYARD-EDGE clearance via NATIVE DRU physical_clearance rule (bbox proxy
+false-flags rotated courtyards — the agent PROVED it); fresh has MCU at 0.025mm from edge; floor
+1.0mm, hand 12vhpwr tolerates 0.84 (calibration floor); (3) silk score/fp (hand 0.18-0.32 vs
+fresh 4.48); (4) facing-fraction metric (drives the backlogged face() lever; hand 29-36% vs fresh
+19%); (5) meander ratio + via budget score terms; (6) fiducial quality gate; (7) nearest-gap
+bimodality score + role-based variable keep-out lever. NEGATIVE CONTROLS (do NOT pursue):
+same-net span, alignment grids, rotation discipline — measured non-separating. BACKLOG STILL:
+repeated-cell template, ratline heatmap, corridor-at-scoring, thermal-proxy weight, F/B side +
+face() intents, rigid-group legalize. Wave 11 after the implement queue drains.
+
 ## (G6) LEVER LANDINGS — 2026-07-08 mid-AM (branch claude/pipeline-consolidation)
 ABLATION-DRIVEN, one at a time, multi-seed medians (scripts/cec_lever_eval.py, 8 placements):
 LEVER 1 COMMITTED: CAN transceiver seats at the link jack, exempt from anneal + ALL eviction
