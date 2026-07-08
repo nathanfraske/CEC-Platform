@@ -71,7 +71,14 @@ def _nm(v): return int(round(v * MM))
 # pour still overlaps the shunt pad's outer half -> high-current continuity, completed by the B.Cu
 # mirror + via field). The placer grows the board ~3mm taller (J_IN<->J_OUT) so the pours stay long.
 # General to the per-cable EPS/PCIe interposer family (any 2-pad straddle shunt).
-SHUNT_GAP_MM = 6.5
+def _shunt_gap_mm():
+    """Notch height (mm) between HI/LO pours at the shunt. Env-tunable per board
+    (CEC_SHUNT_GAP_MM; the 24-pin sets 16.0 -- the sense cell lives in the band).
+    Read per-call, never at import."""
+    return float(os.environ.get("CEC_SHUNT_GAP_MM", "6.5"))
+
+
+SHUNT_GAP_MM = 6.5   # legacy alias; live sites call _shunt_gap_mm()
 
 
 def _shunt_gap_on():
@@ -829,13 +836,16 @@ def _lane_width_mm(net):
         return 6.0
 
 
-def _cluster_lanes(cluster, shunt_pts, net, bbox, margin):
-    """L-LANE rectangles for one pin cluster (strict no-parts-in-pours architecture,
-    owner rule 2026-07-08): a pad-cover rect, a vertical lane toward the shunt row, a
-    horizontal jog to the shunt column when offset, and a shunt-pad cover. Replaces the
-    bbox blanket (audited: bbox pours covered 4068 of 4130mm^2 -- 98.5% of the board)."""
+def _cluster_lanes(cluster, shunt_pts, net, bbox, margin, *, gap_mm=None):
+    """L-LANE rectangles for one pin cluster (strict no-parts-in-pours architecture).
+    Geometry (2026-07-08 v2): pad cover -> vertical lane at the CLUSTER x down to just
+    OUTSIDE the notch band -> horizontal jog AT the band edge (never along the shunt row:
+    a row-level jog crossed neighbor shunts) -> a narrow FINGER (pad-width, NOTCH-EXEMPT)
+    descending to the shunt pad. The band keeps PARTS out; copper enters only as fingers
+    -- without them a wide band would sever the force path from every pour."""
     bx0, by0, bx1, by1 = bbox
     w = _lane_width_mm(net)
+    g = (gap_mm if gap_mm is not None else _shunt_gap_mm()) / 2.0
     xs = [p[0] for p in cluster]
     ys = [p[1] for p in cluster]
     ccx = sum(xs) / len(xs)
@@ -845,19 +855,25 @@ def _cluster_lanes(cluster, shunt_pts, net, bbox, margin):
         sx = sum(p[0] for p in shunt_pts) / len(shunt_pts)
         sy = sum(p[1] for p in shunt_pts) / len(shunt_pts)
         cy = sum(ys) / len(ys)
-        y_a, y_b = (max(ys), sy) if sy >= cy else (sy, min(ys))
-        rects.append((max(bx0, ccx - w / 2), max(by0, min(y_a, y_b)),
-                      min(bx1, ccx + w / 2), min(by1, max(y_a, y_b))))
+        from_above = cy <= sy
+        band_edge = (sy - g) if from_above else (sy + g)
+        # vertical lane: cluster -> band edge
+        vy0, vy1 = (min(ys), band_edge) if from_above else (band_edge, max(ys))
+        if vy1 - vy0 >= 0.8:
+            rects.append((max(bx0, ccx - w / 2), max(by0, vy0),
+                          min(bx1, ccx + w / 2), min(by1, vy1)))
+        # horizontal jog AT the band edge (outside the band)
         if abs(ccx - sx) > w / 2:
-            yj0 = sy - w / 2
-            rects.append((max(bx0, min(ccx, sx) - w / 2), max(by0, yj0),
-                          min(bx1, max(ccx, sx) + w / 2), min(by1, yj0 + w)))
-        sxs = [p[0] for p in shunt_pts]
-        sys_ = [p[1] for p in shunt_pts]
-        rects.append((max(bx0, min(sxs) - 1.0), max(by0, min(sys_) - 1.0),
-                      min(bx1, max(sxs) + 1.0), min(by1, max(sys_) + 1.0)))
-    return [r for r in rects if r[2] - r[0] >= 0.8 and r[3] - r[1] >= 0.8]
-
+            jy0 = band_edge - w if from_above else band_edge
+            rects.append((max(bx0, min(ccx, sx) - w / 2), max(by0, jy0),
+                          min(bx1, max(ccx, sx) + w / 2), min(by1, jy0 + w)))
+        # FINGER: notch-exempt descent from the band edge to the shunt pad (pad-width-ish)
+        fw = 3.2
+        p_near = min(shunt_pts, key=lambda q: abs(q[1] - band_edge))
+        fy0, fy1 = (band_edge, p_near[1] + 1.0) if from_above else (p_near[1] - 1.0, band_edge)
+        rects.append((max(bx0, sx - fw / 2), max(by0, min(fy0, fy1)),
+                      min(bx1, sx + fw / 2), min(by1, max(fy0, fy1))))
+    return [r for r in rects if r[2] - r[0] >= 0.8 and r[3] - r[1] >= 0.6]
 
 def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
                      inner_layer, *, margin=1.0, layer="F.Cu"):
@@ -923,14 +939,10 @@ def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
                 if _lanes_on and cluster:
                     for (lx0, ly0, lx1, ly1) in _cluster_lanes(cluster, shunt_pts, net,
                                                                (bx0, by0, bx1, by1), margin):
-                        if shunt_xy is not None:
-                            lx0, lx1, ly0, ly1 = _open_shunt_notch(
-                                (lx0, lx1, ly0, ly1), shunt_xy, SHUNT_GAP_MM,
-                                vertical=vertical)
-                        if lx1 - lx0 >= 0.8 and ly1 - ly0 >= 0.8:
-                            pours.append({"net": net, "layer": pair_layer,
-                                          "polygon": [(lx0, ly0), (lx1, ly0),
-                                                      (lx1, ly1), (lx0, ly1)]})
+                        # lanes carry their own band/finger geometry -- no notch re-clip
+                        pours.append({"net": net, "layer": pair_layer,
+                                      "polygon": [(lx0, ly0), (lx1, ly0),
+                                                  (lx1, ly1), (lx0, ly1)]})
                     continue
                 heavy = list(cluster) + shunt_pts
                 if not heavy:
@@ -940,7 +952,7 @@ def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
                 x0 = max(bx0, min(xs) - margin); x1 = min(bx1, max(xs) + margin)
                 y0 = max(by0, min(ys) - margin); y1 = min(by1, max(ys) + margin)
                 if shunt_xy is not None:          # open the un-poured notch at the shunt to SHUNT_GAP_MM
-                    x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, SHUNT_GAP_MM,
+                    x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, _shunt_gap_mm(),
                                                        vertical=vertical)
                 pours.append({"net": net, "layer": pair_layer,
                               "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
@@ -1188,8 +1200,8 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
         sx, sy = shunt[0]
         # notch edge = shunt centre +/- SHUNT_GAP_MM/2 when the widen is on (matching derive_power_pours
         # so the keepout never blocks the B.Cu overflow lane), else the historical clip AT the shunt pad.
-        clip_hi = (shunt_centre_y - SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
-        clip_lo = (shunt_centre_y + SHUNT_GAP_MM / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
+        clip_hi = (shunt_centre_y - _shunt_gap_mm() / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
+        clip_lo = (shunt_centre_y + _shunt_gap_mm() / 2.0) if (_shunt_gap_on() and shunt_centre_y is not None) else sy
         # PER-CLUSTER FAN-IN (escalated review 2026-07-08): one box per connector pin
         # x-cluster, each converging on the shunt column -- never one bbox over an
         # interleaved rail's whole pin spread (the 5V box spanned the board).

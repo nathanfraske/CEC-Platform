@@ -47,7 +47,7 @@ def main():
             out = f"build/lever-eval/{label}-{strat}-s{seed}.kicad_pcb"
             import os
             os.makedirs("build/lever-eval", exist_ok=True)
-            with csp._oracle_env():
+            with csp._oracle_env(P):
                 s.materialize(out)
             rows.append(measure(out))
     med = {k: round(statistics.median(r[k] for r in rows), 1) for k in rows[0]}

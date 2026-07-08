@@ -2933,10 +2933,13 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 # right-side blockers only matter if the row would reach them; the stub
                 # seat extends right, so leave headroom
             
-            k = 0
-            for c, n_lo in zip(shared, slots):
-                col = x0 + (k + (n_lo - 1) / 2.0) * pitch
-                k += n_lo
+            # WIDE SHUNT COLUMNS (strict rule): the sense cell needs pour-free ground
+            # around each shunt; shunts are NOT bound to the blade pitch (the LO lane
+            # fans shunt->blade), so columns spread to a cell pitch <= 16mm.
+            _wu = (W or 100)
+            _cell_pitch = min(16.0, max(pitch, (_wu - x0 - _stub_ext - pitch) / max(1, len(shared))))
+            for _ci, (c, n_lo) in enumerate(zip(shared, slots)):
+                col = x0 + (_ci + 0.5) * _cell_pitch
                 anchors[c["shunt"]] = (col, H / 2.0, 270.0)
                 seated.append(c["shunt"])
                 if c["j_out_blades"]:
@@ -4094,16 +4097,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     for _pref, (_own, _pad) in spec.items():
         if _own in _nets_of:
             _net_exempt.setdefault(_pref, set()).update(_nets_of[_own])
-    # kelvin-family widening: a chain part is at home in its whole pair family's boxes
-    _fam2 = {}
-    for _hi2, _lo2 in _kelvin_pairs(nl):
-        for _n2 in (_hi2, _lo2):
-            _fam2.setdefault(_n2, set()).update((_hi2, _lo2))
-    for _r2, _ex2 in _net_exempt.items():
-        _wide = set()
-        for _n2 in _ex2:
-            _wide |= _fam2.get(_n2, set())
-        _ex2 |= _wide
+    # STRICT (owner overrule): only a part's OWN nets exempt it from eviction.
     for _ev_round in range(6):                               # iterate: legalize_pack isn't band/box-aware so it
         _evm = build_corridor_model(nl, P, comps, board_w=W)  # can push an evacuated body back -> re-evacuate;
         _evac = _evacuate_corridors(P, comps, _evm)           # the final round leaves centers OUT (no legalize
@@ -4359,13 +4353,24 @@ _ORACLE_RECIPE_ENV = {
 
 
 @contextmanager
-def _oracle_env():
+def _oracle_env(params=None):
     """Apply the gate-clean route recipe to os.environ for the duration of a grade (setdefault, so a
     caller-set flag wins), then restore exactly. The FR worker subprocess (spawn) inherits the env at
-    launch; the in-process pour/foreign readers read it live -- both need it set across the whole grade."""
-    saved = {k: os.environ.get(k) for k in _ORACLE_RECIPE_ENV}
+    launch; the in-process pour/foreign readers read it live -- both need it set across the whole grade.
+    *params* may carry shunt_gap_mm -> CEC_SHUNT_GAP_MM and pour_lanes -> CEC_POUR_LANES
+    (the strict no-parts-in-pours architecture, per board)."""
+    extra = {}
+    if params:
+        if params.get("shunt_gap_mm"):
+            extra["CEC_SHUNT_GAP_MM"] = str(params["shunt_gap_mm"])
+        if params.get("pour_lanes"):
+            extra["CEC_POUR_LANES"] = "1"
+        if params.get("lane_w_json"):
+            extra["CEC_LANE_W_JSON"] = json.dumps(params["lane_w_json"])                 if not isinstance(params["lane_w_json"], str) else params["lane_w_json"]
+    merged = {**_ORACLE_RECIPE_ENV, **extra}
+    saved = {k: os.environ.get(k) for k in merged}
     try:
-        for k, v in _ORACLE_RECIPE_ENV.items():
+        for k, v in merged.items():
             os.environ.setdefault(k, v)
         yield
     finally:
@@ -4594,37 +4599,13 @@ def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
         ys = [q[1] for q in p["polygon"]]
         boxes.append((p["net"], p["layer"], min(xs) - margin, max(xs) + margin,
                       min(ys) - margin, max(ys) + margin))
-    # KELVIN-FAMILY exemption (2026-07-08, ported from the zone branch): at the 4.7mm
-    # shared-bus column pitch, rail N's chain parts GEOMETRICALLY sit inside rail N+/-1's
-    # fan box (measured: a constant 14 violations on every seed). Sense-row members are
-    # governed by pour-integrity/cross-section, exactly like the hand 12vhpwr's interleave;
-    # the boolean stays for true foreigners wandering in.
-    import cec_fr
-    fam = {}
-    for hi, lo in cec_fr._board_kelvin_pairs(board):
-        for n in (hi, lo):
-            fam.setdefault(n, set()).update((hi, lo))
-    fam_nets = set(fam)
-    chain_refs = set()
-    for fp in board.GetFootprints():
-        nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
-        if nets & fam_nets:
-            chain_refs.add(fp.GetReference())
-    hop_refs = set()
-    for fp in board.GetFootprints():
-        nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()} - {"GND"}
-        if not (nets & fam_nets):
-            for f2 in board.GetFootprints():
-                if f2.GetReference() in chain_refs and (
-                        nets & {q.GetNetname() for q in f2.Pads() if q.GetNetname()} - {"GND"}):
-                    hop_refs.add(fp.GetReference())
-                    break
+    # STRICT (owner overrule 2026-07-08, third statement of this rule): NO family
+    # exemption -- with LANE pours the chains live BETWEEN lanes / in the notch band,
+    # never inside pour copper.
     for fp in board.GetFootprints():
         ref = fp.GetReference() or ""
         if ref.startswith(("J", "TB", "H", "LOGO", "FID")):
             continue                                     # connectors/blades/mechanical: exempt
-        if ref in chain_refs or ref in hop_refs:
-            continue                                     # sense-row family: cross-section governs
         fp_nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
         side = "B.Cu" if fp.IsFlipped() else "F.Cu"
         c = fp.GetPosition()

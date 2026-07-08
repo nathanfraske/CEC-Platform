@@ -244,7 +244,7 @@ class PlacementSession:
         """Materialize + route-oracle grade -> the real post-route accept verdict (the selection
         key). Compiles + materializes UNDER the oracle recipe env so the placement geometry (e.g.
         the CEC_SHUNT_GAP board grow) matches what the route then expects."""
-        with csp._oracle_env():               # recipe env (CEC_SHUNT_GAP=1 etc.) for placement+route parity
+        with csp._oracle_env(self.cfg.params if self.cfg else None):               # recipe env (CEC_SHUNT_GAP=1 etc.) for placement+route parity
             tmp = out or tempfile.mkstemp(prefix="cec_sess_", suffix=".kicad_pcb")[1]
             board = self.materialize(tmp)
             res = csp.route_oracle_grade(board, cfg=self.cfg, route=True, keep=keep, **grade_kw)

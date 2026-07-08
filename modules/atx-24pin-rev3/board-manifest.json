@@ -44,6 +44,9 @@
   ],
   "hub_jacks_note": "owner 2026-07-08: TO-HUB-PWR (J2) next to the RJ-45 (J1); edge follows the PSU input -- J3 top -> jacks LEFT, J3 bottom -> jacks RIGHT",
   "inner_power_routing": true,
-  "inner_power_routing_note": "24-pin stackup exception (CLAUDE.md): In1 = GND plane, In2 = rail-routing layer (12V/5V/3V3/5VSB route around each other); cable boards keep both inners GND"
+  "inner_power_routing_note": "24-pin stackup exception (CLAUDE.md): In1 = GND plane, In2 = rail-routing layer (12V/5V/3V3/5VSB route around each other); cable boards keep both inners GND",
+  "shunt_gap_mm": 16.0,
+  "pour_lanes": true,
+  "pour_lanes_note": "owner strict no-parts-in-pours (stated 3x): current-sized L-lanes, chains between lanes/in the 16mm notch band; FEM verifies lane widths"
  }
 }
