@@ -42,7 +42,8 @@ def main():
             s.half("band", "y", 0.30, 0.72)
             s.half("core", "x", 0.58, 1.00)
             s.assign(s.cable_parts(), "band")
-            s.assign(s.peripheral_ics(), "core")
+            s.assign([r for r in s.peripheral_ics()
+                      if "TJA" not in (s.nl.comps[r].value or "").upper()], "core")
             out = f"build/lever-eval/{label}-{strat}-s{seed}.kicad_pcb"
             import os
             os.makedirs("build/lever-eval", exist_ok=True)

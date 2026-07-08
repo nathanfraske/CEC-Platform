@@ -3773,6 +3773,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                 if role == "host" and r in anchors and "rj45" in str(fp_of.get(r, "")).lower()),
                None)
     _can = next((r for r in ics if "TJA" in (nl.comps[r].value or "").upper()), None)
+    if _can and _can in _bounds:
+        _can = None                                   # EXPLICIT partition assignment WINS over
+                                                      # the seat bias (the intent API is the
+                                                      # actuator's lever; teeth test contract)
     if _rj and _can and _can in comps:
         rx, ry, _rr = anchors[_rj]
         _rj_cy = _courtyard_info(comps[_rj], _rr)
@@ -3961,6 +3965,31 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
         # leaves outboard pile-ups; a bare legalize pulls a cap back into a box). The seated INAs/
         # comparators/shunts/connectors are exempt (not in _mop), so their intentional graze is kept.
         _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4, bounds=_bounds)
+    # RIGID-CLUSTER RE-STAMP (trace-driven fix, 2026-07-08): the evac/mop rounds move a
+    # cluster's OWNER after its passives were stamped at the owner's OLD position (traced:
+    # U5 stamped at 57.4 -> evac'd to 9.5 -> mopped to 32.5 while R52/R53 stayed near 57-65
+    # -- THE decoupler/divider scatter mechanism; three ownership-side "fixes" were inert
+    # because ownership was never broken). Re-stamp every cluster at its owner's FINAL
+    # position, then settle only the re-stamped parts (owners never move here).
+    _restamped = []
+    for unit, offs in cluster_offsets.items():
+        if unit not in P:
+            continue
+        ux, uy, _ur = P[unit]
+        for pref, (dx, dy, pr) in offs.items():
+            if pref in P:
+                P[pref] = (ux + dx, uy + dy, pr)
+                _restamped.append(pref)
+    if _restamped:
+        _rs_cy = {r: (macro[r] if r in macro else _courtyard_info(comps[r], P[r][2]
+                                                                  if len(P[r]) > 2 else 0,
+                                                                  drop_antenna=drop_antenna))
+                  for r in P if r in comps}
+        if _pour_boxes:
+            _legalize_avoiding_pours(P, _restamped, _rs_cy, _pour_boxes, W, H, clr=0.4,
+                                     bounds=_bounds)
+        else:
+            legalize_pack(P, _restamped, _rs_cy, W, H, clr=0.4, bounds=_bounds)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced

@@ -170,14 +170,16 @@ def _intents_for(board):
         s.half("band", "y", 0.30, 0.72)
         s.half("core", "x", 0.58, 1.00)
         s.assign(s.cable_parts(), "band")
-        s.assign(s.peripheral_ics(), "core")
+        s.assign([r for r in s.peripheral_ics()
+                  if "TJA" not in (s.nl.comps[r].value or "").upper()], "core")
         return s
 
     def sense_band_tight(s):
         s.half("band", "y", 0.36, 0.66)
         s.half("core", "x", 0.62, 1.00)
         s.assign(s.cable_parts(), "band")
-        s.assign(s.peripheral_ics(), "core")
+        s.assign([r for r in s.peripheral_ics()
+                  if "TJA" not in (s.nl.comps[r].value or "").upper()], "core")
         return s
 
     def band_core_mid(s):
@@ -186,7 +188,8 @@ def _intents_for(board):
         s.half("band", "y", 0.32, 0.70)
         s.half("core", "x", 0.50, 0.85)
         s.assign(s.cable_parts(), "band")
-        s.assign(s.peripheral_ics(), "core")
+        s.assign([r for r in s.peripheral_ics()
+                  if "TJA" not in (s.nl.comps[r].value or "").upper()], "core")
         return s
 
     return base + [("sense-band", sense_band), ("sense-band-tight", sense_band_tight),
