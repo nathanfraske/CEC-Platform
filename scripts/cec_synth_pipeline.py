@@ -3860,6 +3860,30 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
             Ptmp = {unit: (0.0, 0.0, 0.0)}
             cec_pcb.auto_cluster(Ptmp, comps, {p: (unit, pad) for p, pad in members},
                                  drop_keepout=((unit,) if unit in drop_kc else ()))
+            # PAIR-AWARE pass (2026-07-08): divider/RC pairs (two 2-pad Rs sharing a 3-ref
+            # mid net with this unit) must sit ADJACENT within the cluster -- the fan
+            # otherwise puts them on opposite lobes (R52<->R53 measured 13-23mm inside
+            # U5's 12-part cluster; hand boards: ~2mm). Re-cluster once with member B
+            # pinned beside member A; the relaxation accommodates the rest.
+            _mnames = {p for p, _ in members}
+            _pins = {}
+            for _nn2, _mem2 in nl.nets.items():
+                _rr = sorted({r for r, _p in _mem2})
+                if len(_rr) == 3 and unit in _rr:
+                    _pr = [r for r in _rr if r in _mnames and r[:1] == "R"]
+                    if len(_pr) == 2 and all(r in Ptmp for r in _pr):
+                        _a, _b = _pr
+                        _acx, _acy, _ahw, _ahh = _courtyard_info(comps[_a], Ptmp[_a][2]
+                                                                 if len(Ptmp[_a]) > 2 else 0)
+                        _bcx, _bcy, _bhw, _bhh = _courtyard_info(comps[_b], 0)
+                        _pins[_a] = Ptmp[_a]          # pin BOTH: A re-relaxes otherwise
+                        _pins[_b] = (Ptmp[_a][0] + _acx + _ahw + _bhw + 0.4 - _bcx,
+                                     Ptmp[_a][1] + _acy - _bcy, 0.0)
+            if _pins:
+                Ptmp = {unit: (0.0, 0.0, 0.0)}
+                cec_pcb.auto_cluster(Ptmp, comps, {p: (unit, pad) for p, pad in members},
+                                     drop_keepout=((unit,) if unit in drop_kc else ()),
+                                     fixed_overrides=_pins)
             xs, ys = [], []
             for r in Ptmp:
                 x0, x1, y0, y1 = cec_pcb.courtyard_bbox(comps[r], *Ptmp[r],
