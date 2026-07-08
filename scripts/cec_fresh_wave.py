@@ -200,56 +200,107 @@ def _intents_for(board):
                    ("band-core-mid", band_core_mid)]
 
 
+def _board_params(board):
+    """The BOARD_PARAMS + board-manifest placement_directives merge (shared by the serial
+    and parallel candidate paths)."""
+    p = dict(BOARD_PARAMS.get(board) or {})
+    mf = os.path.join(ROOT, "modules", board, "board-manifest.json")
+    if os.path.isfile(mf):
+        try:
+            pd = (json.load(open(mf)) or {}).get("placement_directives") or {}
+            p.update({k: v for k, v in pd.items()
+                      if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
+        except Exception:                                  # noqa: BLE001
+            pass
+    return p
+
+
+def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root):
+    """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
+    it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
+    not fork-safe, the cec_fr.generate_batch precedent)."""
+    label = f"{iname}-{strat}-s{seed}"
+    t0 = time.monotonic()
+    _p = _board_params(board)
+    intent = dict(_intents_for(board))[iname]
+    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p)
+    intent(s)
+    out = os.path.join(work_root, board, f"{label}.kicad_pcb")
+    v = s.grade(out=out, keep=True,
+                passes=int(_p.get("wave_passes", passes)),
+                opt=int(_p.get("wave_opt", opt)),
+                fr_timeout=int(_p.get("wave_fr_timeout", 900)),
+                seed=seed,              # pin FR seed: wave-to-wave comparability
+                unconn_finish_tol=2,
+                # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a would-be
+                # gate-clean candidate (all other terms green) -- a published best
+                # always has a REAL solve behind it.
+                thermal="lazy")
+    v["label"] = label
+    v["placed"] = out
+    v["wall_s"] = round(time.monotonic() - t0, 1)
+    return v
+
+
+def _wave_workers():
+    """Candidate-level parallelism (profiling 2026-07-08: the wave was FULLY SERIAL while
+    FR -- 71-95% of each candidate -- is single-threaded; the routing container exposes 4
+    cores). Default: leave one core for the orchestrator/renders. CEC_WAVE_WORKERS=1
+    restores the serial wave (wave-to-wave comparability runs)."""
+    try:
+        return max(1, int(os.environ.get("CEC_WAVE_WORKERS", 0))) \
+            if os.environ.get("CEC_WAVE_WORKERS") else max(1, min(3, (os.cpu_count() or 4) - 1))
+    except ValueError:
+        return 1
+
+
 def run_board(board, seeds, passes, opt, out_root, work_root):
     W, H = BOARD_WH.get(board, (100.0, 44.0))
+    workers = _wave_workers()
     _wlog(f"wave started: {board}", tag="wave",
-          detail=f"{len(_intents_for(board))} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, passes {passes}/opt {opt}")
+          detail=f"{len(_intents_for(board))} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, "
+                 f"passes {passes}/opt {opt}, workers {workers}")
     os.makedirs(os.path.join(work_root, board), exist_ok=True)
     results = []
-    for iname, intent in _intents_for(board):
-        for strat in ("dataflow", "compact"):
-            for seed in seeds:
-                label = f"{iname}-{strat}-s{seed}"
-                t0 = time.monotonic()
+    _bp = _board_params(board)
+    variants = [(iname, strat, seed) for iname, _fn in _intents_for(board)
+                for strat in ("dataflow", "compact") for seed in seeds]
+
+    def _consume(v):
+        _was_best = (not results or
+                     tuple(v.get("sort_key") or (9,)) <
+                     min(tuple(r.get("sort_key") or (9,)) for r in results))
+        results.append(v)
+        _snapshot(board, v["label"], v, work_root, best=_was_best,
+                  dual=bool(_bp.get("dual_sided")))
+        print(f"[wave] {board} {v['label']}: gate={v.get('gate')} "
+              f"kelvin={v.get('kelvin_ok')} unconn={v.get('unconnected')} "
+              f"foreign={v.get('foreign',{}).get('tracks')}t "
+              f"dT={((v.get('thermal') or {}).get('dT'))} "
+              f"({v.get('wall_s')}s)", flush=True)
+
+    if workers <= 1:
+        for iname, strat, seed in variants:
+            try:
+                _consume(_grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root))
+            except Exception as e:                              # noqa: BLE001
+                print(f"[wave] {board} {iname}-{strat}-s{seed}: ERROR {type(e).__name__}: {e}",
+                      flush=True)
+    else:
+        import concurrent.futures as cf
+        import multiprocessing as mp
+        ctx = mp.get_context("spawn")                          # pcbnew is NOT fork-safe
+        with cf.ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as pool:
+            futs = {pool.submit(_grade_variant, board, W, H, iname, strat, seed,
+                                passes, opt, work_root): (iname, strat, seed)
+                    for iname, strat, seed in variants}
+            for fut in cf.as_completed(futs):
+                iname, strat, seed = futs[fut]
                 try:
-                    _p = dict(BOARD_PARAMS.get(board) or {})
-                    _mf = os.path.join(ROOT, "modules", board, "board-manifest.json")
-                    if os.path.isfile(_mf):
-                        try:
-                            _pd = (json.load(open(_mf)) or {}).get("placement_directives") or {}
-                            _p.update({k: v for k, v in _pd.items()
-                                       if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
-                        except Exception:                  # noqa: BLE001
-                            pass
-                    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p)
-                    intent(s)
-                    out = os.path.join(work_root, board, f"{label}.kicad_pcb")
-                    _bp = _p or {}
-                    v = s.grade(out=out, keep=True,
-                                passes=int(_bp.get("wave_passes", passes)),
-                                opt=int(_bp.get("wave_opt", opt)),
-                                fr_timeout=int(_bp.get("wave_fr_timeout", 900)),
-                                seed=seed,          # pin FR seed: wave-to-wave comparability
-                                unconn_finish_tol=2,
-                                # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a
-                                # would-be gate-clean candidate (all other terms green) --
-                                # a published best always has a REAL solve behind it.
-                                thermal="lazy")
-                    v["label"] = label
-                    v["placed"] = out
-                    _was_best = (not results or
-                                 tuple(v.get("sort_key") or (9,)) <
-                                 min(tuple(r.get("sort_key") or (9,)) for r in results))
-                    results.append(v)
-                    _snapshot(board, label, v, work_root, best=_was_best,
-                              dual=bool(_bp.get("dual_sided")))
-                    print(f"[wave] {board} {label}: gate={v.get('gate')} "
-                          f"kelvin={v.get('kelvin_ok')} unconn={v.get('unconnected')} "
-                          f"foreign={v.get('foreign',{}).get('tracks')}t "
-                          f"dT={((v.get('thermal') or {}).get('dT'))} "
-                          f"({round(time.monotonic()-t0,1)}s)", flush=True)
-                except Exception as e:                              # noqa: BLE001
-                    print(f"[wave] {board} {label}: ERROR {type(e).__name__}: {e}", flush=True)
+                    _consume(fut.result())
+                except Exception as e:                          # noqa: BLE001
+                    print(f"[wave] {board} {iname}-{strat}-s{seed}: ERROR "
+                          f"{type(e).__name__}: {e}", flush=True)
     if not results:
         return None
     results.sort(key=lambda v: tuple(v.get("sort_key") or (9,)))

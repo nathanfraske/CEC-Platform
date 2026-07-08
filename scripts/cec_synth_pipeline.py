@@ -5435,11 +5435,35 @@ def _oracle_pair_quality(routed_board_path, *, max_skew_mm=4.0):
 def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
     """The THERMAL gate term: the dashboard solve recipe (cec_thermal_overlay._solve_thermal -> the 2.5D
     cec_thermal2d field solver, with the per-board currents/stackup/cooling) -> dT <= gate_dt. FAIL-CLOSED:
-    a solver error is NOT a pass (the false-summit hazard is exactly a board that LOOKS routed but cooks)."""
+    a solver error is NOT a pass (the false-summit hazard is exactly a board that LOOKS routed but cooks).
+
+    MIRAGE GUARD (owner concern + MEASURED 2026-07-08, build/probe_thermal_repeat*.py): the solve is
+    NON-DETERMINISTIC on at least one fresh artifact -- back-to-back identical calls returned dT 119.5/
+    103.3/174.4 (GPU) and 0.0/20.8/20.9 (forced CPU); the pyamg ml.solve path returns its best iterate
+    with NO convergence flag. Two guards until the solver investigation closes (FOLLOWUPS): (a) dT<=0.05
+    on a powered board is physically impossible -> solver error, FAIL; (b) a would-be PASS must be
+    CONFIRMED by a second independent solve -- disagreement (>max(2C, 20%)) or a failing re-solve FAILS,
+    and the REPORTED dT is the worst of the two. A thermal-mirage pass now needs two lucky solves."""
     import cec_thermal_overlay as _tov
     res, _filled, label = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
     dT = float(res.max_T) - float(res.ambient)
-    return {"ok": (dT <= gate_dt), "max_T": round(float(res.max_T), 2),
+    if dT <= 0.05:
+        return {"ok": False, "max_T": round(float(res.max_T), 2),
+                "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
+                "gate_dt": gate_dt, "cooling": label,
+                "error": "solver returned dT~0 -- impossible for a powered board (broken solve)"}
+    if dT <= gate_dt:
+        res2, _f2, _l2 = _tov._solve_thermal(board_path, ambient=ambient, grid_mm=grid_mm)
+        dT2 = float(res2.max_T) - float(res2.ambient)
+        worst = max(dT, dT2)
+        if dT2 <= 0.05 or abs(dT2 - dT) > max(2.0, 0.2 * max(dT, dT2)) or worst > gate_dt:
+            return {"ok": False, "max_T": round(float(res.ambient) + worst, 2),
+                    "ambient": round(float(res.ambient), 2), "dT": round(worst, 2),
+                    "gate_dt": gate_dt, "cooling": label,
+                    "error": "UNSTABLE solve: dT %.2f vs %.2f on identical re-solve "
+                             "(pass requires two agreeing solves)" % (dT, dT2)}
+        dT = worst
+    return {"ok": (dT <= gate_dt), "max_T": round(float(res.ambient) + dT, 2),
             "ambient": round(float(res.ambient), 2), "dT": round(dT, 2),
             "gate_dt": gate_dt, "cooling": label}
 
@@ -5554,11 +5578,6 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001
                 rsan = {"ok": False, "violations": ["checker error: %s" % e]}
             try:
-                silk = _oracle_silk_score(routed)
-            except Exception as e:                            # noqa: BLE001
-                silk = {"ok": False, "score_per_fp": None,
-                        "violations": ["checker error: %s" % e]}
-            try:
                 facing = _oracle_facing_fraction(placed)
             except Exception as e:                            # noqa: BLE001
                 facing = {"ok": False, "facing_pct": None, "note": str(e)[:120]}
@@ -5624,6 +5643,9 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 therm = {"ok": False, "skipped": True, "max_T": None, "dT": None,
                          "gate_dt": gate_dt,
                          "note": "lazy skip: other gate terms already failed"}
+                # the SILK score (its own ~0.9s --severity-all DRC) only matters as the
+                # TIER-0 tie-break, unreachable for a failing candidate -- skip with it.
+                silk = {"ok": True, "score_per_fp": None, "skipped": True}
             else:
                 try:
                     therm = _oracle_thermal(routed, ambient=ambient, gate_dt=gate_dt,
@@ -5631,6 +5653,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 except Exception as e:                        # noqa: BLE001 -- FAIL-CLOSED
                     therm = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
                              "max_T": None, "dT": None, "gate_dt": gate_dt}
+                try:
+                    silk = _oracle_silk_score(routed)
+                except Exception as e:                        # noqa: BLE001
+                    silk = {"ok": False, "score_per_fp": None,
+                            "violations": ["checker error: %s" % e]}
             thermal_ok = bool(therm.get("ok"))
 
             gate = bool(others_ok and thermal_ok)
