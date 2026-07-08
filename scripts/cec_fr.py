@@ -425,8 +425,7 @@ def kelvin_sense_pins(board, *, kelvin_pairs=None, max_ic_mm=6.0) -> set:
     from collections import defaultdict
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     force_nets = {n for pr in kelvin_pairs for n in pr}
     pads_by_net = defaultdict(list)
     padcount = {}
@@ -493,8 +492,7 @@ def sensec_force_connector_pins(board, *, kelvin_pairs=None) -> set:
     from collections import defaultdict
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     force_nets = {n for pr in kelvin_pairs for n in pr}
     pads_by_net = defaultdict(list)
     padcount = {}
@@ -769,6 +767,49 @@ def add_power_pours(board, pours, *, fill: bool = False):
 # ---------------------------------------------------------------------------
 # derive_power_pours -- auto-find the high-current pour rectangles from geometry
 # ---------------------------------------------------------------------------
+def _board_kelvin_pairs(board):
+    """Kelvin pairs from a LOADED board: name pairs (_HI/_LO) UNIONED with shunt-straddle
+    pairs (any 2-pad RS* footprint's two nets -- the 24-pin's 5V/5VSB rails carry a POWER
+    net on one shunt side and are invisible to the name rule; same derivation as
+    cec_score.Rules.from_board, 2026-07-08). Orientation: name hint, else the side a known
+    sense IC's IN+ pad taps, else lexical."""
+    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
+    pairs = {}
+    for h in sorted(names):
+        if h.endswith("_HI") and (h[:-3] + "_LO") in names:
+            pairs[frozenset((h, h[:-3] + "_LO"))] = (h, h[:-3] + "_LO")
+    inp_pin = {"INA238": "10", "INA228": "10", "INA226": "10", "INA181": "3"}
+    ina_inp = set()
+    shunts = []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference() or ""
+        val = (fp.GetValue() or "").upper()
+        want = next((v for k, v in inp_pin.items() if k in val), None)
+        for p in fp.Pads():
+            if want is not None and p.GetPadName() == want and p.GetNetname():
+                ina_inp.add(p.GetNetname())
+        if ref.startswith("RS") and fp.GetPadCount() == 2:
+            nets = sorted({p.GetNetname() for p in fp.Pads() if p.GetNetname()})
+            if len(nets) == 2:
+                shunts.append(tuple(nets))
+    for na, nb in shunts:
+        key = frozenset((na, nb))
+        if key in pairs:
+            continue
+        if na.endswith("_HI") or nb.endswith("_LO"):
+            hi, lo = na, nb
+        elif nb.endswith("_HI") or na.endswith("_LO"):
+            hi, lo = nb, na
+        elif na in ina_inp:
+            hi, lo = na, nb
+        elif nb in ina_inp:
+            hi, lo = nb, na
+        else:
+            hi, lo = na, nb
+        pairs[key] = (hi, lo)
+    return sorted(pairs.values())
+
+
 def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: float = 0.4,
                        layer: str = "F.Cu", kelvin_pairs=None, board=None) -> list:
     """Auto-derive additive high-current pour rectangles for an interposer board.
@@ -794,8 +835,7 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
 
     bb = board.GetBoardEdgesBoundingBox()
     bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
@@ -803,8 +843,10 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
 
     pads_by_net = defaultdict(list)
     padcount = defaultdict(int)
+    flipped = {}
     for fp in board.GetFootprints():
         ref = fp.GetReference()
+        flipped[ref] = fp.IsFlipped()
         for p in fp.Pads():
             padcount[ref] += 1
             nn = p.GetNetname()
@@ -820,6 +862,12 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
         # the 2-pad test excludes it -- otherwise its small sense pads would inflate the
         # bbox and make the HI box (cable->shunt) overlap the LO box (shunt->cable).
         shunt_refs = {ref for ref in (refs_hi & refs_lo) if padcount.get(ref, 0) == 2}
+        # PER-SIDE (dual-sided, 2026-07-08): a back-side rail's pours go on B.Cu, keyed off
+        # the shunt's face (THT connector/blade barrels reach both faces, so a B pour
+        # connects them identically).
+        pair_layer = layer
+        if shunt_refs and flipped.get(sorted(shunt_refs)[0]):
+            pair_layer = "B.Cu"
         # shunt centre + corridor axis (for the SHUNT_GAP_MM notch): the two pads of the 2-pad shunt
         # on this pair's HI/LO nets. Vertical corridor (EPS/PCIe top->bottom) if the pads differ more
         # in y than x. None when there is no qualifying 2-pad shunt -> the notch is a no-op (the box
@@ -852,7 +900,7 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
             if shunt_xy is not None:              # open the un-poured notch at the shunt to SHUNT_GAP_MM
                 x0, x1, y0, y1 = _open_shunt_notch((x0, x1, y0, y1), shunt_xy, SHUNT_GAP_MM,
                                                    vertical=vertical)
-            pours.append({"net": net, "layer": layer,
+            pours.append({"net": net, "layer": pair_layer,
                           "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
     return pours
 
@@ -884,8 +932,7 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
     board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     if nets_12v is None:
         try:
             import cec_score
@@ -1052,8 +1099,7 @@ def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, k
     board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     pads_by_net = defaultdict(list)
     padcount = defaultdict(int)
     all_pads = []                          # (x, y, half_extent_mm) -- every pad, for the keepout
@@ -1317,8 +1363,7 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
     from collections import defaultdict
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     force_nets = {n for pr in kelvin_pairs for n in pr}
     # all _HI/_LO Kelvin codes -- foreign-copper guard treats none of these as foreign (the partner
     # sense leg is legitimately adjacent; a real HI<->LO short is caught by DRC + the hardened gate).
@@ -1348,6 +1393,10 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
         if not shunt_refs:
             continue
         sh = sorted(shunt_refs)[0]
+        # PER-SIDE (dual-sided boards, 2026-07-08): a back-side rail chain's taps lay on
+        # B.Cu -- keyed off the SHUNT footprint's face (the chain shares it by invariant).
+        sh_fp = next((f for r, _p, f in pads_by_net.get(hi, []) if r == sh), None)
+        lay_id = board.GetLayerID("B.Cu") if (sh_fp is not None and sh_fp.IsFlipped()) else f_cu
         sh_pad = {}
         for net in (hi, lo):
             for r, p, _fp in pads_by_net.get(net, []):
@@ -1393,8 +1442,8 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                 T = p.GetPosition()
                 lbl = "%s->%s.%s" % (sh, r, p.GetPadName())
                 # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
-                if _tap_foreign_clear(board, S, T, _nm(width), f_cu, clr_nm, sense_codes):
-                    pending.append(([S, T], nc, net, lbl))
+                if _tap_foreign_clear(board, S, T, _nm(width), lay_id, clr_nm, sense_codes):
+                    pending.append(([S, T], nc, net, lbl, lay_id))
                     continue
                 # BENT-TAP FALLBACK (the ina238-lo-tap-refusal fix, 2026-07-07): the INA238's
                 # IN-(pad 9) sits mid-column with GND(7)/SDA(6) below it, so the straight stub
@@ -1407,15 +1456,15 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                 for path in _dogleg_candidates(S, T):
                     legs = list(zip(path, path[1:]))
                     if all(a != b for a, b in legs) and \
-                       all(_tap_foreign_clear(board, a, b, _nm(width), f_cu, clr_nm,
+                       all(_tap_foreign_clear(board, a, b, _nm(width), lay_id, clr_nm,
                                               sense_codes) and
-                           _tap_pair_overlap_clear(board, a, b, _nm(width), f_cu, nc,
+                           _tap_pair_overlap_clear(board, a, b, _nm(width), lay_id, nc,
                                                    sense_codes)
                            for a, b in legs):
                         bent = path
                         break
                 if bent is not None:
-                    pending.append((bent, nc, net, lbl + " (bent)"))
+                    pending.append((bent, nc, net, lbl + " (bent)", lay_id))
                 else:
                     refused.setdefault(net, []).append(lbl)
             # VBUS BRIDGE: the INA238/228 ties Vbus (pad 8) to the SAME LO net as IN- (pad 9),
@@ -1432,17 +1481,17 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
                     if vb is None:
                         continue
                     A, B = p.GetPosition(), vb.GetPosition()
-                    if _tap_pair_overlap_clear(board, A, B, _nm(width), f_cu, nc, sense_codes):
+                    if _tap_pair_overlap_clear(board, A, B, _nm(width), lay_id, nc, sense_codes):
                         pending.append(([A, B], nc, net,
-                                        "%s.9->%s.8 (vbus bridge)" % (r, r)))
+                                        "%s.9->%s.8 (vbus bridge)" % (r, r), lay_id))
     # lay the guarded taps (after all decisions, so the guard never saw an in-call tap)
-    for path, nc, net, lbl in pending:
+    for path, nc, net, lbl, p_lay in pending:
         for A, B in zip(path, path[1:]):
             t = pcbnew.PCB_TRACK(board)
             t.SetStart(A)
             t.SetEnd(B)
             t.SetWidth(_nm(width))
-            t.SetLayer(f_cu)
+            t.SetLayer(p_lay)
             t.SetNetCode(nc)
             board.Add(t)
             laid.append(t)
@@ -1477,8 +1526,7 @@ def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.
     board = board if board is not None else pcbnew.LoadBoard(board_path)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     force_nets = {n for pr in kelvin_pairs for n in pr}
     from collections import defaultdict
     pads_by_net = defaultdict(list)
@@ -1534,6 +1582,8 @@ def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.
         if not shunt_refs:
             continue
         sh = sorted(shunt_refs)[0]
+        # PER-SIDE (dual-sided): a back-side chain's tap channel reserves B.Cu, not F.Cu
+        sh_fp2 = next((f for r, _p, f in pads_by_net.get(hi, []) if r == sh), None)
         sh_pad = {}
         for net in (hi, lo):
             for r, p, _fp in pads_by_net.get(net, []):
@@ -1564,7 +1614,9 @@ def tap_channel_keepouts(board_path, *, kelvin_pairs=None, board=None, margin=0.
                 x0, y0, x1, y1 = clipped
                 hints.append({"name": f"tap_{sh}_{r}", "x0": round(x0, 2), "y0": round(y0, 2),
                               "x1": round(x1, 2), "y1": round(y1, 2),
-                              "layers": ("F.Cu",), "allow_vias": False, "block_fills": False})
+                              "layers": (("B.Cu",) if (sh_fp2 is not None and sh_fp2.IsFlipped())
+                                          else ("F.Cu",)),
+                              "allow_vias": False, "block_fills": False})
     return hints
 
 
@@ -1866,8 +1918,7 @@ def synthesize_power_copper(board_path, out_path, *, pour_layers=("F.Cu", "B.Cu"
             shutil.copy2(s, out_path[:-len(".kicad_pcb")] + ext)
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
-        kelvin_pairs = [(h, h[:-3] + "_LO") for h in sorted(names)
-                        if h.endswith("_HI") and (h[:-3] + "_LO") in names]
+        kelvin_pairs = _board_kelvin_pairs(board)
     force_nets = {n for pr in kelvin_pairs for n in pr}
 
     # Which pour layers each force net ALREADY carries (the router's pour-after-route lays a single F.Cu
