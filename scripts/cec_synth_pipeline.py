@@ -3710,6 +3710,35 @@ def hub_score(model, P, W, H):
     return out
 
 
+def _park_near(target_xy, t_cy, p_cy, pour_boxes, W, H, *, gap=0.6):
+    """Nearest lane-free slot adjacent to *target* (right/left/below/above at combined
+    extents); None when nothing clears. With LANE pours the boxes are thin, so a clear
+    slot almost always exists beside the owner -- the earlier inert result came from
+    zero/blanket boxes, not this logic."""
+    tx, ty = target_xy
+    tcx, tcy, thw, thh = t_cy
+    ccx, ccy, chw, chh = p_cy
+    cands = [
+        (tx + tcx + thw + chw + gap - ccx, ty + tcy - ccy),
+        (tx + tcx - thw - chw - gap - ccx, ty + tcy - ccy),
+        (tx + tcx - ccx, ty + tcy + thh + chh + gap - ccy),
+        (tx + tcx - ccx, ty + tcy - thh - chh - gap - ccy),
+    ]
+    def _clear(x, y):
+        bx0, bx1 = x + ccx - chw, x + ccx + chw
+        by0, by1 = y + ccy - chh, y + ccy + chh
+        if bx0 < 0.5 or bx1 > W - 0.5 or by0 < 0.5 or by1 > H - 0.5:
+            return False
+        for _net, px0, px1, py0, py1 in (pour_boxes or ()):
+            if not (bx1 <= px0 or bx0 >= px1 or by1 <= py0 or by0 >= py1):
+                return False
+        return True
+    for x, y in cands:
+        if _clear(x, y):
+            return (x, y)
+    return None
+
+
 def _seat_antenna_ic(ics, comps, W, H, antenna_edge, *, drop_antenna=False, margin=1.8):
     """Seat the PCB-antenna IC against its antenna EDGE as a fixed anchor, returning (ref,(x,y,rot))
     or (None,None). An RF/ESP module is EDGE-CONSTRAINED (its lobe must radiate off a board edge --
@@ -4129,6 +4158,37 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
         # every pour -- clearance + residual in ONE pass, no evac-vs-legalize oscillation (the bare evac
         # leaves outboard pile-ups; a bare legalize pulls a cap back into a box). The seated INAs/
         # comparators/shunts/connectors are exempt (not in _mop), so their intentional graze is kept.
+        # DECOUPLER RE-SEAT (retry under LANES, 2026-07-08): any rail cap whose center is
+        # >8mm from every working part on its rail parks at the nearest LANE-FREE slot
+        # beside the nearest one (the earlier inert result came from zero/blanket boxes).
+        _tgt = defaultdict(list)
+        _railcap = {}
+        for _nn, _mem in nl.nets.items():
+            if not _nn.startswith("+"):
+                continue
+            for _r, _p in _mem:
+                if _r[:1] == "C" and _ref_padcount(nl, _r) == 2:
+                    _on = {n for n, mm in nl.nets.items() for rr, _pp in mm if rr == _r}
+                    if "GND" in _on:
+                        _railcap[_r] = _nn
+                elif _r[:1] in ("U", "D", "J", "Q") or _r.startswith(("TB", "SW", "FB")):
+                    _tgt[_nn].append(_r)
+        for _c2, _rail2 in _railcap.items():
+            if _c2 not in P:
+                continue
+            _cands2 = [r for r in _tgt.get(_rail2, []) if r in P]
+            if not _cands2:
+                continue
+            _dmin2, _near2 = min((math.hypot(P[_c2][0] - P[r][0], P[_c2][1] - P[r][1]), r)
+                                 for r in _cands2)
+            if _dmin2 <= 8.0 or _near2 not in comps:
+                continue
+            _tc = _mop_cy.get(_near2) or _courtyard_info(comps[_near2],
+                                                         P[_near2][2] if len(P[_near2]) > 2 else 0)
+            _cc = _mop_cy.get(_c2) or _courtyard_info(comps[_c2], 0)
+            _sp = _park_near((P[_near2][0], P[_near2][1]), _tc, _cc, _pour_boxes, W, H)
+            if _sp is not None:
+                P[_c2] = (_sp[0], _sp[1], 0.0)
         _legalize_avoiding_pours(P, _mop, _mop_cy, _pour_boxes, W, H, clr=0.4, bounds=_bounds)
     # RIGID-CLUSTER RE-STAMP (trace-driven fix, 2026-07-08): the evac/mop rounds move a
     # cluster's OWNER after its passives were stamped at the owner's OLD position (traced:

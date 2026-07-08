@@ -1150,6 +1150,20 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
                 pads_by_net.setdefault(nn, []).append(p)
 
     hints = []
+    if os.environ.get("CEC_POUR_LANES", "0") == "1":
+        # LANE MODE unification (2026-07-08): the route-time keepouts are EXACTLY the lane
+        # pour shapes -- the old cluster-fan boxes would starve routing over regions the
+        # pours no longer occupy. Same geometry source as the gate and the settle.
+        for i, p in enumerate(derive_power_pours(board_path, board=board,
+                                                 kelvin_pairs=kelvin_pairs)):
+            xs = [q[0] for q in p["polygon"]]
+            ys = [q[1] for q in p["polygon"]]
+            lay = ("B.Cu",) if (p["layer"] == "B.Cu" and tuple(layers) == ("F.Cu",))                 else ((p["layer"],) if tuple(layers) == ("F.Cu",) else tuple(layers))
+            hints.append({"name": f"corr_{p['net'].strip('/')}_{i}",
+                          "x0": round(min(xs), 2), "y0": round(min(ys), 2),
+                          "x1": round(max(xs), 2), "y1": round(max(ys), 2),
+                          "layers": lay, "allow_vias": True, "block_fills": False})
+        return hints
     for net in sorted(force_nets):
         entries = pads_by_net.get(net, [])
         tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries
