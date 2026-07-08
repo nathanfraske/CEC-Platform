@@ -29,3 +29,9 @@ the existing harnesses (scripts/cec_judge_local.py, cec_v4_task.py) — a panel 
 only when the leg needs tool use / file access / agentic loops the local seats can't do:
 then `haiku` default, `sonnet` for judgment-heavy legs, fable/inherit ONLY when truly
 needed (exception-with-a-reason).
+
+**Tier-quality caveat (owner 2026-07-08):** haiku INVENTS on open-ended measurement/
+calibration legs (fabricated an "overpacking" concern from hand-board analysis). Legs whose
+output becomes a THRESHOLD or design principle run at sonnet minimum, opus when they gate;
+haiku stays for mechanical extraction/verify with narrow rubrics. When a cheap leg's finding
+drives a decision, re-derive it at a higher tier first ("grain of salt" rule).
