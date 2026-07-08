@@ -71,7 +71,10 @@ BOARD_PARAMS = {
                        # receptacle swap -- its 4.29mm courtyard cannot pack at 4.2. Use the
                        # eps-proven 4.7 contiguous; the DRAFT daughterboard re-pitches to
                        # match (owner-queued 2026-07-08).
-                       "blade_pitch": 4.7, "blade_group_gap": 4.7},
+                       "blade_pitch": 4.7, "blade_group_gap": 4.7,
+                       # 96-part dual-sided board: FR pass time ~16-21s (measured); the eps
+                       # effort (16/20) blows the 600s budget. 8/10 completes in ~2-4 min.
+                       "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
 }
 
 
@@ -119,7 +122,11 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                     s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p)
                     intent(s)
                     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
-                    v = s.grade(out=out, keep=True, passes=passes, opt=opt,
+                    _bp = _p or {}
+                    v = s.grade(out=out, keep=True,
+                                passes=int(_bp.get("wave_passes", passes)),
+                                opt=int(_bp.get("wave_opt", opt)),
+                                fr_timeout=int(_bp.get("wave_fr_timeout", 900)),
                                 unconn_finish_tol=2)
                     v["label"] = label
                     v["placed"] = out

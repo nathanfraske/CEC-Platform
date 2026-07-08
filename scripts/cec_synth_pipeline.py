@@ -4160,7 +4160,7 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
 
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
                        gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
-                       route=True, work_dir=None, keep=False, verbose=False):
+                       route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600):
     """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
     post-route ACCEPT CONJUNCTION. This REPLACES the cheap placement_proxy as the selection key.
 
@@ -4208,7 +4208,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 hints, pours, rules = _oracle_hints_pours(placed)
                 routed = os.path.join(work_dir, "routed.kicad_pcb")
                 cand = cec_fr.route_once(placed, routed, hints=hints, power_pours=pours,
-                                         passes=passes, opt_time=opt, seed=seed)
+                                         passes=passes, opt_time=opt, seed=seed,
+                                         timeout=int(fr_timeout))
                 if not cand.ok:
                     return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
                                              error=f"route failed: {cand.err}")
