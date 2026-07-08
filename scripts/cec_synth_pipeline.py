@@ -2287,13 +2287,18 @@ def _ov_area(A, B, clr=0.0):
 
 
 def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, alpha=0.04,
-                  clr=0.4, t0=8.0, cool=0.9985, veto=None):
+                  clr=0.4, t0=8.0, cool=0.9985, veto=None, role_clr=None):
     """Simulated annealing on the MACRO-BLOCK positions (IC clusters + shunts; anchors fixed) to
     ESCAPE the greedy legalizer's local minimum. Objective = courtyard overlap AREA (heavily) +
     alpha*HPWL to connected parts (stay routable). Being STOCHASTIC, different *seed*s settle into
     different minima -- THAT spread is what makes a huge best-of-N sweep pay off (a deterministic
     placer just yields identical candidates). *veto(ref,(x,y))->bool* (Phase 2) HARD-rejects a move
     that puts a body in a forbidden region (a foreign high-current corridor), independent of T.
+    *role_clr* (round-2 item 7b, 2026-07-08): optional {ref: radius_mm} -- a pairwise interaction
+    takes max(clr, role_clr[r], role_clr[o]), a SOFT per-role keep-out (a COST term the anneal can
+    climb out of, deliberately NOT a veto -- the parked fix-B lesson: a veto without a repair path
+    freezes bad states). None (default) = byte-identical to the pre-lever anneal; ACTIVATION is
+    gated on the fixed-seed ablation protocol (cec_lever_eval), per the one-lever-at-a-time rule.
     Mutates P in place; returns P."""
     rnd = random.Random(seed)
     mv = [r for r in movable if r in cyinfo and r in P]
@@ -2306,12 +2311,17 @@ def anneal_macros(P, cyinfo, movable, W, H, *, nbrs=None, iters=2500, seed=0, al
         x, y = P[r][0], P[r][1]
         return (x + cx - hw, x + cx + hw, y + cy - hh, y + cy + hh)
 
+    def _pair_clr(a, b):
+        if not role_clr:
+            return clr
+        return max(clr, role_clr.get(a, 0.0), role_clr.get(b, 0.0))
+
     def cost(r):
         ar = bbox(r)
         c = 0.0
         for o in placed:
             if o != r:
-                c += _ov_area(ar, bbox(o), clr)
+                c += _ov_area(ar, bbox(o), _pair_clr(r, o))
         if nbrs:
             for n in sorted(nbrs.get(r, ())):           # sorted: deterministic across processes
                 if n in P:
@@ -4118,7 +4128,25 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                     nccx = min(x1 - hw, max(x0 + hw, ccx)) if x1 - hw >= x0 + hw else (x0 + x1) / 2
                     nccy = min(y1 - hh, max(y0 + hh, ccy)) if y1 - hh >= y0 + hh else (y0 + y1) / 2
                     P[r] = (nccx - cx, nccy - cy, rot)
-    anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto)
+    # ROLE-BASED VARIABLE KEEP-OUT lever (round-2 item 7b, 2026-07-08): params
+    # 'role_keepouts' = {role: radius_mm} (roles from _role: host/usb/power_in/power_out/
+    # mount, plus 'ic' for U*/Q* refs) -> per-ref soft radii in the anneal cost. Hand
+    # boards vary clearance BY ROLE (probe forensics: functional pairs near 0, sense
+    # corridors ~3.5, independent blocks 1.0-2.0mm+) where the synth placer packs one
+    # uniform band. INERT unless set (default anneal byte-identical); activation goes
+    # through the fixed-seed ablation protocol (cec_lever_eval), one lever at a time.
+    _rk = dict(cfg.params.get("role_keepouts") or {})
+    _role_clr = None
+    if _rk:
+        _role_clr = {}
+        for r in P:
+            c_ = nl.comps.get(r, Comp(r))
+            rl = _role(r, c_.value, c_.footprint, nl=nl) \
+                or ("ic" if r[:1] in ("U", "Q") else None)
+            if rl in _rk:
+                _role_clr[r] = float(_rk[rl])
+    anneal_macros(P, cyinfo_all, anneal_units, W, H, nbrs=_adjacency(nl), seed=seed, veto=_veto,
+                  role_clr=_role_clr)
     legalize_pack(P, [r for r in anneal_units if r in P], cyinfo_all, W, H, clr=0.4, bounds=_bounds)
     # 4. stamp each cluster's passives relative to its placed unit (rigid macro)
     for unit, offs in cluster_offsets.items():
@@ -4864,6 +4892,89 @@ def _oracle_fiducials(placed_board_path, *, min_count=3, min_clear_mm=1.5,
     return {"ok": not viol, "count": len(fids), "violations": viol[:8]}
 
 
+def _oracle_gap_profile(placed_board_path):
+    """NEAREST-GAP profile advisory (exploration round 2 item 7a, 2026-07-08): per-part
+    nearest-neighbor courtyard gap -- TRUE polygon-to-polygon distance on the real
+    courtyard outline, SAME-SIDE pairs only (the round-2 lens probe's bbox/side-blind
+    variant was measured to disagree; this is the corrected method from the same-day
+    measure.py family). HONEST STATUS from the probe forensics: NO bimodality statistic
+    was ever computed -- the round-2 'bimodality' was an eyeballed histogram, the
+    committed eps is a counterexample (69% one bucket), touch-counts do NOT separate
+    hand from fresh (4-22% overlapping), and CV is seed-noisy. The one robust
+    descriptive pattern (16-board sample): fresh boards' NON-touching population
+    collapses into one narrow band (p75 <= 0.75mm every sample) while hand hub/12vhpwr/
+    pcie spread real mass to 1.0-2.0mm+ (p75 1.08-1.25). ADVISORY ONLY -- reports the
+    distribution (p25/med/p75, jammed%<0.2mm, modebin%), asserts nothing."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "note": "board unloadable"}
+
+    def _seg_seg(p1, p2, p3, p4):
+        def cross(o, a, b):
+            return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+        d1, d2 = cross(p3, p4, p1), cross(p3, p4, p2)
+        d3, d4 = cross(p1, p2, p3), cross(p1, p2, p4)
+        if ((d1 > 0) != (d2 > 0)) and ((d3 > 0) != (d4 > 0)):
+            return 0.0
+
+        def pd(p, a, b):
+            vx, vy = b[0] - a[0], b[1] - a[1]
+            wx, wy = p[0] - a[0], p[1] - a[1]
+            length = vx * vx + vy * vy
+            t = 0.0 if length == 0 else max(0.0, min(1.0, (wx * vx + wy * vy) / length))
+            return math.hypot(p[0] - (a[0] + t * vx), p[1] - (a[1] + t * vy))
+        return min(pd(p1, p3, p4), pd(p2, p3, p4), pd(p3, p1, p2), pd(p4, p1, p2))
+
+    def _poly(fp):
+        for lyr in (pcbnew.F_CrtYd, pcbnew.B_CrtYd):
+            poly = fp.GetCourtyard(lyr)
+            if poly and poly.OutlineCount() > 0:
+                o = poly.Outline(0)
+                return [(o.CPoint(i).x / 1e6, o.CPoint(i).y / 1e6)
+                        for i in range(o.PointCount())]
+        bb = fp.GetBoundingBox()
+        return [(bb.GetLeft() / 1e6, bb.GetTop() / 1e6), (bb.GetRight() / 1e6, bb.GetTop() / 1e6),
+                (bb.GetRight() / 1e6, bb.GetBottom() / 1e6), (bb.GetLeft() / 1e6, bb.GetBottom() / 1e6)]
+
+    def _pdist(A, B):
+        m = 1e9
+        for i in range(len(A)):
+            a1, a2 = A[i], A[(i + 1) % len(A)]
+            for j in range(len(B)):
+                d = _seg_seg(a1, a2, B[j], B[(j + 1) % len(B)])
+                if d < m:
+                    m = d
+                if m == 0:
+                    return 0.0
+        return m
+
+    comps = [fp for fp in board.GetFootprints() if fp.GetPadCount() > 0
+             and not (fp.GetReference() or "").startswith(("FID", "LOGO", "H", "M"))]
+    polys = {fp.GetReference(): _poly(fp) for fp in comps}
+    side = {fp.GetReference(): fp.IsFlipped() for fp in comps}
+    gaps = []
+    for r in polys:
+        best = 1e9
+        for r2 in polys:
+            if r2 == r or side[r2] != side[r]:
+                continue
+            best = min(best, _pdist(polys[r], polys[r2]))
+        if best < 1e9:
+            gaps.append(best)
+    if len(gaps) < 4:
+        return {"ok": True, "note": "too few parts -- N/A"}
+    g = sorted(gaps)
+
+    def q(p):
+        return round(g[max(0, min(len(g) - 1, int(p * len(g))))], 2)
+    edges = [0, 0.1, 0.2, 0.35, 0.5, 0.75, 1.0, 1.5, 2.0, 3.0, 99]
+    hist = [sum(1 for x in g if lo <= x < hi) for lo, hi in zip(edges, edges[1:])]
+    return {"ok": True, "n": len(g), "p25": q(0.25), "med": q(0.5), "p75": q(0.75),
+            "jammed_pct": round(100.0 * sum(1 for x in g if x < 0.2) / len(g), 1),
+            "modebin_pct": round(100.0 * max(hist) / len(g), 1)}
+
+
 def _oracle_facing_fraction(placed_board_path, *, net_span_max=12):
     """FACING-FRACTION metric (exploration round 2 item 4, 2026-07-08): over every
     pair of footprints sharing a LOCAL net (board-wide pad count <= *net_span_max*,
@@ -5582,6 +5693,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001
                 facing = {"ok": False, "facing_pct": None, "note": str(e)[:120]}
             try:
+                gapp = _oracle_gap_profile(placed)
+            except Exception as e:                            # noqa: BLE001
+                gapp = {"ok": False, "note": str(e)[:120]}
+            try:
                 sp = _oracle_stranded_parts(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 sp = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -5700,7 +5815,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "stranded_ok": stranded_ok, "stranded": sp,
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
                 "route_sanity_advisory": rsan, "silk_score": silk,
-                "facing_advisory": facing,
+                "facing_advisory": facing, "gap_advisory": gapp,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,

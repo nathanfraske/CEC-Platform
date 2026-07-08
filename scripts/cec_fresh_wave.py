@@ -244,12 +244,14 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root):
 
 def _wave_workers():
     """Candidate-level parallelism (profiling 2026-07-08: the wave was FULLY SERIAL while
-    FR -- 71-95% of each candidate -- is single-threaded; the routing container exposes 4
-    cores). Default: leave one core for the orchestrator/renders. CEC_WAVE_WORKERS=1
+    FR -- 71-95% of each candidate -- is single-threaded). The routing container has ALL
+    18 host cores (`nproc` reads 4 only because OMP_NUM_THREADS=4 masks it -- measured;
+    the OMP cap usefully bounds each worker's BLAS instead). Default: 6 workers, leaving
+    headroom for the orchestrator/renders + the GPU thermal confirms. CEC_WAVE_WORKERS=1
     restores the serial wave (wave-to-wave comparability runs)."""
     try:
         return max(1, int(os.environ.get("CEC_WAVE_WORKERS", 0))) \
-            if os.environ.get("CEC_WAVE_WORKERS") else max(1, min(3, (os.cpu_count() or 4) - 1))
+            if os.environ.get("CEC_WAVE_WORKERS") else max(1, min(6, (os.cpu_count() or 4) - 2))
     except ValueError:
         return 1
 
