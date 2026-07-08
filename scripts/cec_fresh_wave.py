@@ -58,8 +58,8 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
         return
     png = os.path.join(work_root, board, f"{label}-top.png")
     try:
-        subprocess.run(["kicad-cli", "pcb", "render", "-o", png, "--side", "top", str(routed)],
-                       capture_output=True, timeout=180)
+        import cec_render
+        png = cec_render.render(routed, png, side="top")   # silk stripped (owner 2026-07-08)
     except Exception:                                  # noqa: BLE001
         png = None
     star = "★ new best — " if best else ""
@@ -73,9 +73,9 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
     if best and dual:
         pngb = os.path.join(work_root, board, f"{label}-bottom.png")
         try:
-            subprocess.run(["kicad-cli", "pcb", "render", "-o", pngb, "--side", "bottom",
-                            str(routed)], capture_output=True, timeout=180)
-            if os.path.isfile(pngb):
+            import cec_render
+            pngb = cec_render.render(routed, pngb, side="bottom")
+            if pngb:
                 _stamp_back_face(pngb)
                 _wlog(f"{board} {label} — BACK FACE (mirrored view)", tag="wave",
                       detail="bottom view: left/right appear MIRRORED vs the top view. " + detail,

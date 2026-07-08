@@ -216,9 +216,8 @@ def _analyze_in_container(board, detail_png, current_png, width,
     # ---- render + copper plots (kicad-cli; independent of the solve) ----
     if render_png:
         try:
-            subprocess.run(["kicad-cli", "pcb", "render", "-o", render_png,
-                            "--side", "top", board],
-                           capture_output=True, timeout=300)
+            import cec_render
+            cec_render.render(board, render_png, side="top", timeout=300)  # silk stripped
         except Exception:                                           # noqa: BLE001
             pass
     for svg, layers, mirror in ((plotf_svg, "F.Cu,Edge.Cuts,F.Silkscreen", False),

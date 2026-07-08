@@ -67,19 +67,16 @@ def main():
     routed = v.get("routed")
     img = None
     if routed and os.path.isfile(str(routed)):
-        img = os.path.join(out_dir, f"{slug}-top.png")
-        subprocess.run(["kicad-cli", "pcb", "render", "-o", img, "--side", "top", str(routed)],
-                       capture_output=True, timeout=180)
-        if not os.path.isfile(img):
-            img = None
+        import cec_render
+        img = cec_render.render(routed, os.path.join(out_dir, f"{slug}-top.png"), side="top")
         if P.get("dual_sided"):
-            imgb = os.path.join(out_dir, f"{slug}-bottom.png")
-            subprocess.run(["kicad-cli", "pcb", "render", "-o", imgb, "--side", "bottom",
-                            str(routed)], capture_output=True, timeout=180)
-            if os.path.isfile(imgb):
+            imgb = cec_render.render(routed, os.path.join(out_dir, f"{slug}-bottom.png"),
+                                     side="bottom")
+            if imgb:
                 _stamp_back_face(imgb)
                 cec_worklog.log(f"escalator {args.board} {args.round} — BACK FACE (mirrored view)",
                                 tag="fix", detail=detail, image=imgb)
+    
     cec_worklog.log(f"escalator {args.board} {args.round}", tag="fix", detail=detail, image=img)
     return 0
 
