@@ -4811,6 +4811,62 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
             "vias_total": sum(nvias.values())}
 
 
+def _oracle_facing_fraction(placed_board_path, *, net_span_max=12):
+    """FACING-FRACTION metric (exploration round 2 item 4, 2026-07-08): over every
+    pair of footprints sharing a LOCAL net (board-wide pad count <= *net_span_max*,
+    excluding planes/buses), the pair is FACING when the minimum shared-net pad-pad
+    distance is also the minimum ANY-pad distance (+0.05mm) -- i.e. the parts are
+    ORIENTED toward their electrical partner instead of showing it their back. Ported
+    verbatim from the round-2 lens probe (build/lens1.py metric 4). Calibration:
+    hand boards 29-36% vs fresh 19%. ADVISORY METRIC (never gates): it exists to
+    drive + evaluate the backlogged face() placement lever; higher = better."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "facing_pct": None, "note": "board unloadable"}
+    pads = []
+    cxy = {}
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        cxy[ref] = (fp.GetPosition().x / 1e6, fp.GetPosition().y / 1e6)
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads.append((ref, nn, p.GetPosition().x / 1e6, p.GetPosition().y / 1e6))
+    ns = {}
+    for _ref, nn, _x, _y in pads:
+        ns[nn] = ns.get(nn, 0) + 1
+    byref = {}
+    for ref, nn, x, y in pads:
+        byref.setdefault(ref, []).append((nn, x, y))
+    reflist = list(byref.keys())
+    facing = 0
+    npair = 0
+    for i in range(len(reflist)):
+        for j in range(i + 1, len(reflist)):
+            ra, rb = reflist[i], reflist[j]
+            shared = ({n for n, _x, _y in byref[ra] if ns.get(n, 0) <= net_span_max}
+                      & {n for n, _x, _y in byref[rb] if ns.get(n, 0) <= net_span_max})
+            if not shared:
+                continue
+            msh = many = 1e9
+            for na, xa, ya in byref[ra]:
+                for nb, xb, yb in byref[rb]:
+                    d = math.hypot(xa - xb, ya - yb)
+                    if d < many:
+                        many = d
+                    if na == nb and na in shared and d < msh:
+                        msh = d
+            cd = math.hypot(cxy[ra][0] - cxy[rb][0], cxy[ra][1] - cxy[rb][1])
+            if cd < 0.01:
+                continue
+            npair += 1
+            if msh <= many + 0.05:
+                facing += 1
+    pct = round(100.0 * facing / npair, 2) if npair else None
+    return {"ok": True, "facing_pct": pct, "pairs": npair}
+
+
 def _oracle_silk_score(routed_board_path, *, per_fp_max=1.0):
     """SILK score/footprint (exploration round 2 item 3, 2026-07-08): all silk* DRC
     classes (overlap / over_copper / edge_clearance) at --severity-all, divided by the
@@ -5457,6 +5513,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 silk = {"ok": False, "score_per_fp": None,
                         "violations": ["checker error: %s" % e]}
             try:
+                facing = _oracle_facing_fraction(placed)
+            except Exception as e:                            # noqa: BLE001
+                facing = {"ok": False, "facing_pct": None, "note": str(e)[:120]}
+            try:
                 sp = _oracle_stranded_parts(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 sp = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -5538,6 +5598,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "stranded_ok": stranded_ok, "stranded": sp,
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
                 "route_sanity_advisory": rsan, "silk_score": silk,
+                "facing_advisory": facing,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
