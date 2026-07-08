@@ -126,6 +126,28 @@ else
   printf '  skip: python3 not available\n'
 fi
 
+printf '==> SPICE analog-cell verification (sec6.13 detection chain, owner GO 2026-07-08)\n'
+if command -v ngspice >/dev/null 2>&1 && command -v python3 >/dev/null 2>&1; then
+  # Fast leg: nominal trip vs analytic per rail (Monte Carlo is the deep CLI run).
+  python3 - <<'PYSPICE' || status=1
+import sys, os
+sys.path.insert(0, os.environ.get("CEC_SCRIPTS_DIR", "scripts"))
+import cec_spice as cs
+bad = []
+for rail, c in cs.CELLS_24PIN.items():
+    vth = 0.5 * cs.VS
+    t = cs.trip_current(c["rshunt"], c["gain"], vth)
+    a = vth / (c["gain"] * c["rshunt"])
+    if t is None or abs(t - a) / a > 0.02:
+        bad.append((rail, t, round(a, 3)))
+if bad:
+    print("FAIL: SPICE trip disagrees with analytic >2%:", bad); sys.exit(1)
+print("  ok: 4 rails, SPICE trip == analytic within 2%")
+PYSPICE
+else
+  printf '  skip: ngspice not available on this host (runs in-container)\n'
+fi
+
 printf '==> library + 3D-model paths are in-repo (clone parity)\n'
 glob_hits="$(grep -RInE '\$\{KICAD[0-9]*_(3DMODEL|FOOTPRINT|SYMBOL)_DIR\}' \
   --exclude-dir=build --exclude-dir=.git \
