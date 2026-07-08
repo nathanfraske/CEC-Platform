@@ -4811,6 +4811,46 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
             "vias_total": sum(nvias.values())}
 
 
+def _oracle_silk_score(routed_board_path, *, per_fp_max=1.0):
+    """SILK score/footprint (exploration round 2 item 3, 2026-07-08): all silk* DRC
+    classes (overlap / over_copper / edge_clearance) at --severity-all, divided by the
+    footprint count. CALIBRATION (build/silk_calib.py, reproduced 2026-07-08): hand hub
+    0.32, hand 12vhpwr 0.18, committed eps 0.43 -- vs fresh wave boards 4.48 (24-pin)
+    and 5.32 (eps): a 10x separation, dominated by silk_overlap + silk_over_copper
+    (values stamped onto copper/each other by the placer). SOFT SCORE TERM: silk is
+    the repo's documented cosmetic/finishing class, so this never gates -- it feeds
+    the tier-0 sort_key tie-break (a reserved slot) + an advisory field. per_fp_max
+    1.0 = 2.3x over the worst accepted board, 4.5x under the best fresh."""
+    import json as _json
+    import subprocess
+    import pcbnew
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "score_per_fp": None, "violations": ["board unloadable"]}
+    nfp = max(1, len(list(board.GetFootprints())))
+    out = tempfile.mkstemp(suffix=".json")[1]
+    try:
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
+                        "-o", out, routed_board_path], capture_output=True, timeout=300)
+        d = _json.load(open(out))
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "score_per_fp": None, "violations": ["drc error: %s" % e]}
+    finally:
+        try:
+            os.unlink(out)
+        except OSError:
+            pass
+    breakdown = {}
+    for v in d.get("violations", []):
+        t = v.get("type", "")
+        if t.startswith("silk"):
+            breakdown[t] = breakdown.get(t, 0) + 1
+    n = sum(breakdown.values())
+    score = round(n / nfp, 2)
+    return {"ok": score <= per_fp_max, "score_per_fp": score, "count": n,
+            "footprints": nfp, "breakdown": breakdown, "per_fp_max": per_fp_max}
+
+
 def _oracle_stranded_parts(placed_board_path, *, max_mm=22.0):
     """STRANDED-PART gate (owner eyesight finding 2026-07-08: diodes jammed in a corner,
     a slew orphaned by the 1x4 header): every part must sit within *max_mm* of its
@@ -5412,6 +5452,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001
                 rsan = {"ok": False, "violations": ["checker error: %s" % e]}
             try:
+                silk = _oracle_silk_score(routed)
+            except Exception as e:                            # noqa: BLE001
+                silk = {"ok": False, "score_per_fp": None,
+                        "violations": ["checker error: %s" % e]}
+            try:
                 sp = _oracle_stranded_parts(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 sp = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -5460,10 +5505,15 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             dT_for_key = therm.get("dT")
             dT_for_key = float(dT_for_key) if dT_for_key is not None else 1e6
             # sort_key (ascending, best first). tier 0 = gate-clean: tie-break by thermal MARGIN
-            # (smaller dT first), then fewer vias, then shorter length. tier 1 = failing: ordered by
-            # CLOSENESS -- safety fails first, then foreign, then unconnected, then drc, then thermal.
+            # (smaller dT first), then fewer vias, then the SILK score/fp (round-2 item 3 -- the
+            # craft term: hand 0.18-0.43 vs fresh 4.5+), then shorter length. tier 1 = failing:
+            # ordered by CLOSENESS -- safety fails first, then foreign, then unconnected, then
+            # drc, then thermal.
+            silk_key = silk.get("score_per_fp")
+            silk_key = float(silk_key) if silk_key is not None else 99.0
             if gate:
-                sort_key = (0, round(dT_for_key, 1), m.vias, round(m.length, 1), 0, 0)
+                sort_key = (0, round(dT_for_key, 1), m.vias, round(silk_key, 1),
+                            round(m.length, 1), 0)
             else:
                 sort_key = (1, safety_fails, ft, m.unconnected, m.drc, round(dT_for_key, 1))
 
@@ -5487,7 +5537,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "circuit_ok": circuit_ok, "circuit": cc,
                 "stranded_ok": stranded_ok, "stranded": sp,
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
-                "route_sanity_advisory": rsan,
+                "route_sanity_advisory": rsan, "silk_score": silk,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
