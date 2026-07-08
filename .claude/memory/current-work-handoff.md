@@ -1,5 +1,22 @@
 # Current work handoff
 
+## (G6) LEVER LANDINGS — 2026-07-08 mid-AM (branch claude/pipeline-consolidation)
+ABLATION-DRIVEN, one at a time, multi-seed medians (scripts/cec_lever_eval.py, 8 placements):
+LEVER 1 COMMITTED: CAN transceiver seats at the link jack, exempt from anneal + ALL eviction
+rounds (can_j1 54.7 -> 4.3mm). LEVER 3 COMMITTED (the big one): RIGID-CLUSTER RE-STAMP -- the
+instrumented trace proved evac/mop move a cluster OWNER after its passives were stamped at the
+OLD position (U5: 57.4 -> 9.5 -> 32.5 while R52/R53 stayed) = THE root cause of ALL cluster
+scatter (decouplers, dividers, ILIM); ownership was never broken (3 inert ownership fixes).
+Re-stamp at final owner positions + pour-aware settle: div 31.7 -> 4.7mm, caps 12/34.4 ->
+11/25.2. CONTRACT: explicit partition assignment BEATS seat bias (teeth test); 24-pin intents
+exclude the CAN from the core sweep. RESIDUALS: (a) box-model unification (settle avoids
+placement-time topo boxes, gate checks materialized straddle boxes -- ~10 bodies-in-pours on
+eval boards, TODO); (b) comparator distances unchanged (needs the INA181 seat slide lever);
+(c) divider-lever variants + fix-B veto still parked in build/wip-*.patch (veto needs a
+move-into-region repair path). WAVE 7 RUNNING (refined intents + all levers + 5 craft gates).
+EPS NOTE: lever 1 + re-stamp change CABLE-board placements too (eps partition tests updated
+expectations hold 47/47; craft gates will re-rank eps fresh candidates on the next eps wave).
+
 ## (G5) PLACER-LEVER BATCH — parked 2026-07-08 (ablation required)
 Fix A (anchor-vs-anchor J1 clamp) COMMITTED ✓ (J1 overlaps 6->0). Comparator-adjacency gate +
 hot-sensitive recalibration COMMITTED ✓. The four-lever batch (fix B containment veto,
