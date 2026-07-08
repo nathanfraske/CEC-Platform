@@ -914,7 +914,52 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
                                                        vertical=vertical)
                 pours.append({"net": net, "layer": pair_layer,
                               "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
-    return pours
+    # SAME-LAYER OVERLAP CLIP (escalated review round 2, 2026-07-08): adjacent rails' fan
+    # sub-boxes can overlap on one layer (zones_intersect DRC + broken fills). Deterministic
+    # priority = list order (earlier box wins); the later box is clipped on the axis that
+    # loses less area, dropped if it degenerates (< 1mm). Same-net overlaps are fine (merge).
+    def _rect(p):
+        xs = [q[0] for q in p["polygon"]]; ys = [q[1] for q in p["polygon"]]
+        return min(xs), max(xs), min(ys), max(ys)
+    kept = []
+    for p in pours:
+        x0, x1, y0, y1 = _rect(p)
+        dead = False
+        for q in kept:
+            if q["layer"] != p["layer"] or q["net"] == p["net"]:
+                continue
+            qx0, qx1, qy0, qy1 = _rect(q)
+            if x1 <= qx0 or x0 >= qx1 or y1 <= qy0 or y0 >= qy1:
+                continue
+            # clip p on the cheaper axis
+            cands = []
+            if qx0 > x0:
+                cands.append(("x1", qx0, (x1 - qx0) * (y1 - y0)))
+            if qx1 < x1:
+                cands.append(("x0", qx1, (qx1 - x0) * (y1 - y0)))
+            if qy0 > y0:
+                cands.append(("y1", qy0, (x1 - x0) * (y1 - qy0)))
+            if qy1 < y1:
+                cands.append(("y0", qy1, (x1 - x0) * (qy1 - y0)))
+            if not cands:
+                dead = True                              # fully contained
+                break
+            edge, val, _loss = min(cands, key=lambda c: c[2])
+            if edge == "x0":
+                x0 = val
+            elif edge == "x1":
+                x1 = val
+            elif edge == "y0":
+                y0 = val
+            else:
+                y1 = val
+            if x1 - x0 < 1.0 or y1 - y0 < 1.0:
+                dead = True
+                break
+        if not dead:
+            p["polygon"] = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
+            kept.append(p)
+    return kept
 
 
 def _x_clusters(pts, gap_mm=8.0):
