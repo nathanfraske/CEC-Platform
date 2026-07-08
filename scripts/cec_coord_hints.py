@@ -33,7 +33,7 @@ def _grid_origin(board_path):
 
 
 def coord_intents(board_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
-                  escape_radius=2, exclude_nets_re=None):
+                  escape_radius=2, exclude_nets_re=None, preferred_nets=None):
     """Run the negotiation and derive <=k single-waypoint intents for the most
     CONTENDED nets. Waypoint = the cell of the net's own negotiated path nearest its
     midpoint that is neither overused nor inside a pin-escape region (we pin the net
@@ -60,9 +60,12 @@ def coord_intents(board_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
             return False
 
     scored = []
+    pref = set(preferred_nets or ())
     for i, (net, _a, _b) in enumerate(conns):
         if exclude_nets_re and re.search(exclude_nets_re, net):
             continue
+        if pref and net not in pref:
+            continue                # REACTIVE mode: hint only nets that actually failed
         path = res["paths_by_conn"][i] or []
         contended = sum(1 for (l, y, x) in path
                         if _over(l, y, x) and (y, x) not in term)
@@ -94,12 +97,14 @@ def coord_intents(board_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
         "iters": res["iters_used"], "backend": res["backend"], "wall_s": res["wall_s"]}}
 
 
-def stub_board(board_path, out_path, *, k=8, iters=60, grid_mm=0.5, backend="auto"):
+def stub_board(board_path, out_path, *, k=8, iters=60, grid_mm=0.5, backend="auto",
+               preferred_nets=None):
     """coord_intents -> cec_fr02.compile_intents: a COPY of the placement carrying
     DRC-legal LOCKED stubs on the negotiated corridors. Returns the manifest
     (intents + compile result + the nets to protect at DSN time)."""
     import cec_fr02
-    ci = coord_intents(board_path, k=k, iters=iters, grid_mm=grid_mm, backend=backend)
+    ci = coord_intents(board_path, k=k, iters=iters, grid_mm=grid_mm, backend=backend,
+                       preferred_nets=preferred_nets)
     if not ci["intents"]:
         return {"nets": [], "compiled": None, **ci}
     comp = cec_fr02.compile_intents(board_path, ci["intents"], out_path)
@@ -122,7 +127,13 @@ def ab_route(placed_board, *, seed=0, passes=8, opt=10, k=8, iters=60,
                                opt=opt, fr_timeout=fr_timeout, thermal="lazy",
                                work_dir=os.path.join(work, "A"), keep=True)
     stub = os.path.join(work, "stubbed.kicad_pcb")
-    man = stub_board(placed_board, stub, k=k, iters=iters)
+    # REACTIVE (first A/B verdict 2026-07-08: blind mid-corridor pins LOST, unconn
+    # 99->107 -- 8 hard constraints stole FR freedom it didn't need help with).
+    # Hint ONLY nets the bare route actually left unconnected; their negotiated
+    # corridor is the coordination signal for exactly the nets that need it.
+    failed = set(a.get("unconn_nets") or [])
+    man = stub_board(placed_board, stub, k=k, iters=iters,
+                     preferred_nets=(failed or None))
     for ext in (".kicad_pro", ".kicad_dru"):
         s = placed_board[:-len(".kicad_pcb")] + ext
         if os.path.isfile(s):
