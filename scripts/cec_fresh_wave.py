@@ -155,13 +155,51 @@ def _intents():
     return [("plain", none), ("periph-right", periph_right), ("periph-left", periph_left)]
 
 
+def _intents_for(board):
+    """Board-aware intent set: the generic trio plus per-board STRUCTURE-FIRST partitions
+    (owner 2026-07-08: 'this board needs a lot more placement work... the placer pipeline
+    is always the bottleneck'). The 24-pin anatomy: J3 top, blade row + stub bottom, hub
+    jacks left -- so the sensing chains belong in the HORIZONTAL BAND between J3 and the
+    blades (containing the stray INA181s the seat missed, 16-23mm off), and the MCU core /
+    USB front-end zone RIGHT where their connectors live."""
+    base = _intents()
+    if board != "atx-24pin-rev3":
+        return base
+
+    def sense_band(s):
+        s.half("band", "y", 0.30, 0.72)
+        s.half("core", "x", 0.58, 1.00)
+        s.assign(s.cable_parts(), "band")
+        s.assign(s.peripheral_ics(), "core")
+        return s
+
+    def sense_band_tight(s):
+        s.half("band", "y", 0.36, 0.66)
+        s.half("core", "x", 0.62, 1.00)
+        s.assign(s.cable_parts(), "band")
+        s.assign(s.peripheral_ics(), "core")
+        return s
+
+    def band_core_mid(s):
+        # core BETWEEN the band and the USB edge, sensing band wider: tests whether the
+        # peripherals do better center-right (shorter MCU fanout) than hard-right.
+        s.half("band", "y", 0.32, 0.70)
+        s.half("core", "x", 0.50, 0.85)
+        s.assign(s.cable_parts(), "band")
+        s.assign(s.peripheral_ics(), "core")
+        return s
+
+    return base + [("sense-band", sense_band), ("sense-band-tight", sense_band_tight),
+                   ("band-core-mid", band_core_mid)]
+
+
 def run_board(board, seeds, passes, opt, out_root, work_root):
     W, H = BOARD_WH.get(board, (100.0, 44.0))
     _wlog(f"wave started: {board}", tag="wave",
-          detail=f"{len(_intents())} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, passes {passes}/opt {opt}")
+          detail=f"{len(_intents_for(board))} intents x 2 strats x {len(seeds)} seeds at {W}x{H}mm, passes {passes}/opt {opt}")
     os.makedirs(os.path.join(work_root, board), exist_ok=True)
     results = []
-    for iname, intent in _intents():
+    for iname, intent in _intents_for(board):
         for strat in ("dataflow", "compact"):
             for seed in seeds:
                 label = f"{iname}-{strat}-s{seed}"
