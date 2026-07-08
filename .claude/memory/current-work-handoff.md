@@ -1,5 +1,20 @@
 # Current work handoff
 
+## (G++) 24-PIN OWNER BATCH — 2026-07-08 late (branch claude/pipeline-consolidation)
+ALL owner directives landed + committed: J_SIG1 2x5->1x4 (study item 5 CLOSED, no sense-return;
+pin order = db J20: 1=-12V 2=PS_ON# 3=PWR_OK 4=GND; alignment contract = collinear with blade
+row, pad1 one field pitch past last slot); J3 mouth-out (repair-only rotation flip in
+seed_anchors — flips ONLY when default leaves body inboard; eps byte-identical, ablation-proven);
+buttons cluster opt-in (buttons_near=usb manifest key); board size 70x55 (owner: too large);
+blade row_y pad-extent repair. CRITICAL FIND: U5 (TPS2121) NEVER PLACED on fresh seeds — RUX0012A
++ CEC_12V2x6 footprints were old-format (fp_text) so place() regexes missed position+reference;
+kicad-cli fp upgrade fixed. Battery 116/116. Per-side taps/pours DONE earlier (all 4 rails,
+straddle-aware cec_fr defaults, 8 sites); sense-side oracle gate DONE (analog-across-faces,
+fail-closed, N/A single-sided). WAVE 4 RUNNING (fresh-wave-24pin-4.log, effort 8/10/1200s,
+per-variant dash snapshots incl. back-face on new best). Probes seed..seed10 build/24pin-probe/.
+NEXT: wave 4 verdict -> iterate placement (known: D_USB1-on-U11 pileup class); shrink pass once
+gate-clean; eps 40A envelope copper (mirror pours) queued.
+
 ## (G+) 24-PIN MECHANISM PACKAGE — state at 2026-07-08 late (branch claude/pipeline-consolidation)
 Items LANDED (each committed + on the dash feed): (a) shunt-straddle kelvin pairs BOTH sites
 (+12vhpwr lane-6 /FAN_12V regression caught, gate strengthened, 127/127); (c) J3 role
