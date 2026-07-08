@@ -5560,7 +5560,6 @@ def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
     their high-current copper as tracks/hand shapes and interleave sense parts by design --
     they are governed by the pour-integrity/cross-section checkers, never this boolean."""
     import pcbnew
-    import cec_fr
     board = pcbnew.LoadBoard(placed_board_path)
     if board is None:
         return {"ok": False, "violations": ["board unloadable"]}
