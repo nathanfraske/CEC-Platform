@@ -1028,52 +1028,16 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     Returns a list of pour dicts ready for :func:`add_power_pours` / ``Spec.power_pours``.
     Pass an already-loaded *board* to reuse it (pcbnew shares the cached BOARD per path, so callers
     that also mutate the board must load it ONCE and pass it here rather than re-load board_path).
+
+    POUR LEVER (stage 1, docs/pour-lever-scoping-2026-07-08.md): this is now a thin POST-ROUTE
+    VIEW of a ``cec_pourplan.PourPlan`` -- ``PourPlan.from_board`` runs the SAME board-read +
+    ``_pour_boxes_core`` geometry kernel this body used to, and ``pour_polygons()`` returns the
+    identical ``{net, layer, polygon}`` dict list. Kept byte-for-byte (build/pourwt teeth).
     """
-    from collections import defaultdict
-    board = board if board is not None else pcbnew.LoadBoard(board_path)
-    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
-    if kelvin_pairs is None:
-        kelvin_pairs = _board_kelvin_pairs(board)
-
-    bb = board.GetBoardEdgesBoundingBox()
-    bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
-    bx1, by1 = bb.GetRight() / MM - edge_clear, bb.GetBottom() / MM - edge_clear
-
-    # INNER-POUR MODE (escalated review round 5, 2026-07-08): boards with the 24-pin
-    # doctrine stackup (In2 = 'PWR_RT' rail-routing layer, empty of parts) carry their
-    # rail distribution as IN2 pours -- the interleaved ATX pinout made face pours a
-    # rectangle-clipping war on a dense dual-sided 70x55 (measured plateau at ~78 unconn).
-    # THT pins (J3/TB) pierce to In2 natively; SMD shunt pads bridge via force-stub vias
-    # (synthesize_force_vias). Cable boards (no PWR_RT layer) are untouched.
-    inner_layer = None
-    if os.environ.get("CEC_INNER_POURS", "0") == "1":        # EXPERIMENTAL (round 5): placement
-        for lid in range(pcbnew.PCB_LAYER_ID_COUNT):          # effect proven (unconn 114->74@p8)
-            try:                                              # but FR integration incomplete --
-                if board.GetLayerName(lid) == "PWR_RT" and board.GetLayerType(lid) == pcbnew.LT_SIGNAL:
-                    inner_layer = "In2.Cu"                    # In2 keepouts don't bind in FR (116
-                    break                                     # foreign) + force stubs need the
-            except Exception:                                # noqa: BLE001 -- foreign guard. OFF until done.
-                pass
-    pads_by_net = defaultdict(list)
-    padcount = defaultdict(int)
-    flipped = {}
-    for fp in board.GetFootprints():
-        ref = fp.GetReference()
-        flipped[ref] = fp.IsFlipped()
-        for p in fp.Pads():
-            padcount[ref] += 1
-            nn = p.GetNetname()
-            if nn:
-                pads_by_net[nn].append((ref, p))
-
-    prepared = defaultdict(list)
-    for net, entries in pads_by_net.items():
-        for ref, p in entries:
-            pos = p.GetPosition()
-            prepared[net].append((ref, pos.x / MM, pos.y / MM,
-                                  p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH))
-    return _pour_boxes_core(names, kelvin_pairs, prepared, dict(padcount), dict(flipped),
-                            (bx0, by0, bx1, by1), inner_layer, margin=margin, layer=layer)
+    import cec_pourplan
+    return cec_pourplan.PourPlan.from_board(
+        board_path, board=board, kelvin_pairs=kelvin_pairs,
+        margin=margin, edge_clear=edge_clear, layer=layer).pour_polygons()
 
 
 def _x_clusters(pts, gap_mm=8.0):
@@ -1115,8 +1079,25 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
     This is the piece cec_router.route() has (so it converges) and route_directed lacked (so the agentic
     loop stalled on pour-clip). Force nets = the Kelvin _HI/_LO pairs + the 12V nets (derived from the
     board via cec_score.Rules when not given). SELF-GATING: a net with no THT cable pad or no 2-pad shunt
-    is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts."""
-    board = board if board is not None else pcbnew.LoadBoard(board_path)
+    is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts.
+
+    POUR LEVER (stage 1, docs/pour-lever-scoping-2026-07-08.md): this is now a thin PRE-ROUTE VIEW
+    of a ``cec_pourplan.PourPlan`` -- ``PourPlan.keepout_hints`` reboxes the plan's own pours in
+    LANE mode (the keepouts ARE the lane pour shapes) and delegates to ``_force_corridor_hints``
+    (the non-lane force-corridor loop below, extracted verbatim) otherwise. Byte-identical (teeth)."""
+    import cec_pourplan
+    return cec_pourplan.PourPlan.from_board(
+        board_path, board=board, kelvin_pairs=kelvin_pairs,
+        nets_12v=nets_12v).keepout_hints(layers=layers)
+
+
+def _force_corridor_hints(board, board_path, *, kelvin_pairs=None, nets_12v=None,
+                          layers=("F.Cu", "B.Cu")):
+    """NON-LANE force-corridor keepout body (pour lever stage 1, extracted VERBATIM from the old
+    corridor_keepouts): reserve each cable connector->shunt FORCE corridor as a Freerouting keepout,
+    CLIPPED at the shunt notch so the Kelvin tap window stays open. ``PourPlan.keepout_hints``
+    delegates here for the non-lane path (the lane path reboxes the plan's own ``pour_polygons()``).
+    *board* is already loaded; *kelvin_pairs* resolved by the plan (else board-derived here)."""
     _inner_mode = False
     if os.environ.get("CEC_INNER_POURS", "0") == "1":        # see derive_power_pours: experimental
         for _lid in range(pcbnew.PCB_LAYER_ID_COUNT):
@@ -1126,7 +1107,6 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
                     break
             except Exception:                                # noqa: BLE001
                 pass
-    names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
         kelvin_pairs = _board_kelvin_pairs(board)
     if nets_12v is None:
@@ -1150,20 +1130,6 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
                 pads_by_net.setdefault(nn, []).append(p)
 
     hints = []
-    if os.environ.get("CEC_POUR_LANES", "0") == "1":
-        # LANE MODE unification (2026-07-08): the route-time keepouts are EXACTLY the lane
-        # pour shapes -- the old cluster-fan boxes would starve routing over regions the
-        # pours no longer occupy. Same geometry source as the gate and the settle.
-        for i, p in enumerate(derive_power_pours(board_path, board=board,
-                                                 kelvin_pairs=kelvin_pairs)):
-            xs = [q[0] for q in p["polygon"]]
-            ys = [q[1] for q in p["polygon"]]
-            lay = ("B.Cu",) if (p["layer"] == "B.Cu" and tuple(layers) == ("F.Cu",))                 else ((p["layer"],) if tuple(layers) == ("F.Cu",) else tuple(layers))
-            hints.append({"name": f"corr_{p['net'].strip('/')}_{i}",
-                          "x0": round(min(xs), 2), "y0": round(min(ys), 2),
-                          "x1": round(max(xs), 2), "y1": round(max(ys), 2),
-                          "layers": lay, "allow_vias": True, "block_fills": False})
-        return hints
     for net in sorted(force_nets):
         entries = pads_by_net.get(net, [])
         tht = [(p.GetPosition().x / MM, p.GetPosition().y / MM) for p in entries

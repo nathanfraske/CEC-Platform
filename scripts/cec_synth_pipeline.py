@@ -3531,41 +3531,20 @@ def _pad_is_tht(libid):
 _PAD_THT_CACHE = {}
 
 
-def _pour_boxes_unified(P, nl, comps, W, H, *, margin=1.0, edge_clear=0.4):
+def _pour_boxes_unified(P, nl, comps, W, H, *, margin=1.0, edge_clear=0.4, asks=()):
     """PLACEMENT-side pour boxes from the SAME pure core the route-time gate uses
     (cec_fr._pour_boxes_core) -- box-model unification 2026-07-08: the settle previously
     avoided topo-derived boxes while the gate checked straddle-derived clipped boxes, so
     re-stamped caps kept landing in gate boxes the settle never saw (the cross-board craft
-    blocker). Returns [(net, x0, x1, y0, y1)] in the evac format."""
-    import cec_fr
-    pairs = _kelvin_pairs(nl)
-    if not pairs:
-        return []
-    import cec_pcb
-    pair_nets = {n for pr in pairs for n in pr}
-    names = set(nl.nets)
-    prepared = {}
-    for net in pair_nets:
-        entries = []
-        for ref, padnum in nl.nets.get(net, []):
-            if ref not in P or ref not in comps:
-                continue
-            try:
-                g = cec_pcb.pad_global(ref, padnum, P, comps)
-            except Exception:                            # noqa: BLE001 -- pad absent (NPTH etc.)
-                continue
-            entries.append((ref, g[0], g[1], _pad_is_tht(comps[ref]).get(padnum, False)))
-        prepared[net] = entries
-    padcount = {r: _ref_padcount(nl, r) for r in nl.comps}
-    bbox = (edge_clear, edge_clear, W - edge_clear, H - edge_clear)
-    pours = cec_fr._pour_boxes_core(names, pairs, prepared, padcount, {}, bbox,
-                                    None, margin=margin)
-    out = []
-    for p in pours:
-        xs = [q[0] for q in p["polygon"]]
-        ys = [q[1] for q in p["polygon"]]
-        out.append((p["net"], min(xs), max(xs), min(ys), max(ys)))
-    return out
+    blocker). Returns [(net, x0, x1, y0, y1)] in the evac format.
+
+    POUR LEVER (stage 1/2, docs/pour-lever-scoping-2026-07-08.md): now a thin view of a
+    ``cec_pourplan.PourPlan`` built off the placement (``from_placement`` -> ``evac_boxes()``).
+    *asks* (the placer's ``pour()`` channel, cfg.params['pour_asks']) fold in as extra pour boxes;
+    ``asks=()`` is byte-identical to the old placement-side extractor (golden guarantee)."""
+    import cec_pourplan
+    return cec_pourplan.PourPlan.from_placement(P, nl, comps, W, H, asks=asks,
+                                                margin=margin, edge_clear=edge_clear).evac_boxes()
 
 
 def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
@@ -4652,9 +4631,22 @@ def _oracle_env(params=None):
 
 def _oracle_hints_pours(board_path):
     """Derive the gate-clean recipe's keepout HINTS + power POURS for a placement board, honouring the
-    recipe env flags (CEC_TAP_CHANNEL_KEEPOUT / CEC_CORRIDOR_FCU_ONLY). Returns (hints, pours, rules)."""
+    recipe env flags (CEC_TAP_CHANNEL_KEEPOUT / CEC_CORRIDOR_FCU_ONLY). Returns (hints, pours, rules).
+
+    POUR LEVER (stage 1/3, docs/pour-lever-scoping-2026-07-08.md): the corridor keepout + power
+    pours are now TWO VIEWS of ONE ``cec_pourplan.PourPlan`` (§1.3 -- 'where the compiled PourPlan
+    plugs in'), so the reservation FR routes around and the copper laid after are geometrically
+    identical by construction. Stage 3 loads that plan from a ``<board>.pourplan.json`` sidecar when
+    present (``_load_pourplan_sidecar``), falling back to ``from_board`` so old boards still route.
+    Byte-identical to the old two-call form: rules.kelvin_pairs == the board-derived pairs on every
+    board (verified) so a single plan matches both the old corridor_keepouts(kelvin_pairs=...) and
+    the old derive_power_pours() calls. The tap-channel + edge keepouts are not pour-derived and
+    stay as their own cec_fr calls."""
     import cec_fr
+    import cec_pourplan
     rules = cec_score.Rules.from_board(board_path)
+    plan = cec_pourplan.PourPlan.from_board(
+        board_path, kelvin_pairs=rules.kelvin_pairs, nets_12v=rules.nets_12v)
     hints = []
     if os.environ.get("CEC_TAP_CHANNEL_KEEPOUT", "0") == "1":
         try:
@@ -4665,16 +4657,14 @@ def _oracle_hints_pours(board_path):
     # crossings -- measured); F.Cu-only when CEC_CORRIDOR_FCU_ONLY=1 so foreign escapes B.Cu under the pour.
     fcu_only = os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1"
     try:
-        hints += cec_fr.corridor_keepouts(board_path, kelvin_pairs=rules.kelvin_pairs,
-                                          nets_12v=rules.nets_12v,
-                                          layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
+        hints += plan.keepout_hints(layers=("F.Cu",) if fcu_only else ("F.Cu", "B.Cu"))
     except Exception as e:                                       # noqa: BLE001
         _tc.warn_once("oracle_corridor_keepout", "corridor keepout skipped (%s)" % e)
     try:
         hints += cec_fr.edge_keepout(board_path)
     except Exception as e:                                       # noqa: BLE001
         _tc.warn_once("oracle_edge_keepout", "edge keepout skipped (%s)" % e)
-    pours = cec_fr.derive_power_pours(board_path)
+    pours = plan.pour_polygons()
     return hints, pours, rules
 
 
@@ -5553,7 +5543,11 @@ def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
             return {"ok": True, "violations": [],
                     "note": "real rail zones present -- governed by pour-integrity checkers"}
     viol = []
-    pours = cec_fr.derive_power_pours(placed_board_path, board=board)
+    # POUR LEVER (stage 1): the bodies gate is now a PourPlan consumer -- the same plan view the
+    # settle/keepout/copper compile from, so the box a body is tested against == the box the pour
+    # fills. Byte-identical to the old derive_power_pours(board=board) (both board-derived pairs).
+    import cec_pourplan
+    pours = cec_pourplan.PourPlan.from_board(placed_board_path, board=board).pour_polygons()
     if not pours:
         return {"ok": True, "violations": [], "note": "no rail pours -- N/A"}
     boxes = []
