@@ -2843,10 +2843,48 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
         # alternating rails to the back; until it lands the seat is front-side.
         jin = shared[0]["j_in"]
         if jin in anchors:
-            def _cent(c):
+            # PIN-GROUP COLUMN ORDER (the lever gating box unification, 2026-07-08): a
+            # centroid sort is meaningless for INTERLEAVED rails (3V3's pins sit at both
+            # header ends -> centroid lands mid). Assign columns by MIN-COST permutation:
+            # cost = sum over each rail's pin x-CLUSTERS of cluster_size * |cluster_x -
+            # column_x| -- left-cluster rails take left columns (also clears the hub-jack
+            # zone the 3V3 fan box collided with). N<=4 rails -> brute force.
+            import itertools
+            import cec_fr as _cf
+            _clusters_of = {}
+            for c in shared:
                 xs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
-                return (sum(xs) / len(xs)) if xs else anchors[jin][0]
-            shared.sort(key=_cent)
+                pts = sorted((x, 0.0) for x in xs)
+                _clusters_of[c["shunt"]] = [(sum(p[0] for p in cl) / len(cl), len(cl))
+                                            for cl in _cf._x_clusters(pts)] if pts else []
+            def _slot_centers(order, x0_, pitch_):
+                cols = []
+                k = 0
+                for c in order:
+                    n_lo = max(1, len(c["j_out_blades"]))
+                    cols.append(x0_ + (k + (n_lo - 1) / 2.0) * pitch_)
+                    k += n_lo
+                return cols
+            def _perm_cost(order, x0_, pitch_):
+                cols = _slot_centers(order, x0_, pitch_)
+                cost = 0.0
+                for c, col in zip(order, cols):
+                    for cx, w in _clusters_of.get(c["shunt"], ()):
+                        cost += w * abs(cx - col)
+                return cost
+            if len(shared) <= 6:
+                _pitch0 = float((params or {}).get("blade_pitch", 4.2))
+                _n_tot0 = sum(max(1, len(c["j_out_blades"])) for c in shared)
+                _span0 = (_n_tot0 - 1) * _pitch0
+                _x00 = max(_pitch0, min(anchors[jin][0] - _span0 / 2.0,
+                                        (W or 100) - _span0 - _pitch0))
+                shared = list(min(itertools.permutations(shared),
+                                  key=lambda o: _perm_cost(o, _x00, _pitch0)))
+            else:
+                def _cent(c):
+                    xs = _net_pad_xs(nl, comps, c["j_in"], c["hi"], anchors)
+                    return (sum(xs) / len(xs)) if xs else anchors[jin][0]
+                shared.sort(key=_cent)
             # field pitch: the MATING daughterboard's tab row is the contract (atx24-out-db:
             # 10 tabs @ 4.2mm contiguous). Overridable per board; shared-bus default 4.2/4.2.
             pitch = float((params or {}).get("blade_pitch", 4.2))
