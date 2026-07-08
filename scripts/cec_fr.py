@@ -847,6 +847,21 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
     bx0, by0 = bb.GetLeft() / MM + edge_clear, bb.GetTop() / MM + edge_clear
     bx1, by1 = bb.GetRight() / MM - edge_clear, bb.GetBottom() / MM - edge_clear
 
+    # INNER-POUR MODE (escalated review round 5, 2026-07-08): boards with the 24-pin
+    # doctrine stackup (In2 = 'PWR_RT' rail-routing layer, empty of parts) carry their
+    # rail distribution as IN2 pours -- the interleaved ATX pinout made face pours a
+    # rectangle-clipping war on a dense dual-sided 70x55 (measured plateau at ~78 unconn).
+    # THT pins (J3/TB) pierce to In2 natively; SMD shunt pads bridge via force-stub vias
+    # (synthesize_force_vias). Cable boards (no PWR_RT layer) are untouched.
+    inner_layer = None
+    if os.environ.get("CEC_INNER_POURS", "0") == "1":        # EXPERIMENTAL (round 5): placement
+        for lid in range(pcbnew.PCB_LAYER_ID_COUNT):          # effect proven (unconn 114->74@p8)
+            try:                                              # but FR integration incomplete --
+                if board.GetLayerName(lid) == "PWR_RT" and board.GetLayerType(lid) == pcbnew.LT_SIGNAL:
+                    inner_layer = "In2.Cu"                    # In2 keepouts don't bind in FR (116
+                    break                                     # foreign) + force stubs need the
+            except Exception:                                # noqa: BLE001 -- foreign guard. OFF until done.
+                pass
     pads_by_net = defaultdict(list)
     padcount = defaultdict(int)
     flipped = {}
@@ -874,6 +889,8 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
         pair_layer = layer
         if shunt_refs and flipped.get(sorted(shunt_refs)[0]):
             pair_layer = "B.Cu"
+        if inner_layer is not None:
+            pair_layer = inner_layer
         # shunt centre + corridor axis (for the SHUNT_GAP_MM notch): the two pads of the 2-pad shunt
         # on this pair's HI/LO nets. Vertical corridor (EPS/PCIe top->bottom) if the pads differ more
         # in y than x. None when there is no qualifying 2-pad shunt -> the notch is a no-op (the box
@@ -1012,6 +1029,15 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
     board via cec_score.Rules when not given). SELF-GATING: a net with no THT cable pad or no 2-pad shunt
     is skipped, so a shared-bus board (Hub: no cables) returns []. Returns bake_hints-ready dicts."""
     board = board if board is not None else pcbnew.LoadBoard(board_path)
+    _inner_mode = False
+    if os.environ.get("CEC_INNER_POURS", "0") == "1":        # see derive_power_pours: experimental
+        for _lid in range(pcbnew.PCB_LAYER_ID_COUNT):
+            try:
+                if board.GetLayerName(_lid) == "PWR_RT" and board.GetLayerType(_lid) == pcbnew.LT_SIGNAL:
+                    _inner_mode = True
+                    break
+            except Exception:                                # noqa: BLE001
+                pass
     names = {n.GetNetname() for n in board.GetNetInfo().NetsByNetcode().values() if n.GetNetname()}
     if kelvin_pairs is None:
         kelvin_pairs = _board_kelvin_pairs(board)
@@ -1077,8 +1103,12 @@ def corridor_keepouts(board_path, *, kelvin_pairs=None, nets_12v=None, board=Non
         if not tht or not shunt:
             continue                                         # not a cable-connector high-current net
         # PER-PAIR LAYER (dual-sided): a flipped chain's pour lives on B.Cu -- reserve THAT,
-        # never F.Cu-only (the oracle's F-only lever was inverted for back chains).
+        # never F.Cu-only (the oracle's F-only lever was inverted for back chains). INNER-POUR
+        # boards (PWR_RT layer) reserve In2 instead -- the rail copper lives there and both
+        # faces stay free for signals.
         net_layers = ("B.Cu",) if (shunt_flipped and tuple(layers) == ("F.Cu",)) else tuple(layers)
+        if _inner_mode:
+            net_layers = ("In2.Cu",)
         sx, sy = shunt[0]
         # notch edge = shunt centre +/- SHUNT_GAP_MM/2 when the widen is on (matching derive_power_pours
         # so the keepout never blocks the B.Cu overflow lane), else the historical clip AT the shunt pad.
@@ -1194,6 +1224,78 @@ def _pt_seg_dist(px, py, ax, ay, bx, by):
         return math.hypot(px - ax, py - ay)
     t = max(0.0, min(1.0, ((px - ax) * dx + (py - ay) * dy) / L2))
     return math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+
+
+def synthesize_force_vias(board, *, kelvin_pairs=None, n_per_pad=3, drill=0.5, dia=0.9,
+                          stub_w=1.0, clear=0.25):
+    """INNER-POUR companion (2026-07-08): each 2-pad SMD shunt pad gets *n_per_pad* through-vias
+    just OUTBOARD of the pad (away from the shunt body, so the kelvin inner-edge tap window
+    stays untouched) plus a same-net face STUB from the pad to each via -- the force path
+    pad -> stub -> via -> In2 rail pour. Guarded: a via/stub that would collide with foreign
+    copper (track/pad/via) within *clear* is skipped (fewer parallel barrels, honest). Lays
+    copper only for pairs whose straddle shunt exists; returns {pads, vias, stubs}."""
+    if kelvin_pairs is None:
+        kelvin_pairs = _board_kelvin_pairs(board)
+    nets = {n.GetNetname(): c for c, n in board.GetNetInfo().NetsByNetcode().items()}
+    from collections import defaultdict
+    pads_by_net = defaultdict(list)
+    padcount = {}
+    for fp in board.GetFootprints():
+        padcount[fp.GetReference()] = fp.GetPadCount()
+        for p in fp.Pads():
+            if p.GetNetname():
+                pads_by_net[p.GetNetname()].append((fp.GetReference(), p, fp))
+    n_v = n_s = n_p = 0
+    for hi, lo in kelvin_pairs:
+        refs_hi = {r for r, _, _ in pads_by_net.get(hi, [])}
+        refs_lo = {r for r, _, _ in pads_by_net.get(lo, [])}
+        sh = next((r for r in sorted(refs_hi & refs_lo)
+                   if r.startswith("RS") and padcount.get(r) == 2), None)
+        if sh is None:
+            continue
+        sh_pads = [(net, p) for net in (hi, lo) for r, p, _f in pads_by_net.get(net, []) if r == sh]
+        if len(sh_pads) != 2:
+            continue
+        (net_a, pa), (net_b, pb) = sh_pads
+        for net, p, other in ((net_a, pa, pb), (net_b, pb, pa)):
+            nc = nets.get(net)
+            if nc is None:
+                continue
+            pos, opos = p.GetPosition(), other.GetPosition()
+            # outboard direction: away from the other terminal
+            dx, dy = pos.x - opos.x, pos.y - opos.y
+            L = max((dx * dx + dy * dy) ** 0.5, 1)
+            ux, uy = dx / L, dy / L
+            step = _nm(dia + 0.35)
+            base = pcbnew.VECTOR2I(int(pos.x + ux * _nm(1.6)), int(pos.y + uy * _nm(1.6)))
+            perp = (-uy, ux)
+            placed = 0
+            for k in range(n_per_pad):
+                off = (k - (n_per_pad - 1) / 2.0)
+                at = pcbnew.VECTOR2I(int(base.x + perp[0] * off * step),
+                                     int(base.y + perp[1] * off * step))
+                if not _tap_pair_overlap_clear(board, pos, at, _nm(stub_w),
+                                               board.GetLayerID(p.GetLayerName()), nc, set()):
+                    continue
+                v = pcbnew.PCB_VIA(board)
+                v.SetPosition(at)
+                v.SetDrill(_nm(drill))
+                v.SetWidth(_nm(dia))
+                v.SetNetCode(nc)
+                board.Add(v)
+                tr = pcbnew.PCB_TRACK(board)
+                tr.SetStart(pos)
+                tr.SetEnd(at)
+                tr.SetWidth(_nm(stub_w))
+                tr.SetLayer(board.GetLayerID(p.GetLayerName()))
+                tr.SetNetCode(nc)
+                board.Add(tr)
+                n_v += 1
+                n_s += 1
+                placed += 1
+            if placed:
+                n_p += 1
+    return {"pads": n_p, "vias": n_v, "stubs": n_s}
 
 
 def derive_via_field(board_path, *, per_net=10, drill=0.3, dia=0.6, pitch=1.2, keepout=0.5,
@@ -2214,6 +2316,13 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
             if kt["taps"]:
                 print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
                       f"{kt['by_net']}", file=sys.stderr)
+        # INNER-POUR force bridge: when the rail pours live on In2 (PWR_RT boards), each SMD
+        # shunt pad needs vias down to them -- THT pins pierce natively, SMD pads do not.
+        if any(str(p.get("layer")) == "In2.Cu" for p in (power_pours or ())):
+            fv = synthesize_force_vias(board)
+            if fv["vias"]:
+                print(f"[cec_fr] force vias: {fv['vias']} via(s)/{fv['stubs']} stub(s) at "
+                      f"{fv['pads']} shunt pad(s) -> In2 rail pours", file=sys.stderr)
     if fix_annular:
         normalize_via_annular(board)
     if fill_zones:
