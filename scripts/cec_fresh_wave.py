@@ -215,16 +215,24 @@ def _board_params(board):
     return p
 
 
-def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root):
+def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, proposal=None):
     """Grade ONE (intent, strat, seed) variant. Module-level + name-keyed intent lookup so
     it pickles into a spawn worker (intents are closures; spawn is REQUIRED -- pcbnew/wx is
-    not fork-safe, the cec_fr.generate_batch precedent)."""
+    not fork-safe, the cec_fr.generate_batch precedent). *proposal* = a VALIDATED seat
+    proposal dict (cec_wave_intents) -- applied instead of a named hand intent; its
+    role_keepouts merge into params (the params-level lever)."""
     label = f"{iname}-{strat}-s{seed}"
     t0 = time.monotonic()
     _p = _board_params(board)
-    intent = dict(_intents_for(board))[iname]
+    if proposal is not None and proposal.get("role_keepouts"):
+        _p = dict(_p)
+        _p["role_keepouts"] = dict(proposal["role_keepouts"])
     s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p)
-    intent(s)
+    if proposal is not None:
+        import cec_wave_intents
+        cec_wave_intents.apply_proposal(s, proposal)
+    else:
+        dict(_intents_for(board))[iname](s)
     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
     v = s.grade(out=out, keep=True,
                 passes=int(_p.get("wave_passes", passes)),
@@ -265,8 +273,19 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     os.makedirs(os.path.join(work_root, board), exist_ok=True)
     results = []
     _bp = _board_params(board)
-    variants = [(iname, strat, seed) for iname, _fn in _intents_for(board)
+    variants = [(iname, strat, seed, None) for iname, _fn in _intents_for(board)
                 for strat in ("dataflow", "compact") for seed in seeds]
+    # SEAT PROPOSALS (owner GO 2026-07-08): validated intents from the previous wave's
+    # verdicts join the grid BESIDE the hand intents (steer, never gate; labels carry
+    # prop- provenance). CEC_WAVE_INTENTS=0 kills both consumption and generation.
+    if os.environ.get("CEC_WAVE_INTENTS", "1") != "0":
+        try:
+            import cec_wave_intents
+            for p in cec_wave_intents.load(out_root, board):
+                variants += [(f"prop-{p['name']}", strat, seed, p)
+                             for strat in ("dataflow", "compact") for seed in seeds]
+        except Exception as e:                              # noqa: BLE001 -- fail-safe
+            print(f"[wave] {board}: proposals unavailable ({e})", flush=True)
 
     def _consume(v):
         _was_best = (not results or
@@ -282,9 +301,10 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
               f"({v.get('wall_s')}s)", flush=True)
 
     if workers <= 1:
-        for iname, strat, seed in variants:
+        for iname, strat, seed, prop in variants:
             try:
-                _consume(_grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root))
+                _consume(_grade_variant(board, W, H, iname, strat, seed, passes, opt,
+                                        work_root, proposal=prop))
             except Exception as e:                              # noqa: BLE001
                 print(f"[wave] {board} {iname}-{strat}-s{seed}: ERROR {type(e).__name__}: {e}",
                       flush=True)
@@ -294,8 +314,8 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
         ctx = mp.get_context("spawn")                          # pcbnew is NOT fork-safe
         with cf.ProcessPoolExecutor(max_workers=workers, mp_context=ctx) as pool:
             futs = {pool.submit(_grade_variant, board, W, H, iname, strat, seed,
-                                passes, opt, work_root): (iname, strat, seed)
-                    for iname, strat, seed in variants}
+                                passes, opt, work_root, prop): (iname, strat, seed)
+                    for iname, strat, seed, prop in variants}
             for fut in cf.as_completed(futs):
                 iname, strat, seed = futs[fut]
                 try:
@@ -334,6 +354,23 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
     _wlog(f"wave done: {board} best={best['label']} gate={best.get('gate')}", tag="wave",
           detail=f"kelvin={best.get('kelvin_ok')} unconn={best.get('unconnected')} "
                  f"foreign={ (best.get('foreign') or {}).get('tracks') }t; published {os.path.relpath(dst, ROOT)}")
+    # SEAT: propose intents for the NEXT wave from this wave's verdicts (local
+    # cec-worker-quality, nothink -- owner seat policy 2026-07-08). Fail-safe by
+    # construction; the proposals file steers the next run_board of this board.
+    if os.environ.get("CEC_WAVE_INTENTS", "1") != "0":
+        try:
+            import cec_wave_intents
+            ran = {v["label"].rsplit("-", 2)[0] for v in results}
+            props, plog = cec_wave_intents.propose(board, results, W, H, ran)
+            if props:
+                path = cec_wave_intents.save(out_root, board, props, plog,
+                                             meta={"from_wave": ts})
+                _wlog(f"{board}: seat proposed {len(props)} intent(s) for the next wave",
+                      tag="wave", detail="; ".join(p["name"] + " -- " + p["rationale"][:90]
+                                                   for p in props) + f" [{path}]")
+            print(f"[wave] {board} intent seat: " + " | ".join(plog[-2:]), flush=True)
+        except Exception as e:                              # noqa: BLE001 -- fail-safe
+            print(f"[wave] {board} intent seat unavailable: {e}", flush=True)
     return report
 
 
