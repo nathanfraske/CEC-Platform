@@ -1,5 +1,33 @@
 # Current work handoff
 
+## (G+++) 24-PIN ESCALATED REVIEW — state at 2026-07-08 night (branch claude/pipeline-consolidation)
+ROLE (owner): I am the ESCALATOR TIER — pipeline halts get diagnosed + fixed by me. Wave 5 (24
+variants, ALL unconn 123-187) was the halt; a 30-agent diagnosis workflow (adversarially
+verified; NOTE: it sampled a STALE 100x84 artifact, so cross-check numbers, mechanisms were
+code-level and valid) + instrumented FR probes drove 6 fix rounds, each committed + on the dash
+(tag=fix, cec_escalator_probe.py renders every round like wave variants):
+R1: phantom kelvin pair (fabricated /SENSE5V_LO -> gate unpassable; _derive_pairs existence
+guard); In2 unroutable (power-KIND layer -> FR refused; inner_power_routing param: In1 GND
+plane + In2 'PWR_RT' signal); wrong-shunt corridors (any-2-pad grabbed caps; straddle-first +
+RS guard); board-spanning rail boxes (ATX interleave; _x_clusters fan-in per pin group);
+dual-sided keepout layer inversion (per-pair B.Cu). R2: same-layer cross-net pour clip.
+R3: FR seed pinned in measurements (±30 noise discovered). R4: same-NET zone clip (abutting
+tiles); kelvin_sense_pins exclusion UNCONDITIONAL (slid 8mm seats escaped 6mm radius -> FR
+routed sense CROSS-FACE, caught by the new sense-side gate); tap reach 6->9. R5: INNER-POUR
+architecture (rail pours on In2 + synthesize_force_vias) — placement effect PROVEN (unconn
+114->74 @p8) but FR integration incomplete (In2 keepouts don't bind: 116 foreign; stubs need
+_tap_foreign_clear: 37 shorts) -> PARKED behind CEC_INNER_POURS=1 (FOLLOWUPS.md). R6 = the
+shipping state: face pours, foreign 0/0, unconn ~78@p20 / ~114-132@p8 (fr-seed variance),
+thermal dT~45-66 (gate 30; rail currents still cable-class 40A default — config needed).
+TRAJECTORY: 179 -> 78 best. REMAINING to gate-clean (priority): (1) inner-pour FR integration
+(bake_hints/DSN keepout on inner layers + guarded stubs) — biggest lever; (2) GND fanout
+synthesizer (19 isolated F.Cu SMD pads, workflow-verified warranted); (3) placement iteration
+(INA181 seats 16-23mm off their shunts; D_USB1-on-U11 pileup; rail-column-vs-pin-group order);
+(4) 24-pin rail currents for the thermal gate (manifest config; 40A default over-gates).
+Probe harness: scripts/cec_escalator_probe.py; artifacts build/escalator/atx-24pin-rev3/.
+COST POLICY (owner, recorded in agent-cost-policy.md): panels LOCAL-first (cec-worker-quality
+go-to; deepseek = heavy judgment only, slow); cloud agents cheapest-that-works; fable = exception.
+
 ## (G++) 24-PIN OWNER BATCH — 2026-07-08 late (branch claude/pipeline-consolidation)
 ALL owner directives landed + committed: J_SIG1 2x5->1x4 (study item 5 CLOSED, no sense-return;
 pin order = db J20: 1=-12V 2=PS_ON# 3=PWR_OK 4=GND; alignment contract = collinear with blade
