@@ -17,3 +17,4 @@
 - [Enterprise trust tier](enterprise-trust-tier.md) — the workstation tamper-evident-witness design (zero-trust per-module RoT, multi-modal lie-detector, 2 SKUs P4/PolarFire); PROPOSED in PR #64 / docs/enterprise-workstation-trust-addendum-2026-06-30.md; resolves-toward OQ-7.
 - [Dashboard activity feed](dashboard-activity-feed.md) — log every visual artifact/work stage via cec_worklog (owner verifies on the dash; :8090 ACTIVITY section merges worklog + commits).
 - [Agent cost policy](agent-cost-policy.md) — panels/fan-out go to the LOCAL broker seats first (cec-worker-quality etc. on :8080, ~free); cloud agents only for tool-using legs, cheapest tier that does the job.
+- [Pipeline solver roadmap](pipeline-solver-roadmap.md) — standing answer for 'what solvers/improvements can we add': docs/pipeline-solver-roadmap.md
