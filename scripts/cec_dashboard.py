@@ -500,6 +500,23 @@ class H(BaseHTTPRequestHandler):
     def _json(self, obj, code=200):
         self._send(json.dumps(obj).encode(), "application/json", code)
 
+    def do_HEAD(self):
+        # existence probe for the viewer's 3D-twin toggle (stdlib has no default do_HEAD)
+        try:
+            from urllib.parse import urlparse, parse_qs
+            u = urlparse(self.path)
+            if u.path == "/artifact":
+                p = (parse_qs(u.query).get("p") or [""])[0]
+                full = os.path.realpath(os.path.join(ROOT, p))
+                ok = full.startswith(ROOT) and os.path.isfile(full)
+                self.send_response(200 if ok else 404)
+                self.end_headers()
+                return
+        except Exception:                                # noqa: BLE001
+            pass
+        self.send_response(404)
+        self.end_headers()
+
     def do_GET(self):                                              # noqa: N802
         path, _, q = self.path.partition("?")
         params = {k: unquote(v) for k, v in (p.split("=", 1) for p in q.split("&") if "=" in p)}
@@ -596,7 +613,7 @@ button.pill.act:hover{background:#26424e}
  <div id="pwrap"><div id="pstack"><div id="empty">no board selected</div></div></div>
 </div></div>
 <script>
-let boards=[], lib={beta:[],fresh:[],watch:{}}, acts=[], cur=null, curAct=null, mode='all', plotW=1100;
+let boards=[], lib={beta:[],fresh:[],watch:{}}, acts=[], cur=null, curAct=null, mode='all', plotW=1100, actBodies=false, actTwin=null;
 const PAGE_REV='__REV__';
 let secOpen={act:true,beta:true,fresh:true,snaps:true};
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -707,6 +724,7 @@ function setMode(m){mode=m;
  for(const x of ['all','detail','current','render','plot']) document.getElementById('m_'+x).classList.toggle('on',x===m);
  buildPanels();}
 function pickAct(i){
+ if(curAct!==i){actBodies=false;actTwin=null;}
  curAct=i; cur=null;
  const a=acts[i]||{};
  document.getElementById('btitle').textContent=`[${a.tag}] ${a.title}`;
@@ -716,22 +734,28 @@ function pickAct(i){
  if(a.image){
   st.innerHTML='';
   const w=document.createElement('div'); w.className='panel';
-  const im=document.createElement('img'); im.src=`/artifact?p=${encodeURIComponent(a.image)}`;
+  const im=document.createElement('img'); im.src=`/artifact?p=${encodeURIComponent(actBodies&&actTwin?actTwin:a.image)}`;
+  im.id='actimg';
   const cap=document.createElement('div'); cap.className='cap'; cap.textContent=a.title;
-  w.appendChild(im);
-  // 3D toggle (owner 2026-07-08): waves render a -bodies twin next to the copper view;
-  // the button swaps between them (and hides itself if the twin 404s).
+  w.appendChild(im); w.appendChild(cap); st.appendChild(w);
+  // 3D toggle v2 (owner): STATIC header (never scales with zoom); only when the -bodies
+  // twin EXISTS (old snapshots have bodies baked in, no twin, no button).
+  actTwin=null;
   if(a.image.includes('-top.png')||a.image.includes('-bottom.png')){
    const tw=a.image.replace('-top.png','-top-bodies.png').replace('-bottom.png','-bottom-bodies.png');
-   const btn=document.createElement('button'); btn.textContent='3D bodies'; btn.className='pill';
-   btn.style.cssText='cursor:pointer;margin:4px 0';
-   let on=false;
-   btn.onclick=()=>{on=!on; im.src=`/artifact?p=${encodeURIComponent(on?tw:a.image)}`;
-    btn.textContent=on?'copper view':'3D bodies';};
-   im.onerror=()=>{ if(on){ btn.style.display='none'; on=false; im.src=`/artifact?p=${encodeURIComponent(a.image)}`; } };
-   w.appendChild(btn);
+   fetch(`/artifact?p=${encodeURIComponent(tw)}`,{method:'HEAD'}).then(r=>{
+    if(!r.ok) return;
+    actTwin=tw;
+    const bd=document.getElementById('badges');
+    const btn=document.createElement('button'); btn.textContent=actBodies?'copper view':'3D bodies';
+    btn.className='pill'; btn.style.cssText='cursor:pointer;margin-left:8px';
+    btn.onclick=()=>{actBodies=!actBodies;
+     const el=document.getElementById('actimg');
+     if(el) el.src=`/artifact?p=${encodeURIComponent(actBodies?tw:a.image)}`;
+     btn.textContent=actBodies?'copper view':'3D bodies';};
+    bd.appendChild(btn);
+   }).catch(()=>{});
   }
-  w.appendChild(cap); st.appendChild(w);
  }else{
   st.innerHTML=`<div id="empty" style="text-align:left;max-width:900px;white-space:pre-wrap">${esc(a.title)}\n\n${esc(a.detail||'(no artifact attached — this event is a text milestone; commits carry their diff in git)')}</div>`;
  }
@@ -743,15 +767,16 @@ function pick(id){
  document.getElementById('btitle').textContent=cur?(cur.name+'  ·  '+(cur.source||'')):'select a board';
  renderList(); renderBadges(); fit();
 }
-function fit(){plotW=document.getElementById('pwrap').clientWidth-4; buildPanels();}
-function zoom(f){plotW=Math.min(24000,Math.max(200,plotW*f)); buildPanels();}
+function rerender(){ if(cur){buildPanels();} else if(curAct!==null){pickAct(curAct);} }
+function fit(){plotW=document.getElementById('pwrap').clientWidth-4; rerender();}
+function zoom(f){plotW=Math.min(24000,Math.max(200,plotW*f)); rerender();}
 // wheel-zoom anchored at cursor + drag-pan (the reused high-res viewing frame)
 window.addEventListener('DOMContentLoaded',()=>{
  const pw=document.getElementById('pwrap');
  pw.addEventListener('wheel',e=>{e.preventDefault();
   const f=e.deltaY<0?1.25:0.8, nw=Math.min(24000,Math.max(200,plotW*f)), r=pw.getBoundingClientRect();
   const fx=(pw.scrollLeft+e.clientX-r.left)/plotW, fy=(pw.scrollTop+e.clientY-r.top)/plotW;
-  plotW=nw; buildPanels();
+  plotW=nw; rerender();
   pw.scrollLeft=fx*plotW-(e.clientX-r.left); pw.scrollTop=fy*plotW-(e.clientY-r.top);},{passive:false});
  let pan=null;
  pw.addEventListener('mousedown',e=>{pan={x:e.clientX,y:e.clientY,l:pw.scrollLeft,t:pw.scrollTop};pw.style.cursor='grabbing';e.preventDefault();});
