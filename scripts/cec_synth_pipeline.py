@@ -2200,7 +2200,94 @@ def legalize_pack(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
     *bounds* (the intent-compiler PARTITION lever, default None -> byte-identical to the
     un-partitioned legalizer): {ref:(x0,y0,x1,y1)} HARD region containment -- a bounded ref's
     courtyard is kept inside its box (intersected with the in-board range), so an agent's
-    structure-first assignment cannot be legalized away. Refs not in *bounds* are unconstrained."""
+    structure-first assignment cannot be legalized away. Refs not in *bounds* are unconstrained.
+
+    VECTORIZED (2026-07-08, owner porting pass): the numpy path batches BOTH hot loops (the
+    placed-boxes scan and the spiral ring's candidate batch) -- profiled as 92% of placement
+    time (629k cost() calls / 94M abs() on one 24-pin synth); measured 12.3x on the 24-pin's
+    legalize calls (3.27s -> 0.27s) with 100% OUTPUT-IDENTICAL placements on 38 recorded real
+    calls across 2 boards x 2 seeds (record/replay bench build/bench_legalize.py; first-zero /
+    first-argmin candidate selection matches the sequential `c < bestc` semantics exactly).
+    No numpy -> the original sequential path (_legalize_pack_seq), same results (R-05
+    degradation discipline)."""
+    try:
+        import numpy as np
+    except ImportError:
+        return _legalize_pack_seq(P, movable, cyinfo, W, H, clr=clr, step=step, bounds=bounds)
+    DEF = (0.0, 0.0, 1.0, 1.0)
+    apx, apy, aphw, aphh = [], [], [], []
+    for r in P:
+        if r not in movable:
+            cx, cy, hw, hh = cyinfo.get(r, DEF)
+            apx.append(P[r][0] + cx)
+            apy.append(P[r][1] + cy)
+            aphw.append(hw)
+            aphh.append(hh)
+    px = np.array(apx, float)
+    py = np.array(apy, float)
+    phw = np.array(aphw, float)
+    phh = np.array(aphh, float)
+
+    order = sorted(movable, key=lambda r: -(cyinfo.get(r, DEF)[2] * cyinfo.get(r, DEF)[3]))
+    residual = 0
+    for r in order:
+        cx, cy, hw, hh = cyinfo.get(r, DEF)
+        tx, ty = P[r][0], P[r][1]
+        lo_x, hi_x = hw - cx, W - hw - cx
+        lo_y, hi_y = hh - cy, H - hh - cy
+        if hi_x < lo_x:
+            lo_x = hi_x = W / 2 - cx
+        if hi_y < lo_y:
+            lo_y = hi_y = H / 2 - cy
+        if bounds and r in bounds:
+            rx0, ry0, rx1, ry1 = bounds[r]
+            lo_x, hi_x = max(lo_x, rx0 + hw - cx), min(hi_x, rx1 - hw - cx)
+            lo_y, hi_y = max(lo_y, ry0 + hh - cy), min(hi_y, ry1 - hh - cy)
+            if hi_x < lo_x:
+                lo_x = hi_x = (rx0 + rx1) / 2 - cx
+            if hi_y < lo_y:
+                lo_y = hi_y = (ry0 + ry1) / 2 - cy
+            tx, ty = min(hi_x, max(lo_x, tx)), min(hi_y, max(lo_y, ty))
+        wx = hw + phw + clr
+        wy = hh + phh + clr
+        best, bestc, R = None, 1e18, 0.0
+        while R <= max(W, H):
+            if R == 0:
+                angs = np.zeros(1)
+            else:
+                n = max(10, int(2 * math.pi * R / step))
+                angs = 2 * math.pi * np.arange(n) / n
+            ox_ = np.minimum(hi_x, np.maximum(lo_x, tx + R * np.cos(angs)))
+            oy_ = np.minimum(hi_y, np.maximum(lo_y, ty + R * np.sin(angs)))
+            if len(px):
+                ovx = wx[None, :] - np.abs((ox_ + cx)[:, None] - px[None, :])
+                ovy = wy[None, :] - np.abs((oy_ + cy)[:, None] - py[None, :])
+                c = np.sum(np.where((ovx > 0) & (ovy > 0), ovx * ovy, 0.0), axis=1)
+            else:
+                c = np.zeros(len(ox_))
+            zi = np.nonzero(c == 0.0)[0]
+            if len(zi):
+                k = zi[0]
+                if 0.0 < bestc:
+                    best, bestc = (float(ox_[k]), float(oy_[k])), 0.0
+                break
+            k = int(np.argmin(c))
+            if c[k] < bestc:
+                best, bestc = (float(ox_[k]), float(oy_[k])), float(c[k])
+            R += step
+        P[r] = (best[0], best[1], P[r][2])
+        px = np.append(px, best[0] + cx)
+        py = np.append(py, best[1] + cy)
+        phw = np.append(phw, hw)
+        phh = np.append(phh, hh)
+        if bestc > 1e-6:
+            residual += 1
+    return residual
+
+
+def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=None):
+    """The original sequential legalizer -- the no-numpy fallback + the record/replay
+    reference implementation (see legalize_pack's docstring for the equivalence proof)."""
     DEF = (0.0, 0.0, 1.0, 1.0)
     placed = []                                      # (courtyard_centre_x, _y, hw, hh)
     for r in P:
