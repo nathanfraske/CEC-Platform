@@ -4351,6 +4351,10 @@ _ORACLE_RECIPE_ENV = {
     "CEC_CORRIDOR_FCU_ONLY":     "1",   # F.Cu-only corridor lever: foreign routes B.Cu UNDER the solid F.Cu pour
     "CEC_SENSEC_FORCE_POUR_ONLY":"1",   # leave the connector<->shunt FORCE path to the pour (no redundant trace)
     "CEC_SHUNT_GAP":             "1",   # widen the shunt notch -- REQUIRED for the foreign==0 check to read clean
+    # During waves the CPU is contended by FR JVMs while the GPU idles; wave-grade solves
+    # (~100k unknowns) sit just under the measured 120k solo crossover, so push them to the
+    # GPU anyway -- break-even solve speed, net wall-clock win (owner catch 2026-07-08).
+    "CEC_THERMAL_GPU_MIN_N":     "60000",
 }
 
 
