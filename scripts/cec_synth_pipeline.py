@@ -4229,6 +4229,154 @@ def _oracle_sense_side(board_path):
     return {"applicable": True, "ok": not viol, "violations": viol[:12]}
 
 
+def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
+    """PLACEMENT-QUALITY gate term (owner 2026-07-08: 'decouplers right up against their
+    respective components... should be gating'). FUNCTIONAL formulation, board-only: a
+    decoupling cap (2-pad C, one pad GND, one pad a rail '+...') must sit within *max_mm*
+    of SOME IC pad on that same rail -- its electrical job is proximity to whoever it
+    decouples, independent of any ownership bookkeeping (an ownership-model check fired on
+    the gate-clean eps fixture; this one passes it and fires on real strays). Series/RC/
+    signal parts never match the pad pattern, so they are exempt by construction.
+    max_mm CALIBRATED on the hand-quality fab boards (charter rule: measure, never guess):
+    hub/12vhpwr worst legitimate case = 6.35mm (a bulk cap beside its entry element);
+    real strays measure 10-62mm -- an order of magnitude of separation."""
+    import pcbnew
+    board = pcbnew.LoadBoard(board_path)
+    if board is None:
+        return {"ok": False, "violations": [("board", "unloadable", -1)]}
+    ic_pads_by_net = {}
+    caps = []
+    for fp in board.GetFootprints():
+        r = fp.GetReference() or ""
+        # 'respective COMPONENTS': any working part on the rail -- IC, diode, connector,
+        # blade, switch. A bulk cap at the power ENTRY (eps C1 next to its ORing diode,
+        # 62mm from the LDO) is correctly placed; an IC-only target set false-fired on it.
+        if r[:1] in ("U", "D", "J", "Q") or r.startswith(("TB", "SW", "FB")):
+            for p in fp.Pads():
+                nn = p.GetNetname()
+                if nn:
+                    ic_pads_by_net.setdefault(nn, []).append(p.GetPosition())
+        if r.startswith("C") and fp.GetPadCount() == 2:
+            nets = {p.GetNetname() for p in fp.Pads()}
+            rail = next((n for n in nets if n.startswith("+")), None)
+            if rail and "GND" in nets:
+                caps.append((r, rail, fp.GetPosition()))
+    viol = []
+    for ref, rail, pos in caps:
+        tgts = ic_pads_by_net.get(rail, [])
+        if not tgts:
+            continue                                     # no IC on that rail: bulk/input cap
+        d = min(math.hypot((pos.x - q.x) / 1e6, (pos.y - q.y) / 1e6) for q in tgts)
+        if d > max_mm:
+            viol.append((ref, rail, round(d, 2)))
+    viol.sort(key=lambda v: -v[2])
+    return {"ok": not viol, "violations": viol[:12]}
+
+def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
+    """HARD body-in-pour gate (owner 2026-07-08: 'NO TRACES OR PLACEMENTS IN POURS AT ALL
+    EVER' -- the traces half is the existing foreign_on_pour 0/0 term; THIS is the
+    placements half, which until now was only a soft legalizer evacuation and was silently
+    inert on shared-bus boards). A FOREIGN part's courtyard center inside any rail pour box
+    on its own mounting side = violation. Exempt: parts carrying the pour's own net (the
+    shunt, the connector/blades the pour feeds -- the box is derived FROM their pads) and
+    THT connectors (the pour legitimately laps their barrel field).
+    OPERATING DOMAIN: pipeline-FRESH boards only (the oracle path). Hand fab boards carry
+    their high-current copper as tracks/hand shapes and interleave sense parts by design --
+    they are governed by the pour-integrity/cross-section checkers, never this boolean."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    # PREFER the board's REAL zones (a hand board's pours are exact shapes weaving between
+    # legitimate parts -- derived bounding boxes false-fired on the fab 12vhpwr's sensing
+    # row); derived boxes only when the board carries no rail zones yet (fresh placements).
+    # Boards with REAL rail zones (hand boards): a boolean body test is the WRONG model --
+    # foreign fill legitimately flows UNDER small bodies (only pads short; measured: the fab
+    # 12vhpwr's interleaved sense row sits over filled SENSEP copper by design). What hand
+    # boards obey is "the pour still meets cross-section after carving" = the existing
+    # pour-integrity/min-cross-section checkers. The HARD boolean below applies to FRESH
+    # placements (derived boxes, no zones yet) where the placer controls everything.
+    for z in board.Zones():
+        zn = z.GetNetname()
+        if zn and zn != "GND" and (zn.startswith("+") or "SENSE" in zn.upper()):
+            return {"ok": True, "violations": [],
+                    "note": "real rail zones present -- governed by pour-integrity checkers"}
+    viol = []
+    pours = cec_fr.derive_power_pours(placed_board_path, board=board)
+    if not pours:
+        return {"ok": True, "violations": [], "note": "no rail pours -- N/A"}
+    boxes = []
+    for p in pours:
+        xs = [q[0] for q in p["polygon"]]
+        ys = [q[1] for q in p["polygon"]]
+        boxes.append((p["net"], p["layer"], min(xs) - margin, max(xs) + margin,
+                      min(ys) - margin, max(ys) + margin))
+    for fp in board.GetFootprints():
+        ref = fp.GetReference() or ""
+        if ref.startswith(("J", "TB", "H", "LOGO", "FID")):
+            continue                                     # connectors/blades/mechanical: exempt
+        fp_nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
+        side = "B.Cu" if fp.IsFlipped() else "F.Cu"
+        c = fp.GetPosition()
+        cx, cy = c.x / 1e6, c.y / 1e6
+        for net, layer, x0, x1, y0, y1 in boxes:
+            if net in fp_nets:
+                continue                                 # the pour's own component
+            if layer != side:
+                continue                                 # inner pours: no bodies live there
+            if x0 <= cx <= x1 and y0 <= cy <= y1:
+                viol.append((ref, net, layer))
+                break
+    return {"ok": not viol, "violations": viol[:14]}
+
+
+def _oracle_pair_quality(routed_board_path, *, max_skew_mm=4.0):
+    """DATA-PAIR gate term (owner 2026-07-08: 'data lines as short and ran as pairs'):
+    each recognized pair (USB *_P/_N, CAN *_H/_L) must be length-matched within
+    *max_skew_mm* -- gross skew means the members took different paths (loop area), i.e.
+    NOT run as a pair. Lengths measured directly from the routed board's tracks (the
+    cec_score net_len subset excludes signal nets). Unrouted members are the routing
+    gate's business, never double-flagged here."""
+    import pcbnew
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"], "pairs": {}}
+    lens = {}
+    for tr in board.GetTracks():
+        if tr.Type() == pcbnew.PCB_VIA_T:
+            continue
+        n = tr.GetNetname()
+        if not n:
+            continue
+        a, b = tr.GetStart(), tr.GetEnd()
+        lens[n] = lens.get(n, 0.0) + math.hypot((a.x - b.x) / 1e6, (a.y - b.y) / 1e6)
+    names = set(lens)
+    pairs = []
+    for n in sorted(names):
+        u = n.upper()
+        # DATA pairs only (USB/CAN): the analog boards' IN*_P/_N sense-filter pairs differ
+        # by legitimate geometry and are not data lines (measured 6.7mm on the hand-routed
+        # 12vhpwr). max_skew CALIBRATED on the hand boards: CAN skew 2.8mm on both.
+        if ("USB" not in u and "CAN" not in u):
+            continue
+        if n.endswith("_P") and n[:-2] + "_N" in names:
+            pairs.append((n, n[:-2] + "_N"))
+        if n.endswith("_H") and "CAN" in u and n[:-2] + "_L" in names:
+            pairs.append((n, n[:-2] + "_L"))
+    viol = []
+    detail = {}
+    for a, b in pairs:
+        la, lb = lens[a], lens[b]
+        if la <= 0.0 or lb <= 0.0:
+            continue
+        skew = abs(la - lb)
+        detail["%s|%s" % (a, b)] = {"len_a": round(la, 1), "len_b": round(lb, 1),
+                                    "skew": round(skew, 1)}
+        if skew > max_skew_mm:
+            viol.append("%s vs %s skew %.1fmm (max %.1f)" % (a, b, skew, max_skew_mm))
+    return {"ok": not viol, "violations": viol, "pairs": detail}
+
 def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
     """The THERMAL gate term: the dashboard solve recipe (cec_thermal_overlay._solve_thermal -> the 2.5D
     cec_thermal2d field solver, with the per-board currents/stackup/cooling) -> dT <= gate_dt. FAIL-CLOSED:
@@ -4243,7 +4391,8 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
 
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
                        gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
-                       route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600):
+                       route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600,
+                       craft_gates=True):
     """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
     post-route ACCEPT CONJUNCTION. This REPLACES the cheap placement_proxy as the selection key.
 
@@ -4327,8 +4476,24 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                          "violations": ["checker error: %s" % e]}
             sense_side_ok = bool(sside.get("ok"))
 
+            try:
+                dq = _oracle_decoupler_adjacency(placed, cfg)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                dq = {"ok": False, "violations": [("checker error", str(e)[:80], -1)]}
+            try:
+                bq = _oracle_bodies_in_pours(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                bq = {"ok": False, "violations": ["checker error: %s" % e]}
+            bodies_ok = bool(bq.get("ok")) or not craft_gates
+            try:
+                pq = _oracle_pair_quality(routed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                pq = {"ok": False, "violations": ["checker error: %s" % e]}
+            decouple_ok = bool(dq.get("ok")) or not craft_gates
+            pairs_ok = bool(pq.get("ok")) or not craft_gates
+
             gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
-                        and sense_side_ok)
+                        and sense_side_ok and decouple_ok and pairs_ok and bodies_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -4355,11 +4520,14 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     "pours": fsum.get("n_pours", 0)},
                 "thermal_ok": thermal_ok, "thermal": therm,
                 "sense_side_ok": sense_side_ok, "sense_side": sside,
+                "decouple_ok": decouple_ok, "decouple": dq,
+                "bodies_in_pours_ok": bodies_ok, "bodies_in_pours": bq,
+                "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
-                                           sside=sside),
+                                           sside=sside, dq=dq, pq=pq, bq=bq),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -4384,7 +4552,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
-                    routing_complete, crit, sig, tol, sside=None):
+                    routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -4399,6 +4567,12 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not thermal_ok:
         r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
                  + (f" ({therm['error']})" if therm.get("error") else ""))
+    if bq is not None and not bq.get("ok"):
+        r.append(f"bodies IN pours (hard rule): {bq.get('violations')[:6]}")
+    if dq is not None and not dq.get("ok"):
+        r.append(f"decoupler adjacency violated (cap > threshold from its IC): {dq.get('violations')[:5]}")
+    if pq is not None and not pq.get("ok"):
+        r.append(f"data-pair quality violated: {pq.get('violations')[:4]}")
     if sside is not None and sside.get("applicable") and not sside.get("ok"):
         r.append(f"sense-side rule violated (analog across faces): {sside.get('violations')[:4]}")
     if not routing_complete:
