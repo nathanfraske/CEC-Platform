@@ -4264,7 +4264,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     # seat stays put.
     _pour_fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
                    | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
-    _pour_boxes = _pour_boxes_unified(P, nl, comps, W, H) if seated_inas else []
+    # POUR LEVER (stage 2): fold the placer's pour() asks (cfg.params['pour_asks']) into the
+    # placement-time PourPlan so the evac sees an asked pour even on a rail the derivation would
+    # not pour. `pour_asks` empty -> byte-identical to the un-asked settle (the golden guarantee).
+    _pour_asks = tuple(cfg.params.get("pour_asks") or ())
+    _pour_boxes = (_pour_boxes_unified(P, nl, comps, W, H, asks=_pour_asks)
+                   if (seated_inas or _pour_asks) else [])
     # own-net eviction exemptions: a part's own pads' nets + its cluster owner's nets
     _nets_of = defaultdict(set)
     for _nn, _mem in nl.nets.items():

@@ -71,6 +71,7 @@ class PlacementSession:
         self.log = []
         self._near = []
         self._order = []             # intent trace (reproducibility / audit)
+        self._pour_asks = []         # pour lever (stage 2): declarative pour() requests
 
     # ----------------------------------------------------------------- region geometry
     def region(self, name, box):
@@ -118,6 +119,23 @@ class PlacementSession:
         the same slots, so density/overlap character is unchanged)."""
         self._order.append((list(refs), str(axis)))
         self.log.append(("order", list(refs), axis))
+        return self
+
+    def pour(self, net, *, region_hint=None, layers=("F.Cu",), shape="lane", priority=2):
+        """POUR intent (pour lever, stage 2, docs/pour-lever-scoping-2026-07-08.md): request a
+        copper pour on *net*. `region_hint=None` -> the box auto-derives from that net's pads (the
+        default derive behaviour); `region_hint=(x0,y0,x1,y1)` pins a region. The ask folds into
+        the placement-time PourPlan (cec_synth_pipeline.synth_one -> _pour_boxes_unified) so the
+        settle/evac sees the asked pour and evacuates foreign bodies from it. Compiles through
+        cfg.params['pour_asks'] -- the identical inert-when-unused channel near()/order() use, so a
+        session with NO pour() call compiles BYTE-IDENTICALLY (the golden guarantee). The router
+        REBUILD of an asked pour is the stage-4 verb (owner-gated); this only requests it."""
+        self._pour_asks.append({"net": str(net),
+                                "region_hint": (tuple(region_hint) if region_hint is not None
+                                                else None),
+                                "layers": tuple(layers), "shape": str(shape),
+                                "priority": int(priority), "provenance": "placer_ask"})
+        self.log.append(("pour", net, region_hint, tuple(layers), shape, priority))
         return self
 
     def unassign(self, refs):
@@ -223,6 +241,8 @@ class PlacementSession:
             d.setdefault("params", {})["near_intents"] = list(self._near)
         if self._order:
             d.setdefault("params", {})["order_intents"] = list(self._order)
+        if self._pour_asks:
+            d.setdefault("params", {})["pour_asks"] = list(self._pour_asks)
         return d
 
     def compile(self, *, strat=None, seed=None):
