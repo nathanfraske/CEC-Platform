@@ -23,6 +23,7 @@ finding: partitions/intents move the needle, absolute-coord jitter does not).
 import argparse
 import json
 import os
+import subprocess
 import sys
 import time
 
@@ -42,6 +43,40 @@ def _wlog(title, **kw):
     if cec_worklog is not None:
         try:
             cec_worklog.log(title, **kw)
+        except Exception:                              # noqa: BLE001
+            pass
+
+
+def _snapshot(board, label, v, work_root, *, best=False, dual=False):
+    """Per-variant REVIEW SNAPSHOT (owner ask 2026-07-08): render the routed candidate and
+    feed it to the dashboard ACTIVITY stream with the full verdict, so the wave is
+    reviewable AS IT RUNS. Renders are cheap (~3s); the GPU-analyzed archive still gets
+    only published winners (the watcher)."""
+    routed = v.get("routed") or v.get("placed")
+    if not routed or not os.path.isfile(str(routed)):
+        _wlog(f"{board} {label}: no board produced", tag="wave", detail=str(v.get("reasons"))[:300])
+        return
+    png = os.path.join(work_root, board, f"{label}-top.png")
+    try:
+        subprocess.run(["kicad-cli", "pcb", "render", "-o", png, "--side", "top", str(routed)],
+                       capture_output=True, timeout=180)
+    except Exception:                                  # noqa: BLE001
+        png = None
+    star = "★ new best — " if best else ""
+    th = (v.get("thermal") or {})
+    detail = (f"gate={v.get('gate')} kelvin={v.get('kelvin_ok')} diff={v.get('diffpair_ok')} "
+              f"drc={v.get('drc')} unconn={v.get('unconnected')} "
+              f"foreign={(v.get('foreign') or {}).get('tracks')}t dT={th.get('dT')} "
+              f"({v.get('route_s')}s route)")
+    _wlog(f"{star}{board} {label}", tag="wave", detail=detail,
+          image=(png if png and os.path.isfile(png) else None))
+    if best and dual:
+        pngb = os.path.join(work_root, board, f"{label}-bottom.png")
+        try:
+            subprocess.run(["kicad-cli", "pcb", "render", "-o", pngb, "--side", "bottom",
+                            str(routed)], capture_output=True, timeout=180)
+            if os.path.isfile(pngb):
+                _wlog(f"{board} {label} — BACK face", tag="wave", detail=detail, image=pngb)
         except Exception:                              # noqa: BLE001
             pass
 
@@ -130,7 +165,12 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                                 unconn_finish_tol=2)
                     v["label"] = label
                     v["placed"] = out
+                    _was_best = (not results or
+                                 tuple(v.get("sort_key") or (9,)) <
+                                 min(tuple(r.get("sort_key") or (9,)) for r in results))
                     results.append(v)
+                    _snapshot(board, label, v, work_root, best=_was_best,
+                              dual=bool(_bp.get("dual_sided")))
                     print(f"[wave] {board} {label}: gate={v.get('gate')} "
                           f"kelvin={v.get('kelvin_ok')} unconn={v.get('unconnected')} "
                           f"foreign={v.get('foreign',{}).get('tracks')}t "
