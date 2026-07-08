@@ -36,3 +36,16 @@ calibration legs (fabricated an "overpacking" concern from hand-board analysis).
 output becomes a THRESHOLD or design principle run at sonnet minimum, opus when they gate;
 haiku stays for mechanical extraction/verify with narrow rubrics. When a cheap leg's finding
 drives a decision, re-derive it at a higher tier first ("grain of salt" rule).
+
+**WORKFLOW/AGENT MODEL PIN (owner 2026-07-08, after a Fable-fleet near-miss killed by
+hand):** Workflow `agent()` calls INHERIT THE SESSION MODEL unless `model:` is set — every
+workflow agent() and Agent launch MUST carry an explicit model per the tiers above.
+
+**IN-PIPELINE seats (owner 2026-07-08 evening):** for agent legs INSIDE the wave/pipeline
+loop, SPEED beats giant-model quality — seat = `cec-worker-quality` (27B dense,
+GPU-resident, no swaps) with **nothink** inputs; giants (gpt-oss-120b / M2.7 / V4-flash)
+are quality but too slow for a loop ("unless you can show otherwise — still worth
+testing"; bench harness scripts/cec_wave_intents.py, numbers in the 2026-07-08 session).
+**Vision seats (same message):** even the best VLMs are "notably bad at PCB
+design/defects" — a vision agent must be TOOL/facts-FED (v2 facts-alongside protocol) and
+used **excessively sparingly**: published-winner-only sanity check, always advisory.
