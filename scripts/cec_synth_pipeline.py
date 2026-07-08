@@ -3296,7 +3296,12 @@ def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
         # ends each pour box at the shunt pad CENTRE +/- margin). The seat centres the body on `a`
         # (alpha below), so it sits in that notch; pour_margin is the documented calibration knob.
         refs = {r for r, _ in nl.nets.get(hi, [])} | {r for r, _ in nl.nets.get(lo, [])}
-        sense = sorted(r for r in refs if r.startswith("U") and r in comps)
+        # INA-FILTER (reach-gate finding 2026-07-08): on RAIL-SIDED straddle pairs
+        # (+5V_MAIN/+5VSB) the net-derived ref set sweeps in every IC on the rail (the
+        # mux, loads) -- the seat then mis-assigns sides and the real INA181 lands 33-49mm
+        # out (wave-10's kelvin=false). Only actual sense amps seat here.
+        sense = sorted(r for r in refs if r.startswith("U") and r in comps
+                       and "INA" in (nl.comps[r].value or "").upper())
         for idx, ic in enumerate(sense):
             side = 1.0 if idx % 2 == 0 else -1.0        # the two ICs straddle the shunt
             inp = next((p for r, p in nl.nets.get(hi, []) if r == ic), None)   # IN+ pad (on HI)
