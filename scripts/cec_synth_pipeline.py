@@ -4733,6 +4733,84 @@ def _oracle_dfm(routed_board_path):
     return {"ok": not v, "violations": slim, "count": len(v)}
 
 
+def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10):
+    """ROUTE-SANITY advisory (exploration round 2 item 5, 2026-07-08): per-net detour
+    RATIO (routed track length / pad-MST lower bound) + per-net VIA BUDGET. The probe
+    (build/probe_length_via.py) proved the blind spot: a 43x meander and a 41-via chain
+    between the same two pads are both fully DRC-legal and gates_pass=True. CALIBRATION
+    (build/meander_via_calib.py, 2026-07-08): board-level weighted detour does NOT
+    separate hand from fresh (pour-connected nets sink it below 1.0 -- fresh 0.85/0.94
+    vs hand 1.03/1.27), so this stays PER-NET pathological ceilings: hand worst ratio
+    2.7 (12vhpwr /TEMP1) vs ceiling 6.0; via budget exempts zoned nets AND force
+    (kelvin-pair) nets -- the 12vhpwr's mirrored high-current LANES are plain tracks,
+    no zone, and legitimately stitch 10 vias onto 3-pad /SENSEP* nets (measured; GND
+    fields 209); the shipped 12vhpwr's /SB_CBL_PRES sideband hops 8 vias (the accepted
+    signal-net max, hence base 10). ADVISORY -- no real board fails today; it
+    back-stops absurd routes (the synthetic 41-via chain and 53.8x meander fail)."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    try:
+        force_nets = {n for pr in cec_fr._board_kelvin_pairs(board) for n in pr}
+    except Exception:                                    # noqa: BLE001
+        force_nets = set()
+    pads_by_net = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            nn = p.GetNetname()
+            if nn:
+                pads_by_net.setdefault(nn, []).append(
+                    (p.GetPosition().x / 1e6, p.GetPosition().y / 1e6))
+    zoned = {z.GetNetname() for z in board.Zones() if z.IsOnCopperLayer()}
+    tlen = {}
+    nvias = {}
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if not nn:
+            continue
+        if t.GetClass() == "PCB_VIA":
+            nvias[nn] = nvias.get(nn, 0) + 1
+        else:
+            tlen[nn] = tlen.get(nn, 0.0) + math.hypot(
+                (t.GetEnd().x - t.GetStart().x) / 1e6,
+                (t.GetEnd().y - t.GetStart().y) / 1e6)
+
+    def _mst(pts):
+        used = {0}
+        total = 0.0
+        d = [math.hypot(pts[0][0] - x, pts[0][1] - y) for x, y in pts]
+        while len(used) < len(pts):
+            best, bi = min((dist, i) for i, dist in enumerate(d) if i not in used)
+            used.add(bi)
+            total += best
+            d = [min(d[i], math.hypot(pts[bi][0] - x, pts[bi][1] - y))
+                 for i, (x, y) in enumerate(pts)]
+        return total
+
+    viol = []
+    worst_ratio = 0.0
+    for nn, length in tlen.items():
+        pts = pads_by_net.get(nn, [])
+        if len(pts) < 2 or length <= 0:
+            continue
+        lb = _mst(pts)
+        if lb >= 2.0:                     # tiny nets: the ratio is unstable, skip
+            ratio = length / lb
+            worst_ratio = max(worst_ratio, ratio)
+            if ratio > ratio_max:
+                viol.append(("detour", nn, round(ratio, 1), round(lb, 1)))
+        if nn not in zoned and nn not in force_nets:
+            budget = max(via_budget_base, 2 * len(pts))
+            if nvias.get(nn, 0) > budget:
+                viol.append(("vias", nn, nvias[nn], budget))
+    viol.sort(key=lambda v: -(v[2] if isinstance(v[2], (int, float)) else 0))
+    return {"ok": not viol, "violations": viol[:10],
+            "worst_ratio": round(worst_ratio, 2),
+            "vias_total": sum(nvias.values())}
+
+
 def _oracle_stranded_parts(placed_board_path, *, max_mm=22.0):
     """STRANDED-PART gate (owner eyesight finding 2026-07-08: diodes jammed in a corner,
     a slew orphaned by the 1x4 header): every part must sit within *max_mm* of its
@@ -5330,6 +5408,10 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001
                 dfm = {"ok": False, "violations": [str(e)[:120]]}
             try:
+                rsan = _oracle_route_sanity(routed)
+            except Exception as e:                            # noqa: BLE001
+                rsan = {"ok": False, "violations": ["checker error: %s" % e]}
+            try:
                 sp = _oracle_stranded_parts(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 sp = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -5405,6 +5487,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "circuit_ok": circuit_ok, "circuit": cc,
                 "stranded_ok": stranded_ok, "stranded": sp,
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
+                "route_sanity_advisory": rsan,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
