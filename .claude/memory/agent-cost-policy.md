@@ -18,8 +18,9 @@ use yourself but reserve that for when it is truly needed").
 panelists to my local machine as possible... every panel at 3M+ tokens uses all of my
 budget immediately; we have the cec-worker-quality tier for that anyway"). Local broker
 seats at :8080 (all on the owner's 5090 box, ~free). **Seat picking (owner 2026-07-08):**
-`cec-worker-quality` (27B dense) is the MAIN GO-TO for quick/fast judgment calls;
-`cec-worker` (Qwen3.6-35B, 4 slots) for parallel volume; the HUGE seats —
+`cec-worker-quality` (27B dense, **GPU-resident** by design) is the MAIN GO-TO for
+quick/fast judgment calls; `cec-worker` (Qwen3.6-35B, 4 slots, **mostly RAM-resident** so
+it can PANELIZE without evicting the GPU seat -- owner 2026-07-08) for parallel volume; the HUGE seats —
 `deepseek-v4-flash` (~6-7 tok/s, slow ~160GB cold load; see [[deepseek-v4-auditor]] /
 [[v4-seat]]) and `cec-manager` — canNOT be fire-and-forget: reserve for heavy-heavy
 judgment calls only, and expect load latency. Drive them from Bash via the broker's
