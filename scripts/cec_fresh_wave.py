@@ -107,8 +107,16 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                 label = f"{iname}-{strat}-s{seed}"
                 t0 = time.monotonic()
                 try:
-                    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed,
-                                         params=BOARD_PARAMS.get(board))
+                    _p = dict(BOARD_PARAMS.get(board) or {})
+                    _mf = os.path.join(ROOT, "modules", board, "board-manifest.json")
+                    if os.path.isfile(_mf):
+                        try:
+                            _pd = (json.load(open(_mf)) or {}).get("placement_directives") or {}
+                            _p.update({k: v for k, v in _pd.items()
+                                       if not k.startswith("_") and not k.endswith(("_note", "_rules", "provenance"))})
+                        except Exception:                  # noqa: BLE001
+                            pass
+                    s = PlacementSession(board, W=W, H=H, strat=strat, seed=seed, params=_p)
                     intent(s)
                     out = os.path.join(work_root, board, f"{label}.kicad_pcb")
                     v = s.grade(out=out, keep=True, passes=passes, opt=opt,
