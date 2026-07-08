@@ -215,3 +215,12 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   (1=-12V, 2=PS_ON#, 3=PWR_OK, 4=GND), alignment contract = collinear with the blade row,
   pad1 one field pitch beyond the last slot. The db re-pitch item (above) now ALSO carries
   this stub-position rule when atx24-out-db regenerates.
+
+## 2026-07-08 — two RATIFIED placement checkers over-constrain (opus fundamentals audit)
+- `kelvin-sense-adjacent-shunt` (ratified, max 5.0mm) REJECTS the shipped hand 24-pin:
+  RS5→U12 measures 5.91mm as-built. Recommend recalibrating to 6.0mm (covers the as-built
+  worst case with margin) or recording RS5/U12 as a documented exception. Your ratification.
+- `decoupling-cap-owner` (ratified, 3.5mm ownership model) false-fires on 2 of 3 hand boards
+  (hub C13 4.1mm; hand 24-pin C3/C4 4.0/3.5mm) and is superseded by the new calibrated
+  functional 7.0mm oracle gate (passes all 3 hand boards, 0 violations). Recommend retiring
+  it in favor of the oracle term, or bumping to 7.0mm. Your ratification.
