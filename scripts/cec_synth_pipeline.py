@@ -2895,7 +2895,17 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 slots.append(n_lo)
                 n_tot += n_lo
             span = (n_tot - 1) * pitch
-            x0 = max(pitch, min(anchors[jin][0] - span / 2.0, (W or 100) - span - pitch))
+            # RIGHT-EDGE CAP (owner catch 2026-07-08: "the 1x4 header is hanging off the
+            # edge -- those out headers can shift over and be on the board"): the row's
+            # rightward budget must reserve the SIGNAL STUB's full extent (pin1 sits one
+            # field pitch past the last blade, pads span +7.62, courtyard ~+1.0), so the
+            # whole output row shifts LEFT as a unit instead of the stub running off-board.
+            _stub_ext = 0.0
+            if any(r.startswith("J_SIG") for r in anchors) or any(
+                    r.startswith("J_SIG") for r in nl.comps):
+                _stub_ext = pitch + 3.81 + 3.81 + 1.0
+            x0 = max(pitch, min(anchors[jin][0] - span / 2.0,
+                                (W or 100) - span - pitch - _stub_ext))
             # ANCHOR-vs-ANCHOR collision fix (exploratory finding, 2026-07-08): the row's
             # y-band can run under an edge connector (J1's courtyard swallowed the row's
             # left end -- 6 courtyard overlaps + a DETECT-pin short, invisible to the
@@ -2916,6 +2926,10 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 if ax0 < (W or 100) / 2.0:               # left-side blocker: push the row right
                     # +8mm: the first column's sense IC straddles LEFT of the shunt
                     x0 = max(x0, ax1 + pitch + 8.0)
+            # the RIGHT-EDGE cap is FINAL (owner: pins off the board beats a jack graze
+            # never -- the stub must be ON the board; a residual jack graze shows in DRC
+            # and the wave iterates it)
+            x0 = min(x0, (W or 100) - span - pitch - _stub_ext)
                 # right-side blockers only matter if the row would reach them; the stub
                 # seat extends right, so leave headroom
             
@@ -2971,6 +2985,18 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 last_x = max(p[0] for p in row)
                 row_y = row[0][1]
                 anchors[stub] = (last_x + pch + 3.81, row_y, 0.0)
+                # WHOLE-ROW ON-BOARD SHIFT (owner 2026-07-08: "the pins are off the board
+                # -- those out headers can be shifted over"): if the stub's far pad
+                # (+3.81 from origin, +~1.0 court) exceeds the right edge, shift EVERY
+                # blade + the stub left by the overhang as one unit. The blind-mate
+                # geometry (pitch + stub offset) is preserved exactly.
+                _ov = (anchors[stub][0] + 3.81 + 1.0) - ((W or 100) - 0.6)
+                if _ov > 0:
+                    for _r3 in list(anchors):
+                        if _r3.startswith("TB") or _r3 == stub:
+                            _ax, _ay = anchors[_r3][0] - _ov, anchors[_r3][1]
+                            _rt = anchors[_r3][2] if len(anchors[_r3]) > 2 else 0.0
+                            anchors[_r3] = (_ax, _ay, _rt)
     return seated
 
 
