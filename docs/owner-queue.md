@@ -208,3 +208,10 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   with the same receptacle and is proven. RECOMMEND: standardize the atx24 interface at 4.7mm
   contiguous (platform-uniform blade pitch) and re-pitch the DRAFT atx24-out-db tab row to
   match (it is regenerable; no fab has occurred). The fresh 24-pin synthesis proceeds at 4.7.
+
+## 2026-07-08 — output-daughterboard study OPEN ITEM 5: CLOSED (owner ruling)
+- Sense-return option: NOT shipping ("no significant drop; adds architecture we don't need").
+  J_SIG1 trimmed 2x5 -> 1x4 on the module, pin order matched to the db J20 stub
+  (1=-12V, 2=PS_ON#, 3=PWR_OK, 4=GND), alignment contract = collinear with the blade row,
+  pad1 one field pitch beyond the last slot. The db re-pitch item (above) now ALSO carries
+  this stub-position rule when atx24-out-db regenerates.

@@ -33,6 +33,10 @@
   "antenna_note": "wireless unpopulated; no electrical keepout -- the module's physical antenna section is ordinary body extent at an edge",
   "blade_pitch": 4.7,
   "blade_pitch_note": "atx24-out-db as-built 4.2 predates the iteration-7 TE 63969 receptacle (4.29mm courtyard); daughterboard re-pitch owner-queued 2026-07-08",
-  "pcb_provenance": "FROM SCRATCH ONLY -- the rev2-inherited layout is never used or referenced"
+  "pcb_provenance": "FROM SCRATCH ONLY -- the rev2-inherited layout is never used or referenced",
+  "buttons_near": "usb",
+  "buttons_note": "owner 2026-07-08: BOOT/RESET together, accessible -- seated as a pair inboard of the USB connector",
+  "signal_stub_note": "J_SIG1 = 1x4 (owner ruling closes study item 5, NO sense-return); collinear with the blade row, pad1 one field pitch beyond the last slot; pin order matches db J20: 1=-12V 2=PS_ON# 3=PWR_OK 4=GND",
+  "seed_size_note": "owner 2026-07-08: tone the size down -- seed 70x55 (floors: J3 ~63mm, blade row+stub ~59mm); shrink further once gate-clean"
  }
 }

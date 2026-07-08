@@ -86,7 +86,10 @@ BOARD_WH = {
     "eps-8pin": (96.0, 37.0),
     "pcie-8pin-2port": (86.5, 44.0),
     "pcie-8pin-3port": (103.5, 56.0),
-    "atx-24pin-rev3": (100.0, 80.0),
+    # owner 2026-07-08 "way too large -- tone it down": geometry floor is J3 (~63mm) and
+    # the blade row + signal stub (~59mm); dual-sided chains + no mounts + full overhang
+    # make 70x55 the aggressive seed (the shrink pass walks further once gate-clean).
+    "atx-24pin-rev3": (70.0, 55.0),
 }
 
 # Per-board owner-ratified placement params (2026-07-08, 24-pin ground-up remake):

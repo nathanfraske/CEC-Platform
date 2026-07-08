@@ -6522,6 +6522,30 @@
 			)
 			(embedded_fonts no)
 		)
+		(symbol "cec:CEC_CONN_1x4"
+		(pin_names (offset 1.016) (hide yes))
+		(exclude_from_sim no) (in_bom yes) (on_board yes) (in_pos_files yes)
+		(duplicate_pin_numbers_are_jumpers no)
+		(property "Reference" "J" (at 0 5.08 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Value" "CEC_CONN_1x4" (at 0 -10.16 0) (show_name no) (do_not_autoplace no) (effects (font (size 1.27 1.27))))
+		(property "Footprint" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Datasheet" "" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "Description" "Generic connector, single row, 01x04 -- the iteration-5 24-pin signal stub (blade-fit memo addendum 5): the CEC_CONN_2x5's 4 live circuits (-12V/PS_ON#/PWR_OK/GND) as a 1x4 blind-mate pair (daughterboard: right-angle Dupont-class pin header, pins down past the bottom edge; main board: vertical female socket, entry up); the 2x5's 6 reserved sense-return positions move to DNP solder pads (OQ-88 provision form only, decision unchanged)." (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_keywords" "connector" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(property "ki_fp_filters" "Connector*:*_1x??_*" (at 0 0 0) (show_name no) (do_not_autoplace no) (hide yes) (effects (font (size 1.27 1.27))))
+		(symbol "CEC_CONN_1x4_1_1"
+			(rectangle (start -1.27 3.81) (end 1.27 -8.89) (stroke (width 0.254) (type default)) (fill (type background)))
+			(rectangle (start -1.27 2.667) (end 0 2.413) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 0.127) (end 0 -0.127) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -2.413) (end 0 -2.667) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(rectangle (start -1.27 -4.953) (end 0 -5.207) (stroke (width 0.1524) (type default)) (fill (type none)))
+			(pin passive line (at -5.08 2.54 0) (length 3.81) (name "Pin_1" (effects (font (size 1.27 1.27)))) (number "1" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 0 0) (length 3.81) (name "Pin_2" (effects (font (size 1.27 1.27)))) (number "2" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -2.54 0) (length 3.81) (name "Pin_3" (effects (font (size 1.27 1.27)))) (number "3" (effects (font (size 1.27 1.27)))))
+			(pin passive line (at -5.08 -5.08 0) (length 3.81) (name "Pin_4" (effects (font (size 1.27 1.27)))) (number "4" (effects (font (size 1.27 1.27)))))
+		)
+		(embedded_fonts no)
+	)
 		(symbol "cec:CEC_CONN_2x5"
 			(pin_names
 				(offset 1.016)
@@ -8283,20 +8307,8 @@
 		(uuid "4792bfed-bf65-40d3-bc5c-be2fd28183aa")
 	)
 	(no_connect
-		(at 90.17 50.8)
-		(uuid "4a60fa12-e970-4229-9b80-d429de211116")
-	)
-	(no_connect
-		(at 102.87 48.26)
-		(uuid "51bccac8-11c7-491c-8ddf-c8a9fe73dd64")
-	)
-	(no_connect
 		(at 264.16 222.25)
 		(uuid "58c4b6d3-0edf-4a39-8752-68b041cc0f68")
-	)
-	(no_connect
-		(at 90.17 48.26)
-		(uuid "5d880410-6642-45fe-ac12-3464ac6e36a7")
 	)
 	(no_connect
 		(at 59.69 288.29)
@@ -8315,16 +8327,8 @@
 		(uuid "9c0df94c-b749-47b3-80c2-25d67854cde8")
 	)
 	(no_connect
-		(at 102.87 53.34)
-		(uuid "a1282154-21e2-446a-8dee-9e5301eadb99")
-	)
-	(no_connect
 		(at 344.17 208.28)
 		(uuid "a798259a-95ec-4f24-9838-650896c4bbc3")
-	)
-	(no_connect
-		(at 90.17 53.34)
-		(uuid "ac1df4ac-932f-49aa-baf0-08448c9d9a96")
 	)
 	(no_connect
 		(at 264.16 191.77)
@@ -8381,10 +8385,6 @@
 	(no_connect
 		(at 264.16 184.15)
 		(uuid "eab8bff4-3802-4b89-bdfa-c53c10814a89")
-	)
-	(no_connect
-		(at 102.87 50.8)
-		(uuid "f05e8eb1-dd2b-4956-8733-4d77ee8b2643")
 	)
 	(no_connect
 		(at 59.69 290.83)
@@ -8983,16 +8983,6 @@
 			(type default)
 		)
 		(uuid "36175ee8-a658-463e-80bd-4a50a07d6b96")
-	)
-	(wire
-		(pts
-			(xy 102.87 43.18) (xy 106.68 43.18)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "36950a12-948f-4ecf-b033-cc6c89aea429")
 	)
 	(wire
 		(pts
@@ -10533,16 +10523,6 @@
 			(type default)
 		)
 		(uuid "b90c2cf6-87c2-4cc9-bc56-1d66932cfe70")
-	)
-	(wire
-		(pts
-			(xy 102.87 45.72) (xy 106.68 45.72)
-		)
-		(stroke
-			(width 0)
-			(type default)
-		)
-		(uuid "b97c2810-7bec-4eaf-b88c-7410dde47fd5")
 	)
 	(wire
 		(pts
@@ -12188,7 +12168,7 @@
 		)
 		(uuid "af756a91-3ec3-4823-b158-53f22da6d528")
 	)
-	(label "ATX_PSON"
+	(label "ATX_NEG12V"
 		(at 86.36 43.18 180)
 		(effects
 			(font
@@ -12217,16 +12197,6 @@
 			(justify left bottom)
 		)
 		(uuid "b26e7ef9-edca-4a36-a0b5-93091860a977")
-	)
-	(label "ATX_PWROK"
-		(at 106.68 43.18 0)
-		(effects
-			(font
-				(size 1.27 1.27)
-			)
-			(justify left bottom)
-		)
-		(uuid "b2ed4de9-63a4-42a9-b8b4-99b08afe4ff4")
 	)
 	(label "DET5V"
 		(at 290.83 233.68 0)
@@ -12328,7 +12298,7 @@
 		)
 		(uuid "de05e9cb-f62e-4c48-8daa-28899d65ee70")
 	)
-	(label "ATX_NEG12V"
+	(label "ATX_PSON"
 		(at 86.36 45.72 180)
 		(effects
 			(font
@@ -15289,80 +15259,6 @@
 			(project "24pin-module"
 				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
 					(reference "#FLG165")
-					(unit 1)
-				)
-			)
-		)
-	)
-	(symbol
-		(lib_id "cec-power:GND")
-		(at 106.68 45.72 0)
-		(unit 1)
-		(body_style 1)
-		(exclude_from_sim no)
-		(in_bom yes)
-		(on_board yes)
-		(in_pos_files yes)
-		(dnp no)
-		(uuid "2db064de-fb1b-4e9f-a20e-d5fd3f789267")
-		(property "Reference" "#PWR207"
-			(at 106.68 43.18 0)
-			(hide yes)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Value" "GND"
-			(at 106.68 49.53 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Footprint" ""
-			(at 106.68 45.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Datasheet" ""
-			(at 106.68 45.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Description" ""
-			(at 106.68 45.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(pin "1"
-			(uuid "3dcf047a-8d1e-4242-a36e-3c79c3f4ff18")
-		)
-		(instances
-			(project "24pin-module"
-				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
-					(reference "#PWR207")
 					(unit 1)
 				)
 			)
@@ -25029,7 +24925,7 @@
 		)
 	)
 	(symbol
-		(lib_id "cec:CEC_CONN_2x5")
+		(lib_id "cec:CEC_CONN_1x4")
 		(at 95.25 45.72 0)
 		(unit 1)
 		(body_style 1)
@@ -25038,10 +24934,9 @@
 		(on_board yes)
 		(in_pos_files yes)
 		(dnp no)
-		(fields_autoplaced yes)
-		(uuid "d218231f-1e82-4ff7-8a6f-e33dff409913")
+		(uuid "9aae975d-fae6-42e7-afc2-60e4ba88e6ea")
 		(property "Reference" "J_SIG1"
-			(at 95.25 30.48 0)
+			(at 96.52 41.91 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25050,8 +24945,8 @@
 				)
 			)
 		)
-		(property "Value" "CEC_CONN_2x5"
-			(at 95.25 60.96 0)
+		(property "Value" "SIG STUB 1x4 (mates db J20)"
+			(at 96.52 44.45 0)
 			(show_name no)
 			(do_not_autoplace no)
 			(effects
@@ -25060,7 +24955,7 @@
 				)
 			)
 		)
-		(property "Footprint" "cec-Connector_PinHeader_2.54mm:PinHeader_2x05_P2.54mm_Vertical"
+		(property "Footprint" "cec-Connector_PinHeader_2.54mm:HDR-TH_4P-P2.54-V-M"
 			(at 95.25 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -25082,17 +24977,7 @@
 				)
 			)
 		)
-		(property "Description" ""
-			(at 95.25 45.72 0)
-			(show_name no)
-			(do_not_autoplace no)
-			(effects
-				(font
-					(size 1.27 1.27)
-				)
-			)
-		)
-		(property "Note" "24-pin output daughterboard signal stub (spec Sec 2.8 v1.4.0, output-daughterboard-study-2026-07-04.md Sec 8.5 posts+signal-header hybrid). Pin map derived from the CURRENT flat J4 netlist (verified 2026-07-04): 1=PS_ON#, 2=PWR_OK, 3=-12V, 4=GND (local reference). Pins 5-10 reserved/spare -- no remote-sense or 5VSB-sense net exists on this board's J4 today, so none is invented here. Sense-return contacts (study Sec 5) are NOT added: decision box (e) is still OPEN with the owner."
+		(property "Note" "Owner ruling 2026-07-08 (closes output-daughterboard study open item 5): NO sense-return option -- 1x4 only, matching the atx24-out-db J20 stub PIN-FOR-PIN (1=-12V, 2=PS_ON#, 3=PWR_OK, 4=GND). Module side is the SOCKET receiving the db 1x04 horizontal LongPin stub; vertical 1x4 2.54 land. ALIGNMENT CONTRACT: collinear with the blade row, pin1 one field-pitch (4.7mm) beyond the last blade slot -- both boards regenerate from this rule."
 			(at 95.25 45.72 0)
 			(hide yes)
 			(show_name no)
@@ -25104,34 +24989,16 @@
 			)
 		)
 		(pin "1"
-			(uuid "7ec93e87-6ac3-4b7f-8118-3e28763b9e1a")
+			(uuid "6ea79337-9b3a-4c94-9259-043f4b111519")
 		)
 		(pin "2"
-			(uuid "8ea2f02d-4c7b-4c3d-b62c-5db49c402470")
+			(uuid "2a4b9e30-8a65-48a9-b210-19e68eb2d22a")
 		)
 		(pin "3"
-			(uuid "c96548de-741c-42cd-b149-f3cc730f8e63")
+			(uuid "e632391e-d434-43e9-930e-5b9664e2386c")
 		)
 		(pin "4"
-			(uuid "61e39755-ce49-4e35-9107-e28452923bef")
-		)
-		(pin "5"
-			(uuid "32ce8b97-3c9b-45e5-8af0-ad350353bbd5")
-		)
-		(pin "6"
-			(uuid "3b04ee99-cfb7-4aff-9a5f-7eb3b7348a5c")
-		)
-		(pin "7"
-			(uuid "667fdb45-4c4f-4300-adfb-5a7ed4e60363")
-		)
-		(pin "8"
-			(uuid "1585ad71-bd5c-4277-b2a9-31532932593d")
-		)
-		(pin "9"
-			(uuid "56e111a6-bcbd-426b-a957-2da09607383a")
-		)
-		(pin "10"
-			(uuid "db812334-b0c1-4828-923b-be051967b4b9")
+			(uuid "ccede7c1-99bc-4b5c-95aa-628c4a6c897e")
 		)
 		(instances
 			(project "24pin-module"
@@ -32053,5 +31920,109 @@
 			(justify left bottom)
 		)
 		(uuid "3a16dc90-78ae-4468-ad1c-0f6da18f2682")
+	)
+	(wire
+		(pts
+			(xy 90.17 48.26) (xy 86.36 48.26)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "522a83b3-3dc9-418d-aafd-bfe6c531fb61")
+	)
+	(label "ATX_PWROK"
+		(at 86.36 48.26 180)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify right bottom)
+		)
+		(uuid "016f982d-f439-43db-a831-28f6fabfdaa2")
+	)
+	(wire
+		(pts
+			(xy 90.17 50.8) (xy 86.36 50.8)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "620c7340-ade8-41d4-8362-e3a4fab36eb8")
+	)
+	(symbol
+		(lib_id "cec-power:GND")
+		(at 86.36 50.8 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(uuid "80056c4f-322e-4a61-b753-309ff3424e88")
+		(property "Reference" "#PWR991"
+			(at 86.36 48.26 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 86.36 54.61 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 86.36 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 86.36 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" ""
+			(at 86.36 50.8 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "cb85e468-d210-4f77-9c6b-f6e8c707aa60")
+		)
+		(instances
+			(project "24pin-module"
+				(path "/a4774022-41d4-4be7-85b6-fed5477a3f9f"
+					(reference "#PWR991")
+					(unit 1)
+				)
+			)
+		)
 	)
 )

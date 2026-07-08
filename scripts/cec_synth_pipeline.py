@@ -2063,11 +2063,37 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
         seats its pads at the margin with the body off-board."""
         if not refs:
             return
-        rot = _ROT[edge]
+        base_rot = _ROT[edge]
         horiz = edge in ("top", "bottom")
         items = []
         for ref in sorted(refs):
             fp = fp_of.get(ref, "")
+            # MOUTH-OUT rotation (owner catch 2026-07-08, "the J3 header is backwards"): the
+            # per-edge rotation map is FOOTPRINT-BLIND, but right-angle connector footprints
+            # differ in which local direction the body/shroud extends (Molex vs TraceParts
+            # exports). Pick between base_rot and base_rot+180 by GEOMETRY: the courtyard
+            # bulk (the shroud/mouth) must sit on the OFF-BOARD side of the pad band.
+            rot = base_rot
+            if oh:
+                def _outward(cand):
+                    ccx, ccy, _hw, _hh = _courtyard_info(fp, cand)
+                    (bxl, bxh), (byl, byh) = _pad_band(fp, cand)
+                    if (byh - byl if horiz else bxh - bxl) < 0.1:
+                        return None                    # degenerate band (shared pad numbers): can't judge
+                    pad_c = ((byl + byh) / 2.0) if horiz else ((bxl + bxh) / 2.0)
+                    body_c = ccy if horiz else ccx
+                    return (pad_c - body_c) if edge in ("top", "left") else (body_c - pad_c)
+                # MOUTH-OUT REPAIR (owner catch 2026-07-08, "the J3 header is backwards"): the
+                # per-edge rotation map is footprint-blind and right-angle exports differ in
+                # local mouth direction. Flip ONLY when the default rotation demonstrably
+                # leaves the body INBOARD (outward < 0) and the flip fixes it -- a correct
+                # default (eps 87427) and degenerate-band receptacles stay byte-identical.
+                o_base = _outward(base_rot)
+                flip = (base_rot + 180.0) % 360.0
+                if o_base is not None and o_base < 0:
+                    o_flip = _outward(flip)
+                    if o_flip is not None and o_flip > o_base + 0.5:
+                        rot = flip
             cx, cy, hw, hh = _courtyard_info(fp, rot)
             (pxl, pxh), (pyl, pyh) = _pad_band(fp, rot)
             along = (2 * hw) if horiz else (2 * hh)              # COURTYARD extent along the edge
@@ -2863,14 +2889,27 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
         seated.append(sh)
     if blade_cables:
         _p = (params or {})
+        _shared_row = any(c.get("shared_bus") for c, _col in blade_cables)
         if any(c.get("shared_bus") for c, _col in blade_cables):
             _seat_blade_fields(blade_cables, anchors, nl, comps, W,
                                pitch=float(_p.get("blade_pitch", 4.2)),
-                               gap=float(_p.get("blade_group_gap", 4.2)))
+                               gap=float(_p.get("blade_group_gap", 4.2)), H=H)
         else:
             _seat_blade_fields(blade_cables, anchors, nl, comps, W,
                                pitch=float(_p.get("blade_pitch", _BLADE_PITCH_MM)),
-                               gap=float(_p.get("blade_group_gap", _BLADE_GROUP_GAP_MM)))
+                               gap=float(_p.get("blade_group_gap", _BLADE_GROUP_GAP_MM)), H=H)
+        if _shared_row:
+            # SIGNAL-STUB ALIGNMENT (owner 2026-07-08): the J_SIG* stub is part of the
+            # daughterboard blind-mate interface -- collinear with the blade row, pad 1 one
+            # field pitch beyond the last slot (the atx24-out-db J20 contract; both boards
+            # regenerate from this rule). HDR-TH_4P pad1 local x = -3.81 at rot 0.
+            row = [anchors[r] for r in anchors if r.startswith("TB")]
+            stub = next((r for r in sorted(anchors) if r.startswith("J_SIG")), None)
+            if stub and row:
+                pch = float(_p.get("blade_pitch", 4.7))
+                last_x = max(p[0] for p in row)
+                row_y = row[0][1]
+                anchors[stub] = (last_x + pch + 3.81, row_y, 0.0)
     return seated
 
 
@@ -2884,7 +2923,7 @@ _BLADE_PITCH_MM = 4.7
 _BLADE_GROUP_GAP_MM = 6.5
 
 
-def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, gap=None):
+def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, gap=None, H=None, pad_margin=1.8):
     """Seat the D-5a output blade FIELD as one contiguous row at the power_out edge: a 6-slot
     WINDOW per cable (one window == one mating daughterboard; adjacent windows separated by
     _BLADE_GROUP_GAP_MM so the daughterboard BODIES clear), the cable's LO/rail blades assigned
@@ -2900,7 +2939,19 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, 
     assigned = {b for c, _col in blade_cables for b in c["j_out_blades"]}
     gnd_pool = sorted(r for r in all_blades if r not in assigned)
     ys = [anchors[b][1] for b in all_blades if b in anchors]
-    row_y = (sum(ys) / len(ys)) if ys else None       # the edge seed_anchors packed them on
+    row_y = (sum(ys) / len(ys)) if ys else None       # fallback: the edge seed packed them on
+    if H is not None and all_blades and row_y is not None:
+        # GEOMETRIC row_y as a REPAIR only (2026-07-08): recompute from the pad band iff the
+        # seeded mean leaves a blade PAD off-board (the seed6 pathology -- a rotation
+        # perturbation shifted the band). Judged on PAD extent, never the origin (receptacle
+        # origins legitimately ride near the edge); a sane seeded mean stays byte-identical.
+        fp0 = str(comps.get(all_blades[0], ""))
+        try:
+            (_bxl, _bxh), (_byl, _byh) = _pad_band(fp0, 0.0)
+            if row_y + _byh > H - 0.2 or row_y + _byl < 0.2:
+                row_y = H - pad_margin - _byh
+        except Exception:                              # noqa: BLE001
+            pass
     cables = sorted(blade_cables, key=lambda t: t[1])  # left-to-right by corridor column
     p = float(pitch if pitch is not None else _BLADE_PITCH_MM)
     g = float(gap if gap is not None else _BLADE_GROUP_GAP_MM)
@@ -3659,7 +3710,23 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
                                       drop_antenna=drop_antenna)
     if _esp:
         anchors[_esp] = _esp_pos
-    anneal_units = [r for r in (ics + free_shunts) if r != _esp and r not in seated_inas]
+    # BUTTONS CLUSTER (owner 2026-07-08: "keep the buttons together in an easily accessible
+    # place that actually makes sense"): seat SW* as a fixed side-by-side pair inboard of the
+    # USB connector -- BOOT is pressed while plugging USB, so that IS the sensible place.
+    _sw_seated = []
+    if cfg.params.get("buttons_near") == "usb":     # OPT-IN (board manifest), never a default
+        _usb = next((r for r, role in anchors_roles.items()
+                     if role == "usb" and r in anchors), None)
+        _sws = sorted(r for r in ics if r.startswith("SW"))
+        if _usb and _sws:
+            ux, uy, _ur = anchors[_usb]
+            bx = min(max(ux - 14.0, 6.0), W - 6.0)
+            for k, sw in enumerate(_sws):
+                by = min(max(uy + (k - (len(_sws) - 1) / 2.0) * 9.0, 6.0), H - 6.0)
+                anchors[sw] = (bx, by, 0.0)
+                _sw_seated.append(sw)
+    anneal_units = [r for r in (ics + free_shunts)
+                    if r != _esp and r not in seated_inas and r not in _sw_seated]
     # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
     #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
     #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
