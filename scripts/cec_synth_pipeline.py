@@ -4913,6 +4913,154 @@ def _oracle_courtyard_overlaps(placed_board_path):
     return {"ok": not viol, "violations": viol[:10]}
 
 
+def _oracle_pin_escape(placed_board_path, *, boxed_pct_max=4.0, le1_pct_max=12.0,
+                       max_pads=10):
+    """PIN-ESCAPE gate (exploration round 2, 2026-07-08): every copper pad on a small
+    footprint (<= *max_pads* pads -- ICs/passives, not connectors) probes 8 directions
+    for a 0.3mm routing corridor (16 x 0.2mm steps from the pad's own edge, blocked by
+    any FOREIGN-net pad bbox inflated 0.15mm). A pad with 0 free directions is BOXED
+    (unroutable without a via-in-pad miracle); <=1 free direction is NEARLY boxed.
+    CALIBRATION (measured 2026-07-08, build/lens1_calib_all.py in-container):
+    hand hub/12vhpwr = 0.00%/0.00% on both; committed eps 1.71/6.86, pcie2 1.09/3.80,
+    pcie3 0.87/4.80 (boxed0/le1 %); fresh 24-pin wave board 9.06/23.02 -- all offenders
+    the sense front-end (U10-U13 INA/TLV). Floors 4.0/12.0 give ~2x headroom over every
+    accepted board and fail the fresh board on both terms. Placement-only (pads, no
+    copper) -- valid pre-route."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    dirs = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
+    pads = []
+    padcount = {}
+    for f in board.GetFootprints():
+        cp = [p for p in f.Pads() if p.IsOnCopperLayer()]
+        padcount[f.GetReference()] = len(cp)
+        for p in cp:
+            nn = p.GetNetname()
+            if not nn:
+                continue
+            bb = p.GetBoundingBox()
+            pads.append((f.GetReference(), nn,
+                         p.GetCenter().x / 1e6, p.GetCenter().y / 1e6,
+                         bb.GetLeft() / 1e6, bb.GetRight() / 1e6,
+                         bb.GetTop() / 1e6, bb.GetBottom() / 1e6))
+    boxes = [(r[4], r[5], r[6], r[7], r[1]) for r in pads]
+    targets = [r for r in pads if padcount[r[0]] <= max_pads]
+    if not targets:
+        return {"ok": True, "violations": [], "note": "no small-footprint pads -- N/A"}
+
+    def _free_dirs(pad):
+        _ref, net, cx, cy, l, r, t, bot = pad
+        nf = 0
+        for dx, dy in dirs:
+            n = math.hypot(dx, dy)
+            ux, uy = dx / n, dy / n
+            sx = cx + (r - cx if dx > 0 else (l - cx if dx < 0 else 0))
+            sy = cy + (bot - cy if dy > 0 else (t - cy if dy < 0 else 0))
+            blocked = False
+            for s in range(1, 16):
+                px, py = sx + ux * 0.2 * s, sy + uy * 0.2 * s
+                for (bl, br, bt, bb2, bn) in boxes:
+                    if bn == net:
+                        continue
+                    if bl - 0.15 <= px <= br + 0.15 and bt - 0.15 <= py <= bb2 + 0.15:
+                        blocked = True
+                        break
+                if blocked:
+                    break
+            if not blocked:
+                nf += 1
+        return nf
+
+    free = [(_free_dirs(p), p) for p in targets]
+    n = len(free)
+    boxed0 = 100.0 * sum(1 for c, _p in free if c == 0) / n
+    le1 = 100.0 * sum(1 for c, _p in free if c <= 1) / n
+    by_ref = {}
+    for c, p in free:
+        if c <= 1:
+            by_ref[p[0]] = by_ref.get(p[0], 0) + 1
+    offenders = sorted(by_ref.items(), key=lambda x: -x[1])[:10]
+    ok = (boxed0 <= boxed_pct_max) and (le1 <= le1_pct_max)
+    return {"ok": ok, "boxed0_pct": round(boxed0, 2), "le1_pct": round(le1, 2),
+            "floors": {"boxed0": boxed_pct_max, "le1": le1_pct_max},
+            "violations": ([] if ok else offenders)}
+
+
+# ref prefixes whose courtyards LEGITIMATELY ride the board edge: connectors (mouths
+# overhang by design), mounts/holes, fiducials/markers, buttons + testpoints + LEDs
+# (access classes, same exemption set as the stranded-parts gate), blade receptacles,
+# logos. The ESP32 radio-module exemption is by VALUE (its antenna half sits at the
+# edge on the hand hub AND committed eps -- an accepted pattern, not a defect).
+_EDGE_EXEMPT_PREFIXES = ("J", "H", "M", "FID", "MK", "SW", "TB", "TP", "DL", "LOGO")
+
+
+def _oracle_courtyard_edge(placed_board_path, *, min_mm=0.8):
+    """COURTYARD-EDGE clearance gate (exploration round 2, 2026-07-08) via the NATIVE
+    KiCad DRU physical_clearance rule -- the bbox proxy false-flags rotated courtyards
+    (agent-PROVED), so the real engine measures. A temp copy of the board gets a
+    .kicad_dru with (constraint physical_clearance (min Xmm)) between F/B.CrtYd
+    graphics and Edge.Cuts; kicad-cli DRC reports the actual gap per part.
+    CALIBRATION (measured 2026-07-08, build/edge_gate_calib2.py in-container, floor
+    0.8mm + exemptions): hub/12vhpwr/eps/pcie2 all CLEAN (the 12vhpwr's closest
+    non-exempt part sits at 0.84mm -- the calibration floor); the fresh 24-pin wave
+    board fails with C50/FB2/C7/D7/U1 at 0.00mm and 5 more under 0.76mm. Exempt: the
+    _EDGE_EXEMPT_PREFIXES classes + ESP32 radio modules by value. Placement-only."""
+    import json as _json
+    import re as _re
+    import subprocess
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    val_by_ref = {fp.GetReference(): (fp.GetValue() or "").upper()
+                  for fp in board.GetFootprints()}
+    dru = (
+        '(version 1)\n'
+        '(rule "courtyard-edge-margin-f"\n'
+        '   (layer "F.CrtYd")\n'
+        '   (constraint physical_clearance (min %.3fmm))\n'
+        '   (condition "A.Type == \'Graphic\' && B.Layer == \'Edge.Cuts\'")\n'
+        '   (severity error))\n'
+        '(rule "courtyard-edge-margin-b"\n'
+        '   (layer "B.CrtYd")\n'
+        '   (constraint physical_clearance (min %.3fmm))\n'
+        '   (condition "A.Type == \'Graphic\' && B.Layer == \'Edge.Cuts\'")\n'
+        '   (severity error))\n' % (min_mm, min_mm))
+    work = tempfile.mkdtemp(prefix="cec_edge_gate_")
+    try:
+        bp = os.path.join(work, "board.kicad_pcb")
+        shutil.copy(placed_board_path, bp)
+        with open(os.path.join(work, "board.kicad_dru"), "w") as fh:
+            fh.write(dru)
+        out = os.path.join(work, "drc.json")
+        subprocess.run(["kicad-cli", "pcb", "drc", "--format", "json", "--severity-all",
+                        "-o", out, bp], capture_output=True, timeout=300)
+        d = _json.load(open(out))
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "violations": ["edge-gate drc error: %s" % e]}
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+    worst = {}
+    for v in d.get("violations", []):
+        if "courtyard-edge-margin" not in (v.get("description") or ""):
+            continue
+        mgap = _re.search(r"actual ([0-9.]+) mm", v.get("description", ""))
+        gap = float(mgap.group(1)) if mgap else 0.0
+        for it in v.get("items", []):
+            mref = _re.search(r"of (\S+) on [FB]\.Courtyard", it.get("description", ""))
+            if mref:
+                ref = mref.group(1)
+                if ref not in worst or gap < worst[ref]:
+                    worst[ref] = gap
+    viol = sorted(((r, g) for r, g in worst.items()
+                   if not r.upper().startswith(_EDGE_EXEMPT_PREFIXES)
+                   and "ESP32" not in val_by_ref.get(r, "")),
+                  key=lambda x: x[1])
+    return {"ok": not viol, "min_mm": min_mm, "violations": viol[:10]}
+
+
 def _oracle_comparator_adjacency(placed_board_path, *, max_mm=8.0):
     """DETECTION-CELL gate term (opus fundamentals audit 2026-07-08, gate-worthy with a
     BIMODAL clean cut: seated cells measure 3.9-7.3mm, failures 30-48mm): each TLV7011
@@ -5206,13 +5354,24 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 cq = {"ok": False, "violations": ["checker error: %s" % e]}
             comparator_ok = bool(cq.get("ok")) or not craft_gates
+            try:
+                pe = _oracle_pin_escape(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                pe = {"ok": False, "violations": ["checker error: %s" % e]}
+            pin_escape_ok = bool(pe.get("ok")) or not craft_gates
+            try:
+                ce = _oracle_courtyard_edge(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                ce = {"ok": False, "violations": ["checker error: %s" % e]}
+            courtyard_edge_ok = bool(ce.get("ok")) or not craft_gates
             decouple_ok = bool(dq.get("ok")) or not craft_gates
             pairs_ok = bool(pq.get("ok")) or not craft_gates
 
             gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
                         and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
                         and comparator_ok and kelvin_reach_ok and courtyards_ok
-                        and circuit_ok and stranded_ok)
+                        and circuit_ok and stranded_ok and pin_escape_ok
+                        and courtyard_edge_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -5247,13 +5406,15 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "stranded_ok": stranded_ok, "stranded": sp,
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
+                "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
+                "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
                                            sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
-                                           cc_g=cc, sp_g=sp),
+                                           cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -5279,7 +5440,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
-                    cq=None, kr=None, cy=None, cc_g=None, sp_g=None):
+                    cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -5302,6 +5463,13 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
         r.append(f"kelvin REACH violated pre-route (tap cannot connect): {kr.get('violations')[:4]}")
     if cy is not None and not cy.get("ok"):
         r.append(f"courtyard overlaps on the placed board: {cy.get('violations')[:4]}")
+    if pe_g is not None and not pe_g.get("ok"):
+        r.append(f"pin-escape violated (boxed pads, no routing corridor): "
+                 f"boxed0={pe_g.get('boxed0_pct')}% le1={pe_g.get('le1_pct')}% "
+                 f"offenders={pe_g.get('violations')[:5]}")
+    if ce_g is not None and not ce_g.get("ok"):
+        r.append(f"courtyard-edge clearance < {ce_g.get('min_mm')}mm: "
+                 f"{ce_g.get('violations')[:5]}")
     if cq is not None and not cq.get("ok"):
         r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
     if bq is not None and not bq.get("ok"):
