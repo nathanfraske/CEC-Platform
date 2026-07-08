@@ -27,8 +27,12 @@ memory entry [[pipeline-solver-roadmap]] and FOLLOWUPS point here._
    measurement) and gives rail IR-drop margins. GPU-ready on the existing cupy CG/AMG
    backend; grids identical to thermal. **PREREQ: root-cause the thermal solver
    nondeterminism first — shared backend.** Effort: days (mostly reuse).
-2. **SPICE in the loop — SCHEMATIC-side analog-cell verification** (owner asked 2026-07-08;
-   verdict: yes, with scope). ngspice (apt-installable in the container) simulating the
+2. **SPICE — LANDED 2026-07-08 (pilot)** (`cec_spice.py`, owner GO). ngspice ships in the
+   KiCad image; behavioral cells; sec6.13 detection-chain pilot teeth-verified (trip exact
+   vs analytic; 5VSB saturation 2.599A refines the 2.64A hand math; MC band 3.7%).
+   REMAINING: per-board R/C extraction from the real netlist (values are spec-side
+   constants today), more cells (dividers/REF/hold-up ladder), checklist/MEASURE wiring.
+   Original scope, kept for context: ngspice (apt-installable in the container) simulating the
    analog cells against reality: the §6.13 detection chain (shunt → INA181 gain → TLV7011 +
    THRESH PWM-DAC: does the trip threshold land where firmware expects?), dividers + RC
    filter corners, REF ratiometrics, hold-up ladder — WITH MONTE CARLO over R/C tolerances
@@ -48,6 +52,25 @@ memory entry [[pipeline-solver-roadmap]] and FOLLOWUPS point here._
 4. **Partial-inductance / loop-L estimator** upgrade of the loop-area advisory (Rosa/Grover
    closed forms on the sampled loop) — feeds §6.13 transient front-end + EMC arm. Hours.
 5. **AC skin-effect resistance for shunt/force paths** (marginal — near-DC sensing). Low.
+
+### Placer port question (owner asked 2026-07-08: Rust + CUDA?)
+
+PROFILED (build/profile_placer.py, cProfile on the 24-pin synth): placement = ~3.9s of a
+~124s candidate (~3%) — a Rust/CUDA port does NOT move wave latency; FR (Java, 71-95%) is
+the wall. The hot spot is ONE function: `legalize_pack.cost()` = 92% of placement time
+(629k calls, 94M pure-Python abs() calls of AABB arithmetic; the anneal itself is 0.28s).
+Rungs, cheapest-first:
+1. **numpy-vectorize `legalize_pack.cost()`** (hours): the placed list as arrays, all-box
+   interpenetration per candidate position in one vectorized op — 10-50x on 92% of the
+   stage. Do this first; it also unlocks rung 2 for free.
+2. **cupy the same arrays** = GPU batch evaluation (the arrays are identical) — matters
+   only at rung-3 scale.
+3. **Rust/CUDA placer = a SEARCH-SCALE lever, not a latency port**: thousands of parallel
+   anneal chains + batched AABB cost would change the wave's SHAPE (screen 1e4-1e6
+   placements by proxy, route only survivors — seed spread IS the fuel, 2026-06-30
+   finding). Justified only when the pipeline is placement-QUALITY-bound after the FR
+   levers (REST reuse, pre-route screen) land. Exploratory; revisit when a wave's best is
+   placement-limited rather than routing-limited.
 
 ## Pipeline improvements — non-solver (same standing list)
 
