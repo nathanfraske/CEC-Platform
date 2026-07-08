@@ -225,6 +225,7 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                                 passes=int(_bp.get("wave_passes", passes)),
                                 opt=int(_bp.get("wave_opt", opt)),
                                 fr_timeout=int(_bp.get("wave_fr_timeout", 900)),
+                                seed=seed,          # pin FR seed: wave-to-wave comparability
                                 unconn_finish_tol=2)
                     v["label"] = label
                     v["placed"] = out
