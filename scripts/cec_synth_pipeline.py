@@ -3384,9 +3384,10 @@ def _pad_is_tht(libid):
         return _PAD_THT_CACHE[libid]
     out = {}
     try:
+        import cec_pcb
         nick, name = str(libid).split(":")
         s = open(cec_pcb.fp_path(nick, name)).read()
-        for m in re.finditer(r'\(pad "([^"]*)" (\w+)', s):
+        for m in re.finditer(r'\(pad\s+"([^"]*)"\s+(\w+)', s):
             out[m.group(1)] = (m.group(2) == "thru_hole")
     except Exception:                                    # noqa: BLE001
         pass
@@ -3407,6 +3408,7 @@ def _pour_boxes_unified(P, nl, comps, W, H, *, margin=1.0, edge_clear=0.4):
     pairs = _kelvin_pairs(nl)
     if not pairs:
         return []
+    import cec_pcb
     pair_nets = {n for pr in pairs for n in pr}
     names = set(nl.nets)
     prepared = {}
