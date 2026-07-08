@@ -76,9 +76,28 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
             subprocess.run(["kicad-cli", "pcb", "render", "-o", pngb, "--side", "bottom",
                             str(routed)], capture_output=True, timeout=180)
             if os.path.isfile(pngb):
-                _wlog(f"{board} {label} — BACK face", tag="wave", detail=detail, image=pngb)
+                _stamp_back_face(pngb)
+                _wlog(f"{board} {label} — BACK FACE (mirrored view)", tag="wave",
+                      detail="bottom view: left/right appear MIRRORED vs the top view. " + detail,
+                      image=pngb)
         except Exception:                              # noqa: BLE001
             pass
+
+
+def _stamp_back_face(png):
+    """Banner the render itself (owner ask 2026-07-08: a mirrored bottom view read as
+    'jacks on the wrong side') -- the label must live ON the image, not just the feed row."""
+    try:
+        from PIL import Image, ImageDraw
+        im = Image.open(png).convert("RGB")
+        d = ImageDraw.Draw(im)
+        h = max(28, im.height // 24)
+        d.rectangle([0, 0, im.width, h], fill=(180, 60, 20))
+        msg = "BACK FACE - MIRRORED VIEW (left/right flipped vs top view)"
+        d.text((12, h // 4), msg, fill=(255, 255, 255))
+        im.save(png)
+    except Exception:                                  # noqa: BLE001
+        pass
 
 # Working W x H per board (mm): the committed boards' envelope as the STARTING size
 # (the shrink pass comes after a gate-clean baseline exists; SHUNT_GAP may grow H).
