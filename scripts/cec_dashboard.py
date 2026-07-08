@@ -613,7 +613,7 @@ button.pill.act:hover{background:#26424e}
  <div id="pwrap"><div id="pstack"><div id="empty">no board selected</div></div></div>
 </div></div>
 <script>
-let boards=[], lib={beta:[],fresh:[],watch:{}}, acts=[], cur=null, curAct=null, mode='all', plotW=1100, actBodies=false, actTwin=null;
+let boards=[], lib={beta:[],fresh:[],watch:{}}, acts=[], cur=null, curAct=null, mode='all', plotW=1100, actBodies=false, actTwin=null, actImg=null;
 const PAGE_REV='__REV__';
 let secOpen={act:true,beta:true,fresh:true,snaps:true};
 function esc(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
@@ -724,11 +724,21 @@ function setMode(m){mode=m;
  for(const x of ['all','detail','current','render','plot']) document.getElementById('m_'+x).classList.toggle('on',x===m);
  buildPanels();}
 function pickAct(i){
- if(curAct!==i){actBodies=false;actTwin=null;}
  curAct=i; cur=null;
  const a=acts[i]||{};
+ // state keys to the IMAGE (poll reorders indices); the toggle is a PERMANENT header
+ // element -- async-appended buttons were wiped by every re-render/poll ('ephemeral
+ // buttons', owner bug report). Probes only flip its visibility.
+ if(a.image!==actImg){actBodies=false;actTwin=null;actImg=a.image;}
  document.getElementById('btitle').textContent=`[${a.tag}] ${a.title}`;
- document.getElementById('badges').innerHTML=`<span class="pill dim">${ago(a.ts)}</span>`;
+ document.getElementById('badges').innerHTML=
+  `<span class="pill dim">${ago(a.ts)}</span>`+
+  `<button id="tgl3d" class="pill" style="cursor:pointer;margin-left:8px;display:${actTwin?'inline-block':'none'}">${actBodies?'copper view':'3D bodies'}</button>`;
+ document.getElementById('tgl3d').onclick=()=>{
+  actBodies=!actBodies;
+  const el=document.getElementById('actimg');
+  if(el&&actTwin) el.src=`/artifact?p=${encodeURIComponent(actBodies?actTwin:actImg)}`;
+  document.getElementById('tgl3d').textContent=actBodies?'copper view':'3D bodies';};
  const st=document.getElementById('pstack');
  st.style.width=plotW+'px';
  if(a.image){
@@ -738,22 +748,13 @@ function pickAct(i){
   im.id='actimg';
   const cap=document.createElement('div'); cap.className='cap'; cap.textContent=a.title;
   w.appendChild(im); w.appendChild(cap); st.appendChild(w);
-  // 3D toggle v2 (owner): STATIC header (never scales with zoom); only when the -bodies
-  // twin EXISTS (old snapshots have bodies baked in, no twin, no button).
-  actTwin=null;
-  if(a.image.includes('-top.png')||a.image.includes('-bottom.png')){
+  if(!actTwin&&(a.image.includes('-top.png')||a.image.includes('-bottom.png'))){
    const tw=a.image.replace('-top.png','-top-bodies.png').replace('-bottom.png','-bottom-bodies.png');
    fetch(`/artifact?p=${encodeURIComponent(tw)}`,{method:'HEAD'}).then(r=>{
-    if(!r.ok) return;
+    if(!r.ok||a.image!==actImg) return;
     actTwin=tw;
-    const bd=document.getElementById('badges');
-    const btn=document.createElement('button'); btn.textContent=actBodies?'copper view':'3D bodies';
-    btn.className='pill'; btn.style.cssText='cursor:pointer;margin-left:8px';
-    btn.onclick=()=>{actBodies=!actBodies;
-     const el=document.getElementById('actimg');
-     if(el) el.src=`/artifact?p=${encodeURIComponent(actBodies?tw:a.image)}`;
-     btn.textContent=actBodies?'copper view':'3D bodies';};
-    bd.appendChild(btn);
+    const b3=document.getElementById('tgl3d');
+    if(b3) b3.style.display='inline-block';
    }).catch(()=>{});
   }
  }else{
