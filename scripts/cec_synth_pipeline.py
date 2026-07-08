@@ -4811,6 +4811,59 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
             "vias_total": sum(nvias.values())}
 
 
+def _oracle_fiducials(placed_board_path, *, min_count=3, min_clear_mm=1.5,
+                      min_tri_mm2=30.0, expect=None):
+    """FIDUCIAL quality gate (exploration round 2 item 6, 2026-07-08). Assembly wants
+    >=3 well-separated, non-collinear fiducials with a clear window around each.
+    CALIBRATION (build/fid_calib.py): hand hub = 3 fids, min nearest-OTHER-pad 3.53mm,
+    max triangle 1781mm2; hand 12vhpwr = 3 fids, 2.17mm, 1697mm2; a fresh
+    materialized eps legalizes FID2 to 1.99mm -- floors 1.5mm / 30mm2 sit under all
+    three (the fid's own mask window is 1mm radius; a fid ON a pad reads <0.5). Fresh wave boards shipped ZERO fiducials (materialize
+    dropped the planned FID1-3 -- fixed in the same change as this gate).
+    SCOPE: N/A (clean pass) on a board with no fiducials when *expect* is falsy --
+    the committed eps/pcie boards carry none by their generator's design and the
+    SB-08 golden must not flip. The wave path passes expect=True (place_mechanical
+    plans them unless params say 'none'), so a fresh board missing fiducials FAILS."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    fids = [fp for fp in board.GetFootprints()
+            if fp.GetReference().upper().startswith("FID")]
+    if not fids:
+        if expect:
+            return {"ok": False, "count": 0,
+                    "violations": ["fiducials expected but NONE on board"]}
+        return {"ok": True, "count": 0, "violations": [], "note": "no fiducials -- N/A"}
+    viol = []
+    if len(fids) < min_count:
+        viol.append(("count", len(fids), min_count))
+    others = [(p, p.GetBoundingBox()) for fp in board.GetFootprints()
+              if not fp.GetReference().upper().startswith("FID") for p in fp.Pads()]
+    for fid in fids:
+        fx, fy = fid.GetPosition().x / 1e6, fid.GetPosition().y / 1e6
+        nd = 1e9
+        for p, bb in others:
+            d = math.hypot(p.GetPosition().x / 1e6 - fx, p.GetPosition().y / 1e6 - fy) \
+                - (bb.GetWidth() / 1e6) / 2.0
+            if d < nd:
+                nd = d
+        if nd < min_clear_mm:
+            viol.append(("clear", fid.GetReference(), round(nd, 2), min_clear_mm))
+    if len(fids) >= 3:
+        pts = [(f.GetPosition().x / 1e6, f.GetPosition().y / 1e6) for f in fids]
+        amax = 0.0
+        for i in range(len(pts)):
+            for j in range(i + 1, len(pts)):
+                for k in range(j + 1, len(pts)):
+                    (x1, y1), (x2, y2), (x3, y3) = pts[i], pts[j], pts[k]
+                    amax = max(amax, abs((x2 - x1) * (y3 - y1)
+                                         - (x3 - x1) * (y2 - y1)) / 2.0)
+        if amax < min_tri_mm2:
+            viol.append(("collinear", round(amax, 1), min_tri_mm2))
+    return {"ok": not viol, "count": len(fids), "violations": viol[:8]}
+
+
 def _oracle_facing_fraction(placed_board_path, *, net_span_max=12):
     """FACING-FRACTION metric (exploration round 2 item 4, 2026-07-08): over every
     pair of footprints sharing a LOCAL net (board-wide pad count <= *net_span_max*,
@@ -5551,6 +5604,14 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 ce = {"ok": False, "violations": ["checker error: %s" % e]}
             courtyard_edge_ok = bool(ce.get("ok")) or not craft_gates
+            try:
+                _fid_expect = bool(cfg is not None and str(
+                    (cfg.params or {}).get("fiducials", "3")).lower()
+                    not in ("none", "0", ""))
+                fq = _oracle_fiducials(placed, expect=_fid_expect)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                fq = {"ok": False, "violations": ["checker error: %s" % e]}
+            fiducials_ok = bool(fq.get("ok")) or not craft_gates
             decouple_ok = bool(dq.get("ok")) or not craft_gates
             pairs_ok = bool(pq.get("ok")) or not craft_gates
 
@@ -5558,7 +5619,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                         and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
                         and comparator_ok and kelvin_reach_ok and courtyards_ok
                         and circuit_ok and stranded_ok and pin_escape_ok
-                        and courtyard_edge_ok)
+                        and courtyard_edge_ok and fiducials_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -5602,13 +5663,14 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
+                "fiducials_ok": fiducials_ok, "fiducials": fq,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
                                            sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
-                                           cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce),
+                                           cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -5634,7 +5696,8 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
-                    cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None):
+                    cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None,
+                    fq_g=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -5664,6 +5727,9 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if ce_g is not None and not ce_g.get("ok"):
         r.append(f"courtyard-edge clearance < {ce_g.get('min_mm')}mm: "
                  f"{ce_g.get('violations')[:5]}")
+    if fq_g is not None and not fq_g.get("ok"):
+        r.append(f"fiducial quality violated (count/clear/collinear): "
+                 f"{fq_g.get('violations')[:4]}")
     if cq is not None and not cq.get("ok"):
         r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
     if bq is not None and not bq.get("ok"):
@@ -5836,7 +5902,12 @@ def materialize(cand, cfg, out, *, logo=None):
     def _is_mount(r):
         return r.startswith("H") and r[1:].isdigit()
     mounts = [(p[0], p[1]) for r, p in cand.P.items() if _is_mount(r)]
-    # build_board places mounts (H1..) itself; FID/LOGO are board-level finishing it doesn't emit.
+    # build_board places mounts (H1..) + fiducials (FID1..) itself; LOGO stays
+    # board-level finishing. (Round-2 item 6, 2026-07-08: the placer always PLANNED
+    # FID1-3 via place_mechanical but this line dropped them -- every fresh wave board
+    # shipped with ZERO fiducials while hand hub/12vhpwr carry 3.)
+    fids = [(p[0], p[1]) for r, p in sorted(cand.P.items())
+            if r.startswith("FID") and r[3:].isdigit()]
     P3 = {r: (p[0], p[1], p[2]) for r, p in cand.P.items()
           if not _is_mount(r) and not r.startswith(("LOGO", "FID"))}
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
@@ -5846,7 +5917,8 @@ def materialize(cand, cfg, out, *, logo=None):
     cec_pcb.build_board(out, _ensure_netlist_path(cfg), P3, mounts, logo, cand.W, cand.H, force_argv=False,
                         corner_radius=float(cfg.params.get('corner_radius', 0.0) or 0.0),
                         drop_keepout=_dropk, back_refs=tuple(getattr(cand, 'back_refs', ()) or ()),
-                        inner_power_routing=bool(cfg.params.get('inner_power_routing')))
+                        inner_power_routing=bool(cfg.params.get('inner_power_routing')),
+                        fiducials=fids)
     for ext in (".kicad_pro", ".kicad_dru"):         # carry rules so DRC matches the real module
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):

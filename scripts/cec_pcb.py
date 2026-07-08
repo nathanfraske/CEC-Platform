@@ -399,7 +399,8 @@ def export_netlist(dir_, base):
 
 def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
                 drop_keepout=(), gen="cec-cec_pcb", note=None, force_argv=True,
-                corner_radius=0.0, back_refs=(), inner_power_routing=False):
+                corner_radius=0.0, back_refs=(), inner_power_routing=False,
+                fiducials=()):
     """Assemble + write a .kicad_pcb: net decls, footprints (frame+passives), edge cuts,
     optional GND zone, routing guides, back note. One-shot guard: refuses to overwrite a
     board that already carries tracks/vias unless --force is on sys.argv."""
@@ -421,6 +422,12 @@ def build_board(out, netf, P, mounts, logo, W, H, *, guides_str="", zones=True,
     for i, (x, y) in enumerate(mounts, 1):
         fps.append(place("cec-MountingHole:MountingHole_3.2mm_M3_Pad_Via", f"H{i}", x, y, 0,
                          padnet, code_of, gnd_all=True))
+    for i, (x, y) in enumerate(fiducials, 1):
+        # assembly fiducials (round-2 item 6, 2026-07-08): the placer always PLANNED
+        # FID1.. via place_mechanical but materialize dropped them ("board-level
+        # finishing") -- same emission path as the hand 12vhpwr's FID1-3.
+        fps.append(place("cec-Fiducial:Fiducial_1mm_Mask2mm", f"FID{i}", x, y, 0,
+                         padnet, code_of))
     if logo:
         fps.append(place("cec:CEC_Logo_Copper", "LOGO1", logo[0], logo[1], 0, padnet, code_of, flip=True))
     e = []
