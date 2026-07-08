@@ -1,5 +1,39 @@
 # Current work handoff
 
+## (G8) ROUND-2 IMPLEMENT QUEUE LANDED + SPEEDUP PASS — 2026-07-08 ~15:30 (branch claude/pipeline-consolidation)
+ALL 7 G7 implement-queue items landed, each teeth-verified in-container (calibrations REPRODUCED
+from the probes, not trusted): (1) PIN-ESCAPE gate boxed0<=4%/le1<=12% (hand 0/0, committed eps
+1.71/6.86, fresh 9.06/23.02 FAILS) 411c0c9; (2) COURTYARD-EDGE native-DRU physical_clearance gate
+0.8mm floor, exemptions J/H/M/FID/MK/SW/TB/TP/DL/LOGO + ESP32-by-value (antenna-at-edge = hand
+pattern) 411c0c9; (3) SILK score/fp = tier-0 sort_key tie-break (hand 0.18-0.43 vs fresh 4.5-5.3)
+a8c0c8b; (4) FACING-FRACTION advisory (does NOT separate universally: committed eps 13.7 < fresh-eps
+37.5 — advisory only, drives future face() lever) 1e90823; (5) ROUTE-SANITY advisory: per-net detour
+<=6.0 + via budget max(10,2*pads) exempting zoned+force nets (12vhpwr lane stitching 10/3-pad,
+/SB_CBL_PRES 8; synthetic 53.8x meander + 41-via chain FAIL) 5c8e231; (6) FIDUCIALS: materialize now
+EMITS the planned FID1-3 (they were dropped — every fresh board shipped 0!) + quality gate count>=3/
+clear>=1.5mm/non-collinear, N/A-without-expect so SB-08 golden unmoved, sabotage teeth 223b95a;
+(7) GAP-PROFILE advisory (true-polygon side-filtered; NO bimodality stat was ever computed — the
+round-2 read was an eyeballed histogram, committed eps is a counterexample; robust pattern = fresh
+non-touching p75<=0.75 vs hand 1.08-1.25) + ROLE-KEEPOUT anneal lever role_clr (soft cost, never
+veto), INERT unless params role_keepouts set — activation = fixed-seed cec_lever_eval ablation
+(FOLLOWUPS) 24d1461.
+SPEEDUP PASS (a1fefe4, profiling scout measured: wave FULLY SERIAL, FR=71-95%/candidate, 24-pin
+wave 49.5min/24, checker suite 14.5s): (a) PARALLEL candidate loop (spawn pool, intents re-derived
+by name; default 6 workers — the "4-core container" was OMP_NUM_THREADS=4 masking nproc, ALL 18
+cores available; CEC_WAVE_WORKERS=1 = comparability runs); verified 4 variants/27.8s at w=2.
+(b) LAZY THERMAL (owner directive): solve ONLY when every other gate term passes (would-be winner);
+gate=True impossible without a real solve; failing candidate 21.7->4.5s. Silk joins the lazy skip.
+(c) THERMAL MIRAGE GUARD — the owner's instinct MEASURED REAL: identical solves returned dT
+119/103/174 (GPU) and 0.0/20.8/20.9 (CPU-forced; dT=0 would have gate-PASSED); pyamg path has no
+convergence flag. Guard: dT<=0.05 = FAIL + any would-be pass needs a 2nd agreeing solve (worst-of-2
+reported). Hand 12vhpwr still passes (23.68). SOLVER root-cause = FOLLOWUPS (probe_thermal_repeat*).
+KNOWN CONSEQUENCE: wave-1 eps winner now FAILS the bar (D2 at 0.0mm edge + stranded C9/D2) — eps
+wave re-run queued (FOLLOWUPS). GPU/agents answer (owner q): GPU = thermal solves only, during
+waves (CEC_THERMAL_GPU_MIN_N=60000 recipe env; idle between); wave loop is FULLY deterministic —
+no LLM seats in it; local seats all stopped; exploration panels are where agents run (cost policy:
+local-first, workflow agent() calls MUST set model: explicitly — fable-inherit near-miss recorded
+in agent-cost-policy memory).
+
 ## (G7) OWNER LEVER PASSES — 2026-07-08 evening (branch claude/pipeline-consolidation)
 STRICT-ZERO reached earlier (bodies-in-pours 0 x8 seeds, lane pours + fingers, no exemptions).
 WAVE 10 (full lane arch, code freeze): best 38 unconn (179->76->55->38), top-6 packed 38-41,
