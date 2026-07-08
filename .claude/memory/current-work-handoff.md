@@ -1,5 +1,48 @@
 # Current work handoff
 
+## (G+++) 24-PIN ESCALATED REVIEW — state at 2026-07-08 night (branch claude/pipeline-consolidation)
+ROLE (owner): I am the ESCALATOR TIER — pipeline halts get diagnosed + fixed by me. Wave 5 (24
+variants, ALL unconn 123-187) was the halt; a 30-agent diagnosis workflow (adversarially
+verified; NOTE: it sampled a STALE 100x84 artifact, so cross-check numbers, mechanisms were
+code-level and valid) + instrumented FR probes drove 6 fix rounds, each committed + on the dash
+(tag=fix, cec_escalator_probe.py renders every round like wave variants):
+R1: phantom kelvin pair (fabricated /SENSE5V_LO -> gate unpassable; _derive_pairs existence
+guard); In2 unroutable (power-KIND layer -> FR refused; inner_power_routing param: In1 GND
+plane + In2 'PWR_RT' signal); wrong-shunt corridors (any-2-pad grabbed caps; straddle-first +
+RS guard); board-spanning rail boxes (ATX interleave; _x_clusters fan-in per pin group);
+dual-sided keepout layer inversion (per-pair B.Cu). R2: same-layer cross-net pour clip.
+R3: FR seed pinned in measurements (±30 noise discovered). R4: same-NET zone clip (abutting
+tiles); kelvin_sense_pins exclusion UNCONDITIONAL (slid 8mm seats escaped 6mm radius -> FR
+routed sense CROSS-FACE, caught by the new sense-side gate); tap reach 6->9. R5: INNER-POUR
+architecture (rail pours on In2 + synthesize_force_vias) — placement effect PROVEN (unconn
+114->74 @p8) but FR integration incomplete (In2 keepouts don't bind: 116 foreign; stubs need
+_tap_foreign_clear: 37 shorts) -> PARKED behind CEC_INNER_POURS=1 (FOLLOWUPS.md). R6 = the
+shipping state: face pours, foreign 0/0, unconn ~78@p20 / ~114-132@p8 (fr-seed variance),
+thermal dT~45-66 (gate 30; rail currents still cable-class 40A default — config needed).
+TRAJECTORY: 179 -> 78 best. REMAINING to gate-clean (priority): (1) inner-pour FR integration
+(bake_hints/DSN keepout on inner layers + guarded stubs) — biggest lever; (2) GND fanout
+synthesizer (19 isolated F.Cu SMD pads, workflow-verified warranted); (3) placement iteration
+(INA181 seats 16-23mm off their shunts; D_USB1-on-U11 pileup; rail-column-vs-pin-group order);
+(4) 24-pin rail currents for the thermal gate (manifest config; 40A default over-gates).
+Probe harness: scripts/cec_escalator_probe.py; artifacts build/escalator/atx-24pin-rev3/.
+COST POLICY (owner, recorded in agent-cost-policy.md): panels LOCAL-first (cec-worker-quality
+go-to; deepseek = heavy judgment only, slow); cloud agents cheapest-that-works; fable = exception.
+
+## (G++) 24-PIN OWNER BATCH — 2026-07-08 late (branch claude/pipeline-consolidation)
+ALL owner directives landed + committed: J_SIG1 2x5->1x4 (study item 5 CLOSED, no sense-return;
+pin order = db J20: 1=-12V 2=PS_ON# 3=PWR_OK 4=GND; alignment contract = collinear with blade
+row, pad1 one field pitch past last slot); J3 mouth-out (repair-only rotation flip in
+seed_anchors — flips ONLY when default leaves body inboard; eps byte-identical, ablation-proven);
+buttons cluster opt-in (buttons_near=usb manifest key); board size 70x55 (owner: too large);
+blade row_y pad-extent repair. CRITICAL FIND: U5 (TPS2121) NEVER PLACED on fresh seeds — RUX0012A
++ CEC_12V2x6 footprints were old-format (fp_text) so place() regexes missed position+reference;
+kicad-cli fp upgrade fixed. Battery 116/116. Per-side taps/pours DONE earlier (all 4 rails,
+straddle-aware cec_fr defaults, 8 sites); sense-side oracle gate DONE (analog-across-faces,
+fail-closed, N/A single-sided). WAVE 4 RUNNING (fresh-wave-24pin-4.log, effort 8/10/1200s,
+per-variant dash snapshots incl. back-face on new best). Probes seed..seed10 build/24pin-probe/.
+NEXT: wave 4 verdict -> iterate placement (known: D_USB1-on-U11 pileup class); shrink pass once
+gate-clean; eps 40A envelope copper (mirror pours) queued.
+
 ## (G+) 24-PIN MECHANISM PACKAGE — state at 2026-07-08 late (branch claude/pipeline-consolidation)
 Items LANDED (each committed + on the dash feed): (a) shunt-straddle kelvin pairs BOTH sites
 (+12vhpwr lane-6 /FAN_12V regression caught, gate strengthened, 127/127); (c) J3 role
