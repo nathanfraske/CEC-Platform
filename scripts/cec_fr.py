@@ -2531,6 +2531,9 @@ def route_once(
     jar: str | None = None,
     timeout: int = 600,
     version: str | None = None,   # FR release to run (default: the FR_VERSION pin)
+    protect_nets=(),              # nets whose LOCKED stubs get fix->protect in the DSN
+                                  # (FR 1.7.0 DROPS unprotected fix wires -- measured,
+                                  # cec_fr02 bench; the coord-hints A/B rides this)
 ) -> Candidate:
     """Full single-candidate pipeline: (bake_hints) -> export_dsn -> run_freerouting -> import_ses.
 
@@ -2563,6 +2566,9 @@ def route_once(
         # 2. Export DSN
         dsn_path = os.path.join(workdir, "board.dsn")
         export_dsn(hinted_board, dsn_path)
+        if protect_nets:
+            import cec_fr02
+            cec_fr02.force_protect_in_dsn(dsn_path, list(protect_nets))
 
         # 3. Run Freerouting (from its own sub-workdir inside workdir so logs/ is isolated)
         fr_wd = tempfile.mkdtemp(prefix="cec_fr_fr_", dir=_TMP)
