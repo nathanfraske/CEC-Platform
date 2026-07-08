@@ -16,3 +16,4 @@
 - [INA238 LO-tap refusal blocker](ina238-lo-tap-refusal-blocker.md) — the convergent blocker for placer-autonomy + the PCIe-3port grow: INA238 IN-(pad 9) is top-clustered, far from the bottom LO shunt terminal, so its straight Kelvin tap clips foreign copper and is refused (the specific root-cause of the fresh/agentic stall).
 - [Enterprise trust tier](enterprise-trust-tier.md) — the workstation tamper-evident-witness design (zero-trust per-module RoT, multi-modal lie-detector, 2 SKUs P4/PolarFire); PROPOSED in PR #64 / docs/enterprise-workstation-trust-addendum-2026-06-30.md; resolves-toward OQ-7.
 - [Dashboard activity feed](dashboard-activity-feed.md) — log every visual artifact/work stage via cec_worklog (owner verifies on the dash; :8090 ACTIVITY section merges worklog + commits).
+- [Agent cost policy](agent-cost-policy.md) — delegate at the cheapest tier that does the job well (haiku default, sonnet for judgment, fable only when truly needed).
