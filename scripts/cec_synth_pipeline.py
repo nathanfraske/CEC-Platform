@@ -2858,6 +2858,29 @@ def _seed_corridor_spine(topo, anchors, H, nl, comps, W=None, params=None):
                 n_tot += n_lo
             span = (n_tot - 1) * pitch
             x0 = max(pitch, min(anchors[jin][0] - span / 2.0, (W or 100) - span - pitch))
+            # ANCHOR-vs-ANCHOR collision fix (exploratory finding, 2026-07-08): the row's
+            # y-band can run under an edge connector (J1's courtyard swallowed the row's
+            # left end -- 6 courtyard overlaps + a DETECT-pin short, invisible to the
+            # legalizer which never checks two anchors against each other). Clamp the row
+            # start clear of any seated anchor whose courtyard intersects the row band.
+            row_y = H / 2.0
+            half_band = 9.0
+            for _ar, _apos in list(anchors.items()):
+                if _ar not in comps:
+                    continue
+                _cx, _cy, _hw, _hh = _courtyard_info(comps[_ar], _apos[2] if len(_apos) > 2 else 0)
+                ax0 = _apos[0] + _cx - _hw
+                ax1 = _apos[0] + _cx + _hw
+                ay0 = _apos[1] + _cy - _hh
+                ay1 = _apos[1] + _cy + _hh
+                if ay1 < row_y - half_band or ay0 > row_y + half_band:
+                    continue                             # clear of the row band
+                if ax0 < (W or 100) / 2.0:               # left-side blocker: push the row right
+                    # +8mm: the first column's sense IC straddles LEFT of the shunt
+                    x0 = max(x0, ax1 + pitch + 8.0)
+                # right-side blockers only matter if the row would reach them; the stub
+                # seat extends right, so leave headroom
+            
             k = 0
             for c, n_lo in zip(shared, slots):
                 col = x0 + (k + (n_lo - 1) / 2.0) * pitch
