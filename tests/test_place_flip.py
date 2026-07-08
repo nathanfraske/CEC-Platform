@@ -99,3 +99,41 @@ class TestDualSideGuard(unittest.TestCase):
         for r in cand.back_refs:
             self.assertFalse(r.startswith(("J", "TB")), r)
         self.assertNotIn("U1", cand.back_refs)
+
+
+@unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")
+class TestSenseSideChecker(unittest.TestCase):
+    """The dual-sided gate term: analog never crosses faces -- independently verified,
+    N/A on single-sided boards (12VHPWR's lane vias must never false-fail)."""
+
+    def test_na_on_single_sided(self):
+        import cec_synth_pipeline as sp
+        for p in ("tests/golden/fixtures/route-oracle/eps-rev3-n2.kicad_pcb",
+                  "modules/12vhpwr-standard/12vhpwr-standard-module.kicad_pcb"):
+            full = os.path.join(HERE, "..", p)
+            if not os.path.isfile(full):
+                continue
+            r = sp._oracle_sense_side(full)
+            self.assertFalse(r["applicable"], p)
+            self.assertTrue(r["ok"], p)
+
+    def test_fires_on_injected_sense_via(self):
+        import shutil
+        import tempfile
+        import cec_synth_pipeline as sp
+        src = os.path.join(HERE, "..", "build", "24pin-probe", "seed5c.kicad_pcb")
+        if not os.path.isfile(src):
+            self.skipTest("dual-sided probe board absent (build artifact)")
+        tmp = tempfile.mkstemp(suffix=".kicad_pcb")[1]
+        shutil.copy(src, tmp)
+        b = pcbnew.LoadBoard(tmp)
+        nets = [n for n in ("/SENSE3V3_HI", "/SENSE3V3_LO") if b.GetNetcodeFromNetname(n) > 0]
+        self.assertTrue(nets)
+        v = pcbnew.PCB_VIA(b)
+        v.SetPosition(pcbnew.VECTOR2I(int(86.7e6), int(45e6)))
+        v.SetNetCode(b.GetNetcodeFromNetname(nets[0]))
+        b.Add(v)
+        pcbnew.SaveBoard(tmp, b)
+        r = sp._oracle_sense_side(tmp)
+        self.assertTrue(r["applicable"])
+        self.assertFalse(r["ok"], r)

@@ -4093,6 +4093,59 @@ def _classify_unconnected(unconn_nets, rules):
     return crit, sig
 
 
+def _oracle_sense_side(board_path):
+    """OWNER RULE checker (2026-07-08, the dual-sided gate term): on a DUAL-SIDED board
+    (any flipped shunt), each kelvin pair's PURE-SENSE nets (the '/SENSE*'-style locals --
+    a pair's shared RAIL side like +5V_MAIN legitimately routes everywhere and is excluded)
+    must carry ZERO vias and every track on the CHAIN's own face. 'Only via-tolerant
+    digital crosses faces' -- previously by-construction, now independently verified.
+    Returns {applicable, ok, violations}; N/A (applicable=False, ok=True) on single-sided
+    boards so eps/12vhpwr behavior is untouched (the 12VHPWR's SENSEP lanes carry
+    legitimate F->B lane-transition vias)."""
+    import pcbnew
+    import cec_fr
+    board = pcbnew.LoadBoard(board_path)
+    flipped = {fp.GetReference(): fp.IsFlipped() for fp in board.GetFootprints()}
+    pairs = cec_fr._board_kelvin_pairs(board)
+    # chain side per pair = the straddling 2-pad RS* shunt's face
+    pad_refs = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetname():
+                pad_refs.setdefault(p.GetNetname(), set()).add(fp.GetReference())
+    any_flipped_shunt = False
+    viol = []
+    for hi, lo in pairs:
+        sh = next((r for r in sorted(pad_refs.get(hi, set()) & pad_refs.get(lo, set()))
+                   if r.startswith("RS")), None)
+        if sh is None:
+            continue
+        side_flipped = bool(flipped.get(sh))
+        any_flipped_shunt = any_flipped_shunt or side_flipped
+    if not any_flipped_shunt:
+        return {"applicable": False, "ok": True, "violations": []}
+    want_layer = {}
+    for hi, lo in pairs:
+        sh = next((r for r in sorted(pad_refs.get(hi, set()) & pad_refs.get(lo, set()))
+                   if r.startswith("RS")), None)
+        if sh is None:
+            continue
+        lay = "B.Cu" if flipped.get(sh) else "F.Cu"
+        for net in (hi, lo):
+            if net.startswith("+"):
+                continue                                   # shared rail side: excluded
+            want_layer[net] = lay
+    for tr in board.GetTracks():
+        net = tr.GetNetname()
+        if net not in want_layer:
+            continue
+        if tr.Type() == pcbnew.PCB_VIA_T:
+            viol.append(f"via on sense net {net}")
+        elif tr.GetLayerName() != want_layer[net]:
+            viol.append(f"track on {tr.GetLayerName()} for {net} (chain side {want_layer[net]})")
+    return {"applicable": True, "ok": not viol, "violations": viol[:12]}
+
+
 def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
     """The THERMAL gate term: the dashboard solve recipe (cec_thermal_overlay._solve_thermal -> the 2.5D
     cec_thermal2d field solver, with the per-board currents/stackup/cooling) -> dT <= gate_dt. FAIL-CLOSED:
@@ -4183,7 +4236,15 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                          "max_T": None, "dT": None, "gate_dt": gate_dt}
             thermal_ok = bool(therm.get("ok"))
 
-            gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete)
+            try:
+                sside = _oracle_sense_side(routed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                sside = {"applicable": True, "ok": False,
+                         "violations": ["checker error: %s" % e]}
+            sense_side_ok = bool(sside.get("ok"))
+
+            gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
+                        and sense_side_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -4209,10 +4270,12 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     "tracks": fsum.get("n_tracks", 0), "vias": fsum.get("n_vias", 0),
                     "pours": fsum.get("n_pours", 0)},
                 "thermal_ok": thermal_ok, "thermal": therm,
+                "sense_side_ok": sense_side_ok, "sense_side": sside,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
-                                           routing_complete, crit, sig, unconn_finish_tol),
+                                           routing_complete, crit, sig, unconn_finish_tol,
+                                           sside=sside),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -4237,7 +4300,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 
 
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
-                    routing_complete, crit, sig, tol):
+                    routing_complete, crit, sig, tol, sside=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -4252,6 +4315,8 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if not thermal_ok:
         r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
                  + (f" ({therm['error']})" if therm.get("error") else ""))
+    if sside is not None and sside.get("applicable") and not sside.get("ok"):
+        r.append(f"sense-side rule violated (analog across faces): {sside.get('violations')[:4]}")
     if not routing_complete:
         if crit:
             r.append(f"unconnected on safety/power nets: {crit}")
