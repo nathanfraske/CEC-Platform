@@ -224,3 +224,12 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   (hub C13 4.1mm; hand 24-pin C3/C4 4.0/3.5mm) and is superseded by the new calibrated
   functional 7.0mm oracle gate (passes all 3 hand boards, 0 violations). Recommend retiring
   it in favor of the oracle term, or bumping to 7.0mm. Your ratification.
+
+## 2026-07-08 — orphaned checker calibration (pre-gating)
+- The high-current pour family (high-current-pour-present / min-pour-cross-section /
+  trace-width-high-current) and cec_dfm_check's DFM classes are now WIRED into the oracle
+  verdict as ADVISORY fields. Gating them needs calibration you should ratify:
+  (a) pour-present's net classification name-matches /DET12V + /ATX_NEG12V (signals) as
+  high-current — needs the straddle-pair-derived force-net list instead of name heuristics;
+  (b) the DFM set counts 94 hits on the SHIPPED 12vhpwr fab board — the type list needs
+  triage (which classes gate vs report) against boards you accept.

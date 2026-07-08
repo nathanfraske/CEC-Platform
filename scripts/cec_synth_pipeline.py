@@ -4677,6 +4677,62 @@ def _oracle_decoupler_adjacency(board_path, cfg=None, *, max_mm=7.0):
     viol.sort(key=lambda v: -v[2])
     return {"ok": not viol, "violations": viol[:12]}
 
+def _oracle_pour_family(routed_board_path):
+    """ORPHANED-CHECKER wiring (blind-spots lens, 2026-07-08): the mature high-current
+    pour family in cec_constraints existed and route_oracle_grade NEVER called it. Runs
+    high-current-pour-present / min-pour-cross-section / trace-width-high-current on the
+    routed board, plus the pad-local zone-connection assert (a THERMAL_RELIEF override on
+    a solid-required pad silently defeats the joint with zero DRC signal)."""
+    import pcbnew
+    import cec_constraints as K
+    board = pcbnew.LoadBoard(routed_board_path)
+    if board is None:
+        return {"ok": False, "checks": {"load": {"ok": False, "detail": "board unloadable"}}}
+    out = {}
+    ok_all = True
+    ctx = {}
+    for cid in ("high-current-pour-present", "min-pour-cross-section",
+                "trace-width-high-current"):
+        fn = K.CHECKERS.get(cid)
+        if fn is None:
+            continue
+        try:
+            res = fn(board, routed_board_path, ctx)
+            ok, detail = bool(res[0]), res[1]
+        except Exception as e:                           # noqa: BLE001 -- FAIL-CLOSED
+            ok, detail = False, "checker error: %s" % e
+        out[cid] = {"ok": ok, "detail": str(detail)[:200]}
+        ok_all &= ok
+    # zone-connection override assert: pads on force nets must be INHERITED/FULL
+    try:
+        import cec_fr
+        force = {n for pr in cec_fr._board_kelvin_pairs(board) for n in pr}
+        bad = []
+        for fp in board.GetFootprints():
+            for p in fp.Pads():
+                if p.GetNetname() in force and                         p.GetLocalZoneConnection() == pcbnew.ZONE_CONNECTION_THERMAL:
+                    bad.append("%s.%s" % (fp.GetReference(), p.GetPadName()))
+        out["zone-connection-override"] = {"ok": not bad, "detail": str(bad[:6])}
+        ok_all &= not bad
+    except Exception as e:                               # noqa: BLE001
+        out["zone-connection-override"] = {"ok": False, "detail": str(e)[:120]}
+        ok_all = False
+    return {"ok": ok_all, "checks": out}
+
+
+def _oracle_dfm(routed_board_path):
+    """DFM defect classes (cec_dfm_check: slivers, isolated copper, starved thermals,
+    hole-near-hole, acid traps + sub-min connection width) -- existed, never in the
+    conjunction."""
+    import cec_dfm_check
+    try:
+        v = cec_dfm_check.dfm_check(routed_board_path)
+    except Exception as e:                               # noqa: BLE001 -- FAIL-CLOSED
+        return {"ok": False, "violations": ["dfm error: %s" % e]}
+    slim = [(x.get("type"), x.get("desc", "")[:60]) for x in v][:12]
+    return {"ok": not v, "violations": slim, "count": len(v)}
+
+
 def _oracle_stranded_parts(placed_board_path, *, max_mm=22.0):
     """STRANDED-PART gate (owner eyesight finding 2026-07-08: diodes jammed in a corner,
     a slew orphaned by the 1x4 header): every part must sit within *max_mm* of its
@@ -5113,6 +5169,18 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 pq = _oracle_pair_quality(routed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 pq = {"ok": False, "violations": ["checker error: %s" % e]}
+            # ADVISORY (2026-07-08): the orphaned pour-family + DFM checkers are WIRED but
+            # not gating -- teeth showed both mis-fire on controls (pour-present name-
+            # matches /DET12V as high-current; DFM counts 94 on the SHIPPED 12vhpwr).
+            # Calibration owner-queued; visibility now beats silent orphanhood.
+            try:
+                pfam = _oracle_pour_family(routed)
+            except Exception as e:                            # noqa: BLE001
+                pfam = {"ok": False, "checks": {"error": {"ok": False, "detail": str(e)[:120]}}}
+            try:
+                dfm = _oracle_dfm(routed)
+            except Exception as e:                            # noqa: BLE001
+                dfm = {"ok": False, "violations": [str(e)[:120]]}
             try:
                 sp = _oracle_stranded_parts(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
@@ -5177,6 +5245,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "kelvin_reach_ok": kelvin_reach_ok, "kelvin_reach": kr,
                 "circuit_ok": circuit_ok, "circuit": cc,
                 "stranded_ok": stranded_ok, "stranded": sp,
+                "pour_family_advisory": pfam, "dfm_advisory": dfm,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
