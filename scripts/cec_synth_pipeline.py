@@ -3348,6 +3348,62 @@ def _evacuate_corridors(P, comps, model, *, margin=0.8):
     return moved
 
 
+def _pad_is_tht(libid):
+    """{pad_num: is_tht} for a footprint (memoized) -- the placement-side pour-box extractor
+    needs pad TYPE, which local_pads drops."""
+    if libid in _PAD_THT_CACHE:
+        return _PAD_THT_CACHE[libid]
+    out = {}
+    try:
+        nick, name = str(libid).split(":")
+        s = open(cec_pcb.fp_path(nick, name)).read()
+        for m in re.finditer(r'\(pad "([^"]*)" (\w+)', s):
+            out[m.group(1)] = (m.group(2) == "thru_hole")
+    except Exception:                                    # noqa: BLE001
+        pass
+    _PAD_THT_CACHE[libid] = out
+    return out
+
+
+_PAD_THT_CACHE = {}
+
+
+def _pour_boxes_unified(P, nl, comps, W, H, *, margin=1.0, edge_clear=0.4):
+    """PLACEMENT-side pour boxes from the SAME pure core the route-time gate uses
+    (cec_fr._pour_boxes_core) -- box-model unification 2026-07-08: the settle previously
+    avoided topo-derived boxes while the gate checked straddle-derived clipped boxes, so
+    re-stamped caps kept landing in gate boxes the settle never saw (the cross-board craft
+    blocker). Returns [(net, x0, x1, y0, y1)] in the evac format."""
+    import cec_fr
+    pairs = _kelvin_pairs(nl)
+    if not pairs:
+        return []
+    pair_nets = {n for pr in pairs for n in pr}
+    names = set(nl.nets)
+    prepared = {}
+    for net in pair_nets:
+        entries = []
+        for ref, padnum in nl.nets.get(net, []):
+            if ref not in P or ref not in comps:
+                continue
+            try:
+                g = cec_pcb.pad_global(ref, padnum, P, comps)
+            except Exception:                            # noqa: BLE001 -- pad absent (NPTH etc.)
+                continue
+            entries.append((ref, g[0], g[1], _pad_is_tht(comps[ref]).get(padnum, False)))
+        prepared[net] = entries
+    padcount = {r: _ref_padcount(nl, r) for r in nl.comps}
+    bbox = (edge_clear, edge_clear, W - edge_clear, H - edge_clear)
+    pours = cec_fr._pour_boxes_core(names, pairs, prepared, padcount, {}, bbox,
+                                    None, margin=margin)
+    out = []
+    for p in pours:
+        xs = [q[0] for q in p["polygon"]]
+        ys = [q[1] for q in p["polygon"]]
+        out.append((p["net"], min(xs), max(xs), min(ys), max(ys)))
+    return out
+
+
 def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
     """The derive_power_pours SENSEC boxes recomputed HOST-SIDE off placement *P* (the same pad class:
     connector THT + the 2-pad Kelvin shunt; the INA SMD sense pads excluded). Returns [(net,x0,x1,y0,y1)].
@@ -3395,7 +3451,8 @@ def _pour_boxes_from_P(topo, P, nl, comps, *, margin=1.0):
     return out
 
 
-def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=False):
+def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=False,
+                    net_exempt=None):
     """Push any FOREIGN MOVABLE body OUT of a derive_power_pours SENSEC box, laterally toward the nearest
     box x-edge + *clr* (the corridor is the vertical connector->shunt column). FOREIGN = not a FIXED
     seated anchor (*fixed*: the connectors / shunts / kelvin-seated INAs + comparators / ESP / mounts that
@@ -3403,6 +3460,7 @@ def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=Fa
     foreign decoupling/threshold cap BODY here forces exactly that copper (its pads + the route to them),
     so evacuate it at placement -- the placer-side ENFORCE of no-foreign-on-high-current-pour. This is the
     box-accurate complement to _evacuate_corridors (which uses the tighter band). Returns the moved refs."""
+    net_exempt = net_exempt or {}
     moved = []
     for ref in list(P):
         if ref in fixed or ref not in comps or ref[:1] in ("J", "H"):
@@ -3412,8 +3470,11 @@ def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=Fa
         cx0, cy0, hw, hh = _courtyard_info(comps[ref], rot, drop_antenna=drop_antenna)
         ccx, ccy = x + cx0, y + cy0
         cb = (ccx - hw, ccx + hw, ccy - hh, ccy + hh)
+        _exn = net_exempt.get(ref, ())
         worst = None
         for _net, x0, x1, y0, y1 in boxes:
+            if _net in _exn:
+                continue                                 # own-rail box: the part belongs here
             ox = min(cb[1], x1) - max(cb[0], x0)
             oy = min(cb[3], y1) - max(cb[2], y0)
             inb = x0 <= ccx <= x1 and y0 <= ccy <= y1
@@ -3997,13 +4058,33 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None):
     # seat stays put.
     _pour_fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
                    | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
-    _pour_boxes = _pour_boxes_from_P(_topo, P, nl, comps) if seated_inas else []
+    _pour_boxes = _pour_boxes_unified(P, nl, comps, W, H) if seated_inas else []
+    # own-net eviction exemptions: a part's own pads' nets + its cluster owner's nets
+    _nets_of = defaultdict(set)
+    for _nn, _mem in nl.nets.items():
+        for _r, _p in _mem:
+            _nets_of[_r].add(_nn)
+    _net_exempt = {r: set(_nets_of.get(r, ())) for r in P}
+    for _pref, (_own, _pad) in spec.items():
+        if _own in _nets_of:
+            _net_exempt.setdefault(_pref, set()).update(_nets_of[_own])
+    # kelvin-family widening: a chain part is at home in its whole pair family's boxes
+    _fam2 = {}
+    for _hi2, _lo2 in _kelvin_pairs(nl):
+        for _n2 in (_hi2, _lo2):
+            _fam2.setdefault(_n2, set()).update((_hi2, _lo2))
+    for _r2, _ex2 in _net_exempt.items():
+        _wide = set()
+        for _n2 in _ex2:
+            _wide |= _fam2.get(_n2, set())
+        _ex2 |= _wide
     for _ev_round in range(6):                               # iterate: legalize_pack isn't band/box-aware so it
         _evm = build_corridor_model(nl, P, comps, board_w=W)  # can push an evacuated body back -> re-evacuate;
         _evac = _evacuate_corridors(P, comps, _evm)           # the final round leaves centers OUT (no legalize
         _evac = [r for r in _evac if r not in _can_seated]    # deliberate seats are never evicted (lever 1)
         _pevac = ([r for r in _evacuate_pours(P, comps, _pour_boxes, _pour_fixed,
-                                              drop_antenna=drop_antenna) if r not in _can_seated]
+                                              drop_antenna=drop_antenna,
+                                              net_exempt=_net_exempt) if r not in _can_seated]
                   if _pour_boxes else [])                     # push-back) -- a center out of the box is enough
         _moved = list(dict.fromkeys(_evac + _pevac))          # for the pour to fill + the net to route around.
         if not _moved:
@@ -4483,10 +4564,37 @@ def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
         ys = [q[1] for q in p["polygon"]]
         boxes.append((p["net"], p["layer"], min(xs) - margin, max(xs) + margin,
                       min(ys) - margin, max(ys) + margin))
+    # KELVIN-FAMILY exemption (2026-07-08, ported from the zone branch): at the 4.7mm
+    # shared-bus column pitch, rail N's chain parts GEOMETRICALLY sit inside rail N+/-1's
+    # fan box (measured: a constant 14 violations on every seed). Sense-row members are
+    # governed by pour-integrity/cross-section, exactly like the hand 12vhpwr's interleave;
+    # the boolean stays for true foreigners wandering in.
+    import cec_fr
+    fam = {}
+    for hi, lo in cec_fr._board_kelvin_pairs(board):
+        for n in (hi, lo):
+            fam.setdefault(n, set()).update((hi, lo))
+    fam_nets = set(fam)
+    chain_refs = set()
+    for fp in board.GetFootprints():
+        nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
+        if nets & fam_nets:
+            chain_refs.add(fp.GetReference())
+    hop_refs = set()
+    for fp in board.GetFootprints():
+        nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()} - {"GND"}
+        if not (nets & fam_nets):
+            for f2 in board.GetFootprints():
+                if f2.GetReference() in chain_refs and (
+                        nets & {q.GetNetname() for q in f2.Pads() if q.GetNetname()} - {"GND"}):
+                    hop_refs.add(fp.GetReference())
+                    break
     for fp in board.GetFootprints():
         ref = fp.GetReference() or ""
         if ref.startswith(("J", "TB", "H", "LOGO", "FID")):
             continue                                     # connectors/blades/mechanical: exempt
+        if ref in chain_refs or ref in hop_refs:
+            continue                                     # sense-row family: cross-section governs
         fp_nets = {p.GetNetname() for p in fp.Pads() if p.GetNetname()}
         side = "B.Cu" if fp.IsFlipped() else "F.Cu"
         c = fp.GetPosition()
