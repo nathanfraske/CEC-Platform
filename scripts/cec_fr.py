@@ -816,6 +816,49 @@ def _board_kelvin_pairs(board):
     return sorted(pairs.values())
 
 
+def _lane_width_mm(net):
+    """Lane width for a rail net under CEC_POUR_LANES. Default 6.0mm (2oz exterior,
+    ~10A at 30C rise first-order); per-net overrides via CEC_LANE_W_JSON. The FEM thermal
+    gate VERIFIES whatever is chosen -- widths here are provisional inputs, never trusted
+    conclusions."""
+    try:
+        import json as _json
+        return float(_json.loads(os.environ.get("CEC_LANE_W_JSON", "{}")).get(net,
+                     os.environ.get("CEC_LANE_W_MM", "6.0")))
+    except Exception:                                    # noqa: BLE001
+        return 6.0
+
+
+def _cluster_lanes(cluster, shunt_pts, net, bbox, margin):
+    """L-LANE rectangles for one pin cluster (strict no-parts-in-pours architecture,
+    owner rule 2026-07-08): a pad-cover rect, a vertical lane toward the shunt row, a
+    horizontal jog to the shunt column when offset, and a shunt-pad cover. Replaces the
+    bbox blanket (audited: bbox pours covered 4068 of 4130mm^2 -- 98.5% of the board)."""
+    bx0, by0, bx1, by1 = bbox
+    w = _lane_width_mm(net)
+    xs = [p[0] for p in cluster]
+    ys = [p[1] for p in cluster]
+    ccx = sum(xs) / len(xs)
+    rects = [(max(bx0, min(xs) - margin), max(by0, min(ys) - margin),
+              min(bx1, max(xs) + margin), min(by1, max(ys) + margin))]
+    if shunt_pts:
+        sx = sum(p[0] for p in shunt_pts) / len(shunt_pts)
+        sy = sum(p[1] for p in shunt_pts) / len(shunt_pts)
+        cy = sum(ys) / len(ys)
+        y_a, y_b = (max(ys), sy) if sy >= cy else (sy, min(ys))
+        rects.append((max(bx0, ccx - w / 2), max(by0, min(y_a, y_b)),
+                      min(bx1, ccx + w / 2), min(by1, max(y_a, y_b))))
+        if abs(ccx - sx) > w / 2:
+            yj0 = sy - w / 2
+            rects.append((max(bx0, min(ccx, sx) - w / 2), max(by0, yj0),
+                          min(bx1, max(ccx, sx) + w / 2), min(by1, yj0 + w)))
+        sxs = [p[0] for p in shunt_pts]
+        sys_ = [p[1] for p in shunt_pts]
+        rects.append((max(bx0, min(sxs) - 1.0), max(by0, min(sys_) - 1.0),
+                      min(bx1, max(sxs) + 1.0), min(by1, max(sys_) + 1.0)))
+    return [r for r in rects if r[2] - r[0] >= 0.8 and r[3] - r[1] >= 0.8]
+
+
 def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
                      inner_layer, *, margin=1.0, layer="F.Cu"):
     """PURE-GEOMETRY pour-box core (box-model unification, 2026-07-08): both the pcbnew
@@ -875,7 +918,20 @@ def _pour_boxes_core(names, kelvin_pairs, pads_by_net, padcount, flipped, bbox,
             # layer (mass unconnected + foreign-on-pour). One sub-pour per pin x-cluster,
             # each converging on the shunt, keeps the copper a fan instead of a blanket.
             clusters = _x_clusters(tht_pts) or [[]]
+            _lanes_on = os.environ.get("CEC_POUR_LANES", "0") == "1"
             for cluster in clusters:
+                if _lanes_on and cluster:
+                    for (lx0, ly0, lx1, ly1) in _cluster_lanes(cluster, shunt_pts, net,
+                                                               (bx0, by0, bx1, by1), margin):
+                        if shunt_xy is not None:
+                            lx0, lx1, ly0, ly1 = _open_shunt_notch(
+                                (lx0, lx1, ly0, ly1), shunt_xy, SHUNT_GAP_MM,
+                                vertical=vertical)
+                        if lx1 - lx0 >= 0.8 and ly1 - ly0 >= 0.8:
+                            pours.append({"net": net, "layer": pair_layer,
+                                          "polygon": [(lx0, ly0), (lx1, ly0),
+                                                      (lx1, ly1), (lx0, ly1)]})
+                    continue
                 heavy = list(cluster) + shunt_pts
                 if not heavy:
                     continue
