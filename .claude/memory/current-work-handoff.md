@@ -1,5 +1,17 @@
 # Current work handoff
 
+## (G5) PLACER-LEVER BATCH — parked 2026-07-08 (ablation required)
+Fix A (anchor-vs-anchor J1 clamp) COMMITTED ✓ (J1 overlaps 6->0). Comparator-adjacency gate +
+hot-sensitive recalibration COMMITTED ✓. The four-lever batch (fix B containment veto,
+divider-pair ownership, CAN-at-connector seat, decoupler re-seat + _park_near) REGRESSED all
+metrics when landed together (caps 34->50-56mm, CAN 42->52mm) -- REVERTED, parked as
+build/wip-placer-levers.patch (161 lines). Next agent: land ONE lever at a time with the
+fixed-seed probe (sense-band intent, compact-s0, measure decoupler/comparator/CAN/divider
+distances between each). Mechanism insights: pour-eviction vs electrical adjacency (parking
+must dodge pour boxes AND the mop must exempt deliberate seats); containment veto needs a
+repair path (move-into-region), else the anneal freezes bad states. Owner-queue: 2 ratified
+checker recalibrations pending sign-off.
+
 ## (G4) PLACEMENT CAMPAIGN — state at 2026-07-08 early AM (branch claude/pipeline-consolidation)
 OWNER PIVOT: "routing is absolutely not the issue... the placer pipeline is always the bottleneck."
 LANDED: placement-CRAFT gate terms in the oracle conjunction (calibrated on hand boards, teeth
