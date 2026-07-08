@@ -19,18 +19,18 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
 
-def render(board_path, out_png, *, side="top", no_silk=True, timeout=180):
+def render(board_path, out_png, *, side="top", no_silk=True, no_bodies=False, timeout=180):
     """Render board_path to out_png. no_silk strips silkscreen on a temp copy first.
     Returns out_png on success, None on failure. Needs pcbnew + kicad-cli (container)."""
     src = str(board_path)
     tmp = None
     try:
-        if no_silk:
+        if no_silk or no_bodies:
             import pcbnew
             b = pcbnew.LoadBoard(src)
             if b is None:
                 return None
-            silk = {pcbnew.F_SilkS, pcbnew.B_SilkS}
+            silk = {pcbnew.F_SilkS, pcbnew.B_SilkS} if no_silk else set()
             # RELAYER, never Remove(): pcbnew Remove() on footprint children SEGFAULTS this
             # SWIG build (recorded footgun). The 3D render ignores user layers, so moving
             # silk items to Cmts.User hides them identically.
@@ -60,6 +60,31 @@ def render(board_path, out_png, *, side="top", no_silk=True, timeout=180):
             # repo lib in the DISPOSABLE copy -- bodies render from anywhere.
             root = os.path.dirname(HERE)
             doc = open(tmp).read().replace("${KIPRJMOD}/../../lib/", root + "/lib/")
+            if no_bodies:
+                # strip 3D model references (owner ask 2026-07-08: bodies hide the
+                # copper/pads during wave review) -- s-expr (model ...) blocks removed
+                # from the DISPOSABLE copy only.
+                out_doc = []
+                depth = 0
+                i = 0
+                while i < len(doc):
+                    j = doc.find("(model ", i)
+                    if j == -1:
+                        out_doc.append(doc[i:])
+                        break
+                    out_doc.append(doc[i:j])
+                    d = 0
+                    k = j
+                    while k < len(doc):
+                        if doc[k] == "(":
+                            d += 1
+                        elif doc[k] == ")":
+                            d -= 1
+                            if d == 0:
+                                break
+                        k += 1
+                    i = k + 1
+                doc = "".join(out_doc)
             open(tmp, "w").write(doc)
             src = tmp
         r = subprocess.run(["kicad-cli", "pcb", "render", "-o", str(out_png),

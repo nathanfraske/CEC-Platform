@@ -718,7 +718,20 @@ function pickAct(i){
   const w=document.createElement('div'); w.className='panel';
   const im=document.createElement('img'); im.src=`/artifact?p=${encodeURIComponent(a.image)}`;
   const cap=document.createElement('div'); cap.className='cap'; cap.textContent=a.title;
-  w.appendChild(im); w.appendChild(cap); st.appendChild(w);
+  w.appendChild(im);
+  // 3D toggle (owner 2026-07-08): waves render a -bodies twin next to the copper view;
+  // the button swaps between them (and hides itself if the twin 404s).
+  if(a.image.includes('-top.png')||a.image.includes('-bottom.png')){
+   const tw=a.image.replace('-top.png','-top-bodies.png').replace('-bottom.png','-bottom-bodies.png');
+   const btn=document.createElement('button'); btn.textContent='3D bodies'; btn.className='pill';
+   btn.style.cssText='cursor:pointer;margin:4px 0';
+   let on=false;
+   btn.onclick=()=>{on=!on; im.src=`/artifact?p=${encodeURIComponent(on?tw:a.image)}`;
+    btn.textContent=on?'copper view':'3D bodies';};
+   im.onerror=()=>{ if(on){ btn.style.display='none'; on=false; im.src=`/artifact?p=${encodeURIComponent(a.image)}`; } };
+   w.appendChild(btn);
+  }
+  w.appendChild(cap); st.appendChild(w);
  }else{
   st.innerHTML=`<div id="empty" style="text-align:left;max-width:900px;white-space:pre-wrap">${esc(a.title)}\n\n${esc(a.detail||'(no artifact attached — this event is a text milestone; commits carry their diff in git)')}</div>`;
  }

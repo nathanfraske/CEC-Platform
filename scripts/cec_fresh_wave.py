@@ -59,7 +59,11 @@ def _snapshot(board, label, v, work_root, *, best=False, dual=False):
     png = os.path.join(work_root, board, f"{label}-top.png")
     try:
         import cec_render
-        png = cec_render.render(routed, png, side="top")   # silk stripped (owner 2026-07-08)
+        # primary = copper view (no silk, NO BODIES -- owner 2026-07-08); a -bodies twin
+        # is rendered alongside for the dash viewer's 3D toggle.
+        png = cec_render.render(routed, png, side="top", no_bodies=True)
+        if png:
+            cec_render.render(routed, png.replace("-top.png", "-top-bodies.png"), side="top")
     except Exception:                                  # noqa: BLE001
         png = None
     star = "★ new best — " if best else ""
