@@ -5447,7 +5447,7 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
                        gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
                        route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600,
-                       craft_gates=True):
+                       craft_gates=True, thermal="always"):
     """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
     post-route ACCEPT CONJUNCTION. This REPLACES the cheap placement_proxy as the selection key.
 
@@ -5516,13 +5516,6 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             unconn_nets = list(m.detail.get("unconn_nets", []))
             crit, sig = _classify_unconnected(unconn_nets, rules)
             routing_complete = (len(crit) == 0) and (m.unconnected <= unconn_finish_tol)
-
-            try:
-                therm = _oracle_thermal(routed, ambient=ambient, gate_dt=gate_dt, grid_mm=grid_mm)
-            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
-                therm = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
-                         "max_T": None, "dT": None, "gate_dt": gate_dt}
-            thermal_ok = bool(therm.get("ok"))
 
             try:
                 sside = _oracle_sense_side(routed)
@@ -5615,11 +5608,32 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             decouple_ok = bool(dq.get("ok")) or not craft_gates
             pairs_ok = bool(pq.get("ok")) or not craft_gates
 
-            gate = bool(gates_pass and foreign_ok and thermal_ok and routing_complete
-                        and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
-                        and comparator_ok and kelvin_reach_ok and courtyards_ok
-                        and circuit_ok and stranded_ok and pin_escape_ok
-                        and courtyard_edge_ok and fiducials_ok)
+            # ---- thermal LAST (owner directive 2026-07-08: "thermal gate only on a
+            # 'new best' board"). thermal='lazy' runs the 5-17s field solve ONLY when
+            # every OTHER gate term already passed -- i.e. the candidate would be
+            # gate-clean and could win the wave, so thermal must CONFIRM it is not a
+            # thermal mirage. An already-failing candidate skips the solve (its gate is
+            # False either way; dT was only ever its LAST tie-break). A gate=True can
+            # NEVER be produced without a real thermal pass (thermal-gate-required).
+            others_ok = bool(gates_pass and foreign_ok and routing_complete
+                             and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
+                             and comparator_ok and kelvin_reach_ok and courtyards_ok
+                             and circuit_ok and stranded_ok and pin_escape_ok
+                             and courtyard_edge_ok and fiducials_ok)
+            if thermal == "lazy" and not others_ok:
+                therm = {"ok": False, "skipped": True, "max_T": None, "dT": None,
+                         "gate_dt": gate_dt,
+                         "note": "lazy skip: other gate terms already failed"}
+            else:
+                try:
+                    therm = _oracle_thermal(routed, ambient=ambient, gate_dt=gate_dt,
+                                            grid_mm=grid_mm)
+                except Exception as e:                        # noqa: BLE001 -- FAIL-CLOSED
+                    therm = {"ok": False, "error": "%s: %s" % (type(e).__name__, e),
+                             "max_T": None, "dT": None, "gate_dt": gate_dt}
+            thermal_ok = bool(therm.get("ok"))
+
+            gate = bool(others_ok and thermal_ok)
 
             ft = int(fsum.get("n_tracks", 0)) + int(fsum.get("n_vias", 0))
             safety_fails = (0 if m.kelvin_ok else 1) + (0 if m.diffpair_ok else 1)
@@ -5710,8 +5724,11 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
         r.append(f"foreign_on_pour status={fsum.get('status')} "
                  f"tracks={fsum.get('n_tracks')} vias={fsum.get('n_vias')} (must be 0/0)")
     if not thermal_ok:
-        r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
-                 + (f" ({therm['error']})" if therm.get("error") else ""))
+        if therm.get("skipped"):
+            r.append("thermal SKIPPED (lazy: other gate terms already failed)")
+        else:
+            r.append(f"thermal dT={therm.get('dT')} > gate {therm.get('gate_dt')}"
+                     + (f" ({therm['error']})" if therm.get("error") else ""))
     if sp_g is not None and not sp_g.get("ok"):
         r.append(f"STRANDED parts (no connected neighbor within reach): {sp_g.get('violations')[:5]}")
     if cc_g is not None and not cc_g.get("ok"):

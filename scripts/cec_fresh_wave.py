@@ -230,7 +230,11 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
                                 opt=int(_bp.get("wave_opt", opt)),
                                 fr_timeout=int(_bp.get("wave_fr_timeout", 900)),
                                 seed=seed,          # pin FR seed: wave-to-wave comparability
-                                unconn_finish_tol=2)
+                                unconn_finish_tol=2,
+                                # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a
+                                # would-be gate-clean candidate (all other terms green) --
+                                # a published best always has a REAL solve behind it.
+                                thermal="lazy")
                     v["label"] = label
                     v["placed"] = out
                     _was_best = (not results or
