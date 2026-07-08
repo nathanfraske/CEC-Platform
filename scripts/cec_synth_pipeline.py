@@ -5635,9 +5635,19 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 if not cand.ok:
                     return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
                                              error=f"route failed: {cand.err}")
+                # GND-FANOUT (owner rule 2026-07-08, wired post-wave-12): impedance-
+                # reducing per-GND-pin vias on the oracle's OWN routed copy, fully
+                # legality-guarded + teeth-verified DRC-neutral (cec_gnd_fanout).
+                # route=False leaves external input boards UNTOUCHED by design.
+                try:
+                    import cec_gnd_fanout
+                    gnd_rep = cec_gnd_fanout.synthesize(routed)
+                except Exception as e:                        # noqa: BLE001 -- fail-safe
+                    gnd_rep = {"added": 0, "error": "%s: %s" % (type(e).__name__, e)}
             else:
                 routed = placed
                 rules = cec_score.Rules.from_board(routed)
+                gnd_rep = {"added": 0, "note": "route=False -- input board not mutated"}
             route_s = round(time.monotonic() - t0, 1)
 
             # ---- 3. grade: the full conjunction ----
@@ -5696,6 +5706,17 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 gapp = _oracle_gap_profile(placed)
             except Exception as e:                            # noqa: BLE001
                 gapp = {"ok": False, "note": str(e)[:120]}
+            # SI advisories (cheap wins, owner GO 2026-07-08): Z0/Zdiff vs the stackup
+            # (netclass-file-only, ~ms), kelvin loop-area + crosstalk on ONE shared load.
+            try:
+                import cec_impedance
+                import pcbnew as _pn
+                _sib = _pn.LoadBoard(routed)
+                si = {"impedance": cec_impedance.audit_impedance(routed),
+                      "kelvin_loops": cec_impedance.audit_kelvin_loops(routed, board=_sib),
+                      "crosstalk": cec_impedance.audit_crosstalk(routed, board=_sib)}
+            except Exception as e:                            # noqa: BLE001
+                si = {"error": "%s: %s" % (type(e).__name__, e)}
             try:
                 sp = _oracle_stranded_parts(placed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
@@ -5816,6 +5837,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
                 "route_sanity_advisory": rsan, "silk_score": silk,
                 "facing_advisory": facing, "gap_advisory": gapp,
+                "gnd_fanout": gnd_rep, "si_advisory": si,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
