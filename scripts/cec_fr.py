@@ -914,10 +914,13 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
                                                        vertical=vertical)
                 pours.append({"net": net, "layer": pair_layer,
                               "polygon": [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]})
-    # SAME-LAYER OVERLAP CLIP (escalated review round 2, 2026-07-08): adjacent rails' fan
-    # sub-boxes can overlap on one layer (zones_intersect DRC + broken fills). Deterministic
-    # priority = list order (earlier box wins); the later box is clipped on the axis that
-    # loses less area, dropped if it degenerates (< 1mm). Same-net overlaps are fine (merge).
+    # SAME-LAYER OVERLAP CLIP (escalated review round 2, 2026-07-08): fan sub-boxes can
+    # overlap on one layer -- CROSS-NET (broken fills) and SAME-NET too: KiCad flags
+    # equal-priority overlapping zones as zones_intersect even on one net (measured: the
+    # 3V3/5V fans converging at their shunt). Deterministic priority = list order (earlier
+    # box wins); the later box is clipped on the axis that loses less area, dropped if it
+    # degenerates (< 1mm). Same-net clipped boxes ABUT exactly, so their fills stay
+    # electrically continuous at the shared edge.
     def _rect(p):
         xs = [q[0] for q in p["polygon"]]; ys = [q[1] for q in p["polygon"]]
         return min(xs), max(xs), min(ys), max(ys)
@@ -926,7 +929,7 @@ def derive_power_pours(board_path: str, *, margin: float = 1.0, edge_clear: floa
         x0, x1, y0, y1 = _rect(p)
         dead = False
         for q in kept:
-            if q["layer"] != p["layer"] or q["net"] == p["net"]:
+            if q["layer"] != p["layer"]:
                 continue
             qx0, qx1, qy0, qy1 = _rect(q)
             if x1 <= qx0 or x0 >= qx1 or y1 <= qy0 or y0 >= qy1:
