@@ -1,5 +1,28 @@
 # Current work handoff
 
+## (G9) AGENT-IN-LOOP + SOLVERS — 2026-07-08 ~16:20 (branch claude/pipeline-consolidation)
+INTENT-PROPOSER SEAT LIVE (7942df1): cec_wave_intents.py, cec-worker-quality NOTHINK, steer-never-
+gate (validator VOIDS invented refs; proposals join the grid as prop-* beside hand intents; kill
+CEC_WAVE_INTENTS=0). Bench CONFIRMED owner seat policy: worker-quality 18.5s warm 2/2 valid vs
+cec-worker 154.9s vs gpt-oss-120b 628s + a VOIDED invention. WAVE-12 SCOREBOARD: seat prop
+3rd/32 (51 unconn, 1 off the winner); hook self-fed wave-13 proposals (kelvin-force-adjacency,
+sense-linear-flow) in 10.5s. OWNER RULES LANDED: (a) GND-FANOUT per-pin via, IMPEDANCE-REDUCING
+ONLY (31583c6, cec_gnd_fanout.py — zone-fill + full-capsule stub guards, KiCad re-net footgun
+reproduced+guarded; teeth DRC-neutral, 7 MCU vias 3.85->0.75mm) — WIRED into the oracle recipe
+post-freeze (fe4dc55) + si_advisory (Z0/kelvin-loop/crosstalk) in verdicts; (b) SI CHEAP WINS
+(9218129, cec_impedance.py): USB netclass 91.3R vs 90 VALIDATED, **CAN 91-105R vs 120 target
+platform-wide** (500k fine; 1Mbps SI bench would care — owner-visible finding); (c) SPICE LANDED
+(06bab3d, cec_spice.py, ngspice ships in the KiCad image): sec6.13 chain pilot, trip exact vs
+analytic, 5VSB saturation 2.599A REFINES the 2.64A hand math, MC band 3.7% = the firmware number.
+STANDING ROADMAP: docs/pipeline-solver-roadmap.md (memory pipeline-solver-roadmap points there)
+= the answer to "what solvers/improvements next" — PDN/ground-impedance (thermal-backend reuse,
+PREREQ nondeterminism fix), 2D electrostatic Z0 (Max LVDS), placer-port verdict (placement=3%
+of candidate; numpy-vectorize legalize_pack.cost FIRST — 92% of placement, 94M abs() calls;
+Rust/CUDA = search-SCALE lever only). WAVE 13 RUNNING (launched 16:20, log fresh-wave-24pin-13.log):
+first wave with seat proposals + gnd-fanout + SI advisories live. Vision seat UNWIRED by design
+(owner: tool-fed, excessively sparing, winner-only).
+
+
 ## (G8) ROUND-2 IMPLEMENT QUEUE LANDED + SPEEDUP PASS — 2026-07-08 ~15:30 (branch claude/pipeline-consolidation)
 ALL 7 G7 implement-queue items landed, each teeth-verified in-container (calibrations REPRODUCED
 from the probes, not trusted): (1) PIN-ESCAPE gate boxed0<=4%/le1<=12% (hand 0/0, committed eps
