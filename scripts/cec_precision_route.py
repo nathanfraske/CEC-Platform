@@ -207,6 +207,31 @@ def _polys_no_cross(p_pts, n_pts):
     return True
 
 
+def _partner_pads_clear(board, a, b, width_nm, layer_id, partner_code, clr_nm):
+    """True iff segment a->b stays *clr_nm* clear of the PARTNER net's PADS. The foreign guard
+    excludes BOTH pair nets (they legitimately run adjacent at the gap), so one member's escape
+    could otherwise plow across its sibling's pad -- MEASURED on the first eps arm-B route: an
+    R3 /CAN_L escape crossed U2 pad 7 [/CAN_H] = 2 shorting_items + 2 solder_mask_bridge (the
+    whole 4-DRC delta). The partner TRACK stays unguarded (it sits at the gap by construction;
+    _polys_no_cross catches crossings) -- only its PADS are hard keepouts, mirroring
+    synthesize_kelvin_taps' _tap_pair_overlap_clear defence."""
+    if a == b:
+        return True
+    seg = pcbnew.SHAPE_SEGMENT(_v(*a), _v(*b), width_nm)
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() != partner_code:
+                continue
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if p.GetEffectiveShape(layer_id).Collide(seg, clr_nm):
+                    return False
+            except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
+                continue
+    return True
+
+
 def _measured_gap(p_pts, n_pts, width):
     """The gap the pair ACTUALLY achieves once laid: median nearest-distance between the two
     members' segment midpoints minus the track width (the same estimator build/blind_routes2.py
@@ -287,19 +312,25 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
     width_nm = _nm(width)
     clr_nm = _nm(clearance if clearance is not None else 0.2)
 
-    def seg_clear(a, b):
-        return a == b or cec_fr._tap_foreign_clear(board, _v(*a), _v(*b), width_nm,
-                                                   lay_id, clr_nm, own)
+    def seg_clear(a, b, partner):
+        """Clear of foreign copper AND of the PARTNER member's pads (a member may run adjacent
+        to its partner's TRACK at the gap, but never across its partner's PAD -- the measured
+        /CAN_L-over-U2.7 short)."""
+        if a == b:
+            return True
+        return (cec_fr._tap_foreign_clear(board, _v(*a), _v(*b), width_nm,
+                                          lay_id, clr_nm, own)
+                and _partner_pads_clear(board, a, b, width_nm, lay_id, partner, clr_nm))
 
-    def escape(src, dst):
+    def escape(src, dst, partner):
         """A clear pad->lane path: direct, else ONE mid-point over a modest fan of angles/radii."""
-        if seg_clear(src, dst):
+        if seg_clear(src, dst, partner):
             return [src, dst]
         for r in (0.8, 1.2, 1.6, 2.0, 2.6, 3.2):
             for k in range(24):
                 th = 2.0 * math.pi * k / 24.0
                 mid = (src[0] + r * math.cos(th), src[1] + r * math.sin(th))
-                if seg_clear(src, mid) and seg_clear(mid, dst):
+                if seg_clear(src, mid, partner) and seg_clear(mid, dst, partner):
                     return [src, mid, dst]
         return None
 
@@ -323,10 +354,10 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
             Ple = (De[0] + px * po, De[1] + py * po)
             Nls = (Se[0] + px * no, Se[1] + py * no)
             Nle = (De[0] + px * no, De[1] + py * no)
-            if not (seg_clear(Pls, Ple) and seg_clear(Nls, Nle)):
+            if not (seg_clear(Pls, Ple, nc) and seg_clear(Nls, Nle, pc)):
                 continue
-            eP0, eP1 = escape(P_src, Pls), escape(P_dst, Ple)
-            eN0, eN1 = escape(N_src, Nls), escape(N_dst, Nle)
+            eP0, eP1 = escape(P_src, Pls, nc), escape(P_dst, Ple, nc)
+            eN0, eN1 = escape(N_src, Nls, pc), escape(N_dst, Nle, pc)
             if None in (eP0, eP1, eN0, eN1):
                 continue
             p_pts = eP0 + [Ple] + list(reversed(eP1))[1:]
