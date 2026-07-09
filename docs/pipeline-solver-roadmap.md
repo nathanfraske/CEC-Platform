@@ -94,6 +94,13 @@ loci into later candidates' hints (the "mappings feedback" backlog item).
 
 ## Pipeline improvements — non-solver (same standing list)
 
+- **PASS-FORM PLACEMENT+ROUTING (owner directive 2026-07-08, THE structural redesign):
+  docs/pass-form-plan.md** — ordered passes w/ progressive locking, per-pass teeth,
+  precision-first routing (kelvin/pairs/pours deterministic + protected, FR residual-only
+  = TPC generalized into the active pipeline), the blueprint cell primitive. Research
+  base: industry pass list + repo self-mining (headline: TPC exists, proven, and the wave
+  pipeline bypasses it). Staged S1-S5.
+
 - **Thermal solver nondeterminism root-cause** — the one KNOWN-DEFECT gate. Repro scripts
   `build/probe_thermal_repeat*.py`. (FOLLOWUPS, top priority before any new backend user.)
 - **GND-fanout recipe wiring** — `cec_gnd_fanout.synthesize()` between pour synthesis and
