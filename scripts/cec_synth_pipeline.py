@@ -3585,22 +3585,24 @@ def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
     return False
 
 
-def _evacuate_corridors(P, comps, model, *, margin=0.8):
+def _evacuate_corridors(P, comps, model, *, margin=0.8, fixed=()):
     """RE-PLACE fix (owner-caught 2026-06-27): move any body whose CENTER sits inside a FORMED high-current
     band OUT to the nearest band edge + margin (the corridor is the vertical connector->shunt column, so
     evacuate in x). A foreign body in a SENSEC pour BLOCKS the fill AND its nets can't be routed (the
     net-aware keepout then strands them). EXEMPT: the band's own shunt + sense ICs (Kelvin needs them
-    adjacent to the shunt) and edge connectors (J*) / mounts (H*). The anneal veto only covers sensitive
+    adjacent to the shunt), edge connectors (J*) / mounts (H*), and any *fixed* ref (the ladder's LOCKED
+    set -- Fix #3 lock respect: a locked ref is never moved here). The anneal veto only covers sensitive
     ICs and the decoupling/DETECT passives are STAMPED into the band via their owner offset, so evacuate
     them here. Returns the list of moved refs (re-legalize them after)."""
     own = {c.shunt for c in model.cables} | {i for c in model.cables for i in c.sense_ics}
+    fixed = set(fixed or ())
     moved = []
     for c in model.cables:
         if not c.formed:
             continue
         X0, X1, Y0, Y1 = c.band
         for ref in list(P):
-            if ref in own or ref[:1] in ("J", "H"):
+            if ref in own or ref in fixed or ref[:1] in ("J", "H"):
                 continue
             pr = P[ref]
             x, y, rot = pr[0], pr[1], (pr[2] if len(pr) > 2 else 0.0)
@@ -4231,7 +4233,7 @@ REPAIR_LADDER = (
 )
 
 
-def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=False,
+def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True,
               eval_gates=None):
     """Worker: synthesize + score ONE placement candidate. Top-level + picklable so it runs
     in a spawn-pool worker (on the runner's cores). Takes/returns plain types only.
@@ -4244,13 +4246,15 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     the partition biases the placement, it is not a post-hoc evict (the 2026-06-14 anneal's failure
     mode). PlacementSession (cec_placement_session.py) is the declarative builder over this.
 
-    PASS-FORM (S1, docs/pass-form-plan.md): the placement stages below are declared as an ordered
-    PassLadder (P0..P8 boundaries) and executed through it, so the runner can journal what each
-    pass placed/moved/locked and -- opt-in -- enforce progressive locking + per-pass gates. The
-    internal call ORDER and every call/param are UNCHANGED from the pre-ladder monolith; with
-    *enforce_locks* False and all gates off (the defaults) this is BYTE-IDENTICAL to that monolith.
-    The passes share ONE flat scope via `nonlocal` (reproducing the pre-ladder single-function
-    scoping exactly); the ladder only re-sequences the same statements + records a journal."""
+    PASS-FORM (S1->S4, docs/pass-form-plan.md): the placement stages below are declared as an ordered
+    PassLadder (P0..P8 boundaries) and executed through it, so the runner journals what each pass
+    placed/moved/locked and enforces progressive locking. *enforce_locks* now DEFAULTS TRUE (S4, the
+    first enforcement flip): every pass is lock-safe by construction (p8_evac_mop + the p10 THT
+    finish filter their movers by the ladder's LOCKED set and NAME any locked ref in a contested
+    region rather than move it), and the full fixed-seed probe -- eps/24pin/pcie x both strats x
+    seeds 0,1 + a partition -- runs with ZERO LockViolation. The passes share ONE flat scope via
+    `nonlocal`; the ladder re-sequences the same statements + records a journal. (Setting
+    enforce_locks=False restores the un-enforced order for an ablation.)"""
     import cec_pcb
     from cec_passes import Pass, PassLadder
     cfg = Config(**cfg_dict)
@@ -4753,7 +4757,14 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
         nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
         nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
-        nonlocal _nets_of, _net_exempt, _restamped
+        nonlocal _nets_of, _net_exempt, _restamped, _seat_snags
+        # LOCK RESPECT (Fix #3, S4 -- the ladder's first enforcement flip): this settle NEVER moves a
+        # ref an earlier pass LOCKED. The locked set is read off the ladder (passed as *state*); adding
+        # it to every mover's fixed/exempt below makes p8 lock-safe BY CONSTRUCTION, so enforce_locks
+        # can be turned on. A locked ref that DOES sit in a contested region (band / pour / THT field)
+        # is not moved -- it is NAMED in a snag (the repair-ladder wall: the pass that OWNS + locked it
+        # is the one that must re-place it), never a whole-pass veto.
+        _locked = set(getattr(_state, "locked", None) or ())
         # CORRIDOR + POUR EVACUATION: pull any non-belonging body (decoupling / DETECT / threshold / detection-
         # amp) OUT of a formed high-current band AND out of the actual derive_power_pours SENSEC box so the pour
         # fills + the nets can route (the anneal veto + passive/cluster stamp leave them inside -- the owner-
@@ -4772,6 +4783,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                        | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
         _pour_fixed |= _bp_refs        # BLUEPRINT (P4): stamped cells are FIXED, never evacuated
         # (empty _bp_refs -> no change -> byte-identical).
+        _pour_fixed |= _locked         # Fix #3: a locked ref is never a mover (evac_pours + _mop below)
         # POUR LEVER (stage 2): fold the placer's pour() asks (cfg.params['pour_asks']) into the
         # placement-time PourPlan so the evac sees an asked pour even on a rail the derivation would
         # not pour. `pour_asks` empty -> byte-identical to the un-asked settle (the golden guarantee).
@@ -4807,9 +4819,23 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
             if _own in _nets_of:
                 _net_exempt.setdefault(_pref, set()).update(_nets_of[_own])
         # STRICT (owner overrule): only a part's OWN nets exempt it from eviction.
+        # LOCK-SNAG (Fix #3): before evacuating, name any LOCKED ref that sits in a formed band or a
+        # pour box -- it would be evicted but a lock forbids it, so its owning pass must re-place it.
+        _lm0 = build_corridor_model(nl, P, comps, board_w=W)
+        _band0 = {c.base: c.band for c in _lm0.cables if c.formed}
+        for _lr in sorted(_locked):
+            if _lr not in P or _lr in _pour_fixed - _locked or _lr[:1] in ("J", "H", "T"):
+                continue
+            _lx, _ly = P[_lr][0], P[_lr][1]
+            _hit = next((b for b in _band0.values() if b[0] <= _lx <= b[1] and b[2] <= _ly <= b[3]), None) \
+                or next((("pour", nn) for nn, x0, x1, y0, y1 in (_pour_boxes or [])
+                         if x0 <= _lx <= x1 and y0 <= _ly <= y1), None)
+            if _hit and not any(s.get("locked_ref") == _lr for s in _seat_snags):
+                _seat_snags.append({"locked_ref": _lr, "region": str(_hit),
+                                    "note": "locked ref in a contested region -- owning pass must re-place"})
         for _ev_round in range(6):                               # iterate: legalize_pack isn't band/box-aware so it
             _evm = build_corridor_model(nl, P, comps, board_w=W)  # can push an evacuated body back -> re-evacuate;
-            _evac = _evacuate_corridors(P, comps, _evm)           # the final round leaves centers OUT (no legalize
+            _evac = _evacuate_corridors(P, comps, _evm, fixed=_locked)  # (Fix #3) never move a locked ref
             _evac = [r for r in _evac if r not in _can_seated]    # deliberate seats are never evicted (lever 1)
             _pevac = ([r for r in _evacuate_pours(P, comps, _pour_boxes, _pour_fixed,
                                                   drop_antenna=drop_antenna,
@@ -4842,7 +4868,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
             # their seat target; they were exempted from the anneal but strict eviction had
             # been moving them individually.
             _sws2 = sorted(r for r in P if r.startswith("SW") and r in comps)
-            if len(_sws2) >= 2 and _can_seated is not None:
+            if len(_sws2) >= 2 and _can_seated is not None and not (set(_sws2[:2]) & _locked):
                 _usb2 = next((r for r, role in anchors_roles.items()
                               if role == "usb" and r in P), None)
                 if _usb2:
@@ -4872,7 +4898,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                     elif _r[:1] in ("U", "D", "J", "Q") or _r.startswith(("TB", "SW", "FB")):
                         _tgt[_nn].append(_r)
             for _c2, _rail2 in _railcap.items():
-                if _c2 not in P:
+                if _c2 not in P or _c2 in _locked:               # Fix #3: never re-seat a locked cap
                     continue
                 _cands2 = [r for r in _tgt.get(_rail2, []) if r in P]
                 if not _cands2:
@@ -4934,7 +4960,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
         nonlocal _nets_of, _net_exempt, _restamped
         # INTENT LEVERS (owner pass 2026-07-08): applied LAST so nothing downstream undoes
-        # them (the lesson every seat learned).
+        # them (the lesson every seat learned). A near()/order() intent is the USER's explicit
+        # actuator -- the top RATIFIER tier -- so it may move a ref an earlier pass seated + locked
+        # (e.g. order(U2,...) overriding the CAN seat); it then RE-RATIFIES that lock at the new
+        # position (Fix #3: an intent is a legitimate re-lock, not a forbidden move).
+        _intent_touched = set()
         for _ref4, _tgt4, _gap4 in (cfg.params.get("near_intents") or ()):
             if _ref4 in P and _tgt4 in P and _ref4 in comps and _tgt4 in comps:
                 _tc4 = _courtyard_info(comps[_tgt4], P[_tgt4][2] if len(P[_tgt4]) > 2 else 0,
@@ -4946,6 +4976,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                     _sp4 = (P[_tgt4][0] + _tc4[0] + _tc4[2] + _cc4[2] + _gap4 - _cc4[0],
                             P[_tgt4][1] + _tc4[1] - _cc4[1])
                 P[_ref4] = (_sp4[0], _sp4[1], 0.0)
+                _intent_touched.add(_ref4)
         for _refs5, _axis5 in (cfg.params.get("order_intents") or ()):
             _live5 = [r for r in _refs5 if r in P]
             if len(_live5) >= 2:
@@ -4953,6 +4984,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                 _slots5 = sorted((P[r][_ax5], P[r]) for r in _live5)
                 for r, (_k5, _pos5) in zip(_live5, _slots5):
                     P[r] = _pos5
+                    _intent_touched.add(r)
+        _lk = getattr(_state, "locked", None)         # re-ratify any locked ref an intent moved
+        if _lk is not None:
+            for r in _intent_touched:
+                if r in _lk and r in P:
+                    _lk[r] = P[r]
         # THT-BACKSIDE finish (Fix #1, movable half): the seat-repair cleared the SEATED cells; any
         # MOVABLE straggler (a decoupling cap the restamp left under a front THT on the back) is
         # nudged out HERE, last, so nothing undoes it. Minimal short-axis move -> stays near its
@@ -4976,12 +5013,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         Pass("p1_outline_keepouts", lambda _s: None, phase="P1",
              doc="outline + mechanical keep-outs (upstream: build_board edges)"),
         Pass("p2_anchors", _p2_anchors, phase="P2",
-             # DECLARED lock (enforcement = S4 ablation): anchors/mounts/fids EXCEPT the
-             # spine-owned refs -- TB* tab rows, J_OUT* columns, AND J_SIG* (the signal
-             # stub is collinear-with-blade-row BY CONTRACT, so the spine seats it; the
-             # enforcement probe caught it, 2026-07-08).
+             # DECLARED lock (enforcement = S4 ablation): anchors/mounts EXCEPT the spine-owned
+             # refs -- TB* tab rows, J_OUT* columns, J_SIG* (the signal stub is collinear-with-
+             # blade-row BY CONTRACT, so the spine seats it) -- AND FID* fiducials (they carry no
+             # electrical constraint and the dual-sided settle nudges one out from under a later
+             # seat, the U1|FID2 fix; locking them here would make that a lock violation).
              locks_out=lambda _s: [r for r in anchors
-                                   if not r.startswith(("TB", "J_OUT", "J_SIG"))],
+                                   if not r.startswith(("TB", "J_OUT", "J_SIG", "FID"))],
              doc="connectors by role (overhang) + mounts/fiducials, legalized among anchors"),
         Pass("p3_corridor_spine", _p3_corridor_spine, phase="P3",
              # LOCKS the output row (TB blades + J_OUT). The SHUNTS are locked one pass later
