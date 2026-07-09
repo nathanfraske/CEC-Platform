@@ -43,6 +43,27 @@ _PRIORITY_DEFAULT = 2
 _MIN_THICKNESS_DEFAULT = 0.25
 _ISLAND_REMOVAL_DEFAULT = 0
 
+# --- stage-4 rebuild-verb constants (docs/pour-lever-scoping-2026-07-08.md §4 + §8 rulings) ---
+_OZ_MM = 0.0348                                   # 1oz finished copper thickness (mm)
+_OUTER_THICKNESS_MM = 2 * _OZ_MM                  # 2oz outer pours (the cable/rail boards' outers)
+# HARD cross-section floor for a rebuilt pour when the caller supplies no explicit need (ruling 2).
+# 0.06 mm^2 = the 24-pin worst rail (~6A on the 6A/circuit ATX bar) at the checker's j_max=100 A/mm^2.
+_DEFAULT_MIN_CROSS_MM2 = float(os.environ.get("CEC_POUR_MIN_CROSS_MM2", "0.06"))
+
+
+class EscalateToHuman(Exception):
+    """A pour edit crossed the ratified autonomy line (docs/pour-lever-scoping §8 ruling 1). In-loop
+    autonomy is a geometry-only reshape (notch / shrink / relocate / drop_layer) of an EXISTING
+    auto-derived pour, SAME net. ADDING a pour on a net the plan would not derive, DROPPING a
+    required pour, CHANGING a pour's net, or touching a FROZEN (human-ratified) spec is a DESIGN
+    change -> escalate. Carries a named, human-readable reason (never a silent proceed)."""
+
+
+class PourCrossSectionRefused(Exception):
+    """A reshape would neck a REBUILT pour below the min-pour-cross-section requirement (ruling 2:
+    min-pour-cross-section is a HARD gate on rebuilt pours). Refused so a reshape can never thin the
+    copper to dodge the foreign-on-pour gate. Carries the got/need cross-section in its message."""
+
 
 @dataclass
 class PourSpec:
@@ -287,10 +308,182 @@ class PourPlan:
 
     # ------------------------------------------------------------------ mutation (the ask surface)
     def add(self, spec: PourSpec):
-        """Append a pour geometry the derivation would not produce (a placer/router ask). The
-        reshape verbs (notch/shrink/relocate/drop_layer) are the router-rebuild actuation surface
-        and land with the stage-4 rebuild verb (owner-gated); stages 1-3 only need `add`."""
+        """Append a pour geometry the derivation would not produce -- the sanctioned PLACER-ASK /
+        sidecar path (a declarative ask resolved through `_ask_spec`, or a deserialized spec). This
+        is NOT the router rebuild verb: the router reaches a NEW pour only through `rebuild('add')`,
+        which ESCALATES (that add is a design change, ruling 1). Placer asks are additive by design."""
         self.specs.append(spec)
+        return self
+
+    # ------------------------------------------------------------------ stage-4 REBUILD verb
+    # The router-rebuild actuation surface (docs/pour-lever-scoping-2026-07-08.md §3.2/§4, owner
+    # RATIFIED 2026-07-09). `rebuild(op, net=..., ...)` is the ONE entry the router-repair emits
+    # through: it enforces the autonomy line (ruling 1) BEFORE any geometry change and the
+    # min-pour-cross-section HARD gate (ruling 2) AFTER, so the loop can reshape a derived pour but
+    # never add/drop/re-net one, and never neck copper to cheat the foreign gate.
+    def _specs_for(self, net):
+        return [s for s in self.specs if s.net == net]
+
+    def _min_cross_mm2(self, net, *, thickness_mm=_OUTER_THICKNESS_MM):
+        """Geometry proxy for the checker's DC-field bottleneck: for each of the net's lane boxes the
+        current flows along the LONGER side, so the box cross-section is (shorter side)*thickness; the
+        net's bottleneck is the MIN over its boxes. Returns None if the net has no polygon box."""
+        widths = []
+        for s in self._specs_for(net):
+            r = s.rect()
+            if r is None:
+                continue
+            widths.append(min(r[1] - r[0], r[3] - r[2]))   # (x1-x0, y1-y0) shorter side
+        return (min(widths) * thickness_mm) if widths else None
+
+    def _set_rect(self, spec, x0, x1, y0, y1):
+        spec.polygon = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+        spec.region = (x0, y0, x1, y1)
+
+    def _op_shrink(self, specs, edge, mm):
+        """Pull one edge of each of the net's boxes inward by `mm` (off a congested region). edge in
+        {x0,x1,y0,y1}; x0/y0 move up (grow the value), x1/y1 move down (shrink the value)."""
+        if edge not in ("x0", "x1", "y0", "y1"):
+            raise ValueError("shrink: edge must be one of x0/x1/y0/y1, got %r" % edge)
+        _EPS = 0.01                                     # a moved edge never CROSSES the opposite one
+        for s in specs:
+            r = s.rect()
+            if r is None:
+                continue
+            x0, x1, y0, y1 = r
+            # CLAMP to a sliver instead of letting the edge cross (a crossed edge would flip the
+            # rect and read as WIDER via min/max -- an over-shrink must NECK, not grow, so the
+            # min-pour-cross-section HARD gate can catch it).
+            if edge == "x0":
+                x0 = min(x0 + mm, x1 - _EPS)
+            elif edge == "x1":
+                x1 = max(x1 - mm, x0 + _EPS)
+            elif edge == "y0":
+                y0 = min(y0 + mm, y1 - _EPS)
+            else:
+                y1 = max(y1 - mm, y0 + _EPS)
+            self._set_rect(s, x0, x1, y0, y1)
+
+    def _op_relocate(self, specs, dxy=None, region=None):
+        """Translate the net's boxes by (dx,dy), or (if `region` given) move the whole box set so its
+        bounding box is centred on `region`'s centre (a lane moved off a foreign trace)."""
+        if dxy is None and region is None:
+            raise ValueError("relocate: pass dxy=(dx,dy) or region=(x0,y0,x1,y1)")
+        if region is not None:
+            rects = [s.rect() for s in specs if s.rect() is not None]
+            if rects:
+                bx0 = min(r[0] for r in rects); bx1 = max(r[1] for r in rects)
+                by0 = min(r[2] for r in rects); by1 = max(r[3] for r in rects)
+                tcx = (region[0] + region[2]) / 2.0; tcy = (region[1] + region[3]) / 2.0
+                dxy = (tcx - (bx0 + bx1) / 2.0, tcy - (by0 + by1) / 2.0)
+        dx, dy = dxy
+        for s in specs:
+            r = s.rect()
+            if r is None:
+                continue
+            self._set_rect(s, r[0] + dx, r[1] + dx, r[2] + dy, r[3] + dy)
+
+    def _op_notch(self, specs, at, gap_mm, vertical=None):
+        """Open/widen the un-poured window centred on `at`=(x,y): pull each box's shunt-side edge back
+        so the gap is >= gap_mm (reuses cec_fr._open_shunt_notch, the derive-time notch geometry)."""
+        import cec_fr
+        vert = vertical
+        if vert is None:
+            # default axis = the taller box set (EPS/PCIe top->bottom cables run vertical)
+            rects = [s.rect() for s in specs if s.rect() is not None]
+            vert = (max(r[3] for r in rects) - min(r[2] for r in rects)) >= \
+                   (max(r[1] for r in rects) - min(r[0] for r in rects)) if rects else True
+        for s in specs:
+            r = s.rect()
+            if r is None:
+                continue
+            nx0, nx1, ny0, ny1 = cec_fr._open_shunt_notch((r[0], r[1], r[2], r[3]), at, gap_mm,
+                                                          vertical=vert)
+            self._set_rect(s, nx0, nx1, ny0, ny1)
+
+    def _op_drop_layer(self, net, layer):
+        """Remove the net's pour on `layer` (F.Cu+B.Cu -> the other layer only, so foreign escapes
+        under the remaining pour). ESCALATES if it would leave the net with NO pour (that is dropping
+        a required pour, ruling 1)."""
+        keep, drop = [], []
+        for s in self.specs:
+            if s.net == net and (layer in s.layers or (s.layers and s.layers[0] == layer)):
+                drop.append(s)
+            else:
+                keep.append(s)
+        if drop and not any(s.net == net for s in keep):
+            raise EscalateToHuman(
+                "drop_layer(%r, %r): removing that layer leaves net %r with NO pour -- dropping a "
+                "required pour is a DESIGN change (ruling 1), escalate to human" % (net, layer, net))
+        self.specs = keep
+
+    def rebuild(self, op, *, net, min_cross_mm2=None, **kw):
+        """THE router-rebuild verb. `op` in {notch, shrink, relocate, drop_layer} is an in-loop,
+        SAME-net, geometry-only reshape of an EXISTING derived pour (ruling 1 autonomy). `op` in
+        {add, drop} -- or any op naming a net with no derived pour -- raises EscalateToHuman (a
+        design change). A frozen (human-ratified) spec is never mutated. AFTER the reshape the
+        rebuilt pour's cross-section is checked as a HARD gate (ruling 2): a neck below the required
+        cross-section raises PourCrossSectionRefused so a reshape can never thin copper to dodge the
+        foreign-on-pour gate. Mutates the plan IN PLACE (state, not the board) and returns self."""
+        # ---- AUTONOMY LINE (ruling 1): guard BEFORE touching geometry -----------------------------
+        if op == "add":
+            raise EscalateToHuman(
+                "add-pour on net %r: the auto-derivation would not produce this pour -- ADDING a pour "
+                "is a DESIGN change (ruling 1), escalate to human" % net)
+        if op in ("drop", "remove"):
+            raise EscalateToHuman(
+                "drop-pour on net %r: DROPPING a required pour is a DESIGN change (ruling 1), "
+                "escalate to human" % net)
+        if op not in ("notch", "shrink", "relocate", "drop_layer"):
+            raise EscalateToHuman(
+                "pour op %r is not an in-loop reshape (notch/shrink/relocate/drop_layer) -- escalate "
+                "to human" % op)
+        _rename = kw.get("new_net") or kw.get("rename")
+        if _rename is not None:
+            raise EscalateToHuman(
+                "reshape may not CHANGE a pour's net (%r -> %r) -- a net change is a DESIGN change "
+                "(ruling 1), escalate to human" % (net, _rename))
+        specs = self._specs_for(net)
+        if not specs:
+            raise EscalateToHuman(
+                "reshape %r on net %r: no auto-derived pour exists on that net -- a reshape only "
+                "reshapes an EXISTING derived pour; requesting a pour where none is derived is an "
+                "ADD (design change, ruling 1), escalate to human" % (op, net))
+        if any(s.frozen for s in specs):
+            raise EscalateToHuman(
+                "reshape %r on net %r: a spec is FROZEN (human-ratified geometry the loop may not "
+                "mutate, ruling 1), escalate to human" % (op, net))
+        # ATOMIC: snapshot so a cross-section REFUSAL leaves the plan UNCHANGED (a refused reshape
+        # must not leave the pour half-necked -- the loop moves on with the original geometry).
+        snap_specs = list(self.specs)
+        snap = [(s, s.polygon, s.region, s.provenance) for s in self.specs]
+        try:
+            # ---- the geometry op (same net, geometry only) ---------------------------------------
+            if op == "notch":
+                self._op_notch(specs, kw["at"], kw.get("gap_mm", 6.5), kw.get("vertical"))
+            elif op == "shrink":
+                self._op_shrink(specs, kw["edge"], kw["mm"])
+            elif op == "relocate":
+                self._op_relocate(specs, kw.get("dxy"), kw.get("region"))
+            elif op == "drop_layer":
+                self._op_drop_layer(net, kw["layer"])
+                specs = self._specs_for(net)             # refresh after the removal
+            for s in specs:
+                if s.provenance == "derived":
+                    s.provenance = "router_ask"
+            # ---- HARD cross-section gate on the rebuilt pour (ruling 2) ---------------------------
+            floor = _DEFAULT_MIN_CROSS_MM2 if min_cross_mm2 is None else float(min_cross_mm2)
+            after = self._min_cross_mm2(net)
+            if after is not None and after < floor - 1e-9:
+                raise PourCrossSectionRefused(
+                    "reshape %r on net %r necks the rebuilt pour to %.4f mm^2 < required %.4f mm^2 "
+                    "(min-pour-cross-section HARD gate, ruling 2) -- a reshape must never neck copper "
+                    "to dodge the foreign-on-pour gate" % (op, net, after, floor))
+        except PourCrossSectionRefused:
+            self.specs = snap_specs                      # roll back the drop_layer removal
+            for s, poly, region, prov in snap:
+                s.polygon, s.region, s.provenance = poly, region, prov
+            raise
         return self
 
     # ------------------------------------------------------------------ serialization (stage 3)
