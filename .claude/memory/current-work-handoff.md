@@ -1,5 +1,26 @@
 # Current work handoff
 
+## (G11) PASS-FORM REDESIGN — 2026-07-08 ~21:15 (branch claude/pipeline-consolidation)
+OWNER DIRECTIVE (the structural pivot): place+route like a human, in PASSES — "route the
+important ones with high precision first alone, then fill in the gaps cheaply." PLAN OF
+RECORD: docs/pass-form-plan.md (45af66d; research-synthesized: industry pass list + repo
+self-mining; HEADLINE: TPC lock/protect machinery exists+proven foreign 48->0 and the
+active wave pipeline BYPASSES it — the literal one-go-and-pray architecture). Ladder
+P0-P8 / R0-R10 w/ progressive locking + per-pass teeth; blueprint cell = P4. CANONICAL
+KELVIN TAPS landed (798526e, owner geometry: perpendicular inner-edge exit -> run -> one
+90; 6/10 canonical on eps, checker green). BLIND-AUDIT protocol = the mechanism-level
+acceptance instrument (owner: "I'm catching myself trying to root for one side" — it
+caught THT-backside [gate landed 51be4fe], pour-not-reaching-shunt, the which-nets-
+complete metric blindspot; coordination REVEAL: owner blind-picked the COORDINATED arm
+against the metrics). IN FLIGHT: S1 pass-runner skeleton (opus worktree; byte-identity
+teeth) + S2 precision-first routing (opus worktree; cec_precision_route.py, opt-in
+precision=True, A/B + blind panels to build/coord-blind2/ + dash). Merge: S1 owns
+synth_one ~:3935-4472, S2 owns route_oracle_grade ~:5750+ + new file. THEN S3 blueprint,
+S4 seat-time boundary gates, S5 finishing (redundant-branch pass queued in FOLLOWUPS).
+Wave 14 = first pass-form wave after S2's blind call. Owner rulings still open: 3 pour
+(stage 4/5 parked), coordination-in-waves superseded by S2.
+
+
 ## (G10) PORTING + COORD-ROUTER + POUR LEVER — 2026-07-08 ~17:00 (branch claude/pipeline-consolidation)
 WAVE 13 DONE: best unconn 45 (trajectory 50->51->45 tonight), first wave w/ gnd-fanout + SI
 advisories in-recipe; seat round-2 proposals mid-pack (W/L record accumulating). LEGALIZE
