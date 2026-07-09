@@ -4543,10 +4543,20 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         Pass("p1_outline_keepouts", lambda _s: None, phase="P1",
              doc="outline + mechanical keep-outs (upstream: build_board edges)"),
         Pass("p2_anchors", _p2_anchors, phase="P2",
+             # DECLARED lock (enforcement = S4 ablation): anchors/mounts/fids EXCEPT the
+             # spine-owned refs -- TB* tab rows, J_OUT* columns, AND J_SIG* (the signal
+             # stub is collinear-with-blade-row BY CONTRACT, so the spine seats it; the
+             # enforcement probe caught it, 2026-07-08).
+             locks_out=lambda _s: [r for r in anchors
+                                   if not r.startswith(("TB", "J_OUT", "J_SIG"))],
              doc="connectors by role (overhang) + mounts/fiducials, legalized among anchors"),
         Pass("p3_corridor_spine", _p3_corridor_spine, phase="P3",
+             locks_out=lambda _s: ([r for r in anchors
+                                    if r.startswith(("TB", "J_OUT"))] + list(seated)),
              doc="form per-cable corridors: align J_OUT under J_IN + seat the shunt inline"),
         Pass("p3_critical_seats", _p3_critical_seats, phase="P3",
+             locks_out=lambda _s: (list(seated_inas) + ([_esp] if _esp else [])
+                                   + list(_sw_seated) + list(_can_seated)),
              doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat"),
         Pass("p4_cluster_learn", _p4_cluster_learn, phase="P4",
              doc="learn each IC's passive cluster (macro bbox + offsets) + fixed-anchor clusters"),
@@ -4555,6 +4565,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         Pass("p6_anneal", _p6_anneal, phase="P7",
              doc="anneal macro blocks to escape the greedy minimum + legalize"),
         Pass("p7_stamps", _p7_stamps, phase="P5",
+             locks_out=lambda _s: list(_func_stamped),
              doc="stamp cluster passives + functional/series parts, legalize the stamped set"),
         Pass("p8_evac_mop", _p8_evac_mop, phase="P7",
              doc="evacuate corridors/pours of foreign bodies + final mop-up settle"),
