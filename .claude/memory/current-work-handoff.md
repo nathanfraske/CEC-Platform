@@ -1,5 +1,19 @@
 # Current work handoff
 
+## (G16) WAVES 18/19 + ROTATION — 2026-07-09 ~15:00
+WAVE 18 (post-generator-fix baseline): 24-pin u55->u33 BEST-EVER fresh (band-core-mid-
+compact-s1 -- courtyard/THT reasons GONE from verdicts = placer package confirmed live);
+still kelvin F (corridor, PARKED per owner "long pole, breather"). eps k=T + drc 0-2 now
+but diff=F on waves 18/19 bests (u61-77, placement lottery persists) -- INVESTIGATE: why
+the refused-USB solo tier isn't completing on these placements (wave-14 had diff=T).
+WAVE 19 = rotation eps+pcie-8pin-2port (owner): PCIE FIRST FRESH OUTING lands u12/drc7
+(!!, closest fresh start ever) -- named blockers: kelvin F (check the ina238-lo-tap-
+refusal class vs the canonical-tap ladder), diff F, 3 shorts/3 crossings. UNIFORMITY
+AGENT running (owner ruling 1a1428c: per-cable output fields identical across positions
++ 2/3-port SKUs; gate + derive-once-stamp-N + uniformity-preserving rebuild) -- merge on
+report. NEXT: uniformity merge -> pcie kelvin investigation -> eps diff-tier bug -> wave
+20 (pcie could be the first gate-clean fresh board).
+
 ## (G15) GENERATORS FIXED, WAVE 18 = POST-FIX BASELINE — 2026-07-09 ~08:30
 Rolling waves 15-17 DONE: 24-pin flat (u52-58, placement-bound as diagnosed; snagfix
 proposals WON waves 15+17 -- the A2 loop works); eps wave-15+ "cliff" (u4->u68) RESOLVED
