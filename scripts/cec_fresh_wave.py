@@ -113,6 +113,10 @@ BOARD_WH = {
     # the blade row + signal stub (~59mm); dual-sided chains + no mounts + full overhang
     # make 70x55 the aggressive seed (the shrink pass walks further once gate-clean).
     "atx-24pin-rev3": (70.0, 55.0),
+    # owner fun-run 2026-07-09: "tear the 12VHPWR down to just its connectors, compact it
+    # down as much as possible" -- committed hand board is 58x80 (fanned); 60x40 = ~half
+    # the area as the aggressive seed. Analog-pin board (INA240 lanes, no I2C family).
+    "12vhpwr-standard": (60.0, 40.0),
 }
 
 # Per-board owner-ratified placement params (2026-07-08, 24-pin ground-up remake):
@@ -121,6 +125,9 @@ BOARD_WH = {
 # same-side-per-rail sensing constraint (mechanism pending -- the wave is GATED on the
 # shared-bus per-rail corridor package, see TODO).
 BOARD_PARAMS = {
+    "12vhpwr-standard": {"mount_holes": "none", "connector_overhang": "edge",
+                         "respect_antenna_keepout": False,
+                         "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
     "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
