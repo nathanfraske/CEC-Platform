@@ -284,10 +284,58 @@ def apply_edit(state, edit):
             pcbnew.SaveBoard(state.board, b)
             edit["moved_refs"] = res.get("moved_refs")
         del b                                            # SWIG-01: never reuse a board object after Save
+    elif t == "pour_reshape":
+        # POUR LEVER (stage 4): a router-initiated pour REBUILD -- a geometry-only reshape
+        # {op, net, params, min_cross_mm2} of an auto-derived pour on state.pour_plan. The op passes
+        # the STEER-ONLY chokepoint (cec_fullstack.assert_steer_only -- its FIRST live caller: a
+        # reshape STEERS the FR keepout + post-route copper, never writes a gate field), then mutates
+        # the plan (state, not the board). PourPlan.rebuild enforces the autonomy line (add/drop/re-net
+        # -> EscalateToHuman) and the min-pour-cross-section HARD gate (neck -> PourCrossSectionRefused);
+        # both propagate up so the loop records a NAMED refusal rather than a silent proceed.
+        import cec_pourplan
+        import cec_fullstack
+        cec_fullstack.assert_steer_only({"pour_reshape": {"op": edit.get("op"), "net": edit.get("net")}})
+        if state.pour_plan is None:
+            state.pour_plan = cec_pourplan.PourPlan.from_board(state.board)
+        state.pour_plan.rebuild(edit["op"], net=edit["net"],
+                                min_cross_mm2=edit.get("min_cross_mm2"),
+                                **(edit.get("params") or {}))
+        # recompile BOTH views off the mutated plan: PRE-ROUTE keepout (state.hints) + POST-ROUTE
+        # copper (state.pour_pours the loop feeds to generate_batch). Drop stale corr_* lane keepouts
+        # first so the recompiled lane keepouts replace them (lane mode reboxes the pours).
+        try:
+            new_hints = state.pour_plan.keepout_hints()
+            state.hints = [h for h in state.hints
+                           if not str(h.get("name", "")).startswith("corr_")] + new_hints
+        except Exception as e:                           # noqa: BLE001 -- keepout recompile best-effort
+            print(f"[route] pour_reshape: keepout recompile skipped ({type(e).__name__}: {e})")
+        state.pour_pours = state.pour_plan.pour_polygons()
     else:
         raise ValueError(f"apply_edit: unknown edit type {t!r}")
     state.edits.append(edit)
     return state
+
+
+def _apply_edit_guarded(state, edit, log, region, it):
+    """Apply an edit, but for a POUR REBUILD (stage 4) catch the two ratified refusals so a crossed
+    autonomy line (EscalateToHuman: add/drop/re-net a pour) or a necking reshape
+    (PourCrossSectionRefused: min-pour-cross-section HARD gate) is recorded as a NAMED refusal in
+    the decision log instead of crashing the loop OR silently proceeding. The refused edit is NOT
+    applied; the loop moves on (it will escalate / take best-so-far). Non-pour edits are unchanged."""
+    try:
+        apply_edit(state, edit)
+        return True
+    except Exception as e:                               # noqa: BLE001 -- narrowed below
+        import cec_pourplan
+        if isinstance(e, (cec_pourplan.EscalateToHuman, cec_pourplan.PourCrossSectionRefused)):
+            reason = f"POUR-REBUILD REFUSED [{type(e).__name__}]: {e}"
+            log.add(region=region.name, iteration=it, candidates=[], chosen=None,
+                    verdict=Verdict("refuse", reason, tier="pour-lever", edit=edit),
+                    note="pour-rebuild-refused")
+            if os.environ.get("CEC_VERBOSE"):
+                print(f"[route] {region.name} it{it}: {reason}")
+            return False
+        raise
 
 
 class RegionState:
@@ -299,6 +347,12 @@ class RegionState:
         self.fr = dict(region.fr_params)
         self.seeds = tuple(seeds)
         self.edits = []
+        # POUR LEVER (stage 4): the mutable PourPlan the rebuild verb reshapes, built lazily on the
+        # first pour_reshape edit off THIS state's working board; None until then so a route with no
+        # pour rebuild is byte-identical (spec.power_pours stays the source). Once set, the loop reads
+        # state.pour_pours / the recompiled state.hints instead of spec.power_pours.
+        self.pour_plan = None
+        self.pour_pours = None             # recompiled pour_polygons() after a rebuild; None = use spec
 
 
 # ============================================================ default control-tier policies
@@ -620,8 +674,85 @@ def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
                     f"pour) -> evict the cluster out the nearest edge")}
 
 
+def pour_rebuild_repair(board_path, rules=None, metrics=None):
+    """MANAGER-tier POUR LEVER (stage 4, docs/pour-lever-scoping §3.2). A FOREIGN net crossing a
+    high-current pour -> emit a 'pour_reshape' edit that reshapes the OFFENDED pour so FR re-routes
+    the foreign net off / under it, then the pour re-materializes clear. It is the corridor-evict
+    analogue for the pour itself: where corridor_evict moves a BODY out of a corridor, this moves
+    the POUR off a foreign trace.
+
+    Op choice (cheapest reshape that clears the intrusion):
+      * 2-layer pour (F.Cu+B.Cu mirror) -> DROP_LAYER the mirror the foreign crosses: the foreign
+        escapes on the vacated layer while the remaining pour still carries the current.
+      * 1-layer pour -> SHRINK the offended pour edge back off the foreign locus (a via locus if the
+        summary carries one, else the shunt-notch side).
+
+    FENCE (ruling 1, enforced in PourPlan.rebuild): SAME net, geometry only. This function never
+    emits add / drop / re-net -- those raise EscalateToHuman in the verb, and a shrink that necks the
+    pour raises PourCrossSectionRefused; _apply_edit_guarded records either as a NAMED refusal.
+    N/A (returns None) on shared-bus / per-rail boards where foreign-on-pour is not defined (the
+    24-pin per-rail winner: its OPEN circuits are routing failures OUTSIDE a pour op's reach -- named
+    in the eval residual, not force-fit to a reshape here).
+
+    CEC_POUR_LEVER=0 disables the lever entirely (returns None) -- the eval's byte-identical control
+    arm; default on (inert-when-unused, so on a clean board this changes nothing either way)."""
+    if os.environ.get("CEC_POUR_LEVER", "1") == "0":
+        return None
+    try:
+        import cec_constraints
+        fsum = cec_constraints.foreign_on_pour_summary(board_path)
+    except Exception:                                        # noqa: BLE001
+        return None
+    if not fsum or fsum.get("status") != "ok":
+        return None                                          # na (shared-bus/per-rail) or error
+    by_pour = fsum.get("by_pour") or {}
+    if not by_pour:
+        return None                                          # no foreign on any pour -> clean
+    # most-offended pour net (highest foreign track+via count); deterministic tiebreak by net name
+    net = max(sorted(by_pour), key=lambda n: sum(by_pour[n].values()))
+    foreigns = by_pour[net]
+    op, params = None, None
+    try:
+        import cec_pourplan
+        plan = cec_pourplan.PourPlan.from_board(board_path)
+        layers = {s.layers[0] for s in plan._specs_for(net) if s.layers}
+        vias = [v for v in (fsum.get("vias") or []) if v.get("pour") == net]
+        if len(layers) >= 2:
+            drop = "B.Cu" if "B.Cu" in layers else sorted(layers)[-1]
+            op, params = "drop_layer", {"layer": drop}
+        else:
+            edge, mm = _pour_shrink_plan(plan, net, vias)
+            op, params = "shrink", {"edge": edge, "mm": mm}
+    except Exception:                                        # noqa: BLE001
+        op, params = "shrink", {"edge": "y0", "mm": 1.5}
+    why = ("pour: foreign %s crosses high-current pour %s (%d track/via) -> %s the pour so FR "
+           "re-routes the foreign off it" % (",".join(list(foreigns)[:3]), net,
+                                             sum(foreigns.values()), op))
+    return {"type": "pour_reshape", "op": op, "net": net, "params": params,
+            "tier": "manager", "why": why}
+
+
+def _pour_shrink_plan(plan, net, vias):
+    """Pick (edge, mm) to pull the offended pour off a foreign intrusion: the edge NEAREST the mean
+    foreign-via locus, shrunk just PAST that locus (+0.5mm margin) so the reshaped box excludes it.
+    No via locus -> the shunt-notch side (y0) pulled a modest 1.5mm. The min-pour-cross-section HARD
+    gate (PourPlan.rebuild) refuses the shrink if it would neck the copper -- so a foreign that can
+    only be cleared by necking is NOT laundered; the loop escalates instead."""
+    rects = [s.rect() for s in plan._specs_for(net) if s.rect() is not None]
+    if not rects or not vias:
+        return "y0", 1.5
+    x0 = min(r[0] for r in rects); x1 = max(r[1] for r in rects)
+    y0 = min(r[2] for r in rects); y1 = max(r[3] for r in rects)
+    vx = sum(v["x"] for v in vias) / len(vias)
+    vy = sum(v["y"] for v in vias) / len(vias)
+    d = {"x0": abs(vx - x0), "x1": abs(vx - x1), "y0": abs(vy - y0), "y1": abs(vy - y1)}
+    edge = min(d, key=d.get)
+    return edge, round(d[edge] + 0.5, 3)                      # clear past the locus + margin
+
+
 # Manager strategies in PRIORITY order: a structural HARD-GATE fix (uncross a Kelvin shunt) outranks a
-# corridor body-in-band eviction, which outranks a generic part nudge. The loop stops at the first hit.
+# corridor body-in-band eviction, which outranks a pour reshape (foreign off the pour), which outranks
+# a generic part nudge. The loop stops at the first hit.
 # NOTE: logo_finishing_repair is implemented but NOT wired in yet -- a full-copper keepout over the logo
 # cuts the GND plane stitching (observed: unconnected 2 -> 24 on a demo route). The correct fix per the
 # corpus ('logo-not-in-high-current-corridor' / the documented 'GND-assign') is to ASSIGN the decorative
@@ -630,6 +761,7 @@ def corridor_evict_repair(board_path, rules=None, metrics=None, fence=None):
 MANAGER_REPAIRS = [
     ("kelvin_inversion", kelvin_inversion_repair),
     ("corridor_evict", corridor_evict_repair),
+    ("pour_rebuild", pour_rebuild_repair),
     ("part_nudge", lambda bp, rules, metrics: targeted_repair(bp, tier="manager")),
 ]
 
@@ -1248,8 +1380,11 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
                 spread_note = "single-seed"
                 def _mkparams(s, base=base):
                     return base
+            # POUR LEVER: after a rebuild, the reshaped pours (state.pour_pours) supersede the
+            # once-derived spec.power_pours; before any rebuild state.pour_pours is None (byte-identical).
+            _pours = state.pour_pours if state.pour_pours is not None else spec.power_pours
             cands = cec_fr.generate_batch(state.board, hints=state.hints, seeds=state.seeds,
-                                          power_pours=spec.power_pours,
+                                          power_pours=_pours,
                                           out_dir=outd, params=_mkparams,
                                           max_workers=spec.max_workers)
             scored = _candidate_pool(cands, rules, spec.weights)
@@ -1271,7 +1406,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             if K >= spec.Kmax:
                 ev = escalator(region, state, history)
                 if ev.edit:
-                    apply_edit(state, ev.edit)
+                    _apply_edit_guarded(state, ev.edit, log, region, it)
                 log.add(region=region.name, iteration=it, candidates=[], chosen=None, verdict=ev,
                         note="escalation")
                 if verbose:
@@ -1280,7 +1415,7 @@ def route(board0, spec, *, planner=None, manager=None, worker=None, escalator=No
             else:
                 ed = verdict.edit and verdict or worker(region, verdict, state, history)
                 if ed.edit:
-                    apply_edit(state, ed.edit)
+                    _apply_edit_guarded(state, ed.edit, log, region, it)
                 K += 1
             history.append({"it": it, "best": (best[1] if best else None), "verdict": verdict})
             if it >= spec.max_iters:                      # hard stop: never loop forever

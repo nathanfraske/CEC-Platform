@@ -656,7 +656,12 @@ def graduation_verdict(tally, *, min_runs=None, min_pairs=None, min_improving_fr
 # assert_steer_only, which permits only search-steering writes and forbids ANY gate field. The hard
 # gates (kelvin / diffpair / DRC / conformance) and shipping stay deterministic + human.
 STEER_FIELDS = {"rank_key", "select_weight", "seed", "placement_bias", "intent_bias",
-                "passes", "opt_time", "fr_params", "corridor_avoid"}
+                "passes", "opt_time", "fr_params", "corridor_avoid",
+                # POUR LEVER (stage 4, 2026-07-09): a router-initiated pour REBUILD is a
+                # geometry-only reshape of an auto-derived pour -- it STEERS the FR search (moves the
+                # keepout the router avoids + the post-route copper it lays) but writes NO gate field.
+                # This is assert_steer_only's FIRST live actuation caller (the graduation exemplar).
+                "pour_reshape"}
 GATE_FIELDS = {"gates_pass", "kelvin_ok", "diffpair_ok", "drc", "unconnected", "pour_integrity_ok",
                "foreign_on_pour", "ship", "promote"}
 
