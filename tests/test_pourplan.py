@@ -173,5 +173,75 @@ class ByteIdentity(unittest.TestCase):
         self.assertEqual(plan, legacy)
 
 
+# ============================================================ PER-CABLE OUTPUT UNIFORMITY
+# DERIVE-ONCE-STAMP-N (owner ruling 2026-07-09): a per-cable family's pours are derived ONCE (the
+# tightest position) and STAMPED to every position AS ITS OWN TAB-BLOCK SHAPE, so the output pour
+# SHAPE is identical across positions while each pour stays laid over its own tabs. Pure-data tests.
+def _fam3(w1=20.0, w2=30.0, w3=30.0, h=40.0):
+    """3-position LO family; position 1 the SMALLEST (master); each at its own min-corner."""
+    def box(x0, w):
+        return ((x0, 0.0), (x0 + w, 0.0), (x0 + w, h), (x0, h))
+    return P.PourPlan(specs=[P.PourSpec(net="/SENSEC1_LO", polygon=box(0.0, w1)),
+                             P.PourSpec(net="/SENSEC2_LO", polygon=box(100.0, w2)),
+                             P.PourSpec(net="/SENSEC3_LO", polygon=box(200.0, w3))])
+
+
+class PerCableStampN(unittest.TestCase):
+    def test_no_family_is_a_noop(self):
+        # a single-position "family" (one SENSEC index) has no >=2-position role -> byte-identical
+        pl = P.PourPlan(specs=[P.PourSpec(net="/SENSEC1_LO",
+                                          polygon=((0, 0), (10, 0), (10, 20), (0, 20)))])
+        before = [s.rect() for s in pl.specs]
+        pl.enforce_uniformity()
+        self.assertEqual([s.rect() for s in pl.specs], before)
+
+    def test_master_is_the_smallest_and_shape_stamps_per_tab(self):
+        pl = _fam3(w1=20.0, w2=30.0, w3=30.0)     # master = position 1 (20 wide, least area)
+        pl.enforce_uniformity()
+        widths = {s.net: round(s.rect()[1] - s.rect()[0], 3) for s in pl.specs}
+        self.assertEqual(set(widths.values()), {20.0})     # ALL positions carry the master's 20mm width
+        # anchored per tab: each pour keeps its OWN min-corner (0 / 100 / 200), not a regularised pitch
+        x0s = {s.net: round(s.rect()[0], 3) for s in pl.specs}
+        self.assertEqual(x0s, {"/SENSEC1_LO": 0.0, "/SENSEC2_LO": 100.0, "/SENSEC3_LO": 200.0})
+        self.assertTrue(all(s.provenance == "uniform_stamp" for s in pl.specs))
+
+    def test_shrink_to_legal_family_wide(self):
+        # foreign copper at ONE position -> the master shrinks so ALL positions shrink IDENTICALLY
+        pl = _fam3(w1=20.0, w2=20.0, w3=20.0)
+        pl.enforce_uniformity(foreign_by_pos={2: [(100.0, 102.9, 0.0, 40.0)]}, min_cross_mm2=0.06)
+        widths = {round(s.rect()[1] - s.rect()[0], 3) for s in pl.specs}
+        self.assertEqual(len(widths), 1)                   # identical shrunk width everywhere
+        self.assertLess(next(iter(widths)), 20.0)          # actually shrank
+        p2 = next(s for s in pl.specs if s.net == "/SENSEC2_LO")
+        self.assertGreaterEqual(p2.rect()[0], 102.9 - 1e-9)  # position 2 cleared its foreign
+
+    def test_shrink_below_floor_refuses(self):
+        pl = _fam3(w1=20.0, w2=20.0, w3=20.0)
+        with self.assertRaises(P.PourUniformityRefused) as cm:
+            pl.enforce_uniformity(foreign_by_pos={2: [(100.0, 119.0, 0.0, 40.0)]}, min_cross_mm2=1.0)
+        self.assertIn("min-pour-cross-section", str(cm.exception))
+
+
+class UniformityPreservingRebuild(unittest.TestCase):
+    def test_shrink_applies_to_ALL_positions(self):
+        pl = _fam3(w1=20.0, w2=20.0, w3=20.0)
+        pl.rebuild("shrink", net="/SENSEC2_LO", edge="x1", mm=2.0)
+        widths = {round(s.rect()[1] - s.rect()[0], 3) for s in pl.specs}
+        self.assertEqual(widths, {18.0})                   # every position shrank identically
+
+    def test_absolute_arg_ops_refuse(self):
+        for op, kw in (("notch", dict(at=(110, 20), gap_mm=8)),
+                       ("relocate", dict(region=(100, 0, 120, 40)))):
+            with self.assertRaises(P.PourUniformityRefused):
+                _fam3(20, 20, 20).rebuild(op, net="/SENSEC2_LO", **kw)
+
+    def test_single_position_still_takes_the_old_path(self):
+        # not a family (one position) -> the plain single-net reshape, no all-positions expansion
+        pl = P.PourPlan(specs=[P.PourSpec(net="/SENSEC1_LO",
+                                          polygon=((0, 0), (20, 0), (20, 40), (0, 40)))])
+        pl.rebuild("shrink", net="/SENSEC1_LO", edge="x1", mm=2.0)
+        self.assertAlmostEqual(pl.specs[0].rect()[1], 18.0)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

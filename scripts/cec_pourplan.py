@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 from dataclasses import dataclass, field, asdict
 
 
@@ -63,6 +64,34 @@ class PourCrossSectionRefused(Exception):
     """A reshape would neck a REBUILT pour below the min-pour-cross-section requirement (ruling 2:
     min-pour-cross-section is a HARD gate on rebuilt pours). Refused so a reshape can never thin the
     copper to dodge the foreign-on-pour gate. Carries the got/need cross-section in its message."""
+
+
+class PourUniformityRefused(Exception):
+    """DERIVE-ONCE-STAMP-N could not make a per-cable OUTPUT family uniform WITHOUT necking the
+    master below the min-pour-cross-section HARD gate (owner ruling 2026-07-09: the per-cable output
+    field must be IDENTICAL across positions/SKUs). Uniformity constrains DOWN -- a replica that
+    would collide foreign copper at some position shrinks the MASTER (so ALL positions stay
+    identical); if that shrink crosses the cross-section floor, we REFUSE rather than ship a
+    non-uniform fallback silently. Carries a named reason (role + got/need cross-section)."""
+
+
+# --- per-cable family recognition (owner ruling 2026-07-09, per-cable output uniformity) ----------
+# A per-cable sense net is '<prefix><index><_HI|_LO>' with the INTEGER index sitting IMMEDIATELY
+# before the _HI/_LO suffix -- /SENSEC1_LO -> ('/SENSEC', 1, '_LO'). A rail name like /SENSE5VSB_LO
+# (no trailing digit) never matches, and /SENSE3V3_HI matches as ('/SENSE3V', 3, '_HI') -- a
+# SINGLE-index role that the >=2-positions family test rejects. So shared-bus / per-rail boards
+# (24-pin, 12VHPWR, Hub) yield NO family and are byte-identical (teeth (f)).
+_CABLE_NET_RE = re.compile(r"^(?P<pre>.*?)(?P<idx>\d+)(?P<suf>_(?:HI|LO))$")
+
+
+def _parse_cable_net(net):
+    """Parse a per-cable sense net -> (prefix, idx:int, suffix) or None (not a cable-family net)."""
+    if not net:
+        return None
+    m = _CABLE_NET_RE.match(net)
+    if not m:
+        return None
+    return (m.group("pre"), int(m.group("idx")), m.group("suf"))
 
 
 @dataclass
@@ -118,6 +147,12 @@ class PourPlan:
             "corridor_fcu_only": os.environ.get("CEC_CORRIDOR_FCU_ONLY", "0") == "1",
             "inner_pours": os.environ.get("CEC_INNER_POURS", "0") == "1",
             "lane_w_json": os.environ.get("CEC_LANE_W_JSON", ""),
+            # PER-CABLE OUTPUT UNIFORMITY (owner ruling 2026-07-09): when set, a per-cable family's
+            # pours are DERIVED ONCE (the most-constrained position) and STAMPED to every position
+            # by the cable-pitch translation, so the output field is IDENTICAL across positions/SKUs.
+            # OFF by default -> byte-identical derivation (SB-08 / 24-pin teeth). The oracle recipe
+            # turns it ON (fresh boards get the uniformity guarantee).
+            "uniform": os.environ.get("CEC_POUR_UNIFORM", "0") == "1",
         }
 
     @staticmethod
@@ -152,6 +187,12 @@ class PourPlan:
             sp = _ask_spec(a, prepared, bbox, margin)
             if sp is not None:
                 specs.append(sp)
+        # DERIVE-ONCE-STAMP-N (owner ruling 2026-07-09): when the uniformity lever is on AND the
+        # board carries a per-cable family, replace each position's INDEPENDENTLY-derived pours with
+        # the most-constrained position's geometry STAMPED across the UNIFORM cable-pitch grid. Inert
+        # (byte-identical) when the lever is off or there is no family -- the golden/24-pin guarantee.
+        if plan.recipe.get("uniform"):
+            plan.enforce_uniformity()
         return plan
 
     @classmethod
@@ -315,6 +356,160 @@ class PourPlan:
         self.specs.append(spec)
         return self
 
+    # ------------------------------------------------------------------ per-cable uniformity
+    # DERIVE-ONCE-STAMP-N (owner ruling 2026-07-09, per-cable output-field uniformity). The pipeline
+    # controls the per-cable output pinout WITHIN ampacity, but the resulting pours must be IDENTICAL
+    # across cable positions on a board (and across the PCIe 2-/3-port SKUs -- one output spec per
+    # family). The stateless per-net derivation produced congestion-shaped, position-dependent pours
+    # (the owner saw them differ between cable positions). Here we DERIVE ONCE (the tightest position)
+    # and STAMP that geometry to every position by the cable-pitch translation.
+    def _cable_families(self):
+        """Group the plan's specs into per-cable roles: {(prefix, suffix): {idx: [spec, ...]}},
+        keeping only roles with >= 2 positions (a genuine multi-cable family)."""
+        roles = {}
+        for s in self.specs:
+            p = _parse_cable_net(s.net)
+            if p is None:
+                continue
+            pre, idx, suf = p
+            roles.setdefault((pre, suf), {}).setdefault(idx, []).append(s)
+        return {k: v for k, v in roles.items() if len(v) >= 2}
+
+    def has_cable_family(self):
+        """True iff the plan carries a per-cable family (>=2 positions on some role)."""
+        return bool(self._cable_families())
+
+    @staticmethod
+    def _union_min(specs):
+        """(x0, y0) = the min-corner of the union bbox of a position's pours. The pour is derived
+        from that cable's OUTPUT TAB THT pads (+ its shunt), so this min-corner TRACKS the real
+        output tabs -- it is the per-tab-block anchor derive-once-stamp-N stamps AT (never a
+        regularized pitch: a blade tab's ONLY connection is the pour that laps it, since the
+        force-pour-only DSN policy EXCLUDES the connector force pins from Freerouting, so a pour
+        moved off its tab leaves an OPEN 18A joint -- owner correction 2026-07-09)."""
+        rects = [s.rect() for s in specs if s.rect() is not None]
+        if not rects:
+            return None
+        return (min(r[0] for r in rects), min(r[2] for r in rects))
+
+    @staticmethod
+    def _min_cross_of(specs, shrink, *, thickness_mm=_OUTER_THICKNESS_MM):
+        """Geometry proxy for the DC-field bottleneck of a spec SET at a symmetric `shrink`: each
+        box carries current along its longer side, so its cross is (shorter side - 2*shrink)*thickness;
+        the set's bottleneck is the MIN. Shorter side clamped at 0 (an over-shrunk box necks, not grows)."""
+        widths = []
+        for s in specs:
+            r = s.rect()
+            if r is None:
+                continue
+            widths.append(max(0.0, min((r[1] - r[0]) - 2 * shrink, (r[3] - r[2]) - 2 * shrink)))
+        return (min(widths) * thickness_mm) if widths else None
+
+    def _stamp_role_at_tabs(self, pre, suf, by_idx, master_specs, m_ref, shrink):
+        """Stamp the MASTER's SHAPE (each master box taken RELATIVE to the master's own min-corner
+        `m_ref`) at EVERY position's OWN min-corner (its tab-block anchor), symmetrically shrunk by
+        `shrink`. This makes the pour SHAPE identical across positions while each pour stays laid
+        over ITS OWN output tabs (position anchored to the tab, never regularized off it). Returns
+        the stamped specs, or None when a position has no derivable anchor (caller leaves the role)."""
+        out = []
+        for idx in sorted(by_idx):
+            ref = self._union_min(by_idx[idx])
+            if ref is None:
+                return None
+            net = pre + str(idx) + suf
+            for ms in master_specs:
+                r = ms.rect()
+                if r is None:
+                    continue
+                rx0, rx1 = r[0] - m_ref[0], r[1] - m_ref[0]     # master box RELATIVE to its min-corner
+                ry0, ry1 = r[2] - m_ref[1], r[3] - m_ref[1]
+                x0 = ref[0] + rx0 + shrink
+                x1 = ref[0] + rx1 - shrink
+                y0 = ref[1] + ry0 + shrink
+                y1 = ref[1] + ry1 - shrink
+                out.append(PourSpec(net=net, layers=ms.layers, shape=ms.shape,
+                                    priority=ms.priority, min_thickness=ms.min_thickness,
+                                    island_removal=ms.island_removal,
+                                    provenance="uniform_stamp",
+                                    polygon=((x0, y0), (x1, y0), (x1, y1), (x0, y1)),
+                                    region=(x0, y0, x1, y1)))
+        return out
+
+    @staticmethod
+    def _role_master(by_idx):
+        """The MOST-CONSTRAINED position = the one whose independently-derived pour has the SMALLEST
+        total area (the tightest, congestion-squeezed pour). Replicating it constrains uniformity
+        DOWN, never up (a wide position never forces a narrow one to grow). Ties break on lower idx."""
+        def area(specs):
+            tot = 0.0
+            for s in specs:
+                r = s.rect()
+                if r:
+                    tot += (r[1] - r[0]) * (r[3] - r[2])
+            return tot
+        return min(sorted(by_idx), key=lambda i: (area(by_idx[i]), i))
+
+    def enforce_uniformity(self, *, foreign_by_pos=None, min_cross_mm2=None,
+                           shrink_step=0.5, max_iters=200):
+        """DERIVE-ONCE-STAMP-N (owner ruling 2026-07-09 + correction). For each per-cable role, pick
+        the most-constrained (tightest) position as the MASTER, then replace every position's pours
+        with the master's SHAPE stamped AT that position's OWN tab-block anchor (net-mapped). The
+        SHAPE becomes identical across positions; each pour stays laid over its OWN output tabs (the
+        pour position is NEVER regularized off its tab -- a moved pour leaves an OPEN force joint).
+        Uniformity constrains DOWN:
+
+          * `foreign_by_pos` = {idx: [(x0,x1,y0,y1), ...]} of FIXED foreign copper per position. When a
+            stamped replica would overlap foreign copper at SOME position, the master shrinks
+            symmetrically (so ALL positions keep the SAME shape) until every replica is clear.
+          * if shrinking necks the master below the min-pour-cross-section HARD gate floor, REFUSE
+            (PourUniformityRefused) -- never ship a non-uniform fallback silently (owner ruling).
+
+        No-op (byte-identical) when there is no per-cable family. Mutates the plan IN PLACE."""
+        fams = self._cable_families()
+        if not fams:
+            return self
+        floor = _DEFAULT_MIN_CROSS_MM2 if min_cross_mm2 is None else float(min_cross_mm2)
+        fam_ids = {id(s) for by_idx in fams.values() for specs in by_idx.values() for s in specs}
+        kept = [s for s in self.specs if id(s) not in fam_ids]
+        stamped_all = []
+        for (pre, suf), by_idx in fams.items():
+            master_idx = self._role_master(by_idx)
+            master_specs = by_idx[master_idx]
+            m_ref = self._union_min(master_specs)
+            if m_ref is None:                                 # degenerate master -> leave role
+                stamped_all.extend(s for i in sorted(by_idx) for s in by_idx[i])
+                continue
+            shrink = 0.0
+            for _ in range(max_iters):
+                stamped = self._stamp_role_at_tabs(pre, suf, by_idx, master_specs, m_ref, shrink)
+                if stamped is None:                           # missing anchor -> leave role UNCHANGED
+                    stamped = [s for i in sorted(by_idx) for s in by_idx[i]]
+                    break
+                collided = False
+                if foreign_by_pos:
+                    for sp in stamped:
+                        idx = _parse_cable_net(sp.net)[1]
+                        r = sp.rect()
+                        for (fx0, fx1, fy0, fy1) in foreign_by_pos.get(idx, []):
+                            if not (r[1] <= fx0 or r[0] >= fx1 or r[3] <= fy0 or r[2] >= fy1):
+                                collided = True
+                                break
+                        if collided:
+                            break
+                if not collided:
+                    break
+                shrink += shrink_step
+                mc = self._min_cross_of(master_specs, shrink)
+                if mc is not None and mc < floor - 1e-9:
+                    raise PourUniformityRefused(
+                        "derive-once-stamp-N on role %s%s: shrinking the master to clear foreign "
+                        "copper at some cable position necks it to %.4f mm^2 < required %.4f mm^2 "
+                        "(min-pour-cross-section HARD gate) -- refusing rather than shipping a "
+                        "non-uniform fallback (owner ruling 2026-07-09)" % (pre, suf, mc, floor))
+            stamped_all.extend(stamped)
+        self.specs = kept + stamped_all
+        return self
+
     # ------------------------------------------------------------------ stage-4 REBUILD verb
     # The router-rebuild actuation surface (docs/pour-lever-scoping-2026-07-08.md §3.2/§4, owner
     # RATIFIED 2026-07-09). `rebuild(op, net=..., ...)` is the ONE entry the router-repair emits
@@ -424,7 +619,16 @@ class PourPlan:
         design change). A frozen (human-ratified) spec is never mutated. AFTER the reshape the
         rebuilt pour's cross-section is checked as a HARD gate (ruling 2): a neck below the required
         cross-section raises PourCrossSectionRefused so a reshape can never thin copper to dodge the
-        foreign-on-pour gate. Mutates the plan IN PLACE (state, not the board) and returns self."""
+        foreign-on-pour gate. Mutates the plan IN PLACE (state, not the board) and returns self.
+
+        UNIFORMITY-PRESERVING (fix 3, owner ruling 2026-07-09): when `net` is a member of a per-cable
+        family (>=2 positions), the reshape composes with the autonomy line by applying IDENTICALLY to
+        ALL positions of the family -- otherwise it would break the per-cable output-field uniformity
+        the derive-once-stamp-N guarantee established. The relative ops (shrink / drop_layer / relocate
+        by dxy) replicate to every position; an op carrying an ABSOLUTE positional argument (notch at=,
+        relocate region=) cannot be replicated identically and raises PourUniformityRefused (a named,
+        non-silent refusal) -- it stays inside the autonomy line (it never adds/drops/re-nets a pour),
+        it is refused only because it cannot hold the uniformity invariant."""
         # ---- AUTONOMY LINE (ruling 1): guard BEFORE touching geometry -----------------------------
         if op == "add":
             raise EscalateToHuman(
@@ -449,6 +653,20 @@ class PourPlan:
                 "reshape %r on net %r: no auto-derived pour exists on that net -- a reshape only "
                 "reshapes an EXISTING derived pour; requesting a pour where none is derived is an "
                 "ADD (design change, ruling 1), escalate to human" % (op, net))
+        # ---- UNIFORMITY-PRESERVING (fix 3): a family-member reshape applies to ALL positions ------
+        _fam_role = _parse_cable_net(net)
+        fam_by_idx = fam_pre = fam_suf = None
+        if _fam_role is not None:
+            fam_pre, _fi, fam_suf = _fam_role
+            fam_by_idx = self._cable_families().get((fam_pre, fam_suf))
+        if fam_by_idx is not None:
+            if op == "notch" or (op == "relocate" and kw.get("region") is not None):
+                raise PourUniformityRefused(
+                    "reshape %r on family net %r carries an ABSOLUTE positional argument (%s) that "
+                    "cannot be replicated identically across the %d cable positions -- it would break "
+                    "the per-cable output-field uniformity (owner ruling 2026-07-09); refusing"
+                    % (op, net, "notch at=" if op == "notch" else "relocate region=", len(fam_by_idx)))
+            specs = [s for i in sorted(fam_by_idx) for s in fam_by_idx[i]]   # reshape EVERY position
         if any(s.frozen for s in specs):
             raise EscalateToHuman(
                 "reshape %r on net %r: a spec is FROZEN (human-ratified geometry the loop may not "
@@ -466,8 +684,14 @@ class PourPlan:
             elif op == "relocate":
                 self._op_relocate(specs, kw.get("dxy"), kw.get("region"))
             elif op == "drop_layer":
-                self._op_drop_layer(net, kw["layer"])
-                specs = self._specs_for(net)             # refresh after the removal
+                if fam_by_idx is not None:               # drop the layer on EVERY position's net
+                    for i in sorted(fam_by_idx):
+                        self._op_drop_layer(fam_pre + str(i) + fam_suf, kw["layer"])
+                    specs = [s for i in sorted(fam_by_idx)
+                             for s in self._specs_for(fam_pre + str(i) + fam_suf)]
+                else:
+                    self._op_drop_layer(net, kw["layer"])
+                    specs = self._specs_for(net)         # refresh after the removal
             for s in specs:
                 if s.provenance == "derived":
                     s.provenance = "router_ask"
