@@ -235,3 +235,4 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   triage (which classes gate vs report) against boards you accept.
 
 - [2026-07-09] SPEC fold-in owed: per-cable output-field UNIFORMITY ruling (pinout free within ampacity; identical across cable positions + across PCIe-2/3 SKUs -- owner, 2026-07-09, production/interchangeability grounds). Pipeline enforcement landing separately; the spec §2.8-adjacent text needs the owner ritual.
+  - SPEC TEXT READY (agent-drafted, 2026-07-09): 'Every cable position's output field on a per-cable board is a geometrically identical, interchangeable unit -- output blade tabs at a single uniform cable pitch, each cable's output pour byte-for-byte the same shape laid over its own tabs -- enforced by a route-time gate and the derive-once-stamp-N pour rule, so a daughterboard built for one slot fits every slot.'
