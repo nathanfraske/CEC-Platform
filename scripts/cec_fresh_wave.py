@@ -243,7 +243,11 @@ def _grade_variant(board, W, H, iname, strat, seed, passes, opt, work_root, prop
                 # owner 2026-07-08: the 5-17s thermal solve runs ONLY on a would-be
                 # gate-clean candidate (all other terms green) -- a published best
                 # always has a REAL solve behind it.
-                thermal="lazy")
+                thermal="lazy",
+                # owner blind verdict 2026-07-09: PRECISION-FIRST ON (kelvin taps +
+                # coupled pairs deterministic + locked, refused pairs solo-tiered,
+                # FR residual-only). wave_precision=False in params restores bare.
+                precision=bool(_p.get("wave_precision", True)))
     v["label"] = label
     v["placed"] = out
     v["wall_s"] = round(time.monotonic() - t0, 1)

@@ -109,9 +109,14 @@ def default_tiers(board_path):
 
 
 def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=None,
-                 timeout=900, verbose=True):
+                 timeout=900, verbose=True, pre_locked_nets=(), skip_locked_taps=False,
+                 include_residual=True):
     """The tiered ladder. tiers = list of net-name lists; a final residual pass over
-    everything else is implicit. Returns a report dict (per-tier stats + total wall)."""
+    everything else is implicit. Returns a report dict (per-tier stats + total wall).
+
+    pre_locked_nets: nets whose LOCKED copper already exists on the input board (the S2
+    precision pass) -- protected in EVERY tier's DSN. skip_locked_taps: forwarded to the
+    final import (precision already laid the kelvin taps -- never double-lay)."""
     import pcbnew
     import cec_fr
     import cec_fr02
@@ -124,10 +129,13 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
         s = placed_board[:-len(".kicad_pcb")] + ext
         if os.path.isfile(s):
             shutil.copy(s, cur[:-len(".kicad_pcb")] + ext)
-    locked_nets = set()
+    locked_nets = set(pre_locked_nets)
     report = {"tiers": [], "work": work}
     t_all = time.monotonic()
-    stages = [set(t) for t in tiers] + [None]              # None = residual (full DSN)
+    stages = [set(t) for t in tiers] + ([None] if include_residual else [])
+    # include_residual=False = TIER-ONLY mode (the wave-14 composition: refused precision
+    # pairs get their solo uncontended FR pass here; the ORACLE's own route_once then
+    # fills the true residual under the full recipe hints/pours).
     jar = cec_fr.ensure_jar(None)
     for i, tier in enumerate(stages):
         final = tier is None
@@ -147,7 +155,8 @@ def route_tiered(placed_board, out_board, *, tiers=None, passes=8, opt=10, seed=
         nxt = os.path.join(work, f"t{i + 1}.kicad_pcb")
         if final:
             pours = cec_fr.derive_power_pours(cur)
-            cec_fr.import_ses(cur, ses, nxt, power_pours=pours)
+            cec_fr.import_ses(cur, ses, nxt, power_pours=pours,
+                              skip_locked_taps=skip_locked_taps)
         else:
             cec_fr.import_ses(cur, ses, nxt, fill_zones=False, fix_annular=False,
                               power_pours=(), kelvin_taps=False)

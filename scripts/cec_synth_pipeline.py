@@ -6100,6 +6100,26 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                     route_input = prec
                     _protect = sorted(set(_protect) | set(prec_report.get("locked_nets", [])))
                     _skip_taps = True  # taps laid+locked pre-FR; import_ses must not re-lay them
+                    # REFUSED-PAIR TIER (owner blind verdict, 2026-07-09: precision's
+                    # refused 24-pin CAN went UNROUTED in the contended residual): each
+                    # refused pair gets a SOLO uncontended FR pass (staged-FR tier-only
+                    # mode) with the precision copper protected, BEFORE the recipe route.
+                    _refused = [pr for pr in (prec_report.get("pairs") or {}).get("refused", [])
+                                if isinstance(pr, dict) and pr.get("p") and pr.get("n")]
+                    if _refused:
+                        import cec_staged_fr
+                        tier_nets = sorted({n for pr in _refused for n in (pr["p"], pr["n"])})
+                        prec2 = os.path.join(work_dir, "precision-tiered.kicad_pcb")
+                        try:
+                            cec_staged_fr.route_tiered(
+                                prec, prec2, tiers=[tier_nets], include_residual=False,
+                                pre_locked_nets=set(_protect), passes=passes, opt=opt,
+                                seed=seed, timeout=int(fr_timeout), verbose=verbose)
+                            route_input = prec2
+                            _protect = sorted(set(_protect) | set(tier_nets))
+                            prec_report["refused_pair_tier"] = tier_nets
+                        except Exception as _te:         # noqa: BLE001 -- fail-safe
+                            prec_report["refused_pair_tier_error"] = str(_te)[:160]
                 with cec_cell_extract.guard_kelvin_double_lay(cec_fr, _locked_bp):
                     cand = cec_fr.route_once(route_input, routed, hints=hints, power_pours=pours,
                                              passes=passes, opt_time=opt, seed=seed,
