@@ -1,5 +1,22 @@
 # Current work handoff
 
+## (G12) ACTUATION SHORTLIST — 2026-07-08 ~22:10 (branch claude/pipeline-consolidation)
+Deep dive docs/actuation-space-2026-07-08.md (fb49fd6): pass-form SHRINKS problems until
+stronger tools apply; 10 actuations, ranked. IMPLEMENTATION (owner GO "implement those"):
+A1 staged-FR landed EXPERIMENTAL (7e40885, cec_staged_fr.py -- DSN include-only tiering +
+lock/protect ladder; datapoint: diffpair TRUE + drc 5v15 + vias 59v72 BUT unconn 27v3 at
+low effort; FOLLOWUPS investigation, S2 interplay). A2 snag compiler landed (960f4b1,
+cec_snag_compiler.py -- verdict violations -> seat-schema proposals, same validator/wave
+channel, snagfix-* provenance; teeth on live verdict). A5 FR seed patch IN FLIGHT (opus;
+BASE RULING: pin 1.7.0 -- latest release is STILL 2.2.4, which we measured hanging on the
+12vhpwr GND net despite its own stagnation fixes; patched 1.7.0 = determinism + diversity
+one knob; deliverables scripts/patches/ + ops/README-fr-fork.md + jar via
+CEC_FREEROUTING_JAR, FR_RELEASES wiring post-S2-merge). A3 cell extractor IN FLIGHT
+(sonnet; 12vhpwr 6-lane extraction + PITCH RE-MEASUREMENT of the unverified 17.00mm +
+lane3->lane5 stamp round-trip teeth). A4 GUI-parity locks QUEUED post-merges. S2 agent
+found a REAL board defect mid-build: atx-24pin-rev3 .kicad_pro CAN netclass pattern STALE
+(*CAN1_P; /CAN_H falls in Default class) -- fix after S2 merges (its report will carry it).
+
 ## (G11) PASS-FORM REDESIGN — 2026-07-08 ~21:15 (branch claude/pipeline-consolidation)
 OWNER DIRECTIVE (the structural pivot): place+route like a human, in PASSES — "route the
 important ones with high precision first alone, then fill in the gaps cheaply." PLAN OF
