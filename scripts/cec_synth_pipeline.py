@@ -6026,7 +6026,7 @@ def _oracle_thermal(board_path, *, ambient, gate_dt, grid_mm):
 def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambient=50.0,
                        gate_dt=30.0, grid_mm=0.4, seed=None, unconn_finish_tol=2,
                        route=True, work_dir=None, keep=False, verbose=False, fr_timeout=600,
-                       craft_gates=True, thermal="always", protect_nets=()):
+                       craft_gates=True, thermal="always", protect_nets=(), precision=False):
     """ROUTE-ORACLE GRADER (SLICE-1a): grade a placement by ACTUALLY ROUTING it and reading the REAL
     post-route ACCEPT CONJUNCTION. This REPLACES the cheap placement_proxy as the selection key.
 
@@ -6082,14 +6082,28 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
 
             # ---- 2. route it with the gate-clean recipe (ONE route_once), or grade as-is ----
             t0 = time.monotonic()
+            prec_report = None
             if route:
                 hints, pours, rules = _oracle_hints_pours(placed)
-                routed = os.path.join(work_dir, "routed.kicad_pcb")
+                routed = os.path.join(work_dir, "routed.                # PRECISION-FIRST (STAGE S2, plan §4/§5): lay R2 kelvin + R3 coupled pairs on
+                # the UNCONTENDED placement and LOCK them, then FR fills only the residual with
+                # the locked copper PROTECTed (fix->protect in the DSN, else FR 1.7.0 drops it).
+                # precision=False (default) = byte-identical single-route_once path. Composes
+                # with the S3 blueprint guard: _locked_bp nets are already in protect_nets and
+                # the double-lay guard wraps the route either way.
+                route_input, _protect, _skip_taps = placed, list(protect_nets), False
+                if precision:
+                    import cec_precision_route
+                    prec = os.path.join(work_dir, "precision.kicad_pcb")
+                    prec_report = cec_precision_route.precision_route(placed, prec, verbose=verbose)
+                    route_input = prec
+                    _protect = sorted(set(_protect) | set(prec_report.get("locked_nets", [])))
+                    _skip_taps = True  # taps laid+locked pre-FR; import_ses must not re-lay them
                 with cec_cell_extract.guard_kelvin_double_lay(cec_fr, _locked_bp):
-                    cand = cec_fr.route_once(placed, routed, hints=hints, power_pours=pours,
+                    cand = cec_fr.route_once(route_input, routed, hints=hints, power_pours=pours,
                                              passes=passes, opt_time=opt, seed=seed,
                                              timeout=int(fr_timeout),
-                                             protect_nets=protect_nets)
+                                             protect_nets=_protect, skip_locked_taps=_skip_taps)
                 if not cand.ok:
                     return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
                                              error=f"route failed: {cand.err}")
@@ -6300,7 +6314,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "pour_family_advisory": pfam, "dfm_advisory": dfm,
                 "route_sanity_advisory": rsan, "silk_score": silk,
                 "facing_advisory": facing, "gap_advisory": gapp,
-                "gnd_fanout": gnd_rep, "si_advisory": si,
+                "gnd_fanout": gnd_rep, "si_advisory": si, "precision": prec_report,
                 "courtyards_ok": courtyards_ok, "courtyards": cy,
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,

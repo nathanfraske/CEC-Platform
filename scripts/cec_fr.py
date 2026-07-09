@@ -2374,7 +2374,7 @@ def normalize_via_annular(board, *, min_annular: float = 0.10,
 # ---------------------------------------------------------------------------
 def import_ses(board_path: str, ses_path: str, out_path: str, *,
                fill_zones: bool = True, fix_annular: bool = True, power_pours=(),
-               kelvin_taps: bool = True) -> str:
+               kelvin_taps: bool = True, skip_locked_taps: bool = False) -> str:
     """Import a Freerouting .ses back into the board and save it.
 
     Loads *board_path*, calls ImportSpecctraSES(board, ses_path), then in order:
@@ -2425,11 +2425,25 @@ def import_ses(board_path: str, ses_path: str, out_path: str, *,
         # window derive_power_pours leaves open. ADDITIVE same-net (after the route) -> never strands
         # the sense; self-gating no-op on shared-bus / filtered-lane boards. (env kill-switch:
         # CEC_KELVIN_TAPS=0 reverts to the un-tapped behaviour for an A/B.)
-        if os.environ.get("CEC_KELVIN_TAPS", "1") != "0":
+        # PRECISION PRE-FR TAPS (cec_precision_route / plan §4 R2): when the board already carries
+        # LOCKED _HI/_LO tap copper -- laid + locked on the uncontended board pre-FR and PROTECTed
+        # through FR -- re-synthesizing here would DOUBLE-LAY the same stubs (synthesize_kelvin_taps
+        # is NOT idempotent). skip_locked_taps=True detects that copper and skips only the tap
+        # synthesis (the force-via bridge below still runs). Default False = today's post-route tap.
+        _has_locked_taps = False
+        if skip_locked_taps:
+            _has_locked_taps = any(
+                t.GetClass() == "PCB_TRACK" and t.IsLocked()
+                and (t.GetNetname().endswith("_HI") or t.GetNetname().endswith("_LO"))
+                for t in board.GetTracks())
+        if os.environ.get("CEC_KELVIN_TAPS", "1") != "0" and not _has_locked_taps:
             kt = synthesize_kelvin_taps(board)
             if kt["taps"]:
                 print(f"[cec_fr] kelvin taps: laid {kt['taps']} inner-edge stub(s) "
                       f"{kt['by_net']}", file=sys.stderr)
+        elif _has_locked_taps:
+            print("[cec_fr] kelvin taps: board carries LOCKED tap copper -- skipping re-synthesis "
+                  "(precision pre-FR taps already laid + protected)", file=sys.stderr)
         # INNER-POUR force bridge: when the rail pours live on In2 (PWR_RT boards), each SMD
         # shunt pad needs vias down to them -- THT pins pierce natively, SMD pads do not.
         if any(str(p.get("layer")) == "In2.Cu" for p in (power_pours or ())):
@@ -2659,6 +2673,8 @@ def route_once(
     protect_nets=(),              # nets whose LOCKED stubs get fix->protect in the DSN
                                   # (FR 1.7.0 DROPS unprotected fix wires -- measured,
                                   # cec_fr02 bench; the coord-hints A/B rides this)
+    skip_locked_taps: bool = False,  # precision pre-FR taps already laid+locked -> import_ses must
+                                     # NOT re-synthesize (double-lay). Plumbed to import_ses.
 ) -> Candidate:
     """Full single-candidate pipeline: (bake_hints) -> export_dsn -> run_freerouting -> import_ses.
 
@@ -2711,7 +2727,8 @@ def route_once(
         # 4. Import SES into the ORIGINAL board (not the hinted copy, so keepout
         #    zones from bake_hints don't clutter the final result). Pour the high-current
         #    nets AFTER the route (additive same-net copper) + fix FR's thin-annular vias.
-        import_ses(board_path, ses_path, out_path, power_pours=power_pours)
+        import_ses(board_path, ses_path, out_path, power_pours=power_pours,
+                   skip_locked_taps=skip_locked_taps)
 
         return Candidate(
             board=out_path,
