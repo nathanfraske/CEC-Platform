@@ -233,3 +233,5 @@ The constraint loop (functional-grouping placer + workflow wf_8bc87458 layer-swa
   high-current — needs the straddle-pair-derived force-net list instead of name heuristics;
   (b) the DFM set counts 94 hits on the SHIPPED 12vhpwr fab board — the type list needs
   triage (which classes gate vs report) against boards you accept.
+
+- [2026-07-09] SPEC fold-in owed: per-cable output-field UNIFORMITY ruling (pinout free within ampacity; identical across cable positions + across PCIe-2/3 SKUs -- owner, 2026-07-09, production/interchangeability grounds). Pipeline enforcement landing separately; the spec §2.8-adjacent text needs the owner ritual.
