@@ -6085,7 +6085,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             prec_report = None
             if route:
                 hints, pours, rules = _oracle_hints_pours(placed)
-                routed = os.path.join(work_dir, "routed.                # PRECISION-FIRST (STAGE S2, plan §4/§5): lay R2 kelvin + R3 coupled pairs on
+                routed = os.path.join(work_dir, "routed.kicad_pcb")
+                # PRECISION-FIRST (STAGE S2, plan §4/§5): lay R2 kelvin + R3 coupled pairs on
                 # the UNCONTENDED placement and LOCK them, then FR fills only the residual with
                 # the locked copper PROTECTed (fix->protect in the DSN, else FR 1.7.0 drops it).
                 # precision=False (default) = byte-identical single-route_once path. Composes
