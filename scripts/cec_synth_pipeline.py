@@ -3160,14 +3160,19 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, 
     """Seat the D-5a output blade FIELD as one contiguous row at the power_out edge: a 6-slot
     WINDOW per cable (one window == one mating daughterboard; adjacent windows separated by
     _BLADE_GROUP_GAP_MM so the daughterboard BODIES clear), the cable's LO/rail blades assigned
-    to the CONTIGUOUS TRIPLE of slots inside its window NEAREST its corridor column, GND blades
-    filling the rest. Net->slot order is a free variable (the blades are identical; the
-    daughterboard routes to match -- owner 2026-07-07), which is exactly what lets neighbouring
-    windows MIRROR their rail triples toward their columns when the J_IN columns sit closer than
-    a full window pitch (measured: eps columns 21.7mm apart vs 34.7mm window pitch -- a naive
-    per-group centring displaced cable 2's blades ~8mm off-column and broke its pour path).
-    The row origin is then least-squares fitted so the rail triples land as close to their
-    columns as the window grid allows. Mutates *anchors*."""
+    to a contiguous TRIPLE of slots inside its window, GND blades filling the rest. Net->slot
+    order is a free variable (the blades are identical; the daughterboard routes to match --
+    owner 2026-07-07).
+
+    PER-CABLE OUTPUT UNIFORMITY (owner ruling 2026-07-09): the rail triple sits at the SAME
+    intra-window slot offset in EVERY window (a SHARED rail_off), so every window is an IDENTICAL,
+    interchangeable field and the LO output tabs land on the UNIFORM window pitch. (The prior code
+    snapped each triple to the slot nearest its corridor column, which quantised to a different
+    offset per cable -- window grid ~30mm vs columns ~21mm -- and produced the owner's uneven
+    25.3/20.6mm tab pitch. That is now the ROOT-fixed defect.) The shared offset is the per-cable
+    nearest-slot picks rounded, the row is least-squares centred on the columns, and the pour fans
+    shunt->tab per cable (the pour stays anchored to its own tabs, never regularised off them).
+    Mutates *anchors*."""
     all_blades = [r for r in anchors if r in comps and _is_blade(r, str(comps.get(r, "")))]
     assigned = {b for c, _col in blade_cables for b in c["j_out_blades"]}
     gnd_pool = sorted(r for r in all_blades if r not in assigned)
@@ -3186,6 +3191,11 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, 
         except Exception:                              # noqa: BLE001
             pass
     cables = sorted(blade_cables, key=lambda t: t[1])  # left-to-right by corridor column
+    # SHARED-BUS boards (24-pin per-rail) are NOT a per-cable interchangeability family (their rails
+    # carry different currents / different tab counts), so the owner's per-cable output-uniformity
+    # ruling does not apply -- they keep the original per-column blade seating BYTE-IDENTICALLY.
+    _is_shared = any(c.get("shared_bus") for c, _col in blade_cables)
+    _uniform = (len(cables) >= 3) and not _is_shared
     p = float(pitch if pitch is not None else _BLADE_PITCH_MM)
     g = float(gap if gap is not None else _BLADE_GROUP_GAP_MM)
     win_pitch = None                                   # slot index stride between window starts
@@ -3200,18 +3210,39 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, 
         # blade CENTER-to-CENTER gap (as-built 6.5mm vs the 4.7 in-window pitch -- enough for
         # the 28.6mm daughterboard bodies to clear their 23.5mm fields by ~1.4mm).
         s += (n_win - 1) + g / p
-    # two-pass: pick rail triples per window given x0, then least-squares x0, then re-pick
+    # PER-CABLE OUTPUT UNIFORMITY (owner ruling 2026-07-09, production/interchangeability): with
+    # >=3 cables the rail triple offset within the window MUST be the SAME for every cable, or the
+    # LO output tabs land at an UNEVEN pitch. The prior code snapped each cable's triple to the
+    # window slot NEAREST its corridor column; because the window grid (~30mm) and the corridor
+    # columns (~21mm) have DIFFERENT pitches, that "nearest slot" quantised to a different intra-
+    # window offset per cable, so the tabs landed at the owner's measured 25.3mm then 20.6mm -- a
+    # per-slot daughterboard could not then interchange. A SHARED rail_off makes every window an
+    # IDENTICAL, interchangeable field on the uniform window pitch (the shared offset is the per-
+    # cable nearest-slot picks rounded, so it is the minimal move off today's row). A pitch can
+    # only BE uneven with >=3 positions, so <=2 cables (eps / PCIe-2port) keep the ORIGINAL two-
+    # pass placement BYTE-IDENTICALLY (a 2-cable output field is single-pitch = always uniform).
     x0 = (sum(col for _c, col in cables) / len(cables)) - (s - 1) * p / 2.0 if cables else 0.0
-    rail_off = [0] * len(cables)
-    for _ in range(2):
-        offs = []
-        for i, (c, col) in enumerate(cables):
-            ws, n_win, n_lo = win_starts[i]
-            best = min(range(0, n_win - n_lo + 1),
-                       key=lambda k: abs(x0 + (ws + k + (n_lo - 1) / 2.0) * p - col))
-            rail_off[i] = best
-            offs.append(((win_starts[i][0] + best + (n_lo - 1) / 2.0) * p, col))
-        x0 = sum(col - o for o, col in offs) / len(offs)
+    if _uniform:
+        _max_off = min((n_win - n_lo for (_ws, n_win, n_lo) in win_starts), default=0)
+        _picks = [min(range(0, win_starts[i][1] - win_starts[i][2] + 1),
+                      key=lambda k: abs(x0 + (win_starts[i][0] + k
+                                              + (win_starts[i][2] - 1) / 2.0) * p - col))
+                  for i, (c, col) in enumerate(cables)]
+        rail_const = max(0, min(_max_off, round(sum(_picks) / len(_picks))))
+        rail_off = [rail_const] * len(cables)             # UNIFORM -> even tab pitch, identical windows
+        x0 = sum(col - (ws + rail_const + (n_lo - 1) / 2.0) * p
+                 for (ws, n_win, n_lo), (_c, col) in zip(win_starts, cables)) / len(cables)
+    else:                                                 # ORIGINAL two-pass (byte-identical, <=2 cables)
+        rail_off = [0] * len(cables)
+        for _ in range(2):
+            offs = []
+            for i, (c, col) in enumerate(cables):
+                ws, n_win, n_lo = win_starts[i]
+                best = min(range(0, n_win - n_lo + 1),
+                           key=lambda k: abs(x0 + (ws + k + (n_lo - 1) / 2.0) * p - col))
+                rail_off[i] = best
+                offs.append(((win_starts[i][0] + best + (n_lo - 1) / 2.0) * p, col))
+            x0 = sum(col - o for o, col in offs) / len(offs)
     if W is not None:
         # after the loop s = last_window_start + (n_win-1) + gap/p, so the last blade sits at
         # slot (s - gap/p); the row must stay on-board with half a pitch + margin each side.
@@ -3235,6 +3266,22 @@ def _seat_blade_fields(blade_cables, anchors, nl, comps, W=None, *, pitch=None, 
             if r and r in anchors:
                 _x, y, _rot = anchors[r]
                 anchors[r] = (x, row_y if row_y is not None else y, 0.0)
+        # PER-CABLE OUTPUT-POUR ALIGNMENT (owner ruling 2026-07-09, per-cable output uniformity):
+        # for the >=3-cable uniform-window case, centre this cable's SHUNT under its output tab
+        # block so the LO output pour (bbox of the LO tabs + the shunt's LO pad) is IDENTICAL across
+        # positions. Without it the shunt stays on the ~21mm INPUT pitch while the tabs sit on the
+        # ~30mm window pitch, so the outer cables' LO pours widen to FAN shunt->tab and their SHAPES
+        # diverge from the middle cable's (measured cable1 15.8mm vs cable2 11.4mm). The shunt is
+        # OWNED by this corridor pass (seated just above), so moving it is legal; the sense ICs seat
+        # AFTER (_seat_sense_ics) and follow. J_IN is owned+locked by seed_anchors (the input side is
+        # not an interchangeable daughterboard mate) -- left in place. Skipped for <=2 cables / shared
+        # bus so eps / PCIe-2port / 24-pin stay byte-identical (their tabs already track the columns).
+        if _uniform:
+            _tab_center = x0 + (ws + rail_off[i] + (n_lo - 1) / 2.0) * p
+            _sh = c.get("shunt")
+            if _sh and _sh in anchors:
+                _sx, _sy, _sr = anchors[_sh]
+                anchors[_sh] = (_tab_center, _sy, _sr)
 
 
 def _perp_half(size, rot, n):
@@ -5252,6 +5299,7 @@ _ORACLE_RECIPE_ENV = {
     "CEC_CORRIDOR_FCU_ONLY":     "1",   # F.Cu-only corridor lever: foreign routes B.Cu UNDER the solid F.Cu pour
     "CEC_SENSEC_FORCE_POUR_ONLY":"1",   # leave the connector<->shunt FORCE path to the pour (no redundant trace)
     "CEC_SHUNT_GAP":             "1",   # widen the shunt notch -- REQUIRED for the foreign==0 check to read clean
+    "CEC_POUR_UNIFORM":          "1",   # per-cable output pours DERIVED ONCE, stamped uniform-shape (owner 2026-07-09)
     # During waves the CPU is contended by FR JVMs while the GPU idles; wave-grade solves
     # (~100k unknowns) sit just under the measured 120k solo crossover, so push them to the
     # GPU anyway -- break-even solve speed, net wall-clock win (owner catch 2026-07-08).
@@ -6340,6 +6388,107 @@ def _oracle_bodies_in_pours(placed_board_path, *, margin=0.0):
     return {"ok": not viol, "violations": viol[:14]}
 
 
+def _oracle_pour_uniformity(placed_board_path, *, tol_pitch=0.1, tol_shape=0.1):
+    """PER-CABLE OUTPUT-FIELD UNIFORMITY gate (owner ruling 2026-07-09, production/interchangeability
+    grounds). The pipeline controls the per-cable output pinout WITHIN ampacity, but the assignment
+    and the resulting pours must be IDENTICAL across cable positions (and across the PCIe 2-/3-port
+    SKUs). Two surfaces, BOTH gated:
+
+      (a) TAB-ROW pitch uniformity -- the output blade tabs are the mechanical mate = the actual
+          interchangeability spec. A daughterboard designed for one cable slot must fit any slot, so
+          the cable-to-cable tab pitch must be CONSTANT. Uneven pitch (the owner's observed defect on
+          fresh PCIe boards) FAILS. Fixed at its ROOT in the placer (uniform cable-column pitch);
+          this gate is the standing production guarantee.
+      (b) OUTPUT pour SHAPE identity across positions -- derive-once-stamp-N keeps this true; gated so
+          it stays true.
+
+    The tab POSITIONS themselves are the reference (read straight off the board footprints, like the
+    daughterboard keying checker reads pcb_placement()); the pour is only allowed to differ from a
+    per-position translate if that difference is a REAL shape delta (b), never a pitch (a). N/A
+    (applicable=False, ok=True) on boards with no per-cable output family (24-pin / 12VHPWR / Hub).
+    OPERATING DOMAIN: pipeline-FRESH boards (the oracle path)."""
+    import pcbnew
+    import cec_pourplan
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"applicable": True, "ok": False, "violations": ["board unloadable"]}
+    MM = 1e6
+    # OUTPUT tab positions: the THT pads on each cable's _LO (post-shunt, output) net, grouped by
+    # (prefix, cable index). Excludes the shunt (SMD) -- the tab blocks are the mechanical mate.
+    tab_pts = {}
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            pr = cec_pourplan._parse_cable_net(p.GetNetname())
+            if pr is None or pr[2] != "_LO" or p.GetAttribute() != pcbnew.PAD_ATTRIB_PTH:
+                continue
+            pos = p.GetPosition()
+            tab_pts.setdefault(pr[0], {}).setdefault(pr[1], []).append((pos.x / MM, pos.y / MM))
+    out_roles = {pre: by for pre, by in tab_pts.items() if len(by) >= 2}
+    if not out_roles:
+        return {"applicable": False, "ok": True, "violations": [],
+                "note": "no per-cable output tab family (shared-bus / per-rail board)"}
+    # the OUTPUT pours (honours the live recipe -- e.g. CEC_POUR_UNIFORM stamps the shape uniform)
+    plan = cec_pourplan.PourPlan.from_board(placed_board_path, board=board)
+    lo_pours = {}
+    for s in plan.specs:
+        pr = cec_pourplan._parse_cable_net(s.net)
+        if pr and pr[2] == "_LO" and s.rect() is not None:
+            lo_pours.setdefault(pr[0], {}).setdefault(pr[1], []).append(s.rect())
+    return _pour_uniformity_verdict(out_roles, lo_pours, tol_pitch=tol_pitch, tol_shape=tol_shape)
+
+
+def _pour_uniformity_verdict(tabs_by_role, pours_by_role, *, tol_pitch=0.1, tol_shape=0.1):
+    """PURE (pcbnew-free) uniformity math -- so the firing case is unit-testable without a board.
+    `tabs_by_role`  = {prefix: {cable_idx: [(x,y), ...] output tab pad positions}} (>=2 idx per role).
+    `pours_by_role` = {prefix: {cable_idx: [(x0,x1,y0,y1) LO pour rects]}}.
+    Verdict: tab-row pitch uniform across positions (a) AND output pour SHAPE identical (b)."""
+    def _mag(v):
+        return (v[0] ** 2 + v[1] ** 2) ** 0.5
+
+    def _shape_dev(a, b):
+        """max |w/h diff| between two sorted (w,h) shape lists; None if the counts differ."""
+        if len(a) != len(b):
+            return None
+        return max((max(abs(aw - bw), abs(ah - bh)) for (aw, ah), (bw, bh) in zip(a, b)), default=0.0)
+
+    viol = []
+    max_pitch_dev = 0.0
+    max_shape_dev = 0.0
+    for pre, by in tabs_by_role.items():
+        positions = sorted(by)
+        # (a) TAB-ROW pitch uniformity -- per-cable reference = min-corner of its output tab pads
+        refs = {i: (min(p[0] for p in by[i]), min(p[1] for p in by[i])) for i in positions}
+        pitches = [(refs[positions[k + 1]][0] - refs[positions[k]][0],
+                    refs[positions[k + 1]][1] - refs[positions[k]][1])
+                   for k in range(len(positions) - 1)]
+        if len(pitches) >= 2:                              # >=3 positions -> a pitch CAN be uneven
+            p0 = pitches[0]
+            for k, pk in enumerate(pitches[1:], start=1):
+                dev = max(abs(pk[0] - p0[0]), abs(pk[1] - p0[1]))
+                max_pitch_dev = max(max_pitch_dev, dev)
+                if dev > tol_pitch:
+                    viol.append(
+                        "tab-row pitch NON-UNIFORM (%s output field): cable %d->%d pitch %.3fmm vs "
+                        "cable %d->%d %.3fmm (dev %.3fmm > %.2f) -- a per-slot daughterboard would not "
+                        "interchange" % (pre, positions[k], positions[k + 1], _mag(pk),
+                                         positions[0], positions[1], _mag(p0), dev, tol_pitch))
+        # (b) output pour SHAPE identity across positions
+        shapes = {i: sorted((round(r[1] - r[0], 4), round(r[3] - r[2], 4))
+                            for r in pours_by_role.get(pre, {}).get(i, []))
+                  for i in positions}
+        ref_i = positions[0]
+        for i in positions[1:]:
+            sd = _shape_dev(shapes[ref_i], shapes[i])
+            max_shape_dev = max(max_shape_dev, 999.0 if sd is None else sd)
+            if sd is None or sd > tol_shape:
+                viol.append("output pour SHAPE differs (%s): cable %d %s vs cable %d %s"
+                            % (pre, ref_i, shapes[ref_i], i, shapes[i]))
+    return {"applicable": True, "ok": not viol, "violations": viol[:12],
+            "max_pitch_dev_mm": round(max_pitch_dev, 3), "max_shape_dev_mm": round(max_shape_dev, 3),
+            "tol_pitch_mm": tol_pitch, "tol_shape_mm": tol_shape,
+            "positions": {pre: sorted(by) for pre, by in tabs_by_role.items()}}
+
+
 def _oracle_pair_quality(routed_board_path, *, max_skew_mm=4.0):
     """DATA-PAIR gate term (owner 2026-07-08: 'data lines as short and ran as pairs'):
     each recognized pair (USB *_P/_N, CAN *_H/_L) must be length-matched within
@@ -6571,6 +6720,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 bq = {"ok": False, "violations": ["checker error: %s" % e]}
             bodies_ok = bool(bq.get("ok")) or not craft_gates
             try:
+                puni = _oracle_pour_uniformity(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                puni = {"applicable": True, "ok": False, "violations": ["checker error: %s" % e]}
+            pour_uniform_ok = bool(puni.get("ok")) or not craft_gates
+            try:
                 pq = _oracle_pair_quality(routed)
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 pq = {"ok": False, "violations": ["checker error: %s" % e]}
@@ -6671,7 +6825,8 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                              and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
                              and comparator_ok and kelvin_reach_ok and courtyards_ok
                              and circuit_ok and stranded_ok and pin_escape_ok
-                             and courtyard_edge_ok and fiducials_ok and tht_backside_ok)
+                             and courtyard_edge_ok and fiducials_ok and tht_backside_ok
+                             and pour_uniform_ok)
             if thermal == "lazy" and not others_ok:
                 therm = {"ok": False, "skipped": True, "max_T": None, "dT": None,
                          "gate_dt": gate_dt,
@@ -6727,6 +6882,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "sense_side_ok": sense_side_ok, "sense_side": sside,
                 "decouple_ok": decouple_ok, "decouple": dq,
                 "bodies_in_pours_ok": bodies_ok, "bodies_in_pours": bq,
+                "pour_uniform_ok": pour_uniform_ok, "pour_uniformity": puni,
                 "comparator_ok": comparator_ok, "comparator": cq,
                 "kelvin_reach_ok": kelvin_reach_ok, "kelvin_reach": kr,
                 "circuit_ok": circuit_ok, "circuit": cc,
@@ -6747,7 +6903,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                                            routing_complete, crit, sig, unconn_finish_tol,
                                            sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
                                            cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq,
-                                           tb_g=tb),
+                                           tb_g=tb, puni=puni),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -6774,7 +6930,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
                     cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None,
-                    fq_g=None, tb_g=None):
+                    fq_g=None, tb_g=None, puni=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -6817,6 +6973,9 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
         r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
     if bq is not None and not bq.get("ok"):
         r.append(f"bodies IN pours (hard rule): {bq.get('violations')[:6]}")
+    if puni is not None and puni.get("applicable", True) and not puni.get("ok"):
+        r.append(f"per-cable output NOT uniform (tab-pitch dev {puni.get('max_pitch_dev_mm')}mm / "
+                 f"shape dev {puni.get('max_shape_dev_mm')}mm): {puni.get('violations', [])[:4]}")
     if dq is not None and not dq.get("ok"):
         r.append(f"decoupler adjacency violated (cap > threshold from its IC): {dq.get('violations')[:5]}")
     if pq is not None and not pq.get("ok"):

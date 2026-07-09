@@ -171,5 +171,63 @@ class TestOracleRoute(unittest.TestCase):
         self.assertNotEqual(proxy_best, oracle_best)
 
 
+# ===================================================================== per-cable output uniformity
+class TestPourUniformity(unittest.TestCase):
+    """PER-CABLE OUTPUT-FIELD UNIFORMITY gate (owner ruling 2026-07-09). Two surfaces: (a) the output
+    TAB-ROW pitch is uniform across positions (the mechanical mate = interchangeability spec), and
+    (b) the output pour SHAPE is identical. The math is pure (`_pour_uniformity_verdict`); the pcbnew
+    wrapper reads the tab pads + pours off a board."""
+
+    def test_uneven_tab_pitch_fires(self):
+        # cable pitch 25.3mm then 20.6mm (the owner's measured fresh-PCIe defect) -> FAIL, dev 4.7mm
+        tabs = {"/SENSEC": {1: [(0.0, 0.0)], 2: [(25.3, 0.0)], 3: [(45.9, 0.0)]}}
+        pours = {"/SENSEC": {1: [(0, 10, 0, 40)], 2: [(25.3, 35.3, 0, 40)], 3: [(45.9, 55.9, 0, 40)]}}
+        v = sp._pour_uniformity_verdict(tabs, pours)
+        self.assertFalse(v["ok"])
+        self.assertAlmostEqual(v["max_pitch_dev_mm"], 4.7, places=3)
+        self.assertIn("tab-row pitch NON-UNIFORM", v["violations"][0])
+
+    def test_uniform_tab_pitch_passes(self):
+        tabs = {"/SENSEC": {1: [(0.0, 0.0)], 2: [(30.0, 0.0)], 3: [(60.0, 0.0)]}}
+        pours = {"/SENSEC": {1: [(0, 10, 0, 40)], 2: [(30, 40, 0, 40)], 3: [(60, 70, 0, 40)]}}
+        v = sp._pour_uniformity_verdict(tabs, pours)
+        self.assertTrue(v["ok"])
+        self.assertEqual(v["max_pitch_dev_mm"], 0.0)
+
+    def test_two_positions_are_always_uniform(self):
+        # 2 cables = a single pitch = always uniform (a per-slot daughterboard trivially interchanges)
+        tabs = {"/SENSEC": {1: [(0.0, 0.0)], 2: [(21.7, 0.0)]}}
+        pours = {"/SENSEC": {1: [(0, 10, 0, 40)], 2: [(21.7, 31.7, 0, 40)]}}
+        self.assertTrue(sp._pour_uniformity_verdict(tabs, pours)["ok"])
+
+    def test_shape_delta_fires_even_at_uniform_pitch(self):
+        tabs = {"/SENSEC": {1: [(0.0, 0.0)], 2: [(30.0, 0.0)], 3: [(60.0, 0.0)]}}
+        pours = {"/SENSEC": {1: [(0, 10, 0, 40)], 2: [(30, 45, 0, 40)], 3: [(60, 70, 0, 40)]}}  # c2 15-wide
+        v = sp._pour_uniformity_verdict(tabs, pours)
+        self.assertFalse(v["ok"])
+        self.assertTrue(any("SHAPE differs" in s for s in v["violations"]))
+
+
+@unittest.skipUnless(HAVE_PCBNEW, "pcbnew required")
+class TestPourUniformityBoards(unittest.TestCase):
+    ATX = os.path.join(ROOT, "modules", "atx-24pin-rev3", "24pin-module.kicad_pcb")
+    PCIE3 = os.path.join(ROOT, "modules", "pcie-8pin-3port", "pcie8pin-3port-module.kicad_pcb")
+
+    @unittest.skipUnless(os.path.isfile(ATX), "24-pin board required")
+    def test_shared_bus_board_is_na(self):
+        # the 24-pin is a per-RAIL (shared-bus) board -- no per-cable output family -> N/A, never fails
+        v = sp._oracle_pour_uniformity(self.ATX)
+        self.assertFalse(v["applicable"])
+        self.assertTrue(v["ok"])
+
+    @unittest.skipUnless(os.path.isfile(PCIE3), "committed pcie-3port board required")
+    def test_committed_generator_board_is_uniform(self):
+        # the committed (generator-made) pcie-3port module has a uniform output field
+        v = sp._oracle_pour_uniformity(self.PCIE3)
+        self.assertTrue(v["applicable"])
+        self.assertTrue(v["ok"], v.get("violations"))
+        self.assertEqual(v["positions"], {"/SENSEC": [1, 2, 3]})
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
