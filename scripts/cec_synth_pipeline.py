@@ -5088,6 +5088,46 @@ def _oracle_gap_profile(placed_board_path):
             "modebin_pct": round(100.0 * max(hist) / len(g), 1)}
 
 
+def _oracle_tht_backside(placed_board_path, *, clearance_mm=0.3):
+    """THT-BACKSIDE gate (OWNER-FOUND on the blind renders, 2026-07-08, machine-confirmed):
+    a through-hole part's pins PROTRUDE through the board, so its PTH pin field occupies
+    BOTH faces -- but dual-sided placement is not yet side-aware (the documented v1 note at
+    the back_refs assignment) and KiCad's courtyard DRC misses this class (courtyards are
+    per-side: it caught J6|U712V1 but NOT RS2/U75V1/U65V1 under J6's pin field, C16 under
+    J3). Gate: any footprint on the OPPOSITE face whose bbox overlaps a THT part's PTH
+    pin-field bbox (+clearance) fails -- solder joints/pin tails physically occupy that
+    space. Placement-only; N/A on single-sided boards."""
+    import pcbnew
+    board = pcbnew.LoadBoard(placed_board_path)
+    if board is None:
+        return {"ok": False, "violations": ["board unloadable"]}
+    tht, front, back = [], [], []
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        pth = [p for p in fp.Pads() if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+        if pth:
+            xs1 = [p.GetBoundingBox().GetLeft() / 1e6 for p in pth]
+            xs2 = [p.GetBoundingBox().GetRight() / 1e6 for p in pth]
+            ys1 = [p.GetBoundingBox().GetTop() / 1e6 for p in pth]
+            ys2 = [p.GetBoundingBox().GetBottom() / 1e6 for p in pth]
+            tht.append((ref, min(xs1), max(xs2), min(ys1), max(ys2), fp.IsFlipped()))
+        else:
+            bb = fp.GetBoundingBox()
+            (back if fp.IsFlipped() else front).append(
+                (ref, bb.GetLeft() / 1e6, bb.GetRight() / 1e6,
+                 bb.GetTop() / 1e6, bb.GetBottom() / 1e6))
+    if not back and not any(f for *_x, f in tht):
+        return {"ok": True, "violations": [], "note": "single-sided -- N/A"}
+    c = clearance_mm
+    viol = []
+    for ref, l, r, t, bm, flipped in tht:
+        # the pin field conflicts with parts on the face OPPOSITE the THT body's mount side
+        for oref, ol, orr, ot, ob in (back if not flipped else front):
+            if ol < r + c and orr > l - c and ot < bm + c and ob > t - c:
+                viol.append((oref, "under THT pin field of", ref))
+    return {"ok": not viol, "violations": viol[:10]}
+
+
 def _oracle_facing_fraction(placed_board_path, *, net_span_max=12):
     """FACING-FRACTION metric (exploration round 2 item 4, 2026-07-08): over every
     pair of footprints sharing a LOCAL net (board-wide pad count <= *net_span_max*,
@@ -5877,6 +5917,11 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
             except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
                 fq = {"ok": False, "violations": ["checker error: %s" % e]}
             fiducials_ok = bool(fq.get("ok")) or not craft_gates
+            try:
+                tb = _oracle_tht_backside(placed)
+            except Exception as e:                            # noqa: BLE001 -- FAIL-CLOSED
+                tb = {"ok": False, "violations": ["checker error: %s" % e]}
+            tht_backside_ok = bool(tb.get("ok")) or not craft_gates
             decouple_ok = bool(dq.get("ok")) or not craft_gates
             pairs_ok = bool(pq.get("ok")) or not craft_gates
 
@@ -5891,7 +5936,7 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                              and sense_side_ok and decouple_ok and pairs_ok and bodies_ok
                              and comparator_ok and kelvin_reach_ok and courtyards_ok
                              and circuit_ok and stranded_ok and pin_escape_ok
-                             and courtyard_edge_ok and fiducials_ok)
+                             and courtyard_edge_ok and fiducials_ok and tht_backside_ok)
             if thermal == "lazy" and not others_ok:
                 therm = {"ok": False, "skipped": True, "max_T": None, "dT": None,
                          "gate_dt": gate_dt,
@@ -5959,13 +6004,15 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 "pin_escape_ok": pin_escape_ok, "pin_escape": pe,
                 "courtyard_edge_ok": courtyard_edge_ok, "courtyard_edge": ce,
                 "fiducials_ok": fiducials_ok, "fiducials": fq,
+                "tht_backside_ok": tht_backside_ok, "tht_backside": tb,
                 "pairs_ok": pairs_ok, "pair_quality": pq,
                 "vias": m.vias, "tracks": m.tracks, "length": round(m.length, 2),
                 "sort_key": sort_key,
                 "reasons": _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                                            routing_complete, crit, sig, unconn_finish_tol,
                                            sside=sside, dq=dq, pq=pq, bq=bq, cq=cq, kr=kr, cy=cy,
-                                           cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq),
+                                           cc_g=cc, sp_g=sp, pe_g=pe, ce_g=ce, fq_g=fq,
+                                           tb_g=tb),
             }
             if verbose:
                 print(f"    [oracle] {label}: gate={gate} kelvin={m.kelvin_ok} diff={m.diffpair_ok} "
@@ -5992,7 +6039,7 @@ def _oracle_fail_dict(label, *, route_s=None, error=""):
 def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
                     routing_complete, crit, sig, tol, sside=None, dq=None, pq=None, bq=None,
                     cq=None, kr=None, cy=None, cc_g=None, sp_g=None, pe_g=None, ce_g=None,
-                    fq_g=None):
+                    fq_g=None, tb_g=None):
     """One human-readable reason per failing gate term (empty when the board is gate-clean)."""
     r = []
     if not m.kelvin_ok:
@@ -6028,6 +6075,9 @@ def _oracle_reasons(gates_pass, m, foreign_ok, fsum, thermal_ok, therm,
     if fq_g is not None and not fq_g.get("ok"):
         r.append(f"fiducial quality violated (count/clear/collinear): "
                  f"{fq_g.get('violations')[:4]}")
+    if tb_g is not None and not tb_g.get("ok"):
+        r.append(f"THT-backside clip (part under a through-hole pin field): "
+                 f"{tb_g.get('violations')[:4]}")
     if cq is not None and not cq.get("ok"):
         r.append(f"detection comparator fragmented from its INA181: {cq.get('violations')[:4]}")
     if bq is not None and not bq.get("ok"):
