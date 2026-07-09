@@ -131,6 +131,7 @@ BOARD_PARAMS = {
                          # bottom -- J3/J4 defeat the net-role classifier (both stacked
                          # at origin, measured), so pin them explicitly.
                          "anchor_roles": {"J3": "power_in", "J4": "power_out"},
+                         "straight_through": True,
                          "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
     "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
                        "connector_overhang": "edge",
@@ -170,6 +171,7 @@ def _intents():
     return [("plain", none), ("periph-right", periph_right), ("periph-left", periph_left)]
 
 
+
 def _intents_for(board):
     """Board-aware intent set: the generic trio plus per-board STRUCTURE-FIRST partitions
     (owner 2026-07-08: 'this board needs a lot more placement work... the placer pipeline
@@ -178,6 +180,11 @@ def _intents_for(board):
     blades (containing the stray INA181s the seat missed, 16-23mm off), and the MCU core /
     USB front-end zone RIGHT where their connectors live."""
     base = _intents()
+    # straight_through boards (owner, 12vhpwr fun-run 2026-07-09): drop the periph
+    # x-band partitions -- they relocate the power connectors into a side column,
+    # defeating the top->bottom flow the global role edges give.
+    if (BOARD_PARAMS.get(board) or {}).get("straight_through"):
+        return [x for x in base if x[0] == "plain"]
     if board != "atx-24pin-rev3":
         return base
 
