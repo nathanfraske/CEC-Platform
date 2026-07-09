@@ -2517,6 +2517,85 @@ class Candidate:
 # ---------------------------------------------------------------------------
 # route_once
 # ---------------------------------------------------------------------------
+def prune_dangling_tracks(board_or_path, out_path=None, *, tol_mm=0.02, max_iters=8):
+    """DANGLING-RUN safety net (owner scorecard finding, 2026-07-08 blind review: a
+    'weird floating CAN_TX run' -- FR litter that connects to nothing at one or both
+    ends). Iteratively removes UNLOCKED track segments with a dangling end. An end is
+    CONNECTED if it lands on: same-net pad copper (HitTest), a same-net via barrel, a
+    same-net track BODY on the same layer (point-to-segment, not just endpoints), or a
+    FILLED same-net zone (a pour entry is not dangling -- zone-aware, else legitimate
+    pour taps would be pruned). LOCKED tracks are never removed (deliberate stubs /
+    kelvin machinery) -- half-connected locked stubs are REPORTED instead. Iterates
+    because removing a segment can expose its neighbor."""
+    import math as _m
+    import pcbnew
+    b = board_or_path if not isinstance(board_or_path, str) else pcbnew.LoadBoard(board_or_path)
+    tol = int(tol_mm * 1e6)
+
+    def _on_seg(px, py, t2):
+        x0, y0 = t2.GetStart().x, t2.GetStart().y
+        x1, y1 = t2.GetEnd().x, t2.GetEnd().y
+        vx, vy = x1 - x0, y1 - y0
+        L2 = vx * vx + vy * vy
+        tt = 0.0 if L2 == 0 else max(0.0, min(1.0, ((px - x0) * vx + (py - y0) * vy) / L2))
+        return _m.hypot(px - (x0 + tt * vx), py - (y0 + tt * vy)) <= t2.GetWidth() // 2 + tol
+
+    zones = [(z.GetNetname(), lid, z.GetFilledPolysList(lid))
+             for z in b.Zones() if z.IsOnCopperLayer()
+             for lid in z.GetLayerSet().CuStack()]
+
+    def _connected(pt, net, lyr, me):
+        for fp in b.GetFootprints():
+            for p in fp.Pads():
+                if p.GetNetname() == net and p.IsOnLayer(lyr) and p.HitTest(pt):
+                    return True
+        for t2 in b.GetTracks():
+            if t2 is me or t2.GetNetname() != net:
+                continue
+            if t2.GetClass() == "PCB_VIA":
+                r = t2.GetWidth(t2.TopLayer()) // 2   # KiCad-10: via GetWidth NEEDS a layer
+                if _m.hypot(t2.GetPosition().x - pt.x, t2.GetPosition().y - pt.y) <= r + tol:
+                    return True
+            elif t2.IsOnLayer(lyr) and _on_seg(pt.x, pt.y, t2):
+                return True
+        for znet, zlid, poly in zones:
+            if znet == net and zlid == lyr and poly and poly.OutlineCount() > 0 \
+                    and poly.Collide(pt, tol):
+                return True
+        return False
+
+    removed, kept_locked = [], []
+    for _ in range(max_iters):
+        doomed = []
+        for t in list(b.GetTracks()):
+            if t.GetClass() == "PCB_VIA":
+                continue
+            net, lyr = t.GetNetname(), t.GetLayer()
+            dang = [e for e in (t.GetStart(), t.GetEnd())
+                    if not _connected(e, net, lyr, t)]
+            if not dang:
+                continue
+            if t.IsLocked():
+                key = (net, b.GetLayerName(lyr), len(dang))
+                if key not in kept_locked:
+                    kept_locked.append(key)
+                continue
+            doomed.append(t)
+        if not doomed:
+            break
+        for t in doomed:
+            removed.append((t.GetNetname(), b.GetLayerName(t.GetLayer()),
+                            round(_m.hypot(t.GetEnd().x - t.GetStart().x,
+                                           t.GetEnd().y - t.GetStart().y) / 1e6, 2)))
+            b.Remove(t)
+    if out_path and removed:
+        b.Save(out_path)
+    elif isinstance(board_or_path, str) and removed and out_path is None:
+        b.Save(board_or_path)
+    return {"removed": len(removed), "detail": removed[:15],
+            "locked_dangling_kept": kept_locked[:10]}
+
+
 def route_once(
     board_path: str,
     out_path: str,

@@ -4947,9 +4947,21 @@ def _oracle_route_sanity(routed_board_path, *, ratio_max=6.0, via_budget_base=10
             if nvias.get(nn, 0) > budget:
                 viol.append(("vias", nn, nvias[nn], budget))
     viol.sort(key=lambda v: -(v[2] if isinstance(v[2], (int, float)) else 0))
+    # LAYERS-PER-ROUTE (owner scorecard metric, 2026-07-08 blind review: "uses less
+    # layers to accomplish the same goal... an important metric"): distinct copper
+    # layers each routed net touches; fewer = better readability + fab margin.
+    layers_by_net = {}
+    for t in board.GetTracks():
+        nn = t.GetNetname()
+        if nn and t.GetClass() != "PCB_VIA":
+            layers_by_net.setdefault(nn, set()).add(t.GetLayer())
+    nlayers = sorted(((len(v), n) for n, v in layers_by_net.items()), reverse=True)
+    mean_layers = round(sum(c for c, _n in nlayers) / max(1, len(nlayers)), 2)
     return {"ok": not viol, "violations": viol[:10],
             "worst_ratio": round(worst_ratio, 2),
-            "vias_total": sum(nvias.values())}
+            "vias_total": sum(nvias.values()),
+            "mean_layers_per_net": mean_layers,
+            "most_layered": [(n, c) for c, n in nlayers[:5]]}
 
 
 def _oracle_fiducials(placed_board_path, *, min_count=3, min_clear_mm=1.5,
