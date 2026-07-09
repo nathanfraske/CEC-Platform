@@ -2346,19 +2346,30 @@ def _legalize_pack_seq(P, movable, cyinfo, W, H, *, clr=0.5, step=0.6, bounds=No
     return residual
 
 
-def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0):
+def _count_overlaps(P, comps, *, drop_antenna=False, clr=0.0, back_refs=()):
     """DRC-accurate courtyard-overlap count (matches kicad-cli courtyards_overlap): the honest
-    placement residual, not a self-reported one. Uses the real (cached) courtyard bboxes."""
+    placement residual, not a self-reported one. Uses the real (cached) courtyard bboxes.
+
+    FACE-AWARE (dual-sided fix, 2026-07-08): *back_refs* are the parts flipped to the back. KiCad's
+    courtyards_overlap checks F.CrtYd against F.CrtYd and B.CrtYd against B.CrtYd -- a front part
+    and a back part on the same X/Y do NOT overlap-flag (that class is the separate THT-backside
+    gate). So only SAME-mount-face pairs count. Empty back_refs -> all-front -> byte-identical to
+    the pre-face count (the golden-safety default for single-sided boards)."""
     import cec_pcb
+    back = set(back_refs or ())
     refs = [r for r in P if r in comps]
     bb = {}
+    face = {}
     for r in refs:
         rf = drop_antenna and ("esp32" in comps[r].lower() or "rf_module" in comps[r].lower())
         bb[r] = cec_pcb.courtyard_bbox(comps[r], *P[r], drop_keepout=rf)
+        face[r] = "B" if r in back else "F"
     n = 0
     for i, a in enumerate(refs):
         ax = bb[a]
         for b in refs[i + 1:]:
+            if face[a] != face[b]:
+                continue                                 # different CrtYd layer -> not a DRC overlap
             bx = bb[b]
             if not (ax[1] <= bx[0] - clr or bx[1] <= ax[0] - clr or
                     ax[3] <= bx[2] - clr or bx[3] <= ax[2] - clr):
@@ -4004,6 +4015,47 @@ def _dual_side_guard(back, anchors_roles, comps):
     return keep, stripped
 
 
+def _dual_side_cells(topo, pos, nl, comps):
+    """Per-rail sensing CELLS of a dual-sided shared-bus board + their F/B face assignment,
+    lifted OUT of the post-ladder back_refs block so the placement passes can be side-aware
+    BEFORE the board is built (the v1 note's gap). Columns are sorted by seated shunt x and
+    ALTERNATED even=front / odd=back -- exactly the old rule. Each cell = its shunt + the sense
+    ICs on its Kelvin nets (INA238/INA181) + their downstream comparators (TLV7011), i.e. every
+    part the seat pins rigidly around the shunt (Kelvin is preserved when a cell moves as a unit).
+    *pos* is the position dict (anchors or P). Needs no `spec` (passives fold in later)."""
+    entries = sorted((c for c in topo if c.get("shared_bus") and c["shunt"] in pos),
+                     key=lambda c: pos[c["shunt"]][0])
+    cells = []
+    for i, c in enumerate(entries):
+        refs = {r for net in (c["hi"], c["lo"]) for r, _ in nl.nets.get(net, [])}
+        sense = {r for r in refs if r in comps and "INA" in (nl.comps[r].value or "").upper()}
+        members = {c["shunt"]} | sense
+        for ic in sorted(sense):
+            members.update(_downstream_comparators(ic, c["hi"], c["lo"], nl, comps))
+        cells.append({"shunt": c["shunt"],
+                      "members": {r for r in members if r in pos},
+                      "sense": set(sense),
+                      "face": "F" if i % 2 == 0 else "B"})
+    return cells
+
+
+def _dual_side_back_refs(cells, spec, anchors_roles, comps):
+    """The full back set for a dual-sided board: each BACK cell's seated members PLUS the passives
+    those members own (spec), then the _dual_side_guard (connectors/MCU never flip). Returns
+    (back_tuple, stripped_set). Identical result to the old inline block; extracted so the SAME
+    face assignment drives the placement passes AND the materialize. Membership is by presence in
+    *comps* (a back part need not be placed yet -- a passive is flipped by identity, then placed)."""
+    back = set()
+    for cell in cells:
+        if cell["face"] != "B":
+            continue
+        chain = set(cell["members"])
+        chain |= {pref for pref, (own, _pad) in spec.items() if own in chain}
+        back |= {r for r in chain if r in comps}
+    kept, strp = _dual_side_guard(back, anchors_roles, comps)
+    return tuple(sorted(kept)), strp
+
+
 # =====================================================================================
 # REPAIR LADDER (owner policy, 2026-07-08): when an invariant conflicts with a
 # placement/route constraint, repairs are tried IN THIS ORDER -- both the automated
@@ -4074,6 +4126,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     _spine = _bands = _paired = _sensitive = _veto = None
     _rk = _role_clr = _func_stamped = None
     _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
+    # DUAL-SIDED face model (lifted from the post-ladder block so the passes are side-aware):
+    # _cells = per-rail sensing cells + F/B faces; _back = the full back-ref set; _tht_keep =
+    # {ref: (x0,x1,y0,y1,mount_face)} THT pin-field keepouts. Empty on non-dual-sided boards
+    # (byte-identical inertness -- the golden guarantee).
+    _cells = _back = _back_stripped = _tht_keep = None
     # P4 BLUEPRINT CELLS (docs/pass-form-plan.md §4, stage S3). Empty unless
     # cfg.params['blueprint_cells'] is set -> every downstream `not in _bp_refs` filter is a
     # no-op and synth_one is BYTE-IDENTICAL (the golden-safety invariant). _blueprint_stamps
@@ -4290,7 +4347,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
         nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
         nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
-        nonlocal _nets_of, _net_exempt, _restamped
+        nonlocal _nets_of, _net_exempt, _restamped, _cells, _back, _back_stripped, _tht_keep
         # 2. MACRO BLOCKS: auto_cluster each IC's passives in ISOLATION (IC at origin) to learn the
         #    cluster's full bbox + each passive's offset. Placing the bare IC then fanning passives into
         #    a tight gap fails (the condensed boards SPREAD ICs to leave cluster room) -- so we place the
@@ -4377,6 +4434,19 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
             for p, _pad in members:
                 if p in Pfx:
                     fixed_stamp[p] = Pfx[p]
+        # DUAL-SIDED FACE MODEL (lifted from the old post-ladder back_refs block so EVERY downstream
+        # pass is side-aware -- the v1 note's documented gap). Compute the per-rail sensing cells +
+        # their F/B faces (from the seated shunt x-order) and the full back set (cell members + their
+        # owned passives, guarded). Empty unless the board declares dual_sided + is shared-bus ->
+        # every face-aware branch below is inert -> byte-identical on single-sided boards.
+        _cells = _back = _tht_keep = None
+        _back_stripped = set()
+        if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in (_topo or [])):
+            _cells = _dual_side_cells(_topo, anchors, nl, comps)
+            _back, _back_stripped = _dual_side_back_refs(_cells, spec, anchors_roles, comps)
+            if _back_stripped:
+                print(f"  [dual-side guard] kept OFF the back (owner rule): {sorted(_back_stripped)}",
+                      file=sys.stderr)
 
     # ============================================================ P5/P7: relative_place + veto model
     def _p5_relative_place(_state):
@@ -4763,7 +4833,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     ladder.run()
 
     # ============================================================ SCORING + RETURN (post-ladder)
-    res = _count_overlaps(P, comps, drop_antenna=drop_antenna)   # honest DRC-accurate residual
+    res = _count_overlaps(P, comps, drop_antenna=drop_antenna,   # honest DRC-accurate residual
+                          back_refs=(_back or ()))               # face-aware: cross-face != overlap
     obj = _placement_obj(cfg, P, W, H, halfext, nl)
     # Phase 1: the corridor model on the FINAL placement -> how many foreign signals are forced
     # through a FORMED high-current band. The rank key + a pre-route reject (proxy_reject). The
@@ -4803,28 +4874,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     # 5VSB pair's +5VSB) can never drag the mux or rail loads to the back. v1 note: the placer's
     # internal overlap model is not yet side-aware (residual may overreport across faces); the
     # materialized board's DRC -- which the oracle grades -- is side-correct via place(flip).
-    back_refs = ()
-    if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in _topo):
-        entries = sorted((c for c in _topo if c.get("shared_bus") and c["shunt"] in P),
-                         key=lambda c: P[c["shunt"]][0])
-        back = set()
-        for i, c in enumerate(entries):
-            if i % 2 == 0:
-                continue                            # even columns stay front
-            chain = {c["shunt"]}
-            refs = {r for net in (c["hi"], c["lo"]) for r, _ in nl.nets.get(net, [])}
-            sense = {r for r in refs if r in comps
-                     and "INA" in (nl.comps[r].value or "").upper()}
-            chain |= sense
-            for ic in sorted(sense):
-                chain.update(_downstream_comparators(ic, c["hi"], c["lo"], nl, comps))
-            chain |= {pref for pref, (own, _pad) in spec.items() if own in chain}
-            back |= {r for r in chain if r in P}
-        back, _stripped = _dual_side_guard(back, anchors_roles, comps)
-        if _stripped:
-            print(f"  [dual-side guard] kept OFF the back (owner rule): {sorted(_stripped)}",
-                  file=sys.stderr)
-        back_refs = tuple(sorted(back))
+    # The dual-sided F/B assignment was computed ONCE in _p4_cluster_learn (_back) off the SAME
+    # _dual_side_cells rule the placement passes used -- so the materialized board's faces match
+    # what the side-aware overlap/evac/repair passes assumed (no post-hoc divergence). Filtered to
+    # placed refs here (a passive not in P is not materialized).
+    back_refs = tuple(sorted(r for r in (_back or ()) if r in P))
     cand = Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy,
                      corridor_cross=cc, corridor_cross_aware=cc_aware, back_refs=back_refs)
     cand.journal = ladder.journal          # per-pass placement provenance (JSON-able; diagnostic)
