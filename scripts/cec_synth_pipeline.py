@@ -3531,6 +3531,92 @@ def _pad_is_tht(libid):
 _PAD_THT_CACHE = {}
 
 
+_THT_PADS_CACHE = {}
+
+
+def _tht_pads_local(libid):
+    """[(lx, ly, sx, sy, pad_rot)] for EVERY thru_hole pad of a footprint (memoized). Unlike
+    ``cec_pcb.local_pads`` (a dict keyed by pad NUMBER, which collapses the multiple pads a
+    connector puts on one number -- e.g. the TE-63969 receptacle's two Ø1.4 holes, the USB-C
+    shield pads), this keeps ALL PTH pads so the pin-field union spans the whole hole pattern
+    (the pcbnew PAD_ATTRIB_PTH union the gate reads). np_thru_hole (mechanical peg) is excluded,
+    matching PAD_ATTRIB_PTH."""
+    if libid in _THT_PADS_CACHE:
+        return _THT_PADS_CACHE[libid]
+    import cec_pcb
+    out = []
+    try:
+        nick, name = str(libid).split(":")
+        t = open(cec_pcb.fp_path(nick, name)).read()
+        for m in re.finditer(r'\(pad ', t):
+            b = cec_pcb.carve(t, m.start())
+            head = b.split("\n")[0]
+            if "thru_hole" not in head or "np_thru_hole" in head:
+                continue
+            at = re.search(r'\(at (-?[\d.]+) (-?[\d.]+)(?: (-?[\d.]+))?\)', b)
+            sz = re.search(r'\(size (-?[\d.]+) (-?[\d.]+)\)', b)
+            if not at:
+                continue
+            lx, ly = float(at.group(1)), float(at.group(2))
+            prot = float(at.group(3)) if at.group(3) else 0.0
+            sx, sy = (float(sz.group(1)), float(sz.group(2))) if sz else (0.0, 0.0)
+            out.append((lx, ly, sx, sy, prot))
+    except Exception:                                    # noqa: BLE001
+        pass
+    _THT_PADS_CACHE[libid] = out
+    return out
+
+
+def _tht_pin_field_boxes(P, comps, *, back_refs=(), refs=None, clearance=0.0):
+    """THT PIN-FIELD keepout boxes -- the ONE derivation shared by the placement passes AND the
+    ``_oracle_tht_backside`` gate (no box-model duality -- the PourPlan lesson).
+
+    A through-hole part's PTH pads pierce BOTH faces, so its pin-field bbox (the union of the PTH
+    pad bboxes) physically occupies space on the face OPPOSITE the part's own mount side (solder
+    joints + pin tails). KiCad's courtyard DRC is per-side and misses this class, so we register it
+    as a face-specific keepout. Returns {ref: (xmin, xmax, ymin, ymax, mount_face)} for every THT
+    footprint, where mount_face is ``"B"`` if the ref is flipped to the back (in *back_refs*) else
+    ``"F"`` -- the box is a keep-out for parts on the OTHER face.
+
+    Reads geometry from the footprint FILE (pcbnew-free, so the placer can call it before a board
+    exists): PTH pads via ``_pad_is_tht`` (the same np_thru_hole exclusion the gate's PAD_ATTRIB_PTH
+    gives), centres via ``cec_pcb.pad_global`` (flip-aware -- KiCad mirrors local pad x on the back),
+    sizes via ``cec_pcb.local_pad_sizes`` -> each pad's board-space axis-aligned bbox, matching
+    ``pcbnew`` ``pad.GetBoundingBox()``. The gate builds P/comps/back off a loaded board and calls
+    THIS function, so the two sides derive the identical field bbox."""
+    import cec_pcb
+    back = set(back_refs or ())
+    out = {}
+    pool = refs if refs is not None else list(P)
+    for r in pool:
+        if r not in P or r not in comps:
+            continue
+        pads = _tht_pads_local(comps[r])
+        if not pads:
+            continue
+        X, Y = P[r][0], P[r][1]
+        A = P[r][2] if len(P[r]) > 2 else 0.0
+        flipped = r in back
+        xs, ys = [], []
+        for lx, ly, sx, sy, prot in pads:
+            if flipped:                                   # KiCad flip mirrors local pad x + angle
+                lx = -lx
+                prot = -prot
+            dx, dy = cec_pcb._rot(lx, ly, A)
+            cx, cy = X + dx, Y + dy
+            aa = math.radians(A + prot)                   # total pad orientation in board frame
+            ca, sa = abs(math.cos(aa)), abs(math.sin(aa))
+            hbx = (sx / 2.0) * ca + (sy / 2.0) * sa       # axis-aligned pad bbox half-extents
+            hby = (sx / 2.0) * sa + (sy / 2.0) * ca
+            xs += [cx - hbx, cx + hbx]
+            ys += [cy - hby, cy + hby]
+        if not xs:
+            continue
+        out[r] = (min(xs) - clearance, max(xs) + clearance,
+                  min(ys) - clearance, max(ys) + clearance, ("B" if flipped else "F"))
+    return out
+
+
 def _pour_boxes_unified(P, nl, comps, W, H, *, margin=1.0, edge_clear=0.4, asks=()):
     """PLACEMENT-side pour boxes from the SAME pure core the route-time gate uses
     (cec_fr._pour_boxes_core) -- box-model unification 2026-07-08: the settle previously
@@ -5389,28 +5475,49 @@ def _oracle_tht_backside(placed_board_path, *, clearance_mm=0.3):
     board = pcbnew.LoadBoard(placed_board_path)
     if board is None:
         return {"ok": False, "violations": ["board unloadable"]}
-    tht, front, back = [], [], []
+    # Build the placement view off the board, then derive the THT pin-field boxes via the ONE
+    # shared function the PLACER also uses (_tht_pin_field_boxes) -- gate + generator agree by
+    # construction (validated 0.000mm vs the pcbnew PTH-pad union). Non-THT bodies stay read from
+    # pcbnew GetBoundingBox (silk-inclusive), the historical "other part" extent.
+    P, comps, back_set = {}, {}, set()
+    front, back = [], []
+    pth_refs = set()
     for fp in board.GetFootprints():
         ref = fp.GetReference()
-        pth = [p for p in fp.Pads() if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
-        if pth:
-            xs1 = [p.GetBoundingBox().GetLeft() / 1e6 for p in pth]
-            xs2 = [p.GetBoundingBox().GetRight() / 1e6 for p in pth]
-            ys1 = [p.GetBoundingBox().GetTop() / 1e6 for p in pth]
-            ys2 = [p.GetBoundingBox().GetBottom() / 1e6 for p in pth]
-            tht.append((ref, min(xs1), max(xs2), min(ys1), max(ys2), fp.IsFlipped()))
+        pos = fp.GetPosition()
+        P[ref] = (pos.x / 1e6, pos.y / 1e6, fp.GetOrientationDegrees())
+        comps[ref] = fp.GetFPIDAsString()
+        if fp.IsFlipped():
+            back_set.add(ref)
+        has_pth = any(p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH for p in fp.Pads())
+        if has_pth:
+            pth_refs.add(ref)
         else:
             bb = fp.GetBoundingBox()
             (back if fp.IsFlipped() else front).append(
                 (ref, bb.GetLeft() / 1e6, bb.GetRight() / 1e6,
                  bb.GetTop() / 1e6, bb.GetBottom() / 1e6))
-    if not back and not any(f for *_x, f in tht):
+    boxes = _tht_pin_field_boxes(P, comps, back_refs=back_set, refs=list(pth_refs))
+    # robustness: if a lib footprint is unresolvable (odd/committed board), fall back to the
+    # pcbnew PTH-pad union for that one ref so the gate never silently drops a THT.
+    for fp in board.GetFootprints():
+        ref = fp.GetReference()
+        if ref in pth_refs and ref not in boxes:
+            pth = [p for p in fp.Pads() if p.GetAttribute() == pcbnew.PAD_ATTRIB_PTH]
+            xs1 = [p.GetBoundingBox().GetLeft() / 1e6 for p in pth]
+            xs2 = [p.GetBoundingBox().GetRight() / 1e6 for p in pth]
+            ys1 = [p.GetBoundingBox().GetTop() / 1e6 for p in pth]
+            ys2 = [p.GetBoundingBox().GetBottom() / 1e6 for p in pth]
+            boxes[ref] = (min(xs1), max(xs2), min(ys1), max(ys2),
+                          "B" if fp.IsFlipped() else "F")
+    if not back and not any(mf == "B" for *_x, mf in boxes.values()):
         return {"ok": True, "violations": [], "note": "single-sided -- N/A"}
     c = clearance_mm
     viol = []
-    for ref, l, r, t, bm, flipped in tht:
+    for ref, (l, r, t, bm, mount_face) in boxes.items():
         # the pin field conflicts with parts on the face OPPOSITE the THT body's mount side
-        for oref, ol, orr, ot, ob in (back if not flipped else front):
+        others = back if mount_face == "F" else front
+        for oref, ol, orr, ot, ob in others:
             if ol < r + c and orr > l - c and ot < bm + c and ob > t - c:
                 viol.append((oref, "under THT pin field of", ref))
     return {"ok": not viol, "violations": viol[:10]}
