@@ -81,6 +81,12 @@ Format: pass — goal → existing machinery → gap → done-criteria (teeth).
   comparator + RC + decouplers as learned offsets — auto_cluster already computes
   relocatable offsets; mirror cec_sch_archetypes' shape) → stamp per rail/cable on the
   spine pitch → criteria: per-cell local DRC + adjacency gates; cells RIGID from here. LOCK.
+  **OWNER ADDITION (2026-07-08): templates carry SUPER-TIGHT IDEAL ROUTING for their
+  LOCAL (internal) nets** — stamped cells arrive pre-routed + LOCKED for internal copper,
+  ports left for board passes. Half-built: cec_cell_extract already lifts internal
+  routing off hand boards (the 22 kelvin-filter tracks) and stamp() returns transformed
+  copper as data; S3 makes lay_tracks=True real (lay + lock, guard-checked), and
+  non-extracted templates get compile-time ideal internal routing.
 - **P5 owned passives around remaining ICs** → derive_passive_spec + auto_cluster +
   (single, final) stamp — the re-stamp hack dissolves because owners are already locked →
   criteria: decoupler-adjacency ≤7mm functional gate.
