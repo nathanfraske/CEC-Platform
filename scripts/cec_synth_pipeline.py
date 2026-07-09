@@ -1775,16 +1775,20 @@ def _is_power_net(n):
     return bool(_POWER_NET.search(n)) or base in ("GND",) or n.endswith(("_HI", "_LO"))
 
 
-def _classify(nl):
+def _classify(nl, role_overrides=None):
     """Partition the netlist parts: anchors {ref:role} (connectors/mounts by _role), ICs (active,
     placed by relative_place), shunts (RS*, the cable-column structure), passives (everything else
     1-2 pin -> auto_clustered onto an owner IC). Buttons (SW*) count as ICs so they place
-    deliberately (e.g. edge-accessible BOOT/RESET), not clustered."""
+    deliberately (e.g. edge-accessible BOOT/RESET), not clustered.
+
+    role_overrides (params["anchor_roles"]): explicit {ref: role} pins for boards whose
+    connector names/nets defeat _role -- measured 2026-07-09: the 12vhpwr fun-run stacked
+    J3 AND J4 at the same origin spot because neither classified power_in/power_out."""
     anchors, ics, shunts, passives = {}, [], [], []
     for ref, c in nl.comps.items():
         if not c.footprint or ":" not in c.footprint:
             continue
-        role = _role(ref, c.value, c.footprint, nl=nl)
+        role = (role_overrides or {}).get(ref) or _role(ref, c.value, c.footprint, nl=nl)
         if role:
             anchors[ref] = role
         elif ref.startswith("RS"):
@@ -4267,7 +4271,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
     drop_antenna = (cfg.params.get("respect_antenna_keepout", True) is False)
     halfext = _part_halfext(nl, drop_antenna=drop_antenna)
     fp_of = _fp_of(nl)
-    anchors_roles, ics, shunts, passives = _classify(nl)
+    anchors_roles, ics, shunts, passives = _classify(nl, role_overrides=cfg.params.get("anchor_roles"))
     # PARTITION (intent-compiler): resolve the agent's region assignment to per-ref containment boxes.
     # _bounds maps an assigned ref -> its region box; empty when partition is None -> all legalize calls
     # below receive bounds={} which is inert (legalize_pack only constrains refs present in bounds).

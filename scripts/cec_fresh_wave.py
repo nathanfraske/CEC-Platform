@@ -127,6 +127,10 @@ BOARD_WH = {
 BOARD_PARAMS = {
     "12vhpwr-standard": {"mount_holes": "none", "connector_overhang": "edge",
                          "respect_antenna_keepout": False,
+                         # straight-through power path (owner): 12V-2x6 IN top, OUT
+                         # bottom -- J3/J4 defeat the net-role classifier (both stacked
+                         # at origin, measured), so pin them explicitly.
+                         "anchor_roles": {"J3": "power_in", "J4": "power_out"},
                          "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
     "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
                        "connector_overhang": "edge",
