@@ -3897,6 +3897,8 @@ class Candidate:
     back_refs: tuple = ()         # DUAL-SIDED (2026-07-08): refs materialized on the BACK face
     oracle: dict = field(default_factory=dict)   # SLICE-1a: route_oracle_grade verdict (real post-route
                                                  # gate); {} = not adjudicated. Set by adjudicate_candidates.
+    blueprint_stamps: list = field(default_factory=list)  # P4 (S3): stamped-cell specs; materialize()
+                                                          # lays their LOCKED internal copper on the board.
 
 
 def _dual_side_guard(back, anchors_roles, comps):
@@ -3986,6 +3988,13 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     _spine = _bands = _paired = _sensitive = _veto = None
     _rk = _role_clr = _func_stamped = None
     _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
+    # P4 BLUEPRINT CELLS (docs/pass-form-plan.md §4, stage S3). Empty unless
+    # cfg.params['blueprint_cells'] is set -> every downstream `not in _bp_refs` filter is a
+    # no-op and synth_one is BYTE-IDENTICAL (the golden-safety invariant). _blueprint_stamps
+    # carries each stamped cell's spec forward to materialize(), which lays its LOCKED internal
+    # copper on the real .kicad_pcb (placement candidates carry no copper, like fiducials).
+    _blueprint_stamps = []
+    _bp_refs = set()
 
     # ============================================================ P2: anchors + mounts/fiducials
     def _p2_anchors(_state):
@@ -4132,6 +4141,61 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                         if r != _esp and r not in seated_inas and r not in _sw_seated
                         and r not in _can_seated]
 
+    # ============================================================ P4: blueprint cells (rigid stamp)
+    def _p4b_blueprint_stamp(_state):
+        nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
+        nonlocal seated_inas, _esp, _esp_pos, _sw_seated, _can, _can_seated, _rj
+        nonlocal anneal_units, _seated_shunts, _fixed_anchor_refs, spec, series
+        nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
+        nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
+        nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
+        nonlocal _nets_of, _net_exempt, _restamped, _blueprint_stamps, _bp_refs
+        # OPT-IN (docs/pass-form-plan.md §4 P4): stamp each declared blueprint cell as a RIGID,
+        # FIXED unit -- placement here, internal COPPER laid + LOCKED at materialize(). Absent ->
+        # no-op -> byte-identical (the S1 golden-safety discipline). Each cell dict:
+        #   {"template": <path or template dict>, "anchor_at": [x,y] | "anchor_ref": <ref>,
+        #    "rot": deg, "ref_map": {tref:dref}, "net_map": {role:net} | "cable_index": n,
+        #    "ideal_internal": bool (default True: compile super-tight ideal routing for the
+        #    cell's LOCAL nets -- the owner addition), "ideal_width": mm}
+        cells = cfg.params.get("blueprint_cells") or ()
+        if not cells:
+            return
+        import cec_cell_extract
+        for cell in cells:
+            template = cell.get("template")
+            if isinstance(template, str):
+                with open(template) as _f:
+                    template = json.load(_f)
+            if cell.get("ideal_internal", True):
+                template = cec_cell_extract.synthesize_ideal_internal(
+                    template, width=float(cell.get("ideal_width", 0.2)))
+            ref_map = dict(cell.get("ref_map") or {})
+            net_map = cell.get("net_map")
+            if net_map is None and cell.get("cable_index") is not None:
+                net_map = cec_cell_extract.net_map_for_index(template, int(cell["cable_index"]))
+            # anchor position: explicit xy, else the current anchors[] slot of a named ref.
+            if cell.get("anchor_at") is not None:
+                at_mm = tuple(cell["anchor_at"])
+            elif cell.get("anchor_ref") and cell["anchor_ref"] in anchors:
+                _ap = anchors[cell["anchor_ref"]]
+                at_mm = (_ap[0], _ap[1])
+            else:
+                print(f"  [p4b] cell skipped: no anchor_at/anchor_ref resolvable ({cell.get('template')!r})",
+                      file=sys.stderr)
+                continue
+            rot = float(cell.get("rot", 0.0))
+            placement, _copper = cec_cell_extract.stamp(template, at_mm=at_mm, rot=rot,
+                                                        ref_map=ref_map, net_map=net_map)
+            for dref, (x, y, r, _fl) in placement.items():
+                if dref in comps:
+                    anchors[dref] = (x, y, r)      # FIXED: pinned in relative_place (P=dict(anchors))
+                    _bp_refs.add(dref)
+            _blueprint_stamps.append({"template": template, "at_mm": list(at_mm), "rot": rot,
+                                      "ref_map": ref_map, "net_map": net_map})
+        # the stamped cell refs are FIXED -> drop them from the annealed set (progressive locking).
+        if _bp_refs and anneal_units is not None:
+            anneal_units[:] = [r for r in anneal_units if r not in _bp_refs]
+
     # ============================================================ P4/P5: cluster learn (macro blocks)
     def _p4_cluster_learn(_state):
         nonlocal H, anchors, comps, mech_pos, mech_fp, _topo, seated, free_shunts
@@ -4152,7 +4216,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         #    placement (fixed_clusters); only IC/free-shunt owners become annealed macro blocks.
         _seated_shunts = [r for r in shunts if r not in free_shunts]
         _fixed_anchor_refs = set(anchors_roles) | set(_seated_shunts)   # connectors (J*/host/usb) + seated shunts
-        spec, series = derive_passive_spec(nl, passives, [r for r in ics if not r.startswith("SW")],
+        # BLUEPRINT (P4): a stamped cell's parts (incl. its owned passives) are RIGID -- exclude them
+        # from the cluster/stamp flow so p7/p9 never re-stamp them off the cell. Empty _bp_refs ->
+        # identical inputs -> byte-identical (the golden-safety invariant).
+        _bp_passives = [p for p in passives if p not in _bp_refs]
+        spec, series = derive_passive_spec(nl, _bp_passives, [r for r in ics if not r.startswith("SW")],
                                            anchor_refs=_fixed_anchor_refs)
         by_owner = defaultdict(list)
         fixed_owner = defaultdict(list)                     # parts owned by a FIXED anchor (connector/shunt)
@@ -4369,12 +4437,33 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         # seat stays put.
         _pour_fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
                        | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
+        _pour_fixed |= _bp_refs        # BLUEPRINT (P4): stamped cells are FIXED, never evacuated
+        # (empty _bp_refs -> no change -> byte-identical).
         # POUR LEVER (stage 2): fold the placer's pour() asks (cfg.params['pour_asks']) into the
         # placement-time PourPlan so the evac sees an asked pour even on a rail the derivation would
         # not pour. `pour_asks` empty -> byte-identical to the un-asked settle (the golden guarantee).
         _pour_asks = tuple(cfg.params.get("pour_asks") or ())
         _pour_boxes = (_pour_boxes_unified(P, nl, comps, W, H, asks=_pour_asks)
                        if (seated_inas or _pour_asks) else [])
+        # BLUEPRINT (P4): each stamped cell OWNS its region -- reserve its courtyard-union bbox as a
+        # pour box so foreign movable bodies EVACUATE out of the cell (its own refs are in _pour_fixed
+        # -> exempt). This is what lets materialize() lay the cell's internal copper without a foreign
+        # collision on a dense board. Empty _bp_refs -> no boxes -> byte-identical.
+        if _bp_refs:
+            for _st in _blueprint_stamps:
+                _crefs = [d for d in (_st.get("ref_map") or {}).values()
+                          if d in _bp_refs and d in P and d in comps] \
+                    or [d for d in _bp_refs if d in P and d in comps]
+                _xs, _ys = [], []
+                for _d in _crefs:
+                    _bcx, _bcy, _bhw, _bhh = _courtyard_info(
+                        comps[_d], P[_d][2] if len(P[_d]) > 2 else 0, drop_antenna=drop_antenna)
+                    _xs += [P[_d][0] + _bcx - _bhw, P[_d][0] + _bcx + _bhw]
+                    _ys += [P[_d][1] + _bcy - _bhh, P[_d][1] + _bcy + _bhh]
+                if _xs:
+                    _bm = 0.8      # a margin so the cell's escape stubs clear foreign copper too
+                    _pour_boxes = list(_pour_boxes) + [
+                        ("__BLUEPRINT__", min(_xs) - _bm, max(_xs) + _bm, min(_ys) - _bm, max(_ys) + _bm)]
         # own-net eviction exemptions: a part's own pads' nets + its cluster owner's nets
         _nets_of = defaultdict(set)
         for _nn, _mem in nl.nets.items():
@@ -4558,6 +4647,11 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
              locks_out=lambda _s: (list(seated_inas) + ([_esp] if _esp else [])
                                    + list(_sw_seated) + list(_can_seated)),
              doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat"),
+        Pass("p4b_blueprint_stamp", _p4b_blueprint_stamp, phase="P4",
+             # LOCKS the stamped cell's refs -- rigid from here (internal copper laid at
+             # materialize). No-op + locks nothing when blueprint_cells is absent (byte-identical).
+             locks_out=lambda _s: sorted(_bp_refs),
+             doc="stamp blueprint cells as rigid fixed units (opt-in; copper laid at materialize)"),
         Pass("p4_cluster_learn", _p4_cluster_learn, phase="P4",
              doc="learn each IC's passive cluster (macro bbox + offsets) + fixed-anchor clusters"),
         Pass("p5_relative_place", _p5_relative_place, phase="P5",
@@ -4648,6 +4742,9 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     cand = Candidate(strat=strat, seed=seed, P=P, W=W, H=H, residual=res, proxy=proxy,
                      corridor_cross=cc, corridor_cross_aware=cc_aware, back_refs=back_refs)
     cand.journal = ladder.journal          # per-pass placement provenance (JSON-able; diagnostic)
+    # BLUEPRINT (P4): carry each stamped cell's spec to materialize(), which lays its LOCKED
+    # internal copper on the real board (placement candidates carry no copper -- like fiducials).
+    cand.blueprint_stamps = _blueprint_stamps
     return cand
 
 
@@ -5971,15 +6068,28 @@ def route_oracle_grade(placement_or_board, *, cfg=None, passes=8, opt=12, ambien
                 if not os.path.isfile(placed):
                     raise FileNotFoundError(f"route_oracle_grade: board not found: {placed!r}")
 
+            # PROTECT-LIST helper (P4, docs/pass-form-plan.md §4, S3): a stamped blueprint cell's
+            # LOCKED internal copper must SURVIVE Freerouting -- add its nets to protect_nets
+            # (cec_fr02.force_protect_in_dsn upgrades fix->protect; FR 1.7.0 DROPS unprotected fix
+            # wires). locked_nets() is EMPTY on every non-blueprint board (FR output isn't locked,
+            # the golden floorplan has 0 tracks) -> protect_nets unchanged + the guard inert ->
+            # byte-identical. The SAME set arms the double-lay guard so the tap/pair synthesizer
+            # never re-lays on a net the cell already routed (my own guard; cec_fr.py untouched).
+            import cec_cell_extract
+            _locked_bp = cec_cell_extract.locked_nets(placed)
+            if _locked_bp:
+                protect_nets = tuple(set(protect_nets) | _locked_bp)
+
             # ---- 2. route it with the gate-clean recipe (ONE route_once), or grade as-is ----
             t0 = time.monotonic()
             if route:
                 hints, pours, rules = _oracle_hints_pours(placed)
                 routed = os.path.join(work_dir, "routed.kicad_pcb")
-                cand = cec_fr.route_once(placed, routed, hints=hints, power_pours=pours,
-                                         passes=passes, opt_time=opt, seed=seed,
-                                         timeout=int(fr_timeout),
-                                         protect_nets=protect_nets)
+                with cec_cell_extract.guard_kelvin_double_lay(cec_fr, _locked_bp):
+                    cand = cec_fr.route_once(placed, routed, hints=hints, power_pours=pours,
+                                             passes=passes, opt_time=opt, seed=seed,
+                                             timeout=int(fr_timeout),
+                                             protect_nets=protect_nets)
                 if not cand.ok:
                     return _oracle_fail_dict(label, route_s=round(time.monotonic() - t0, 1),
                                              error=f"route failed: {cand.err}")
@@ -6462,6 +6572,30 @@ def materialize(cand, cfg, out, *, logo=None):
         s = (cfg.pcb[:-len(".kicad_pcb")] + ext) if cfg.pcb else ""
         if s and os.path.isfile(s):
             shutil.copy(s, out[:-len(".kicad_pcb")] + ext)
+    # BLUEPRINT CELLS (P4, docs/pass-form-plan.md §4, S3): the placement is on the board (build_board
+    # placed the cell parts at their p4b positions); now lay each cell's INTERNAL copper as real LOCKED
+    # tracks/vias -- guard-checked against foreign copper (whole-cell refusal). Placement candidates
+    # carry no copper (like fiducials); the copper is laid HERE at materialize. No stamps -> untouched.
+    _bp_stamps = list(getattr(cand, "blueprint_stamps", None) or ())
+    if _bp_stamps:
+        import cec_cell_extract
+        import pcbnew
+        _bpb = pcbnew.LoadBoard(out)
+        _laid = _refused = 0
+        for _st in _bp_stamps:
+            _, _cop = cec_cell_extract.stamp(_st["template"], board=_bpb,
+                                             at_mm=tuple(_st["at_mm"]), rot=float(_st.get("rot", 0.0)),
+                                             ref_map=_st.get("ref_map") or {}, net_map=_st.get("net_map"),
+                                             lay=True, apply=False)
+            _rep = _cop.get("laid", {})
+            if _rep.get("refused"):
+                _refused += 1
+                _tc.warn_once("blueprint_refuse", "blueprint cell copper REFUSED: %s" % _rep.get("reason"))
+            else:
+                _laid += _rep.get("laid_tracks", 0) + _rep.get("laid_vias", 0)
+        pcbnew.SaveBoard(out, _bpb)
+        print("[materialize] blueprint cells: laid %d LOCKED segment(s), %d cell(s) refused"
+              % (_laid, _refused), file=sys.stderr)
     # POUR LEVER (stage 3, docs/pour-lever-scoping-2026-07-08.md): write the placement's PourPlan
     # to a <board>.pourplan.json sidecar. Only board_path strings cross the materialize ->
     # route_oracle_grade -> route_once -> spawn-worker boundary, so the plan (derived pours +
