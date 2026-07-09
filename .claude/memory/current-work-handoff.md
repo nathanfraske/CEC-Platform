@@ -1,5 +1,26 @@
 # Current work handoff
 
+## (G15) GENERATORS FIXED, WAVE 18 = POST-FIX BASELINE — 2026-07-09 ~08:30
+Rolling waves 15-17 DONE: 24-pin flat (u52-58, placement-bound as diagnosed; snagfix
+proposals WON waves 15+17 -- the A2 loop works); eps wave-15+ "cliff" (u4->u68) RESOLVED
+= PLACEMENT-SEED LOTTERY (paired probe: same placement routes u68 at seed 0 AND 2, delta
+1 -- wave-14's u4 was a lucky placement draw, not env/seed-order). PLACER PACKAGE MERGED
+(5 commits ..4713215): overlaps 7->0 + THT-backside ->0 on ALL 24-pin configs (root cause
+NAMED: fixed rail-cell seats at 6mm pitch vs 14mm cells overlapped -- in NO legalizer set;
++ face-blind counting); ONE shared derivation gate<->generator; enforce_locks DEFAULT TRUE
+(probe 0 violations, broadened incl. pcie). POUR LEVER S4 MERGED (121677f+f23c755, owner
+RATIFIED all 4 rulings 5ade9bb): PourPlan.rebuild notch/shrink/relocate/drop_layer,
+EscalateToHuman on autonomy-line breach (verbatim teeth), cross-section HARD gate,
+assert_steer_only FIRST LIVE CALLER, Kmax-budgeted, manager-ladder consumes now; ORACLE-
+PATH wiring = FOLLOWUPS (wave doesn't consume yet; FR-legged eval owed too). Pour truth:
+derivation reaches local terminals; 24-pin opens = shared-bus corridor assignment
+(placement, evidence recorded w/ coordinates) + FR abandonment. WAVE 18 LAUNCHED (merged
+tree, seeds 0,1 canonical): the post-fix baseline -- expect 24-pin ovl/THT reasons GONE,
+watch pin_escape (~20% vs 12 floor) + decoupler_adj(12) as the NEXT named blockers.
+Suites verified on merged tree; probe clean. NEXT after wave 18: oracle pour loop,
+shared-bus per-rail corridor assignment (the big 24-pin lever), S2 octilinear, wave
+review artifacts (placement blinds + spotlights).
+
 ## (G14) WAVE 14 RUNNING — 2026-07-09 ~02:00 (branch claude/pipeline-consolidation)
 ALL FIVE WORKSTREAMS MERGED (S1 ladder+locks map / S2 precision e7adc0a+ba20f65+150b32c
 fixup / S3 blueprints 69de373..c2e69dd / A5 seed patch 6d2a3d5 + WIRED 2101e00 teeth-PASS
