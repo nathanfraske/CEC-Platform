@@ -1,5 +1,25 @@
 # Current work handoff
 
+## (G17) 12VHPWR FUN-RUN — STRAIGHT-THROUGH STILL NOT ACHIEVED (2026-07-09 ~16:00)
+Owner fun-run: 12vhpwr fresh at 60x40, connectors-only. THREE runs so far; owner render
+verdicts (trust renders over coordinate probes -- twice proven): run1 J3+J4 STACKED at
+origin (root cause: neither classified power_in/out -> FIXED: params['anchor_roles']
+override in _classify, commit on branch); run2 (roles applied, J3/J4 unstacked) STILL
+side-column not straight-through + USB-C corner-cropped -- cause: periph x-band intents
+relocate power connectors, roles act only within band -> FIXED: straight_through param =
+plain-intent-only (folded into _intents_for). RUN 3 RUNNING (build/fresh-wave-hpwr3.log,
+HPWR3_DONE marker). MY LAST RENDER CHECK WAS AMBIGUOUS (may have rendered a run-2 plain-*
+file -- ls -t race). NEXT SESSION MUST: (1) after HPWR3_DONE, render the CONFIRMED run-3
+winner (timestamp from the log) and EYEBALL it; (2) if J3/J4 STILL not top/bottom-centre:
+suspect seed_anchors EDGE-FIT FALLBACK (the ~22mm-wide 12V-2x6 may not fit the top edge
+at W=60 with corner overhangs -> silently reseated; check seed_anchors' edge packing/
+fallback for power roles + consider W bump or explicit coordinate pins); (3) J2 = DNP fan
+header (LEGIT, spec §6.1 enclosed menu — owner asked); J5 USB-C IS in netlist+placed,
+corner-overhang crops it in renders. Uniformity agent (a299a9aff707f5bfa) RUNNING w/
+corrected design (tab-pitch gate + shape identity + placement pitch fix; NEVER move pours
+off tabs -- force-pour-only!); merge on report. eps diff=F regression (waves 18/19) still
+open. PCIe u12 first outing; 24-pin PARKED at u33 best-ever.
+
 ## (G16) WAVES 18/19 + ROTATION — 2026-07-09 ~15:00
 WAVE 18 (post-generator-fix baseline): 24-pin u55->u33 BEST-EVER fresh (band-core-mid-
 compact-s1 -- courtyard/THT reasons GONE from verdicts = placer package confirmed live);
