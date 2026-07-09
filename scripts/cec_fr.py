@@ -200,6 +200,19 @@ FR_RELEASES = {
         "jar_sha256": "e6c5db33792a00f99799b1113bb9f5e1576731f885b069da8850520528f7ef8f",
         "min_java": 17,
     },
+    # the CEC seed-patched fork (A5, 2026-07-08): v1.7.0 + scripts/patches/
+    # freerouting-1.7.0-cec-seed.patch -- adds -seed <long> (per-pass net-order
+    # shuffle: same seed = byte-identical, different seeds = distinct routes,
+    # no-seed = byte-identical to stock). LOCAL-ONLY (no download URL): resolved
+    # from CEC_FREEROUTING_JAR or the durable copies (/mnt/e/toolchain/fr-fork/,
+    # build/fr-fork/); rebuildable from the committed patch (ops/README-fr-fork.md).
+    "1.7.0-cec1": {
+        "jar_sha256": "375e36b8ee347c57127670c06aeaa650d562a0365b0a4ed6dd3634d215f103b1",
+        "min_java": 17,
+        "local_paths": ("/mnt/e/toolchain/fr-fork/freerouting-1.7.0-cec1.jar",
+                        "build/fr-fork/freerouting-1.7.0-cec1.jar"),
+        "supports_seed": True,
+    },
     "2.2.4": {
         "jar_sha256": "f5ed374182900ccc78e473518bbb9f6b869f4a07159495f663a76f52bb10523b",
         "min_java": 25,
@@ -338,6 +351,16 @@ def ensure_jar(path: str | None = None, version: str | None = None) -> str:
                 print(f"[cec_fr] explicit jar override {c!r} sha256={_sha256(c)[:16]}... "
                       f"(pin for {v}: {pin[:16]}...)", file=sys.stderr)
             return c
+
+    # LOCAL-ONLY releases (the CEC fork): known durable paths, relative ones resolved
+    # against the repo root; always pin-verified (never trusted like an explicit arg).
+    _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for c in (FR_RELEASES.get(v) or {}).get("local_paths", ()):
+        cc = c if os.path.isabs(c) else os.path.join(_root, c)
+        if os.path.isfile(cc):
+            if pin:
+                _verify_pin(cc, pin, f"FR {v} jar (local)")
+            return cc
 
     jar_cache = _jar_cache(v)
     for c in _jar_tmp_candidates(v) + [jar_cache]:
@@ -659,12 +682,15 @@ def run_freerouting(
     if _own_workdir:
         workdir = tempfile.mkdtemp(prefix="cec_fr_run_", dir=_TMP)
 
-    if seed is not None:
+    _seed_ok = bool((FR_RELEASES.get(v) or {}).get("supports_seed"))
+    if seed is not None and not _seed_ok:
         print(f"[cec_fr] note: seed={seed!r} logged (no -seed flag in FR {v})",
               file=sys.stderr)
 
     cmd = _fr_command(jar, dsn_path, ses_path, passes, opt_time, threads,
                       version=v, workdir=workdir)
+    if seed is not None and _seed_ok:
+        cmd += ["-seed", str(int(seed))]   # the A5 fork's real diversity axis
 
     run_kw = dict(cwd=workdir, capture_output=True, text=True, timeout=timeout)
     if sys.platform == "win32":
