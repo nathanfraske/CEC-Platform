@@ -138,6 +138,7 @@ def extract(board_path, refs, *, anchor_ref, index=None):
         "internal_tracks": [{net_role, layer, start_rel_mm, end_rel_mm, width_mm}],
         "vias": [{net_role, at_rel_mm, drill_mm, dia_mm, layers}],
         "ports": {net_role: {"net": literal, "pads": [{ref, pad, rel_mm}]}},
+        "internal_pads": {net_role: {"net": literal, "pads": [{ref, pad, rel_mm}]}},
         "net_roles": {net_role: literal_net_name},   # every net the cell touches
         "meta": {source_board, anchor_ref, anchor_pos_mm, anchor_rot_deg, refs},
       }
@@ -187,15 +188,17 @@ def extract(board_path, refs, *, anchor_ref, index=None):
     net_roles = {net_role(n): n for n in cell_nets}
 
     ports = {}
+    internal_pads = {}                     # net_role -> {"net": literal, "pads": [...]} for INTERNAL nets
     for ref in refs:
         for p in bi.fp(ref).Pads():
             n = p.GetNetname()
-            if n not in boundary_nets:
+            if not n or (n not in boundary_nets and n not in internal_nets):
                 continue
             pos = p.GetPosition()
             lx, ly = _to_local(_mm(pos.x), _mm(pos.y), ax, ay, a_rot)
             role = net_role(n)
-            ports.setdefault(role, {"net": n, "pads": []})["pads"].append(
+            bucket = ports if n in boundary_nets else internal_pads
+            bucket.setdefault(role, {"net": n, "pads": []})["pads"].append(
                 {"ref": ref, "pad": p.GetNumber(), "rel_mm": [round(lx, 6), round(ly, 6)]}
             )
 
@@ -244,6 +247,11 @@ def extract(board_path, refs, *, anchor_ref, index=None):
         "internal_tracks": internal_tracks,
         "vias": vias,
         "ports": ports,
+        # INTERNAL-net pad footprints (anchor-local, same frame as internal_tracks). A cell whose
+        # source was never routed carries internal_tracks==[] but STILL records the internal pad
+        # geometry here, so synthesize_ideal_internal() can compile the owner's "super-tight ideal"
+        # internal route at stamp time (docs/pass-form-plan.md §4 P4 OWNER ADDITION, 2026-07-08).
+        "internal_pads": internal_pads,
         "net_roles": net_roles,
         "meta": {
             "source_board": board_path,
@@ -277,7 +285,8 @@ def net_map_for_index(template, index):
     return out
 
 
-def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None, lay_tracks=False, apply=False):
+def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None,
+          lay_tracks=False, lay=False, apply=False, clearance_mm=None):
     """Affine-place `template` at a new anchor (at_mm, rot), remapping refs
     via `ref_map` (template ref -> destination ref) and net roles via
     `net_map` (role -> destination literal net name; any role NOT given falls
@@ -288,25 +297,35 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None, lay_tr
 
     Returns (placement, copper):
       placement: {dest_ref: (x_mm, y_mm, rot_deg, flipped)}
-      copper: {} unless lay_tracks=True, in which case
+      copper: {} unless lay_tracks/lay, in which case
         {"tracks": [...], "vias": [...]} with roles resolved to net names and
-        coordinates affine-transformed into the destination frame -- v1
-        RETURNS DATA ONLY (no board mutation, no routing-engine call); a
-        later routing pass lays it.
+        coordinates affine-transformed into the destination frame. With lay=True
+        it ALSO carries copper["laid"] -- the actuation report (below).
 
-    Placement stamping is solid (this is the primitive P4 needs today);
-    copper stamping is deliberately left as returned data, per the A3 spec,
-    until a routing pass consumes it.
+    lay_tracks=True         -> compute + RETURN the transformed copper as DATA ONLY
+                               (no board mutation); the historical A3 behaviour.
+    lay=True (P4, S3)       -> ACTUATE: write the transformed INTERNAL copper onto
+                               `board` (a loaded pcbnew board) as real LOCKED tracks
+                               + vias (SetLocked(True) on every laid segment), net
+                               codes resolved through net_map -> the destination
+                               board's own nets. GUARD-CHECKED FIRST (the exact-
+                               geometry guard discipline, GetEffectiveShape().Collide
+                               at clearance): if ANY segment would collide FOREIGN
+                               copper (a net not in the cell's own laid set), the
+                               WHOLE CELL's copper is REFUSED with a named reason and
+                               NOTHING is laid -- a shorting stub is never laid. Ports
+                               lay nothing (only internal copper is the cell's own).
+                               The placement still stamps when apply=True (a refused
+                               cell keeps its placement; only its internal copper is
+                               withheld -- the snag re-surfaces to the seat/route pass).
+                               `clearance_mm` overrides the board's min clearance.
 
-    apply=True additionally WRITES the placement onto `board` (a loaded
-    pcbnew board; footprints looked up via ref_map's destination refs) --
-    opt-in actuation. Default (apply=False) never mutates `board` and never
-    calls Save(); this keeps stamp() safe to call for a pure measurement
-    (e.g. the round-trip teeth below) without touching any file on disk.
-    Does not touch a footprint's F/B (Flipped) side -- flipping a footprint
-    is a layer-change operation elsewhere in this repo's convention
-    (CLAUDE.md "Rotate, don't flip"), not a coordinate edit stamp() should
-    make unasked."""
+    apply=True writes the PLACEMENT onto `board` (footprints looked up via ref_map's
+    destination refs). Default (apply=False) never moves a footprint; combine
+    apply=True + lay=True for a full rigid stamp (place the cell + lay its internal
+    copper LOCKED). apply/lay never touch a footprint's F/B side (CLAUDE.md
+    "Rotate, don't flip") -- flip is a layer-change decision, not a coordinate edit.
+    Both are no-ops on a pure measurement call (board=None, apply=lay=False)."""
     ax, ay = at_mm
     net_map = net_map or {}
     placement = {}
@@ -318,12 +337,12 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None, lay_tr
         placement[dref] = (round(gx, 6), round(gy, 6), round(g_rot, 6), bool(spec["flipped"]))
 
     copper = {}
-    if lay_tracks:
+    if lay_tracks or lay:
         def resolve_net(role):
             return net_map[role] if role in net_map else template["net_roles"].get(role, role)
 
         tracks = []
-        for tr in template["internal_tracks"]:
+        for tr in template.get("internal_tracks", []):
             slx, sly = tr["start_rel_mm"]
             elx, ely = tr["end_rel_mm"]
             sgx, sgy = _to_global(slx, sly, ax, ay, rot)
@@ -338,7 +357,7 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None, lay_tr
                 }
             )
         v_out = []
-        for v in template["vias"]:
+        for v in template.get("vias", []):
             lx, ly = v["at_rel_mm"]
             gx, gy = _to_global(lx, ly, ax, ay, rot)
             v_out.append(
@@ -362,4 +381,268 @@ def stamp(template, board=None, *, at_mm, rot=0.0, ref_map, net_map=None, lay_tr
             fp.SetPosition(pcbnew.VECTOR2I(_nm(x), _nm(y)))
             fp.SetOrientationDegrees(r)
 
+    if lay:
+        if board is None:
+            raise ValueError("lay=True requires a loaded pcbnew board")
+        copper["laid"] = _lay_locked_copper(board, copper, clearance_mm=clearance_mm)
+
     return placement, copper
+
+
+# =====================================================================================
+#  ACTUATION (P4, docs/pass-form-plan.md stage S3): lay a stamped cell's INTERNAL copper
+#  as real LOCKED tracks/vias, guard-checked against foreign copper (whole-cell refusal).
+# =====================================================================================
+def _foreign_clear(board, shape, layer_id, foreign_codes, clr_nm):
+    """True iff `shape` (a SHAPE_SEGMENT/SHAPE_CIRCLE) has NO copper whose net code is in
+    `foreign_codes` within clr_nm on layer_id. The exact GetEffectiveShape().Collide()
+    geometry DRC uses (reused from cec_fr._tap_foreign_clear discipline), so a PASS here is
+    DRC-clean for copper clearance -- the guard that lets a cell REFUSE rather than short."""
+    for fp in board.GetFootprints():
+        for p in fp.Pads():
+            if p.GetNetCode() not in foreign_codes:
+                continue
+            if layer_id not in p.GetLayerSet().CuStack():
+                continue
+            try:
+                if p.GetEffectiveShape(layer_id).Collide(shape, clr_nm):
+                    return False
+            except Exception:                       # noqa: BLE001 -- a weird shape never breaks the guard
+                continue
+    for t in board.GetTracks():
+        if t.GetNetCode() not in foreign_codes:
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            if layer_id not in t.GetLayerSet().CuStack():
+                continue
+        elif t.GetLayer() != layer_id:
+            continue
+        try:
+            if t.GetEffectiveShape(layer_id).Collide(shape, clr_nm):
+                return False
+        except Exception:                           # noqa: BLE001
+            continue
+    return True
+
+
+def _lay_locked_copper(board, copper, *, clearance_mm=None):
+    """Lay `copper` ({"tracks":[...], "vias":[...]}) onto `board` as LOCKED segments, GUARDED
+    as a WHOLE CELL: resolve every net, build the pcbnew objects in memory, test EACH against
+    FOREIGN-net copper (any net not in the cell's own laid set) at the board clearance -- and
+    if ANY collides, REFUSE the whole cell (add nothing, name the reason). Returns a report:
+      {"laid_tracks": n, "laid_vias": n, "refused": bool, "reason": str|None,
+       "nets": [laid net names]}.
+    Same-net copper never counts as foreign (a cell's own filter chain is legitimately dense),
+    exactly mirroring cec_fr's tap guard: adjacency within the cell is allowed, foreign shorts
+    are refused."""
+    tracks = copper.get("tracks", []) or []
+    vias = copper.get("vias", []) or []
+    report = {"laid_tracks": 0, "laid_vias": 0, "refused": False, "reason": None, "nets": []}
+    if not tracks and not vias:
+        return report
+
+    if clearance_mm is not None:
+        clr_nm = _nm(clearance_mm)
+    else:
+        try:                                        # board default-netclass clearance (KiCad-10 API varies)
+            clr_nm = max(board.GetDesignSettings().GetDefault().GetClearance(), _nm(0.1))
+        except Exception:                           # noqa: BLE001
+            clr_nm = _nm(0.2)
+
+    # resolve nets; a net missing on the destination board = a HARD refuse (named).
+    def netcode(name):
+        nc = board.GetNetcodeFromNetname(name)
+        return nc
+
+    cell_codes = set()
+    resolved_tracks, resolved_vias = [], []
+    for tr in tracks:
+        nc = netcode(tr["net"])
+        if nc < 0 or (nc == 0 and tr["net"] not in ("", "GND")):
+            report.update(refused=True,
+                          reason=f"net {tr['net']!r} not on destination board -- cell copper refused")
+            return report
+        cell_codes.add(nc)
+        resolved_tracks.append((tr, nc))
+    for v in vias:
+        nc = netcode(v["net"])
+        if nc < 0:
+            report.update(refused=True,
+                          reason=f"net {v['net']!r} not on destination board -- cell copper refused")
+            return report
+        cell_codes.add(nc)
+        resolved_vias.append((v, nc))
+
+    all_codes = {n.GetNetCode() for n in board.GetNetInfo().NetsByNetcode().values()}
+    foreign_codes = all_codes - cell_codes
+
+    # BUILD in memory (not yet added) + GUARD every segment against foreign copper.
+    built = []
+    for tr, nc in resolved_tracks:
+        ly = board.GetLayerID(tr["layer"])
+        if ly < 0:
+            report.update(refused=True, reason=f"layer {tr['layer']!r} not on board -- cell copper refused")
+            return report
+        (sx, sy), (ex, ey) = tr["start_mm"], tr["end_mm"]
+        S = pcbnew.VECTOR2I(_nm(sx), _nm(sy))
+        E = pcbnew.VECTOR2I(_nm(ex), _nm(ey))
+        w = _nm(tr["width_mm"])
+        seg = pcbnew.SHAPE_SEGMENT(S, E, w)
+        if not _foreign_clear(board, seg, ly, foreign_codes, clr_nm):
+            report.update(refused=True,
+                          reason=f"track on net {tr['net']!r} ({tr['layer']}) collides FOREIGN "
+                                 f"copper at clearance -- whole cell refused")
+            return report
+        built.append(("track", tr, nc, ly, S, E, w))
+    for v, nc in resolved_vias:
+        top = board.GetLayerID(v["layers"][0]); bot = board.GetLayerID(v["layers"][-1])
+        at = pcbnew.VECTOR2I(_nm(v["at_mm"][0]), _nm(v["at_mm"][1]))
+        dia = _nm(v["dia_mm"])
+        circ = pcbnew.SHAPE_CIRCLE(at, dia // 2)
+        if not (_foreign_clear(board, circ, top, foreign_codes, clr_nm)
+                and _foreign_clear(board, circ, bot, foreign_codes, clr_nm)):
+            report.update(refused=True,
+                          reason=f"via on net {v['net']!r} collides FOREIGN copper -- whole cell refused")
+            return report
+        built.append(("via", v, nc, top, bot, at, dia))
+
+    # ALL clear -> ACTUATE: add LOCKED copper.
+    for item in built:
+        if item[0] == "track":
+            _, tr, nc, ly, S, E, w = item
+            t = pcbnew.PCB_TRACK(board)
+            t.SetStart(S); t.SetEnd(E); t.SetWidth(w); t.SetLayer(ly)
+            t.SetNetCode(nc); t.SetLocked(True)
+            board.Add(t)
+            report["laid_tracks"] += 1
+        else:
+            _, v, nc, top, bot, at, dia = item
+            vv = pcbnew.PCB_VIA(board)
+            vv.SetPosition(at); vv.SetWidth(dia); vv.SetDrill(_nm(v["drill_mm"]))
+            vv.SetLayerPair(top, bot); vv.SetNetCode(nc); vv.SetLocked(True)
+            board.Add(vv)
+            report["laid_vias"] += 1
+    report["nets"] = sorted({tr["net"] for tr in tracks} | {v["net"] for v in vias})
+    return report
+
+
+def synthesize_ideal_internal(template, *, width=0.2, layer="F.Cu", escape_mm=1.2):
+    """Compile-time SUPER-TIGHT IDEAL internal routing (owner addition 2026-07-08,
+    docs/pass-form-plan.md §4 P4): for each INTERNAL net that carries >=2 recorded pads
+    (template['internal_pads']) but NO extracted copper yet, lay a tight orthogonal route in
+    the template's local frame. Each pad ESCAPES outward from its owner part's centre (so the
+    run leaves the pad ROW instead of plowing down its own part's other pads -- the naive
+    pad-to-pad straight line clips the adjacent foreign pads), then the escape points connect
+    with an orthogonal (L) chain. Returns a NEW template (shallow copy) with those ideal tracks
+    APPENDED to internal_tracks. A net that already carries extracted copper is left untouched
+    (real extraction always wins over synthesis).
+
+    This is how a cell whose SOURCE board was never routed (e.g. the eps sense cell -- the
+    committed board is placement-only) still arrives at stamp() pre-routed for its LOCAL nets:
+    the internal route is a short legal connection, laid + LOCKED at stamp (guard-checked
+    against foreign copper on the destination -- a route that still collides is REFUSED, per
+    spec). Non-local nets (ports) stay for the board passes, per the owner directive ('super
+    tight ideal routing ... for ones that are staying local')."""
+    have = {tr["net_role"] for tr in template.get("internal_tracks", [])}
+    pcenter = {ref: tuple(spec["offset_mm"]) for ref, spec in template["parts"].items()}
+    add = []
+    for role, spec in (template.get("internal_pads") or {}).items():
+        if role in have:
+            continue
+        pads = spec.get("pads", [])
+        if len(pads) < 2:
+            continue                          # a lone pad (e.g. an unconnected/Alert pad) is not routable
+        # per-pad OUTWARD escape (from owner-part centre), snapped to the dominant axis.
+        nodes = []                            # (pad_pt, escape_pt)
+        for p in pads:
+            px, py = p["rel_mm"]
+            cx, cy = pcenter.get(p["ref"], (px, py))
+            dx, dy = px - cx, py - cy
+            if abs(dx) >= abs(dy):
+                esc = (px + math.copysign(escape_mm, dx or 1.0), py)
+            else:
+                esc = (px, py + math.copysign(escape_mm, dy or 1.0))
+            nodes.append(((px, py), esc))
+        # nearest-neighbour order on the escape points (deterministic, 'super tight').
+        order = [0]
+        rem = list(range(1, len(nodes)))
+        while rem:
+            lx, ly = nodes[order[-1]][1]
+            nxt = min(rem, key=lambda i: (nodes[i][1][0] - lx) ** 2 + (nodes[i][1][1] - ly) ** 2)
+            order.append(nxt); rem.remove(nxt)
+        pts = []
+        for k, idx in enumerate(order):
+            pad_pt, esc_pt = nodes[idx]
+            if k == 0:
+                pts += [pad_pt, esc_pt]
+            else:
+                prev = pts[-1]
+                pts += [(esc_pt[0], prev[1]), esc_pt, pad_pt]   # orthogonal L: horizontal then vertical
+        for a, b in zip(pts, pts[1:]):
+            if abs(a[0] - b[0]) < 1e-9 and abs(a[1] - b[1]) < 1e-9:
+                continue                       # skip a degenerate zero-length segment
+            add.append({
+                "net_role": role,
+                "layer": layer,
+                "start_rel_mm": [round(a[0], 6), round(a[1], 6)],
+                "end_rel_mm": [round(b[0], 6), round(b[1], 6)],
+                "width_mm": width,
+            })
+    if not add:
+        return template
+    out = dict(template)
+    out["internal_tracks"] = list(template.get("internal_tracks", [])) + add
+    return out
+
+
+def locked_nets(board):
+    """The set of net NAMES that carry at least one LOCKED track or via on `board`. Generally
+    useful (P4/S3): the derived protect-list for route_oracle_grade (so a stamped cell's LOCKED
+    internal copper is fix->protect'd through Freerouting and SURVIVES the route), and the skip
+    set for the double-lay guard below. `board` may be a path or an already-loaded pcbnew board."""
+    b = pcbnew.LoadBoard(board) if isinstance(board, str) else board
+    out = set()
+    for t in b.GetTracks():
+        if t.IsLocked():
+            n = t.GetNetname()
+            if n:
+                out.add(n)
+    return out
+
+
+class guard_kelvin_double_lay:
+    """Context manager -- the P4 DOUBLE-LAY GUARD (docs/pass-form-plan.md §4, S3), implemented
+    WITHOUT editing cec_fr.py (S2/A5 own that file; its skip_locked_taps is not merged). Wraps
+    cec_fr.synthesize_kelvin_taps for the duration so it SKIPS any Kelvin pair whose *_HI/_LO
+    net already carries LOCKED copper (a stamped cell's pre-routed sense chain) -- the tap
+    synthesizer must not lay a second, redundant tap on a net the blueprint already owns.
+
+    BYTE-SAFE: when `locked_net_names` is empty (every non-blueprint board -- FR output isn't
+    locked, the golden floorplan carries 0 tracks) NO wrap is installed and the tap path is
+    byte-identical. Only a board that actually laid LOCKED Kelvin copper triggers a skip."""
+
+    def __init__(self, cec_fr_module, locked_net_names):
+        self.mod = cec_fr_module
+        self.skip = set(locked_net_names or ())
+        self._orig = None
+
+    def __enter__(self):
+        if not self.skip:
+            return self                          # inert -> byte-identical
+        orig = self.mod.synthesize_kelvin_taps
+        self._orig = orig
+        skip = self.skip
+
+        def wrapped(board, *, kelvin_pairs=None, **kw):
+            if kelvin_pairs is None:
+                kelvin_pairs = self.mod._board_kelvin_pairs(board)
+            kept = [pr for pr in kelvin_pairs if not (set(pr) & skip)]
+            return orig(board, kelvin_pairs=kept, **kw)
+
+        self.mod.synthesize_kelvin_taps = wrapped
+        return self
+
+    def __exit__(self, *exc):
+        if self._orig is not None:
+            self.mod.synthesize_kelvin_taps = self._orig
+        return False
