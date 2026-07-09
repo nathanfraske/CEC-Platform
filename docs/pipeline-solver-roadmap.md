@@ -94,6 +94,14 @@ loci into later candidates' hints (the "mappings feedback" backlog item).
 
 ## Pipeline improvements — non-solver (same standing list)
 
+- **ACTUATION-SPACE DEEP DIVE (owner ask 2026-07-08, orchestrator's own analysis):
+  docs/actuation-space-2026-07-08.md** — the organizing insight (pass-form SHRINKS
+  problems until stronger tools apply) + ten actuations: staged-FR via DSN net-tiering
+  (machinery exists), FR minimal patch set (seed flag kills the measured ±30 noise —
+  the honest 'rewrite FR' answer), snag->constraint compiler, hand-cell extractor,
+  GUI-parity locks, milestone-gated residual router, per-region exact placement,
+  GPU batch anneal, kipy zone ops, per-pass blind hooks. Ranked shortlist inside.
+
 - **PASS-FORM PLACEMENT+ROUTING (owner directive 2026-07-08, THE structural redesign):
   docs/pass-form-plan.md** — ordered passes w/ progressive locking, per-pass teeth,
   precision-first routing (kelvin/pairs/pours deterministic + protected, FR residual-only
