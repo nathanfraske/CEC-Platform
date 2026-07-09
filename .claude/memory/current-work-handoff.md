@@ -1,5 +1,28 @@
 # Current work handoff
 
+## (G13) PASS-FORM EXECUTION — 2026-07-08 ~23:45 (branch claude/pipeline-consolidation)
+S1 MERGED (6dfe435+2ac2d31+3a67f98): synth_one runs a 12-pass ladder, 8/8 byte-identical,
+locks DECLARED per boundary; the enforcement probe's violation map = p8_evac_mop is the
+SOLE violator (eps D1 stamp 8mm; 24pin SW1 seat 45mm) -> S4 = make evac/mop respect locks
+w/ a repair path. S2 (worktree agent, standing by on its A/B monitor): milestone 1 green --
+precision=False provably inert, eps CAN routed COUPLED ~112R (placement-dependent: refuses
+on blocked corridors -> structured handoff to staged-FR), locked copper survives FR 31/31;
+acceptance A/B (24pin wave-13 best + fresh eps, p16/o20) + blinded panels PENDING. OWNER
+VERDICT on the precision-route panels: "way better" (logged as gate evidence). A5 MERGED
+(6d2a3d5): FR-1.7.0 seed patch -- TRUTH CORRECTION: stock -mt1 already deterministic on
+small boards (maze randomizer dead headless); patch = the R-01 DIVERSITY AXIS (-seed net-
+order shuffle; same-seed identical, cross-seed distinct, no-seed==stock); jar on /mnt/e/
+toolchain/fr-fork + patch committed; WIRING PENDING post-S2-merge (cec_fr: FR_RELEASES
+'1.7.0-cec1' + -seed argv in _fr_command -- run_freerouting's seed kwarg is log-only).
+Telemetry-patch recon in ops/README-fr-fork.md. 24pin CAN netclass STALE PATTERNS FIXED
+(949b207). S3 LAUNCHED (opus worktree): blueprint stamping w/ INTERNAL IDEAL ROUTING
+(owner directive) -- stamp lays+LOCKS cell copper at materialize, oracle protects it;
+teeth incl. sabotage + survive-FR. Dashboard :8090 relaunched as a MANAGED bg task
+(died silently w/ the session restart; matplotlib pip-install is runtime-ephemeral --
+FOLLOWUPS has the Dockerfile note). MERGE ORDER when reports land: S2 -> A5 wiring ->
+S3 -> wave 14 (first pass-form wave, owner blind call on S2 panels gates precision-on).
+
+
 ## (G12) ACTUATION SHORTLIST — 2026-07-08 ~22:10 (branch claude/pipeline-consolidation)
 Deep dive docs/actuation-space-2026-07-08.md (fb49fd6): pass-form SHRINKS problems until
 stronger tools apply; 10 actuations, ranked. IMPLEMENTATION (owner GO "implement those"):
