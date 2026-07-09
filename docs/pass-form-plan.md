@@ -140,8 +140,13 @@ Format: pass — goal → existing machinery → gap → done-criteria (teeth).
 - Power-vs-critical ordering is a genuine literature disagreement; our measured
   pour-after-route rule decides it for THIS toolchain (R4 copper additive after R6? No:
   R4 lays reservations pre-FR and copper post-FR — both halves stated in R4).
-- The 12vhpwr "6 cells @ exact 17.00mm" figure is a probe measurement, not committed —
-  re-measure before using as the blueprint pitch target.
+- RESOLVED (2026-07-08, cell-extractor measurement): the "17.00mm" figure was the
+  shunt->INA240 span WITHIN a lane, not the lane pitch — the real cross-lane pitch is a
+  uniform 6.00mm (matching the README's ~6mm). Better: 5 of 6 cell slots measure EXACTLY
+  0.000000mm deviation across all six hand lanes (CF jitters 0.05mm + one 0.5mm outlier)
+  — the hand board IS a rigid stamped cell, empirically validating the P4 blueprint
+  premise. Templates: build/cell_extract_lane_templates.json; the extractor round-trips
+  lane3->lane5 at 0.05mm max error.
 - TI SDAA115 (canonical tap app note) resisted text extraction — fetch raw + PDF-extract
   if verbatim numeric tap specs are wanted (the landed canonical geometry matches its
   indexed summary + the ADI Analog Dialogue rules).
