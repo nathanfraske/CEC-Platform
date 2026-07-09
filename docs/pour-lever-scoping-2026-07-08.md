@@ -442,6 +442,11 @@ seeds, identical placement, one variable:
 
 ## 8. Risks / open questions the owner must rule on
 
+**RATIFIED 2026-07-09 (owner, all four as proposed):** (1) reshape autonomy line CONFIRMED
+incl. drop_layer in-loop (add/drop/re-net = escalate); (2) min-pour-cross-section = HARD
+gate on rebuilt pours; (3) In2 schema-only, FR-binding fix separate; (4) rebuilds count
+against Kmax. Stage 4 UNPARKED.
+
 1. **Is a router-initiated pour rebuild a "design change" under the human-ratification boundary?**
    (CLAUDE.md "constraint loop's human-ratification boundary — SET IN STONE".) **Proposed rule:**
    *reshaping* an auto-derived pour — notch / shrink / relocate / drop-layer, same net, geometry only —
