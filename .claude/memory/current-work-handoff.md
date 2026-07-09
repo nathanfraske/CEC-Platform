@@ -1,5 +1,27 @@
 # Current work handoff
 
+## (G14) WAVE 14 RUNNING — 2026-07-09 ~02:00 (branch claude/pipeline-consolidation)
+ALL FIVE WORKSTREAMS MERGED (S1 ladder+locks map / S2 precision e7adc0a+ba20f65+150b32c
+fixup / S3 blueprints 69de373..c2e69dd / A5 seed patch 6d2a3d5 + WIRED 2101e00 teeth-PASS
+(same-seed byte-identical via registry '1.7.0-cec1', local-path rung; SES-basename gotcha:
+compare with SAME basename) / A1-A3). BLIND VERDICT (owner, both cards in, key opened):
+Board1=precision BOTH boards -- eps decisive precision win on craft at metric parity;
+24pin split-leaning-bare (precision CAN unrouted -> FIXED: refused pairs now solo-tier
+pre-recipe, e8b78ba teeth-PASS on the CAN-refusing eps placement). Scorecard fixes: panel
+metrics exclude locked stubs (build/blind_routes2.py, PROMOTE to committed generator --
+FOLLOWUPS); pair router 45-deg fan + earliest-pickup (9c2bff5, octilinear axis rework
+still filed); NET SPOTLIGHT view landed (build/net_spotlight.py, owner: use more). 24pin
+CAN netclass fixed 949b207. WAVE 14 LAUNCHED (detached in-container, log build/
+fresh-wave-14.log): --boards atx-24pin-rev3,eps-8pin --seeds 0,1, CEC_FR_VERSION=
+1.7.0-cec1 (REAL seeds first time), precision=True default (wave_precision param kills),
+pass-ladder journals, lazy thermal+mirage guard. Container restart tonight LOST pip
+runtime deps (matplotlib, shapely) -- reinstalled --break-system-packages; Dockerfile
+note in FOLLOWUPS. Dashboard :8090 = managed bg task. NEXT: wave-14 results -> owner
+blind review (incl. placement blinds -- promised, not yet wired into the wave artifacts;
+spotlight per-route panels ditto); S4 = evac/mop lock respect; blueprint_cells wave =
+next lever after.
+
+
 ## (G13) PASS-FORM EXECUTION — 2026-07-08 ~23:45 (branch claude/pipeline-consolidation)
 S1 MERGED (6dfe435+2ac2d31+3a67f98): synth_one runs a 12-pass ladder, 8/8 byte-identical,
 locks DECLARED per boundary; the enforcement probe's violation map = p8_evac_mop is the
