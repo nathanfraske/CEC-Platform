@@ -327,8 +327,10 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
         if seg_clear(src, dst, partner):
             return [src, dst]
         for r in (0.8, 1.2, 1.6, 2.0, 2.6, 3.2):
-            for k in range(24):
-                th = 2.0 * math.pi * k / 24.0
+            # OWNER SCORECARD FIX (2026-07-09): 8 directions at 45-degree steps -- the
+            # 24x15-degree fan laid 'strange acute angles... jarring, HF-style' bends.
+            for k in range(8):
+                th = 2.0 * math.pi * k / 8.0
                 mid = (src[0] + r * math.cos(th), src[1] + r * math.sin(th))
                 if seg_clear(src, mid, partner) and seg_clear(mid, dst, partner):
                     return [src, mid, dst]
@@ -342,8 +344,10 @@ def route_coupled_pair(board, pair, *, layer="F.Cu", clearance=None, verbose=Fal
     px, py = -uy, ux                              # perpendicular
     sgn = 1.0 if ((P_src[0] - Sc[0]) * px + (P_src[1] - Sc[1]) * py) >= 0 else -1.0
 
-    # try a few insets (how far the coupled run is pulled in from each cluster) x lateral shifts
-    for inset in (2.0, 2.8, 3.6, 1.3):
+    # try a few insets (how far the coupled run is pulled in from each cluster) x lateral
+    # shifts. SHORTEST inset FIRST (owner scorecard fix 2026-07-09: the pair 'takes too
+    # long to loop around and start riding alongside' -- earliest pairing pickup wins).
+    for inset in (1.3, 2.0, 2.8, 3.6):
         if 2 * inset >= span - 0.5:
             continue                              # clusters too close to seat a coupled run
         Se = (Sc[0] + ux * inset, Sc[1] + uy * inset)
