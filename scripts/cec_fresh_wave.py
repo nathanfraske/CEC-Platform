@@ -366,6 +366,21 @@ def run_board(board, seeds, passes, opt, out_root, work_root):
             import cec_wave_intents
             ran = {v["label"].rsplit("-", 2)[0] for v in results}
             props, plog = cec_wave_intents.propose(board, results, W, H, ran)
+            # A2 SNAGFIX -- first live wiring (owner GO 2026-07-09): compile the BEST
+            # verdict's STRUCTURED violations into a deterministic proposal through the
+            # SAME validated channel (prop-snagfix provenance). The judgment seat and
+            # the mechanical compiler now feed the same next-wave grid.
+            try:
+                import cec_snag_compiler
+                sf = cec_snag_compiler.compile_validated(best, board)
+                if sf.get("proposal"):
+                    sf["proposal"]["name"] = "snagfix"
+                    props = list(props) + [sf["proposal"]]
+                    plog.append("snagfix: %d near / %d assign intents from the best verdict"
+                                % (len(sf["proposal"].get("near") or ()),
+                                   len(sf["proposal"].get("assign") or ())))
+            except Exception as e:                          # noqa: BLE001 -- fail-safe
+                plog.append(f"snagfix unavailable: {e}")
             if props:
                 path = cec_wave_intents.save(out_root, board, props, plog,
                                              meta={"from_wave": ts})
