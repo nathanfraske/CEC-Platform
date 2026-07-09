@@ -1592,6 +1592,36 @@ def _tap_pair_overlap_clear(board, S, T, width_nm, layer_id, own_code, sense_cod
     return True
 
 
+def _canonical_tap_path(S, T, ux, uy, *, run_pref_mm=0.9, run_min_mm=0.3, gap_mm=None):
+    """The TEXTBOOK datasheet Kelvin tap shape (owner directive 2026-07-08): exit the
+    shunt pad's INNER edge PERPENDICULAR to it (= along the inner direction u), run
+    straight inward "a ways", then ONE 90-degree turn toward the sense IC, final
+    approach parallel to the axis. Decompose T-S onto (u, perp): axial a, lateral b.
+    Path = S -> P1 (u * run) -> P2 (perp * b) -> T (u * (a - run)). Canonical only
+    when the IC sits INWARD (a > run_min); the turn happens at or before the IC's
+    axial coordinate and inside the inter-pad gap. Returns the polyline or None."""
+    ax = (T.x - S.x) / MM
+    ay = (T.y - S.y) / MM
+    a = ax * ux + ay * uy                                # axial component (inward)
+    px, py = -uy, ux                                     # perpendicular unit
+    b = ax * px + ay * py                                # lateral component
+    if a <= run_min_mm:
+        return None                                      # IC not inward -- not canonical
+    run = min(run_pref_mm, a)
+    if gap_mm is not None:
+        run = min(run, max(run_min_mm, gap_mm * 0.45))   # stay inside the inter-pad gap
+    if run < run_min_mm:
+        return None
+    P1 = pcbnew.VECTOR2I(S.x + _nm(ux * run), S.y + _nm(uy * run))
+    P2 = pcbnew.VECTOR2I(P1.x + _nm(px * b), P1.y + _nm(py * b))
+    path = [S, P1]
+    if (P2.x, P2.y) != (P1.x, P1.y):
+        path.append(P2)
+    if (T.x, T.y) != (path[-1].x, path[-1].y):
+        path.append(T)
+    return path if len(path) >= 3 else None
+
+
 def _dogleg_candidates(S, T):
     """Candidate 2-3 leg orthogonal paths S->..->T for a REFUSED straight tap, nearest-to-straight
     first: the two L-bends, then channel doglegs that run the long axis at a fraction of the
@@ -1722,6 +1752,22 @@ def synthesize_kelvin_taps(board, *, kelvin_pairs=None, width=0.25, layer="F.Cu"
             for r, p in sorted(ic_pad.items()):
                 T = p.GetPosition()
                 lbl = "%s->%s.%s" % (sh, r, p.GetPadName())
+                # CANONICAL FIRST (owner 2026-07-08): the textbook datasheet tap --
+                # perpendicular off the inner edge, straight run inward, ONE 90 toward
+                # the sense IC. Preferred over the direct diagonal whenever it guards
+                # clean; falls through to straight, then doglegs, then refusal.
+                _gap = math.hypot((other_pos.x - pc.x) / MM, (other_pos.y - pc.y) / MM)
+                canon = _canonical_tap_path(S, T, _ux, _uy, gap_mm=_gap)
+                if canon is not None:
+                    legs = list(zip(canon, canon[1:]))
+                    if all(a != b for a, b in legs) and \
+                       all(_tap_foreign_clear(board, a, b, _nm(width), lay_id, clr_nm,
+                                              sense_codes) and
+                           _tap_pair_overlap_clear(board, a, b, _nm(width), lay_id, nc,
+                                                   sense_codes)
+                           for a, b in legs):
+                        pending.append((canon, nc, net, lbl + " (canonical)", lay_id))
+                        continue
                 # GUARD (defence 2): refuse rather than lay a stub that clips foreign copper.
                 if _tap_foreign_clear(board, S, T, _nm(width), lay_id, clr_nm, sense_codes):
                     pending.append(([S, T], nc, net, lbl, lay_id))
