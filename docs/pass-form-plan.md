@@ -83,10 +83,22 @@ Format: pass — goal → existing machinery → gap → done-criteria (teeth).
   spine pitch → criteria: per-cell local DRC + adjacency gates; cells RIGID from here. LOCK.
   **OWNER ADDITION (2026-07-08): templates carry SUPER-TIGHT IDEAL ROUTING for their
   LOCAL (internal) nets** — stamped cells arrive pre-routed + LOCKED for internal copper,
-  ports left for board passes. Half-built: cec_cell_extract already lifts internal
-  routing off hand boards (the 22 kelvin-filter tracks) and stamp() returns transformed
-  copper as data; S3 makes lay_tracks=True real (lay + lock, guard-checked), and
-  non-extracted templates get compile-time ideal internal routing.
+  ports left for board passes.
+  **LANDED (S3, 2026-07-08):** `cec_cell_extract.stamp(lay=True)` now writes the transformed
+  INTERNAL copper onto a real board via pcbnew as LOCKED tracks/vias (net codes resolved
+  through net_map), guard-checked first (exact-geometry `GetEffectiveShape().Collide` vs
+  foreign copper) — a colliding stub REFUSES the WHOLE cell's copper with a named reason,
+  placement still stamps; ports lay nothing. `synthesize_ideal_internal()` compiles the
+  super-tight ideal route for a cell whose source was never routed (per-pad outward escape +
+  orthogonal connect; captured via the new `internal_pads` in `extract()`). `synth_one` gains
+  the OPT-IN `p4b_blueprint_stamp` pass (cfg.params['blueprint_cells']; absent ⇒ no-op ⇒
+  BYTE-IDENTICAL, verified real-vs-shadow for eps+24pin × {dataflow,compact} seed0): it stamps
+  each cell as a RIGID fixed unit (locks its refs, reserves its bbox so foreign bodies
+  evacuate), and stashes the copper spec on the Candidate; `materialize()` lays it LOCKED (the
+  fiducial pattern). Survive-FR: `route_oracle_grade` derives `protect_nets` from
+  `cec_cell_extract.locked_nets(board)` and arms `guard_kelvin_double_lay` (skips a Kelvin pair
+  whose net already carries locked copper) — both empty/inert on every non-blueprint board.
+  Teeth: tests/test_blueprint_cells.py + the in-container survive-FR run (locked before==after).
 - **P5 owned passives around remaining ICs** → derive_passive_spec + auto_cluster +
   (single, final) stamp — the re-stamp hack dissolves because owners are already locked →
   criteria: decoupler-adjacency ≤7mm functional gate.
@@ -136,7 +148,10 @@ Format: pass — goal → existing machinery → gap → done-criteria (teeth).
   pre-FR + protect; FR residual-only. This is TPC generalized and wired into the ACTIVE
   pipeline. A/B by blind-audit protocol.
 - **S3 — blueprint primitive** (P4): template compile + affine stamp; absorbs the
-  repeated-cell backlog item; KiCad multichannel as the GUI-parity reference.
+  repeated-cell backlog item; KiCad multichannel as the GUI-parity reference. **LANDED
+  2026-07-08** — stamp lays LOCKED internal copper (guard-checked), the p4b pass stamps rigid
+  cells opt-in (byte-identical when unused), materialize lays the copper, and the oracle
+  protects + guards the cell nets through FR. See the P4 LANDED note above.
 - **S4 — boundary gates for P2/P3 at their boundaries** (move existing gates earlier) +
   seat-time constraint honoring (lane/THT-aware seats).
 - **S5 — finishing passes + the redundant-branch pass.**
