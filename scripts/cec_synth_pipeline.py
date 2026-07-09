@@ -3478,6 +3478,96 @@ def _seat_sense_ics(topo, anchors, nl, comps, *, seat_gap=0.2, pour_margin=1.0):
     return seated
 
 
+def _seat_conflict_repair(anchors, comps, topo, nl, W, H, *, clr=0.4, drop_antenna=False,
+                          step=1.5):
+    """SEAT CONFLICT REPAIR (dual-sided fix, 2026-07-08 -- Fix #1 THT-backside + Fix #2 same-face
+    overlap). The shared-bus rail cells (5VSB/12V/3V3/5V) sit on ONE thin sense band at H/2, columns
+    pitched narrower than the seated INA181+TLV cell width, so after the F/B alternation the two
+    SAME-FACE cells (2 columns apart) still collide -- AND the back cells fall under the FRONT
+    connectors' THT pin fields (RS2/U65V1/U75V1 under J6). Both are the SAME geometric conflict on a
+    board with 47mm of UNUSED vertical room, so resolve both by Y-STAGGERING each cell as a RIGID
+    unit (shunt + its INA238 + INA181 + TLV move together -> Kelvin sense-pad<->shunt geometry is
+    preserved EXACTLY). A cell's obstacles are, face-aware: (a) already-staggered SAME-face cells,
+    (b) SAME-face fixed connector/mount courtyards (front CrtYd), (c) OPPOSITE-face THT pin-field
+    keepouts (the _tht_pin_field_boxes shared derivation -- Fix #1). Mutates *anchors*; returns
+    (moved_refs, snags). A cell that cannot be cleared within the board keeps its least-bad Y and is
+    named in *snags* (honest 'too tight' rather than a hidden overlap)."""
+    import cec_pcb
+    cells = _dual_side_cells(topo, anchors, nl, comps)
+    if not cells:
+        return [], []
+
+    def _esp(libid):
+        s = str(libid).lower()
+        return "esp32" in s or "rf_module" in s
+
+    for cell in cells:
+        cell["mrefs"] = sorted(r for r in cell["members"] if r in anchors and r in comps)
+    cell_refs = {r for c in cells for r in c["mrefs"]}
+    # THT pin-field keepouts (both faces) off the current seat -- connectors are front (guard),
+    # so their fields carry mount_face 'F' and keep BACK cells out (and vice versa).
+    tht = _tht_pin_field_boxes(anchors, comps, back_refs=set())
+    # SAME-face fixed obstacles: every non-cell anchor's courtyard (front-mounted -> front CrtYd).
+    anchor_boxes = []
+    for r, pos in anchors.items():
+        if r in cell_refs or r not in comps:
+            continue
+        anchor_boxes.append(cec_pcb.courtyard_bbox(comps[r], *pos,
+                                                   drop_keepout=(drop_antenna and _esp(comps[r]))))
+
+    def _cell_bbox(mrefs, dy):
+        xs, ys = [], []
+        for r in mrefs:
+            x, y, rot = anchors[r]
+            cb = cec_pcb.courtyard_bbox(comps[r], x, y + dy, rot,
+                                        drop_keepout=(drop_antenna and _esp(comps[r])))
+            xs += [cb[0], cb[1]]
+            ys += [cb[2], cb[3]]
+        return (min(xs), max(xs), min(ys), max(ys))
+
+    cands = [0.0]
+    d = step
+    while d <= (H / 2.0 - 3.0):
+        cands += [d, -d]
+        d += step
+    placed, moved, snags = [], [], []
+    # order: process WIDEST-x-span cells first (most constrained), so the tight ones get first pick.
+    order = sorted(cells, key=lambda c: -(lambda b: b[1] - b[0])(_cell_bbox(c["mrefs"], 0.0)))
+    for cell in order:
+        face = cell["face"]
+        mrefs = cell["mrefs"]
+        best_dy, best_bad = 0.0, None
+        for dy in cands:
+            bb = _cell_bbox(mrefs, dy)
+            if bb[2] < 1.0 or bb[3] > H - 1.0:           # off-board
+                continue
+            bad = 0.0
+            for f2, b2 in placed:                        # (a) same-face staggered cells
+                if f2 == face:
+                    bad += _ov_area(bb, b2, clr)
+            if face == "F":                              # (b) same-face connector/mount courtyards
+                for ab in anchor_boxes:                  # (connectors are front-mounted -> front CrtYd)
+                    bad += _ov_area(bb, ab, clr)
+            for _tr, tb in tht.items():                  # (c) opposite-face THT pin fields
+                if tb[4] != face:                        # keepout is on the OTHER face -> this cell must avoid it
+                    bad += _ov_area(bb, (tb[0], tb[1], tb[2], tb[3]))
+            if bad <= 1e-6:
+                best_dy, best_bad = dy, 0.0
+                break
+            if best_bad is None or bad < best_bad:
+                best_dy, best_bad = dy, bad
+        if abs(best_dy) > 1e-6:
+            for r in mrefs:
+                x, y, rot = anchors[r]
+                anchors[r] = (x, y + best_dy, rot)
+                moved.append(r)
+        placed.append((face, _cell_bbox(mrefs, 0.0)))    # final bbox (anchors already moved)
+        if best_bad and best_bad > 1e-6:
+            snags.append({"cell": cell["shunt"], "face": face,
+                          "residual_conflict_mm2": round(best_bad, 2)})
+    return moved, snags
+
+
 def _corridor_veto(ref, xy, bands, sensitive, paired_ina):
     """HARD veto (placement-strategy §2.2 H1): a HOT/SENSITIVE part body may not sit inside a FOREIGN
     cable's FORMED band. *bands* maps base -> {"band":(x0,x1,y0,y1), "formed":bool}; *paired_ina* maps
@@ -4128,9 +4218,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
     _pour_fixed = _pour_asks = _pour_boxes = _nets_of = _net_exempt = _restamped = None
     # DUAL-SIDED face model (lifted from the post-ladder block so the passes are side-aware):
     # _cells = per-rail sensing cells + F/B faces; _back = the full back-ref set; _tht_keep =
-    # {ref: (x0,x1,y0,y1,mount_face)} THT pin-field keepouts. Empty on non-dual-sided boards
-    # (byte-identical inertness -- the golden guarantee).
+    # {ref: (x0,x1,y0,y1,mount_face)} THT pin-field keepouts; _seat_snags = seat-repair residuals.
+    # Empty on non-dual-sided boards (byte-identical inertness -- the golden guarantee).
     _cells = _back = _back_stripped = _tht_keep = None
+    _seat_snags = []
     # P4 BLUEPRINT CELLS (docs/pass-form-plan.md §4, stage S3). Empty unless
     # cfg.params['blueprint_cells'] is set -> every downstream `not in _bp_refs` filter is a
     # no-op and synth_one is BYTE-IDENTICAL (the golden-safety invariant). _blueprint_stamps
@@ -4226,7 +4317,7 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         nonlocal by_owner, fixed_owner, drop_kc, macro, cluster_offsets, fixed_stamp
         nonlocal P, cyinfo_all, _spine, _bands, _paired, _sensitive, _veto, _rk
         nonlocal _role_clr, _func_stamped, _pour_fixed, _pour_asks, _pour_boxes
-        nonlocal _nets_of, _net_exempt, _restamped
+        nonlocal _nets_of, _net_exempt, _restamped, _seat_snags
         # 1b'. REAL KELVIN SEAT (owner directive 2026-06-27): seat each cable's sense IC(s) HARD against
         #      the just-seated shunt's inner edge as FIXED anchors -- body perpendicular to the corridor,
         #      centred in the un-poured notch (OUT of the SENSEC pour), IN+/IN- facing the HI/LO inner
@@ -4280,6 +4371,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
             anchors[_can] = (min(max(bx, 4.0), W - 4.0) - _can_cy[0],
                              min(max(ry, 5.0), H - 5.0) - _can_cy[1], 0.0)
             _can_seated.append(_can)
+        # 1d. SEAT CONFLICT REPAIR (dual-sided fix): Y-stagger the rail sensing CELLS (rigidly, so
+        #     Kelvin holds) clear of same-face overlaps AND opposite-face THT pin fields. Runs HERE --
+        #     inside the seat pass, BEFORE these refs are locked -- so the repaired positions are what
+        #     the ladder locks (the p3 shunt lock moved to critical_seats for exactly this). Gated to
+        #     dual_sided shared-bus boards; inert (byte-identical) elsewhere.
+        _seat_snags = []
+        if cfg.params.get("dual_sided") and any(c.get("shared_bus") for c in (_topo or [])):
+            _moved_cells, _seat_snags = _seat_conflict_repair(anchors, comps, _topo, nl, W, H,
+                                                              drop_antenna=drop_antenna)
+            if _seat_snags:
+                print("  [seat-repair] %d cell(s) not fully cleared: %s"
+                      % (len(_seat_snags), _seat_snags), file=sys.stderr)
         anneal_units = [r for r in (ics + free_shunts)
                         if r != _esp and r not in seated_inas and r not in _sw_seated
                         and r not in _can_seated]
@@ -4796,13 +4899,18 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                                    if not r.startswith(("TB", "J_OUT", "J_SIG"))],
              doc="connectors by role (overhang) + mounts/fiducials, legalized among anchors"),
         Pass("p3_corridor_spine", _p3_corridor_spine, phase="P3",
-             locks_out=lambda _s: ([r for r in anchors
-                                    if r.startswith(("TB", "J_OUT"))] + list(seated)),
+             # LOCKS the output row (TB blades + J_OUT). The SHUNTS are locked one pass later
+             # (critical_seats) because the dual-sided seat-conflict repair Y-staggers each rail
+             # CELL -- shunt included -- as a rigid unit; locking the shunt here would make that
+             # repair a lock violation (the enforcement-probe blocker), so the whole cell locks
+             # together AFTER it is repaired.
+             locks_out=lambda _s: [r for r in anchors
+                                   if r.startswith(("TB", "J_OUT"))],
              doc="form per-cable corridors: align J_OUT under J_IN + seat the shunt inline"),
         Pass("p3_critical_seats", _p3_critical_seats, phase="P3",
-             locks_out=lambda _s: (list(seated_inas) + ([_esp] if _esp else [])
+             locks_out=lambda _s: (list(seated) + list(seated_inas) + ([_esp] if _esp else [])
                                    + list(_sw_seated) + list(_can_seated)),
-             doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat"),
+             doc="kelvin/sense seats + ESP antenna seat + buttons + CAN seat + cell Y-stagger repair"),
         Pass("p4b_blueprint_stamp", _p4b_blueprint_stamp, phase="P4",
              # LOCKS the stamped cell's refs -- rigid from here (internal copper laid at
              # materialize). No-op + locks nothing when blueprint_cells is absent (byte-identical).
