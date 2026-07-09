@@ -3528,9 +3528,9 @@ def _seat_conflict_repair(anchors, comps, topo, nl, W, H, *, clr=0.4, drop_anten
     cands = [0.0]
     d = step
     while d <= (H / 2.0 - 3.0):
-        cands += [d, -d]
-        d += step
-    placed, moved, snags = [], [], []
+        cands += [d, -d]                                 # smallest |dy| first (down before up at each
+        d += step                                        # magnitude -- measured best for overlap+THT;
+    placed, moved, snags = [], [], []                    # an up-bias re-broke both near J3's field)
     # order: process WIDEST-x-span cells first (most constrained), so the tight ones get first pick.
     order = sorted(cells, key=lambda c: -(lambda b: b[1] - b[0])(_cell_bbox(c["mrefs"], 0.0)))
     for cell in order:
@@ -3816,6 +3816,75 @@ def _evacuate_pours(P, comps, boxes, fixed, *, tol=0.3, clr=0.4, drop_antenna=Fa
         _, x0, x1 = worst
         tcx = (x0 - clr - hw) if (ccx - x0) <= (x1 - ccx) else (x1 + clr + hw)  # exit the nearer x-edge
         P[ref] = (tcx - cx0, y, rot)
+        moved.append(ref)
+    return moved
+
+
+def _evacuate_tht(P, comps, tht_keep, faces, fixed, W, H, *, clr=0.3, silk_margin=1.6,
+                  drop_antenna=False):
+    """THT-BACKSIDE evac (Fix #1, movable half): push each OPPOSITE-face movable body just OUT of a
+    THT pin-field keepout, out the box's SHORT axis so a decoupling cap stays NEAR its owner (a
+    minimal nudge, NOT a full relocation that would strand it -- the universal-keepout attempt
+    stranded 6 caps). *tht_keep* {ref:(x0,x1,y0,y1,mount_face)}; *faces* ref->'F'/'B'; *fixed* =
+    never-moved. A body on the SAME face as a THT box is left to the courtyard gate (same-face pad
+    overlap), so only the cross-face backside class is handled here. *silk_margin* inflates the
+    body's extent to match the gate's SILK-INCLUSIVE GetBoundingBox (the value text overhangs the
+    courtyard ~1.5mm; a courtyard-clear cap can still trip the gate on silk -- measured). Returns
+    the moved refs."""
+    moved = []
+    for ref in list(P):
+        if (ref in fixed or ref not in comps or ref[:1] in ("J", "H")
+                or ref.startswith(("TB", "FID"))):
+            continue
+        rf = faces.get(ref, "F")
+        x, y = P[ref][0], P[ref][1]
+        rot = P[ref][2] if len(P[ref]) > 2 else 0.0
+        cx0, cy0, hw0, hh0 = _courtyard_info(comps[ref], rot, drop_antenna=drop_antenna)
+        hw, hh = hw0 + silk_margin, hh0 + silk_margin    # silk-inclusive extent (matches the gate)
+        ccx, ccy = x + cx0, y + cy0
+        cb = (ccx - hw, ccx + hw, ccy - hh, ccy + hh)
+        worst = None
+        for _tr, tb in tht_keep.items():
+            if tb[4] == rf:                              # same face -> courtyard gate, not backside
+                continue
+            x0, x1, y0, y1 = tb[0], tb[1], tb[2], tb[3]
+            ox = min(cb[1], x1) - max(cb[0], x0)
+            oy = min(cb[3], y1) - max(cb[2], y0)
+            if ox > 0 and oy > 0 and (worst is None or ox * oy > worst[0]):
+                worst = (ox * oy, x0, x1, y0, y1)
+        if worst is None:
+            continue
+        _, x0, x1, y0, y1 = worst
+        # opposite-face THT boxes this body must not LAND in (avoid whack-a-mole into a neighbour)
+        opp = [tb for tb in tht_keep.values() if tb[4] != rf]
+
+        def _clean(nx_ccx, nx_ccy):                      # new silk-inclusive body clears every opp box?
+            for tb in opp:
+                if (nx_ccx - hw < tb[1] and nx_ccx + hw > tb[0]
+                        and nx_ccy - hh < tb[3] and nx_ccy + hh > tb[2]):
+                    return False
+            return True
+        # evaluate all four exits (left/right/up/down); pick the smallest move that keeps the
+        # (silk-inclusive) body ON-BOARD *and* clear of every other THT field -- so a body pinned
+        # against the board edge (C17 below J_SIG) exits SIDEWAYS, and one boxed in a corner is
+        # LEFT courtyard-clear rather than shoved into TB9 (a new violation).
+        best = None
+        for ax, tc in (("x", x0 - clr - hw), ("x", x1 + clr + hw),
+                       ("y", y0 - clr - hh), ("y", y1 + clr + hh)):
+            if ax == "x":
+                if tc - hw < 0.5 or tc + hw > W - 0.5 or not _clean(tc, ccy):
+                    continue
+                move = abs(tc - ccx)
+            else:
+                if tc - hh < 0.5 or tc + hh > H - 0.5 or not _clean(ccx, tc):
+                    continue
+                move = abs(tc - ccy)
+            if best is None or move < best[0]:
+                best = (move, ax, tc)
+        if best is None:
+            continue                                     # corner-boxed -> leave courtyard-clear (snag)
+        _, ax, tc = best
+        P[ref] = ((tc - cx0, y, rot) if ax == "x" else (x, tc - cy0, rot))
         moved.append(ref)
     return moved
 
@@ -4694,7 +4763,12 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         # cap that drifted onto the column) is evacuated too. EXEMPT = the FIXED seated anchors (connectors,
         # shunts, kelvin-seated INAs + §6.13 comparators, ESP, mounts). Re-legalize only the moved refs so the
         # seat stays put.
-        _pour_fixed = (set(anchors_roles) | set(mech_pos) | set(_seated_shunts)
+        # FIDUCIALS are movable in the settle on a DUAL-SIDED board (they carry no electrical
+        # constraint): a fiducial the place_mechanical grid dropped under a LATER seat (the ESP
+        # antenna seat -> the U1|FID2 graze) must be nudge-able. Mounts (H*) stay fixed (deliberate
+        # chassis positions); gated to _back so single-sided placements stay byte-identical.
+        _mech_fixed = ({m for m in mech_pos if not m.startswith("FID")} if _back else set(mech_pos))
+        _pour_fixed = (set(anchors_roles) | _mech_fixed | set(_seated_shunts)
                        | set(seated_inas) | ({_esp} if _esp else set())) if seated_inas else set()
         _pour_fixed |= _bp_refs        # BLUEPRINT (P4): stamped cells are FIXED, never evacuated
         # (empty _bp_refs -> no change -> byte-identical).
@@ -4879,6 +4953,17 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
                 _slots5 = sorted((P[r][_ax5], P[r]) for r in _live5)
                 for r, (_k5, _pos5) in zip(_live5, _slots5):
                     P[r] = _pos5
+        # THT-BACKSIDE finish (Fix #1, movable half): the seat-repair cleared the SEATED cells; any
+        # MOVABLE straggler (a decoupling cap the restamp left under a front THT on the back) is
+        # nudged out HERE, last, so nothing undoes it. Minimal short-axis move -> stays near its
+        # owner (no strand). Never moves a FIXED/LOCKED ref (Fix #3). Gated to dual-sided.
+        if _back:
+            _bset = set(_back)
+            _faces10 = {r: ("B" if r in _bset else "F") for r in P}
+            _thtk10 = _tht_pin_field_boxes(P, comps, back_refs=(_back or ()), clearance=0.3)
+            _lk10 = set(getattr(_state, "locked", None) or ())
+            _evacuate_tht(P, comps, _thtk10, _faces10, (_pour_fixed or set()) | _lk10, W, H,
+                          drop_antenna=drop_antenna)
 
     # ---- DECLARE the ladder (P0..P8 boundaries; the internal call order is unchanged from the
     #      pre-ladder monolith). P0/P1 (stackup/netclass + outline/keepouts) are UPSTREAM of
@@ -4938,7 +5023,10 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=Fals
         return P if P is not None else anchors
 
     ladder = PassLadder(_passes, _positions, enforce_locks=enforce_locks, eval_gates=eval_gates)
-    ladder.run()
+    # Pass the ladder itself AS the state so a pass can consult the growing LOCKED set (the pass
+    # fns ignore *state* otherwise -- they share scope via nonlocal). This is what lets p8_evac_mop
+    # + the p10 THT finish refuse to move a ref an earlier pass locked (Fix #3 lock respect).
+    ladder.run(state=ladder)
 
     # ============================================================ SCORING + RETURN (post-ladder)
     res = _count_overlaps(P, comps, drop_antenna=drop_antenna,   # honest DRC-accurate residual
