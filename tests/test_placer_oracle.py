@@ -82,6 +82,51 @@ class TestRoleNetAware(unittest.TestCase):
         self.assertFalse(sp._is_rail_net("/CAN_H"))
 
 
+# ===================================================== anchor_roles must reach EDGE SEATING
+class TestAnchorRoleOverrideSeeding(unittest.TestCase):
+    """The 12vhpwr fun-run bug (2026-07-09/10): params['anchor_roles'] was honored by _classify
+    (J3/J4 became anchors) but seed_anchors re-derived roles itself, so the 12V-2x6's sideband
+    DATA pins made _connector_net_role read BOTH connectors as 'host' -> both seated on the
+    RIGHT edge instead of power_in->top / power_out->bottom (straight-through). The
+    role_overrides= param closes the gap; default None is byte-identical (golden-safe)."""
+    FP = "cec:CEC_12V2x6_Horizontal"
+
+    def setUp(self):
+        # 12vhpwr-shaped pair: GND rail pads plus sideband DATA pins (SENSE0/CARD_PWR_STABLE) --
+        # the data pins are exactly what makes _connector_net_role fall through to 'host'.
+        self.nl = _nl(
+            {"J3": ("CEC_CONN_12V2x6", self.FP), "J4": ("CEC_CONN_12V2x6", self.FP)},
+            {"GND": [("J3", "7"), ("J3", "8"), ("J4", "7"), ("J4", "8")],
+             "/SENSE0": [("J3", "13"), ("J4", "13")],
+             "/CARD_PWR_STABLE": [("J3", "15"), ("J4", "15")]})
+        self.fp_of = {"J3": self.FP, "J4": self.FP}
+        self.W, self.H = 60.0, 40.0
+
+    def test_bug_pin_without_override_both_classify_host(self):
+        # the bug, pinned at its root: without the override the sideband data pins make BOTH
+        # 12V-2x6 connectors classify 'host' (-> the shared host edge, not top/bottom power
+        # seating). NB the seeded edge itself is corner-ambiguous here because two 19.4mm
+        # connectors overflow the 40mm edge (place_edge has no fit check -- a separate,
+        # documented packing gap), so the assertion pins the ROLE, not the resulting corner.
+        for r in ("J3", "J4"):
+            self.assertEqual(sp._role(r, "CEC_CONN_12V2x6", self.FP, nl=self.nl), "host", r)
+
+    def test_role_overrides_seat_power_in_top_out_bottom(self):
+        A = sp.seed_anchors(self.nl, self.W, self.H, self.fp_of, {}, overhang="none",
+                            role_overrides={"J3": "power_in", "J4": "power_out"})
+        self.assertEqual(sp._edge_of(A["J3"][0], A["J3"][1], 0.0, 0.0, self.W, self.H), "top")
+        self.assertEqual(sp._edge_of(A["J4"][0], A["J4"][1], 0.0, 0.0, self.W, self.H), "bottom")
+        # straight-through: the two courtyard CENTRES share an x column (origins differ by rot)
+        c3 = A["J3"][0] + sp._courtyard_info(self.FP, A["J3"][2])[0]
+        c4 = A["J4"][0] + sp._courtyard_info(self.FP, A["J4"][2])[0]
+        self.assertLess(abs(c3 - c4), 0.5)
+
+    def test_edge_override_still_wins_over_role_override(self):
+        A = sp.seed_anchors(self.nl, self.W, self.H, self.fp_of, {}, overhang="none",
+                            role_overrides={"J3": "power_in"}, edge_override={"J3": "left"})
+        self.assertEqual(sp._edge_of(A["J3"][0], A["J3"][1], 0.0, 0.0, self.W, self.H), "left")
+
+
 # ===================================================================== MV4: proxy_score
 class TestProxyScore(unittest.TestCase):
     def test_no_reference_equals_hpwl(self):

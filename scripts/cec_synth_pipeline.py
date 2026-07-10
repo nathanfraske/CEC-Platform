@@ -2024,7 +2024,7 @@ _ROLE_EDGE = {"power_in": "top", "power_out": "bottom", "host": "right", "usb": 
 
 
 def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_margin=1.8,
-                 edge_override=None):
+                 edge_override=None, role_overrides=None):
     """Place connector anchors at board edges. The edge a connector goes to is, by default, its
     role's generic edge (power_in->top, power_out->bottom, host/usb->right); MV2's *edge_override*
     {ref: 'top'|'bottom'|'left'|'right'} REPLACES that per connector -- it is a per-board INPUT
@@ -2039,8 +2039,14 @@ def seed_anchors(nl, W, H, fp_of, pins, *, overhang="none", margin=1.5, pad_marg
     roles = defaultdict(list)            # ref -> edge (role-default, then per-board override)
     by_edge = defaultdict(list)
     for ref in fp_of:
-        r = _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint,
-                  nl=nl)
+        # role_overrides (params["anchor_roles"]) must reach EDGE SEATING, not just _classify:
+        # the 12vhpwr fun-run bug (2026-07-09/10) was exactly this gap -- J3/J4 were overridden
+        # power_in/power_out in _classify (so they became anchors) but seed_anchors re-derived
+        # the role itself, and the 12V-2x6's sideband data pins make _connector_net_role read
+        # both as "host" -> both seated on the RIGHT edge instead of top/bottom-centre.
+        r = ((role_overrides or {}).get(ref)
+             or _role(ref, nl.comps.get(ref, Comp(ref)).value, nl.comps.get(ref, Comp(ref)).footprint,
+                      nl=nl))
         if not r or r == "mount":
             continue
         roles[r].append(ref)
@@ -4401,7 +4407,8 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
                 for _r in _hub_jacks:
                     _eov.setdefault(_r, _jack_edge)
         anchors = seed_anchors(nl, W, H, fp_of, cfg.pins, overhang=_overhang,
-                               edge_override=_eov or None)
+                               edge_override=_eov or None,
+                               role_overrides=cfg.params.get("anchor_roles"))
         mech_pos, mech_fp = place_mechanical(W, H, cfg.params)
         anchors.update(mech_pos)
         comps = dict(fp_of)
