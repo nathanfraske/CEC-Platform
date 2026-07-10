@@ -1,5 +1,37 @@
 # Current work handoff
 
+## (G18) SCOPING PASS + G17 ROOT CAUSE CLOSED — 2026-07-10 ~23:15 (branch claude/pipeline-consolidation)
+OWNER ASK (scoping only, NO runs/waves): shader-worthiness for GPU-run/router/placer/FEM +
+placer parallelization/packing + FEM completeness audit (opus agent). DELIVERED — standing
+copy in docs/pipeline-solver-roadmap.md ("GPU runtime reachability" section + placer/coord
+verdicts + 2026-07-10 decision-log entry); FOLLOWUPS 2026-07-10 block = the punchlists.
+HEADLINES: (1) **GPU paths ALL currently unreachable** — cupy+pyamg absent from
+docker-routing-1 AND host (runtime-pip loss, G14 class); thermal silently degrades to plain
+Jacobi-CG. Recipe committed+proven (Dockerfile.routing-gpu / compose.gpu.yaml / cec/routing:gpu
+image on disk, 5090 sm_120 verified via toolkit); durable fix = bake pyamg/matplotlib/shapely
+into BASE Dockerfile.routing + provision.sh gpu-image step. (2) **No shaders now**: FEM = fix
+nondeterminism first (audit located it: cec_thermal2d.py:546 ml.solve flagless + scipy-fallback
++ precond staleness, ~1h fix; GMG RawKernel "shader" already prototyped in cec_gmg_bench.py,
+unlanded); coord-router = its pinned-seed A/B FAILED TWICE (A-BETTER-OR-EQUAL, build/coord_ab_*
+.out; owner blind-pick tension noted) -> shelve, kernel only if a hint form wins; placer <2%
+of candidate cost. (3) **Throughput levers ranked** (agent-verified): wire prune->adjudicate
+into cec_fresh_wave (it BYPASSES place_candidates/adjudicate_candidates -> routes ALL 16-24
+variants, ~8x FR savings available), FR REST (server idle 3wk, cec_fr never reads
+CEC_FREEROUTING_URL), ~20 LoadBoards+3-4 DRC spawns per candidate mergeable, board-level wave
+concurrency (6 of 18 cores), anneal-cost vectorization (packing quality). (4) **G17 CLOSED
+w/ root cause + fix**: HPWR3 finished; winner prop-snagfix-dataflow-s1 rendered = STILL
+side-column. Cause CONFIRMED (not the suspected edge-fit fallback — none exists):
+params['anchor_roles'] reached _classify but seed_anchors RE-DERIVES roles; 12V-2x6 sideband
+data pins -> _connector_net_role None -> "host" -> BOTH J3/J4 right edge. FIXED: role_overrides
+threaded into seed_anchors + synth_one call site (+3 regression tests, test_placer_oracle
+44/44). Wave re-run NOT launched (owner directive). NOTE ALSO: plain-* candidates run 60x44
+not 60x40 (H grew somewhere — check before the re-run). (5) **Branch was WSL-ONLY (221
+commits, no remote ref!) — PUSHED to origin** + untracked scoping/bench/ops artifacts
+committed this session. (6) Pre-existing red host test: test_corridor_model
+test_phase2_default_placement_is_legal (residual 1), ablated NOT-mine, triage before next
+placer wave. NEXT: owner render-verdict on the fix (needs a run he must green-light), then
+uniformity-merge lane per G16/G17 (eps diff=F regression + pcie kelvin still open).
+
 ## (G17) 12VHPWR FUN-RUN — STRAIGHT-THROUGH STILL NOT ACHIEVED (2026-07-09 ~16:00)
 Owner fun-run: 12vhpwr fresh at 60x40, connectors-only. THREE runs so far; owner render
 verdicts (trust renders over coordinate probes -- twice proven): run1 J3+J4 STACKED at
