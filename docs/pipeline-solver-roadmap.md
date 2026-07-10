@@ -60,11 +60,9 @@ PROFILED (build/profile_placer.py, cProfile on the 24-pin synth): placement = ~3
 the wall. The hot spot is ONE function: `legalize_pack.cost()` = 92% of placement time
 (629k calls, 94M pure-Python abs() calls of AABB arithmetic; the anneal itself is 0.28s).
 Rungs, cheapest-first:
-1. **numpy-vectorize `legalize_pack.cost()` — MEASURED 2026-07-08** (prototype
-   `scripts/cec_legalize_fast_proto.py`, record/replay bench on 38 REAL calls, 2 boards x
-   2 seeds): **12.3x on the 24-pin (3.27s -> 0.27s), 5.5-5.8x on eps, 100% output-identical**
-   (positions <1e-9, residuals equal — the argmin/first-zero semantics match sequential).
-   Integration queued post-wave-13 (code freeze).
+1. **numpy-vectorize `legalize_pack.cost()` — LANDED (f23b6d7, 2026-07-08)**: synth_one
+   3.9s -> 0.83s, output-identical proven twice (38 recorded calls proto + 11/11 in-tree
+   fast-vs-`_legalize_pack_seq`). Original measurement: 12.3x on the 24-pin legalize calls.
 2. **cupy the same arrays** = GPU batch evaluation (the arrays are identical) — matters
    only at rung-3 scale.
 3. **Rust/CUDA placer = a SEARCH-SCALE lever, not a latency port**: thousands of parallel
@@ -73,6 +71,24 @@ Rungs, cheapest-first:
    finding). Justified only when the pipeline is placement-QUALITY-bound after the FR
    levers (REST reuse, pre-route screen) land. Exploratory; revisit when a wave's best is
    placement-limited rather than routing-limited.
+
+**2026-07-10 scoping verdict (owner ask "should we write a shader for the placer"): NO —
+and not close.** Post-vectorization placement is ~0.8s of a 45-300s candidate (<2%; FR
+measured medians from `build/worklog.jsonl` n=784: eps 44.7s, pcie-2 71s, 24-pin 199s,
+12vhpwr 241s). The placer's remaining pure-Python hot loop is `anneal_macros.cost()`
+(O(parts) AABB scan per move x 2500 moves, ~0.3s) — numpy-vectorizing IT is the cheap
+rung that buys 10-50x MORE anneal iterations in the same wall (a packing-QUALITY lever,
+same trick as legalize). The GPU-batch-anneal search-scale case is real but double-gated:
+(a) the wave currently FR-routes every variant (no proxy prune), so generating 100x more
+candidates buys nothing until the prune/adjudicate split is wired into `cec_fresh_wave`
+(`place_candidates`+`adjudicate_candidates` exist, `hub_pipeline_run` uses them, the wave
+driver bypasses them); (b) the cheap proxy doesn't predict routability (the documented
+false-summit). Packing-CORRECTNESS levers found the same pass: `place_edge` has NO
+edge-fit check (overflowing connector sets silently run past the board edge — reproduced
+in a unit test), the anneal has no rotation move (needs rotated cluster templates), and
+`params["anchor_roles"]` reached `_classify` but not `seed_anchors` edge seating (the
+12vhpwr J3/J4 side-column bug, FIXED 2026-07-10 w/ regression tests). Dead code:
+point-relaxation `legalize()` has zero callers.
 
 ### Co-coordinating router (owner ask 2026-07-08: paths aware of each other; GPU?)
 
@@ -91,6 +107,64 @@ more iters; then OUTPUT = per-net corridors + congestion map compiled into FR ba
 keepouts (FR keeps detailed routing — this COORDINATES it, replacing nothing). Cheap
 sibling rung: wave-level coordination — aggregate completed variants' unrouted/congestion
 loci into later candidates' hints (the "mappings feedback" backlog item).
+
+**STATUS 2026-07-10 (scoping re-audit): built, gated, and the gate says NO — shelve
+pending a redesigned hint form.** The production build (`scripts/cec_coord_router.py`,
+002be14) is complete per its design (capacity model, terminal exemption, 2-layer+via,
+H/V bias, pres ramp, chunked negotiation, best-so-far, GPU-resident descent) and honest:
+residual floors ~130 (eps) / ~500 (24-pin), and CHUNKING trades the un-chunked 8.1x GPU
+batch win down to **1.73x at production settings** (its own commit message). The T3
+bridge (`scripts/cec_coord_hints.py`) + pinned-seed A/B exist and RAN: **the A/B gate
+FAILED TWICE** (`build/coord_ab_result.out`, `build/coord_ab_reactive.out`: verdict
+A-BETTER-OR-EQUAL; reactive arm unconn 96->101, drc 104->109 — locked mid-corridor stubs
+stole FR freedom it didn't need help with). Tension to keep visible: the owner
+blind-picked the COORDINATED arm against the metrics (build/coord-blind key, G13). Next
+variant if revived: advisory keepout-avoidance instead of locked stubs, fewer nets.
+DURABILITY GAP: the teeth (`build/teeth_coord_router.py`) and both A/B verdicts live in
+gitignored `build/` — promote to `tests/`/docs before any revival. **Shader verdict: a
+fused relax RawKernel (+ dropping the per-sweep `xp.all` host sync) could plausibly take
+the GPU leg 12.8s -> 1-2s, but do NOT write it until a hint form passes its own A/B gate
+— it would optimize a component that currently loses.**
+
+### GPU runtime reachability + the shader question (2026-07-10 scoping pass)
+
+**Finding: every GPU path is currently UNREACHABLE — the whole pipeline silently runs CPU
+fallbacks.** cupy AND pyamg are absent from the persistent `docker-routing-1` container
+(and the host); the base `docker/Dockerfile.routing` never installed them (only
+numpy/scipy/requests), they were only ever runtime-`pip install`ed into live containers
+and lost on every recreate (bit us 2026-06-20, 07-08, 07-09/G14 — matplotlib/shapely
+same class). Consequence today: `cec_thermal2d` falls PAST GPU-AMG and PAST CPU-pyamg-AMG
+all the way to plain scipy Jacobi-CG (~4260 iters @217k cells vs AMG's ~10-15) — solves
+still complete, just 10-100x slower, with no warning. The GPU recipe itself is committed
+and proven: `docker/Dockerfile.routing-gpu` (cupy-cuda12x==14.1.1[ctk] + pyamg, the [ctk]
+extra is REQUIRED for sm_120 Blackwell JIT, ~153s one-time warmup measured 2026-06-16) +
+`docker/compose.gpu.yaml` overlay (nvidia device reservation + BLAS thread caps); the
+built `cec/routing:gpu` image (8.98GB) is still on disk; nvidia-container-toolkit
+verified working against the 5090 (compute cap 12.0) on 2026-07-10. Durable fixes (in
+order): (1) bake pyamg+matplotlib+shapely into the BASE `Dockerfile.routing` (restores
+CPU-AMG, the biggest win per the 2026-06-20 note "the win was AMG, not the GPU");
+(2) add the `:gpu` image build + overlay mention to `ops/provision.sh` (today a
+disaster-rebuild silently drops the GPU path); (3) never runtime-pip into the container
+again.
+
+**Shader (custom CUDA kernel) verdicts by engine:**
+- **FEM/thermal — the only engine where kernel work is even pending.** The V-cycle apply
+  is already GPU (library ops); the remaining bottleneck is pyamg's CPU setup, and the
+  half-built answer is `scripts/cec_gmg_bench.py`: matrix-free GEOMETRIC multigrid with a
+  hand-written red-black Gauss-Seidel **cupy RawKernel** (i.e. the shader already exists
+  in prototype), Galerkin coarse ops (hand-rediscretized coarse ops DIVERGED — recorded
+  in-file). No committed verdict yet. ORDER OF OPERATIONS: fix the solver nondeterminism
+  first (capture `residuals=` at `cec_thermal2d.py:546` + reject unconverged + precond
+  staleness rebuild, ~1h — the 2026-07-10 FEM audit's #1), bake the deps, THEN decide GMG.
+  Note thermal is currently lazily SKIPPED in waves (gate=False short-circuits → dT=None
+  on every recent candidate), so GPU thermal buys the fine-density/deepen regime and
+  gate-passing boards, not today's wave latency.
+- **Router — no.** FR is external Java (can't shader it; its levers are REST reuse +
+  effort targeting + the prune). Our own coord router is cupy-capable but fails its A/B
+  gate (above) — a fused relax kernel is future work gated on a hint form that wins.
+- **Placer — no** (see the placer-port verdict above: <2% of candidate cost; the levers
+  are anneal-cost vectorization, packing-correctness fixes, and the prune/adjudicate
+  split — all CPU-cheap).
 
 ## Pipeline improvements — non-solver (same standing list)
 
@@ -137,3 +211,14 @@ loci into later candidates' hints (the "mappings feedback" backlog item).
   (this doc); owner seat policy for in-loop agents = cec-worker-quality nothink (measured
   18.5s warm vs gpt-oss 628s + an invented-region proposal); vision = tool-fed, excessively
   sparing, winner-only advisory.
+- 2026-07-10 (scoping pass, owner ask "shader for router/placer/FEM + placer parallelization
+  /packing"): NO shaders now anywhere — FEM first fixes determinism + dep-bake (GPU currently
+  unreachable everywhere, silent CPU fallback), coord-router kernel gated on a hint form that
+  passes its A/B (two losses recorded), placer <2% of candidate cost. Throughput levers ranked
+  instead: (1) wire prune→adjudicate into cec_fresh_wave (~8x fewer FR calls), (2) FR REST
+  reuse (server idle 3 weeks), (3) merge ~20 redundant per-candidate LoadBoards + 3-4 DRC
+  spawns, (4) board-level wave concurrency w/ global JVM cap, (5) anneal-cost vectorization
+  for packing quality. FEM completeness audit delivered (see §FEM in the 2026-07-10 handoff /
+  scoping report): physics-rich, gate-worthy only with the mirage guard; #1 = the residuals
+  fix. Placer packing-correctness: seed_anchors role_overrides gap FIXED (12vhpwr J3/J4),
+  place_edge fit check + rotation-move templates queued.

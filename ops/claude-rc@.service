@@ -1,0 +1,17 @@
+[Unit]
+Description=Claude Remote Control (%i)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/%i
+Environment=CLAUDE_REMOTE_CONTROL_SESSION_NAME_PREFIX=%i
+Environment="PATH=/home/nathan/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/mnt/c/Users/Natha/miniconda3:/mnt/c/Users/Natha/miniconda3/Library/mingw-w64/bin:/mnt/c/Users/Natha/miniconda3/Library/usr/bin:/mnt/c/Users/Natha/miniconda3/Library/bin:/mnt/c/Users/Natha/miniconda3/Scripts:/mnt/c/Users/Natha/miniconda3/bin:/mnt/c/Users/Natha/miniconda3/condabin:/mnt/c/Program Files/PowerShell/7:/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/bin:/mnt/c/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.1/libnvvp:/mnt/c/Program Files (x86)/Common Files/Oracle/Java/javapath:/mnt/c/WINDOWS/system32:/mnt/c/WINDOWS:/mnt/c/WINDOWS/System32/Wbem:/mnt/c/WINDOWS/System32/WindowsPowerShell/v1.0:/mnt/c/WINDOWS/System32/OpenSSH:/mnt/c/Program Files (x86)/NVIDIA Corporation/PhysX/Common:/mnt/c/Program Files/NVIDIA Corporation/Nsight Compute 2023.1.0:/mnt/c/Program Files/Git/cmd:/mnt/c/Program Files/Git/bin:/mnt/c/Users/Natha/miniconda3/Scripts:/mnt/c/Program Files/dotnet:/mnt/c/Program Files/NVIDIA/CUDNN/v8.9/bin:/mnt/c/Users/Natha/TensorRT-8.6.1.6/lib:/mnt/c/Program Files (x86)/Windows Kits/10/Windows Performance Toolkit:/mnt/c/Program Files/RedHat/java-21-openjdk-21.0.3.0.9-1/bin:/mnt/c/Program Files/ruffle/bin:/mnt/c/Program Files/NVIDIA Corporation/NVIDIA app/NvDLISR:/mnt/c/Program Files/PowerShell/7:/mnt/c/Users/Natha/.cargo/bin:/mnt/c/Users/Natha/AppData/Local/Microsoft/WindowsApps:/mnt/c/Users/Natha/AppData/Local/Programs/Microsoft VS Code/bin:/mnt/c/Users/Natha/.dotnet/tools:/mnt/c/Users/Natha/.local/bin:/mnt/c/Users/Natha/AppData/Local/Programs/MyOwnMesh:/snap/bin"
+ExecStart=/home/nathan/CEC-Platform/ops/claude-rc-tmux.sh %i
+ExecStop=/usr/bin/tmux -L claude-rc kill-session -t crc-%i
+KillMode=mixed
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

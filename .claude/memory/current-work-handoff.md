@@ -1,5 +1,249 @@
 # Current work handoff
 
+## (G18) SCOPING PASS + G17 ROOT CAUSE CLOSED — 2026-07-10 ~23:15 (branch claude/pipeline-consolidation)
+OWNER ASK (scoping only, NO runs/waves): shader-worthiness for GPU-run/router/placer/FEM +
+placer parallelization/packing + FEM completeness audit (opus agent). DELIVERED — standing
+copy in docs/pipeline-solver-roadmap.md ("GPU runtime reachability" section + placer/coord
+verdicts + 2026-07-10 decision-log entry); FOLLOWUPS 2026-07-10 block = the punchlists.
+HEADLINES: (1) **GPU paths ALL currently unreachable** — cupy+pyamg absent from
+docker-routing-1 AND host (runtime-pip loss, G14 class); thermal silently degrades to plain
+Jacobi-CG. Recipe committed+proven (Dockerfile.routing-gpu / compose.gpu.yaml / cec/routing:gpu
+image on disk, 5090 sm_120 verified via toolkit); durable fix = bake pyamg/matplotlib/shapely
+into BASE Dockerfile.routing + provision.sh gpu-image step. (2) **No shaders now**: FEM = fix
+nondeterminism first (audit located it: cec_thermal2d.py:546 ml.solve flagless + scipy-fallback
++ precond staleness, ~1h fix; GMG RawKernel "shader" already prototyped in cec_gmg_bench.py,
+unlanded); coord-router = its pinned-seed A/B FAILED TWICE (A-BETTER-OR-EQUAL, build/coord_ab_*
+.out; owner blind-pick tension noted) -> shelve, kernel only if a hint form wins; placer <2%
+of candidate cost. (3) **Throughput levers ranked** (agent-verified): wire prune->adjudicate
+into cec_fresh_wave (it BYPASSES place_candidates/adjudicate_candidates -> routes ALL 16-24
+variants, ~8x FR savings available), FR REST (server idle 3wk, cec_fr never reads
+CEC_FREEROUTING_URL), ~20 LoadBoards+3-4 DRC spawns per candidate mergeable, board-level wave
+concurrency (6 of 18 cores), anneal-cost vectorization (packing quality). (4) **G17 CLOSED
+w/ root cause + fix**: HPWR3 finished; winner prop-snagfix-dataflow-s1 rendered = STILL
+side-column. Cause CONFIRMED (not the suspected edge-fit fallback — none exists):
+params['anchor_roles'] reached _classify but seed_anchors RE-DERIVES roles; 12V-2x6 sideband
+data pins -> _connector_net_role None -> "host" -> BOTH J3/J4 right edge. FIXED: role_overrides
+threaded into seed_anchors + synth_one call site (+3 regression tests, test_placer_oracle
+44/44). Wave re-run NOT launched (owner directive). NOTE ALSO: plain-* candidates run 60x44
+not 60x40 (H grew somewhere — check before the re-run). (5) **Branch was WSL-ONLY (221
+commits, no remote ref!) — PUSHED to origin** + untracked scoping/bench/ops artifacts
+committed this session. (6) Pre-existing red host test: test_corridor_model
+test_phase2_default_placement_is_legal (residual 1), ablated NOT-mine, triage before next
+placer wave. NEXT: owner render-verdict on the fix (needs a run he must green-light), then
+uniformity-merge lane per G16/G17 (eps diff=F regression + pcie kelvin still open).
+
+## (G17) 12VHPWR FUN-RUN — STRAIGHT-THROUGH STILL NOT ACHIEVED (2026-07-09 ~16:00)
+Owner fun-run: 12vhpwr fresh at 60x40, connectors-only. THREE runs so far; owner render
+verdicts (trust renders over coordinate probes -- twice proven): run1 J3+J4 STACKED at
+origin (root cause: neither classified power_in/out -> FIXED: params['anchor_roles']
+override in _classify, commit on branch); run2 (roles applied, J3/J4 unstacked) STILL
+side-column not straight-through + USB-C corner-cropped -- cause: periph x-band intents
+relocate power connectors, roles act only within band -> FIXED: straight_through param =
+plain-intent-only (folded into _intents_for). RUN 3 RUNNING (build/fresh-wave-hpwr3.log,
+HPWR3_DONE marker). MY LAST RENDER CHECK WAS AMBIGUOUS (may have rendered a run-2 plain-*
+file -- ls -t race). NEXT SESSION MUST: (1) after HPWR3_DONE, render the CONFIRMED run-3
+winner (timestamp from the log) and EYEBALL it; (2) if J3/J4 STILL not top/bottom-centre:
+suspect seed_anchors EDGE-FIT FALLBACK (the ~22mm-wide 12V-2x6 may not fit the top edge
+at W=60 with corner overhangs -> silently reseated; check seed_anchors' edge packing/
+fallback for power roles + consider W bump or explicit coordinate pins); (3) J2 = DNP fan
+header (LEGIT, spec §6.1 enclosed menu — owner asked); J5 USB-C IS in netlist+placed,
+corner-overhang crops it in renders. Uniformity agent (a299a9aff707f5bfa) RUNNING w/
+corrected design (tab-pitch gate + shape identity + placement pitch fix; NEVER move pours
+off tabs -- force-pour-only!); merge on report. eps diff=F regression (waves 18/19) still
+open. PCIe u12 first outing; 24-pin PARKED at u33 best-ever.
+
+## (G16) WAVES 18/19 + ROTATION — 2026-07-09 ~15:00
+WAVE 18 (post-generator-fix baseline): 24-pin u55->u33 BEST-EVER fresh (band-core-mid-
+compact-s1 -- courtyard/THT reasons GONE from verdicts = placer package confirmed live);
+still kelvin F (corridor, PARKED per owner "long pole, breather"). eps k=T + drc 0-2 now
+but diff=F on waves 18/19 bests (u61-77, placement lottery persists) -- INVESTIGATE: why
+the refused-USB solo tier isn't completing on these placements (wave-14 had diff=T).
+WAVE 19 = rotation eps+pcie-8pin-2port (owner): PCIE FIRST FRESH OUTING lands u12/drc7
+(!!, closest fresh start ever) -- named blockers: kelvin F (check the ina238-lo-tap-
+refusal class vs the canonical-tap ladder), diff F, 3 shorts/3 crossings. UNIFORMITY
+AGENT running (owner ruling 1a1428c: per-cable output fields identical across positions
++ 2/3-port SKUs; gate + derive-once-stamp-N + uniformity-preserving rebuild) -- merge on
+report. NEXT: uniformity merge -> pcie kelvin investigation -> eps diff-tier bug -> wave
+20 (pcie could be the first gate-clean fresh board).
+
+## (G15) GENERATORS FIXED, WAVE 18 = POST-FIX BASELINE — 2026-07-09 ~08:30
+Rolling waves 15-17 DONE: 24-pin flat (u52-58, placement-bound as diagnosed; snagfix
+proposals WON waves 15+17 -- the A2 loop works); eps wave-15+ "cliff" (u4->u68) RESOLVED
+= PLACEMENT-SEED LOTTERY (paired probe: same placement routes u68 at seed 0 AND 2, delta
+1 -- wave-14's u4 was a lucky placement draw, not env/seed-order). PLACER PACKAGE MERGED
+(5 commits ..4713215): overlaps 7->0 + THT-backside ->0 on ALL 24-pin configs (root cause
+NAMED: fixed rail-cell seats at 6mm pitch vs 14mm cells overlapped -- in NO legalizer set;
++ face-blind counting); ONE shared derivation gate<->generator; enforce_locks DEFAULT TRUE
+(probe 0 violations, broadened incl. pcie). POUR LEVER S4 MERGED (121677f+f23c755, owner
+RATIFIED all 4 rulings 5ade9bb): PourPlan.rebuild notch/shrink/relocate/drop_layer,
+EscalateToHuman on autonomy-line breach (verbatim teeth), cross-section HARD gate,
+assert_steer_only FIRST LIVE CALLER, Kmax-budgeted, manager-ladder consumes now; ORACLE-
+PATH wiring = FOLLOWUPS (wave doesn't consume yet; FR-legged eval owed too). Pour truth:
+derivation reaches local terminals; 24-pin opens = shared-bus corridor assignment
+(placement, evidence recorded w/ coordinates) + FR abandonment. WAVE 18 LAUNCHED (merged
+tree, seeds 0,1 canonical): the post-fix baseline -- expect 24-pin ovl/THT reasons GONE,
+watch pin_escape (~20% vs 12 floor) + decoupler_adj(12) as the NEXT named blockers.
+Suites verified on merged tree; probe clean. NEXT after wave 18: oracle pour loop,
+shared-bus per-rail corridor assignment (the big 24-pin lever), S2 octilinear, wave
+review artifacts (placement blinds + spotlights).
+
+## (G14) WAVE 14 RUNNING — 2026-07-09 ~02:00 (branch claude/pipeline-consolidation)
+ALL FIVE WORKSTREAMS MERGED (S1 ladder+locks map / S2 precision e7adc0a+ba20f65+150b32c
+fixup / S3 blueprints 69de373..c2e69dd / A5 seed patch 6d2a3d5 + WIRED 2101e00 teeth-PASS
+(same-seed byte-identical via registry '1.7.0-cec1', local-path rung; SES-basename gotcha:
+compare with SAME basename) / A1-A3). BLIND VERDICT (owner, both cards in, key opened):
+Board1=precision BOTH boards -- eps decisive precision win on craft at metric parity;
+24pin split-leaning-bare (precision CAN unrouted -> FIXED: refused pairs now solo-tier
+pre-recipe, e8b78ba teeth-PASS on the CAN-refusing eps placement). Scorecard fixes: panel
+metrics exclude locked stubs (build/blind_routes2.py, PROMOTE to committed generator --
+FOLLOWUPS); pair router 45-deg fan + earliest-pickup (9c2bff5, octilinear axis rework
+still filed); NET SPOTLIGHT view landed (build/net_spotlight.py, owner: use more). 24pin
+CAN netclass fixed 949b207. WAVE 14 LAUNCHED (detached in-container, log build/
+fresh-wave-14.log): --boards atx-24pin-rev3,eps-8pin --seeds 0,1, CEC_FR_VERSION=
+1.7.0-cec1 (REAL seeds first time), precision=True default (wave_precision param kills),
+pass-ladder journals, lazy thermal+mirage guard. Container restart tonight LOST pip
+runtime deps (matplotlib, shapely) -- reinstalled --break-system-packages; Dockerfile
+note in FOLLOWUPS. Dashboard :8090 = managed bg task. NEXT: wave-14 results -> owner
+blind review (incl. placement blinds -- promised, not yet wired into the wave artifacts;
+spotlight per-route panels ditto); S4 = evac/mop lock respect; blueprint_cells wave =
+next lever after.
+
+
+## (G13) PASS-FORM EXECUTION — 2026-07-08 ~23:45 (branch claude/pipeline-consolidation)
+S1 MERGED (6dfe435+2ac2d31+3a67f98): synth_one runs a 12-pass ladder, 8/8 byte-identical,
+locks DECLARED per boundary; the enforcement probe's violation map = p8_evac_mop is the
+SOLE violator (eps D1 stamp 8mm; 24pin SW1 seat 45mm) -> S4 = make evac/mop respect locks
+w/ a repair path. S2 (worktree agent, standing by on its A/B monitor): milestone 1 green --
+precision=False provably inert, eps CAN routed COUPLED ~112R (placement-dependent: refuses
+on blocked corridors -> structured handoff to staged-FR), locked copper survives FR 31/31;
+acceptance A/B (24pin wave-13 best + fresh eps, p16/o20) + blinded panels PENDING. OWNER
+VERDICT on the precision-route panels: "way better" (logged as gate evidence). A5 MERGED
+(6d2a3d5): FR-1.7.0 seed patch -- TRUTH CORRECTION: stock -mt1 already deterministic on
+small boards (maze randomizer dead headless); patch = the R-01 DIVERSITY AXIS (-seed net-
+order shuffle; same-seed identical, cross-seed distinct, no-seed==stock); jar on /mnt/e/
+toolchain/fr-fork + patch committed; WIRING PENDING post-S2-merge (cec_fr: FR_RELEASES
+'1.7.0-cec1' + -seed argv in _fr_command -- run_freerouting's seed kwarg is log-only).
+Telemetry-patch recon in ops/README-fr-fork.md. 24pin CAN netclass STALE PATTERNS FIXED
+(949b207). S3 LAUNCHED (opus worktree): blueprint stamping w/ INTERNAL IDEAL ROUTING
+(owner directive) -- stamp lays+LOCKS cell copper at materialize, oracle protects it;
+teeth incl. sabotage + survive-FR. Dashboard :8090 relaunched as a MANAGED bg task
+(died silently w/ the session restart; matplotlib pip-install is runtime-ephemeral --
+FOLLOWUPS has the Dockerfile note). MERGE ORDER when reports land: S2 -> A5 wiring ->
+S3 -> wave 14 (first pass-form wave, owner blind call on S2 panels gates precision-on).
+
+
+## (G12) ACTUATION SHORTLIST — 2026-07-08 ~22:10 (branch claude/pipeline-consolidation)
+Deep dive docs/actuation-space-2026-07-08.md (fb49fd6): pass-form SHRINKS problems until
+stronger tools apply; 10 actuations, ranked. IMPLEMENTATION (owner GO "implement those"):
+A1 staged-FR landed EXPERIMENTAL (7e40885, cec_staged_fr.py -- DSN include-only tiering +
+lock/protect ladder; datapoint: diffpair TRUE + drc 5v15 + vias 59v72 BUT unconn 27v3 at
+low effort; FOLLOWUPS investigation, S2 interplay). A2 snag compiler landed (960f4b1,
+cec_snag_compiler.py -- verdict violations -> seat-schema proposals, same validator/wave
+channel, snagfix-* provenance; teeth on live verdict). A5 FR seed patch IN FLIGHT (opus;
+BASE RULING: pin 1.7.0 -- latest release is STILL 2.2.4, which we measured hanging on the
+12vhpwr GND net despite its own stagnation fixes; patched 1.7.0 = determinism + diversity
+one knob; deliverables scripts/patches/ + ops/README-fr-fork.md + jar via
+CEC_FREEROUTING_JAR, FR_RELEASES wiring post-S2-merge). A3 cell extractor IN FLIGHT
+(sonnet; 12vhpwr 6-lane extraction + PITCH RE-MEASUREMENT of the unverified 17.00mm +
+lane3->lane5 stamp round-trip teeth). A4 GUI-parity locks QUEUED post-merges. S2 agent
+found a REAL board defect mid-build: atx-24pin-rev3 .kicad_pro CAN netclass pattern STALE
+(*CAN1_P; /CAN_H falls in Default class) -- fix after S2 merges (its report will carry it).
+
+## (G11) PASS-FORM REDESIGN — 2026-07-08 ~21:15 (branch claude/pipeline-consolidation)
+OWNER DIRECTIVE (the structural pivot): place+route like a human, in PASSES — "route the
+important ones with high precision first alone, then fill in the gaps cheaply." PLAN OF
+RECORD: docs/pass-form-plan.md (45af66d; research-synthesized: industry pass list + repo
+self-mining; HEADLINE: TPC lock/protect machinery exists+proven foreign 48->0 and the
+active wave pipeline BYPASSES it — the literal one-go-and-pray architecture). Ladder
+P0-P8 / R0-R10 w/ progressive locking + per-pass teeth; blueprint cell = P4. CANONICAL
+KELVIN TAPS landed (798526e, owner geometry: perpendicular inner-edge exit -> run -> one
+90; 6/10 canonical on eps, checker green). BLIND-AUDIT protocol = the mechanism-level
+acceptance instrument (owner: "I'm catching myself trying to root for one side" — it
+caught THT-backside [gate landed 51be4fe], pour-not-reaching-shunt, the which-nets-
+complete metric blindspot; coordination REVEAL: owner blind-picked the COORDINATED arm
+against the metrics). IN FLIGHT: S1 pass-runner skeleton (opus worktree; byte-identity
+teeth) + S2 precision-first routing (opus worktree; cec_precision_route.py, opt-in
+precision=True, A/B + blind panels to build/coord-blind2/ + dash). Merge: S1 owns
+synth_one ~:3935-4472, S2 owns route_oracle_grade ~:5750+ + new file. THEN S3 blueprint,
+S4 seat-time boundary gates, S5 finishing (redundant-branch pass queued in FOLLOWUPS).
+Wave 14 = first pass-form wave after S2's blind call. Owner rulings still open: 3 pour
+(stage 4/5 parked), coordination-in-waves superseded by S2.
+
+
+## (G10) PORTING + COORD-ROUTER + POUR LEVER — 2026-07-08 ~17:00 (branch claude/pipeline-consolidation)
+WAVE 13 DONE: best unconn 45 (trajectory 50->51->45 tonight), first wave w/ gnd-fanout + SI
+advisories in-recipe; seat round-2 proposals mid-pack (W/L record accumulating). LEGALIZE
+VECTORIZATION LANDED (f23b6d7): synth_one 3.9->0.83s, output-identical proven twice (38 recorded
+calls proto + 11/11 in-tree fast-vs-_legalize_pack_seq), 52 tests OK. COORD-ROUTER: prototype
+measured (GPU 8.1x vs CPU, 83c1865, scripts/cec_coord_router_proto.py); PRODUCTION build (owner
+"implement it up... task it out") = sonnet agent IN FLIGHT building scripts/cec_coord_router.py
+(capacity model + terminal exclusion, 2-layer + via cost + H/V bias, rip-up-only-overused +
+present ramp, GPU batched path recovery; teeth = convergence x2 boards + CPU/GPU identity +
+determinism). THEN T3: corridors -> FR bake_hints + oracle opt-in + PINNED-SEED A/B (does
+coordination improve unconn/DRC); wave 14 = hints-on if A/B wins. POUR LEVER SCOPED (opus,
+a28e98c): docs/pour-lever-scoping-2026-07-08.md = PourPlan/PourSpec killing the box-model duality
+debt by construction, placer pour() ask + router pour_reshape repair verb, fresh-load-rebuild-
+never-mutate (ZONE_FILLER 0.09s cold/0.02s warm), 5 stages ~9-12d. AWAITING OWNER: 3 pour rulings
+(reshape-vs-add autonomy incl. drop_layer; min-pour-cross-section promotion on rebuilt pours;
+inner-pour In2 scope). SPICE ruled IN by owner + landed same evening (06bab3d).
+
+## (G9) AGENT-IN-LOOP + SOLVERS — 2026-07-08 ~16:20 (branch claude/pipeline-consolidation)
+INTENT-PROPOSER SEAT LIVE (7942df1): cec_wave_intents.py, cec-worker-quality NOTHINK, steer-never-
+gate (validator VOIDS invented refs; proposals join the grid as prop-* beside hand intents; kill
+CEC_WAVE_INTENTS=0). Bench CONFIRMED owner seat policy: worker-quality 18.5s warm 2/2 valid vs
+cec-worker 154.9s vs gpt-oss-120b 628s + a VOIDED invention. WAVE-12 SCOREBOARD: seat prop
+3rd/32 (51 unconn, 1 off the winner); hook self-fed wave-13 proposals (kelvin-force-adjacency,
+sense-linear-flow) in 10.5s. OWNER RULES LANDED: (a) GND-FANOUT per-pin via, IMPEDANCE-REDUCING
+ONLY (31583c6, cec_gnd_fanout.py — zone-fill + full-capsule stub guards, KiCad re-net footgun
+reproduced+guarded; teeth DRC-neutral, 7 MCU vias 3.85->0.75mm) — WIRED into the oracle recipe
+post-freeze (fe4dc55) + si_advisory (Z0/kelvin-loop/crosstalk) in verdicts; (b) SI CHEAP WINS
+(9218129, cec_impedance.py): USB netclass 91.3R vs 90 VALIDATED, **CAN 91-105R vs 120 target
+platform-wide** (500k fine; 1Mbps SI bench would care — owner-visible finding); (c) SPICE LANDED
+(06bab3d, cec_spice.py, ngspice ships in the KiCad image): sec6.13 chain pilot, trip exact vs
+analytic, 5VSB saturation 2.599A REFINES the 2.64A hand math, MC band 3.7% = the firmware number.
+STANDING ROADMAP: docs/pipeline-solver-roadmap.md (memory pipeline-solver-roadmap points there)
+= the answer to "what solvers/improvements next" — PDN/ground-impedance (thermal-backend reuse,
+PREREQ nondeterminism fix), 2D electrostatic Z0 (Max LVDS), placer-port verdict (placement=3%
+of candidate; numpy-vectorize legalize_pack.cost FIRST — 92% of placement, 94M abs() calls;
+Rust/CUDA = search-SCALE lever only). WAVE 13 RUNNING (launched 16:20, log fresh-wave-24pin-13.log):
+first wave with seat proposals + gnd-fanout + SI advisories live. Vision seat UNWIRED by design
+(owner: tool-fed, excessively sparing, winner-only).
+
+
+## (G8) ROUND-2 IMPLEMENT QUEUE LANDED + SPEEDUP PASS — 2026-07-08 ~15:30 (branch claude/pipeline-consolidation)
+ALL 7 G7 implement-queue items landed, each teeth-verified in-container (calibrations REPRODUCED
+from the probes, not trusted): (1) PIN-ESCAPE gate boxed0<=4%/le1<=12% (hand 0/0, committed eps
+1.71/6.86, fresh 9.06/23.02 FAILS) 411c0c9; (2) COURTYARD-EDGE native-DRU physical_clearance gate
+0.8mm floor, exemptions J/H/M/FID/MK/SW/TB/TP/DL/LOGO + ESP32-by-value (antenna-at-edge = hand
+pattern) 411c0c9; (3) SILK score/fp = tier-0 sort_key tie-break (hand 0.18-0.43 vs fresh 4.5-5.3)
+a8c0c8b; (4) FACING-FRACTION advisory (does NOT separate universally: committed eps 13.7 < fresh-eps
+37.5 — advisory only, drives future face() lever) 1e90823; (5) ROUTE-SANITY advisory: per-net detour
+<=6.0 + via budget max(10,2*pads) exempting zoned+force nets (12vhpwr lane stitching 10/3-pad,
+/SB_CBL_PRES 8; synthetic 53.8x meander + 41-via chain FAIL) 5c8e231; (6) FIDUCIALS: materialize now
+EMITS the planned FID1-3 (they were dropped — every fresh board shipped 0!) + quality gate count>=3/
+clear>=1.5mm/non-collinear, N/A-without-expect so SB-08 golden unmoved, sabotage teeth 223b95a;
+(7) GAP-PROFILE advisory (true-polygon side-filtered; NO bimodality stat was ever computed — the
+round-2 read was an eyeballed histogram, committed eps is a counterexample; robust pattern = fresh
+non-touching p75<=0.75 vs hand 1.08-1.25) + ROLE-KEEPOUT anneal lever role_clr (soft cost, never
+veto), INERT unless params role_keepouts set — activation = fixed-seed cec_lever_eval ablation
+(FOLLOWUPS) 24d1461.
+SPEEDUP PASS (a1fefe4, profiling scout measured: wave FULLY SERIAL, FR=71-95%/candidate, 24-pin
+wave 49.5min/24, checker suite 14.5s): (a) PARALLEL candidate loop (spawn pool, intents re-derived
+by name; default 6 workers — the "4-core container" was OMP_NUM_THREADS=4 masking nproc, ALL 18
+cores available; CEC_WAVE_WORKERS=1 = comparability runs); verified 4 variants/27.8s at w=2.
+(b) LAZY THERMAL (owner directive): solve ONLY when every other gate term passes (would-be winner);
+gate=True impossible without a real solve; failing candidate 21.7->4.5s. Silk joins the lazy skip.
+(c) THERMAL MIRAGE GUARD — the owner's instinct MEASURED REAL: identical solves returned dT
+119/103/174 (GPU) and 0.0/20.8/20.9 (CPU-forced; dT=0 would have gate-PASSED); pyamg path has no
+convergence flag. Guard: dT<=0.05 = FAIL + any would-be pass needs a 2nd agreeing solve (worst-of-2
+reported). Hand 12vhpwr still passes (23.68). SOLVER root-cause = FOLLOWUPS (probe_thermal_repeat*).
+KNOWN CONSEQUENCE: wave-1 eps winner now FAILS the bar (D2 at 0.0mm edge + stranded C9/D2) — eps
+wave re-run queued (FOLLOWUPS). GPU/agents answer (owner q): GPU = thermal solves only, during
+waves (CEC_THERMAL_GPU_MIN_N=60000 recipe env; idle between); wave loop is FULLY deterministic —
+no LLM seats in it; local seats all stopped; exploration panels are where agents run (cost policy:
+local-first, workflow agent() calls MUST set model: explicitly — fable-inherit near-miss recorded
+in agent-cost-policy memory).
+
 ## (G7) OWNER LEVER PASSES — 2026-07-08 evening (branch claude/pipeline-consolidation)
 STRICT-ZERO reached earlier (bodies-in-pours 0 x8 seeds, lane pours + fingers, no exemptions).
 WAVE 10 (full lane arch, code freeze): best 38 unconn (179->76->55->38), top-6 packed 38-41,
