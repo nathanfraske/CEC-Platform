@@ -81,6 +81,10 @@ TAP_SKEW_MAX = 8.0     # mm, HI-vs-LO tap mismatch SANITY bound only -- the hand
                        # carries ~6mm (RS.1->RFH 10.4 vs RS.2->RFL 4.5); skew is driven DOWN
                        # by the score (4x weight), never hard-gated below the owner's own design
 TAP_LEN_MAX = 14.0     # mm, a tap longer than this is not a Kelvin tap
+TAP_DETOUR_MAX = 2.0   # routed/Manhattan ratio cap (owner 2026-07-11 "strange
+                       # loopback": a textbook-stroke tap can still wander legally;
+                       # hand taps measure 1.05x, the flagged B6 loop 2.56x). Fires
+                       # only past 2mm absolute slack so short taps aren't noise-gated.
 DECOUPLER_MM = 3.0     # bypass-cap pad must sit within this of its IC supply pad
 DECOUPLER_ROUTED_MM = 5.0  # ...and the ROUTED bypass link must stay under this
                            # (efficacy = the actual loop, not just proximity;
@@ -387,11 +391,11 @@ def _synth_taps(model, pose, laid, routes, refused, extra_obstacles=()):
         if row_x:                                                 # pads run along X
             dir_in = math.copysign(1.0, (acx - ax) or 1.0)
             inner = ax + dir_in * ahw
-            turns = [(inner + dir_in * ins, ay) for ins in (0.6, 1.0, 1.6)]
+            turns = [(inner + dir_in * ins, ay) for ins in (0.6, 1.0, 1.6, 2.2, 2.8)]
         else:
             dir_in = math.copysign(1.0, (acy - ay) or 1.0)
             inner = ay + dir_in * ahh
-            turns = [(ax, inner + dir_in * ins) for ins in (0.6, 1.0, 1.6)]
+            turns = [(ax, inner + dir_in * ins) for ins in (0.6, 1.0, 1.6, 2.2, 2.8)]
         last = None
         done = False
         clear = CLR_MM + TRACK_W + 0.05                           # past the pad band + margin
@@ -669,6 +673,13 @@ def gates(model, pose, routes):
         tap_lens[role] = L
         if L > TAP_LEN_MAX:
             fails.append(f"tap_long:{role}:{L:.1f}mm")
+        if L > 0:
+            (r1, p1), (r2, p2) = model.role_pads[role]
+            x1, y1, _, _ = model.pad_at(pose, r1, p1)
+            x2, y2, _, _ = model.pad_at(pose, r2, p2)
+            man = abs(x2 - x1) + abs(y2 - y1)
+            if L > TAP_DETOUR_MAX * man and L - man > 2.0:
+                fails.append(f"tap_detour:{role}:{L:.1f}mm/man{man:.1f}mm")
     if len(tap_lens) == 2:
         a, b = sorted(tap_lens.values())
         if b - a > TAP_SKEW_MAX:
@@ -1412,10 +1423,24 @@ def to_refined_template(model, pose, routes):
             r_ = s.get("dia_mm", 0.6) / 2.0
             return (x - r_, x + r_, y - r_, y + r_)
         return tuple(s["box_rel_mm"])
-    t["standins"] = [s for s in t.get("standins", [])
-                     if s["kind"] == "zone" or
-                     not (_sb(s)[1] < env[0] or _sb(s)[0] > env[1] or
-                          _sb(s)[3] < env[2] or _sb(s)[2] > env[3])]
+    kept = [s for s in t.get("standins", [])
+            if s["kind"] == "zone" or
+            not (_sb(s)[1] < env[0] or _sb(s)[0] > env[1] or
+                 _sb(s)[3] < env[2] or _sb(s)[2] > env[3])]
+    # second pass -- STRANDED vias (owner 2026-07-11: a floating dot near pin 1):
+    # a kept via whose companion copper was pruned connects nothing; keep a via
+    # only if some kept SAME-NET track/zone touches its barrel
+    def _touches(via, others):
+        vb = _sb(via)
+        for o in others:
+            if o is via or o["kind"] == "via" or o["net_role"] != via["net_role"]:
+                continue
+            ob = _sb(o)
+            if not (vb[1] + 0.05 < ob[0] or vb[0] - 0.05 > ob[1] or
+                    vb[3] + 0.05 < ob[2] or vb[2] - 0.05 > ob[3]):
+                return True
+        return False
+    t["standins"] = [s for s in kept if s["kind"] != "via" or _touches(s, kept)]
     for bucket in ("ports", "internal_pads"):
         for role, spec in (t.get(bucket) or {}).items():
             for p in spec.get("pads", []):

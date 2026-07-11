@@ -446,6 +446,36 @@ class TestLintAndEfficacy(unittest.TestCase):
         self.assertNotIn(("via", "/SENSEP{n}_HI"), kinds)         # 80mm away: pruned
         self.assertIn(("track", "/SENSEP{n}_HI"), kinds)          # at the cell: kept
 
+    def test_refined_template_prunes_stranded_vias(self):
+        # a via INSIDE the envelope whose companion copper is elsewhere: floating
+        # dot on the emitted board (owner 2026-07-11, the +3V3 via near pin 1)
+        t = lane_template()
+        t["standins"] = [
+            {"net_role": "+{n}V{n}", "kind": "via", "at_rel_mm": [10.0, 3.0],
+             "dia_mm": 0.6, "drill_mm": 0.3, "layers": ["F.Cu", "B.Cu"]},
+            {"net_role": "/SENSEP{n}_HI", "kind": "via", "at_rel_mm": [-3.5, 0.0],
+             "dia_mm": 0.6, "drill_mm": 0.3, "layers": ["F.Cu", "B.Cu"]},
+            {"net_role": "/SENSEP{n}_HI", "kind": "track", "layer": "F.Cu",
+             "start_rel_mm": [-3.5, -6.0], "end_rel_mm": [-3.5, 0.5], "width_mm": 2.5},
+        ]
+        m = cr.CellModel(t, pitch_axis="y")
+        routes = cr.synth_routes(m, m.base_pose)
+        t2 = cr.to_refined_template(m, m.base_pose, routes)
+        vias = [(s["net_role"]) for s in t2["standins"] if s["kind"] == "via"]
+        self.assertNotIn("+{n}V{n}", vias)                        # stranded: pruned
+        self.assertIn("/SENSEP{n}_HI", vias)                      # on its lane: kept
+
+    def test_tap_detour_gate_fires(self):
+        m = cr.CellModel(lane_template(), pitch_axis="y")
+        routes = dict(cr.synth_routes(m, m.base_pose))
+        role = m.tap_roles[0]
+        # graft a legal-stroke loop onto the tap: down 4 and back up 4
+        end = routes[role][-1]
+        ex, ey = end[2], end[3]
+        routes[role] = routes[role] + [(ex, ey, ex, ey - 4.0), (ex, ey - 4.0, ex, ey)]
+        fails = cr.gates(m, m.base_pose, routes)
+        self.assertTrue(any(f.startswith("tap_detour:") for f in fails), fails)
+
 
 class TestCompaction(unittest.TestCase):
     """Slide-to-contact compaction (owner 2026-07-10: 'not moving placements
