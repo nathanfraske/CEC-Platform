@@ -1,5 +1,23 @@
 # Current work handoff
 
+## (G20e) B3-REVIEW PUNCH LIST + B4 — 2026-07-11 ~01:20
+Owner B3 review (4 items) ALL LANDED: (1) lint/mitre PROTECT textbook tap strokes
+(B3's finishing passes had eaten them -- regression teeth); (2) standin_clash =
+EVERY non-anchor pad incl. same-net (RFL4-on-lane/via-fan impossible; anchor-only
+exemption); (3) GND stitching vias (synth_gnd_vias: ring candidates, full clearance;
+emit adds filled B.Cu GND plane) -- via barrels must clear ALL-LAYER stand-ins
+(3 real shorts on the B.Cu LO lane caught by kicad-cli on a model-clean board =
+SECOND single-layer-thinking offense, now teeth); (4) renudge() = the owner's
+blueprint-factory loop-back (destination stand-ins + <=0.8mm nudges, no rotation,
+gate-clean or None-escalate; stamp-side hook = FOLLOWUPS). Renudge teeth forced
+measured-geometry twice (SOIC pad hw 0.875; one scenario provably unrecoverable).
+B4 RE-FINALIZED RESULT: (5.4, 19.74, 46.4) vs hand (5.4, 24.53, 49.836) -- -20%
+length at COPPER PARITY under full rules (the honest cost of textbook protection +
+lane keepout vs B3's unprotected 35.8), DRC copper-clean. GND vias: 1/5 placeable
+(cell sits over the B.Cu LO lane band -- honest report; longer-stub reach =
+FOLLOWUPS). Suite 36. Panel cell-panel-hpwr-RS4-b4 on dash, OWNER VERDICT next.
+THEN: stamp-integration (derive-once-stamp-N lanes 1-6 w/ renudge), EPS sense cell.
+
 ## (G20d) FULL RULESET + B3 — 2026-07-11 ~00:10
 Owner punch list (post-"significantly better packing" verdict) ALL LANDED (85a838a,
 29/29 teeth): textbook Kelvin taps (ACROSS the inner pad edge, inward inset, ONE
