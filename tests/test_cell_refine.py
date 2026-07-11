@@ -128,6 +128,87 @@ class TestRefine(unittest.TestCase):
                 self.assertAlmostEqual(p["rel_mm"][0], x, places=3)
 
 
+class TestStandins(unittest.TestCase):
+    """Boundary-copper stand-ins (owner 2026-07-10): fixed pour/lane context =
+    obstacle for foreign copper + placement no-go + emitted context."""
+
+    def _template_with_lane(self):
+        t = lane_template()
+        # a 2.5mm HI lane track running vertically through the anchor's pad-1 column
+        # (the real 12vhpwr geometry: force copper arrives on the shunt pad)
+        t["standins"] = [{"net_role": "/SENSEP{n}_HI", "kind": "track", "layer": "F.Cu",
+                          "start_rel_mm": [-2.9, -12.0], "end_rel_mm": [-2.9, 0.0],
+                          "width_mm": 2.5}]
+        return t
+
+    def test_standin_is_foreign_obstacle(self):
+        m = cr.CellModel(self._template_with_lane())
+        self.assertEqual(len(m.standin_fcu), 1)
+        # foreign role sees it; its own role does not
+        hi_boxes = m.foreign_pad_boxes(m.base_pose, "/SENSEP{n}_HI")
+        lo_boxes = m.foreign_pad_boxes(m.base_pose, "/SENSEP{n}_LO")
+        self.assertEqual(len(lo_boxes), len(hi_boxes) + 1)
+
+    def test_standin_clash_gate_fires(self):
+        m = cr.CellModel(self._template_with_lane())
+        pose = dict(m.base_pose)
+        pose["CB"] = (-2.9, -6.0, 0.0)            # park the +3V3 bypass ON the 12V lane
+        try:
+            routes = cr.synth_routes(m, pose)
+        except cr.Refusal:
+            return                                 # equally-hard stop (its own escape clips)
+        fails = cr.gates(m, pose, routes)
+        self.assertTrue(any(f.startswith("standin_clash:CB") for f in fails), fails)
+
+    def test_own_role_pads_exempt(self):
+        # the anchor's own pad-1 sits at the lane's end -- same net, no clash
+        m = cr.CellModel(self._template_with_lane())
+        routes = cr.synth_routes(m, m.base_pose)
+        fails = [f for f in cr.gates(m, m.base_pose, routes) if f.startswith("standin_clash:RS.1")]
+        self.assertEqual(fails, [])
+
+
+class TestMitre(unittest.TestCase):
+    """45-degree corner chamfer on ACCEPTED routes (owner: 'only routing 90s')."""
+
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+        self.routes = cr.synth_routes(self.model, self.model.base_pose)
+
+    def test_mitre_produces_diagonals_and_shortens(self):
+        before = sum(cr._seg_len(s) for ss in self.routes.values() for s in ss)
+        m = cr.mitre_routes(self.model, self.model.base_pose, self.routes)
+        after = sum(cr._seg_len(s) for ss in m.values() for s in ss)
+        diag = [s for ss in m.values() for s in ss
+                if abs(s[2] - s[0]) > 1e-6 and abs(s[3] - s[1]) > 1e-6]
+        self.assertTrue(diag, "no 45-degree segment produced")
+        self.assertLess(after, before)             # chamfers only ever cut corners
+        self.assertEqual(cr.gates(self.model, self.model.base_pose, m), [])
+
+    def test_mitre_deterministic(self):
+        a = cr.mitre_routes(self.model, self.model.base_pose, self.routes)
+        b = cr.mitre_routes(self.model, self.model.base_pose, self.routes)
+        self.assertEqual(a, b)
+
+
+class TestBudget(unittest.TestCase):
+    def setUp(self):
+        self.model = cr.CellModel(lane_template(), pitch_axis="y")
+
+    def test_budget_deterministic_and_bounded(self):
+        a = cr.refine(self.model, seed=1, iters=150, budget_evals=1200)
+        b = cr.refine(self.model, seed=1, iters=150, budget_evals=1200)
+        self.assertEqual(a["best"]["pose"], b["best"]["pose"])
+        self.assertEqual(a["n_evals"], b["n_evals"])
+        # budget is a cap up to one in-flight start/iteration of overshoot
+        self.assertLess(a["n_evals"], 1200 + 2 * 150 + 4)
+
+    def test_budget_never_regresses(self):
+        r = cr.refine(self.model, seed=0, iters=150, budget_evals=900)
+        self.assertIsNotNone(r["best"])
+        self.assertLessEqual(tuple(r["best"]["score"]), tuple(r["baseline"]["score"]))
+
+
 class TestFinder(unittest.TestCase):
     def _nl(self):
         comps, nets = {}, {}

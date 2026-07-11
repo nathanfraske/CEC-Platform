@@ -562,7 +562,7 @@ class H(BaseHTTPRequestHandler):
 PAGE = r"""<!doctype html><html><head><meta charset="utf-8"><title>CEC board browser</title><style>
 *{box-sizing:border-box}
 body{background:#101418;color:#cfd8dc;font:13px/1.45 ui-monospace,Menlo,monospace;margin:0;height:100vh;overflow:hidden}
-#app{display:grid;grid-template-columns:340px 1fr;height:100vh}
+#app{display:grid;grid-template-columns:340px minmax(0,1fr);height:100vh}
 #side{border-right:1px solid #263238;display:flex;flex-direction:column;min-height:0}
 #sidehdr{padding:10px 12px;border-bottom:1px solid #263238;flex:none}
 #sidehdr h1{font-size:14px;color:#80cbc4;margin:0;letter-spacing:1px}
@@ -573,7 +573,7 @@ body{background:#101418;color:#cfd8dc;font:13px/1.45 ui-monospace,Menlo,monospac
 .row.sel{background:#17242b;border-left:3px solid #80cbc4;padding-left:9px}
 .row .nm{color:#e0f2f1;font-size:12.5px}
 .row .tsx{color:#607d8b;font-size:11px}
-.main{display:flex;flex-direction:column;min-height:0}
+.main{display:flex;flex-direction:column;min-height:0;min-width:0}
 #bar{padding:8px 12px;border-bottom:1px solid #263238;flex:none;display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 #bar .title{color:#e0f2f1;font-size:13px;margin-right:8px}
 .pill{background:#263238;border-radius:10px;padding:2px 10px;font-size:11px;white-space:nowrap}

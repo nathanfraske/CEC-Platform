@@ -66,6 +66,28 @@ def _to_global(lx, ly, ax, ay, a_rot):
     return (ax + dx, ay + dy)
 
 
+def _clip_seg(x1, y1, x2, y2, win):
+    """Liang-Barsky segment clip to the (x0, x1, y0, y1) window; None if fully out."""
+    wx0, wx1, wy0, wy1 = win
+    dx, dy = x2 - x1, y2 - y1
+    t0, t1 = 0.0, 1.0
+    for p, q in ((-dx, x1 - wx0), (dx, wx1 - x1), (-dy, y1 - wy0), (dy, wy1 - y1)):
+        if abs(p) < 1e-12:
+            if q < 0:
+                return None
+            continue
+        r = q / p
+        if p < 0:
+            if r > t1:
+                return None
+            t0 = max(t0, r)
+        else:
+            if r < t0:
+                return None
+            t1 = min(t1, r)
+    return ((x1 + t0 * dx, y1 + t0 * dy), (x1 + t1 * dx, y1 + t1 * dy))
+
+
 def _norm_deg(a):
     a = a % 360.0
     return a + 360.0 if a < 0 else a
@@ -138,6 +160,13 @@ def extract(board_path, refs, *, anchor_ref, index=None):
         "internal_tracks": [{net_role, layer, start_rel_mm, end_rel_mm, width_mm}],
         "vias": [{net_role, at_rel_mm, drill_mm, dia_mm, layers}],
         "ports": {net_role: {"net": literal, "pads": [{ref, pad, rel_mm}]}},
+        "standins": [{net_role, kind: track|zone|via, layer(s), geometry}],
+                                                     # boundary-net FORCE copper in the
+                                                     # cell window (lane tracks / pours);
+                                                     # obstacles + emit context, never moved
+        "port_tracks": [{net_role, layer, start_rel_mm, end_rel_mm, width_mm}],
+                                                     # the cell's own THIN copper on port
+                                                     # nets (hand Kelvin taps, supply links)
         "internal_pads": {net_role: {"net": literal, "pads": [{ref, pad, rel_mm}]}},
         "net_roles": {net_role: literal_net_name},   # every net the cell touches
         "meta": {source_board, anchor_ref, anchor_pos_mm, anchor_rot_deg, refs},
@@ -236,6 +265,102 @@ def extract(board_path, refs, *, anchor_ref, index=None):
                 }
             )
 
+    # ---- boundary-net copper STAND-INS (owner ask 2026-07-10: "if it incorporates
+    # a pour, it should add standins for the pour so it can route it properly").
+    # The FORCE copper serving the cell's port nets -- pours (zones) on eps/pcie
+    # cells, the 2.5mm lane TRACKS on the 12vhpwr cells -- inside the cell window
+    # (parts bbox + margin), anchor-local. GND is skipped (plane-served on every
+    # CEC board; a clipped GND-plane AABB would just be the whole window). Zones
+    # are captured as the AABB of (zone bbox INTERSECT window) per copper layer --
+    # a documented v1 simplification, exact for the rectangular lane/pour shapes
+    # these boards actually carry.
+    STANDIN_TRACK_MIN_W = 0.5                       # mm; >= this = force copper, not signal
+    margin = 2.0
+    wxs, wys = [], []
+    for ref in refs:
+        bb = bi.fp(ref).GetBoundingBox()
+        wxs += [_mm(bb.GetLeft()), _mm(bb.GetRight())]
+        wys += [_mm(bb.GetTop()), _mm(bb.GetBottom())]
+    win = (min(wxs) - margin, max(wxs) + margin, min(wys) - margin, max(wys) + margin)
+
+    def _loc(gx, gy):
+        return _to_local(gx, gy, ax, ay, a_rot)
+
+    def _loc_box(x0, x1, y0, y1):
+        pts = [_loc(x0, y0), _loc(x1, y0), _loc(x1, y1), _loc(x0, y1)]
+        return [round(min(p[0] for p in pts), 6), round(max(p[0] for p in pts), 6),
+                round(min(p[1] for p in pts), 6), round(max(p[1] for p in pts), 6)]
+
+    standins = []
+    port_tracks = []                              # the cell's own thin copper on port nets
+    for t in board.GetTracks():
+        n = t.GetNetname()
+        if n not in boundary_nets or n == "GND":
+            continue
+        if t.Type() == pcbnew.PCB_VIA_T:
+            p = t.GetPosition()
+            gx, gy = _mm(p.x), _mm(p.y)
+            if not (win[0] <= gx <= win[1] and win[2] <= gy <= win[3]):
+                continue
+            lx, ly = _loc(gx, gy)
+            standins.append({"net_role": net_role(n), "kind": "via",
+                             "at_rel_mm": [round(lx, 6), round(ly, 6)],
+                             "dia_mm": round(_mm(t.GetWidth(t.TopLayer())), 6),
+                             "drill_mm": round(_mm(t.GetDrillValue()), 6),
+                             "layers": [board.GetLayerName(t.TopLayer()),
+                                        board.GetLayerName(t.BottomLayer())]})
+            continue
+        w = _mm(t.GetWidth())
+        s, e = t.GetStart(), t.GetEnd()
+        sx, sy, ex, ey = _mm(s.x), _mm(s.y), _mm(e.x), _mm(e.y)
+        # keep if the segment's bbox touches the window (clip left to the model)
+        if max(sx, ex) < win[0] or min(sx, ex) > win[1] or \
+           max(sy, ey) < win[2] or min(sy, ey) > win[3]:
+            continue
+        slx, sly = _loc(sx, sy)
+        elx, ely = _loc(ex, ey)
+        rec = {"net_role": net_role(n), "kind": "track",
+               "layer": board.GetLayerName(t.GetLayer()),
+               "start_rel_mm": [round(slx, 6), round(sly, 6)],
+               "end_rel_mm": [round(elx, 6), round(ely, 6)],
+               "width_mm": round(w, 6)}
+        if w >= STANDIN_TRACK_MIN_W:
+            standins.append(rec)                  # force copper: fixed context
+        else:
+            # the cell's own SIGNAL copper on a boundary net -- the hand Kelvin
+            # taps / supply links live here (a boundary net's thin tracks were
+            # previously captured NOWHERE, so the hand baseline under-reported
+            # its tap copper as 0 -- measured 2026-07-10). CLIPPED to the window
+            # (Liang-Barsky): a board trunk passing through must not inflate the
+            # cell's own extents/copper.
+            cl = _clip_seg(sx, sy, ex, ey, win)
+            if cl is None:
+                continue
+            (csx, csy), (cex, cey) = cl
+            slx, sly = _loc(csx, csy)
+            elx, ely = _loc(cex, cey)
+            rec.pop("kind")
+            rec["start_rel_mm"] = [round(slx, 6), round(sly, 6)]
+            rec["end_rel_mm"] = [round(elx, 6), round(ely, 6)]
+            port_tracks.append(rec)
+    for z in board.Zones():
+        n = z.GetNetname()
+        if n not in boundary_nets or n == "GND":
+            continue
+        bb = z.GetBoundingBox()
+        zx0, zx1 = _mm(bb.GetLeft()), _mm(bb.GetRight())
+        zy0, zy1 = _mm(bb.GetTop()), _mm(bb.GetBottom())
+        ix0, ix1 = max(zx0, win[0]), min(zx1, win[1])
+        iy0, iy1 = max(zy0, win[2]), min(zy1, win[3])
+        if ix0 >= ix1 or iy0 >= iy1:
+            continue
+        for lid in z.GetLayerSet().Seq():
+            lname = board.GetLayerName(lid)
+            if not (lname.endswith(".Cu") or lname.startswith(("In", "GND"))):
+                continue
+            standins.append({"net_role": net_role(n), "kind": "zone", "layer": lname,
+                             "box_rel_mm": _loc_box(ix0, ix1, iy0, iy1)})
+
     return {
         "anchor": {
             "ref": anchor_ref,
@@ -247,6 +372,8 @@ def extract(board_path, refs, *, anchor_ref, index=None):
         "internal_tracks": internal_tracks,
         "vias": vias,
         "ports": ports,
+        "standins": standins,
+        "port_tracks": port_tracks,
         # INTERNAL-net pad footprints (anchor-local, same frame as internal_tracks). A cell whose
         # source was never routed carries internal_tracks==[] but STILL records the internal pad
         # geometry here, so synthesize_ideal_internal() can compile the owner's "super-tight ideal"

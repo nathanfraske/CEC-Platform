@@ -214,6 +214,27 @@ class CellModel:
         self.base_pose = {r: (off[0], off[1], rot) for r, (fp, off, rot) in self.parts.items()}
         self._sized = {ref: local_pads_sized(fp) for ref, (fp, _o, _r) in self.parts.items()}
         self._cy = {}                            # (ref, rot%360) -> local courtyard bbox
+        # ---- boundary-copper STAND-INS (owner 2026-07-10): the pour/lane copper
+        # serving the port nets, fixed in the anchor frame. F.Cu ones are routing
+        # OBSTACLES for every other role and placement no-go for foreign pads; all
+        # of them are emitted onto the microboards so DRC judges the real context.
+        # (Single-face ruling: only F.Cu stand-ins constrain the router.)
+        self.standins = list(self.t.get("standins") or [])
+        self.standin_fcu = []                    # [(role, box)] routing/placement obstacles
+        for s in self.standins:
+            role = s["net_role"]
+            if s["kind"] == "track" and s.get("layer") == "F.Cu":
+                x1, y1 = s["start_rel_mm"]
+                x2, y2 = s["end_rel_mm"]
+                hw = s.get("width_mm", TRACK_W) / 2.0
+                self.standin_fcu.append((role, (min(x1, x2) - hw, max(x1, x2) + hw,
+                                                min(y1, y2) - hw, max(y1, y2) + hw)))
+            elif s["kind"] == "zone" and s.get("layer") == "F.Cu":
+                self.standin_fcu.append((role, tuple(s["box_rel_mm"])))
+            elif s["kind"] == "via" and "F.Cu" in (s.get("layers") or []):
+                x, y = s["at_rel_mm"]
+                r = s.get("dia_mm", 0.6) / 2.0
+                self.standin_fcu.append((role, (x - r, x + r, y - r, y + r)))
 
     # ---- pose-dependent geometry -----------------------------------------
     def pad_at(self, pose, ref, pad):
@@ -234,13 +255,15 @@ class CellModel:
         return (x0 + dx, x1 + dx, y0 + dy, y1 + dy)
 
     def foreign_pad_boxes(self, pose, role):
-        """AABBs of every pad NOT on `role` (the clearance obstacles for that net)."""
+        """AABBs of every pad NOT on `role`, plus every F.Cu stand-in NOT on `role`
+        (the clearance obstacles for that net)."""
         out = []
         for (ref, pad), r in self.pad_role.items():
             if r == role:
                 continue
             x, y, hw, hh = self.pad_at(pose, ref, pad)
             out.append((x - hw, x + hw, y - hh, y + hh))
+        out.extend(box for r, box in self.standin_fcu if r != role)
         return out
 
 
@@ -283,13 +306,19 @@ def synth_routes(model, pose):
         routes[role] = segs
         laid.extend((role, s) for s in segs)
 
-    # 1) anchor taps, canonical (798526e): exit PERPENDICULAR to the anchor's pad
-    #    ROW (the force/current axis), run, one 90. Exiting "toward the target"
-    #    along the row would plow through the shunt body -- measured wrong.
+    # 1) anchor taps -- an EXIT LADDER, hand-board-calibrated (the RS4 hand cell,
+    #    measured 2026-07-10): (a) canonical perpendicular exit off the pad row
+    #    (798526e) with the two L completions; (b) INNER-EDGE exit along the row
+    #    toward the shunt centre -- the hand board's own Kelvin idiom (§6.8 inner
+    #    pad edge; the between-pads region carries no copper, only body); each
+    #    exit falls back to the maze router when no plain L lays clear (the fixed
+    #    lane/pour stand-ins routinely kill both Ls -- that is real geometry, not
+    #    an edge case). First clean candidate wins (deterministic order).
     anc_pads = [model.pad_at(pose, r, p)
                 for role in model.tap_roles for r, p in model.role_pads[role] if r == model.anchor]
     row_x = (abs(anc_pads[0][0] - anc_pads[1][0]) >= abs(anc_pads[0][1] - anc_pads[1][1])) \
         if len(anc_pads) >= 2 else True
+    acx, acy, _ar = pose[model.anchor]
     for role in model.tap_roles:
         (r1, p1), (r2, p2) = model.role_pads[role]
         if r2 == model.anchor:
@@ -297,20 +326,43 @@ def synth_routes(model, pose):
         ax, ay, ahw, ahh = model.pad_at(pose, r1, p1)             # anchor pad
         tx, ty, _, _ = model.pad_at(pose, r2, p2)                 # target pad
         obstacles = model.foreign_pad_boxes(pose, role)
-        if row_x:                                                 # pads run along X -> exit along Y
-            exit_pt = (ax, ay + math.copysign(ahh + CLR_MM + TRACK_W, (ty - ay) or 1.0))
+        d = CLR_MM + TRACK_W
+        exits = []
+        if row_x:                                                 # pads run along X
+            exits.append((ax, ay + math.copysign(ahh + d, (ty - ay) or 1.0)))   # perp, toward
+            exits.append((ax + math.copysign(ahw + d, (acx - ax) or 1.0), ay))  # inner edge
+            exits.append((ax, ay - math.copysign(ahh + d, (ty - ay) or 1.0)))   # perp, away
         else:
-            exit_pt = (ax + math.copysign(ahw + CLR_MM + TRACK_W, (tx - ax) or 1.0), ay)
-        stub = (ax, ay, exit_pt[0], exit_pt[1])
+            exits.append((ax + math.copysign(ahw + d, (tx - ax) or 1.0), ay))
+            exits.append((ax, ay + math.copysign(ahh + d, (acy - ay) or 1.0)))
+            exits.append((ax - math.copysign(ahw + d, (tx - ax) or 1.0), ay))
         last = None
-        for l in _l_paths(exit_pt, (tx, ty)):
+        done = False
+        for exit_pt in exits:
+            stub = (ax, ay, exit_pt[0], exit_pt[1])
             try:
-                lay(role, _check([stub, *l], role, obstacles, laid))
-                break
+                _check([stub], role, obstacles, laid)
             except Refusal as e:
                 last = e
-        else:
-            raise Refusal(f"{role}: no canonical tap lays clear ({last})")
+                continue
+            for l in _l_paths(exit_pt, (tx, ty)):
+                try:
+                    lay(role, _check([stub, *l], role, obstacles, laid))
+                    done = True
+                    break
+                except Refusal as e:
+                    last = e
+            if not done:                                          # maze from this exit
+                try:
+                    segs = _route_hop(exit_pt, (tx, ty), role, obstacles, laid)
+                    lay(role, [stub] + segs)
+                    done = True
+                except Refusal as e:
+                    last = e
+            if done:
+                break
+        if not done:
+            raise Refusal(f"{role}: no tap lays clear ({last})")
 
     # 2) internal chains + supply links: escape-L (synthesize_ideal_internal's
     #    algorithm, re-run on the variant geometry) hardened with a Manhattan
@@ -321,7 +373,13 @@ def synth_routes(model, pose):
         if len(pads) < 2:
             continue
         obstacles = model.foreign_pad_boxes(pose, role)
-        nodes = [_escape(model, pose, ref, pad, role, obstacles, laid) for ref, pad in pads]
+        centers = [model.pad_at(pose, ref, pad)[:2] for ref, pad in pads]
+        nodes = []
+        for k, (ref, pad) in enumerate(pads):
+            others = [c for j, c in enumerate(centers) if j != k]
+            cen = (sum(c[0] for c in others) / len(others),
+                   sum(c[1] for c in others) / len(others)) if others else None
+            nodes.append(_escape(model, pose, ref, pad, role, obstacles, laid, toward=cen))
         order, rem = [0], list(range(1, len(nodes)))
         while rem:
             lx, ly = nodes[order[-1]][1]
@@ -340,20 +398,25 @@ def synth_routes(model, pose):
     return routes
 
 
-def _escape(model, pose, ref, pad, role, obstacles, laid, esc=1.2):
-    """Pick the pad's escape stub: outward from the part centre on the dominant
-    axis first, then the other three directions -- the first stub whose endpoint
-    and run clear all foreign copper wins. A blind dominant-axis escape can land
-    the point ON a neighbour's pad row (measured: the 0603's +x escape vs the
-    SOIC pad column), poisoning every hop into it."""
+def _escape(model, pose, ref, pad, role, obstacles, laid, esc=1.2, toward=None):
+    """Pick the pad's escape stub: candidate directions ordered TOWARD the
+    chain's other pads when `toward` is given (a wrong-side escape poisons the
+    hop into a long maze detour -- measured 2026-07-10: CF4.1 escaping DOWN
+    away from its y1.6-band chain), else outward from the part centre on the
+    dominant axis. First stub whose endpoint and run clear all foreign copper
+    wins."""
     px, py, _hw, _hh = model.pad_at(pose, ref, pad)
     cx, cy, _r = pose[ref]
     ddx, ddy = px - cx, py - cy
-    prim = [(math.copysign(esc, ddx or 1.0), 0.0), (0.0, math.copysign(esc, ddy or 1.0))]
+    cand = [(math.copysign(esc, ddx or 1.0), 0.0), (0.0, math.copysign(esc, ddy or 1.0))]
     if abs(ddx) < abs(ddy):
-        prim.reverse()
+        cand.reverse()
+    cand = cand + [(-cand[0][0], -cand[0][1]), (-cand[1][0], -cand[1][1])]
+    if toward is not None:
+        tx, ty = toward
+        cand.sort(key=lambda d: (px + d[0] - tx) ** 2 + (py + d[1] - ty) ** 2)
     last = None
-    for dx, dy in prim + [(-prim[0][0], -prim[0][1]), (-prim[1][0], -prim[1][1])]:
+    for dx, dy in cand:
         e = (px + dx, py + dy)
         try:
             _check([(px, py, e[0], e[1])], role, obstacles, laid)
@@ -363,7 +426,11 @@ def _escape(model, pose, ref, pad, role, obstacles, laid, esc=1.2):
     raise Refusal(f"{role}: pad {ref}.{pad} has no clear escape ({last})")
 
 
-GRID = 0.2                                       # hop-router raster (conservative vs the 0.325 keepaway)
+GRID = 0.1                                       # hop-router raster. 0.2 was too coarse: with the
+                                                 # 0.45 clearance inflation it could not represent
+                                                 # hand-tight ~0.33mm channel pitch, forcing wild
+                                                 # detours around laid taps (measured 2026-07-10:
+                                                 # IN chain 58.7mm vs the hand cell's 6.7mm)
 
 
 def _route_hop(a, b, role, obstacles, laid):
@@ -380,16 +447,31 @@ def _route_hop(a, b, role, obstacles, laid):
         except Refusal as e:
             last = e
     # ---- raster BFS fallback ------------------------------------------------
+    # domain = hop bbox + margin FIRST (the full obstacle field spans the fixed
+    # lane stand-ins, ~10x the cells for paths that never go there; measured
+    # 2026-07-10: suite 11s -> 163s at GRID 0.1 full-domain); full domain only
+    # as the retry when the tight domain has no path.
     (ax, ay), (bx, by) = a, b
-    xs = [ax, bx]
-    ys = [ay, by]
-    for (x0, x1, y0, y1) in obstacles:
-        xs += [x0, x1]
-        ys += [y0, y1]
-    for _r, s in laid:
-        xs += [s[0], s[2]]
-        ys += [s[1], s[3]]
-    m = 3.0
+    for m, clip in ((4.0, True), (3.0, False)):
+        xs = [ax, bx]
+        ys = [ay, by]
+        if not clip:
+            for (x0, x1, y0, y1) in obstacles:
+                xs += [x0, x1]
+                ys += [y0, y1]
+            for _r, s in laid:
+                xs += [s[0], s[2]]
+                ys += [s[1], s[3]]
+        segs = _maze_domain(a, b, role, obstacles, laid, xs, ys, m)
+        if segs is not None:
+            return segs
+    raise Refusal(f"{role}: hop {a}->{b} has no clear path (maze exhausted; {last})")
+
+
+def _maze_domain(a, b, role, obstacles, laid, xs, ys, m):
+    """One BFS attempt on the raster spanning xs/ys + margin m; None if no path
+    (caller escalates to a wider domain)."""
+    (ax, ay), (bx, by) = a, b
     gx0, gy0 = min(xs) - m, min(ys) - m
     nx = min(500, int((max(xs) + m - gx0) / GRID) + 1)
     ny = min(500, int((max(ys) + m - gy0) / GRID) + 1)
@@ -452,7 +534,7 @@ def _route_hop(a, b, role, obstacles, laid):
                 prev[(jj, ii)] = (j, i)
                 dq.append((jj, ii))
     if not found:
-        raise Refusal(f"{role}: hop {a}->{b} has no clear path (maze exhausted; {last})")
+        return None                               # caller widens the domain / refuses
     path = [(tj, ti)]
     while path[-1] != (sj, si):
         path.append(prev[path[-1]])
@@ -470,7 +552,10 @@ def _route_hop(a, b, role, obstacles, laid):
                 break
         segs.append((pts[k][0], pts[k][1], pts[k2][0], pts[k2][1]))
         k = k2
-    return _check(segs, role, obstacles, laid)
+    try:
+        return _check(segs, role, obstacles, laid)
+    except Refusal:
+        return None                               # raster/geometry mismatch: widen or refuse
 
 
 # --------------------------------------------------------------------------
@@ -501,6 +586,17 @@ def gates(model, pose, routes):
         a, b = sorted(tap_lens.values())
         if b - a > TAP_SKEW_MAX:
             fails.append(f"tap_skew:{b - a:.2f}mm")
+    # stand-in encroachment: a FOREIGN-net pad planted on/next to the fixed
+    # pour/lane copper is infeasible on the real board (the search must not
+    # reclaim the force copper's real estate)
+    for (ref, pad), r in model.pad_role.items():
+        for srole, (bx0, bx1, by0, by1) in model.standin_fcu:
+            if srole == r:
+                continue
+            x, y, hw, hh = model.pad_at(pose, ref, pad)
+            if not (x + hw + CLR_MM <= bx0 or x - hw - CLR_MM >= bx1 or
+                    y + hh + CLR_MM <= by0 or y - hh - CLR_MM >= by1):
+                fails.append(f"standin_clash:{ref}.{pad}:{srole}")
     # decoupler adjacency: each supply-link pair must stay tight (bypass loop)
     for role in model.link_roles:
         (r1, p1), (r2, p2) = model.role_pads[role]
@@ -525,13 +621,30 @@ def extents(model, pose, routes):
     return (max(xs) - min(xs), max(ys) - min(ys))
 
 
+def parts_extents(model, pose):
+    """The parts-courtyard envelope alone -- the cell's physical footprint claim."""
+    xs, ys = [], []
+    for r in model.parts:
+        x0, x1, y0, y1 = model.courtyard(pose, r)
+        xs += [x0, x1]
+        ys += [y0, y1]
+    return (max(xs) - min(xs), max(ys) - min(ys))
+
+
 def score(model, pose, routes):
-    """Lexicographic: pitch-axis extent, off-axis extent, copper length + tap skew.
-    Smaller is better on every term."""
-    w, h = extents(model, pose, routes)
+    """Lexicographic, smaller better: pitch-axis PARTS extent, off-axis PARTS
+    extent, then scored copper + tap skew. Extents are parts-only (a window-
+    clipped board trunk must not swing the comparison -- measured 2026-07-10);
+    scored copper = TAP + INTERNAL roles only: the link role's copper is
+    delivery-dependent board context (the hand cell's +3V3 arrives on a trunk
+    shared by six lanes), so it is gated for adjacency (decoupler_far) but never
+    scored. Tap length caps + skew keep long-tap escapes from gaming the
+    parts-only extents."""
+    w, h = parts_extents(model, pose)
     pitch = h if model.pitch_axis == "y" else w
     other = w if model.pitch_axis == "y" else h
-    total = sum(_seg_len(s) for segs in routes.values() for s in segs)
+    scored_roles = list(model.tap_roles) + sorted(model.internal_roles)
+    total = sum(_seg_len(s) for r in scored_roles for s in routes.get(r, ()))
     taps = [sum(_seg_len(s) for s in routes.get(r, ())) for r in model.tap_roles]
     skew = (max(taps) - min(taps)) if len(taps) >= 2 else 0.0
     return (round(pitch, 3), round(other, 3), round(total + 4.0 * skew, 3))
@@ -567,11 +680,69 @@ def _soft_cost(model, pose):
 
 
 # --------------------------------------------------------------------------
+# 45-degree corner mitre (post-acceptance finishing; owner: "only routing 90s")
+# --------------------------------------------------------------------------
+def mitre_routes(model, pose, routes, *, d_max=0.8, d_min=0.2):
+    """Chamfer 90-degree corners of the ACCEPTED routes into 45s (hand-routing
+    idiom). The in-loop router stays Manhattan for speed; this pass runs once on
+    the result. Each chamfer is re-verified geometrically against the foreign
+    copper and every other segment -- a chamfer that will not lay clear keeps
+    its 90 (improve-never-force). Copper length only ever shrinks."""
+    out = {}
+    all_other = [(role, s) for role, segs in routes.items() for s in segs]
+    for role in sorted(routes):
+        segs = [list(s) for s in routes[role]]
+        obstacles = model.foreign_pad_boxes(pose, role)
+        changed = True
+        while changed:
+            changed = False
+            for i in range(len(segs) - 1):
+                a, b = segs[i], segs[i + 1]
+                # corner = a's end meets b's start, one horizontal + one vertical
+                if abs(a[2] - b[0]) > 1e-9 or abs(a[3] - b[1]) > 1e-9:
+                    continue
+                ah = abs(a[1] - a[3]) < 1e-9
+                bh = abs(b[1] - b[3]) < 1e-9
+                if ah == bh:
+                    continue
+                la = math.hypot(a[2] - a[0], a[3] - a[1])
+                lb = math.hypot(b[2] - b[0], b[3] - b[1])
+                d = min(d_max, 0.4 * la, 0.4 * lb)
+                if d < d_min:
+                    continue
+                ax = a[2] - d * math.copysign(1.0, a[2] - a[0]) if ah else a[2]
+                ay = a[3] if ah else a[3] - d * math.copysign(1.0, a[3] - a[1])
+                bx = b[0] + d * math.copysign(1.0, b[2] - b[0]) if bh else b[0]
+                by = b[1] if bh else b[1] + d * math.copysign(1.0, b[3] - b[1])
+                cham = (ax, ay, bx, by)
+                laid = [(r, s) for r, s in all_other if r != role]
+                try:
+                    _check([cham], role, obstacles, laid)
+                except Refusal:
+                    continue
+                a[2], a[3] = ax, ay
+                b[0], b[1] = bx, by
+                segs.insert(i + 1, list(cham))
+                changed = True
+                break
+        out[role] = [tuple(s) for s in segs]
+        all_other = [(r, s) for r, ss in {**routes, **out}.items() for s in ss]
+    return out
+
+
+# --------------------------------------------------------------------------
 # The refinement search
 # --------------------------------------------------------------------------
-def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0, verbose=False):
+def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0,
+           budget_evals=None, polish_frac=0.3, polish_grid=0.025, verbose=False):
     """Multi-start SA over part poses (anchor fixed). Deterministic for a given
-    (seed, starts, iters). Returns dict with baseline + best feasible variant."""
+    (seed, starts, iters[, budget_evals]). budget_evals (owner 2026-07-10: a
+    refined blueprint amortizes over N stamps -> spend much more) overrides
+    `starts`: scrambled starts keep launching until ~(1-polish_frac) of the
+    budget is spent, then a fine-grid POLISH stage (jitter/hug only, low
+    temperature, polish_grid snap) walks the best pose with the remainder.
+    Budget is counted in EVALS, not wall time, so runs stay deterministic and
+    reproducible. Returns dict with baseline + best feasible variant."""
     import random
     movable = [r for r in model.parts if r != model.anchor]
 
@@ -591,8 +762,16 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0, verbose
     if base_score is not None:
         best = (base_score, dict(model.base_pose), base_routes)
     n_evals = 0
+    explore_budget = None if budget_evals is None else int(budget_evals * (1.0 - polish_frac))
 
-    for st in range(starts):
+    st = -1
+    while True:
+        st += 1
+        if budget_evals is None:
+            if st >= starts:
+                break
+        elif n_evals >= explore_budget:
+            break
         rnd = random.Random((seed << 8) | st)
         pose = {r: model.base_pose[r] for r in model.parts}
         if st > 0:                                # scrambled starts explore; start 0 polishes baseline
@@ -658,6 +837,38 @@ def refine(model, *, seed=0, starts=6, iters=3000, grid=0.1, jitter=2.0, verbose
         if verbose:
             print(f"  start {st}: cost {cost:.2f} best {best[0] if best else None}", file=sys.stderr)
 
+    # ---- POLISH: fine-grid descent around the incumbent (budgeted runs only).
+    # Jitter/hug moves at polish_grid snap, cool temperature -- the coarse
+    # explorer finds the basin, this walks to its floor.
+    if budget_evals is not None and best is not None:
+        rnd = random.Random((seed << 8) | 0xF1)
+        pose = dict(best[1])
+        cost, _ = _soft_cost(model, pose)
+        n_evals += 1
+        T = 0.4
+        while n_evals < budget_evals:
+            r = rnd.choice(movable)
+            old = pose[r]
+            step = polish_grid * rnd.randrange(1, 5)
+            pose[r] = (round((old[0] + rnd.choice((-1, 1)) * step) / polish_grid) * polish_grid,
+                       round((old[1] + rnd.choice((-1, 1)) * step) / polish_grid) * polish_grid,
+                       old[2])
+            nc, routes = _soft_cost(model, pose)
+            n_evals += 1
+            if nc > cost and rnd.random() >= math.exp((cost - nc) / max(T, 1e-3)):
+                pose[r] = old
+            else:
+                cost = nc
+                if routes:
+                    g = gates(model, pose, routes)
+                    if not g:
+                        s = score(model, pose, routes)
+                        if best is None or s < best[0]:
+                            best = (s, dict(pose), routes)
+            T *= 0.9992
+        if verbose:
+            print(f"  polish: best {best[0]}", file=sys.stderr)
+
     return {
         "baseline": {"pose": model.base_pose, "score": base_score, "gates": base_gates,
                      "routes": base_routes},
@@ -683,6 +894,7 @@ def to_refined_template(model, pose, routes):
          "end_rel_mm": [round(s[2], 4), round(s[3], 4)], "width_mm": TRACK_W}
         for role, segs in routes.items() for s in segs
         if math.hypot(s[2] - s[0], s[3] - s[1]) > 1e-6]
+    t["port_tracks"] = []                        # synthesized tap/link copper supersedes
     t["vias"] = []
     for bucket in ("ports", "internal_pads"):
         for role, spec in (t.get(bucket) or {}).items():
@@ -828,7 +1040,8 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
             role = pad_role.get((ref, pad.GetNumber()))
             if role and template["net_roles"].get(role) in nets:
                 pad.SetNet(nets[template["net_roles"][role]])
-    for tr in template.get("internal_tracks", []):
+    for tr in (list(template.get("internal_tracks", [])) +
+               list(template.get("port_tracks", []))):
         t = pcbnew.PCB_TRACK(board)
         t.SetStart(pcbnew.VECTOR2I(int((ox + tr["start_rel_mm"][0]) * MM),
                                    int((oy + tr["start_rel_mm"][1]) * MM)))
@@ -840,6 +1053,47 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         if net in nets:
             t.SetNet(nets[net])
         board.Add(t)
+    # boundary-copper stand-ins: the fixed pour/lane context, as REAL copper so
+    # DRC judges taps landing on it and clearance to it (owner ask 2026-07-10)
+    zones_to_fill = []
+    for s in template.get("standins", []):
+        net = template["net_roles"].get(s["net_role"])
+        ni = nets.get(net)
+        if ni is None:
+            ni = pcbnew.NETINFO_ITEM(board, net or s["net_role"])
+            board.Add(ni)
+            nets[net] = ni
+        if s["kind"] == "track":
+            t = pcbnew.PCB_TRACK(board)
+            t.SetStart(pcbnew.VECTOR2I(int((ox + s["start_rel_mm"][0]) * MM),
+                                       int((oy + s["start_rel_mm"][1]) * MM)))
+            t.SetEnd(pcbnew.VECTOR2I(int((ox + s["end_rel_mm"][0]) * MM),
+                                     int((oy + s["end_rel_mm"][1]) * MM)))
+            t.SetWidth(int(s.get("width_mm", TRACK_W) * MM))
+            t.SetLayer(board.GetLayerID(s.get("layer", "F.Cu")))
+            t.SetNet(ni)
+            board.Add(t)
+        elif s["kind"] == "via":
+            v = pcbnew.PCB_VIA(board)
+            v.SetPosition(pcbnew.VECTOR2I(int((ox + s["at_rel_mm"][0]) * MM),
+                                          int((oy + s["at_rel_mm"][1]) * MM)))
+            v.SetDrill(int(s.get("drill_mm", 0.3) * MM))
+            v.SetWidth(int(s.get("dia_mm", 0.6) * MM))
+            v.SetNet(ni)
+            board.Add(v)
+        elif s["kind"] == "zone":
+            x0, x1, y0, y1 = s["box_rel_mm"]
+            z = pcbnew.ZONE(board)
+            z.SetLayer(board.GetLayerID(s.get("layer", "F.Cu")))
+            z.SetNet(ni)
+            pts = ((x0, y0), (x1, y0), (x1, y1), (x0, y1))
+            outline = z.Outline()
+            outline.NewOutline()
+            for px, py in pts:
+                outline.Append(int((ox + px) * MM), int((oy + py) * MM))
+            z.SetLocalClearance(int(CLR_MM * MM))
+            board.Add(z)
+            zones_to_fill.append(z)
     # outline: extents + margin
     xs, ys = [], []
     for ref, sp in allparts.items():
@@ -850,6 +1104,16 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
     for tr in template.get("internal_tracks", []):
         xs += [tr["start_rel_mm"][0], tr["end_rel_mm"][0]]
         ys += [tr["start_rel_mm"][1], tr["end_rel_mm"][1]]
+    for s in template.get("standins", []):
+        if s["kind"] == "track":
+            xs += [s["start_rel_mm"][0], s["end_rel_mm"][0]]
+            ys += [s["start_rel_mm"][1], s["end_rel_mm"][1]]
+        elif s["kind"] == "zone":
+            xs += [s["box_rel_mm"][0], s["box_rel_mm"][1]]
+            ys += [s["box_rel_mm"][2], s["box_rel_mm"][3]]
+        elif s["kind"] == "via":
+            xs.append(s["at_rel_mm"][0])
+            ys.append(s["at_rel_mm"][1])
     m = 2.0
     x0, x1, y0, y1 = min(xs) - m, max(xs) + m, min(ys) - m, max(ys) + m
     corners = [(x0, y0), (x1, y0), (x1, y1), (x0, y1)]
@@ -862,19 +1126,26 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         s.SetStart(pcbnew.VECTOR2I(int((ox + ax) * MM), int((oy + ay) * MM)))
         s.SetEnd(pcbnew.VECTOR2I(int((ox + bx) * MM), int((oy + by) * MM)))
         board.Add(s)
+    if zones_to_fill:                             # real ZONE_FILLER (kicad-cli cannot fill)
+        filler = pcbnew.ZONE_FILLER(board)
+        filler.Fill(board.Zones())
     pcbnew.SaveBoard(out_pcb, board)
     return out_pcb
 
 
 def hand_baseline(model):
     """The honest 'before': score/metrics computed from the template's OWN extracted
-    copper (the owner's hand routing), not from a re-synthesis of the hand placement.
-    None when the template carries no copper (unrouted source cell)."""
-    tracks = model.t.get("internal_tracks") or []
+    copper (the owner's hand routing) -- internal_tracks PLUS port_tracks (the hand
+    Kelvin taps / supply links live on boundary nets; without them the hand tap
+    copper under-reported as 0 -- measured 2026-07-10). None when the template
+    carries no copper (unrouted source cell)."""
+    tracks = list(model.t.get("internal_tracks") or []) + list(model.t.get("port_tracks") or [])
     if not tracks:
         return None, None
     routes = defaultdict(list)
     for tr in tracks:
+        if tr["net_role"] not in model.route_roles:
+            continue                              # compare exactly what the model routes
         routes[tr["net_role"]].append((tr["start_rel_mm"][0], tr["start_rel_mm"][1],
                                        tr["end_rel_mm"][0], tr["end_rel_mm"][1]))
     routes = dict(routes)
@@ -908,6 +1179,15 @@ def main(argv=None):
     r.add_argument("--seed", type=int, default=0)
     r.add_argument("--starts", type=int, default=6)
     r.add_argument("--iters", type=int, default=3000)
+    r.add_argument("--evals", type=int, default=None,
+                   help="TOTAL eval budget (deterministic; overrides --starts, adds the "
+                        "fine-grid polish stage). Blueprint-grade default: 150000 -- a "
+                        "refined cell amortizes over every stamp, spend accordingly "
+                        "(owner 2026-07-10)")
+    r.add_argument("--no-mitre", action="store_true",
+                   help="skip the 45-degree corner chamfer pass on accepted routes")
+    r.add_argument("--render", action="store_true",
+                   help="also kicad-cli render both microboards (container)")
     r.add_argument("--out", default=None)
     r.add_argument("--profile", action="store_true", help="cProfile the search leg")
     args = ap.parse_args(argv)
@@ -944,7 +1224,8 @@ def main(argv=None):
     t0 = time.perf_counter()
     if prof:
         prof.enable()
-    result = refine(model, seed=args.seed, starts=args.starts, iters=args.iters, verbose=True)
+    result = refine(model, seed=args.seed, starts=args.starts, iters=args.iters,
+                    budget_evals=args.evals, verbose=True)
     if prof:
         prof.disable()
     wall = time.perf_counter() - t0
@@ -953,6 +1234,7 @@ def main(argv=None):
     base_m = _metrics_of(model, model.base_pose, result["baseline"]["routes"] or {}) \
         if result["baseline"]["routes"] else {"note": "baseline re-synthesis refused"}
     out = {"board": args.board, "refs": refs, "anchor": args.anchor,
+           "standins": len(model.standins), "standins_fcu": len(model.standin_fcu),
            "hand_baseline_score": list(hand_score) if hand_score else None,
            "hand_baseline_metrics": hand_m,
            "resynth_baseline_score": result["baseline"]["score"],
@@ -965,6 +1247,13 @@ def main(argv=None):
         best_pose = result["best"]["pose"]
         best_routes = result["best"]["routes"]
         out["best_score"] = result["best"]["score"]
+        if not args.no_mitre:                     # 45 the corners; keep only if gates hold
+            mitred = mitre_routes(model, best_pose, best_routes)
+            if not gates(model, best_pose, mitred):
+                n90 = sum(len(s) for s in best_routes.values())
+                best_routes = mitred
+                out["mitre"] = {"segments_before": n90,
+                                "segments_after": sum(len(s) for s in mitred.values())}
         out["best_metrics"] = _metrics_of(model, best_pose, best_routes)
         refined = to_refined_template(model, best_pose, best_routes)
         with open(os.path.join(out_dir, "refined-template.json"), "w") as fh:
@@ -973,6 +1262,40 @@ def main(argv=None):
         emit_microboard(refined, os.path.join(out_dir, "refined.kicad_pcb"))
         out["microboards"] = [os.path.join(out_dir, "baseline.kicad_pcb"),
                               os.path.join(out_dir, "refined.kicad_pcb")]
+        if args.render:
+            import subprocess
+            for stem in ("baseline", "refined"):
+                subprocess.run(["kicad-cli", "pcb", "render", "-w", "1600", "--side", "top",
+                                "-o", os.path.join(out_dir, stem + "-top.png"),
+                                os.path.join(out_dir, stem + ".kicad_pcb")],
+                               check=False, capture_output=True)
+            # hand-in-context: the SOURCE board's own render, camera on the cell
+            # (pan unit measured 2026-07-10: ~10mm/unit, x sign inverted; zoom
+            # calibrated so the cell window fills ~80% of the frame height)
+            try:
+                import pcbnew
+                b = pcbnew.LoadBoard(args.board)
+                bb = b.GetBoardEdgesBoundingBox()
+                bcx = (bb.GetLeft() + bb.GetRight()) / 2e6
+                bcy = (bb.GetTop() + bb.GetBottom()) / 2e6
+                bh = (bb.GetBottom() - bb.GetTop()) / 1e6
+                xs, ys = [], []
+                for fp in b.GetFootprints():
+                    if fp.GetReference() in set(refs):
+                        fbb = fp.GetBoundingBox()
+                        xs += [fbb.GetLeft() / 1e6, fbb.GetRight() / 1e6]
+                        ys += [fbb.GetTop() / 1e6, fbb.GetBottom() / 1e6]
+                cx, cy = (min(xs) + max(xs)) / 2.0, (min(ys) + max(ys)) / 2.0
+                span = max(max(xs) - min(xs), max(ys) - min(ys)) + 4.0
+                zoom = max(1.0, min(6.0, 0.8 * bh / span))
+                subprocess.run(["kicad-cli", "pcb", "render", "-w", "1200", "-h", "1600",
+                                "--side", "top", "--zoom", f"{zoom:.2f}",
+                                "--pan", f"{-(cx - bcx) / 10.0:.3f},{(cy - bcy) / 10.0:.3f},0",
+                                "-o", os.path.join(out_dir, "context-top.png"), args.board],
+                               check=False, capture_output=True)
+                out["context_render"] = os.path.join(out_dir, "context-top.png")
+            except Exception as e:                # noqa: BLE001 -- render is best-effort
+                out["context_render_error"] = str(e)
     with open(os.path.join(out_dir, "refine-report.json"), "w") as fh:
         json.dump(out, fh, indent=1)
     if prof:
