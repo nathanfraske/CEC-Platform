@@ -133,6 +133,12 @@ BOARD_PARAMS = {
                          "anchor_roles": {"J3": "power_in", "J4": "power_out"},
                          "straight_through": True,
                          "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
+    # OWNER LADDER RULING (2026-07-11, "start with the connectors placed only ...
+    # then the sensing frontend ... ladder up the importance list"): the fresh
+    # 12vhpwr build stamps the six refined sensing cells as RIGID blueprint
+    # blocks (internal copper laid + LOCKED at materialize; ideal_internal False
+    # keeps the B7 refined routing -- textbook taps + GND vias + mitre).
+    # blueprint_cells is injected below (needs the lane loop).
     "atx-24pin-rev3": {"mount_holes": "none", "corner_radius": 2.5,
                        "connector_overhang": "edge",
                        # wireless unpopulated: NO antenna keepout (owner 2026-07-08); the module's
@@ -149,6 +155,18 @@ BOARD_PARAMS = {
                        # effort (16/20) blows the 600s budget. 8/10 completes in ~2-4 min.
                        "wave_passes": 8, "wave_opt": 10, "wave_fr_timeout": 1200},
 }
+
+# The six refined sensing cells (owner ladder ruling 2026-07-11): rigid blueprint
+# stamps anchored on the placer's own lane seats (RS{n}), inheriting each seat's
+# rotation; cable_index drives the per-lane net map; ideal_internal False keeps
+# the B7 refined copper verbatim.
+_SENSE_LANE_BP = "modules/12vhpwr-standard/blueprints/sense-lane-rs4-b7.json"
+BOARD_PARAMS["12vhpwr-standard"]["blueprint_cells"] = [
+    {"template": _SENSE_LANE_BP, "anchor_ref": f"RS{n}", "cable_index": n,
+     "ideal_internal": False,
+     "ref_map": {"RS4": f"RS{n}", "RFH4": f"RFH{n}", "RFL4": f"RFL{n}",
+                 "CF4": f"CF{n}", "U13": f"U{9 + n}", "C13": f"C{9 + n}"}}
+    for n in range(1, 7)]
 
 
 def _intents():

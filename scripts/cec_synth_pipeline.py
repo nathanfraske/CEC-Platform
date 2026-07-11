@@ -4551,20 +4551,29 @@ def synth_one(cfg_dict, W, H, strat, seed, partition=None, *, enforce_locks=True
             if net_map is None and cell.get("cable_index") is not None:
                 net_map = cec_cell_extract.net_map_for_index(template, int(cell["cable_index"]))
             # anchor position: explicit xy, else the current anchors[] slot of a named ref.
+            _seat_rot = 0.0
             if cell.get("anchor_at") is not None:
                 at_mm = tuple(cell["anchor_at"])
             elif cell.get("anchor_ref") and cell["anchor_ref"] in anchors:
                 _ap = anchors[cell["anchor_ref"]]
                 at_mm = (_ap[0], _ap[1])
-            else:
+                if len(_ap) > 2:                  # inherit the SEAT's rotation: the cell
+                    _seat_rot = float(_ap[2])     # frame is anchor-local (owner ladder,
+            else:                                 # fresh-board lanes seat rotated)
                 print(f"  [p4b] cell skipped: no anchor_at/anchor_ref resolvable ({cell.get('template')!r})",
                       file=sys.stderr)
                 continue
-            rot = float(cell.get("rot", 0.0))
+            rot = float(cell.get("rot", _seat_rot))
             placement, _copper = cec_cell_extract.stamp(template, at_mm=at_mm, rot=rot,
                                                         ref_map=ref_map, net_map=net_map)
             for dref, (x, y, r, _fl) in placement.items():
                 if dref in comps:
+                    cur = anchors.get(dref)
+                    if cur is not None and abs(cur[0] - x) < 1e-4 and abs(cur[1] - y) < 1e-4 \
+                            and (len(cur) < 3 or min((cur[2] - r) % 360.0,
+                                                     360.0 - (cur[2] - r) % 360.0) < 1e-3):
+                        _bp_refs.add(dref)         # identical seat (stamp round(,6) jitter):
+                        continue                   # not a move -- the lock checker is right
                     anchors[dref] = (x, y, r)      # FIXED: pinned in relative_place (P=dict(anchors))
                     _bp_refs.add(dref)
             _blueprint_stamps.append({"template": template, "at_mm": list(at_mm), "rot": rot,
