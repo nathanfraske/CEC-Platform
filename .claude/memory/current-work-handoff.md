@@ -1,5 +1,20 @@
 # Current work handoff
 
+## (G20g) OWNER-QUESTION ROUND: envelope + via-in-pad + SI answers — 2026-07-11 ~04:00
+Committed f893d6d (40 tests): (1) VIA-IN-PAD guard is NET-BLIND (all pads incl. same-net;
+owner suspected it, and it immediately caught B6's via on U13.7 -- relocated on
+re-finalize, score improved to 47.725, still copper-clean, GND connected); first ring
+standoff 0.55->0.6 (float-tie). (2) HARD ENVELOPE: CellModel(envelope=)+gate+--envelope =
+the "fit inside a certain footprint" constraint; REDESIGN LADDER documented: stamp ->
+renudge -> refine(destination template, envelope) -> human. (3) THERMAL loop FILED
+(owner-ordered, later): stamp lanes -> cec_thermal2d on the real board -> inflate
+stand-ins -> re-refine (refiner never resizes force copper itself). (4) SI ANSWER:
+taps length-matched (B6 skew 0.10mm, 4x score weight); impedance control deliberately
+absent (10R series dominates at DC-17kHz); GAP = coupled-pair adjacency for loop area
+-> FOLLOWUPS (route HI/LO as one pair object post-exit, USB-diff-pair discipline).
+B6 panel REFRESHED on dash. NEXT: owner verdict -> stamp lanes 1-6 (renudge per
+instance) -> thermal measurement pass.
+
 ## (G20f) SENSE DISCIPLINE + GROUNDING-COMPLETE — 2026-07-11 ~02:35 (B6 = the blueprint)
 Owner B4/B5 reviews closed: (1) SENSE DISCIPLINE (route_obstacles): a tap may not touch
 its OWN force copper or anchor pad after the exit stub (B4's LO tap doubled back through
