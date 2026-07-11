@@ -1,5 +1,28 @@
 # Current work handoff
 
+## (G20) CELL-REFINE IMPROVEMENT PASS — 2026-07-10 ~20:40 (branch claude/pipeline-consolidation)
+Owner asks all LANDED + committed (3079ccc, pushed): (1) POUR/LANE STAND-INS — extractor
+captures boundary-net force copper (>=0.5mm tracks/zones/vias in cell window, anchor-local);
+model: F.Cu standins = routing obstacles + standin_clash placement gate; emit: real copper
+(zones ZONE_FILLER-filled) so microboard DRC is honest. (2) 45s ("router only pouring 90s"):
+in-loop router stays Manhattan-for-speed; mitre_routes chamfers accepted corners; tap router
+gained the HAND BOARD'S OWN inner-edge exit + maze fallback (real standins kill both plain
+Ls at the hand pose — first deep run failed 100% infeasible until this, killed+fixed).
+(3) BUDGET: refine(budget_evals) + fine polish stage (grid 0.025), deterministic by evals.
+(4) HONEST HAND BASELINE: new port_tracks bucket (window-clipped Liang-Barsky) — hand Kelvin
+taps were counted NOWHERE (read 0); real hand taps HI 12.64/LO 11.25 skew 1.39 (the module
+header's old '~6mm skew' note was this artifact). Score reworked: parts-extents +
+tap+internal copper only (link copper = board context, gated not scored). Maze GRID
+0.2->0.1 (hand-pitch channels) + domain-bounded (suite 163s->fast, 17/17).
+DASH: horizontal-pan-when-zoomed fixed (grid 1fr min-content -> minmax(0,1fr)), :8090
+relaunched. Stale Jul-9 FR JVMs reaped. KNOWN GAP (FOLLOWUPS 2026-07-10): in-loop chain
+router still ~2.9x hand copper at the same pose (role-order interference IN_N-before-IN_P +
+no diagonal search; A*/turn-cost + precision-route final polish = next levers). IN FLIGHT:
+deep RS4 run --evals 40000 --render (build/cell-refine-deep.log, REFINE_DEEP_DONE marker,
+out build/cell-refine/hpwr-RS4-deep) -> on completion: DRC both microboards, 3-way owner
+panel (context-top.png + baseline + refined), worklog + owner verdict. Prior-session crash
+was the CC session itself (NOT WSL — uptime/dashboard verified for owner).
+
 ## (G19) CELL-REFINE LOOP LANDED + FIRST OUTING — 2026-07-10 ~19:45 (branch claude/pipeline-consolidation)
 Prior session CRASHED mid-task (session death, NOT a WSL restart — uptime 1d22h, dashboard
 :8090 alive/serving; owner asked, verified). Picked up and FINISHED the owner-GO'd
