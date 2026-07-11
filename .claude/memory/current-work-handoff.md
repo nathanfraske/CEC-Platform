@@ -1,5 +1,24 @@
 # Current work handoff
 
+## (G20f) SENSE DISCIPLINE + GROUNDING-COMPLETE — 2026-07-11 ~02:35 (B6 = the blueprint)
+Owner B4/B5 reviews closed: (1) SENSE DISCIPLINE (route_obstacles): a tap may not touch
+its OWN force copper or anchor pad after the exit stub (B4's LO tap doubled back through
+the pad + via fan, all same-net so the router allowed it) -- enforced in synth+lint+mitre;
+the B4 pose REFUSES under it (its score was bought with forbidden geometry). (2) GND-VIA
+LADDER ring->SHARE->wide-reach (the INA240 had NO via; owner asked); (3) designer-order
+finalize_cell (taps -> vias-first-claim -> chains around barrels -> lint -> mitre) with
+bounded via/chain NEGOTIATION (drop nearest via, re-route, re-seat seeded -- C13's stub
+had walled off IN_N's corridor); (4) grounding-complete ACCEPTANCE in refine() (CLI
+default; --allow-missing-gnd-vias to relax): poses that can't ground every pad never win.
+B6 RESULT (15k evals, 7.4min, ALL rules): (5.4, 20.48, 49.338) vs hand (5.4, 24.53,
+49.836) -- beats hand on length (-16.5%) AND copper; 3 GND barrels, all pads grounded,
+GND OFF the microboard unconn list (first time); DRC copper-clean; LO tap pure textbook.
+Suite 38, everything committed+pushed. Panel cell-panel-hpwr-RS4-b6 on dash -- OWNER
+VERDICT = the gate to stamp-integration (derive-once-stamp-N lanes 1-6 w/ renudge).
+Reporting wart: '(fallback:chains-first)' sentinel rides gnd_via_missing -- move to its
+own key on the next touch. Session ran G19->G20f: crash pickup, stand-ins, textbook taps,
+graded refusal, compaction, lint/mitre, GND vias, renudge, negotiation -- all owner-driven.
+
 ## (G20e) B3-REVIEW PUNCH LIST + B4 — 2026-07-11 ~01:20
 Owner B3 review (4 items) ALL LANDED: (1) lint/mitre PROTECT textbook tap strokes
 (B3's finishing passes had eaten them -- regression teeth); (2) standin_clash =
