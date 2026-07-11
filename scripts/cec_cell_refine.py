@@ -224,20 +224,29 @@ class CellModel:
         # (Single-face ruling: only F.Cu stand-ins constrain the router.)
         self.standins = list(self.t.get("standins") or [])
         self.standin_fcu = []                    # [(role, box)] routing/placement obstacles
-        for s in self.standins:
+        self.standin_all = []                    # [(role, box)] EVERY copper layer -- a
+        for s in self.standins:                  # through-via barrel must clear all of it
             role = s["net_role"]
-            if s["kind"] == "track" and s.get("layer") == "F.Cu":
+            box = None
+            if s["kind"] == "track":
                 x1, y1 = s["start_rel_mm"]
                 x2, y2 = s["end_rel_mm"]
                 hw = s.get("width_mm", TRACK_W) / 2.0
-                self.standin_fcu.append((role, (min(x1, x2) - hw, max(x1, x2) + hw,
-                                                min(y1, y2) - hw, max(y1, y2) + hw)))
-            elif s["kind"] == "zone" and s.get("layer") == "F.Cu":
-                self.standin_fcu.append((role, tuple(s["box_rel_mm"])))
-            elif s["kind"] == "via" and "F.Cu" in (s.get("layers") or []):
+                box = (min(x1, x2) - hw, max(x1, x2) + hw, min(y1, y2) - hw, max(y1, y2) + hw)
+                if s.get("layer") == "F.Cu":
+                    self.standin_fcu.append((role, box))
+            elif s["kind"] == "zone":
+                box = tuple(s["box_rel_mm"])
+                if s.get("layer") == "F.Cu":
+                    self.standin_fcu.append((role, box))
+            elif s["kind"] == "via":
                 x, y = s["at_rel_mm"]
                 r = s.get("dia_mm", 0.6) / 2.0
-                self.standin_fcu.append((role, (x - r, x + r, y - r, y + r)))
+                box = (x - r, x + r, y - r, y + r)
+                if "F.Cu" in (s.get("layers") or []):
+                    self.standin_fcu.append((role, box))
+            if box is not None:
+                self.standin_all.append((role, box))
 
     # ---- pose-dependent geometry -----------------------------------------
     def pad_at(self, pose, ref, pad):
@@ -757,9 +766,14 @@ def synth_gnd_vias(model, pose, routes):
                 vy = py + dy / n * (max(hw, hh) + r_via + standoff - 0.35)
                 vbox = (vx - r_via, vx + r_via, vy - r_via, vy + r_via)
                 stub = (px, py, vx, vy)
+                # the barrel pierces EVERY layer: clear F.Cu obstacles AND all
+                # stand-in copper on any layer (measured 2026-07-11: 3 GND vias
+                # landed on the B.Cu LO lane -- real DRC shorts on a model-clean
+                # board, second offense of single-layer thinking)
+                barrel_obs = obstacles + [b for r_, b in model.standin_all if r_ != "GND"]
                 clear = all(vbox[1] + CLR_MM <= b[0] or vbox[0] - CLR_MM >= b[1] or
                             vbox[3] + CLR_MM <= b[2] or vbox[2] - CLR_MM >= b[3]
-                            for b in obstacles)
+                            for b in barrel_obs)
                 clear = clear and all(
                     _seg_box_clear((v["at_rel_mm"][0], v["at_rel_mm"][1],
                                     v["at_rel_mm"][0], v["at_rel_mm"][1]), vbox,
@@ -1477,7 +1491,9 @@ def emit_microboard(template, out_pcb, *, origin=(50.0, 50.0)):
         z.SetNet(nets[gnd_net])
         outline = z.Outline()
         outline.NewOutline()
-        for px, py in ((x0, y0), (x1, y0), (x1, y1), (x0, y1)):
+        zi = 0.5                                  # inset: zone-to-edge clearance
+        for px, py in ((x0 + zi, y0 + zi), (x1 - zi, y0 + zi),
+                       (x1 - zi, y1 - zi), (x0 + zi, y1 - zi)):
             outline.Append(int((ox + px) * MM), int((oy + py) * MM))
         board.Add(z)
         zones_to_fill.append(z)

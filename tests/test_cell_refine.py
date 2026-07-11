@@ -294,6 +294,24 @@ class TestGndVias(unittest.TestCase):
         b = cr.synth_gnd_vias(self.model, self.model.base_pose, self.routes)
         self.assertEqual(a[0], b[0])
 
+    def test_via_barrel_clears_all_layers(self):
+        # a B.Cu lane under the cell: through-via barrels must dodge it even
+        # though it constrains no F.Cu routing (the B4 shorts, 2026-07-11)
+        t = lane_template()
+        t["standins"] = [{"net_role": "/SENSEP{n}_LO", "kind": "track", "layer": "B.Cu",
+                          "start_rel_mm": [-5.0, -0.6], "end_rel_mm": [25.0, -0.6],
+                          "width_mm": 2.5}]
+        m = cr.CellModel(t)
+        routes = cr.synth_routes(m, m.base_pose)
+        vias, _stubs, _missing = cr.synth_gnd_vias(m, m.base_pose, routes)
+        lane = next(b for r, b in m.standin_all if r == "/SENSEP{n}_LO")
+        r_via = cr.GND_VIA_DIA / 2.0
+        for v in vias:
+            vx, vy = v["at_rel_mm"]
+            self.assertTrue(vx + r_via + cr.CLR_MM <= lane[0] or vx - r_via - cr.CLR_MM >= lane[1] or
+                            vy + r_via + cr.CLR_MM <= lane[2] or vy - r_via - cr.CLR_MM >= lane[3],
+                            f"via {v} barrel lands on the B.Cu lane")
+
 
 class TestRenudge(unittest.TestCase):
     """Stamp-time loop-back (owner: 'send it back to the blueprint factory')."""
