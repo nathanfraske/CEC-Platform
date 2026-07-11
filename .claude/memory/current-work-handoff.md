@@ -1,5 +1,22 @@
 # Current work handoff
 
+## (G20k) STAMP RUN 1 — 2026-07-11 ~14:00 (owner GO "stamp them in")
+scripts/cec_stamp_lanes.py COMMITTED: plan phase (original board only; per-lane context
+extract + blueprint check + renudge ladder) + apply split into 4 SINGLE-MUTATION
+subprocesses (copy/clear/place/fill) after measuring post-Remove UAF roulette on this
+SWIG build (GetTracks after ANY Remove = segfault-or-raw-proxies run-to-run; single
+sweep + batch Remove + save + exit survives; BuildConnectivity-after-Remove = poison;
+3 new footgun datapoints in FOLLOWUPS for the toolchain memory). RESULT (honest):
+**ALL 6 LANES ACCEPT THE BLUEPRINT VERBATIM at plan time** (incl. lane 6 divider-tap
+context) and all 6 PLACEMENTS landed on the copy (build/cell-refine/stamped/), but
+**cell copper GUARD-REFUSED 6/6** -- foreign signal traces cross the cell windows
+(refiner stand-ins only capture OWN-net force copper; the guard laid nothing rather
+than short = working as designed). 264 old cell tracks cleared. NAMED NEXT LEG
+(FOLLOWUPS): rip foreign crossers per window -> re-place (guard passes) -> FR residual
+reroute of broken nets w/ protect_nets locking cell copper (pass-form S2 machinery) ->
+DRC -> the owner's thermals-first measurement. Dash worklog entry posted. Owner gates
+still open: B7 panel verdict + copper trade.
+
 ## (G20j) PINOUT SANITY + SI/FEM ANSWERS — 2026-07-11 ~07:10
 Owner sanity round: (1) INA240 PINOUT VERIFIED from the live board netlist vs the
 recorded SBOS662C audit -- all 8 pins correct (1 IN-=/IN4_N, 2 GND, 3 REF2=GND, 4 NC=GND
